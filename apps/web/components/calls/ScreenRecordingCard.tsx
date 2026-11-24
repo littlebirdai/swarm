@@ -1,10 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, MicOff, MonitorPlay } from "lucide-react";
-import {
-  callAnchorHref,
-  type ParsedScreenRecording,
-} from "@codecast/shared/contracts";
+import { callAnchorHref } from "@codecast/calls/callLinks";
+import { type ParsedScreenRecording } from "@codecast/calls/screenRecording";
 import { formatCallTime } from "@codecast/calls/callRecordings";
 import { toVideoFile, useCallRecordings } from "../../hooks/useRoomRecording";
 import { useCallDetail } from "../../hooks/useSyncCalls";

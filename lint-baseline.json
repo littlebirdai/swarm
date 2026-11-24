@@ -28732,6 +28732,9 @@
   "packages/calls/src/callGuests.ts": {
     "swarm/no-comments": 124
   },
+  "packages/calls/src/callLinks.ts": {
+    "swarm/no-comments": 18
+  },
   "packages/calls/src/callPush.ts": {
     "swarm/no-comments": 13
   },
@@ -28741,8 +28744,14 @@
   "packages/calls/src/callRoomKeys.ts": {
     "swarm/no-comments": 85
   },
+  "packages/calls/src/huddleDigest.ts": {
+    "swarm/no-comments": 44
+  },
   "packages/calls/src/recordingAudio.ts": {
     "swarm/no-comments": 29
+  },
+  "packages/calls/src/screenRecording.ts": {
+    "swarm/no-comments": 28
   },
   "packages/calls/src/stagePins.ts": {
     "swarm/no-comments": 15
@@ -28753,11 +28762,17 @@
   "packages/calls/test/callGuests.test.ts": {
     "swarm/no-comments": 9
   },
+  "packages/calls/test/callLinks.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/calls/test/callRecordings.test.ts": {
     "swarm/no-comments": 35
   },
   "packages/calls/test/callRoomKeys.test.ts": {
     "swarm/no-comments": 2
+  },
+  "packages/calls/test/huddleDigest.test.ts": {
+    "swarm/no-comments": 6
   },
   "packages/calls/test/recordingAudio.test.ts": {
     "swarm/no-comments": 20
@@ -29599,12 +29614,6 @@
   "packages/shared/contracts/appSurfaces.ts": {
     "swarm/no-comments": 11
   },
-  "packages/shared/contracts/callLinks.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/callLinks.ts": {
-    "swarm/no-comments": 18
-  },
   "packages/shared/contracts/capabilityResolver.golden.test.ts": {
     "swarm/no-comments": 10
   },
@@ -29715,12 +29724,6 @@
   },
   "packages/shared/contracts/headOfPeoplePrompt.ts": {
     "swarm/no-comments": 16
-  },
-  "packages/shared/contracts/huddleDigest.test.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/contracts/huddleDigest.ts": {
-    "swarm/no-comments": 44
   },
   "packages/shared/contracts/idleDigest.test.ts": {
     "swarm/no-comments": 2
@@ -29979,9 +29982,6 @@
   },
   "packages/shared/contracts/sanitizeText.ts": {
     "swarm/no-comments": 13
-  },
-  "packages/shared/contracts/screenRecording.ts": {
-    "swarm/no-comments": 28
   },
   "packages/shared/contracts/secretRules.ts": {
     "swarm/no-comments": 24

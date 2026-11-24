@@ -16,7 +16,7 @@ import {
   callMomentHref,
   parseCallMomentParam,
   parseCallViewParam,
-} from "../contracts/callLinks";
+} from "@codecast/calls/callLinks";
 
 const FULL = "k57abcdefghijklmnopqrstuvwxyz012";
 

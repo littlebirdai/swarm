@@ -9,7 +9,7 @@ import {
   parseCallAnchor,
   parseCallViewParam,
   type CallAnchor,
-} from "./callLinks";
+} from "../src/callLinks";
 
 const parse = (href: string) =>
   parseCallAnchor(new URL(href, "https://x.test").searchParams);

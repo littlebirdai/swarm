@@ -2,7 +2,7 @@
 // action item. Every one is a CallAnchor, so the link it copies is the same
 // one the page lands on (callAnchorHref / parseCallAnchor).
 import { Link2 } from "lucide-react";
-import type { CallAnchor } from "@codecast/shared/contracts";
+import type { CallAnchor } from "@codecast/calls/callLinks";
 import { copyCallLink } from "../../lib/calls/callLinks";
 
 /** A hover-revealed link glyph. Its parent carries `group`; the click never

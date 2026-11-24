@@ -53,13 +53,13 @@ import {
 import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents";
 import {
   stripCompactionProvenance,
-  parseHuddleDigestContent,
   parseScheduledTask,
   sessionEscalationCaption,
   type ScheduledTaskFrame,
   type SessionEscalationMessage,
   type WaitingSession,
 } from "@codecast/shared/contracts";
+import { parseHuddleDigestContent } from "@codecast/calls/huddleDigest";
 import { RoleFace } from "../../org/RoleFace";
 import { CallTranscriptDisclosure } from "../../calls/TranscriptTurns";
 import { CallVideoStretchChip } from "../../calls/CallVideoStretchChip";

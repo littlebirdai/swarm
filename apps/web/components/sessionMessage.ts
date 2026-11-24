@@ -18,8 +18,8 @@
 // Greedy body is intentional: message text is exact user/agent content and may
 // itself mention `</session-message>`. The formatter's final close tag is the
 // framing boundary.
+import { parseHuddleSummaryTag } from "@codecast/calls/huddleDigest";
 import {
-  parseHuddleSummaryTag,
   stripInjectionNoise,
   stripPastedContent,
   isSessionMessage,
@@ -42,11 +42,13 @@ import {
   type SessionMessageIntent,
 } from "@codecast/shared/contracts";
 import { LRUCache } from "../lib/lruCache";
-export type { HuddleSummaryTag } from "@codecast/shared/contracts";
+export type { HuddleSummaryTag } from "@codecast/calls/huddleDigest";
 
 export {
   isHuddleSummaryTag,
   parseHuddleSummaryTag,
+} from "@codecast/calls/huddleDigest";
+export {
   stripInjectionNoise,
   stripPastedContent,
   isSessionMessage,

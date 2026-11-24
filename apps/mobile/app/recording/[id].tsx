@@ -40,7 +40,7 @@ import { isRecRoomKey } from "@codecast/calls/callRoomKeys";
 import {
   parseCallAnchor,
   parseCallMomentParam,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callLinks";
 import { segmentAt } from "@codecast/calls/callRecordings";
 import {
   buildEntityUrl,

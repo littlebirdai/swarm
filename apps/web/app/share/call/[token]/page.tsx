@@ -18,7 +18,7 @@ import {
   parseCallAnchor,
   parseCallMomentParam,
   type CallAnchor,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callLinks";
 import { lineSeekMs } from "@codecast/calls/callRecordings";
 import { TranscriptTurnList } from "../../../../components/calls/TranscriptTurns";
 import {

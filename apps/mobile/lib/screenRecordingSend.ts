@@ -6,7 +6,7 @@
 // a `cl-N` and a presigned PUT into the call-recordings bucket) and starts the
 // upload, so by the time the caption is typed the bytes are usually on their
 // way. The send itself is an ordinary message carrying the recording's tag
-// (shared/contracts/screenRecording); the agent's daemon waits for the words
+// (packages/calls/src/screenRecording); the agent's daemon waits for the words
 // and cuts the frames when it delivers.
 //
 // The upload is a module singleton keyed by the local file, like the photo
@@ -15,7 +15,7 @@
 import type { ConvexReactClient } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { formatScreenRecordingMessage } from "@codecast/shared/contracts";
+import { formatScreenRecordingMessage } from "@codecast/calls/screenRecording";
 import { optionalNative } from "@/lib/optionalNative";
 import { appAlert } from "@/lib/popups";
 

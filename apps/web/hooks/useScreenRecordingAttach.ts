@@ -3,13 +3,13 @@
 // over). The same path as the phone's (mobile lib/screenRecordingSend): the
 // attach opens the recording call on the server and starts the upload at
 // once, and the send is an ordinary message carrying the recording's tag
-// (shared/contracts/screenRecording) with the typed words.
+// (packages/calls/src/screenRecording) with the typed words.
 import { useCallback, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { toast } from "sonner";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { formatScreenRecordingMessage } from "@codecast/shared/contracts";
+import { formatScreenRecordingMessage } from "@codecast/calls/screenRecording";
 
 export type AttachedRecording = {
   file: File;

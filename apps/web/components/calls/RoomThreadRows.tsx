@@ -24,7 +24,7 @@ import {
   VideoOff,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { callShareHref } from "@codecast/shared/contracts";
+import { callShareHref } from "@codecast/calls/callLinks";
 import {
   describeClockSpans,
   recordingFailureWords,

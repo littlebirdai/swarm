@@ -21,7 +21,7 @@
 //             Transcript then titles and summarizes it like any recording.
 //
 // The message that carries it to the agent is an ordinary send whose text
-// holds the recording's tag (shared/contracts/screenRecording); the daemon
+// holds the recording's tag (packages/calls/src/screenRecording); the daemon
 // expands that tag into timed lines and keyframes when it delivers.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
