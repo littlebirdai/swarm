@@ -76,7 +76,7 @@ import {
   type WaitLabelOptions,
   type WaitTarget,
 } from "@codecast/shared/tasks";
-import { inlineForeignText } from "@codecast/shared/contracts";
+import { inlineForeignText } from "@codecast/fence/fence";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";
 import { normalizeRepository } from "@codecast/pull-requests/prRefs";
 

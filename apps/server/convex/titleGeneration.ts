@@ -3,7 +3,7 @@ import {
   escapeForeignControlChars,
   fenceForeignText,
   inlineForeignText,
-} from "@codecast/shared/contracts";
+} from "@codecast/fence/fence";
 import {
   internalMutation,
   internalAction,

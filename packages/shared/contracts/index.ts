@@ -67,7 +67,6 @@ export * from "./githubAppInstallState";
 export * from "./inboxProjection";
 export * from "./appSurfaces";
 export * from "./conversationFields";
-export * from "./fence";
 export * from "./triggerLifecycle";
 // Not re-exported here, imported by path: orgProposal (the fenced block
 // `cast org init` decisions carry). It sits off the CLI boot graph on purpose

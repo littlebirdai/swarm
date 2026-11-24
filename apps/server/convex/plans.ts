@@ -41,7 +41,7 @@ import {
   renderFencedPlanRecord,
   renderFencedPlanTasks,
 } from "@codecast/shared/tasks";
-import { inlineForeignText } from "@codecast/shared/contracts";
+import { inlineForeignText } from "@codecast/fence/fence";
 import {
   listLiveManagedSessions,
   liveConversationIdSet,

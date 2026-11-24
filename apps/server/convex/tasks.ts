@@ -33,9 +33,9 @@ import { outcomeOfDeclaration, subagentEnded } from "./subagentFleet";
 import {
   formatTaskCommentMessage,
   fromConvexAgentType,
-  inlineForeignText,
   toConvexAgentType,
 } from "@codecast/shared/contracts";
+import { inlineForeignText } from "@codecast/fence/fence";
 import {
   blockersHoldingBack,
   docRelatesToTask,

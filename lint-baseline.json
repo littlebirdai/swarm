@@ -29008,6 +29008,12 @@
   "packages/evals-api/test/evalsApi.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/fence/src/fence.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/fence/test/fence.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/files/src/index.ts": {
     "swarm/no-comments": 19
   },
@@ -29445,12 +29451,6 @@
   },
   "packages/shared/contracts/featureExplainers.ts": {
     "swarm/no-comments": 12
-  },
-  "packages/shared/contracts/fence.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/fence.ts": {
-    "swarm/no-comments": 8
   },
   "packages/shared/contracts/flowMap.ts": {
     "swarm/no-comments": 49

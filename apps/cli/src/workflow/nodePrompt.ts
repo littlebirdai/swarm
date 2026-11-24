@@ -4,7 +4,7 @@ import type { WorkflowGraph, WorkflowNode } from "./types";
 import { contextVar } from "./commandStation";
 import { applyUnattended } from "../unattended.js";
 import presenterBase from "./presenter.md" with { type: "text" };
-import { fenceForeignText } from "@codecast/shared/contracts";
+import { fenceForeignText } from "@codecast/fence/fence";
 
 // Expand $goal and context variables. Unfilled vars are removed (not left as $var).
 // `$scout.output` names a prior node's result (the runner stores every

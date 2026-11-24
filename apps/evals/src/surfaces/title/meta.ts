@@ -13,7 +13,7 @@ export const meta: SurfaceMeta = {
     "title",
     "apps/server/convex/titleGeneration.ts",
     "apps/server/convex/lib/anthropic.ts",
-    "packages/shared/contracts/fence.ts",
+    "packages/fence/src/fence.ts",
     "platform/packages/fence/src/index.ts",
     "packages/shared/contracts/machineMessages.ts",
     "apps/server/convex/idleSummary.ts",

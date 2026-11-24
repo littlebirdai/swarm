@@ -9,7 +9,7 @@ import {
   escapeForeignControlChars,
   fenceForeignText,
   inlineForeignText,
-} from "@codecast/shared/contracts";
+} from "@codecast/fence/fence";
 import { checkLabel } from "@codecast/pull-requests/prRefs";
 
 type PR = Doc<"pull_requests">;

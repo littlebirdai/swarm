@@ -5,7 +5,7 @@ import {
 } from "./machineMessages";
 import type { AreaChange } from "./orgAreas";
 import { orgReviewFocusOf } from "./orgReview";
-import { fenceForeignText } from "./fence";
+import { fenceForeignText } from "@codecast/fence/fence";
 import { roleFocusBlock } from "./rolePlaybook";
 
 // Appended to a trigger run's frame when its session is stashed: the agent

@@ -21,7 +21,7 @@ import {
 } from "../../../../../apps/cli/src/workflow/runner";
 import { parseWorkflowSource } from "../../../../../apps/cli/src/workflow/parser";
 import { BUILTIN_WORKFLOW_TEMPLATES } from "../../../../../apps/cli/src/workflow/templates";
-import { inlineForeignText } from "../../../../../packages/shared/contracts";
+import { inlineForeignText } from "@codecast/fence/fence";
 import {
   CHANGE_VERDICTS,
   validateChangeCard,
