@@ -4,7 +4,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { agentTabInitScript, agentTabInitSource } from "./engine.js";
 import { MUTATION_CLOCK_SOURCE } from "./snapshotSettle.js";
-import { AGENT_TAB_EVENT, AGENT_TAB_KEY, agentTabStampSource, recorderSource } from "./observe.js";
+import {
+  AGENT_TAB_EVENT,
+  AGENT_TAB_KEY,
+  agentTabStampSource,
+  recorderSource,
+} from "./observe.js";
 
 // The stamp tells a codecast page that an agent drives the tab, so the
 // desktop hand-off gate neither holds it nor hands it off
@@ -14,8 +19,12 @@ import { AGENT_TAB_EVENT, AGENT_TAB_KEY, agentTabStampSource, recorderSource } f
 describe("agent-tab stamp", () => {
   test("writes the gate's key and fires its event, and survives a page with no storage", () => {
     const src = agentTabStampSource();
-    expect(src).toContain(`sessionStorage.setItem(${JSON.stringify(AGENT_TAB_KEY)}, "1")`);
-    expect(src).toContain(`document.dispatchEvent(new Event(${JSON.stringify(AGENT_TAB_EVENT)}))`);
+    expect(src).toContain(
+      `sessionStorage.setItem(${JSON.stringify(AGENT_TAB_KEY)}, "1")`,
+    );
+    expect(src).toContain(
+      `document.dispatchEvent(new Event(${JSON.stringify(AGENT_TAB_EVENT)}))`,
+    );
     // Both writes are guarded: an opaque origin throws on sessionStorage.
     expect(src.match(/try \{/g)?.length).toBe(2);
   });

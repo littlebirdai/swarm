@@ -25,49 +25,59 @@ function context(tables: Record<string, any[]>) {
 describe("durable compatibility writers", () => {
   test("applyUndoPatches reuses the validated generic patch gates", async () => {
     const { db, ctx } = context({
-      conversations: [{
-        _id: CONVERSATION,
-        user_id: USER,
-        inbox_dismissed_at: 456,
-        inbox_stashed_at: null,
-        message_count: 5,
-      }],
-      client_state: [{
-        _id: "client_state_owner",
-        user_id: USER,
-        ui: { inbox_scope: "team" },
-      }],
+      conversations: [
+        {
+          _id: CONVERSATION,
+          user_id: USER,
+          inbox_dismissed_at: 456,
+          inbox_stashed_at: null,
+          message_count: 5,
+        },
+      ],
+      client_state: [
+        {
+          _id: "client_state_owner",
+          user_id: USER,
+          ui: { inbox_scope: "team" },
+        },
+      ],
     });
 
     await (dispatch as any)._handler(ctx, {
       action: "applyUndoPatches",
-      args: [{
-        conversations: {
-          [CONVERSATION]: {
-            inbox_dismissed_at: null,
-            inbox_stashed_at: 123,
+      args: [
+        {
+          conversations: {
+            [CONVERSATION]: {
+              inbox_dismissed_at: null,
+              inbox_stashed_at: 123,
+            },
+          },
+          client_state: {
+            _: { current_conversation_id: CONVERSATION },
           },
         },
-        client_state: {
-          _: { current_conversation_id: CONVERSATION },
-        },
-      }],
+      ],
     });
 
     expect(db._tables.conversations[0]).toMatchObject({
       inbox_dismissed_at: undefined,
       inbox_stashed_at: 123,
     });
-    expect(db._tables.client_state[0].current_conversation_id).toBe(CONVERSATION);
+    expect(db._tables.client_state[0].current_conversation_id).toBe(
+      CONVERSATION,
+    );
   });
 
   test("persistClientTips updates only the supplied cross-device subset", async () => {
     const { db, ctx } = context({
-      client_state: [{
-        _id: "client_state_owner",
-        user_id: USER,
-        tips: { level: "all", dismissed: ["old"] },
-      }],
+      client_state: [
+        {
+          _id: "client_state_owner",
+          user_id: USER,
+          tips: { level: "all", dismissed: ["old"] },
+        },
+      ],
     });
 
     await (dispatch as any)._handler(ctx, {
@@ -85,13 +95,15 @@ describe("durable compatibility writers", () => {
 
   test("restoreArchivedDoc clears only archived_at", async () => {
     const { db, ctx } = context({
-      docs: [{
-        _id: "docs_archived",
-        user_id: USER,
-        title: "Restore me",
-        archived_at: 999,
-        updated_at: 111,
-      }],
+      docs: [
+        {
+          _id: "docs_archived",
+          user_id: USER,
+          title: "Restore me",
+          archived_at: 999,
+          updated_at: 111,
+        },
+      ],
     });
 
     await (dispatch as any)._handler(ctx, {
@@ -105,17 +117,19 @@ describe("durable compatibility writers", () => {
 
   test("named client-state writers persist explicit intent without auto patches", async () => {
     const { db, ctx } = context({
-      client_state: [{
-        _id: "client_state_owner",
-        user_id: USER,
-        ui: {
-          inbox_scope: "mine",
-          "inbox_scope:ts": 100,
-          saved_views: [{ id: "old" }],
+      client_state: [
+        {
+          _id: "client_state_owner",
+          user_id: USER,
+          ui: {
+            inbox_scope: "mine",
+            "inbox_scope:ts": 100,
+            saved_views: [{ id: "old" }],
+          },
+          layouts: { dashboard: { sidebar: 25 } },
+          drafts: { conversation: { draft_message: "stale" } },
         },
-        layouts: { dashboard: { sidebar: 25 } },
-        drafts: { conversation: { draft_message: "stale" } },
-      }],
+      ],
     });
 
     await (dispatch as any)._handler(ctx, {

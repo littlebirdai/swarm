@@ -13,7 +13,10 @@
   font-size: var(--fs-meta);
   line-height: 1;
   flex-shrink: 0;
-  transition: border-color 130ms ease, color 130ms ease, background-color 130ms ease;
+  transition:
+    border-color 130ms ease,
+    color 130ms ease,
+    background-color 130ms ease;
 }
 
 .cc-chat-chip:hover,
@@ -92,7 +95,8 @@
   height: 40px;
   padding: 0 6px 0 14px;
   flex-shrink: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 32%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 32%, transparent);
 }
 
 .cc-chat-title {
@@ -112,7 +116,9 @@
   height: 26px;
   border-radius: 6px;
   color: var(--sol-text-dim);
-  transition: color 120ms ease, background-color 120ms ease;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
 }
 
 .cc-chat-tool:hover {

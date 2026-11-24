@@ -17,19 +17,33 @@ import { PresenceAvatar } from "../PresenceFacepile";
 // these rows, the conversation's pending status row; never copies it.
 
 function queueSig(status: any): string {
-  return heldQueueRowsOf(status).map((r) => `${r.message_id}:${r.queue_at ?? ""}:${r.content.length}`).join("|");
+  return heldQueueRowsOf(status)
+    .map((r) => `${r.message_id}:${r.queue_at ?? ""}:${r.content.length}`)
+    .join("|");
 }
 
-export const SharedQueue = memo(function SharedQueue({ conversationId, canSteerQueue }: { conversationId: string; canSteerQueue: boolean }) {
+export const SharedQueue = memo(function SharedQueue({
+  conversationId,
+  canSteerQueue,
+}: {
+  conversationId: string;
+  canSteerQueue: boolean;
+}) {
   // Wake only when the line itself changes, not on every status tick.
-  useInboxStore((s) => queueSig((s.pendingMessageStatus as any)[conversationId]));
+  useInboxStore((s) =>
+    queueSig((s.pendingMessageStatus as any)[conversationId]),
+  );
   const st = useInboxStore.getState();
-  const rows = heldQueueRowsOf((st.pendingMessageStatus as any)[conversationId]);
+  const rows = heldQueueRowsOf(
+    (st.pendingMessageStatus as any)[conversationId],
+  );
   if (rows.length === 0) return null;
   const me = st.currentUser?._id ? String(st.currentUser._id) : null;
 
-  const move = (row: QueueRow, beforeId: string | null) => st.reorderQueued(conversationId, row.message_id, beforeId);
-  const merge = (row: QueueRow, into: QueueRow) => st.mergeQueued(conversationId, row.message_id, into.message_id);
+  const move = (row: QueueRow, beforeId: string | null) =>
+    st.reorderQueued(conversationId, row.message_id, beforeId);
+  const merge = (row: QueueRow, into: QueueRow) =>
+    st.mergeQueued(conversationId, row.message_id, into.message_id);
   const release = () => st.releaseQueued(conversationId);
   // Interrupt and send: the row goes to the front, the line is released (a
   // stopped turn releases it on the server too, managedSessions), and Escape
@@ -46,9 +60,15 @@ export const SharedQueue = memo(function SharedQueue({ conversationId, canSteerQ
         <div className="flex items-center gap-2 px-3 pt-1.5 pb-1 text-mark uppercase tracking-wider text-sol-text-dim">
           <span>Up next</span>
           <span className="tabular-nums">{rows.length}</span>
-          <span className="normal-case tracking-normal">· goes in when this turn ends</span>
+          <span className="normal-case tracking-normal">
+            · goes in when this turn ends
+          </span>
           {canSteerQueue && (
-            <button type="button" onClick={release} className="ml-auto normal-case tracking-normal text-meta text-sol-cyan hover:underline">
+            <button
+              type="button"
+              onClick={release}
+              className="ml-auto normal-case tracking-normal text-meta text-sol-cyan hover:underline"
+            >
               Send now
             </button>
           )}
@@ -60,25 +80,81 @@ export const SharedQueue = memo(function SharedQueue({ conversationId, canSteerQ
             const prev = rows[i - 1];
             const next = rows[i + 1];
             return (
-              <li key={row.message_id} data-sv-queue-row={row.message_id} className="group flex items-center gap-2 px-3 py-1 text-xs border-t border-sol-border/20 first:border-t-0">
-                <span className="w-4 text-right tabular-nums text-sol-text-dim shrink-0">{i + 1}</span>
-                <PresenceAvatar person={{ user_id: row.from_user_id ?? row.message_id, user_name: row.from_name ?? "Someone", user_color: "var(--sol-blue)", user_image: row.from_image }} size={18} ring={false} title={who} />
-                <span className="shrink-0 font-medium text-sol-text">{who}</span>
-                <span className="truncate min-w-0 text-sol-text-muted" title={parts.map((p) => `${p.from}: ${p.body}`).join("\n\n")}>
+              <li
+                key={row.message_id}
+                data-sv-queue-row={row.message_id}
+                className="group flex items-center gap-2 px-3 py-1 text-xs border-t border-sol-border/20 first:border-t-0"
+              >
+                <span className="w-4 text-right tabular-nums text-sol-text-dim shrink-0">
+                  {i + 1}
+                </span>
+                <PresenceAvatar
+                  person={{
+                    user_id: row.from_user_id ?? row.message_id,
+                    user_name: row.from_name ?? "Someone",
+                    user_color: "var(--sol-blue)",
+                    user_image: row.from_image,
+                  }}
+                  size={18}
+                  ring={false}
+                  title={who}
+                />
+                <span className="shrink-0 font-medium text-sol-text">
+                  {who}
+                </span>
+                <span
+                  className="truncate min-w-0 text-sol-text-muted"
+                  title={parts.map((p) => `${p.from}: ${p.body}`).join("\n\n")}
+                >
                   {parts.map((p) => p.body).join("  ·  ")}
                 </span>
                 {canSteerQueue && (
                   <span className="ml-auto shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                    <QueueButton label="Interrupt the agent and send this next" disabled={false} onClick={() => interruptWith(row)}>
-                      <Zap className="w-3 h-3" /><span className="ml-1">Interrupt &amp; send</span>
+                    <QueueButton
+                      label="Interrupt the agent and send this next"
+                      disabled={false}
+                      onClick={() => interruptWith(row)}
+                    >
+                      <Zap className="w-3 h-3" />
+                      <span className="ml-1">Interrupt &amp; send</span>
                     </QueueButton>
-                    <QueueButton label="Move up" disabled={!prev} onClick={() => prev && move(row, prev.message_id)}><ArrowUp className="w-3 h-3" /></QueueButton>
-                    <QueueButton label="Move down" disabled={!next} onClick={() => next && move(row, rows[i + 2]?.message_id ?? null)}><ArrowDown className="w-3 h-3" /></QueueButton>
-                    <QueueButton label="Merge with the next one into one turn" disabled={!next} onClick={() => next && merge(next, row)}>
-                      <Combine className="w-3 h-3" /><span className="ml-1">Merge</span>
+                    <QueueButton
+                      label="Move up"
+                      disabled={!prev}
+                      onClick={() => prev && move(row, prev.message_id)}
+                    >
+                      <ArrowUp className="w-3 h-3" />
                     </QueueButton>
-                    {(row.from_user_id === me || st.conversations[conversationId]?.user_id === me) && (
-                      <QueueButton label="Take it out of the queue" disabled={false} onClick={() => st.cancelPendingMessage(conversationId, { messageId: row.message_id })}><X className="w-3 h-3" /></QueueButton>
+                    <QueueButton
+                      label="Move down"
+                      disabled={!next}
+                      onClick={() =>
+                        next && move(row, rows[i + 2]?.message_id ?? null)
+                      }
+                    >
+                      <ArrowDown className="w-3 h-3" />
+                    </QueueButton>
+                    <QueueButton
+                      label="Merge with the next one into one turn"
+                      disabled={!next}
+                      onClick={() => next && merge(next, row)}
+                    >
+                      <Combine className="w-3 h-3" />
+                      <span className="ml-1">Merge</span>
+                    </QueueButton>
+                    {(row.from_user_id === me ||
+                      st.conversations[conversationId]?.user_id === me) && (
+                      <QueueButton
+                        label="Take it out of the queue"
+                        disabled={false}
+                        onClick={() =>
+                          st.cancelPendingMessage(conversationId, {
+                            messageId: row.message_id,
+                          })
+                        }
+                      >
+                        <X className="w-3 h-3" />
+                      </QueueButton>
                     )}
                   </span>
                 )}
@@ -91,7 +167,17 @@ export const SharedQueue = memo(function SharedQueue({ conversationId, canSteerQ
   );
 });
 
-function QueueButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: React.ReactNode }) {
+function QueueButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"

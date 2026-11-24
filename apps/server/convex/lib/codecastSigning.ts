@@ -16,7 +16,8 @@ import {
 
 export const SIGNING_NOT_CONFIGURED = `Request signing not configured (${CODECAST_SIGNING_KEY_ENV})`;
 
-let cache: { raw: string; keys: CodecastJwk[] | null; error?: string } | null = null;
+let cache: { raw: string; keys: CodecastJwk[] | null; error?: string } | null =
+  null;
 
 /** The configured keys, null when the env var is unset, or why it does not parse. */
 export function signingKeys(): { keys: CodecastJwk[] | null; error?: string } {
@@ -36,7 +37,11 @@ export function publishedKeys(): CodecastJwks {
 }
 
 /** The signature headers for one connector request, or why it cannot be signed. */
-export async function signatureHeaders(req: SignInput): Promise<{ ok: true; headers: Record<string, string> } | { ok: false; error: string }> {
+export async function signatureHeaders(
+  req: SignInput,
+): Promise<
+  { ok: true; headers: Record<string, string> } | { ok: false; error: string }
+> {
   const { keys, error } = signingKeys();
   if (!keys) return { ok: false, error: error ?? SIGNING_NOT_CONFIGURED };
   return { ok: true, headers: await signCodecastRequest(req, keys[0]) };

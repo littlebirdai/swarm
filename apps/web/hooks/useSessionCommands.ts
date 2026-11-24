@@ -5,15 +5,31 @@ import { useInboxStore, useTrackedStore } from "../store/inboxStore";
 import { makeCollectionSig } from "../store/wakeSig";
 import { entityIdArgs, useSyncCollection } from "./useSyncCollection";
 import { useCoarseNow } from "./useCoarseNow";
-import { backendSwitchState, conversationCommandRows, interruptVerdict, latestBackendRow, latestInterruptRow, BACKEND_VERDICT_LINGER_MS, INTERRUPT_VERDICT_LINGER_MS, sessionCommandDeadline, type SessionCommandRow } from "../lib/sessionCommands";
+import {
+  backendSwitchState,
+  conversationCommandRows,
+  interruptVerdict,
+  latestBackendRow,
+  latestInterruptRow,
+  BACKEND_VERDICT_LINGER_MS,
+  INTERRUPT_VERDICT_LINGER_MS,
+  sessionCommandDeadline,
+  type SessionCommandRow,
+} from "../lib/sessionCommands";
 
 // A row still waiting on its daemon, keyed by a request id (a row keyed by its
 // command id came from forConversation and is already the server's). A line
 // edit's daemon answers twice: the write, then the republish it ran after (a
 // graph step's save the same: the write, then the push).
-const republishing = (row: any) => (row.kind === "line_edit" || row.kind === "line_graph_edit") && typeof row.result === "string" && row.result.includes('"ok":"pending"');
-const awaitingResult = (row: any) => (!row.executed_at || republishing(row)) && row._id !== row.command_id;
-const unsettledSig = makeCollectionSig((row: any) => (awaitingResult(row) ? row._id : ""));
+const republishing = (row: any) =>
+  (row.kind === "line_edit" || row.kind === "line_graph_edit") &&
+  typeof row.result === "string" &&
+  row.result.includes('"ok":"pending"');
+const awaitingResult = (row: any) =>
+  (!row.executed_at || republishing(row)) && row._id !== row.command_id;
+const unsettledSig = makeCollectionSig((row: any) =>
+  awaitingResult(row) ? row._id : "",
+);
 
 /**
  * Settles every request this window is waiting on, whichever surface asked:
@@ -22,21 +38,38 @@ const unsettledSig = makeCollectionSig((row: any) => (awaitingResult(row) ? row.
  */
 export function useSessionCommandResults(): { error?: Error } {
   const st = useTrackedStore([(s) => unsettledSig(s.sessionCommands)]);
-  const requestIds = Object.values(st.sessionCommands as Record<string, SessionCommandRow>)
+  const requestIds = Object.values(
+    st.sessionCommands as Record<string, SessionCommandRow>,
+  )
     .filter(awaitingResult)
-    .map((row) => row._id).sort().slice(0, 100).join(",");
-  const args = useMemo(() => (requestIds ? { request_ids: requestIds.split(",") } : "skip" as const), [requestIds]);
-  const { error } = useSyncCollection("sessionCommands", (api as any).sessionCommands.results, args);
+    .map((row) => row._id)
+    .sort()
+    .slice(0, 100)
+    .join(",");
+  const args = useMemo(
+    () =>
+      requestIds ? { request_ids: requestIds.split(",") } : ("skip" as const),
+    [requestIds],
+  );
+  const { error } = useSyncCollection(
+    "sessionCommands",
+    (api as any).sessionCommands.results,
+    args,
+  );
   return { error };
 }
 
-const rowSig = (row: any) => `${row._id}|${row.conversation_id}|${row.command}|${row.requested_at}|${row.executed_at}|${row.result}|${row.error}|${row.confirmed_at}`;
+const rowSig = (row: any) =>
+  `${row._id}|${row.conversation_id}|${row.command}|${row.requested_at}|${row.executed_at}|${row.result}|${row.error}|${row.confirmed_at}`;
 
 /**
  * One conversation's command rows, oldest first, fed with its restart/move
  * pipeline (the kill, a remote move's later resume) while `active`.
  */
-export function useConversationCommands(conversationId: string | undefined, active: boolean): SessionCommandRow[] {
+export function useConversationCommands(
+  conversationId: string | undefined,
+  active: boolean,
+): SessionCommandRow[] {
   useSyncCollection(
     "sessionCommands",
     (api as any).sessionCommands.forConversation,
@@ -52,7 +85,13 @@ export function useConversationCommands(conversationId: string | undefined, acti
     return out;
   });
   return useMemo(
-    () => (conversationId ? conversationCommandRows(useInboxStore.getState().sessionCommands, conversationId) : []),
+    () =>
+      conversationId
+        ? conversationCommandRows(
+            useInboxStore.getState().sessionCommands,
+            conversationId,
+          )
+        : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [conversationId, sig],
   );
@@ -63,8 +102,11 @@ export function useConversationCommands(conversationId: string | undefined, acti
  * interruptVerdict), with the row it judges. Ticks only while a stop is recent.
  */
 export function useInterruptVerdict(conversationId: string | undefined) {
-  const row = useInboxStore((s) => latestInterruptRow(s.sessionCommands, conversationId));
-  const recent = !!row && Date.now() - row.requested_at < INTERRUPT_VERDICT_LINGER_MS;
+  const row = useInboxStore((s) =>
+    latestInterruptRow(s.sessionCommands, conversationId),
+  );
+  const recent =
+    !!row && Date.now() - row.requested_at < INTERRUPT_VERDICT_LINGER_MS;
   const now = useCoarseNow(recent ? 5_000 : 60_000);
   return { row, verdict: interruptVerdict(row, now) };
 }
@@ -75,10 +117,20 @@ export function useInterruptVerdict(conversationId: string | undefined) {
  * only while a switch is in flight or its verdict is showing.
  */
 export function useClaudeBackend(conversationId: string | undefined) {
-  const runsOnSdk = useInboxStore((s) => (conversationId ? s.sessions[conversationId]?.claude_backend === "sdk" : false));
-  const row = useInboxStore((s) => latestBackendRow(s.sessionCommands, conversationId));
-  const live = !!row && Date.now() < (row.executed_at ?? sessionCommandDeadline(row)) + BACKEND_VERDICT_LINGER_MS;
+  const runsOnSdk = useInboxStore((s) =>
+    conversationId
+      ? s.sessions[conversationId]?.claude_backend === "sdk"
+      : false,
+  );
+  const row = useInboxStore((s) =>
+    latestBackendRow(s.sessionCommands, conversationId),
+  );
+  const live =
+    !!row &&
+    Date.now() <
+      (row.executed_at ?? sessionCommandDeadline(row)) +
+        BACKEND_VERDICT_LINGER_MS;
   const now = useCoarseNow(live ? 2_000 : 60_000);
-  const backend = runsOnSdk ? "sdk" as const : "tmux" as const;
+  const backend = runsOnSdk ? ("sdk" as const) : ("tmux" as const);
   return { backend, switching: backendSwitchState(row, backend, now) };
 }

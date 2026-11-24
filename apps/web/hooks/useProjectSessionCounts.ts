@@ -16,12 +16,21 @@ const NO_COUNTS: ReadonlyMap<string, StateCounts> = new Map();
 // Each project's sessions, inverted once per membership map (the map keeps its
 // ref until a session's project changes), so a count reads only the sessions
 // of the projects it asks about.
-const byProjectOf = new WeakMap<ReadonlyMap<string, string | null>, Map<string, string[]>>();
-function sessionsByProject(by: ReadonlyMap<string, string | null>): Map<string, string[]> {
+const byProjectOf = new WeakMap<
+  ReadonlyMap<string, string | null>,
+  Map<string, string[]>
+>();
+function sessionsByProject(
+  by: ReadonlyMap<string, string | null>,
+): Map<string, string[]> {
   let out = byProjectOf.get(by);
   if (!out) {
     out = new Map();
-    for (const [sessionId, projectId] of by) if (projectId) (out.get(projectId) ?? out.set(projectId, []).get(projectId)!).push(sessionId);
+    for (const [sessionId, projectId] of by)
+      if (projectId)
+        (out.get(projectId) ?? out.set(projectId, []).get(projectId)!).push(
+          sessionId,
+        );
     byProjectOf.set(by, out);
   }
   return out;
@@ -29,10 +38,31 @@ function sessionsByProject(by: ReadonlyMap<string, string | null>): Map<string, 
 
 /** The counts digest for one store state: recomputed only when the sessions,
  *  the membership map, the clock or the asked projects change. */
-export function countsDigest(s: any, wantedKey: string, wanted: ReadonlySet<string> | null, now: number, memo: { current: { sessions: unknown; by: unknown; now: number; wantedKey: string; digest: string } | null }): string {
+export function countsDigest(
+  s: any,
+  wantedKey: string,
+  wanted: ReadonlySet<string> | null,
+  now: number,
+  memo: {
+    current: {
+      sessions: unknown;
+      by: unknown;
+      now: number;
+      wantedKey: string;
+      digest: string;
+    } | null;
+  },
+): string {
   const by = workProjectsBySession(s);
   const m = memo.current;
-  if (m && m.sessions === s.sessions && m.by === by && m.now === now && m.wantedKey === wantedKey) return m.digest;
+  if (
+    m &&
+    m.sessions === s.sessions &&
+    m.by === by &&
+    m.now === now &&
+    m.wantedKey === wantedKey
+  )
+    return m.digest;
   const index = sessionsByProject(by);
   const parts: string[] = [];
   for (const projectId of wanted ?? index.keys()) {
@@ -43,7 +73,9 @@ export function countsDigest(s: any, wantedKey: string, wanted: ReadonlySet<stri
       const state = sessionWorkState(row, now);
       c[state] = (c[state] ?? 0) + 1;
     }
-    const body = Object.entries(c).map(([k, v]) => `${k}:${v}`).join(",");
+    const body = Object.entries(c)
+      .map(([k, v]) => `${k}:${v}`)
+      .join(",");
     if (body) parts.push(`${projectId}=${body}`);
   }
   const digest = parts.sort().join(";");
@@ -52,19 +84,32 @@ export function countsDigest(s: any, wantedKey: string, wanted: ReadonlySet<stri
 }
 
 /** `only` limits the count to those projects; an empty list reads nothing. */
-export function useProjectSessionCounts(only?: readonly string[]): ReadonlyMap<string, StateCounts> {
+export function useProjectSessionCounts(
+  only?: readonly string[],
+): ReadonlyMap<string, StateCounts> {
   const now = useCoarseNow(30_000);
   const wantedKey = only ? [...only].sort().join(",") : "*";
-  const wanted = useMemo(() => (wantedKey === "*" ? null : new Set(wantedKey ? wantedKey.split(",") : [])), [wantedKey]);
+  const wanted = useMemo(
+    () =>
+      wantedKey === "*" ? null : new Set(wantedKey ? wantedKey.split(",") : []),
+    [wantedKey],
+  );
   const memo = useRef<Parameters<typeof countsDigest>[4]["current"]>(null);
-  const digest = useInboxStore((s) => (wanted && wanted.size === 0 ? "" : countsDigest(s, wantedKey, wanted, now, memo)));
+  const digest = useInboxStore((s) =>
+    wanted && wanted.size === 0
+      ? ""
+      : countsDigest(s, wantedKey, wanted, now, memo),
+  );
   return useMemo(() => {
     if (!digest) return NO_COUNTS;
     const out = new Map<string, StateCounts>();
     for (const part of digest.split(";").filter(Boolean)) {
       const [p, body] = part.split("=");
       const c: StateCounts = { ...EMPTY_COUNTS };
-      for (const kv of body.split(",")) { const [k, v] = kv.split(":"); (c as any)[k] = Number(v); }
+      for (const kv of body.split(",")) {
+        const [k, v] = kv.split(":");
+        (c as any)[k] = Number(v);
+      }
       out.set(p, c);
     }
     return out;

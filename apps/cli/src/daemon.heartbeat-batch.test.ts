@@ -21,8 +21,10 @@ describe("heartbeatHealthCheckBucket", () => {
 
   test("spreads a realistic fleet roughly evenly across buckets", () => {
     // UUID-shaped ids like real session ids.
-    const ids = Array.from({ length: 300 }, (_, i) =>
-      `0${i.toString(16).padStart(7, "0")}-abb5-7df0-8b70-${i.toString(16).padStart(12, "0")}`,
+    const ids = Array.from(
+      { length: 300 },
+      (_, i) =>
+        `0${i.toString(16).padStart(7, "0")}-abb5-7df0-8b70-${i.toString(16).padStart(12, "0")}`,
     );
     const mod = 3;
     const counts = [0, 0, 0];

@@ -5,7 +5,9 @@ export function structuredMessageInput(content: string): string | null {
   if (!input.startsWith("{") || !input.endsWith("}")) return null;
   try {
     const payload = JSON.parse(input);
-    return payload && typeof payload === "object" && !Array.isArray(payload) ? input : null;
+    return payload && typeof payload === "object" && !Array.isArray(payload)
+      ? input
+      : null;
   } catch {
     return null;
   }

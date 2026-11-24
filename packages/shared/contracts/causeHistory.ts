@@ -13,7 +13,13 @@
 // "merged, deploy not recorded", never assumed live. A regression is measured
 // from the deploy that carried the fix when one is known, else from the merge,
 // else from the ship step, and says which.
-import { CARD_GATE_NODE_ID, passedUnansweredCard, runEnd, type AnsweredGate, type LineRunEnd } from "./lineRunEnd";
+import {
+  CARD_GATE_NODE_ID,
+  passedUnansweredCard,
+  runEnd,
+  type AnsweredGate,
+  type LineRunEnd,
+} from "./lineRunEnd";
 import { parsePrRef } from "./prRefs";
 
 /** What a step is handed when its problem has no earlier attempt (runner and line try alike). */
@@ -23,51 +29,93 @@ const DAY = 24 * 60 * 60 * 1000;
 
 // ── small run words every reader shares ──────────────────────────────────────
 
-export const isLiveRun = (r: { status: string }) => r.status === "running" || r.status === "paused" || r.status === "pending";
+export const isLiveRun = (r: { status: string }) =>
+  r.status === "running" || r.status === "paused" || r.status === "pending";
 
 /** "[S] Ship :: Land the change" → "Ship". */
-export const choiceWords = (label: string) => label.replace(/^\[[^\]]*\]\s*/, "").split("::")[0].trim() || label;
+export const choiceWords = (label: string) =>
+  label
+    .replace(/^\[[^\]]*\]\s*/, "")
+    .split("::")[0]
+    .trim() || label;
 
 // One formatter, made once: toLocaleDateString with options builds a new one on every call.
-const SHORT_DAY = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+const SHORT_DAY = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+});
 export const shortDay = (at: number) => SHORT_DAY.format(at);
 
 /** "Oct 8", "Oct 8 and Oct 9", "Oct 7, Oct 8 and Oct 9". */
-export const andList = (xs: ReadonlyArray<string>) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+export const andList = (xs: ReadonlyArray<string>) =>
+  xs.length < 2
+    ? xs.join("")
+    : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 
 /** Markdown in plain words: bold, code and links unwrapped, a leading quote or bullet mark dropped. */
-export const plainWords = (s: string) => s.replace(/(\*\*|__)(.+?)\1/g, "$2").replace(/`([^`]+)`/g, "$1").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/^[>*-]\s+/, "").trim();
+export const plainWords = (s: string) =>
+  s
+    .replace(/(\*\*|__)(.+?)\1/g, "$2")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^[>*-]\s+/, "")
+    .trim();
 
 /** The evidence a signal quotes: its detail's quoted lines, in plain words. */
 export function signalQuotes(detailMd: string | null | undefined): string[] {
   const out: string[] = [];
   for (const line of (detailMd ?? "").split("\n")) {
     if (!/^\s*>/.test(line)) continue;
-    const text = plainWords(line.replace(/^\s*>\s?/, "")).replace(/^["“]|["”]$/g, "").trim();
+    const text = plainWords(line.replace(/^\s*>\s?/, ""))
+      .replace(/^["“]|["”]$/g, "")
+      .trim();
     if (text.length >= 8) out.push(text);
   }
   return out;
 }
 
 /** The fields a station's JSON report puts its finding, proposal or build in, in the order a reader wants them. */
-export const REPORT_FIELDS = ["statement", "strategy", "summary", "evidence", "why"] as const;
+export const REPORT_FIELDS = [
+  "statement",
+  "strategy",
+  "summary",
+  "evidence",
+  "why",
+] as const;
 
 /** A station's report in its own words: the first of REPORT_FIELDS it filled. */
 export function reportFieldWords(result: unknown): string | null {
-  const r = result && typeof result === "object" ? (result as Record<string, unknown>) : null;
-  const v = REPORT_FIELDS.map((k) => r?.[k]).find((x): x is string => typeof x === "string" && !!x.trim());
+  const r =
+    result && typeof result === "object"
+      ? (result as Record<string, unknown>)
+      : null;
+  const v = REPORT_FIELDS.map((k) => r?.[k]).find(
+    (x): x is string => typeof x === "string" && !!x.trim(),
+  );
   return v?.trim() ?? null;
 }
 
 export { runEnd };
 
 /** The step a run closed at, from its end station: "dissolved_at_investigate" is Investigate; the line's own end stations name themselves. */
-export const closedAtStep = (endNode: string): string => /^(?:dissolved|released|closed|failed|escalated)_at_(\w+)$/.exec(endNode)?.[1] ?? endNode;
+export const closedAtStep = (endNode: string): string =>
+  /^(?:dissolved|released|closed|failed|escalated)_at_(\w+)$/.exec(
+    endNode,
+  )?.[1] ?? endNode;
 
 /** The station a run gave up at: it reached one of its failure steps (`failed_at_<station>`, which only comments), so
  *  the run completed without an end of its own. null when it reached none. */
-export function failedAtStation(nodes: ReadonlyArray<{ node_id: string; status: string }> | undefined): string | null {
-  const failed = [...(nodes ?? [])].reverse().find((n) => typeof n.node_id === "string" && n.node_id.startsWith("failed_at_") && n.status === "completed");
+export function failedAtStation(
+  nodes: ReadonlyArray<{ node_id: string; status: string }> | undefined,
+): string | null {
+  const failed = [...(nodes ?? [])]
+    .reverse()
+    .find(
+      (n) =>
+        typeof n.node_id === "string" &&
+        n.node_id.startsWith("failed_at_") &&
+        n.status === "completed",
+    );
   return failed ? failed.node_id.slice("failed_at_".length) : null;
 }
 
@@ -75,16 +123,28 @@ export function failedAtStation(nodes: ReadonlyArray<{ node_id: string; status: 
  *  that went on past a card nobody answered and still merged and started its
  *  watch, a ship all the same. Nobody approved it (the run report says so),
  *  but the code is live, so what happens after it is measured from it. */
-function historyEnd(run: Parameters<typeof runEnd>[0]): { kind: LineRunEnd; at: number; node: string; unapproved: boolean } | null {
+function historyEnd(
+  run: Parameters<typeof runEnd>[0],
+): { kind: LineRunEnd; at: number; node: string; unapproved: boolean } | null {
   const end = runEnd(run);
   if (end) return { ...end, unapproved: false };
   if (!passedUnansweredCard(run.node_statuses, run)) return null;
-  const watch = run.node_statuses?.find((n) => n.node_id === "watch" && n.status === "completed");
-  return watch ? { kind: "shipped", at: watch.completed_at ?? watch.started_at ?? 0, node: "watch", unapproved: true } : null;
+  const watch = run.node_statuses?.find(
+    (n) => n.node_id === "watch" && n.status === "completed",
+  );
+  return watch
+    ? {
+        kind: "shipped",
+        at: watch.completed_at ?? watch.started_at ?? 0,
+        node: "watch",
+        unapproved: true,
+      }
+    : null;
 }
 
 /** A run that went live past a card nobody answered: the same test the history's `unapproved` reads, for counts made without building a history (the line's rollup). */
-export const shippedUnanswered = (run: Parameters<typeof runEnd>[0]): boolean => !!historyEnd(run)?.unapproved;
+export const shippedUnanswered = (run: Parameters<typeof runEnd>[0]): boolean =>
+  !!historyEnd(run)?.unapproved;
 
 /** How many times a problem came back, as every surface says it: "3x" (one form, so a case reads the same number the same way everywhere). */
 export const backTimes = (n: number) => `${n}x`;
@@ -92,43 +152,73 @@ export const backTimes = (n: number) => `${n}x`;
 /** A close's own argument, from its station's JSON report: the dissolution's
  *  `kind` ("in_flight", "already_fixed", "known_cause") and what it was folded
  *  `into` ("xp-12 (card sd-421)", a commit). */
-export type CloseArgument = { kind: string; into: string | null; /** The change its own words say owns the fix ("the Oct 6 fee policy"). */ named?: string | null };
+export type CloseArgument = {
+  kind: string;
+  into: string | null;
+  /** The change its own words say owns the fix ("the Oct 6 fee policy"). */ named?:
+    | string
+    | null;
+};
 
 /** The cause a close's own words say it moved its findings to ("Dissolve vs C40", "moved to C1's cluster"). */
-const FOLD_NAMED = /\b(?:dissolved?|dissolves|folded|moved)\s+(?:vs\.?|against|into|to)\s+(C\d+|ct-\d+)\b/i;
+const FOLD_NAMED =
+  /\b(?:dissolved?|dissolves|folded|moved)\s+(?:vs\.?|against|into|to)\s+(C\d+|ct-\d+)\b/i;
 
 /** A close's argument from its report, and the owner its prose names ("already fixed by the Oct 6 fee policy").
  *  A report that names no kind but says it moved its findings to another cause argued that cause owns them. */
-export function reportArgument(result: unknown, prose?: string | null): CloseArgument | null {
-  const r = result && typeof result === "object" ? (result as Record<string, unknown>) : null;
+export function reportArgument(
+  result: unknown,
+  prose?: string | null,
+): CloseArgument | null {
+  const r =
+    result && typeof result === "object"
+      ? (result as Record<string, unknown>)
+      : null;
   const evidence = typeof r?.evidence === "string" ? r.evidence : "";
-  const foldNamed = FOLD_NAMED.exec(evidence)?.[1] ?? FOLD_NAMED.exec(prose ?? "")?.[1] ?? null;
-  const kind = (typeof r?.kind === "string" ? r.kind.trim() : "") || (foldNamed ? "known_cause" : "");
+  const foldNamed =
+    FOLD_NAMED.exec(evidence)?.[1] ?? FOLD_NAMED.exec(prose ?? "")?.[1] ?? null;
+  const kind =
+    (typeof r?.kind === "string" ? r.kind.trim() : "") ||
+    (foldNamed ? "known_cause" : "");
   if (!kind) return null;
-  const into = (typeof r?.into === "string" && r.into.trim() ? r.into.trim() : null) ?? (ARGUMENTS[kind]?.family === "owned" ? null : foldNamed);
-  const named = /\b(?:fixed|covered|owned|handled) by (?:the )?([^;,.()]{3,40})/i.exec(prose ?? "")?.[1]?.trim();
+  const into =
+    (typeof r?.into === "string" && r.into.trim() ? r.into.trim() : null) ??
+    (ARGUMENTS[kind]?.family === "owned" ? null : foldNamed);
+  const named =
+    /\b(?:fixed|covered|owned|handled) by (?:the )?([^;,.()]{3,40})/i
+      .exec(prose ?? "")?.[1]
+      ?.trim();
   return { kind, into, named: named ? `the ${named}` : null };
 }
 
 /** The cause a close without a change folded its findings into ("C1", "ct-4681"), when its argument was that
  *  another cause owns them rather than that the fix is owned elsewhere or already shipped: what comes after such a
  *  close is that cause's to fix, so it counts as coming back only once that cause's fix went live. Null otherwise. */
-export function foldTarget(argued: CloseArgument | null | undefined): string | null {
+export function foldTarget(
+  argued: CloseArgument | null | undefined,
+): string | null {
   if (!argued?.into || ARGUMENTS[argued.kind]?.family === "owned") return null;
   const into = argued.into.replace(/\s*\([^)]*\)\s*$/, "").trim();
   return into && !/^[0-9a-f]{7,40}$/i.test(into) ? into : null;
 }
 
 /** The words of a close without a change that name a guard (an eval, a test, a check): nothing shipped it, so every surface that shows them says so. */
-export const namesGuard = (text: string | null | undefined) => !!text && /\b(evals?|guard|tests?|checks?)\b/i.test(text);
+export const namesGuard = (text: string | null | undefined) =>
+  !!text && /\b(evals?|guard|tests?|checks?)\b/i.test(text);
 
 /** A close without a change (a dissolve, a drop) whose words name a guard: that guard was never shipped. */
-export const unshippedGuard = (closeKind: string | null | undefined, text: string | null | undefined) => (closeKind === "dissolved" || closeKind === "dropped") && namesGuard(text);
+export const unshippedGuard = (
+  closeKind: string | null | undefined,
+  text: string | null | undefined,
+) => (closeKind === "dissolved" || closeKind === "dropped") && namesGuard(text);
 
 /** Which of found, proposed or built a station's words fill: a plan or
  *  proposal step proposes, a build step builds, a diagnosing step finds. The
  *  caller says whether the step diagnoses or builds; null when it does neither. */
-export function saidSlot(nodeId: string, part: "diagnose" | "build" | null): "found" | "proposed" | "built" | null {
+export function saidSlot(
+  nodeId: string,
+  part: "diagnose" | "build" | null,
+): "found" | "proposed" | "built" | null {
   if (/propos|plan/.test(nodeId)) return "proposed";
   if (part === "diagnose") return "found";
   if (part === "build") return "built";
@@ -176,10 +266,21 @@ export type DeployRow = {
 };
 
 /** The merge the line's merge step recorded on a run (workflow_runs.merge). */
-export type RunMergeRow = { sha: string; branch: string; into: string; at: number; pr_url?: string };
+export type RunMergeRow = {
+  sha: string;
+  branch: string;
+  into: string;
+  at: number;
+  pr_url?: string;
+};
 
 /** What a run's stations said: found, proposed, built, and a close's argument. */
-export type RunSaid = { found: string | null; proposed: string | null; built: string | null; argued?: CloseArgument | null };
+export type RunSaid = {
+  found: string | null;
+  proposed: string | null;
+  built: string | null;
+  argued?: CloseArgument | null;
+};
 
 /** The run fields the history reads. */
 export type HistoryRunRow = {
@@ -187,7 +288,13 @@ export type HistoryRunRow = {
   created_at: number;
   updated_at: number;
   status: string;
-  node_statuses?: ReadonlyArray<{ node_id: string; status: string; outcome?: string | null; started_at?: number; completed_at?: number }>;
+  node_statuses?: ReadonlyArray<{
+    node_id: string;
+    status: string;
+    outcome?: string | null;
+    started_at?: number;
+    completed_at?: number;
+  }>;
   merge?: RunMergeRow | null;
 } & AnsweredGate;
 
@@ -216,7 +323,18 @@ export type HistoryTaskRow = {
 };
 
 /** A line card's fields the history reads (session_decisions.card). */
-type CardRow = { headline?: string | null; change?: string | null; wrong?: string | null; recommend?: { verdict: string; why?: string } | null; diff?: { files?: number; added?: number; removed?: number; pr?: string } | null };
+type CardRow = {
+  headline?: string | null;
+  change?: string | null;
+  wrong?: string | null;
+  recommend?: { verdict: string; why?: string } | null;
+  diff?: {
+    files?: number;
+    added?: number;
+    removed?: number;
+    pr?: string;
+  } | null;
+};
 
 // ── what it is ───────────────────────────────────────────────────────────────
 
@@ -242,13 +360,25 @@ export type AttemptCard = {
 
 /** `byHand`: a person merged the fix's pull request outside the line (its merge step off), so no commit is recorded (sha ""). */
 export type AttemptMerge = {
-  sha: string; branch: string; into: string; at: number; prUrl: string | null; repository: string | null; byHand?: true;
+  sha: string;
+  branch: string;
+  into: string;
+  at: number;
+  prUrl: string | null;
+  repository: string | null;
+  byHand?: true;
   /** The merge commit's place in main's order (commits.main_at), when the reader knows it; `at` stands in otherwise. */
   mainAt?: number | null;
 };
 
 /** A fix branch's pull request a person merged by hand (the web's fixMerges): the line's own record never hears of it. */
-export type HandMerge = { at: number; url: string; branch?: string | null; into?: string | null; /** A commit that landed it, when no pull request did. */ sha?: string | null };
+export type HandMerge = {
+  at: number;
+  url: string;
+  branch?: string | null;
+  into?: string | null;
+  /** A commit that landed it, when no pull request did. */ sha?: string | null;
+};
 
 /** A run's outcome in words; a reader may carry more (the web's tone). */
 export type AttemptOutcome = { end: LineRunEnd | null; text: string };
@@ -277,7 +407,12 @@ export type HistoryAttempt<O extends AttemptOutcome = AttemptOutcome> = {
   proposed: string | null;
   built: string | null;
   card: AttemptCard | null;
-  diff: { files: number; added: number; removed: number; pr: string | null } | null;
+  diff: {
+    files: number;
+    added: number;
+    removed: number;
+    pr: string | null;
+  } | null;
   merge: AttemptMerge | null;
 };
 
@@ -319,7 +454,13 @@ export type HistoryShip = {
 };
 
 export type WatchState = "watching" | "quiet" | "reopened" | "unknown";
-export type HistoryWatch = { runId: string; start: number; end: number | null; state: WatchState; reopenedAt: number | null };
+export type HistoryWatch = {
+  runId: string;
+  start: number;
+  end: number | null;
+  state: WatchState;
+  reopenedAt: number | null;
+};
 
 /** How an attempt closed the problem: a fix that shipped, or a close without a change. */
 export type CloseKind = "shipped" | "dissolved" | "dropped";
@@ -329,7 +470,15 @@ export type CloseKind = "shipped" | "dissolved" | "dropped";
  *  after a close and before the next one came back after it (recurrences,
  *  regressions); `back` is what came after it at all until a later fix went
  *  live, since a second dissolve does not make the first one hold. */
-export type HistoryClose = { runId: string; n: number; kind: CloseKind; at: number; step: string | null; back: CloseBack | null; fold: CloseFold | null };
+export type HistoryClose = {
+  runId: string;
+  n: number;
+  kind: CloseKind;
+  at: number;
+  step: string | null;
+  back: CloseBack | null;
+  fold: CloseFold | null;
+};
 /** A close that folded the problem into another cause (foldTarget), and when that cause's fix went live (null while it has not):
  *  "folded into C1, whose fix has not shipped". Until it goes live, what comes after is expected, not a close that did not hold. */
 export type CloseFold = { into: string; liveAt: number | null; words: string };
@@ -372,7 +521,9 @@ export type HistoryRegression = {
 
 /** What codecast knows about the project's deploys: "unread" while the deploys have not arrived, "none" when nothing is recorded. */
 export type DeployCoverage = {
-  state: "unread" | "none" | "known"; targets: string[]; words: string;
+  state: "unread" | "none" | "known";
+  targets: string[];
+  words: string;
   /** The project's newest live deploy, whatever it carried: what "not in production" is measured against. */
   last?: { at: number; url: string | null } | null;
   /** The project's live deploys, oldest first: a merge recorded outside the line's runs (a pull request merged by hand)
@@ -410,7 +561,11 @@ export type HistoryInput<R extends HistoryRunRow, O extends AttemptOutcome> = {
   runs: ReadonlyArray<R>;
   decisions: ReadonlyArray<HistoryDecisionRow>;
   /** The recent signals, read when the full series has not arrived. */
-  signals: ReadonlyArray<{ observed_at?: number | null; created_at: number; reopened?: boolean | null }>;
+  signals: ReadonlyArray<{
+    observed_at?: number | null;
+    created_at: number;
+    reopened?: boolean | null;
+  }>;
   occurrences: OccurrenceRow | undefined;
   /** Undefined until read; the project's deploys. */
   deploys: ReadonlyArray<DeployRow> | undefined;
@@ -435,21 +590,34 @@ export type HistoryInput<R extends HistoryRunRow, O extends AttemptOutcome> = {
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const sameSha = (a: string | null | undefined, b: string | null | undefined) =>
-  !!a && !!b && a.length >= 7 && b.length >= 7 && (a.startsWith(b) || b.startsWith(a));
+  !!a &&
+  !!b &&
+  a.length >= 7 &&
+  b.length >= 7 &&
+  (a.startsWith(b) || b.startsWith(a));
 
 const mergeOf = (run: HistoryRunRow): AttemptMerge | null => {
   const m = run.merge;
   if (!m?.sha) return null;
-  return { sha: m.sha, branch: m.branch, into: m.into, at: m.at, prUrl: m.pr_url ?? null, repository: parsePrRef(m.pr_url)?.repository ?? null };
+  return {
+    sha: m.sha,
+    branch: m.branch,
+    into: m.into,
+    at: m.at,
+    prUrl: m.pr_url ?? null,
+    repository: parsePrRef(m.pr_url)?.repository ?? null,
+  };
 };
 
 const deployTarget = (d: DeployRow) => d.surface ?? d.environment ?? null;
 
 /** Environments no user reaches: a source that announces every boot (Union's api) also announces a laptop's. */
-const NOT_LIVE_ENVIRONMENT = /^(local|localhost|dev|development|test|testing|ci|preview|staging)$/i;
+const NOT_LIVE_ENVIRONMENT =
+  /^(local|localhost|dev|development|test|testing|ci|preview|staging)$/i;
 
 /** Whether a deploy put code where users meet it, so it can carry a fix live. */
-export const deployIsLive = (d: Pick<DeployRow, "environment">) => !d.environment || !NOT_LIVE_ENVIRONMENT.test(d.environment.trim());
+export const deployIsLive = (d: Pick<DeployRow, "environment">) =>
+  !d.environment || !NOT_LIVE_ENVIRONMENT.test(d.environment.trim());
 
 /**
  * Whether a deploy's code holds a merge. A deploy whose sha has a place on main holds what reached main by then: the
@@ -461,18 +629,32 @@ const holdsMerge = (d: DeployRow, merge: AttemptMerge) =>
   d.cut_at != null ? (merge.mainAt ?? merge.at) <= d.cut_at : d.at >= merge.at;
 
 /** The deploys that carried a merge: the first per live target whose code holds it (the same commit, or cut after it). */
-export function carryingDeploys(merge: AttemptMerge, deploys: ReadonlyArray<DeployRow>, runId: string): HistoryDeploy[] {
+export function carryingDeploys(
+  merge: AttemptMerge,
+  deploys: ReadonlyArray<DeployRow>,
+  runId: string,
+): HistoryDeploy[] {
   const byTarget = new Map<string, HistoryDeploy>();
   for (const d of [...deploys].sort((a, b) => a.at - b.at)) {
     if (!deployIsLive(d)) continue;
     const exact = sameSha(d.sha, merge.sha);
-    const sameCode = !d.repository || !merge.repository || d.repository === merge.repository;
+    const sameCode =
+      !d.repository || !merge.repository || d.repository === merge.repository;
     if (!exact && !(sameCode && holdsMerge(d, merge))) continue;
     const key = deployTarget(d) ?? d.source;
     if (byTarget.has(key)) continue;
     byTarget.set(key, {
-      id: d._id, ref: d.short_id || null, at: d.at, sha: d.sha, target: deployTarget(d), version: d.version, source: d.source, title: d.title, url: d.url,
-      runId, how: exact ? "same commit" : "deployed after the merge",
+      id: d._id,
+      ref: d.short_id || null,
+      at: d.at,
+      sha: d.sha,
+      target: deployTarget(d),
+      version: d.version,
+      source: d.source,
+      title: d.title,
+      url: d.url,
+      runId,
+      how: exact ? "same commit" : "deployed after the merge",
     });
   }
   return [...byTarget.values()];
@@ -481,46 +663,91 @@ export function carryingDeploys(merge: AttemptMerge, deploys: ReadonlyArray<Depl
 /** One reading per deploy list: every problem of a line reads the same list, and a line holds thousands of problems. */
 const coverageRead = new WeakMap<ReadonlyArray<DeployRow>, DeployCoverage>();
 
-export function coverageOf(all: ReadonlyArray<DeployRow> | undefined): DeployCoverage {
+export function coverageOf(
+  all: ReadonlyArray<DeployRow> | undefined,
+): DeployCoverage {
   if (!all) return readCoverage(all);
   let read = coverageRead.get(all);
   if (!read) coverageRead.set(all, (read = readCoverage(all)));
   return read;
 }
 
-function readCoverage(all: ReadonlyArray<DeployRow> | undefined): DeployCoverage {
-  if (!all) return { state: "unread", targets: [], words: "Reading the project's deploys." };
+function readCoverage(
+  all: ReadonlyArray<DeployRow> | undefined,
+): DeployCoverage {
+  if (!all)
+    return {
+      state: "unread",
+      targets: [],
+      words: "Reading the project's deploys.",
+    };
   const deploys = all.filter(deployIsLive);
   if (!deploys.length) {
     return {
       state: "none",
       targets: [],
-      words: "No deploy of this project is recorded, so when a fix went live is not known. Deploys are recorded by cast ship mark and by a source that reports them.",
+      words:
+        "No deploy of this project is recorded, so when a fix went live is not known. Deploys are recorded by cast ship mark and by a source that reports them.",
     };
   }
-  const targets = [...new Set(deploys.map((d) => deployTarget(d) ?? d.source))].sort();
-  const last = deploys.reduce<DeployRow | null>((m, d) => (!m || d.at > m.at ? d : m), null);
-  return { state: "known", targets, words: `Only ${andList(targets)} deploys are recorded.`, last: last ? { at: last.at, url: last.url ?? null } : null, live: [...deploys].sort((a, b) => a.at - b.at) };
+  const targets = [
+    ...new Set(deploys.map((d) => deployTarget(d) ?? d.source)),
+  ].sort();
+  const last = deploys.reduce<DeployRow | null>(
+    (m, d) => (!m || d.at > m.at ? d : m),
+    null,
+  );
+  return {
+    state: "known",
+    targets,
+    words: `Only ${andList(targets)} deploys are recorded.`,
+    last: last ? { at: last.at, url: last.url ?? null } : null,
+    live: [...deploys].sort((a, b) => a.at - b.at),
+  };
 }
 
 /** The answer a decision was given, in the option's own words. */
-export function decisionAnswerWords(d: Pick<HistoryDecisionRow, "answer_text" | "answer_index" | "options">): string | null {
-  const raw = d.answer_text?.trim() || (d.answer_index != null ? d.options?.[d.answer_index]?.label : undefined) || null;
+export function decisionAnswerWords(
+  d: Pick<HistoryDecisionRow, "answer_text" | "answer_index" | "options">,
+): string | null {
+  const raw =
+    d.answer_text?.trim() ||
+    (d.answer_index != null ? d.options?.[d.answer_index]?.label : undefined) ||
+    null;
   return raw ? choiceWords(raw) : null;
 }
 
-function cardOf(runId: string, decisions: ReadonlyArray<HistoryDecisionRow>): { card: AttemptCard; diff: HistoryAttempt["diff"] } | null {
+function cardOf(
+  runId: string,
+  decisions: ReadonlyArray<HistoryDecisionRow>,
+): { card: AttemptCard; diff: HistoryAttempt["diff"] } | null {
   const d = decisions
-    .filter((x) => x.workflow_run_id === runId && (x.gate_node_id === CARD_GATE_NODE_ID || !!x.card))
+    .filter(
+      (x) =>
+        x.workflow_run_id === runId &&
+        (x.gate_node_id === CARD_GATE_NODE_ID || !!x.card),
+    )
     .sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))[0];
   if (!d) return null;
   const c = (d.card ?? null) as CardRow | null;
-  const option = d.answer_index != null ? d.options?.[d.answer_index]?.label : undefined;
-  const answer = d.status !== "answered" ? null : option ? choiceWords(option) : decisionAnswerWords(d);
+  const option =
+    d.answer_index != null ? d.options?.[d.answer_index]?.label : undefined;
+  const answer =
+    d.status !== "answered"
+      ? null
+      : option
+        ? choiceWords(option)
+        : decisionAnswerWords(d);
   const text = d.answer_text?.trim() || null;
-  const diff = c?.diff && typeof c.diff.files === "number"
-    ? { files: c.diff.files, added: c.diff.added ?? 0, removed: c.diff.removed ?? 0, pr: c.diff.pr ?? null }
-    : null;
+  const diff =
+    c?.diff && typeof c.diff.files === "number"
+      ? {
+          files: c.diff.files,
+          added: c.diff.added ?? 0,
+          removed: c.diff.removed ?? 0,
+          pr: c.diff.pr ?? null,
+        }
+      : null;
   return {
     card: {
       decisionId: d._id,
@@ -528,27 +755,39 @@ function cardOf(runId: string, decisions: ReadonlyArray<HistoryDecisionRow>): { 
       headline: c?.headline?.trim() || null,
       change: c?.change?.trim() || null,
       wrong: c?.wrong?.trim() || null,
-      recommend: c?.recommend ? { verdict: c.recommend.verdict, why: c.recommend.why?.trim() || null } : null,
+      recommend: c?.recommend
+        ? { verdict: c.recommend.verdict, why: c.recommend.why?.trim() || null }
+        : null,
       status: d.status,
       answer,
       note: text && text !== answer ? text : null,
       answeredAt: d.resolved_at ?? null,
-      answeredBy: d.status === "answered" && d.answered_by && (d.answered_by.kind ?? "user") === "user" ? d.answered_by.id : null,
+      answeredBy:
+        d.status === "answered" &&
+        d.answered_by &&
+        (d.answered_by.kind ?? "user") === "user"
+          ? d.answered_by.id
+          : null,
     },
     diff,
   };
 }
 
 const watchDone = (run: HistoryRunRow): number | null => {
-  const w = run.node_statuses?.find((n) => n.node_id === "watch" && n.status === "completed");
-  return w ? w.completed_at ?? w.started_at ?? null : null;
+  const w = run.node_statuses?.find(
+    (n) => n.node_id === "watch" && n.status === "completed",
+  );
+  return w ? (w.completed_at ?? w.started_at ?? null) : null;
 };
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n} ${n === 1 ? one : many}`;
 
 // ── the history ──────────────────────────────────────────────────────────────
 
-export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(input: HistoryInput<R, O>): CauseHistory<O> {
+export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(
+  input: HistoryInput<R, O>,
+): CauseHistory<O> {
   const { task, decisions, now } = input;
 
   // ── occurrences ──
@@ -556,9 +795,17 @@ export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(
   const occurrences: Occurrence[] = input.occurrences
     ? (() => {
         const reopened = new Set(input.occurrences.reopened);
-        return input.occurrences.observed.map((at) => ({ at, reopened: reopened.has(at) }));
+        return input.occurrences.observed.map((at) => ({
+          at,
+          reopened: reopened.has(at),
+        }));
       })()
-    : input.signals.map((s) => ({ at: s.observed_at ?? s.created_at, reopened: !!s.reopened })).sort((a, b) => a.at - b.at);
+    : input.signals
+        .map((s) => ({
+          at: s.observed_at ?? s.created_at,
+          reopened: !!s.reopened,
+        }))
+        .sort((a, b) => a.at - b.at);
 
   // ── attempts, oldest first ──
   const runs = [...input.runs].sort((a, b) => a.created_at - b.created_at);
@@ -572,7 +819,7 @@ export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(
       runId: run._id,
       n: i + 1,
       start: run.created_at,
-      end: live ? null : ended?.at ?? run.updated_at,
+      end: live ? null : (ended?.at ?? run.updated_at),
       live,
       outcome: input.outcome(run),
       ended: ended?.kind ?? null,
@@ -580,7 +827,7 @@ export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(
       unapproved: !!ended?.unapproved,
       superseded: run.status === "failed" && run.created_at < newestStart,
       found: said.found,
-      argued: ended && ended.kind !== "shipped" ? said.argued ?? null : null,
+      argued: ended && ended.kind !== "shipped" ? (said.argued ?? null) : null,
       proposed: card?.card.change ?? said.proposed,
       built: said.built,
       card: card?.card ?? null,
@@ -592,8 +839,19 @@ export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(
   // before it, unless the line itself recorded a merge since.
   const hand = input.handMerge;
   if (hand && !attempts.some((a) => a.merge && a.merge.at >= hand.at)) {
-    const a = [...attempts].reverse().find((x) => !x.merge && x.start <= hand.at);
-    if (a) a.merge = { sha: hand.sha ?? "", branch: hand.branch ?? "", into: hand.into ?? "", at: hand.at, prUrl: hand.url, repository: parsePrRef(hand.url)?.repository ?? null, byHand: true };
+    const a = [...attempts]
+      .reverse()
+      .find((x) => !x.merge && x.start <= hand.at);
+    if (a)
+      a.merge = {
+        sha: hand.sha ?? "",
+        branch: hand.branch ?? "",
+        into: hand.into ?? "",
+        at: hand.at,
+        prUrl: hand.url,
+        repository: parsePrRef(hand.url)?.repository ?? null,
+        byHand: true,
+      };
   }
 
   // ── ships, merges and the deploys that carried them ──
@@ -601,9 +859,15 @@ export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(
   const ships: HistoryShip[] = [];
   for (const a of attempts) {
     if (a.ended !== "shipped" && !a.merge) continue;
-    const at = a.ended === "shipped" ? a.end ?? a.start : a.merge!.at;
-    const deploys = a.merge && input.deploys ? carryingDeploys(a.merge, input.deploys, a.runId) : [];
-    const firstDeploy = deploys.reduce<HistoryDeploy | null>((m, d) => (!m || d.at < m.at ? d : m), null);
+    const at = a.ended === "shipped" ? (a.end ?? a.start) : a.merge!.at;
+    const deploys =
+      a.merge && input.deploys
+        ? carryingDeploys(a.merge, input.deploys, a.runId)
+        : [];
+    const firstDeploy = deploys.reduce<HistoryDeploy | null>(
+      (m, d) => (!m || d.at < m.at ? d : m),
+      null,
+    );
     const basis: FixBasis = firstDeploy ? "deploy" : a.merge ? "merge" : "ship";
     const liveAt = firstDeploy?.at ?? a.merge?.at ?? at;
     const words = firstDeploy
@@ -613,7 +877,15 @@ export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(
           ? `Merged ${shortDay(a.merge.at)}`
           : `Merged ${shortDay(a.merge.at)}; no deploy recorded since`
         : `Shipped ${shortDay(at)}; no merge recorded`;
-    ships.push({ runId: a.runId, at, merge: a.merge, deploys, liveAt, basis, words: a.unapproved ? `${words}, past a card nobody answered` : words });
+    ships.push({
+      runId: a.runId,
+      at,
+      merge: a.merge,
+      deploys,
+      liveAt,
+      basis,
+      words: a.unapproved ? `${words}, past a card nobody answered` : words,
+    });
   }
   const deploys = ships.flatMap((s) => s.deploys).sort((a, b) => a.at - b.at);
 
@@ -621,28 +893,76 @@ export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(
   const closes: HistoryClose[] = [];
   for (const a of attempts) {
     const ship = ships.find((s) => s.runId === a.runId);
-    if (ship) closes.push({ runId: a.runId, n: a.n, kind: "shipped", at: ship.liveAt, step: a.endStep, back: null, fold: null });
+    if (ship)
+      closes.push({
+        runId: a.runId,
+        n: a.n,
+        kind: "shipped",
+        at: ship.liveAt,
+        step: a.endStep,
+        back: null,
+        fold: null,
+      });
     else if (!a.live && (a.ended === "dissolved" || a.ended === "dropped")) {
       const into = foldTarget(a.argued);
-      const liveAt = into ? input.foldFixAt?.(into) ?? null : null;
-      const fold = into ? { into, liveAt, words: liveAt != null ? `folded into ${into}, whose fix went live ${shortDay(liveAt)}` : `folded into ${into}, whose fix has not shipped` } : null;
-      closes.push({ runId: a.runId, n: a.n, kind: a.ended, at: a.end ?? a.start, step: a.endStep, back: null, fold });
+      const liveAt = into ? (input.foldFixAt?.(into) ?? null) : null;
+      const fold = into
+        ? {
+            into,
+            liveAt,
+            words:
+              liveAt != null
+                ? `folded into ${into}, whose fix went live ${shortDay(liveAt)}`
+                : `folded into ${into}, whose fix has not shipped`,
+          }
+        : null;
+      closes.push({
+        runId: a.runId,
+        n: a.n,
+        kind: a.ended,
+        at: a.end ?? a.start,
+        step: a.endStep,
+        back: null,
+        fold,
+      });
     }
   }
   closes.sort((a, b) => a.at - b.at);
   // What comes after a close is its own from when it claimed the problem: a fold's from when the cause it folded into went live, never while that fix is pending.
-  const backFrom = (c: HistoryClose) => (c.fold ? (c.fold.liveAt == null ? null : Math.max(c.at, c.fold.liveAt)) : c.at);
-  const closeWhat = (c: HistoryClose) => (c.fold ? `attempt ${c.n} folded it into ${c.fold.into} and that fix went live` : `attempt ${c.n} ${c.kind} it`);
-  const shipAfter = (s: HistoryShip) => (s.basis === "deploy" ? `the deploy of ${shortDay(s.liveAt)}` : s.basis === "merge" ? `the merge of ${shortDay(s.liveAt)} (no deploy recorded)` : `the ship of ${shortDay(s.liveAt)} (no merge recorded)`);
+  const backFrom = (c: HistoryClose) =>
+    c.fold
+      ? c.fold.liveAt == null
+        ? null
+        : Math.max(c.at, c.fold.liveAt)
+      : c.at;
+  const closeWhat = (c: HistoryClose) =>
+    c.fold
+      ? `attempt ${c.n} folded it into ${c.fold.into} and that fix went live`
+      : `attempt ${c.n} ${c.kind} it`;
+  const shipAfter = (s: HistoryShip) =>
+    s.basis === "deploy"
+      ? `the deploy of ${shortDay(s.liveAt)}`
+      : s.basis === "merge"
+        ? `the merge of ${shortDay(s.liveAt)} (no deploy recorded)`
+        : `the ship of ${shortDay(s.liveAt)} (no merge recorded)`;
   for (const c of closes) {
     const from = backFrom(c);
     if (from == null) continue;
     // Until a later fix went live, or a later close handed the problem to another cause.
-    const nextFix = closes.find((x) => (x.kind === "shipped" || x.fold) && x.at > c.at)?.at ?? Infinity;
+    const nextFix =
+      closes.find((x) => (x.kind === "shipped" || x.fold) && x.at > c.at)?.at ??
+      Infinity;
     const after = occurrences.filter((o) => o.at > from && o.at < nextFix);
     if (!after.length) continue;
-    const what = c.kind === "shipped" ? shipAfter(ships.find((x) => x.runId === c.runId)!) : closeWhat(c);
-    c.back = { at: after[0].at, count: after.length, words: `Came back ${backTimes(after.length)} after ${what}` };
+    const what =
+      c.kind === "shipped"
+        ? shipAfter(ships.find((x) => x.runId === c.runId)!)
+        : closeWhat(c);
+    c.back = {
+      at: after[0].at,
+      count: after.length,
+      words: `Came back ${backTimes(after.length)} after ${what}`,
+    };
   }
 
   // ── what came back after each close, until the next close: a regression after a fix, a recurrence after a close without one ──
@@ -652,21 +972,48 @@ export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(
     const next = closes[i + 1]?.at ?? null;
     const from = backFrom(c);
     if (from == null) continue;
-    const back = occurrences.filter((o) => o.at > from && o.at < (next ?? Infinity));
+    const back = occurrences.filter(
+      (o) => o.at > from && o.at < (next ?? Infinity),
+    );
     if (!back.length) continue;
     const times = backTimes(back.length);
     let quote: string | null = null;
-    for (const o of input.quoteAt ? back : []) if ((quote = input.quoteAt!(o.at))) break;
+    for (const o of input.quoteAt ? back : [])
+      if ((quote = input.quoteAt!(o.at))) break;
     if (c.kind === "shipped") {
       const s = ships.find((x) => x.runId === c.runId)!;
-      regressions.push({ afterRunId: s.runId, at: back[0].at, count: back.length, basis: s.basis, liveAt: s.liveAt, until: next, words: `Came back ${times} after ${shipAfter(s)}`, quote });
+      regressions.push({
+        afterRunId: s.runId,
+        at: back[0].at,
+        count: back.length,
+        basis: s.basis,
+        liveAt: s.liveAt,
+        until: next,
+        words: `Came back ${times} after ${shipAfter(s)}`,
+        quote,
+      });
     } else {
-      recurrences.push({ afterRunId: c.runId, n: c.n, kind: c.kind, closedAt: c.at, at: back[0].at, count: back.length, until: next, words: `Came back ${times} after ${closeWhat(c)}`, quote });
+      recurrences.push({
+        afterRunId: c.runId,
+        n: c.n,
+        kind: c.kind,
+        closedAt: c.at,
+        at: back[0].at,
+        count: back.length,
+        until: next,
+        words: `Came back ${times} after ${closeWhat(c)}`,
+        quote,
+      });
     }
   }
   const latestClose = closes[closes.length - 1];
-  const regressed = latestClose?.kind === "shipped" && regressions.some((r) => r.afterRunId === latestClose.runId);
-  const cameBack = !!latestClose && latestClose.kind !== "shipped" && recurrences.some((r) => r.afterRunId === latestClose.runId);
+  const regressed =
+    latestClose?.kind === "shipped" &&
+    regressions.some((r) => r.afterRunId === latestClose.runId);
+  const cameBack =
+    !!latestClose &&
+    latestClose.kind !== "shipped" &&
+    recurrences.some((r) => r.afterRunId === latestClose.runId);
 
   // ── watch windows ──
   const watches: HistoryWatch[] = [];
@@ -674,18 +1021,38 @@ export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(
     const start = watchDone(run);
     if (start == null) continue;
     const isLatest = !runs.slice(i + 1).some((r) => watchDone(r) != null);
-    const planned = isLatest && task?.watch_until ? task.watch_until
-      : isLatest && task?.resolved_at ? task.resolved_at
-      : input.watchDays ? start + input.watchDays * DAY
-      : null;
+    const planned =
+      isLatest && task?.watch_until
+        ? task.watch_until
+        : isLatest && task?.resolved_at
+          ? task.resolved_at
+          : input.watchDays
+            ? start + input.watchDays * DAY
+            : null;
     const nextStart = runs[i + 1]?.created_at ?? null;
     const horizon = planned ?? nextStart ?? Infinity;
     const back = occurrences.find((o) => o.at > start && o.at <= horizon);
-    const state: WatchState = back ? "reopened" : planned != null && planned <= now ? "quiet" : planned != null ? "watching" : "unknown";
-    watches.push({ runId: run._id, start, end: back?.at ?? planned ?? nextStart, state, reopenedAt: back?.at ?? null });
+    const state: WatchState = back
+      ? "reopened"
+      : planned != null && planned <= now
+        ? "quiet"
+        : planned != null
+          ? "watching"
+          : "unknown";
+    watches.push({
+      runId: run._id,
+      start,
+      end: back?.at ?? planned ?? nextStart,
+      state,
+      reopenedAt: back?.at ?? null,
+    });
   }
 
-  const firstAt = occurrences[0]?.at ?? task?.cause?.first_seen ?? runs[0]?.created_at ?? null;
+  const firstAt =
+    occurrences[0]?.at ??
+    task?.cause?.first_seen ??
+    runs[0]?.created_at ??
+    null;
   const lastActivity = Math.max(
     occurrences[occurrences.length - 1]?.at ?? 0,
     ...attempts.map((a) => a.end ?? now),
@@ -719,17 +1086,30 @@ export function causeHistory<R extends HistoryRunRow, O extends AttemptOutcome>(
 /** The earlier shipped fixes a new attempt's card shows beside its own change
  *  (ChangeCard.earlier): what each changed, when it went live, and whether the
  *  problem came back after it. Oldest first; empty when nothing shipped. */
-export type EarlierFix = { attempt: number; ref: string | null; change: string; live: string; held: string | null; back: string | null };
+export type EarlierFix = {
+  attempt: number;
+  ref: string | null;
+  change: string;
+  live: string;
+  held: string | null;
+  back: string | null;
+};
 
-export function earlierFixes(h: CauseHistory<AttemptOutcome>, exceptRunId?: string): EarlierFix[] {
+export function earlierFixes(
+  h: CauseHistory<AttemptOutcome>,
+  exceptRunId?: string,
+): EarlierFix[] {
   const out: EarlierFix[] = [];
   for (const s of h.ships) {
     if (s.runId === exceptRunId) continue;
     const a = h.attempts.find((x) => x.runId === s.runId);
-    const change = a?.card?.change ?? a?.proposed ?? a?.built ?? a?.card?.headline ?? null;
+    const change =
+      a?.card?.change ?? a?.proposed ?? a?.built ?? a?.card?.headline ?? null;
     if (!a || !change) continue;
     const back = h.regressions.find((r) => r.afterRunId === s.runId);
-    const quiet = h.watches.some((w) => w.runId === s.runId && w.state === "quiet");
+    const quiet = h.watches.some(
+      (w) => w.runId === s.runId && w.state === "quiet",
+    );
     out.push({
       attempt: a.n,
       ref: a.card?.ref ?? null,
@@ -742,14 +1122,16 @@ export function earlierFixes(h: CauseHistory<AttemptOutcome>, exceptRunId?: stri
   return out;
 }
 
-const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+const clip = (s: string, n: number) =>
+  s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s;
 
-const CLOSE_WORDS: Record<HistoryRecurrence["kind"], { verb: string; how: string }> = {
+const CLOSE_WORDS: Record<
+  HistoryRecurrence["kind"],
+  { verb: string; how: string }
+> = {
   dissolved: { verb: "Dissolved", how: "as no fix needed" },
   dropped: { verb: "Dropped", how: "without a fix" },
 };
-
-
 
 /**
  * The closes without a change in one line, and whether each held: "Dissolved
@@ -760,35 +1142,69 @@ const CLOSE_WORDS: Record<HistoryRecurrence["kind"], { verb: string; how: string
  * tried" and the next attempt's brief both read it, so a close that did not
  * hold is not repeated.
  */
-export function closesSummary(h: Pick<CauseHistory<AttemptOutcome>, "closes" | "recurrences">): string | null {
+export function closesSummary(
+  h: Pick<CauseHistory<AttemptOutcome>, "closes" | "recurrences">,
+): string | null {
   const out: string[] = [];
   const lastClose = h.closes[h.closes.length - 1];
   for (const kind of ["dissolved", "dropped"] as const) {
     const mine = h.closes.filter((c) => c.kind === kind);
     if (!mine.length) continue;
     const k = mine.length;
-    const backOf = (c: HistoryClose) => h.recurrences.find((r) => r.afterRunId === c.runId && r.count > 0) ?? null;
+    const backOf = (c: HistoryClose) =>
+      h.recurrences.find((r) => r.afterRunId === c.runId && r.count > 0) ??
+      null;
     const j = mine.filter(backOf).length;
     const afterLast = lastClose?.kind === kind ? backOf(lastClose) : null;
     const days = new Set(mine.map((c) => shortDay(c.at)));
     const when = k > 1 && days.size === 1 ? `, all on ${[...days][0]}` : "";
-    const tail = j === 0 ? "it has not come back since"
-      : j === k ? (k === 1 ? `it came back ${backTimes(backOf(mine[0])!.count)}` : "it came back after each one")
-      : afterLast ? (j === 1 ? `it came back ${backTimes(afterLast.count)} after the latest` : `it came back after ${j} of them, ${backTimes(afterLast.count)} after the latest`)
-      : `it came back after ${j} of them`;
-    out.push(`${CLOSE_WORDS[kind].verb} ${k === 1 ? "once" : `${k}x`} ${CLOSE_WORDS[kind].how}${when}; ${tail}.`);
+    const tail =
+      j === 0
+        ? "it has not come back since"
+        : j === k
+          ? k === 1
+            ? `it came back ${backTimes(backOf(mine[0])!.count)}`
+            : "it came back after each one"
+          : afterLast
+            ? j === 1
+              ? `it came back ${backTimes(afterLast.count)} after the latest`
+              : `it came back after ${j} of them, ${backTimes(afterLast.count)} after the latest`
+            : `it came back after ${j} of them`;
+    out.push(
+      `${CLOSE_WORDS[kind].verb} ${k === 1 ? "once" : `${k}x`} ${CLOSE_WORDS[kind].how}${when}; ${tail}.`,
+    );
   }
   return out.length ? out.join(" ") : null;
 }
 
 /** What a close argued, by family: closes that argued the same thing in other words ("in flight", "already fixed") are one argument. */
-const ARGUMENTS: Record<string, { family: string; words: string; short: string }> = {
-  in_flight: { family: "owned", words: "the fix is owned elsewhere", short: "owned-elsewhere" },
-  already_fixed: { family: "owned", words: "the fix is owned elsewhere", short: "owned-elsewhere" },
-  known_cause: { family: "known", words: "it belongs to another problem", short: "another-cause" },
+const ARGUMENTS: Record<
+  string,
+  { family: string; words: string; short: string }
+> = {
+  in_flight: {
+    family: "owned",
+    words: "the fix is owned elsewhere",
+    short: "owned-elsewhere",
+  },
+  already_fixed: {
+    family: "owned",
+    words: "the fix is owned elsewhere",
+    short: "owned-elsewhere",
+  },
+  known_cause: {
+    family: "known",
+    words: "it belongs to another problem",
+    short: "another-cause",
+  },
 };
 /** A close's argument by family, in words ("the fix is owned elsewhere") and as a modifier ("owned-elsewhere"). */
-export const argumentOf = (kind: string) => ARGUMENTS[kind] ?? { family: kind, words: `it was ${kind.replace(/_/g, " ")}`, short: kind.replace(/_/g, "-") };
+export const argumentOf = (kind: string) =>
+  ARGUMENTS[kind] ?? {
+    family: kind,
+    words: `it was ${kind.replace(/_/g, " ")}`,
+    short: kind.replace(/_/g, "-"),
+  };
 
 /** Who a close said owns the fix: what it was folded into, else the change its own words name ("already fixed by the Oct 6 fee policy"), else the commit. */
 function ownerOf(a: Pick<HistoryAttempt, "argued">): string | null {
@@ -805,16 +1221,31 @@ function ownerOf(a: Pick<HistoryAttempt, "argued">): string | null {
  * problem the same way again. Null when a close said no argument, the closes
  * argued different things, or nothing came back.
  */
-export function closesArgument(h: Pick<CauseHistory<AttemptOutcome>, "closes" | "recurrences" | "attempts">): string | null {
+export function closesArgument(
+  h: Pick<CauseHistory<AttemptOutcome>, "closes" | "recurrences" | "attempts">,
+): string | null {
   const closes = h.closes.filter((c) => c.kind !== "shipped");
-  if (!closes.length || !h.recurrences.some((r) => r.count > 0 && closes.some((c) => c.runId === r.afterRunId))) return null;
-  const attempts = closes.map((c) => h.attempts.find((a) => a.runId === c.runId));
+  if (
+    !closes.length ||
+    !h.recurrences.some(
+      (r) => r.count > 0 && closes.some((c) => c.runId === r.afterRunId),
+    )
+  )
+    return null;
+  const attempts = closes.map((c) =>
+    h.attempts.find((a) => a.runId === c.runId),
+  );
   if (attempts.some((a) => !a?.argued)) return null;
   const args = attempts.map((a) => argumentOf(a!.argued!.kind));
   if (new Set(args.map((x) => x.family)).size > 1) return null;
-  const owners = [...new Set(attempts.map((a) => ownerOf(a!)).filter((x): x is string => !!x))];
+  const owners = [
+    ...new Set(
+      attempts.map((a) => ownerOf(a!)).filter((x): x is string => !!x),
+    ),
+  ];
   const n = closes.length;
-  const who = n === 1 ? "The close" : n === 2 ? "Both closes" : `All ${n} closes`;
+  const who =
+    n === 1 ? "The close" : n === 2 ? "Both closes" : `All ${n} closes`;
   return `${who} argued ${args[0].words}${owners.length ? ` (${owners.join(", ")})` : ""}; it kept happening, so that argument is spent.`;
 }
 
@@ -822,7 +1253,8 @@ export function closesArgument(h: Pick<CauseHistory<AttemptOutcome>, "closes" | 
 const BRIEF_EXAMPLE_TIMES = 3;
 
 /** Parts as sentences: each ends with one stop, a quote's own stop included. */
-const sentences = (parts: ReadonlyArray<string>) => parts.map((p) => (/[.!?]["”]?$/.test(p) ? p : `${p}.`)).join(" ");
+const sentences = (parts: ReadonlyArray<string>) =>
+  parts.map((p) => (/[.!?]["”]?$/.test(p) ? p : `${p}.`)).join(" ");
 
 /**
  * The cause's earlier attempts in words, for a person reading the next card
@@ -832,36 +1264,65 @@ const sentences = (parts: ReadonlyArray<string>) => parts.map((p) => (/[.!?]["�
  * after the closes without a change is said once, after the list, with what
  * those closes argued. Empty when there is no earlier attempt to remember.
  */
-export function historyBrief(h: CauseHistory<AttemptOutcome>, exceptRunId?: string, maxChars = Infinity): string {
+export function historyBrief(
+  h: CauseHistory<AttemptOutcome>,
+  exceptRunId?: string,
+  maxChars = Infinity,
+): string {
   const done = h.attempts.filter((a) => !a.live && a.runId !== exceptRunId);
   if (!done.length) return "";
   // When it came back: every date when there are few, else the first; and one occurrence's own words.
   const cameBack = (r: { at: number; count: number }, quote: string | null) =>
-    `${r.count <= BRIEF_EXAMPLE_TIMES ? `on ${andList(h.occurrences.filter((o) => o.at >= r.at).slice(0, r.count).map((o) => shortDay(o.at)))}` : `first on ${shortDay(r.at)}`}${quote ? `; one said: "${clip(quote, 300)}"` : ""}`;
+    `${
+      r.count <= BRIEF_EXAMPLE_TIMES
+        ? `on ${andList(
+            h.occurrences
+              .filter((o) => o.at >= r.at)
+              .slice(0, r.count)
+              .map((o) => shortDay(o.at)),
+          )}`
+        : `first on ${shortDay(r.at)}`
+    }${quote ? `; one said: "${clip(quote, 300)}"` : ""}`;
   const lines: string[] = [];
   for (const a of done) {
     const ship = h.ships.find((s) => s.runId === a.runId);
     const close = h.closes.find((c) => c.runId === a.runId);
-    const regression = close?.kind === "shipped" && close.back ? close.back : null;
-    const quote = h.regressions.find((r) => r.afterRunId === a.runId)?.quote ?? null;
+    const regression =
+      close?.kind === "shipped" && close.back ? close.back : null;
+    const quote =
+      h.regressions.find((r) => r.afterRunId === a.runId)?.quote ?? null;
     // A close without a change shipped nothing: a guard its reasoning names (an eval, a test) is not in place.
-    const unshipped = unshippedGuard(close?.kind, `${a.found ?? ""} ${a.proposed ?? ""} ${a.built ?? ""}`);
+    const unshipped = unshippedGuard(
+      close?.kind,
+      `${a.found ?? ""} ${a.proposed ?? ""} ${a.built ?? ""}`,
+    );
     const parts = [
       `Attempt ${a.n} (${shortDay(a.start)}): ${a.outcome.text}`,
       a.found && `Found: ${clip(a.found, 600)}`,
       a.proposed && `Proposed: ${clip(a.proposed, 600)}`,
       a.built && `Built: ${clip(a.built, 600)}`,
-      a.card?.answer && `Card answered ${a.card.answer}${a.card.note ? `: "${clip(a.card.note, 300)}"` : ""}`,
-      a.diff && `Diff: ${plural(a.diff.files, "file")}, +${a.diff.added} -${a.diff.removed}${a.diff.pr ? ` (${a.diff.pr})` : ""}`,
-      a.merge && (a.merge.byHand ? `Merged by hand through ${a.merge.prUrl} ${shortDay(a.merge.at)}` : `Merged ${a.merge.sha.slice(0, 10)} into ${a.merge.into}`),
+      a.card?.answer &&
+        `Card answered ${a.card.answer}${a.card.note ? `: "${clip(a.card.note, 300)}"` : ""}`,
+      a.diff &&
+        `Diff: ${plural(a.diff.files, "file")}, +${a.diff.added} -${a.diff.removed}${a.diff.pr ? ` (${a.diff.pr})` : ""}`,
+      a.merge &&
+        (a.merge.byHand
+          ? `Merged by hand through ${a.merge.prUrl} ${shortDay(a.merge.at)}`
+          : `Merged ${a.merge.sha.slice(0, 10)} into ${a.merge.into}`),
       ship && ship.words,
-      unshipped && "Nothing shipped with this close: any eval or guard it mentions was never shipped, so nothing guards against it",
-      close?.fold && (close.fold.liveAt == null
-        ? `It folded the problem into ${close.fold.into}, whose fix has not shipped, so occurrences since are expected until it does; do not count them against this close`
-        : `It folded the problem into ${close.fold.into}, whose fix went live ${shortDay(close.fold.liveAt)}`),
+      unshipped &&
+        "Nothing shipped with this close: any eval or guard it mentions was never shipped, so nothing guards against it",
+      close?.fold &&
+        (close.fold.liveAt == null
+          ? `It folded the problem into ${close.fold.into}, whose fix has not shipped, so occurrences since are expected until it does; do not count them against this close`
+          : `It folded the problem into ${close.fold.into}, whose fix went live ${shortDay(close.fold.liveAt)}`),
       regression ? `${regression.words}, ${cameBack(regression, quote)}` : null,
-      regression ? "That fix did not hold"
-        : ship && h.watches.find((w) => w.runId === a.runId && w.state === "quiet") ? "The watch after it ended quiet" : null,
+      regression
+        ? "That fix did not hold"
+        : ship &&
+            h.watches.find((w) => w.runId === a.runId && w.state === "quiet")
+          ? "The watch after it ended quiet"
+          : null,
     ].filter((x): x is string => !!x);
     lines.push(`- ${sentences(parts)}`);
   }
@@ -871,19 +1332,40 @@ export function historyBrief(h: CauseHistory<AttemptOutcome>, exceptRunId?: stri
     if (!r.count || r.afterRunId === exceptRunId) continue;
     const at = h.closes.findIndex((c) => c.runId === r.afterRunId);
     let first = at;
-    while (first > 0 && h.closes[first - 1].kind !== "shipped" && !h.recurrences.some((x) => x.afterRunId === h.closes[first - 1].runId && x.count > 0)) first--;
+    while (
+      first > 0 &&
+      h.closes[first - 1].kind !== "shipped" &&
+      !h.recurrences.some(
+        (x) => x.afterRunId === h.closes[first - 1].runId && x.count > 0,
+      )
+    )
+      first--;
     const span = h.closes.slice(first, at + 1);
-    const who = span.length > 1 ? `attempts ${span[0].n} to ${span[span.length - 1].n}` : `attempt ${r.n}`;
+    const who =
+      span.length > 1
+        ? `attempts ${span[0].n} to ${span[span.length - 1].n}`
+        : `attempt ${r.n}`;
     const verb = span.every((c) => c.kind === r.kind) ? r.kind : "closed";
-    back.push(`Came back ${backTimes(r.count)} after ${who} ${verb} it, ${cameBack(r, r.quote)}`);
+    back.push(
+      `Came back ${backTimes(r.count)} after ${who} ${verb} it, ${cameBack(r, r.quote)}`,
+    );
   }
-  if (back.length) back.push(back.length > 1 ? "Closing it without a change never held: the reasoning that closed it was wrong" : "Closing it did not hold: the reasoning that closed it was wrong");
+  if (back.length)
+    back.push(
+      back.length > 1
+        ? "Closing it without a change never held: the reasoning that closed it was wrong"
+        : "Closing it did not hold: the reasoning that closed it was wrong",
+    );
   const argued = closesArgument(h);
-  const tail = back.length ? [sentences(back), ...(argued ? [argued] : [])] : [];
+  const tail = back.length
+    ? [sentences(back), ...(argued ? [argued] : [])]
+    : [];
   const closed = back.length ? null : closesSummary(h);
   // Over the budget, the oldest attempts go first: the newest are what the next one most needs.
   let dropped = 0;
-  const head = () => [`This problem has had ${plural(done.length, "earlier attempt")}.${closed ? ` ${closed}` : ""}${dropped ? ` The oldest ${dropped === 1 ? "one is" : `${dropped} are`} left out for length.` : ""}`];
+  const head = () => [
+    `This problem has had ${plural(done.length, "earlier attempt")}.${closed ? ` ${closed}` : ""}${dropped ? ` The oldest ${dropped === 1 ? "one is" : `${dropped} are`} left out for length.` : ""}`,
+  ];
   const text = () => [...head(), ...lines.slice(dropped), ...tail].join("\n");
   while (text().length > maxChars && dropped < lines.length - 1) dropped++;
   return text();

@@ -1,11 +1,21 @@
 import { frontmatterLineOffset, splitFrontmatter } from "../frontmatter";
 import { test, expect, describe } from "bun:test";
-import { parseNote, parseWikiTarget, slugifyHeading, stripKnownExtension, headingSlugs } from "../parseNote";
+import {
+  parseNote,
+  parseWikiTarget,
+  slugifyHeading,
+  stripKnownExtension,
+  headingSlugs,
+} from "../parseNote";
 import { CORPUS, type CorpusExpectation } from "./corpus";
 
 /** Assert only the keys the corpus case declares — a case pins the rule it is
  *  about and stays silent on everything else. */
-function expectSubset(actual: Record<string, unknown>, expected: Record<string, unknown>, where: string) {
+function expectSubset(
+  actual: Record<string, unknown>,
+  expected: Record<string, unknown>,
+  where: string,
+) {
   for (const [key, value] of Object.entries(expected)) {
     expect(actual[key], `${where}.${key}`).toEqual(value as never);
   }
@@ -19,32 +29,55 @@ describe("corpus", () => {
 
       if (want.title !== undefined) expect(parsed.title).toBe(want.title);
       if (want.aliases) expect(parsed.aliases).toEqual(want.aliases);
-      if (want.frontmatterTags) expect(parsed.frontmatterTags).toEqual(want.frontmatterTags);
-      if (want.inlineTags) expect(parsed.inlineTags.map((t) => t.tag)).toEqual(want.inlineTags);
-      if (want.frontmatter) expectSubset(parsed.frontmatter ?? {}, want.frontmatter, "frontmatter");
+      if (want.frontmatterTags)
+        expect(parsed.frontmatterTags).toEqual(want.frontmatterTags);
+      if (want.inlineTags)
+        expect(parsed.inlineTags.map((t) => t.tag)).toEqual(want.inlineTags);
+      if (want.frontmatter)
+        expectSubset(parsed.frontmatter ?? {}, want.frontmatter, "frontmatter");
 
       if (want.links) {
-        expect(parsed.links.map((l) => l.target)).toEqual(want.links.map((l) => l.target));
+        expect(parsed.links.map((l) => l.target)).toEqual(
+          want.links.map((l) => l.target),
+        );
         want.links.forEach((expectedLink, i) => {
-          expectSubset(parsed.links[i] as unknown as Record<string, unknown>, expectedLink, `links[${i}]`);
+          expectSubset(
+            parsed.links[i] as unknown as Record<string, unknown>,
+            expectedLink,
+            `links[${i}]`,
+          );
         });
       }
       if (want.headings) {
         expect(parsed.headings).toHaveLength(want.headings.length);
         want.headings.forEach((h, i) => {
-          expectSubset(parsed.headings[i] as unknown as Record<string, unknown>, h, `headings[${i}]`);
+          expectSubset(
+            parsed.headings[i] as unknown as Record<string, unknown>,
+            h,
+            `headings[${i}]`,
+          );
         });
       }
       if (want.blocks) {
-        expect(parsed.blocks.map((b) => b.id)).toEqual(want.blocks.map((b) => b.id));
+        expect(parsed.blocks.map((b) => b.id)).toEqual(
+          want.blocks.map((b) => b.id),
+        );
         want.blocks.forEach((b, i) => {
-          expectSubset(parsed.blocks[i] as unknown as Record<string, unknown>, b, `blocks[${i}]`);
+          expectSubset(
+            parsed.blocks[i] as unknown as Record<string, unknown>,
+            b,
+            `blocks[${i}]`,
+          );
         });
       }
       if (want.tasks) {
         expect(parsed.tasks).toHaveLength(want.tasks.length);
         want.tasks.forEach((t, i) => {
-          expectSubset(parsed.tasks[i] as unknown as Record<string, unknown>, t, `tasks[${i}]`);
+          expectSubset(
+            parsed.tasks[i] as unknown as Record<string, unknown>,
+            t,
+            `tasks[${i}]`,
+          );
         });
       }
       for (const needle of want.plainTextIncludes ?? []) {
@@ -88,7 +121,17 @@ describe("parseNote basics", () => {
   });
 
   test("code text is captured, not discarded", () => {
-    const parsed = parseNote(["Prose.", "", "```ts", "const secret = 1;", "```", "", "And `inline code`."].join("\n"));
+    const parsed = parseNote(
+      [
+        "Prose.",
+        "",
+        "```ts",
+        "const secret = 1;",
+        "```",
+        "",
+        "And `inline code`.",
+      ].join("\n"),
+    );
     expect(parsed.codeText).toContain("const secret = 1;");
     expect(parsed.codeText).toContain("inline code");
     expect(parsed.plainText).not.toContain("const secret");
@@ -101,11 +144,29 @@ describe("parseNote basics", () => {
 
   test("chunks carry line spans and the heading trail", () => {
     const parsed = parseNote(
-      ["# Top", "", "first para", "", "## Sub", "", "second para", "still second", ""].join("\n"),
+      [
+        "# Top",
+        "",
+        "first para",
+        "",
+        "## Sub",
+        "",
+        "second para",
+        "still second",
+        "",
+      ].join("\n"),
     );
     expect(parsed.chunks).toHaveLength(2);
-    expect(parsed.chunks[0]).toMatchObject({ line: 3, endLine: 3, headingPath: ["Top"] });
-    expect(parsed.chunks[1]).toMatchObject({ line: 7, endLine: 8, headingPath: ["Top", "Sub"] });
+    expect(parsed.chunks[0]).toMatchObject({
+      line: 3,
+      endLine: 3,
+      headingPath: ["Top"],
+    });
+    expect(parsed.chunks[1]).toMatchObject({
+      line: 7,
+      endLine: 8,
+      headingPath: ["Top", "Sub"],
+    });
     expect(parsed.chunks[1].text).toBe("second para still second");
   });
 
@@ -118,7 +179,10 @@ describe("parseNote basics", () => {
       "Some claim.\n\n^the-id\n",
     ]) {
       const parsed = parseNote(markdown);
-      expect(parsed.blocks[0], markdown).toMatchObject({ id: "the-id", text: "Some claim." });
+      expect(parsed.blocks[0], markdown).toMatchObject({
+        id: "the-id",
+        text: "Some claim.",
+      });
       expect(parsed.chunks, markdown).toHaveLength(1);
       expect(parsed.chunks[0].blockId, markdown).toBe("the-id");
     }
@@ -140,7 +204,10 @@ describe("helpers", () => {
       subpath: "H1#H2",
       subpathType: "heading",
     });
-    expect(parseWikiTarget("img.png|300x200")).toEqual({ target: "img.png", alias: "300x200" });
+    expect(parseWikiTarget("img.png|300x200")).toEqual({
+      target: "img.png",
+      alias: "300x200",
+    });
   });
 
   test("stripKnownExtension only strips extensions the vault knows", () => {
@@ -170,7 +237,8 @@ test("headingSlugs dedupes repeated heading text in document order", () => {
 });
 
 test("frontmatterLineOffset and splitFrontmatter handle CRLF-authored notes", () => {
-  const crlf = "---\r\ntitle: Test\r\ntags: [a]\r\n---\r\n- [ ] task one\r\nBody.\r\n";
+  const crlf =
+    "---\r\ntitle: Test\r\ntags: [a]\r\n---\r\n- [ ] task one\r\nBody.\r\n";
   expect(frontmatterLineOffset(crlf)).toBe(4);
   const [fm, body] = splitFrontmatter(crlf);
   expect(fm).toBe("title: Test\r\ntags: [a]\r");

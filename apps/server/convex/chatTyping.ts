@@ -25,7 +25,8 @@ export const TYPING_STALE_MS = 15_000;
  *  faster than its own throttle cannot churn every subscriber's query. */
 const MIN_REFRESH_MS = 1_000;
 
-const threadKey = (threadRootId: string | undefined): string => threadRootId ?? "";
+const threadKey = (threadRootId: string | undefined): string =>
+  threadRootId ?? "";
 
 async function ownRow(
   ctx: { db: any },
@@ -35,7 +36,8 @@ async function ownRow(
   return await ctx.db
     .query("chat_typing")
     .withIndex("by_channel_user", (q: any) =>
-      q.eq("channel_id", channelId).eq("user_id", userId))
+      q.eq("channel_id", channelId).eq("user_id", userId),
+    )
     .first();
 }
 
@@ -54,7 +56,11 @@ export const set = mutation({
     const key = threadKey(args.thread_root_id);
     const existing = await ownRow(ctx, channel._id, userId);
     if (existing) {
-      if (existing.thread_key === key && now - existing.updated_at < MIN_REFRESH_MS) return;
+      if (
+        existing.thread_key === key &&
+        now - existing.updated_at < MIN_REFRESH_MS
+      )
+        return;
       await ctx.db.patch(existing._id, { thread_key: key, updated_at: now });
       return;
     }
@@ -100,7 +106,8 @@ export const list = query({
     const rows = await ctx.db
       .query("chat_typing")
       .withIndex("by_channel_updated", (q: any) =>
-        q.eq("channel_id", channel._id).gt("updated_at", cutoff))
+        q.eq("channel_id", channel._id).gt("updated_at", cutoff),
+      )
       .collect();
     return rows.map((r: any) => ({
       user_id: r.user_id,

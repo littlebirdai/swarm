@@ -1,7 +1,12 @@
 import "./fixtures/signedInPrincipal";
 import { indexedDB, IDBKeyRange, IDBObjectStore } from "fake-indexeddb";
 import { afterEach, describe, it, expect } from "bun:test";
-import { enqueueDispatch, loadOutbox, removeDispatch, _reopenForTests } from "../idbCache";
+import {
+  enqueueDispatch,
+  loadOutbox,
+  removeDispatch,
+  _reopenForTests,
+} from "../idbCache";
 import { action, mutativeMiddleware } from "../mutativeMiddleware";
 
 await _reopenForTests({ indexedDB, IDBKeyRange });
@@ -14,7 +19,15 @@ await _reopenForTests({ indexedDB, IDBKeyRange });
 // ... failed after Nms — durability is degraded") and never retries. A write
 // that keeps failing, or fails for any other reason, must still surface.
 
-const entry = (id: string) => ({ id, action: "stageExpandLeaf", args: {}, patches: {}, result: null, ts: 1 }) as any;
+const entry = (id: string) =>
+  ({
+    id,
+    action: "stageExpandLeaf",
+    args: {},
+    patches: {},
+    result: null,
+    ts: 1,
+  }) as any;
 
 // Every dispatchOutbox put goes through here: `failures` names the error each
 // of the first puts throws (by DOMException name), later puts commit.
@@ -28,11 +41,19 @@ function failOutboxPuts(failures: string[]) {
     if (this.name !== "dispatchOutbox") return realPut.apply(this, args);
     calls.count++;
     const name = left.shift();
-    if (name) throw new DOMException(name === "TimeoutError" ? "Transaction timed out due to inactivity" : name, name);
+    if (name)
+      throw new DOMException(
+        name === "TimeoutError"
+          ? "Transaction timed out due to inactivity"
+          : name,
+        name,
+      );
     calls.committedAt = performance.now();
     return realPut.apply(this, args);
   };
-  restorePut = () => { proto.put = realPut; };
+  restorePut = () => {
+    proto.put = realPut;
+  };
   return calls;
 }
 
@@ -54,10 +75,18 @@ function makeStore() {
       }),
     }),
     { retryDelays: [], storageWatchdogMs: 50_000 },
-  )((next: any) => { state = next; }, () => state, {});
+  )(
+    (next: any) => {
+      state = next;
+    },
+    () => state,
+    {},
+  );
   state = wrapped;
   wrapped._setOutbox(enqueueDispatch, removeDispatch, loadOutbox);
-  wrapped._setStorageHealth((healthy: boolean) => { health.push(healthy); });
+  wrapped._setStorageHealth((healthy: boolean) => {
+    health.push(healthy);
+  });
   return { wrapped, health };
 }
 
@@ -68,11 +97,19 @@ function captureEnqueueErrors() {
     const line = String(args[0]);
     if (line.includes("durable enqueue")) lines.push(line);
   };
-  return { lines, restore: () => { console.error = original; } };
+  return {
+    lines,
+    restore: () => {
+      console.error = original;
+    },
+  };
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function waitFor(cond: () => boolean | Promise<boolean>, timeoutMs = 2_000) {
+async function waitFor(
+  cond: () => boolean | Promise<boolean>,
+  timeoutMs = 2_000,
+) {
   const deadline = Date.now() + timeoutMs;
   while (!(await cond())) {
     if (Date.now() > deadline) throw new Error("waitFor timed out");
@@ -111,7 +148,12 @@ describe("dispatch outbox under a transient IndexedDB timeout", () => {
   });
 
   it("still fails, once and loudly, when every attempt times out", async () => {
-    const calls = failOutboxPuts(["TimeoutError", "TimeoutError", "TimeoutError", "TimeoutError"]);
+    const calls = failOutboxPuts([
+      "TimeoutError",
+      "TimeoutError",
+      "TimeoutError",
+      "TimeoutError",
+    ]);
     const errors = captureEnqueueErrors();
     try {
       const { wrapped, health } = makeStore();
@@ -120,14 +162,22 @@ describe("dispatch outbox under a transient IndexedDB timeout", () => {
       // One first attempt plus OUTBOX_TIMEOUT_RETRIES (2) retries, then give up.
       expect(calls.count).toBe(3);
       expect(health).toEqual([false]);
-      expect(errors.lines).toEqual([expect.stringMatching(/durable enqueue for "stageExpandLeaf" failed after \d+ms/)]);
+      expect(errors.lines).toEqual([
+        expect.stringMatching(
+          /durable enqueue for "stageExpandLeaf" failed after \d+ms/,
+        ),
+      ]);
       expect(await outboxIds()).toEqual([]);
     } finally {
       errors.restore();
     }
   });
 
-  for (const name of ["QuotaExceededError", "DataCloneError", "ConstraintError"]) {
+  for (const name of [
+    "QuotaExceededError",
+    "DataCloneError",
+    "ConstraintError",
+  ]) {
     it(`does not retry a ${name}`, async () => {
       const calls = failOutboxPuts([name, name, name]);
       const errors = captureEnqueueErrors();

@@ -7,6 +7,8 @@ export type EnforcedSeatState = Extract<SeatState, { enforced: true }>;
 
 /** The team's seat plan when seat billing is on here, else null. */
 export function useSeatState(teamId: Id<"teams">): EnforcedSeatState | null {
-  const state = useQueryNoThrow(api.teamBilling.getSeatState, { team_id: teamId }).data;
+  const state = useQueryNoThrow(api.teamBilling.getSeatState, {
+    team_id: teamId,
+  }).data;
   return state?.enforced ? state : null;
 }

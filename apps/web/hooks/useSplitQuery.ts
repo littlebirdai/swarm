@@ -3,7 +3,12 @@ import { useConvex, type ConvexReactClient } from "convex/react";
 import { getFunctionName, type FunctionReference } from "convex/server";
 import { convexToJson } from "convex/values";
 import { queryWithSignal } from "../lib/queryWithSignal";
-import { cacheRows, heldHash, rebuildRows, type SplitCache } from "@codecast/shared/contracts/inboxSplit";
+import {
+  cacheRows,
+  heldHash,
+  rebuildRows,
+  type SplitCache,
+} from "@codecast/shared/contracts/inboxSplit";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useWatchEffect } from "./useWatchEffect";
 
@@ -49,12 +54,15 @@ function heldFor(name: string): Held {
   if (h) return h;
   const cache: SplitCache<any> = new Map();
   const saved = new Map<string, unknown>();
-  const restored = (persistence?.load(name) ?? Promise.resolve([])).then((rows) => {
-    for (const { id, hash, row } of rows) {
-      saved.set(id, row);
-      if (!cache.has(id)) cache.set(id, { row, hash });
-    }
-  }, () => {});
+  const restored = (persistence?.load(name) ?? Promise.resolve([])).then(
+    (rows) => {
+      for (const { id, hash, row } of rows) {
+        saved.set(id, row);
+        if (!cache.has(id)) cache.set(id, { row, hash });
+      }
+    },
+    () => {},
+  );
   held.set(name, (h = { cache, restored, saved, saveTimer: null }));
   return h;
 }
@@ -78,12 +86,17 @@ function noteHeldChanged(name: string): void {
     }
     for (const id of h.saved.keys()) if (!h.cache.has(id)) removes.push(id);
     for (const id of removes) h.saved.delete(id);
-    if (upserts.length || removes.length) persistence?.save(name, upserts, removes);
+    if (upserts.length || removes.length)
+      persistence?.save(name, upserts, removes);
   }, SAVE_EVERY_MS);
 }
 
 /** Rebuild from the cache, and once more after the saved rows are restored. */
-async function rebuildHeld(kind: SplitKind, value: any, name: string): Promise<any | null> {
+async function rebuildHeld(
+  kind: SplitKind,
+  value: any,
+  name: string,
+): Promise<any | null> {
   const h = heldFor(name);
   const rebuilt = rebuildSplitPayload(kind, value, h.cache);
   if (rebuilt || !value?.split) return rebuilt;
@@ -94,22 +107,58 @@ async function rebuildHeld(kind: SplitKind, value: any, name: string): Promise<a
 // A server that predates the split argument rejects it; the feeder then
 // subscribes to the whole result for the rest of the page, as before.
 const unsupported = new Set<string>();
-const rejectsSplit = (e: unknown) => /split/.test(String((e as any)?.message ?? e)) && /ArgumentValidationError|extra field/i.test(String((e as any)?.message ?? e));
+const rejectsSplit = (e: unknown) =>
+  /split/.test(String((e as any)?.message ?? e)) &&
+  /ArgumentValidationError|extra field/i.test(String((e as any)?.message ?? e));
 
 /** The whole result a split value stands for, or null when the cache cannot vouch for its cold rows. Unsplit values pass through. Pure; unit-tested. */
-export function rebuildSplitPayload(kind: SplitKind, value: any, cache: SplitCache<any>): any | null {
+export function rebuildSplitPayload(
+  kind: SplitKind,
+  value: any,
+  cache: SplitCache<any>,
+): any | null {
   if (!value?.split) return value;
   if (kind === "list") {
-    const rows = rebuildRows({ ids: value.ids, hot: value.hot.map((r: any) => [String(r._id), r]), cold_hash: value.cold_hash }, cache);
-    return rows && { sessions: rows.map(([, r]) => r), hidden_count: value.hidden_count, truncated: value.truncated };
+    const rows = rebuildRows(
+      {
+        ids: value.ids,
+        hot: value.hot.map((r: any) => [String(r._id), r]),
+        cold_hash: value.cold_hash,
+      },
+      cache,
+    );
+    return (
+      rows && {
+        sessions: rows.map(([, r]) => r),
+        hidden_count: value.hidden_count,
+        truncated: value.truncated,
+      }
+    );
   }
-  const rows = rebuildRows({ ids: value.ids, hot: Object.entries(value.hot), cold_hash: value.cold_hash }, cache);
-  return rows && { liveness: Object.fromEntries(rows), projection: value.projection };
+  const rows = rebuildRows(
+    {
+      ids: value.ids,
+      hot: Object.entries(value.hot),
+      cold_hash: value.cold_hash,
+    },
+    cache,
+  );
+  return (
+    rows && { liveness: Object.fromEntries(rows), projection: value.projection }
+  );
 }
 
 /** Hold the rows of a whole (unsplit) result, so the next split value can be rebuilt from them. */
-export function seedSplitCache(kind: SplitKind, whole: any, cache: SplitCache<any>): void {
-  if (kind === "list") cacheRows(cache, (whole?.sessions ?? []).map((r: any) => [String(r._id), r]));
+export function seedSplitCache(
+  kind: SplitKind,
+  whole: any,
+  cache: SplitCache<any>,
+): void {
+  if (kind === "list")
+    cacheRows(
+      cache,
+      (whole?.sessions ?? []).map((r: any) => [String(r._id), r]),
+    );
   else cacheRows(cache, Object.entries(whole?.liveness ?? {}));
 }
 
@@ -128,9 +177,24 @@ export async function querySplitWhole(
   signal: AbortSignal,
 ): Promise<any> {
   const name = getFunctionName(query);
-  const whole = () => queryWithSignal(convex, query, { ...args, _probe: Date.now() } as any, signal);
+  const whole = () =>
+    queryWithSignal(
+      convex,
+      query,
+      { ...args, _probe: Date.now() } as any,
+      signal,
+    );
   if (unsupported.has(name)) return whole();
-  const rebuilt = await rebuildHeld(kind, await queryWithSignal(convex, query, { ...args, split: true, _probe: Date.now() } as any, signal), name);
+  const rebuilt = await rebuildHeld(
+    kind,
+    await queryWithSignal(
+      convex,
+      query,
+      { ...args, split: true, _probe: Date.now() } as any,
+      signal,
+    ),
+    name,
+  );
   noteHeldChanged(name);
   if (rebuilt) return rebuilt;
   const value = await whole();
@@ -193,10 +257,18 @@ export function useSplitQueryNoThrow<Q extends FunctionReference<"query">>(
 ): { data: any; error: Error | undefined } {
   const name = getFunctionName(query);
   const convex = useConvex();
-  const key = args === "skip" ? null : `${name}:${JSON.stringify(convexToJson(args))}`;
+  const key =
+    args === "skip" ? null : `${name}:${JSON.stringify(convexToJson(args))}`;
   const [, rerender] = useState(0);
   const splitOn = args !== "skip" && !unsupported.has(name);
-  const sub = useQueryNoThrow(query, args === "skip" ? "skip" : splitOn ? ({ ...args, split: true } as any) : (args as any));
+  const sub = useQueryNoThrow(
+    query,
+    args === "skip"
+      ? "skip"
+      : splitOn
+        ? ({ ...args, split: true } as any)
+        : (args as any),
+  );
   // A rebuild can outlive its subscription args during a team switch.
   const [resolved, setResolved] = useState<{ key: string; data: any }>();
 
@@ -218,7 +290,14 @@ export function useSplitQueryNoThrow<Q extends FunctionReference<"query">>(
       return;
     }
     let cancelled = false;
-    void settleSplitPush(convex, query, args, kind, value, () => cancelled).then((whole) => {
+    void settleSplitPush(
+      convex,
+      query,
+      args,
+      kind,
+      value,
+      () => cancelled,
+    ).then((whole) => {
       if (whole !== null && !cancelled) setResolved({ key, data: whole });
     });
     return () => {
@@ -228,6 +307,14 @@ export function useSplitQueryNoThrow<Q extends FunctionReference<"query">>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sub.data, key, kind, name, convex]);
 
-  const data = splitOn ? (key === resolved?.key ? resolved.data : undefined) : sub.data;
-  return { data, error: splitOn && sub.error && rejectsSplit(sub.error) ? undefined : sub.error };
+  const data = splitOn
+    ? key === resolved?.key
+      ? resolved.data
+      : undefined
+    : sub.data;
+  return {
+    data,
+    error:
+      splitOn && sub.error && rejectsSplit(sub.error) ? undefined : sub.error,
+  };
 }

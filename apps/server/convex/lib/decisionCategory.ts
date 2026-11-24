@@ -10,21 +10,34 @@
 // failure gate, a card a run's session posts) with no category declared, a
 // proposal outside the vocabulary, and the admins' areas card.
 
-import { OPEN_CATEGORIES, PROTECTED_CATEGORIES } from "@codecast/shared/contracts/decisionCategory";
+import {
+  OPEN_CATEGORIES,
+  PROTECTED_CATEGORIES,
+} from "@codecast/shared/contracts/decisionCategory";
 
 export { OPEN_CATEGORIES, PROTECTED_CATEGORIES };
-export const DECISION_CATEGORIES = [...OPEN_CATEGORIES, ...PROTECTED_CATEGORIES, "limit", "unknown"] as const;
+export const DECISION_CATEGORIES = [
+  ...OPEN_CATEGORIES,
+  ...PROTECTED_CATEGORIES,
+  "limit",
+  "unknown",
+] as const;
 
 export type DecisionCategory = (typeof DECISION_CATEGORIES)[number];
 
 export function isDecisionCategory(value: unknown): value is DecisionCategory {
-  return typeof value === "string" && (DECISION_CATEGORIES as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (DECISION_CATEGORIES as readonly string[]).includes(value)
+  );
 }
 
 // Production, billing, data, access, external and product: a person's call
 // that keeps the ask-time routing it always had, never shared out by area.
 export function isProtectedCategory(category: string | undefined): boolean {
-  return !!category && (PROTECTED_CATEGORIES as readonly string[]).includes(category);
+  return (
+    !!category && (PROTECTED_CATEGORIES as readonly string[]).includes(category)
+  );
 }
 
 // Human held, never grantable to a role.
@@ -43,7 +56,10 @@ export function isHumanOnlyCategory(category: string | undefined): boolean {
 // proposal outside the vocabulary (kept in category_proposed by the caller) is
 // `unknown`: a word the asker meant as a constraint is never loosened to an
 // open category.
-export function assignCategory(proposed: string | undefined, fallback: "review" | "unknown" = "review"): DecisionCategory {
+export function assignCategory(
+  proposed: string | undefined,
+  fallback: "review" | "unknown" = "review",
+): DecisionCategory {
   if (proposed === undefined) return fallback;
   return isDecisionCategory(proposed) ? proposed : "unknown";
 }
@@ -58,8 +74,15 @@ export function runCategory(declared: string | undefined): DecisionCategory {
 // station named stands (a gate only tightens); otherwise the gate's declared
 // one, else a person's. A station's card with none carries the server's
 // `unknown`, which the gate's word replaces.
-export function adoptedCategory(card: string | undefined, declared: string | undefined): DecisionCategory {
-  return isDecisionCategory(card) && card !== "unknown" && isHumanOnlyCategory(card) ? card : runCategory(declared);
+export function adoptedCategory(
+  card: string | undefined,
+  declared: string | undefined,
+): DecisionCategory {
+  return isDecisionCategory(card) &&
+    card !== "unknown" &&
+    isHumanOnlyCategory(card)
+    ? card
+    : runCategory(declared);
 }
 
 // The category an ask or an edit leaves a decision with (D1).
@@ -72,10 +95,16 @@ export function adoptedCategory(card: string | undefined, declared: string | und
 //   leaves an open card as it was, and a new one with a person.
 export function categoryFor(
   proposed: string | undefined,
-  o: { current: string | undefined | null; runDeclares: boolean; runs: boolean },
+  o: {
+    current: string | undefined | null;
+    runDeclares: boolean;
+    runs: boolean;
+  },
 ): DecisionCategory {
   if (o.current !== null) {
-    const kept: DecisionCategory = isDecisionCategory(o.current) ? o.current : "unknown";
+    const kept: DecisionCategory = isDecisionCategory(o.current)
+      ? o.current
+      : "unknown";
     if (proposed === undefined) return kept;
     const next = assignCategory(proposed);
     return o.runs && !isHumanOnlyCategory(next) ? kept : next;

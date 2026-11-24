@@ -16,8 +16,14 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { REFERENCES_SECTION, SNIPPET_CATALOG } from "@codecast/shared/contracts";
-import type { ModelCallResult, ModelCallSpec } from "@codecast/shared/contracts/modelCall";
+import {
+  REFERENCES_SECTION,
+  SNIPPET_CATALOG,
+} from "@codecast/shared/contracts";
+import type {
+  ModelCallResult,
+  ModelCallSpec,
+} from "@codecast/shared/contracts/modelCall";
 import { parseJsonBlock } from "@codecast/shared/contracts/modelCall";
 import { writeHarnessFile } from "../harness.js";
 import { findOwnedSections } from "../snippets.js";
@@ -99,7 +105,10 @@ const SCHEMA = {
 /** Line numbers (1-based) that sit inside a codecast-owned region. */
 function ownedLines(text: string): Set<number> {
   const blocks = [
-    ...[...SNIPPET_CATALOG.flatMap((s) => (s.section ? [s.section.spec] : [])), REFERENCES_SECTION].flatMap((spec) => findOwnedSections(text, spec)),
+    ...[
+      ...SNIPPET_CATALOG.flatMap((s) => (s.section ? [s.section.spec] : [])),
+      REFERENCES_SECTION,
+    ].flatMap((spec) => findOwnedSections(text, spec)),
     ...findKitSections(text),
   ];
   const owned = new Set<number>();
@@ -145,7 +154,9 @@ export function buildPrompt(input: {
     "",
   ];
   if (input.repo) {
-    parts.push(`Repository: ${path.basename(input.repo.root)} (${input.repo.root})`);
+    parts.push(
+      `Repository: ${path.basename(input.repo.root)} (${input.repo.root})`,
+    );
     parts.push(`Its instruction file, ${path.basename(input.repo.file)}:`);
     parts.push(input.repo.text.trim() || "(empty)");
   } else {
@@ -153,13 +164,23 @@ export function buildPrompt(input: {
   }
   parts.push("");
   parts.push("Team instruction items installed for this person:");
-  parts.push(input.team.length ? input.team.map((t) => `### ${itemName(t.heading)}\n${t.body}`).join("\n\n") : "(none yet)");
+  parts.push(
+    input.team.length
+      ? input.team
+          .map((t) => `### ${itemName(t.heading)}\n${t.body}`)
+          .join("\n\n")
+      : "(none yet)",
+  );
   return parts.join("\n");
 }
 
 /** Keep only moves the reply could mean: known personal lines, a destination
  *  that exists, each line in at most one move. */
-export function validMoves(raw: unknown, candidates: Set<number>, hasRepo: boolean): PromoteMove[] {
+export function validMoves(
+  raw: unknown,
+  candidates: Set<number>,
+  hasRepo: boolean,
+): PromoteMove[] {
   const list = (raw as { moves?: unknown })?.moves;
   if (!Array.isArray(list)) return [];
   const used = new Set<number>();
@@ -167,17 +188,30 @@ export function validMoves(raw: unknown, candidates: Set<number>, hasRepo: boole
   for (const m of list as any[]) {
     if (m?.destination !== "repo" && m?.destination !== "team") continue;
     if (m.destination === "repo" && !hasRepo) continue;
-    const lines = (Array.isArray(m.lines) ? m.lines : []).filter((n: unknown) => Number.isInteger(n) && candidates.has(n as number) && !used.has(n as number));
+    const lines = (Array.isArray(m.lines) ? m.lines : []).filter(
+      (n: unknown) =>
+        Number.isInteger(n) &&
+        candidates.has(n as number) &&
+        !used.has(n as number),
+    );
     if (lines.length === 0) continue;
     lines.sort((a: number, b: number) => a - b);
     for (const n of lines) used.add(n);
     out.push({
       lines,
       destination: m.destination,
-      ...(typeof m.section === "string" && m.section.trim() ? { section: m.section.trim() } : {}),
-      ...(typeof m.item === "string" && m.item.trim() ? { item: m.item.trim() } : {}),
-      ...(typeof m.already_present === "string" && m.already_present.trim() ? { already_present: m.already_present.trim() } : {}),
-      ...(typeof m.conflicts === "string" && m.conflicts.trim() ? { conflicts: m.conflicts.trim() } : {}),
+      ...(typeof m.section === "string" && m.section.trim()
+        ? { section: m.section.trim() }
+        : {}),
+      ...(typeof m.item === "string" && m.item.trim()
+        ? { item: m.item.trim() }
+        : {}),
+      ...(typeof m.already_present === "string" && m.already_present.trim()
+        ? { already_present: m.already_present.trim() }
+        : {}),
+      ...(typeof m.conflicts === "string" && m.conflicts.trim()
+        ? { conflicts: m.conflicts.trim() }
+        : {}),
     });
   }
   return out.sort((a, b) => a.lines[0]! - b.lines[0]!);
@@ -185,7 +219,11 @@ export function validMoves(raw: unknown, candidates: Set<number>, hasRepo: boole
 
 /** `lines` appended to the end of the section headed `section`, or under a new
  *  heading at the end of the file when no such section exists. */
-export function insertUnderSection(text: string, section: string | undefined, lines: string[]): string {
+export function insertUnderSection(
+  text: string,
+  section: string | undefined,
+  lines: string[],
+): string {
   const heading = (section ?? "Guidance").replace(/^#+\s*/, "").trim();
   const rows = text.split("\n");
   let inFence = false;
@@ -195,28 +233,47 @@ export function insertUnderSection(text: string, section: string | undefined, li
     const m = !inFence && /^(#{1,6})\s+(.+?)\s*$/.exec(row);
     if (m) headings.push({ i, level: m[1]!.length, title: m[2]! });
   });
-  const hit = headings.find((h) => h.title.toLowerCase() === heading.toLowerCase());
+  const hit = headings.find(
+    (h) => h.title.toLowerCase() === heading.toLowerCase(),
+  );
   if (!hit) {
     const base = text.replace(/\n+$/, "");
     return `${base}${base ? "\n\n" : ""}## ${heading}\n\n${lines.join("\n")}\n`;
   }
-  let end = headings.find((h) => h.i > hit.i && h.level <= hit.level)?.i ?? rows.length;
+  let end =
+    headings.find((h) => h.i > hit.i && h.level <= hit.level)?.i ?? rows.length;
   while (end > hit.i + 1 && rows[end - 1]!.trim() === "") end--;
   const rest = rows.slice(end);
   const next = rest.findIndex((r) => r.trim());
   const tail = next === -1 ? [] : ["", ...rest.slice(next)];
-  return [...rows.slice(0, end), ...lines, ...tail].join("\n").replace(/\n*$/, "\n");
+  return [...rows.slice(0, end), ...lines, ...tail]
+    .join("\n")
+    .replace(/\n*$/, "\n");
 }
 
 function describe(move: PromoteMove, repoFile: string | null): string {
-  const at = move.lines.length === 1 ? `L${move.lines[0]}` : `L${move.lines[0]}-${move.lines[move.lines.length - 1]}`;
-  const where = move.destination === "repo" ? `${repoFile ? path.basename(repoFile) : "repo"} § ${move.section ?? "Guidance"}` : `team item "${move.item ?? "Guidance"}"`;
+  const at =
+    move.lines.length === 1
+      ? `L${move.lines[0]}`
+      : `L${move.lines[0]}-${move.lines[move.lines.length - 1]}`;
+  const where =
+    move.destination === "repo"
+      ? `${repoFile ? path.basename(repoFile) : "repo"} § ${move.section ?? "Guidance"}`
+      : `team item "${move.item ?? "Guidance"}"`;
   return `${at} → ${where}`;
 }
 
 export async function runPromote(deps: PromoteDeps): Promise<PromoteReport> {
-  const report: PromoteReport = { proposed: [], skipped: [], accepted: [], declined: [], wrote: [], removedFromPersonal: 0 };
-  const personalFile = deps.personalFile ?? path.join(deps.home, ".claude", "CLAUDE.md");
+  const report: PromoteReport = {
+    proposed: [],
+    skipped: [],
+    accepted: [],
+    declined: [],
+    wrote: [],
+    removedFromPersonal: 0,
+  };
+  const personalFile =
+    deps.personalFile ?? path.join(deps.home, ".claude", "CLAUDE.md");
   const personal = read(personalFile);
   if (!personal.trim()) {
     deps.print(`Nothing to promote: ${personalFile} is empty or missing.`);
@@ -224,11 +281,16 @@ export async function runPromote(deps: PromoteDeps): Promise<PromoteReport> {
   }
   const rows = personal.split("\n");
   const owned = ownedLines(personal);
-  const lines = rows.map((text, i) => ({ n: i + 1, text })).filter((l) => l.text.trim() && !owned.has(l.n));
+  const lines = rows
+    .map((text, i) => ({ n: i + 1, text }))
+    .filter((l) => l.text.trim() && !owned.has(l.n));
   const candidates = new Set(lines.map((l) => l.n));
   const team = findKitSections(personal);
   const repoFile = deps.repoRoot ? repoInstructionFile(deps.repoRoot) : null;
-  const repo = deps.repoRoot && repoFile ? { root: deps.repoRoot, file: repoFile, text: read(repoFile) } : null;
+  const repo =
+    deps.repoRoot && repoFile
+      ? { root: deps.repoRoot, file: repoFile, text: read(repoFile) }
+      : null;
 
   const result = await deps.model({
     model: deps.modelId ?? PROMOTE_MODEL,
@@ -239,19 +301,29 @@ export async function runPromote(deps: PromoteDeps): Promise<PromoteReport> {
     output_schema: SCHEMA,
   });
   if (!result.ok) throw new Error(`the model call failed: ${result.error}`);
-  const moves = validMoves(result.json ?? parseJsonBlock(result.text), candidates, !!repo);
+  const moves = validMoves(
+    result.json ?? parseJsonBlock(result.text),
+    candidates,
+    !!repo,
+  );
   report.proposed = moves;
   const textOf = (m: PromoteMove) => m.lines.map((n) => rows[n - 1]!);
 
   for (const m of moves.filter((m) => m.already_present || m.conflicts)) {
     report.skipped.push(m);
-    const why = m.conflicts ? `contradicts it (${m.conflicts})` : `already there (${m.already_present})`;
+    const why = m.conflicts
+      ? `contradicts it (${m.conflicts})`
+      : `already there (${m.already_present})`;
     deps.print(`skip  ${describe(m, repoFile)}: ${why}`);
     for (const t of textOf(m)) deps.print(`      ${t}`);
   }
   const open = moves.filter((m) => !m.already_present && !m.conflicts);
   if (open.length === 0) {
-    deps.print(moves.length ? "Nothing new to move." : "The model proposed no moves: everything reads as personal.");
+    deps.print(
+      moves.length
+        ? "Nothing new to move."
+        : "The model proposed no moves: everything reads as personal.",
+    );
     return report;
   }
   if (deps.scan) {
@@ -268,7 +340,10 @@ export async function runPromote(deps: PromoteDeps): Promise<PromoteReport> {
     for (const t of textOf(m)) deps.print(`  ${t}`);
     const answer = (await deps.ask("Move it? [y/N/q] ")).trim().toLowerCase();
     if (answer === "q") break;
-    (answer === "y" || answer === "yes" ? report.accepted : report.declined).push(m);
+    (answer === "y" || answer === "yes"
+      ? report.accepted
+      : report.declined
+    ).push(m);
   }
   if (report.accepted.length === 0) return report;
 
@@ -276,11 +351,14 @@ export async function runPromote(deps: PromoteDeps): Promise<PromoteReport> {
   const toRepo = report.accepted.filter((m) => m.destination === "repo");
   if (toRepo.length && repo) {
     let text = repo.text;
-    for (const m of toRepo) text = insertUnderSection(text, m.section, textOf(m));
+    for (const m of toRepo)
+      text = insertUnderSection(text, m.section, textOf(m));
     writeHarnessFile(repo.file, text, "promote");
     report.wrote.push(repo.file);
     landed.push(...toRepo);
-    deps.print(`wrote ${toRepo.length} move${toRepo.length === 1 ? "" : "s"} to ${repo.file}`);
+    deps.print(
+      `wrote ${toRepo.length} move${toRepo.length === 1 ? "" : "s"} to ${repo.file}`,
+    );
   }
 
   const byItem = new Map<string, PromoteMove[]>();
@@ -289,28 +367,48 @@ export async function runPromote(deps: PromoteDeps): Promise<PromoteReport> {
     byItem.set(name, [...(byItem.get(name) ?? []), m]);
   }
   for (const [name, items] of byItem) {
-    const existing = team.find((t) => headingSlug(itemName(t.heading)) === headingSlug(name));
+    const existing = team.find(
+      (t) => headingSlug(itemName(t.heading)) === headingSlug(name),
+    );
     const heading = existing ? itemName(existing.heading) : name;
-    const body = [existing?.body, items.flatMap(textOf).join("\n")].filter(Boolean).join("\n\n");
-    const file = path.join(deps.home, ".codecast", "capabilities", "promote", `${headingSlug(heading) || "guidance"}.md`);
+    const body = [existing?.body, items.flatMap(textOf).join("\n")]
+      .filter(Boolean)
+      .join("\n\n");
+    const file = path.join(
+      deps.home,
+      ".codecast",
+      "capabilities",
+      "promote",
+      `${headingSlug(heading) || "guidance"}.md`,
+    );
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, `## ${heading}\n\n${body}\n`);
     if (await deps.publishInstructions(file, heading)) {
       report.wrote.push(`team item ${heading}`);
       landed.push(...items);
     } else {
-      deps.print(`team item "${heading}" did not publish; its lines stay in ${personalFile}`);
+      deps.print(
+        `team item "${heading}" did not publish; its lines stay in ${personalFile}`,
+      );
     }
   }
 
   if (landed.length) {
     const drop = new Set(landed.flatMap((m) => m.lines));
-    const answer = (await deps.ask(`Remove the ${drop.size} moved line${drop.size === 1 ? "" : "s"} from ${personalFile}? [y/N] `)).trim().toLowerCase();
+    const answer = (
+      await deps.ask(
+        `Remove the ${drop.size} moved line${drop.size === 1 ? "" : "s"} from ${personalFile}? [y/N] `,
+      )
+    )
+      .trim()
+      .toLowerCase();
     if (answer === "y" || answer === "yes") {
       const current = read(personalFile).split("\n");
       // Only lines still exactly as the model read them: the file may have
       // moved under the prompt.
-      const kept = current.filter((t, i) => !(drop.has(i + 1) && rows[i] === t));
+      const kept = current.filter(
+        (t, i) => !(drop.has(i + 1) && rows[i] === t),
+      );
       report.removedFromPersonal = current.length - kept.length;
       writeHarnessFile(personalFile, kept.join("\n"), "promote");
     }

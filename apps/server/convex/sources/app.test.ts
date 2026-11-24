@@ -9,7 +9,11 @@ import { appHttp } from "../lib/appHttp";
 import { encryptConnectionSecret } from "../tokenConnectors";
 import { hashToken } from "../apiTokens";
 import { publishedKeys } from "../lib/codecastSigning";
-import { generateSigningKey, pathAndQueryOf, verifyCodecastRequest } from "@codecast/shared/contracts/codecastSignature";
+import {
+  generateSigningKey,
+  pathAndQueryOf,
+  verifyCodecastRequest,
+} from "@codecast/shared/contracts/codecastSignature";
 
 const h = (fn: any) => fn._handler;
 const KEY = "test-connection-secrets-key";
@@ -20,22 +24,70 @@ const MANIFEST = {
   name: "Union",
   version: "7",
   readers: [
-    { name: "history.timeline", title: "Timeline", method: "GET", path: "/codecast/history/{contact_id}", input: { type: "object", properties: { contact_id: { type: "string" }, limit: { type: "integer", maximum: 50 } }, required: ["contact_id"] } },
+    {
+      name: "history.timeline",
+      title: "Timeline",
+      method: "GET",
+      path: "/codecast/history/{contact_id}",
+      input: {
+        type: "object",
+        properties: {
+          contact_id: { type: "string" },
+          limit: { type: "integer", maximum: 50 },
+        },
+        required: ["contact_id"],
+      },
+    },
     { name: "invariants.list", method: "GET", path: "/codecast/invariants" },
     { name: "jobs.failed", method: "GET", path: "/codecast/jobs/failed" },
   ],
   actions: [
-    { name: "jobs.rerun", method: "POST", path: "/codecast/jobs/{id}/rerun", input: { type: "object", properties: { id: { type: "string" } }, required: ["id"] }, idempotent: true, risk: "low" },
-    { name: "jobs.cancel", method: "POST", path: "/codecast/jobs/{id}/cancel", input: { type: "object", properties: { id: { type: "string" } }, required: ["id"] }, risk: "high" },
+    {
+      name: "jobs.rerun",
+      method: "POST",
+      path: "/codecast/jobs/{id}/rerun",
+      input: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+      },
+      idempotent: true,
+      risk: "low",
+    },
+    {
+      name: "jobs.cancel",
+      method: "POST",
+      path: "/codecast/jobs/{id}/cancel",
+      input: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+      },
+      risk: "high",
+    },
   ],
   watches: [
-    { reader: "invariants.list", every: "5m", kind: "check", map: { id: "key", ok: "ok", title: "name" } },
-    { reader: "jobs.failed", every: "5m", kind: "job", map: { id: "id", ok: "ok", title: "job", detail: "error", at: "at" } },
+    {
+      reader: "invariants.list",
+      every: "5m",
+      kind: "check",
+      map: { id: "key", ok: "ok", title: "name" },
+    },
+    {
+      reader: "jobs.failed",
+      every: "5m",
+      kind: "job",
+      map: { id: "id", ok: "ok", title: "job", detail: "error", at: "at" },
+    },
   ],
 };
 
 // Every module whose functions an action reaches through runQuery/runMutation.
-const MODULES: Record<string, Record<string, any>> = { "sources/app": app, ingest, tokenConnectors };
+const MODULES: Record<string, Record<string, any>> = {
+  "sources/app": app,
+  ingest,
+  tokenConnectors,
+};
 function lookup(ref: any) {
   const [mod, name] = getFunctionName(ref).split(":");
   const fn = MODULES[mod]?.[name];
@@ -45,11 +97,21 @@ function lookup(ref: any) {
 
 type Call = { url: string; init: RequestInit };
 
-async function world(opts: { manifest?: unknown; routes?: Record<string, (call: Call) => Response | Promise<Response>>; noConnection?: boolean; create?: Record<string, unknown> } = {}) {
+async function world(
+  opts: {
+    manifest?: unknown;
+    routes?: Record<string, (call: Call) => Response | Promise<Response>>;
+    noConnection?: boolean;
+    create?: Record<string, unknown>;
+  } = {},
+) {
   const scheduled: Array<{ name: string; args: any }> = [];
   const db: any = makeFakeDb(
     {
-      users: [{ _id: "u1", email: "ada@acme.io", active_team_id: "team_1" }, { _id: "u2", email: "eve@else.io" }],
+      users: [
+        { _id: "u1", email: "ada@acme.io", active_team_id: "team_1" },
+        { _id: "u2", email: "eve@else.io" },
+      ],
       teams: [{ _id: "team_1", name: "Acme" }],
       team_memberships: [{ _id: "m1", user_id: "u1", team_id: "team_1" }],
       counters: [],
@@ -61,26 +123,47 @@ async function world(opts: { manifest?: unknown; routes?: Record<string, (call: 
       agent_tasks: [],
       replays: [],
       app_calls: [],
-      conversations: [{ _id: "c1", session_id: "sess-1", user_id: "u1", short_id: "jx7abcd", team_id: "team_1", is_private: false }],
-      app_installations: opts.noConnection ? [] : [
+      conversations: [
         {
-          _id: "ai_app",
-          provider: "app",
+          _id: "c1",
+          session_id: "sess-1",
+          user_id: "u1",
+          short_id: "jx7abcd",
           team_id: "team_1",
-          connected_by: "u1",
-          access_token_enc: await encryptConnectionSecret(SECRET, KEY),
-          config: { base_url: BASE },
-          granted_scopes: [],
-          created_at: 1,
-          updated_at: 1,
+          is_private: false,
         },
       ],
+      app_installations: opts.noConnection
+        ? []
+        : [
+            {
+              _id: "ai_app",
+              provider: "app",
+              team_id: "team_1",
+              connected_by: "u1",
+              access_token_enc: await encryptConnectionSecret(SECRET, KEY),
+              config: { base_url: BASE },
+              granted_scopes: [],
+              created_at: 1,
+              updated_at: 1,
+            },
+          ],
     },
     { indexes: schemaIndexes(schema as any) },
   );
-  const scheduler = { runAfter: async (_ms: number, fn: any, args: any) => void scheduled.push({ name: getFunctionName(fn), args }) };
+  const scheduler = {
+    runAfter: async (_ms: number, fn: any, args: any) =>
+      void scheduled.push({ name: getFunctionName(fn), args }),
+  };
   const inner = (userId?: string) =>
-    ({ db, scheduler, auth: { getUserIdentity: async () => (userId ? { subject: `${userId}|sess` } : null) } }) as any;
+    ({
+      db,
+      scheduler,
+      auth: {
+        getUserIdentity: async () =>
+          userId ? { subject: `${userId}|sess` } : null,
+      },
+    }) as any;
   // An action's ctx: runQuery/runMutation carry the caller's identity, like Convex does.
   const actionCtx = (userId?: string) =>
     ({
@@ -91,7 +174,8 @@ async function world(opts: { manifest?: unknown; routes?: Record<string, (call: 
 
   const calls: Call[] = [];
   const routes: Record<string, (call: Call) => Response | Promise<Response>> = {
-    [`GET ${BASE}/codecast/manifest`]: () => Response.json(opts.manifest ?? MANIFEST),
+    [`GET ${BASE}/codecast/manifest`]: () =>
+      Response.json(opts.manifest ?? MANIFEST),
     ...opts.routes,
   };
   const fetchImpl = async (url: string, init: RequestInit) => {
@@ -102,12 +186,20 @@ async function world(opts: { manifest?: unknown; routes?: Record<string, (call: 
     return route(call);
   };
 
-  const { source } = await h(ingest.createSource)(inner("u1"), { workspace: "team", team_id: "team_1", name: "union", provider: "app", promote: ["check_failed"], ...opts.create });
+  const { source } = await h(ingest.createSource)(inner("u1"), {
+    workspace: "team",
+    team_id: "team_1",
+    name: "union",
+    provider: "app",
+    promote: ["check_failed"],
+    ...opts.create,
+  });
   return { db, scheduled, inner, actionCtx, calls, fetchImpl, source };
 }
 
 const TEAM = { workspace: "team" as const, team_id: "team_1" as any };
-const header = (call: Call, name: string) => new Headers(call.init.headers as any).get(name);
+const header = (call: Call, name: string) =>
+  new Headers(call.init.headers as any).get(name);
 
 beforeEach(() => {
   process.env.CONNECTION_SECRETS_KEY = KEY;
@@ -118,7 +210,11 @@ afterEach(() => {
 });
 
 /** What an app's verifier does with a captured call: the published keys, its configured source, the request as sent. */
-async function verifyCall(call: Call, expect: { id: string; workspace: string }, keys = publishedKeys().keys) {
+async function verifyCall(
+  call: Call,
+  expect: { id: string; workspace: string },
+  keys = publishedKeys().keys,
+) {
   const headers = new Headers(call.init.headers as any);
   return verifyCodecastRequest({
     method: String(call.init.method),
@@ -132,48 +228,142 @@ async function verifyCall(call: Call, expect: { id: string; workspace: string },
 
 describe("signed requests", () => {
   test("every call carries codecast's signature for the source, beside the bearer secret when there is one", async () => {
-    process.env.CODECAST_SIGNING_KEY = JSON.stringify(await generateSigningKey("k1"));
-    const w = await world({ routes: { [`POST ${BASE}/codecast/jobs/j1/rerun`]: () => Response.json({ ok: true }), [`GET ${BASE}/codecast/invariants`]: () => Response.json([]), [`GET ${BASE}/codecast/jobs/failed`]: () => Response.json([]) } });
-    await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
-    await h(app.grant)(w.inner("u1"), { ...TEAM, source: "union", action: "jobs.rerun" });
-    await app.appCall(w.actionCtx("u1"), "do", { ...TEAM, source: "union", name: "jobs.rerun", args_json: '{"id":"j1"}' }, w.fetchImpl);
+    process.env.CODECAST_SIGNING_KEY = JSON.stringify(
+      await generateSigningKey("k1"),
+    );
+    const w = await world({
+      routes: {
+        [`POST ${BASE}/codecast/jobs/j1/rerun`]: () =>
+          Response.json({ ok: true }),
+        [`GET ${BASE}/codecast/invariants`]: () => Response.json([]),
+        [`GET ${BASE}/codecast/jobs/failed`]: () => Response.json([]),
+      },
+    });
+    await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
+    await h(app.grant)(w.inner("u1"), {
+      ...TEAM,
+      source: "union",
+      action: "jobs.rerun",
+    });
+    await app.appCall(
+      w.actionCtx("u1"),
+      "do",
+      {
+        ...TEAM,
+        source: "union",
+        name: "jobs.rerun",
+        args_json: '{"id":"j1"}',
+      },
+      w.fetchImpl,
+    );
     await app.pollSourceWatches(w.actionCtx(), w.source._id, w.fetchImpl);
     const me = { id: w.source.short_id, workspace: "team:team_1" };
-    expect(w.calls.map((c) => c.url)).toEqual([`${BASE}/codecast/manifest`, `${BASE}/codecast/jobs/j1/rerun`, `${BASE}/codecast/invariants`, `${BASE}/codecast/jobs/failed`]);
+    expect(w.calls.map((c) => c.url)).toEqual([
+      `${BASE}/codecast/manifest`,
+      `${BASE}/codecast/jobs/j1/rerun`,
+      `${BASE}/codecast/invariants`,
+      `${BASE}/codecast/jobs/failed`,
+    ]);
     for (const c of w.calls) {
-      expect(await verifyCall(c, me)).toMatchObject({ ok: true, kid: "k1", source: me.id });
+      expect(await verifyCall(c, me)).toMatchObject({
+        ok: true,
+        kid: "k1",
+        source: me.id,
+      });
       expect(header(c, "authorization")).toBe(`Bearer ${SECRET}`);
     }
     // Another workspace's app would refuse it: the signature names this source.
-    expect(await verifyCall(w.calls[1], { id: me.id, workspace: "team:other" })).toMatchObject({ ok: false });
+    expect(
+      await verifyCall(w.calls[1], { id: me.id, workspace: "team:other" }),
+    ).toMatchObject({ ok: false });
   });
 
   test("an app source added with --base-url connects with no secret in the same step, and is called signed only", async () => {
-    process.env.CODECAST_SIGNING_KEY = JSON.stringify(await generateSigningKey("k1"));
+    process.env.CODECAST_SIGNING_KEY = JSON.stringify(
+      await generateSigningKey("k1"),
+    );
     delete process.env.CONNECTION_SECRETS_KEY;
-    const w = await world({ noConnection: true, create: { base_url: `${BASE}/` }, routes: { [`GET ${BASE}/codecast/history/c1`]: () => Response.json({ rows: [] }) } });
+    const w = await world({
+      noConnection: true,
+      create: { base_url: `${BASE}/` },
+      routes: {
+        [`GET ${BASE}/codecast/history/c1`]: () => Response.json({ rows: [] }),
+      },
+    });
     const conn = w.db._tables.app_installations[0];
-    expect(conn).toMatchObject({ provider: "app", team_id: "team_1", access_token_enc: "", config: { base_url: BASE }, account_label: "api.union.example" });
-    const out = await app.appCall(w.actionCtx("u1"), "read", { ...TEAM, source: "union", name: "history.timeline", args_json: '{"contact_id":"c1"}' }, w.fetchImpl);
+    expect(conn).toMatchObject({
+      provider: "app",
+      team_id: "team_1",
+      access_token_enc: "",
+      config: { base_url: BASE },
+      account_label: "api.union.example",
+    });
+    const out = await app.appCall(
+      w.actionCtx("u1"),
+      "read",
+      {
+        ...TEAM,
+        source: "union",
+        name: "history.timeline",
+        args_json: '{"contact_id":"c1"}',
+      },
+      w.fetchImpl,
+    );
     expect(out).toMatchObject({ ok: true, status: 200 });
     for (const c of w.calls) {
       expect(header(c, "authorization")).toBeNull();
-      expect((await verifyCall(c, { id: w.source.short_id, workspace: "team:team_1" })).ok).toBe(true);
+      expect(
+        (
+          await verifyCall(c, {
+            id: w.source.short_id,
+            workspace: "team:team_1",
+          })
+        ).ok,
+      ).toBe(true);
     }
   });
 
   test("a signed connection sends nothing when codecast cannot sign", async () => {
     const w = await world({ noConnection: true, create: { base_url: BASE } });
-    const out = await app.refreshManifestFor(w.actionCtx("u1"), w.source, String(w.db._tables.app_installations[0]._id), w.fetchImpl);
-    expect(out).toMatchObject({ ok: false, error: expect.stringContaining("CODECAST_SIGNING_KEY") });
+    const out = await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      String(w.db._tables.app_installations[0]._id),
+      w.fetchImpl,
+    );
+    expect(out).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("CODECAST_SIGNING_KEY"),
+    });
     expect(w.calls).toHaveLength(0);
   });
 
   test("an app that refuses the signature stops the source and says to name it in codecast.json", async () => {
-    process.env.CODECAST_SIGNING_KEY = JSON.stringify(await generateSigningKey("k1"));
-    const w = await world({ noConnection: true, create: { base_url: BASE }, routes: { [`GET ${BASE}/codecast/manifest`]: () => new Response("no", { status: 401 }) } });
-    const out = await app.refreshManifestFor(w.actionCtx("u1"), w.source, String(w.db._tables.app_installations[0]._id), w.fetchImpl);
-    expect((out as any).error).toContain(`must name ${w.source.short_id} (team:team_1) in its codecast.json`);
+    process.env.CODECAST_SIGNING_KEY = JSON.stringify(
+      await generateSigningKey("k1"),
+    );
+    const w = await world({
+      noConnection: true,
+      create: { base_url: BASE },
+      routes: {
+        [`GET ${BASE}/codecast/manifest`]: () =>
+          new Response("no", { status: 401 }),
+      },
+    });
+    const out = await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      String(w.db._tables.app_installations[0]._id),
+      w.fetchImpl,
+    );
+    expect((out as any).error).toContain(
+      `must name ${w.source.short_id} (team:team_1) in its codecast.json`,
+    );
     expect(w.db._tables.event_sources[0].status).toBe("error");
   });
 
@@ -185,47 +375,116 @@ describe("signed requests", () => {
 
   test("--base-url is refused on a non-app source and for an internal host", async () => {
     const w = await world();
-    await expect(h(ingest.createSource)(w.inner("u1"), { ...TEAM, name: "web", provider: "sdk", base_url: BASE })).rejects.toThrow("belongs to an app source");
+    await expect(
+      h(ingest.createSource)(w.inner("u1"), {
+        ...TEAM,
+        name: "web",
+        provider: "sdk",
+        base_url: BASE,
+      }),
+    ).rejects.toThrow("belongs to an app source");
     const v = await world({ noConnection: true, create: {} });
     await h(ingest.removeSource)(v.inner("u1"), { ...TEAM, source: "union" });
-    await expect(h(ingest.createSource)(v.inner("u1"), { ...TEAM, name: "union", provider: "app", base_url: "https://10.0.0.1/api" })).rejects.toThrow("public https URL");
+    await expect(
+      h(ingest.createSource)(v.inner("u1"), {
+        ...TEAM,
+        name: "union",
+        provider: "app",
+        base_url: "https://10.0.0.1/api",
+      }),
+    ).rejects.toThrow("public https URL");
   });
 });
 
 describe("manifest", () => {
   test("adding the app source fetches its manifest straight away", async () => {
     const w = await world();
-    expect(w.scheduled).toContainEqual({ name: "sources/app:refreshSourceManifest", args: { source_id: w.source._id } });
+    expect(w.scheduled).toContainEqual({
+      name: "sources/app:refreshSourceManifest",
+      args: { source_id: w.source._id },
+    });
   });
 
   test("the first call fetches and caches it with the bearer secret", async () => {
-    const w = await world({ routes: { [`GET ${BASE}/codecast/history/c%2F9`]: () => Response.json({ rows: [{ $kind: "email" }] }) } });
-    const out = await app.appCall(w.actionCtx("u1"), "read", { ...TEAM, source: "union", name: "history.timeline", args_json: '{"contact_id":"c/9","limit":3}' }, w.fetchImpl);
-    expect(out).toMatchObject({ ok: true, status: 200, text: '{"rows":[{"$kind":"email"}]}' });
-    expect(w.calls.map((c) => c.url)).toEqual([`${BASE}/codecast/manifest`, `${BASE}/codecast/history/c%2F9?limit=3`]);
-    for (const c of w.calls) expect(header(c, "authorization")).toBe(`Bearer ${SECRET}`);
+    const w = await world({
+      routes: {
+        [`GET ${BASE}/codecast/history/c%2F9`]: () =>
+          Response.json({ rows: [{ $kind: "email" }] }),
+      },
+    });
+    const out = await app.appCall(
+      w.actionCtx("u1"),
+      "read",
+      {
+        ...TEAM,
+        source: "union",
+        name: "history.timeline",
+        args_json: '{"contact_id":"c/9","limit":3}',
+      },
+      w.fetchImpl,
+    );
+    expect(out).toMatchObject({
+      ok: true,
+      status: 200,
+      text: '{"rows":[{"$kind":"email"}]}',
+    });
+    expect(w.calls.map((c) => c.url)).toEqual([
+      `${BASE}/codecast/manifest`,
+      `${BASE}/codecast/history/c%2F9?limit=3`,
+    ]);
+    for (const c of w.calls)
+      expect(header(c, "authorization")).toBe(`Bearer ${SECRET}`);
     // The manifest lives in its own table, off the source row every query reads.
     expect(w.db._tables.event_sources[0].manifest_json).toBeUndefined();
-    expect(JSON.parse(w.db._tables.app_manifests[0].manifest_json).readers).toHaveLength(3);
+    expect(
+      JSON.parse(w.db._tables.app_manifests[0].manifest_json).readers,
+    ).toHaveLength(3);
     const row = w.db._tables.event_sources[0];
     expect(row.manifest_fetched_at).toBeGreaterThan(0);
 
     // A fresh cache is not refetched.
-    await app.appCall(w.actionCtx("u1"), "read", { ...TEAM, source: "union", name: "history.timeline", args_json: '{"contact_id":"x"}' }, w.fetchImpl);
+    await app.appCall(
+      w.actionCtx("u1"),
+      "read",
+      {
+        ...TEAM,
+        source: "union",
+        name: "history.timeline",
+        args_json: '{"contact_id":"x"}',
+      },
+      w.fetchImpl,
+    );
     expect(w.calls.filter((c) => c.url.endsWith("/manifest"))).toHaveLength(1);
   });
 
   test("a bad manifest is refused with its reasons; a good cached one survives an outage", async () => {
-    const w = await world({ manifest: { name: "x", readers: [{ name: "run.sql", path: "/sql" }] } });
-    const out = await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
+    const w = await world({
+      manifest: { name: "x", readers: [{ name: "run.sql", path: "/sql" }] },
+    });
+    const out = await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
     expect(out.ok).toBe(false);
     expect((out as any).error).toContain("raw SQL is never a reader");
     expect(w.db._tables.event_sources[0]).toMatchObject({ status: "error" });
 
     const ok = await world();
-    await app.refreshManifestFor(ok.actionCtx("u1"), ok.source, "ai_app", ok.fetchImpl);
+    await app.refreshManifestFor(
+      ok.actionCtx("u1"),
+      ok.source,
+      "ai_app",
+      ok.fetchImpl,
+    );
     const down = async () => new Response("down", { status: 503 });
-    await app.refreshManifestFor(ok.actionCtx("u1"), ok.source, "ai_app", down as any);
+    await app.refreshManifestFor(
+      ok.actionCtx("u1"),
+      ok.source,
+      "ai_app",
+      down as any,
+    );
     expect(ok.db._tables.app_manifests[0].manifest_json).toBeTruthy();
     const row = ok.db._tables.event_sources[0];
     expect(row.status).toBe("active");
@@ -234,51 +493,128 @@ describe("manifest", () => {
 
   test("capabilities never carry the secret and name grants in force", async () => {
     const w = await world();
-    await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
-    await h(app.grant)(w.inner("u1"), { ...TEAM, source: "union", action: "jobs.rerun" });
-    const caps = await h(app.capabilities)(w.inner("u1"), { ...TEAM, source: "union" });
+    await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
+    await h(app.grant)(w.inner("u1"), {
+      ...TEAM,
+      source: "union",
+      action: "jobs.rerun",
+    });
+    const caps = await h(app.capabilities)(w.inner("u1"), {
+      ...TEAM,
+      source: "union",
+    });
     expect(caps.grants.map((g: any) => g.action)).toEqual(["jobs.rerun"]);
     expect(JSON.parse(caps.manifest_json).actions).toHaveLength(2);
     expect(JSON.stringify(caps)).not.toContain(SECRET);
-    expect(JSON.stringify(caps)).not.toContain(w.db._tables.app_installations[0].access_token_enc);
+    expect(JSON.stringify(caps)).not.toContain(
+      w.db._tables.app_installations[0].access_token_enc,
+    );
   });
 });
 
 describe("read", () => {
   test("args are checked against the declared schema before any call", async () => {
     const w = await world();
-    const out = await app.appCall(w.actionCtx("u1"), "read", { ...TEAM, source: "union", name: "history.timeline", args_json: '{"limit":99}' }, w.fetchImpl);
+    const out = await app.appCall(
+      w.actionCtx("u1"),
+      "read",
+      {
+        ...TEAM,
+        source: "union",
+        name: "history.timeline",
+        args_json: '{"limit":99}',
+      },
+      w.fetchImpl,
+    );
     expect(out.ok).toBe(false);
     expect(out.error).toContain("args.contact_id: required");
     expect(out.error).toContain("args.limit: must be at most 50");
     expect(w.calls.filter((c) => !c.url.endsWith("/manifest"))).toHaveLength(0);
-    expect(w.db._tables.app_calls[0]).toMatchObject({ kind: "read", name: "history.timeline", status: "error", user_id: "u1" });
+    expect(w.db._tables.app_calls[0]).toMatchObject({
+      kind: "read",
+      name: "history.timeline",
+      status: "error",
+      user_id: "u1",
+    });
   });
 
   test("an unknown reader lists the declared ones", async () => {
     const w = await world();
-    const out = await app.appCall(w.actionCtx("u1"), "read", { ...TEAM, source: "union", name: "contacts.dump" }, w.fetchImpl);
-    expect(out.error).toContain("declares no reader contacts.dump (it has: history.timeline, invariants.list, jobs.failed)");
+    const out = await app.appCall(
+      w.actionCtx("u1"),
+      "read",
+      { ...TEAM, source: "union", name: "contacts.dump" },
+      w.fetchImpl,
+    );
+    expect(out.error).toContain(
+      "declares no reader contacts.dump (it has: history.timeline, invariants.list, jobs.failed)",
+    );
   });
 
   test("the actor header names the person and session; the audit stores no body", async () => {
-    const w = await world({ routes: { [`GET ${BASE}/codecast/history/c1`]: () => Response.json({ secret_row: "PII" }) } });
-    await app.appCall(w.actionCtx("u1"), "read", { ...TEAM, conversation_id: "sess-1", source: "union", name: "history.timeline", args_json: '{"contact_id":"c1"}' }, w.fetchImpl);
+    const w = await world({
+      routes: {
+        [`GET ${BASE}/codecast/history/c1`]: () =>
+          Response.json({ secret_row: "PII" }),
+      },
+    });
+    await app.appCall(
+      w.actionCtx("u1"),
+      "read",
+      {
+        ...TEAM,
+        conversation_id: "sess-1",
+        source: "union",
+        name: "history.timeline",
+        args_json: '{"contact_id":"c1"}',
+      },
+      w.fetchImpl,
+    );
     const call = w.calls.at(-1)!;
-    expect(header(call, "x-codecast-actor")).toBe("person=ada@acme.io; session=jx7abcd");
+    expect(header(call, "x-codecast-actor")).toBe(
+      "person=ada@acme.io; session=jx7abcd",
+    );
     expect(header(call, "idempotency-key")).toBeNull();
     const audit = w.db._tables.app_calls[0];
-    expect(audit).toMatchObject({ status: "ok", http_status: 200, conversation_id: "c1", workspace: "team:team_1" });
+    expect(audit).toMatchObject({
+      status: "ok",
+      http_status: 200,
+      conversation_id: "c1",
+      workspace: "team:team_1",
+    });
     expect(audit.args_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(audit)).not.toContain("PII");
   });
 
   test("a response over 256 KB is refused; a hang is cut off", async () => {
     const big = "x".repeat(300 * 1024);
-    const w = await world({ routes: { [`GET ${BASE}/codecast/history/c1`]: () => new Response(big) } });
-    const out = await app.appCall(w.actionCtx("u1"), "read", { ...TEAM, source: "union", name: "history.timeline", args_json: '{"contact_id":"c1"}' }, w.fetchImpl);
-    expect(out).toMatchObject({ ok: false, error: "the response is over 256 KB" });
-    expect(w.db._tables.app_calls[0]).toMatchObject({ status: "error", bytes: 256 * 1024 });
+    const w = await world({
+      routes: { [`GET ${BASE}/codecast/history/c1`]: () => new Response(big) },
+    });
+    const out = await app.appCall(
+      w.actionCtx("u1"),
+      "read",
+      {
+        ...TEAM,
+        source: "union",
+        name: "history.timeline",
+        args_json: '{"contact_id":"c1"}',
+      },
+      w.fetchImpl,
+    );
+    expect(out).toMatchObject({
+      ok: false,
+      error: "the response is over 256 KB",
+    });
+    expect(w.db._tables.app_calls[0]).toMatchObject({
+      status: "error",
+      bytes: 256 * 1024,
+    });
 
     const timeout = await appHttp(
       async (_u, init) => {
@@ -292,8 +628,26 @@ describe("read", () => {
   });
 
   test("a redirect is not followed, so the secret never reaches another host", async () => {
-    const w = await world({ routes: { [`GET ${BASE}/codecast/history/c1`]: () => new Response(null, { status: 302, headers: { location: "https://evil.example/" } }) } });
-    const out = await app.appCall(w.actionCtx("u1"), "read", { ...TEAM, source: "union", name: "history.timeline", args_json: '{"contact_id":"c1"}' }, w.fetchImpl);
+    const w = await world({
+      routes: {
+        [`GET ${BASE}/codecast/history/c1`]: () =>
+          new Response(null, {
+            status: 302,
+            headers: { location: "https://evil.example/" },
+          }),
+      },
+    });
+    const out = await app.appCall(
+      w.actionCtx("u1"),
+      "read",
+      {
+        ...TEAM,
+        source: "union",
+        name: "history.timeline",
+        args_json: '{"contact_id":"c1"}',
+      },
+      w.fetchImpl,
+    );
     expect(out.ok).toBe(false);
     expect(out.error).toContain("does not follow redirects");
     expect(w.calls.every((c) => c.url.startsWith(BASE))).toBe(true);
@@ -302,30 +656,82 @@ describe("read", () => {
 
   test("someone outside the workspace cannot call it", async () => {
     const w = await world();
-    await expect(app.appCall(w.actionCtx("u2"), "read", { workspace: "personal", source: w.source.short_id, name: "history.timeline" }, w.fetchImpl)).rejects.toThrow(/not found/);
+    await expect(
+      app.appCall(
+        w.actionCtx("u2"),
+        "read",
+        {
+          workspace: "personal",
+          source: w.source.short_id,
+          name: "history.timeline",
+        },
+        w.fetchImpl,
+      ),
+    ).rejects.toThrow(/not found/);
     expect(w.calls).toHaveLength(0);
   });
 });
 
 describe("do", () => {
-  const rerun = (w: Awaited<ReturnType<typeof world>>, extra: Record<string, unknown> = {}) =>
-    app.appCall(w.actionCtx("u1"), "do", { ...TEAM, source: "union", name: "jobs.rerun", args_json: '{"id":"j1"}', ...extra }, w.fetchImpl);
+  const rerun = (
+    w: Awaited<ReturnType<typeof world>>,
+    extra: Record<string, unknown> = {},
+  ) =>
+    app.appCall(
+      w.actionCtx("u1"),
+      "do",
+      {
+        ...TEAM,
+        source: "union",
+        name: "jobs.rerun",
+        args_json: '{"id":"j1"}',
+        ...extra,
+      },
+      w.fetchImpl,
+    );
 
   test("an ungranted action is denied and audited, and never called", async () => {
-    const w = await world({ routes: { [`POST ${BASE}/codecast/jobs/j1/rerun`]: () => Response.json({ ok: true }) } });
+    const w = await world({
+      routes: {
+        [`POST ${BASE}/codecast/jobs/j1/rerun`]: () =>
+          Response.json({ ok: true }),
+      },
+    });
     const out = await rerun(w);
     expect(out).toMatchObject({ ok: false, denied: true });
     expect(out.error).toContain("/ops/apps?app=src-");
     expect(out.error).toContain("An agent cannot grant it");
     expect(w.calls.some((c) => c.url.includes("/rerun"))).toBe(false);
-    expect(w.db._tables.app_calls[0]).toMatchObject({ kind: "do", status: "denied" });
+    expect(w.db._tables.app_calls[0]).toMatchObject({
+      kind: "do",
+      status: "denied",
+    });
   });
 
   test("a grant lets it run; the grant records who and how, and expires", async () => {
-    const w = await world({ routes: { [`POST ${BASE}/codecast/jobs/j1/rerun`]: () => Response.json({ ok: true }) } });
-    await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
-    const { grant } = await h(app.grant)(w.inner("u1"), { ...TEAM, source: "union", action: "jobs.rerun", until: "1h" });
-    expect(grant).toMatchObject({ action: "jobs.rerun", granted_by: "u1", via: "session" });
+    const w = await world({
+      routes: {
+        [`POST ${BASE}/codecast/jobs/j1/rerun`]: () =>
+          Response.json({ ok: true }),
+      },
+    });
+    await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
+    const { grant } = await h(app.grant)(w.inner("u1"), {
+      ...TEAM,
+      source: "union",
+      action: "jobs.rerun",
+      until: "1h",
+    });
+    expect(grant).toMatchObject({
+      action: "jobs.rerun",
+      granted_by: "u1",
+      via: "session",
+    });
     expect(grant.until - grant.granted_at).toBe(3600_000);
     const out = await rerun(w);
     expect(out).toMatchObject({ ok: true, status: 200 });
@@ -336,103 +742,281 @@ describe("do", () => {
     w.db._tables.event_sources[0].grants[0].until = Date.now() - 1;
     expect((await rerun(w)).denied).toBe(true);
 
-    await h(app.revoke)(w.inner("u1"), { ...TEAM, source: "union", action: "jobs.rerun" });
+    await h(app.revoke)(w.inner("u1"), {
+      ...TEAM,
+      source: "union",
+      action: "jobs.rerun",
+    });
     expect(w.db._tables.event_sources[0].grants).toEqual([]);
   });
 
   test("a high-risk, non-idempotent action needs yes and a key per call; the key is sent", async () => {
-    const w = await world({ routes: { [`POST ${BASE}/codecast/jobs/j1/cancel`]: () => Response.json({ ok: true }) } });
-    await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
-    await h(app.grant)(w.inner("u1"), { ...TEAM, source: "union", action: "jobs.cancel" });
+    const w = await world({
+      routes: {
+        [`POST ${BASE}/codecast/jobs/j1/cancel`]: () =>
+          Response.json({ ok: true }),
+      },
+    });
+    await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
+    await h(app.grant)(w.inner("u1"), {
+      ...TEAM,
+      source: "union",
+      action: "jobs.cancel",
+    });
     const cancel = (extra: Record<string, unknown>) =>
-      app.appCall(w.actionCtx("u1"), "do", { ...TEAM, source: "union", name: "jobs.cancel", args_json: '{"id":"j1"}', ...extra }, w.fetchImpl);
+      app.appCall(
+        w.actionCtx("u1"),
+        "do",
+        {
+          ...TEAM,
+          source: "union",
+          name: "jobs.cancel",
+          args_json: '{"id":"j1"}',
+          ...extra,
+        },
+        w.fetchImpl,
+      );
     expect((await cancel({ idempotency_key: "k1" })).error).toContain("--yes");
     expect((await cancel({ yes: true })).error).toContain("idempotency key");
-    expect(await cancel({ yes: true, idempotency_key: "k1" })).toMatchObject({ ok: true });
+    expect(await cancel({ yes: true, idempotency_key: "k1" })).toMatchObject({
+      ok: true,
+    });
     expect(header(w.calls.at(-1)!, "idempotency-key")).toBe("k1");
-    expect(w.db._tables.app_calls.map((c: any) => c.status)).toEqual(["denied", "denied", "ok"]);
+    expect(w.db._tables.app_calls.map((c: any) => c.status)).toEqual([
+      "denied",
+      "denied",
+      "ok",
+    ]);
   });
 
   test("grants are a person's: an api token cannot grant or revoke, and an old token grant counts for nothing", async () => {
-    const w = await world({ routes: { [`POST ${BASE}/codecast/jobs/j1/rerun`]: () => Response.json({ ok: true }) } });
-    await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
-    w.db._tables.api_tokens = [{ _id: "tok1", user_id: "u1", token_hash: await hashToken("cli-token") }];
+    const w = await world({
+      routes: {
+        [`POST ${BASE}/codecast/jobs/j1/rerun`]: () =>
+          Response.json({ ok: true }),
+      },
+    });
+    await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
+    w.db._tables.api_tokens = [
+      { _id: "tok1", user_id: "u1", token_hash: await hashToken("cli-token") },
+    ];
     // Even a valid token, even alongside a session: the call is refused before anything is read.
-    await expect(h(app.grant)(w.inner(), { ...TEAM, source: "union", action: "jobs.rerun", api_token: "cli-token" })).rejects.toThrow(/person in the browser|made by a person/);
-    await expect(h(app.grant)(w.inner("u1"), { ...TEAM, source: "union", action: "jobs.rerun", api_token: "cli-token" })).rejects.toThrow(/api token cannot grant/);
-    await expect(h(app.revoke)(w.inner(), { ...TEAM, source: "union", action: "jobs.rerun", api_token: "cli-token" })).rejects.toThrow(/api token cannot grant or revoke/);
+    await expect(
+      h(app.grant)(w.inner(), {
+        ...TEAM,
+        source: "union",
+        action: "jobs.rerun",
+        api_token: "cli-token",
+      }),
+    ).rejects.toThrow(/person in the browser|made by a person/);
+    await expect(
+      h(app.grant)(w.inner("u1"), {
+        ...TEAM,
+        source: "union",
+        action: "jobs.rerun",
+        api_token: "cli-token",
+      }),
+    ).rejects.toThrow(/api token cannot grant/);
+    await expect(
+      h(app.revoke)(w.inner(), {
+        ...TEAM,
+        source: "union",
+        action: "jobs.rerun",
+        api_token: "cli-token",
+      }),
+    ).rejects.toThrow(/api token cannot grant or revoke/);
     expect(w.db._tables.event_sources[0].grants ?? []).toEqual([]);
     // No session and no token is no person either.
-    await expect(h(app.grant)(w.inner(), { ...TEAM, source: "union", action: "jobs.rerun" })).rejects.toThrow();
+    await expect(
+      h(app.grant)(w.inner(), {
+        ...TEAM,
+        source: "union",
+        action: "jobs.rerun",
+      }),
+    ).rejects.toThrow();
     // A grant an api token made before this rule does not let the action run.
-    w.db._tables.event_sources[0].grants = [{ action: "jobs.rerun", granted_by: "u1", granted_at: 1, via: "api_token" }];
+    w.db._tables.event_sources[0].grants = [
+      {
+        action: "jobs.rerun",
+        granted_by: "u1",
+        granted_at: 1,
+        via: "api_token",
+      },
+    ];
     expect((await rerun(w)).denied).toBe(true);
-    const caps = await h(app.capabilities)(w.inner("u1"), { ...TEAM, source: "union" });
+    const caps = await h(app.capabilities)(w.inner("u1"), {
+      ...TEAM,
+      source: "union",
+    });
     expect(caps.grants).toEqual([]);
-    await expect(h(app.grant)(w.inner("u1"), { ...TEAM, source: "union", action: "db.drop" })).rejects.toThrow(/declares no action db.drop/);
-    await expect(h(app.grant)(w.inner("u1"), { ...TEAM, source: "union", action: "jobs.rerun", until: "soon" })).rejects.toThrow(/not a duration/);
+    await expect(
+      h(app.grant)(w.inner("u1"), {
+        ...TEAM,
+        source: "union",
+        action: "db.drop",
+      }),
+    ).rejects.toThrow(/declares no action db.drop/);
+    await expect(
+      h(app.grant)(w.inner("u1"), {
+        ...TEAM,
+        source: "union",
+        action: "jobs.rerun",
+        until: "soon",
+      }),
+    ).rejects.toThrow(/not a duration/);
   });
 
   test("a Sentry source's writes are granted the same way; other providers have nothing to grant", async () => {
     const w = await world();
-    const { source: sentrySrc } = await h(ingest.createSource)(w.inner("u1"), { workspace: "team", team_id: "team_1", name: "errors", provider: "sentry", config: { projects: ["web"] } });
-    await expect(h(app.grant)(w.inner("u1"), { ...TEAM, source: "errors", action: "jobs.rerun" })).rejects.toThrow(/it has: issue.resolve, issue.ignore/);
-    const { grant } = await h(app.grant)(w.inner("u1"), { ...TEAM, source: "errors", action: "issue.resolve", until: "7d" });
-    expect(grant).toMatchObject({ action: "issue.resolve", granted_by: "u1", via: "session" });
-    const caps = await h(app.capabilities)(w.inner("u1"), { ...TEAM, source: "errors" });
-    expect(caps).toMatchObject({ source: { short_id: sentrySrc.short_id, provider: "sentry" }, manifest_json: null });
+    const { source: sentrySrc } = await h(ingest.createSource)(w.inner("u1"), {
+      workspace: "team",
+      team_id: "team_1",
+      name: "errors",
+      provider: "sentry",
+      config: { projects: ["web"] },
+    });
+    await expect(
+      h(app.grant)(w.inner("u1"), {
+        ...TEAM,
+        source: "errors",
+        action: "jobs.rerun",
+      }),
+    ).rejects.toThrow(/it has: issue.resolve, issue.ignore/);
+    const { grant } = await h(app.grant)(w.inner("u1"), {
+      ...TEAM,
+      source: "errors",
+      action: "issue.resolve",
+      until: "7d",
+    });
+    expect(grant).toMatchObject({
+      action: "issue.resolve",
+      granted_by: "u1",
+      via: "session",
+    });
+    const caps = await h(app.capabilities)(w.inner("u1"), {
+      ...TEAM,
+      source: "errors",
+    });
+    expect(caps).toMatchObject({
+      source: { short_id: sentrySrc.short_id, provider: "sentry" },
+      manifest_json: null,
+    });
     expect(caps.grants.map((g: any) => g.action)).toEqual(["issue.resolve"]);
-    await h(ingest.createSource)(w.inner("u1"), { workspace: "team", team_id: "team_1", name: "door", provider: "sdk" });
-    await expect(h(app.grant)(w.inner("u1"), { ...TEAM, source: "door", action: "x" })).rejects.toThrow(/nothing to grant/);
+    await h(ingest.createSource)(w.inner("u1"), {
+      workspace: "team",
+      team_id: "team_1",
+      name: "door",
+      provider: "sdk",
+    });
+    await expect(
+      h(app.grant)(w.inner("u1"), { ...TEAM, source: "door", action: "x" }),
+    ).rejects.toThrow(/nothing to grant/);
   });
 
   test("a grant before the manifest is fetched asks for a refresh", async () => {
     const w = await world();
-    await expect(h(app.grant)(w.inner("u1"), { ...TEAM, source: "union", action: "jobs.rerun" })).rejects.toThrow(/cast connector refresh union/);
+    await expect(
+      h(app.grant)(w.inner("u1"), {
+        ...TEAM,
+        source: "union",
+        action: "jobs.rerun",
+      }),
+    ).rejects.toThrow(/cast connector refresh union/);
   });
 });
 
 describe("watches", () => {
   test("a polled reader's rows become check and job groups whose flips fire", async () => {
-    let invariants = [{ key: "inv-orphans", ok: false, name: "Orphan calls" }, { key: "inv-dupes", ok: true, name: "No dupes" }];
+    let invariants = [
+      { key: "inv-orphans", ok: false, name: "Orphan calls" },
+      { key: "inv-dupes", ok: true, name: "No dupes" },
+    ];
     const now = Date.now();
-    const jobs = [{ id: "run-1", ok: false, job: "sendEmails", error: "timeout", at: new Date(now - 60_000).toISOString() }];
+    const jobs = [
+      {
+        id: "run-1",
+        ok: false,
+        job: "sendEmails",
+        error: "timeout",
+        at: new Date(now - 60_000).toISOString(),
+      },
+    ];
     const w = await world({
       routes: {
         [`GET ${BASE}/codecast/invariants`]: () => Response.json(invariants),
-        [`GET ${BASE}/codecast/jobs/failed`]: () => Response.json({ rows: jobs }),
+        [`GET ${BASE}/codecast/jobs/failed`]: () =>
+          Response.json({ rows: jobs }),
       },
     });
-    await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
-    expect(await h(app.sourcesWithDueWatches)(w.inner(), { now })).toEqual([w.source._id]);
+    await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
+    expect(await h(app.sourcesWithDueWatches)(w.inner(), { now })).toEqual([
+      w.source._id,
+    ]);
 
-    const first = await app.pollSourceWatches(w.actionCtx(), w.source._id, w.fetchImpl, now);
+    const first = await app.pollSourceWatches(
+      w.actionCtx(),
+      w.source._id,
+      w.fetchImpl,
+      now,
+    );
     expect(first).toEqual({ polled: 2, accepted: 3 });
     const groups = w.db._tables.event_groups;
-    expect(groups.map((g: any) => [g.kind, g.title, g.status]).sort()).toEqual([
-      // A green check is resolved from its first report; only red announces.
-      ["check", "No dupes", "resolved"],
-      ["check", "Orphan calls", "open"],
-      ["job", "sendEmails", "open"],
-    ].sort());
-    const kinds = () => w.db._tables.external_events.map((e: any) => e.kind).sort();
+    expect(groups.map((g: any) => [g.kind, g.title, g.status]).sort()).toEqual(
+      [
+        // A green check is resolved from its first report; only red announces.
+        ["check", "No dupes", "resolved"],
+        ["check", "Orphan calls", "open"],
+        ["job", "sendEmails", "open"],
+      ].sort(),
+    );
+    const kinds = () =>
+      w.db._tables.external_events.map((e: any) => e.kind).sort();
     expect(kinds()).toEqual(["check_failed", "job_failed"]);
-    expect(w.scheduled.filter((s) => s.name === "ingest:promote")).toHaveLength(1);
+    expect(w.scheduled.filter((s) => s.name === "ingest:promote")).toHaveLength(
+      1,
+    );
     for (const c of w.calls.filter((c) => !c.url.endsWith("/manifest"))) {
       expect(header(c, "x-codecast-actor")).toMatch(/^watch=(check|job):/);
     }
 
     // Not due again until the interval is up.
-    expect(await h(app.sourcesWithDueWatches)(w.inner(), { now: now + 60_000 })).toEqual([]);
+    expect(
+      await h(app.sourcesWithDueWatches)(w.inner(), { now: now + 60_000 }),
+    ).toEqual([]);
 
     // Next poll: the same failed job is not counted again; the invariant recovers.
-    invariants = [{ key: "inv-orphans", ok: true, name: "Orphan calls" }, { key: "inv-dupes", ok: true, name: "No dupes" }];
+    invariants = [
+      { key: "inv-orphans", ok: true, name: "Orphan calls" },
+      { key: "inv-dupes", ok: true, name: "No dupes" },
+    ];
     const later = now + 5 * 60_000;
-    await app.pollSourceWatches(w.actionCtx(), w.source._id, w.fetchImpl, later);
+    await app.pollSourceWatches(
+      w.actionCtx(),
+      w.source._id,
+      w.fetchImpl,
+      later,
+    );
     expect(groups.find((g: any) => g.kind === "job").count).toBe(1);
     expect(kinds()).toEqual(["check_failed", "check_recovered", "job_failed"]);
     const state = w.db._tables.event_sources[0].watch_state;
-    expect(state.find((s: any) => s.key === "job:jobs.failed").cursor).toBe(now - 60_000);
+    expect(state.find((s: any) => s.key === "job:jobs.failed").cursor).toBe(
+      now - 60_000,
+    );
     expect(w.db._tables.app_calls).toHaveLength(0);
   });
 
@@ -440,35 +1024,73 @@ describe("watches", () => {
     const now = Date.now();
     const w = await world({
       routes: {
-        [`GET ${BASE}/codecast/invariants`]: () => new Response("boom", { status: 500 }),
-        [`GET ${BASE}/codecast/jobs/failed`]: () => Response.json({ nope: true }),
+        [`GET ${BASE}/codecast/invariants`]: () =>
+          new Response("boom", { status: 500 }),
+        [`GET ${BASE}/codecast/jobs/failed`]: () =>
+          Response.json({ nope: true }),
       },
     });
-    await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
+    await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
     await app.pollSourceWatches(w.actionCtx(), w.source._id, w.fetchImpl, now);
     const state = w.db._tables.event_sources[0].watch_state;
-    expect(state.find((s: any) => s.key === "check:invariants.list").last_error).toBe("answered 500");
-    expect(state.find((s: any) => s.key === "job:jobs.failed").last_error).toContain("list of rows");
-    expect(w.db._tables.app_calls.map((c: any) => [c.user_id, c.status])).toEqual([["u1", "error"], ["u1", "error"]]);
+    expect(
+      state.find((s: any) => s.key === "check:invariants.list").last_error,
+    ).toBe("answered 500");
+    expect(
+      state.find((s: any) => s.key === "job:jobs.failed").last_error,
+    ).toContain("list of rows");
+    expect(
+      w.db._tables.app_calls.map((c: any) => [c.user_id, c.status]),
+    ).toEqual([
+      ["u1", "error"],
+      ["u1", "error"],
+    ]);
     expect(w.db._tables.event_groups).toHaveLength(0);
   });
 
   test("the poll cron reads only sources whose next watch is due", async () => {
     const w = await world();
-    await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
+    await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
     const now = Date.now();
-    expect(await h(app.sourcesWithDueWatches)(w.inner(), { now })).toEqual([w.source._id]);
-    await h(app.recordWatchPolls)(w.inner(), { source_id: w.source._id, states: [{ key: "check:invariants.list", polled_at: now }, { key: "job:jobs.failed", polled_at: now }] });
+    expect(await h(app.sourcesWithDueWatches)(w.inner(), { now })).toEqual([
+      w.source._id,
+    ]);
+    await h(app.recordWatchPolls)(w.inner(), {
+      source_id: w.source._id,
+      states: [
+        { key: "check:invariants.list", polled_at: now },
+        { key: "job:jobs.failed", polled_at: now },
+      ],
+    });
     expect(w.db._tables.event_sources[0].next_watch_at).toBeGreaterThan(now);
     expect(await h(app.sourcesWithDueWatches)(w.inner(), { now })).toEqual([]);
   });
 
   test("a paused source is not polled", async () => {
     const w = await world();
-    await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
+    await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
     w.db._tables.event_sources[0].status = "paused";
-    expect(await h(app.sourcesWithDueWatches)(w.inner(), { now: Date.now() })).toEqual([]);
-    expect(await app.pollSourceWatches(w.actionCtx(), w.source._id, w.fetchImpl)).toEqual({ polled: 0 });
+    expect(
+      await h(app.sourcesWithDueWatches)(w.inner(), { now: Date.now() }),
+    ).toEqual([]);
+    expect(
+      await app.pollSourceWatches(w.actionCtx(), w.source._id, w.fetchImpl),
+    ).toEqual({ polled: 0 });
   });
 
   test("a refused secret stops the source once: error with the cause, one audit row, no more polls until a connection is stored", async () => {
@@ -476,13 +1098,25 @@ describe("watches", () => {
     let status = 200;
     const w = await world({
       routes: {
-        [`GET ${BASE}/codecast/invariants`]: () => (status === 200 ? Response.json([]) : new Response("no", { status })),
-        [`GET ${BASE}/codecast/jobs/failed`]: () => (status === 200 ? Response.json([]) : new Response("no", { status })),
+        [`GET ${BASE}/codecast/invariants`]: () =>
+          status === 200 ? Response.json([]) : new Response("no", { status }),
+        [`GET ${BASE}/codecast/jobs/failed`]: () =>
+          status === 200 ? Response.json([]) : new Response("no", { status }),
       },
     });
-    await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
+    await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
     status = 401;
-    const out = await app.pollSourceWatches(w.actionCtx(), w.source._id, w.fetchImpl, now);
+    const out = await app.pollSourceWatches(
+      w.actionCtx(),
+      w.source._id,
+      w.fetchImpl,
+      now,
+    );
     expect(out.error).toMatch(/refused the connection's secret \(401\)/);
     const row = () => w.db._tables.event_sources[0];
     expect(row()).toMatchObject({ status: "error" });
@@ -492,8 +1126,17 @@ describe("watches", () => {
     expect(w.calls.filter((c) => !c.url.endsWith("/manifest"))).toHaveLength(1);
 
     // Backed off: the cron never picks it, and a stray poll does nothing.
-    expect(await h(app.sourcesWithDueWatches)(w.inner(), { now: now + 3600_000 })).toEqual([]);
-    expect(await app.pollSourceWatches(w.actionCtx(), w.source._id, w.fetchImpl, now + 3600_000)).toEqual({ polled: 0 });
+    expect(
+      await h(app.sourcesWithDueWatches)(w.inner(), { now: now + 3600_000 }),
+    ).toEqual([]);
+    expect(
+      await app.pollSourceWatches(
+        w.actionCtx(),
+        w.source._id,
+        w.fetchImpl,
+        now + 3600_000,
+      ),
+    ).toEqual({ polled: 0 });
     expect(w.db._tables.app_calls).toHaveLength(1);
     // The list a person reads names it.
     const listed = await h(ingest.listSources)(w.inner("u1"), TEAM);
@@ -503,20 +1146,45 @@ describe("watches", () => {
     // Storing the connection again resumes it and refetches the manifest.
     status = 200;
     w.scheduled.length = 0;
-    await h(tokenConnectors.storeTokenConnection)(w.inner(), { provider: "app", user_id: "u1", team_id: "team_1", access_token_enc: "x", config: { base_url: BASE } });
+    await h(tokenConnectors.storeTokenConnection)(w.inner(), {
+      provider: "app",
+      user_id: "u1",
+      team_id: "team_1",
+      access_token_enc: "x",
+      config: { base_url: BASE },
+    });
     expect(row()).toMatchObject({ status: "active", last_error: undefined });
-    expect(await h(app.sourcesWithDueWatches)(w.inner(), { now: Date.now() })).toEqual([w.source._id]);
-    expect(w.scheduled.map((s) => s.name)).toContain("sources/app:refreshSourceManifest");
+    expect(
+      await h(app.sourcesWithDueWatches)(w.inner(), { now: Date.now() }),
+    ).toEqual([w.source._id]);
+    expect(w.scheduled.map((s) => s.name)).toContain(
+      "sources/app:refreshSourceManifest",
+    );
   });
 
   test("no connection at all stops the source without a fetch or an audit row", async () => {
     const w = await world();
-    await app.refreshManifestFor(w.actionCtx("u1"), w.source, "ai_app", w.fetchImpl);
+    await app.refreshManifestFor(
+      w.actionCtx("u1"),
+      w.source,
+      "ai_app",
+      w.fetchImpl,
+    );
     w.db._tables.app_installations.length = 0;
     w.calls.length = 0;
-    const out = await app.pollSourceWatches(w.actionCtx(), w.source._id, w.fetchImpl);
-    expect(out).toEqual({ polled: 0, error: expect.stringMatching(/no app connection/) });
-    expect(w.db._tables.event_sources[0]).toMatchObject({ status: "error", last_error: expect.stringMatching(/no app connection/) });
+    const out = await app.pollSourceWatches(
+      w.actionCtx(),
+      w.source._id,
+      w.fetchImpl,
+    );
+    expect(out).toEqual({
+      polled: 0,
+      error: expect.stringMatching(/no app connection/),
+    });
+    expect(w.db._tables.event_sources[0]).toMatchObject({
+      status: "error",
+      last_error: expect.stringMatching(/no app connection/),
+    });
     expect(w.calls).toHaveLength(0);
     expect(w.db._tables.app_calls).toHaveLength(0);
   });
@@ -525,41 +1193,120 @@ describe("watches", () => {
     const w = await world();
     w.db._tables.event_sources[0].status = "error";
     w.db._tables.event_sources[0].last_error = "no app connection";
-    await h(ingest.updateSource)(w.inner("u1"), { ...TEAM, source: "union", status: "active" });
-    expect(w.db._tables.event_sources[0]).toMatchObject({ status: "active", last_error: undefined });
+    await h(ingest.updateSource)(w.inner("u1"), {
+      ...TEAM,
+      source: "union",
+      status: "active",
+    });
+    expect(w.db._tables.event_sources[0]).toMatchObject({
+      status: "active",
+      last_error: undefined,
+    });
   });
 
   test("dueWatches waits out each watch's own interval", () => {
-    const parsed = app.cachedManifest({ manifest_json: JSON.stringify({ ...MANIFEST, watches: [{ ...MANIFEST.watches[0], every: "1h" }] }) });
+    const parsed = app.cachedManifest({
+      manifest_json: JSON.stringify({
+        ...MANIFEST,
+        watches: [{ ...MANIFEST.watches[0], every: "1h" }],
+      }),
+    });
     expect(app.dueWatches(parsed, undefined, 0)).toHaveLength(1);
-    expect(app.dueWatches(parsed, [{ key: "check:invariants.list", polled_at: 0 }], 30 * 60_000)).toHaveLength(0);
-    expect(app.dueWatches(parsed, [{ key: "check:invariants.list", polled_at: 0 }], 3600_000 - 30_000)).toHaveLength(1);
+    expect(
+      app.dueWatches(
+        parsed,
+        [{ key: "check:invariants.list", polled_at: 0 }],
+        30 * 60_000,
+      ),
+    ).toHaveLength(0);
+    expect(
+      app.dueWatches(
+        parsed,
+        [{ key: "check:invariants.list", polled_at: 0 }],
+        3600_000 - 30_000,
+      ),
+    ).toHaveLength(1);
   });
 });
 
 describe("metric readers (reader watches)", () => {
   const METRIC_MANIFEST = {
     ...MANIFEST,
-    readers: [...MANIFEST.readers, { name: "metrics.read", method: "GET", path: "/codecast/metrics/read", input: { type: "object", properties: { key: { type: "string" }, days: { type: "integer" } }, required: ["key"], additionalProperties: false } }],
+    readers: [
+      ...MANIFEST.readers,
+      {
+        name: "metrics.read",
+        method: "GET",
+        path: "/codecast/metrics/read",
+        input: {
+          type: "object",
+          properties: { key: { type: "string" }, days: { type: "integer" } },
+          required: ["key"],
+          additionalProperties: false,
+        },
+      },
+    ],
   };
-  const answer = { key: "dollars_per_intro", value: 382, unit: "$", points: [{ at: "2026-10-13T00:00:00Z", value: 410 }, { at: "2026-10-20T00:00:00Z", value: 395 }, { at: 1793100000000, value: 382 }] };
+  const answer = {
+    key: "dollars_per_intro",
+    value: 382,
+    unit: "$",
+    points: [
+      { at: "2026-10-13T00:00:00Z", value: 410 },
+      { at: "2026-10-20T00:00:00Z", value: 395 },
+      { at: 1793100000000, value: 382 },
+    ],
+  };
 
   test("a watch reads the app's number, its unit and its own series, and a plain series opens no group", async () => {
-    const w = await world({ manifest: METRIC_MANIFEST, routes: { [`GET ${BASE}/codecast/metrics/read`]: () => Response.json(answer) } });
+    const w = await world({
+      manifest: METRIC_MANIFEST,
+      routes: {
+        [`GET ${BASE}/codecast/metrics/read`]: () => Response.json(answer),
+      },
+    });
     const metrics = await import("../metrics");
-    const made = (await h(metrics.createWatch)(w.inner("u1"), { ...TEAM, source: "union", name: "Dollars per intro", query_kind: "reader", query: 'metrics.read {"key":"dollars_per_intro"}' })).watch;
+    const made = (
+      await h(metrics.createWatch)(w.inner("u1"), {
+        ...TEAM,
+        source: "union",
+        name: "Dollars per intro",
+        query_kind: "reader",
+        query: 'metrics.read {"key":"dollars_per_intro"}',
+      })
+    ).watch;
     expect(made).toMatchObject({ query_kind: "reader", state: "ok" });
     expect(made.threshold).toBeUndefined();
 
-    const read = await (await import("./appMetrics")).readAppMetric(w.actionCtx(), w.source._id, made.query, w.fetchImpl, { days: 30 });
-    expect(read).toEqual({ ok: true, value: 382, unit: "$", points: [{ at: Date.parse("2026-10-13T00:00:00Z"), value: 410 }, { at: Date.parse("2026-10-20T00:00:00Z"), value: 395 }, { at: 1793100000000, value: 382 }], version: null });
+    const read = await (
+      await import("./appMetrics")
+    ).readAppMetric(w.actionCtx(), w.source._id, made.query, w.fetchImpl, {
+      days: 30,
+    });
+    expect(read).toEqual({
+      ok: true,
+      value: 382,
+      unit: "$",
+      points: [
+        { at: Date.parse("2026-10-13T00:00:00Z"), value: 410 },
+        { at: Date.parse("2026-10-20T00:00:00Z"), value: 395 },
+        { at: 1793100000000, value: 382 },
+      ],
+      version: null,
+    });
     // The args ride the query string, `days` too because the reader declares it.
     const call = w.calls.find((c) => c.url.includes("/codecast/metrics/read"))!;
     expect(new URL(call.url).searchParams.get("key")).toBe("dollars_per_intro");
     expect(new URL(call.url).searchParams.get("days")).toBe("30");
 
     if (!read.ok) throw new Error("read failed");
-    await h(metrics.recordPoint)(w.inner(), { watch_id: made._id, at: Date.now(), value: read.value!, unit: read.unit!, series: read.points });
+    await h(metrics.recordPoint)(w.inner(), {
+      watch_id: made._id,
+      at: Date.now(),
+      value: read.value!,
+      unit: read.unit!,
+      series: read.points,
+    });
     const row = w.db._tables.metric_watches[0];
     expect(row.points.map((p: any) => p.value)).toEqual([410, 395, 382]);
     expect(row.unit).toBe("$");
@@ -569,11 +1316,41 @@ describe("metric readers (reader watches)", () => {
 
   test("a reader the app does not declare, or a kind its source cannot answer, says so", async () => {
     const w = await world({ manifest: METRIC_MANIFEST });
-    expect(await (await import("./appMetrics")).readAppMetric(w.actionCtx(), w.source._id, "metrics.nope", w.fetchImpl)).toEqual({ ok: false, error: "union declares no reader metrics.nope" });
-    expect(await (await import("./appMetrics")).readAppMetric(w.actionCtx(), w.source._id, "metrics.read {oops", w.fetchImpl)).toEqual({ ok: false, error: "A reader watch's args are a JSON object" });
+    expect(
+      await (
+        await import("./appMetrics")
+      ).readAppMetric(w.actionCtx(), w.source._id, "metrics.nope", w.fetchImpl),
+    ).toEqual({ ok: false, error: "union declares no reader metrics.nope" });
+    expect(
+      await (
+        await import("./appMetrics")
+      ).readAppMetric(
+        w.actionCtx(),
+        w.source._id,
+        "metrics.read {oops",
+        w.fetchImpl,
+      ),
+    ).toEqual({ ok: false, error: "A reader watch's args are a JSON object" });
     const metrics = await import("../metrics");
-    await expect(h(metrics.createWatch)(w.inner("u1"), { ...TEAM, source: "union", name: "x", query_kind: "hogql", query: "select 1" })).rejects.toThrow("An app source cannot watch a hogql metric (it takes reader)");
+    await expect(
+      h(metrics.createWatch)(w.inner("u1"), {
+        ...TEAM,
+        source: "union",
+        name: "x",
+        query_kind: "hogql",
+        query: "select 1",
+      }),
+    ).rejects.toThrow(
+      "An app source cannot watch a hogql metric (it takes reader)",
+    );
     // A required arg the query leaves out fails before any call goes out.
-    expect(await (await import("./appMetrics")).readAppMetric(w.actionCtx(), w.source._id, "metrics.read", w.fetchImpl)).toMatchObject({ ok: false, error: expect.stringContaining("invalid args") });
+    expect(
+      await (
+        await import("./appMetrics")
+      ).readAppMetric(w.actionCtx(), w.source._id, "metrics.read", w.fetchImpl),
+    ).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("invalid args"),
+    });
   });
 });

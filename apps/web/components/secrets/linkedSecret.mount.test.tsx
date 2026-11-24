@@ -7,9 +7,27 @@ import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import type { Root } from "react-dom/client";
 
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://codecast.test/vault", pretendToBeVisual: true });
-for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "Event", "sessionStorage", "localStorage"]) {
-  Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "https://codecast.test/vault", pretendToBeVisual: true },
+);
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "MutationObserver",
+  "Event",
+  "sessionStorage",
+  "localStorage",
+]) {
+  Object.defineProperty(globalThis, key, {
+    value: (dom.window as any)[key],
+    configurable: true,
+    writable: true,
+  });
 }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 (globalThis as any).ResizeObserver ??= class {
@@ -26,22 +44,50 @@ mock.module("convex/react", () => ({
   useAction: () => async () => ({}),
   useMutation: () => async () => ({}),
   useQuery: () => undefined,
-  useQueries: (queries: Record<string, unknown>) => Object.fromEntries(Object.keys(queries).map((k) => [k, undefined])),
-  useConvex: () => ({ query: async () => undefined, mutation: async () => undefined, action: async () => undefined }),
+  useQueries: (queries: Record<string, unknown>) =>
+    Object.fromEntries(Object.keys(queries).map((k) => [k, undefined])),
+  useConvex: () => ({
+    query: async () => undefined,
+    mutation: async () => undefined,
+    action: async () => undefined,
+  }),
 }));
 const authState = await import("../../hooks/useServerAuthSettled");
-mock.module("../../hooks/useServerAuthSettled", () => ({ ...authState, useServerAuthSettled: () => true, useServerIdentityLost: () => false }));
+mock.module("../../hooks/useServerAuthSettled", () => ({
+  ...authState,
+  useServerAuthSettled: () => true,
+  useServerIdentityLost: () => false,
+}));
 
 const realNav = await import("next/navigation");
 let search = "";
-mock.module("next/navigation", () => ({ ...realNav, useRouter: () => ({ push() {}, replace() {} }), useSearchParams: () => new URLSearchParams(search) }));
+mock.module("next/navigation", () => ({
+  ...realNav,
+  useRouter: () => ({ push() {}, replace() {} }),
+  useSearchParams: () => new URLSearchParams(search),
+}));
 
 const { useInboxStore } = await import("../../store/inboxStore");
-const { useLinkedSecret, useSecrets } = await import("../../hooks/useSyncSecrets");
+const { useLinkedSecret, useSecrets } =
+  await import("../../hooks/useSyncSecrets");
 const { syncMetaKey } = await import("../../hooks/syncMetaKeys");
 const { VaultPage } = await import("./VaultPage");
 
-const row = (id: string, short: string, workspace: string, name = `zz-${short}`) => ({ _id: id, short_id: short, name, kind: "key", status: "ready", workspace, updated_at: 1 }) as any;
+const row = (
+  id: string,
+  short: string,
+  workspace: string,
+  name = `zz-${short}`,
+) =>
+  ({
+    _id: id,
+    short_id: short,
+    name,
+    kind: "key",
+    status: "ready",
+    workspace,
+    updated_at: 1,
+  }) as any;
 const MINE = row("s1", "sec-1", "user:u1");
 const OURS = row("s2", "sec-2", "team:tA");
 const THEIRS = row("s3", "sec-3", "team:tB");
@@ -60,15 +106,34 @@ const render = async (next: string | null) => {
   ref = next;
   await act(async () => root.render(<Probe />));
 };
-const activeTeam = () => useInboxStore.getState().clientState.ui?.active_team_id ?? null;
-const pointer = () => (useInboxStore.getState().currentUser as any)?.active_team_id ?? null;
-const setLoaded = (on: boolean) => useInboxStore.setState((s: any) => ({ syncMeta: { ...(s.syncMeta ?? {}), [syncMetaKey("secrets", "viewer")]: on ? { backfilledAt: 1 } : undefined } }));
+const activeTeam = () =>
+  useInboxStore.getState().clientState.ui?.active_team_id ?? null;
+const pointer = () =>
+  (useInboxStore.getState().currentUser as any)?.active_team_id ?? null;
+const setLoaded = (on: boolean) =>
+  useInboxStore.setState((s: any) => ({
+    syncMeta: {
+      ...(s.syncMeta ?? {}),
+      [syncMetaKey("secrets", "viewer")]: on ? { backfilledAt: 1 } : undefined,
+    },
+  }));
 
 beforeEach(async () => {
   useInboxStore.setState((s: any) => ({
-    currentUser: { ...(s.currentUser ?? {}), _id: "u1", name: "Ada", active_team_id: "tA" },
-    teams: [{ _id: "tA", name: "Alpha" }, { _id: "tB", name: "Beta" }],
-    clientState: { ...s.clientState, ui: { ...(s.clientState?.ui ?? {}), active_team_id: "tA" } },
+    currentUser: {
+      ...(s.currentUser ?? {}),
+      _id: "u1",
+      name: "Ada",
+      active_team_id: "tA",
+    },
+    teams: [
+      { _id: "tA", name: "Alpha" },
+      { _id: "tB", name: "Beta" },
+    ],
+    clientState: {
+      ...s.clientState,
+      ui: { ...(s.clientState?.ui ?? {}), active_team_id: "tA" },
+    },
     secrets: { s1: MINE, s2: OURS, s3: THEIRS },
     pending: {},
   }));
@@ -98,7 +163,9 @@ test("a secret in another team switches to that team, both halves of the pointer
 test("a team picked by hand while the link is open stays; the same link pressed again after closing switches again", async () => {
   await render("sec-3");
   expect(activeTeam()).toBe("tB");
-  await act(async () => useInboxStore.getState().updateClientUI({ active_team_id: "tA" } as any));
+  await act(async () =>
+    useInboxStore.getState().updateClientUI({ active_team_id: "tA" } as any),
+  );
   await render("sec-3");
   expect(activeTeam()).toBe("tA");
   expect(seen).toEqual({ row: undefined, missing: false });
@@ -132,7 +199,9 @@ test("the Vault page opens a link into another team there, and says when no work
 
   search = "s=sec-99";
   await act(async () => root.render(<VaultPage key="missing" />));
-  const missing = document.querySelector("[data-vault-detail-missing='sec-99']");
+  const missing = document.querySelector(
+    "[data-vault-detail-missing='sec-99']",
+  );
   expect(missing?.textContent).toContain("Not in your workspaces");
   expect(document.querySelector("[data-vault-detail]")).toBeNull();
 });

@@ -9,8 +9,19 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../../../test-helpers/globals";
 import { closeDomWindow } from "../../../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh/flows/settings?project=pr-1", pretendToBeVisual: true });
-const matchMedia = (q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  {
+    url: "https://local.codecast.sh/flows/settings?project=pr-1",
+    pretendToBeVisual: true,
+  },
+);
+const matchMedia = (q: string) => ({
+  matches: false,
+  media: q,
+  addEventListener() {},
+  removeEventListener() {},
+});
 const restoreGlobals = replaceGlobals({
   window: Object.assign(dom.window, { innerWidth: 1400, matchMedia }),
   document: dom.window.document,
@@ -26,7 +37,10 @@ const restoreGlobals = replaceGlobals({
 dom.window.HTMLElement.prototype.scrollIntoView = () => {};
 const { createRoot } = await import("react-dom/client");
 
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 // What the by-slug feeder says: undefined (not yet), null (none), or the row.
 let fork: any = undefined;
@@ -40,22 +54,48 @@ mock.module("../../../../hooks/useSyncWorkflows", () => ({
   useWorkflowBySlug: () => fork,
   useWorkflows: () => ({ workflows: fork ? [fork] : [], ready: true }),
 }));
-mock.module("../../../../hooks/useSyncOrgTree", () => ({ ...realOrgTree, useSyncOrgTree: () => ({ tree: { roles } }) }));
-mock.module("../../../WorkflowGraphView", () => ({
-  WorkflowGraphView: ({ nodes, onNodeSelect }: any) => React.createElement("div", { "data-graph": nodes.length },
-    nodes.map((n: any) => React.createElement("button", { key: n.id, "data-node": n.id, onClick: () => onNodeSelect(n) }, n.label))),
+mock.module("../../../../hooks/useSyncOrgTree", () => ({
+  ...realOrgTree,
+  useSyncOrgTree: () => ({ tree: { roles } }),
 }));
-mock.module("next/link", () => ({ default: ({ href, children, ...rest }: any) => React.createElement("a", { href, ...rest }, children) }));
+mock.module("../../../WorkflowGraphView", () => ({
+  WorkflowGraphView: ({ nodes, onNodeSelect }: any) =>
+    React.createElement(
+      "div",
+      { "data-graph": nodes.length },
+      nodes.map((n: any) =>
+        React.createElement(
+          "button",
+          { key: n.id, "data-node": n.id, onClick: () => onNodeSelect(n) },
+          n.label,
+        ),
+      ),
+    ),
+}));
+mock.module("next/link", () => ({
+  default: ({ href, children, ...rest }: any) =>
+    React.createElement("a", { href, ...rest }, children),
+}));
 
 const { useInboxStore } = await import("../../../../store/inboxStore");
-const { SHIPPED_LINE } = await import("../../../../lib/line/shippedLine.generated");
+const { SHIPPED_LINE } =
+  await import("../../../../lib/line/shippedLine.generated");
 const { forkShippedLine } = await import("../../../../lib/line/lineStations");
 const { LineStations } = await import("../LineStations");
 
 const ME = "u1";
 const project = { _id: "p1", short_id: "pr-1", title: "Codecast" };
 const SLUG = "line-pr-1";
-const role = (over: Record<string, unknown> = {}) => ({ _id: "r1", short_id: "rl-1", name: "Builder", handle: "builder", status: "active", host_user_id: ME, scope: { project_ids: ["p1"] }, ...over });
+const role = (over: Record<string, unknown> = {}) => ({
+  _id: "r1",
+  short_id: "rl-1",
+  name: "Builder",
+  handle: "builder",
+  status: "active",
+  host_user_id: ME,
+  scope: { project_ids: ["p1"] },
+  ...over,
+});
 
 let calls: Array<[string, unknown[]]> = [];
 beforeEach(() => {
@@ -65,9 +105,15 @@ beforeEach(() => {
   useInboxStore.setState({
     currentUser: { _id: ME, name: "Me" },
     projects: { p1: project },
-    saveLineWorkflow: (...a: unknown[]) => { calls.push(["saveLineWorkflow", a]); },
-    removeLineWorkflow: (...a: unknown[]) => { calls.push(["removeLineWorkflow", a]); },
-    setRoleLine: (...a: unknown[]) => { calls.push(["setRoleLine", a]); },
+    saveLineWorkflow: (...a: unknown[]) => {
+      calls.push(["saveLineWorkflow", a]);
+    },
+    removeLineWorkflow: (...a: unknown[]) => {
+      calls.push(["removeLineWorkflow", a]);
+    },
+    setRoleLine: (...a: unknown[]) => {
+      calls.push(["setRoleLine", a]);
+    },
   } as any);
 });
 
@@ -75,11 +121,25 @@ async function mount() {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
-  const render = async () => { await act(async () => { root.render(React.createElement(LineStations, { projectId: "p1" })); }); };
+  const render = async () => {
+    await act(async () => {
+      root.render(React.createElement(LineStations, { projectId: "p1" }));
+    });
+  };
   await render();
-  return { host, render, unmount: async () => { await act(async () => { root.unmount(); }); host.remove(); } };
+  return {
+    host,
+    render,
+    unmount: async () => {
+      await act(async () => {
+        root.unmount();
+      });
+      host.remove();
+    },
+  };
 }
-const headline = (host: HTMLElement) => host.querySelector("[data-line-stations-headline]")!.textContent;
+const headline = (host: HTMLElement) =>
+  host.querySelector("[data-line-stations-headline]")!.textContent;
 
 test("no Customize while the server has not said; once it says none, Customize sends a create", async () => {
   const m = await mount();
@@ -89,8 +149,12 @@ test("no Customize while the server has not said; once it says none, Customize s
   fork = null;
   await m.render();
   expect(headline(m.host)).toBe("This project runs the Standard steps.");
-  expect(m.host.textContent).toMatch(/roles keep the Standard steps until you switch them/);
-  await act(async () => { m.host.querySelector<HTMLButtonElement>("[data-customize-line]")!.click(); });
+  expect(m.host.textContent).toMatch(
+    /roles keep the Standard steps until you switch them/,
+  );
+  await act(async () => {
+    m.host.querySelector<HTMLButtonElement>("[data-customize-line]")!.click();
+  });
   expect(calls).toHaveLength(1);
   const [action, [wf, opts]] = calls[0] as [string, [any, any]];
   expect(action).toBe("saveLineWorkflow");
@@ -104,46 +168,79 @@ test("a copy no role runs says so; a role on it is counted; saved is said only a
   roles = [role()];
   const m = await mount();
   expect(m.host.querySelector("[data-customize-line]")).toBeNull();
-  expect(headline(m.host)).toBe(`Your customized copy, ${SLUG}. No role runs it yet.`);
+  expect(headline(m.host)).toBe(
+    `Your customized copy, ${SLUG}. No role runs it yet.`,
+  );
 
   // Open a station: before any edit it shows how to edit, never "saved".
-  await act(async () => { m.host.querySelector<HTMLButtonElement>('[data-node="ground"]')!.click(); });
-  const state = () => m.host.querySelector("[data-station-save-state]")!.textContent!;
-  expect(state()).toMatch(/^Edit the prompt/);
-  const area = m.host.querySelector<HTMLTextAreaElement>("[data-station-text]")!;
   await act(async () => {
-    const set = Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, "value")!.set!;
+    m.host.querySelector<HTMLButtonElement>('[data-node="ground"]')!.click();
+  });
+  const state = () =>
+    m.host.querySelector("[data-station-save-state]")!.textContent!;
+  expect(state()).toMatch(/^Edit the prompt/);
+  const area = m.host.querySelector<HTMLTextAreaElement>(
+    "[data-station-text]",
+  )!;
+  await act(async () => {
+    const set = Object.getOwnPropertyDescriptor(
+      dom.window.HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!;
     set.call(area, "Mine.");
     area.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
   });
   // A prompt draft waits for a choice (line-map.md LX5): leaving the field saves nothing.
-  await act(async () => { area.dispatchEvent(new dom.window.FocusEvent("focusout", { bubbles: true })); });
+  await act(async () => {
+    area.dispatchEvent(
+      new dom.window.FocusEvent("focusout", { bubbles: true }),
+    );
+  });
   expect(calls).toHaveLength(0);
-  await act(async () => { m.host.querySelector<HTMLButtonElement>("[data-station-apply]")!.click(); });
+  await act(async () => {
+    m.host.querySelector<HTMLButtonElement>("[data-station-apply]")!.click();
+  });
   expect(calls.at(-1)?.[0]).toBe("saveLineWorkflow");
   // The store paints the saved graph (saveLineWorkflow); the panel follows it.
   fork = { ...fork, nodes: (calls.at(-1)![1][0] as any).nodes };
   await m.render();
-  expect(state()).toBe("Saved to the copy. No role runs it yet, so no run reads it.");
+  expect(state()).toBe(
+    "Saved to the copy. No role runs it yet, so no run reads it.",
+  );
 
   roles = [role({ line_workflow_slug: SLUG })];
   await m.render();
-  expect(headline(m.host)).toBe(`1 role runs this project's customized copy, ${SLUG}.`);
+  expect(headline(m.host)).toBe(
+    `1 role runs this project's customized copy, ${SLUG}.`,
+  );
   await m.unmount();
 });
 
 test("stop customizing asks once, moves the roles on the copy back, then removes it", async () => {
   fork = { _id: "w1", ...forkShippedLine(SHIPPED_LINE, project) };
-  roles = [role({ line_workflow_slug: SLUG }), role({ _id: "r2", host_user_id: "someone-else", line_workflow_slug: SLUG })];
+  roles = [
+    role({ line_workflow_slug: SLUG }),
+    role({ _id: "r2", host_user_id: "someone-else", line_workflow_slug: SLUG }),
+  ];
   const m = await mount();
-  const byText = (t: string) => [...m.host.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === t)!;
-  await act(async () => { byText("Stop customizing").click(); });
+  const byText = (t: string) =>
+    [...m.host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (b) => b.textContent === t,
+    )!;
+  await act(async () => {
+    byText("Stop customizing").click();
+  });
   expect(calls).toHaveLength(0);
   const armed = byText("Delete the copy and move 1 role back");
   expect(armed).toBeDefined();
-  await act(async () => { armed.click(); });
+  await act(async () => {
+    armed.click();
+  });
   // The teammate's role runs their own copy of the slug; only the viewer's moves.
-  expect(calls).toEqual([["setRoleLine", ["r1", "line"]], ["removeLineWorkflow", [SLUG]]]);
+  expect(calls).toEqual([
+    ["setRoleLine", ["r1", "line"]],
+    ["removeLineWorkflow", [SLUG]],
+  ]);
   await m.unmount();
 });
 
@@ -162,40 +259,109 @@ test("a published project edits its repo's line through the profile's edit path"
   fork = null;
   const sent: any[] = [];
   const published = {
-    root: "/src/app", device_id: "dev-1", publisher_user_id: ME, default: true, finders: [], changed_at: 1, published_at: 1,
-    commands: { check: "cast ws check", prove: null, eval: null, ship: null }, sources: {}, notes: [], warnings: [], file: ".codecast/line.toml",
+    root: "/src/app",
+    device_id: "dev-1",
+    publisher_user_id: ME,
+    default: true,
+    finders: [],
+    changed_at: 1,
+    published_at: 1,
+    commands: { check: "cast ws check", prove: null, eval: null, ship: null },
+    sources: {},
+    notes: [],
+    warnings: [],
+    file: ".codecast/line.toml",
   };
   useInboxStore.setState({
     projects: { p1: { ...project, line_profile: published } },
     sessionCommands: {},
-    editLineProfile: (requestId: string, projectId: string, edits: unknown[]) => {
+    editLineProfile: (
+      requestId: string,
+      projectId: string,
+      edits: unknown[],
+    ) => {
       sent.push(edits);
-      useInboxStore.setState((s: any) => ({ sessionCommands: { ...s.sessionCommands, [requestId]: { _id: requestId, kind: "line_edit", project_id: projectId, edits, keys: (edits as any[]).map((e) => `stations.${e.station}`), requested_at: Date.now(), executed_at: null, result: null, error: null } } }));
+      useInboxStore.setState((s: any) => ({
+        sessionCommands: {
+          ...s.sessionCommands,
+          [requestId]: {
+            _id: requestId,
+            kind: "line_edit",
+            project_id: projectId,
+            edits,
+            keys: (edits as any[]).map((e) => `stations.${e.station}`),
+            requested_at: Date.now(),
+            executed_at: null,
+            result: null,
+            error: null,
+          },
+        },
+      }));
       return Promise.resolve({ command_id: "c1" });
     },
   } as any);
   const m = await mount();
-  expect(m.host.querySelector("[data-line-stations]")!.getAttribute("data-line-home")).toBe("repo");
-  expect(headline(m.host)).toBe("This project's repo has no steps of its own yet, so its runs use their owner's steps or the Standard ones.");
+  expect(
+    m.host
+      .querySelector("[data-line-stations]")!
+      .getAttribute("data-line-home"),
+  ).toBe("repo");
+  expect(headline(m.host)).toBe(
+    "This project's repo has no steps of its own yet, so its runs use their owner's steps or the Standard ones.",
+  );
   expect(m.host.querySelector("[data-customize-line]")).toBeNull();
 
-  await act(async () => { m.host.querySelector<HTMLButtonElement>("[data-node='prove']")!.click(); });
-  const timeout = m.host.querySelector<HTMLInputElement>("[data-station-timeout]")!;
   await act(async () => {
-    const set = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")!.set!;
+    m.host.querySelector<HTMLButtonElement>("[data-node='prove']")!.click();
+  });
+  const timeout = m.host.querySelector<HTMLInputElement>(
+    "[data-station-timeout]",
+  )!;
+  await act(async () => {
+    const set = Object.getOwnPropertyDescriptor(
+      dom.window.HTMLInputElement.prototype,
+      "value",
+    )!.set!;
     set.call(timeout, "10");
     timeout.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
   });
-  await act(async () => { timeout.dispatchEvent(new dom.window.FocusEvent("focusout", { bubbles: true })); });
-  expect(sent).toEqual([[{ op: "set_station", station: "prove", timeout: 600 }]]);
+  await act(async () => {
+    timeout.dispatchEvent(
+      new dom.window.FocusEvent("focusout", { bubbles: true }),
+    );
+  });
+  expect(sent).toEqual([
+    [{ op: "set_station", station: "prove", timeout: 600 }],
+  ]);
   expect(calls).toHaveLength(0);
   // Painted ahead of the machine: the station reads as changed from shipped.
   expect(m.host.textContent).toMatch(/edited: timeout/);
 
   // Once the republish carries the repo's line, the header names its version.
-  useInboxStore.setState({ projects: { p1: { ...project, line_profile: { ...published, published_at: 2, line: { file: ".codecast/line/line.cast", graph_hash: "abcdef0123456789", name: "line", source: "", nodes: SHIPPED_LINE.nodes, edges: SHIPPED_LINE.edges, files: {} } } } } } as any);
+  useInboxStore.setState({
+    projects: {
+      p1: {
+        ...project,
+        line_profile: {
+          ...published,
+          published_at: 2,
+          line: {
+            file: ".codecast/line/line.cast",
+            graph_hash: "abcdef0123456789",
+            name: "line",
+            source: "",
+            nodes: SHIPPED_LINE.nodes,
+            edges: SHIPPED_LINE.edges,
+            files: {},
+          },
+        },
+      },
+    },
+  } as any);
   await m.render();
-  expect(headline(m.host)).toBe("This project's line lives in its repo, in .codecast/line, at version abcdef01.");
+  expect(headline(m.host)).toBe(
+    "This project's line lives in its repo, in .codecast/line, at version abcdef01.",
+  );
   await m.unmount();
 });
 
@@ -211,19 +377,40 @@ test("Send through the line files a line cause with the draft attached, and appl
     signals: {},
     fileLineCause: (key: string, projectId: string, fields: any) => {
       filed.push([key, projectId, fields]);
-      useInboxStore.setState((s: any) => ({ tasks: { ...s.tasks, [`temp_task_${key}`]: { _id: `temp_task_${key}`, client_key: key, short_id: "ct-…", title: fields.title, status: "open", project_id: projectId } } }));
+      useInboxStore.setState((s: any) => ({
+        tasks: {
+          ...s.tasks,
+          [`temp_task_${key}`]: {
+            _id: `temp_task_${key}`,
+            client_key: key,
+            short_id: "ct-…",
+            title: fields.title,
+            status: "open",
+            project_id: projectId,
+          },
+        },
+      }));
       return Promise.resolve({ task_id: "t1", task_short_id: "ct-9" });
     },
   } as any);
   const m = await mount();
-  await act(async () => { m.host.querySelector<HTMLButtonElement>('[data-node="implement"]')!.click(); });
-  const area = m.host.querySelector<HTMLTextAreaElement>("[data-station-text]")!;
   await act(async () => {
-    const set = Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, "value")!.set!;
+    m.host.querySelector<HTMLButtonElement>('[data-node="implement"]')!.click();
+  });
+  const area = m.host.querySelector<HTMLTextAreaElement>(
+    "[data-station-text]",
+  )!;
+  await act(async () => {
+    const set = Object.getOwnPropertyDescriptor(
+      dom.window.HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!;
     set.call(area, "Build only what the steps ask.");
     area.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
   });
-  await act(async () => { m.host.querySelector<HTMLButtonElement>("[data-station-send]")!.click(); });
+  await act(async () => {
+    m.host.querySelector<HTMLButtonElement>("[data-station-send]")!.click();
+  });
   expect(calls).toHaveLength(0);
   expect(filed).toHaveLength(1);
   const [, projectId, fields] = filed[0];
@@ -231,7 +418,9 @@ test("Send through the line files a line cause with the draft attached, and appl
   expect(fields.subject).toBe("line:station:implement");
   expect(fields.title).toBe("Change the Implement station's prompt");
   expect(fields.detail_md).toContain("Build only what the steps ask.");
-  expect(m.host.querySelector<HTMLTextAreaElement>("[data-station-text]")!.value).not.toBe("Build only what the steps ask.");
+  expect(
+    m.host.querySelector<HTMLTextAreaElement>("[data-station-text]")!.value,
+  ).not.toBe("Build only what the steps ask.");
   const row = m.host.querySelector("[data-station-sent] [data-change-cause]")!;
   expect(row.getAttribute("data-status")).toBe("filing");
   expect(row.textContent).toContain("Change the Implement station's prompt");

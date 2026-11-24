@@ -12,7 +12,9 @@ import type { ScanPolicy, ScanFile } from "./workers/scanTypes.js";
  * rule is refused. Each rule sees the segment it judges and the whole split
  * path, so a rule may look at the ancestors.
  */
-export function dirFilterByDepth(...rules: Array<(seg: string, parts: string[]) => boolean>): (relativeDirPath: string) => boolean {
+export function dirFilterByDepth(
+  ...rules: Array<(seg: string, parts: string[]) => boolean>
+): (relativeDirPath: string) => boolean {
   return (relativeDirPath) => {
     const parts = relativeDirPath.split(path.sep);
     const rule = rules[parts.length - 1];
@@ -61,7 +63,11 @@ export interface WalkEntry {
   name: string;
 }
 
-export async function walkEntryBatches(root: string, opts: WalkOptions, onBatch: (files: WalkEntry[]) => void | Promise<void>): Promise<void> {
+export async function walkEntryBatches(
+  root: string,
+  opts: WalkOptions,
+  onBatch: (files: WalkEntry[]) => void | Promise<void>,
+): Promise<void> {
   const apply = async (files: WalkEntry[]) => {
     for (let i = 0; i < files.length; i += 128) {
       if (opts.signal?.aborted) throw new ScanCancelled("walk stopped");
@@ -74,21 +80,41 @@ export async function walkEntryBatches(root: string, opts: WalkOptions, onBatch:
   // daemon. Loading the client on this branch keeps it — and the frame
   // protocol and payload validators behind it — off every other entry's static
   // graph (ct-49758).
-  const { visitScan, scanCanFallback } = await import("./workers/scanClient.js");
+  const { visitScan, scanCanFallback } =
+    await import("./workers/scanClient.js");
   const seen = new Set<string>();
   try {
-    await visitScan({ name: "walk", root, policy: opts.policy, ...(Number.isFinite(opts.maxDepth) ? { maxDepth: opts.maxDepth } : {}), stats: false, ...(opts.requireComplete ? { requireComplete: true } : {}) }, async rows => {
-      const files = rows.filter((r): r is ScanFile => r.type === "file");
-      for (const f of files) seen.add(f.path);
-      await onBatch(files);
-    }, opts.signal);
+    await visitScan(
+      {
+        name: "walk",
+        root,
+        policy: opts.policy,
+        ...(Number.isFinite(opts.maxDepth) ? { maxDepth: opts.maxDepth } : {}),
+        stats: false,
+        ...(opts.requireComplete ? { requireComplete: true } : {}),
+      },
+      async (rows) => {
+        const files = rows.filter((r): r is ScanFile => r.type === "file");
+        for (const f of files) seen.add(f.path);
+        await onBatch(files);
+      },
+      opts.signal,
+    );
   } catch (error) {
     if (!scanCanFallback(error)) throw error;
-    await walkDirs(root, opts, files => apply(files.filter(f => !seen.has(f.path))));
+    await walkDirs(root, opts, (files) =>
+      apply(files.filter((f) => !seen.has(f.path))),
+    );
   }
 }
 
-function splitDir(root: string, dir: string, dirDepth: number, entries: fs.Dirent[], opts: WalkOptions) {
+function splitDir(
+  root: string,
+  dir: string,
+  dirDepth: number,
+  entries: fs.Dirent[],
+  opts: WalkOptions,
+) {
   const maxDepth = opts.maxDepth ?? Infinity;
   const dirFilter = opts.dirFilter ?? (() => true);
   const fileFilter = opts.fileFilter ?? (() => true);
@@ -128,7 +154,11 @@ export async function walkDirs(
 ): Promise<void> {
   if (opts.policy) {
     const predicates = scanPredicates(root, opts.policy);
-    opts = {...opts, dirFilter: opts.dirFilter ?? predicates.dirFilter, fileFilter: opts.fileFilter ?? predicates.fileFilter};
+    opts = {
+      ...opts,
+      dirFilter: opts.dirFilter ?? predicates.dirFilter,
+      fileFilter: opts.fileFilter ?? predicates.fileFilter,
+    };
   }
   const walkDir = async (dir: string, dirDepth: number): Promise<void> => {
     if (opts.signal?.aborted) throw new ScanCancelled("walk stopped");
@@ -136,14 +166,28 @@ export async function walkDirs(
     try {
       entries = await fs.promises.readdir(dir, { withFileTypes: true });
     } catch (error) {
-      if (opts.requireComplete && !["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
+      if (
+        opts.requireComplete &&
+        !["ENOENT", "ENOTDIR"].includes(
+          (error as NodeJS.ErrnoException).code ?? "",
+        )
+      )
+        throw error;
       return; // vanished or unreadable: nothing under it to report
     }
-    const { depth, files, subdirs } = splitDir(root, dir, dirDepth, entries, opts);
+    const { depth, files, subdirs } = splitDir(
+      root,
+      dir,
+      dirDepth,
+      entries,
+      opts,
+    );
     if (opts.signal?.aborted) throw new ScanCancelled("walk stopped");
     await onDir(files);
     for (let i = 0; i < subdirs.length; i += DIR_BATCH) {
-      await Promise.all(subdirs.slice(i, i + DIR_BATCH).map((sub) => walkDir(sub, depth)));
+      await Promise.all(
+        subdirs.slice(i, i + DIR_BATCH).map((sub) => walkDir(sub, depth)),
+      );
     }
   };
   await walkDir(root, 0);
@@ -152,7 +196,11 @@ export async function walkDirs(
 /** The synchronous twin of walkDirs, for the few callers that must answer in
  *  the same tick (a cold cache on a lookup that cannot await). readdir only:
  *  ~4ms warm over the whole transcript tree. Never stat in its callback. */
-export function walkDirsSync(root: string, opts: WalkOptions, onDir: (files: WalkEntry[]) => void): void {
+export function walkDirsSync(
+  root: string,
+  opts: WalkOptions,
+  onDir: (files: WalkEntry[]) => void,
+): void {
   const walkDir = (dir: string, dirDepth: number): void => {
     let entries: fs.Dirent[];
     try {
@@ -160,7 +208,13 @@ export function walkDirsSync(root: string, opts: WalkOptions, onDir: (files: Wal
     } catch {
       return;
     }
-    const { depth, files, subdirs } = splitDir(root, dir, dirDepth, entries, opts);
+    const { depth, files, subdirs } = splitDir(
+      root,
+      dir,
+      dirDepth,
+      entries,
+      opts,
+    );
     onDir(files);
     for (const sub of subdirs) walkDir(sub, depth);
   };
@@ -178,53 +232,115 @@ export async function walkFiles(
   onFile: (file: WalkFile) => void,
 ): Promise<void> {
   if (opts.policy && scanWorkerHost()) {
-    const { visitScan, scanCanFallback } = await import("./workers/scanClient.js");
+    const { visitScan, scanCanFallback } =
+      await import("./workers/scanClient.js");
     const seen = new Map<string, string>();
     try {
-      await visitScan({ name: "walk", root, policy: opts.policy, ...(Number.isFinite(opts.maxDepth) ? { maxDepth: opts.maxDepth } : {}), stats: true, ...(opts.requireComplete ? { requireComplete: true } : {}), ...(opts.observeCwd ? { observeCwd: true } : {}), ...(opts.excludeCodexAppServer ? { excludeCodexAppServer: true } : {}) }, rows => {
-        for (const r of rows) {
-          if (r.type !== "file" || r.mtimeMs === undefined || r.size === undefined) throw new Error("invalid file observation");
-          seen.set(r.path, `${r.mtimeMs}:${r.size}`);
-          onFile({ path: r.path, rel: r.rel, depth: r.depth, ...(r.cwd !== undefined ? { cwd: r.cwd } : {}), stat: { mtimeMs: r.mtimeMs, size: r.size, isFile: () => true } });
-        }
-      }, opts.signal);
+      await visitScan(
+        {
+          name: "walk",
+          root,
+          policy: opts.policy,
+          ...(Number.isFinite(opts.maxDepth)
+            ? { maxDepth: opts.maxDepth }
+            : {}),
+          stats: true,
+          ...(opts.requireComplete ? { requireComplete: true } : {}),
+          ...(opts.observeCwd ? { observeCwd: true } : {}),
+          ...(opts.excludeCodexAppServer
+            ? { excludeCodexAppServer: true }
+            : {}),
+        },
+        (rows) => {
+          for (const r of rows) {
+            if (
+              r.type !== "file" ||
+              r.mtimeMs === undefined ||
+              r.size === undefined
+            )
+              throw new Error("invalid file observation");
+            seen.set(r.path, `${r.mtimeMs}:${r.size}`);
+            onFile({
+              path: r.path,
+              rel: r.rel,
+              depth: r.depth,
+              ...(r.cwd !== undefined ? { cwd: r.cwd } : {}),
+              stat: { mtimeMs: r.mtimeMs, size: r.size, isFile: () => true },
+            });
+          }
+        },
+        opts.signal,
+      );
       return;
     } catch (error) {
       if (!scanCanFallback(error)) throw error;
       const predicates = scanPredicates(root, opts.policy);
-      return walkFiles(root, { ...opts, dirFilter: opts.dirFilter ?? predicates.dirFilter, fileFilter: opts.fileFilter ?? predicates.fileFilter, policy: undefined }, f => {
-        if (seen.get(f.path) !== `${f.stat.mtimeMs}:${f.stat.size}`) onFile(f);
-      });
+      return walkFiles(
+        root,
+        {
+          ...opts,
+          dirFilter: opts.dirFilter ?? predicates.dirFilter,
+          fileFilter: opts.fileFilter ?? predicates.fileFilter,
+          policy: undefined,
+        },
+        (f) => {
+          if (seen.get(f.path) !== `${f.stat.mtimeMs}:${f.stat.size}`)
+            onFile(f);
+        },
+      );
     }
   }
   await walkDirs(root, opts, async (files) => {
     for (let i = 0; i < files.length; i += STAT_BATCH) {
-      await Promise.all(files.slice(i, i + STAT_BATCH).map(async (f) => {
-        try {
-          const stat = await fs.promises.stat(f.path);
-          if (opts.signal?.aborted) return;
-          if (opts.excludeCodexAppServer) {
-            const { isAppServerManagedCodexSessionHead } = await import("./codexWatcher.js");
-            const handle = await fs.promises.open(f.path, "r");
-            let excluded: boolean;
-            try { const b = Buffer.alloc(2048); const r = await handle.read(b, 0, b.length, 0); excluded = isAppServerManagedCodexSessionHead(b.subarray(0, r.bytesRead).toString("utf8")); }
-            finally { await handle.close(); }
-            if (excluded) return;
+      await Promise.all(
+        files.slice(i, i + STAT_BATCH).map(async (f) => {
+          try {
+            const stat = await fs.promises.stat(f.path);
+            if (opts.signal?.aborted) return;
+            if (opts.excludeCodexAppServer) {
+              const { isAppServerManagedCodexSessionHead } =
+                await import("./codexWatcher.js");
+              const handle = await fs.promises.open(f.path, "r");
+              let excluded: boolean;
+              try {
+                const b = Buffer.alloc(2048);
+                const r = await handle.read(b, 0, b.length, 0);
+                excluded = isAppServerManagedCodexSessionHead(
+                  b.subarray(0, r.bytesRead).toString("utf8"),
+                );
+              } finally {
+                await handle.close();
+              }
+              if (excluded) return;
+            }
+            const cwd = opts.observeCwd
+              ? await (
+                  await import("./workers/transcriptObservation.js")
+                ).readTranscriptCwdAsync(f.path)
+              : undefined;
+            if (opts.signal?.aborted) return;
+            onFile({
+              path: f.path,
+              rel: f.rel,
+              depth: f.depth,
+              stat,
+              ...(cwd !== undefined ? { cwd } : {}),
+            });
+          } catch {
+            // deleted between readdir and stat
           }
-          const cwd = opts.observeCwd ? await (await import("./workers/transcriptObservation.js")).readTranscriptCwdAsync(f.path) : undefined;
-          if (opts.signal?.aborted) return;
-          onFile({ path: f.path, rel: f.rel, depth: f.depth, stat, ...(cwd !== undefined ? { cwd } : {}) });
-        } catch {
-          // deleted between readdir and stat
-        }
-      }));
+        }),
+      );
       await yieldScanBatch();
     }
   });
 }
 
 /** Every matching file under `root`, newest first. */
-export async function listFilesByMtime(root: string, opts: WalkOptions = {}): Promise<WalkFile[]> {
+export async function listFilesByMtime(
+  root: string,
+  opts: WalkOptions = {},
+): Promise<WalkFile[]> {
   const files: WalkFile[] = [];
   await walkFiles(root, opts, (f) => files.push(f));
   files.sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);

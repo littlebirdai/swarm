@@ -4,10 +4,17 @@ import { MessageSquareQuote } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { formatToolName } from "@codecast/shared/render";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
-import { parseMessageRefPayload, truncateEntityLabel, type MessageRef } from "../lib/entityLinks";
+import {
+  parseMessageRefPayload,
+  truncateEntityLabel,
+  type MessageRef,
+} from "../lib/entityLinks";
 import { cleanTitle } from "../lib/conversationProcessor";
 import { stripMarkdown } from "../lib/notificationText";
-import { MessageBlock, type SharedMessageData } from "../app/share/message/[token]/SharedMessageView";
+import {
+  MessageBlock,
+  type SharedMessageData,
+} from "../app/share/message/[token]/SharedMessageView";
 import { ObjectCardFrame } from "./EntityObjectCard";
 import { CardMarkdown } from "./EntityCardRows";
 import { ACCENT } from "../lib/entityCardAccent";
@@ -48,7 +55,10 @@ function useMessageRef(payload: string): Resolution {
     api.messages.webGet,
     ref?.kind === "message" ? { id: ref.id, with_reply: true } : "skip",
   );
-  const data = (ref?.kind === "share" ? shared : inPlace) as SharedMessageData | null | undefined;
+  const data = (ref?.kind === "share" ? shared : inPlace) as
+    | SharedMessageData
+    | null
+    | undefined;
   const href =
     ref?.kind === "share"
       ? `/share/message/${ref.token}`
@@ -68,12 +78,19 @@ function personOf(data: SharedMessageData) {
 function roleLabel(message: any, data: SharedMessageData): string {
   return message?.role === "user"
     ? personOf(data)?.name || "User"
-    : speakerOf(identityRowOf(data.conversation), data.conversation.agent_type, identityPrefsNow()).name;
+    : speakerOf(
+        identityRowOf(data.conversation),
+        data.conversation.agent_type,
+        identityPrefsNow(),
+      ).name;
 }
 
 /** The message's first meaningful line, for the pill and the aria name. */
 function messageLead(message: any): string {
-  const line = String(message?.content ?? "").split("\n").find((l: string) => l.trim()) ?? "";
+  const line =
+    String(message?.content ?? "")
+      .split("\n")
+      .find((l: string) => l.trim()) ?? "";
   const lead = stripMarkdown(line).trim();
   if (lead) return lead;
   const tool = message?.tool_calls?.[0];
@@ -82,15 +99,33 @@ function messageLead(message: any): string {
 
 /** The collapsed preview: the shared message rendered rich, clipped with a
  *  fade, and the start of the agent's answer under it when there is one. */
-function MessageSnippet({ message, reply, replyBy, compact }: { message: any; reply?: any; replyBy: string; compact: boolean }) {
-  const body = <MessageBody message={message} maxHeight={compact ? 72 : reply ? 120 : 160} />;
+function MessageSnippet({
+  message,
+  reply,
+  replyBy,
+  compact,
+}: {
+  message: any;
+  reply?: any;
+  replyBy: string;
+  compact: boolean;
+}) {
+  const body = (
+    <MessageBody
+      message={message}
+      maxHeight={compact ? 72 : reply ? 120 : 160}
+    />
+  );
   if (!reply?.content?.trim()) return body;
   return (
     <div className="space-y-2">
       {body}
       <div>
         <div className="text-meta font-medium text-sol-orange">{replyBy}</div>
-        <div className="overflow-hidden text-sol-text-muted" style={{ maxHeight: compact ? 48 : 96, ...clipFade(28) }}>
+        <div
+          className="overflow-hidden text-sol-text-muted"
+          style={{ maxHeight: compact ? 48 : 96, ...clipFade(28) }}
+        >
           <CardMarkdown content={reply.content} />
         </div>
       </div>
@@ -98,7 +133,13 @@ function MessageSnippet({ message, reply, replyBy, compact }: { message: any; re
   );
 }
 
-function MessageBody({ message, maxHeight }: { message: any; maxHeight: number }) {
+function MessageBody({
+  message,
+  maxHeight,
+}: {
+  message: any;
+  maxHeight: number;
+}) {
   if (message?.content?.trim()) {
     return (
       <div className="overflow-hidden" style={{ maxHeight, ...clipFade(28) }}>
@@ -117,40 +158,74 @@ function MessageBody({ message, maxHeight }: { message: any; maxHeight: number }
 
 /** The full inline browse: the sharer's note, then every shared message and
  *  the agent's answer, drawn as the share page draws them minus its boxes. */
-function MessageDetail({ data, now }: { data: SharedMessageData; now: number }) {
+function MessageDetail({
+  data,
+  now,
+}: {
+  data: SharedMessageData;
+  now: number;
+}) {
   return (
     <div className="space-y-2.5">
       {data.note && (
         <div className="rounded-md border border-sol-yellow/30 bg-sol-yellow/10 px-2.5 py-1.5">
-          <div className="text-meta font-medium text-sol-yellow">Note from sharer</div>
+          <div className="text-meta font-medium text-sol-yellow">
+            Note from sharer
+          </div>
           <div className="text-[12px] text-sol-text">{data.note}</div>
         </div>
       )}
       <div className="max-h-[70vh] overflow-y-auto pr-1 text-[12px]">
-        {[...data.contextMessages, ...(data.reply ? [data.reply] : [])].map((msg: any) => (
-          <MessageBlock key={msg._id} message={msg} now={now} conversation={data.conversation} authorName={personOf(data)?.name} flat />
-        ))}
+        {[...data.contextMessages, ...(data.reply ? [data.reply] : [])].map(
+          (msg: any) => (
+            <MessageBlock
+              key={msg._id}
+              message={msg}
+              now={now}
+              conversation={data.conversation}
+              authorName={personOf(data)?.name}
+              flat
+            />
+          ),
+        )}
       </div>
     </div>
   );
 }
 
 /** A shared message alone on its line: the browsable card. */
-export function SharedMessageCard({ refId, count }: { refId: string; count: number }) {
+export function SharedMessageCard({
+  refId,
+  count,
+}: {
+  refId: string;
+  count: number;
+}) {
   const { ref, data, href } = useMessageRef(refId);
   // The share page takes `now` as a prop (it hydrates server markup); the card
   // is client-only, so one timestamp per resolution is enough.
   const now = useMemo(() => Date.now(), [data]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!ref) return <span className="font-mono text-meta text-sol-text-dim">{refId}</span>;
+  if (!ref)
+    return (
+      <span className="font-mono text-meta text-sol-text-dim">{refId}</span>
+    );
 
   const message = data?.message;
-  const title = data ? cleanTitle(data.conversation.title || "Conversation") : null;
+  const title = data
+    ? cleanTitle(data.conversation.title || "Conversation")
+    : null;
   const author = data ? roleLabel(message, data) : "";
   const count_ = data?.contextMessages?.length ?? 0;
   const sharer = data?.user;
   // The face: the sharer of a share link, else the person who typed the
   // message (an agent's message keeps the message icon).
-  const face = data ? (ref.kind === "share" ? sharer : message?.role === "user" ? personOf(data) : null) : null;
+  const face = data
+    ? ref.kind === "share"
+      ? sharer
+      : message?.role === "user"
+        ? personOf(data)
+        : null
+    : null;
   const replyBy = data?.reply ? roleLabel(data.reply, data) : "";
 
   return (
@@ -159,32 +234,61 @@ export function SharedMessageCard({ refId, count }: { refId: string; count: numb
       count={count}
       ariaLabel={`Message: ${data ? `${author} in ${title}` : refId}`}
       href={href}
-      openLabel={ref.kind === "share" ? "Open shared message" : "Open in session"}
-      footerId={ref.kind === "share" ? "shared message" : `msg-${ref.id.slice(0, 7)}`}
+      openLabel={
+        ref.kind === "share" ? "Open shared message" : "Open in session"
+      }
+      footerId={
+        ref.kind === "share" ? "shared message" : `msg-${ref.id.slice(0, 7)}`
+      }
       resolved={!!data}
       served={data !== undefined}
       header={{
         icon:
           face?.name || face?.image ? (
-            <AuthorAvatar name={face.name ?? undefined} avatar={face.image} size={16} />
+            <AuthorAvatar
+              name={face.name ?? undefined}
+              avatar={face.image}
+              size={16}
+            />
           ) : (
-            <MessageSquareQuote className={`h-3.5 w-3.5 ${ACCENT.session.text}`} />
+            <MessageSquareQuote
+              className={`h-3.5 w-3.5 ${ACCENT.session.text}`}
+            />
           ),
-        title: data ? title : <span className="font-mono text-sol-text-dim">{refId}</span>,
+        title: data ? (
+          title
+        ) : (
+          <span className="font-mono text-sol-text-dim">{refId}</span>
+        ),
         meta: data ? (
           <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-meta text-sol-text-muted">
-            <span className={`whitespace-nowrap font-medium ${message?.role === "user" ? "text-sol-blue" : "text-sol-orange"}`}>{author}</span>
+            <span
+              className={`whitespace-nowrap font-medium ${message?.role === "user" ? "text-sol-blue" : "text-sol-orange"}`}
+            >
+              {author}
+            </span>
             {count_ > 1 && (
-              <span className="whitespace-nowrap before:mr-1.5 before:content-['·']">{count_} messages</span>
+              <span className="whitespace-nowrap before:mr-1.5 before:content-['·']">
+                {count_} messages
+              </span>
             )}
             {sharer?.name && ref.kind === "share" && (
-              <span className="truncate before:mr-1.5 before:content-['·']">shared by {sharer.name}</span>
+              <span className="truncate before:mr-1.5 before:content-['·']">
+                shared by {sharer.name}
+              </span>
             )}
           </div>
         ) : undefined,
         timeAgo: relativeTime(message?.timestamp),
       }}
-      snippet={<MessageSnippet message={message} reply={data?.reply} replyBy={replyBy} compact={count > 1} />}
+      snippet={
+        <MessageSnippet
+          message={message}
+          reply={data?.reply}
+          replyBy={replyBy}
+          compact={count > 1}
+        />
+      }
       detail={data ? <MessageDetail data={data} now={now} /> : null}
     />
   );
@@ -197,9 +301,13 @@ export function SharedMessagePill({ refId }: { refId: string }) {
   const message = data?.message;
   const lead = message ? messageLead(message) : "";
   const label = data
-    ? truncateEntityLabel(lead || cleanTitle(data.conversation.title || "message"))
+    ? truncateEntityLabel(
+        lead || cleanTitle(data.conversation.title || "message"),
+      )
     : "message";
-  const tooltip = data ? `${roleLabel(message, data)} in ${cleanTitle(data.conversation.title || "Conversation")}` : undefined;
+  const tooltip = data
+    ? `${roleLabel(message, data)} in ${cleanTitle(data.conversation.title || "Conversation")}`
+    : undefined;
   return (
     <Link
       href={href}

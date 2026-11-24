@@ -17,7 +17,13 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { startHostedConversationFor } from "./start";
 import { wakeCauseValidator } from "../assistantSchema";
-import { leaseTurn, leaseExpired, resumeAfterNotice, runTurn, stopRunningTurn } from "./turns";
+import {
+  leaseTurn,
+  leaseExpired,
+  resumeAfterNotice,
+  runTurn,
+  stopRunningTurn,
+} from "./turns";
 import { confirmEmailCode, sendEmailCode } from "../lib/emailProof";
 import { turnsIn } from "./input";
 import { TURN_DEADLINE_MS } from "@codecast/shared/contracts/assistant";
@@ -43,7 +49,10 @@ export const startConversation = mutation({
     session_id: v.optional(v.string()),
     first_message_client_id: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ conversation_id: Id<"conversations">; short_id: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ conversation_id: Id<"conversations">; short_id: string }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     return startHostedConversationFor(ctx, userId, args);
@@ -104,7 +113,10 @@ export const kick = action({
     const startedAt = Date.now();
     let ran = 0;
     do {
-      const turnId = await ctx.runMutation(internal.assistant.entry.wakeNow, { conversation_id: args.conversation_id, user_id: userId });
+      const turnId = await ctx.runMutation(internal.assistant.entry.wakeNow, {
+        conversation_id: args.conversation_id,
+        user_id: userId,
+      });
       if (!turnId || !(await runTurn(ctx, turnId))) break;
       ran++;
     } while (Date.now() - startedAt < KICK_CHAIN_MS);
@@ -121,7 +133,9 @@ export const wakeNow = internalMutation({
     if (!conversation || conversation.user_id !== args.user_id) return null;
     await leaseTurn(ctx, args.conversation_id);
     const now = Date.now();
-    const turn = (await turnsIn(ctx, args.conversation_id, "running")).find((t) => t.run_claimed_at === undefined && !leaseExpired(t, now));
+    const turn = (await turnsIn(ctx, args.conversation_id, "running")).find(
+      (t) => t.run_claimed_at === undefined && !leaseExpired(t, now),
+    );
     return turn?._id ?? null;
   },
 });
@@ -157,15 +171,25 @@ export const sendEmailProof = mutation({
  *  expired code throws the sentence to show; a wrong one returns it as
  *  `error`, so the try it cost is kept (lib/emailProof). */
 export const confirmEmailProof = mutation({
-  args: { code: v.string(), conversation_id: v.optional(v.id("conversations")) },
+  args: {
+    code: v.string(),
+    conversation_id: v.optional(v.id("conversations")),
+  },
   handler: async (ctx, args): Promise<{ resumed: boolean; error?: string }> => {
     const userId = await getAuthUserId(ctx);
     const user = userId ? await ctx.db.get(userId) : null;
     if (!user) throw new Error("Not authenticated");
     const check = await confirmEmailCode(ctx, user, args.code);
     if (!check.ok) return { resumed: false, error: check.message };
-    const conversation = args.conversation_id ? await ctx.db.get(args.conversation_id) : null;
-    if (!conversation || conversation.user_id !== user._id || conversation.hosted_stop !== "verify") return { resumed: false };
+    const conversation = args.conversation_id
+      ? await ctx.db.get(args.conversation_id)
+      : null;
+    if (
+      !conversation ||
+      conversation.user_id !== user._id ||
+      conversation.hosted_stop !== "verify"
+    )
+      return { resumed: false };
     const outcome = await resumeAfterNotice(ctx, conversation._id);
     return { resumed: outcome === "started" || outcome === "queued" };
   },

@@ -85,7 +85,11 @@ const dirOf = (path: string): string => {
  *  Exported because the graph builder groups unresolved targets by the same
  *  key this index does — two spellings of one missing note must be one ghost. */
 export function normalizeTarget(target: string): string {
-  return target.trim().replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "");
+  return target
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "")
+    .replace(/^\/+/, "");
 }
 
 /**
@@ -147,7 +151,8 @@ function pickCandidate(
   candidates: string[],
   fromPath: string,
 ): { path: string; isAmbiguous: boolean; candidates: string[] } {
-  if (candidates.length === 1) return { path: candidates[0], isAmbiguous: false, candidates };
+  if (candidates.length === 1)
+    return { path: candidates[0], isAmbiguous: false, candidates };
   const folder = dirOf(fromPath);
   const sameFolder = candidates.find((p) => dirOf(p) === folder);
   return { path: sameFolder ?? candidates[0], isAmbiguous: true, candidates };
@@ -291,22 +296,31 @@ export class VaultIndex {
   ): { path: string | null; isAmbiguous: boolean; candidates: string[] } {
     const norm = normalizeTarget(target);
     if (!norm) {
-      return { path: this.notes.has(fromPath) ? fromPath : null, isAmbiguous: false, candidates: [] };
+      return {
+        path: this.notes.has(fromPath) ? fromPath : null,
+        isAmbiguous: false,
+        candidates: [],
+      };
     }
     const key = lc(norm);
 
     // 1. Exact vault-relative path, extension optional, case-insensitive
     //    (macOS and Windows vaults are case-preserving but case-insensitive,
     //    so `[[projects/note]]` must find `Projects/Note.md`).
-    if (this.notes.has(norm)) return { path: norm, isAmbiguous: false, candidates: [norm] };
+    if (this.notes.has(norm))
+      return { path: norm, isAmbiguous: false, candidates: [norm] };
     for (const candidate of [key, `${key}.md`, `${key}.markdown`]) {
-      const hit = sortedPaths(this.nameIndex.get(candidate)).find((p) => lc(p) === candidate);
+      const hit = sortedPaths(this.nameIndex.get(candidate)).find(
+        (p) => lc(p) === candidate,
+      );
       if (hit) return { path: hit, isAmbiguous: false, candidates: [hit] };
     }
 
     // 2. Shortest-unique name match, with and without extension.
     const byKey = sortedPaths(this.nameIndex.get(key));
-    const named = byKey.length ? byKey : sortedPaths(this.nameIndex.get(lc(stripKnownExtension(norm))));
+    const named = byKey.length
+      ? byKey
+      : sortedPaths(this.nameIndex.get(lc(stripKnownExtension(norm))));
     if (named.length) return pickCandidate(named, fromPath);
 
     // 3. Aliases — a real filename always wins over someone's alias.
@@ -358,7 +372,8 @@ export class VaultIndex {
    *  faded "click to create" links and the unresolved-links pane. */
   unresolvedTargets(): Map<string, string[]> {
     const out = new Map<string, string[]>();
-    for (const [target, sources] of this.unresolved) out.set(target, sortedPaths(sources));
+    for (const [target, sources] of this.unresolved)
+      out.set(target, sortedPaths(sources));
     return out;
   }
 
@@ -367,7 +382,8 @@ export class VaultIndex {
     const key = lc(tag.replace(/^#/, ""));
     const out = new Set<string>();
     for (const [indexed, files] of this.tagIndex) {
-      if (indexed === key || indexed.startsWith(`${key}/`)) for (const f of files) out.add(f);
+      if (indexed === key || indexed.startsWith(`${key}/`))
+        for (const f of files) out.add(f);
     }
     return [...out].sort();
   }
@@ -388,7 +404,13 @@ export class VaultIndex {
         const full = segments.slice(0, i + 1).join("/");
         let node = byTag.get(full);
         if (!node) {
-          node = { tag: full, name: segments[i], count: 0, total: 0, children: [] };
+          node = {
+            tag: full,
+            name: segments[i],
+            count: 0,
+            total: 0,
+            children: [],
+          };
           byTag.set(full, node);
           filesFor.set(full, new Set());
           (parent ? parent.children : roots).push(node);
@@ -464,7 +486,8 @@ export class VaultIndex {
     for (const tag of this.tagsOf(note)) addTo(this.tagIndex, tag, note.path);
     // Entity keys are NOT added to `touched`: they name codecast objects, not
     // vault files, so no wiki link's resolution can depend on them.
-    for (const key of entityKeysOf(note)) addTo(this.entityIndex, key, note.path);
+    for (const key of entityKeysOf(note))
+      addTo(this.entityIndex, key, note.path);
     return touched;
   }
 
@@ -480,8 +503,10 @@ export class VaultIndex {
       removeFrom(this.aliasIndex, key, note.path);
       touched.add(key);
     }
-    for (const tag of this.tagsOf(note)) removeFrom(this.tagIndex, tag, note.path);
-    for (const key of entityKeysOf(note)) removeFrom(this.entityIndex, key, note.path);
+    for (const tag of this.tagsOf(note))
+      removeFrom(this.tagIndex, tag, note.path);
+    for (const key of entityKeysOf(note))
+      removeFrom(this.entityIndex, key, note.path);
     return touched;
   }
 
@@ -507,9 +532,14 @@ export class VaultIndex {
           else this.backlinkMap.delete(entry.resolved);
         }
       } else {
-        removeFrom(this.unresolved, lc(normalizeTarget(entry.link.target)), path);
+        removeFrom(
+          this.unresolved,
+          lc(normalizeTarget(entry.link.target)),
+          path,
+        );
       }
-      for (const key of targetKeys(entry.link.target)) removeFrom(this.linkDeps, key, path);
+      for (const key of targetKeys(entry.link.target))
+        removeFrom(this.linkDeps, key, path);
     }
     this.outgoingMap.delete(path);
   }
@@ -526,14 +556,21 @@ export class VaultIndex {
     const links = note.parsed?.links ?? [];
     const previous = this.outgoingMap.get(path);
     const next: ResolvedLink[] = links.map((link) => {
-      const { path: resolved, isAmbiguous } = this.resolveLinkInfo(link.target, path);
+      const { path: resolved, isAmbiguous } = this.resolveLinkInfo(
+        link.target,
+        path,
+      );
       return { link, resolved, isAmbiguous };
     });
 
     const changed =
       !previous ||
       previous.length !== next.length ||
-      next.some((entry, i) => previous[i].resolved !== entry.resolved || previous[i].isAmbiguous !== entry.isAmbiguous);
+      next.some(
+        (entry, i) =>
+          previous[i].resolved !== entry.resolved ||
+          previous[i].isAmbiguous !== entry.isAmbiguous,
+      );
     if (!changed) return false;
 
     this.dropOutgoing(path);
@@ -542,11 +579,15 @@ export class VaultIndex {
       if (entry.resolved) {
         const list = this.backlinkMap.get(entry.resolved);
         if (list) list.push({ source: path, link: entry.link });
-        else this.backlinkMap.set(entry.resolved, [{ source: path, link: entry.link }]);
+        else
+          this.backlinkMap.set(entry.resolved, [
+            { source: path, link: entry.link },
+          ]);
       } else {
         addTo(this.unresolved, lc(normalizeTarget(entry.link.target)), path);
       }
-      for (const key of targetKeys(entry.link.target)) addTo(this.linkDeps, key, path);
+      for (const key of targetKeys(entry.link.target))
+        addTo(this.linkDeps, key, path);
     }
     return true;
   }

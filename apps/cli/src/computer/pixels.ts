@@ -27,14 +27,17 @@ function cursorShaped(r: ComputerRect): boolean {
   return r.width <= 3 && r.height <= 40;
 }
 
-export function pixelVerdict(change: ComputerPixelChange | undefined): PixelVerdict | undefined {
+export function pixelVerdict(
+  change: ComputerPixelChange | undefined,
+): PixelVerdict | undefined {
   if (!change) return undefined;
   const { changed, repainting } = change;
   if (!changed) return { state: "unchanged" };
   if (cursorShaped(changed)) return { state: "cursor", region: changed };
   // A cursor blinking between the second and third capture is not the window
   // repainting itself.
-  if (repainting && !cursorShaped(repainting)) return { state: "repainting", region: repainting };
+  if (repainting && !cursorShaped(repainting))
+    return { state: "repainting", region: repainting };
   return { state: "changed", region: changed };
 }
 

@@ -29,8 +29,16 @@ let trustedOrigins: Set<string> | null = null;
 export function getTrustedImageOrigins(): Set<string> {
   if (trustedOrigins) return trustedOrigins;
   const origins = new Set<string>();
-  try { origins.add(window.location.origin); } catch { /* non-browser */ }
-  try { origins.add(new URL(getConvexUrl()).origin); } catch { /* malformed */ }
+  try {
+    origins.add(window.location.origin);
+  } catch {
+    /* non-browser */
+  }
+  try {
+    origins.add(new URL(getConvexUrl()).origin);
+  } catch {
+    /* malformed */
+  }
   origins.add(MEDIA_ORIGIN);
   trustedOrigins = origins;
   return origins;
@@ -45,10 +53,10 @@ export function isRemoteImageSrc(src: string): boolean {
   // Relative or root-relative path — resolves against our own origin. A
   // protocol-relative "//host/…" has no scheme but IS remote, so let it fall
   // through to URL parsing below.
-  if (!/^[a-z][a-z0-9+.-]*:/i.test(src) && !src.startsWith('//')) return false;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(src) && !src.startsWith("//")) return false;
   try {
     const url = new URL(src, window.location.href);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
     return !getTrustedImageOrigins().has(url.origin);
   } catch {
     return true; // unparseable absolute reference → treat as untrusted

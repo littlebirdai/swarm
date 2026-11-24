@@ -5,15 +5,26 @@ import { useLayoutFlag } from "../hooks/useOverflows";
 import { Check, ChevronDown, Copy, Maximize2, X } from "lucide-react";
 import { useDecisionOpener } from "../lib/decisionOpenRegistry";
 import { toast } from "sonner";
-import { threadStateAskParts, type ThreadStateRow } from "@codecast/shared/contracts";
+import {
+  threadStateAskParts,
+  type ThreadStateRow,
+} from "@codecast/shared/contracts";
 import { useInboxStore } from "../store/inboxStore";
 import { withoutUndo } from "../store/undoStack";
 import { useCoarseNow } from "../hooks/useCoarseNow";
 import { BELOW_SM, useMediaQuery } from "../hooks/useIsPhone";
 import { LinkedPrChips, PrStatusChip } from "./PrStatusChip";
-import { sessionPullRequestsSig, titledSessionPullRequests, type LinkedPr } from "../lib/sessionPullRequests";
+import {
+  sessionPullRequestsSig,
+  titledSessionPullRequests,
+  type LinkedPr,
+} from "../lib/sessionPullRequests";
 import { TextWithMentions } from "./EntityIdPill";
-import { threadStateView, THREAD_STATE_STATUS_META, type ThreadStateView } from "../lib/threadState";
+import {
+  threadStateView,
+  THREAD_STATE_STATUS_META,
+  type ThreadStateView,
+} from "../lib/threadState";
 import { copyText } from "../lib/copyText";
 
 import { useWatchEffect } from "../hooks/useWatchEffect";
@@ -31,9 +42,20 @@ import { useWatchEffect } from "../hooks/useWatchEffect";
 // since and turns yellow. Past that the view is null and the panel disappears
 // (lib/threadState decides the cutoff).
 
-const TONE: Record<ThreadStateView["freshness"], { bar: string; label: string; meta: string }> = {
-  fresh: { bar: "border-l-sol-cyan/70", label: "text-sol-cyan/80", meta: "text-sol-text-dim" },
-  aging: { bar: "border-l-sol-yellow/70", label: "text-sol-yellow/90", meta: "text-sol-yellow/70" },
+const TONE: Record<
+  ThreadStateView["freshness"],
+  { bar: string; label: string; meta: string }
+> = {
+  fresh: {
+    bar: "border-l-sol-cyan/70",
+    label: "text-sol-cyan/80",
+    meta: "text-sol-text-dim",
+  },
+  aging: {
+    bar: "border-l-sol-yellow/70",
+    label: "text-sol-yellow/90",
+    meta: "text-sol-yellow/70",
+  },
 };
 
 export const ThreadStatePanel = memo(function ThreadStatePanel({
@@ -56,22 +78,38 @@ export const ThreadStatePanel = memo(function ThreadStatePanel({
   // The age and the stale cutoff are time-driven, not field-driven — without a
   // coarse ticker the panel would keep claiming "just now" for hours.
   const now = useCoarseNow(30_000);
-  const collapsed = useInboxStore((s) => s.clientState?.ui?.thread_state_collapsed === true);
+  const collapsed = useInboxStore(
+    (s) => s.clientState?.ui?.thread_state_collapsed === true,
+  );
   // The pull request this session shepherds. It sits in the same seam above the
   // composer because it answers the same question the pinned state does: what
   // is this session waiting on. The field only changes when the shepherd
   // rewrites it, so subscribing to it directly does not follow row churn.
-  const prStatus = useInboxStore((s) => s.sessions[conversationId]?.pr_status ?? null);
+  const prStatus = useInboxStore(
+    (s) => s.sessions[conversationId]?.pr_status ?? null,
+  );
   // Every other pull request the session links, beside it.
-  const prSig = useInboxStore((s) => sessionPullRequestsSig(s as any, conversationId));
-  const linkedPrs = useMemo(() => titledSessionPullRequests(useInboxStore.getState() as any, conversationId), [prSig, conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const prSig = useInboxStore((s) =>
+    sessionPullRequestsSig(s as any, conversationId),
+  );
+  const linkedPrs = useMemo(
+    () =>
+      titledSessionPullRequests(
+        useInboxStore.getState() as any,
+        conversationId,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [prSig, conversationId],
+  );
 
   // The decision docked under this panel, when there is one: the `You` line
   // usually names it ("answer the card…"), so pressing the line opens it.
   const openDecision = useDecisionOpener(conversationId);
 
   const toggle = () =>
-    useInboxStore.getState().updateClientUI({ thread_state_collapsed: !collapsed });
+    useInboxStore
+      .getState()
+      .updateClientUI({ thread_state_collapsed: !collapsed });
 
   const clear = (headline: string) => {
     // Nulls, not undefined: the patch rail reads null as an explicit clear and
@@ -85,17 +123,24 @@ export const ThreadStatePanel = memo(function ThreadStatePanel({
     };
     // Stays on its own toast (its description names the cleared headline), so
     // it stays off the window's undo history: two undos of one clear would diverge.
-    withoutUndo(() => useInboxStore.getState().patchConversation(conversationId, {
-      thread_state: null,
-      thread_state_at: null,
-      thread_state_msg_count: null,
-      thread_state_status: null,
-    }));
+    withoutUndo(() =>
+      useInboxStore.getState().patchConversation(conversationId, {
+        thread_state: null,
+        thread_state_at: null,
+        thread_state_msg_count: null,
+        thread_state_status: null,
+      }),
+    );
     toast("Pinned state cleared", {
       description: headline,
       action: {
         label: "Undo",
-        onClick: () => withoutUndo(() => useInboxStore.getState().patchConversation(conversationId, previous)),
+        onClick: () =>
+          withoutUndo(() =>
+            useInboxStore
+              .getState()
+              .patchConversation(conversationId, previous),
+          ),
       },
     });
   };
@@ -162,7 +207,12 @@ export function ThreadStatePanelView({
   const narrow = useMediaQuery(BELOW_SM);
   const bodyRef = useRef<HTMLDivElement>(null);
   useWatchEffect(() => setExpanded(false), [conversationId]);
-  const overflows = useLayoutFlag(bodyRef, (el) => el.scrollHeight > el.clientHeight + 1, [threadState, collapsed], !expanded);
+  const overflows = useLayoutFlag(
+    bodyRef,
+    (el) => el.scrollHeight > el.clientHeight + 1,
+    [threadState, collapsed],
+    !expanded,
+  );
 
   const view = threadStateView(
     {
@@ -174,11 +224,20 @@ export function ThreadStatePanelView({
     messageCount ?? 0,
     now,
   );
-  const otherPrs = prStatus ? linkedPrs.filter((p) => p.id !== String(prStatus.pr_id)) : linkedPrs;
+  const otherPrs = prStatus
+    ? linkedPrs.filter((p) => p.id !== String(prStatus.pr_id))
+    : linkedPrs;
   if (!view) {
     // Alone (no pinned state, no shepherd), the strip earns its place only
     // when a pull request still moves or carries this session's own commits.
-    if (!prStatus && !otherPrs.some((p) => p.state === "open" || p.state === "draft" || p.tier === "committed")) return null;
+    if (
+      !prStatus &&
+      !otherPrs.some(
+        (p) =>
+          p.state === "open" || p.state === "draft" || p.tier === "committed",
+      )
+    )
+      return null;
     return (
       <div className="relative z-20 bg-sol-bg pt-1.5">
         <div className="mx-auto conv-col px-2 sm:px-4 pb-1.5 flex items-center gap-1 flex-wrap">
@@ -212,7 +271,11 @@ export function ThreadStatePanelView({
             <button
               type="button"
               onClick={onToggle}
-              title={collapsed ? "Show the full pinned state" : "Collapse the pinned state"}
+              title={
+                collapsed
+                  ? "Show the full pinned state"
+                  : "Collapse the pinned state"
+              }
               aria-expanded={!collapsed}
               className="flex flex-wrap items-start gap-x-2.5 gap-y-1 min-w-0 flex-1 text-left"
             >
@@ -224,7 +287,9 @@ export function ThreadStatePanelView({
                   {statusMeta.label}
                 </span>
               ) : (
-                <span className={`mt-[3px] shrink-0 text-mark uppercase tracking-wider font-semibold ${tone.label}`}>
+                <span
+                  className={`mt-[3px] shrink-0 text-mark uppercase tracking-wider font-semibold ${tone.label}`}
+                >
                   Pinned
                 </span>
               )}
@@ -236,12 +301,23 @@ export function ThreadStatePanelView({
                 {view.headline}
               </span>
               {view.stamp && (
-                <span data-cc-tech className={`ml-auto mt-[3px] shrink-0 text-meta ${tone.meta}`}>{view.stamp}</span>
+                <span
+                  data-cc-tech
+                  className={`ml-auto mt-[3px] shrink-0 text-meta ${tone.meta}`}
+                >
+                  {view.stamp}
+                </span>
               )}
             </button>
             <PrStatusChip status={prStatus} size="panel" className="shrink-0" />
             {/* A phone has room for the count, not the chips: it opens them. */}
-            <LinkedPrChips prs={otherPrs} size="panel" max={narrow ? (prStatus ? 0 : 1) : 2} className="shrink-0" inCard={false} />
+            <LinkedPrChips
+              prs={otherPrs}
+              size="panel"
+              max={narrow ? (prStatus ? 0 : 1) : 2}
+              className="shrink-0"
+              inCard={false}
+            />
             <div className="flex items-center shrink-0">
               {canClear && (
                 <button
@@ -303,19 +379,32 @@ export function ThreadStatePanelView({
 const ASK_LABELS = new Set(["You", "Blocked"]);
 
 /** A leading day and time on a `Next` item ("5:45 AM", "Fri 6:20 AM PT"). */
-const LEADING_TIME = /^((?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*,?\s+)?\d{1,2}(?::\d{2})?\s?(?:AM|PM|am|pm)(?:\s+[A-Z]{1,3}T)?)[\s:,]+(?=\S)/;
+const LEADING_TIME =
+  /^((?:(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*,?\s+)?\d{1,2}(?::\d{2})?\s?(?:AM|PM|am|pm)(?:\s+[A-Z]{1,3}T)?)[\s:,]+(?=\S)/;
 
-const items = (text: string) => text.split(/\s+·\s+/).map((s) => s.trim()).filter(Boolean);
+const items = (text: string) =>
+  text
+    .split(/\s+·\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 /** The lines under the headline: a narrow label column and the line beside it. */
-function StateRows({ rows, onOpenDecision }: { rows: ThreadStateRow[]; onOpenDecision?: () => void }) {
+function StateRows({
+  rows,
+  onOpenDecision,
+}: {
+  rows: ThreadStateRow[];
+  onOpenDecision?: () => void;
+}) {
   return (
     <div className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12.5px] leading-normal break-words">
       {rows.map((row, i) => {
         const ask = !!row.label && ASK_LABELS.has(row.label);
         return (
           <React.Fragment key={i}>
-            <span className={`text-meta ${ask ? "pt-[5px] font-semibold text-sol-yellow" : "pt-px text-sol-text-dim"}`}>
+            <span
+              className={`text-meta ${ask ? "pt-[5px] font-semibold text-sol-yellow" : "pt-px text-sol-text-dim"}`}
+            >
               {row.label}
             </span>
             {ask ? (
@@ -324,7 +413,10 @@ function StateRows({ rows, onOpenDecision }: { rows: ThreadStateRow[]; onOpenDec
               <span className="min-w-0 text-sol-text-muted">
                 {items(row.text).map((item, j) => (
                   <span key={j} className="mr-3.5 inline-block">
-                    <Check className="mr-1 inline h-3 w-3 -translate-y-px text-sol-green" strokeWidth={2.5} />
+                    <Check
+                      className="mr-1 inline h-3 w-3 -translate-y-px text-sol-green"
+                      strokeWidth={2.5}
+                    />
                     <RowText text={item} />
                   </span>
                 ))}
@@ -335,7 +427,11 @@ function StateRows({ rows, onOpenDecision }: { rows: ThreadStateRow[]; onOpenDec
                   const at = item.match(LEADING_TIME);
                   return (
                     <span key={j} className="block">
-                      {at && <span className="mr-1.5 font-semibold text-sol-text-secondary">{at[1]}</span>}
+                      {at && (
+                        <span className="mr-1.5 font-semibold text-sol-text-secondary">
+                          {at[1]}
+                        </span>
+                      )}
                       <RowText text={at ? item.slice(at[0].length) : item} />
                     </span>
                   );
@@ -356,33 +452,49 @@ function StateRows({ rows, onOpenDecision }: { rows: ThreadStateRow[]; onOpenDec
 /** The ask, at full contrast on an amber wash. A command that ends it gets a
  *  line of its own and a copy button. With a decision open below, the prose
  *  opens it: the line says "answer the card", so it is the way to the card. */
-function AskLine({ text, onOpenDecision }: { text: string; onOpenDecision?: () => void }) {
+function AskLine({
+  text,
+  onOpenDecision,
+}: {
+  text: string;
+  onOpenDecision?: () => void;
+}) {
   const { prose, command } = threadStateAskParts(text);
   return (
     <div className="min-w-0 -ml-2 rounded-md border border-sol-yellow/20 bg-sol-yellow/[0.08] px-2 py-1 text-sol-text">
-      {prose && (onOpenDecision ? (
-        // The prose may hold live pills (links), which cannot sit inside a
-        // button: the row takes the click unless a pill inside took it, and
-        // Open is the real control for the keyboard.
-        <div
-          onClick={(e) => { if (!(e.target as HTMLElement).closest("a, button")) onOpenDecision(); }}
-          title="Open the decision"
-          className="group/ask flex min-w-0 cursor-pointer items-start gap-2"
-        >
-          <span className="min-w-0 flex-1 group-hover/ask:underline"><RowText text={prose} /></span>
-          <button
-            type="button"
-            onClick={onOpenDecision}
-            data-state-open-decision
-            className="mt-px inline-flex shrink-0 items-center gap-1 rounded px-1 text-meta font-semibold text-sol-yellow hover:bg-sol-yellow/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60"
+      {prose &&
+        (onOpenDecision ? (
+          // The prose may hold live pills (links), which cannot sit inside a
+          // button: the row takes the click unless a pill inside took it, and
+          // Open is the real control for the keyboard.
+          <div
+            onClick={(e) => {
+              if (!(e.target as HTMLElement).closest("a, button"))
+                onOpenDecision();
+            }}
+            title="Open the decision"
+            className="group/ask flex min-w-0 cursor-pointer items-start gap-2"
           >
-            <Maximize2 className="h-3 w-3" strokeWidth={2.2} />
-            Open
-          </button>
-        </div>
-      ) : <RowText text={prose} />)}
+            <span className="min-w-0 flex-1 group-hover/ask:underline">
+              <RowText text={prose} />
+            </span>
+            <button
+              type="button"
+              onClick={onOpenDecision}
+              data-state-open-decision
+              className="mt-px inline-flex shrink-0 items-center gap-1 rounded px-1 text-meta font-semibold text-sol-yellow hover:bg-sol-yellow/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60"
+            >
+              <Maximize2 className="h-3 w-3" strokeWidth={2.2} />
+              Open
+            </button>
+          </div>
+        ) : (
+          <RowText text={prose} />
+        ))}
       {command && (
-        <div className={`flex min-w-0 overflow-hidden rounded border border-sol-border/40 bg-sol-bg/70 ${prose ? "mt-1" : ""}`}>
+        <div
+          className={`flex min-w-0 overflow-hidden rounded border border-sol-border/40 bg-sol-bg/70 ${prose ? "mt-1" : ""}`}
+        >
           <code className="min-w-0 flex-1 whitespace-pre-wrap break-all px-2 py-0.5 text-meta leading-relaxed text-sol-text-secondary">
             {command}
           </code>
@@ -408,7 +520,10 @@ function RowText({ text }: { text: string }) {
     <>
       {parts.map((part, i) =>
         i % 2 === 1 ? (
-          <code key={i} className="rounded border border-sol-border/40 bg-sol-bg/60 px-1 text-meta text-sol-text-secondary">
+          <code
+            key={i}
+            className="rounded border border-sol-border/40 bg-sol-bg/60 px-1 text-meta text-sol-text-secondary"
+          >
             {part}
           </code>
         ) : (

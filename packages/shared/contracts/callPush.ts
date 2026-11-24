@@ -41,7 +41,9 @@ export type RecordingSummaryPush = {
 };
 
 /** Parse untrusted push data into a finished recording, or null. */
-export function parseRecordingSummaryPush(data: unknown): RecordingSummaryPush | null {
+export function parseRecordingSummaryPush(
+  data: unknown,
+): RecordingSummaryPush | null {
   if (!data || typeof data !== "object") return null;
   const d = data as Record<string, unknown>;
   if (d.type !== RECORDING_SUMMARY_PUSH_TYPE) return null;
@@ -60,6 +62,11 @@ export function parseCallRingPush(data: unknown): CallRingPush | null {
   if (!data || typeof data !== "object") return null;
   const d = data as Record<string, unknown>;
   if (d.type !== CALL_PUSH_TYPE_RING) return null;
-  if (typeof d.invite_id !== "string" || typeof d.room_key !== "string") return null;
-  return { type: CALL_PUSH_TYPE_RING, invite_id: d.invite_id, room_key: d.room_key };
+  if (typeof d.invite_id !== "string" || typeof d.room_key !== "string")
+    return null;
+  return {
+    type: CALL_PUSH_TYPE_RING,
+    invite_id: d.invite_id,
+    room_key: d.room_key,
+  };
 }

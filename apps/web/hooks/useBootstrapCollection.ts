@@ -48,7 +48,8 @@ export function floorScopeKeys(
 ): string[] | null {
   if (args === "skip" || !principal) return null;
   const keys = [`user:${principal}`];
-  if (args.workspace === "team" && args.team_id) keys.push(`team:${String(args.team_id)}`);
+  if (args.workspace === "team" && args.team_id)
+    keys.push(`team:${String(args.team_id)}`);
   return keys;
 }
 
@@ -87,7 +88,9 @@ export function loadFloorOnce(
     const promise = fetch().then((rows) => (Array.isArray(rows) ? rows : []));
     floor = { promise, applied: false };
     done.set(argsKey, floor);
-    promise.catch(() => { if (done.get(argsKey) === floor) done.delete(argsKey); });
+    promise.catch(() => {
+      if (done.get(argsKey) === floor) done.delete(argsKey);
+    });
   }
   const f = floor;
   return f.promise.then((rows) => {
@@ -106,8 +109,14 @@ function principalOf(s: any): string | null {
 
 // Keyed by principal and epoch (review): account A's floor must not stand in
 // for account B's, and a resync or rejoin must recut every mounted floor.
-const floorPrefix = (principal: string | null, epoch: number) => `${principal}:${epoch}:`;
-export function bootstrapFloorKey(principal: string | null, epoch: number, key: string, args: unknown): string {
+const floorPrefix = (principal: string | null, epoch: number) =>
+  `${principal}:${epoch}:`;
+export function bootstrapFloorKey(
+  principal: string | null,
+  epoch: number,
+  key: string,
+  args: unknown,
+): string {
   return `${floorPrefix(principal, epoch)}${bootstrapKey(key, args)}`;
 }
 
@@ -152,15 +161,27 @@ export function startBootstrapFloor(run: BootstrapFloorRun): () => void {
       return select ? select(data) : data;
     },
     (rows) => {
-      if (rows.length) useInboxStore.getState().syncTable(key, rows as any, { isDelta: true, ...opts().syncOpts } as any);
+      if (rows.length)
+        useInboxStore
+          .getState()
+          .syncTable(
+            key,
+            rows as any,
+            { isDelta: true, ...opts().syncOpts } as any,
+          );
     },
     live,
-  ).then((rows) => {
-    if (cancelled || !live()) return;
-    opts().onRows?.(rows);
-    run.onReady?.();
-  }).catch((e) => console.warn(`[bootstrap] ${key} floor failed`, e))
-    .finally(() => { if (scope && !cancelled) useInboxStore.getState().setLiveLoading(scope, false); });
+  )
+    .then((rows) => {
+      if (cancelled || !live()) return;
+      opts().onRows?.(rows);
+      run.onReady?.();
+    })
+    .catch((e) => console.warn(`[bootstrap] ${key} floor failed`, e))
+    .finally(() => {
+      if (scope && !cancelled)
+        useInboxStore.getState().setLiveLoading(scope, false);
+    });
   return () => {
     cancelled = true;
     if (scope) useInboxStore.getState().setLiveLoading(scope, false);
@@ -181,8 +202,21 @@ export function bootstrapFloorFor(
   opts: Opts = {},
 ): BootstrapFloorRun | null {
   const principal = principalOf(s);
-  if (args === "skip" || !s.clientStateInitialized || !floorScopesStamped(s, floorScopeKeys(args, principal))) return null;
-  return { convex, key, query, args, principal, epoch: s.syncLogFloorEpoch, opts: () => opts };
+  if (
+    args === "skip" ||
+    !s.clientStateInitialized ||
+    !floorScopesStamped(s, floorScopeKeys(args, principal))
+  )
+    return null;
+  return {
+    convex,
+    key,
+    query,
+    args,
+    principal,
+    epoch: s.syncLogFloorEpoch,
+    opts: () => opts,
+  };
 }
 
 export function useBootstrapCollection(
@@ -206,14 +240,27 @@ export function useBootstrapCollection(
   const [nonce, setNonce] = useState(0);
   const optsRef = useRef(opts);
   optsRef.current = opts;
-  const argsKey = args === "skip" ? "skip" : bootstrapFloorKey(principal, epoch, key, args);
+  const argsKey =
+    args === "skip" ? "skip" : bootstrapFloorKey(principal, epoch, key, args);
 
   // eslint-disable-next-line no-restricted-syntax -- one-shot bootstrap per args
   useEffect(() => {
     if (args === "skip" || !isSyncHost || !hydrated || !stamped) return;
-    return startBootstrapFloor({ convex, key, query, args, principal, epoch, opts: () => optsRef.current, onReady: () => setReady(true) });
+    return startBootstrapFloor({
+      convex,
+      key,
+      query,
+      args,
+      principal,
+      epoch,
+      opts: () => optsRef.current,
+      onReady: () => setReady(true),
+    });
   }, [argsKey, isSyncHost, hydrated, stamped, nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const refresh = () => { done.delete(argsKey); setNonce((n) => n + 1); };
+  const refresh = () => {
+    done.delete(argsKey);
+    setNonce((n) => n + 1);
+  };
   return { ready, refresh };
 }

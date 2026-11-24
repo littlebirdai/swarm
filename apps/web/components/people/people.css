@@ -153,16 +153,28 @@
   transition: opacity 180ms ease;
 }
 
-.people-face-seat[data-grow="a"] { animation: people-face-grow-a 280ms cubic-bezier(0.2, 0.8, 0.3, 1); }
-.people-face-seat[data-grow="b"] { animation: people-face-grow-b 280ms cubic-bezier(0.2, 0.8, 0.3, 1); }
+.people-face-seat[data-grow="a"] {
+  animation: people-face-grow-a 280ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.people-face-seat[data-grow="b"] {
+  animation: people-face-grow-b 280ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
 
 @keyframes people-face-grow-a {
-  from { transform: scale(var(--from-scale, 1)); }
-  to   { transform: scale(1); }
+  from {
+    transform: scale(var(--from-scale, 1));
+  }
+  to {
+    transform: scale(1);
+  }
 }
 @keyframes people-face-grow-b {
-  from { transform: scale(var(--from-scale, 1)); }
-  to   { transform: scale(1); }
+  from {
+    transform: scale(var(--from-scale, 1));
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 /* Pointed at, the face and its name come to the front of the cluster: the
@@ -234,13 +246,25 @@
     transparent calc(var(--level) * 360deg)
   );
   /* Hollow: a ring, not a pie. */
-  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-  mask: radial-gradient(closest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  -webkit-mask: radial-gradient(
+    closest-side,
+    transparent calc(100% - 3px),
+    #000 calc(100% - 3px)
+  );
+  mask: radial-gradient(
+    closest-side,
+    transparent calc(100% - 3px),
+    #000 calc(100% - 3px)
+  );
   transition: opacity 140ms ease;
 }
 
-.people-face-ring-tx { --tone: var(--walkie-tx); }
-.people-face-ring-rx { --tone: var(--walkie-rx); }
+.people-face-ring-tx {
+  --tone: var(--walkie-tx);
+}
+.people-face-ring-rx {
+  --tone: var(--walkie-rx);
+}
 
 /* Present from the moment the mic opens and brighter the louder the voice, so
    a silent open microphone reads as a dim ring rather than as nothing at all —
@@ -274,7 +298,8 @@
   pointer-events: none;
   box-shadow:
     inset 0 3px 9px color-mix(in srgb, #000 45%, transparent),
-    0 0 calc(4px + var(--level, 0) * 18px) color-mix(in srgb, var(--walkie-tx) 50%, transparent);
+    0 0 calc(4px + var(--level, 0) * 18px)
+      color-mix(in srgb, var(--walkie-tx) 50%, transparent);
 }
 
 /* THEY are talking. A small lift and the cool ring breathing: an incoming burst
@@ -293,8 +318,15 @@
    outside the box, so the only pulse that survives it is the band's own
    colour. */
 @keyframes people-face-rx-pulse {
-  0%, 100% { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--walkie-rx) 45%, transparent); }
-  50%      { box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--walkie-rx) 90%, transparent); }
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 3px
+      color-mix(in srgb, var(--walkie-rx) 45%, transparent);
+  }
+  50% {
+    box-shadow: inset 0 0 0 3px
+      color-mix(in srgb, var(--walkie-rx) 90%, transparent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -320,9 +352,16 @@
 }
 
 @keyframes people-face-refuse {
-  0%, 100% { transform: translateX(0); }
-  30%      { transform: translateX(-3px); }
-  70%      { transform: translateX(3px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  30% {
+    transform: translateX(-3px);
+  }
+  70% {
+    transform: translateX(3px);
+  }
 }
 
 /* One person is being talked to, so the rest of the wall steps back. Slight —
@@ -439,7 +478,9 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--sol-text-dim);
-  transition: color 120ms ease, background 120ms ease;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
 }
 
 .people-view-switch button:hover {
@@ -514,7 +555,11 @@
      fade when it does not. */
   padding: 6px 20px 6px 4px;
   scroll-padding-inline-end: 20px;
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 calc(100% - 14px),
+    transparent
+  );
   mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
   /* The strip row is the window's drag surface, but a drag region eats the
      pointer events the hover words live on (the window manager takes the
@@ -540,15 +585,15 @@
   line-height: 18px;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  transition: color 120ms ease, border-color 120ms ease;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease;
 }
 .people-strip-gone:hover,
 .people-strip-gone[aria-expanded="true"] {
   color: var(--sol-text);
   border-color: var(--sol-border);
 }
-
-
 
 /* The strip's text slot measures itself, and below the width of one short
    segment it shows nothing: a mid-word sliver ("1 nee") is worse than quiet,
@@ -585,8 +630,15 @@
   animation: people-pulse-breathe 2.4s ease-in-out infinite;
 }
 @keyframes people-pulse-breathe {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.45; transform: scale(0.8); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .people-pulse-dot[data-live] {
@@ -598,7 +650,8 @@
    the pointer: a small lift. Never while held or receiving — the press-down
    and the incoming lift are the walkie's own words, and a hover rule that
    outranked them made a held key rise instead of sink. */
-.people-panel[data-density="strip"] .people-face:hover:not([data-tx]):not([data-rx]),
+.people-panel[data-density="strip"]
+  .people-face:hover:not([data-tx]):not([data-rx]),
 .presence-faces .people-face:hover:not([data-tx]):not([data-rx]) {
   transform: scale(1.08);
 }
@@ -607,7 +660,11 @@
 .people-panel[data-density="compact"] .people-row-actions {
   right: 34px;
   padding-left: 8px;
-  background: linear-gradient(to right, transparent, var(--sol-bg-highlight) 8px);
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--sol-bg-highlight) 8px
+  );
 }
 
 /* ── The shell's avatar bar ──────────────────────────────────────────────────
@@ -640,8 +697,14 @@
 }
 
 @keyframes people-face-joined-in {
-  from { opacity: 0; transform: translate(-50%, -3px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -3px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -687,7 +750,9 @@
 }
 /* A strip narrower than this has no room for the legend beside the pulse. */
 @media (max-width: 460px) {
-  .people-legend-inline { display: none; }
+  .people-legend-inline {
+    display: none;
+  }
 }
 
 /* ── The three actions under a clicked face ────────────────────────────────
@@ -736,11 +801,19 @@
   user-select: text;
 }
 @keyframes people-sheet-in {
-  from { transform: translateY(12px); opacity: 0; }
-  to { transform: none; opacity: 1; }
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .people-sheet { animation: none; }
+  .people-sheet {
+    animation: none;
+  }
 }
 .people-sheet-head {
   display: flex;
@@ -749,7 +822,8 @@
   gap: 8px;
   height: 36px;
   padding: 0 8px 0 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 60%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 60%, transparent);
   flex-shrink: 0;
 }
 .people-sheet-title {
@@ -765,7 +839,9 @@
   padding: 4px;
   color: var(--sol-text-dim);
 }
-.people-sheet-close:hover { color: var(--sol-text); }
+.people-sheet-close:hover {
+  color: var(--sol-text);
+}
 .people-sheet-body {
   min-height: 0;
   flex: 1;
@@ -774,4 +850,7 @@
 }
 
 /* Modern (.modern-style): words in the interface sans. */
-.people-face-gesture:is(.modern-style *), .people-legend:is(.modern-style *) { font-family: var(--font-ui); }
+.people-face-gesture:is(.modern-style *),
+.people-legend:is(.modern-style *) {
+  font-family: var(--font-ui);
+}

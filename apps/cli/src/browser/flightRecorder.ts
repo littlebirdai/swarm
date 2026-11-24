@@ -68,7 +68,11 @@ export class FrameRing {
   received = 0;
   dropped = 0;
 
-  constructor(readonly retentionMs: number, readonly maxBytes = FLIGHT_MAX_BYTES, readonly maxFrames = FLIGHT_MAX_FRAMES) {}
+  constructor(
+    readonly retentionMs: number,
+    readonly maxBytes = FLIGHT_MAX_BYTES,
+    readonly maxFrames = FLIGHT_MAX_FRAMES,
+  ) {}
 
   push(f: Frame): void {
     this.received++;
@@ -76,7 +80,10 @@ export class FrameRing {
     this.bytes += f.data.length;
     const cutoff = f.at - this.retentionMs;
     while (this.frames.length > 1 && this.frames[1].at <= cutoff) this.evict();
-    while (this.frames.length > 1 && (this.bytes > this.maxBytes || this.frames.length > this.maxFrames)) {
+    while (
+      this.frames.length > 1 &&
+      (this.bytes > this.maxBytes || this.frames.length > this.maxFrames)
+    ) {
       this.evict();
       this.dropped++;
     }
@@ -138,34 +145,75 @@ export function frameSchedule(seconds: number[], fps = FLIGHT_FPS): number[] {
  * size differs (the viewport changed) is fitted into the last frame's size,
  * so the stream keeps one size throughout.
  */
-export function ffmpegArgs(out: string, size: { width: number; height: number } | null, fps = FLIGHT_FPS): string[] {
+export function ffmpegArgs(
+  out: string,
+  size: { width: number; height: number } | null,
+  fps = FLIGHT_FPS,
+): string[] {
   const even = (n: number) => Math.max(2, Math.floor(n / 2) * 2);
   const fit = size
     ? `scale=${even(size.width)}:${even(size.height)}:force_original_aspect_ratio=decrease,pad=${even(size.width)}:${even(size.height)}:(ow-iw)/2:(oh-ih)/2`
     : "scale=trunc(iw/2)*2:trunc(ih/2)*2";
   return [
-    "-hide_banner", "-loglevel", "error", "-y",
-    "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-",
-    "-vf", fit, "-r", String(fps),
-    "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-y",
+    "-f",
+    "image2pipe",
+    "-framerate",
+    String(fps),
+    "-c:v",
+    "mjpeg",
+    "-i",
+    "-",
+    "-vf",
+    fit,
+    "-r",
+    String(fps),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
     out,
   ];
 }
 
 /** Seconds as a flag gives them, bounded; a refusal names the range. */
-export function parseSeconds(raw: string | undefined, fallback: number, max: number): number {
+export function parseSeconds(
+  raw: string | undefined,
+  fallback: number,
+  max: number,
+): number {
   if (raw === undefined) return fallback;
   const n = Number(raw);
-  if (!Number.isFinite(n) || n < 1 || n > max) throw new Error(`--seconds takes 1 to ${max}`);
+  if (!Number.isFinite(n) || n < 1 || n > max)
+    throw new Error(`--seconds takes 1 to ${max}`);
   return Math.round(n);
 }
 
 // ── Where a session's recorder lives ────────────────────────────────────────
 
 /** The socket and state file of `session`'s recorder. Hashed: a unix socket path has about 100 bytes. */
-export function flightPaths(session: string, dir = codecastPath("browser", "flight")): { dir: string; sock: string; state: string; log: string } {
-  const key = crypto.createHash("sha256").update(session).digest("hex").slice(0, 16);
-  return { dir, sock: path.join(dir, `${key}.sock`), state: path.join(dir, `${key}.json`), log: path.join(dir, `${key}.log`) };
+export function flightPaths(
+  session: string,
+  dir = codecastPath("browser", "flight"),
+): { dir: string; sock: string; state: string; log: string } {
+  const key = crypto
+    .createHash("sha256")
+    .update(session)
+    .digest("hex")
+    .slice(0, 16);
+  return {
+    dir,
+    sock: path.join(dir, `${key}.sock`),
+    state: path.join(dir, `${key}.json`),
+    log: path.join(dir, `${key}.log`),
+  };
 }
 
 export interface FlightState {
@@ -190,7 +238,10 @@ export interface RecorderConfig {
   state: string;
 }
 
-export type FlightRequest = { op: "status" } | { op: "save"; seconds: number; dir: string } | { op: "stop" };
+export type FlightRequest =
+  | { op: "status" }
+  | { op: "save"; seconds: number; dir: string }
+  | { op: "stop" };
 
 /** The longest request line the socket reads; anything longer is refused. */
 const MAX_REQUEST_BYTES = 16 * 1024;
@@ -201,7 +252,9 @@ const MAX_REQUEST_BYTES = 16 * 1024;
  * refusal sent back, never a throw that takes the recorder down and never
  * read as a stop.
  */
-export function parseFlightRequest(line: string): FlightRequest | { error: string } {
+export function parseFlightRequest(
+  line: string,
+): FlightRequest | { error: string } {
   let v: unknown;
   try {
     v = JSON.parse(line);
@@ -212,8 +265,14 @@ export function parseFlightRequest(line: string): FlightRequest | { error: strin
   if (!r || typeof r !== "object") return { error: "not a request" };
   if (r.op === "status" || r.op === "stop") return { op: r.op };
   if (r.op === "save") {
-    if (typeof r.seconds !== "number" || !Number.isFinite(r.seconds) || r.seconds <= 0) return { error: "save needs seconds > 0" };
-    if (typeof r.dir !== "string" || !r.dir || !path.isAbsolute(r.dir)) return { error: "save needs an absolute dir" };
+    if (
+      typeof r.seconds !== "number" ||
+      !Number.isFinite(r.seconds) ||
+      r.seconds <= 0
+    )
+      return { error: "save needs seconds > 0" };
+    if (typeof r.dir !== "string" || !r.dir || !path.isAbsolute(r.dir))
+      return { error: "save needs an absolute dir" };
     return { op: "save", seconds: r.seconds, dir: r.dir };
   }
   return { error: `unknown op ${JSON.stringify(r.op)}` };
@@ -244,34 +303,63 @@ export async function encodeWindow(
   seconds: number,
   dir: string,
   now = Date.now(),
-  run: (args: string[], frames: Buffer[]) => Promise<{ code: number; stderr: string }> = runFfmpeg,
+  run: (
+    args: string[],
+    frames: Buffer[],
+  ) => Promise<{ code: number; stderr: string }> = runFfmpeg,
 ): Promise<FlightSaved> {
   const picked = ring.window(seconds * 1000, now);
-  if (!picked.length) throw new Error("no frames yet: the tab has not painted since the recorder started");
+  if (!picked.length)
+    throw new Error(
+      "no frames yet: the tab has not painted since the recorder started",
+    );
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const last = picked.at(-1)!.frame.data;
-  const frames = frameSchedule(picked.map((p) => p.seconds)).map((i) => picked[i].frame.data);
+  const frames = frameSchedule(picked.map((p) => p.seconds)).map(
+    (i) => picked[i].frame.data,
+  );
   const file = path.join(dir, "flight.mp4");
   const res = await run(ffmpegArgs(file, imageSize(last)), frames);
-  if (res.code !== 0) throw new Error(`ffmpeg failed: ${res.stderr.trim().split("\n").slice(-3).join(" ")}`);
+  if (res.code !== 0)
+    throw new Error(
+      `ffmpeg failed: ${res.stderr.trim().split("\n").slice(-3).join(" ")}`,
+    );
   const poster = path.join(dir, "poster.jpg");
   fs.writeFileSync(poster, last, { mode: 0o600 });
-  return { file, poster, seconds: frames.length / FLIGHT_FPS, frames: picked.length, bytes: fs.statSync(file).size };
+  return {
+    file,
+    poster,
+    seconds: frames.length / FLIGHT_FPS,
+    frames: picked.length,
+    bytes: fs.statSync(file).size,
+  };
 }
 
 /** ffmpeg with `frames` written to its stdin in order, minding backpressure. */
-function runFfmpeg(args: string[], frames: Buffer[]): Promise<{ code: number; stderr: string }> {
+function runFfmpeg(
+  args: string[],
+  frames: Buffer[],
+): Promise<{ code: number; stderr: string }> {
   return new Promise((resolve) => {
     let stderr = "";
     const child = spawn("ffmpeg", args, { stdio: ["pipe", "ignore", "pipe"] });
     child.stderr?.on("data", (d) => (stderr += d));
-    child.on("error", (err) => resolve({ code: 127, stderr: (err as NodeJS.ErrnoException).code === "ENOENT" ? "ffmpeg is not installed (brew install ffmpeg)" : err.message }));
+    child.on("error", (err) =>
+      resolve({
+        code: 127,
+        stderr:
+          (err as NodeJS.ErrnoException).code === "ENOENT"
+            ? "ffmpeg is not installed (brew install ffmpeg)"
+            : err.message,
+      }),
+    );
     child.on("exit", (code) => resolve({ code: code ?? 1, stderr }));
     const stdin = child.stdin!;
     stdin.on("error", () => {});
     let i = 0;
     const pump = () => {
-      while (i < frames.length) if (!stdin.write(frames[i++])) return void stdin.once("drain", pump);
+      while (i < frames.length)
+        if (!stdin.write(frames[i++])) return void stdin.once("drain", pump);
       stdin.end();
     };
     pump();
@@ -283,10 +371,17 @@ function runFfmpeg(args: string[], frames: Buffer[]): Promise<{ code: number; st
  * socket, and end on `stop`, when the tab or the connection goes, or at
  * FLIGHT_MAX_LIFETIME_MS.
  */
-export async function runRecorder(cfg: RecorderConfig, connect: (url: string) => Promise<CdpClient> = (u) => CdpConnection.connect(u, 8000)): Promise<void> {
+export async function runRecorder(
+  cfg: RecorderConfig,
+  connect: (url: string) => Promise<CdpClient> = (u) =>
+    CdpConnection.connect(u, 8000),
+): Promise<void> {
   const ring = new FrameRing(cfg.seconds * 1000);
   const conn = await connect(cfg.cdp);
-  const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", { targetId: cfg.targetId, flatten: true });
+  const { sessionId } = await conn.send<{ sessionId: string }>(
+    "Target.attachToTarget",
+    { targetId: cfg.targetId, flatten: true },
+  );
   let lastScreencastAt = 0;
   let ended = false;
   let finish: () => void = () => {};
@@ -302,34 +397,73 @@ export async function runRecorder(cfg: RecorderConfig, connect: (url: string) =>
       const p = ev.params as { data: string; sessionId: number };
       lastScreencastAt = Date.now();
       ring.push({ data: Buffer.from(p.data, "base64"), at: lastScreencastAt });
-      conn.send("Page.screencastFrameAck", { sessionId: p.sessionId }, sessionId).catch(() => {});
-    } else if ((ev.method === "Target.detachedFromTarget" && (ev.params as any)?.sessionId === sessionId) || ev.method === "Inspector.detached") {
+      conn
+        .send("Page.screencastFrameAck", { sessionId: p.sessionId }, sessionId)
+        .catch(() => {});
+    } else if (
+      (ev.method === "Target.detachedFromTarget" &&
+        (ev.params as any)?.sessionId === sessionId) ||
+      ev.method === "Inspector.detached"
+    ) {
       end();
     }
   });
   await conn.send("Page.enable", {}, sessionId).catch(() => {});
-  await conn.send("Page.startScreencast", { format: "jpeg", quality: 70, maxWidth: 1600, maxHeight: 1200, everyNthFrame: 1 }, sessionId);
+  await conn.send(
+    "Page.startScreencast",
+    {
+      format: "jpeg",
+      quality: 70,
+      maxWidth: 1600,
+      maxHeight: 1200,
+      everyNthFrame: 1,
+    },
+    sessionId,
+  );
 
   // A tab Chrome is not painting sends no screencast frames: screenshots fill in, a repeat dropped.
   let shooting = false;
   const poll = setInterval(async () => {
-    if (shooting || ended || Date.now() - lastScreencastAt < SCREENCAST_QUIET_MS) return;
+    if (
+      shooting ||
+      ended ||
+      Date.now() - lastScreencastAt < SCREENCAST_QUIET_MS
+    )
+      return;
     shooting = true;
     try {
-      const { data } = await conn.send<{ data: string }>("Page.captureScreenshot", { format: "jpeg", quality: 70 }, sessionId, 5_000);
+      const { data } = await conn.send<{ data: string }>(
+        "Page.captureScreenshot",
+        { format: "jpeg", quality: 70 },
+        sessionId,
+        5_000,
+      );
       const buf = Buffer.from(data, "base64");
       const last = ring.last;
-      if (!last || !last.data.equals(buf)) ring.push({ data: buf, at: Date.now() });
+      if (!last || !last.data.equals(buf))
+        ring.push({ data: buf, at: Date.now() });
     } catch (err) {
       // "not open" is CdpConnection.send on a socket that has closed (cdp.ts).
-      if (/No target|not attached|detached|closed|not open/i.test((err as Error).message)) end();
+      if (
+        /No target|not attached|detached|closed|not open/i.test(
+          (err as Error).message,
+        )
+      )
+        end();
     } finally {
       shooting = false;
     }
   }, SCREENSHOT_EVERY_MS);
   const lifetime = setTimeout(end, FLIGHT_MAX_LIFETIME_MS);
 
-  const state: FlightState = { pid: process.pid, session: cfg.session, targetId: cfg.targetId, url: cfg.url, seconds: cfg.seconds, startedAt: Date.now() };
+  const state: FlightState = {
+    pid: process.pid,
+    session: cfg.session,
+    targetId: cfg.targetId,
+    url: cfg.url,
+    seconds: cfg.seconds,
+    startedAt: Date.now(),
+  };
   fs.mkdirSync(path.dirname(cfg.sock), { recursive: true, mode: 0o700 });
   fs.rmSync(cfg.sock, { force: true });
   const server = net.createServer((sock) => {
@@ -350,9 +484,28 @@ export async function runRecorder(cfg: RecorderConfig, connect: (url: string) =>
       if ("error" in req) return reply({ ok: false, error: req.error });
       try {
         if (req.op === "status") {
-          reply({ ok: true, status: { url: cfg.url, seconds: cfg.seconds, covered: ring.coveredMs(Date.now()) / 1000, frames: ring.frames.length, bytes: ring.bytes, received: ring.received, dropped: ring.dropped, startedAt: state.startedAt } satisfies FlightStatus });
+          reply({
+            ok: true,
+            status: {
+              url: cfg.url,
+              seconds: cfg.seconds,
+              covered: ring.coveredMs(Date.now()) / 1000,
+              frames: ring.frames.length,
+              bytes: ring.bytes,
+              received: ring.received,
+              dropped: ring.dropped,
+              startedAt: state.startedAt,
+            } satisfies FlightStatus,
+          });
         } else if (req.op === "save") {
-          reply({ ok: true, saved: await encodeWindow(ring, Math.min(req.seconds, cfg.seconds), req.dir) });
+          reply({
+            ok: true,
+            saved: await encodeWindow(
+              ring,
+              Math.min(req.seconds, cfg.seconds),
+              req.dir,
+            ),
+          });
         } else {
           reply({ ok: true });
           end();
@@ -363,7 +516,9 @@ export async function runRecorder(cfg: RecorderConfig, connect: (url: string) =>
     });
     sock.on("error", () => {});
   });
-  await new Promise<void>((resolve, reject) => server.once("error", reject).listen(cfg.sock, () => resolve()));
+  await new Promise<void>((resolve, reject) =>
+    server.once("error", reject).listen(cfg.sock, () => resolve()),
+  );
   fs.chmodSync(cfg.sock, 0o600);
   fs.writeFileSync(cfg.state, JSON.stringify(state), { mode: 0o600 });
 
@@ -383,7 +538,11 @@ export async function runRecorder(cfg: RecorderConfig, connect: (url: string) =>
 // ── Talking to it ───────────────────────────────────────────────────────────
 
 /** One request to the session's recorder; null when none is running there. */
-export function askRecorder(sock: string, req: FlightRequest, timeoutMs = 120_000): Promise<any | null> {
+export function askRecorder(
+  sock: string,
+  req: FlightRequest,
+  timeoutMs = 120_000,
+): Promise<any | null> {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(sock)) return resolve(null);
     const c = net.connect(sock);
@@ -414,11 +573,19 @@ export function askRecorder(sock: string, req: FlightRequest, timeoutMs = 120_00
 }
 
 /** Launch a recorder for `cfg`, detached, and wait until its socket answers. */
-export async function launchRecorder(cfg: RecorderConfig, log: string, timeoutMs = 15_000): Promise<FlightStatus> {
+export async function launchRecorder(
+  cfg: RecorderConfig,
+  log: string,
+  timeoutMs = 15_000,
+): Promise<FlightStatus> {
   fs.mkdirSync(path.dirname(log), { recursive: true, mode: 0o700 });
   const out = fs.openSync(log, "a", 0o600);
   const { cmd, prefixArgs } = resolveCastInvocation();
-  const child = spawn(cmd, [...prefixArgs, "browser", "flight", "run"], { detached: true, stdio: ["pipe", out, out], env: process.env });
+  const child = spawn(cmd, [...prefixArgs, "browser", "flight", "run"], {
+    detached: true,
+    stdio: ["pipe", out, out],
+    env: process.env,
+  });
   child.stdin!.end(JSON.stringify(cfg));
   child.unref();
   fs.closeSync(out);
@@ -427,33 +594,48 @@ export async function launchRecorder(cfg: RecorderConfig, log: string, timeoutMs
   child.on("exit", (code) => (exited = code ?? 1));
   while (Date.now() < deadline) {
     if (exited !== null) break;
-    const res = await askRecorder(cfg.sock, { op: "status" }, 3_000).catch(() => null);
+    const res = await askRecorder(cfg.sock, { op: "status" }, 3_000).catch(
+      () => null,
+    );
     if (res?.ok) return res.status as FlightStatus;
     await new Promise((r) => setTimeout(r, 200));
   }
-  const tail = fs.existsSync(log) ? fs.readFileSync(log, "utf-8").trim().split("\n").slice(-3).join(" ") : "";
-  throw new Error(`the flight recorder did not start${tail ? `: ${tail}` : ""}`);
+  const tail = fs.existsSync(log)
+    ? fs.readFileSync(log, "utf-8").trim().split("\n").slice(-3).join(" ")
+    : "";
+  throw new Error(
+    `the flight recorder did not start${tail ? `: ${tail}` : ""}`,
+  );
 }
 
 /** A saved video as a page: the cast player shows a bundle's <video controls>. */
 export function flightPageHtml(title: string): string {
-  const esc = title.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc}</title>` +
+  const esc = title.replace(
+    /[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!,
+  );
+  return (
+    `<!doctype html><html><head><meta charset="utf-8"><title>${esc}</title>` +
     `<style>body{margin:0;background:#111}video{display:block;width:100%;height:auto}</style></head>` +
-    `<body><video controls playsinline poster="poster.jpg" src="flight.mp4"></video></body></html>\n`;
+    `<body><video controls playsinline poster="poster.jpg" src="flight.mp4"></video></body></html>\n`
+  );
 }
 
 // ── The verbs ───────────────────────────────────────────────────────────────
 
 /** `cast browser flight start|save|stop|status`. One recorder per agent session, whichever tab it started on. */
 export function registerFlightCommand(br: Command, deps: PublishDeps): void {
-  const paths = () => flightPaths(ownerKey(deps.detectCurrentSessionId) ?? "default");
+  const paths = () =>
+    flightPaths(ownerKey(deps.detectCurrentSessionId) ?? "default");
   const ok = (s: string) => console.log(`${fmt.success(icons.check)} ${s}`);
-  const describe = (s: FlightStatus) => `${Math.round(s.covered)}s of ${s.seconds}s buffered, ${s.frames} frames, ${formatBytes(s.bytes)}`;
+  const describe = (s: FlightStatus) =>
+    `${Math.round(s.covered)}s of ${s.seconds}s buffered, ${s.frames} frames, ${formatBytes(s.bytes)}`;
 
   const flight = br
     .command("flight")
-    .description("Keep a rolling video of this session's tab in memory; save the last seconds as an mp4 when something goes wrong")
+    .description(
+      "Keep a rolling video of this session's tab in memory; save the last seconds as an mp4 when something goes wrong",
+    )
     .addHelpText(
       "after",
       `
@@ -467,27 +649,55 @@ It records what the tab shows: a field showing a secret in plain text shows in t
 
   targetFlags(flight.command("start"))
     .description("Start buffering this session's tab")
-    .option("--seconds <n>", `How much to keep, 1 to ${FLIGHT_MAX_SECONDS}`, String(FLIGHT_DEFAULT_SECONDS))
+    .option(
+      "--seconds <n>",
+      `How much to keep, 1 to ${FLIGHT_MAX_SECONDS}`,
+      String(FLIGHT_DEFAULT_SECONDS),
+    )
     .action(async (o: TargetChoice & { seconds: string }) => {
       let seconds: number;
       try {
-        seconds = parseSeconds(o.seconds, FLIGHT_DEFAULT_SECONDS, FLIGHT_MAX_SECONDS);
+        seconds = parseSeconds(
+          o.seconds,
+          FLIGHT_DEFAULT_SECONDS,
+          FLIGHT_MAX_SECONDS,
+        );
       } catch (err) {
         fail((err as Error).message);
       }
       const p = paths();
-      const running = await askRecorder(p.sock, { op: "status" }, 5_000).catch(() => null);
-      if (running?.ok) return ok(`already recording ${running.status.url}: ${describe(running.status)}`);
+      const running = await askRecorder(p.sock, { op: "status" }, 5_000).catch(
+        () => null,
+      );
+      if (running?.ok)
+        return ok(
+          `already recording ${running.status.url}: ${describe(running.status)}`,
+        );
       let tab: SessionTab;
       try {
         tab = await openSessionTab(o, deps);
       } catch (err) {
-        fail(`${(err as Error).message}${(err as { hint?: string }).hint ? `\n  ${(err as { hint?: string }).hint}` : ""}`);
+        fail(
+          `${(err as Error).message}${(err as { hint?: string }).hint ? `\n  ${(err as { hint?: string }).hint}` : ""}`,
+        );
       }
       tab.conn.close();
       try {
-        const status = await launchRecorder({ cdp: tab.browserUrl, targetId: tab.targetId, session: tab.session, url: tab.url, seconds, sock: p.sock, state: p.state }, p.log);
-        ok(`recording ${status.url || "the tab"}, keeping the last ${seconds}s`);
+        const status = await launchRecorder(
+          {
+            cdp: tab.browserUrl,
+            targetId: tab.targetId,
+            session: tab.session,
+            url: tab.url,
+            seconds,
+            sock: p.sock,
+            state: p.state,
+          },
+          p.log,
+        );
+        ok(
+          `recording ${status.url || "the tab"}, keeping the last ${seconds}s`,
+        );
       } catch (err) {
         fail((err as Error).message);
       }
@@ -496,60 +706,118 @@ It records what the tab shows: a field showing a secret in plain text shows in t
   flight
     .command("save")
     .description("Write the last seconds as an mp4 and post it")
-    .option("--seconds <n>", `How much, 1 to ${FLIGHT_MAX_SECONDS}`, String(FLIGHT_SAVE_DEFAULT_SECONDS))
+    .option(
+      "--seconds <n>",
+      `How much, 1 to ${FLIGHT_MAX_SECONDS}`,
+      String(FLIGHT_SAVE_DEFAULT_SECONDS),
+    )
     .option("--local", "Keep the video on this machine; do not publish it")
     .option("--title <text>", "The page's title: say what it shows")
     .option("--json", "Print {file, poster, seconds, frames, bytes, url}")
-    .action(async (o: { seconds: string; local?: boolean; title?: string; json?: boolean }) => {
-      let seconds: number;
-      try {
-        seconds = parseSeconds(o.seconds, FLIGHT_SAVE_DEFAULT_SECONDS, FLIGHT_MAX_SECONDS);
-      } catch (err) {
-        fail((err as Error).message);
-      }
-      const dir = agentTempPath("flight", `flight-${Date.now()}`);
-      const res = await askRecorder(paths().sock, { op: "save", seconds, dir }).catch((err) => fail((err as Error).message));
-      if (!res) fail("no flight recorder is running for this session: cast browser flight start");
-      if (!res.ok) fail(res.error);
-      const saved = res.saved as FlightSaved;
-      let url: string | undefined;
-      if (!o.local) {
-        const title = o.title || `Browser flight recording, ${new Date().toLocaleString()}`;
-        fs.writeFileSync(path.join(dir, "index.html"), flightPageHtml(title));
+    .action(
+      async (o: {
+        seconds: string;
+        local?: boolean;
+        title?: string;
+        json?: boolean;
+      }) => {
+        let seconds: number;
         try {
-          const { result } = await publishOnce(deps, dir, { title }, { sessionRef: deps.detectCurrentSessionId() ?? undefined, withThumb: false, forceNew: true, exitOnError: false });
-          url = result?.url;
+          seconds = parseSeconds(
+            o.seconds,
+            FLIGHT_SAVE_DEFAULT_SECONDS,
+            FLIGHT_MAX_SECONDS,
+          );
         } catch (err) {
-          console.error(fmt.warning(`! not published (${(err as Error).message}); the video is at ${saved.file}`));
+          fail((err as Error).message);
         }
-      }
-      if (o.json) return console.log(JSON.stringify({ ...saved, ...(url ? { url } : {}) }));
-      ok(`saved ${saved.seconds.toFixed(1)}s (${saved.frames} frames, ${formatBytes(saved.bytes)}) to ${saved.file}`);
-      console.log(inlineImageMarker(saved.poster));
-      if (url) console.log(`${url}\n  ${fmt.muted("Put the URL alone on a line in your reply: it plays inline in the conversation")}`);
-    });
+        const dir = agentTempPath("flight", `flight-${Date.now()}`);
+        const res = await askRecorder(paths().sock, {
+          op: "save",
+          seconds,
+          dir,
+        }).catch((err) => fail((err as Error).message));
+        if (!res)
+          fail(
+            "no flight recorder is running for this session: cast browser flight start",
+          );
+        if (!res.ok) fail(res.error);
+        const saved = res.saved as FlightSaved;
+        let url: string | undefined;
+        if (!o.local) {
+          const title =
+            o.title ||
+            `Browser flight recording, ${new Date().toLocaleString()}`;
+          fs.writeFileSync(path.join(dir, "index.html"), flightPageHtml(title));
+          try {
+            const { result } = await publishOnce(
+              deps,
+              dir,
+              { title },
+              {
+                sessionRef: deps.detectCurrentSessionId() ?? undefined,
+                withThumb: false,
+                forceNew: true,
+                exitOnError: false,
+              },
+            );
+            url = result?.url;
+          } catch (err) {
+            console.error(
+              fmt.warning(
+                `! not published (${(err as Error).message}); the video is at ${saved.file}`,
+              ),
+            );
+          }
+        }
+        if (o.json)
+          return console.log(
+            JSON.stringify({ ...saved, ...(url ? { url } : {}) }),
+          );
+        ok(
+          `saved ${saved.seconds.toFixed(1)}s (${saved.frames} frames, ${formatBytes(saved.bytes)}) to ${saved.file}`,
+        );
+        console.log(inlineImageMarker(saved.poster));
+        if (url)
+          console.log(
+            `${url}\n  ${fmt.muted("Put the URL alone on a line in your reply: it plays inline in the conversation")}`,
+          );
+      },
+    );
 
   flight
     .command("status")
     .description("Is a recorder running, and how much it holds")
     .action(async () => {
-      const res = await askRecorder(paths().sock, { op: "status" }, 5_000).catch((err) => fail((err as Error).message));
-      if (!res?.ok) return console.log("no flight recorder is running for this session");
-      ok(`recording ${res.status.url}: ${describe(res.status)}${res.status.dropped ? `, ${res.status.dropped} frames dropped at the byte cap` : ""}`);
+      const res = await askRecorder(
+        paths().sock,
+        { op: "status" },
+        5_000,
+      ).catch((err) => fail((err as Error).message));
+      if (!res?.ok)
+        return console.log("no flight recorder is running for this session");
+      ok(
+        `recording ${res.status.url}: ${describe(res.status)}${res.status.dropped ? `, ${res.status.dropped} frames dropped at the byte cap` : ""}`,
+      );
     });
 
   flight
     .command("stop")
     .description("Stop recording and drop the buffer")
     .action(async () => {
-      const res = await askRecorder(paths().sock, { op: "stop" }, 10_000).catch((err) => fail((err as Error).message));
-      if (!res) return console.log("no flight recorder was running for this session");
+      const res = await askRecorder(paths().sock, { op: "stop" }, 10_000).catch(
+        (err) => fail((err as Error).message),
+      );
+      if (!res)
+        return console.log("no flight recorder was running for this session");
       ok("stopped; the buffer is gone");
     });
 
   flight
     .command("run", { hidden: true })
-    .description("The recorder process itself (flight start launches it; its config arrives on stdin)")
+    .description(
+      "The recorder process itself (flight start launches it; its config arrives on stdin)",
+    )
     .action(async () => {
       const cfg = JSON.parse(fs.readFileSync(0, "utf-8")) as RecorderConfig;
       try {

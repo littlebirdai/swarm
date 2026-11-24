@@ -17,7 +17,7 @@
 
 // Friendly labels for the in-app browser (claude-in-chrome) MCP tools.
 export const mcpToolNames: Record<string, string> = {
-  "mcp__node_repl__js": "Browser",
+  mcp__node_repl__js: "Browser",
   "mcp__claude-in-chrome__computer": "Browser",
   // A batch renders as its steps; the wrapper's own name is just "Browser".
   "mcp__claude-in-chrome__browser_batch": "Browser",
@@ -128,7 +128,7 @@ export function formatToolName(name: string): string {
   if (name.startsWith("mcp__")) {
     const parts = name.split("__");
     const method = parts[2] || parts[1] || "MCP";
-    return method.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    return method.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
-  return name.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }

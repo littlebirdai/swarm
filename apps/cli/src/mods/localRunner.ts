@@ -29,9 +29,24 @@ function modsDir(): string {
   return path.join(defaultConfigDir(), "mods");
 }
 
-type LocalMod = { id: string; name: string; title?: string; rev: number; enabled: boolean; local_code: string; manifest: unknown; local_off?: string[] };
+type LocalMod = {
+  id: string;
+  name: string;
+  title?: string;
+  rev: number;
+  enabled: boolean;
+  local_code: string;
+  manifest: unknown;
+  local_off?: string[];
+};
 export type LocalState = "running" | "off" | "failed";
-type Running = { hash: string; worker: Worker; ready: boolean; hooks: string[]; calls: Map<string, (r: { result?: unknown; error?: string }) => void> };
+type Running = {
+  hash: string;
+  worker: Worker;
+  ready: boolean;
+  hooks: string[];
+  calls: Map<string, (r: { result?: unknown; error?: string }) => void>;
+};
 
 export type LocalRunnerDeps = {
   endpoint: () => { siteUrl: string; apiToken: string } | null;
@@ -45,7 +60,10 @@ const SYNC_MS = 30_000;
 // subscription to modLocal.cliPendingCall); the poll only covers a dropped socket.
 const CALL_POLL_MS = 10_000;
 
-export function startLocalMods(deps: LocalRunnerDeps): { stop: () => void; wakeCalls: () => void } {
+export function startLocalMods(deps: LocalRunnerDeps): {
+  stop: () => void;
+  wakeCalls: () => void;
+} {
   const running = new Map<string, Running>();
   const logBuffer = new Map<string, { level: string; text: string }[]>();
   const device = localDeviceName();
@@ -58,7 +76,12 @@ export function startLocalMods(deps: LocalRunnerDeps): { stop: () => void; wakeC
     const key = `${state}:${error ?? ""}`;
     if (reported.get(name) === key) return;
     reported.set(name, key);
-    post("/cli/mods/local-report", { name, device_name: device, state, error }).catch(() => reported.delete(name));
+    post("/cli/mods/local-report", {
+      name,
+      device_name: device,
+      state,
+      error,
+    }).catch(() => reported.delete(name));
   };
 
   const post = async (urlPath: string, body: Record<string, unknown>) => {
@@ -70,7 +93,9 @@ export function startLocalMods(deps: LocalRunnerDeps): { stop: () => void; wakeC
       body: JSON.stringify({ api_token: ep.apiToken, ...body }),
       signal: AbortSignal.timeout(20_000),
     });
-    const json = (await res.json().catch(() => ({ error: `HTTP ${res.status}` }))) as any;
+    const json = (await res
+      .json()
+      .catch(() => ({ error: `HTTP ${res.status}` }))) as any;
     if (json?.error) throw new Error(String(json.error));
     return json;
   };
@@ -93,7 +118,8 @@ export function startLocalMods(deps: LocalRunnerDeps): { stop: () => void; wakeC
     const r = running.get(name);
     if (!r) return;
     r.worker.terminate();
-    for (const done of r.calls.values()) done({ error: `the local half stopped: ${reason}` });
+    for (const done of r.calls.values())
+      done({ error: `the local half stopped: ${reason}` });
     running.delete(name);
     deps.log(`[MODS] stopped ${name}: ${reason}`);
   };
@@ -107,24 +133,37 @@ export function startLocalMods(deps: LocalRunnerDeps): { stop: () => void; wakeC
     const file = path.join(dir, `${mod.name}-${hash}.mjs`);
     fs.writeFileSync(file, mod.local_code, { mode: 0o600 });
     const worker = new Worker(file);
-    const entry: Running = { hash, worker, ready: false, hooks: [], calls: new Map() };
+    const entry: Running = {
+      hash,
+      worker,
+      ready: false,
+      hooks: [],
+      calls: new Map(),
+    };
     running.set(mod.name, entry);
     worker.onmessage = (ev: MessageEvent) => {
       const msg = ev.data as any;
       if (msg?.type === "log") queueLog(mod.name, msg.level, String(msg.text));
       else if (msg?.type === "ready") {
         entry.ready = true;
-        entry.hooks = Array.isArray(msg.hooks) ? msg.hooks.map((h: any) => String(h?.event)) : [];
+        entry.hooks = Array.isArray(msg.hooks)
+          ? msg.hooks.map((h: any) => String(h?.event))
+          : [];
         queueLog(mod.name, "log", `[local] started on ${device} (${hash})`);
         report(mod.name, "running");
         ensureFleetWatch();
-      }
-      else if (msg?.type === "failed") {
-        queueLog(mod.name, "error", `[local] failed to start on ${device}: ${msg.error}`);
+      } else if (msg?.type === "failed") {
+        queueLog(
+          mod.name,
+          "error",
+          `[local] failed to start on ${device}: ${msg.error}`,
+        );
         report(mod.name, "failed", String(msg.error ?? "").slice(0, 500));
         stopOne(mod.name, "failed to start");
+      } else if (msg?.type === "result") {
+        entry.calls.get(msg.id)?.(msg);
+        entry.calls.delete(msg.id);
       }
-      else if (msg?.type === "result") { entry.calls.get(msg.id)?.(msg); entry.calls.delete(msg.id); }
     };
     // A worker that dies is dropped, so the next sync starts it again.
     worker.onerror = (ev: ErrorEvent) => {
@@ -134,52 +173,106 @@ export function startLocalMods(deps: LocalRunnerDeps): { stop: () => void; wakeC
     };
     // castBin is what halves bundled before castArgv existed read: right
     // whenever cast is one executable.
-    worker.postMessage({ type: "init", name: mod.name, manifest: mod.manifest, siteUrl: ep.siteUrl, apiToken: ep.apiToken, deviceName: device, castArgv, castBin: castArgv.length === 1 ? castArgv[0] : "cast" });
+    worker.postMessage({
+      type: "init",
+      name: mod.name,
+      manifest: mod.manifest,
+      siteUrl: ep.siteUrl,
+      apiToken: ep.apiToken,
+      deviceName: device,
+      castArgv,
+      castBin: castArgv.length === 1 ? castArgv[0] : "cast",
+    });
     deps.log(`[MODS] started ${mod.name} (${hash})`);
   };
 
   const sync = async () => {
     let mods: LocalMod[];
-    try { mods = (await post("/cli/mods/local", {})).mods ?? []; } catch { return; }
+    try {
+      mods = (await post("/cli/mods/local", {})).mods ?? [];
+    } catch {
+      return;
+    }
     const want = new Map<string, { mod: LocalMod; hash: string }>();
     const offHere = new Set<string>();
     for (const m of mods) {
       if (!m.local_code) continue;
       if (m.local_off?.includes(device)) offHere.add(m.name);
-      if (m.enabled && !offHere.has(m.name)) want.set(m.name, { mod: m, hash: localHash(m.local_code) });
+      if (m.enabled && !offHere.has(m.name))
+        want.set(m.name, { mod: m, hash: localHash(m.local_code) });
     }
     for (const [name, r] of running) {
       const next = want.get(name);
       if (!next) {
-        stopOne(name, offHere.has(name) ? "turned off on this machine" : "turned off");
+        stopOne(
+          name,
+          offHere.has(name) ? "turned off on this machine" : "turned off",
+        );
         report(name, "off");
-      }
-      else if (next.hash !== r.hash) stopOne(name, "a new version");
+      } else if (next.hash !== r.hash) stopOne(name, "a new version");
     }
     for (const name of offHere) report(name, "off");
-    for (const [name, { mod, hash }] of want) if (!running.has(name)) {
-      try { startOne(mod, hash); } catch (err) {
-        const text = err instanceof Error ? err.message : String(err);
-        deps.log(`[MODS] could not start ${name}: ${text}`);
-        report(name, "failed", text.slice(0, 500));
+    for (const [name, { mod, hash }] of want)
+      if (!running.has(name)) {
+        try {
+          startOne(mod, hash);
+        } catch (err) {
+          const text = err instanceof Error ? err.message : String(err);
+          deps.log(`[MODS] could not start ${name}: ${text}`);
+          report(name, "failed", text.slice(0, 500));
+        }
       }
-    }
   };
 
   const pump = async () => {
-    const names = [...running.entries()].filter(([, r]) => r.ready).map(([n]) => n);
+    const names = [...running.entries()]
+      .filter(([, r]) => r.ready)
+      .map(([n]) => n);
     if (!names.length) return;
-    let calls: { id: string; name: string; method: string; args: unknown; caller?: unknown }[];
-    try { calls = (await post("/cli/mods/claim-calls", { names, device_name: device })).calls ?? []; } catch { return; }
+    let calls: {
+      id: string;
+      name: string;
+      method: string;
+      args: unknown;
+      caller?: unknown;
+    }[];
+    try {
+      calls =
+        (await post("/cli/mods/claim-calls", { names, device_name: device }))
+          .calls ?? [];
+    } catch {
+      return;
+    }
     for (const c of calls) {
       const r = running.get(c.name);
-      if (!r) { post("/cli/mods/finish-call", { id: c.id, error: "the local half is not running here" }).catch(() => {}); continue; }
-      const timer = setTimeout(() => { r.calls.get(c.id)?.({ error: "the local half took longer than 5 minutes" }); r.calls.delete(c.id); }, 5 * 60_000);
+      if (!r) {
+        post("/cli/mods/finish-call", {
+          id: c.id,
+          error: "the local half is not running here",
+        }).catch(() => {});
+        continue;
+      }
+      const timer = setTimeout(() => {
+        r.calls.get(c.id)?.({
+          error: "the local half took longer than 5 minutes",
+        });
+        r.calls.delete(c.id);
+      }, 5 * 60_000);
       r.calls.set(c.id, (res) => {
         clearTimeout(timer);
-        post("/cli/mods/finish-call", { id: c.id, result: res.result, error: res.error }).catch(() => {});
+        post("/cli/mods/finish-call", {
+          id: c.id,
+          result: res.result,
+          error: res.error,
+        }).catch(() => {});
       });
-      r.worker.postMessage({ type: "call", id: c.id, method: c.method, args: c.args, caller: c.caller });
+      r.worker.postMessage({
+        type: "call",
+        id: c.id,
+        method: c.method,
+        args: c.args,
+        caller: c.caller,
+      });
     }
   };
 
@@ -187,17 +280,26 @@ export function startLocalMods(deps: LocalRunnerDeps): { stop: () => void; wakeC
   // sessions -w --json` prints a line per transition. Started when the first
   // such half is ready, restarted if it exits while one still listens.
   let fleet: ReturnType<typeof Bun.spawn> | null = null;
-  const listening = () => [...running.values()].filter((r) => r.ready && r.hooks.includes("session.state"));
+  const listening = () =>
+    [...running.values()].filter(
+      (r) => r.ready && r.hooks.includes("session.state"),
+    );
   function ensureFleetWatch(): void {
     if (fleet || !listening().length) return;
-    const proc = Bun.spawn([...castArgv, "sessions", "-w", "--json"], { stdout: "pipe", stderr: "ignore", stdin: "ignore" });
+    const proc = Bun.spawn([...castArgv, "sessions", "-w", "--json"], {
+      stdout: "pipe",
+      stderr: "ignore",
+      stdin: "ignore",
+    });
     fleet = proc;
     void (async () => {
       const reader = (proc.stdout as ReadableStream<Uint8Array>).getReader();
       const decoder = new TextDecoder();
       let buf = "";
       for (;;) {
-        const { value, done } = await reader.read().catch(() => ({ value: undefined, done: true }));
+        const { value, done } = await reader
+          .read()
+          .catch(() => ({ value: undefined, done: true }));
         if (done) break;
         buf += decoder.decode(value, { stream: true });
         let nl: number;
@@ -205,10 +307,24 @@ export function startLocalMods(deps: LocalRunnerDeps): { stop: () => void; wakeC
           const line = buf.slice(0, nl).trim();
           buf = buf.slice(nl + 1);
           let ev: any;
-          try { ev = JSON.parse(line); } catch { continue; }
+          try {
+            ev = JSON.parse(line);
+          } catch {
+            continue;
+          }
           if (ev?.event !== "transition" || !ev.id || !ev.to) continue;
-          const payload = { id: String(ev.id), from: ev.from ?? null, to: String(ev.to), title: ev.title ?? undefined };
-          for (const r of listening()) r.worker.postMessage({ type: "event", event: "session.state", payload });
+          const payload = {
+            id: String(ev.id),
+            from: ev.from ?? null,
+            to: String(ev.to),
+            title: ev.title ?? undefined,
+          };
+          for (const r of listening())
+            r.worker.postMessage({
+              type: "event",
+              event: "session.state",
+              payload,
+            });
         }
       }
       if (fleet === proc) fleet = null;
@@ -226,8 +342,11 @@ export function startLocalMods(deps: LocalRunnerDeps): { stop: () => void; wakeC
     stop: () => {
       stopped = true;
       fleet?.kill();
-      clearInterval(syncTimer); clearInterval(callTimer); clearInterval(logTimer);
-      for (const name of [...running.keys()]) stopOne(name, "the daemon is stopping");
+      clearInterval(syncTimer);
+      clearInterval(callTimer);
+      clearInterval(logTimer);
+      for (const name of [...running.keys()])
+        stopOne(name, "the daemon is stopping");
       flushLogs();
     },
   };

@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { groupDecisions, stackCursor, advisoryDefaults, decisionScopeKey, stackDue, sortStacksByDue } from "../decisionGroups";
+import {
+  groupDecisions,
+  stackCursor,
+  advisoryDefaults,
+  decisionScopeKey,
+  stackDue,
+  sortStacksByDue,
+} from "../decisionGroups";
 
 const row = (id: string, extra: Record<string, any> = {}) => ({
   _id: id,
@@ -13,9 +20,22 @@ const row = (id: string, extra: Record<string, any> = {}) => ({
   ...extra,
 });
 
-const stack = (id: string, decision_ids: string[], policy: Record<string, any> = {}) => ({
-  _id: id, title: id, owner_user_id: "u", policy, status: "open" as const, decision_ids,
-  total: decision_ids.length, resolved: 0, pending: decision_ids.length, created_at: 1, updated_at: 1,
+const stack = (
+  id: string,
+  decision_ids: string[],
+  policy: Record<string, any> = {},
+) => ({
+  _id: id,
+  title: id,
+  owner_user_id: "u",
+  policy,
+  status: "open" as const,
+  decision_ids,
+  total: decision_ids.length,
+  resolved: 0,
+  pending: decision_ids.length,
+  created_at: 1,
+  updated_at: 1,
 });
 
 describe("groupDecisions", () => {
@@ -29,7 +49,12 @@ describe("groupDecisions", () => {
       row("d6", { status: "answered" }),
     ];
     const groups = groupDecisions(rows as any, [stack("st1", ["d2", "d3"])]);
-    expect(groups.map((g) => g.kind)).toEqual(["stack", "scope", "scope", "role"]);
+    expect(groups.map((g) => g.kind)).toEqual([
+      "stack",
+      "scope",
+      "scope",
+      "role",
+    ]);
     expect(groups[0].items.map((i) => i._id)).toEqual(["d2", "d3"]);
     expect((groups[1] as any).scopeKey).toBe("plan:pl1");
     expect((groups[2] as any).scopeKey).toBe("project:p1");
@@ -37,15 +62,26 @@ describe("groupDecisions", () => {
   });
 
   test("a stack_id whose stack the viewer cannot see falls back to scope grouping", () => {
-    const groups = groupDecisions([row("d1", { stack_id: "ghost" })] as any, []);
+    const groups = groupDecisions(
+      [row("d1", { stack_id: "ghost" })] as any,
+      [],
+    );
     expect(groups[0].kind).toBe("scope");
     expect((groups[0] as any).scopeKey).toBe("session:c1");
   });
 
   test("a stack holding one of the viewer's open asks is that one card, filed by scope", () => {
-    const rows = [row("d1", { stack_id: "st1", scope_keys: ["project:p1"] }), row("d2", { stack_id: "st2" }), row("d3", { stack_id: "st2" })];
+    const rows = [
+      row("d1", { stack_id: "st1", scope_keys: ["project:p1"] }),
+      row("d2", { stack_id: "st2" }),
+      row("d3", { stack_id: "st2" }),
+    ];
     // st1 has a second member the viewer does not hold; st3 is empty.
-    const groups = groupDecisions(rows as any, [stack("st1", ["d1", "other"]), stack("st2", ["d2", "d3"]), stack("st3", [])]);
+    const groups = groupDecisions(rows as any, [
+      stack("st1", ["d1", "other"]),
+      stack("st2", ["d2", "d3"]),
+      stack("st3", []),
+    ]);
     expect(groups.map((g) => g.key)).toEqual(["stack:st2", "scope:project:p1"]);
   });
 
@@ -59,16 +95,33 @@ describe("groupDecisions", () => {
       row("f", { blocking: false, stack_id: "st1" }),
     ];
     const groups = groupDecisions(rows as any, [stack("st1", ["e", "f"])]);
-    expect(groups.map((g) => g.kind)).toEqual(["stack", "scope", "default", "role"]);
+    expect(groups.map((g) => g.kind)).toEqual([
+      "stack",
+      "scope",
+      "default",
+      "role",
+    ]);
     expect(groups[2].items.map((i) => i._id)).toEqual(["b", "a"]);
   });
 });
 
 describe("decisionScopeKey", () => {
   test("project beats plan beats role beats session", () => {
-    expect(decisionScopeKey({ scope_keys: ["role:r", "plan:p", "project:x"], conversation_id: "c" })).toBe("project:x");
-    expect(decisionScopeKey({ scope_keys: ["role:r", "plan:p"], conversation_id: "c" })).toBe("plan:p");
-    expect(decisionScopeKey({ scope_keys: [], conversation_id: "c" })).toBe("session:c");
+    expect(
+      decisionScopeKey({
+        scope_keys: ["role:r", "plan:p", "project:x"],
+        conversation_id: "c",
+      }),
+    ).toBe("project:x");
+    expect(
+      decisionScopeKey({
+        scope_keys: ["role:r", "plan:p"],
+        conversation_id: "c",
+      }),
+    ).toBe("plan:p");
+    expect(decisionScopeKey({ scope_keys: [], conversation_id: "c" })).toBe(
+      "session:c",
+    );
   });
 });
 
@@ -108,12 +161,24 @@ describe("stackDue", () => {
     expect(stackDue(undefined, now)).toBeNull();
   });
   test("a future due reads as due in, in minutes, hours or days", () => {
-    expect(stackDue({ due_at: now + 5 * 60_000 }, now)).toEqual({ text: "due in 5m", overdue: false, at: now + 5 * 60_000 });
-    expect(stackDue({ due_at: now + 3 * 3_600_000 }, now)?.text).toBe("due in 3h");
-    expect(stackDue({ due_at: now + 72 * 3_600_000 }, now)?.text).toBe("due in 3d");
+    expect(stackDue({ due_at: now + 5 * 60_000 }, now)).toEqual({
+      text: "due in 5m",
+      overdue: false,
+      at: now + 5 * 60_000,
+    });
+    expect(stackDue({ due_at: now + 3 * 3_600_000 }, now)?.text).toBe(
+      "due in 3h",
+    );
+    expect(stackDue({ due_at: now + 72 * 3_600_000 }, now)?.text).toBe(
+      "due in 3d",
+    );
   });
   test("a passed due reads as overdue and flags red", () => {
-    expect(stackDue({ due_at: now - 2 * 3_600_000 }, now)).toEqual({ text: "overdue 2h", overdue: true, at: now - 2 * 3_600_000 });
+    expect(stackDue({ due_at: now - 2 * 3_600_000 }, now)).toEqual({
+      text: "overdue 2h",
+      overdue: true,
+      at: now - 2 * 3_600_000,
+    });
     expect(stackDue({ due_at: now - 10_000 }, now)?.text).toBe("due now");
   });
 });
@@ -127,7 +192,12 @@ describe("overdue stacks sort first", () => {
       stack("late", ["c"], { due_at: now - 3_600_000 }),
       stack("later", ["d"], { due_at: now - 5 * 3_600_000 }),
     ];
-    expect(sortStacksByDue(rows, now).map((s) => s._id)).toEqual(["later", "late", "fresh", "soon"]);
+    expect(sortStacksByDue(rows, now).map((s) => s._id)).toEqual([
+      "later",
+      "late",
+      "fresh",
+      "soon",
+    ]);
   });
   test("groupDecisions lists an overdue stack's group before an earlier listed stack", () => {
     const rows = [
@@ -136,7 +206,10 @@ describe("overdue stacks sort first", () => {
       row("d2", { stack_id: "st2", created_at: 20 }),
       row("d2b", { stack_id: "st2", created_at: 21 }),
     ];
-    const stacks = [stack("st1", ["d1", "d1b"]), stack("st2", ["d2", "d2b"], { due_at: now - 60_000 })];
+    const stacks = [
+      stack("st1", ["d1", "d1b"]),
+      stack("st2", ["d2", "d2b"], { due_at: now - 60_000 }),
+    ];
     const groups = groupDecisions(rows as any, stacks, now);
     expect(groups.map((g) => g.key)).toEqual(["stack:st2", "stack:st1"]);
     // The clock decides: before the due passes, the server's order stands.

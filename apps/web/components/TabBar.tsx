@@ -1,11 +1,36 @@
 import { TopbarButton } from "./TopbarButton";
 import { useCallback, useRef, useEffect, useState } from "react";
-import { activePaneDrag, dragCarriesPane, readPaneDrop, stageMoveLeafToTab, startPaneDrag } from "../lib/stage";
-import { X, Plus, XCircle, ArrowRightToLine, Copy as CopyIcon, ExternalLink, AppWindow, PanelsTopLeft } from "lucide-react";
-import { useInboxStore, useTrackedStore, type AppTab } from "../store/inboxStore";
+import {
+  activePaneDrag,
+  dragCarriesPane,
+  readPaneDrop,
+  stageMoveLeafToTab,
+  startPaneDrag,
+} from "../lib/stage";
+import {
+  X,
+  Plus,
+  XCircle,
+  ArrowRightToLine,
+  Copy as CopyIcon,
+  ExternalLink,
+  AppWindow,
+  PanelsTopLeft,
+} from "lucide-react";
+import {
+  useInboxStore,
+  useTrackedStore,
+  type AppTab,
+} from "../store/inboxStore";
 import { useShortcutAction, withShortcut } from "../shortcuts";
 import { activeWorkspaceKey } from "../lib/workspaceScope";
-import { tabTitle, tabSessionId, chatTabTitle, initiativeTabTitle, recordTabTitle } from "../lib/tabTitle";
+import {
+  tabTitle,
+  tabSessionId,
+  chatTabTitle,
+  initiativeTabTitle,
+  recordTabTitle,
+} from "../lib/tabTitle";
 import { pathLabel } from "../lib/pathLabel";
 import { detachTab } from "../lib/openIntent";
 import { bridge, isDesktop, isDetachedTabWindow } from "../lib/desktop";
@@ -14,7 +39,12 @@ import { SessionGlyph } from "./identity";
 import { identityRowOf } from "../lib/sessionIdentity";
 import { LivenessDot } from "./LivenessDot";
 import { sessionLivenessState } from "../lib/liveness";
-import { ContextMenu, useContextMenu, CtxItem, CtxSeparator } from "./ui/context-menu";
+import {
+  ContextMenu,
+  useContextMenu,
+  CtxItem,
+  CtxSeparator,
+} from "./ui/context-menu";
 import { useTitlebarHead } from "../hooks/useTitlebarHead";
 import { teamMembersOf } from "../lib/activeTeam";
 
@@ -30,14 +60,53 @@ export function TabBar() {
     // the whole collection re-rendered the bar on every ~1s liveness heartbeat
     // of any session. A joined signature only changes when a referenced
     // session's title or computed dot state changes.
-    (s) => s.tabs.map((t) => { const id = tabSessionId(t); return id ? `${s.sessions[id]?.title ?? ""}\x1e${s.sessions[id]?.last_user_message ?? ""}` : ""; }).join("\x1f"),
-    (s) => s.tabs.map((t) => { const id = tabSessionId(t); const row = id ? s.sessions[id] : null; return row ? sessionLivenessState(row) : ""; }).join("\x1f"),
+    (s) =>
+      s.tabs
+        .map((t) => {
+          const id = tabSessionId(t);
+          return id
+            ? `${s.sessions[id]?.title ?? ""}\x1e${s.sessions[id]?.last_user_message ?? ""}`
+            : "";
+        })
+        .join("\x1f"),
+    (s) =>
+      s.tabs
+        .map((t) => {
+          const id = tabSessionId(t);
+          const row = id ? s.sessions[id] : null;
+          return row ? sessionLivenessState(row) : "";
+        })
+        .join("\x1f"),
     // Same rule for a channel tab's name: a signature over the referenced
     // channels only, never the whole collection. The full derivation IS the
     // signature, so a DM tab also wakes when its counterpart's name loads.
-    (s) => s.tabs.map((t) => chatTabTitle(t.path, s.chatChannels, teamMembersOf(s), (s as any).currentUser?._id) ?? "").join("\x1f"),
+    (s) =>
+      s.tabs
+        .map(
+          (t) =>
+            chatTabTitle(
+              t.path,
+              s.chatChannels,
+              teamMembersOf(s),
+              (s as any).currentUser?._id,
+            ) ?? "",
+        )
+        .join("\x1f"),
     // And for an initiative's tab: its title, once the row is in the store.
-    (s) => s.tabs.map((t) => initiativeTabTitle(t.path, s.initiatives, activeWorkspaceKey(s.clientState.ui?.active_team_id, s.currentUser?._id)) ?? "").join("\x1f"),
+    (s) =>
+      s.tabs
+        .map(
+          (t) =>
+            initiativeTabTitle(
+              t.path,
+              s.initiatives,
+              activeWorkspaceKey(
+                s.clientState.ui?.active_team_id,
+                s.currentUser?._id,
+              ),
+            ) ?? "",
+        )
+        .join("\x1f"),
     // And for a task, project or run tab: its record's name, by key.
     (s) => s.tabs.map((t) => recordTabTitle(t.path, s) ?? "").join("\x1f"),
   ]);
@@ -72,38 +141,61 @@ export function TabBar() {
 
   // Key bindings live in shortcuts/registry.ts (tab.*) — handlers return false
   // when there's a single tab so Cmd+W falls through to close the window.
-  useShortcutAction('tab.new', useCallback(() => {
-    if (detached) return false;
-    const state = useInboxStore.getState();
-    state.saveCurrentTabState();
-    const path = window.location.pathname;
-    state.openTab({ path, title: pathLabel(path), makeActive: true });
-  }, [detached]));
+  useShortcutAction(
+    "tab.new",
+    useCallback(() => {
+      if (detached) return false;
+      const state = useInboxStore.getState();
+      state.saveCurrentTabState();
+      const path = window.location.pathname;
+      state.openTab({ path, title: pathLabel(path), makeActive: true });
+    }, [detached]),
+  );
 
-  useShortcutAction('tab.close', useCallback(() => {
-    if (detached) return false;
-    const state = useInboxStore.getState();
-    if (state.tabs.length <= 1) return false;
-    if (state.activeTabId) state.closeTab(state.activeTabId);
-  }, [detached]));
+  useShortcutAction(
+    "tab.close",
+    useCallback(() => {
+      if (detached) return false;
+      const state = useInboxStore.getState();
+      if (state.tabs.length <= 1) return false;
+      if (state.activeTabId) state.closeTab(state.activeTabId);
+    }, [detached]),
+  );
 
-  useShortcutAction('tab.prev', useCallback(() => {
-    if (detached) return false;
-    const state = useInboxStore.getState();
-    if (state.tabs.length <= 1) return false;
-    const idx = state.tabs.findIndex((t: AppTab) => t.id === state.activeTabId);
-    const prev = state.tabs[(idx - 1 + state.tabs.length) % state.tabs.length];
-    if (prev) { state.saveCurrentTabState(); state.switchTab(prev.id); }
-  }, [detached]));
+  useShortcutAction(
+    "tab.prev",
+    useCallback(() => {
+      if (detached) return false;
+      const state = useInboxStore.getState();
+      if (state.tabs.length <= 1) return false;
+      const idx = state.tabs.findIndex(
+        (t: AppTab) => t.id === state.activeTabId,
+      );
+      const prev =
+        state.tabs[(idx - 1 + state.tabs.length) % state.tabs.length];
+      if (prev) {
+        state.saveCurrentTabState();
+        state.switchTab(prev.id);
+      }
+    }, [detached]),
+  );
 
-  useShortcutAction('tab.next', useCallback(() => {
-    if (detached) return false;
-    const state = useInboxStore.getState();
-    if (state.tabs.length <= 1) return false;
-    const idx = state.tabs.findIndex((t: AppTab) => t.id === state.activeTabId);
-    const next = state.tabs[(idx + 1) % state.tabs.length];
-    if (next) { state.saveCurrentTabState(); state.switchTab(next.id); }
-  }, [detached]));
+  useShortcutAction(
+    "tab.next",
+    useCallback(() => {
+      if (detached) return false;
+      const state = useInboxStore.getState();
+      if (state.tabs.length <= 1) return false;
+      const idx = state.tabs.findIndex(
+        (t: AppTab) => t.id === state.activeTabId,
+      );
+      const next = state.tabs[(idx + 1) % state.tabs.length];
+      if (next) {
+        state.saveCurrentTabState();
+        state.switchTab(next.id);
+      }
+    }, [detached]),
+  );
 
   const handleSwitch = useCallback(
     (tab: AppTab) => {
@@ -114,15 +206,12 @@ export function TabBar() {
     [activeTabId, s],
   );
 
-  const handleClose = useCallback(
-    (e: React.MouseEvent, id: string) => {
-      e.stopPropagation();
-      const state = useInboxStore.getState();
-      if (state.tabs.length <= 1) return;
-      state.closeTab(id);
-    },
-    [],
-  );
+  const handleClose = useCallback((e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const state = useInboxStore.getState();
+    if (state.tabs.length <= 1) return;
+    state.closeTab(id);
+  }, []);
 
   const handleNewTab = useCallback(() => {
     const state = useInboxStore.getState();
@@ -142,7 +231,8 @@ export function TabBar() {
   const ctxMenu = useContextMenu<AppTab>();
   const closeOthers = useCallback((keep: AppTab) => {
     const state = useInboxStore.getState();
-    for (const t of state.tabs.filter((t: AppTab) => t.id !== keep.id)) state.closeTab(t.id);
+    for (const t of state.tabs.filter((t: AppTab) => t.id !== keep.id))
+      state.closeTab(t.id);
   }, []);
   const closeToRight = useCallback((from: AppTab) => {
     const state = useInboxStore.getState();
@@ -184,7 +274,11 @@ export function TabBar() {
     }
     const state = useInboxStore.getState();
     state.saveCurrentTabState();
-    state.openTab({ path: payload.path, title: payload.title ?? pathLabel(payload.path), makeActive: true });
+    state.openTab({
+      path: payload.path,
+      title: payload.title ?? pathLabel(payload.path),
+      makeActive: true,
+    });
   }, []);
 
   if (detached) return null;
@@ -199,7 +293,9 @@ export function TabBar() {
       onDragLeave={() => setDropHot(false)}
       onDrop={stripDrop}
       className={`flex-shrink-0 border-b flex items-center h-[32px] pl-2 pr-1 gap-1 overflow-hidden transition-colors ${
-        dropHot ? "bg-sol-cyan/10 border-sol-cyan/40" : "bg-sol-bg-alt/50 border-sol-border/20"
+        dropHot
+          ? "bg-sol-cyan/10 border-sol-cyan/40"
+          : "bg-sol-bg-alt/50 border-sol-border/20"
       }`}
     >
       <div
@@ -208,7 +304,19 @@ export function TabBar() {
       >
         {tabs.map((tab: AppTab, i: number) => {
           const isActive = tab.id === activeTabId;
-          const title = tabTitle(tab, s.sessions, s.chatChannels, teamMembersOf(s), s.currentUser?._id, s.initiatives, activeWorkspaceKey(s.clientState.ui?.active_team_id, s.currentUser?._id), s);
+          const title = tabTitle(
+            tab,
+            s.sessions,
+            s.chatChannels,
+            teamMembersOf(s),
+            s.currentUser?._id,
+            s.initiatives,
+            activeWorkspaceKey(
+              s.clientState.ui?.active_team_id,
+              s.currentUser?._id,
+            ),
+            s,
+          );
           const sid = tabSessionId(tab);
           const sessionRow = sid ? s.sessions[sid] : null;
           const prevActive = i > 0 && tabs[i - 1].id === activeTabId;
@@ -219,7 +327,13 @@ export function TabBar() {
               onMouseDown={(e) => handleMiddleClick(e, tab.id)}
               onContextMenu={(e) => ctxMenu.open(e, tab)}
               draggable
-              onDragStart={(e) => startPaneDrag(e, { path: tab.path, title, from: { kind: "tab", tabId: tab.id } })}
+              onDragStart={(e) =>
+                startPaneDrag(e, {
+                  path: tab.path,
+                  title,
+                  from: { kind: "tab", tabId: tab.id },
+                })
+              }
               title={title}
               className={`
                 group relative flex items-center gap-1.5 pl-2.5 pr-1.5 h-[26px] rounded-md text-meta leading-none
@@ -234,17 +348,31 @@ export function TabBar() {
               {/* Hairline between adjacent inactive tabs, Chrome-style; hidden
                   around the active tab and while hovering. */}
               {i > 0 && !isActive && !prevActive && (
-                <span aria-hidden className="absolute -left-[3px] top-1/2 -translate-y-1/2 h-3 w-px bg-sol-border/30 group-hover:opacity-0" />
+                <span
+                  aria-hidden
+                  className="absolute -left-[3px] top-1/2 -translate-y-1/2 h-3 w-px bg-sol-border/30 group-hover:opacity-0"
+                />
               )}
               {/* The session's face (session-characters.md S3), then its
                   liveness dot: who the tab is, and whether it is running. */}
               {sessionRow && (
-                <SessionGlyph row={identityRowOf(sessionRow as any)} size={14} className="flex-shrink-0" />
+                <SessionGlyph
+                  row={identityRowOf(sessionRow as any)}
+                  size={14}
+                  className="flex-shrink-0"
+                />
               )}
               {sessionRow ? (
-                <LivenessDot state={sessionLivenessState(sessionRow)} size="xs" className="flex-shrink-0" />
+                <LivenessDot
+                  state={sessionLivenessState(sessionRow)}
+                  size="xs"
+                  className="flex-shrink-0"
+                />
               ) : (
-                <PageIcon path={tab.path} className={`w-3 h-3 flex-shrink-0 ${isActive ? "text-sol-text-dim" : "text-sol-text-dim/50"}`} />
+                <PageIcon
+                  path={tab.path}
+                  className={`w-3 h-3 flex-shrink-0 ${isActive ? "text-sol-text-dim" : "text-sol-text-dim/50"}`}
+                />
               )}
               <span className="truncate flex-1 text-left">{title}</span>
               {/* Fixed-size close slot so the label doesn't shift on hover. */}
@@ -275,8 +403,12 @@ export function TabBar() {
       <ContextMenu state={ctxMenu}>
         {(tab) => (
           <>
-            <CtxItem icon={Plus} shortcut="tab.new" onSelect={handleNewTab}>New tab</CtxItem>
-            <CtxItem icon={CopyIcon} onSelect={() => duplicateTab(tab)}>Duplicate tab</CtxItem>
+            <CtxItem icon={Plus} shortcut="tab.new" onSelect={handleNewTab}>
+              New tab
+            </CtxItem>
+            <CtxItem icon={CopyIcon} onSelect={() => duplicateTab(tab)}>
+              Duplicate tab
+            </CtxItem>
             {canDetach && (
               <CtxItem icon={AppWindow} onSelect={() => detachTab(tab)}>
                 Move to new window
@@ -313,7 +445,10 @@ export function TabBar() {
             </CtxItem>
             <CtxItem
               icon={ArrowRightToLine}
-              disabled={tabs.findIndex((t: AppTab) => t.id === tab.id) >= tabs.length - 1}
+              disabled={
+                tabs.findIndex((t: AppTab) => t.id === tab.id) >=
+                tabs.length - 1
+              }
               onSelect={() => closeToRight(tab)}
             >
               Close tabs to the right
@@ -334,7 +469,9 @@ export function AttachTabButton() {
   if (!attach) return null;
   return (
     <TopbarButton
-      onClick={() => void attach(window.location.pathname + window.location.search)}
+      onClick={() =>
+        void attach(window.location.pathname + window.location.search)
+      }
       title="Move into main window"
     >
       <PanelsTopLeft />

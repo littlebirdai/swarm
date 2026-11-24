@@ -1,9 +1,7 @@
 {
   "about": "A role's sessions ride the role's standing session (org-roles-run-work.md R1, isUnderRole). A settled session under a role leaves needs input and files with the role; the hidden standing session surfaces by its own state once something rides it, and stays hidden with nothing under it, unless a nested subagent under it is live (child_live), which surfaces it the same way. Nothing on a session lifts its role (org-staffing.md S28: what it needs travels up as messages), so a dormant role with settled sessions under it files them all in dormant. A session the viewer pinned keeps its place; one whose role has no standing session on the list, or whose standing session was dismissed, keeps its own placement; one under a stashed role is stashed with it. A role's session that asks does not lift the role into questions; a standing session that asks in its own thread is a question, not hidden.",
   "epoch": "E",
-  "asking": [
-    "growth_asking"
-  ],
+  "asking": ["growth_asking"],
   "rows": [
     {
       "_id": "growth_role",
@@ -210,96 +208,24 @@
     },
     "set_digest": "854ed3972a1c6a49",
     "placements": {
-      "absentrolewaitingz17000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "blockedroledonez1500000000000000": [
-        "needs_input",
-        "done",
-        false
-      ],
-      "blockedrolez11000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "growthaskingz1200000000000000000": [
-        "dormant",
-        "needs_input",
-        false
-      ],
-      "growthdirectz1200000000000000000": [
-        "dormant",
-        "done",
-        false
-      ],
-      "growthescalatedworkingz220000000": [
-        "dormant",
-        "working",
-        false
-      ],
-      "growthescalatedz1500000000000000": [
-        "dormant",
-        "done",
-        false
-      ],
-      "growthpinnedz1200000000000000000": [
-        "pinned",
-        "needs_input",
-        false
-      ],
-      "growthrolez100000000000000000000": [
-        "dormant",
-        "dormant",
-        false
-      ],
-      "growthwaitingz130000000000000000": [
-        "dormant",
-        "needs_input",
-        false
-      ],
-      "growthworkingz130000000000000000": [
-        "dormant",
-        "working",
-        false
-      ],
-      "nestedrolez100000000000000000000": [
-        "dormant",
-        "dormant",
-        false
-      ],
-      "quietrolez9000000000000000000000": [
-        "hidden",
-        "dormant",
-        false
-      ],
-      "retiredrolewaitingz1800000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "retiredrolez11000000000000000000": [
-        "dismissed",
-        "dormant",
-        false
-      ],
-      "stashedroleescalatedz20000000000": [
-        "stashed",
-        "needs_input",
-        false
-      ],
-      "stashedrolewaitingz1800000000000": [
-        "stashed",
-        "needs_input",
-        false
-      ],
-      "stashedrolez11000000000000000000": [
-        "stashed",
-        "dormant",
-        false
-      ]
+      "absentrolewaitingz17000000000000": ["needs_input", "needs_input", false],
+      "blockedroledonez1500000000000000": ["needs_input", "done", false],
+      "blockedrolez11000000000000000000": ["needs_input", "needs_input", false],
+      "growthaskingz1200000000000000000": ["dormant", "needs_input", false],
+      "growthdirectz1200000000000000000": ["dormant", "done", false],
+      "growthescalatedworkingz220000000": ["dormant", "working", false],
+      "growthescalatedz1500000000000000": ["dormant", "done", false],
+      "growthpinnedz1200000000000000000": ["pinned", "needs_input", false],
+      "growthrolez100000000000000000000": ["dormant", "dormant", false],
+      "growthwaitingz130000000000000000": ["dormant", "needs_input", false],
+      "growthworkingz130000000000000000": ["dormant", "working", false],
+      "nestedrolez100000000000000000000": ["dormant", "dormant", false],
+      "quietrolez9000000000000000000000": ["hidden", "dormant", false],
+      "retiredrolewaitingz1800000000000": ["needs_input", "needs_input", false],
+      "retiredrolez11000000000000000000": ["dismissed", "dormant", false],
+      "stashedroleescalatedz20000000000": ["stashed", "needs_input", false],
+      "stashedrolewaitingz1800000000000": ["stashed", "needs_input", false],
+      "stashedrolez11000000000000000000": ["stashed", "dormant", false]
     },
     "sort_at": {
       "absentrolewaitingz17000000000000": -540000,

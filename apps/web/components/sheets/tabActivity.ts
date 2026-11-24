@@ -4,7 +4,12 @@ import { useRef, useState } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import type { SheetModel, TabData } from "./sheetCore";
 
-export function unseenTabs(model: SheetModel, activeTabId: string, seen: Map<string, number>, since: number): Set<string> {
+export function unseenTabs(
+  model: SheetModel,
+  activeTabId: string,
+  seen: Map<string, number>,
+  since: number,
+): Set<string> {
   const out = new Set<string>();
   for (const [id, t] of model.byId) {
     const w = t.agentWrite;
@@ -18,13 +23,20 @@ export function unseenTabs(model: SheetModel, activeTabId: string, seen: Map<str
   return out;
 }
 
-export function useUnseenTabs(model: SheetModel, activeTabId: string): Set<string> {
+export function useUnseenTabs(
+  model: SheetModel,
+  activeTabId: string,
+): Set<string> {
   const seen = useRef(new Map<string, number>());
   const [since] = useState(() => Date.now());
   const next = unseenTabs(model, activeTabId, seen.current, since);
   // Hand back the same Set while the answer holds, so the strip skips its render.
   const last = useRef(next);
-  if (next.size !== last.current.size || [...next].some((id) => !last.current.has(id))) last.current = next;
+  if (
+    next.size !== last.current.size ||
+    [...next].some((id) => !last.current.has(id))
+  )
+    last.current = next;
   return last.current;
 }
 
@@ -46,7 +58,13 @@ export function useAgentFlash(tab: TabData): Set<string> | undefined {
     const hits = new Set<string>();
     for (const [n, el] of tab.cells) {
       if (el.rev > max) max = el.rev;
-      if (el.rev > before && (el.at ?? 0) > since && typeof el.by === "string" && el.by.startsWith("s:")) hits.add(`${n % 32768}:${Math.floor(n / 32768)}`);
+      if (
+        el.rev > before &&
+        (el.at ?? 0) > since &&
+        typeof el.by === "string" &&
+        el.by.startsWith("s:")
+      )
+        hits.add(`${n % 32768}:${Math.floor(n / 32768)}`);
     }
     shown.current.set(id, max);
     if (!hits.size) return;

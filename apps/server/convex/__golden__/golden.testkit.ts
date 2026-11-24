@@ -65,7 +65,10 @@ const goldenFile = (name: string, dir: string) => join(dir, `${name}.json`);
 /** Every recorded case for `name`. Read only: nothing here ever writes. */
 export function loadGolden(name: string, dir = import.meta.dir): GoldenCase[] {
   const file = goldenFile(name, dir);
-  if (!existsSync(file)) throw new Error(`no golden ${file}: record it with UPDATE_GOLDENS=1 from the code before the change`);
+  if (!existsSync(file))
+    throw new Error(
+      `no golden ${file}: record it with UPDATE_GOLDENS=1 from the code before the change`,
+    );
   return JSON.parse(readFileSync(file, "utf8"));
 }
 
@@ -80,7 +83,11 @@ export function loadGolden(name: string, dir = import.meta.dir): GoldenCase[] {
  * records only some of its cases, never erase each other's. A case no fixture
  * produces any more stays too; delete it by hand when you drop the fixture.
  */
-export function recordGolden(name: string, actual: GoldenCase[], dir = import.meta.dir): GoldenCase[] {
+export function recordGolden(
+  name: string,
+  actual: GoldenCase[],
+  dir = import.meta.dir,
+): GoldenCase[] {
   const file = goldenFile(name, dir);
   if (process.env.UPDATE_GOLDENS === "1" && actual.length > 0) {
     const merged = existsSync(file) ? loadGolden(name, dir) : [];
@@ -92,5 +99,11 @@ export function recordGolden(name: string, actual: GoldenCase[], dir = import.me
     writeFileSync(file, `${JSON.stringify(merged, null, 2)}\n`);
   }
   const recorded = new Map(loadGolden(name, dir).map((g) => [g.case, g]));
-  return actual.map((c) => recorded.get(c.case) ?? { case: c.case, body: `no recorded case "${c.case}" in ${file}: record it with UPDATE_GOLDENS=1` });
+  return actual.map(
+    (c) =>
+      recorded.get(c.case) ?? {
+        case: c.case,
+        body: `no recorded case "${c.case}" in ${file}: record it with UPDATE_GOLDENS=1`,
+      },
+  );
 }

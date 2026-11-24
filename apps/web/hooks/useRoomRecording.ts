@@ -7,8 +7,17 @@ import { subscribeWalkie, walkieCallState } from "../lib/calls/walkie";
 import { isRefusedDispatchError } from "../store/mutativeMiddleware";
 import { pressRoomRecording } from "../lib/calls/recordingPress";
 import { sayRefusal } from "../lib/calls/sayRefusal";
-export { useRoomRecordingMark, useRoomRecordingOn } from "../lib/calls/recordingPress";
-export { roomRecordingFields, roomRecordingLive, roomRecordingOn, type RoomRecordingFields, type RoomRecordingLive } from "../lib/calls/roomRecordingFields";
+export {
+  useRoomRecordingMark,
+  useRoomRecordingOn,
+} from "../lib/calls/recordingPress";
+export {
+  roomRecordingFields,
+  roomRecordingLive,
+  roomRecordingOn,
+  type RoomRecordingFields,
+  type RoomRecordingLive,
+} from "../lib/calls/roomRecordingFields";
 
 // A huddle's video recording, as the room's people see it (convex
 // callRecordings).
@@ -50,7 +59,13 @@ function subscribeSeat(cb: () => void): () => void {
  *  said in a toast, or, on the desktop float, which has none and whose REC
  *  mark is a Stop, in a system banner (lib/calls/sayRefusal). */
 export function setRoomRecording(roomKey: string, on: boolean): Promise<void> {
-  return pressRoomRecording(roomKey, on, sayRefusal(on ? "Could not start recording" : "Could not stop the recording"));
+  return pressRoomRecording(
+    roomKey,
+    on,
+    sayRefusal(
+      on ? "Could not start recording" : "Could not stop the recording",
+    ),
+  );
 }
 
 // ── The first-press confirmation ─────────────────────────────────────────
@@ -92,7 +107,9 @@ const NOTICED_KEEP = 50;
 function noticedRuns(): string[] {
   try {
     const list = JSON.parse(localStorage.getItem(NOTICED_KEY) ?? "[]");
-    return Array.isArray(list) ? list.filter((x): x is string => typeof x === "string") : [];
+    return Array.isArray(list)
+      ? list.filter((x): x is string => typeof x === "string")
+      : [];
   } catch {
     return [];
   }
@@ -105,10 +122,12 @@ export function recordingNoticed(runId: string): boolean {
 export function noteRecordingNoticed(runId: string): void {
   try {
     const list = noticedRuns().filter((id) => id !== runId);
-    localStorage.setItem(NOTICED_KEY, JSON.stringify([...list, runId].slice(-NOTICED_KEEP)));
+    localStorage.setItem(
+      NOTICED_KEY,
+      JSON.stringify([...list, runId].slice(-NOTICED_KEEP)),
+    );
   } catch {}
 }
-
 
 // ── A call's files ───────────────────────────────────────────────────────
 //
@@ -125,7 +144,11 @@ export {
   type CallRecordingRow,
   type CallRecordings,
 } from "../lib/calls/callRecordingsFeed";
-import type { CallFrameShare, CallRecordingRow, StoredFrameShare } from "../lib/calls/callRecordingsFeed";
+import type {
+  CallFrameShare,
+  CallRecordingRow,
+  StoredFrameShare,
+} from "../lib/calls/callRecordingsFeed";
 
 /** Delete a recording run from the call page: it leaves at once (store
  *  deleteCallRecording). A refusal has already put it back by the time the
@@ -142,13 +165,24 @@ export function deleteRecordingRun(recordingId: string): void {
 
 /** The pictures of a call on public links, newest first, from the store
  *  (fed with the call's files by useCallRecordings, which the page mounts). */
-export function useCallFrameShares(transcriptId: string | null | undefined): CallFrameShare[] {
-  const where = useMemo(() => (r: StoredFrameShare) => r.transcript_id === transcriptId, [transcriptId]);
-  const rows = useCollectionRows<StoredFrameShare>("callFrameShares", { where, sig: shareSig, sort: newestShareFirst });
+export function useCallFrameShares(
+  transcriptId: string | null | undefined,
+): CallFrameShare[] {
+  const where = useMemo(
+    () => (r: StoredFrameShare) => r.transcript_id === transcriptId,
+    [transcriptId],
+  );
+  const rows = useCollectionRows<StoredFrameShare>("callFrameShares", {
+    where,
+    sig: shareSig,
+    sort: newestShareFirst,
+  });
   return transcriptId ? rows : NO_SHARES;
 }
-const shareSig = (r: StoredFrameShare) => `${r.url}|${r.at_ms}|${r.kind}|${r.participant_name}|${r.shared_by_name}|${r.created_at}`;
-const newestShareFirst = (a: StoredFrameShare, b: StoredFrameShare) => b.created_at - a.created_at;
+const shareSig = (r: StoredFrameShare) =>
+  `${r.url}|${r.at_ms}|${r.kind}|${r.participant_name}|${r.shared_by_name}|${r.created_at}`;
+const newestShareFirst = (a: StoredFrameShare, b: StoredFrameShare) =>
+  b.created_at - a.created_at;
 const NO_SHARES: StoredFrameShare[] = [];
 
 /** Take a picture off its public link (store deleteCallFrameShare): it
@@ -166,7 +200,10 @@ export function takeDownFrameShare(shareId: string): void {
 /** Turn the call's video on or off for its share link (store
  *  setCallShareVideo). A refusal lifts the switch's lock, so it falls back
  *  to what the server holds, and says why; any other failure stays queued. */
-export function setCallVideoShared(transcriptId: string, include: boolean): void {
+export function setCallVideoShared(
+  transcriptId: string,
+  include: boolean,
+): void {
   void useInboxStore
     .getState()
     .setCallShareVideo(transcriptId, include)

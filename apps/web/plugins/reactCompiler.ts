@@ -46,8 +46,12 @@ export const REACT_COMPILER_SOURCES: readonly string[] = [
   "components/SessionControlMenu.tsx",
 ];
 
-const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const NEVER = /(?:\.test\.[tj]sx?|\.native\.[tj]sx?|\.d\.ts)$|\/__tests__\/|\/node_modules\//;
+const WEB_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+const NEVER =
+  /(?:\.test\.[tj]sx?|\.native\.[tj]sx?|\.d\.ts)$|\/__tests__\/|\/node_modules\//;
 
 /**
  * The allowlist in force: REACT_COMPILER_SOURCES, or the comma-separated
@@ -55,25 +59,37 @@ const NEVER = /(?:\.test\.[tj]sx?|\.native\.[tj]sx?|\.d\.ts)$|\/__tests__\/|\/no
  * for measuring a candidate before it is added here (the report script and
  * perf/compilerAB.ts both read it), never for a shipped build.
  */
-export function reactCompilerSources(env: Record<string, string | undefined> = process.env): readonly string[] {
+export function reactCompilerSources(
+  env: Record<string, string | undefined> = process.env,
+): readonly string[] {
   const override = env.REACT_COMPILER_SOURCES;
   if (override === undefined) return REACT_COMPILER_SOURCES;
-  return override.split(",").map((s) => s.trim()).filter(Boolean);
+  return override
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 /** `REACT_COMPILER=0` turns the compiler off everywhere. */
-export function reactCompilerOff(env: Record<string, string | undefined> = process.env): boolean {
+export function reactCompilerOff(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
   return env.REACT_COMPILER === "0" || reactCompilerSources(env).length === 0;
 }
 
 /** Whether a source list covers this file (absolute path, or relative to apps/web; a `?query` is ignored). */
-export function inReactCompilerSources(file: string, sources: readonly string[]): boolean {
+export function inReactCompilerSources(
+  file: string,
+  sources: readonly string[],
+): boolean {
   const clean = file.split("?")[0];
   if (!/\.[tj]sx?$/.test(clean) || NEVER.test(clean)) return false;
   const rel = path.isAbsolute(clean) ? path.relative(WEB_ROOT, clean) : clean;
   if (rel.startsWith("..")) return false;
   const posix = rel.split(path.sep).join("/");
-  return sources.some((entry) => (entry.endsWith("/") ? posix.startsWith(entry) : posix === entry));
+  return sources.some((entry) =>
+    entry.endsWith("/") ? posix.startsWith(entry) : posix === entry,
+  );
 }
 
 /**
@@ -82,16 +98,28 @@ export function inReactCompilerSources(file: string, sources: readonly string[])
  * (bun's onLoad). It also matches the test files in a listed directory, which
  * reactCompilerCompiles then refuses.
  */
-export function reactCompilerPathFilter(env: Record<string, string | undefined> = process.env): RegExp {
+export function reactCompilerPathFilter(
+  env: Record<string, string | undefined> = process.env,
+): RegExp {
   const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const entries = reactCompilerSources(env).map((entry) => (entry.endsWith("/") ? `${escape(entry)}.*\\.[tj]sx?` : escape(entry)));
+  const entries = reactCompilerSources(env).map((entry) =>
+    entry.endsWith("/") ? `${escape(entry)}.*\\.[tj]sx?` : escape(entry),
+  );
   if (reactCompilerOff(env) || entries.length === 0) return /$^/;
-  return new RegExp(`^${escape(WEB_ROOT.split(path.sep).join("/"))}/(?:${entries.join("|")})$`);
+  return new RegExp(
+    `^${escape(WEB_ROOT.split(path.sep).join("/"))}/(?:${entries.join("|")})$`,
+  );
 }
 
 /** Whether the compiler compiles this file under the current environment. */
-export function reactCompilerCompiles(file: string, env: Record<string, string | undefined> = process.env): boolean {
-  return !reactCompilerOff(env) && inReactCompilerSources(file, reactCompilerSources(env));
+export function reactCompilerCompiles(
+  file: string,
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return (
+    !reactCompilerOff(env) &&
+    inReactCompilerSources(file, reactCompilerSources(env))
+  );
 }
 
 /**
@@ -121,7 +149,14 @@ export const REACT_COMPILER_RUNTIME = "react/compiler-runtime";
  * The compiler must run first among babel plugins; plugin-react appends its
  * own (Fast Refresh) after the ones returned here.
  */
-export function reactCompilerBabelOptions(id: string, env: Record<string, string | undefined> = process.env) {
+export function reactCompilerBabelOptions(
+  id: string,
+  env: Record<string, string | undefined> = process.env,
+) {
   if (!reactCompilerCompiles(id, env)) return {};
-  return { plugins: [[REACT_COMPILER_PLUGIN, REACT_COMPILER_OPTIONS] as [string, object]] };
+  return {
+    plugins: [
+      [REACT_COMPILER_PLUGIN, REACT_COMPILER_OPTIONS] as [string, object],
+    ],
+  };
 }

@@ -15,7 +15,9 @@ afterEach(() => {
   fs.rmSync(wtDir, { recursive: true, force: true });
 });
 
-function manifest(setup: Partial<WorkspaceManifest["setup"]>): WorkspaceManifest {
+function manifest(
+  setup: Partial<WorkspaceManifest["setup"]>,
+): WorkspaceManifest {
   return {
     setup: {
       copy: setup.copy ?? [],
@@ -28,8 +30,12 @@ function manifest(setup: Partial<WorkspaceManifest["setup"]>): WorkspaceManifest
     services: {},
     env: {},
     teardown: { run: [] },
-    browser: { enabled: false, headless: true, cdpPort: { base: 9222, range: 100 } },
-  backend: "local",
+    browser: {
+      enabled: false,
+      headless: true,
+      cdpPort: { base: 9222, range: 100 },
+    },
+    backend: "local",
   };
 }
 
@@ -45,7 +51,9 @@ describe("runSetup", () => {
     expect(fs.readFileSync(path.join(wtDir, "pwd.out"), "utf-8").trim()).toBe(
       fs.realpathSync(wtDir),
     );
-    expect(fs.readFileSync(path.join(wtDir, "greet.out"), "utf-8").trim()).toBe("hello");
+    expect(fs.readFileSync(path.join(wtDir, "greet.out"), "utf-8").trim()).toBe(
+      "hello",
+    );
     expect(fs.existsSync(r.logPath)).toBe(true);
     const log = fs.readFileSync(r.logPath, "utf-8");
     expect(log).toContain("--- install: pwd > pwd.out ---");
@@ -62,8 +70,14 @@ describe("runSetup", () => {
       wtDir,
       { stream: null },
     );
-    expect(r.ran.map((x) => x.phase)).toEqual(["install", "generate", "migrate"]);
-    expect(fs.readFileSync(path.join(wtDir, "trace.txt"), "utf-8")).toBe("i\ng\nm\n");
+    expect(r.ran.map((x) => x.phase)).toEqual([
+      "install",
+      "generate",
+      "migrate",
+    ]);
+    expect(fs.readFileSync(path.join(wtDir, "trace.txt"), "utf-8")).toBe(
+      "i\ng\nm\n",
+    );
   });
 
   test("env vars are injected into the command shell", async () => {
@@ -72,13 +86,19 @@ describe("runSetup", () => {
       wtDir,
       { stream: null, env: { WORKSPACE_NAME: "feat-x" } },
     );
-    expect(fs.readFileSync(path.join(wtDir, "name.out"), "utf-8").trim()).toBe("feat-x");
+    expect(fs.readFileSync(path.join(wtDir, "name.out"), "utf-8").trim()).toBe(
+      "feat-x",
+    );
     expect(r.ran.length).toBe(1);
   });
 
   test("non-zero exit halts execution and throws SetupError with phase + command", async () => {
     const m = manifest({
-      install: ["echo before-fail > marker.txt", "exit 7", "echo after-fail >> marker.txt"],
+      install: [
+        "echo before-fail > marker.txt",
+        "exit 7",
+        "echo after-fail >> marker.txt",
+      ],
       generate: ["echo generate-ran >> marker.txt"],
     });
     let err: unknown;
@@ -115,7 +135,9 @@ describe("runSetup", () => {
       { stream: null, skipPhases: ["install"] },
     );
     expect(fs.existsSync(path.join(wtDir, "i.txt"))).toBe(false);
-    expect(fs.readFileSync(path.join(wtDir, "g.txt"), "utf-8").trim()).toBe("GENERATE");
+    expect(fs.readFileSync(path.join(wtDir, "g.txt"), "utf-8").trim()).toBe(
+      "GENERATE",
+    );
     expect(r.ran.map((x) => x.phase)).toEqual(["generate"]);
   });
 
@@ -127,13 +149,14 @@ describe("runSetup", () => {
   });
 
   test("custom logDir is honored", async () => {
-    const customLog = fs.mkdtempSync(path.join(os.tmpdir(), "ws-setup-customlog-"));
+    const customLog = fs.mkdtempSync(
+      path.join(os.tmpdir(), "ws-setup-customlog-"),
+    );
     try {
-      const r = await runSetup(
-        manifest({ install: ["true"] }),
-        wtDir,
-        { stream: null, logDir: customLog },
-      );
+      const r = await runSetup(manifest({ install: ["true"] }), wtDir, {
+        stream: null,
+        logDir: customLog,
+      });
       expect(r.logPath.startsWith(customLog)).toBe(true);
     } finally {
       fs.rmSync(customLog, { recursive: true, force: true });

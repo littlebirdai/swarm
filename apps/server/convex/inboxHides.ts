@@ -18,7 +18,10 @@ export type ViewerHideKind = "stash" | "dismiss";
 // Bounded read: a viewer's hides are a triage list, not a log.
 const VIEWER_HIDES_CAP = 2000;
 
-export async function viewerHiddenConversationIds(ctx: Ctx, userId: Id<"users">): Promise<Set<string>> {
+export async function viewerHiddenConversationIds(
+  ctx: Ctx,
+  userId: Id<"users">,
+): Promise<Set<string>> {
   const rows = await ctx.db
     .query("inbox_hides")
     .withIndex("by_user", (q: any) => q.eq("user_id", userId))
@@ -27,17 +30,27 @@ export async function viewerHiddenConversationIds(ctx: Ctx, userId: Id<"users">)
 }
 
 // The runner and the owner set triage through the conversation's own stamps.
-export async function isRunnerOrOwner(ctx: Ctx, conv: any, userId: Id<"users">): Promise<boolean> {
+export async function isRunnerOrOwner(
+  ctx: Ctx,
+  conv: any,
+  userId: Id<"users">,
+): Promise<boolean> {
   const me = userId.toString();
   if (conv.user_id?.toString() === me) return true;
   if (conv.owner_user_id?.toString() === me) return true;
   return await isSessionOwner(ctx, conv._id, userId);
 }
 
-async function findHide(ctx: Ctx, userId: Id<"users">, conversationId: Id<"conversations">) {
+async function findHide(
+  ctx: Ctx,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+) {
   return await ctx.db
     .query("inbox_hides")
-    .withIndex("by_user_conversation", (q: any) => q.eq("user_id", userId).eq("conversation_id", conversationId))
+    .withIndex("by_user_conversation", (q: any) =>
+      q.eq("user_id", userId).eq("conversation_id", conversationId),
+    )
     .first();
 }
 
@@ -57,7 +70,13 @@ export async function hideConversationForViewer(
   if (!(await canAccessConversation(ctx, userId, conv))) return false;
   const existing = await findHide(ctx, userId, conv._id);
   if (existing) await ctx.db.patch(existing._id, { kind, at });
-  else await ctx.db.insert("inbox_hides", { user_id: userId, conversation_id: conv._id, kind, at });
+  else
+    await ctx.db.insert("inbox_hides", {
+      user_id: userId,
+      conversation_id: conv._id,
+      kind,
+      at,
+    });
   return true;
 }
 

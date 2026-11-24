@@ -20,7 +20,6 @@ function linkOf(k: RoomKnock): string {
 // and the people knocking to be let into it. Both live in the dock and the
 // stage header, because the door belongs to whoever is inside.
 
-
 /** Who is at the door. Renders nothing when nobody is — a knock is a moment,
  *  not a queue. Admit rings a teammate in: the accepted ring is their grant,
  *  so the room stays locked to everyone else. A guest (a stranger on a link)
@@ -40,7 +39,10 @@ export function RoomKnocks({ roomKey }: { roomKey: string }) {
     // knock, and Admit must carry the name the door shows.
     (st: any) =>
       (st.roomKnocks ?? [])
-        .map((k: RoomKnock) => `${k.from_user}:${k.created_at}:${k.from_name}:${k.can_answer === false ? 0 : 1}:${k.link_turned_away ?? 0}:${k.link_by ?? ""}`)
+        .map(
+          (k: RoomKnock) =>
+            `${k.from_user}:${k.created_at}:${k.from_name}:${k.can_answer === false ? 0 : 1}:${k.link_turned_away ?? 0}:${k.link_by ?? ""}`,
+        )
         .join("|"),
   ]);
   const knocks: RoomKnock[] = s.roomKnocks ?? [];
@@ -51,7 +53,10 @@ export function RoomKnocks({ roomKey }: { roomKey: string }) {
   // second knock must still be visible. A guest's answer needs none of this:
   // it leaves the store's list itself.
   const [rang, setRang] = useState<Record<string, number>>({});
-  const waiting = knocks.filter((k) => k.kind === "guest" || (rang[String(k.from_user)] ?? 0) < k.created_at);
+  const waiting = knocks.filter(
+    (k) =>
+      k.kind === "guest" || (rang[String(k.from_user)] ?? 0) < k.created_at,
+  );
 
   // Somebody arriving at the door is a moment, and it was a silent one: this
   // appeared as a coloured row and nothing else, so a person hosting a locked
@@ -73,7 +78,9 @@ export function RoomKnocks({ roomKey }: { roomKey: string }) {
           <div
             key={String(k.from_user)}
             className={`flex flex-col gap-1 rounded-md border px-2 py-1 ${
-              guest ? "border-sol-yellow/30 bg-sol-yellow/[0.08]" : "border-sol-violet/30 bg-sol-violet/10"
+              guest
+                ? "border-sol-yellow/30 bg-sol-yellow/[0.08]"
+                : "border-sol-violet/30 bg-sol-violet/10"
             }`}
           >
             <div className="flex items-center gap-2">
@@ -95,7 +102,11 @@ export function RoomKnocks({ roomKey }: { roomKey: string }) {
                     the name and lost what they are asking for. */}
                 <span
                   className="min-w-0 break-words line-clamp-2"
-                  title={guest ? `${k.from_name}, a guest from outside the team${k.link_by ? `, on ${linkOf(k)}` : ""}` : undefined}
+                  title={
+                    guest
+                      ? `${k.from_name}, a guest from outside the team${k.link_by ? `, on ${linkOf(k)}` : ""}`
+                      : undefined
+                  }
                 >
                   {name} {canAnswer ? "wants to join" : "is waiting"}
                 </span>
@@ -105,11 +116,17 @@ export function RoomKnocks({ roomKey }: { roomKey: string }) {
                     its width first: on a narrow door (the stage's corner)
                     who is asking matters more than whose link they hold,
                     which the name's title still carries. */}
-                {guest && k.link_by && <span className="min-w-0 shrink-[999] truncate text-sol-text-dim">· via {linkOf(k)}</span>}
+                {guest && k.link_by && (
+                  <span className="min-w-0 shrink-[999] truncate text-sol-text-dim">
+                    · via {linkOf(k)}
+                  </span>
+                )}
               </span>
               {canAnswer && guest && (
                 <button
-                  onClick={() => void denyGuest(k.guest_id!, false, toast.error)}
+                  onClick={() =>
+                    void denyGuest(k.guest_id!, false, toast.error)
+                  }
                   className="shrink-0 rounded px-1.5 py-0.5 text-meta text-sol-text-muted transition-colors hover:bg-sol-bg-highlight hover:text-sol-text"
                   aria-label={`Turn ${name} away`}
                   title="Not now. They can ask again in a minute"
@@ -120,8 +137,16 @@ export function RoomKnocks({ roomKey }: { roomKey: string }) {
               {canAnswer && (
                 <button
                   onClick={() => {
-                    if (guest) return void admitGuest(k.guest_id!, k.from_name, toast.error);
-                    setRang((prev) => ({ ...prev, [String(k.from_user)]: k.created_at }));
+                    if (guest)
+                      return void admitGuest(
+                        k.guest_id!,
+                        k.from_name,
+                        toast.error,
+                      );
+                    setRang((prev) => ({
+                      ...prev,
+                      [String(k.from_user)]: k.created_at,
+                    }));
                     void admitKnock(roomKey, String(k.from_user));
                   }}
                   className={`shrink-0 rounded px-2 py-0.5 text-meta font-medium transition-colors ${

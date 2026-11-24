@@ -26,7 +26,15 @@ const INK: Record<SubjectAnswer["verdict"], string> = {
   note: "text-[color:var(--sol-text)]",
 };
 
-export function StagedBand({ answer, onUndo, field, you, takeover, joined, className }: {
+export function StagedBand({
+  answer,
+  onUndo,
+  field,
+  you,
+  takeover,
+  joined,
+  className,
+}: {
   answer: SubjectAnswer;
   onUndo: () => void;
   /** The reply field while it is open; drawn under the first line. */
@@ -40,23 +48,56 @@ export function StagedBand({ answer, onUndo, field, you, takeover, joined, class
   className?: string;
 }) {
   const [first, rest] = stagedWords(answer);
-  const Icon = answer.verdict === "approve" ? Check : answer.verdict === "reject" ? X : null;
+  const Icon =
+    answer.verdict === "approve"
+      ? Check
+      : answer.verdict === "reject"
+        ? X
+        : null;
   return (
     <div
       role="status"
-      className={cn("org-pop-in motion-reduce:animate-none min-w-0 rounded-md px-2.5 py-1.5 text-[12.5px] leading-[18px]", joined && "rounded-b-none", className)}
+      className={cn(
+        "org-pop-in motion-reduce:animate-none min-w-0 rounded-md px-2.5 py-1.5 text-[12.5px] leading-[18px]",
+        joined && "rounded-b-none",
+        className,
+      )}
       style={{ background: WASH[answer.verdict] }}
       data-staged={answer.verdict}
     >
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-        {Icon && <Icon aria-hidden className={cn("h-3 w-3 shrink-0", INK[answer.verdict])} />}
+        {Icon && (
+          <Icon
+            aria-hidden
+            className={cn("h-3 w-3 shrink-0", INK[answer.verdict])}
+          />
+        )}
         <span className="min-w-0 flex-1 text-[color:var(--sol-text-secondary)]">
-          <b className={cn("font-semibold", INK[answer.verdict])}>{first}</b> {rest}
+          <b className={cn("font-semibold", INK[answer.verdict])}>{first}</b>{" "}
+          {rest}
         </span>
-        <LedgerWord className="-mr-2 ml-auto h-6 text-meta" onClick={onUndo} aria-label="Undo this answer" data-staged-undo>Undo</LedgerWord>
+        <LedgerWord
+          className="-mr-2 ml-auto h-6 text-meta"
+          onClick={onUndo}
+          aria-label="Undo this answer"
+          data-staged-undo
+        >
+          Undo
+        </LedgerWord>
       </div>
-      {field ? <div className="mt-1.5 min-w-0">{field}</div> : you ? <div className="mt-1 min-w-0">{you}</div> : null}
-      {takeover && answer.verdict === "approve" && <TakeoverEdit className="mt-1.5" phrase={takeover.phrase} leave={takeover.leave} onLeave={takeover.onLeave} />}
+      {field ? (
+        <div className="mt-1.5 min-w-0">{field}</div>
+      ) : you ? (
+        <div className="mt-1 min-w-0">{you}</div>
+      ) : null}
+      {takeover && answer.verdict === "approve" && (
+        <TakeoverEdit
+          className="mt-1.5"
+          phrase={takeover.phrase}
+          leave={takeover.leave}
+          onLeave={takeover.onLeave}
+        />
+      )}
     </div>
   );
 }

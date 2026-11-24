@@ -101,7 +101,12 @@ export const VaultFindBar = memo(function VaultFindBar({
       <span className="text-meta text-sol-text-dim ml-0.5">
         <KeyCap size="xs">esc</KeyCap>
       </span>
-      <button type="button" onClick={onClose} className="text-sol-text-dim hover:text-sol-text" aria-label="Close find">
+      <button
+        type="button"
+        onClick={onClose}
+        className="text-sol-text-dim hover:text-sol-text"
+        aria-label="Close find"
+      >
         <X className="w-3.5 h-3.5" />
       </button>
     </div>

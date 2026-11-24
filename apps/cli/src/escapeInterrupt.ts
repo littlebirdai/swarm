@@ -22,7 +22,10 @@ import { MID_TURN_AGENT_STATUSES } from "@codecast/shared/contracts";
 // a row an offline owner picks up hours later. Whatever it meant to stop is over.
 export const ESCAPE_PRESS_MAX_AGE_MS = 60_000;
 
-export type EscapeSkipReason = "stale_press" | "message_injected_after_press" | "no_active_turn";
+export type EscapeSkipReason =
+  | "stale_press"
+  | "message_injected_after_press"
+  | "no_active_turn";
 
 export type EscapeVerdict =
   | { action: "interrupt" }
@@ -37,8 +40,12 @@ export function decideEscape(input: {
   turnActive: boolean;
 }): EscapeVerdict {
   if (typeof input.pressedAt === "number") {
-    if (input.now - input.pressedAt > ESCAPE_PRESS_MAX_AGE_MS) return { action: "skip", reason: "stale_press" };
-    if (typeof input.lastInjectedAt === "number" && input.lastInjectedAt > input.pressedAt) {
+    if (input.now - input.pressedAt > ESCAPE_PRESS_MAX_AGE_MS)
+      return { action: "skip", reason: "stale_press" };
+    if (
+      typeof input.lastInjectedAt === "number" &&
+      input.lastInjectedAt > input.pressedAt
+    ) {
       return { action: "skip", reason: "message_injected_after_press" };
     }
   }
@@ -55,7 +62,10 @@ export function decideEscape(input: {
 // a truly idle pane costs a double Escape at the prompt, which opens the
 // Rewind dialog the delivery path already cancels before its next paste. Only
 // an exited pane vetoes: there is no process left to interrupt.
-export function turnLooksActive(hookStatus: string | null | undefined, paneState: string | null | undefined): boolean {
+export function turnLooksActive(
+  hookStatus: string | null | undefined,
+  paneState: string | null | undefined,
+): boolean {
   if (paneState === "exited") return false;
   if (paneState === "busy") return true;
   return MID_TURN_AGENT_STATUSES.has(hookStatus ?? "");

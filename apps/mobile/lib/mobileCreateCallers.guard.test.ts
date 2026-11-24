@@ -9,16 +9,17 @@ const sheetSource = readFileSync(
   `${import.meta.dir}/../components/session/NewSessionSheet.tsx`,
   "utf8",
 );
-const authSource = readFileSync(
-  `${import.meta.dir}/auth.tsx`,
-  "utf8",
-);
+const authSource = readFileSync(`${import.meta.dir}/auth.tsx`, "utf8");
 const layoutSource = readFileSync(
   `${import.meta.dir}/../app/_layout.tsx`,
   "utf8",
 );
 
-function sourceBetween(start: string, end: string, source = sheetSource): string {
+function sourceBetween(
+  start: string,
+  end: string,
+  source = sheetSource,
+): string {
   const startIndex = source.indexOf(start);
   const endIndex = source.indexOf(end, startIndex);
   expect(startIndex).toBeGreaterThanOrEqual(0);
@@ -34,19 +35,29 @@ describe("mobile result-dependent create callers", () => {
     const submit = sourceBetween("const handleSubmit", "\n  return (");
     expect(submit).toContain("deferCreate: true");
     expect(submit).not.toMatch(/\bawait\b/);
-    const watch = submit.indexOf("watchSessionCreate(stubId, started.materialize(), create)");
+    const watch = submit.indexOf(
+      "watchSessionCreate(stubId, started.materialize(), create)",
+    );
     const finish = submit.indexOf("finishSessionCreate(stubId, empty)");
     expect(watch).toBeGreaterThanOrEqual(0);
     expect(finish).toBeGreaterThan(watch);
-    const finishBody = sourceBetween("const finishSessionCreate", "const handleSubmit");
+    const finishBody = sourceBetween(
+      "const finishSessionCreate",
+      "const handleSubmit",
+    );
     // The session is pushed under the sheet, and the sheet closes only once
     // that screen has drawn, so it never slides off the screen it opened over.
     expect(finishBody).toContain("onSessionCreated(");
     expect(finishBody).not.toContain("onClose()");
     const host = sourceBetween("export function ComposeHost", "\n}\n");
     expect(host).toContain("awaitSessionLanding()");
-    const sessionSource = readFileSync(`${import.meta.dir}/../app/session/[id].tsx`, "utf8");
-    expect(sessionSource).toMatch(/if \(!reveal\) return;\s*sessionLanded\(\);/);
+    const sessionSource = readFileSync(
+      `${import.meta.dir}/../app/session/[id].tsx`,
+      "utf8",
+    );
+    expect(sessionSource).toMatch(
+      /if \(!reveal\) return;\s*sessionLanded\(\);/,
+    );
   });
 
   // The sheet is prompt first: typed words and picked images become the first
@@ -54,11 +65,22 @@ describe("mobile result-dependent create callers", () => {
   // sent once the create has a real id, never awaited here.
   test("the sheet's words ride the stub as its first message", () => {
     const submit = sourceBetween("const handleSubmit", "\n  return (");
-    expect(submit).toContain("dispatchComposerSend(stubId, text || IMAGE_ONLY_CONTENT, firstImages, text)");
-    const composer = readFileSync(`${import.meta.dir}/../components/session/MessageComposer.tsx`, "utf8");
-    const send = sourceBetween("export function dispatchComposerSend", "\n}\n", composer);
-    expect(send).toContain("store.addOptimisticMessage(conversationId, content");
-    expect(send).toContain("sendMessageWhenReady(conversationId, content");
+    expect(submit).toMatch(
+      /dispatchComposerSend\(\s*stubId,\s*text \|\| IMAGE_ONLY_CONTENT,\s*firstImages,\s*text,?\s*\)/,
+    );
+    const composer = readFileSync(
+      `${import.meta.dir}/../components/session/MessageComposer.tsx`,
+      "utf8",
+    );
+    const send = sourceBetween(
+      "export function dispatchComposerSend",
+      "\n}\n",
+      composer,
+    );
+    expect(send).toMatch(
+      /store\.addOptimisticMessage\(\s*conversationId,\s*content/,
+    );
+    expect(send).toMatch(/sendMessageWhenReady\(\s*conversationId,\s*content/);
   });
 
   // A refused create must not vanish silently once the sheet is gone: it is
@@ -99,8 +121,12 @@ describe("mobile new-session launch options", () => {
     // The folder list is scoped only by intent: an explicit machine pick, else
     // the machine the person's saved default or last hand pick names. A
     // heuristic default never scopes it.
-    expect(sheetSource).toContain("const scopedDeviceId = deviceId ?? intendedDeviceId;");
-    expect(sheetSource).toContain("useScopedRecentProjects({ scopedDeviceId,");
+    expect(sheetSource).toContain(
+      "const scopedDeviceId = deviceId ?? intendedDeviceId;",
+    );
+    expect(sheetSource).toMatch(
+      /useScopedRecentProjects\(\{\s*scopedDeviceId,/,
+    );
     // The sheet paints from the store on open: machines and folders are fed
     // app-wide (StoreSyncBridge), never queried when the sheet appears.
     expect(sheetSource).not.toContain("api.devices.listDevices");
@@ -108,12 +134,21 @@ describe("mobile new-session launch options", () => {
     // The machine row shows with any machine, so where a session runs is always in view.
     expect(sheetSource).toContain("devices.length > 0 &&");
 
-    const builder = sourceBetween("const launchStampsForCreate", "const finishSessionCreate");
+    const builder = sourceBetween(
+      "const launchStampsForCreate",
+      "const finishSessionCreate",
+    );
     // A pick equal to the heuristic default is left to routing; intent is stamped.
-    expect(builder).toContain("(deviceId && deviceId !== defaultDeviceId ? deviceId : intendedDeviceId) ?? undefined");
+    expect(builder).toMatch(
+      /\(deviceId && deviceId !== defaultDeviceId\s*\?\s*deviceId\s*:\s*intendedDeviceId\) \?\? undefined/,
+    );
     expect(builder).toContain('model: model !== "default" ? model : undefined');
-    expect(builder).toContain('effort: effort !== "default" ? effort : undefined');
-    expect(builder).toContain('stable_mode: stableMode !== "auto" ? stableMode : undefined');
+    expect(builder).toContain(
+      'effort: effort !== "default" ? effort : undefined',
+    );
+    expect(builder).toContain(
+      'stable_mode: stableMode !== "auto" ? stableMode : undefined',
+    );
     expect(builder).toContain("isolated: isolated || undefined");
     // No preview to exclude from on mobile, so the sheet never collects one.
     expect(sheetSource).not.toContain("stable_exclude");
@@ -139,7 +174,10 @@ describe("mobile new-session launch options", () => {
   // rekey) — awaiting the tracked create promise is a race lost by design,
   // because trackSessionCreate reaps pendingSessionCreates first.
   test("the label rides the post-create marker, stamped before the create resolves", () => {
-    const stamp = sourceBetween("const stampLabelIntent", "const finishSessionCreate");
+    const stamp = sourceBetween(
+      "const stampLabelIntent",
+      "const finishSessionCreate",
+    );
     // Untouched pill = inherit: the store stamped the focused chip's bucket
     // itself, so the sheet must write nothing.
     expect(stamp).toContain("if (bucketPick === undefined) return");
@@ -171,7 +209,10 @@ describe("mobile new-session launch options", () => {
   // A sheet that reopens holding the last launch's choices would silently apply
   // them to the next session.
   test("a completed create resets every launch choice", () => {
-    const finish = sourceBetween("const finishSessionCreate", "const handleSubmit");
+    const finish = sourceBetween(
+      "const finishSessionCreate",
+      "const handleSubmit",
+    );
     for (const reset of [
       'setProjectPath("")',
       "setDeviceId(null)",
@@ -207,8 +248,13 @@ describe("mobile principal outbox binding", () => {
   test("render trust is local; the anchor persists only after verification", () => {
     expect(authSource).toContain("localBootTrust({");
     expect(authSource).toContain("authRenderDecision({");
-    const verified = authSource.indexOf("setVerifiedSubject(verified ? accessIdentity.subject : null)");
-    const persist = authSource.indexOf("SecureStore.setItemAsync(LAST_PRINCIPAL_KEY", verified);
+    const verified = authSource.indexOf(
+      "setVerifiedSubject(verified ? accessIdentity.subject : null)",
+    );
+    const persist =
+      authSource
+        .slice(verified)
+        .search(/SecureStore\.setItemAsync\(\s*LAST_PRINCIPAL_KEY/) + verified;
     const guard = authSource.indexOf("if (verified) {", verified);
     expect(verified).toBeGreaterThanOrEqual(0);
     expect(guard).toBeGreaterThan(verified);
@@ -219,8 +265,12 @@ describe("mobile principal outbox binding", () => {
   // change wiped the just-hydrated SQLite cache on each boot the moment
   // verification landed — the bug that made the phone boot server-first.
   test("memory clears on principal change, never on the boot subject transition", () => {
-    expect(authSource).toContain("shouldClearMemoryFor(memoryPrincipal.current, trustedPrincipalId)");
-    expect(authSource).not.toMatch(/lastTrustedSubject\.current !== trustedSubject\) \{\s*\n\s*clearProtectedInboxMemory/);
+    expect(authSource).toContain(
+      "shouldClearMemoryFor(memoryPrincipal.current, trustedPrincipalId)",
+    );
+    expect(authSource).not.toMatch(
+      /lastTrustedSubject\.current !== trustedSubject\) \{\s*\n\s*clearProtectedInboxMemory/,
+    );
   });
 
   test("surfaces an outbox-open failure with an in-place retry while writes stay gated", () => {
@@ -228,7 +278,9 @@ describe("mobile principal outbox binding", () => {
     expect(authSource).toContain(
       "setOutboxOpenAttempt((attempt) => attempt + 1)",
     );
-    expect(authSource).toContain("outboxFailureSubject: outboxFailure?.subject ?? null");
+    expect(authSource).toContain(
+      "outboxFailureSubject: outboxFailure?.subject ?? null",
+    );
     expect(authSource).toContain(
       "Codecast kept writing disabled so no work can be lost.",
     );
@@ -238,10 +290,11 @@ describe("mobile principal outbox binding", () => {
     const transition = authSource.indexOf(
       "if (outboxSubject.current !== trustedSubject)",
     );
-    const clear = authSource.indexOf("_setOutbox(null, null, null)", transition);
-    const open = authSource.indexOf(
-      "openPrincipalDispatchOutbox(principalId)",
+    const clear = authSource.indexOf(
+      "_setOutbox(null, null, null)",
+      transition,
     );
+    const open = authSource.indexOf("openPrincipalDispatchOutbox(principalId)");
 
     expect(transition).toBeGreaterThanOrEqual(0);
     expect(clear).toBeGreaterThan(transition);
@@ -254,15 +307,21 @@ describe("mobile principal outbox binding", () => {
   // is in memory, and the list only skeletons a genuinely cold empty cache.
   test("native splash stays up until the SQLite cache has hydrated", () => {
     expect(layoutSource).toContain("SplashScreen.preventAutoHideAsync()");
-    expect(layoutSource).not.toMatch(/if\s*\(loaded\)\s*\{\s*SplashScreen\.hideAsync/);
-    expect(authSource).toContain("shouldReleaseSplash({ hydrated, authDecision: renderDecision })");
+    expect(layoutSource).not.toMatch(
+      /if\s*\(loaded\)\s*\{\s*SplashScreen\.hideAsync/,
+    );
+    expect(authSource).toContain(
+      "shouldReleaseSplash({ hydrated, authDecision: renderDecision })",
+    );
     expect(authSource).toContain("s.clientStateInitialized");
     expect(authSource).toContain("SplashScreen.hideAsync()");
   });
 
   test("inbox skeletons only a cold empty cache, not a kill-and-reopen", () => {
     expect(inboxSource).toContain("s.clientStateInitialized");
-    expect(inboxSource).toContain("if (!hydrated || sessionsFirstLoad !== false)");
+    expect(inboxSource).toContain(
+      "if (!hydrated || sessionsFirstLoad !== false)",
+    );
   });
 });
 
@@ -278,8 +337,13 @@ describe("mobile send button is a real tap target", () => {
 
   test("session send is 44pt and lives outside the jump overlay", () => {
     // The send button's size lives in the shared session style.
-    const sharedStyle = readFileSync(`${import.meta.dir}/../../../packages/shared/render/mobileSessionStyle.ts`, "utf8");
-    expect(sharedStyle).toMatch(/sendButton: \{[^}]*minWidth: 44[^}]*height: 44/);
+    const sharedStyle = readFileSync(
+      `${import.meta.dir}/../../../packages/shared/render/mobileSessionStyle.ts`,
+      "utf8",
+    );
+    expect(sharedStyle).toMatch(
+      /sendButton: \{[^}]*minWidth: 44[^}]*height: 44/,
+    );
     // A tap the transcript's children take acts with the keyboard up; the
     // full tap rules are in keyboardTaps.guard.test.ts.
     expect(sessionSource).toContain('keyboardShouldPersistTaps="handled"');

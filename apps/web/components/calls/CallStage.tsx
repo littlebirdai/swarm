@@ -1,4 +1,12 @@
-import { Fragment, memo, useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  Fragment,
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
@@ -20,7 +28,11 @@ import {
   VideoOff,
   X,
 } from "lucide-react";
-import { useInboxStore, useMyUserId, useTrackedStore } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  useMyUserId,
+  useTrackedStore,
+} from "../../store/inboxStore";
 import { stageFollowTarget } from "../../lib/follow";
 import { callParticipantKind } from "@codecast/shared/contracts";
 import {
@@ -29,7 +41,8 @@ import {
   setCamera,
   setScreenShare,
   subscribeCallTiles,
-  type ParticipantTile } from "../../lib/calls/callManager";
+  type ParticipantTile,
+} from "../../lib/calls/callManager";
 import { parseRoomKey } from "@codecast/shared/contracts";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useAction } from "convex/react";
@@ -37,12 +50,22 @@ import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { usePressOutside } from "../../hooks/usePressOutside";
-import { useRoomTranscribeOff, useRoomWordsPublic } from "../../hooks/useRoomTranscribeOff";
+import {
+  useRoomTranscribeOff,
+  useRoomWordsPublic,
+} from "../../hooks/useRoomTranscribeOff";
 import { stageTiles } from "../../lib/calls/callMedia";
 import { TRANSCRIPT_SHARED_WORDS } from "../../lib/calls/roomRecordingEnd";
-import { getScribeStatus, subscribeScribe } from "../../lib/calls/transcription";
+import {
+  getScribeStatus,
+  subscribeScribe,
+} from "../../lib/calls/transcription";
 import { TranscribeControls } from "./TranscribePanel";
-import { RecordButton, RecordingNoticeBanner, StageRecordingBadge } from "./RoomRecording";
+import {
+  RecordButton,
+  RecordingNoticeBanner,
+  StageRecordingBadge,
+} from "./RoomRecording";
 import { AddPeopleButton } from "./AddPeople";
 import { RoomKnocks } from "./RoomDoor";
 import { HangUpButton, MicButton } from "./CallControls";
@@ -55,11 +78,23 @@ import { faceTrackingNote } from "./useFaceCrop";
 import { PersonName } from "./GuestTag";
 import { FollowChip } from "./FollowInCall";
 import { AutoStage, GridStage, SpeakerStage } from "./StageViews";
-import { STAGE_CTL, STAGE_CTL_IDLE, STAGE_VIEWS, StageHostProvider, type StageHost, type StageView } from "./stageHost";
+import {
+  STAGE_CTL,
+  STAGE_CTL_IDLE,
+  STAGE_VIEWS,
+  StageHostProvider,
+  type StageHost,
+  type StageView,
+} from "./stageHost";
 import { GuestInvite, GuestRemoveButton } from "./GuestDoor";
 import { StagePersonMenu, type StagePerson } from "./StagePersonMenu";
 import { useContextMenu } from "../ui/context-menu";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { guestsJoining } from "../../lib/calls/roomGuests";
 import { useStageRoster } from "../../hooks/useStageRoster";
 import { useOutgoingRings, useRoomDescription } from "../../hooks/useCallRoom";
@@ -75,7 +110,11 @@ import {
   type SmallCallWindowSize,
 } from "../../lib/desktop";
 import { useOsPermissions } from "../../hooks/useOsPermissions";
-import { permissionActionLabel, requestOsPermission, type AppPermissionKind } from "../../lib/osPermissions";
+import {
+  permissionActionLabel,
+  requestOsPermission,
+  type AppPermissionKind,
+} from "../../lib/osPermissions";
 import { LivePulseDot } from "../SessionActivityLine";
 import { prefersReducedMotion } from "../../hooks/useBottomAnchoredList";
 import { useAgentsInRoom } from "./useCallFeed";
@@ -83,7 +122,10 @@ import { useRoomThreadUnread } from "../../hooks/useRoomThreadUnread";
 import { EdgeResizeHandle, useEdgeResize } from "../../hooks/useEdgeResize";
 import { UnreadCount } from "./UnreadCount";
 import { AgentReplyPeek } from "./AgentReplyPeek";
-import { onCallThreadRequest, takeCallThreadRequest } from "../../lib/calls/callStage";
+import {
+  onCallThreadRequest,
+  takeCallThreadRequest,
+} from "../../lib/calls/callStage";
 import { keysOwnedElsewhere } from "../../shortcuts/keyOwnership";
 import { modernButton, modernPill } from "../ui/modernLook";
 import { useStageShares } from "../../hooks/useStagePins";
@@ -98,7 +140,13 @@ const STAGE_FOLLOW_SETTLE_MS = 1500;
 // refused, the button is the one gesture that changes that (the OS prompt,
 // or System Settings). No button when the OS says it's granted — then the
 // trouble is the device itself, and the sentence already says so.
-function CallErrorNotice({ error, fix }: { error: string; fix: AppPermissionKind | null }) {
+function CallErrorNotice({
+  error,
+  fix,
+}: {
+  error: string;
+  fix: AppPermissionKind | null;
+}) {
   const { permissions, refresh } = useOsPermissions();
   const readiness = fix ? permissions[fix] : null;
   const action = fix && readiness ? permissionActionLabel(readiness) : null;
@@ -119,7 +167,9 @@ function CallErrorNotice({ error, fix }: { error: string; fix: AppPermissionKind
         </button>
       )}
       <button
-        onClick={() => useInboxStore.getState().setCallState({ error: null, errorFix: null })}
+        onClick={() =>
+          useInboxStore.getState().setCallState({ error: null, errorFix: null })
+        }
         className="shrink-0 rounded-full p-0.5 text-sol-orange/70 transition-colors hover:bg-sol-orange/15 hover:text-sol-orange"
         title="Dismiss"
       >
@@ -159,7 +209,8 @@ const MEMBER_STAGE_HOST: StageHost = {
   useFollowLeader: () => useInboxStore((s) => s.followLeaderId),
   // Each tile asks for its own person, as a boolean: a change of who is
   // talking redraws the tiles whose answer changed, not the stage.
-  useSpeaking: (identity) => useInboxStore((s) => (s.call.speaking ?? []).includes(identity)),
+  useSpeaking: (identity) =>
+    useInboxStore((s) => (s.call.speaking ?? []).includes(identity)),
 };
 
 /** The fields of the call the stage itself draws or branches on. Who is
@@ -167,15 +218,24 @@ const MEMBER_STAGE_HOST: StageHost = {
  *  the tiles read it themselves (MEMBER_STAGE_HOST.useSpeaking). */
 const callStageSig = (c: any) =>
   `${c.phase}|${c.roomKey}|${c.muted}|${c.camera}|${c.sharing}|${!!c.reconnecting}|${c.errorFix}|${c.error}`;
-function memberStageHost(roomKey: string | null, openPersonMenu: StageHost["openPersonMenu"]): StageHost {
+function memberStageHost(
+  roomKey: string | null,
+  openPersonMenu: StageHost["openPersonMenu"],
+): StageHost {
   if (!roomKey) return MEMBER_STAGE_HOST;
   return {
     ...MEMBER_STAGE_HOST,
     openPersonMenu,
-    personActions: ({ identity, name, variant }) => <GuestRemoveButton roomKey={roomKey} identity={identity} name={name} variant={variant} />,
+    personActions: ({ identity, name, variant }) => (
+      <GuestRemoveButton
+        roomKey={roomKey}
+        identity={identity}
+        name={name}
+        variant={variant}
+      />
+    ),
   };
 }
-
 
 /**
  * How each of the window's small sizes reads on the stage's chrome, on the
@@ -193,9 +253,21 @@ const SMALL_SIZE_CHROME: Record<
   SmallCallWindowSize,
   { icon: typeof Users; label: string; hint: string }
 > = {
-  circles: { icon: Users, label: "All faces", hint: "Float everyone on the call as circles over your work" },
-  speaker: { icon: CircleUserRound, label: "Who's talking", hint: "Float one circle over your work: whoever is talking" },
-  tiny: { icon: Circle, label: "Tiny", hint: "One tiny circle, the size of a menu bar icon" },
+  circles: {
+    icon: Users,
+    label: "All faces",
+    hint: "Float everyone on the call as circles over your work",
+  },
+  speaker: {
+    icon: CircleUserRound,
+    label: "Who's talking",
+    hint: "Float one circle over your work: whoever is talking",
+  },
+  tiny: {
+    icon: Circle,
+    label: "Tiny",
+    hint: "One tiny circle, the size of a menu bar icon",
+  },
 };
 
 /**
@@ -231,11 +303,18 @@ export function CallStage({
   const s = useTrackedStore([(st: any) => callStageSig(st.call)]);
   const call = s.call;
   const myUserId = useMyUserId();
-  const tiles = useSyncExternalStore(subscribeCallTiles, getCallTiles, () => []);
+  const tiles = useSyncExternalStore(
+    subscribeCallTiles,
+    getCallTiles,
+    () => [],
+  );
   // Seats, then the guests let in on a link, as the media has them once
   // connected (useStageRoster): a guest has no seat, and a guest with no
   // camera was nobody on the stage without the fold.
-  const { listed, roster, guestMedia } = useStageRoster(call.roomKey, call.phase === "connected");
+  const { listed, roster, guestMedia } = useStageRoster(
+    call.roomKey,
+    call.phase === "connected",
+  );
 
   // The live transcript, if anyone is scribing: id (for the call-page link),
   // routes (the feed chips), caption tail (captions for non-scribes too).
@@ -249,8 +328,18 @@ export function CallStage({
         started_by: string | null;
         started_at: number;
         team_id: string;
-        routes: Array<{ kind: string; target: string; mode: string; added_by: string }>;
-        tail: Array<{ seq: number; speaker_name: string; text: string; at: number }>;
+        routes: Array<{
+          kind: string;
+          target: string;
+          mode: string;
+          added_by: string;
+        }>;
+        tail: Array<{
+          seq: number;
+          speaker_name: string;
+          text: string;
+          at: number;
+        }>;
       }
     | null
     | undefined;
@@ -261,7 +350,11 @@ export function CallStage({
   // so every client in the room may ask. A room that never had an agent
   // has nothing to ask about.
   const ensureFaces = useAction(api.callFace.ensureFaces);
-  const liveAgents = (live?.routes ?? []).filter((r) => r.kind === "session" && r.mode === "live").map((r) => r.target).sort().join(",");
+  const liveAgents = (live?.routes ?? [])
+    .filter((r) => r.kind === "session" && r.mode === "live")
+    .map((r) => r.target)
+    .sort()
+    .join(",");
   const hadAgents = useRef(false);
   useWatchEffect(() => {
     if (!call.roomKey || (!liveAgents && !hadAgents.current)) return;
@@ -278,7 +371,10 @@ export function CallStage({
   const personMenu = useContextMenu<StagePerson>();
   const openPersonMenu = personMenu.open;
   const stageHost = useMemo(
-    () => memberStageHost(call.roomKey, (e, p) => openPersonMenu(e, p, { force: true })),
+    () =>
+      memberStageHost(call.roomKey, (e, p) =>
+        openPersonMenu(e, p, { force: true }),
+      ),
     [call.roomKey, openPersonMenu],
   );
   // A record Record made with nobody scribing it yet holds no words: it is
@@ -293,7 +389,10 @@ export function CallStage({
   // The thread's rows, read here so the header can count what arrived while
   // the rail was closed (lib/calls/roomThreadSeen: the same count the door to
   // the call in the app header wears when this stage is collapsed).
-  const { rows, unread, latest, arrived } = useRoomThreadUnread(call.roomKey, threadOpen);
+  const { rows, unread, latest, arrived } = useRoomThreadUnread(
+    call.roomKey,
+    threadOpen,
+  );
   useWatchEffect(
     () =>
       onCallThreadRequest(() => {
@@ -309,13 +408,17 @@ export function CallStage({
   const onRailClosed = useCallback(() => setRailClosing(false), []);
   // The agents in the room, for the button: while the rail is closed, the
   // state a person waits on most is "an agent is answering".
-  const agentWorking = useAgentsInRoom(live?.routes ?? []).some((a) => a.working);
+  const agentWorking = useAgentsInRoom(live?.routes ?? []).some(
+    (a) => a.working,
+  );
   const [pinned, setPinned] = useState<string | null>(null);
   // The face SPEAKER view follows when nothing is pinned: whoever spoke last.
   // Read off the store, not through a render: the stage redraws when the
   // floor passes to somebody else, not on every speaking report.
   const [lastSpeaker, setLastSpeaker] = useState<string | null>(
-    () => (useInboxStore.getState().call.speaking?.[0] as string | undefined) ?? null,
+    () =>
+      (useInboxStore.getState().call.speaking?.[0] as string | undefined) ??
+      null,
   );
   const lastSpeakerRef = useRef(lastSpeaker);
   useWatchEffect(
@@ -344,7 +447,10 @@ export function CallStage({
       isPerson: (id) => callParticipantKind(id) === "person",
     });
     if (!next) return;
-    const t = setTimeout(() => useInboxStore.getState().setFollowLeader(next), pinned ? 0 : STAGE_FOLLOW_SETTLE_MS);
+    const t = setTimeout(
+      () => useInboxStore.getState().setFollowLeader(next),
+      pinned ? 0 : STAGE_FOLLOW_SETTLE_MS,
+    );
     return () => clearTimeout(t);
   }, [view, pinned, lastSpeaker, followLeaderId, myUserId, rosterIds]);
 
@@ -354,10 +460,16 @@ export function CallStage({
     if (panel) return;
     const onKey = (e: KeyboardEvent) => {
       // A pinned board or sheet that used the key keeps the stage open.
-      if (e.key !== "Escape" || e.defaultPrevented || keysOwnedElsewhere(e.target)) return;
+      if (
+        e.key !== "Escape" ||
+        e.defaultPrevented ||
+        keysOwnedElsewhere(e.target)
+      )
+        return;
       // Typing in the thread composer: Esc leaves the field, not the stage.
       const el = document.activeElement as HTMLElement | null;
-      if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT")) return el.blur();
+      if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT"))
+        return el.blur();
       collapse();
     };
     window.addEventListener("keydown", onKey);
@@ -365,7 +477,13 @@ export function CallStage({
   }, [collapse, panel]);
 
   const { screens: screenShares, cameras } = stageTiles(tiles);
-  const { pins, screens, pinActions } = useStageShares(call.roomKey, call.phase === "connected", screenShares, panel, collapse);
+  const { pins, screens, pinActions } = useStageShares(
+    call.roomKey,
+    call.phase === "connected",
+    screenShares,
+    panel,
+    collapse,
+  );
 
   const parsed = call.roomKey ? parseRoomKey(call.roomKey) : null;
   const { label } = useRoomDescription(call.roomKey);
@@ -376,7 +494,11 @@ export function CallStage({
   const arriving = useMemo(
     () => [
       ...ringing,
-      ...guestsJoining(listed, guestMedia).map((g: any) => ({ user_id: String(g.user_id), user_name: g.user_name ?? "Guest", note: "joining…" })),
+      ...guestsJoining(listed, guestMedia).map((g: any) => ({
+        user_id: String(g.user_id),
+        user_name: g.user_name ?? "Guest",
+        note: "joining…",
+      })),
     ],
     [ringing, listed, guestMedia],
   );
@@ -432,10 +554,15 @@ export function CallStage({
           760px, `.stage-word-tight` under 640px) and the title's "huddle · "
           with them, so the room's name is what survives truncation. The left
           group clips: nothing in it may ever paint under the view control. */}
-      <div ref={headRef} className="flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] px-3">
+      <div
+        ref={headRef}
+        className="flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] px-3"
+      >
         <div className="flex min-w-0 shrink items-center gap-0.5 overflow-hidden">
           <span className="min-w-0 truncate px-1 font-mono text-[12.5px] text-sol-text-secondary">
-            {parsed?.kind === "session" && <span className="stage-word">huddle · </span>}
+            {parsed?.kind === "session" && (
+              <span className="stage-word">huddle · </span>
+            )}
             {label}
           </span>
           {roster.length > 0 && (
@@ -463,8 +590,13 @@ export function CallStage({
           {parsed?.kind === "session" && (
             <StageChromeButton
               onClick={() => {
-                if (panel) return void navigateMainWindow(`/conversation/${parsed.conversationId}`);
-                useInboxStore.getState().navigateToSession(parsed.conversationId);
+                if (panel)
+                  return void navigateMainWindow(
+                    `/conversation/${parsed.conversationId}`,
+                  );
+                useInboxStore
+                  .getState()
+                  .navigateToSession(parsed.conversationId);
                 collapse();
               }}
               title="Open the session this huddle is about"
@@ -476,7 +608,9 @@ export function CallStage({
           {live &&
             (panel ? (
               <StageChromeButton
-                onClick={() => void navigateMainWindow(`/calls/${live.transcript_id}`)}
+                onClick={() =>
+                  void navigateMainWindow(`/calls/${live.transcript_id}`)
+                }
                 className="text-sol-green hover:bg-sol-green/10 hover:text-sol-green"
                 title="Open the call page in the main window: the whole thread and the summary"
                 aria-label="Open the call page"
@@ -497,9 +631,20 @@ export function CallStage({
           {/* The door. An open huddle is the default — any teammate can walk
               in — so the lock is the exception, and it reads as one: lit
               violet while the room is closed, quiet chrome while it is open. */}
-          <StageChromeButton onClick={lock.toggle} active={lock.locked} accent="violet" title={lock.title}>
-            {lock.locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
-            <span className="stage-word">{lock.locked ? "locked" : "open"}</span>
+          <StageChromeButton
+            onClick={lock.toggle}
+            active={lock.locked}
+            accent="violet"
+            title={lock.title}
+          >
+            {lock.locked ? (
+              <Lock className="h-3.5 w-3.5" />
+            ) : (
+              <Unlock className="h-3.5 w-3.5" />
+            )}
+            <span className="stage-word">
+              {lock.locked ? "locked" : "open"}
+            </span>
           </StageChromeButton>
           {/* The door for somebody with no account: a link they open in a
               browser. Beside the lock, because both decide who gets in. */}
@@ -524,11 +669,25 @@ export function CallStage({
         </div>
         <div className="min-w-2 flex-1" />
 
-        {call.roomKey && call.phase === "connected" && <StagePinButton roomKey={call.roomKey} pins={pins} className={CHROME_BTN} />}
+        {call.roomKey && call.phase === "connected" && (
+          <StagePinButton
+            roomKey={call.roomKey}
+            pins={pins}
+            className={CHROME_BTN}
+          />
+        )}
         <HeaderRule />
 
         {/* The view: one control with three positions, the live one raised. */}
-        <SegmentedRadio label="View" options={STAGE_VIEWS} value={view} onChange={setView} labels iconClass="h-3.5 w-3.5" className="shrink-0" />
+        <SegmentedRadio
+          label="View"
+          options={STAGE_VIEWS}
+          value={view}
+          onChange={setView}
+          labels
+          iconClass="h-3.5 w-3.5"
+          className="shrink-0"
+        />
 
         <HeaderRule />
 
@@ -541,7 +700,11 @@ export function CallStage({
           active={threadOpen}
           accent="cyan"
           aria-label={
-            (unread > 0 ? `Open the thread, ${unread} new line${unread === 1 ? "" : "s"}` : threadOpen ? "Close the thread" : "Open the thread") +
+            (unread > 0
+              ? `Open the thread, ${unread} new line${unread === 1 ? "" : "s"}`
+              : threadOpen
+                ? "Close the thread"
+                : "Open the thread") +
             (!threadOpen && agentWorking ? ", an agent is working" : "")
           }
           title={
@@ -552,7 +715,9 @@ export function CallStage({
         >
           <span className="relative">
             <MessageSquare className="h-3.5 w-3.5" />
-            {transcribing && <LivePulseDot className="absolute -right-1 -top-1 h-1.5 w-1.5" />}
+            {transcribing && (
+              <LivePulseDot className="absolute -right-1 -top-1 h-1.5 w-1.5" />
+            )}
           </span>
           <span className="stage-word-tight">thread</span>
           {!threadOpen && agentWorking && (
@@ -572,7 +737,10 @@ export function CallStage({
             The window keeps its media across the change, so this is only a
             reshape, and it is the stage's only way out on a voice host. */}
         {panel && onShrink && (
-          <StageChromeButton onClick={onShrink} title="Shrink back to the faces. The call keeps going">
+          <StageChromeButton
+            onClick={onShrink}
+            title="Shrink back to the faces. The call keeps going"
+          >
             <Minimize2 className="h-3.5 w-3.5" />
             shrink
           </StageChromeButton>
@@ -595,7 +763,10 @@ export function CallStage({
           </StageChromeButton>
         )}
         {!panel && (
-          <StageChromeButton onClick={collapse} title="Collapse to the pill. The call continues (Esc)">
+          <StageChromeButton
+            onClick={collapse}
+            title="Collapse to the pill. The call continues (Esc)"
+          >
             <ChevronDown className="h-3.5 w-3.5" />
             <span className="stage-word-tight">collapse</span>
           </StageChromeButton>
@@ -629,43 +800,61 @@ export function CallStage({
           </span>
         )}
         <StageHostProvider value={stageHost}>
-        <StagePinContext.Provider value={pinActions}>
-        <div key={view} className={`flex min-h-0 min-w-0 flex-1 animate-in fade-in duration-200 max-sm:flex-col transition-opacity ${call.reconnecting ? "opacity-50" : ""}`}>
-          {view === "grid" ? (
-            <GridStage roster={roster} cameras={cameras} screens={screens} />
-          ) : view === "speaker" ? (
-            <SpeakerStage
-              roster={roster}
-              cameras={cameras}
-              screens={screens}
-              focusId={pinned ?? lastSpeaker}
-              pinned={pinned}
-              onPin={(id) => setPinned((p) => (p === id ? null : id))}
-            />
-          ) : (
-            <AutoStage
-              roster={roster}
-              cameras={cameras}
-              screens={screens}
-              phase={call.phase}
-              ringing={arriving}
-              settledLine={settledLine}
-            />
-          )}
-        </div>
-        </StagePinContext.Provider>
+          <StagePinContext.Provider value={pinActions}>
+            <div
+              key={view}
+              className={`flex min-h-0 min-w-0 flex-1 animate-in fade-in duration-200 max-sm:flex-col transition-opacity ${call.reconnecting ? "opacity-50" : ""}`}
+            >
+              {view === "grid" ? (
+                <GridStage
+                  roster={roster}
+                  cameras={cameras}
+                  screens={screens}
+                />
+              ) : view === "speaker" ? (
+                <SpeakerStage
+                  roster={roster}
+                  cameras={cameras}
+                  screens={screens}
+                  focusId={pinned ?? lastSpeaker}
+                  pinned={pinned}
+                  onPin={(id) => setPinned((p) => (p === id ? null : id))}
+                />
+              ) : (
+                <AutoStage
+                  roster={roster}
+                  cameras={cameras}
+                  screens={screens}
+                  phase={call.phase}
+                  ringing={arriving}
+                  settledLine={settledLine}
+                />
+              )}
+            </div>
+          </StagePinContext.Provider>
         </StageHostProvider>
         {/* An agent's answer that just landed (unread, or arriving with the rail open), over the
             bottom of the video where the people talking are looking. */}
-        <AgentReplyPeek row={threadOpen ? arrived : latest} onOpen={() => !threadOpen && toggleThread()} />
-        {call.roomKey && <StagePersonMenu roomKey={call.roomKey} state={personMenu} selfId={myUserId ?? null} />}
+        <AgentReplyPeek
+          row={threadOpen ? arrived : latest}
+          onOpen={() => !threadOpen && toggleThread()}
+        />
+        {call.roomKey && (
+          <StagePersonMenu
+            roomKey={call.roomKey}
+            state={personMenu}
+            selfId={myUserId ?? null}
+          />
+        )}
         {(threadOpen || railClosing) && call.roomKey && (
           <ThreadRail
             roomKey={call.roomKey}
             live={live ?? null}
             rows={rows}
             panel={panel}
-            sinceAt={roster.find((m) => String(m.user_id) === myUserId)?.joined_at}
+            sinceAt={
+              roster.find((m) => String(m.user_id) === myUserId)?.joined_at
+            }
             closing={railClosing && !threadOpen}
             onClosed={onRailClosed}
             onOpenedSession={collapse}
@@ -690,7 +879,9 @@ export function CallStage({
             <CaptionsLane live={transcribing ? live! : null} />
           </div>
         </div>
-        {call.error && <CallErrorNotice error={call.error} fix={call.errorFix} />}
+        {call.error && (
+          <CallErrorNotice error={call.error} fix={call.errorFix} />
+        )}
         <ControlBar call={call} live={live ?? null} />
       </div>
     </div>,
@@ -700,7 +891,12 @@ export function CallStage({
 
 /** A thin rule between the header's groups. */
 function HeaderRule() {
-  return <span aria-hidden="true" className="mx-1.5 h-4 w-px shrink-0 bg-white/[0.08]" />;
+  return (
+    <span
+      aria-hidden="true"
+      className="mx-1.5 h-4 w-px shrink-0 bg-white/[0.08]"
+    />
+  );
 }
 
 /**
@@ -708,7 +904,11 @@ function HeaderRule() {
  * decision — how little of this call to keep on screen — and three buttons
  * on the header line made it read as three unrelated things.
  */
-function ShrinkMenu({ onSetSize }: { onSetSize: (size: CallWindowSize) => void }) {
+function ShrinkMenu({
+  onSetSize,
+}: {
+  onSetSize: (size: CallWindowSize) => void;
+}) {
   // The kit's menu: Escape, a press outside and the arrow keys close and
   // move it, wherever it was opened from. Portaled out of the stage, so it
   // carries the stage's `dark` itself.
@@ -739,8 +939,12 @@ function ShrinkMenu({ onSetSize }: { onSetSize: (size: CallWindowSize) => void }
             >
               <chrome.icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sol-text-muted" />
               <span className="min-w-0">
-                <span className="block font-mono text-meta text-sol-text">{chrome.label}</span>
-                <span className="block text-meta leading-snug text-sol-text-muted">{chrome.hint}</span>
+                <span className="block font-mono text-meta text-sol-text">
+                  {chrome.label}
+                </span>
+                <span className="block text-meta leading-snug text-sol-text-muted">
+                  {chrome.hint}
+                </span>
               </span>
             </DropdownMenuItem>
           );
@@ -767,7 +971,10 @@ function StageChromeButton({
   accent?: "green" | "cyan" | "violet" | "yellow";
   className?: string;
   children: React.ReactNode;
-} & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "className" | "children">) {
+} & Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  "className" | "children"
+>) {
   const tone = active
     ? accent === "green"
       ? "bg-sol-green/10 text-sol-green"
@@ -826,7 +1033,9 @@ const ThreadRail = memo(function ThreadRail({
   stageMinW: number;
 }) {
   const railMaxWidth = useCallback(
-    (handle: HTMLElement) => (handle.parentElement?.parentElement?.clientWidth ?? Infinity) - stageMinW,
+    (handle: HTMLElement) =>
+      (handle.parentElement?.parentElement?.clientWidth ?? Infinity) -
+      stageMinW,
     [stageMinW],
   );
   const call = useQueryNoThrow(
@@ -841,7 +1050,9 @@ const ThreadRail = memo(function ThreadRail({
   });
   return (
     <aside
-      style={{ width: `min(${width}px, max(${RAIL_MIN_W}px, calc(100% - ${stageMinW}px)))` }}
+      style={{
+        width: `min(${width}px, max(${RAIL_MIN_W}px, calc(100% - ${stageMinW}px)))`,
+      }}
       className={`relative flex shrink-0 flex-col overflow-hidden rounded-xl bg-white/[0.04] motion-reduce:animate-none ${
         closing
           ? "animate-out fade-out slide-out-to-right-2 fill-mode-forwards duration-150"
@@ -888,9 +1099,15 @@ const CAPTION_MAX_AGE_MS = 45_000;
 function CaptionsLane({
   live,
 }: {
-  live: { tail: Array<{ speaker_name: string; text: string; at: number }> } | null;
+  live: {
+    tail: Array<{ speaker_name: string; text: string; at: number }>;
+  } | null;
 }) {
-  const scribe = useSyncExternalStore(subscribeScribe, getScribeStatus, getScribeStatus);
+  const scribe = useSyncExternalStore(
+    subscribeScribe,
+    getScribeStatus,
+    getScribeStatus,
+  );
   const now = useCoarseNow(5000);
   const lines = scribe.active
     ? scribe.tail.map((c) => ({ speaker: c.speaker, text: c.text }))
@@ -902,7 +1119,9 @@ function CaptionsLane({
   return (
     <div
       className="pointer-events-none border-b border-white/[0.06] px-5 py-2"
-      style={{ minHeight: `calc(${CAPTION_LINES} * 13px * 1.375 + ${CAPTION_LINES - 1} * 4px + 16px)` }}
+      style={{
+        minHeight: `calc(${CAPTION_LINES} * 13px * 1.375 + ${CAPTION_LINES - 1} * 4px + 16px)`,
+      }}
     >
       {shown.length === 0 ? (
         <div className="font-mono text-meta text-sol-text-dim">
@@ -940,7 +1159,16 @@ function CaptionsLane({
 // sits alone at the right. Round buttons on a borderless pill: state reads
 // by tint (cyan = camera on, violet = sharing, green = transcribing, red =
 // muted), never by outline.
-function ControlBar({ call, live }: { call: any; live: { transcript_id: string; routes?: Array<{ kind: string; target: string }> } | null }) {
+function ControlBar({
+  call,
+  live,
+}: {
+  call: any;
+  live: {
+    transcript_id: string;
+    routes?: Array<{ kind: string; target: string }>;
+  } | null;
+}) {
   const transcribing = !!live;
 
   return (
@@ -950,11 +1178,17 @@ function ControlBar({ call, live }: { call: any; live: { transcript_id: string; 
         <button
           onClick={() => void setCamera(!call.camera)}
           className={`${STAGE_CTL} ${
-            call.camera ? "bg-sol-cyan/15 text-sol-cyan hover:bg-sol-cyan/25" : STAGE_CTL_IDLE
+            call.camera
+              ? "bg-sol-cyan/15 text-sol-cyan hover:bg-sol-cyan/25"
+              : STAGE_CTL_IDLE
           }`}
           title={call.camera ? "Turn camera off" : "Turn camera on"}
         >
-          {call.camera ? <Video className="h-[18px] w-[18px]" /> : <VideoOff className="h-[18px] w-[18px]" />}
+          {call.camera ? (
+            <Video className="h-[18px] w-[18px]" />
+          ) : (
+            <VideoOff className="h-[18px] w-[18px]" />
+          )}
         </button>
         <StageShareButton sharing={call.sharing} />
         {call.roomKey && call.phase === "connected" && (
@@ -966,14 +1200,20 @@ function ControlBar({ call, live }: { call: any; live: { transcript_id: string; 
           />
         )}
         <TranscribeControls live={transcribing} />
-        {call.roomKey && call.phase === "connected" && <RecordButton roomKey={call.roomKey} />}
+        {call.roomKey && call.phase === "connected" && (
+          <RecordButton roomKey={call.roomKey} />
+        )}
         <div className="mx-1.5 h-5 w-px bg-white/10" />
         <HangUpButton />
       </div>
       {/* Not a setting, a fact: the floating circles either follow a face or
           show the middle of the frame, and only this build knows which. */}
       <DeviceChips
-        footer={<p className="px-2 pb-1 text-meta leading-snug text-sol-text-dim">{faceTrackingNote()}</p>}
+        footer={
+          <p className="px-2 pb-1 text-meta leading-snug text-sol-text-dim">
+            {faceTrackingNote()}
+          </p>
+        }
       />
     </div>
   );
@@ -982,7 +1222,8 @@ function ControlBar({ call, live }: { call: any; live: { transcript_id: string; 
 function StageShareButton({ sharing }: { sharing: boolean }) {
   const [open, setOpen] = useState(false);
   const [sources, setSources] = useState<DesktopDisplaySource[] | null>(null);
-  const bridge = typeof window !== "undefined" ? window.__CODECAST_ELECTRON__ : undefined;
+  const bridge =
+    typeof window !== "undefined" ? window.__CODECAST_ELECTRON__ : undefined;
   const canPick = !!bridge?.getDisplaySources && !!bridge?.selectDisplaySource;
 
   const onClick = async () => {
@@ -991,7 +1232,9 @@ function StageShareButton({ sharing }: { sharing: boolean }) {
     setOpen(true);
     setSources(null);
     try {
-      setSources(await bridge!.getDisplaySources!({ types: ["screen", "window"] }));
+      setSources(
+        await bridge!.getDisplaySources!({ types: ["screen", "window"] }),
+      );
     } catch {
       setSources([]);
     }
@@ -1002,7 +1245,9 @@ function StageShareButton({ sharing }: { sharing: boolean }) {
       <button
         onClick={() => void onClick()}
         className={`${STAGE_CTL} ${
-          sharing ? "bg-sol-violet/15 text-sol-violet hover:bg-sol-violet/25" : STAGE_CTL_IDLE
+          sharing
+            ? "bg-sol-violet/15 text-sol-violet hover:bg-sol-violet/25"
+            : STAGE_CTL_IDLE
         }`}
         title={sharing ? "Stop sharing" : "Share your screen"}
       >
@@ -1025,16 +1270,33 @@ function StageShareButton({ sharing }: { sharing: boolean }) {
 /** A capture preview, or the source's icon on a quiet tile when the shell
  *  sent none: an empty image serializes as a bare `data:image/png;base64,`,
  *  which Chromium draws as a broken image. */
-function ShareThumb({ src, icon: Icon, className }: { src: string; icon: typeof MonitorUp; className: string }) {
+function ShareThumb({
+  src,
+  icon: Icon,
+  className,
+}: {
+  src: string;
+  icon: typeof MonitorUp;
+  className: string;
+}) {
   const [failed, setFailed] = useState(false);
   if (failed || !src || src.endsWith("base64,")) {
     return (
-      <span className={`flex items-center justify-center bg-white/[0.04] ${className}`}>
+      <span
+        className={`flex items-center justify-center bg-white/[0.04] ${className}`}
+      >
         <Icon className="h-5 w-5 text-sol-text-dim" />
       </span>
     );
   }
-  return <img src={src} alt="" onError={() => setFailed(true)} className={`object-cover ${className}`} />;
+  return (
+    <img
+      src={src}
+      alt=""
+      onError={() => setFailed(true)}
+      className={`object-cover ${className}`}
+    />
+  );
 }
 
 /** Screens and windows are different choices, so they get different shapes:
@@ -1056,7 +1318,9 @@ function SharePicker({
 
   const screens = sources?.filter((s) => s.kind === "screen") ?? [];
   const q = query.trim().toLowerCase();
-  const windows = (sources ?? []).filter((s) => s.kind === "window" && (!q || s.name.toLowerCase().includes(q)));
+  const windows = (sources ?? []).filter(
+    (s) => s.kind === "window" && (!q || s.name.toLowerCase().includes(q)),
+  );
   const windowCount = sources?.filter((s) => s.kind === "window").length ?? 0;
 
   return (
@@ -1065,7 +1329,9 @@ function SharePicker({
       className="absolute bottom-full left-1/2 z-10 mb-3 max-h-[calc(100dvh-120px)] w-[min(440px,calc(100vw-24px))] -translate-x-1/2 overflow-y-auto rounded-xl bg-sol-bg-alt p-2.5 shadow-2xl ring-1 ring-white/5"
     >
       {sources === null ? (
-        <div className="px-1 py-6 text-center text-meta text-sol-text-muted">Looking…</div>
+        <div className="px-1 py-6 text-center text-meta text-sol-text-muted">
+          Looking…
+        </div>
       ) : sources.length === 0 ? (
         <div className="px-1 py-6 text-center text-meta text-sol-text-muted">
           Nothing to share. Check Screen Recording permission in System Settings
@@ -1074,8 +1340,12 @@ function SharePicker({
         <>
           {screens.length > 0 && (
             <section>
-              <div className="mb-1.5 px-1 text-meta font-medium text-sol-text-muted">Entire screen</div>
-              <div className={`grid gap-2 ${screens.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+              <div className="mb-1.5 px-1 text-meta font-medium text-sol-text-muted">
+                Entire screen
+              </div>
+              <div
+                className={`grid gap-2 ${screens.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}
+              >
                 {screens.map((src, i) => (
                   <button
                     key={src.id}
@@ -1090,7 +1360,11 @@ function SharePicker({
                     />
                     <span className="flex items-center gap-1.5 px-0.5 text-meta text-sol-text-muted group-hover:text-sol-text">
                       <MonitorUp className="h-3 w-3 shrink-0" />
-                      <span className="truncate">{screens.length === 1 ? "Your entire screen" : `Screen ${i + 1}`}</span>
+                      <span className="truncate">
+                        {screens.length === 1
+                          ? "Your entire screen"
+                          : `Screen ${i + 1}`}
+                      </span>
                     </span>
                   </button>
                 ))}
@@ -1098,10 +1372,15 @@ function SharePicker({
             </section>
           )}
           {windowCount > 0 && (
-            <section className={screens.length > 0 ? "mt-3 border-t border-white/5 pt-2.5" : ""}>
+            <section
+              className={
+                screens.length > 0 ? "mt-3 border-t border-white/5 pt-2.5" : ""
+              }
+            >
               <div className="mb-1.5 flex items-center gap-2 px-1">
                 <span className="text-meta font-medium text-sol-text-muted">
-                  Windows <span className="text-sol-text-dim">· {windowCount}</span>
+                  Windows{" "}
+                  <span className="text-sol-text-dim">· {windowCount}</span>
                 </span>
                 <input
                   autoFocus
@@ -1117,7 +1396,9 @@ function SharePicker({
               </div>
               <div className="max-h-[260px] space-y-0.5 overflow-y-auto">
                 {windows.length === 0 ? (
-                  <div className="px-1 py-3 text-center text-meta text-sol-text-muted">No window matches "{query}"</div>
+                  <div className="px-1 py-3 text-center text-meta text-sol-text-muted">
+                    No window matches "{query}"
+                  </div>
                 ) : (
                   windows.map((src, i) => (
                     <button
@@ -1128,9 +1409,17 @@ function SharePicker({
                       }`}
                       title={src.name}
                     >
-                      <ShareThumb src={src.thumbnail} icon={AppWindow} className="h-9 w-16 shrink-0 rounded ring-1 ring-white/5" />
+                      <ShareThumb
+                        src={src.thumbnail}
+                        icon={AppWindow}
+                        className="h-9 w-16 shrink-0 rounded ring-1 ring-white/5"
+                      />
                       {src.appIcon ? (
-                        <img src={src.appIcon} alt="" className="h-4 w-4 shrink-0" />
+                        <img
+                          src={src.appIcon}
+                          alt=""
+                          className="h-4 w-4 shrink-0"
+                        />
                       ) : (
                         <AppWindow className="h-4 w-4 shrink-0 text-sol-text-dim" />
                       )}

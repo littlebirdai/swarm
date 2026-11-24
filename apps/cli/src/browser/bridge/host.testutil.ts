@@ -20,8 +20,22 @@ import { WebSocket } from "ws";
 import { isolateCodecastDir } from "../../test-helpers/codecastDir.js";
 import { freePort } from "../instance.js";
 import { startBridgeHost, writeBridgeState, type RunningHost } from "./host.js";
-import { BRIDGE_PROTOCOL, bridgeProof, CLOSE_BAD_TOKEN, randomNonce, secretMatches, type BridgeTab } from "./protocol.js";
-import { codeSession, hmacHex, normalizePairingCode, pairingCodeKey, profileKeyHash, xorHex } from "./pairing.js";
+import {
+  BRIDGE_PROTOCOL,
+  bridgeProof,
+  CLOSE_BAD_TOKEN,
+  randomNonce,
+  secretMatches,
+  type BridgeTab,
+} from "./protocol.js";
+import {
+  codeSession,
+  hmacHex,
+  normalizePairingCode,
+  pairingCodeKey,
+  profileKeyHash,
+  xorHex,
+} from "./pairing.js";
 
 /** How a FakeExtension proves itself: the shared token (default), a profile's key, the token plus a key to migrate, or a one-time code. */
 export type FakePairing =
@@ -32,7 +46,9 @@ export type FakePairing =
 
 export const TEST_TOKEN = "t".repeat(64);
 
-export async function testBridgeHost(token = TEST_TOKEN): Promise<RunningHost & { token: string }> {
+export async function testBridgeHost(
+  token = TEST_TOKEN,
+): Promise<RunningHost & { token: string }> {
   const home = isolateCodecastDir("cast-bridge-test-");
   try {
     const port = await freePort();
@@ -55,7 +71,11 @@ export async function testBridgeHost(token = TEST_TOKEN): Promise<RunningHost & 
   }
 }
 
-export function dial(port: number, path: string, headers: Record<string, string> = {}): Promise<WebSocket> {
+export function dial(
+  port: number,
+  path: string,
+  headers: Record<string, string> = {},
+): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`ws://127.0.0.1:${port}${path}`, { headers });
     ws.once("open", () => resolve(ws));
@@ -83,11 +103,18 @@ export class FakeExtension {
   /** Answer the host's pings the way background.js does; off by default, which reads as a worker that stopped listening. */
   answersPings = false;
 
-  constructor(tabs: BridgeTab[], readonly token = TEST_TOKEN) {
+  constructor(
+    tabs: BridgeTab[],
+    readonly token = TEST_TOKEN,
+  ) {
     this.tabs = tabs;
   }
 
-  static tab(tabId: number, url = `https://example.com/${tabId}`, title = `Tab ${tabId}`): BridgeTab {
+  static tab(
+    tabId: number,
+    url = `https://example.com/${tabId}`,
+    title = `Tab ${tabId}`,
+  ): BridgeTab {
     return { tabId, url, title, active: false, windowId: 1, attached: false };
   }
 
@@ -95,25 +122,36 @@ export class FakeExtension {
   issued?: { secret: string; profile?: string };
 
   /** Dial and handshake. Rejects when the host cannot prove it holds the token. */
-  async connect(port: number, hello: Record<string, unknown> = {}, pairing: FakePairing = {}): Promise<this> {
-    this.ws = await dial(port, "/ext", { origin: "chrome-extension://fakeextensionid" });
-    const nonce = randomNonce();
-    const next = () => new Promise<any>((resolve, reject) => {
-      const onClose = (code: number) => reject(new Error(`closed ${code} before welcome`));
-      this.ws.once("close", onClose);
-      this.ws.once("message", (raw) => {
-        this.ws.off("close", onClose);
-        resolve(JSON.parse(String(raw)));
-      });
+  async connect(
+    port: number,
+    hello: Record<string, unknown> = {},
+    pairing: FakePairing = {},
+  ): Promise<this> {
+    this.ws = await dial(port, "/ext", {
+      origin: "chrome-extension://fakeextensionid",
     });
-    const proofKey = pairing.mode === "key" ? profileKeyHash(pairing.secret) : this.token;
+    const nonce = randomNonce();
+    const next = () =>
+      new Promise<any>((resolve, reject) => {
+        const onClose = (code: number) =>
+          reject(new Error(`closed ${code} before welcome`));
+        this.ws.once("close", onClose);
+        this.ws.once("message", (raw) => {
+          this.ws.off("close", onClose);
+          resolve(JSON.parse(String(raw)));
+        });
+      });
+    const proofKey =
+      pairing.mode === "key" ? profileKeyHash(pairing.secret) : this.token;
     let welcome = next();
     this.ws.send(
       JSON.stringify({
         op: "hello",
         nonce,
         ...(pairing.mode ? { mode: pairing.mode, key: pairing.key } : {}),
-        ...(pairing.mode === "code" ? {} : { auth: bridgeProof(proofKey, "ext", nonce) }),
+        ...(pairing.mode === "code"
+          ? {}
+          : { auth: bridgeProof(proofKey, "ext", nonce) }),
         version: "9.9.9",
         protocol: BRIDGE_PROTOCOL,
         userAgent: "FakeChrome/1",
@@ -123,19 +161,33 @@ export class FakeExtension {
     let session: string | null = null;
     if (pairing.mode === "code") {
       const challenge = await welcome;
-      if (challenge.op !== "challenge") throw new Error(`expected a challenge, got ${challenge.op}`);
-      session = codeSession(pairingCodeKey(normalizePairingCode(pairing.code) ?? pairing.code), port, nonce, challenge.nonce);
+      if (challenge.op !== "challenge")
+        throw new Error(`expected a challenge, got ${challenge.op}`);
+      session = codeSession(
+        pairingCodeKey(normalizePairingCode(pairing.code) ?? pairing.code),
+        port,
+        nonce,
+        challenge.nonce,
+      );
       welcome = next();
-      this.ws.send(JSON.stringify({ op: "pair", proof: hmacHex(session, "ext") }));
+      this.ws.send(
+        JSON.stringify({ op: "pair", proof: hmacHex(session, "ext") }),
+      );
     }
     const w = await welcome;
-    const proven = w.op === "welcome" && (session ? secretMatches(hmacHex(session, "host"), w.proof) : secretMatches(bridgeProof(proofKey, "host", nonce), w.proof));
+    const proven =
+      w.op === "welcome" &&
+      (session
+        ? secretMatches(hmacHex(session, "host"), w.proof)
+        : secretMatches(bridgeProof(proofKey, "host", nonce), w.proof));
     if (!proven) {
       this.ws.close(CLOSE_BAD_TOKEN, "host could not prove the token");
       throw new Error("the host could not prove it holds the token");
     }
     if (typeof w.issue === "string") {
-      const pad = session ? hmacHex(session, "wrap") : hmacHex(this.token, `issue:${nonce}`);
+      const pad = session
+        ? hmacHex(session, "wrap")
+        : hmacHex(this.token, `issue:${nonce}`);
       this.issued = { secret: xorHex(w.issue, pad), profile: w.profile };
     }
     this.ws.on("message", (raw) => {
@@ -149,12 +201,22 @@ export class FakeExtension {
         return;
       }
       this.seen.push(m);
-      const reply = (extra: any) => this.ws.send(JSON.stringify({ id: m.id, ok: true, ...extra }));
+      const reply = (extra: any) =>
+        this.ws.send(JSON.stringify({ id: m.id, ok: true, ...extra }));
       switch (m.op) {
         case "tabs.list":
-          return reply({ tabs: this.tabs.map((t) => ({ ...t, attached: this.attached.has(t.tabId) })) });
+          return reply({
+            tabs: this.tabs.map((t) => ({
+              ...t,
+              attached: this.attached.has(t.tabId),
+            })),
+          });
         case "tabs.create": {
-          const t = { ...FakeExtension.tab(this.nextTab++, m.url, "new"), active: !m.background, ...(m.group ? { group: m.group } : {}) };
+          const t = {
+            ...FakeExtension.tab(this.nextTab++, m.url, "new"),
+            active: !m.background,
+            ...(m.group ? { group: m.group } : {}),
+          };
           this.tabs.push(t);
           return reply({ tabId: t.tabId });
         }
@@ -171,19 +233,42 @@ export class FakeExtension {
           return reply({});
         case "cdp":
           if (m.method === "Boom.now") {
-            return this.ws.send(JSON.stringify({ id: m.id, ok: false, error: "kaboom from chrome.debugger" }));
+            return this.ws.send(
+              JSON.stringify({
+                id: m.id,
+                ok: false,
+                error: "kaboom from chrome.debugger",
+              }),
+            );
           }
-          return reply({ result: this.cdpResult?.(m.method, m.params, m.tabId) ?? { echo: { tabId: m.tabId, method: m.method, params: m.params } } });
+          return reply({
+            result: this.cdpResult?.(m.method, m.params, m.tabId) ?? {
+              echo: { tabId: m.tabId, method: m.method, params: m.params },
+            },
+          });
         default:
-          return this.ws.send(JSON.stringify({ id: m.id, ok: false, error: "unknown op " + m.op }));
+          return this.ws.send(
+            JSON.stringify({
+              id: m.id,
+              ok: false,
+              error: "unknown op " + m.op,
+            }),
+          );
       }
     });
     return this;
   }
 
   /** A debugger event on a tab; `session` is Chrome's id of the child session (a cross-origin iframe) it came from. */
-  event(tabId: number, method: string, params: any = {}, session?: string): void {
-    this.ws.send(JSON.stringify({ op: "event", tabId, session, method, params }));
+  event(
+    tabId: number,
+    method: string,
+    params: any = {},
+    session?: string,
+  ): void {
+    this.ws.send(
+      JSON.stringify({ op: "event", tabId, session, method, params }),
+    );
   }
 
   tabEvent(kind: "created" | "removed" | "updated", tab: BridgeTab): void {
@@ -194,7 +279,8 @@ export class FakeExtension {
   async waitFor(op: string, n = 1, timeoutMs = 3000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
     while (this.seen.filter((m) => m.op === op).length < n) {
-      if (Date.now() > deadline) throw new Error(`extension never saw ${op} x${n}`);
+      if (Date.now() > deadline)
+        throw new Error(`extension never saw ${op} x${n}`);
       await new Promise((r) => setTimeout(r, 15));
     }
   }

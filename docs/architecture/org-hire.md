@@ -96,29 +96,107 @@ tested in `orgTemplateArtifact.v2.test.ts`.
 ```json
 {
   "schemaVersion": 2,
-  "id": "growth", "version": "2.0.0", "name": "CMO",
+  "id": "growth",
+  "version": "2.0.0",
+  "name": "CMO",
   "description": "…",
-  "role": { "name": "CMO", "handle": "{{instance}}-cmo", "charter": "org/charter.md",
-            "caps": { "hands_per_day": 4, "wakes_per_day": 12, "tokens_per_day": 200000 },
-            "avatar": "fox", "tenure": { "kind": "standing" } },
-  "inputs": [ { "key": "product.domain", "label": "Apex domain", "kind": "string", "required": true, "help": "…" },
-              { "key": "budget.monthly_envelope_usd", "label": "Monthly growth envelope", "kind": "money", "required": true },
-              { "key": "accounts.google_ads", "label": "Google Ads credentials", "kind": "secret",
-                "unlocks": ["ads-daily", "ads-spend"] } ],
-  "authority": [ { "id": "ads-spend", "kind": "spend", "label": "Paid search inside the monthly envelope",
-                   "limit": { "usd_per_month": "{{input.budget.monthly_envelope_usd}}" }, "requires": ["accounts.google_ads"], "expires": "90d" },
-                 { "id": "social-publish", "kind": "publish", "label": "Post to the selected social accounts",
-                   "requires": ["accounts.publora"] } ],
-  "setup": [ { "id": "search-console", "title": "Verify the domain in Google Search Console", "who": "human",
-               "unlocks": ["seo-weekly"], "how": "org/setup/search-console.md", "price": "unlocks SEO weekly" } ],
-  "evidence": [ { "id": "technical", "title": "Crawler HTML and metadata verified", "max_age": "7d", "required_for": ["seo-weekly"] },
-                { "id": "ads_billing", "title": "Ads delivery eligible, billing clear", "max_age": "24h", "required_for": ["ads-daily"] } ],
-  "ledgers": [ { "id": "cmo", "title": "CMO ledger: weekly portfolio review" }, { "id": "ads", "title": "Ads ledger" } ],
-  "scoreboard": [ { "key": "primary_events", "label": "Primary events, last 7 days" },
-                  { "key": "cost_per_primary_usd", "label": "Cost per primary event" } ],
-  "routines": [ { "id": "cmo-weekly", "title": "…", "every": "7d", "prompt": "org/prompts/cmo-weekly.md" },
-                { "id": "ads-daily", "title": "…", "every": "1d", "prompt": "org/prompts/ads-daily.md", "mode": "apply",
-                  "requires": { "authority": ["ads-spend"], "evidence": ["ads_billing"] } } ],
+  "role": {
+    "name": "CMO",
+    "handle": "{{instance}}-cmo",
+    "charter": "org/charter.md",
+    "caps": {
+      "hands_per_day": 4,
+      "wakes_per_day": 12,
+      "tokens_per_day": 200000
+    },
+    "avatar": "fox",
+    "tenure": { "kind": "standing" }
+  },
+  "inputs": [
+    {
+      "key": "product.domain",
+      "label": "Apex domain",
+      "kind": "string",
+      "required": true,
+      "help": "…"
+    },
+    {
+      "key": "budget.monthly_envelope_usd",
+      "label": "Monthly growth envelope",
+      "kind": "money",
+      "required": true
+    },
+    {
+      "key": "accounts.google_ads",
+      "label": "Google Ads credentials",
+      "kind": "secret",
+      "unlocks": ["ads-daily", "ads-spend"]
+    }
+  ],
+  "authority": [
+    {
+      "id": "ads-spend",
+      "kind": "spend",
+      "label": "Paid search inside the monthly envelope",
+      "limit": { "usd_per_month": "{{input.budget.monthly_envelope_usd}}" },
+      "requires": ["accounts.google_ads"],
+      "expires": "90d"
+    },
+    {
+      "id": "social-publish",
+      "kind": "publish",
+      "label": "Post to the selected social accounts",
+      "requires": ["accounts.publora"]
+    }
+  ],
+  "setup": [
+    {
+      "id": "search-console",
+      "title": "Verify the domain in Google Search Console",
+      "who": "human",
+      "unlocks": ["seo-weekly"],
+      "how": "org/setup/search-console.md",
+      "price": "unlocks SEO weekly"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "technical",
+      "title": "Crawler HTML and metadata verified",
+      "max_age": "7d",
+      "required_for": ["seo-weekly"]
+    },
+    {
+      "id": "ads_billing",
+      "title": "Ads delivery eligible, billing clear",
+      "max_age": "24h",
+      "required_for": ["ads-daily"]
+    }
+  ],
+  "ledgers": [
+    { "id": "cmo", "title": "CMO ledger: weekly portfolio review" },
+    { "id": "ads", "title": "Ads ledger" }
+  ],
+  "scoreboard": [
+    { "key": "primary_events", "label": "Primary events, last 7 days" },
+    { "key": "cost_per_primary_usd", "label": "Cost per primary event" }
+  ],
+  "routines": [
+    {
+      "id": "cmo-weekly",
+      "title": "…",
+      "every": "7d",
+      "prompt": "org/prompts/cmo-weekly.md"
+    },
+    {
+      "id": "ads-daily",
+      "title": "…",
+      "every": "1d",
+      "prompt": "org/prompts/ads-daily.md",
+      "mode": "apply",
+      "requires": { "authority": ["ads-spend"], "evidence": ["ads_billing"] }
+    }
+  ],
   "learn": { "review": "codecast" },
   "instance_file": ".codecast/packs/growth.toml"
 }
@@ -447,7 +525,7 @@ the contract fully rather than keeping a second runtime beside it:
   `.codecast/packs/growth.toml` through `instance_file`; the budget guard and
   channel skills read authority from the instance file the bind step writes.
 - `runtime.mjs` stops being the loader: routines load through `cast org
-  template instructions`, which substitutes inputs and prepends the authority
+template instructions`, which substitutes inputs and prepends the authority
   and readiness the role holds. The skills lose their `${CLAUDE_PLUGIN_ROOT}`
   branch and read `{{template.root}}`.
 - `INSTANCES.toml` and the pack maintainer trigger retire in favour of the
@@ -807,8 +885,8 @@ proposal) and, once accepted, the button that runs it on the machine. Manual:
   `pending_upgrade` that arrived. Routes under `/cli/org/template/learning`
   and `/cli/org/template/learn/*`.
 - **The CLI**: `cast org template learning [on|off]`, `lessons <template>
-  [--codecast] [--status]` and `lessons <instance> --instance`, `lesson-status
-  <ids> --accept|--decline|--released-in`, `learn pass|status|due|rollout`.
+[--codecast] [--status]` and `lessons <instance> --instance`, `lesson-status
+<ids> --accept|--decline|--released-in`, `learn pass|status|due|rollout`.
   `bind` runs `upgradeFromRecord` first: `--to <version>` or the row's accepted
   upgrade, downloaded from the record, verified and applied through the same
   journalled `upgradeTemplate` a folder goes through (`releaseArtifact` is now
@@ -835,7 +913,7 @@ Every change on a stable instance waits for a person's click (sd-424); nothing
 here applies an update by itself.
 
 - **The rules** in `shared/contracts/orgTemplateRelease.ts`. `classifyRelease
-  (prev, next)` diffs two manifests: **authority** (authority entries, a routine's
+(prev, next)` diffs two manifests: **authority** (authority entries, a routine's
   mode, the line, the role's name or handle), **structure** (routines added,
   removed or re-cadenced; inputs, setup, evidence, ledgers, scoreboard; the
   default caps, which only shape new hires; any other manifest field) or **content** (the manifest is the same but for its
@@ -862,9 +940,9 @@ here applies an update by itself.
   or secret, an authority change) or that nothing is needed.
 - **Yank and retire**, the publisher's acts (the check publish makes):
   `cast org template yank <template> <version> --reason ...` and `cast org
-  template retire <template> [--reason] [--undo]`, each with `--codecast`,
+template retire <template> [--reason] [--undo]`, each with `--codecast`,
   `--team` or `--personal`. A yanked release (`releases[].yanked: {reason, at,
-  by}`) leaves the catalog, cannot be hired, accepted as an upgrade or
+by}`) leaves the catalog, cannot be hired, accepted as an upgrade or
   republished, and `latest` falls back to the newest release left; an instance
   already on it keeps binding where it is and is offered the fallback under any
   policy, with `update_rollback: {reason}`. A retired template
@@ -874,11 +952,11 @@ here applies an update by itself.
   retired row, so a workspace that retires its own copy hires Codecast's again).
 - **`instanceForRole`** adds `releases_behind` (newer non-yanked, non-draft
   releases), `update_class`, `update_changes`, `update_changelogs: [{version,
-  text}]` (newest first), `update_rollback`, `update_names` (routine id to
+text}]` (newest first), `update_rollback`, `update_names` (routine id to
   `{title, every}`, setup id and input key to title or label, from the offered
   release, the instance's own for removed items) beside `update_available`
   and `update_digest`; instance status adds `release: {version, status, class,
-  yanked}`.
+yanked}`.
 - **Tests**: `shared/contracts/orgTemplateRelease.test.ts`, the release block
   of `convex/orgTemplates.test.ts`, and publish/yank/retire in
   `cli/src/orgTemplate.test.ts`.

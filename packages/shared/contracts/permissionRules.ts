@@ -32,19 +32,112 @@ export interface PermissionRuleRequest {
 /** How many words name a command, by its leading words. Commands absent here
  *  are named by their first word. */
 const ARITY: Record<string, number> = {
-  cat: 1, chmod: 1, chown: 1, cp: 1, echo: 1, export: 1, grep: 1, kill: 1, killall: 1,
-  ln: 1, ls: 1, mkdir: 1, mv: 1, ps: 1, pwd: 1, rm: 1, rmdir: 1, sleep: 1, source: 1, tail: 1,
-  touch: 1, unset: 1, which: 1, head: 1, wc: 1, find: 1, sed: 1, rg: 1, curl: 1, jq: 1,
-  aws: 3, az: 3, bazel: 2, brew: 2, bun: 2, "bun run": 3, "bun x": 3, bunx: 2, cargo: 2, "cargo add": 3,
-  "cargo run": 3, cast: 2, cdk: 2, cf: 2, cmake: 2, composer: 2, deno: 2, "deno task": 3, doctl: 3,
-  docker: 2, "docker builder": 3, "docker compose": 3, "docker container": 3, "docker image": 3,
-  "docker network": 3, "docker volume": 3, firebase: 2, flyctl: 2, gcloud: 3, gh: 3, git: 2,
-  "git config": 3, "git remote": 3, "git stash": 3, go: 2, gradle: 2, helm: 2, heroku: 2, kubectl: 2,
-  "kubectl rollout": 3, make: 2, mvn: 2, node: 2, npm: 2, "npm exec": 3, "npm init": 3, "npm run": 3,
-  "npm view": 3, npx: 2, "npx convex": 3, pip: 2, pnpm: 2, "pnpm dlx": 3, "pnpm exec": 3, "pnpm run": 3,
-  poetry: 2, podman: 2, psql: 2, pulumi: 2, python: 2, python3: 2, railway: 2, rustup: 2, swift: 2,
-  systemctl: 2, terraform: 2, tmux: 2, turbo: 2, uv: 2, "uv run": 3, vercel: 2, wrangler: 2, yarn: 2,
-  "yarn dlx": 3, "yarn run": 3, xcrun: 2,
+  cat: 1,
+  chmod: 1,
+  chown: 1,
+  cp: 1,
+  echo: 1,
+  export: 1,
+  grep: 1,
+  kill: 1,
+  killall: 1,
+  ln: 1,
+  ls: 1,
+  mkdir: 1,
+  mv: 1,
+  ps: 1,
+  pwd: 1,
+  rm: 1,
+  rmdir: 1,
+  sleep: 1,
+  source: 1,
+  tail: 1,
+  touch: 1,
+  unset: 1,
+  which: 1,
+  head: 1,
+  wc: 1,
+  find: 1,
+  sed: 1,
+  rg: 1,
+  curl: 1,
+  jq: 1,
+  aws: 3,
+  az: 3,
+  bazel: 2,
+  brew: 2,
+  bun: 2,
+  "bun run": 3,
+  "bun x": 3,
+  bunx: 2,
+  cargo: 2,
+  "cargo add": 3,
+  "cargo run": 3,
+  cast: 2,
+  cdk: 2,
+  cf: 2,
+  cmake: 2,
+  composer: 2,
+  deno: 2,
+  "deno task": 3,
+  doctl: 3,
+  docker: 2,
+  "docker builder": 3,
+  "docker compose": 3,
+  "docker container": 3,
+  "docker image": 3,
+  "docker network": 3,
+  "docker volume": 3,
+  firebase: 2,
+  flyctl: 2,
+  gcloud: 3,
+  gh: 3,
+  git: 2,
+  "git config": 3,
+  "git remote": 3,
+  "git stash": 3,
+  go: 2,
+  gradle: 2,
+  helm: 2,
+  heroku: 2,
+  kubectl: 2,
+  "kubectl rollout": 3,
+  make: 2,
+  mvn: 2,
+  node: 2,
+  npm: 2,
+  "npm exec": 3,
+  "npm init": 3,
+  "npm run": 3,
+  "npm view": 3,
+  npx: 2,
+  "npx convex": 3,
+  pip: 2,
+  pnpm: 2,
+  "pnpm dlx": 3,
+  "pnpm exec": 3,
+  "pnpm run": 3,
+  poetry: 2,
+  podman: 2,
+  psql: 2,
+  pulumi: 2,
+  python: 2,
+  python3: 2,
+  railway: 2,
+  rustup: 2,
+  swift: 2,
+  systemctl: 2,
+  terraform: 2,
+  tmux: 2,
+  turbo: 2,
+  uv: 2,
+  "uv run": 3,
+  vercel: 2,
+  wrangler: 2,
+  yarn: 2,
+  "yarn dlx": 3,
+  "yarn run": 3,
+  xcrun: 2,
 };
 const ARITY_PREFIX = 3;
 
@@ -63,35 +156,114 @@ const DIRECTORY_MOVES = new Set(["cd", "pushd", "popd"]);
 /** Commands whose words are another command (or a script): a rule kept for
  *  them would allow anything, so they are never matched by a prefix. */
 const RUNS_ANOTHER_COMMAND = new Set([
-  "sudo", "doas", "su", "env", "command", "builtin", "exec", "eval", "xargs", "time", "nohup", "timeout",
-  "nice", "ionice", "watch", "sh", "bash", "zsh", "fish", "dash", "ksh", "ssh", "script", "parallel", "source", ".",
-  "caffeinate", "stdbuf", "setsid", "flock", "unbuffer", "chronic", "arch", "sandbox-exec", "taskpolicy", "uvx", "pipx",
+  "sudo",
+  "doas",
+  "su",
+  "env",
+  "command",
+  "builtin",
+  "exec",
+  "eval",
+  "xargs",
+  "time",
+  "nohup",
+  "timeout",
+  "nice",
+  "ionice",
+  "watch",
+  "sh",
+  "bash",
+  "zsh",
+  "fish",
+  "dash",
+  "ksh",
+  "ssh",
+  "script",
+  "parallel",
+  "source",
+  ".",
+  "caffeinate",
+  "stdbuf",
+  "setsid",
+  "flock",
+  "unbuffer",
+  "chronic",
+  "arch",
+  "sandbox-exec",
+  "taskpolicy",
+  "uvx",
+  "pipx",
   // Programs whose argument is a program: awk/sed scripts can run commands
   // and write files, and export/alias/unset change what later commands mean.
-  "awk", "gawk", "mawk", "sed", "gsed", "perl", "export", "alias", "unset", "set", "trap", "declare", "typeset",
-  "tmux", "screen", "cross-env", "dotenv", "concurrently", "npm-run-all", "run-p", "run-s", "entr", "nodemon", "watchexec",
+  "awk",
+  "gawk",
+  "mawk",
+  "sed",
+  "gsed",
+  "perl",
+  "export",
+  "alias",
+  "unset",
+  "set",
+  "trap",
+  "declare",
+  "typeset",
+  "tmux",
+  "screen",
+  "cross-env",
+  "dotenv",
+  "concurrently",
+  "npm-run-all",
+  "run-p",
+  "run-s",
+  "entr",
+  "nodemon",
+  "watchexec",
 ]);
 /** Interpreters whose flag runs inline code. */
-const INLINE_CODE = new Set(["python", "python3", "node", "bun", "deno", "ruby", "php", "osascript", "tsx", "ts-node", "bunx", "npx"]);
+const INLINE_CODE = new Set([
+  "python",
+  "python3",
+  "node",
+  "bun",
+  "deno",
+  "ruby",
+  "php",
+  "osascript",
+  "tsx",
+  "ts-node",
+  "bunx",
+  "npx",
+]);
 /** Flags that make an otherwise named command run something else. */
-const EXEC_FLAGS = /^(--pre(=|$)|--exec(=|$)|--checkpoint-action|--to-command|--use-compress-program|--rsh(=|$)|--upload-pack|--receive-pack|--config(=|$)|--command(=|$)|--pre-glob)/;
+const EXEC_FLAGS =
+  /^(--pre(=|$)|--exec(=|$)|--checkpoint-action|--to-command|--use-compress-program|--rsh(=|$)|--upload-pack|--receive-pack|--config(=|$)|--command(=|$)|--pre-glob)/;
 /** The same, for flags whose meaning belongs to one program. */
 const EXEC_FLAGS_OF: Record<string, RegExp> = {
   git: /^(-c|-x|-u|-O.*|--open-files-in-pager.*|--template.*|--exec-path.*|--upload-pack.*|--receive-pack.*|--ext-diff|--textconv)$/,
-  rsync: /^(-e|--rsh.*)$/, rg: /^--pre/, tar: /^(-I|--use-compress-program.*)$/,
-  ssh: /^-o/, scp: /^(-o.*|-S)$/, sftp: /^(-o.*|-S)$/, make: /^(--eval.*|-E|--file.*|-f)$/,
+  rsync: /^(-e|--rsh.*)$/,
+  rg: /^--pre/,
+  tar: /^(-I|--use-compress-program.*)$/,
+  ssh: /^-o/,
+  scp: /^(-o.*|-S)$/,
+  sftp: /^(-o.*|-S)$/,
+  make: /^(--eval.*|-E|--file.*|-f)$/,
   find: /^-(fprint|fprintf|fprint0|fls)$/,
 };
 /** Paths an edit rule never covers: the repository's own machinery and the
  *  agents' settings, where one write runs code or widens what agents may do. */
-const PROTECTED_SEGMENT = /(^|\/)(\.git|\.claude|\.codex|\.codecast|\.husky)(\/|$)/i;
+const PROTECTED_SEGMENT =
+  /(^|\/)(\.git|\.claude|\.codex|\.codecast|\.husky)(\/|$)/i;
 const INLINE_CODE_FLAGS = /^(-c|-e|-p|-r|--eval|--print|-[a-zA-Z]*[ce])$/;
 const FIND_ACTIONS = new Set(["-exec", "-execdir", "-ok", "-okdir", "-delete"]);
 
 /** Paths joined and `.`/`..` folded, without node:path (convex and the web read this too). */
 export function resolvePath(base: string, target: string): string {
   const parts: string[] = [];
-  for (const part of (target.startsWith("/") ? target : `${base}/${target}`).split("/")) {
+  for (const part of (target.startsWith("/")
+    ? target
+    : `${base}/${target}`
+  ).split("/")) {
     if (!part || part === ".") continue;
     if (part === "..") parts.pop();
     else parts.push(part);
@@ -134,7 +306,10 @@ export function splitShellCommand(command: string): string[][] | null {
     } else if (c === '"') {
       let j = i + 1;
       for (; j < command.length && command[j] !== '"'; j++) {
-        if (command[j] === "\\") { word += command[++j] ?? ""; continue; }
+        if (command[j] === "\\") {
+          word += command[++j] ?? "";
+          continue;
+        }
         // Any expansion: its value is decided when the shell runs it.
         if (command[j] === "`" || command[j] === "$") return null;
         word += command[j];
@@ -143,10 +318,19 @@ export function splitShellCommand(command: string): string[][] | null {
       inWord = true;
       i = j;
     } else if (c === "\\") {
-      if (command[i + 1] === "\n") { i++; continue; }
+      if (command[i + 1] === "\n") {
+        i++;
+        continue;
+      }
       word += command[++i] ?? "";
       inWord = true;
-    } else if (c === "`" || c === "$" || c === "(" || c === ")" || c === "{" && !inWord) {
+    } else if (
+      c === "`" ||
+      c === "$" ||
+      c === "(" ||
+      c === ")" ||
+      (c === "{" && !inWord)
+    ) {
       return null;
     } else if (c === "<" && command[i + 1] === "(") {
       return null;
@@ -163,13 +347,22 @@ export function splitShellCommand(command: string): string[][] | null {
         if (!/[\d-]/.test(command[j] ?? "")) return null;
         while (/[\d-]/.test(command[j] ?? "")) j++;
         if (/[^\s;&|]/.test(command[j] ?? " ")) return null;
-        if (inWord && /^\d$/.test(word)) { word = ""; inWord = false; }
+        if (inWord && /^\d$/.test(word)) {
+          word = "";
+          inWord = false;
+        }
         i = j - 1;
         continue;
       }
       while (command[j] === " ") j++;
-      if (command.startsWith("/dev/null", j) && !/[^\s;&|]/.test(command[j + 9] ?? " ")) {
-        if (inWord && /^\d$/.test(word)) { word = ""; inWord = false; }
+      if (
+        command.startsWith("/dev/null", j) &&
+        !/[^\s;&|]/.test(command[j + 9] ?? " ")
+      ) {
+        if (inWord && /^\d$/.test(word)) {
+          word = "";
+          inWord = false;
+        }
         i = j + 8;
         continue;
       }
@@ -212,10 +405,14 @@ function namedBy(words: readonly string[]): { words: string[]; full: boolean } {
   let arity = 1;
   for (let length = Math.min(ARITY_PREFIX, rest.length); length > 0; length--) {
     const found = ARITY[rest.slice(0, length).join(" ")];
-    if (found !== undefined) { arity = found; break; }
+    if (found !== undefined) {
+      arity = found;
+      break;
+    }
   }
   const named = rest.slice(0, arity);
-  const full = named.length === arity && named.slice(1).every((w) => !/^[-+]/.test(w));
+  const full =
+    named.length === arity && named.slice(1).every((w) => !/^[-+]/.test(w));
   return { words: [...words.slice(0, start), ...named], full };
 }
 
@@ -227,21 +424,41 @@ function readable(words: readonly string[]): boolean {
   const base = name.split("/").pop() ?? name;
   if (prefix.some((w) => /[$*?[\]]/.test(w))) return false;
   if (RUNS_ANOTHER_COMMAND.has(base)) return false;
-  if (words.some((w) => INLINE_CODE.has(w.split("/").pop() ?? w)) && words.some((w) => INLINE_CODE_FLAGS.test(w))) return false;
+  if (
+    words.some((w) => INLINE_CODE.has(w.split("/").pop() ?? w)) &&
+    words.some((w) => INLINE_CODE_FLAGS.test(w))
+  )
+    return false;
   if (base === "find" && words.some((w) => FIND_ACTIONS.has(w))) return false;
-  if (words.slice(1).some((w) => EXEC_FLAGS.test(w) || EXEC_FLAGS_OF[base]?.test(w))) return false;
+  if (
+    words
+      .slice(1)
+      .some((w) => EXEC_FLAGS.test(w) || EXEC_FLAGS_OF[base]?.test(w))
+  )
+    return false;
   return true;
 }
 
 /** The permission request a shell command makes. */
-export function shellRequest(command: string, ctx: ShellContext = {}): PermissionRuleRequest {
+export function shellRequest(
+  command: string,
+  ctx: ShellContext = {},
+): PermissionRuleRequest {
   const split = splitShellCommand(command);
-  const opaque = { permission: "bash", patterns: [command.trim()], always: [], opaque: true };
+  const opaque = {
+    permission: "bash",
+    patterns: [command.trim()],
+    always: [],
+    opaque: true,
+  };
   if (!split) return opaque;
   let cwd = ctx.cwd;
   const commands: string[][] = [];
   for (const words of split) {
-    if (!DIRECTORY_MOVES.has(words[0])) { commands.push(words); continue; }
+    if (!DIRECTORY_MOVES.has(words[0])) {
+      commands.push(words);
+      continue;
+    }
     const target = words[0] === "cd" && words.length === 2 ? words[1] : null;
     if (!target || !ctx.root || !cwd || /[$~*?]/.test(target)) return opaque;
     cwd = resolvePath(cwd, target);
@@ -250,68 +467,140 @@ export function shellRequest(command: string, ctx: ShellContext = {}): Permissio
   if (!commands.every(readable)) return opaque;
   const patterns = commands.map((words) => words.join(" "));
   const named = commands.map(namedBy);
-  const always = named.every((n) => n.full) ? [...new Set(named.map((n) => `${n.words.join(" ")} *`))] : [];
+  const always = named.every((n) => n.full)
+    ? [...new Set(named.map((n) => `${n.words.join(" ")} *`))]
+    : [];
   return { permission: "bash", patterns, always };
 }
 
 /** The request a file edit makes: "always" keeps every edit inside the
  *  project root, and nothing for a file outside it. */
-export function editRequest(files: readonly string[], ctx: ShellContext = {}): PermissionRuleRequest {
+export function editRequest(
+  files: readonly string[],
+  ctx: ShellContext = {},
+): PermissionRuleRequest {
   return pathRequest("edit", files, ctx);
 }
 
-function pathRequest(permission: "edit" | "read", files: readonly string[], ctx: ShellContext): PermissionRuleRequest {
-  const resolved = files.map((f) => (ctx.cwd || f.startsWith("/") ? resolvePath(ctx.cwd ?? "/", f) : f));
-  if (!resolved.length) return { permission, patterns: [], always: [], opaque: true };
+function pathRequest(
+  permission: "edit" | "read",
+  files: readonly string[],
+  ctx: ShellContext,
+): PermissionRuleRequest {
+  const resolved = files.map((f) =>
+    ctx.cwd || f.startsWith("/") ? resolvePath(ctx.cwd ?? "/", f) : f,
+  );
+  if (!resolved.length)
+    return { permission, patterns: [], always: [], opaque: true };
   const root = ctx.root?.replace(/\/+$/, "");
-  const kept = root && !/[*?]/.test(root) && resolved.every((f) => insideRoot(f, root) && !PROTECTED_SEGMENT.test(f)) ? [`${root}/*`] : [];
+  const kept =
+    root &&
+    !/[*?]/.test(root) &&
+    resolved.every((f) => insideRoot(f, root) && !PROTECTED_SEGMENT.test(f))
+      ? [`${root}/*`]
+      : [];
   return { permission, patterns: resolved, always: kept };
 }
 
 const EDIT_TOOLS = new Set(["Edit", "MultiEdit", "Write", "NotebookEdit"]);
 /** Tools that read a path, by the input field naming it. Claude asks for them
  *  only outside its directories, so a rule keeps the project root at most. */
-const READ_TOOLS: Record<string, string> = { Read: "file_path", Grep: "path", Glob: "path", NotebookRead: "notebook_path", LS: "path" };
+const READ_TOOLS: Record<string, string> = {
+  Read: "file_path",
+  Grep: "path",
+  Glob: "path",
+  NotebookRead: "notebook_path",
+  LS: "path",
+};
 
 function hostOf(url: unknown): string | null {
   if (typeof url !== "string") return null;
-  try { return new URL(url).hostname || null; } catch { return null; }
+  try {
+    return new URL(url).hostname || null;
+  } catch {
+    return null;
+  }
 }
 
 /** The request a Claude Code tool call makes, from its tool_input. */
-export function claudeToolRequest(toolName: string, input: Record<string, unknown> | null | undefined, ctx: ShellContext = {}): PermissionRuleRequest {
+export function claudeToolRequest(
+  toolName: string,
+  input: Record<string, unknown> | null | undefined,
+  ctx: ShellContext = {},
+): PermissionRuleRequest {
   const i = input ?? {};
-  if (toolName === "Bash" && typeof i.command === "string") return shellRequest(i.command, ctx);
+  if (toolName === "Bash" && typeof i.command === "string")
+    return shellRequest(i.command, ctx);
   if (EDIT_TOOLS.has(toolName)) {
-    const file = [i.file_path, i.notebook_path].find((v) => typeof v === "string") as string | undefined;
+    const file = [i.file_path, i.notebook_path].find(
+      (v) => typeof v === "string",
+    ) as string | undefined;
     return editRequest(file ? [file] : [], ctx);
   }
   if (READ_TOOLS[toolName]) {
     // A glob that climbs out of its path, or names its own root, reads elsewhere.
-    if (typeof i.pattern === "string" && toolName === "Glob" && /(^|[/{,])\.\.([/},]|$)|^[/~]|\{/.test(i.pattern)) {
-      return { permission: "read", patterns: [String(i.path ?? ""), i.pattern], always: [], opaque: true };
+    if (
+      typeof i.pattern === "string" &&
+      toolName === "Glob" &&
+      /(^|[/{,])\.\.([/},]|$)|^[/~]|\{/.test(i.pattern)
+    ) {
+      return {
+        permission: "read",
+        patterns: [String(i.path ?? ""), i.pattern],
+        always: [],
+        opaque: true,
+      };
     }
     const target = i[READ_TOOLS[toolName]];
     return pathRequest("read", typeof target === "string" ? [target] : [], ctx);
   }
   if (toolName === "WebFetch") {
     const host = hostOf(i.url);
-    return host ? { permission: "webfetch", patterns: [host], always: [host] } : { permission: "webfetch", patterns: [String(i.url ?? "")], always: [], opaque: true };
+    return host
+      ? { permission: "webfetch", patterns: [host], always: [host] }
+      : {
+          permission: "webfetch",
+          patterns: [String(i.url ?? "")],
+          always: [],
+          opaque: true,
+        };
   }
   return { permission: toolName.toLowerCase(), patterns: ["*"], always: ["*"] };
 }
 
 /** The request a Codex app-server approval makes, from its method and params. */
-export function codexApprovalRequest(method: string, params: Record<string, unknown> | null | undefined, ctx: ShellContext = {}): PermissionRuleRequest | null {
+export function codexApprovalRequest(
+  method: string,
+  params: Record<string, unknown> | null | undefined,
+  ctx: ShellContext = {},
+): PermissionRuleRequest | null {
   const p = params ?? {};
-  const here = { ...ctx, ...(typeof p.cwd === "string" && p.cwd && { cwd: p.cwd }) };
-  if (method === "item/commandExecution/requestApproval" || method === "execCommandApproval") {
-    const command = Array.isArray(p.command) ? codexArgvCommand(p.command as unknown[]) : typeof p.command === "string" ? p.command : null;
+  const here = {
+    ...ctx,
+    ...(typeof p.cwd === "string" && p.cwd && { cwd: p.cwd }),
+  };
+  if (
+    method === "item/commandExecution/requestApproval" ||
+    method === "execCommandApproval"
+  ) {
+    const command = Array.isArray(p.command)
+      ? codexArgvCommand(p.command as unknown[])
+      : typeof p.command === "string"
+        ? p.command
+        : null;
     return command ? shellRequest(command, here) : null;
   }
-  if (method === "item/fileChange/requestApproval" || method === "applyPatchApproval") {
+  if (
+    method === "item/fileChange/requestApproval" ||
+    method === "applyPatchApproval"
+  ) {
     // The newer file change approval names no files: nothing to judge or keep.
-    return editRequest(Object.keys((p.changes ?? p.fileChanges ?? {}) as Record<string, unknown>), here);
+    return editRequest(
+      Object.keys(
+        (p.changes ?? p.fileChanges ?? {}) as Record<string, unknown>,
+      ),
+      here,
+    );
   }
   return null;
 }
@@ -319,15 +608,27 @@ export function codexApprovalRequest(method: string, params: Record<string, unkn
 /** Codex sends argv, usually `["bash", "-lc", "<script>"]`; the script is the command. */
 function codexArgvCommand(argv: unknown[]): string | null {
   const words = argv.filter((w): w is string => typeof w === "string");
-  if (words.length >= 3 && /(^|\/)(ba|z)?sh$/.test(words[0]) && /^-l?c$/.test(words[1])) return words[2];
+  if (
+    words.length >= 3 &&
+    /(^|\/)(ba|z)?sh$/.test(words[0]) &&
+    /^-l?c$/.test(words[1])
+  )
+    return words[2];
   if (!words.length) return null;
-  return words.map((w) => (/^[\w@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, `'\\''`)}'`)).join(" ");
+  return words
+    .map((w) =>
+      /^[\w@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, `'\\''`)}'`,
+    )
+    .join(" ");
 }
 
 /** Shell-style wildcard: `*` any run, `?` one character, and a trailing ` *`
  *  also matches the bare command (`git push *` covers `git push`). */
 export function wildcardMatch(input: string, pattern: string): boolean {
-  let source = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
+  let source = pattern
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/\?/g, ".");
   if (source.endsWith(" .*")) source = `${source.slice(0, -3)}( .*)?`;
   // A directory rule (`/repo/*`) covers the directory itself.
   else if (source.endsWith("/.*")) source = `${source.slice(0, -3)}(/.*)?`;
@@ -357,8 +658,12 @@ function denyMatches(pattern: string, rule: string, opaque: boolean): boolean {
   if (!opaque) return false;
   const stem = rule.replace(/ \*$/, "").trim();
   if (!stem || /[*?]/.test(stem)) return false;
-  const escaped = stem.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+");
-  return new RegExp(`(^|[\\s;&|(\`'"/])${escaped}(\\s|$|[;&|)'"\`])`).test(pattern);
+  const escaped = stem
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/ /g, "\\s+");
+  return new RegExp(`(^|[\\s;&|(\`'"/])${escaped}(\\s|$|[;&|)'"\`])`).test(
+    pattern,
+  );
 }
 
 export type PermissionVerdict =
@@ -369,37 +674,79 @@ export type PermissionVerdict =
 /** Settles a request against rules: any deny that matches a pattern wins;
  *  allow only when every pattern has an allow; otherwise ask, naming the
  *  patterns no rule covers. A request with no patterns asks. */
-export function evaluatePermission(request: PermissionRuleRequest, rules: readonly PermissionRule[]): PermissionVerdict {
-  const relevant = rules.filter((r) => r.permission === request.permission || r.permission === "*");
+export function evaluatePermission(
+  request: PermissionRuleRequest,
+  rules: readonly PermissionRule[],
+): PermissionVerdict {
+  const relevant = rules.filter(
+    (r) => r.permission === request.permission || r.permission === "*",
+  );
   for (const pattern of request.patterns) {
-    const deny = relevant.find((r) => r.action === "deny" && denyMatches(pattern, r.pattern, !!request.opaque));
+    const deny = relevant.find(
+      (r) =>
+        r.action === "deny" &&
+        denyMatches(pattern, r.pattern, !!request.opaque),
+    );
     if (deny) return { action: "deny", rule: deny, pattern };
   }
-  if (!request.patterns.length || request.opaque) return { action: "ask", uncovered: request.patterns };
+  if (!request.patterns.length || request.opaque)
+    return { action: "ask", uncovered: request.patterns };
   const used: PermissionRule[] = [];
   const uncovered: string[] = [];
   for (const pattern of request.patterns) {
-    const shielded = (request.permission === "edit" || request.permission === "read") && PROTECTED_SEGMENT.test(pattern);
-    const allow = shielded ? undefined : relevant.find((r) => r.action === "allow" && wildcardMatch(pattern, r.pattern));
-    if (allow) { if (!used.includes(allow)) used.push(allow); } else uncovered.push(pattern);
+    const shielded =
+      (request.permission === "edit" || request.permission === "read") &&
+      PROTECTED_SEGMENT.test(pattern);
+    const allow = shielded
+      ? undefined
+      : relevant.find(
+          (r) => r.action === "allow" && wildcardMatch(pattern, r.pattern),
+        );
+    if (allow) {
+      if (!used.includes(allow)) used.push(allow);
+    } else uncovered.push(pattern);
   }
-  return uncovered.length ? { action: "ask", uncovered } : { action: "allow", rules: used };
+  return uncovered.length
+    ? { action: "ask", uncovered }
+    : { action: "allow", rules: used };
 }
 
 /** A saved rule's identity: the fields the server keeps one row per, normalized
  *  as the server stores them. A client's stub carries it, so the server row that
  *  answers the stub supersedes it in the store (registry altKey). */
-export function permissionRuleKey(rule: { project: string; scope: string; permission: string; pattern: string; action: string }): string {
-  return [rule.project, rule.scope, rule.permission.slice(0, 80), rule.pattern.trim().slice(0, 300), rule.action].join("\u0000");
+export function permissionRuleKey(rule: {
+  project: string;
+  scope: string;
+  permission: string;
+  pattern: string;
+  action: string;
+}): string {
+  return [
+    rule.project,
+    rule.scope,
+    rule.permission.slice(0, 80),
+    rule.pattern.trim().slice(0, 300),
+    rule.action,
+  ].join("\u0000");
 }
 
 /** A rule as a person reads it: the pattern, with the permission named when it is not a command. */
-export function permissionRuleLabel(rule: Pick<PermissionRule, "permission" | "pattern">): string {
+export function permissionRuleLabel(
+  rule: Pick<PermissionRule, "permission" | "pattern">,
+): string {
   if (rule.permission === "bash") return rule.pattern;
-  if (rule.permission === "edit") return rule.pattern.endsWith("/*") ? `edit in ${rule.pattern.slice(0, -2)}` : `edit ${rule.pattern}`;
-  if (rule.permission === "read") return rule.pattern.endsWith("/*") ? `read in ${rule.pattern.slice(0, -2)}` : `read ${rule.pattern}`;
+  if (rule.permission === "edit")
+    return rule.pattern.endsWith("/*")
+      ? `edit in ${rule.pattern.slice(0, -2)}`
+      : `edit ${rule.pattern}`;
+  if (rule.permission === "read")
+    return rule.pattern.endsWith("/*")
+      ? `read in ${rule.pattern.slice(0, -2)}`
+      : `read ${rule.pattern}`;
   if (rule.permission === "webfetch") return `fetch ${rule.pattern}`;
-  return rule.pattern === "*" ? rule.permission : `${rule.permission} ${rule.pattern}`;
+  return rule.pattern === "*"
+    ? rule.permission
+    : `${rule.permission} ${rule.pattern}`;
 }
 
 export const MAX_RULE_PATTERNS = 8;
@@ -409,19 +756,41 @@ export const MAX_RULE_PATTERN_LENGTH = 1000;
 /** The request as a row may store it. One past the bounds keeps no patterns
  *  rather than a cut of them: a cut could drop the sub-command a deny names,
  *  and a request with no patterns always asks. */
-export function boundedRuleRequest(request: PermissionRuleRequest): PermissionRuleRequest {
-  const fits = (xs: string[], n: number) => xs.length <= n && xs.every((x) => x.length <= MAX_RULE_PATTERN_LENGTH);
+export function boundedRuleRequest(
+  request: PermissionRuleRequest,
+): PermissionRuleRequest {
+  const fits = (xs: string[], n: number) =>
+    xs.length <= n && xs.every((x) => x.length <= MAX_RULE_PATTERN_LENGTH);
   const permission = request.permission.slice(0, 80);
-  if (!fits(request.patterns, MAX_RULE_PATTERNS * 4) || !fits(request.always, MAX_RULE_PATTERNS)) {
+  if (
+    !fits(request.patterns, MAX_RULE_PATTERNS * 4) ||
+    !fits(request.always, MAX_RULE_PATTERNS)
+  ) {
     // One opaque pattern of the whole text: no allow covers it, and a deny
     // still finds the words it names anywhere in it.
-    return { permission, patterns: [request.patterns.join(" ; ").slice(0, MAX_RULE_PATTERNS * 4 * MAX_RULE_PATTERN_LENGTH)], always: [], opaque: true };
+    return {
+      permission,
+      patterns: [
+        request.patterns
+          .join(" ; ")
+          .slice(0, MAX_RULE_PATTERNS * 4 * MAX_RULE_PATTERN_LENGTH),
+      ],
+      always: [],
+      opaque: true,
+    };
   }
-  return { permission, patterns: request.patterns, always: request.always, ...(request.opaque && { opaque: true }) };
+  return {
+    permission,
+    patterns: request.patterns,
+    always: request.always,
+    ...(request.opaque && { opaque: true }),
+  };
 }
 
 /** The rules an "always" on this request keeps; none for a call that cannot be kept. */
-export function keptPatterns(request: PermissionRuleRequest | undefined): string[] {
+export function keptPatterns(
+  request: PermissionRuleRequest | undefined,
+): string[] {
   return request && !request.opaque ? request.always : [];
 }
 
@@ -439,36 +808,73 @@ export interface PendingAsk {
  *  (the server passes all of them, a client the ones the answer kept). */
 export function cascadeFromAnswer(
   answered: PendingAsk,
-  answer: { status: "approved" | "denied"; message?: string; remember?: boolean },
+  answer: {
+    status: "approved" | "denied";
+    message?: string;
+    remember?: boolean;
+  },
   pending: readonly PendingAsk[],
   rules: readonly PermissionRule[],
 ): { approve: string[]; deny: string[] } {
   if (!answered.session_id) return { approve: [], deny: [] };
-  const siblings = pending.filter((p) => p._id !== answered._id && p.session_id === answered.session_id && p.conversation_id === answered.conversation_id);
-  if (answer.status === "approved" && answer.remember && keptPatterns(answered.rule_request).length) {
-    return { approve: siblings.filter((p) => p.rule_request && evaluatePermission(p.rule_request, rules).action === "allow").map((p) => p._id), deny: [] };
+  const siblings = pending.filter(
+    (p) =>
+      p._id !== answered._id &&
+      p.session_id === answered.session_id &&
+      p.conversation_id === answered.conversation_id,
+  );
+  if (
+    answer.status === "approved" &&
+    answer.remember &&
+    keptPatterns(answered.rule_request).length
+  ) {
+    return {
+      approve: siblings
+        .filter(
+          (p) =>
+            p.rule_request &&
+            evaluatePermission(p.rule_request, rules).action === "allow",
+        )
+        .map((p) => p._id),
+      deny: [],
+    };
   }
-  if (answer.status === "denied" && answer.message?.trim()) return { approve: [], deny: siblings.map((p) => p._id) };
+  if (answer.status === "denied" && answer.message?.trim())
+    return { approve: [], deny: siblings.map((p) => p._id) };
   return { approve: [], deny: [] };
 }
 
 /** What an "always" on a stored request may keep, re-derived from what the
  *  call touched rather than taken from the caller: commands their own arity
  *  prefix, edits the conversation's checkout root, a fetch its hosts. */
-export function keepableFor(request: PermissionRuleRequest, root?: string): string[] {
+export function keepableFor(
+  request: PermissionRuleRequest,
+  root?: string,
+): string[] {
   if (request.opaque || !request.patterns.length) return [];
   if (request.permission === "bash") {
     // Each pattern is one sub-command already split (its quoted words joined
     // by spaces), so its prefix is read off its leading words, not re-parsed.
     const named = request.patterns.map((p) => namedBy(p.split(" ")));
-    if (named.some((n) => !n.full || n.words.some((w) => /[$*?[\]`'"\\]/.test(w)))) return [];
+    if (
+      named.some((n) => !n.full || n.words.some((w) => /[$*?[\]`'"\\]/.test(w)))
+    )
+      return [];
     const derived = [...new Set(named.map((n) => `${n.words.join(" ")} *`))];
-    return request.always.length === derived.length && request.always.every((a) => derived.includes(a)) ? derived : [];
+    return request.always.length === derived.length &&
+      request.always.every((a) => derived.includes(a))
+      ? derived
+      : [];
   }
   if (request.permission === "edit" || request.permission === "read") {
     if (!root) return [];
-    return pathRequest(request.permission, request.patterns, { root }).always.filter((a) => request.always.includes(a));
+    return pathRequest(request.permission, request.patterns, {
+      root,
+    }).always.filter((a) => request.always.includes(a));
   }
-  if (request.permission === "webfetch") return request.always.every((a) => request.patterns.includes(a)) ? request.always : [];
+  if (request.permission === "webfetch")
+    return request.always.every((a) => request.patterns.includes(a))
+      ? request.always
+      : [];
   return request.always.length === 1 && request.always[0] === "*" ? ["*"] : [];
 }

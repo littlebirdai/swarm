@@ -27,11 +27,19 @@ export function PaneCard({
       <div className="max-w-[380px] flex flex-col items-center gap-2.5 text-center">
         {icon && <div className="text-sol-text-dim/60">{icon}</div>}
         {host && (
-          <div className="text-meta font-mono text-sol-text-muted break-all">{host}</div>
+          <div className="text-meta font-mono text-sol-text-muted break-all">
+            {host}
+          </div>
         )}
         <div className="text-[13px] text-sol-text">{headline}</div>
-        {detail && <div className="text-meta leading-relaxed text-sol-text-dim">{detail}</div>}
-        {actions && <div className="mt-1.5 flex items-center gap-2">{actions}</div>}
+        {detail && (
+          <div className="text-meta leading-relaxed text-sol-text-dim">
+            {detail}
+          </div>
+        )}
+        {actions && (
+          <div className="mt-1.5 flex items-center gap-2">{actions}</div>
+        )}
       </div>
     </div>
   );

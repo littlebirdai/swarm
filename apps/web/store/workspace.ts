@@ -11,9 +11,22 @@
 // See WORKSPACE_SLOTS.md for the design and the migration order.
 
 /** Screen regions, in left-to-right order (dock sits beneath them all). */
-export type SlotId = "nav" | "list" | "primary" | "secondary" | "context" | "dock";
+export type SlotId =
+  | "nav"
+  | "list"
+  | "primary"
+  | "secondary"
+  | "context"
+  | "dock";
 
-export const SLOT_IDS: readonly SlotId[] = ["nav", "list", "primary", "secondary", "context", "dock"] as const;
+export const SLOT_IDS: readonly SlotId[] = [
+  "nav",
+  "list",
+  "primary",
+  "secondary",
+  "context",
+  "dock",
+] as const;
 
 /** What a slot is showing. `ref` identifies the subject (a session, doc, task). */
 export type Pane =
@@ -52,7 +65,10 @@ export type SlotState = {
 
 export type WorkspaceState = Record<SlotId, SlotState>;
 
-const emptySlot = (presentation: Presentation = "split"): SlotState => ({ pane: null, presentation });
+const emptySlot = (presentation: Presentation = "split"): SlotState => ({
+  pane: null,
+  presentation,
+});
 
 export function createWorkspace(): WorkspaceState {
   return {
@@ -66,7 +82,10 @@ export function createWorkspace(): WorkspaceState {
 }
 
 /** Same subject in the same role — the identity used by dismissal and swap. */
-export function samePane(a: Pane | null | undefined, b: Pane | null | undefined): boolean {
+export function samePane(
+  a: Pane | null | undefined,
+  b: Pane | null | undefined,
+): boolean {
   if (!a || !b) return a == null && b == null;
   if (a.kind !== b.kind) return false;
   const ra = "ref" in a ? a.ref : undefined;
@@ -74,14 +93,16 @@ export function samePane(a: Pane | null | undefined, b: Pane | null | undefined)
   return ra === rb;
 }
 
-
 export function isVisible(ws: WorkspaceState, slot: SlotId): boolean {
   const s = ws[slot];
   return s.pane != null && s.presentation !== "collapsed";
 }
 
-
-function patch(ws: WorkspaceState, slot: SlotId, next: Partial<SlotState>): WorkspaceState {
+function patch(
+  ws: WorkspaceState,
+  slot: SlotId,
+  next: Partial<SlotState>,
+): WorkspaceState {
   return { ...ws, [slot]: { ...ws[slot], ...next } };
 }
 
@@ -97,7 +118,9 @@ export function showPane(
   opts?: { presentation?: Presentation },
 ): WorkspaceState {
   const cur = ws[slot];
-  const presentation = opts?.presentation ?? (cur.presentation === "collapsed" ? "split" : cur.presentation);
+  const presentation =
+    opts?.presentation ??
+    (cur.presentation === "collapsed" ? "split" : cur.presentation);
   return patch(ws, slot, {
     pane,
     presentation,
@@ -112,12 +135,16 @@ export function showPane(
  * closed until a different pane wants the slot; without it this is bookkeeping
  * (the surface went away) and the pane may come back on its own.
  */
-export function hidePane(ws: WorkspaceState, slot: SlotId, opts?: { remember?: boolean }): WorkspaceState {
+export function hidePane(
+  ws: WorkspaceState,
+  slot: SlotId,
+  opts?: { remember?: boolean },
+): WorkspaceState {
   const cur = ws[slot];
   const remember = opts?.remember !== false;
   return patch(ws, slot, {
     pane: null,
-    userClosed: remember && cur.pane ? cur.pane : cur.userClosed ?? null,
+    userClosed: remember && cur.pane ? cur.pane : (cur.userClosed ?? null),
   });
 }
 
@@ -125,21 +152,38 @@ export function hidePane(ws: WorkspaceState, slot: SlotId, opts?: { remember?: b
  * May an automatic rule (route default, carry-along) put this pane here? False
  * only while the user's own close of that same pane stands.
  */
-export function autoAllowed(ws: WorkspaceState, slot: SlotId, pane: Pane): boolean {
+export function autoAllowed(
+  ws: WorkspaceState,
+  slot: SlotId,
+  pane: Pane,
+): boolean {
   return !samePane(ws[slot].userClosed, pane);
 }
 
 /** Show if absent or different; hide (remembering) if this exact pane is up. */
-export function togglePane(ws: WorkspaceState, slot: SlotId, pane: Pane): WorkspaceState {
-  if (isVisible(ws, slot) && samePane(ws[slot].pane, pane)) return hidePane(ws, slot, { remember: true });
+export function togglePane(
+  ws: WorkspaceState,
+  slot: SlotId,
+  pane: Pane,
+): WorkspaceState {
+  if (isVisible(ws, slot) && samePane(ws[slot].pane, pane))
+    return hidePane(ws, slot, { remember: true });
   return showPane(ws, slot, pane);
 }
 
-export function setPresentation(ws: WorkspaceState, slot: SlotId, presentation: Presentation): WorkspaceState {
+export function setPresentation(
+  ws: WorkspaceState,
+  slot: SlotId,
+  presentation: Presentation,
+): WorkspaceState {
   return patch(ws, slot, { presentation });
 }
 
-export function setSize(ws: WorkspaceState, slot: SlotId, size: number): WorkspaceState {
+export function setSize(
+  ws: WorkspaceState,
+  slot: SlotId,
+  size: number,
+): WorkspaceState {
   return patch(ws, slot, { size });
 }
 
@@ -155,7 +199,11 @@ export const SESSION_LIST_PANE: Pane = { kind: "sessionList" };
 export const NAV_PANE: Pane = { kind: "nav" };
 export const TERMINAL_PANE: Pane = { kind: "terminal" };
 
-export function slotShows(ws: WorkspaceState, slot: SlotId, kind: PaneKind): boolean {
+export function slotShows(
+  ws: WorkspaceState,
+  slot: SlotId,
+  kind: PaneKind,
+): boolean {
   const s = ws[slot];
   return s.pane?.kind === kind && s.presentation !== "collapsed";
 }
@@ -169,7 +217,6 @@ export function isSessionRailOpen(ws: WorkspaceState): boolean {
 export function isCommentRailOpen(ws: WorkspaceState): boolean {
   return slotShows(ws, "context", "comments");
 }
-
 
 // ---------------------------------------------------------------------------
 // Persistence
@@ -202,15 +249,26 @@ export function slotsWithPersistence(scope: "shared" | "device"): SlotId[] {
 }
 
 /** Pane kinds whose presence is a durable preference rather than a subject. */
-const PERSISTABLE_KINDS: ReadonlySet<PaneKind> = new Set<PaneKind>(["nav", "sessionList", "terminal", "page"]);
+const PERSISTABLE_KINDS: ReadonlySet<PaneKind> = new Set<PaneKind>([
+  "nav",
+  "sessionList",
+  "terminal",
+  "page",
+]);
 
-export type PersistedWorkspace = Partial<Record<SlotId, { kind?: PaneKind; presentation: Presentation; size?: number }>>;
+export type PersistedWorkspace = Partial<
+  Record<SlotId, { kind?: PaneKind; presentation: Presentation; size?: number }>
+>;
 
-export function serializeWorkspace(ws: WorkspaceState, scope?: "shared" | "device"): PersistedWorkspace {
+export function serializeWorkspace(
+  ws: WorkspaceState,
+  scope?: "shared" | "device",
+): PersistedWorkspace {
   const out: PersistedWorkspace = {};
   for (const id of scope ? slotsWithPersistence(scope) : SLOT_IDS) {
     const s = ws[id];
-    const kind = s.pane && PERSISTABLE_KINDS.has(s.pane.kind) ? s.pane.kind : undefined;
+    const kind =
+      s.pane && PERSISTABLE_KINDS.has(s.pane.kind) ? s.pane.kind : undefined;
     out[id] = { kind, presentation: s.presentation, size: s.size };
   }
   return out;
@@ -224,7 +282,8 @@ export function hydrateWorkspace(
   const merged: PersistedWorkspace = { ...(saved ?? {}) };
   for (const id of slotsWithPersistence("device")) {
     const d = deviceSaved?.[id];
-    if (d) merged[id] = d; else delete merged[id];
+    if (d) merged[id] = d;
+    else delete merged[id];
   }
   if (!saved && !deviceSaved) return ws;
   for (const id of SLOT_IDS) {
@@ -233,11 +292,15 @@ export function hydrateWorkspace(
     const s = merged[id];
     if (!s) continue;
     const pane: Pane | null =
-      s.kind === "nav" ? NAV_PANE
-      : s.kind === "sessionList" ? SESSION_LIST_PANE
-      : s.kind === "terminal" ? TERMINAL_PANE
-      : s.kind === "page" ? { kind: "page" }
-      : null;
+      s.kind === "nav"
+        ? NAV_PANE
+        : s.kind === "sessionList"
+          ? SESSION_LIST_PANE
+          : s.kind === "terminal"
+            ? TERMINAL_PANE
+            : s.kind === "page"
+              ? { kind: "page" }
+              : null;
     ws[id] = {
       pane: id === "primary" ? { kind: "page" } : pane,
       presentation: s.presentation ?? ws[id].presentation,
@@ -254,13 +317,17 @@ export function hydrateWorkspace(
  * anything malformed keeps the current slot. Returns `current` untouched when
  * nothing well-formed is in the snapshot, so callers can cheaply detect a no-op.
  */
-export function adoptWorkspaceSnapshot(current: WorkspaceState, snap: unknown): WorkspaceState {
+export function adoptWorkspaceSnapshot(
+  current: WorkspaceState,
+  snap: unknown,
+): WorkspaceState {
   if (!snap || typeof snap !== "object") return current;
   const next: WorkspaceState = { ...current };
   let changed = false;
   for (const id of SLOT_IDS) {
     const s = (snap as Partial<Record<SlotId, SlotState>>)[id];
-    if (!s || typeof s !== "object" || !("pane" in s) || !("presentation" in s)) continue;
+    if (!s || typeof s !== "object" || !("pane" in s) || !("presentation" in s))
+      continue;
     next[id] = s;
     changed = true;
   }
@@ -290,7 +357,12 @@ export function overlayConversationId(ws: WorkspaceState): string | null {
 // (components/FleetBoard: it shows the overlay, and its unmount clears it).
 // ---------------------------------------------------------------------------
 
-export type SurfaceKind = "inbox" | "conversation" | "working" | "settings" | "plain";
+export type SurfaceKind =
+  | "inbox"
+  | "conversation"
+  | "working"
+  | "settings"
+  | "plain";
 
 export function surfaceForPath(pathname: string): SurfaceKind {
   if (pathname.startsWith("/settings")) return "settings";

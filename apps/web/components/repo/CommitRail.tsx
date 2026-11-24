@@ -55,7 +55,13 @@ export function CommitRail({
 }) {
   const threads = useMemo(() => commitThreads(comments), [comments]);
   const lineIndex = useMemo(() => {
-    const out: { file: string; line: number; count: number; resolved: boolean; first: number }[] = [];
+    const out: {
+      file: string;
+      line: number;
+      count: number;
+      resolved: boolean;
+      first: number;
+    }[] = [];
     for (const [file, byLine] of groupCommentsByFileLine(comments)) {
       for (const [key, thread] of byLine) {
         if (!thread.length) continue;
@@ -93,22 +99,35 @@ export function CommitRail({
   }
 
   return (
-    <div className={flow ? "rounded-lg border border-sol-border/60 bg-sol-bg" : "h-full flex flex-col min-h-0"}>
+    <div
+      className={
+        flow
+          ? "rounded-lg border border-sol-border/60 bg-sol-bg"
+          : "h-full flex flex-col min-h-0"
+      }
+    >
       <div className={flow ? undefined : "flex-1 min-h-0 overflow-y-auto"}>
         <section className="px-4 pt-3 pb-4">
           <h2 className="flex items-center gap-1.5 text-mark uppercase tracking-wider text-sol-text-dim mb-2">
             <MessageSquare className="w-3 h-3" />
             Discussion
-            {threads.length > 0 && <span className="text-sol-text-dim/70">{threads.length}</span>}
+            {threads.length > 0 && (
+              <span className="text-sol-text-dim/70">{threads.length}</span>
+            )}
           </h2>
           {threads.length === 0 ? (
             <p className="text-[12px] text-sol-text-dim leading-relaxed">
-              Nothing yet. Name a teammate with @ or a session with @[ and they hear about it.
+              Nothing yet. Name a teammate with @ or a session with @[ and they
+              hear about it.
             </p>
           ) : (
             <div className="space-y-3">
               {threads.map((thread) => (
-                <div key={thread[0]._id} id={`comment-${thread[0]._id}`} className="-ml-2">
+                <div
+                  key={thread[0]._id}
+                  id={`comment-${thread[0]._id}`}
+                  className="-ml-2"
+                >
                   <PRLineThread
                     repository={repository}
                     threadKey={generalKey}
@@ -121,7 +140,9 @@ export function CommitRail({
                         ...prField,
                       })
                     }
-                    onResolve={(resolved) => lineComments.setThreadResolved(thread, resolved)}
+                    onResolve={(resolved) =>
+                      lineComments.setThreadResolved(thread, resolved)
+                    }
                     onClose={() => {}}
                   />
                 </div>
@@ -155,11 +176,16 @@ export function CommitRail({
                       <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-sol-cyan ml-[3px] mr-[3px]" />
                     )}
                     <span className="font-mono truncate">
-                      <span className="text-sol-text-dim">{t.file.split("/").slice(0, -1).join("/")}{t.file.includes("/") ? "/" : ""}</span>
+                      <span className="text-sol-text-dim">
+                        {t.file.split("/").slice(0, -1).join("/")}
+                        {t.file.includes("/") ? "/" : ""}
+                      </span>
                       {t.file.split("/").pop()}
                       <span className="text-sol-text-dim">:{t.line}</span>
                     </span>
-                    <span className="ml-auto text-meta text-sol-text-dim tabular-nums shrink-0">{t.count}</span>
+                    <span className="ml-auto text-meta text-sol-text-dim tabular-nums shrink-0">
+                      {t.count}
+                    </span>
                   </button>
                 </li>
               ))}

@@ -11,8 +11,17 @@ import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
-import { isWindowRolled, profileNeedsSignIn, worstUsagePercent, type CcUsage } from "@codecast/convex/convex/ccAccountsShared";
-import { formatAgo, formatCountdown, labeledUsageWindows } from "@codecast/shared/contracts";
+import {
+  isWindowRolled,
+  profileNeedsSignIn,
+  worstUsagePercent,
+  type CcUsage,
+} from "@codecast/convex/convex/ccAccountsShared";
+import {
+  formatAgo,
+  formatCountdown,
+  labeledUsageWindows,
+} from "@codecast/shared/contracts";
 import { usageTone } from "../lib/usageTone";
 import { useMountEffect } from "../hooks/useMountEffect";
 import { useWatchEffect } from "../hooks/useWatchEffect";
@@ -30,7 +39,11 @@ const STALE_AFTER_MS = 20 * 60 * 1000;
 type ExtraSpend = NonNullable<CcUsage["extra"]>;
 
 function money(n: number): string {
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
 }
 
 function showExtraSpend(extra: ExtraSpend): boolean {
@@ -41,7 +54,8 @@ function showExtraSpend(extra: ExtraSpend): boolean {
 function extraSpendDollars(extra: ExtraSpend): string | null {
   if (extra.limit == null && extra.used == null) return null;
   if ((extra.limit ?? 0) === 0 && (extra.used ?? 0) === 0) return null;
-  if (extra.limit != null && extra.used != null) return `${money(extra.used)} / ${money(extra.limit)} extra`;
+  if (extra.limit != null && extra.used != null)
+    return `${money(extra.used)} / ${money(extra.limit)} extra`;
   if (extra.limit != null) return `limit ${money(extra.limit)} extra`;
   return `${money(extra.used!)} extra used`;
 }
@@ -49,8 +63,12 @@ function extraSpendDollars(extra: ExtraSpend): string | null {
 function extraSpendTitle(extra: ExtraSpend): string {
   const dollars = extraSpendDollars(extra);
   const pct = `${Math.round(extra.percent)}% of extra spend used`;
-  if (extra.spend_limit_reached) return dollars ? `${dollars}: extra spend cap reached` : "Extra spend cap reached";
-  if (!extra.enabled) return dollars ? `${dollars}: extra spend is off` : "Extra spend is off";
+  if (extra.spend_limit_reached)
+    return dollars
+      ? `${dollars}: extra spend cap reached`
+      : "Extra spend cap reached";
+  if (!extra.enabled)
+    return dollars ? `${dollars}: extra spend is off` : "Extra spend is off";
   return dollars ? `${dollars} (${pct})` : `Extra usage credits: ${pct}`;
 }
 
@@ -74,16 +92,25 @@ export function UsageMeterRow({
   const live = rolled ? 0 : percent;
   const tone = usageTone(live);
   const clamped = Math.min(100, Math.max(0, live));
-  const resetNote = resetsAt && resetsAt > now ? `resets in ${formatCountdown(resetsAt - now)}` : null;
+  const resetNote =
+    resetsAt && resetsAt > now
+      ? `resets in ${formatCountdown(resetsAt - now)}`
+      : null;
   const rolledNote = rolled
     ? `${label}: window reset ${formatAgo(now - (resetsAt as number))} — the last reading (${Math.round(percent)}%) is from the window before it`
     : null;
   return (
     <div
       className="flex items-center gap-2"
-      title={rolledNote ?? title ?? `${label}: ${Math.round(percent)}% used${resetNote ? ` — ${resetNote}` : ""}`}
+      title={
+        rolledNote ??
+        title ??
+        `${label}: ${Math.round(percent)}% used${resetNote ? ` — ${resetNote}` : ""}`
+      }
     >
-      <span className="w-14 shrink-0 text-mark uppercase tracking-wider text-sol-text-dim">{label}</span>
+      <span className="w-14 shrink-0 text-mark uppercase tracking-wider text-sol-text-dim">
+        {label}
+      </span>
       <div className="h-[5px] min-w-0 flex-1 overflow-hidden rounded-full bg-sol-bg-inset">
         <div
           className="h-full rounded-full transition-[width] duration-500"
@@ -96,7 +123,9 @@ export function UsageMeterRow({
         />
       </div>
       {rolled ? (
-        <span className="w-9 shrink-0 text-right font-mono text-meta text-sol-text-dim">reset</span>
+        <span className="w-9 shrink-0 text-right font-mono text-meta text-sol-text-dim">
+          reset
+        </span>
       ) : (
         <span
           className="w-9 shrink-0 text-right font-mono text-meta tabular-nums"
@@ -112,7 +141,13 @@ export function UsageMeterRow({
 /** The full meter block for one account (either provider): one row per limit
  * window, followed by credits notes. A staleness note marks a snapshot that
  * is a memory rather than a live reading. */
-export function AccountUsageBars({ usage, now }: { usage?: CcUsage | null; now: number }) {
+export function AccountUsageBars({
+  usage,
+  now,
+}: {
+  usage?: CcUsage | null;
+  now: number;
+}) {
   if (!usage) {
     return (
       <div className="text-meta italic text-sol-text-dim">
@@ -124,7 +159,13 @@ export function AccountUsageBars({ usage, now }: { usage?: CcUsage | null; now: 
   return (
     <div className="space-y-0.5">
       {labeledUsageWindows(usage).map((w) => (
-        <UsageMeterRow key={w.label} label={w.name} percent={w.percent} resetsAt={w.resets_at} now={now} />
+        <UsageMeterRow
+          key={w.label}
+          label={w.name}
+          percent={w.percent}
+          resetsAt={w.resets_at}
+          now={now}
+        />
       ))}
       {(usage.blocked_until ?? 0) > now && (
         <UsageMeterRow
@@ -144,16 +185,26 @@ export function AccountUsageBars({ usage, now }: { usage?: CcUsage | null; now: 
         />
       )}
       {usage.extra && extraSpendDollars(usage.extra) && (
-        <div className={`pt-0.5 text-meta ${usage.extra.spend_limit_reached ? "text-sol-red" : "text-sol-text-dim"}`}>
+        <div
+          className={`pt-0.5 text-meta ${usage.extra.spend_limit_reached ? "text-sol-red" : "text-sol-text-dim"}`}
+        >
           {extraSpendDollars(usage.extra)}
-          {usage.extra.spend_limit_reached ? " · extra spend cap reached" : !usage.extra.enabled ? " · extra spend off" : null}
+          {usage.extra.spend_limit_reached
+            ? " · extra spend cap reached"
+            : !usage.extra.enabled
+              ? " · extra spend off"
+              : null}
         </div>
       )}
-      {usage.credits && (usage.credits.has_credits || usage.credits.unlimited) && (
-        <div className="pt-0.5 text-meta text-sol-text-dim">
-          Credits: {usage.credits.unlimited ? "unlimited" : usage.credits.balance ?? "available"}
-        </div>
-      )}
+      {usage.credits &&
+        (usage.credits.has_credits || usage.credits.unlimited) && (
+          <div className="pt-0.5 text-meta text-sol-text-dim">
+            Credits:{" "}
+            {usage.credits.unlimited
+              ? "unlimited"
+              : (usage.credits.balance ?? "available")}
+          </div>
+        )}
       {usage.reset_credits && usage.reset_credits.available > 0 && (
         <div
           className="pt-0.5 text-meta text-sol-cyan"
@@ -163,18 +214,31 @@ export function AccountUsageBars({ usage, now }: { usage?: CcUsage | null; now: 
           {usage.reset_credits.available > 1 ? "s" : ""} available
         </div>
       )}
-      {stale && <div className="pt-0.5 text-meta text-sol-text-dim">as of {formatAgo(now - usage.fetched_at)}</div>}
+      {stale && (
+        <div className="pt-0.5 text-meta text-sol-text-dim">
+          as of {formatAgo(now - usage.fetched_at)}
+        </div>
+      )}
     </div>
   );
 }
 
-type SignInProfile = { name: string; email?: string; login_expired_at?: number | null; setup_token?: { expires_at: number } };
+type SignInProfile = {
+  name: string;
+  email?: string;
+  login_expired_at?: number | null;
+  setup_token?: { expires_at: number };
+};
 
 /** "login expired" next to a profile whose saved login the daemon could not
  * refresh: switching there lands on a dead credential until that account
  * signs in again. Renders nothing for a live profile, or one a minted token
  * carries (its token chip is the state then). */
-export function LoginExpiredBadge({ profile }: { profile: Omit<SignInProfile, "name"> }) {
+export function LoginExpiredBadge({
+  profile,
+}: {
+  profile: Omit<SignInProfile, "name">;
+}) {
   const now = useCoarseNowLocal();
   if (!profileNeedsSignIn(profile, now)) return null;
   return (
@@ -189,7 +253,11 @@ export function LoginExpiredBadge({ profile }: { profile: Omit<SignInProfile, "n
 
 /** "kept for reviews" next to a profile its machine reserved for one job: auto-switch never moves that machine's
  * sessions onto it. Renders nothing for an unreserved profile. */
-export function ReservedBadge({ profile }: { profile: { reserved_for?: string | null } }) {
+export function ReservedBadge({
+  profile,
+}: {
+  profile: { reserved_for?: string | null };
+}) {
   if (!profile.reserved_for) return null;
   return (
     <span
@@ -225,10 +293,16 @@ export function ProfileSignInButton({
 }) {
   const openSignIn = useInboxStore((s) => s.openProfileSignIn);
   const now = useCoarseNowLocal();
-  if ((!force && !profileNeedsSignIn(profile, now)) || device.is_remote || device.online === false) return null;
+  if (
+    (!force && !profileNeedsSignIn(profile, now)) ||
+    device.is_remote ||
+    device.online === false
+  )
+    return null;
   const phase = profileFlowPhase(device, profile.name, now);
   const machine = device.label || "the selected machine";
-  const open = (start: boolean) => openSignIn({ deviceId: device.device_id, profile: profile.name, start });
+  const open = (start: boolean) =>
+    openSignIn({ deviceId: device.device_id, profile: profile.name, start });
 
   if (phase === "pending") {
     return (
@@ -239,7 +313,9 @@ export function ProfileSignInButton({
         className={`inline-flex max-w-full items-center gap-1 text-meta text-amber-500 hover:text-amber-400 ${className ?? ""}`}
       >
         <SpinnerDot />
-        <span className="min-w-0 break-words underline decoration-dotted underline-offset-2">sign-in pending on {machine}</span>
+        <span className="min-w-0 break-words underline decoration-dotted underline-offset-2">
+          sign-in pending on {machine}
+        </span>
       </button>
     );
   }
@@ -289,7 +365,13 @@ function newestReading(device: RefreshableDevice): number {
 /** Refresh every account's usage on one machine now. Shared by the header
  * chip's panel and the Claude Accounts settings page. The daemon answers by
  * heartbeating fresh readings; the spinner runs until one lands. */
-export function UsageRefreshButton({ device, className }: { device: RefreshableDevice; className?: string }) {
+export function UsageRefreshButton({
+  device,
+  className,
+}: {
+  device: RefreshableDevice;
+  className?: string;
+}) {
   const requestRefresh = useMutation(api.accountSwitch.requestUsageRefresh);
   const [awaiting, setAwaiting] = useState<number | null>(null); // the newest reading at click time
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -298,7 +380,9 @@ export function UsageRefreshButton({ device, className }: { device: RefreshableD
   useWatchEffect(() => {
     if (!spinning && awaiting !== null) setAwaiting(null);
   }, [spinning, awaiting]);
-  useMountEffect(() => () => { if (timer.current) clearTimeout(timer.current); });
+  useMountEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  });
   const online = device.online !== false && device.is_remote !== true;
 
   const click = async () => {

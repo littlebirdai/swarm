@@ -14,20 +14,34 @@ import type { Superseded } from "@codecast/shared/contracts/superseded";
 
 const api = _api as any;
 
-export type RunsFeedArgs = { task_id?: string; plan_id?: string; status?: string; limit?: number };
+export type RunsFeedArgs = {
+  task_id?: string;
+  plan_id?: string;
+  status?: string;
+  limit?: number;
+};
 
 /** Feeder: a workspace's runs, newest first, into `workflowRuns`: the active
  *  workspace's unless `workspace` names another (a stored access key). */
-export function useSyncRuns(args: RunsFeedArgs = {}, enabled = true, workspace?: string | null) {
+export function useSyncRuns(
+  args: RunsFeedArgs = {},
+  enabled = true,
+  workspace?: string | null,
+) {
   const { args: ws } = useFeederWorkspace(workspace);
   const teamId = ws === "skip" ? undefined : ws.team_id;
+  // oxfmt-ignore
   const queryArgs = useMemo(
     () => (ws === "skip" || !enabled ? "skip" : { ...(teamId ? { team_id: teamId } : {}), ...args }),
     // args is a plain object literal at most call sites; key it by value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ws === "skip", enabled, teamId, args.task_id, args.plan_id, args.status, args.limit],
   );
-  return useSyncCollection("workflowRuns", api.workflow_runs.listRuns, queryArgs as any);
+  return useSyncCollection(
+    "workflowRuns",
+    api.workflow_runs.listRuns,
+    queryArgs as any,
+  );
 }
 
 /** A run row as listRuns shapes it (the raw row plus its joins). */
@@ -59,28 +73,59 @@ export type LineRun = {
   gate_response?: string;
   /** LE14: the content hash of the graph the run executed. */
   graph_hash?: string;
-  merge?: { sha: string; branch: string; into: string; at: number; pr_url?: string };
+  merge?: {
+    sha: string;
+    branch: string;
+    into: string;
+    at: number;
+    pr_url?: string;
+  };
   primary_conversation_id?: string;
   primary_session_id?: string;
   fail_reason?: string;
   /** Why a live run no longer stands (line-versions.md LV1); null while current. */
   superseded?: Superseded;
-  node_statuses?: Array<{ node_id: string; status: string; outcome?: string; label?: string; session_id?: string; started_at?: number; completed_at?: number; result_preview?: string; session?: any }>;
+  node_statuses?: Array<{
+    node_id: string;
+    status: string;
+    outcome?: string;
+    label?: string;
+    session_id?: string;
+    started_at?: number;
+    completed_at?: number;
+    result_preview?: string;
+    session?: any;
+  }>;
   created_at: number;
   updated_at: number;
 };
 
 const lineRunSig = (r: LineRun) =>
   `${r.superseded?.why ?? ""}|${r.status}|${r.current_node_id ?? ""}|${r.current_node_label ?? ""}|${r.updated_at ?? 0}|${r.gate_decision_id ?? ""}|${r.gate_decision_status ?? ""}|${r.task_id ?? ""}|${r.workflow_name ?? ""}|${r.primary_conversation_id ?? ""}|${r.gate_answer ?? ""}|${r.graph_hash ?? ""}|${r.card_billed_usd ?? ""}|${r.card_list_usd ?? ""}`;
-const newestFirst = (a: LineRun, b: LineRun) => (b.updated_at ?? b.created_at ?? 0) - (a.updated_at ?? a.created_at ?? 0);
+const newestFirst = (a: LineRun, b: LineRun) =>
+  (b.updated_at ?? b.created_at ?? 0) - (a.updated_at ?? a.created_at ?? 0);
 
 /** Reader: a workspace's runs from the store, newest first: the active
  *  workspace's unless `workspace` names another. A run belongs to a
  *  workspace by its stored access key (L8), read through the workspace
  *  chokepoint. Superseded runs (line-versions.md LV1) are left out unless `all`. */
-export function useWorkspaceRuns(workspace?: string | null, opts: { all?: boolean } = {}): LineRun[] {
+export function useWorkspaceRuns(
+  workspace?: string | null,
+  opts: { all?: boolean } = {},
+): LineRun[] {
   const all = !!opts.all;
-  const rows = useWorkspaceCollection<LineRun>("workflowRuns", lineRunSig, workspace || null);
+  const rows = useWorkspaceCollection<LineRun>(
+    "workflowRuns",
+    lineRunSig,
+    workspace || null,
+  );
   // A run as it went, not as a second runner's stale report left it (runReport settledRun).
-  return useMemo(() => rows.filter((r) => all || !r.superseded).sort(newestFirst).map(settledRun), [rows, all]);
+  return useMemo(
+    () =>
+      rows
+        .filter((r) => all || !r.superseded)
+        .sort(newestFirst)
+        .map(settledRun),
+    [rows, all],
+  );
 }

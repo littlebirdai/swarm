@@ -9,7 +9,12 @@ import { useInboxStore } from "../inboxStore";
 const ROOM = "dm:ann:me";
 
 function serverFlags(locked: boolean, transcribe_off = false) {
-  return { _id: ROOM, locked, transcribe_off, transcribe_off_at: transcribe_off ? 1_000 : null };
+  return {
+    _id: ROOM,
+    locked,
+    transcribe_off,
+    transcribe_off_at: transcribe_off ? 1_000 : null,
+  };
 }
 
 describe("room flags local-first", () => {
@@ -19,10 +24,13 @@ describe("room flags local-first", () => {
   beforeEach(() => {
     calls = [];
     useInboxStore.setState({ callRooms: {}, pending: {} } as any);
-    useInboxStore.getState()._setDispatch(async (action: string, args: any[]) => {
-      calls.push({ action, args });
-      return null;
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action: string, args: any[]) => {
+        calls.push({ action, args });
+        return null;
+      },
+      { owner },
+    );
     useInboxStore.getState().syncTable("callRooms", [serverFlags(false)]);
   });
 
@@ -54,7 +62,9 @@ describe("room flags local-first", () => {
     useInboxStore.getState().setRoomLocked(ROOM, true);
     useInboxStore.getState().syncTable("callRooms", [serverFlags(true)]);
     useInboxStore.getState().syncTable("callRooms", [serverFlags(false)]);
-    expect((useInboxStore.getState() as any).callRooms[ROOM].locked).toBe(false);
+    expect((useInboxStore.getState() as any).callRooms[ROOM].locked).toBe(
+      false,
+    );
   });
 
   it("paints the transcription switch off and stamps the opt-out for this window's scribe", () => {
@@ -65,9 +75,13 @@ describe("room flags local-first", () => {
     expect(row.transcribe_off_at).toBeGreaterThanOrEqual(before);
     // A stale push holds the switch, but the server's clock replaces ours.
     useInboxStore.getState().syncTable("callRooms", [serverFlags(false)]);
-    expect((useInboxStore.getState() as any).callRooms[ROOM].transcribe_off).toBe(true);
+    expect(
+      (useInboxStore.getState() as any).callRooms[ROOM].transcribe_off,
+    ).toBe(true);
     useInboxStore.getState().syncTable("callRooms", [serverFlags(false, true)]);
-    expect((useInboxStore.getState() as any).callRooms[ROOM].transcribe_off_at).toBe(1_000);
+    expect(
+      (useInboxStore.getState() as any).callRooms[ROOM].transcribe_off_at,
+    ).toBe(1_000);
   });
 
   it("holds the transcription switch and the lock independently", () => {
@@ -82,7 +96,9 @@ describe("room flags local-first", () => {
 
   it("paints a room the feed has not listed yet", () => {
     useInboxStore.getState().setRoomLocked("dm:bo:me", true);
-    expect((useInboxStore.getState() as any).callRooms["dm:bo:me"].locked).toBe(true);
+    expect((useInboxStore.getState() as any).callRooms["dm:bo:me"].locked).toBe(
+      true,
+    );
   });
 });
 
@@ -93,7 +109,9 @@ describe("knock bookkeeping", () => {
 
   it("remembers a knock so the admit ring can answer itself, and forgets it after", () => {
     useInboxStore.getState().noteKnock(ROOM);
-    expect((useInboxStore.getState() as any).callKnocked[ROOM]).toBeGreaterThan(0);
+    expect((useInboxStore.getState() as any).callKnocked[ROOM]).toBeGreaterThan(
+      0,
+    );
     useInboxStore.getState().clearKnock(ROOM);
     expect((useInboxStore.getState() as any).callKnocked[ROOM]).toBeUndefined();
   });

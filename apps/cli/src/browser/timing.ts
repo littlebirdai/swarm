@@ -17,6 +17,8 @@ let last = process.uptime() * 1000;
 export function mark(label: string): void {
   if (!enabled) return;
   const now = process.uptime() * 1000;
-  process.stderr.write(`[timing] ${label.padEnd(18)} +${(now - last).toFixed(0).padStart(5)}ms  @${now.toFixed(0)}ms\n`);
+  process.stderr.write(
+    `[timing] ${label.padEnd(18)} +${(now - last).toFixed(0).padStart(5)}ms  @${now.toFixed(0)}ms\n`,
+  );
   last = now;
 }

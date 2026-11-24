@@ -31,7 +31,11 @@ export async function signLivekitJwt(opts: {
     ...(opts.metadata ? { metadata: opts.metadata } : {}),
     video: {
       room: opts.room,
-      ...(opts.grant ?? { roomJoin: true, canPublish: true, canSubscribe: true }),
+      ...(opts.grant ?? {
+        roomJoin: true,
+        canPublish: true,
+        canSubscribe: true,
+      }),
     },
   };
   const enc = new TextEncoder();

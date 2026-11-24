@@ -13,8 +13,17 @@ import { Filter, Loader2, RotateCcw, Waypoints, X } from "lucide-react";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import { useTabActive } from "../../hooks/usePagePresence";
 import { vaultIndex, useVaultIndexVersion } from "../../lib/vault/indexHost";
-import { buildVaultGraph, localSubgraph, type VaultGraph } from "../../lib/vault/graphBuilder";
-import { LinkGraphCanvas, hashedTone, matchWithNeighbors, type LinkGraph } from "../graph/LinkGraphCanvas";
+import {
+  buildVaultGraph,
+  localSubgraph,
+  type VaultGraph,
+} from "../../lib/vault/graphBuilder";
+import {
+  LinkGraphCanvas,
+  hashedTone,
+  matchWithNeighbors,
+  type LinkGraph,
+} from "../graph/LinkGraphCanvas";
 import { keysOwnedElsewhere } from "../../shortcuts/keyOwnership";
 import { modernButton } from "../ui/modernLook";
 
@@ -43,7 +52,11 @@ export interface VaultGraphViewProps {
   onClose: () => void;
 }
 
-export function VaultGraphView({ activePath, onNavigate, onClose }: VaultGraphViewProps) {
+export function VaultGraphView({
+  activePath,
+  onNavigate,
+  onClose,
+}: VaultGraphViewProps) {
   const indexVersion = useVaultIndexVersion();
   const [showUnresolved, setShowUnresolved] = useState(false);
   const [scope, setScope] = useState<"vault" | "local">("vault");
@@ -65,7 +78,9 @@ export function VaultGraphView({ activePath, onNavigate, onClose }: VaultGraphVi
 
   const graph = useMemo<VaultGraph>(
     () =>
-      scope === "local" && activePath ? localSubgraph(fullGraph, activePath, LOCAL_HOPS) : fullGraph,
+      scope === "local" && activePath
+        ? localSubgraph(fullGraph, activePath, LOCAL_HOPS)
+        : fullGraph,
     [fullGraph, scope, activePath],
   );
   const linkGraph = useMemo(() => toLinkGraph(graph), [graph]);
@@ -75,7 +90,12 @@ export function VaultGraphView({ activePath, onNavigate, onClose }: VaultGraphVi
     if (!term) return null;
     // Path as well as title: "projects/" is the natural way to ask for a
     // folder, and the title alone can't answer it.
-    return matchWithNeighbors(linkGraph, (n) => n.label.toLowerCase().includes(term) || n.id.toLowerCase().includes(term));
+    return matchWithNeighbors(
+      linkGraph,
+      (n) =>
+        n.label.toLowerCase().includes(term) ||
+        n.id.toLowerCase().includes(term),
+    );
   }, [filter, linkGraph]);
 
   // Esc leaves the graph, matching the header toggle — but not while the
@@ -88,7 +108,10 @@ export function VaultGraphView({ activePath, onNavigate, onClose }: VaultGraphVi
     if (event.key !== "Escape" || !isTabActive) return;
     const target = event.target as HTMLElement | null;
     if (keysOwnedElsewhere(target)) return;
-    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+    if (
+      target &&
+      (target.tagName === "INPUT" || target.tagName === "TEXTAREA")
+    ) {
       if (target === filterInputRef.current && filter) setFilter("");
       return;
     }
@@ -117,10 +140,13 @@ export function VaultGraphView({ activePath, onNavigate, onClose }: VaultGraphVi
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center pointer-events-none">
           <Waypoints className="w-8 h-8 text-sol-text-dim opacity-30" />
           <div className="text-sm text-sol-text-muted">
-            {scope === "local" ? "This note has no links yet." : "No notes to graph yet."}
+            {scope === "local"
+              ? "This note has no links yet."
+              : "No notes to graph yet."}
           </div>
           <div className="text-xs text-sol-text-dim max-w-xs">
-            Link notes with <code className="text-sol-text-muted">[[Wiki Links]]</code> and they
+            Link notes with{" "}
+            <code className="text-sol-text-muted">[[Wiki Links]]</code> and they
             appear here, connected.
           </div>
         </div>
@@ -130,7 +156,9 @@ export function VaultGraphView({ activePath, onNavigate, onClose }: VaultGraphVi
         <div className="flex items-center gap-2">
           <Waypoints className="w-3.5 h-3.5 text-sol-cyan" />
           <span className="font-medium text-sol-text flex-1">Graph</span>
-          {settling && <Loader2 className="w-3 h-3 text-sol-text-dim animate-spin" />}
+          {settling && (
+            <Loader2 className="w-3 h-3 text-sol-text-dim animate-spin" />
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -142,7 +170,8 @@ export function VaultGraphView({ activePath, onNavigate, onClose }: VaultGraphVi
         </div>
 
         <div className="text-sol-text-dim tabular-nums">
-          {graph.nodes.length} note{graph.nodes.length === 1 ? "" : "s"} · {graph.edges.length} link
+          {graph.nodes.length} note{graph.nodes.length === 1 ? "" : "s"} ·{" "}
+          {graph.edges.length} link
           {graph.edges.length === 1 ? "" : "s"}
         </div>
 

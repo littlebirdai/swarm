@@ -50,12 +50,12 @@ numbered LE1 onward so code can cite them.
 
 The line's nine words (the-line.md L1) stand. This document adds four.
 
-| Word | Meaning | Home |
-|---|---|---|
-| signal | one observation from the world, typed at its source | `signals` |
-| cause | a task that signals attach to; the unit of work on the line | `tasks` with `cause` fields |
-| card | the fixed-shape summary of one change and its proof (LE10) | `shared/contracts/changeCard.ts`, published page on the task |
-| watch | the period after ship when the cause's signals are counted again | `tasks.watch_until` |
+| Word   | Meaning                                                          | Home                                                         |
+| ------ | ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| signal | one observation from the world, typed at its source              | `signals`                                                    |
+| cause  | a task that signals attach to; the unit of work on the line      | `tasks` with `cause` fields                                  |
+| card   | the fixed-shape summary of one change and its proof (LE10)       | `shared/contracts/changeCard.ts`, published page on the task |
+| watch  | the period after ship when the cause's signals are counted again | `tasks.watch_until`                                          |
 
 ## LE3. Sense: signals are typed at the source
 

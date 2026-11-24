@@ -20,19 +20,39 @@ import { canReadRun } from "./workflow_runs";
 import { trialProjectOf } from "./lineTrial";
 import { countersFor } from "./lib/orgCaps";
 import { mergeReportLine } from "./lib/orgRoutine";
-import { MERGE_AUTHORITY_ID, MERGE_AUTHORITY_LABEL, mergeAllowance, mergeGrantOf } from "./lib/lineMerge";
-export { MERGE_AUTHORITY_ID, MERGE_AUTHORITY_LABEL, mergeAllowance, mergeGrantOf, type MergeAllowance } from "./lib/lineMerge";
+import {
+  MERGE_AUTHORITY_ID,
+  MERGE_AUTHORITY_LABEL,
+  mergeAllowance,
+  mergeGrantOf,
+} from "./lib/lineMerge";
+export {
+  MERGE_AUTHORITY_ID,
+  MERGE_AUTHORITY_LABEL,
+  mergeAllowance,
+  mergeGrantOf,
+  type MergeAllowance,
+} from "./lib/lineMerge";
 import { performSetAuthority } from "./orgRoles";
 import { insertTaskComment } from "./tasks";
 import { getAuthenticatedUserId, tellRole } from "./pendingMessages";
 import { roleOfRun } from "./lib/actor";
 import { roleMergeAllowance } from "./lib/regretRead";
 import { runWorkflowOf } from "./lib/runGraph";
-import { byPerson, cardRef, isShipAnswer, newestFirst, offersShip, verdictLabel } from "./lib/taskVerdicts";
+import {
+  byPerson,
+  cardRef,
+  isShipAnswer,
+  newestFirst,
+  offersShip,
+  verdictLabel,
+} from "./lib/taskVerdicts";
 
 /** The pull request a handoff named in its evidence ("PR: <url>", taskClaim
  *  handoffCommentText), or null. */
-export function prUrlFromEvidence(evidence: string | null | undefined): string | null {
+export function prUrlFromEvidence(
+  evidence: string | null | undefined,
+): string | null {
   const m = (evidence ?? "").match(/^PR:\s*(https?:\/\/\S+)\s*$/m);
   return m ? m[1] : null;
 }
@@ -44,53 +64,114 @@ export function prUrlFromEvidence(evidence: string | null | undefined): string |
 export async function performSetLineMerge(
   ctx: any,
   userId: Id<"users">,
-  args: { role_id: string; on: boolean; per_day?: number; rate?: { bar: number; min: number } | null; from_session?: string; api_token?: string; human_decision?: string },
+  args: {
+    role_id: string;
+    on: boolean;
+    per_day?: number;
+    rate?: { bar: number; min: number } | null;
+    from_session?: string;
+    api_token?: string;
+    human_decision?: string;
+  },
 ): Promise<any> {
   let role = await requireRole(ctx, userId, args.role_id, "admin");
   // The mode is a person's alone (regret.md R7): only a signed-in person's request, which the web sends from its
   // confirm review, may set it; a token (a terminal, an agent's session) may not.
-  if (args.rate !== undefined && (args.api_token || args.from_session)) throw new Error("Only a person sets how the merge step decides, from the role's settings");
+  if (args.rate !== undefined && (args.api_token || args.from_session))
+    throw new Error(
+      "Only a person sets how the merge step decides, from the role's settings",
+    );
   if (args.rate) {
-    if (!(args.rate.bar > 0 && args.rate.bar <= 1)) throw new Error("The rate's bar is a share above 0 and at most 1 (0.9 is 90%)");
-    if (!(Number.isInteger(args.rate.min) && args.rate.min >= 1)) throw new Error("The rate needs a whole number of finished changes, at least 1");
+    if (!(args.rate.bar > 0 && args.rate.bar <= 1))
+      throw new Error(
+        "The rate's bar is a share above 0 and at most 1 (0.9 is 90%)",
+      );
+    if (!(Number.isInteger(args.rate.min) && args.rate.min >= 1))
+      throw new Error(
+        "The rate needs a whole number of finished changes, at least 1",
+      );
   }
   if (role.status === "retired") throw new Error("That role is retired");
   const now = Date.now();
   if (args.on) {
     const held = mergeGrantOf(role, now);
     if (args.per_day !== undefined) {
-      if (!(Number.isInteger(args.per_day) && args.per_day >= 1)) throw new Error("--per-day is a whole number of merges a day, at least 1");
+      if (!(Number.isInteger(args.per_day) && args.per_day >= 1))
+        throw new Error(
+          "--per-day is a whole number of merges a day, at least 1",
+        );
       role = await performSetAuthority(ctx, userId, {
         role_id: String(role._id),
-        authority: [{ id: MERGE_AUTHORITY_ID, kind: "write", label: held?.label ?? MERGE_AUTHORITY_LABEL, scope: "the project's repository, into its default branch", limit: { per_day: args.per_day }, expires: "90d" }],
+        authority: [
+          {
+            id: MERGE_AUTHORITY_ID,
+            kind: "write",
+            label: held?.label ?? MERGE_AUTHORITY_LABEL,
+            scope: "the project's repository, into its default branch",
+            limit: { per_day: args.per_day },
+            expires: "90d",
+          },
+        ],
         human_decision: args.human_decision,
       });
     } else if (!held) {
-      throw new Error("Turning the merge step on needs a merge authority with a daily limit: pass --per-day <n>, or grant one with cast role authority");
+      throw new Error(
+        "Turning the merge step on needs a merge authority with a daily limit: pass --per-day <n>, or grant one with cast role authority",
+      );
     }
   }
   const was = !!role.line_merge;
   if (was !== args.on) {
-    await ctx.db.patch(role._id, { line_merge: args.on ? true : undefined, updated_at: now });
+    await ctx.db.patch(role._id, {
+      line_merge: args.on ? true : undefined,
+      updated_at: now,
+    });
     await ctx.db.insert("org_role_history", {
-      role_id: role._id, user_id: userId, actor_type: "user", action: "line_merge", field: "line_merge",
-      old_value: String(was), new_value: String(args.on), created_at: now,
+      role_id: role._id,
+      user_id: userId,
+      actor_type: "user",
+      action: "line_merge",
+      field: "line_merge",
+      old_value: String(was),
+      new_value: String(args.on),
+      created_at: now,
     });
   }
   // The mode (regret.md R7): a bar sets the rate, null goes back to the count, absent leaves it.
   if (args.rate !== undefined) {
-    const before = role.line_merge_rate ? `${role.line_merge_rate.bar}/${role.line_merge_rate.min}` : "count";
+    const before = role.line_merge_rate
+      ? `${role.line_merge_rate.bar}/${role.line_merge_rate.min}`
+      : "count";
     const after = args.rate ? `${args.rate.bar}/${args.rate.min}` : "count";
     if (before !== after) {
-      await ctx.db.patch(role._id, { line_merge_rate: args.rate ? { bar: args.rate.bar, min: args.rate.min, set_by: userId, set_at: now } : undefined, updated_at: now });
+      await ctx.db.patch(role._id, {
+        line_merge_rate: args.rate
+          ? {
+              bar: args.rate.bar,
+              min: args.rate.min,
+              set_by: userId,
+              set_at: now,
+            }
+          : undefined,
+        updated_at: now,
+      });
       await ctx.db.insert("org_role_history", {
-        role_id: role._id, user_id: userId, actor_type: "user", action: "line_merge", field: "line_merge_rate",
-        old_value: before, new_value: after, created_at: now,
+        role_id: role._id,
+        user_id: userId,
+        actor_type: "user",
+        action: "line_merge",
+        field: "line_merge_rate",
+        old_value: before,
+        new_value: after,
+        created_at: now,
       });
     }
   }
   const updated = await ctx.db.get(role._id);
-  return { ...updated, merge: await roleMergeAllowance(ctx, updated, now, true) };
+  return {
+    ...updated,
+    merge: await roleMergeAllowance(ctx, updated, now, true),
+  };
 }
 
 async function requireToken(ctx: any, apiToken: string): Promise<Id<"users">> {
@@ -107,12 +188,17 @@ export type PersonAuthorization = { user_id: string; why: string };
  * authority and allowance. A run with no role behind it merges on a person's
  * word, which counts against no role's limit (`personAuthorized`).
  */
-async function runAndRole(ctx: any, userId: Id<"users">, runRef: string): Promise<{ run: any; role: any; authorizedBy: PersonAuthorization | null }> {
+async function runAndRole(
+  ctx: any,
+  userId: Id<"users">,
+  runRef: string,
+): Promise<{ run: any; role: any; authorizedBy: PersonAuthorization | null }> {
   const run = await ctx.db.get(runRef as Id<"workflow_runs">);
   if (!run) throw new Error(`No run ${runRef}`);
   const role = await roleOfRun(ctx, run);
   if (role) {
-    if (!(await userCanAccessRole(ctx, userId, role))) throw new Error("Forbidden");
+    if (!(await userCanAccessRole(ctx, userId, role)))
+      throw new Error("Forbidden");
     return { run, role, authorizedBy: null };
   }
   if (!(await canReadRun(ctx, userId, run))) throw new Error("Forbidden");
@@ -124,11 +210,16 @@ const NOTHING_AUTHORIZES = "so nothing authorizes the merge";
 
 // "answered Revise on sd-N" / "dismissed sd-N": what a verdict was, for a refusal.
 const verdictWords = (card: any, ref = cardRef(card)): string =>
-  card.status === "dismissed" ? `dismissed ${ref}` : `answered ${verdictLabel(card)} on ${ref}`;
+  card.status === "dismissed"
+    ? `dismissed ${ref}`
+    : `answered ${verdictLabel(card)} on ${ref}`;
 
 /** The attempt a run is on: a resume that counts as a new attempt moves it, and a cleared stamp holds only for the
  *  attempt it was written in (`run.merge_cleared.attempt`). */
-export const runAttempt = (run: { visits_reset_at?: number; created_at: number }): number => run.visits_reset_at ?? run.created_at;
+export const runAttempt = (run: {
+  visits_reset_at?: number;
+  created_at: number;
+}): number => run.visits_reset_at ?? run.created_at;
 
 /**
  * The person whose word lets a run no role is behind merge, or a refusal (thrown).
@@ -146,38 +237,96 @@ export const runAttempt = (run: { visits_reset_at?: number; created_at: number }
  *    run's current attempt, and the person who started the run (`run.user_id`) authorizes it. Every resume, reask
  *    and land-again drops the stamp, so it is never inferred from what a run lacks. An agent account is no person.
  */
-export async function personAuthorized(ctx: any, run: any): Promise<PersonAuthorization> {
-  const byStatus = (status: string) => run.task_id
-    ? ctx.db.query("session_decisions").withIndex("by_task", (q: any) => q.eq("task_id", run.task_id).eq("status", status)).order("desc").take(100)
-    : Promise.resolve([]);
-  const [pending, answered, dismissed] = await Promise.all([byStatus("pending"), byStatus("answered"), byStatus("dismissed")]);
+export async function personAuthorized(
+  ctx: any,
+  run: any,
+): Promise<PersonAuthorization> {
+  const byStatus = (status: string) =>
+    run.task_id
+      ? ctx.db
+          .query("session_decisions")
+          .withIndex("by_task", (q: any) =>
+            q.eq("task_id", run.task_id).eq("status", status),
+          )
+          .order("desc")
+          .take(100)
+      : Promise.resolve([]);
+  const [pending, answered, dismissed] = await Promise.all([
+    byStatus("pending"),
+    byStatus("answered"),
+    byStatus("dismissed"),
+  ]);
   const rows: any[] = [...pending, ...answered, ...dismissed];
-  if (run.gate_decision_id && !rows.some((d) => String(d._id) === String(run.gate_decision_id))) {
+  if (
+    run.gate_decision_id &&
+    !rows.some((d) => String(d._id) === String(run.gate_decision_id))
+  ) {
     const own = await ctx.db.get(run.gate_decision_id);
     if (own) rows.push(own);
   }
-  const isOwn = (d: any) => String(d.workflow_run_id ?? "") === String(run._id) || String(d._id) === String(run.gate_decision_id ?? "");
+  const isOwn = (d: any) =>
+    String(d.workflow_run_id ?? "") === String(run._id) ||
+    String(d._id) === String(run.gate_decision_id ?? "");
   const waiting = rows.find((d) => isOwn(d) && d.status === "pending");
-  if (waiting) throw new Error(`No role started this run and its card ${cardRef(waiting)} is still waiting on a person, ${NOTHING_AUTHORIZES}`);
-  const decided = rows.filter((d) => (d.status === "answered" || d.status === "dismissed") && !d.trial && offersShip(d) && (isOwn(d) || !!d.workflow_run_id)).sort(newestFirst);
+  if (waiting)
+    throw new Error(
+      `No role started this run and its card ${cardRef(waiting)} is still waiting on a person, ${NOTHING_AUTHORIZES}`,
+    );
+  const decided = rows
+    .filter(
+      (d) =>
+        (d.status === "answered" || d.status === "dismissed") &&
+        !d.trial &&
+        offersShip(d) &&
+        (isOwn(d) || !!d.workflow_run_id),
+    )
+    .sort(newestFirst);
 
   const own = decided.find(isOwn);
   if (own) {
-    if (isShipAnswer(own) && own.answered_by?.kind === "user") return { user_id: String(own.answered_by.id), why: `ship on card ${cardRef(own)}` };
-    const who = own.answered_by?.kind && own.answered_by.kind !== "user" ? `a ${own.answered_by.kind}` : "a person";
-    throw new Error(`No role started this run and ${who} ${verdictWords(own, `its card ${cardRef(own)}`)}, ${NOTHING_AUTHORIZES}`);
+    if (isShipAnswer(own) && own.answered_by?.kind === "user")
+      return {
+        user_id: String(own.answered_by.id),
+        why: `ship on card ${cardRef(own)}`,
+      };
+    const who =
+      own.answered_by?.kind && own.answered_by.kind !== "user"
+        ? `a ${own.answered_by.kind}`
+        : "a person";
+    throw new Error(
+      `No role started this run and ${who} ${verdictWords(own, `its card ${cardRef(own)}`)}, ${NOTHING_AUTHORIZES}`,
+    );
   }
   const earlier = decided.find(byPerson);
   if (earlier) {
-    if (isShipAnswer(earlier)) return { user_id: String(earlier.answered_by.id), why: `ship on earlier run's card ${cardRef(earlier)}` };
-    throw new Error(`No role started this run and a person ${verdictWords(earlier)}, the task's newest verdict, ${NOTHING_AUTHORIZES}`);
+    if (isShipAnswer(earlier))
+      return {
+        user_id: String(earlier.answered_by.id),
+        why: `ship on earlier run's card ${cardRef(earlier)}`,
+      };
+    throw new Error(
+      `No role started this run and a person ${verdictWords(earlier)}, the task's newest verdict, ${NOTHING_AUTHORIZES}`,
+    );
   }
   const stamp = run.merge_cleared;
-  if (!stamp || stamp.attempt !== runAttempt(run)) throw new Error(`No role started this run, its graph did not clear it to land, and no person answered Ship on a card, ${NOTHING_AUTHORIZES}`);
+  if (!stamp || stamp.attempt !== runAttempt(run))
+    throw new Error(
+      `No role started this run, its graph did not clear it to land, and no person answered Ship on a card, ${NOTHING_AUTHORIZES}`,
+    );
   const starter: any = await ctx.db.get(run.user_id);
-  if (!starter || starter.is_bot) throw new Error(`No role started this run, an agent account started it, and no person answered Ship on a card, ${NOTHING_AUTHORIZES}`);
-  const name = starter.name || starter.github_username || starter.email?.split("@")[0] || String(starter._id);
-  return { user_id: String(run.user_id), why: `cleared by the run's own graph at ${stamp.node_id} (${stamp.why}), started by ${name}` };
+  if (!starter || starter.is_bot)
+    throw new Error(
+      `No role started this run, an agent account started it, and no person answered Ship on a card, ${NOTHING_AUTHORIZES}`,
+    );
+  const name =
+    starter.name ||
+    starter.github_username ||
+    starter.email?.split("@")[0] ||
+    String(starter._id);
+  return {
+    user_id: String(run.user_id),
+    why: `cleared by the run's own graph at ${stamp.node_id} (${stamp.why}), started by ${name}`,
+  };
 }
 
 /**
@@ -192,52 +341,118 @@ export async function personAuthorized(ctx: any, run: any): Promise<PersonAuthor
  * anything that moves the run back (workflow_runs.resumeRunAt, landAgainCore, a trial rebuild) drops it. An agent that
  * fakes the runner's progress reports could still stamp; whoever holds the owner's token and git can push main anyway.
  */
-export async function clearForMergeCore(ctx: any, userId: Id<"users">, args: { run_id: string; why: string; head_sha?: string; ci_changed?: boolean }, now = Date.now()): Promise<{ run_id: string; node_id: string; attempt: number }> {
+export async function clearForMergeCore(
+  ctx: any,
+  userId: Id<"users">,
+  args: {
+    run_id: string;
+    why: string;
+    head_sha?: string;
+    ci_changed?: boolean;
+  },
+  now = Date.now(),
+): Promise<{ run_id: string; node_id: string; attempt: number }> {
   const run = await ctx.db.get(args.run_id as Id<"workflow_runs">);
-  if (!run || String(run.user_id) !== String(userId)) throw new Error("Only the run's own runner clears it to land");
+  if (!run || String(run.user_id) !== String(userId))
+    throw new Error("Only the run's own runner clears it to land");
   const why = args.why.trim();
   if (!why) throw new Error("--why says what cleared the run to land");
-  if (run.status !== "running" || !run.current_node_id) throw new Error(`The run is ${run.status}: only a running station clears it to land`);
-  const station = (run.node_statuses ?? []).find((n: any) => n.node_id === run.current_node_id);
-  if (!station || station.status !== "running") throw new Error(`${run.current_node_id} is not running: only the station the run stands at clears it`);
+  if (run.status !== "running" || !run.current_node_id)
+    throw new Error(
+      `The run is ${run.status}: only a running station clears it to land`,
+    );
+  const station = (run.node_statuses ?? []).find(
+    (n: any) => n.node_id === run.current_node_id,
+  );
+  if (!station || station.status !== "running")
+    throw new Error(
+      `${run.current_node_id} is not running: only the station the run stands at clears it`,
+    );
   const graph = await runWorkflowOf(ctx, run);
-  const node = (graph?.nodes ?? []).find((n: any) => n.id === run.current_node_id);
-  if (station.session_id || run.waiting_on_session || node?.type !== "command") {
-    throw new Error(`${run.current_node_id} is not a script station of the run's graph: only a flow's script station clears a run to land`);
+  const node = (graph?.nodes ?? []).find(
+    (n: any) => n.id === run.current_node_id,
+  );
+  if (
+    station.session_id ||
+    run.waiting_on_session ||
+    node?.type !== "command"
+  ) {
+    throw new Error(
+      `${run.current_node_id} is not a script station of the run's graph: only a flow's script station clears a run to land`,
+    );
   }
   const attempt = runAttempt(run);
   const gap = unproven(graph, run, attempt, args.head_sha);
-  if (gap) throw new Error(`${run.current_node_id} cannot clear the run: ${gap}. Only a graph whose CI recorded green on the head it merges and whose reviewer said ship on that head, both leading to it, clears a run to land`);
+  if (gap)
+    throw new Error(
+      `${run.current_node_id} cannot clear the run: ${gap}. Only a graph whose CI recorded green on the head it merges and whose reviewer said ship on that head, both leading to it, clears a run to land`,
+    );
   // A change to CI's own config can change what green means, so it needs a person's word as well.
-  if ((args.ci_changed || run.ci_verdict?.ci_changed) && !(await personShippedRun(ctx, run, attempt))) {
-    throw new Error("this change edits CI; a person must answer Ship on this run's card");
+  if (
+    (args.ci_changed || run.ci_verdict?.ci_changed) &&
+    !(await personShippedRun(ctx, run, attempt))
+  ) {
+    throw new Error(
+      "this change edits CI; a person must answer Ship on this run's card",
+    );
   }
-  await ctx.db.patch(run._id, { merge_cleared: { at: now, node_id: run.current_node_id, why: why.slice(0, 500), by: userId, attempt }, updated_at: now });
+  await ctx.db.patch(run._id, {
+    merge_cleared: {
+      at: now,
+      node_id: run.current_node_id,
+      why: why.slice(0, 500),
+      by: userId,
+      attempt,
+    },
+    updated_at: now,
+  });
   return { run_id: String(run._id), node_id: run.current_node_id, attempt };
 }
 
 /** A person answered Ship on one of this run's own cards in this attempt. */
-async function personShippedRun(ctx: any, run: any, attempt: number): Promise<boolean> {
+async function personShippedRun(
+  ctx: any,
+  run: any,
+  attempt: number,
+): Promise<boolean> {
   const rows: any[] = run.task_id
-    ? await ctx.db.query("session_decisions").withIndex("by_task", (q: any) => q.eq("task_id", run.task_id).eq("status", "answered")).order("desc").take(100)
+    ? await ctx.db
+        .query("session_decisions")
+        .withIndex("by_task", (q: any) =>
+          q.eq("task_id", run.task_id).eq("status", "answered"),
+        )
+        .order("desc")
+        .take(100)
     : [];
-  if (run.gate_decision_id && !rows.some((d) => String(d._id) === String(run.gate_decision_id))) {
+  if (
+    run.gate_decision_id &&
+    !rows.some((d) => String(d._id) === String(run.gate_decision_id))
+  ) {
     const own = await ctx.db.get(run.gate_decision_id);
     if (own) rows.push(own);
   }
-  return rows.some((d) => (String(d.workflow_run_id ?? "") === String(run._id) || String(d._id) === String(run.gate_decision_id ?? ""))
-    && isShipAnswer(d) && d.answered_by?.kind === "user" && (d.resolved_at ?? 0) >= attempt);
+  return rows.some(
+    (d) =>
+      (String(d.workflow_run_id ?? "") === String(run._id) ||
+        String(d._id) === String(run.gate_decision_id ?? "")) &&
+      isShipAnswer(d) &&
+      d.answered_by?.kind === "user" &&
+      (d.resolved_at ?? 0) >= attempt,
+  );
 }
 
 /** Whether an edge path leads from station `from` to station `to` in the run's graph. */
 function leadsTo(graph: any, from: string, to: string): boolean {
   const edges: Array<{ from: string; to: string }> = graph?.edges ?? [];
   const seen = new Set([from]);
-  for (const queue = [from]; queue.length; ) {
+  for (const queue = [from]; queue.length;) {
     const at = queue.shift();
     for (const e of edges.filter((x) => x.from === at)) {
       if (e.to === to) return true;
-      if (!seen.has(e.to)) { seen.add(e.to); queue.push(e.to); }
+      if (!seen.has(e.to)) {
+        seen.add(e.to);
+        queue.push(e.to);
+      }
     }
   }
   return false;
@@ -245,12 +460,22 @@ function leadsTo(graph: any, from: string, to: string): boolean {
 
 /** The heads a review of `reviewed` covers in this attempt: that head, and every head a recorded rebase chain leads
  *  to from it, link by link (R to X, then X to Y). */
-function coveredHeads(run: any, attempt: number, reviewed: string): Set<string> {
-  const links = (run.station_rebases ?? []).filter((r: any) => r.attempt === attempt);
+function coveredHeads(
+  run: any,
+  attempt: number,
+  reviewed: string,
+): Set<string> {
+  const links = (run.station_rebases ?? []).filter(
+    (r: any) => r.attempt === attempt,
+  );
   const heads = new Set([reviewed]);
-  for (let grew = true; grew; ) {
+  for (let grew = true; grew;) {
     grew = false;
-    for (const r of links) if (heads.has(r.from) && !heads.has(r.to)) { heads.add(r.to); grew = true; }
+    for (const r of links)
+      if (heads.has(r.from) && !heads.has(r.to)) {
+        heads.add(r.to);
+        grew = true;
+      }
   }
   return heads;
 }
@@ -258,18 +483,29 @@ function coveredHeads(run: any, attempt: number, reviewed: string): Set<string> 
 /** What the run has not proven in this attempt, or null: a green CI verdict the server holds for `head` from a
  *  station that leads to the one the run stands at, and the reviewer's ship, reported by the reviewer node's own
  *  session, on that head, or on the head the station's own recorded rebase turned into it. */
-function unproven(graph: any, run: any, attempt: number, head: string | undefined): string | null {
+function unproven(
+  graph: any,
+  run: any,
+  attempt: number,
+  head: string | undefined,
+): string | null {
   const reaches = (from: string) => leadsTo(graph, from, run.current_node_id);
   const ci = run.ci_verdict;
-  if (!ci || ci.attempt !== attempt) return "no CI verdict was recorded in this attempt";
+  if (!ci || ci.attempt !== attempt)
+    return "no CI verdict was recorded in this attempt";
   if (!ci.green) return `CI recorded red on ${ci.head_sha.slice(0, 10)}`;
-  if (!head || ci.head_sha !== head) return `CI's green is on ${ci.head_sha.slice(0, 10)}, not on the head being merged (${head ? head.slice(0, 10) : "none named"})`;
-  if (!reaches(ci.node_id)) return `the CI station ${ci.node_id} does not lead to it`;
+  if (!head || ci.head_sha !== head)
+    return `CI's green is on ${ci.head_sha.slice(0, 10)}, not on the head being merged (${head ? head.slice(0, 10) : "none named"})`;
+  if (!reaches(ci.node_id))
+    return `the CI station ${ci.node_id} does not lead to it`;
   const review = run.review_verdict;
-  if (!review || review.attempt !== attempt) return "no reviewer verdict was recorded in this attempt";
+  if (!review || review.attempt !== attempt)
+    return "no reviewer verdict was recorded in this attempt";
   if (review.verdict !== "ship") return `the reviewer said ${review.verdict}`;
-  if (!reaches(review.node_id)) return `the review station ${review.node_id} does not lead to it`;
-  if (!coveredHeads(run, attempt, review.head_sha).has(head)) return `the reviewer read ${review.head_sha.slice(0, 10)}, not the head being merged (${head.slice(0, 10)}), and no rebase of the station's own turned one into the other`;
+  if (!reaches(review.node_id))
+    return `the review station ${review.node_id} does not lead to it`;
+  if (!coveredHeads(run, attempt, review.head_sha).has(head))
+    return `the reviewer read ${review.head_sha.slice(0, 10)}, not the head being merged (${head.slice(0, 10)}), and no rebase of the station's own turned one into the other`;
   return null;
 }
 
@@ -277,9 +513,16 @@ const SHA = /^[0-9a-f]{40}$/;
 
 /** The canonical ids of the calling session: the conversation its agent session id names (or that id itself, when
  *  it is a conversation's), as its full id and as the short id the runner reports on the stations it spawns. */
-async function callerIds(ctx: any, userId: Id<"users">, sessionRef: string): Promise<Set<string>> {
+async function callerIds(
+  ctx: any,
+  userId: Id<"users">,
+  sessionRef: string,
+): Promise<Set<string>> {
   if (!sessionRef) return new Set();
-  const byAgent = await ctx.db.query("conversations").withIndex("by_session_id", (q: any) => q.eq("session_id", sessionRef)).take(5);
+  const byAgent = await ctx.db
+    .query("conversations")
+    .withIndex("by_session_id", (q: any) => q.eq("session_id", sessionRef))
+    .take(5);
   const asId = ctx.db.normalizeId?.("conversations", sessionRef);
   const direct = asId ? await ctx.db.get(asId) : null;
   const ids = new Set<string>();
@@ -299,26 +542,81 @@ async function callerIds(ctx: any, userId: Id<"users">, sessionRef: string): Pro
  * This keeps a confused agent or a stale verdict from counting; it is no defence against a process that holds the
  * account's token, which could push the default branch directly anyway.
  */
-export async function recordReviewVerdictCore(ctx: any, userId: Id<"users">, args: { session_id?: string; verdict: string; head_sha: string; round?: string; run_id?: string; node_id?: string }, now = Date.now()): Promise<{ run_id: string; node_id: string; attempt: number }> {
-  if (!SHA.test(args.head_sha)) throw new Error(`${args.head_sha} is not a commit sha`);
-  if (!["ship", "changes", "rejected"].includes(args.verdict)) throw new Error(`${args.verdict} is not a verdict: ship, changes or rejected`);
+export async function recordReviewVerdictCore(
+  ctx: any,
+  userId: Id<"users">,
+  args: {
+    session_id?: string;
+    verdict: string;
+    head_sha: string;
+    round?: string;
+    run_id?: string;
+    node_id?: string;
+  },
+  now = Date.now(),
+): Promise<{ run_id: string; node_id: string; attempt: number }> {
+  if (!SHA.test(args.head_sha))
+    throw new Error(`${args.head_sha} is not a commit sha`);
+  if (!["ship", "changes", "rejected"].includes(args.verdict))
+    throw new Error(
+      `${args.verdict} is not a verdict: ship, changes or rejected`,
+    );
   const ids = await callerIds(ctx, userId, String(args.session_id ?? ""));
-  if (!ids.size) throw new Error("This session is not one of your sessions codecast knows: a review verdict is recorded from the reviewer station's own session");
+  if (!ids.size)
+    throw new Error(
+      "This session is not one of your sessions codecast knows: a review verdict is recorded from the reviewer station's own session",
+    );
   const runs: any[] = args.run_id
-    ? [await ctx.db.get(args.run_id as Id<"workflow_runs">)].filter((r) => r && String(r.user_id) === String(userId) && r.status === "running")
-    : await ctx.db.query("workflow_runs").withIndex("by_user_status", (q: any) => q.eq("user_id", userId).eq("status", "running")).take(200);
+    ? [await ctx.db.get(args.run_id as Id<"workflow_runs">)].filter(
+        (r) =>
+          r && String(r.user_id) === String(userId) && r.status === "running",
+      )
+    : await ctx.db
+        .query("workflow_runs")
+        .withIndex("by_user_status", (q: any) =>
+          q.eq("user_id", userId).eq("status", "running"),
+        )
+        .take(200);
   const found: Array<{ run: any; node_id: string; attempt: number }> = [];
   for (const run of runs) {
     const attempt = runAttempt(run);
-    const mine = (run.node_statuses ?? []).filter((s: any) => ids.has(String(s.session_id ?? "")) && (s.started_at ?? 0) >= attempt && (!args.node_id || s.node_id === args.node_id));
+    const mine = (run.node_statuses ?? []).filter(
+      (s: any) =>
+        ids.has(String(s.session_id ?? "")) &&
+        (s.started_at ?? 0) >= attempt &&
+        (!args.node_id || s.node_id === args.node_id),
+    );
     if (!mine.length) continue;
     const nodes = (await runWorkflowOf(ctx, run))?.nodes ?? [];
-    for (const s of mine) if (nodes.some((n: any) => n.id === s.node_id && n.type === "agent" && n.reviewer === true)) found.push({ run, node_id: s.node_id, attempt });
+    for (const s of mine)
+      if (
+        nodes.some(
+          (n: any) =>
+            n.id === s.node_id && n.type === "agent" && n.reviewer === true,
+        )
+      )
+        found.push({ run, node_id: s.node_id, attempt });
   }
-  if (!found.length) throw new Error("This session is no running run's reviewer station in this attempt: only the reviewer station's own session records its review verdict");
-  if (found.length > 1) throw new Error(`This session is the reviewer station of ${found.length} running runs; pass --run to name one`);
+  if (!found.length)
+    throw new Error(
+      "This session is no running run's reviewer station in this attempt: only the reviewer station's own session records its review verdict",
+    );
+  if (found.length > 1)
+    throw new Error(
+      `This session is the reviewer station of ${found.length} running runs; pass --run to name one`,
+    );
   const { run, node_id, attempt } = found[0];
-  await ctx.db.patch(run._id, { review_verdict: { node_id, verdict: args.verdict, head_sha: args.head_sha, ...(args.round ? { round: args.round.slice(0, 100) } : {}), at: now, attempt }, updated_at: now });
+  await ctx.db.patch(run._id, {
+    review_verdict: {
+      node_id,
+      verdict: args.verdict,
+      head_sha: args.head_sha,
+      ...(args.round ? { round: args.round.slice(0, 100) } : {}),
+      at: now,
+      attempt,
+    },
+    updated_at: now,
+  });
   return { run_id: String(run._id), node_id, attempt };
 }
 
@@ -328,46 +626,98 @@ export async function recordReviewVerdictCore(ctx: any, userId: Id<"users">, arg
  * station running now. The server cannot tell a rebase from any other commit, so the Merge station checks each link
  * itself before it trusts one (workflow/rebaseRecord.ts verifyRebaseChain); this record says only who claimed it.
  */
-export async function recordStationRebaseCore(ctx: any, userId: Id<"users">, args: { run_id: string; from: string; to: string }, now = Date.now()): Promise<{ attempt: number }> {
+export async function recordStationRebaseCore(
+  ctx: any,
+  userId: Id<"users">,
+  args: { run_id: string; from: string; to: string },
+  now = Date.now(),
+): Promise<{ attempt: number }> {
   const run = await ctx.db.get(args.run_id as Id<"workflow_runs">);
-  if (!run || String(run.user_id) !== String(userId)) throw new Error("Only the run's own runner records its rebase");
-  if (!SHA.test(args.from) || !SHA.test(args.to) || args.from === args.to) throw new Error("a rebase names two different commit shas");
-  const station = (run.node_statuses ?? []).find((s: any) => s.node_id === run.current_node_id);
-  const node = ((await runWorkflowOf(ctx, run))?.nodes ?? []).find((n: any) => n.id === run.current_node_id);
-  if (run.status !== "running" || station?.status !== "running" || station.session_id || node?.type !== "command") {
-    throw new Error(`${run.current_node_id} is not a running script station: only a station's own script records its rebase`);
+  if (!run || String(run.user_id) !== String(userId))
+    throw new Error("Only the run's own runner records its rebase");
+  if (!SHA.test(args.from) || !SHA.test(args.to) || args.from === args.to)
+    throw new Error("a rebase names two different commit shas");
+  const station = (run.node_statuses ?? []).find(
+    (s: any) => s.node_id === run.current_node_id,
+  );
+  const node = ((await runWorkflowOf(ctx, run))?.nodes ?? []).find(
+    (n: any) => n.id === run.current_node_id,
+  );
+  if (
+    run.status !== "running" ||
+    station?.status !== "running" ||
+    station.session_id ||
+    node?.type !== "command"
+  ) {
+    throw new Error(
+      `${run.current_node_id} is not a running script station: only a station's own script records its rebase`,
+    );
   }
   const attempt = runAttempt(run);
-  await ctx.db.patch(run._id, { station_rebases: [...(run.station_rebases ?? []), { from: args.from, to: args.to, at: now, attempt }].slice(-10), updated_at: now });
+  await ctx.db.patch(run._id, {
+    station_rebases: [
+      ...(run.station_rebases ?? []),
+      { from: args.from, to: args.to, at: now, attempt },
+    ].slice(-10),
+    updated_at: now,
+  });
   return { attempt };
 }
 
 /** What the server holds for this attempt that a merge stands on: the reviewer's verdict and the head it read, and
  *  the recorded rebase links. The Merge station verifies the chain from that head itself, and trusts no file for it. */
-export async function mergeProofCore(ctx: any, userId: Id<"users">, runId: string): Promise<{ review: { verdict: string; head_sha: string; node_id: string } | null; rebases: Array<{ from: string; to: string }> }> {
+export async function mergeProofCore(
+  ctx: any,
+  userId: Id<"users">,
+  runId: string,
+): Promise<{
+  review: { verdict: string; head_sha: string; node_id: string } | null;
+  rebases: Array<{ from: string; to: string }>;
+}> {
   const run = await ctx.db.get(runId as Id<"workflow_runs">);
-  if (!run || String(run.user_id) !== String(userId)) throw new Error("Only the run's own runner reads what its merge stands on");
+  if (!run || String(run.user_id) !== String(userId))
+    throw new Error("Only the run's own runner reads what its merge stands on");
   const attempt = runAttempt(run);
   const r = run.review_verdict?.attempt === attempt ? run.review_verdict : null;
   return {
-    review: r ? { verdict: r.verdict, head_sha: r.head_sha, node_id: r.node_id } : null,
-    rebases: (run.station_rebases ?? []).filter((x: any) => x.attempt === attempt).map((x: any) => ({ from: x.from, to: x.to })),
+    review: r
+      ? { verdict: r.verdict, head_sha: r.head_sha, node_id: r.node_id }
+      : null,
+    rebases: (run.station_rebases ?? [])
+      .filter((x: any) => x.attempt === attempt)
+      .map((x: any) => ({ from: x.from, to: x.to })),
   };
 }
 
 export const mergeProof = query({
   args: { api_token: v.string(), run_id: v.string() },
-  handler: async (ctx, { api_token, run_id }) => mergeProofCore(ctx, await requireToken(ctx, api_token), run_id),
+  handler: async (ctx, { api_token, run_id }) =>
+    mergeProofCore(ctx, await requireToken(ctx, api_token), run_id),
 });
 
 export const recordReviewVerdict = mutation({
-  args: { api_token: v.string(), session_id: v.optional(v.string()), verdict: v.string(), head_sha: v.string(), round: v.optional(v.string()), run_id: v.optional(v.string()), node_id: v.optional(v.string()) },
-  handler: async (ctx, { api_token, ...args }) => recordReviewVerdictCore(ctx, await requireToken(ctx, api_token), args),
+  args: {
+    api_token: v.string(),
+    session_id: v.optional(v.string()),
+    verdict: v.string(),
+    head_sha: v.string(),
+    round: v.optional(v.string()),
+    run_id: v.optional(v.string()),
+    node_id: v.optional(v.string()),
+  },
+  handler: async (ctx, { api_token, ...args }) =>
+    recordReviewVerdictCore(ctx, await requireToken(ctx, api_token), args),
 });
 
 export const recordStationRebase = mutation({
-  args: { api_token: v.string(), run_id: v.string(), from: v.string(), to: v.string() },
-  handler: async (ctx, { api_token, ...args }) => recordStationRebaseCore(ctx, await requireToken(ctx, api_token), args),
+  args: {
+    api_token: v.string(),
+    run_id: v.string(),
+    from: v.string(),
+    to: v.string(),
+  },
+  handler: async (ctx, { api_token, ...args }) =>
+    recordStationRebaseCore(ctx, await requireToken(ctx, api_token), args),
 });
 
 /**
@@ -375,60 +725,154 @@ export const recordStationRebase = mutation({
  * stands on what the server holds rather than on a ci.json any script can write. Only the run's own runner account,
  * for a script station of the run's graph that is running now, in this attempt, with no session on it.
  */
-export async function recordCiVerdictCore(ctx: any, userId: Id<"users">, args: { run_id: string; node_id: string; green: boolean; head_sha: string; ci_changed?: boolean }, now = Date.now()): Promise<{ attempt: number }> {
+export async function recordCiVerdictCore(
+  ctx: any,
+  userId: Id<"users">,
+  args: {
+    run_id: string;
+    node_id: string;
+    green: boolean;
+    head_sha: string;
+    ci_changed?: boolean;
+  },
+  now = Date.now(),
+): Promise<{ attempt: number }> {
   const run = await ctx.db.get(args.run_id as Id<"workflow_runs">);
-  if (!run || String(run.user_id) !== String(userId)) throw new Error("Only the run's own runner records its CI verdict");
-  if (run.status !== "running") throw new Error(`The run is ${run.status}: only a running CI station records a verdict`);
-  if (!/^[0-9a-f]{40}$/.test(args.head_sha)) throw new Error(`${args.head_sha} is not a commit sha`);
+  if (!run || String(run.user_id) !== String(userId))
+    throw new Error("Only the run's own runner records its CI verdict");
+  if (run.status !== "running")
+    throw new Error(
+      `The run is ${run.status}: only a running CI station records a verdict`,
+    );
+  if (!/^[0-9a-f]{40}$/.test(args.head_sha))
+    throw new Error(`${args.head_sha} is not a commit sha`);
   const attempt = runAttempt(run);
-  const node = ((await runWorkflowOf(ctx, run))?.nodes ?? []).find((n: any) => n.id === args.node_id);
-  const station = (run.node_statuses ?? []).find((s: any) => s.node_id === args.node_id);
-  if (node?.type !== "command" || station?.status !== "running" || station.session_id || (station.started_at ?? 0) < attempt) {
-    throw new Error(`${args.node_id} is not a running script station of the run's graph: only the CI station records a verdict, while it runs`);
+  const node = ((await runWorkflowOf(ctx, run))?.nodes ?? []).find(
+    (n: any) => n.id === args.node_id,
+  );
+  const station = (run.node_statuses ?? []).find(
+    (s: any) => s.node_id === args.node_id,
+  );
+  if (
+    node?.type !== "command" ||
+    station?.status !== "running" ||
+    station.session_id ||
+    (station.started_at ?? 0) < attempt
+  ) {
+    throw new Error(
+      `${args.node_id} is not a running script station of the run's graph: only the CI station records a verdict, while it runs`,
+    );
   }
-  await ctx.db.patch(run._id, { ci_verdict: { node_id: args.node_id, green: args.green, head_sha: args.head_sha, ...(args.ci_changed ? { ci_changed: true } : {}), at: now, attempt }, updated_at: now });
+  await ctx.db.patch(run._id, {
+    ci_verdict: {
+      node_id: args.node_id,
+      green: args.green,
+      head_sha: args.head_sha,
+      ...(args.ci_changed ? { ci_changed: true } : {}),
+      at: now,
+      attempt,
+    },
+    updated_at: now,
+  });
   return { attempt };
 }
 
 export const recordCiVerdict = mutation({
-  args: { api_token: v.string(), run_id: v.string(), node_id: v.string(), green: v.boolean(), head_sha: v.string(), ci_changed: v.optional(v.boolean()) },
-  handler: async (ctx, { api_token, ...args }) => recordCiVerdictCore(ctx, await requireToken(ctx, api_token), args),
+  args: {
+    api_token: v.string(),
+    run_id: v.string(),
+    node_id: v.string(),
+    green: v.boolean(),
+    head_sha: v.string(),
+    ci_changed: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { api_token, ...args }) =>
+    recordCiVerdictCore(ctx, await requireToken(ctx, api_token), args),
 });
 
 export const clearForMerge = mutation({
-  args: { api_token: v.string(), run_id: v.string(), why: v.string(), head_sha: v.optional(v.string()), ci_changed: v.optional(v.boolean()) },
-  handler: async (ctx, { api_token, ...args }) => clearForMergeCore(ctx, await requireToken(ctx, api_token), args),
+  args: {
+    api_token: v.string(),
+    run_id: v.string(),
+    why: v.string(),
+    head_sha: v.optional(v.string()),
+    ci_changed: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { api_token, ...args }) =>
+    clearForMergeCore(ctx, await requireToken(ctx, api_token), args),
 });
 
-const PERSON_ALLOWANCE = { on: true, used: 0, limit: null, grant: null, allowed: true, reason: null, mode: "count" as const, bar: null, measured: null };
+const PERSON_ALLOWANCE = {
+  on: true,
+  used: 0,
+  limit: null,
+  grant: null,
+  allowed: true,
+  reason: null,
+  mode: "count" as const,
+  bar: null,
+  measured: null,
+};
 
 /** Before the merge: may this run's line merge now? Never writes. A run no
  *  role is behind says who authorizes it (`authorized`); the trial check
  *  comes after, so a trial project's run never merges whoever said Ship. */
-export async function checkMergeCore(ctx: any, userId: Id<"users">, runId: string): Promise<any> {
+export async function checkMergeCore(
+  ctx: any,
+  userId: Id<"users">,
+  runId: string,
+): Promise<any> {
   const { run, role, authorizedBy } = await runAndRole(ctx, userId, runId);
   const task: any = run.task_id ? await ctx.db.get(run.task_id) : null;
   // A trial project's run never merges, whatever graph it runs (lineTrial.ts).
-  const trial = (await trialProjectOf(ctx, task)) ? { allowed: false, reason: "a trial project's run stops at the card: nothing merges" } : {};
+  const trial = (await trialProjectOf(ctx, task))
+    ? {
+        allowed: false,
+        reason: "a trial project's run stops at the card: nothing merges",
+      }
+    : {};
   return {
-    role: role ? { short_id: role.short_id, handle: role.handle, name: role.name } : null,
-    task: task ? { short_id: task.short_id, title: task.title, pr_url: prUrlFromEvidence(task.verification_evidence) } : null,
+    role: role
+      ? { short_id: role.short_id, handle: role.handle, name: role.name }
+      : null,
+    task: task
+      ? {
+          short_id: task.short_id,
+          title: task.title,
+          pr_url: prUrlFromEvidence(task.verification_evidence),
+        }
+      : null,
     ...(authorizedBy ? { authorized: authorizedBy } : {}),
-    ...(role ? await roleMergeAllowance(ctx, role, Date.now()) : PERSON_ALLOWANCE),
+    ...(role
+      ? await roleMergeAllowance(ctx, role, Date.now())
+      : PERSON_ALLOWANCE),
     ...trial,
   };
 }
 
 export const check = query({
   args: { api_token: v.string(), run_id: v.string() },
-  handler: async (ctx, args) => checkMergeCore(ctx, await requireToken(ctx, args.api_token), args.run_id),
+  handler: async (ctx, args) =>
+    checkMergeCore(ctx, await requireToken(ctx, args.api_token), args.run_id),
 });
 
 /** After the push: the merge counted against the limit, recorded on the
  *  run and the task, and reported in the role's own thread. Refused when the
  *  allowance is gone by now (the runner then says so and leaves the merge to
  *  a person; the push has already landed, so this is the count, not a gate). */
-export async function recordMergeCore(ctx: any, userId: Id<"users">, args: { run_id: string; sha: string; branch: string; into: string; pr_url?: string; observed?: boolean }, now = Date.now()): Promise<any> {
+export async function recordMergeCore(
+  ctx: any,
+  userId: Id<"users">,
+  args: {
+    run_id: string;
+    sha: string;
+    branch: string;
+    into: string;
+    pr_url?: string;
+    observed?: boolean;
+  },
+  now = Date.now(),
+): Promise<any> {
   if (args.observed) {
     // A landing found on the default branch (`cast flow landed`), not a merge the line made: it authorizes nothing,
     // so it needs no role and no Ship, only the run's own runner (its owner). It fills an empty run.merge as where the
@@ -438,14 +882,35 @@ export async function recordMergeCore(ctx: any, userId: Id<"users">, args: { run
     if (!run) throw new Error(`No run ${args.run_id}`);
     if (run.user_id !== userId) throw new Error("Forbidden");
     if (run.merge) return { observed: true, kept: run.merge.sha };
-    await ctx.db.patch(run._id, { merge: { sha: args.sha, branch: args.branch, into: args.into, at: now, ...(args.pr_url ? { pr_url: args.pr_url } : {}) } });
+    await ctx.db.patch(run._id, {
+      merge: {
+        sha: args.sha,
+        branch: args.branch,
+        into: args.into,
+        at: now,
+        ...(args.pr_url ? { pr_url: args.pr_url } : {}),
+      },
+    });
     return { observed: true };
   }
-  const { run, role, authorizedBy } = await runAndRole(ctx, userId, args.run_id);
+  const { run, role, authorizedBy } = await runAndRole(
+    ctx,
+    userId,
+    args.run_id,
+  );
   if (!role) {
     // Authorized by a person: record the merge, who authorized it and why on the run and the task, no role to count it against.
     const by = authorizedBy!;
-    await ctx.db.patch(run._id, { merge: { sha: args.sha, branch: args.branch, into: args.into, at: now, ...(args.pr_url ? { pr_url: args.pr_url } : {}), authorized: { user_id: by.user_id as Id<"users">, why: by.why } } });
+    await ctx.db.patch(run._id, {
+      merge: {
+        sha: args.sha,
+        branch: args.branch,
+        into: args.into,
+        at: now,
+        ...(args.pr_url ? { pr_url: args.pr_url } : {}),
+        authorized: { user_id: by.user_id as Id<"users">, why: by.why },
+      },
+    });
     const task: any = run.task_id ? await ctx.db.get(run.task_id) : null;
     if (task) {
       await insertTaskComment(ctx, task._id, {
@@ -455,13 +920,30 @@ export async function recordMergeCore(ctx: any, userId: Id<"users">, args: { run
         conversation_id: run.primary_conversation_id ?? undefined,
       });
     }
-    return { used: 0, limit: null, over: false, reported: false, authorized: by };
+    return {
+      used: 0,
+      limit: null,
+      over: false,
+      reported: false,
+      authorized: by,
+    };
   }
   const allowance = await roleMergeAllowance(ctx, role, now);
   const counters = countersFor(role, now);
   const used = (counters.merges ?? 0) + 1;
-  await ctx.db.patch(role._id, { counters: { ...counters, merges: used }, updated_at: now });
-  await ctx.db.patch(run._id, { merge: { sha: args.sha, branch: args.branch, into: args.into, at: now, ...(args.pr_url ? { pr_url: args.pr_url } : {}) } });
+  await ctx.db.patch(role._id, {
+    counters: { ...counters, merges: used },
+    updated_at: now,
+  });
+  await ctx.db.patch(run._id, {
+    merge: {
+      sha: args.sha,
+      branch: args.branch,
+      into: args.into,
+      at: now,
+      ...(args.pr_url ? { pr_url: args.pr_url } : {}),
+    },
+  });
   const task: any = run.task_id ? await ctx.db.get(run.task_id) : null;
   const limit = allowance.limit ?? used;
   if (task) {
@@ -473,22 +955,54 @@ export async function recordMergeCore(ctx: any, userId: Id<"users">, args: { run
     });
   }
   const told = await tellRole(ctx, role._id, {
-    content: mergeReportLine({ task_short_id: task?.short_id ?? "the task", task_title: task?.title ?? "", branch: args.branch, sha: args.sha, into: args.into, used, limit }),
+    content: mergeReportLine({
+      task_short_id: task?.short_id ?? "the task",
+      task_title: task?.title ?? "",
+      branch: args.branch,
+      sha: args.sha,
+      into: args.into,
+      used,
+      limit,
+    }),
     client_id: `line-merge:${run._id}`,
   });
-  return { used, limit, over: allowance.limit !== null && used > allowance.limit, reported: !!told };
+  return {
+    used,
+    limit,
+    over: allowance.limit !== null && used > allowance.limit,
+    reported: !!told,
+  };
 }
 
 export const record = mutation({
-  args: { api_token: v.string(), run_id: v.string(), sha: v.string(), branch: v.string(), into: v.string(), pr_url: v.optional(v.string()), observed: v.optional(v.boolean()) },
-  handler: async (ctx, { api_token, ...args }) => recordMergeCore(ctx, await requireToken(ctx, api_token), args),
+  args: {
+    api_token: v.string(),
+    run_id: v.string(),
+    sha: v.string(),
+    branch: v.string(),
+    into: v.string(),
+    pr_url: v.optional(v.string()),
+    observed: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { api_token, ...args }) =>
+    recordMergeCore(ctx, await requireToken(ctx, api_token), args),
 });
 
 export const setLineMerge = mutation({
-  args: { api_token: v.optional(v.string()), role_id: v.string(), on: v.boolean(), per_day: v.optional(v.number()), rate: v.optional(v.union(v.null(), v.object({ bar: v.number(), min: v.number() }))), from_session: v.optional(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    role_id: v.string(),
+    on: v.boolean(),
+    per_day: v.optional(v.number()),
+    rate: v.optional(
+      v.union(v.null(), v.object({ bar: v.number(), min: v.number() })),
+    ),
+    from_session: v.optional(v.string()),
+  },
   handler: async (ctx, { api_token, ...args }) => {
     const userId = await getAuthenticatedUserId(ctx, api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     return performSetLineMerge(ctx, userId, { ...args, api_token });
   },
 });

@@ -57,8 +57,9 @@ export function OtherAddresses() {
         Other addresses
       </div>
       <p className="mt-1 text-xs leading-relaxed text-sol-text-muted">
-        Addresses you use elsewhere. A Slack person, a task assignee or a thread member found under one of
-        these is you. Adding one claims what has already been seen under it.
+        Addresses you use elsewhere. A Slack person, a task assignee or a thread
+        member found under one of these is you. Adding one claims what has
+        already been seen under it.
       </p>
 
       {addresses.length > 0 && (

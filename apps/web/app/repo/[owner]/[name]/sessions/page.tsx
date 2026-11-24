@@ -9,7 +9,10 @@ export default function RepoSessionsPage() {
 
   return (
     <RepoSectionPage tab="sessions" accent="var(--sol-yellow)">
-      <RepoSessionsContent repository={`${params.owner}/${params.name}`} family={family} />
+      <RepoSessionsContent
+        repository={`${params.owner}/${params.name}`}
+        family={family}
+      />
     </RepoSectionPage>
   );
 }

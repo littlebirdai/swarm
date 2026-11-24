@@ -17,14 +17,15 @@ import { OBJECTS, PEOPLE, SESSIONS } from "./story";
 export const entities: Record<string, EntityFixture> = {};
 
 /** The worker's question: the reason the session needs input. */
-export const ASK = "Should a 410 Gone count as failed? I'd retry 5xx, 429 and timeouts only.";
+export const ASK =
+  "Should a 410 Gone count as failed? I'd retry 5xx, 429 and timeouts only.";
 
 /** Alex's answer from the phone, short enough to stay on one line of the app's composer. */
 export const STEER = "Agreed. Log 410s, never retry.";
 
 /** The worker's reply as it carries on, streamed word by word: two lines on the phone, so the question it answers stays whole above it with the keyboard up. */
-export const REPLY = "Got it: 410s logged once, never retried. Running the tests.";
-
+export const REPLY =
+  "Got it: 410s logged once, never retried. Running the tests.";
 
 /** The person on the phone, as the app's transcript names them. */
 export const ME = PEOPLE.me.name;
@@ -39,7 +40,10 @@ export const PHONE_SESSION = {
   title: SESSIONS.api.title,
   agent: SESSIONS.api.agent,
   model: WORKERS.api.model,
-  assignment: { device: { name: OBJECTS.hosts.cloud, remote: true, online: true }, owner: PEOPLE.me.name },
+  assignment: {
+    device: { name: OBJECTS.hosts.cloud, remote: true, online: true },
+    owner: PEOPLE.me.name,
+  },
 } as const;
 
 /** What the worker had done before the question, oldest first: the task the lead handed it (the spawn's prompt, which the app shows as Alex's own message, since the lead runs as Alex), its plan, and its first two calls (fixtures/fanout.ts). */

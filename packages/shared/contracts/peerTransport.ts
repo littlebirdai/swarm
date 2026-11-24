@@ -35,7 +35,10 @@ export function normalizePeerTailnet(raw: unknown): PeerTailnet | null {
   const ip = typeof r.ip === "string" && isTailnetIPv4(r.ip) ? r.ip : null;
   const name = boundedString(r.name);
   if (!ip || !name) return null;
-  const tsUserId = typeof r.ts_user_id === "number" && Number.isSafeInteger(r.ts_user_id) ? String(r.ts_user_id) : boundedString(r.ts_user_id);
+  const tsUserId =
+    typeof r.ts_user_id === "number" && Number.isSafeInteger(r.ts_user_id)
+      ? String(r.ts_user_id)
+      : boundedString(r.ts_user_id);
   return {
     ip,
     name,
@@ -56,8 +59,13 @@ export function reportedPeerTailnet(
   localAddresses: readonly string[],
 ): PeerTailnet | null {
   if (!self) return null;
-  const userId = (status as { Self?: { UserID?: unknown } } | null)?.Self?.UserID;
-  return normalizePeerTailnet({ ...self, ts_user_id: userId, bindable: localAddresses.includes(self.ip) });
+  const userId = (status as { Self?: { UserID?: unknown } } | null)?.Self
+    ?.UserID;
+  return normalizePeerTailnet({
+    ...self,
+    ts_user_id: userId,
+    bindable: localAddresses.includes(self.ip),
+  });
 }
 
 /**
@@ -66,7 +74,10 @@ export function reportedPeerTailnet(
  * failed or slow `tailscale status` reads as null too. Off the tailnet is
  * reported after two null reads in a row, so a hiccup never clears the row.
  */
-export function heartbeatTailnetField(): (read: Promise<PeerTailnet | null>, timeoutMs: number) => Promise<PeerTailnet | null | undefined> {
+export function heartbeatTailnetField(): (
+  read: Promise<PeerTailnet | null>,
+  timeoutMs: number,
+) => Promise<PeerTailnet | null | undefined> {
   let nulls = 0;
   return async (read, timeoutMs) => {
     let stop = () => {};
@@ -76,15 +87,26 @@ export function heartbeatTailnetField(): (read: Promise<PeerTailnet | null>, tim
     });
     const value = await Promise.race([read, timedOut]).finally(() => stop());
     if (value === undefined) return undefined;
-    if (value) { nulls = 0; return value; }
+    if (value) {
+      nulls = 0;
+      return value;
+    }
     return ++nulls >= 2 ? null : undefined;
   };
 }
 
-export function samePeerTailnet(a: PeerTailnet | null | undefined, b: PeerTailnet | null | undefined): boolean {
+export function samePeerTailnet(
+  a: PeerTailnet | null | undefined,
+  b: PeerTailnet | null | undefined,
+): boolean {
   if (!a || !b) return !a && !b;
-  return a.ip === b.ip && a.name === b.name && (a.tailnet ?? null) === (b.tailnet ?? null)
-    && (a.ts_user_id ?? null) === (b.ts_user_id ?? null) && (a.bindable ?? null) === (b.bindable ?? null);
+  return (
+    a.ip === b.ip &&
+    a.name === b.name &&
+    (a.tailnet ?? null) === (b.tailnet ?? null) &&
+    (a.ts_user_id ?? null) === (b.ts_user_id ?? null) &&
+    (a.bindable ?? null) === (b.bindable ?? null)
+  );
 }
 
 /** The short machine name from a MagicDNS name ("mbp.tail1234.ts.net." -> "mbp"). */
@@ -102,7 +124,15 @@ export type PeerLinkState =
   | { state: "direct"; tailnet: string | null; proven: boolean }
   | {
       state: "relayed";
-      why: "self_off" | "peer_off" | "different_tailnet" | "other_account" | "not_bindable" | "peer_offline" | "disabled" | "last_failed";
+      why:
+        | "self_off"
+        | "peer_off"
+        | "different_tailnet"
+        | "other_account"
+        | "not_bindable"
+        | "peer_offline"
+        | "disabled"
+        | "last_failed";
       reason?: string;
     };
 
@@ -123,13 +153,25 @@ export function peerLinkState(opts: {
   if (opts.directLinks === false) return { state: "relayed", why: "disabled" };
   if (!self) return { state: "relayed", why: "self_off" };
   if (!peer) return { state: "relayed", why: "peer_off" };
-  if (self.tailnet && peer.tailnet && self.tailnet !== peer.tailnet) return { state: "relayed", why: "different_tailnet" };
-  if (self.ts_user_id && peer.ts_user_id && self.ts_user_id !== peer.ts_user_id) return { state: "relayed", why: "other_account" };
+  if (self.tailnet && peer.tailnet && self.tailnet !== peer.tailnet)
+    return { state: "relayed", why: "different_tailnet" };
+  if (self.ts_user_id && peer.ts_user_id && self.ts_user_id !== peer.ts_user_id)
+    return { state: "relayed", why: "other_account" };
   if (!opts.peerOnline) return { state: "relayed", why: "peer_offline" };
   if (peer.bindable === false) return { state: "relayed", why: "not_bindable" };
   const failure = last?.last_direct_failure;
-  if (failure && !(last?.last_direct_ok_at !== undefined && last.last_direct_ok_at > failure.at)) {
+  if (
+    failure &&
+    !(
+      last?.last_direct_ok_at !== undefined &&
+      last.last_direct_ok_at > failure.at
+    )
+  ) {
     return { state: "relayed", why: "last_failed", reason: failure.reason };
   }
-  return { state: "direct", tailnet: self.tailnet ?? peer.tailnet, proven: last?.last_direct_ok_at !== undefined };
+  return {
+    state: "direct",
+    tailnet: self.tailnet ?? peer.tailnet,
+    proven: last?.last_direct_ok_at !== undefined,
+  };
 }

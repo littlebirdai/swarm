@@ -29,7 +29,10 @@ import { AUTH_JWT_STORAGE_KEY, CONVEX_URL } from "./localAuth";
  * then breaks the build instead of failing silently in an unload handler
  * nobody is watching — the one place a typo could never be noticed.
  */
-export function mutateOnUnload(fn: unknown, args: Record<string, unknown>): void {
+export function mutateOnUnload(
+  fn: unknown,
+  args: Record<string, unknown>,
+): void {
   try {
     const token = localStorage.getItem(AUTH_JWT_STORAGE_KEY);
     if (!token) return;
@@ -37,7 +40,10 @@ export function mutateOnUnload(fn: unknown, args: Record<string, unknown>): void
     void fetch(`${CONVEX_URL}/api/mutation`, {
       method: "POST",
       keepalive: true,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ path, args, format: "json" }),
     }).catch(() => {});
   } catch {

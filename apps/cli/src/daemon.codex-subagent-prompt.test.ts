@@ -22,10 +22,37 @@ test("a Codex launch marker supplies the parent before creation and survives a f
     mkdirSync(cwd);
     const file = join(dir, `rollout-${sessionId}.jsonl`);
     const timestamp = "2026-09-20T20:36:13.000Z";
-    writeFileSync(file, [
-      { type: "session_meta", timestamp, payload: { id: sessionId, cwd, source: "cli" } },
-      { type: "response_item", timestamp, payload: { type: "message", id: "launch", role: "user", content: [{ type: "input_text", text: formatAgentPrompt(parent, "Read the History UI brief and execute it.", true) }] } },
-    ].map(row => JSON.stringify(row)).join("\n") + "\n");
+    writeFileSync(
+      file,
+      [
+        {
+          type: "session_meta",
+          timestamp,
+          payload: { id: sessionId, cwd, source: "cli" },
+        },
+        {
+          type: "response_item",
+          timestamp,
+          payload: {
+            type: "message",
+            id: "launch",
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: formatAgentPrompt(
+                  parent,
+                  "Read the History UI brief and execute it.",
+                  true,
+                ),
+              },
+            ],
+          },
+        },
+      ]
+        .map((row) => JSON.stringify(row))
+        .join("\n") + "\n",
+    );
     const creates: CreateConversationParams[] = [];
     const queued: Array<{ type: string; params: Record<string, unknown> }> = [];
     const sync = {
@@ -41,10 +68,30 @@ test("a Codex launch marker supplies the parent before creation and survives a f
         return "retry";
       },
     } as unknown as RetryQueue;
-    await expect(processCodexSession(file, sessionId, sync, "user", undefined, { "parent-native": parent }, retry, {}, {}, () => {})).rejects.toThrow("retains unread data");
+    await expect(
+      processCodexSession(
+        file,
+        sessionId,
+        sync,
+        "user",
+        undefined,
+        { "parent-native": parent },
+        retry,
+        {},
+        {},
+        () => {},
+      ),
+    ).rejects.toThrow("retains unread data");
     expect(creates).toHaveLength(1);
-    expect(creates[0]).toMatchObject({ parentConversationId: parent, isSubagent: true, projectPath: cwd, agentType: "codex" });
-    expect(queued).toEqual([{ type: "createConversation", params: { ...creates[0] } }]);
+    expect(creates[0]).toMatchObject({
+      parentConversationId: parent,
+      isSubagent: true,
+      projectPath: cwd,
+      agentType: "codex",
+    });
+    expect(queued).toEqual([
+      { type: "createConversation", params: { ...creates[0] } },
+    ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

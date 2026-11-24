@@ -13,47 +13,98 @@ describe("callingSubject", () => {
     const asked: any[] = [];
     const subject = await callingSubject({
       callingSession: () => "0b6f1c2e-agent-session",
-      cliPost: async (route, body) => { asked.push({ route, body }); return { sessions: [{ id: FULL }] }; },
+      cliPost: async (route, body) => {
+        asked.push({ route, body });
+        return { sessions: [{ id: FULL }] };
+      },
     });
     expect(subject).toEqual({ session: "jx756fb", conversation: FULL });
-    expect(asked[0]).toMatchObject({ route: "/cli/inbox", body: { session_ids: ["0b6f1c2e-agent-session"] } });
+    expect(asked[0]).toMatchObject({
+      route: "/cli/inbox",
+      body: { session_ids: ["0b6f1c2e-agent-session"] },
+    });
   });
 
   test("a plain shell has none", async () => {
-    expect(await callingSubject({ callingSession: () => undefined, cliPost: async () => { throw new Error("not asked"); } })).toBeUndefined();
+    expect(
+      await callingSubject({
+        callingSession: () => undefined,
+        cliPost: async () => {
+          throw new Error("not asked");
+        },
+      }),
+    ).toBeUndefined();
   });
 
   test("a plain shell running a task's change takes the session the task's change came from (a run started over ssh)", async () => {
     const asked: any[] = [];
-    const subject = await callingSubject({
-      callingSession: () => undefined,
-      cliPost: async (route, body) => { asked.push({ route, body }); return { short_id: "ct-9", change_session: { short_id: "jx756fb", conversation_id: FULL } }; },
-    }, "ct-9");
+    const subject = await callingSubject(
+      {
+        callingSession: () => undefined,
+        cliPost: async (route, body) => {
+          asked.push({ route, body });
+          return {
+            short_id: "ct-9",
+            change_session: { short_id: "jx756fb", conversation_id: FULL },
+          };
+        },
+      },
+      "ct-9",
+    );
     expect(subject).toEqual({ session: "jx756fb", conversation: FULL });
-    expect(asked).toEqual([{ route: "/cli/work/get", body: { short_id: "ct-9" } }]);
+    expect(asked).toEqual([
+      { route: "/cli/work/get", body: { short_id: "ct-9" } },
+    ]);
   });
 
   test("a task no session worked leaves a plain shell with none", async () => {
-    expect(await callingSubject({ callingSession: () => undefined, cliPost: async () => ({ short_id: "ct-9", change_session: null }) }, "ct-9")).toBeUndefined();
+    expect(
+      await callingSubject(
+        {
+          callingSession: () => undefined,
+          cliPost: async () => ({ short_id: "ct-9", change_session: null }),
+        },
+        "ct-9",
+      ),
+    ).toBeUndefined();
   });
 
   test("a session the server cannot read has none", async () => {
-    expect(await callingSubject({ callingSession: () => "x", cliPost: async () => ({ sessions: [] }) })).toBeUndefined();
+    expect(
+      await callingSubject({
+        callingSession: () => "x",
+        cliPost: async () => ({ sessions: [] }),
+      }),
+    ).toBeUndefined();
   });
 });
 
 describe("changeReturnWords", () => {
   test("each kind of change says how the run takes the fix back", () => {
-    expect(changeReturnWords({ source: "session" })).toBe("When you end your turn the run freezes this session's edits again");
-    expect(changeReturnWords({ source: "branch", branch: "feat" })).toBe("Commit the fix to branch feat and push it (with --force-with-lease if you rebased it), since the run may be on another machine and read the branch from origin; when you end your turn the run reads that branch again");
-    expect(changeReturnWords({ source: "pr", branch: "feat" })).toContain("Push the fix to the pull request's branch feat");
+    expect(changeReturnWords({ source: "session" })).toBe(
+      "When you end your turn the run freezes this session's edits again",
+    );
+    expect(changeReturnWords({ source: "branch", branch: "feat" })).toBe(
+      "Commit the fix to branch feat and push it (with --force-with-lease if you rebased it), since the run may be on another machine and read the branch from origin; when you end your turn the run reads that branch again",
+    );
+    expect(changeReturnWords({ source: "pr", branch: "feat" })).toContain(
+      "Push the fix to the pull request's branch feat",
+    );
   });
 });
 
 describe("landedOutput", () => {
   test("a change upstream already holds is JSON under --json, a sentence otherwise", () => {
     const sha = "0123456789abcdef0123456789abcdef01234567";
-    expect(JSON.parse(landedOutput(true, "Session jx7aaaa's change", "origin/main", sha))).toEqual({ landed: sha, upstream: "origin/main" });
-    expect(landedOutput(false, "Session jx7aaaa's change", "origin/main", sha)).toBe("Session jx7aaaa's change is already on origin/main at 0123456789: nothing to run.");
+    expect(
+      JSON.parse(
+        landedOutput(true, "Session jx7aaaa's change", "origin/main", sha),
+      ),
+    ).toEqual({ landed: sha, upstream: "origin/main" });
+    expect(
+      landedOutput(false, "Session jx7aaaa's change", "origin/main", sha),
+    ).toBe(
+      "Session jx7aaaa's change is already on origin/main at 0123456789: nothing to run.",
+    );
   });
 });

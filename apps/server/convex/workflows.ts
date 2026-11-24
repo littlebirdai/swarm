@@ -9,7 +9,10 @@ import { LINE_SLUG_RE } from "@codecast/shared/contracts/orgProposal";
 import { publishableFlowSource } from "@codecast/shared/contracts/flowPool";
 import { createDataContext } from "./data";
 import { computeWorkspaceKey, isTeamMember } from "./lib/access";
-import { workflowEdgeValidator, workflowNodeValidator } from "./lib/workflowGraphValidators";
+import {
+  workflowEdgeValidator,
+  workflowNodeValidator,
+} from "./lib/workflowGraphValidators";
 import { libraryOfFlow, recordWorkflowVersion } from "./flowVersions";
 import { flowRouteFor, type FlowRoute } from "./lib/flowRoute";
 import { isJudgeProblem } from "@codecast/shared/contracts/judgeReview";
@@ -23,7 +26,13 @@ export const graphOriginV = v.object({
   device_id: v.string(),
   root: v.string(),
   file: v.string(),
-  files: v.array(v.object({ node: v.string(), prompt: v.optional(v.string()), script: v.optional(v.string()) })),
+  files: v.array(
+    v.object({
+      node: v.string(),
+      prompt: v.optional(v.string()),
+      script: v.optional(v.string()),
+    }),
+  ),
   graph_hash: v.string(),
   nodes: v.array(v.object({ id: v.string(), h: v.string() })),
 });
@@ -50,10 +59,12 @@ const upsertArgs = {
   serves: v.optional(v.array(v.string())),
   // `cast flow publish` (flows.md FL2): the workspace whose pool the flow
   // joins, named by the publisher. Any other push leaves where the row lives.
-  publish: v.optional(v.object({
-    workspace: v.union(v.literal("personal"), v.literal("team")),
-    team_id: v.optional(v.id("teams")),
-  })),
+  publish: v.optional(
+    v.object({
+      workspace: v.union(v.literal("personal"), v.literal("team")),
+      team_id: v.optional(v.id("teams")),
+    }),
+  ),
   // A save (flowVersions.ts): `cast workflow push`, `cast flow save`. Only a
   // save or a publish changes a library flow; a run's own push leaves it.
   save: v.optional(v.boolean()),
@@ -70,10 +81,20 @@ type Publish = { workspace: "personal" | "team"; team_id?: Id<"teams"> };
  * a draft or declares no kind= is its owner's alone, whatever an earlier
  * publish said; any other push keeps the row where it is. Null: leave it.
  */
-async function workflowAxes(ctx: any, userId: Id<"users">, source: string | undefined, publish: Publish | undefined, existing: any) {
+async function workflowAxes(
+  ctx: any,
+  userId: Id<"users">,
+  source: string | undefined,
+  publish: Publish | undefined,
+  existing: any,
+) {
   const publishable = publishableFlowSource(source);
-  if (publish && !publishable) throw new ConvexError("Only a flow whose graph declares kind= and carries no draft= can be published");
-  if (publish) return (await createDataContext(ctx, { userId, ...publish })).axes;
+  if (publish && !publishable)
+    throw new ConvexError(
+      "Only a flow whose graph declares kind= and carries no draft= can be published",
+    );
+  if (publish)
+    return (await createDataContext(ctx, { userId, ...publish })).axes;
   if (publishable && existing?.workspace) return null;
   return (await createDataContext(ctx, { userId, workspace: "personal" })).axes;
 }
@@ -81,7 +102,12 @@ async function workflowAxes(ctx: any, userId: Id<"users">, source: string | unde
 // One body for the CLI push and the web's edit: a row per (user, slug).
 // `create_only` refuses a slug that already has a row (the line's fork).
 const workflowBySlug = (ctx: any, userId: Id<"users">, slug: string) =>
-  ctx.db.query("workflows").withIndex("by_user_slug", (q: any) => q.eq("user_id", userId).eq("slug", slug)).first();
+  ctx.db
+    .query("workflows")
+    .withIndex("by_user_slug", (q: any) =>
+      q.eq("user_id", userId).eq("slug", slug),
+    )
+    .first();
 
 /**
  * A new version of the graph when its hash moved (LW4: every save is a
@@ -91,44 +117,123 @@ const workflowBySlug = (ctx: any, userId: Id<"users">, slug: string) =>
  * library save. A version with no line (a push from no file) is the newest
  * no-file version again when its graph is the same.
  */
-export async function recordGraphVersion(ctx: any, workflowId: Id<"workflows">, userId: Id<"users">, origin: { graph_hash: string; nodes: Array<{ id: string; h: string }> }, now: number, snapshot: Doc<"workflow_versions">["snapshot"] | undefined, kept: { line?: string; pushed_from?: Doc<"workflow_versions">["pushed_from"]; graph?: () => Promise<Id<"workflow_version_graphs">> }): Promise<{ id: Id<"workflow_versions">; created: boolean }> {
-  const newest: Doc<"workflow_versions"> | null = await ctx.db.query("workflow_versions").withIndex("by_workflow_at", (q: any) => q.eq("workflow_id", workflowId)).order("desc").first();
+export async function recordGraphVersion(
+  ctx: any,
+  workflowId: Id<"workflows">,
+  userId: Id<"users">,
+  origin: { graph_hash: string; nodes: Array<{ id: string; h: string }> },
+  now: number,
+  snapshot: Doc<"workflow_versions">["snapshot"] | undefined,
+  kept: {
+    line?: string;
+    pushed_from?: Doc<"workflow_versions">["pushed_from"];
+    graph?: () => Promise<Id<"workflow_version_graphs">>;
+  },
+): Promise<{ id: Id<"workflow_versions">; created: boolean }> {
+  const newest: Doc<"workflow_versions"> | null = await ctx.db
+    .query("workflow_versions")
+    .withIndex("by_workflow_at", (q: any) => q.eq("workflow_id", workflowId))
+    .order("desc")
+    .first();
   // The version this one would be again: the newest of its line; a library flow's, the newest of the row, so its
   // first save of the graph its history already names keeps that version; a push from no file, the newest when it too
   // came from no file.
-  const prev: Doc<"workflow_versions"> | null = kept.line === LIBRARY_LINE ? newest
-    : kept.line ? await newestOfLine(ctx, workflowId, kept.line)
-    : newest && !newest.line && !newest.pushed_from ? newest : null;
+  const prev: Doc<"workflow_versions"> | null =
+    kept.line === LIBRARY_LINE
+      ? newest
+      : kept.line
+        ? await newestOfLine(ctx, workflowId, kept.line)
+        : newest && !newest.line && !newest.pushed_from
+          ? newest
+          : null;
   if (prev?.graph_hash === origin.graph_hash) {
-    if (snapshot && !prev.snapshot) await ctx.db.patch(prev._id, { snapshot, ...(kept.line ? { line: kept.line } : {}) });
-    if (kept.graph && !prev.graph_id) await ctx.db.patch(prev._id, { graph_id: await kept.graph() });
+    if (snapshot && !prev.snapshot)
+      await ctx.db.patch(prev._id, {
+        snapshot,
+        ...(kept.line ? { line: kept.line } : {}),
+      });
+    if (kept.graph && !prev.graph_id)
+      await ctx.db.patch(prev._id, { graph_id: await kept.graph() });
     return { id: prev._id, created: false };
   }
   // Stations that moved since its line's version before, else the row's (a checkout's first push of a graph the row
   // already has shows no change); all of them when that version has no hashes to compare.
   const basis = prev ?? newest;
-  const was = new Map<string, string>((basis?.nodes ?? []).map((n: any) => [n.id, n.h]));
-  const changed = origin.nodes.filter((n) => !was.size || was.get(n.id) !== n.h).map((n) => n.id);
+  const was = new Map<string, string>(
+    (basis?.nodes ?? []).map((n: any) => [n.id, n.h]),
+  );
+  const changed = origin.nodes
+    .filter((n) => !was.size || was.get(n.id) !== n.h)
+    .map((n) => n.id);
   const graph_id = kept.graph ? await kept.graph() : undefined;
   const seq = newest?.seq ? newest.seq + 1 : await nextSeq(ctx, workflowId);
-  return { id: await ctx.db.insert("workflow_versions", { workflow_id: workflowId, graph_hash: origin.graph_hash, nodes: origin.nodes, changed, by: userId, at: now, seq, ...(kept.line ? { line: kept.line } : {}), ...(snapshot ? { snapshot } : {}), ...(graph_id ? { graph_id } : {}), ...(kept.pushed_from ? { pushed_from: kept.pushed_from } : {}) }), created: true };
+  return {
+    id: await ctx.db.insert("workflow_versions", {
+      workflow_id: workflowId,
+      graph_hash: origin.graph_hash,
+      nodes: origin.nodes,
+      changed,
+      by: userId,
+      at: now,
+      seq,
+      ...(kept.line ? { line: kept.line } : {}),
+      ...(snapshot ? { snapshot } : {}),
+      ...(graph_id ? { graph_id } : {}),
+      ...(kept.pushed_from ? { pushed_from: kept.pushed_from } : {}),
+    }),
+    created: true,
+  };
 }
 
 // `serves`: a list or null (a push: written as the file says), undefined (the web: left as it is).
 // `library`: "switch" puts the flow in the library (`cast flow save`, a session's Save); "new" only a flow this write creates (the web's).
 // `web`: the web's settings edit, which never moves a flow off its file's version (flowVersions.ts recordWorkflowVersion).
-export async function upsertWorkflowFor(ctx: any, userId: Id<"users">, { create_only, serves, publish, save, library, web, ...args }: { name: string; slug: string; label?: string; goal?: string; source?: string; nodes: any[]; edges: any[]; model_stylesheet?: string; create_only?: boolean; origin?: any; serves?: string[] | null; publish?: Publish; save?: boolean; library?: "switch" | "new"; web?: boolean }) {
+export async function upsertWorkflowFor(
+  ctx: any,
+  userId: Id<"users">,
+  {
+    create_only,
+    serves,
+    publish,
+    save,
+    library,
+    web,
+    ...args
+  }: {
+    name: string;
+    slug: string;
+    label?: string;
+    goal?: string;
+    source?: string;
+    nodes: any[];
+    edges: any[];
+    model_stylesheet?: string;
+    create_only?: boolean;
+    origin?: any;
+    serves?: string[] | null;
+    publish?: Publish;
+    save?: boolean;
+    library?: "switch" | "new";
+    web?: boolean;
+  },
+) {
   const now = Date.now();
   const existing = await workflowBySlug(ctx, userId, args.slug);
 
-  if (existing && create_only) throw new ConvexError(`${args.slug} already exists: reload to see its stations`);
+  if (existing && create_only)
+    throw new ConvexError(
+      `${args.slug} already exists: reload to see its stations`,
+    );
   // A library flow changes only on a save (flowVersions.ts).
-  if (existing?.runs_from === "library" && !save && !publish) return { id: existing._id, updated: false, held: true };
+  if (existing?.runs_from === "library" && !save && !publish)
+    return { id: existing._id, updated: false, held: true };
   const axes = await workflowAxes(ctx, userId, args.source, publish, existing);
   if (existing) {
     await ctx.db.patch(existing._id, {
       name: args.name,
-      ...(args.label !== undefined ? { label: args.label.trim() || undefined } : {}),
+      ...(args.label !== undefined
+        ? { label: args.label.trim() || undefined }
+        : {}),
       goal: args.goal,
       source: args.source,
       nodes: args.nodes,
@@ -138,11 +243,24 @@ export async function upsertWorkflowFor(ctx: any, userId: Id<"users">, { create_
       ...(args.origin ? { origin: args.origin } : {}),
       ...(serves !== undefined ? { serves: serves ?? undefined } : {}),
       ...(axes ?? {}),
-      ...(library === "switch" && existing.runs_from !== "library" ? { runs_from: "library" as const } : {}),
+      ...(library === "switch" && existing.runs_from !== "library"
+        ? { runs_from: "library" as const }
+        : {}),
       updated_at: now,
     });
-    const version = await recordWorkflowVersion(ctx, existing._id, userId, args.origin, now, web);
-    return { id: existing._id, updated: true, ...(version ? { version_id: version.id } : {}) };
+    const version = await recordWorkflowVersion(
+      ctx,
+      existing._id,
+      userId,
+      args.origin,
+      now,
+      web,
+    );
+    return {
+      id: existing._id,
+      updated: true,
+      ...(version ? { version_id: version.id } : {}),
+    };
   }
 
   const id = await ctx.db.insert("workflows", {
@@ -164,7 +282,13 @@ export async function upsertWorkflowFor(ctx: any, userId: Id<"users">, { create_
     created_at: now,
     updated_at: now,
   });
-  const version = await recordWorkflowVersion(ctx, id, userId, args.origin, now);
+  const version = await recordWorkflowVersion(
+    ctx,
+    id,
+    userId,
+    args.origin,
+    now,
+  );
   return { id, updated: false, ...(version ? { version_id: version.id } : {}) };
 }
 
@@ -176,7 +300,12 @@ export const upsert = mutation({
     const user = await ctx.db.get(result.userId);
     if (!user) return { error: "User not found" };
     // A push says what its file serves: none named, none served.
-    return await upsertWorkflowFor(ctx, result.userId, { ...args, serves: args.serves?.length ? args.serves : null, library: args.library ? "switch" : undefined, save: args.save || args.library });
+    return await upsertWorkflowFor(ctx, result.userId, {
+      ...args,
+      serves: args.serves?.length ? args.serves : null,
+      library: args.library ? "switch" : undefined,
+      save: args.save || args.library,
+    });
   },
 });
 
@@ -188,11 +317,30 @@ export const webUpsert = mutation({
   // Which sources a version serves is the graph file's to say, so the web's edit leaves it.
   // Publishing is `cast flow publish`'s; the web's edit leaves where the row lives.
   // The web's edit is a save, and a flow it creates runs from the library (ct-70169).
-  handler: async (ctx, { stack: _stack, origin: _origin, serves: _serves, publish: _publish, save: _save, library: _library, ...args }) => {
+  handler: async (
+    ctx,
+    {
+      stack: _stack,
+      origin: _origin,
+      serves: _serves,
+      publish: _publish,
+      save: _save,
+      library: _library,
+      ...args
+    },
+  ) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
-    if (!LINE_SLUG_RE.test(args.slug)) throw new Error("A workflow slug is 1 to 64 characters of a-z, 0-9 and -");
-    return await upsertWorkflowFor(ctx, userId, { ...args, save: true, library: "new", web: true });
+    if (!LINE_SLUG_RE.test(args.slug))
+      throw new Error(
+        "A workflow slug is 1 to 64 characters of a-z, 0-9 and -",
+      );
+    return await upsertWorkflowFor(ctx, userId, {
+      ...args,
+      save: true,
+      library: "new",
+      web: true,
+    });
   },
 });
 
@@ -237,12 +385,26 @@ const POOL_CAP = 200;
  * The owner's own rows also arrive through webList; a teammate's arrive only
  * here. A team the viewer is not in reads nothing.
  */
-export async function poolFlowRows(ctx: any, userId: Id<"users">, teamId?: Id<"teams">) {
+export async function poolFlowRows(
+  ctx: any,
+  userId: Id<"users">,
+  teamId?: Id<"teams">,
+) {
   if (teamId && !(await isTeamMember(ctx, userId, teamId))) return [];
-  const db = await createDataContext(ctx, { userId, ...(teamId ? { workspace: "team" as const, team_id: teamId } : { workspace: "personal" as const }) });
+  const db = await createDataContext(ctx, {
+    userId,
+    ...(teamId
+      ? { workspace: "team" as const, team_id: teamId }
+      : { workspace: "personal" as const }),
+  });
   const rows: any[] = await db.query("workflows").collect();
   return rows
-    .filter((w) => typeof w.workspace === "string" && w.workspace && publishableFlowSource(w.source))
+    .filter(
+      (w) =>
+        typeof w.workspace === "string" &&
+        w.workspace &&
+        publishableFlowSource(w.source),
+    )
     .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0))
     .slice(0, POOL_CAP);
 }
@@ -266,17 +428,37 @@ export const poolForCli = query({
     const names = new Map<string, string | null>();
     for (const r of rows) {
       const id = String(r.user_id);
-      if (!names.has(id)) names.set(id, ((await ctx.db.get(r.user_id)) as any)?.name ?? null);
+      if (!names.has(id))
+        names.set(id, ((await ctx.db.get(r.user_id)) as any)?.name ?? null);
     }
     return {
       // Whether the workspace has the Flows feature on: session start names the pool only then.
-      flows_on: await workspaceHasFeature(ctx, { team_id: args.team_id ?? null, user_id: result.userId }, "line"),
+      flows_on: await workspaceHasFeature(
+        ctx,
+        { team_id: args.team_id ?? null, user_id: result.userId },
+        "line",
+      ),
       // The flow the team set as its default (teams.default_flow): a nameless `cast flow run` resolves it with defaultFlowOf.
-      default_flow: args.team_id && (await isTeamMember(ctx, result.userId, args.team_id)) ? (await ctx.db.get(args.team_id))?.default_flow ?? null : null,
+      default_flow:
+        args.team_id && (await isTeamMember(ctx, result.userId, args.team_id))
+          ? ((await ctx.db.get(args.team_id))?.default_flow ?? null)
+          : null,
       flows: rows.map((r) => ({
-        _id: r._id, slug: r.slug, name: r.name, source: r.source, workspace: r.workspace, updated_at: r.updated_at, runs_from: r.runs_from ?? null,
-        nodes: r.nodes.map((n: any) => ({ id: n.id, ...(n.prompt ? { prompt: n.prompt } : {}), ...(n.script ? { script: n.script } : {}) })),
-        origin: r.origin ? { file: r.origin.file, files: r.origin.files } : null,
+        _id: r._id,
+        slug: r.slug,
+        name: r.name,
+        source: r.source,
+        workspace: r.workspace,
+        updated_at: r.updated_at,
+        runs_from: r.runs_from ?? null,
+        nodes: r.nodes.map((n: any) => ({
+          id: n.id,
+          ...(n.prompt ? { prompt: n.prompt } : {}),
+          ...(n.script ? { script: n.script } : {}),
+        })),
+        origin: r.origin
+          ? { file: r.origin.file, files: r.origin.files }
+          : null,
         by: names.get(String(r.user_id)) ?? null,
         mine: String(r.user_id) === String(result.userId),
       })),
@@ -295,7 +477,10 @@ export const backfillWorkspace = internalMutation({
       .withIndex("by_workspace", (q) => q.eq("workspace", undefined))
       .take(args.limit ?? 100);
     for (const r of rows) {
-      await ctx.db.patch(r._id, { workspace: computeWorkspaceKey({ user_id: r.user_id }, null), team_id: undefined });
+      await ctx.db.patch(r._id, {
+        workspace: computeWorkspaceKey({ user_id: r.user_id }, null),
+        team_id: undefined,
+      });
     }
     return { stamped: rows.length };
   },
@@ -332,9 +517,15 @@ export const webRemove = mutation({
 // mutation, until none is left.
 const KEPT_GRAPH_BATCH = 8;
 async function removeKeptGraphsCore(ctx: any, workflowId: Id<"workflows">) {
-  const batch = await ctx.db.query("workflow_version_graphs").withIndex("by_workflow_key", (q: any) => q.eq("workflow_id", workflowId)).take(KEPT_GRAPH_BATCH + 1);
+  const batch = await ctx.db
+    .query("workflow_version_graphs")
+    .withIndex("by_workflow_key", (q: any) => q.eq("workflow_id", workflowId))
+    .take(KEPT_GRAPH_BATCH + 1);
   for (const g of batch.slice(0, KEPT_GRAPH_BATCH)) await ctx.db.delete(g._id);
-  if (batch.length > KEPT_GRAPH_BATCH) await ctx.scheduler.runAfter(0, internal.workflows.removeKeptGraphs, { workflow_id: workflowId });
+  if (batch.length > KEPT_GRAPH_BATCH)
+    await ctx.scheduler.runAfter(0, internal.workflows.removeKeptGraphs, {
+      workflow_id: workflowId,
+    });
 }
 
 export const removeKeptGraphs = internalMutation({
@@ -356,29 +547,57 @@ export const webGet = query({
 });
 
 /** A run of the line (the shipped `line` or a role's `line-<x>`), as opposed to any other workflow. */
-export const isLineRunSlug = (slug: string | null | undefined) => !!slug && (slug === "line" || slug.startsWith("line-"));
+export const isLineRunSlug = (slug: string | null | undefined) =>
+  !!slug && (slug === "line" || slug.startsWith("line-"));
 
 /** The source of a problem: its oldest finding's, lowercased; null for a task that is not a problem or has no findings. */
-export async function problemSourceOf(ctx: any, task: { _id: Id<"tasks">; source?: string } | null | undefined): Promise<string | null> {
+export async function problemSourceOf(
+  ctx: any,
+  task: { _id: Id<"tasks">; source?: string } | null | undefined,
+): Promise<string | null> {
   if (!task || task.source !== "signal") return null;
-  const first = await ctx.db.query("signals").withIndex("by_task", (q: any) => q.eq("task_id", task._id)).order("asc").first();
+  const first = await ctx.db
+    .query("signals")
+    .withIndex("by_task", (q: any) => q.eq("task_id", task._id))
+    .order("asc")
+    .first();
   return first?.source?.trim().toLowerCase() || null;
 }
 
-type RouteTask = { _id: Id<"tasks">; source?: string; workspace?: string; cause?: any };
+type RouteTask = {
+  _id: Id<"tasks">;
+  source?: string;
+  workspace?: string;
+  cause?: any;
+};
 
 /**
  * The route a task takes under its workspace's live flow (lib/flowRoute): a
  * member of the flow's family, whoever runs it. Null when the workspace has
  * no live flow that is on.
  */
-export async function liveFlowRouteOf(ctx: any, task: RouteTask | null | undefined): Promise<FlowRoute<Doc<"workflows">> | null> {
+export async function liveFlowRouteOf(
+  ctx: any,
+  task: RouteTask | null | undefined,
+): Promise<FlowRoute<Doc<"workflows">> | null> {
   if (!task?.workspace) return null;
-  const flows: any[] = await ctx.db.query("live_flows").withIndex("by_workspace", (q: any) => q.eq("workspace", task.workspace)).collect();
+  const flows: any[] = await ctx.db
+    .query("live_flows")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", task.workspace))
+    .collect();
   const flow = flows.find((f) => f.on);
   if (!flow) return null;
-  const rows: Doc<"workflows">[] = await ctx.db.query("workflows").withIndex("by_workspace", (q: any) => q.eq("workspace", flow.workspace)).collect();
-  return flowRouteFor({ flow, spine: await ctx.db.get(flow.workflow_id), rows, source: await problemSourceOf(ctx, task), judge: isJudgeProblem(task.cause) });
+  const rows: Doc<"workflows">[] = await ctx.db
+    .query("workflows")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", flow.workspace))
+    .collect();
+  return flowRouteFor({
+    flow,
+    spine: await ctx.db.get(flow.workflow_id),
+    rows,
+    source: await problemSourceOf(ctx, task),
+    judge: isJudgeProblem(task.cause),
+  });
 }
 
 /**
@@ -391,14 +610,29 @@ export async function liveFlowRouteOf(ctx: any, task: RouteTask | null | undefin
  * findings, or a source no version serves, and the run then takes the line
  * it was started with.
  */
-export async function lineRouteFor(ctx: any, userId: Id<"users">, task: RouteTask | null | undefined): Promise<{ workflow: Doc<"workflows"> | null; waiting?: string }> {
+export async function lineRouteFor(
+  ctx: any,
+  userId: Id<"users">,
+  task: RouteTask | null | undefined,
+): Promise<{ workflow: Doc<"workflows"> | null; waiting?: string }> {
   const route = await liveFlowRouteOf(ctx, task);
-  if (route) return route.workflow ? { workflow: route.workflow } : { workflow: null, waiting: route.waiting };
+  if (route)
+    return route.workflow
+      ? { workflow: route.workflow }
+      : { workflow: null, waiting: route.waiting };
   const source = await problemSourceOf(ctx, task);
   if (!source) return { workflow: null };
-  const rows = await ctx.db.query("workflows").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
+  const rows = await ctx.db
+    .query("workflows")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .collect();
   const serving = rows.filter((w: any) => (w.serves ?? []).includes(source));
-  return { workflow: serving.sort((a: any, b: any) => (b.updated_at ?? 0) - (a.updated_at ?? 0))[0] ?? null };
+  return {
+    workflow:
+      serving.sort(
+        (a: any, b: any) => (b.updated_at ?? 0) - (a.updated_at ?? 0),
+      )[0] ?? null,
+  };
 }
 
 /** `cast workflow run --task` asks which version the problem runs, to run it from its file on this machine. */
@@ -407,9 +641,31 @@ export const lineVersionForCli = query({
   handler: async (ctx, args) => {
     const result = await verifyApiToken(ctx, args.api_token);
     if (!result) return { error: "Unauthorized" };
-    const task = await ctx.db.query("tasks").withIndex("by_short_id", (q: any) => q.eq("short_id", args.task)).first();
-    const { workflow: row, waiting } = await lineRouteFor(ctx, result.userId, task);
+    const task = await ctx.db
+      .query("tasks")
+      .withIndex("by_short_id", (q: any) => q.eq("short_id", args.task))
+      .first();
+    const { workflow: row, waiting } = await lineRouteFor(
+      ctx,
+      result.userId,
+      task,
+    );
     if (waiting) return { version: null, waiting };
-    return { version: row ? { slug: row.slug, name: row.name, origin: row.origin ? { device_id: row.origin.device_id, root: row.origin.root, file: row.origin.file } : null, ...(await libraryOfFlow(ctx, row._id)) } : null };
+    return {
+      version: row
+        ? {
+            slug: row.slug,
+            name: row.name,
+            origin: row.origin
+              ? {
+                  device_id: row.origin.device_id,
+                  root: row.origin.root,
+                  file: row.origin.file,
+                }
+              : null,
+            ...(await libraryOfFlow(ctx, row._id)),
+          }
+        : null,
+    };
   },
 });

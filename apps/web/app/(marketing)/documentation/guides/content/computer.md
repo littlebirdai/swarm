@@ -8,10 +8,10 @@ They do it in the background. The agent works in a window behind the one you are
 
 Computer use runs on a Mac with codecast connected ([Getting started](/documentation#getting-started) covers connecting a computer).
 
-1. Open **Settings** and choose **Agent Features** under *Machines*, then pick the Mac your agents run on.
-2. Find **Computer** under *Hands on the machine*, switch it on, and confirm with **Turn on Computer**.
+1. Open **Settings** and choose **Agent Features** under _Machines_, then pick the Mac your agents run on.
+2. Find **Computer** under _Hands on the machine_, switch it on, and confirm with **Turn on Computer**.
 3. The card asks for two macOS permissions. Click **Open System Settings** and turn on **codecast computer** under **Accessibility**, then under **Screen Recording**.
-4. The card's footer turns green and reads *Permissions granted*.
+4. The card's footer turns green and reads _Permissions granted_.
 
 ![The Computer card's setup steps: Accessibility and Screen Recording, each with Open System Settings](/documentation/computer/permissions-card.webp "Two macOS permissions, granted once to the codecast computer helper.")
 
@@ -50,7 +50,7 @@ Your pointer stays in the window you are using. The agent's orange pointer works
 
 Each step the agent takes lands in the conversation above its reply, with a thumbnail of the window it read. Click a thumbnail to see it full size. The reply tells you what the agent did and what changed.
 
-The agent also knows the difference between *it worked* and *I pressed the button*. When it can read the result back (a field now holds the text, a checkbox is now ticked) it says so. When an app gives no way to confirm, it looks at the window again before claiming success, and tells you if the app ignored it.
+The agent also knows the difference between _it worked_ and _I pressed the button_. When it can read the result back (a field now holds the text, a checkbox is now ticked) it says so. When an app gives no way to confirm, it looks at the window again before claiming success, and tells you if the app ignored it.
 
 ## What it will and won't do
 
@@ -68,12 +68,12 @@ Two refusals that hold no matter what the agent is asked: 1Password, Bitwarden, 
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
+| What you notice                                   | What to do                                                                                                 |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | The card asks for permissions you already granted | Click **Open System Settings**, switch **codecast computer** off and on again in that list, then come back |
-| The agent says it can't take pictures of windows | Turn on **Screen Recording** for **codecast computer**. Everything else keeps working meanwhile |
-| The agent asks to bring a window forward | Say yes if you can spare the screen for a moment, or tell it to find another way |
-| The agent can't find a window | Open the app, or the document, and ask again |
+| The agent says it can't take pictures of windows  | Turn on **Screen Recording** for **codecast computer**. Everything else keeps working meanwhile            |
+| The agent asks to bring a window forward          | Say yes if you can spare the screen for a moment, or tell it to find another way                           |
+| The agent can't find a window                     | Open the app, or the document, and ask again                                                               |
 
 Computer use is built for macOS. On a Linux machine running a desktop, the same feature drives apps through Linux's accessibility layer.
 

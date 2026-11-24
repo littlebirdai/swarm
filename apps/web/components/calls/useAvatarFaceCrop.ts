@@ -50,7 +50,9 @@ export function useAvatarFaceCrop(opts: {
     let stopped = false;
     const detect = async () => {
       if (stopped || !(img.naturalWidth > 0)) return;
-      let faces: Array<{ boundingBox: { x: number; y: number; width: number; height: number } }> = [];
+      let faces: Array<{
+        boundingBox: { x: number; y: number; width: number; height: number };
+      }> = [];
       try {
         faces = await detector.detect(img);
       } catch {
@@ -61,14 +63,20 @@ export function useAvatarFaceCrop(opts: {
       const box = faces[0]?.boundingBox;
       if (stopped || !box) return;
       const aspect = img.naturalWidth / img.naturalHeight;
-      const crop = clampCrop(cropFromFace(box, img.naturalWidth, img.naturalHeight), aspect);
+      const crop = clampCrop(
+        cropFromFace(box, img.naturalWidth, img.naturalHeight),
+        aspect,
+      );
       // The same arrangement as the video circles: the img laid out as a plain
       // diameter square, the crop applied as one composited transform.
       img.style.width = `${diameter}px`;
       img.style.height = `${diameter}px`;
       img.style.objectFit = "fill";
       img.style.transformOrigin = "0 0";
-      img.style.transform = cropTransform(cropBox(crop, diameter, aspect), diameter);
+      img.style.transform = cropTransform(
+        cropBox(crop, diameter, aspect),
+        diameter,
+      );
       host.setAttribute("data-tracking", "face");
     };
 

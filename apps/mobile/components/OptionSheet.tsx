@@ -1,10 +1,16 @@
-import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { BottomSheet, useRunAfterDismiss } from '@/components/BottomSheet';
-import { Text } from '@/components/Themed';
-import { themedStyles, useTheme } from '@/constants/Theme';
+import type { ReactNode } from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { BottomSheet, useRunAfterDismiss } from "@/components/BottomSheet";
+import { Text } from "@/components/Themed";
+import { themedStyles, useTheme } from "@/constants/Theme";
 
 export type SheetOption = {
   key: string;
@@ -41,19 +47,39 @@ export function OptionSheet({
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} onDismiss={after.onDismiss}>
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      onDismiss={after.onDismiss}
+    >
       <Text style={styles.title}>{title}</Text>
       <ScrollView style={{ maxHeight: height * 0.5 }}>
         {options.map((o) => {
           const active = o.key === selectedKey;
           return (
-            <TouchableOpacity key={o.key} style={styles.row} activeOpacity={0.6} onPress={() => pick(o.key)}>
+            <TouchableOpacity
+              key={o.key}
+              style={styles.row}
+              activeOpacity={0.6}
+              onPress={() => pick(o.key)}
+            >
               {o.leading}
               <View style={[styles.rowText, o.dim && !active && styles.dim]}>
-                <Text style={[styles.label, active && styles.labelActive]} numberOfLines={1}>{o.label}</Text>
-                {!!o.hint && <Text style={styles.hint} numberOfLines={1}>{o.hint}</Text>}
+                <Text
+                  style={[styles.label, active && styles.labelActive]}
+                  numberOfLines={1}
+                >
+                  {o.label}
+                </Text>
+                {!!o.hint && (
+                  <Text style={styles.hint} numberOfLines={1}>
+                    {o.hint}
+                  </Text>
+                )}
               </View>
-              {active && <FontAwesome name="check" size={13} color={Theme.cyan} />}
+              {active && (
+                <FontAwesome name="check" size={13} color={Theme.cyan} />
+              )}
             </TouchableOpacity>
           );
         })}
@@ -62,20 +88,27 @@ export function OptionSheet({
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  title: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: Theme.textDim,
-    marginTop: 6,
-    marginBottom: 8,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
-  rowText: { flex: 1, minWidth: 0 },
-  dim: { opacity: 0.5 },
-  label: { fontSize: 15, fontWeight: '500', color: Theme.text },
-  labelActive: { color: Theme.cyan, fontWeight: '600' },
-  hint: { fontSize: 12, color: Theme.textMuted, marginTop: 1 },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    title: {
+      fontSize: 10,
+      fontWeight: "700",
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+      color: Theme.textDim,
+      marginTop: 6,
+      marginBottom: 8,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 10,
+    },
+    rowText: { flex: 1, minWidth: 0 },
+    dim: { opacity: 0.5 },
+    label: { fontSize: 15, fontWeight: "500", color: Theme.text },
+    labelActive: { color: Theme.cyan, fontWeight: "600" },
+    hint: { fontSize: 12, color: Theme.textMuted, marginTop: 1 },
+  }),
+);

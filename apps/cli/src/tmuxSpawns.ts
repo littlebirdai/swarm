@@ -14,7 +14,10 @@ function shellCommands(source: string, depth = 0): string[][] {
   let wantHeredoc = false;
   const flushWord = () => {
     if (!word) return;
-    if (wantHeredoc) { heredoc = word; wantHeredoc = false; }
+    if (wantHeredoc) {
+      heredoc = word;
+      wantHeredoc = false;
+    }
     words.push(word);
     word = "";
   };
@@ -22,12 +25,24 @@ function shellCommands(source: string, depth = 0): string[][] {
     const c = source[i];
     if (quote) {
       if (c === quote) quote = "";
-      else if (c === "\\" && quote === '"' && /["\\$`]/.test(source[i + 1] || "")) word += source[++i];
+      else if (
+        c === "\\" &&
+        quote === '"' &&
+        /["\\$`]/.test(source[i + 1] || "")
+      )
+        word += source[++i];
       else word += c;
       continue;
     }
-    if (c === "'" || c === '"' || c === "`") { if (c === "`") word += c; quote = c; continue; }
-    if (c === "\\") { word += source[++i] || ""; continue; }
+    if (c === "'" || c === '"' || c === "`") {
+      if (c === "`") word += c;
+      quote = c;
+      continue;
+    }
+    if (c === "\\") {
+      word += source[++i] || "";
+      continue;
+    }
     if (c === "#" && !word) {
       const end = source.indexOf("\n", i);
       i = end < 0 ? source.length : end - 1;
@@ -49,7 +64,10 @@ function shellCommands(source: string, depth = 0): string[][] {
           while (end < source.length) {
             const next = source.indexOf("\n", end);
             const lineEnd = next < 0 ? source.length : next;
-            if (source.slice(end, lineEnd).replace(/^\t+/, "") === heredoc) { i = lineEnd; break; }
+            if (source.slice(end, lineEnd).replace(/^\t+/, "") === heredoc) {
+              i = lineEnd;
+              break;
+            }
             end = lineEnd + 1;
           }
           if (end >= source.length) i = source.length;
@@ -60,12 +78,16 @@ function shellCommands(source: string, depth = 0): string[][] {
   }
   flushWord();
   if (words.length) commands.push(words);
-  return commands.flatMap(words => {
-    while (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0] ?? "")) words = words.slice(1);
-    if (depth >= 4 || !/^(?:.*\/)?(?:ba|z|da|k)?sh$/.test(words[0])) return [words];
+  return commands.flatMap((words) => {
+    while (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0] ?? ""))
+      words = words.slice(1);
+    if (depth >= 4 || !/^(?:.*\/)?(?:ba|z|da|k)?sh$/.test(words[0]))
+      return [words];
     for (let at = 1; at < words.length; at++) {
       if (/^-[ceiluvx]+$/.test(words[at]) && words[at].includes("c")) {
-        return words[at + 1] ? shellCommands(words[at + 1], depth + 1) : [words];
+        return words[at + 1]
+          ? shellCommands(words[at + 1], depth + 1)
+          : [words];
       }
       if (!/^-[eiluvx]+$|^--(?:noprofile|norc|login)$/.test(words[at])) break;
     }
@@ -77,8 +99,16 @@ function agentSpawnName(words: string[]): string | undefined {
   let at = 1;
   for (; at < words.length && words[at].startsWith("-"); at++) {
     const option = words[at];
-    if (option === "--") { at++; break; }
-    if (option === "--codex" || option === "--claude" || /^--(?:runtime|model)=.+/.test(option)) continue;
+    if (option === "--") {
+      at++;
+      break;
+    }
+    if (
+      option === "--codex" ||
+      option === "--claude" ||
+      /^--(?:runtime|model)=.+/.test(option)
+    )
+      continue;
     if (option === "--runtime" || option === "--model") {
       if (!words[++at] || words[at].startsWith("--")) return undefined;
       continue;
@@ -94,15 +124,20 @@ export function registerAppServerSpawnTracking(
   track: (messages: ParsedMessage[], parent: string) => Promise<void>,
   onError: (err: unknown) => void,
 ): void {
-  server.on("itemStarted", (threadId: string, _turnId: string, item: ThreadItem) => {
-    const parent = parentForThread(threadId);
-    if (!parent) return;
-    const message = threadItemToMessage(item);
-    if (message) void track([message], parent).catch(onError);
-  });
+  server.on(
+    "itemStarted",
+    (threadId: string, _turnId: string, item: ThreadItem) => {
+      const parent = parentForThread(threadId);
+      if (!parent) return;
+      const message = threadItemToMessage(item);
+      if (message) void track([message], parent).catch(onError);
+    },
+  );
 }
 
-export function tmuxSpawns(messages: readonly ParsedMessage[]): Array<{ name: string; timestamp: number }> {
+export function tmuxSpawns(
+  messages: readonly ParsedMessage[],
+): Array<{ name: string; timestamp: number }> {
   const spawns: Array<{ name: string; timestamp: number }> = [];
   for (const message of messages) {
     if (message.role !== "assistant") continue;
@@ -116,12 +151,17 @@ export function tmuxSpawns(messages: readonly ParsedMessage[]): Array<{ name: st
         if (typeof source !== "string") continue;
         for (const words of shellCommands(source)) {
           let name: string | undefined;
-          if (/^(?:.*\/)?agent-spawn(?:\.sh)?$/.test(words[0])) name = agentSpawnName(words);
-          if (words[0] === "tmux" && (words[1] === "new-session" || words[1] === "new")) {
+          if (/^(?:.*\/)?agent-spawn(?:\.sh)?$/.test(words[0]))
+            name = agentSpawnName(words);
+          if (
+            words[0] === "tmux" &&
+            (words[1] === "new-session" || words[1] === "new")
+          ) {
             const at = words.indexOf("-s", 2);
             if (at >= 0) name = words[at + 1];
           }
-          if (name && /^[\w.-]+$/.test(name)) spawns.push({ name, timestamp: message.timestamp });
+          if (name && /^[\w.-]+$/.test(name))
+            spawns.push({ name, timestamp: message.timestamp });
         }
       }
     }
@@ -136,7 +176,10 @@ export class TmuxSpawnRegistry {
   constructor(private file: string) {}
 
   private load(): Record<string, Spawn> {
-    return this.entries ??= Object.assign(Object.create(null), existsSync(this.file) ? JSON.parse(readFileSync(this.file, "utf8")) : {});
+    return (this.entries ??= Object.assign(
+      Object.create(null),
+      existsSync(this.file) ? JSON.parse(readFileSync(this.file, "utf8")) : {},
+    ));
   }
 
   hasEntries(): boolean {
@@ -144,11 +187,19 @@ export class TmuxSpawnRegistry {
   }
 
   // A pane line is "<session name> <pane pid> [<session created, epoch seconds>]".
-  parentForPanes(panes: string, pids: readonly number[], startedAt: number): string | undefined {
+  parentForPanes(
+    panes: string,
+    pids: readonly number[],
+    startedAt: number,
+  ): string | undefined {
     for (const line of panes.trim().split("\n")) {
       const [name, pid, created] = line.trim().split(/\s+/);
       if (!pids.includes(Number(pid))) continue;
-      const parent = this.parent(name, startedAt, created ? Number(created) * 1000 : undefined);
+      const parent = this.parent(
+        name,
+        startedAt,
+        created ? Number(created) * 1000 : undefined,
+      );
       if (parent) return parent;
     }
     return undefined;
@@ -160,13 +211,17 @@ export class TmuxSpawnRegistry {
     const entries = this.load();
     let changed = false;
     for (const { name, timestamp } of spawns) {
-      if ((entries[name]?.timestamp ?? 0) <= timestamp && (entries[name]?.parent !== parent || entries[name]?.timestamp !== timestamp)) {
+      if (
+        (entries[name]?.timestamp ?? 0) <= timestamp &&
+        (entries[name]?.parent !== parent ||
+          entries[name]?.timestamp !== timestamp)
+      ) {
         entries[name] = { parent, timestamp };
         changed = true;
       }
     }
     if (changed) atomicWriteFile(this.file, JSON.stringify(entries));
-    return spawns.map(s => s.name);
+    return spawns.map((s) => s.name);
   }
 
   // A tmux name is reused by other agents over time, so an entry claims a
@@ -174,10 +229,18 @@ export class TmuxSpawnRegistry {
   // the tmux session when its creation time is known: a session created at the
   // launch IS the recorded one, and every run inside it belongs to the parent
   // however long it lives. tmux reports whole seconds, hence the slack below.
-  parent(name: string, startedAt: number, sessionCreatedAt?: number): string | undefined {
+  parent(
+    name: string,
+    startedAt: number,
+    sessionCreatedAt?: number,
+  ): string | undefined {
     const entry = this.load()[name];
     if (!entry || !(startedAt >= entry.timestamp)) return undefined;
-    const launched = sessionCreatedAt === undefined ? startedAt : sessionCreatedAt + 1000;
-    return launched >= entry.timestamp && launched - entry.timestamp < 5 * 60_000 ? entry.parent : undefined;
+    const launched =
+      sessionCreatedAt === undefined ? startedAt : sessionCreatedAt + 1000;
+    return launched >= entry.timestamp &&
+      launched - entry.timestamp < 5 * 60_000
+      ? entry.parent
+      : undefined;
   }
 }

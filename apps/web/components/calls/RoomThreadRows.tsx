@@ -3,11 +3,40 @@
 // RoomThread owns the reads and the writes and lays these out in time order.
 
 import { memo, useState } from "react";
-import { AlertTriangle, Captions, CaptionsOff, ChevronRight, Circle, DoorOpen, Globe, ImageUp, Pin, Link2Off, ListChecks, ListPlus, Sparkles, Square, Trash2, UserMinus, Video, VideoOff } from "lucide-react";
+import {
+  AlertTriangle,
+  Captions,
+  CaptionsOff,
+  ChevronRight,
+  Circle,
+  DoorOpen,
+  Globe,
+  ImageUp,
+  Pin,
+  Link2Off,
+  ListChecks,
+  ListPlus,
+  Sparkles,
+  Square,
+  Trash2,
+  UserMinus,
+  Video,
+  VideoOff,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { callShareHref, describeClockSpans, recordingFailureWords, recordingLostWords, recordingStoppedItselfWords } from "@codecast/shared/contracts";
+import {
+  callShareHref,
+  describeClockSpans,
+  recordingFailureWords,
+  recordingLostWords,
+  recordingStoppedItselfWords,
+} from "@codecast/shared/contracts";
 import { ChatAttachments } from "../chat/ChatAttachments";
-import { MESSAGE_MD_COMPONENTS, MESSAGE_MD_REHYPE, USER_MD_REMARK } from "../messageMarkdown";
+import {
+  MESSAGE_MD_COMPONENTS,
+  MESSAGE_MD_REHYPE,
+  USER_MD_REMARK,
+} from "../messageMarkdown";
 import { EntityAwareLink } from "../EntityIdPill";
 import { PublishedPageEmbed } from "../PublishedPageEmbed";
 import { fmtClock as fmtWallClock, fmtDuration } from "../triggerCadence";
@@ -21,7 +50,12 @@ import { turnsAnchor } from "./transcriptTurnModel";
 import { firstName, speakerColor } from "./speakers";
 import { formatCallTime, parseCallRef } from "@codecast/shared/entities";
 import { GuestTag, ParticipantTag } from "./GuestTag";
-import { HEARS, type EventRow, type Passage, type ThreadRow } from "./roomThreadModel";
+import {
+  HEARS,
+  type EventRow,
+  type Passage,
+  type ThreadRow,
+} from "./roomThreadModel";
 import "../chat/chat.css";
 import "./roomThread.css";
 
@@ -53,7 +87,13 @@ export type CallMoment = { label: string; onSeek: (() => void) | null };
  *  something to transition from; the body stays mounted through the close
  *  and leaves when the transition ends. With reduced motion there is no
  *  transition to wait for, so the body leaves at once. */
-export function Fold({ open, children }: { open: boolean; children: React.ReactNode }) {
+export function Fold({
+  open,
+  children,
+}: {
+  open: boolean;
+  children: React.ReactNode;
+}) {
   const [wasOpen, setWasOpen] = useState(open);
   const [closing, setClosing] = useState(false);
   if (wasOpen !== open) {
@@ -133,44 +173,61 @@ export const PassageBlock = memo(function PassageBlock({
   return (
     <section className={className}>
       <div className="group flex items-baseline">
-      <button
-        type="button"
-        className="rt-passage-head"
-        aria-expanded={open}
-        aria-controls={open ? bodyId : undefined}
-        onClick={() => onToggle(passage)}
-        title={`${open ? "Fold" : "Open"} this passage · ${n} ${units}${n === 1 ? "" : "s"}`}
-      >
-        <ChevronRight className="rt-chevron h-3 w-3" aria-hidden="true" />
-        <span className="rt-passage-who">
-          {recording ? (
-            <span className="text-sol-text-muted">Spoken</span>
-          ) : (
-            passage.speakers.map((sp, i) => (
-              <span key={sp.id} className={speakerColor(sp.id)}>
-                {firstName(sp.name)}
-                <ParticipantTag identity={sp.id} name={sp.name} className="ml-1 align-[1px]" />
-                {i < passage.speakers.length - 1 ? ", " : ""}
-              </span>
-            ))
-          )}
-        </span>
-        <span className="rt-when">
-          {/* A huddle's head keeps the wall clock the typed and event rows
+        <button
+          type="button"
+          className="rt-passage-head"
+          aria-expanded={open}
+          aria-controls={open ? bodyId : undefined}
+          onClick={() => onToggle(passage)}
+          title={`${open ? "Fold" : "Open"} this passage · ${n} ${units}${n === 1 ? "" : "s"}`}
+        >
+          <ChevronRight className="rt-chevron h-3 w-3" aria-hidden="true" />
+          <span className="rt-passage-who">
+            {recording ? (
+              <span className="text-sol-text-muted">Spoken</span>
+            ) : (
+              passage.speakers.map((sp, i) => (
+                <span key={sp.id} className={speakerColor(sp.id)}>
+                  {firstName(sp.name)}
+                  <ParticipantTag
+                    identity={sp.id}
+                    name={sp.name}
+                    className="ml-1 align-[1px]"
+                  />
+                  {i < passage.speakers.length - 1 ? ", " : ""}
+                </span>
+              ))
+            )}
+          </span>
+          <span className="rt-when">
+            {/* A huddle's head keeps the wall clock the typed and event rows
               use, so one thread has one clock; the turn rows inside read as
               the offset into the call. A recording keeps the offset, since a
               click seeks the audio by it. */}
-          {recording ? formatCallTime(passage.t0) : fmtWallClock(passage.at, dayOf)} · {fmtDuration(Math.max(1000, passage.t1 - passage.t0))}
-          {/* The count leaves the head on the stage (roomThread.css): the
+            {recording
+              ? formatCallTime(passage.t0)
+              : fmtWallClock(passage.at, dayOf)}{" "}
+            · {fmtDuration(Math.max(1000, passage.t1 - passage.t0))}
+            {/* The count leaves the head on the stage (roomThread.css): the
               names need the room more, and the title carries it. */}
-          <span className="rt-passage-turns">
-            {" "}· {n} {units}
-            {n === 1 ? "" : "s"}
+            <span className="rt-passage-turns">
+              {" "}
+              · {n} {units}
+              {n === 1 ? "" : "s"}
+            </span>
           </span>
-        </span>
-        {!open && <span className="rt-passage-preview">{passage.preview}</span>}
-      </button>
-      {anchor && <CallLinkButton callId={callId!} anchor={anchor} title="Copy a link to this passage" className="ml-1" />}
+          {!open && (
+            <span className="rt-passage-preview">{passage.preview}</span>
+          )}
+        </button>
+        {anchor && (
+          <CallLinkButton
+            callId={callId!}
+            anchor={anchor}
+            title="Copy a link to this passage"
+            className="ml-1"
+          />
+        )}
       </div>
       <Fold open={open}>
         <div id={bodyId} className="rt-passage-body">
@@ -235,7 +292,13 @@ export function RecapCard({
         className="rt-recap-head"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        title={open ? "Fold the recap" : live ? "What has been said so far, in a few lines" : "The summary and the action items"}
+        title={
+          open
+            ? "Fold the recap"
+            : live
+              ? "What has been said so far, in a few lines"
+              : "The summary and the action items"
+        }
       >
         <ChevronRight className="rt-chevron h-3 w-3" aria-hidden="true" />
         <span className="rt-recap-label">
@@ -244,14 +307,24 @@ export function RecapCard({
         </span>
         {/* The sentence regenerates every 90 s while the call runs; the old
             one fades out under the new so words never swap mid read. */}
-        {!open && <CrossfadeText text={firstSentence(summary)} className="rt-recap-line" />}
+        {!open && (
+          <CrossfadeText
+            text={firstSentence(summary)}
+            className="rt-recap-line"
+          />
+        )}
       </button>
       <Fold open={open}>
         <div className="rt-recap-body">
           <p className="group" data-call-anchor="summary">
             {summary}
             {callId && (
-              <CallLinkButton callId={callId} anchor={{ kind: "summary" }} title="Copy a link to the summary" className="ml-1 align-middle" />
+              <CallLinkButton
+                callId={callId}
+                anchor={{ kind: "summary" }}
+                title="Copy a link to the summary"
+                className="ml-1 align-middle"
+              />
             )}
           </p>
           {items.length > 0 && (
@@ -263,7 +336,11 @@ export function RecapCard({
                 {items.map((a, i) => {
                   const task = taskFor?.(a);
                   return (
-                    <li key={i} className="group" data-call-anchor={`action-${i}`}>
+                    <li
+                      key={i}
+                      className="group"
+                      data-call-anchor={`action-${i}`}
+                    >
                       <span className="text-sol-violet">→</span>
                       <span>
                         {a}
@@ -276,11 +353,19 @@ export function RecapCard({
                           />
                         )}
                         {task ? (
-                          <span className="rt-item-task" title={`Tracked as ${task.short_id}`}>
+                          <span
+                            className="rt-item-task"
+                            title={`Tracked as ${task.short_id}`}
+                          >
                             <ListPlus className="h-3 w-3" /> {task.short_id}
                           </span>
                         ) : onMakeTask ? (
-                          <button type="button" className="rt-item-make" onClick={() => onMakeTask(a)} title="Make this action item a task on this call">
+                          <button
+                            type="button"
+                            className="rt-item-make"
+                            onClick={() => onMakeTask(a)}
+                            title="Make this action item a task on this call"
+                          >
                             <ListPlus className="h-3 w-3" /> Task
                           </button>
                         ) : null}
@@ -331,7 +416,12 @@ export function EventLine({
   const actor = me && row.user_id === me ? "You" : firstName(row.user_name);
   const agent = row.agent;
   const name = agent ? (
-    <button type="button" className="rt-event-agent" onClick={() => onOpen(agent.conversation_id)} title={`Open ${agent.title}`}>
+    <button
+      type="button"
+      className="rt-event-agent"
+      onClick={() => onOpen(agent.conversation_id)}
+      title={`Open ${agent.title}`}
+    >
       {agent.name ?? agent.title}
     </button>
   ) : (
@@ -339,15 +429,33 @@ export function EventLine({
   );
   // The room's own agent is not somebody's guest: it was in the room before
   // anyone, so the line says it is here rather than who brought it.
-  const ownRoom = !!agent && !!ownRoomId && (agent.conversation_id === ownRoomId || agent.short_id === ownRoomId);
-  if (row.event === "record_on" || row.event === "record_off" || row.event === "record_lost" || row.event === "record_deleted") {
-    const gone = row.event !== "record_deleted" && !!row.event_run_id && !!deletedRuns?.has(row.event_run_id);
+  const ownRoom =
+    !!agent &&
+    !!ownRoomId &&
+    (agent.conversation_id === ownRoomId || agent.short_id === ownRoomId);
+  if (
+    row.event === "record_on" ||
+    row.event === "record_off" ||
+    row.event === "record_lost" ||
+    row.event === "record_deleted"
+  ) {
+    const gone =
+      row.event !== "record_deleted" &&
+      !!row.event_run_id &&
+      !!deletedRuns?.has(row.event_run_id);
     // A deleted run's start and stop sit at the edges of the stretch its
     // delete names, so one run reads as one pair of times; with no stretch
     // on record (a run deleted before it filmed) they carry no clock.
-    const deletedSpan = gone ? (deletedRuns!.get(row.event_run_id!) ?? null) : null;
+    const deletedSpan = gone
+      ? (deletedRuns!.get(row.event_run_id!) ?? null)
+      : null;
     const goneMoment: CallMoment | null = deletedSpan
-      ? { label: formatCallTime(row.event === "record_on" ? deletedSpan.from_ms : deletedSpan.to_ms), onSeek: null }
+      ? {
+          label: formatCallTime(
+            row.event === "record_on" ? deletedSpan.from_ms : deletedSpan.to_ms,
+          ),
+          onSeek: null,
+        }
       : null;
     return (
       <RecordEventLine
@@ -360,44 +468,86 @@ export function EventLine({
         // call, and its words carry the stretch it removed. A lost save lands
         // whenever the upload gave up, often after the huddle.
         moment={
-          row.event === "record_deleted" || row.event === "record_lost" || !momentAt ? null : gone ? goneMoment : momentAt(row.at)
+          row.event === "record_deleted" ||
+          row.event === "record_lost" ||
+          !momentAt
+            ? null
+            : gone
+              ? goneMoment
+              : momentAt(row.at)
         }
         clockColumn={!!momentAt}
       />
     );
   }
   if (row.event === "guest_admitted" || row.event === "guest_removed") {
-    return <GuestEventLine row={row} actor={actor} fresh={fresh} dayOf={dayOf} />;
+    return (
+      <GuestEventLine row={row} actor={actor} fresh={fresh} dayOf={dayOf} />
+    );
   }
   if (row.event === "frame_shared") {
-    return <FrameSharedLine row={row} actor={actor} fresh={fresh} dayOf={dayOf} />;
+    return (
+      <FrameSharedLine row={row} actor={actor} fresh={fresh} dayOf={dayOf} />
+    );
   }
-  if (row.event === "link_on" || row.event === "link_off" || row.event === "video_shared" || row.event === "video_unshared") {
-    return <PublicLinkLine row={row} actor={actor} fresh={fresh} dayOf={dayOf} />;
+  if (
+    row.event === "link_on" ||
+    row.event === "link_off" ||
+    row.event === "video_shared" ||
+    row.event === "video_unshared"
+  ) {
+    return (
+      <PublicLinkLine row={row} actor={actor} fresh={fresh} dayOf={dayOf} />
+    );
   }
   if (row.event === "stage_pinned") {
     return (
       <div className={`rt-event${fresh ? " rt-in" : ""}`} role="note">
-        <span className="rt-event-glyph flex w-5 shrink-0 justify-center" aria-hidden="true">
+        <span
+          className="rt-event-glyph flex w-5 shrink-0 justify-center"
+          aria-hidden="true"
+        >
           <Pin className="h-3 w-3 text-sol-cyan" />
         </span>
         <span className="min-w-0 flex-1">
-          {agent ? name : actor} put <span className="text-sol-text">{row.text || "something"}</span> on the stage
+          {agent ? name : actor} put{" "}
+          <span className="text-sol-text">{row.text || "something"}</span> on
+          the stage
         </span>
-        <span className="rt-when rt-event-when">{fmtWallClock(row.at, dayOf)}</span>
+        <span className="rt-when rt-event-when">
+          {fmtWallClock(row.at, dayOf)}
+        </span>
       </div>
     );
   }
   // A kind this build does not know (a newer server's) says nothing rather
   // than something untrue: every line below is one of these four.
-  if (row.event !== "transcribe_on" && row.event !== "transcribe_off" && row.event !== "agent_joined" && row.event !== "agent_left") return null;
-  const Glyph = row.event === "transcribe_off" ? CaptionsOff : row.event === "transcribe_on" ? Captions : Sparkles;
+  if (
+    row.event !== "transcribe_on" &&
+    row.event !== "transcribe_off" &&
+    row.event !== "agent_joined" &&
+    row.event !== "agent_left"
+  )
+    return null;
+  const Glyph =
+    row.event === "transcribe_off"
+      ? CaptionsOff
+      : row.event === "transcribe_on"
+        ? Captions
+        : Sparkles;
   // On and joined keep their accents; off and left go dim, as an ended thing should.
   const tone =
-    row.event === "transcribe_on" ? "text-sol-green" : row.event === "agent_joined" ? "text-sol-violet" : "text-sol-text-dim";
+    row.event === "transcribe_on"
+      ? "text-sol-green"
+      : row.event === "agent_joined"
+        ? "text-sol-violet"
+        : "text-sol-text-dim";
   return (
     <div className={`rt-event${fresh ? " rt-in" : ""}`} role="note">
-      <span className="rt-event-glyph flex w-5 shrink-0 justify-center" aria-hidden="true">
+      <span
+        className="rt-event-glyph flex w-5 shrink-0 justify-center"
+        aria-hidden="true"
+      >
         <Glyph className={`h-3 w-3 ${tone}`} />
       </span>
       <span className="min-w-0 flex-1">
@@ -418,11 +568,14 @@ export function EventLine({
           <>{name} left the room</>
         ) : (
           <>
-            {actor} switched transcription {row.event === "transcribe_on" ? "on" : "off"}
+            {actor} switched transcription{" "}
+            {row.event === "transcribe_on" ? "on" : "off"}
           </>
         )}
       </span>
-      <span className="rt-when rt-event-when">{fmtWallClock(row.at, dayOf)}</span>
+      <span className="rt-when rt-event-when">
+        {fmtWallClock(row.at, dayOf)}
+      </span>
     </div>
   );
 }
@@ -459,26 +612,58 @@ export function RecordEventLine({
   // A lost save follows the stop the room already read: the video it was
   // saving is gone, said as the warning a failure is.
   const lost = row.event === "record_lost";
-  const failed = lost || (row.event === "record_off" && row.event_reason === "failed");
-  const Glyph = row.event === "record_on" ? Circle : row.event === "record_deleted" ? Trash2 : failed ? AlertTriangle : Square;
+  const failed =
+    lost || (row.event === "record_off" && row.event_reason === "failed");
+  const Glyph =
+    row.event === "record_on"
+      ? Circle
+      : row.event === "record_deleted"
+        ? Trash2
+        : failed
+          ? AlertTriangle
+          : Square;
   // Recording keeps the red the mark wears; a failure is a warning; the
   // ends are dim, as an ended thing should be, and so is a deleted run.
-  const tone = gone ? "text-sol-text-dim opacity-60" : row.event === "record_on" ? "fill-current text-sol-red" : failed ? "text-sol-orange" : "text-sol-text-dim";
-  const who = row.event_guest_name ? <GuestWho name={row.event_guest_name} /> : actor;
-  const itself = row.event === "record_off" ? recordingStoppedItselfWords(row.event_reason) : null;
+  const tone = gone
+    ? "text-sol-text-dim opacity-60"
+    : row.event === "record_on"
+      ? "fill-current text-sol-red"
+      : failed
+        ? "text-sol-orange"
+        : "text-sol-text-dim";
+  const who = row.event_guest_name ? (
+    <GuestWho name={row.event_guest_name} />
+  ) : (
+    actor
+  );
+  const itself =
+    row.event === "record_off"
+      ? recordingStoppedItselfWords(row.event_reason)
+      : null;
   const span = row.event === "record_deleted" ? row.event_span : null;
   let words: React.ReactNode;
   if (row.event === "record_on") words = <>{who} started recording</>;
-  else if (span) words = <>{who} deleted the recording from {formatCallTime(span.from_ms)} to {formatCallTime(span.to_ms)}</>;
-  else if (row.event === "record_deleted") words = <>{who} deleted a recording</>;
+  else if (span)
+    words = (
+      <>
+        {who} deleted the recording from {formatCallTime(span.from_ms)} to{" "}
+        {formatCallTime(span.to_ms)}
+      </>
+    );
+  else if (row.event === "record_deleted")
+    words = <>{who} deleted a recording</>;
   else if (lost) words = recordingLostWords(row.text);
   else if (itself) words = itself;
   else if (failed) words = recordingFailureWords(row.text);
   else words = <>{who} stopped recording</>;
-  const clock = "shrink-0 min-w-[3.25rem] rounded px-1 text-right font-mono text-meta text-sol-text-dim";
+  const clock =
+    "shrink-0 min-w-[3.25rem] rounded px-1 text-right font-mono text-meta text-sol-text-dim";
   return (
     <div className={`rt-event${fresh ? " rt-in" : ""}`} role="note">
-      <span className="rt-event-glyph flex w-5 shrink-0 justify-center" aria-hidden="true">
+      <span
+        className="rt-event-glyph flex w-5 shrink-0 justify-center"
+        aria-hidden="true"
+      >
         <Glyph className={`h-3 w-3 ${tone}`} />
       </span>
       <span className="min-w-0 flex-1">
@@ -495,11 +680,22 @@ export function RecordEventLine({
           {moment.label}
         </button>
       ) : moment || clockColumn ? (
-        <span className={`${clock} opacity-70`} title={moment ? (gone ? "This recording was deleted" : "No video shows this moment") : undefined}>
+        <span
+          className={`${clock} opacity-70`}
+          title={
+            moment
+              ? gone
+                ? "This recording was deleted"
+                : "No video shows this moment"
+              : undefined
+          }
+        >
           {moment?.label}
         </span>
       ) : null}
-      <span className="rt-when rt-event-when">{fmtWallClock(row.at, dayOf)}</span>
+      <span className="rt-when rt-event-when">
+        {fmtWallClock(row.at, dayOf)}
+      </span>
     </div>
   );
 }
@@ -509,17 +705,33 @@ export function RecordEventLine({
  *  a face or a screen is out of the call now, and this line (with the moment
  *  it shows) is how everyone in it learns so. The call page's share control
  *  lists the picture with a way to take it down. */
-function FrameSharedLine({ row, actor, fresh, dayOf }: { row: EventRow; actor: string; fresh: boolean; dayOf: number | undefined }) {
+function FrameSharedLine({
+  row,
+  actor,
+  fresh,
+  dayOf,
+}: {
+  row: EventRow;
+  actor: string;
+  fresh: boolean;
+  dayOf: number | undefined;
+}) {
   const atMs = parseCallRef(row.text)?.at_ms;
   return (
     <div className={`rt-event${fresh ? " rt-in" : ""}`} role="note">
-      <span className="rt-event-glyph flex w-5 shrink-0 justify-center" aria-hidden="true">
+      <span
+        className="rt-event-glyph flex w-5 shrink-0 justify-center"
+        aria-hidden="true"
+      >
         <ImageUp className="h-3 w-3 text-sol-orange" />
       </span>
       <span className="min-w-0 flex-1">
-        {actor} shared a picture {atMs != null ? <>of {formatCallTime(atMs)} </> : null}by link
+        {actor} shared a picture{" "}
+        {atMs != null ? <>of {formatCallTime(atMs)} </> : null}by link
       </span>
-      <span className="rt-when rt-event-when">{fmtWallClock(row.at, dayOf)}</span>
+      <span className="rt-when rt-event-when">
+        {fmtWallClock(row.at, dayOf)}
+      </span>
     </div>
   );
 }
@@ -530,10 +742,32 @@ function FrameSharedLine({ row, actor, fresh, dayOf }: { row: EventRow; actor: s
  *  words or faces are on the open web, and who to ask. A line that opened
  *  something leads to the call's share control, where anyone who can read
  *  the call can take it down again. */
-function PublicLinkLine({ row, actor, fresh, dayOf }: { row: EventRow; actor: string; fresh: boolean; dayOf: number | undefined }) {
+function PublicLinkLine({
+  row,
+  actor,
+  fresh,
+  dayOf,
+}: {
+  row: EventRow;
+  actor: string;
+  fresh: boolean;
+  dayOf: number | undefined;
+}) {
   const opened = row.event === "link_on" || row.event === "video_shared";
-  const Glyph = row.event === "link_on" ? Globe : row.event === "link_off" ? Link2Off : row.event === "video_shared" ? Video : VideoOff;
-  const span = row.event === "video_shared" && row.event_span ? describeClockSpans([{ fromMs: row.event_span.from_ms, toMs: row.event_span.to_ms }]) : null;
+  const Glyph =
+    row.event === "link_on"
+      ? Globe
+      : row.event === "link_off"
+        ? Link2Off
+        : row.event === "video_shared"
+          ? Video
+          : VideoOff;
+  const span =
+    row.event === "video_shared" && row.event_span
+      ? describeClockSpans([
+          { fromMs: row.event_span.from_ms, toMs: row.event_span.to_ms },
+        ])
+      : null;
   const words =
     row.event === "link_on"
       ? "opened the call to anyone with its link"
@@ -544,21 +778,31 @@ function PublicLinkLine({ row, actor, fresh, dayOf }: { row: EventRow; actor: st
           : "took the call's video off its public link";
   return (
     <div className={`rt-event${fresh ? " rt-in" : ""}`} role="note">
-      <span className="rt-event-glyph flex w-5 shrink-0 justify-center" aria-hidden="true">
-        <Glyph className={`h-3 w-3 ${opened ? "text-sol-orange" : "text-sol-text-dim"}`} />
+      <span
+        className="rt-event-glyph flex w-5 shrink-0 justify-center"
+        aria-hidden="true"
+      >
+        <Glyph
+          className={`h-3 w-3 ${opened ? "text-sol-orange" : "text-sol-text-dim"}`}
+        />
       </span>
       <span className="min-w-0 flex-1">
         {actor} {words}
         {opened && row.transcript_id ? (
           <>
             {" · "}
-            <a href={callShareHref(row.transcript_id)} className="text-sol-text-muted underline decoration-dotted underline-offset-2 hover:text-sol-cyan">
+            <a
+              href={callShareHref(row.transcript_id)}
+              className="text-sol-text-muted underline decoration-dotted underline-offset-2 hover:text-sol-cyan"
+            >
               manage
             </a>
           </>
         ) : null}
       </span>
-      <span className="rt-when rt-event-when">{fmtWallClock(row.at, dayOf)}</span>
+      <span className="rt-when rt-event-when">
+        {fmtWallClock(row.at, dayOf)}
+      </span>
     </div>
   );
 }
@@ -575,14 +819,29 @@ function GuestWho({ name }: { name: string }) {
 /** Somebody let a stranger in, or put one out. The door is a moment only the
  *  people looking at it see; this line is how everyone else learns who opened
  *  the room to an outsider, and it stays with the call. */
-function GuestEventLine({ row, actor, fresh, dayOf }: { row: EventRow; actor: string; fresh: boolean; dayOf: number | undefined }) {
+function GuestEventLine({
+  row,
+  actor,
+  fresh,
+  dayOf,
+}: {
+  row: EventRow;
+  actor: string;
+  fresh: boolean;
+  dayOf: number | undefined;
+}) {
   const admitted = row.event === "guest_admitted";
   const Glyph = admitted ? DoorOpen : UserMinus;
   const guest = <GuestWho name={row.event_guest_name ?? "a guest"} />;
   return (
     <div className={`rt-event${fresh ? " rt-in" : ""}`} role="note">
-      <span className="rt-event-glyph flex w-5 shrink-0 justify-center" aria-hidden="true">
-        <Glyph className={`h-3 w-3 ${admitted ? "text-sol-yellow" : "text-sol-text-dim"}`} />
+      <span
+        className="rt-event-glyph flex w-5 shrink-0 justify-center"
+        aria-hidden="true"
+      >
+        <Glyph
+          className={`h-3 w-3 ${admitted ? "text-sol-yellow" : "text-sol-text-dim"}`}
+        />
       </span>
       <span className="min-w-0 flex-1">
         {admitted ? (
@@ -595,7 +854,9 @@ function GuestEventLine({ row, actor, fresh, dayOf }: { row: EventRow; actor: st
           </>
         )}
       </span>
-      <span className="rt-when rt-event-when">{fmtWallClock(row.at, dayOf)}</span>
+      <span className="rt-when rt-event-when">
+        {fmtWallClock(row.at, dayOf)}
+      </span>
     </div>
   );
 }
@@ -609,9 +870,21 @@ function GuestEventLine({ row, actor, fresh, dayOf }: { row: EventRow; actor: st
  *  (see EntityAwareLink). */
 const STAGE_PAGE_HEIGHT = 280;
 function StageLink({ children, ...props }: any) {
-  const text = typeof children === "string" ? children : Array.isArray(children) ? children.map(String).join("") : String(children ?? "");
+  const text =
+    typeof children === "string"
+      ? children
+      : Array.isArray(children)
+        ? children.map(String).join("")
+        : String(children ?? "");
   const m = /^embed:artifact:([^|]+)(?:\|([\s\S]*))?$/.exec(text);
-  if (m) return <PublishedPageEmbed slug={m[1]} caption={m[2] || undefined} height={STAGE_PAGE_HEIGHT} />;
+  if (m)
+    return (
+      <PublishedPageEmbed
+        slug={m[1]}
+        caption={m[2] || undefined}
+        height={STAGE_PAGE_HEIGHT}
+      />
+    );
   return <EntityAwareLink {...props}>{children}</EntityAwareLink>;
 }
 const STAGE_MD_COMPONENTS = { ...MESSAGE_MD_COMPONENTS, a: StageLink };
@@ -636,7 +909,9 @@ export const ChatLine = memo(function ChatLine({
   onOpen: (id: string) => void;
 }) {
   return (
-    <div className={`rt-line${sameAuthor ? " rt-line-cont" : ""}${fresh ? " rt-in" : ""}`}>
+    <div
+      className={`rt-line${sameAuthor ? " rt-line-cont" : ""}${fresh ? " rt-in" : ""}`}
+    >
       <span className="w-5 shrink-0 pt-0.5">
         {!sameAuthor &&
           (m.agent ? (
@@ -653,7 +928,10 @@ export const ChatLine = memo(function ChatLine({
               className="shrink-0"
             />
           ) : (
-            <Avatar m={{ user_image: m.user_image, user_name: m.user_name }} size={20} />
+            <Avatar
+              m={{ user_image: m.user_image, user_name: m.user_name }}
+              size={20}
+            />
           ))}
       </span>
       <div className="min-w-0 flex-1">
@@ -669,7 +947,9 @@ export const ChatLine = memo(function ChatLine({
                 {m.agent.name ?? m.agent.title}
               </button>
             ) : (
-              <span className="rt-name text-sol-text">{m.mine ? "you" : firstName(m.user_name)}</span>
+              <span className="rt-name text-sol-text">
+                {m.mine ? "you" : firstName(m.user_name)}
+              </span>
             )}
             <span className="rt-when">{fmtWallClock(m.at, dayOf)}</span>
           </div>
@@ -678,7 +958,9 @@ export const ChatLine = memo(function ChatLine({
           // A human's line is typed text (a pasted link, a newline), an
           // agent's is prose with the odd list: the same pipeline renders
           // both, so a link is a link whoever typed it.
-          <div className={`rt-line-body rt-md break-words ${m.pending ? "text-sol-text-muted" : "text-sol-text"}`}>
+          <div
+            className={`rt-line-body rt-md break-words ${m.pending ? "text-sol-text-muted" : "text-sol-text"}`}
+          >
             <ReactMarkdown
               remarkPlugins={USER_MD_REMARK}
               rehypePlugins={MESSAGE_MD_REHYPE}
@@ -688,7 +970,12 @@ export const ChatLine = memo(function ChatLine({
             </ReactMarkdown>
           </div>
         ) : null}
-        {(m.attachments?.length ?? 0) > 0 && <ChatAttachments messageId={m._id} attachments={m.attachments as any} />}
+        {(m.attachments?.length ?? 0) > 0 && (
+          <ChatAttachments
+            messageId={m._id}
+            attachments={m.attachments as any}
+          />
+        )}
       </div>
     </div>
   );

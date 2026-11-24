@@ -13,7 +13,11 @@ import { admitHookRequest } from "./hookAdmission.js";
 
 const TOKEN = "a".repeat(64);
 
-function fakeReq(url: string, headers: Record<string, string> = {}, method = "GET"): http.IncomingMessage {
+function fakeReq(
+  url: string,
+  headers: Record<string, string> = {},
+  method = "GET",
+): http.IncomingMessage {
   let resumed = false;
   return {
     url,
@@ -28,7 +32,10 @@ function fakeReq(url: string, headers: Record<string, string> = {}, method = "GE
   } as unknown as http.IncomingMessage;
 }
 
-function fakeRes(): http.ServerResponse & { status: number | null; body: string } {
+function fakeRes(): http.ServerResponse & {
+  status: number | null;
+  body: string;
+} {
   const res = {
     status: null as number | null,
     body: "",
@@ -41,7 +48,10 @@ function fakeRes(): http.ServerResponse & { status: number | null; body: string 
       return res;
     },
   };
-  return res as unknown as http.ServerResponse & { status: number | null; body: string };
+  return res as unknown as http.ServerResponse & {
+    status: number | null;
+    body: string;
+  };
 }
 
 function harness(opts: { token?: string; legacy?: boolean } = {}) {
@@ -50,7 +60,10 @@ function harness(opts: { token?: string; legacy?: boolean } = {}) {
   const refused: string[] = [];
   const deps = {
     admit: (req: http.IncomingMessage) =>
-      admitHookRequest(req.headers, { token: opts.token ?? TOKEN, legacyAllowed: () => opts.legacy ?? false }),
+      admitHookRequest(req.headers, {
+        token: opts.token ?? TOKEN,
+        legacyAllowed: () => opts.legacy ?? false,
+      }),
     refuse: (_route: string, reason: string, res: http.ServerResponse) => {
       refused.push(reason);
       res.writeHead(401);
@@ -87,7 +100,11 @@ describe("hook ingress admission", () => {
     for (const legacy of [false, true]) {
       const h = harness({ legacy });
       const res = fakeRes();
-      handleHookIngressHttp(fakeReq(STATUS_URL, { authorization: `Bearer ${"b".repeat(64)}` }), res, h.deps);
+      handleHookIngressHttp(
+        fakeReq(STATUS_URL, { authorization: `Bearer ${"b".repeat(64)}` }),
+        res,
+        h.deps,
+      );
       expect(res.status).toBe(401);
       expect(h.delivered).toEqual([]);
       expect(h.refused).toEqual(["bad-token"]);
@@ -97,7 +114,11 @@ describe("hook ingress admission", () => {
   test("a token of the wrong length is refused without a timing-unsafe compare", () => {
     const h = harness();
     const res = fakeRes();
-    handleHookIngressHttp(fakeReq(STATUS_URL, { authorization: "Bearer short" }), res, h.deps);
+    handleHookIngressHttp(
+      fakeReq(STATUS_URL, { authorization: "Bearer short" }),
+      res,
+      h.deps,
+    );
     expect(res.status).toBe(401);
     expect(h.delivered).toEqual([]);
   });
@@ -105,7 +126,11 @@ describe("hook ingress admission", () => {
   test("a real hook delivers once", () => {
     const h = harness();
     const res = fakeRes();
-    handleHookIngressHttp(fakeReq(STATUS_URL, { authorization: `Bearer ${TOKEN}` }), res, h.deps);
+    handleHookIngressHttp(
+      fakeReq(STATUS_URL, { authorization: `Bearer ${TOKEN}` }),
+      res,
+      h.deps,
+    );
     expect(res.status).toBe(200);
     expect(h.delivered.length).toBe(1);
     expect(h.delivered[0]!.data.status).toBe("idle");
@@ -113,9 +138,14 @@ describe("hook ingress admission", () => {
 
   test("a PermissionRequest's dialog flag reaches the daemon typed", () => {
     const h = harness();
-    const url = "/hook/status?session_id=9f8c1e2a-4b6d-4f31-9c0a-1b2c3d4e5f60&status=permission_blocked&ts=1700000000" +
+    const url =
+      "/hook/status?session_id=9f8c1e2a-4b6d-4f31-9c0a-1b2c3d4e5f60&status=permission_blocked&ts=1700000000" +
       "&permission_mode=bypassPermissions&message=Bash%3A%20echo%20hi&dialog=1";
-    handleHookIngressHttp(fakeReq(url, { authorization: `Bearer ${TOKEN}` }), fakeRes(), h.deps);
+    handleHookIngressHttp(
+      fakeReq(url, { authorization: `Bearer ${TOKEN}` }),
+      fakeRes(),
+      h.deps,
+    );
     expect(h.delivered[0]!.data.dialog).toBe(true);
   });
 
@@ -131,7 +161,9 @@ describe("hook ingress admission", () => {
     const h = harness();
     const res = fakeRes();
     handleHookIngressHttp(
-      fakeReq("/hook/status?session_id=..%2Fconfig&status=idle&ts=1", { authorization: `Bearer ${TOKEN}` }),
+      fakeReq("/hook/status?session_id=..%2Fconfig&status=idle&ts=1", {
+        authorization: `Bearer ${TOKEN}`,
+      }),
       res,
       h.deps,
     );
@@ -153,7 +185,11 @@ describe("hook ingress admission", () => {
     const h = harness();
     const res = fakeRes();
     handleHookIngressHttp(
-      fakeReq("/hook/statusline?account=x", { authorization: `Bearer ${TOKEN}` }, "POST"),
+      fakeReq(
+        "/hook/statusline?account=x",
+        { authorization: `Bearer ${TOKEN}` },
+        "POST",
+      ),
       res,
       h.deps,
     );
@@ -163,14 +199,22 @@ describe("hook ingress admission", () => {
   test("an empty daemon token authenticates nobody", () => {
     const h = harness({ token: "" });
     const res = fakeRes();
-    handleHookIngressHttp(fakeReq(STATUS_URL, { authorization: "Bearer " }), res, h.deps);
+    handleHookIngressHttp(
+      fakeReq(STATUS_URL, { authorization: "Bearer " }),
+      res,
+      h.deps,
+    );
     expect(res.status).toBe(401);
     expect(h.delivered).toEqual([]);
   });
 
   test("routes it does not own are left alone", () => {
     const h = harness();
-    expect(handleHookIngressHttp(fakeReq("/health"), fakeRes(), h.deps)).toBe(false);
-    expect(handleHookIngressHttp(fakeReq("/vault/file?x=1"), fakeRes(), h.deps)).toBe(false);
+    expect(handleHookIngressHttp(fakeReq("/health"), fakeRes(), h.deps)).toBe(
+      false,
+    );
+    expect(
+      handleHookIngressHttp(fakeReq("/vault/file?x=1"), fakeRes(), h.deps),
+    ).toBe(false);
   });
 });

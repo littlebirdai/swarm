@@ -9,7 +9,10 @@ import { placeSections } from "./placeTestHarness";
 // files a question identically. These pin the behaviors that pass carried.
 
 const T0 = Date.now();
-const decide = (conversation_id: string, status: SessionDecisionItem["status"] = "pending"): SessionDecisionItem => ({
+const decide = (
+  conversation_id: string,
+  status: SessionDecisionItem["status"] = "pending",
+): SessionDecisionItem => ({
   _id: `d-${conversation_id}`,
   conversation_id,
   session_id: `sess-${conversation_id}`,
@@ -36,8 +39,16 @@ const row = (id: string, over: Partial<InboxSession> = {}): InboxSession => ({
   ...(over as any),
 });
 const ids = (xs: InboxSession[]) => xs.map((s) => s._id);
-const place = (rows: InboxSession[], decisions: Record<string, SessionDecisionItem> = {}) =>
-  placeSections(Object.fromEntries(rows.map((s) => [s._id, s])), new Set(), undefined, { sessionDecisions: decisions });
+const place = (
+  rows: InboxSession[],
+  decisions: Record<string, SessionDecisionItem> = {},
+) =>
+  placeSections(
+    Object.fromEntries(rows.map((s) => [s._id, s])),
+    new Set(),
+    undefined,
+    { sessionDecisions: decisions },
+  );
 
 describe("the questions bucket", () => {
   // A blocking decide whose agent still reads as working (the status lags the
@@ -46,13 +57,19 @@ describe("the questions bucket", () => {
   it("files a working or pinned session with a pending decide under QUESTIONS, out of its section", () => {
     const working = row("w1", { agent_status: "working", is_idle: false });
     const pinned = row("p1", { is_pinned: true, inbox_pinned_at: T0 });
-    const placed = place([working, pinned], { a: decide("w1"), b: decide("p1") });
+    const placed = place([working, pinned], {
+      a: decide("w1"),
+      b: decide("p1"),
+    });
     expect(ids(placed.questions).sort()).toEqual(["p1", "w1"]);
     expect(placed.working).toEqual([]);
     expect(placed.pinned).toEqual([]);
     expect(placed.isQuestion(working)).toBe(true);
     expect(placed.isQuestion(pinned)).toBe(true);
-    expect(placed.placements.get("w1")).toMatchObject({ bucket: "questions", work_state: "working" });
+    expect(placed.placements.get("w1")).toMatchObject({
+      bucket: "questions",
+      work_state: "working",
+    });
     expect(placed.tally.shown.questions).toBe(2);
   });
 
@@ -64,7 +81,12 @@ describe("the questions bucket", () => {
     const stacked = row("w2", { agent_status: "working", is_idle: false });
     const placed = place([working, stacked], {
       a: { ...decide("w1"), blocking: false, default_option: 0 },
-      b: { ...decide("w2"), blocking: false, default_option: 0, stack_id: "ds1" },
+      b: {
+        ...decide("w2"),
+        blocking: false,
+        default_option: 0,
+        stack_id: "ds1",
+      },
     });
     expect(ids(placed.questions)).toEqual(["w2"]);
     expect(ids(placed.working)).toEqual(["w1"]);
@@ -103,10 +125,18 @@ describe("the questions bucket", () => {
 
   it("a nested child never renders loose — its PRESENT parent lifts instead", () => {
     const parent = row("par1");
-    const sub = row("sub1", { parent_conversation_id: "par1", agent_status: "permission_blocked" });
+    const sub = row("sub1", {
+      parent_conversation_id: "par1",
+      agent_status: "permission_blocked",
+    });
     const teamParent = row("tp1");
-    const teamChild = row("tm1", { spawned_by_conversation_id: "tp1", agent_team_name: "team" });
-    const placed = place([parent, sub, teamParent, teamChild], { t: decide("tm1") });
+    const teamChild = row("tm1", {
+      spawned_by_conversation_id: "tp1",
+      agent_team_name: "team",
+    });
+    const placed = place([parent, sub, teamParent, teamChild], {
+      t: decide("tm1"),
+    });
     expect(ids(placed.questions).sort()).toEqual(["par1", "tp1"]);
     expect(placed.isQuestion(parent)).toBe(true);
     expect(ids(placed.subsByParent.get("par1") ?? [])).toEqual(["sub1"]);
@@ -122,15 +152,44 @@ describe("the questions bucket", () => {
     // rideLeadPlacements), nests there, and the header count includes it —
     // on the server, the CLI, mobile and here alike.
     const lead = row("lead1", { agent_status: "working", is_idle: false });
-    const mateDone = row("mate1", { spawned_by_conversation_id: "lead1", agent_team_name: "team", agent_status: "stopped" });
-    const mateWorking = row("mate2", { spawned_by_conversation_id: "lead1", agent_team_name: "team", agent_status: "working", is_idle: false });
-    const matePinned = row("mate3", { spawned_by_conversation_id: "lead1", agent_team_name: "team", is_pinned: true, inbox_pinned_at: T0 });
-    const mateLeadAbsent = row("mate4", { spawned_by_conversation_id: "gone", agent_team_name: "team" });
-    const placed = place([lead, mateDone, mateWorking, matePinned, mateLeadAbsent]);
-    expect(placed.placements.get("mate1")).toMatchObject({ bucket: "working", work_state: "needs_input" });
+    const mateDone = row("mate1", {
+      spawned_by_conversation_id: "lead1",
+      agent_team_name: "team",
+      agent_status: "stopped",
+    });
+    const mateWorking = row("mate2", {
+      spawned_by_conversation_id: "lead1",
+      agent_team_name: "team",
+      agent_status: "working",
+      is_idle: false,
+    });
+    const matePinned = row("mate3", {
+      spawned_by_conversation_id: "lead1",
+      agent_team_name: "team",
+      is_pinned: true,
+      inbox_pinned_at: T0,
+    });
+    const mateLeadAbsent = row("mate4", {
+      spawned_by_conversation_id: "gone",
+      agent_team_name: "team",
+    });
+    const placed = place([
+      lead,
+      mateDone,
+      mateWorking,
+      matePinned,
+      mateLeadAbsent,
+    ]);
+    expect(placed.placements.get("mate1")).toMatchObject({
+      bucket: "working",
+      work_state: "needs_input",
+    });
     expect(placed.placements.get("mate2")?.bucket).toBe("working");
     expect(ids(placed.working)).toEqual(["lead1"]);
-    expect(ids(placed.subsByParent.get("lead1") ?? []).sort()).toEqual(["mate1", "mate2"]);
+    expect(ids(placed.subsByParent.get("lead1") ?? []).sort()).toEqual([
+      "mate1",
+      "mate2",
+    ]);
     expect(placed.tally.shown.working).toBe(3);
     // The header number counts the nested members in their section: the flat
     // array holds one card, the count says three, like the tally and the CLI.
@@ -198,7 +257,10 @@ describe("the questions bucket", () => {
 
   it("a teammate rides a stashed lead out of the active sections and into the stashed bucket with it", () => {
     const lead = row("lead1", { inbox_stashed_at: T0 });
-    const mate = row("mate1", { spawned_by_conversation_id: "lead1", agent_team_name: "team" });
+    const mate = row("mate1", {
+      spawned_by_conversation_id: "lead1",
+      agent_team_name: "team",
+    });
     const placed = place([lead, mate]);
     expect(placed.placements.get("mate1")?.bucket).toBe("stashed");
     expect(placed.needsInput).toEqual([]);
@@ -208,7 +270,11 @@ describe("the questions bucket", () => {
 
   it("a killed child's question lifts nothing", () => {
     const parent = row("par1");
-    const sub = row("sub1", { parent_conversation_id: "par1", agent_status: "permission_blocked", inbox_killed_at: T0 });
+    const sub = row("sub1", {
+      parent_conversation_id: "par1",
+      agent_status: "permission_blocked",
+      inbox_killed_at: T0,
+    });
     const placed = place([parent, sub]);
     expect(placed.questions).toEqual([]);
     expect(ids(placed.needsInput)).toEqual(["par1"]);
@@ -221,10 +287,19 @@ describe("the questions bucket", () => {
   // parent into QUESTIONS forever, a card with no answerable question behind it.
   it("a frozen child under a stashed, dismissed, or absent parent lifts nothing", () => {
     const frozenChild = (parentId: string) =>
-      row(`sub-${parentId}`, { parent_conversation_id: parentId, agent_status: "permission_blocked" });
+      row(`sub-${parentId}`, {
+        parent_conversation_id: parentId,
+        agent_status: "permission_blocked",
+      });
     const stashed = row("st1", { inbox_stashed_at: T0 });
     const dismissed = row("dx1", { inbox_dismissed_at: T0 });
-    const placed = place([stashed, dismissed, frozenChild("st1"), frozenChild("dx1"), frozenChild("gone")]);
+    const placed = place([
+      stashed,
+      dismissed,
+      frozenChild("st1"),
+      frozenChild("dx1"),
+      frozenChild("gone"),
+    ]);
     expect(placed.questions).toEqual([]);
     expect(placed.isQuestion(stashed)).toBe(false);
     expect(placed.isQuestion(dismissed)).toBe(false);
@@ -250,7 +325,12 @@ describe("the questions bucket", () => {
       Object.fromEntries([[hosted._id, hosted]]),
       new Set(),
       undefined,
-      { sessionDecisions: { d: { ...decide("h1"), asked_user_ids: ["users_them"] } }, currentUser: { _id: "users_me" } },
+      {
+        sessionDecisions: {
+          d: { ...decide("h1"), asked_user_ids: ["users_them"] },
+        },
+        currentUser: { _id: "users_me" },
+      },
     );
     expect(ids(mine.questions)).toEqual([]);
     expect(ids(mine.needsInput)).toEqual(["h1"]);

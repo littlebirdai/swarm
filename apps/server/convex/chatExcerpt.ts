@@ -59,8 +59,14 @@ export async function collectChatExcerpt(
   const nameFor = async (row: Doc<"chat_messages">): Promise<string> => {
     if (opts.isSelf(row)) return "You (earlier)";
     const human = await humanName(row.user_id);
-    if (row.origin === "agent" && row.origin_session_id && row.author_kind !== "agent") {
-      const title = row.origin_session_title ? `${oneLine(row.origin_session_title, 60)}, ` : "";
+    if (
+      row.origin === "agent" &&
+      row.origin_session_id &&
+      row.author_kind !== "agent"
+    ) {
+      const title = row.origin_session_title
+        ? `${oneLine(row.origin_session_title, 60)}, `
+        : "";
       return `${title}session ${row.origin_session_id.slice(0, 7)} via ${human}`;
     }
     return human;
@@ -69,11 +75,14 @@ export async function collectChatExcerpt(
   if (opts.root && opts.threadRootId) {
     const thread = await ctx.db
       .query("chat_messages")
-      .withIndex("by_thread_created", (q: any) => q.eq("thread_root_id", opts.threadRootId))
+      .withIndex("by_thread_created", (q: any) =>
+        q.eq("thread_root_id", opts.threadRootId),
+      )
       .order("desc")
       .take(opts.threadLimit ?? ANCHOR_THREAD_EXCERPT);
     for (const row of [opts.root, ...thread.reverse()]) {
-      if (opts.skipId && row._id.toString() === opts.skipId.toString()) continue;
+      if (opts.skipId && row._id.toString() === opts.skipId.toString())
+        continue;
       if (row.deleted_at || isSilentAgentRow(row)) continue;
       entries.push({ name: await nameFor(row), content: row.content });
     }
@@ -87,7 +96,8 @@ export async function collectChatExcerpt(
   const recentRoots = await ctx.db
     .query("chat_messages")
     .withIndex("by_channel_created", (q: any) =>
-      q.eq("channel_id", opts.channel._id).lt("created_at", rootRow.created_at))
+      q.eq("channel_id", opts.channel._id).lt("created_at", rootRow.created_at),
+    )
     .order("desc")
     .filter((q) => q.eq(q.field("thread_root_id"), undefined))
     .take(ANCHOR_CHANNEL_CONTEXT);

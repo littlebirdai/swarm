@@ -10,9 +10,16 @@
 // It also states what the machine LAST did and why (describeDecision), so an
 // account change is explained where the setting that caused it lives.
 
-import { describeDecision, formatAgo, type RecoveryDecision } from "@codecast/shared/contracts";
+import {
+  describeDecision,
+  formatAgo,
+  type RecoveryDecision,
+} from "@codecast/shared/contracts";
 import type { RecoveryMode } from "@codecast/convex/convex/ccAccountsShared";
-import { RECOVERY_MODE_COPY, type RecoveryModeControl } from "../hooks/useAccountRecoveryToggles";
+import {
+  RECOVERY_MODE_COPY,
+  type RecoveryModeControl,
+} from "../hooks/useAccountRecoveryToggles";
 
 // From least to most done on the person's behalf.
 const ORDER: RecoveryMode[] = ["off", "resume", "ask", "auto"];
@@ -25,7 +32,11 @@ export function RecoveryModeSelect({
   compact?: boolean;
 }) {
   return (
-    <div role="radiogroup" aria-label="When a session stops on its own" className={compact ? "space-y-0.5" : "space-y-1"}>
+    <div
+      role="radiogroup"
+      aria-label="When a session stops on its own"
+      className={compact ? "space-y-0.5" : "space-y-1"}
+    >
       {ORDER.map((mode) => {
         const copy = RECOVERY_MODE_COPY[mode];
         const selected = control.mode === mode;
@@ -48,11 +59,15 @@ export function RecoveryModeSelect({
               }`}
             />
             <span className="min-w-0 flex-1">
-              <span className={`block text-xs font-medium ${selected ? "text-sol-text" : "text-sol-text-muted"}`}>
+              <span
+                className={`block text-xs font-medium ${selected ? "text-sol-text" : "text-sol-text-muted"}`}
+              >
                 {copy.label}
               </span>
               {!compact && (
-                <span className="mt-0.5 block text-meta leading-relaxed text-sol-text-dim">{copy.detail}</span>
+                <span className="mt-0.5 block text-meta leading-relaxed text-sol-text-dim">
+                  {copy.detail}
+                </span>
               )}
             </span>
           </button>
@@ -80,7 +95,8 @@ export function RecoveryDecisionNote({
     <div
       className={`text-meta leading-relaxed ${proposing ? "text-sol-yellow" : "text-sol-text-dim"} ${className ?? ""}`}
     >
-      {text} <span className="text-sol-text-dim">{formatAgo(now - decision.at)}</span>
+      {text}{" "}
+      <span className="text-sol-text-dim">{formatAgo(now - decision.at)}</span>
     </div>
   );
 }

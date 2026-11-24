@@ -9,7 +9,15 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ScrollEdges } from "./useScrollEdges";
 import "./line.css";
 
-export function EdgeArrows({ scroller, onMove, edges, label, step = 0.7, waiting, names }: {
+export function EdgeArrows({
+  scroller,
+  onMove,
+  edges,
+  label,
+  step = 0.7,
+  waiting,
+  names,
+}: {
   scroller?: RefObject<HTMLElement | null>;
   /** Moves the view itself when it is not a scroller (the graph pans): -1 back, 1 on, by `step` of the width. */
   onMove?: (dir: -1 | 1, step: number) => void;
@@ -26,26 +34,68 @@ export function EdgeArrows({ scroller, onMove, edges, label, step = 0.7, waiting
   const named = (list: string[] | undefined) => {
     if (!list?.length) return null;
     const shown = list.slice(0, 2).join(", ");
-    return <span className="line-edge-names">{list.length > 2 ? `${shown} +${list.length - 2}` : shown}</span>;
+    return (
+      <span className="line-edge-names">
+        {list.length > 2 ? `${shown} +${list.length - 2}` : shown}
+      </span>
+    );
   };
-  const sayNames = (list: string[] | undefined) => (list?.length ? `: ${list.join(", ")}` : "");
-  const badge = (n: number) => (n > 0 ? <span className="line-edge-count" data-edge-waiting={n}>{n}</span> : null);
-  const say = (n: number) => (n > 0 ? `, ${n} ${n === 1 ? "decision" : "decisions"} waiting on you that way` : "");
+  const sayNames = (list: string[] | undefined) =>
+    list?.length ? `: ${list.join(", ")}` : "";
+  const badge = (n: number) =>
+    n > 0 ? (
+      <span className="line-edge-count" data-edge-waiting={n}>
+        {n}
+      </span>
+    ) : null;
+  const say = (n: number) =>
+    n > 0
+      ? `, ${n} ${n === 1 ? "decision" : "decisions"} waiting on you that way`
+      : "";
   const move = (dir: -1 | 1) => {
     if (onMove) return onMove(dir, step);
     const el = scroller?.current;
-    if (el) el.scrollBy({ left: dir * el.clientWidth * step, behavior: "smooth" });
+    if (el)
+      el.scrollBy({ left: dir * el.clientWidth * step, behavior: "smooth" });
   };
   return (
     <>
       {edges.left && (
-        <button type="button" tabIndex={-1} className="line-edge-arrow" data-side="left" onMouseDown={(e) => e.preventDefault()} onClick={() => move(-1)} aria-label={`Scroll ${label} back${sayNames(names?.left)}${say(waiting?.left ?? 0)}`} title={`More of ${label} this way${sayNames(names?.left)}${say(waiting?.left ?? 0)}`} data-edge-arrow="left" data-waiting={waiting?.left ? "true" : undefined} data-named={names?.left.length ? "true" : undefined}>
-          <ChevronLeft className="w-3.5 h-3.5 shrink-0" />{named(names?.left)}{badge(waiting?.left ?? 0)}
+        <button
+          type="button"
+          tabIndex={-1}
+          className="line-edge-arrow"
+          data-side="left"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => move(-1)}
+          aria-label={`Scroll ${label} back${sayNames(names?.left)}${say(waiting?.left ?? 0)}`}
+          title={`More of ${label} this way${sayNames(names?.left)}${say(waiting?.left ?? 0)}`}
+          data-edge-arrow="left"
+          data-waiting={waiting?.left ? "true" : undefined}
+          data-named={names?.left.length ? "true" : undefined}
+        >
+          <ChevronLeft className="w-3.5 h-3.5 shrink-0" />
+          {named(names?.left)}
+          {badge(waiting?.left ?? 0)}
         </button>
       )}
       {edges.right && (
-        <button type="button" tabIndex={-1} className="line-edge-arrow" data-side="right" onMouseDown={(e) => e.preventDefault()} onClick={() => move(1)} aria-label={`Scroll ${label} on${sayNames(names?.right)}${say(waiting?.right ?? 0)}`} title={`More of ${label} this way${sayNames(names?.right)}${say(waiting?.right ?? 0)}`} data-edge-arrow="right" data-waiting={waiting?.right ? "true" : undefined} data-named={names?.right.length ? "true" : undefined}>
-          {badge(waiting?.right ?? 0)}{named(names?.right)}<ChevronRight className="w-3.5 h-3.5 shrink-0" />
+        <button
+          type="button"
+          tabIndex={-1}
+          className="line-edge-arrow"
+          data-side="right"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => move(1)}
+          aria-label={`Scroll ${label} on${sayNames(names?.right)}${say(waiting?.right ?? 0)}`}
+          title={`More of ${label} this way${sayNames(names?.right)}${say(waiting?.right ?? 0)}`}
+          data-edge-arrow="right"
+          data-waiting={waiting?.right ? "true" : undefined}
+          data-named={names?.right.length ? "true" : undefined}
+        >
+          {badge(waiting?.right ?? 0)}
+          {named(names?.right)}
+          <ChevronRight className="w-3.5 h-3.5 shrink-0" />
         </button>
       )}
     </>

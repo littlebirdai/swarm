@@ -25,7 +25,9 @@ const MAX_RETRIES = 3;
 const presigned = (url: string) => /[?&]X-Amz-Signature=/i.test(url);
 
 function withRetry(url: string, n: number): string {
-  const u = url.replace(/([?&])r=\d+(&|$)/, (_, lead, tail) => (tail ? lead : "")).replace(/[?&]$/, "");
+  const u = url
+    .replace(/([?&])r=\d+(&|$)/, (_, lead, tail) => (tail ? lead : ""))
+    .replace(/[?&]$/, "");
   return `${u}${u.includes("?") ? "&" : "?"}r=${n}`;
 }
 
@@ -47,7 +49,9 @@ export type StableMediaSrcs = {
   keyOf: (file: { id: string; url: string | null }) => string;
 };
 
-export function useStableMediaSrcs(files: readonly { id: string; url: string | null }[]): StableMediaSrcs {
+export function useStableMediaSrcs(
+  files: readonly { id: string; url: string | null }[],
+): StableMediaSrcs {
   const srcs = useRef(new Map<string, string>());
   const tries = useRef(new Map<string, number>());
   const failed = useRef(new Set<string>());
@@ -77,7 +81,12 @@ export function useStableMediaSrcs(files: readonly { id: string; url: string | n
     refused: (id) => {
       const current = srcs.current.get(id);
       const fresh = latest(id);
-      if (fresh && current && fresh !== current && !current.startsWith(`${fresh}${fresh.includes("?") ? "&" : "?"}r=`)) {
+      if (
+        fresh &&
+        current &&
+        fresh !== current &&
+        !current.startsWith(`${fresh}${fresh.includes("?") ? "&" : "?"}r=`)
+      ) {
         swap(id, fresh);
         return true;
       }
@@ -102,6 +111,7 @@ export function useStableMediaSrcs(files: readonly { id: string; url: string | n
       const url = latest(id) ?? srcs.current.get(id);
       if (url) swap(id, url);
     },
-    keyOf: (f) => `${f.id}:${srcs.current.get(f.id) ?? f.url ?? ""}:${remounts.current.get(f.id) ?? 0}`,
+    keyOf: (f) =>
+      `${f.id}:${srcs.current.get(f.id) ?? f.url ?? ""}:${remounts.current.get(f.id) ?? 0}`,
   };
 }

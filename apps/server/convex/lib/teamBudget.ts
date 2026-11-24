@@ -6,25 +6,43 @@
 // budget can say what waited on it. A workspace with no row has a cap of 0.
 
 import type { Doc, Id } from "../_generated/dataModel";
-import { BUDGET_PURPOSES, budgetMonth, type BudgetPurpose, type BudgetSummary } from "@codecast/shared/contracts/modelCall";
+import {
+  BUDGET_PURPOSES,
+  budgetMonth,
+  type BudgetPurpose,
+  type BudgetSummary,
+} from "@codecast/shared/contracts/modelCall";
 import { modelCost } from "./anthropic";
 
 /** Months of spend a budget row remembers. */
 const HISTORY_MONTHS = 12;
 
-const zero = (): Record<BudgetPurpose, number> => ({ judge: 0, grouping: 0, call: 0 });
+const zero = (): Record<BudgetPurpose, number> => ({
+  judge: 0,
+  grouping: 0,
+  call: 0,
+});
 // Amounts in whole billionths of a dollar: an embedding costs well under a
 // millionth, and float sums drift without the rounding.
 const cents = (n: number) => Math.round(n * 1e9) / 1e9;
 /** A reservation, rounded up, so taking and releasing it leave nothing behind. */
 const hold = (n: number) => Math.ceil(n * 1e9 - 1e-6) / 1e9;
 
-async function rowOf(ctx: { db: any }, workspace: string): Promise<Doc<"team_budgets"> | null> {
-  return await ctx.db.query("team_budgets").withIndex("by_workspace", (q: any) => q.eq("workspace", workspace)).first();
+async function rowOf(
+  ctx: { db: any },
+  workspace: string,
+): Promise<Doc<"team_budgets"> | null> {
+  return await ctx.db
+    .query("team_budgets")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", workspace))
+    .first();
 }
 
 /** The row as of `now`: a new month starts from zero and files the old one in history. */
-function rolled(row: Doc<"team_budgets">, now: number): Partial<Doc<"team_budgets">> | null {
+function rolled(
+  row: Doc<"team_budgets">,
+  now: number,
+): Partial<Doc<"team_budgets">> | null {
   const month = budgetMonth(now);
   if (row.month === month) return null;
   return {
@@ -35,11 +53,19 @@ function rolled(row: Doc<"team_budgets">, now: number): Partial<Doc<"team_budget
     by_purpose: zero(),
     refused: 0,
     last_refused_at: undefined,
-    history: [{ month: row.month, spent_usd: row.spent_usd }, ...row.history].slice(0, HISTORY_MONTHS),
+    history: [
+      { month: row.month, spent_usd: row.spent_usd },
+      ...row.history,
+    ].slice(0, HISTORY_MONTHS),
   };
 }
 
-async function current(ctx: { db: any }, workspace: string, teamId: Id<"teams"> | undefined, now: number): Promise<Doc<"team_budgets">> {
+async function current(
+  ctx: { db: any },
+  workspace: string,
+  teamId: Id<"teams"> | undefined,
+  now: number,
+): Promise<Doc<"team_budgets">> {
   const row = await rowOf(ctx, workspace);
   if (!row) {
     const id = await ctx.db.insert("team_budgets", {
@@ -64,15 +90,28 @@ async function current(ctx: { db: any }, workspace: string, teamId: Id<"teams"> 
 
 /** Whether a workspace's budget has any room now, read without writing: no row or a cap of 0 is off, and a month
  *  spent or held to its cap is full. A new month has room. */
-export async function budgetHasRoom(ctx: { db: any }, workspace: string, now: number): Promise<boolean> {
+export async function budgetHasRoom(
+  ctx: { db: any },
+  workspace: string,
+  now: number,
+): Promise<boolean> {
   const row = await rowOf(ctx, workspace);
   if (!row || row.cap_usd <= 0) return false;
-  return row.month !== budgetMonth(now) || row.spent_usd + row.held_usd < row.cap_usd;
+  return (
+    row.month !== budgetMonth(now) || row.spent_usd + row.held_usd < row.cap_usd
+  );
 }
 
 /** A call's worst case: its prompt at three characters a token (which overstates English) and every output token it may write. */
-export function worstCaseCost(model: string, promptChars: number, maxTokens: number): number {
-  return modelCost(model, { input_tokens: Math.ceil(promptChars / 3), output_tokens: maxTokens });
+export function worstCaseCost(
+  model: string,
+  promptChars: number,
+  maxTokens: number,
+): number {
+  return modelCost(model, {
+    input_tokens: Math.ceil(promptChars / 3),
+    output_tokens: maxTokens,
+  });
 }
 
 /** Longer than any call holds its reservation: Convex stops an action at 10 minutes. */
@@ -85,42 +124,100 @@ export const HOLD_OUTLIVES_ANY_CALL_MS = 15 * 60_000;
  * no hold has been granted for longer than any call runs, every hold left is
  * such a leftover, and they are released so the cap means what was spent.
  */
-export async function takeBudget(ctx: { db: any }, workspace: string, teamId: Id<"teams"> | undefined, amount: number, now: number): Promise<boolean> {
+export async function takeBudget(
+  ctx: { db: any },
+  workspace: string,
+  teamId: Id<"teams"> | undefined,
+  amount: number,
+  now: number,
+): Promise<boolean> {
   const row = await current(ctx, workspace, teamId, now);
   amount = hold(amount);
   let held = row.held_usd;
-  const full = () => row.cap_usd <= 0 || row.spent_usd + held + amount > row.cap_usd;
-  if (full() && held > 0 && row.last_granted_at !== undefined && now - row.last_granted_at > HOLD_OUTLIVES_ANY_CALL_MS) held = 0;
+  const full = () =>
+    row.cap_usd <= 0 || row.spent_usd + held + amount > row.cap_usd;
+  if (
+    full() &&
+    held > 0 &&
+    row.last_granted_at !== undefined &&
+    now - row.last_granted_at > HOLD_OUTLIVES_ANY_CALL_MS
+  )
+    held = 0;
   if (full()) {
     // A row from before grants were stamped starts the clock at its first refusal.
-    await ctx.db.patch(row._id, { held_usd: held, refused: row.refused + 1, last_refused_at: now, last_granted_at: row.last_granted_at ?? now, updated_at: now });
+    await ctx.db.patch(row._id, {
+      held_usd: held,
+      refused: row.refused + 1,
+      last_refused_at: now,
+      last_granted_at: row.last_granted_at ?? now,
+      updated_at: now,
+    });
     return false;
   }
-  await ctx.db.patch(row._id, { held_usd: cents(held + amount), last_granted_at: now, updated_at: now });
+  await ctx.db.patch(row._id, {
+    held_usd: cents(held + amount),
+    last_granted_at: now,
+    updated_at: now,
+  });
   return true;
 }
 
 /** Releases a reservation and charges what the call really cost to its purpose. */
-export async function settleBudget(ctx: { db: any }, workspace: string, purpose: BudgetPurpose, held: number, cost: number, now: number): Promise<void> {
+export async function settleBudget(
+  ctx: { db: any },
+  workspace: string,
+  purpose: BudgetPurpose,
+  held: number,
+  cost: number,
+  now: number,
+): Promise<void> {
   const row = await current(ctx, workspace, undefined, now);
   await ctx.db.patch(row._id, {
     held_usd: Math.max(0, cents(row.held_usd - hold(held))),
     spent_usd: cents(row.spent_usd + cost),
-    by_purpose: { ...row.by_purpose, [purpose]: cents(row.by_purpose[purpose] + cost) },
+    by_purpose: {
+      ...row.by_purpose,
+      [purpose]: cents(row.by_purpose[purpose] + cost),
+    },
     updated_at: now,
   });
 }
 
 /** Sets the monthly cap; the month's spend is kept. */
-export async function setBudgetCap(ctx: { db: any }, workspace: string, teamId: Id<"teams"> | undefined, capUsd: number, userId: Id<"users">, now: number): Promise<void> {
+export async function setBudgetCap(
+  ctx: { db: any },
+  workspace: string,
+  teamId: Id<"teams"> | undefined,
+  capUsd: number,
+  userId: Id<"users">,
+  now: number,
+): Promise<void> {
   const row = await current(ctx, workspace, teamId, now);
-  await ctx.db.patch(row._id, { cap_usd: capUsd, set_by: userId, set_at: now, updated_at: now });
+  await ctx.db.patch(row._id, {
+    cap_usd: capUsd,
+    set_by: userId,
+    set_at: now,
+    updated_at: now,
+  });
 }
 
 /** What a person sees: the cap and this month's spend, rolled to `now` without writing. */
-export async function readBudget(ctx: { db: any }, workspace: string, now: number): Promise<BudgetSummary> {
+export async function readBudget(
+  ctx: { db: any },
+  workspace: string,
+  now: number,
+): Promise<BudgetSummary> {
   const row = await rowOf(ctx, workspace);
-  if (!row) return { cap_usd: 0, month: budgetMonth(now), spent_usd: 0, held_usd: 0, by_purpose: zero(), refused: 0, history: [] };
+  if (!row)
+    return {
+      cap_usd: 0,
+      month: budgetMonth(now),
+      spent_usd: 0,
+      held_usd: 0,
+      by_purpose: zero(),
+      refused: 0,
+      history: [],
+    };
   const view = { ...row, ...(rolled(row, now) ?? {}) } as Doc<"team_budgets">;
   const by: Record<BudgetPurpose, number> = zero();
   for (const p of BUDGET_PURPOSES) by[p] = view.by_purpose[p] ?? 0;

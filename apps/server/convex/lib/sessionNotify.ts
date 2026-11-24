@@ -5,7 +5,10 @@
 // notices) does not import the needs-input check, which reaches agentTasks
 // and the whole function graph behind it (ct-92329).
 import { internal } from "../_generated/api";
-import { IDLE_DIGEST_WINDOW_MS, isAssignedAwayFromOwnerSet } from "@codecast/shared/contracts";
+import {
+  IDLE_DIGEST_WINDOW_MS,
+  isAssignedAwayFromOwnerSet,
+} from "@codecast/shared/contracts";
 import { enqueuePush } from "../pushRouter";
 import { listSessionOwnerIds } from "../sessionOwners";
 import { cardRangFor } from "./decisionRing";
@@ -59,32 +62,47 @@ export async function deliverSessionNotification(
 ): Promise<boolean> {
   const user = await ctx.db.get(recipientId);
   if (!user) return false;
-  if (sessionNotifOptedOut(user.notification_preferences as any, type)) return false;
+  if (sessionNotifOptedOut(user.notification_preferences as any, type))
+    return false;
   // A session parked on a card that rang this person (lib/decisionPush.ts):
   // "waiting for you" would be the same news again, without the question.
   // Someone the card did not ring still hears the session wait.
-  if (type === "session_idle" && (await cardRangFor(ctx, conversationId, user))) return false;
+  if (type === "session_idle" && (await cardRangFor(ctx, conversationId, user)))
+    return false;
 
   // Open window → this row joins the fold-up and stays quiet. Closed window →
   // it alerts now and opens the next one.
   let quiet = false;
-  if (type === "session_idle" && !opts?.bypassDigest && idleDigestOn(user.notification_preferences)) {
+  if (
+    type === "session_idle" &&
+    !opts?.bypassDigest &&
+    idleDigestOn(user.notification_preferences)
+  ) {
     const now = Date.now();
     const state = user.idle_digest_state;
     const windowEndsAt = (state?.last_alerted_at ?? 0) + IDLE_DIGEST_WINDOW_MS;
     if (now >= windowEndsAt) {
-      await ctx.db.patch(user._id, { idle_digest_state: { last_alerted_at: now } });
+      await ctx.db.patch(user._id, {
+        idle_digest_state: { last_alerted_at: now },
+      });
     } else {
       quiet = true;
       // One flush per window. A stamp in the past is a window whose fold-up
       // already ran, so the next quiet row arms the next one.
       if (!state?.flush_due_at || state.flush_due_at <= now) {
         await ctx.db.patch(user._id, {
-          idle_digest_state: { last_alerted_at: state?.last_alerted_at ?? 0, flush_due_at: windowEndsAt },
+          idle_digest_state: {
+            last_alerted_at: state?.last_alerted_at ?? 0,
+            flush_due_at: windowEndsAt,
+          },
         });
-        await ctx.scheduler.runAfter(windowEndsAt - now, internal.notifications.idleDigestFlush, {
-          user_id: user._id,
-        });
+        await ctx.scheduler.runAfter(
+          windowEndsAt - now,
+          internal.notifications.idleDigestFlush,
+          {
+            user_id: user._id,
+          },
+        );
       }
     }
   }
@@ -94,12 +112,16 @@ export async function deliverSessionNotification(
   // the desktop's native-banner watcher treats an unseen _id as "new", which
   // keeps one banner per episode while the in-app list stays at one row.
   if (SESSION_STATE_TYPES.has(type)) {
-    const prior = (await ctx.db
-      .query("notifications")
-      .withIndex("by_recipient_conversation", (q: any) =>
-        q.eq("recipient_user_id", recipientId).eq("conversation_id", conversationId),
-      )
-      .collect()).filter((n: any) => SESSION_STATE_TYPES.has(n.type));
+    const prior = (
+      await ctx.db
+        .query("notifications")
+        .withIndex("by_recipient_conversation", (q: any) =>
+          q
+            .eq("recipient_user_id", recipientId)
+            .eq("conversation_id", conversationId),
+        )
+        .collect()
+    ).filter((n: any) => SESSION_STATE_TYPES.has(n.type));
 
     // A quiet row supersedes IN PLACE. Delete-and-insert is how an alerting
     // row earns a fresh _id (the desktop watcher reads an unseen _id as "new"),
@@ -108,7 +130,9 @@ export async function deliverSessionNotification(
     // gone, so a second settle minutes after the first used to silently cancel
     // the alert the first one had already earned.
     if (quiet && prior.length > 0) {
-      const newest = prior.reduce((a: any, b: any) => (b.created_at > a.created_at ? b : a));
+      const newest = prior.reduce((a: any, b: any) =>
+        b.created_at > a.created_at ? b : a,
+      );
       for (const n of prior) {
         if (n._id !== newest._id) await ctx.db.delete(n._id);
       }
@@ -174,19 +198,38 @@ export async function deliverSessionNotificationToParties(
   // account that runs it has been handed over (the same rule the inbox scan
   // applies), so the runner is not rung about work that is no longer theirs to
   // answer. An unowned session is the runner's own and always rings them.
-  const runnerAssignedAway = isAssignedAwayFromOwnerSet(recipients, conversation.user_id.toString());
+  const runnerAssignedAway = isAssignedAwayFromOwnerSet(
+    recipients,
+    conversation.user_id.toString(),
+  );
   let delivered = runnerAssignedAway
     ? false
     : await deliverSessionNotification(
-      ctx, conversation.user_id, conversation._id, type, title, message,
-    );
+        ctx,
+        conversation.user_id,
+        conversation._id,
+        type,
+        title,
+        message,
+      );
 
-  const seen = new Set<string>(runnerAssignedAway ? [] : [conversation.user_id.toString()]); // runner: done above
+  const seen = new Set<string>(
+    runnerAssignedAway ? [] : [conversation.user_id.toString()],
+  ); // runner: done above
   for (const ownerId of recipients) {
     const key = ownerId.toString();
     if (seen.has(key)) continue;
     seen.add(key);
-    if (await deliverSessionNotification(ctx, ownerId, conversation._id, type, title, message)) {
+    if (
+      await deliverSessionNotification(
+        ctx,
+        ownerId,
+        conversation._id,
+        type,
+        title,
+        message,
+      )
+    ) {
       delivered = true;
     }
   }

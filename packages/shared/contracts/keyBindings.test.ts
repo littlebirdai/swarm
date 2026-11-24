@@ -63,7 +63,11 @@ test("combo identity ignores Shift on a shifted glyph", () => {
 
 describe("applyKeyBindings", () => {
   test("an override replaces every default chord and goes first", () => {
-    const live = applyKeyBindings(SHORTCUTS, [{ action: "tab.prev", keys: ["alt+h"] }], true);
+    const live = applyKeyBindings(
+      SHORTCUTS,
+      [{ action: "tab.prev", keys: ["alt+h"] }],
+      true,
+    );
     const defs = live.filter((d) => d.action === "tab.prev");
     expect(defs.map((d) => d.key)).toEqual(["alt+h"]);
     expect(live[0].action).toBe("tab.prev");
@@ -71,18 +75,31 @@ describe("applyKeyBindings", () => {
   });
 
   test("an empty override unbinds", () => {
-    const live = applyKeyBindings(SHORTCUTS, [{ action: "session.next", keys: [] }], true);
+    const live = applyKeyBindings(
+      SHORTCUTS,
+      [{ action: "session.next", keys: [] }],
+      true,
+    );
     expect(live.some((d) => d.action === "session.next")).toBe(false);
   });
 
   test("a chord that types text never fires from a field", () => {
-    const live = applyKeyBindings(SHORTCUTS, [{ action: "session.next", keys: ["j"] }], true);
-    expect(live.find((d) => d.action === "session.next")!.skipInputCheck).toBeUndefined();
+    const live = applyKeyBindings(
+      SHORTCUTS,
+      [{ action: "session.next", keys: ["j"] }],
+      true,
+    );
+    expect(
+      live.find((d) => d.action === "session.next")!.skipInputCheck,
+    ).toBeUndefined();
   });
 
   test("unknown actions and fixed defs are ignored", () => {
     const fixed = SHORTCUTS.find((d) => d.fixed);
-    const overrides = [{ action: "nope.nothing", keys: ["ctrl+q"] }, ...(fixed ? [{ action: fixed.action, keys: ["ctrl+q"] }] : [])];
+    const overrides = [
+      { action: "nope.nothing", keys: ["ctrl+q"] },
+      ...(fixed ? [{ action: fixed.action, keys: ["ctrl+q"] }] : []),
+    ];
     expect(applyKeyBindings(SHORTCUTS, overrides, true)).toBe(SHORTCUTS);
   });
 });
@@ -99,7 +116,9 @@ describe("conflicts", () => {
   });
 
   test("actionsForChord finds the owner", () => {
-    expect(actionsForChord(SHORTCUTS, "ctrl+j", true).map((d) => d.action)).toEqual(["session.next"]);
+    expect(
+      actionsForChord(SHORTCUTS, "ctrl+j", true).map((d) => d.action),
+    ).toEqual(["session.next"]);
   });
 });
 
@@ -107,11 +126,20 @@ describe("setActionChords", () => {
   test("setting the defaults back drops the override", () => {
     const once = setActionChords([], "session.next", ["ctrl+h"], true);
     expect(once).toEqual([{ action: "session.next", keys: ["ctrl+h"] }]);
-    expect(setActionChords(once, "session.next", defaultChords("session.next", true), true)).toEqual([]);
+    expect(
+      setActionChords(
+        once,
+        "session.next",
+        defaultChords("session.next", true),
+        true,
+      ),
+    ).toEqual([]);
   });
 
   test("steal takes the chord from the other action", () => {
-    const list = setActionChords([], "session.next", ["ctrl+k"], true, ["session.prev"]);
+    const list = setActionChords([], "session.next", ["ctrl+k"], true, [
+      "session.prev",
+    ]);
     expect(currentChords(list, "session.prev", true)).toEqual([]);
     expect(currentChords(list, "session.next", true)).toEqual(["ctrl+k"]);
   });
@@ -122,8 +150,14 @@ describe("setActionChords", () => {
 });
 
 test("resolveAction takes ids and words", () => {
-  expect(resolveAction("session.next")).toEqual({ ok: true, action: "session.next" });
-  expect(resolveAction("next session")).toEqual({ ok: true, action: "session.next" });
+  expect(resolveAction("session.next")).toEqual({
+    ok: true,
+    action: "session.next",
+  });
+  expect(resolveAction("next session")).toEqual({
+    ok: true,
+    action: "session.next",
+  });
   const r = resolveAction("session");
   expect(r.ok).toBe(false);
 });
@@ -144,8 +178,14 @@ describe("desktop menu keys", () => {
 
   test("only what the person changed reaches the menu", () => {
     expect(desktopMenuKeys([], SHORTCUTS, true)).toBeNull();
-    const overrides = [{ action: "nav.back", keys: ["mod+shift+b"] }, { action: "session.next", keys: ["mod+,"] }];
+    const overrides = [
+      { action: "nav.back", keys: ["mod+shift+b"] },
+      { action: "session.next", keys: ["mod+,"] },
+    ];
     const live = applyKeyBindings(SHORTCUTS, overrides, true);
-    expect(desktopMenuKeys(overrides, live, true)).toEqual({ keys: { "nav.back": ["Command+Shift+B"] }, claimed: ["Command+,"] });
+    expect(desktopMenuKeys(overrides, live, true)).toEqual({
+      keys: { "nav.back": ["Command+Shift+B"] },
+      claimed: ["Command+,"],
+    });
   });
 });

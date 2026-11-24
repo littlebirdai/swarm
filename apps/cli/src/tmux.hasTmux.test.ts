@@ -12,9 +12,18 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const TMUX_TS = path.join(path.dirname(fileURLToPath(import.meta.url)), "tmux.ts");
+const TMUX_TS = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "tmux.ts",
+);
 
-type Probe = { first: boolean; second: boolean; firstMs: number; secondMs: number; spawns: number };
+type Probe = {
+  first: boolean;
+  second: boolean;
+  firstMs: number;
+  secondMs: number;
+  spawns: number;
+};
 
 // Runs hasTmux twice against a stub tmux whose behavior is `body` (a shell
 // snippet); every invocation of the stub appends a line to a log so the
@@ -24,7 +33,11 @@ function probe(body: string): Probe {
   try {
     const log = path.join(dir, "calls.log");
     const stub = path.join(dir, "tmux");
-    fs.writeFileSync(stub, `#!/bin/sh\necho call >> ${JSON.stringify(log)}\n${body}\n`, { mode: 0o755 });
+    fs.writeFileSync(
+      stub,
+      `#!/bin/sh\necho call >> ${JSON.stringify(log)}\n${body}\n`,
+      { mode: 0o755 },
+    );
     const script = path.join(dir, "probe.ts");
     fs.writeFileSync(
       script,
@@ -37,8 +50,13 @@ console.log(JSON.stringify({ first, second, firstMs: t1 - t0, secondMs: t2 - t1 
       env: { ...process.env, PATH: `${dir}:${process.env.PATH ?? ""}` },
       timeout: 30_000,
     });
-    const parsed = JSON.parse(out.trim().split("\n").pop()!) as Omit<Probe, "spawns">;
-    const spawns = fs.existsSync(log) ? fs.readFileSync(log, "utf8").split("\n").filter(Boolean).length : 0;
+    const parsed = JSON.parse(out.trim().split("\n").pop()!) as Omit<
+      Probe,
+      "spawns"
+    >;
+    const spawns = fs.existsSync(log)
+      ? fs.readFileSync(log, "utf8").split("\n").filter(Boolean).length
+      : 0;
     return { ...parsed, spawns };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

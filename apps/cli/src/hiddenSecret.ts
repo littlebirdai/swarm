@@ -6,7 +6,10 @@ import { readStdinBody } from "./sendBody.js";
 
 /** Read a secret from the tty with echo suppressed, so a pasted key never shows on
  *  screen or lands in shell history. Falls back to piped stdin for scripting. */
-export async function promptHiddenSecret(promptText: string, readStdin: () => string = () => readStdinBody()): Promise<string> {
+export async function promptHiddenSecret(
+  promptText: string,
+  readStdin: () => string = () => readStdinBody(),
+): Promise<string> {
   if (!process.stdin.isTTY) {
     // Piped or redirected from a file: read the first line of stdin. A
     // synchronous read of fd 0 sees a regular file too; Bun's process.stdin
@@ -30,13 +33,16 @@ export async function promptHiddenSecret(promptText: string, readStdin: () => st
           process.stdout.write("\n");
           resolve(value.trim());
           return;
-        } else if (ch === "\x03") { // Ctrl-C
+        } else if (ch === "\x03") {
+          // Ctrl-C
           stdin.setRawMode?.(wasRaw ?? false);
           process.stdout.write("\n");
           process.exit(130);
-        } else if (ch === "\x7f" || ch === "\x08") { // DEL / backspace
+        } else if (ch === "\x7f" || ch === "\x08") {
+          // DEL / backspace
           value = value.slice(0, -1);
-        } else if (ch >= " ") { // append printable, ignore stray control chars
+        } else if (ch >= " ") {
+          // append printable, ignore stray control chars
           value += ch;
         }
       }

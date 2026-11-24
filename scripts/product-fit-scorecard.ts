@@ -31,13 +31,20 @@ const INTERNAL = /@(almostcandid\.com|codecast\.sh|example\.com|test\.com)$/;
 const key = readFileSync(join(homedir(), ".config/posthog/key"), "utf8").trim();
 
 async function hogql(query: string): Promise<any[][]> {
-  const res = await fetch(`https://us.posthog.com/api/projects/${PROJECT}/query/`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ query: { kind: "HogQLQuery", query } }),
-  });
+  const res = await fetch(
+    `https://us.posthog.com/api/projects/${PROJECT}/query/`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query: { kind: "HogQLQuery", query } }),
+    },
+  );
   const body: any = await res.json();
-  if (!body.results) throw new Error(`PostHog: ${JSON.stringify(body).slice(0, 300)}`);
+  if (!body.results)
+    throw new Error(`PostHog: ${JSON.stringify(body).slice(0, 300)}`);
   return body.results;
 }
 
@@ -88,22 +95,40 @@ for (const [pid, t, path] of await hogql(
   if (!isTeam && dt <= DAY) sawProduct.add(pid);
 }
 
-type Row = { week: string; synced: number; saw_product_24h: number; joined_team_3d: number; mature: boolean; kept: number | null };
+type Row = {
+  week: string;
+  synced: number;
+  saw_product_24h: number;
+  joined_team_3d: number;
+  mature: boolean;
+  kept: number | null;
+};
 const rows = new Map<string, Row>();
 for (const [pid, t0] of firstSync) {
   if (internal.has(pid)) continue;
   const week = weekOf(t0);
   const mature = now - t0 >= MATURE_DAYS * DAY;
-  const row = rows.get(week) ?? { week, synced: 0, saw_product_24h: 0, joined_team_3d: 0, mature: true, kept: 0 };
+  const row = rows.get(week) ?? {
+    week,
+    synced: 0,
+    saw_product_24h: 0,
+    joined_team_3d: 0,
+    mature: true,
+    kept: 0,
+  };
   row.synced++;
   if (sawProduct.has(pid)) row.saw_product_24h++;
   if (joinedTeam.has(pid)) row.joined_team_3d++;
   if (!mature) row.mature = false;
-  const late = [...(activeDays.get(pid) ?? [])].filter((d) => Date.parse(d) - t0 >= KEPT_AFTER_DAYS * DAY).length;
+  const late = [...(activeDays.get(pid) ?? [])].filter(
+    (d) => Date.parse(d) - t0 >= KEPT_AFTER_DAYS * DAY,
+  ).length;
   if (late >= KEPT_MIN_DAYS) row.kept = (row.kept ?? 0) + 1;
   rows.set(week, row);
 }
-const weeks = [...rows.values()].sort((a, b) => a.week.localeCompare(b.week)).map((r) => (r.mature ? r : { ...r, kept: null }));
+const weeks = [...rows.values()]
+  .sort((a, b) => a.week.localeCompare(b.week))
+  .map((r) => (r.mature ? r : { ...r, kept: null }));
 
 const [[visitors, intent, authed]] = await hogql(
   `with land as (select person_id from events where event = '$pageview' and properties.$pathname = '/' and timestamp > now() - interval 7 day group by person_id)
@@ -134,31 +159,75 @@ function convexRows(args: string[]): any[] {
   const at = out.indexOf("[");
   return JSON.parse(out.slice(at, out.lastIndexOf("]") + 1));
 }
-const teamRows = convexRows(["data", "teams", "--limit", "5000", "--format", "jsonArray"]);
-const memberRows = convexRows(["data", "team_memberships", "--limit", "20000", "--format", "jsonArray"]);
+const teamRows = convexRows([
+  "data",
+  "teams",
+  "--limit",
+  "5000",
+  "--format",
+  "jsonArray",
+]);
+const memberRows = convexRows([
+  "data",
+  "team_memberships",
+  "--limit",
+  "20000",
+  "--format",
+  "jsonArray",
+]);
 const userRows = convexRows(["run", "users:listUsers", "{}"]);
 const userById = new Map(userRows.map((u) => [u._id, u]));
-const lastSeen = (u: any) => Math.max(u.last_heartbeat ?? 0, u.last_message_sent_at ?? 0, u.daemon_last_seen ?? 0);
+const lastSeen = (u: any) =>
+  Math.max(
+    u.last_heartbeat ?? 0,
+    u.last_message_sent_at ?? 0,
+    u.daemon_last_seen ?? 0,
+  );
 const teams = teamRows
   .map((t) => {
     const people = memberRows
       .filter((m) => m.team_id === t._id)
-      .map((m) => ({ user: userById.get(m.user_id), joined: m.joined_at ?? m._creationTime }))
-      .filter((p) => p.user?.email && !p.user.is_bot && !INTERNAL.test(p.user.email))
+      .map((m) => ({
+        user: userById.get(m.user_id),
+        joined: m.joined_at ?? m._creationTime,
+      }))
+      .filter(
+        (p) => p.user?.email && !p.user.is_bot && !INTERNAL.test(p.user.email),
+      )
       .sort((a, b) => a.joined - b.joined);
-    const active = people.filter((p) => now - lastSeen(p.user) < 7 * DAY).length;
-    return { name: String(t.name).slice(0, 32), members: people.length, active_7d: active, days_to_second: people.length > 1 ? Math.round(((people[1].joined - people[0].joined) / DAY) * 10) / 10 : null };
+    const active = people.filter(
+      (p) => now - lastSeen(p.user) < 7 * DAY,
+    ).length;
+    return {
+      name: String(t.name).slice(0, 32),
+      members: people.length,
+      active_7d: active,
+      days_to_second:
+        people.length > 1
+          ? Math.round(((people[1].joined - people[0].joined) / DAY) * 10) / 10
+          : null,
+    };
   })
   .filter((t) => t.members > 0)
   .sort((a, b) => b.active_7d - a.active_7d || b.members - a.members);
 const liveTeams = teams.filter((t) => t.active_7d >= 2);
 
 const mature = weeks.filter((w) => w.mature);
-const sum = (k: "synced" | "saw_product_24h" | "kept") => mature.reduce((n, w) => n + (w[k] ?? 0), 0);
+const sum = (k: "synced" | "saw_product_24h" | "kept") =>
+  mature.reduce((n, w) => n + (w[k] ?? 0), 0);
 const out = {
   as_of: new Date(now).toISOString(),
-  last_7_days: { landing_visitors: visitors, install_intent: intent, cli_authed: authed, auth_redirect_loops: loops },
-  mature_cohorts: { synced: sum("synced"), saw_product_24h: sum("saw_product_24h"), kept: sum("kept") },
+  last_7_days: {
+    landing_visitors: visitors,
+    install_intent: intent,
+    cli_authed: authed,
+    auth_redirect_loops: loops,
+  },
+  mature_cohorts: {
+    synced: sum("synced"),
+    saw_product_24h: sum("saw_product_24h"),
+    kept: sum("kept"),
+  },
   weeks,
   teams: { live: liveTeams.length, list: teams.filter((t) => t.members > 1) },
 };
@@ -167,13 +236,24 @@ if (process.argv.includes("--json")) {
   console.log(JSON.stringify(out, null, 2));
 } else {
   console.log(`Product-fit scorecard, ${out.as_of.slice(0, 10)}`);
-  console.log(`Last 7 days: ${visitors} landing visitors, ${intent} install intent, ${authed} signed a CLI in, ${loops} sign-in redirect loops`);
-  console.log(`Mature cohorts: ${out.mature_cohorts.synced} synced, ${out.mature_cohorts.saw_product_24h} opened the inbox or a session within 24h, ${out.mature_cohorts.kept} kept\n`);
+  console.log(
+    `Last 7 days: ${visitors} landing visitors, ${intent} install intent, ${authed} signed a CLI in, ${loops} sign-in redirect loops`,
+  );
+  console.log(
+    `Mature cohorts: ${out.mature_cohorts.synced} synced, ${out.mature_cohorts.saw_product_24h} opened the inbox or a session within 24h, ${out.mature_cohorts.kept} kept\n`,
+  );
   console.log(`Teams with 2+ people active in 7 days: ${liveTeams.length}`);
-  for (const t of out.teams.list) console.log(`  ${t.name.padEnd(32)} ${t.active_7d}/${t.members} active, second member after ${t.days_to_second ?? "-"} days`);
+  for (const t of out.teams.list)
+    console.log(
+      `  ${t.name.padEnd(32)} ${t.active_7d}/${t.members} active, second member after ${t.days_to_second ?? "-"} days`,
+    );
   console.log("");
-  console.log("week of     synced  saw product 24h  joined team 3d  kept (3+ days after day 10)");
+  console.log(
+    "week of     synced  saw product 24h  joined team 3d  kept (3+ days after day 10)",
+  );
   for (const w of weeks) {
-    console.log(`${w.week}  ${String(w.synced).padStart(6)}  ${String(w.saw_product_24h).padStart(15)}  ${String(w.joined_team_3d).padStart(14)}  ${w.kept === null ? "too young" : w.kept}`);
+    console.log(
+      `${w.week}  ${String(w.synced).padStart(6)}  ${String(w.saw_product_24h).padStart(15)}  ${String(w.joined_team_3d).padStart(14)}  ${w.kept === null ? "too young" : w.kept}`,
+    );
   }
 }

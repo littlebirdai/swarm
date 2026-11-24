@@ -15,20 +15,32 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.bi-rise{opacity:1;transform:none;animation:none}.bi-img{transition:none!important}}
 `;
 
-const rise = (i: number) => ({ "--at": `${0.08 + i * 0.07}s` }) as CSSProperties;
+const rise = (i: number) =>
+  ({ "--at": `${0.08 + i * 0.07}s` }) as CSSProperties;
 
 function Cover({ post, className }: { post: BlogPost; className: string }) {
   return (
-    <div className={`rounded-xl border overflow-hidden shadow-lg ${className}`} style={{ borderColor: SOL.base2, backgroundColor: SOL.base2 }}>
+    <div
+      className={`rounded-xl border overflow-hidden shadow-lg ${className}`}
+      style={{ borderColor: SOL.base2, backgroundColor: SOL.base2 }}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={post.cover.src} alt={post.cover.alt} loading="lazy" className="bi-img w-full h-full object-cover object-left-top transition-transform duration-500 ease-out" />
+      <img
+        src={post.cover.src}
+        alt={post.cover.alt}
+        loading="lazy"
+        className="bi-img w-full h-full object-cover object-left-top transition-transform duration-500 ease-out"
+      />
     </div>
   );
 }
 
 function Meta({ post }: { post: BlogPost }) {
   return (
-    <div className="flex items-center gap-3 font-mono text-xs" style={{ color: SOL.base1 }}>
+    <div
+      className="flex items-center gap-3 font-mono text-xs"
+      style={{ color: SOL.base1 }}
+    >
       <time dateTime={post.date}>{post.dateLabel}</time>
       <span aria-hidden>&middot;</span>
       <span>{post.readingMinutes} min read</span>
@@ -41,44 +53,86 @@ export default function BlogIndexPage() {
   const [latest, ...rest] = POSTS;
 
   return (
-    <main className="min-h-screen w-full overflow-x-hidden" style={{ backgroundColor: SOL.base3 }}>
+    <main
+      className="min-h-screen w-full overflow-x-hidden"
+      style={{ backgroundColor: SOL.base3 }}
+    >
       <style>{CSS}</style>
       <BlogNav />
 
       <section className="max-w-5xl mx-auto px-6 pt-16 md:pt-20 pb-10">
-        <h1 className="bi-rise text-4xl md:text-5xl font-bold tracking-tight font-mono" style={{ color: SOL.base03, ...rise(0) }}>
+        <h1
+          className="bi-rise text-4xl md:text-5xl font-bold tracking-tight font-mono"
+          style={{ color: SOL.base03, ...rise(0) }}
+        >
           Blog
         </h1>
-        <p className="bi-rise mt-4 text-lg leading-relaxed max-w-2xl" style={{ color: SOL.base00, ...rise(1) }}>
-          How we run a fleet of coding agents, what we built to steer them, and what we learned along the way.
+        <p
+          className="bi-rise mt-4 text-lg leading-relaxed max-w-2xl"
+          style={{ color: SOL.base00, ...rise(1) }}
+        >
+          How we run a fleet of coding agents, what we built to steer them, and
+          what we learned along the way.
         </p>
       </section>
 
       <section className="max-w-5xl mx-auto px-6 pb-14">
-        <Link href={`/blog/${latest.slug}`} className="bi-card bi-rise group grid md:grid-cols-[1fr_1.15fr] gap-8 md:gap-10 items-center" style={rise(2)}>
+        <Link
+          href={`/blog/${latest.slug}`}
+          className="bi-card bi-rise group grid md:grid-cols-[1fr_1.15fr] gap-8 md:gap-10 items-center"
+          style={rise(2)}
+        >
           <div className="order-2 md:order-1">
-            <div className="font-mono text-xs font-bold mb-3" style={{ color: SOL.orange }}>Latest</div>
-            <h2 className="bi-title text-3xl md:text-4xl font-bold font-mono tracking-tight leading-[1.15] transition-colors" style={{ color: SOL.base03 }}>
+            <div
+              className="font-mono text-xs font-bold mb-3"
+              style={{ color: SOL.orange }}
+            >
+              Latest
+            </div>
+            <h2
+              className="bi-title text-3xl md:text-4xl font-bold font-mono tracking-tight leading-[1.15] transition-colors"
+              style={{ color: SOL.base03 }}
+            >
               {latest.title}
             </h2>
-            <p className="mt-4 text-[17px] leading-relaxed" style={{ color: SOL.base00 }}>{latest.dek}</p>
-            <div className="mt-5"><Meta post={latest} /></div>
+            <p
+              className="mt-4 text-[17px] leading-relaxed"
+              style={{ color: SOL.base00 }}
+            >
+              {latest.dek}
+            </p>
+            <div className="mt-5">
+              <Meta post={latest} />
+            </div>
           </div>
           <Cover post={latest} className="order-1 md:order-2" />
         </Link>
       </section>
 
-      <section className="max-w-5xl mx-auto px-6 pb-24 border-t pt-14" style={{ borderColor: SOL.base2 }}>
+      <section
+        className="max-w-5xl mx-auto px-6 pb-24 border-t pt-14"
+        style={{ borderColor: SOL.base2 }}
+      >
         <ul className="grid sm:grid-cols-2 gap-x-10 gap-y-14">
           {rest.map((post, i) => (
             <li key={post.slug} className="bi-rise" style={rise(3 + i)}>
               <Link href={`/blog/${post.slug}`} className="bi-card group block">
                 <Cover post={post} className="aspect-[16/10]" />
-                <div className="mt-5"><Meta post={post} /></div>
-                <h2 className="bi-title mt-2 text-xl font-bold font-mono tracking-tight leading-snug transition-colors" style={{ color: SOL.base03 }}>
+                <div className="mt-5">
+                  <Meta post={post} />
+                </div>
+                <h2
+                  className="bi-title mt-2 text-xl font-bold font-mono tracking-tight leading-snug transition-colors"
+                  style={{ color: SOL.base03 }}
+                >
                   {post.title}
                 </h2>
-                <p className="mt-2 text-[15px] leading-relaxed line-clamp-3" style={{ color: SOL.base00 }}>{post.dek}</p>
+                <p
+                  className="mt-2 text-[15px] leading-relaxed line-clamp-3"
+                  style={{ color: SOL.base00 }}
+                >
+                  {post.dek}
+                </p>
               </Link>
             </li>
           ))}

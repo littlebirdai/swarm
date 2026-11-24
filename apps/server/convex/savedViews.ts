@@ -15,7 +15,13 @@ import { isTeamMember } from "./privacy";
 
 // "workspace" is the layout workbenches: a view of the chrome arrangement
 // itself (which rails/panels are open, how wide) rather than of a list page.
-const PAGE = v.union(v.literal("tasks"), v.literal("docs"), v.literal("plans"), v.literal("decisions"), v.literal("workspace"));
+const PAGE = v.union(
+  v.literal("tasks"),
+  v.literal("docs"),
+  v.literal("plans"),
+  v.literal("decisions"),
+  v.literal("workspace"),
+);
 
 /** Owner, or a member of the team a SHARED view belongs to. A private view is
  *  owner-only no matter which team it is tagged with. */
@@ -47,7 +53,7 @@ export const webList = query({
       // A teammate's row only surfaces once they share it; own rows already
       // came from `mine`, so drop them here rather than returning duplicates.
       shared = teamRows.filter(
-        (r: any) => r.shared && String(r.user_id) !== String(userId)
+        (r: any) => r.shared && String(r.user_id) !== String(userId),
       );
     }
 
@@ -90,15 +96,21 @@ export const webCreate = mutation({
     if (args.client_key) {
       const existing = await ctx.db
         .query("saved_views")
-        .withIndex("by_client_key", (q: any) => q.eq("client_key", args.client_key))
+        .withIndex("by_client_key", (q: any) =>
+          q.eq("client_key", args.client_key),
+        )
         .first();
-      if (existing && String(existing.user_id) === String(userId)) return existing._id;
+      if (existing && String(existing.user_id) === String(userId))
+        return existing._id;
     }
 
     // Sharing with nobody is not a state worth storing: a shared view needs a
     // team to be shared WITH, and you must belong to it.
     let shared = args.shared === true;
-    if (shared && (!args.team_id || !(await isTeamMember(ctx, userId, args.team_id)))) {
+    if (
+      shared &&
+      (!args.team_id || !(await isTeamMember(ctx, userId, args.team_id)))
+    ) {
       shared = false;
     }
 
@@ -136,10 +148,12 @@ export const webUpdate = mutation({
     // Editing is the owner's alone. A teammate who wants their own tuning of a
     // shared view can save a copy — silently rewriting it under everyone else
     // is the behaviour that makes shared views untrustworthy.
-    if (!row || String(row.user_id) !== String(userId)) throw new Error("Not found");
+    if (!row || String(row.user_id) !== String(userId))
+      throw new Error("Not found");
 
     const patch: Record<string, unknown> = { updated_at: Date.now() };
-    if (args.name !== undefined) patch.name = args.name.trim() || "Untitled view";
+    if (args.name !== undefined)
+      patch.name = args.name.trim() || "Untitled view";
     if (args.prefs !== undefined) patch.prefs = args.prefs;
     if (args.icon !== undefined) patch.icon = args.icon;
     if (args.color !== undefined) patch.color = args.color;
@@ -148,7 +162,9 @@ export const webUpdate = mutation({
     if (args.shared !== undefined) {
       const teamId = (args.team_id ?? row.team_id) as any;
       patch.shared =
-        args.shared === true && !!teamId && (await isTeamMember(ctx, userId, teamId));
+        args.shared === true &&
+        !!teamId &&
+        (await isTeamMember(ctx, userId, teamId));
     }
     await ctx.db.patch(args.id, patch);
     return args.id;
@@ -161,7 +177,8 @@ export const webDelete = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const row = await ctx.db.get(args.id);
-    if (!row || String(row.user_id) !== String(userId)) throw new Error("Not found");
+    if (!row || String(row.user_id) !== String(userId))
+      throw new Error("Not found");
     await ctx.db.delete(args.id);
     return true;
   },

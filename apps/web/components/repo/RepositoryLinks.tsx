@@ -4,13 +4,36 @@ import { FolderGit2, GitBranch, ExternalLink, FolderDown } from "lucide-react";
 import { copyText } from "../../lib/copyText";
 import { useWorkspaceCollection } from "../../hooks/useWorkspaceCollection";
 import { useCollectionRows } from "../../hooks/useCollectionRows";
-import { useSyncTaskExternalEvents, useSyncPlanExternalEvents, useSyncProjectExternalEvents } from "../../hooks/useSyncExternalEvents";
-import { githubRepository, isDefaultBranch, repositoryName, repositoryEventMatches, sessionRepository, taskRepository, type RepositoryScope } from "../../lib/repoNavigation";
-import { commitPageHref, repoCompareHref, repoHomeHref, repoTreeHref, repoCommitsHref, repoPullsHref, toStandaloneHref } from "../../lib/repoView";
+import {
+  useSyncTaskExternalEvents,
+  useSyncPlanExternalEvents,
+  useSyncProjectExternalEvents,
+} from "../../hooks/useSyncExternalEvents";
+import {
+  githubRepository,
+  isDefaultBranch,
+  repositoryName,
+  repositoryEventMatches,
+  sessionRepository,
+  taskRepository,
+  type RepositoryScope,
+} from "../../lib/repoNavigation";
+import {
+  commitPageHref,
+  repoCompareHref,
+  repoHomeHref,
+  repoTreeHref,
+  repoCommitsHref,
+  repoPullsHref,
+  toStandaloneHref,
+} from "../../lib/repoView";
 
-const repoSig = (row: any) => `${row.repository ?? ""}|${row.git_remote_url ?? ""}|${row.pr_status?.repository ?? ""}`;
-const taskRepoSig = (row: any) => `${row.project_id}|${row.plan_id}|${row.conversation_ids?.join(",")}|${row.created_from_conversation}|${row.external?.provider}|${row.external?.identifier}`;
-const linkClass = "inline-flex items-center gap-1 rounded px-1.5 py-1 text-xs text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-cyan focus-visible:outline focus-visible:outline-sol-cyan";
+const repoSig = (row: any) =>
+  `${row.repository ?? ""}|${row.git_remote_url ?? ""}|${row.pr_status?.repository ?? ""}`;
+const taskRepoSig = (row: any) =>
+  `${row.project_id}|${row.plan_id}|${row.conversation_ids?.join(",")}|${row.created_from_conversation}|${row.external?.provider}|${row.external?.identifier}`;
+const linkClass =
+  "inline-flex items-center gap-1 rounded px-1.5 py-1 text-xs text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-cyan focus-visible:outline focus-visible:outline-sol-cyan";
 
 type GitStateSession = {
   git_remote_url?: string | null;
@@ -29,7 +52,8 @@ function pickupCommand(shortId: string): string {
   return `cast ws acquire pickup-${shortId} --from ${shortId}`;
 }
 
-const promptPart = "inline-flex items-center gap-1 px-1.5 py-0.5 hover:bg-sol-cyan/15 focus-visible:outline focus-visible:outline-sol-cyan";
+const promptPart =
+  "inline-flex items-center gap-1 px-1.5 py-0.5 hover:bg-sol-cyan/15 focus-visible:outline focus-visible:outline-sol-cyan";
 
 /**
  * The session's checkout as a shell prompt would show it: the branch, then —
@@ -49,7 +73,15 @@ const promptPart = "inline-flex items-center gap-1 px-1.5 py-0.5 hover:bg-sol-cy
  * the pill stays away from a card; the full header still names the branch or
  * links the repository's home, since there the title says what it is.
  */
-export function BranchCodeLink({ session, className = "", detail = true }: { session: GitStateSession; className?: string; detail?: boolean }) {
+export function BranchCodeLink({
+  session,
+  className = "",
+  detail = true,
+}: {
+  session: GitStateSession;
+  className?: string;
+  detail?: boolean;
+}) {
   const repository = sessionRepository(session);
   const branch = session.git_branch || session.worktree_branch;
   if (!repository) return null;
@@ -57,41 +89,74 @@ export function BranchCodeLink({ session, className = "", detail = true }: { ses
   const head = session.git_commit_hash || null;
   const position = branch || (detail ? repository : head?.slice(0, 7));
   if (!position) return null;
-  const href = branch ? repoTreeHref(repository, branch) : !detail && head ? commitPageHref(repository, head) : repoHomeHref(repository);
+  const href = branch
+    ? repoTreeHref(repository, branch)
+    : !detail && head
+      ? commitPageHref(repository, head)
+      : repoHomeHref(repository);
   const stop = (e: SyntheticEvent) => e.stopPropagation();
   const sha = detail && head ? head : null;
-  const ahead = detail ? session.git_ahead ?? 0 : 0;
-  const behind = detail ? session.git_behind ?? 0 : 0;
+  const ahead = detail ? (session.git_ahead ?? 0) : 0;
+  const behind = detail ? (session.git_behind ?? 0) : 0;
   const dirty = detail && !!session.git_dirty;
-  const pickup = dirty && session.short_id ? pickupCommand(session.short_id) : null;
+  const pickup =
+    dirty && session.short_id ? pickupCommand(session.short_id) : null;
   return (
     <span
       className={`cq-sq2-tight inline-flex items-stretch min-w-0 max-w-[320px] rounded border border-sol-cyan/25 bg-sol-cyan/5 font-mono text-meta text-sol-cyan divide-x divide-sol-cyan/20 ${className}`}
       title={`${repository}${branch ? ` at ${branch}` : head ? ` detached at ${head.slice(0, 7)}` : ""}${sha ? ` on ${sha.slice(0, 7)}` : ""}${dirty ? ", uncommitted changes" : ""}`}
     >
-      <Link href={href} onClick={stop} onKeyDown={stop}
+      <Link
+        href={href}
+        onClick={stop}
+        onKeyDown={stop}
         aria-label={`Browse code for ${repository}${branch ? ` at ${branch}` : head ? ` at ${head.slice(0, 7)}` : ""}`}
-        className={`${promptPart} min-w-0`}>
-        <GitBranch className="w-3 h-3 shrink-0" /><span className="truncate">{position}</span>
-        {dirty && <span className="text-sol-orange" aria-label="uncommitted changes">*</span>}
+        className={`${promptPart} min-w-0`}
+      >
+        <GitBranch className="w-3 h-3 shrink-0" />
+        <span className="truncate">{position}</span>
+        {dirty && (
+          <span className="text-sol-orange" aria-label="uncommitted changes">
+            *
+          </span>
+        )}
       </Link>
       {sha && (
-        <Link href={commitPageHref(repository, sha)} onClick={stop} onKeyDown={stop} aria-label={`Open commit ${sha.slice(0, 7)}`} className={`${promptPart} cq-sq1 text-sol-text-muted`}>
+        <Link
+          href={commitPageHref(repository, sha)}
+          onClick={stop}
+          onKeyDown={stop}
+          aria-label={`Open commit ${sha.slice(0, 7)}`}
+          className={`${promptPart} cq-sq1 text-sol-text-muted`}
+        >
           {sha.slice(0, 7)}
         </Link>
       )}
       {(ahead > 0 || behind > 0) && branch && (
-        <Link href={repoCompareHref(repository, `origin/${branch}`, branch)} onClick={stop} onKeyDown={stop}
-          aria-label={`${ahead} ahead, ${behind} behind upstream`} title={`${ahead} ahead, ${behind} behind upstream`}
-          className={`${promptPart} cq-sq1 ${behind > 0 ? "text-sol-orange" : "text-sol-text-muted"}`}>
+        <Link
+          href={repoCompareHref(repository, `origin/${branch}`, branch)}
+          onClick={stop}
+          onKeyDown={stop}
+          aria-label={`${ahead} ahead, ${behind} behind upstream`}
+          title={`${ahead} ahead, ${behind} behind upstream`}
+          className={`${promptPart} cq-sq1 ${behind > 0 ? "text-sol-orange" : "text-sol-text-muted"}`}
+        >
           {ahead > 0 && <span>↑{ahead}</span>}
           {behind > 0 && <span>↓{behind}</span>}
         </Link>
       )}
       {pickup && (
-        <button type="button" onClick={(e) => { stop(e); void copyText(pickup, "Copied: run it in your checkout"); }} onKeyDown={stop}
-          aria-label="Pick up this tree" title={`Pick up this tree: copies ${pickup}`}
-          className={`${promptPart} cq-sq1 text-sol-text-muted`}>
+        <button
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            void copyText(pickup, "Copied: run it in your checkout");
+          }}
+          onKeyDown={stop}
+          aria-label="Pick up this tree"
+          title={`Pick up this tree: copies ${pickup}`}
+          className={`${promptPart} cq-sq1 text-sol-text-muted`}
+        >
           <FolderDown className="w-3 h-3 shrink-0" />
         </button>
       )}
@@ -99,33 +164,117 @@ export function BranchCodeLink({ session, className = "", detail = true }: { ses
   );
 }
 
-export function RepositoryLinks({ taskId, planId, projectId, conversationIds = [], sessions = [], repository, remote }: RepositoryScope & { sessions?: readonly any[]; repository?: string; remote?: string }) {
+export function RepositoryLinks({
+  taskId,
+  planId,
+  projectId,
+  conversationIds = [],
+  sessions = [],
+  repository,
+  remote,
+}: RepositoryScope & {
+  sessions?: readonly any[];
+  repository?: string;
+  remote?: string;
+}) {
   useSyncTaskExternalEvents(taskId);
   useSyncPlanExternalEvents(planId);
   useSyncProjectExternalEvents(projectId);
   const tasks = useWorkspaceCollection("tasks", taskRepoSig);
-  const relatedTasks = tasks.filter(row => (projectId && row.project_id === projectId) || (planId && row.plan_id === planId));
-  const taskSessions = relatedTasks.flatMap(row => [...(row.conversation_ids || []), row.created_from_conversation].filter(Boolean));
-  const ids = [...new Set([...conversationIds, ...sessions.map(s => s._id || s.id), ...taskSessions].filter(Boolean))].sort().join(",");
-  const scope = useMemo(() => ({ taskId, planId, projectId, conversationIds: ids ? ids.split(",") : [] }), [taskId, planId, projectId, ids]);
-  const whereEvent = useMemo(() => (row: any) => repositoryEventMatches(row, scope), [scope]);
-  const whereSession = useMemo(() => (row: any) => scope.conversationIds.includes(row._id), [scope]);
-  const events = useCollectionRows("externalEvents", { where: whereEvent, sig: repoSig });
-  const cachedSessions = useCollectionRows("sessions", { where: whereSession, sig: repoSig });
-  const details = useCollectionRows("conversations", { where: whereSession, sig: repoSig });
-  const names = [...new Set([
-    repositoryName(repository), githubRepository(remote),
-    ...sessions.map(sessionRepository), ...cachedSessions.map(sessionRepository), ...details.map(sessionRepository),
-    ...relatedTasks.map(taskRepository),
-    ...events.map(e => repositoryName(e.repository)),
-  ].filter((name): name is string => !!name))].sort();
+  const relatedTasks = tasks.filter(
+    (row) =>
+      (projectId && row.project_id === projectId) ||
+      (planId && row.plan_id === planId),
+  );
+  const taskSessions = relatedTasks.flatMap((row) =>
+    [...(row.conversation_ids || []), row.created_from_conversation].filter(
+      Boolean,
+    ),
+  );
+  const ids = [
+    ...new Set(
+      [
+        ...conversationIds,
+        ...sessions.map((s) => s._id || s.id),
+        ...taskSessions,
+      ].filter(Boolean),
+    ),
+  ]
+    .sort()
+    .join(",");
+  const scope = useMemo(
+    () => ({
+      taskId,
+      planId,
+      projectId,
+      conversationIds: ids ? ids.split(",") : [],
+    }),
+    [taskId, planId, projectId, ids],
+  );
+  const whereEvent = useMemo(
+    () => (row: any) => repositoryEventMatches(row, scope),
+    [scope],
+  );
+  const whereSession = useMemo(
+    () => (row: any) => scope.conversationIds.includes(row._id),
+    [scope],
+  );
+  const events = useCollectionRows("externalEvents", {
+    where: whereEvent,
+    sig: repoSig,
+  });
+  const cachedSessions = useCollectionRows("sessions", {
+    where: whereSession,
+    sig: repoSig,
+  });
+  const details = useCollectionRows("conversations", {
+    where: whereSession,
+    sig: repoSig,
+  });
+  const names = [
+    ...new Set(
+      [
+        repositoryName(repository),
+        githubRepository(remote),
+        ...sessions.map(sessionRepository),
+        ...cachedSessions.map(sessionRepository),
+        ...details.map(sessionRepository),
+        ...relatedTasks.map(taskRepository),
+        ...events.map((e) => repositoryName(e.repository)),
+      ].filter((name): name is string => !!name),
+    ),
+  ].sort();
   if (!names.length) return null;
-  return <nav aria-label="Related code" className="my-3 space-y-1">
-    {names.map(name => <div key={name} className="flex items-center gap-1 flex-wrap text-xs">
-      <Link href={repoHomeHref(name)} className={linkClass} title={`Browse source for ${name}`}><FolderGit2 className="h-3.5 w-3.5 shrink-0" /><span className="break-all modern:font-mono">{name}</span></Link>
-      <Link href={repoCommitsHref(name, "HEAD")} className={linkClass}>History</Link>
-      <Link href={repoPullsHref(name)} className={linkClass}>Pull requests</Link>
-      <a href={toStandaloneHref(repoHomeHref(name))} target="_blank" rel="noopener noreferrer" className={linkClass} title={`Open ${name} without the app sidebar`} aria-label={`Open ${name} in a separate browser tab`}><ExternalLink className="h-3 w-3" /></a>
-    </div>)}
-  </nav>;
+  return (
+    <nav aria-label="Related code" className="my-3 space-y-1">
+      {names.map((name) => (
+        <div key={name} className="flex items-center gap-1 flex-wrap text-xs">
+          <Link
+            href={repoHomeHref(name)}
+            className={linkClass}
+            title={`Browse source for ${name}`}
+          >
+            <FolderGit2 className="h-3.5 w-3.5 shrink-0" />
+            <span className="break-all modern:font-mono">{name}</span>
+          </Link>
+          <Link href={repoCommitsHref(name, "HEAD")} className={linkClass}>
+            History
+          </Link>
+          <Link href={repoPullsHref(name)} className={linkClass}>
+            Pull requests
+          </Link>
+          <a
+            href={toStandaloneHref(repoHomeHref(name))}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={linkClass}
+            title={`Open ${name} without the app sidebar`}
+            aria-label={`Open ${name} in a separate browser tab`}
+          >
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      ))}
+    </nav>
+  );
 }

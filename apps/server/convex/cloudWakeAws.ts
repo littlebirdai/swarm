@@ -13,7 +13,10 @@ export type AwsWakeCredentials = {
 };
 
 export class CloudWakeAwsError extends Error {
-  constructor(readonly code: string, readonly status?: number) {
+  constructor(
+    readonly code: string,
+    readonly status?: number,
+  ) {
     super(status === undefined ? code : `${code} (HTTP ${status})`);
     this.name = "CloudWakeAwsError";
   }
@@ -21,54 +24,96 @@ export class CloudWakeAwsError extends Error {
 
 const OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const INSTANCE_ID = /^i-(?:[0-9a-f]{8}|[0-9a-f]{17})$/;
-const REGION = /^(?:af|ap|ca|eu|il|me|mx|sa|us)-(?:central|north|northeast|northwest|south|southeast|southwest|east|west)-[1-9][0-9]?$/;
+const REGION =
+  /^(?:af|ap|ca|eu|il|me|mx|sa|us)-(?:central|north|northeast|northwest|south|southeast|southwest|east|west)-[1-9][0-9]?$/;
 const HOST_KEYS = ["ownerUserId", "deviceId", "instanceId", "region"] as const;
 const XML_NAMESPACE = "http://ec2.amazonaws.com/doc/2016-11-15/";
 const MAX_XML_LENGTH = 65_536;
 const AWS_ERROR_CODES = new Set([
-  "AuthFailure", "UnauthorizedOperation", "DryRunOperation", "InvalidClientTokenId",
-  "ExpiredToken", "ExpiredTokenException", "RequestExpired", "SignatureDoesNotMatch",
-  "IncompleteSignature", "InvalidSignatureException", "MissingAuthenticationToken",
-  "InvalidInstanceID.Malformed", "InvalidInstanceID.NotFound", "IncorrectInstanceState",
-  "IncorrectState", "UnsupportedOperation", "OperationNotPermitted", "InvalidParameterValue",
-  "InvalidParameterCombination", "MissingParameter", "OptInRequired", "PendingVerification",
-  "Blocked", "AccountDisabled", "InsufficientInstanceCapacity", "InsufficientHostCapacity",
-  "InsufficientCapacity", "RequestLimitExceeded", "Throttling", "ThrottlingException",
-  "InternalError", "InternalFailure", "ServerInternal", "ServiceUnavailable", "Unavailable",
-  "RequestTimeout", "RequestTimeoutException", "Unsupported", "UnsupportedHostConfiguration",
+  "AuthFailure",
+  "UnauthorizedOperation",
+  "DryRunOperation",
+  "InvalidClientTokenId",
+  "ExpiredToken",
+  "ExpiredTokenException",
+  "RequestExpired",
+  "SignatureDoesNotMatch",
+  "IncompleteSignature",
+  "InvalidSignatureException",
+  "MissingAuthenticationToken",
+  "InvalidInstanceID.Malformed",
+  "InvalidInstanceID.NotFound",
+  "IncorrectInstanceState",
+  "IncorrectState",
+  "UnsupportedOperation",
+  "OperationNotPermitted",
+  "InvalidParameterValue",
+  "InvalidParameterCombination",
+  "MissingParameter",
+  "OptInRequired",
+  "PendingVerification",
+  "Blocked",
+  "AccountDisabled",
+  "InsufficientInstanceCapacity",
+  "InsufficientHostCapacity",
+  "InsufficientCapacity",
+  "RequestLimitExceeded",
+  "Throttling",
+  "ThrottlingException",
+  "InternalError",
+  "InternalFailure",
+  "ServerInternal",
+  "ServiceUnavailable",
+  "Unavailable",
+  "RequestTimeout",
+  "RequestTimeoutException",
+  "Unsupported",
+  "UnsupportedHostConfiguration",
 ]);
 
 function matches(value: unknown, pattern: RegExp): value is string {
-  return typeof value === "string" && value.trim() === value && pattern.test(value);
+  return (
+    typeof value === "string" && value.trim() === value && pattern.test(value)
+  );
 }
 
 function isHost(value: unknown): value is CloudWakeHost {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
-  return Object.keys(row).length === HOST_KEYS.length
-    && matches(row.ownerUserId, OPAQUE_ID)
-    && matches(row.deviceId, OPAQUE_ID)
-    && matches(row.instanceId, INSTANCE_ID)
-    && matches(row.region, REGION);
+  return (
+    Object.keys(row).length === HOST_KEYS.length &&
+    matches(row.ownerUserId, OPAQUE_ID) &&
+    matches(row.deviceId, OPAQUE_ID) &&
+    matches(row.instanceId, INSTANCE_ID) &&
+    matches(row.region, REGION)
+  );
 }
 
-export function parseCloudWakeAllowlist(raw: string | undefined): CloudWakeHost[] {
-  if (raw === undefined || (typeof raw === "string" && raw.trim() === "")) return [];
-  if (typeof raw !== "string" || raw.length > 65_536) throw new CloudWakeAwsError("InvalidAllowlist");
+export function parseCloudWakeAllowlist(
+  raw: string | undefined,
+): CloudWakeHost[] {
+  if (raw === undefined || (typeof raw === "string" && raw.trim() === ""))
+    return [];
+  if (typeof raw !== "string" || raw.length > 65_536)
+    throw new CloudWakeAwsError("InvalidAllowlist");
   let rows: unknown;
   try {
     rows = JSON.parse(raw);
   } catch {
     throw new CloudWakeAwsError("InvalidAllowlist");
   }
-  if (!Array.isArray(rows) || rows.length > 32) throw new CloudWakeAwsError("InvalidAllowlist");
+  if (!Array.isArray(rows) || rows.length > 32)
+    throw new CloudWakeAwsError("InvalidAllowlist");
   const devices = new Set<string>();
   const instanceOwners = new Map<string, string>();
   return rows.map((row) => {
     if (!isHost(row)) throw new CloudWakeAwsError("InvalidAllowlist");
     const device = `${row.ownerUserId}\0${row.deviceId}`;
     const owner = instanceOwners.get(row.instanceId);
-    if (devices.has(device) || (owner !== undefined && owner !== row.ownerUserId)) {
+    if (
+      devices.has(device) ||
+      (owner !== undefined && owner !== row.ownerUserId)
+    ) {
       throw new CloudWakeAwsError("InvalidAllowlist");
     }
     devices.add(device);
@@ -77,29 +122,57 @@ export function parseCloudWakeAllowlist(raw: string | undefined): CloudWakeHost[
   });
 }
 
-export function findCloudWakeHost(hosts: CloudWakeHost[], ownerUserId: string, deviceId: string): CloudWakeHost | undefined {
-  return hosts.find((host) => host.ownerUserId === ownerUserId && host.deviceId === deviceId);
+export function findCloudWakeHost(
+  hosts: CloudWakeHost[],
+  ownerUserId: string,
+  deviceId: string,
+): CloudWakeHost | undefined {
+  return hosts.find(
+    (host) => host.ownerUserId === ownerUserId && host.deviceId === deviceId,
+  );
 }
-
 
 export async function buildStartInstancesRequest(
   host: CloudWakeHost,
   credentials: AwsWakeCredentials,
   { now = new Date(), dryRun = false }: { now?: Date; dryRun?: boolean } = {},
-): Promise<{ url: string; method: "POST"; headers: Record<string, string>; body: string }> {
+): Promise<{
+  url: string;
+  method: "POST";
+  headers: Record<string, string>;
+  body: string;
+}> {
   const target = { ...host };
   const { accessKeyId, secretAccessKey, sessionToken } = credentials ?? {};
   if (!isHost(target)) throw new CloudWakeAwsError("InvalidHost");
-  if (!matches(accessKeyId, /^[A-Za-z0-9]{1,128}$/)
-    || !matches(secretAccessKey, /^[A-Za-z0-9/+=]{1,512}$/)
-    || (sessionToken !== undefined && !matches(sessionToken, /^[A-Za-z0-9/+=]{1,8192}$/))) {
+  if (
+    !matches(accessKeyId, /^[A-Za-z0-9]{1,128}$/) ||
+    !matches(secretAccessKey, /^[A-Za-z0-9/+=]{1,512}$/) ||
+    (sessionToken !== undefined &&
+      !matches(sessionToken, /^[A-Za-z0-9/+=]{1,8192}$/))
+  ) {
     throw new CloudWakeAwsError("InvalidCredentials");
   }
-  if (!(now instanceof Date) || !Number.isFinite(now.getTime()) || now.getUTCFullYear() < 1970
-    || now.getUTCFullYear() > 9999 || typeof dryRun !== "boolean") throw new CloudWakeAwsError("InvalidRequest");
-  const body = new URLSearchParams({ Action: "StartInstances", Version: "2016-11-15", "InstanceId.1": target.instanceId });
+  if (
+    !(now instanceof Date) ||
+    !Number.isFinite(now.getTime()) ||
+    now.getUTCFullYear() < 1970 ||
+    now.getUTCFullYear() > 9999 ||
+    typeof dryRun !== "boolean"
+  )
+    throw new CloudWakeAwsError("InvalidRequest");
+  const body = new URLSearchParams({
+    Action: "StartInstances",
+    Version: "2016-11-15",
+    "InstanceId.1": target.instanceId,
+  });
   if (dryRun) body.set("DryRun", "true");
-  return signEc2Request(target.region, { accessKeyId, secretAccessKey, sessionToken }, body, now);
+  return signEc2Request(
+    target.region,
+    { accessKeyId, secretAccessKey, sessionToken },
+    body,
+    now,
+  );
 }
 
 /** One signed EC2 Query API request (SigV4, form body). The caller has
@@ -109,7 +182,12 @@ export async function signEc2Request(
   { accessKeyId, secretAccessKey, sessionToken }: AwsWakeCredentials,
   body: URLSearchParams,
   now: Date,
-): Promise<{ url: string; method: "POST"; headers: Record<string, string>; body: string }> {
+): Promise<{
+  url: string;
+  method: "POST";
+  headers: Record<string, string>;
+  body: string;
+}> {
   const timestamp = amzTimestamp(now);
   const date = timestamp.slice(0, 8);
   const hostname = `ec2.${region}.amazonaws.com`;
@@ -119,28 +197,63 @@ export async function signEc2Request(
     host: hostname,
     "x-amz-date": timestamp,
   };
-  if (sessionToken !== undefined) headers["x-amz-security-token"] = sessionToken;
+  if (sessionToken !== undefined)
+    headers["x-amz-security-token"] = sessionToken;
   const names = Object.keys(headers).sort();
   const signedHeaders = names.join(";");
-  const canonicalHeaders = names.map((name) => `${name}:${headers[name]}\n`).join("");
+  const canonicalHeaders = names
+    .map((name) => `${name}:${headers[name]}\n`)
+    .join("");
   const scope = `${date}/${region}/ec2/aws4_request`;
   try {
-    const canonical = ["POST", "/", "", canonicalHeaders, signedHeaders, await sha256Hex(payload)].join("\n");
-    const toSign = ["AWS4-HMAC-SHA256", timestamp, scope, await sha256Hex(canonical)].join("\n");
-    const signature = await sigV4Signature(secretAccessKey, date, region, "ec2", toSign);
+    const canonical = [
+      "POST",
+      "/",
+      "",
+      canonicalHeaders,
+      signedHeaders,
+      await sha256Hex(payload),
+    ].join("\n");
+    const toSign = [
+      "AWS4-HMAC-SHA256",
+      timestamp,
+      scope,
+      await sha256Hex(canonical),
+    ].join("\n");
+    const signature = await sigV4Signature(
+      secretAccessKey,
+      date,
+      region,
+      "ec2",
+      toSign,
+    );
     headers.authorization = `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
   } catch {
     throw new CloudWakeAwsError("SigningFailed");
   }
-  return { url: `https://${hostname}/`, method: "POST", headers, body: payload };
+  return {
+    url: `https://${hostname}/`,
+    method: "POST",
+    headers,
+    body: payload,
+  };
 }
 
 type XmlNode = { name: string; text: string; children: XmlNode[] };
 
 function parseResponseXml(xml: string, status: number): XmlNode {
   const invalid = () => new CloudWakeAwsError("InvalidResponse", status);
-  if (xml.length > MAX_XML_LENGTH || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(xml)) throw invalid();
-  const source = xml.trim().replace(/^<\?xml\s+version=(["'])1\.0\1(?:\s+encoding=(["'])[Uu][Tt][Ff]-8\2)?(?:\s+standalone=(["'])(?:yes|no)\3)?\s*\?>/, "");
+  if (
+    xml.length > MAX_XML_LENGTH ||
+    /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(xml)
+  )
+    throw invalid();
+  const source = xml
+    .trim()
+    .replace(
+      /^<\?xml\s+version=(["'])1\.0\1(?:\s+encoding=(["'])[Uu][Tt][Ff]-8\2)?(?:\s+standalone=(["'])(?:yes|no)\3)?\s*\?>/,
+      "",
+    );
   const tokens = /<[^>]*>|[^<]+/gy;
   const stack: XmlNode[] = [];
   let root: XmlNode | undefined;
@@ -152,11 +265,26 @@ function parseResponseXml(xml: string, status: number): XmlNode {
     offset += token.length;
     const parent = stack[stack.length - 1];
     if (!token.startsWith("<")) {
-      if ((!parent && token.trim()) || /&(?!(?:amp|lt|gt|quot|apos|#[0-9]+|#x[0-9A-Fa-f]+);)|\]\]>/.test(token)) throw invalid();
+      if (
+        (!parent && token.trim()) ||
+        /&(?!(?:amp|lt|gt|quot|apos|#[0-9]+|#x[0-9A-Fa-f]+);)|\]\]>/.test(token)
+      )
+        throw invalid();
       for (const entity of token.matchAll(/&#(x[0-9A-Fa-f]+|[0-9]+);/g)) {
-        const code = entity[1].startsWith("x") ? Number.parseInt(entity[1].slice(1), 16) : Number(entity[1]);
-        if (!(code === 9 || code === 10 || code === 13 || (code >= 32 && code <= 0xd7ff)
-          || (code >= 0xe000 && code <= 0xfffd) || (code >= 0x10000 && code <= 0x10ffff))) throw invalid();
+        const code = entity[1].startsWith("x")
+          ? Number.parseInt(entity[1].slice(1), 16)
+          : Number(entity[1]);
+        if (
+          !(
+            code === 9 ||
+            code === 10 ||
+            code === 13 ||
+            (code >= 32 && code <= 0xd7ff) ||
+            (code >= 0xe000 && code <= 0xfffd) ||
+            (code >= 0x10000 && code <= 0x10ffff)
+          )
+        )
+          throw invalid();
       }
       if (parent) parent.text += token;
     } else if (token.startsWith("</")) {
@@ -164,8 +292,17 @@ function parseResponseXml(xml: string, status: number): XmlNode {
       if (!closing || parent?.name !== closing[1]) throw invalid();
       stack.pop();
     } else {
-      const opening = /^<([A-Za-z][A-Za-z0-9]*)(?:\s+xmlns=(["'])([^"']*)\2)?\s*(\/?)>$/.exec(token);
-      if (!opening || (opening[3] !== undefined && (parent || opening[3] !== XML_NAMESPACE)) || stack.length >= 8) throw invalid();
+      const opening =
+        /^<([A-Za-z][A-Za-z0-9]*)(?:\s+xmlns=(["'])([^"']*)\2)?\s*(\/?)>$/.exec(
+          token,
+        );
+      if (
+        !opening ||
+        (opening[3] !== undefined &&
+          (parent || opening[3] !== XML_NAMESPACE)) ||
+        stack.length >= 8
+      )
+        throw invalid();
       const node: XmlNode = { name: opening[1], text: "", children: [] };
       if (parent) parent.children.push(node);
       else if (root) throw invalid();
@@ -178,8 +315,12 @@ function parseResponseXml(xml: string, status: number): XmlNode {
 }
 
 function childrenOnly(node: XmlNode, names: string[]): boolean {
-  return !node.text.trim() && node.children.every((child) => names.includes(child.name))
-    && new Set(node.children.map((child) => child.name)).size === node.children.length;
+  return (
+    !node.text.trim() &&
+    node.children.every((child) => names.includes(child.name)) &&
+    new Set(node.children.map((child) => child.name)).size ===
+      node.children.length
+  );
 }
 
 function child(node: XmlNode | undefined, name: string): XmlNode | undefined {
@@ -191,11 +332,16 @@ function value(node: XmlNode | undefined): string | undefined {
   return node && node.children.length === 0 ? node.text.trim() : undefined;
 }
 
-function requestId(root: XmlNode, name: string, status: number): { requestId?: string } {
+function requestId(
+  root: XmlNode,
+  name: string,
+  status: number,
+): { requestId?: string } {
   const id = child(root, name);
   if (!id) return {};
   const text = value(id);
-  if (!text || !/^[A-Za-z0-9-]{1,128}$/.test(text)) throw new CloudWakeAwsError("InvalidResponse", status);
+  if (!text || !/^[A-Za-z0-9-]{1,128}$/.test(text))
+    throw new CloudWakeAwsError("InvalidResponse", status);
   return { requestId: text };
 }
 
@@ -206,45 +352,89 @@ export async function startCloudInstance(
 ): Promise<{ status: "starting" | "dry_run_allowed"; requestId?: string }> {
   const target = { ...host };
   const { fetchImpl = fetch, now, dryRun = false } = opts;
-  const request = await buildStartInstancesRequest(target, credentials, { now, dryRun });
+  const request = await buildStartInstancesRequest(target, credentials, {
+    now,
+    dryRun,
+  });
   const signal = AbortSignal.timeout(20_000);
   let response: Response;
   try {
-    response = await fetchImpl(request.url, { method: request.method, headers: request.headers, body: request.body, redirect: "manual", signal });
+    response = await fetchImpl(request.url, {
+      method: request.method,
+      headers: request.headers,
+      body: request.body,
+      redirect: "manual",
+      signal,
+    });
   } catch {
-    throw new CloudWakeAwsError(signal.aborted ? "RequestTimeout" : "NetworkError");
+    throw new CloudWakeAwsError(
+      signal.aborted ? "RequestTimeout" : "NetworkError",
+    );
   }
   const status = response.status;
-  if (response.redirected || (status >= 300 && status < 400)) throw new CloudWakeAwsError("RedirectRejected", status);
+  if (response.redirected || (status >= 300 && status < 400))
+    throw new CloudWakeAwsError("RedirectRejected", status);
   let xml: string;
   try {
     xml = await response.text();
   } catch {
-    throw new CloudWakeAwsError(signal.aborted ? "RequestTimeout" : "NetworkError", status);
+    throw new CloudWakeAwsError(
+      signal.aborted ? "RequestTimeout" : "NetworkError",
+      status,
+    );
   }
   const root = parseResponseXml(xml, status);
   if (status >= 400 && status <= 599) {
     const errors = child(root, "Errors");
     const error = child(errors, "Error");
     const code = value(child(error, "Code"));
-    if (root.name !== "Response" || !childrenOnly(root, ["Errors", "RequestID"])
-      || !errors || !childrenOnly(errors, ["Error"]) || !error || !childrenOnly(error, ["Code", "Message"])
-      || !code || !/^[A-Za-z][A-Za-z0-9.]{0,95}$/.test(code)) throw new CloudWakeAwsError("InvalidResponse", status);
+    if (
+      root.name !== "Response" ||
+      !childrenOnly(root, ["Errors", "RequestID"]) ||
+      !errors ||
+      !childrenOnly(errors, ["Error"]) ||
+      !error ||
+      !childrenOnly(error, ["Code", "Message"]) ||
+      !code ||
+      !/^[A-Za-z][A-Za-z0-9.]{0,95}$/.test(code)
+    )
+      throw new CloudWakeAwsError("InvalidResponse", status);
     if (code === "DryRunOperation" && dryRun && status === 412) {
-      return { status: "dry_run_allowed", ...requestId(root, "RequestID", status) };
+      return {
+        status: "dry_run_allowed",
+        ...requestId(root, "RequestID", status),
+      };
     }
-    throw new CloudWakeAwsError(AWS_ERROR_CODES.has(code) ? code : "AwsError", status);
+    throw new CloudWakeAwsError(
+      AWS_ERROR_CODES.has(code) ? code : "AwsError",
+      status,
+    );
   }
   const instances = child(root, "instancesSet");
   const instance = child(instances, "item");
   const current = child(instance, "currentState");
   const stateName = value(child(current, "name"));
   const stateCode = value(child(current, "code"));
-  if (status !== 200 || dryRun || root.name !== "StartInstancesResponse" || !childrenOnly(root, ["requestId", "instancesSet"])
-    || !instances || !childrenOnly(instances, ["item"]) || !instance || !childrenOnly(instance, ["instanceId", "currentState", "previousState"])
-    || value(child(instance, "instanceId")) !== target.instanceId || !current || !childrenOnly(current, ["code", "name"])
-    || !stateCode || !/^[0-9]{1,5}$/.test(stateCode) || Number(stateCode) > 65_535
-    || !((stateName === "pending" && (Number(stateCode) & 255) === 0) || (stateName === "running" && (Number(stateCode) & 255) === 16))) {
+  if (
+    status !== 200 ||
+    dryRun ||
+    root.name !== "StartInstancesResponse" ||
+    !childrenOnly(root, ["requestId", "instancesSet"]) ||
+    !instances ||
+    !childrenOnly(instances, ["item"]) ||
+    !instance ||
+    !childrenOnly(instance, ["instanceId", "currentState", "previousState"]) ||
+    value(child(instance, "instanceId")) !== target.instanceId ||
+    !current ||
+    !childrenOnly(current, ["code", "name"]) ||
+    !stateCode ||
+    !/^[0-9]{1,5}$/.test(stateCode) ||
+    Number(stateCode) > 65_535 ||
+    !(
+      (stateName === "pending" && (Number(stateCode) & 255) === 0) ||
+      (stateName === "running" && (Number(stateCode) & 255) === 16)
+    )
+  ) {
     throw new CloudWakeAwsError("InvalidResponse", status);
   }
   return { status: "starting", ...requestId(root, "requestId", status) };

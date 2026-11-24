@@ -7,5 +7,8 @@ self.onmessage = (e: MessageEvent<{ ms?: number; stop?: boolean }>) => {
   if (timer) clearInterval(timer);
   timer = null;
   if (e.data.stop || !e.data.ms) return;
-  timer = setInterval(() => (self as unknown as Worker).postMessage(0), e.data.ms);
+  timer = setInterval(
+    () => (self as unknown as Worker).postMessage(0),
+    e.data.ms,
+  );
 };

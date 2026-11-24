@@ -8,11 +8,22 @@ import type { MutationCtx } from "../_generated/server";
 import { recordAuthorityEvent } from "./authorityEvents";
 import { policyWorkspaceOf, requireTeamPolicyAllows } from "./teamPolicyGuard";
 
-export const SHARE_TOKEN_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+export const SHARE_TOKEN_SHAPE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export type ShareTable =
-  | "conversations" | "docs" | "plans" | "tasks" | "transcripts" | "projects" | "initiatives"
-  | "session_decisions" | "decision_stacks" | "agent_tasks" | "workflow_runs" | "weekly_cards";
+  | "conversations"
+  | "docs"
+  | "plans"
+  | "tasks"
+  | "transcripts"
+  | "projects"
+  | "initiatives"
+  | "session_decisions"
+  | "decision_stacks"
+  | "agent_tasks"
+  | "workflow_runs"
+  | "weekly_cards";
 
 /** Point `row`'s share token at `token` (null clears it) and record who did
  *  it. A token already serving another row of the table is refused, so one
@@ -35,19 +46,37 @@ export async function writeShareToken(
   // re-aimed drops it, so a link turned on again (even with the old token,
   // which any free UUID may be) starts with the transcript alone and video is
   // always a fresh choice.
-  const dropVideo = table === "transcripts" ? { share_video_token: undefined, share_video_through: undefined } : {};
-  const audit = async (kind: "share_link_minted" | "share_link_revoked", shareToken: string) => {
-    if (!by) throw new Error("A share link change needs the person who made it");
+  const dropVideo =
+    table === "transcripts"
+      ? { share_video_token: undefined, share_video_through: undefined }
+      : {};
+  const audit = async (
+    kind: "share_link_minted" | "share_link_revoked",
+    shareToken: string,
+  ) => {
+    if (!by)
+      throw new Error("A share link change needs the person who made it");
     await recordAuthorityEvent(ctx, {
-      kind, actor_user_id: by, share_table: table, share_token: shareToken,
+      kind,
+      actor_user_id: by,
+      share_table: table,
+      share_token: shareToken,
       conversation: table === "conversations" ? (row as any) : null,
-      ...(table !== "conversations" && (row as any).team_id ? { team_id: (row as any).team_id } : {}),
-      detail: { before: { on: !!row.share_token }, after: { on: kind === "share_link_minted", table, row_id: row._id } },
+      ...(table !== "conversations" && (row as any).team_id
+        ? { team_id: (row as any).team_id }
+        : {}),
+      detail: {
+        before: { on: !!row.share_token },
+        after: { on: kind === "share_link_minted", table, row_id: row._id },
+      },
     });
   };
   if (token === null) {
     if (row.share_token) {
-      await ctx.db.patch(row._id, { share_token: undefined, ...dropVideo } as any);
+      await ctx.db.patch(row._id, {
+        share_token: undefined,
+        ...dropVideo,
+      } as any);
       await audit("share_link_revoked", row.share_token);
       return "revoked";
     }
@@ -55,7 +84,11 @@ export async function writeShareToken(
   }
   if (row.share_token === token) return null;
   if (!SHARE_TOKEN_SHAPE.test(token)) throw new Error("Invalid share token");
-  await requireTeamPolicyAllows(ctx, { workspace: policyWorkspaceOf(table, row), apiToken }, "public_sharing_disabled");
+  await requireTeamPolicyAllows(
+    ctx,
+    { workspace: policyWorkspaceOf(table, row), apiToken },
+    "public_sharing_disabled",
+  );
   const taken = await (ctx.db.query(table) as any)
     .withIndex("by_share_token", (q: any) => q.eq("share_token", token))
     .first();

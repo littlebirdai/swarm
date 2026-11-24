@@ -35,7 +35,10 @@ function entryBytes(): number {
   // far larger than any bundler preamble.
   fs.writeFileSync(
     path.join(stage, "heavy.ts"),
-    Array.from({ length: 5_000 }, (_, i) => `export function f${i}(a: number) { return a * ${i}; }`).join("\n"),
+    Array.from(
+      { length: 5_000 },
+      (_, i) => `export function f${i}(a: number) { return a * ${i}; }`,
+    ).join("\n"),
   );
   fs.writeFileSync(
     path.join(stage, "entry.ts"),
@@ -47,7 +50,14 @@ function entryBytes(): number {
   const out = path.join(stage, "split");
   const build = spawnSync(
     process.execPath,
-    ["build", path.join(stage, "entry.ts"), "--compile", "--splitting", "--outfile", out],
+    [
+      "build",
+      path.join(stage, "entry.ts"),
+      "--compile",
+      "--splitting",
+      "--outfile",
+      out,
+    ],
     { encoding: "utf8", timeout: 300_000 },
   );
   expect(build.stderr + build.stdout).not.toContain("error:");
@@ -55,7 +65,10 @@ function entryBytes(): number {
 
   // The lazy half must still work: a split that broke the dynamic import would
   // otherwise pass the byte assertion for the wrong reason.
-  const lazy = spawnSync(out, ["heavy"], { encoding: "utf8", timeout: 120_000 });
+  const lazy = spawnSync(out, ["heavy"], {
+    encoding: "utf8",
+    timeout: 120_000,
+  });
   expect(lazy.status, lazy.stderr).toBe(0);
   expect(lazy.stdout.trim()).toBe("2");
 

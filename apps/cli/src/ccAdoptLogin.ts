@@ -16,12 +16,27 @@ acct=$(security find-generic-password -s "$1" 2>/dev/null | sed -n 's/.*"acct"<b
 security add-generic-password -U -a "\${acct:-$3}" -s "$1" -w "$new" && echo "$(date -u +%FT%TZ) adopted the pushed login"`;
 
 /** Submits the job unless this file went out within ADOPT_RECHECK_MS; true when a job was submitted. */
-export function submitAdoptJob(file: string, item: { service: string; account: string }, credentialFile: string, configDir: string, now: number): boolean {
+export function submitAdoptJob(
+  file: string,
+  item: { service: string; account: string },
+  credentialFile: string,
+  configDir: string,
+  now: number,
+): boolean {
   const digest = createHash("sha256").update(file).digest("hex");
-  if (lastAdopt?.digest === digest && now - lastAdopt.at < ADOPT_RECHECK_MS) return false;
+  if (lastAdopt?.digest === digest && now - lastAdopt.at < ADOPT_RECHECK_MS)
+    return false;
   const submitted = startLaunchdJob({
     label: "sh.codecast.adopt-login",
-    argv: ["/bin/bash", "-c", ADOPT_SCRIPT, "adopt-login", item.service, credentialFile, item.account],
+    argv: [
+      "/bin/bash",
+      "-c",
+      ADOPT_SCRIPT,
+      "adopt-login",
+      item.service,
+      credentialFile,
+      item.account,
+    ],
     plistPath: path.join(configDir, "adopt-login.plist"),
     logPath: path.join(configDir, "logs", "adopt-login.log"),
   });

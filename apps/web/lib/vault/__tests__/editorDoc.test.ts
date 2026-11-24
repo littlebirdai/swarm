@@ -36,7 +36,10 @@ describe("round trip", () => {
     const crlf = "---\r\ntitle: x\r\n---\r\n\r\nbody\r\n";
     const sep = detectLineSeparator(crlf);
     expect(sep).toBe("\r\n");
-    const doc = EditorState.create({ doc: crlf, extensions: EditorState.lineSeparator.of(sep) }).doc;
+    const doc = EditorState.create({
+      doc: crlf,
+      extensions: EditorState.lineSeparator.of(sep),
+    }).doc;
     // The naive serialization is exactly the trap: CodeMirror always joins with
     // "\n", so toString() silently rewrites every line ending in the file.
     expect(doc.toString()).not.toBe(crlf);
@@ -58,7 +61,9 @@ describe("docChange", () => {
   const apply = (from: string, to: string) => {
     const change = docChange(from, to);
     if (!change) return from;
-    return EditorState.create({ doc: from }).update({ changes: change }).state.doc.toString();
+    return EditorState.create({ doc: from })
+      .update({ changes: change })
+      .state.doc.toString();
   };
 
   test("identical documents produce no change at all", () => {
@@ -89,6 +94,8 @@ describe("docChange", () => {
   test("a repeated run does not let the prefix and suffix overlap", () => {
     const change = docChange("aaa", "aaaa")!;
     expect(change.to).toBeGreaterThanOrEqual(change.from);
-    expect(change.from + change.insert.length - (change.to - change.from)).toBeLessThanOrEqual(4);
+    expect(
+      change.from + change.insert.length - (change.to - change.from),
+    ).toBeLessThanOrEqual(4);
   });
 });

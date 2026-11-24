@@ -22,37 +22,89 @@ const INDEXES = schemaIndexes(schema);
 const indexedDb = (tables: Record<string, any[]>) => {
   let t = 1000;
   let n = 0;
-  return makeFakeDb(tables, { indexes: INDEXES, creationTime: () => t++, mintId: (table) => `${table}_${++n}` });
+  return makeFakeDb(tables, {
+    indexes: INDEXES,
+    creationTime: () => t++,
+    mintId: (table) => `${table}_${++n}`,
+  });
 };
 
 test("order follows the named index: by_user_updated is newest updated, not newest created", async () => {
   const db = indexedDb({ tasks: [] });
-  const old = await db.insert("tasks", { user_id: "u", created_at: 1, updated_at: 30 });
-  const mid = await db.insert("tasks", { user_id: "u", created_at: 2, updated_at: 10 });
-  const fresh = await db.insert("tasks", { user_id: "u", created_at: 3, updated_at: 20 });
-  const desc = await db.query("tasks").withIndex("by_user_updated", (q: any) => q.eq("user_id", "u")).order("desc").take(3);
+  const old = await db.insert("tasks", {
+    user_id: "u",
+    created_at: 1,
+    updated_at: 30,
+  });
+  const mid = await db.insert("tasks", {
+    user_id: "u",
+    created_at: 2,
+    updated_at: 10,
+  });
+  const fresh = await db.insert("tasks", {
+    user_id: "u",
+    created_at: 3,
+    updated_at: 20,
+  });
+  const desc = await db
+    .query("tasks")
+    .withIndex("by_user_updated", (q: any) => q.eq("user_id", "u"))
+    .order("desc")
+    .take(3);
   expect(desc.map((r: any) => r._id)).toEqual([old, fresh, mid]);
   // No order() is ascending index order, not insertion order.
-  const asc = await db.query("tasks").withIndex("by_user_updated", (q: any) => q.eq("user_id", "u")).collect();
+  const asc = await db
+    .query("tasks")
+    .withIndex("by_user_updated", (q: any) => q.eq("user_id", "u"))
+    .collect();
   expect(asc.map((r: any) => r._id)).toEqual([mid, fresh, old]);
   // No index reads by_creation_time.
-  expect((await db.query("tasks").order("desc").collect()).map((r: any) => r._id)).toEqual([fresh, mid, old]);
+  expect(
+    (await db.query("tasks").order("desc").collect()).map((r: any) => r._id),
+  ).toEqual([fresh, mid, old]);
 });
 
 test("an unknown index, or an eq or range out of field order, throws as in prod", () => {
   const db = indexedDb({ tasks: [] });
-  expect(() => db.query("tasks").withIndex("by_nothing", (q: any) => q.eq("user_id", "u"))).toThrow(/no index by_nothing/);
-  expect(() => db.query("tasks").withIndex("by_user_updated", (q: any) => q.eq("updated_at", 1))).toThrow(/cannot take eq/);
-  expect(() => db.query("tasks").withIndex("by_user_updated", (q: any) => q.gt("user_id", "a").eq("updated_at", 1))).toThrow(/cannot take eq/);
-  expect(() => db.query("tasks").withIndex("by_user_updated", (q: any) => q.gt("updated_at", 1))).toThrow(/cannot take a range/);
-  expect(() => db.query("tasks").withIndex("by_user_updated", (q: any) => q.eq("user_id", "u").gt("updated_at", 1).lt("updated_at", 9))).not.toThrow();
+  expect(() =>
+    db.query("tasks").withIndex("by_nothing", (q: any) => q.eq("user_id", "u")),
+  ).toThrow(/no index by_nothing/);
+  expect(() =>
+    db
+      .query("tasks")
+      .withIndex("by_user_updated", (q: any) => q.eq("updated_at", 1)),
+  ).toThrow(/cannot take eq/);
+  expect(() =>
+    db
+      .query("tasks")
+      .withIndex("by_user_updated", (q: any) =>
+        q.gt("user_id", "a").eq("updated_at", 1),
+      ),
+  ).toThrow(/cannot take eq/);
+  expect(() =>
+    db
+      .query("tasks")
+      .withIndex("by_user_updated", (q: any) => q.gt("updated_at", 1)),
+  ).toThrow(/cannot take a range/);
+  expect(() =>
+    db
+      .query("tasks")
+      .withIndex("by_user_updated", (q: any) =>
+        q.eq("user_id", "u").gt("updated_at", 1).lt("updated_at", 9),
+      ),
+  ).not.toThrow();
 });
 
 test("paginate cursors carry the last key, so a row written between pages neither repeats nor skips one", async () => {
   const db = indexedDb({ tasks: [] });
-  for (const updated_at of [10, 20, 30, 40]) await db.insert("tasks", { user_id: "u", updated_at });
+  for (const updated_at of [10, 20, 30, 40])
+    await db.insert("tasks", { user_id: "u", updated_at });
   const page = (cursor: string | null) =>
-    db.query("tasks").withIndex("by_user_updated", (q: any) => q.eq("user_id", "u")).order("desc").paginate({ numItems: 2, cursor });
+    db
+      .query("tasks")
+      .withIndex("by_user_updated", (q: any) => q.eq("user_id", "u"))
+      .order("desc")
+      .paginate({ numItems: 2, cursor });
   const first = await page(null);
   expect(first.page.map((r: any) => r.updated_at)).toEqual([40, 30]);
   expect(first.isDone).toBe(false);

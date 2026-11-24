@@ -17,15 +17,15 @@ The agent is pushed toward good cards: a bare question is refused, it sees the c
 
 **Questions** in the sidebar counts what is waiting on you and opens the queue. The order is a rule, not a score: asks blocking a live session first, then asks on a session that has stopped, oldest first in each, because a parked agent costs more the longer it waits. The top card takes the keyboard, and the one-at-a-time view puts each question full size over its real conversation, "decision 3 of 7":
 
-| Key | What it does |
-|---|---|
-| `1` to `9` | answer with that option |
-| `T` | type your own answer |
-| `S` | skip for now |
-| `X` | dismiss; the agent is not told |
-| `O` | open the session |
-| `K` / `J` | peek at the thread behind the card, then bring the question back |
-| `Esc` | leave the queue |
+| Key        | What it does                                                     |
+| ---------- | ---------------------------------------------------------------- |
+| `1` to `9` | answer with that option                                          |
+| `T`        | type your own answer                                             |
+| `S`        | skip for now                                                     |
+| `X`        | dismiss; the agent is not told                                   |
+| `O`        | open the session                                                 |
+| `K` / `J`  | peek at the thread behind the card, then bring the question back |
+| `Esc`      | leave the queue                                                  |
 
 Permission prompts and questions an agent asked in its own terminal wait in the same queue, with one safety detail: on a permission card the digits are off and only `Y` and `N` answer, so a digit meant for the previous card can never approve a command.
 
@@ -35,7 +35,7 @@ Every ask also appears in its conversation. A blocking ask opens as a full card 
 
 ## Blocking, or advisory with a default
 
-Blocking is the default: the session stays parked until you answer. An *advisory* ask lets the agent carry on with a default while your answer can still override it; it stays out of the queue and folds to a pill above the composer, "Asked for your steer". The rule the agent is given is the interesting part: advisory only when the default is cheap to undo. Answers often land an hour later and disagree, and everything built on the default in that hour is work to unwind. If reversing would cost more than waiting, block.
+Blocking is the default: the session stays parked until you answer. An _advisory_ ask lets the agent carry on with a default while your answer can still override it; it stays out of the queue and folds to a pill above the composer, "Asked for your steer". The rule the agent is given is the interesting part: advisory only when the default is cheap to undo. Answers often land an hour later and disagree, and everything built on the default in that hour is work to unwind. If reversing would cost more than waiting, block.
 
 ![Two panels side by side. Blocking: the ask 'Approve dropping agent_runs_v1?', and the session showing 'Waiting on your decision' then 'Decision: Hold'. Advisory: 'Back off or switch keys?' with a folded pill 'Asked for your steer' above the composer and option 1 marked 'proceeding with this'](/blog/field-manual/decisions-advisory.webp "Blocking parks the session; advisory keeps it moving on its default and folds the ask to a pill above the composer.")
 
@@ -55,8 +55,8 @@ The phone app keeps the same queue in the same order, with a badge by the inbox 
 
 ## Stacks: a set you clear in one sitting
 
-A stack groups related asks, like everything a launch needs from you, into one checklist. A stack can have a due time (overdue sorts first), a deadline after which *advisory* members take their defaults (blocking ones never answer themselves), and a role it is delegated to, though questions about production, billing, data or access still come to a person.
+A stack groups related asks, like everything a launch needs from you, into one checklist. A stack can have a due time (overdue sorts first), a deadline after which _advisory_ members take their defaults (blocking ones never answer themselves), and a role it is delegated to, though questions about production, billing, data or access still come to a person.
 
 ![A 'Launch checklist ds-7' stack, due 2h ago, with 2 of 5 cleared: two struck-through answered questions, the current one 'Send the launch email to the waitlist?' with options Send Tuesday 9am and Hold a week, and two advisory members below with an 'answer all defaults (2)' button](/blog/field-manual/decisions-stack.webp "A launch checklist: answered members strike through, advisory members can all take their defaults with one click, and `N`/`P` walk the stack.")
 
-> **Why it matters.** Asking inline makes a question cost the human an interruption, so agents learn not to ask. A queue inverts that: the cost moves to a moment you choose, so agents can afford to ask about the things that actually deserve a person (hard to reverse, spends money, deletes data, a guess about what the product should do) and you can afford to answer twenty of them over coffee. What *not* to queue is just as explicit in the agent's instructions: anything more reading would answer, status updates, and probes.
+> **Why it matters.** Asking inline makes a question cost the human an interruption, so agents learn not to ask. A queue inverts that: the cost moves to a moment you choose, so agents can afford to ask about the things that actually deserve a person (hard to reverse, spends money, deletes data, a guess about what the product should do) and you can afford to answer twenty of them over coffee. What _not_ to queue is just as explicit in the agent's instructions: anything more reading would answer, status updates, and probes.

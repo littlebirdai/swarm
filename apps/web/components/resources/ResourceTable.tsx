@@ -5,15 +5,42 @@
 // its processes; a process several sessions share appears once, in its own
 // row, and each session that uses it points there instead of adding it.
 import React from "react";
-import { ChevronDown, ChevronRight, ChevronUp, ExternalLink, Moon, Play, Share2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  ExternalLink,
+  Moon,
+  Play,
+  Share2,
+} from "lucide-react";
 import type { ResourceProcess } from "@codecast/shared/contracts";
 import { cn } from "../../lib/utils";
 import type { MigrationRowStatus } from "../../lib/migrationPlan";
 import { MigrationStatusPill } from "../MigrationStatusPill";
-import { KIND_LABEL, fmtAgo, fmtBytes, fmtCpu, outsideLabel, projectName, type Sort, type SortBy, type TableRow, type Usage } from "./resourceModel";
-import type { ResourceActions, ResourceMachine, ResourceSession, ResourceSessionState } from "./types";
+import {
+  KIND_LABEL,
+  fmtAgo,
+  fmtBytes,
+  fmtCpu,
+  outsideLabel,
+  projectName,
+  type Sort,
+  type SortBy,
+  type TableRow,
+  type Usage,
+} from "./resourceModel";
+import type {
+  ResourceActions,
+  ResourceMachine,
+  ResourceSession,
+  ResourceSessionState,
+} from "./types";
 
-const STATE_STYLE: Record<ResourceSessionState, { dot: string; label: string }> = {
+const STATE_STYLE: Record<
+  ResourceSessionState,
+  { dot: string; label: string }
+> = {
   working: { dot: "bg-sol-green", label: "working" },
   needs_input: { dot: "bg-sol-yellow", label: "needs you" },
   idle: { dot: "bg-sol-text-dim", label: "idle" },
@@ -27,12 +54,27 @@ const COLS = "res-cols";
 function Bar({ share, tone }: { share: number; tone: string }) {
   return (
     <span className="mt-0.5 block h-[3px] w-full overflow-hidden rounded-full bg-sol-bg-highlight/70">
-      <span className={cn("block h-full rounded-full", tone)} style={{ width: `${Math.max(share > 0 ? 2 : 0, Math.min(100, share * 100))}%` }} />
+      <span
+        className={cn("block h-full rounded-full", tone)}
+        style={{
+          width: `${Math.max(share > 0 ? 2 : 0, Math.min(100, share * 100))}%`,
+        }}
+      />
     </span>
   );
 }
 
-function Num({ value, share, tone, className }: { value: string; share: number; tone: string; className?: string }) {
+function Num({
+  value,
+  share,
+  tone,
+  className,
+}: {
+  value: string;
+  share: number;
+  tone: string;
+  className?: string;
+}) {
   return (
     <div className={cn("min-w-0 text-right", className)}>
       <span className="text-[12px] tabular-nums text-sol-text">{value}</span>
@@ -41,61 +83,166 @@ function Num({ value, share, tone, className }: { value: string; share: number; 
   );
 }
 
-function Head({ col, sort, onSort, right, className, title, children }: { col: SortBy; sort: Sort; onSort: (by: SortBy) => void; right?: boolean; className?: string; title?: string; children: React.ReactNode }) {
+function Head({
+  col,
+  sort,
+  onSort,
+  right,
+  className,
+  title,
+  children,
+}: {
+  col: SortBy;
+  sort: Sort;
+  onSort: (by: SortBy) => void;
+  right?: boolean;
+  className?: string;
+  title?: string;
+  children: React.ReactNode;
+}) {
   const active = sort.by === col;
   const Arrow = sort.dir === "asc" ? ChevronUp : ChevronDown;
   return (
-    <span role="columnheader" aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"} className={cn("min-w-0", right && "text-right", className)}>
-      <button type="button" onClick={() => onSort(col)} title={title} className={cn("inline-flex items-center gap-0.5 uppercase tracking-wide hover:text-sol-text", right && "flex-row-reverse", active && "text-sol-text")}>
+    <span
+      role="columnheader"
+      aria-sort={
+        active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"
+      }
+      className={cn("min-w-0", right && "text-right", className)}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(col)}
+        title={title}
+        className={cn(
+          "inline-flex items-center gap-0.5 uppercase tracking-wide hover:text-sol-text",
+          right && "flex-row-reverse",
+          active && "text-sol-text",
+        )}
+      >
         {children}
-        <Arrow className={cn("h-3 w-3", active ? "opacity-100" : "opacity-0")} />
+        <Arrow
+          className={cn("h-3 w-3", active ? "opacity-100" : "opacity-0")}
+        />
       </button>
     </span>
   );
 }
 
-const outsideCount = (r: TableRow) => r.processes.filter((p) => p.detached).length;
+const outsideCount = (r: TableRow) =>
+  r.processes.filter((p) => p.detached).length;
 
-function Disabled({ why, children }: { why: string; children: React.ReactNode }) {
-  return <span title={why} className="inline-flex cursor-not-allowed items-center gap-1 rounded px-1.5 py-0.5 text-meta text-sol-text-dim opacity-60">{children}</span>;
+function Disabled({
+  why,
+  children,
+}: {
+  why: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      title={why}
+      className="inline-flex cursor-not-allowed items-center gap-1 rounded px-1.5 py-0.5 text-meta text-sol-text-dim opacity-60"
+    >
+      {children}
+    </span>
+  );
 }
 
-function ActionButton({ onClick, children, tone }: { onClick: () => void; children: React.ReactNode; tone?: string }) {
+function ActionButton({
+  onClick,
+  children,
+  tone,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+  tone?: string;
+}) {
   return (
-    <button type="button" onClick={onClick} className={cn("inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-meta hover:bg-sol-bg-highlight", tone ?? "text-sol-text")}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-meta hover:bg-sol-bg-highlight",
+        tone ?? "text-sol-text",
+      )}
+    >
       {children}
     </button>
   );
 }
 
-function ProcessTable({ processes, totals, remainder, machines }: { processes: ResourceProcess[]; totals: Usage; remainder?: Usage; machines: ResourceMachine[] }) {
+function ProcessTable({
+  processes,
+  totals,
+  remainder,
+  machines,
+}: {
+  processes: ResourceProcess[];
+  totals: Usage;
+  remainder?: Usage;
+  machines: ResourceMachine[];
+}) {
   const [all, setAll] = React.useState(false);
   const shown = all ? processes : processes.slice(0, 12);
   return (
     <div className="text-meta">
       <div className="res-procs border-b border-sol-border/20 pb-1 text-mark uppercase tracking-wide text-sol-text-dim">
-        <span>PID</span><span>Process</span><span className="res-sm">Kind</span><span className="text-right">CPU</span><span className="text-right">Resident</span><span className="text-right">Started</span>
+        <span>PID</span>
+        <span>Process</span>
+        <span className="res-sm">Kind</span>
+        <span className="text-right">CPU</span>
+        <span className="text-right">Resident</span>
+        <span className="text-right">Started</span>
       </div>
       {shown.map((p) => (
-        <div key={`${p.pid}:${p.startedAt ?? 0}`} className="res-procs py-[3px] text-sol-text-secondary">
+        <div
+          key={`${p.pid}:${p.startedAt ?? 0}`}
+          className="res-procs py-[3px] text-sol-text-secondary"
+        >
           <span className="tabular-nums text-sol-text-dim">{p.pid}</span>
           <span className="flex min-w-0 items-center gap-1">
-            <span className="truncate" title={p.name}>{p.name}</span>
+            <span className="truncate" title={p.name}>
+              {p.name}
+            </span>
             {p.detached && (
               <span
                 className="shrink-0 rounded border border-sol-orange/40 px-1 text-meta text-sol-orange"
-                title={p.detached === "tmux" ? "Started by this session in a tmux session it created, outside its own process tree. Stopped when the session moves." : "Started by this session and left running outside its own process tree (backgrounded or reparented). Stopped when the session moves."}
-              >{outsideLabel(p.detached)}</span>
+                title={
+                  p.detached === "tmux"
+                    ? "Started by this session in a tmux session it created, outside its own process tree. Stopped when the session moves."
+                    : "Started by this session and left running outside its own process tree (backgrounded or reparented). Stopped when the session moves."
+                }
+              >
+                {outsideLabel(p.detached)}
+              </span>
             )}
           </span>
-          <span className="res-sm text-sol-text-muted">{KIND_LABEL[p.kind].toLowerCase()}</span>
-          <span className={cn("text-right tabular-nums", totals.cpu > 0 && p.cpu / totals.cpu > 0.3 && "text-sol-blue")}>{fmtCpu(p.cpu)}</span>
+          <span className="res-sm text-sol-text-muted">
+            {KIND_LABEL[p.kind].toLowerCase()}
+          </span>
+          <span
+            className={cn(
+              "text-right tabular-nums",
+              totals.cpu > 0 && p.cpu / totals.cpu > 0.3 && "text-sol-blue",
+            )}
+          >
+            {fmtCpu(p.cpu)}
+          </span>
           <span className="text-right tabular-nums">{fmtBytes(p.rss)}</span>
-          <span className="text-right text-sol-text-dim">{p.startedAt ? fmtAgo(p.startedAt, Date.now()).replace(" ago", "") : "n/a"}</span>
+          <span className="text-right text-sol-text-dim">
+            {p.startedAt
+              ? fmtAgo(p.startedAt, Date.now()).replace(" ago", "")
+              : "n/a"}
+          </span>
         </div>
       ))}
       {processes.length > 12 && (
-        <button type="button" onClick={() => setAll(!all)} className="mt-1 text-meta text-sol-cyan hover:underline">
+        <button
+          type="button"
+          onClick={() => setAll(!all)}
+          className="mt-1 text-meta text-sol-cyan hover:underline"
+        >
           {all ? "Show fewer" : `Show all ${processes.length} processes`}
         </button>
       )}
@@ -104,24 +251,41 @@ function ProcessTable({ processes, totals, remainder, machines }: { processes: R
           className="mt-1.5 border-t border-dashed border-sol-border/30 pt-1.5 text-sol-text-muted"
           title={`Processes the machine counted but did not list (${machines.length > 1 ? "each machine lists" : "it lists"} its 256 largest); they belong to no session we can name`}
         >
-          +{remainder.count.toLocaleString()} unlisted · {fmtCpu(remainder.cpu)} CPU · {fmtBytes(remainder.rss)} resident
+          +{remainder.count.toLocaleString()} unlisted · {fmtCpu(remainder.cpu)}{" "}
+          CPU · {fmtBytes(remainder.rss)} resident
         </div>
       )}
     </div>
   );
 }
 
-function SharedRefs({ session, sharedRows }: { session: ResourceSession; sharedRows: TableRow[] }) {
-  const mine = sharedRows.filter((r) => r.sharedWithIds?.includes(session.sessionId));
+function SharedRefs({
+  session,
+  sharedRows,
+}: {
+  session: ResourceSession;
+  sharedRows: TableRow[];
+}) {
+  const mine = sharedRows.filter((r) =>
+    r.sharedWithIds?.includes(session.sessionId),
+  );
   if (mine.length === 0) return null;
   return (
     <div className="mt-2 text-meta text-sol-text-muted">
-      <div className="mb-0.5 flex items-center gap-1 text-mark uppercase tracking-wide text-sol-text-dim"><Share2 className="h-3 w-3" /> Also uses, not counted here</div>
+      <div className="mb-0.5 flex items-center gap-1 text-mark uppercase tracking-wide text-sol-text-dim">
+        <Share2 className="h-3 w-3" /> Also uses, not counted here
+      </div>
       {mine.map((r) => (
         <div key={r.key} className="flex gap-2">
           <span className="truncate text-sol-text-secondary">{r.label}</span>
-          <span className="shrink-0 tabular-nums">{fmtCpu(r.usage.cpu)} · {fmtBytes(r.usage.rss)}</span>
-          <span className="shrink-0">shared with {r.sharedWithIds!.length - 1} other{r.sharedWithIds!.length === 2 ? "" : "s"}; stays if this session moves</span>
+          <span className="shrink-0 tabular-nums">
+            {fmtCpu(r.usage.cpu)} · {fmtBytes(r.usage.rss)}
+          </span>
+          <span className="shrink-0">
+            shared with {r.sharedWithIds!.length - 1} other
+            {r.sharedWithIds!.length === 2 ? "" : "s"}; stays if this session
+            moves
+          </span>
         </div>
       ))}
     </div>
@@ -146,10 +310,30 @@ export type ResourceTableProps = {
   onSort: (by: SortBy) => void;
 };
 
-export function ResourceTable({ rows, sharedRows, totals, machines, now, selected, moving, onToggle, actions, actionsDisabledReason, showMachine, sort, onSort }: ResourceTableProps) {
+export function ResourceTable({
+  rows,
+  sharedRows,
+  totals,
+  machines,
+  now,
+  selected,
+  moving,
+  onToggle,
+  actions,
+  actionsDisabledReason,
+  showMachine,
+  sort,
+  onSort,
+}: ResourceTableProps) {
   const [open, setOpen] = React.useState<Set<string>>(new Set());
-  const toggleOpen = (k: string) => setOpen((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
-  const machineName = (id: string) => machines.find((m) => m.deviceId === id)?.name ?? id;
+  const toggleOpen = (k: string) =>
+    setOpen((s) => {
+      const n = new Set(s);
+      n.has(k) ? n.delete(k) : n.add(k);
+      return n;
+    });
+  const machineName = (id: string) =>
+    machines.find((m) => m.deviceId === id)?.name ?? id;
   const off = actionsDisabledReason ?? "Not available here";
 
   const renderRow = (r: TableRow, depth = 0): React.ReactNode => {
@@ -171,7 +355,10 @@ export function ResourceTable({ rows, sharedRows, totals, machines, now, selecte
           onClick={() => toggleOpen(r.key)}
           data-row-type={r.type}
         >
-          <span className="flex items-center" onClick={(e) => e.stopPropagation()}>
+          <span
+            className="flex items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             {canSelect ? (
               <input
                 type="checkbox"
@@ -185,39 +372,121 @@ export function ResourceTable({ rows, sharedRows, totals, machines, now, selecte
           <button
             type="button"
             aria-expanded={isOpen}
-            onClick={(e) => { e.stopPropagation(); toggleOpen(r.key); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleOpen(r.key);
+            }}
             className="min-w-0 rounded-sm text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-sol-cyan"
             style={{ paddingLeft: depth * 14 }}
           >
             <span className="flex min-w-0 items-center gap-1.5">
-              <ChevronRight className={cn("h-3 w-3 shrink-0 text-sol-text-dim transition-transform", isOpen && "rotate-90")} />
-              {r.type === "shared" && <Share2 className="h-3 w-3 shrink-0 text-sol-cyan" />}
-              <span className={cn("truncate text-[12px]", r.type === "session" ? "text-sol-text" : r.type === "unattributed" ? "italic" : "font-medium text-sol-text")} title={r.label}>{r.label}</span>
-              {s?.pinned && <span className="shrink-0 rounded border border-sol-border/40 px-1 text-meta text-sol-text-dim">pinned</span>}
-              {s?.agentType && !/claude/i.test(s.agentType) && <span className="shrink-0 rounded border border-sol-border/40 px-1 text-meta text-sol-text-dim">{s.agentType}</span>}
+              <ChevronRight
+                className={cn(
+                  "h-3 w-3 shrink-0 text-sol-text-dim transition-transform",
+                  isOpen && "rotate-90",
+                )}
+              />
+              {r.type === "shared" && (
+                <Share2 className="h-3 w-3 shrink-0 text-sol-cyan" />
+              )}
+              <span
+                className={cn(
+                  "truncate text-[12px]",
+                  r.type === "session"
+                    ? "text-sol-text"
+                    : r.type === "unattributed"
+                      ? "italic"
+                      : "font-medium text-sol-text",
+                )}
+                title={r.label}
+              >
+                {r.label}
+              </span>
+              {s?.pinned && (
+                <span className="shrink-0 rounded border border-sol-border/40 px-1 text-meta text-sol-text-dim">
+                  pinned
+                </span>
+              )}
+              {s?.agentType && !/claude/i.test(s.agentType) && (
+                <span className="shrink-0 rounded border border-sol-border/40 px-1 text-meta text-sol-text-dim">
+                  {s.agentType}
+                </span>
+              )}
             </span>
             <span className="ml-[18px] block truncate text-meta text-sol-text-dim">
-              {s ? [s.shortId, projectName(s.projectPath), showMachine ? machineName(r.deviceIds[0]) : undefined, outsideCount(r) ? `${outsideCount(r)} outside its tree` : undefined].filter(Boolean).join(" · ")
-                : r.sublabel ?? (r.children ? `${r.children.length} ${r.children.length === 1 ? "row" : "rows"}${showMachine && r.type !== "machine" ? ` · ${r.deviceIds.map(machineName).join(", ")}` : ""}` : "")}
+              {s
+                ? [
+                    s.shortId,
+                    projectName(s.projectPath),
+                    showMachine ? machineName(r.deviceIds[0]) : undefined,
+                    outsideCount(r)
+                      ? `${outsideCount(r)} outside its tree`
+                      : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : (r.sublabel ??
+                  (r.children
+                    ? `${r.children.length} ${r.children.length === 1 ? "row" : "rows"}${showMachine && r.type !== "machine" ? ` · ${r.deviceIds.map(machineName).join(", ")}` : ""}`
+                    : ""))}
             </span>
           </button>
           <div className="res-wide-flex items-center gap-1.5 text-meta text-sol-text-muted">
-            {move ? <span title={`Moving to ${move.to}`}><MigrationStatusPill status={move.status} /></span>
-              : st ? <><span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", st.dot)} />{st.label}</> : <span className="text-sol-text-dim">{r.type === "shared" ? "shared" : r.type === "unattributed" ? "unowned" : `${r.usage.count.toLocaleString()} ${r.usage.count === 1 ? "proc" : "procs"}`}</span>}
+            {move ? (
+              <span title={`Moving to ${move.to}`}>
+                <MigrationStatusPill status={move.status} />
+              </span>
+            ) : st ? (
+              <>
+                <span
+                  className={cn("h-1.5 w-1.5 shrink-0 rounded-full", st.dot)}
+                />
+                {st.label}
+              </>
+            ) : (
+              <span className="text-sol-text-dim">
+                {r.type === "shared"
+                  ? "shared"
+                  : r.type === "unattributed"
+                    ? "unowned"
+                    : `${r.usage.count.toLocaleString()} ${r.usage.count === 1 ? "proc" : "procs"}`}
+              </span>
+            )}
           </div>
           {r.unmeasured ? (
-            <span className="res-unmeasured text-right text-meta text-sol-text-dim" title="No processes for this session appeared in the latest sample, so there is nothing to measure">
-              {r.unmeasured === "list_unavailable" ? "usage unavailable" : s?.state === "hibernated" ? "parked, no processes" : "no processes in sample"}
+            <span
+              className="res-unmeasured text-right text-meta text-sol-text-dim"
+              title="No processes for this session appeared in the latest sample, so there is nothing to measure"
+            >
+              {r.unmeasured === "list_unavailable"
+                ? "usage unavailable"
+                : s?.state === "hibernated"
+                  ? "parked, no processes"
+                  : "no processes in sample"}
             </span>
           ) : (
             <>
-              <Num value={fmtCpu(r.usage.cpu)} share={totals.cpu ? r.usage.cpu / totals.cpu : 0} tone="bg-sol-blue" />
-              <Num value={fmtBytes(r.usage.rss)} share={totals.rss ? r.usage.rss / totals.rss : 0} tone="bg-sol-violet" />
-              <span className="res-wide text-right text-meta tabular-nums text-sol-text-muted">{r.usage.count.toLocaleString()}</span>
+              <Num
+                value={fmtCpu(r.usage.cpu)}
+                share={totals.cpu ? r.usage.cpu / totals.cpu : 0}
+                tone="bg-sol-blue"
+              />
+              <Num
+                value={fmtBytes(r.usage.rss)}
+                share={totals.rss ? r.usage.rss / totals.rss : 0}
+                tone="bg-sol-violet"
+              />
+              <span className="res-wide text-right text-meta tabular-nums text-sol-text-muted">
+                {r.usage.count.toLocaleString()}
+              </span>
             </>
           )}
           <span className="res-wide text-right text-meta text-sol-text-muted">
-            {s ? (s.state === "working" ? "now" : fmtAgo(s.lastActiveAt, now).replace(" ago", "")) : ""}
+            {s
+              ? s.state === "working"
+                ? "now"
+                : fmtAgo(s.lastActiveAt, now).replace(" ago", "")
+              : ""}
           </span>
         </div>
         {isOpen && (
@@ -228,22 +497,77 @@ export function ResourceTable({ rows, sharedRows, totals, machines, now, selecte
               <>
                 {s && (
                   <div className="mb-2 flex flex-wrap items-center gap-1">
-                    {actions?.onOpenSession ? <ActionButton onClick={() => actions.onOpenSession!(s.sessionId)}><ExternalLink className="h-3 w-3" /> Open</ActionButton> : <Disabled why={off}><ExternalLink className="h-3 w-3" /> Open</Disabled>}
-                    {s.state === "hibernated"
-                      ? (actions?.onResume ? <ActionButton onClick={() => actions.onResume!([s.sessionId])}><Play className="h-3 w-3" /> Resume</ActionButton> : <Disabled why={actionsDisabledReason ?? "A parked session resumes when you send it a message; open it to continue"}><Play className="h-3 w-3" /> Resume</Disabled>)
-                      : (actions?.onPark && s.state !== "working"
-                        ? <ActionButton onClick={() => actions.onPark!([s.sessionId])}><Moon className="h-3 w-3" /> Park</ActionButton>
-                        : <Disabled why={s.state === "working" ? "Working sessions are not parked; wait for the turn to end" : off}><Moon className="h-3 w-3" /> Park</Disabled>)}
+                    {actions?.onOpenSession ? (
+                      <ActionButton
+                        onClick={() => actions.onOpenSession!(s.sessionId)}
+                      >
+                        <ExternalLink className="h-3 w-3" /> Open
+                      </ActionButton>
+                    ) : (
+                      <Disabled why={off}>
+                        <ExternalLink className="h-3 w-3" /> Open
+                      </Disabled>
+                    )}
+                    {s.state === "hibernated" ? (
+                      actions?.onResume ? (
+                        <ActionButton
+                          onClick={() => actions.onResume!([s.sessionId])}
+                        >
+                          <Play className="h-3 w-3" /> Resume
+                        </ActionButton>
+                      ) : (
+                        <Disabled
+                          why={
+                            actionsDisabledReason ??
+                            "A parked session resumes when you send it a message; open it to continue"
+                          }
+                        >
+                          <Play className="h-3 w-3" /> Resume
+                        </Disabled>
+                      )
+                    ) : actions?.onPark && s.state !== "working" ? (
+                      <ActionButton
+                        onClick={() => actions.onPark!([s.sessionId])}
+                      >
+                        <Moon className="h-3 w-3" /> Park
+                      </ActionButton>
+                    ) : (
+                      <Disabled
+                        why={
+                          s.state === "working"
+                            ? "Working sessions are not parked; wait for the turn to end"
+                            : off
+                        }
+                      >
+                        <Moon className="h-3 w-3" /> Park
+                      </Disabled>
+                    )}
                   </div>
                 )}
                 {r.type === "shared" && (
-                  <div className="mb-2 text-meta text-sol-text-muted" title="Counted once here, never in each session; it stays on this machine when any one of them moves">
-                    Serves {r.sharedWith?.map((x) => x.title).join(", ") || `${r.sharedWithIds?.length} sessions`}
+                  <div
+                    className="mb-2 text-meta text-sol-text-muted"
+                    title="Counted once here, never in each session; it stays on this machine when any one of them moves"
+                  >
+                    Serves{" "}
+                    {r.sharedWith?.map((x) => x.title).join(", ") ||
+                      `${r.sharedWithIds?.length} sessions`}
                   </div>
                 )}
-                {r.unmeasured
-                  ? <div className="text-meta text-sol-text-muted">{r.unmeasured === "list_unavailable" ? "Usage unknown: the latest sample listed no processes" : `No processes in the latest sample${s?.state === "hibernated" ? " · parked" : ""}`}</div>
-                  : <ProcessTable processes={r.processes} totals={r.usage} remainder={r.remainder} machines={machines} />}
+                {r.unmeasured ? (
+                  <div className="text-meta text-sol-text-muted">
+                    {r.unmeasured === "list_unavailable"
+                      ? "Usage unknown: the latest sample listed no processes"
+                      : `No processes in the latest sample${s?.state === "hibernated" ? " · parked" : ""}`}
+                  </div>
+                ) : (
+                  <ProcessTable
+                    processes={r.processes}
+                    totals={r.usage}
+                    remainder={r.remainder}
+                    machines={machines}
+                  />
+                )}
                 {s && <SharedRefs session={s} sharedRows={sharedRows} />}
               </>
             )}
@@ -255,14 +579,49 @@ export function ResourceTable({ rows, sharedRows, totals, machines, now, selecte
 
   return (
     <div role="table" aria-label="Resources by session" className="pb-3">
-      <div className={cn(COLS, "sticky top-0 z-[1] border-b border-sol-border/30 bg-sol-bg px-3 py-1 text-mark uppercase tracking-wide text-sol-text-dim")}>
+      <div
+        className={cn(
+          COLS,
+          "sticky top-0 z-[1] border-b border-sol-border/30 bg-sol-bg px-3 py-1 text-mark uppercase tracking-wide text-sol-text-dim",
+        )}
+      >
         <span />
-        <Head col="name" sort={sort} onSort={onSort}>Name</Head>
-        <Head col="state" sort={sort} onSort={onSort} className="res-wide">State</Head>
-        <Head col="cpu" sort={sort} onSort={onSort} right title="One core counts as 100%">CPU</Head>
-        <Head col="memory" sort={sort} onSort={onSort} right title="Resident memory, including pages shared between processes. Not the same as memory a move would free.">Resident</Head>
-        <Head col="procs" sort={sort} onSort={onSort} right className="res-wide">Procs</Head>
-        <Head col="idle" sort={sort} onSort={onSort} right className="res-wide">Idle</Head>
+        <Head col="name" sort={sort} onSort={onSort}>
+          Name
+        </Head>
+        <Head col="state" sort={sort} onSort={onSort} className="res-wide">
+          State
+        </Head>
+        <Head
+          col="cpu"
+          sort={sort}
+          onSort={onSort}
+          right
+          title="One core counts as 100%"
+        >
+          CPU
+        </Head>
+        <Head
+          col="memory"
+          sort={sort}
+          onSort={onSort}
+          right
+          title="Resident memory, including pages shared between processes. Not the same as memory a move would free."
+        >
+          Resident
+        </Head>
+        <Head
+          col="procs"
+          sort={sort}
+          onSort={onSort}
+          right
+          className="res-wide"
+        >
+          Procs
+        </Head>
+        <Head col="idle" sort={sort} onSort={onSort} right className="res-wide">
+          Idle
+        </Head>
       </div>
       {rows.map((r) => renderRow(r))}
       <div className={cn(COLS, "px-3 py-1.5 text-meta text-sol-text-muted")}>
@@ -271,8 +630,15 @@ export function ResourceTable({ rows, sharedRows, totals, machines, now, selecte
         <span className="res-wide" />
         <span className="text-right tabular-nums">{fmtCpu(totals.cpu)}</span>
         {/* Why the sum can pass the machine's memory in use lives on the total itself, not in a footnote. */}
-        <span className="text-right tabular-nums" title="Resident memory counts pages processes share, so this sum can exceed the machine's memory in use; it is not what moving a session frees">{fmtBytes(totals.rss)}</span>
-        <span className="res-wide text-right tabular-nums">{totals.count.toLocaleString()}</span>
+        <span
+          className="text-right tabular-nums"
+          title="Resident memory counts pages processes share, so this sum can exceed the machine's memory in use; it is not what moving a session frees"
+        >
+          {fmtBytes(totals.rss)}
+        </span>
+        <span className="res-wide text-right tabular-nums">
+          {totals.count.toLocaleString()}
+        </span>
         <span className="res-wide" />
       </div>
     </div>

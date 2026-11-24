@@ -51,7 +51,9 @@ export async function pinCapExceeded(
   if (!patch.inbox_pinned_at || conv.inbox_pinned_at) return false;
   const pinned = await ctx.db
     .query("conversations")
-    .withIndex("by_user_pinned", (q: any) => q.eq("user_id", userId).gt("inbox_pinned_at", 0))
+    .withIndex("by_user_pinned", (q: any) =>
+      q.eq("user_id", userId).gt("inbox_pinned_at", 0),
+    )
     .take(INBOX_PINNED_CAP);
   return pinned.length >= INBOX_PINNED_CAP;
 }

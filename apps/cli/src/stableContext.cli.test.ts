@@ -21,9 +21,12 @@ function scratchHome(): string {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-stable-cli-"));
   scratchHomes.push(home);
   fs.mkdirSync(path.join(home, ".codecast"), { recursive: true });
-  fs.writeFileSync(path.join(home, ".codecast", "update-state.json"), JSON.stringify({
-    lastCheck: new Date().toISOString(),
-  }));
+  fs.writeFileSync(
+    path.join(home, ".codecast", "update-state.json"),
+    JSON.stringify({
+      lastCheck: new Date().toISOString(),
+    }),
+  );
   return home;
 }
 
@@ -47,8 +50,12 @@ function runCli(
     let stderr = "";
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => { stdout += chunk; });
-    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
     child.on("error", reject);
     child.on("close", (code) => resolve({ code, stdout, stderr }));
     child.stdin.end(stdin);
@@ -58,16 +65,26 @@ function runCli(
 // A cold start waits at most STABLE_COLD_BUDGET_MS of wall clock for each read
 // and prints nothing when none arrived, a race a loaded CI runner loses. Warm
 // the scope first, as the daemon's warmer does, so the block is deterministic.
-async function warmScope(home: string, port: number, cwd: string): Promise<void> {
+async function warmScope(
+  home: string,
+  port: number,
+  cwd: string,
+): Promise<void> {
   await refreshStableCache(
     { auth_token: "test-token", convex_url: `http://127.0.0.1:${port}` },
-    { mode: "solo", global: false, cwd, cacheDir: path.join(home, ".codecast", "stable-cache") },
+    {
+      mode: "solo",
+      global: false,
+      cwd,
+      cacheDir: path.join(home, ".codecast", "stable-cache"),
+    },
   );
 }
 
 async function until(check: () => boolean, ms = 10_000): Promise<void> {
   const end = Date.now() + ms;
-  while (!check() && Date.now() < end) await new Promise((r) => setTimeout(r, 25));
+  while (!check() && Date.now() < end)
+    await new Promise((r) => setTimeout(r, 25));
 }
 
 afterEach(() => {
@@ -97,17 +114,23 @@ describe("stable-context CLI isolation", () => {
       res.statusCode = 404;
       res.end("{}");
     });
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
 
     try {
       const address = server.address();
-      if (!address || typeof address === "string") throw new Error("missing test server address");
-      fs.writeFileSync(path.join(home, ".codecast", "config.json"), JSON.stringify({
-        auth_token: "test-token",
-        convex_url: `http://127.0.0.1:${address.port}`,
-        stable_mode: "solo",
-        auto_update: false,
-      }));
+      if (!address || typeof address === "string")
+        throw new Error("missing test server address");
+      fs.writeFileSync(
+        path.join(home, ".codecast", "config.json"),
+        JSON.stringify({
+          auth_token: "test-token",
+          convex_url: `http://127.0.0.1:${address.port}`,
+          stable_mode: "solo",
+          auto_update: false,
+        }),
+      );
       await warmScope(home, address.port, "/tmp/project");
       // A Commander-routed stable-context command would run preAction and emit
       // this debug line to stderr. The hidden protocol path must not.
@@ -136,10 +159,12 @@ Use --mine for only your sessions, -g for all teams.
       // The record of what was injected is posted by a detached child after the hook exits.
       await until(() => recordCalls > 0);
       expect(recordCalls).toBe(1);
-      expect(fs.existsSync(path.join(home, ".codecast", "daemon.pid"))).toBe(false);
+      expect(fs.existsSync(path.join(home, ".codecast", "daemon.pid"))).toBe(
+        false,
+      );
     } finally {
       await new Promise<void>((resolve, reject) =>
-        server.close((err) => err ? reject(err) : resolve()),
+        server.close((err) => (err ? reject(err) : resolve())),
       );
     }
   }, 20_000);
@@ -149,19 +174,27 @@ Use --mine for only your sessions, -g for all teams.
     const server = http.createServer((req, res) => {
       req.resume();
       res.setHeader("Content-Type", "application/json");
-      res.end(req.url === "/cli/feed" ? JSON.stringify({ conversations: [] }) : "{}");
+      res.end(
+        req.url === "/cli/feed" ? JSON.stringify({ conversations: [] }) : "{}",
+      );
     });
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
 
     try {
       const address = server.address();
-      if (!address || typeof address === "string") throw new Error("missing test server address");
-      fs.writeFileSync(path.join(home, ".codecast", "config.json"), JSON.stringify({
-        auth_token: "test-token",
-        convex_url: `http://127.0.0.1:${address.port}`,
-        stable_mode: "solo",
-        auto_update: false,
-      }));
+      if (!address || typeof address === "string")
+        throw new Error("missing test server address");
+      fs.writeFileSync(
+        path.join(home, ".codecast", "config.json"),
+        JSON.stringify({
+          auth_token: "test-token",
+          convex_url: `http://127.0.0.1:${address.port}`,
+          stable_mode: "solo",
+          auto_update: false,
+        }),
+      );
       await warmScope(home, address.port, "/tmp/project");
 
       const codex = await runCli(
@@ -172,17 +205,24 @@ Use --mine for only your sessions, -g for all teams.
       expect(codex.code).toBe(0);
       const codexOut = JSON.parse(codex.stdout);
       expect(codexOut.hookSpecificOutput.hookEventName).toBe("SessionStart");
-      expect(codexOut.hookSpecificOutput.additionalContext).toContain('<stable-context mode="solo">');
+      expect(codexOut.hookSpecificOutput.additionalContext).toContain(
+        '<stable-context mode="solo">',
+      );
 
       // Cursor's payload has no cwd — workspace_roots[0] takes its place.
       const cursor = await runCli(
         home,
         ["stable-context", "--client", "cursor"],
-        JSON.stringify({ session_id: "cursor-1", workspace_roots: ["/tmp/project"] }),
+        JSON.stringify({
+          session_id: "cursor-1",
+          workspace_roots: ["/tmp/project"],
+        }),
       );
       expect(cursor.code).toBe(0);
       const cursorOut = JSON.parse(cursor.stdout);
-      expect(cursorOut.additional_context).toContain('<stable-context mode="solo">');
+      expect(cursorOut.additional_context).toContain(
+        '<stable-context mode="solo">',
+      );
 
       // opencode consumes raw text (the plugin pushes stdout into the system prompt).
       const opencode = await runCli(
@@ -191,7 +231,9 @@ Use --mine for only your sessions, -g for all teams.
         JSON.stringify({ session_id: "oc-1", cwd: "/tmp/project" }),
       );
       expect(opencode.code).toBe(0);
-      expect(opencode.stdout.replace(FLOWS_LINE, "")).toStartWith('<stable-context mode="solo">');
+      expect(opencode.stdout.replace(FLOWS_LINE, "")).toStartWith(
+        '<stable-context mode="solo">',
+      );
 
       // Cursor imports Claude user hooks and runs them with its own payload
       // (marked by cursor_version). The Claude envelope must stay silent there
@@ -199,7 +241,11 @@ Use --mine for only your sessions, -g for all teams.
       const claudeUnderCursor = await runCli(
         home,
         ["stable-context"],
-        JSON.stringify({ session_id: "cursor-1", cursor_version: "3.14.27", workspace_roots: [] }),
+        JSON.stringify({
+          session_id: "cursor-1",
+          cursor_version: "3.14.27",
+          workspace_roots: [],
+        }),
       );
       expect(claudeUnderCursor.code).toBe(0);
       expect(claudeUnderCursor.stdout).toBe("");
@@ -217,7 +263,7 @@ Use --mine for only your sessions, -g for all teams.
       expect(suppressed.stdout).toBe("");
     } finally {
       await new Promise<void>((resolve, reject) =>
-        server.close((err) => err ? reject(err) : resolve()),
+        server.close((err) => (err ? reject(err) : resolve())),
       );
     }
   }, 20_000);
@@ -227,17 +273,27 @@ Use --mine for only your sessions, -g for all teams.
     // static imports are hoisted, so nothing inside it can be cheap.
     const main = fs.readFileSync(path.join(import.meta.dir, "main.ts"), "utf8");
     expect(main.indexOf("runFastPath(process.argv)")).toBeGreaterThan(0);
-    expect(main.indexOf("runFastPath(process.argv)")).toBeLessThan(main.indexOf('import("./index.js")'));
+    expect(main.indexOf("runFastPath(process.argv)")).toBeLessThan(
+      main.indexOf('import("./index.js")'),
+    );
     expect(main).not.toContain('from "./index.js"');
 
     // fastPath.ts reaches every module through a dynamic import(), so a verb
     // pays only for what it uses and the compiled bundle keeps index.js lazy.
-    const fastPath = fs.readFileSync(path.join(import.meta.dir, "fastPath.ts"), "utf8");
+    const fastPath = fs.readFileSync(
+      path.join(import.meta.dir, "fastPath.ts"),
+      "utf8",
+    );
     expect(fastPath.match(/^import .* from /gm)).toBeNull();
     expect(fastPath).toContain(
       "hook.runStableContextHook(\n          cfg.readAuthConfig(cfg.defaultConfigDir()),\n          hook.parseStableHookClient(argv[4]),",
     );
-    for (const effect of ["ensureCastAlias()", "autoBindFromEnv()", "program.parse()", "checkForUpdates()"]) {
+    for (const effect of [
+      "ensureCastAlias()",
+      "autoBindFromEnv()",
+      "program.parse()",
+      "checkForUpdates()",
+    ]) {
       expect(fastPath).not.toContain(effect);
     }
 
@@ -249,13 +305,21 @@ Use --mine for only your sessions, -g for all teams.
     const source = fs.readFileSync(cliEntry, "utf8");
     // CODECAST_NO_AUTO_UPDATE is the last gate: the `_build-id` child that
     // an update spawns must not start an update of its own.
-    expect(source).toContain(
-      "if (!isStableContextFastPath && !isCredentialHelperFastPath(process.argv) && !process.env.CODECAST_NO_AUTO_UPDATE) autoUpdateSettled = checkForUpdates()",
+    expect(source).toMatch(
+      /if \(\s*!isStableContextFastPath &&\s*!isCredentialHelperFastPath\(process\.argv\) &&\s*!process\.env\.CODECAST_NO_AUTO_UPDATE\s*\)\s*autoUpdateSettled = checkForUpdates\(\)/,
     );
-    const claimed = source.slice(source.indexOf("if (runFastPath(process.argv)) {"));
-    const fallback = claimed.indexOf("} else if (process.argv[2] === \"__fugitive_blame@@\")");
+    const claimed = source.slice(
+      source.indexOf("if (runFastPath(process.argv)) {"),
+    );
+    const fallback = claimed.indexOf(
+      '} else if (process.argv[2] === "__fugitive_blame@@")',
+    );
     expect(fallback).toBeGreaterThan(0);
-    for (const effect of ["ensureCastAlias()", "autoBindFromEnv()", "program.parse()"]) {
+    for (const effect of [
+      "ensureCastAlias()",
+      "autoBindFromEnv()",
+      "program.parse()",
+    ]) {
       expect(claimed.slice(0, fallback)).not.toContain(effect);
     }
   });
@@ -275,34 +339,55 @@ describe("cast install --disable", () => {
       stable_global: true,
     };
     for (const snippet of SNIPPET_CATALOG) config[snippet.enabledKey] = true;
-    fs.writeFileSync(path.join(codecastDir, "config.json"), JSON.stringify(config));
-    fs.writeFileSync(hookPath, "#!/bin/bash\ncodecast stable-context\n", { mode: 0o755 });
-    fs.writeFileSync(settingsPath, JSON.stringify({
-      hooks: {
-        SessionStart: [{
-          matcher: "",
-          hooks: [
-            { type: "command", command: hookPath, timeout: 30 },
-            { type: "command", command: "/tmp/keep-unrelated-session-start.sh" },
+    fs.writeFileSync(
+      path.join(codecastDir, "config.json"),
+      JSON.stringify(config),
+    );
+    fs.writeFileSync(hookPath, "#!/bin/bash\ncodecast stable-context\n", {
+      mode: 0o755,
+    });
+    fs.writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        hooks: {
+          SessionStart: [
+            {
+              matcher: "",
+              hooks: [
+                { type: "command", command: hookPath, timeout: 30 },
+                {
+                  type: "command",
+                  command: "/tmp/keep-unrelated-session-start.sh",
+                },
+              ],
+            },
           ],
-        }],
-      },
-    }));
+        },
+      }),
+    );
 
     const result = await runCli(home, ["install", "--disable"]);
 
     expect(result.code).toBe(0);
     expect(result.stdout).toContain("All snippets disabled.");
-    const written = JSON.parse(fs.readFileSync(path.join(codecastDir, "config.json"), "utf8"));
+    const written = JSON.parse(
+      fs.readFileSync(path.join(codecastDir, "config.json"), "utf8"),
+    );
     expect(written.stable_mode).toBeUndefined();
     expect(written.stable_global).toBeUndefined();
     for (const snippet of SNIPPET_CATALOG) {
       expect(written[snippet.enabledKey]).toBe(false);
     }
     expect(fs.existsSync(hookPath)).toBe(false);
-    expect(JSON.parse(fs.readFileSync(settingsPath, "utf8")).hooks.SessionStart).toEqual([{
-      matcher: "",
-      hooks: [{ type: "command", command: "/tmp/keep-unrelated-session-start.sh" }],
-    }]);
+    expect(
+      JSON.parse(fs.readFileSync(settingsPath, "utf8")).hooks.SessionStart,
+    ).toEqual([
+      {
+        matcher: "",
+        hooks: [
+          { type: "command", command: "/tmp/keep-unrelated-session-start.sh" },
+        ],
+      },
+    ]);
   }, 20_000);
 });

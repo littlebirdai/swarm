@@ -7,9 +7,25 @@
 // its steps numbered, and the run bar steps to the run before or after.
 // Pan, zoom and fit by pointer or key; ? lists every key. Clicking a step
 // opens the shared step drawer through the selection, so the URL holds it.
-import { useCallback, useId, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
-import { stepCameBack, type LineRunModel } from "../../../../lib/line/lineModel";
-import { RUN_END_GROUPS, runEndTone, runEndWords } from "../../../../lib/line/replay";
+import {
+  useCallback,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from "react";
+import {
+  stepCameBack,
+  type LineRunModel,
+} from "../../../../lib/line/lineModel";
+import {
+  RUN_END_GROUPS,
+  runEndTone,
+  runEndWords,
+} from "../../../../lib/line/replay";
 import { useTabActive } from "../../../../hooks/usePagePresence";
 import { useWatchEffect } from "../../../../hooks/useWatchEffect";
 import { useMountEffect } from "../../../../hooks/useMountEffect";
@@ -21,34 +37,76 @@ import { GraphCanvas, GraphDefs, type LiveAtStep } from "./graph/GraphCanvas";
 import { GraphOverview } from "./graph/GraphOverview";
 import { foldIdle, isFold } from "./graph/foldIdle";
 import { litRun } from "./graph/litRun";
-import { DOT_LINE, EXIT_LEAD, essenceExits, exitWords, graphLayout, textW, withFailures, type GEdge, type GraphMode } from "./graph/graphLayout";
-import { stepFailures, stepPassed, stepWaits } from "../../../../lib/line/stepTable";
+import {
+  DOT_LINE,
+  EXIT_LEAD,
+  essenceExits,
+  exitWords,
+  graphLayout,
+  textW,
+  withFailures,
+  type GEdge,
+  type GraphMode,
+} from "./graph/graphLayout";
+import {
+  stepFailures,
+  stepPassed,
+  stepWaits,
+} from "../../../../lib/line/stepTable";
 import { moreWords } from "../../../../lib/line/listWords";
 import { useStepTable } from "../step/useStepFacts";
-import { FIT_MIN_K, usePanZoom, type Insets, type View } from "./graph/usePanZoom";
+import {
+  FIT_MIN_K,
+  usePanZoom,
+  type Insets,
+  type View,
+} from "./graph/usePanZoom";
 import { EdgeArrows } from "../../EdgeArrows";
 import type { LineViewProps } from "./types";
 
 const MODE_KEY = "lw-graph-mode";
 const NO_PAST: { left: string[]; right: string[] } = { left: [], right: [] };
 const readMode = (): GraphMode => {
-  try { return localStorage.getItem(MODE_KEY) === "all" ? "all" : "essence"; } catch { return "essence"; }
+  try {
+    return localStorage.getItem(MODE_KEY) === "all" ? "all" : "essence";
+  } catch {
+    return "essence";
+  }
 };
 
 /** A hover tip, placed in the map's own box: `.lwg` is a size container, so it (not the window) holds a fixed or
  *  absolute box inside it, and the pointer's window coordinates are read against its corner. */
-type Tip = { x: number; y: number; w: number; h: number; title: string; body: string };
+type Tip = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  title: string;
+  body: string;
+};
 const TIP_W = 300; // .lwg-tip's max-width
-function tipAt(root: HTMLElement | null, ev: ReactMouseEvent): Pick<Tip, "x" | "y" | "w" | "h"> {
+function tipAt(
+  root: HTMLElement | null,
+  ev: ReactMouseEvent,
+): Pick<Tip, "x" | "y" | "w" | "h"> {
   const r = root?.getBoundingClientRect();
-  return r ? { x: ev.clientX - r.left, y: ev.clientY - r.top, w: r.width, h: r.height } : { x: ev.clientX, y: ev.clientY, w: Infinity, h: Infinity };
+  return r
+    ? { x: ev.clientX - r.left, y: ev.clientY - r.top, w: r.width, h: r.height }
+    : { x: ev.clientX, y: ev.clientY, w: Infinity, h: Infinity };
 }
 /** Right of and below the pointer, kept inside the map; low on the map it opens above the pointer instead. */
 function tipStyle(t: Tip): CSSProperties {
   const left = Math.max(8, Math.min(t.x + 14, t.w - TIP_W - 8));
-  return t.y > t.h * 0.6 ? { left, bottom: t.h - t.y + 12 } : { left, top: t.y + 16 };
+  return t.y > t.h * 0.6
+    ? { left, bottom: t.h - t.y + 12 }
+    : { left, top: t.y + 16 };
 }
-const KIND_TIP = { agent: "agent, one prompt", person: "you decide", script: "script, code", end: "ends the run" } as const;
+const KIND_TIP = {
+  agent: "agent, one prompt",
+  person: "you decide",
+  script: "script, code",
+  end: "ends the run",
+} as const;
 
 /** A run's end as a tag: the same word and color every surface uses (replay runEndWords). */
 function endTag(r: LineRunModel): { label: string; tone: string } {
@@ -58,7 +116,15 @@ function endTag(r: LineRunModel): { label: string; tone: string } {
 
 const GROUP_PAGE = 40;
 
-function RunsList({ runs, current, onPick }: { runs: LineRunModel[]; current: string | null; onPick: (r: LineRunModel) => void }) {
+function RunsList({
+  runs,
+  current,
+  onPick,
+}: {
+  runs: LineRunModel[];
+  current: string | null;
+  onPick: (r: LineRunModel) => void;
+}) {
   const [shown, setShown] = useState<Record<string, number>>({});
   const groups = useMemo(() => {
     const by = new Map<string, LineRunModel[]>();
@@ -67,8 +133,12 @@ function RunsList({ runs, current, onPick }: { runs: LineRunModel[]; current: st
       by.set(k, [...(by.get(k) ?? []), r]);
     }
     const known = new Set(RUN_END_GROUPS.map(([k]) => k));
-    const rest = [...by.keys()].filter((k) => !known.has(k)).map((k): [string, string] => [k, k[0].toUpperCase() + k.slice(1)]);
-    return [...RUN_END_GROUPS, ...rest].map(([k, label]) => ({ k, label, runs: by.get(k) ?? [] })).filter((g) => g.runs.length);
+    const rest = [...by.keys()]
+      .filter((k) => !known.has(k))
+      .map((k): [string, string] => [k, k[0].toUpperCase() + k.slice(1)]);
+    return [...RUN_END_GROUPS, ...rest]
+      .map(([k, label]) => ({ k, label, runs: by.get(k) ?? [] }))
+      .filter((g) => g.runs.length);
   }, [runs]);
   return (
     <div className="lwg-pop" role="dialog" aria-label="Runs" data-lwg-runs>
@@ -76,16 +146,44 @@ function RunsList({ runs, current, onPick }: { runs: LineRunModel[]; current: st
         const n = shown[g.k] ?? GROUP_PAGE;
         return (
           <section key={g.k}>
-            <h4>{g.label} <em>{g.runs.length}</em></h4>
+            <h4>
+              {g.label} <em>{g.runs.length}</em>
+            </h4>
             {g.runs.slice(0, n).map((r) => (
-              <button key={r.id} type="button" className="lwg-runrow" aria-current={r.id === current} onClick={() => onPick(r)} data-lwg-run={r.id}>
+              <button
+                key={r.id}
+                type="button"
+                className="lwg-runrow"
+                aria-current={r.id === current}
+                onClick={() => onPick(r)}
+                data-lwg-run={r.id}
+              >
                 <b>{r.caseTitle}</b>
                 <small>{durationWords(r.durationMs) ?? ""}</small>
-                <small style={{ gridColumn: "1 / -1" }}>{[r.caseRef, dayWords(r.at), `${r.visits.length} steps`, r.outcome.text].filter(Boolean).join(" · ")}</small>
+                <small style={{ gridColumn: "1 / -1" }}>
+                  {[
+                    r.caseRef,
+                    dayWords(r.at),
+                    `${r.visits.length} steps`,
+                    r.outcome.text,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </small>
                 <RunTrail run={r} />
               </button>
             ))}
-            {g.runs.length > n && <button type="button" className="lwg-more" onClick={() => setShown((s) => ({ ...s, [g.k]: n + GROUP_PAGE * 3 }))}>{moreWords(GROUP_PAGE * 3, g.runs.length - n)}</button>}
+            {g.runs.length > n && (
+              <button
+                type="button"
+                className="lwg-more"
+                onClick={() =>
+                  setShown((s) => ({ ...s, [g.k]: n + GROUP_PAGE * 3 }))
+                }
+              >
+                {moreWords(GROUP_PAGE * 3, g.runs.length - n)}
+              </button>
+            )}
           </section>
         );
       })}
@@ -93,20 +191,88 @@ function RunsList({ runs, current, onPick }: { runs: LineRunModel[]; current: st
   );
 }
 
-function RunBar({ run, index, total, onPrev, onNext, onClear }: { run: LineRunModel; index: number; total: number; onPrev: () => void; onNext: () => void; onClear: () => void }) {
+function RunBar({
+  run,
+  index,
+  total,
+  onPrev,
+  onNext,
+  onClear,
+}: {
+  run: LineRunModel;
+  index: number;
+  total: number;
+  onPrev: () => void;
+  onNext: () => void;
+  onClear: () => void;
+}) {
   const nav = useLineNav();
   const tag = endTag(run);
-  const meta = [run.caseRef, dayWords(run.at), durationWords(run.durationMs), `${run.visits.length} steps`, run.outcome.text].filter(Boolean).join(" · ");
+  const meta = [
+    run.caseRef,
+    dayWords(run.at),
+    durationWords(run.durationMs),
+    `${run.visits.length} steps`,
+    run.outcome.text,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const replay = nav.runHref(run.id, run.caseId);
   return (
     <div className="lwg-runbar" data-lwg-runbar={run.id}>
-      <span className="lwg-endtag" data-tone={tag.tone}>{tag.label}</span>
-      <div className="lwg-runbar-text"><b>{run.caseTitle}</b><span>{meta}</span></div>
-      {index >= 0 && <span className="lwg-runbar-n">{index + 1} of {total}</span>}
-      <button type="button" className="lwg-btn" data-ghost="" data-icon="" onClick={onPrev} disabled={index < 0 || index >= total - 1} title="Older run" aria-label="Older run">‹</button>
-      <button type="button" className="lwg-btn" data-ghost="" data-icon="" onClick={onNext} disabled={index <= 0} title="Newer run" aria-label="Newer run">›</button>
-      {replay && <a className="lwg-btn" data-ghost="" href={replay} onClick={(e) => { if (e.metaKey || e.ctrlKey || e.button !== 0) return; e.preventDefault(); nav.openRun(run.id, run.caseId); }}>Replay</a>}
-      <button type="button" className="lwg-btn" onClick={onClear}>Clear <KeyCap size="xs">Esc</KeyCap></button>
+      <span className="lwg-endtag" data-tone={tag.tone}>
+        {tag.label}
+      </span>
+      <div className="lwg-runbar-text">
+        <b>{run.caseTitle}</b>
+        <span>{meta}</span>
+      </div>
+      {index >= 0 && (
+        <span className="lwg-runbar-n">
+          {index + 1} of {total}
+        </span>
+      )}
+      <button
+        type="button"
+        className="lwg-btn"
+        data-ghost=""
+        data-icon=""
+        onClick={onPrev}
+        disabled={index < 0 || index >= total - 1}
+        title="Older run"
+        aria-label="Older run"
+      >
+        ‹
+      </button>
+      <button
+        type="button"
+        className="lwg-btn"
+        data-ghost=""
+        data-icon=""
+        onClick={onNext}
+        disabled={index <= 0}
+        title="Newer run"
+        aria-label="Newer run"
+      >
+        ›
+      </button>
+      {replay && (
+        <a
+          className="lwg-btn"
+          data-ghost=""
+          href={replay}
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.button !== 0) return;
+            e.preventDefault();
+            nav.openRun(run.id, run.caseId);
+          }}
+        >
+          Replay
+        </a>
+      )}
+      <button type="button" className="lwg-btn" onClick={onClear}>
+        Clear <KeyCap size="xs">Esc</KeyCap>
+      </button>
     </div>
   );
 }
@@ -125,23 +291,36 @@ const KEYS: Array<[string[], string]> = [
 
 function KeySheet({ onClose }: { onClose: () => void }) {
   return (
-    <div className="lwg-sheet" onClick={onClose} role="dialog" aria-label="Keys" data-lwg-keys>
+    <div
+      className="lwg-sheet"
+      onClick={onClose}
+      role="dialog"
+      aria-label="Keys"
+      data-lwg-keys
+    >
       <div className="lwg-sheet-box">
         <h3>Keys</h3>
         <div className="lwg-keys">
           {KEYS.map(([keys, what]) => (
             <span key={what} style={{ display: "contents" }}>
-              <span>{keys.map((k, i) => <KeyCap key={i}>{k}</KeyCap>)}</span>
+              <span>
+                {keys.map((k, i) => (
+                  <KeyCap key={i}>{k}</KeyCap>
+                ))}
+              </span>
               <span>{what}</span>
             </span>
           ))}
-          <span><KeyCap>{isMac ? "⌘" : "Ctrl"}</KeyCap><span style={{ alignSelf: "center", fontSize: 12 }}>+ scroll</span></span><span>zoom at the pointer; scroll alone pans</span>
+          <span>
+            <KeyCap>{isMac ? "⌘" : "Ctrl"}</KeyCap>
+            <span style={{ alignSelf: "center", fontSize: 12 }}>+ scroll</span>
+          </span>
+          <span>zoom at the pointer; scroll alone pans</span>
         </div>
       </div>
     </div>
   );
 }
-
 
 /** The smallest zoom the live steps rest at together (the Flows stage): their names and live counts still read. */
 const LIVE_FIT_K = 0.7;
@@ -152,7 +331,20 @@ const ARROW_BELOW_ROW = 78;
 /** How far in from each side of the stage its edge fade hides words, in px (graph.css .lwg::before: 112px, nearly opaque for the first third). */
 const EDGE_FADE = 40;
 
-export function GraphView({ model, workspace, selection, select, href, lead, trail, live }: LineViewProps & { lead?: ReactNode; trail?: ReactNode; live?: ReadonlyMap<string, LiveAtStep> }) {
+export function GraphView({
+  model,
+  workspace,
+  selection,
+  select,
+  href,
+  lead,
+  trail,
+  live,
+}: LineViewProps & {
+  lead?: ReactNode;
+  trail?: ReactNode;
+  live?: ReadonlyMap<string, LiveAtStep>;
+}) {
   const nav = useLineNav();
   const [mode, setModeState] = useState<GraphMode>(readMode);
   const [peek, setPeek] = useState<string | null>(null);
@@ -160,16 +352,29 @@ export function GraphView({ model, workspace, selection, select, href, lead, tra
   const [runsOpen, setRunsOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [intro, setIntro] = useState(true);
-  const drawerStep = selection.step && model.steps[selection.step] ? selection.step : null;
+  const drawerStep =
+    selection.step && model.steps[selection.step] ? selection.step : null;
   // Drawn live, the idle stretches fold (foldIdle) so the busy part reads without panning; a fold a person opens stays open.
-  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(() => new Set());
+  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const liveKeys = live ? [...live.keys()].sort().join(",") : "";
   const graph = useMemo(
-    () => (live ? foldIdle(model.graph, (id) => live.has(id) || id === drawerStep, unfolded) : model.graph),
+    () =>
+      live
+        ? foldIdle(
+            model.graph,
+            (id) => live.has(id) || id === drawerStep,
+            unfolded,
+          )
+        : model.graph,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- liveKeys carries which steps hold runs, all the fold reads of live
     [model.graph, liveKeys, drawerStep, unfolded],
   );
-  const drawn = useMemo(() => (graph === model.graph ? model : { ...model, graph }), [model, graph]);
+  const drawn = useMemo(
+    () => (graph === model.graph ? model : { ...model, graph }),
+    [model, graph],
+  );
   const layout = useMemo(() => graphLayout(graph, { mode }), [graph, mode]);
   // Each step's failures as the Steps table counts them: the Map draws the same number.
   const tableRows = useStepTable(model, workspace);
@@ -178,7 +383,13 @@ export function GraphView({ model, workspace, selection, select, href, lead, tra
   // And what waits at each, split on you and on someone else: the badge reads the table's numbers, never a second count.
   const waits = useMemo(() => stepWaits(tableRows), [tableRows]);
   const [focus, setFocus] = useState<string | null>(null);
-  const run = useMemo(() => (selection.run ? model.runs.find((r) => r.id === selection.run) ?? null : null), [model.runs, selection.run]);
+  const run = useMemo(
+    () =>
+      selection.run
+        ? (model.runs.find((r) => r.id === selection.run) ?? null)
+        : null,
+    [model.runs, selection.run],
+  );
   const lit = useMemo(() => litRun(run), [run]);
   const runIndex = run ? model.runs.indexOf(run) : -1;
   const uid = `lwg${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
@@ -189,124 +400,238 @@ export function GraphView({ model, workspace, selection, select, href, lead, tra
   openRef.current = drawerStep;
   const svgRef = useRef<SVGSVGElement>(null);
   const worldRef = useRef<SVGGElement>(null);
-  const insets: Insets = { top: 62, bottom: run ? 96 : 24, left: 18, right: 18 };
+  const insets: Insets = {
+    top: 62,
+    bottom: run ? 96 : 24,
+    left: 18,
+    right: 18,
+  };
   // What lies past the stage's edges: the steps a reader would pan to, named on the arrows.
-  const [past, setPast] = useState<{ left: string[]; right: string[] }>(NO_PAST);
+  const [past, setPast] = useState<{ left: string[]; right: string[] }>(
+    NO_PAST,
+  );
   const overviewRef = useRef<SVGRectElement>(null);
-  const onView = useCallback((v: View, width: number) => {
-    // The overview's outline: the part of the graph the stage shows.
-    const ov = overviewRef.current;
-    if (ov) {
-      const h = rootRef.current?.clientHeight ?? 0;
-      ov.setAttribute("x", String(-v.x / v.k)); ov.setAttribute("y", String(-v.y / v.k));
-      ov.setAttribute("width", String(width / v.k)); ov.setAttribute("height", String(h / v.k));
-    }
-    const left: string[] = [];
-    const right: string[] = [];
-    const nodes = rootRef.current?.querySelectorAll<SVGGElement>("[data-lwg-node]");
-    const cut = new Set<string>();
-    const whole = new Set<string>();
-    for (const n of layout.list) {
-      // A dot's name, and the "can end" words centered under it, are wider than its dot.
-      const ends = n.dot ? layout.exits.get(n.id) : undefined;
-      const half = n.dot ? Math.max(n.w / 2, textW(n.label, 14) / 2 + 4, ends ? textW(exitWords(ends), 14) / 2 + 4 : 0) : n.w / 2;
-      const l = v.x + (n.x - half) * v.k;
-      const r = v.x + (n.x + half) * v.k;
-      // A step the edge cuts through is folded into the arrow's names and faded, never half drawn.
-      // The edges' fades count as past them: a step reaching into one does not read either.
-      if (r > 0 && l < EDGE_FADE || l < width - EDGE_FADE && r > width - EDGE_FADE) cut.add(n.id);
-      else if (l >= EDGE_FADE && r <= width - EDGE_FADE) whole.add(n.id);
-      if (n.kind === "end" || n.dot) continue;
-      // A step cut by the edge counts as past it: its words do not read.
-      if (l < EDGE_FADE) left.unshift(n.label);
-      else if (r > width - EDGE_FADE) right.push(n.label);
-    }
-    // A DOM write per frame, no render: the cut steps fade.
-    nodes?.forEach((g) => {
-      const on = cut.has(g.dataset.lwgNode ?? "");
-      if (on !== g.hasAttribute("data-cut")) g.toggleAttribute("data-cut", on);
-    });
-    // An edge with neither end in view is a bare line across the stage: it fades with the steps it joins.
-    rootRef.current?.querySelectorAll<SVGPathElement>(".lwg-edges [data-from]").forEach((p) => {
-      const on = !whole.has(p.dataset.from ?? "") && !whole.has(p.dataset.to ?? "");
-      if (on !== p.hasAttribute("data-cut")) p.toggleAttribute("data-cut", on);
-    });
-    setPast((p) => (p.left.join("|") === left.join("|") && p.right.join("|") === right.join("|") ? p : { left, right }));
-    // With a step open, the arrows sit under its row, past its "can end" words and in the gap before the next row,
-    // so they never cover the step or a label mid-stage.
-    const open = openRef.current ? layout.nodes.get(openRef.current) : null;
-    const arrowY = open ? `${(v.y + (open.y + open.h / 2 + ARROW_BELOW_ROW + (open.dot ? DOT_LINE * 2 : 0)) * v.k).toFixed(1)}px` : "";
-    if (rootRef.current && rootRef.current.style.getPropertyValue("--lwg-arrow-y") !== arrowY) rootRef.current.style.setProperty("--lwg-arrow-y", arrowY || null);
-    // Each lane's heading stays at the stage's left edge once its frame starts past it: a DOM write per frame, no render.
-    // Past the left fade and its arrow when steps lie beyond that edge, so no frame shows as a bare line with its name hidden.
-    const seen = (-v.x + (left.length ? LANE_HEAD_CLEAR : 16)) / v.k;
-    rootRef.current?.querySelectorAll<SVGGElement>(".lwg-lane-head").forEach((g) => {
-      const dx = Math.max(0, seen - (Number(g.dataset.laneX) + 24));
-      g.setAttribute("transform", dx ? `translate(${dx.toFixed(1)},0)` : "");
-    });
-  }, [layout]);
+  const onView = useCallback(
+    (v: View, width: number) => {
+      // The overview's outline: the part of the graph the stage shows.
+      const ov = overviewRef.current;
+      if (ov) {
+        const h = rootRef.current?.clientHeight ?? 0;
+        ov.setAttribute("x", String(-v.x / v.k));
+        ov.setAttribute("y", String(-v.y / v.k));
+        ov.setAttribute("width", String(width / v.k));
+        ov.setAttribute("height", String(h / v.k));
+      }
+      const left: string[] = [];
+      const right: string[] = [];
+      const nodes =
+        rootRef.current?.querySelectorAll<SVGGElement>("[data-lwg-node]");
+      const cut = new Set<string>();
+      const whole = new Set<string>();
+      for (const n of layout.list) {
+        // A dot's name, and the "can end" words centered under it, are wider than its dot.
+        const ends = n.dot ? layout.exits.get(n.id) : undefined;
+        const half = n.dot
+          ? Math.max(
+              n.w / 2,
+              textW(n.label, 14) / 2 + 4,
+              ends ? textW(exitWords(ends), 14) / 2 + 4 : 0,
+            )
+          : n.w / 2;
+        const l = v.x + (n.x - half) * v.k;
+        const r = v.x + (n.x + half) * v.k;
+        // A step the edge cuts through is folded into the arrow's names and faded, never half drawn.
+        // The edges' fades count as past them: a step reaching into one does not read either.
+        if (
+          (r > 0 && l < EDGE_FADE) ||
+          (l < width - EDGE_FADE && r > width - EDGE_FADE)
+        )
+          cut.add(n.id);
+        else if (l >= EDGE_FADE && r <= width - EDGE_FADE) whole.add(n.id);
+        if (n.kind === "end" || n.dot) continue;
+        // A step cut by the edge counts as past it: its words do not read.
+        if (l < EDGE_FADE) left.unshift(n.label);
+        else if (r > width - EDGE_FADE) right.push(n.label);
+      }
+      // A DOM write per frame, no render: the cut steps fade.
+      nodes?.forEach((g) => {
+        const on = cut.has(g.dataset.lwgNode ?? "");
+        if (on !== g.hasAttribute("data-cut"))
+          g.toggleAttribute("data-cut", on);
+      });
+      // An edge with neither end in view is a bare line across the stage: it fades with the steps it joins.
+      rootRef.current
+        ?.querySelectorAll<SVGPathElement>(".lwg-edges [data-from]")
+        .forEach((p) => {
+          const on =
+            !whole.has(p.dataset.from ?? "") && !whole.has(p.dataset.to ?? "");
+          if (on !== p.hasAttribute("data-cut"))
+            p.toggleAttribute("data-cut", on);
+        });
+      setPast((p) =>
+        p.left.join("|") === left.join("|") &&
+        p.right.join("|") === right.join("|")
+          ? p
+          : { left, right },
+      );
+      // With a step open, the arrows sit under its row, past its "can end" words and in the gap before the next row,
+      // so they never cover the step or a label mid-stage.
+      const open = openRef.current ? layout.nodes.get(openRef.current) : null;
+      const arrowY = open
+        ? `${(v.y + (open.y + open.h / 2 + ARROW_BELOW_ROW + (open.dot ? DOT_LINE * 2 : 0)) * v.k).toFixed(1)}px`
+        : "";
+      if (
+        rootRef.current &&
+        rootRef.current.style.getPropertyValue("--lwg-arrow-y") !== arrowY
+      )
+        rootRef.current.style.setProperty("--lwg-arrow-y", arrowY || null);
+      // Each lane's heading stays at the stage's left edge once its frame starts past it: a DOM write per frame, no render.
+      // Past the left fade and its arrow when steps lie beyond that edge, so no frame shows as a bare line with its name hidden.
+      const seen = (-v.x + (left.length ? LANE_HEAD_CLEAR : 16)) / v.k;
+      rootRef.current
+        ?.querySelectorAll<SVGGElement>(".lwg-lane-head")
+        .forEach((g) => {
+          const dx = Math.max(0, seen - (Number(g.dataset.laneX) + 24));
+          g.setAttribute(
+            "transform",
+            dx ? `translate(${dx.toFixed(1)},0)` : "",
+          );
+        });
+    },
+    [layout],
+  );
   const pz = usePanZoom(svgRef, worldRef, {
     bounds: layout.bounds,
     insets,
     // A press on the graph behind an open drawer closes it.
-    onBackgroundClick: () => { if (drawerStep) select({ step: null }); else if (selection.stage) select({ stage: null }); setRunsOpen(false); },
+    onBackgroundClick: () => {
+      if (drawerStep) select({ step: null });
+      else if (selection.stage) select({ stage: null });
+      setRunsOpen(false);
+    },
     onView,
   });
 
   /** Where the view should rest now: on the open step; else, drawn live, on the steps holding runs when the whole graph
    *  does not fit at a size its words read; else the whole graph. `whole` (the fit control, F) always fits it all. */
-  const settle = useCallback((anim: boolean, whole = false) => {
-    const n = drawerStep ? layout.nodes.get(drawerStep) : null;
-    if (!n) {
-      const held = !whole && live?.size ? layout.list.filter((m) => live.has(m.id)) : [];
-      const sz = pz.size();
-      const fitsAt = (k: number) => layout.bounds.w * k <= sz.w - insets.left - insets.right && layout.bounds.h * k <= sz.h - insets.top - insets.bottom;
-      if (!held.length || fitsAt(FIT_MIN_K)) { pz.fit(anim); return; }
-      // Drawn live, the quiet stretches are folded, so the whole flow usually holds at the live size: open on all of it.
-      if (live && fitsAt(LIVE_FIT_K)) { pz.fit(anim, undefined, LIVE_FIT_K); return; }
-      // Room for each step's badge above it and its name beside a dot.
-      const l = Math.min(...held.map((m) => m.x - Math.max(m.w / 2, 70))) - 40, r = Math.max(...held.map((m) => m.x + Math.max(m.w / 2, 70))) + 40;
-      const t = Math.min(...held.map((m) => m.y - m.h / 2)) - 50, b = Math.max(...held.map((m) => m.y + m.h / 2)) + 60;
-      const aw = sz.w - insets.left - insets.right, ah = sz.h - insets.top - insets.bottom;
-      // Drawn live, a card says one line of what stands at it, so the live steps can share the stage a little smaller.
-      if ((r - l) * LIVE_FIT_K <= aw && (b - t) * LIVE_FIT_K <= ah) { pz.fit(anim, { x: l, y: t, w: r - l, h: b - t }, LIVE_FIT_K); return; }
-      // Too spread to hold at once: rest on the step that most needs a look (on the viewer, then stalled, then busiest).
-      const weight = (id: string) => (live?.get(id)?.waiting ?? 0) * 1e6 + (live?.get(id)?.stalled ?? 0) * 1e3 + (live?.get(id)?.running ?? 0);
-      const top = [...held].sort((a, c) => weight(c.id) - weight(a.id))[0];
-      // A little above the middle, clear of the edge arrows that sit at the stage's middle.
-      pz.centerOn(top.x, top.y + 70, anim, top.w / 2 + 80, { k: FIT_MIN_K, middle: true, exact: true });
-      return;
-    }
-    // Its "can end" words run past the step's right edge: keep them in view with it.
-    const ends = layout.exits.has(n.id) ? withFailures(essenceExits(model.graph, (id) => layout.nodes.has(id)), failed).get(n.id) : undefined;
-    const words = ends && !n.dot ? -n.w / 2 + 4 + textW(`${EXIT_LEAD}${exitWords(ends)}`, 14) : 0;
-    const own = { left: n.w / 2, right: Math.max(n.w / 2, words) };
-    // The steps either side of it in its row, whole, when the stage holds them: a drawer that narrows it never half draws a neighbor.
-    const row = layout.edges.flatMap((e) => (e.from === n.id ? [e.to] : e.to === n.id ? [e.from] : []))
-      .map((id) => layout.nodes.get(id)).filter((m): m is NonNullable<typeof m> => !!m && !m.dot && Math.abs(m.y - n.y) < n.h);
-    const reach = row.reduce((r, m) => ({ left: Math.max(r.left, n.x - (m.x - m.w / 2)), right: Math.max(r.right, m.x + m.w / 2 - n.x) }), own);
-    const k = Math.max(FIT_MIN_K, Math.min(pz.get().k, 1.2));
-    const aw = pz.size().w - insets.left - insets.right - 48;
-    const ah = pz.size().h - insets.top - insets.bottom - 48;
-    // Where it sends most work, in any row: in view with it, zoomed out as far as the words still read, so the
-    // step a reader opens next is never past the edge (the drawer narrows the stage to a few steps).
-    const main = layout.edges.filter((e) => e.from === n.id && e.to !== n.id).sort((a, b) => b.count - a.count)
-      .map((e) => layout.nodes.get(e.to)).find((m): m is NonNullable<typeof m> => !!m && !m.dot && m.kind !== "end");
-    if (main) {
-      const box = {
-        l: Math.min(n.x - Math.max(own.left, reach.left), main.x - main.w / 2), r: Math.max(n.x + Math.max(own.right, reach.right), main.x + main.w / 2),
-        t: Math.min(n.y, main.y) - Math.max(n.h, main.h) / 2 - 30, b: Math.max(n.y, main.y) + Math.max(n.h, main.h) / 2 + 40,
-      };
-      const kk = Math.min(k, aw / (box.r - box.l), ah / (box.b - box.t));
-      if (kk >= FIT_MIN_K) {
-        const cx = (box.l + box.r) / 2;
-        pz.centerOn(cx, (box.t + box.b) / 2, anim, { left: cx - box.l, right: box.r - cx }, { k: kk, middle: true });
+  const settle = useCallback(
+    (anim: boolean, whole = false) => {
+      const n = drawerStep ? layout.nodes.get(drawerStep) : null;
+      if (!n) {
+        const held =
+          !whole && live?.size ? layout.list.filter((m) => live.has(m.id)) : [];
+        const sz = pz.size();
+        const fitsAt = (k: number) =>
+          layout.bounds.w * k <= sz.w - insets.left - insets.right &&
+          layout.bounds.h * k <= sz.h - insets.top - insets.bottom;
+        if (!held.length || fitsAt(FIT_MIN_K)) {
+          pz.fit(anim);
+          return;
+        }
+        // Drawn live, the quiet stretches are folded, so the whole flow usually holds at the live size: open on all of it.
+        if (live && fitsAt(LIVE_FIT_K)) {
+          pz.fit(anim, undefined, LIVE_FIT_K);
+          return;
+        }
+        // Room for each step's badge above it and its name beside a dot.
+        const l =
+            Math.min(...held.map((m) => m.x - Math.max(m.w / 2, 70))) - 40,
+          r = Math.max(...held.map((m) => m.x + Math.max(m.w / 2, 70))) + 40;
+        const t = Math.min(...held.map((m) => m.y - m.h / 2)) - 50,
+          b = Math.max(...held.map((m) => m.y + m.h / 2)) + 60;
+        const aw = sz.w - insets.left - insets.right,
+          ah = sz.h - insets.top - insets.bottom;
+        // Drawn live, a card says one line of what stands at it, so the live steps can share the stage a little smaller.
+        if ((r - l) * LIVE_FIT_K <= aw && (b - t) * LIVE_FIT_K <= ah) {
+          pz.fit(anim, { x: l, y: t, w: r - l, h: b - t }, LIVE_FIT_K);
+          return;
+        }
+        // Too spread to hold at once: rest on the step that most needs a look (on the viewer, then stalled, then busiest).
+        const weight = (id: string) =>
+          (live?.get(id)?.waiting ?? 0) * 1e6 +
+          (live?.get(id)?.stalled ?? 0) * 1e3 +
+          (live?.get(id)?.running ?? 0);
+        const top = [...held].sort((a, c) => weight(c.id) - weight(a.id))[0];
+        // A little above the middle, clear of the edge arrows that sit at the stage's middle.
+        pz.centerOn(top.x, top.y + 70, anim, top.w / 2 + 80, {
+          k: FIT_MIN_K,
+          middle: true,
+          exact: true,
+        });
         return;
       }
-    }
-    const fits = (reach.left + reach.right) * k <= aw;
-    pz.centerOn(n.x, n.y, anim, fits ? reach : own);
-  }, [drawerStep, layout, model.graph, pz, failed, live]);
+      // Its "can end" words run past the step's right edge: keep them in view with it.
+      const ends = layout.exits.has(n.id)
+        ? withFailures(
+            essenceExits(model.graph, (id) => layout.nodes.has(id)),
+            failed,
+          ).get(n.id)
+        : undefined;
+      const words =
+        ends && !n.dot
+          ? -n.w / 2 + 4 + textW(`${EXIT_LEAD}${exitWords(ends)}`, 14)
+          : 0;
+      const own = { left: n.w / 2, right: Math.max(n.w / 2, words) };
+      // The steps either side of it in its row, whole, when the stage holds them: a drawer that narrows it never half draws a neighbor.
+      const row = layout.edges
+        .flatMap((e) =>
+          e.from === n.id ? [e.to] : e.to === n.id ? [e.from] : [],
+        )
+        .map((id) => layout.nodes.get(id))
+        .filter(
+          (m): m is NonNullable<typeof m> =>
+            !!m && !m.dot && Math.abs(m.y - n.y) < n.h,
+        );
+      const reach = row.reduce(
+        (r, m) => ({
+          left: Math.max(r.left, n.x - (m.x - m.w / 2)),
+          right: Math.max(r.right, m.x + m.w / 2 - n.x),
+        }),
+        own,
+      );
+      const k = Math.max(FIT_MIN_K, Math.min(pz.get().k, 1.2));
+      const aw = pz.size().w - insets.left - insets.right - 48;
+      const ah = pz.size().h - insets.top - insets.bottom - 48;
+      // Where it sends most work, in any row: in view with it, zoomed out as far as the words still read, so the
+      // step a reader opens next is never past the edge (the drawer narrows the stage to a few steps).
+      const main = layout.edges
+        .filter((e) => e.from === n.id && e.to !== n.id)
+        .sort((a, b) => b.count - a.count)
+        .map((e) => layout.nodes.get(e.to))
+        .find(
+          (m): m is NonNullable<typeof m> => !!m && !m.dot && m.kind !== "end",
+        );
+      if (main) {
+        const box = {
+          l: Math.min(
+            n.x - Math.max(own.left, reach.left),
+            main.x - main.w / 2,
+          ),
+          r: Math.max(
+            n.x + Math.max(own.right, reach.right),
+            main.x + main.w / 2,
+          ),
+          t: Math.min(n.y, main.y) - Math.max(n.h, main.h) / 2 - 30,
+          b: Math.max(n.y, main.y) + Math.max(n.h, main.h) / 2 + 40,
+        };
+        const kk = Math.min(k, aw / (box.r - box.l), ah / (box.b - box.t));
+        if (kk >= FIT_MIN_K) {
+          const cx = (box.l + box.r) / 2;
+          pz.centerOn(
+            cx,
+            (box.t + box.b) / 2,
+            anim,
+            { left: cx - box.l, right: box.r - cx },
+            { k: kk, middle: true },
+          );
+          return;
+        }
+      }
+      const fits = (reach.left + reach.right) * k <= aw;
+      pz.centerOn(n.x, n.y, anim, fits ? reach : own);
+    },
+    [drawerStep, layout, model.graph, pz, failed, live],
+  );
   const settleRef = useRef(settle);
   settleRef.current = settle;
 
@@ -314,7 +639,8 @@ export function GraphView({ model, workspace, selection, select, href, lead, tra
     settleRef.current(false);
     const timer = window.setTimeout(() => setIntro(false), 1700);
     const el = rootRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return () => window.clearTimeout(timer);
+    if (!el || typeof ResizeObserver === "undefined")
+      return () => window.clearTimeout(timer);
     let last = "";
     const ro = new ResizeObserver(([e]) => {
       const key = `${Math.round(e.contentRect.width)}x${Math.round(e.contentRect.height)}`;
@@ -323,7 +649,10 @@ export function GraphView({ model, workspace, selection, select, href, lead, tra
       settleRef.current(false);
     });
     ro.observe(el);
-    return () => { window.clearTimeout(timer); ro.disconnect(); };
+    return () => {
+      window.clearTimeout(timer);
+      ro.disconnect();
+    };
   });
   // A new layout (the other mode, another graph's shape) or a step opened or closed: ease to it.
   const settledFor = useRef<string | null>(null);
@@ -331,7 +660,10 @@ export function GraphView({ model, workspace, selection, select, href, lead, tra
     // The live counts arriving after the first paint move the rest onto them once.
     // So does a fold opening or closing, which changes the graph's size.
     const key = `${mode}:${drawerStep ?? ""}:${live?.size ? "live" : ""}:${Math.round(layout.bounds.w)}x${Math.round(layout.bounds.h)}`;
-    if (settledFor.current === null) { settledFor.current = key; return; }
+    if (settledFor.current === null) {
+      settledFor.current = key;
+      return;
+    }
     if (settledFor.current === key) return;
     settledFor.current = key;
     settle(true);
@@ -339,79 +671,166 @@ export function GraphView({ model, workspace, selection, select, href, lead, tra
 
   const setMode = useCallback((m: GraphMode) => {
     setModeState(m);
-    try { localStorage.setItem(MODE_KEY, m); } catch { /* private mode */ }
+    try {
+      localStorage.setItem(MODE_KEY, m);
+    } catch {
+      /* private mode */
+    }
   }, []);
   // A fold opens in place: its steps come back into the graph.
-  const open = useCallback((id: string) => {
-    if (isFold(id)) { setUnfolded((u) => new Set(u).add(id)); return; }
-    setFocus(id); setTip(null); select({ step: id });
-  }, [select]);
-  const openWaiting = useCallback((id: string) => { setFocus(id); setTip(null); select({ step: id, show: "waiting" }); }, [select]);
-  const pickRun = useCallback((r: LineRunModel | null) => { setRunsOpen(false); select({ run: r?.id ?? null }, r?.caseId ?? null); }, [select]);
-  const stepRun = useCallback((dir: 1 | -1) => {
-    if (!model.runs.length) return;
-    const i = runIndex < 0 ? (dir > 0 ? -1 : model.runs.length) : runIndex;
-    const r = model.runs[i + dir];
-    if (r) pickRun(r);
-  }, [model.runs, runIndex, pickRun]);
+  const open = useCallback(
+    (id: string) => {
+      if (isFold(id)) {
+        setUnfolded((u) => new Set(u).add(id));
+        return;
+      }
+      setFocus(id);
+      setTip(null);
+      select({ step: id });
+    },
+    [select],
+  );
+  const openWaiting = useCallback(
+    (id: string) => {
+      setFocus(id);
+      setTip(null);
+      select({ step: id, show: "waiting" });
+    },
+    [select],
+  );
+  const pickRun = useCallback(
+    (r: LineRunModel | null) => {
+      setRunsOpen(false);
+      select({ run: r?.id ?? null }, r?.caseId ?? null);
+    },
+    [select],
+  );
+  const stepRun = useCallback(
+    (dir: 1 | -1) => {
+      if (!model.runs.length) return;
+      const i = runIndex < 0 ? (dir > 0 ? -1 : model.runs.length) : runIndex;
+      const r = model.runs[i + dir];
+      if (r) pickRun(r);
+    },
+    [model.runs, runIndex, pickRun],
+  );
 
-  const onHover = useCallback((id: string, ev: ReactMouseEvent | null) => {
-    if (!ev) { setPeek(null); setTip(null); return; }
-    setPeek(id);
-    const step = model.steps[id];
-    const node = model.graph.nodes.find((n) => n.id === id);
-    if (!step || !node) return;
-    const fails = failed.get(id) ?? step.tally.failed + step.tally.cutOff;
-    const reached = node.runs ? ` Reached in ${node.runs} of ${model.runs.length} runs${fails ? `, ${fails} failed` : ""}.` : model.runs.length ? " No run has reached it yet." : "";
-    const n = stepCameBack(step);
-    const cameBack = n ? ` ${n === 1 ? "One close" : `${n} closes`} it made came back after it; its Decisions mark each.` : "";
-    setTip({ ...tipAt(rootRef.current, ev), title: `${step.label} · ${KIND_TIP[step.kind]}`, body: `${step.purpose}${reached}${cameBack}` });
-  }, [model, failed]);
-  const onEdgeHover = useCallback((e: GEdge, ev: ReactMouseEvent | null) => {
-    if (!ev) { setTip(null); return; }
-    const from = model.steps[e.from]?.label ?? e.from;
-    const to = model.steps[e.to]?.label ?? e.to;
-    const edge = model.graph.edges.find((x) => x.id === e.id);
-    const why = edge?.does ?? (edge?.condition ? `When ${edge.condition}.` : "");
-    setTip({ ...tipAt(rootRef.current, ev), title: `${from} → ${to}`, body: [why, e.count ? `Taken ${e.count} ${e.count === 1 ? "time" : "times"}.` : "Never taken yet."].filter(Boolean).join(" ") });
-  }, [model]);
+  const onHover = useCallback(
+    (id: string, ev: ReactMouseEvent | null) => {
+      if (!ev) {
+        setPeek(null);
+        setTip(null);
+        return;
+      }
+      setPeek(id);
+      const step = model.steps[id];
+      const node = model.graph.nodes.find((n) => n.id === id);
+      if (!step || !node) return;
+      const fails = failed.get(id) ?? step.tally.failed + step.tally.cutOff;
+      const reached = node.runs
+        ? ` Reached in ${node.runs} of ${model.runs.length} runs${fails ? `, ${fails} failed` : ""}.`
+        : model.runs.length
+          ? " No run has reached it yet."
+          : "";
+      const n = stepCameBack(step);
+      const cameBack = n
+        ? ` ${n === 1 ? "One close" : `${n} closes`} it made came back after it; its Decisions mark each.`
+        : "";
+      setTip({
+        ...tipAt(rootRef.current, ev),
+        title: `${step.label} · ${KIND_TIP[step.kind]}`,
+        body: `${step.purpose}${reached}${cameBack}`,
+      });
+    },
+    [model, failed],
+  );
+  const onEdgeHover = useCallback(
+    (e: GEdge, ev: ReactMouseEvent | null) => {
+      if (!ev) {
+        setTip(null);
+        return;
+      }
+      const from = model.steps[e.from]?.label ?? e.from;
+      const to = model.steps[e.to]?.label ?? e.to;
+      const edge = model.graph.edges.find((x) => x.id === e.id);
+      const why =
+        edge?.does ?? (edge?.condition ? `When ${edge.condition}.` : "");
+      setTip({
+        ...tipAt(rootRef.current, ev),
+        title: `${from} → ${to}`,
+        body: [
+          why,
+          e.count
+            ? `Taken ${e.count} ${e.count === 1 ? "time" : "times"}.`
+            : "Never taken yet.",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      });
+    },
+    [model],
+  );
 
-  const moveFocus = useCallback((dir: 1 | -1, actorsOnly: boolean) => {
-    const list = actorsOnly ? layout.actors : layout.walk;
-    if (!list.length) return;
-    const cur = drawerStep ?? focus;
-    let i = cur ? list.indexOf(cur) : -1;
-    if (i < 0 && cur) {
-      // A step not in this list (a script under ⇧): start from its place in reading order.
-      const at = layout.walk.indexOf(cur);
-      i = list.findIndex((id) => layout.walk.indexOf(id) >= at) - (dir > 0 ? 1 : 0);
-    }
-    const next = list[Math.max(0, Math.min(list.length - 1, i + dir))];
-    if (!next) return;
-    if (drawerStep) open(next);
-    else {
-      setFocus(next);
-      const n = layout.nodes.get(next);
-      if (n) pz.centerOn(n.x, n.y, true, n.w / 2);
-    }
-  }, [layout, drawerStep, focus, open, pz]);
+  const moveFocus = useCallback(
+    (dir: 1 | -1, actorsOnly: boolean) => {
+      const list = actorsOnly ? layout.actors : layout.walk;
+      if (!list.length) return;
+      const cur = drawerStep ?? focus;
+      let i = cur ? list.indexOf(cur) : -1;
+      if (i < 0 && cur) {
+        // A step not in this list (a script under ⇧): start from its place in reading order.
+        const at = layout.walk.indexOf(cur);
+        i =
+          list.findIndex((id) => layout.walk.indexOf(id) >= at) -
+          (dir > 0 ? 1 : 0);
+      }
+      const next = list[Math.max(0, Math.min(list.length - 1, i + dir))];
+      if (!next) return;
+      if (drawerStep) open(next);
+      else {
+        setFocus(next);
+        const n = layout.nodes.get(next);
+        if (n) pz.centerOn(n.x, n.y, true, n.w / 2);
+      }
+    },
+    [layout, drawerStep, focus, open, pz],
+  );
 
   // Keys, read before the workspace's own (capture), so this view's ← → and Esc win where they mean something here.
   useWatchEffect(() => {
     if (!active) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || hasOpenModal() || keyBelongsElsewhere(e.target)) return;
+      if (e.defaultPrevented || hasOpenModal() || keyBelongsElsewhere(e.target))
+        return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key;
-      const take = () => { e.preventDefault(); e.stopPropagation(); };
+      const take = () => {
+        e.preventDefault();
+        e.stopPropagation();
+      };
       if (k === "Escape") {
-        if (help) { take(); setHelp(false); return; }
-        if (runsOpen) { take(); setRunsOpen(false); return; }
+        if (help) {
+          take();
+          setHelp(false);
+          return;
+        }
+        if (runsOpen) {
+          take();
+          setRunsOpen(false);
+          return;
+        }
         if (drawerStep || selection.stage) return;
-        if (run) { take(); pickRun(null); }
+        if (run) {
+          take();
+          pickRun(null);
+        }
         return;
       }
-      if (k === "?") { take(); setHelp((h) => !h); return; }
+      if (k === "?") {
+        take();
+        setHelp((h) => !h);
+        return;
+      }
       if (help) return;
       if (k === "ArrowRight" || k === "ArrowLeft") {
         if (drawerStep && !e.shiftKey) return;
@@ -422,85 +841,253 @@ export function GraphView({ model, workspace, selection, select, href, lead, tra
       if (k === "Enter" && !drawerStep) {
         // A step tabbed to opens itself; the arrow keys' focus opens only when no other control holds the keyboard.
         const t = e.target as Element | null;
-        const id = t?.closest?.("[data-lwg-node]")?.getAttribute("data-lwg-node") ?? (t?.closest?.("button, a") ? null : focus);
-        if (id) { take(); open(id); }
+        const id =
+          t?.closest?.("[data-lwg-node]")?.getAttribute("data-lwg-node") ??
+          (t?.closest?.("button, a") ? null : focus);
+        if (id) {
+          take();
+          open(id);
+        }
         return;
       }
       const lower = k.toLowerCase();
-      if (lower === "m") { take(); setMode(mode === "essence" ? "all" : "essence"); return; }
-      if (lower === "f") { take(); settle(true, true); return; }
-      if (lower === "r") { take(); setRunsOpen((o) => !o); return; }
-      if (k === "[") { take(); stepRun(1); return; }
-      if (k === "]") { take(); stepRun(-1); return; }
-      if (k === "+" || k === "=") { take(); pz.zoomBy(1.25); return; }
-      if (k === "-" || k === "_") { take(); pz.zoomBy(0.8); return; }
+      if (lower === "m") {
+        take();
+        setMode(mode === "essence" ? "all" : "essence");
+        return;
+      }
+      if (lower === "f") {
+        take();
+        settle(true, true);
+        return;
+      }
+      if (lower === "r") {
+        take();
+        setRunsOpen((o) => !o);
+        return;
+      }
+      if (k === "[") {
+        take();
+        stepRun(1);
+        return;
+      }
+      if (k === "]") {
+        take();
+        stepRun(-1);
+        return;
+      }
+      if (k === "+" || k === "=") {
+        take();
+        pz.zoomBy(1.25);
+        return;
+      }
+      if (k === "-" || k === "_") {
+        take();
+        pz.zoomBy(0.8);
+        return;
+      }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [active, help, runsOpen, drawerStep, selection.stage, run, focus, mode, moveFocus, open, pickRun, setMode, settle, stepRun, pz]);
+  }, [
+    active,
+    help,
+    runsOpen,
+    drawerStep,
+    selection.stage,
+    run,
+    focus,
+    mode,
+    moveFocus,
+    open,
+    pickRun,
+    setMode,
+    settle,
+    stepRun,
+    pz,
+  ]);
 
   if (!model.graph.nodes.length) {
-    return <div className="lw-empty" data-line-view="graph"><b>No steps to draw yet</b>This graph names no steps codecast can read. Its first run fills it in.</div>;
+    return (
+      <div className="lw-empty" data-line-view="graph">
+        <b>No steps to draw yet</b>This graph names no steps codecast can read.
+        Its first run fills it in.
+      </div>
+    );
   }
   return (
     <div className="lw-graph-col">
-    <div className="lwg-wrap">
-    <div className="lwg" ref={rootRef} data-line-view="graph" data-mode={mode} data-hovering={peek ? "" : undefined} data-run-bar={run ? "" : undefined} data-more-left={past.left.length ? "" : undefined} data-more-right={past.right.length ? "" : undefined} data-live={live ? "" : undefined}>
-      <svg ref={svgRef} className="lwg-svg" role="group" aria-label={`${model.title}: ${model.graph.nodes.length} steps`}>
-        <GraphDefs uid={uid} />
-        <rect width="100%" height="100%" fill={`url(#${uid}-dots)`} />
-        <g ref={worldRef}>
-          <GraphCanvas
-            model={drawn}
-            layout={layout}
-            uid={uid}
-            lit={lit}
-            selected={drawerStep}
-            focus={focus}
-            peek={peek}
-            intro={intro}
-            onOpen={open}
-            onHover={onHover}
-            onEdgeHover={onEdgeHover}
-            failed={failed}
-            passed={passed}
-            waits={waits}
-            onWaiting={openWaiting}
-            live={live}
-          />
-        </g>
-      </svg>
+      <div className="lwg-wrap">
+        <div
+          className="lwg"
+          ref={rootRef}
+          data-line-view="graph"
+          data-mode={mode}
+          data-hovering={peek ? "" : undefined}
+          data-run-bar={run ? "" : undefined}
+          data-more-left={past.left.length ? "" : undefined}
+          data-more-right={past.right.length ? "" : undefined}
+          data-live={live ? "" : undefined}
+        >
+          <svg
+            ref={svgRef}
+            className="lwg-svg"
+            role="group"
+            aria-label={`${model.title}: ${model.graph.nodes.length} steps`}
+          >
+            <GraphDefs uid={uid} />
+            <rect width="100%" height="100%" fill={`url(#${uid}-dots)`} />
+            <g ref={worldRef}>
+              <GraphCanvas
+                model={drawn}
+                layout={layout}
+                uid={uid}
+                lit={lit}
+                selected={drawerStep}
+                focus={focus}
+                peek={peek}
+                intro={intro}
+                onOpen={open}
+                onHover={onHover}
+                onEdgeHover={onEdgeHover}
+                failed={failed}
+                passed={passed}
+                waits={waits}
+                onWaiting={openWaiting}
+                live={live}
+              />
+            </g>
+          </svg>
 
-      <div className="lwg-top">
-        {lead}
-        <div className="lwg-controls">
-          <div className="lw-seg" role="tablist" aria-label="How much to draw">
-            <button type="button" role="tab" aria-selected={mode === "essence"} onClick={() => setMode("essence")} title="Agents and people, scripts as dots (M)" data-lwg-mode="essence">Essence</button>
-            <button type="button" role="tab" aria-selected={mode === "all"} onClick={() => setMode("all")} title="Every script and every end (M)" data-lwg-mode="all">All steps</button>
+          <div className="lwg-top">
+            {lead}
+            <div className="lwg-controls">
+              <div
+                className="lw-seg"
+                role="tablist"
+                aria-label="How much to draw"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "essence"}
+                  onClick={() => setMode("essence")}
+                  title="Agents and people, scripts as dots (M)"
+                  data-lwg-mode="essence"
+                >
+                  Essence
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "all"}
+                  onClick={() => setMode("all")}
+                  title="Every script and every end (M)"
+                  data-lwg-mode="all"
+                >
+                  All steps
+                </button>
+              </div>
+              <button
+                type="button"
+                className="lwg-btn"
+                data-ghost=""
+                aria-pressed={!!run}
+                aria-expanded={runsOpen}
+                onClick={() => setRunsOpen((o) => !o)}
+                disabled={!model.runs.length}
+                title="Light a run's path (R)"
+                data-lwg-runs-btn
+              >
+                <span className="lwg-runs-dot" />
+                {live ? "Past runs" : "Runs"} <em>{model.runs.length}</em>
+              </button>
+              <button
+                type="button"
+                className="lwg-btn"
+                data-ghost=""
+                onClick={() => settle(true, true)}
+                title="Fit the whole graph (F)"
+                aria-label="Fit the whole graph"
+              >
+                Fit
+              </button>
+              <button
+                type="button"
+                className="lwg-btn"
+                data-ghost=""
+                data-icon=""
+                onClick={() => setHelp(true)}
+                title="Keys (?)"
+                aria-label="Keys"
+              >
+                ?
+              </button>
+              {trail}
+            </div>
           </div>
-          <button type="button" className="lwg-btn" data-ghost="" aria-pressed={!!run} aria-expanded={runsOpen} onClick={() => setRunsOpen((o) => !o)} disabled={!model.runs.length} title="Light a run's path (R)" data-lwg-runs-btn>
-            <span className="lwg-runs-dot" />{live ? "Past runs" : "Runs"} <em>{model.runs.length}</em>
-          </button>
-          <button type="button" className="lwg-btn" data-ghost="" onClick={() => settle(true, true)} title="Fit the whole graph (F)" aria-label="Fit the whole graph">Fit</button>
-          <button type="button" className="lwg-btn" data-ghost="" data-icon="" onClick={() => setHelp(true)} title="Keys (?)" aria-label="Keys">?</button>
-          {trail}
+
+          {runsOpen && (
+            <RunsList
+              runs={model.runs}
+              current={run?.id ?? null}
+              onPick={pickRun}
+            />
+          )}
+          {run ? (
+            <RunBar
+              run={run}
+              index={runIndex}
+              total={model.runs.length}
+              onPrev={() => stepRun(1)}
+              onNext={() => stepRun(-1)}
+              onClear={() => pickRun(null)}
+            />
+          ) : null}
+          <EdgeArrows
+            edges={{ left: past.left.length > 0, right: past.right.length > 0 }}
+            names={past}
+            label="the graph"
+            step={0.6}
+            onMove={(dir, step) => pz.panBy(dir * step)}
+          />
+          {live ? (
+            <GraphOverview
+              layout={layout}
+              live={live}
+              viewRef={overviewRef}
+              onJump={(x, y) =>
+                pz.centerOn(x, y, true, 0, { middle: true, exact: true })
+              }
+            />
+          ) : null}
+          <div className="lwg-zoom" aria-label="Zoom">
+            <button
+              type="button"
+              onClick={() => pz.zoomBy(1.25)}
+              aria-label="Zoom in"
+              title="Zoom in (+)"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={() => pz.zoomBy(0.8)}
+              aria-label="Zoom out"
+              title="Zoom out (−)"
+            >
+              −
+            </button>
+          </div>
+          {tip && (
+            <div className="lwg-tip" style={tipStyle(tip)}>
+              <b>{tip.title}</b>
+              {tip.body}
+            </div>
+          )}
+          {help && <KeySheet onClose={() => setHelp(false)} />}
         </div>
       </div>
-
-      {runsOpen && <RunsList runs={model.runs} current={run?.id ?? null} onPick={pickRun} />}
-      {run ? (
-        <RunBar run={run} index={runIndex} total={model.runs.length} onPrev={() => stepRun(1)} onNext={() => stepRun(-1)} onClear={() => pickRun(null)} />
-      ) : null}
-      <EdgeArrows edges={{ left: past.left.length > 0, right: past.right.length > 0 }} names={past} label="the graph" step={0.6} onMove={(dir, step) => pz.panBy(dir * step)} />
-      {live ? <GraphOverview layout={layout} live={live} viewRef={overviewRef} onJump={(x, y) => pz.centerOn(x, y, true, 0, { middle: true, exact: true })} /> : null}
-      <div className="lwg-zoom" aria-label="Zoom">
-        <button type="button" onClick={() => pz.zoomBy(1.25)} aria-label="Zoom in" title="Zoom in (+)">+</button>
-        <button type="button" onClick={() => pz.zoomBy(0.8)} aria-label="Zoom out" title="Zoom out (−)">−</button>
-      </div>
-      {tip && <div className="lwg-tip" style={tipStyle(tip)}><b>{tip.title}</b>{tip.body}</div>}
-      {help && <KeySheet onClose={() => setHelp(false)} />}
-    </div>
-    </div>
     </div>
   );
 }

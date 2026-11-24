@@ -78,11 +78,15 @@ class FakeContainer {
   observe() {}
   disconnect() {}
 };
-(globalThis as unknown as { requestAnimationFrame: unknown }).requestAnimationFrame = (cb: () => void) => {
+(
+  globalThis as unknown as { requestAnimationFrame: unknown }
+).requestAnimationFrame = (cb: () => void) => {
   cb();
   return 0;
 };
-(globalThis as unknown as { cancelAnimationFrame: unknown }).cancelAnimationFrame = () => {};
+(
+  globalThis as unknown as { cancelAnimationFrame: unknown }
+).cancelAnimationFrame = () => {};
 
 mock.module("@xterm/xterm", () => ({ Terminal: FakeTerminal }));
 // The fit proposal is driven per test: `proposeDims` is what the container
@@ -98,7 +102,8 @@ mock.module("@xterm/addon-fit", () => ({
       return proposeDims;
     }
     fit() {
-      if (proposeDims && this.term) this.term.resize(proposeDims.cols, proposeDims.rows);
+      if (proposeDims && this.term)
+        this.term.resize(proposeDims.cols, proposeDims.rows);
     }
   },
 }));
@@ -128,7 +133,9 @@ class FakeWebSocket {
   }
   close() {}
   serverBytes(text: string) {
-    this.onmessage?.({ data: new TextEncoder().encode(text).buffer as ArrayBuffer });
+    this.onmessage?.({
+      data: new TextEncoder().encode(text).buffer as ArrayBuffer,
+    });
   }
   drop() {
     this.readyState = 3;
@@ -150,7 +157,8 @@ class FakeWebSocket {
 const endpoint = { port: 1, token: "t", deviceId: "d", tmux: true };
 
 test("terminal colors reach tmux at startup and on theme changes", async () => {
-  const { applyTerminalTheme, openTerminal, getInstance, closeTab } = await import("../terminal/termSessions");
+  const { applyTerminalTheme, openTerminal, getInstance, closeTab } =
+    await import("../terminal/termSessions");
   const light = { foreground: "#073642", background: "#fdf6e3" };
   applyTerminalTheme(light);
   const id = openTerminal({ endpoint, kind: "shell", detached: true });
@@ -158,7 +166,12 @@ test("terminal colors reach tmux at startup and on theme changes", async () => {
   ws.open();
   expect(ws.sent[0]?.colors).toEqual(light);
   expect(getInstance(id)!.term.options.minimumContrastRatio).toBe(7);
-  ws.serverSays({ type: "ready", sessionName: "cast-term-colors", cols: 80, rows: 24 });
+  ws.serverSays({
+    type: "ready",
+    sessionName: "cast-term-colors",
+    cols: 80,
+    rows: 24,
+  });
   const dark = { foreground: "#ececec", background: "#212121" };
   applyTerminalTheme(dark);
   expect(ws.sent.at(-1)).toEqual({ type: "colors", colors: dark });
@@ -169,13 +182,26 @@ test("terminal colors reach tmux at startup and on theme changes", async () => {
 }, 30_000);
 
 test("adopted ready/reseed sizes are not echoed back; genuine resizes still are", async () => {
-  const { openTerminal, getInstance } = await import("../terminal/termSessions");
-  const id = openTerminal({ endpoint, kind: "attach", target: "cc-x", interactive: true, detached: true });
+  const { openTerminal, getInstance } =
+    await import("../terminal/termSessions");
+  const id = openTerminal({
+    endpoint,
+    kind: "attach",
+    target: "cc-x",
+    interactive: true,
+    detached: true,
+  });
   const ws = FakeWebSocket.last!;
   ws.open();
 
   // ready: the client adopts the pane's size (109x49 lead of a split window).
-  ws.serverSays({ type: "ready", sessionName: "cc-x", readOnly: false, cols: 109, rows: 49 });
+  ws.serverSays({
+    type: "ready",
+    sessionName: "cc-x",
+    readOnly: false,
+    cols: 109,
+    rows: 49,
+  });
   expect(getInstance(id)!.term.cols).toBe(109);
   expect(ws.resizes()).toHaveLength(0);
 
@@ -193,11 +219,24 @@ test("adopted ready/reseed sizes are not echoed back; genuine resizes still are"
 // the agent's screen size — a split too short to fit that must leave the
 // pane alone (and scroll it), never squeeze the agent into it.
 test("a fit below the agent floor is not applied or sent; a fit above it is", async () => {
-  const { openTerminal, getInstance, attachToContainer } = await import("../terminal/termSessions");
-  const id = openTerminal({ endpoint, kind: "attach", target: "cc-y", interactive: true, detached: true });
+  const { openTerminal, getInstance, attachToContainer } =
+    await import("../terminal/termSessions");
+  const id = openTerminal({
+    endpoint,
+    kind: "attach",
+    target: "cc-y",
+    interactive: true,
+    detached: true,
+  });
   const ws = FakeWebSocket.last!;
   ws.open();
-  ws.serverSays({ type: "ready", sessionName: "cc-y", readOnly: false, cols: 220, rows: 50 });
+  ws.serverSays({
+    type: "ready",
+    sessionName: "cc-y",
+    readOnly: false,
+    cols: 220,
+    rows: 50,
+  });
 
   proposeDims = { cols: 165, rows: 6 };
   attachToContainer(id, new FakeContainer() as unknown as HTMLElement);
@@ -211,8 +250,14 @@ test("a fit below the agent floor is not applied or sent; a fit above it is", as
 });
 
 test("a dropped socket reconnects with its view id and offset, and resumes without a repaint", async () => {
-  const { openTerminal, getInstance, closeTab } = await import("../terminal/termSessions");
-  const id = openTerminal({ endpoint, kind: "shell", name: "cast-term-r", detached: true });
+  const { openTerminal, getInstance, closeTab } =
+    await import("../terminal/termSessions");
+  const id = openTerminal({
+    endpoint,
+    kind: "shell",
+    name: "cast-term-r",
+    detached: true,
+  });
   const ws = FakeWebSocket.last!;
   ws.open();
   const viewId = ws.sent[0]!.viewId;
@@ -220,13 +265,29 @@ test("a dropped socket reconnects with its view id and offset, and resumes witho
   expect(ws.sent[0]!.resume).toBeUndefined();
 
   // Seed bytes repaint; they are not stream bytes and don't move the offset.
-  ws.serverSays({ type: "ready", sessionName: "cast-term-r", cols: 80, rows: 24, stream: "abc123", offset: 100, seedBytes: 5, role: "controller", canControl: true });
+  ws.serverSays({
+    type: "ready",
+    sessionName: "cast-term-r",
+    cols: 80,
+    rows: 24,
+    stream: "abc123",
+    offset: 100,
+    seedBytes: 5,
+    role: "controller",
+    canControl: true,
+  });
   ws.serverBytes("SEED!");
   ws.serverBytes("abc");
   ws.serverSays({ type: "replay_complete", offset: 100 });
   ws.serverBytes("de");
   // A reseed takes the offset it names; its seed follows uncounted.
-  ws.serverSays({ type: "reseed", cols: 90, rows: 20, offset: 110, seedBytes: 2 });
+  ws.serverSays({
+    type: "reseed",
+    cols: 90,
+    rows: 20,
+    offset: 110,
+    seedBytes: 2,
+  });
   ws.serverBytes("ZZ");
   ws.serverBytes("1234");
   const term = getInstance(id)!.term as unknown as FakeTerminal;
@@ -244,7 +305,18 @@ test("a dropped socket reconnects with its view id and offset, and resumes witho
   expect(back.sent[0]!.viewId).toBe(viewId);
   expect(back.sent[0]!.resume).toEqual({ stream: "abc123", offset: 114 });
 
-  back.serverSays({ type: "ready", sessionName: "cast-term-r", cols: 90, rows: 20, stream: "abc123", offset: 114, seedBytes: 0, resumed: true, role: "controller", canControl: true });
+  back.serverSays({
+    type: "ready",
+    sessionName: "cast-term-r",
+    cols: 90,
+    rows: 20,
+    stream: "abc123",
+    offset: 114,
+    seedBytes: 0,
+    resumed: true,
+    role: "controller",
+    canControl: true,
+  });
   expect(getInstance(id)!.state.reconnecting).toBe(false);
   expect(getInstance(id)!.state.status).toBe("open");
   expect(term.resets).toBe(resetsBefore);
@@ -257,17 +329,42 @@ test("a dropped socket reconnects with its view id and offset, and resumes witho
   await Bun.sleep(400);
   const third = FakeWebSocket.last!;
   third.open();
-  third.serverSays({ type: "ready", sessionName: "cast-term-r", cols: 90, rows: 20, stream: "abc123", offset: 900, seedBytes: 3, truncated: true, role: "controller", canControl: true });
+  third.serverSays({
+    type: "ready",
+    sessionName: "cast-term-r",
+    cols: 90,
+    rows: 20,
+    stream: "abc123",
+    offset: 900,
+    seedBytes: 3,
+    truncated: true,
+    role: "controller",
+    canControl: true,
+  });
   expect(term.resets).toBe(resetsBefore + 1);
   closeTab(id);
 });
 
 test("an ended session does not reconnect", async () => {
-  const { openTerminal, getInstance, closeTab } = await import("../terminal/termSessions");
-  const id = openTerminal({ endpoint, kind: "shell", name: "cast-term-e", detached: true });
+  const { openTerminal, getInstance, closeTab } =
+    await import("../terminal/termSessions");
+  const id = openTerminal({
+    endpoint,
+    kind: "shell",
+    name: "cast-term-e",
+    detached: true,
+  });
   const ws = FakeWebSocket.last!;
   ws.open();
-  ws.serverSays({ type: "ready", sessionName: "cast-term-e", cols: 80, rows: 24, stream: "s", offset: 0, seedBytes: 0 });
+  ws.serverSays({
+    type: "ready",
+    sessionName: "cast-term-e",
+    cols: 80,
+    rows: 24,
+    stream: "s",
+    offset: 0,
+    seedBytes: 0,
+  });
   ws.serverSays({ type: "exit", reason: "killed" });
   const before = FakeWebSocket.count;
   ws.drop();
@@ -278,11 +375,30 @@ test("an ended session does not reconnect", async () => {
 });
 
 test("an observer types nothing until it takes control", async () => {
-  const { openTerminal, getInstance, takeControl, closeTab } = await import("../terminal/termSessions");
-  const id = openTerminal({ endpoint, kind: "shell", name: "cast-term-o", detached: true });
+  const { openTerminal, getInstance, takeControl, closeTab } =
+    await import("../terminal/termSessions");
+  const id = openTerminal({
+    endpoint,
+    kind: "shell",
+    name: "cast-term-o",
+    detached: true,
+  });
   const ws = FakeWebSocket.last!;
   ws.open();
-  ws.serverSays({ type: "ready", sessionName: "cast-term-o", cols: 100, rows: 30, readOnly: true, stream: "s", offset: 0, seedBytes: 0, role: "observer", canControl: true, controlledElsewhere: true, viewers: 2 });
+  ws.serverSays({
+    type: "ready",
+    sessionName: "cast-term-o",
+    cols: 100,
+    rows: 30,
+    readOnly: true,
+    stream: "s",
+    offset: 0,
+    seedBytes: 0,
+    role: "observer",
+    canControl: true,
+    controlledElsewhere: true,
+    viewers: 2,
+  });
   const state = () => getInstance(id)!.state;
   const term = getInstance(id)!.term as unknown as FakeTerminal;
   expect(state().role).toBe("observer");
@@ -292,14 +408,27 @@ test("an observer types nothing until it takes control", async () => {
 
   takeControl(id);
   expect(ws.sent.at(-1)).toEqual({ type: "takeover" });
-  ws.serverSays({ type: "role", role: "controller", canControl: true, controlledElsewhere: false, viewers: 2 });
+  ws.serverSays({
+    type: "role",
+    role: "controller",
+    canControl: true,
+    controlledElsewhere: false,
+    viewers: 2,
+  });
   expect(state().readOnly).toBe(false);
   expect(state().paneSized).toBe(false);
   term.typeKeys("b");
   expect(ws.binary).toHaveLength(1);
 
   // Taken back by the other view: watching again, and told why.
-  ws.serverSays({ type: "role", role: "observer", canControl: true, controlledElsewhere: true, viewers: 2, reason: "taken" });
+  ws.serverSays({
+    type: "role",
+    role: "observer",
+    canControl: true,
+    controlledElsewhere: true,
+    viewers: 2,
+    reason: "taken",
+  });
   expect(state().controlTaken).toBe(true);
   term.typeKeys("c");
   expect(ws.binary).toHaveLength(1);
@@ -307,11 +436,29 @@ test("an observer types nothing until it takes control", async () => {
 });
 
 test("a watch-only attach cannot ask for control", async () => {
-  const { openTerminal, takeControl, closeTab } = await import("../terminal/termSessions");
-  const id = openTerminal({ endpoint, kind: "attach", target: "cc-w", detached: true });
+  const { openTerminal, takeControl, closeTab } =
+    await import("../terminal/termSessions");
+  const id = openTerminal({
+    endpoint,
+    kind: "attach",
+    target: "cc-w",
+    detached: true,
+  });
   const ws = FakeWebSocket.last!;
   ws.open();
-  ws.serverSays({ type: "ready", sessionName: "cc-w", cols: 100, rows: 30, readOnly: true, stream: "s", offset: 0, seedBytes: 0, role: "observer", canControl: false, viewers: 1 });
+  ws.serverSays({
+    type: "ready",
+    sessionName: "cc-w",
+    cols: 100,
+    rows: 30,
+    readOnly: true,
+    stream: "s",
+    offset: 0,
+    seedBytes: 0,
+    role: "observer",
+    canControl: false,
+    viewers: 1,
+  });
   const sent = ws.sent.length;
   takeControl(id);
   expect(ws.sent.length).toBe(sent);
@@ -319,11 +466,29 @@ test("a watch-only attach cannot ask for control", async () => {
 });
 
 test("a controller that comes back on a new screen fits its container again", async () => {
-  const { openTerminal, attachToContainer, closeTab } = await import("../terminal/termSessions");
-  const id = openTerminal({ endpoint, kind: "attach", target: "cc-fit", interactive: true, detached: true });
+  const { openTerminal, attachToContainer, closeTab } =
+    await import("../terminal/termSessions");
+  const id = openTerminal({
+    endpoint,
+    kind: "attach",
+    target: "cc-fit",
+    interactive: true,
+    detached: true,
+  });
   const ws = FakeWebSocket.last!;
   ws.open();
-  const ready = { type: "ready", sessionName: "cc-fit", readOnly: false, cols: 200, rows: 50, stream: "s1", offset: 0, seedBytes: 0, role: "controller", canControl: true };
+  const ready = {
+    type: "ready",
+    sessionName: "cc-fit",
+    readOnly: false,
+    cols: 200,
+    rows: 50,
+    stream: "s1",
+    offset: 0,
+    seedBytes: 0,
+    role: "controller",
+    canControl: true,
+  };
   ws.serverSays(ready);
   proposeDims = { cols: 120, rows: 30 };
   attachToContainer(id, new FakeContainer() as unknown as HTMLElement);
@@ -341,11 +506,29 @@ test("a controller that comes back on a new screen fits its container again", as
 });
 
 test("a resumed controller fits its container if the pane changed size while it was away", async () => {
-  const { openTerminal, attachToContainer, closeTab } = await import("../terminal/termSessions");
-  const id = openTerminal({ endpoint, kind: "attach", target: "cc-resume-fit", interactive: true, detached: true });
+  const { openTerminal, attachToContainer, closeTab } =
+    await import("../terminal/termSessions");
+  const id = openTerminal({
+    endpoint,
+    kind: "attach",
+    target: "cc-resume-fit",
+    interactive: true,
+    detached: true,
+  });
   const ws = FakeWebSocket.last!;
   ws.open();
-  const ready = { type: "ready", sessionName: "cc-resume-fit", readOnly: false, cols: 120, rows: 30, stream: "s1", offset: 0, seedBytes: 0, role: "controller", canControl: true };
+  const ready = {
+    type: "ready",
+    sessionName: "cc-resume-fit",
+    readOnly: false,
+    cols: 120,
+    rows: 30,
+    stream: "s1",
+    offset: 0,
+    seedBytes: 0,
+    role: "controller",
+    canControl: true,
+  };
   ws.serverSays(ready);
   proposeDims = { cols: 120, rows: 30 };
   attachToContainer(id, new FakeContainer() as unknown as HTMLElement);
@@ -368,13 +551,30 @@ test("closing a reconnecting shell with kill still ends its session", async () =
     return new Response(JSON.stringify({ ok: true }));
   }) as unknown as typeof fetch;
   try {
-    const id = openTerminal({ endpoint, kind: "shell", name: "cast-term-k", detached: true });
+    const id = openTerminal({
+      endpoint,
+      kind: "shell",
+      name: "cast-term-k",
+      detached: true,
+    });
     const ws = FakeWebSocket.last!;
     ws.open();
-    ws.serverSays({ type: "ready", sessionName: "cast-term-k", cols: 80, rows: 24, stream: "s", offset: 0, seedBytes: 0, role: "controller", canControl: true });
+    ws.serverSays({
+      type: "ready",
+      sessionName: "cast-term-k",
+      cols: 80,
+      rows: 24,
+      stream: "s",
+      offset: 0,
+      seedBytes: 0,
+      role: "controller",
+      canControl: true,
+    });
     ws.drop();
     closeTab(id, { killSession: true });
-    expect(calls.some((u) => u.includes("/term/kill?name=cast-term-k"))).toBe(true);
+    expect(calls.some((u) => u.includes("/term/kill?name=cast-term-k"))).toBe(
+      true,
+    );
   } finally {
     globalThis.fetch = realFetch;
   }
@@ -382,13 +582,35 @@ test("closing a reconnecting shell with kill still ends its session", async () =
 
 test("a drop while a seed is in flight comes back to a fresh screen, not a resume", async () => {
   const { openTerminal, closeTab } = await import("../terminal/termSessions");
-  const id = openTerminal({ endpoint, kind: "attach", target: "cc-seed", detached: true });
+  const id = openTerminal({
+    endpoint,
+    kind: "attach",
+    target: "cc-seed",
+    detached: true,
+  });
   const ws = FakeWebSocket.last!;
   ws.open();
-  ws.serverSays({ type: "ready", sessionName: "cc-seed", readOnly: true, cols: 100, rows: 30, stream: "s1", offset: 50, seedBytes: 0, role: "observer", canControl: false });
+  ws.serverSays({
+    type: "ready",
+    sessionName: "cc-seed",
+    readOnly: true,
+    cols: 100,
+    rows: 30,
+    stream: "s1",
+    offset: 50,
+    seedBytes: 0,
+    role: "observer",
+    canControl: false,
+  });
   ws.serverBytes("abc");
   // A reseed whose seed never arrives: the screen was already wiped.
-  ws.serverSays({ type: "reseed", cols: 90, rows: 20, offset: 60, seedBytes: 5000 });
+  ws.serverSays({
+    type: "reseed",
+    cols: 90,
+    rows: 20,
+    offset: 60,
+    seedBytes: 5000,
+  });
   ws.drop();
   await Bun.sleep(400);
   const back = FakeWebSocket.last!;
@@ -396,7 +618,19 @@ test("a drop while a seed is in flight comes back to a fresh screen, not a resum
   expect(back.sent[0]!.resume).toBeUndefined();
 
   // Once a seed has landed, the cursor is the one the reseed named.
-  back.serverSays({ type: "ready", sessionName: "cc-seed", readOnly: true, cols: 90, rows: 20, stream: "s1", offset: 70, seedBytes: 4, truncated: true, role: "observer", canControl: false });
+  back.serverSays({
+    type: "ready",
+    sessionName: "cc-seed",
+    readOnly: true,
+    cols: 90,
+    rows: 20,
+    stream: "s1",
+    offset: 70,
+    seedBytes: 4,
+    truncated: true,
+    role: "observer",
+    canControl: false,
+  });
   back.serverBytes("SEED");
   back.serverBytes("xy");
   back.drop();
@@ -408,11 +642,27 @@ test("a drop while a seed is in flight comes back to a fresh screen, not a resum
 });
 
 test("a view demoted while away adopts the pane's size instead of sending its own", async () => {
-  const { openTerminal, getInstance, attachToContainer, closeTab } = await import("../terminal/termSessions");
-  const id = openTerminal({ endpoint, kind: "shell", name: "cast-term-demoted", detached: true });
+  const { openTerminal, getInstance, attachToContainer, closeTab } =
+    await import("../terminal/termSessions");
+  const id = openTerminal({
+    endpoint,
+    kind: "shell",
+    name: "cast-term-demoted",
+    detached: true,
+  });
   const ws = FakeWebSocket.last!;
   ws.open();
-  const ready = { type: "ready", sessionName: "cast-term-demoted", cols: 100, rows: 30, stream: "s", offset: 0, seedBytes: 0, role: "controller", canControl: true };
+  const ready = {
+    type: "ready",
+    sessionName: "cast-term-demoted",
+    cols: 100,
+    rows: 30,
+    stream: "s",
+    offset: 0,
+    seedBytes: 0,
+    role: "controller",
+    canControl: true,
+  };
   ws.serverSays(ready);
   proposeDims = { cols: 100, rows: 30 };
   attachToContainer(id, new FakeContainer() as unknown as HTMLElement);
@@ -422,7 +672,16 @@ test("a view demoted while away adopts the pane's size instead of sending its ow
   await Bun.sleep(400);
   const back = FakeWebSocket.last!;
   back.open();
-  back.serverSays({ ...ready, cols: 140, rows: 40, readOnly: true, resumed: true, role: "observer", controlledElsewhere: true, reason: "taken" });
+  back.serverSays({
+    ...ready,
+    cols: 140,
+    rows: 40,
+    readOnly: true,
+    resumed: true,
+    role: "observer",
+    controlledElsewhere: true,
+    reason: "taken",
+  });
   expect(getInstance(id)!.term.cols).toBe(140);
   expect(back.resizes()).toHaveLength(0);
   expect(getInstance(id)!.state.controlTaken).toBe(true);
@@ -430,14 +689,39 @@ test("a view demoted while away adopts the pane's size instead of sending its ow
 });
 
 test("a view that gains control reports its colours to tmux", async () => {
-  const { openTerminal, applyTerminalTheme, closeTab } = await import("../terminal/termSessions");
+  const { openTerminal, applyTerminalTheme, closeTab } =
+    await import("../terminal/termSessions");
   applyTerminalTheme({ foreground: "#111111", background: "#fefefe" });
-  const id = openTerminal({ endpoint, kind: "shell", name: "cast-term-colors2", detached: true });
+  const id = openTerminal({
+    endpoint,
+    kind: "shell",
+    name: "cast-term-colors2",
+    detached: true,
+  });
   const ws = FakeWebSocket.last!;
   ws.open();
-  ws.serverSays({ type: "ready", sessionName: "cast-term-colors2", cols: 80, rows: 24, readOnly: true, stream: "s", offset: 0, seedBytes: 0, role: "observer", canControl: true });
+  ws.serverSays({
+    type: "ready",
+    sessionName: "cast-term-colors2",
+    cols: 80,
+    rows: 24,
+    readOnly: true,
+    stream: "s",
+    offset: 0,
+    seedBytes: 0,
+    role: "observer",
+    canControl: true,
+  });
   expect(ws.sent.filter((m) => m.type === "colors")).toHaveLength(0);
-  ws.serverSays({ type: "role", role: "controller", canControl: true, viewers: 2 });
-  expect(ws.sent.filter((m) => m.type === "colors").at(-1)).toEqual({ type: "colors", colors: { foreground: "#111111", background: "#fefefe" } });
+  ws.serverSays({
+    type: "role",
+    role: "controller",
+    canControl: true,
+    viewers: 2,
+  });
+  expect(ws.sent.filter((m) => m.type === "colors").at(-1)).toEqual({
+    type: "colors",
+    colors: { foreground: "#111111", background: "#fefefe" },
+  });
   closeTab(id);
 });

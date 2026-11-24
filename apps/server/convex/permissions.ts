@@ -8,12 +8,23 @@ import { verifyApiToken } from "./apiTokens";
 import { recordAuthorityEvent } from "./lib/authorityEvents";
 import { Doc, Id } from "./_generated/dataModel";
 import { runnerDeviceOf } from "./lib/runnerDevice";
-import { boundedRuleRequest, cascadeFromAnswer, keepableFor, keptPatterns, permissionRuleLabel } from "@codecast/shared/contracts/permissionRules";
-import { permissionProjectKey, ruleRequestValidator, rulesForConversation, saveAllowRules } from "./lib/permissionRules";
+import {
+  boundedRuleRequest,
+  cascadeFromAnswer,
+  keepableFor,
+  keptPatterns,
+  permissionRuleLabel,
+} from "@codecast/shared/contracts/permissionRules";
+import {
+  permissionProjectKey,
+  ruleRequestValidator,
+  rulesForConversation,
+  saveAllowRules,
+} from "./lib/permissionRules";
 
 export async function getAuthenticatedUserId(
   ctx: { db: any },
-  apiToken?: string
+  apiToken?: string,
 ): Promise<Id<"users"> | null> {
   const sessionUserId = await getAuthUserId(ctx as any);
   if (sessionUserId) {
@@ -41,15 +52,25 @@ const MAX_DENY_MESSAGE = 2000;
 const MAX_SUGGESTIONS = 8;
 const MAX_SUGGESTIONS_BYTES = 8 * 1024;
 
-function boundedSuggestions(suggestions: unknown[] | undefined): { suggestions?: unknown[] } {
+function boundedSuggestions(suggestions: unknown[] | undefined): {
+  suggestions?: unknown[];
+} {
   if (!suggestions?.length) return {};
   const kept = suggestions.slice(0, MAX_SUGGESTIONS);
-  return JSON.stringify(kept).length <= MAX_SUGGESTIONS_BYTES ? { suggestions: kept } : {};
+  return JSON.stringify(kept).length <= MAX_SUGGESTIONS_BYTES
+    ? { suggestions: kept }
+    : {};
 }
 
 /** What a daemon needs to answer the agent: the verdict, its reason, whether
  *  the suggested rules are kept. */
-function decisionFields(p: { status: string; resolved_at?: number; tool_name: string; deny_message?: string; remember?: boolean }) {
+function decisionFields(p: {
+  status: string;
+  resolved_at?: number;
+  tool_name: string;
+  deny_message?: string;
+  remember?: boolean;
+}) {
   return {
     status: p.status,
     resolved_at: p.resolved_at,
@@ -85,14 +106,16 @@ export const createPermissionRequest = mutation({
       throw new Error("Authentication failed: invalid token or session");
     }
     if (conversation.user_id.toString() !== authUserId.toString()) {
-      throw new Error("Unauthorized: can only create permissions for your own conversations");
+      throw new Error(
+        "Unauthorized: can only create permissions for your own conversations",
+      );
     }
 
     const now = Date.now();
     const existing = await ctx.db
       .query("pending_permissions")
       .withIndex("by_conversation_status", (q: any) =>
-        q.eq("conversation_id", args.conversation_id).eq("status", "pending")
+        q.eq("conversation_id", args.conversation_id).eq("status", "pending"),
       )
       .collect();
 
@@ -101,7 +124,7 @@ export const createPermissionRequest = mutation({
         p.session_id === args.session_id &&
         p.tool_name === args.tool_name &&
         p.arguments_preview === args.arguments_preview &&
-        now - p.created_at < DUPLICATE_WINDOW_MS
+        now - p.created_at < DUPLICATE_WINDOW_MS,
     );
     if (duplicate) {
       return duplicate._id;
@@ -116,14 +139,24 @@ export const createPermissionRequest = mutation({
       created_at: now,
       owner_user_id: conversation.user_id,
       ...boundedSuggestions(args.suggestions),
-      ...(args.subagent_type && { subagent_type: args.subagent_type.slice(0, 80) }),
-      ...(args.subagent_conversation_id && { subagent_conversation_id: args.subagent_conversation_id }),
+      ...(args.subagent_type && {
+        subagent_type: args.subagent_type.slice(0, 80),
+      }),
+      ...(args.subagent_conversation_id && {
+        subagent_conversation_id: args.subagent_conversation_id,
+      }),
       ...(args.safety_check && { safety_check: true }),
       ...(args.intent && { intent: args.intent.slice(0, 200) }),
       ...(args.removals?.length && {
-        removals: args.removals.slice(0, 5).map((r) => ({ ...r, target: r.target.slice(0, 300), ...(r.note && { note: r.note.slice(0, 100) }) })),
+        removals: args.removals.slice(0, 5).map((r) => ({
+          ...r,
+          target: r.target.slice(0, 300),
+          ...(r.note && { note: r.note.slice(0, 100) }),
+        })),
       }),
-      ...(args.rule_request && { rule_request: boundedRuleRequest(args.rule_request) }),
+      ...(args.rule_request && {
+        rule_request: boundedRuleRequest(args.rule_request),
+      }),
     });
 
     return permissionId;
@@ -146,7 +179,10 @@ export const cancelPermissionRequest = mutation({
     if (permission.status !== "pending") return false;
 
     const conversation = await ctx.db.get(permission.conversation_id);
-    if (!conversation || conversation.user_id.toString() !== authUserId.toString()) {
+    if (
+      !conversation ||
+      conversation.user_id.toString() !== authUserId.toString()
+    ) {
       return false;
     }
 
@@ -186,7 +222,9 @@ export const updatePermissionStatus = mutation({
     }
 
     if (conversation.user_id.toString() !== userId.toString()) {
-      throw new Error("Unauthorized: can only manage permissions for your own conversations");
+      throw new Error(
+        "Unauthorized: can only manage permissions for your own conversations",
+      );
     }
 
     if (permission.status !== "pending") {
@@ -196,44 +234,86 @@ export const updatePermissionStatus = mutation({
       throw new Error("Permission already resolved");
     }
 
-    const message = args.status === "denied" ? args.message?.trim().slice(0, MAX_DENY_MESSAGE) : undefined;
+    const message =
+      args.status === "denied"
+        ? args.message?.trim().slice(0, MAX_DENY_MESSAGE)
+        : undefined;
     // Codecast keeps its own rules when the call has any; a call it can keep
     // nothing for (opaque, an edit outside the project, an older row) keeps
     // Claude's suggestions in Claude's settings, as the card's button names.
     // What it keeps is re-derived from what the call touched, never taken
     // from the daemon's word; an unknown project keeps nothing.
-    const keeps = permission.rule_request && permissionProjectKey(conversation)
-      ? keepableFor(permission.rule_request, conversation.git_root ?? undefined)
-      : [];
+    const keeps =
+      permission.rule_request && permissionProjectKey(conversation)
+        ? keepableFor(
+            permission.rule_request,
+            conversation.git_root ?? undefined,
+          )
+        : [];
     // Which kind it keeps follows what the card offered and the daemon
     // expects (keptPatterns): codecast's rules when the call named any, else
     // Claude's suggestions, which then ride back to Claude.
     const codecastKeeps = keptPatterns(permission.rule_request).length > 0;
-    const remember = args.status === "approved" && args.remember === true &&
-      (codecastKeeps ? keeps.length > 0 : (permission.suggestions?.length ?? 0) > 0);
-    await answerPermission(ctx, permission, conversation, userId, { status: args.status, message, remember });
+    const remember =
+      args.status === "approved" &&
+      args.remember === true &&
+      (codecastKeeps
+        ? keeps.length > 0
+        : (permission.suggestions?.length ?? 0) > 0);
+    await answerPermission(ctx, permission, conversation, userId, {
+      status: args.status,
+      message,
+      remember,
+    });
 
     // One answer settles the session's other open asks: rules kept by
     // "always" approve the ones they now cover, and a denial's reason applies
     // to the whole batch, so parallel calls do not each wait on a person.
     if (remember && keeps.length > 0) {
-      const saved = await saveAllowRules(ctx, conversation, { permission: permission.rule_request!.permission, always: keeps });
+      const saved = await saveAllowRules(ctx, conversation, {
+        permission: permission.rule_request!.permission,
+        always: keeps,
+      });
       if (saved.length) {
         await recordAuthorityEvent(ctx, {
           kind: "permission_rule_saved",
           actor_user_id: userId,
           conversation,
-          detail: { after: { permission_id: args.permission_id, rules: saved.map((r) => permissionRuleLabel(r)) } },
+          detail: {
+            after: {
+              permission_id: args.permission_id,
+              rules: saved.map((r) => permissionRuleLabel(r)),
+            },
+          },
         });
       }
     }
-    const asks = (p: Doc<"pending_permissions">) => ({ ...p, _id: String(p._id), conversation_id: String(p.conversation_id) });
+    const asks = (p: Doc<"pending_permissions">) => ({
+      ...p,
+      _id: String(p._id),
+      conversation_id: String(p.conversation_id),
+    });
     const pending = await otherPending(ctx, permission);
-    const cascade = cascadeFromAnswer(asks(permission), { status: args.status, message, remember }, pending.map(asks),
-      remember && keeps.length > 0 ? await rulesForConversation(ctx, conversation) : []);
+    const cascade = cascadeFromAnswer(
+      asks(permission),
+      { status: args.status, message, remember },
+      pending.map(asks),
+      remember && keeps.length > 0
+        ? await rulesForConversation(ctx, conversation)
+        : [],
+    );
     for (const other of pending) {
-      const status = cascade.approve.includes(String(other._id)) ? "approved" : cascade.deny.includes(String(other._id)) ? "denied" : null;
-      if (status) await answerPermission(ctx, other, conversation, userId, { status, ...(status === "denied" && { message }), cause: args.permission_id });
+      const status = cascade.approve.includes(String(other._id))
+        ? "approved"
+        : cascade.deny.includes(String(other._id))
+          ? "denied"
+          : null;
+      if (status)
+        await answerPermission(ctx, other, conversation, userId, {
+          status,
+          ...(status === "denied" && { message }),
+          cause: args.permission_id,
+        });
     }
 
     return args.permission_id;
@@ -241,7 +321,10 @@ export const updatePermissionStatus = mutation({
 });
 
 /** The session's open asks, oldest first (the cascade picks the siblings). */
-async function otherPending(ctx: { db: any }, p: Doc<"pending_permissions">): Promise<Doc<"pending_permissions">[]> {
+async function otherPending(
+  ctx: { db: any },
+  p: Doc<"pending_permissions">,
+): Promise<Doc<"pending_permissions">[]> {
   const rows: Doc<"pending_permissions">[] = await ctx.db
     .query("pending_permissions")
     .withIndex("by_session", (q: any) => q.eq("session_id", p.session_id))
@@ -256,7 +339,12 @@ async function answerPermission(
   p: Doc<"pending_permissions">,
   conversation: Doc<"conversations">,
   userId: Id<"users">,
-  answer: { status: "approved" | "denied"; message?: string; remember?: boolean; cause?: Id<"pending_permissions"> },
+  answer: {
+    status: "approved" | "denied";
+    message?: string;
+    remember?: boolean;
+    cause?: Id<"pending_permissions">;
+  },
 ) {
   await ctx.db.patch(p._id, {
     status: answer.status,
@@ -272,7 +360,11 @@ async function answerPermission(
     conversation,
     detail: {
       before: { status: "pending", tool_name: p.tool_name },
-      after: { status: answer.status, permission_id: p._id, ...(answer.cause && { settled_by: answer.cause }) },
+      after: {
+        status: answer.status,
+        permission_id: p._id,
+        ...(answer.cause && { settled_by: answer.cause }),
+      },
     },
   });
 }
@@ -302,8 +394,8 @@ export const cancelPendingPermissions = mutation({
       .filter((q) =>
         q.and(
           q.eq(q.field("status"), "pending"),
-          q.lte(q.field("created_at"), cutoff)
-        )
+          q.lte(q.field("created_at"), cutoff),
+        ),
       )
       .collect();
 
@@ -347,7 +439,13 @@ export const getPendingPermissions = query({
     const runner = conversation.user_id.toString() === userId.toString();
     // A bot-run session's prompts are answered from that account's own view,
     // which never shows a person's proposal, so nobody is offered one.
-    if (!runner && (!args.as_proposer || (await ctx.db.get(conversation.user_id))?.is_bot || !(await viewerSeesDetail(ctx, userId, conversation)))) return [];
+    if (
+      !runner &&
+      (!args.as_proposer ||
+        (await ctx.db.get(conversation.user_id))?.is_bot ||
+        !(await viewerSeesDetail(ctx, userId, conversation)))
+    )
+      return [];
 
     // Safety net: hide pending rows older than 2 hours. The daemon's local
     // handler cancels rows on its own timeout (~1h), but if the daemon was
@@ -360,7 +458,7 @@ export const getPendingPermissions = query({
     const permissions = await ctx.db
       .query("pending_permissions")
       .withIndex("by_conversation_status", (q) =>
-        q.eq("conversation_id", args.conversation_id).eq("status", "pending")
+        q.eq("conversation_id", args.conversation_id).eq("status", "pending"),
       )
       .collect();
 
@@ -401,7 +499,10 @@ export const getPermissionDecision = query({
         return null;
       }
       const conversation = await ctx.db.get(permission.conversation_id);
-      if (!conversation || conversation.user_id.toString() !== authUserId.toString()) {
+      if (
+        !conversation ||
+        conversation.user_id.toString() !== authUserId.toString()
+      ) {
         return null;
       }
       return { ...decisionFields(permission), _id: permission._id };
@@ -417,7 +518,9 @@ export const getPermissionDecision = query({
       return null;
     }
 
-    const latest = permissions.sort((a, b) => (b.resolved_at || 0) - (a.resolved_at || 0))[0];
+    const latest = permissions.sort(
+      (a, b) => (b.resolved_at || 0) - (a.resolved_at || 0),
+    )[0];
 
     const conversation = await ctx.db.get(latest.conversation_id);
     if (!conversation) {
@@ -461,7 +564,7 @@ export const getAllRespondedPermissions = query({
     const permissions = await ctx.db
       .query("pending_permissions")
       .withIndex("by_owner_resolved", (q) =>
-        q.eq("owner_user_id", authUserId).gte("resolved_at", fiveMinutesAgo)
+        q.eq("owner_user_id", authUserId).gte("resolved_at", fiveMinutesAgo),
       )
       .collect();
 
@@ -489,10 +592,13 @@ export const prunePendingPermissions = internalMutation({
     const rows = await ctx.db.query("pending_permissions").take(4000);
     let deleted = 0;
     for (const p of rows) {
-      const isOldResolved = p.status !== "pending" && (p.resolved_at ?? 0) < resolvedCutoff;
-      const isStalePending = p.status === "pending" && p.created_at < staleCutoff;
+      const isOldResolved =
+        p.status !== "pending" && (p.resolved_at ?? 0) < resolvedCutoff;
+      const isStalePending =
+        p.status === "pending" && p.created_at < staleCutoff;
       if (isOldResolved || isStalePending) {
-        if (isStalePending) await settlePermissionProposals(ctx, p, "cancelled");
+        if (isStalePending)
+          await settlePermissionProposals(ctx, p, "cancelled");
         await ctx.db.delete(p._id);
         deleted++;
       }
@@ -513,7 +619,9 @@ export const expireOfflinePermissions = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    const pending = (await ctx.db.query("pending_permissions").take(4000)).filter((p) => p.status === "pending");
+    const pending = (
+      await ctx.db.query("pending_permissions").take(4000)
+    ).filter((p) => p.status === "pending");
     const lapsedByConv = new Map<string, boolean>();
     let expired = 0;
     for (const p of pending) {
@@ -522,6 +630,7 @@ export const expireOfflinePermissions = internalMutation({
       if (lapsed === undefined) {
         const conv = await ctx.db.get(p.conversation_id);
         const device = conv ? await runnerDeviceOf(ctx, conv) : null;
+        // oxfmt-ignore
         const lastBeat = device ? device.last_seen : conv ? (await ctx.db.get(conv.user_id))?.last_heartbeat : undefined;
         lapsed = !conv || now - (lastBeat ?? 0) > PERMISSION_DEVICE_LAPSE_MS;
         lapsedByConv.set(key, lapsed);

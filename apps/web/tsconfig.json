@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -26,15 +22,9 @@
       "node"
     ],
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "next/navigation": [
-        "./src/compat/next-navigation.ts"
-      ],
-      "next/link": [
-        "./src/compat/next-link.tsx"
-      ]
+      "@/*": ["./*"],
+      "next/navigation": ["./src/compat/next-navigation.ts"],
+      "next/link": ["./src/compat/next-link.tsx"]
     }
   },
   "include": [

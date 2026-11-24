@@ -39,34 +39,44 @@ export function FindBar() {
     setActiveIndex(-1);
   }, []);
 
-  const highlightAll = useCallback((text: string) => {
-    clearHighlights();
-    if (!text || !(CSS as any).highlights) return;
-    const ranges = findTextRanges(document.body, text);
-    rangesRef.current = ranges;
-    setMatchCount(ranges.length);
-    if (ranges.length > 0) {
-      setHighlight(HIGHLIGHT_NAME, ranges);
-      setActiveIndex(0);
-      setHighlight(HIGHLIGHT_ACTIVE, [ranges[0]]);
-      const rect = ranges[0].getBoundingClientRect();
-      if (rect.top < 0 || rect.bottom > window.innerHeight) {
-        ranges[0].startContainer.parentElement?.scrollIntoView({ block: "center" });
+  const highlightAll = useCallback(
+    (text: string) => {
+      clearHighlights();
+      if (!text || !(CSS as any).highlights) return;
+      const ranges = findTextRanges(document.body, text);
+      rangesRef.current = ranges;
+      setMatchCount(ranges.length);
+      if (ranges.length > 0) {
+        setHighlight(HIGHLIGHT_NAME, ranges);
+        setActiveIndex(0);
+        setHighlight(HIGHLIGHT_ACTIVE, [ranges[0]]);
+        const rect = ranges[0].getBoundingClientRect();
+        if (rect.top < 0 || rect.bottom > window.innerHeight) {
+          ranges[0].startContainer.parentElement?.scrollIntoView({
+            block: "center",
+          });
+        }
       }
-    }
-  }, [clearHighlights]);
+    },
+    [clearHighlights],
+  );
 
-  const goToMatch = useCallback((delta: number) => {
-    const ranges = rangesRef.current;
-    if (ranges.length === 0) return;
-    const next = (activeIndex + delta + ranges.length) % ranges.length;
-    setActiveIndex(next);
-    setHighlight(HIGHLIGHT_ACTIVE, [ranges[next]]);
-    const rect = ranges[next].getBoundingClientRect();
-    if (rect.top < 0 || rect.bottom > window.innerHeight) {
-      ranges[next].startContainer.parentElement?.scrollIntoView({ block: "center" });
-    }
-  }, [activeIndex]);
+  const goToMatch = useCallback(
+    (delta: number) => {
+      const ranges = rangesRef.current;
+      if (ranges.length === 0) return;
+      const next = (activeIndex + delta + ranges.length) % ranges.length;
+      setActiveIndex(next);
+      setHighlight(HIGHLIGHT_ACTIVE, [ranges[next]]);
+      const rect = ranges[next].getBoundingClientRect();
+      if (rect.top < 0 || rect.bottom > window.innerHeight) {
+        ranges[next].startContainer.parentElement?.scrollIntoView({
+          block: "center",
+        });
+      }
+    },
+    [activeIndex],
+  );
 
   const close = useCallback(() => {
     setVisible(false);
@@ -74,15 +84,18 @@ export function FindBar() {
     clearHighlights();
   }, [clearHighlights]);
 
-  useShortcutAction('find.toggle', useCallback(() => {
-    if (visible) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    } else {
-      setVisible(true);
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
-  }, [visible]));
+  useShortcutAction(
+    "find.toggle",
+    useCallback(() => {
+      if (visible) {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      } else {
+        setVisible(true);
+        setTimeout(() => inputRef.current?.focus(), 0);
+      }
+    }, [visible]),
+  );
 
   useEventListener("keydown", (e: KeyboardEvent) => {
     if (!visible) return;
@@ -119,15 +132,29 @@ export function FindBar() {
         </span>
       )}
       {query && matchCount === 0 && (
-        <span className="text-xs text-sol-red whitespace-nowrap">No matches</span>
+        <span className="text-xs text-sol-red whitespace-nowrap">
+          No matches
+        </span>
       )}
-      <button onClick={() => goToMatch(-1)} aria-label="Previous match" className="p-0.5 text-sol-text-muted hover:text-sol-text">
+      <button
+        onClick={() => goToMatch(-1)}
+        aria-label="Previous match"
+        className="p-0.5 text-sol-text-muted hover:text-sol-text"
+      >
         <ChevronUp className="w-4 h-4" />
       </button>
-      <button onClick={() => goToMatch(1)} aria-label="Next match" className="p-0.5 text-sol-text-muted hover:text-sol-text">
+      <button
+        onClick={() => goToMatch(1)}
+        aria-label="Next match"
+        className="p-0.5 text-sol-text-muted hover:text-sol-text"
+      >
         <ChevronDown className="w-4 h-4" />
       </button>
-      <button onClick={close} aria-label="Close find" className="p-0.5 text-sol-text-muted hover:text-sol-text">
+      <button
+        onClick={close}
+        aria-label="Close find"
+        className="p-0.5 text-sol-text-muted hover:text-sol-text"
+      >
         <X className="w-4 h-4" />
       </button>
     </div>

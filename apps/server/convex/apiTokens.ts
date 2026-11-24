@@ -9,12 +9,19 @@
 // `api.apiTokens.*` and `internal.apiTokens.*` from them, and ~50 files import
 // `hashToken` / `verifyApiToken` from here, so they must not move.
 import { mutation, query, internalMutation, internalQuery } from "./functions";
-import { makeApiTokenFunctions, type ApiTokenDefinitionParams } from "@platform/auth/convex";
+import {
+  makeApiTokenFunctions,
+  type ApiTokenDefinitionParams,
+} from "@platform/auth/convex";
 import type { RegisteredMutation, RegisteredQuery } from "convex/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
-const CONVEX_URL = process.env.CONVEX_CLOUD_ORIGIN || process.env.CONVEX_CLOUD_URL || process.env.VITE_CONVEX_URL || "";
+const CONVEX_URL =
+  process.env.CONVEX_CLOUD_ORIGIN ||
+  process.env.CONVEX_CLOUD_URL ||
+  process.env.VITE_CONVEX_URL ||
+  "";
 
 export { hashToken, verifyApiToken } from "@platform/auth/convex";
 
@@ -68,7 +75,11 @@ type ApiTokenFunctions = {
       }>
     >
   >;
-  revokeToken: RegisteredMutation<"public", { token_id: Id<"api_tokens"> }, Promise<void>>;
+  revokeToken: RegisteredMutation<
+    "public",
+    { token_id: Id<"api_tokens"> },
+    Promise<void>
+  >;
   renameToken: RegisteredMutation<
     "public",
     { token_id: Id<"api_tokens">; name: string },
@@ -104,11 +115,15 @@ type ApiTokenFunctions = {
 // managedDevices.completeEnrollment, the same page for a managed device), so a
 // mint there IS a completed browser-based `cast auth`; a setup-token exchange
 // is a completed `cast login <token>`.
-export const apiTokenEvents: NonNullable<ApiTokenDefinitionParams["onEvent"]> = async (ctx, event) => {
+export const apiTokenEvents: NonNullable<
+  ApiTokenDefinitionParams["onEvent"]
+> = async (ctx, event) => {
   await ctx.scheduler.runAfter(0, internal.analytics.capture, {
     event: event.name,
     distinctId: event.userId,
-    ...(event.name === "cli_authed" ? { properties: { method: event.method } } : {}),
+    ...(event.name === "cli_authed"
+      ? { properties: { method: event.method } }
+      : {}),
   });
 };
 

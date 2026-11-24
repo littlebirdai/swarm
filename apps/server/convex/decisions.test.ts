@@ -14,27 +14,70 @@ const TOKEN = "cast_decisions_token";
 
 async function ctx() {
   const db = makeFakeDb({
-    users: [{ _id: ANA, name: "Ana" }, { _id: BEN, name: "Ben" }],
-    api_tokens: [{ _id: "tok_1", user_id: ANA, token_hash: await hashToken(TOKEN) }],
-    team_memberships: [
-      { _id: "m1", user_id: ANA, team_id: TEAM_A, role: "member", visibility: "full" },
-      { _id: "m2", user_id: BEN, team_id: TEAM_B, role: "member", visibility: "full" },
+    users: [
+      { _id: ANA, name: "Ana" },
+      { _id: BEN, name: "Ben" },
     ],
-    teams: [{ _id: TEAM_A, name: "A" }, { _id: TEAM_B, name: "B" }],
+    api_tokens: [
+      { _id: "tok_1", user_id: ANA, token_hash: await hashToken(TOKEN) },
+    ],
+    team_memberships: [
+      {
+        _id: "m1",
+        user_id: ANA,
+        team_id: TEAM_A,
+        role: "member",
+        visibility: "full",
+      },
+      {
+        _id: "m2",
+        user_id: BEN,
+        team_id: TEAM_B,
+        role: "member",
+        visibility: "full",
+      },
+    ],
+    teams: [
+      { _id: TEAM_A, name: "A" },
+      { _id: TEAM_B, name: "B" },
+    ],
     conversations: [
-      { _id: "conv_ben", session_id: "sess-ben", user_id: BEN, team_id: TEAM_B, is_private: false, status: "active" },
-      { _id: "conv_ana", session_id: "sess-ana", user_id: ANA, team_id: TEAM_A, is_private: false, status: "active" },
+      {
+        _id: "conv_ben",
+        session_id: "sess-ben",
+        user_id: BEN,
+        team_id: TEAM_B,
+        is_private: false,
+        status: "active",
+      },
+      {
+        _id: "conv_ana",
+        session_id: "sess-ana",
+        user_id: ANA,
+        team_id: TEAM_A,
+        is_private: false,
+        status: "active",
+      },
     ],
     managed_sessions: [],
     decisions: [],
   });
-  return { db, auth: { getUserIdentity: async () => null }, scheduler: { runAfter: async () => null } } as any;
+  return {
+    db,
+    auth: { getUserIdentity: async () => null },
+    scheduler: { runAfter: async () => null },
+  } as any;
 }
 
 describe("decisions.create", () => {
   test("another team's session does not place the decision in that team", async () => {
     const c = await ctx();
-    const r = await (create as any)._handler(c, { api_token: TOKEN, title: "Use Postgres", rationale: "fits", session_id: "sess-ben" });
+    const r = await (create as any)._handler(c, {
+      api_token: TOKEN,
+      title: "Use Postgres",
+      rationale: "fits",
+      session_id: "sess-ben",
+    });
     expect(r.success).toBe(true);
     const row = c.db._tables.decisions[0];
     expect(row.user_id).toBe(ANA);
@@ -45,7 +88,12 @@ describe("decisions.create", () => {
 
   test("the caller's own team visible session still places it", async () => {
     const c = await ctx();
-    const r = await (create as any)._handler(c, { api_token: TOKEN, title: "Use Postgres", rationale: "fits", session_id: "sess-ana" });
+    const r = await (create as any)._handler(c, {
+      api_token: TOKEN,
+      title: "Use Postgres",
+      rationale: "fits",
+      session_id: "sess-ana",
+    });
     expect(r.success).toBe(true);
     const row = c.db._tables.decisions[0];
     expect(row.workspace).toBe(`team:${TEAM_A}`);

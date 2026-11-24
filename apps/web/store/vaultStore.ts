@@ -9,9 +9,20 @@
 
 import { create } from "zustand";
 import type { ConvexReactClient } from "convex/react";
-import type { VaultFileEntry, VaultInfo, VaultWsEvent } from "@codecast/shared/contracts";
-import { isVaultMarkdownPath, VAULT_MAX_PREVIEW_BYTES } from "@codecast/shared/contracts";
-import { lastDiscoveryFailure, loopbackFailureReason, type LoopbackUnreachableReason } from "../lib/terminal/endpoint";
+import type {
+  VaultFileEntry,
+  VaultInfo,
+  VaultWsEvent,
+} from "@codecast/shared/contracts";
+import {
+  isVaultMarkdownPath,
+  VAULT_MAX_PREVIEW_BYTES,
+} from "@codecast/shared/contracts";
+import {
+  lastDiscoveryFailure,
+  loopbackFailureReason,
+  type LoopbackUnreachableReason,
+} from "../lib/terminal/endpoint";
 import {
   fetchRemoteBody,
   fetchRemoteNotes,
@@ -69,17 +80,26 @@ import {
   siblingNames,
   type VaultSortMode,
 } from "../lib/vault/explorerModel";
-import { applySpanEdits, planFolderRewrites, type FileRewrite } from "../lib/vault/linkRewrite";
+import {
+  applySpanEdits,
+  planFolderRewrites,
+  type FileRewrite,
+} from "../lib/vault/linkRewrite";
 import { syncVaultIndex, vaultIndex } from "../lib/vault/indexSingleton";
 
 export type VaultConnection =
-  | "idle"          // not yet asked
-  | "discovering"   // looking for the daemon endpoint
-  | "connected"     // WS up, scan complete
-  | "cached"        // painting from IDB, daemon unreachable
-  | "no-daemon";    // discovery failed and no cache exists
+  | "idle" // not yet asked
+  | "discovering" // looking for the daemon endpoint
+  | "connected" // WS up, scan complete
+  | "cached" // painting from IDB, daemon unreachable
+  | "no-daemon"; // discovery failed and no cache exists
 
-export type VaultRightPanelTab = "backlinks" | "outgoing" | "outline" | "tags" | "bookmarks";
+export type VaultRightPanelTab =
+  | "backlinks"
+  | "outgoing"
+  | "outline"
+  | "tags"
+  | "bookmarks";
 
 export interface VaultBody {
   content: string;
@@ -210,7 +230,9 @@ interface VaultState {
   /** Follow the vault when paths move or vanish; `resolve` returns the new
    *  path, null to drop the bookmark, or undefined to leave it alone. Driven
    *  by lib/vault/bookmarksHost, which watches the file table. */
-  retargetBookmarks: (resolve: (path: string) => string | null | undefined) => void;
+  retargetBookmarks: (
+    resolve: (path: string) => string | null | undefined,
+  ) => void;
   /** Right panel state — lifted so a #tag pill click can open the tag pane. */
   rightPanelTab: VaultRightPanelTab;
   setRightPanelTab: (tab: VaultRightPanelTab) => void;
@@ -232,10 +254,17 @@ interface VaultState {
   toggleDir: (path: string) => void;
   setDirsExpanded: (paths: string[], expanded: boolean) => void;
   noteOpened: (path: string) => void;
-  connect: (convex: ConvexReactClient, opts?: { force?: boolean }) => Promise<void>;
+  connect: (
+    convex: ConvexReactClient,
+    opts?: { force?: boolean },
+  ) => Promise<void>;
   selectVault: (vaultId: string) => Promise<void>;
   refresh: () => Promise<void>;
-  writeFile: (path: string, content: string, baseEtag?: string) => Promise<void>;
+  writeFile: (
+    path: string,
+    content: string,
+    baseEtag?: string,
+  ) => Promise<void>;
   createFile: (path: string, content?: string) => Promise<void>;
   /** Moves an entry; a folder carries its whole subtree with it. */
   renamePath: (path: string, to: string) => Promise<void>;
@@ -307,7 +336,12 @@ function schedulePersist() {
         // The cache holds the default scope only: ignored rows are a snapshot
         // the next scan re-derives, and a cached boot with the toggle off must
         // not paint them for a frame.
-        void saveVaultMeta({ id: active, info, files: Object.values(withoutIgnored(s.files)), scannedAt: s.scannedAt });
+        void saveVaultMeta({
+          id: active,
+          info,
+          files: Object.values(withoutIgnored(s.files)),
+          scannedAt: s.scannedAt,
+        });
       }
     }
     for (const [vaultId, rows] of pendingBodyRows) {
@@ -364,7 +398,8 @@ function recordMoves(moves: { from: string; to: string }[]) {
   const now = Date.now();
   for (const m of moves) recentMoves.set(m.from, { to: m.to, at: now });
   // Prune anything stale so the map can't grow unbounded.
-  for (const [k, v] of recentMoves) if (now - v.at > 30_000) recentMoves.delete(k);
+  for (const [k, v] of recentMoves)
+    if (now - v.at > 30_000) recentMoves.delete(k);
 }
 
 // Bookmark ids only have to be unique within one vault's list; the counter
@@ -403,7 +438,10 @@ function readCachedVaults(): VaultInfo[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (v): v is VaultInfo =>
-        !!v && typeof v === "object" && typeof v.id === "string" && typeof v.root === "string",
+        !!v &&
+        typeof v === "object" &&
+        typeof v.id === "string" &&
+        typeof v.root === "string",
     );
   } catch {
     return [];
@@ -456,7 +494,10 @@ function writeVaultFlag(key: string, vaultId: string, value: boolean): void {
 }
 
 function readShowAllFiles(vaultId: string, vaults: VaultInfo[]): boolean {
-  return readVaultFlag(SHOW_ALL_KEY, vaultId) ?? vaults.find((v) => v.id === vaultId)?.kind === "project";
+  return (
+    readVaultFlag(SHOW_ALL_KEY, vaultId) ??
+    vaults.find((v) => v.id === vaultId)?.kind === "project"
+  );
 }
 
 function readShowIgnoredFiles(vaultId: string): boolean {
@@ -476,29 +517,40 @@ async function fetchBodies(
   { persist = true }: { persist?: boolean } = {},
 ): Promise<void> {
   const queue = [...paths];
-  const workers = Array.from({ length: Math.min(BODY_FETCH_CONCURRENCY, queue.length) }, async () => {
-    while (queue.length) {
-      const path = queue.shift();
-      if (!path) return;
-      try {
-        const file = await readVaultFile(ep, vaultId, path);
-        const s = useVaultStore.getState();
-        if (s.activeVaultId !== vaultId) return;
-        if (file) {
-          const body: VaultBody = { content: file.content, mtime: file.mtime, etag: file.etag };
+  const workers = Array.from(
+    { length: Math.min(BODY_FETCH_CONCURRENCY, queue.length) },
+    async () => {
+      while (queue.length) {
+        const path = queue.shift();
+        if (!path) return;
+        try {
+          const file = await readVaultFile(ep, vaultId, path);
+          const s = useVaultStore.getState();
+          if (s.activeVaultId !== vaultId) return;
+          if (file) {
+            const body: VaultBody = {
+              content: file.content,
+              mtime: file.mtime,
+              etag: file.etag,
+            };
+            useVaultStore.setState((st) => ({
+              bodies: { ...st.bodies, [path]: body },
+              loadingPaths: omit(st.loadingPaths, path),
+            }));
+            if (persist) stageBody(vaultId, path, body);
+          } else {
+            useVaultStore.setState((st) => ({
+              loadingPaths: omit(st.loadingPaths, path),
+            }));
+          }
+        } catch {
           useVaultStore.setState((st) => ({
-            bodies: { ...st.bodies, [path]: body },
             loadingPaths: omit(st.loadingPaths, path),
           }));
-          if (persist) stageBody(vaultId, path, body);
-        } else {
-          useVaultStore.setState((st) => ({ loadingPaths: omit(st.loadingPaths, path) }));
         }
-      } catch {
-        useVaultStore.setState((st) => ({ loadingPaths: omit(st.loadingPaths, path) }));
       }
-    }
-  });
+    },
+  );
   await Promise.all(workers);
 }
 
@@ -530,7 +582,10 @@ function snapshotPaths(s: PathTables, paths: string[]): PathSnapshot[] {
 
 /** Put the snapshotted keys back exactly as they were, and undo the path
  *  rewrite in the recents list. */
-function restorePaths(snapshot: PathSnapshot[], moves: [string, string][]): void {
+function restorePaths(
+  snapshot: PathSnapshot[],
+  moves: [string, string][],
+): void {
   useVaultStore.setState((st) => {
     const files = { ...st.files };
     const bodies = { ...st.bodies };
@@ -544,7 +599,12 @@ function restorePaths(snapshot: PathSnapshot[], moves: [string, string][]): void
       else expandedDirs[path] = expanded;
     }
     const undo = new Map(moves.map(([from, to]) => [to, from]));
-    return { files, bodies, expandedDirs, recentPaths: st.recentPaths.map((p) => undo.get(p) ?? p) };
+    return {
+      files,
+      bodies,
+      expandedDirs,
+      recentPaths: st.recentPaths.map((p) => undo.get(p) ?? p),
+    };
   });
 }
 
@@ -553,7 +613,10 @@ function restorePaths(snapshot: PathSnapshot[], moves: [string, string][]): void
  *  move's source still lands intact. */
 function applyMoves(moves: [string, string][]): void {
   useVaultStore.setState((st) => {
-    const sources = snapshotPaths(st, moves.map(([from]) => from));
+    const sources = snapshotPaths(
+      st,
+      moves.map(([from]) => from),
+    );
     const files = { ...st.files };
     const bodies = { ...st.bodies };
     const expandedDirs = { ...st.expandedDirs };
@@ -570,7 +633,12 @@ function applyMoves(moves: [string, string][]): void {
       if (src.expanded !== undefined) expandedDirs[to] = src.expanded;
     });
     const remap = new Map(moves);
-    return { files, bodies, expandedDirs, recentPaths: st.recentPaths.map((p) => remap.get(p) ?? p) };
+    return {
+      files,
+      bodies,
+      expandedDirs,
+      recentPaths: st.recentPaths.map((p) => remap.get(p) ?? p),
+    };
   });
 }
 
@@ -583,49 +651,54 @@ function applyMoves(moves: [string, string][]): void {
  * the text at every span, so a file that changed in between loses only the
  * edits that no longer match, and says so.
  */
-async function applyLinkRewrites(plan: FileRewrite[]): Promise<Omit<RenameReport, "path"> | null> {
+async function applyLinkRewrites(
+  plan: FileRewrite[],
+): Promise<Omit<RenameReport, "path"> | null> {
   if (!plan.length) return null;
   let filesChanged = 0;
   let linksRewritten = 0;
   let skipped = 0;
 
   const queue = [...plan];
-  const workers = Array.from({ length: Math.min(REWRITE_CONCURRENCY, queue.length) }, async () => {
-    while (queue.length) {
-      const job = queue.shift();
-      if (!job) return;
-      const store = useVaultStore.getState();
-      const body = store.bodies[job.source];
-      if (!body) {
-        skipped += job.edits.length;
-        continue;
+  const workers = Array.from(
+    { length: Math.min(REWRITE_CONCURRENCY, queue.length) },
+    async () => {
+      while (queue.length) {
+        const job = queue.shift();
+        if (!job) return;
+        const store = useVaultStore.getState();
+        const body = store.bodies[job.source];
+        if (!body) {
+          skipped += job.edits.length;
+          continue;
+        }
+        const result = applySpanEdits(body.content, job.edits);
+        skipped += result.skipped;
+        if (!result.applied) continue;
+        try {
+          await store.writeFile(job.source, result.content);
+        } catch (e) {
+          skipped += result.applied;
+          // Keep the first reason: a strip that names one file the user can go
+          // look at beats one that names the last of five.
+          useVaultStore.setState((s) => ({
+            opError:
+              s.opError ??
+              `Couldn't update links in ${job.source}: ${e instanceof Error ? e.message : String(e)}`,
+          }));
+          continue;
+        }
+        // A conflicting write leaves the file on disk untouched: those links are
+        // still pointing at the old name until the user resolves the conflict.
+        if (useVaultStore.getState().conflicts[job.source]) {
+          skipped += result.applied;
+          continue;
+        }
+        filesChanged++;
+        linksRewritten += result.applied;
       }
-      const result = applySpanEdits(body.content, job.edits);
-      skipped += result.skipped;
-      if (!result.applied) continue;
-      try {
-        await store.writeFile(job.source, result.content);
-      } catch (e) {
-        skipped += result.applied;
-        // Keep the first reason: a strip that names one file the user can go
-        // look at beats one that names the last of five.
-        useVaultStore.setState((s) => ({
-          opError:
-            s.opError ??
-            `Couldn't update links in ${job.source}: ${e instanceof Error ? e.message : String(e)}`,
-        }));
-        continue;
-      }
-      // A conflicting write leaves the file on disk untouched: those links are
-      // still pointing at the old name until the user resolves the conflict.
-      if (useVaultStore.getState().conflicts[job.source]) {
-        skipped += result.applied;
-        continue;
-      }
-      filesChanged++;
-      linksRewritten += result.applied;
-    }
-  });
+    },
+  );
   await Promise.all(workers);
   return { filesChanged, linksRewritten, skipped };
 }
@@ -640,7 +713,10 @@ async function createThenRename(
   create: (path: string) => Promise<void>,
 ): Promise<string | null> {
   const store = useVaultStore.getState();
-  const path = joinVaultPath(dir, nextUntitledName(siblingNames(Object.keys(store.files), dir), base, ext));
+  const path = joinVaultPath(
+    dir,
+    nextUntitledName(siblingNames(Object.keys(store.files), dir), base, ext),
+  );
   const ancestors = ancestorDirs(path);
   if (ancestors.length) store.setDirsExpanded(ancestors, true);
   const pending = create(path); // the optimistic row lands before the first await
@@ -699,23 +775,31 @@ function applyWsEvent(ev: VaultWsEvent) {
 }
 
 /** The file table without the rows a scan flagged ignored. */
-function withoutIgnored(files: Record<string, VaultFileEntry>): Record<string, VaultFileEntry> {
+function withoutIgnored(
+  files: Record<string, VaultFileEntry>,
+): Record<string, VaultFileEntry> {
   if (!Object.values(files).some((f) => f.ignored)) return files;
   const out: Record<string, VaultFileEntry> = {};
   for (const [p, f] of Object.entries(files)) if (!f.ignored) out[p] = f;
   return out;
 }
 
-async function syncActiveVault(ep: VaultEndpoint, vaultId: string): Promise<void> {
+async function syncActiveVault(
+  ep: VaultEndpoint,
+  vaultId: string,
+): Promise<void> {
   lastScanStartedAt = Date.now();
-  const scan = await scanVault(ep, vaultId, { ignored: useVaultStore.getState().showIgnoredFiles });
+  const scan = await scanVault(ep, vaultId, {
+    ignored: useVaultStore.getState().showIgnoredFiles,
+  });
   const s = useVaultStore.getState();
   if (s.activeVaultId !== vaultId) return;
 
   const files: Record<string, VaultFileEntry> = {};
   // The toggle may have gone off while the scan was in flight; honor the
   // current value rather than the one the request was built from.
-  for (const f of scan.files) if (!f.ignored || s.showIgnoredFiles) files[f.path] = f;
+  for (const f of scan.files)
+    if (!f.ignored || s.showIgnoredFiles) files[f.path] = f;
   for (const f of Object.values(s.linkedFiles)) files[f.path] ??= f;
 
   // Diff against what we have (from IDB or a previous scan): fetch new/changed
@@ -797,9 +881,13 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     const root = vaults.find((v) => v.id === activeVaultId)?.root;
     if (!endpoint || !root || isRemote) return undefined;
     try {
-      const located = await locateVault(endpoint, `${root.replace(/\/$/, "")}/${path}`);
+      const located = await locateVault(
+        endpoint,
+        `${root.replace(/\/$/, "")}/${path}`,
+      );
       if (get().activeVaultId !== activeVaultId) return undefined;
-      const row = located?.vault.id === activeVaultId ? located.entry : undefined;
+      const row =
+        located?.vault.id === activeVaultId ? located.entry : undefined;
       if (!row) return null;
       if (!row.dir) get().adoptLinkedFile(row);
       return row;
@@ -816,9 +904,11 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     }),
   clearRenameReport: () => set({ lastRenameReport: null }),
 
-  setQuickSwitchOpen: (open) => set({ quickSwitchOpen: open, ...(open ? {} : { quickSwitchSeed: null }) }),
+  setQuickSwitchOpen: (open) =>
+    set({ quickSwitchOpen: open, ...(open ? {} : { quickSwitchSeed: null }) }),
   quickSwitchSeed: null,
-  openQuickSwitch: (seed) => set({ quickSwitchOpen: true, quickSwitchSeed: seed ?? null }),
+  openQuickSwitch: (seed) =>
+    set({ quickSwitchOpen: true, quickSwitchSeed: seed ?? null }),
 
   setLeftPaneTab: (tab) => set({ leftPaneTab: tab }),
   setSearchQuery: (query) => set({ searchQuery: query }),
@@ -900,7 +990,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       return;
     }
     // Off is local: drop the flagged rows now rather than after a round trip.
-    set((s) => ({ showIgnoredFiles: false, files: { ...withoutIgnored(s.files), ...s.linkedFiles } }));
+    set((s) => ({
+      showIgnoredFiles: false,
+      files: { ...withoutIgnored(s.files), ...s.linkedFiles },
+    }));
   },
 
   loadTextBody: async (path) => {
@@ -940,11 +1033,17 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   clearReveal: () => set({ revealTarget: null }),
   setSelectedTag: (tag) => set({ selectedTag: tag }),
   openTagPane: (tag) => {
-    set((s) => ({ rightPanelTab: "tags", selectedTag: tag, tagPaneRequest: s.tagPaneRequest + 1 }));
+    set((s) => ({
+      rightPanelTab: "tags",
+      selectedTag: tag,
+      tagPaneRequest: s.tagPaneRequest + 1,
+    }));
   },
 
   toggleDir: (path) =>
-    set((s) => ({ expandedDirs: { ...s.expandedDirs, [path]: !s.expandedDirs[path] } })),
+    set((s) => ({
+      expandedDirs: { ...s.expandedDirs, [path]: !s.expandedDirs[path] },
+    })),
 
   setDirsExpanded: (paths, expanded) =>
     set((s) => {
@@ -955,7 +1054,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
 
   noteOpened: (path) =>
     set((s) => ({
-      recentPaths: [path, ...s.recentPaths.filter((p) => p !== path)].slice(0, 50),
+      recentPaths: [path, ...s.recentPaths.filter((p) => p !== path)].slice(
+        0,
+        50,
+      ),
     })),
 
   connect: async (convex, opts) => {
@@ -977,14 +1079,23 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     const remembered = st.activeVaultId ?? readLastVaultId();
     if (remembered && !st.scannedAt) {
       void (async () => {
-        const [meta, bodyRows] = await Promise.all([loadVaultMeta(remembered), loadVaultBodies(remembered)]);
+        const [meta, bodyRows] = await Promise.all([
+          loadVaultMeta(remembered),
+          loadVaultBodies(remembered),
+        ]);
         const cur = get();
         // Only if nothing fresher landed while we read.
-        if (!meta || cur.scannedAt !== null || (cur.activeVaultId && cur.activeVaultId !== remembered)) return;
+        if (
+          !meta ||
+          cur.scannedAt !== null ||
+          (cur.activeVaultId && cur.activeVaultId !== remembered)
+        )
+          return;
         const files: Record<string, VaultFileEntry> = {};
         for (const f of meta.files) files[f.path] = f;
         const bodies: Record<string, VaultBody> = {};
-        for (const r of bodyRows) bodies[r.path] = { content: r.content, mtime: r.mtime, etag: r.etag };
+        for (const r of bodyRows)
+          bodies[r.path] = { content: r.content, mtime: r.mtime, etag: r.etag };
         set((s) => ({
           activeVaultId: s.activeVaultId ?? remembered,
           vaults: s.vaults.length ? s.vaults : [meta.info],
@@ -1002,7 +1113,11 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       // selectVault paints it and leaves connection as "cached"; only a truly
       // never-seen vault lands on the no-daemon teaching state.
       const remembered = get().activeVaultId ?? readLastVaultId();
-      set({ endpoint: null, unreachableReason: lastDiscoveryFailure(), unreachableDetail: null });
+      set({
+        endpoint: null,
+        unreachableReason: lastDiscoveryFailure(),
+        unreachableDetail: null,
+      });
       if (remembered && !get().scannedAt) {
         await get().selectVault(remembered);
       }
@@ -1031,7 +1146,12 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       }));
       return;
     }
-    set({ endpoint: ep, vaults, unreachableReason: "none", unreachableDetail: null });
+    set({
+      endpoint: ep,
+      vaults,
+      unreachableReason: "none",
+      unreachableDetail: null,
+    });
     // Seeds the picker on the next cold boot, before discovery answers.
     writeCachedVaults(vaults);
 
@@ -1041,7 +1161,8 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       .then((remote) => set({ remoteVaults: remote }))
       .catch(() => {});
 
-    const active = get().activeVaultId ?? readLastVaultId() ?? vaults[0]?.id ?? null;
+    const active =
+      get().activeVaultId ?? readLastVaultId() ?? vaults[0]?.id ?? null;
     if (active) await get().selectVault(active);
     else set({ connection: "connected" });
   },
@@ -1057,7 +1178,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     // boot sets activeVaultId straight from the IDB cache, so by the time
     // selectVault runs for the remembered vault `prev` already equals it — and
     // a project vault would have opened with the toggle off.
-    set({ showAllFiles: readShowAllFiles(vaultId, get().vaults), showIgnoredFiles: readShowIgnoredFiles(vaultId) });
+    set({
+      showAllFiles: readShowAllFiles(vaultId, get().vaults),
+      showIgnoredFiles: readShowIgnoredFiles(vaultId),
+    });
     if (prev !== vaultId) {
       set({
         activeVaultId: vaultId,
@@ -1076,13 +1200,17 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     }
 
     // Local-first: paint from IDB before the daemon answers.
-    const [meta, bodyRows] = await Promise.all([loadVaultMeta(vaultId), loadVaultBodies(vaultId)]);
+    const [meta, bodyRows] = await Promise.all([
+      loadVaultMeta(vaultId),
+      loadVaultBodies(vaultId),
+    ]);
     if (get().activeVaultId !== vaultId) return;
     if (meta && get().scannedAt === null) {
       const files: Record<string, VaultFileEntry> = {};
       for (const f of meta.files) files[f.path] = f;
       const bodies: Record<string, VaultBody> = {};
-      for (const r of bodyRows) bodies[r.path] = { content: r.content, mtime: r.mtime, etag: r.etag };
+      for (const r of bodyRows)
+        bodies[r.path] = { content: r.content, mtime: r.mtime, etag: r.etag };
       set((s) => ({
         files,
         bodies,
@@ -1118,17 +1246,20 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       // via onStale, when reconnects keep failing (daemon restart = new
       // port/token, so retrying the old endpoint can never succeed).
       onDown: guarded(() => {
-        if (useVaultStore.getState().connection === "connected") set({ connection: "cached" });
+        if (useVaultStore.getState().connection === "connected")
+          set({ connection: "cached" });
       }),
       onUp: guarded(() => {
         // Data recovery rides the server's post-hello "reset" event; here we
         // only clear the banner.
-        if (useVaultStore.getState().connection === "cached") set({ connection: "connected" });
+        if (useVaultStore.getState().connection === "cached")
+          set({ connection: "connected" });
       }),
       onStale: guarded(() => {
         wsDispose?.();
         wsDispose = null;
-        if (convexRef) void useVaultStore.getState().connect(convexRef, { force: true });
+        if (convexRef)
+          void useVaultStore.getState().connect(convexRef, { force: true });
       }),
     });
   },
@@ -1178,14 +1309,22 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     if (!convex || !activeVaultId || !isRemote || bodies[path]) return;
     const vault = get().remoteVaults.find((v) => v.id === activeVaultId);
     set((s) => ({ loadingPaths: { ...s.loadingPaths, [path]: true } }));
-    const res = await fetchRemoteBody(convex, activeVaultId, path, vault?.device_id);
+    const res = await fetchRemoteBody(
+      convex,
+      activeVaultId,
+      path,
+      vault?.device_id,
+    );
     if (get().activeVaultId !== activeVaultId) return;
     set((s) => ({
       loadingPaths: omit(s.loadingPaths, path),
       bodies:
         res.content === null
           ? s.bodies
-          : { ...s.bodies, [path]: { content: res.content, mtime: 0, etag: "" } },
+          : {
+              ...s.bodies,
+              [path]: { content: res.content, mtime: 0, etag: "" },
+            },
       opError:
         res.content === null && res.reason === "not-uploaded"
           ? `${path} isn't mirrored — its body lives on the machine that owns this vault.`
@@ -1195,7 +1334,8 @@ export const useVaultStore = create<VaultState>((set, get) => ({
 
   refresh: async () => {
     const { endpoint, activeVaultId } = get();
-    if (endpoint && activeVaultId) await syncActiveVault(endpoint, activeVaultId);
+    if (endpoint && activeVaultId)
+      await syncActiveVault(endpoint, activeVaultId);
   },
 
   writeFile: async (path, content, baseEtag) => {
@@ -1210,14 +1350,26 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     const guard = baseEtag ?? base?.etag;
     // Optimistic: the UI reflects the write immediately; disk follows.
     set((s) => ({
-      bodies: { ...s.bodies, [path]: { content, mtime: Date.now(), etag: base?.etag ?? "" } },
+      bodies: {
+        ...s.bodies,
+        [path]: { content, mtime: Date.now(), etag: base?.etag ?? "" },
+      },
     }));
     try {
-      const res = await writeVaultFile(endpoint, activeVaultId, path, content, guard || undefined);
+      const res = await writeVaultFile(
+        endpoint,
+        activeVaultId,
+        path,
+        content,
+        guard || undefined,
+      );
       const body: VaultBody = { content, mtime: res.mtime, etag: res.etag };
       set((s) => ({
         bodies: { ...s.bodies, [path]: body },
-        files: { ...s.files, [path]: { path, mtime: res.mtime, size: res.size } },
+        files: {
+          ...s.files,
+          [path]: { path, mtime: res.mtime, size: res.size },
+        },
       }));
       stageBody(activeVaultId, path, body);
     } catch (e) {
@@ -1240,15 +1392,25 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     // side, and the rollback must not evict the real file from the tree).
     const prevEntry = get().files[path];
     const prevBody = get().bodies[path];
-    const optimistic: VaultFileEntry = { path, mtime: Date.now(), size: content.length };
+    const optimistic: VaultFileEntry = {
+      path,
+      mtime: Date.now(),
+      size: content.length,
+    };
     const body: VaultBody = { content, mtime: optimistic.mtime, etag: "" };
     set((s) => ({
       files: { ...s.files, [path]: optimistic },
-      bodies: isVaultMarkdownPath(path) ? { ...s.bodies, [path]: body } : s.bodies,
+      bodies: isVaultMarkdownPath(path)
+        ? { ...s.bodies, [path]: body }
+        : s.bodies,
       opError: null,
     }));
     try {
-      const res = await vaultOp(endpoint, activeVaultId, { op: "create", path, content });
+      const res = await vaultOp(endpoint, activeVaultId, {
+        op: "create",
+        path,
+        content,
+      });
       const entry = res.file ?? optimistic;
       set((s) => ({ files: { ...s.files, [path]: entry } }));
       if (isVaultMarkdownPath(path)) {
@@ -1256,8 +1418,12 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       }
     } catch (e) {
       set((s) => ({
-        files: prevEntry ? { ...s.files, [path]: prevEntry } : omit(s.files, path),
-        bodies: prevBody ? { ...s.bodies, [path]: prevBody } : omit(s.bodies, path),
+        files: prevEntry
+          ? { ...s.files, [path]: prevEntry }
+          : omit(s.files, path),
+        bodies: prevBody
+          ? { ...s.bodies, [path]: prevBody }
+          : omit(s.bodies, path),
         opError: `Couldn't create ${path}: ${e instanceof Error ? e.message : String(e)}`,
       }));
       throw e;
@@ -1277,7 +1443,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     // idle callback, and a rename in that window must not quietly find no
     // backlinks and rewrite nothing.
     syncVaultIndex(activeVaultId, get().bodies);
-    const plan = planFolderRewrites(vaultIndex, moves.map(([from, dest]) => ({ from, to: dest })));
+    const plan = planFolderRewrites(
+      vaultIndex,
+      moves.map(([from, dest]) => ({ from, to: dest })),
+    );
     // Snapshot exactly the keys the move touches — a rollback that restored
     // whole tables would also revert a WS event that landed mid-op. Rows
     // sitting on a destination are captured too, so a rejected
@@ -1304,7 +1473,9 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       // doesn't send this file's text to a path that doesn't exist.
       forgetMoves(moves.map(([from, dest]) => ({ from, to: dest })));
       restorePaths(snapshot, moves);
-      set({ opError: `Couldn't rename ${path}: ${e instanceof Error ? e.message : String(e)}` });
+      set({
+        opError: `Couldn't rename ${path}: ${e instanceof Error ? e.message : String(e)}`,
+      });
       throw e;
     }
     // The rewrite is its own act, and it does NOT block the rename: the tree,
@@ -1322,7 +1493,11 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     if (!endpoint || !activeVaultId) throw new Error("vault not connected");
     const prevEntry = get().files[path];
     const prevBody = get().bodies[path];
-    set((s) => ({ files: omit(s.files, path), bodies: omit(s.bodies, path), opError: null }));
+    set((s) => ({
+      files: omit(s.files, path),
+      bodies: omit(s.bodies, path),
+      opError: null,
+    }));
     try {
       await vaultOp(endpoint, activeVaultId, { op: "delete", path });
       stageDelete(activeVaultId, path);
@@ -1339,7 +1514,13 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   createFolder: async (path) => {
     const { endpoint, activeVaultId } = get();
     if (!endpoint || !activeVaultId) throw new Error("vault not connected");
-    set((s) => ({ files: { ...s.files, [path]: { path, mtime: Date.now(), size: 0, dir: true } }, opError: null }));
+    set((s) => ({
+      files: {
+        ...s.files,
+        [path]: { path, mtime: Date.now(), size: 0, dir: true },
+      },
+      opError: null,
+    }));
     try {
       await vaultOp(endpoint, activeVaultId, { op: "mkdir", path });
     } catch (e) {
@@ -1351,11 +1532,15 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     }
   },
 
-  newNote: (dir) => createThenRename(dir, "Untitled", ".md", (path) => get().createFile(path, "")),
+  newNote: (dir) =>
+    createThenRename(dir, "Untitled", ".md", (path) =>
+      get().createFile(path, ""),
+    ),
 
   dailySettings: DEFAULT_DAILY_SETTINGS,
 
-  setDailySettings: (next) => set((s) => ({ dailySettings: { ...s.dailySettings, ...next } })),
+  setDailySettings: (next) =>
+    set((s) => ({ dailySettings: { ...s.dailySettings, ...next } })),
 
   openDailyNote: async (date) => {
     const when = date ?? new Date();
@@ -1367,12 +1552,18 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     // A template whose body hasn't streamed in yet must not silently degrade
     // to "no template" — fetch it on demand (review finding, R12; unreachable
     // until a settings UI ships, fixed before it can be).
-    let templateBody = settings.template ? get().bodies[settings.template]?.content : undefined;
+    let templateBody = settings.template
+      ? get().bodies[settings.template]?.content
+      : undefined;
     if (settings.template && templateBody === undefined) {
       const { endpoint, activeVaultId } = get();
       if (endpoint && activeVaultId && get().files[settings.template]) {
         try {
-          const file = await readVaultFile(endpoint, activeVaultId, settings.template);
+          const file = await readVaultFile(
+            endpoint,
+            activeVaultId,
+            settings.template,
+          );
           templateBody = file?.content;
         } catch {
           templateBody = undefined;
@@ -1392,14 +1583,20 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   },
 
   adjacentDaily: (date, direction) => {
-    const existing = adjacentDailyNote(Object.keys(get().files), date, get().dailySettings, direction);
+    const existing = adjacentDailyNote(
+      Object.keys(get().files),
+      date,
+      get().dailySettings,
+      direction,
+    );
     if (existing) return existing;
     // Nothing exists on that side — offer the literal adjacent day's path so a
     // caller can create it (Obsidian's "next daily note" makes tomorrow).
     return dailyNotePath(shiftDays(date, direction), get().dailySettings);
   },
 
-  newFolder: (dir) => createThenRename(dir, "New folder", "", (path) => get().createFolder(path)),
+  newFolder: (dir) =>
+    createThenRename(dir, "New folder", "", (path) => get().createFolder(path)),
 
   resolveConflictWithDisk: (path) => {
     set((s) => {
@@ -1407,7 +1604,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       if (!disk) return s;
       const { activeVaultId } = s;
       if (activeVaultId) stageBody(activeVaultId, path, disk);
-      return { bodies: { ...s.bodies, [path]: disk }, conflicts: omit(s.conflicts, path) };
+      return {
+        bodies: { ...s.bodies, [path]: disk },
+        conflicts: omit(s.conflicts, path),
+      };
     });
   },
 
@@ -1420,7 +1620,13 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     // Retry the write against the disk version we just saw.
     const { endpoint, activeVaultId } = get();
     if (!endpoint || !activeVaultId) return;
-    const res = await writeVaultFile(endpoint, activeVaultId, path, mine, disk.etag || undefined);
+    const res = await writeVaultFile(
+      endpoint,
+      activeVaultId,
+      path,
+      mine,
+      disk.etag || undefined,
+    );
     const body: VaultBody = { content: mine, mtime: res.mtime, etag: res.etag };
     set((st) => ({ bodies: { ...st.bodies, [path]: body } }));
     stageBody(activeVaultId, path, body);

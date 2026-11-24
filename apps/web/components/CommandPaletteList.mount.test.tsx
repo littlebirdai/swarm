@@ -4,7 +4,9 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../test-helpers/globals";
 import { closeDomWindow } from "../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+});
 const scrolledItems: HTMLElement[] = [];
 dom.window.HTMLElement.prototype.scrollIntoView = function () {
   scrolledItems.push(this);
@@ -23,7 +25,11 @@ const restoreGlobals = replaceGlobals({
   Element: dom.window.Element,
   Event: dom.window.Event,
   MutationObserver: dom.window.MutationObserver,
-  ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
+  ResizeObserver: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
   requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
   cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
   IS_REACT_ACT_ENVIRONMENT: true,
@@ -37,16 +43,22 @@ let root = createRoot(container);
 const rows = Array.from({ length: 40 }, (_, i) => `Aivery session ${i}`);
 
 async function render(search: string, items = rows) {
-  await act(() => root.render(
-    <Command>
-      <Command.Input value={search} onValueChange={() => {}} />
-      <CommandPaletteList>
-        <Command.Group heading="Sessions">
-          {items.map((row) => <Command.Item key={row} value={row}>{row}</Command.Item>)}
-        </Command.Group>
-      </CommandPaletteList>
-    </Command>,
-  ));
+  await act(() =>
+    root.render(
+      <Command>
+        <Command.Input value={search} onValueChange={() => {}} />
+        <CommandPaletteList>
+          <Command.Group heading="Sessions">
+            {items.map((row) => (
+              <Command.Item key={row} value={row}>
+                {row}
+              </Command.Item>
+            ))}
+          </Command.Group>
+        </CommandPaletteList>
+      </Command>,
+    ),
+  );
   return container.querySelector<HTMLElement>("[cmdk-list]")!;
 }
 
@@ -89,14 +101,22 @@ test("keyboard navigation still reveals its selection and typing resets it", asy
   const list = await render("ai");
   const input = container.querySelector("input")!;
   scrolledItems.length = 0;
-  await act(() => input.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "End", bubbles: true })));
-  expect(container.querySelector('[aria-selected="true"]')?.textContent).toBe(rows.at(-1)!);
+  await act(() =>
+    input.dispatchEvent(
+      new dom.window.KeyboardEvent("keydown", { key: "End", bubbles: true }),
+    ),
+  );
+  expect(container.querySelector('[aria-selected="true"]')?.textContent).toBe(
+    rows.at(-1)!,
+  );
   expect(scrolledItems.at(-1)?.textContent).toBe(rows.at(-1)!);
 
   list.scrollTop = 900;
   await render("aiv");
   expect(list.scrollTop).toBe(0);
-  expect(container.querySelector('[aria-selected="true"]')?.textContent).toBe(rows[0]);
+  expect(container.querySelector('[aria-selected="true"]')?.textContent).toBe(
+    rows[0],
+  );
 });
 
 test("results arriving for the same query preserve the user's scroll position", async () => {

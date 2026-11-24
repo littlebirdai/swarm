@@ -179,16 +179,38 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
-import { NEUTRAL_SYSTEM, callArgs, callEnv, callReplies, isolatedEnv, loginToken, profileToken } from "../src/subscriptionCall.ts";
+import {
+  NEUTRAL_SYSTEM,
+  callArgs,
+  callEnv,
+  callReplies,
+  isolatedEnv,
+  loginToken,
+  profileToken,
+} from "../src/subscriptionCall.ts";
 // The harness's parts, each beside this file: the closed world, the broker and
 // its record, the fake's call path, the proxies, and the sweep.
 import { startBroker } from "./prompt-dry-run-broker.ts";
 import { setContext } from "./prompt-dry-run-context.ts";
 import { runExec } from "./prompt-dry-run-exec.ts";
 import { loadFake } from "./prompt-dry-run-fakecall.ts";
-import { PLACEHOLDER_TOKEN, startEgressProxy, startModelProxy } from "./prompt-dry-run-model.ts";
-import { mergeAnswered, reconcileRecord, setTurn, startRecording } from "./prompt-dry-run-record.ts";
-import { gitStoresOf, refuse, scratchIsolationGap, scratchSandbox } from "./prompt-dry-run-sandbox.ts";
+import {
+  PLACEHOLDER_TOKEN,
+  startEgressProxy,
+  startModelProxy,
+} from "./prompt-dry-run-model.ts";
+import {
+  mergeAnswered,
+  reconcileRecord,
+  setTurn,
+  startRecording,
+} from "./prompt-dry-run-record.ts";
+import {
+  gitStoresOf,
+  refuse,
+  scratchIsolationGap,
+  scratchSandbox,
+} from "./prompt-dry-run-sandbox.ts";
 import { WATCHDOG, sweepRun } from "./prompt-dry-run-sweep.ts";
 
 function arg(name: string, fallback?: string): string | undefined {
@@ -197,8 +219,18 @@ function arg(name: string, fallback?: string): string | undefined {
 }
 
 if (process.argv.includes("--isolation-check")) {
-  const probeRun = fs.mkdtempSync(path.join(fs.realpathSync(process.env.TMPDIR || "/tmp"), "dry-run-isolation-"));
-  const gap = scratchIsolationGap(probeRun, path.resolve(arg("guard") ?? path.join(import.meta.dir, "prompt-dry-run-bin")));
+  const probeRun = fs.mkdtempSync(
+    path.join(
+      fs.realpathSync(process.env.TMPDIR || "/tmp"),
+      "dry-run-isolation-",
+    ),
+  );
+  const gap = scratchIsolationGap(
+    probeRun,
+    path.resolve(
+      arg("guard") ?? path.join(import.meta.dir, "prompt-dry-run-bin"),
+    ),
+  );
   fs.rmSync(probeRun, { recursive: true, force: true });
   console.log(gap ? `not isolated: ${gap}` : "isolated");
   process.exit(gap ? 3 : 0);
@@ -211,52 +243,109 @@ const runDir = path.resolve(arg("run") ?? "");
 const promptFile = path.resolve(arg("prompt") ?? "");
 
 if (!arg("run") || !arg("prompt") || !fs.existsSync(promptFile)) {
-  refuse("usage: prompt-dry-run.ts --run <dir> --prompt <file> --model <id> [--call [--system <file>]] [--max-output-tokens N] [--max-turns N] [--tools A,B] [--guard <dir>] [--serve <dir>] [--account <profile>] [--then <file>]... [--claude-md <file>] [--seed <jsonl>]");
+  refuse(
+    "usage: prompt-dry-run.ts --run <dir> --prompt <file> --model <id> [--call [--system <file>]] [--max-output-tokens N] [--max-turns N] [--tools A,B] [--guard <dir>] [--serve <dir>] [--account <profile>] [--then <file>]... [--claude-md <file>] [--seed <jsonl>]",
+  );
 }
 const model = arg("model");
-if (!model || model.startsWith("--")) refuse("--model is required: an unpinned run takes the account default and cannot be compared");
+if (!model || model.startsWith("--"))
+  refuse(
+    "--model is required: an unpinned run takes the account default and cannot be compared",
+  );
 const call = process.argv.includes("--call");
 if (call) {
-  for (const f of ["then", "tools", "max-turns"]) if (process.argv.includes(`--${f}`)) refuse(`--${f} does not apply to --call: a call is one turn with no tools`);
-} else if (process.argv.includes("--system")) refuse("--system applies only to --call");
+  for (const f of ["then", "tools", "max-turns"])
+    if (process.argv.includes(`--${f}`))
+      refuse(
+        `--${f} does not apply to --call: a call is one turn with no tools`,
+      );
+} else if (process.argv.includes("--system"))
+  refuse("--system applies only to --call");
 const systemFile = arg("system") ? path.resolve(arg("system")!) : undefined;
-if (systemFile && !fs.existsSync(systemFile)) refuse(`--system: no such file ${systemFile}`);
+if (systemFile && !fs.existsSync(systemFile))
+  refuse(`--system: no such file ${systemFile}`);
 const maxOutputTokens = arg("max-output-tokens");
-if (maxOutputTokens !== undefined && !/^[1-9]\d*$/.test(maxOutputTokens)) refuse(`--max-output-tokens wants a positive integer (got ${maxOutputTokens})`);
+if (maxOutputTokens !== undefined && !/^[1-9]\d*$/.test(maxOutputTokens))
+  refuse(
+    `--max-output-tokens wants a positive integer (got ${maxOutputTokens})`,
+  );
 const maxTurns = call ? "1" : arg("max-turns", "80")!;
-const tools = call ? [] : (arg("tools", "Bash,Read,Write,Edit") ?? "").split(",").filter(Boolean);
-const guardDir = path.resolve(arg("guard") ?? path.join(import.meta.dir, "prompt-dry-run-bin"));
+const tools = call
+  ? []
+  : (arg("tools", "Bash,Read,Write,Edit") ?? "").split(",").filter(Boolean);
+const guardDir = path.resolve(
+  arg("guard") ?? path.join(import.meta.dir, "prompt-dry-run-bin"),
+);
 const serveDir = arg("serve") ? path.resolve(arg("serve")!) : undefined;
-const thenFiles = process.argv.flatMap((a, i) => (a === "--then" && process.argv[i + 1] ? [path.resolve(process.argv[i + 1])] : []));
-for (const f of thenFiles) if (!fs.existsSync(f)) refuse(`--then: no such file ${f}`);
-const claudeMdFile = arg("claude-md") ? path.resolve(arg("claude-md")!) : undefined;
+const thenFiles = process.argv.flatMap((a, i) =>
+  a === "--then" && process.argv[i + 1]
+    ? [path.resolve(process.argv[i + 1])]
+    : [],
+);
+for (const f of thenFiles)
+  if (!fs.existsSync(f)) refuse(`--then: no such file ${f}`);
+const claudeMdFile = arg("claude-md")
+  ? path.resolve(arg("claude-md")!)
+  : undefined;
 const readOnly = process.argv.includes("--read-only");
 const seedFile = arg("seed") ? path.resolve(arg("seed")!) : undefined;
-if (seedFile && call) refuse("--seed does not apply to --call: a call is one model call with no history");
-if (seedFile && !fs.existsSync(seedFile)) refuse(`--seed: no such file ${seedFile}`);
+if (seedFile && call)
+  refuse(
+    "--seed does not apply to --call: a call is one model call with no history",
+  );
+if (seedFile && !fs.existsSync(seedFile))
+  refuse(`--seed: no such file ${seedFile}`);
 const agentCwd = arg("cwd") ? path.resolve(arg("cwd")!) : undefined;
 /** More trees the agent may read, never write (`--read <dir>`, repeatable): what a replayed clone links to, its dependencies. */
-const extraReads = process.argv.flatMap((a, i) => (a === "--read" && process.argv[i + 1] ? [path.resolve(process.argv[i + 1]!)] : []));
-for (const r of extraReads) if (!fs.existsSync(r)) refuse(`--read: no such path ${r}`);
+const extraReads = process.argv.flatMap((a, i) =>
+  a === "--read" && process.argv[i + 1]
+    ? [path.resolve(process.argv[i + 1]!)]
+    : [],
+);
+for (const r of extraReads)
+  if (!fs.existsSync(r)) refuse(`--read: no such path ${r}`);
 const fakeBin = arg("fake") ? path.resolve(arg("fake")!) : undefined;
 const fakeSeed = arg("fake-seed") ? path.resolve(arg("fake-seed")!) : undefined;
-if (fakeBin && call) refuse("--fake does not apply to --call: a call has no tools to reach it with");
-if (fakeBin && !fs.existsSync(fakeBin)) refuse(`--fake: no such file ${fakeBin}`);
+if (fakeBin && call)
+  refuse(
+    "--fake does not apply to --call: a call has no tools to reach it with",
+  );
+if (fakeBin && !fs.existsSync(fakeBin))
+  refuse(`--fake: no such file ${fakeBin}`);
 if (fakeSeed && !fakeBin) refuse("--fake-seed goes with --fake");
-if (fakeSeed && !fs.existsSync(fakeSeed)) refuse(`--fake-seed: no such file ${fakeSeed}`);
-if (agentCwd && !fs.existsSync(agentCwd)) refuse(`--cwd: no such directory ${agentCwd}`);
-if (readOnly && call) refuse("--read-only does not apply to --call: a call has no tools to write with");
-if (claudeMdFile && call) refuse("--claude-md does not apply to --call: a call carries no CLAUDE.md");
-if (claudeMdFile && !fs.existsSync(claudeMdFile)) refuse(`--claude-md: no such file ${claudeMdFile}`);
+if (fakeSeed && !fs.existsSync(fakeSeed))
+  refuse(`--fake-seed: no such file ${fakeSeed}`);
+if (agentCwd && !fs.existsSync(agentCwd))
+  refuse(`--cwd: no such directory ${agentCwd}`);
+if (readOnly && call)
+  refuse(
+    "--read-only does not apply to --call: a call has no tools to write with",
+  );
+if (claudeMdFile && call)
+  refuse("--claude-md does not apply to --call: a call carries no CLAUDE.md");
+if (claudeMdFile && !fs.existsSync(claudeMdFile))
+  refuse(`--claude-md: no such file ${claudeMdFile}`);
 
 fs.mkdirSync(runDir, { recursive: true });
 // One run per run dir. A run started over a live one deletes the live one's
 // config dir and env file, and that agent goes on with no guard first on its
 // PATH (2026-10-05: two such agents wrote proposals to prod).
 const pidFile = path.join(runDir, "harness.pid");
-const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch (err: any) { return err?.code === "EPERM"; } };
-const holder = fs.existsSync(pidFile) ? Number(fs.readFileSync(pidFile, "utf8").trim()) : 0;
-if (holder && holder !== process.pid && alive(holder)) refuse(`${runDir} belongs to a run still alive (harness pid ${holder}); stop it or pick another --run`);
+const alive = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err: any) {
+    return err?.code === "EPERM";
+  }
+};
+const holder = fs.existsSync(pidFile)
+  ? Number(fs.readFileSync(pidFile, "utf8").trim())
+  : 0;
+if (holder && holder !== process.pid && alive(holder))
+  refuse(
+    `${runDir} belongs to a run still alive (harness pid ${holder}); stop it or pick another --run`,
+  );
 fs.writeFileSync(pidFile, `${process.pid}\n`);
 const configDir = path.join(runDir, ".claude");
 const noCast = path.join(runDir, ".nocast");
@@ -266,7 +355,8 @@ fs.mkdirSync(noCast, { recursive: true });
 // The guard's help state directory (prompt-dry-run-bin/cast help_state): made
 // here, because a mkdir inside the run's sandbox can be refused under /tmp.
 fs.mkdirSync(path.join(runDir, ".cast-help"), { recursive: true });
-if (claudeMdFile) fs.copyFileSync(claudeMdFile, path.join(configDir, "CLAUDE.md"));
+if (claudeMdFile)
+  fs.copyFileSync(claudeMdFile, path.join(configDir, "CLAUDE.md"));
 
 /** Install the --seed transcript as a session claude can resume from the
  *  agent's cwd: under the project dir claude derives from that cwd, with a
@@ -274,14 +364,22 @@ if (claudeMdFile) fs.copyFileSync(claudeMdFile, path.join(configDir, "CLAUDE.md"
 function installSeed(file: string): string {
   const id = crypto.randomUUID();
   const cwd = fs.realpathSync(agentCwd ?? runDir);
-  const dir = path.join(configDir, "projects", cwd.replace(/[^A-Za-z0-9]/g, "-"));
+  const dir = path.join(
+    configDir,
+    "projects",
+    cwd.replace(/[^A-Za-z0-9]/g, "-"),
+  );
   fs.mkdirSync(dir, { recursive: true });
-  const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => {
-    const row = JSON.parse(l);
-    if (row.sessionId) row.sessionId = id;
-    if (row.cwd) row.cwd = cwd;
-    return JSON.stringify(row);
-  });
+  const lines = fs
+    .readFileSync(file, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => {
+      const row = JSON.parse(l);
+      if (row.sessionId) row.sessionId = id;
+      if (row.cwd) row.cwd = cwd;
+      return JSON.stringify(row);
+    });
   fs.writeFileSync(path.join(dir, `${id}.jsonl`), lines.join("\n") + "\n");
   return id;
 }
@@ -290,11 +388,44 @@ const seedSession = seedFile ? installSeed(seedFile) : undefined;
 // A --call run has no tools, so nothing in it can write scratch or reach a
 // sign-in. An agent run without its sandbox could read the codecast sign-in
 // and write around the guard, so it does not start.
-const isolationGap = call ? null : scratchIsolationGap(runDir, guardDir, agentCwd ? fs.realpathSync(agentCwd) : undefined);
-if (isolationGap) { fs.rmSync(pidFile, { force: true }); refuse(`an agent run needs its sandbox, and this machine cannot give it one (${isolationGap}): without it the agent could read and write the real machine and reach the network`); }
+const isolationGap = call
+  ? null
+  : scratchIsolationGap(
+      runDir,
+      guardDir,
+      agentCwd ? fs.realpathSync(agentCwd) : undefined,
+    );
+if (isolationGap) {
+  fs.rmSync(pidFile, { force: true });
+  refuse(
+    `an agent run needs its sandbox, and this machine cannot give it one (${isolationGap}): without it the agent could read and write the real machine and reach the network`,
+  );
+}
 const isolation = call ? null : "sandbox-exec";
 
-fs.writeFileSync(path.join(runDir, "args.json"), JSON.stringify({ model, call, maxOutputTokens: maxOutputTokens ? Number(maxOutputTokens) : null, tools, maxTurns: Number(maxTurns), serve: serveDir ?? null, guard: guardDir, isolation, claudeMd: claudeMdFile ?? null, seed: seedFile ?? null, cwd: agentCwd ?? null, readOnly: !call, fake: fakeBin ?? null, fakeSeed: fakeSeed ?? null }, null, 1) + "\n");
+fs.writeFileSync(
+  path.join(runDir, "args.json"),
+  JSON.stringify(
+    {
+      model,
+      call,
+      maxOutputTokens: maxOutputTokens ? Number(maxOutputTokens) : null,
+      tools,
+      maxTurns: Number(maxTurns),
+      serve: serveDir ?? null,
+      guard: guardDir,
+      isolation,
+      claudeMd: claudeMdFile ?? null,
+      seed: seedFile ?? null,
+      cwd: agentCwd ?? null,
+      readOnly: !call,
+      fake: fakeBin ?? null,
+      fakeSeed: fakeSeed ?? null,
+    },
+    null,
+    1,
+  ) + "\n",
+);
 
 // The child env (src/subscriptionCall.ts isolatedEnv): none of the launching
 // session's identity, the login as CLAUDE_CODE_OAUTH_TOKEN alone, and
@@ -302,7 +433,12 @@ fs.writeFileSync(path.join(runDir, "args.json"), JSON.stringify({ model, call, m
 // inherited, so args.json says every cap the run had. A call carries no model
 // key either: claude bills an ANTHROPIC_API_KEY ahead of the login. An agent
 // run keeps the shell's keys, since what it replays may need them.
-const env = isolatedEnv({ configDir, token: arg("account") ? profileToken(arg("account")!) : loginToken(), stripModelKeys: call, ...(maxOutputTokens ? { maxOutputTokens: Number(maxOutputTokens) } : {}) });
+const env = isolatedEnv({
+  configDir,
+  token: arg("account") ? profileToken(arg("account")!) : loginToken(),
+  stripModelKeys: call,
+  ...(maxOutputTokens ? { maxOutputTokens: Number(maxOutputTokens) } : {}),
+});
 env.CODECAST_DIR = noCast;
 env.RUN_DIR = runDir;
 if (serveDir) env.DRY_RUN_SERVE_DIR = serveDir;
@@ -317,7 +453,10 @@ env.PATH = `${agentGuardDir}:${env.PATH ?? ""}`;
 // runs at load 650, 2026-10-02). Claude Code sources CLAUDE_ENV_FILE before
 // every command, after the profile, so the guard is first on every call.
 const envFile = path.join(configDir, "dry-run-env.sh");
-fs.writeFileSync(envFile, `export PATH='${agentGuardDir.replace(/'/g, `'\\''`)}':"$PATH"\n`);
+fs.writeFileSync(
+  envFile,
+  `export PATH='${agentGuardDir.replace(/'/g, `'\\''`)}':"$PATH"\n`,
+);
 env.CLAUDE_ENV_FILE = envFile;
 // A `cast` reached around the guard anyway, by an absolute path or a login
 // shell, finds the empty state directory and hands the call to the guard
@@ -341,14 +480,42 @@ const RUN_TAG = `dry-run-${crypto.randomUUID()}`;
  * any name the launcher passes in DRY_RUN_PASS_ENV (comma separated: a test
  * world's stub, a station's read-only database address).
  */
-const AGENT_ENV = new Set(["PATH", "LANG", "TERM", "SHELL", "USER", "LOGNAME", "TZ", "COLORTERM", "NO_COLOR", "CLAUDE_CONFIG_DIR", "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_MAX_OUTPUT_TOKENS", "CODECAST_DIR", "RUN_DIR", "CLAUDE_ENV_FILE"]);
-const keepEnv = (k: string) => AGENT_ENV.has(k) || /^(LC_|DRY_RUN_)/.test(k) || (process.env.DRY_RUN_PASS_ENV ?? "").split(",").map((n) => n.trim()).includes(k);
+const AGENT_ENV = new Set([
+  "PATH",
+  "LANG",
+  "TERM",
+  "SHELL",
+  "USER",
+  "LOGNAME",
+  "TZ",
+  "COLORTERM",
+  "NO_COLOR",
+  "CLAUDE_CONFIG_DIR",
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
+  "CODECAST_DIR",
+  "RUN_DIR",
+  "CLAUDE_ENV_FILE",
+]);
+const keepEnv = (k: string) =>
+  AGENT_ENV.has(k) ||
+  /^(LC_|DRY_RUN_)/.test(k) ||
+  (process.env.DRY_RUN_PASS_ENV ?? "")
+    .split(",")
+    .map((n) => n.trim())
+    .includes(k);
 const realEnvHome = process.env.HOME || os.homedir();
 if (!call) {
   for (const k of Object.keys(env)) if (!keepEnv(k)) delete env[k];
   const home = path.join(runDir, "home");
   fs.mkdirSync(home, { recursive: true });
-  Object.assign(env, { HOME: home, XDG_CONFIG_HOME: path.join(home, ".config"), XDG_CACHE_HOME: path.join(home, ".cache"), XDG_DATA_HOME: path.join(home, ".local", "share"), DRY_RUN_TAG: RUN_TAG });
+  Object.assign(env, {
+    HOME: home,
+    XDG_CONFIG_HOME: path.join(home, ".config"),
+    XDG_CACHE_HOME: path.join(home, ".cache"),
+    XDG_DATA_HOME: path.join(home, ".local", "share"),
+    DRY_RUN_TAG: RUN_TAG,
+  });
 }
 
 /**
@@ -365,7 +532,21 @@ if (!call) {
 }
 
 const fakeDir = path.join(harnessDir, "fake");
-setContext({ runDir, harnessDir, brokerCwdDefault, guardDir, agentGuardDir, serveDir, agentCwd, fakeBin, fakeSeed, fakeDir, env, realEnvHome, RUN_TAG });
+setContext({
+  runDir,
+  harnessDir,
+  brokerCwdDefault,
+  guardDir,
+  agentGuardDir,
+  serveDir,
+  agentCwd,
+  fakeBin,
+  fakeSeed,
+  fakeDir,
+  env,
+  realEnvHome,
+  RUN_TAG,
+});
 
 if (!call) env.DRY_RUN_BROKER = startBroker();
 if (!call) await loadFake();
@@ -380,7 +561,10 @@ if (!call) await loadFake();
  */
 function bakeGuard(): void {
   const quote = (v: string) => {
-    if (/['\n]/.test(v)) refuse(`a path the guard is baked with holds a quote or a line break: ${v}`);
+    if (/['\n]/.test(v))
+      refuse(
+        `a path the guard is baked with holds a quote or a line break: ${v}`,
+      );
     return `'${v}'`;
   };
   fs.mkdirSync(agentGuardDir, { recursive: true });
@@ -391,18 +575,30 @@ function bakeGuard(): void {
     if (f === "cast") {
       const line = 'BAKED_BROKER=""; BAKED_SERVE=""; BAKED_FAKE=""';
       // A launcher's own guard (--guard) without the line runs as it is: it never reaches the broker.
-      text = text.replace(line, `BAKED_BROKER=${quote(env.DRY_RUN_BROKER!)}; BAKED_SERVE=${quote(serveDir ?? "")}; BAKED_FAKE=${quote(fakeBin ? "1" : "")}`);
+      text = text.replace(
+        line,
+        `BAKED_BROKER=${quote(env.DRY_RUN_BROKER!)}; BAKED_SERVE=${quote(serveDir ?? "")}; BAKED_FAKE=${quote(fakeBin ? "1" : "")}`,
+      );
     }
     fs.writeFileSync(path.join(agentGuardDir, f), text, { mode: 0o755 });
   }
 }
 if (!call) bakeGuard();
-const portOf = (url: string | undefined) => (url ? Number(new URL(url).port) : 0);
+const portOf = (url: string | undefined) =>
+  url ? Number(new URL(url).port) : 0;
 
 let proxyUrl: string | undefined;
 if (!call) {
   const proxy = (proxyUrl = await startEgressProxy());
-  for (const k of ["HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy", "ALL_PROXY", "all_proxy"]) env[k] = proxy;
+  for (const k of [
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "https_proxy",
+    "http_proxy",
+    "ALL_PROXY",
+    "all_proxy",
+  ])
+    env[k] = proxy;
   // The broker is on the loopback, and nothing else is reachable there anyway.
   env.NO_PROXY = env.no_proxy = "127.0.0.1,localhost";
 }
@@ -417,10 +613,23 @@ if (!call) {
 }
 
 // The closed world, built once the harness knows the loopback ports it serves the run on.
-const sandbox = call ? null : scratchSandbox(runDir, { guard: agentGuardDir, serve: serveDir, ...((): { read: string[]; readFiles: string[]; deny: string[] } => {
-  const g = agentCwd ? gitStoresOf(agentCwd) : { dirs: [], files: [], deny: [] };
-  return { read: [...(agentCwd ? [agentCwd] : []), ...g.dirs, ...extraReads], readFiles: g.files, deny: g.deny };
-})(), ports: [portOf(env.DRY_RUN_BROKER), portOf(proxyUrl), portOf(modelUrl)] });
+const sandbox = call
+  ? null
+  : scratchSandbox(runDir, {
+      guard: agentGuardDir,
+      serve: serveDir,
+      ...((): { read: string[]; readFiles: string[]; deny: string[] } => {
+        const g = agentCwd
+          ? gitStoresOf(agentCwd)
+          : { dirs: [], files: [], deny: [] };
+        return {
+          read: [...(agentCwd ? [agentCwd] : []), ...g.dirs, ...extraReads],
+          readFiles: g.files,
+          deny: g.deny,
+        };
+      })(),
+      ports: [portOf(env.DRY_RUN_BROKER), portOf(proxyUrl), portOf(modelUrl)],
+    });
 if (sandbox) Object.assign(env, sandbox.env);
 
 /**
@@ -434,16 +643,32 @@ async function guardPreflight(): Promise<string | null> {
   const dir = path.join(runDir, ".preflight");
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(path.join(dir, ".cast-help"), { recursive: true });
-  const probe = 'cast task --help >/dev/null || exit 10; grep -q "^HELP task --help" "$RUN_DIR/calls.log" || exit 11';
-  const p = Bun.spawn([sandbox!.prefix[0], ...sandbox!.prefix.slice(1), "bash", "-c", probe], { cwd: runDir, env: { ...env, RUN_DIR: dir, PWD: fs.realpathSync(runDir) }, stdout: "ignore", stderr: "pipe", timeout: 120_000 });
-  const [stderr, status] = await Promise.all([new Response(p.stderr).text(), p.exited]);
+  const probe =
+    'cast task --help >/dev/null || exit 10; grep -q "^HELP task --help" "$RUN_DIR/calls.log" || exit 11';
+  const p = Bun.spawn(
+    [sandbox!.prefix[0], ...sandbox!.prefix.slice(1), "bash", "-c", probe],
+    {
+      cwd: runDir,
+      env: { ...env, RUN_DIR: dir, PWD: fs.realpathSync(runDir) },
+      stdout: "ignore",
+      stderr: "pipe",
+      timeout: 120_000,
+    },
+  );
+  const [stderr, status] = await Promise.all([
+    new Response(p.stderr).text(),
+    p.exited,
+  ]);
   fs.rmSync(dir, { recursive: true, force: true });
   if (status === 0) return null;
   if (status === 11) return "a cast call did not reach the guard";
   return `the guard could not answer cast task --help: ${(stderr || `exit ${status}`).trim().slice(0, 400)}`;
 }
 const guardGap = call ? null : await guardPreflight();
-if (guardGap) { fs.rmSync(pidFile, { force: true }); refuse(`the dry run's guard is not usable, so no agent starts: ${guardGap}`); }
+if (guardGap) {
+  fs.rmSync(pidFile, { force: true });
+  refuse(`the dry run's guard is not usable, so no agent starts: ${guardGap}`);
+}
 // A prod call has no thinking, no CLAUDE.md and no memory. What claude still
 // adds on a subscription login is fixed: an SDK identity line in the system
 // prompt and three short reminders (environment, model, date) before the
@@ -461,7 +686,13 @@ startRecording();
 // takes the agent's group down with it, and a watchdog outside the harness
 // does the same when the harness dies by SIGKILL.
 let liveChild: number | null = null;
-const killGroup = (pid: number, sig: NodeJS.Signals) => { try { process.kill(-pid, sig); } catch { /* gone */ } };
+const killGroup = (pid: number, sig: NodeJS.Signals) => {
+  try {
+    process.kill(-pid, sig);
+  } catch {
+    /* gone */
+  }
+};
 for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
   process.on(sig, () => {
     if (liveChild) killGroup(liveChild, "SIGTERM");
@@ -472,7 +703,23 @@ for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
 }
 function watchChild(pid: number | undefined) {
   if (!pid) return null;
-  const w = spawn("/bin/sh", ["-c", WATCHDOG, "watchdog", String(process.pid), String(pid), RUN_TAG, fs.realpathSync(runDir)], { detached: true, stdio: "ignore", env: { PATH: process.env.PATH ?? "/usr/bin:/bin" } });
+  const w = spawn(
+    "/bin/sh",
+    [
+      "-c",
+      WATCHDOG,
+      "watchdog",
+      String(process.pid),
+      String(pid),
+      RUN_TAG,
+      fs.realpathSync(runDir),
+    ],
+    {
+      detached: true,
+      stdio: "ignore",
+      env: { PATH: process.env.PATH ?? "/usr/bin:/bin" },
+    },
+  );
   w.unref();
   return w;
 }
@@ -481,37 +728,72 @@ function watchChild(pid: number | undefined) {
  *  user message, in --call mode as in an agent run), or a reply resumed into
  *  the same session (`promptText`). Writes <name>.json and <name>.txt;
  *  resolves with the exit code and the session id the result names. */
-function runTurn(name: string, promptText?: string, resume?: string): Promise<{ code: number; sessionId?: string }> {
+function runTurn(
+  name: string,
+  promptText?: string,
+  resume?: string,
+): Promise<{ code: number; sessionId?: string }> {
   return new Promise((resolve) => {
     // An agent's stream is written where the agent cannot edit it (the harness dir) and copied into the run dir
     // after the turn: it is the record of every command the turn ran (reconcileRecord).
-    const streamName = name === "out" ? "stream.jsonl" : `${name.replace(/^out/, "stream")}.jsonl`;
+    const streamName =
+      name === "out"
+        ? "stream.jsonl"
+        : `${name.replace(/^out/, "stream")}.jsonl`;
     const streamPath = path.join(call ? runDir : harnessDir, streamName);
     const out = fs.openSync(streamPath, "w");
-    const err = fs.openSync(path.join(runDir, name === "out" ? "err.txt" : `${name}.err.txt`), "w");
-    const stdin = promptText === undefined ? fs.openSync(promptFile, "r") : "ignore";
+    const err = fs.openSync(
+      path.join(runDir, name === "out" ? "err.txt" : `${name}.err.txt`),
+      "w",
+    );
+    const stdin =
+      promptText === undefined ? fs.openSync(promptFile, "r") : "ignore";
     // A call's flags are the subscription call's own (src/subscriptionCall.ts callArgs).
     // --strict-mcp-config in an agent run too: a .mcp.json in any parent of the run dir
     // (the home folder's, say) otherwise starts its servers inside every rep.
     const turn = call
-      ? callArgs({ model: model!, ...(systemFile ? { systemFile } : { systemText: NEUTRAL_SYSTEM }) })
+      ? callArgs({
+          model: model!,
+          ...(systemFile ? { systemFile } : { systemText: NEUTRAL_SYSTEM }),
+        })
       : [
-          "--setting-sources", claudeMdFile ? "user,project" : "project",
-          ...(resume ? ["--resume", resume] : []), "-p", ...(promptText === undefined ? [] : [promptText]), "--allowedTools", ...tools, "--dangerously-skip-permissions", "--strict-mcp-config",
-          "--max-turns", maxTurns,
-          "--model", model!,
-          "--output-format", "stream-json", "--verbose",
+          "--setting-sources",
+          claudeMdFile ? "user,project" : "project",
+          ...(resume ? ["--resume", resume] : []),
+          "-p",
+          ...(promptText === undefined ? [] : [promptText]),
+          "--allowedTools",
+          ...tools,
+          "--dangerously-skip-permissions",
+          "--strict-mcp-config",
+          "--max-turns",
+          maxTurns,
+          "--model",
+          model!,
+          "--output-format",
+          "stream-json",
+          "--verbose",
         ];
     const command = [...(sandbox?.prefix ?? []), "claude"];
     // PWD names the real cwd: a shell whose PWD disagrees walks the parent directories to find it, and the sandbox hides those.
     const cwd = fs.realpathSync(agentCwd ?? runDir);
-    const child = spawn(command[0], [...command.slice(1), ...turn], { cwd, env: { ...env, PWD: cwd }, stdio: [stdin, out, err], detached: true });
+    const child = spawn(command[0], [...command.slice(1), ...turn], {
+      cwd,
+      env: { ...env, PWD: cwd },
+      stdio: [stdin, out, err],
+      detached: true,
+    });
     const watchdog = watchChild(child.pid);
     liveChild = child.pid ?? null;
     child.on("exit", (exitCode) => {
       liveChild = null;
-      try { watchdog?.kill(); } catch { /* already gone */ }
-      fs.closeSync(out); fs.closeSync(err);
+      try {
+        watchdog?.kill();
+      } catch {
+        /* already gone */
+      }
+      fs.closeSync(out);
+      fs.closeSync(err);
       if (typeof stdin === "number") fs.closeSync(stdin);
       let code = exitCode ?? 1;
       let reply = "(no result)";
@@ -525,33 +807,67 @@ function runTurn(name: string, promptText?: string, resume?: string): Promise<{ 
         const events: any[] = [];
         for (const line of fs.readFileSync(streamPath, "utf8").split("\n")) {
           if (!line.trim()) continue;
-          let d: any; try { d = JSON.parse(line); } catch { continue; }
+          let d: any;
+          try {
+            d = JSON.parse(line);
+          } catch {
+            continue;
+          }
           events.push(d);
           if (d.type === "result") result = d;
-          else if (d.type === "assistant") for (const c of d.message?.content ?? []) if (c.type === "text" && c.text?.trim()) said.push(c.text.trim());
+          else if (d.type === "assistant")
+            for (const c of d.message?.content ?? [])
+              if (c.type === "text" && c.text?.trim()) said.push(c.text.trim());
         }
         // A reply cut at max_tokens makes claude resume the turn ("Output token
         // limit hit", up to three times) and then end on an error. Prod gets the
         // first reply only, so that is what out.json reports: its text,
         // stop_reason and usage. Cost and modelUsage stay the run's real spend.
         const replies = call ? callReplies(events) : [];
-        if (result && replies.length > 1 && replies[0].stop_reason === "max_tokens") {
+        if (
+          result &&
+          replies.length > 1 &&
+          replies[0].stop_reason === "max_tokens"
+        ) {
           const first = replies[0];
-          result = { ...result, result: first.text, stop_reason: first.stop_reason, usage: first.usage, is_error: false, num_turns: 1, resumed_past_cap: replies.length - 1 };
+          result = {
+            ...result,
+            result: first.text,
+            stop_reason: first.stop_reason,
+            usage: first.usage,
+            is_error: false,
+            num_turns: 1,
+            resumed_past_cap: replies.length - 1,
+          };
           said = [first.text.trim()];
           code = 0;
         }
         if (result) {
-          fs.writeFileSync(path.join(runDir, `${name}.json`), JSON.stringify(result, null, 1));
+          fs.writeFileSync(
+            path.join(runDir, `${name}.json`),
+            JSON.stringify(result, null, 1),
+          );
           reply = `${result.result ?? ""}\n\n[cost_usd=${result.total_cost_usd} turns=${result.num_turns} is_error=${result.is_error}]`;
           sessionId = result.session_id;
         }
-      } catch { /* claude wrote no stream: the err file says why */ }
-      fs.writeFileSync(path.join(runDir, name === "out" ? "reply.txt" : name.replace(/^out/, "reply") + ".txt"), reply + "\n");
-      const saidBase = path.join(runDir, name === "out" ? "said" : name.replace(/^out/, "said"));
+      } catch {
+        /* claude wrote no stream: the err file says why */
+      }
+      fs.writeFileSync(
+        path.join(
+          runDir,
+          name === "out" ? "reply.txt" : name.replace(/^out/, "reply") + ".txt",
+        ),
+        reply + "\n",
+      );
+      const saidBase = path.join(
+        runDir,
+        name === "out" ? "said" : name.replace(/^out/, "said"),
+      );
       fs.writeFileSync(`${saidBase}.txt`, said.join("\n\n────────\n\n") + "\n");
       fs.writeFileSync(`${saidBase}.json`, JSON.stringify(said));
-      if (!call && fs.existsSync(streamPath)) fs.copyFileSync(streamPath, path.join(runDir, streamName));
+      if (!call && fs.existsSync(streamPath))
+        fs.copyFileSync(streamPath, path.join(runDir, streamName));
       resolve({ code, sessionId });
     });
   });
@@ -563,12 +879,19 @@ let sessionId = first.sessionId;
 for (const [i, file] of thenFiles.entries()) {
   const n = i + 2;
   if (code !== 0 || !sessionId) {
-    fs.writeFileSync(path.join(runDir, `reply${n}.txt`), `(no turn ${n}: turn ${n - 1} exit ${code}, session ${sessionId ?? "unknown"})\n`);
+    fs.writeFileSync(
+      path.join(runDir, `reply${n}.txt`),
+      `(no turn ${n}: turn ${n - 1} exit ${code}, session ${sessionId ?? "unknown"})\n`,
+    );
     break;
   }
   fs.appendFileSync(path.join(runDir, "calls.log"), `# turn ${n}\n`);
   setTurn(n);
-  const next = await runTurn(`out${n}`, fs.readFileSync(file, "utf8").trim(), sessionId);
+  const next = await runTurn(
+    `out${n}`,
+    fs.readFileSync(file, "utf8").trim(),
+    sessionId,
+  );
   code = next.code;
   sessionId = next.sessionId ?? sessionId;
 }
@@ -577,10 +900,15 @@ if (!call) fs.writeFileSync(path.join(runDir, "swept.txt"), `${sweepRun()}\n`);
 if (!call) await reconcileRecord();
 if (!call) mergeAnswered();
 fs.writeFileSync(path.join(runDir, "exit.txt"), `${code}\n`);
-fs.writeFileSync(path.join(runDir, "took.txt"), `${Math.round((Date.now() - started) / 1000)}s\n`);
+fs.writeFileSync(
+  path.join(runDir, "took.txt"),
+  `${Math.round((Date.now() - started) / 1000)}s\n`,
+);
 // The transcript and everything else claude wrote for this run go with the
 // private config dir; nothing of it ever sat under ~/.claude/projects.
 fs.rmSync(configDir, { recursive: true, force: true });
 fs.rmSync(pidFile, { force: true });
-console.log(`done ${path.basename(runDir)} (${Math.round((Date.now() - started) / 1000)}s, exit ${code})`);
+console.log(
+  `done ${path.basename(runDir)} (${Math.round((Date.now() - started) / 1000)}s, exit ${code})`,
+);
 process.exit(code);

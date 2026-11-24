@@ -9,15 +9,32 @@
 
 import { describe, expect, test } from "bun:test";
 import { Command } from "commander";
-import { COMMAND_GROUPS, groupForToken, type GroupDeps } from "./commandGroups.js";
-import { activateAllGroups, activateGroup, groupTokenInArgv, registerGroupStubs } from "./commandGroupActivation.js";
+import {
+  COMMAND_GROUPS,
+  groupForToken,
+  type GroupDeps,
+} from "./commandGroups.js";
+import {
+  activateAllGroups,
+  activateGroup,
+  groupTokenInArgv,
+  registerGroupStubs,
+} from "./commandGroupActivation.js";
 import { commandTree, unknownCommandNextStep } from "./commandSuggestion.js";
 
 const deps: GroupDeps = {
   getCliEndpoint: () => ({ siteUrl: "https://example.invalid", apiToken: "t" }),
   detectCurrentSessionId: () => null,
   resolveProjectId: async () => "p",
-  flow: { cliPost: async () => null, callingSession: () => undefined, realCwd: () => process.cwd(), readWorkspace: async () => ({ kind: "personal" }), directoryTeam: async () => null, writeWorkspace: async () => ({ kind: "personal" }), requireFlows: async () => {} },
+  flow: {
+    cliPost: async () => null,
+    callingSession: () => undefined,
+    realCwd: () => process.cwd(),
+    readWorkspace: async () => ({ kind: "personal" }),
+    directoryTeam: async () => null,
+    writeWorkspace: async () => ({ kind: "personal" }),
+    requireFlows: async () => {},
+  },
 };
 
 function freshProgram(): Command {
@@ -30,13 +47,24 @@ function freshProgram(): Command {
 function helpLine(program: Command, token: string): string {
   const cmd = program.commands.find((c) => c.name() === token);
   if (!cmd) throw new Error(`no command "${token}"`);
-  const args = (cmd as unknown as { registeredArguments: Array<{ name(): string; required: boolean; variadic: boolean }> })
-    .registeredArguments.map((a) => {
-      const base = a.name() + (a.variadic ? "..." : "");
-      return a.required ? `<${base}>` : `[${base}]`;
-    });
+  const args = (
+    cmd as unknown as {
+      registeredArguments: Array<{
+        name(): string;
+        required: boolean;
+        variadic: boolean;
+      }>;
+    }
+  ).registeredArguments.map((a) => {
+    const base = a.name() + (a.variadic ? "..." : "");
+    return a.required ? `<${base}>` : `[${base}]`;
+  });
   const alias = cmd.aliases()[0];
-  const term = cmd.name() + (alias ? `|${alias}` : "") + (cmd.options.length ? " [options]" : "") + (args.length ? ` ${args.join(" ")}` : "");
+  const term =
+    cmd.name() +
+    (alias ? `|${alias}` : "") +
+    (cmd.options.length ? " [options]" : "") +
+    (args.length ? ` ${args.join(" ")}` : "");
   return `${term}\n${cmd.description()}`;
 }
 
@@ -56,7 +84,10 @@ describe("the command group manifest", () => {
       const stubbed = freshProgram();
       const before = helpLine(stubbed, group.token);
       await activateGroup(stubbed, group.token, deps);
-      expect(helpLine(stubbed, group.token), `cast ${group.token} in the root help`).toBe(before);
+      expect(
+        helpLine(stubbed, group.token),
+        `cast ${group.token} in the root help`,
+      ).toBe(before);
     }
   }, 60_000);
 
@@ -84,21 +115,35 @@ describe("the command group manifest", () => {
 
 describe("which group argv names", () => {
   test("a first token, a group alias, or the argument of `help`", () => {
-    expect(groupTokenInArgv(["bun", "cast", "browser", "open"])).toBe("browser");
+    expect(groupTokenInArgv(["bun", "cast", "browser", "open"])).toBe(
+      "browser",
+    );
     expect(groupTokenInArgv(["bun", "cast", "ws"])).toBe("ws");
-    expect(groupTokenInArgv(["bun", "cast", "help", "browser"])).toBe("browser");
+    expect(groupTokenInArgv(["bun", "cast", "help", "browser"])).toBe(
+      "browser",
+    );
   });
 
   test("leading flags are skipped, so this and commander pick the same word", () => {
-    expect(groupTokenInArgv(["bun", "cast", "--", "publish", "x"])).toBe("publish");
-    expect(groupTokenInArgv(["bun", "cast", "--help", "browser"])).toBe("browser");
+    expect(groupTokenInArgv(["bun", "cast", "--", "publish", "x"])).toBe(
+      "publish",
+    );
+    expect(groupTokenInArgv(["bun", "cast", "--help", "browser"])).toBe(
+      "browser",
+    );
   });
 
   test("a flag, a non-group verb, and a bare `cast` name nothing", () => {
-    expect(groupForToken(groupTokenInArgv(["bun", "cast", "--help"]))).toBeUndefined();
-    expect(groupForToken(groupTokenInArgv(["bun", "cast", "send", "jx7"]))).toBeUndefined();
+    expect(
+      groupForToken(groupTokenInArgv(["bun", "cast", "--help"])),
+    ).toBeUndefined();
+    expect(
+      groupForToken(groupTokenInArgv(["bun", "cast", "send", "jx7"])),
+    ).toBeUndefined();
     expect(groupForToken(groupTokenInArgv(["bun", "cast"]))).toBeUndefined();
-    expect(groupForToken(groupTokenInArgv(["bun", "cast", "bogus"]))).toBeUndefined();
+    expect(
+      groupForToken(groupTokenInArgv(["bun", "cast", "bogus"])),
+    ).toBeUndefined();
   });
 
   test("an alias resolves to the same group as its token", () => {
@@ -117,21 +162,32 @@ describe("typo recovery inside a lazy group", () => {
   test("an unknown subcommand is answered from the group's real subcommand names", async () => {
     const program = freshProgram();
     await activateGroup(program, "workspace", deps);
-    expect(unknownCommandNextStep(commandTree(program), ["workspace", "destry"])).toBe(
-      "Next step: did you mean 'cast workspace destroy'?",
-    );
+    expect(
+      unknownCommandNextStep(commandTree(program), ["workspace", "destry"]),
+    ).toBe("Next step: did you mean 'cast workspace destroy'?");
   }, 30_000);
 
   test("a mistyped group name is answered without activating anything", () => {
     const program = freshProgram();
-    expect(unknownCommandNextStep(commandTree(program), ["browsr"])).toContain("'cast browser'");
+    expect(unknownCommandNextStep(commandTree(program), ["browsr"])).toContain(
+      "'cast browser'",
+    );
   });
 });
 
 test("review activates its real actions without activating other groups", async () => {
   const program = freshProgram();
   expect(await activateGroup(program, "review", deps)).toBe(true);
-  const review = program.commands.find(c => c.name() === "review")!;
-  expect(review.commands.map(c => c.name())).toEqual(["add", "ls", "send", "edit", "disposition", "rm"]);
-  expect(program.commands.find(c => c.name() === "browser")!.commands).toHaveLength(0);
+  const review = program.commands.find((c) => c.name() === "review")!;
+  expect(review.commands.map((c) => c.name())).toEqual([
+    "add",
+    "ls",
+    "send",
+    "edit",
+    "disposition",
+    "rm",
+  ]);
+  expect(
+    program.commands.find((c) => c.name() === "browser")!.commands,
+  ).toHaveLength(0);
 });

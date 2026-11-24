@@ -1,5 +1,3 @@
-
-
 // How long a sent message may sit in the optimistic/pending state before the
 // message row surfaces a status hint. Normal delivery confirms in a few seconds.
 // Past this we show "queued · agent busy" while the agent is actively working
@@ -29,5 +27,5 @@ export const PENDING_HOSTED_STALL_MS = 150_000;
 // than a turn to begin processing the first message, so the per-message banner
 // stays calm ("queued") this long before escalating to the alarming kill & restart.
 // Mirrors the composer banner's startup/resume thresholds so the two agree.
-export const PENDING_BOOT_GRACE_MS = 60_000;     // starting / connected: session launch budget
-export const PENDING_RESUME_GRACE_MS = 120_000;  // resuming is the slowest path
+export const PENDING_BOOT_GRACE_MS = 60_000; // starting / connected: session launch budget
+export const PENDING_RESUME_GRACE_MS = 120_000; // resuming is the slowest path

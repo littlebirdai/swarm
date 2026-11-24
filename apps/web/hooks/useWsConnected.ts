@@ -17,7 +17,10 @@ import { useConvex } from "convex/react";
 export function useWsConnected(): boolean {
   const convex = useConvex();
   return useSyncExternalStore(
-    useCallback((cb: () => void) => convex.subscribeToConnectionState(cb), [convex]),
+    useCallback(
+      (cb: () => void) => convex.subscribeToConnectionState(cb),
+      [convex],
+    ),
     () => convex.connectionState().isWebSocketConnected,
     () => true,
   );

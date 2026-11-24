@@ -82,7 +82,9 @@ export function connectRemotePane(
   const args = {
     device_id: src.deviceId,
     target: src.target,
-    ...(src.conversationId ? { conversation_id: src.conversationId as any } : {}),
+    ...(src.conversationId
+      ? { conversation_id: src.conversationId as any }
+      : {}),
   };
   let stopped = false;
   let interactive = false;
@@ -90,13 +92,21 @@ export function connectRemotePane(
   const renew = async () => {
     if (stopped) return;
     try {
-      const res = await src.convex.mutation(api.terminalStream.watchPane, { ...args, interactive });
+      const res = await src.convex.mutation(api.terminalStream.watchPane, {
+        ...args,
+        interactive,
+      });
       // The relay only streams your own machines. Anything else is a state the
       // user can act on (sign in as the right account, register the device),
       // so say it rather than spinning on "connecting".
-      if (res && res.ok === false) handlers.onError("this machine isn't registered to your account, and no session you own runs there");
+      if (res && res.ok === false)
+        handlers.onError(
+          "this machine isn't registered to your account, and no session you own runs there",
+        );
     } catch (err) {
-      handlers.onError(err instanceof Error ? err.message : "could not reach the relay");
+      handlers.onError(
+        err instanceof Error ? err.message : "could not reach the relay",
+      );
     }
   };
 
@@ -115,13 +125,19 @@ export function connectRemotePane(
     flushTimer = null;
     if (stopped || !outbox) return;
     const bytes = new Uint8Array(outbox.length);
-    for (let i = 0; i < outbox.length; i++) bytes[i] = outbox.charCodeAt(i) & 0xff;
+    for (let i = 0; i < outbox.length; i++)
+      bytes[i] = outbox.charCodeAt(i) & 0xff;
     outbox = "";
     const queued = outboxQueued;
     outboxQueued = [];
     const data = bytesToHex(bytes);
     chain = chain
-      .then(() => src.convex.mutation(api.terminalStream.sendPaneInput, { ...args, data }))
+      .then(() =>
+        src.convex.mutation(api.terminalStream.sendPaneInput, {
+          ...args,
+          data,
+        }),
+      )
       .then((res: any) => {
         if (!res || res.ok) {
           for (const cb of queued) cb();
@@ -139,7 +155,9 @@ export function connectRemotePane(
         );
       })
       .catch((err) => {
-        handlers.onError(err instanceof Error ? err.message : "could not send keystrokes");
+        handlers.onError(
+          err instanceof Error ? err.message : "could not send keystrokes",
+        );
       });
   };
 
@@ -152,7 +170,9 @@ export function connectRemotePane(
       // A relay function missing from the deployment (a web build that shipped
       // ahead of a convex deploy) throws here. Report it and stay quiet rather
       // than re-throwing into React's render path.
-      handlers.onError(err instanceof Error ? err.message : "relay unavailable");
+      handlers.onError(
+        err instanceof Error ? err.message : "relay unavailable",
+      );
       return;
     }
     if (!value) return;
@@ -199,7 +219,10 @@ export function connectRemotePane(
  * CURRENT background, so a row ending inside a colored span would smear that
  * color across the rest of the line.
  */
-export function frameToBytes(frame: string, cursor?: { x: number; y: number } | null): string {
+export function frameToBytes(
+  frame: string,
+  cursor?: { x: number; y: number } | null,
+): string {
   const lines = frame.split("\n");
   let out = "\x1b[H";
   for (let i = 0; i < lines.length; i++) {

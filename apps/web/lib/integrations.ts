@@ -15,7 +15,16 @@ import { describeConnectorError } from "./connectorReturn";
 import { useState, type ComponentType, type CSSProperties } from "react";
 import { useAction, useMutation } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { Bug, ChartLine, GitPullRequest, ListChecks, Mail, MessagesSquare, NotebookText, Plug } from "lucide-react";
+import {
+  Bug,
+  ChartLine,
+  GitPullRequest,
+  ListChecks,
+  Mail,
+  MessagesSquare,
+  NotebookText,
+  Plug,
+} from "lucide-react";
 import {
   isAppInstallationApp,
   type AppConnectionScope,
@@ -24,8 +33,15 @@ import {
   type AppId,
 } from "@codecast/shared/contracts";
 import { formatRelative } from "./utils";
-import { useInboxStore, type IssueProvider, type TaskExternal } from "../store/inboxStore";
-import type { GoogleGrant, GoogleReturnPath } from "@codecast/convex/convex/googleOAuth";
+import {
+  useInboxStore,
+  type IssueProvider,
+  type TaskExternal,
+} from "../store/inboxStore";
+import type {
+  GoogleGrant,
+  GoogleReturnPath,
+} from "@codecast/convex/convex/googleOAuth";
 
 const api = _api as any;
 
@@ -59,14 +75,19 @@ export const ISSUE_PROVIDER_NAME: Record<IssueProvider, string> = {
  *  provider, how fresh, and the sync error when there is one. */
 export function issueSyncTitle(external: TaskExternal): string {
   const base = `${ISSUE_PROVIDER_NAME[external.provider]} issue, synced ${formatRelative(external.synced_at)}`;
-  return external.last_error ? `${base}. Sync error: ${external.last_error}` : base;
+  return external.last_error
+    ? `${base}. Sync error: ${external.last_error}`
+    : base;
 }
 
 export type AppConnectionActions = {
   connect: () => Promise<void>;
   /** token-paste apps: validate and store a pasted token with its settings.
    *  Resolves true when the connection was stored; a refusal lands in `error`. */
-  connectToken: (token: string, config: Record<string, string>) => Promise<boolean>;
+  connectToken: (
+    token: string,
+    config: Record<string, string>,
+  ) => Promise<boolean>;
   /** Runs the revoke. Confirmation belongs to the caller's UI, not here. */
   disconnect: () => Promise<void>;
   busy: boolean;
@@ -116,7 +137,10 @@ export function useConnectGesture() {
   };
 
   /** Report a `{ ok: false, error }` answer; true when the step succeeded. */
-  const settle = (res: { ok?: boolean; error?: string } | null | undefined, fallback: string) => {
+  const settle = (
+    res: { ok?: boolean; error?: string } | null | undefined,
+    fallback: string,
+  ) => {
     if (res?.ok) return true;
     setError(res?.error ?? fallback);
     return false;
@@ -129,10 +153,18 @@ export function useConnectGesture() {
     { sameTab = false }: { sameTab?: boolean } = {},
   ) => {
     const res = await mint();
-    if (settle(res && { ...res, ok: !!(res.ok && res.url) }, fallback)) openConnectUrl(res!.url!, sameTab);
+    if (settle(res && { ...res, ok: !!(res.ok && res.url) }, fallback))
+      openConnectUrl(res!.url!, sameTab);
   };
 
-  return { busy, error: error && describeConnectorError(error), setError, attempt, settle, openMinted };
+  return {
+    busy,
+    error: error && describeConnectorError(error),
+    setError,
+    attempt,
+    settle,
+    openMinted,
+  };
 }
 
 /**
@@ -151,7 +183,11 @@ export function useAppConnection(
   /** Google only: the grants to ask for beyond read access, the page the
    *  callback lands on (googleOAuth.ts GOOGLE_RETURN_PATHS), and whether the
    *  consent screen opens in this tab rather than a new one. */
-  google: { grants?: GoogleGrant[]; returnTo?: GoogleReturnPath; sameTab?: boolean } = {},
+  google: {
+    grants?: GoogleGrant[];
+    returnTo?: GoogleReturnPath;
+    sameTab?: boolean;
+  } = {},
 ): AppConnectionActions {
   const getSlackUrl = useAction(api.slack.getInstallUrl);
   const getGoogleUrl = useAction(api.googleOAuth.getConnectUrl);
@@ -159,7 +195,9 @@ export function useAppConnection(
   const getConnectorUrl = useAction(api.oauthConnectors.getConnectUrl);
   const connectWithToken = useAction(api.tokenConnectors.connectWithToken);
   const disconnectConnector = useAction(api.oauthConnectors.disconnect);
-  const deleteGithubInstallation = useMutation(api.githubApp.deleteInstallation);
+  const deleteGithubInstallation = useMutation(
+    api.githubApp.deleteInstallation,
+  );
   const getGithubInstallUrl = useAction(api.githubApp.getInstallUrl);
   const { busy, error, setError, attempt, openMinted } = useConnectGesture();
 
@@ -171,7 +209,11 @@ export function useAppConnection(
       // intent bound to the authenticated caller — a URL a client could build
       // for itself is the authority the install callback used to trust.
       await attempt(
-        () => openMinted(() => getGithubInstallUrl({ scope }), "Couldn't start the GitHub App install"),
+        () =>
+          openMinted(
+            () => getGithubInstallUrl({ scope }),
+            "Couldn't start the GitHub App install",
+          ),
         "Couldn't reach GitHub",
       );
       return;
@@ -183,10 +225,11 @@ export function useAppConnection(
         // Readonly scope only on first connect; the send grant is a later ask,
         // unless the caller asks for its grants up front (the simple lane).
         await openMinted(
-          () => getGoogleUrl({
-            ...(google.grants?.length ? { grant: google.grants } : {}),
-            ...(google.returnTo ? { return_to: google.returnTo } : {}),
-          }),
+          () =>
+            getGoogleUrl({
+              ...(google.grants?.length ? { grant: google.grants } : {}),
+              ...(google.returnTo ? { return_to: google.returnTo } : {}),
+            }),
           "Couldn't start the Google connection",
           { sameTab: google.sameTab },
         );
@@ -202,24 +245,38 @@ export function useAppConnection(
         // (admins only); a personal one needs a personal anchor first — the
         // server says so.
         await openMinted(
-          () => getSlackUrl({
-            scope_type: scope === "team" ? "team" : "user",
-            return_to: "/settings/integrations",
-            origin: window.location.origin,
-          } as any),
+          () =>
+            getSlackUrl({
+              scope_type: scope === "team" ? "team" : "user",
+              return_to: "/settings/integrations",
+              origin: window.location.origin,
+            } as any),
           "Couldn't start the Slack connection",
         );
       }
     }, `Couldn't reach ${descriptor.name}`);
   };
 
-  const connectToken = async (token: string, config: Record<string, string>) => {
+  const connectToken = async (
+    token: string,
+    config: Record<string, string>,
+  ) => {
     let stored = false;
     await attempt(async () => {
       // A team connection names its team: the workspace being looked at, read
       // from the canonical pointer at the moment of the write.
-      const team = scope === "team" ? useInboxStore.getState().clientState.ui?.active_team_id ?? undefined : undefined;
-      const res = await connectWithToken({ provider: descriptor.id, token, config, scope, ...(team ? { team: String(team) } : {}) });
+      const team =
+        scope === "team"
+          ? (useInboxStore.getState().clientState.ui?.active_team_id ??
+            undefined)
+          : undefined;
+      const res = await connectWithToken({
+        provider: descriptor.id,
+        token,
+        config,
+        scope,
+        ...(team ? { team: String(team) } : {}),
+      });
       if (res?.ok) stored = true;
       else setError(res?.error ?? `Couldn't connect ${descriptor.name}`);
     }, `Couldn't reach ${descriptor.name}`);
@@ -236,7 +293,9 @@ export function useAppConnection(
       } else if (descriptor.id === "gmail") {
         await disconnectGoogle({ installation_id: installationId });
       } else {
-        await deleteGithubInstallation({ installation_id: installationId as any });
+        await deleteGithubInstallation({
+          installation_id: installationId as any,
+        });
       }
     }, `Couldn't disconnect ${descriptor.name}`);
   };

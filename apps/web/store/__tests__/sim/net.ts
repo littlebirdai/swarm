@@ -34,7 +34,10 @@ export interface Delivery {
 }
 
 /** What enqueue takes: `due` defaults to now, `channel` to the channel argument. */
-export type DeliveryInit = Omit<Delivery, "seq" | "channel" | "due"> & { channel?: Channel; due?: number };
+export type DeliveryInit = Omit<Delivery, "seq" | "channel" | "due"> & {
+  channel?: Channel;
+  due?: number;
+};
 
 /** A mounted live query: its refresh recomputes the query when it is delivered, not when it was marked. */
 export interface LiveMount {
@@ -58,10 +61,16 @@ export const DEFAULT_DRAIN_HORIZON_MS = 2 * HIDDEN_OVERRIDE_SETTLE_MS;
 const RING_SIZE = 64;
 const TOP_PRODUCERS = 5;
 
-export type SimNetErrorCode = "no-quiescence" | "write-budget" | "order-mismatch";
+export type SimNetErrorCode =
+  | "no-quiescence"
+  | "write-budget"
+  | "order-mismatch";
 
 export class SimNetError extends Error {
-  constructor(readonly code: SimNetErrorCode, message: string) {
+  constructor(
+    readonly code: SimNetErrorCode,
+    message: string,
+  ) {
     super(message);
     this.name = "SimNetError";
   }
@@ -91,8 +100,12 @@ export interface NetOptions {
 export { formatOrder, parseOrder } from "./replay";
 
 function rankLine(counts: Map<string, number>): string {
-  const top = [...counts].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).slice(0, TOP_PRODUCERS);
-  return top.length ? top.map(([name, n]) => `${name} (${n})`).join(", ") : "none";
+  const top = [...counts]
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+    .slice(0, TOP_PRODUCERS);
+  return top.length
+    ? top.map(([name, n]) => `${name} (${n})`).join(", ")
+    : "none";
 }
 
 export class Net {
@@ -149,9 +162,16 @@ export class Net {
   /** Queues a delivery and returns its seq, which cancel() takes. */
   enqueue(channel: Channel, d: DeliveryInit): number {
     if (d.channel !== undefined && d.channel !== channel) {
-      throw new Error(`sim net: enqueue on "${channel}" given a delivery for "${d.channel}"`);
+      throw new Error(
+        `sim net: enqueue on "${channel}" given a delivery for "${d.channel}"`,
+      );
     }
-    const delivery: Delivery = { ...d, seq: this.nextSeq++, channel, due: d.due ?? this.opts.now() };
+    const delivery: Delivery = {
+      ...d,
+      seq: this.nextSeq++,
+      channel,
+      due: d.due ?? this.opts.now(),
+    };
     let q = this.queues.get(channel);
     if (!q) this.queues.set(channel, (q = []));
     let i = q.length;
@@ -167,14 +187,16 @@ export class Net {
       if (i < 0) continue;
       q.splice(i, 1);
       if (!q.length) this.queues.delete(channel);
-      if (this.dirtyPending.get(channel) === seq) this.dirtyPending.delete(channel);
+      if (this.dirtyPending.get(channel) === seq)
+        this.dirtyPending.delete(channel);
       return true;
     }
     return false;
   }
 
   mountLive(channel: Channel, mount: LiveMount): void {
-    if (this.mounts.has(channel)) throw new Error(`sim net: live channel "${channel}" is already mounted`);
+    if (this.mounts.has(channel))
+      throw new Error(`sim net: live channel "${channel}" is already mounted`);
     this.mounts.set(channel, mount);
   }
 
@@ -187,7 +209,10 @@ export class Net {
   /** Live refresh: at most one pending per live channel. */
   markDirty(channel: Channel): void {
     const mount = this.mounts.get(channel);
-    if (!mount) throw new Error(`sim net: markDirty("${channel}") on a channel with no mounted live query`);
+    if (!mount)
+      throw new Error(
+        `sim net: markDirty("${channel}") on a channel with no mounted live query`,
+      );
     if (this.dirtyPending.has(channel)) return;
     const seq = this.enqueue(channel, {
       label: mount.label ?? `refresh ${channel}`,
@@ -235,7 +260,8 @@ export class Net {
     const d = q.shift()!;
     // Only channels with work stay in the map: every step scans it.
     if (!q.length) this.queues.delete(channel);
-    if (this.dirtyPending.get(channel) === d.seq) this.dirtyPending.delete(channel);
+    if (this.dirtyPending.get(channel) === d.seq)
+      this.dirtyPending.delete(channel);
     this.deliveryCount++;
     this.order.push(channel);
     this.ring.push(d);
@@ -266,8 +292,11 @@ export class Net {
    * delivery that waits only on time, as long as it falls within horizonMs of
    * the drain's start. Stops when nothing is due inside the horizon.
    */
-  async drain(opts: { horizonMs?: number; only?: ChannelFilter } = {}): Promise<void> {
-    const until = this.opts.now() + (opts.horizonMs ?? DEFAULT_DRAIN_HORIZON_MS);
+  async drain(
+    opts: { horizonMs?: number; only?: ChannelFilter } = {},
+  ): Promise<void> {
+    const until =
+      this.opts.now() + (opts.horizonMs ?? DEFAULT_DRAIN_HORIZON_MS);
     for (;;) {
       while (await this.step(opts.only)) {}
       const next = this.nextDue(opts.only);
@@ -279,7 +308,8 @@ export class Net {
   /** Deliveries queued (ready or not) on the channels `only` accepts. */
   queued(only?: ChannelFilter): number {
     let n = 0;
-    for (const [channel, q] of this.queues) if (!only || only(channel)) n += q.length;
+    for (const [channel, q] of this.queues)
+      if (!only || only(channel)) n += q.length;
     return n;
   }
 
@@ -309,11 +339,20 @@ export class Net {
   // first ready channel in one pass; the other modes choose among them all.
   private next(only?: ChannelFilter): Channel | null {
     const mode = this._mode;
-    if (mode === "scripted" || (mode !== "interleave" && this.orderPos >= mode.order.length)) {
+    if (
+      mode === "scripted" ||
+      (mode !== "interleave" && this.orderPos >= mode.order.length)
+    ) {
       const now = this.opts.now();
       let first: Channel | null = null;
       for (const [channel, q] of this.queues) {
-        if ((first === null || channel < first) && q[0].due <= now && !this.blocked(channel) && (!only || only(channel))) first = channel;
+        if (
+          (first === null || channel < first) &&
+          q[0].due <= now &&
+          !this.blocked(channel) &&
+          (!only || only(channel))
+        )
+          first = channel;
       }
       return first;
     }
@@ -325,7 +364,8 @@ export class Net {
     const now = this.opts.now();
     const ready: Channel[] = [];
     for (const [channel, q] of this.queues) {
-      if (q[0].due <= now && !this.blocked(channel) && (!only || only(channel))) ready.push(channel);
+      if (q[0].due <= now && !this.blocked(channel) && (!only || only(channel)))
+        ready.push(channel);
     }
     return ready.length > 1 ? ready.sort() : ready;
   }
@@ -343,7 +383,9 @@ export class Net {
   private pick(ready: Channel[]): Channel {
     const mode = this._mode;
     if (mode === "interleave") {
-      return ready.length === 1 ? ready[0] : ready[Math.floor(this.opts.rng() * ready.length)];
+      return ready.length === 1
+        ? ready[0]
+        : ready[Math.floor(this.opts.rng() * ready.length)];
     }
     if (mode !== "scripted" && this.orderPos < mode.order.length) {
       const want = mode.order[this.orderPos];

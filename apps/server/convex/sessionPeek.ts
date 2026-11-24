@@ -28,28 +28,50 @@ export const recentTurns = query({
     const conversation = id ? await ctx.db.get(id) : null;
     if (!conversation) return null;
     const viewer = await getAuthUserId(ctx);
-    if ((await checkConversationAccess(ctx, viewer, conversation, args.share_token)) === "denied") return null;
+    if (
+      (await checkConversationAccess(
+        ctx,
+        viewer,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    )
+      return null;
 
     const limit = Math.min(Math.max(args.limit ?? 4, 1), 8);
     const rows = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_timestamp", (q) => q.eq("conversation_id", conversation._id))
+      .withIndex("by_conversation_timestamp", (q) =>
+        q.eq("conversation_id", conversation._id),
+      )
       .order("desc")
       .take(SCAN);
     const ask = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_nav_prompt", (q) => q.eq("conversation_id", conversation._id).eq("nav_prompt", true))
+      .withIndex("by_conversation_nav_prompt", (q) =>
+        q.eq("conversation_id", conversation._id).eq("nav_prompt", true),
+      )
       .order("desc")
       .first();
     if (ask && !rows.some((m) => m._id === ask._id)) rows.push(ask);
-    const turns: Array<{ _id: string; role: "user" | "assistant"; content: string; timestamp: number }> = [];
+    const turns: Array<{
+      _id: string;
+      role: "user" | "assistant";
+      content: string;
+      timestamp: number;
+    }> = [];
     for (const m of rows) {
       if (turns.length >= limit && m._id !== ask?._id) continue;
       if (m.role !== "user" && m.role !== "assistant") continue;
       if (m.is_encrypted || m.subtype || m.tool_results?.length) continue;
       const content = m.content?.trim();
       if (!content) continue;
-      turns.push({ _id: m._id, role: m.role, content: content.slice(0, TEXT_MAX), timestamp: m.timestamp });
+      turns.push({
+        _id: m._id,
+        role: m.role,
+        content: content.slice(0, TEXT_MAX),
+        timestamp: m.timestamp,
+      });
     }
     return turns.reverse();
   },

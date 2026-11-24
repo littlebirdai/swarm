@@ -9,6 +9,7 @@ A system for decomposing large features into hundreds of granular tasks, spawnin
 **Tasks** are atomic work items. Each task has a status (`open` -> `in_progress` -> `done`), priority, blocked_by dependencies, and execution metadata (retry count, agent session, heartbeat).
 
 **Agents** are headless Claude Code runs (`claude -p`) started in the background, one per task. Each agent claims its task, implements it, tests it, and commits. Agents run in the directory you started the command from: there is no per-agent worktree, so start orchestration from a checkout nobody else is editing. Two agent types are spawned by the plan commands:
+
 - **implementer** -- does the work
 - **critic** -- finds issues during drive rounds
 
@@ -54,6 +55,7 @@ cast plan autopilot pl-xxxx
 ```
 
 This is the main loop. It will:
+
 1. Find all open tasks whose dependencies are done or dropped (the "wave")
 2. Spawn an implementer agent per task, up to `--max` at once (default 3)
 3. Check every `--interval` minutes (default 2) -- detect completions, failures, timeouts
@@ -62,6 +64,7 @@ This is the main loop. It will:
 6. Repeat until all tasks are done
 
 Options:
+
 ```bash
 cast plan autopilot pl-xxxx --dry-run             # show what would spawn, don't actually do it
 cast plan autopilot pl-xxxx --max 4               # limit concurrent agents
@@ -87,11 +90,13 @@ Agent output is logged to `/tmp/codecast-agent-impl-ct-xxxx.log` (subprocess run
 ### 6. Handle failures
 
 Autopilot handles most failures automatically:
+
 - **Agent dies** -- parses output for structured markers (BLOCKED, NEEDS_CONTEXT, DONE_WITH_CONCERNS), otherwise reopens the task and retries, up to 3 times (or the task's `max_retries`)
 - **Agent times out** (30 minutes) -- kills and retries
 - **Max retries exceeded** -- sets the task's execution status to `needs_context` and posts a blocker comment
 
 For manual intervention:
+
 ```bash
 cast plan retry pl-xxxx          # reset needs_context/blocked tasks back to open
 cast plan kill pl-xxxx           # kill all agents
@@ -108,6 +113,7 @@ cast plan drive pl-xxxx --scope apps/web    # focus the critic on a directory or
 ```
 
 Each round:
+
 1. Spawns a critic agent (Sonnet) over the scope, with a 5 minute cap
 2. The critic writes structured findings (severity, `file:line`, suggested fix) to its log, `/tmp/codecast-agent-critic-pl-xxxx-rN.log`
 3. The round is recorded on the plan's drive state
@@ -165,6 +171,7 @@ cast task context ct-xxxx     # full context for agents
 ```
 
 ### Task statuses
+
 - `backlog` -- filed, not yet planned
 - `open` -- not started
 - `in_progress` -- someone/something is working on it
@@ -175,7 +182,9 @@ cast task context ct-xxxx     # full context for agents
 Teams can define their own named statuses, but each one sits inside one of these six categories.
 
 ### Execution statuses
+
 These track agent-level state within a task:
+
 - `done` -- clean completion
 - `done_with_concerns` -- completed but flagged issues
 - `blocked` -- agent hit a blocker it can't resolve
@@ -196,9 +205,11 @@ The runtime is transparent -- `cast plan autopilot` picks the right one automati
 Agent prompts are bundled into the CLI (`apps/cli/src/agents/prompts.ts`; no external config files needed).
 
 ### Implementer
+
 The workhorse. Gets the plan and its task, implements, tests, commits. Runs on Opus unless the task names a model or the plan has a model stylesheet (`cast plan create --model-stylesheet`).
 
 Key behaviors:
+
 - Claims the task (`cast task start`)
 - Reads the acceptance criteria; asks with NEEDS_CONTEXT if anything is unclear
 - Implements in small commits with `Codecast-Plan` / `Codecast-Task` trailers
@@ -207,6 +218,7 @@ Key behaviors:
 - On trouble, emits the structured markers below
 
 ### Critic
+
 Finds issues during drive rounds. Analyzes the codebase within a given scope, looking for bugs, UX issues, missing features, code quality problems, performance issues, security gaps. Outputs structured findings with severity/location/fix. Uses Sonnet.
 
 A reviewer prompt is also bundled, but no plan command spawns it today; review happens through the task's `in_review` status or a separate review session.

@@ -5,7 +5,11 @@
 // and so the one judgement call in the feature (may a preference open a pane on
 // the reader's behalf?) is written once, in a place a test can pin.
 
-import { PANE_OFFER_TTL_MS, normalizePaneUrl, type BrowserPaneOffer } from "@codecast/shared/contracts/browserPaneOffer";
+import {
+  PANE_OFFER_TTL_MS,
+  normalizePaneUrl,
+  type BrowserPaneOffer,
+} from "@codecast/shared/contracts/browserPaneOffer";
 import { displayHost, isLoopbackUrl } from "./browserPane";
 
 export type PaneOfferDecision = {
@@ -30,7 +34,8 @@ export function paneOfferDecision(input: {
   if (!offer || offer.opened_at) return { show: false, autoOpen: false };
   // A day-old offer names a dev server that died with the session. Going quiet
   // beats a chip that is always there and never worth clicking.
-  if (now - offer.offered_at > PANE_OFFER_TTL_MS) return { show: false, autoOpen: false };
+  if (now - offer.offered_at > PANE_OFFER_TTL_MS)
+    return { show: false, autoOpen: false };
   return {
     show: true,
     // Auto-open is deliberately narrow. It fires only where the reader is
@@ -53,8 +58,12 @@ export function paneOfferLabel(offer: BrowserPaneOffer): string {
  * before they click — the pane still opens, and its own offline state finishes
  * the story.
  */
-export function paneOfferHint(offer: BrowserPaneOffer, machine: string | null): string {
-  const where = isLoopbackUrl(offer.url) && machine ? ` — served by ${machine}` : "";
+export function paneOfferHint(
+  offer: BrowserPaneOffer,
+  machine: string | null,
+): string {
+  const where =
+    isLoopbackUrl(offer.url) && machine ? ` — served by ${machine}` : "";
   return `Open ${offer.url} beside this conversation${where}`;
 }
 
@@ -85,7 +94,13 @@ export function paneOfferOwner(input: {
   url: string;
   /** The conversation rows the store holds for that session id, in either
    *  collection: `session_id` and `browser_pane_offer` are the fields read. */
-  rows: Array<{ session_id?: string | null; browser_pane_offer?: BrowserPaneOffer | null } | undefined>;
+  rows: Array<
+    | {
+        session_id?: string | null;
+        browser_pane_offer?: BrowserPaneOffer | null;
+      }
+    | undefined
+  >;
   now: number;
 }): string | undefined {
   const { hinted, url, rows, now } = input;
@@ -96,7 +111,11 @@ export function paneOfferOwner(input: {
     if (!row || row.session_id !== hinted) continue;
     const offer = row.browser_pane_offer;
     if (!offer) continue;
-    if (offer.opened_at !== undefined && now - offer.opened_at > OPENED_GRACE_MS) continue;
+    if (
+      offer.opened_at !== undefined &&
+      now - offer.opened_at > OPENED_GRACE_MS
+    )
+      continue;
     if (now - offer.offered_at > PANE_OFFER_TTL_MS) continue;
     if (normalizePaneUrl(offer.url) === want) return hinted;
   }

@@ -33,7 +33,9 @@ describe("ContextChat linked create intent", () => {
       session_id: STUB_ID,
       linked_object: LINKED_DOC,
     });
-    expect(useInboxStore.getState().sessions[STUB_ID]?._linkedObject).toEqual(LINKED_DOC);
+    expect(useInboxStore.getState().sessions[STUB_ID]?._linkedObject).toEqual(
+      LINKED_DOC,
+    );
 
     // A subsequent optimistic refresh must not erase the local-only intent.
     await useInboxStore.getState().createSession({
@@ -41,7 +43,9 @@ describe("ContextChat linked create intent", () => {
       project_path: "/repo",
       session_id: STUB_ID,
     });
-    expect(useInboxStore.getState().sessions[STUB_ID]?._linkedObject).toEqual(LINKED_DOC);
+    expect(useInboxStore.getState().sessions[STUB_ID]?._linkedObject).toEqual(
+      LINKED_DOC,
+    );
 
     const originalCreate = useInboxStore.getState().createSession;
     let healedOpts: Record<string, any> | undefined;

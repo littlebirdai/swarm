@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { chipBucketFilters, chipMatchesSession, chipProjectFilters, useInboxStore } from "../inboxStore";
+import {
+  chipBucketFilters,
+  chipMatchesSession,
+  chipProjectFilters,
+  useInboxStore,
+} from "../inboxStore";
 import { convexId, session } from "./bucketFixtures";
 
 describe("toggleBucketFilterTerm (shift-click filter list)", () => {
@@ -38,7 +43,10 @@ describe("toggleBucketFilterTerm (shift-click filter list)", () => {
       { id: "b3", exclude: true },
     ]);
     store.toggleBucketFilterTerm("b2", false);
-    expect(filters()).toEqual([{ id: "b1", exclude: false }, { id: "b3", exclude: true }]);
+    expect(filters()).toEqual([
+      { id: "b1", exclude: false },
+      { id: "b3", exclude: true },
+    ]);
   });
 
   it("an opposite-polarity toggle flips a term in place (head and tail)", () => {
@@ -46,10 +54,16 @@ describe("toggleBucketFilterTerm (shift-click filter list)", () => {
     store.toggleBucketFilterTerm("b1", false);
     store.toggleBucketFilterTerm("b2", false);
     store.toggleBucketFilterTerm("b2", true);
-    expect(filters()).toEqual([{ id: "b1", exclude: false }, { id: "b2", exclude: true }]);
+    expect(filters()).toEqual([
+      { id: "b1", exclude: false },
+      { id: "b2", exclude: true },
+    ]);
     store.toggleBucketFilterTerm("b1", true);
     expect(useInboxStore.getState().chipFilterExclude).toBe(true);
-    expect(filters()).toEqual([{ id: "b1", exclude: true }, { id: "b2", exclude: true }]);
+    expect(filters()).toEqual([
+      { id: "b1", exclude: true },
+      { id: "b2", exclude: true },
+    ]);
   });
 
   it("removing the head promotes the first extra so extras never outlive the head", () => {
@@ -76,7 +90,10 @@ describe("toggleBucketFilterTerm (shift-click filter list)", () => {
 
   it("history restore: setActiveBucketFilter with extras re-applies a full list at once", () => {
     const store = useInboxStore.getState();
-    store.setActiveBucketFilter("b2", true, [{ id: "b3", exclude: false }, { id: "b4", exclude: true }]);
+    store.setActiveBucketFilter("b2", true, [
+      { id: "b3", exclude: false },
+      { id: "b4", exclude: true },
+    ]);
     expect(filters()).toEqual([
       { id: "b2", exclude: true },
       { id: "b3", exclude: false },
@@ -144,7 +161,9 @@ describe("toggleProjectFilterTerm (shift-click on project chips)", () => {
     expect(st.activeProjectFilter).toBe("cli");
     expect(st.activeProjectPath).toBe("/x/cli");
     expect(st.chipFilterExclude).toBe(true);
-    expect(st.extraProjectFilters).toEqual([{ id: "docs", path: "/x/docs", exclude: true }]);
+    expect(st.extraProjectFilters).toEqual([
+      { id: "docs", path: "/x/docs", exclude: true },
+    ]);
     store.toggleProjectFilterTerm("cli", "/x/cli", true);
     store.toggleProjectFilterTerm("docs", "/x/docs", true);
     expect(filters()).toEqual([]);
@@ -161,12 +180,16 @@ describe("toggleProjectFilterTerm (shift-click on project chips)", () => {
     store.setActiveBucketFilter("b1");
     expect(filters()).toEqual([]);
     expect(useInboxStore.getState().extraProjectFilters).toEqual([]);
-    store.setActiveProjectFilter("web", "/x/web", true, [{ id: "cli", path: "/x/cli", exclude: false }]);
+    store.setActiveProjectFilter("web", "/x/web", true, [
+      { id: "cli", path: "/x/cli", exclude: false },
+    ]);
     expect(filters()).toEqual([
       { id: "web", path: "/x/web", exclude: true },
       { id: "cli", path: "/x/cli", exclude: false },
     ]);
-    store.setActiveProjectFilter(null, null, false, [{ id: "cli", path: "/x/cli", exclude: false }]);
+    store.setActiveProjectFilter(null, null, false, [
+      { id: "cli", path: "/x/cli", exclude: false },
+    ]);
     expect(useInboxStore.getState().extraProjectFilters).toEqual([]);
   });
 
@@ -179,11 +202,21 @@ describe("toggleProjectFilterTerm (shift-click on project chips)", () => {
       { id: "web", path: "/x/web", exclude: false },
       { id: "cli", path: "/x/cli", exclude: false },
     ];
-    expect(chipMatchesSession(web, { projectFilters: terms, bucketByConv })).toBe(true);
-    expect(chipMatchesSession(cli, { projectFilters: terms, bucketByConv })).toBe(true);
-    expect(chipMatchesSession(docs, { projectFilters: terms, bucketByConv })).toBe(false);
+    expect(
+      chipMatchesSession(web, { projectFilters: terms, bucketByConv }),
+    ).toBe(true);
+    expect(
+      chipMatchesSession(cli, { projectFilters: terms, bucketByConv }),
+    ).toBe(true);
+    expect(
+      chipMatchesSession(docs, { projectFilters: terms, bucketByConv }),
+    ).toBe(false);
     const hideBoth = terms.map((t) => ({ ...t, exclude: true }));
-    expect(chipMatchesSession(web, { projectFilters: hideBoth, bucketByConv })).toBe(false);
-    expect(chipMatchesSession(docs, { projectFilters: hideBoth, bucketByConv })).toBe(true);
+    expect(
+      chipMatchesSession(web, { projectFilters: hideBoth, bucketByConv }),
+    ).toBe(false);
+    expect(
+      chipMatchesSession(docs, { projectFilters: hideBoth, bucketByConv }),
+    ).toBe(true);
   });
 });

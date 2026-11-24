@@ -19,7 +19,11 @@ describe("fuzzyMatch", () => {
   });
 
   test("an empty query matches everything at zero", () => {
-    expect(fuzzyMatch("anything", "")).toEqual({ path: "anything", score: 0, positions: [] });
+    expect(fuzzyMatch("anything", "")).toEqual({
+      path: "anything",
+      score: 0,
+      positions: [],
+    });
   });
 
   test("reports where each character landed, for highlighting", () => {

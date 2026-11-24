@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { flatViewSessions, inboxNestParentOf, isModernFocused, isSpawnedWorker, nestsWorkers, type InboxSession } from "../inboxStore";
+import {
+  flatViewSessions,
+  inboxNestParentOf,
+  isModernFocused,
+  isSpawnedWorker,
+  nestsWorkers,
+  type InboxSession,
+} from "../inboxStore";
 import { placeSections } from "./placeTestHarness";
 
 // In Modern focused (nestsWorkers), sessions an agent spawned (`cast spawn`
@@ -24,21 +31,46 @@ const row = (id: string, over: Partial<InboxSession> = {}): InboxSession => ({
   title: id,
   ...(over as any),
 });
-const working = { agent_status: "working", is_idle: false } as Partial<InboxSession>;
-const done = { inbox_rest: "done", inbox_rest_at: T0, updated_at: T0 } as Partial<InboxSession>;
+const working = {
+  agent_status: "working",
+  is_idle: false,
+} as Partial<InboxSession>;
+const done = {
+  inbox_rest: "done",
+  inbox_rest_at: T0,
+  updated_at: T0,
+} as Partial<InboxSession>;
 const ids = (xs: InboxSession[] | undefined) => (xs ?? []).map((s) => s._id);
-const place = (rows: InboxSession[], modern = true) => placeSections(Object.fromEntries(rows.map((s) => [s._id, s])), new Set(), new Set(), { modern });
+const place = (rows: InboxSession[], modern = true) =>
+  placeSections(
+    Object.fromEntries(rows.map((s) => [s._id, s])),
+    new Set(),
+    new Set(),
+    { modern },
+  );
 const flat = (placed: ReturnType<typeof place>, showSubagents: boolean) =>
-  ids(flatViewSessions(placed.sorted, placed.subsByParent, { mode: "recent", showSubagents, nestWorkers: true }));
+  ids(
+    flatViewSessions(placed.sorted, placed.subsByParent, {
+      mode: "recent",
+      showSubagents,
+      nestWorkers: true,
+    }),
+  );
 
 describe("spawned workers nest under their spawner (web display only)", () => {
   it("only Modern focused nests: Classic, Minimal and plain Modern do not", () => {
-    expect(nestsWorkers({ modern_style: true, modern_focused: true })).toBe(true);
+    expect(nestsWorkers({ modern_style: true, modern_focused: true })).toBe(
+      true,
+    );
     expect(nestsWorkers({ modern_style: true })).toBe(false);
     // Modern is the default, so an unset modern_style is Modern.
     expect(nestsWorkers({ modern_focused: true })).toBe(true);
-    expect(nestsWorkers({ modern_style: false, modern_focused: true })).toBe(false);
-    expect(nestsWorkers({ visual_style: "minimal", modern_focused: true })).toBe(false);
+    expect(nestsWorkers({ modern_style: false, modern_focused: true })).toBe(
+      false,
+    );
+    expect(
+      nestsWorkers({ visual_style: "minimal", modern_focused: true }),
+    ).toBe(false);
     expect(nestsWorkers(undefined)).toBe(false);
   });
 
@@ -48,9 +80,15 @@ describe("spawned workers nest under their spawner (web display only)", () => {
     // board hiding the rail) apply there.
     const device = new Map<string, string>();
     const prev = (globalThis as any).localStorage;
-    (globalThis as any).localStorage = { getItem: (k: string) => device.get(k) ?? null };
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => device.get(k) ?? null,
+    };
     try {
-      const account = { modern_style: true, visual_style: "classic", modern_focused: true };
+      const account = {
+        modern_style: true,
+        visual_style: "classic",
+        modern_focused: true,
+      };
       device.set("codecast-modern-style", "0");
       expect(isModernFocused(account)).toBe(false);
       expect(nestsWorkers(account)).toBe(false);
@@ -60,7 +98,9 @@ describe("spawned workers nest under their spawner (web display only)", () => {
       device.delete("codecast-modern-style");
       expect(isModernFocused(account)).toBe(true);
       device.set("codecast-visual-style", "minimal");
-      expect(isModernFocused({ visual_style: "classic", modern_focused: true })).toBe(false);
+      expect(
+        isModernFocused({ visual_style: "classic", modern_focused: true }),
+      ).toBe(false);
     } finally {
       (globalThis as any).localStorage = prev;
     }
@@ -68,7 +108,10 @@ describe("spawned workers nest under their spawner (web display only)", () => {
 
   it("only in Modern focused: every other style keeps every worker as its own row", () => {
     const parent = row("par0", working);
-    const worker = row("wk0", { ...working, spawned_by_conversation_id: "par0" });
+    const worker = row("wk0", {
+      ...working,
+      spawned_by_conversation_id: "par0",
+    });
     const placed = place([parent, worker], false);
     expect(ids(placed.working).sort()).toEqual(["par0", "wk0"]);
     expect(placed.subsByParent.get("par0")).toBeUndefined();
@@ -78,7 +121,10 @@ describe("spawned workers nest under their spawner (web display only)", () => {
 
   it("a cast-spawn worker nests under its present parent and hides with the option off", () => {
     const parent = row("par1", working);
-    const worker = row("wk1", { ...working, spawned_by_conversation_id: "par1" });
+    const worker = row("wk1", {
+      ...working,
+      spawned_by_conversation_id: "par1",
+    });
     const placed = place([parent, worker]);
     expect(ids(placed.working)).toEqual(["par1"]);
     expect(ids(placed.subsByParent.get("par1"))).toEqual(["wk1"]);
@@ -118,12 +164,20 @@ describe("spawned workers nest under their spawner (web display only)", () => {
 
   it("a worker that needs input keeps its own row and the parent names it", () => {
     const parent = row("par1", working);
-    const asking = row("wk1", { spawned_by_conversation_id: "par1", agent_status: "permission_blocked" });
-    const quiet = row("wk2", { ...working, spawned_by_conversation_id: "par1" });
+    const asking = row("wk1", {
+      spawned_by_conversation_id: "par1",
+      agent_status: "permission_blocked",
+    });
+    const quiet = row("wk2", {
+      ...working,
+      spawned_by_conversation_id: "par1",
+    });
     const placed = place([parent, asking, quiet]);
     const bucket = placed.placements.get("wk1")?.bucket;
     expect(bucket === "needs_input" || bucket === "questions").toBe(true);
-    expect([...ids(placed.needsInput), ...ids(placed.questions)]).toContain("wk1");
+    expect([...ids(placed.needsInput), ...ids(placed.questions)]).toContain(
+      "wk1",
+    );
     expect(ids(placed.subsByParent.get("par1"))).toEqual(["wk2"]);
     expect(placed.workerCountByParent.get("par1")).toBe(2);
     expect(ids(placed.workersNeedingYouByParent.get("par1"))).toEqual(["wk1"]);
@@ -133,7 +187,12 @@ describe("spawned workers nest under their spawner (web display only)", () => {
 
   it("a pinned worker keeps its pinned card", () => {
     const parent = row("par1", working);
-    const worker = row("wk1", { ...working, spawned_by_conversation_id: "par1", is_pinned: true, inbox_pinned_at: T0 });
+    const worker = row("wk1", {
+      ...working,
+      spawned_by_conversation_id: "par1",
+      is_pinned: true,
+      inbox_pinned_at: T0,
+    });
     const placed = place([parent, worker]);
     expect(ids(placed.pinned)).toEqual(["wk1"]);
     expect(placed.subsByParent.has("par1")).toBe(false);
@@ -152,7 +211,11 @@ describe("spawned workers nest under their spawner (web display only)", () => {
 
   it("a workflow sub nests under the run's host session", () => {
     const host = row("host1", { ...working, workflow_run_id: "run1" });
-    const sub = row("sub1", { ...working, workflow_run_id: "run1", is_workflow_sub: true });
+    const sub = row("sub1", {
+      ...working,
+      workflow_run_id: "run1",
+      is_workflow_sub: true,
+    });
     const placed = place([host, sub]);
     expect(ids(placed.subsByParent.get("host1"))).toEqual(["sub1"]);
     expect(placed.workerCountByParent.get("host1")).toBe(1);
@@ -162,15 +225,30 @@ describe("spawned workers nest under their spawner (web display only)", () => {
 
   it("a workflow sub waiting on the person is named on the host row", () => {
     const host = row("host1", { ...working, workflow_run_id: "run1" });
-    const sub = row("sub1", { workflow_run_id: "run1", is_workflow_sub: true, agent_status: "permission_blocked" });
+    const sub = row("sub1", {
+      workflow_run_id: "run1",
+      is_workflow_sub: true,
+      agent_status: "permission_blocked",
+    });
     const placed = place([host, sub]);
-    expect(ids(placed.workersNeedingYouByParent.get("host1"))).toEqual(["sub1"]);
+    expect(ids(placed.workersNeedingYouByParent.get("host1"))).toEqual([
+      "sub1",
+    ]);
   });
 
   it("a workflow sub whose host is absent stays in the flat list", () => {
-    const sub = row("sub1", { ...working, workflow_run_id: "run1", is_workflow_sub: true });
+    const sub = row("sub1", {
+      ...working,
+      workflow_run_id: "run1",
+      is_workflow_sub: true,
+    });
     const placed = place([sub]);
-    expect(flatViewSessions([sub], placed.subsByParent, { mode: "recent", showSubagents: false }).map((s) => s._id)).toEqual(["sub1"]);
+    expect(
+      flatViewSessions([sub], placed.subsByParent, {
+        mode: "recent",
+        showSubagents: false,
+      }).map((s) => s._id),
+    ).toEqual(["sub1"]);
   });
 });
 
@@ -182,13 +260,25 @@ describe("inboxNestParentOf / isSpawnedWorker", () => {
     expect(inboxNestParentOf([parent, w], true)(w)).toBe("p");
   });
   it("leaves a spawned team lead first-class", () => {
-    const lead = row("l", { spawned_by_conversation_id: "p", agent_team_name: "t", agent_name: "team-lead" });
+    const lead = row("l", {
+      spawned_by_conversation_id: "p",
+      agent_team_name: "t",
+      agent_name: "team-lead",
+    });
     expect(isSpawnedWorker(lead)).toBe(false);
     expect(inboxNestParentOf([parent, lead], true)(lead)).toBeNull();
   });
   it("keeps the shared kinds on the shared rule", () => {
-    const task = row("t", { is_subagent: true, parent_conversation_id: "p", spawned_by_conversation_id: "x" });
-    const mate = row("m", { spawned_by_conversation_id: "p", agent_team_name: "t", agent_name: "reviewer" });
+    const task = row("t", {
+      is_subagent: true,
+      parent_conversation_id: "p",
+      spawned_by_conversation_id: "x",
+    });
+    const mate = row("m", {
+      spawned_by_conversation_id: "p",
+      agent_team_name: "t",
+      agent_name: "reviewer",
+    });
     expect(isSpawnedWorker(task)).toBe(false);
     expect(isSpawnedWorker(mate)).toBe(false);
     expect(inboxNestParentOf([parent, task, mate], true)(task)).toBe("p");
@@ -200,7 +290,10 @@ describe("inboxNestParentOf / isSpawnedWorker", () => {
   });
   it("a workflow sub with no host present has no parent", () => {
     const sub = row("ws", { workflow_run_id: "r", is_workflow_sub: true });
-    const runLog = row("log", { workflow_run_id: "r", is_workflow_primary: true });
+    const runLog = row("log", {
+      workflow_run_id: "r",
+      is_workflow_primary: true,
+    });
     expect(inboxNestParentOf([sub, runLog], true)(sub)).toBeNull();
   });
 });

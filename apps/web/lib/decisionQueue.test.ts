@@ -12,7 +12,13 @@ import type { InboxSession, SessionDecisionItem } from "../store/inboxStore";
 const T0 = 1_700_000_000_000;
 
 function session(over: Partial<InboxSession> = {}): InboxSession {
-  return { _id: "s1", agent_status: "idle", updated_at: Date.now(), last_heartbeat: Date.now(), ...(over as any) } as InboxSession;
+  return {
+    _id: "s1",
+    agent_status: "idle",
+    updated_at: Date.now(),
+    last_heartbeat: Date.now(),
+    ...(over as any),
+  } as InboxSession;
 }
 
 function item(over: Partial<QueueItem> = {}): QueueItem {
@@ -40,7 +46,7 @@ describe("queueTier", () => {
     "keeps a parked session in tier 1 at status %s",
     (agent_status) => {
       expect(queueTier(item({ session: session({ agent_status }) }))).toBe(1);
-    }
+    },
   );
 
   it("demotes a blocked question whose session is unresponsive", () => {
@@ -49,7 +55,9 @@ describe("queueTier", () => {
   });
 
   it("demotes a blocked question whose session was stopped", () => {
-    expect(queueTier(item({ session: session({ agent_status: "stopped" }) }))).toBe(2);
+    expect(
+      queueTier(item({ session: session({ agent_status: "stopped" }) })),
+    ).toBe(2);
   });
 
   it("demotes a blocked question whose session was torn down", () => {
@@ -71,12 +79,22 @@ describe("sortQueue", () => {
     const live = session();
     const dead = session({ agent_status: "stopped" });
     const out = sortQueue([
-      item({ key: "advisory-old", blocking: false, session: live, createdAt: T0 - 9000 }),
+      item({
+        key: "advisory-old",
+        blocking: false,
+        session: live,
+        createdAt: T0 - 9000,
+      }),
       item({ key: "live-new", session: live, createdAt: T0 + 500 }),
       item({ key: "dead-old", session: dead, createdAt: T0 - 5000 }),
       item({ key: "live-old", session: live, createdAt: T0 - 1000 }),
     ]);
-    expect(out.map((i) => i.key)).toEqual(["live-old", "live-new", "dead-old", "advisory-old"]);
+    expect(out.map((i) => i.key)).toEqual([
+      "live-old",
+      "live-new",
+      "dead-old",
+      "advisory-old",
+    ]);
   });
 
   it("never reorders equal-tier items by anything but age", () => {
@@ -85,7 +103,12 @@ describe("sortQueue", () => {
     // short one.
     const live = session();
     const out = sortQueue([
-      item({ key: "b", session: live, createdAt: T0 + 1, question: "x".repeat(500) }),
+      item({
+        key: "b",
+        session: live,
+        createdAt: T0 + 1,
+        question: "x".repeat(500),
+      }),
       item({ key: "a", session: live, createdAt: T0, question: "x" }),
     ]);
     expect(out.map((i) => i.key)).toEqual(["a", "b"]);
@@ -104,13 +127,35 @@ describe("sortQueue", () => {
   it("orders by impact inside a tier, never across one, and counts an unscored ask as 3", () => {
     const live = session();
     const out = sortQueue([
-      item({ key: "advisory-5", blocking: false, session: live, impact: 5, createdAt: T0 - 9000 }),
-      item({ key: "live-2-old", session: live, impact: 2, createdAt: T0 - 8000 }),
+      item({
+        key: "advisory-5",
+        blocking: false,
+        session: live,
+        impact: 5,
+        createdAt: T0 - 9000,
+      }),
+      item({
+        key: "live-2-old",
+        session: live,
+        impact: 2,
+        createdAt: T0 - 8000,
+      }),
       item({ key: "live-unscored", session: live, createdAt: T0 - 100 }),
-      item({ key: "live-4-new", session: live, impact: 4, createdAt: T0 + 500 }),
+      item({
+        key: "live-4-new",
+        session: live,
+        impact: 4,
+        createdAt: T0 + 500,
+      }),
       item({ key: "live-4-old", session: live, impact: 4, createdAt: T0 }),
     ]);
-    expect(out.map((i) => i.key)).toEqual(["live-4-old", "live-4-new", "live-unscored", "live-2-old", "advisory-5"]);
+    expect(out.map((i) => i.key)).toEqual([
+      "live-4-old",
+      "live-4-new",
+      "live-unscored",
+      "live-2-old",
+      "advisory-5",
+    ]);
   });
 });
 
@@ -126,7 +171,10 @@ describe("decisionQueueItems", () => {
   } as SessionDecisionItem;
 
   it("carries the authored payload through to the card", () => {
-    const [q] = decisionQueueItems({ d1: { ...base, context_md: "why", report_slug: "r1" } as any }, {});
+    const [q] = decisionQueueItems(
+      { d1: { ...base, context_md: "why", report_slug: "r1" } as any },
+      {},
+    );
     expect(q.source).toBe("decide");
     expect(q.decisionId).toBe("d1");
     expect(q.contextMd).toBe("why");
@@ -140,7 +188,9 @@ describe("decisionQueueItems", () => {
       d2: { ...base, _id: "d2", status: "answered" },
       d3: { ...base, _id: "d3", status: "dismissed" },
     };
-    expect(decisionQueueItems(rows, {}).map((i) => i.decisionId)).toEqual(["d1"]);
+    expect(decisionQueueItems(rows, {}).map((i) => i.decisionId)).toEqual([
+      "d1",
+    ]);
   });
 
   it("attaches the session so ranking can see liveness", () => {
@@ -153,11 +203,15 @@ describe("decisionQueueItems", () => {
 
 describe("sessionHasOpenQuestion", () => {
   it("accepts the server's awaiting_input flag", () => {
-    expect(sessionHasOpenQuestion(session({ awaiting_input: true } as any))).toBe(true);
+    expect(
+      sessionHasOpenQuestion(session({ awaiting_input: true } as any)),
+    ).toBe(true);
   });
 
   it("accepts a permission-blocked row, which awaiting_input misses once idle", () => {
-    expect(sessionHasOpenQuestion(session({ agent_status: "permission_blocked" }))).toBe(true);
+    expect(
+      sessionHasOpenQuestion(session({ agent_status: "permission_blocked" })),
+    ).toBe(true);
   });
 
   it("ignores a session with neither signal", () => {
@@ -173,7 +227,10 @@ describe("sessionHasOpenQuestion", () => {
   // plumbing the queue cannot resolve, and the inbox already badges it.
   for (const kind of ["limit", "auth", "connection", "fatal"]) {
     it(`ignores a session parked on a "${kind}" banner`, () => {
-      const s = session({ awaiting_input: true, pending_api_error_kind: kind } as any);
+      const s = session({
+        awaiting_input: true,
+        pending_api_error_kind: kind,
+      } as any);
       expect(sessionHasOpenQuestion(s)).toBe(false);
     });
   }
@@ -181,19 +238,25 @@ describe("sessionHasOpenQuestion", () => {
   // "error" is the deliberate exclusion from BLOCKED_BANNER_KINDS — the CLI is
   // still retrying those on its own, so the session is not parked.
   it("still accepts a session whose banner kind is the self-retrying 'error'", () => {
-    const s = session({ awaiting_input: true, pending_api_error_kind: "error" } as any);
+    const s = session({
+      awaiting_input: true,
+      pending_api_error_kind: "error",
+    } as any);
     expect(sessionHasOpenQuestion(s)).toBe(true);
   });
 });
 
 describe("isStackedAsk", () => {
-  const d = (over: Partial<SessionDecisionItem>) => ({ status: "pending", blocking: true, ...over }) as SessionDecisionItem;
+  const d = (over: Partial<SessionDecisionItem>) =>
+    ({ status: "pending", blocking: true, ...over }) as SessionDecisionItem;
   it("stacks a pending blocking ask and leaves an advisory one in its session", () => {
     expect(isStackedAsk(d({}))).toBe(true);
     expect(isStackedAsk(d({ blocking: false, default_option: 0 }))).toBe(false);
     expect(isStackedAsk(d({ status: "answered" }))).toBe(false);
   });
   it("keeps an advisory ask someone filed into a named stack", () => {
-    expect(isStackedAsk(d({ blocking: false, default_option: 0, stack_id: "ds1" }))).toBe(true);
+    expect(
+      isStackedAsk(d({ blocking: false, default_option: 0, stack_id: "ds1" })),
+    ).toBe(true);
   });
 });

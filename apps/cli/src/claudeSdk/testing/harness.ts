@@ -16,14 +16,22 @@ export interface FakeWorld {
 }
 
 /** A scratch world whose claude replays `recordings` in order, one per process started. */
-export function fakeWorld(recordings: string[], extraEnv: Record<string, string> = {}, tag = ""): FakeWorld {
+export function fakeWorld(
+  recordings: string[],
+  extraEnv: Record<string, string> = {},
+  tag = "",
+): FakeWorld {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `csdk-${tag}`));
   const hostDir = path.join(dir, "h");
   fs.mkdirSync(hostDir);
   const cwd = path.join(dir, "cwd");
   fs.mkdirSync(cwd);
   const exe = path.join(dir, "claude");
-  fs.writeFileSync(exe, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(path.join(import.meta.dir, "fakeClaude.ts"))} "$@"\n`, { mode: 0o755 });
+  fs.writeFileSync(
+    exe,
+    `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(path.join(import.meta.dir, "fakeClaude.ts"))} "$@"\n`,
+    { mode: 0o755 },
+  );
   const logFile = path.join(dir, "fake.log");
   const sessionId = crypto.randomUUID();
   return {
@@ -46,19 +54,28 @@ export function fakeWorld(recordings: string[], extraEnv: Record<string, string>
       ...o,
     }),
     fakeLog: () => {
-      try { return fs.readFileSync(logFile, "utf-8").trim().split("\n"); } catch { return []; }
+      try {
+        return fs.readFileSync(logFile, "utf-8").trim().split("\n");
+      } catch {
+        return [];
+      }
     },
     cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
   };
 }
 
-export function until<T>(fn: () => T | undefined | null | false, ms = 30_000, what = "condition"): Promise<T> {
+export function until<T>(
+  fn: () => T | undefined | null | false,
+  ms = 30_000,
+  what = "condition",
+): Promise<T> {
   const deadline = Date.now() + ms;
   return new Promise((resolve, reject) => {
     const tick = () => {
       const v = fn();
       if (v) return resolve(v as T);
-      if (Date.now() > deadline) return reject(new Error(`timed out waiting for ${what}`));
+      if (Date.now() > deadline)
+        return reject(new Error(`timed out waiting for ${what}`));
       setTimeout(tick, 25);
     };
     tick();

@@ -15,7 +15,14 @@ import { useSyncExternalStore } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useInboxStore } from "../../store/inboxStore";
 import { parseRoomKey } from "@codecast/shared/contracts";
-import { acceptInvite, declineInvite, holdRing, joinCall, releaseRing, startHuddle } from "./actions";
+import {
+  acceptInvite,
+  declineInvite,
+  holdRing,
+  joinCall,
+  releaseRing,
+  startHuddle,
+} from "./actions";
 import { readJoinPrefs } from "./joinPrefs";
 
 export type HuddleStartRequest = {
@@ -32,7 +39,12 @@ export type HuddleStartRequest = {
   hint?: string;
   /** Set when the request answers a ring rather than starts a huddle: the
    *  invite row, as myCalls.incoming listed it. */
-  answer?: { _id: unknown; room_key: string; from_user?: unknown; from_name?: string };
+  answer?: {
+    _id: unknown;
+    room_key: string;
+    from_user?: unknown;
+    from_name?: string;
+  };
 };
 
 let pending: HuddleStartRequest | null = null;
@@ -45,7 +57,10 @@ const emit = () => listeners.forEach((fn) => fn());
 
 export function requestHuddleStart(req: HuddleStartRequest): void {
   const ringing = !!req.toUserIds?.length || !!req.ringChannel;
-  if (!ringing && (useInboxStore.getState().callOccupancy[req.roomKey]?.length ?? 0) > 0) {
+  if (
+    !ringing &&
+    (useInboxStore.getState().callOccupancy[req.roomKey]?.length ?? 0) > 0
+  ) {
     void joinCall(req.roomKey, { intent: "deliberate" });
     return;
   }
@@ -56,7 +71,9 @@ export function requestHuddleStart(req: HuddleStartRequest): void {
 
 /** Join on a ring: the check first, unless the person turned it off or this
  *  window cannot draw it. */
-export function requestAnswer(invite: NonNullable<HuddleStartRequest["answer"]>): void {
+export function requestAnswer(
+  invite: NonNullable<HuddleStartRequest["answer"]>,
+): void {
   const req: HuddleStartRequest = { roomKey: invite.room_key, answer: invite };
   if (hosts === 0 || !readJoinPrefs().deviceCheck) return runHuddleStart(req);
   if (pending?.answer) void releaseRing(pending.answer);
@@ -84,12 +101,21 @@ function clear(): void {
 
 /** The confirm was pressed: start what was asked for, private when the
  *  dialog said so (a window with no dialog starts team shared). */
-export function runHuddleStart(req: HuddleStartRequest, opts: { private?: boolean } = {}): void {
+export function runHuddleStart(
+  req: HuddleStartRequest,
+  opts: { private?: boolean } = {},
+): void {
   clear();
   if (req.answer) {
     void acceptInvite(String(req.answer._id), req.answer.room_key);
   } else if (req.toUserIds?.length || req.ringChannel) {
-    void startHuddle({ roomKey: req.roomKey, toUserIds: req.toUserIds ?? [], anchorTitle: req.anchorTitle, ringChannel: req.ringChannel, private: opts.private });
+    void startHuddle({
+      roomKey: req.roomKey,
+      toUserIds: req.toUserIds ?? [],
+      anchorTitle: req.anchorTitle,
+      ringChannel: req.ringChannel,
+      private: opts.private,
+    });
   } else {
     void joinCall(req.roomKey, { intent: "deliberate", private: opts.private });
   }

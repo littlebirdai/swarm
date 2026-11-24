@@ -89,7 +89,9 @@ describe("entryConfidence", () => {
   test("observed surfaces beat the kind floor in both directions", () => {
     // A snippet whose scan found a script is code, even though the floor for
     // snippets is prose. The floor is a guess; the scan is a finding.
-    expect(entryConfidence({ kind: "snippet", surfaces: ["ships_scripts"] })).toBe("code");
+    expect(
+      entryConfidence({ kind: "snippet", surfaces: ["ships_scripts"] }),
+    ).toBe("code");
     // And an MCP server observed to be prose only is prose, though the floor
     // would have said code.
     expect(entryConfidence({ kind: "mcp", surfaces: ["prose"] })).toBe("prose");
@@ -108,7 +110,9 @@ describe("entryConfidence", () => {
     // understand LESS well into a safer-looking badge.
     const entry = { kind: "skill", surfaces: ["prose", "teleports" as never] };
     expect(entryConfidence(entry)).toBe("code");
-    expect(entryConfidence({ kind: "snippet", surfaces: ["teleports" as never] })).toBe("code");
+    expect(
+      entryConfidence({ kind: "snippet", surfaces: ["teleports" as never] }),
+    ).toBe("code");
   });
 
   test("a surfaces field that is not a list is a failed read, so code", () => {
@@ -116,8 +120,12 @@ describe("entryConfidence", () => {
     // not be read as a one-element scan, and must not fall to the kind floor
     // either: a value we cannot read is a scan result we lost, and a snippet
     // would land on prose on the strength of bytes nobody could parse.
-    expect(entryConfidence({ kind: "snippet", surfaces: "prose" as never })).toBe("code");
-    expect(entryConfidence({ kind: "skill", surfaces: 7 as never })).toBe("code");
+    expect(
+      entryConfidence({ kind: "snippet", surfaces: "prose" as never }),
+    ).toBe("code");
+    expect(entryConfidence({ kind: "skill", surfaces: 7 as never })).toBe(
+      "code",
+    );
   });
 
   test("only absent and null mean nobody looked", () => {
@@ -125,8 +133,12 @@ describe("entryConfidence", () => {
     // floor. Every card today takes this path, so widening it would badge the
     // whole catalog "runs code" and teach the reader to ignore the mark.
     expect(entryConfidence({ kind: "skill" })).toBe("unknown");
-    expect(entryConfidence({ kind: "skill", surfaces: null as never })).toBe("unknown");
-    expect(entryConfidence({ kind: "snippet", surfaces: null as never })).toBe("prose");
+    expect(entryConfidence({ kind: "skill", surfaces: null as never })).toBe(
+      "unknown",
+    );
+    expect(entryConfidence({ kind: "snippet", surfaces: null as never })).toBe(
+      "prose",
+    );
   });
 
   test("an entry scanned and found to have nothing is code, not the kind floor", () => {

@@ -42,7 +42,9 @@ export function parsePatch(patch: string): ParsedPatch {
   let newLineNum = 0;
 
   for (const line of lines) {
-    const hunkHeader = line.match(/^@@\s*-(\d+)(?:,(\d+))?\s*\+(\d+)(?:,(\d+))?\s*@@/);
+    const hunkHeader = line.match(
+      /^@@\s*-(\d+)(?:,(\d+))?\s*\+(\d+)(?:,(\d+))?\s*@@/,
+    );
 
     if (hunkHeader) {
       if (currentHunk) {
@@ -74,7 +76,10 @@ export function parsePatch(patch: string): ParsedPatch {
         content: line.slice(1),
         oldLineNumber: oldLineNum++,
       });
-    } else if (line.startsWith(" ") || (line === "" && hunkExpectsContext(currentHunk))) {
+    } else if (
+      line.startsWith(" ") ||
+      (line === "" && hunkExpectsContext(currentHunk))
+    ) {
       // A bare empty line is a blank context line whose space was stripped,
       // but only while the hunk still owes a line on both sides: the empty
       // string `split` leaves after a patch's final newline (or a blank line

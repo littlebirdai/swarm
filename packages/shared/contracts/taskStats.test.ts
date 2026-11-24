@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { computeConversationTaskStats } from "./taskStats";
 
-const todo = (ts: number, todos: { content: string; status: string }[], name = "TodoWrite") => ({
+const todo = (
+  ts: number,
+  todos: { content: string; status: string }[],
+  name = "TodoWrite",
+) => ({
   role: "assistant",
   timestamp: ts,
   tool_calls: [{ name, input: JSON.stringify({ todos }) }],
@@ -11,9 +15,15 @@ describe("computeConversationTaskStats", () => {
   test("returns null for empty or tool-less windows", () => {
     expect(computeConversationTaskStats(undefined)).toBeNull();
     expect(computeConversationTaskStats([])).toBeNull();
-    expect(computeConversationTaskStats([
-      { role: "assistant", timestamp: 1, tool_calls: [{ name: "Write", input: "{\"path\":\"a.ts\"}" }] },
-    ])).toBeNull();
+    expect(
+      computeConversationTaskStats([
+        {
+          role: "assistant",
+          timestamp: 1,
+          tool_calls: [{ name: "Write", input: '{"path":"a.ts"}' }],
+        },
+      ]),
+    ).toBeNull();
   });
 
   test("uses the newest TodoWrite, including grok's todo_write id", () => {
@@ -36,17 +46,26 @@ describe("computeConversationTaskStats", () => {
       {
         role: "assistant",
         timestamp: 200,
-        tool_calls: [{ name: "TaskCreate", input: JSON.stringify({ subject: "second" }) }],
+        tool_calls: [
+          { name: "TaskCreate", input: JSON.stringify({ subject: "second" }) },
+        ],
       },
       {
         role: "assistant",
         timestamp: 100,
-        tool_calls: [{ name: "TaskCreate", input: JSON.stringify({ subject: "first" }) }],
+        tool_calls: [
+          { name: "TaskCreate", input: JSON.stringify({ subject: "first" }) },
+        ],
       },
       {
         role: "assistant",
         timestamp: 300,
-        tool_calls: [{ name: "TaskUpdate", input: JSON.stringify({ taskId: "1", status: "completed" }) }],
+        tool_calls: [
+          {
+            name: "TaskUpdate",
+            input: JSON.stringify({ taskId: "1", status: "completed" }),
+          },
+        ],
       },
     ]);
     expect(stats?.items).toEqual([
@@ -62,12 +81,19 @@ describe("computeConversationTaskStats", () => {
       {
         role: "assistant",
         timestamp: 1,
-        tool_calls: [{ name: "TaskCreate", input: JSON.stringify({ subject: "gone" }) }],
+        tool_calls: [
+          { name: "TaskCreate", input: JSON.stringify({ subject: "gone" }) },
+        ],
       },
       {
         role: "assistant",
         timestamp: 2,
-        tool_calls: [{ name: "TaskUpdate", input: JSON.stringify({ taskId: "1", status: "deleted" }) }],
+        tool_calls: [
+          {
+            name: "TaskUpdate",
+            input: JSON.stringify({ taskId: "1", status: "deleted" }),
+          },
+        ],
       },
     ]);
     expect(stats).toBeNull();
@@ -78,9 +104,16 @@ describe("computeConversationTaskStats", () => {
       {
         role: "assistant",
         timestamp: 1,
-        tool_calls: [{ name: "TodoWrite", input: { todos: [{ id: "a", content: "live", status: "pending" }] } }],
+        tool_calls: [
+          {
+            name: "TodoWrite",
+            input: { todos: [{ id: "a", content: "live", status: "pending" }] },
+          },
+        ],
       },
     ]);
-    expect(stats?.items).toEqual([{ id: "a", content: "live", status: "open" }]);
+    expect(stats?.items).toEqual([
+      { id: "a", content: "live", status: "open" },
+    ]);
   });
 });

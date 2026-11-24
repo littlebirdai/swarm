@@ -9,15 +9,27 @@ import { gestureToast } from "../store/undoStack";
 
 /** The hide write for a caller outside React render (a context menu item). */
 export function hideFromTeam(conversationId: string) {
-  gestureToast("Hidden from the team", () => useInboxStore.getState().setPrivacy(conversationId, true));
+  gestureToast("Hidden from the team", () =>
+    useInboxStore.getState().setPrivacy(conversationId, true),
+  );
 }
 
 export function useTeamShareActions(conversationId: string) {
   const setTeamVisibility = useInboxStore((s) => s.setTeamVisibility);
-  const setPrivate = useCallback(() => hideFromTeam(conversationId), [conversationId]);
-  const shareWithTeam = useCallback((mode: "summary" | "full") => {
-    gestureToast(mode === "full" ? "Sharing full conversation with team" : "Sharing summary with team", () =>
-      setTeamVisibility(conversationId, mode));
-  }, [conversationId, setTeamVisibility]);
+  const setPrivate = useCallback(
+    () => hideFromTeam(conversationId),
+    [conversationId],
+  );
+  const shareWithTeam = useCallback(
+    (mode: "summary" | "full") => {
+      gestureToast(
+        mode === "full"
+          ? "Sharing full conversation with team"
+          : "Sharing summary with team",
+        () => setTeamVisibility(conversationId, mode),
+      );
+    },
+    [conversationId, setTeamVisibility],
+  );
   return { setPrivate, shareWithTeam };
 }

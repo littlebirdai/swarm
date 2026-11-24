@@ -38,7 +38,11 @@ export const CallsNavRow = memo(function CallsNavRow({
         {...paneDragProps("/calls", "Calls")}
         data-nav-row
         className={`flex-1 flex items-center ${isNarrow ? "justify-center" : "gap-3"} px-4 py-2.5 min-w-0`}
-        title={away ? "Calls: opens in the Chat window" : "Calls — live huddles and transcripts"}
+        title={
+          away
+            ? "Calls: opens in the Chat window"
+            : "Calls — live huddles and transcripts"
+        }
       >
         <span className="relative flex-shrink-0">
           <Phone className="w-5 h-5" strokeWidth={1.5} />

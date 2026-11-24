@@ -51,10 +51,30 @@ function frameLabel(url: string): string {
 
 /** Roles a user can act on. These always get a line and a ref. */
 const INTERACTIVE = new Set([
-  "button", "link", "textbox", "searchbox", "combobox", "checkbox", "radio",
-  "menuitem", "menuitemcheckbox", "menuitemradio", "tab", "switch", "slider",
-  "option", "listbox", "spinbutton", "textarea", "SearchBox", "treeitem",
-  "scrollbar", "colorwell", "datetime", "menu", "menubar",
+  "button",
+  "link",
+  "textbox",
+  "searchbox",
+  "combobox",
+  "checkbox",
+  "radio",
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "tab",
+  "switch",
+  "slider",
+  "option",
+  "listbox",
+  "spinbutton",
+  "textarea",
+  "SearchBox",
+  "treeitem",
+  "scrollbar",
+  "colorwell",
+  "datetime",
+  "menu",
+  "menubar",
   // Not an AX role: minted by scanClickables for controls the tree has no
   // role for. Listed here so find/matchRefs rank it like any other control.
   "clickable",
@@ -62,21 +82,70 @@ const INTERACTIVE = new Set([
 
 /** Roles that shape the page but are never clicked. Printed when named. */
 const STRUCTURAL = new Set([
-  "heading", "main", "navigation", "banner", "contentinfo", "dialog", "alertdialog",
-  "alert", "status", "form", "table", "row", "columnheader", "rowheader", "cell",
-  "list", "listitem", "article", "region", "tablist", "tabpanel", "img", "image",
-  "figure", "blockquote", "code", "note", "search", "complementary", "progressbar",
+  "heading",
+  "main",
+  "navigation",
+  "banner",
+  "contentinfo",
+  "dialog",
+  "alertdialog",
+  "alert",
+  "status",
+  "form",
+  "table",
+  "row",
+  "columnheader",
+  "rowheader",
+  "cell",
+  "list",
+  "listitem",
+  "article",
+  "region",
+  "tablist",
+  "tabpanel",
+  "img",
+  "image",
+  "figure",
+  "blockquote",
+  "code",
+  "note",
+  "search",
+  "complementary",
+  "progressbar",
 ]);
 
 /** Wrappers with no meaning of their own — descend through, print nothing. */
 const SKIP = new Set([
-  "none", "generic", "GenericContainer", "InlineTextBox", "LineBreak",
-  "paragraph", "Section", "Pre", "presentation", "Iframe", "IframePresentational",
-  "RootWebArea", "WebArea", "group", "Legend", "DescriptionList",
+  "none",
+  "generic",
+  "GenericContainer",
+  "InlineTextBox",
+  "LineBreak",
+  "paragraph",
+  "Section",
+  "Pre",
+  "presentation",
+  "Iframe",
+  "IframePresentational",
+  "RootWebArea",
+  "WebArea",
+  "group",
+  "Legend",
+  "DescriptionList",
 ]);
 
 /** Node state worth reporting; anything false or absent is left out. */
-const FLAGS = ["disabled", "checked", "expanded", "required", "selected", "focused", "invalid", "readonly", "pressed"];
+const FLAGS = [
+  "disabled",
+  "checked",
+  "expanded",
+  "required",
+  "selected",
+  "focused",
+  "invalid",
+  "readonly",
+  "pressed",
+];
 
 export interface SnapshotRef {
   ref: number;
@@ -149,7 +218,15 @@ const OBJECT_GROUP = "cast-clickable";
 /** An element inside one of these is already represented by its host control,
  *  so reporting it would give the same button two refs. Built from the roles
  *  the AX walk already covers plus the native tags that carry them. */
-const HOSTED_SELECTOR = ["a", "button", "input", "select", "textarea", "option", "summary"]
+const HOSTED_SELECTOR = [
+  "a",
+  "button",
+  "input",
+  "select",
+  "textarea",
+  "option",
+  "summary",
+]
   .concat([...INTERACTIVE].map((r) => `[role="${r.toLowerCase()}"]`))
   .join(",");
 
@@ -165,7 +242,10 @@ const HOSTED_SELECTOR = ["a", "button", "input", "select", "textarea", "option",
  * Main frame only. Child frames each need their own execution context, and
  * the AX walk already covers what they expose with real roles.
  */
-async function scanClickables(page: PageSession, taken: Set<number>): Promise<SnapshotRef[]> {
+async function scanClickables(
+  page: PageSession,
+  taken: Set<number>,
+): Promise<SnapshotRef[]> {
   const { conn, sessionId } = page;
   const expression = `(() => {
     const HOSTED = ${JSON.stringify(HOSTED_SELECTOR)};
@@ -253,9 +333,13 @@ async function scanClickables(page: PageSession, taken: Set<number>): Promise<Sn
       sessionId,
     );
     const byIndex = new Map<number, string>();
-    for (const p of (props.result ?? []) as Array<{ name: string; value?: { objectId?: string } }>) {
+    for (const p of (props.result ?? []) as Array<{
+      name: string;
+      value?: { objectId?: string };
+    }>) {
       const i = Number(p.name);
-      if (Number.isInteger(i) && p.value?.objectId) byIndex.set(i, p.value.objectId);
+      if (Number.isInteger(i) && p.value?.objectId)
+        byIndex.set(i, p.value.objectId);
     }
 
     const nodes = await Promise.all(
@@ -273,7 +357,12 @@ async function scanClickables(page: PageSession, taken: Set<number>): Promise<Sn
       const ref = nodes[i];
       if (!ref || taken.has(ref)) continue;
       taken.add(ref);
-      refs.push({ ref, role: "clickable", name: found[i].name, editable: found[i].edit });
+      refs.push({
+        ref,
+        role: "clickable",
+        name: found[i].name,
+        editable: found[i].edit,
+      });
     }
   } catch {
     /* the page moved under us — report whatever resolved */
@@ -285,13 +374,26 @@ async function scanClickables(page: PageSession, taken: Set<number>): Promise<Sn
 
 async function cleanupClickables(page: PageSession): Promise<void> {
   const { conn, sessionId } = page;
-  await conn.send("Runtime.releaseObjectGroup", { objectGroup: OBJECT_GROUP }, sessionId).catch(() => {});
   await conn
-    .send("Runtime.evaluate", { expression: `delete ${STASH}`, returnByValue: true }, sessionId)
+    .send(
+      "Runtime.releaseObjectGroup",
+      { objectGroup: OBJECT_GROUP },
+      sessionId,
+    )
+    .catch(() => {});
+  await conn
+    .send(
+      "Runtime.evaluate",
+      { expression: `delete ${STASH}`, returnByValue: true },
+      sessionId,
+    )
     .catch(() => {});
 }
 
-export async function snapshotPage(page: PageSession, opts: SnapshotOptions = {}): Promise<Snapshot> {
+export async function snapshotPage(
+  page: PageSession,
+  opts: SnapshotOptions = {},
+): Promise<Snapshot> {
   const t0 = Date.now();
   const maxChars = opts.maxChars ?? 40_000;
   const { conn, sessionId } = page;
@@ -299,7 +401,10 @@ export async function snapshotPage(page: PageSession, opts: SnapshotOptions = {}
   const meta = await conn
     .send<any>(
       "Runtime.evaluate",
-      { expression: `JSON.stringify([location.href, document.title])`, returnByValue: true },
+      {
+        expression: `JSON.stringify([location.href, document.title])`,
+        returnByValue: true,
+      },
       sessionId,
     )
     .then((r) => JSON.parse(r.result.value) as [string, string])
@@ -312,7 +417,10 @@ export async function snapshotPage(page: PageSession, opts: SnapshotOptions = {}
   if (opts.frames !== false) {
     try {
       const tree = await conn.send<any>("Page.getFrameTree", {}, sessionId);
-      const collect = (n: any): string[] => [n.frame.id, ...(n.childFrames ?? []).flatMap(collect)];
+      const collect = (n: any): string[] => [
+        n.frame.id,
+        ...(n.childFrames ?? []).flatMap(collect),
+      ];
       const all = collect(tree.frameTree);
       // The main frame is covered by the undefined (default) query already.
       frameIds = [undefined, ...all.slice(1)];
@@ -327,7 +435,12 @@ export async function snapshotPage(page: PageSession, opts: SnapshotOptions = {}
   let truncated = false;
   let rawNodes = 0;
 
-  const sources: Array<{ sessionId: string; frameId?: string; label?: string; key: number }> = frameIds.map((frameId) => ({
+  const sources: Array<{
+    sessionId: string;
+    frameId?: string;
+    label?: string;
+    key: number;
+  }> = frameIds.map((frameId) => ({
     sessionId,
     frameId,
     label: frameId ? `frame ${frameId.slice(0, 8)}` : undefined,
@@ -335,7 +448,11 @@ export async function snapshotPage(page: PageSession, opts: SnapshotOptions = {}
   }));
   if (opts.frames !== false) {
     for (const f of await childFrames(page).catch(() => [])) {
-      sources.push({ sessionId: f.sessionId, label: `frame ${frameLabel(f.url)} (cross-origin)`, key: f.key });
+      sources.push({
+        sessionId: f.sessionId,
+        label: `frame ${frameLabel(f.url)} (cross-origin)`,
+        key: f.key,
+      });
     }
   }
 
@@ -364,7 +481,11 @@ export async function snapshotPage(page: PageSession, opts: SnapshotOptions = {}
       chars += line.length + 1;
     }
 
-    const walk = (node: AXNode | undefined, depth: number, announced: string): void => {
+    const walk = (
+      node: AXNode | undefined,
+      depth: number,
+      announced: string,
+    ): void => {
       if (!node || truncated) return;
       const role = val(node.role) as string | undefined;
       const name = String(val(node.name) ?? "").trim();
@@ -375,10 +496,16 @@ export async function snapshotPage(page: PageSession, opts: SnapshotOptions = {}
         const interactive = INTERACTIVE.has(role);
         const structural = STRUCTURAL.has(role);
         const isText = role === "StaticText";
-        const redundant = isText && announced.length > 0 && name.length > 0 && announced.includes(name);
+        const redundant =
+          isText &&
+          announced.length > 0 &&
+          name.length > 0 &&
+          announced.includes(name);
         const wanted = opts.interactiveOnly
           ? interactive
-          : interactive || (structural && name.length > 0) || (isText && name.length > 1 && !redundant);
+          : interactive ||
+            (structural && name.length > 0) ||
+            (isText && name.length > 1 && !redundant);
 
         if (wanted) {
           const indent = "  ".repeat(Math.min(depth, 12));
@@ -388,18 +515,31 @@ export async function snapshotPage(page: PageSession, opts: SnapshotOptions = {}
           } else {
             const bits: string[] = [role];
             if (name) bits.push(JSON.stringify(name.slice(0, 120)));
-            const v = value === undefined || value === null ? "" : String(value);
-            if (v && v !== name) bits.push(`value=${JSON.stringify(v.slice(0, 60))}`);
+            const v =
+              value === undefined || value === null ? "" : String(value);
+            if (v && v !== name)
+              bits.push(`value=${JSON.stringify(v.slice(0, 60))}`);
             const flags = (node.properties ?? [])
               .filter((p) => FLAGS.includes(p.name))
               .filter((p) => {
                 const pv = p.value?.value;
-                return pv !== false && pv !== "false" && pv !== "none" && pv !== undefined;
+                return (
+                  pv !== false &&
+                  pv !== "false" &&
+                  pv !== "none" &&
+                  pv !== undefined
+                );
               })
-              .map((p) => (p.value?.value === true ? p.name : `${p.name}=${p.value?.value}`));
+              .map((p) =>
+                p.value?.value === true
+                  ? p.name
+                  : `${p.name}=${p.value?.value}`,
+              );
             if (flags.length) bits.push(`[${flags.join(",")}]`);
             if (interactive && node.backendDOMNodeId) {
-              const ref = source.key ? frameRef(source.key, node.backendDOMNodeId) : node.backendDOMNodeId;
+              const ref = source.key
+                ? frameRef(source.key, node.backendDOMNodeId)
+                : node.backendDOMNodeId;
               bits.push(`#e${ref}`);
               refs.push({ ref, role, name });
             }
@@ -416,7 +556,11 @@ export async function snapshotPage(page: PageSession, opts: SnapshotOptions = {}
       }
 
       for (const cid of node.childIds ?? []) {
-        walk(byId.get(cid), printed ? depth + 1 : depth, printed ? name : announced);
+        walk(
+          byId.get(cid),
+          printed ? depth + 1 : depth,
+          printed ? name : announced,
+        );
       }
     };
 
@@ -462,7 +606,9 @@ export async function snapshotPage(page: PageSession, opts: SnapshotOptions = {}
       if (!label) continue;
       // The name is the first JSON string on the line; `value=` comes after.
       // A function, so a `$&` or `$1` in the label is text, not a replacement pattern.
-      const next = out[i].replace(/"(?:[^"\\]|\\.)*"/, () => JSON.stringify(label));
+      const next = out[i].replace(/"(?:[^"\\]|\\.)*"/, () =>
+        JSON.stringify(label),
+      );
       if (chars + (next.length - out[i].length) > maxChars) break;
       chars += next.length - out[i].length;
       out[i] = next;
@@ -517,13 +663,18 @@ interface Named {
 /** English ordinal: 1 → "1st", 2 → "2nd", 11 → "11th". */
 export function ordinal(n: number): string {
   const teens = n % 100;
-  const suffix = teens >= 11 && teens <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+  const suffix =
+    teens >= 11 && teens <= 13
+      ? "th"
+      : (["th", "st", "nd", "rd"][n % 10] ?? "th");
   return `${n}${suffix}`;
 }
 
 /** Each item's position among the items sharing its role and name, counting
  *  from 1 in the order given, plus whether that name repeats at all. Pure. */
-export function ordinalsFor<T extends Named>(items: T[]): Array<{ nth: number; duplicated: boolean }> {
+export function ordinalsFor<T extends Named>(
+  items: T[],
+): Array<{ nth: number; duplicated: boolean }> {
   const key = (i: Named): string => `${i.role} ${i.name}`;
   const totals = new Map<string, number>();
   for (const i of items) totals.set(key(i), (totals.get(key(i)) ?? 0) + 1);
@@ -540,13 +691,18 @@ export function ordinalsFor<T extends Named>(items: T[]): Array<{ nth: number; d
  *  the namesakes keeps its bare name — so a page with nothing ambiguous on it
  *  reads exactly as it did before. */
 export function refLabel(r: { name: string; nth?: number }): string {
-  return r.nth && r.nth > 1 && r.name ? `${r.name} (${ordinal(r.nth)})` : r.name;
+  return r.nth && r.nth > 1 && r.name
+    ? `${r.name} (${ordinal(r.nth)})`
+    : r.name;
 }
 
 /** Split a trailing ordinal off a find query: `Delete (2nd)` and `Delete 2nd`
  *  both mean the second Delete. Without this the ordinal a snapshot prints
  *  would be decoration an agent could read but not act on. */
-export function splitOrdinalQuery(query: string): { text: string; nth: number | null } {
+export function splitOrdinalQuery(query: string): {
+  text: string;
+  nth: number | null;
+} {
   const m =
     query.match(/^(.+?)\s*\(\s*(\d+)(?:st|nd|rd|th)\s*\)\s*$/i) ??
     query.match(/^(.+?)\s+(\d+)(?:st|nd|rd|th)\s*$/i);
@@ -587,7 +743,11 @@ const QUERY_ROLES: Record<string, string[]> = {
   slider: ["slider"],
 };
 
-const norm = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const norm = (s: string): string =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 const tokensOf = (s: string): string[] => norm(s).split(" ").filter(Boolean);
 
 interface Scored<T> {
@@ -607,7 +767,10 @@ function scoreAll<T extends Named>(items: T[], query: string): Scored<T>[] {
   }
   const qn = qTokens.join(" ");
   // A query that is just a role word ("link", "combobox") matches by role.
-  const roleOnly = !wantRoles && qTokens.length === 1 ? new Set([qn, ...(QUERY_ROLES[qn] ?? [])]) : null;
+  const roleOnly =
+    !wantRoles && qTokens.length === 1
+      ? new Set([qn, ...(QUERY_ROLES[qn] ?? [])])
+      : null;
 
   const out: Scored<T>[] = [];
   for (const item of items) {
@@ -630,7 +793,9 @@ function scoreAll<T extends Named>(items: T[], query: string): Scored<T>[] {
     } else if (qn) {
       // Word overlap: how much of the query the name accounts for. Substring
       // per token so "173 comments" finds a link named "173comments".
-      const covered = qTokens.filter((t) => nTokens.some((n) => n === t || n.includes(t))).length;
+      const covered = qTokens.filter((t) =>
+        nTokens.some((n) => n === t || n.includes(t)),
+      ).length;
       const cov = covered / qTokens.length;
       if (cov > 0) {
         score = 40 + 20 * cov - Math.min(8, nTokens.length / 4);
@@ -664,16 +829,26 @@ export function matchRefs<T extends Named>(items: T[], query: string): T[] {
   // the name, its non-interactive shadows add nothing an agent could act on —
   // but a row that is the ONLY carrier of its name stays.
   const interactiveNames = new Set(
-    kept.filter((s) => INTERACTIVE.has(s.item.role)).map((s) => norm(s.item.name)),
+    kept
+      .filter((s) => INTERACTIVE.has(s.item.role))
+      .map((s) => norm(s.item.name)),
   );
   return kept
-    .filter((s) => INTERACTIVE.has(s.item.role) || !interactiveNames.has(norm(s.item.name)))
+    .filter(
+      (s) =>
+        INTERACTIVE.has(s.item.role) ||
+        !interactiveNames.has(norm(s.item.name)),
+    )
     .map((s) => s.item);
 }
 
 /** What almost matched — for the miss message, so the agent sees candidates
  *  instead of a dead end. Only meaningful when matchRefs returned nothing. */
-export function nearMatches<T extends Named>(items: T[], query: string, limit = 5): T[] {
+export function nearMatches<T extends Named>(
+  items: T[],
+  query: string,
+  limit = 5,
+): T[] {
   return scoreAll(items, query)
     .filter((s) => !s.hit)
     .slice(0, limit)

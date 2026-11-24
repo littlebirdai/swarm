@@ -19,8 +19,10 @@ export type AgentSetupTool = (typeof AGENT_SETUP_TOOLS)[number];
 /** What the setup card's Continue button sends the blocked session once its
  *  setup is done. A press, not something the person typed. */
 export const AGENT_SETUP_CONTINUE_MESSAGE: Record<AgentSetupTool, string> = {
-  browser: "The Chrome extension is connected now. Retry the browser command and continue.",
-  computer: "cast computer's Accessibility and Screen Recording permissions are granted now. Retry and continue.",
+  browser:
+    "The Chrome extension is connected now. Retry the browser command and continue.",
+  computer:
+    "cast computer's Accessibility and Screen Recording permissions are granted now. Retry and continue.",
 };
 
 /**
@@ -36,12 +38,19 @@ export function agentSetupPagePath(tool: AgentSetupTool): string {
 export const AGENT_SETUP_PAGE_ORIGIN = "https://codecast.sh";
 
 /** The page's public URL, for text that leaves the app (agent guidance, the extension). */
-export function agentSetupPageUrl(tool: AgentSetupTool, origin = AGENT_SETUP_PAGE_ORIGIN, deviceId?: string): string {
+export function agentSetupPageUrl(
+  tool: AgentSetupTool,
+  origin = AGENT_SETUP_PAGE_ORIGIN,
+  deviceId?: string,
+): string {
   return `${origin.replace(/\/$/, "")}${agentSetupPagePath(tool)}${deviceId ? `?device=${encodeURIComponent(deviceId)}` : ""}`;
 }
 
 export function isAgentSetupTool(value: unknown): value is AgentSetupTool {
-  return typeof value === "string" && (AGENT_SETUP_TOOLS as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (AGENT_SETUP_TOOLS as readonly string[]).includes(value)
+  );
 }
 
 // Same shape as the inline-image marker (cli/src/inlineImage.ts): invisible
@@ -71,7 +80,10 @@ export function hasAgentSetupMarker(text: string | undefined | null): boolean {
 }
 
 /** The tool a command output asks setup for, and the output without the marker. */
-export function extractAgentSetup(text: string): { tool: AgentSetupTool | null; text: string } {
+export function extractAgentSetup(text: string): {
+  tool: AgentSetupTool | null;
+  text: string;
+} {
   if (!text || !text.includes(MARKER_OPEN)) return { tool: null, text };
   let tool: AgentSetupTool | null = null;
   const cleaned = text.replace(MARKER_LINE, (_m, name: string) => {

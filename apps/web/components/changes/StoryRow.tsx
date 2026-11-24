@@ -18,7 +18,8 @@ export const StoryRow = memo(function StoryRow({ story }: { story: Story }) {
   const attrs = useStoryAttrs(key);
   const waiting = ctx.waiting.has(key);
   // The pending bar holds the dek's place only while notes can still come.
-  const pending = !story.dek && story.prose_status === "pending" && !!ctx.proseLive;
+  const pending =
+    !story.dek && story.prose_status === "pending" && !!ctx.proseLive;
   return (
     <Accordion.Item
       value={key}
@@ -28,13 +29,20 @@ export const StoryRow = memo(function StoryRow({ story }: { story: Story }) {
     >
       <Accordion.Header asChild>
         <div>
-          <Accordion.Trigger data-story-trigger className="flex w-full min-w-0 flex-col text-left outline-none">
+          <Accordion.Trigger
+            data-story-trigger
+            className="flex w-full min-w-0 flex-col text-left outline-none"
+          >
             <span className="flex w-full min-w-0 items-baseline gap-2">
               <KindGlyph kind={story.kind} />
               <span className="chg-ui line-clamp-3 min-w-0 flex-1 text-[14px] font-medium leading-[1.4] text-sol-text/90 [overflow-wrap:anywhere] group-data-[state=open]:text-[21px] group-data-[state=open]:font-bold group-data-[state=open]:leading-[1.25] group-data-[state=open]:tracking-tight group-data-[state=open]:text-sol-text">
                 <FadeText text={story.headline} />
               </span>
-              {waiting && <span className="shrink-0 font-mono text-meta text-[var(--sol-yellow)]">not deployed</span>}
+              {waiting && (
+                <span className="shrink-0 font-mono text-meta text-[var(--sol-yellow)]">
+                  not deployed
+                </span>
+              )}
               <RiskSrText story={story} />
               {/* The column keeps its width with nothing in it, so sizes line up down the block. */}
               <span
@@ -43,7 +51,11 @@ export const StoryRow = memo(function StoryRow({ story }: { story: Story }) {
                 title={`+${story.insertions.toLocaleString()} -${story.deletions.toLocaleString()} lines`}
               >
                 {/* A story that only removed lines says so instead of standing blank. */}
-                {story.insertions > 0 ? `+${story.insertions.toLocaleString()}` : story.deletions > 0 ? `-${story.deletions.toLocaleString()}` : ""}
+                {story.insertions > 0
+                  ? `+${story.insertions.toLocaleString()}`
+                  : story.deletions > 0
+                    ? `-${story.deletions.toLocaleString()}`
+                    : ""}
               </span>
               {/* Who made it, in a fixed column so faces line up down the block; the open story's byline names them. */}
               <span className="flex w-[3rem] shrink-0 justify-start self-center pl-2.5 group-data-[state=open]:invisible">
@@ -52,7 +64,15 @@ export const StoryRow = memo(function StoryRow({ story }: { story: Story }) {
             </span>
             {(pending || story.dek) && (
               <span className="chg-ui line-clamp-1 block pl-5 text-[13px] font-normal leading-[1.55] text-sol-text/60 [overflow-wrap:anywhere] group-data-[state=open]:mt-1.5 group-data-[state=open]:line-clamp-none group-data-[state=open]:text-[14.5px] group-data-[state=open]:text-sol-text/70">
-                {pending ? <span className="chg-pending-bar" role="img" aria-label="Notes pending" /> : <FadeText text={story.dek} />}
+                {pending ? (
+                  <span
+                    className="chg-pending-bar"
+                    role="img"
+                    aria-label="Notes pending"
+                  />
+                ) : (
+                  <FadeText text={story.dek} />
+                )}
               </span>
             )}
           </Accordion.Trigger>

@@ -25,10 +25,13 @@ export function SharingAgentCard({ className }: { className?: string }) {
             <Sparkles className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-medium text-sol-text">Decide with an agent</div>
+            <div className="text-sm font-medium text-sol-text">
+              Decide with an agent
+            </div>
             <p className="mt-0.5 max-w-prose text-xs leading-relaxed text-sol-text-muted">
-              It looks through your folders and session titles, recommends what should sync and what each team sees, and asks
-              before it changes anything. The conversation stays private to you.
+              It looks through your folders and session titles, recommends what
+              should sync and what each team sees, and asks before it changes
+              anything. The conversation stays private to you.
             </p>
           </div>
         </div>

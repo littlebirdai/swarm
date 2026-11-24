@@ -10,26 +10,36 @@ import { useInboxStore } from "../../store/inboxStore";
 // not repaint the plan (AGENTS.md "Reading state in components").
 
 /** The store's tasks map, woken only by a change to one of `taskIds`. */
-export function usePlanStoreTasks(taskIds: readonly string[]): Record<string, any> {
+export function usePlanStoreTasks(
+  taskIds: readonly string[],
+): Record<string, any> {
   const sig = useInboxStore((s) => {
     let out = "";
     for (const id of taskIds) {
       const t = (s.tasks as Record<string, any>)[id];
-      out += t ? `${id}:${t.updated_at ?? 0}:${t.status}:${t.assignee ?? ""}:${t.parent_id ?? ""}|` : `${id}:-|`;
+      out += t
+        ? `${id}:${t.updated_at ?? 0}:${t.status}:${t.assignee ?? ""}:${t.parent_id ?? ""}|`
+        : `${id}:-|`;
     }
     return out;
   });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature stands in for the churny map
-  return useMemo(() => useInboxStore.getState().tasks as Record<string, any>, [sig]);
+  return useMemo(
+    () => useInboxStore.getState().tasks as Record<string, any>,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature stands in for the churny map
+    [sig],
+  );
 }
 
 /** The live-session map, woken only by the drawn fields of `tasks`' sessions. */
-export function usePlanActiveSessions(tasks: readonly any[]): Record<string, any> {
+export function usePlanActiveSessions(
+  tasks: readonly any[],
+): Record<string, any> {
   const sig = useInboxStore((s) => {
     let out = "";
     for (const t of tasks) {
       const a = s.taskActiveSessions[t._id];
-      if (a) out += `${t._id}:${a._id}:${a.session_id}:${a.agent_status ?? ""}:${a.agent_type ?? ""}:${a.started_by ?? ""}:${a.last_message_at ?? 0}:${a.title ?? ""}|`;
+      if (a)
+        out += `${t._id}:${a._id}:${a.session_id}:${a.agent_status ?? ""}:${a.agent_type ?? ""}:${a.started_by ?? ""}:${a.last_message_at ?? 0}:${a.title ?? ""}|`;
     }
     return out;
   });

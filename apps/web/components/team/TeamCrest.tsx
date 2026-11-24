@@ -24,9 +24,18 @@ interface TeamCrestProps {
 }
 
 /** The team icon on a tinted tile. One crest for the switcher, sidebar, settings and create flow. */
-export function TeamCrest({ icon, color, size = "md", tone = "soft", className }: TeamCrestProps) {
+export function TeamCrest({
+  icon,
+  color,
+  size = "md",
+  tone = "soft",
+  className,
+}: TeamCrestProps) {
   const s = SIZE_CLASSES[size];
-  const bg = color && color in colorBgClassMap ? colorBgClassMap[color as TeamColorName] : "bg-sol-text-muted";
+  const bg =
+    color && color in colorBgClassMap
+      ? colorBgClassMap[color as TeamColorName]
+      : "bg-sol-text-muted";
   // The tile itself never remounts: a color change re-tints through the
   // background and text color transitions, so the halo and wash around it
   // (transitions on ancestors) stay in sync. Only an icon change replays
@@ -51,7 +60,11 @@ export function TeamCrest({ icon, color, size = "md", tone = "soft", className }
         key={icon}
         className="relative flex motion-safe:animate-in motion-safe:zoom-in-90 motion-safe:fade-in motion-safe:duration-200"
       >
-        <TeamIcon icon={icon} color={color} className={cn("transition-colors duration-300", s.icon)} />
+        <TeamIcon
+          icon={icon}
+          color={color}
+          className={cn("transition-colors duration-300", s.icon)}
+        />
       </span>
     </div>
   );

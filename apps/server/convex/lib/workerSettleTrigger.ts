@@ -35,15 +35,29 @@ export type WorkerRow = {
 // started it, which is woken when it settles (createSessionFromCli nests every
 // hand under its spawner). A role's standing session never is one.
 export function isSpawnedWorker(c: WorkerRow): boolean {
-  return c.is_subagent === true && !!c.parent_conversation_id && !c.agent_task_id && !c.is_workflow_sub &&
-    !c.standing_role_id && !c.agent_team_name;
+  return (
+    c.is_subagent === true &&
+    !!c.parent_conversation_id &&
+    !c.agent_task_id &&
+    !c.is_workflow_sub &&
+    !c.standing_role_id &&
+    !c.agent_team_name
+  );
 }
 
-export async function scheduleWorkerSettle(ctx: any, conversationId: Id<"conversations">, statusTs: number): Promise<void> {
+export async function scheduleWorkerSettle(
+  ctx: any,
+  conversationId: Id<"conversations">,
+  statusTs: number,
+): Promise<void> {
   const conv = await ctx.db.get(conversationId);
   if (!conv || !isSpawnedWorker(conv)) return;
-  await ctx.scheduler.runAfter(NEEDS_INPUT_IDLE_CHECK_DELAY_MS, internal.workerSettle.tellParent, {
-    conversation_id: conversationId,
-    status_ts: statusTs,
-  });
+  await ctx.scheduler.runAfter(
+    NEEDS_INPUT_IDLE_CHECK_DELAY_MS,
+    internal.workerSettle.tellParent,
+    {
+      conversation_id: conversationId,
+      status_ts: statusTs,
+    },
+  );
 }

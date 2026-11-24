@@ -17,7 +17,13 @@ export { AGENT_DOCK_RELEASED };
 // ---------------------------------------------------------------------------
 
 export type AgentDockEdge = "left" | "right";
-export type AgentDockConfig = { enabled: boolean; edge: AgentDockEdge; offset: number; minimized: boolean; supported: boolean };
+export type AgentDockConfig = {
+  enabled: boolean;
+  edge: AgentDockEdge;
+  offset: number;
+  minimized: boolean;
+  supported: boolean;
+};
 
 function call<T>(name: string, ...args: unknown[]): Promise<T | null> {
   const fn = bridge("call");
@@ -30,14 +36,20 @@ export function getAgentDock(): Promise<AgentDockConfig | null> {
   return call<AgentDockConfig>("get");
 }
 
-export function setAgentDock(patch: Partial<Pick<AgentDockConfig, "enabled" | "edge" | "offset" | "minimized">>): Promise<AgentDockConfig | null> {
+export function setAgentDock(
+  patch: Partial<
+    Pick<AgentDockConfig, "enabled" | "edge" | "offset" | "minimized">
+  >,
+): Promise<AgentDockConfig | null> {
   return call<AgentDockConfig>("set", patch);
 }
 
 // The see-through switches (registerSeeThroughIpc): take the mouse only over
 // the pill and the card, and stay exactly as big as they are.
-export const agentDockInteractive = (on: boolean) => void call("interactive", on);
-export const agentDockContentSize = (size: { width: number; height: number }) => void call("content-size", size);
+export const agentDockInteractive = (on: boolean) =>
+  void call("interactive", on);
+export const agentDockContentSize = (size: { width: number; height: number }) =>
+  void call("content-size", size);
 export const agentDockFocus = (on: boolean) => void call("focus", on);
 export const agentDockOpen = (navPath: string) => void call("open", navPath);
 /** The system's region picker; a PNG data URL, or null when cancelled. */
@@ -49,8 +61,14 @@ export function onAgentDockSummon(cb: () => void): () => void {
 }
 
 /** The setting changed (Settings → Desktop). Returns the unsubscribe. */
-export function onAgentDockConfig(cb: (cfg: AgentDockConfig) => void): () => void {
-  return bridge("subscribe")?.("agentDock.config", (cfg) => cb({ ...(cfg as AgentDockConfig), supported: true })) ?? (() => {});
+export function onAgentDockConfig(
+  cb: (cfg: AgentDockConfig) => void,
+): () => void {
+  return (
+    bridge("subscribe")?.("agentDock.config", (cfg) =>
+      cb({ ...(cfg as AgentDockConfig), supported: true }),
+    ) ?? (() => {})
+  );
 }
 
 /** The floating new-session popup, the one the newSession shortcut opens. */

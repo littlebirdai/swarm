@@ -1,34 +1,93 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { anthropicBody, callModel, CHEAP_MODEL, type SurfaceRequest } from "./anthropic";
+import {
+  anthropicBody,
+  callModel,
+  CHEAP_MODEL,
+  type SurfaceRequest,
+} from "./anthropic";
 import { NO_TEAM_CONTENT_GATE } from "./vendorGuard";
 
 // Bodies recorded from callModel before it built them through anthropicBody.
 // Byte identity with these strings is the contract: the evals replay
 // anthropicBody, so any drift here means the evals measure a prompt prod
 // never sends.
-const CASES: Array<{ args: Omit<Parameters<typeof callModel>[0], "gate">; request: SurfaceRequest; golden: string }> = [
+const CASES: Array<{
+  args: Omit<Parameters<typeof callModel>[0], "gate">;
+  request: SurfaceRequest;
+  golden: string;
+}> = [
   {
-    args: { prompt: 'Name this session.\nLine two with "quotes".', max_tokens: 200, label: "a" },
-    request: { model: CHEAP_MODEL, prompt: 'Name this session.\nLine two with "quotes".', max_tokens: 200 },
+    args: {
+      prompt: 'Name this session.\nLine two with "quotes".',
+      max_tokens: 200,
+      label: "a",
+    },
+    request: {
+      model: CHEAP_MODEL,
+      prompt: 'Name this session.\nLine two with "quotes".',
+      max_tokens: 200,
+    },
     golden:
       '{"model":"claude-haiku-5-5","max_tokens":200,"thinking":{"type":"disabled"},"messages":[{"role":"user","content":"Name this session.\\nLine two with \\"quotes\\"."}]}',
   },
   {
-    args: { prompt: "Answer from the sessions.", system: "You answer questions.", max_tokens: 1500, model: "claude-sonnet-5-5", label: "b" },
-    request: { model: "claude-sonnet-5-5", system: "You answer questions.", prompt: "Answer from the sessions.", max_tokens: 1500 },
+    args: {
+      prompt: "Answer from the sessions.",
+      system: "You answer questions.",
+      max_tokens: 1500,
+      model: "claude-sonnet-5-5",
+      label: "b",
+    },
+    request: {
+      model: "claude-sonnet-5-5",
+      system: "You answer questions.",
+      prompt: "Answer from the sessions.",
+      max_tokens: 1500,
+    },
     golden:
       '{"model":"claude-sonnet-5-5","max_tokens":1500,"system":"You answer questions.","messages":[{"role":"user","content":"Answer from the sessions."}]}',
   },
   {
-    args: { prompt: "Brief the next session.", system: "Be brief.", max_tokens: 1200, label: "c" },
-    request: { model: CHEAP_MODEL, system: "Be brief.", prompt: "Brief the next session.", max_tokens: 1200 },
+    args: {
+      prompt: "Brief the next session.",
+      system: "Be brief.",
+      max_tokens: 1200,
+      label: "c",
+    },
+    request: {
+      model: CHEAP_MODEL,
+      system: "Be brief.",
+      prompt: "Brief the next session.",
+      max_tokens: 1200,
+    },
     golden:
       '{"model":"claude-haiku-5-5","max_tokens":1200,"thinking":{"type":"disabled"},"system":"Be brief.","messages":[{"role":"user","content":"Brief the next session."}]}',
   },
   {
     // An answer of a fixed shape is generated under its schema (structured outputs).
-    args: { prompt: "Ground this.", max_tokens: 2000, model: "claude-sonnet-5-5", output_schema: { type: "object", properties: { a: { type: "string" } }, required: ["a"], additionalProperties: false }, label: "d" },
-    request: { model: "claude-sonnet-5-5", prompt: "Ground this.", max_tokens: 2000, output_schema: { type: "object", properties: { a: { type: "string" } }, required: ["a"], additionalProperties: false } },
+    args: {
+      prompt: "Ground this.",
+      max_tokens: 2000,
+      model: "claude-sonnet-5-5",
+      output_schema: {
+        type: "object",
+        properties: { a: { type: "string" } },
+        required: ["a"],
+        additionalProperties: false,
+      },
+      label: "d",
+    },
+    request: {
+      model: "claude-sonnet-5-5",
+      prompt: "Ground this.",
+      max_tokens: 2000,
+      output_schema: {
+        type: "object",
+        properties: { a: { type: "string" } },
+        required: ["a"],
+        additionalProperties: false,
+      },
+    },
     golden:
       '{"model":"claude-sonnet-5-5","max_tokens":2000,"messages":[{"role":"user","content":"Ground this."}],"output_config":{"format":{"type":"json_schema","schema":{"type":"object","properties":{"a":{"type":"string"}},"required":["a"],"additionalProperties":false}}}}',
   },
@@ -44,7 +103,12 @@ describe("anthropicBody", () => {
     process.env.ANTHROPIC_API_KEY = "test-key";
     globalThis.fetch = (async (_url: unknown, init: { body: string }) => {
       sent.push(init.body);
-      return new Response(JSON.stringify({ content: [{ type: "text", text: "ok" }], usage: { input_tokens: 1, output_tokens: 1 } }));
+      return new Response(
+        JSON.stringify({
+          content: [{ type: "text", text: "ok" }],
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+      );
     }) as unknown as typeof fetch;
   });
 
@@ -56,7 +120,9 @@ describe("anthropicBody", () => {
 
   for (const [i, c] of CASES.entries()) {
     test(`case ${i + 1}: callModel still sends the recorded body`, async () => {
-      expect(await callModel({ ...c.args, gate: NO_TEAM_CONTENT_GATE })).not.toBeNull();
+      expect(
+        await callModel({ ...c.args, gate: NO_TEAM_CONTENT_GATE }),
+      ).not.toBeNull();
       expect(sent).toEqual([c.golden]);
     });
 
@@ -66,17 +132,40 @@ describe("anthropicBody", () => {
   }
 
   test("effort rides in output_config beside the schema", () => {
-    expect(JSON.stringify(anthropicBody({ model: "claude-sonnet-5-5", prompt: "p", max_tokens: 10, effort: "low", output_schema: { type: "object" } }))).toBe(
+    expect(
+      JSON.stringify(
+        anthropicBody({
+          model: "claude-sonnet-5-5",
+          prompt: "p",
+          max_tokens: 10,
+          effort: "low",
+          output_schema: { type: "object" },
+        }),
+      ),
+    ).toBe(
       '{"model":"claude-sonnet-5-5","max_tokens":10,"messages":[{"role":"user","content":"p"}],"output_config":{"format":{"type":"json_schema","schema":{"type":"object"}},"effort":"low"}}',
     );
-    expect(JSON.stringify(anthropicBody({ model: "claude-sonnet-5-5", prompt: "p", max_tokens: 10, effort: "high" }))).toBe(
+    expect(
+      JSON.stringify(
+        anthropicBody({
+          model: "claude-sonnet-5-5",
+          prompt: "p",
+          max_tokens: 10,
+          effort: "high",
+        }),
+      ),
+    ).toBe(
       '{"model":"claude-sonnet-5-5","max_tokens":10,"messages":[{"role":"user","content":"p"}],"output_config":{"effort":"high"}}',
     );
   });
 
   test("the cheap model is sent no temperature and no thinking", () => {
     // It refuses any temperature, and thinking would spend the reply's max_tokens.
-    expect(JSON.stringify(anthropicBody({ model: CHEAP_MODEL, prompt: "p", max_tokens: 1200 }))).toBe(
+    expect(
+      JSON.stringify(
+        anthropicBody({ model: CHEAP_MODEL, prompt: "p", max_tokens: 1200 }),
+      ),
+    ).toBe(
       '{"model":"claude-haiku-5-5","max_tokens":1200,"thinking":{"type":"disabled"},"messages":[{"role":"user","content":"p"}]}',
     );
   });

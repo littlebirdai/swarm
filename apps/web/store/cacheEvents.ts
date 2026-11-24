@@ -27,15 +27,30 @@ export type CacheEventKind =
   // Opening the database failed.
   | "db-open-failed";
 
-export type CacheEvent = { kind: CacheEventKind; at: string; path: string; detail: Record<string, unknown> };
+export type CacheEvent = {
+  kind: CacheEventKind;
+  at: string;
+  path: string;
+  detail: Record<string, unknown>;
+};
 
 export const CACHE_EVENTS_STORAGE_KEY = "codecast:cache-events";
 const MAX_EVENTS = 50;
 // Kinds that mean cached data was lost or destroyed: worth a server report.
-const REPORTED: ReadonlySet<CacheEventKind> = new Set(["purge", "ownership-unreadable", "db-created", "db-closed", "db-open-failed"]);
+const REPORTED: ReadonlySet<CacheEventKind> = new Set([
+  "purge",
+  "ownership-unreadable",
+  "db-created",
+  "db-closed",
+  "db-open-failed",
+]);
 
 function storage(): Pick<Storage, "getItem" | "setItem"> | null {
-  try { return typeof localStorage !== "undefined" ? localStorage : null; } catch { return null; }
+  try {
+    return typeof localStorage !== "undefined" ? localStorage : null;
+  } catch {
+    return null;
+  }
 }
 
 export function readCacheEvents(): CacheEvent[] {
@@ -48,7 +63,11 @@ export function readCacheEvents(): CacheEvent[] {
   }
 }
 
-export function recordCacheEvent(kind: CacheEventKind, detail: Record<string, unknown> = {}, opts?: { report?: boolean }): void {
+export function recordCacheEvent(
+  kind: CacheEventKind,
+  detail: Record<string, unknown> = {},
+  opts?: { report?: boolean },
+): void {
   const event: CacheEvent = {
     kind,
     at: new Date().toISOString(),
@@ -62,17 +81,25 @@ export function recordCacheEvent(kind: CacheEventKind, detail: Record<string, un
   try {
     const events = readCacheEvents();
     events.push(event);
-    storage()?.setItem(CACHE_EVENTS_STORAGE_KEY, JSON.stringify(events.slice(-MAX_EVENTS)));
+    storage()?.setItem(
+      CACHE_EVENTS_STORAGE_KEY,
+      JSON.stringify(events.slice(-MAX_EVENTS)),
+    );
   } catch {
     // A full or blocked localStorage loses the record, never the caller.
   }
   if (report) {
     try {
-      captureMessage(`cache ${kind}`, { level: "warning", tags: { source: "idb-cache", cache_event: kind }, extra: { ...detail, path: event.path } });
+      captureMessage(`cache ${kind}`, {
+        level: "warning",
+        tags: { source: "idb-cache", cache_event: kind },
+        extra: { ...detail, path: event.path },
+      });
     } catch {
       // Reporting is best effort.
     }
   }
 }
 
-if (typeof window !== "undefined") (window as any).__cacheEvents = readCacheEvents;
+if (typeof window !== "undefined")
+  (window as any).__cacheEvents = readCacheEvents;

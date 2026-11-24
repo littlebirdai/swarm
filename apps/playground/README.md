@@ -54,11 +54,11 @@ codecast prod deployment have nothing to do with it.
 
 Production environment (set once, `npx convex env set --prod NAME`):
 
-| Variable | What it is |
-|---|---|
-| `ANTHROPIC_API_KEY` | Clay's builds and triage |
-| `PLAYGROUND_SHELL_URL` | The public shell origin, used in link previews |
-| `PLAYGROUND_BUILDS_OFF` | `1` stops every build (the kill switch) |
+| Variable                | What it is                                     |
+| ----------------------- | ---------------------------------------------- |
+| `ANTHROPIC_API_KEY`     | Clay's builds and triage                       |
+| `PLAYGROUND_SHELL_URL`  | The public shell origin, used in link previews |
+| `PLAYGROUND_BUILDS_OFF` | `1` stops every build (the kill switch)        |
 
 ## How it fits together
 

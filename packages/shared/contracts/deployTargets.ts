@@ -79,11 +79,28 @@ export type DeployTarget = {
 };
 
 /** The keys a target holds that only the CLI reads: the server stores the rest. */
-export const CLI_ONLY_TARGET_KEYS = ["after", "ci", "gate", "rollout", "finish", "deadline"] as const;
+export const CLI_ONLY_TARGET_KEYS = [
+  "after",
+  "ci",
+  "gate",
+  "rollout",
+  "finish",
+  "deadline",
+] as const;
 
 /** A target as the server's publish takes it. */
-export function publishableTarget(t: DeployTarget): Omit<DeployTarget, (typeof CLI_ONLY_TARGET_KEYS)[number]> {
-  const { after: _a, ci: _c, gate: _g, rollout: _r, finish: _f, deadline: _d, ...rest } = t;
+export function publishableTarget(
+  t: DeployTarget,
+): Omit<DeployTarget, (typeof CLI_ONLY_TARGET_KEYS)[number]> {
+  const {
+    after: _a,
+    ci: _c,
+    gate: _g,
+    rollout: _r,
+    finish: _f,
+    deadline: _d,
+    ...rest
+  } = t;
   return rest;
 }
 
@@ -102,10 +119,15 @@ export const DEPLOY_WAIT_CAP_MS = MAX_DEPLOY_DEADLINE_MS + 60 * 60_000;
  * a role sends (`others`: a press target, the line profile's own), an hour for one the stage sends (a release builds
  * and publishes) and half an hour for one that deploys itself (a push or auto deploy).
  */
-export function deployDeadlineMs(t: Pick<DeployTarget, "deadline" | "policy" | "runs">, others = false): number {
+export function deployDeadlineMs(
+  t: Pick<DeployTarget, "deadline" | "policy" | "runs">,
+  others = false,
+): number {
   if (t.deadline) return t.deadline;
   if (others) return MAX_DEPLOY_DEADLINE_MS;
-  return t.runs === "here" && t.policy === "release" ? 60 * 60_000 : 30 * 60_000;
+  return t.runs === "here" && t.policy === "release"
+    ? 60 * 60_000
+    : 30 * 60_000;
 }
 
 export const DEPLOY_TARGET_NAME_RE = /^[a-z][a-z0-9-]{0,31}$/;
@@ -113,24 +135,38 @@ export const DEPLOY_TARGET_NAME_RE = /^[a-z][a-z0-9-]{0,31}$/;
 export class DeployTargetError extends Error {}
 
 /** A live reader from its config string; throws DeployTargetError on one it cannot read. */
-export function parseLiveReader(raw: string | null | undefined): DeployLiveReader {
+export function parseLiveReader(
+  raw: string | null | undefined,
+): DeployLiveReader {
   const s = (raw ?? "").trim();
   if (!s || s === "marker") return { kind: "marker" };
   if (s.startsWith("github-status:")) {
     const context = s.slice("github-status:".length).trim();
-    if (!context) throw new DeployTargetError(`live "${s}" names no status context`);
+    if (!context)
+      throw new DeployTargetError(`live "${s}" names no status context`);
     return { kind: "github-status", context };
   }
   if (s.startsWith("json:")) {
     const rest = s.slice("json:".length).trim();
     const hash = rest.lastIndexOf("#");
     const url = hash > 0 ? rest.slice(0, hash) : rest;
-    if (!/^https:\/\/\S+$/.test(url)) throw new DeployTargetError(`live "${s}" needs an https url`);
-    const [sha_field, version_field] = (hash > 0 ? rest.slice(hash + 1) : "sha").split(",").map((f) => f.trim());
-    if (!sha_field) throw new DeployTargetError(`live "${s}" names no sha field`);
-    return { kind: "json", url, sha_field, ...(version_field ? { version_field } : {}) };
+    if (!/^https:\/\/\S+$/.test(url))
+      throw new DeployTargetError(`live "${s}" needs an https url`);
+    const [sha_field, version_field] = (hash > 0 ? rest.slice(hash + 1) : "sha")
+      .split(",")
+      .map((f) => f.trim());
+    if (!sha_field)
+      throw new DeployTargetError(`live "${s}" names no sha field`);
+    return {
+      kind: "json",
+      url,
+      sha_field,
+      ...(version_field ? { version_field } : {}),
+    };
   }
-  throw new DeployTargetError(`live "${s}" is not marker, github-status:<context> or json:<url>#<field>`);
+  throw new DeployTargetError(
+    `live "${s}" is not marker, github-status:<context> or json:<url>#<field>`,
+  );
 }
 
 export function formatLiveReader(r: DeployLiveReader): string {
@@ -142,20 +178,52 @@ export function formatLiveReader(r: DeployLiveReader): string {
 /** A field of a JSON document by dotted path (`build.sha`). */
 export function readJsonField(doc: unknown, field: string): string | null {
   let at: any = doc;
-  for (const k of field.split(".")) at = at && typeof at === "object" ? at[k] : undefined;
-  return typeof at === "string" && at.trim() ? at.trim() : typeof at === "number" ? String(at) : null;
+  for (const k of field.split("."))
+    at = at && typeof at === "object" ? at[k] : undefined;
+  return typeof at === "string" && at.trim()
+    ? at.trim()
+    : typeof at === "number"
+      ? String(at)
+      : null;
 }
 
 /** What a json live reader says runs: the commit, when it names a real one, and the version. */
-export function readJsonLive(r: Extract<DeployLiveReader, { kind: "json" }>, doc: unknown): { sha: string | null; version: string | null } {
+export function readJsonLive(
+  r: Extract<DeployLiveReader, { kind: "json" }>,
+  doc: unknown,
+): { sha: string | null; version: string | null } {
   const sha = readJsonField(doc, r.sha_field);
-  return { sha: sha && /^[0-9a-f]{7,40}$/i.test(sha) ? sha.toLowerCase() : null, version: r.version_field ? readJsonField(doc, r.version_field) : null };
+  return {
+    sha: sha && /^[0-9a-f]{7,40}$/i.test(sha) ? sha.toLowerCase() : null,
+    version: r.version_field ? readJsonField(doc, r.version_field) : null,
+  };
 }
 
 /** A `[[ship.deploy]]` step of .codecast/workspace.toml, as far as a target needs it. */
-export type ShipStepRef = { name: string; when: string[]; run: string; stage: "before_push" | "after_push" };
+export type ShipStepRef = {
+  name: string;
+  when: string[];
+  run: string;
+  stage: "before_push" | "after_push";
+};
 
-const TARGET_KEYS = ["name", "ship", "run", "when", "runs", "live", "rollback", "policy", "after", "ci", "gate", "rollout", "finish", "deadline", "workflow"] as const;
+const TARGET_KEYS = [
+  "name",
+  "ship",
+  "run",
+  "when",
+  "runs",
+  "live",
+  "rollback",
+  "policy",
+  "after",
+  "ci",
+  "gate",
+  "rollout",
+  "finish",
+  "deadline",
+  "workflow",
+] as const;
 /** The step commands a target may give its deploy (DP13), each run like `run`. */
 const STEP_KEYS = ["ci", "gate", "rollout", "finish"] as const;
 
@@ -168,31 +236,66 @@ export const DEPLOY_WORKFLOW_RE = /^[A-Za-z0-9_.-]+\.ya?ml$/;
  * the ship sends names its step (`ship = "convex"`) and takes that step's command, paths and stage; it may still
  * say `when` or `run` itself. Throws DeployTargetError naming the table on anything it cannot read.
  */
-export function parseDeployTargets(raw: unknown, ship: readonly ShipStepRef[]): DeployTarget[] {
+export function parseDeployTargets(
+  raw: unknown,
+  ship: readonly ShipStepRef[],
+): DeployTarget[] {
   return parseDeployTargetEntries(raw, ship).map((e) => e.target);
 }
 
 /** The same, each with the [[ship.deploy]] step that sends it at a ship. */
-export function parseDeployTargetEntries(raw: unknown, ship: readonly ShipStepRef[]): Array<{ target: DeployTarget; ship_step?: string; unknown?: string[] }> {
+export function parseDeployTargetEntries(
+  raw: unknown,
+  ship: readonly ShipStepRef[],
+): Array<{ target: DeployTarget; ship_step?: string; unknown?: string[] }> {
   if (raw === undefined || raw === null) return [];
-  if (typeof raw !== "object" || Array.isArray(raw)) throw new DeployTargetError("deploy.toml must be a TOML table");
-  for (const key of Object.keys(raw)) if (key !== "target") throw new DeployTargetError(`unknown top-level key '${key}' (the file holds [[target]] tables)`);
+  if (typeof raw !== "object" || Array.isArray(raw))
+    throw new DeployTargetError("deploy.toml must be a TOML table");
+  for (const key of Object.keys(raw))
+    if (key !== "target")
+      throw new DeployTargetError(
+        `unknown top-level key '${key}' (the file holds [[target]] tables)`,
+      );
   const list = (raw as Record<string, unknown>)["target"] ?? [];
-  if (!Array.isArray(list)) throw new DeployTargetError("'target' must be an array of tables ([[target]])");
-  const out: Array<{ target: DeployTarget; ship_step?: string; unknown?: string[] }> = [];
+  if (!Array.isArray(list))
+    throw new DeployTargetError(
+      "'target' must be an array of tables ([[target]])",
+    );
+  const out: Array<{
+    target: DeployTarget;
+    ship_step?: string;
+    unknown?: string[];
+  }> = [];
   list.forEach((entry, i) => {
     const at = `target[${i}]`;
     try {
       const t = targetFromEntry(entry, ship);
       // A key a newer CLI added is read past, never refused, so a file written for it still deploys here (DP10).
-      const unknown = entry && typeof entry === "object" ? Object.keys(entry).filter((k) => !(TARGET_KEYS as readonly string[]).includes(k)) : [];
-      if (out.some((o) => o.target.name === t.name)) throw new DeployTargetError(`target ${t.name} is declared twice`);
-      const shared = t.workflow ? out.find((o) => o.target.workflow === t.workflow) : undefined;
-      if (shared) throw new DeployTargetError(`target ${t.name}: workflow ${t.workflow} is already target ${shared.target.name}'s; a run of it is one deploy of one target`);
+      const unknown =
+        entry && typeof entry === "object"
+          ? Object.keys(entry).filter(
+              (k) => !(TARGET_KEYS as readonly string[]).includes(k),
+            )
+          : [];
+      if (out.some((o) => o.target.name === t.name))
+        throw new DeployTargetError(`target ${t.name} is declared twice`);
+      const shared = t.workflow
+        ? out.find((o) => o.target.workflow === t.workflow)
+        : undefined;
+      if (shared)
+        throw new DeployTargetError(
+          `target ${t.name}: workflow ${t.workflow} is already target ${shared.target.name}'s; a run of it is one deploy of one target`,
+        );
       const step = (entry as Record<string, unknown>)["ship"];
-      out.push({ target: t, ...(typeof step === "string" ? { ship_step: step } : {}), ...(unknown.length ? { unknown } : {}) });
+      out.push({
+        target: t,
+        ...(typeof step === "string" ? { ship_step: step } : {}),
+        ...(unknown.length ? { unknown } : {}),
+      });
     } catch (err) {
-      throw err instanceof DeployTargetError ? new DeployTargetError(`${at}: ${err.message}`) : err;
+      throw err instanceof DeployTargetError
+        ? new DeployTargetError(`${at}: ${err.message}`)
+        : err;
     }
   });
   releaseOrder(out.map((o) => o.target));
@@ -203,17 +306,25 @@ export function parseDeployTargetEntries(raw: unknown, ship: readonly ShipStepRe
  * Targets in the order a release sends them: each after every target its `after` names. Throws DeployTargetError on a
  * name no target declares, and on a cycle.
  */
-export function releaseOrder<T extends Pick<DeployTarget, "name" | "after">>(targets: readonly T[]): T[] {
+export function releaseOrder<T extends Pick<DeployTarget, "name" | "after">>(
+  targets: readonly T[],
+): T[] {
   const byName = new Map(targets.map((t) => [t.name, t]));
   const out: T[] = [];
   const state = new Map<string, "visiting" | "done">();
   const visit = (t: T, path: string[]) => {
     if (state.get(t.name) === "done") return;
-    if (state.get(t.name) === "visiting") throw new DeployTargetError(`targets wait on each other: ${[...path, t.name].join(" after ")}`);
+    if (state.get(t.name) === "visiting")
+      throw new DeployTargetError(
+        `targets wait on each other: ${[...path, t.name].join(" after ")}`,
+      );
     state.set(t.name, "visiting");
     for (const a of t.after ?? []) {
       const dep = byName.get(a);
-      if (!dep) throw new DeployTargetError(`target ${t.name}: after names ${a}, which is not a target`);
+      if (!dep)
+        throw new DeployTargetError(
+          `target ${t.name}: after names ${a}, which is not a target`,
+        );
       visit(dep, [...path, t.name]);
     }
     state.set(t.name, "done");
@@ -223,37 +334,99 @@ export function releaseOrder<T extends Pick<DeployTarget, "name" | "after">>(tar
   return out;
 }
 
-function targetFromEntry(e: unknown, ship: readonly ShipStepRef[]): DeployTarget {
-  if (!e || typeof e !== "object" || Array.isArray(e)) throw new DeployTargetError("must be a table");
+function targetFromEntry(
+  e: unknown,
+  ship: readonly ShipStepRef[],
+): DeployTarget {
+  if (!e || typeof e !== "object" || Array.isArray(e))
+    throw new DeployTargetError("must be a table");
   const r = e as Record<string, unknown>;
-  for (const key of ["name", "ship", "run", "runs", "live", "rollback", "policy", ...STEP_KEYS, "deadline", "workflow"]) {
-    if (r[key] !== undefined && typeof r[key] !== "string") throw new DeployTargetError(`'${key}' must be a string`);
+  for (const key of [
+    "name",
+    "ship",
+    "run",
+    "runs",
+    "live",
+    "rollback",
+    "policy",
+    ...STEP_KEYS,
+    "deadline",
+    "workflow",
+  ]) {
+    if (r[key] !== undefined && typeof r[key] !== "string")
+      throw new DeployTargetError(`'${key}' must be a string`);
   }
-  const name = String(r["name"] ?? "").trim().toLowerCase();
-  if (!DEPLOY_TARGET_NAME_RE.test(name)) throw new DeployTargetError(`name "${r["name"] ?? ""}" is not a target name (lowercase letters, digits and dashes)`);
-  const step = r["ship"] !== undefined ? ship.find((s) => s.name === r["ship"]) : undefined;
-  if (r["ship"] !== undefined && !step) throw new DeployTargetError(`target ${name}: ship = "${r["ship"]}" names no [[ship.deploy]] step in workspace.toml`);
+  const name = String(r["name"] ?? "")
+    .trim()
+    .toLowerCase();
+  if (!DEPLOY_TARGET_NAME_RE.test(name))
+    throw new DeployTargetError(
+      `name "${r["name"] ?? ""}" is not a target name (lowercase letters, digits and dashes)`,
+    );
+  const step =
+    r["ship"] !== undefined
+      ? ship.find((s) => s.name === r["ship"])
+      : undefined;
+  if (r["ship"] !== undefined && !step)
+    throw new DeployTargetError(
+      `target ${name}: ship = "${r["ship"]}" names no [[ship.deploy]] step in workspace.toml`,
+    );
   const whenRaw = r["when"] ?? step?.when ?? [];
   const when = typeof whenRaw === "string" ? [whenRaw] : whenRaw;
-  if (!Array.isArray(when) || when.some((w) => typeof w !== "string")) throw new DeployTargetError(`target ${name}: 'when' must be a string or a list of strings`);
+  if (!Array.isArray(when) || when.some((w) => typeof w !== "string"))
+    throw new DeployTargetError(
+      `target ${name}: 'when' must be a string or a list of strings`,
+    );
   const command = ((r["run"] as string | undefined) ?? step?.run ?? "").trim();
   const runs = (r["runs"] ?? "here") as DeployTargetRuns;
-  if (!(DEPLOY_TARGET_RUNS as readonly string[]).includes(runs)) throw new DeployTargetError(`target ${name}: runs must be one of ${DEPLOY_TARGET_RUNS.join(", ")}`);
-  if (runs === "here" && !command) throw new DeployTargetError(`target ${name}: runs = "here" needs run (or ship), the command that sends it`);
+  if (!(DEPLOY_TARGET_RUNS as readonly string[]).includes(runs))
+    throw new DeployTargetError(
+      `target ${name}: runs must be one of ${DEPLOY_TARGET_RUNS.join(", ")}`,
+    );
+  if (runs === "here" && !command)
+    throw new DeployTargetError(
+      `target ${name}: runs = "here" needs run (or ship), the command that sends it`,
+    );
   const policy = (r["policy"] ?? "press") as DeployTargetPolicy;
-  if (!(DEPLOY_TARGET_POLICIES as readonly string[]).includes(policy)) throw new DeployTargetError(`target ${name}: policy must be one of ${DEPLOY_TARGET_POLICIES.join(", ")}`);
+  if (!(DEPLOY_TARGET_POLICIES as readonly string[]).includes(policy))
+    throw new DeployTargetError(
+      `target ${name}: policy must be one of ${DEPLOY_TARGET_POLICIES.join(", ")}`,
+    );
   const afterRaw = r["after"] ?? [];
   const after = typeof afterRaw === "string" ? [afterRaw] : afterRaw;
-  if (!Array.isArray(after) || after.some((a) => typeof a !== "string")) throw new DeployTargetError(`target ${name}: 'after' must be a target name or a list of them`);
-  const steps = STEP_KEYS.filter((k) => typeof r[k] === "string" && (r[k] as string).trim());
-  if (runs === "push" && steps.length) throw new DeployTargetError(`target ${name}: runs = "push" sends nothing, so it has no ${steps.join(" or ")} step`);
+  if (!Array.isArray(after) || after.some((a) => typeof a !== "string"))
+    throw new DeployTargetError(
+      `target ${name}: 'after' must be a target name or a list of them`,
+    );
+  const steps = STEP_KEYS.filter(
+    (k) => typeof r[k] === "string" && (r[k] as string).trim(),
+  );
+  if (runs === "push" && steps.length)
+    throw new DeployTargetError(
+      `target ${name}: runs = "push" sends nothing, so it has no ${steps.join(" or ")} step`,
+    );
   let deadline: number | undefined;
   if (typeof r["deadline"] === "string") {
-    try { deadline = parseDuration(r["deadline"]); } catch { throw new DeployTargetError(`target ${name}: deadline "${r["deadline"]}" is not a duration (30m, 1h30m)`); }
-    if (deadline > MAX_DEPLOY_DEADLINE_MS) throw new DeployTargetError(`target ${name}: deadline "${r["deadline"]}" is over 24h; a deploy that takes longer is stuck`);
+    try {
+      deadline = parseDuration(r["deadline"]);
+    } catch {
+      throw new DeployTargetError(
+        `target ${name}: deadline "${r["deadline"]}" is not a duration (30m, 1h30m)`,
+      );
+    }
+    if (deadline > MAX_DEPLOY_DEADLINE_MS)
+      throw new DeployTargetError(
+        `target ${name}: deadline "${r["deadline"]}" is over 24h; a deploy that takes longer is stuck`,
+      );
   }
-  const workflow = typeof r["workflow"] === "string" ? r["workflow"].trim().replace(/^\.github\/workflows\//, "") : "";
-  if (r["workflow"] !== undefined && !DEPLOY_WORKFLOW_RE.test(workflow)) throw new DeployTargetError(`target ${name}: workflow "${r["workflow"]}" is not a workflow file (deploy.yml)`);
+  const workflow =
+    typeof r["workflow"] === "string"
+      ? r["workflow"].trim().replace(/^\.github\/workflows\//, "")
+      : "";
+  if (r["workflow"] !== undefined && !DEPLOY_WORKFLOW_RE.test(workflow))
+    throw new DeployTargetError(
+      `target ${name}: workflow "${r["workflow"]}" is not a workflow file (deploy.yml)`,
+    );
   return {
     name,
     ...(command ? { command } : {}),
@@ -263,7 +436,9 @@ function targetFromEntry(e: unknown, ship: readonly ShipStepRef[]): DeployTarget
     policy,
     paths: when as string[],
     ship_stage: step?.stage ?? "press",
-    ...(after.length ? { after: (after as string[]).map((a) => a.trim().toLowerCase()) } : {}),
+    ...(after.length
+      ? { after: (after as string[]).map((a) => a.trim().toLowerCase()) }
+      : {}),
     ...Object.fromEntries(steps.map((k) => [k, (r[k] as string).trim()])),
     ...(deadline ? { deadline } : {}),
     ...(workflow ? { workflow } : {}),
@@ -271,10 +446,22 @@ function targetFromEntry(e: unknown, ship: readonly ShipStepRef[]): DeployTarget
 }
 
 /** A line profile's `[line.deploy]` as a target: the line's one deploy path. */
-export function targetFromLineDeploy(d: { command?: string | null; target?: string | null; live?: string | null } | null | undefined): DeployTarget | null {
+export function targetFromLineDeploy(
+  d:
+    | { command?: string | null; target?: string | null; live?: string | null }
+    | null
+    | undefined,
+): DeployTarget | null {
   if (!d?.command) return null;
   const name = (d.target ?? "deploy").trim().toLowerCase() || "deploy";
-  return { name, command: d.command, runs: "here", live: { kind: "marker" }, policy: "press", paths: [] };
+  return {
+    name,
+    command: d.command,
+    runs: "here",
+    live: { kind: "marker" },
+    policy: "press",
+    paths: [],
+  };
 }
 
 /** Whether a deploy of a given earlier sha can be sent: only a command that takes `$sha` sends anything but the tree it runs in. */
@@ -286,12 +473,22 @@ export function canRedeploySha(t: Pick<DeployTarget, "command">): boolean {
 
 /** A glob over repository paths (`apps/server/**`, `*.md`). */
 export function globMatch(pattern: string, file: string): boolean {
-  const re = new RegExp(`^${pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*\/?/g, "\u0000").replace(/\*/g, "[^/]*").replace(/\u0000/g, ".*").replace(/\?/g, "[^/]")}$`);
+  const re = new RegExp(
+    `^${pattern
+      .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+      .replace(/\*\*\/?/g, "\u0000")
+      .replace(/\*/g, "[^/]*")
+      .replace(/\u0000/g, ".*")
+      .replace(/\?/g, "[^/]")}$`,
+  );
   return re.test(file);
 }
 
 /** Whether a commit ships to a target: it touches one of the target's paths. A commit whose files are unknown counts. */
-export function commitTouchesTarget(paths: readonly string[], files: readonly string[] | null | undefined): boolean {
+export function commitTouchesTarget(
+  paths: readonly string[],
+  files: readonly string[] | null | undefined,
+): boolean {
   if (!paths.length || !files?.length) return true;
   return files.some((f) => paths.some((p) => globMatch(p, f)));
 }
@@ -300,7 +497,13 @@ export function commitTouchesTarget(paths: readonly string[], files: readonly st
 
 export type CommitCiState = "passed" | "failed" | "running" | "none";
 
-export type CommitCiRun = { name: string; status: string; conclusion?: string | null; url?: string | null; at: number };
+export type CommitCiRun = {
+  name: string;
+  status: string;
+  conclusion?: string | null;
+  url?: string | null;
+  at: number;
+};
 
 const CI_PASS = new Set(["success", "neutral", "skipped"]);
 const CI_SILENT = new Set(["cancelled", "stale", "action_required"]);
@@ -316,9 +519,16 @@ export function commitCiState(runs: readonly CommitCiRun[]): CommitCiState {
     const prev = newest.get(r.name);
     if (!prev || r.at >= prev.at) newest.set(r.name, r);
   }
-  const judged = [...newest.values()].filter((r) => !(r.status === "completed" && CI_SILENT.has(r.conclusion ?? "")));
+  const judged = [...newest.values()].filter(
+    (r) => !(r.status === "completed" && CI_SILENT.has(r.conclusion ?? "")),
+  );
   if (!judged.length) return "none";
-  if (judged.some((r) => r.status === "completed" && !CI_PASS.has(r.conclusion ?? ""))) return "failed";
+  if (
+    judged.some(
+      (r) => r.status === "completed" && !CI_PASS.has(r.conclusion ?? ""),
+    )
+  )
+    return "failed";
   if (judged.some((r) => r.status !== "completed")) return "running";
   return "passed";
 }
@@ -347,8 +557,17 @@ export type QueueCommit = {
   at: number;
   author: string | null;
   /** The session that wrote it: its Codecast-Session trailer, or (`via: "task"`) the newest session on the task it names. */
-  session: { conversation_id: string; short_id: string | null; title: string | null; via?: "task" } | null;
-  tasks: Array<{ task_id: string; short_id: string | null; title: string | null }>;
+  session: {
+    conversation_id: string;
+    short_id: string | null;
+    title: string | null;
+    via?: "task";
+  } | null;
+  tasks: Array<{
+    task_id: string;
+    short_id: string | null;
+    title: string | null;
+  }>;
   /** The branch the change came from: its pull request's head, else the branch its session worked on (never the default branch). */
   branch?: string | null;
   ci: CommitCiState;
@@ -365,19 +584,35 @@ export type QueueGroup = {
 
 /** The worst CI state among commits: failed over running over none over passed. */
 export function worstCi(states: readonly CommitCiState[]): CommitCiState {
-  for (const s of ["failed", "running", "none"] as const) if (states.includes(s)) return s;
+  for (const s of ["failed", "running", "none"] as const)
+    if (states.includes(s)) return s;
   return states.length ? "passed" : "none";
 }
 
 /** Commits waiting on a target, grouped by the session that wrote them, the group with the newest commit first. */
-export function groupQueueBySession(commits: readonly QueueCommit[]): QueueGroup[] {
+export function groupQueueBySession(
+  commits: readonly QueueCommit[],
+): QueueGroup[] {
   const groups = new Map<string, QueueGroup>();
   for (const c of commits) {
     const key = c.session ? `s:${c.session.conversation_id}` : "none";
-    const g = groups.get(key) ?? { key, session: c.session, commits: [], ci: "none" as CommitCiState };
+    const g = groups.get(key) ?? {
+      key,
+      session: c.session,
+      commits: [],
+      ci: "none" as CommitCiState,
+    };
     g.commits.push(c);
     groups.set(key, g);
   }
-  const out = [...groups.values()].map((g) => ({ ...g, commits: [...g.commits].sort((a, b) => b.at - a.at), ci: worstCi(g.commits.map((c) => c.ci)) }));
-  return out.sort((a, b) => (a.key === "none" ? 1 : 0) - (b.key === "none" ? 1 : 0) || b.commits[0].at - a.commits[0].at);
+  const out = [...groups.values()].map((g) => ({
+    ...g,
+    commits: [...g.commits].sort((a, b) => b.at - a.at),
+    ci: worstCi(g.commits.map((c) => c.ci)),
+  }));
+  return out.sort(
+    (a, b) =>
+      (a.key === "none" ? 1 : 0) - (b.key === "none" ? 1 : 0) ||
+      b.commits[0].at - a.commits[0].at,
+  );
 }

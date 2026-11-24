@@ -9,7 +9,11 @@ import { prWords, type WaitLabelOptions } from "@codecast/shared/tasks";
 /** This checkout's repository (`owner/name`), or null outside one. */
 export function checkoutRepository(cwd: string): string | null {
   try {
-    const url = execFileSync("git", ["remote", "get-url", "origin"], { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    const url = execFileSync("git", ["remote", "get-url", "origin"], {
+      cwd,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
     return repositoryKeyOfRemote(url);
   } catch {
     return null;

@@ -8,8 +8,15 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "http://localhost/" });
-const restoreGlobals = replaceGlobals({ window: dom.window, document: dom.window.document, navigator: dom.window.navigator });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "http://localhost/",
+});
+const restoreGlobals = replaceGlobals({
+  window: dom.window,
+  document: dom.window.document,
+  navigator: dom.window.navigator,
+});
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { createRoot } = await import("react-dom/client");
@@ -34,20 +41,35 @@ test("N rows share one timer and re-render only on a threshold crossing", async 
   function Row({ i }: { i: number }) {
     renders[i]++;
     // Row 0 crosses its threshold after 60ms; the others never do.
-    useNowWhen((now) => (i === 0 && now - start > 60 ? "late" : "early"), INTERVAL);
+    useNowWhen(
+      (now) => (i === 0 && now - start > 60 ? "late" : "early"),
+      INTERVAL,
+    );
     return null;
   }
   const host = dom.window.document.createElement("div");
   dom.window.document.body.appendChild(host);
   const root = createRoot(host);
   try {
-    await act(async () => { root.render(<>{renders.map((_, i) => <Row key={i} i={i} />)}</>); });
+    await act(async () => {
+      root.render(
+        <>
+          {renders.map((_, i) => (
+            <Row key={i} i={i} />
+          ))}
+        </>,
+      );
+    });
     expect(intervals).toBe(1);
-    await act(async () => { await new Promise((r) => setTimeout(r, 160)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 160));
+    });
     expect(renders[0]).toBe(2);
     expect(renders.slice(1)).toEqual([1, 1, 1, 1]);
   } finally {
-    await act(async () => { root.unmount(); });
+    await act(async () => {
+      root.unmount();
+    });
     (globalThis as any).setInterval = realSetInterval;
   }
 });

@@ -1,16 +1,30 @@
 import type { GoalFrame } from "@codecast/shared/contracts/sessionGoal";
-import type { ThreadStateFields, DecisionAnswerMessage, SessionEscalationMessage, VaultReadyMessage, SessionMessageIntent } from "@codecast/shared/contracts";
+import type {
+  ThreadStateFields,
+  DecisionAnswerMessage,
+  SessionEscalationMessage,
+  VaultReadyMessage,
+  SessionMessageIntent,
+} from "@codecast/shared/contracts";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { SentFileData } from "@codecast/shared/files";
 import type { ChatWakePrompt, HuddleSummaryTag } from "../sessionMessage";
 import type { ParsedScreenRecording } from "@codecast/shared/contracts";
 import type { ExternalEventRecord } from "../../lib/externalEventRecord";
-import type { ContextRecoveryPrompt, SessionHandoffPrompt } from "../../lib/sessionHandoff";
+import type {
+  ContextRecoveryPrompt,
+  SessionHandoffPrompt,
+} from "../../lib/sessionHandoff";
 
 // View density for the conversation. The first three render the message feed
 // with progressively less chrome; "story" and "summary" replace the feed with
 // LLM-condensed views backed by storyMode.ts.
-export type ConversationDensity = "full" | "condensed" | "compact" | "story" | "summary";
+export type ConversationDensity =
+  | "full"
+  | "condensed"
+  | "compact"
+  | "story"
+  | "summary";
 export type MessageFeedDensity = "full" | "condensed" | "compact";
 
 export type ToolCall = {
@@ -88,7 +102,12 @@ export type ConversationData = {
   messages: Message[];
   user?: { name?: string; email?: string; avatar_url?: string | null } | null;
   parent_conversation_id?: string | null;
-  child_conversations?: Array<{ _id: string; title: string; is_subagent?: boolean; first_message_preview?: string }>;
+  child_conversations?: Array<{
+    _id: string;
+    title: string;
+    is_subagent?: boolean;
+    first_message_preview?: string;
+  }>;
   child_conversation_map?: Record<string, string>;
   git_branch?: string | null;
   git_status?: string | null;
@@ -274,7 +293,15 @@ export type ConversationViewProps = {
    * session's decision dock and its pinned state are answered and read where
    * the session's composer is, not on the host's page. Undefined everywhere else.
    */
-  onSendOverride?: (content: string, images?: Array<{ storageId?: string; previewUrl: string; mime: string; uploading: boolean }>) => Promise<void>;
+  onSendOverride?: (
+    content: string,
+    images?: Array<{
+      storageId?: string;
+      previewUrl: string;
+      mime: string;
+      uploading: boolean;
+    }>,
+  ) => Promise<void>;
   /** A host's line above the box (what the next message is about). */
   composerNode?: React.ReactNode;
   /** A host's node above the first message, inside the scroll (a proposal's
@@ -379,60 +406,75 @@ export type ParsedApiError = {
 };
 
 export type UserMessageKind =
-  | { kind: 'normal' }
-  | { kind: 'session_handoff'; handoff: SessionHandoffPrompt }
-  | { kind: 'context_recovery'; recovery: ContextRecoveryPrompt }
-  | { kind: 'command' }
-  | { kind: 'bash_input'; command: string }
-  | { kind: 'bash_output'; stdout: string; stderr: string }
-  | { kind: 'interrupt'; tone: 'sky' | 'amber' }
-  | { kind: 'background_agent_stopped'; agentName?: string }
-  | { kind: 'skill_expansion'; cmdName?: string }
-  | { kind: 'task_notification' }
-  | { kind: 'task_prompt' }
-  | { kind: 'compaction_prompt' }
-  | { kind: 'compaction_summary' }
-  | { kind: 'plan'; planContent: string }
-  | { kind: 'noise' }
-  | { kind: 'tool_results_only' }
-  | { kind: 'empty' }
-  | { kind: 'teammate_events' }
-  | { kind: 'continuation' }
-  | { kind: 'poll_response' }
-  | { kind: 'scheduled_task' }
+  | { kind: "normal" }
+  | { kind: "session_handoff"; handoff: SessionHandoffPrompt }
+  | { kind: "context_recovery"; recovery: ContextRecoveryPrompt }
+  | { kind: "command" }
+  | { kind: "bash_input"; command: string }
+  | { kind: "bash_output"; stdout: string; stderr: string }
+  | { kind: "interrupt"; tone: "sky" | "amber" }
+  | { kind: "background_agent_stopped"; agentName?: string }
+  | { kind: "skill_expansion"; cmdName?: string }
+  | { kind: "task_notification" }
+  | { kind: "task_prompt" }
+  | { kind: "compaction_prompt" }
+  | { kind: "compaction_summary" }
+  | { kind: "plan"; planContent: string }
+  | { kind: "noise" }
+  | { kind: "tool_results_only" }
+  | { kind: "empty" }
+  | { kind: "teammate_events" }
+  | { kind: "continuation" }
+  | { kind: "poll_response" }
+  | { kind: "scheduled_task" }
   // A session goal's own message (<codecast-goal>, shared/contracts/sessionGoal):
   // the start, a round's next step or a resume, folded to one line.
-  | { kind: 'goal_round'; frame: GoalFrame }
+  | { kind: "goal_round"; frame: GoalFrame }
   // The prompt that seats or re-seats a standing agent (isBootstrapPrompt).
-  | { kind: 'role_brief' }
+  | { kind: "role_brief" }
   // A Workflow-tool agent's framed opening turn (parseWorkflowHarnessFrame):
   // the boilerplate header dropped, the body unindented. A computed task is
   // the agent's brief from the workflow script; a user request is the
   // launching session's ask, relayed as context.
-  | { kind: 'workflow_frame'; frame: 'user request' | 'computed task'; body: string }
-  | { kind: 'machine_move'; destination?: string; fromLabel?: string; machineChanged: boolean }
-  | { kind: 'agent_switch'; toLabel: string; fromLabel?: string }
+  | {
+      kind: "workflow_frame";
+      frame: "user request" | "computed task";
+      body: string;
+    }
+  | {
+      kind: "machine_move";
+      destination?: string;
+      fromLabel?: string;
+      machineChanged: boolean;
+    }
+  | { kind: "agent_switch"; toLabel: string; fromLabel?: string }
   // `variant: 'agent'` is a subagent's report to the session that launched it
   // (<agent-message from="…">): the same card, chrome that says so, and a sender
   // that is an agent name rather than a session short id.
-  | { kind: 'session_message'; from: string; body: string; name?: string; variant?: 'agent'; intent?: SessionMessageIntent }
+  | {
+      kind: "session_message";
+      from: string;
+      body: string;
+      name?: string;
+      variant?: "agent";
+      intent?: SessionMessageIntent;
+    }
   // A person typed this into the session from the dashboard (<user-message
   // from="Name">): a normal user bubble attributed to that person.
-  | { kind: 'direct_user'; from: string; body: string }
-  | { kind: 'huddle_summary'; huddle: HuddleSummaryTag }
+  | { kind: "direct_user"; from: string; body: string }
+  | { kind: "huddle_summary"; huddle: HuddleSummaryTag }
   // A screen recording the person sent: the player over its timed words.
-  | { kind: 'screen_recording'; recording: ParsedScreenRecording }
-  | { kind: 'chat_wake'; wake: ChatWakePrompt }
+  | { kind: "screen_recording"; recording: ParsedScreenRecording }
+  | { kind: "chat_wake"; wake: ChatWakePrompt }
   // The human's answer to a `cast decide` question (store answerDecision).
-  | { kind: 'decision_answer'; decision: DecisionAnswerMessage }
+  | { kind: "decision_answer"; decision: DecisionAnswerMessage }
   // A person filled a secret this session asked for (secrets.fulfill sends
   // formatVaultReady): a system line, not the person's words.
-  | { kind: 'vault_ready'; vault: VaultReadyMessage }
+  | { kind: "vault_ready"; vault: VaultReadyMessage }
   // A session moving between its role and the person (<session-escalation …>,
   // org-roles-run-work.md R1 revised): an inline divider with the role's face,
   // the move and the whole line as markdown, in both threads.
-  | { kind: 'session_escalation'; escalation: SessionEscalationMessage };
-
+  | { kind: "session_escalation"; escalation: SessionEscalationMessage };
 
 /** One side of a handoff link on the conversation payload. */
 export type HandoffLinkDetails = {
@@ -453,8 +495,16 @@ export interface ToolCallChangeSelection {
   range: ToolChangeRange;
 }
 
-export type TaskRecord = { _id: string; short_id: string; title: string; status: string };
-export type TaskRecordMaps = { byTitle: Record<string, TaskRecord>; byLocalId: Record<string, TaskRecord> };
+export type TaskRecord = {
+  _id: string;
+  short_id: string;
+  title: string;
+  status: string;
+};
+export type TaskRecordMaps = {
+  byTitle: Record<string, TaskRecord>;
+  byLocalId: Record<string, TaskRecord>;
+};
 
 export interface ParsedContextBlock {
   type: string;
@@ -467,7 +517,15 @@ export interface ParsedContextBlock {
 // SUMMARY_LABELS and FormattedSummary live in ./FormattedSummary so EntityIdPill can reuse
 // them without an import cycle; FormattedSummary is imported above.
 
-export type TeammateMessagePart = { type: 'text'; content: string } | { type: 'teammate'; teammateId: string; color?: string; summary?: string; content: string; };
+export type TeammateMessagePart =
+  | { type: "text"; content: string }
+  | {
+      type: "teammate";
+      teammateId: string;
+      color?: string;
+      summary?: string;
+      content: string;
+    };
 
 // ── Story & Summary densities ───────────────────────────────────────────────
 // Both render storyMode.ts's chunked retelling of the WHOLE thread (not the
@@ -476,17 +534,32 @@ export type TeammateMessagePart = { type: 'text'; content: string } | { type: 't
 // what I did. Summary is the same shape one level up: a few high-level PHASES
 // grouped from the beats. Each item anchors to a real message so you can jump in.
 
-export type StoryBeat = { heading: string; body: string; anchor_prompt: string; anchor_message_id: string; anchor_timestamp: number };
+export type StoryBeat = {
+  heading: string;
+  body: string;
+  anchor_prompt: string;
+  anchor_message_id: string;
+  anchor_timestamp: number;
+};
 
 // One source message's share of a condensed receipt: the hideable tools it
 // ran, under its own identity (results, comments and share selection stay
 // attributed to the message that ran them when the group opens).
-export type ReceiptEntry = { messageId: string; messageUuid?: string; timestamp: number; tools: ToolCall[] };
-export type CondensedReceipt = { entries: ReceiptEntry[]; expanded: boolean; onToggle: () => void };
+export type ReceiptEntry = {
+  messageId: string;
+  messageUuid?: string;
+  timestamp: number;
+  tools: ToolCall[];
+};
+export type CondensedReceipt = {
+  entries: ReceiptEntry[];
+  expanded: boolean;
+  onToggle: () => void;
+};
 
 // Messages, commits, pull requests and external events merged into one feed.
 export type TimelineItem =
-  | { type: 'message'; data: Message; timestamp: number }
-  | { type: 'commit'; data: Commit; timestamp: number }
-  | { type: 'pull_request'; data: PullRequest; timestamp: number }
-  | { type: 'external_event'; data: ExternalEventRecord; timestamp: number };
+  | { type: "message"; data: Message; timestamp: number }
+  | { type: "commit"; data: Commit; timestamp: number }
+  | { type: "pull_request"; data: PullRequest; timestamp: number }
+  | { type: "external_event"; data: ExternalEventRecord; timestamp: number };

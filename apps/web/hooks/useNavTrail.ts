@@ -2,7 +2,12 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useInboxStore } from "../store/inboxStore";
 import { useTabContext } from "../lib/tabParams";
-import { backEntry, subscribeTrail, trailOf, trailVersion } from "../lib/navTrail";
+import {
+  backEntry,
+  subscribeTrail,
+  trailOf,
+  trailVersion,
+} from "../lib/navTrail";
 import { noteTrailBack, shownPlace } from "../lib/navTrailRecorder";
 import { canonicalPlacePath, placeOf, placeSessionId } from "../lib/navPlace";
 import { placeNamesOf, placeTitle } from "../lib/placeTitle";
@@ -32,7 +37,11 @@ export type BackTarget = {
 /** Go to a place the way its own surface opens it: a session through the
  *  inbox (in place there, else leaving for it), the inbox's home by raising
  *  it, any other page by its address. */
-export function goToPlace(path: string, push: (path: string) => void, openSession: (id: string) => void): void {
+export function goToPlace(
+  path: string,
+  push: (path: string) => void,
+  openSession: (id: string) => void,
+): void {
   const sid = placeSessionId(path);
   if (sid) {
     openSession(sid);
@@ -50,7 +59,10 @@ export function goToPlace(path: string, push: (path: string) => void, openSessio
 /** Open a session the way the inbox does: in place on the inbox, else leaving
  *  for it with the session current (useOpenSession's two paths, by the store
  *  alone, so a page that never mounts a router-aware hook can go back too). */
-export function openSessionFromBack(id: string, push: (path: string) => void): void {
+export function openSessionFromBack(
+  id: string,
+  push: (path: string) => void,
+): void {
   const store = useInboxStore.getState();
   const onInbox = shownPlace(store)?.path.split("?")[0] === "/inbox";
   store.navigateToSession(id);
@@ -60,7 +72,10 @@ export function openSessionFromBack(id: string, push: (path: string) => void): v
 
 /** Where Back goes from the active tab's page, outside React (the nav.back
  *  shortcut): along its trail, else up. Null when there is nowhere to go. */
-export function backTargetOfActiveTab(): { path: string; fromTrail: boolean } | null {
+export function backTargetOfActiveTab(): {
+  path: string;
+  fromTrail: boolean;
+} | null {
   const st = useInboxStore.getState();
   const shown = shownPlace(st);
   if (!shown) return null;
@@ -86,12 +101,20 @@ export function goBackInTrail(push: (path: string) => void): void {
  * implies (a page that knows its container better). Null when there is
  * nowhere to go: a section page reached cold.
  */
-export function useBackTarget(fallback?: { label: string; href: string } | null): BackTarget | null {
+export function useBackTarget(
+  fallback?: { label: string; href: string } | null,
+): BackTarget | null {
   const tabCtx = useTabContext();
   const router = useRouter();
   // Only a tab's own page walks the tab's trail.
-  const scope = tabCtx && !tabCtx.navigate && !tabCtx.leafId ? tabCtx.tabId : null;
-  const here = tabCtx ? tabCtx.pathname + (tabCtx.searchParams.toString() ? `?${tabCtx.searchParams.toString()}` : "") : null;
+  const scope =
+    tabCtx && !tabCtx.navigate && !tabCtx.leafId ? tabCtx.tabId : null;
+  const here = tabCtx
+    ? tabCtx.pathname +
+      (tabCtx.searchParams.toString()
+        ? `?${tabCtx.searchParams.toString()}`
+        : "")
+    : null;
   const shownPath = useInboxStore((s) => {
     if (!scope) return null;
     const shown = shownPlace(s);
@@ -106,12 +129,20 @@ export function useBackTarget(fallback?: { label: string; href: string } | null)
     const parent = placeOf(ownPath, placeNamesOf(s)).parent;
     return parent ? `${parent.label}\x1f${parent.href}` : "";
   });
-  const parent = fallback ?? (parentSig ? { label: parentSig.split("\x1f")[0], href: parentSig.split("\x1f")[1] } : null);
+  const parent =
+    fallback ??
+    (parentSig
+      ? { label: parentSig.split("\x1f")[0], href: parentSig.split("\x1f")[1] }
+      : null);
   const path = dest?.path ?? parent?.href ?? null;
   // The destination's live name; the name the trail recorded when the store
   // no longer holds the object; the page's own name last.
-  const liveName = useInboxStore((s) => (dest ? placeTitle(s, dest.path) : null));
-  const label = dest ? liveName ?? dest.title ?? pathLabel(canonicalPlacePath(dest.path)) : parent?.label ?? "";
+  const liveName = useInboxStore((s) =>
+    dest ? placeTitle(s, dest.path) : null,
+  );
+  const label = dest
+    ? (liveName ?? dest.title ?? pathLabel(canonicalPlacePath(dest.path)))
+    : (parent?.label ?? "");
   const fromTrail = !!dest;
   const go = useCallback(() => {
     if (!path) return;
@@ -119,7 +150,10 @@ export function useBackTarget(fallback?: { label: string; href: string } | null)
     const push = (p: string) => router.push(p);
     goToPlace(path, push, (id) => openSessionFromBack(id, push));
   }, [path, fromTrail, router]);
-  return useMemo(() => (path ? { label, path, fromTrail, go } : null), [label, path, fromTrail, go]);
+  return useMemo(
+    () => (path ? { label, path, fromTrail, go } : null),
+    [label, path, fromTrail, go],
+  );
 }
 
 /**
@@ -134,7 +168,10 @@ export function useBackTarget(fallback?: { label: string; href: string } | null)
  * `href` is where the close goes, for a control drawn as a link; it stays the
  * same in a pane, so a modified click still opens it in a new tab.
  */
-export function useNavCloseTarget(closeHref: string): { href: string; close: () => void } {
+export function useNavCloseTarget(closeHref: string): {
+  href: string;
+  close: () => void;
+} {
   const router = useRouter();
   const leafId = useTabContext()?.leafId;
   // The list as the fallback, so with no trail the close goes there, and the

@@ -7,11 +7,24 @@
 // while the server searches the rest, and opens the session scrolled to that
 // message. j/k (or the arrows) walk it and open the selected message whole;
 // Enter jumps. Coming back restores the selection and the scroll.
-import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Check, Copy, CornerDownLeft, Filter, Search, X } from "lucide-react";
-import { useMySends, useMySendSearch, useMySendText, type MySendRow } from "../../hooks/useMySends";
+import {
+  useMySends,
+  useMySendSearch,
+  useMySendText,
+  type MySendRow,
+} from "../../hooks/useMySends";
 import { useTabActive } from "../../hooks/usePagePresence";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useEventListener } from "../../hooks/useEventListener";
@@ -36,7 +49,8 @@ function matches(row: MySendRow, terms: string[]): boolean {
   if (!terms.length) return true;
   let hay = hayOf.get(row);
   if (hay === undefined) {
-    hay = `${row.text}\n${row.session_title}\n${row.project ?? ""}\n${row.question ?? ""}`.toLowerCase();
+    hay =
+      `${row.text}\n${row.session_title}\n${row.project ?? ""}\n${row.question ?? ""}`.toLowerCase();
     hayOf.set(row, hay);
   }
   return terms.every((t) => hay.includes(t));
@@ -44,12 +58,21 @@ function matches(row: MySendRow, terms: string[]): boolean {
 
 function Highlight({ text, terms }: { text: string; terms: string[] }) {
   if (!terms.length) return <>{text}</>;
-  const re = new RegExp(`(${terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi");
+  const re = new RegExp(
+    `(${terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+    "gi",
+  );
   const parts = text.split(re);
   return (
     <>
       {parts.map((p, i) =>
-        i % 2 === 1 ? <mark key={i} className="rounded-[2px] bg-sol-yellow/30 text-inherit">{p}</mark> : p,
+        i % 2 === 1 ? (
+          <mark key={i} className="rounded-[2px] bg-sol-yellow/30 text-inherit">
+            {p}
+          </mark>
+        ) : (
+          p
+        ),
       )}
     </>
   );
@@ -69,9 +92,15 @@ function MessageText({ text, terms }: { text: string; terms: string[] }) {
   return (
     <>
       {segs.map((s, i) =>
-        s.kind === "text" ? <Highlight key={i} text={s.text} terms={terms} />
-        : s.kind === "paste" ? <Chip key={i}>pasted · {s.lines} {s.lines === 1 ? "line" : "lines"}</Chip>
-        : <Chip key={i}>{s.label}</Chip>,
+        s.kind === "text" ? (
+          <Highlight key={i} text={s.text} terms={terms} />
+        ) : s.kind === "paste" ? (
+          <Chip key={i}>
+            pasted · {s.lines} {s.lines === 1 ? "line" : "lines"}
+          </Chip>
+        ) : (
+          <Chip key={i}>{s.label}</Chip>
+        ),
       )}
     </>
   );
@@ -83,7 +112,8 @@ const dayKey = (ts: number) => {
   const d = new Date(ts);
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 };
-const timeOf = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const timeOf = (ts: number) =>
+  new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 function dayLabel(ts: number, now: number): string {
   const d = new Date(ts);
@@ -92,23 +122,38 @@ function dayLabel(ts: number, now: number): string {
   if (dayKey(ts) === dayKey(today.getTime())) return "Today";
   if (dayKey(ts) === dayKey(yest.getTime())) return "Yesterday";
   const sameYear = d.getFullYear() === today.getFullYear();
-  return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
+  return d.toLocaleDateString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
 }
 
 // ── rows ────────────────────────────────────────────────────────────────────
 
-type Item = { kind: "day"; key: string; label: string; count: number } | { kind: "row"; key: string; row: MySendRow; index: number };
+type Item =
+  | { kind: "day"; key: string; label: string; count: number }
+  | { kind: "row"; key: string; row: MySendRow; index: number };
 
 /** More than the three lines a row shows (a guess from the text alone). */
-const isLong = (r: MySendRow) => r.clipped || r.text.length > 300 || r.text.split("\n").length > 3;
+const isLong = (r: MySendRow) =>
+  r.clipped || r.text.length > 300 || r.text.split("\n").length > 3;
 
 /** The sticky toolbar's height: search, then the day and count line. */
 const TOOLBAR_H = 76;
 
-const hrefOf = (r: MySendRow) => `/conversation/${r.conversation_id}#msg-${r.message_id}`;
+const hrefOf = (r: MySendRow) =>
+  `/conversation/${r.conversation_id}#msg-${r.message_id}`;
 
 const Row = memo(function Row({
-  row, terms, selected, onOpen, onSelect, onFilterSession, filteredToSession,
+  row,
+  terms,
+  selected,
+  onOpen,
+  onSelect,
+  onFilterSession,
+  filteredToSession,
 }: {
   row: MySendRow;
   terms: string[];
@@ -118,7 +163,9 @@ const Row = memo(function Row({
   onFilterSession: (r: MySendRow) => void;
   filteredToSession: boolean;
 }) {
-  const full = useMySendText(selected && row.clipped ? String(row.message_id) : null);
+  const full = useMySendText(
+    selected && row.clipped ? String(row.message_id) : null,
+  );
   const text = selected && full ? full : row.text;
   const [copied, setCopied] = useState(false);
   const copy = (e: React.MouseEvent) => {
@@ -162,30 +209,48 @@ const Row = memo(function Row({
           }`}
         >
           <MessageText text={text} terms={terms} />
-          {selected && row.clipped && !full ? <span className="text-sol-text-dim"> …</span> : null}
+          {selected && row.clipped && !full ? (
+            <span className="text-sol-text-dim"> …</span>
+          ) : null}
         </div>
         <div className="mt-1 flex min-w-0 items-center gap-2 text-[12px] leading-[16px]">
           {!selected && isLong(row) ? (
             <button
               type="button"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSelect(row._id); }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelect(row._id);
+              }}
               className="shrink-0 rounded text-sol-blue/80 hover:text-sol-blue"
             >
               Show all
             </button>
           ) : null}
-          <span className={`min-w-0 truncate ${selected ? "text-sol-text-muted" : "text-sol-text-dim"}`}>
+          <span
+            className={`min-w-0 truncate ${selected ? "text-sol-text-muted" : "text-sol-text-dim"}`}
+          >
             <Highlight text={row.session_title} terms={terms} />
           </span>
-          {row.project ? <span className="shrink-0 font-mono text-meta text-sol-text-dim/70">{row.project}</span> : null}
+          {row.project ? (
+            <span className="shrink-0 font-mono text-meta text-sol-text-dim/70">
+              {row.project}
+            </span>
+          ) : null}
           <span className="ml-auto flex shrink-0 items-center gap-1">
-            <span className={`flex items-center gap-1 ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+            <span
+              className={`flex items-center gap-1 ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+            >
               {!filteredToSession ? (
                 <button
                   type="button"
                   aria-label="Only this session"
                   title="Only this session"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onFilterSession(row); }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onFilterSession(row);
+                  }}
                   className="rounded p-1 text-sol-text-dim hover:bg-sol-border/30 hover:text-sol-text"
                 >
                   <Filter className="h-3.5 w-3.5" />
@@ -198,12 +263,19 @@ const Row = memo(function Row({
                 onClick={copy}
                 className="rounded p-1 text-sol-text-dim hover:bg-sol-border/30 hover:text-sol-text"
               >
-                {copied ? <Check className="h-3.5 w-3.5 text-sol-green" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? (
+                  <Check className="h-3.5 w-3.5 text-sol-green" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
               </button>
             </span>
             {selected ? (
               <span className="ml-1 flex items-center gap-1 text-sol-blue">
-                Open <KeyCap size="xs"><CornerDownLeft className="h-3 w-3" /></KeyCap>
+                Open{" "}
+                <KeyCap size="xs">
+                  <CornerDownLeft className="h-3 w-3" />
+                </KeyCap>
               </span>
             ) : null}
           </span>
@@ -219,8 +291,16 @@ const Row = memo(function Row({
 // message. Module state: it outlives the page's unmount, not a reload.
 const PASSIVE = { passive: true } as const;
 
-const memory: { selectedId: string | null; scrollTop: number; q: string; session: { id: string; title: string } | null } = {
-  selectedId: null, scrollTop: 0, q: "", session: null,
+const memory: {
+  selectedId: string | null;
+  scrollTop: number;
+  q: string;
+  session: { id: string; title: string } | null;
+} = {
+  selectedId: null,
+  scrollTop: 0,
+  q: "",
+  session: null,
 };
 
 export function MyMessages() {
@@ -228,7 +308,9 @@ export function MyMessages() {
   const feed = useMySends();
   const [q, setQ] = useState(memory.q);
   const [session, setSession] = useState(memory.session);
-  const [selectedId, setSelectedId] = useState<string | null>(memory.selectedId);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    memory.selectedId,
+  );
   const terms = useMemo(() => termsOf(q), [q]);
 
   // Debounced server search over everything typed, cached window or not.
@@ -237,10 +319,19 @@ export function MyMessages() {
   const searching = terms.length > 0 && (serverQ !== q || !search.ready);
 
   const rows = useMemo(() => {
-    const local = feed.rows.filter((r) => (!session || String(r.conversation_id) === session.id) && matches(r, terms));
+    const local = feed.rows.filter(
+      (r) =>
+        (!session || String(r.conversation_id) === session.id) &&
+        matches(r, terms),
+    );
     if (!terms.length || serverQ !== q) return local;
     const held = new Set(local.map((r) => r._id));
-    const extra = search.rows.filter((r) => !held.has(r._id) && (!session || String(r.conversation_id) === session.id) && matches(r, terms));
+    const extra = search.rows.filter(
+      (r) =>
+        !held.has(r._id) &&
+        (!session || String(r.conversation_id) === session.id) &&
+        matches(r, terms),
+    );
     if (!extra.length) return local;
     return [...local, ...extra].sort((a, b) => b.timestamp - a.timestamp);
   }, [feed.rows, terms, session, search.rows, serverQ, q]);
@@ -254,7 +345,12 @@ export function MyMessages() {
       const k = dayKey(row.timestamp);
       if (k !== current) {
         current = k;
-        header = { kind: "day", key: `d:${k}`, label: dayLabel(row.timestamp, now), count: 0 };
+        header = {
+          kind: "day",
+          key: `d:${k}`,
+          label: dayLabel(row.timestamp, now),
+          count: 0,
+        };
         out.push(header);
       }
       header!.count++;
@@ -267,7 +363,9 @@ export function MyMessages() {
 
   const rowIndexOfItem = useMemo(() => {
     const m = new Map<string, number>();
-    items.forEach((it, i) => { if (it.kind === "row") m.set(it.row._id, i); });
+    items.forEach((it, i) => {
+      if (it.kind === "row") m.set(it.row._id, i);
+    });
     return m;
   }, [items]);
 
@@ -286,7 +384,12 @@ export function MyMessages() {
     setScroller(sc);
     const body = bodyRef.current;
     if (!sc || !body) return;
-    const measure = () => setMargin(body.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop);
+    const measure = () =>
+      setMargin(
+        body.getBoundingClientRect().top -
+          sc.getBoundingClientRect().top +
+          sc.scrollTop,
+      );
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(sc);
@@ -310,16 +413,41 @@ export function MyMessages() {
     restored.current = true;
     if (memory.scrollTop > 0) scroller.scrollTop = memory.scrollTop;
   }, [scroller, items.length]);
-  useEventListener("scroll", () => { if (scroller) memory.scrollTop = scroller.scrollTop; }, scroller, PASSIVE);
-  memory.q = q; memory.session = session; memory.selectedId = selectedId;
+  useEventListener(
+    "scroll",
+    () => {
+      if (scroller) memory.scrollTop = scroller.scrollTop;
+    },
+    scroller,
+    PASSIVE,
+  );
+  memory.q = q;
+  memory.session = session;
+  memory.selectedId = selectedId;
 
   // Page older history in as the bottom comes near.
   const virtualItems = virtualizer.getVirtualItems();
   const lastVisible = virtualItems[virtualItems.length - 1]?.index ?? 0;
   const { loadOlder, hasMore, loadingOlder } = feed;
   useWatchEffect(() => {
-    if (!terms.length && !session && hasMore && !loadingOlder && items.length && lastVisible >= items.length - 25) loadOlder();
-  }, [lastVisible, items.length, hasMore, loadingOlder, loadOlder, terms.length, session]);
+    if (
+      !terms.length &&
+      !session &&
+      hasMore &&
+      !loadingOlder &&
+      items.length &&
+      lastVisible >= items.length - 25
+    )
+      loadOlder();
+  }, [
+    lastVisible,
+    items.length,
+    hasMore,
+    loadingOlder,
+    loadOlder,
+    terms.length,
+    session,
+  ]);
 
   // The day the top of the view is in, for the toolbar.
   const topDay = useMemo(() => {
@@ -337,18 +465,24 @@ export function MyMessages() {
     return null;
   }, [virtualItems, items, scroller]);
 
-  const open = useCallback((r: MySendRow, newTab: boolean) => {
-    setSelectedId(r._id);
-    memory.selectedId = r._id;
-    if (newTab) window.open(hrefOf(r), "_blank", "noopener");
-    else router.push(hrefOf(r));
-  }, [router]);
+  const open = useCallback(
+    (r: MySendRow, newTab: boolean) => {
+      setSelectedId(r._id);
+      memory.selectedId = r._id;
+      if (newTab) window.open(hrefOf(r), "_blank", "noopener");
+      else router.push(hrefOf(r));
+    },
+    [router],
+  );
 
-  const filterSession = useCallback((r: MySendRow) => {
-    setSession({ id: String(r.conversation_id), title: r.session_title });
-    setSelectedId(r._id);
-    scroller?.scrollTo({ top: 0 });
-  }, [scroller]);
+  const filterSession = useCallback(
+    (r: MySendRow) => {
+      setSession({ id: String(r.conversation_id), title: r.session_title });
+      setSelectedId(r._id);
+      scroller?.scrollTo({ top: 0 });
+    },
+    [scroller],
+  );
 
   // Keyboard: walk, open, search. Only while this tab is the active pane,
   // and never from a text field or a region that owns its keys.
@@ -356,47 +490,117 @@ export function MyMessages() {
   const paneActive = useTabActive();
   const selectedRef = useRef(selectedId);
   selectedRef.current = selectedId;
-  const move = useCallback((delta: number) => {
-    if (!rows.length) return;
-    const sel = selectedRef.current;
-    const cur = sel ? rows.findIndex((r) => r._id === sel) : -1;
-    const next = rows[Math.max(0, Math.min(rows.length - 1, cur < 0 ? (delta > 0 ? 0 : rows.length - 1) : cur + delta))];
-    selectedRef.current = next._id;
-    setSelectedId(next._id);
-    const idx = rowIndexOfItem.get(next._id);
-    if (idx !== undefined) virtualizer.scrollToIndex(idx, { align: "auto" });
-  }, [rows, rowIndexOfItem, virtualizer]);
+  const move = useCallback(
+    (delta: number) => {
+      if (!rows.length) return;
+      const sel = selectedRef.current;
+      const cur = sel ? rows.findIndex((r) => r._id === sel) : -1;
+      const next =
+        rows[
+          Math.max(
+            0,
+            Math.min(
+              rows.length - 1,
+              cur < 0 ? (delta > 0 ? 0 : rows.length - 1) : cur + delta,
+            ),
+          )
+        ];
+      selectedRef.current = next._id;
+      setSelectedId(next._id);
+      const idx = rowIndexOfItem.get(next._id);
+      if (idx !== undefined) virtualizer.scrollToIndex(idx, { align: "auto" });
+    },
+    [rows, rowIndexOfItem, virtualizer],
+  );
 
   // Attached only while this tab is the active pane: a hidden pane holds no listener.
-  useEventListener("keydown", (e) => {
-    const target = e.target as HTMLElement;
-    if (target === searchRef.current) {
-      if (e.key === "ArrowDown" || (e.key === "Enter" && !selectedId)) { e.preventDefault(); searchRef.current?.blur(); move(e.key === "Enter" ? 0 : 1); return; }
-      if (e.key === "Enter") { e.preventDefault(); const r = rows.find((x) => x._id === selectedId); if (r) open(r, e.metaKey || e.ctrlKey); return; }
-      if (e.key === "Escape") { e.preventDefault(); if (q) setQ(""); else searchRef.current?.blur(); }
-      return;
-    }
-    if (keyBelongsElsewhere(target)) return;
-    if (e.metaKey && e.key !== "Enter") return;
-    if (target.closest?.('[role="menu"],[role="listbox"],[role="dialog"]')) return;
-    if (matchesAction(e, "list.down") || (e.key === "ArrowDown" && !e.ctrlKey)) { e.preventDefault(); move(1); return; }
-    if (matchesAction(e, "list.up") || (e.key === "ArrowUp" && !e.ctrlKey)) { e.preventDefault(); move(-1); return; }
-    if (e.key === "Enter") {
-      const r = rows.find((x) => x._id === selectedId);
-      if (r) { e.preventDefault(); open(r, e.metaKey || e.ctrlKey); }
-      return;
-    }
-    if (matchesAction(e, "list.search")) { e.preventDefault(); searchRef.current?.focus(); searchRef.current?.select(); return; }
-    if (matchesAction(e, "list.first")) { e.preventDefault(); if (rows[0]) { setSelectedId(rows[0]._id); virtualizer.scrollToIndex(0); } return; }
-    if (e.key === "Escape") {
-      if (session) { e.preventDefault(); setSession(null); return; }
-      if (q) { e.preventDefault(); setQ(""); }
-    }
-  }, paneActive ? window : null);
+  useEventListener(
+    "keydown",
+    (e) => {
+      const target = e.target as HTMLElement;
+      if (target === searchRef.current) {
+        if (e.key === "ArrowDown" || (e.key === "Enter" && !selectedId)) {
+          e.preventDefault();
+          searchRef.current?.blur();
+          move(e.key === "Enter" ? 0 : 1);
+          return;
+        }
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const r = rows.find((x) => x._id === selectedId);
+          if (r) open(r, e.metaKey || e.ctrlKey);
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          if (q) setQ("");
+          else searchRef.current?.blur();
+        }
+        return;
+      }
+      if (keyBelongsElsewhere(target)) return;
+      if (e.metaKey && e.key !== "Enter") return;
+      if (target.closest?.('[role="menu"],[role="listbox"],[role="dialog"]'))
+        return;
+      if (
+        matchesAction(e, "list.down") ||
+        (e.key === "ArrowDown" && !e.ctrlKey)
+      ) {
+        e.preventDefault();
+        move(1);
+        return;
+      }
+      if (matchesAction(e, "list.up") || (e.key === "ArrowUp" && !e.ctrlKey)) {
+        e.preventDefault();
+        move(-1);
+        return;
+      }
+      if (e.key === "Enter") {
+        const r = rows.find((x) => x._id === selectedId);
+        if (r) {
+          e.preventDefault();
+          open(r, e.metaKey || e.ctrlKey);
+        }
+        return;
+      }
+      if (matchesAction(e, "list.search")) {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+        return;
+      }
+      if (matchesAction(e, "list.first")) {
+        e.preventDefault();
+        if (rows[0]) {
+          setSelectedId(rows[0]._id);
+          virtualizer.scrollToIndex(0);
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        if (session) {
+          e.preventDefault();
+          setSession(null);
+          return;
+        }
+        if (q) {
+          e.preventDefault();
+          setQ("");
+        }
+      }
+    },
+    paneActive ? window : null,
+  );
 
   // A filter that hides the selection moves it to the first match.
   useWatchEffect(() => {
-    if (selectedId && rows.length && !rowIndexOfItem.has(selectedId) && (terms.length || session)) setSelectedId(rows[0]._id);
+    if (
+      selectedId &&
+      rows.length &&
+      !rowIndexOfItem.has(selectedId) &&
+      (terms.length || session)
+    )
+      setSelectedId(rows[0]._id);
   }, [rows, rowIndexOfItem, selectedId, terms.length, session]);
 
   const toolbar = (
@@ -413,7 +617,15 @@ export function MyMessages() {
             className="min-w-0 flex-1 bg-transparent text-[14px] text-sol-text outline-none placeholder:text-sol-text-dim"
           />
           {q ? (
-            <button type="button" aria-label="Clear search" onClick={() => { setQ(""); searchRef.current?.focus(); }} className="rounded p-0.5 text-sol-text-dim hover:text-sol-text">
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => {
+                setQ("");
+                searchRef.current?.focus();
+              }}
+              className="rounded p-0.5 text-sol-text-dim hover:text-sol-text"
+            >
               <X className="h-3.5 w-3.5" />
             </button>
           ) : (
@@ -444,7 +656,16 @@ export function MyMessages() {
   );
 
   if (!feed.ready) {
-    return <div ref={listRef}>{toolbar}<SkeletonRows rows={8} className="px-3 pt-3" rowClassName="h-10 rounded modern:rounded-control" /></div>;
+    return (
+      <div ref={listRef}>
+        {toolbar}
+        <SkeletonRows
+          rows={8}
+          className="px-3 pt-3"
+          rowClassName="h-10 rounded modern:rounded-control"
+        />
+      </div>
+    );
   }
 
   return (
@@ -452,12 +673,30 @@ export function MyMessages() {
       {toolbar}
       {rows.length === 0 ? (
         terms.length || session ? (
-          searching ? <SkeletonRows rows={3} className="px-3 pt-3" rowClassName="h-10 rounded modern:rounded-control" /> : <EmptyState icon={Search} title={q ? `Nothing you typed matches “${q}”` : "No messages in this session"} />
+          searching ? (
+            <SkeletonRows
+              rows={3}
+              className="px-3 pt-3"
+              rowClassName="h-10 rounded modern:rounded-control"
+            />
+          ) : (
+            <EmptyState
+              icon={Search}
+              title={
+                q
+                  ? `Nothing you typed matches “${q}”`
+                  : "No messages in this session"
+              }
+            />
+          )
         ) : (
           <EmptyState icon={Search} title="Nothing typed yet" />
         )
       ) : (
-        <div ref={bodyRef} style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+        <div
+          ref={bodyRef}
+          style={{ height: virtualizer.getTotalSize(), position: "relative" }}
+        >
           {virtualItems.map((v) => {
             const it = items[v.index];
             if (!it) return null;
@@ -466,12 +705,22 @@ export function MyMessages() {
                 key={v.key}
                 data-index={v.index}
                 ref={virtualizer.measureElement}
-                style={{ position: "absolute", top: 0, left: 0, right: 0, transform: `translateY(${v.start - margin}px)` }}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  transform: `translateY(${v.start - margin}px)`,
+                }}
               >
                 {it.kind === "day" ? (
                   <div className="flex items-baseline gap-2 px-3 pb-1 pt-4 text-[12px]">
-                    <span className="font-semibold text-sol-text-muted">{it.label}</span>
-                    <span className="tabular-nums text-sol-text-dim">{it.count}</span>
+                    <span className="font-semibold text-sol-text-muted">
+                      {it.label}
+                    </span>
+                    <span className="tabular-nums text-sol-text-dim">
+                      {it.count}
+                    </span>
                   </div>
                 ) : (
                   <Row
@@ -490,7 +739,9 @@ export function MyMessages() {
         </div>
       )}
       {!terms.length && !session && rows.length > 0 && !hasMore ? (
-        <div className="py-6 text-center text-[12px] text-sol-text-dim">The first message you typed</div>
+        <div className="py-6 text-center text-[12px] text-sol-text-dim">
+          The first message you typed
+        </div>
       ) : null}
     </div>
   );

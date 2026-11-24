@@ -11,12 +11,30 @@ import { useRef, useState, useMemo, useCallback, Fragment } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { isMac, hasOpenModal, altChordDirection } from "../../shortcuts";
-import { useDefaultAgentType, useOnlyHostedAgent, usePinnedPickerOptions } from "../../hooks/usePinnedAgents";
+import {
+  useDefaultAgentType,
+  useOnlyHostedAgent,
+  usePinnedPickerOptions,
+} from "../../hooks/usePinnedAgents";
 import { agentAccent } from "../../lib/agentColors";
 import { useScopedRecentProjects } from "../../hooks/useScopedRecentProjects";
 import { useShallow } from "zustand/react/shallow";
 import { createPortal } from "react-dom";
-import { AGENT_PICKER_OPTIONS, agentTypeChangeRefusal, fromConvexAgentType, isHostedAgentType, cloudAgentLaunch, cloudAgentLaunchKey, cloudAgentProviderForLaunch, cloudAgentProvidersFor, compareMachineChips, modelOptionKey, type CloudAgentLaunch, type CloudAgentProviderSpec, type ConvexAgentType } from "@codecast/shared/contracts";
+import {
+  AGENT_PICKER_OPTIONS,
+  agentTypeChangeRefusal,
+  fromConvexAgentType,
+  isHostedAgentType,
+  cloudAgentLaunch,
+  cloudAgentLaunchKey,
+  cloudAgentProviderForLaunch,
+  cloudAgentProvidersFor,
+  compareMachineChips,
+  modelOptionKey,
+  type CloudAgentLaunch,
+  type CloudAgentProviderSpec,
+  type ConvexAgentType,
+} from "@codecast/shared/contracts";
 import { useLiveSessionMeta } from "../../hooks/useLiveSessionMeta";
 import { commitModelChange } from "../../lib/modelSwitchWeb";
 import { useCloudAgentStatus } from "../cloudAgents/machine";
@@ -30,30 +48,86 @@ import { toastWriteError } from "../../lib/dispatchBinding";
 import { ComposeRolePicker } from "../ComposeRolePicker";
 import type { RoleRecipient } from "../../lib/roleRecipients";
 import { AgentTypeIcon } from "../AgentTypeIcon";
-import { AgentDefinitionPill, FOOT_PICK, LaunchEffortPill, LaunchModelLabel, LaunchModelPill, ModelEffortRows, useLaunchModel } from "../ModelEffortPicker";
+import {
+  AgentDefinitionPill,
+  FOOT_PICK,
+  LaunchEffortPill,
+  LaunchModelLabel,
+  LaunchModelPill,
+  ModelEffortRows,
+  useLaunchModel,
+} from "../ModelEffortPicker";
 import { useConvex, useConvexAuth } from "convex/react";
 import { api as _typedApi } from "@codecast/convex/convex/_generated/api";
-import { buildProjectPathOptions, inferHomeDir, resolveCustomPath, displayPath, inferProjectBase, type ProjectPathOption } from "../../lib/utils";
+import {
+  buildProjectPathOptions,
+  inferHomeDir,
+  resolveCustomPath,
+  displayPath,
+  inferProjectBase,
+  type ProjectPathOption,
+} from "../../lib/utils";
 import { createProjectFolder, useDirListing } from "../../lib/fsBrowse";
 import { CollabComposer } from "../CollabComposer";
 import { ComposerAttachButton } from "../chat/ComposerAttachButton";
-import { useInboxStore, isConvexId, convBucketMap, type BucketItem, resolveCloudStartFrom } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  isConvexId,
+  convBucketMap,
+  type BucketItem,
+  resolveCloudStartFrom,
+} from "../../store/inboxStore";
 import { isParkedDispatchError } from "../../store/mutativeMiddleware";
 import { withoutUndo } from "../../store/undoStack";
 import { getLabelColor } from "../../lib/labelColors";
-import { browseProjectOrder, frequentProjectChips } from "../../lib/recentProjectPaths";
+import {
+  browseProjectOrder,
+  frequentProjectChips,
+} from "../../lib/recentProjectPaths";
 import { ChevronDown, Search } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { deviceDisplayName } from "../DeviceBadge";
 import { useHostLoads } from "../../hooks/useHostLoads";
 import { MachineChips } from "../MachineChips";
 import { SharedWithMark } from "../ProjectPathPicker";
-import { ModeSwitch, SessionModeToggles, SessionPlacementMenu, type SessionModeTogglesProps, type SessionPlacement } from "../SessionModeToggles";
-import { dedupeProjectsByRepoName, pathOnMyMachines, repoName, resolveMachineSelection } from "../../lib/machinePicker";
-import { cloudHostOf, cloudParkNeeded, cloudToggleAvailable, defaultSessionMachineId, isCloudHost, machineSelectionAfterCloudToggle, machineSelectionAfterPick, switchReconfigureArgs, type SessionMachine } from "../../lib/sessionMachines";
+import {
+  ModeSwitch,
+  SessionModeToggles,
+  SessionPlacementMenu,
+  type SessionModeTogglesProps,
+  type SessionPlacement,
+} from "../SessionModeToggles";
+import {
+  dedupeProjectsByRepoName,
+  pathOnMyMachines,
+  repoName,
+  resolveMachineSelection,
+} from "../../lib/machinePicker";
+import {
+  cloudHostOf,
+  cloudParkNeeded,
+  cloudToggleAvailable,
+  defaultSessionMachineId,
+  isCloudHost,
+  machineSelectionAfterCloudToggle,
+  machineSelectionAfterPick,
+  switchReconfigureArgs,
+  type SessionMachine,
+} from "../../lib/sessionMachines";
 import { useSessionMachines } from "../../hooks/useSessionMachines";
 import { useLocalDeviceId } from "../../hooks/useLocalDeviceId";
-import type { ConversationData, NewSessionAgentControls, PickerHandle, RecentProject } from "./types";
+import type {
+  ConversationData,
+  NewSessionAgentControls,
+  PickerHandle,
+  RecentProject,
+} from "./types";
 import { hoverFocus } from "../../shortcuts/focusSource";
 
 const api = _typedApi as any;
@@ -62,8 +136,18 @@ const api = _typedApi as any;
 // Factored out so the path data lives once instead of being copy-pasted.
 function FolderGlyph({ className = "w-3 h-3" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.5}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+      />
     </svg>
   );
 }
@@ -72,8 +156,18 @@ function FolderGlyph({ className = "w-3 h-3" }: { className?: string }) {
 // plain FolderGlyph the recent-project chips use.
 function FolderPlusGlyph({ className = "w-3 h-3" }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v6m3-3H9m-6.75 2.25V6A2.25 2.25 0 014.5 3.75h4.629a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H19.5A2.25 2.25 0 0121.75 9v9.75A2.25 2.25 0 0119.5 21h-15a2.25 2.25 0 01-2.25-2.25z" />
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.5}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 10.5v6m3-3H9m-6.75 2.25V6A2.25 2.25 0 014.5 3.75h4.629a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H19.5A2.25 2.25 0 0121.75 9v9.75A2.25 2.25 0 0119.5 21h-15a2.25 2.25 0 01-2.25-2.25z"
+      />
     </svg>
   );
 }
@@ -87,7 +181,11 @@ function HintKeys({ keys, label }: { keys: string[]; label: string }) {
   return (
     <span className="inline-flex items-center gap-1">
       <span className="inline-flex items-center gap-[2px]">
-        {keys.map((k, i) => <KeyCap key={i} size="xs">{k}</KeyCap>)}
+        {keys.map((k, i) => (
+          <KeyCap key={i} size="xs">
+            {k}
+          </KeyCap>
+        ))}
       </span>
       <span className="text-sol-text-dim/70">{label}</span>
     </span>
@@ -108,7 +206,13 @@ function restorePickerFocus(prev: HTMLElement | null) {
   document.querySelector<HTMLTextAreaElement>("textarea")?.focus();
 }
 
-export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline = false, modeSlot }: {
+export function ProjectSwitcher({
+  conversation,
+  handleRef,
+  machineSlot,
+  headline = false,
+  modeSlot,
+}: {
   conversation: ConversationData;
   handleRef?: React.MutableRefObject<PickerHandle | null>;
   // The new-session page's question over the chips ("What should we build in
@@ -133,24 +237,40 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   // resolveLiveSessionId follows the row across the compose popup's stub→real rekey
   // (which deletes sessions[stub]); without it a folder click after the create lands
   // updates the backend but never moves the highlight, since storeSession goes stale.
-  const storeSession = useInboxStore(useShallow((s) => {
-    const sess = s.sessions[s.resolveLiveSessionId(conversation._id)];
-    if (!sess) return undefined;
-    return { _id: sess._id, project_path: sess.project_path, git_root: sess.git_root, owner_device_id: sess.owner_device_id, target_device_id: sess.target_device_id, cloud_placement: sess.cloud_placement };
-  }));
+  const storeSession = useInboxStore(
+    useShallow((s) => {
+      const sess = s.sessions[s.resolveLiveSessionId(conversation._id)];
+      if (!sess) return undefined;
+      return {
+        _id: sess._id,
+        project_path: sess.project_path,
+        git_root: sess.git_root,
+        owner_device_id: sess.owner_device_id,
+        target_device_id: sess.target_device_id,
+        cloud_placement: sess.cloud_placement,
+      };
+    }),
+  );
   const isolatedToggle = useInboxStore((s) => s.isolatedWorktreeMode);
   // The composer's new project switch (NewSessionProjectToggle) words the question.
-  const startsProject = useInboxStore((s) => !!s.sessions[conversation._id]?._newProject);
+  const startsProject = useInboxStore(
+    (s) => !!s.sessions[conversation._id]?._newProject,
+  );
   // An agent type with a cloud agent provider (Cursor: Cursor Cloud Agents):
   // "run in the cloud" is the provider's agent, carried as the launch model
   // key (cloud / cloud:<id>) the daemon already honours. With several (Codex:
   // Codex Cloud, the Agents API), the one the launch key names; the switch
   // turns on the first.
   const liveMeta = useLiveSessionMeta(conversation._id);
-  const cloudLaunchKey = liveMeta?.agentType ? modelOptionKey(liveMeta.model, liveMeta.agentType) : undefined;
-  const cloudSpec = cloudAgentProviderForLaunch(liveMeta?.agentType, cloudLaunchKey) ?? cloudAgentProvidersFor(liveMeta?.agentType)[0];
+  const cloudLaunchKey = liveMeta?.agentType
+    ? modelOptionKey(liveMeta.model, liveMeta.agentType)
+    : undefined;
+  const cloudSpec =
+    cloudAgentProviderForLaunch(liveMeta?.agentType, cloudLaunchKey) ??
+    cloudAgentProvidersFor(liveMeta?.agentType)[0];
   // The machine the session will run from: the picked target, else its owner.
-  const cloudDeviceId = storeSession?.target_device_id ?? storeSession?.owner_device_id ?? null;
+  const cloudDeviceId =
+    storeSession?.target_device_id ?? storeSession?.owner_device_id ?? null;
   const cloudStatus = useCloudAgentStatus(cloudSpec, cloudDeviceId);
   const cloudConnectedTo = useCloudAgentConnectedTo();
   const cloudAgent = useMemo(() => {
@@ -158,13 +278,14 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
     const agentType = liveMeta.agentType;
     // The launch (model, ask mode, attempts) rides the launch model key.
     const launch = cloudAgentLaunch(agentType, cloudLaunchKey);
-    const pick = (model: string) => void commitModelChange({
-      conversationId: conversation._id,
-      agentType,
-      current: { model: liveMeta.model, effort: liveMeta.effort },
-      sel: { model },
-      blank: true,
-    });
+    const pick = (model: string) =>
+      void commitModelChange({
+        conversationId: conversation._id,
+        agentType,
+        current: { model: liveMeta.model, effort: liveMeta.effort },
+        sel: { model },
+        blank: true,
+      });
     return {
       spec: cloudSpec,
       lanes: cloudAgentProvidersFor(agentType),
@@ -174,11 +295,42 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
       deviceId: cloudStatus.device?.device_id ?? null,
       // Turned on, and moved to a lane, where the person last ran: that lane and its model.
       // Turned on, a lane the machine can't drive now gives way to one it can.
-      onToggle: () => pick(launch ? "default" : lastCloudLaunch(agentType, undefined, (lane) => !!cloudStatus.device && cloudConnectedTo(lane, cloudStatus.device)) ?? cloudSpec.modelPrefix),
-      onPickLane: (lane: CloudAgentProviderSpec) => pick(lastCloudLaunch(agentType, lane) ?? lane.modelPrefix),
-      ...(launch ? { launch, onSetLaunch: (change: Partial<CloudAgentLaunch>) => pick(cloudAgentLaunchKey(cloudSpec, { ...launch, ...change })) } : {}),
+      onToggle: () =>
+        pick(
+          launch
+            ? "default"
+            : (lastCloudLaunch(
+                agentType,
+                undefined,
+                (lane) =>
+                  !!cloudStatus.device &&
+                  cloudConnectedTo(lane, cloudStatus.device),
+              ) ?? cloudSpec.modelPrefix),
+        ),
+      onPickLane: (lane: CloudAgentProviderSpec) =>
+        pick(lastCloudLaunch(agentType, lane) ?? lane.modelPrefix),
+      ...(launch
+        ? {
+            launch,
+            onSetLaunch: (change: Partial<CloudAgentLaunch>) =>
+              pick(cloudAgentLaunchKey(cloudSpec, { ...launch, ...change })),
+          }
+        : {}),
     };
-  }, [cloudSpec, cloudLaunchKey, liveMeta?.agentType, liveMeta?.model, liveMeta?.effort, cloudStatus.connected, cloudStatus.problem?.kind, cloudStatus.problem?.sentence, cloudStatus.problem?.resetsAt, cloudStatus.device, cloudConnectedTo, conversation._id]);
+  }, [
+    cloudSpec,
+    cloudLaunchKey,
+    liveMeta?.agentType,
+    liveMeta?.model,
+    liveMeta?.effort,
+    cloudStatus.connected,
+    cloudStatus.problem?.kind,
+    cloudStatus.problem?.sentence,
+    cloudStatus.problem?.resetsAt,
+    cloudStatus.device,
+    cloudConnectedTo,
+    conversation._id,
+  ]);
   const convex = useConvex();
   const convCommand = useInboxStore((s) => s.convCommand);
 
@@ -188,7 +340,10 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   // store selector above avoids, and the row can't be drawn without it.
   const devices = useSessionMachines();
   // listDevices comes back sorted by last_seen; chips hold still instead.
-  const machineChips = useMemo(() => [...devices].sort(compareMachineChips), [devices]);
+  const machineChips = useMemo(
+    () => [...devices].sort(compareMachineChips),
+    [devices],
+  );
   const [pickedDeviceId, setPickedDeviceId] = useState<string | null>(null);
   // Machine picker rests as a single pill showing where the session will run;
   // clicking it unfolds the full chip row for an explicit pick.
@@ -199,41 +354,71 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   // Gate on the LIVE roster only: a persisted roster draws the chips at boot,
   // but a stale copy must not veto a freshly cloned checkout.
   const rosterLive = useInboxStore((s) => s.machineRosterLive);
-  const ctxPath = [currentConvContext?.projectPath, currentConvContext?.gitRoot].find((p) => pathOnMyMachines(rosterLive ? devices : [], p));
-  const currentPath = storeSession?.project_path || storeSession?.git_root || conversation.git_root || conversation.project_path || ctxPath;
-  const currentName = currentPath?.split("/").filter(Boolean).pop() || "unknown";
+  const ctxPath = [
+    currentConvContext?.projectPath,
+    currentConvContext?.gitRoot,
+  ].find((p) => pathOnMyMachines(rosterLive ? devices : [], p));
+  const currentPath =
+    storeSession?.project_path ||
+    storeSession?.git_root ||
+    conversation.git_root ||
+    conversation.project_path ||
+    ctxPath;
+  const currentName =
+    currentPath?.split("/").filter(Boolean).pop() || "unknown";
 
   // Where the picker opens. Deterministic (owner → your saved default → your
   // last hand pick → the machine this client runs on → the machine holding
   // this checkout → stable tiebreak), so it can't change under the user
   // between the render that shows a chip and the send that acts on it. The
   // default and the pick are account-wide (sd-2611).
-  const defaultDevice = useInboxStore((s) => s.clientState.ui?.default_device ?? null);
-  const lastPickedDeviceId = useInboxStore((s) => s.clientState.ui?.last_picked_device_id ?? null);
+  const defaultDevice = useInboxStore(
+    (s) => s.clientState.ui?.default_device ?? null,
+  );
+  const lastPickedDeviceId = useInboxStore(
+    (s) => s.clientState.ui?.last_picked_device_id ?? null,
+  );
   const localDeviceId = useLocalDeviceId(true);
-  const ownerDeviceIdForPicker = storeSession?.owner_device_id ?? (conversation as any).owner_device_id ?? null;
-  const machineOpts = useMemo(() => ({
-    ownerDeviceId: ownerDeviceIdForPicker,
-    projectPath: currentPath,
-    defaultDevice,
-    lastPicked: lastPickedDeviceId,
-    localDeviceId,
-  }), [ownerDeviceIdForPicker, currentPath, defaultDevice, lastPickedDeviceId, localDeviceId]);
+  const ownerDeviceIdForPicker =
+    storeSession?.owner_device_id ??
+    (conversation as any).owner_device_id ??
+    null;
+  const machineOpts = useMemo(
+    () => ({
+      ownerDeviceId: ownerDeviceIdForPicker,
+      projectPath: currentPath,
+      defaultDevice,
+      lastPicked: lastPickedDeviceId,
+      localDeviceId,
+    }),
+    [
+      ownerDeviceIdForPicker,
+      currentPath,
+      defaultDevice,
+      lastPickedDeviceId,
+      localDeviceId,
+    ],
+  );
   // The machine this session WILL run on, plus the two things that must agree
   // with it: what gets stamped, and which machine's folders we offer. The stamp
   // already on the row is the last-resort rung — `devices` reads empty on mount
   // and on any Convex reconnect, and without it that gap would drop the folder
   // list back to the cross-machine union while the stamp survived.
   const existingStamp = storeSession?.target_device_id ?? null;
-  const { selectedDeviceId, scopeProjectsToDeviceId } = resolveMachineSelection(devices, {
-    ...machineOpts,
-    picked: pickedDeviceId ?? defaultSessionMachineId(devices, machineOpts),
-    existingStamp,
-  });
+  const { selectedDeviceId, scopeProjectsToDeviceId } = resolveMachineSelection(
+    devices,
+    {
+      ...machineOpts,
+      picked: pickedDeviceId ?? defaultSessionMachineId(devices, machineOpts),
+      existingStamp,
+    },
+  );
   // The machine the pill names. Offline machines stay pickable: a laptop
   // falls back server-side to an online machine with the repo, and a cloud
   // host boots when the session starts.
-  const routedMachine = machineChips.find((d) => d.device_id === selectedDeviceId) ?? machineChips[0];
+  const routedMachine =
+    machineChips.find((d) => d.device_id === selectedDeviceId) ??
+    machineChips[0];
   // The cloud host to offer, if the user has one (offline included — a stopped
   // host is asleep, not gone).
   const cloudHost = useMemo(() => cloudHostOf(machineChips), [machineChips]);
@@ -246,11 +431,20 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   // surfaces that only need to know, reset when this composer unmounts: the
   // toggle really is THIS composer's override.
   const lastCloudModeRef = useRef(false);
-  const cloudMode = routedMachine ? isCloudHost(routedMachine) : lastCloudModeRef.current;
+  const cloudMode = routedMachine
+    ? isCloudHost(routedMachine)
+    : lastCloudModeRef.current;
   lastCloudModeRef.current = cloudMode;
   const setCloudSessionMode = useInboxStore((s) => s.setCloudSessionMode);
-  useWatchEffect(() => { setCloudSessionMode(cloudMode); }, [cloudMode, setCloudSessionMode]);
-  useWatchEffect(() => () => { setCloudSessionMode(false); }, [setCloudSessionMode]);
+  useWatchEffect(() => {
+    setCloudSessionMode(cloudMode);
+  }, [cloudMode, setCloudSessionMode]);
+  useWatchEffect(
+    () => () => {
+      setCloudSessionMode(false);
+    },
+    [setCloudSessionMode],
+  );
   // In cloud mode the isolated toggle is the WORKSPACE pick: on (default) =
   // its own worktree on the host, off = the host's main checkout (the store's
   // cloudSharedCheckout, reset whenever cloud mode flips). The local
@@ -259,7 +453,9 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   const cloudShared = useInboxStore((s) => s.cloudSharedCheckout);
   const isolated = cloudMode ? !cloudShared : isolatedToggle;
   // What a cloud worktree starts from (persisted per device in clientUI).
-  const cloudStartFrom = useInboxStore((s) => resolveCloudStartFrom(s.clientState.ui));
+  const cloudStartFrom = useInboxStore((s) =>
+    resolveCloudStartFrom(s.clientState.ui),
+  );
 
   // The folder list is scoped to the machine we're about to stamp, ALWAYS. The
   // unscoped query is `getOnlineLocalRoots` — a union across every online local —
@@ -284,7 +480,10 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
 
   // Live scoped answer → that machine's cached answer → the union narrowed to
   // that machine → nothing; shared with the mobile sheet.
-  const recentProjects = useScopedRecentProjects({ scopedDeviceId, routedDevice });
+  const recentProjects = useScopedRecentProjects({
+    scopedDeviceId,
+    routedDevice,
+  });
   const suggestedPaths = useMemo(
     () => new Set(recentProjects.filter((p) => p.suggested).map((p) => p.path)),
     [recentProjects],
@@ -293,10 +492,18 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   // its repository's), shown on the chip so the folder choice carries its
   // consequence.
   const sharedWith = useMemo(
-    () => new Map(recentProjects.map((p) => [p.path, { teamId: p.team_id ?? null, team: p.team_name ?? null }] as const)),
+    () =>
+      new Map(
+        recentProjects.map(
+          (p) =>
+            [
+              p.path,
+              { teamId: p.team_id ?? null, team: p.team_name ?? null },
+            ] as const,
+        ),
+      ),
     [recentProjects],
   );
-
 
   const dedupedRecents = useMemo(
     () => dedupeProjectsByRepoName(recentProjects, routedDevice, currentPath),
@@ -304,13 +511,20 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   );
   const otherProjects = useMemo(() => {
     const currentName = currentPath ? repoName(currentPath) : null;
-    return dedupedRecents.filter((p) => p.path !== currentPath && (!currentName || repoName(p.path) !== currentName));
+    return dedupedRecents.filter(
+      (p) =>
+        p.path !== currentPath &&
+        (!currentName || repoName(p.path) !== currentName),
+    );
   }, [dedupedRecents, currentPath]);
 
   // Resting row: the current project plus at most 4 you actually use most.
   // Machine-root suggestions (never-used folders, shown grayed) stay out of
   // this row entirely — they're reachable through "other".
-  const visibleProjects = useMemo(() => frequentProjectChips(otherProjects), [otherProjects]);
+  const visibleProjects = useMemo(
+    () => frequentProjectChips(otherProjects),
+    [otherProjects],
+  );
 
   // --- keyboard picker ---------------------------------------------------
   // The chip row doubles as a keyboard listbox. It is dormant for mouse users
@@ -328,7 +542,11 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   // Home dir inferred from real local roots, so "~/…" resolves to the same place
   // the daemon would cd to — until the daemon's own listing says for sure.
   const inferredHome = useMemo(
-    () => inferHomeDir([currentPath, ...recentProjects.map((p: { path: string }) => p.path)]),
+    () =>
+      inferHomeDir([
+        currentPath,
+        ...recentProjects.map((p: { path: string }) => p.path),
+      ]),
     [currentPath, recentProjects],
   );
 
@@ -336,17 +554,28 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   // project (its parent dir), so typing "weekend-hack" means the folder next to
   // the one you're in, not a dead end.
   const projectBase = useMemo(
-    () => inferProjectBase(currentPath, recentProjects.map((p: { path: string }) => p.path), inferredHome),
+    () =>
+      inferProjectBase(
+        currentPath,
+        recentProjects.map((p: { path: string }) => p.path),
+        inferredHome,
+      ),
     [currentPath, recentProjects, inferredHome],
   );
 
   // The machine's real folders behind the typed text (shell-completion style),
   // from the daemon on THIS machine — and only while the session routes here:
   // a cloud session's folders live on the host, another machine's on it.
-  const { listing: diskListing, home: diskHome } = useDirListing(convex, filter, inferredHome, projectBase, {
-    enabled: picking && !cloudMode,
-    deviceId: scopedDeviceId,
-  });
+  const { listing: diskListing, home: diskHome } = useDirListing(
+    convex,
+    filter,
+    inferredHome,
+    projectBase,
+    {
+      enabled: picking && !cloudMode,
+      deviceId: scopedDeviceId,
+    },
+  );
   const homeDir = diskHome ?? inferredHome;
 
   // While navigating with the keyboard: ALL recent projects (current first —
@@ -375,7 +604,9 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
     // list; everything else (rarely-used folders and the machine's never-used
     // roots) sits behind the one "N more folders" row until expanded. Typing
     // still searches all of them regardless.
-    const base: { path: string; extra?: boolean }[] = currentPath ? [{ path: currentPath }] : [];
+    const base: { path: string; extra?: boolean }[] = currentPath
+      ? [{ path: currentPath }]
+      : [];
     const head = visibleProjects.map((p) => ({ path: p.path }));
     if (!showSuggested) return base.concat(head);
     const shown = new Set(head.map((p) => p.path));
@@ -383,18 +614,36 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
       .filter((p) => !shown.has(p.path))
       .map((p) => ({ path: p.path, extra: true }));
     return base.concat(head, rest);
-  }, [filter, dedupedRecents, currentPath, otherProjects, visibleProjects, homeDir, projectBase, showSuggested, diskListing]);
+  }, [
+    filter,
+    dedupedRecents,
+    currentPath,
+    otherProjects,
+    visibleProjects,
+    homeDir,
+    projectBase,
+    showSuggested,
+    diskListing,
+  ]);
 
   // How many folders the collapsed picker is holding back (rarely-used ones
   // plus the machine's never-used roots) — the expander's count.
-  const hiddenCount = Math.max(0, otherProjects.length - visibleProjects.length);
+  const hiddenCount = Math.max(
+    0,
+    otherProjects.length - visibleProjects.length,
+  );
 
   // Where the "more folders on this machine" divider renders once expanded
   // (-1 → no divider).
-  const firstExtraIdx = useMemo(() => pickList.findIndex((p) => (p as { extra?: boolean }).extra), [pickList]);
+  const firstExtraIdx = useMemo(
+    () => pickList.findIndex((p) => (p as { extra?: boolean }).extra),
+    [pickList],
+  );
 
   // Distinguish "you typed the folder you're already in" from a real miss.
-  const filterIsCurrent = !!currentPath && resolveCustomPath(filter, homeDir, projectBase) === currentPath;
+  const filterIsCurrent =
+    !!currentPath &&
+    resolveCustomPath(filter, homeDir, projectBase) === currentPath;
 
   const clampedHi = Math.min(hi, Math.max(0, pickList.length - 1));
 
@@ -427,88 +676,144 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   // A null/empty `projectPath` WITH a forceDeviceId means "reconfigure the
   // machine only": a pathless eager row (a task's context chat) can still be
   // parked on the host or un-parked back to a laptop.
-  const handleSwitch = useCallback(async (projectPath: string | null, forceIsolated?: boolean, forceDeviceId?: string | null, opts: { onlyCloudPark?: boolean } = {}) => {
-    const trimmed = (projectPath ?? "").trim();
-    const machineOnly = !trimmed && forceDeviceId !== undefined;
-    if (!trimmed && !machineOnly) return;
-    // In cloud mode the target is the host the dropdown ROUTES to (there can
-    // be more than one), falling back to the first host only if the routed
-    // machine somehow is not one.
-    const routedHostId = routedMachine && isCloudHost(routedMachine) ? routedMachine.device_id : cloudHost?.device_id ?? null;
-    const targetDeviceId = forceDeviceId !== undefined ? forceDeviceId : (cloudMode ? routedHostId : scopedDeviceId);
-    if (!machineOnly && trimmed === currentPath && !forceIsolated && forceDeviceId === undefined) return;
-    const target = targetDeviceId ? machineChips.find((d) => d.device_id === targetDeviceId) : undefined;
-    // ONE predicate (shared with createSessionFromStub and the server's start
-    // chokepoint) decides whether the host needs a laptop to prepare it. A
-    // folder the host already holds (~/work/<repo> and its worktrees) is a
-    // plain start there; "ambiguous" parks — the user chose the host from a
-    // laptop folder list, and the explicit cloud_device_id tells the server so.
-    const locals = machineChips.filter((d) => !d.is_remote && d.bot_name === undefined);
-    const cloudPark = cloudParkNeeded({ target, locals, path: trimmed });
-    // The shared toggle only means something for a park; a native host
-    // folder has no worktree-or-root choice to re-issue.
-    if (opts.onlyCloudPark && !cloudPark) return;
-    const store = useInboxStore.getState();
-    const id = storeSession?._id || conversation._id;
-    // What to restore on failure: nothing for a machine-only reconfigure,
-    // which never touched the row's project.
-    const prevPath = machineOnly ? undefined : currentPath;
-    if (!machineOnly) store.updateSessionProject(id, trimmed);
-    // Always push the switch to the daemon so it kills + recreates the tmux at
-    // the new cwd. A freshly-created stub has no Convex id yet — its id arrives
-    // via the in-flight create promise, so wait for that rather than dropping
-    // the switch on the floor (which left the label and the tmux diverged).
-    let convexId = isConvexId(id) ? id : store.getConvexId(id);
-    if (!convexId) {
-      const pending = store.awaitSessionCreate(id);
-      if (pending) convexId = await pending.catch(() => undefined);
-    }
-    if (!convexId) return;
-    // A cloud session's worktree is made on the HOST by the daemon that
-    // prepares it. Asking the local daemon for one here would make a second,
-    // unused worktree on this machine and route the session at it. Every
-    // other target ships the user's REAL toggle (isolatedToggle), never the
-    // cloud-locked `isolated`: leaving cloud mode for a laptop runs while
-    // cloudMode is still true in this closure, and shipping it would make the
-    // un-park build a laptop worktree nobody asked for (a host-native plain
-    // start would likewise ask for a worktree inside a worktree).
-    // Read at call time, not from the closure: the shared toggle (and the
-    // start-from pick) set the flag and re-park in the same tick.
-    const cloudShared = useInboxStore.getState().cloudSharedCheckout;
-    convCommand(convexId, "reconfigureSession", switchReconfigureArgs({
-      machineOnly,
-      path: trimmed,
-      cloudPark,
-      targetDeviceId: cloudPark ? target!.device_id : targetDeviceId,
-      isolated: forceIsolated ?? isolatedToggle,
-      cloudShared,
-      cloudStartFrom: resolveCloudStartFrom(useInboxStore.getState().clientState.ui),
-    })).catch((err) => {
-      if (isParkedDispatchError(err)) return;
-      // The switch failed: putting the path back is not an undoable change.
-      if (prevPath) withoutUndo(() => useInboxStore.getState().updateSessionProject(convexId!, prevPath));
-      toast.error(err instanceof Error ? err.message : "Failed to switch project");
-    });
-  }, [storeSession, conversation._id, convCommand, currentPath, isolatedToggle, cloudMode, cloudHost, routedMachine, machineChips, scopedDeviceId]);
+  const handleSwitch = useCallback(
+    async (
+      projectPath: string | null,
+      forceIsolated?: boolean,
+      forceDeviceId?: string | null,
+      opts: { onlyCloudPark?: boolean } = {},
+    ) => {
+      const trimmed = (projectPath ?? "").trim();
+      const machineOnly = !trimmed && forceDeviceId !== undefined;
+      if (!trimmed && !machineOnly) return;
+      // In cloud mode the target is the host the dropdown ROUTES to (there can
+      // be more than one), falling back to the first host only if the routed
+      // machine somehow is not one.
+      const routedHostId =
+        routedMachine && isCloudHost(routedMachine)
+          ? routedMachine.device_id
+          : (cloudHost?.device_id ?? null);
+      const targetDeviceId =
+        forceDeviceId !== undefined
+          ? forceDeviceId
+          : cloudMode
+            ? routedHostId
+            : scopedDeviceId;
+      if (
+        !machineOnly &&
+        trimmed === currentPath &&
+        !forceIsolated &&
+        forceDeviceId === undefined
+      )
+        return;
+      const target = targetDeviceId
+        ? machineChips.find((d) => d.device_id === targetDeviceId)
+        : undefined;
+      // ONE predicate (shared with createSessionFromStub and the server's start
+      // chokepoint) decides whether the host needs a laptop to prepare it. A
+      // folder the host already holds (~/work/<repo> and its worktrees) is a
+      // plain start there; "ambiguous" parks — the user chose the host from a
+      // laptop folder list, and the explicit cloud_device_id tells the server so.
+      const locals = machineChips.filter(
+        (d) => !d.is_remote && d.bot_name === undefined,
+      );
+      const cloudPark = cloudParkNeeded({ target, locals, path: trimmed });
+      // The shared toggle only means something for a park; a native host
+      // folder has no worktree-or-root choice to re-issue.
+      if (opts.onlyCloudPark && !cloudPark) return;
+      const store = useInboxStore.getState();
+      const id = storeSession?._id || conversation._id;
+      // What to restore on failure: nothing for a machine-only reconfigure,
+      // which never touched the row's project.
+      const prevPath = machineOnly ? undefined : currentPath;
+      if (!machineOnly) store.updateSessionProject(id, trimmed);
+      // Always push the switch to the daemon so it kills + recreates the tmux at
+      // the new cwd. A freshly-created stub has no Convex id yet — its id arrives
+      // via the in-flight create promise, so wait for that rather than dropping
+      // the switch on the floor (which left the label and the tmux diverged).
+      let convexId = isConvexId(id) ? id : store.getConvexId(id);
+      if (!convexId) {
+        const pending = store.awaitSessionCreate(id);
+        if (pending) convexId = await pending.catch(() => undefined);
+      }
+      if (!convexId) return;
+      // A cloud session's worktree is made on the HOST by the daemon that
+      // prepares it. Asking the local daemon for one here would make a second,
+      // unused worktree on this machine and route the session at it. Every
+      // other target ships the user's REAL toggle (isolatedToggle), never the
+      // cloud-locked `isolated`: leaving cloud mode for a laptop runs while
+      // cloudMode is still true in this closure, and shipping it would make the
+      // un-park build a laptop worktree nobody asked for (a host-native plain
+      // start would likewise ask for a worktree inside a worktree).
+      // Read at call time, not from the closure: the shared toggle (and the
+      // start-from pick) set the flag and re-park in the same tick.
+      const cloudShared = useInboxStore.getState().cloudSharedCheckout;
+      convCommand(
+        convexId,
+        "reconfigureSession",
+        switchReconfigureArgs({
+          machineOnly,
+          path: trimmed,
+          cloudPark,
+          targetDeviceId: cloudPark ? target!.device_id : targetDeviceId,
+          isolated: forceIsolated ?? isolatedToggle,
+          cloudShared,
+          cloudStartFrom: resolveCloudStartFrom(
+            useInboxStore.getState().clientState.ui,
+          ),
+        }),
+      ).catch((err) => {
+        if (isParkedDispatchError(err)) return;
+        // The switch failed: putting the path back is not an undoable change.
+        if (prevPath)
+          withoutUndo(() =>
+            useInboxStore.getState().updateSessionProject(convexId!, prevPath),
+          );
+        toast.error(
+          err instanceof Error ? err.message : "Failed to switch project",
+        );
+      });
+    },
+    [
+      storeSession,
+      conversation._id,
+      convCommand,
+      currentPath,
+      isolatedToggle,
+      cloudMode,
+      cloudHost,
+      routedMachine,
+      machineChips,
+      scopedDeviceId,
+    ],
+  );
 
   // A picker row: a folder to switch to, or one to CREATE first. Creation is
   // optimistic — the switch goes out on the assumption the daemon's mkdir
   // lands (it's one syscall away); a refusal surfaces as a toast.
-  const pickOption = useCallback((p: ProjectPathOption) => {
-    if (p.create) {
-      createProjectFolder(convex, p.path, scopedDeviceId).catch((err) => {
-        toast.error(err instanceof Error ? err.message : "Couldn't create folder");
-      });
-    }
-    handleSwitch(p.path);
-  }, [convex, scopedDeviceId, handleSwitch]);
+  const pickOption = useCallback(
+    (p: ProjectPathOption) => {
+      if (p.create) {
+        createProjectFolder(convex, p.path, scopedDeviceId).catch((err) => {
+          toast.error(
+            err instanceof Error ? err.message : "Couldn't create folder",
+          );
+        });
+      }
+      handleSwitch(p.path);
+    },
+    [convex, scopedDeviceId, handleSwitch],
+  );
 
   // Tab descends into the highlighted folder: the text becomes that path with
   // a trailing slash, which lists its children.
-  const descendInto = useCallback((p: ProjectPathOption) => {
-    setFilter(displayPath(p.path, homeDir) + "/");
-    setHi(0);
-  }, [homeDir]);
+  const descendInto = useCallback(
+    (p: ProjectPathOption) => {
+      setFilter(displayPath(p.path, homeDir) + "/");
+      setHi(0);
+    },
+    [homeDir],
+  );
 
   // Picking a machine moves the (still blank) session there right away rather
   // than waiting on a folder pick the user may never make. That reconfigure only
@@ -516,26 +821,33 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   // surface defers its create, so the stamp below is what usually carries the
   // choice — see createSessionFromStub.
   const updateClientUI = useInboxStore((s) => s.updateClientUI);
-  const handleMachinePick = useCallback((d: SessionMachine) => {
-    // The DROPDOWN is the standing choice: every transition goes through the
-    // pure helpers so cloudMode === isCloudHost(picked) holds by construction.
-    const next = machineSelectionAfterPick(d);
-    setPickedDeviceId(next.pickedDeviceId);
-    // Remember the choice: it becomes the picker's default for subsequent NEW
-    // sessions, which is what makes "explicit every time" cost one click total
-    // rather than one click per session. A cloud host is a legitimate standing
-    // pick, honoured even while it sleeps.
-    updateClientUI({ last_picked_device_id: d.device_id });
-    // Same project, THAT machine's checkout: keep the stored path truthful for
-    // where the session now routes (the daemon would remap by repo name anyway,
-    // but the label/tooltip shouldn't show a path the machine doesn't have). A
-    // cloud host is never remapped to its own roots: the laptop path is the
-    // evidence the placement predicate needs. No folder yet → machine only.
-    const remapped = currentPath
-      ? (isCloudHost(d) ? currentPath : d.local_project_roots?.find((r) => repoName(r) === repoName(currentPath)) ?? currentPath)
-      : null;
-    handleSwitch(remapped, undefined, d.device_id);
-  }, [currentPath, handleSwitch, updateClientUI]);
+  const handleMachinePick = useCallback(
+    (d: SessionMachine) => {
+      // The DROPDOWN is the standing choice: every transition goes through the
+      // pure helpers so cloudMode === isCloudHost(picked) holds by construction.
+      const next = machineSelectionAfterPick(d);
+      setPickedDeviceId(next.pickedDeviceId);
+      // Remember the choice: it becomes the picker's default for subsequent NEW
+      // sessions, which is what makes "explicit every time" cost one click total
+      // rather than one click per session. A cloud host is a legitimate standing
+      // pick, honoured even while it sleeps.
+      updateClientUI({ last_picked_device_id: d.device_id });
+      // Same project, THAT machine's checkout: keep the stored path truthful for
+      // where the session now routes (the daemon would remap by repo name anyway,
+      // but the label/tooltip shouldn't show a path the machine doesn't have). A
+      // cloud host is never remapped to its own roots: the laptop path is the
+      // evidence the placement predicate needs. No folder yet → machine only.
+      const remapped = currentPath
+        ? isCloudHost(d)
+          ? currentPath
+          : (d.local_project_roots?.find(
+              (r) => repoName(r) === repoName(currentPath),
+            ) ?? currentPath)
+        : null;
+      handleSwitch(remapped, undefined, d.device_id);
+    },
+    [currentPath, handleSwitch, updateClientUI],
+  );
 
   // "Run in the cloud" is THIS composer's override: it moves the component-
   // local pick (on → the cloud host; off → what the ladder picks among the
@@ -543,7 +855,11 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
   // every future new session at the cloud box; the dropdown does that. It DOES
   // reconfigure an existing row: on parks it on the host, off un-parks it.
   const toggleCloudMode = useCallback(() => {
-    const next = machineSelectionAfterCloudToggle(machineChips, machineOpts, !cloudMode);
+    const next = machineSelectionAfterCloudToggle(
+      machineChips,
+      machineOpts,
+      !cloudMode,
+    );
     if (next.pickedDeviceId === null && !cloudMode) return;
     setPickedDeviceId(next.pickedDeviceId);
     handleSwitch(currentPath ?? null, undefined, next.pickedDeviceId);
@@ -563,8 +879,16 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
     // There is no longer any path that intentionally clears the selection: every
     // chip click names a machine.
     if (!selectedDeviceId) return;
-    setSessionTargetDevice(storeSession?._id || conversation._id, selectedDeviceId);
-  }, [storeSession?._id, conversation._id, selectedDeviceId, setSessionTargetDevice]);
+    setSessionTargetDevice(
+      storeSession?._id || conversation._id,
+      selectedDeviceId,
+    );
+  }, [
+    storeSession?._id,
+    conversation._id,
+    selectedDeviceId,
+    setSessionTargetDevice,
+  ]);
 
   // Hand the imperative surface up to NewSessionView's ⌥-chord router.
   // Re-assigned every render so isOpen/commitAndClose read fresh state.
@@ -574,7 +898,9 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
       focus: focusPicker,
       isOpen: () => picking,
       move: (delta) => {
-        setHi((i) => (pickList.length ? (i + delta + pickList.length) % pickList.length : 0));
+        setHi((i) =>
+          pickList.length ? (i + delta + pickList.length) % pickList.length : 0,
+        );
         return pickList.length > 0;
       },
       commitAndClose: () => {
@@ -584,58 +910,86 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
       },
     };
   });
-  useWatchEffect(() => () => { if (handleRef) handleRef.current = null; }, [handleRef]);
+  useWatchEffect(
+    () => () => {
+      if (handleRef) handleRef.current = null;
+    },
+    [handleRef],
+  );
 
   // Focus lives in a real <input> (below) so the global capture-phase shortcut
   // dispatcher treats us as "typing" and suppresses single-letter hotkeys
   // (f/t/d/…). Letters + Backspace are handled natively by the input (onChange);
   // we only intercept the keys that drive chip selection. Option+H/L mirror
   // Left/Right while the arrow-key path remains available.
-  const handlePickerKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowRight" || (e.altKey && e.code === "KeyL")) {
-      e.preventDefault();
-      setHi((i) => (pickList.length ? (i + 1) % pickList.length : 0));
-      return;
-    }
-    if (e.key === "ArrowLeft" || (e.altKey && e.code === "KeyH")) {
-      e.preventDefault();
-      setHi((i) => (pickList.length ? (i - 1 + pickList.length) % pickList.length : 0));
-      return;
-    }
-    const sel = pickList[Math.min(hi, Math.max(0, pickList.length - 1))];
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (sel) pickOption(sel);
-      exitPicker();
-      return;
-    }
-    // Tab while typing completes into the highlighted folder (shell-style);
-    // with nothing typed it drops back to the message box like ↓/Esc do
-    // (⌥↓ — handled by the chord router before we see it — commits and
-    // moves on to the agent row).
-    if (e.key === "Tab" && !e.shiftKey && filter.trim() && sel && !sel.custom) {
-      e.preventDefault();
-      descendInto(sel);
-      return;
-    }
-    if (e.key === "ArrowDown" || e.key === "Escape" || e.key === "Tab") {
-      e.preventDefault();
-      e.stopPropagation();
-      exitPicker();
-    }
-  }, [pickList, hi, filter, pickOption, descendInto, exitPicker]);
+  const handlePickerKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "ArrowRight" || (e.altKey && e.code === "KeyL")) {
+        e.preventDefault();
+        setHi((i) => (pickList.length ? (i + 1) % pickList.length : 0));
+        return;
+      }
+      if (e.key === "ArrowLeft" || (e.altKey && e.code === "KeyH")) {
+        e.preventDefault();
+        setHi((i) =>
+          pickList.length ? (i - 1 + pickList.length) % pickList.length : 0,
+        );
+        return;
+      }
+      const sel = pickList[Math.min(hi, Math.max(0, pickList.length - 1))];
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (sel) pickOption(sel);
+        exitPicker();
+        return;
+      }
+      // Tab while typing completes into the highlighted folder (shell-style);
+      // with nothing typed it drops back to the message box like ↓/Esc do
+      // (⌥↓ — handled by the chord router before we see it — commits and
+      // moves on to the agent row).
+      if (
+        e.key === "Tab" &&
+        !e.shiftKey &&
+        filter.trim() &&
+        sel &&
+        !sel.custom
+      ) {
+        e.preventDefault();
+        descendInto(sel);
+        return;
+      }
+      if (e.key === "ArrowDown" || e.key === "Escape" || e.key === "Tab") {
+        e.preventDefault();
+        e.stopPropagation();
+        exitPicker();
+      }
+    },
+    [pickList, hi, filter, pickOption, descendInto, exitPicker],
+  );
 
   const hostLoads = useHostLoads();
   // The session's team may turn cloud hosting off (Managed devices); its choices lock.
-  const cloudRefusal = usePolicyRefusal("cloud_hosts_disabled", policyTeamOf("conversations", conversation));
+  const cloudRefusal = usePolicyRefusal(
+    "cloud_hosts_disabled",
+    policyTeamOf("conversations", conversation),
+  );
   useSyncTeamMachines();
   // Team machines you are not on: a string, so a machine's minute-by-minute
   // load moving re-renders nothing here.
-  const joinableSig = useInboxStore((s) => s.teamMachines
-    .filter((m) => !myMembership(m, s.currentUser?._id))
-    .map((m) => `${m._id}\u0001${m.name}`).join("\u0002"));
+  const joinableSig = useInboxStore((s) =>
+    s.teamMachines
+      .filter((m) => !myMembership(m, s.currentUser?._id))
+      .map((m) => `${m._id}\u0001${m.name}`)
+      .join("\u0002"),
+  );
   const joinable = useMemo(
-    () => (joinableSig ? joinableSig.split("\u0002").map((x) => { const [id, name] = x.split("\u0001"); return { id, name }; }) : []),
+    () =>
+      joinableSig
+        ? joinableSig.split("\u0002").map((x) => {
+            const [id, name] = x.split("\u0001");
+            return { id, name };
+          })
+        : [],
     [joinableSig],
   );
 
@@ -649,7 +1003,10 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
       selectedDeviceId={selectedDeviceId}
       open={machinesOpen}
       onOpen={() => setMachinesOpen(true)}
-      onPick={(d) => { handleMachinePick(d); setMachinesOpen(false); }}
+      onPick={(d) => {
+        handleMachinePick(d);
+        setMachinesOpen(false);
+      }}
       onShare={() => useInboxStore.getState().openSettingsModal("devices")}
       joinable={joinable}
       onJoin={() => useInboxStore.getState().openSettingsModal("devices")}
@@ -679,8 +1036,15 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
       // the new mode (the child in flight is superseded). A deferred
       // stub reads the flag at send time, and a row the host already
       // placed keeps its checkout: neither is touched here.
-      if (currentPath && storeSession?.cloud_placement === "pending" && routedMachine && isCloudHost(routedMachine)) {
-        handleSwitch(currentPath, undefined, routedMachine.device_id, { onlyCloudPark: true });
+      if (
+        currentPath &&
+        storeSession?.cloud_placement === "pending" &&
+        routedMachine &&
+        isCloudHost(routedMachine)
+      ) {
+        handleSwitch(currentPath, undefined, routedMachine.device_id, {
+          onlyCloudPark: true,
+        });
       }
     },
     startFrom: cloudStartFrom,
@@ -688,8 +1052,15 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
       useInboxStore.getState().setCloudStartFrom(v);
       // Same rule as the shared toggle: a parked row re-parks with the
       // new seed choice, a deferred stub reads it at send time.
-      if (currentPath && storeSession?.cloud_placement === "pending" && routedMachine && isCloudHost(routedMachine)) {
-        handleSwitch(currentPath, undefined, routedMachine.device_id, { onlyCloudPark: true });
+      if (
+        currentPath &&
+        storeSession?.cloud_placement === "pending" &&
+        routedMachine &&
+        isCloudHost(routedMachine)
+      ) {
+        handleSwitch(currentPath, undefined, routedMachine.device_id, {
+          onlyCloudPark: true,
+        });
       }
     },
   };
@@ -704,25 +1075,39 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
       return;
     }
     const wantIsolated = placement === "worktree";
-    if (isolatedToggle !== wantIsolated) useInboxStore.getState().setIsolatedWorktreeMode(wantIsolated);
+    if (isolatedToggle !== wantIsolated)
+      useInboxStore.getState().setIsolatedWorktreeMode(wantIsolated);
     if (cloudOn) (cloudAgent ? cloudAgent.onToggle : toggleCloudMode)();
     else if (wantIsolated && currentPath) handleSwitch(currentPath, true);
   };
 
   return (
     <div className="flex flex-col items-center gap-3">
-      {modeSlot && createPortal(<SessionPlacementMenu {...modeProps} onPick={pickPlacement} />, modeSlot)}
+      {modeSlot &&
+        createPortal(
+          <SessionPlacementMenu {...modeProps} onPick={pickPlacement} />,
+          modeSlot,
+        )}
       {headline && (
         <h1 className="mb-1 text-center text-xl sm:text-2xl font-medium tracking-tight text-sol-text">
-          {currentPath ? <>
-            {startsProject ? "Start a project in" : "What should we build in"}{" "}
-            <button
-              type="button"
-              onClick={focusPicker}
-              title={`${currentPath}: search folders or paste any path`}
-              className="underline decoration-sol-cyan/60 decoration-2 underline-offset-[6px] hover:text-sol-cyan transition-colors"
-            >{currentName}</button>{startsProject ? "" : "?"}
-          </> : startsProject ? "Start a project" : "What should we build?"}
+          {currentPath ? (
+            <>
+              {startsProject ? "Start a project in" : "What should we build in"}{" "}
+              <button
+                type="button"
+                onClick={focusPicker}
+                title={`${currentPath}: search folders or paste any path`}
+                className="underline decoration-sol-cyan/60 decoration-2 underline-offset-[6px] hover:text-sol-cyan transition-colors"
+              >
+                {currentName}
+              </button>
+              {startsProject ? "" : "?"}
+            </>
+          ) : startsProject ? (
+            "Start a project"
+          ) : (
+            "What should we build?"
+          )}
         </h1>
       )}
       {machineSlot === undefined
@@ -744,7 +1129,10 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
             <input
               ref={pickerRef}
               value={filter}
-              onChange={(e) => { setFilter(e.target.value); setHi(0); }}
+              onChange={(e) => {
+                setFilter(e.target.value);
+                setHi(0);
+              }}
               onKeyDown={handlePickerKeyDown}
               onBlur={() => exitPicker(false)}
               placeholder="search or paste a path"
@@ -754,122 +1142,172 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
             />
             <span className="inline-flex items-center gap-2 text-meta font-mono">
               <HintKeys keys={["←", "→"]} label="move" />
-              <HintKeys keys={["↵"]} label={pickList[clampedHi]?.create ? "create" : pickList[clampedHi]?.custom ? "open" : "select"} />
-              {filter.trim() && pickList[clampedHi] && !pickList[clampedHi].custom && (
-                <HintKeys keys={["Tab"]} label="into" />
-              )}
+              <HintKeys
+                keys={["↵"]}
+                label={
+                  pickList[clampedHi]?.create
+                    ? "create"
+                    : pickList[clampedHi]?.custom
+                      ? "open"
+                      : "select"
+                }
+              />
+              {filter.trim() &&
+                pickList[clampedHi] &&
+                !pickList[clampedHi].custom && (
+                  <HintKeys keys={["Tab"]} label="into" />
+                )}
               <HintKeys keys={[ALT_CAP, "↓"]} label="agent" />
               <HintKeys keys={["Esc"]} label="back" />
             </span>
           </div>
         )}
         <div className="flex flex-wrap justify-center gap-1.5">
-        {picking ? (
-          <>
-          {pickList.length === 0 ? (
-            <span className="text-xs text-sol-text-dim px-2.5 py-1">
-              {filterIsCurrent ? "already in this folder" : <>no match for &ldquo;{filter}&rdquo;</>}
-            </span>
-          ) : (
-            pickList.map((p, i) => {
-              const isHi = i === clampedHi;
-              const isCurrent = p.path === currentPath;
-              return (
-                <Fragment key={p.path}>
-                  {i === firstExtraIdx && (
-                    <span className="w-full mt-1.5 mb-0.5 flex items-center gap-2 text-meta text-sol-text-dim/80">
-                      <span className="flex-1 border-t border-sol-border/40" />
-                      more folders on {routedDevice ? deviceDisplayName(routedDevice) : "this machine"}
-                      <span className="flex-1 border-t border-sol-border/40" />
-                    </span>
+          {picking ? (
+            <>
+              {pickList.length === 0 ? (
+                <span className="text-xs text-sol-text-dim px-2.5 py-1">
+                  {filterIsCurrent ? (
+                    "already in this folder"
+                  ) : (
+                    <>no match for &ldquo;{filter}&rdquo;</>
                   )}
-                  <button
-                    // onMouseDown (not onClick) + preventDefault keeps the filter
-                    // input focused so the click isn't lost to an onBlur teardown.
-                    onMouseDown={(e) => { e.preventDefault(); pickOption(p); exitPicker(); }}
-                    {...hoverFocus(() => setHi(i))}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border transition-all max-w-[min(100%,22rem)] ${
-                      isHi
-                        ? "border-sol-cyan/70 bg-sol-cyan/15 text-sol-cyan ring-1 ring-sol-cyan/50"
-                        : p.custom
-                          ? "border-dashed border-sol-cyan/40 text-sol-cyan/80"
-                          : isCurrent
-                            ? "border-sol-cyan/60 bg-sol-cyan/15 text-sol-cyan font-medium"
-                            : "border-sol-border/40 text-sol-text-dim"
-                    } ${!isHi && (suggestedPaths.has(p.path) || (p.disk && !p.repo)) ? "opacity-60" : ""}`}
-                    title={p.disk ? `${p.path}${p.repo ? " (git repository)" : ""}` : p.path}
-                  >
-                    {p.custom ? <FolderPlusGlyph className="w-3 h-3 shrink-0" /> : <FolderGlyph />}
-                    {p.custom ? (
-                      <span className="truncate">
-                        <span className="opacity-60">{p.create ? "create " : "open "}</span>
-                        <span className="font-mono">{displayPath(p.path, homeDir)}</span>
-                      </span>
-                    ) : (
-                      <span>{p.path.split("/").filter(Boolean).pop()}</span>
-                    )}
-                    <SharedWithMark {...sharedWith.get(p.path)} />
-                  </button>
-                </Fragment>
-              );
-            })
-          )}
-          {!filter.trim() && !showSuggested && hiddenCount > 0 && (
-            <button
-              // onMouseDown + preventDefault, same as the chips: keep the
-              // filter input focused so expanding doesn't blur-close the picker.
-              onMouseDown={(e) => { e.preventDefault(); setShowSuggested(true); }}
-              className="w-full mt-1.5 mb-0.5 flex items-center gap-2 text-meta text-sol-text-dim/70 hover:text-sol-text transition-colors"
-            >
-              <span className="flex-1 border-t border-sol-border/40" />
-              <span className="inline-flex items-center gap-1">
-                {hiddenCount} more folders on {routedDevice ? deviceDisplayName(routedDevice) : "this machine"}
-                <ChevronDown className="w-3 h-3" />
-              </span>
-              <span className="flex-1 border-t border-sol-border/40" />
-            </button>
-          )}
-          </>
-        ) : (
-          <>
-            {currentPath && (
-              <button
-                onClick={() => handleSwitch(currentPath)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border border-sol-cyan/60 bg-sol-cyan/15 text-sol-cyan font-medium transition-all"
-                title={currentPath}
-              >
-                <FolderGlyph />
-                <span>{currentName}</span>
-                <SharedWithMark {...sharedWith.get(currentPath)} />
-              </button>
-            )}
-            {visibleProjects.map((p: { path: string }) => {
-              const name = p.path.split("/").filter(Boolean).pop();
-              return (
+                </span>
+              ) : (
+                pickList.map((p, i) => {
+                  const isHi = i === clampedHi;
+                  const isCurrent = p.path === currentPath;
+                  return (
+                    <Fragment key={p.path}>
+                      {i === firstExtraIdx && (
+                        <span className="w-full mt-1.5 mb-0.5 flex items-center gap-2 text-meta text-sol-text-dim/80">
+                          <span className="flex-1 border-t border-sol-border/40" />
+                          more folders on{" "}
+                          {routedDevice
+                            ? deviceDisplayName(routedDevice)
+                            : "this machine"}
+                          <span className="flex-1 border-t border-sol-border/40" />
+                        </span>
+                      )}
+                      <button
+                        // onMouseDown (not onClick) + preventDefault keeps the filter
+                        // input focused so the click isn't lost to an onBlur teardown.
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          pickOption(p);
+                          exitPicker();
+                        }}
+                        {...hoverFocus(() => setHi(i))}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border transition-all max-w-[min(100%,22rem)] ${
+                          isHi
+                            ? "border-sol-cyan/70 bg-sol-cyan/15 text-sol-cyan ring-1 ring-sol-cyan/50"
+                            : p.custom
+                              ? "border-dashed border-sol-cyan/40 text-sol-cyan/80"
+                              : isCurrent
+                                ? "border-sol-cyan/60 bg-sol-cyan/15 text-sol-cyan font-medium"
+                                : "border-sol-border/40 text-sol-text-dim"
+                        } ${!isHi && (suggestedPaths.has(p.path) || (p.disk && !p.repo)) ? "opacity-60" : ""}`}
+                        title={
+                          p.disk
+                            ? `${p.path}${p.repo ? " (git repository)" : ""}`
+                            : p.path
+                        }
+                      >
+                        {p.custom ? (
+                          <FolderPlusGlyph className="w-3 h-3 shrink-0" />
+                        ) : (
+                          <FolderGlyph />
+                        )}
+                        {p.custom ? (
+                          <span className="truncate">
+                            <span className="opacity-60">
+                              {p.create ? "create " : "open "}
+                            </span>
+                            <span className="font-mono">
+                              {displayPath(p.path, homeDir)}
+                            </span>
+                          </span>
+                        ) : (
+                          <span>{p.path.split("/").filter(Boolean).pop()}</span>
+                        )}
+                        <SharedWithMark {...sharedWith.get(p.path)} />
+                      </button>
+                    </Fragment>
+                  );
+                })
+              )}
+              {!filter.trim() && !showSuggested && hiddenCount > 0 && (
                 <button
-                  key={p.path}
-                  onClick={() => handleSwitch(p.path)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border border-sol-border/40 text-sol-text-dim hover:text-sol-text hover:border-sol-cyan/40 hover:bg-sol-cyan/5 transition-all"
-                  title={p.path}
+                  // onMouseDown + preventDefault, same as the chips: keep the
+                  // filter input focused so expanding doesn't blur-close the picker.
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setShowSuggested(true);
+                  }}
+                  className="w-full mt-1.5 mb-0.5 flex items-center gap-2 text-meta text-sol-text-dim/70 hover:text-sol-text transition-colors"
+                >
+                  <span className="flex-1 border-t border-sol-border/40" />
+                  <span className="inline-flex items-center gap-1">
+                    {hiddenCount} more folders on{" "}
+                    {routedDevice
+                      ? deviceDisplayName(routedDevice)
+                      : "this machine"}
+                    <ChevronDown className="w-3 h-3" />
+                  </span>
+                  <span className="flex-1 border-t border-sol-border/40" />
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              {currentPath && (
+                <button
+                  onClick={() => handleSwitch(currentPath)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border border-sol-cyan/60 bg-sol-cyan/15 text-sol-cyan font-medium transition-all"
+                  title={currentPath}
                 >
                   <FolderGlyph />
-                  <span>{name}</span>
-                  <SharedWithMark {...sharedWith.get(p.path)} />
+                  <span>{currentName}</span>
+                  <SharedWithMark {...sharedWith.get(currentPath)} />
                 </button>
-              );
-            })}
-            <button
-              onClick={focusPicker}
-              title="Search folders or paste any path"
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border border-dashed border-sol-border/50 text-sol-text-dim hover:text-sol-cyan hover:border-sol-cyan/40 hover:bg-sol-cyan/5 transition-all"
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-              </svg>
-              <span>other</span>
-            </button>
-          </>
-        )}
+              )}
+              {visibleProjects.map((p: { path: string }) => {
+                const name = p.path.split("/").filter(Boolean).pop();
+                return (
+                  <button
+                    key={p.path}
+                    onClick={() => handleSwitch(p.path)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border border-sol-border/40 text-sol-text-dim hover:text-sol-text hover:border-sol-cyan/40 hover:bg-sol-cyan/5 transition-all"
+                    title={p.path}
+                  >
+                    <FolderGlyph />
+                    <span>{name}</span>
+                    <SharedWithMark {...sharedWith.get(p.path)} />
+                  </button>
+                );
+              })}
+              <button
+                onClick={focusPicker}
+                title="Search folders or paste any path"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border border-dashed border-sol-border/50 text-sol-text-dim hover:text-sol-cyan hover:border-sol-cyan/40 hover:bg-sol-cyan/5 transition-all"
+              >
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
+                  />
+                </svg>
+                <span>other</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -880,26 +1318,26 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
           spanning the pane. */}
       {!picking && currentPath && <FolderSyncControl folder={currentPath} />}
 
-      {modeSlot === undefined && <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 max-w-3xl">
-        <NewSessionBucketPill conversation={conversation} />
+      {modeSlot === undefined && (
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 max-w-3xl">
+          <NewSessionBucketPill conversation={conversation} />
 
-        <SessionModeToggles {...modeProps} />
+          <SessionModeToggles {...modeProps} />
 
-        {!picking && recentProjects.length > 0 && (
-          <button
-            onClick={focusPicker}
-            className="inline-flex items-center gap-2.5 text-meta opacity-40 hover:opacity-90 transition-opacity"
-          >
-            <HintKeys keys={[ALT_CAP, "K"]} label="pick folder" />
-            <HintKeys keys={[ALT_CAP, "J"]} label="pick agent" />
-          </button>
-        )}
-      </div>}
-
+          {!picking && recentProjects.length > 0 && (
+            <button
+              onClick={focusPicker}
+              className="inline-flex items-center gap-2.5 text-meta opacity-40 hover:opacity-90 transition-opacity"
+            >
+              <HintKeys keys={[ALT_CAP, "K"]} label="pick folder" />
+              <HintKeys keys={[ALT_CAP, "J"]} label="pick agent" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
-
 
 /** The agent a new-session surface has chosen, read off the live row.
  *  Narrowed: only _id/agent_type are read here, and neither churns on a
@@ -907,19 +1345,31 @@ export function ProjectSwitcher({ conversation, handleRef, machineSlot, headline
  *  stub to real rekey (see ProjectSwitcher) so an agent click after the create
  *  lands isn't lost. */
 function useNewSessionAgent(conversation: ConversationData) {
-  const storeSession = useInboxStore(useShallow((s) => {
-    const sess = s.sessions[s.resolveLiveSessionId(conversation._id)];
-    if (!sess) return undefined;
-    return { _id: sess._id, agent_type: sess.agent_type };
-  }));
+  const storeSession = useInboxStore(
+    useShallow((s) => {
+      const sess = s.sessions[s.resolveLiveSessionId(conversation._id)];
+      if (!sess) return undefined;
+      return { _id: sess._id, agent_type: sess.agent_type };
+    }),
+  );
   // A row with no agent yet starts with the viewer's default, the same rule
   // createSessionFromStub applies to it.
   const fallbackAgent = useDefaultAgentType();
-  const currentAgent: string = storeSession?.agent_type || conversation.agent_type || fallbackAgent;
+  const currentAgent: string =
+    storeSession?.agent_type || conversation.agent_type || fallbackAgent;
   return { storeSession, currentAgent };
 }
 
-function AgentSwitcher({ conversation, showWorkflow, onToggleWorkflow, selectedWorkflowId, onSelectWorkflow, workflows, handleRef, compact = false }: {
+function AgentSwitcher({
+  conversation,
+  showWorkflow,
+  onToggleWorkflow,
+  selectedWorkflowId,
+  onSelectWorkflow,
+  workflows,
+  handleRef,
+  compact = false,
+}: {
   conversation: ConversationData;
   // One dropdown (agent) beside the model pill, for the composer foot,
   // instead of the row of agent chips.
@@ -945,32 +1395,47 @@ function AgentSwitcher({ conversation, showWorkflow, onToggleWorkflow, selectedW
   const onlyHosted = useOnlyHostedAgent();
   const created = isConvexId(storeSession?._id || conversation._id);
   const AGENT_OPTIONS = useMemo(
-    () => (onlyHosted ? AGENT_PICKER_OPTIONS.filter((a) => isHostedAgentType(a.convexType)) : pinned)
-      .filter((a) => !created || agentTypeChangeRefusal(currentAgent, a.convexType) === null)
-      .map((a) => ({ type: a.convexType, label: a.label })),
+    () =>
+      (onlyHosted
+        ? AGENT_PICKER_OPTIONS.filter((a) => isHostedAgentType(a.convexType))
+        : pinned
+      )
+        .filter(
+          (a) =>
+            !created ||
+            agentTypeChangeRefusal(currentAgent, a.convexType) === null,
+        )
+        .map((a) => ({ type: a.convexType, label: a.label })),
     [onlyHosted, pinned, created, currentAgent],
   );
 
-  const handleAgentSwitch = useCallback(async (agentType: ConvexAgentType) => {
-    if (agentType === currentAgent) return;
-    try {
-      const id = storeSession?._id || conversation._id;
-      useInboxStore.getState().setConversationAgent(id, agentType);
-      // "Last used" for the next new session, on every device.
-      useInboxStore.getState().updateClientUI({ last_picked_agent: agentType });
+  const handleAgentSwitch = useCallback(
+    async (agentType: ConvexAgentType) => {
+      if (agentType === currentAgent) return;
+      try {
+        const id = storeSession?._id || conversation._id;
+        useInboxStore.getState().setConversationAgent(id, agentType);
+        // "Last used" for the next new session, on every device.
+        useInboxStore
+          .getState()
+          .updateClientUI({ last_picked_agent: agentType });
 
-      if (isConvexId(id)) {
-        convCommand(id, "reconfigureSession", {
-          agent_type: agentType,
-        }).catch((err) => {
-          if (isParkedDispatchError(err)) return;
-          toastWriteError(err, "Failed to switch agent");
-        });
+        if (isConvexId(id)) {
+          convCommand(id, "reconfigureSession", {
+            agent_type: agentType,
+          }).catch((err) => {
+            if (isParkedDispatchError(err)) return;
+            toastWriteError(err, "Failed to switch agent");
+          });
+        }
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to switch agent",
+        );
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to switch agent");
-    }
-  }, [storeSession, conversation._id, convCommand, currentAgent]);
+    },
+    [storeSession, conversation._id, convCommand, currentAgent],
+  );
 
   // --- keyboard mode (mirrors the project picker's) -----------------------
   // Entered via ⌥↓ from NewSessionView's chord router. Focus is held in a
@@ -988,100 +1453,172 @@ function AgentSwitcher({ conversation, showWorkflow, onToggleWorkflow, selectedW
 
   const focusAgentPicker = useCallback(() => {
     prevFocusRef.current = document.activeElement as HTMLElement | null;
-    setHi(Math.max(0, AGENT_OPTIONS.findIndex((a) => a.type === currentAgent)));
+    setHi(
+      Math.max(
+        0,
+        AGENT_OPTIONS.findIndex((a) => a.type === currentAgent),
+      ),
+    );
     setPicking(true);
     return true;
   }, [currentAgent, AGENT_OPTIONS]);
 
-  const moveAgentPicker = useCallback((delta: -1 | 1) => {
-    if (!picking) prevFocusRef.current = document.activeElement as HTMLElement | null;
-    setHi((i) => {
-      const currentIndex = Math.max(0, AGENT_OPTIONS.findIndex((a) => a.type === currentAgent));
-      const base = picking ? i : currentIndex;
-      return (base + delta + AGENT_OPTIONS.length) % AGENT_OPTIONS.length;
-    });
-    setPicking(true);
-    return true;
-  }, [currentAgent, picking, AGENT_OPTIONS]);
+  const moveAgentPicker = useCallback(
+    (delta: -1 | 1) => {
+      if (!picking)
+        prevFocusRef.current = document.activeElement as HTMLElement | null;
+      setHi((i) => {
+        const currentIndex = Math.max(
+          0,
+          AGENT_OPTIONS.findIndex((a) => a.type === currentAgent),
+        );
+        const base = picking ? i : currentIndex;
+        return (base + delta + AGENT_OPTIONS.length) % AGENT_OPTIONS.length;
+      });
+      setPicking(true);
+      return true;
+    },
+    [currentAgent, picking, AGENT_OPTIONS],
+  );
 
   // Post-commit focus — same race as the project picker's (see note there).
   useWatchEffect(() => {
     if (picking) holderRef.current?.focus();
   }, [picking]);
 
-  const handleAgentKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowRight" || (e.altKey && e.code === "KeyL")) {
-      e.preventDefault();
-      setHi((i) => (i + 1) % AGENT_OPTIONS.length);
-      return;
-    }
-    if (e.key === "ArrowLeft" || (e.altKey && e.code === "KeyH")) {
-      e.preventDefault();
-      setHi((i) => (i - 1 + AGENT_OPTIONS.length) % AGENT_OPTIONS.length);
-      return;
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const sel = AGENT_OPTIONS[Math.min(hi, AGENT_OPTIONS.length - 1)];
-      if (sel) {
-        handleAgentSwitch(sel.type);
-        if (showWorkflow) onToggleWorkflow();
+  const handleAgentKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "ArrowRight" || (e.altKey && e.code === "KeyL")) {
+        e.preventDefault();
+        setHi((i) => (i + 1) % AGENT_OPTIONS.length);
+        return;
       }
-      exitAgentPicker();
-      return;
-    }
-    // ↓/Esc/Tab drop back to the message box. ⌥↑ (chord router) climbs to
-    // the project picker; our holder input exits via onBlur when focus moves.
-    if (e.key === "ArrowDown" || e.key === "Escape" || e.key === "Tab") {
-      e.preventDefault();
-      e.stopPropagation();
-      exitAgentPicker();
-    }
-  }, [hi, handleAgentSwitch, exitAgentPicker, showWorkflow, onToggleWorkflow, AGENT_OPTIONS]);
+      if (e.key === "ArrowLeft" || (e.altKey && e.code === "KeyH")) {
+        e.preventDefault();
+        setHi((i) => (i - 1 + AGENT_OPTIONS.length) % AGENT_OPTIONS.length);
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const sel = AGENT_OPTIONS[Math.min(hi, AGENT_OPTIONS.length - 1)];
+        if (sel) {
+          handleAgentSwitch(sel.type);
+          if (showWorkflow) onToggleWorkflow();
+        }
+        exitAgentPicker();
+        return;
+      }
+      // ↓/Esc/Tab drop back to the message box. ⌥↑ (chord router) climbs to
+      // the project picker; our holder input exits via onBlur when focus moves.
+      if (e.key === "ArrowDown" || e.key === "Escape" || e.key === "Tab") {
+        e.preventDefault();
+        e.stopPropagation();
+        exitAgentPicker();
+      }
+    },
+    [
+      hi,
+      handleAgentSwitch,
+      exitAgentPicker,
+      showWorkflow,
+      onToggleWorkflow,
+      AGENT_OPTIONS,
+    ],
+  );
 
   // The compact dropdown's open state; ⌥↓ opens it, ⌥←/→ step the agent.
   const [menuOpen, setMenuOpen] = useState(false);
   const launch = useLaunchModel(storeSession?._id || conversation._id);
-  const stepAgent = useCallback((delta: -1 | 1) => {
-    if (AGENT_OPTIONS.length === 0) return false;
-    const i = Math.max(0, AGENT_OPTIONS.findIndex((a) => a.type === currentAgent));
-    handleAgentSwitch(AGENT_OPTIONS[(i + delta + AGENT_OPTIONS.length) % AGENT_OPTIONS.length].type);
-    return true;
-  }, [AGENT_OPTIONS, currentAgent, handleAgentSwitch]);
+  const stepAgent = useCallback(
+    (delta: -1 | 1) => {
+      if (AGENT_OPTIONS.length === 0) return false;
+      const i = Math.max(
+        0,
+        AGENT_OPTIONS.findIndex((a) => a.type === currentAgent),
+      );
+      handleAgentSwitch(
+        AGENT_OPTIONS[(i + delta + AGENT_OPTIONS.length) % AGENT_OPTIONS.length]
+          .type,
+      );
+      return true;
+    },
+    [AGENT_OPTIONS, currentAgent, handleAgentSwitch],
+  );
 
   // Hand the imperative surface up to NewSessionView's ⌥-chord router.
   useWatchEffect(() => {
     if (!handleRef) return;
     handleRef.current = compact
-      ? { focus: () => { setMenuOpen(true); return true; }, isOpen: () => menuOpen, move: stepAgent }
-      : { focus: focusAgentPicker, isOpen: () => picking, move: moveAgentPicker };
+      ? {
+          focus: () => {
+            setMenuOpen(true);
+            return true;
+          },
+          isOpen: () => menuOpen,
+          move: stepAgent,
+        }
+      : {
+          focus: focusAgentPicker,
+          isOpen: () => picking,
+          move: moveAgentPicker,
+        };
   });
-  useWatchEffect(() => () => { if (handleRef) handleRef.current = null; }, [handleRef]);
+  useWatchEffect(
+    () => () => {
+      if (handleRef) handleRef.current = null;
+    },
+    [handleRef],
+  );
 
   if (compact) {
-    const current = AGENT_OPTIONS.find((a) => a.type === currentAgent)
-      ?? AGENT_PICKER_OPTIONS.find((a) => a.convexType === currentAgent);
+    const current =
+      AGENT_OPTIONS.find((a) => a.type === currentAgent) ??
+      AGENT_PICKER_OPTIONS.find((a) => a.convexType === currentAgent);
     const sessionId = storeSession?._id || conversation._id;
     return (
       <>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
-            <button type="button" className={FOOT_PICK} title="Agent and model for this session">
+            <button
+              type="button"
+              className={FOOT_PICK}
+              title="Agent and model for this session"
+            >
               <AgentTypeIcon agentType={currentAgent} />
-              <span className={agentAccent(currentAgent).text}>{current?.label ?? currentAgent}</span>
-              {!hosted && launch.cfg && <LaunchModelLabel label={launch.label} noDefault={launch.noDefault} />}
+              <span className={agentAccent(currentAgent).text}>
+                {current?.label ?? currentAgent}
+              </span>
+              {!hosted && launch.cfg && (
+                <LaunchModelLabel
+                  label={launch.label}
+                  noDefault={launch.noDefault}
+                />
+              )}
               <ChevronDown className="w-3 h-3 opacity-50" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="p-0 max-w-[calc(100vw-1rem)]" onCloseAutoFocus={(e) => { e.preventDefault(); restorePickerFocus(null); }}>
+          <DropdownMenuContent
+            align="start"
+            className="p-0 max-w-[calc(100vw-1rem)]"
+            onCloseAutoFocus={(e) => {
+              e.preventDefault();
+              restorePickerFocus(null);
+            }}
+          >
             <div className="flex">
               <div className="w-40 shrink-0 p-1">
-                <DropdownMenuLabel className="text-mark uppercase tracking-wider text-sol-text-dim">Agent</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-mark uppercase tracking-wider text-sol-text-dim">
+                  Agent
+                </DropdownMenuLabel>
                 {AGENT_OPTIONS.map((a) => (
                   <DropdownMenuItem
                     key={a.type}
                     // Picking an agent keeps the menu open on its models.
-                    onSelect={(e) => { e.preventDefault(); handleAgentSwitch(a.type); if (showWorkflow) onToggleWorkflow(); }}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      handleAgentSwitch(a.type);
+                      if (showWorkflow) onToggleWorkflow();
+                    }}
                     className={`gap-2 text-xs ${a.type === currentAgent ? "bg-sol-bg-alt text-sol-text" : ""}`}
                   >
                     <AgentTypeIcon agentType={a.type} />
@@ -1109,15 +1646,22 @@ function AgentSwitcher({ conversation, showWorkflow, onToggleWorkflow, selectedW
 
   return (
     <div className="flex flex-col items-center gap-2 px-4 pb-7">
-      <div className={`flex flex-wrap items-center justify-center gap-1.5 rounded-lg transition-all ${picking ? "ring-1 ring-sol-cyan/40 bg-sol-cyan/[0.03] p-1.5" : ""}`}>
+      <div
+        className={`flex flex-wrap items-center justify-center gap-1.5 rounded-lg transition-all ${picking ? "ring-1 ring-sol-cyan/40 bg-sol-cyan/[0.03] p-1.5" : ""}`}
+      >
         {AGENT_OPTIONS.map((a, i) => {
           const isActive = currentAgent === a.type && !showWorkflow;
           const isHi = picking && i === hi;
           return (
             <button
               key={a.type}
-              onClick={() => { handleAgentSwitch(a.type); if (showWorkflow) onToggleWorkflow(); }}
-              onMouseEnter={() => { if (picking) setHi(i); }}
+              onClick={() => {
+                handleAgentSwitch(a.type);
+                if (showWorkflow) onToggleWorkflow();
+              }}
+              onMouseEnter={() => {
+                if (picking) setHi(i);
+              }}
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border whitespace-nowrap transition-all ${
                 isHi
                   ? "border-sol-cyan/70 bg-sol-cyan/15 text-sol-cyan ring-1 ring-sol-cyan/50"
@@ -1136,8 +1680,12 @@ function AgentSwitcher({ conversation, showWorkflow, onToggleWorkflow, selectedW
         {!hosted && (
           <>
             <span className="text-sol-border/50 text-xs">|</span>
-            <LaunchModelPill conversationId={storeSession?._id || conversation._id} />
-            <AgentDefinitionPill conversationId={storeSession?._id || conversation._id} />
+            <LaunchModelPill
+              conversationId={storeSession?._id || conversation._id}
+            />
+            <AgentDefinitionPill
+              conversationId={storeSession?._id || conversation._id}
+            />
           </>
         )}
       </div>
@@ -1170,7 +1718,9 @@ function AgentSwitcher({ conversation, showWorkflow, onToggleWorkflow, selectedW
         >
           <option value="">Select a workflow...</option>
           {(workflows || []).map((wf) => (
-            <option key={wf._id} value={wf._id}>{wf.name}</option>
+            <option key={wf._id} value={wf._id}>
+              {wf.name}
+            </option>
           ))}
         </select>
       )}
@@ -1192,16 +1742,23 @@ function AgentSwitcher({ conversation, showWorkflow, onToggleWorkflow, selectedW
 // has no buckets; otherwise a small pill showing where this session will be
 // filed (defaults to the focused bucket chip). Click opens the same palette
 // picker the Ctrl+Shift+M chord uses.
-function NewSessionBucketPill({ conversation }: { conversation: ConversationData }) {
+function NewSessionBucketPill({
+  conversation,
+}: {
+  conversation: ConversationData;
+}) {
   const buckets = useInboxStore((st) => st.buckets);
   const bucketAssignments = useInboxStore((st) => st.bucketAssignments);
   // Auto-filing applies only to an INCLUDE label chip — an excluded label must
   // never claim new blanks.
-  const activeBucketFilter = useInboxStore((st) => (st.chipFilterExclude ? null : st.activeBucketFilter));
+  const activeBucketFilter = useInboxStore((st) =>
+    st.chipFilterExclude ? null : st.activeBucketFilter,
+  );
   const convId = conversation._id;
 
   const visibleBuckets = useMemo(
-    () => (Object.values(buckets) as BucketItem[]).filter((b) => !b.archived_at),
+    () =>
+      (Object.values(buckets) as BucketItem[]).filter((b) => !b.archived_at),
     [buckets],
   );
   const assigned = useMemo(() => {
@@ -1217,7 +1774,12 @@ function NewSessionBucketPill({ conversation }: { conversation: ConversationData
     const store = useInboxStore.getState();
     const real = store.getConvexId(convId) ?? convId;
     if (!isConvexId(real)) return;
-    if (Object.values(store.bucketAssignments).some((row) => row.conversation_id === real)) return;
+    if (
+      Object.values(store.bucketAssignments).some(
+        (row) => row.conversation_id === real,
+      )
+    )
+      return;
     withoutUndo(() => store.assignSessionToBucket(real, activeBucketFilter));
   }, [convId, activeBucketFilter, assigned]);
 
@@ -1226,7 +1788,12 @@ function NewSessionBucketPill({ conversation }: { conversation: ConversationData
   const openPicker = () => {
     const store = useInboxStore.getState();
     const session = store.sessions[convId];
-    if (session) store.openPalette({ targets: [session], targetType: "session", mode: "bucket" });
+    if (session)
+      store.openPalette({
+        targets: [session],
+        targetType: "session",
+        mode: "bucket",
+      });
   };
   const color = assigned ? getLabelColor(assigned.name) : null;
   return (
@@ -1255,7 +1822,11 @@ function NewSessionBucketPill({ conversation }: { conversation: ConversationData
  *  project named after its first message and is that project's main session
  *  (session-projects.md SP4). Shown only before the session exists, and not
  *  for one already started inside a project. */
-function NewSessionProjectToggle({ conversation }: { conversation: ConversationData }) {
+function NewSessionProjectToggle({
+  conversation,
+}: {
+  conversation: ConversationData;
+}) {
   const id = conversation._id;
   const on = useInboxStore((st) => !!st.sessions[id]?._newProject);
   const inProject = useInboxStore((st) => !!st.sessions[id]?.project_id);
@@ -1274,15 +1845,25 @@ function NewSessionProjectToggle({ conversation }: { conversation: ConversationD
 /** The new-session composer's foot: the slot NewSessionView fills with the
  *  launch pickers, and attach. The page (ConversationView) and the popup
  *  (ComposeView) both hand it to MessageInput as composerFoot. */
-export function NewSessionFoot({ slotRef, dropRef }: {
+export function NewSessionFoot({
+  slotRef,
+  dropRef,
+}: {
   slotRef: (el: HTMLElement | null) => void;
   dropRef: React.MutableRefObject<((files: File[]) => void) | null>;
 }) {
   return (
     <>
-      <div ref={slotRef} className="flex min-w-0 flex-wrap items-center gap-0.5" />
+      <div
+        ref={slotRef}
+        className="flex min-w-0 flex-wrap items-center gap-0.5"
+      />
       <span className="ml-auto">
-        <ComposerAttachButton dropRef={dropRef} anyFile className="w-7 h-7 rounded-full flex items-center justify-center text-sol-text-dim hover:text-sol-text hover:bg-sol-bg/60 transition-colors" />
+        <ComposerAttachButton
+          dropRef={dropRef}
+          anyFile
+          className="w-7 h-7 rounded-full flex items-center justify-center text-sol-text-dim hover:text-sol-text hover:bg-sol-bg/60 transition-colors"
+        />
       </span>
     </>
   );
@@ -1293,10 +1874,20 @@ export function NewSessionFoot({ slotRef, dropRef }: {
  *  both bridge it) takes a starter's request. */
 function HostedComposeIntro() {
   const populate = useReviewComposer()?.populate;
-  return <AssistantIntro title={LANE_COPY.intro.sheetTitle} onStarter={populate && ((text) => populate(text, { append: true }))} />;
+  return (
+    <AssistantIntro
+      title={LANE_COPY.intro.sheetTitle}
+      onStarter={populate && ((text) => populate(text, { append: true }))}
+    />
+  );
 }
 
-export function NewSessionView({ conversation, agentControls, slots, role }: {
+export function NewSessionView({
+  conversation,
+  agentControls,
+  slots,
+  role,
+}: {
   conversation: ConversationData;
   agentControls?: NewSessionAgentControls;
   // The new-session page (ConversationView): the host's composer foot and the
@@ -1308,7 +1899,11 @@ export function NewSessionView({ conversation, agentControls, slots, role }: {
   // The new-session page's recipient (ComposeRolePicker): picked, the request
   // goes to that role's standing session, which chooses project and agent, so
   // the launch pickers step aside.
-  role?: { picked: RoleRecipient | null; onPick: (r: RoleRecipient | null) => void; onDone: () => void };
+  role?: {
+    picked: RoleRecipient | null;
+    onPick: (r: RoleRecipient | null) => void;
+    onDone: () => void;
+  };
 }) {
   const [localShowWorkflow, setLocalShowWorkflow] = useState(false);
   const [localWorkflowId, setLocalWorkflowId] = useState("");
@@ -1347,7 +1942,9 @@ export function NewSessionView({ conversation, agentControls, slots, role }: {
       if (hasOpenModal(rootRef.current)) return;
       // Docked composers are non-modal and several mount at once, each with
       // this listener: only the one holding focus answers.
-      const dock = rootRef.current?.closest('[role="dialog"]:not([aria-modal="true"])');
+      const dock = rootRef.current?.closest(
+        '[role="dialog"]:not([aria-modal="true"])',
+      );
       if (dock && !dock.contains(document.activeElement)) return;
       e.preventDefault();
       e.stopPropagation();
@@ -1358,7 +1955,8 @@ export function NewSessionView({ conversation, agentControls, slots, role }: {
       } else if (dir === "up") {
         if (!projectsRef.current?.isOpen()) projectsRef.current?.focus();
       } else {
-        if (projectsRef.current?.isOpen()) projectsRef.current.commitAndClose?.();
+        if (projectsRef.current?.isOpen())
+          projectsRef.current.commitAndClose?.();
         if (!agentsRef.current?.isOpen()) agentsRef.current?.focus();
       }
     };
@@ -1368,7 +1966,9 @@ export function NewSessionView({ conversation, agentControls, slots, role }: {
 
   // The hosted assistant runs in codecast's backend: no folder, machine,
   // cloud placement or stable context to pick, so only the agent row shows.
-  const hosted = isHostedAgentType(useNewSessionAgent(conversation).currentAgent);
+  const hosted = isHostedAgentType(
+    useNewSessionAgent(conversation).currentAgent,
+  );
   // Where the assistant is the only agent and already chosen, the intro names
   // it, so the agent row has nothing left to offer.
   const onlyHosted = useOnlyHostedAgent();
@@ -1391,7 +1991,9 @@ export function NewSessionView({ conversation, agentControls, slots, role }: {
       <div className={className}>
         <StableContextPicker
           conversationId={conversation._id}
-          trailing={<div ref={setMachineSlot} className="flex-shrink-0 min-w-0" />}
+          trailing={
+            <div ref={setMachineSlot} className="flex-shrink-0 min-w-0" />
+          }
         />
       </div>
     </ErrorBoundary>
@@ -1404,41 +2006,70 @@ export function NewSessionView({ conversation, agentControls, slots, role }: {
     return (
       <div ref={rootRef} className="flex flex-col items-center w-full">
         {role && !onlyHosted && (
-          <ComposeRolePicker page picked={role.picked} onPick={role.onPick} onDone={role.onDone} className="w-full max-w-3xl px-4 mb-1" />
+          <ComposeRolePicker
+            page
+            picked={role.picked}
+            onPick={role.onPick}
+            onDone={role.onDone}
+            className="w-full max-w-3xl px-4 mb-1"
+          />
         )}
-        {role?.picked ? null : <>
-        {hosted ? <HostedComposeIntro /> : (
-          <ErrorBoundary name="ProjectSwitcher" level="inline">
-            <ProjectSwitcher conversation={conversation} handleRef={projectsRef} machineSlot={machineSlot} headline modeSlot={modeSlot} />
-          </ErrorBoundary>
-        )}
-        {slots.foot && createPortal(
+        {role?.picked ? null : (
           <>
-            {agentRow && agentSwitcher(true)}
-            {!hosted && <div ref={setModeSlot} className="contents" />}
-            {!hosted && <span className="ml-2 inline-flex"><NewSessionProjectToggle conversation={conversation} /></span>}
-          </>,
-          slots.foot,
-        )}
-        {slots.below && !hosted && createPortal(
-          <>
-            {/* The strip tucked under the composer: which machine, what
+            {hosted ? (
+              <HostedComposeIntro />
+            ) : (
+              <ErrorBoundary name="ProjectSwitcher" level="inline">
+                <ProjectSwitcher
+                  conversation={conversation}
+                  handleRef={projectsRef}
+                  machineSlot={machineSlot}
+                  headline
+                  modeSlot={modeSlot}
+                />
+              </ErrorBoundary>
+            )}
+            {slots.foot &&
+              createPortal(
+                <>
+                  {agentRow && agentSwitcher(true)}
+                  {!hosted && <div ref={setModeSlot} className="contents" />}
+                  {!hosted && (
+                    <span className="ml-2 inline-flex">
+                      <NewSessionProjectToggle conversation={conversation} />
+                    </span>
+                  )}
+                </>,
+                slots.foot,
+              )}
+            {slots.below &&
+              !hosted &&
+              createPortal(
+                <>
+                  {/* The strip tucked under the composer: which machine, what
                 context rides along, and the label. */}
-            <div className="mx-auto conv-col px-2 sm:px-4">
-              <div className="mx-4 flex flex-wrap items-start gap-x-3 gap-y-1 rounded-b-xl border border-t-0 border-sol-border/50 bg-sol-bg-alt/40 px-3 pt-1.5 pb-1.5">
-                <div ref={setMachineSlot} className="shrink-0 min-w-0 max-w-full" />
-                <ErrorBoundary name="StableContextPicker" level="inline">
-                  {/* 10rem is as narrow as the context line gets beside the
+                  <div className="mx-auto conv-col px-2 sm:px-4">
+                    <div className="mx-4 flex flex-wrap items-start gap-x-3 gap-y-1 rounded-b-xl border border-t-0 border-sol-border/50 bg-sol-bg-alt/40 px-3 pt-1.5 pb-1.5">
+                      <div
+                        ref={setMachineSlot}
+                        className="shrink-0 min-w-0 max-w-full"
+                      />
+                      <ErrorBoundary name="StableContextPicker" level="inline">
+                        {/* 10rem is as narrow as the context line gets beside the
                       machine chip; below it the line wraps under the chip. */}
-                  <StableContextPicker conversationId={conversation._id} className="flex-[1_1_10rem] min-w-0 pt-1" />
-                </ErrorBoundary>
-                <NewSessionBucketPill conversation={conversation} />
-              </div>
-            </div>
-          </>,
-          slots.below,
+                        <StableContextPicker
+                          conversationId={conversation._id}
+                          className="flex-[1_1_10rem] min-w-0 pt-1"
+                        />
+                      </ErrorBoundary>
+                      <NewSessionBucketPill conversation={conversation} />
+                    </div>
+                  </div>
+                </>,
+                slots.below,
+              )}
+          </>
         )}
-        </>}
       </div>
     );
   }
@@ -1447,16 +2078,25 @@ export function NewSessionView({ conversation, agentControls, slots, role }: {
   // pins to the bottom, directly above the message input (the host renders the
   // input right after this view). Needs a full-height parent.
   return (
-    <div ref={rootRef} className="flex flex-col items-center w-full flex-1 min-h-0">
+    <div
+      ref={rootRef}
+      className="flex flex-col items-center w-full flex-1 min-h-0"
+    >
       {hosted ? (
         <HostedComposeIntro />
       ) : (
         <>
           <ErrorBoundary name="ProjectSwitcher" level="inline">
-            <ProjectSwitcher conversation={conversation} handleRef={projectsRef} machineSlot={machineSlot} />
+            <ProjectSwitcher
+              conversation={conversation}
+              handleRef={projectsRef}
+              machineSlot={machineSlot}
+            />
           </ErrorBoundary>
           <div className="flex-1" />
-          <div className="w-full px-4 mb-2 flex"><NewSessionProjectToggle conversation={conversation} /></div>
+          <div className="w-full px-4 mb-2 flex">
+            <NewSessionProjectToggle conversation={conversation} />
+          </div>
           {contextLine("w-full px-4 mb-4")}
         </>
       )}
@@ -1525,9 +2165,14 @@ function GuestJoinCTA() {
   return (
     <div className="bg-sol-bg border-t border-sol-border/30">
       <div className="mx-auto conv-col px-2 sm:px-4 py-3 flex items-center justify-between gap-4">
-        <a href="/" className="flex items-center gap-2 text-sol-text-dim text-xs hover:text-sol-text transition-colors">
+        <a
+          href="/"
+          className="flex items-center gap-2 text-sol-text-dim text-xs hover:text-sol-text transition-colors"
+        >
           <LogoIcon size={20} />
-          <span className="font-mono font-bold text-sol-text-muted tracking-tight">codecast</span>
+          <span className="font-mono font-bold text-sol-text-muted tracking-tight">
+            codecast
+          </span>
           <span className="opacity-50">|</span>
           <span>AI session sharing</span>
         </a>
@@ -1544,11 +2189,18 @@ function GuestJoinCTA() {
 
 // Isolated component: keeps useConvexAuth() out of ConversationView's render
 // scope so auth-context re-renders don't cascade through the tooltip ref chain.
-export function NonOwnerMessageInput({ conversation, onForkReply, autoFocusInput, onPopulateInput }: {
+export function NonOwnerMessageInput({
+  conversation,
+  onForkReply,
+  autoFocusInput,
+  onPopulateInput,
+}: {
   conversation: ConversationData;
   onForkReply?: (content: string) => void;
   autoFocusInput?: boolean;
-  onPopulateInput?: React.MutableRefObject<((text: string, opts?: { append?: boolean }) => void) | null>;
+  onPopulateInput?: React.MutableRefObject<
+    ((text: string, opts?: { append?: boolean }) => void) | null
+  >;
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   if (!isAuthenticated && !isLoading) return <GuestJoinCTA />;

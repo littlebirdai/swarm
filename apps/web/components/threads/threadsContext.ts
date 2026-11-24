@@ -30,10 +30,13 @@ export type ThreadsPageContextValue = {
   select: (card: ThreadCardModel) => void;
 };
 
-export const ThreadsPageCtx = createContext<ThreadsPageContextValue | null>(null);
+export const ThreadsPageCtx = createContext<ThreadsPageContextValue | null>(
+  null,
+);
 
 export function useThreadsPage(): ThreadsPageContextValue {
   const v = useContext(ThreadsPageCtx);
-  if (!v) throw new Error("useThreadsPage: no ThreadsPageCtx above this component");
+  if (!v)
+    throw new Error("useThreadsPage: no ThreadsPageCtx above this component");
   return v;
 }

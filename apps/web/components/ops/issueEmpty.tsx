@@ -6,21 +6,51 @@ import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useOpsReplays, useOpsWatches } from "../../hooks/useSyncOps";
 import { relTimeShort } from "../../lib/utils";
 import { opsHref, sourceConnectHref } from "./opsPaths";
-import { OpsFeedEmpty, ProviderIcon, SETUP_HREF, SOURCE_PROVIDER_LABEL, SourceChip, SourceHealthContext, sourceFacts, type useOpsFeed } from "./parts";
+import {
+  OpsFeedEmpty,
+  ProviderIcon,
+  SETUP_HREF,
+  SOURCE_PROVIDER_LABEL,
+  SourceChip,
+  SourceHealthContext,
+  sourceFacts,
+  type useOpsFeed,
+} from "./parts";
 import type { OpsSource } from "./opsTypes";
 import { HealthBadge, HealthFixButton } from "./SourceHealthParts";
 import { useSourceHealth } from "./useSourceHealth";
 
 /** No groups at all: whether anything is connected, and if so, what each source last sent. */
-export function IssuesEmpty({ feed, sources }: { feed: ReturnType<typeof useOpsFeed>; sources: OpsSource[] }) {
-  if (!feed?.ready || feed.error) return <OpsFeedEmpty feeds={[feed]} what="issues" title="No issues" />;
+export function IssuesEmpty({
+  feed,
+  sources,
+}: {
+  feed: ReturnType<typeof useOpsFeed>;
+  sources: OpsSource[];
+}) {
+  if (!feed?.ready || feed.error)
+    return <OpsFeedEmpty feeds={[feed]} what="issues" title="No issues" />;
   if (sources.length === 0) {
     return (
       <div className="iss-empty">
-        <div className="text-[14px] text-sol-text font-medium">No sources connected</div>
+        <div className="text-[14px] text-sol-text font-medium">
+          No sources connected
+        </div>
         <div className="iss-providers">
           {(["sentry", "posthog", "app", "github", "sdk"] as const).map((p) => (
-            <Link key={p} href={sourceConnectHref(p)} className="iss-provider" data-provider={p}><ProviderIcon provider={p} className="w-4 h-4" />{p === "sdk" ? "Ingest key" : p === "github" ? "GitHub CI" : SOURCE_PROVIDER_LABEL[p]}</Link>
+            <Link
+              key={p}
+              href={sourceConnectHref(p)}
+              className="iss-provider"
+              data-provider={p}
+            >
+              <ProviderIcon provider={p} className="w-4 h-4" />
+              {p === "sdk"
+                ? "Ingest key"
+                : p === "github"
+                  ? "GitHub CI"
+                  : SOURCE_PROVIDER_LABEL[p]}
+            </Link>
           ))}
         </div>
       </div>
@@ -30,9 +60,13 @@ export function IssuesEmpty({ feed, sources }: { feed: ReturnType<typeof useOpsF
     <div className="iss-empty">
       <div className="text-[14px] text-sol-text font-medium">No issues yet</div>
       <div className="iss-quiet-sources">
-        {sources.map((s) => <QuietSource key={s._id} source={s} />)}
+        {sources.map((s) => (
+          <QuietSource key={s._id} source={s} />
+        ))}
       </div>
-      <Link href={SETUP_HREF} className="ops-btn">Sources</Link>
+      <Link href={SETUP_HREF} className="ops-btn">
+        Sources
+      </Link>
     </div>
   );
 }
@@ -44,8 +78,13 @@ function QuietSource({ source }: { source: OpsSource }) {
   const bad = !!health && (health.tone === "bad" || health.tone === "warn");
   return (
     <div className="iss-quiet-source" data-bad={bad ? "true" : undefined}>
-      <SourceChip source={source} href={opsHref.tab("timeline", { source: source.name })} />
-      <span className="ops-dim text-meta truncate">{sourceFacts(source).join(" · ")}</span>
+      <SourceChip
+        source={source}
+        href={opsHref.tab("timeline", { source: source.name })}
+      />
+      <span className="ops-dim text-meta truncate">
+        {sourceFacts(source).join(" · ")}
+      </span>
       {bad && health && <HealthFixButton source={source} health={health} />}
     </div>
   );
@@ -67,9 +106,24 @@ export function SourceNoIssues({ source }: { source: OpsSource }) {
   const days = source.days ?? [];
   const nEvents = days.reduce((a, d) => a + d.events, 0);
   const lands = [
-    { tab: "timeline" as const, label: "Timeline", n: nEvents, unit: "events, 30d" },
-    { tab: "replays" as const, label: "Replays", n: nReplays, unit: nReplays === 1 ? "replay" : "replays" },
-    { tab: "metrics" as const, label: "Metrics", n: nWatches, unit: nWatches === 1 ? "watch" : "watches" },
+    {
+      tab: "timeline" as const,
+      label: "Timeline",
+      n: nEvents,
+      unit: "events, 30d",
+    },
+    {
+      tab: "replays" as const,
+      label: "Replays",
+      n: nReplays,
+      unit: nReplays === 1 ? "replay" : "replays",
+    },
+    {
+      tab: "metrics" as const,
+      label: "Metrics",
+      n: nWatches,
+      unit: nWatches === 1 ? "watch" : "watches",
+    },
   ].filter((l) => l.n > 0);
   const bad = health && (health.tone === "bad" || health.tone === "warn");
   return (
@@ -77,29 +131,62 @@ export function SourceNoIssues({ source }: { source: OpsSource }) {
       <div className="iss-src-empty" data-bad={bad ? "true" : undefined}>
         <div className="iss-src-empty-head">
           <ProviderIcon provider={source.provider} className="w-4 h-4" />
-          <span className="text-[14px] text-sol-text font-medium">{source.name}</span>
+          <span className="text-[14px] text-sol-text font-medium">
+            {source.name}
+          </span>
           {health && <HealthBadge health={health} />}
           <span className="ops-num ops-dim text-[12px]">0 issues</span>
         </div>
         <dl className="iss-src-facts ops-num">
           <dt>last event</dt>
-          <dd>{health?.lastAt ?? source.last_event_at ? `${relTimeShort((health?.lastAt ?? source.last_event_at)!, now)} ago` : "never"}</dd>
-          {health?.polledAt ? (<><dt>last poll</dt><dd>{relTimeShort(health.polledAt, now)} ago</dd></>) : null}
-          {bad && health?.reason ? (<><dt>problem</dt><dd className="iss-src-reason" title={health.reason}>{health.reason}</dd></>) : null}
+          <dd>
+            {(health?.lastAt ?? source.last_event_at)
+              ? `${relTimeShort((health?.lastAt ?? source.last_event_at)!, now)} ago`
+              : "never"}
+          </dd>
+          {health?.polledAt ? (
+            <>
+              <dt>last poll</dt>
+              <dd>{relTimeShort(health.polledAt, now)} ago</dd>
+            </>
+          ) : null}
+          {bad && health?.reason ? (
+            <>
+              <dt>problem</dt>
+              <dd className="iss-src-reason" title={health.reason}>
+                {health.reason}
+              </dd>
+            </>
+          ) : null}
         </dl>
         {lands.length > 0 && (
           <div className="iss-src-lands">
             {lands.map((l) => (
-              <Link key={l.tab} href={opsHref.tab(l.tab, { source: source.name })} className="iss-src-land">
+              <Link
+                key={l.tab}
+                href={opsHref.tab(l.tab, { source: source.name })}
+                className="iss-src-land"
+              >
                 <span className="iss-src-land-k">{l.label}</span>
-                <span className="ops-num"><b>{l.n.toLocaleString()}</b> <span className="ops-dim">{l.unit}</span></span>
+                <span className="ops-num">
+                  <b>{l.n.toLocaleString()}</b>{" "}
+                  <span className="ops-dim">{l.unit}</span>
+                </span>
               </Link>
             ))}
           </div>
         )}
         <div className="flex gap-2 flex-wrap">
-          {health && bad && <HealthFixButton source={source} health={health} primary />}
-          <Link href={opsHref.home({ source: source.name })} className="ops-btn" data-tone={bad ? undefined : "primary"}>Open {source.name}</Link>
+          {health && bad && (
+            <HealthFixButton source={source} health={health} primary />
+          )}
+          <Link
+            href={opsHref.home({ source: source.name })}
+            className="ops-btn"
+            data-tone={bad ? undefined : "primary"}
+          >
+            Open {source.name}
+          </Link>
         </div>
       </div>
     </div>

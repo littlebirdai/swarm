@@ -95,8 +95,12 @@ export async function expandEntityMentions(
   let expanded: ExpandedMention[] | null = null;
   try {
     expanded = await Promise.race<ExpandedMention[] | null>([
-      runQuery(mentions.map((m) => ({ type: m.type, shortId: m.shortId, id: m.id }))),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+      runQuery(
+        mentions.map((m) => ({ type: m.type, shortId: m.shortId, id: m.id })),
+      ),
+      new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), timeoutMs),
+      ),
     ]);
   } catch {
     return text;
@@ -108,7 +112,11 @@ export async function expandEntityMentions(
     const exp = expanded.find(
       (e) => (m.shortId && e.shortId === m.shortId) || (m.id && e.id === m.id),
     );
-    if (exp?.markdown) result = result.replace(m.fullMatch, m.fullMatch + wrapMentionContext(exp.markdown));
+    if (exp?.markdown)
+      result = result.replace(
+        m.fullMatch,
+        m.fullMatch + wrapMentionContext(exp.markdown),
+      );
   }
   return result;
 }

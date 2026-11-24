@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { DRAIN_MAX_CYCLES, awaitTmuxComposerPayload, drainTmuxComposer, tmuxComposerHoldsPayload, tmuxComposerText, tmuxWatchablePrefix } from "./daemon.js";
+import {
+  DRAIN_MAX_CYCLES,
+  awaitTmuxComposerPayload,
+  drainTmuxComposer,
+  tmuxComposerHoldsPayload,
+  tmuxComposerText,
+  tmuxWatchablePrefix,
+} from "./daemon.js";
 
 // ct-40212 / ct-47277: a painted composer does not prove stdin is being read,
 // and a foreign probe character typed to prove it can outrace any screen-based
@@ -45,50 +52,89 @@ describe("awaitTmuxComposerPayload", () => {
     const payload = `Earlier report lines\n${tail}`;
     const screen = BOX(tail.replaceAll("\n", "\n  "));
     expect(tmuxComposerText(screen)).toContain("check: prompt fidelity");
-    expect(await awaitTmuxComposerPayload("t:0.0", payload, {
-      typed: true,
-      budgetMs: 1000,
-      exec: async () => ({ stdout: screen, stderr: "" }),
-      rePaste: async () => { throw new Error("must not duplicate the report"); },
-    })).toBe("matched");
+    expect(
+      await awaitTmuxComposerPayload("t:0.0", payload, {
+        typed: true,
+        budgetMs: 1000,
+        exec: async () => ({ stdout: screen, stderr: "" }),
+        rePaste: async () => {
+          throw new Error("must not duplicate the report");
+        },
+      }),
+    ).toBe("matched");
   });
 
-  test.each([false, true])("Codex collapsed paste excludes its footer before faint text is removed (styled=%s)", async styled => {
-    const footer = styled
-      ? "  \x1b[38;2;246;226;183mgpt-6-astra xhigh\x1b[2m · \x1b[0m\x1b[38;2;171;223;167m~/src/codecast\x1b[2m · \x1b[0mFix Jordan switch state"
-      : "  gpt-6-astra xhigh · ~/src/codecast · Fix Jordan switch state";
-    expect(await awaitTmuxComposerPayload("t:0.0", PAYLOAD.repeat(25), {
-      bracketedPaste: true, allowRePaste: false,
-      rePaste: async () => { throw new Error("must not repeat the paste"); },
-      exec: async () => ({ stdout: `› [Pasted Content ${PAYLOAD.repeat(25).length} chars]\n \n${footer}\n` }) as any,
-    })).toBe("matched");
-  });
+  test.each([false, true])(
+    "Codex collapsed paste excludes its footer before faint text is removed (styled=%s)",
+    async (styled) => {
+      const footer = styled
+        ? "  \x1b[38;2;246;226;183mgpt-6-astra xhigh\x1b[2m · \x1b[0m\x1b[38;2;171;223;167m~/src/codecast\x1b[2m · \x1b[0mFix Jordan switch state"
+        : "  gpt-6-astra xhigh · ~/src/codecast · Fix Jordan switch state";
+      expect(
+        await awaitTmuxComposerPayload("t:0.0", PAYLOAD.repeat(25), {
+          bracketedPaste: true,
+          allowRePaste: false,
+          rePaste: async () => {
+            throw new Error("must not repeat the paste");
+          },
+          exec: async () =>
+            ({
+              stdout: `› [Pasted Content ${PAYLOAD.repeat(25).length} chars]\n \n${footer}\n`,
+            }) as any,
+        }),
+      ).toBe("matched");
+    },
+  );
 
-  test.each(["foreign", "\nforeign", "[Pasted Content 100 chars]"])("Codex footer recognition does not hide extra draft text: %s", async residue => {
-    await expect(awaitTmuxComposerPayload("t:0.0", PAYLOAD.repeat(25), {
-      bracketedPaste: true, allowRePaste: false, budgetMs: 1000,
-      rePaste: async () => { throw new Error("must not repeat the paste"); },
-      exec: async () => ({ stdout: `› [Pasted Content ${PAYLOAD.repeat(25).length} chars]\n${residue}\n\n  gpt-6-astra xhigh · ~/src/codecast\n` }) as any,
-    })).rejects.toThrow("INJECT_UNVERIFIED");
-  });
+  test.each(["foreign", "\nforeign", "[Pasted Content 100 chars]"])(
+    "Codex footer recognition does not hide extra draft text: %s",
+    async (residue) => {
+      await expect(
+        awaitTmuxComposerPayload("t:0.0", PAYLOAD.repeat(25), {
+          bracketedPaste: true,
+          allowRePaste: false,
+          budgetMs: 1000,
+          rePaste: async () => {
+            throw new Error("must not repeat the paste");
+          },
+          exec: async () =>
+            ({
+              stdout: `› [Pasted Content ${PAYLOAD.repeat(25).length} chars]\n${residue}\n\n  gpt-6-astra xhigh · ~/src/codecast\n`,
+            }) as any,
+        }),
+      ).rejects.toThrow("INJECT_UNVERIFIED");
+    },
+  );
 
   test("a long single-line bracketed paste can collapse into a chip", async () => {
-    expect(await awaitTmuxComposerPayload("t:0.0", PAYLOAD.repeat(25), {
-      bracketedPaste: true,
-      allowRePaste: false,
-      rePaste: async () => { throw new Error("must not repeat the paste"); },
-      exec: async () => ({ stdout: BOX("[Pasted text #98]") }) as any,
-    })).toBe("matched");
+    expect(
+      await awaitTmuxComposerPayload("t:0.0", PAYLOAD.repeat(25), {
+        bracketedPaste: true,
+        allowRePaste: false,
+        rePaste: async () => {
+          throw new Error("must not repeat the paste");
+        },
+        exec: async () => ({ stdout: BOX("[Pasted text #98]") }) as any,
+      }),
+    ).toBe("matched");
   });
 
-  test.each(["[Pasted text #98] foreign", "[Pasted text #98]\nforeign", "[Pasted text #98]\n[Pasted text #99]"])("a paste chip with residue is refused: %s", async composer => {
-    await expect(awaitTmuxComposerPayload("t:0.0", PAYLOAD.repeat(25), {
-      bracketedPaste: true,
-      allowRePaste: false,
-      budgetMs: 1_000,
-      rePaste: async () => { throw new Error("must not repeat the paste"); },
-      exec: async () => ({ stdout: BOX(composer) }) as any,
-    })).rejects.toThrow("INJECT_UNVERIFIED");
+  test.each([
+    "[Pasted text #98] foreign",
+    "[Pasted text #98]\nforeign",
+    "[Pasted text #98]\n[Pasted text #99]",
+  ])("a paste chip with residue is refused: %s", async (composer) => {
+    await expect(
+      awaitTmuxComposerPayload("t:0.0", PAYLOAD.repeat(25), {
+        bracketedPaste: true,
+        allowRePaste: false,
+        budgetMs: 1_000,
+        rePaste: async () => {
+          throw new Error("must not repeat the paste");
+        },
+        exec: async () => ({ stdout: BOX(composer) }) as any,
+      }),
+    ).rejects.toThrow("INJECT_UNVERIFIED");
   });
 
   // ct-51354: a collapsed chip hides its own text, so the "+N lines" it prints
@@ -100,32 +146,46 @@ describe("awaitTmuxComposerPayload", () => {
   const FOUR_LINES = "first line\nsecond line\nthird line\nfourth line";
 
   test("a chip whose line count matches the payload is ours", async () => {
-    expect(await awaitTmuxComposerPayload("t:0.0", FOUR_LINES, {
-      bracketedPaste: true,
-      allowRePaste: false,
-      rePaste: async () => { throw new Error("must not repeat the paste"); },
-      exec: async () => ({ stdout: BOX("[Pasted text #1 +3 lines]") }) as any,
-    })).toBe("matched");
+    expect(
+      await awaitTmuxComposerPayload("t:0.0", FOUR_LINES, {
+        bracketedPaste: true,
+        allowRePaste: false,
+        rePaste: async () => {
+          throw new Error("must not repeat the paste");
+        },
+        exec: async () => ({ stdout: BOX("[Pasted text #1 +3 lines]") }) as any,
+      }),
+    ).toBe("matched");
   });
 
   test("a chip claiming a different line count is a stranger's draft, never submitted", async () => {
-    await expect(awaitTmuxComposerPayload("t:0.0", FOUR_LINES, {
-      bracketedPaste: true,
-      allowRePaste: false,
-      budgetMs: 1_000,
-      rePaste: async () => { throw new Error("must not repeat the paste"); },
-      exec: async () => ({ stdout: BOX("[Pasted text #1 +20 lines]") }) as any,
-    })).rejects.toThrow("INJECT_UNVERIFIED");
+    await expect(
+      awaitTmuxComposerPayload("t:0.0", FOUR_LINES, {
+        bracketedPaste: true,
+        allowRePaste: false,
+        budgetMs: 1_000,
+        rePaste: async () => {
+          throw new Error("must not repeat the paste");
+        },
+        exec: async () =>
+          ({ stdout: BOX("[Pasted text #1 +20 lines]") }) as any,
+      }),
+    ).rejects.toThrow("INJECT_UNVERIFIED");
   });
 
   test("a counted chip over a single-line payload is a stranger's draft", async () => {
-    await expect(awaitTmuxComposerPayload("t:0.0", PAYLOAD, {
-      bracketedPaste: true,
-      allowRePaste: false,
-      budgetMs: 1_000,
-      rePaste: async () => { throw new Error("must not repeat the paste"); },
-      exec: async () => ({ stdout: BOX("[Pasted text #1 +10 lines]") }) as any,
-    })).rejects.toThrow("INJECT_UNVERIFIED");
+    await expect(
+      awaitTmuxComposerPayload("t:0.0", PAYLOAD, {
+        bracketedPaste: true,
+        allowRePaste: false,
+        budgetMs: 1_000,
+        rePaste: async () => {
+          throw new Error("must not repeat the paste");
+        },
+        exec: async () =>
+          ({ stdout: BOX("[Pasted text #1 +10 lines]") }) as any,
+      }),
+    ).rejects.toThrow("INJECT_UNVERIFIED");
   });
 
   test("matches when the composer shows the payload, without any keys sent", async () => {
@@ -136,7 +196,9 @@ describe("awaitTmuxComposerPayload", () => {
       return { stdout: "" };
     };
     const out = await awaitTmuxComposerPayload("t:0.0", PAYLOAD, {
-      rePaste: async () => { throw new Error("must not re-paste on a clean match"); },
+      rePaste: async () => {
+        throw new Error("must not re-paste on a clean match");
+      },
       exec: exec as any,
     });
     expect(out).toBe("matched");
@@ -161,7 +223,10 @@ describe("awaitTmuxComposerPayload", () => {
       return { stdout: "" };
     };
     const out = await awaitTmuxComposerPayload("t:0.0", PAYLOAD, {
-      rePaste: async () => { rePastes++; composer = PAYLOAD; },
+      rePaste: async () => {
+        rePastes++;
+        composer = PAYLOAD;
+      },
       exec: exec as any,
     });
     expect(out).toBe("matched");
@@ -186,7 +251,9 @@ describe("awaitTmuxComposerPayload", () => {
     };
     const out = await awaitTmuxComposerPayload("t:0.0", PAYLOAD, {
       prePaste,
-      rePaste: async () => { rePastes++; },
+      rePaste: async () => {
+        rePastes++;
+      },
       exec: exec as any,
     });
     expect(out).toBe("matched");
@@ -199,16 +266,21 @@ describe("awaitTmuxComposerPayload", () => {
     let rePastes = 0;
     let polls = 0;
     const exec = async (args: Args): Promise<{ stdout: string }> => {
-      if (args[0] === "capture-pane") return { stdout: `${prePaste} ${++polls}` };
+      if (args[0] === "capture-pane")
+        return { stdout: `${prePaste} ${++polls}` };
       if (args[0] === "send-keys") sends.push(args[args.length - 1]);
       return { stdout: "" };
     };
-    await expect(awaitTmuxComposerPayload("t:0.0", PAYLOAD, {
-      prePaste,
-      rePaste: async () => { rePastes++; },
-      budgetMs: 900,
-      exec: exec as any,
-    })).rejects.toThrow("AGENT_STDIN_NOT_READY");
+    await expect(
+      awaitTmuxComposerPayload("t:0.0", PAYLOAD, {
+        prePaste,
+        rePaste: async () => {
+          rePastes++;
+        },
+        budgetMs: 900,
+        exec: exec as any,
+      }),
+    ).rejects.toThrow("AGENT_STDIN_NOT_READY");
     expect(rePastes).toBe(0);
     expect(sends).toEqual([]);
   });
@@ -232,7 +304,10 @@ describe("awaitTmuxComposerPayload", () => {
       return { stdout: "" };
     };
     const out = await awaitTmuxComposerPayload("t:0.0", PAYLOAD, {
-      rePaste: async () => { rePastes++; composer = PAYLOAD; },
+      rePaste: async () => {
+        rePastes++;
+        composer = PAYLOAD;
+      },
       exec: exec as any,
     });
     expect(out).toBe("matched");
@@ -247,12 +322,16 @@ describe("awaitTmuxComposerPayload", () => {
     let rePastes = 0;
     const exec = async (args: Args): Promise<{ stdout: string }> => {
       if (args[0] === "capture-pane") return { stdout: BOX(composer) };
-      if (args[0] === "send-keys" && args[args.length - 1] === "C-k") composer = "";
+      if (args[0] === "send-keys" && args[args.length - 1] === "C-k")
+        composer = "";
       return { stdout: "" };
     };
     const out = await awaitTmuxComposerPayload("t:0.0", "one\ntwo\n\nthree", {
       bracketedPaste: true,
-      rePaste: async () => { rePastes++; composer = "[Pasted text #1 +3 lines]"; },
+      rePaste: async () => {
+        rePastes++;
+        composer = "[Pasted text #1 +3 lines]";
+      },
       exec: exec as any,
     });
     expect(out).toBe("matched");
@@ -266,11 +345,14 @@ describe("awaitTmuxComposerPayload", () => {
     const repeating = `${"z".repeat(60)}${"z".repeat(60)}`;
     const exec = async (args: Args): Promise<{ stdout: string }> => {
       if (args[0] === "capture-pane") return { stdout: BOX(repeating) };
-      if (args[0] === "send-keys") throw new Error("must not type over a clean composer");
+      if (args[0] === "send-keys")
+        throw new Error("must not type over a clean composer");
       return { stdout: "" };
     };
     const out = await awaitTmuxComposerPayload("t:0.0", repeating, {
-      rePaste: async () => { throw new Error("must not re-paste"); },
+      rePaste: async () => {
+        throw new Error("must not re-paste");
+      },
       exec: exec as any,
     });
     expect(out).toBe("matched");
@@ -278,7 +360,8 @@ describe("awaitTmuxComposerPayload", () => {
 
   test("throws AGENT_STDIN_NOT_READY when the payload never renders", async () => {
     const exec = async (args: Args): Promise<{ stdout: string }> => {
-      if (args[0] === "capture-pane") return { stdout: BOX("stuck foreign draft") };
+      if (args[0] === "capture-pane")
+        return { stdout: BOX("stuck foreign draft") };
       return { stdout: "" };
     };
     await expect(
@@ -292,11 +375,14 @@ describe("awaitTmuxComposerPayload", () => {
 
   test("glyphless pane is unwatchable — nothing typed, legacy timing applies", async () => {
     const exec = async (args: Args): Promise<{ stdout: string }> => {
-      if (args[0] === "send-keys") throw new Error("must not type into a glyphless pane");
+      if (args[0] === "send-keys")
+        throw new Error("must not type into a glyphless pane");
       return { stdout: "opencode ready\nno prompt glyph here\n" };
     };
     const out = await awaitTmuxComposerPayload("t:0.0", PAYLOAD, {
-      rePaste: async () => { throw new Error("must not re-paste"); },
+      rePaste: async () => {
+        throw new Error("must not re-paste");
+      },
       exec: exec as any,
     });
     expect(out).toBe("unwatchable");
@@ -308,25 +394,35 @@ describe("awaitTmuxComposerPayload", () => {
     const exec = async (): Promise<{ stdout: string }> => {
       throw new Error("must not touch tmux at all");
     };
-    const out = await awaitTmuxComposerPayload("t:0.0", "the prompt shows ❯ here", {
-      rePaste: async () => {},
-      exec: exec as any,
-    });
+    const out = await awaitTmuxComposerPayload(
+      "t:0.0",
+      "the prompt shows ❯ here",
+      {
+        rePaste: async () => {},
+        exec: exec as any,
+      },
+    );
     expect(out).toBe("unwatchable");
   });
 
   // A 14-line payload is the one whose chip reads "+13 lines": Claude Code
   // counts the breaks between lines, not the lines.
-  const THIRTEEN_BREAKS = Array.from({ length: 14 }, (_, i) => `line ${i + 1}`).join("\n");
+  const THIRTEEN_BREAKS = Array.from(
+    { length: 14 },
+    (_, i) => `line ${i + 1}`,
+  ).join("\n");
 
   test("multi-line paste rendered as a collapsed chip counts as the payload", async () => {
     const exec = async (args: Args): Promise<{ stdout: string }> => {
-      if (args[0] === "capture-pane") return { stdout: BOX("[Pasted text #1 +13 lines]") };
+      if (args[0] === "capture-pane")
+        return { stdout: BOX("[Pasted text #1 +13 lines]") };
       return { stdout: "" };
     };
     const out = await awaitTmuxComposerPayload("t:0.0", THIRTEEN_BREAKS, {
       bracketedPaste: true,
-      rePaste: async () => { throw new Error("must not re-paste on a clean chip"); },
+      rePaste: async () => {
+        throw new Error("must not re-paste on a clean chip");
+      },
       exec: exec as any,
     });
     expect(out).toBe("matched");
@@ -337,12 +433,16 @@ describe("awaitTmuxComposerPayload", () => {
     let rePastes = 0;
     const exec = async (args: Args): Promise<{ stdout: string }> => {
       if (args[0] === "capture-pane") return { stdout: BOX(composer) };
-      if (args[0] === "send-keys" && args[args.length - 1] === "C-k") composer = "";
+      if (args[0] === "send-keys" && args[args.length - 1] === "C-k")
+        composer = "";
       return { stdout: "" };
     };
     const out = await awaitTmuxComposerPayload("t:0.0", THIRTEEN_BREAKS, {
       bracketedPaste: true,
-      rePaste: async () => { rePastes++; composer = "[Pasted text #1 +13 lines]"; },
+      rePaste: async () => {
+        rePastes++;
+        composer = "[Pasted text #1 +13 lines]";
+      },
       exec: exec as any,
     });
     expect(out).toBe("matched");
@@ -358,7 +458,9 @@ describe("awaitTmuxComposerPayload", () => {
       return { stdout: "" };
     };
     const out = await awaitTmuxComposerPayload("t:0.0", PAYLOAD, {
-      rePaste: async () => { throw new Error("must not re-paste"); },
+      rePaste: async () => {
+        throw new Error("must not re-paste");
+      },
       exec: exec as any,
     });
     expect(out).toBe("matched");
@@ -375,7 +477,8 @@ describe("awaitTmuxComposerPayload", () => {
 // renamed paste chip or a lost prompt glyph fails here without a binary.
 // ---------------------------------------------------------------------------
 
-const MULTILINE = "matrix payload first line\nsecond line\n\nfourth after a blank line";
+const MULTILINE =
+  "matrix payload first line\nsecond line\n\nfourth after a blank line";
 
 const CLAUDE_PASTED = `
  ▐▛███▛█   Claude Code v2.1.263
@@ -430,12 +533,17 @@ describe("awaitTmuxComposerPayload — real client composers", () => {
   const gate = async (pane: string, payload: string): Promise<string> => {
     const exec = async (args: Args): Promise<{ stdout: string }> => {
       if (args[0] === "capture-pane") return { stdout: pane };
-      if (args[0] === "send-keys") throw new Error(`must not type into a settled composer: ${args.join(" ")}`);
+      if (args[0] === "send-keys")
+        throw new Error(
+          `must not type into a settled composer: ${args.join(" ")}`,
+        );
       return { stdout: "" };
     };
     return awaitTmuxComposerPayload("t:0.0", payload, {
       bracketedPaste: payload.includes("\n"),
-      rePaste: async () => { throw new Error("must not re-paste a composer that holds the payload"); },
+      rePaste: async () => {
+        throw new Error("must not re-paste a composer that holds the payload");
+      },
       budgetMs: 2_000,
       exec: exec as any,
     });
@@ -473,17 +581,29 @@ describe("awaitTmuxComposerPayload — real client composers", () => {
 // copies and this one matching a bare prefix, so the composer the gate refused
 // as doubled was the same composer this one waved through to Enter.
 describe("tmuxComposerHoldsPayload", () => {
-  const withFooter = (draft: string) => `${BOX(draft)}  ashot\n  shift+tab to cycle`;
+  const withFooter = (draft: string) =>
+    `${BOX(draft)}  ashot\n  shift+tab to cycle`;
 
-  test.each(["hi", "on", "ashot"])("%s in the footer is not a duplicate draft", (payload) => {
-    expect(tmuxComposerHoldsPayload(withFooter(payload), payload)).toBe(true);
-    expect(tmuxComposerHoldsPayload(withFooter(""), payload)).toBe(false);
-    expect(tmuxComposerHoldsPayload(withFooter(`${payload} ${payload}`), payload)).toBe(false);
-    expect(tmuxComposerHoldsPayload(withFooter(`${payload}\n\n  ${payload}`), payload)).toBe(false);
-  });
+  test.each(["hi", "on", "ashot"])(
+    "%s in the footer is not a duplicate draft",
+    (payload) => {
+      expect(tmuxComposerHoldsPayload(withFooter(payload), payload)).toBe(true);
+      expect(tmuxComposerHoldsPayload(withFooter(""), payload)).toBe(false);
+      expect(
+        tmuxComposerHoldsPayload(withFooter(`${payload} ${payload}`), payload),
+      ).toBe(false);
+      expect(
+        tmuxComposerHoldsPayload(
+          withFooter(`${payload}\n\n  ${payload}`),
+          payload,
+        ),
+      ).toBe(false);
+    },
+  );
 
   test("a framed multiline composer ends before the keyboard hints", () => {
-    const pane = "│ ❯ hi │\n│ there │\n╰─────────────────╯\nhi there to continue";
+    const pane =
+      "│ ❯ hi │\n│ there │\n╰─────────────────╯\nhi there to continue";
     expect(tmuxComposerHoldsPayload(pane, "hi there")).toBe(true);
   });
 
@@ -492,11 +612,15 @@ describe("tmuxComposerHoldsPayload", () => {
       expect(args[0]).toBe("capture-pane");
       return { stdout: withFooter("hi") };
     };
-    expect(await awaitTmuxComposerPayload("t:0.0", "hi", {
-      rePaste: async () => { throw new Error("must not re-paste hi"); },
-      exec: exec as any,
-      budgetMs: 2_000,
-    })).toBe("matched");
+    expect(
+      await awaitTmuxComposerPayload("t:0.0", "hi", {
+        rePaste: async () => {
+          throw new Error("must not re-paste hi");
+        },
+        exec: exec as any,
+        budgetMs: 2_000,
+      }),
+    ).toBe("matched");
   });
 
   test("the payload at the prompt is recognized across the soft-wrapped lines", () => {
@@ -506,7 +630,9 @@ describe("tmuxComposerHoldsPayload", () => {
 
   test("an empty composer or a foreign draft is not the payload", () => {
     expect(tmuxComposerHoldsPayload(BOX(""), PAYLOAD)).toBe(false);
-    expect(tmuxComposerHoldsPayload(BOX("something the human typed"), PAYLOAD)).toBe(false);
+    expect(
+      tmuxComposerHoldsPayload(BOX("something the human typed"), PAYLOAD),
+    ).toBe(false);
   });
 
   test("two copies at the prompt are not 'already there' (ct-49841)", () => {
@@ -514,8 +640,12 @@ describe("tmuxComposerHoldsPayload", () => {
     // the prompt" it took the pre-paste short circuit straight to Enter, which
     // submits both copies as one message: the very outcome the gate's count
     // exists to prevent.
-    expect(tmuxComposerHoldsPayload(BOX(`${PAYLOAD}${PAYLOAD}`), PAYLOAD)).toBe(false);
-    expect(tmuxComposerHoldsPayload(BOX(`${PAYLOAD} ${PAYLOAD}`), PAYLOAD)).toBe(false);
+    expect(tmuxComposerHoldsPayload(BOX(`${PAYLOAD}${PAYLOAD}`), PAYLOAD)).toBe(
+      false,
+    );
+    expect(
+      tmuxComposerHoldsPayload(BOX(`${PAYLOAD} ${PAYLOAD}`), PAYLOAD),
+    ).toBe(false);
   });
 
   test("a payload that repeats its own opening is still recognized once", () => {
@@ -529,7 +659,9 @@ describe("tmuxComposerHoldsPayload", () => {
     // A redelivery of a message the agent already took: the text is on screen,
     // but it is history, and the composer below it is empty. Submitting there
     // would send a blank line and ack a message that was never re-sent.
-    expect(tmuxComposerHoldsPayload(`❯ ${PAYLOAD}\n───────\n❯ \n`, PAYLOAD)).toBe(false);
+    expect(
+      tmuxComposerHoldsPayload(`❯ ${PAYLOAD}\n───────\n❯ \n`, PAYLOAD),
+    ).toBe(false);
   });
 
   test("a collapsed paste chip is NOT accepted", () => {
@@ -558,7 +690,10 @@ describe("drainTmuxComposer", () => {
     let captureCount = 0;
     const exec = async (args: Args): Promise<{ stdout: string }> => {
       if (args[0] === "send-keys") sends.push(args[args.length - 1]);
-      if (args[0] === "capture-pane") return { stdout: captures[Math.min(captureCount++, captures.length - 1)] };
+      if (args[0] === "capture-pane")
+        return {
+          stdout: captures[Math.min(captureCount++, captures.length - 1)],
+        };
       return { stdout: "" };
     };
     return { exec, sends, captured: () => captureCount };
@@ -573,10 +708,14 @@ describe("drainTmuxComposer", () => {
 
   test("keeps cycling while a multi-line draft is still visible", async () => {
     // A 7-line <session-message> draft: the first two checks still show text.
-    const f = fakeExec([paneWith("<session-message>\nline\nline\nline"), paneWith("<session-message>"), paneWith("")]);
+    const f = fakeExec([
+      paneWith("<session-message>\nline\nline\nline"),
+      paneWith("<session-message>"),
+      paneWith(""),
+    ]);
     await drainTmuxComposer("t:0.0", f.exec as any);
     expect(f.sends.length).toBe(9 * CYCLE.length);
-    expect(f.sends.filter(k => k === "BSpace").length).toBe(9);
+    expect(f.sends.filter((k) => k === "BSpace").length).toBe(9);
     expect(f.captured()).toBe(3);
   });
 
@@ -599,13 +738,21 @@ describe("drainTmuxComposer", () => {
   // `onlyWhenDrafted` withholds the keys there.
   test("onlyWhenDrafted: an empty composer gets no clearing keys", async () => {
     const f = fakeExec([paneWith("")]);
-    expect(await drainTmuxComposer("t:0.0", f.exec as any, { onlyWhenDrafted: true })).toBe(false);
+    expect(
+      await drainTmuxComposer("t:0.0", f.exec as any, {
+        onlyWhenDrafted: true,
+      }),
+    ).toBe(false);
     expect(f.sends).toEqual([]);
   });
 
   test("onlyWhenDrafted: a draft at the prompt is still drained", async () => {
     const f = fakeExec([paneWith("half-typed thought"), paneWith("")]);
-    expect(await drainTmuxComposer("t:0.0", f.exec as any, { onlyWhenDrafted: true })).toBe(true);
+    expect(
+      await drainTmuxComposer("t:0.0", f.exec as any, {
+        onlyWhenDrafted: true,
+      }),
+    ).toBe(true);
     expect(f.sends).toEqual([...CYCLE, ...CYCLE, ...CYCLE]);
   });
 
@@ -613,7 +760,11 @@ describe("drainTmuxComposer", () => {
     // A glyphless client, or a redraw that hid the box: nothing was proven, so
     // the legacy blind drain stands.
     const f = fakeExec(["no composer here"]);
-    expect(await drainTmuxComposer("t:0.0", f.exec as any, { onlyWhenDrafted: true })).toBe(true);
+    expect(
+      await drainTmuxComposer("t:0.0", f.exec as any, {
+        onlyWhenDrafted: true,
+      }),
+    ).toBe(true);
     expect(f.sends.length).toBe(3 * CYCLE.length);
   });
 
@@ -632,10 +783,14 @@ describe("tmuxComposerText", () => {
   test("a boxed draft under blank lines is read, not called empty", () => {
     const rule = "─".repeat(20);
     const pane = `${rule}\n❯ \n\n\n\n  [Pasted text #2 +4 lines]<user-message from="Sam">\n  coordinate\n\n  </user-message>\n${rule}\n  week 77%`;
-    expect(tmuxComposerText(pane)).toBe(" \n\n\n\n  [Pasted text #2 +4 lines]<user-message from=\"Sam\">\n  coordinate\n\n  </user-message>");
+    expect(tmuxComposerText(pane)).toBe(
+      ' \n\n\n\n  [Pasted text #2 +4 lines]<user-message from="Sam">\n  coordinate\n\n  </user-message>',
+    );
   });
   test("an unboxed composer still ends at a blank line", () => {
-    expect(tmuxComposerText("› draft\n\n  gpt-6 · ~/src · title")).toBe(" draft");
+    expect(tmuxComposerText("› draft\n\n  gpt-6 · ~/src · title")).toBe(
+      " draft",
+    );
   });
   test("empty composer reads blank; glyphless pane reads null", () => {
     expect(tmuxComposerText(`❯ \n${"─".repeat(20)}`)?.trim()).toBe("");

@@ -8,7 +8,10 @@ import { markTourSeen, toursWriteSuppressed, type TourOutcome } from "./seen";
 
 /** Start a tour. `replay`: a person asked for it (the Tours panel, a link, a
  *  "How this page works"), so it runs whether or not it was seen. */
-export function startTour(id: string, opts: { replay?: boolean } = {}): boolean {
+export function startTour(
+  id: string,
+  opts: { replay?: boolean } = {},
+): boolean {
   if (!tourById(id)) return false;
   const st = useInboxStore.getState();
   if (st.toursPanelOpen) st.setToursPanelOpen(false);
@@ -27,8 +30,13 @@ export function endTour(outcome: TourOutcome): void {
   const st = useInboxStore.getState();
   const run = st.tour;
   if (!run) return;
-  const suppressed = typeof window !== "undefined" && toursWriteSuppressed(window.location.search);
+  const suppressed =
+    typeof window !== "undefined" &&
+    toursWriteSuppressed(window.location.search);
   if (!suppressed) markTourSeen(st, run.id, outcome);
   st.setTour(null);
-  track(outcome === "finished" ? "tour_finished" : "tour_skipped", { tour: run.id, step: run.step });
+  track(outcome === "finished" ? "tour_finished" : "tour_skipped", {
+    tour: run.id,
+    step: run.step,
+  });
 }

@@ -14,10 +14,7 @@ type FakeTextArea = {
   select: () => void;
 };
 
-function makeFakeDom(opts: {
-  execResult?: boolean;
-  dialogHost?: boolean;
-}) {
+function makeFakeDom(opts: { execResult?: boolean; dialogHost?: boolean }) {
   const appendedTo: string[] = [];
   const textArea: FakeTextArea = {
     value: "",
@@ -38,7 +35,9 @@ function makeFakeDom(opts: {
       return opts.execResult ?? true;
     },
     activeElement: opts.dialogHost
-      ? { closest: (sel: string) => (sel === '[role="dialog"]' ? dialog : null) }
+      ? {
+          closest: (sel: string) => (sel === '[role="dialog"]' ? dialog : null),
+        }
       : null,
     body: {
       appendChild: () => appendedTo.push("body"),
@@ -107,6 +106,8 @@ describe("copyToClipboard", () => {
     stubGlobals(dom.doc, {
       writeText: () => Promise.reject(new Error("nope")),
     });
-    await expect(copyToClipboard("hello")).rejects.toThrow("Copy to clipboard failed");
+    await expect(copyToClipboard("hello")).rejects.toThrow(
+      "Copy to clipboard failed",
+    );
   });
 });

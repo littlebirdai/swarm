@@ -138,7 +138,11 @@ export * from "./triggerLifecycle";
 // (bench/bootGraph.guard.test.ts): the barrel is on every entry's static
 // graph, so a re-export here is paid by `cast --help`.
 
-export { SESSION_SNOOZE_CHOICES, sessionSnoozeUntil, type SessionSnoozeKey } from "./sessionSnooze";
+export {
+  SESSION_SNOOZE_CHOICES,
+  sessionSnoozeUntil,
+  type SessionSnoozeKey,
+} from "./sessionSnooze";
 export * from "./unattended";
 export * from "./handoffPrompt";
 export * from "./browserExtension";

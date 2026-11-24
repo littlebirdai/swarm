@@ -3,7 +3,13 @@
 // streams — as threads.listMine returns them. The shape mirrors the server's
 // ThreadInboxEntry (convex/threadsTypes.ts); keep the two in step.
 
-export type ThreadKind = "chat" | "comment" | "task" | "page" | "code" | "decision";
+export type ThreadKind =
+  | "chat"
+  | "comment"
+  | "task"
+  | "page"
+  | "code"
+  | "decision";
 
 /** The newest counted reply of a thread, for the collapsed card's preview. */
 export type ThreadLastReply = {

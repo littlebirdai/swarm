@@ -22,17 +22,29 @@ export function expandHome(typed: string, known: string[]): string {
 
 /** Checkouts whose folder name contains the query, name-prefix matches first,
  *  minus the ones the recents already list. */
-export function checkoutMatches(roots: string[], query: string, listed: Set<string>): string[] {
+export function checkoutMatches(
+  roots: string[],
+  query: string,
+  listed: Set<string>,
+): string[] {
   const q = query.toLowerCase();
   return roots
     .filter((r) => !listed.has(r) && folderName(r).toLowerCase().includes(q))
-    .sort((a, b) => Number(!folderName(a).toLowerCase().startsWith(q)) - Number(!folderName(b).toLowerCase().startsWith(q)));
+    .sort(
+      (a, b) =>
+        Number(!folderName(a).toLowerCase().startsWith(q)) -
+        Number(!folderName(b).toLowerCase().startsWith(q)),
+    );
 }
 
 /** Where a new folder with this name goes: beside most of the machine's
  *  checkouts (else its recent folders). Null for a name that isn't one plain
  *  folder name, or when nothing says where code lives. */
-export function newFolderPath(name: string, roots: string[], recents: string[]): string | null {
+export function newFolderPath(
+  name: string,
+  roots: string[],
+  recents: string[],
+): string | null {
   if (!/^[\w.-]+$/.test(name) || name === "." || name === "..") return null;
   const counts = new Map<string, number>();
   for (const p of roots.length ? roots : recents) {
@@ -40,6 +52,7 @@ export function newFolderPath(name: string, roots: string[], recents: string[]):
     if (HOME_RE.test(parent)) counts.set(parent, (counts.get(parent) ?? 0) + 1);
   }
   let best: string | null = null;
-  for (const [parent, n] of counts) if (!best || n > counts.get(best)!) best = parent;
+  for (const [parent, n] of counts)
+    if (!best || n > counts.get(best)!) best = parent;
   return best ? `${best}/${name}` : null;
 }

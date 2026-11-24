@@ -82,14 +82,18 @@ function isObject(v: unknown): v is Record<string, unknown> {
  */
 function invalidReason(parsed: unknown): string | undefined {
   if (!isObject(parsed)) return "not a JSON object";
-  if (parsed.version !== 1) return `unknown version ${JSON.stringify(parsed.version)}`;
+  if (parsed.version !== 1)
+    return `unknown version ${JSON.stringify(parsed.version)}`;
   for (const harness of ["codex", "claude"] as const) {
     const table = parsed[harness];
     if (!isObject(table)) return `${harness} is not a table of pins`;
     for (const [name, pin] of Object.entries(table)) {
       if (!isObject(pin)) return `${harness}.${name} is not a pin`;
-      if (pin.enabled !== false) return `${harness}.${name}.enabled is not false`;
-      for (const field of ["reason", "source_command", "at"] as const) if (typeof pin[field] !== "string") return `${harness}.${name}.${field} is not a string`;
+      if (pin.enabled !== false)
+        return `${harness}.${name}.enabled is not false`;
+      for (const field of ["reason", "source_command", "at"] as const)
+        if (typeof pin[field] !== "string")
+          return `${harness}.${name}.${field} is not a string`;
     }
   }
   return undefined;
@@ -99,7 +103,12 @@ function pinsOf(table: Record<string, unknown>): Record<string, McpPin> {
   const out: Record<string, McpPin> = {};
   for (const [name, pin] of Object.entries(table)) {
     const p = pin as Record<string, string>;
-    out[name] = { enabled: false, reason: p.reason!, source_command: p.source_command!, at: p.at! };
+    out[name] = {
+      enabled: false,
+      reason: p.reason!,
+      source_command: p.source_command!,
+      at: p.at!,
+    };
   }
   return out;
 }
@@ -109,12 +118,17 @@ function pinsOf(table: Record<string, unknown>): Record<string, McpPin> {
  * manifest of well-formed pins reads as emptyOverrides(); `onInvalid` gets
  * the reason so the caller can log or report it.
  */
-export function parseHostMcpOverrides(text: string, onInvalid?: (reason: string) => void): HostMcpOverrides {
+export function parseHostMcpOverrides(
+  text: string,
+  onInvalid?: (reason: string) => void,
+): HostMcpOverrides {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch (err) {
-    onInvalid?.(`not JSON (${err instanceof Error ? err.message : String(err)})`);
+    onInvalid?.(
+      `not JSON (${err instanceof Error ? err.message : String(err)})`,
+    );
     return emptyOverrides();
   }
   const reason = invalidReason(parsed);
@@ -131,7 +145,10 @@ export function parseHostMcpOverrides(text: string, onInvalid?: (reason: string)
  * and one line on stderr (or `onInvalid`), because a manifest that exists
  * but does not parse is a fact the operator should see.
  */
-export function readHostMcpOverrides(home: string, onInvalid?: (reason: string) => void): HostMcpOverrides {
+export function readHostMcpOverrides(
+  home: string,
+  onInvalid?: (reason: string) => void,
+): HostMcpOverrides {
   const file = hostMcpOverridesPath(home);
   let text: string;
   try {
@@ -139,21 +156,50 @@ export function readHostMcpOverrides(home: string, onInvalid?: (reason: string) 
   } catch {
     return emptyOverrides();
   }
-  return parseHostMcpOverrides(text, onInvalid ?? ((reason) => process.stderr.write(`${file} ignored: ${reason}; no MCP pins apply until readiness rewrites it\n`)));
+  return parseHostMcpOverrides(
+    text,
+    onInvalid ??
+      ((reason) =>
+        process.stderr.write(
+          `${file} ignored: ${reason}; no MCP pins apply until readiness rewrites it\n`,
+        )),
+  );
 }
 
 /** Canonical bytes: stable key order, 2-space indent, trailing newline. */
 export function serializeHostMcpOverrides(o: HostMcpOverrides): string {
   const sortPins = (pins: Record<string, McpPin>) =>
-    Object.fromEntries(Object.keys(pins).sort().map((k) => [k, { enabled: false as const, reason: pins[k]!.reason, source_command: pins[k]!.source_command, at: pins[k]!.at }]));
-  return JSON.stringify({ version: 1, codex: sortPins(o.codex), claude: sortPins(o.claude) }, null, 2) + "\n";
+    Object.fromEntries(
+      Object.keys(pins)
+        .sort()
+        .map((k) => [
+          k,
+          {
+            enabled: false as const,
+            reason: pins[k]!.reason,
+            source_command: pins[k]!.source_command,
+            at: pins[k]!.at,
+          },
+        ]),
+    );
+  return (
+    JSON.stringify(
+      { version: 1, codex: sortPins(o.codex), claude: sortPins(o.claude) },
+      null,
+      2,
+    ) + "\n"
+  );
 }
 
 /** mkdir -p ~/.codecast (0700, never through a symlink), write 0600 through a temp file, atomic rename. */
-export function writeHostMcpOverrides(home: string, overrides: HostMcpOverrides): void {
+export function writeHostMcpOverrides(
+  home: string,
+  overrides: HostMcpOverrides,
+): void {
   const file = hostMcpOverridesPath(home);
   const dir = path.dirname(file);
-  if (fs.lstatSync(dir, { throwIfNoEntry: false })?.isSymbolicLink()) throw new Error("MCP override directory is a symlink");
+  if (fs.lstatSync(dir, { throwIfNoEntry: false })?.isSymbolicLink())
+    throw new Error("MCP override directory is a symlink");
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   atomicWriteFile(file, serializeHostMcpOverrides(overrides), { mode: 0o600 });
 }
@@ -164,10 +210,19 @@ export function writeHostMcpOverrides(home: string, overrides: HostMcpOverrides)
  * (the host home, default this process's), whitespace collapses to single
  * spaces.
  */
-export function normalizeCommand(server: McpSourceServer, home: string = process.env.HOME || os.homedir()): string {
-  return [String(server.command ?? ""), ...(Array.isArray(server.args) ? server.args.map(String) : [])]
+export function normalizeCommand(
+  server: McpSourceServer,
+  home: string = process.env.HOME || os.homedir(),
+): string {
+  return [
+    String(server.command ?? ""),
+    ...(Array.isArray(server.args) ? server.args.map(String) : []),
+  ]
     .join(" ")
-    .replace(/(^|[\s"'])~(?=\/|[\s"']|$)/g, (_all, before) => `${before}${home}`)
+    .replace(
+      /(^|[\s"'])~(?=\/|[\s"']|$)/g,
+      (_all, before) => `${before}${home}`,
+    )
     .replace(/\$\{HOME\}|\$HOME\b/g, () => home)
     .replace(/\s+/g, " ")
     .trim();
@@ -191,8 +246,15 @@ export function maskPins(
   const dropped: string[] = [];
   const next = structuredClone(overrides);
   for (const [name, pin] of Object.entries(overrides[harness])) {
-    if (currentSource[name] && pin.source_command === normalizeCommand(currentSource[name]!, home)) pinned.push(name);
-    else { dropped.push(name); delete next[harness][name]; }
+    if (
+      currentSource[name] &&
+      pin.source_command === normalizeCommand(currentSource[name]!, home)
+    )
+      pinned.push(name);
+    else {
+      dropped.push(name);
+      delete next[harness][name];
+    }
   }
   return { pinned, dropped, next };
 }
@@ -205,15 +267,30 @@ export function maskPins(
  * harness's pins are untouched. `classified` commands must be host-side
  * (remapped) definitions.
  */
-export function reconcilePins(overrides: HostMcpOverrides, harness: McpHarness, classified: McpClassified[], at: string, home?: string): HostMcpOverrides {
+export function reconcilePins(
+  overrides: HostMcpOverrides,
+  harness: McpHarness,
+  classified: McpClassified[],
+  at: string,
+  home?: string,
+): HostMcpOverrides {
   const pins: Record<string, McpPin> = {};
   for (const server of classified) {
     if (server.status !== "unsupported") continue;
     const source_command = normalizeCommand(server, home);
     const prev = overrides[harness][server.name];
     const reason = server.reason ?? prev?.reason ?? "unsupported on this host";
-    const unchanged = !!prev && prev.source_command === source_command && prev.reason === reason && !!prev.at;
-    pins[server.name] = { enabled: false, reason, source_command, at: unchanged ? prev.at : at };
+    const unchanged =
+      !!prev &&
+      prev.source_command === source_command &&
+      prev.reason === reason &&
+      !!prev.at;
+    pins[server.name] = {
+      enabled: false,
+      reason,
+      source_command,
+      at: unchanged ? prev.at : at,
+    };
   }
   return { ...structuredClone(overrides), [harness]: pins };
 }

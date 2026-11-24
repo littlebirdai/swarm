@@ -5,7 +5,15 @@
 // what "Ada Lovelace" and "chat-smoke" look like, or the same thing wears two
 // faces on one screen.
 
-const HUES = ["#268bd2", "#2aa198", "#859900", "#b58900", "#cb4b16", "#d33682", "#6c71c4"];
+const HUES = [
+  "#268bd2",
+  "#2aa198",
+  "#859900",
+  "#b58900",
+  "#cb4b16",
+  "#d33682",
+  "#6c71c4",
+];
 
 /** A stable colour for a name: the same name is the same hue everywhere. */
 export function hueFor(name: string): string {
@@ -19,7 +27,10 @@ export function hueFor(name: string): string {
  *  underscores and dots split words too, so "chat-smoke" is "CS" rather than
  *  "CH" — a channel name is words joined by punctuation, not one word. */
 export function initials(name: string, letters: 1 | 2): string {
-  const parts = (name || "").trim().split(/[\s\-_.]+/).filter(Boolean);
+  const parts = (name || "")
+    .trim()
+    .split(/[\s\-_.]+/)
+    .filter(Boolean);
   if (parts.length === 0) return "?";
   if (letters === 1) return parts[0].charAt(0).toUpperCase();
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();

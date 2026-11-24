@@ -12,9 +12,25 @@ let RecordingQuestionBox: typeof import("../RecordingMark").RecordingQuestionBox
 
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh" });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "Event", "KeyboardEvent"]) {
-    Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+  const dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh" },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "Event",
+    "KeyboardEvent",
+  ]) {
+    Object.defineProperty(globalThis, key, {
+      value: (dom.window as any)[key],
+      configurable: true,
+      writable: true,
+    });
   }
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   React = await import("react");
@@ -38,7 +54,13 @@ function Host({ withEnter }: { withEnter: boolean }) {
     React.createElement("button", { id: "trigger" }, "REC"),
     React.createElement(
       RecordingQuestionBox,
-      { label: "Stop recording?", place: "below", insideRef: inside, onClose: () => closes++, onEnter: withEnter ? () => enters++ : undefined },
+      {
+        label: "Stop recording?",
+        place: "below",
+        insideRef: inside,
+        onClose: () => closes++,
+        onEnter: withEnter ? () => enters++ : undefined,
+      },
       React.createElement("button", { id: "answer" }, "Keep recording"),
     ),
   );
@@ -62,8 +84,20 @@ function mount(withEnter: boolean) {
 }
 
 const key = (el: Element, k: string, repeat = false) =>
-  React.act(() => void el.dispatchEvent(new (window as any).KeyboardEvent("keydown", { key: k, repeat, bubbles: true })));
-const press = (id: string) => document.getElementById(id)!.dispatchEvent(new (window as any).Event("pointerdown", { bubbles: true }));
+  React.act(
+    () =>
+      void el.dispatchEvent(
+        new (window as any).KeyboardEvent("keydown", {
+          key: k,
+          repeat,
+          bubbles: true,
+        }),
+      ),
+  );
+const press = (id: string) =>
+  document
+    .getElementById(id)!
+    .dispatchEvent(new (window as any).Event("pointerdown", { bubbles: true }));
 
 test("focus lands on the box, not on an answer", () => {
   const { box, done } = mount(true);

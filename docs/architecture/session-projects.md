@@ -90,7 +90,7 @@ session records for all of them reaches every one.
   `--instructions-file <path|->`. Sessions get it word for word.
 - **Memory is the project's pinned docs.** There is no new table: a pinned
   doc with the project's `project_id` is memory. `cast project remember
-  [<project>] "<fact>"` creates one through `docs.create` (`pinned: true`, in
+[<project>] "<fact>"` creates one through `docs.create` (`pinned: true`, in
   the project's workspace). With no project named, it uses the calling
   session's derived project. `cast project memory` lists the memory, and
   `cast project forget <doc>` unpins a doc without deleting it. The About
@@ -112,7 +112,7 @@ session records for all of them reaches every one.
   project. Because it rides that read, the daemon's per-launch read
   (`prepareLaunchStableContext`) brings it to a brand-new session on its
   first turn: a web composer session born with `project_id`, or a `cast
-  spawn` worker inheriting through its parent. `stableContext.ts` prints it
+spawn` worker inheriting through its parent. `stableContext.ts` prints it
   after the org block. The cache filled for a new session
   (`whereForNewSession`) drops it, because another session's project is not
   this one's. The instructions in the block are cut to fit the hook's

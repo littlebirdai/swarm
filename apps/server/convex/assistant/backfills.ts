@@ -10,10 +10,22 @@ import { isHostedAgentType } from "@codecast/shared/contracts";
  *  it: no pass has run (a pass always writes a subtitle), or its title is
  *  the opening of the person's first message. Conversations from before the
  *  hosted title prompt, and ones whose only turn failed, read that way. */
-export function needsHostedTitle(conv: Pick<Doc<"conversations">, "title" | "subtitle" | "first_prompt" | "title_is_custom" | "skip_title_generation">): boolean {
+export function needsHostedTitle(
+  conv: Pick<
+    Doc<"conversations">,
+    | "title"
+    | "subtitle"
+    | "first_prompt"
+    | "title_is_custom"
+    | "skip_title_generation"
+  >,
+): boolean {
   if (conv.title_is_custom || conv.skip_title_generation) return false;
   if (conv.subtitle === undefined) return true;
-  const title = conv.title?.trim().replace(/[….]+$/, "").toLowerCase();
+  const title = conv.title
+    ?.trim()
+    .replace(/[….]+$/, "")
+    .toLowerCase();
   const first = conv.first_prompt?.trim().toLowerCase();
   return !!title && !!first && title.length >= 12 && first.startsWith(title);
 }
@@ -32,11 +44,22 @@ export const retitleHostedConversations = internalMutation({
       const id = String(turn.conversation_id);
       if (seen.has(id)) continue;
       seen.add(id);
-      const conv = await ctx.db.get(turn.conversation_id as Id<"conversations">);
-      if (!conv || !isHostedAgentType(conv.agent_type) || !needsHostedTitle(conv)) continue;
+      const conv = await ctx.db.get(
+        turn.conversation_id as Id<"conversations">,
+      );
+      if (
+        !conv ||
+        !isHostedAgentType(conv.agent_type) ||
+        !needsHostedTitle(conv)
+      )
+        continue;
       if (!args.dry_run) {
         await ctx.db.patch(conv._id, { title_gen_scheduled_at: Date.now() });
-        await ctx.scheduler.runAfter(scheduled * 1_000, internal.titleGeneration.generateTitle, { conversation_id: conv._id });
+        await ctx.scheduler.runAfter(
+          scheduled * 1_000,
+          internal.titleGeneration.generateTitle,
+          { conversation_id: conv._id },
+        );
       }
       scheduled++;
     }

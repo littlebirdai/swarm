@@ -31,7 +31,10 @@ export function screenshotDir(): string {
 }
 
 /** Delete captures older than the TTL, at most once an hour. */
-export function sweepScreenshots(dir = screenshotDir(), now = Date.now()): void {
+export function sweepScreenshots(
+  dir = screenshotDir(),
+  now = Date.now(),
+): void {
   const marker = path.join(dir, CLEANUP_MARKER);
   try {
     if (now - fs.statSync(marker).mtimeMs < CLEANUP_INTERVAL_MS) return;
@@ -43,7 +46,8 @@ export function sweepScreenshots(dir = screenshotDir(), now = Date.now()): void 
       if (!name.endsWith(SUFFIX)) continue;
       const file = path.join(dir, name);
       try {
-        if (now - fs.statSync(file).mtimeMs > SCREENSHOT_TTL_MS) fs.rmSync(file, { force: true });
+        if (now - fs.statSync(file).mtimeMs > SCREENSHOT_TTL_MS)
+          fs.rmSync(file, { force: true });
       } catch {
         /* raced with another agent's sweep */
       }
@@ -55,7 +59,16 @@ export function sweepScreenshots(dir = screenshotDir(), now = Date.now()): void 
 }
 
 /** The `--json` shape: the helper's path, and when the sweep may remove it. */
-export function rewriteScreenshotForJson<T extends ComputerSnapshotResult>(result: T, now = Date.now()): T {
+export function rewriteScreenshotForJson<T extends ComputerSnapshotResult>(
+  result: T,
+  now = Date.now(),
+): T {
   if (!result.screenshot?.path) return result;
-  return { ...result, screenshot: { ...result.screenshot, expiresAt: new Date(now + SCREENSHOT_TTL_MS).toISOString() } };
+  return {
+    ...result,
+    screenshot: {
+      ...result.screenshot,
+      expiresAt: new Date(now + SCREENSHOT_TTL_MS).toISOString(),
+    },
+  };
 }

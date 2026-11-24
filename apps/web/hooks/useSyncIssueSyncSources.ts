@@ -13,7 +13,11 @@ const api = _api as any;
 
 /** Feeder: the workspace's complete source set (snapshot sync — see registry). */
 export function useSyncIssueSyncSources(enabled = true) {
-  return useSyncCollection("issueSyncSources", api.issueSync.listSources, enabled ? {} : "skip");
+  return useSyncCollection(
+    "issueSyncSources",
+    api.issueSync.listSources,
+    enabled ? {} : "skip",
+  );
 }
 
 /** The fields the sources UI renders. Anything else on the row — the import
@@ -21,7 +25,8 @@ export function useSyncIssueSyncSources(enabled = true) {
 export const issueSyncSourceSig = (s: any) =>
   `${s.status}|${s.name}|${s.project_id ?? ""}|${s.last_synced_at ?? 0}|${s.last_webhook_at ?? 0}|${s.last_error ?? ""}|${s.delegate_label ?? ""}|${s.delegate_assignee ?? ""}|${s.auto_spawn ? 1 : 0}|${s.push_new_tasks ? 1 : 0}`;
 
-const newestFirst = (a: any, b: any) => (b.created_at ?? 0) - (a.created_at ?? 0);
+const newestFirst = (a: any, b: any) =>
+  (b.created_at ?? 0) - (a.created_at ?? 0);
 
 /**
  * Reader: the active workspace's sources, newest first, optionally narrowed to
@@ -30,9 +35,15 @@ const newestFirst = (a: any, b: any) => (b.created_at ?? 0) - (a.created_at ?? 0
  * viewed, and a raw enumeration would show another team's imports.
  */
 export function useIssueSyncSources(provider?: "linear" | "github"): any[] {
-  const rows = useWorkspaceCollection<any>("issueSyncSources", issueSyncSourceSig);
+  const rows = useWorkspaceCollection<any>(
+    "issueSyncSources",
+    issueSyncSourceSig,
+  );
   return useMemo(
-    () => rows.filter((r) => !provider || r.provider === provider).sort(newestFirst),
+    () =>
+      rows
+        .filter((r) => !provider || r.provider === provider)
+        .sort(newestFirst),
     [rows, provider],
   );
 }

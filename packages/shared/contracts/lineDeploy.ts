@@ -4,7 +4,12 @@
  * deploy whenever fixes wait, within its deploy grant's daily limit) start a
  * deploy; `schedule` and `count` are reserved.
  */
-export const LINE_DEPLOY_TRIGGERS = ["person", "role", "schedule", "count"] as const;
+export const LINE_DEPLOY_TRIGGERS = [
+  "person",
+  "role",
+  "schedule",
+  "count",
+] as const;
 export type LineDeployTrigger = (typeof LINE_DEPLOY_TRIGGERS)[number];
 
 /**
@@ -15,17 +20,25 @@ export type LineDeployTrigger = (typeof LINE_DEPLOY_TRIGGERS)[number];
  * DP15). `watch` is codecast's own: the deploy goes live and its fixes are
  * watched from then.
  */
-export const LINE_DEPLOY_STEPS = ["ci", "send", "gate", "rollout", "live", "finish"] as const;
+export const LINE_DEPLOY_STEPS = [
+  "ci",
+  "send",
+  "gate",
+  "rollout",
+  "live",
+  "finish",
+] as const;
 export type LineDeployStep = (typeof LINE_DEPLOY_STEPS)[number];
-export const LINE_DEPLOY_STEP_LABELS: Record<LineDeployStep | "watch", string> = {
-  ci: "CI",
-  send: "Send",
-  gate: "Gate",
-  rollout: "Roll out",
-  live: "Live",
-  finish: "Finish",
-  watch: "Watch",
-};
+export const LINE_DEPLOY_STEP_LABELS: Record<LineDeployStep | "watch", string> =
+  {
+    ci: "CI",
+    send: "Send",
+    gate: "Gate",
+    rollout: "Roll out",
+    live: "Live",
+    finish: "Finish",
+    watch: "Watch",
+  };
 
 /** The shipped graph a deploy runs on (cli workflow/templates/line-deploy.cast). */
 export const LINE_DEPLOY_GRAPH = "line-deploy";
@@ -51,21 +64,40 @@ export type LineDeployProfile = {
   finish?: string | null;
 };
 
-export const LINE_DEPLOY_KEYS = ["command", "target", "trigger", "role", "ci", "gate", "rollout", "live"] as const;
-export const LINE_DEPLOY_DEFAULTS: LineDeployProfile = { command: null, target: null, trigger: "person" };
+export const LINE_DEPLOY_KEYS = [
+  "command",
+  "target",
+  "trigger",
+  "role",
+  "ci",
+  "gate",
+  "rollout",
+  "live",
+] as const;
+export const LINE_DEPLOY_DEFAULTS: LineDeployProfile = {
+  command: null,
+  target: null,
+  trigger: "person",
+};
 
 /** The profile command each step runs. */
-export const deployStepCommand = (d: Partial<LineDeployProfile> | null | undefined, step: LineDeployStep): string | null =>
-  (step === "send" ? d?.command : d?.[step]) ?? null;
+export const deployStepCommand = (
+  d: Partial<LineDeployProfile> | null | undefined,
+  step: LineDeployStep,
+): string | null => (step === "send" ? d?.command : d?.[step]) ?? null;
 
 /** A target's name as a marker writes it: the surface or the environment, lowercased. */
-export const normalizeDeployTarget = (s: string | null | undefined): string | null => {
+export const normalizeDeployTarget = (
+  s: string | null | undefined,
+): string | null => {
   const t = (s ?? "").trim().toLowerCase();
   return t || null;
 };
 
 /** A role handle as a profile may write it (`release`, `@release`). */
-export const normalizeRoleHandle = (s: string | null | undefined): string | null => {
+export const normalizeRoleHandle = (
+  s: string | null | undefined,
+): string | null => {
   const t = (s ?? "").trim().replace(/^@/, "").toLowerCase();
   return t || null;
 };

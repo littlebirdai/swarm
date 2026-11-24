@@ -14,4 +14,10 @@ export const scopeArgs = {
   project_path: v.optional(v.string()),
   conversation_id: v.optional(v.string()),
 };
-export type ScopeArgs = { api_token?: string; workspace?: "personal" | "team"; team_id?: Id<"teams">; project_path?: string; conversation_id?: string };
+export type ScopeArgs = {
+  api_token?: string;
+  workspace?: "personal" | "team";
+  team_id?: Id<"teams">;
+  project_path?: string;
+  conversation_id?: string;
+};

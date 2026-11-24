@@ -43,9 +43,9 @@ describe("stable-context preview parity", () => {
       title: `Session ${index}`,
     }));
 
-    expect(
-      selectStableContextPreviewItems(items, "solo", ["jxstale"],),
-    ).toEqual(items.slice(0, 10));
+    expect(selectStableContextPreviewItems(items, "solo", ["jxstale"])).toEqual(
+      items.slice(0, 10),
+    );
   });
 
   test("shows excluded candidates while replacing them up to the injection limit", () => {
@@ -53,11 +53,10 @@ describe("stable-context preview parity", () => {
       id: `jx${String(index).padStart(5, "0")}full`,
       title: `Session ${index}`,
     }));
-    const selected = selectStableContextPreviewItems(
-      items,
-      "solo",
-      [items[1].id, items[4].id],
-    );
+    const selected = selectStableContextPreviewItems(items, "solo", [
+      items[1].id,
+      items[4].id,
+    ]);
 
     expect(selected).toEqual(items.slice(0, 12));
     expect(

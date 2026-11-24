@@ -1,20 +1,20 @@
-import * as React from "react"
+import * as React from "react";
 
-import { cn } from "@/lib/utils"
-import "./slider.css"
+import { cn } from "@/lib/utils";
+import "./slider.css";
 
 interface SliderProps {
-  value: number
-  min?: number
-  max?: number
-  step?: number
-  disabled?: boolean
-  className?: string
-  "aria-label"?: string
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  disabled?: boolean;
+  className?: string;
+  "aria-label"?: string;
   /** Fires on every drag tick — keep it cheap (local state, CSS vars). */
-  onValueChange: (value: number) => void
+  onValueChange: (value: number) => void;
   /** Fires once when the thumb is released — the moment to persist or preview. */
-  onValueCommit?: (value: number) => void
+  onValueCommit?: (value: number) => void;
 }
 
 /** A styled native range input. Native, because the platform already ships the
@@ -34,8 +34,8 @@ export function Slider({
   onValueCommit,
   ...aria
 }: SliderProps) {
-  const pct = max === min ? 0 : ((value - min) / (max - min)) * 100
-  const commit = () => onValueCommit?.(value)
+  const pct = max === min ? 0 : ((value - min) / (max - min)) * 100;
+  const commit = () => onValueCommit?.(value);
   return (
     <input
       type="range"
@@ -48,10 +48,10 @@ export function Slider({
       onChange={(e) => onValueChange(Number(e.target.value))}
       onPointerUp={commit}
       onKeyUp={(e) => {
-        if (e.key !== "Tab") commit()
+        if (e.key !== "Tab") commit();
       }}
       className={cn("cc-range w-full", disabled && "opacity-50", className)}
       style={{ "--fill": `${pct}%` } as React.CSSProperties}
     />
-  )
+  );
 }

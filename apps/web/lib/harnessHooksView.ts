@@ -2,18 +2,28 @@
 // Agent Features entry owns it. Reads the heartbeat-reported device settings
 // through the same rule the CLI installer applies (harnessHookWanted), so the
 // Harness page and Agent Features say what the machine actually has.
-import { HARNESS_HOOKS, harnessHookWanted, snippetBySlug, type HarnessHook } from "@codecast/shared/contracts";
+import {
+  HARNESS_HOOKS,
+  harnessHookWanted,
+  snippetBySlug,
+  type HarnessHook,
+} from "@codecast/shared/contracts";
 import type { Device } from "../components/DeviceBadge";
 
 export function deviceFeatureOn(d: Device, feature: string): boolean {
   if (feature === "stable") return (d.settings?.stable_mode ?? "off") !== "off";
   const desc = snippetBySlug(feature);
   const snippets = d.settings?.snippets ?? {};
-  return snippets[feature] === true || (!!desc?.wireSlug && snippets[desc.wireSlug] === true);
+  return (
+    snippets[feature] === true ||
+    (!!desc?.wireSlug && snippets[desc.wireSlug] === true)
+  );
 }
 
 export function deviceHookInstalled(d: Device, hook: HarnessHook): boolean {
-  return harnessHookWanted(hook, d.settings?.hooks_enabled !== false, (f) => deviceFeatureOn(d, f));
+  return harnessHookWanted(hook, d.settings?.hooks_enabled !== false, (f) =>
+    deviceFeatureOn(d, f),
+  );
 }
 
 /** The Agent Features entry that owns a hook, by the name that page shows. */

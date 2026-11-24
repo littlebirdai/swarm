@@ -16,7 +16,15 @@ import "./detailSplit.css";
 // back control's rule (hooks/useNavTrail useNavClose): to the list it was
 // opened from, the project, or the conversation.
 
-export function ModernDetailSplit({ list, closeHref, children }: { list: ReactNode; closeHref: string; children?: ReactNode }) {
+export function ModernDetailSplit({
+  list,
+  closeHref,
+  children,
+}: {
+  list: ReactNode;
+  closeHref: string;
+  children?: ReactNode;
+}) {
   const isTabActive = useTabActive();
   const hasDetail = children != null && children !== false;
   const active = hasDetail && isTabActive;
@@ -27,11 +35,15 @@ export function ModernDetailSplit({ list, closeHref, children }: { list: ReactNo
   return (
     <div className="cc-dsplit" data-cc-split={hasDetail ? "open" : "list"}>
       <div className="cc-dsplit__list cq-container">
-        <DetailListCtx.Provider value={hasDetail}>{list}</DetailListCtx.Provider>
+        <DetailListCtx.Provider value={hasDetail}>
+          {list}
+        </DetailListCtx.Provider>
       </div>
       {hasDetail && (
         <div className="cc-dsplit__detail" data-cc-split-detail>
-          <div ref={detailRef} className="min-h-0 flex-1">{children}</div>
+          <div ref={detailRef} className="min-h-0 flex-1">
+            {children}
+          </div>
         </div>
       )}
     </div>

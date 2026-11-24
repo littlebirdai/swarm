@@ -21,9 +21,24 @@ let visibleOutline: typeof import("@platform/analytics/replay").visibleOutline;
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
   // pretendToBeVisual makes document.hidden false: the 2FA code only ticks in a visible window.
-  dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh", pretendToBeVisual: true });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "Event"]) {
-    Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+  dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh", pretendToBeVisual: true },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "Event",
+  ]) {
+    Object.defineProperty(globalThis, key, {
+      value: (dom.window as any)[key],
+      configurable: true,
+      writable: true,
+    });
   }
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   React = await import("react");
@@ -41,20 +56,32 @@ async function mount() {
       React.createElement(
         "div",
         null,
-        React.createElement(MaskedField, { label: "Value", value: VALUE, load: async () => VALUE }),
-        React.createElement(MaskedField, { label: "service.json", value: FILE, load: async () => FILE, multiline: true }),
+        React.createElement(MaskedField, {
+          label: "Value",
+          value: VALUE,
+          load: async () => VALUE,
+        }),
+        React.createElement(MaskedField, {
+          label: "service.json",
+          value: FILE,
+          load: async () => FILE,
+          multiline: true,
+        }),
         React.createElement(TotpCode, { seed: "JBSWY3DPEHPK3PXP" }),
       ),
     ),
   );
-  for (const b of Array.from(document.querySelectorAll("[data-vault-reveal]")) as HTMLButtonElement[]) {
+  for (const b of Array.from(
+    document.querySelectorAll("[data-vault-reveal]"),
+  ) as HTMLButtonElement[]) {
     await act(async () => b.click());
   }
   // Let the first TOTP tick land so a code is on screen.
   await act(async () => new Promise((r) => setTimeout(r, 50)));
   return {
     text: () => document.body.textContent ?? "",
-    code: () => document.querySelector("[data-vault-totp] > span")?.textContent ?? "",
+    code: () =>
+      document.querySelector("[data-vault-totp] > span")?.textContent ?? "",
     outline: () => visibleOutline(document.body),
     unmount: () => {
       act(() => root.unmount());

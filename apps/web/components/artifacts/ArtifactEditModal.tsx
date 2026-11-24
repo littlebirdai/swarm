@@ -15,7 +15,13 @@ import { X } from "lucide-react";
 import type { ArtifactRow } from "./ArtifactCard";
 
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-export function ArtifactEditModal({ artifact, onClose }: { artifact: ArtifactRow; onClose: () => void }) {
+export function ArtifactEditModal({
+  artifact,
+  onClose,
+}: {
+  artifact: ArtifactRow;
+  onClose: () => void;
+}) {
   const loadSource = useAction(api.artifactsHttp.sourceForWeb);
   const saveEdit = useAction(api.artifactsHttp.editForWeb);
   const [source, setSource] = useState<string | null>(null);
@@ -28,7 +34,8 @@ export function ArtifactEditModal({ artifact, onClose }: { artifact: ArtifactRow
     loadSource({ slug: artifact.slug }).then(
       (r) => {
         if (cancelled) return;
-        if (r.error || r.source === undefined) setError(r.error ?? "Couldn't load source");
+        if (r.error || r.source === undefined)
+          setError(r.error ?? "Couldn't load source");
         else setSource(r.source);
       },
       () => !cancelled && setError("Couldn't load source"),
@@ -82,9 +89,12 @@ export function ArtifactEditModal({ artifact, onClose }: { artifact: ArtifactRow
       >
         <div className="flex items-center gap-3 px-4 py-2.5 border-b border-sol-border/50">
           <div className="min-w-0">
-            <div className="text-sm font-medium text-sol-text truncate">{artifact.title}</div>
+            <div className="text-sm font-medium text-sol-text truncate">
+              {artifact.title}
+            </div>
             <div className="text-meta text-sol-text-dim font-mono">
-              editing v{artifact.version} ({artifact.kind}) · publishing mints a new version
+              editing v{artifact.version} ({artifact.kind}) · publishing mints a
+              new version
               {artifact.mine ? "" : " credited to you"}
             </div>
           </div>
@@ -107,9 +117,13 @@ export function ArtifactEditModal({ artifact, onClose }: { artifact: ArtifactRow
           </div>
         </div>
         {error ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-sol-red p-8 text-center">{error}</div>
+          <div className="flex-1 flex items-center justify-center text-sm text-sol-red p-8 text-center">
+            {error}
+          </div>
         ) : source === null ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-sol-text-dim">Loading source…</div>
+          <div className="flex-1 flex items-center justify-center text-sm text-sol-text-dim">
+            Loading source…
+          </div>
         ) : (
           <textarea
             value={source}

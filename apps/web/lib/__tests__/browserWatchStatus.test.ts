@@ -52,7 +52,10 @@ describe("watchErrorStatus", () => {
   });
 
   test("a refused stream is about the endpoint, not the tab", () => {
-    expect(watchErrorStatus("forbidden", "")).toMatchObject({ tabGone: false, canRetry: true });
+    expect(watchErrorStatus("forbidden", "")).toMatchObject({
+      tabGone: false,
+      canRetry: true,
+    });
   });
 
   test("an unknown code passes the daemon's own words through", () => {
@@ -60,7 +63,9 @@ describe("watchErrorStatus", () => {
       message: "the socket melted",
     });
     // …and still says something when the daemon said nothing.
-    expect(watchErrorStatus("weird", "")).toMatchObject({ message: "could not open the stream" });
+    expect(watchErrorStatus("weird", "")).toMatchObject({
+      message: "could not open the stream",
+    });
   });
 });
 
@@ -74,19 +79,27 @@ describe("watchUnreachableStatus", () => {
   test("an unnamed foreign machine is still a full stop", () => {
     const s = watchUnreachableStatus({ foreign: false, machineName: null });
     expect(s).toMatchObject({ canRetry: true });
-    expect((s as { message: string }).message).toContain("cast running on this machine");
+    expect((s as { message: string }).message).toContain(
+      "cast running on this machine",
+    );
   });
 });
 
 describe("missingTabMessage", () => {
   test("names the session and its last page", () => {
-    expect(missingTabMessage("Fix the auth race", "https://example.com/login")).toBe(
+    expect(
+      missingTabMessage("Fix the auth race", "https://example.com/login"),
+    ).toBe(
       "Fix the auth race has no browser tab open right now. Its last page was https://example.com/login.",
     );
   });
 
   test("no title and no page still reads as a sentence", () => {
-    expect(missingTabMessage(null, null)).toBe("This session has no browser tab open right now.");
-    expect(missingTabMessage("   ", null)).toBe("This session has no browser tab open right now.");
+    expect(missingTabMessage(null, null)).toBe(
+      "This session has no browser tab open right now.",
+    );
+    expect(missingTabMessage("   ", null)).toBe(
+      "This session has no browser tab open right now.",
+    );
   });
 });

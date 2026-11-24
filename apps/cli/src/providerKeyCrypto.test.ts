@@ -21,7 +21,11 @@ describe("provider-key web→daemon crypto", () => {
       const pub = getProviderKeyPublicKey(dir);
       expect(Buffer.from(pub, "base64").length).toBe(65); // 0x04 + 32 + 32
       expect(getProviderKeyPublicKey(dir)).toBe(pub); // persisted, stable
-      expect((fs.statSync(path.join(dir, ".provider-key-ecdh")).mode & 0o777).toString(8)).toBe("600");
+      expect(
+        (
+          fs.statSync(path.join(dir, ".provider-key-ecdh")).mode & 0o777
+        ).toString(8),
+      ).toBe("600");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -31,9 +35,15 @@ describe("provider-key web→daemon crypto", () => {
     const dir = tmpDir();
     try {
       const pub = getProviderKeyPublicKey(dir);
-      const payload = encryptProviderKey(pub, "openrouter", "sk-or-v1-secret-xyz");
+      const payload = encryptProviderKey(
+        pub,
+        "openrouter",
+        "sk-or-v1-secret-xyz",
+      );
       expect(payload.provider).toBe("openrouter");
-      expect(decryptProviderKeyPayload(dir, payload)).toBe("sk-or-v1-secret-xyz");
+      expect(decryptProviderKeyPayload(dir, payload)).toBe(
+        "sk-or-v1-secret-xyz",
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -44,7 +54,10 @@ describe("provider-key web→daemon crypto", () => {
     try {
       const pub = getProviderKeyPublicKey(dir);
       const payload = encryptProviderKey(pub, "openrouter", "sk-or-real");
-      const tampered = { ...payload, ct: Buffer.from("garbage-ciphertext-bytes-here!!").toString("base64") };
+      const tampered = {
+        ...payload,
+        ct: Buffer.from("garbage-ciphertext-bytes-here!!").toString("base64"),
+      };
       expect(() => decryptProviderKeyPayload(dir, tampered)).toThrow();
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -56,17 +69,32 @@ describe("provider-key web→daemon crypto", () => {
     try {
       const pub = getProviderKeyPublicKey(dir);
       // The exact args the convex mutation builds for op:"set".
-      const setArgs = JSON.stringify({ op: "set", payload: encryptProviderKey(pub, "openrouter", "sk-or-live-key") });
+      const setArgs = JSON.stringify({
+        op: "set",
+        payload: encryptProviderKey(pub, "openrouter", "sk-or-live-key"),
+      });
       const setRes = await applyProviderKeyCommand(dir, setArgs);
       expect(setRes.ok).toBe(true);
-      expect(readProviderKeyStore(dir)).toEqual({ openrouter: "sk-or-live-key" });
+      expect(readProviderKeyStore(dir)).toEqual({
+        openrouter: "sk-or-live-key",
+      });
       // op:"remove" (no encryption).
-      const rmRes = await applyProviderKeyCommand(dir, JSON.stringify({ op: "remove", provider: "openrouter" }));
+      const rmRes = await applyProviderKeyCommand(
+        dir,
+        JSON.stringify({ op: "remove", provider: "openrouter" }),
+      );
       expect(rmRes.ok).toBe(true);
       expect(readProviderKeyStore(dir)).toEqual({});
       // A payload sealed to a different device fails to apply, store untouched.
       const otherDir = tmpDir();
-      const forOther = JSON.stringify({ op: "set", payload: encryptProviderKey(getProviderKeyPublicKey(otherDir), "openai", "sk-x") });
+      const forOther = JSON.stringify({
+        op: "set",
+        payload: encryptProviderKey(
+          getProviderKeyPublicKey(otherDir),
+          "openai",
+          "sk-x",
+        ),
+      });
       expect((await applyProviderKeyCommand(dir, forOther)).ok).toBe(false);
       expect(readProviderKeyStore(dir)).toEqual({});
       fs.rmSync(otherDir, { recursive: true, force: true });
@@ -86,8 +114,14 @@ describe("provider-key web→daemon crypto", () => {
     const dir = tmpDir();
     try {
       const pub = getProviderKeyPublicKey(dir);
-      const payload = await encryptProviderKey(pub, "openrouter", "sk-or-web-module-interop");
-      expect(decryptProviderKeyPayload(dir, payload)).toBe("sk-or-web-module-interop");
+      const payload = await encryptProviderKey(
+        pub,
+        "openrouter",
+        "sk-or-web-module-interop",
+      );
+      expect(decryptProviderKeyPayload(dir, payload)).toBe(
+        "sk-or-web-module-interop",
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -112,11 +146,38 @@ describe("provider key verification", () => {
   it("stores a key only when the provider's check passes, and reports the account", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pk-verify-"));
     try {
-      const seal = async (key: string) => JSON.stringify({ op: "set", provider: "cursor", payload: encryptProviderKey(getProviderKeyPublicKey(dir), "cursor", key) });
-      const verify = async (_p: string, k: string) => (k === "crsr_good" ? { ok: true as const, account: "me@x.com" } : { ok: false as const, error: "Cursor rejected this key: Invalid User API Key" });
-      expect(await applyProviderKeyCommand(dir, await seal("crsr_bad"), verify)).toEqual({ ok: false, error: "Cursor rejected this key: Invalid User API Key" });
+      const seal = async (key: string) =>
+        JSON.stringify({
+          op: "set",
+          provider: "cursor",
+          payload: encryptProviderKey(
+            getProviderKeyPublicKey(dir),
+            "cursor",
+            key,
+          ),
+        });
+      const verify = async (_p: string, k: string) =>
+        k === "crsr_good"
+          ? { ok: true as const, account: "me@x.com" }
+          : {
+              ok: false as const,
+              error: "Cursor rejected this key: Invalid User API Key",
+            };
+      expect(
+        await applyProviderKeyCommand(dir, await seal("crsr_bad"), verify),
+      ).toEqual({
+        ok: false,
+        error: "Cursor rejected this key: Invalid User API Key",
+      });
       expect(readProviderKeyStore(dir).cursor).toBeUndefined();
-      expect(await applyProviderKeyCommand(dir, await seal("crsr_good"), verify)).toEqual({ ok: true, op: "set", provider: "cursor", account: "me@x.com" });
+      expect(
+        await applyProviderKeyCommand(dir, await seal("crsr_good"), verify),
+      ).toEqual({
+        ok: true,
+        op: "set",
+        provider: "cursor",
+        account: "me@x.com",
+      });
       expect(readProviderKeyStore(dir).cursor).toBe("crsr_good");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

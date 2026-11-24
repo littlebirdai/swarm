@@ -14,9 +14,31 @@
 // replace or withdraw it, and `focused` from the store's orgFocusChangeId.
 import React, { useRef, useState, type ButtonHTMLAttributes } from "react";
 import Link from "next/link";
-import { AlertTriangle, Check, CheckSquare, Flag, FolderClosed, ListChecks, PencilLine, Sparkles, X } from "lucide-react";
-import { passageDiff, type ChangeField, type PassagePart } from "@codecast/shared/contracts/orgChangeWords";
-import { isOrgChangeApprovable, isOrgChangeDecidable, ORG_REPLY_WORDS, type OrgChangeAnswer, type OrgChangeReply, type OrgChangeStatus, type OrgReplyVerdict } from "@codecast/shared/contracts/orgProposal";
+import {
+  AlertTriangle,
+  Check,
+  CheckSquare,
+  Flag,
+  FolderClosed,
+  ListChecks,
+  PencilLine,
+  Sparkles,
+  X,
+} from "lucide-react";
+import {
+  passageDiff,
+  type ChangeField,
+  type PassagePart,
+} from "@codecast/shared/contracts/orgChangeWords";
+import {
+  isOrgChangeApprovable,
+  isOrgChangeDecidable,
+  ORG_REPLY_WORDS,
+  type OrgChangeAnswer,
+  type OrgChangeReply,
+  type OrgChangeStatus,
+  type OrgReplyVerdict,
+} from "@codecast/shared/contracts/orgProposal";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { EntityIdPill } from "../EntityIdPill";
 import { useOverflows } from "../../hooks/useOverflows";
@@ -32,49 +54,145 @@ import { CHIP_STATUS, GHOST } from "./orgMeta";
 import type { OrgProposalChange } from "./orgStaffingTypes";
 import { useOrgHover } from "./proposalContexts";
 import { lightChanges, useChangeLit } from "./lines/changeLight";
-import { changeAnswer, changeReply, fieldText, subjectStatusWords, type SubjectCard, type SubjectStatus } from "./proposalSubjects";
+import {
+  changeAnswer,
+  changeReply,
+  fieldText,
+  subjectStatusWords,
+  type SubjectCard,
+  type SubjectStatus,
+} from "./proposalSubjects";
 import type { ProposalTreeFace } from "./proposalTree";
 import { StagedBand, stagedWash } from "./StagedBand";
 import { Added, StatusMove } from "./ChangeChips";
-import { EASE, LABEL, MUTED, QUIET, RED, SENTENCE, SOFT, statusLook, STRUCK, TEXT, VALUE, type RecordKind } from "./ledgerLook";
+import {
+  EASE,
+  LABEL,
+  MUTED,
+  QUIET,
+  RED,
+  SENTENCE,
+  SOFT,
+  statusLook,
+  STRUCK,
+  TEXT,
+  VALUE,
+  type RecordKind,
+} from "./ledgerLook";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 
 // ---------------------------------------------------------------- the face
 
-export function Face({ face, size = 20, dim }: { face: ProposalTreeFace; size?: number; dim?: boolean }) {
+export function Face({
+  face,
+  size = 20,
+  dim,
+}: {
+  face: ProposalTreeFace;
+  size?: number;
+  dim?: boolean;
+}) {
   const style = dim ? { opacity: GHOST.opacity } : undefined;
   if (face.kind === "person") {
     return (
-      <span className="inline-flex shrink-0 rounded-full p-[1.5px]" style={{ background: face.me ? "linear-gradient(135deg, var(--sol-cyan), var(--sol-blue))" : "color-mix(in srgb, var(--sol-border) 45%, transparent)", ...style }} data-face="person">
-        <span className="inline-flex rounded-full p-[1px]" style={{ background: "var(--sol-card)" }}><Avatar name={face.name} image={face.image} size="sm" /></span>
+      <span
+        className="inline-flex shrink-0 rounded-full p-[1.5px]"
+        style={{
+          background: face.me
+            ? "linear-gradient(135deg, var(--sol-cyan), var(--sol-blue))"
+            : "color-mix(in srgb, var(--sol-border) 45%, transparent)",
+          ...style,
+        }}
+        data-face="person"
+      >
+        <span
+          className="inline-flex rounded-full p-[1px]"
+          style={{ background: "var(--sol-card)" }}
+        >
+          <Avatar name={face.name} image={face.image} size="sm" />
+        </span>
       </span>
     );
   }
-  if (face.kind === "role") return <span className="inline-flex shrink-0" style={style} data-face="role"><RoleFace role={{ handle: face.handle, name: face.name, avatar: face.avatar }} size={size} /></span>;
+  if (face.kind === "role")
+    return (
+      <span className="inline-flex shrink-0" style={style} data-face="role">
+        <RoleFace
+          role={{ handle: face.handle, name: face.name, avatar: face.avatar }}
+          size={size}
+        />
+      </span>
+    );
   if (face.kind === "session") {
     return (
-      <span className="inline-flex shrink-0 items-center justify-center rounded-md" style={{ width: size, height: size, background: GHOST.fill, color: GHOST.color, ...style }} data-face="session">
+      <span
+        className="inline-flex shrink-0 items-center justify-center rounded-md"
+        style={{
+          width: size,
+          height: size,
+          background: GHOST.fill,
+          color: GHOST.color,
+          ...style,
+        }}
+        data-face="session"
+      >
         <Sparkles className="h-3 w-3" />
       </span>
     );
   }
   if (face.kind === "goal") {
     return (
-      <span className="inline-flex shrink-0 items-center justify-center rounded-md" style={{ width: size, height: size, background: face.proposed ? GHOST.fill : "color-mix(in srgb, var(--sol-cyan) 14%, transparent)", color: face.proposed ? GHOST.color : "var(--sol-cyan)", ...style }} data-face="goal">
+      <span
+        className="inline-flex shrink-0 items-center justify-center rounded-md"
+        style={{
+          width: size,
+          height: size,
+          background: face.proposed
+            ? GHOST.fill
+            : "color-mix(in srgb, var(--sol-cyan) 14%, transparent)",
+          color: face.proposed ? GHOST.color : "var(--sol-cyan)",
+          ...style,
+        }}
+        data-face="goal"
+      >
         <Flag className="h-3 w-3" />
       </span>
     );
   }
   if (face.kind === "record") {
-    const Icon = face.record === "task" ? CheckSquare : face.record === "plan" ? ListChecks : FolderClosed;
+    const Icon =
+      face.record === "task"
+        ? CheckSquare
+        : face.record === "plan"
+          ? ListChecks
+          : FolderClosed;
     return (
-      <span className="inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size, color: "var(--sol-text-muted)", ...style }} data-face="record">
+      <span
+        className="inline-flex shrink-0 items-center justify-center"
+        style={{
+          width: size,
+          height: size,
+          color: "var(--sol-text-muted)",
+          ...style,
+        }}
+        data-face="record"
+      >
         <Icon className="h-3.5 w-3.5" />
       </span>
     );
   }
   return (
-    <span className="inline-flex shrink-0 items-center justify-center rounded-full" style={{ width: size, height: size, border: CHIP_STATUS.failed.border, color: CHIP_STATUS.failed.color, ...style }} data-face="unknown">
+    <span
+      className="inline-flex shrink-0 items-center justify-center rounded-full"
+      style={{
+        width: size,
+        height: size,
+        border: CHIP_STATUS.failed.border,
+        color: CHIP_STATUS.failed.color,
+        ...style,
+      }}
+      data-face="unknown"
+    >
       <AlertTriangle className="h-3 w-3" />
     </span>
   );
@@ -84,23 +202,38 @@ export function Face({ face, size = 20, dim }: { face: ProposalTreeFace; size?: 
 
 /** The ledger's inks, each a mix of theme variables, lifted toward the text
  *  colour on a dark ground. Every root that draws ledger type carries them. */
-export const LEDGER_INKS = "[--ink-quiet:var(--sol-text-dim)] dark:[--ink-quiet:color-mix(in_srgb,var(--sol-text-dim)_55%,var(--sol-text-muted))] [--ink-violet:var(--sol-violet)] dark:[--ink-violet:color-mix(in_srgb,var(--sol-violet)_68%,var(--sol-text))] [--ink-red:var(--sol-red)] dark:[--ink-red:color-mix(in_srgb,var(--sol-red)_80%,var(--sol-text))] [--ink-green:color-mix(in_srgb,var(--sol-green)_87%,var(--sol-text))] [--ink-cyan:color-mix(in_srgb,var(--sol-cyan)_88%,var(--sol-text))]";
+export const LEDGER_INKS =
+  "[--ink-quiet:var(--sol-text-dim)] dark:[--ink-quiet:color-mix(in_srgb,var(--sol-text-dim)_55%,var(--sol-text-muted))] [--ink-violet:var(--sol-violet)] dark:[--ink-violet:color-mix(in_srgb,var(--sol-violet)_68%,var(--sol-text))] [--ink-red:var(--sol-red)] dark:[--ink-red:color-mix(in_srgb,var(--sol-red)_80%,var(--sol-text))] [--ink-green:color-mix(in_srgb,var(--sol-green)_87%,var(--sol-text))] [--ink-cyan:color-mix(in_srgb,var(--sol-cyan)_88%,var(--sol-text))]";
 /** A rule between entries, and the stronger one over the closing row. */
-export const LEDGER_HAIR = "color-mix(in srgb, var(--sol-border) 30%, transparent)";
-export const LEDGER_RULE = "color-mix(in srgb, var(--sol-border) 60%, transparent)";
+export const LEDGER_HAIR =
+  "color-mix(in srgb, var(--sol-border) 30%, transparent)";
+export const LEDGER_RULE =
+  "color-mix(in srgb, var(--sol-border) 60%, transparent)";
 /** A link inside ledger type: one thin underline, the ink it sits in. */
-export const LEDGER_LINK = "cursor-pointer underline decoration-1 underline-offset-[3px] [text-decoration-color:color-mix(in_srgb,currentColor_45%,transparent)] transition-colors [transition-duration:120ms] motion-reduce:transition-none hover:text-[color:var(--sol-text)]";
+export const LEDGER_LINK =
+  "cursor-pointer underline decoration-1 underline-offset-[3px] [text-decoration-color:color-mix(in_srgb,currentColor_45%,transparent)] transition-colors [transition-duration:120ms] motion-reduce:transition-none hover:text-[color:var(--sol-text)]";
 /** A button that is a word: Reject, Reply, Map. */
-export const LEDGER_WORD = "inline-flex h-7 shrink-0 items-center rounded-md px-2 text-[12.5px] font-normal leading-none no-underline text-[color:var(--sol-text-muted)] transition-colors [transition-duration:120ms] motion-reduce:transition-none hover:bg-[color-mix(in_srgb,var(--sol-border)_16%,transparent)] hover:text-[color:var(--sol-text)] disabled:cursor-not-allowed disabled:opacity-45";
+export const LEDGER_WORD =
+  "inline-flex h-7 shrink-0 items-center rounded-md px-2 text-[12.5px] font-normal leading-none no-underline text-[color:var(--sol-text-muted)] transition-colors [transition-duration:120ms] motion-reduce:transition-none hover:bg-[color-mix(in_srgb,var(--sol-border)_16%,transparent)] hover:text-[color:var(--sol-text)] disabled:cursor-not-allowed disabled:opacity-45";
 /** The word button pressed: Reject, in its colour on a soft fill. */
-export const WORD_PRESSED = "bg-[color-mix(in_srgb,var(--sol-red)_10%,transparent)] text-[color:var(--ink-red)] hover:bg-[color-mix(in_srgb,var(--sol-red)_16%,transparent)] hover:text-[color:var(--ink-red)]";
+export const WORD_PRESSED =
+  "bg-[color-mix(in_srgb,var(--sol-red)_10%,transparent)] text-[color:var(--ink-red)] hover:bg-[color-mix(in_srgb,var(--sol-red)_16%,transparent)] hover:text-[color:var(--ink-red)]";
 
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 /** A control's press, key or pointer never reaches the frame around it (a card that opens on a click). */
-export const LEDGER_STOP = { onClick: stop, onKeyDown: stop, onPointerDown: stop } as const;
+export const LEDGER_STOP = {
+  onClick: stop,
+  onKeyDown: stop,
+  onPointerDown: stop,
+} as const;
 
-export function LedgerWord({ className, ...rest }: ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button type="button" className={cn(LEDGER_WORD, className)} {...rest} />;
+export function LedgerWord({
+  className,
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button type="button" className={cn(LEDGER_WORD, className)} {...rest} />
+  );
 }
 
 /**
@@ -109,7 +242,14 @@ export function LedgerWord({ className, ...rest }: ButtonHTMLAttributes<HTMLButt
  * waits. `above` is a line over the row. When it cannot fit one line the
  * controls take the upper one.
  */
-export function LedgerClosingRow({ left, right, above, outcome, sticky, className }: {
+export function LedgerClosingRow({
+  left,
+  right,
+  above,
+  outcome,
+  sticky,
+  className,
+}: {
   left?: React.ReactNode;
   right?: React.ReactNode;
   above?: React.ReactNode;
@@ -120,17 +260,31 @@ export function LedgerClosingRow({ left, right, above, outcome, sticky, classNam
 }) {
   return (
     <div
-      className={cn("not-prose border-t pt-3", LEDGER_INKS, sticky && "sticky bottom-0 bg-[var(--sol-bg)] pb-1", className)}
+      className={cn(
+        "not-prose border-t pt-3",
+        LEDGER_INKS,
+        sticky && "sticky bottom-0 bg-[var(--sol-bg)] pb-1",
+        className,
+      )}
       style={{ borderColor: LEDGER_RULE }}
       {...LEDGER_STOP}
       data-ledger-close
     >
       {above != null && <div className="mb-2.5 min-w-0">{above}</div>}
       <div className="flex flex-wrap-reverse items-center gap-x-0.5 gap-y-1.5">
-        {left != null && <div className="-ml-2 flex items-center gap-0.5">{left}</div>}
+        {left != null && (
+          <div className="-ml-2 flex items-center gap-0.5">{left}</div>
+        )}
         <div className="ml-auto flex items-center gap-0.5">
           {right}
-          {outcome != null && <span className={cn("text-[12.5px] leading-7", MUTED)} data-proposal-outcome>{outcome}</span>}
+          {outcome != null && (
+            <span
+              className={cn("text-[12.5px] leading-7", MUTED)}
+              data-proposal-outcome
+            >
+              {outcome}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -159,7 +313,15 @@ import { FIELD_ASKS } from "./proposalLedgerModel";
  * leaving the field closes it and keeps what was saved. Keys never reach the
  * frame around it: a space would fold the card.
  */
-export function LedgerReplyField({ value, ask, onChange, onClose, aside, className, ...rest }: {
+export function LedgerReplyField({
+  value,
+  ask,
+  onChange,
+  onClose,
+  aside,
+  className,
+  ...rest
+}: {
   value: string;
   /** The prompt in the empty field. */
   ask: string;
@@ -170,7 +332,10 @@ export function LedgerReplyField({ value, ask, onChange, onClose, aside, classNa
   className?: string;
 } & DataHooks) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  const grow = (el: HTMLTextAreaElement) => { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; };
+  const grow = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
   // Opened by a press: the caret goes to the end of what is already said.
   useMountEffect(() => {
     const el = ref.current;
@@ -188,21 +353,49 @@ export function LedgerReplyField({ value, ask, onChange, onClose, aside, classNa
         rows={2}
         placeholder={ask}
         aria-label={ask}
-        className={cn("block w-full resize-none rounded-md border bg-transparent px-2.5 py-1.5 text-[12.5px] leading-[20px] outline-none placeholder:text-[color:var(--ink-quiet)] focus:border-[color-mix(in_srgb,var(--sol-violet)_60%,transparent)]", TEXT)}
+        className={cn(
+          "block w-full resize-none rounded-md border bg-transparent px-2.5 py-1.5 text-[12.5px] leading-[20px] outline-none placeholder:text-[color:var(--ink-quiet)] focus:border-[color-mix(in_srgb,var(--sol-violet)_60%,transparent)]",
+          TEXT,
+        )}
         style={{ borderColor: LEDGER_RULE, ...FIELD_SIZING_STYLE }}
-        onChange={(e) => { onChange(e.target.value); grow(e.target); }}
+        onChange={(e) => {
+          onChange(e.target.value);
+          grow(e.target);
+        }}
         onBlur={onClose}
         onKeyDown={(e) => {
           e.stopPropagation();
-          if (e.key === "Escape") { e.preventDefault(); onClose(); }
-          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onClose(); }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            onClose();
+          }
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            onClose();
+          }
         }}
       />
-      <div className={cn("mt-1 flex items-center gap-3 text-meta leading-[16px]", QUIET)}>
-        <span className="inline-flex items-center gap-1"><KeyCap size="xs">return</KeyCap> save</span>
-        <span className="inline-flex items-center gap-1"><KeyCap size="xs">shift</KeyCap><KeyCap size="xs">return</KeyCap> new line</span>
-        <span className="inline-flex items-center gap-1"><KeyCap size="xs">esc</KeyCap> close</span>
-        {aside && <span className="ml-auto" onMouseDown={(e) => e.preventDefault()}>{aside}</span>}
+      <div
+        className={cn(
+          "mt-1 flex items-center gap-3 text-meta leading-[16px]",
+          QUIET,
+        )}
+      >
+        <span className="inline-flex items-center gap-1">
+          <KeyCap size="xs">return</KeyCap> save
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <KeyCap size="xs">shift</KeyCap>
+          <KeyCap size="xs">return</KeyCap> new line
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <KeyCap size="xs">esc</KeyCap> close
+        </span>
+        {aside && (
+          <span className="ml-auto" onMouseDown={(e) => e.preventDefault()}>
+            {aside}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -210,11 +403,47 @@ export function LedgerReplyField({ value, ask, onChange, onClose, aside, classNa
 
 /** The person's own words under an entry: a quiet "You", then the words in
  *  full ink. With `onEdit`, a press opens them in the field. */
-export function LedgerYou({ text, onEdit, className, ...rest }: { text: string; onEdit?: () => void; className?: string } & DataHooks) {
-  const inner = <><span className={QUIET}>You: </span><span className={TEXT}>{text}</span></>;
-  const look = cn("m-0 max-w-[70ch] whitespace-pre-line text-left text-[12.5px] leading-[1.55] [overflow-wrap:anywhere]", className);
-  if (!onEdit) return <p className={look} {...rest}>{inner}</p>;
-  return <button type="button" className={cn(look, "block rounded-sm hover:bg-[color-mix(in_srgb,var(--sol-border)_12%,transparent)]")} onClick={(e) => { e.stopPropagation(); onEdit(); }} onKeyDown={stop} onPointerDown={stop} title="Edit" {...rest}>{inner}</button>;
+export function LedgerYou({
+  text,
+  onEdit,
+  className,
+  ...rest
+}: { text: string; onEdit?: () => void; className?: string } & DataHooks) {
+  const inner = (
+    <>
+      <span className={QUIET}>You: </span>
+      <span className={TEXT}>{text}</span>
+    </>
+  );
+  const look = cn(
+    "m-0 max-w-[70ch] whitespace-pre-line text-left text-[12.5px] leading-[1.55] [overflow-wrap:anywhere]",
+    className,
+  );
+  if (!onEdit)
+    return (
+      <p className={look} {...rest}>
+        {inner}
+      </p>
+    );
+  return (
+    <button
+      type="button"
+      className={cn(
+        look,
+        "block rounded-sm hover:bg-[color-mix(in_srgb,var(--sol-border)_12%,transparent)]",
+      )}
+      onClick={(e) => {
+        e.stopPropagation();
+        onEdit();
+      }}
+      onKeyDown={stop}
+      onPointerDown={stop}
+      title="Edit"
+      {...rest}
+    >
+      {inner}
+    </button>
+  );
 }
 
 /**
@@ -226,34 +455,53 @@ export function LedgerYou({ text, onEdit, className, ...rest }: { text: string; 
  * from here, so Reply reads the same everywhere; `asks` rewords the prompt
  * for a surface that is not one change (a group of records).
  */
-export function useAnswerField(answer: SubjectAnswer | null | undefined, onAnswer: ((answer: SubjectAnswer | null) => void) | undefined, enabled = true, asks: Partial<Record<OrgReplyVerdict, string>> = {}) {
+export function useAnswerField(
+  answer: SubjectAnswer | null | undefined,
+  onAnswer: ((answer: SubjectAnswer | null) => void) | undefined,
+  enabled = true,
+  asks: Partial<Record<OrgReplyVerdict, string>> = {},
+) {
   const [fieldOpen, setFieldOpen] = useState(false);
   const open = fieldOpen && !!onAnswer && enabled;
-  const close = () => { setFieldOpen(false); if (answer?.verdict === "note" && !answer.text?.trim()) onAnswer?.(null); };
+  const close = () => {
+    setFieldOpen(false);
+    if (answer?.verdict === "note" && !answer.text?.trim()) onAnswer?.(null);
+  };
   const verdict = answer?.verdict ?? "note";
   // Adjusting can go as far as no: one press turns the words into a rejection, and back.
   const reject = verdict !== "approve" && (
     <LedgerWord
-      className={cn("-mr-2 h-6 text-meta", verdict === "reject" && WORD_PRESSED)}
+      className={cn(
+        "-mr-2 h-6 text-meta",
+        verdict === "reject" && WORD_PRESSED,
+      )}
       aria-pressed={verdict === "reject"}
-      onClick={() => onAnswer?.({ verdict: verdict === "reject" ? "note" : "reject", ...(answer?.text ? { text: answer.text } : {}) })}
+      onClick={() =>
+        onAnswer?.({
+          verdict: verdict === "reject" ? "note" : "reject",
+          ...(answer?.text ? { text: answer.text } : {}),
+        })
+      }
       data-subject-reject
     >
-      {verdict === "reject" && <X className="-ml-0.5 mr-1 h-3 w-3" aria-hidden />}
+      {verdict === "reject" && (
+        <X className="-ml-0.5 mr-1 h-3 w-3" aria-hidden />
+      )}
       {ORG_REPLY_WORDS.reject.act}
     </LedgerWord>
   );
-  const field = (props: { className?: string } & DataHooks) => open && (
-    <LedgerReplyField
-      value={answer?.text ?? ""}
-      ask={asks[verdict] ?? FIELD_ASKS[verdict]}
-      onChange={(t) => onAnswer?.({ ...answer, verdict, text: t })}
-      onClose={close}
-      aside={reject}
-      data-subject-reply-field={verdict}
-      {...props}
-    />
-  );
+  const field = (props: { className?: string } & DataHooks) =>
+    open && (
+      <LedgerReplyField
+        value={answer?.text ?? ""}
+        ask={asks[verdict] ?? FIELD_ASKS[verdict]}
+        onChange={(t) => onAnswer?.({ ...answer, verdict, text: t })}
+        onClose={close}
+        aside={reject}
+        data-subject-reply-field={verdict}
+        {...props}
+      />
+    );
   return { open, setOpen: setFieldOpen, field };
 }
 
@@ -261,7 +509,14 @@ export function useAnswerField(answer: SubjectAnswer | null | undefined, onAnswe
  *  Adjust, which opens the field for the person's own words (Reject is in
  *  there). A press only stages; the composer's send acts. A failed entry has
  *  Adjust alone: as written it fails the same way, so it waits on a revise. */
-export function AnswerControls({ answer, canAccept = true, dense, onAnswer, onOpen, open }: {
+export function AnswerControls({
+  answer,
+  canAccept = true,
+  dense,
+  onAnswer,
+  onOpen,
+  open,
+}: {
   answer: SubjectAnswer | null | undefined;
   canAccept?: boolean;
   /** Tighter faces, for a strip that must fit a chart card. */
@@ -273,15 +528,44 @@ export function AnswerControls({ answer, canAccept = true, dense, onAnswer, onOp
 }) {
   const tight = dense ? "h-6 px-2 text-meta" : undefined;
   const accepted = answer?.verdict === "approve";
-  const adjusting = open || answer?.verdict === "note" || answer?.verdict === "reject";
+  const adjusting =
+    open || answer?.verdict === "note" || answer?.verdict === "reject";
   return (
     <span className="inline-flex items-center gap-1.5">
-      <Button variant="outline" size="xs" className={cn("bg-transparent aria-pressed:border-[color:var(--sol-text-dim)] aria-pressed:bg-[color-mix(in_srgb,var(--sol-border)_28%,transparent)] aria-pressed:text-[color:var(--sol-text)]", tight)} aria-expanded={open} aria-pressed={adjusting} onClick={() => onOpen(!open)} data-subject-reply>
+      <Button
+        variant="outline"
+        size="xs"
+        className={cn(
+          "bg-transparent aria-pressed:border-[color:var(--sol-text-dim)] aria-pressed:bg-[color-mix(in_srgb,var(--sol-border)_28%,transparent)] aria-pressed:text-[color:var(--sol-text)]",
+          tight,
+        )}
+        aria-expanded={open}
+        aria-pressed={adjusting}
+        onClick={() => onOpen(!open)}
+        data-subject-reply
+      >
         <PencilLine aria-hidden />
         {ORG_REPLY_WORDS.note.act}
       </Button>
       {canAccept && (
-        <Button variant="green" size="xs" className={tight} aria-pressed={accepted} onClick={() => { onAnswer(accepted ? null : { verdict: "approve", ...(answer?.text ? { text: answer.text } : {}) }); onOpen(false); }} data-subject-approve>
+        <Button
+          variant="green"
+          size="xs"
+          className={tight}
+          aria-pressed={accepted}
+          onClick={() => {
+            onAnswer(
+              accepted
+                ? null
+                : {
+                    verdict: "approve",
+                    ...(answer?.text ? { text: answer.text } : {}),
+                  },
+            );
+            onOpen(false);
+          }}
+          data-subject-approve
+        >
           <Check aria-hidden />
           {ORG_REPLY_WORDS.approve.act}
         </Button>
@@ -298,8 +582,17 @@ function SmallFace({ face }: { face: ProposalTreeFace | undefined }) {
   // A face nobody could name draws no mark: the name stands alone.
   if (!face || face.kind === "unknown") return null;
   return (
-    <span className="relative -top-px mr-1.5 inline-flex h-[15px] w-[15px] items-center justify-center align-middle" data-subject-face={face.kind}>
-      {face.kind === "person" ? <span className="inline-flex shrink-0 scale-[0.6]"><Face face={face} /></span> : <Face face={face} size={15} />}
+    <span
+      className="relative -top-px mr-1.5 inline-flex h-[15px] w-[15px] items-center justify-center align-middle"
+      data-subject-face={face.kind}
+    >
+      {face.kind === "person" ? (
+        <span className="inline-flex shrink-0 scale-[0.6]">
+          <Face face={face} />
+        </span>
+      ) : (
+        <Face face={face} size={15} />
+      )}
     </span>
   );
 }
@@ -308,9 +601,26 @@ const CLAMP_LINE = 20;
 const LINE_CLAMP = { 2: "line-clamp-2", 4: "line-clamp-4" } as const;
 
 /** The word that opens a clamp: "show all" until pressed, "show less" after. */
-function ClampWord({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+function ClampWord({
+  open,
+  onToggle,
+}: {
+  open: boolean;
+  onToggle: () => void;
+}) {
   return (
-    <button type="button" className={cn(LEDGER_LINK, QUIET, "block text-meta leading-[16px]")} aria-expanded={open} onClick={(e) => { e.stopPropagation(); onToggle(); }} onKeyDown={stop} onPointerDown={stop} data-field-more>
+    <button
+      type="button"
+      className={cn(LEDGER_LINK, QUIET, "block text-meta leading-[16px]")}
+      aria-expanded={open}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      onKeyDown={stop}
+      onPointerDown={stop}
+      data-field-more
+    >
       {open ? "show less" : "show all"}
     </button>
   );
@@ -318,14 +628,41 @@ function ClampWord({ open, onToggle }: { open: boolean; onToggle: () => void }) 
 
 /** Words at length: `lines` of them, then "show all" on its own line under
  *  the text, drawn only when the words do not fit. Never on a sentence. */
-export function Clamp({ lines = 2, children, tail, struck, className }: { lines?: 2 | 4; children: string; tail?: string; struck?: boolean; className?: string }) {
+export function Clamp({
+  lines = 2,
+  children,
+  tail,
+  struck,
+  className,
+}: {
+  lines?: 2 | 4;
+  children: string;
+  tail?: string;
+  struck?: boolean;
+  className?: string;
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
   const clipped = useOverflows(ref, lines * CLAMP_LINE + 1, [children, tail]);
   return (
-    <span className={cn("block min-w-0", className)} data-field-clamp={open ? "open" : "closed"}>
-      <span ref={ref} className={cn("block whitespace-pre-line", !open && LINE_CLAMP[lines], struck && STRUCK)}>{children}{tail && <span className={QUIET}>{tail}</span>}</span>
-      {(clipped || open) && <ClampWord open={open} onToggle={() => setOpen((v) => !v)} />}
+    <span
+      className={cn("block min-w-0", className)}
+      data-field-clamp={open ? "open" : "closed"}
+    >
+      <span
+        ref={ref}
+        className={cn(
+          "block whitespace-pre-line",
+          !open && LINE_CLAMP[lines],
+          struck && STRUCK,
+        )}
+      >
+        {children}
+        {tail && <span className={QUIET}>{tail}</span>}
+      </span>
+      {(clipped || open) && (
+        <ClampWord open={open} onToggle={() => setOpen((v) => !v)} />
+      )}
     </span>
   );
 }
@@ -334,22 +671,80 @@ export function Clamp({ lines = 2, children, tail, struck, className }: { lines?
  *  sentences quiet, a run of them folded to an ellipsis, what goes struck on
  *  a red wash, what comes on a green one. Never two columns, never two full
  *  texts. Past four lines it clamps like any long value. */
-export function PassageDiff({ parts, className }: { parts: readonly PassagePart[]; className?: string }) {
+export function PassageDiff({
+  parts,
+  className,
+}: {
+  parts: readonly PassagePart[];
+  className?: string;
+}) {
   const ref = useRef<HTMLParagraphElement>(null);
   const [open, setOpen] = useState(false);
   const clipped = useOverflows(ref, 4 * 20 + 1, [parts]);
-  const changed = parts.filter((p) => p.kind === "added" || p.kind === "removed").length;
+  const changed = parts.filter(
+    (p) => p.kind === "added" || p.kind === "removed",
+  ).length;
   return (
-    <span className={cn("block min-w-0", className)} data-field-clamp={open ? "open" : "closed"}>
-      <p ref={ref} className={cn("m-0 max-w-[70ch] text-[12.5px] leading-[1.6] whitespace-pre-line [overflow-wrap:anywhere]", !open && "line-clamp-4")} data-passage-diff={changed}>
+    <span
+      className={cn("block min-w-0", className)}
+      data-field-clamp={open ? "open" : "closed"}
+    >
+      <p
+        ref={ref}
+        className={cn(
+          "m-0 max-w-[70ch] text-[12.5px] leading-[1.6] whitespace-pre-line [overflow-wrap:anywhere]",
+          !open && "line-clamp-4",
+        )}
+        data-passage-diff={changed}
+      >
         {parts.map((part, i) => {
-          if (part.kind === "same") return <span key={i} className={SOFT} data-diff="same">{part.text}</span>;
-          if (part.kind === "gap") return <span key={i} className={cn(QUIET, "mx-[2px]")} title="unchanged" data-diff="gap">{"…"} </span>;
-          if (part.kind === "removed") return <del key={i} className={cn("rounded-[3px] bg-[color-mix(in_srgb,var(--sol-red)_12%,transparent)] px-[2px] line-through decoration-1", RED)} data-diff="removed">{part.text}</del>;
-          return <ins key={i} className={cn("rounded-[3px] bg-[color-mix(in_srgb,var(--sol-green)_14%,transparent)] px-[2px] no-underline", TEXT)} data-diff="added">{part.text}</ins>;
+          if (part.kind === "same")
+            return (
+              <span key={i} className={SOFT} data-diff="same">
+                {part.text}
+              </span>
+            );
+          if (part.kind === "gap")
+            return (
+              <span
+                key={i}
+                className={cn(QUIET, "mx-[2px]")}
+                title="unchanged"
+                data-diff="gap"
+              >
+                {"…"}{" "}
+              </span>
+            );
+          if (part.kind === "removed")
+            return (
+              <del
+                key={i}
+                className={cn(
+                  "rounded-[3px] bg-[color-mix(in_srgb,var(--sol-red)_12%,transparent)] px-[2px] line-through decoration-1",
+                  RED,
+                )}
+                data-diff="removed"
+              >
+                {part.text}
+              </del>
+            );
+          return (
+            <ins
+              key={i}
+              className={cn(
+                "rounded-[3px] bg-[color-mix(in_srgb,var(--sol-green)_14%,transparent)] px-[2px] no-underline",
+                TEXT,
+              )}
+              data-diff="added"
+            >
+              {part.text}
+            </ins>
+          );
         })}
       </p>
-      {(clipped || open) && <ClampWord open={open} onToggle={() => setOpen((v) => !v)} />}
+      {(clipped || open) && (
+        <ClampWord open={open} onToggle={() => setOpen((v) => !v)} />
+      )}
     </span>
   );
 }
@@ -363,7 +758,19 @@ type FaceOf = (side: Side) => ProposalTreeFace | undefined;
 /** One value. `was`: the side being left, drawn plainer (a priority without
  *  its dot). `struck`: a real value that goes away; its face is never struck.
  *  `clamp`: words at length fold to two lines. */
-function Value({ field, side, face, struck = false, clamp = true }: { field: ChangeField; side: Side; face: FaceOf; struck?: boolean; clamp?: boolean }) {
+function Value({
+  field,
+  side,
+  face,
+  struck = false,
+  clamp = true,
+}: {
+  field: ChangeField;
+  side: Side;
+  face: FaceOf;
+  struck?: boolean;
+  clamp?: boolean;
+}) {
   const v = field[side];
   if (!v) return null;
   if (v.none) return <span className={QUIET}>{v.text}</span>;
@@ -371,22 +778,66 @@ function Value({ field, side, face, struck = false, clamp = true }: { field: Cha
   switch (field.kind) {
     case "priority": {
       const meta = v.priority ? PRIORITY_META[v.priority] : null;
-      if (was || !meta) return <span className={struck ? STRUCK : undefined}>{v.text}</span>;
-      return <span className="inline-flex items-center gap-1.5 font-semibold"><i aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />{v.text}</span>;
+      if (was || !meta)
+        return <span className={struck ? STRUCK : undefined}>{v.text}</span>;
+      return (
+        <span className="inline-flex items-center gap-1.5 font-semibold">
+          <i
+            aria-hidden
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ background: meta.color }}
+          />
+          {v.text}
+        </span>
+      );
     }
-    case "measures": return (
-      <>
-        {(v.measures ?? []).map((m, i) => (
-          // One measure per line; a line that wraps hangs. The target is the author's words, never parsed.
-          <span key={i} className={cn("block pl-[2ch] [text-indent:-2ch]", struck && STRUCK)}>{m.name}{m.target && <><span className={QUIET}>, target </span>{m.target}</>}</span>
-        ))}
-      </>
-    );
-    case "ref": return <span><SmallFace face={face(side)} /><span className={struck ? STRUCK : undefined}>{v.text}</span></span>;
-    case "list": return <span className={struck ? STRUCK : undefined}>{v.items?.join(", ") ?? v.text}</span>;
-    default: return clamp
-      ? <Clamp tail={v.tail} struck={struck}>{v.text}</Clamp>
-      : <span className={struck ? STRUCK : undefined}>{v.text}{v.tail && <span className={QUIET}>{v.tail}</span>}</span>;
+    case "measures":
+      return (
+        <>
+          {(v.measures ?? []).map((m, i) => (
+            // One measure per line; a line that wraps hangs. The target is the author's words, never parsed.
+            <span
+              key={i}
+              className={cn(
+                "block pl-[2ch] [text-indent:-2ch]",
+                struck && STRUCK,
+              )}
+            >
+              {m.name}
+              {m.target && (
+                <>
+                  <span className={QUIET}>, target </span>
+                  {m.target}
+                </>
+              )}
+            </span>
+          ))}
+        </>
+      );
+    case "ref":
+      return (
+        <span>
+          <SmallFace face={face(side)} />
+          <span className={struck ? STRUCK : undefined}>{v.text}</span>
+        </span>
+      );
+    case "list":
+      return (
+        <span className={struck ? STRUCK : undefined}>
+          {v.items?.join(", ") ?? v.text}
+        </span>
+      );
+    default:
+      return clamp ? (
+        <Clamp tail={v.tail} struck={struck}>
+          {v.text}
+        </Clamp>
+      ) : (
+        <span className={struck ? STRUCK : undefined}>
+          {v.text}
+          {v.tail && <span className={QUIET}>{v.tail}</span>}
+        </span>
+      );
   }
 }
 
@@ -394,37 +845,119 @@ function Value({ field, side, face, struck = false, clamp = true }: { field: Cha
  *  what it becomes. Before and after share a line when they fit; when they do
  *  not, the after drops to its own line behind the arrow. A field whose
  *  before equals its after (op same) is never drawn. */
-export function Field({ field, face = () => undefined, tone = TEXT, clamp = true, label = field.label, record }: { field: ChangeField; face?: FaceOf; tone?: string; clamp?: boolean; label?: string; record?: RecordKind }) {
+export function Field({
+  field,
+  face = () => undefined,
+  tone = TEXT,
+  clamp = true,
+  label = field.label,
+  record,
+}: {
+  field: ChangeField;
+  face?: FaceOf;
+  tone?: string;
+  clamp?: boolean;
+  label?: string;
+  record?: RecordKind;
+}) {
   const { before, after, op, kind } = field;
-  const long = kind === "text" && op === "change" && !!before && !!after && !before.none && !after.none && before.text.length > LONG_TEXT && after.text.length > LONG_TEXT;
-  const passage = kind === "passage" ? field.diff ?? [] : long ? passageDiff(before!.text, after!.text) : null;
+  const long =
+    kind === "text" &&
+    op === "change" &&
+    !!before &&
+    !!after &&
+    !before.none &&
+    !after.none &&
+    before.text.length > LONG_TEXT &&
+    after.text.length > LONG_TEXT;
+  const passage =
+    kind === "passage"
+      ? (field.diff ?? [])
+      : long
+        ? passageDiff(before!.text, after!.text)
+        : null;
   // Replaced or cleared: the old value is struck. A list that only gains or loses entries keeps the rest, so it is not.
   const gone = !!before && !before.none && (op === "change" || op === "clear");
   // Entries a change takes away, with no list in hand to compare.
   const taken = op === "remove" && !before;
-  const move = kind === "status" && !!after && !after.none && !!statusLook(record, after.text);
+  const move =
+    kind === "status" &&
+    !!after &&
+    !after.none &&
+    !!statusLook(record, after.text);
   return (
     <>
-      <dt className={cn("m-0 whitespace-nowrap font-normal", LABEL, QUIET, move && "self-center")}>{label}</dt>
+      <dt
+        className={cn(
+          "m-0 whitespace-nowrap font-normal",
+          LABEL,
+          QUIET,
+          move && "self-center",
+        )}
+      >
+        {label}
+      </dt>
       <dd
-        className={cn("m-0 flex min-w-0 flex-wrap gap-x-[1ch] [overflow-wrap:anywhere]", VALUE, EASE, tone)}
+        className={cn(
+          "m-0 flex min-w-0 flex-wrap gap-x-[1ch] [overflow-wrap:anywhere]",
+          VALUE,
+          EASE,
+          tone,
+        )}
         data-field={field.key}
         data-field-op={op}
         data-field-before={fieldText(before)}
         data-field-after={fieldText(after)}
       >
-        {move ? <StatusMove field={field} record={record} /> : passage ? <PassageDiff parts={passage} /> : kind === "list" && op === "add" ? <Added field={field} /> : (
+        {move ? (
+          <StatusMove field={field} record={record} />
+        ) : passage ? (
+          <PassageDiff parts={passage} />
+        ) : kind === "list" && op === "add" ? (
+          <Added field={field} />
+        ) : (
           <>
-            {before && <span className={cn("min-w-0 max-w-full", QUIET)}><Value field={field} side="before" face={face} struck={gone} clamp={clamp} /></span>}
-            {after && (before ? (
-              <span className="flex min-w-0 max-w-full gap-x-[1ch]">
-                <span aria-hidden className={cn("flex-none font-medium", MUTED)}>→</span>
-                <span className="sr-only">becomes</span>
-                <span className="min-w-0"><Value field={field} side="after" face={face} clamp={clamp} /></span>
+            {before && (
+              <span className={cn("min-w-0 max-w-full", QUIET)}>
+                <Value
+                  field={field}
+                  side="before"
+                  face={face}
+                  struck={gone}
+                  clamp={clamp}
+                />
               </span>
-            ) : (
-              <span className={cn("min-w-0 max-w-full", taken && QUIET)}><Value field={field} side="after" face={face} struck={taken} clamp={clamp} /></span>
-            ))}
+            )}
+            {after &&
+              (before ? (
+                <span className="flex min-w-0 max-w-full gap-x-[1ch]">
+                  <span
+                    aria-hidden
+                    className={cn("flex-none font-medium", MUTED)}
+                  >
+                    →
+                  </span>
+                  <span className="sr-only">becomes</span>
+                  <span className="min-w-0">
+                    <Value
+                      field={field}
+                      side="after"
+                      face={face}
+                      clamp={clamp}
+                    />
+                  </span>
+                </span>
+              ) : (
+                <span className={cn("min-w-0 max-w-full", taken && QUIET)}>
+                  <Value
+                    field={field}
+                    side="after"
+                    face={face}
+                    struck={taken}
+                    clamp={clamp}
+                  />
+                </span>
+              ))}
           </>
         )}
       </dd>
@@ -435,7 +968,10 @@ export function Field({ field, face = () => undefined, tone = TEXT, clamp = true
 /** The fields of one change as a definition list; a run of charter passages shares one label. */
 /** The label gutter fits the longest label ("Measured by"), and widens for a card that carries a longer one. */
 function gutterOf(labels: readonly string[]) {
-  return Math.max(86, Math.ceil(Math.max(0, ...labels.map((l) => l.length)) * 6.7) + 6);
+  return Math.max(
+    86,
+    Math.ceil(Math.max(0, ...labels.map((l) => l.length)) * 6.7) + 6,
+  );
 }
 
 /** The field grid: labels in a gutter, or stacked over their values where
@@ -446,15 +982,56 @@ const GRID = {
   auto: "grid-cols-[minmax(0,1fr)] [&>dd]:mb-1.5 [@container_(min-width:420px)]:grid-cols-[var(--gutter)_minmax(0,1fr)] [@container_(min-width:420px)]:gap-y-[3px] [@container_(min-width:420px)]:[&>dd]:mb-0",
 } as const;
 
-function Fields({ fields, faces, tone, clamp, record, gutter, extra, layout = "auto", className }: { fields: readonly ChangeField[]; faces: SubjectCard["faces"]; tone: string; clamp: boolean; record?: RecordKind; gutter?: number; extra?: React.ReactNode; layout?: LedgerLayout; className?: string }) {
+function Fields({
+  fields,
+  faces,
+  tone,
+  clamp,
+  record,
+  gutter,
+  extra,
+  layout = "auto",
+  className,
+}: {
+  fields: readonly ChangeField[];
+  faces: SubjectCard["faces"];
+  tone: string;
+  clamp: boolean;
+  record?: RecordKind;
+  gutter?: number;
+  extra?: React.ReactNode;
+  layout?: LedgerLayout;
+  className?: string;
+}) {
   const drawn = fields.filter((f) => f.op !== "same");
   if (!drawn.length && !extra) return null;
   return (
-    <dl className={cn("m-0 grid items-baseline", GRID[layout], className)} style={{ "--gutter": `${gutter ?? gutterOf(drawn.map((f) => f.label))}px` } as React.CSSProperties}>
+    <dl
+      className={cn("m-0 grid items-baseline", GRID[layout], className)}
+      style={
+        {
+          "--gutter": `${gutter ?? gutterOf(drawn.map((f) => f.label))}px`,
+        } as React.CSSProperties
+      }
+    >
       {drawn.map((f, i) => {
         const prev = drawn[i - 1];
-        const shared = f.kind === "passage" && prev?.kind === "passage" && prev.label === f.label && prev.seq === f.seq;
-        return <Field key={`${f.seq}:${f.key}:${i}`} field={f} face={(side) => faces[`${f.seq}:${f.key}:${side}`]} tone={tone} clamp={clamp} label={shared ? "" : f.label} record={record} />;
+        const shared =
+          f.kind === "passage" &&
+          prev?.kind === "passage" &&
+          prev.label === f.label &&
+          prev.seq === f.seq;
+        return (
+          <Field
+            key={`${f.seq}:${f.key}:${i}`}
+            field={f}
+            face={(side) => faces[`${f.seq}:${f.key}:${side}`]}
+            tone={tone}
+            clamp={clamp}
+            label={shared ? "" : f.label}
+            record={record}
+          />
+        );
       })}
       {extra}
     </dl>
@@ -462,25 +1039,55 @@ function Fields({ fields, faces, tone, clamp, record, gutter, extra, layout = "a
 }
 
 /** A row of the field grid that is not a field: the reason, the evidence, where a record sits. */
-function LedgerRow({ label, className, children, ...rest }: { label: string; className?: string; children: React.ReactNode } & DataHooks) {
+function LedgerRow({
+  label,
+  className,
+  children,
+  ...rest
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+} & DataHooks) {
   return (
     <>
-      <dt className={cn("m-0 whitespace-nowrap font-normal", LABEL, QUIET)}>{label}</dt>
-      <dd className={cn("m-0 min-w-0 max-w-[70ch] [overflow-wrap:anywhere] [text-wrap:pretty]", VALUE, className)} {...rest}>{children}</dd>
+      <dt className={cn("m-0 whitespace-nowrap font-normal", LABEL, QUIET)}>
+        {label}
+      </dt>
+      <dd
+        className={cn(
+          "m-0 min-w-0 max-w-[70ch] [overflow-wrap:anywhere] [text-wrap:pretty]",
+          VALUE,
+          className,
+        )}
+        {...rest}
+      >
+        {children}
+      </dd>
     </>
   );
 }
 
 /** Where a record sits, from the change itself: a task's plan (else its project), a plan's project. */
-function recordHome(change: OrgProposalChange["change"]): { type: "plan" | "project"; id: string } | null {
-  if (change.kind === "task_status") return change.plan ? { type: "plan", id: change.plan } : change.project ? { type: "project", id: change.project } : null;
-  if (change.kind === "plan_status" && change.project) return { type: "project", id: change.project };
+function recordHome(
+  change: OrgProposalChange["change"],
+): { type: "plan" | "project"; id: string } | null {
+  if (change.kind === "task_status")
+    return change.plan
+      ? { type: "plan", id: change.plan }
+      : change.project
+        ? { type: "project", id: change.project }
+        : null;
+  if (change.kind === "plan_status" && change.project)
+    return { type: "project", id: change.project };
   return null;
 }
 
 // ---------------------------------------------------------------- verdicts and state
 
-const STATE_WORDS: Partial<Record<SubjectStatus | OrgChangeStatus, [string, string]>> = {
+const STATE_WORDS: Partial<
+  Record<SubjectStatus | OrgChangeStatus, [string, string]>
+> = {
   accepted: ["Accepted, applying", "text-[color:var(--ink-cyan)]"],
   applied: ["Applied", "text-[color:var(--ink-green)]"],
   skipped: ["Rejected", QUIET],
@@ -491,45 +1098,143 @@ const STATE_WORDS: Partial<Record<SubjectStatus | OrgChangeStatus, [string, stri
  *  while the approval lands, "Applied" in green once it did, "Rejected"
  *  quiet. `words` replaces the word for a group ("Applying 10 of 18", "12
  *  applied, 2 failed"). The word stays mounted so the colour settles. */
-export function StateWord({ status, words, className }: { status: OrgChangeStatus | SubjectStatus; words?: string; className?: string }) {
+export function StateWord({
+  status,
+  words,
+  className,
+}: {
+  status: OrgChangeStatus | SubjectStatus;
+  words?: string;
+  className?: string;
+}) {
   const meta = STATE_WORDS[status];
   if (!meta) return null;
-  return <span className={cn("org-pop-in whitespace-nowrap text-[12.5px] leading-[21px] transition-colors [transition-duration:400ms] motion-reduce:transition-none", meta[1], className)} data-subject-state={status}>{words ?? meta[0]}</span>;
+  return (
+    <span
+      className={cn(
+        "org-pop-in whitespace-nowrap text-[12.5px] leading-[21px] transition-colors [transition-duration:400ms] motion-reduce:transition-none",
+        meta[1],
+        className,
+      )}
+      data-subject-state={status}
+    >
+      {words ?? meta[0]}
+    </span>
+  );
 }
 
 /** Under the person's words once the send went: the author's answer when it
  *  came, else that the words reached the author, who answers or revises. */
-export function NotedLine({ answer, author, className }: { answer: OrgChangeAnswer | null; author?: string; className?: string }) {
-  if (answer) return <p className={cn("m-0 max-w-[70ch] whitespace-pre-line text-[12.5px] leading-[1.55] [overflow-wrap:anywhere]", className)} data-subject-answer-text><span className={QUIET}>{author ?? "Author"}: </span><span className={TEXT}>{answer.text}</span></p>;
-  return <p className={cn("m-0 text-meta leading-[18px]", QUIET, className)} data-subject-noted>Sent{author ? ` to ${author}` : ""}, waiting for a reply</p>;
+export function NotedLine({
+  answer,
+  author,
+  className,
+}: {
+  answer: OrgChangeAnswer | null;
+  author?: string;
+  className?: string;
+}) {
+  if (answer)
+    return (
+      <p
+        className={cn(
+          "m-0 max-w-[70ch] whitespace-pre-line text-[12.5px] leading-[1.55] [overflow-wrap:anywhere]",
+          className,
+        )}
+        data-subject-answer-text
+      >
+        <span className={QUIET}>{author ?? "Author"}: </span>
+        <span className={TEXT}>{answer.text}</span>
+      </p>
+    );
+  return (
+    <p
+      className={cn("m-0 text-meta leading-[18px]", QUIET, className)}
+      data-subject-noted
+    >
+      Sent{author ? ` to ${author}` : ""}, waiting for a reply
+    </p>
+  );
 }
 
-export function FailNote({ note, className }: { note: string; className?: string }) {
-  return <p className={cn("m-0 text-[12.5px] leading-[1.55]", TEXT, className)} data-failed-note><b className={cn("font-semibold", RED)}>{note ? "Failed:" : "Failed."}</b>{note ? ` ${note}` : ""}</p>;
+export function FailNote({
+  note,
+  className,
+}: {
+  note: string;
+  className?: string;
+}) {
+  return (
+    <p
+      className={cn("m-0 text-[12.5px] leading-[1.55]", TEXT, className)}
+      data-failed-note
+    >
+      <b className={cn("font-semibold", RED)}>{note ? "Failed:" : "Failed."}</b>
+      {note ? ` ${note}` : ""}
+    </p>
+  );
 }
 
 /** The subject's name is the sentence's one bold run, or `subject` in its
  *  place: a record that exists reads as its pill, the way codecast names it
  *  everywhere else. */
-export function Sentence({ text, span, name, subject }: { text: string; span: [number, number] | null; name: string; subject?: React.ReactNode }) {
+export function Sentence({
+  text,
+  span,
+  name,
+  subject,
+}: {
+  text: string;
+  span: [number, number] | null;
+  name: string;
+  subject?: React.ReactNode;
+}) {
   if (!span) return <>{text}</>;
-  return <>{text.slice(0, span[0])}{subject ?? <b className={name}>{text.slice(span[0], span[1])}</b>}{text.slice(span[1])}</>;
+  return (
+    <>
+      {text.slice(0, span[0])}
+      {subject ?? <b className={name}>{text.slice(span[0], span[1])}</b>}
+      {text.slice(span[1])}
+    </>
+  );
 }
 
 /** The pill for a record a change names, when the change names one that already exists. */
-export function recordRef(change: OrgProposalChange["change"]): { type: "task" | "plan"; id: string } | null {
+export function recordRef(
+  change: OrgProposalChange["change"],
+): { type: "task" | "plan"; id: string } | null {
   if (change.kind === "task_status") return { type: "task", id: change.task };
   if (change.kind === "plan_status") return { type: "plan", id: change.plan };
   return null;
 }
 
 /** The pill a card's sentence draws for its subject: a record, or the session a filing moves. */
-function subjectRef(change: OrgProposalChange["change"]): { type: "task" | "plan" | "session"; id: string } | null {
-  return change.kind === "file_session" ? { type: "session", id: change.session } : recordRef(change);
+function subjectRef(
+  change: OrgProposalChange["change"],
+): { type: "task" | "plan" | "session"; id: string } | null {
+  return change.kind === "file_session"
+    ? { type: "session", id: change.session }
+    : recordRef(change);
 }
 
-export function RecordPill({ type, id, title }: { type: "task" | "plan" | "project" | "session"; id: string; title: string }) {
-  return <span className="inline-flex min-w-0 max-w-full align-bottom" {...LEDGER_STOP} data-subject-pill={type}><EntityIdPill id={id} type={type} label={title} wide /></span>;
+export function RecordPill({
+  type,
+  id,
+  title,
+}: {
+  type: "task" | "plan" | "project" | "session";
+  id: string;
+  title: string;
+}) {
+  return (
+    <span
+      className="inline-flex min-w-0 max-w-full align-bottom"
+      {...LEDGER_STOP}
+      data-subject-pill={type}
+    >
+      <EntityIdPill id={id} type={type} label={title} wide />
+    </span>
+  );
 }
 
 // ---------------------------------------------------------------- layout
@@ -563,7 +1268,8 @@ export const AT = {
   },
 } as const;
 export type LedgerLayout = keyof typeof AT.grid;
-export const SLOT = "flex h-[21px] items-center justify-self-end gap-0.5 whitespace-nowrap";
+export const SLOT =
+  "flex h-[21px] items-center justify-self-end gap-0.5 whitespace-nowrap";
 
 // ---------------------------------------------------------------- the entry
 
@@ -592,7 +1298,12 @@ export type ProposalSubjectCardProps = {
   className?: string;
 };
 
-type Group = { key: string; change: OrgProposalChange | null; rows: ChangeField[]; reasons: string[] };
+type Group = {
+  key: string;
+  change: OrgProposalChange | null;
+  rows: ChangeField[];
+  reasons: string[];
+};
 
 /** The card's rows and reasons as the groups it reads in. A card of one
  *  change, or one that creates its subject, is one group: what rides along is
@@ -601,22 +1312,34 @@ type Group = { key: string; change: OrgProposalChange | null; rows: ChangeField[
  *  differently, because each then carries its own state. */
 function groupsOf(card: SubjectCard, split: boolean): Group[] {
   if (!split && (card.isNew || card.changes.length <= 1)) {
-    return card.rows.length || card.reasons.length ? [{ key: "all", change: null, rows: card.rows, reasons: card.reasons }] : [];
+    return card.rows.length || card.reasons.length
+      ? [{ key: "all", change: null, rows: card.rows, reasons: card.reasons }]
+      : [];
   }
   // The model already dropped repeats; a reason goes to the first change that gave it.
   const unclaimed = new Set(card.reasons);
   return card.changes
     .map((change): Group => {
       const own = change.rationale?.trim().toLowerCase() ?? "";
-      const reasons = card.reasons.filter((r) => unclaimed.has(r) && own === r.toLowerCase());
+      const reasons = card.reasons.filter(
+        (r) => unclaimed.has(r) && own === r.toLowerCase(),
+      );
       for (const r of reasons) unclaimed.delete(r);
-      return { key: change._id, change, rows: card.rows.filter((r) => r.seq === change.seq), reasons };
+      return {
+        key: change._id,
+        change,
+        rows: card.rows.filter((r) => r.seq === change.seq),
+        reasons,
+      };
     })
     .filter((g) => split || g.rows.length > 0 || g.reasons.length > 0);
 }
 
 /** Scroll the focused entry into view once, when it mounts focused. */
-export function useFocusScroll(ref: React.RefObject<HTMLElement | null>, focused: boolean | undefined) {
+export function useFocusScroll(
+  ref: React.RefObject<HTMLElement | null>,
+  focused: boolean | undefined,
+) {
   const done = useRef(false);
   useWatchEffect(() => {
     if (!focused || done.current) return;
@@ -625,7 +1348,20 @@ export function useFocusScroll(ref: React.RefObject<HTMLElement | null>, focused
   }, [focused, ref]);
 }
 
-export function ProposalSubjectCard({ card, ordinal, layout, answer, onAnswer, takeover, revisedNew, focused, why: showWhy = true, author, authorApplied, className }: ProposalSubjectCardProps) {
+export function ProposalSubjectCard({
+  card,
+  ordinal,
+  layout,
+  answer,
+  onAnswer,
+  takeover,
+  revisedNew,
+  focused,
+  why: showWhy = true,
+  author,
+  authorApplied,
+  className,
+}: ProposalSubjectCardProps) {
   const hover = useOrgHover();
   // A ghost line on the company document points at one of this card's
   // changes, or this card points at its line (lightChanges on hover).
@@ -639,69 +1375,194 @@ export function ProposalSubjectCard({ card, ordinal, layout, answer, onAnswer, t
   // An entry decided in this view keeps its height, so nothing jumps under the
   // pointer while someone answers down the list. It folds to its sentence the
   // next time it mounts.
-  const decidedAtMount = useRef(card.status === "applied" || card.status === "skipped").current;
-  const settled = decidedAtMount && (card.status === "applied" || card.status === "skipped");
+  const decidedAtMount = useRef(
+    card.status === "applied" || card.status === "skipped",
+  ).current;
+  const settled =
+    decidedAtMount && (card.status === "applied" || card.status === "skipped");
 
   const members = [...card.changes, ...card.carried, ...card.riders];
   // Its changes ended differently: each group then says where it stands.
-  const split = card.status === "mixed" || (card.status === "failed" && card.failed.length < members.length);
+  const split =
+    card.status === "mixed" ||
+    (card.status === "failed" && card.failed.length < members.length);
   const state = split ? "mixed" : card.status;
   // Every write to the batch goes through here: an approval carries the tick when it is set.
-  const put = (a: SubjectAnswer | null) => onAnswer?.(a && a.verdict === "approve" && leave ? { ...a, leave_sessions: true } : a);
-  const { open, setOpen: setFieldOpen, field: replyField } = useAnswerField(answer, onAnswer && put, card.waiting > 0);
-  const onLeave = (v: boolean) => { setLeaveLocal(v); if (answer?.verdict === "approve") onAnswer?.(v ? { ...answer, leave_sessions: true } : { verdict: answer.verdict, ...(answer.text ? { text: answer.text } : {}) }); };
-  const controls = (canAccept: boolean) => <AnswerControls answer={answer} canAccept={canAccept} onAnswer={put} open={open} onOpen={setFieldOpen} />;
-  const words = <span className={cn("text-[12.5px] leading-[21px]", MUTED)} data-subject-state={state}>{subjectStatusWords(card)}</span>;
+  const put = (a: SubjectAnswer | null) =>
+    onAnswer?.(
+      a && a.verdict === "approve" && leave
+        ? { ...a, leave_sessions: true }
+        : a,
+    );
+  const {
+    open,
+    setOpen: setFieldOpen,
+    field: replyField,
+  } = useAnswerField(answer, onAnswer && put, card.waiting > 0);
+  const onLeave = (v: boolean) => {
+    setLeaveLocal(v);
+    if (answer?.verdict === "approve")
+      onAnswer?.(
+        v
+          ? { ...answer, leave_sessions: true }
+          : {
+              verdict: answer.verdict,
+              ...(answer.text ? { text: answer.text } : {}),
+            },
+      );
+  };
+  const controls = (canAccept: boolean) => (
+    <AnswerControls
+      answer={answer}
+      canAccept={canAccept}
+      onAnswer={put}
+      open={open}
+      onOpen={setFieldOpen}
+    />
+  );
+  const words = (
+    <span
+      className={cn("text-[12.5px] leading-[21px]", MUTED)}
+      data-subject-state={state}
+    >
+      {subjectStatusWords(card)}
+    </span>
+  );
   // The stored answer the row still carries (a rejection's words, a note), once the send went.
-  const stored = (change: OrgProposalChange | null) => (change ? changeReply(change) : card.reply);
-  const noted = (reply: OrgChangeReply | null, status: OrgChangeStatus | SubjectStatus) => reply?.verdict === "note" && isOrgChangeDecidable(status as OrgChangeStatus);
+  const stored = (change: OrgProposalChange | null) =>
+    change ? changeReply(change) : card.reply;
+  const noted = (
+    reply: OrgChangeReply | null,
+    status: OrgChangeStatus | SubjectStatus,
+  ) =>
+    reply?.verdict === "note" &&
+    isOrgChangeDecidable(status as OrgChangeStatus);
   // The answer is staged: the controls give way to the band.
   const staged = !!answer && !!onAnswer && card.waiting > 0;
   const pendingText = answer?.text?.trim() ? answer.text : null;
   const storedYou = (change: OrgProposalChange | null) => {
     const reply = authorApplied ? null : stored(change);
-    return reply?.text?.trim() ? <LedgerYou text={reply.text} onEdit={onAnswer && card.waiting > 0 ? () => setFieldOpen(true) : undefined} className="mt-1.5" data-subject-you={reply.verdict} /> : null;
+    return reply?.text?.trim() ? (
+      <LedgerYou
+        text={reply.text}
+        onEdit={
+          onAnswer && card.waiting > 0 ? () => setFieldOpen(true) : undefined
+        }
+        className="mt-1.5"
+        data-subject-you={reply.verdict}
+      />
+    ) : null;
   };
 
   const text = card.sentence;
   const span = card.subjectSpan;
-  const sentenceTone = state === "applied" ? MUTED : state === "skipped" ? QUIET : TEXT;
-  const nameTone = state === "applied" ? cn("font-semibold", SOFT) : state === "skipped" ? "font-medium" : "font-bold";
+  const sentenceTone =
+    state === "applied" ? MUTED : state === "skipped" ? QUIET : TEXT;
+  const nameTone =
+    state === "applied"
+      ? cn("font-semibold", SOFT)
+      : state === "skipped"
+        ? "font-medium"
+        : "font-bold";
   const numberTone = card.status === "failed" ? RED : QUIET;
   const leadId = card.changes[0]?._id ?? card.change_ids[0];
-  const record: RecordKind | undefined = card.face.kind === "record" ? card.face.record : card.kind === "project" ? "project" : undefined;
+  const record: RecordKind | undefined =
+    card.face.kind === "record"
+      ? card.face.record
+      : card.kind === "project"
+        ? "project"
+        : undefined;
   const pillRef = card.changes[0] ? subjectRef(card.changes[0].change) : null;
   // A card that only moves a record's status says it twice in words ("Mark the task X as dropped", then Status): the record heads the entry and the move says the rest.
-  const statusOnly = !!pillRef && !split && card.rows.some((r) => r.kind === "status" && r.op !== "same") && card.rows.every((r) => r.kind === "status");
+  const statusOnly =
+    !!pillRef &&
+    !split &&
+    card.rows.some((r) => r.kind === "status" && r.op !== "same") &&
+    card.rows.every((r) => r.kind === "status");
   const home = card.changes[0] ? recordHome(card.changes[0].change) : null;
 
   const mode: LedgerLayout = layout ?? "auto";
   const groups = settled && state === "skipped" ? [] : groupsOf(card, split);
-  const groupTone = (status: OrgChangeStatus | SubjectStatus) => (status === "applied" ? SOFT : status === "skipped" ? QUIET : TEXT);
+  const groupTone = (status: OrgChangeStatus | SubjectStatus) =>
+    status === "applied" ? SOFT : status === "skipped" ? QUIET : TEXT;
   // Notes with no group to sit under: the whole card failed, or something that rides along did.
-  const looseNotes = [...new Set(card.failed.filter((f) => !split || !card.seqs.includes(f.seq)).map((f) => f.note))];
-  const top = split ? words
-    : card.waiting === 0 ? <StateWord status={card.status} />
-    : !onAnswer ? words
-    : staged ? null
-    : controls(members.some((c) => isOrgChangeApprovable(c.status)));
-  const revisionKind = (seq: number) => card.changes.find((c) => c.seq === seq)?.revision?.kind;
+  const looseNotes = [
+    ...new Set(
+      card.failed
+        .filter((f) => !split || !card.seqs.includes(f.seq))
+        .map((f) => f.note),
+    ),
+  ];
+  const top = split ? (
+    words
+  ) : card.waiting === 0 ? (
+    <StateWord status={card.status} />
+  ) : !onAnswer ? (
+    words
+  ) : staged ? null : (
+    controls(members.some((c) => isOrgChangeApprovable(c.status)))
+  );
+  const revisionKind = (seq: number) =>
+    card.changes.find((c) => c.seq === seq)?.revision?.kind;
   const field = replyField({});
   // The fields, why, and where the record sits share one gutter.
-  const gutter = gutterOf([...card.rows.map((r) => r.label), ...(home ? ["Project"] : [])]);
+  const gutter = gutterOf([
+    ...card.rows.map((r) => r.label),
+    ...(home ? ["Project"] : []),
+  ]);
   // A settled entry keeps what changed and drops the case for it.
-  const why = (reasons: readonly string[]) => showWhy && !settled && reasons.length > 0 && <LedgerRow label="Why" className={SOFT} data-subject-why><Clamp lines={4}>{reasons.join("\n")}</Clamp></LedgerRow>;
-  const homeRow = home && <LedgerRow label={home.type === "plan" ? "Plan" : "Project"} data-subject-home={home.type}><RecordPill {...home} title={home.id} /></LedgerRow>;
+  const why = (reasons: readonly string[]) =>
+    showWhy &&
+    !settled &&
+    reasons.length > 0 && (
+      <LedgerRow label="Why" className={SOFT} data-subject-why>
+        <Clamp lines={4}>{reasons.join("\n")}</Clamp>
+      </LedgerRow>
+    );
+  const homeRow = home && (
+    <LedgerRow
+      label={home.type === "plan" ? "Plan" : "Project"}
+      data-subject-home={home.type}
+    >
+      <RecordPill {...home} title={home.id} />
+    </LedgerRow>
+  );
 
   return (
     <div
       ref={rootRef}
-      className={cn("not-prose min-w-0 text-left transition-[background-color] duration-150", LEDGER_INKS, !layout && "[container-type:inline-size]", ordinal != null ? "border-t" : "-mx-2 rounded-md px-2", className)}
-      style={{ borderColor: LEDGER_HAIR, ...(lit ? { background: "color-mix(in srgb, var(--sol-violet) 8%, transparent)" } : {}) }}
-      onMouseEnter={() => { hover?.(leadId); lightChanges(card.change_ids); }}
-      onMouseLeave={() => { hover?.(null); lightChanges(null); }}
-      onFocus={() => { hover?.(leadId); lightChanges(card.change_ids); }}
-      onBlur={() => { hover?.(null); lightChanges(null); }}
+      className={cn(
+        "not-prose min-w-0 text-left transition-[background-color] duration-150",
+        LEDGER_INKS,
+        !layout && "[container-type:inline-size]",
+        ordinal != null ? "border-t" : "-mx-2 rounded-md px-2",
+        className,
+      )}
+      style={{
+        borderColor: LEDGER_HAIR,
+        ...(lit
+          ? {
+              background:
+                "color-mix(in srgb, var(--sol-violet) 8%, transparent)",
+            }
+          : {}),
+      }}
+      onMouseEnter={() => {
+        hover?.(leadId);
+        lightChanges(card.change_ids);
+      }}
+      onMouseLeave={() => {
+        hover?.(null);
+        lightChanges(null);
+      }}
+      onFocus={() => {
+        hover?.(leadId);
+        lightChanges(card.change_ids);
+      }}
+      onBlur={() => {
+        hover?.(null);
+        lightChanges(null);
+      }}
       data-layout={mode}
       data-settled={settled || undefined}
       data-subject={card.key}
@@ -714,40 +1575,140 @@ export function ProposalSubjectCard({ card, ordinal, layout, answer, onAnswer, t
       data-lit={lit || undefined}
     >
       <div
-        className={cn("grid items-baseline", AT.grid[mode], ordinal != null && AT.pad[mode])}
-        style={{ ...(ordinal == null ? { "--num": "0px" } : {}), "--verdict-gap": card.waiting > 0 ? "12px" : "4px" } as React.CSSProperties}
+        className={cn(
+          "grid items-baseline",
+          AT.grid[mode],
+          ordinal != null && AT.pad[mode],
+        )}
+        style={
+          {
+            ...(ordinal == null ? { "--num": "0px" } : {}),
+            "--verdict-gap": card.waiting > 0 ? "12px" : "4px",
+          } as React.CSSProperties
+        }
       >
-        {ordinal != null && <span className={cn("col-start-1 text-meta leading-[20px] tabular-nums", EASE, numberTone)} data-subject-ordinal>{ordinal}</span>}
-        <p className={cn("col-start-2 m-0 font-normal [overflow-wrap:anywhere] [text-wrap:pretty]", SENTENCE, EASE, sentenceTone)} data-subject-sentence>
-          {statusOnly && pillRef
-            ? <><RecordPill {...pillRef} title={card.title} /><span className="sr-only">{text}</span></>
-            : <Sentence text={text} span={span} name={nameTone} subject={pillRef && <RecordPill {...pillRef} title={card.title} />} />}
+        {ordinal != null && (
+          <span
+            className={cn(
+              "col-start-1 text-meta leading-[20px] tabular-nums",
+              EASE,
+              numberTone,
+            )}
+            data-subject-ordinal
+          >
+            {ordinal}
+          </span>
+        )}
+        <p
+          className={cn(
+            "col-start-2 m-0 font-normal [overflow-wrap:anywhere] [text-wrap:pretty]",
+            SENTENCE,
+            EASE,
+            sentenceTone,
+          )}
+          data-subject-sentence
+        >
+          {statusOnly && pillRef ? (
+            <>
+              <RecordPill {...pillRef} title={card.title} />
+              <span className="sr-only">{text}</span>
+            </>
+          ) : (
+            <Sentence
+              text={text}
+              span={span}
+              name={nameTone}
+              subject={
+                pillRef && <RecordPill {...pillRef} title={card.title} />
+              }
+            />
+          )}
         </p>
-        {top && <div className={cn(SLOT, AT.verdicts[mode])} {...LEDGER_STOP} data-subject-verdicts>{top}</div>}
+        {top && (
+          <div
+            className={cn(SLOT, AT.verdicts[mode])}
+            {...LEDGER_STOP}
+            data-subject-verdicts
+          >
+            {top}
+          </div>
+        )}
 
-        {revisedNew && <p className="org-pop-in col-start-2 m-0 mt-1 text-meta leading-[18px] text-[color:var(--ink-violet)]">Revised since you last looked</p>}
-        {looseNotes.map((note) => <FailNote key={note} note={note} className="col-start-2 mt-1.5" />)}
+        {revisedNew && (
+          <p className="org-pop-in col-start-2 m-0 mt-1 text-meta leading-[18px] text-[color:var(--ink-violet)]">
+            Revised since you last looked
+          </p>
+        )}
+        {looseNotes.map((note) => (
+          <FailNote key={note} note={note} className="col-start-2 mt-1.5" />
+        ))}
 
         {groups.map((group, i) => {
           const status = group.change?.status ?? card.status;
-          const failed = split && group.change ? card.failed.find((f) => f.seq === group.change!.seq) : undefined;
+          const failed =
+            split && group.change
+              ? card.failed.find((f) => f.seq === group.change!.seq)
+              : undefined;
           const reply = split && !authorApplied ? stored(group.change) : null;
           return (
             <React.Fragment key={group.key}>
-              <div className={cn("col-start-2 min-w-0", i === 0 ? "mt-2" : "mt-[18px]")} data-subject-group={group.change?.seq ?? "all"}>
-                <Fields fields={group.rows} faces={card.faces} tone={groupTone(split ? status : state)} clamp={!card.purpose} record={record} gutter={gutter} layout={mode} extra={(showWhy && !settled && group.reasons.length > 0) || (i === groups.length - 1 && homeRow) ? <>{why(group.reasons)}{i === groups.length - 1 && homeRow}</> : undefined} />
+              <div
+                className={cn(
+                  "col-start-2 min-w-0",
+                  i === 0 ? "mt-2" : "mt-[18px]",
+                )}
+                data-subject-group={group.change?.seq ?? "all"}
+              >
+                <Fields
+                  fields={group.rows}
+                  faces={card.faces}
+                  tone={groupTone(split ? status : state)}
+                  clamp={!card.purpose}
+                  record={record}
+                  gutter={gutter}
+                  layout={mode}
+                  extra={
+                    (showWhy && !settled && group.reasons.length > 0) ||
+                    (i === groups.length - 1 && homeRow) ? (
+                      <>
+                        {why(group.reasons)}
+                        {i === groups.length - 1 && homeRow}
+                      </>
+                    ) : undefined
+                  }
+                />
                 {failed && <FailNote note={failed.note} className="mt-1.5" />}
                 {/* On a card whose changes ended differently each group carries the words said about it. */}
                 {split && group.change && (
                   <>
-                    {reply?.text?.trim() && <LedgerYou text={reply.text} className="mt-1.5" data-subject-you={reply.verdict} />}
-                    {noted(reply, status) && <NotedLine answer={changeAnswer(group.change)} author={author} className="mt-1" />}
+                    {reply?.text?.trim() && (
+                      <LedgerYou
+                        text={reply.text}
+                        className="mt-1.5"
+                        data-subject-you={reply.verdict}
+                      />
+                    )}
+                    {noted(reply, status) && (
+                      <NotedLine
+                        answer={changeAnswer(group.change)}
+                        author={author}
+                        className="mt-1"
+                      />
+                    )}
                   </>
                 )}
               </div>
               {split && group.change && (
-                <div className={cn(SLOT, AT.groupState[mode])} {...LEDGER_STOP} data-subject-group-state={group.change.status}>
-                  {!isOrgChangeDecidable(group.change.status) ? <StateWord status={group.change.status} /> : onAnswer && !staged ? controls(isOrgChangeApprovable(group.change.status)) : null}
+                <div
+                  className={cn(SLOT, AT.groupState[mode])}
+                  {...LEDGER_STOP}
+                  data-subject-group-state={group.change.status}
+                >
+                  {!isOrgChangeDecidable(group.change.status) ? (
+                    <StateWord status={group.change.status} />
+                  ) : onAnswer && !staged ? (
+                    controls(isOrgChangeApprovable(group.change.status))
+                  ) : null}
                 </div>
               )}
             </React.Fragment>
@@ -755,37 +1716,128 @@ export function ProposalSubjectCard({ card, ordinal, layout, answer, onAnswer, t
         })}
 
         {/* The stored words on the card once the send went, and the author's answer or that it is awaited. */}
-        {!split && !staged && (() => { const you = storedYou(null); return you && <div className="col-start-2 min-w-0">{you}</div>; })()}
-        {!split && !pendingText && noted(card.reply, card.status) && <NotedLine answer={card.answer} author={author} className="col-start-2 mt-1" />}
+        {!split &&
+          !staged &&
+          (() => {
+            const you = storedYou(null);
+            return you && <div className="col-start-2 min-w-0">{you}</div>;
+          })()}
+        {!split && !pendingText && noted(card.reply, card.status) && (
+          <NotedLine
+            answer={card.answer}
+            author={author}
+            className="col-start-2 mt-1"
+          />
+        )}
 
-        {!settled && card.depends.map((line) => <p key={line} className={cn("col-start-2 m-0 mt-1.5 text-meta leading-[18px]", QUIET)} data-subject-depends>{line}</p>)}
-        {!settled && card.revisions.map((rev) => (
-          <div key={rev.seq} className={cn("col-start-2 mt-1.5 min-w-0 text-meta leading-[18px]", revisedNew && "org-pop-in", QUIET)} data-revision={revisionKind(rev.seq)} data-revision-fields={rev.fields.length}>
-            <span className={cn("font-semibold", MUTED)}>{rev.word}</span>{rev.note ? ` ${rev.note}` : ""}
-            <Fields fields={rev.fields} faces={card.faces} tone={TEXT} clamp layout={mode} className="mt-1" />
+        {!settled &&
+          card.depends.map((line) => (
+            <p
+              key={line}
+              className={cn(
+                "col-start-2 m-0 mt-1.5 text-meta leading-[18px]",
+                QUIET,
+              )}
+              data-subject-depends
+            >
+              {line}
+            </p>
+          ))}
+        {!settled &&
+          card.revisions.map((rev) => (
+            <div
+              key={rev.seq}
+              className={cn(
+                "col-start-2 mt-1.5 min-w-0 text-meta leading-[18px]",
+                revisedNew && "org-pop-in",
+                QUIET,
+              )}
+              data-revision={revisionKind(rev.seq)}
+              data-revision-fields={rev.fields.length}
+            >
+              <span className={cn("font-semibold", MUTED)}>{rev.word}</span>
+              {rev.note ? ` ${rev.note}` : ""}
+              <Fields
+                fields={rev.fields}
+                faces={card.faces}
+                tone={TEXT}
+                clamp
+                layout={mode}
+                className="mt-1"
+              />
+            </div>
+          ))}
+
+        {takeover && onAnswer && card.waiting > 0 && !staged && (
+          <div className="col-start-2 mt-2" {...LEDGER_STOP}>
+            <TakeoverEdit
+              phrase={takeover.phrase}
+              leave={leave}
+              onLeave={onLeave}
+            />
           </div>
-        ))}
-
-        {takeover && onAnswer && card.waiting > 0 && !staged && <div className="col-start-2 mt-2" {...LEDGER_STOP}><TakeoverEdit phrase={takeover.phrase} leave={leave} onLeave={onLeave} /></div>}
+        )}
 
         {groups.length === 0 && home && (
-          <div className="col-start-2 mt-2 min-w-0"><Fields fields={[]} faces={card.faces} tone={TEXT} clamp record={record} gutter={gutter} layout={mode} extra={homeRow || undefined} /></div>
+          <div className="col-start-2 mt-2 min-w-0">
+            <Fields
+              fields={[]}
+              faces={card.faces}
+              tone={TEXT}
+              clamp
+              record={record}
+              gutter={gutter}
+              layout={mode}
+              extra={homeRow || undefined}
+            />
+          </div>
         )}
 
         {/* The staged answer, and the field. Keyed siblings: a note's first keystroke mounts the band without remounting the textarea under the caret. */}
         {(staged || field) && (
-          <div className="col-start-2 mt-2 min-w-0" {...LEDGER_STOP} data-answer-area>
+          <div
+            className="col-start-2 mt-2 min-w-0"
+            {...LEDGER_STOP}
+            data-answer-area
+          >
             {staged && (
               <StagedBand
                 key="band"
                 answer={answer}
-                onUndo={() => { put(null); setFieldOpen(false); }}
-                you={!open && pendingText ? <LedgerYou text={pendingText} onEdit={() => setFieldOpen(true)} data-subject-you={answer.verdict} /> : undefined}
-                takeover={takeover ? { phrase: takeover.phrase, leave, onLeave } : undefined}
+                onUndo={() => {
+                  put(null);
+                  setFieldOpen(false);
+                }}
+                you={
+                  !open && pendingText ? (
+                    <LedgerYou
+                      text={pendingText}
+                      onEdit={() => setFieldOpen(true)}
+                      data-subject-you={answer.verdict}
+                    />
+                  ) : undefined
+                }
+                takeover={
+                  takeover
+                    ? { phrase: takeover.phrase, leave, onLeave }
+                    : undefined
+                }
                 joined={!!field}
               />
             )}
-            {field && <div key="field" className={cn(staged && "rounded-b-md px-2.5 pb-2")} style={staged ? { background: stagedWash(answer.verdict) } : undefined}>{field}</div>}
+            {field && (
+              <div
+                key="field"
+                className={cn(staged && "rounded-b-md px-2.5 pb-2")}
+                style={
+                  staged
+                    ? { background: stagedWash(answer.verdict) }
+                    : undefined
+                }
+              >
+                {field}
+              </div>
+            )}
           </div>
         )}
       </div>

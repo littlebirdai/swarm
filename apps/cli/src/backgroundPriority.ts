@@ -12,12 +12,16 @@ import { execFileAsync } from "./proc.js";
 import type { ResourceProcess } from "@codecast/shared/contracts";
 import { sameStartedAt } from "./resourceMonitor.js";
 
-export type SetPriority = (pid: number, background: boolean) => Promise<boolean>;
+export type SetPriority = (
+  pid: number,
+  background: boolean,
+) => Promise<boolean>;
 
 const setPriority: SetPriority = async (pid, background) => {
-  const [cmd, args] = process.platform === "darwin"
-    ? ["taskpolicy", [background ? "-b" : "-B", "-p", String(pid)]]
-    : ["renice", ["-n", background ? "10" : "0", "-p", String(pid)]];
+  const [cmd, args] =
+    process.platform === "darwin"
+      ? ["taskpolicy", [background ? "-b" : "-B", "-p", String(pid)]]
+      : ["renice", ["-n", background ? "10" : "0", "-p", String(pid)]];
   try {
     await execFileAsync(cmd, args, { timeout: 2000, killSignal: "SIGKILL" });
     return true;
@@ -40,14 +44,22 @@ const byGovernor = new Set<string>();
  */
 const delivering = new Map<string, number>();
 export const DELIVERY_HOLD_MS = 3 * 60_000;
-export const isDeliveryHeld = (id: string, now = Date.now()) => (delivering.get(id) ?? 0) > now;
-const wanted = { has: (id: string) => !isDeliveryHeld(id) && (byPerson.has(id) || byGovernor.has(id)) };
+export const isDeliveryHeld = (id: string, now = Date.now()) =>
+  (delivering.get(id) ?? 0) > now;
+const wanted = {
+  has: (id: string) =>
+    !isDeliveryHeld(id) && (byPerson.has(id) || byGovernor.has(id)),
+};
 /** Processes this daemon put at background priority: pid to the start time it had. */
 const applied = new Map<number, number | undefined>();
 let lastSeen: ResourceProcess[] = [];
-const isApplied = (p: Pick<ResourceProcess, "pid" | "startedAt">) => applied.has(p.pid) && sameStartedAt(applied.get(p.pid), p.startedAt);
+const isApplied = (p: Pick<ResourceProcess, "pid" | "startedAt">) =>
+  applied.has(p.pid) && sameStartedAt(applied.get(p.pid), p.startedAt);
 
-async function reconcile(processes: ResourceProcess[], run: SetPriority): Promise<void> {
+async function reconcile(
+  processes: ResourceProcess[],
+  run: SetPriority,
+): Promise<void> {
   const live = new Map(processes.map((p) => [p.pid, p]));
   for (const [pid] of applied) {
     const p = live.get(pid);
@@ -64,24 +76,39 @@ async function reconcile(processes: ResourceProcess[], run: SetPriority): Promis
 }
 
 /** Applies the wanted set to this tick's processes and marks the ones running at background priority. */
-export async function applyBackground(processes: ResourceProcess[], run: SetPriority = setPriority): Promise<ResourceProcess[]> {
+export async function applyBackground(
+  processes: ResourceProcess[],
+  run: SetPriority = setPriority,
+): Promise<ResourceProcess[]> {
   lastSeen = processes;
   await reconcile(processes, run);
-  return processes.map((p) => (isApplied(p) ? { ...p, background: true as const } : p));
+  return processes.map((p) =>
+    isApplied(p) ? { ...p, background: true as const } : p,
+  );
 }
 
 /** The server's answer to a report: applied at once to the processes last seen, so a press takes effect within a report. */
-export async function setBackgroundSessions(ids: readonly string[], run: SetPriority = setPriority): Promise<void> {
+export async function setBackgroundSessions(
+  ids: readonly string[],
+  run: SetPriority = setPriority,
+): Promise<void> {
   if (replace(byPerson, ids)) await reconcile(lastSeen, run);
 }
 
 /** The governor's set: applied at once to the processes last seen, like a person's press. */
-export async function setGovernorBackground(ids: readonly string[], run: SetPriority = setPriority): Promise<void> {
+export async function setGovernorBackground(
+  ids: readonly string[],
+  run: SetPriority = setPriority,
+): Promise<void> {
   if (replace(byGovernor, ids)) await reconcile(lastSeen, run);
 }
 
 /** Lifts a session out of background priority while a message goes in; each attempt renews it, and the next tick after it lapses confines it again. */
-export async function holdForDelivery(id: string, run: SetPriority = setPriority, now = Date.now()): Promise<void> {
+export async function holdForDelivery(
+  id: string,
+  run: SetPriority = setPriority,
+  now = Date.now(),
+): Promise<void> {
   const held = isDeliveryHeld(id, now);
   delivering.set(id, now + DELIVERY_HOLD_MS);
   if (!held) await reconcile(lastSeen, run);
@@ -89,7 +116,8 @@ export async function holdForDelivery(id: string, run: SetPriority = setPriority
 
 function replace(set: Set<string>, ids: readonly string[]): boolean {
   const next = new Set(ids);
-  if (next.size === set.size && [...next].every((id) => set.has(id))) return false;
+  if (next.size === set.size && [...next].every((id) => set.has(id)))
+    return false;
   set.clear();
   for (const id of next) set.add(id);
   return true;

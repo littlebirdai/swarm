@@ -1,8 +1,17 @@
 import { expect, mock, test } from "bun:test";
 
 // The same mock fonts.test.ts installs: one run shares a module mock.
-mock.module("react-native", () => ({ StyleSheet: { create: (s: any) => s, flatten: (s: any) => (Array.isArray(s) ? Object.assign({}, ...s.flat(Infinity).filter(Boolean)) : s) } }));
-const { Palettes, paletteFor, setActiveScheme, Theme, themedStyles } = await import("./Theme");
+mock.module("react-native", () => ({
+  StyleSheet: {
+    create: (s: any) => s,
+    flatten: (s: any) =>
+      Array.isArray(s)
+        ? Object.assign({}, ...s.flat(Infinity).filter(Boolean))
+        : s,
+  },
+}));
+const { Palettes, paletteFor, setActiveScheme, Theme, themedStyles } =
+  await import("./Theme");
 
 test("Theme and themed sheets follow the active scheme", () => {
   const sheet = themedStyles((t) => ({ title: { color: t.text } }));
@@ -27,7 +36,9 @@ test("Classic resolves to the very same palette objects; Modern to the Verdigris
 test("Theme and themed sheets follow the look as they follow the scheme", async () => {
   const { ModernPalettes } = await import("./modernPalette");
   const { setActiveLook, appearanceKey } = await import("./Theme");
-  const sheet = themedStyles((t, look) => ({ title: { color: t.text, fontSize: look === "modern" ? 18 : 20 } }));
+  const sheet = themedStyles((t, look) => ({
+    title: { color: t.text, fontSize: look === "modern" ? 18 : 20 },
+  }));
   setActiveScheme("light");
   setActiveLook("classic");
   const classicTitle = sheet.title;
@@ -36,7 +47,10 @@ test("Theme and themed sheets follow the look as they follow the scheme", async 
   setActiveLook("modern");
   expect(appearanceKey()).toBe("modern:light");
   expect(Theme.bg).toBe(ModernPalettes.light.bg);
-  expect(sheet.title).toEqual({ color: ModernPalettes.light.text, fontSize: 18 });
+  expect(sheet.title).toEqual({
+    color: ModernPalettes.light.text,
+    fontSize: 18,
+  });
   setActiveScheme("dark");
   expect(sheet.title.color).toBe(ModernPalettes.dark.text);
   setActiveScheme("light");

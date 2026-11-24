@@ -24,7 +24,9 @@ function modules(): Array<{ file: string; src: string }> {
     .filter((f) => f.endsWith(".ts") && !f.includes(".test."))
     .map((file) => ({
       file,
-      src: readFileSync(join(here, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, ""),
+      src: readFileSync(join(here, file), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/[^\n]*/g, ""),
     }));
 }
 
@@ -35,14 +37,18 @@ describe("who may write a GitHub identity", () => {
   // identity still comes from GitHub, never from the person it names.
   test("no function claims one from its arguments", () => {
     const claimants = modules()
-      .filter(({ src }) => /(?<![_\w])github_(id|username)\s*:\s*args\./.test(src))
+      .filter(({ src }) =>
+        /(?<![_\w])github_(id|username)\s*:\s*args\./.test(src),
+      )
       .map(({ file }) => file);
     expect(claimants).toEqual(["teams.ts"]);
   });
 
   test("the one argument-fed writer stays internal", () => {
     const teams = modules().find((m) => m.file === "teams.ts")!;
-    expect(teams.src).toMatch(/export const createUserFromGithub = internalMutation\(/);
+    expect(teams.src).toMatch(
+      /export const createUserFromGithub = internalMutation\(/,
+    );
   });
 
   test("the auth provider's profile is the writer that remains", () => {

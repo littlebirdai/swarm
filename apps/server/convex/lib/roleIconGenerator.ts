@@ -8,11 +8,25 @@
 // script posts with its own key, and the tests answer from fixtures.
 
 import {
-  ROLE_ICON_LANGUAGE, isRoleIcon, normalizeConcept, parseRoleIconSvg, roleIconProblems, roleIconSvg,
-  type RoleIcon, type RoleIconAccent,
+  ROLE_ICON_LANGUAGE,
+  isRoleIcon,
+  normalizeConcept,
+  parseRoleIconSvg,
+  roleIconProblems,
+  roleIconSvg,
+  type RoleIcon,
+  type RoleIconAccent,
 } from "@codecast/shared/contracts/roleIcon";
 import { parseJsonBlock } from "@codecast/shared/contracts/modelCall";
-import { Canvas, SHEET_THEMES, SILHOUETTE_TOO_CLOSE, iconMask, maskIoU, paintLabel, paintTile } from "./roleIconRaster";
+import {
+  Canvas,
+  SHEET_THEMES,
+  SILHOUETTE_TOO_CLOSE,
+  iconMask,
+  maskIoU,
+  paintLabel,
+  paintTile,
+} from "./roleIconRaster";
 
 export const ICON_MODEL = "claude-opus-5-5";
 const DRAW_MAX_TOKENS = 12_000;
@@ -35,8 +49,19 @@ export type IconBrief = {
   accent: RoleIconAccent;
 };
 
-export type AskRequest = { label: string; system: string; prompt: string; max_tokens: number; image?: Uint8Array; /** What is left of the run's deadline for this call. */ timeout_ms?: number };
-export type AskReply = { text: string | null; usage: { input_tokens: number; output_tokens: number } | null; error?: string };
+export type AskRequest = {
+  label: string;
+  system: string;
+  prompt: string;
+  max_tokens: number;
+  image?: Uint8Array;
+  /** What is left of the run's deadline for this call. */ timeout_ms?: number;
+};
+export type AskReply = {
+  text: string | null;
+  usage: { input_tokens: number; output_tokens: number } | null;
+  error?: string;
+};
 export type Ask = (req: AskRequest) => Promise<AskReply>;
 
 // ── Drawing ─────────────────────────────────────────────────────────────────
@@ -48,21 +73,34 @@ export const DIRECTIONS = [
   "Draw what the role's work protects or produces rather than the tool it works with (a house rather than a hammer, a calm eye rather than a phone): consider at least four such pictures, judge each for how well it reads at 18 px in grayscale, and draw the one that wins.",
 ] as const;
 
-const svgOf = (icon: RoleIcon) => roleIconSvg(icon).replace(/ xmlns="[^"]*"/, "");
+const svgOf = (icon: RoleIcon) =>
+  roleIconSvg(icon).replace(/ xmlns="[^"]*"/, "");
 
-function listing(rows: ReadonlyArray<{ title: string; icon: RoleIcon }>): string {
-  return rows.map((r) => `- ${r.title}: "${r.icon.concept}"\n  ${svgOf(r.icon)}`).join("\n");
+function listing(
+  rows: ReadonlyArray<{ title: string; icon: RoleIcon }>,
+): string {
+  return rows
+    .map((r) => `- ${r.title}: "${r.icon.concept}"\n  ${svgOf(r.icon)}`)
+    .join("\n");
 }
 
-export function drawRequest(brief: IconBrief, direction: number, critique?: string): AskRequest {
+export function drawRequest(
+  brief: IconBrief,
+  direction: number,
+  critique?: string,
+): AskRequest {
   const charter = (brief.charter ?? "").trim().slice(0, CHARTER_CHARS);
   const taken = brief.siblings.map((s) => `"${s.icon.concept}"`).join(", ");
   const prompt = [
     `Draw the role icon for this role.`,
     ``,
     `Role: ${brief.title} (@${brief.handle})`,
-    charter ? `Charter (what the role looks after):\n${charter}` : `It has no charter yet; read its domain from the title.`,
-    brief.hint ? `\nA person's steer for this icon, which wins over your own taste: ${brief.hint}` : null,
+    charter
+      ? `Charter (what the role looks after):\n${charter}`
+      : `It has no charter yet; read its domain from the title.`,
+    brief.hint
+      ? `\nA person's steer for this icon, which wins over your own taste: ${brief.hint}`
+      : null,
     ``,
     `House style: these icons were drawn by hand and checked at 18, 22 and 44 px. Match their weight, corner radius, proportions and density exactly; they are the quality bar.`,
     listing(brief.examples),
@@ -72,28 +110,54 @@ export function drawRequest(brief: IconBrief, direction: number, critique?: stri
       : `No other role in this workspace has an icon yet.`,
     ``,
     `Your direction: ${DIRECTIONS[direction % DIRECTIONS.length]}`,
-    critique ? `\nA judge rejected the last round's drawings for this role. Their critique, which your drawing must answer:\n${critique}` : null,
+    critique
+      ? `\nA judge rejected the last round's drawings for this role. Their critique, which your drawing must answer:\n${critique}`
+      : null,
     ``,
     `Craft: plan the geometry on the 24 grid before writing it. Use whole or half units. Keep the glyph's bounding box near 3..21 on its longer axis and centred, as the house icons are. Prefer rect, circle, line and simple arcs over freehand curves. Check every pair of parallel strokes is at least 2.5 units apart centre to centre, and that nothing reads as a letter.`,
     ``,
     `Answer with one JSON object and nothing else:`,
     `{"concept": "<one or two words naming the object>", "reasoning": "<two sentences: why this picture says this role, and how it differs from the taken icons>", "svg": "<svg viewBox=\\"0 0 24 24\\">...shapes only...</svg>"}`,
-  ].filter((line) => line !== null).join("\n");
-  return { label: "role-icon-draw", system: ROLE_ICON_LANGUAGE, prompt, max_tokens: DRAW_MAX_TOKENS };
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
+  return {
+    label: "role-icon-draw",
+    system: ROLE_ICON_LANGUAGE,
+    prompt,
+    max_tokens: DRAW_MAX_TOKENS,
+  };
 }
 
 export type RawCandidate = { concept: string; reasoning: string; svg: string };
 
 /** A drawer's reply, or null when it holds no usable object. */
-export function parseCandidate(text: string | null | undefined): RawCandidate | null {
+export function parseCandidate(
+  text: string | null | undefined,
+): RawCandidate | null {
   if (!text) return null;
   const v = parseJsonBlock(text) as any;
-  if (!v || typeof v !== "object" || typeof v.svg !== "string" || typeof v.concept !== "string") return null;
-  return { concept: v.concept.trim(), reasoning: typeof v.reasoning === "string" ? v.reasoning.trim() : "", svg: v.svg };
+  if (
+    !v ||
+    typeof v !== "object" ||
+    typeof v.svg !== "string" ||
+    typeof v.concept !== "string"
+  )
+    return null;
+  return {
+    concept: v.concept.trim(),
+    reasoning: typeof v.reasoning === "string" ? v.reasoning.trim() : "",
+    svg: v.svg,
+  };
 }
 
 export type Vetted =
-  | { ok: true; icon: RoleIcon; reasoning: string; closest: { title: string; iou: number } | null }
+  | {
+      ok: true;
+      icon: RoleIcon;
+      reasoning: string;
+      closest: { title: string; iou: number } | null;
+    }
   | { ok: false; concept: string; problems: string[] };
 
 /**
@@ -101,14 +165,30 @@ export type Vetted =
  * parser refuses, shapes the contract refuses, a concept a sibling holds, or
  * a silhouette too close to a sibling's at 24 px.
  */
-export function vetCandidate(raw: RawCandidate, siblings: readonly DrawableSibling[], accent: RoleIconAccent): Vetted {
+export function vetCandidate(
+  raw: RawCandidate,
+  siblings: readonly DrawableSibling[],
+  accent: RoleIconAccent,
+): Vetted {
   const parsed = parseRoleIconSvg(raw.svg);
-  const icon: RoleIcon = { v: 1, concept: raw.concept, accent, shapes: parsed.shapes };
+  const icon: RoleIcon = {
+    v: 1,
+    concept: raw.concept,
+    accent,
+    shapes: parsed.shapes,
+  };
   const problems = [...parsed.problems, ...roleIconProblems(icon)];
   if (problems.length) return { ok: false, concept: raw.concept, problems };
   const norm = normalizeConcept(raw.concept);
-  const holder = siblings.find((s) => normalizeConcept(s.icon.concept) === norm);
-  if (holder) return { ok: false, concept: raw.concept, problems: [`"${raw.concept}" is already ${holder.title}'s icon`] };
+  const holder = siblings.find(
+    (s) => normalizeConcept(s.icon.concept) === norm,
+  );
+  if (holder)
+    return {
+      ok: false,
+      concept: raw.concept,
+      problems: [`"${raw.concept}" is already ${holder.title}'s icon`],
+    };
   // A valid icon always draws (roleIconProblems validates paths by flattening them).
   const mine = iconMask(icon);
   let closest: { title: string; iou: number } | null = null;
@@ -117,7 +197,13 @@ export function vetCandidate(raw: RawCandidate, siblings: readonly DrawableSibli
     if (!closest || iou > closest.iou) closest = { title: s.title, iou };
   }
   if (closest && closest.iou > SILHOUETTE_TOO_CLOSE) {
-    return { ok: false, concept: raw.concept, problems: [`its silhouette overlaps ${closest.title}'s icon ${Math.round(closest.iou * 100)}% at 24 px; draw a different shape`] };
+    return {
+      ok: false,
+      concept: raw.concept,
+      problems: [
+        `its silhouette overlaps ${closest.title}'s icon ${Math.round(closest.iou * 100)}% at 24 px; draw a different shape`,
+      ],
+    };
   }
   return { ok: true, icon, reasoning: raw.reasoning, closest };
 }
@@ -125,10 +211,16 @@ export function vetCandidate(raw: RawCandidate, siblings: readonly DrawableSibli
 export type DrawableSibling = IconSibling & { mask?: Uint8Array };
 
 /** The siblings that can be drawn, with their masks: a stored icon that no longer validates is left out of the brief rather than failing every candidate beside it. */
-export function drawableSiblings(siblings: readonly IconSibling[]): DrawableSibling[] {
+export function drawableSiblings(
+  siblings: readonly IconSibling[],
+): DrawableSibling[] {
   return siblings.flatMap((s) => {
     if (!isRoleIcon(s.icon)) return [];
-    try { return [{ ...s, mask: iconMask(s.icon) }]; } catch { return []; }
+    try {
+      return [{ ...s, mask: iconMask(s.icon) }];
+    } catch {
+      return [];
+    }
   });
 }
 
@@ -147,13 +239,17 @@ const STRIP_STEP = 30;
  * (outlined by position: the strip's final tile), then the same on the dark
  * half. Drawn at 2x, as a retina sidebar shows it.
  */
-export function contactSheet(candidates: readonly RoleIcon[], siblings: readonly IconSibling[]): Uint8Array {
+export function contactSheet(
+  candidates: readonly RoleIcon[],
+  siblings: readonly IconSibling[],
+): Uint8Array {
   const label = 20;
   const sizesW = SIZES.reduce((n, s) => n + s + GAP, 0);
   const stripW = (siblings.length + 1) * STRIP_STEP + GAP * 2;
   const halfW = label + GAP + sizesW + stripW;
   const rowH = SIZES[SIZES.length - 1] + 20;
-  const W = halfW * 2, H = Math.max(1, candidates.length) * rowH + 8;
+  const W = halfW * 2,
+    H = Math.max(1, candidates.length) * rowH + 8;
   const cv = new Canvas(W * SCALE, H * SCALE, SHEET_THEMES.light.bg);
   cv.rect(halfW * SCALE, 0, halfW * SCALE, H * SCALE, SHEET_THEMES.dark.bg);
   candidates.forEach((icon, row) => {
@@ -161,19 +257,50 @@ export function contactSheet(candidates: readonly RoleIcon[], siblings: readonly
       const theme = SHEET_THEMES[name];
       const top = 8 + row * rowH;
       let x = half * halfW + 8;
-      paintLabel(cv, SHEET_LETTERS[row], x * SCALE, (top + rowH / 2 - 12) * SCALE, 12 * SCALE, theme.text);
+      paintLabel(
+        cv,
+        SHEET_LETTERS[row],
+        x * SCALE,
+        (top + rowH / 2 - 12) * SCALE,
+        12 * SCALE,
+        theme.text,
+      );
       x += label + GAP;
       for (const s of SIZES) {
-        paintTile(cv, icon, x * SCALE, (top + (SIZES[SIZES.length - 1] - s) / 2) * SCALE, s * SCALE, theme, s);
+        paintTile(
+          cv,
+          icon,
+          x * SCALE,
+          (top + (SIZES[SIZES.length - 1] - s) / 2) * SCALE,
+          s * SCALE,
+          theme,
+          s,
+        );
         x += s + GAP;
       }
       x += GAP;
       const stripTop = top + (SIZES[SIZES.length - 1] - STRIP_TILE) / 2;
       for (const sib of siblings) {
-        paintTile(cv, sib.icon, x * SCALE, stripTop * SCALE, STRIP_TILE * SCALE, theme, STRIP_TILE);
+        paintTile(
+          cv,
+          sib.icon,
+          x * SCALE,
+          stripTop * SCALE,
+          STRIP_TILE * SCALE,
+          theme,
+          STRIP_TILE,
+        );
         x += STRIP_STEP;
       }
-      paintTile(cv, icon, (x + 4) * SCALE, stripTop * SCALE, STRIP_TILE * SCALE, theme, STRIP_TILE);
+      paintTile(
+        cv,
+        icon,
+        (x + 4) * SCALE,
+        stripTop * SCALE,
+        STRIP_TILE * SCALE,
+        theme,
+        STRIP_TILE,
+      );
     });
   });
   return cv.png();
@@ -181,9 +308,16 @@ export function contactSheet(candidates: readonly RoleIcon[], siblings: readonly
 
 // ── Judging ─────────────────────────────────────────────────────────────────
 
-export type Verdict = { winner: number | null; rationale: string; critique: string };
+export type Verdict = {
+  winner: number | null;
+  rationale: string;
+  critique: string;
+};
 
-export function judgeRequest(brief: IconBrief, candidates: ReadonlyArray<{ icon: RoleIcon; reasoning: string }>): AskRequest {
+export function judgeRequest(
+  brief: IconBrief,
+  candidates: ReadonlyArray<{ icon: RoleIcon; reasoning: string }>,
+): AskRequest {
   const letters = candidates.map((_, n) => SHEET_LETTERS[n]);
   const prompt = [
     `You are the art director for a family of role icons. Pick the best candidate icon for this role, or reject them all.`,
@@ -195,8 +329,13 @@ export function judgeRequest(brief: IconBrief, candidates: ReadonlyArray<{ icon:
     `The attached contact sheet, drawn at 2x as a retina screen shows it: one row per candidate, labelled ${letters.join(", ")} at the left. The left half is the light theme, the right half the dark theme. In each half: the candidate's tile at 18, 22 and 64 px, then the workspace's other role icons at 22 px with the candidate as the LAST tile of that strip.`,
     ``,
     `Candidates:`,
-    ...candidates.map((c, n) => `${letters[n]}: "${c.icon.concept}". The drawer's reasoning: ${c.reasoning || "(none)"}`),
-    brief.siblings.length ? `\nThe other icons in the strip, left to right: ${brief.siblings.map((s) => `${s.title} ("${s.icon.concept}")`).join(", ")}.` : null,
+    ...candidates.map(
+      (c, n) =>
+        `${letters[n]}: "${c.icon.concept}". The drawer's reasoning: ${c.reasoning || "(none)"}`,
+    ),
+    brief.siblings.length
+      ? `\nThe other icons in the strip, left to right: ${brief.siblings.map((s) => `${s.title} ("${s.icon.concept}")`).join(", ")}.`
+      : null,
     ``,
     `Judge, in this order of weight:`,
     `1. Legibility at 18 to 22 px: can you name the object at the small sizes, in grayscale, with no strokes merging or details lost?`,
@@ -208,15 +347,27 @@ export function judgeRequest(brief: IconBrief, candidates: ReadonlyArray<{ icon:
     ``,
     `Answer with one JSON object and nothing else:`,
     `{"winner": "${letters.join('" | "')}" | null, "rationale": "<one or two sentences a person reads: why this icon says this role>", "critique": "<when winner is null: what to draw instead; else empty>"}`,
-  ].filter((l) => l !== null).join("\n");
-  return { label: "role-icon-judge", system: "You judge small UI icons with a sharp, practical eye. You answer with JSON only.", prompt, max_tokens: JUDGE_MAX_TOKENS };
+  ]
+    .filter((l) => l !== null)
+    .join("\n");
+  return {
+    label: "role-icon-judge",
+    system:
+      "You judge small UI icons with a sharp, practical eye. You answer with JSON only.",
+    prompt,
+    max_tokens: JUDGE_MAX_TOKENS,
+  };
 }
 
-export function parseVerdict(text: string | null | undefined, count: number): Verdict | null {
+export function parseVerdict(
+  text: string | null | undefined,
+  count: number,
+): Verdict | null {
   if (!text) return null;
   const v = parseJsonBlock(text) as any;
   if (!v || typeof v !== "object") return null;
-  const letter = typeof v.winner === "string" ? v.winner.trim().toUpperCase() : null;
+  const letter =
+    typeof v.winner === "string" ? v.winner.trim().toUpperCase() : null;
   const index = letter ? SHEET_LETTERS.indexOf(letter as any) : -1;
   return {
     winner: index >= 0 && index < count ? index : null,
@@ -229,14 +380,31 @@ export function parseVerdict(text: string | null | undefined, count: number): Ve
 
 export type RoundLog = {
   round: number;
-  drawn: Array<{ concept: string; problems: string[] } | { concept: string; closest: { title: string; iou: number } | null }>;
+  drawn: Array<
+    | { concept: string; problems: string[] }
+    | { concept: string; closest: { title: string; iou: number } | null }
+  >;
   sheet: Uint8Array | null;
   verdict: Verdict | null;
 };
 
 export type GenerateResult =
-  | { ok: true; icon: RoleIcon; rationale: string; preview: Uint8Array; rounds: RoundLog[]; usage: { input_tokens: number; output_tokens: number }; calls: number }
-  | { ok: false; reason: string; rounds: RoundLog[]; usage: { input_tokens: number; output_tokens: number }; calls: number };
+  | {
+      ok: true;
+      icon: RoleIcon;
+      rationale: string;
+      preview: Uint8Array;
+      rounds: RoundLog[];
+      usage: { input_tokens: number; output_tokens: number };
+      calls: number;
+    }
+  | {
+      ok: false;
+      reason: string;
+      rounds: RoundLog[];
+      usage: { input_tokens: number; output_tokens: number };
+      calls: number;
+    };
 
 const ROUNDS = 2;
 /** The whole run's budget: under Convex's 600 s action limit, with room to store and save after. */
@@ -251,29 +419,61 @@ const MIN_CALL_MS = 45_000;
  * call gets what is left of one deadline, so a slow model cannot carry the
  * run past the action's limit.
  */
-export async function generateRoleIcon(input: IconBrief, ask: Ask, opts: { deadline_ms?: number; now?: () => number } = {}): Promise<GenerateResult> {
+export async function generateRoleIcon(
+  input: IconBrief,
+  ask: Ask,
+  opts: { deadline_ms?: number; now?: () => number } = {},
+): Promise<GenerateResult> {
   const now = opts.now ?? Date.now;
   const deadline = opts.deadline_ms ?? now() + GENERATE_DEADLINE_MS;
-  const brief: IconBrief = { ...input, siblings: drawableSiblings(input.siblings) };
+  const brief: IconBrief = {
+    ...input,
+    siblings: drawableSiblings(input.siblings),
+  };
   const siblings = brief.siblings as DrawableSibling[];
   const usage = { input_tokens: 0, output_tokens: 0 };
   let calls = 0;
   const rounds: RoundLog[] = [];
-  const out = (reason: string): GenerateResult => ({ ok: false, reason, rounds, usage, calls });
+  const out = (reason: string): GenerateResult => ({
+    ok: false,
+    reason,
+    rounds,
+    usage,
+    calls,
+  });
   const call = async (req: AskRequest) => {
     calls++;
-    const reply = await ask({ ...req, timeout_ms: Math.max(0, deadline - now() - 5_000) });
-    if (reply.usage) { usage.input_tokens += reply.usage.input_tokens; usage.output_tokens += reply.usage.output_tokens; }
+    const reply = await ask({
+      ...req,
+      timeout_ms: Math.max(0, deadline - now() - 5_000),
+    });
+    if (reply.usage) {
+      usage.input_tokens += reply.usage.input_tokens;
+      usage.output_tokens += reply.usage.output_tokens;
+    }
     return reply;
   };
   const outOfTime = () => deadline - now() < MIN_CALL_MS;
   let critique: string | undefined;
   for (let round = 1; round <= ROUNDS; round++) {
-    if (outOfTime()) return out(`ran out of time before round ${round}${critique ? ` (the last round: ${critique})` : ""}`);
-    const replies = await Promise.all(DIRECTIONS.map((_, n) => call(drawRequest(brief, n, critique))));
+    if (outOfTime())
+      return out(
+        `ran out of time before round ${round}${critique ? ` (the last round: ${critique})` : ""}`,
+      );
+    const replies = await Promise.all(
+      DIRECTIONS.map((_, n) => call(drawRequest(brief, n, critique))),
+    );
     const vetted = replies.map((r) => {
       const raw = parseCandidate(r.text);
-      return raw ? vetCandidate(raw, siblings, brief.accent) : ({ ok: false, concept: "?", problems: [r.error ?? "the reply held no JSON object with concept and svg"] } as Vetted);
+      return raw
+        ? vetCandidate(raw, siblings, brief.accent)
+        : ({
+            ok: false,
+            concept: "?",
+            problems: [
+              r.error ?? "the reply held no JSON object with concept and svg",
+            ],
+          } as Vetted);
     });
     // Two drawers can land on one idea; the judge sees it once.
     const seen = new Set<string>();
@@ -286,28 +486,59 @@ export async function generateRoleIcon(input: IconBrief, ask: Ask, opts: { deadl
     });
     const log: RoundLog = {
       round,
-      drawn: vetted.map((c) => (c.ok ? { concept: c.icon.concept, closest: c.closest } : { concept: c.concept, problems: c.problems })),
+      drawn: vetted.map((c) =>
+        c.ok
+          ? { concept: c.icon.concept, closest: c.closest }
+          : { concept: c.concept, problems: c.problems },
+      ),
       sheet: null,
       verdict: null,
     };
     rounds.push(log);
     if (!survivors.length) {
-      critique = `None of the drawings could be used: ${vetted.map((c) => (c.ok ? "" : `"${c.concept}": ${c.problems.join("; ")}`)).filter(Boolean).join(" | ")}`;
+      critique = `None of the drawings could be used: ${vetted
+        .map((c) => (c.ok ? "" : `"${c.concept}": ${c.problems.join("; ")}`))
+        .filter(Boolean)
+        .join(" | ")}`;
       continue;
     }
-    if (outOfTime()) return out("ran out of time before the judge could look at the drawings");
-    const sheet = contactSheet(survivors.map((c) => c.icon), siblings);
+    if (outOfTime())
+      return out("ran out of time before the judge could look at the drawings");
+    const sheet = contactSheet(
+      survivors.map((c) => c.icon),
+      siblings,
+    );
     log.sheet = sheet;
-    const judged = await call({ ...judgeRequest(brief, survivors), image: sheet });
+    const judged = await call({
+      ...judgeRequest(brief, survivors),
+      image: sheet,
+    });
     const verdict = parseVerdict(judged.text, survivors.length);
     log.verdict = verdict;
-    if (!verdict) return out(`the judge gave no verdict: ${judged.error ?? "its reply held no JSON object"}`);
+    if (!verdict)
+      return out(
+        `the judge gave no verdict: ${judged.error ?? "its reply held no JSON object"}`,
+      );
     if (verdict.winner != null) {
       const won = survivors[verdict.winner];
-      return { ok: true, icon: won.icon, rationale: verdict.rationale || won.reasoning, preview: contactSheet([won.icon], siblings), rounds, usage, calls };
+      return {
+        ok: true,
+        icon: won.icon,
+        rationale: verdict.rationale || won.reasoning,
+        preview: contactSheet([won.icon], siblings),
+        rounds,
+        usage,
+        calls,
+      };
     }
-    critique = verdict.critique || "The judge rejected every candidate without saying why; try plainer, more literal metaphors drawn with fewer strokes.";
+    critique =
+      verdict.critique ||
+      "The judge rejected every candidate without saying why; try plainer, more literal metaphors drawn with fewer strokes.";
   }
   const last = rounds[rounds.length - 1];
-  return out(last?.verdict ? `the judge rejected every drawing: ${last.verdict.critique}` : `no drawing could be used: ${critique}`);
+  return out(
+    last?.verdict
+      ? `the judge rejected every drawing: ${last.verdict.critique}`
+      : `no drawing could be used: ${critique}`,
+  );
 }

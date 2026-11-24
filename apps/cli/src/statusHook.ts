@@ -11,7 +11,11 @@
 // python3 remains only for the AskUserQuestion sidecar (nested JSON dump).
 import { HOOK_FIELDS_READ, HOOK_STATE_DIR } from "./hookJson.js";
 import { HOOK_TOKEN_READ } from "./hookIdentity.js";
-import { PERMISSION_HOOK_PATH, PERMISSION_HOOK_WAIT_MS, PERMISSION_LAUNCH_TOKEN_HEADER } from "./permissionHookWait.js";
+import {
+  PERMISSION_HOOK_PATH,
+  PERMISSION_HOOK_WAIT_MS,
+  PERMISSION_LAUNCH_TOKEN_HEADER,
+} from "./permissionHookWait.js";
 
 /** Hold a permission prompt for a web answer (permissionHookWait.ts). The
  *  daemon reports the session blocked and opens the card; its decision, if one

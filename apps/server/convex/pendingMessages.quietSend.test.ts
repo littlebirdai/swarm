@@ -18,21 +18,51 @@ async function setup(recipient: Record<string, unknown>) {
   const t = convexTest(schema, allModules);
   const ids = await t.run(async (ctx) => {
     const now = Date.now();
-    const user = await ctx.db.insert("users", { emailVerificationTime: 1, name: "Riley" } as any);
-    await ctx.db.insert("api_tokens", { user_id: user, token_hash: await hashToken(TOKEN), name: "cli", created_at: now, last_used_at: now } as any);
-    await ctx.db.insert("conversations", { user_id: user, agent_type: "claude_code", started_at: now, short_id: "jx7send" } as any);
-    const conv = await ctx.db.insert("conversations", { user_id: user, agent_type: "claude_code", started_at: now, short_id: "jx7recv", ...recipient } as any);
+    const user = await ctx.db.insert("users", {
+      emailVerificationTime: 1,
+      name: "Riley",
+    } as any);
+    await ctx.db.insert("api_tokens", {
+      user_id: user,
+      token_hash: await hashToken(TOKEN),
+      name: "cli",
+      created_at: now,
+      last_used_at: now,
+    } as any);
+    await ctx.db.insert("conversations", {
+      user_id: user,
+      agent_type: "claude_code",
+      started_at: now,
+      short_id: "jx7send",
+    } as any);
+    const conv = await ctx.db.insert("conversations", {
+      user_id: user,
+      agent_type: "claude_code",
+      started_at: now,
+      short_id: "jx7recv",
+      ...recipient,
+    } as any);
     return { conv };
   });
   const send = (extra: Record<string, unknown>) =>
-    t.mutation(api.pendingMessages.sendSessionMessage, { to: "jx7recv", body: "Check failed; fix it", api_token: TOKEN, ...extra } as any);
+    t.mutation(api.pendingMessages.sendSessionMessage, {
+      to: "jx7recv",
+      body: "Check failed; fix it",
+      api_token: TOKEN,
+      ...extra,
+    } as any);
   const row = () => t.run(async (ctx) => (await ctx.db.get(ids.conv)) as any);
   return { send, row };
 }
 
 describe("a quiet send from a session", () => {
   test("leaves a hidden stash hidden and still revives a killed session", async () => {
-    const { send, row } = await setup({ inbox_stashed_at: 100, inbox_stash_hidden: true, inbox_killed_at: 200, inbox_dismissed_at: 150 });
+    const { send, row } = await setup({
+      inbox_stashed_at: 100,
+      inbox_stash_hidden: true,
+      inbox_killed_at: 200,
+      inbox_dismissed_at: 150,
+    });
     await send({ from: "jx7send", quiet: true });
     const conv = await row();
     expect(conv.inbox_stashed_at).toBe(100);
@@ -58,13 +88,19 @@ describe("a quiet send from a session", () => {
   });
 
   test("an ordinary session send clears a hidden stash", async () => {
-    const { send, row } = await setup({ inbox_stashed_at: 100, inbox_stash_hidden: true });
+    const { send, row } = await setup({
+      inbox_stashed_at: 100,
+      inbox_stash_hidden: true,
+    });
     await send({ from: "jx7send" });
     expect((await row()).inbox_stashed_at).toBeUndefined();
   });
 
   test("quiet means nothing without a sender session", async () => {
-    const { send, row } = await setup({ inbox_stashed_at: 100, inbox_stash_hidden: true });
+    const { send, row } = await setup({
+      inbox_stashed_at: 100,
+      inbox_stash_hidden: true,
+    });
     await send({ quiet: true });
     expect((await row()).inbox_stashed_at).toBeUndefined();
   });

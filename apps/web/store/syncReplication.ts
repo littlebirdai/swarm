@@ -27,7 +27,12 @@ import {
   type ReplicationHost,
   type ReplicationUpdate,
 } from "@platform/engine";
-import { useInboxStore, hasSyncRegistryEntry, syncLogScopeMetaKey, SESSIONS_PRESERVE_FIELDS } from "./inboxStore";
+import {
+  useInboxStore,
+  hasSyncRegistryEntry,
+  syncLogScopeMetaKey,
+  SESSIONS_PRESERVE_FIELDS,
+} from "./inboxStore";
 import { INBOX_FACT_FIELDS } from "@codecast/shared/contracts";
 import { CACHE_SCHEMA_VERSION, writePatchesToIDB } from "./idbCache";
 import { followerPersistencePatches } from "./followerPersistence";
@@ -66,7 +71,10 @@ export function replicationChannelName(principalId: string): string {
  * once cost F² of them (2026-10-09). The follower inbox orders by seq and
  * buffers until its snapshot lands, so the two channels need no shared order.
  */
-export function replicationTransport(name: string, selfId: string): { channel: ReplicationChannel; close: () => void } {
+export function replicationTransport(
+  name: string,
+  selfId: string,
+): { channel: ReplicationChannel; close: () => void } {
   const addressed = (to: string) => `${name}:to:${to}`;
   const shared = new BroadcastChannel(name);
   const own = new BroadcastChannel(addressed(selfId));
@@ -126,7 +134,8 @@ export type SyncReplicationStatus = {
   selfId: string;
 };
 
-let running: { stop: () => void; status: () => SyncReplicationStatus } | null = null;
+let running: { stop: () => void; status: () => SyncReplicationStatus } | null =
+  null;
 
 /** Stop this window's replication now, whatever role it held: channel closed,
  *  lock released, write-through restored. The account boundary calls this
@@ -164,8 +173,16 @@ export type MutUpdate = ReplicationUpdate & {
   release?: Record<string, Record<string, unknown>>;
 };
 
-export function buildMutUpdates(patches: readonly any[], state: any): MutUpdate[] {
-  const updates: MutUpdate[] = extractReplicationUpdates(patches, state, isReplicated, isMutRowKey);
+export function buildMutUpdates(
+  patches: readonly any[],
+  state: any,
+): MutUpdate[] {
+  const updates: MutUpdate[] = extractReplicationUpdates(
+    patches,
+    state,
+    isReplicated,
+    isMutRowKey,
+  );
   const ts = Date.now();
   const edited = new Map<string, Map<string, Record<string, unknown>>>();
   const whole = new Map<string, Set<string>>();
@@ -181,7 +198,10 @@ export function buildMutUpdates(patches: readonly any[], state: any): MutUpdate[
       let w = whole.get(key);
       if (!w) whole.set(key, (w = new Set()));
       w.add(id);
-      if (patch.op === "add" && (key === "sessions" || key === "conversations")) {
+      if (
+        patch.op === "add" &&
+        (key === "sessions" || key === "conversations")
+      ) {
         let r = readded.get(key);
         if (!r) readded.set(key, (r = new Set()));
         r.add(id);
@@ -217,7 +237,8 @@ export function buildMutUpdates(patches: readonly any[], state: any): MutUpdate[
       u.fields = fields;
       u.ts = ts;
     }
-    if (upserts.length > 0) u.upserts = upserts; else delete u.upserts;
+    if (upserts.length > 0) u.upserts = upserts;
+    else delete u.upserts;
   }
   return updates;
 }
@@ -229,7 +250,9 @@ const isReplicated = (key: string) => REPLICATED_STORE_KEYS.includes(key);
 // fact preserve list exists for base channels that ship null for facts they
 // do not own, and applied here it kept a fact the host had already cleared.
 const REPLICA_SESSIONS_OPTS = {
-  preserveFields: SESSIONS_PRESERVE_FIELDS.filter((f) => !(INBOX_FACT_FIELDS as readonly string[]).includes(f)),
+  preserveFields: SESSIONS_PRESERVE_FIELDS.filter(
+    (f) => !(INBOX_FACT_FIELDS as readonly string[]).includes(f),
+  ),
 };
 
 /**
@@ -239,7 +262,12 @@ const REPLICA_SESSIONS_OPTS = {
  * overlaying the host's fresher copy.
  */
 export function followerActionTee(channel: ReplicationChannel, selfId: string) {
-  return (_name: string, patches: any[], state: any, meta?: ActionTeeMeta): void => {
+  return (
+    _name: string,
+    patches: any[],
+    state: any,
+    meta?: ActionTeeMeta,
+  ): void => {
     const updates = buildMutUpdates(patches, state);
     if (meta?.refused) {
       for (const u of updates) {
@@ -252,7 +280,8 @@ export function followerActionTee(channel: ReplicationChannel, selfId: string) {
         if (Object.keys(release).length > 0) u.release = release;
       }
     }
-    if (updates.length > 0) channel.post({ type: "mut", from: selfId, updates });
+    if (updates.length > 0)
+      channel.post({ type: "mut", from: selfId, updates });
   };
 }
 
@@ -269,7 +298,8 @@ export function setFollowerTee(state: any, tee: FollowerTee | null): void {
   state._setActionTee(tee);
 }
 
-const setActionTee = (tee: FollowerTee | null) => setFollowerTee(useInboxStore.getState(), tee);
+const setActionTee = (tee: FollowerTee | null) =>
+  setFollowerTee(useInboxStore.getState(), tee);
 
 /**
  * A refused write this window rolled back by hand: a sync() undo of a field
@@ -280,7 +310,12 @@ const setActionTee = (tee: FollowerTee | null) => setFollowerTee(useInboxStore.g
  * follows a host; a host's own rollback reaches IDB and its followers
  * through its write-through.
  */
-export function offerRollbackToHost(actionName: string, key: string, field: string, before: Record<string, any>): void {
+export function offerRollbackToHost(
+  actionName: string,
+  key: string,
+  field: string,
+  before: Record<string, any>,
+): void {
   const state = useInboxStore.getState() as any;
   const followerTee = followerTees.get(state._setActionTee);
   if (!followerTee) return;
@@ -292,20 +327,34 @@ export function offerRollbackToHost(actionName: string, key: string, field: stri
     const value = before[id]?.[field];
     if (!row || row[field] === value) continue;
     patches.push({ op: "replace", path: [key, id, field], value: row[field] });
-    refused.push({ key: `${key}:${id}:${field}`, storeKey: key, recordId: id, field, ts: Date.now(), value, prior: row[field], hadPrior: true });
+    refused.push({
+      key: `${key}:${id}:${field}`,
+      storeKey: key,
+      recordId: id,
+      field,
+      ts: Date.now(),
+      value,
+      prior: row[field],
+      hadPrior: true,
+    });
   }
   if (patches.length > 0) followerTee(actionName, patches, state, { refused });
 }
 
 /** The host runtime an elected window runs. A follower's mut lands as its optimistic rows, held under the same locks. */
-export function replicationHostFor(hostId: string, channel: ReplicationChannel, getState: () => any): ReplicationHost {
+export function replicationHostFor(
+  hostId: string,
+  channel: ReplicationChannel,
+  getState: () => any,
+): ReplicationHost {
   return createReplicationHost({
     hostId,
     channel,
     getState,
     replicatedKeys: REPLICATED_STORE_KEYS,
     isCollectionKey: isReplicatedCollectionKey,
-    applyUpdates: (updates) => applyUpdatesToStore(updates, { optimistic: true }),
+    applyUpdates: (updates) =>
+      applyUpdatesToStore(updates, { optimistic: true }),
   });
 }
 
@@ -325,15 +374,22 @@ export function forgetSeenBeforeOwnEcho(updates: MutUpdate[]): void {
   const rowPrefixes: string[] = [];
   for (const u of updates) {
     for (const [id, fields] of Object.entries(u.fields ?? {})) {
-      for (const field of Object.keys(fields ?? {})) keys.push(`${u.key}:${id}:${field}`);
+      for (const field of Object.keys(fields ?? {}))
+        keys.push(`${u.key}:${id}:${field}`);
     }
-    for (const row of u.upserts ?? []) if (row?._id != null) rowPrefixes.push(`${u.key}:${String(row._id)}:`);
+    for (const row of u.upserts ?? [])
+      if (row?._id != null) rowPrefixes.push(`${u.key}:${String(row._id)}:`);
   }
-  if (keys.length > 0 || rowPrefixes.length > 0) useInboxStore.getState().forgetLockSeen(keys, rowPrefixes);
+  if (keys.length > 0 || rowPrefixes.length > 0)
+    useInboxStore.getState().forgetLockSeen(keys, rowPrefixes);
 }
 
 /** The follower runtime. The host's rows land through applyUpdatesToStore, authoritative for this window. */
-export function replicationFollowerFor(selfId: string, channel: ReplicationChannel, onSynced: (synced: boolean) => void): ReplicationFollower {
+export function replicationFollowerFor(
+  selfId: string,
+  channel: ReplicationChannel,
+  onSynced: (synced: boolean) => void,
+): ReplicationFollower {
   return createReplicationFollower({
     selfId,
     channel,
@@ -350,7 +406,10 @@ export function replicationFollowerFor(selfId: string, channel: ReplicationChann
  * host role, drops the follower's action tee, and starts the host runtime.
  * Run inside the promoted window.
  */
-export function promoteToHost(follower: ReplicationFollower | null, startHost: () => ReplicationHost): ReplicationHost {
+export function promoteToHost(
+  follower: ReplicationFollower | null,
+  startHost: () => ReplicationHost,
+): ReplicationHost {
   follower?.stop();
   setRole("host");
   setActionTee(null);
@@ -364,7 +423,9 @@ export function promoteToHost(follower: ReplicationFollower | null, startHost: (
  */
 export function applyBridgedGesture(msg: GestureMessage): void {
   if (msg.kind === "follow") {
-    useInboxStore.getState().setFollowLeader(msg.leaderId, { fromBridge: true });
+    useInboxStore
+      .getState()
+      .setFollowLeader(msg.leaderId, { fromBridge: true });
     return;
   }
   useInboxStore.getState().applyGestureBridge(msg);
@@ -388,7 +449,10 @@ export function applyBridgedGesture(msg: GestureMessage): void {
 // locks first (same bound as the host's heal, releaseSettledFieldLocks): a
 // lock whose echo never comes — the write was superseded elsewhere — would
 // otherwise re-assert the follower's stale value over every host row forever.
-export function applyUpdatesToStore(updates: MutUpdate[], opts?: { optimistic?: boolean }): void {
+export function applyUpdatesToStore(
+  updates: MutUpdate[],
+  opts?: { optimistic?: boolean },
+): void {
   // One replayed page is one logical change, but it writes a key at a time —
   // and every one of those writes used to visit every subscriber. Replicated
   // applies ride the same transaction as a feeder's, so the page costs one
@@ -396,13 +460,18 @@ export function applyUpdatesToStore(updates: MutUpdate[], opts?: { optimistic?: 
   syncTransaction(() => applyUpdatesToStoreInner(updates, opts));
 }
 
-function applyUpdatesToStoreInner(updates: MutUpdate[], opts?: { optimistic?: boolean }): void {
+function applyUpdatesToStoreInner(
+  updates: MutUpdate[],
+  opts?: { optimistic?: boolean },
+): void {
   const state = useInboxStore.getState();
   for (const u of updates) {
     if (u.fields && opts?.optimistic) {
       // The sibling's field writes land as the gesture bridge lands a triage
       // gesture: the value, and a lock on it until the server echoes it.
-      useInboxStore.getState().applyReplicatedFields(u.key, u.fields, u.ts, u.release);
+      useInboxStore
+        .getState()
+        .applyReplicatedFields(u.key, u.fields, u.ts, u.release);
     }
     if (u.hasValue) {
       if (u.value == null) continue;
@@ -414,12 +483,14 @@ function applyUpdatesToStoreInner(updates: MutUpdate[], opts?: { optimistic?: bo
       // Twin keys: the persisted value has an in-memory Set companion the
       // ordinary sync path derives elsewhere — use their dedicated setters.
       if (u.key === "liveInboxIdList") {
-        if (Array.isArray(u.value) && u.value.length > 0) state.setLiveInboxIds(u.value);
+        if (Array.isArray(u.value) && u.value.length > 0)
+          state.setLiveInboxIds(u.value);
         continue;
       }
       if (u.key === "teamInboxIdSnapshot") {
         const snap = u.value as { team_id?: string | null; ids?: string[] };
-        if (Array.isArray(snap.ids)) state.setTeamInboxIds(snap.ids, snap.team_id ?? null);
+        if (Array.isArray(snap.ids))
+          state.setTeamInboxIds(snap.ids, snap.team_id ?? null);
         continue;
       }
       // Keys with a SYNC_REGISTRY entry apply under their registered kind;
@@ -448,14 +519,24 @@ function applyUpdatesToStoreInner(updates: MutUpdate[], opts?: { optimistic?: bo
         for (const key in meta) {
           if (!key.startsWith(SYNCLOG_META_PREFIX)) continue;
           const cursor = meta[key]?.cursor;
-          if (typeof cursor === "number") useInboxStore.getState().retireAckedPending(key.slice(SYNCLOG_META_PREFIX.length), cursor, { restore: true });
+          if (typeof cursor === "number")
+            useInboxStore
+              .getState()
+              .retireAckedPending(
+                key.slice(SYNCLOG_META_PREFIX.length),
+                cursor,
+                { restore: true },
+              );
         }
       }
       continue;
     }
     if (u.upserts?.length) {
       if (opts?.optimistic) {
-        if (u.readds?.length && (u.key === "sessions" || u.key === "conversations")) {
+        if (
+          u.readds?.length &&
+          (u.key === "sessions" || u.key === "conversations")
+        ) {
           // The delta merge below skips an excluded id, so a row the follower
           // put back after this window forgot it lands the way the gesture
           // bridge lands it: excludes lifted, row put, include lock held.
@@ -464,29 +545,59 @@ function applyUpdatesToStoreInner(updates: MutUpdate[], opts?: { optimistic?: bo
           const rows = u.upserts
             .filter((row: any) => back.has(String(row._id)))
             .map((row: any) => ({ id: String(row._id), [coll]: row }));
-          useInboxStore.getState().applyGestureBridge({ kind: "unforget", rows, ts: u.ts ?? Date.now() });
+          useInboxStore.getState().applyGestureBridge({
+            kind: "unforget",
+            rows,
+            ts: u.ts ?? Date.now(),
+          });
         }
         const current = useInboxStore.getState();
         // Every lock this window holds on the sibling's rows, which the merge
         // below would read as a value echo and retire.
-        const entries: Array<{ id: string; field: string; value: unknown; ts?: number; ack?: unknown }> = [];
+        const entries: Array<{
+          id: string;
+          field: string;
+          value: unknown;
+          ts?: number;
+          ack?: unknown;
+        }> = [];
         const pendingEntries = Object.entries(current.pending);
         for (const row of u.upserts) {
           const prefix = `${u.key}:${String(row._id)}:`;
           for (const [k, entry] of pendingEntries) {
-            if (!k.startsWith(prefix) || (entry as any)?.type !== "field") continue;
-            entries.push({ id: String(row._id), field: k.slice(prefix.length), value: (entry as any).value, ts: (entry as any).ts, ack: (entry as any).ack });
+            if (!k.startsWith(prefix) || (entry as any)?.type !== "field")
+              continue;
+            entries.push({
+              id: String(row._id),
+              field: k.slice(prefix.length),
+              value: (entry as any).value,
+              ts: (entry as any).ts,
+              ack: (entry as any).ack,
+            });
           }
         }
         current.syncTable(u.key, u.upserts, { isDelta: true });
-        if (entries.length) useInboxStore.getState().protectReplicatedWrite(u.key, entries);
+        if (entries.length)
+          useInboxStore.getState().protectReplicatedWrite(u.key, entries);
       } else {
-        state.releaseSettledFieldLocks(u.upserts.map((row: any) => String(row._id)));
+        state.releaseSettledFieldLocks(
+          u.upserts.map((row: any) => String(row._id)),
+        );
         // The host's chip feed sends a pull request with only what a chip
         // draws when the host never cached the full row; over a full row this
         // window holds (its PR page open), it lands as the same overlay.
-        const upserts = u.key === "pullRequests" ? overlayReplicatedPullRequests(u.upserts, (state as any).pullRequests, (state as any).pending) : u.upserts;
-        state.syncTable(u.key, upserts, { isDelta: true, ...(u.key === "sessions" ? REPLICA_SESSIONS_OPTS : {}) });
+        const upserts =
+          u.key === "pullRequests"
+            ? overlayReplicatedPullRequests(
+                u.upserts,
+                (state as any).pullRequests,
+                (state as any).pending,
+              )
+            : u.upserts;
+        state.syncTable(u.key, upserts, {
+          isDelta: true,
+          ...(u.key === "sessions" ? REPLICA_SESSIONS_OPTS : {}),
+        });
       }
     }
     if (u.removes?.length) state._applyReplicatedRemovals(u.key, u.removes);
@@ -506,7 +617,10 @@ function setRole(role: "host" | "follower"): void {
  * acts for; with none (signed out) there is nothing to replicate and the
  * window stays a self-sufficient host. Returns a stop for unmount/HMR.
  */
-export function startSyncReplication(opts: { eligible: boolean; principalId: string | null }): () => void {
+export function startSyncReplication(opts: {
+  eligible: boolean;
+  principalId: string | null;
+}): () => void {
   if (running) return running.stop;
   setRole("host");
   if (!transportAvailable() || !opts.principalId) {
@@ -521,7 +635,10 @@ export function startSyncReplication(opts: { eligible: boolean; principalId: str
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  const transport = replicationTransport(replicationChannelName(opts.principalId), selfId);
+  const transport = replicationTransport(
+    replicationChannelName(opts.principalId),
+    selfId,
+  );
   const channel = transport.channel;
 
   let stopped = false;
@@ -558,7 +675,14 @@ export function startSyncReplication(opts: { eligible: boolean; principalId: str
     skippedBeforeRole = null;
     if (!keys?.size) return;
     const state = useInboxStore.getState() as any;
-    writePatchesToIDB([...keys].map((key) => ({ op: "replace", path: [key], value: state[key] })) as any, state);
+    writePatchesToIDB(
+      [...keys].map((key) => ({
+        op: "replace",
+        path: [key],
+        value: state[key],
+      })) as any,
+      state,
+    );
   };
 
   const armSoloFallback = () => {
@@ -599,7 +723,9 @@ export function startSyncReplication(opts: { eligible: boolean; principalId: str
     if (stopped) return;
     elected = true;
     if (soloTimer) clearTimeout(soloTimer);
-    host = promoteToHost(follower, () => replicationHostFor(selfId, channel, () => useInboxStore.getState()));
+    host = promoteToHost(follower, () =>
+      replicationHostFor(selfId, channel, () => useInboxStore.getState()),
+    );
     follower = null;
     const internals = useInboxStore.getState() as any;
     // The write-through tee: persist first, then broadcast the same patches.

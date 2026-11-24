@@ -8,24 +8,42 @@
 // Pure: no node or convex imports. The CLI, the browser SDK and the Convex
 // runtime all load it, which is why the key helpers use globalThis.crypto.
 import { dropRequestIds, type SignalKind } from "./signalFingerprint";
-import { JUDGE_BACKENDS, MOMENT_RETENTIONS, MOMENT_STORAGES, validateMomentEvent, type MomentEventItem } from "./moments";
+import {
+  JUDGE_BACKENDS,
+  MOMENT_RETENTIONS,
+  MOMENT_STORAGES,
+  validateMomentEvent,
+  type MomentEventItem,
+} from "./moments";
 import { isCiRunSeries, parseVolumeQuery } from "./volumeWatch";
 import { cleanKeepReasons } from "./replay";
 
 // ── Sources ──
 
 /** Providers a person adds (`cast sources add`, the Ops form). */
-export const ADDABLE_SOURCE_PROVIDERS = ["sentry", "posthog", "sdk", "http", "app"] as const;
+export const ADDABLE_SOURCE_PROVIDERS = [
+  "sentry",
+  "posthog",
+  "sdk",
+  "http",
+  "app",
+] as const;
 /** Providers codecast creates and feeds itself: github is CI on a repository's default branch (X7). */
 export const SYSTEM_SOURCE_PROVIDERS = ["github"] as const;
-export const SOURCE_PROVIDERS = [...ADDABLE_SOURCE_PROVIDERS, ...SYSTEM_SOURCE_PROVIDERS] as const;
+export const SOURCE_PROVIDERS = [
+  ...ADDABLE_SOURCE_PROVIDERS,
+  ...SYSTEM_SOURCE_PROVIDERS,
+] as const;
 export type SourceProvider = (typeof SOURCE_PROVIDERS)[number];
 
 /** The system source CI runs on a default branch file under, one per workspace; `--source github-ci` names it. */
 export const GITHUB_CI_SOURCE_NAME = "github-ci";
 
 /** Providers that push through the ingest door with a write-only key; the rest hold a connection credential. */
-export const KEYED_SOURCE_PROVIDERS: readonly SourceProvider[] = ["sdk", "http"];
+export const KEYED_SOURCE_PROVIDERS: readonly SourceProvider[] = [
+  "sdk",
+  "http",
+];
 
 /** A Sentry org or project slug (or numeric id): checked so a value cannot steer a URL to another path. */
 export const SENTRY_SLUG = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
@@ -39,7 +57,15 @@ export const POSTHOG_PROJECT_ID = /^\d{1,12}$/;
  * server's check both come from this list.
  */
 export interface SourceConfigField {
-  key: "org" | "projects" | "project_id" | "environments" | "allowed_origins" | "moment_storage" | "moment_retention" | "judge_on";
+  key:
+    | "org"
+    | "projects"
+    | "project_id"
+    | "environments"
+    | "allowed_origins"
+    | "moment_storage"
+    | "moment_retention"
+    | "judge_on";
   flag: string;
   list: boolean;
   providers: readonly SourceProvider[];
@@ -51,16 +77,76 @@ export interface SourceConfigField {
 }
 
 export const SOURCE_CONFIG_FIELDS: readonly SourceConfigField[] = [
-  { key: "org", flag: "org", list: false, providers: ["sentry"], help: "Sentry organization slug (must be the connection's)", pattern: SENTRY_SLUG, what: "a Sentry organization slug" },
-  { key: "projects", flag: "projects", list: true, providers: ["sentry"], help: "Sentry project slugs or ids to mirror", pattern: SENTRY_SLUG, what: "a Sentry project slug or id" },
-  { key: "project_id", flag: "project-id", list: false, providers: ["posthog"], help: "PostHog project id, when not the connection's", pattern: POSTHOG_PROJECT_ID, what: "a PostHog project id (a number)" },
-  { key: "environments", flag: "environments", list: true, providers: SOURCE_PROVIDERS, help: "Only these environments" },
-  { key: "allowed_origins", flag: "allowed-origins", list: true, providers: KEYED_SOURCE_PROVIDERS, help: "Origins a browser SDK may post from" },
+  {
+    key: "org",
+    flag: "org",
+    list: false,
+    providers: ["sentry"],
+    help: "Sentry organization slug (must be the connection's)",
+    pattern: SENTRY_SLUG,
+    what: "a Sentry organization slug",
+  },
+  {
+    key: "projects",
+    flag: "projects",
+    list: true,
+    providers: ["sentry"],
+    help: "Sentry project slugs or ids to mirror",
+    pattern: SENTRY_SLUG,
+    what: "a Sentry project slug or id",
+  },
+  {
+    key: "project_id",
+    flag: "project-id",
+    list: false,
+    providers: ["posthog"],
+    help: "PostHog project id, when not the connection's",
+    pattern: POSTHOG_PROJECT_ID,
+    what: "a PostHog project id (a number)",
+  },
+  {
+    key: "environments",
+    flag: "environments",
+    list: true,
+    providers: SOURCE_PROVIDERS,
+    help: "Only these environments",
+  },
+  {
+    key: "allowed_origins",
+    flag: "allowed-origins",
+    list: true,
+    providers: KEYED_SOURCE_PROVIDERS,
+    help: "Origins a browser SDK may post from",
+  },
   // learning-loop.md LL7: a moment can carry customer conversations, so its
   // body stays on the extractor's host unless a person chooses codecast.
-  { key: "moment_storage", flag: "moment-storage", list: false, providers: KEYED_SOURCE_PROVIDERS, help: "Where moment bodies are kept: host (the default) or codecast", pattern: new RegExp(`^(${MOMENT_STORAGES.join("|")})$`), what: `one of ${MOMENT_STORAGES.join(", ")}` },
-  { key: "moment_retention", flag: "moment-retention", list: false, providers: KEYED_SOURCE_PROVIDERS, help: "How long codecast-stored bodies are kept: 30d (the default) or keep", pattern: new RegExp(`^(${MOMENT_RETENTIONS.join("|")})$`), what: `one of ${MOMENT_RETENTIONS.join(", ")}` },
-  { key: "judge_on", flag: "judge-on", list: false, providers: KEYED_SOURCE_PROVIDERS, help: "Where its judges make model calls: api (the default, on the team's model budget) or subscription (the Claude Code login of the machine that extracts)", pattern: new RegExp(`^(${JUDGE_BACKENDS.join("|")})$`), what: `one of ${JUDGE_BACKENDS.join(", ")}` },
+  {
+    key: "moment_storage",
+    flag: "moment-storage",
+    list: false,
+    providers: KEYED_SOURCE_PROVIDERS,
+    help: "Where moment bodies are kept: host (the default) or codecast",
+    pattern: new RegExp(`^(${MOMENT_STORAGES.join("|")})$`),
+    what: `one of ${MOMENT_STORAGES.join(", ")}`,
+  },
+  {
+    key: "moment_retention",
+    flag: "moment-retention",
+    list: false,
+    providers: KEYED_SOURCE_PROVIDERS,
+    help: "How long codecast-stored bodies are kept: 30d (the default) or keep",
+    pattern: new RegExp(`^(${MOMENT_RETENTIONS.join("|")})$`),
+    what: `one of ${MOMENT_RETENTIONS.join(", ")}`,
+  },
+  {
+    key: "judge_on",
+    flag: "judge-on",
+    list: false,
+    providers: KEYED_SOURCE_PROVIDERS,
+    help: "Where its judges make model calls: api (the default, on the team's model budget) or subscription (the Claude Code login of the machine that extracts)",
+    pattern: new RegExp(`^(${JUDGE_BACKENDS.join("|")})$`),
+    what: `one of ${JUDGE_BACKENDS.join(", ")}`,
+  },
 ];
 
 /**
@@ -68,14 +154,19 @@ export const SOURCE_CONFIG_FIELDS: readonly SourceConfigField[] = [
  * or a value that is not what its provider takes. Refused rather than
  * ignored, so a mistyped project never quietly reads a different one.
  */
-export function sourceConfigProblem(provider: SourceProvider, config: Record<string, unknown> | undefined | null): string | null {
+export function sourceConfigProblem(
+  provider: SourceProvider,
+  config: Record<string, unknown> | undefined | null,
+): string | null {
   for (const field of SOURCE_CONFIG_FIELDS) {
     const value = config?.[field.key];
     if (value === undefined) continue;
-    if (!field.providers.includes(provider)) return `${field.key} does not apply to a ${provider} source`;
+    if (!field.providers.includes(provider))
+      return `${field.key} does not apply to a ${provider} source`;
     if (!field.pattern) continue;
     for (const one of Array.isArray(value) ? value : [value]) {
-      if (typeof one !== "string" || !field.pattern.test(one)) return `"${String(one)}" is not ${field.what}`;
+      if (typeof one !== "string" || !field.pattern.test(one))
+        return `"${String(one)}" is not ${field.what}`;
     }
   }
   return null;
@@ -97,7 +188,10 @@ export function normalizeSourceName(name: string | undefined | null): string {
  * Whether a trigger's `source` filter admits a firing from `source` (X4). A
  * trigger that names no source fires for every source its owner can see.
  */
-export function sourceFilterAdmits(filter: string | undefined | null, source: string | undefined | null): boolean {
+export function sourceFilterAdmits(
+  filter: string | undefined | null,
+  source: string | undefined | null,
+): boolean {
   return !filter || normalizeSourceName(filter) === normalizeSourceName(source);
 }
 
@@ -114,7 +208,14 @@ export const INGEST_SHORT_ID_PREFIX = {
 
 // ── Groups and transitions ──
 
-export const GROUP_KINDS = ["error", "log", "job", "check", "metric", "replay_issue"] as const;
+export const GROUP_KINDS = [
+  "error",
+  "log",
+  "job",
+  "check",
+  "metric",
+  "replay_issue",
+] as const;
 export type GroupKind = (typeof GROUP_KINDS)[number];
 
 export const GROUP_STATUSES = ["open", "resolved", "ignored", "muted"] as const;
@@ -147,7 +248,10 @@ export const DEFAULT_PROMOTE: readonly Transition[] = ["new", "regressed"];
  * waits on it. Errors and warning logs share the error names: a person arms
  * "a new error", not "a new group of kind log".
  */
-export function transitionTriggerEvent(kind: GroupKind | undefined, transition: Transition): string | undefined {
+export function transitionTriggerEvent(
+  kind: GroupKind | undefined,
+  transition: Transition,
+): string | undefined {
   if (transition === "deploy") return "deploy";
   switch (transition) {
     case "check_failed":
@@ -200,7 +304,9 @@ export const TRANSITION_SIGNAL_KIND: Partial<Record<Transition, SignalKind>> = {
   metric_alert: "ux",
 };
 
-export function transitionSignalKind(transition: Transition): SignalKind | undefined {
+export function transitionSignalKind(
+  transition: Transition,
+): SignalKind | undefined {
   return TRANSITION_SIGNAL_KIND[transition];
 }
 
@@ -227,7 +333,11 @@ const HOUR_MS = 3600_000;
  * start in ms), so an hour with no bucket is a zero and a gap stays a gap.
  * Every sparkline over a group's or an event name's buckets reads this.
  */
-export function bucketSeries(buckets: readonly { hour: number; count: number }[] | undefined, now: number, hours: number = GROUP_RULES.bucket_hours): number[] {
+export function bucketSeries(
+  buckets: readonly { hour: number; count: number }[] | undefined,
+  now: number,
+  hours: number = GROUP_RULES.bucket_hours,
+): number[] {
   const end = Math.floor(now / HOUR_MS) * HOUR_MS;
   const start = end - (hours - 1) * HOUR_MS;
   const out = new Array<number>(hours).fill(0);
@@ -240,18 +350,29 @@ export function bucketSeries(buckets: readonly { hour: number; count: number }[]
 }
 
 /** One analytics event name's hourly counts as a source row carries them (convex lib/ingestGroups countEventNames). */
-export type EventNameCounts = { name: string; buckets: { hour: number; count: number }[] };
+export type EventNameCounts = {
+  name: string;
+  buckets: { hour: number; count: number }[];
+};
 
 /**
  * A source's counted analytics events for a reader, busiest first over the
  * last 24 hours: the day's count and every hour of the window, oldest first
  * (a sparkline's input). `cast sources show` and the web source card read this.
  */
-export function eventNameRows(names: readonly EventNameCounts[] | undefined, now: number, limit = 10): { name: string; day: number; hourly: number[] }[] {
+export function eventNameRows(
+  names: readonly EventNameCounts[] | undefined,
+  now: number,
+  limit = 10,
+): { name: string; day: number; hourly: number[] }[] {
   return (names ?? [])
     .map((e) => {
       const hourly = bucketSeries(e.buckets, now);
-      return { name: e.name, day: hourly.slice(-24).reduce((n, c) => n + c, 0), hourly };
+      return {
+        name: e.name,
+        day: hourly.slice(-24).reduce((n, c) => n + c, 0),
+        hourly,
+      };
     })
     .filter((r) => r.hourly.some((c) => c > 0))
     .sort((a, b) => b.day - a.day || a.name.localeCompare(b.name))
@@ -292,14 +413,20 @@ export type MetricReaderAnswer = {
 export const READER_LIVE_SLACK_MS = 3_600_000;
 
 /** A `reader` watch's query read back: the reader's name and the args it passes. */
-export function parseReaderQuery(query: string): { reader: string; args: Record<string, unknown> } | { error: string } {
+export function parseReaderQuery(
+  query: string,
+): { reader: string; args: Record<string, unknown> } | { error: string } {
   const text = query.trim();
   const m = /^([A-Za-z0-9_.:-]+)\s*([\s\S]*)$/.exec(text);
-  if (!m) return { error: "A reader watch names the reader first: `<reader> [json args]`" };
+  if (!m)
+    return {
+      error: "A reader watch names the reader first: `<reader> [json args]`",
+    };
   if (!m[2].trim()) return { reader: m[1], args: {} };
   try {
     const args = JSON.parse(m[2]);
-    if (!args || typeof args !== "object" || Array.isArray(args)) return { error: "A reader watch's args are a JSON object" };
+    if (!args || typeof args !== "object" || Array.isArray(args))
+      return { error: "A reader watch's args are a JSON object" };
     return { reader: m[1], args };
   } catch {
     return { error: "A reader watch's args are a JSON object" };
@@ -307,18 +434,40 @@ export function parseReaderQuery(query: string): { reader: string; args: Record<
 }
 
 /** One answer of a metric reader read as its number and its dated points; null fields when the answer holds none. */
-export function readMetricAnswer(body: unknown): { value: number | null; unit: string | null; points: Array<{ at: number; value: number }>; version: string | null } {
-  const b = (body && typeof body === "object" ? body : {}) as Partial<MetricReaderAnswer>;
-  const num = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : null);
-  const when = (x: unknown) => (typeof x === "number" ? x : typeof x === "string" ? Date.parse(x) : NaN);
+export function readMetricAnswer(body: unknown): {
+  value: number | null;
+  unit: string | null;
+  points: Array<{ at: number; value: number }>;
+  version: string | null;
+} {
+  const b = (
+    body && typeof body === "object" ? body : {}
+  ) as Partial<MetricReaderAnswer>;
+  const num = (x: unknown) =>
+    typeof x === "number" && Number.isFinite(x) ? x : null;
+  const when = (x: unknown) =>
+    typeof x === "number" ? x : typeof x === "string" ? Date.parse(x) : NaN;
   const points = (Array.isArray(b.points) ? b.points : [])
     .map((p) => ({ at: when(p?.at), value: num(p?.value) }))
-    .filter((p): p is { at: number; value: number } => Number.isFinite(p.at) && p.value !== null)
+    .filter(
+      (p): p is { at: number; value: number } =>
+        Number.isFinite(p.at) && p.value !== null,
+    )
     .sort((x, y) => x.at - y.at);
-  const version = typeof b.version === "string" && b.version.trim() ? b.version.trim().slice(0, 64) : null;
-  return { value: typeof body === "number" ? num(body) : num(b.value), unit: typeof b.unit === "string" && b.unit.trim() ? b.unit.trim().slice(0, 12) : null, points, version };
+  const version =
+    typeof b.version === "string" && b.version.trim()
+      ? b.version.trim().slice(0, 64)
+      : null;
+  return {
+    value: typeof body === "number" ? num(body) : num(b.value),
+    unit:
+      typeof b.unit === "string" && b.unit.trim()
+        ? b.unit.trim().slice(0, 12)
+        : null,
+    points,
+    version,
+  };
 }
-
 
 /** Which side of the threshold alerts. */
 export const WATCH_DIRECTIONS = ["above", "below"] as const;
@@ -337,14 +486,22 @@ export const METRIC_WATCH_LIMITS = {
 /** Why a watch has no history to read from its source (metrics.loadHistory): not failures, so they never stop a source. */
 export const METRIC_NO_HISTORY = {
   covered: "The watch's points already reach back as far as asked",
-  aggregate: "The insight's value is a total, not a dated series; its history is its polls",
+  aggregate:
+    "The insight's value is a total, not a dated series; its history is its polls",
 } as const;
 
 /** A watch's last history read, as stored on it: when, how many past points it added, why none, or still reading. */
-export type MetricWatchHistory = { at: number; added: number; note?: string; reading?: boolean };
+export type MetricWatchHistory = {
+  at: number;
+  added: number;
+  note?: string;
+  reading?: boolean;
+};
 
 /** Which watch kinds a source can answer. A provider absent here has no polled metrics. */
-export const WATCH_KINDS_BY_PROVIDER: Partial<Record<SourceProvider, readonly WatchKind[]>> = {
+export const WATCH_KINDS_BY_PROVIDER: Partial<
+  Record<SourceProvider, readonly WatchKind[]>
+> = {
   posthog: ["hogql", "insight"],
   app: ["reader"],
   // What codecast counts itself (contracts/volumeWatch): every source that sends errors, logs or runs.
@@ -357,20 +514,36 @@ export const WATCH_KINDS_BY_PROVIDER: Partial<Record<SourceProvider, readonly Wa
 // PostHog insight refs are numeric ids or short ids, checked so a value can never steer a request to another path.
 const INSIGHT_REF = /^(\d{1,12}|[A-Za-z0-9_-]{1,32})$/;
 
-export function validWatchQuery(kind: "hogql" | "insight", query: string): string | null {
+export function validWatchQuery(
+  kind: "hogql" | "insight",
+  query: string,
+): string | null {
   const q = query.trim();
-  if (!q) return kind === "hogql" ? "A HogQL watch needs a query" : "An insight watch needs an insight id";
-  if (q.length > METRIC_WATCH_LIMITS.query_chars) return `The query is over ${METRIC_WATCH_LIMITS.query_chars} characters`;
-  if (kind === "insight" && !INSIGHT_REF.test(q)) return `"${q.slice(0, 40)}" is not a PostHog insight id or short id`;
+  if (!q)
+    return kind === "hogql"
+      ? "A HogQL watch needs a query"
+      : "An insight watch needs an insight id";
+  if (q.length > METRIC_WATCH_LIMITS.query_chars)
+    return `The query is over ${METRIC_WATCH_LIMITS.query_chars} characters`;
+  if (kind === "insight" && !INSIGHT_REF.test(q))
+    return `"${q.slice(0, 40)}" is not a PostHog insight id or short id`;
   return null;
 }
 
 /** Why a watch cannot be made on this source, or null: the server's check (metrics.createWatch, updateWatch) and the web form's. */
-export function watchProblem(provider: SourceProvider, kind: WatchKind, queryText: string, threshold: number | undefined): string | null {
+export function watchProblem(
+  provider: SourceProvider,
+  kind: WatchKind,
+  queryText: string,
+  threshold: number | undefined,
+): string | null {
   const kinds = WATCH_KINDS_BY_PROVIDER[provider];
-  if (!kinds?.includes(kind)) return `${/^[aeiou]/.test(provider) ? "An" : "A"} ${provider} source cannot watch a ${kind} metric${kinds ? ` (it takes ${kinds.join(" or ")})` : ""}`;
-  if (threshold !== undefined && !Number.isFinite(threshold)) return "The threshold must be a number";
-  if (kind === "hogql" || kind === "insight") return validWatchQuery(kind, queryText);
+  if (!kinds?.includes(kind))
+    return `${/^[aeiou]/.test(provider) ? "An" : "A"} ${provider} source cannot watch a ${kind} metric${kinds ? ` (it takes ${kinds.join(" or ")})` : ""}`;
+  if (threshold !== undefined && !Number.isFinite(threshold))
+    return "The threshold must be a number";
+  if (kind === "hogql" || kind === "insight")
+    return validWatchQuery(kind, queryText);
   if (kind === "reader") {
     const parsed = parseReaderQuery(queryText);
     return "error" in parsed ? parsed.error : null;
@@ -378,7 +551,9 @@ export function watchProblem(provider: SourceProvider, kind: WatchKind, queryTex
   if (kind === "volume") {
     const parsed = parseVolumeQuery(queryText);
     if ("error" in parsed) return parsed.error;
-    return isCiRunSeries(parsed.series) && provider !== "github" ? "Run time and failure rate come from a CI source" : null;
+    return isCiRunSeries(parsed.series) && provider !== "github"
+      ? "Run time and failure rate come from a CI source"
+      : null;
   }
   return null;
 }
@@ -424,8 +599,13 @@ export function ingestKeyPrefix(key: string): string {
 
 /** The stored form: lowercase hex sha256. Only this is kept; the key is shown once. */
 export async function hashIngestKey(key: string): Promise<string> {
-  const digest = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+  const digest = await globalThis.crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(key),
+  );
+  return Array.from(new Uint8Array(digest), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
 }
 
 // ── The batch ──
@@ -459,14 +639,42 @@ export type IngestItem =
       replay_id?: string;
       at: number;
     }
-  | { type: "log"; level: LogLevel; message: string; fingerprint?: string; context?: Record<string, unknown>; at: number }
-  | { type: "job_failed"; job: string; error: string; attempt?: number; job_id?: string; at: number }
-  | { type: "check"; id: string; ok: boolean; title?: string; detail?: string; at: number }
+  | {
+      type: "log";
+      level: LogLevel;
+      message: string;
+      fingerprint?: string;
+      context?: Record<string, unknown>;
+      at: number;
+    }
+  | {
+      type: "job_failed";
+      job: string;
+      error: string;
+      attempt?: number;
+      job_id?: string;
+      at: number;
+    }
+  | {
+      type: "check";
+      id: string;
+      ok: boolean;
+      title?: string;
+      detail?: string;
+      at: number;
+    }
   | { type: "event"; name: string; props?: Record<string, unknown>; at: number }
   | {
-      type: "deploy"; version: string; sha?: string; environment?: string; at: number;
+      type: "deploy";
+      version: string;
+      sha?: string;
+      environment?: string;
+      at: number;
       /** The deploy's own page (a CI run), who started it, and the range it carried (deploys.md DP1). */
-      url?: string; actor?: string; previous_sha?: string; commits?: Array<{ sha: string; subject: string; author?: string }>;
+      url?: string;
+      actor?: string;
+      previous_sha?: string;
+      commits?: Array<{ sha: string; subject: string; author?: string }>;
     }
   | {
       type: "replay";
@@ -515,7 +723,12 @@ export interface IngestRejection {
 }
 
 export type IngestBatchResult =
-  | { ok: true; envelope: IngestEnvelope; items: IngestItem[]; rejected: IngestRejection[] }
+  | {
+      ok: true;
+      envelope: IngestEnvelope;
+      items: IngestItem[];
+      rejected: IngestRejection[];
+    }
   /** The whole batch is refused. `status` is the HTTP answer: 400 means do not retry, 413 means split. */
   | { ok: false; status: 400 | 413; error: string };
 
@@ -530,7 +743,9 @@ function str(value: unknown, max: number): string | undefined {
 }
 
 function num(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -539,16 +754,31 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 /** A bounded JSON object, or a note saying it was too large. Never throws on cycles. */
 /** A deploy item's commit range, bounded: at most 200 commits, each a sha and its subject. */
-function deployCommits(raw: unknown): Array<{ sha: string; subject: string; author?: string }> | undefined {
+function deployCommits(
+  raw: unknown,
+): Array<{ sha: string; subject: string; author?: string }> | undefined {
   if (!Array.isArray(raw)) return undefined;
   const out: Array<{ sha: string; subject: string; author?: string }> = [];
   for (const c of raw.slice(0, 200)) {
     if (!c || typeof c !== "object") continue;
-    const sha = typeof (c as any).sha === "string" ? (c as any).sha.trim().slice(0, 64) : "";
-    const subject = typeof (c as any).subject === "string" ? (c as any).subject.trim().slice(0, 300) : "";
+    const sha =
+      typeof (c as any).sha === "string"
+        ? (c as any).sha.trim().slice(0, 64)
+        : "";
+    const subject =
+      typeof (c as any).subject === "string"
+        ? (c as any).subject.trim().slice(0, 300)
+        : "";
     if (!/^[0-9a-f]{7,64}$/i.test(sha)) continue;
-    const author = typeof (c as any).author === "string" ? (c as any).author.trim().slice(0, 120) : "";
-    out.push({ sha: sha.toLowerCase(), subject, ...(author ? { author } : {}) });
+    const author =
+      typeof (c as any).author === "string"
+        ? (c as any).author.trim().slice(0, 120)
+        : "";
+    out.push({
+      sha: sha.toLowerCase(),
+      subject,
+      ...(author ? { author } : {}),
+    });
   }
   return out.length ? out : undefined;
 }
@@ -564,7 +794,8 @@ function boundedObject(value: unknown): Record<string, unknown> | undefined {
   } catch {
     return { _truncated: "not serializable" };
   }
-  if (json.length > INGEST_LIMITS.object_chars) return { _truncated: `${json.length} chars` };
+  if (json.length > INGEST_LIMITS.object_chars)
+    return { _truncated: `${json.length} chars` };
   return JSON.parse(json);
 }
 
@@ -573,8 +804,15 @@ function boundedTags(value: unknown): Record<string, string> | undefined {
   const out: Record<string, string> = {};
   for (const k of Object.keys(value).slice(0, INGEST_LIMITS.object_keys)) {
     const v = value[k];
-    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
-      out[k.slice(0, INGEST_LIMITS.name_chars)] = String(v).slice(0, INGEST_LIMITS.tag_value_chars);
+    if (
+      typeof v === "string" ||
+      typeof v === "number" ||
+      typeof v === "boolean"
+    ) {
+      out[k.slice(0, INGEST_LIMITS.name_chars)] = String(v).slice(
+        0,
+        INGEST_LIMITS.tag_value_chars,
+      );
     }
   }
   return Object.keys(out).length ? out : undefined;
@@ -591,7 +829,9 @@ function user(value: unknown): IngestUser | undefined {
 }
 
 function level(value: unknown): LogLevel | undefined {
-  return (LOG_LEVELS as readonly unknown[]).includes(value) ? (value as LogLevel) : undefined;
+  return (LOG_LEVELS as readonly unknown[]).includes(value)
+    ? (value as LogLevel)
+    : undefined;
 }
 
 /** Epoch ms from a number or an ISO string; missing or far-future stamps become the receive time. */
@@ -687,14 +927,19 @@ function validateItem(raw: unknown, now: number): IngestItem | string {
       const replayId = str(raw.replay_id, L.name_chars);
       if (!replayId) return "replay needs a replay_id";
       const counts = isPlainObject(raw.counts)
-        ? { clicks: num(raw.counts.clicks), errors: num(raw.counts.errors), failed_requests: num(raw.counts.failed_requests) }
+        ? {
+            clicks: num(raw.counts.clicks),
+            errors: num(raw.counts.errors),
+            failed_requests: num(raw.counts.failed_requests),
+          }
         : undefined;
       return {
         type: "replay",
         replay_id: replayId,
         url: str(raw.url, L.url_chars),
         user: user(raw.user),
-        started_at: raw.started_at === undefined ? undefined : stamp(raw.started_at, now),
+        started_at:
+          raw.started_at === undefined ? undefined : stamp(raw.started_at, now),
         duration_ms: num(raw.duration_ms),
         chunks: num(raw.chunks),
         counts,
@@ -731,10 +976,18 @@ function byteLength(s: string): number {
  * `rejected` and the rest go through, so one malformed error never costs the
  * batch around it.
  */
-export function validateIngestBatch(body: unknown, now: number = Date.now()): IngestBatchResult {
+export function validateIngestBatch(
+  body: unknown,
+  now: number = Date.now(),
+): IngestBatchResult {
   let parsed: unknown = body;
   if (typeof body === "string") {
-    if (byteLength(body) > INGEST_LIMITS.max_bytes) return { ok: false, status: 413, error: `batch is over ${INGEST_LIMITS.max_bytes} bytes` };
+    if (byteLength(body) > INGEST_LIMITS.max_bytes)
+      return {
+        ok: false,
+        status: 413,
+        error: `batch is over ${INGEST_LIMITS.max_bytes} bytes`,
+      };
     try {
       parsed = JSON.parse(body);
     } catch {
@@ -747,12 +1000,23 @@ export function validateIngestBatch(body: unknown, now: number = Date.now()): In
     } catch {
       return { ok: false, status: 400, error: "body is not serializable" };
     }
-    if (size > INGEST_LIMITS.max_bytes) return { ok: false, status: 413, error: `batch is over ${INGEST_LIMITS.max_bytes} bytes` };
+    if (size > INGEST_LIMITS.max_bytes)
+      return {
+        ok: false,
+        status: 413,
+        error: `batch is over ${INGEST_LIMITS.max_bytes} bytes`,
+      };
   }
-  if (!isPlainObject(parsed)) return { ok: false, status: 400, error: "body is not an object" };
-  if (!Array.isArray(parsed.items)) return { ok: false, status: 400, error: "items must be an array" };
+  if (!isPlainObject(parsed))
+    return { ok: false, status: 400, error: "body is not an object" };
+  if (!Array.isArray(parsed.items))
+    return { ok: false, status: 400, error: "items must be an array" };
   if (parsed.items.length > INGEST_LIMITS.max_items) {
-    return { ok: false, status: 413, error: `batch has ${parsed.items.length} items, at most ${INGEST_LIMITS.max_items}` };
+    return {
+      ok: false,
+      status: 413,
+      error: `batch has ${parsed.items.length} items, at most ${INGEST_LIMITS.max_items}`,
+    };
   }
 
   const sdk = isPlainObject(parsed.sdk) ? parsed.sdk : {};
@@ -784,16 +1048,36 @@ export function validateIngestBatch(body: unknown, now: number = Date.now()): In
  * `words`: what failed, in the product's own words, when the title leads with words before the error; `error`: the
  * error's message, or null when the title is all one part.
  */
-export function errorTitle(raw: string): { title: string; words: string | null; error: string | null } {
-  const norm = (s: string) => s.trim().replace(/[.\s]+$/, "").toLowerCase();
+export function errorTitle(raw: string): {
+  title: string;
+  words: string | null;
+  error: string | null;
+} {
+  const norm = (s: string) =>
+    s
+      .trim()
+      .replace(/[.\s]+$/, "")
+      .toLowerCase();
   const parts: string[] = [];
-  for (const p of dropRequestIds(raw).split(/(?<=\S):\s+/)) if (!parts.length || norm(parts[parts.length - 1]) !== norm(p)) parts.push(p.trim());
+  for (const p of dropRequestIds(raw).split(/(?<=\S):\s+/))
+    if (!parts.length || norm(parts[parts.length - 1]) !== norm(p))
+      parts.push(p.trim());
   // A part repeated anywhere later (": A: B: A: B") collapses too.
   for (let size = Math.floor(parts.length / 2); size >= 1; size--) {
     const tail = parts.slice(-size).map(norm).join("|");
-    if (parts.length >= 2 * size && parts.slice(-2 * size, -size).map(norm).join("|") === tail) parts.splice(-size);
+    if (
+      parts.length >= 2 * size &&
+      parts
+        .slice(-2 * size, -size)
+        .map(norm)
+        .join("|") === tail
+    )
+      parts.splice(-size);
   }
   const title = parts.join(": ");
-  const words = parts.length >= 2 && parts[0].split(/\s+/).length >= 3 ? parts[0].replace(/[.:\s]+$/, "") : null;
+  const words =
+    parts.length >= 2 && parts[0].split(/\s+/).length >= 3
+      ? parts[0].replace(/[.:\s]+$/, "")
+      : null;
   return { title, words, error: words ? parts.slice(1).join(": ") : null };
 }

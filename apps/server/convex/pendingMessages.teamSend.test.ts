@@ -54,7 +54,11 @@ function createDb(seed: Record<string, Rec[]>) {
       Object.assign(row, patch);
     },
     query(table: string) {
-      const constraints: Array<{ field: string; op: "eq" | "gt" | "lte"; val: any }> = [];
+      const constraints: Array<{
+        field: string;
+        op: "eq" | "gt" | "lte";
+        val: any;
+      }> = [];
       const q: any = {
         eq(field: string, val: any) {
           constraints.push({ field, op: "eq", val });
@@ -74,8 +78,10 @@ function createDb(seed: Record<string, Rec[]>) {
           constraints.every((c) =>
             c.op === "eq"
               ? String(r[c.field]) === String(c.val)
-              : c.op === "gt" ? (r[c.field] ?? -Infinity) > c.val : r[c.field] <= c.val
-          )
+              : c.op === "gt"
+                ? (r[c.field] ?? -Infinity) > c.val
+                : r[c.field] <= c.val,
+          ),
         );
       let descending = false;
       const ordered = () => (descending ? [...run()].reverse() : run());
@@ -106,13 +112,23 @@ function createDb(seed: Record<string, Rec[]>) {
 
 function applySweepPage(ctx: { db: unknown }, now: number, ids: string[]) {
   return (applyStuckMessages as any)._handler(ctx, {
-    ids, now, deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS, allowHostedWake: true,
+    ids,
+    now,
+    deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS,
+    allowHostedWake: true,
   });
 }
 
 // Shared world: Alice and Bob are on team T. Bob has a shared session (convBob) and a private one
 // (convBobPriv). Alice has her own session (convAlice) that she sends FROM. Carol is a stranger.
-function world(opts: { bobLive?: boolean; bobIdle?: boolean; bobDaemonOnline?: boolean; now: number } = { now: 1_000_000_000_000 }) {
+function world(
+  opts: {
+    bobLive?: boolean;
+    bobIdle?: boolean;
+    bobDaemonOnline?: boolean;
+    now: number;
+  } = { now: 1_000_000_000_000 },
+) {
   const now = opts.now;
   const heartbeat = opts.bobLive === false ? now - 10 * 60_000 : now - 5_000;
   return createDb({
@@ -131,12 +147,51 @@ function world(opts: { bobLive?: boolean; bobIdle?: boolean; bobDaemonOnline?: b
       { _id: "mBot2", user_id: "uBot2", team_id: "tA", visibility: "full" },
     ],
     conversations: [
-      { _id: "convAlice", user_id: "uAlice", short_id: "jxalice", session_id: "sess-alice", is_private: true, status: "active" },
-      { _id: "convBob", user_id: "uBob", team_id: "tA", short_id: "jxbob01", session_id: "sess-bob", is_private: false, status: "active", owner_device_id: "devBob" },
-      { _id: "convBobPriv", user_id: "uBob", team_id: "tA", short_id: "jxbobpv", session_id: "sess-bobpv", is_private: true, status: "active" },
-      { _id: "convCarol", user_id: "uCarol", short_id: "jxcarol", session_id: "sess-carol", is_private: true, status: "active" },
+      {
+        _id: "convAlice",
+        user_id: "uAlice",
+        short_id: "jxalice",
+        session_id: "sess-alice",
+        is_private: true,
+        status: "active",
+      },
+      {
+        _id: "convBob",
+        user_id: "uBob",
+        team_id: "tA",
+        short_id: "jxbob01",
+        session_id: "sess-bob",
+        is_private: false,
+        status: "active",
+        owner_device_id: "devBob",
+      },
+      {
+        _id: "convBobPriv",
+        user_id: "uBob",
+        team_id: "tA",
+        short_id: "jxbobpv",
+        session_id: "sess-bobpv",
+        is_private: true,
+        status: "active",
+      },
+      {
+        _id: "convCarol",
+        user_id: "uCarol",
+        short_id: "jxcarol",
+        session_id: "sess-carol",
+        is_private: true,
+        status: "active",
+      },
       // Bot-run, no human starter — the only shape a teammate send may auto-claim.
-      { _id: "convBotRun", user_id: "uBot", team_id: "tA", short_id: "jxbotrn", session_id: "sess-botrun", is_private: false, status: "active" },
+      {
+        _id: "convBotRun",
+        user_id: "uBot",
+        team_id: "tA",
+        short_id: "jxbotrn",
+        session_id: "sess-botrun",
+        is_private: false,
+        status: "active",
+      },
     ],
     managed_sessions: [
       {
@@ -148,9 +203,19 @@ function world(opts: { bobLive?: boolean; bobIdle?: boolean; bobDaemonOnline?: b
         agent_status: opts.bobIdle === false ? "busy" : "idle",
       },
     ],
-    devices: opts.bobDaemonOnline === undefined ? [] : [
-      { _id: "dBob", user_id: "uBob", device_id: "devBob", last_seen: opts.bobDaemonOnline ? now - 10_000 : now - 10 * 60_000 },
-    ],
+    devices:
+      opts.bobDaemonOnline === undefined
+        ? []
+        : [
+            {
+              _id: "dBob",
+              user_id: "uBob",
+              device_id: "devBob",
+              last_seen: opts.bobDaemonOnline
+                ? now - 10_000
+                : now - 10 * 60_000,
+            },
+          ],
     pending_messages: [],
   });
 }
@@ -169,7 +234,9 @@ describe("direct send — a person typing into a session", () => {
     const row = tables.pending_messages[0];
     expect(row.from_user_id).toBe("uAlice");
     expect(row.owner_user_id).toBe("uBob");
-    expect(row.content).toBe('<user-message from="Alice">\nits me - you can proceed\n</user-message>');
+    expect(row.content).toBe(
+      '<user-message from="Alice">\nits me - you can proceed\n</user-message>',
+    );
     expect(row.content).not.toContain("<session-message");
     expect(row.content).not.toContain("unknown");
   });
@@ -177,8 +244,14 @@ describe("direct send — a person typing into a session", () => {
   test("a direct send into your own session still names you", async () => {
     const { ctx, tables } = world({ now: Date.now() });
     await ctx.db.patch("uAlice", { name: "Alice" });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxalice", body: "hi", direct: true });
-    expect(tables.pending_messages[0].content).toBe('<user-message from="Alice">\nhi\n</user-message>');
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxalice",
+      body: "hi",
+      direct: true,
+    });
+    expect(tables.pending_messages[0].content).toBe(
+      '<user-message from="Alice">\nhi\n</user-message>',
+    );
   });
 });
 
@@ -186,17 +259,32 @@ describe("send with a sender that resolves to nothing", () => {
   test("is rejected before enqueue — never delivered as from=unknown", async () => {
     const { ctx, tables } = world({ now: Date.now() });
     await expect(
-      performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "0199c3ab-1234-4d8f-9c1e-not-a-session", body: "ship it" })
+      performSessionSend(ctx as any, "uAlice" as any, {
+        to: "jxbob01",
+        from: "0199c3ab-1234-4d8f-9c1e-not-a-session",
+        body: "ship it",
+      }),
     ).rejects.toThrow(/not found/);
     expect(tables.pending_messages.length).toBe(0);
   });
 
   test("an explicit jx short id still attributes without a row, and no sender still delivers", async () => {
     const { ctx, tables } = world({ now: Date.now() });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxghost", body: "a" });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", body: "b" });
-    expect(tables.pending_messages[0].content).toContain('<session-message from="jxghost"');
-    expect(tables.pending_messages[1].content).toContain('<session-message from="unknown"');
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxghost",
+      body: "a",
+    });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      body: "b",
+    });
+    expect(tables.pending_messages[0].content).toContain(
+      '<session-message from="jxghost"',
+    );
+    expect(tables.pending_messages[1].content).toContain(
+      '<session-message from="unknown"',
+    );
   });
 });
 
@@ -206,10 +294,22 @@ describe("reply to the session that wrote to you", () => {
   test("Bob answers Alice's private session from the session she wrote to", async () => {
     const { ctx, tables } = world({ now: Date.now() });
     await expect(
-      performSessionSend(ctx as any, "uBob" as any, { to: "jxalice", from: "jxbob01", body: "before" }),
+      performSessionSend(ctx as any, "uBob" as any, {
+        to: "jxalice",
+        from: "jxbob01",
+        body: "before",
+      }),
     ).rejects.toThrow(/No session found/);
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "please take this" });
-    await performSessionSend(ctx as any, "uBob" as any, { to: "jxalice", from: "jxbob01", body: "done" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "please take this",
+    });
+    await performSessionSend(ctx as any, "uBob" as any, {
+      to: "jxalice",
+      from: "jxbob01",
+      body: "done",
+    });
     const reply = tables.pending_messages.at(-1)!;
     expect(reply.conversation_id).toBe("convAlice");
     expect(reply.from_conversation_id).toBe("convBob");
@@ -218,29 +318,61 @@ describe("reply to the session that wrote to you", () => {
 
   test("another session of the same person, or a stranger, still may not", async () => {
     const { ctx } = world({ now: Date.now() });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "please take this" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "please take this",
+    });
     await expect(
-      performSessionSend(ctx as any, "uBob" as any, { to: "jxalice", from: "jxbobpv", body: "x" }),
+      performSessionSend(ctx as any, "uBob" as any, {
+        to: "jxalice",
+        from: "jxbobpv",
+        body: "x",
+      }),
     ).rejects.toThrow(/No session found/);
     await expect(
-      performSessionSend(ctx as any, "uCarol" as any, { to: "jxalice", from: "jxcarol", body: "x" }),
+      performSessionSend(ctx as any, "uCarol" as any, {
+        to: "jxalice",
+        from: "jxcarol",
+        body: "x",
+      }),
     ).rejects.toThrow(/No session found/);
   });
 
   // F29: the reply channel lasts only while the two still share a team.
   test("a member removed since may no longer answer", async () => {
     const { ctx, tables } = world({ now: Date.now() });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "please take this" });
-    tables.team_memberships = tables.team_memberships.filter((m: any) => m.user_id !== "uBob");
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "please take this",
+    });
+    tables.team_memberships = tables.team_memberships.filter(
+      (m: any) => m.user_id !== "uBob",
+    );
     await expect(
-      performSessionSend(ctx as any, "uBob" as any, { to: "jxalice", from: "jxbob01", body: "still here" }),
+      performSessionSend(ctx as any, "uBob" as any, {
+        to: "jxalice",
+        from: "jxbob01",
+        body: "still here",
+      }),
     ).rejects.toThrow(/No session found/);
   });
 
   test("a sender cannot borrow a session it does not run", async () => {
     const { ctx } = world({ now: Date.now() });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "please take this" });
-    await expect(performSessionSend(ctx as any, "uCarol" as any, { to: "jxalice", from: "jxbob01", body: "x" })).rejects.toThrow();
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "please take this",
+    });
+    await expect(
+      performSessionSend(ctx as any, "uCarol" as any, {
+        to: "jxalice",
+        from: "jxbob01",
+        body: "x",
+      }),
+    ).rejects.toThrow();
   });
 });
 
@@ -251,49 +383,125 @@ describe("a short id shared by several sessions", () => {
   async function twins() {
     const w = world({ now: Date.now() });
     w.tables.conversations.push(
-      { _id: "convLead", user_id: "uAlice", short_id: "jxtwin0", session_id: "sess-lead", is_private: true, status: "active" },
-      { _id: "convWorker", user_id: "uAlice", short_id: "jxworkr", session_id: "sess-worker", is_private: true, status: "active", spawned_by_conversation_id: "convLead" },
-      { _id: "convPen", user_id: "uAlice", short_id: "jxpenpl", session_id: "sess-pen", is_private: true, status: "active" },
-      { _id: "convTwin", user_id: "uAlice", short_id: "jxtwin0", session_id: "sess-twin", is_private: true, status: "active" },
+      {
+        _id: "convLead",
+        user_id: "uAlice",
+        short_id: "jxtwin0",
+        session_id: "sess-lead",
+        is_private: true,
+        status: "active",
+      },
+      {
+        _id: "convWorker",
+        user_id: "uAlice",
+        short_id: "jxworkr",
+        session_id: "sess-worker",
+        is_private: true,
+        status: "active",
+        spawned_by_conversation_id: "convLead",
+      },
+      {
+        _id: "convPen",
+        user_id: "uAlice",
+        short_id: "jxpenpl",
+        session_id: "sess-pen",
+        is_private: true,
+        status: "active",
+      },
+      {
+        _id: "convTwin",
+        user_id: "uAlice",
+        short_id: "jxtwin0",
+        session_id: "sess-twin",
+        is_private: true,
+        status: "active",
+      },
     );
     return w;
   }
 
   test("a worker's report reaches its own lead, not a newer session with the same short id", async () => {
     const { ctx, tables } = await twins();
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxtwin0", from: "jxworkr", body: "done" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxtwin0",
+      from: "jxworkr",
+      body: "done",
+    });
     expect(tables.pending_messages[0].conversation_id).toBe("convLead");
   });
 
   test("a lead reaches its own worker over a newer twin", async () => {
     const { ctx, tables } = await twins();
-    tables.conversations.push({ _id: "convWorker2", user_id: "uAlice", short_id: "jxworkr", session_id: "sess-w2", is_private: true, status: "active" });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxworkr", from: "jxtwin0", body: "next" });
+    tables.conversations.push({
+      _id: "convWorker2",
+      user_id: "uAlice",
+      short_id: "jxworkr",
+      session_id: "sess-w2",
+      is_private: true,
+      status: "active",
+    });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxworkr",
+      from: "jxtwin0",
+      body: "next",
+    });
     // jxtwin0 as a sender is itself ambiguous among Alice's own sessions; the newest (convTwin) sends,
     // so pin the sender by its longer prefix to speak as the lead.
     tables.pending_messages.length = 0;
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxworkr", from: "convLead", body: "next" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxworkr",
+      from: "convLead",
+      body: "next",
+    });
     expect(tables.pending_messages[0].conversation_id).toBe("convWorker");
   });
 
   test("a reply reaches the session that wrote to the sender", async () => {
     const { ctx, tables } = await twins();
-    tables.pending_messages.push({ _id: "pm0", conversation_id: "convPen", from_conversation_id: "convLead", content: "<session-message from=\"jxtwin0\">hi</session-message>", status: "delivered", created_at: 1 });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxtwin0", from: "jxpenpl", body: "answer" });
+    tables.pending_messages.push({
+      _id: "pm0",
+      conversation_id: "convPen",
+      from_conversation_id: "convLead",
+      content: '<session-message from="jxtwin0">hi</session-message>',
+      status: "delivered",
+      created_at: 1,
+    });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxtwin0",
+      from: "jxpenpl",
+      body: "answer",
+    });
     expect(tables.pending_messages.at(-1)!.conversation_id).toBe("convLead");
   });
 
   test("with no relation to the sender the newest match still wins", async () => {
     const { ctx, tables } = await twins();
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxtwin0", from: "jxpenpl", body: "hello" });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxtwin0", body: "hello" });
-    expect(tables.pending_messages.map((r) => r.conversation_id)).toEqual(["convTwin", "convTwin"]);
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxtwin0",
+      from: "jxpenpl",
+      body: "hello",
+    });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxtwin0",
+      body: "hello",
+    });
+    expect(tables.pending_messages.map((r) => r.conversation_id)).toEqual([
+      "convTwin",
+      "convTwin",
+    ]);
   });
 
   test("cast send --status reads the same session a send reaches", async () => {
     const { ctx } = await twins();
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxtwin0", from: "jxworkr", body: "done" });
-    const status = await sendStatusFor(ctx as any, "uAlice" as any, { to: "jxtwin0", from: "jxworkr" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxtwin0",
+      from: "jxworkr",
+      body: "done",
+    });
+    const status = await sendStatusFor(ctx as any, "uAlice" as any, {
+      to: "jxtwin0",
+      from: "jxworkr",
+    });
     expect(status.sends.length).toBe(1);
   });
 });
@@ -367,33 +575,61 @@ describe("team send — authorization", () => {
   test("Alice CANNOT send to Bob's PRIVATE session (not team-visible)", async () => {
     const { ctx } = world({ now: 1_000_000_000_000 });
     await expect(
-      performSessionSend(ctx as any, "uAlice" as any, { to: "jxbobpv", from: "jxalice", body: "hi" })
+      performSessionSend(ctx as any, "uAlice" as any, {
+        to: "jxbobpv",
+        from: "jxalice",
+        body: "hi",
+      }),
     ).rejects.toThrow(/No session found/);
   });
 
   test("Alice CANNOT send to a stranger's session (no shared team)", async () => {
     const { ctx } = world({ now: 1_000_000_000_000 });
     await expect(
-      performSessionSend(ctx as any, "uAlice" as any, { to: "jxcarol", from: "jxalice", body: "hi" })
+      performSessionSend(ctx as any, "uAlice" as any, {
+        to: "jxcarol",
+        from: "jxalice",
+        body: "hi",
+      }),
     ).rejects.toThrow(/No session found/);
   });
 
   test("send to an OFFLINE teammate session still queues, but reports target_live=false (CLI warns)", async () => {
     const { ctx, tables } = world({ bobLive: false, now: Date.now() });
-    const res = await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "you there?" });
+    const res = await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "you there?",
+    });
     expect(res.target_live).toBe(false); // CLI prints the "no live daemon" hint off this
     expect(tables.pending_messages[0].status).toBe("pending"); // never rejected — it's queued
   });
 
   test("an idle session whose owning daemon is online reports target_live=true (no false offline warning)", async () => {
-    const { ctx } = world({ bobLive: false, bobDaemonOnline: true, now: Date.now() });
-    const res = await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "still there?" });
+    const { ctx } = world({
+      bobLive: false,
+      bobDaemonOnline: true,
+      now: Date.now(),
+    });
+    const res = await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "still there?",
+    });
     expect(res.target_live).toBe(true);
   });
 
   test("a quiet session on an offline daemon still reports target_live=false", async () => {
-    const { ctx } = world({ bobLive: false, bobDaemonOnline: false, now: Date.now() });
-    const res = await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "still there?" });
+    const { ctx } = world({
+      bobLive: false,
+      bobDaemonOnline: false,
+      now: Date.now(),
+    });
+    const res = await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "still there?",
+    });
     expect(res.target_live).toBe(false);
   });
 
@@ -427,35 +663,56 @@ describe("team send — authorization", () => {
 
   test("a bot-run session a human originally started is not auto-claimed", async () => {
     const { ctx, tables } = world({ now: Date.now() });
-    tables.conversations.find((c) => c._id === "convBotRun")!.author_user_id = "uBob";
+    tables.conversations.find((c) => c._id === "convBotRun")!.author_user_id =
+      "uBob";
     const res = await performSessionSend(ctx as any, "uAlice" as any, {
       to: "jxbotrn",
       from: "jxalice",
       body: "fyi",
     });
     expect(res.auto_owned).toBe(false);
-    expect(tables.conversations.find((c) => c._id === "convBotRun")!.owner_user_id).toBeUndefined();
+    expect(
+      tables.conversations.find((c) => c._id === "convBotRun")!.owner_user_id,
+    ).toBeUndefined();
   });
 
   test("a BOT sender never auto-owns — a bot-run thread stays claimable by the first human", async () => {
     const { ctx, tables } = world({ now: Date.now() });
-    const botRes = await performSessionSend(ctx as any, "uBot2" as any, { to: "jxbotrn", body: "status ping" });
+    const botRes = await performSessionSend(ctx as any, "uBot2" as any, {
+      to: "jxbotrn",
+      body: "status ping",
+    });
     expect(botRes.auto_owned).toBe(false);
-    expect(tables.conversations.find((c) => c._id === "convBotRun")!.owner_user_id).toBeUndefined();
+    expect(
+      tables.conversations.find((c) => c._id === "convBotRun")!.owner_user_id,
+    ).toBeUndefined();
     // The message itself still delivers normally.
     expect(tables.pending_messages[0].content).toContain("status ping");
     // A human engaging afterwards still claims a bot-run unowned thread.
-    const humanRes = await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbotrn", from: "jxalice", body: "on it" });
+    const humanRes = await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbotrn",
+      from: "jxalice",
+      body: "on it",
+    });
     expect(humanRes.auto_owned).toBe(true);
-    expect(tables.conversations.find((c) => c._id === "convBotRun")!.owner_user_id).toBe("uAlice");
+    expect(
+      tables.conversations.find((c) => c._id === "convBotRun")!.owner_user_id,
+    ).toBe("uAlice");
   });
 
   test("a cross-user send NEVER steals an existing owner", async () => {
     const { ctx, tables } = world({ now: Date.now() });
-    tables.conversations.find((c) => c._id === "convBob")!.owner_user_id = "uCarol";
-    const res = await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "fyi" });
+    tables.conversations.find((c) => c._id === "convBob")!.owner_user_id =
+      "uCarol";
+    const res = await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "fyi",
+    });
     expect(res.auto_owned).toBe(false);
-    expect(tables.conversations.find((c) => c._id === "convBob")!.owner_user_id).toBe("uCarol");
+    expect(
+      tables.conversations.find((c) => c._id === "convBob")!.owner_user_id,
+    ).toBe("uCarol");
   });
 
   // session_owners is the canonical owner store; owner_user_id is only a cache
@@ -464,30 +721,56 @@ describe("team send — authorization", () => {
   test("the owner SET is authoritative — a join-table owner with no cached primary blocks auto-claim", async () => {
     const { ctx, tables } = world({ now: Date.now() });
     tables.session_owners = [
-      { _id: "so1", conversation_id: "convBob", user_id: "uCarol", added_by: "uCarol", added_at: 1 },
+      {
+        _id: "so1",
+        conversation_id: "convBob",
+        user_id: "uCarol",
+        added_by: "uCarol",
+        added_at: 1,
+      },
     ];
-    const res = await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "fyi" });
+    const res = await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "fyi",
+    });
     expect(res.auto_owned).toBe(false);
-    expect(tables.session_owners.map((r: any) => r.user_id)).toEqual(["uCarol"]);
+    expect(tables.session_owners.map((r: any) => r.user_id)).toEqual([
+      "uCarol",
+    ]);
   });
 
   // The reverse guard: a legacy row with a cached owner but no join row (written
   // before the session_owners backfill) must not be auto-claimed either.
   test("auto-claim writes the canonical join row, not just the owner_user_id cache", async () => {
     const { ctx, tables } = world({ now: Date.now() });
-    const res = await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbotrn", from: "jxalice", body: "on it" });
+    const res = await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbotrn",
+      from: "jxalice",
+      body: "on it",
+    });
     expect(res.auto_owned).toBe(true);
-    expect((tables.session_owners ?? []).map((r: any) => r.user_id)).toEqual(["uAlice"]);
+    expect((tables.session_owners ?? []).map((r: any) => r.user_id)).toEqual([
+      "uAlice",
+    ]);
     // …and the cache is resynced from the set.
-    expect(tables.conversations.find((c) => c._id === "convBotRun")!.owner_user_id).toBe("uAlice");
+    expect(
+      tables.conversations.find((c) => c._id === "convBotRun")!.owner_user_id,
+    ).toBe("uAlice");
   });
 
   test("a self-send (Bob → his own session) records its sender and keeps owner == sender", async () => {
     const { ctx, db, tables } = world({ now: 1_000_000_000_000 });
-    const res = await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", from: "jxbob01", body: "note to self" });
+    const res = await performSessionSend(ctx as any, "uBob" as any, {
+      to: "jxbob01",
+      from: "jxbob01",
+      body: "note to self",
+    });
     expect(res.cross_user).toBe(false);
     expect(res.auto_owned).toBe(false); // self-sends never assign second-party ownership
-    expect(tables.conversations.find((c) => c._id === "convBob")!.owner_user_id).toBeUndefined();
+    expect(
+      tables.conversations.find((c) => c._id === "convBob")!.owner_user_id,
+    ).toBeUndefined();
     const row = tables.pending_messages[0];
     expect(row.owner_user_id).toBe("uBob");
     expect(row.from_user_id).toBe("uBob");
@@ -498,22 +781,44 @@ describe("team send — authorization", () => {
 describe("team send — delivery routing", () => {
   test("Bob's daemon (not Alice's) picks up the cross-user message and delivers it", async () => {
     const { ctx, db, tables } = world({ now: 1_000_000_000_000 });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "ping" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "ping",
+    });
     const msgId = tables.pending_messages[0]._id;
 
     // Alice's daemon polls by her own user — must NOT see Bob's message.
-    expect(await collectDeliverableForOwner(ctx as any, "uAlice" as any, "devAlice")).toHaveLength(0);
+    expect(
+      await collectDeliverableForOwner(ctx as any, "uAlice" as any, "devAlice"),
+    ).toHaveLength(0);
 
     // Bob's daemon polls by owner == Bob — sees it.
-    const forBob = await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob");
+    const forBob = await collectDeliverableForOwner(
+      ctx as any,
+      "uBob" as any,
+      "devBob",
+    );
     expect(forBob.map((m) => m._id)).toEqual([msgId]);
 
     // Bob's daemon claims and delivers; Alice's daemon can't claim it.
-    expect(await claimPendingMessageForDaemon(ctx as any, msgId as any, "uAlice" as any, "devAlice")).toBeNull();
-    const claimed = await claimPendingMessageForDaemon(ctx as any, msgId as any, "uBob" as any, "devBob");
+    expect(
+      await claimPendingMessageForDaemon(
+        ctx as any,
+        msgId as any,
+        "uAlice" as any,
+        "devAlice",
+      ),
+    ).toBeNull();
+    const claimed = await claimPendingMessageForDaemon(
+      ctx as any,
+      msgId as any,
+      "uBob" as any,
+      "devBob",
+    );
     expect(claimed?._id).toBe(msgId);
 
-    await markPendingDelivered(ctx as any, await db.get(msgId) as any);
+    await markPendingDelivered(ctx as any, (await db.get(msgId)) as any);
     expect((await db.get(msgId))?.status).toBe("delivered");
   });
 });
@@ -530,73 +835,200 @@ describe("delivery routing — backfill independence", () => {
       retry_count: 0,
       content: "legacy",
     });
-    const forBob = await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob");
+    const forBob = await collectDeliverableForOwner(
+      ctx as any,
+      "uBob" as any,
+      "devBob",
+    );
     expect(forBob.map((m) => m._id)).toContain("legacy1");
   });
 
   test("a cross-user row never surfaces to the SENDER's daemon even via the sender index", async () => {
     const { ctx, tables } = world({ now: 1_000_000_000_000 });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "x" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "x",
+    });
     // Alice is the sender; the by_user_status arm finds the row, but canDaemonSee rejects it
     // because Alice doesn't own the target conversation.
-    const forAlice = await collectDeliverableForOwner(ctx as any, "uAlice" as any, "devAlice");
+    const forAlice = await collectDeliverableForOwner(
+      ctx as any,
+      "uAlice" as any,
+      "devAlice",
+    );
     expect(forAlice).toHaveLength(0);
     void tables;
   });
 });
 
 describe("settled recipient recovery end to end", () => {
-  test.each(["starting", "resuming", "connected"])("recovers an exhausted send after %s stops progressing", async agentStatus => {
-    const now = Date.now();
-    const { ctx, db, tables } = world({ now });
-    await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", body: "The release is ready" });
-    const msg = tables.pending_messages[0];
-    await db.patch(msg._id, { status: "undeliverable", retry_count: 10, created_at: now - 600000 });
-    await db.patch("msBob", { agent_status: agentStatus, agent_status_updated_at: now - 60000 });
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, waiting: 1 });
-    await db.patch("msBob", { agent_status_updated_at: now - 300000 });
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 1, waiting: 0 });
-    expect(await claimPendingMessageForDaemon(ctx as any, msg._id, "uBob" as any, "devBob"))
-      .toMatchObject({ content: msg.content, status: "pending", retry_count: 0 });
-    await markPendingDelivered(ctx as any, msg);
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0 });
-    expect((await db.get("convBob"))?.has_pending_messages).toBe(false);
-  });
+  test.each(["starting", "resuming", "connected"])(
+    "recovers an exhausted send after %s stops progressing",
+    async (agentStatus) => {
+      const now = Date.now();
+      const { ctx, db, tables } = world({ now });
+      await performSessionSend(ctx as any, "uBob" as any, {
+        to: "jxbob01",
+        body: "The release is ready",
+      });
+      const msg = tables.pending_messages[0];
+      await db.patch(msg._id, {
+        status: "undeliverable",
+        retry_count: 10,
+        created_at: now - 600000,
+      });
+      await db.patch("msBob", {
+        agent_status: agentStatus,
+        agent_status_updated_at: now - 60000,
+      });
+      expect(
+        await applySweepPage(
+          ctx,
+          now,
+          tables.pending_messages.map((row) => row._id),
+        ),
+      ).toMatchObject({ revived: 0, waiting: 1 });
+      await db.patch("msBob", { agent_status_updated_at: now - 300000 });
+      expect(
+        await applySweepPage(
+          ctx,
+          now,
+          tables.pending_messages.map((row) => row._id),
+        ),
+      ).toMatchObject({ revived: 1, waiting: 0 });
+      expect(
+        await claimPendingMessageForDaemon(
+          ctx as any,
+          msg._id,
+          "uBob" as any,
+          "devBob",
+        ),
+      ).toMatchObject({
+        content: msg.content,
+        status: "pending",
+        retry_count: 0,
+      });
+      await markPendingDelivered(ctx as any, msg);
+      expect(
+        await applySweepPage(
+          ctx,
+          now,
+          tables.pending_messages.map((row) => row._id),
+        ),
+      ).toMatchObject({ revived: 0 });
+      expect((await db.get("convBob"))?.has_pending_messages).toBe(false);
+    },
+  );
 
   test("a send the agent took an Enter for and never echoed fails visibly, leaves Working, and retries only when a person asks", async () => {
     const now = Date.now();
     const { ctx, db, tables } = world({ now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "The release is ready" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "The release is ready",
+    });
     const msg = tables.pending_messages[0];
-    await claimPendingMessageForDaemon(ctx as any, msg._id, "uBob" as any, "devBob");
-    await updatePendingMessageStatusForDaemon(ctx as any, msg._id, "uBob" as any, "devBob", { status: "injected", paste_verified_at: now - 9 * 60_000 });
+    await claimPendingMessageForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+    );
+    await updatePendingMessageStatusForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+      { status: "injected", paste_verified_at: now - 9 * 60_000 },
+    );
     await db.patch(msg._id, { created_at: now - 10 * 60_000 });
     await db.patch("msBob", { agent_status: "idle" });
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, failedUnconfirmed: 1 });
-    expect(await db.get(msg._id)).toMatchObject({ status: "failed", delivery_disposition_reason: "unconfirmed" });
+    expect(
+      await applySweepPage(
+        ctx,
+        now,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ revived: 0, failedUnconfirmed: 1 });
+    expect(await db.get(msg._id)).toMatchObject({
+      status: "failed",
+      delivery_disposition_reason: "unconfirmed",
+    });
     // The sending session is told once that it may have landed.
-    const notices = tables.pending_messages.filter((r: any) => r.conversation_id === "convAlice" && /never confirmed/.test(r.content));
+    const notices = tables.pending_messages.filter(
+      (r: any) =>
+        r.conversation_id === "convAlice" && /never confirmed/.test(r.content),
+    );
     expect(notices).toHaveLength(1);
     expect((await db.get("convBob"))?.has_pending_messages).toBe(false);
-    expect(await applySweepPage(ctx, now + 60_000, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, failedUnconfirmed: 0 });
-    expect(await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob")).toHaveLength(0);
+    expect(
+      await applySweepPage(
+        ctx,
+        now + 60_000,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ revived: 0, failedUnconfirmed: 0 });
+    expect(
+      await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob"),
+    ).toHaveLength(0);
     // The sender's retry control puts it back in line.
-    expect(await retryPendingMessageForUser(ctx as any, "uAlice" as any, "convBob" as any, { messageId: msg._id })).toBe("pending");
-    expect((await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob")).map(row => row._id)).toEqual([msg._id]);
+    expect(
+      await retryPendingMessageForUser(
+        ctx as any,
+        "uAlice" as any,
+        "convBob" as any,
+        { messageId: msg._id },
+      ),
+    ).toBe("pending");
+    expect(
+      (
+        await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob")
+      ).map((row) => row._id),
+    ).toEqual([msg._id]);
   });
 
   test("a sender killed since its send gets no receipt, and stays killed", async () => {
     const now = Date.now();
     const { ctx, db, tables } = world({ now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "The release is ready" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "The release is ready",
+    });
     const msg = tables.pending_messages[0];
-    await claimPendingMessageForDaemon(ctx as any, msg._id, "uBob" as any, "devBob");
-    await updatePendingMessageStatusForDaemon(ctx as any, msg._id, "uBob" as any, "devBob", { status: "injected", paste_verified_at: now - 9 * 60_000 });
+    await claimPendingMessageForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+    );
+    await updatePendingMessageStatusForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+      { status: "injected", paste_verified_at: now - 9 * 60_000 },
+    );
     await db.patch(msg._id, { created_at: now - 10 * 60_000 });
     await db.patch("msBob", { agent_status: "idle" });
-    await db.patch("convAlice", { status: "completed", inbox_killed_at: now - 60_000 });
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ failedUnconfirmed: 1 });
-    expect(tables.pending_messages.filter((r: any) => r.conversation_id === "convAlice")).toHaveLength(0);
+    await db.patch("convAlice", {
+      status: "completed",
+      inbox_killed_at: now - 60_000,
+    });
+    expect(
+      await applySweepPage(
+        ctx,
+        now,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ failedUnconfirmed: 1 });
+    expect(
+      tables.pending_messages.filter(
+        (r: any) => r.conversation_id === "convAlice",
+      ),
+    ).toHaveLength(0);
     expect(await db.get("convAlice")).toMatchObject({ status: "completed" });
     expect((await db.get(msg._id))?.sender_notified_at).toBeDefined();
   });
@@ -604,136 +1036,367 @@ describe("settled recipient recovery end to end", () => {
   test("a send waiting on a busy session says nothing; once it turns unconfirmed the sender hears it once, quoted on one line", async () => {
     const now = Date.now();
     const { ctx, db, tables } = world({ now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "Heads-up from Alice.\n\nRoot cause: the verifier pressed Enter on a stale frame." });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "Heads-up from Alice.\n\nRoot cause: the verifier pressed Enter on a stale frame.",
+    });
     const msg = tables.pending_messages[0];
     await db.patch(msg._id, { created_at: now - 4 * 60_000 });
     await db.patch("msBob", { agent_status: "working" });
-    await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id));
-    const receipts = () => tables.pending_messages.filter((r: any) => r.conversation_id === "convAlice");
+    await applySweepPage(
+      ctx,
+      now,
+      tables.pending_messages.map((row) => row._id),
+    );
+    const receipts = () =>
+      tables.pending_messages.filter(
+        (r: any) => r.conversation_id === "convAlice",
+      );
     expect(receipts()).toHaveLength(0);
 
-    await claimPendingMessageForDaemon(ctx as any, msg._id, "uBob" as any, "devBob");
-    await updatePendingMessageStatusForDaemon(ctx as any, msg._id, "uBob" as any, "devBob", { status: "injected", paste_verified_at: now - 9 * 60_000 });
+    await claimPendingMessageForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+    );
+    await updatePendingMessageStatusForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+      { status: "injected", paste_verified_at: now - 9 * 60_000 },
+    );
     await db.patch(msg._id, { created_at: now - 10 * 60_000 });
     await db.patch("msBob", { agent_status: "idle" });
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ failedUnconfirmed: 1 });
+    expect(
+      await applySweepPage(
+        ctx,
+        now,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ failedUnconfirmed: 1 });
     expect(receipts()).toHaveLength(1);
     expect(receipts()[0].content).toMatch(/never confirmed/);
-    expect(receipts()[0].content).toContain("> Heads-up from Alice. Root cause: the verifier");
+    expect(receipts()[0].content).toContain(
+      "> Heads-up from Alice. Root cause: the verifier",
+    );
   });
 
   test("an unconfirmed send is not typed again by a resume, not merged into by a new trigger wake, and expires after a day", async () => {
     const now = Date.now();
     const { ctx, db, tables } = world({ now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "The release is ready" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "The release is ready",
+    });
     const msg = tables.pending_messages[0];
-    await claimPendingMessageForDaemon(ctx as any, msg._id, "uBob" as any, "devBob");
-    await updatePendingMessageStatusForDaemon(ctx as any, msg._id, "uBob" as any, "devBob", { status: "injected", paste_verified_at: now - 5 * 60_000 });
+    await claimPendingMessageForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+    );
+    await updatePendingMessageStatusForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+      { status: "injected", paste_verified_at: now - 5 * 60_000 },
+    );
     await db.patch(msg._id, { created_at: now - 6 * 60_000 });
     await db.patch("msBob", { agent_status: "idle" });
-    await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id));
-    expect(await db.get(msg._id)).toMatchObject({ status: "failed", delivery_disposition_reason: "unconfirmed" });
+    await applySweepPage(
+      ctx,
+      now,
+      tables.pending_messages.map((row) => row._id),
+    );
+    expect(await db.get(msg._id)).toMatchObject({
+      status: "failed",
+      delivery_disposition_reason: "unconfirmed",
+    });
 
-    expect(await resetConversationPendingMessages(ctx as any, "convBob" as any)).toBe(0);
+    expect(
+      await resetConversationPendingMessages(ctx as any, "convBob" as any),
+    ).toBe(0);
     expect((await db.get(msg._id))?.status).toBe("failed");
 
     const conversation = await db.get("convBob");
     const wake = "<scheduled-task>check CI</scheduled-task>";
-    const first = await enqueuePendingMessage(ctx as any, conversation, "uBob" as any, { content: wake, origin: "scheduler" });
-    await db.patch(first, { status: "failed", delivery_disposition_reason: "unconfirmed", paste_verified_at: now - 5 * 60_000 });
-    const second = await enqueuePendingMessage(ctx as any, await db.get("convBob"), "uBob" as any, { content: wake, origin: "scheduler" });
+    const first = await enqueuePendingMessage(
+      ctx as any,
+      conversation,
+      "uBob" as any,
+      { content: wake, origin: "scheduler" },
+    );
+    await db.patch(first, {
+      status: "failed",
+      delivery_disposition_reason: "unconfirmed",
+      paste_verified_at: now - 5 * 60_000,
+    });
+    const second = await enqueuePendingMessage(
+      ctx as any,
+      await db.get("convBob"),
+      "uBob" as any,
+      { content: wake, origin: "scheduler" },
+    );
     expect(second).not.toBe(first);
 
-    expect(await applySweepPage(ctx, now + 25 * 60 * 60_000, tables.pending_messages.map((row) => row._id))).toMatchObject({ expiredUnconfirmed: 2 });
-    expect([(await db.get(msg._id))?.status, (await db.get(first))?.status]).toEqual(["cancelled", "cancelled"]);
+    expect(
+      await applySweepPage(
+        ctx,
+        now + 25 * 60 * 60_000,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ expiredUnconfirmed: 2 });
+    expect([
+      (await db.get(msg._id))?.status,
+      (await db.get(first))?.status,
+    ]).toEqual(["cancelled", "cancelled"]);
   });
 
   test("a submitted send whose daemon went quiet waits for it to come back before failing", async () => {
     const now = Date.now();
     const { ctx, db, tables } = world({ now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "The release is ready" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "The release is ready",
+    });
     const msg = tables.pending_messages[0];
-    await claimPendingMessageForDaemon(ctx as any, msg._id, "uBob" as any, "devBob");
-    await updatePendingMessageStatusForDaemon(ctx as any, msg._id, "uBob" as any, "devBob", { status: "injected", paste_verified_at: now - 5 * 60_000 });
+    await claimPendingMessageForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+    );
+    await updatePendingMessageStatusForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+      { status: "injected", paste_verified_at: now - 5 * 60_000 },
+    );
     await db.patch(msg._id, { created_at: now - 60 * 60_000 });
     await db.patch("msBob", { last_heartbeat: now - 10 * 60_000 });
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ failedUnconfirmed: 0 });
+    expect(
+      await applySweepPage(
+        ctx,
+        now,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ failedUnconfirmed: 0 });
     expect((await db.get(msg._id))?.status).toBe("injected");
     await db.patch(msg._id, { paste_verified_at: now - 40 * 60_000 });
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ failedUnconfirmed: 1 });
+    expect(
+      await applySweepPage(
+        ctx,
+        now,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ failedUnconfirmed: 1 });
     expect((await db.get("convBob"))?.has_pending_messages).toBe(false);
   });
 
-  test.each(["idle", "waiting", "dormant", "done"])("recovers an unacknowledged send to a %s recipient", async agentStatus => {
-    const now = Date.now();
-    const { ctx, db, tables } = world({ now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "The release is ready" });
-    const msg = tables.pending_messages[0];
-    const originalContent = msg.content;
-    await claimPendingMessageForDaemon(ctx as any, msg._id, "uBob" as any, "devBob");
-    await updatePendingMessageStatusForDaemon(ctx as any, msg._id, "uBob" as any, "devBob", { status: "injected" });
-    await db.patch(msg._id, { created_at: now - 6 * 60 * 60_000, retry_count: 6 });
-    await db.patch("msBob", { agent_status: agentStatus });
+  test.each(["idle", "waiting", "dormant", "done"])(
+    "recovers an unacknowledged send to a %s recipient",
+    async (agentStatus) => {
+      const now = Date.now();
+      const { ctx, db, tables } = world({ now });
+      await performSessionSend(ctx as any, "uAlice" as any, {
+        to: "jxbob01",
+        from: "jxalice",
+        body: "The release is ready",
+      });
+      const msg = tables.pending_messages[0];
+      const originalContent = msg.content;
+      await claimPendingMessageForDaemon(
+        ctx as any,
+        msg._id,
+        "uBob" as any,
+        "devBob",
+      );
+      await updatePendingMessageStatusForDaemon(
+        ctx as any,
+        msg._id,
+        "uBob" as any,
+        "devBob",
+        { status: "injected" },
+      );
+      await db.patch(msg._id, {
+        created_at: now - 6 * 60 * 60_000,
+        retry_count: 6,
+      });
+      await db.patch("msBob", { agent_status: agentStatus });
 
-    expect(await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob")).toHaveLength(0);
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 1, waiting: 0 });
-    const deliverable = await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob");
-    expect(deliverable.map(row => row._id)).toEqual([msg._id]);
-    expect(await claimPendingMessageForDaemon(ctx as any, msg._id, "uBob" as any, "devBob")).toMatchObject({ content: originalContent, status: "pending", retry_count: 0 });
-    await markPendingDelivered(ctx as any, await db.get(msg._id) as any);
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0 });
-    expect((await db.get(msg._id))?.status).toBe("delivered");
-    expect((await db.get("convBob"))?.has_pending_messages).toBe(false);
-  });
+      expect(
+        await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob"),
+      ).toHaveLength(0);
+      expect(
+        await applySweepPage(
+          ctx,
+          now,
+          tables.pending_messages.map((row) => row._id),
+        ),
+      ).toMatchObject({ revived: 1, waiting: 0 });
+      const deliverable = await collectDeliverableForOwner(
+        ctx as any,
+        "uBob" as any,
+        "devBob",
+      );
+      expect(deliverable.map((row) => row._id)).toEqual([msg._id]);
+      expect(
+        await claimPendingMessageForDaemon(
+          ctx as any,
+          msg._id,
+          "uBob" as any,
+          "devBob",
+        ),
+      ).toMatchObject({
+        content: originalContent,
+        status: "pending",
+        retry_count: 0,
+      });
+      await markPendingDelivered(ctx as any, (await db.get(msg._id)) as any);
+      expect(
+        await applySweepPage(
+          ctx,
+          now,
+          tables.pending_messages.map((row) => row._id),
+        ),
+      ).toMatchObject({ revived: 0 });
+      expect((await db.get(msg._id))?.status).toBe("delivered");
+      expect((await db.get("convBob"))?.has_pending_messages).toBe(false);
+    },
+  );
 
-  test.each(["working", "thinking", "compacting", "permission_blocked", "starting", "resuming", "stopped"])("preserves unacknowledged input while recipient is %s", async agentStatus => {
-    const now = Date.now();
-    const { ctx, db, tables } = world({ now });
-    await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", body: "Preserve this" });
-    const msg = tables.pending_messages[0];
-    await db.patch(msg._id, { status: "injected", created_at: now - 600_000, retry_count: 6 });
-    await db.patch("msBob", { agent_status: agentStatus });
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, waiting: 1 });
-    expect(msg).toMatchObject({ status: "injected", retry_count: 6 });
-  });
+  test.each([
+    "working",
+    "thinking",
+    "compacting",
+    "permission_blocked",
+    "starting",
+    "resuming",
+    "stopped",
+  ])(
+    "preserves unacknowledged input while recipient is %s",
+    async (agentStatus) => {
+      const now = Date.now();
+      const { ctx, db, tables } = world({ now });
+      await performSessionSend(ctx as any, "uBob" as any, {
+        to: "jxbob01",
+        body: "Preserve this",
+      });
+      const msg = tables.pending_messages[0];
+      await db.patch(msg._id, {
+        status: "injected",
+        created_at: now - 600_000,
+        retry_count: 6,
+      });
+      await db.patch("msBob", { agent_status: agentStatus });
+      expect(
+        await applySweepPage(
+          ctx,
+          now,
+          tables.pending_messages.map((row) => row._id),
+        ),
+      ).toMatchObject({ revived: 0, waiting: 1 });
+      expect(msg).toMatchObject({ status: "injected", retry_count: 6 });
+    },
+  );
 
   // jx71gjy: a send to a reaped session was marked injected, the resumed process died before
   // the text was submitted, and nothing resumed the session again for a day.
   test("a recent message stranded on a session with no live process is re-pended once", async () => {
     const now = Date.now();
     const { ctx, db, tables } = world({ bobLive: false, now });
-    await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", body: "here is the card" });
+    await performSessionSend(ctx as any, "uBob" as any, {
+      to: "jxbob01",
+      body: "here is the card",
+    });
     const msg = tables.pending_messages[0];
-    await db.patch(msg._id, { status: "injected", created_at: now - 600_000, retry_count: 2 });
+    await db.patch(msg._id, {
+      status: "injected",
+      created_at: now - 600_000,
+      retry_count: 2,
+    });
     await db.patch("msBob", { agent_status: "dormant" });
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 1, waiting: 0 });
-    expect(await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob")).toEqual([expect.objectContaining({ _id: msg._id })]);
-    expect(await db.get(msg._id)).toMatchObject({ status: "pending", retry_count: 0, dead_session_revived_at: now });
+    expect(
+      await applySweepPage(
+        ctx,
+        now,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ revived: 1, waiting: 0 });
+    expect(
+      await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob"),
+    ).toEqual([expect.objectContaining({ _id: msg._id })]);
+    expect(await db.get(msg._id)).toMatchObject({
+      status: "pending",
+      retry_count: 0,
+      dead_session_revived_at: now,
+    });
     expect((await db.get("convBob"))?.has_pending_messages).toBe(true);
 
     // The resumed session failed again: the row waits for readiness like any other.
     await db.patch(msg._id, { status: "injected" });
-    expect(await applySweepPage(ctx, now + 600_000, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, waiting: 1 });
+    expect(
+      await applySweepPage(
+        ctx,
+        now + 600_000,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ revived: 0, waiting: 1 });
   });
 
   test("an old or exhausted message on a session with no live process keeps waiting", async () => {
     const now = Date.now();
     const { ctx, db, tables } = world({ bobLive: false, now });
-    await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", body: "old" });
-    await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", body: "spent" });
-    await db.patch(tables.pending_messages[0]._id, { status: "injected", created_at: now - DEAD_SESSION_REVIVE_WINDOW_MS });
-    await db.patch(tables.pending_messages[1]._id, { status: "undeliverable", created_at: now - 600_000 });
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, waiting: 2 });
+    await performSessionSend(ctx as any, "uBob" as any, {
+      to: "jxbob01",
+      body: "old",
+    });
+    await performSessionSend(ctx as any, "uBob" as any, {
+      to: "jxbob01",
+      body: "spent",
+    });
+    await db.patch(tables.pending_messages[0]._id, {
+      status: "injected",
+      created_at: now - DEAD_SESSION_REVIVE_WINDOW_MS,
+    });
+    await db.patch(tables.pending_messages[1]._id, {
+      status: "undeliverable",
+      created_at: now - 600_000,
+    });
+    expect(
+      await applySweepPage(
+        ctx,
+        now,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ revived: 0, waiting: 2 });
   });
 
   test("planDeadSessionRevive", () => {
     const now = 1_000_000_000_000;
-    const row = { status: "injected", content: "hi", created_at: now - 600_000 };
+    const row = {
+      status: "injected",
+      content: "hi",
+      created_at: now - 600_000,
+    };
     expect(planDeadSessionRevive(row, now)).toBe(true);
     expect(planDeadSessionRevive({ ...row, status: "failed" }, now)).toBe(true);
-    expect(planDeadSessionRevive({ ...row, created_at: now - 60_000 }, now)).toBe(false);
-    expect(planDeadSessionRevive({ ...row, dead_session_revived_at: now - 1 }, now)).toBe(false);
-    expect(planDeadSessionRevive({ ...row, status: "pending" }, now)).toBe(false);
+    expect(
+      planDeadSessionRevive({ ...row, created_at: now - 60_000 }, now),
+    ).toBe(false);
+    expect(
+      planDeadSessionRevive({ ...row, dead_session_revived_at: now - 1 }, now),
+    ).toBe(false);
+    expect(planDeadSessionRevive({ ...row, status: "pending" }, now)).toBe(
+      false,
+    );
   });
 });
 
@@ -742,80 +1405,178 @@ describe("remote not responding — feedback to the sending session", () => {
     const now = 1_000_000_000_000;
     const { ctx, tables } = world({ now });
     const orphan = {
-      _id: "orphan", conversation_id: "convBob", from_user_id: "uBob", owner_user_id: "uBob",
-      status: "failed", retry_count: 3, content: "Keep this message", created_at: now - 600_000,
+      _id: "orphan",
+      conversation_id: "convBob",
+      from_user_id: "uBob",
+      owner_user_id: "uBob",
+      status: "failed",
+      retry_count: 3,
+      content: "Keep this message",
+      created_at: now - 600_000,
     };
     const healthy = {
-      ...orphan, _id: "healthy", conversation_id: "convAlice", from_user_id: "uAlice", owner_user_id: "uAlice",
+      ...orphan,
+      _id: "healthy",
+      conversation_id: "convAlice",
+      from_user_id: "uAlice",
+      owner_user_id: "uAlice",
     };
     tables.pending_messages.push(orphan, healthy);
-    tables.conversations = tables.conversations.filter((row) => row._id !== "convBob");
+    tables.conversations = tables.conversations.filter(
+      (row) => row._id !== "convBob",
+    );
     tables.managed_sessions.push({
-      _id: "msAlice", conversation_id: "convAlice", agent_status: "idle", last_heartbeat: now,
+      _id: "msAlice",
+      conversation_id: "convAlice",
+      agent_status: "idle",
+      last_heartbeat: now,
     });
 
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 1, waiting: 1 });
-    expect(orphan).toMatchObject({ status: "failed", retry_count: 3, content: "Keep this message" });
+    expect(
+      await applySweepPage(
+        ctx,
+        now,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ revived: 1, waiting: 1 });
+    expect(orphan).toMatchObject({
+      status: "failed",
+      retry_count: 3,
+      content: "Keep this message",
+    });
     expect(healthy.status).toBe("pending");
-    expect(await ctx.db.get("convAlice")).toMatchObject({ has_pending_messages: true });
+    expect(await ctx.db.get("convAlice")).toMatchObject({
+      has_pending_messages: true,
+    });
   });
 
   test("a deleted cross-user target is reported offline despite a fresh managed heartbeat", async () => {
     const now = 1_000_000_000_000;
     const { ctx, tables } = world({ now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "urgent" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "urgent",
+    });
     const msg = tables.pending_messages[0];
     msg.created_at = now - STUCK_SEND_NOTIFY_DEADLINE_MS - 60_000;
-    tables.conversations = tables.conversations.filter((row) => row._id !== "convBob");
+    tables.conversations = tables.conversations.filter(
+      (row) => row._id !== "convBob",
+    );
 
-    expect(await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).toMatchObject({ revived: 0, notified: 1 });
+    expect(
+      await applySweepPage(
+        ctx,
+        now,
+        tables.pending_messages.map((row) => row._id),
+      ),
+    ).toMatchObject({ revived: 0, notified: 1 });
     expect(msg.status).toBe("cancelled");
-    expect(tables.pending_messages.find((row) => row.conversation_id === "convAlice")?.content)
-      .toContain("could not be delivered");
+    expect(
+      tables.pending_messages.find((row) => row.conversation_id === "convAlice")
+        ?.content,
+    ).toContain("could not be delivered");
   });
 
   test("target OFFLINE past the deadline: nothing is said, and the message is KEPT for when the daemon returns", async () => {
     const now = 1_000_000_000_000;
     const { ctx, tables } = world({ bobLive: false, now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "urgent" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "urgent",
+    });
     const msg = tables.pending_messages[0];
     msg.created_at = now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
 
-    expect((await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).notified).toBe(0);
+    expect(
+      (
+        await applySweepPage(
+          ctx,
+          now,
+          tables.pending_messages.map((row) => row._id),
+        )
+      ).notified,
+    ).toBe(0);
     expect(msg.status).toBe("pending");
-    expect(tables.pending_messages.filter((m) => m.conversation_id === "convAlice")).toHaveLength(0);
+    expect(
+      tables.pending_messages.filter((m) => m.conversation_id === "convAlice"),
+    ).toHaveLength(0);
 
     // Bob's daemon returns and the session settles: the cron's readiness gate is all that held it.
-    tables.managed_sessions.push({ _id: "msBobBack", conversation_id: "convBob", agent_status: "idle", last_heartbeat: now + 60_000 });
+    tables.managed_sessions.push({
+      _id: "msBobBack",
+      conversation_id: "convBob",
+      agent_status: "idle",
+      last_heartbeat: now + 60_000,
+    });
     msg.status = "undeliverable";
-    expect((await applySweepPage(ctx, now + 60_000, tables.pending_messages.map((row) => row._id))).revived).toBe(1);
+    expect(
+      (
+        await applySweepPage(
+          ctx,
+          now + 60_000,
+          tables.pending_messages.map((row) => row._id),
+        )
+      ).revived,
+    ).toBe(1);
     expect(msg.status).toBe("pending");
   });
 
   test("target BUSY past the deadline: nothing is said, message KEPT", async () => {
     const now = 1_000_000_000_000;
     const { ctx, tables } = world({ bobLive: true, bobIdle: false, now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "later" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "later",
+    });
     const msg = tables.pending_messages[0];
     msg.created_at = now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
 
-    expect((await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).notified).toBe(0);
+    expect(
+      (
+        await applySweepPage(
+          ctx,
+          now,
+          tables.pending_messages.map((row) => row._id),
+        )
+      ).notified,
+    ).toBe(0);
     expect(msg.status).toBe("pending");
-    expect(tables.pending_messages.filter((m) => m.conversation_id === "convAlice")).toHaveLength(0);
+    expect(
+      tables.pending_messages.filter((m) => m.conversation_id === "convAlice"),
+    ).toHaveLength(0);
   });
 
   test("a send held in a terminal codecast cannot type into tells the sender once (sender_notified_at gates re-runs)", async () => {
     const now = 1_000_000_000_000;
     const { ctx, tables } = world({ bobLive: true, bobIdle: false, now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "later" });
-    tables.pending_messages[0].created_at = now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
-    tables.pending_messages[0].delivery_disposition_reason = "runs in Ghostty, which Codecast can't type into";
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "later",
+    });
+    tables.pending_messages[0].created_at =
+      now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
+    tables.pending_messages[0].delivery_disposition_reason =
+      "runs in Ghostty, which Codecast can't type into";
 
-    const first = await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id));
-    const second = await applySweepPage(ctx, now + 60_000, tables.pending_messages.map((row) => row._id));
+    const first = await applySweepPage(
+      ctx,
+      now,
+      tables.pending_messages.map((row) => row._id),
+    );
+    const second = await applySweepPage(
+      ctx,
+      now + 60_000,
+      tables.pending_messages.map((row) => row._id),
+    );
     expect(first.notified).toBe(1);
     expect(second.notified).toBe(0);
-    const receipts = tables.pending_messages.filter((m) => m.conversation_id === "convAlice");
+    const receipts = tables.pending_messages.filter(
+      (m) => m.conversation_id === "convAlice",
+    );
     expect(receipts).toHaveLength(1);
     expect(receipts[0].content).toContain("is held");
   });
@@ -823,13 +1584,23 @@ describe("remote not responding — feedback to the sending session", () => {
   test("before the deadline, nothing is sent to Alice", async () => {
     const now = 1_000_000_000_000;
     const { ctx, db, tables } = world({ bobLive: false, now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "fresh" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "fresh",
+    });
     tables.pending_messages[0].created_at = now - 30_000; // young
 
-    const summary = await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id));
+    const summary = await applySweepPage(
+      ctx,
+      now,
+      tables.pending_messages.map((row) => row._id),
+    );
     expect(summary.notified).toBe(0);
     expect(tables.pending_messages[0].status).toBe("pending");
-    expect(tables.pending_messages.filter((m) => m.conversation_id === "convAlice")).toHaveLength(0);
+    expect(
+      tables.pending_messages.filter((m) => m.conversation_id === "convAlice"),
+    ).toHaveLength(0);
   });
 });
 
@@ -839,46 +1610,103 @@ describe("a session's own agents: a wait is never reported", () => {
   test("idle live target past the deadline: nothing is said, message KEPT", async () => {
     const now = 1_000_000_000_000;
     const { ctx, tables } = world({ bobLive: true, bobIdle: true, now });
-    await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", from: "jxbobpv", body: "plan is ready" });
+    await performSessionSend(ctx as any, "uBob" as any, {
+      to: "jxbob01",
+      from: "jxbobpv",
+      body: "plan is ready",
+    });
     const msg = tables.pending_messages[0];
     msg.created_at = now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
 
-    expect((await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).notified).toBe(0);
+    expect(
+      (
+        await applySweepPage(
+          ctx,
+          now,
+          tables.pending_messages.map((row) => row._id),
+        )
+      ).notified,
+    ).toBe(0);
     expect(msg.status).not.toBe("cancelled");
-    expect(tables.pending_messages.filter((m) => m.conversation_id === "convBobPriv")).toHaveLength(0);
+    expect(
+      tables.pending_messages.filter(
+        (m) => m.conversation_id === "convBobPriv",
+      ),
+    ).toHaveLength(0);
   });
 
   test("busy target: nothing is said", async () => {
     const now = 1_000_000_000_000;
     const { ctx, tables } = world({ bobLive: true, bobIdle: false, now });
-    await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", from: "jxbobpv", body: "plan is ready" });
-    tables.pending_messages[0].created_at = now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
+    await performSessionSend(ctx as any, "uBob" as any, {
+      to: "jxbob01",
+      from: "jxbobpv",
+      body: "plan is ready",
+    });
+    tables.pending_messages[0].created_at =
+      now - (STUCK_SEND_NOTIFY_DEADLINE_MS + 60_000);
 
-    expect((await applySweepPage(ctx, now, tables.pending_messages.map((row) => row._id))).notified).toBe(0);
-    expect(tables.pending_messages.filter((m) => m.conversation_id === "convBobPriv")).toHaveLength(0);
+    expect(
+      (
+        await applySweepPage(
+          ctx,
+          now,
+          tables.pending_messages.map((row) => row._id),
+        )
+      ).notified,
+    ).toBe(0);
+    expect(
+      tables.pending_messages.filter(
+        (m) => m.conversation_id === "convBobPriv",
+      ),
+    ).toHaveLength(0);
   });
 });
 
 describe("stuckSendReach", () => {
-  const held = { delivery_disposition_reason: "runs in Ghostty, which Codecast can't type into" };
+  const held = {
+    delivery_disposition_reason:
+      "runs in Ghostty, which Codecast can't type into",
+  };
   test("a terminal hold is named even when no managed row says the session is live", () => {
-    expect(stuckSendReach(held, { gone: false, live: false, ready: false })).toBe("terminal");
+    expect(
+      stuckSendReach(held, { gone: false, live: false, ready: false }),
+    ).toBe("terminal");
   });
   test("a terminal hold outranks the live guesses", () => {
-    expect(stuckSendReach(held, { gone: false, live: true, ready: true })).toBe("terminal");
+    expect(stuckSendReach(held, { gone: false, live: true, ready: true })).toBe(
+      "terminal",
+    );
   });
   test("a terminal hold that names its fix is still a terminal hold", () => {
-    const withHint = { delivery_disposition_reason: `${held.delivery_disposition_reason}: macOS does not let Codecast control Ghostty on that Mac` };
-    expect(stuckSendReach(withHint, { gone: false, live: false, ready: false })).toBe("terminal");
+    const withHint = {
+      delivery_disposition_reason: `${held.delivery_disposition_reason}: macOS does not let Codecast control Ghostty on that Mac`,
+    };
+    expect(
+      stuckSendReach(withHint, { gone: false, live: false, ready: false }),
+    ).toBe("terminal");
   });
   test("a target that no longer exists still reads as gone", () => {
-    expect(stuckSendReach(held, { gone: true, live: false, ready: false })).toBe("gone");
+    expect(
+      stuckSendReach(held, { gone: true, live: false, ready: false }),
+    ).toBe("gone");
   });
   test("without a hold, liveness decides as before", () => {
-    expect(stuckSendReach({}, { gone: false, live: false, ready: false })).toBe("offline");
-    expect(stuckSendReach({}, { gone: false, live: true, ready: false })).toBe("busy");
-    expect(stuckSendReach({}, { gone: false, live: true, ready: true })).toBe("stuck");
-    expect(stuckSendReach({ delivery_disposition_reason: "waiting for a human answer" }, { gone: false, live: false, ready: false })).toBe("offline");
+    expect(stuckSendReach({}, { gone: false, live: false, ready: false })).toBe(
+      "offline",
+    );
+    expect(stuckSendReach({}, { gone: false, live: true, ready: false })).toBe(
+      "busy",
+    );
+    expect(stuckSendReach({}, { gone: false, live: true, ready: true })).toBe(
+      "stuck",
+    );
+    expect(
+      stuckSendReach(
+        { delivery_disposition_reason: "waiting for a human answer" },
+        { gone: false, live: false, ready: false },
+      ),
+    ).toBe("offline");
   });
 });
 
@@ -895,112 +1723,258 @@ describe("planStuckSendNotify — pure decision", () => {
   test("a send still on its way (busy, offline, or idle and retried) → skip: nothing for the sender to do", () => {
     for (const reach of ["busy", "offline", "stuck"] as const) {
       expect(planStuckSendNotify(base, reach, now).kind).toBe("skip");
-      expect(planStuckSendNotify({ ...base, owner_user_id: "uAlice" as any }, reach, now).kind).toBe("skip");
+      expect(
+        planStuckSendNotify(
+          { ...base, owner_user_id: "uAlice" as any },
+          reach,
+          now,
+        ).kind,
+      ).toBe("skip");
     }
   });
   test("target gone or held in a terminal → notify", () => {
-    expect(planStuckSendNotify(base, "gone", now)).toEqual({ kind: "notify", reach: "gone" });
-    expect(planStuckSendNotify(base, "terminal", now)).toEqual({ kind: "notify", reach: "terminal" });
+    expect(planStuckSendNotify(base, "gone", now)).toEqual({
+      kind: "notify",
+      reach: "gone",
+    });
+    expect(planStuckSendNotify(base, "terminal", now)).toEqual({
+      kind: "notify",
+      reach: "terminal",
+    });
   });
   test("typed in and awaiting its echo → skip: the unconfirmed path tells the sender", () => {
-    expect(planStuckSendNotify({ ...base, status: "injected" }, "gone", now).kind).toBe("skip");
-    expect(planStuckSendNotify({ ...base, status: "injected", owner_user_id: "uAlice" as any }, "gone", now).kind).toBe("skip");
+    expect(
+      planStuckSendNotify({ ...base, status: "injected" }, "gone", now).kind,
+    ).toBe("skip");
+    expect(
+      planStuckSendNotify(
+        { ...base, status: "injected", owner_user_id: "uAlice" as any },
+        "gone",
+        now,
+      ).kind,
+    ).toBe("skip");
   });
   test("no sender conversation → skip", () => {
-    expect(planStuckSendNotify({ ...base, from_conversation_id: undefined }, "gone", now).kind).toBe("skip");
+    expect(
+      planStuckSendNotify(
+        { ...base, from_conversation_id: undefined },
+        "gone",
+        now,
+      ).kind,
+    ).toBe("skip");
   });
   test("already notified → skip", () => {
-    expect(planStuckSendNotify({ ...base, sender_notified_at: now - 1 } as any, "gone", now).kind).toBe("skip");
+    expect(
+      planStuckSendNotify(
+        { ...base, sender_notified_at: now - 1 } as any,
+        "gone",
+        now,
+      ).kind,
+    ).toBe("skip");
   });
   test("before deadline → skip", () => {
-    expect(planStuckSendNotify({ ...base, created_at: now - 1_000 }, "gone", now).kind).toBe("skip");
+    expect(
+      planStuckSendNotify({ ...base, created_at: now - 1_000 }, "gone", now)
+        .kind,
+    ).toBe("skip");
   });
   test("terminal (delivered) → skip", () => {
-    expect(planStuckSendNotify({ ...base, status: "delivered" }, "gone", now).kind).toBe("skip");
+    expect(
+      planStuckSendNotify({ ...base, status: "delivered" }, "gone", now).kind,
+    ).toBe("skip");
   });
   test("legacy row without owner_user_id → skip", () => {
-    expect(planStuckSendNotify({ ...base, owner_user_id: undefined }, "gone", now).kind).toBe("skip");
+    expect(
+      planStuckSendNotify({ ...base, owner_user_id: undefined }, "gone", now)
+        .kind,
+    ).toBe("skip");
   });
 });
 
 describe("idle and killed targets", () => {
   const HOUR = 60 * 60 * 1000;
-  function staleWorld(bob: Record<string, unknown>, alice: Record<string, unknown> = {}) {
+  function staleWorld(
+    bob: Record<string, unknown>,
+    alice: Record<string, unknown> = {},
+  ) {
     const w = world({ now: Date.now() });
-    Object.assign(w.tables.conversations.find((c) => c._id === "convBob")!, bob);
-    Object.assign(w.tables.conversations.find((c) => c._id === "convAlice")!, alice);
+    Object.assign(
+      w.tables.conversations.find((c) => c._id === "convBob")!,
+      bob,
+    );
+    Object.assign(
+      w.tables.conversations.find((c) => c._id === "convAlice")!,
+      alice,
+    );
     return w;
   }
-  const idle = { usage_totals: { input: 1, output: 1, cache_read: 1, cache_write: 1, updated_at: Date.now() - 3 * HOUR, context_tokens: 480_000 } };
-  const fresh = { usage_totals: { input: 1, output: 1, cache_read: 1, cache_write: 1, updated_at: Date.now() - 5 * 60_000, context_tokens: 480_000 } };
+  const idle = {
+    usage_totals: {
+      input: 1,
+      output: 1,
+      cache_read: 1,
+      cache_write: 1,
+      updated_at: Date.now() - 3 * HOUR,
+      context_tokens: 480_000,
+    },
+  };
+  const fresh = {
+    usage_totals: {
+      input: 1,
+      output: 1,
+      cache_read: 1,
+      cache_write: 1,
+      updated_at: Date.now() - 5 * 60_000,
+      context_tokens: 480_000,
+    },
+  };
 
   test("delivers into a session idle past the cache lifetime: idling never holds a send", async () => {
     const { ctx, tables } = staleWorld(idle);
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "any update?", wake: false });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "any update?",
+      wake: false,
+    });
     expect(tables.pending_messages).toHaveLength(1);
   });
 
   test("holds a send into a killed session, naming the cost, and queues nothing", async () => {
-    const { ctx, tables } = staleWorld({ ...idle, inbox_killed_at: Date.now() - HOUR });
+    const { ctx, tables } = staleWorld({
+      ...idle,
+      inbox_killed_at: Date.now() - HOUR,
+    });
     await expect(
-      performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "any update?", wake: false }),
-    ).rejects.toThrow(/Not sent\. jxbob01 was killed.*480k tokens.*--wake.*cast read jxbob01/);
+      performSessionSend(ctx as any, "uAlice" as any, {
+        to: "jxbob01",
+        from: "jxalice",
+        body: "any update?",
+        wake: false,
+      }),
+    ).rejects.toThrow(
+      /Not sent\. jxbob01 was killed.*480k tokens.*--wake.*cast read jxbob01/,
+    );
     expect(tables.pending_messages).toHaveLength(0);
   });
 
   test("delivers into a session that ran recently", async () => {
     const { ctx, tables } = staleWorld(fresh);
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "hi", wake: false });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "hi",
+      wake: false,
+    });
     expect(tables.pending_messages).toHaveLength(1);
   });
 
   test("holds a send into a killed session even when it ran recently", async () => {
-    const { ctx, tables } = staleWorld({ ...fresh, inbox_killed_at: Date.now() - 60_000 });
+    const { ctx, tables } = staleWorld({
+      ...fresh,
+      inbox_killed_at: Date.now() - 60_000,
+    });
     await expect(
-      performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "hi", wake: false }),
+      performSessionSend(ctx as any, "uAlice" as any, {
+        to: "jxbob01",
+        from: "jxalice",
+        body: "hi",
+        wake: false,
+      }),
     ).rejects.toThrow(/jxbob01 was killed/);
     expect(tables.pending_messages).toHaveLength(0);
   });
 
   test("--wake, a worker reporting back, a dormant session, and a caller that never asked all deliver", async () => {
     const woken = staleWorld(idle);
-    await performSessionSend(woken.ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "go", wake: true });
+    await performSessionSend(woken.ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "go",
+      wake: true,
+    });
     expect(woken.tables.pending_messages).toHaveLength(1);
 
-    const reporting = staleWorld(idle, { spawned_by_conversation_id: "convBob" });
-    await performSessionSend(reporting.ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "done: abc123", wake: false });
+    const reporting = staleWorld(idle, {
+      spawned_by_conversation_id: "convBob",
+    });
+    await performSessionSend(reporting.ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "done: abc123",
+      wake: false,
+    });
     expect(reporting.tables.pending_messages).toHaveLength(1);
 
     const dormant = staleWorld({ ...idle, thread_state_status: "dormant" });
-    await performSessionSend(dormant.ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "your review is ready", wake: false });
+    await performSessionSend(dormant.ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "your review is ready",
+      wake: false,
+    });
     expect(dormant.tables.pending_messages).toHaveLength(1);
 
     const legacy = staleWorld(idle);
-    await performSessionSend(legacy.ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "old cli" });
+    await performSessionSend(legacy.ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "old cli",
+    });
     expect(legacy.tables.pending_messages).toHaveLength(1);
   });
 
   test("a role's seat and a lead's own worker deliver however long they idled", async () => {
     const seat = staleWorld({ ...idle, standing_role_id: "role1" });
-    await performSessionSend(seat.ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "the review command works again", wake: false });
+    await performSessionSend(seat.ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "the review command works again",
+      wake: false,
+    });
     expect(seat.tables.pending_messages).toHaveLength(1);
 
-    const worker = staleWorld({ ...idle, spawned_by_conversation_id: "convAlice" });
-    await performSessionSend(worker.ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "one more fix", wake: false });
+    const worker = staleWorld({
+      ...idle,
+      spawned_by_conversation_id: "convAlice",
+    });
+    await performSessionSend(worker.ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "one more fix",
+      wake: false,
+    });
     expect(worker.tables.pending_messages).toHaveLength(1);
   });
 
   test("a killed session stays held even for the worker it started", async () => {
-    const { ctx, tables } = staleWorld({ ...idle, inbox_killed_at: Date.now() - HOUR }, { spawned_by_conversation_id: "convBob" });
+    const { ctx, tables } = staleWorld(
+      { ...idle, inbox_killed_at: Date.now() - HOUR },
+      { spawned_by_conversation_id: "convBob" },
+    );
     await expect(
-      performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "done", wake: false }),
+      performSessionSend(ctx as any, "uAlice" as any, {
+        to: "jxbob01",
+        from: "jxalice",
+        body: "done",
+        wake: false,
+      }),
     ).rejects.toThrow(/was killed/);
     expect(tables.pending_messages).toHaveLength(0);
   });
 
   test("a follow-up to the sender's own killed worker restarts it", async () => {
-    const { ctx, tables } = staleWorld({ ...idle, inbox_killed_at: Date.now() - HOUR, spawned_by_conversation_id: "convAlice" });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "one more fix", wake: false });
+    const { ctx, tables } = staleWorld({
+      ...idle,
+      inbox_killed_at: Date.now() - HOUR,
+      spawned_by_conversation_id: "convAlice",
+    });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "one more fix",
+      wake: false,
+    });
     expect(tables.pending_messages).toHaveLength(1);
   });
 });
@@ -1009,42 +1983,97 @@ describe("stuck message pass split into plan and apply", () => {
   test("the plan writes nothing and names the row; applying just that row revives it", async () => {
     const now = Date.now();
     const { ctx, db, tables } = world({ now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", from: "jxalice", body: "The release is ready" });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      from: "jxalice",
+      body: "The release is ready",
+    });
     const msg = tables.pending_messages[0];
-    await claimPendingMessageForDaemon(ctx as any, msg._id, "uBob" as any, "devBob");
-    await updatePendingMessageStatusForDaemon(ctx as any, msg._id, "uBob" as any, "devBob", { status: "injected" });
-    await db.patch(msg._id, { created_at: now - 6 * 60 * 60_000, retry_count: 6 });
+    await claimPendingMessageForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+    );
+    await updatePendingMessageStatusForDaemon(
+      ctx as any,
+      msg._id,
+      "uBob" as any,
+      "devBob",
+      { status: "injected" },
+    );
+    await db.patch(msg._id, {
+      created_at: now - 6 * 60 * 60_000,
+      retry_count: 6,
+    });
     await db.patch("msBob", { agent_status: "idle" });
     const before = JSON.stringify(tables.pending_messages);
 
-    const { groups: planned } = await (planStuckMessages as any)._handler(ctx, { now });
-    expect(planned).toEqual([{ conversationId: msg.conversation_id, ids: [msg._id] }]);
+    const { groups: planned } = await (planStuckMessages as any)._handler(ctx, {
+      now,
+    });
+    expect(planned).toEqual([
+      { conversationId: msg.conversation_id, ids: [msg._id] },
+    ]);
     expect(JSON.stringify(tables.pending_messages)).toBe(before);
 
-    expect(await applySweepPage(ctx, now, planned[0].ids)).toMatchObject({ revived: 1, waiting: 0 });
-    expect(await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob")).toHaveLength(1);
+    expect(await applySweepPage(ctx, now, planned[0].ids)).toMatchObject({
+      revived: 1,
+      waiting: 0,
+    });
+    expect(
+      await collectDeliverableForOwner(ctx as any, "uBob" as any, "devBob"),
+    ).toHaveLength(1);
   });
 
   test("the plan groups rows by conversation, so each applies on its own", async () => {
     const now = Date.now();
     const { ctx, db, tables } = world({ now });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", body: "first" });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxalice", body: "mine", direct: true });
-    await performSessionSend(ctx as any, "uAlice" as any, { to: "jxbob01", body: "second" });
-    for (const row of tables.pending_messages) await db.patch(row._id, { status: "failed", created_at: now - 600000 });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      body: "first",
+    });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxalice",
+      body: "mine",
+      direct: true,
+    });
+    await performSessionSend(ctx as any, "uAlice" as any, {
+      to: "jxbob01",
+      body: "second",
+    });
+    for (const row of tables.pending_messages)
+      await db.patch(row._id, { status: "failed", created_at: now - 600000 });
     await db.patch("msBob", { agent_status: "idle" });
     const [bob1, alice, bob2] = tables.pending_messages.map((m: any) => m._id);
 
-    const { groups: planned } = await (planStuckMessages as any)._handler(ctx, { now });
-    expect(planned.map((g: { ids: string[] }) => [...g.ids].sort())).toEqual([[bob1, bob2].sort(), [alice]]);
+    const { groups: planned } = await (planStuckMessages as any)._handler(ctx, {
+      now,
+    });
+    expect(planned.map((g: { ids: string[] }) => [...g.ids].sort())).toEqual([
+      [bob1, bob2].sort(),
+      [alice],
+    ]);
   });
 
   test("a row waiting on a busy session is not planned", async () => {
     const now = Date.now();
     const { ctx, db, tables } = world({ now });
-    await performSessionSend(ctx as any, "uBob" as any, { to: "jxbob01", body: "later" });
-    await db.patch(tables.pending_messages[0]._id, { status: "undeliverable", retry_count: 10, created_at: now - 600000 });
-    await db.patch("msBob", { agent_status: "working", agent_status_updated_at: now - 60000 });
-    expect(await (planStuckMessages as any)._handler(ctx, { now })).toMatchObject({ groups: [] });
+    await performSessionSend(ctx as any, "uBob" as any, {
+      to: "jxbob01",
+      body: "later",
+    });
+    await db.patch(tables.pending_messages[0]._id, {
+      status: "undeliverable",
+      retry_count: 10,
+      created_at: now - 600000,
+    });
+    await db.patch("msBob", {
+      agent_status: "working",
+      agent_status_updated_at: now - 60000,
+    });
+    expect(
+      await (planStuckMessages as any)._handler(ctx, { now }),
+    ).toMatchObject({ groups: [] });
   });
 });

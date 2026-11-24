@@ -1,6 +1,10 @@
 import { captureError } from "./analytics";
 import type { ConvexAgentType } from "@codecast/shared/contracts";
-import { isConvexId, type InboxSession, useInboxStore } from "../store/inboxStore";
+import {
+  isConvexId,
+  type InboxSession,
+  useInboxStore,
+} from "../store/inboxStore";
 import { isParkedDispatchError } from "../store/mutativeMiddleware";
 import { withoutUndo } from "../store/undoStack";
 
@@ -19,30 +23,39 @@ export async function switchSessionAgent(
 
   try {
     if (!isConvexId(id)) id = await store.awaitConvexId(id);
-    await useInboxStore.getState().convCommand(id, "switchSessionAgent", { agent_type: targetAgentType });
+    await useInboxStore
+      .getState()
+      .convCommand(id, "switchSessionAgent", { agent_type: targetAgentType });
   } catch (error) {
     if (isParkedDispatchError(error)) return;
     captureError(error instanceof Error ? error : new Error(String(error)));
     // The switch failed: taking back our own stamp is not an undoable change.
-    withoutUndo(() => useInboxStore.getState().setConversationAgent(id, previousAgentType));
+    withoutUndo(() =>
+      useInboxStore.getState().setConversationAgent(id, previousAgentType),
+    );
     throw error;
   }
 }
 
 export function forkSessionAsAgent(
-  session: Pick<InboxSession, "_id" | "title" | "agent_type" | "project_path" | "git_root">,
+  session: Pick<
+    InboxSession,
+    "_id" | "title" | "agent_type" | "project_path" | "git_root"
+  >,
   targetAgentType: ConvexAgentType,
 ): { sessionId: string; ready: Promise<string> } {
   const store = useInboxStore.getState();
   const parentId = store.getConvexId(session._id) ?? session._id;
-  if (!isConvexId(parentId)) throw new Error("Session is still being created — try again in a moment");
+  if (!isConvexId(parentId))
+    throw new Error("Session is still being created — try again in a moment");
 
-  const sessionId = typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
-        const value = (Math.random() * 16) | 0;
-        return (char === "x" ? value : (value & 0x3) | 0x8).toString(16);
-      });
+  const sessionId =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+          const value = (Math.random() * 16) | 0;
+          return (char === "x" ? value : (value & 0x3) | 0x8).toString(16);
+        });
   const now = Date.now();
   const row = {
     _id: sessionId,
@@ -68,14 +81,16 @@ export function forkSessionAsAgent(
   store.injectSession(row);
   store.moveDraft(parentId, sessionId);
 
-  const dispatch = store.convCommand(parentId, "forkFromMessage", {
-    target_agent_type: targetAgentType,
-    session_id: sessionId,
-  }).then((result) => {
-    const conversationId = result.conversation_id as string;
-    useInboxStore.getState().resolveForkSessionId(sessionId, conversationId);
-    return conversationId;
-  });
+  const dispatch = store
+    .convCommand(parentId, "forkFromMessage", {
+      target_agent_type: targetAgentType,
+      session_id: sessionId,
+    })
+    .then((result) => {
+      const conversationId = result.conversation_id as string;
+      useInboxStore.getState().resolveForkSessionId(sessionId, conversationId);
+      return conversationId;
+    });
   store.trackSessionCreate(sessionId, dispatch);
 
   const ready = dispatch.catch((error) => {
@@ -90,13 +105,23 @@ export function forkSessionAsAgent(
   return { sessionId, ready };
 }
 
-export type SessionAgentRow = Pick<InboxSession, "_id" | "title" | "agent_type" | "project_path" | "git_root">;
+export type SessionAgentRow = Pick<
+  InboxSession,
+  "_id" | "title" | "agent_type" | "project_path" | "git_root"
+>;
 
 /** The row the move actions act on: the live store row, else a minimal
  *  stand-in from what the caller already knows. */
-export function sessionRowFor(conversationId: string, agentType: string | undefined): SessionAgentRow {
+export function sessionRowFor(
+  conversationId: string,
+  agentType: string | undefined,
+): SessionAgentRow {
   const s = useInboxStore.getState();
   const id = s.getConvexId(conversationId) ?? conversationId;
-  const row = (s.sessions[id] ?? s.conversations[id]) as SessionAgentRow | undefined;
-  return row ?? ({ _id: conversationId, agent_type: agentType } as SessionAgentRow);
+  const row = (s.sessions[id] ?? s.conversations[id]) as
+    | SessionAgentRow
+    | undefined;
+  return (
+    row ?? ({ _id: conversationId, agent_type: agentType } as SessionAgentRow)
+  );
 }

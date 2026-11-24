@@ -22,17 +22,46 @@
 
 export type SlotClass = "window" | "memo" | "transient" | { shared: string };
 
-const CONSTANT: SlotClass = { shared: "constant lookup set, never written after module load" };
-const DESKTOP: SlotClass = { shared: "desktop shell bridge; the sim has no shell, so it stays at its defaults" };
-const NO_REACT: SlotClass = { shared: "subscribers registered by mounted components; the sim mounts no React" };
-const IDB: SlotClass = { shared: "IndexedDB persistence: sim windows persist through their own _setIDBWrite tee, never idbCache" };
-const DISK_LEDGER: SlotClass = { shared: "disk-write ledger: syncTable writes it, only the IndexedDB writer and hydration read it, and the sim runs neither" };
-const OPEN_INTENT: SlotClass = { shared: "an open-beside intent set by a pointer gesture on a page; the sim makes none" };
-const DRAFTS: SlotClass = { shared: "compose draft debounce; the sim types no drafts" };
-const ANALYTICS: SlotClass = { shared: "analytics runtime; the sim never initializes analytics" };
-const NO_WARM: SlotClass = { shared: "message-page warming (warmVisibleSessions); sim windows mount the feeders without it" };
-const AUDIO: SlotClass = { shared: "audio output; bun has no AudioContext, so it stays null" };
-const IMAGE_URLS: SlotClass = { shared: "storage id to image URL cache: the mapping is immutable and production keeps it origin-wide (localStorage); the sim serves no storage" };
+const CONSTANT: SlotClass = {
+  shared: "constant lookup set, never written after module load",
+};
+const DESKTOP: SlotClass = {
+  shared:
+    "desktop shell bridge; the sim has no shell, so it stays at its defaults",
+};
+const NO_REACT: SlotClass = {
+  shared:
+    "subscribers registered by mounted components; the sim mounts no React",
+};
+const IDB: SlotClass = {
+  shared:
+    "IndexedDB persistence: sim windows persist through their own _setIDBWrite tee, never idbCache",
+};
+const DISK_LEDGER: SlotClass = {
+  shared:
+    "disk-write ledger: syncTable writes it, only the IndexedDB writer and hydration read it, and the sim runs neither",
+};
+const OPEN_INTENT: SlotClass = {
+  shared:
+    "an open-beside intent set by a pointer gesture on a page; the sim makes none",
+};
+const DRAFTS: SlotClass = {
+  shared: "compose draft debounce; the sim types no drafts",
+};
+const ANALYTICS: SlotClass = {
+  shared: "analytics runtime; the sim never initializes analytics",
+};
+const NO_WARM: SlotClass = {
+  shared:
+    "message-page warming (warmVisibleSessions); sim windows mount the feeders without it",
+};
+const AUDIO: SlotClass = {
+  shared: "audio output; bun has no AudioContext, so it stays null",
+};
+const IMAGE_URLS: SlotClass = {
+  shared:
+    "storage id to image URL cache: the mapping is immutable and production keeps it origin-wide (localStorage); the sim serves no storage",
+};
 
 /** The engine's source, as a path under apps/web (the vendored mirror). */
 export const ENGINE = "../../platform/packages/engine/src/";
@@ -40,7 +69,10 @@ export const ENGINE = "../../platform/packages/engine/src/";
 /** "<path under apps/web>:<binding>" to its class. */
 export const WINDOW_SLOTS: Record<string, SlotClass> = {
   // store/inboxStore.ts
-  "store/inboxStore.ts:FOLLOWED_UI_KEYS": { shared: "the ui keys a client only reads; the phone names them once at boot, a browser names none, so every sim window holds the same empty set" },
+  "store/inboxStore.ts:FOLLOWED_UI_KEYS": {
+    shared:
+      "the ui keys a client only reads; the phone names them once at boot, a browser names none, so every sim window holds the same empty set",
+  },
   "store/inboxStore.ts:_heldOverlayFacts": "window",
   "store/inboxStore.ts:recentlyRequestedPendingMessages": "window",
   "store/inboxStore.ts:resolvedSessionPreparations": "window",
@@ -64,7 +96,9 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/inboxStore.ts:retiredAckTs": "window",
   // The dev parity check's throttle: one per window, as each browser window keeps its own.
   "store/inboxStore.ts:_lastParityCheckAt": "window",
-  "store/inboxStore.ts:_depChanges": { shared: "dev render census, read only from the console" },
+  "store/inboxStore.ts:_depChanges": {
+    shared: "dev render census, read only from the console",
+  },
   "lib/navRegistry.ts:BY_ID": CONSTANT,
   "lib/navRegistry.ts:BY_PATH": CONSTANT,
   "store/inboxStore.ts:KEEP_VISIBLE_OVERLAYS": CONSTANT,
@@ -82,20 +116,42 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
 
   // the rest of store/
   "store/gestureBridge.ts:sourceToken": "window",
-  "store/gestureBridge.ts:channelFactory": { shared: "set once per realm by the sim's device bridge" },
+  "store/gestureBridge.ts:channelFactory": {
+    shared: "set once per realm by the sim's device bridge",
+  },
   // The docs shots mode's offline Convex client: set only by lib/docsShots/install, which the sim never runs.
-  "lib/docsShots/flag.ts:client": { shared: "the docs shots mode's offline Convex client; the sim never installs it, so it stays null" },
-  "hooks/inboxWarm.ts:renderedMemo": { shared: "keyed on the placements ref and the view inputs it was built from; another window's state has its own refs, so it misses and rebuilds" },
-  "store/workProjects.ts:memo": { shared: "keyed on the sessions, tasks and plans refs it was built from; another window's state has its own refs, so it misses and rebuilds" },
+  "lib/docsShots/flag.ts:client": {
+    shared:
+      "the docs shots mode's offline Convex client; the sim never installs it, so it stays null",
+  },
+  "hooks/inboxWarm.ts:renderedMemo": {
+    shared:
+      "keyed on the placements ref and the view inputs it was built from; another window's state has its own refs, so it misses and rebuilds",
+  },
+  "store/workProjects.ts:memo": {
+    shared:
+      "keyed on the sessions, tasks and plans refs it was built from; another window's state has its own refs, so it misses and rebuilds",
+  },
   "store/viewNav.ts:pendingSource": "window",
   "store/viewNav.ts:appliedNavCount": "window",
   // Whether this window opened fresh onto the feed home: read from its own address once.
   "store/viewNav.ts:freshHomeLaunch": "window",
-  "store/viewNav.ts:navLog": { shared: "audit ring, persisted to the one origin-wide localStorage in production too" },
+  "store/viewNav.ts:navLog": {
+    shared:
+      "audit ring, persisted to the one origin-wide localStorage in production too",
+  },
   "store/viewNav.ts:navListeners": NO_REACT,
-  "store/writeLog.ts:writeLog": { shared: "audit ring of sent writes, persisted to the one origin-wide localStorage in production too, like navLog" },
-  "store/writeLog.ts:persistTimer": { shared: "the write audit ring's persist debounce; one ring, so one timer" },
-  "store/writeLog.ts:lastInput": { shared: "the person's last key or pointer press, from a capture listener on the page; the sim presses nothing" },
+  "store/writeLog.ts:writeLog": {
+    shared:
+      "audit ring of sent writes, persisted to the one origin-wide localStorage in production too, like navLog",
+  },
+  "store/writeLog.ts:persistTimer": {
+    shared: "the write audit ring's persist debounce; one ring, so one timer",
+  },
+  "store/writeLog.ts:lastInput": {
+    shared:
+      "the person's last key or pointer press, from a capture listener on the page; the sim presses nothing",
+  },
   "store/orgLens.ts:OPEN_GOAL": CONSTANT,
   "store/syncActivity.ts:_lastApplyMono": "window",
   "store/syncActivity.ts:_applySeq": "window",
@@ -103,18 +159,39 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/syncTransaction.ts:deferred": "transient",
   "store/syncTransaction.ts:deferredFanOut": "transient",
   "store/syncTransaction.ts:timer": "transient",
-  "store/syncReplication.ts:running": { shared: "the sim never calls startSyncReplication; devices wire the runtime directly" },
+  "store/syncReplication.ts:running": {
+    shared:
+      "the sim never calls startSyncReplication; devices wire the runtime directly",
+  },
   "hooks/useQueryNoThrow.ts:remembered": "memo",
   "store/chatSelectors.ts:railCacheKey": "memo",
   "store/chatSelectors.ts:railCacheValue": "memo",
-  "store/chatSlice.ts:dmOpensInFlight": { shared: "keyed by stub ids minted from the window's own seeded stream, so windows never collide" },
-  "store/chatSlice.ts:sentWaiters": { shared: "keyed by the client id a window mints for its own hand-off send, so windows never collide" },
-  "store/chatSlice.ts:settledSends": { shared: "keyed by the client id a window mints for its own hand-off send, so windows never collide" },
-  "store/orgSlice.ts:intentSeq": { shared: "process-wide counter: ids stay unique across windows and no window reads another's value" },
+  "store/chatSlice.ts:dmOpensInFlight": {
+    shared:
+      "keyed by stub ids minted from the window's own seeded stream, so windows never collide",
+  },
+  "store/chatSlice.ts:sentWaiters": {
+    shared:
+      "keyed by the client id a window mints for its own hand-off send, so windows never collide",
+  },
+  "store/chatSlice.ts:settledSends": {
+    shared:
+      "keyed by the client id a window mints for its own hand-off send, so windows never collide",
+  },
+  "store/orgSlice.ts:intentSeq": {
+    shared:
+      "process-wide counter: ids stay unique across windows and no window reads another's value",
+  },
   "store/orgSlice.ts:NO_REVERT_TREE_KINDS": CONSTANT,
-  "store/pendingMessageJournal.ts:sequence": { shared: "process-wide counter: journal stamps stay unique across windows" },
-  "store/stageSplit.ts:idCounter": { shared: "process-wide counter: pane ids stay unique across windows" },
-  "store/storeListenerCensus.ts:liveListenerCount": { shared: "dev listener census, read only from the console" },
+  "store/pendingMessageJournal.ts:sequence": {
+    shared: "process-wide counter: journal stamps stay unique across windows",
+  },
+  "store/stageSplit.ts:idCounter": {
+    shared: "process-wide counter: pane ids stay unique across windows",
+  },
+  "store/storeListenerCensus.ts:liveListenerCount": {
+    shared: "dev listener census, read only from the console",
+  },
   "store/persistence/db.ts:upgradeBlockedListener": IDB,
   "store/persistence/hydration.ts:_hydrating": IDB,
   "store/persistence/collectionWriter.ts:conversationRetentionDrops": IDB,
@@ -152,46 +229,102 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/mutativeMiddleware.ts:UNDO_IGNORE_KEYS": CONSTANT,
   "store/mutativeMiddleware.ts:BRIDGED_FIELD_SET": CONSTANT,
   "store/mutativeMiddleware.ts:undoStoreBinding": {
-    shared: "set once as inboxStore loads; its functions read the store through the useInboxStore facade, so they reach the active window",
+    shared:
+      "set once as inboxStore loads; its functions read the store through the useInboxStore facade, so they reach the active window",
   },
   "store/undo/onRevert.ts:hooks": {
-    shared: "undo revert hooks registered once at module load (undoActions.ts); the one there animates a DOM row, and the sim has no DOM",
+    shared:
+      "undo revert hooks registered once at module load (undoActions.ts); the one there animates a DOM row, and the sim has no DOM",
   },
   // Reached through the human actor's undo and redo (sim/actors.ts).
   "store/mutativeMiddleware.ts:replayBridgeTs": {
-    shared: "written by an undo replay's beforeReplay and read by its afterReplay in the same synchronous call, inside one window's turn",
+    shared:
+      "written by an undo replay's beforeReplay and read by its afterReplay in the same synchronous call, inside one window's turn",
   },
   "store/undo/policies/work.ts:SECRET_CLEARS": CONSTANT,
-  "store/undoStack.ts:liveEntryToasts": { shared: "ids of the undo toasts on screen; the sim renders no toasts" },
+  "store/undoStack.ts:liveEntryToasts": {
+    shared: "ids of the undo toasts on screen; the sim renders no toasts",
+  },
 
   // The store's engine (@platform/engine, mirrored under platform/packages).
   // Each browser window keeps its own undo history: ⌘Z in one window never
   // reaches a gesture another window recorded.
   ...Object.fromEntries(
-    ["undoStack", "redoStack", "history", "version", "snapshot", "suppressDepth", "refreshTarget", "groupDepth", "groupChildren", "groupToast", "groupExternals", "recordingHolds", "vanishedRuns", "pendingGestures", "detachedChildren"].map(
-      (name) => [`${ENGINE}undoStack.ts:${name}`, "window" as SlotClass],
-    ),
+    [
+      "undoStack",
+      "redoStack",
+      "history",
+      "version",
+      "snapshot",
+      "suppressDepth",
+      "refreshTarget",
+      "groupDepth",
+      "groupChildren",
+      "groupToast",
+      "groupExternals",
+      "recordingHolds",
+      "vanishedRuns",
+      "pendingGestures",
+      "detachedChildren",
+    ].map((name) => [`${ENGINE}undoStack.ts:${name}`, "window" as SlotClass]),
   ),
   ...Object.fromEntries(
-    ["keyboardWindowMs", "stackLimit", "historyLimit", "stampFields", "notifier"].map((name) => [
+    [
+      "keyboardWindowMs",
+      "stackLimit",
+      "historyLimit",
+      "stampFields",
+      "notifier",
+    ].map((name) => [
       `${ENGINE}undoStack.ts:${name}`,
-      { shared: "undo configuration and notifier, set once as the store loads" },
+      {
+        shared: "undo configuration and notifier, set once as the store loads",
+      },
     ]),
   ),
-  [`${ENGINE}undoStack.ts:idCounter`]: { shared: "process-wide counter: entry ids stay unique across windows and no window reads another's value" },
-  [`${ENGINE}undoStack.ts:undoSeqCounter`]: { shared: "process-wide counter: sequence numbers only order one window's own entries, and a shared one still rises" },
+  [`${ENGINE}undoStack.ts:idCounter`]: {
+    shared:
+      "process-wide counter: entry ids stay unique across windows and no window reads another's value",
+  },
+  [`${ENGINE}undoStack.ts:undoSeqCounter`]: {
+    shared:
+      "process-wide counter: sequence numbers only order one window's own entries, and a shared one still rises",
+  },
   [`${ENGINE}undoStack.ts:listeners`]: NO_REACT,
-  [`${ENGINE}undoStack.ts:rekeyHooks`]: { shared: "rekey hooks registered once at module load" },
-  [`${ENGINE}undoStack.ts:resetListeners`]: { shared: "reset listeners registered once at module load" },
-  [`${ENGINE}undoStack.ts:rebaseHooks`]: { shared: "each window's controller registers one as its store loads; it rebases only the entries its own controller holds" },
-  [`${ENGINE}syncProtocol.ts:lockIdCounter`]: { shared: "process-wide counter: lock ids stay unique across windows" },
-  [`${ENGINE}wakeSig.ts:__refSeq`]: { shared: "process-wide counter: ref ids stay unique across windows" },
+  [`${ENGINE}undoStack.ts:rekeyHooks`]: {
+    shared: "rekey hooks registered once at module load",
+  },
+  [`${ENGINE}undoStack.ts:resetListeners`]: {
+    shared: "reset listeners registered once at module load",
+  },
+  [`${ENGINE}undoStack.ts:rebaseHooks`]: {
+    shared:
+      "each window's controller registers one as its store loads; it rebases only the entries its own controller holds",
+  },
+  [`${ENGINE}syncProtocol.ts:lockIdCounter`]: {
+    shared: "process-wide counter: lock ids stay unique across windows",
+  },
+  [`${ENGINE}wakeSig.ts:__refSeq`]: {
+    shared: "process-wide counter: ref ids stay unique across windows",
+  },
   [`${ENGINE}react.ts:_clocks`]: NO_REACT,
   [`${ENGINE}case.ts:VERBATIM`]: CONSTANT,
   ...Object.fromEntries(
-    ["snapshot", "lastSteadyFocus", "returnTo", "cardTookFocus", "trackedDoc", "flash", "listeners", "flashListeners"].map((name) => [
+    [
+      "snapshot",
+      "lastSteadyFocus",
+      "returnTo",
+      "cardTookFocus",
+      "trackedDoc",
+      "flash",
+      "listeners",
+      "flashListeners",
+    ].map((name) => [
       `lib/undoTimelineOpen.ts:${name}`,
-      { shared: "the history timeline's open state and DOM focus bookkeeping; the sim never opens the timeline" },
+      {
+        shared:
+          "the history timeline's open state and DOM focus bookkeeping; the sim never opens the timeline",
+      },
     ]),
   ),
   "store/syncProtocol.ts:OPTIONAL_INBOX_TIMESTAMPS": CONSTANT,
@@ -200,9 +333,18 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/workspace.ts:PERSISTABLE_KINDS": CONSTANT,
 
   // hooks/
-  "hooks/useSplitQuery.ts:held": { shared: "split-query transport cache, filled only by React feeders and recovery polls; the sim mounts neither" },
-  "hooks/useSplitQuery.ts:persistence": { shared: "the process's disk store for held split rows, set once at boot by the native app; web and the sim never set it" },
-  "hooks/useSplitQuery.ts:unsupported": { shared: "split-query transport memory of a server that rejects the split form; set only by React feeders, which the sim does not mount" },
+  "hooks/useSplitQuery.ts:held": {
+    shared:
+      "split-query transport cache, filled only by React feeders and recovery polls; the sim mounts neither",
+  },
+  "hooks/useSplitQuery.ts:persistence": {
+    shared:
+      "the process's disk store for held split rows, set once at boot by the native app; web and the sim never set it",
+  },
+  "hooks/useSplitQuery.ts:unsupported": {
+    shared:
+      "split-query transport memory of a server that rejects the split form; set only by React feeders, which the sim does not mount",
+  },
   "hooks/reconcileCrawl.ts:states": "window",
   "hooks/useBootstrapCollection.ts:done": "window",
   "hooks/useSyncChangeFeed.ts:cargoSupported": "window",
@@ -210,7 +352,10 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "hooks/useSyncChangeFeed.ts:flushTimer": "window",
   "hooks/useSyncChangeFeed.ts:shadowApplied": "window",
   "hooks/syncWake.ts:listeners": NO_REACT,
-  "hooks/useCoarseNow.ts:_clocks": { shared: "shared coarse-tick subscribers; sim windows tick their digest comparer by hand and subscribe none" },
+  "hooks/useCoarseNow.ts:_clocks": {
+    shared:
+      "shared coarse-tick subscribers; sim windows tick their digest comparer by hand and subscribe none",
+  },
   "hooks/inboxWarm.ts:lastPass": NO_WARM,
   "hooks/inboxWarm.ts:inFlight": NO_WARM,
   "hooks/inboxWarm.ts:syncedCount": NO_WARM,
@@ -220,19 +365,31 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "hooks/useStorageImageUrl.ts:urlCache": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:loadedSrcs": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:persistScheduled": IMAGE_URLS,
-  "hooks/useStorageImageUrl.ts:guestImageScope": { shared: "a guest share page's image scope; sim windows are signed in and set none" },
+  "hooks/useStorageImageUrl.ts:guestImageScope": {
+    shared:
+      "a guest share page's image scope; sim windows are signed in and set none",
+  },
   "hooks/useStorageImageUrl.ts:pendingIds": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:waiters": IMAGE_URLS,
   "hooks/useStorageImageUrl.ts:flushScheduled": IMAGE_URLS,
   "hooks/useConversationMessages.ts:LIVENESS_ONLY_CONV_FIELDS": CONSTANT,
-  "hooks/useConversationMessages.ts:navIndexRequested": { shared: "the conversations whose prompt index a mounted view already asked for; the sim mounts no React, so it stays empty" },
+  "hooks/useConversationMessages.ts:navIndexRequested": {
+    shared:
+      "the conversations whose prompt index a mounted view already asked for; the sim mounts no React, so it stays empty",
+  },
 
   // lib/
-  "lib/inputQuiet.ts:lastInputAt": { shared: "the person's last keystroke, one keyboard for every window; the sim types nothing, so it never moves" },
+  "lib/inputQuiet.ts:lastInputAt": {
+    shared:
+      "the person's last keystroke, one keyboard for every window; the sim types nothing, so it never moves",
+  },
   "lib/externalEventOutcomes.ts:SESSION_COMMIT_KINDS": CONSTANT,
   "lib/settingsData.ts:TEAM_SCOPED_SETTINGS": CONSTANT,
   "lib/settingsData.ts:RETIRED_SETTINGS": CONSTANT,
-  "lib/settingsSections.ts:pendingAnchor": { shared: "the fragment a clicked settings link carried, read once by the panel that opens; the sim clicks no links" },
+  "lib/settingsSections.ts:pendingAnchor": {
+    shared:
+      "the fragment a clicked settings link carried, read once by the panel that opens; the sim clicks no links",
+  },
   "lib/analytics.ts:runtime": ANALYTICS,
   "lib/analytics.ts:initPromise": ANALYTICS,
   "lib/analytics.ts:regulated": ANALYTICS,
@@ -245,27 +402,53 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "lib/appWindowRegistry.ts:installed": DESKTOP,
   "lib/appWindowRegistry.ts:announced": DESKTOP,
   "lib/appWindowRegistry.ts:watchers": DESKTOP,
-  "lib/browserPane.ts:titles": { shared: "page titles a browser pane reports; the sim opens no pane" },
+  "lib/browserPane.ts:titles": {
+    shared: "page titles a browser pane reports; the sim opens no pane",
+  },
   "lib/browserPane.ts:listeners": NO_REACT,
   "lib/browserPane.ts:APP_HOSTS": CONSTANT,
-  "lib/browserPane.ts:framingAnswers": { shared: "whether a site allows framing is decided by its own headers, the same answer for every window; the sim asks none" },
-  "lib/calls/recordingPress.ts:presses": { shared: "a Record press's own dispatch state, written only by a press; the sim presses no Record, so it stays empty" },
-  "lib/calls/recordingPress.ts:pressedRuns": { shared: "the recording runs a press started, written only by a press; the sim presses no Record, so it stays empty" },
+  "lib/browserPane.ts:framingAnswers": {
+    shared:
+      "whether a site allows framing is decided by its own headers, the same answer for every window; the sim asks none",
+  },
+  "lib/calls/recordingPress.ts:presses": {
+    shared:
+      "a Record press's own dispatch state, written only by a press; the sim presses no Record, so it stays empty",
+  },
+  "lib/calls/recordingPress.ts:pressedRuns": {
+    shared:
+      "the recording runs a press started, written only by a press; the sim presses no Record, so it stays empty",
+  },
   "lib/calls/recordingPress.ts:pressListeners": NO_REACT,
   "lib/follow.ts:surfaces": NO_REACT,
   "lib/follow.ts:surfaceListeners": NO_REACT,
   ...Object.fromEntries(
     ["previousQuery", "normalizedQuery", "queryTokens"].map((name) => [
       `lib/mentionRanking.ts:${name}`,
-      { shared: "the last query's tokens, a pure function of the query string; no window state goes into it" },
+      {
+        shared:
+          "the last query's tokens, a pure function of the query string; no window state goes into it",
+      },
     ]),
   ),
   "lib/tabSafePath.ts:TAB_PATH_ACTIONS": CONSTANT,
   "lib/workflowRun.ts:HIDDEN_TYPES": CONSTANT,
-  "store/orgSlice.ts:writeOptimisticMessage": { shared: "the store's optimistic message writer, bound once as the store module loads" },
-  "lib/calls/recordingPress.ts:abandoned": { shared: "Record presses a person was told did not happen, written only by useRoomRecording; the sim presses no Record, so it stays empty" },
-  "lib/calls/ringStubs.ts:settledRings": { shared: "rings a Join or Decline press answered, written only by that press; the sim answers no ring, so it stays empty" },
-  "lib/chatViews.ts:knownAgents": { shared: "display-name fallback only; nothing an invariant compares reads it" },
+  "store/orgSlice.ts:writeOptimisticMessage": {
+    shared:
+      "the store's optimistic message writer, bound once as the store module loads",
+  },
+  "lib/calls/recordingPress.ts:abandoned": {
+    shared:
+      "Record presses a person was told did not happen, written only by useRoomRecording; the sim presses no Record, so it stays empty",
+  },
+  "lib/calls/ringStubs.ts:settledRings": {
+    shared:
+      "rings a Join or Decline press answered, written only by that press; the sim answers no ring, so it stays empty",
+  },
+  "lib/chatViews.ts:knownAgents": {
+    shared:
+      "display-name fallback only; nothing an invariant compares reads it",
+  },
   "lib/cuePlay.ts:shared": AUDIO,
   "lib/desktop.ts:shareCursorsUnsupported": DESKTOP,
   "lib/desktop.ts:lastDesktopInputAt": DESKTOP,
@@ -287,25 +470,41 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "lib/dispatchBinding.ts:CALLER_REPORTED_ACTIONS": CONSTANT,
   "lib/dispatchBinding.ts:QUIET_ACTIONS": CONSTANT,
   "lib/imageByteCache.ts:opaqueOrigins": IMAGE_URLS,
-  "lib/inboxViewHistory.ts:applying": { shared: "true only inside a synchronous popstate re-apply, which the sim never drives" },
+  "lib/inboxViewHistory.ts:applying": {
+    shared:
+      "true only inside a synchronous popstate re-apply, which the sim never drives",
+  },
   "lib/migrationPlan.ts:CLAUDE_TYPES": CONSTANT,
   "lib/migrationPlan.ts:MID_TURN_STATUSES": CONSTANT,
-  "lib/notificationDelivery.ts:current": { shared: "browser notifications; the sim installs no delivery" },
-  "lib/notificationDelivery.ts:resyncFocusHold": { shared: "browser notifications; the sim installs no delivery" },
+  "lib/notificationDelivery.ts:current": {
+    shared: "browser notifications; the sim installs no delivery",
+  },
+  "lib/notificationDelivery.ts:resyncFocusHold": {
+    shared: "browser notifications; the sim installs no delivery",
+  },
   "lib/notificationGate.ts:COMPLETION_KINDS": CONSTANT,
   "lib/openIntent.ts:splitOpener": NO_REACT,
   "lib/openIntent.ts:intent": OPEN_INTENT,
   "lib/openIntent.ts:clearTimer": OPEN_INTENT,
   "lib/openIntent.ts:installs": NO_REACT,
-  "lib/openIntent.ts:prewarmTabIds": { shared: "background tabs TabContent mounts hidden; read only by components, and the sim mounts no React" },
+  "lib/openIntent.ts:prewarmTabIds": {
+    shared:
+      "background tabs TabContent mounts hidden; read only by components, and the sim mounts no React",
+  },
   "lib/pendingDraftWrites.ts:exitHooked": DRAFTS,
   "lib/pendingDraftWrites.ts:pending": DRAFTS,
   "lib/pendingUploads.ts:pendingImageUploads": {
-    shared: "in-flight image uploads keyed by blob preview URL; only the composer (a component) adds one, and the sim mounts no React",
+    shared:
+      "in-flight image uploads keyed by blob preview URL; only the composer (a component) adds one, and the sim mounts no React",
   },
-  "lib/shareTokenScope.ts:tokensByConversation": { shared: "share tokens a guest presented on a page; sim windows are signed in and present none" },
+  "lib/shareTokenScope.ts:tokensByConversation": {
+    shared:
+      "share tokens a guest presented on a page; sim windows are signed in and present none",
+  },
   "lib/sounds.ts:ctx": AUDIO,
-  "lib/sounds.ts:soundedAt": { shared: "arrival sound de-dupe; affects only whether a sound plays" },
+  "lib/sounds.ts:soundedAt": {
+    shared: "arrival sound de-dupe; affects only whether a sound plays",
+  },
   "lib/syncLogCargo.ts:FACT_FIELDS": CONSTANT,
   "lib/tabRoutes.ts:NON_TAB_EXACT": CONSTANT,
   "lib/sessionCommands.ts:SESSION_COMMAND_ACTIONS": CONSTANT,
@@ -326,13 +525,23 @@ function load<T>(id: string): T {
   return require(id) as T;
 }
 
-type InboxBindings = typeof import("../../inboxStore").__inboxStoreWindowBindings;
+type InboxBindings =
+  typeof import("../../inboxStore").__inboxStoreWindowBindings;
 type InboxSlots = ReturnType<InboxBindings["get"]>;
 
 // The inboxStore window bindings declared as const collections: set() refills
 // them in place, and the store's own setter reassigns the rest. A binding
 // missing here is never restored, which realm.selftest's round trip catches.
-const INBOX_CONST_COLLECTIONS = ["recentlyRequestedPendingMessages", "resolvedSessionPreparations", "_userMsgsProbed", "_idbHydrating", "deferredDeletedSessions", "_placedMemo", "_visibleMemo", "retiredAckTs"] as const;
+const INBOX_CONST_COLLECTIONS = [
+  "recentlyRequestedPendingMessages",
+  "resolvedSessionPreparations",
+  "_userMsgsProbed",
+  "_idbHydrating",
+  "deferredDeletedSessions",
+  "_placedMemo",
+  "_visibleMemo",
+  "retiredAckTs",
+] as const;
 
 // inboxStore exports its live window bindings; the copying lives here. A
 // snapshot copies the const collections and both levels of _heldOverlayFacts
@@ -347,7 +556,12 @@ function inboxStoreSeam(b: InboxBindings): SlotSeam {
       const v = s[k] as Map<unknown, unknown> | Set<unknown>;
       out[k] = v instanceof Map ? new Map(v) : new Set(v);
     }
-    out._heldOverlayFacts = Object.fromEntries(Object.entries(s._heldOverlayFacts).map(([scope, h]) => [scope, { ...h }]));
+    out._heldOverlayFacts = Object.fromEntries(
+      Object.entries(s._heldOverlayFacts).map(([scope, h]) => [
+        scope,
+        { ...h },
+      ]),
+    );
     return out as InboxSlots;
   };
   return {
@@ -388,32 +602,66 @@ function inboxStoreSeam(b: InboxBindings): SlotSeam {
 }
 
 const SEAMS: Record<string, () => SlotSeam> = {
-  "store/inboxStore.ts": () => inboxStoreSeam(load<typeof import("../../inboxStore")>("../../inboxStore").__inboxStoreWindowBindings),
-  "store/gestureBridge.ts": () => load<typeof import("../../gestureBridge")>("../../gestureBridge").__gestureBridgeSimSlots() as SlotSeam,
-  "store/viewNav.ts": () => load<typeof import("../../viewNav")>("../../viewNav").__viewNavSimSlots() as SlotSeam,
-  [`${ENGINE}undoStack.ts`]: () => load<typeof import("@platform/engine")>("@platform/engine").__undoStackWindowSlots(),
+  "store/inboxStore.ts": () =>
+    inboxStoreSeam(
+      load<typeof import("../../inboxStore")>("../../inboxStore")
+        .__inboxStoreWindowBindings,
+    ),
+  "store/gestureBridge.ts": () =>
+    load<typeof import("../../gestureBridge")>(
+      "../../gestureBridge",
+    ).__gestureBridgeSimSlots() as SlotSeam,
+  "store/viewNav.ts": () =>
+    load<typeof import("../../viewNav")>(
+      "../../viewNav",
+    ).__viewNavSimSlots() as SlotSeam,
+  [`${ENGINE}undoStack.ts`]: () =>
+    load<typeof import("@platform/engine")>(
+      "@platform/engine",
+    ).__undoStackWindowSlots(),
   // No seam of its own: the module's getters plus its existing test setter.
   "store/syncActivity.ts": () => {
     const m = load<typeof import("../../syncActivity")>("../../syncActivity");
     type Slots = { _lastApplyMono: number; _applySeq: number };
     return {
-      fresh: (): Slots => ({ _lastApplyMono: Number.NEGATIVE_INFINITY, _applySeq: 0 }),
-      get: (): Slots => ({ _lastApplyMono: m.lastSyncApplyMono(), _applySeq: m.syncApplySeq() }),
-      set: (s: object) => m.__setSyncActivityForTests((s as Slots)._lastApplyMono, (s as Slots)._applySeq),
+      fresh: (): Slots => ({
+        _lastApplyMono: Number.NEGATIVE_INFINITY,
+        _applySeq: 0,
+      }),
+      get: (): Slots => ({
+        _lastApplyMono: m.lastSyncApplyMono(),
+        _applySeq: m.syncApplySeq(),
+      }),
+      set: (s: object) =>
+        m.__setSyncActivityForTests(
+          (s as Slots)._lastApplyMono,
+          (s as Slots)._applySeq,
+        ),
     };
   },
   "hooks/useBootstrapCollection.ts": () =>
-    load<typeof import("../../../hooks/useBootstrapCollection")>("../../../hooks/useBootstrapCollection").__bootstrapSimSlots() as SlotSeam,
+    load<typeof import("../../../hooks/useBootstrapCollection")>(
+      "../../../hooks/useBootstrapCollection",
+    ).__bootstrapSimSlots() as SlotSeam,
   "hooks/useSyncChangeFeed.ts": () =>
-    load<typeof import("../../../hooks/useSyncChangeFeed")>("../../../hooks/useSyncChangeFeed").__changeFeedSimSlots() as SlotSeam,
+    load<typeof import("../../../hooks/useSyncChangeFeed")>(
+      "../../../hooks/useSyncChangeFeed",
+    ).__changeFeedSimSlots() as SlotSeam,
   "hooks/reconcileCrawl.ts": () =>
-    load<typeof import("../../../hooks/reconcileCrawl")>("../../../hooks/reconcileCrawl").__reconcileCrawlSimSlots() as SlotSeam,
+    load<typeof import("../../../hooks/reconcileCrawl")>(
+      "../../../hooks/reconcileCrawl",
+    ).__reconcileCrawlSimSlots() as SlotSeam,
 };
 
 // Memo bindings, by file: each entry loads its module and returns the existing reset that drops them.
 const MEMO_RESETS: Record<string, () => () => void> = {
-  "store/chatSelectors.ts": () => load<typeof import("../../chatSelectors")>("../../chatSelectors")._resetChatRailMemo,
-  "hooks/useQueryNoThrow.ts": () => load<typeof import("../../../hooks/useQueryNoThrow")>("../../../hooks/useQueryNoThrow")._resetRememberedResults,
+  "store/chatSelectors.ts": () =>
+    load<typeof import("../../chatSelectors")>("../../chatSelectors")
+      ._resetChatRailMemo,
+  "hooks/useQueryNoThrow.ts": () =>
+    load<typeof import("../../../hooks/useQueryNoThrow")>(
+      "../../../hooks/useQueryNoThrow",
+    )._resetRememberedResults,
 };
 
 const fileOf = (key: string) => key.slice(0, key.lastIndexOf(":"));
@@ -440,23 +688,39 @@ function windowSeams(): Map<string, SlotSeam> {
   const out = new Map<string, SlotSeam>();
   for (const file of filesOfClass("window")) {
     const make = SEAMS[file];
-    if (!make) throw new Error(`sim slots: ${file} has window bindings but no seam in SEAMS (sim/windowSlots.ts)`);
+    if (!make)
+      throw new Error(
+        `sim slots: ${file} has window bindings but no seam in SEAMS (sim/windowSlots.ts)`,
+      );
     const seam = make();
-    const want = keysOfClass("window").filter((k) => fileOf(k) === file).map(bindingOf).sort();
+    const want = keysOfClass("window")
+      .filter((k) => fileOf(k) === file)
+      .map(bindingOf)
+      .sort();
     const have = Object.keys(seam.fresh()).sort();
     if (want.join() !== have.join()) {
-      throw new Error(`sim slots: ${file} seam carries [${have.join(", ")}] but WINDOW_SLOTS lists [${want.join(", ")}] as window`);
+      throw new Error(
+        `sim slots: ${file} seam carries [${have.join(", ")}] but WINDOW_SLOTS lists [${want.join(", ")}] as window`,
+      );
     }
     out.set(file, seam);
   }
   for (const file of Object.keys(SEAMS)) {
-    if (!out.has(file)) throw new Error(`sim slots: SEAMS has ${file}, which WINDOW_SLOTS gives no window binding`);
+    if (!out.has(file))
+      throw new Error(
+        `sim slots: SEAMS has ${file}, which WINDOW_SLOTS gives no window binding`,
+      );
   }
   for (const file of filesOfClass("memo")) {
-    if (!MEMO_RESETS[file]) throw new Error(`sim slots: ${file} has memo bindings but no reset in MEMO_RESETS (sim/windowSlots.ts)`);
+    if (!MEMO_RESETS[file])
+      throw new Error(
+        `sim slots: ${file} has memo bindings but no reset in MEMO_RESETS (sim/windowSlots.ts)`,
+      );
   }
   memoResets = filesOfClass("memo").map((file) => MEMO_RESETS[file]());
-  syncTransaction = load<typeof import("../../syncTransaction")>("../../syncTransaction");
+  syncTransaction = load<typeof import("../../syncTransaction")>(
+    "../../syncTransaction",
+  );
   return (seams = out);
 }
 
@@ -470,7 +734,8 @@ export function saveSlots(): SlotSnapshot {
 /** Loads a snapshot into the live bindings. */
 export function restoreSlots(s: SlotSnapshot): void {
   for (const [file, seam] of windowSeams()) {
-    if (!(file in s)) throw new Error(`sim slots: snapshot has no entry for ${file}`);
+    if (!(file in s))
+      throw new Error(`sim slots: snapshot has no entry for ${file}`);
     seam.set(s[file]);
   }
 }

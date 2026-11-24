@@ -13,7 +13,16 @@ import { SessionStatusMark } from "../inbox/SessionStatusMark";
 // the transcript is a row; this is the exception on purpose.
 
 /** The card around an ask. `kicker` rides after the Needs you mark (a header, a tool); `aside` sits at its right (a deadline). */
-export function ModernAskCard({ kicker, aside, question, detail, children, edge = "needs_you", className = "", ...rest }: {
+export function ModernAskCard({
+  kicker,
+  aside,
+  question,
+  detail,
+  children,
+  edge = "needs_you",
+  className = "",
+  ...rest
+}: {
   kicker?: ReactNode;
   aside?: ReactNode;
   question?: ReactNode;
@@ -34,11 +43,33 @@ export function ModernAskCard({ kicker, aside, question, detail, children, edge 
       <div className="flex min-w-0 items-center gap-2 text-meta leading-5">
         <SessionStatusMark status={edge} />
         <span className={`shrink-0 font-medium ${meta.text}`}>{meta.word}</span>
-        {kicker && <span className="flex min-w-0 items-center gap-2 truncate text-sol-text-muted">{kicker}</span>}
-        {aside && <span className="ml-auto shrink-0 tabular-nums text-sol-text-dim">{aside}</span>}
+        {kicker && (
+          <span className="flex min-w-0 items-center gap-2 truncate text-sol-text-muted">
+            {kicker}
+          </span>
+        )}
+        {aside && (
+          <span className="ml-auto shrink-0 tabular-nums text-sol-text-dim">
+            {aside}
+          </span>
+        )}
       </div>
-      {question && <div data-cc-ask-question className="mt-1.5 text-read font-semibold leading-6 text-sol-text [overflow-wrap:anywhere]">{question}</div>}
-      {detail && <div data-cc-ask-detail className="mt-1 text-ui leading-5 text-sol-text-muted whitespace-pre-line [overflow-wrap:anywhere]">{detail}</div>}
+      {question && (
+        <div
+          data-cc-ask-question
+          className="mt-1.5 text-read font-semibold leading-6 text-sol-text [overflow-wrap:anywhere]"
+        >
+          {question}
+        </div>
+      )}
+      {detail && (
+        <div
+          data-cc-ask-detail
+          className="mt-1 text-ui leading-5 text-sol-text-muted whitespace-pre-line [overflow-wrap:anywhere]"
+        >
+          {detail}
+        </div>
+      )}
       {children && <div className="mt-3 min-w-0">{children}</div>}
     </section>
   );
@@ -49,7 +80,14 @@ export function ModernAskCard({ kicker, aside, question, detail, children, edge 
  * was chosen (or how it closed). `detail` opens under the chevron when given:
  * the question whole, with the choice in it.
  */
-export function ModernAnsweredRow({ verb = "Answered", question, answer, closed, detail, ...rest }: {
+export function ModernAnsweredRow({
+  verb = "Answered",
+  question,
+  answer,
+  closed,
+  detail,
+  ...rest
+}: {
   verb?: string;
   question: ReactNode;
   answer?: ReactNode;
@@ -61,22 +99,44 @@ export function ModernAnsweredRow({ verb = "Answered", question, answer, closed,
   const Icon = closed ? CircleSlash : Check;
   const words = (
     <>
-      <Icon data-cc-row-icon aria-hidden className={`w-4 h-4 shrink-0 ${closed ? "" : "text-sol-green"}`} strokeWidth={1.75} />
+      <Icon
+        data-cc-row-icon
+        aria-hidden
+        className={`w-4 h-4 shrink-0 ${closed ? "" : "text-sol-green"}`}
+        strokeWidth={1.75}
+      />
       <span data-cc-row-verb>{verb}</span>
       <span data-cc-row-text>{question}</span>
       {answer != null && answer !== "" && (
-        <span data-cc-row-meta className={`max-w-[45%] overflow-hidden text-ellipsis ${closed ? "" : "!text-sol-text"}`}>{answer}</span>
+        <span
+          data-cc-row-meta
+          className={`max-w-[45%] overflow-hidden text-ellipsis ${closed ? "" : "!text-sol-text"}`}
+        >
+          {answer}
+        </span>
       )}
     </>
   );
   return (
     <div data-cc-row="answered" {...rest}>
       {detail ? (
-        <button type="button" data-cc-row-head aria-expanded={open} onClick={() => setOpen((v) => !v)} className="w-full text-left">{words}</button>
+        <button
+          type="button"
+          data-cc-row-head
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="w-full text-left"
+        >
+          {words}
+        </button>
       ) : (
         <div data-cc-row-head>{words}</div>
       )}
-      {open && detail && <div data-cc-row-detail className="px-3.5 py-2.5">{detail}</div>}
+      {open && detail && (
+        <div data-cc-row-detail className="px-3.5 py-2.5">
+          {detail}
+        </div>
+      )}
     </div>
   );
 }

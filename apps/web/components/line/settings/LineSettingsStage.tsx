@@ -15,12 +15,26 @@ import { LineStarts } from "./LineStarts";
 import { useSearchParams } from "next/navigation";
 
 /** The projects whose problems a line works, read off the same process index the header's picker uses. */
-export function projectsOfLine(line: string | null, rollups: ReadonlyArray<RollupRow>, processOf: (projectId: string) => string): string[] {
+export function projectsOfLine(
+  line: string | null,
+  rollups: ReadonlyArray<RollupRow>,
+  processOf: (projectId: string) => string,
+): string[] {
   if (!line) return [];
-  return rollups.filter((r) => r.key !== NO_PROJECT && processOf(r.key) === line).map((r) => r.key);
+  return rollups
+    .filter((r) => r.key !== NO_PROJECT && processOf(r.key) === line)
+    .map((r) => r.key);
 }
 
-export function LineSettingsStage({ projectId, line, lines, projects, rollups, processOf, href }: {
+export function LineSettingsStage({
+  projectId,
+  line,
+  lines,
+  projects,
+  rollups,
+  processOf,
+  href,
+}: {
   /** The project the address filters to, when it does. */
   projectId: string | null;
   /** The line drawn in the header. */
@@ -36,9 +50,10 @@ export function LineSettingsStage({ projectId, line, lines, projects, rollups, p
   // Who starts work on every line (?section=starts): its own page, whatever line the header draws.
   const section = useSearchParams()?.get("section");
   const running = projectsOfLine(line, rollups, processOf);
-  if (section === "starts") return <LineStarts projects={projects} rollups={rollups} />;
+  if (section === "starts")
+    return <LineStarts projects={projects} rollups={rollups} />;
   const pick = projectId ?? (running.length === 1 ? running[0] : null);
-  const project = pick ? projects.find((p) => p._id === pick) ?? null : null;
+  const project = pick ? (projects.find((p) => p._id === pick) ?? null) : null;
   if (project) {
     return (
       <div className="lw-stage-fill" data-line-settings-stage={project._id}>
@@ -50,32 +65,76 @@ export function LineSettingsStage({ projectId, line, lines, projects, rollups, p
       </div>
     );
   }
-  const name = (key: string) => projects.find((p) => p._id === key)?.title ?? rollups.find((r) => r.key === key)?.title ?? key;
+  const name = (key: string) =>
+    projects.find((p) => p._id === key)?.title ??
+    rollups.find((r) => r.key === key)?.title ??
+    key;
   const param = (key: string) => {
     const p = projects.find((x) => x._id === key);
-    return p ? lineFilterParam(p, projects) : rollups.find((r) => r.key === key)?.short_id ?? key;
+    return p
+      ? lineFilterParam(p, projects)
+      : (rollups.find((r) => r.key === key)?.short_id ?? key);
   };
   // A line several projects run: which project's settings.
   if (running.length > 1) {
     return (
       <div className="lw-stage-fill lset-pick" data-lset-pick="project">
-        <div className="lset-head"><h2 className="lset-head-t">{line ? processName(line).title : "Flow"}</h2><span className="lset-dim">runs in {running.length} projects</span></div>
+        <div className="lset-head">
+          <h2 className="lset-head-t">
+            {line ? processName(line).title : "Flow"}
+          </h2>
+          <span className="lset-dim">runs in {running.length} projects</span>
+        </div>
         <ul className="lset-pick-list" role="list">
-          {running.map((k) => <li key={k}><Link href={href({ project: param(k), graph: line })} className="lset-pick-row" data-lset-pick-row={k}>{name(k)}</Link></li>)}
+          {running.map((k) => (
+            <li key={k}>
+              <Link
+                href={href({ project: param(k), graph: line })}
+                className="lset-pick-row"
+                data-lset-pick-row={k}
+              >
+                {name(k)}
+              </Link>
+            </li>
+          ))}
         </ul>
       </div>
     );
   }
   // No line resolves to a project: the lines the switcher lists, each opening the settings of the project that runs it.
-  const rows = lines.map((g) => ({ g, projects: projectsOfLine(g.key, rollups, processOf) })).filter((x) => x.projects.length > 0);
+  const rows = lines
+    .map((g) => ({ g, projects: projectsOfLine(g.key, rollups, processOf) }))
+    .filter((x) => x.projects.length > 0);
   return (
     <div className="lw-stage-fill lset-pick" data-lset-pick="line">
-      <div className="lset-head"><h2 className="lset-head-t">Settings</h2><span className="lset-dim">{rows.length ? "pick a flow" : "no flow has run here yet"}</span></div>
+      <div className="lset-head">
+        <h2 className="lset-head-t">Settings</h2>
+        <span className="lset-dim">
+          {rows.length ? "pick a flow" : "no flow has run here yet"}
+        </span>
+      </div>
       <ul className="lset-pick-list" role="list">
-        <li><Link href="/flows/settings?section=starts" className="lset-pick-row" data-lset-pick-row="starts"><span>Who starts work</span><span className="lset-dim">every flow's switch and limits</span></Link></li>
+        <li>
+          <Link
+            href="/flows/settings?section=starts"
+            className="lset-pick-row"
+            data-lset-pick-row="starts"
+          >
+            <span>Who starts work</span>
+            <span className="lset-dim">every flow's switch and limits</span>
+          </Link>
+        </li>
         {rows.map(({ g, projects: ps }) => (
           <li key={g.key}>
-            <Link href={href(ps.length === 1 ? { project: param(ps[0]), graph: g.key } : { graph: g.key })} className="lset-pick-row" data-lset-pick-row={g.key}>
+            <Link
+              href={href(
+                ps.length === 1
+                  ? { project: param(ps[0]), graph: g.key }
+                  : { graph: g.key },
+              )}
+              className="lset-pick-row"
+              data-lset-pick-row={g.key}
+            >
               <span>{processName(g.key, g.title, g.label).title}</span>
               <span className="lset-dim">{ps.map(name).join(", ")}</span>
             </Link>

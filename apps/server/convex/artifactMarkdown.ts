@@ -31,10 +31,17 @@ export function slugify(text: string, seen: Map<string, number>): string {
   return n === 0 ? base : `${base}-${n}`;
 }
 
-function highlight(code: string, lang: string | undefined): { html: string; lang: string | null } {
+function highlight(
+  code: string,
+  lang: string | undefined,
+): { html: string; lang: string | null } {
   const name = (lang ?? "").trim().split(/\s+/)[0];
   if (name && hljs.getLanguage(name)) {
-    return { html: hljs.highlight(code, { language: name, ignoreIllegals: true }).value, lang: name };
+    return {
+      html: hljs.highlight(code, { language: name, ignoreIllegals: true })
+        .value,
+      lang: name,
+    };
   }
   return { html: escHtml(code), lang: name || null };
 }
@@ -58,9 +65,16 @@ function createMarked(): Marked {
       table(token: Tokens.Table) {
         // A column holding sentences keeps a readable width; a narrow screen
         // scrolls the table rather than wrapping it one word to a line.
-        const prose = token.header.map((_, i) => token.rows.some((r) => (r[i]?.text.length ?? 0) > PROSE_CELL_CHARS));
+        const prose = token.header.map((_, i) =>
+          token.rows.some((r) => (r[i]?.text.length ?? 0) > PROSE_CELL_CHARS),
+        );
         const head = `<tr>${token.header.map((c, i) => cell.call(this, c, "th", prose[i])).join("")}</tr>`;
-        const body = token.rows.map((r) => `<tr>${r.map((c, i) => cell.call(this, c, "td", prose[i])).join("")}</tr>`).join("");
+        const body = token.rows
+          .map(
+            (r) =>
+              `<tr>${r.map((c, i) => cell.call(this, c, "td", prose[i])).join("")}</tr>`,
+          )
+          .join("");
         return `<div class="tbl"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>\n`;
       },
     },
@@ -69,7 +83,12 @@ function createMarked(): Marked {
 
 const PROSE_CELL_CHARS = 32;
 
-function cell(this: { parser: { parseInline(t: Tokens.Generic[]): string } }, c: Tokens.TableCell, tag: "th" | "td", prose = false): string {
+function cell(
+  this: { parser: { parseInline(t: Tokens.Generic[]): string } },
+  c: Tokens.TableCell,
+  tag: "th" | "td",
+  prose = false,
+): string {
   const align = c.align ? ` style="text-align:${c.align}"` : "";
   const cls = prose ? ` class="prose"` : "";
   return `<${tag}${cls}${align}>${this.parser.parseInline(c.tokens)}</${tag}>`;
@@ -79,7 +98,6 @@ function cell(this: { parser: { parseInline(t: Tokens.Generic[]): string } }, c:
 export async function renderMarkdownBody(md: string): Promise<string> {
   return createMarked().parse(md, { async: true });
 }
-
 
 // The palette of codecast's Modern style: neutral surfaces, a near-black ink
 // with a green cast, and the verdigris accent. The page (--md-page) is the
@@ -390,7 +408,10 @@ ${MD_SCRIPT}
 }
 
 /** Full render: markdown source → stored document. */
-export async function renderMarkdownDocument(md: string, title: string): Promise<string> {
+export async function renderMarkdownDocument(
+  md: string,
+  title: string,
+): Promise<string> {
   return mdDocumentHtml({ title, bodyHtml: await renderMarkdownBody(md) });
 }
 
@@ -402,5 +423,8 @@ export function restyleMarkdownDocument(stored: string, title: string): string {
   const start = stored.indexOf(MAIN_OPEN);
   const end = stored.lastIndexOf(MAIN_CLOSE);
   if (start < 0 || end < start + MAIN_OPEN.length) return stored;
-  return mdDocumentHtml({ title, bodyHtml: stored.slice(start + MAIN_OPEN.length, end) });
+  return mdDocumentHtml({
+    title,
+    bodyHtml: stored.slice(start + MAIN_OPEN.length, end),
+  });
 }

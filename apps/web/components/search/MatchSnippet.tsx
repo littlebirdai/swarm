@@ -23,21 +23,53 @@ const CLIP_PX = 76;
  *  person's avatar and name ("You" for the viewer), or the agent as it speaks
  *  in that conversation (a role's or character's face and name, else the
  *  agent's mark and name). */
-export function SpeakerLine({ role, agentType, identity, authorName, authorAvatar, isOwn }: {
-  role: string; agentType?: string | null; identity?: IdentityRow | null; authorName?: string | null; authorAvatar?: string | null; isOwn?: boolean;
+export function SpeakerLine({
+  role,
+  agentType,
+  identity,
+  authorName,
+  authorAvatar,
+  isOwn,
+}: {
+  role: string;
+  agentType?: string | null;
+  identity?: IdentityRow | null;
+  authorName?: string | null;
+  authorAvatar?: string | null;
+  isOwn?: boolean;
 }) {
   if (role === "user") {
     return (
       <>
         <UserIcon avatarUrl={authorAvatar} size="w-4 h-4" />
-        <span className="font-medium text-sol-blue">{isOwn !== false ? "You" : authorName || "User"}</span>
+        <span className="font-medium text-sol-blue">
+          {isOwn !== false ? "You" : authorName || "User"}
+        </span>
       </>
     );
   }
-  return <AgentSpeaker row={identity ?? null} agentType={agentType} size={16} nameClassName="font-medium text-sol-text-secondary" />;
+  return (
+    <AgentSpeaker
+      row={identity ?? null}
+      agentType={agentType}
+      size={16}
+      nameClassName="font-medium text-sol-text-secondary"
+    />
+  );
 }
 
-export const MatchSnippet = memo(function MatchSnippet({ content, timestamp, who, userText, highlight, href, external, onClick, onContextMenu, clipPx = CLIP_PX }: {
+export const MatchSnippet = memo(function MatchSnippet({
+  content,
+  timestamp,
+  who,
+  userText,
+  highlight,
+  href,
+  external,
+  onClick,
+  onContextMenu,
+  clipPx = CLIP_PX,
+}: {
   content: string;
   timestamp?: number;
   /** The speaker's line (SpeakerLine, or a chat author). */
@@ -68,9 +100,17 @@ export const MatchSnippet = memo(function MatchSnippet({ content, timestamp, who
     >
       <div className="mb-1 flex min-w-0 items-center gap-1.5 text-meta">
         {who}
-        {timestamp ? <span className="flex-shrink-0 tabular-nums text-sol-text-dim">{formatSearchTimestamp(timestamp)}</span> : null}
+        {timestamp ? (
+          <span className="flex-shrink-0 tabular-nums text-sol-text-dim">
+            {formatSearchTimestamp(timestamp)}
+          </span>
+        ) : null}
       </div>
-      <div ref={clipRef} className="overflow-hidden pl-[22px]" style={{ maxHeight: clipPx, ...(clipped ? clipFade(20) : null) }}>
+      <div
+        ref={clipRef}
+        className="overflow-hidden pl-[22px]"
+        style={{ maxHeight: clipPx, ...(clipped ? clipFade(20) : null) }}
+      >
         <div className="prose prose-sm max-w-none text-[13px] leading-relaxed text-sol-text-secondary [&_p]:my-0 [&_ul]:my-0.5 [&_ol]:my-0.5 [&_pre]:my-1 [&_h1]:text-[13px] [&_h2]:text-[13px] [&_h3]:text-[13px]">
           <HighlightContext.Provider value={highlight || undefined}>
             <MessageMarkdown content={body} userText={userText} />

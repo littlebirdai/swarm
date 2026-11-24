@@ -3,14 +3,35 @@
 import { Button } from "../ui/button";
 import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
 import { ArrowDown, ArrowUp, Check, Square, CheckSquare } from "lucide-react";
-import type { SessionDecisionItem, DecisionAnswerInput } from "../../store/inboxStore";
+import type {
+  SessionDecisionItem,
+  DecisionAnswerInput,
+} from "../../store/inboxStore";
 import { KeyCap } from "../KeyboardShortcutsHelp";
-import { DecisionOptionList, RecommendedMark, TypeAnswerButton } from "./DecisionOptionList";
+import {
+  DecisionOptionList,
+  RecommendedMark,
+  TypeAnswerButton,
+} from "./DecisionOptionList";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { useDecisionDraft, useDecisionDraftText } from "../../hooks/useDecisionDraft";
+import {
+  useDecisionDraft,
+  useDecisionDraftText,
+} from "../../hooks/useDecisionDraft";
 import { chosenOptions, ladderRecommenders } from "../../lib/decisionLinks";
-import { ANSWER_WORDS, answerView, buildDecisionAnswer, moveInOrder, togglePicked, type AnswerDraft } from "../../lib/decisionAnswer";
-import { ChangeCardAnswer, answerKeyAllowed, cardAnswerIndexes } from "./ChangeCardView";
+import {
+  ANSWER_WORDS,
+  answerView,
+  buildDecisionAnswer,
+  moveInOrder,
+  togglePicked,
+  type AnswerDraft,
+} from "../../lib/decisionAnswer";
+import {
+  ChangeCardAnswer,
+  answerKeyAllowed,
+  cardAnswerIndexes,
+} from "./ChangeCardView";
 import { PassDecision } from "./PassDecision";
 import { useHeldOption } from "../../lib/agentTabGuard";
 import { useApproveGate } from "../../lib/passkeyPresence";
@@ -30,11 +51,34 @@ import { useApproveGate } from "../../lib/passkeyPresence";
 // the card's own controls (ChangeCardAnswer), whatever surface renders it.
 /** `record` is a card's answer on record in words (cardOutcome's pill); other kinds show theirs on the rows. */
 /** `caption: false` leaves out the card's "X recommended: why" line where the surface already leads with the recommendation. */
-type AnswerControlsProps = Parameters<typeof GenericAnswerControls>[0] & { record?: string; describe?: boolean; caption?: boolean };
+type AnswerControlsProps = Parameters<typeof GenericAnswerControls>[0] & {
+  record?: string;
+  describe?: boolean;
+  caption?: boolean;
+};
 export function DecisionAnswerControls(props: AnswerControlsProps) {
   const indexes = cardAnswerIndexes(props.decision);
-  if (indexes) return <ChangeCardAnswer decision={props.decision} indexes={indexes} onAnswer={props.onAnswer} onDismiss={props.onDismiss} keys={props.keys} keyScope={props.keyScope} size={props.size} record={props.record} describe={props.describe} caption={props.caption} />;
-  const { record: _record, describe: _describe, caption: _caption, ...rest } = props;
+  if (indexes)
+    return (
+      <ChangeCardAnswer
+        decision={props.decision}
+        indexes={indexes}
+        onAnswer={props.onAnswer}
+        onDismiss={props.onDismiss}
+        keys={props.keys}
+        keyScope={props.keyScope}
+        size={props.size}
+        record={props.record}
+        describe={props.describe}
+        caption={props.caption}
+      />
+    );
+  const {
+    record: _record,
+    describe: _describe,
+    caption: _caption,
+    ...rest
+  } = props;
   return <GenericAnswerControls {...rest} />;
 }
 
@@ -63,24 +107,44 @@ function GenericAnswerControls({
   // changes, and a choice must never fold away with it.
   const [draft, patchDraft] = useDecisionDraft<AnswerDraft>(decision._id);
   const otherOpen = !!draft.otherOpen;
-  const [otherText, setOtherText] = useDecisionDraftText(decision._id, "otherText");
-  const setOtherOpen = useCallback((open: boolean) => patchDraft({ otherOpen: open }), [patchDraft]);
+  const [otherText, setOtherText] = useDecisionDraftText(
+    decision._id,
+    "otherText",
+  );
+  const setOtherOpen = useCallback(
+    (open: boolean) => patchDraft({ otherOpen: open }),
+    [patchDraft],
+  );
   const otherRef = useRef<HTMLTextAreaElement>(null);
   const view = useMemo(() => answerView(decision, draft), [decision, draft]);
   const recommenders = ladderRecommenders(decision);
   const { picked, order, values } = view;
-  const setValue = useCallback((key: string, fn: (v: any) => any) => patchDraft((cur) => ({ values: { ...cur.values, [key]: fn(cur.values?.[key] ?? values[key]) } })), [patchDraft, values]);
-  const togglePick = useCallback((n: number) => patchDraft((cur) => togglePicked(cur, n)), [patchDraft]);
+  const setValue = useCallback(
+    (key: string, fn: (v: any) => any) =>
+      patchDraft((cur) => ({
+        values: { ...cur.values, [key]: fn(cur.values?.[key] ?? values[key]) },
+      })),
+    [patchDraft, values],
+  );
+  const togglePick = useCallback(
+    (n: number) => patchDraft((cur) => togglePicked(cur, n)),
+    [patchDraft],
+  );
   const [error, setError] = useState<string | null>(null);
   // Where it can be dismissed it can be handed on, except a trial's question.
-  const canPass = !!onDismiss && !decision.trial && decision.status === "pending";
+  const canPass =
+    !!onDismiss && !decision.trial && decision.status === "pending";
   const [passOpen, setPassOpen] = useState(false);
 
   const held = useHeldOption(decision);
   const gate = useApproveGate(decision);
-  const answerSingle = useCallback((index: number) => {
-    if (!held(index)) gate.answer(index, (presence) => onAnswer({ index, presence }));
-  }, [onAnswer, held, gate]);
+  const answerSingle = useCallback(
+    (index: number) => {
+      if (!held(index))
+        gate.answer(index, (presence) => onAnswer({ index, presence }));
+    },
+    [onAnswer, held, gate],
+  );
   const answerText = useCallback(() => {
     const t = otherText.trim();
     if (!t) return;
@@ -94,10 +158,13 @@ function GenericAnswerControls({
     onAnswer(built.input);
   }, [decision, view, onAnswer]);
 
-  const move = useCallback((from: number, dir: -1 | 1) => {
-    const next = moveInOrder(order, from, dir);
-    if (next) patchDraft({ order: next });
-  }, [order, patchDraft]);
+  const move = useCallback(
+    (from: number, dir: -1 | 1) => {
+      const next = moveInOrder(order, from, dir);
+      if (next) patchDraft({ order: next });
+    },
+    [order, patchDraft],
+  );
 
   // Digits answer a single; on a multi they toggle; Enter submits a multi,
   // rank or form; t opens the typed answer; x dismisses. Capture phase, so
@@ -110,36 +177,82 @@ function GenericAnswerControls({
     const onKey = (e: KeyboardEvent) => {
       if (passOpen || !answerKeyAllowed(e, keyScope)) return;
       const target = e.target as HTMLElement | null;
-      const editing = !!target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable || target.tagName === "SELECT");
+      const editing =
+        !!target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable ||
+          target.tagName === "SELECT");
       if (editing) {
         if (target === otherRef.current) {
-          if (e.key === "Escape") { e.preventDefault(); setOtherOpen(false); }
-          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); answerText(); }
-        } else if (kind === "form" && e.key === "Enter" && !e.shiftKey && target?.tagName !== "TEXTAREA") {
-          e.preventDefault(); submit();
+          if (e.key === "Escape") {
+            e.preventDefault();
+            setOtherOpen(false);
+          }
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            answerText();
+          }
+        } else if (
+          kind === "form" &&
+          e.key === "Enter" &&
+          !e.shiftKey &&
+          target?.tagName !== "TEXTAREA"
+        ) {
+          e.preventDefault();
+          submit();
         }
         return;
       }
       if (e.key >= "1" && e.key <= "9") {
         const n = Number(e.key) - 1;
         if (n >= decision.options.length) return;
-        e.preventDefault(); e.stopImmediatePropagation();
+        e.preventDefault();
+        e.stopImmediatePropagation();
         if (kind === "single") answerSingle(n);
         else if (kind === "multi") togglePick(n);
         return;
       }
-      if (e.key === "Enter" && kind !== "single") { e.preventDefault(); e.stopImmediatePropagation(); submit(); return; }
-      if ((e.key === "t" || e.key === "T") && kind === "single") {
-        e.preventDefault(); e.stopImmediatePropagation();
-        setOtherOpen(true); setTimeout(() => otherRef.current?.focus(), 0);
+      if (e.key === "Enter" && kind !== "single") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        submit();
         return;
       }
-      if ((e.key === "x" || e.key === "X") && onDismiss) { e.preventDefault(); e.stopImmediatePropagation(); onDismiss(); }
-      if ((e.key === "p" || e.key === "P") && canPass) { e.preventDefault(); e.stopImmediatePropagation(); setPassOpen(true); }
+      if ((e.key === "t" || e.key === "T") && kind === "single") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        setOtherOpen(true);
+        setTimeout(() => otherRef.current?.focus(), 0);
+        return;
+      }
+      if ((e.key === "x" || e.key === "X") && onDismiss) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        onDismiss();
+      }
+      if ((e.key === "p" || e.key === "P") && canPass) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        setPassOpen(true);
+      }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [keys, keyScope, kind, decision.options.length, answerSingle, answerText, submit, onDismiss, togglePick, setOtherOpen, passOpen, canPass]);
+  }, [
+    keys,
+    keyScope,
+    kind,
+    decision.options.length,
+    answerSingle,
+    answerText,
+    submit,
+    onDismiss,
+    togglePick,
+    setOtherOpen,
+    passOpen,
+    canPass,
+  ]);
 
   const compact = size !== "full";
   const submitBtn = (
@@ -153,14 +266,26 @@ function GenericAnswerControls({
   const tags = (i: number) => (
     <>
       {recommendation === i && <RecommendedMark count={recommenders.get(i)} />}
-      {decision.default_option === i && !decision.blocking && <span className="text-meta px-1.5 py-0.5 rounded border border-sol-border text-sol-text-dim">{ANSWER_WORDS.proceeding}</span>}
+      {decision.default_option === i && !decision.blocking && (
+        <span className="text-meta px-1.5 py-0.5 rounded border border-sol-border text-sol-text-dim">
+          {ANSWER_WORDS.proceeding}
+        </span>
+      )}
     </>
   );
-  const openOther = () => { setOtherOpen(true); setTimeout(() => otherRef.current?.focus(), 0); };
+  const openOther = () => {
+    setOtherOpen(true);
+    setTimeout(() => otherRef.current?.focus(), 0);
+  };
 
   const dismissBtn = onDismiss && (
-    <button onClick={onDismiss} className="flex items-center gap-1.5 text-meta text-sol-text-dim hover:text-sol-red transition-colors" title="Dismiss without answering — the agent is not told">
-      {keys && <KeyCap size="xs">x</KeyCap>}<span>Dismiss</span>
+    <button
+      onClick={onDismiss}
+      className="flex items-center gap-1.5 text-meta text-sol-text-dim hover:text-sol-red transition-colors"
+      title="Dismiss without answering — the agent is not told"
+    >
+      {keys && <KeyCap size="xs">x</KeyCap>}
+      <span>Dismiss</span>
     </button>
   );
 
@@ -196,12 +321,21 @@ function GenericAnswerControls({
             tags={tags}
             leading={(n) => (
               <span className="flex items-center gap-1.5">
-                {picked.includes(n) ? <CheckSquare className="w-4 h-4 text-sol-green" /> : <Square className="w-4 h-4 text-sol-text-dim" />}
+                {picked.includes(n) ? (
+                  <CheckSquare className="w-4 h-4 text-sol-green" />
+                ) : (
+                  <Square className="w-4 h-4 text-sol-text-dim" />
+                )}
                 {keys && n < 9 && <KeyCap size="xs">{String(n + 1)}</KeyCap>}
               </span>
             )}
           />
-          <div className="flex items-center gap-3 pt-1">{submitBtn}<span className="text-meta text-sol-text-dim">{picked.length} picked</span></div>
+          <div className="flex items-center gap-3 pt-1">
+            {submitBtn}
+            <span className="text-meta text-sol-text-dim">
+              {picked.length} picked
+            </span>
+          </div>
         </div>
       );
     }
@@ -214,36 +348,90 @@ function GenericAnswerControls({
             options={ordered}
             compact={compact}
             tags={(pos) => tags(order[pos])}
-            leading={(pos) => <span className="font-mono text-meta text-sol-text-dim w-5">{pos + 1}.</span>}
+            leading={(pos) => (
+              <span className="font-mono text-meta text-sol-text-dim w-5">
+                {pos + 1}.
+              </span>
+            )}
             trailing={(pos) => (
               <>
-                <button onClick={() => move(pos, -1)} disabled={pos === 0} className="p-1 rounded hover:bg-sol-card disabled:opacity-30" title="Move up"><ArrowUp className="w-3.5 h-3.5" /></button>
-                <button onClick={() => move(pos, 1)} disabled={pos === order.length - 1} className="p-1 rounded hover:bg-sol-card disabled:opacity-30" title="Move down"><ArrowDown className="w-3.5 h-3.5" /></button>
+                <button
+                  onClick={() => move(pos, -1)}
+                  disabled={pos === 0}
+                  className="p-1 rounded hover:bg-sol-card disabled:opacity-30"
+                  title="Move up"
+                >
+                  <ArrowUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => move(pos, 1)}
+                  disabled={pos === order.length - 1}
+                  className="p-1 rounded hover:bg-sol-card disabled:opacity-30"
+                  title="Move down"
+                >
+                  <ArrowDown className="w-3.5 h-3.5" />
+                </button>
               </>
             )}
           />
-          <div className="flex items-center gap-3 pt-1">{submitBtn}<span className="text-meta text-sol-text-dim">first is most preferred</span></div>
+          <div className="flex items-center gap-3 pt-1">
+            {submitBtn}
+            <span className="text-meta text-sol-text-dim">
+              first is most preferred
+            </span>
+          </div>
         </div>
       );
     }
     const fields = decision.form?.fields ?? [];
-    const input = "w-full bg-sol-card border border-sol-border rounded px-2 py-1.5 text-sm text-sol-text placeholder:text-sol-text-dim focus:outline-none focus:border-sol-blue/50";
+    const input =
+      "w-full bg-sol-card border border-sol-border rounded px-2 py-1.5 text-sm text-sol-text placeholder:text-sol-text-dim focus:outline-none focus:border-sol-blue/50";
     return (
       <div className="space-y-2.5">
         {fields.map((f) => (
           <label key={f.key} className="block">
-            <span className="block text-mark uppercase tracking-wide text-sol-text-dim mb-1">{f.label}</span>
+            <span className="block text-mark uppercase tracking-wide text-sol-text-dim mb-1">
+              {f.label}
+            </span>
             {f.type === "bool" ? (
-              <button onClick={() => setValue(f.key, (v) => !v)} className="flex items-center gap-2 text-sm text-sol-text">
-                {values[f.key] ? <CheckSquare className="w-4 h-4 text-sol-yellow" /> : <Square className="w-4 h-4 text-sol-text-dim" />}
-                <span>{values[f.key] ? ANSWER_WORDS.yes : ANSWER_WORDS.no}</span>
+              <button
+                onClick={() => setValue(f.key, (v) => !v)}
+                className="flex items-center gap-2 text-sm text-sol-text"
+              >
+                {values[f.key] ? (
+                  <CheckSquare className="w-4 h-4 text-sol-yellow" />
+                ) : (
+                  <Square className="w-4 h-4 text-sol-text-dim" />
+                )}
+                <span>
+                  {values[f.key] ? ANSWER_WORDS.yes : ANSWER_WORDS.no}
+                </span>
               </button>
             ) : f.type === "select" ? (
-              <select value={values[f.key]} onChange={(e) => { const v = e.target.value; setValue(f.key, () => v); }} className={input}>
-                {(f.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+              <select
+                value={values[f.key]}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setValue(f.key, () => v);
+                }}
+                className={input}
+              >
+                {(f.options ?? []).map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
               </select>
             ) : (
-              <input type={f.type === "number" ? "number" : "text"} value={values[f.key]} onChange={(e) => { const v = e.target.value; setValue(f.key, () => v); }} className={input} />
+              <input
+                type={f.type === "number" ? "number" : "text"}
+                value={values[f.key]}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setValue(f.key, () => v);
+                }}
+                className={input}
+              />
             )}
           </label>
         ))}
@@ -251,7 +439,26 @@ function GenericAnswerControls({
       </div>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, decision.options, decision.form, decision.default_option, decision.blocking, picked, order, values, keys, recommendation, compact, answerSingle, held, gate, move, submit, togglePick, setValue]);
+  }, [
+    kind,
+    decision.options,
+    decision.form,
+    decision.default_option,
+    decision.blocking,
+    picked,
+    order,
+    values,
+    keys,
+    recommendation,
+    compact,
+    answerSingle,
+    held,
+    gate,
+    move,
+    submit,
+    togglePick,
+    setValue,
+  ]);
 
   return (
     <div>
@@ -268,19 +475,41 @@ function GenericAnswerControls({
             className="w-full bg-sol-card border border-sol-border rounded px-2 py-1.5 text-sm text-sol-text placeholder:text-sol-text-dim focus:outline-none focus:border-sol-blue/50"
             onKeyDown={(e) => {
               if (keys) return; // the window listener handles it
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); answerText(); }
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                answerText();
+              }
               if (e.key === "Escape") setOtherOpen(false);
             }}
           />
           <div className="flex items-center gap-2 mt-1 text-meta text-sol-text-dim">
-            <button onClick={answerText} className="flex items-center gap-1 hover:text-sol-text"><KeyCap size="xs">return</KeyCap><span>send</span></button>
-            <button onClick={() => setOtherOpen(false)} className="flex items-center gap-1 hover:text-sol-text"><KeyCap size="xs">esc</KeyCap><span>cancel</span></button>
+            <button
+              onClick={answerText}
+              className="flex items-center gap-1 hover:text-sol-text"
+            >
+              <KeyCap size="xs">return</KeyCap>
+              <span>send</span>
+            </button>
+            <button
+              onClick={() => setOtherOpen(false)}
+              className="flex items-center gap-1 hover:text-sol-text"
+            >
+              <KeyCap size="xs">esc</KeyCap>
+              <span>cancel</span>
+            </button>
           </div>
         </div>
       )}
       {dismissBtn && (
         <div className="mt-3 flex items-center gap-4 text-meta text-sol-text-dim">
-          {canPass && <PassDecision decisionId={decision._id} open={passOpen} onOpenChange={setPassOpen} keys={keys} />}
+          {canPass && (
+            <PassDecision
+              decisionId={decision._id}
+              open={passOpen}
+              onOpenChange={setPassOpen}
+              keys={keys}
+            />
+          )}
           {dismissBtn}
         </div>
       )}
@@ -290,15 +519,35 @@ function GenericAnswerControls({
 
 // The recorded answer, read-only, for an answered row: the chosen option(s)
 // in order, or the form values, or the typed text.
-export function DecisionRecordedAnswer({ decision }: { decision: Pick<SessionDecisionItem, "kind" | "status" | "options" | "answer_index" | "answer_text" | "answer_json"> }) {
+export function DecisionRecordedAnswer({
+  decision,
+}: {
+  decision: Pick<
+    SessionDecisionItem,
+    | "kind"
+    | "status"
+    | "options"
+    | "answer_index"
+    | "answer_text"
+    | "answer_json"
+  >;
+}) {
   const kind = decision.kind ?? "single";
   if (decision.status !== "answered") return null;
-  if (decision.answer_text) return <div className="text-sm text-sol-text">{decision.answer_text}</div>;
-  if (kind === "form" && decision.answer_json && typeof decision.answer_json === "object") {
+  if (decision.answer_text)
+    return <div className="text-sm text-sol-text">{decision.answer_text}</div>;
+  if (
+    kind === "form" &&
+    decision.answer_json &&
+    typeof decision.answer_json === "object"
+  ) {
     return (
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
         {Object.entries(decision.answer_json).map(([k, v]) => (
-          <div key={k} className="contents"><dt className="text-sol-text-dim">{k}</dt><dd className="text-sol-text">{String(v)}</dd></div>
+          <div key={k} className="contents">
+            <dt className="text-sol-text-dim">{k}</dt>
+            <dd className="text-sol-text">{String(v)}</dd>
+          </div>
         ))}
       </dl>
     );
@@ -308,7 +557,13 @@ export function DecisionRecordedAnswer({ decision }: { decision: Pick<SessionDec
     <ol className="space-y-1">
       {list.map((i, pos) => (
         <li key={i} className="flex items-center gap-2 text-sm text-sol-text">
-          {kind === "rank" ? <span className="font-mono text-meta text-sol-text-dim w-5">{pos + 1}.</span> : <Check className="w-3.5 h-3.5 text-sol-green" />}
+          {kind === "rank" ? (
+            <span className="font-mono text-meta text-sol-text-dim w-5">
+              {pos + 1}.
+            </span>
+          ) : (
+            <Check className="w-3.5 h-3.5 text-sol-green" />
+          )}
           <span>{decision.options[i]?.label ?? `option ${i + 1}`}</span>
         </li>
       ))}

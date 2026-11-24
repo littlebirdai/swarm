@@ -6,7 +6,12 @@
 // prints.
 import { flowName } from "@codecast/shared/contracts/flowPool";
 import { c } from "./colors.js";
-import { decisionHandle, describeResolution, formatAge, type DecisionRow } from "./decideCommand.js";
+import {
+  decisionHandle,
+  describeResolution,
+  formatAge,
+  type DecisionRow,
+} from "./decideCommand.js";
 import { graphChange, graphChangeText } from "@codecast/shared/tasks";
 
 // One row of workflow_runs.listRuns (L8): the run plus the joins it ships.
@@ -44,8 +49,19 @@ export interface TaskEvidence {
   task: { id: string; short_id: string; station: string };
   pages: EvidencePage[];
   stations: Array<{ station: string; pages: EvidencePage[] }>;
-  docs: Array<{ id: string; title: string; doc_type: string; updated_at: number; href: string }>;
-  images: Array<{ url: string; conversation_id: string; message_id: string; timestamp: number }>;
+  docs: Array<{
+    id: string;
+    title: string;
+    doc_type: string;
+    updated_at: number;
+    href: string;
+  }>;
+  images: Array<{
+    url: string;
+    conversation_id: string;
+    message_id: string;
+    timestamp: number;
+  }>;
   files_changed: string[];
   verification_evidence: string | null;
   execution_status: string | null;
@@ -61,14 +77,25 @@ export interface TaskLine {
 }
 
 // A task's station is its refined status when the team has one (L3).
-export function stationOf(task: { status?: string; status_id?: string }): string | undefined {
+export function stationOf(task: {
+  status?: string;
+  status_id?: string;
+}): string | undefined {
   return task.status_id ?? task.status;
 }
 
 // A pending blocking decision at the task's current station holds it there
 // (L5). Nothing is stored for a hold; it is derived here as the task page does.
-export function isHolding(decision: DecisionRow, task: { status?: string; status_id?: string }): boolean {
-  return decision.status === "pending" && decision.blocking && !!decision.station && decision.station === stationOf(task);
+export function isHolding(
+  decision: DecisionRow,
+  task: { status?: string; status_id?: string },
+): boolean {
+  return (
+    decision.status === "pending" &&
+    decision.blocking &&
+    !!decision.station &&
+    decision.station === stationOf(task)
+  );
 }
 
 const head = (text: string, max = 88): string => {
@@ -76,16 +103,32 @@ const head = (text: string, max = 88): string => {
   return first.length > max ? `${first.slice(0, max - 1)}…` : first;
 };
 
-export function formatTaskDecisions(rows: DecisionRow[], task: { status?: string; status_id?: string }, now: number = Date.now()): string[] {
+export function formatTaskDecisions(
+  rows: DecisionRow[],
+  task: { status?: string; status_id?: string },
+  now: number = Date.now(),
+): string[] {
   if (rows.length === 0) return [];
-  const lines = [`\n  ${c.bold}Decisions (${rows.length})${c.reset} ${c.dim}cast decide show <id>${c.reset}`];
+  const lines = [
+    `\n  ${c.bold}Decisions (${rows.length})${c.reset} ${c.dim}cast decide show <id>${c.reset}`,
+  ];
   for (const r of rows) {
-    const mark = r.status === "pending" ? `${c.yellow}●${c.reset}` : `${c.dim}○${c.reset}`;
-    const state = r.status === "pending" ? `open ${formatAge(now - r.created_at)}` : describeResolution(r);
+    const mark =
+      r.status === "pending" ? `${c.yellow}●${c.reset}` : `${c.dim}○${c.reset}`;
+    const state =
+      r.status === "pending"
+        ? `open ${formatAge(now - r.created_at)}`
+        : describeResolution(r);
     const station = r.station ? ` at ${r.station}` : "";
-    const held = isHolding(r, task) ? `  ${c.red}holds the task here${c.reset}` : "";
-    lines.push(`  ${mark} ${c.cyan}${decisionHandle(r)}${c.reset}  ${head(r.question)}`);
-    lines.push(`      ${c.dim}${state}${station}${r.blocking ? "" : " (advisory)"}${c.reset}${held}`);
+    const held = isHolding(r, task)
+      ? `  ${c.red}holds the task here${c.reset}`
+      : "";
+    lines.push(
+      `  ${mark} ${c.cyan}${decisionHandle(r)}${c.reset}  ${head(r.question)}`,
+    );
+    lines.push(
+      `      ${c.dim}${state}${station}${r.blocking ? "" : " (advisory)"}${c.reset}${held}`,
+    );
   }
   return lines;
 }
@@ -101,31 +144,57 @@ const RUN_MARKS: Record<string, string> = {
 // The run's one line: status, workflow, current node, the gate's decision.
 export function runSummary(run: RunRow): string {
   const node = run.current_node_label ?? run.current_node_id;
-  const gate = run.gate_decision_short_id ? `  gate ${c.cyan}${run.gate_decision_short_id}${c.reset}` : "";
-  const fail = run.status === "failed" && run.fail_reason ? `  ${c.red}${head(run.fail_reason, 60)}${c.reset}` : "";
+  const gate = run.gate_decision_short_id
+    ? `  gate ${c.cyan}${run.gate_decision_short_id}${c.reset}`
+    : "";
+  const fail =
+    run.status === "failed" && run.fail_reason
+      ? `  ${c.red}${head(run.fail_reason, 60)}${c.reset}`
+      : "";
   return `${run.status}  ${c.bold}${runFlow(run)}${c.reset}${node ? `  ${c.dim}at ${node}${c.reset}` : ""}${gate}${fail}`;
 }
 
 /** A run's flow as a person reads it. */
-const runFlow = (run: Pick<RunRow, "workflow_label" | "workflow_name" | "workflow_slug">): string =>
-  flowName({ label: run.workflow_label, name: run.workflow_name, slug: run.workflow_slug });
+const runFlow = (
+  run: Pick<RunRow, "workflow_label" | "workflow_name" | "workflow_slug">,
+): string =>
+  flowName({
+    label: run.workflow_label,
+    name: run.workflow_name,
+    slug: run.workflow_slug,
+  });
 
-export function formatTaskRuns(runs: RunRow[], now: number = Date.now()): string[] {
+export function formatTaskRuns(
+  runs: RunRow[],
+  now: number = Date.now(),
+): string[] {
   if (runs.length === 0) return [];
-  const lines = [`\n  ${c.bold}Runs (${runs.length})${c.reset} ${c.dim}newest first${c.reset}`];
+  const lines = [
+    `\n  ${c.bold}Runs (${runs.length})${c.reset} ${c.dim}newest first${c.reset}`,
+  ];
   for (const r of runs) {
-    lines.push(`  ${RUN_MARKS[r.status] ?? `${c.dim}○${c.reset}`} ${runSummary(r)}  ${c.dim}${formatAge(now - r.updated_at)}${c.reset}`);
+    lines.push(
+      `  ${RUN_MARKS[r.status] ?? `${c.dim}○${c.reset}`} ${runSummary(r)}  ${c.dim}${formatAge(now - r.updated_at)}${c.reset}`,
+    );
   }
   return lines;
 }
 
 const hasEvidence = (ev: TaskEvidence): boolean =>
-  ev.pages.length > 0 || ev.docs.length > 0 || ev.images.length > 0 || ev.files_changed.length > 0 ||
-  !!ev.verification_evidence || !!ev.pr_url || !!ev.review_verdict;
+  ev.pages.length > 0 ||
+  ev.docs.length > 0 ||
+  ev.images.length > 0 ||
+  ev.files_changed.length > 0 ||
+  !!ev.verification_evidence ||
+  !!ev.pr_url ||
+  !!ev.review_verdict;
 
 // Pages print grouped by the station that produced them, each with its /a/
 // url on the web origin the CLI is configured for.
-export function formatTaskEvidence(ev: TaskEvidence | null, webUrl: string): string[] {
+export function formatTaskEvidence(
+  ev: TaskEvidence | null,
+  webUrl: string,
+): string[] {
   if (!ev || !hasEvidence(ev)) return [];
   const base = webUrl.replace(/\/$/, "");
   const lines = [`\n  ${c.bold}Evidence${c.reset}`];
@@ -134,36 +203,57 @@ export function formatTaskEvidence(ev: TaskEvidence | null, webUrl: string): str
     for (const group of ev.stations) {
       const station = group.station || "unfiled";
       for (const p of group.pages) {
-        lines.push(`    ${c.dim}${station}${c.reset}  ${p.title}  ${c.dim}${base}${p.href}${c.reset}`);
+        lines.push(
+          `    ${c.dim}${station}${c.reset}  ${p.title}  ${c.dim}${base}${p.href}${c.reset}`,
+        );
       }
     }
   }
   if (ev.docs.length > 0) {
     lines.push(`  ${c.dim}Docs${c.reset}`);
-    for (const d of ev.docs) lines.push(`    ${d.title}  ${c.dim}${base}${d.href}${c.reset}`);
+    for (const d of ev.docs)
+      lines.push(`    ${d.title}  ${c.dim}${base}${d.href}${c.reset}`);
   }
-  if (ev.images.length > 0) lines.push(`  ${c.dim}Images:${c.reset} ${ev.images.length}`);
-  if (ev.files_changed.length > 0) lines.push(`  ${c.dim}Files changed:${c.reset} ${ev.files_changed.join(", ")}`);
+  if (ev.images.length > 0)
+    lines.push(`  ${c.dim}Images:${c.reset} ${ev.images.length}`);
+  if (ev.files_changed.length > 0)
+    lines.push(
+      `  ${c.dim}Files changed:${c.reset} ${ev.files_changed.join(", ")}`,
+    );
   if (ev.pr_url) lines.push(`  ${c.dim}PR:${c.reset} ${ev.pr_url}`);
   if (ev.verification_evidence) {
     lines.push(`  ${c.dim}Verification:${c.reset}`);
-    for (const l of ev.verification_evidence.split("\n")) lines.push(`    ${l}`);
+    for (const l of ev.verification_evidence.split("\n"))
+      lines.push(`    ${l}`);
   }
   if (ev.review_verdict) {
     const v = ev.review_verdict;
-    const color = v.verdict === "approve" ? c.green : v.verdict === "reject" ? c.red : c.yellow;
-    lines.push(`  ${c.dim}Review:${c.reset} ${color}${v.verdict}${c.reset}${v.note ? ` ${c.dim}${head(v.note)}${c.reset}` : ""}`);
+    const color =
+      v.verdict === "approve"
+        ? c.green
+        : v.verdict === "reject"
+          ? c.red
+          : c.yellow;
+    lines.push(
+      `  ${c.dim}Review:${c.reset} ${color}${v.verdict}${c.reset}${v.note ? ` ${c.dim}${head(v.note)}${c.reset}` : ""}`,
+    );
   }
   return lines;
 }
 
 // Linked sessions by short id — the handle `cast read` / `cast diff` take —
 // so a task's working session is one line away, not a regex over comments.
-export function formatTaskSessions(sessions: Array<{ short_id: string; title?: string }>): string[] {
+export function formatTaskSessions(
+  sessions: Array<{ short_id: string; title?: string }>,
+): string[] {
   if (sessions.length === 0) return [];
-  const lines = [`\n  ${c.bold}Sessions (${sessions.length})${c.reset} ${c.dim}newest last · cast read <id>${c.reset}`];
+  const lines = [
+    `\n  ${c.bold}Sessions (${sessions.length})${c.reset} ${c.dim}newest last · cast read <id>${c.reset}`,
+  ];
   for (const sess of sessions) {
-    lines.push(`  ${c.cyan}${sess.short_id}${c.reset}  ${sess.title || c.dim + "(untitled)" + c.reset}`);
+    lines.push(
+      `  ${c.cyan}${sess.short_id}${c.reset}  ${sess.title || c.dim + "(untitled)" + c.reset}`,
+    );
   }
   return lines;
 }
@@ -174,19 +264,28 @@ export function formatTaskHistory(history: any[]): string[] {
   for (const h of history) {
     // Graph changes in the web timeline's words (task-graph.md TG11).
     const graph = graphChange(h);
-    const what = h.action === "created"
-      ? "created this task"
-      : graph ? graphChangeText(graph) : `${h.field}: ${h.old_value || "none"} to ${h.new_value || "none"}`;
+    const what =
+      h.action === "created"
+        ? "created this task"
+        : graph
+          ? graphChangeText(graph)
+          : `${h.field}: ${h.old_value || "none"} to ${h.new_value || "none"}`;
     const from = h.session ? ` ${c.dim}in ${h.session}${c.reset}` : "";
     const actor = !h.actor || h.actor === "system" ? "codecast" : h.actor;
-    lines.push(`  ${c.dim}${new Date(h.created_at).toLocaleString()}${c.reset}  ${actor} ${what}${from}`);
+    lines.push(
+      `  ${c.dim}${new Date(h.created_at).toLocaleString()}${c.reset}  ${actor} ${what}${from}`,
+    );
   }
   return lines;
 }
 
 // `cast workflow runs`: one table across workflows.
 /** `cast workflow runs`: one row a run, a failed run's reason under it; `long` adds the run id and its machine. */
-export function formatRunsTable(runs: RunRow[], now: number = Date.now(), opts: { long?: boolean } = {}): string {
+export function formatRunsTable(
+  runs: RunRow[],
+  now: number = Date.now(),
+  opts: { long?: boolean } = {},
+): string {
   if (runs.length === 0) return "No runs.";
   const rows = runs.map((r) => [
     formatAge(now - r.updated_at),
@@ -197,13 +296,29 @@ export function formatRunsTable(runs: RunRow[], now: number = Date.now(), opts: 
     r.gate_decision_short_id ?? "-",
     ...(opts.long ? [r.runner_device?.slice(0, 12) ?? "-", r._id] : []),
   ]);
-  const header = ["age", "status", "workflow", "task", "node", "gate", ...(opts.long ? ["machine", "run"] : [])];
-  const widths = header.map((h, i) => Math.max(h.length, ...rows.map((row) => row[i].length)));
-  const line = (cols: string[]) => cols.map((col, i) => (i === cols.length - 1 ? col : col.padEnd(widths[i]))).join("  ");
+  const header = [
+    "age",
+    "status",
+    "workflow",
+    "task",
+    "node",
+    "gate",
+    ...(opts.long ? ["machine", "run"] : []),
+  ];
+  const widths = header.map((h, i) =>
+    Math.max(h.length, ...rows.map((row) => row[i].length)),
+  );
+  const line = (cols: string[]) =>
+    cols
+      .map((col, i) => (i === cols.length - 1 ? col : col.padEnd(widths[i])))
+      .join("  ");
   const out = [`${c.dim}${line(header)}${c.reset}`];
   runs.forEach((r, i) => {
     out.push(line(rows[i]));
-    if (r.status === "failed" && r.fail_reason) out.push(`  ${c.dim}${r.fail_reason.split("\n")[0].slice(0, 160)}${c.reset}`);
+    if (r.status === "failed" && r.fail_reason)
+      out.push(
+        `  ${c.dim}${r.fail_reason.split("\n")[0].slice(0, 160)}${c.reset}`,
+      );
   });
   return out.join("\n");
 }
@@ -219,9 +334,15 @@ export interface FeedRowLike {
   preview?: string;
 }
 
-export function formatFeedRow(row: FeedRowLike, age: string, color: string): string[] {
+export function formatFeedRow(
+  row: FeedRowLike,
+  age: string,
+  color: string,
+): string[] {
   const who = row.actor?.name ? ` ${c.dim}· ${row.actor.name}${c.reset}` : "";
-  const lines = [`${color}${row.kind.padEnd(8)}${c.reset} ${c.dim}${(row.short_id ?? "").padEnd(8)}${c.reset} ${row.title}${row.state ? ` ${c.dim}· ${row.state}${c.reset}` : ""}${who} ${c.dim}${age}${c.reset}`];
+  const lines = [
+    `${color}${row.kind.padEnd(8)}${c.reset} ${c.dim}${(row.short_id ?? "").padEnd(8)}${c.reset} ${row.title}${row.state ? ` ${c.dim}· ${row.state}${c.reset}` : ""}${who} ${c.dim}${age}${c.reset}`,
+  ];
   if (row.preview) lines.push(`         ${c.dim}${row.preview}${c.reset}`);
   return lines;
 }
@@ -230,16 +351,38 @@ export function formatFeedRow(row: FeedRowLike, age: string, color: string): str
  * The sections `cast task show --only` can pick, in the order they print. The
  * title and status line always print, so a picked section is never orphaned.
  */
-export const TASK_SHOW_SECTIONS = ["description", "criteria", "steps", "subtasks", "details", "graph", "sessions", "history", "comments", "decisions", "runs", "evidence"] as const;
+export const TASK_SHOW_SECTIONS = [
+  "description",
+  "criteria",
+  "steps",
+  "subtasks",
+  "details",
+  "graph",
+  "sessions",
+  "history",
+  "comments",
+  "decisions",
+  "runs",
+  "evidence",
+] as const;
 export type TaskShowSection = (typeof TASK_SHOW_SECTIONS)[number];
 
 /** `--only comments,runs` as a set; undefined shows every section. Throws on a name it does not know. */
-export function parseShowSections(raw: string | undefined): Set<TaskShowSection> | undefined {
+export function parseShowSections(
+  raw: string | undefined,
+): Set<TaskShowSection> | undefined {
   if (raw === undefined) return undefined;
-  const names = raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
-  const unknown = names.filter((n) => !(TASK_SHOW_SECTIONS as readonly string[]).includes(n));
+  const names = raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const unknown = names.filter(
+    (n) => !(TASK_SHOW_SECTIONS as readonly string[]).includes(n),
+  );
   if (unknown.length || !names.length) {
-    throw new Error(`--only takes section names, comma separated: ${TASK_SHOW_SECTIONS.join(", ")}${unknown.length ? ` (not ${unknown.join(", ")})` : ""}`);
+    throw new Error(
+      `--only takes section names, comma separated: ${TASK_SHOW_SECTIONS.join(", ")}${unknown.length ? ` (not ${unknown.join(", ")})` : ""}`,
+    );
   }
   return new Set(names as TaskShowSection[]);
 }
@@ -248,9 +391,15 @@ export function parseShowSections(raw: string | undefined): Set<TaskShowSection>
  * The comments to print: the last `last` (default 5), all with `all`. The
  * header says how many exist and how to see the rest.
  */
-export function pickComments<T>(comments: T[], opts: { all?: boolean; last?: number }): { shown: T[]; note: string } {
+export function pickComments<T>(
+  comments: T[],
+  opts: { all?: boolean; last?: number },
+): { shown: T[]; note: string } {
   const n = opts.all ? comments.length : Math.max(1, opts.last ?? 5);
   const shown = comments.slice(-n);
-  const note = shown.length < comments.length ? `showing last ${shown.length}, -c for all or --last <n>` : "";
+  const note =
+    shown.length < comments.length
+      ? `showing last ${shown.length}, -c for all or --last <n>`
+      : "";
   return { shown, note };
 }

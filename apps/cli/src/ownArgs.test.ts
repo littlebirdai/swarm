@@ -36,7 +36,9 @@ describe("looksLikeMember", () => {
 
 describe("resolveOwnTarget", () => {
   test("a lone email targets the CURRENT session — the bug", () => {
-    expect(resolveOwnTarget("ashot@almostcandid.com", undefined, CURRENT)).toEqual({
+    expect(
+      resolveOwnTarget("ashot@almostcandid.com", undefined, CURRENT),
+    ).toEqual({
       ok: true,
       sessionId: "CURRENT-SESSION",
       member: "ashot@almostcandid.com",
@@ -60,7 +62,9 @@ describe("resolveOwnTarget", () => {
   });
 
   test("two arguments keep their original meaning", () => {
-    expect(resolveOwnTarget("jx7c6zk", "ashot@almostcandid.com", CURRENT)).toEqual({
+    expect(
+      resolveOwnTarget("jx7c6zk", "ashot@almostcandid.com", CURRENT),
+    ).toEqual({
       ok: true,
       sessionId: "jx7c6zk",
       member: "ashot@almostcandid.com",
@@ -77,10 +81,12 @@ describe("resolveOwnTarget", () => {
   });
 
   test("a lone member with no detectable session reports failure, never guesses", () => {
-    expect(resolveOwnTarget("ashot@almostcandid.com", undefined, NONE)).toEqual({
-      ok: false,
-      member: "ashot@almostcandid.com",
-    });
+    expect(resolveOwnTarget("ashot@almostcandid.com", undefined, NONE)).toEqual(
+      {
+        ok: false,
+        member: "ashot@almostcandid.com",
+      },
+    );
   });
 
   test("a lone session id does not consult detection at all", () => {

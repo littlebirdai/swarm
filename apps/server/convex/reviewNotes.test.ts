@@ -12,7 +12,10 @@ const ROOT = "/Users/ashot/src/demo";
 function context(user: string | null, seed: Record<string, any[]> = {}) {
   const scheduled: Array<{ delay: number; reference: any; args: any }> = [];
   const db = makeFakeDb({
-    users: [{ _id: USER, name: "Ashot" }, { _id: OTHER, name: "Sam" }],
+    users: [
+      { _id: USER, name: "Ashot" },
+      { _id: OTHER, name: "Sam" },
+    ],
     teams: [{ _id: TEAM, name: "Codecast" }],
     team_memberships: [
       { _id: "m1", user_id: USER, team_id: TEAM },
@@ -20,7 +23,13 @@ function context(user: string | null, seed: Record<string, any[]> = {}) {
     ],
     directory_team_mappings: [],
     conversations: [
-      { _id: CONV, user_id: USER, is_private: true, session_id: "sess-1", title: "Git backend" },
+      {
+        _id: CONV,
+        user_id: USER,
+        is_private: true,
+        session_id: "sess-1",
+        title: "Git backend",
+      },
     ],
     review_comments: [],
     pending_messages: [],
@@ -29,9 +38,15 @@ function context(user: string | null, seed: Record<string, any[]> = {}) {
   });
   return {
     db,
-    auth: { async getUserIdentity() { return user ? { subject: `${user}|session` } : null; } },
+    auth: {
+      async getUserIdentity() {
+        return user ? { subject: `${user}|session` } : null;
+      },
+    },
     scheduler: {
-      async runAfter(delay: number, reference: any, args: any) { scheduled.push({ delay, reference, args }); },
+      async runAfter(delay: number, reference: any, args: any) {
+        scheduled.push({ delay, reference, args });
+      },
     },
     _scheduled: scheduled,
   } as any;
@@ -72,7 +87,14 @@ describe("reviewNotes.add", () => {
   test("a mapped directory makes the note the team's", async () => {
     const ctx = context(USER, {
       directory_team_mappings: [
-        { _id: "map1", user_id: USER, team_id: TEAM, path_prefix: ROOT, auto_share: true, created_at: 1 },
+        {
+          _id: "map1",
+          user_id: USER,
+          team_id: TEAM,
+          path_prefix: ROOT,
+          auto_share: true,
+          created_at: 1,
+        },
       ],
     });
     await addNote(ctx);
@@ -81,13 +103,19 @@ describe("reviewNotes.add", () => {
 
   test("a verdict finding links the reviewer's session by its session id", async () => {
     const ctx = context(USER);
-    await addNote(ctx, { conversation_id: "sess-1", author_kind: "agent", severity: "nit" });
+    await addNote(ctx, {
+      conversation_id: "sess-1",
+      author_kind: "agent",
+      severity: "nit",
+    });
     expect(ctx.db._tables.review_comments[0].conversation_id).toBe(CONV);
   });
 
   test("a session id that resolves to nothing drops the link and keeps the finding", async () => {
     const ctx = context(USER);
-    await addNote(ctx, { conversation_id: "94a063b2-6d80-4c4b-83aa-6bdb59464d7a" });
+    await addNote(ctx, {
+      conversation_id: "94a063b2-6d80-4c4b-83aa-6bdb59464d7a",
+    });
     expect(ctx.db._tables.review_comments).toHaveLength(1);
     expect(ctx.db._tables.review_comments[0].conversation_id).toBeUndefined();
   });
@@ -108,7 +136,9 @@ describe("reviewNotes.add", () => {
 
   test("an empty note is refused", async () => {
     const ctx = context(USER);
-    await expect(addNote(ctx, { content: "   " })).rejects.toThrow(/needs a body/);
+    await expect(addNote(ctx, { content: "   " })).rejects.toThrow(
+      /needs a body/,
+    );
   });
 });
 
@@ -124,7 +154,14 @@ describe("access", () => {
   test("a team note reaches every member", async () => {
     const ctx = context(USER, {
       directory_team_mappings: [
-        { _id: "map1", user_id: USER, team_id: TEAM, path_prefix: ROOT, auto_share: true, created_at: 1 },
+        {
+          _id: "map1",
+          user_id: USER,
+          team_id: TEAM,
+          path_prefix: ROOT,
+          auto_share: true,
+          created_at: 1,
+        },
       ],
     });
     await addNote(ctx);
@@ -135,10 +172,33 @@ describe("access", () => {
 
 describe("a promise's owner", () => {
   const due_at = Date.now() + 86_400_000;
-  const mapped = { directory_team_mappings: [{ _id: "map1", user_id: USER, team_id: TEAM, path_prefix: ROOT, auto_share: true, created_at: 1 }] };
+  const mapped = {
+    directory_team_mappings: [
+      {
+        _id: "map1",
+        user_id: USER,
+        team_id: TEAM,
+        path_prefix: ROOT,
+        auto_share: true,
+        created_at: 1,
+      },
+    ],
+  };
   const roles = [
-    { _id: "role_other", team_id: "team_2", scope_type: "team", handle: "qa", status: "active" },
-    { _id: "role_mine", team_id: TEAM, scope_type: "team", handle: "qa", status: "active" },
+    {
+      _id: "role_other",
+      team_id: "team_2",
+      scope_type: "team",
+      handle: "qa",
+      status: "active",
+    },
+    {
+      _id: "role_mine",
+      team_id: TEAM,
+      scope_type: "team",
+      handle: "qa",
+      status: "active",
+    },
   ];
 
   test("a handle names the role in the note's own team, never another team's role of the same handle", async () => {
@@ -148,9 +208,21 @@ describe("a promise's owner", () => {
   });
 
   test("a handle or a name that exists only in another team is refused", async () => {
-    const ctx = context(USER, { ...mapped, org_roles: [roles[0]], users: [{ _id: USER, name: "Ashot" }, { _id: OTHER, name: "Sam" }, { _id: "user_3", name: "Stranger" }] });
-    await expect(addNote(ctx, { disposition: "deferred", owner: "@qa", due_at })).rejects.toThrow(/No role or user named/);
-    await expect(addNote(ctx, { disposition: "deferred", owner: "Stranger", due_at })).rejects.toThrow(/No role or user named/);
+    const ctx = context(USER, {
+      ...mapped,
+      org_roles: [roles[0]],
+      users: [
+        { _id: USER, name: "Ashot" },
+        { _id: OTHER, name: "Sam" },
+        { _id: "user_3", name: "Stranger" },
+      ],
+    });
+    await expect(
+      addNote(ctx, { disposition: "deferred", owner: "@qa", due_at }),
+    ).rejects.toThrow(/No role or user named/);
+    await expect(
+      addNote(ctx, { disposition: "deferred", owner: "Stranger", due_at }),
+    ).rejects.toThrow(/No role or user named/);
     // A teammate's name still resolves.
     await addNote(ctx, { disposition: "deferred", owner: "Sam", due_at });
     expect(ctx.db._tables.review_comments[0].owner_user_id).toBe(OTHER);
@@ -168,8 +240,19 @@ describe("reviewNotes.list", () => {
     expect(batch.map((r: any) => r.content)).toEqual(["first", "second"]);
 
     ctx.db._tables.review_comments[0].sent_at = 5;
-    expect((await (list as any)._handler(ctx, { git_root: ROOT })).map((r: any) => r.content)).toEqual(["second"]);
-    expect((await (list as any)._handler(ctx, { git_root: ROOT, include_sent: true })).length).toBe(2);
+    expect(
+      (await (list as any)._handler(ctx, { git_root: ROOT })).map(
+        (r: any) => r.content,
+      ),
+    ).toEqual(["second"]);
+    expect(
+      (
+        await (list as any)._handler(ctx, {
+          git_root: ROOT,
+          include_sent: true,
+        })
+      ).length,
+    ).toBe(2);
   });
 });
 
@@ -177,7 +260,12 @@ describe("reviewNotes.send", () => {
   test("one message carries the batch, and every note is stamped sent", async () => {
     const ctx = context(USER);
     await addNote(ctx, { content: "first" });
-    await addNote(ctx, { content: "second", file_path: "src/db.ts", line_number: 10, line_end: 20 });
+    await addNote(ctx, {
+      content: "second",
+      file_path: "src/db.ts",
+      line_number: 10,
+      line_end: 20,
+    });
 
     const stale = [ctx.db._tables.review_comments[1]._id];
     const result = await (send as any)._handler(ctx, {
@@ -187,42 +275,58 @@ describe("reviewNotes.send", () => {
     });
 
     expect(result.sent).toBe(2);
-    expect(result.content).toContain("Ashot left 2 review notes on codecast-sh/codecast@abcdef1");
+    expect(result.content).toContain(
+      "Ashot left 2 review notes on codecast-sh/codecast@abcdef1",
+    );
     expect(result.content).toContain("File: src/api.ts\nLine: 42");
     expect(result.content).toContain("File: src/db.ts\nLines: 10-20");
     expect(result.content).toContain("Stale: the file changed");
     // The note reaches the agent fenced, never as the conversation's own voice.
-    expect(result.content).toMatch(/<untrusted-[0-9a-f]{8} source="review note by Ashot">/);
+    expect(result.content).toMatch(
+      /<untrusted-[0-9a-f]{8} source="review note by Ashot">/,
+    );
 
     const queued = ctx.db._tables.pending_messages ?? [];
     expect(queued.length).toBe(1);
     expect(queued[0].content).toBe(result.content);
 
-    for (const row of ctx.db._tables.review_comments) expect(typeof row.sent_at).toBe("number");
+    for (const row of ctx.db._tables.review_comments)
+      expect(typeof row.sent_at).toBe("number");
     expect(await (list as any)._handler(ctx, { git_root: ROOT })).toEqual([]);
   });
 
   test("an empty batch is an error, not an empty message", async () => {
     const ctx = context(USER);
-    await expect((send as any)._handler(ctx, { git_root: ROOT, conversation_ref: "sess-1" }))
-      .rejects.toThrow(/No unsent review notes/);
+    await expect(
+      (send as any)._handler(ctx, {
+        git_root: ROOT,
+        conversation_ref: "sess-1",
+      }),
+    ).rejects.toThrow(/No unsent review notes/);
   });
 
   test("a session that does not resolve is named in the error", async () => {
     const ctx = context(USER);
     await addNote(ctx);
-    await expect((send as any)._handler(ctx, { git_root: ROOT, conversation_ref: "nope" }))
-      .rejects.toThrow(/nope/);
+    await expect(
+      (send as any)._handler(ctx, { git_root: ROOT, conversation_ref: "nope" }),
+    ).rejects.toThrow(/nope/);
   });
 
   test("editing a sent note puts it back in the batch", async () => {
     const ctx = context(USER);
     await addNote(ctx);
-    await (send as any)._handler(ctx, { git_root: ROOT, conversation_ref: "sess-1" });
+    await (send as any)._handler(ctx, {
+      git_root: ROOT,
+      conversation_ref: "sess-1",
+    });
     const id = ctx.db._tables.review_comments[0]._id;
     expect(typeof ctx.db._tables.review_comments[0].sent_at).toBe("number");
 
-    await (update as any)._handler(ctx, { comment_id: id, content: "what I actually meant" });
+    await (update as any)._handler(ctx, {
+      comment_id: id,
+      content: "what I actually meant",
+    });
     expect(ctx.db._tables.review_comments[0].sent_at).toBeUndefined();
     const batch = await (list as any)._handler(ctx, { git_root: ROOT });
     expect(batch.map((r: any) => r.content)).toEqual(["what I actually meant"]);
@@ -230,16 +334,31 @@ describe("reviewNotes.send", () => {
 });
 
 describe("reviewNotes.send outcome", () => {
-  const live = (agent_status: string) => ({ _id: "ms1", conversation_id: CONV, user_id: USER, session_id: "sess-1", pid: 1, started_at: 0, last_heartbeat: Date.now(), agent_status });
+  const live = (agent_status: string) => ({
+    _id: "ms1",
+    conversation_id: CONV,
+    user_id: USER,
+    session_id: "sess-1",
+    pid: 1,
+    started_at: 0,
+    last_heartbeat: Date.now(),
+    agent_status,
+  });
 
   test("an old client's arguments still get every old field, plus the outcome", async () => {
     const ctx = context(USER, { managed_sessions: [live("idle")] });
     await addNote(ctx);
-    const result = await (send as any)._handler(ctx, { git_root: ROOT, conversation_ref: "sess-1" });
+    const result = await (send as any)._handler(ctx, {
+      git_root: ROOT,
+      conversation_ref: "sess-1",
+    });
     expect(result.sent).toBe(1);
     expect(result.conversation_id).toBe(CONV);
     expect(typeof result.content).toBe("string");
-    expect(result.outcome).toEqual({ kind: "sent", sent_ids: [ctx.db._tables.review_comments[0]._id] });
+    expect(result.outcome).toEqual({
+      kind: "sent",
+      sent_ids: [ctx.db._tables.review_comments[0]._id],
+    });
     // Nothing is resolved unless asked.
     expect(ctx.db._tables.review_comments[0].resolved).toBe(false);
   });
@@ -247,13 +366,25 @@ describe("reviewNotes.send outcome", () => {
   test("a session mid-turn or offline: queued, with why", async () => {
     const busy = context(USER, { managed_sessions: [live("working")] });
     await addNote(busy);
-    expect((await (send as any)._handler(busy, { git_root: ROOT, conversation_ref: "sess-1" })).outcome)
-      .toMatchObject({ kind: "queued", waiting: "busy" });
+    expect(
+      (
+        await (send as any)._handler(busy, {
+          git_root: ROOT,
+          conversation_ref: "sess-1",
+        })
+      ).outcome,
+    ).toMatchObject({ kind: "queued", waiting: "busy" });
 
     const offline = context(USER);
     await addNote(offline);
-    expect((await (send as any)._handler(offline, { git_root: ROOT, conversation_ref: "sess-1" })).outcome)
-      .toMatchObject({ kind: "queued", waiting: "offline" });
+    expect(
+      (
+        await (send as any)._handler(offline, {
+          git_root: ROOT,
+          conversation_ref: "sess-1",
+        })
+      ).outcome,
+    ).toMatchObject({ kind: "queued", waiting: "offline" });
   });
 
   test("resolve resolves exactly the notes sent, after sending", async () => {
@@ -261,10 +392,20 @@ describe("reviewNotes.send outcome", () => {
     await addNote(ctx, { content: "first" });
     await addNote(ctx, { content: "second" });
     // Another worktree's note is not in this batch and stays open.
-    await addNote(ctx, { content: "elsewhere", git_root: "/Users/ashot/src/other" });
-    const result = await (send as any)._handler(ctx, { git_root: ROOT, conversation_ref: "sess-1", resolve: true });
+    await addNote(ctx, {
+      content: "elsewhere",
+      git_root: "/Users/ashot/src/other",
+    });
+    const result = await (send as any)._handler(ctx, {
+      git_root: ROOT,
+      conversation_ref: "sess-1",
+      resolve: true,
+    });
     const [first, second, elsewhere] = ctx.db._tables.review_comments;
-    expect(result.outcome).toEqual({ kind: "sent_and_resolved", sent_ids: [first._id, second._id] });
+    expect(result.outcome).toEqual({
+      kind: "sent_and_resolved",
+      sent_ids: [first._id, second._id],
+    });
     expect(first.resolved).toBe(true);
     expect(second.resolved).toBe(true);
     expect(typeof first.sent_at).toBe("number");
@@ -279,10 +420,15 @@ describe("reviewNotes.send outcome", () => {
     const stuck = ctx.db._tables.review_comments[1]._id;
     const patch = ctx.db.patch.bind(ctx.db);
     ctx.db.patch = async (id: any, fields: any) => {
-      if (id === stuck && fields.resolved === true) throw new Error("write conflict");
+      if (id === stuck && fields.resolved === true)
+        throw new Error("write conflict");
       return await patch(id, fields);
     };
-    const result = await (send as any)._handler(ctx, { git_root: ROOT, conversation_ref: "sess-1", resolve: true });
+    const result = await (send as any)._handler(ctx, {
+      git_root: ROOT,
+      conversation_ref: "sess-1",
+      resolve: true,
+    });
     expect(result.outcome).toEqual({
       kind: "resolve_failed",
       sent_ids: [ctx.db._tables.review_comments[0]._id, stuck],
@@ -290,6 +436,7 @@ describe("reviewNotes.send outcome", () => {
       reason: "write conflict",
     });
     expect(ctx.db._tables.pending_messages.length).toBe(1);
-    for (const row of ctx.db._tables.review_comments) expect(typeof row.sent_at).toBe("number");
+    for (const row of ctx.db._tables.review_comments)
+      expect(typeof row.sent_at).toBe("number");
   });
 });

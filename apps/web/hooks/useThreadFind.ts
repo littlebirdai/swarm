@@ -20,7 +20,9 @@ export function passageHits(passages: Passage[], query: string): Set<number> {
   const q = query.trim().toLowerCase();
   const out = new Set<number>();
   if (!q) return out;
-  for (const p of passages) if (p.segments.some((s) => s.text.toLowerCase().includes(q))) out.add(p.index);
+  for (const p of passages)
+    if (p.segments.some((s) => s.text.toLowerCase().includes(q)))
+      out.add(p.index);
   return out;
 }
 
@@ -52,7 +54,8 @@ export function useThreadFind(
     // A passage the find just unfolded grows for 200ms; land again once it
     // has its height.
     setTimeout(() => {
-      if (currentRef.current === index && el.isConnected) scrollIntoContainer(el, { block: "center" });
+      if (currentRef.current === index && el.isConnected)
+        scrollIntoContainer(el, { block: "center" });
     }, 230);
   };
 
@@ -66,7 +69,11 @@ export function useThreadFind(
       setCount(0);
       return;
     }
-    const ranges = findTextRanges(root, q, (n) => !!n.parentElement?.closest(SEARCHED));
+    const ranges = findTextRanges(
+      root,
+      q,
+      (n) => !!n.parentElement?.closest(SEARCHED),
+    );
     rangesRef.current = ranges;
     setCount(ranges.length);
     setHighlight(HIT, ranges);
@@ -75,7 +82,9 @@ export function useThreadFind(
       // a browser's find does; one with nothing below wraps to the first.
       placedForRef.current = q;
       const top = root.getBoundingClientRect().top;
-      const below = ranges.findIndex((r) => r.getBoundingClientRect().bottom >= top);
+      const below = ranges.findIndex(
+        (r) => r.getBoundingClientRect().bottom >= top,
+      );
       show(Math.max(0, below), ranges.length > 0);
     } else {
       // The same query over new words: the current hit stays put.

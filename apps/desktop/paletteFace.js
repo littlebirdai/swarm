@@ -41,7 +41,9 @@ function createPaletteFace({ send, reveal, isVisible, fallbackMs = 200 }) {
       wanted = face;
       revealing = true;
       clearTimeout(fallback);
-      fallback = setTimeout(() => { if (revealing) finishReveal(); }, fallbackMs);
+      fallback = setTimeout(() => {
+        if (revealing) finishReveal();
+      }, fallbackMs);
       send(CHANNEL[face]);
     },
     // `face` is undefined from web builds older than the face in the ack; trust those.

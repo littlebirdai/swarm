@@ -1,20 +1,47 @@
-import { FOREIGN_TEXT_CAPS, fenceForeignText, inlineForeignText } from "@codecast/shared/contracts";
-import { refuseArtifactBodyWrite, requireArtifactEditor } from "./lib/liveArtifactAccess";
+import {
+  FOREIGN_TEXT_CAPS,
+  fenceForeignText,
+  inlineForeignText,
+} from "@codecast/shared/contracts";
+import {
+  refuseArtifactBodyWrite,
+  requireArtifactEditor,
+} from "./lib/liveArtifactAccess";
 import { ARTIFACT_SPECS, isArtifactDocType } from "@codecast/shared/artifacts";
 import { makeFunctionReference } from "convex/server";
 import { ensureLiveSearch } from "./liveSearch";
-import { FOREIGN_PLAN_CAPS, foreignProse, referenceGuidance, foreignTaskSource } from "@codecast/shared/tasks";
+import {
+  FOREIGN_PLAN_CAPS,
+  foreignProse,
+  referenceGuidance,
+  foreignTaskSource,
+} from "@codecast/shared/tasks";
 import type { RegisteredQuery } from "convex/server";
 import { resolveActor } from "./lib/actor";
 import { afterRoleDocWrite } from "./orgRoles";
 import { v, type ObjectType } from "convex/values";
-import { mutation, query, internalMutation, type MutationCtx, type QueryCtx } from "./functions";
+import {
+  mutation,
+  query,
+  internalMutation,
+  type MutationCtx,
+  type QueryCtx,
+} from "./functions";
 import { Id, type Doc } from "./_generated/dataModel";
 import { paginationOptsValidator } from "convex/server";
 import { verifyApiToken } from "./apiTokens";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { createDataContext, scopedFetch, resolveEffectiveTeam, stampEffectiveTeam } from "./data";
-import { isTeamMember, createTeamFeedFilter, teamVisibleConvTeam } from "./privacy";
+import {
+  createDataContext,
+  scopedFetch,
+  resolveEffectiveTeam,
+  stampEffectiveTeam,
+} from "./data";
+import {
+  isTeamMember,
+  createTeamFeedFilter,
+  teamVisibleConvTeam,
+} from "./privacy";
 import {
   webDocsNeedsUserDoc,
   resolveWebDocsTeamId,
@@ -42,9 +69,25 @@ import {
 } from "./lib/access";
 import { notFound } from "./lib/auth";
 import { claimShareToken } from "./lib/shareToken";
-import { cliDocWriter, docLiveState, docRevision, markdownToDoc, refuseUnsavedEdits, rewriteCollab, writeDocBody, type DocWriter } from "./lib/docBody";
+import {
+  cliDocWriter,
+  docLiveState,
+  docRevision,
+  markdownToDoc,
+  refuseUnsavedEdits,
+  rewriteCollab,
+  writeDocBody,
+  type DocWriter,
+} from "./lib/docBody";
 export { markdownToDoc, writeDocBody, docRevision } from "./lib/docBody";
-import { docTitleFromContent, docTypeChangeAllowed, draftTextNodes, renderDocMentionExcerpt, setTitleHeading, withTitleHeading } from "@codecast/shared/docs";
+import {
+  docTitleFromContent,
+  docTypeChangeAllowed,
+  draftTextNodes,
+  renderDocMentionExcerpt,
+  setTitleHeading,
+  withTitleHeading,
+} from "@codecast/shared/docs";
 import { identityFieldsOf } from "./lib/sessionIdentityFields";
 import { conversationProjectRoot, knownCheckoutRoots } from "./projectPaths";
 import { refuseRoleCharterWrite } from "./lib/roleCharter";
@@ -53,7 +96,8 @@ export { canAccessDoc };
 function generatePlanShortId(): string {
   const chars = "0123456789abcdefghijklmnopqrstuvwxyz";
   let id = "pl-";
-  for (let i = 0; i < 4; i++) id += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 4; i++)
+    id += chars[Math.floor(Math.random() * chars.length)];
   return id;
 }
 
@@ -62,8 +106,9 @@ function generatePlanShortId(): string {
  * session containing it (conversationProjectRoot), else the path's own folder.
  */
 function repoName(path: string, checkouts: Set<string>): string {
-  const root = conversationProjectRoot({ project_path: path }, checkouts) ?? path;
-  return root.split('/').filter(Boolean).pop() || path;
+  const root =
+    conversationProjectRoot({ project_path: path }, checkouts) ?? path;
+  return root.split("/").filter(Boolean).pop() || path;
 }
 
 function docGitRoot(d: any, convMap: Map<string, any>): string | null {
@@ -75,7 +120,12 @@ function docGitRoot(d: any, convMap: Map<string, any>): string | null {
   return null;
 }
 
-function dedupeProjectPaths(paths: string[], checkouts: Set<string>, docs?: any[], convMap?: Map<string, any>): string[] {
+function dedupeProjectPaths(
+  paths: string[],
+  checkouts: Set<string>,
+  docs?: any[],
+  convMap?: Map<string, any>,
+): string[] {
   const gitRootForPath = new Map<string, string>();
   if (docs && convMap) {
     for (const d of docs) {
@@ -88,31 +138,44 @@ function dedupeProjectPaths(paths: string[], checkouts: Set<string>, docs?: any[
   const byName = new Map<string, string>();
   for (const path of paths) {
     const root = gitRootForPath.get(path);
-    const name = root ? root.split('/').filter(Boolean).pop() || path : repoName(path, checkouts);
+    const name = root
+      ? root.split("/").filter(Boolean).pop() || path
+      : repoName(path, checkouts);
     const existing = byName.get(name);
-    if (!existing || (path.includes('/src/') && !existing.includes('/src/'))) {
+    if (!existing || (path.includes("/src/") && !existing.includes("/src/"))) {
       byName.set(name, path);
     }
   }
   return Array.from(byName.values());
 }
 
-function docRepoName(d: any, convMap: Map<string, any>, checkouts: Set<string>): string {
+function docRepoName(
+  d: any,
+  convMap: Map<string, any>,
+  checkouts: Set<string>,
+): string {
   const root = docGitRoot(d, convMap);
-  if (root) return root.split('/').filter(Boolean).pop() || root;
+  if (root) return root.split("/").filter(Boolean).pop() || root;
   return d.project_path ? repoName(d.project_path, checkouts) : "";
 }
 
-
 function isNoiseDocForWeb(d: any): boolean {
-  const CONFIG_DOC_NAMES = new Set(["README", "AGENTS", "CLAUDE", "CLAUDE.md", "AGENTS.md", "README.md"]);
+  const CONFIG_DOC_NAMES = new Set([
+    "README",
+    "AGENTS",
+    "CLAUDE",
+    "CLAUDE.md",
+    "AGENTS.md",
+    "README.md",
+  ]);
   return CONFIG_DOC_NAMES.has(d.title);
 }
 
 export function extractPlanTitleForWeb(d: any) {
   if (d.source === "plan_mode" && d.content) {
     const match = d.content.match(/^#\s+(.+)/m);
-    if (match) return { ...d, display_title: match[1].trim(), plan_name: d.title };
+    if (match)
+      return { ...d, display_title: match[1].trim(), plan_name: d.title };
   }
   return d;
 }
@@ -142,7 +205,10 @@ export type WebDocDetail = Doc<"docs"> & {
   active_plan?: WebDocActivePlan;
 };
 
-export function isWebDocOwner(doc: Doc<"docs"> | null | undefined, userId: Id<"users">): doc is Doc<"docs"> {
+export function isWebDocOwner(
+  doc: Doc<"docs"> | null | undefined,
+  userId: Id<"users">,
+): doc is Doc<"docs"> {
   return !!doc && doc.user_id === userId;
 }
 
@@ -182,18 +248,20 @@ async function buildWebDocList(
     team_id?: Id<"teams">;
     workspace?: "personal" | "team" | "all";
   },
-  requestedCount?: number
+  requestedCount?: number,
 ) {
   const userId = await getAuthUserId(ctx);
   if (!userId) return { docs: [], projectPaths: [] };
 
   const user = await ctx.db.get(userId);
-  const resolvedTeamId = args.workspace === "team" && args.team_id
-    ? args.team_id
-    : !args.workspace ? user?.active_team_id : undefined;
-  const effectiveWorkspace = args.scope === "projects"
-    ? "personal" as const
-    : args.workspace;
+  const resolvedTeamId =
+    args.workspace === "team" && args.team_id
+      ? args.team_id
+      : !args.workspace
+        ? user?.active_team_id
+        : undefined;
+  const effectiveWorkspace =
+    args.scope === "projects" ? ("personal" as const) : args.workspace;
 
   const { records: rawDocs, convMap } = await scopedFetch(ctx, "docs", {
     userId,
@@ -212,42 +280,75 @@ async function buildWebDocList(
       docs = rawDocs;
       if (args.project_path) {
         const filterName = repoName(args.project_path, checkouts);
-        docs = docs.filter((d) => d.project_path && docRepoName(d, convMap, checkouts) === filterName);
+        docs = docs.filter(
+          (d) =>
+            d.project_path && docRepoName(d, convMap, checkouts) === filterName,
+        );
       }
     } else {
       const filterName = repoName(args.project_path!, checkouts);
-      docs = rawDocs.filter((d) => d.project_path && docRepoName(d, convMap, checkouts) === filterName);
+      docs = rawDocs.filter(
+        (d) =>
+          d.project_path && docRepoName(d, convMap, checkouts) === filterName,
+      );
     }
-    const unscopedDocs = rawDocs.filter((d) => !d.archived_at && !isNoiseDocForWeb(d));
-    projectPaths = dedupeProjectPaths([...new Set(unscopedDocs.map((d) => d.project_path).filter(Boolean))] as string[], checkouts, unscopedDocs, convMap);
+    const unscopedDocs = rawDocs.filter(
+      (d) => !d.archived_at && !isNoiseDocForWeb(d),
+    );
+    projectPaths = dedupeProjectPaths(
+      [
+        ...new Set(unscopedDocs.map((d) => d.project_path).filter(Boolean)),
+      ] as string[],
+      checkouts,
+      unscopedDocs,
+      convMap,
+    );
   } else {
     docs = rawDocs;
   }
 
   // No server-side doc_type filter — all filtering is client-side.
-  docs = docs.filter((d) => !d.archived_at && !isNoiseDocForWeb(d) && d.source !== "plan_mode");
+  docs = docs.filter(
+    (d) => !d.archived_at && !isNoiseDocForWeb(d) && d.source !== "plan_mode",
+  );
 
   if (!projectPaths.length) {
-    projectPaths = dedupeProjectPaths([...new Set(docs.map((d) => d.project_path).filter(Boolean))] as string[], checkouts, docs, convMap);
+    projectPaths = dedupeProjectPaths(
+      [...new Set(docs.map((d) => d.project_path).filter(Boolean))] as string[],
+      checkouts,
+      docs,
+      convMap,
+    );
   }
 
   const enriched = docs.map((d) => {
-    const cid = d.conversation_id || (d.related_conversation_ids?.[0]);
+    const cid = d.conversation_id || d.related_conversation_ids?.[0];
     const conv = cid ? convMap.get(String(cid)) : undefined;
     if (conv?.started_at) return { ...d, originated_at: conv.started_at };
     return d;
   });
 
-  enriched.sort((a: any, b: any) => (b.originated_at || b.created_at) - (a.originated_at || a.created_at));
+  enriched.sort(
+    (a: any, b: any) =>
+      (b.originated_at || b.created_at) - (a.originated_at || a.created_at),
+  );
 
   const userIds = new Set<string>();
   for (const d of enriched) {
     if (d.user_id) userIds.add(String(d.user_id));
   }
-  const userMap = new Map<string, { name?: string; image?: string; github_username?: string }>();
+  const userMap = new Map<
+    string,
+    { name?: string; image?: string; github_username?: string }
+  >();
   for (const uid of userIds) {
     const u = await ctx.db.get(uid as Id<"users">);
-    if (u) userMap.set(uid, { name: u.name, image: u.image || (u as any).github_avatar_url, github_username: (u as any).github_username });
+    if (u)
+      userMap.set(uid, {
+        name: u.name,
+        image: u.image || (u as any).github_avatar_url,
+        github_username: (u as any).github_username,
+      });
   }
 
   const planIds = new Set<string>();
@@ -260,30 +361,48 @@ async function buildWebDocList(
   for (const pid of planIds) {
     const p = await ctx.db.get(pid as Id<"plans">);
     if (p && (await canAccessPlan(ctx, userId, p))) {
-      planMap.set(pid, { short_id: (p as any).short_id, status: (p as any).status });
+      planMap.set(pid, {
+        short_id: (p as any).short_id,
+        status: (p as any).status,
+      });
     }
   }
   const docToPlanMap = new Map<string, { short_id: string; status: string }>();
   for (const docId of docIdsNeedingPlan) {
-    const p = await ctx.db.query("plans").withIndex("by_doc_id", (q: any) => q.eq("doc_id", docId)).first();
+    const p = await ctx.db
+      .query("plans")
+      .withIndex("by_doc_id", (q: any) => q.eq("doc_id", docId))
+      .first();
     if (p && (await canAccessPlan(ctx, userId, p))) {
-      docToPlanMap.set(docId, { short_id: p.short_id, status: p.status as string });
+      docToPlanMap.set(docId, {
+        short_id: p.short_id,
+        status: p.status as string,
+      });
     }
   }
 
   const withAuthors = enriched.map(extractPlanTitleForWeb).map((d: any) => {
     const author = d.user_id ? userMap.get(String(d.user_id)) : undefined;
-    const plan = d.plan_id ? planMap.get(String(d.plan_id)) : (docToPlanMap.get(d._id as string) || undefined);
+    const plan = d.plan_id
+      ? planMap.get(String(d.plan_id))
+      : docToPlanMap.get(d._id as string) || undefined;
     return {
       ...d,
-      ...(author ? { author_name: author.name, author_image: author.image, author_username: author.github_username } : {}),
-      ...(plan ? { plan_short_id: plan.short_id, plan_status: plan.status } : {}),
+      ...(author
+        ? {
+            author_name: author.name,
+            author_image: author.image,
+            author_username: author.github_username,
+          }
+        : {}),
+      ...(plan
+        ? { plan_short_id: plan.short_id, plan_status: plan.status }
+        : {}),
     };
   });
 
   return { docs: withAuthors, projectPaths };
 }
-
 
 /**
  * A doc is one text and its title is its leading heading (@codecast/shared/docs).
@@ -313,9 +432,16 @@ export function docTextUpdates(
 function extractPlanInfo(content: string): { title: string; goal?: string } {
   const titleMatch = content.match(/^#\s+(.+)/m);
   const title = titleMatch ? titleMatch[1].trim() : "";
-  const afterTitle = titleMatch ? content.slice(content.indexOf(titleMatch[0]) + titleMatch[0].length).trim() : content.trim();
+  const afterTitle = titleMatch
+    ? content
+        .slice(content.indexOf(titleMatch[0]) + titleMatch[0].length)
+        .trim()
+    : content.trim();
   const firstPara = afterTitle.split(/\n\n/)[0]?.trim();
-  const goal = firstPara && firstPara.length > 10 && !firstPara.startsWith("#") ? firstPara.slice(0, 500) : undefined;
+  const goal =
+    firstPara && firstPara.length > 10 && !firstPara.startsWith("#")
+      ? firstPara.slice(0, 500)
+      : undefined;
   return { title, goal };
 }
 
@@ -323,7 +449,11 @@ function extractPlanInfo(content: string): { title: string; goal?: string } {
  *  doc with any source_file, so a lookup keyed on it filters by owner before
  *  it takes a row: another person's row with the same key is never the
  *  answer, and never hides this person's own. */
-export function ownDocsBySourceFile(ctx: Pick<QueryCtx, "db">, userId: Id<"users">, sourceFile: string) {
+export function ownDocsBySourceFile(
+  ctx: Pick<QueryCtx, "db">,
+  userId: Id<"users">,
+  sourceFile: string,
+) {
   return ctx.db
     .query("docs")
     .withIndex("by_source_file", (q) => q.eq("source_file", sourceFile))
@@ -360,7 +490,11 @@ export const create = mutation({
     if (args.conversation_id && !args.workspace) {
       // Unresolvable session ref = create the doc without the link, never
       // reject the create (see resolveSessionConversation).
-      const conv = await resolveSessionConversation(ctx, auth.userId, args.conversation_id);
+      const conv = await resolveSessionConversation(
+        ctx,
+        auth.userId,
+        args.conversation_id,
+      );
       if (conv) {
         conversation_id = conv._id;
         conversationTeamId = teamVisibleConvTeam(conv);
@@ -370,8 +504,12 @@ export const create = mutation({
     const db = await createDataContext(ctx, {
       userId: auth.userId,
       project_path: args.project_path,
-      ...(args.workspace ? { workspace: args.workspace, team_id: args.team_id } : {}),
-      ...(conversationTeamId ? { workspace: "team" as const, team_id: conversationTeamId } : {}),
+      ...(args.workspace
+        ? { workspace: args.workspace, team_id: args.team_id }
+        : {}),
+      ...(conversationTeamId
+        ? { workspace: "team" as const, team_id: conversationTeamId }
+        : {}),
     });
     const now = Date.now();
     // One text: the body opens with its title heading, and the title is that heading.
@@ -382,31 +520,66 @@ export const create = mutation({
     if (args.project_id) {
       const projectId = ctx.db.normalizeId("projects", args.project_id);
       if (!projectId) notFound("Project not found");
-      const project = await requireAccessibleProject(ctx, auth.userId, projectId);
+      const project = await requireAccessibleProject(
+        ctx,
+        auth.userId,
+        projectId,
+      );
       requireSameWorkspace(project, db.workspace, "project");
       project_id = projectId;
     }
 
     // Check for existing doc by source_file (for upsert on plan sync)
     if (args.source_file) {
-      const existing = await ownDocsBySourceFile(ctx, auth.userId, args.source_file).first();
+      const existing = await ownDocsBySourceFile(
+        ctx,
+        auth.userId,
+        args.source_file,
+      ).first();
       if (existing) {
         requireSameWorkspace(existing, db.workspace, "existing doc");
         // The file is the source of truth here, so no base; but never over a
         // person's unsaved typing, and an open editor follows the new text.
-        const unchanged = existing.content === content && existing.title === title;
+        const unchanged =
+          existing.content === content && existing.title === title;
         const revision = unchanged
-          ? docRevision(content, (await docLiveState(ctx, existing._id)).version)
-          : (await writeDocBody(ctx, existing, { content, title }, { writer: await cliDocWriter(ctx, auth.userId, args.conversation_id) })).revision;
-        const userTeamId = db.workspace.type === "team" ? db.workspace.teamId : undefined;
+          ? docRevision(
+              content,
+              (await docLiveState(ctx, existing._id)).version,
+            )
+          : (
+              await writeDocBody(
+                ctx,
+                existing,
+                { content, title },
+                {
+                  writer: await cliDocWriter(
+                    ctx,
+                    auth.userId,
+                    args.conversation_id,
+                  ),
+                },
+              )
+            ).revision;
+        const userTeamId =
+          db.workspace.type === "team" ? db.workspace.teamId : undefined;
         if ((args.source || existing.source) === "plan_mode") {
-          await syncDocToPlanEntity(ctx, existing._id, content, auth.userId, userTeamId, existing.project_id, existing.conversation_id);
+          await syncDocToPlanEntity(
+            ctx,
+            existing._id,
+            content,
+            auth.userId,
+            userTeamId,
+            existing.project_id,
+            existing.conversation_id,
+          );
         }
         return { id: existing._id, updated: true, revision };
       }
     }
 
-    let team_id = db.workspace.type === "team" ? db.workspace.teamId : undefined;
+    let team_id =
+      db.workspace.type === "team" ? db.workspace.teamId : undefined;
 
     const id = await ctx.db.insert("docs", {
       user_id: auth.userId,
@@ -429,10 +602,23 @@ export const create = mutation({
     // Auto-create plan entity for plan_mode docs
     let plan_short_id: string | undefined;
     if (args.source === "plan_mode") {
-      plan_short_id = await syncDocToPlanEntity(ctx, id, args.content, auth.userId, team_id, project_id, conversation_id);
+      plan_short_id = await syncDocToPlanEntity(
+        ctx,
+        id,
+        args.content,
+        auth.userId,
+        team_id,
+        project_id,
+        conversation_id,
+      );
     }
 
-    return { id, updated: false, plan_short_id, revision: docRevision(content, 0) };
+    return {
+      id,
+      updated: false,
+      plan_short_id,
+      revision: docRevision(content, 0),
+    };
   },
 });
 
@@ -454,17 +640,29 @@ async function syncDocToPlanEntity(
     const plan = await ctx.db.get(doc.plan_id);
     if (plan) {
       await ctx.db.patch(plan._id, { title, goal, updated_at: now });
-      if (conversationId && !plan.session_ids?.some((id: any) => String(id) === String(conversationId))) {
-        await ctx.db.patch(plan._id, { session_ids: [...(plan.session_ids || []), conversationId] });
+      if (
+        conversationId &&
+        !plan.session_ids?.some(
+          (id: any) => String(id) === String(conversationId),
+        )
+      ) {
+        await ctx.db.patch(plan._id, {
+          session_ids: [...(plan.session_ids || []), conversationId],
+        });
       }
       if (conversationId) {
         const conv = await ctx.db.get(conversationId);
         if (conv && !conv.active_plan_id) {
           const planIds = (conv as any).plan_ids || [];
-          if (!planIds.some((pid: any) => pid.toString() === plan._id.toString())) {
+          if (
+            !planIds.some((pid: any) => pid.toString() === plan._id.toString())
+          ) {
             planIds.push(plan._id);
           }
-          await ctx.db.patch(conversationId, { active_plan_id: plan._id, plan_ids: planIds });
+          await ctx.db.patch(conversationId, {
+            active_plan_id: plan._id,
+            plan_ids: planIds,
+          });
         }
       }
       return plan.short_id;
@@ -478,17 +676,31 @@ async function syncDocToPlanEntity(
   if (existingPlan) {
     await ctx.db.patch(existingPlan._id, { title, goal, updated_at: now });
     if (!doc?.plan_id) await ctx.db.patch(docId, { plan_id: existingPlan._id });
-    if (conversationId && !existingPlan.session_ids?.some((id: any) => String(id) === String(conversationId))) {
-      await ctx.db.patch(existingPlan._id, { session_ids: [...(existingPlan.session_ids || []), conversationId] });
+    if (
+      conversationId &&
+      !existingPlan.session_ids?.some(
+        (id: any) => String(id) === String(conversationId),
+      )
+    ) {
+      await ctx.db.patch(existingPlan._id, {
+        session_ids: [...(existingPlan.session_ids || []), conversationId],
+      });
     }
     if (conversationId) {
       const conv = await ctx.db.get(conversationId);
       if (conv && !conv.active_plan_id) {
         const planIds = (conv as any).plan_ids || [];
-        if (!planIds.some((pid: any) => pid.toString() === existingPlan._id.toString())) {
+        if (
+          !planIds.some(
+            (pid: any) => pid.toString() === existingPlan._id.toString(),
+          )
+        ) {
           planIds.push(existingPlan._id);
         }
-        await ctx.db.patch(conversationId, { active_plan_id: existingPlan._id, plan_ids: planIds });
+        await ctx.db.patch(conversationId, {
+          active_plan_id: existingPlan._id,
+          plan_ids: planIds,
+        });
       }
     }
     return existingPlan.short_id;
@@ -516,7 +728,10 @@ async function syncDocToPlanEntity(
     if (conv) {
       const planIds = (conv as any).plan_ids || [];
       planIds.push(planId);
-      await ctx.db.patch(conversationId, { active_plan_id: planId, plan_ids: planIds });
+      await ctx.db.patch(conversationId, {
+        active_plan_id: planId,
+        plan_ids: planIds,
+      });
     }
   }
   return short_id;
@@ -547,7 +762,9 @@ export const list = query({
     const stream = args.project_id
       ? ctx.db
           .query("docs")
-          .withIndex("by_project_id", (q) => q.eq("project_id", args.project_id as any))
+          .withIndex("by_project_id", (q) =>
+            q.eq("project_id", args.project_id as any),
+          )
           .order("desc")
       : ctx.db
           .query("docs")
@@ -560,7 +777,8 @@ export const list = query({
       if (d.archived_at) continue;
       if (args.doc_type && d.doc_type !== args.doc_type) continue;
       if (args.pinned !== undefined && !!d.pinned !== args.pinned) continue;
-      if (args.project_id && !(await canAccessDoc(ctx, auth.userId, d))) continue;
+      if (args.project_id && !(await canAccessDoc(ctx, auth.userId, d)))
+        continue;
       // The list is a shelf, not the corpus: bodies, timelines and vectors stay
       // behind `docs.get`.
       const { content: _c, entries: _e, embedding: _m, ...thin } = d as any;
@@ -589,7 +807,11 @@ export const get = query({
     // its base (writeDocBody). live_unsaved: the editor holds steps that are
     // not in `content` yet, so this copy trails what the person sees.
     const live = await docLiveState(ctx, doc._id);
-    return { ...doc, revision: docRevision(doc.content, live.version), live_unsaved: !!live.unsaved };
+    return {
+      ...doc,
+      revision: docRevision(doc.content, live.version),
+      live_unsaved: !!live.unsaved,
+    };
   },
 });
 
@@ -621,30 +843,46 @@ export const update = mutation({
     await refuseRoleCharterWrite(ctx, auth.userId, doc, args.session_id);
     if (args.content !== undefined) refuseArtifactBodyWrite(doc);
 
-    const text = docTextUpdates(doc, { title: args.title || undefined, content: args.content });
+    const text = docTextUpdates(doc, {
+      title: args.title || undefined,
+      content: args.content,
+    });
     // A forced body equal to the stored markdown still rewrites the editor's
     // history: that is how a caller discards steps that never saved.
-    if (args.force && args.content !== undefined && text.content === undefined) text.content = doc.content ?? "";
+    if (args.force && args.content !== undefined && text.content === undefined)
+      text.content = doc.content ?? "";
     let revision: string | undefined;
     if (text.content !== undefined) {
-      ({ revision } = await writeDocBody(ctx, doc, { content: text.content, title: text.title ?? doc.title }, {
-        writer: await cliDocWriter(ctx, auth.userId, args.session_id), base: args.base, force: args.force,
-        // A body the caller sent was computed from some read of the doc; a
-        // title alone is rewritten here from the stored text.
-        requireBase: args.content !== undefined,
-      }));
+      ({ revision } = await writeDocBody(
+        ctx,
+        doc,
+        { content: text.content, title: text.title ?? doc.title },
+        {
+          writer: await cliDocWriter(ctx, auth.userId, args.session_id),
+          base: args.base,
+          force: args.force,
+          // A body the caller sent was computed from some read of the doc; a
+          // title alone is rewritten here from the stored text.
+          requireBase: args.content !== undefined,
+        },
+      ));
       // A brief mirrors its first line into the standing session's state; a
       // charter wakes its role at once (org-roles-standing.md T2, T3).
       await afterRoleDocWrite(ctx, doc, text.content);
     }
-    const updates: any = { updated_at: Date.now(), ...(text.content === undefined ? text : {}) };
+    const updates: any = {
+      updated_at: Date.now(),
+      ...(text.content === undefined ? text : {}),
+    };
     if (args.doc_type) {
-      if (!docTypeChangeAllowed(doc.doc_type, args.doc_type)) throw new Error(`A ${doc.doc_type} cannot become a ${args.doc_type}`);
+      if (!docTypeChangeAllowed(doc.doc_type, args.doc_type))
+        throw new Error(`A ${doc.doc_type} cannot become a ${args.doc_type}`);
       updates.doc_type = args.doc_type;
     }
     if (args.labels) updates.labels = args.labels;
     if (args.pinned !== undefined) updates.pinned = args.pinned;
-    if (args.archived !== undefined) updates.archived_at = args.archived ? Date.now() : undefined;
+    if (args.archived !== undefined)
+      updates.archived_at = args.archived ? Date.now() : undefined;
     if (args.overflow !== undefined) updates.overflow = args.overflow;
     if (args.project_id !== undefined) {
       if (!args.project_id) {
@@ -652,7 +890,11 @@ export const update = mutation({
       } else {
         const projectId = ctx.db.normalizeId("projects", args.project_id);
         if (!projectId) notFound("Project not found");
-        const project = await requireAccessibleProject(ctx, auth.userId, projectId);
+        const project = await requireAccessibleProject(
+          ctx,
+          auth.userId,
+          projectId,
+        );
         const docWorkspace = doc.team_id
           ? { type: "team" as const, teamId: doc.team_id }
           : { type: "personal" as const, userId: doc.user_id };
@@ -665,7 +907,11 @@ export const update = mutation({
     // The revision comes back only for a body the caller wrote itself: a
     // title or type change computed here from text it has not seen must not
     // become the base of its next whole-body write.
-    return { success: true, content: text.content, ...(args.content !== undefined ? { revision } : {}) };
+    return {
+      success: true,
+      content: text.content,
+      ...(args.content !== undefined ? { revision } : {}),
+    };
   },
 });
 
@@ -685,7 +931,9 @@ export const addComment = mutation({
     if (!auth) throw new Error("Unauthorized");
 
     const doc = await requireAccessibleDoc(ctx, auth.userId, args.id);
-    const callerConv = args.session_id ? await resolveSessionConversation(ctx, auth.userId, args.session_id) : null;
+    const callerConv = args.session_id
+      ? await resolveSessionConversation(ctx, auth.userId, args.session_id)
+      : null;
     const actor = await resolveActor(ctx, auth.userId, callerConv);
 
     const entries = (doc as any).entries || [];
@@ -725,7 +973,12 @@ export const resetSync = mutation({
     // could wipe a doc's deltas and overwrite its snapshot content by id.
     const doc = await requireAccessibleDoc(ctx, auth.userId, args.id);
     await refuseUnsavedEdits(ctx, doc);
-    await rewriteCollab(ctx, args.id, doc.content ?? "", (await docLiveState(ctx, args.id)).version + 1);
+    await rewriteCollab(
+      ctx,
+      args.id,
+      doc.content ?? "",
+      (await docLiveState(ctx, args.id)).version + 1,
+    );
     await ctx.db.patch(args.id, { cli_edited_at: Date.now() });
     return { success: true };
   },
@@ -757,25 +1010,41 @@ export const patch = mutation({
     await refuseUnsavedEdits(ctx, doc);
     const content = doc.content || "";
     const parts = args.old_string ? content.split(args.old_string) : [content];
-    if (parts.length === 1) throw new Error("old_string not found in document content");
+    if (parts.length === 1)
+      throw new Error("old_string not found in document content");
     const replaced = args.replace_all ? parts.length - 1 : 1;
     const newContent = args.replace_all
       ? parts.join(args.new_string)
       : parts[0] + args.new_string + parts.slice(1).join(args.old_string);
-    const { revision } = await writeDocBody(ctx, doc, { content: newContent, title: docTitleFromContent(newContent, doc.title) }, {
-      writer: await cliDocWriter(ctx, auth.userId, args.session_id),
-    });
+    const { revision } = await writeDocBody(
+      ctx,
+      doc,
+      {
+        content: newContent,
+        title: docTitleFromContent(newContent, doc.title),
+      },
+      {
+        writer: await cliDocWriter(ctx, auth.userId, args.session_id),
+      },
+    );
     await afterRoleDocWrite(ctx, doc, newContent);
 
     if (doc.plan_id) {
       const plan = await ctx.db.get(doc.plan_id);
       if (plan) {
         const { title, goal } = extractPlanInfo(newContent);
-        if (title) await ctx.db.patch(plan._id, { title, goal, updated_at: Date.now() });
+        if (title)
+          await ctx.db.patch(plan._id, { title, goal, updated_at: Date.now() });
       }
     }
 
-    return { success: true, length: newContent.length, content: newContent, replaced, revision };
+    return {
+      success: true,
+      length: newContent.length,
+      content: newContent,
+      replaced,
+      revision,
+    };
   },
 });
 
@@ -823,7 +1092,9 @@ export const webList = query({
     scope: v.optional(v.string()),
     limit: v.optional(v.number()),
     team_id: v.optional(v.id("teams")),
-    workspace: v.optional(v.union(v.literal("personal"), v.literal("team"), v.literal("all"))),
+    workspace: v.optional(
+      v.union(v.literal("personal"), v.literal("team"), v.literal("all")),
+    ),
   },
   handler: async (ctx, args) => {
     const fetchCount = args.limit || undefined;
@@ -845,7 +1116,10 @@ function parseCursor(cursor: string | null): WebDocsCursor {
   try {
     const parsed = JSON.parse(cursor);
     if (parsed?.phase === "primary" || parsed?.phase === "orphans") {
-      return { phase: parsed.phase, inner: typeof parsed.inner === "string" ? parsed.inner : null };
+      return {
+        phase: parsed.phase,
+        inner: typeof parsed.inner === "string" ? parsed.inner : null,
+      };
     }
   } catch {}
   return { phase: "primary", inner: null };
@@ -860,24 +1134,32 @@ function stripDoc(d: any): any {
   return rest;
 }
 
-async function buildConvMapForPage(ctx: any, records: any[]): Promise<Map<string, any>> {
+async function buildConvMapForPage(
+  ctx: any,
+  records: any[],
+): Promise<Map<string, any>> {
   const convIds = new Set<string>();
   for (const r of records) {
-    const cid = r.conversation_id || r.created_from_conversation || r.related_conversation_ids?.[0] || r.conversation_ids?.[0];
+    const cid =
+      r.conversation_id ||
+      r.created_from_conversation ||
+      r.related_conversation_ids?.[0] ||
+      r.conversation_ids?.[0];
     if (cid) convIds.add(String(cid));
   }
   const convMap = new Map<string, any>();
   for (const cid of convIds) {
     const conv = await ctx.db.get(cid as any);
-    if (conv) convMap.set(cid, {
-      team_id: conv.team_id,
-      is_private: conv.is_private,
-      auto_shared: conv.auto_shared,
-      team_visibility: conv.team_visibility,
-      git_root: conv.git_root,
-      started_at: conv.started_at,
-      project_path: conv.project_path,
-    });
+    if (conv)
+      convMap.set(cid, {
+        team_id: conv.team_id,
+        is_private: conv.is_private,
+        auto_shared: conv.auto_shared,
+        team_visibility: conv.team_visibility,
+        git_root: conv.git_root,
+        started_at: conv.started_at,
+        project_path: conv.project_path,
+      });
   }
   return convMap;
 }
@@ -887,7 +1169,12 @@ async function enrichPage(
   userId: Id<"users">,
   records: any[],
   convMap: Map<string, any>,
-  args: { doc_type?: string; project_id?: string; project_path?: string; scope?: string },
+  args: {
+    doc_type?: string;
+    project_id?: string;
+    project_path?: string;
+    scope?: string;
+  },
 ): Promise<any[]> {
   let docs = records;
   const checkouts = knownCheckoutRoots(convMap.values());
@@ -895,26 +1182,39 @@ async function enrichPage(
   if (args.scope === "projects" || args.project_path) {
     if (args.project_path) {
       const filterName = repoName(args.project_path, checkouts);
-      docs = docs.filter((d) => d.project_path && docRepoName(d, convMap, checkouts) === filterName);
+      docs = docs.filter(
+        (d) =>
+          d.project_path && docRepoName(d, convMap, checkouts) === filterName,
+      );
     }
   }
 
-  docs = docs.filter((d) => !d.archived_at && !isNoiseDocForWeb(d) && d.source !== "plan_mode");
+  docs = docs.filter(
+    (d) => !d.archived_at && !isNoiseDocForWeb(d) && d.source !== "plan_mode",
+  );
 
   const enriched = docs.map((d) => {
-    const cid = d.conversation_id || (d.related_conversation_ids?.[0]);
+    const cid = d.conversation_id || d.related_conversation_ids?.[0];
     const conv = cid ? convMap.get(String(cid)) : undefined;
     if (conv?.started_at) return { ...d, originated_at: conv.started_at };
     return d;
   });
-  enriched.sort((a: any, b: any) => (b.originated_at || b.created_at) - (a.originated_at || a.created_at));
+  enriched.sort(
+    (a: any, b: any) =>
+      (b.originated_at || b.created_at) - (a.originated_at || a.created_at),
+  );
 
   const userIds = new Set<string>();
   for (const d of enriched) if (d.user_id) userIds.add(String(d.user_id));
   const userMap = new Map<string, any>();
   for (const uid of userIds) {
     const u = await ctx.db.get(uid as Id<"users">);
-    if (u) userMap.set(uid, { name: u.name, image: u.image || (u as any).github_avatar_url, github_username: (u as any).github_username });
+    if (u)
+      userMap.set(uid, {
+        name: u.name,
+        image: u.image || (u as any).github_avatar_url,
+        github_username: (u as any).github_username,
+      });
   }
 
   const planIds = new Set<string>();
@@ -927,24 +1227,43 @@ async function enrichPage(
   for (const pid of planIds) {
     const p = await ctx.db.get(pid as Id<"plans">);
     if (p && (await canAccessPlan(ctx, userId, p))) {
-      planMap.set(pid, { short_id: (p as any).short_id, status: (p as any).status });
+      planMap.set(pid, {
+        short_id: (p as any).short_id,
+        status: (p as any).status,
+      });
     }
   }
   const docToPlanMap = new Map<string, { short_id: string; status: string }>();
   for (const docId of docIdsNeedingPlan) {
-    const p = await ctx.db.query("plans").withIndex("by_doc_id", (q: any) => q.eq("doc_id", docId)).first();
+    const p = await ctx.db
+      .query("plans")
+      .withIndex("by_doc_id", (q: any) => q.eq("doc_id", docId))
+      .first();
     if (p && (await canAccessPlan(ctx, userId, p))) {
-      docToPlanMap.set(docId, { short_id: p.short_id, status: p.status as string });
+      docToPlanMap.set(docId, {
+        short_id: p.short_id,
+        status: p.status as string,
+      });
     }
   }
 
   return enriched.map(extractPlanTitleForWeb).map((d: any) => {
     const author = d.user_id ? userMap.get(String(d.user_id)) : undefined;
-    const plan = d.plan_id ? planMap.get(String(d.plan_id)) : (docToPlanMap.get(d._id as string) || undefined);
+    const plan = d.plan_id
+      ? planMap.get(String(d.plan_id))
+      : docToPlanMap.get(d._id as string) || undefined;
     return {
       ...d,
-      ...(author ? { author_name: author.name, author_image: author.image, author_username: author.github_username } : {}),
-      ...(plan ? { plan_short_id: plan.short_id, plan_status: plan.status } : {}),
+      ...(author
+        ? {
+            author_name: author.name,
+            author_image: author.image,
+            author_username: author.github_username,
+          }
+        : {}),
+      ...(plan
+        ? { plan_short_id: plan.short_id, plan_status: plan.status }
+        : {}),
     };
   });
 }
@@ -981,7 +1300,12 @@ export const webGetByIds = query({
       const uid = d.user_id ? String(d.user_id) : null;
       if (!uid || userMap.has(uid)) continue;
       const u = await ctx.db.get(uid as Id<"users">);
-      if (u) userMap.set(uid, { name: u.name, image: u.image || (u as any).github_avatar_url, github_username: (u as any).github_username });
+      if (u)
+        userMap.set(uid, {
+          name: u.name,
+          image: u.image || (u as any).github_avatar_url,
+          github_username: (u as any).github_username,
+        });
     }
     const planMap = new Map<string, { short_id: string; status: string }>();
     const docToPlan = new Map<string, { short_id: string; status: string }>();
@@ -989,12 +1313,21 @@ export const webGetByIds = query({
       if (d.plan_id) {
         const p = await ctx.db.get(d.plan_id as Id<"plans">);
         if (p && (await canAccessPlan(ctx, userId, p))) {
-          planMap.set(String(d.plan_id), { short_id: (p as any).short_id, status: (p as any).status });
+          planMap.set(String(d.plan_id), {
+            short_id: (p as any).short_id,
+            status: (p as any).status,
+          });
         }
       } else if (d.doc_type === "plan") {
-        const p = await ctx.db.query("plans").withIndex("by_doc_id", (q: any) => q.eq("doc_id", d._id as string)).first();
+        const p = await ctx.db
+          .query("plans")
+          .withIndex("by_doc_id", (q: any) => q.eq("doc_id", d._id as string))
+          .first();
         if (p && (await canAccessPlan(ctx, userId, p))) {
-          docToPlan.set(d._id as string, { short_id: p.short_id, status: p.status as string });
+          docToPlan.set(d._id as string, {
+            short_id: p.short_id,
+            status: p.status as string,
+          });
         }
       }
     }
@@ -1003,15 +1336,28 @@ export const webGetByIds = query({
     // thin `docs` cache; bodies are served by webGet / the doc detail query,
     // and shipping them here let every doc that ever changed pin its full
     // content in the persisted list cache.
-    const docs = rows.map(extractPlanTitleForWeb).map(stripDoc).map((d: any) => {
-      const author = d.user_id ? userMap.get(String(d.user_id)) : undefined;
-      const plan = d.plan_id ? planMap.get(String(d.plan_id)) : docToPlan.get(d._id as string);
-      return {
-        ...d,
-        ...(author ? { author_name: author.name, author_image: author.image, author_username: author.github_username } : {}),
-        ...(plan ? { plan_short_id: plan.short_id, plan_status: plan.status } : {}),
-      };
-    });
+    const docs = rows
+      .map(extractPlanTitleForWeb)
+      .map(stripDoc)
+      .map((d: any) => {
+        const author = d.user_id ? userMap.get(String(d.user_id)) : undefined;
+        const plan = d.plan_id
+          ? planMap.get(String(d.plan_id))
+          : docToPlan.get(d._id as string);
+        return {
+          ...d,
+          ...(author
+            ? {
+                author_name: author.name,
+                author_image: author.image,
+                author_username: author.github_username,
+              }
+            : {}),
+          ...(plan
+            ? { plan_short_id: plan.short_id, plan_status: plan.status }
+            : {}),
+        };
+      });
     return { docs };
   },
 });
@@ -1065,14 +1411,15 @@ export const webListPaginated = query({
     const userActiveTeamId = webDocsNeedsUserDoc(args)
       ? (await ctx.db.get(userId))?.active_team_id
       : undefined;
-    const resolvedTeamId: typeof args.team_id | undefined = resolveWebDocsTeamId(
-      args,
-      userActiveTeamId
-    ) as typeof args.team_id | undefined;
-    const effectiveWorkspace = args.scope === "projects"
-      ? "personal" as const
-      : args.workspace;
-    const isTeamView = !!resolvedTeamId && (effectiveWorkspace === "team" || !effectiveWorkspace);
+    const resolvedTeamId: typeof args.team_id | undefined =
+      resolveWebDocsTeamId(args, userActiveTeamId) as
+        | typeof args.team_id
+        | undefined;
+    const effectiveWorkspace =
+      args.scope === "projects" ? ("personal" as const) : args.workspace;
+    const isTeamView =
+      !!resolvedTeamId &&
+      (effectiveWorkspace === "team" || !effectiveWorkspace);
     if (isTeamView && resolvedTeamId) {
       await requireTeamMembership(ctx, userId, resolvedTeamId);
     }
@@ -1102,10 +1449,21 @@ export const webListPaginated = query({
     //   Personal view: paginate by_user_id, keep records with no effective team.
     if (cursor.phase === "primary") {
       const primaryQuery = isTeamView
-        ? ctx.db.query("docs").withIndex("by_team_id", (q: any) => q.eq("team_id", resolvedTeamId)).order("desc")
-        : ctx.db.query("docs").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).order("desc");
+        ? ctx.db
+            .query("docs")
+            .withIndex("by_team_id", (q: any) =>
+              q.eq("team_id", resolvedTeamId),
+            )
+            .order("desc")
+        : ctx.db
+            .query("docs")
+            .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+            .order("desc");
 
-      const result = await primaryQuery.paginate({ ...paginationOpts, cursor: cursor.inner });
+      const result = await primaryQuery.paginate({
+        ...paginationOpts,
+        cursor: cursor.inner,
+      });
       const stripped = result.page.map(stripDoc);
       const convMap = await buildConvMapForPage(ctx, stripped);
 
@@ -1129,7 +1487,10 @@ export const webListPaginated = query({
         return {
           page,
           isDone: false,
-          continueCursor: encodeCursor({ phase: "primary", inner: result.continueCursor }),
+          continueCursor: encodeCursor({
+            phase: "primary",
+            inner: result.continueCursor,
+          }),
         };
       }
       // Primary done. Team view has a second phase for the viewer's own
@@ -1158,7 +1519,10 @@ export const webListPaginated = query({
       .query("docs")
       .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
       .order("desc");
-    const result = await orphanQuery.paginate({ ...paginationOpts, cursor: cursor.inner });
+    const result = await orphanQuery.paginate({
+      ...paginationOpts,
+      cursor: cursor.inner,
+    });
     const stripped = result.page.map(stripDoc);
     const convMap = await buildConvMapForPage(ctx, stripped);
     const convDerived = stripped.filter((r) => {
@@ -1204,31 +1568,42 @@ export const webGet = query({
     // to nothing.
     if (!(await canAccessDoc(ctx, userId, doc))) return null;
 
-    const convIds = doc.related_conversation_ids || (doc.conversation_id ? [doc.conversation_id] : []);
+    const convIds =
+      doc.related_conversation_ids ||
+      (doc.conversation_id ? [doc.conversation_id] : []);
     const relatedConversations: WebDocRelatedConversation[] = [];
     if (convIds.length > 0) {
       for (const cid of convIds) {
         const conv = await ctx.db.get(cid);
-        if (conv && (await canAccessConversation(ctx, userId, conv))) relatedConversations.push({
-          _id: conv._id,
-          session_id: conv.session_id,
-          title: conv.title,
-          project_path: conv.project_path,
-          started_at: conv.started_at,
-          updated_at: conv.updated_at,
-          message_count: conv.message_count,
-          short_id: conv.short_id,
-        });
+        if (conv && (await canAccessConversation(ctx, userId, conv)))
+          relatedConversations.push({
+            _id: conv._id,
+            session_id: conv.session_id,
+            title: conv.title,
+            project_path: conv.project_path,
+            started_at: conv.started_at,
+            updated_at: conv.updated_at,
+            message_count: conv.message_count,
+            short_id: conv.short_id,
+          });
       }
     }
 
     let activePlan: WebDocActivePlan | undefined;
     if (doc.conversation_id) {
       const conv = await ctx.db.get(doc.conversation_id);
-      if (conv?.active_plan_id && (await canAccessConversation(ctx, userId, conv))) {
+      if (
+        conv?.active_plan_id &&
+        (await canAccessConversation(ctx, userId, conv))
+      ) {
         const plan = await ctx.db.get(conv.active_plan_id);
         if (plan && (await canAccessPlan(ctx, userId, plan))) {
-          activePlan = { _id: plan._id, short_id: plan.short_id, title: plan.title, status: plan.status };
+          activePlan = {
+            _id: plan._id,
+            short_id: plan.short_id,
+            title: plan.title,
+            status: plan.status,
+          };
         }
       }
     }
@@ -1264,18 +1639,19 @@ export const webSearch = query({
 
     const convIds = new Set<string>();
     for (const d of filtered) {
-      const cid = d.conversation_id || (d.related_conversation_ids?.[0]);
+      const cid = d.conversation_id || d.related_conversation_ids?.[0];
       if (cid) convIds.add(String(cid));
     }
     const convMap = new Map<string, any>();
     for (const cid of convIds) {
       const conv = await ctx.db.get(cid as Id<"conversations">);
-      if (conv) convMap.set(cid, {
-        team_id: conv.team_id,
-        is_private: conv.is_private,
-        auto_shared: conv.auto_shared,
-        team_visibility: conv.team_visibility,
-      });
+      if (conv)
+        convMap.set(cid, {
+          team_id: conv.team_id,
+          is_private: conv.is_private,
+          auto_shared: conv.auto_shared,
+          team_visibility: conv.team_visibility,
+        });
     }
 
     // The doc's ACCESS team: its stored workspace key when present, else the
@@ -1297,7 +1673,6 @@ export const webSearch = query({
     return filtered.slice(0, args.limit || 20);
   },
 });
-
 
 const webUpdateArgs = {
   id: v.id("docs"),
@@ -1322,7 +1697,17 @@ export const webUpdate = mutation({
  *  assistant's write_doc runs this same path, naming itself as `agent`: its
  *  body writes then go through writeDocBody, so they never land over a
  *  person's unsaved typing and reach an open editor. */
-export async function updateDocAs(ctx: MutationCtx, userId: Id<"users">, args: ObjectType<typeof webUpdateArgs>, agent?: { writer: DocWriter; base?: string; requireBase?: boolean; reread?: string }) {
+export async function updateDocAs(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  args: ObjectType<typeof webUpdateArgs>,
+  agent?: {
+    writer: DocWriter;
+    base?: string;
+    requireBase?: boolean;
+    reread?: string;
+  },
+) {
   const doc = await ctx.db.get(args.id);
   if (!doc) throw new Error("Doc not found");
   if (!(await canAccessDoc(ctx, userId, doc))) throw new Error("Unauthorized");
@@ -1330,37 +1715,62 @@ export async function updateDocAs(ctx: MutationCtx, userId: Id<"users">, args: O
 
   const text = docTextUpdates(doc, args);
   if (agent && text.content !== undefined) {
-    await writeDocBody(ctx, doc, { content: text.content, title: text.title ?? doc.title }, agent);
+    await writeDocBody(
+      ctx,
+      doc,
+      { content: text.content, title: text.title ?? doc.title },
+      agent,
+    );
   }
-  const updates: any = { updated_at: Date.now(), ...(agent && text.content !== undefined ? {} : text) };
-  if (args.doc_type !== undefined && docTypeChangeAllowed(doc.doc_type, args.doc_type)) updates.doc_type = args.doc_type;
+  const updates: any = {
+    updated_at: Date.now(),
+    ...(agent && text.content !== undefined ? {} : text),
+  };
+  if (
+    args.doc_type !== undefined &&
+    docTypeChangeAllowed(doc.doc_type, args.doc_type)
+  )
+    updates.doc_type = args.doc_type;
   if (args.labels !== undefined) updates.labels = args.labels;
   if (args.pinned !== undefined) updates.pinned = args.pinned;
-  if (args.archived !== undefined) updates.archived_at = args.archived ? Date.now() : undefined;
+  if (args.archived !== undefined)
+    updates.archived_at = args.archived ? Date.now() : undefined;
 
   await ctx.db.patch(args.id, updates);
   return { success: true };
 }
 
-
 // Once, after extraction from session transcripts was retired: archives the
 // docs it made (Markdown files a session wrote, long assistant replies), so they
 // leave the list and search. Archiving is reversible; clear archived_at to undo.
 export const archiveExtractedDocs = internalMutation({
-  args: { dry_run: v.boolean(), cursor: v.optional(v.union(v.string(), v.null())) },
+  args: {
+    dry_run: v.boolean(),
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("docs").paginate({ cursor: args.cursor ?? null, numItems: 200 });
+    const page = await ctx.db
+      .query("docs")
+      .paginate({ cursor: args.cursor ?? null, numItems: 200 });
     const now = Date.now();
     let archived = 0;
     for (const d of page.page) {
-      if (d.archived_at || (d.source !== "file_sync" && d.source !== "inline_extract")) continue;
+      if (
+        d.archived_at ||
+        (d.source !== "file_sync" && d.source !== "inline_extract")
+      )
+        continue;
       archived++;
       if (!args.dry_run) await ctx.db.patch(d._id, { archived_at: now });
     }
-    return { scanned: page.page.length, archived, cursor: page.continueCursor, done: page.isDone };
+    return {
+      scanned: page.page.length,
+      archived,
+      cursor: page.continueCursor,
+      done: page.isDone,
+    };
   },
 });
-
 
 export const webPatch = mutation({
   args: {
@@ -1375,7 +1785,8 @@ export const webPatch = mutation({
     const doc = await ctx.db.get(args.id);
     if (!doc) throw new Error("Doc not found");
     // The same rule as webUpdate and the CLI patch: the doc's workspace.
-    if (!(await canAccessDoc(ctx, userId, doc))) throw new Error("Not authorized");
+    if (!(await canAccessDoc(ctx, userId, doc)))
+      throw new Error("Not authorized");
     await requireArtifactEditor(ctx, doc, userId);
 
     const idx = doc.content.indexOf(args.old_string);
@@ -1398,7 +1809,9 @@ export const webPatch = mutation({
 export const webMentionList = query({
   args: {
     team_id: v.optional(v.id("teams")),
-    workspace: v.optional(v.union(v.literal("personal"), v.literal("team"), v.literal("all"))),
+    workspace: v.optional(
+      v.union(v.literal("personal"), v.literal("team"), v.literal("all")),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -1424,7 +1837,10 @@ export const webMentionList = query({
     const pushUnique = (d: any) => {
       if (docs.length >= MAX_TOTAL) return;
       const id = String(d._id);
-      if (!seen.has(id)) { seen.add(id); docs.push(d); }
+      if (!seen.has(id)) {
+        seen.add(id);
+        docs.push(d);
+      }
     };
     // by_team_id is the ROUTING index: a doc routed to a team can still be
     // private to its owner (workspace user:<owner>), so every team row passes
@@ -1513,11 +1929,12 @@ export const mentionSearch = query({
       userId,
       project_path: args.projectPath,
     });
-    const teamId = args.workspace === "personal"
-      ? undefined
-      : (args.teamId
-          || (db.workspace.type === "team" ? db.workspace.teamId : undefined)
-          || (await activeTeamMembershipFor(ctx, userId))?.teamId);
+    const teamId =
+      args.workspace === "personal"
+        ? undefined
+        : args.teamId ||
+          (db.workspace.type === "team" ? db.workspace.teamId : undefined) ||
+          (await activeTeamMembershipFor(ctx, userId))?.teamId;
     // teamId can be client-supplied: every team-scoped branch below reads that
     // team's rows directly (members, task/doc/plan titles), so membership is
     // mandatory — without this check any authenticated user holding a team id
@@ -1532,7 +1949,7 @@ export const mentionSearch = query({
     // a search index: a row routed to the team can still be private to its
     // owner (workspace user:<owner>), so each one passes the access judge.
     const judge = await accessJudgeFor(ctx, userId);
-    const readable = async <T,>(table: string, rows: T[]): Promise<T[]> => {
+    const readable = async <T>(table: string, rows: T[]): Promise<T[]> => {
       const out: T[] = [];
       for (const r of rows) if (await judge(table, r)) out.push(r);
       return out;
@@ -1564,7 +1981,10 @@ export const mentionSearch = query({
     }> = [];
 
     const perType = Math.max(10, Math.ceil(limit / types.length));
-    const byUpdated = (a: { updated_at?: number }, b: { updated_at?: number }) => (b.updated_at ?? 0) - (a.updated_at ?? 0);
+    const byUpdated = (
+      a: { updated_at?: number },
+      b: { updated_at?: number },
+    ) => (b.updated_at ?? 0) - (a.updated_at ?? 0);
 
     if (types.includes("person") && teamId) {
       const memberships = await ctx.db
@@ -1600,9 +2020,13 @@ export const mentionSearch = query({
         const teamStr = String(teamId);
         const searchHits = await ctx.db
           .query("tasks")
-          .withSearchIndex("search_tasks_v2", (s: any) => s.search("title", args.query))
+          .withSearchIndex("search_tasks_v2", (s: any) =>
+            s.search("title", args.query),
+          )
           .take(perType * 20);
-        tasks = searchHits.filter((t: any) => String(t.team_id || "") === teamStr);
+        tasks = searchHits.filter(
+          (t: any) => String(t.team_id || "") === teamStr,
+        );
       } else if (teamId) {
         tasks = await ctx.db
           .query("tasks")
@@ -1612,7 +2036,9 @@ export const mentionSearch = query({
       } else if (q) {
         tasks = await ctx.db
           .query("tasks")
-          .withSearchIndex("search_tasks_v2", (s: any) => s.search("title", args.query).eq("user_id", userId))
+          .withSearchIndex("search_tasks_v2", (s: any) =>
+            s.search("title", args.query).eq("user_id", userId),
+          )
           .take(perType * 5);
       } else {
         tasks = await ctx.db
@@ -1640,7 +2066,8 @@ export const mentionSearch = query({
       // A file-synced doc is titled from its content heading, not its filename, so
       // match the source file path too — lets you find a doc by name/path.
       const docMatches = (d: any) =>
-        d.title?.toLowerCase().includes(q) || d.source_file?.toLowerCase().includes(q);
+        d.title?.toLowerCase().includes(q) ||
+        d.source_file?.toLowerCase().includes(q);
       let docs;
       if (teamId) {
         // Recent team docs by recency — the local-cache window. Raised well past
@@ -1659,11 +2086,14 @@ export const mentionSearch = query({
           // tasks and sessions, which already union a search-index fallback the
           // same way (see the task/session branches above).
           const teamStr = String(teamId);
-          const titleHits = (await ctx.db
-            .query("docs")
-            .withSearchIndex("search_docs_v2", (s: any) => s.search("title", args.query))
-            .take(perType * 20))
-            .filter((d: any) => String(d.team_id || "") === teamStr);
+          const titleHits = (
+            await ctx.db
+              .query("docs")
+              .withSearchIndex("search_docs_v2", (s: any) =>
+                s.search("title", args.query),
+              )
+              .take(perType * 20)
+          ).filter((d: any) => String(d.team_id || "") === teamStr);
           const seen = new Set(docs.map((d: any) => String(d._id)));
           for (const hit of titleHits) {
             if (!seen.has(String(hit._id))) docs.push(hit);
@@ -1674,16 +2104,22 @@ export const mentionSearch = query({
         // hits with filename hits from a bounded recent scan.
         const byTitle = await ctx.db
           .query("docs")
-          .withSearchIndex("search_docs_v2", (s: any) => s.search("title", args.query).eq("user_id", userId))
+          .withSearchIndex("search_docs_v2", (s: any) =>
+            s.search("title", args.query).eq("user_id", userId),
+          )
           .take(perType * 5);
-        const byFile = (await ctx.db
-          .query("docs")
-          .withIndex("by_user_id", (d: any) => d.eq("user_id", userId))
-          .order("desc")
-          .take(perType * 20))
-          .filter((d: any) => d.source_file?.toLowerCase().includes(q));
+        const byFile = (
+          await ctx.db
+            .query("docs")
+            .withIndex("by_user_id", (d: any) => d.eq("user_id", userId))
+            .order("desc")
+            .take(perType * 20)
+        ).filter((d: any) => d.source_file?.toLowerCase().includes(q));
         const seen = new Set(byTitle.map((d: any) => String(d._id)));
-        docs = [...byTitle, ...byFile.filter((d: any) => !seen.has(String(d._id)))];
+        docs = [
+          ...byTitle,
+          ...byFile.filter((d: any) => !seen.has(String(d._id))),
+        ];
       } else {
         docs = await ctx.db
           .query("docs")
@@ -1701,14 +2137,19 @@ export const mentionSearch = query({
         const convMap = await buildConvMapForPage(ctx, docs);
         docs = docs.filter((d: any) => !resolveEffectiveTeam(d, convMap));
       }
-      for (const doc of docs.filter((d: any) => !d.archived_at).sort(byUpdated).slice(0, perType)) {
+      for (const doc of docs
+        .filter((d: any) => !d.archived_at)
+        .sort(byUpdated)
+        .slice(0, perType)) {
         results.push({
           id: String(doc._id),
           type: "doc",
           label: doc.title,
           // Show the filename when the doc is backed by a file, so a name/path
           // match is legible (the title may not contain what you typed).
-          sublabel: doc.source_file ? (doc.source_file.split("/").pop() || doc.doc_type) : doc.doc_type,
+          sublabel: doc.source_file
+            ? doc.source_file.split("/").pop() || doc.doc_type
+            : doc.doc_type,
           docType: doc.doc_type,
           updatedAt: doc.updated_at,
         });
@@ -1733,7 +2174,12 @@ export const mentionSearch = query({
       const filtered = q
         ? plans.filter((p: any) => p.title?.toLowerCase().includes(q))
         : plans;
-      for (const plan of (teamId ? await readable("plans", filtered) : personalOnly(filtered)).sort(byUpdated).slice(0, perType)) {
+      for (const plan of (teamId
+        ? await readable("plans", filtered)
+        : personalOnly(filtered)
+      )
+        .sort(byUpdated)
+        .slice(0, perType)) {
         results.push({
           id: String(plan._id),
           type: "plan",
@@ -1763,9 +2209,11 @@ export const mentionSearch = query({
           .take(perType * 5);
       }
       let filtered = q
-        ? sessions.filter((s: any) =>
-            s.title?.toLowerCase().includes(q) ||
-            s.idle_summary?.toLowerCase().includes(q))
+        ? sessions.filter(
+            (s: any) =>
+              s.title?.toLowerCase().includes(q) ||
+              s.idle_summary?.toLowerCase().includes(q),
+          )
         : sessions;
       if (q) {
         // The recency window above only sees the most recent rows; a full-text
@@ -1774,16 +2222,20 @@ export const mentionSearch = query({
         let titleHits;
         if (teamId) {
           const teamStr = String(teamId);
-          titleHits = (await ctx.db
-            .query("conversations")
-            .withSearchIndex("search_title_v2", (s: any) => s.search("title", args.query))
-            .take(perType * 20))
-            .filter((c: any) => String(c.team_id || "") === teamStr);
+          titleHits = (
+            await ctx.db
+              .query("conversations")
+              .withSearchIndex("search_title_v2", (s: any) =>
+                s.search("title", args.query),
+              )
+              .take(perType * 20)
+          ).filter((c: any) => String(c.team_id || "") === teamStr);
         } else {
           titleHits = await ctx.db
             .query("conversations")
             .withSearchIndex("search_title_v2", (s: any) =>
-              s.search("title", args.query).eq("user_id", userId))
+              s.search("title", args.query).eq("user_id", userId),
+            )
             .take(perType * 5);
         }
         const seen = new Set(filtered.map((c: any) => String(c._id)));
@@ -1798,8 +2250,11 @@ export const mentionSearch = query({
         // session must pass the feed visibility filter.
         const feedFilter = await createTeamFeedFilter(ctx, teamId as any);
         filtered = filtered.filter((c: any) => {
-          if (String(teamVisibleConvTeam(c) ?? "") !== String(teamId)) return false;
-          return String(c.user_id) === String(userId) || feedFilter.isVisible(c);
+          if (String(teamVisibleConvTeam(c) ?? "") !== String(teamId))
+            return false;
+          return (
+            String(c.user_id) === String(userId) || feedFilter.isVisible(c)
+          );
         });
       } else {
         // Personal scope: only sessions that are EFFECTIVELY personal. A
@@ -1821,7 +2276,11 @@ export const mentionSearch = query({
           agentType: sess.agent_type,
           updatedAt: sess.updated_at,
           idleSummary: (sess as any).idle_summary,
-          identity: { _id: String(sess._id), title: sess.title, ...(await identityFieldsOf(sess, (id: any) => ctx.db.get(id))) },
+          identity: {
+            _id: String(sess._id),
+            title: sess.title,
+            ...(await identityFieldsOf(sess, (id: any) => ctx.db.get(id))),
+          },
         });
       }
     }
@@ -1832,32 +2291,44 @@ export const mentionSearch = query({
 
 export const expandMentions = query({
   args: {
-    mentions: v.array(v.object({
-      type: v.string(),
-      shortId: v.optional(v.string()),
-      id: v.optional(v.string()),
-    })),
+    mentions: v.array(
+      v.object({
+        type: v.string(),
+        shortId: v.optional(v.string()),
+        id: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
-    const results: Array<{ type: string; shortId?: string; id?: string; markdown: string }> = [];
+    const results: Array<{
+      type: string;
+      shortId?: string;
+      id?: string;
+      markdown: string;
+    }> = [];
 
     for (const mention of args.mentions) {
       try {
         if (mention.type === "task" && mention.shortId) {
-          const task = await ctx.db.query("tasks")
-            .withIndex("by_short_id", (q: any) => q.eq("short_id", mention.shortId))
+          const task = await ctx.db
+            .query("tasks")
+            .withIndex("by_short_id", (q: any) =>
+              q.eq("short_id", mention.shortId),
+            )
             .first();
           if (task && (await canAccessTask(ctx, userId, task))) {
-            const comments = await ctx.db.query("task_comments")
+            const comments = await ctx.db
+              .query("task_comments")
               .withIndex("by_task_id", (c: any) => c.eq("task_id", task._id))
               .order("desc")
               .take(10);
             let md = `### Task: ${inlineForeignText(task.title)}\n`;
             md += `\`${task.short_id}\` | Status: **${task.status || "open"}** | Priority: **${(task as any).priority || "medium"}**\n`;
-            if ((task as any).labels?.length) md += `Labels: ${inlineForeignText((task as any).labels.join(", "))}\n`;
+            if ((task as any).labels?.length)
+              md += `Labels: ${inlineForeignText((task as any).labels.join(", "))}\n`;
             md += `\n`;
             if (task.description) {
               md += `#### Description\n\n${foreignProse(task.description, FOREIGN_TEXT_CAPS.descriptionChars) || ""}\n\n`;
@@ -1866,16 +2337,20 @@ export const expandMentions = query({
               md += `#### Acceptance Criteria\n\n${foreignProse(task.acceptance_criteria?.join("\n"), FOREIGN_TEXT_CAPS.descriptionChars) || ""}\n\n`;
             }
             // Linked sessions
-            const linkedConvs = await ctx.db.query("conversations")
+            const linkedConvs = await ctx.db
+              .query("conversations")
               .withIndex("by_user_updated", (c: any) => c.eq("user_id", userId))
               .order("desc")
               .take(100);
-            const taskSessions = linkedConvs.filter((c: any) => String(c.active_task_id) === String(task._id)).slice(0, 5);
+            const taskSessions = linkedConvs
+              .filter((c: any) => String(c.active_task_id) === String(task._id))
+              .slice(0, 5);
             if (taskSessions.length > 0) {
               md += `#### Linked Sessions\n\n`;
               for (const s of taskSessions) {
                 md += `- **${inlineForeignText(s.title) || "Untitled"}** \`${(s as any).short_id}\` (${(s as any).message_count || 0} msgs)`;
-                if ((s as any).idle_summary) md += ` — ${inlineForeignText((s as any).idle_summary)}`;
+                if ((s as any).idle_summary)
+                  md += ` — ${inlineForeignText((s as any).idle_summary)}`;
                 md += `\n`;
               }
               md += `\n`;
@@ -1884,8 +2359,13 @@ export const expandMentions = query({
               md += `#### Activity Log (${comments.length} recent)\n\n`;
               for (const c of comments.reverse()) {
                 const content = c.text || "";
-                const ts = new Date((c as any)._creationTime).toISOString().slice(0, 16).replace("T", " ");
-                const tag = (c as any).comment_type ? `[${(c as any).comment_type}]` : "";
+                const ts = new Date((c as any)._creationTime)
+                  .toISOString()
+                  .slice(0, 16)
+                  .replace("T", " ");
+                const tag = (c as any).comment_type
+                  ? `[${(c as any).comment_type}]`
+                  : "";
                 md += `**${ts}** ${tag}\n${foreignProse(content, FOREIGN_TEXT_CAPS.commentChars) || ""}\n\n`;
               }
             }
@@ -1900,10 +2380,12 @@ export const expandMentions = query({
               markdown: `\n\n---\n${taskBlock}\n\n> \`cast task context ${task.short_id}\` for full context including all sessions and docs\n---\n`,
             });
           }
-
         } else if (mention.type === "plan" && mention.shortId) {
-          const plan = await ctx.db.query("plans")
-            .withIndex("by_short_id", (q: any) => q.eq("short_id", mention.shortId))
+          const plan = await ctx.db
+            .query("plans")
+            .withIndex("by_short_id", (q: any) =>
+              q.eq("short_id", mention.shortId),
+            )
             .first();
           if (plan && (await canAccessPlan(ctx, userId, plan))) {
             let md = `### Plan: ${inlineForeignText((plan as any).title)}\n`;
@@ -1916,22 +2398,27 @@ export const expandMentions = query({
             }
             const taskIds = (plan as any).task_ids || [];
             if (taskIds.length > 0) {
-              let doneCount = 0, ipCount = 0, openCount = 0;
+              let doneCount = 0,
+                ipCount = 0,
+                openCount = 0;
               md += `#### Tasks (${taskIds.length})\n\n`;
               for (const tid of taskIds.slice(0, 20)) {
                 const t: any = await ctx.db.get(tid);
                 if (
-                  !t
-                  || !isSameWorkspace(t, workspaceForResource(plan))
-                  || !(await canAccessTask(ctx, userId, t))
-                ) continue;
+                  !t ||
+                  !isSameWorkspace(t, workspaceForResource(plan)) ||
+                  !(await canAccessTask(ctx, userId, t))
+                )
+                  continue;
                 const st = (t as any).status || "open";
                 if (st === "done") doneCount++;
                 else if (st === "in_progress") ipCount++;
                 else openCount++;
-                const icon = st === "done" ? "[x]" : st === "in_progress" ? "[~]" : "[ ]";
+                const icon =
+                  st === "done" ? "[x]" : st === "in_progress" ? "[~]" : "[ ]";
                 md += `- ${icon} **${inlineForeignText((t as any).title)}** \`${(t as any).short_id}\` — ${st}`;
-                if ((t as any).priority && (t as any).priority !== "medium") md += ` (${(t as any).priority})`;
+                if ((t as any).priority && (t as any).priority !== "medium")
+                  md += ` (${(t as any).priority})`;
                 md += `\n`;
                 if (t.description) {
                   md += `  ${inlineForeignText(t.description)}\n`;
@@ -1941,22 +2428,42 @@ export const expandMentions = query({
             }
             // Comments timeline (unified entries + legacy arrays)
             const entries: any[] = [...((plan as any).entries || [])];
-            const seenKeys = new Set(entries.map((e: any) => `${e.timestamp}:${e.content}`));
-            for (const e of ((plan as any).progress_log || [])) {
+            const seenKeys = new Set(
+              entries.map((e: any) => `${e.timestamp}:${e.content}`),
+            );
+            for (const e of (plan as any).progress_log || []) {
               const key = `${e.timestamp}:${e.entry}`;
-              if (!seenKeys.has(key)) entries.push({ type: "progress", timestamp: e.timestamp, content: e.entry });
+              if (!seenKeys.has(key))
+                entries.push({
+                  type: "progress",
+                  timestamp: e.timestamp,
+                  content: e.entry,
+                });
             }
-            for (const e of ((plan as any).decision_log || [])) {
+            for (const e of (plan as any).decision_log || []) {
               const key = `${e.timestamp}:${e.decision}`;
-              if (!seenKeys.has(key)) entries.push({ type: "decision", timestamp: e.timestamp, content: e.decision, rationale: e.rationale });
+              if (!seenKeys.has(key))
+                entries.push({
+                  type: "decision",
+                  timestamp: e.timestamp,
+                  content: e.decision,
+                  rationale: e.rationale,
+                });
             }
-            for (const e of ((plan as any).discoveries || [])) {
+            for (const e of (plan as any).discoveries || []) {
               const key = `${e.timestamp}:${e.finding}`;
-              if (!seenKeys.has(key)) entries.push({ type: "discovery", timestamp: e.timestamp, content: e.finding });
+              if (!seenKeys.has(key))
+                entries.push({
+                  type: "discovery",
+                  timestamp: e.timestamp,
+                  content: e.finding,
+                });
             }
             entries.sort((a: any, b: any) => a.timestamp - b.timestamp);
 
-            const decisions = entries.filter((e: any) => e.type === "decision").slice(-5);
+            const decisions = entries
+              .filter((e: any) => e.type === "decision")
+              .slice(-5);
             if (decisions.length) {
               md += `#### Decisions\n\n`;
               for (const d of decisions) {
@@ -1964,11 +2471,18 @@ export const expandMentions = query({
               }
               md += `\n`;
             }
-            const recentProgress = entries.filter((e: any) => e.type === "progress").slice(-5);
+            const recentProgress = entries
+              .filter((e: any) => e.type === "progress")
+              .slice(-5);
             if (recentProgress.length) {
               md += `#### Progress Log (recent)\n\n`;
               for (const entry of recentProgress) {
-                const ts = entry.timestamp ? new Date(entry.timestamp).toISOString().slice(0, 16).replace("T", " ") : "";
+                const ts = entry.timestamp
+                  ? new Date(entry.timestamp)
+                      .toISOString()
+                      .slice(0, 16)
+                      .replace("T", " ")
+                  : "";
                 md += `**${ts}** ${foreignProse(entry.content, FOREIGN_TEXT_CAPS.commentChars) || ""}\n\n`;
               }
             }
@@ -1976,10 +2490,10 @@ export const expandMentions = query({
             if ((plan as any).doc_id) {
               const doc: any = await ctx.db.get((plan as any).doc_id);
               if (
-                doc
-                && isSameWorkspace(doc, workspaceForResource(plan))
-                && (await canAccessDoc(ctx, userId, doc))
-                && (doc as any).content
+                doc &&
+                isSameWorkspace(doc, workspaceForResource(plan)) &&
+                (await canAccessDoc(ctx, userId, doc)) &&
+                (doc as any).content
               ) {
                 md += `#### Plan Document\n\n${foreignProse(renderDocMentionExcerpt((doc as any).content, String(doc._id)), FOREIGN_PLAN_CAPS.bodyChars) || ""}\n\n`;
               }
@@ -1995,20 +2509,25 @@ export const expandMentions = query({
               markdown: `\n\n---\n${planBlock}\n\n> \`cast plan show ${(plan as any).short_id}\` for full plan with all task details\n---\n`,
             });
           }
-
         } else if (mention.type === "session" && mention.shortId) {
-          const sess = await ctx.db.query("conversations")
-            .withIndex("by_short_id", (q: any) => q.eq("short_id", mention.shortId))
+          const sess = await ctx.db
+            .query("conversations")
+            .withIndex("by_short_id", (q: any) =>
+              q.eq("short_id", mention.shortId),
+            )
             .first();
           if (sess && (await canAccessConversation(ctx, userId, sess))) {
             // A short card, not a transcript: the agent opens the session with
             // `cast read` when it needs more than who this is and where it stands.
             let md = `\n\n---\n### Session: ${inlineForeignText(sess.title || "Untitled")}\n`;
             md += `\`${(sess as any).short_id}\` | ${(sess as any).message_count || 0} messages | ${sess.status || "active"}`;
-            if ((sess as any).project_path) md += ` | ${(sess as any).project_path}`;
-            if ((sess as any).agent_type) md += ` | Agent: ${(sess as any).agent_type}`;
+            if ((sess as any).project_path)
+              md += ` | ${(sess as any).project_path}`;
+            if ((sess as any).agent_type)
+              md += ` | Agent: ${(sess as any).agent_type}`;
             md += `\n\n`;
-            if ((sess as any).idle_summary) md += `Summary: ${inlineForeignText((sess as any).idle_summary)}\n\n`;
+            if ((sess as any).idle_summary)
+              md += `Summary: ${inlineForeignText((sess as any).idle_summary)}\n\n`;
             // Active task/plan context
             if ((sess as any).active_task_id) {
               const t = await ctx.db.get((sess as any).active_task_id);
@@ -2023,46 +2542,65 @@ export const expandMentions = query({
               }
             }
             md += `> \`cast read ${(sess as any).short_id}\` for full conversation transcript\n---\n`;
-            results.push({ type: "session", shortId: mention.shortId, markdown: md });
+            results.push({
+              type: "session",
+              shortId: mention.shortId,
+              markdown: md,
+            });
           }
-
         } else if (mention.type === "trigger" && mention.shortId) {
           // A trigger expands to what it runs and how it last went, so the
           // agent can reason about (or amend) standing work without a lookup.
-          const trig = await ctx.db.query("agent_tasks")
-            .withIndex("by_short_id", (q: any) => q.eq("short_id", mention.shortId!.toLowerCase()))
+          const trig = await ctx.db
+            .query("agent_tasks")
+            .withIndex("by_short_id", (q: any) =>
+              q.eq("short_id", mention.shortId!.toLowerCase()),
+            )
             .unique();
           if (trig && String(trig.user_id) === String(userId)) {
-            const cadence = trig.schedule_type === "recurring" && trig.interval_ms
-              ? `every ${Math.round(trig.interval_ms / 60000)}m`
-              : trig.schedule_type === "event"
-                ? `on ${trig.event_filter?.event_type || "event"}`
-                : "one-time";
+            const cadence =
+              trig.schedule_type === "recurring" && trig.interval_ms
+                ? `every ${Math.round(trig.interval_ms / 60000)}m`
+                : trig.schedule_type === "event"
+                  ? `on ${trig.event_filter?.event_type || "event"}`
+                  : "one-time";
             let md = `\n\n---\n### Trigger: ${trig.display_title || trig.title}\n`;
             md += `\`${trig.short_id}\` | ${cadence} | Status: **${trig.status}**`;
-            if (trig.run_count) md += ` | ${trig.run_count} run${trig.run_count === 1 ? "" : "s"}`;
+            if (trig.run_count)
+              md += ` | ${trig.run_count} run${trig.run_count === 1 ? "" : "s"}`;
             md += `\n\n#### Prompt\n\n${trig.prompt.slice(0, 2000)}${trig.prompt.length > 2000 ? "\n\n… (truncated)" : ""}\n\n`;
             if (trig.last_run_summary) {
               md += `#### Last run${trig.last_run_failed ? " (FAILED)" : ""}\n\n${trig.last_run_summary.slice(0, 1000)}\n\n`;
             }
             md += `> \`cast trigger log ${trig.short_id}\` for the last run's conversation\n---\n`;
-            results.push({ type: "trigger", shortId: mention.shortId, markdown: md });
+            results.push({
+              type: "trigger",
+              shortId: mention.shortId,
+              markdown: md,
+            });
           }
-
         } else if (mention.type === "doc" && mention.id) {
           const doc = await ctx.db.get(mention.id as Id<"docs">);
           if (doc && (await canAccessDoc(ctx, userId, doc))) {
             let md = `\n\n---\n### Doc: ${doc.title}\n`;
             md += `Type: ${doc.doc_type || "note"}`;
-            if ((doc as any).labels?.length) md += ` | Labels: ${(doc as any).labels.join(", ")}`;
+            if ((doc as any).labels?.length)
+              md += ` | Labels: ${(doc as any).labels.join(", ")}`;
             md += `\n\n`;
-            if (doc.content) md += `${renderDocMentionExcerpt(doc.content, String(doc._id))}\n`;
+            if (doc.content)
+              md += `${renderDocMentionExcerpt(doc.content, String(doc._id))}\n`;
             // Related conversations
-            const linkedConvs = await ctx.db.query("conversations")
+            const linkedConvs = await ctx.db
+              .query("conversations")
               .withIndex("by_user_updated", (c: any) => c.eq("user_id", userId))
               .order("desc")
               .take(50);
-            const docSessions = linkedConvs.filter((c: any) => String((c as any).active_doc_id) === String(doc._id)).slice(0, 3);
+            const docSessions = linkedConvs
+              .filter(
+                (c: any) =>
+                  String((c as any).active_doc_id) === String(doc._id),
+              )
+              .slice(0, 3);
             if (docSessions.length > 0) {
               md += `#### Related Sessions\n\n`;
               for (const s of docSessions) {
@@ -2073,29 +2611,35 @@ export const expandMentions = query({
             md += `---\n`;
             results.push({ type: "doc", id: mention.id, markdown: md });
           }
-
         } else if (mention.type === "label" && mention.id) {
           // A label (inbox bucket) mention expands to the sessions the user
           // filed under it, so the agent can pull any of them with cast read.
           const bucket = await ctx.db.get(mention.id as Id<"inbox_buckets">);
           if (bucket && String((bucket as any).user_id) === String(userId)) {
-            const assignments = await ctx.db.query("bucket_assignments")
+            const assignments = await ctx.db
+              .query("bucket_assignments")
               .withIndex("by_user_id", (a: any) => a.eq("user_id", userId))
               .collect();
             const convIds = assignments
               .filter((a: any) => String(a.bucket_id) === String(bucket._id))
               .map((a: any) => a.conversation_id);
             const assignedConversations = await Promise.all(
-              convIds.slice(0, 30).map((id: any) =>
-                ctx.db.get(id as Id<"conversations">)),
+              convIds
+                .slice(0, 30)
+                .map((id: any) => ctx.db.get(id as Id<"conversations">)),
             );
             const convs: any[] = [];
             for (const conversation of assignedConversations) {
-              if (conversation && (await canAccessConversation(ctx, userId, conversation))) {
+              if (
+                conversation &&
+                (await canAccessConversation(ctx, userId, conversation))
+              ) {
                 convs.push(conversation);
               }
             }
-            convs.sort((a: any, b: any) => (b.updated_at || 0) - (a.updated_at || 0));
+            convs.sort(
+              (a: any, b: any) => (b.updated_at || 0) - (a.updated_at || 0),
+            );
             let md = `\n\n---\n### Label: ${(bucket as any).name}\n`;
             md += `${convs.length} session${convs.length === 1 ? "" : "s"} filed under this label\n\n`;
             for (const s of convs as any[]) {
@@ -2106,9 +2650,13 @@ export const expandMentions = query({
             md += `\n> \`cast sessions --label "${(bucket as any).name}" -a\` for live state · \`cast read <id>\` for a transcript\n---\n`;
             results.push({ type: "label", id: mention.id, markdown: md });
           }
-
         } else if (mention.type === "person") {
-          results.push({ type: "person", shortId: mention.shortId, id: mention.id, markdown: "" });
+          results.push({
+            type: "person",
+            shortId: mention.shortId,
+            id: mention.id,
+            markdown: "",
+          });
         }
       } catch {}
     }
@@ -2140,7 +2688,11 @@ export const webCreate = mutation({
 
 /** Create a doc as `userId`, the way the web's create does. The hosted
  *  assistant's write_doc runs this same path. */
-export async function createDocAs(ctx: MutationCtx, userId: Id<"users">, args: ObjectType<typeof webCreateArgs>) {
+export async function createDocAs(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  args: ObjectType<typeof webCreateArgs>,
+) {
   // The doc lives in the workspace it was created in: a doc made while in a
   // team space is that team's doc, one made in the personal space stays
   // personal. Membership is enforced by resolveWorkspace; callers that send
@@ -2161,9 +2713,10 @@ export async function createDocAs(ctx: MutationCtx, userId: Id<"users">, args: O
       .query("docs")
       .withIndex("by_parent_id", (q) => q.eq("parent_id", args.parent_id!))
       .collect();
-    sort_order = siblings.length > 0
-      ? Math.max(...siblings.map((s) => s.sort_order ?? 0)) + 1
-      : 0;
+    sort_order =
+      siblings.length > 0
+        ? Math.max(...siblings.map((s) => s.sort_order ?? 0)) + 1
+        : 0;
   }
 
   const content = withTitleHeading(args.title, args.content);
@@ -2178,7 +2731,8 @@ export async function createDocAs(ctx: MutationCtx, userId: Id<"users">, args: O
     sort_order,
   });
   // A board, sheet or dashboard is findable by its title from the moment it exists, written to or not.
-  if (isArtifactDocType(args.doc_type)) await ensureLiveSearch(ctx, id as Id<"docs">);
+  if (isArtifactDocType(args.doc_type))
+    await ensureLiveSearch(ctx, id as Id<"docs">);
 
   // The row rides back with the receipt so the client seeds its store before
   // navigating: the doc page paints from the store, never waiting on the
@@ -2209,9 +2763,11 @@ export const webMoveDoc = mutation({
       requireSameWorkspace(parent, docWorkspace, "parent doc");
       let current: Id<"docs"> | undefined = args.parent_id;
       while (current) {
-        if (current === args.id) throw new Error("Cannot nest a doc under itself");
+        if (current === args.id)
+          throw new Error("Cannot nest a doc under itself");
         const ancestor: any = await ctx.db.get(current);
-        if (!ancestor || !(await canAccessDoc(ctx, userId, ancestor))) notFound("Doc not found");
+        if (!ancestor || !(await canAccessDoc(ctx, userId, ancestor)))
+          notFound("Doc not found");
         requireSameWorkspace(ancestor, docWorkspace, "ancestor doc");
         current = ancestor?.parent_id;
       }
@@ -2228,10 +2784,12 @@ export const webMoveDoc = mutation({
 /** Reorder children within a parent — bulk update sort_order */
 export const webReorderDocs = mutation({
   args: {
-    items: v.array(v.object({
-      id: v.id("docs"),
-      sort_order: v.number(),
-    })),
+    items: v.array(
+      v.object({
+        id: v.id("docs"),
+        sort_order: v.number(),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -2263,7 +2821,11 @@ export const webToggleDocLink = mutation({
       ? { type: "team" as const, teamId: doc.team_id }
       : { type: "personal" as const, userId: doc.user_id };
     if (args.action === "add") {
-      const linkedDoc = await requireAccessibleDoc(ctx, userId, args.linked_doc_id);
+      const linkedDoc = await requireAccessibleDoc(
+        ctx,
+        userId,
+        args.linked_doc_id,
+      );
       requireSameWorkspace(linkedDoc, docWorkspace, "linked doc");
     }
 
@@ -2296,7 +2858,11 @@ type WebDocTreeEntry = Pick<
 };
 
 /** Lightweight query for sidebar doc tree — returns id, title, parent_id, sort_order, doc_type only */
-export const webDocTree: RegisteredQuery<"public", Record<string, never>, Promise<WebDocTreeEntry[]>> = query({
+export const webDocTree: RegisteredQuery<
+  "public",
+  Record<string, never>,
+  Promise<WebDocTreeEntry[]>
+> = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
@@ -2308,11 +2874,22 @@ export const webDocTree: RegisteredQuery<"public", Record<string, never>, Promis
       userId,
       teamId,
       workspace: teamId ? "team" : "personal",
-      stripFields: ["content", "embedding", "entries", "task_ids", "related_conversation_ids", "labels", "share_token"],
+      stripFields: [
+        "content",
+        "embedding",
+        "entries",
+        "task_ids",
+        "related_conversation_ids",
+        "labels",
+        "share_token",
+      ],
     });
 
     return records
-      .filter((d: any) => !d.archived_at && !isNoiseDocForWeb(d) && d.source !== "plan_mode")
+      .filter(
+        (d: any) =>
+          !d.archived_at && !isNoiseDocForWeb(d) && d.source !== "plan_mode",
+      )
       .map((d: any) => ({
         _id: d._id,
         title: d.title,
@@ -2327,7 +2904,6 @@ export const webDocTree: RegisteredQuery<"public", Record<string, never>, Promis
   },
 });
 
-
 export const webPromoteToPlan = mutation({
   args: { doc_id: v.id("docs") },
   handler: async (ctx, args) => {
@@ -2340,9 +2916,9 @@ export const webPromoteToPlan = mutation({
     if (doc.plan_id) {
       const existing = await ctx.db.get(doc.plan_id);
       if (
-        existing
-        && isSameWorkspace(existing, workspaceForResource(doc))
-        && (await canAccessPlan(ctx, userId, existing))
+        existing &&
+        isSameWorkspace(existing, workspaceForResource(doc)) &&
+        (await canAccessPlan(ctx, userId, existing))
       ) {
         return { plan_id: doc.plan_id, short_id: (existing as any).short_id };
       }
@@ -2380,7 +2956,10 @@ export const webPromoteToPlan = mutation({
       created_at: now,
       updated_at: now,
     });
-    await ctx.db.patch(args.doc_id, { plan_id: planId, doc_type: "plan" as const });
+    await ctx.db.patch(args.doc_id, {
+      plan_id: planId,
+      doc_type: "plan" as const,
+    });
     return { plan_id: planId, short_id };
   },
 });
@@ -2418,7 +2997,10 @@ export const unshare = mutation({
   },
 });
 
-const purgeLiveDocRef = makeFunctionReference<"mutation", { doc_id: Id<"docs"> }>("liveArtifactPurge:purgeDoc");
+const purgeLiveDocRef = makeFunctionReference<
+  "mutation",
+  { doc_id: Id<"docs"> }
+>("liveArtifactPurge:purgeDoc");
 
 export const remove = mutation({
   args: {
@@ -2430,15 +3012,19 @@ export const remove = mutation({
     if (!auth) throw new Error("Unauthorized");
 
     const doc = await ctx.db.get(args.id);
-    if (!doc || !(await canAccessDoc(ctx, auth.userId, doc))) throw new Error("Doc not found");
+    if (!doc || !(await canAccessDoc(ctx, auth.userId, doc)))
+      throw new Error("Doc not found");
     if (doc.user_id !== auth.userId) {
-      throw new Error(isArtifactDocType(doc.doc_type)
-        ? `Only this ${doc.doc_type}'s owner can delete it for good; \`cast ${ARTIFACT_SPECS[doc.doc_type].cli} archive ${doc._id}\` takes it out of everyone's list (undo with unarchive)`
-        : "Only the document's owner can delete it");
+      throw new Error(
+        isArtifactDocType(doc.doc_type)
+          ? `Only this ${doc.doc_type}'s owner can delete it for good; \`cast ${ARTIFACT_SPECS[doc.doc_type].cli} archive ${doc._id}\` takes it out of everyone's list (undo with unarchive)`
+          : "Only the document's owner can delete it",
+      );
     }
     // A board, sheet or dashboard keeps its elements, history and search row
     // in the live_* tables: they go too, in pages, once the doc is gone.
-    if (isArtifactDocType(doc.doc_type)) await ctx.scheduler.runAfter(0, purgeLiveDocRef, { doc_id: args.id });
+    if (isArtifactDocType(doc.doc_type))
+      await ctx.scheduler.runAfter(0, purgeLiveDocRef, { doc_id: args.id });
 
     const docId = args.id as string;
     const snapshots = await ctx.db

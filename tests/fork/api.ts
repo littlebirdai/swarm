@@ -13,12 +13,20 @@ let _config: Config | null = null;
 
 export function getConfig(): Config {
   if (_config) return _config;
-  const configPath = path.join(process.env.HOME || "", ".codecast", "config.json");
+  const configPath = path.join(
+    process.env.HOME || "",
+    ".codecast",
+    "config.json",
+  );
   _config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
   return _config!;
 }
 
-async function retryFetch(url: string, init: RequestInit, maxRetries = 3): Promise<any> {
+async function retryFetch(
+  url: string,
+  init: RequestInit,
+  maxRetries = 3,
+): Promise<any> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const res = await fetch(url, init);
     if (res.status === 429 || res.status >= 500) {
@@ -41,7 +49,7 @@ async function retryFetch(url: string, init: RequestInit, maxRetries = 3): Promi
 
 export async function convexMutation<T = any>(
   fnPath: string,
-  args: Record<string, any>
+  args: Record<string, any>,
 ): Promise<T> {
   const config = getConfig();
   const json = await retryFetch(`${config.convex_url}/api/mutation`, {
@@ -55,7 +63,7 @@ export async function convexMutation<T = any>(
 
 export async function convexQuery<T = any>(
   fnPath: string,
-  args: Record<string, any>
+  args: Record<string, any>,
 ): Promise<T> {
   const config = getConfig();
   const json = await retryFetch(`${config.convex_url}/api/query`, {
@@ -69,7 +77,7 @@ export async function convexQuery<T = any>(
 
 export async function httpAction<T = any>(
   actionPath: string,
-  body: Record<string, any>
+  body: Record<string, any>,
 ): Promise<T> {
   const config = getConfig();
   return retryFetch(`${config.convex_url}${actionPath}`, {
@@ -90,7 +98,10 @@ export interface Message {
   timestamp: number;
 }
 
-export function generateMessages(count: number, baseTimestamp = 1700000000000): Message[] {
+export function generateMessages(
+  count: number,
+  baseTimestamp = 1700000000000,
+): Message[] {
   const messages: Message[] = [];
   for (let i = 0; i < count; i++) {
     messages.push({
@@ -108,7 +119,11 @@ export async function createTestConversation(opts: {
   title?: string;
   agentType?: string;
   projectPath?: string;
-}): Promise<{ conversationId: string; messages: Message[]; sessionId: string }> {
+}): Promise<{
+  conversationId: string;
+  messages: Message[];
+  sessionId: string;
+}> {
   const config = getConfig();
   const sessionId = `fork-test-${uuid()}`;
   const projectPath = opts.projectPath || `/tmp/fork-test-${Date.now()}`;
@@ -122,7 +137,7 @@ export async function createTestConversation(opts: {
       session_id: sessionId,
       title: opts.title || `Fork Test ${Date.now()}`,
       project_path: projectPath,
-    }
+    },
   );
 
   const messages = generateMessages(opts.messageCount);
@@ -147,7 +162,7 @@ export interface ForkResult {
 export async function forkConversation(
   conversationId: string,
   messageUuid?: string,
-  targetAgentType?: string
+  targetAgentType?: string,
 ): Promise<ForkResult> {
   const config = getConfig();
   const args: Record<string, any> = {
@@ -162,7 +177,7 @@ export async function forkConversation(
 
 export async function forkViaHttp(
   conversationId: string,
-  messageUuid?: string
+  messageUuid?: string,
 ): Promise<ForkResult> {
   const body: Record<string, any> = { conversation_id: conversationId };
   if (messageUuid) body.message_uuid = messageUuid;
@@ -182,13 +197,17 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
-export async function getTree(conversationId: string): Promise<{ tree: TreeNode }> {
+export async function getTree(
+  conversationId: string,
+): Promise<{ tree: TreeNode }> {
   return httpAction<{ tree: TreeNode }>("/cli/tree", {
     conversation_id: conversationId,
   });
 }
 
-export async function getTreeViaQuery(conversationId: string): Promise<{ tree: TreeNode } | { error: string }> {
+export async function getTreeViaQuery(
+  conversationId: string,
+): Promise<{ tree: TreeNode } | { error: string }> {
   const config = getConfig();
   return convexQuery("conversations:getConversationTree", {
     conversation_id: conversationId,
@@ -197,8 +216,10 @@ export async function getTreeViaQuery(conversationId: string): Promise<{ tree: T
 }
 
 export async function getBranchMessages(
-  conversationId: string
-): Promise<{ messages: any[]; fork_point_uuid: string | null } | { error: string }> {
+  conversationId: string,
+): Promise<
+  { messages: any[]; fork_point_uuid: string | null } | { error: string }
+> {
   const config = getConfig();
   return convexQuery("conversations:getForkBranchMessages", {
     conversation_id: conversationId,
@@ -207,7 +228,7 @@ export async function getBranchMessages(
 }
 
 export async function exportMessages(
-  conversationId: string
+  conversationId: string,
 ): Promise<{ messages: any[]; conversation: any }> {
   const all: any[] = [];
   let cursor: string | undefined;
@@ -219,13 +240,16 @@ export async function exportMessages(
     });
     if (result.error) throw new Error(result.error);
     if (result.messages) all.push(...result.messages);
-    if (!result.has_more) return { messages: all, conversation: result.conversation };
+    if (!result.has_more)
+      return { messages: all, conversation: result.conversation };
     cursor = result.cursor;
   }
   return { messages: all, conversation: null };
 }
 
-export async function deleteConversation(conversationId: string): Promise<void> {
+export async function deleteConversation(
+  conversationId: string,
+): Promise<void> {
   const config = getConfig();
   try {
     await convexMutation("conversations:deleteConversation", {
@@ -238,7 +262,9 @@ export async function deleteConversation(conversationId: string): Promise<void> 
 }
 
 export function countTreeNodes(node: TreeNode): number {
-  return 1 + node.children.reduce((sum, child) => sum + countTreeNodes(child), 0);
+  return (
+    1 + node.children.reduce((sum, child) => sum + countTreeNodes(child), 0)
+  );
 }
 
 export function maxTreeDepth(node: TreeNode): number {
@@ -255,7 +281,9 @@ export function findNode(node: TreeNode, id: string): TreeNode | null {
   return null;
 }
 
-export async function findLongSession(minMessages = 100): Promise<string | null> {
+export async function findLongSession(
+  minMessages = 100,
+): Promise<string | null> {
   try {
     const result = await httpAction<any>("/cli/feed", {
       limit: 50,
@@ -263,7 +291,7 @@ export async function findLongSession(minMessages = 100): Promise<string | null>
     });
     if (result.conversations) {
       const long = result.conversations.find(
-        (c: any) => c.message_count >= minMessages && !c.forked_from
+        (c: any) => c.message_count >= minMessages && !c.forked_from,
       );
       return long?._id || long?.id || null;
     }

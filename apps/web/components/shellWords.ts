@@ -8,7 +8,12 @@
  * a truncated message. Unsupported/expanded syntax is marked dynamic; callers
  * must never present that decoded recipe as the payload that actually arrived.
  */
-export function scanShellWord(source: string): { body: string; dynamic: boolean; quoted: boolean; end: number } {
+export function scanShellWord(source: string): {
+  body: string;
+  dynamic: boolean;
+  quoted: boolean;
+  end: number;
+} {
   let body = "";
   let dynamic = false;
   let quoted = false;

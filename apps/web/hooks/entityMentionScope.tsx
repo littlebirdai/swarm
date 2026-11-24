@@ -11,7 +11,13 @@ import React, { createContext, useContext, useMemo } from "react";
 // the header/body seam, which markdown cannot see.
 const EstablishedRefs = createContext<ReadonlySet<string>>(new Set());
 
-export function EstablishedRefsProvider({ ids, children }: { ids: Array<string | null | undefined>; children: React.ReactNode }) {
+export function EstablishedRefsProvider({
+  ids,
+  children,
+}: {
+  ids: Array<string | null | undefined>;
+  children: React.ReactNode;
+}) {
   const parent = useContext(EstablishedRefs);
   const key = ids.filter(Boolean).join(" ");
   const set = useMemo(() => {
@@ -19,7 +25,9 @@ export function EstablishedRefsProvider({ ids, children }: { ids: Array<string |
     for (const id of key.split(" ")) if (id) next.add(id.trim().toLowerCase());
     return next;
   }, [parent, key]);
-  return <EstablishedRefs.Provider value={set}>{children}</EstablishedRefs.Provider>;
+  return (
+    <EstablishedRefs.Provider value={set}>{children}</EstablishedRefs.Provider>
+  );
 }
 
 /** True when the enclosing chrome already introduced this id. */

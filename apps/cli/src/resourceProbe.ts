@@ -16,14 +16,24 @@ const WALL_CAP_MS = 180_000;
 export function createResourceProbeGate() {
   // A caller that arrives while the same probe runs shares that run (one child per key), on its own deadline.
   const pending = new Map<string, Promise<unknown>>();
-  return async function probe<T>(key: string, run: () => Promise<T>, budgetMs: number): Promise<T | undefined> {
+  return async function probe<T>(
+    key: string,
+    run: () => Promise<T>,
+    budgetMs: number,
+  ): Promise<T | undefined> {
     let job = pending.get(key) as Promise<T | undefined> | undefined;
     if (!job) {
-      job = Promise.resolve().then(run).then(value => value, () => undefined).finally(() => pending.delete(key));
+      job = Promise.resolve()
+        .then(run)
+        .then(
+          (value) => value,
+          () => undefined,
+        )
+        .finally(() => pending.delete(key));
       pending.set(key, job);
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<undefined>(resolve => {
+    const timeout = new Promise<undefined>((resolve) => {
       let awake = 0;
       const started = Date.now();
       const step = () => {
@@ -31,7 +41,11 @@ export function createResourceProbeGate() {
         const armed = Date.now();
         timer = setTimeout(() => {
           if (Date.now() - armed <= ms + LATE_MS) awake += ms;
-          if (awake >= budgetMs || Date.now() - started >= Math.max(WALL_CAP_MS, 4 * budgetMs)) resolve(undefined);
+          if (
+            awake >= budgetMs ||
+            Date.now() - started >= Math.max(WALL_CAP_MS, 4 * budgetMs)
+          )
+            resolve(undefined);
           else step();
         }, ms);
       };

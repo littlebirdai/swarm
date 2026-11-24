@@ -64,7 +64,18 @@ const TEST_PATCH = `@@ -0,0 +1,14 @@
 +});
 `;
 
-const CHECK_NAMES = ["typecheck", "lint", "unit", "integration", "e2e: checkout", "e2e: dashboard", "build", "migrations", "bundle size", "CodeQL"];
+const CHECK_NAMES = [
+  "typecheck",
+  "lint",
+  "unit",
+  "integration",
+  "e2e: checkout",
+  "e2e: dashboard",
+  "build",
+  "migrations",
+  "bundle size",
+  "CodeQL",
+];
 
 const checks = (now: number, failed: string | null) =>
   CHECK_NAMES.map((name, i) => ({
@@ -96,8 +107,7 @@ export const PULL_REQUESTS = (now: number) => [
     repository: REPO,
     number: PR_RETRY.number,
     title: "Retry failed webhooks with backoff",
-    body:
-      "Failed webhook deliveries now go to a retry queue instead of being dropped.\n\n- Backoff of 2s, 4s, 8s, 16s with jitter, at most 5 attempts\n- 5xx, 429 and timeouts retry; any other 4xx is final\n- The fifth failure lands in the dead-letter queue with its last response\n\nCloses ct-4182.",
+    body: "Failed webhook deliveries now go to a retry queue instead of being dropped.\n\n- Backoff of 2s, 4s, 8s, 16s with jitter, at most 5 attempts\n- 5xx, 429 and timeouts retry; any other 4xx is final\n- The fifth failure lands in the dead-letter queue with its last response\n\nCloses ct-4182.",
     state: "open",
     draft: false,
     author_github_username: "alexrivera",
@@ -108,18 +118,54 @@ export const PULL_REQUESTS = (now: number) => [
     linked_session_ids: [SESSIONS.lead._id, SESSIONS.api._id],
     task_ids: ["hero-t1"],
     files: [
-      { filename: "src/billing/retry.ts", status: "modified", additions: 26, deletions: 0, changes: 26, patch: RETRY_PATCH },
-      { filename: "src/api/hooks.ts", status: "modified", additions: 1, deletions: 0, changes: 1, patch: HOOKS_PATCH },
-      { filename: "src/billing/retry.test.ts", status: "added", additions: 14, deletions: 0, changes: 14, patch: TEST_PATCH },
+      {
+        filename: "src/billing/retry.ts",
+        status: "modified",
+        additions: 26,
+        deletions: 0,
+        changes: 26,
+        patch: RETRY_PATCH,
+      },
+      {
+        filename: "src/api/hooks.ts",
+        status: "modified",
+        additions: 1,
+        deletions: 0,
+        changes: 1,
+        patch: HOOKS_PATCH,
+      },
+      {
+        filename: "src/billing/retry.test.ts",
+        status: "added",
+        additions: 14,
+        deletions: 0,
+        changes: 14,
+        patch: TEST_PATCH,
+      },
     ],
     additions: 41,
     deletions: 0,
     changed_files: 3,
     commits_count: 3,
     commits: [
-      commit("4a1b9c0d2e", "Add retry queue with exponential backoff", 3 * HOUR, now),
-      commit("7d2e5f1a3b", "Dead-letter after the fifth failed attempt", 2 * HOUR, now),
-      commit("9f3c2a1e7b", "Route POST /v2/hooks/retry through idempotent()", 40 * MIN, now),
+      commit(
+        "4a1b9c0d2e",
+        "Add retry queue with exponential backoff",
+        3 * HOUR,
+        now,
+      ),
+      commit(
+        "7d2e5f1a3b",
+        "Dead-letter after the fifth failed attempt",
+        2 * HOUR,
+        now,
+      ),
+      commit(
+        "9f3c2a1e7b",
+        "Route POST /v2/hooks/retry through idempotent()",
+        40 * MIN,
+        now,
+      ),
     ],
     files_synced_at: now - 30 * MIN,
     created_at: now - 3 * HOUR,
@@ -187,7 +233,16 @@ export const PULL_REQUESTS = (now: number) => [
   },
 ];
 
-const event = (now: number, pr: { _id: string; number: number }, id: string, kind: string, ago: number, title: string, actor: { login: string; image: string }, extra: Record<string, unknown> = {}) => ({
+const event = (
+  now: number,
+  pr: { _id: string; number: number },
+  id: string,
+  kind: string,
+  ago: number,
+  title: string,
+  actor: { login: string; image: string },
+  extra: Record<string, unknown> = {},
+) => ({
   _id: cid(`ev${id}`),
   team_id: TEAM_ID,
   source: "github",
@@ -206,12 +261,74 @@ const ALEX = { login: "alexrivera", image: PEOPLE.me.image };
 const MAYA = { login: "maya", image: PEOPLE.maya.image };
 
 export const PR_EVENTS = (now: number) => [
-  event(now, PR_RETRY, "r1", "pr_opened", 3 * HOUR, "Retry failed webhooks with backoff", ALEX, { conversation_id: SESSIONS.lead._id }),
-  event(now, PR_RETRY, "r2", "pr_synchronize", 2 * HOUR, "Dead-letter after the fifth failed attempt", ALEX, { sha: "7d2e5f1a3b", branch: "feat/webhook-retry", conversation_id: SESSIONS.lead._id }),
-  event(now, PR_RETRY, "r3", "pr_synchronize", 40 * MIN, "Route POST /v2/hooks/retry through idempotent()", ALEX, { sha: "9f3c2a1e7b", branch: "feat/webhook-retry", conversation_id: SESSIONS.lead._id }),
-  event(now, PR_RETRY, "r4", "pr_check", 20 * MIN, "All 10 checks passed", { login: "github-actions", image: "" }, { sha: "9f3c2a1e7b" }),
-  event(now, PR_HMAC, "h1", "pr_opened", 5 * HOUR, "Sign webhook payloads with HMAC", ALEX, { conversation_id: SESSIONS.api._id }),
-  event(now, PR_HMAC, "h2", "pr_check_failed", 8 * MIN, "integration failed", { login: "github-actions", image: "" }, { sha: "c81f04b6aa" }),
+  event(
+    now,
+    PR_RETRY,
+    "r1",
+    "pr_opened",
+    3 * HOUR,
+    "Retry failed webhooks with backoff",
+    ALEX,
+    { conversation_id: SESSIONS.lead._id },
+  ),
+  event(
+    now,
+    PR_RETRY,
+    "r2",
+    "pr_synchronize",
+    2 * HOUR,
+    "Dead-letter after the fifth failed attempt",
+    ALEX,
+    {
+      sha: "7d2e5f1a3b",
+      branch: "feat/webhook-retry",
+      conversation_id: SESSIONS.lead._id,
+    },
+  ),
+  event(
+    now,
+    PR_RETRY,
+    "r3",
+    "pr_synchronize",
+    40 * MIN,
+    "Route POST /v2/hooks/retry through idempotent()",
+    ALEX,
+    {
+      sha: "9f3c2a1e7b",
+      branch: "feat/webhook-retry",
+      conversation_id: SESSIONS.lead._id,
+    },
+  ),
+  event(
+    now,
+    PR_RETRY,
+    "r4",
+    "pr_check",
+    20 * MIN,
+    "All 10 checks passed",
+    { login: "github-actions", image: "" },
+    { sha: "9f3c2a1e7b" },
+  ),
+  event(
+    now,
+    PR_HMAC,
+    "h1",
+    "pr_opened",
+    5 * HOUR,
+    "Sign webhook payloads with HMAC",
+    ALEX,
+    { conversation_id: SESSIONS.api._id },
+  ),
+  event(
+    now,
+    PR_HMAC,
+    "h2",
+    "pr_check_failed",
+    8 * MIN,
+    "integration failed",
+    { login: "github-actions", image: "" },
+    { sha: "c81f04b6aa" },
+  ),
 ];
 
 export const PR_REVIEWS = (now: number) => [
@@ -247,7 +364,11 @@ export const PR_REVIEWS = (now: number) => [
   },
 ];
 
-const anchor = (file: string, line: number) => ({ file_path: file, line_number: line, side: "RIGHT" });
+const anchor = (file: string, line: number) => ({
+  file_path: file,
+  line_number: line,
+  side: "RIGHT",
+});
 
 export const PR_COMMENTS = (now: number) => [
   {
@@ -280,8 +401,18 @@ export const PR_COMMENTS = (now: number) => [
   },
   // The viewer's review in progress: two notes held, not sent yet.
   ...[
-    { id: "ccheld1", line: 8, content: "Cap the jitter at 20% of the delay so the fifth attempt stays under a minute." },
-    { id: "ccheld2", line: 21, content: "A 410 Gone should return here too: the endpoint is gone and a retry can never land." },
+    {
+      id: "ccheld1",
+      line: 8,
+      content:
+        "Cap the jitter at 20% of the delay so the fifth attempt stays under a minute.",
+    },
+    {
+      id: "ccheld2",
+      line: 21,
+      content:
+        "A 410 Gone should return here too: the endpoint is gone and a retry can never land.",
+    },
   ].map((n, i) => ({
     _id: cid(n.id),
     pull_request_id: PR_RETRY._id,
@@ -297,22 +428,35 @@ export const PR_COMMENTS = (now: number) => [
   })),
 ];
 
-const forPr = <T extends { pull_request_id?: string; pr_id?: string }>(rows: T[], id: unknown) =>
-  rows.filter((r) => (r.pull_request_id ?? r.pr_id) === id);
+const forPr = <T extends { pull_request_id?: string; pr_id?: string }>(
+  rows: T[],
+  id: unknown,
+) => rows.filter((r) => (r.pull_request_id ?? r.pr_id) === id);
 
-const byNumber = (a: any) => PULL_REQUESTS(Date.now()).find((p) => (a?.id ? p._id === a.id : p.repository === a?.repository && p.number === Number(a?.number))) ?? null;
+const byNumber = (a: any) =>
+  PULL_REQUESTS(Date.now()).find((p) =>
+    a?.id
+      ? p._id === a.id
+      : p.repository === a?.repository && p.number === Number(a?.number),
+  ) ?? null;
 
 export const PR_ANSWERS: Record<string, (args: any) => unknown> = {
   "pull_requests:getPRsForTimeline": () => PULL_REQUESTS(Date.now()),
   "pull_requests:getPRByNumber": (a) => byNumber(a) ?? undefined,
   "pull_requests:webGet": byNumber,
   "externalEvents:listForPR": (a) => forPr(PR_EVENTS(Date.now()), a?.pr_id),
-  "codeComments:listForPR": (a) => forPr(PR_COMMENTS(Date.now()), a?.pull_request_id),
-  "reviews:getReviewsForPR": (a) => forPr(PR_REVIEWS(Date.now()), a?.pull_request_id),
+  "codeComments:listForPR": (a) =>
+    forPr(PR_COMMENTS(Date.now()), a?.pull_request_id),
+  "reviews:getReviewsForPR": (a) =>
+    forPr(PR_REVIEWS(Date.now()), a?.pull_request_id),
 };
 
 export function seedAcmePullRequests(s: any, now: number) {
   s.syncTable("pullRequests", PULL_REQUESTS(now));
 }
 
-export const PULL_REQUESTS_PART: AcmePart = { name: "pullRequests", seed: seedAcmePullRequests, answers: PR_ANSWERS };
+export const PULL_REQUESTS_PART: AcmePart = {
+  name: "pullRequests",
+  seed: seedAcmePullRequests,
+  answers: PR_ANSWERS,
+};

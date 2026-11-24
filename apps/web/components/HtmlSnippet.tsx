@@ -51,7 +51,10 @@ function extractMeta(html: string): { title: string | null; wide: boolean } {
     const doc = new DOMParser().parseFromString(html, "text/html");
     const wide = !!doc.querySelector('[data-canvas-size="wide"]');
     const clip = (s: string) => (s.length > 80 ? s.slice(0, 79) + "…" : s);
-    const explicit = doc.querySelector("[data-canvas-title]")?.getAttribute("data-canvas-title")?.trim();
+    const explicit = doc
+      .querySelector("[data-canvas-title]")
+      ?.getAttribute("data-canvas-title")
+      ?.trim();
     if (explicit) return { title: clip(explicit), wide };
     const heading = doc.querySelector("h1,h2,h3,h4,h5,h6")?.textContent?.trim();
     if (heading) return { title: clip(heading), wide };
@@ -81,10 +84,23 @@ function useDebounced(value: string, ms: number): string {
 }
 
 /** What a canvas element marked `data-press` or `data-change` hands its owner: the name, the element's other data-* values, and an input's value. */
-export type CanvasEvent = { kind: "press" | "change"; name: string; data: Record<string, string>; value?: string };
+export type CanvasEvent = {
+  kind: "press" | "change";
+  name: string;
+  data: Record<string, string>;
+  value?: string;
+};
 
 /** Renders sanitized HTML into a Shadow DOM so its styles are encapsulated. `onEvent` makes it interactive: the markup carries no handlers, only names. */
-export function ShadowCanvas({ html, className = "", onEvent }: { html: string; className?: string; onEvent?: (e: CanvasEvent) => void }) {
+export function ShadowCanvas({
+  html,
+  className = "",
+  onEvent,
+}: {
+  html: string;
+  className?: string;
+  onEvent?: (e: CanvasEvent) => void;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<ShadowRoot | null>(null);
   const router = useRouter();
@@ -105,7 +121,15 @@ export function ShadowCanvas({ html, className = "", onEvent }: { html: string; 
       // entirely. Modified clicks keep the browser's new-tab default.
       rootRef.current.addEventListener("click", (e: Event) => {
         const me = e as MouseEvent;
-        if (me.defaultPrevented || me.button !== 0 || me.metaKey || me.ctrlKey || me.shiftKey || me.altKey) return;
+        if (
+          me.defaultPrevented ||
+          me.button !== 0 ||
+          me.metaKey ||
+          me.ctrlKey ||
+          me.shiftKey ||
+          me.altKey
+        )
+          return;
         const anchor = (me.target as Element | null)?.closest?.("a[href]");
         const route = canvasHrefToRoute(anchor?.getAttribute("href"));
         if (route) {
@@ -113,19 +137,32 @@ export function ShadowCanvas({ html, className = "", onEvent }: { html: string; 
           routerRef.current.push(route);
           return;
         }
-        const pressed = (me.target as Element | null)?.closest?.("[data-press]") as HTMLElement | null;
+        const pressed = (me.target as Element | null)?.closest?.(
+          "[data-press]",
+        ) as HTMLElement | null;
         if (pressed && onEventRef.current) {
           me.preventDefault();
           const { press, ...data } = pressed.dataset;
-          onEventRef.current({ kind: "press", name: press!, data: data as Record<string, string> });
+          onEventRef.current({
+            kind: "press",
+            name: press!,
+            data: data as Record<string, string>,
+          });
         }
       });
       rootRef.current.addEventListener("change", (e: Event) => {
-        const el = (e.target as Element | null)?.closest?.("[data-change]") as HTMLInputElement | null;
+        const el = (e.target as Element | null)?.closest?.(
+          "[data-change]",
+        ) as HTMLInputElement | null;
         if (!el || !onEventRef.current) return;
         const { change, ...data } = el.dataset;
         const value = el.type === "checkbox" ? String(el.checked) : el.value;
-        onEventRef.current({ kind: "change", name: change!, data: data as Record<string, string>, value });
+        onEventRef.current({
+          kind: "change",
+          name: change!,
+          data: data as Record<string, string>,
+          value,
+        });
       });
     }
     const root = rootRef.current;
@@ -145,7 +182,18 @@ export function ShadowCanvas({ html, className = "", onEvent }: { html: string; 
     }
   }, [html]);
 
-  return <div className={className} style={{ contain: "layout paint", isolation: "isolate", position: "relative" }}><div ref={hostRef} /></div>;
+  return (
+    <div
+      className={className}
+      style={{
+        contain: "layout paint",
+        isolation: "isolate",
+        position: "relative",
+      }}
+    >
+      <div ref={hostRef} />
+    </div>
+  );
 }
 
 // The fence language the canvas claims. Owned here so every markdown dispatcher
@@ -160,7 +208,10 @@ export function hasCanvasFence(markdown: string): boolean {
 }
 
 /** Returns a rendered canvas for a cast-canvas fence, else null (caller falls back to CodeBlock). */
-export function tryRenderCanvas(language: string | undefined, code: string): ReactNode {
+export function tryRenderCanvas(
+  language: string | undefined,
+  code: string,
+): ReactNode {
   if (language === CANVAS_FENCE && code) return <HtmlSnippet code={code} />;
   return null;
 }

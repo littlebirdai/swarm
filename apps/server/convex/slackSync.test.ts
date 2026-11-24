@@ -32,64 +32,180 @@ import { USER_SCOPES } from "./lib/slackOAuth";
 import { pushReaction, reactionSpeaker } from "./slackReactions";
 import { listChannels, sendMessage, toggleReaction } from "./chat";
 import { resolveChatMentions } from "./lib/mentionResolve";
-import { ALICE, BOB, TEAM, CHANNEL, OTHER_CHANNEL, INSTALL, LINK, WS, SLACK_CH, context, call, messages, scheduledNames } from "./slackSync.testkit";
+import {
+  ALICE,
+  BOB,
+  TEAM,
+  CHANNEL,
+  OTHER_CHANNEL,
+  INSTALL,
+  LINK,
+  WS,
+  SLACK_CH,
+  context,
+  call,
+  messages,
+  scheduledNames,
+} from "./slackSync.testkit";
 
 describe("ingestEvent", () => {
   test("routes a channel message to a job and dedupes on event id", async () => {
     const ctx = context(null);
-    const event = { type: "message", channel: SLACK_CH, user: "U1", text: "hi", ts: "1700.000100", channel_type: "channel" };
-    const first = await call(ingestEvent, ctx, { event_id: "Ev1", workspace: WS, event });
+    const event = {
+      type: "message",
+      channel: SLACK_CH,
+      user: "U1",
+      text: "hi",
+      ts: "1700.000100",
+      channel_type: "channel",
+    };
+    const first = await call(ingestEvent, ctx, {
+      event_id: "Ev1",
+      workspace: WS,
+      event,
+    });
     expect(first.status).toBe("queued");
     expect(scheduledNames(ctx)).toEqual(["slackSync:processEvent"]);
-    const again = await call(ingestEvent, ctx, { event_id: "Ev1", workspace: WS, event });
+    const again = await call(ingestEvent, ctx, {
+      event_id: "Ev1",
+      workspace: WS,
+      event,
+    });
     expect(again.status).toBe("duplicate");
     expect(ctx.db._tables.slack_sync_events.length).toBe(1);
   });
   test("an unmirrored channel is left for the anchor path and NOT recorded", async () => {
     const ctx = context(null);
-    const res = await call(ingestEvent, ctx, { event_id: "Ev2", workspace: WS, event: { type: "app_mention", channel: "C0OTHER", text: "<@UBOT> hi", ts: "1" } });
+    const res = await call(ingestEvent, ctx, {
+      event_id: "Ev2",
+      workspace: WS,
+      event: {
+        type: "app_mention",
+        channel: "C0OTHER",
+        text: "<@UBOT> hi",
+        ts: "1",
+      },
+    });
     expect(res.status).toBe("no_link");
     expect(ctx.db._tables.slack_events.length).toBe(0);
   });
   test("our own bot's echo is dropped at the door", async () => {
     const ctx = context(null);
-    const res = await call(ingestEvent, ctx, { event_id: "Ev3", workspace: WS, event: { type: "message", channel: SLACK_CH, user: "UBOT", text: "echo", ts: "2" } });
+    const res = await call(ingestEvent, ctx, {
+      event_id: "Ev3",
+      workspace: WS,
+      event: {
+        type: "message",
+        channel: SLACK_CH,
+        user: "UBOT",
+        text: "echo",
+        ts: "2",
+      },
+    });
     expect(res.status).toBe("own_bot");
     expect(ctx.db._tables.slack_sync_events.length).toBe(0);
-    const viaApp = await call(ingestEvent, ctx, { event_id: "Ev4", workspace: WS, event: { type: "message", subtype: "bot_message", channel: SLACK_CH, bot_id: "B1", bot_profile: { app_id: "A0CODECAST" }, text: "echo", ts: "3" } });
+    const viaApp = await call(ingestEvent, ctx, {
+      event_id: "Ev4",
+      workspace: WS,
+      event: {
+        type: "message",
+        subtype: "bot_message",
+        channel: SLACK_CH,
+        bot_id: "B1",
+        bot_profile: { app_id: "A0CODECAST" },
+        text: "echo",
+        ts: "3",
+      },
+    });
     expect(viaApp.status).toBe("own_bot");
   });
   test("another workspace's channel id never reaches this link", async () => {
     const ctx = context(null);
-    const res = await call(ingestEvent, ctx, { event_id: "Ev5", workspace: "T0OTHER", event: { type: "message", channel: SLACK_CH, user: "U1", text: "x", ts: "4" } });
+    const res = await call(ingestEvent, ctx, {
+      event_id: "Ev5",
+      workspace: "T0OTHER",
+      event: {
+        type: "message",
+        channel: SLACK_CH,
+        user: "U1",
+        text: "x",
+        ts: "4",
+      },
+    });
     expect(res.status).toBe("no_link");
   });
   test("a paused link skips, a mention in a mirrored channel is handled by the mirror", async () => {
     const ctx = context(null);
-    const mention = await call(ingestEvent, ctx, { event_id: "Ev6", workspace: WS, event: { type: "app_mention", channel: SLACK_CH, user: "U1", text: "<@UBOT>", ts: "5" } });
+    const mention = await call(ingestEvent, ctx, {
+      event_id: "Ev6",
+      workspace: WS,
+      event: {
+        type: "app_mention",
+        channel: SLACK_CH,
+        user: "U1",
+        text: "<@UBOT>",
+        ts: "5",
+      },
+    });
     expect(mention.status).toBe("handled_by_mirror");
     await ctx.db.patch(LINK, { paused: true });
-    const paused = await call(ingestEvent, ctx, { event_id: "Ev7", workspace: WS, event: { type: "message", channel: SLACK_CH, user: "U1", text: "x", ts: "6" } });
+    const paused = await call(ingestEvent, ctx, {
+      event_id: "Ev7",
+      workspace: WS,
+      event: {
+        type: "message",
+        channel: SLACK_CH,
+        user: "U1",
+        text: "x",
+        ts: "6",
+      },
+    });
     expect(paused.status).toBe("skipped");
   });
   test("channel lifecycle events patch the link", async () => {
     const ctx = context(null);
-    await call(ingestEvent, ctx, { event_id: "Ev8", workspace: WS, event: { type: "channel_rename", channel: { id: SLACK_CH, name: "general-2" } } });
+    await call(ingestEvent, ctx, {
+      event_id: "Ev8",
+      workspace: WS,
+      event: {
+        type: "channel_rename",
+        channel: { id: SLACK_CH, name: "general-2" },
+      },
+    });
     expect((await ctx.db.get(LINK)).slack_channel_name).toBe("general-2");
     // The chat channel follows: a mirrored channel wears the Slack name.
     expect((await ctx.db.get(CHANNEL)).name).toBe("general-2");
     // Unless the name is taken on our side; then the chat name stays put.
-    await call(ingestEvent, ctx, { event_id: "Ev8b", workspace: WS, event: { type: "channel_rename", channel: { id: SLACK_CH, name: "random" } } });
+    await call(ingestEvent, ctx, {
+      event_id: "Ev8b",
+      workspace: WS,
+      event: {
+        type: "channel_rename",
+        channel: { id: SLACK_CH, name: "random" },
+      },
+    });
     expect((await ctx.db.get(LINK)).slack_channel_name).toBe("random");
     expect((await ctx.db.get(CHANNEL)).name).toBe("general-2");
-    await call(ingestEvent, ctx, { event_id: "Ev9", workspace: WS, event: { type: "channel_archive", channel: SLACK_CH } });
+    await call(ingestEvent, ctx, {
+      event_id: "Ev9",
+      workspace: WS,
+      event: { type: "channel_archive", channel: SLACK_CH },
+    });
     expect((await ctx.db.get(LINK)).paused).toBe(true);
-    await call(ingestEvent, ctx, { event_id: "Ev10", workspace: WS, event: { type: "channel_unarchive", channel: SLACK_CH } });
+    await call(ingestEvent, ctx, {
+      event_id: "Ev10",
+      workspace: WS,
+      event: { type: "channel_unarchive", channel: SLACK_CH },
+    });
     expect((await ctx.db.get(LINK)).paused).toBe(false);
   });
   test("app uninstall pauses links and drops the installation", async () => {
     const ctx = context(null);
-    await call(ingestEvent, ctx, { event_id: "Ev11", workspace: WS, event: { type: "app_uninstalled" } });
+    await call(ingestEvent, ctx, {
+      event_id: "Ev11",
+      workspace: WS,
+      event: { type: "app_uninstalled" },
+    });
     expect((await ctx.db.get(LINK)).paused).toBe(true);
     expect(ctx.db._tables.slack_installations.length).toBe(0);
   });
@@ -97,8 +213,16 @@ describe("ingestEvent", () => {
 
 describe("applyInboundMessage", () => {
   const base = {
-    link_id: LINK, ts: "1700.000100", content: "hello from slack", attachments: [], live: true,
-    external_author: { name: "Dana", handle: "dana", avatar_url: "https://a/b.png" },
+    link_id: LINK,
+    ts: "1700.000100",
+    content: "hello from slack",
+    attachments: [],
+    live: true,
+    external_author: {
+      name: "Dana",
+      handle: "dana",
+      avatar_url: "https://a/b.png",
+    },
   };
   test("inserts through the chat path with provenance, the bridge identity, and no outbound echo", async () => {
     const ctx = context(null);
@@ -113,25 +237,33 @@ describe("applyInboundMessage", () => {
     expect(bridge.bot_kind).toBe("slack");
     expect((await ctx.db.get(INSTALL)).bridge_user_id).toBe(row.user_id);
     // The bridge is a team member so the roster knows its face.
-    expect(ctx.db._tables.team_memberships.some((m: any) => m.user_id === row.user_id)).toBe(true);
+    expect(
+      ctx.db._tables.team_memberships.some(
+        (m: any) => m.user_id === row.user_id,
+      ),
+    ).toBe(true);
     expect(scheduledNames(ctx)).not.toContain("slackSync:pushMessage");
     expect((await ctx.db.get(LINK)).inbound_count).toBe(1);
   });
   test("a live inbound line notifies as the Slack person, not the workspace bridge", async () => {
     const ctx = context(null, {
-      chat_reads: [{
-        _id: "read-bob-all",
-        user_id: BOB,
-        channel_id: CHANNEL,
-        team_id: TEAM,
-        last_read_at: 0,
-        notify_level: "all",
-        joined_at: 1,
-        updated_at: 1,
-      }],
+      chat_reads: [
+        {
+          _id: "read-bob-all",
+          user_id: BOB,
+          channel_id: CHANNEL,
+          team_id: TEAM,
+          last_read_at: 0,
+          notify_level: "all",
+          joined_at: 1,
+          updated_at: 1,
+        },
+      ],
     });
     await call(applyInboundMessage, ctx, base);
-    expect(ctx._emitted.map((e: any) => e.args.event_type)).toEqual(["chat_post"]);
+    expect(ctx._emitted.map((e: any) => e.args.event_type)).toEqual([
+      "chat_post",
+    ]);
     expect(ctx._emitted[0].args.direct_recipient_id).toBe(BOB);
     expect(ctx._emitted[0].args.actor_name).toBe("Dana");
     expect(ctx._emitted[0].args.actor_avatar).toBe("https://a/b.png");
@@ -139,7 +271,10 @@ describe("applyInboundMessage", () => {
     const bridge = await ctx.db.get(messages(ctx)[0].user_id);
     expect(bridge.name).toMatch(/Slack/);
     expect(ctx._emitted[0].args.actor_user_id).toBe(bridge._id);
-    const viewer = { ...ctx, auth: { getUserIdentity: async () => ({ subject: `${BOB}|session` }) } };
+    const viewer = {
+      ...ctx,
+      auth: { getUserIdentity: async () => ({ subject: `${BOB}|session` }) },
+    };
     const { rail } = await call(listChannels, viewer, { team_id: TEAM });
     const last = rail.find((r: any) => r.channel_id === CHANNEL).last_message;
     expect(last._id).toBe(messages(ctx)[0]._id);
@@ -148,7 +283,11 @@ describe("applyInboundMessage", () => {
   });
   test("a mapped teammate is the author and the line still wears the Slack mark", async () => {
     const ctx = context(null);
-    await call(applyInboundMessage, ctx, { ...base, author_user_id: BOB, external_author: undefined });
+    await call(applyInboundMessage, ctx, {
+      ...base,
+      author_user_id: BOB,
+      external_author: undefined,
+    });
     const row = messages(ctx)[0];
     expect(row.user_id).toBe(BOB);
     expect(row.external_author).toBeUndefined();
@@ -164,26 +303,58 @@ describe("applyInboundMessage", () => {
   test("a reply threads under a root that came from Slack", async () => {
     const ctx = context(null);
     await call(applyInboundMessage, ctx, base);
-    const reply = await call(applyInboundMessage, ctx, { ...base, ts: "1700.000200", thread_ts: "1700.000100", content: "reply" });
+    const reply = await call(applyInboundMessage, ctx, {
+      ...base,
+      ts: "1700.000200",
+      thread_ts: "1700.000100",
+      content: "reply",
+    });
     const rows = messages(ctx);
     expect(rows[1].thread_root_id).toBe(rows[0]._id);
     expect(reply.status).toBe("posted");
   });
   test("a reply threads under a root WE posted, found by the stamped ts", async () => {
     const ctx = context(ALICE);
-    await call(sendMessage, ctx, { channel_id: CHANNEL, content: "from codecast", client_id: "web-1" });
+    await call(sendMessage, ctx, {
+      channel_id: CHANNEL,
+      content: "from codecast",
+      client_id: "web-1",
+    });
     const ours = messages(ctx)[0];
     expect(scheduledNames(ctx)).toContain("slackSync:pushMessage");
-    await call(stampOutbound, ctx, { message_id: ours._id, link_id: LINK, ts: "1700.000300", permalink: "https://slack/p" });
+    await call(stampOutbound, ctx, {
+      message_id: ours._id,
+      link_id: LINK,
+      ts: "1700.000300",
+      permalink: "https://slack/p",
+    });
     expect((await ctx.db.get(ours._id)).external.direction).toBe("outbound");
-    await call(applyInboundMessage, { ...ctx, auth: context(null).auth }, { ...base, ts: "1700.000400", thread_ts: "1700.000300", content: "slack reply" });
+    await call(
+      applyInboundMessage,
+      { ...ctx, auth: context(null).auth },
+      {
+        ...base,
+        ts: "1700.000400",
+        thread_ts: "1700.000300",
+        content: "slack reply",
+      },
+    );
     const reply = messages(ctx).find((m: any) => m.content === "slack reply");
     expect(reply.thread_root_id).toBe(ours._id);
   });
   test("backfilled lines keep their Slack time and bump on a collision", async () => {
     const ctx = context(null);
-    await call(applyInboundMessage, ctx, { ...base, live: false, created_at: 5_000 });
-    await call(applyInboundMessage, ctx, { ...base, ts: "1700.000101", live: false, created_at: 5_000 });
+    await call(applyInboundMessage, ctx, {
+      ...base,
+      live: false,
+      created_at: 5_000,
+    });
+    await call(applyInboundMessage, ctx, {
+      ...base,
+      ts: "1700.000101",
+      live: false,
+      created_at: 5_000,
+    });
     const [a, b] = messages(ctx);
     expect(a.created_at).toBe(5_000);
     expect(b.created_at).toBe(5_001);
@@ -191,33 +362,75 @@ describe("applyInboundMessage", () => {
 });
 
 describe("edits, deletes, reactions from Slack", () => {
-  const base = { link_id: LINK, ts: "1700.000100", content: "v1", attachments: [], live: true, external_author: { name: "Dana" } };
+  const base = {
+    link_id: LINK,
+    ts: "1700.000100",
+    content: "v1",
+    attachments: [],
+    live: true,
+    external_author: { name: "Dana" },
+  };
   test("an edit patches an inbound row and refuses our own outbound row", async () => {
     const ctx = context(ALICE);
     await call(applyInboundMessage, ctx, base);
-    const edit = await call(applyInboundEdit, ctx, { link_id: LINK, ts: "1700.000100", content: "v2" });
+    const edit = await call(applyInboundEdit, ctx, {
+      link_id: LINK,
+      ts: "1700.000100",
+      content: "v2",
+    });
     expect(edit.status).toBe("edited");
     expect(messages(ctx)[0].content).toBe("v2");
     expect(messages(ctx)[0].edited_at).toBeTruthy();
-    await call(sendMessage, ctx, { channel_id: CHANNEL, content: "ours", client_id: "web-2" });
+    await call(sendMessage, ctx, {
+      channel_id: CHANNEL,
+      content: "ours",
+      client_id: "web-2",
+    });
     const ours = messages(ctx)[1];
-    await call(stampOutbound, ctx, { message_id: ours._id, link_id: LINK, ts: "1700.000900" });
-    const echo = await call(applyInboundEdit, ctx, { link_id: LINK, ts: "1700.000900", content: "ours (edited in slack)" });
+    await call(stampOutbound, ctx, {
+      message_id: ours._id,
+      link_id: LINK,
+      ts: "1700.000900",
+    });
+    const echo = await call(applyInboundEdit, ctx, {
+      link_id: LINK,
+      ts: "1700.000900",
+      content: "ours (edited in slack)",
+    });
     expect(echo.status).toBe("not_inbound");
     expect((await ctx.db.get(ours._id)).content).toBe("ours");
   });
   test("a delete tombstones an inbound row and only detaches an outbound one", async () => {
     const ctx = context(ALICE);
     await call(applyInboundMessage, ctx, base);
-    await call(applyInboundReaction, ctx, { link_id: LINK, ts: "1700.000100", emoji: "👍", add: true });
-    const del = await call(applyInboundDelete, ctx, { link_id: LINK, ts: "1700.000100" });
+    await call(applyInboundReaction, ctx, {
+      link_id: LINK,
+      ts: "1700.000100",
+      emoji: "👍",
+      add: true,
+    });
+    const del = await call(applyInboundDelete, ctx, {
+      link_id: LINK,
+      ts: "1700.000100",
+    });
     expect(del.status).toBe("deleted");
     expect(messages(ctx)[0].deleted_at).toBeTruthy();
     expect(ctx.db._tables.chat_reactions.length).toBe(0);
-    await call(sendMessage, ctx, { channel_id: CHANNEL, content: "ours", client_id: "web-3" });
+    await call(sendMessage, ctx, {
+      channel_id: CHANNEL,
+      content: "ours",
+      client_id: "web-3",
+    });
     const ours = messages(ctx)[1];
-    await call(stampOutbound, ctx, { message_id: ours._id, link_id: LINK, ts: "1700.000900" });
-    const detach = await call(applyInboundDelete, ctx, { link_id: LINK, ts: "1700.000900" });
+    await call(stampOutbound, ctx, {
+      message_id: ours._id,
+      link_id: LINK,
+      ts: "1700.000900",
+    });
+    const detach = await call(applyInboundDelete, ctx, {
+      link_id: LINK,
+      ts: "1700.000900",
+    });
     expect(detach.status).toBe("detached");
     const after = await ctx.db.get(ours._id);
     expect(after.deleted_at).toBeUndefined();
@@ -226,35 +439,68 @@ describe("edits, deletes, reactions from Slack", () => {
   test("reactions land under the mapped teammate or the bridge, and toggle", async () => {
     const ctx = context(null);
     await call(applyInboundMessage, ctx, base);
-    const r1 = await call(applyInboundReaction, ctx, { link_id: LINK, ts: "1700.000100", emoji: "🎉", add: true, user_id: BOB });
+    const r1 = await call(applyInboundReaction, ctx, {
+      link_id: LINK,
+      ts: "1700.000100",
+      emoji: "🎉",
+      add: true,
+      user_id: BOB,
+    });
     expect(r1.status).toBe("applied");
     expect(ctx.db._tables.chat_reactions[0].user_id).toBe(BOB);
-    const r2 = await call(applyInboundReaction, ctx, { link_id: LINK, ts: "1700.000100", emoji: "🎉", add: true });
+    const r2 = await call(applyInboundReaction, ctx, {
+      link_id: LINK,
+      ts: "1700.000100",
+      emoji: "🎉",
+      add: true,
+    });
     expect(r2.status).toBe("applied");
     expect(ctx.db._tables.chat_reactions.length).toBe(2);
-    const r3 = await call(applyInboundReaction, ctx, { link_id: LINK, ts: "1700.000100", emoji: "🎉", add: false, user_id: BOB });
+    const r3 = await call(applyInboundReaction, ctx, {
+      link_id: LINK,
+      ts: "1700.000100",
+      emoji: "🎉",
+      add: false,
+      user_id: BOB,
+    });
     expect(r3.status).toBe("applied");
     expect(ctx.db._tables.chat_reactions.length).toBe(1);
-    const bad = await call(applyInboundReaction, ctx, { link_id: LINK, ts: "1700.000100", emoji: "not-emoji", add: true });
+    const bad = await call(applyInboundReaction, ctx, {
+      link_id: LINK,
+      ts: "1700.000100",
+      emoji: "not-emoji",
+      add: true,
+    });
     expect(bad.status).toBe("bad_emoji");
   });
   test("two unmatched Slack people are two reactions, each named as themselves", async () => {
     const ctx = context(null);
     await call(applyInboundMessage, ctx, base);
-    const react = (slack_user: string, name: string, add: boolean) => call(applyInboundReaction, ctx, {
-      link_id: LINK, ts: "1700.000100", emoji: "➕", add, slack_user, external_author: { name },
-    });
+    const react = (slack_user: string, name: string, add: boolean) =>
+      call(applyInboundReaction, ctx, {
+        link_id: LINK,
+        ts: "1700.000100",
+        emoji: "➕",
+        add,
+        slack_user,
+        external_author: { name },
+      });
     // A row from before reactions carried the Slack person.
     await react("UDAN", "Dan", true);
     delete ctx.db._tables.chat_reactions[0].slack_user;
     expect((await react("UERIN", "Erin", true)).status).toBe("applied");
     expect((await react("UERIN", "Erin", true)).status).toBe("noop");
     const rows = ctx.db._tables.chat_reactions;
-    expect(rows.map((r: any) => r.external_author?.name)).toEqual(["Dan", "Erin"]);
+    expect(rows.map((r: any) => r.external_author?.name)).toEqual([
+      "Dan",
+      "Erin",
+    ]);
     expect(rows[0].user_id).toBe(rows[1].user_id);
     // Erin takes hers back; Dan's stays.
     expect((await react("UERIN", "Erin", false)).status).toBe("applied");
-    expect(ctx.db._tables.chat_reactions.map((r: any) => r.external_author?.name)).toEqual(["Dan"]);
+    expect(
+      ctx.db._tables.chat_reactions.map((r: any) => r.external_author?.name),
+    ).toEqual(["Dan"]);
     // Dan's old row has no Slack id, and his removal still finds it.
     expect((await react("UDAN", "Dan", false)).status).toBe("applied");
     expect(ctx.db._tables.chat_reactions.length).toBe(0);
@@ -264,33 +510,70 @@ describe("edits, deletes, reactions from Slack", () => {
 describe("outbound hooks in chat", () => {
   test("a typed line queues a push; a local-only line does not; every reaction toggle names who reacted", async () => {
     const ctx = context(ALICE);
-    await call(sendMessage, ctx, { channel_id: CHANNEL, content: "to slack", client_id: "w1" });
-    await call(sendMessage, ctx, { channel_id: CHANNEL, content: "stay home", client_id: "w2", sync_local_only: true });
-    expect(scheduledNames(ctx).filter((n: string) => n === "slackSync:pushMessage").length).toBe(1);
+    await call(sendMessage, ctx, {
+      channel_id: CHANNEL,
+      content: "to slack",
+      client_id: "w1",
+    });
+    await call(sendMessage, ctx, {
+      channel_id: CHANNEL,
+      content: "stay home",
+      client_id: "w2",
+      sync_local_only: true,
+    });
+    expect(
+      scheduledNames(ctx).filter((n: string) => n === "slackSync:pushMessage")
+        .length,
+    ).toBe(1);
     expect(messages(ctx)[1].sync_local_only).toBe(true);
     const target = messages(ctx)[0];
-    await call(stampOutbound, ctx, { message_id: target._id, link_id: LINK, ts: "1700.000500" });
+    await call(stampOutbound, ctx, {
+      message_id: target._id,
+      link_id: LINK,
+      ts: "1700.000500",
+    });
     await call(toggleReaction, ctx, { message_id: target._id, emoji: "👍" });
     const bob = { ...ctx, auth: context(BOB).auth };
     await call(toggleReaction, bob, { message_id: target._id, emoji: "👍" });
-    const adds = ctx._scheduled.filter((s: any) => s.name === "slackReactions:pushReaction");
+    const adds = ctx._scheduled.filter(
+      (s: any) => s.name === "slackReactions:pushReaction",
+    );
     expect(adds.length).toBe(2);
     expect(adds.map((s: any) => s.args.user_id)).toEqual([ALICE, BOB]);
     await call(toggleReaction, ctx, { message_id: target._id, emoji: "👍" });
-    const removals = ctx._scheduled.filter((s: any) => s.name === "slackReactions:pushReaction" && s.args.add === false);
+    const removals = ctx._scheduled.filter(
+      (s: any) =>
+        s.name === "slackReactions:pushReaction" && s.args.add === false,
+    );
     expect(removals.map((s: any) => s.args.user_id)).toEqual([ALICE]);
   });
   test("a channel without a link queues nothing", async () => {
     const ctx = context(ALICE);
-    await call(sendMessage, ctx, { channel_id: OTHER_CHANNEL, content: "plain", client_id: "w3" });
+    await call(sendMessage, ctx, {
+      channel_id: OTHER_CHANNEL,
+      content: "plain",
+      client_id: "w3",
+    });
     expect(scheduledNames(ctx)).not.toContain("slackSync:pushMessage");
   });
   test("stampOutbound keeps the first stamp", async () => {
     const ctx = context(ALICE);
-    await call(sendMessage, ctx, { channel_id: CHANNEL, content: "x", client_id: "w4" });
+    await call(sendMessage, ctx, {
+      channel_id: CHANNEL,
+      content: "x",
+      client_id: "w4",
+    });
     const m = messages(ctx)[0];
-    await call(stampOutbound, ctx, { message_id: m._id, link_id: LINK, ts: "1" });
-    await call(stampOutbound, ctx, { message_id: m._id, link_id: LINK, ts: "2" });
+    await call(stampOutbound, ctx, {
+      message_id: m._id,
+      link_id: LINK,
+      ts: "1",
+    });
+    await call(stampOutbound, ctx, {
+      message_id: m._id,
+      link_id: LINK,
+      ts: "2",
+    });
     expect((await ctx.db.get(m._id)).external.ts).toBe("1");
   });
 });
@@ -299,72 +582,207 @@ describe("people mapping", () => {
   test("a hand mapping wins over the email switch, survives a profile refresh, and re-authors past lines", async () => {
     const ctx = context(ALICE);
     // Carol in Slack has no codecast email match: her line lands under the bridge.
-    await call(upsertSlackUser, ctx, { workspace_id: WS, slack_user_id: "UCAROL", team_id: TEAM, profile: { id: "UCAROL", name: "carol", real_name: "Carol", profile: { email: "carol@elsewhere.test" } } });
-    await call(applyInboundMessage, ctx, { link_id: LINK, ts: "2000.000001", content: "hi from carol", attachments: [], slack_user: "UCAROL", external_author: { name: "Carol" }, live: false });
-    const before = messages(ctx).find((m: any) => m.external?.ts === "2000.000001");
+    await call(upsertSlackUser, ctx, {
+      workspace_id: WS,
+      slack_user_id: "UCAROL",
+      team_id: TEAM,
+      profile: {
+        id: "UCAROL",
+        name: "carol",
+        real_name: "Carol",
+        profile: { email: "carol@elsewhere.test" },
+      },
+    });
+    await call(applyInboundMessage, ctx, {
+      link_id: LINK,
+      ts: "2000.000001",
+      content: "hi from carol",
+      attachments: [],
+      slack_user: "UCAROL",
+      external_author: { name: "Carol" },
+      live: false,
+    });
+    const before = messages(ctx).find(
+      (m: any) => m.external?.ts === "2000.000001",
+    );
     expect(before.external_author?.name).toBe("Carol");
-    await call(applyInboundReaction, ctx, { link_id: LINK, ts: "2000.000001", emoji: "👀", add: true, slack_user: "UCAROL", external_author: { name: "Carol" } });
+    await call(applyInboundReaction, ctx, {
+      link_id: LINK,
+      ts: "2000.000001",
+      emoji: "👀",
+      add: true,
+      slack_user: "UCAROL",
+      external_author: { name: "Carol" },
+    });
     // An admin says Carol IS Bob.
-    await call(mapSlackPerson, ctx, { team_id: TEAM, slack_user_id: "UCAROL", codecast_user_id: BOB });
-    const row = ctx.db._tables.slack_users.find((r: any) => r.slack_user_id === "UCAROL");
+    await call(mapSlackPerson, ctx, {
+      team_id: TEAM,
+      slack_user_id: "UCAROL",
+      codecast_user_id: BOB,
+    });
+    const row = ctx.db._tables.slack_users.find(
+      (r: any) => r.slack_user_id === "UCAROL",
+    );
     expect(row.mapped_by).toBe("manual");
     expect(row.codecast_user_id).toBe(BOB);
     expect(scheduledNames(ctx)).toContain("slackSync:reattributeSlackPerson");
-    await call(reattributeSlackPerson, ctx, { team_id: TEAM, slack_user_id: "UCAROL", link_index: 0 });
-    await call(reattributeSlackPerson, ctx, { team_id: TEAM, slack_user_id: "UCAROL", link_index: 0, reactions: true });
-    const after = messages(ctx).find((m: any) => m.external?.ts === "2000.000001");
+    await call(reattributeSlackPerson, ctx, {
+      team_id: TEAM,
+      slack_user_id: "UCAROL",
+      link_index: 0,
+    });
+    await call(reattributeSlackPerson, ctx, {
+      team_id: TEAM,
+      slack_user_id: "UCAROL",
+      link_index: 0,
+      reactions: true,
+    });
+    const after = messages(ctx).find(
+      (m: any) => m.external?.ts === "2000.000001",
+    );
     expect(after.user_id).toBe(BOB);
     expect(after.external_author).toBeUndefined();
-    const reaction = ctx.db._tables.chat_reactions.find((r: any) => r.slack_user === "UCAROL");
+    const reaction = ctx.db._tables.chat_reactions.find(
+      (r: any) => r.slack_user === "UCAROL",
+    );
     expect(reaction.user_id).toBe(BOB);
     expect(reaction.external_author).toBeUndefined();
     // A refresh with a new email does not undo the choice.
-    const refreshed = await call(upsertSlackUser, ctx, { workspace_id: WS, slack_user_id: "UCAROL", team_id: TEAM, profile: { id: "UCAROL", name: "carol", real_name: "Carol", profile: { email: "alice@example.test" } } });
+    const refreshed = await call(upsertSlackUser, ctx, {
+      workspace_id: WS,
+      slack_user_id: "UCAROL",
+      team_id: TEAM,
+      profile: {
+        id: "UCAROL",
+        name: "carol",
+        real_name: "Carol",
+        profile: { email: "alice@example.test" },
+      },
+    });
     expect(refreshed.codecast_user_id).toBe(BOB);
     expect(refreshed.mapped_by).toBe("manual");
     // The email switch off does not hide a hand mapping.
-    await call(updateLink, ctx, { link_id: LINK, options: { match_people_by_email: false } });
-    await call(applyInboundMessage, ctx, { link_id: LINK, ts: "2000.000002", content: "again", attachments: [], slack_user: "UCAROL", author_user_id: BOB, live: false });
+    await call(updateLink, ctx, {
+      link_id: LINK,
+      options: { match_people_by_email: false },
+    });
+    await call(applyInboundMessage, ctx, {
+      link_id: LINK,
+      ts: "2000.000002",
+      content: "again",
+      attachments: [],
+      slack_user: "UCAROL",
+      author_user_id: BOB,
+      live: false,
+    });
     // Release: back to the Slack name, past lines return to the bridge.
-    await call(mapSlackPerson, ctx, { team_id: TEAM, slack_user_id: "UCAROL", codecast_user_id: null });
-    await call(reattributeSlackPerson, ctx, { team_id: TEAM, slack_user_id: "UCAROL", link_index: 0 });
-    await call(reattributeSlackPerson, ctx, { team_id: TEAM, slack_user_id: "UCAROL", link_index: 0, reactions: true });
-    const released = messages(ctx).find((m: any) => m.external?.ts === "2000.000001");
+    await call(mapSlackPerson, ctx, {
+      team_id: TEAM,
+      slack_user_id: "UCAROL",
+      codecast_user_id: null,
+    });
+    await call(reattributeSlackPerson, ctx, {
+      team_id: TEAM,
+      slack_user_id: "UCAROL",
+      link_index: 0,
+    });
+    await call(reattributeSlackPerson, ctx, {
+      team_id: TEAM,
+      slack_user_id: "UCAROL",
+      link_index: 0,
+      reactions: true,
+    });
+    const released = messages(ctx).find(
+      (m: any) => m.external?.ts === "2000.000001",
+    );
     expect(released.external_author?.name).toBe("Carol");
     expect(released.user_id).not.toBe(BOB);
-    const releasedReaction = ctx.db._tables.chat_reactions.find((r: any) => r.slack_user === "UCAROL");
+    const releasedReaction = ctx.db._tables.chat_reactions.find(
+      (r: any) => r.slack_user === "UCAROL",
+    );
     expect(releasedReaction.external_author?.name).toBe("Carol");
     expect(releasedReaction.user_id).toBe(released.user_id);
   });
   test("a member may only claim their verified identity or release themselves", async () => {
     const bob = context(BOB);
-    await call(upsertSlackUser, bob, { workspace_id: WS, slack_user_id: "UDAVE", team_id: TEAM, profile: { id: "UDAVE", name: "dave", profile: { email: "bob@example.test" } } });
-    await expect(call(mapSlackPerson, bob, { team_id: TEAM, slack_user_id: "UDAVE", codecast_user_id: ALICE })).rejects.toThrow(/admin/);
-    await call(mapSlackPerson, bob, { team_id: TEAM, slack_user_id: "UDAVE", codecast_user_id: BOB });
-    await call(mapSlackPerson, bob, { team_id: TEAM, slack_user_id: "UDAVE", codecast_user_id: null });
+    await call(upsertSlackUser, bob, {
+      workspace_id: WS,
+      slack_user_id: "UDAVE",
+      team_id: TEAM,
+      profile: {
+        id: "UDAVE",
+        name: "dave",
+        profile: { email: "bob@example.test" },
+      },
+    });
+    await expect(
+      call(mapSlackPerson, bob, {
+        team_id: TEAM,
+        slack_user_id: "UDAVE",
+        codecast_user_id: ALICE,
+      }),
+    ).rejects.toThrow(/admin/);
+    await call(mapSlackPerson, bob, {
+      team_id: TEAM,
+      slack_user_id: "UDAVE",
+      codecast_user_id: BOB,
+    });
+    await call(mapSlackPerson, bob, {
+      team_id: TEAM,
+      slack_user_id: "UDAVE",
+      codecast_user_id: null,
+    });
     const people = await call(listSlackPeople, bob, { team_id: TEAM });
-    expect(people.people.find((p: any) => p.slack_user_id === "UDAVE").mapped_by).toBe("manual");
+    expect(
+      people.people.find((p: any) => p.slack_user_id === "UDAVE").mapped_by,
+    ).toBe("manual");
   });
 });
 
 describe("Slack-only people as mention targets", () => {
   test("a handle nobody in codecast answers to resolves to the Slack person, and the outbound copy pages them", async () => {
     const ctx = context(ALICE);
-    await call(upsertSlackUser, ctx, { workspace_id: WS, slack_user_id: "UERIN", team_id: TEAM, profile: { id: "UERIN", name: "erin", profile: { display_name: "Erin" } } });
-    const resolved = await resolveChatMentions(ctx, TEAM, "@erin can you look? cc @bob", ALICE);
+    await call(upsertSlackUser, ctx, {
+      workspace_id: WS,
+      slack_user_id: "UERIN",
+      team_id: TEAM,
+      profile: { id: "UERIN", name: "erin", profile: { display_name: "Erin" } },
+    });
+    const resolved = await resolveChatMentions(
+      ctx,
+      TEAM,
+      "@erin can you look? cc @bob",
+      ALICE,
+    );
     expect(resolved.users).toEqual([BOB]);
-    expect(resolved.slack).toEqual([{ user: "UERIN", handle: "erin", name: "Erin" }]);
-    expect(resolved.refs).toContainEqual({ kind: "slack", user: "UERIN", handle: "erin", name: "Erin" });
+    expect(resolved.slack).toEqual([
+      { user: "UERIN", handle: "erin", name: "Erin" },
+    ]);
+    expect(resolved.refs).toContainEqual({
+      kind: "slack",
+      user: "UERIN",
+      handle: "erin",
+      name: "Erin",
+    });
     // Written through the ordinary send, the line's Slack copy pages Erin.
-    await call(sendMessage, ctx, { channel_id: CHANNEL, content: "@erin can you look?" });
-    const row = messages(ctx).find((m: any) => m.content === "@erin can you look?");
-    expect(row.mentions).toEqual([{ kind: "slack", user: "UERIN", handle: "erin", name: "Erin" }]);
+    await call(sendMessage, ctx, {
+      channel_id: CHANNEL,
+      content: "@erin can you look?",
+    });
+    const row = messages(ctx).find(
+      (m: any) => m.content === "@erin can you look?",
+    );
+    expect(row.mentions).toEqual([
+      { kind: "slack", user: "UERIN", handle: "erin", name: "Erin" },
+    ]);
     const push = await call(pushContext, ctx, { message_id: row._id });
     expect(push.handle_to_slack).toEqual({ erin: "UERIN" });
   });
   // The line as Slack finally sees it, from the same map the push builds.
   const slackText = (content: string, push: any) =>
-    markdownToSlack(content, { handleToSlackUser: (h: string) => push.handle_to_slack[h] ?? null });
+    markdownToSlack(content, {
+      handleToSlackUser: (h: string) => push.handle_to_slack[h] ?? null,
+    });
 
   // Ashot wrote "@avery" on 2026-09-17 and Slack showed plain text. Avery is
   // an agent identity (a Slack bot user), and the mention path skipped every
@@ -372,12 +790,29 @@ describe("Slack-only people as mention targets", () => {
   test("an agent or bot in the workspace is a real mention, not plain text", async () => {
     const ctx = context(ALICE);
     await call(upsertSlackUser, ctx, {
-      workspace_id: WS, slack_user_id: "UAVERY", team_id: TEAM,
-      profile: { id: "UAVERY", name: "avery", is_bot: true, profile: { display_name: "Avery" } },
+      workspace_id: WS,
+      slack_user_id: "UAVERY",
+      team_id: TEAM,
+      profile: {
+        id: "UAVERY",
+        name: "avery",
+        is_bot: true,
+        profile: { display_name: "Avery" },
+      },
     });
-    const resolved = await resolveChatMentions(ctx, TEAM, "@avery can you take this?", ALICE);
-    expect(resolved.slack).toEqual([{ user: "UAVERY", handle: "avery", name: "Avery" }]);
-    await call(sendMessage, ctx, { channel_id: CHANNEL, content: "@avery can you take this?" });
+    const resolved = await resolveChatMentions(
+      ctx,
+      TEAM,
+      "@avery can you take this?",
+      ALICE,
+    );
+    expect(resolved.slack).toEqual([
+      { user: "UAVERY", handle: "avery", name: "Avery" },
+    ]);
+    await call(sendMessage, ctx, {
+      channel_id: CHANNEL,
+      content: "@avery can you take this?",
+    });
     const row = messages(ctx).find((m: any) => m.content.startsWith("@avery"));
     const push = await call(pushContext, ctx, { message_id: row._id });
     expect(push.handle_to_slack).toEqual({ avery: "UAVERY" });
@@ -389,11 +824,19 @@ describe("Slack-only people as mention targets", () => {
   test("the name a person shows in Slack pages them, not only their login", async () => {
     const ctx = context(ALICE);
     await call(upsertSlackUser, ctx, {
-      workspace_id: WS, slack_user_id: "UAVERY2", team_id: TEAM,
-      profile: { id: "UAVERY2", name: "avery.chen", profile: { display_name: "Avery Chen", real_name: "Avery Chen" } },
+      workspace_id: WS,
+      slack_user_id: "UAVERY2",
+      team_id: TEAM,
+      profile: {
+        id: "UAVERY2",
+        name: "avery.chen",
+        profile: { display_name: "Avery Chen", real_name: "Avery Chen" },
+      },
     });
     const resolved = await resolveChatMentions(ctx, TEAM, "@avery ping", ALICE);
-    expect(resolved.slack).toEqual([{ user: "UAVERY2", handle: "avery.chen", name: "Avery Chen" }]);
+    expect(resolved.slack).toEqual([
+      { user: "UAVERY2", handle: "avery.chen", name: "Avery Chen" },
+    ]);
   });
 
   // Two people could answer to it, so it names nobody rather than the wrong one.
@@ -401,154 +844,398 @@ describe("Slack-only people as mention targets", () => {
     const ctx = context(ALICE);
     for (const id of ["UAV1", "UAV2"]) {
       await call(upsertSlackUser, ctx, {
-        workspace_id: WS, slack_user_id: id, team_id: TEAM,
-        profile: { id, name: `${id.toLowerCase()}`, profile: { display_name: "Avery" } },
+        workspace_id: WS,
+        slack_user_id: id,
+        team_id: TEAM,
+        profile: {
+          id,
+          name: `${id.toLowerCase()}`,
+          profile: { display_name: "Avery" },
+        },
       });
     }
-    expect((await resolveChatMentions(ctx, TEAM, "@avery ping", ALICE)).slack).toEqual([]);
+    expect(
+      (await resolveChatMentions(ctx, TEAM, "@avery ping", ALICE)).slack,
+    ).toEqual([]);
   });
 
   // A line written before the workspace roster knew that person still pages
   // them when it goes out, and a handle nobody answers to stays readable.
   test("the push resolves a handle the stored refs missed, and leaves an unknown one as text", async () => {
     const ctx = context(ALICE);
-    await call(sendMessage, ctx, { channel_id: CHANNEL, content: "@avery and @ghostwriter, see this" });
+    await call(sendMessage, ctx, {
+      channel_id: CHANNEL,
+      content: "@avery and @ghostwriter, see this",
+    });
     const row = messages(ctx).find((m: any) => m.content.startsWith("@avery"));
     expect(row.mentions).toBeUndefined();
     await call(upsertSlackUser, ctx, {
-      workspace_id: WS, slack_user_id: "UAVERY", team_id: TEAM,
-      profile: { id: "UAVERY", name: "avery", is_bot: true, profile: { display_name: "Avery" } },
+      workspace_id: WS,
+      slack_user_id: "UAVERY",
+      team_id: TEAM,
+      profile: {
+        id: "UAVERY",
+        name: "avery",
+        is_bot: true,
+        profile: { display_name: "Avery" },
+      },
     });
     const push = await call(pushContext, ctx, { message_id: row._id });
     expect(push.handle_to_slack).toEqual({ avery: "UAVERY" });
-    expect(slackText(row.content, push)).toBe("<@UAVERY> and @ghostwriter, see this");
+    expect(slackText(row.content, push)).toBe(
+      "<@UAVERY> and @ghostwriter, see this",
+    );
   });
 
   test("a Slack person matched to a teammate resolves to the teammate, not a Slack ref", async () => {
     const ctx = context(ALICE);
-    await call(upsertSlackUser, ctx, { workspace_id: WS, slack_user_id: "UBOBBY", team_id: TEAM, profile: { id: "UBOBBY", name: "bobby", profile: { display_name: "Bobby", email: "bob@example.test" } } });
+    await call(upsertSlackUser, ctx, {
+      workspace_id: WS,
+      slack_user_id: "UBOBBY",
+      team_id: TEAM,
+      profile: {
+        id: "UBOBBY",
+        name: "bobby",
+        profile: { display_name: "Bobby", email: "bob@example.test" },
+      },
+    });
     const resolved = await resolveChatMentions(ctx, TEAM, "@bobby ping", ALICE);
     expect(resolved.users).toEqual([BOB]);
     expect(resolved.slack).toEqual([]);
   });
   test("signing in to Slack links the Slack account to the teammate and re-authors their lines", async () => {
     const ctx = context(BOB);
-    await call(upsertSlackUser, ctx, { workspace_id: WS, slack_user_id: "UBOB2", team_id: TEAM, profile: { id: "UBOB2", name: "robert", profile: { display_name: "Robert", email: "other@example.test" } } });
-    const res = await call(linkSignedInPerson, ctx, { installation_id: INSTALL, user_id: BOB, slack_user_id: "UBOB2" });
+    await call(upsertSlackUser, ctx, {
+      workspace_id: WS,
+      slack_user_id: "UBOB2",
+      team_id: TEAM,
+      profile: {
+        id: "UBOB2",
+        name: "robert",
+        profile: { display_name: "Robert", email: "other@example.test" },
+      },
+    });
+    const res = await call(linkSignedInPerson, ctx, {
+      installation_id: INSTALL,
+      user_id: BOB,
+      slack_user_id: "UBOB2",
+    });
     expect(res.status).toBe("linked");
-    const row = ctx.db._tables.slack_users.find((r: any) => r.slack_user_id === "UBOB2");
+    const row = ctx.db._tables.slack_users.find(
+      (r: any) => r.slack_user_id === "UBOB2",
+    );
     expect(row.codecast_user_id).toBe(BOB);
     expect(row.mapped_by).toBe("manual");
     expect(scheduledNames(ctx)).toContain("slackSync:reattributeSlackPerson");
     // A never-seen Slack user gets a row seeded under the teammate's name.
-    const fresh = await call(linkSignedInPerson, ctx, { installation_id: INSTALL, user_id: ALICE, slack_user_id: "UALICE2" });
+    const fresh = await call(linkSignedInPerson, ctx, {
+      installation_id: INSTALL,
+      user_id: ALICE,
+      slack_user_id: "UALICE2",
+    });
     expect(fresh.status).toBe("linked");
-    expect(ctx.db._tables.slack_users.find((r: any) => r.slack_user_id === "UALICE2")).toMatchObject({ name: "Alice", codecast_user_id: ALICE, fetched_at: 0 });
+    expect(
+      ctx.db._tables.slack_users.find(
+        (r: any) => r.slack_user_id === "UALICE2",
+      ),
+    ).toMatchObject({ name: "Alice", codecast_user_id: ALICE, fetched_at: 0 });
   });
 });
 
 describe("direct messages", () => {
   const TOKEN = "slack_user_tokens_1" as any;
-  const DM_SCOPES = "channels:read,groups:read,groups:write,users:read,im:read,im:history,mpim:read,mpim:history,chat:write,files:read";
+  const DM_SCOPES =
+    "channels:read,groups:read,groups:write,users:read,im:read,im:history,mpim:read,mpim:history,chat:write,files:read";
   const withToken = (scopes = DM_SCOPES, dm_sync?: any) => ({
-    slack_user_tokens: [{ _id: TOKEN, installation_id: INSTALL, workspace_id: WS, user_id: ALICE, slack_user_id: "UALICE", token: "xoxp-test", scopes, dm_sync, created_at: 1, updated_at: 1 }],
+    slack_user_tokens: [
+      {
+        _id: TOKEN,
+        installation_id: INSTALL,
+        workspace_id: WS,
+        user_id: ALICE,
+        slack_user_id: "UALICE",
+        token: "xoxp-test",
+        scopes,
+        dm_sync,
+        created_at: 1,
+        updated_at: 1,
+      },
+    ],
   });
   test("the channel feed reports each sender's own Slack permission and refreshes after connection", async () => {
     const ctx = context(ALICE, withToken());
     await ctx.db.patch(LINK, { kind: "dm", owner_user_id: ALICE });
     const alice = await call(listChannels, ctx, { team_id: TEAM });
-    expect(alice.slack_links[0]).toMatchObject({ viewer_user_id: ALICE, viewer_slack_auth: "ready" });
+    expect(alice.slack_links[0]).toMatchObject({
+      viewer_user_id: ALICE,
+      viewer_slack_auth: "ready",
+    });
     ctx.auth.getUserIdentity = async () => ({ subject: `${BOB}|session` });
     const bob = await call(listChannels, ctx, { team_id: TEAM });
-    expect(bob.slack_links[0]).toMatchObject({ viewer_user_id: BOB, viewer_slack_auth: "connect" });
+    expect(bob.slack_links[0]).toMatchObject({
+      viewer_user_id: BOB,
+      viewer_slack_auth: "connect",
+    });
     expect(JSON.stringify(bob)).not.toContain("xoxp-test");
     expect(JSON.stringify(bob)).not.toContain("chat:write");
-    const token = await ctx.db.insert("slack_user_tokens", { installation_id: INSTALL, workspace_id: WS, user_id: BOB, slack_user_id: "UBOB", token: "private-token", scopes: "im:history", created_at: 1, updated_at: 1 });
-    expect((await call(listChannels, ctx, { team_id: TEAM })).slack_links[0].viewer_slack_auth).toBe("reconnect");
+    const token = await ctx.db.insert("slack_user_tokens", {
+      installation_id: INSTALL,
+      workspace_id: WS,
+      user_id: BOB,
+      slack_user_id: "UBOB",
+      token: "private-token",
+      scopes: "im:history",
+      created_at: 1,
+      updated_at: 1,
+    });
+    expect(
+      (await call(listChannels, ctx, { team_id: TEAM })).slack_links[0]
+        .viewer_slack_auth,
+    ).toBe("reconnect");
     await ctx.db.patch(token, { scopes: "im:history, chat:write" });
-    expect((await call(listChannels, ctx, { team_id: TEAM })).slack_links[0].viewer_slack_auth).toBe("ready");
+    expect(
+      (await call(listChannels, ctx, { team_id: TEAM })).slack_links[0]
+        .viewer_slack_auth,
+    ).toBe("ready");
     await ctx.db.patch(LINK, { kind: "channel" });
-    expect((await call(listChannels, ctx, { team_id: TEAM })).slack_links[0].viewer_slack_auth).toBeUndefined();
+    expect(
+      (await call(listChannels, ctx, { team_id: TEAM })).slack_links[0]
+        .viewer_slack_auth,
+    ).toBeUndefined();
   });
   test("the switch needs a connected account with the DM scopes, then schedules the scan", async () => {
     const bare = context(ALICE);
-    await expect(call(setDmSync, bare, { team_id: TEAM, enabled: true })).rejects.toThrow(/Connect your Slack account/);
+    await expect(
+      call(setDmSync, bare, { team_id: TEAM, enabled: true }),
+    ).rejects.toThrow(/Connect your Slack account/);
     const old = context(ALICE, withToken("channels:read,groups:read"));
-    await expect(call(setDmSync, old, { team_id: TEAM, enabled: true })).rejects.toThrow(/reconnect/);
+    await expect(
+      call(setDmSync, old, { team_id: TEAM, enabled: true }),
+    ).rejects.toThrow(/reconnect/);
     // A grant from before DM images came over has no files:read.
-    const noFiles = context(ALICE, withToken(DM_SCOPES.replace(",files:read", "")));
-    await expect(call(setDmSync, noFiles, { team_id: TEAM, enabled: true })).rejects.toThrow(/reconnect/);
+    const noFiles = context(
+      ALICE,
+      withToken(DM_SCOPES.replace(",files:read", "")),
+    );
+    await expect(
+      call(setDmSync, noFiles, { team_id: TEAM, enabled: true }),
+    ).rejects.toThrow(/reconnect/);
     const ctx = context(ALICE, withToken());
-    const r = await call(setDmSync, ctx, { team_id: TEAM, enabled: true, window: "7d" });
+    const r = await call(setDmSync, ctx, {
+      team_id: TEAM,
+      enabled: true,
+      window: "7d",
+    });
     expect(r).toMatchObject({ enabled: true, window: "7d" });
-    expect((await ctx.db.get(TOKEN)).dm_sync).toMatchObject({ enabled: true, window: "7d", status: "scanning" });
+    expect((await ctx.db.get(TOKEN)).dm_sync).toMatchObject({
+      enabled: true,
+      window: "7d",
+      status: "scanning",
+    });
     expect(scheduledNames(ctx)).toContain("slackSync:scanDms");
   });
   test("a DM with an unmapped Slack person gets a room with their shadow identity; a mapped one is the teammate; the link is the owner's", async () => {
     const ctx = context(ALICE, withToken());
-    await call(upsertSlackUser, ctx, { workspace_id: WS, slack_user_id: "UDONNA", team_id: TEAM, profile: { id: "UDONNA", name: "donna", real_name: "Donna Ricker", profile: { image_72: "https://a/d.png" } } });
-    const made = await call(commitDmLink, ctx, { token_id: TOKEN, slack_channel_id: "D0DONNA", member_slack_ids: ["UDONNA"], since_ts: "1", window: "30d" });
+    await call(upsertSlackUser, ctx, {
+      workspace_id: WS,
+      slack_user_id: "UDONNA",
+      team_id: TEAM,
+      profile: {
+        id: "UDONNA",
+        name: "donna",
+        real_name: "Donna Ricker",
+        profile: { image_72: "https://a/d.png" },
+      },
+    });
+    const made = await call(commitDmLink, ctx, {
+      token_id: TOKEN,
+      slack_channel_id: "D0DONNA",
+      member_slack_ids: ["UDONNA"],
+      since_ts: "1",
+      window: "30d",
+    });
     expect(made.created).toBe(true);
     const link = await ctx.db.get(made.link_id);
-    expect(link).toMatchObject({ kind: "dm", owner_user_id: ALICE, slack_channel_id: "D0DONNA" });
+    expect(link).toMatchObject({
+      kind: "dm",
+      owner_user_id: ALICE,
+      slack_channel_id: "D0DONNA",
+    });
     expect(link.backfill.status).toBe("running");
     const room = await ctx.db.get(made.chat_channel_id);
     expect(room.kind).toBe("dm");
-    const donna = ctx.db._tables.slack_users.find((r: any) => r.slack_user_id === "UDONNA");
+    const donna = ctx.db._tables.slack_users.find(
+      (r: any) => r.slack_user_id === "UDONNA",
+    );
     expect(donna.shadow_user_id).toBeTruthy();
     const shadow = await ctx.db.get(donna.shadow_user_id);
-    expect(shadow).toMatchObject({ is_bot: true, bot_kind: "slack", name: "Donna Ricker" });
-    expect(room.dm_key.split(":").slice(1).sort()).toEqual([ALICE, donna.shadow_user_id].map(String).sort());
+    expect(shadow).toMatchObject({
+      is_bot: true,
+      bot_kind: "slack",
+      name: "Donna Ricker",
+    });
+    expect(room.dm_key.split(":").slice(1).sort()).toEqual(
+      [ALICE, donna.shadow_user_id].map(String).sort(),
+    );
     // Same Slack DM again: the same link, nothing new.
-    const again = await call(commitDmLink, ctx, { token_id: TOKEN, slack_channel_id: "D0DONNA", member_slack_ids: ["UDONNA"], since_ts: "1", window: "30d" });
+    const again = await call(commitDmLink, ctx, {
+      token_id: TOKEN,
+      slack_channel_id: "D0DONNA",
+      member_slack_ids: ["UDONNA"],
+      since_ts: "1",
+      window: "30d",
+    });
     expect(again).toMatchObject({ link_id: made.link_id, created: false });
     // A DM with Bob (matched by email) is the room between Alice and Bob.
-    await call(upsertSlackUser, ctx, { workspace_id: WS, slack_user_id: "UBOB", team_id: TEAM, profile: { id: "UBOB", name: "bob", profile: { email: "bob@example.test" } } });
-    const withBob = await call(commitDmLink, ctx, { token_id: TOKEN, slack_channel_id: "D0BOB", member_slack_ids: ["UBOB"], since_ts: "1", window: "none" });
+    await call(upsertSlackUser, ctx, {
+      workspace_id: WS,
+      slack_user_id: "UBOB",
+      team_id: TEAM,
+      profile: {
+        id: "UBOB",
+        name: "bob",
+        profile: { email: "bob@example.test" },
+      },
+    });
+    const withBob = await call(commitDmLink, ctx, {
+      token_id: TOKEN,
+      slack_channel_id: "D0BOB",
+      member_slack_ids: ["UBOB"],
+      since_ts: "1",
+      window: "none",
+    });
     const bobRoom = await ctx.db.get(withBob.chat_channel_id);
-    expect(bobRoom.dm_key.split(":").slice(1).sort()).toEqual([ALICE, BOB].map(String).sort());
+    expect(bobRoom.dm_key.split(":").slice(1).sort()).toEqual(
+      [ALICE, BOB].map(String).sort(),
+    );
     expect((await ctx.db.get(withBob.link_id)).backfill).toBeUndefined();
   });
   test("mapping a shadowed person to a teammate re-keys their DM room, and merges into an existing pair room", async () => {
     const ctx = context(ALICE, withToken());
-    await call(upsertSlackUser, ctx, { workspace_id: WS, slack_user_id: "UDONNA", team_id: TEAM, profile: { id: "UDONNA", name: "donna" } });
-    const made = await call(commitDmLink, ctx, { token_id: TOKEN, slack_channel_id: "D0DONNA", member_slack_ids: ["UDONNA"], since_ts: "1", window: "none" });
-    const donna = ctx.db._tables.slack_users.find((r: any) => r.slack_user_id === "UDONNA");
+    await call(upsertSlackUser, ctx, {
+      workspace_id: WS,
+      slack_user_id: "UDONNA",
+      team_id: TEAM,
+      profile: { id: "UDONNA", name: "donna" },
+    });
+    const made = await call(commitDmLink, ctx, {
+      token_id: TOKEN,
+      slack_channel_id: "D0DONNA",
+      member_slack_ids: ["UDONNA"],
+      since_ts: "1",
+      window: "none",
+    });
+    const donna = ctx.db._tables.slack_users.find(
+      (r: any) => r.slack_user_id === "UDONNA",
+    );
     const shadow = donna.shadow_user_id;
     // Donna is in fact Bob.
-    await call(mapSlackPerson, ctx, { team_id: TEAM, slack_user_id: "UDONNA", codecast_user_id: BOB });
+    await call(mapSlackPerson, ctx, {
+      team_id: TEAM,
+      slack_user_id: "UDONNA",
+      codecast_user_id: BOB,
+    });
     expect(scheduledNames(ctx)).toContain("slackSync:retargetPersonRooms");
-    await call(retargetPersonRooms, ctx, { team_id: TEAM, from_user_id: shadow, to_user_id: BOB });
+    await call(retargetPersonRooms, ctx, {
+      team_id: TEAM,
+      from_user_id: shadow,
+      to_user_id: BOB,
+    });
     const room = await ctx.db.get(made.chat_channel_id);
-    expect(room.dm_key.split(":").slice(1).sort()).toEqual([ALICE, BOB].map(String).sort());
-    const members = ctx.db._tables.chat_channel_members.filter((m: any) => m.channel_id === made.chat_channel_id).map((m: any) => String(m.user_id)).sort();
+    expect(room.dm_key.split(":").slice(1).sort()).toEqual(
+      [ALICE, BOB].map(String).sort(),
+    );
+    const members = ctx.db._tables.chat_channel_members
+      .filter((m: any) => m.channel_id === made.chat_channel_id)
+      .map((m: any) => String(m.user_id))
+      .sort();
     expect(members).toEqual([ALICE, BOB].map(String).sort());
     // Released again: a new shadow, the room follows back.
-    await call(mapSlackPerson, ctx, { team_id: TEAM, slack_user_id: "UDONNA", codecast_user_id: null });
-    const donna2 = ctx.db._tables.slack_users.find((r: any) => r.slack_user_id === "UDONNA");
-    await call(retargetPersonRooms, ctx, { team_id: TEAM, from_user_id: BOB, to_user_id: donna2.shadow_user_id });
-    expect((await ctx.db.get(made.chat_channel_id)).dm_key.split(":").slice(1)).toContain(String(donna2.shadow_user_id));
+    await call(mapSlackPerson, ctx, {
+      team_id: TEAM,
+      slack_user_id: "UDONNA",
+      codecast_user_id: null,
+    });
+    const donna2 = ctx.db._tables.slack_users.find(
+      (r: any) => r.slack_user_id === "UDONNA",
+    );
+    await call(retargetPersonRooms, ctx, {
+      team_id: TEAM,
+      from_user_id: BOB,
+      to_user_id: donna2.shadow_user_id,
+    });
+    expect(
+      (await ctx.db.get(made.chat_channel_id)).dm_key.split(":").slice(1),
+    ).toContain(String(donna2.shadow_user_id));
   });
   test("an agent's line never goes out under the person's own Slack account", async () => {
     const ctx = context(ALICE, {
-      slack_user_tokens: [{ _id: "slack_user_tokens_9" as any, installation_id: INSTALL, workspace_id: WS, user_id: ALICE, slack_user_id: "UALICE", token: "xoxp-test", scopes: "chat:write,im:read,im:history,mpim:read,mpim:write", created_at: 1, updated_at: 1 }],
+      slack_user_tokens: [
+        {
+          _id: "slack_user_tokens_9" as any,
+          installation_id: INSTALL,
+          workspace_id: WS,
+          user_id: ALICE,
+          slack_user_id: "UALICE",
+          token: "xoxp-test",
+          scopes: "chat:write,im:read,im:history,mpim:read,mpim:write",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
     });
     const typed = await ctx.db.insert("chat_messages", {
-      channel_id: CHANNEL, user_id: ALICE, content: "typed by a person", created_at: 6_000, updated_at: 6_000,
+      channel_id: CHANNEL,
+      user_id: ALICE,
+      content: "typed by a person",
+      created_at: 6_000,
+      updated_at: 6_000,
     } as any);
     const byAgent = await ctx.db.insert("chat_messages", {
-      channel_id: CHANNEL, user_id: ALICE, content: "written by a session", created_at: 6_001, updated_at: 6_001, origin: "agent",
+      channel_id: CHANNEL,
+      user_id: ALICE,
+      content: "written by a session",
+      created_at: 6_001,
+      updated_at: 6_001,
+      origin: "agent",
     } as any);
-    expect((await call(pushContext, ctx, { message_id: typed }))?.as_person).toBe(true);
-    expect((await call(pushContext, ctx, { message_id: byAgent }))?.as_person).toBeUndefined();
+    expect(
+      (await call(pushContext, ctx, { message_id: typed }))?.as_person,
+    ).toBe(true);
+    expect(
+      (await call(pushContext, ctx, { message_id: byAgent }))?.as_person,
+    ).toBeUndefined();
   });
   test("a reaction goes out as the app, never on the message author's own Slack account", async () => {
     const ctx = context(ALICE, {
-      slack_user_tokens: [{ _id: "slack_user_tokens_9" as any, installation_id: INSTALL, workspace_id: WS, user_id: ALICE, slack_user_id: "UALICE", token: "xoxp-alice", scopes: "chat:write,im:read,im:history,mpim:read,mpim:history", created_at: 1, updated_at: 1 }],
+      slack_user_tokens: [
+        {
+          _id: "slack_user_tokens_9" as any,
+          installation_id: INSTALL,
+          workspace_id: WS,
+          user_id: ALICE,
+          slack_user_id: "UALICE",
+          token: "xoxp-alice",
+          scopes: "chat:write,im:read,im:history,mpim:read,mpim:history",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
     });
     const msg = await ctx.db.insert("chat_messages", {
-      channel_id: CHANNEL, user_id: ALICE, content: "said in Slack", created_at: 7_000, updated_at: 7_000,
-      external: { provider: "slack", direction: "inbound", workspace: WS, channel: SLACK_CH, ts: "7000.000001", synced_at: 7_000 },
+      channel_id: CHANNEL,
+      user_id: ALICE,
+      content: "said in Slack",
+      created_at: 7_000,
+      updated_at: 7_000,
+      external: {
+        provider: "slack",
+        direction: "inbound",
+        workspace: WS,
+        channel: SLACK_CH,
+        ts: "7000.000001",
+        synced_at: 7_000,
+      },
     } as any);
     ctx.runQuery = (_ref: unknown, args: any) => call(pushContext, ctx, args);
     const auths: string[] = [];
@@ -558,7 +1245,11 @@ describe("direct messages", () => {
       return new Response(JSON.stringify({ ok: true }));
     }) as any;
     try {
-      await call(pushReaction, ctx, { message_id: msg, emoji: "👍", add: true });
+      await call(pushReaction, ctx, {
+        message_id: msg,
+        emoji: "👍",
+        add: true,
+      });
     } finally {
       globalThis.fetch = realFetch;
     }
@@ -566,74 +1257,186 @@ describe("direct messages", () => {
   });
   test("a person whose Slack connection predates a scope is told what it lacks", async () => {
     const ctx = context(ALICE, {
-      slack_user_tokens: [{ _id: "slack_user_tokens_9" as any, installation_id: INSTALL, workspace_id: WS, user_id: ALICE, slack_user_id: "UALICE", token: "xoxp-alice", scopes: USER_SCOPES.replace(",reactions:write", ""), created_at: 1, updated_at: 1 }],
+      slack_user_tokens: [
+        {
+          _id: "slack_user_tokens_9" as any,
+          installation_id: INSTALL,
+          workspace_id: WS,
+          user_id: ALICE,
+          slack_user_id: "UALICE",
+          token: "xoxp-alice",
+          scopes: USER_SCOPES.replace(",reactions:write", ""),
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
     });
-    expect((await call(getTeamSlack, ctx, { team_id: TEAM }))?.you_missing_scopes).toEqual(["reactions:write"]);
+    expect(
+      (await call(getTeamSlack, ctx, { team_id: TEAM }))?.you_missing_scopes,
+    ).toEqual(["reactions:write"]);
     await ctx.db.patch("slack_user_tokens_9" as any, { scopes: USER_SCOPES });
-    expect((await call(getTeamSlack, ctx, { team_id: TEAM }))?.you_missing_scopes).toEqual([]);
+    expect(
+      (await call(getTeamSlack, ctx, { team_id: TEAM }))?.you_missing_scopes,
+    ).toEqual([]);
   });
   describe("whose name a reaction carries in Slack", () => {
-    const token = (user: any, scopes: string) => ({ _id: `slack_user_tokens_${user}` as any, installation_id: INSTALL, workspace_id: WS, user_id: user, slack_user_id: `U${user}`, token: `xoxp-${user}`, scopes, created_at: 1, updated_at: 1 });
-    async function push(tokens: any[], held: Array<{ user: any; slack_user?: string }>, args: { add: boolean; user_id: any }) {
+    const token = (user: any, scopes: string) => ({
+      _id: `slack_user_tokens_${user}` as any,
+      installation_id: INSTALL,
+      workspace_id: WS,
+      user_id: user,
+      slack_user_id: `U${user}`,
+      token: `xoxp-${user}`,
+      scopes,
+      created_at: 1,
+      updated_at: 1,
+    });
+    async function push(
+      tokens: any[],
+      held: Array<{ user: any; slack_user?: string }>,
+      args: { add: boolean; user_id: any },
+    ) {
       const ctx = context(ALICE, { slack_user_tokens: tokens });
       const msg = await ctx.db.insert("chat_messages", {
-        channel_id: CHANNEL, user_id: BOB, content: "said in Slack", created_at: 7_000, updated_at: 7_000,
-        external: { provider: "slack", direction: "inbound", workspace: WS, channel: SLACK_CH, ts: "7000.000001", synced_at: 7_000 },
+        channel_id: CHANNEL,
+        user_id: BOB,
+        content: "said in Slack",
+        created_at: 7_000,
+        updated_at: 7_000,
+        external: {
+          provider: "slack",
+          direction: "inbound",
+          workspace: WS,
+          channel: SLACK_CH,
+          ts: "7000.000001",
+          synced_at: 7_000,
+        },
       } as any);
       for (const h of held) {
-        await ctx.db.insert("chat_reactions", { message_id: msg, channel_id: CHANNEL, user_id: h.user, emoji: "👍", created_at: 1, ...(h.slack_user ? { slack_user: h.slack_user } : {}) } as any);
+        await ctx.db.insert("chat_reactions", {
+          message_id: msg,
+          channel_id: CHANNEL,
+          user_id: h.user,
+          emoji: "👍",
+          created_at: 1,
+          ...(h.slack_user ? { slack_user: h.slack_user } : {}),
+        } as any);
       }
-      ctx.runQuery = (ref: unknown, a: any) => call(getFunctionName(ref as any).endsWith("reactionSpeaker") ? reactionSpeaker : pushContext, ctx, a);
+      ctx.runQuery = (ref: unknown, a: any) =>
+        call(
+          getFunctionName(ref as any).endsWith("reactionSpeaker")
+            ? reactionSpeaker
+            : pushContext,
+          ctx,
+          a,
+        );
       const sent: Array<{ auth: string; method: string }> = [];
       const realFetch = globalThis.fetch;
       globalThis.fetch = (async (url: any, init: any) => {
-        sent.push({ auth: init.headers.Authorization, method: String(url).split("/").pop()! });
+        sent.push({
+          auth: init.headers.Authorization,
+          method: String(url).split("/").pop()!,
+        });
         return new Response(JSON.stringify({ ok: true }));
       }) as any;
       try {
-        await call(pushReaction, ctx, { message_id: msg, emoji: "👍", ...args });
+        await call(pushReaction, ctx, {
+          message_id: msg,
+          emoji: "👍",
+          ...args,
+        });
       } finally {
         globalThis.fetch = realFetch;
       }
       return sent;
     }
     test("a person who granted reactions:write reacts as themselves", async () => {
-      const sent = await push([token(ALICE, "chat:write,reactions:write")], [], { add: true, user_id: ALICE });
-      expect(sent).toEqual([{ auth: "Bearer xoxp-user-alice", method: "reactions.add" }]);
+      const sent = await push(
+        [token(ALICE, "chat:write,reactions:write")],
+        [],
+        { add: true, user_id: ALICE },
+      );
+      expect(sent).toEqual([
+        { auth: "Bearer xoxp-user-alice", method: "reactions.add" },
+      ]);
     });
     test("a person without that scope is spoken for by the app", async () => {
-      const sent = await push([token(ALICE, "chat:write")], [], { add: true, user_id: ALICE });
-      expect(sent).toEqual([{ auth: "Bearer xoxb-test", method: "reactions.add" }]);
+      const sent = await push([token(ALICE, "chat:write")], [], {
+        add: true,
+        user_id: ALICE,
+      });
+      expect(sent).toEqual([
+        { auth: "Bearer xoxb-test", method: "reactions.add" },
+      ]);
     });
     test("the app keeps its reaction while it still speaks for someone, and drops it after", async () => {
       // Bob still holds 👍 without a token of his own: the app's stays.
-      expect(await push([], [{ user: BOB }], { add: false, user_id: ALICE })).toEqual([]);
+      expect(
+        await push([], [{ user: BOB }], { add: false, user_id: ALICE }),
+      ).toEqual([]);
       // Bob's 👍 came from Slack (his own reaction there), and Alice's own is gone: the app lets go.
-      expect(await push([], [{ user: BOB, slack_user: "UBOB" }], { add: false, user_id: ALICE }))
-        .toEqual([{ auth: "Bearer xoxb-test", method: "reactions.remove" }]);
+      expect(
+        await push([], [{ user: BOB, slack_user: "UBOB" }], {
+          add: false,
+          user_id: ALICE,
+        }),
+      ).toEqual([{ auth: "Bearer xoxb-test", method: "reactions.remove" }]);
       // Bob reacts as himself in Slack, so the app speaks for nobody.
-      expect(await push([token(BOB, "reactions:write")], [{ user: BOB }], { add: false, user_id: ALICE }))
-        .toEqual([{ auth: "Bearer xoxb-test", method: "reactions.remove" }]);
+      expect(
+        await push([token(BOB, "reactions:write")], [{ user: BOB }], {
+          add: false,
+          user_id: ALICE,
+        }),
+      ).toEqual([{ auth: "Bearer xoxb-test", method: "reactions.remove" }]);
     });
   });
   test("a reaction in a mirrored DM stays here and never pauses the link", async () => {
     const ctx = context(ALICE, {
-      slack_user_tokens: [{ _id: "slack_user_tokens_9" as any, installation_id: INSTALL, workspace_id: WS, user_id: ALICE, slack_user_id: "UALICE", token: "xoxp-alice", scopes: "chat:write,im:read,im:history,mpim:read,mpim:history", created_at: 1, updated_at: 1 }],
+      slack_user_tokens: [
+        {
+          _id: "slack_user_tokens_9" as any,
+          installation_id: INSTALL,
+          workspace_id: WS,
+          user_id: ALICE,
+          slack_user_id: "UALICE",
+          token: "xoxp-alice",
+          scopes: "chat:write,im:read,im:history,mpim:read,mpim:history",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
     });
     await ctx.db.patch(LINK, { kind: "dm", owner_user_id: ALICE });
     const msg = await ctx.db.insert("chat_messages", {
-      channel_id: CHANNEL, user_id: ALICE, content: "said in Slack", created_at: 7_000, updated_at: 7_000,
-      external: { provider: "slack", direction: "inbound", workspace: WS, channel: SLACK_CH, ts: "7000.000001", synced_at: 7_000 },
+      channel_id: CHANNEL,
+      user_id: ALICE,
+      content: "said in Slack",
+      created_at: 7_000,
+      updated_at: 7_000,
+      external: {
+        provider: "slack",
+        direction: "inbound",
+        workspace: WS,
+        channel: SLACK_CH,
+        ts: "7000.000001",
+        synced_at: 7_000,
+      },
     } as any);
     ctx.runQuery = (_ref: unknown, args: any) => call(pushContext, ctx, args);
     let calls = 0;
     const realFetch = globalThis.fetch;
     globalThis.fetch = (async () => {
       calls++;
-      return new Response(JSON.stringify({ ok: false, error: "channel_not_found" }));
+      return new Response(
+        JSON.stringify({ ok: false, error: "channel_not_found" }),
+      );
     }) as any;
     try {
-      await call(pushReaction, ctx, { message_id: msg, emoji: "👍", add: true });
+      await call(pushReaction, ctx, {
+        message_id: msg,
+        emoji: "👍",
+        add: true,
+      });
     } finally {
       globalThis.fetch = realFetch;
     }
@@ -641,40 +1444,121 @@ describe("direct messages", () => {
     expect((await ctx.db.get(LINK)).paused).toBeFalsy();
   });
   test("an image that came over as a link becomes the image once the owner's token can read files", async () => {
-    const link = "📎 [image.png](https://union-app.slack.com/files/U05J1KXRSHX/F0C5UMXCA1Y/image.png)";
+    const link =
+      "📎 [image.png](https://union-app.slack.com/files/U05J1KXRSHX/F0C5UMXCA1Y/image.png)";
     const ctx = context(ALICE, withToken(DM_SCOPES.replace(",files:read", "")));
     await ctx.db.patch(LINK, { kind: "dm", owner_user_id: ALICE });
-    const external = { provider: "slack", direction: "inbound", workspace: WS, channel: SLACK_CH, ts: "8000.000001", synced_at: 8_000 };
-    const msg = await ctx.db.insert("chat_messages", { channel_id: CHANNEL, user_id: BOB, content: `look\n\n${link}`, created_at: 8_000, updated_at: 8_000, external } as any);
-    await ctx.db.insert("chat_messages", { channel_id: CHANNEL, user_id: BOB, content: "no file", created_at: 8_001, updated_at: 8_001, external } as any);
+    const external = {
+      provider: "slack",
+      direction: "inbound",
+      workspace: WS,
+      channel: SLACK_CH,
+      ts: "8000.000001",
+      synced_at: 8_000,
+    };
+    const msg = await ctx.db.insert("chat_messages", {
+      channel_id: CHANNEL,
+      user_id: BOB,
+      content: `look\n\n${link}`,
+      created_at: 8_000,
+      updated_at: 8_000,
+      external,
+    } as any);
+    await ctx.db.insert("chat_messages", {
+      channel_id: CHANNEL,
+      user_id: BOB,
+      content: "no file",
+      created_at: 8_001,
+      updated_at: 8_001,
+      external,
+    } as any);
     // Without files:read there is nothing to repair with.
-    expect(await call(fileRepairContext, ctx, { installation_id: INSTALL, user_id: ALICE })).toBeNull();
+    expect(
+      await call(fileRepairContext, ctx, {
+        installation_id: INSTALL,
+        user_id: ALICE,
+      }),
+    ).toBeNull();
     await ctx.db.patch(TOKEN, { scopes: DM_SCOPES });
-    const c = await call(fileRepairContext, ctx, { installation_id: INSTALL, user_id: ALICE });
-    expect(c).toMatchObject({ install: { bot_token: "xoxp-test" }, link_ids: [LINK] });
-    expect(await call(fileRepairPage, ctx, { link_id: LINK })).toEqual({ rows: [{ message_id: msg, content: `look\n\n${link}` }], cursor: null });
-    const att = [{ storage_id: "storage_1", mime: "image/png", name: "image.png" }];
+    const c = await call(fileRepairContext, ctx, {
+      installation_id: INSTALL,
+      user_id: ALICE,
+    });
+    expect(c).toMatchObject({
+      install: { bot_token: "xoxp-test" },
+      link_ids: [LINK],
+    });
+    expect(await call(fileRepairPage, ctx, { link_id: LINK })).toEqual({
+      rows: [{ message_id: msg, content: `look\n\n${link}` }],
+      cursor: null,
+    });
+    const att = [
+      { storage_id: "storage_1", mime: "image/png", name: "image.png" },
+    ];
     // An edit since the scan wins over the repair.
-    expect(await call(applyFileRepair, ctx, { message_id: msg, expected: "stale", content: "look", attachments: att })).toEqual({ status: "changed" });
-    expect(await call(applyFileRepair, ctx, { message_id: msg, expected: `look\n\n${link}`, content: "look", attachments: att })).toEqual({ status: "repaired" });
-    expect(await ctx.db.get(msg)).toMatchObject({ content: "look", attachments: att });
-    expect((await call(fileRepairPage, ctx, { link_id: LINK })).rows).toEqual([]);
+    expect(
+      await call(applyFileRepair, ctx, {
+        message_id: msg,
+        expected: "stale",
+        content: "look",
+        attachments: att,
+      }),
+    ).toEqual({ status: "changed" });
+    expect(
+      await call(applyFileRepair, ctx, {
+        message_id: msg,
+        expected: `look\n\n${link}`,
+        content: "look",
+        attachments: att,
+      }),
+    ).toEqual({ status: "repaired" });
+    expect(await ctx.db.get(msg)).toMatchObject({
+      content: "look",
+      attachments: att,
+    });
+    expect((await call(fileRepairPage, ctx, { link_id: LINK })).rows).toEqual(
+      [],
+    );
   });
   test("a channel's file links repair with the app's token, and DMs are left to their owners", async () => {
     const ctx = context(ALICE);
-    const c = await call(channelFileRepairContext, ctx, { installation_id: INSTALL });
+    const c = await call(channelFileRepairContext, ctx, {
+      installation_id: INSTALL,
+    });
     expect(c.link_ids).toEqual([LINK]);
     expect(c.install.bot_token).toBe((await ctx.db.get(INSTALL)).bot_token);
     await ctx.db.patch(LINK, { kind: "dm", owner_user_id: ALICE });
-    expect((await call(channelFileRepairContext, ctx, { installation_id: INSTALL })).link_ids).toEqual([]);
+    expect(
+      (await call(channelFileRepairContext, ctx, { installation_id: INSTALL }))
+        .link_ids,
+    ).toEqual([]);
   });
   test("a line codecast posted into a DM as the person is not imported twice when Slack hands it back", async () => {
     const ctx = context(ALICE);
     await ctx.db.insert("chat_messages", {
-      channel_id: CHANNEL, user_id: ALICE, content: "from codecast", created_at: 5_000, updated_at: 5_000,
-      external: { provider: "slack", direction: "outbound", workspace: WS, channel: SLACK_CH, ts: "5000.000001", synced_at: 5_000 },
+      channel_id: CHANNEL,
+      user_id: ALICE,
+      content: "from codecast",
+      created_at: 5_000,
+      updated_at: 5_000,
+      external: {
+        provider: "slack",
+        direction: "outbound",
+        workspace: WS,
+        channel: SLACK_CH,
+        ts: "5000.000001",
+        synced_at: 5_000,
+      },
     } as any);
-    const r = await call(applyInboundMessage, ctx, { link_id: LINK, ts: "5000.000001", content: "from codecast", attachments: [], slack_user: "UALICE", author_user_id: ALICE, live: true });
+    const r = await call(applyInboundMessage, ctx, {
+      link_id: LINK,
+      ts: "5000.000001",
+      content: "from codecast",
+      attachments: [],
+      slack_user: "UALICE",
+      author_user_id: ALICE,
+      live: true,
+    });
     expect(r.status).toBe("duplicate");
   });
 });
@@ -692,28 +1576,45 @@ describe("Slack mentions coming back", () => {
     };
     ctx.runQuery = async (reference: any, args: any) => {
       const fn = queries[getFunctionName(reference)];
-      if (!fn) throw new Error(`unexpected query ${getFunctionName(reference)}`);
+      if (!fn)
+        throw new Error(`unexpected query ${getFunctionName(reference)}`);
       return call(fn, ctx, args);
     };
-    ctx.runMutation = async (reference: any, args: any) => call(
-      { "slackSync:upsertSlackUser": upsertSlackUser }[getFunctionName(reference)] as any, ctx, args);
+    ctx.runMutation = async (reference: any, args: any) =>
+      call(
+        { "slackSync:upsertSlackUser": upsertSlackUser }[
+          getFunctionName(reference)
+        ] as any,
+        ctx,
+        args,
+      );
     return ctx;
   }
 
   test("a known id becomes the teammate's handle; an unmapped person becomes their name, linked to Slack", async () => {
     const ctx = actionContext();
     await call(upsertSlackUser, ctx, {
-      workspace_id: WS, slack_user_id: "UBOBBY", team_id: TEAM,
-      profile: { id: "UBOBBY", name: "bobby", profile: { display_name: "Bobby", email: "bob@example.test" } },
+      workspace_id: WS,
+      slack_user_id: "UBOBBY",
+      team_id: TEAM,
+      profile: {
+        id: "UBOBBY",
+        name: "bobby",
+        profile: { display_name: "Bobby", email: "bob@example.test" },
+      },
     });
     await call(upsertSlackUser, ctx, {
-      workspace_id: WS, slack_user_id: "UERIN", team_id: TEAM,
+      workspace_id: WS,
+      slack_user_id: "UERIN",
+      team_id: TEAM,
       profile: { id: "UERIN", name: "erin", profile: { display_name: "Erin" } },
     });
     const install = await ctx.db.get(INSTALL);
     const link = await ctx.db.get(LINK);
     const text = "<@UBOBBY> and <@UERIN> take a look";
     const resolver = await buildInboundResolver(ctx, install, link, null, text);
-    expect(slackToMarkdown(text, resolver)).toBe(`@bob and [@\u200bErin](https://slack.com/app_redirect?team=${WS}&channel=UERIN) take a look`);
+    expect(slackToMarkdown(text, resolver)).toBe(
+      `@bob and [@\u200bErin](https://slack.com/app_redirect?team=${WS}&channel=UERIN) take a look`,
+    );
   });
 });

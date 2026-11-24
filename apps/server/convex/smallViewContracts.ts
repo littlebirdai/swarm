@@ -90,19 +90,28 @@ export function sameProjection(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export function projectPrincipalTeam(team: Record<string, any>, membership: Record<string, any>) {
+export function projectPrincipalTeam(
+  team: Record<string, any>,
+  membership: Record<string, any>,
+) {
   return {
     _id: team._id,
     name: team.name,
     ...(team.icon !== undefined ? { icon: team.icon } : {}),
     ...(team.icon_color !== undefined ? { icon_color: team.icon_color } : {}),
-    ...(team.task_statuses !== undefined ? { task_statuses: team.task_statuses } : {}),
+    ...(team.task_statuses !== undefined
+      ? { task_statuses: team.task_statuses }
+      : {}),
     ...(team.features !== undefined ? { features: team.features } : {}),
-    ...(team.default_flow !== undefined ? { default_flow: team.default_flow } : {}),
+    ...(team.default_flow !== undefined
+      ? { default_flow: team.default_flow }
+      : {}),
     role: membership.role,
     joined_at: membership.joined_at,
     visibility: currentMembershipVisibility(membership),
-    ...(membership.visibility_history !== undefined ? { visibility_history: membership.visibility_history } : {}),
+    ...(membership.visibility_history !== undefined
+      ? { visibility_history: membership.visibility_history }
+      : {}),
   };
 }
 
@@ -115,7 +124,9 @@ export function projectTeamMembership(membership: Record<string, any>) {
     role: membership.role,
     joined_at: membership.joined_at,
     visibility: currentMembershipVisibility(membership),
-    ...(membership.visibility_history !== undefined ? { visibility_history: membership.visibility_history } : {}),
+    ...(membership.visibility_history !== undefined
+      ? { visibility_history: membership.visibility_history }
+      : {}),
   };
 }
 
@@ -210,7 +221,10 @@ export function unauthenticatedView(identity: ViewIdentity) {
   return { ...identity, access: "unauthenticated" as const };
 }
 
-export function missingView(identity: ViewIdentity, releasedGrantKeys: string[]) {
+export function missingView(
+  identity: ViewIdentity,
+  releasedGrantKeys: string[],
+) {
   return {
     ...identity,
     access: "missing" as const,
@@ -219,7 +233,10 @@ export function missingView(identity: ViewIdentity, releasedGrantKeys: string[])
   };
 }
 
-export function forbiddenView(identity: ViewIdentity, revokedGrantKeys: string[]) {
+export function forbiddenView(
+  identity: ViewIdentity,
+  revokedGrantKeys: string[],
+) {
   return { ...identity, access: "forbidden" as const, revokedGrantKeys };
 }
 

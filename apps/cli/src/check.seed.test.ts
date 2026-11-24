@@ -3,7 +3,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { buildInfoPath, mainCheckoutOf, rebaseBuildInfo, seedBuildInfo, watchDir } from "./check.js";
+import {
+  buildInfoPath,
+  mainCheckoutOf,
+  rebaseBuildInfo,
+  seedBuildInfo,
+  watchDir,
+} from "./check.js";
 
 let tmp: string;
 let priorDir: string | undefined;
@@ -31,15 +37,30 @@ function trees(): { main: string; wt: string } {
   const main = path.join(tmp, "main");
   fs.mkdirSync(path.join(main, "src"), { recursive: true });
   fs.mkdirSync(path.join(main, "node_modules", "lib"), { recursive: true });
-  fs.writeFileSync(path.join(main, "node_modules", "lib", "index.d.ts"), "export type X = 1;\n");
+  fs.writeFileSync(
+    path.join(main, "node_modules", "lib", "index.d.ts"),
+    "export type X = 1;\n",
+  );
   fs.writeFileSync(path.join(main, "src", "a.ts"), "export const a = 1;\n");
   fs.writeFileSync(path.join(main, ".gitignore"), "node_modules\n");
   git(main, "init", "-q");
   git(main, "add", "-A");
-  git(main, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init");
+  git(
+    main,
+    "-c",
+    "user.email=t@t",
+    "-c",
+    "user.name=t",
+    "commit",
+    "-qm",
+    "init",
+  );
   const wt = path.join(tmp, "wt");
   git(main, "worktree", "add", "-q", wt, "HEAD");
-  fs.symlinkSync(path.join(main, "node_modules"), path.join(wt, "node_modules"));
+  fs.symlinkSync(
+    path.join(main, "node_modules"),
+    path.join(wt, "node_modules"),
+  );
   return { main, wt };
 }
 
@@ -57,7 +78,10 @@ test("a worktree's own files move to the worktree; files it links back into main
     ],
     version: "5.9.3",
   });
-  const out = JSON.parse(rebaseBuildInfo(donor, from, to)!) as { fileNames: string[]; version: string };
+  const out = JSON.parse(rebaseBuildInfo(donor, from, to)!) as {
+    fileNames: string[];
+    version: string;
+  };
   expect(out.fileNames.map((n) => path.resolve(to.dir, n))).toEqual([
     path.join(main, "node_modules", "lib", "index.d.ts"),
     path.join(wt, "src", "a.ts"),
@@ -68,8 +92,12 @@ test("a worktree's own files move to the worktree; files it links back into main
 });
 
 test("unreadable build info is not seeded", () => {
-  expect(rebaseBuildInfo("{", { root: "/a", dir: "/s" }, { root: "/b", dir: "/t" })).toBeNull();
-  expect(rebaseBuildInfo("{}", { root: "/a", dir: "/s" }, { root: "/b", dir: "/t" })).toBeNull();
+  expect(
+    rebaseBuildInfo("{", { root: "/a", dir: "/s" }, { root: "/b", dir: "/t" }),
+  ).toBeNull();
+  expect(
+    rebaseBuildInfo("{}", { root: "/a", dir: "/s" }, { root: "/b", dir: "/t" }),
+  ).toBeNull();
 });
 
 test("a worktree seeds from its main checkout once; main itself never seeds", () => {
@@ -79,11 +107,20 @@ test("a worktree seeds from its main checkout once; main itself never seeds", ()
   expect(seedBuildInfo(wt, "app")).toBe(false); // main has no pass yet
   const donorDir = watchDir(main, "app");
   fs.mkdirSync(donorDir, { recursive: true });
-  fs.writeFileSync(buildInfoPath(donorDir), JSON.stringify({ fileNames: [path.relative(donorDir, path.join(main, "src", "a.ts"))] }));
+  fs.writeFileSync(
+    buildInfoPath(donorDir),
+    JSON.stringify({
+      fileNames: [path.relative(donorDir, path.join(main, "src", "a.ts"))],
+    }),
+  );
   expect(seedBuildInfo(main, "app")).toBe(false);
   expect(seedBuildInfo(wt, "app")).toBe(true);
-  const seeded = JSON.parse(fs.readFileSync(buildInfoPath(watchDir(wt, "app")), "utf-8")) as { fileNames: string[] };
-  expect(path.resolve(watchDir(wt, "app"), seeded.fileNames[0])).toBe(path.join(wt, "src", "a.ts"));
+  const seeded = JSON.parse(
+    fs.readFileSync(buildInfoPath(watchDir(wt, "app")), "utf-8"),
+  ) as { fileNames: string[] };
+  expect(path.resolve(watchDir(wt, "app"), seeded.fileNames[0])).toBe(
+    path.join(wt, "src", "a.ts"),
+  );
   // The worktree's own pass now owns its build info.
   expect(seedBuildInfo(wt, "app")).toBe(false);
 });

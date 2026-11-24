@@ -28,7 +28,7 @@ export const ImageUploadPlaceholder = Extension.create({
               const found = set.find(
                 undefined,
                 undefined,
-                (spec) => spec.id === action.remove.id
+                (spec) => spec.id === action.remove.id,
               );
               if (found.length) set = set.remove(found);
             }
@@ -67,7 +67,12 @@ function buildPlaceholderWidget(previewUrl?: string): HTMLElement {
   return wrapper;
 }
 
-export function addPlaceholder(view: EditorView, id: string, pos: number, file?: File) {
+export function addPlaceholder(
+  view: EditorView,
+  id: string,
+  pos: number,
+  file?: File,
+) {
   const previewUrl = file ? URL.createObjectURL(file) : undefined;
   const tr = view.state.tr;
   tr.setMeta(pluginKey, { add: { id, pos, previewUrl } });
@@ -75,14 +80,21 @@ export function addPlaceholder(view: EditorView, id: string, pos: number, file?:
   return previewUrl;
 }
 
-export function removePlaceholder(view: EditorView, id: string, previewUrl?: string) {
+export function removePlaceholder(
+  view: EditorView,
+  id: string,
+  previewUrl?: string,
+) {
   if (previewUrl) URL.revokeObjectURL(previewUrl);
   const tr = view.state.tr;
   tr.setMeta(pluginKey, { remove: { id } });
   view.dispatch(tr);
 }
 
-export function findPlaceholderPos(view: EditorView, id: string): number | null {
+export function findPlaceholderPos(
+  view: EditorView,
+  id: string,
+): number | null {
   const decos = pluginKey.getState(view.state) as DecorationSet;
   if (!decos) return null;
   const found = decos.find(undefined, undefined, (spec) => spec.id === id);
@@ -93,7 +105,7 @@ export function uploadImageWithPlaceholder(
   view: EditorView,
   file: File,
   pos: number,
-  uploadFn: (file: File) => Promise<string | null>
+  uploadFn: (file: File) => Promise<string | null>,
 ) {
   const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
   const previewUrl = addPlaceholder(view, id, pos, file);
@@ -104,8 +116,8 @@ export function uploadImageWithPlaceholder(
       view.dispatch(
         view.state.tr.insert(
           placeholderPos,
-          view.state.schema.nodes.image.create({ src: url })
-        )
+          view.state.schema.nodes.image.create({ src: url }),
+        ),
       );
     }
   });

@@ -25,7 +25,10 @@ import {
 } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { issueProviderValidator, issueSyncSourceKindValidator } from "./issueSyncSchema";
+import {
+  issueProviderValidator,
+  issueSyncSourceKindValidator,
+} from "./issueSyncSchema";
 import {
   diffAgainstTask,
   githubStateFor,
@@ -44,7 +47,13 @@ import * as linearApi from "./linearApi";
 import * as githubIssuesApi from "./githubIssuesApi";
 import { createDataContext } from "./data";
 import { nextShortId } from "./counters";
-import { activeTeamMembershipFor, heldKeysFor, requireTeamMembership, resolveWorkspaceKey, workspaceForResource } from "./lib/access";
+import {
+  activeTeamMembershipFor,
+  heldKeysFor,
+  requireTeamMembership,
+  resolveWorkspaceKey,
+  workspaceForResource,
+} from "./lib/access";
 import { forbidden, notFound } from "./lib/auth";
 import {
   insertTaskComment,
@@ -54,13 +63,27 @@ import {
   resolveParentTask,
 } from "./tasks";
 import { afterStatusEdges } from "./taskLinks";
-import { recordTaskChange, type TaskChangeBy, type TaskFieldChange } from "./lib/taskHistory";
+import {
+  recordTaskChange,
+  type TaskChangeBy,
+  type TaskFieldChange,
+} from "./lib/taskHistory";
 import { verifyApiToken } from "./apiTokens";
 import { resolveTaskSpawnDevice } from "./spawn";
-import { connectionReaches, githubDeliveryServesSource, hasPersonalConnection, linearDeliveryServesSource, resolveLinearLabelIds } from "./lib/issueSyncAccess";
+import {
+  connectionReaches,
+  githubDeliveryServesSource,
+  hasPersonalConnection,
+  linearDeliveryServesSource,
+  resolveLinearLabelIds,
+} from "./lib/issueSyncAccess";
 import { teamTaskStatuses } from "@codecast/shared/tasks";
 import { mintProjectShortId } from "./lib/projectShortId";
-import { fireTriggers, maybeDelegate, recordFeedEvent } from "./lib/issueSyncDelegation";
+import {
+  fireTriggers,
+  maybeDelegate,
+  recordFeedEvent,
+} from "./lib/issueSyncDelegation";
 
 /** A provider issue normalized to one shape before it touches a task (S2). */
 export const normalizedIssueValidator = v.object({
@@ -76,9 +99,9 @@ export const normalizedIssueValidator = v.object({
   parent_issue_id: v.optional(v.string()),
   title: v.string(),
   description: v.optional(v.string()),
-  status: v.string(),                       // our category
+  status: v.string(), // our category
   state_name: v.optional(v.string()),
-  priority: v.optional(v.string()),         // our priority word; absent = don't touch
+  priority: v.optional(v.string()), // our priority word; absent = don't touch
   assignee_id: v.optional(v.string()),
   assignee_email: v.optional(v.string()),
   assignee_login: v.optional(v.string()),
@@ -138,7 +161,8 @@ async function sourceFor(ctx: any, provider: string, externalId: string) {
   return await ctx.db
     .query("issue_sync_sources")
     .withIndex("by_provider_external", (q: any) =>
-      q.eq("provider", provider).eq("external_id", externalId))
+      q.eq("provider", provider).eq("external_id", externalId),
+    )
     .first();
 }
 
@@ -146,7 +170,9 @@ async function taskByExternal(ctx: any, provider: string, id: string) {
   if (!id) return null;
   return await ctx.db
     .query("tasks")
-    .withIndex("by_external", (q: any) => q.eq("external.provider", provider).eq("external.id", id))
+    .withIndex("by_external", (q: any) =>
+      q.eq("external.provider", provider).eq("external.id", id),
+    )
     .first();
 }
 
@@ -166,7 +192,9 @@ async function resolveProviderUser(
   if (issue.assignee_login) {
     const byGh = await ctx.db
       .query("users")
-      .withIndex("by_github_username", (q: any) => q.eq("github_username", issue.assignee_login!.toLowerCase()))
+      .withIndex("by_github_username", (q: any) =>
+        q.eq("github_username", issue.assignee_login!.toLowerCase()),
+      )
       .first();
     if (byGh) return byGh._id;
   }
@@ -208,7 +236,10 @@ function externalFor(
     project_id: issue.project_id,
     parent_issue_id: issue.parent_issue_id,
     source_id: source?._id ?? prev?.source_id,
-    remote_updated_at: Math.max(issue.remote_updated_at, prev?.remote_updated_at ?? 0),
+    remote_updated_at: Math.max(
+      issue.remote_updated_at,
+      prev?.remote_updated_at ?? 0,
+    ),
     synced_at: now,
     field_ts: prev?.field_ts,
     assignee_label: issue.assignee_label,
@@ -257,20 +288,30 @@ async function history(
  * open tab every few seconds on a busy repository (2026-10-01).
  */
 const HEALTH_STAMP_MS = 60_000;
-export async function stampInboundHealth(ctx: any, source: SourceDoc, now: number) {
+export async function stampInboundHealth(
+  ctx: any,
+  source: SourceDoc,
+  now: number,
+) {
   await ctx.db.patch(source._id, { last_webhook_at: now, updated_at: now });
   if (!source.team_id) return;
-  const rows = source.provider === "linear"
-    ? [await ctx.db
-      .query("app_installations")
-      .withIndex("by_provider_team", (q: any) => q.eq("provider", "linear").eq("team_id", source.team_id))
-      .first()]
-    : await ctx.db
-      .query("github_app_installations")
-      .withIndex("by_team_id", (q: any) => q.eq("team_id", source.team_id))
-      .collect();
+  const rows =
+    source.provider === "linear"
+      ? [
+          await ctx.db
+            .query("app_installations")
+            .withIndex("by_provider_team", (q: any) =>
+              q.eq("provider", "linear").eq("team_id", source.team_id),
+            )
+            .first(),
+        ]
+      : await ctx.db
+          .query("github_app_installations")
+          .withIndex("by_team_id", (q: any) => q.eq("team_id", source.team_id))
+          .collect();
   for (const row of rows) {
-    if (row && !(now - (row.last_webhook_at ?? 0) < HEALTH_STAMP_MS)) await ctx.db.patch(row._id, { last_webhook_at: now });
+    if (row && !(now - (row.last_webhook_at ?? 0) < HEALTH_STAMP_MS))
+      await ctx.db.patch(row._id, { last_webhook_at: now });
   }
 }
 
@@ -278,13 +319,19 @@ export async function stampInboundHealth(ctx: any, source: SourceDoc, now: numbe
  * What KIND of change a Linear update was (S8). Linear sends `updatedFrom`
  * with only the fields that moved, which is the whole classification.
  */
-export function linearEventKind(action: string, payload: any, issue: NormalizedIssue): string {
+export function linearEventKind(
+  action: string,
+  payload: any,
+  issue: NormalizedIssue,
+): string {
   if (action === "create") return "issue_opened";
   if (action === "remove") return "issue_closed";
   const changed = payload?.updatedFrom ?? {};
-  if ("assigneeId" in changed || "delegateId" in changed) return "issue_assigned";
+  if ("assigneeId" in changed || "delegateId" in changed)
+    return "issue_assigned";
   if ("stateId" in changed) {
-    if (issue.status === "done" || issue.status === "dropped") return "issue_closed";
+    if (issue.status === "done" || issue.status === "dropped")
+      return "issue_closed";
     return "issue_status";
   }
   if ("labelIds" in changed) return "issue_labeled";
@@ -324,18 +371,24 @@ export const onLinearEvent = internalMutation({
     const data = payload?.data ?? {};
     const action: string = payload?.action ?? event.action ?? "update";
     // A Comment event's container is its issue's; an Issue event's is its own.
-    const container = event.event_type === "Comment" ? (data.issue ?? {}) : data;
-    const source = (await sourceFor(ctx, "linear", container?.project?.id ?? "__none__"))
-      ?? (await sourceFor(ctx, "linear", container?.team?.id ?? "__none__"));
+    const container =
+      event.event_type === "Comment" ? (data.issue ?? {}) : data;
+    const source =
+      (await sourceFor(ctx, "linear", container?.project?.id ?? "__none__")) ??
+      (await sourceFor(ctx, "linear", container?.team?.id ?? "__none__"));
     if (!source) return await done("no_source");
     if (source.status === "paused") return await done("source_paused");
-    if (!(await linearDeliveryServesSource(ctx, source as SourceDoc, payload))) return await done("foreign_organization");
+    if (!(await linearDeliveryServesSource(ctx, source as SourceDoc, payload)))
+      return await done("foreign_organization");
 
     const now = Date.now();
     await stampInboundHealth(ctx, source as SourceDoc, now);
 
     if (event.event_type === "Comment") {
-      const comment = normalizeLinearComment(data, { deleted: action === "remove", now });
+      const comment = normalizeLinearComment(data, {
+        deleted: action === "remove",
+        now,
+      });
       // The comment's parent may not be in the payload. The task already knows
       // the issue, so rebuild the minimum applyRemote needs to touch comments.
       const issue = data.issue
@@ -373,7 +426,11 @@ export const onLinearEvent = internalMutation({
  * its parent. Comment-only, so the fields that would drive a diff are the
  * task's own — nothing can move on this path.
  */
-async function issueFromTask(ctx: any, provider: string, issueId: string): Promise<NormalizedIssue | null> {
+async function issueFromTask(
+  ctx: any,
+  provider: string,
+  issueId: string,
+): Promise<NormalizedIssue | null> {
   const task = await taskByExternal(ctx, provider, issueId);
   if (!task?.external) return null;
   const ext = task.external;
@@ -404,7 +461,10 @@ async function issueFromTask(ctx: any, provider: string, issueId: string): Promi
  * already stops — but dropping them at the door is cheaper and clearer.
  */
 function isOwnBotEvent(payload: any): boolean {
-  return payload?.sender?.type === "Bot" && String(payload?.sender?.login ?? "").startsWith("codecast-sh");
+  return (
+    payload?.sender?.type === "Bot" &&
+    String(payload?.sender?.login ?? "").startsWith("codecast-sh")
+  );
 }
 
 /**
@@ -413,7 +473,10 @@ function isOwnBotEvent(payload: any): boolean {
  * never gate on it. They do not need it: applyRemote is idempotent by
  * construction — a replay maps to values equal to ours and diffs to nothing.
  */
-async function githubEventPayload(ctx: any, eventId: Id<"github_webhook_events">) {
+async function githubEventPayload(
+  ctx: any,
+  eventId: Id<"github_webhook_events">,
+) {
   const event = await ctx.db.get(eventId);
   if (!event) return null;
   try {
@@ -433,12 +496,22 @@ export const onGithubIssue = internalMutation({
 
     const repo: string | undefined = payload?.repository?.full_name;
     if (!repo || !payload?.issue) return { skipped: "no_repo" as const };
-    if (githubIssuesApi.isPullRequest(payload.issue)) return { skipped: "pull_request" as const };
+    if (githubIssuesApi.isPullRequest(payload.issue))
+      return { skipped: "pull_request" as const };
 
     const source = await sourceFor(ctx, "github", repo);
     if (!source) return { skipped: "no_source" as const };
-    if (source.status === "paused") return { skipped: "source_paused" as const };
-    if (!(await githubDeliveryServesSource(ctx, source as SourceDoc, payload, repo))) return { skipped: "foreign_installation" as const };
+    if (source.status === "paused")
+      return { skipped: "source_paused" as const };
+    if (
+      !(await githubDeliveryServesSource(
+        ctx,
+        source as SourceDoc,
+        payload,
+        repo,
+      ))
+    )
+      return { skipped: "foreign_installation" as const };
 
     const action: string = payload?.action ?? event.action ?? "edited";
     const now = Date.now();
@@ -469,19 +542,35 @@ export const onGithubIssueComment = internalMutation({
 
     const repo: string | undefined = payload?.repository?.full_name;
     // A comment on a pull request is the PR integration's, not ours.
-    if (!repo || !payload?.issue || githubIssuesApi.isPullRequest(payload.issue)) {
+    if (
+      !repo ||
+      !payload?.issue ||
+      githubIssuesApi.isPullRequest(payload.issue)
+    ) {
       return { skipped: "pull_request" as const };
     }
 
     const source = await sourceFor(ctx, "github", repo);
     if (!source) return { skipped: "no_source" as const };
-    if (source.status === "paused") return { skipped: "source_paused" as const };
-    if (!(await githubDeliveryServesSource(ctx, source as SourceDoc, payload, repo))) return { skipped: "foreign_installation" as const };
+    if (source.status === "paused")
+      return { skipped: "source_paused" as const };
+    if (
+      !(await githubDeliveryServesSource(
+        ctx,
+        source as SourceDoc,
+        payload,
+        repo,
+      ))
+    )
+      return { skipped: "foreign_installation" as const };
 
     const now = Date.now();
     await stampInboundHealth(ctx, source as SourceDoc, now);
 
-    const issue = normalizeGithubIssue(payload.issue, repo, { actor: payload?.sender?.login, now });
+    const issue = normalizeGithubIssue(payload.issue, repo, {
+      actor: payload?.sender?.login,
+      now,
+    });
     const comment = normalizeGithubComment(payload.comment, issue.id, {
       deleted: (payload?.action ?? event.action) === "deleted",
       now,
@@ -517,7 +606,7 @@ export const applyRemote = internalMutation({
     source_id: v.optional(v.id("issue_sync_sources")),
     issue: normalizedIssueValidator,
     comments: v.optional(v.array(normalizedCommentValidator)),
-    event_kind: v.optional(v.string()),   // S8 kind hint from the webhook action
+    event_kind: v.optional(v.string()), // S8 kind hint from the webhook action
     comment_only: v.optional(v.boolean()),
     github_action: v.optional(v.string()),
   },
@@ -527,14 +616,17 @@ export const applyRemote = internalMutation({
 async function applyRemoteInner(ctx: any, args: ApplyArgs) {
   const { issue } = args;
   const now = Date.now();
-  const source: SourceDoc | null = args.source_id ? await ctx.db.get(args.source_id) : null;
+  const source: SourceDoc | null = args.source_id
+    ? await ctx.db.get(args.source_id)
+    : null;
   let task = await taskByExternal(ctx, issue.provider, issue.id);
   let created = false;
   let diff: TaskDiff = {};
 
   if (!task) {
     // Nothing to attach a comment or a deletion to, and no home to create in.
-    if (args.comment_only || issue.deleted || !source) return { skipped: "no_task" };
+    if (args.comment_only || issue.deleted || !source)
+      return { skipped: "no_task" };
     task = await createTaskFromIssue(ctx, source, issue, now);
     created = true;
   } else if (!args.comment_only) {
@@ -548,7 +640,9 @@ async function applyRemoteInner(ctx: any, args: ApplyArgs) {
     const link = await linkParent(ctx, task, issue);
     parentPending = link === "pending";
     if (link === "moved") {
-      diff = { ...diff, parent_id: "moved" } as TaskDiff & { parent_id: string };
+      diff = { ...diff, parent_id: "moved" } as TaskDiff & {
+        parent_id: string;
+      };
       task = await ctx.db.get(task._id);
     }
   }
@@ -562,17 +656,31 @@ async function applyRemoteInner(ctx: any, args: ApplyArgs) {
   // kind is what the diff says — and a pull that changed nothing is not an
   // event: no feed row, no trigger, or every reconcile would re-fire
   // "issues edited" for every issue inside its window.
-  const kind = args.event_kind
-    ?? kindFromDiff(diff, created, task.status)
-    ?? (landed > 0 ? "issue_commented" : undefined);
+  const kind =
+    args.event_kind ??
+    kindFromDiff(diff, created, task.status) ??
+    (landed > 0 ? "issue_commented" : undefined);
 
   await maybeDelegate(ctx, source, task, issue);
   if (kind) {
     await recordFeedEvent(ctx, source, task, issue, kind, now);
-    await fireTriggers(ctx, source, issue, kind, args.github_action, kind === "issue_commented");
+    await fireTriggers(
+      ctx,
+      source,
+      issue,
+      kind,
+      args.github_action,
+      kind === "issue_commented",
+    );
   }
 
-  return { task_id: task._id, created, changed: Object.keys(diff), comments: landed, parent_pending: parentPending };
+  return {
+    task_id: task._id,
+    created,
+    changed: Object.keys(diff),
+    comments: landed,
+    parent_pending: parentPending,
+  };
 }
 
 /**
@@ -599,7 +707,8 @@ async function linkParent(
   const next = want ? String(want._id) : "";
   if (next === current) return "same";
   // A local reparent pushed after this event was emitted wins (S3).
-  if (issue.remote_updated_at < (task.external?.field_ts?.parent_id ?? 0)) return "same";
+  if (issue.remote_updated_at < (task.external?.field_ts?.parent_id ?? 0))
+    return "same";
 
   if (want) {
     try {
@@ -608,18 +717,34 @@ async function linkParent(
         child: { _id: task._id, short_id: task.short_id },
       });
     } catch (error) {
-      console.warn(`issueSync.linkParent ${task.short_id} under ${want.short_id}: ${error instanceof Error ? error.message : String(error)}`);
+      console.warn(
+        `issueSync.linkParent ${task.short_id} under ${want.short_id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return "refused";
     }
   }
   const now = Date.now();
-  await ctx.db.patch(task._id, { parent_id: want ? want._id : undefined, updated_at: now });
-  await recordTaskChange(ctx, task._id, SYNC, [["parent", task.parent_id, want?._id]], now);
+  await ctx.db.patch(task._id, {
+    parent_id: want ? want._id : undefined,
+    updated_at: now,
+  });
+  await recordTaskChange(
+    ctx,
+    task._id,
+    SYNC,
+    [["parent", task.parent_id, want?._id]],
+    now,
+  );
   await reconcilePlanMembership(ctx, task._id, task.plan_id, !!want);
   return "moved";
 }
 
-async function createTaskFromIssue(ctx: any, source: SourceDoc, issue: NormalizedIssue, now: number) {
+async function createTaskFromIssue(
+  ctx: any,
+  source: SourceDoc,
+  issue: NormalizedIssue,
+  now: number,
+) {
   const db = await createDataContext(ctx, {
     userId: source.user_id,
     ...(source.team_id
@@ -649,7 +774,14 @@ async function createTaskFromIssue(ctx: any, source: SourceDoc, issue: Normalize
     external: externalFor(issue, source, now),
   } as any);
 
-  await history(ctx, id, "synced_from_provider", undefined, undefined, issue.identifier);
+  await history(
+    ctx,
+    id,
+    "synced_from_provider",
+    undefined,
+    undefined,
+    issue.identifier,
+  );
   return await ctx.db.get(id);
 }
 
@@ -682,11 +814,18 @@ async function updateTaskFromIssue(
   // closed keeps its verdict: trashing a finished issue does not un-finish
   // the work, it only takes the twin away.
   const diff: TaskDiff = issue.deleted
-    ? (task.status === "dropped" || task.status === "done" ? {} : { status: "dropped" })
-    : diffAgainstTask(task, issue, { assignee: assigneeId ? String(assigneeId) : undefined });
+    ? task.status === "dropped" || task.status === "done"
+      ? {}
+      : { status: "dropped" }
+    : diffAgainstTask(task, issue, {
+        assignee: assigneeId ? String(assigneeId) : undefined,
+      });
 
   const external = externalFor(issue, source, now, task.external);
-  if (Object.keys(diff).length === 0 && externalFacts(external) === externalFacts(task.external)) {
+  if (
+    Object.keys(diff).length === 0 &&
+    externalFacts(external) === externalFacts(task.external)
+  ) {
     return diff;
   }
 
@@ -694,13 +833,23 @@ async function updateTaskFromIssue(
   // The provider unassigned the issue: ours clears (S2). A cleared field is
   // an undefined write, never a null one.
   if (diff.assignee === null) patch.assignee = undefined;
-  if (diff.status === "done" || diff.status === "dropped") patch.closed_at = now;
+  if (diff.status === "done" || diff.status === "dropped")
+    patch.closed_at = now;
   // A category change orphans a custom-status refinement (its id belongs to
   // the old category); the same rule every status write in tasks.ts applies.
-  if (diff.status !== undefined && diff.status !== task.status) patch.status_id = undefined;
+  if (diff.status !== undefined && diff.status !== task.status)
+    patch.status_id = undefined;
 
-  const fields = (["status", "title", "assignee", "priority"] as const).filter((f) => diff[f] !== undefined);
-  await recordTaskChange(ctx, task._id, SYNC, fields.map((f): TaskFieldChange => [f, task[f], diff[f]]), now);
+  const fields = (["status", "title", "assignee", "priority"] as const).filter(
+    (f) => diff[f] !== undefined,
+  );
+  await recordTaskChange(
+    ctx,
+    task._id,
+    SYNC,
+    fields.map((f): TaskFieldChange => [f, task[f], diff[f]]),
+    now,
+  );
   await ctx.db.patch(task._id, patch);
 
   if (diff.status && task.plan_id) {
@@ -720,17 +869,23 @@ async function updateTaskFromIssue(
  * stop); we wrote the identical text moments ago and the webhook beat our own
  * id patch (link that row instead of duplicating it); otherwise it is new.
  */
-async function upsertComment(ctx: any, taskId: Id<"tasks">, comment: NormalizedComment): Promise<boolean> {
+async function upsertComment(
+  ctx: any,
+  taskId: Id<"tasks">,
+  comment: NormalizedComment,
+): Promise<boolean> {
   if (!comment.id) return false;
   const existing = await ctx.db
     .query("task_comments")
     .withIndex("by_external", (q: any) =>
-      q.eq("external.provider", comment.provider).eq("external.id", comment.id))
+      q.eq("external.provider", comment.provider).eq("external.id", comment.id),
+    )
     .first();
 
   if (existing) {
     if (comment.deleted) return false;
-    if (existing.text !== comment.body) await ctx.db.patch(existing._id, { text: comment.body });
+    if (existing.text !== comment.body)
+      await ctx.db.patch(existing._id, { text: comment.body });
     return false;
   }
   if (comment.deleted) return false;
@@ -738,7 +893,10 @@ async function upsertComment(ctx: any, taskId: Id<"tasks">, comment: NormalizedC
   const recent = await ctx.db
     .query("task_comments")
     .withIndex("by_task_created", (q: any) =>
-      q.eq("task_id", taskId).gte("created_at", Date.now() - COMMENT_LINK_WINDOW_MS))
+      q
+        .eq("task_id", taskId)
+        .gte("created_at", Date.now() - COMMENT_LINK_WINDOW_MS),
+    )
     .collect();
   const twin = recent.find((c: any) => !c.external && c.text === comment.body);
   const external = {
@@ -769,7 +927,9 @@ export const taskPushContext = internalQuery({
   handler: async (ctx, args) => {
     const task = await ctx.db.get(args.task_id);
     if (!task?.external) return null;
-    const source = task.external.source_id ? await ctx.db.get(task.external.source_id) : null;
+    const source = task.external.source_id
+      ? await ctx.db.get(task.external.source_id)
+      : null;
     const teamId = task.team_id ?? source?.team_id;
 
     // The team's own name for this status, which beats position when picking
@@ -777,10 +937,15 @@ export const taskPushContext = internalQuery({
     let statusName: string | undefined;
     if (task.status_id && teamId) {
       const team = await ctx.db.get(teamId);
-      statusName = teamTaskStatuses(team?.task_statuses).find((s: any) => s.id === task.status_id)?.name;
+      statusName = teamTaskStatuses(team?.task_statuses).find(
+        (s: any) => s.id === task.status_id,
+      )?.name;
     }
 
-    const { assignee_emails, assignee_login } = await providerAssignee(ctx, task.assignee);
+    const { assignee_emails, assignee_login } = await providerAssignee(
+      ctx,
+      task.assignee,
+    );
     return {
       external: task.external,
       parent_issue_id: await parentIssueId(ctx, task),
@@ -806,7 +971,10 @@ export const taskPushContext = internalQuery({
  * same provider; null when the task has no parent, and undefined when the
  * parent has no twin there (nothing to say to the provider).
  */
-async function parentIssueId(ctx: any, task: any): Promise<string | null | undefined> {
+async function parentIssueId(
+  ctx: any,
+  task: any,
+): Promise<string | null | undefined> {
   if (!task.parent_id) return null;
   const parent = await ctx.db.get(task.parent_id);
   const ext = parent?.external;
@@ -822,12 +990,18 @@ async function providerAssignee(
   ctx: any,
   assignee: string | undefined,
 ): Promise<{ assignee_emails: string[]; assignee_login?: string }> {
-  if (!assignee || assignee.startsWith("agent:")) return { assignee_emails: [] };
+  if (!assignee || assignee.startsWith("agent:"))
+    return { assignee_emails: [] };
   const id = ctx.db.normalizeId("users", assignee);
   const user = id ? await ctx.db.get(id) : null;
   if (!user) return { assignee_emails: [] };
-  const emails = [user.email, ...(user.alternate_emails ?? [])].filter((e: unknown): e is string => typeof e === "string" && !!e);
-  return { assignee_emails: [...new Set(emails)], assignee_login: user.github_username };
+  const emails = [user.email, ...(user.alternate_emails ?? [])].filter(
+    (e: unknown): e is string => typeof e === "string" && !!e,
+  );
+  return {
+    assignee_emails: [...new Set(emails)],
+    assignee_login: user.github_username,
+  };
 }
 
 /**
@@ -849,20 +1023,32 @@ async function tokenFor(
     // Refreshes an expiring or unknown-age token first (Linear rotates 24h
     // tokens). A missing connection is null like GitHub's; a refresh refusal
     // is thrown so the source's last_error says "reconnect", not "401".
-    const res = await ctx.runAction(internal.oauthConnectors.getFreshAccessToken, {
-      provider: "linear",
-      team_id: teamId,
-      user_id: userId,
-    });
+    const res = await ctx.runAction(
+      internal.oauthConnectors.getFreshAccessToken,
+      {
+        provider: "linear",
+        team_id: teamId,
+        user_id: userId,
+      },
+    );
     if (res.ok && res.token) return res.token;
     if (res.error?.startsWith("no_connection")) return null;
     throw new Error(res.error ?? "Linear token refresh failed");
   }
   if (!repo) return null;
   const installation = teamId
-    ? (await ctx.runQuery(internal.githubApp.getInstallationForRepoInTeam, { repository: repo, team_id: teamId })) ??
-      (await ctx.runQuery(internal.githubApp.getPersonalInstallationForRepo, { repository: repo, user_id: userId }))
-    : await ctx.runQuery(internal.githubApp.getInstallationForRepo, { repository: repo, user_id: userId });
+    ? ((await ctx.runQuery(internal.githubApp.getInstallationForRepoInTeam, {
+        repository: repo,
+        team_id: teamId,
+      })) ??
+      (await ctx.runQuery(internal.githubApp.getPersonalInstallationForRepo, {
+        repository: repo,
+        user_id: userId,
+      })))
+    : await ctx.runQuery(internal.githubApp.getInstallationForRepo, {
+        repository: repo,
+        user_id: userId,
+      });
   if (!installation) return null;
   const token = await ctx.runAction(internal.githubApp.getInstallationToken, {
     installation_id: installation.installation_id,
@@ -872,43 +1058,67 @@ async function tokenFor(
 
 export const pushTask = internalAction({
   args: { task_id: v.id("tasks"), fields: v.array(v.string()) },
-  handler: async (ctx, args): Promise<{ pushed?: string[]; skipped?: string; error?: string }> => {
-    const info: any = await ctx.runQuery(internal.issueSync.taskPushContext, { task_id: args.task_id });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ pushed?: string[]; skipped?: string; error?: string }> => {
+    const info: any = await ctx.runQuery(internal.issueSync.taskPushContext, {
+      task_id: args.task_id,
+    });
     if (!info) return { skipped: "no_external" };
     const ext = info.external;
     const want = new Set(args.fields);
 
     try {
-      const token = await tokenFor(ctx, ext.provider, info.team_id, info.user_id, ext.repo);
+      const token = await tokenFor(
+        ctx,
+        ext.provider,
+        info.team_id,
+        info.user_id,
+        ext.repo,
+      );
       if (!token) return { skipped: "no_connection" };
 
       if (ext.provider === "linear") {
         const input: linearApi.LinearIssueInput = {};
         if (want.has("title")) input.title = info.title;
         if (want.has("description")) input.description = info.description;
-        if (want.has("priority")) input.priority = linearPriorityFor(info.priority);
+        if (want.has("priority"))
+          input.priority = linearPriorityFor(info.priority);
         if (want.has("status") && ext.team_id) {
-          const states = await linearApi.fetchWorkflowStates(token, ext.team_id);
+          const states = await linearApi.fetchWorkflowStates(
+            token,
+            ext.team_id,
+          );
           const state = linearStateFor(info.status, states, info.status_name);
           if (state) input.stateId = state.id;
         }
         let refused: string[] = [];
         if (want.has("labels") && ext.team_id) {
-          const labels = await resolveLinearLabelIds(token, ext.team_id, info.labels);
+          const labels = await resolveLinearLabelIds(
+            token,
+            ext.team_id,
+            info.labels,
+          );
           input.labelIds = labels.ids;
           refused = labels.refused;
         }
         if (want.has("assignee")) {
           if (info.assignee_cleared) input.assigneeId = null;
           else if (info.assignee_emails.length > 0) {
-            const user = await linearApi.findUserByEmail(token, info.assignee_emails);
+            const user = await linearApi.findUserByEmail(
+              token,
+              info.assignee_emails,
+            );
             if (user) input.assigneeId = user.id;
           }
         }
         // A parent with no Linear twin is undefined: the issue keeps whatever
         // parent it has, because we cannot name the new one to Linear.
-        if (want.has("parent_id") && info.parent_issue_id !== undefined) input.parentId = info.parent_issue_id;
-        if (Object.keys(input).length === 0) return { skipped: "nothing_to_push" };
+        if (want.has("parent_id") && info.parent_issue_id !== undefined)
+          input.parentId = info.parent_issue_id;
+        if (Object.keys(input).length === 0)
+          return { skipped: "nothing_to_push" };
         await linearApi.updateIssue(token, ext.id, input);
         if (refused.length > 0) {
           // The rest of the push landed; the task says which labels did not
@@ -918,7 +1128,11 @@ export const pushTask = internalAction({
           await ctx.runMutation(internal.issueSync.stampPushed, {
             task_id: args.task_id,
             fields: args.fields,
-            error: `Linear kept these labels off ${ext.identifier}: ${refused.join(", ")}`.slice(0, 500),
+            error:
+              `Linear kept these labels off ${ext.identifier}: ${refused.join(", ")}`.slice(
+                0,
+                500,
+              ),
             refused_labels: refused,
           });
           return { pushed: args.fields, error: refused.join(", ") };
@@ -927,18 +1141,23 @@ export const pushTask = internalAction({
         const patch: githubIssuesApi.GithubIssuePatch = {};
         if (want.has("title")) patch.title = info.title;
         if (want.has("description")) patch.body = info.description;
-        if (want.has("status")) Object.assign(patch, githubStateFor(info.status));
+        if (want.has("status"))
+          Object.assign(patch, githubStateFor(info.status));
         if (want.has("labels")) patch.labels = info.labels;
         if (want.has("assignee")) {
           if (info.assignee_cleared) patch.assignees = [];
           else if (info.assignee_login) patch.assignees = [info.assignee_login];
         }
-        if (Object.keys(patch).length === 0) return { skipped: "nothing_to_push" };
+        if (Object.keys(patch).length === 0)
+          return { skipped: "nothing_to_push" };
         if (!ext.repo || ext.number == null) return { skipped: "no_repo" };
         await githubIssuesApi.updateIssue(token, ext.repo, ext.number, patch);
       }
 
-      await ctx.runMutation(internal.issueSync.stampPushed, { task_id: args.task_id, fields: args.fields });
+      await ctx.runMutation(internal.issueSync.stampPushed, {
+        task_id: args.task_id,
+        fields: args.fields,
+      });
       return { pushed: args.fields };
     } catch (error) {
       // Never throw out of an outbound push: the write already landed on our
@@ -975,10 +1194,22 @@ export const stampPushed = internalMutation({
     const field_ts = { ...(task.external.field_ts ?? {}) };
     for (const field of args.fields) field_ts[field] = now;
     await ctx.db.patch(args.task_id, {
-      external: { ...task.external, field_ts, synced_at: now, last_error: args.error },
+      external: {
+        ...task.external,
+        field_ts,
+        synced_at: now,
+        last_error: args.error,
+      },
     });
     if (args.refused_labels?.length) {
-      await history(ctx, args.task_id, "sync_refused", "labels", undefined, args.refused_labels.join(", "));
+      await history(
+        ctx,
+        args.task_id,
+        "sync_refused",
+        "labels",
+        undefined,
+        args.refused_labels.join(", "),
+      );
     }
   },
 });
@@ -990,7 +1221,9 @@ export const commentPushContext = internalQuery({
     if (!comment || comment.external) return null;
     const task = await ctx.db.get(comment.task_id);
     if (!task?.external) return null;
-    const source = task.external.source_id ? await ctx.db.get(task.external.source_id) : null;
+    const source = task.external.source_id
+      ? await ctx.db.get(task.external.source_id)
+      : null;
     return {
       text: comment.text,
       author: comment.author,
@@ -1011,25 +1244,48 @@ export const stampComment = internalMutation({
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.comment_id, {
-      external: { provider: args.provider, id: args.id, url: args.url, author: args.author },
+      external: {
+        provider: args.provider,
+        id: args.id,
+        url: args.url,
+        author: args.author,
+      },
     });
   },
 });
 
 export const pushComment = internalAction({
   args: { comment_id: v.id("task_comments") },
-  handler: async (ctx, args): Promise<{ pushed?: boolean; skipped?: string; error?: string }> => {
-    const info: any = await ctx.runQuery(internal.issueSync.commentPushContext, { comment_id: args.comment_id });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ pushed?: boolean; skipped?: string; error?: string }> => {
+    const info: any = await ctx.runQuery(
+      internal.issueSync.commentPushContext,
+      { comment_id: args.comment_id },
+    );
     if (!info) return { skipped: "no_external" };
     const ext = info.external;
     try {
-      const token = await tokenFor(ctx, ext.provider, info.team_id, info.user_id, ext.repo);
+      const token = await tokenFor(
+        ctx,
+        ext.provider,
+        info.team_id,
+        info.user_id,
+        ext.repo,
+      );
       if (!token) return { skipped: "no_connection" };
-      const posted = ext.provider === "linear"
-        ? await linearApi.createComment(token, ext.id, info.text)
-        : ext.repo && ext.number != null
-          ? await githubIssuesApi.createIssueComment(token, ext.repo, ext.number, info.text)
-          : null;
+      const posted =
+        ext.provider === "linear"
+          ? await linearApi.createComment(token, ext.id, info.text)
+          : ext.repo && ext.number != null
+            ? await githubIssuesApi.createIssueComment(
+                token,
+                ext.repo,
+                ext.number,
+                info.text,
+              )
+            : null;
       if (!posted) return { skipped: "no_repo" };
       // The id write is what stops the echo: the webhook this post triggers
       // arrives with an id we now recognise and is skipped (S4.4).
@@ -1055,17 +1311,25 @@ export const newTaskPushContext = internalQuery({
     const task = await ctx.db.get(args.task_id);
     // Ephemeral bookkeeping (task-graph.md TG9) never becomes a provider
     // issue: outsiders would see it, and codecast cannot take it back.
-    if (!task || task.external || task.ephemeral || !task.project_id) return null;
+    if (!task || task.external || task.ephemeral || !task.project_id)
+      return null;
     const source = await ctx.db
       .query("issue_sync_sources")
       .withIndex("by_project", (q: any) => q.eq("project_id", task.project_id))
       .first();
-    if (!source || source.status !== "active" || !source.push_new_tasks) return null;
-    const { assignee_emails, assignee_login } = await providerAssignee(ctx, task.assignee);
+    if (!source || source.status !== "active" || !source.push_new_tasks)
+      return null;
+    const { assignee_emails, assignee_login } = await providerAssignee(
+      ctx,
+      task.assignee,
+    );
     const parent = task.parent_id ? await ctx.db.get(task.parent_id) : null;
     return {
       source,
-      parent_issue_id: parent?.external?.provider === source.provider ? parent.external.id : undefined,
+      parent_issue_id:
+        parent?.external?.provider === source.provider
+          ? parent.external.id
+          : undefined,
       title: task.title,
       description: task.description ?? "",
       status: task.status,
@@ -1080,35 +1344,66 @@ export const newTaskPushContext = internalQuery({
 });
 
 export const setTaskExternal = internalMutation({
-  args: { task_id: v.id("tasks"), issue: normalizedIssueValidator, source_id: v.id("issue_sync_sources") },
+  args: {
+    task_id: v.id("tasks"),
+    issue: normalizedIssueValidator,
+    source_id: v.id("issue_sync_sources"),
+  },
   handler: async (ctx, args) => {
     const task = await ctx.db.get(args.task_id);
     if (!task || task.external) return;
     const source = await ctx.db.get(args.source_id);
     const now = Date.now();
     await ctx.db.patch(args.task_id, {
-      external: externalFor(args.issue as NormalizedIssue, source as SourceDoc | null, now),
+      external: externalFor(
+        args.issue as NormalizedIssue,
+        source as SourceDoc | null,
+        now,
+      ),
       updated_at: now,
     });
-    await history(ctx, args.task_id, "synced_to_provider", undefined, undefined, args.issue.identifier);
+    await history(
+      ctx,
+      args.task_id,
+      "synced_to_provider",
+      undefined,
+      undefined,
+      args.issue.identifier,
+    );
   },
 });
 
 /** Create the provider issue for a task born on our side (S1.3 push_new_tasks). */
 export const pushNewTask = internalAction({
   args: { task_id: v.id("tasks") },
-  handler: async (ctx, args): Promise<{ created?: string; skipped?: string; error?: string }> => {
-    const info: any = await ctx.runQuery(internal.issueSync.newTaskPushContext, { task_id: args.task_id });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ created?: string; skipped?: string; error?: string }> => {
+    const info: any = await ctx.runQuery(
+      internal.issueSync.newTaskPushContext,
+      { task_id: args.task_id },
+    );
     if (!info) return { skipped: "not_pushable" };
     const source = info.source;
     try {
-      const repo = source.provider === "github" ? source.external_id : undefined;
-      const token = await tokenFor(ctx, source.provider, info.team_id, info.user_id, repo);
+      const repo =
+        source.provider === "github" ? source.external_id : undefined;
+      const token = await tokenFor(
+        ctx,
+        source.provider,
+        info.team_id,
+        info.user_id,
+        repo,
+      );
       if (!token) return { skipped: "no_connection" };
 
       let issue: NormalizedIssue;
       if (source.provider === "linear") {
-        const teamId = source.kind === "linear_team" ? source.external_id : source.external_key;
+        const teamId =
+          source.kind === "linear_team"
+            ? source.external_id
+            : source.external_key;
         if (!teamId) return { skipped: "no_linear_team" };
         const input: linearApi.LinearIssueInput = {
           teamId,
@@ -1116,24 +1411,35 @@ export const pushNewTask = internalAction({
           description: info.description || undefined,
           priority: linearPriorityFor(info.priority),
         };
-        if (source.kind === "linear_project") input.projectId = source.external_id;
+        if (source.kind === "linear_project")
+          input.projectId = source.external_id;
         if (info.parent_issue_id) input.parentId = info.parent_issue_id;
         const states = await linearApi.fetchWorkflowStates(token, teamId);
         const state = linearStateFor(info.status, states);
         if (state) input.stateId = state.id;
-        if (info.labels.length > 0) input.labelIds = (await resolveLinearLabelIds(token, teamId, info.labels)).ids;
+        if (info.labels.length > 0)
+          input.labelIds = (
+            await resolveLinearLabelIds(token, teamId, info.labels)
+          ).ids;
         if (info.assignee_emails.length > 0) {
-          const user = await linearApi.findUserByEmail(token, info.assignee_emails);
+          const user = await linearApi.findUserByEmail(
+            token,
+            info.assignee_emails,
+          );
           if (user) input.assigneeId = user.id;
         }
         issue = normalizeLinearIssue(await linearApi.createIssue(token, input));
       } else {
-        const created = await githubIssuesApi.createIssue(token, source.external_id, {
-          title: info.title,
-          body: info.description || undefined,
-          labels: info.labels.length > 0 ? info.labels : undefined,
-          assignees: info.assignee_login ? [info.assignee_login] : undefined,
-        });
+        const created = await githubIssuesApi.createIssue(
+          token,
+          source.external_id,
+          {
+            title: info.title,
+            body: info.description || undefined,
+            labels: info.labels.length > 0 ? info.labels : undefined,
+            assignees: info.assignee_login ? [info.assignee_login] : undefined,
+          },
+        );
         issue = normalizeGithubIssue(created, source.external_id);
       }
 
@@ -1160,13 +1466,18 @@ export const getSource = internalQuery({
 
 export const listActiveSources = internalQuery({
   args: {},
-  handler: async (ctx) =>
-    [
-      ...(await ctx.db.query("issue_sync_sources").withIndex("by_status", (q: any) => q.eq("status", "active")).collect()),
-      // Parked on an auth failure: still worth one call per tick, because the
-      // token refresh or a reconnect heals it without anyone pressing Resume.
-      ...(await ctx.db.query("issue_sync_sources").withIndex("by_status", (q: any) => q.eq("status", "error")).collect()),
-    ],
+  handler: async (ctx) => [
+    ...(await ctx.db
+      .query("issue_sync_sources")
+      .withIndex("by_status", (q: any) => q.eq("status", "active"))
+      .collect()),
+    // Parked on an auth failure: still worth one call per tick, because the
+    // token refresh or a reconnect heals it without anyone pressing Resume.
+    ...(await ctx.db
+      .query("issue_sync_sources")
+      .withIndex("by_status", (q: any) => q.eq("status", "error"))
+      .collect()),
+  ],
 });
 
 export const markSourceSynced = internalMutation({
@@ -1179,7 +1490,10 @@ export const markSourceSynced = internalMutation({
     const now = Date.now();
     const source = await ctx.db.get(args.source_id);
     if (!source) return;
-    const patch: Record<string, any> = { updated_at: now, last_error: args.error };
+    const patch: Record<string, any> = {
+      updated_at: now,
+      last_error: args.error,
+    };
     if (!args.error) {
       patch.last_synced_at = now;
       // A parked source that syncs again is healthy again (a refreshed token,
@@ -1196,7 +1510,9 @@ export const markSourceSynced = internalMutation({
 });
 
 function isAuthFailure(message: string): boolean {
-  return /\b(401|403)\b|no_connection|unauthorized|authentication|invalid_grant|reconnect/i.test(message);
+  return /\b(401|403)\b|no_connection|unauthorized|authentication|invalid_grant|reconnect/i.test(
+    message,
+  );
 }
 
 /**
@@ -1206,19 +1522,34 @@ function isAuthFailure(message: string): boolean {
  * same path, so a reconcile is exactly as safe as a webhook — the diff rule
  * (S3) decides what actually changes in either case.
  */
-async function pullSource(ctx: any, source: any, since?: number, resume: PullResume = {}): Promise<{ applied: number; next?: PullResume }> {
+async function pullSource(
+  ctx: any,
+  source: any,
+  since?: number,
+  resume: PullResume = {},
+): Promise<{ applied: number; next?: PullResume }> {
   let applied = 0;
   // Children whose parent had not been applied when they were: a page is
   // ordered by updatedAt, not by tree, so the parent may follow its child.
   const pendingParents: Array<{ issue: NormalizedIssue }> = [];
-  const applyIssue = async (issue: NormalizedIssue, comments: NormalizedComment[]) => {
-    const res: any = await ctx.runMutation(internal.issueSync.applyRemote, { source_id: source._id, issue, comments });
+  const applyIssue = async (
+    issue: NormalizedIssue,
+    comments: NormalizedComment[],
+  ) => {
+    const res: any = await ctx.runMutation(internal.issueSync.applyRemote, {
+      source_id: source._id,
+      issue,
+      comments,
+    });
     if (res?.parent_pending) pendingParents.push({ issue });
     applied++;
   };
   const linkPending = async () => {
     for (const { issue } of pendingParents) {
-      await ctx.runMutation(internal.issueSync.applyRemote, { source_id: source._id, issue });
+      await ctx.runMutation(internal.issueSync.applyRemote, {
+        source_id: source._id,
+        issue,
+      });
     }
   };
   if (source.provider === "linear") {
@@ -1229,7 +1560,8 @@ async function pullSource(ctx: any, source: any, since?: number, resume: PullRes
     for (let page = 0; page < IMPORT_MAX_PAGES; page++) {
       more = false;
       const result = await linearApi.fetchIssuesPage(token, {
-        projectId: source.kind === "linear_project" ? source.external_id : undefined,
+        projectId:
+          source.kind === "linear_project" ? source.external_id : undefined,
         teamId: source.kind === "linear_team" ? source.external_id : undefined,
         updatedAfter: since,
         after,
@@ -1238,7 +1570,8 @@ async function pullSource(ctx: any, source: any, since?: number, resume: PullRes
       for (const node of result.nodes) {
         const issue = normalizeLinearIssue(node);
         const comments = (node?.comments?.nodes ?? []).map((c: any) =>
-          normalizeLinearComment(c, { issue_id: issue.id }));
+          normalizeLinearComment(c, { issue_id: issue.id }),
+        );
         await applyIssue(issue, comments);
       }
       if (!result.hasNextPage || !result.endCursor) break;
@@ -1250,21 +1583,33 @@ async function pullSource(ctx: any, source: any, since?: number, resume: PullRes
   }
 
   const repo: string = source.external_id;
-  const token = await tokenFor(ctx, "github", source.team_id, source.user_id, repo);
+  const token = await tokenFor(
+    ctx,
+    "github",
+    source.team_id,
+    source.user_id,
+    repo,
+  );
   if (!token) throw new Error("no_connection");
   const firstPage = Math.max(1, resume.page ?? 1);
   let nextPage: number | undefined;
   for (let page = firstPage; page < firstPage + IMPORT_MAX_PAGES; page++) {
-    const { issues: rows, raw } = await githubIssuesApi.listIssuesPage(token, repo, { since, page });
+    const { issues: rows, raw } = await githubIssuesApi.listIssuesPage(
+      token,
+      repo,
+      { since, page },
+    );
     nextPage = undefined;
     for (const row of rows) {
       const issue = normalizeGithubIssue(row, repo);
       // The comment count is free in the list payload, so an issue nobody has
       // commented on costs no extra request.
-      const comments = (row?.comments ?? 0) > 0
-        ? (await githubIssuesApi.listIssueComments(token, repo, row.number))
-          .map((c: any) => normalizeGithubComment(c, issue.id))
-        : [];
+      const comments =
+        (row?.comments ?? 0) > 0
+          ? (
+              await githubIssuesApi.listIssueComments(token, repo, row.number)
+            ).map((c: any) => normalizeGithubComment(c, issue.id))
+          : [];
       await applyIssue(issue, comments);
     }
     // The page GitHub sent, not what is left after pull requests are dropped.
@@ -1286,13 +1631,29 @@ const IMPORT_MAX_HOPS = 50;
  * it at the page cap moved `last_synced_at` past issues never read, and the
  * next reconcile's window then started after them.
  */
-async function finishPull(ctx: any, sourceId: Id<"issue_sync_sources">, since: number | undefined, next: PullResume | undefined, hop: number) {
+async function finishPull(
+  ctx: any,
+  sourceId: Id<"issue_sync_sources">,
+  since: number | undefined,
+  next: PullResume | undefined,
+  hop: number,
+) {
   if (next && hop < IMPORT_MAX_HOPS) {
-    await ctx.scheduler.runAfter(0, internal.issueSync.importSource, { source_id: sourceId, since, ...next, hop: hop + 1 });
+    await ctx.scheduler.runAfter(0, internal.issueSync.importSource, {
+      source_id: sourceId,
+      since,
+      ...next,
+      hop: hop + 1,
+    });
     return;
   }
-  if (next) console.error(`issueSync: ${sourceId} still had pages after ${IMPORT_MAX_HOPS} runs; stamped synced without them`);
-  await ctx.runMutation(internal.issueSync.markSourceSynced, { source_id: sourceId });
+  if (next)
+    console.error(
+      `issueSync: ${sourceId} still had pages after ${IMPORT_MAX_HOPS} runs; stamped synced without them`,
+    );
+  await ctx.runMutation(internal.issueSync.markSourceSynced, {
+    source_id: sourceId,
+  });
 }
 
 export const importSource = internalAction({
@@ -1305,10 +1666,15 @@ export const importSource = internalAction({
     hop: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<{ applied?: number; error?: string }> => {
-    const source: any = await ctx.runQuery(internal.issueSync.getSource, { source_id: args.source_id });
+    const source: any = await ctx.runQuery(internal.issueSync.getSource, {
+      source_id: args.source_id,
+    });
     if (!source) return { error: "no_source" };
     try {
-      const { applied, next } = await pullSource(ctx, source, args.since, { page: args.page, after: args.after });
+      const { applied, next } = await pullSource(ctx, source, args.since, {
+        page: args.page,
+        after: args.after,
+      });
       await finishPull(ctx, args.source_id, args.since, next, args.hop ?? 0);
       return { applied };
     } catch (error) {
@@ -1327,10 +1693,15 @@ export const importSource = internalAction({
 export const reconcileSources = internalAction({
   args: {},
   handler: async (ctx): Promise<{ sources: number }> => {
-    const sources: any[] = await ctx.runQuery(internal.issueSync.listActiveSources, {});
+    const sources: any[] = await ctx.runQuery(
+      internal.issueSync.listActiveSources,
+      {},
+    );
     for (const source of sources) {
       try {
-        const since = source.last_synced_at ? source.last_synced_at - RECONCILE_OVERLAP_MS : undefined;
+        const since = source.last_synced_at
+          ? source.last_synced_at - RECONCILE_OVERLAP_MS
+          : undefined;
         const { next } = await pullSource(ctx, source, since);
         await finishPull(ctx, source._id, since, next, 0);
       } catch (error) {
@@ -1354,25 +1725,36 @@ async function listSourcesFor(ctx: any, userId: Id<"users">) {
   const keys = await heldKeysFor(ctx, userId);
   const rows: any[] = [];
   for (const key of keys) {
-    rows.push(...await ctx.db
-      .query("issue_sync_sources")
-      .withIndex("by_workspace", (q: any) => q.eq("workspace", key))
-      .collect());
+    rows.push(
+      ...(await ctx.db
+        .query("issue_sync_sources")
+        .withIndex("by_workspace", (q: any) => q.eq("workspace", key))
+        .collect()),
+    );
   }
   const out = [];
   for (const row of rows) {
     const project = await ctx.db.get(row.project_id);
-    out.push({ ...row, project_short_id: project?.short_id, project_title: project?.title });
+    out.push({
+      ...row,
+      project_short_id: project?.short_id,
+      project_title: project?.title,
+    });
   }
   return out.sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0));
 }
 
-async function requireSource(ctx: any, userId: Id<"users">, id: Id<"issue_sync_sources">) {
+async function requireSource(
+  ctx: any,
+  userId: Id<"users">,
+  id: Id<"issue_sync_sources">,
+) {
   const source = await ctx.db.get(id);
   if (!source) notFound("Source not found");
   if (String(source.user_id) === String(userId)) return source;
   const keys = await heldKeysFor(ctx, userId);
-  if (!keys.has(source.workspace)) forbidden("Forbidden: source is in another workspace");
+  if (!keys.has(source.workspace))
+    forbidden("Forbidden: source is in another workspace");
   return source;
 }
 
@@ -1398,10 +1780,17 @@ async function addSourceFor(
   if (existing) {
     // Only someone who can read the source learns its ids; to anyone else it
     // is a container another workspace already syncs.
-    if (String(existing.user_id) !== String(userId) && !(await heldKeysFor(ctx, userId)).has(existing.workspace)) {
+    if (
+      String(existing.user_id) !== String(userId) &&
+      !(await heldKeysFor(ctx, userId)).has(existing.workspace)
+    ) {
       forbidden("Forbidden: another workspace already syncs this");
     }
-    return { id: existing._id, project_id: existing.project_id, existing: true };
+    return {
+      id: existing._id,
+      project_id: existing.project_id,
+      existing: true,
+    };
   }
 
   const now = Date.now();
@@ -1415,21 +1804,43 @@ async function addSourceFor(
     // works only through the actor's own connection — refuse a row that could
     // never find a token rather than leave a dead source behind.
     teamId = (await activeTeamMembershipFor(ctx, userId))?.teamId;
-    if (!teamId && !(await hasPersonalConnection(ctx, args.provider, userId, args.external_id))) {
-      throw new Error(`Connect ${args.provider} for yourself, or join a team that has: nothing here can reach it`);
+    if (
+      !teamId &&
+      !(await hasPersonalConnection(
+        ctx,
+        args.provider,
+        userId,
+        args.external_id,
+      ))
+    ) {
+      throw new Error(
+        `Connect ${args.provider} for yourself, or join a team that has: nothing here can reach it`,
+      );
     }
   }
   if (teamId) await requireTeamMembership(ctx, userId, teamId);
   // The workspace must hold a connection that reaches the container: a row for
   // a repository its installations do not cover would never pull, and would
   // still be the row another workspace's webhooks are matched to.
-  if (!(await connectionReaches(ctx, args.provider, teamId, userId, args.external_id))) {
-    forbidden(`Forbidden: no ${args.provider} connection in this workspace reaches ${args.external_id}`);
+  if (
+    !(await connectionReaches(
+      ctx,
+      args.provider,
+      teamId,
+      userId,
+      args.external_id,
+    ))
+  ) {
+    forbidden(
+      `Forbidden: no ${args.provider} connection in this workspace reaches ${args.external_id}`,
+    );
   }
 
   const db = await createDataContext(ctx, {
     userId,
-    ...(teamId ? { workspace: "team" as const, team_id: teamId } : { workspace: "personal" as const }),
+    ...(teamId
+      ? { workspace: "team" as const, team_id: teamId }
+      : { workspace: "personal" as const }),
   });
 
   if (!project) {
@@ -1444,7 +1855,8 @@ async function addSourceFor(
     project = await ctx.db.get(projectId);
   } else {
     const key = await resolveWorkspaceKey(ctx, project);
-    if (key !== db.workspaceKey) forbidden("Forbidden: project is in another workspace");
+    if (key !== db.workspaceKey)
+      forbidden("Forbidden: project is in another workspace");
   }
 
   const id = await ctx.db.insert("issue_sync_sources", {
@@ -1467,7 +1879,9 @@ async function addSourceFor(
     updated_at: now,
   } as any);
 
-  await ctx.scheduler.runAfter(0, internal.issueSync.importSource, { source_id: id });
+  await ctx.scheduler.runAfter(0, internal.issueSync.importSource, {
+    source_id: id,
+  });
   return { id, project_id: project!._id, existing: false };
 }
 
@@ -1482,19 +1896,39 @@ const updateSourceArgs = {
   push_new_tasks: v.optional(v.boolean()),
 };
 
-async function updateSourceFor(ctx: any, userId: Id<"users">, id: Id<"issue_sync_sources">, args: any) {
+async function updateSourceFor(
+  ctx: any,
+  userId: Id<"users">,
+  id: Id<"issue_sync_sources">,
+  args: any,
+) {
   const source = await requireSource(ctx, userId, id);
-  if (args.definition !== undefined && String(source.user_id) !== String(userId)) {
-    forbidden("Forbidden: only the source's owner can set its agent definition");
+  if (
+    args.definition !== undefined &&
+    String(source.user_id) !== String(userId)
+  ) {
+    forbidden(
+      "Forbidden: only the source's owner can set its agent definition",
+    );
   }
   const patch: Record<string, any> = { updated_at: Date.now() };
-  for (const key of ["status", "delegate_label", "delegate_assignee", "auto_spawn", "spawn_isolated", "push_new_tasks"]) {
+  for (const key of [
+    "status",
+    "delegate_label",
+    "delegate_assignee",
+    "auto_spawn",
+    "spawn_isolated",
+    "push_new_tasks",
+  ]) {
     if (args[key] !== undefined) patch[key] = args[key];
   }
   if (args.device !== undefined) {
-    patch.spawn_device = args.device.trim() ? await resolveTaskSpawnDevice(ctx, source.user_id, args.device) : undefined;
+    patch.spawn_device = args.device.trim()
+      ? await resolveTaskSpawnDevice(ctx, source.user_id, args.device)
+      : undefined;
   }
-  if (args.definition !== undefined) patch.spawn_definition = args.definition.trim() || undefined;
+  if (args.definition !== undefined)
+    patch.spawn_definition = args.definition.trim() || undefined;
   // Resuming a paused or errored source clears the error that parked it.
   if (args.status === "active") patch.last_error = undefined;
   await ctx.db.patch(id, patch);
@@ -1506,22 +1940,34 @@ async function updateSourceFor(ctx: any, userId: Id<"users">, id: Id<"issue_sync
  * history. They keep `external` (so the identifier and link still render) and
  * lose only `source_id`, which is what stops the reconcile from touching them.
  */
-async function removeSourceFor(ctx: any, userId: Id<"users">, id: Id<"issue_sync_sources">) {
+async function removeSourceFor(
+  ctx: any,
+  userId: Id<"users">,
+  id: Id<"issue_sync_sources">,
+) {
   const source = await requireSource(ctx, userId, id);
   const tasks = await ctx.db
     .query("tasks")
-    .withIndex("by_project_id", (q: any) => q.eq("project_id", source.project_id))
+    .withIndex("by_project_id", (q: any) =>
+      q.eq("project_id", source.project_id),
+    )
     .collect();
   for (const task of tasks) {
-    if (task.external?.source_id && String(task.external.source_id) === String(id)) {
-      await ctx.db.patch(task._id, { external: { ...task.external, source_id: undefined } });
+    if (
+      task.external?.source_id &&
+      String(task.external.source_id) === String(id)
+    ) {
+      await ctx.db.patch(task._id, {
+        external: { ...task.external, source_id: undefined },
+      });
     }
   }
   await ctx.db.delete(id);
   // A project the import minted for itself and never filled is clutter once
   // the source goes; a project with anything in it stays.
   const project = await ctx.db.get(source.project_id);
-  if (project && await isEmptyImportedProject(ctx, project)) await ctx.db.delete(project._id);
+  if (project && (await isEmptyImportedProject(ctx, project)))
+    await ctx.db.delete(project._id);
   return { success: true };
 }
 
@@ -1530,15 +1976,22 @@ async function removeSourceFor(ctx: any, userId: Id<"users">, id: Id<"issue_sync
  * nothing ever landed in: no tasks, plans, docs or updates. Only such a
  * project is ever deleted on the import's behalf.
  */
-async function isEmptyImportedProject(ctx: any, project: any): Promise<boolean> {
-  if (!/^Imported from (linear|github)$/.test(project.description ?? "")) return false;
+async function isEmptyImportedProject(
+  ctx: any,
+  project: any,
+): Promise<boolean> {
+  if (!/^Imported from (linear|github)$/.test(project.description ?? ""))
+    return false;
   for (const [table, index] of [
     ["tasks", "by_project_id"],
     ["plans", "by_project_id"],
     ["docs", "by_project_id"],
     ["project_updates", "by_project_created"],
   ] as const) {
-    const row = await ctx.db.query(table).withIndex(index, (q: any) => q.eq("project_id", project._id)).first();
+    const row = await ctx.db
+      .query(table)
+      .withIndex(index, (q: any) => q.eq("project_id", project._id))
+      .first();
     if (row) return false;
   }
   return true;
@@ -1574,13 +2027,29 @@ async function remoteCandidatesFor(
   provider: string,
   teamId: Id<"teams"> | undefined,
   userId: Id<"users">,
-): Promise<Array<{ kind: string; external_id: string; external_key?: string; name: string; url?: string }>> {
+): Promise<
+  Array<{
+    kind: string;
+    external_id: string;
+    external_key?: string;
+    name: string;
+    url?: string;
+  }>
+> {
   if (provider === "linear") {
     const token = await tokenFor(ctx, "linear", teamId, userId);
     if (!token) return [];
-    const [teams, projects] = await Promise.all([linearApi.fetchTeams(token), linearApi.fetchProjects(token)]);
+    const [teams, projects] = await Promise.all([
+      linearApi.fetchTeams(token),
+      linearApi.fetchProjects(token),
+    ]);
     return [
-      ...teams.map((t) => ({ kind: "linear_team", external_id: t.id, external_key: t.key, name: `${t.key} · ${t.name}` })),
+      ...teams.map((t) => ({
+        kind: "linear_team",
+        external_id: t.id,
+        external_key: t.key,
+        name: `${t.key} · ${t.name}`,
+      })),
       ...projects.map((p) => ({
         kind: "linear_project",
         external_id: p.id,
@@ -1592,18 +2061,30 @@ async function remoteCandidatesFor(
     ];
   }
 
-  const installations: any[] = await ctx.runQuery(internal.githubApp.installationsForWork, {
-    team_id: teamId,
-    user_id: userId,
-  });
-  const out: Array<{ kind: string; external_id: string; name: string; url?: string }> = [];
+  const installations: any[] = await ctx.runQuery(
+    internal.githubApp.installationsForWork,
+    {
+      team_id: teamId,
+      user_id: userId,
+    },
+  );
+  const out: Array<{
+    kind: string;
+    external_id: string;
+    name: string;
+    url?: string;
+  }> = [];
   const seen = new Set<string>();
   for (const installation of installations) {
-    let repos: Array<{ full_name: string; html_url?: string }> = installation.repositories ?? [];
+    let repos: Array<{ full_name: string; html_url?: string }> =
+      installation.repositories ?? [];
     if (installation.repository_selection === "all") {
-      const token = await ctx.runAction(internal.githubApp.getInstallationToken, {
-        installation_id: installation.installation_id,
-      });
+      const token = await ctx.runAction(
+        internal.githubApp.getInstallationToken,
+        {
+          installation_id: installation.installation_id,
+        },
+      );
       repos = await githubIssuesApi.listInstallationRepos(token.token);
     }
     for (const repo of repos) {
@@ -1629,7 +2110,10 @@ export const resolveActor = internalQuery({
       return { user_id: args.user_id, team_id: args.team_id };
     }
     // A read may default: the team the caller is working in, counted only with a live membership.
-    return { user_id: args.user_id, team_id: (await activeTeamMembershipFor(ctx, args.user_id))?.teamId };
+    return {
+      user_id: args.user_id,
+      team_id: (await activeTeamMembershipFor(ctx, args.user_id))?.teamId,
+    };
   },
 });
 
@@ -1655,7 +2139,10 @@ export const listSources = query({
 
 /** Linear teams + projects, or GitHub repos, the connection can import. */
 export const listRemoteCandidates = action({
-  args: { provider: issueProviderValidator, team_id: v.optional(v.id("teams")) },
+  args: {
+    provider: issueProviderValidator,
+    team_id: v.optional(v.id("teams")),
+  },
   handler: async (ctx, args): Promise<Array<Record<string, any>>> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
@@ -1675,7 +2162,7 @@ export const addSource = mutation({
     external_key: v.optional(v.string()),
     name: v.string(),
     url: v.optional(v.string()),
-    project_id: v.optional(v.id("projects")),   // absent = create a project named after the source
+    project_id: v.optional(v.id("projects")), // absent = create a project named after the source
     team_id: v.optional(v.id("teams")),
     delegate_label: v.optional(v.string()),
     delegate_assignee: v.optional(v.string()),
@@ -1712,8 +2199,13 @@ export const syncNow = action({
   handler: async (ctx, args): Promise<{ applied?: number; error?: string }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
-    await ctx.runQuery(internal.issueSync.assertSourceAccess, { user_id: userId, id: args.id });
-    return await ctx.runAction(internal.issueSync.importSource, { source_id: args.id });
+    await ctx.runQuery(internal.issueSync.assertSourceAccess, {
+      user_id: userId,
+      id: args.id,
+    });
+    return await ctx.runAction(internal.issueSync.importSource, {
+      source_id: args.id,
+    });
   },
 });
 
@@ -1760,7 +2252,11 @@ export const cliAddSource = mutation({
 });
 
 export const cliUpdateSource = mutation({
-  args: { api_token: v.string(), id: v.id("issue_sync_sources"), ...updateSourceArgs },
+  args: {
+    api_token: v.string(),
+    id: v.id("issue_sync_sources"),
+    ...updateSourceArgs,
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
@@ -1780,25 +2276,42 @@ export const cliRemoveSource = mutation({
 export const cliSyncNow = action({
   args: { api_token: v.string(), id: v.id("issue_sync_sources") },
   handler: async (ctx, args): Promise<{ applied?: number; error?: string }> => {
-    const actor: any = await ctx.runQuery(internal.issueSync.userForToken, { api_token: args.api_token });
+    const actor: any = await ctx.runQuery(internal.issueSync.userForToken, {
+      api_token: args.api_token,
+    });
     if (!actor) throw new Error("Unauthorized");
-    await ctx.runQuery(internal.issueSync.assertSourceAccess, { user_id: actor.user_id, id: args.id });
-    return await ctx.runAction(internal.issueSync.importSource, { source_id: args.id });
+    await ctx.runQuery(internal.issueSync.assertSourceAccess, {
+      user_id: actor.user_id,
+      id: args.id,
+    });
+    return await ctx.runAction(internal.issueSync.importSource, {
+      source_id: args.id,
+    });
   },
 });
 
 export const cliListRemoteCandidates = action({
-  args: { api_token: v.string(), provider: issueProviderValidator, team_id: v.optional(v.id("teams")) },
+  args: {
+    api_token: v.string(),
+    provider: issueProviderValidator,
+    team_id: v.optional(v.id("teams")),
+  },
   handler: async (ctx, args): Promise<Array<Record<string, any>>> => {
-    const actor: any = await ctx.runQuery(internal.issueSync.userForToken, { api_token: args.api_token });
+    const actor: any = await ctx.runQuery(internal.issueSync.userForToken, {
+      api_token: args.api_token,
+    });
     if (!actor) throw new Error("Unauthorized");
     const resolved: any = await ctx.runQuery(internal.issueSync.resolveActor, {
       user_id: actor.user_id,
       team_id: args.team_id,
     });
-    return await remoteCandidatesFor(ctx, args.provider, resolved.team_id, actor.user_id);
+    return await remoteCandidatesFor(
+      ctx,
+      args.provider,
+      resolved.team_id,
+      actor.user_id,
+    );
   },
 });
 
 /* ---------------- Internal lookups shared with tasks.ts / http.ts ---------------- */
-

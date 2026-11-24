@@ -23,7 +23,11 @@
 // panes rather than node-pty, byte chunks rather than KeyboardEvents, and
 // codecast's own AgentStatus vocabulary (ct-49534).
 
-import { MID_TURN_AGENT_STATUSES, STATUS_TRUST_TTL_MS, type AgentStatus } from "@codecast/shared/contracts";
+import {
+  MID_TURN_AGENT_STATUSES,
+  STATUS_TRUST_TTL_MS,
+  type AgentStatus,
+} from "@codecast/shared/contracts";
 import fs from "fs";
 import path from "path";
 import { isSafeStatusSessionId } from "./statusSpool.js";
@@ -47,7 +51,9 @@ export type InputIntent =
  * paste or a burst of typing, and reading an Escape or a digit out of the
  * middle of one would arm the inference on a byte the user never pressed alone.
  */
-export function classifyInputBytes(bytes: ArrayLike<number>): InputIntent | null {
+export function classifyInputBytes(
+  bytes: ArrayLike<number>,
+): InputIntent | null {
   if (bytes.length === 1) {
     const b = bytes[0]! & 0xff;
     if (b === 0x03) return { kind: "ctrl-c" };
@@ -59,7 +65,8 @@ export function classifyInputBytes(bytes: ArrayLike<number>): InputIntent | null
   const text = Array.from(bytes, (b) => String.fromCharCode(b & 0xff)).join("");
   // A CRLF terminal and xterm's CSI-u encoding both spell Enter in more than
   // one byte; every other multi-byte sequence is not a key we act on.
-  if (text === "\r\n" || text === "\x1b[13u" || text === "\x1b[13;1u") return { kind: "enter" };
+  if (text === "\r\n" || text === "\x1b[13u" || text === "\x1b[13;1u")
+    return { kind: "enter" };
   return null;
 }
 
@@ -72,7 +79,8 @@ export function parseAskInputSidecar(
   if (now - mtimeMs > ASK_INPUT_FRESH_MS) return null;
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed?.questions) && parsed.questions.length) return { questions: parsed.questions };
+    if (Array.isArray(parsed?.questions) && parsed.questions.length)
+      return { questions: parsed.questions };
   } catch {}
   return null;
 }
@@ -86,7 +94,10 @@ export async function readAskInputSidecar(
   if (!isSafeStatusSessionId(sessionId)) return null;
   try {
     const file = path.join(dir, `${sessionId}.json`);
-    const [stat, raw] = await Promise.all([fs.promises.stat(file), fs.promises.readFile(file, "utf8")]);
+    const [stat, raw] = await Promise.all([
+      fs.promises.stat(file),
+      fs.promises.readFile(file, "utf8"),
+    ]);
     return parseAskInputSidecar(raw, stat.mtimeMs, now);
   } catch {
     return null;
@@ -105,8 +116,16 @@ export async function readAskInputSidecar(
  */
 export function singleSelectOptionCount(questions: unknown): number | null {
   if (!Array.isArray(questions) || questions.length !== 1) return null;
-  const question = questions[0] as { multiSelect?: unknown; options?: unknown } | null | undefined;
-  if (!question || question.multiSelect === true || !Array.isArray(question.options)) return null;
+  const question = questions[0] as
+    | { multiSelect?: unknown; options?: unknown }
+    | null
+    | undefined;
+  if (
+    !question ||
+    question.multiSelect === true ||
+    !Array.isArray(question.options)
+  )
+    return null;
   return question.options.length;
 }
 
@@ -131,7 +150,10 @@ export interface InferenceBaseline {
   agentType: string | undefined;
 }
 
-export function sameBaseline(a: InferenceBaseline, b: InferenceBaseline): boolean {
+export function sameBaseline(
+  a: InferenceBaseline,
+  b: InferenceBaseline,
+): boolean {
   return (
     a.status === b.status &&
     a.statusSentAt === b.statusSentAt &&
@@ -162,7 +184,10 @@ export interface KeystrokeInferenceDeps {
   /** Record the interrupted turn end. */
   writeInterrupted: (sessionId: string, baseline: InferenceBaseline) => void;
   /** Clear the wait and restore the state that preceded it. */
-  writeQuestionAnswered: (sessionId: string, baseline: InferenceBaseline) => void;
+  writeQuestionAnswered: (
+    sessionId: string,
+    baseline: InferenceBaseline,
+  ) => void;
   now?: () => number;
   setTimer?: (fn: () => void, ms: number) => ReturnType<typeof setTimeout>;
   clearTimer?: (timer: ReturnType<typeof setTimeout>) => void;
@@ -170,18 +195,26 @@ export interface KeystrokeInferenceDeps {
 }
 
 export interface KeystrokeInference {
-  observeInput(sessionId: string, intent: InputIntent): Promise<InferenceOutcome>;
+  observeInput(
+    sessionId: string,
+    intent: InputIntent,
+  ): Promise<InferenceOutcome>;
   /** Fire an armed interrupt now (the timer's own body; exported for tests). */
   flushPending(sessionId: string): InferenceOutcome;
   /** Drop anything armed for a session (it died, or its turn was superseded). */
   cancel(sessionId: string): void;
 }
 
-export function createKeystrokeInference(deps: KeystrokeInferenceDeps): KeystrokeInference {
+export function createKeystrokeInference(
+  deps: KeystrokeInferenceDeps,
+): KeystrokeInference {
   const now = deps.now ?? (() => Date.now());
   const setTimer = deps.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
   const clearTimer = deps.clearTimer ?? ((timer) => clearTimeout(timer));
-  const pending = new Map<string, { baseline: InferenceBaseline; timer: ReturnType<typeof setTimeout> }>();
+  const pending = new Map<
+    string,
+    { baseline: InferenceBaseline; timer: ReturnType<typeof setTimeout> }
+  >();
 
   function cancel(sessionId: string): void {
     const entry = pending.get(sessionId);
@@ -210,14 +243,19 @@ export function createKeystrokeInference(deps: KeystrokeInferenceDeps): Keystrok
       !fresh(current) ||
       deps.isAwaitingQuestion(sessionId)
     ) {
-      deps.log?.(`[INFER] ${sessionId.slice(0, 8)}: interrupt stood down; a real signal got there first`);
+      deps.log?.(
+        `[INFER] ${sessionId.slice(0, 8)}: interrupt stood down; a real signal got there first`,
+      );
       return "stood-down";
     }
     deps.writeInterrupted(sessionId, entry.baseline);
     return "interrupted";
   }
 
-  async function observeInput(sessionId: string, intent: InputIntent): Promise<InferenceOutcome> {
+  async function observeInput(
+    sessionId: string,
+    intent: InputIntent,
+  ): Promise<InferenceOutcome> {
     const baseline = deps.readBaseline(sessionId);
     if (!baseline || !fresh(baseline)) {
       cancel(sessionId);
@@ -251,7 +289,9 @@ export function createKeystrokeInference(deps: KeystrokeInferenceDeps): Keystrok
       return "ignored";
     }
     cancel(sessionId);
-    const timer = setTimer(() => { flushPending(sessionId); }, INTERRUPT_SETTLE_MS);
+    const timer = setTimer(() => {
+      flushPending(sessionId);
+    }, INTERRUPT_SETTLE_MS);
     timer.unref?.();
     pending.set(sessionId, { baseline, timer });
     return "armed";

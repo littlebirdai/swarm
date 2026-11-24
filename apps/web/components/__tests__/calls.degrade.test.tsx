@@ -12,7 +12,14 @@
 //               forever; the record button and the rest of the page stay
 // Run: cd apps/web && bun test --isolate components/__tests__/calls.degrade.test.tsx
 import { expect, test } from "bun:test";
-import { describeFailures, fixtureId, installDom, installMissingBackend, seedViewer, TEAM_ID } from "../../test-helpers/missingBackend";
+import {
+  describeFailures,
+  fixtureId,
+  installDom,
+  installMissingBackend,
+  seedViewer,
+  TEAM_ID,
+} from "../../test-helpers/missingBackend";
 import { stampRoster } from "../../lib/activeTeam";
 
 const TEAMMATE = fixtureId("degradeteammate");
@@ -27,7 +34,18 @@ const { default: CallsPage } = await import("../../app/calls/page");
 const store = useInboxStore.getState();
 store.syncTable("teamMembers", [
   ...(store.teamMembers as any[]),
-  ...stampRoster([{ _id: TEAMMATE, name: "Sam Teammate", email: "sam@degrade.test", role: "member", presence_state: "active" }], TEAM_ID),
+  ...stampRoster(
+    [
+      {
+        _id: TEAMMATE,
+        name: "Sam Teammate",
+        email: "sam@degrade.test",
+        role: "member",
+        presence_state: "active",
+      },
+    ],
+    TEAM_ID,
+  ),
 ] as any);
 
 test("the calls page and the face row render through every missing query", async () => {
@@ -35,14 +53,24 @@ test("the calls page and the face row render through every missing query", async
   try {
     expect(describeFailures(page)).toBe("");
     // The face row: the cached teammate is a face in the shell's top bar.
-    expect(page.container.querySelector(`[data-face-id="${TEAMMATE}"]`)).not.toBeNull();
+    expect(
+      page.container.querySelector(`[data-face-id="${TEAMMATE}"]`),
+    ).not.toBeNull();
     // The list: an honest failure with a way to ask again.
     const text = page.text();
     expect(text).toContain("Your calls could not be loaded.");
     expect(text).not.toContain("Loading…");
-    expect([...page.container.querySelectorAll("button")].some((b) => b.textContent?.trim() === "Try again")).toBe(true);
+    expect(
+      [...page.container.querySelectorAll("button")].some(
+        (b) => b.textContent?.trim() === "Try again",
+      ),
+    ).toBe(true);
     expect(text).toContain("Record a voice note");
-    for (const fn of ["transcripts:webListCalls", "teams:getTeamMembers", "calls:getCallConfig"]) {
+    for (const fn of [
+      "transcripts:webListCalls",
+      "teams:getTeamMembers",
+      "calls:getCallConfig",
+    ]) {
       expect(backend.refused).toContain(fn);
     }
   } finally {

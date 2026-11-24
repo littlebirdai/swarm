@@ -84,7 +84,9 @@ describe("snippet catalog", () => {
   });
 
   it("never shares a heading or end marker between two specs", () => {
-    const specs = SNIPPET_CATALOG.filter((s) => s.section).map((s) => s.section!.spec);
+    const specs = SNIPPET_CATALOG.filter((s) => s.section).map(
+      (s) => s.section!.spec,
+    );
     const heads = specs.map((sp) => sp.headings[0]);
     const ends = specs.map((sp) => sp.endMarker);
     expect(new Set(heads).size).toBe(heads.length);
@@ -94,8 +96,13 @@ describe("snippet catalog", () => {
 
 describe("delegated worker guidance", () => {
   it("teaches nested workers before independent inbox handoffs in full and stub forms", () => {
-    for (const body of [FORKS_SNIPPET, stubSectionBody(snippetBySlug("forks")!)]) {
-      expect(body.indexOf("cast spawn --subagent")).toBeLessThan(body.indexOf("Plain `cast spawn`"));
+    for (const body of [
+      FORKS_SNIPPET,
+      stubSectionBody(snippetBySlug("forks")!),
+    ]) {
+      expect(body.indexOf("cast spawn --subagent")).toBeLessThan(
+        body.indexOf("Plain `cast spawn`"),
+      );
       expect(body).toContain("implementers");
       expect(body).toContain("reviewers");
       expect(body).toContain("report back");
@@ -107,9 +114,13 @@ describe("delegated worker guidance", () => {
   it("keeps worker briefs and labeled launches out of the inbox", () => {
     expect(FORKS_SNIPPET).toContain("cast spawn --subagent -- - - <<'EOF'");
     const guide = guideText(snippetBySlug("forks")!);
-    expect(guide).toContain('cast spawn --subagent --label rollout "<task>" "<task>"');
+    expect(guide).toContain(
+      'cast spawn --subagent --label rollout "<task>" "<task>"',
+    );
     expect(guide).toContain("A label or a task/plan binding does not nest it");
-    expect(FORKS_SNIPPET).not.toContain("Use it to hand off self-contained work — a parallel audit");
+    expect(FORKS_SNIPPET).not.toContain(
+      "Use it to hand off self-contained work — a parallel audit",
+    );
   });
 });
 
@@ -130,9 +141,13 @@ describe("guidance size", () => {
   // back into the file. Raise one only with an eval showing the words pay
   // (./evals check guidance). The reason for each raise sits on GUIDANCE_MAX_CHARS.
   it("keeps the whole installed guidance and each section under budget", () => {
-    expect(renderGuidanceFile("full", "0.0.0").length).toBeLessThan(GUIDANCE_MAX_CHARS);
+    expect(renderGuidanceFile("full", "0.0.0").length).toBeLessThan(
+      GUIDANCE_MAX_CHARS,
+    );
     for (const topic of guideTopics()) {
-      expect(`${topic.slug} ${topic.section!.body.length < GUIDANCE_SECTION_MAX_CHARS}`).toBe(`${topic.slug} true`);
+      expect(
+        `${topic.slug} ${topic.section!.body.length < GUIDANCE_SECTION_MAX_CHARS}`,
+      ).toBe(`${topic.slug} true`);
     }
   });
 

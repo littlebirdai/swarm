@@ -7,7 +7,11 @@ import { normalizeRepository } from "./lib/gitRefs";
 import { resolveTeamForRepository } from "./githubWebhooks";
 import { commitBySha } from "./deployTargetsState";
 import { recordDeployMarker } from "./deploys";
-import { commitCiState, type CommitCiRun, type CommitCiState } from "@codecast/shared/contracts/deployTargets";
+import {
+  commitCiState,
+  type CommitCiRun,
+  type CommitCiState,
+} from "@codecast/shared/contracts/deployTargets";
 
 export const teamKey = (teamId: Id<"teams">) => `team:${teamId}`;
 
@@ -31,13 +35,22 @@ export type CommitCiInput = {
  * and a rerun (a newer start) takes the row over. Returns false for a repository
  * no team's installation routes.
  */
-export async function recordCommitCi(ctx: any, row: CommitCiInput, teamId?: Id<"teams"> | null): Promise<boolean> {
+export async function recordCommitCi(
+  ctx: any,
+  row: CommitCiInput,
+  teamId?: Id<"teams"> | null,
+): Promise<boolean> {
   const repository = normalizeRepository(row.repository);
   const team = teamId ?? (await resolveTeamForRepository(ctx, repository));
   if (!team) return false;
   const sha = row.sha.toLowerCase();
   const now = Date.now();
-  const rows: Doc<"commit_ci">[] = await ctx.db.query("commit_ci").withIndex("by_repository_sha", (q: any) => q.eq("repository", repository).eq("sha", sha)).take(50);
+  const rows: Doc<"commit_ci">[] = await ctx.db
+    .query("commit_ci")
+    .withIndex("by_repository_sha", (q: any) =>
+      q.eq("repository", repository).eq("sha", sha),
+    )
+    .take(50);
   const same = rows.find((r) => r.name === row.name && r.kind === row.kind);
   const fields = {
     ...(row.run_id ? { run_id: row.run_id } : {}),
@@ -50,10 +63,26 @@ export async function recordCommitCi(ctx: any, row: CommitCiInput, teamId?: Id<"
   if (same) {
     // An older run's late delivery does not speak over a newer run of the same workflow.
     if (row.started_at < same.started_at) return true;
-    if (same.status === "completed" && row.status !== "completed" && same.run_id === row.run_id) return true;
-    await ctx.db.patch(same._id, { ...fields, ...(row.conclusion ? {} : { conclusion: undefined }) });
+    if (
+      same.status === "completed" &&
+      row.status !== "completed" &&
+      same.run_id === row.run_id
+    )
+      return true;
+    await ctx.db.patch(same._id, {
+      ...fields,
+      ...(row.conclusion ? {} : { conclusion: undefined }),
+    });
   } else {
-    await ctx.db.insert("commit_ci", { workspace: teamKey(team), team_id: team, repository, sha, name: row.name, kind: row.kind, ...fields });
+    await ctx.db.insert("commit_ci", {
+      workspace: teamKey(team),
+      team_id: team,
+      repository,
+      sha,
+      name: row.name,
+      kind: row.kind,
+      ...fields,
+    });
   }
   return true;
 }
@@ -63,7 +92,13 @@ export function workflowRunCi(payload: any): CommitCiInput | null {
   const run = payload?.workflow_run;
   const repository = normalizeRepository(payload?.repository?.full_name);
   const defaultBranch = payload?.repository?.default_branch;
-  if (!run?.head_sha || !repository || !defaultBranch || run.head_branch !== defaultBranch) return null;
+  if (
+    !run?.head_sha ||
+    !repository ||
+    !defaultBranch ||
+    run.head_branch !== defaultBranch
+  )
+    return null;
   if (String(run.event ?? "").startsWith("pull_request")) return null;
   const headRepository = normalizeRepository(run.head_repository?.full_name);
   if (headRepository && headRepository !== repository) return null;
@@ -88,7 +123,13 @@ export function checkSuiteCi(payload: any): CommitCiInput | null {
   const suite = payload?.check_suite;
   const repository = normalizeRepository(payload?.repository?.full_name);
   const defaultBranch = payload?.repository?.default_branch;
-  if (!suite?.head_sha || !repository || !defaultBranch || suite.head_branch !== defaultBranch) return null;
+  if (
+    !suite?.head_sha ||
+    !repository ||
+    !defaultBranch ||
+    suite.head_branch !== defaultBranch
+  )
+    return null;
   const app = suite.app?.slug ?? suite.app?.name;
   if (!app || app === "github-actions") return null;
   // Apps that report by commit status instead (Railway, GitGuardian) leave a suite queued forever: it says nothing.
@@ -107,14 +148,35 @@ export function checkSuiteCi(payload: any): CommitCiInput | null {
 }
 
 /** Each commit's CI, read from its rows. */
-export async function ciOf(ctx: any, repository: string, sha: string): Promise<{ state: CommitCiState; url: string | null; runs: CommitCiRun[] }> {
-  const rows: Doc<"commit_ci">[] = await ctx.db.query("commit_ci").withIndex("by_repository_sha", (q: any) => q.eq("repository", repository).eq("sha", sha.toLowerCase())).take(50);
-  const runs = rows.map((r) => ({ name: r.name, status: r.status, conclusion: r.conclusion ?? null, url: r.url ?? null, at: r.started_at }));
+export async function ciOf(
+  ctx: any,
+  repository: string,
+  sha: string,
+): Promise<{ state: CommitCiState; url: string | null; runs: CommitCiRun[] }> {
+  const rows: Doc<"commit_ci">[] = await ctx.db
+    .query("commit_ci")
+    .withIndex("by_repository_sha", (q: any) =>
+      q.eq("repository", repository).eq("sha", sha.toLowerCase()),
+    )
+    .take(50);
+  const runs = rows.map((r) => ({
+    name: r.name,
+    status: r.status,
+    conclusion: r.conclusion ?? null,
+    url: r.url ?? null,
+    at: r.started_at,
+  }));
   const state = commitCiState(runs);
-  const red = runs.find((r) => r.status === "completed" && r.conclusion && !["success", "neutral", "skipped", "cancelled", "stale"].includes(r.conclusion));
+  const red = runs.find(
+    (r) =>
+      r.status === "completed" &&
+      r.conclusion &&
+      !["success", "neutral", "skipped", "cancelled", "stale"].includes(
+        r.conclusion,
+      ),
+  );
   return { state, url: red?.url ?? runs.find((r) => r.url)?.url ?? null, runs };
 }
-
 
 // ── main's order ─────────────────────────────────────────────────────────────
 
@@ -123,7 +185,11 @@ export async function ciOf(ctx: any, repository: string, sha: string): Promise<{
  * after the one before, from the push's time. A commit already ordered keeps
  * its place (a redelivery, the same commit pushed again).
  */
-export async function stampMainOrder(ctx: any, commitIds: Id<"commits">[], at: number): Promise<number> {
+export async function stampMainOrder(
+  ctx: any,
+  commitIds: Id<"commits">[],
+  at: number,
+): Promise<number> {
   let stamped = 0;
   for (const [i, id] of commitIds.entries()) {
     const c = await ctx.db.get(id);
@@ -136,7 +202,10 @@ export async function stampMainOrder(ctx: any, commitIds: Id<"commits">[], at: n
 
 // ── GitHub: a target that deploys on push (DP11) ─────────────────────────────
 
-const STATUS_TO_DEPLOY: Record<string, "running" | "live" | "failed" | undefined> = {
+const STATUS_TO_DEPLOY: Record<
+  string,
+  "running" | "live" | "failed" | undefined
+> = {
   pending: "running",
   queued: "running",
   in_progress: "running",
@@ -152,13 +221,34 @@ const STATUS_TO_DEPLOY: Record<string, "running" | "live" | "failed" | undefined
  */
 export async function recordGithubDeployStatus(
   ctx: any,
-  e: { repository: string; sha: string; context: string; state: string; url?: string; at: number; on_default_branch: boolean; actor?: string; description?: string },
+  e: {
+    repository: string;
+    sha: string;
+    context: string;
+    state: string;
+    url?: string;
+    at: number;
+    on_default_branch: boolean;
+    actor?: string;
+    description?: string;
+  },
 ): Promise<string[]> {
   const status = STATUS_TO_DEPLOY[e.state];
   if (!status || !e.on_default_branch) return [];
   const repository = normalizeRepository(e.repository);
-  const rows: Doc<"deploy_targets">[] = (await ctx.db.query("deploy_targets").withIndex("by_repository_name", (q: any) => q.eq("repository", repository)).take(50))
-    .filter((r: Doc<"deploy_targets">) => !r.retired_at && r.live.kind === "github-status" && r.live.context === e.context);
+  const rows: Doc<"deploy_targets">[] = (
+    await ctx.db
+      .query("deploy_targets")
+      .withIndex("by_repository_name", (q: any) =>
+        q.eq("repository", repository),
+      )
+      .take(50)
+  ).filter(
+    (r: Doc<"deploy_targets">) =>
+      !r.retired_at &&
+      r.live.kind === "github-status" &&
+      r.live.context === e.context,
+  );
   const out: string[] = [];
   for (const t of rows) {
     const deploy = await recordDeployMarker(ctx, {
@@ -172,7 +262,9 @@ export async function recordGithubDeployStatus(
       status,
       // What GitHub says about a failure ("Deployment failed", "crashed"), as the deploy's note.
       ...(status === "failed" && e.description ? { note: e.description } : {}),
-      ...(e.actor ? { started_by: { kind: "source" as const, name: e.actor } } : {}),
+      ...(e.actor
+        ? { started_by: { kind: "source" as const, name: e.actor } }
+        : {}),
       at: e.at,
     });
     if (deploy) out.push(deploy);
@@ -181,11 +273,16 @@ export async function recordGithubDeployStatus(
 }
 
 /** A `status` webhook payload as a deploy status, when it is on the default branch. */
-export function statusEventOf(payload: any): Parameters<typeof recordGithubDeployStatus>[1] | null {
+export function statusEventOf(
+  payload: any,
+): Parameters<typeof recordGithubDeployStatus>[1] | null {
   const repository = payload?.repository?.full_name;
   const defaultBranch = payload?.repository?.default_branch;
-  if (!repository || !payload?.sha || !payload?.context || !payload?.state) return null;
-  const branches: string[] = (payload.branches ?? []).map((b: any) => b?.name).filter(Boolean);
+  if (!repository || !payload?.sha || !payload?.context || !payload?.state)
+    return null;
+  const branches: string[] = (payload.branches ?? [])
+    .map((b: any) => b?.name)
+    .filter(Boolean);
   const at = Date.parse(payload.updated_at ?? payload.created_at ?? "");
   return {
     repository,
@@ -193,7 +290,9 @@ export function statusEventOf(payload: any): Parameters<typeof recordGithubDeplo
     context: payload.context,
     state: payload.state,
     ...(payload.target_url ? { url: payload.target_url } : {}),
-    ...(payload.description ? { description: String(payload.description).slice(0, 500) } : {}),
+    ...(payload.description
+      ? { description: String(payload.description).slice(0, 500) }
+      : {}),
     at: Number.isFinite(at) ? at : Date.now(),
     // GitHub lists the branches whose head holds the commit (up to ten); a status on main's commit names main.
     on_default_branch: !!defaultBranch && branches.includes(defaultBranch),
@@ -201,7 +300,9 @@ export function statusEventOf(payload: any): Parameters<typeof recordGithubDeplo
 }
 
 /** A `deployment_status` webhook payload as a deploy status: the deployment's environment is the context. */
-export function deploymentStatusEventOf(payload: any): Parameters<typeof recordGithubDeployStatus>[1] | null {
+export function deploymentStatusEventOf(
+  payload: any,
+): Parameters<typeof recordGithubDeployStatus>[1] | null {
   const repository = payload?.repository?.full_name;
   const dep = payload?.deployment;
   const st = payload?.deployment_status;
@@ -213,10 +314,15 @@ export function deploymentStatusEventOf(payload: any): Parameters<typeof recordG
     sha: dep.sha,
     context: dep.environment,
     state: st.state,
-    ...(st.log_url || st.target_url ? { url: st.log_url ?? st.target_url } : {}),
-    ...(st.description ? { description: String(st.description).slice(0, 500) } : {}),
+    ...(st.log_url || st.target_url
+      ? { url: st.log_url ?? st.target_url }
+      : {}),
+    ...(st.description
+      ? { description: String(st.description).slice(0, 500) }
+      : {}),
     at: Number.isFinite(at) ? at : Date.now(),
-    on_default_branch: ref === payload?.repository?.default_branch || ref === dep.sha,
+    on_default_branch:
+      ref === payload?.repository?.default_branch || ref === dep.sha,
     ...(dep.creator?.login ? { actor: dep.creator.login } : {}),
   };
 }
@@ -224,10 +330,19 @@ export function deploymentStatusEventOf(payload: any): Parameters<typeof recordG
 // ── GitHub: a target's deploy workflow (DP11) ────────────────────────────────
 
 /** A workflow run's state as its deploy's: anything not yet finished is running. */
-function runDeployStatus(status: string, conclusion: string | null | undefined): "running" | "live" | "failed" | "cancelled" {
+function runDeployStatus(
+  status: string,
+  conclusion: string | null | undefined,
+): "running" | "live" | "failed" | "cancelled" {
   if (status !== "completed") return "running";
   if (conclusion === "success") return "live";
-  if (conclusion === "cancelled" || conclusion === "skipped" || conclusion === "stale" || conclusion === "neutral") return "cancelled";
+  if (
+    conclusion === "cancelled" ||
+    conclusion === "skipped" ||
+    conclusion === "stale" ||
+    conclusion === "neutral"
+  )
+    return "cancelled";
   return "failed";
 }
 
@@ -259,19 +374,35 @@ export function workflowRunDeploy(payload: any): WorkflowRunDeploy | null {
   const run = payload?.workflow_run;
   const repository = normalizeRepository(payload?.repository?.full_name);
   const defaultBranch = payload?.repository?.default_branch;
-  if (!run?.id || !run.head_sha || !run.path || !repository || !defaultBranch || run.head_branch !== defaultBranch) return null;
+  if (
+    !run?.id ||
+    !run.head_sha ||
+    !run.path ||
+    !repository ||
+    !defaultBranch ||
+    run.head_branch !== defaultBranch
+  )
+    return null;
   // A pull request from a fork's own main reports head_branch main too: it ships nothing (as workflowRunCi reads it).
   if (String(run.event ?? "").startsWith("pull_request")) return null;
   const headRepository = normalizeRepository(run.head_repository?.full_name);
   if (headRepository && headRepository !== repository) return null;
   const workflow = String(run.path).split("/").pop()!;
   const attempt = Number(run.run_attempt ?? 1);
-  const base = String(run.html_url ?? `https://github.com/${payload.repository.full_name}/actions/runs/${run.id}`);
+  const base = String(
+    run.html_url ??
+      `https://github.com/${payload.repository.full_name}/actions/runs/${run.id}`,
+  );
   const url = attempt > 1 ? `${base}/attempts/${attempt}` : base;
   // Only a dispatched run's title is its run-name (where an input can name the commit); a push run's is a commit subject.
-  const dispatched = run.event === "workflow_dispatch" || run.event === "repository_dispatch";
-  const title = dispatched ? [run.display_title, run.name].filter(Boolean).join(" ") : "";
-  const named = (title.match(/\b[0-9a-f]{7,40}\b/gi) ?? []).filter((t) => /[a-f]/i.test(t) || t.length === 40);
+  const dispatched =
+    run.event === "workflow_dispatch" || run.event === "repository_dispatch";
+  const title = dispatched
+    ? [run.display_title, run.name].filter(Boolean).join(" ")
+    : "";
+  const named = (title.match(/\b[0-9a-f]{7,40}\b/gi) ?? []).filter(
+    (t) => /[a-f]/i.test(t) || t.length === 40,
+  );
   const started = Date.parse(run.run_started_at ?? run.created_at ?? "");
   const moved = Date.parse(run.updated_at ?? "");
   const name = payload?.workflow?.name ?? run.name ?? workflow;
@@ -285,24 +416,42 @@ export function workflowRunDeploy(payload: any): WorkflowRunDeploy | null {
     status: runDeployStatus(String(run.status ?? "queued"), run.conclusion),
     ...(run.conclusion ? { conclusion: String(run.conclusion) } : {}),
     name: String(name),
-    ...((run.triggering_actor?.login ?? run.actor?.login) ? { actor: String(run.triggering_actor?.login ?? run.actor?.login) } : {}),
+    ...((run.triggering_actor?.login ?? run.actor?.login)
+      ? { actor: String(run.triggering_actor?.login ?? run.actor?.login) }
+      : {}),
     started_at: Number.isFinite(started) ? started : Date.now(),
-    at: Number.isFinite(moved) ? moved : Number.isFinite(started) ? started : Date.now(),
+    at: Number.isFinite(moved)
+      ? moved
+      : Number.isFinite(started)
+        ? started
+        : Date.now(),
   };
 }
 
 /** A run of a target's deploy workflow, recorded as that target's deploy: running when it starts, then how it ended. */
-export async function recordWorkflowRunDeploy(ctx: any, payload: any): Promise<string[]> {
+export async function recordWorkflowRunDeploy(
+  ctx: any,
+  payload: any,
+): Promise<string[]> {
   const r = workflowRunDeploy(payload);
   if (!r) return [];
-  const targets: Doc<"deploy_targets">[] = (await ctx.db.query("deploy_targets").withIndex("by_repository_name", (q: any) => q.eq("repository", r.repository)).take(50))
-    .filter((t: Doc<"deploy_targets">) => !t.retired_at && t.workflow === r.workflow);
+  const targets: Doc<"deploy_targets">[] = (
+    await ctx.db
+      .query("deploy_targets")
+      .withIndex("by_repository_name", (q: any) =>
+        q.eq("repository", r.repository),
+      )
+      .take(50)
+  ).filter(
+    (t: Doc<"deploy_targets">) => !t.retired_at && t.workflow === r.workflow,
+  );
   const out: string[] = [];
   if (!targets.length) return [];
   // The commit the run name names, when main knows it (a stray hex word in a title is not a commit); else the run's own.
   // The named commit main knows, else the run-name's own word (a commit main never ingested still names what shipped).
   let named: string | null = null;
-  for (const w of r.named_shas) if (!named) named = (await commitBySha(ctx, r.repository, w))?.sha ?? null;
+  for (const w of r.named_shas)
+    if (!named) named = (await commitBySha(ctx, r.repository, w))?.sha ?? null;
   const sha = named ?? r.named_shas[0] ?? r.head_sha;
   for (const t of targets) {
     const deploy = await recordDeployMarker(ctx, {
@@ -316,8 +465,12 @@ export async function recordWorkflowRunDeploy(ctx: any, payload: any): Promise<s
       workflow_run: r.run,
       ...(sha !== r.head_sha ? { sha_named: true as const } : {}),
       status: r.status,
-      ...(r.status === "failed" ? { note: `${r.name} run ended ${r.conclusion ?? "failed"}.` } : {}),
-      ...(r.actor ? { started_by: { kind: "source" as const, name: r.actor } } : {}),
+      ...(r.status === "failed"
+        ? { note: `${r.name} run ended ${r.conclusion ?? "failed"}.` }
+        : {}),
+      ...(r.actor
+        ? { started_by: { kind: "source" as const, name: r.actor } }
+        : {}),
       started_at: r.started_at,
       at: r.status === "running" ? r.started_at : r.at,
     });

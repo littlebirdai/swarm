@@ -11,7 +11,11 @@
 // opening prompt. Subagent and workflow child sessions are left out.
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { isNestedIdentity, repositoryFromRemote, type WorkState } from "@codecast/shared/contracts";
+import {
+  isNestedIdentity,
+  repositoryFromRemote,
+  type WorkState,
+} from "@codecast/shared/contracts";
 import { internalMutation, internalQuery, mutation, query } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireTeamAdmin } from "./lib/access";
@@ -19,7 +23,11 @@ import { recordAuthorityEvent } from "./lib/authorityEvents";
 import { sha256Hex } from "./lib/hash";
 import { isVisibilityShareable, teamFloorScope } from "./privacy";
 import { needsHostedTitle } from "./assistant/backfills";
-import { isAfter, pageNewestFirst, type StreamPosition } from "./feedPagination";
+import {
+  isAfter,
+  pageNewestFirst,
+  type StreamPosition,
+} from "./feedPagination";
 import { windowSpent } from "./ipRateLimit";
 import { cliSessionClassifier } from "./cliSessionClassifier";
 import {
@@ -38,24 +46,39 @@ export const USE_WINDOW_MS = 60 * 60 * 1000;
 /** Rows one page may take, past the one it reads first for each member (feedPagination pageNewestFirst). */
 const PAGE_READ_BUDGET = 200;
 
-const isLive = (key: Doc<"team_read_keys">, now: number) => !key.revoked_at && key.expires_at > now;
-const useDue = (key: Doc<"team_read_keys">, now: number) => now - (key.last_used_at ?? 0) >= USE_WINDOW_MS;
+const isLive = (key: Doc<"team_read_keys">, now: number) =>
+  !key.revoked_at && key.expires_at > now;
+const useDue = (key: Doc<"team_read_keys">, now: number) =>
+  now - (key.last_used_at ?? 0) >= USE_WINDOW_MS;
 
-async function liveKey(ctx: any, key: Doc<"team_read_keys"> | null, now: number): Promise<Doc<"team_read_keys"> | null> {
+async function liveKey(
+  ctx: any,
+  key: Doc<"team_read_keys"> | null,
+  now: number,
+): Promise<Doc<"team_read_keys"> | null> {
   if (!key || !isLive(key, now)) return null;
   const team = await ctx.db.get(key.team_id);
   return team && !team.deleted_at ? key : null;
 }
 
-async function requireAdmin(ctx: any, teamId: Id<"teams">): Promise<Id<"users">> {
+async function requireAdmin(
+  ctx: any,
+  teamId: Id<"teams">,
+): Promise<Id<"users">> {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new Error("Not authenticated");
   await requireTeamAdmin(ctx, userId, teamId);
   return userId;
 }
 
-function keysOf(ctx: any, teamId: Id<"teams">): Promise<Doc<"team_read_keys">[]> {
-  return ctx.db.query("team_read_keys").withIndex("by_team", (q: any) => q.eq("team_id", teamId)).collect();
+function keysOf(
+  ctx: any,
+  teamId: Id<"teams">,
+): Promise<Doc<"team_read_keys">[]> {
+  return ctx.db
+    .query("team_read_keys")
+    .withIndex("by_team", (q: any) => q.eq("team_id", teamId))
+    .collect();
 }
 
 /** Admin-only: the team's keys, newest first, without their secrets. Null for anyone else. */
@@ -66,7 +89,9 @@ export const list = query({
     if (!userId) return null;
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", userId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", userId).eq("team_id", args.team_id),
+      )
       .first();
     if (membership?.role !== "admin") return null;
     const keys = await keysOf(ctx, args.team_id);
@@ -94,15 +119,22 @@ export const create = mutation({
   args: {
     team_id: v.id("teams"),
     name: v.string(),
-    expires_in_days: v.union(...TEAM_READ_KEY_EXPIRY_DAYS.map((d) => v.literal(d))),
+    expires_in_days: v.union(
+      ...TEAM_READ_KEY_EXPIRY_DAYS.map((d) => v.literal(d)),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await requireAdmin(ctx, args.team_id);
     const team = await ctx.db.get(args.team_id);
     if (!team || team.deleted_at) throw new Error("No such team");
     const now = Date.now();
-    if ((await keysOf(ctx, args.team_id)).filter((k) => isLive(k, now)).length >= MAX_LIVE_TEAM_READ_KEYS) {
-      throw new ConvexError(`A team can have ${MAX_LIVE_TEAM_READ_KEYS} active read-only keys. Revoke one to create another.`);
+    if (
+      (await keysOf(ctx, args.team_id)).filter((k) => isLive(k, now)).length >=
+      MAX_LIVE_TEAM_READ_KEYS
+    ) {
+      throw new ConvexError(
+        `A team can have ${MAX_LIVE_TEAM_READ_KEYS} active read-only keys. Revoke one to create another.`,
+      );
     }
     const key = newTeamReadKey();
     const name = args.name.trim().slice(0, 80) || "Read-only key";
@@ -140,7 +172,9 @@ export const revoke = mutation({
       kind: "team_read_key_revoked",
       actor_user_id: userId,
       team_id: row.team_id,
-      detail: { after: { key_id: row._id, name: row.name, prefix: row.prefix } },
+      detail: {
+        after: { key_id: row._id, name: row.name, prefix: row.prefix },
+      },
     });
   },
 });
@@ -153,12 +187,30 @@ export type FoundKey = { key_id: Id<"team_read_keys">; use_due: boolean };
  * lookup, as ingest's sourceForKey does.
  */
 export const keyForHash = internalQuery({
-  args: { key_hash: v.string(), guess_guard: v.object({ key: v.string(), max: v.number(), window_ms: v.number() }) },
-  handler: async (ctx, args): Promise<FoundKey | { retry_after_ms: number } | null> => {
-    const wait = await windowSpent(ctx.db, args.guess_guard.key, args.guess_guard.max, args.guess_guard.window_ms);
+  args: {
+    key_hash: v.string(),
+    guess_guard: v.object({
+      key: v.string(),
+      max: v.number(),
+      window_ms: v.number(),
+    }),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<FoundKey | { retry_after_ms: number } | null> => {
+    const wait = await windowSpent(
+      ctx.db,
+      args.guess_guard.key,
+      args.guess_guard.max,
+      args.guess_guard.window_ms,
+    );
     if (wait !== null) return { retry_after_ms: wait };
     const now = Date.now();
-    const row = await ctx.db.query("team_read_keys").withIndex("by_key_hash", (q) => q.eq("key_hash", args.key_hash)).first();
+    const row = await ctx.db
+      .query("team_read_keys")
+      .withIndex("by_key_hash", (q) => q.eq("key_hash", args.key_hash))
+      .first();
     const key = await liveKey(ctx, row, now);
     return key ? { key_id: key._id, use_due: useDue(key, now) } : null;
   },
@@ -180,7 +232,9 @@ export const recordUse = internalMutation({
       kind: "team_read_key_used",
       actor_user_id: key.created_by,
       team_id: key.team_id,
-      detail: { after: { key_id: key._id, name: key.name, prefix: key.prefix } },
+      detail: {
+        after: { key_id: key._id, name: key.name, prefix: key.prefix },
+      },
     });
   },
 });
@@ -217,7 +271,13 @@ export const sessionsForKey = internalQuery({
     limit: v.number(),
     after: v.union(v.object({ t: v.number(), c: v.number() }), v.null()),
   },
-  handler: async (ctx, args): Promise<{ sessions: TeamSessionRow[]; next: StreamPosition | null } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    sessions: TeamSessionRow[];
+    next: StreamPosition | null;
+  } | null> => {
     const now = Date.now();
     const key = await liveKey(ctx, await ctx.db.get(args.key_id), now);
     if (!key) return null;
@@ -225,7 +285,9 @@ export const sessionsForKey = internalQuery({
     // The members who can list a session, as cast feed reads them: sharing above
     // activity with the team, and not hidden for the whole account (the legacy setting).
     const sharing = floor.members.filter(
-      (u) => u.activity_visibility !== "hidden" && isVisibilityShareable(floor.filter.getVisibility(String(u._id))),
+      (u) =>
+        u.activity_visibility !== "hidden" &&
+        isVisibilityShareable(floor.filter.getVisibility(String(u._id))),
     );
     const { after } = args;
     const team = key.team_id;
@@ -233,7 +295,11 @@ export const sessionsForKey = internalQuery({
       const scan = ctx.db
         .query("conversations")
         .withIndex("by_team_user_updated", (q) =>
-          q.eq("team_id", team).eq("user_id", member).gte("updated_at", args.since).lte("updated_at", Math.min(after?.t ?? args.until, args.until)),
+          q
+            .eq("team_id", team)
+            .eq("user_id", member)
+            .gte("updated_at", args.since)
+            .lte("updated_at", Math.min(after?.t ?? args.until, args.until)),
         )
         .order("desc");
       for await (const c of scan) if (!after || isAfter(c, after)) yield c;
@@ -249,14 +315,23 @@ export const sessionsForKey = internalQuery({
     const classifier = cliSessionClassifier(ctx, now);
     const sessions: TeamSessionRow[] = [];
     for (const c of page.rows) {
-      const owner = roster.get(String(c.owner_user_id)) ?? roster.get(String(c.user_id))!;
+      const owner =
+        roster.get(String(c.owner_user_id)) ?? roster.get(String(c.user_id))!;
       sessions.push({
         id: c.short_id ?? String(c._id),
-        owner: { id: String(owner._id), name: owner.name ?? null, github_username: owner.github_username ?? null },
+        owner: {
+          id: String(owner._id),
+          name: owner.name ?? null,
+          github_username: owner.github_username ?? null,
+        },
         agent: c.agent_type,
         branch: c.git_branch ?? null,
         repo: repositoryFromRemote(c.git_remote_url),
-        title: (c.title_is_custom || c.subtitle !== undefined) && !needsHostedTitle(c) ? (c.title ?? null) : null,
+        title:
+          (c.title_is_custom || c.subtitle !== undefined) &&
+          !needsHostedTitle(c)
+            ? (c.title ?? null)
+            : null,
         summary: c.subtitle ?? null,
         sharing: floor.contentVisible(c) ? "full" : "summary",
         work_state: (await classifier.classify(c)).work_state,

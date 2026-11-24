@@ -45,23 +45,43 @@ const SRC = path.resolve(COMPUTER, "..");
  * to teach it, so a bare string match would fail on its own guidance.
  */
 const RAISES: { what: string; re: RegExp }[] = [
-  { what: "sets restoreWindow on a helper request", re: /\brestoreWindow\b/ },
-  { what: "declares the --restore-window flag", re: /\.option\(\s*"--restore-window/ },
-  { what: "launches the helper's System Settings window", re: /\bopenPermissionSettings\b/ },
-  { what: "declares the --open-settings flag", re: /\.option\(\s*"--open-settings/ },
+  { what: "sets restoreWindow on a helper request", re: /\brestoreWindow\b/g },
+  {
+    what: "declares the --restore-window flag",
+    re: /\.option\(\s*"--restore-window/g,
+  },
+  {
+    what: "launches the helper's System Settings window",
+    re: /\bopenPermissionSettings\b/g,
+  },
+  {
+    what: "declares the --open-settings flag",
+    re: /\.option\(\s*"--open-settings/g,
+  },
 ];
 
 /** Files allowed to raise, each with the reason it is the agent's explicit ask. */
 const ALLOWED: Record<string, string> = {
-  "computer/cli.ts": "declares the two flags in the feature that may take the human's screen",
-  "computer/run.ts": "routes those flags, and only those flags, to the raising call",
-  "computer/client.ts": "stamps the deliberate raise before the request goes out, so the sentinel spares it",
-  "computer/permissions.ts": "opens the settings window for --open-settings, stamped the same way",
-  "computer/setup.ts": "opens each missing pane only past the confirm a human answered, or an explicit --yes",
-  "computer/remoteGrant.ts": "reads restoreWindow only to refuse it: a cloud host never raises a window on the laptop",
+  "computer/cli.ts":
+    "declares the two flags in the feature that may take the human's screen",
+  "computer/run.ts":
+    "routes those flags, and only those flags, to the raising call",
+  "computer/client.ts":
+    "stamps the deliberate raise before the request goes out, so the sentinel spares it",
+  "computer/permissions.ts":
+    "opens the settings window for --open-settings, stamped the same way",
+  "computer/setup.ts":
+    "opens each missing pane only past the confirm a human answered, or an explicit --yes",
+  "computer/remoteGrant.ts":
+    "reads restoreWindow only to refuse it: a cloud host never raises a window on the laptop",
 };
 
-const SKIP_DIRS = new Set(["node_modules", "dist", "__fixtures__", "test-helpers"]);
+const SKIP_DIRS = new Set([
+  "node_modules",
+  "dist",
+  "__fixtures__",
+  "test-helpers",
+]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -69,7 +89,8 @@ function walk(dir: string, out: string[] = []): string[] {
       if (!SKIP_DIRS.has(entry.name)) walk(path.join(dir, entry.name), out);
       continue;
     }
-    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts")) continue;
+    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts"))
+      continue;
     out.push(path.join(dir, entry.name));
   }
   return out;
@@ -82,14 +103,17 @@ describe("no cast computer verb raises a window over the human", () => {
     const rel = path.relative(SRC, file);
     // codeLines drops comments and strings-only lines, so a mention in prose
     // (this feature is full of it) never counts as a raise.
-    for (const { line, n } of codeLines(fs.readFileSync(file, "utf8"))) {
-      const hit = RAISES.find((raise) => raise.re.test(line));
-      if (!hit) continue;
-      if (rel in ALLOWED) {
-        seenAllowed.add(rel);
-        continue;
+    const lines = codeLines(fs.readFileSync(file, "utf8"));
+    const code = lines.map(({ line }) => line).join("\n");
+    for (const { what, re } of RAISES) {
+      for (const match of code.matchAll(re)) {
+        if (rel in ALLOWED) {
+          seenAllowed.add(rel);
+          break;
+        }
+        const lineIndex = code.slice(0, match.index).split("\n").length - 1;
+        offenders.push(`${rel}:${lines[lineIndex].n} ${what}`);
       }
-      offenders.push(`${rel}:${n} ${hit.what}`);
     }
   }
 
@@ -98,7 +122,9 @@ describe("no cast computer verb raises a window over the human", () => {
   });
 
   test("every allowlist entry still raises (no stale entries)", () => {
-    expect(Object.keys(ALLOWED).filter((rel) => !seenAllowed.has(rel))).toEqual([]);
+    expect(Object.keys(ALLOWED).filter((rel) => !seenAllowed.has(rel))).toEqual(
+      [],
+    );
   });
 });
 
@@ -109,16 +135,25 @@ describe("no cast computer verb raises a window over the human", () => {
  * of them (ct-49790).
  */
 describe("cast computer setup opens nothing until it is allowed to", () => {
-  const opened = (calls: string[]) => calls.filter((c) => c.startsWith("open:"));
+  const opened = (calls: string[]) =>
+    calls.filter((c) => c.startsWith("open:"));
 
   test("a human who says no gets no window", async () => {
-    const harness = setupHarness({ isTty: true, confirm: false, grants: [NONE] });
+    const harness = setupHarness({
+      isTty: true,
+      confirm: false,
+      grants: [NONE],
+    });
     await runComputerSetup({}, harness.deps as ComputerSetupDeps);
     expect(opened(harness.calls)).toEqual([]);
   });
 
   test("no terminal and no --yes gets no window, and is not even asked", async () => {
-    const harness = setupHarness({ isTty: false, confirm: true, grants: [NONE] });
+    const harness = setupHarness({
+      isTty: false,
+      confirm: true,
+      grants: [NONE],
+    });
     await runComputerSetup({}, harness.deps as ComputerSetupDeps);
     expect(harness.calls).toEqual(["materialize", "read"]);
   });
@@ -130,6 +165,8 @@ describe("cast computer setup opens nothing until it is allowed to", () => {
       grants: [NONE, { accessibility: "granted", screenshots: "granted" }],
     });
     await runComputerSetup({}, harness.deps as ComputerSetupDeps);
-    expect(harness.calls.indexOf("confirm")).toBeLessThan(harness.calls.indexOf("open:accessibility"));
+    expect(harness.calls.indexOf("confirm")).toBeLessThan(
+      harness.calls.indexOf("open:accessibility"),
+    );
   });
 });

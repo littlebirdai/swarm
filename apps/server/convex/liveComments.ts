@@ -15,12 +15,25 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { canAccessDoc } from "./lib/access";
 import { resolveMentions, resolveSessionMentions } from "./lib/mentionResolve";
-import { canSendProductMessage, enqueuePendingMessage } from "./pendingMessages";
+import {
+  canSendProductMessage,
+  enqueuePendingMessage,
+} from "./pendingMessages";
 import { siteUrl } from "./lib/siteUrl";
-import { artifactSpec, askAgentBrief, type ArtifactOp, type ArtifactType } from "@codecast/shared/artifacts";
+import {
+  artifactSpec,
+  askAgentBrief,
+  type ArtifactOp,
+  type ArtifactType,
+} from "@codecast/shared/artifacts";
 import { mayEditLive, type Caller } from "./lib/liveArtifactAccess";
 
-export type NewComment = { key: string; text: string; parent?: string; sent_to?: string };
+export type NewComment = {
+  key: string;
+  text: string;
+  parent?: string;
+  sent_to?: string;
+};
 
 /** Comment rows a thread lookup reads at most. */
 const THREAD_ROWS_MAX = 500;
@@ -30,10 +43,15 @@ function personOf(actor: unknown): Id<"users"> | null {
   return s.startsWith("u:") ? (s.slice(2) as Id<"users">) : null;
 }
 
-async function commentRows(ctx: any, docId: Id<"docs">): Promise<Doc<"live_elements">[]> {
+async function commentRows(
+  ctx: any,
+  docId: Id<"docs">,
+): Promise<Doc<"live_elements">[]> {
   return await ctx.db
     .query("live_elements")
-    .withIndex("by_doc_layer_key", (q: any) => q.eq("doc_id", docId).eq("layer", "comments"))
+    .withIndex("by_doc_layer_key", (q: any) =>
+      q.eq("doc_id", docId).eq("layer", "comments"),
+    )
     .take(THREAD_ROWS_MAX);
 }
 
@@ -52,8 +70,13 @@ export async function notifyLiveComments(
   const type = doc.doc_type as ArtifactType;
   const noun = artifactSpec(type).label.toLowerCase();
   const title = doc.title || `Untitled ${noun}`;
-  const all = created.some((c) => c.parent) ? await commentRows(ctx, doc._id) : [];
-  const head = await ctx.db.query("live_heads").withIndex("by_doc", (q: any) => q.eq("doc_id", doc._id)).first();
+  const all = created.some((c) => c.parent)
+    ? await commentRows(ctx, doc._id)
+    : [];
+  const head = await ctx.db
+    .query("live_heads")
+    .withIndex("by_doc", (q: any) => q.eq("doc_id", doc._id))
+    .first();
   const mayEdit = mayEditLive(doc, head, caller.userId);
   const byKey = new Map(all.map((r) => [r.key, r]));
 
@@ -62,8 +85,14 @@ export async function notifyLiveComments(
     const link = `/docs/${doc._id}?c=${rootKey}`;
     // A person never hears about their own comment; an agent session's comment
     // reaches its owner like anyone's (that is how an Ask reports back).
-    const notified = new Set<string>(caller.kind === "person" ? [String(caller.userId)] : []);
-    const emit = async (event_type: "mention" | "comment_reply" | "doc_commented", to: Id<"users">, message: string) => {
+    const notified = new Set<string>(
+      caller.kind === "person" ? [String(caller.userId)] : [],
+    );
+    const emit = async (
+      event_type: "mention" | "comment_reply" | "doc_commented",
+      to: Id<"users">,
+      message: string,
+    ) => {
       if (notified.has(String(to))) return;
       notified.add(String(to));
       // The text goes into the bell: only someone who can open the artifact gets it.
@@ -72,7 +101,9 @@ export async function notifyLiveComments(
         event_type,
         // An agent session acts for its owner; naming the owner as actor would
         // drop the owner's own notification (the router skips self-notices).
-        ...(caller.kind === "agent" ? { actor_name: caller.name } : { actor_user_id: caller.userId }),
+        ...(caller.kind === "agent"
+          ? { actor_name: caller.name }
+          : { actor_user_id: caller.userId }),
         entity_type: "doc",
         entity_id: String(doc._id),
         message,
@@ -85,9 +116,18 @@ export async function notifyLiveComments(
 
     let named = false;
     if (doc.team_id) {
-      for (const uid of await resolveMentions(ctx, doc.team_id, c.text, caller.userId)) {
+      for (const uid of await resolveMentions(
+        ctx,
+        doc.team_id,
+        c.text,
+        caller.userId,
+      )) {
         named = true;
-        await emit("mention", uid, `${caller.name} mentioned you on the ${noun} "${title}"`);
+        await emit(
+          "mention",
+          uid,
+          `${caller.name} mentioned you on the ${noun} "${title}"`,
+        );
       }
     }
 
@@ -95,7 +135,9 @@ export async function notifyLiveComments(
     // naming another stays prose: agents do not start each other from comments.
     // Only someone who may edit the artifact: the agent works with their rights, and a viewer's agent could change nothing.
     if (caller.kind === "person" && !c.sent_to && mayEdit) {
-      const sessions = await resolveSessionMentions(ctx, c.text, (conv) => canSendProductMessage(ctx, caller.userId, conv));
+      const sessions = await resolveSessionMentions(ctx, c.text, (conv) =>
+        canSendProductMessage(ctx, caller.userId, conv),
+      );
       for (const conv of sessions.slice(0, 3)) {
         named = true;
         const brief = askAgentBrief({
@@ -104,11 +146,24 @@ export async function notifyLiveComments(
           url: `${siteUrl()}/docs/${doc._id}`,
           comment_key: rootKey,
         });
-        await enqueuePendingMessage(ctx, conv, caller.userId, { content: brief, human: true });
+        await enqueuePendingMessage(ctx, conv, caller.userId, {
+          content: brief,
+          human: true,
+        });
         // The thread tracks the ask wherever it was made: a reply's ask stamps the root,
         // and a new ask on an answered thread puts it back with the agent.
         if (followUps.some((f) => f.k === rootKey)) continue;
-        followUps.push({ k: rootKey, set: c.parent ? { sent_to: String(conv._id), answered_at: null, answered_by: null, answered_by_name: null } : { sent_to: String(conv._id) } });
+        followUps.push({
+          k: rootKey,
+          set: c.parent
+            ? {
+                sent_to: String(conv._id),
+                answered_at: null,
+                answered_by: null,
+                answered_by_name: null,
+              }
+            : { sent_to: String(conv._id) },
+        });
       }
     }
 
@@ -118,23 +173,48 @@ export async function notifyLiveComments(
       const people = new Set<string>();
       const rootAuthor = personOf(root?.fields?.author);
       if (rootAuthor) people.add(rootAuthor);
-      for (const r of all) if (r.fields?.parent === c.parent && r.key !== c.key) {
-        const p = personOf(r.fields?.author);
-        if (p) people.add(p);
-      }
-      for (const p of people) await emit("comment_reply", p as Id<"users">, `${caller.name} replied on the ${noun} "${title}"`);
+      for (const r of all)
+        if (r.fields?.parent === c.parent && r.key !== c.key) {
+          const p = personOf(r.fields?.author);
+          if (p) people.add(p);
+        }
+      for (const p of people)
+        await emit(
+          "comment_reply",
+          p as Id<"users">,
+          `${caller.name} replied on the ${noun} "${title}"`,
+        );
       // The session the ask went to answers it. An ask whose session was not known yet (handed to the
       // composer, or a start that never resolved its id) is answered by the first agent to reply, which it now names.
       const sentTo = root?.fields?.sent_to;
-      if (caller.kind === "agent" && typeof sentTo === "string" && sentTo && !root.fields.answered_at) {
+      if (
+        caller.kind === "agent" &&
+        typeof sentTo === "string" &&
+        sentTo &&
+        !root.fields.answered_at
+      ) {
         const known = ctx.db.normalizeId("conversations", sentTo) !== null;
         if (!known || caller.actor === `s:${sentTo}`) {
-          const conv = caller.actor.startsWith("s:") ? caller.actor.slice(2) : null;
-          followUps.push({ k: c.parent, set: { answered_at: Date.now(), answered_by: caller.actor, answered_by_name: caller.name, ...(!known && conv ? { sent_to: conv } : {}) } });
+          const conv = caller.actor.startsWith("s:")
+            ? caller.actor.slice(2)
+            : null;
+          followUps.push({
+            k: c.parent,
+            set: {
+              answered_at: Date.now(),
+              answered_by: caller.actor,
+              answered_by_name: caller.name,
+              ...(!known && conv ? { sent_to: conv } : {}),
+            },
+          });
         }
       }
     } else if (!named && String(doc.user_id) !== String(caller.userId)) {
-      await emit("doc_commented", doc.user_id, `${caller.name} commented on the ${noun} "${title}"`);
+      await emit(
+        "doc_commented",
+        doc.user_id,
+        `${caller.name} commented on the ${noun} "${title}"`,
+      );
     }
   }
   return followUps;

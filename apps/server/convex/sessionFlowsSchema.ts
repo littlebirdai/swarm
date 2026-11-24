@@ -9,7 +9,12 @@
 
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
-import { graphFilesValidator, graphNodeHashesValidator, workflowEdgeValidator, workflowNodeValidator } from "./lib/workflowGraphValidators";
+import {
+  graphFilesValidator,
+  graphNodeHashesValidator,
+  workflowEdgeValidator,
+  workflowNodeValidator,
+} from "./lib/workflowGraphValidators";
 
 export const sessionFlowTables = {
   session_flows: defineTable({
@@ -31,7 +36,9 @@ export const sessionFlowTables = {
     script: v.optional(v.string()),
     first_run_id: v.id("workflow_runs"),
     last_run_at: v.number(),
-    saved: v.optional(v.object({ workflow_id: v.id("workflows"), slug: v.string() })),
+    saved: v.optional(
+      v.object({ workflow_id: v.id("workflows"), slug: v.string() }),
+    ),
     created_at: v.number(),
   })
     .index("by_workspace_hash", ["workspace", "graph_hash"])

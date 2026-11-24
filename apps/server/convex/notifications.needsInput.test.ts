@@ -5,18 +5,31 @@ import {
   summarizeIdleDigest,
   IDLE_DIGEST_WINDOW_MS,
 } from "./notifications";
-import { applyPause, applyResume, ensureRoleNeedsInputTrigger, settleRunConversation } from "./agentTasks";
-import { parseScheduledTask, runResultThreadOf } from "@codecast/shared/contracts";
+import {
+  applyPause,
+  applyResume,
+  ensureRoleNeedsInputTrigger,
+  settleRunConversation,
+} from "./agentTasks";
+import {
+  parseScheduledTask,
+  runResultThreadOf,
+} from "@codecast/shared/contracts";
 import { performSetIdleSummary } from "./idleSummary";
 import { performPushFlush } from "./pushRouter";
 
-import { createCtx, settledIdleWorld, type Rec } from "./notifications.needsInput.testkit";
-
+import {
+  createCtx,
+  settledIdleWorld,
+  type Rec,
+} from "./notifications.needsInput.testkit";
 
 describe("needs-input push — settled idle", () => {
   test("pushes once when a finished turn settles into needs-input", async () => {
     const { ctx, tables, scheduled } = settledIdleWorld();
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
 
     expect(res.notified).toBe(true);
     expect(tables.notifications.length).toBe(1);
@@ -52,12 +65,26 @@ describe("needs-input push — settled idle", () => {
         { _id: "u1", notifications_enabled: true, push_token: "tok-u1" },
         { _id: "u2", notifications_enabled: true, push_token: "tok-u2" },
       ],
-      extra: { session_owners: [{ _id: "so1", conversation_id: "conv1", user_id: "u2", added_by: "u1", added_at: 1 }] },
+      extra: {
+        session_owners: [
+          {
+            _id: "so1",
+            conversation_id: "conv1",
+            user_id: "u2",
+            added_by: "u1",
+            added_at: 1,
+          },
+        ],
+      },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
 
     expect(res.notified).toBe(true);
-    expect(tables.notifications.map((n: Rec) => n.recipient_user_id)).toEqual(["u2"]);
+    expect(tables.notifications.map((n: Rec) => n.recipient_user_id)).toEqual([
+      "u2",
+    ]);
   });
 
   test("an owner set that still holds the runner rings them both", async () => {
@@ -69,19 +96,35 @@ describe("needs-input push — settled idle", () => {
       ],
       extra: {
         session_owners: [
-          { _id: "so1", conversation_id: "conv1", user_id: "u2", added_by: "u1", added_at: 1 },
-          { _id: "so2", conversation_id: "conv1", user_id: "u1", added_by: "u1", added_at: 2 },
+          {
+            _id: "so1",
+            conversation_id: "conv1",
+            user_id: "u2",
+            added_by: "u1",
+            added_at: 1,
+          },
+          {
+            _id: "so2",
+            conversation_id: "conv1",
+            user_id: "u1",
+            added_by: "u1",
+            added_at: 2,
+          },
         ],
       },
     });
     await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
-    expect(tables.notifications.map((n: Rec) => n.recipient_user_id).sort()).toEqual(["u1", "u2"]);
+    expect(
+      tables.notifications.map((n: Rec) => n.recipient_user_id).sort(),
+    ).toEqual(["u1", "u2"]);
   });
 
   test("same waiting episode never pushes twice; a new turn pushes again", async () => {
     const { ctx, tables, scheduled } = settledIdleWorld();
     await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
-    const dup = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const dup = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(dup.notified).toBe(false);
     expect(dup.reason).toBe("dup");
     expect(tables.notifications.length).toBe(1);
@@ -91,7 +134,9 @@ describe("needs-input push — settled idle", () => {
     // state row instead of stacking a second entry in the notification list.
     tables.conversations[0].message_count = 6;
     const firstRowId = tables.notifications[0]._id;
-    const next = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const next = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(next.notified).toBe(true);
     expect(tables.notifications.length).toBe(1);
     // The row is superseded IN PLACE: same _id, so no second banner, and the
@@ -107,10 +152,14 @@ describe("needs-input push — settled idle", () => {
 
   test("with the digest off, every episode alerts on its own", async () => {
     const { ctx, tables } = settledIdleWorld({
-      users: [{
-        _id: "u1", notifications_enabled: true, push_token: "tok-u1",
-        notification_preferences: { session_idle_digest: false },
-      }],
+      users: [
+        {
+          _id: "u1",
+          notifications_enabled: true,
+          push_token: "tok-u1",
+          notification_preferences: { session_idle_digest: false },
+        },
+      ],
     });
     await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
     tables.conversations[0].message_count = 6;
@@ -152,7 +201,9 @@ describe("needs-input push — settled idle", () => {
         created_at: Date.now() - 120_000,
       },
     );
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(true);
 
     const ids = tables.notifications.map((n) => n._id);
@@ -183,15 +234,21 @@ describe("needs-input push — settled idle", () => {
       conv: { updated_at: now - 5_000 },
       session: { agent_status_updated_at: now - 5_000 },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(res.reason).toBe("not_needs_input");
     expect(tables.notifications.length).toBe(0);
   });
 
   test("queued work (has_pending_messages) means WORKING, not needs-input", async () => {
-    const { ctx, tables } = settledIdleWorld({ conv: { has_pending_messages: true } });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const { ctx, tables } = settledIdleWorld({
+      conv: { has_pending_messages: true },
+    });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(tables.notifications.length).toBe(0);
   });
@@ -208,7 +265,9 @@ describe("needs-input push — settled idle", () => {
       updated_at: now - 30_000, // produced output within the 5-min grace
       message_count: 3,
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(tables.notifications.length).toBe(0);
   });
@@ -219,7 +278,10 @@ describe("needs-input push — AskUserQuestion", () => {
     const now = Date.now();
     const { ctx, tables, scheduled } = settledIdleWorld({
       conv: { updated_at: now - 2_000 },
-      session: { agent_status: "working", agent_status_updated_at: now - 2_000 },
+      session: {
+        agent_status: "working",
+        agent_status_updated_at: now - 2_000,
+      },
       messages: [
         {
           _id: "m1",
@@ -231,15 +293,21 @@ describe("needs-input push — AskUserQuestion", () => {
             {
               id: "tu1",
               name: "AskUserQuestion",
-              input: JSON.stringify({ questions: [{ question: "Deploy to prod?" }] }),
+              input: JSON.stringify({
+                questions: [{ question: "Deploy to prod?" }],
+              }),
             },
           ],
         },
       ],
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(true);
-    expect(tables.conversations[0].needs_input_notified_key).toBe("5:awaiting_input");
+    expect(tables.conversations[0].needs_input_notified_key).toBe(
+      "5:awaiting_input",
+    );
     expect(tables.push_outbox.length).toBe(1);
     expect(tables.push_outbox[0].body).toBe("Deploy to prod?");
   });
@@ -248,7 +316,10 @@ describe("needs-input push — AskUserQuestion", () => {
     const now = Date.now();
     const { ctx, tables } = settledIdleWorld({
       conv: { updated_at: now - 2_000 },
-      session: { agent_status: "working", agent_status_updated_at: now - 2_000 },
+      session: {
+        agent_status: "working",
+        agent_status_updated_at: now - 2_000,
+      },
       messages: [
         {
           _id: "m1",
@@ -267,7 +338,9 @@ describe("needs-input push — AskUserQuestion", () => {
         },
       ],
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(tables.notifications.length).toBe(0);
   });
@@ -278,30 +351,49 @@ describe("needs-input push — permission blocks", () => {
     const now = Date.now();
     const { ctx, tables } = settledIdleWorld({
       conv: { updated_at: now - 2_000 },
-      session: { agent_status: "permission_blocked", agent_status_updated_at: now - 11_000 },
+      session: {
+        agent_status: "permission_blocked",
+        agent_status_updated_at: now - 11_000,
+      },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(true);
-    expect(tables.conversations[0].needs_input_notified_key).toBe("5:permission_blocked");
+    expect(tables.conversations[0].needs_input_notified_key).toBe(
+      "5:permission_blocked",
+    );
   });
 
   test("a pending permission record means the daemon already pushed — stand down", async () => {
     const now = Date.now();
     const { ctx, tables } = settledIdleWorld({
       conv: { updated_at: now - 2_000 },
-      session: { agent_status: "permission_blocked", agent_status_updated_at: now - 11_000 },
+      session: {
+        agent_status: "permission_blocked",
+        agent_status_updated_at: now - 11_000,
+      },
       extra: {
         pending_permissions: [
-          { _id: "pp1", conversation_id: "conv1", status: "pending", tool_name: "Bash" },
+          {
+            _id: "pp1",
+            conversation_id: "conv1",
+            status: "pending",
+            tool_name: "Bash",
+          },
         ],
       },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(res.reason).toBe("daemon_permission_push");
     expect(tables.notifications.length).toBe(0);
     // Episode is still marked handled so a later idle flip can't re-push it.
-    expect(tables.conversations[0].needs_input_notified_key).toBe("5:permission_blocked");
+    expect(tables.conversations[0].needs_input_notified_key).toBe(
+      "5:permission_blocked",
+    );
   });
 });
 
@@ -323,13 +415,18 @@ describe("needs-input push — exclusions (mirrors the idle sound's guards)", ()
     ["agent_spawned", { agent_name: "researcher" }],
     // …and spawned schedule-run conversations.
     ["schedule_run", { agent_task_id: "task1" }],
-  ] as Array<[string, Rec]>)("%s sessions never push", async (reason, convOverride) => {
-    const { ctx, tables } = settledIdleWorld({ conv: convOverride });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
-    expect(res.notified).toBe(false);
-    expect(res.reason).toBe(reason);
-    expect(tables.notifications.length).toBe(0);
-  });
+  ] as Array<[string, Rec]>)(
+    "%s sessions never push",
+    async (reason, convOverride) => {
+      const { ctx, tables } = settledIdleWorld({ conv: convOverride });
+      const res = await performNeedsInputCheck(ctx as any, {
+        conversation_id: "conv1",
+      });
+      expect(res.notified).toBe(false);
+      expect(res.reason).toBe(reason);
+      expect(tables.notifications.length).toBe(0);
+    },
+  );
 
   // A worktree is a LOCATION, not a parent (ct-49429): a human-started
   // --isolated / cloud / path-stamped session is first-class and pushes like
@@ -337,9 +434,14 @@ describe("needs-input push — exclusions (mirrors the idle sound's guards)", ()
   // workers carry a spawner (reason agent_spawned), not because of the tree.
   test("a human-started worktree session pushes", async () => {
     const { ctx, tables } = settledIdleWorld({
-      conv: { worktree_name: "cloud-d03aaa", worktree_branch: "codecast/cloud-d03aaa" },
+      conv: {
+        worktree_name: "cloud-d03aaa",
+        worktree_branch: "codecast/cloud-d03aaa",
+      },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(true);
     expect(tables.notifications.length).toBe(1);
     expect(tables.notifications[0].type).toBe("session_idle");
@@ -355,12 +457,17 @@ describe("needs-input push — exclusions (mirrors the idle sound's guards)", ()
   test("a parked cloud session (placement pending) exits at no_content, not as a subagent", async () => {
     const { ctx, tables } = settledIdleWorld({
       conv: {
-        cloud_placement: "pending", owner_device_id: "dev-cloud",
-        message_count: 0, has_pending_messages: true, last_message_role: "user",
+        cloud_placement: "pending",
+        owner_device_id: "dev-cloud",
+        message_count: 0,
+        has_pending_messages: true,
+        last_message_role: "user",
       },
       extra: { managed_sessions: [] },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(res.reason).toBe("no_content");
     expect(tables.notifications.length).toBe(0);
@@ -368,9 +475,14 @@ describe("needs-input push — exclusions (mirrors the idle sound's guards)", ()
 
   test("a worktree worker spawned from inside a session still stands down as agent_spawned", async () => {
     const { ctx, tables } = settledIdleWorld({
-      conv: { worktree_name: "cloud-d03aaa", spawned_by_conversation_id: "convX" },
+      conv: {
+        worktree_name: "cloud-d03aaa",
+        spawned_by_conversation_id: "convX",
+      },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(res.reason).toBe("agent_spawned");
     expect(tables.notifications.length).toBe(0);
@@ -380,7 +492,9 @@ describe("needs-input push — exclusions (mirrors the idle sound's guards)", ()
     const { ctx, tables } = settledIdleWorld({
       session: { agent_status: "stopped" },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(res.reason).toBe("dead");
     expect(tables.notifications.length).toBe(0);
@@ -397,7 +511,9 @@ describe("needs-input push — exclusions (mirrors the idle sound's guards)", ()
         },
       ],
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(tables.notifications.length).toBe(0);
   });
@@ -413,9 +529,13 @@ describe("needs-input push — exclusions (mirrors the idle sound's guards)", ()
         { _id: "u2", notifications_enabled: true, push_token: "tok-u2" },
       ],
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(true);
-    expect(tables.notifications.map((n: Rec) => n.recipient_user_id)).toEqual(["u2"]);
+    expect(tables.notifications.map((n: Rec) => n.recipient_user_id)).toEqual([
+      "u2",
+    ]);
     expect(tables.push_outbox.map((r: Rec) => r.user_id)).toEqual(["u2"]);
   });
 });
@@ -433,7 +553,8 @@ describe("needs-input push — only human-started turns clear the bar", () => {
           _id: "m1",
           conversation_id: "conv1",
           role: "user",
-          content: '<session-message from="jx7abc">status check — reply when done</session-message>',
+          content:
+            '<session-message from="jx7abc">status check — reply when done</session-message>',
           timestamp: now - 90_000,
         },
         {
@@ -445,7 +566,9 @@ describe("needs-input push — only human-started turns clear the bar", () => {
         },
       ],
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(res.reason).toBe("machine_turn");
     expect(tables.notifications.length).toBe(0);
@@ -458,7 +581,8 @@ describe("needs-input push — only human-started turns clear the bar", () => {
           _id: "m1",
           conversation_id: "conv1",
           role: "user",
-          content: '<scheduled-task title="Check CI" task-id="t1">check whether CI is green</scheduled-task>',
+          content:
+            '<scheduled-task title="Check CI" task-id="t1">check whether CI is green</scheduled-task>',
           timestamp: now - 90_000,
         },
         {
@@ -470,7 +594,9 @@ describe("needs-input push — only human-started turns clear the bar", () => {
         },
       ],
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(res.reason).toBe("machine_turn");
     expect(tables.notifications.length).toBe(0);
@@ -484,7 +610,8 @@ describe("needs-input push — only human-started turns clear the bar", () => {
           _id: "m1",
           conversation_id: "conv1",
           role: "user",
-          content: '<session-message from="jx7abc">earlier ping</session-message>',
+          content:
+            '<session-message from="jx7abc">earlier ping</session-message>',
           timestamp: now - 300_000,
         },
         // …when the human drove the latest turn themselves.
@@ -504,14 +631,20 @@ describe("needs-input push — only human-started turns clear the bar", () => {
         },
       ],
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(true);
     expect(tables.notifications.length).toBe(1);
   });
 
   test("the team lead is the one agent-identity session a human drives — it still pushes", async () => {
-    const { ctx, tables } = settledIdleWorld({ conv: { agent_name: "team-lead" } });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const { ctx, tables } = settledIdleWorld({
+      conv: { agent_name: "team-lead" },
+    });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(true);
     expect(tables.notifications.length).toBe(1);
   });
@@ -539,7 +672,9 @@ describe("needs-input check — stall rule for hidden sessions", () => {
       session: { agent_status: "working" },
       messages: [auqPoll],
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.reason).toBe("unstashed_stall");
     expect(tables.conversations[0].inbox_stashed_at).toBeUndefined();
     // No chime from the stall path — surfacing in Needs You IS the signal.
@@ -551,7 +686,9 @@ describe("needs-input check — stall rule for hidden sessions", () => {
       conv: { inbox_stashed_at: 111 },
       session: { agent_status: "permission_blocked" },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.reason).toBe("unstashed_stall");
     expect(tables.conversations[0].inbox_stashed_at).toBeUndefined();
   });
@@ -561,7 +698,9 @@ describe("needs-input check — stall rule for hidden sessions", () => {
       conv: { inbox_stashed_at: 111 },
       session: { agent_status: "stopped" },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.reason).toBe("unstashed_stall");
     expect(tables.conversations[0].inbox_stashed_at).toBeUndefined();
   });
@@ -573,10 +712,16 @@ describe("needs-input check — stall rule for hidden sessions", () => {
   // declared done is not a death.
   test("a run that exited after completing cleanly stays folded", async () => {
     const { ctx, tables } = settledIdleWorld({
-      conv: { inbox_stashed_at: 111, agent_task_id: "task1", thread_state_status: "done" },
+      conv: {
+        inbox_stashed_at: 111,
+        agent_task_id: "task1",
+        thread_state_status: "done",
+      },
       session: { agent_status: "stopped" },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.reason).toBe("hidden");
     expect(tables.conversations[0].inbox_stashed_at).toBe(111);
   });
@@ -586,7 +731,9 @@ describe("needs-input check — stall rule for hidden sessions", () => {
       conv: { inbox_stashed_at: 111, agent_task_id: "task1" },
       session: { agent_status: "stopped" },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.reason).toBe("unstashed_stall");
     expect(tables.conversations[0].inbox_stashed_at).toBeUndefined();
   });
@@ -596,14 +743,20 @@ describe("needs-input check — stall rule for hidden sessions", () => {
       conv: { inbox_dismissed_at: 111, agent_task_id: "task1" },
       session: { agent_status: "permission_blocked" },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.reason).toBe("unstashed_stall");
     expect(tables.conversations[0].inbox_dismissed_at).toBeUndefined();
   });
 
   test("a plain finished turn stays hidden — quiet progress never breaks a hide", async () => {
-    const { ctx, tables } = settledIdleWorld({ conv: { inbox_stashed_at: 111 } });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const { ctx, tables } = settledIdleWorld({
+      conv: { inbox_stashed_at: 111 },
+    });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.reason).toBe("hidden");
     expect(tables.conversations[0].inbox_stashed_at).toBe(111);
   });
@@ -613,7 +766,9 @@ describe("needs-input check — stall rule for hidden sessions", () => {
       conv: { inbox_stashed_at: 111, inbox_killed_at: 222 },
       session: { agent_status: "permission_blocked" },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.reason).toBe("killed");
     expect(tables.conversations[0].inbox_stashed_at).toBe(111);
   });
@@ -626,52 +781,96 @@ describe("needs-input check — stall rule for hidden sessions", () => {
 // of its fold and into Needs You.
 describe("a trigger run in a fresh session, from completion to process exit", () => {
   const task = (over: Rec = {}) =>
-    ({ _id: "task1", short_id: "tr-9", title: "Stall sweep", schedule_type: "recurring", ...over }) as any;
+    ({
+      _id: "task1",
+      short_id: "tr-9",
+      title: "Stall sweep",
+      schedule_type: "recurring",
+      ...over,
+    }) as any;
   const exitProcess = (tables: Record<string, Rec[]>) => {
     tables.managed_sessions[0].agent_status = "stopped";
     tables.managed_sessions[0].agent_status_updated_at = Date.now() - 60_000;
   };
   const world = (conv: Rec = {}, extra: Rec[] = []) => {
-    const w = settledIdleWorld({ conv: { agent_task_id: "task1", short_id: "jx7run1", ...conv } });
+    const w = settledIdleWorld({
+      conv: { agent_task_id: "task1", short_id: "jx7run1", ...conv },
+    });
     w.tables.conversations.push(...extra);
     return w;
   };
 
   test("a repeating run that reports a clean outcome folds and STAYS folded after it exits", async () => {
     const { ctx, tables } = world();
-    await settleRunConversation(ctx as any, task(), tables.conversations[0] as any, { summary: "Nothing stuck." }, Date.now());
+    await settleRunConversation(
+      ctx as any,
+      task(),
+      tables.conversations[0] as any,
+      { summary: "Nothing stuck." },
+      Date.now(),
+    );
     expect(tables.conversations[0].thread_state_status).toBe("done");
     expect(tables.conversations[0].thread_state).toBe("Nothing stuck.");
     expect(tables.conversations[0].inbox_stashed_at).toBeGreaterThan(0);
 
     exitProcess(tables);
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.reason).toBe("hidden");
     expect(tables.conversations[0].inbox_stashed_at).toBeGreaterThan(0);
   });
 
   test("--needs-attention declares blocked, never folds, and the exit keeps it in front of the human", async () => {
     const { ctx, tables } = world({ inbox_stashed_at: 111 });
-    await settleRunConversation(ctx as any, task(), tables.conversations[0] as any, { summary: "Two sessions need you.", needs_attention: true }, Date.now());
+    await settleRunConversation(
+      ctx as any,
+      task(),
+      tables.conversations[0] as any,
+      { summary: "Two sessions need you.", needs_attention: true },
+      Date.now(),
+    );
     expect(tables.conversations[0].thread_state_status).toBe("blocked");
     expect(tables.conversations[0].inbox_stashed_at).toBeUndefined();
   });
 
   test("a run the DAEMON completed (the agent died without reporting) declares nothing and stays visible", async () => {
     const { ctx, tables } = world();
-    await settleRunConversation(ctx as any, task(), tables.conversations[0] as any, { summary: "exit 1", daemon_id: "d1" }, Date.now());
+    await settleRunConversation(
+      ctx as any,
+      task(),
+      tables.conversations[0] as any,
+      { summary: "exit 1", daemon_id: "d1" },
+      Date.now(),
+    );
     expect(tables.conversations[0].thread_state_status).toBeUndefined();
     expect(tables.conversations[0].inbox_stashed_at).toBeUndefined();
   });
 
   test("a once run armed from a session posts its result there and folds", async () => {
-    const creator = { _id: "creator1", user_id: "u1", message_count: 7, updated_at: 1 };
+    const creator = {
+      _id: "creator1",
+      user_id: "u1",
+      message_count: 7,
+      updated_at: 1,
+    };
     const { ctx, tables } = world({}, [creator]);
-    const once = task({ schedule_type: "once", created_by_conversation_id: "creator1" });
+    const once = task({
+      schedule_type: "once",
+      created_by_conversation_id: "creator1",
+    });
     expect(runResultThreadOf(once)).toBe("creator1");
-    await settleRunConversation(ctx as any, once, tables.conversations[0] as any, { summary: "CI is green." }, Date.now());
+    await settleRunConversation(
+      ctx as any,
+      once,
+      tables.conversations[0] as any,
+      { summary: "CI is green." },
+      Date.now(),
+    );
 
-    const posted = tables.messages.find((m) => m.conversation_id === "creator1");
+    const posted = tables.messages.find(
+      (m) => m.conversation_id === "creator1",
+    );
     expect(posted?.subtype).toBe("scheduled_task_result");
     expect(posted?.content).toBe("tr-9 ran in jx7run1:\n\nCI is green.");
     expect(tables.conversations[1].message_count).toBe(8);
@@ -682,27 +881,58 @@ describe("a trigger run in a fresh session, from completion to process exit", ()
     const { ctx, tables } = world();
     const once = task({ schedule_type: "once" });
     expect(runResultThreadOf(once)).toBeUndefined();
-    await settleRunConversation(ctx as any, once, tables.conversations[0] as any, { summary: "Domain still held." }, Date.now());
+    await settleRunConversation(
+      ctx as any,
+      once,
+      tables.conversations[0] as any,
+      { summary: "Domain still held." },
+      Date.now(),
+    );
     expect(tables.conversations[0].inbox_stashed_at).toBeUndefined();
     expect(tables.conversations[0].thread_state_status).toBe("done");
 
     // The exit neither chimes nor reads as a death: the row rests under Done.
     exitProcess(tables);
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(false);
     expect(tables.notifications.length).toBe(0);
   });
 
   test("a repeating trigger never posts to the session that armed it", () => {
-    expect(runResultThreadOf(task({ created_by_conversation_id: "creator1" }))).toBeUndefined();
-    expect(runResultThreadOf(task({ created_by_conversation_id: "creator1", target_conversation_id: "thread1" }))).toBe("thread1");
+    expect(
+      runResultThreadOf(task({ created_by_conversation_id: "creator1" })),
+    ).toBeUndefined();
+    expect(
+      runResultThreadOf(
+        task({
+          created_by_conversation_id: "creator1",
+          target_conversation_id: "thread1",
+        }),
+      ),
+    ).toBe("thread1");
     // An inject trigger's home is not a fresh run: nothing to route.
-    expect(runResultThreadOf(task({ schedule_type: "once", originating_conversation_id: "home1", created_by_conversation_id: "home1" }))).toBeUndefined();
+    expect(
+      runResultThreadOf(
+        task({
+          schedule_type: "once",
+          originating_conversation_id: "home1",
+          created_by_conversation_id: "home1",
+        }),
+      ),
+    ).toBeUndefined();
   });
 
   test("a pin is the user's intent: a pinned run is never folded", async () => {
     const { ctx, tables } = world({ inbox_pinned_at: 5 });
-    await settleRunConversation(ctx as any, task(), tables.conversations[0] as any, { summary: "ok" }, Date.now());
+    await settleRunConversation(
+      ctx as any,
+      task(),
+      tables.conversations[0] as any,
+      { summary: "ok" },
+      Date.now(),
+    );
     expect(tables.conversations[0].inbox_stashed_at).toBeUndefined();
   });
 });
@@ -713,8 +943,12 @@ describe("a trigger run in a fresh session, from completion to process exit", ()
 // finished turn.
 describe("needs-input check — a session boundary is not a completion", () => {
   test("a resume neither chimes nor claims the dedupe key", async () => {
-    const { ctx, tables } = settledIdleWorld({ session: { agent_status_boundary: true } });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const { ctx, tables } = settledIdleWorld({
+      session: { agent_status_boundary: true },
+    });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
 
     expect(res).toEqual({ notified: false, reason: "session_boundary" });
     expect(tables.notifications.length).toBe(0);
@@ -725,13 +959,17 @@ describe("needs-input check — a session boundary is not a completion", () => {
   });
 
   test("the real turn that follows a resume still announces", async () => {
-    const { ctx, tables } = settledIdleWorld({ session: { agent_status_boundary: true } });
+    const { ctx, tables } = settledIdleWorld({
+      session: { agent_status_boundary: true },
+    });
     await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
     // The user types, the agent works and stops. The hook's next write clears
     // the boundary claim, because the flag describes one settle only.
     await ctx.db.patch("ms1", { agent_status_boundary: undefined });
 
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.notified).toBe(true);
     expect(tables.notifications.length).toBe(1);
     expect(tables.conversations[0].needs_input_notified_key).toBe("5:idle");
@@ -742,7 +980,9 @@ describe("needs-input check — a session boundary is not a completion", () => {
       conv: { inbox_stashed_at: 111 },
       session: { agent_status_boundary: true },
     });
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res.reason).toBe("session_boundary");
     expect(tables.conversations[0].inbox_stashed_at).toBe(111);
   });
@@ -759,21 +999,38 @@ describe("needs-input digest — one alert an hour", () => {
     const ids = ["conv1", "conv2", "conv3"];
     const titles = ["Fix the parser", "Auth refactor", "Ship the CLI"];
     return createCtx({
-      users: [{
-        _id: "u1", notifications_enabled: true, push_token: "tok-u1",
-        ...(prefs ? { notification_preferences: prefs } : {}),
-      }],
+      users: [
+        {
+          _id: "u1",
+          notifications_enabled: true,
+          push_token: "tok-u1",
+          ...(prefs ? { notification_preferences: prefs } : {}),
+        },
+      ],
       conversations: ids.map((id, i) => ({
-        _id: id, user_id: "u1", title: titles[i], status: "active",
-        message_count: 5, updated_at: now - 120_000, last_message_role: "assistant",
+        _id: id,
+        user_id: "u1",
+        title: titles[i],
+        status: "active",
+        message_count: 5,
+        updated_at: now - 120_000,
+        last_message_role: "assistant",
       })),
       managed_sessions: ids.map((id, i) => ({
-        _id: `ms${i + 1}`, user_id: "u1", conversation_id: id, session_id: `sess-${i + 1}`,
-        agent_status: "idle", agent_status_updated_at: now - 60_000, last_heartbeat: now - 5_000,
+        _id: `ms${i + 1}`,
+        user_id: "u1",
+        conversation_id: id,
+        session_id: `sess-${i + 1}`,
+        agent_status: "idle",
+        agent_status_updated_at: now - 60_000,
+        last_heartbeat: now - 5_000,
       })),
       messages: ids.map((id, i) => ({
-        _id: `m${i + 1}`, conversation_id: id, role: "assistant",
-        content: "Done — what next?", timestamp: now - 70_000,
+        _id: `m${i + 1}`,
+        conversation_id: id,
+        role: "assistant",
+        content: "Done — what next?",
+        timestamp: now - 70_000,
       })),
       pending_permissions: [],
       notifications: [],
@@ -787,25 +1044,35 @@ describe("needs-input digest — one alert an hour", () => {
     }
     // Three rows in the list, one alert: only the first carries a push.
     expect(tables.notifications.length).toBe(3);
-    expect(tables.notifications.map((n: Rec) => !!n.quiet)).toEqual([false, true, true]);
+    expect(tables.notifications.map((n: Rec) => !!n.quiet)).toEqual([
+      false,
+      true,
+      true,
+    ]);
     expect(tables.push_outbox.length).toBe(1);
 
     // The window is armed once, not once per session.
     const armed = tables.users[0].idle_digest_state;
-    expect(armed.flush_due_at).toBe(armed.last_alerted_at + IDLE_DIGEST_WINDOW_MS);
+    expect(armed.flush_due_at).toBe(
+      armed.last_alerted_at + IDLE_DIGEST_WINDOW_MS,
+    );
 
     // Wind the clock past the window and run the fold-up the enqueue armed.
-    tables.users[0].idle_digest_state.last_alerted_at = Date.now() - IDLE_DIGEST_WINDOW_MS - 1;
+    tables.users[0].idle_digest_state.last_alerted_at =
+      Date.now() - IDLE_DIGEST_WINDOW_MS - 1;
     const res = await performIdleDigestFlush(ctx as any, "u1");
     expect(res).toEqual({ notified: true, count: 2 });
 
-    const digest = tables.notifications.find((n: Rec) => n.type === "sessions_need_input");
-    expect(digest.message).toBe("Auth refactor and Ship the CLI need your attention");
+    const digest = tables.notifications.find(
+      (n: Rec) => n.type === "sessions_need_input",
+    );
+    expect(digest.message).toBe(
+      "Auth refactor and Ship the CLI need your attention",
+    );
     expect(digest.conversation_id).toBeUndefined(); // opens the inbox, not one session
     expect(tables.push_outbox.length).toBe(2);
     expect(tables.push_outbox[1].title).toBe("2 sessions need your attention");
   });
-
 
   // A hosted answer that settles is the person's to read, not a session
   // waiting on them: nine finished answers rang as "9 conversations waiting
@@ -813,14 +1080,21 @@ describe("needs-input digest — one alert an hour", () => {
   test("a hosted conversation's settle neither alerts nor joins the fold-up", async () => {
     const { ctx, tables } = fleetWorld();
     tables.conversations[0].agent_type = "codecast";
-    const res = await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
+    const res = await performNeedsInputCheck(ctx as any, {
+      conversation_id: "conv1",
+    });
     expect(res).toEqual({ notified: false, reason: "hosted" });
     expect(tables.notifications.length).toBe(0);
     // A row queued before the stand-down is left out of the fold-up too.
-    for (const id of ["conv2", "conv3"]) await performNeedsInputCheck(ctx as any, { conversation_id: id });
+    for (const id of ["conv2", "conv3"])
+      await performNeedsInputCheck(ctx as any, { conversation_id: id });
     tables.conversations[2].agent_type = "codecast";
-    tables.users[0].idle_digest_state.last_alerted_at = Date.now() - IDLE_DIGEST_WINDOW_MS - 1;
-    expect(await performIdleDigestFlush(ctx as any, "u1")).toEqual({ notified: false, reason: "nothing_waiting" });
+    tables.users[0].idle_digest_state.last_alerted_at =
+      Date.now() - IDLE_DIGEST_WINDOW_MS - 1;
+    expect(await performIdleDigestFlush(ctx as any, "u1")).toEqual({
+      notified: false,
+      reason: "nothing_waiting",
+    });
   });
 
   test("a session the user already answered is not named", async () => {
@@ -830,11 +1104,14 @@ describe("needs-input digest — one alert an hour", () => {
     }
     // conv2 got a reply: the turn moved past the episode its row announced.
     tables.conversations[1].message_count = 7;
-    tables.users[0].idle_digest_state.last_alerted_at = Date.now() - IDLE_DIGEST_WINDOW_MS - 1;
+    tables.users[0].idle_digest_state.last_alerted_at =
+      Date.now() - IDLE_DIGEST_WINDOW_MS - 1;
 
     const res = await performIdleDigestFlush(ctx as any, "u1");
     expect(res.count).toBe(1);
-    const digest = tables.notifications.find((n: Rec) => n.type === "sessions_need_input");
+    const digest = tables.notifications.find(
+      (n: Rec) => n.type === "sessions_need_input",
+    );
     expect(digest.message).toBe("Ship the CLI needs your attention");
   });
 
@@ -845,17 +1122,23 @@ describe("needs-input digest — one alert an hour", () => {
     // Both answered before the fold-up ran.
     tables.conversations[0].message_count = 9;
     tables.conversations[1].message_count = 9;
-    tables.users[0].idle_digest_state.last_alerted_at = Date.now() - IDLE_DIGEST_WINDOW_MS - 1;
+    tables.users[0].idle_digest_state.last_alerted_at =
+      Date.now() - IDLE_DIGEST_WINDOW_MS - 1;
 
     const res = await performIdleDigestFlush(ctx as any, "u1");
     expect(res).toEqual({ notified: false, reason: "nothing_waiting" });
-    expect(tables.notifications.some((n: Rec) => n.type === "sessions_need_input")).toBe(false);
+    expect(
+      tables.notifications.some((n: Rec) => n.type === "sessions_need_input"),
+    ).toBe(false);
 
     // The budget was not spent, so the next session to settle alerts at once.
     const pushesBefore = tables.push_outbox.length;
     await performNeedsInputCheck(ctx as any, { conversation_id: "conv3" });
     expect(tables.push_outbox.length).toBe(pushesBefore + 1);
-    expect(tables.notifications.find((n: Rec) => n.conversation_id === "conv3").quiet).toBeUndefined();
+    expect(
+      tables.notifications.find((n: Rec) => n.conversation_id === "conv3")
+        .quiet,
+    ).toBeUndefined();
   });
 
   test("a fold-up that fires before its window ends waits the rest out", async () => {
@@ -864,22 +1147,34 @@ describe("needs-input digest — one alert an hour", () => {
     await performNeedsInputCheck(ctx as any, { conversation_id: "conv2" });
     const res = await performIdleDigestFlush(ctx as any, "u1");
     expect(res.reason).toBe("early");
-    expect(tables.notifications.some((n: Rec) => n.type === "sessions_need_input")).toBe(false);
+    expect(
+      tables.notifications.some((n: Rec) => n.type === "sessions_need_input"),
+    ).toBe(false);
     expect(scheduled.some((s) => s.args.user_id === "u1")).toBe(true);
   });
 
   test("the fold-up replaces the previous one instead of stacking", async () => {
     const { ctx, tables } = fleetWorld();
     tables.notifications.push({
-      _id: "n_old_digest", recipient_user_id: "u1", type: "sessions_need_input",
-      message: "2 sessions need your attention", read: false, created_at: Date.now() - 1000,
+      _id: "n_old_digest",
+      recipient_user_id: "u1",
+      type: "sessions_need_input",
+      message: "2 sessions need your attention",
+      read: false,
+      created_at: Date.now() - 1000,
     });
     await performNeedsInputCheck(ctx as any, { conversation_id: "conv1" });
     await performNeedsInputCheck(ctx as any, { conversation_id: "conv2" });
-    tables.users[0].idle_digest_state.last_alerted_at = Date.now() - IDLE_DIGEST_WINDOW_MS - 1;
+    tables.users[0].idle_digest_state.last_alerted_at =
+      Date.now() - IDLE_DIGEST_WINDOW_MS - 1;
     await performIdleDigestFlush(ctx as any, "u1");
-    expect(tables.notifications.filter((n: Rec) => n.type === "sessions_need_input").length).toBe(1);
-    expect(tables.notifications.some((n: Rec) => n._id === "n_old_digest")).toBe(false);
+    expect(
+      tables.notifications.filter((n: Rec) => n.type === "sessions_need_input")
+        .length,
+    ).toBe(1);
+    expect(
+      tables.notifications.some((n: Rec) => n._id === "n_old_digest"),
+    ).toBe(false);
   });
 
   test("the aggregate line names two and counts the rest", () => {
@@ -887,8 +1182,14 @@ describe("needs-input digest — one alert an hour", () => {
       title: "1 session needs your attention",
       message: "A needs your attention",
     });
-    expect(summarizeIdleDigest(["A", "B"]).message).toBe("A and B need your attention");
-    expect(summarizeIdleDigest(["A", "B", "C"]).message).toBe("A, B and 1 other need your attention");
-    expect(summarizeIdleDigest(["A", "B", "C", "D"]).message).toBe("A, B and 2 others need your attention");
+    expect(summarizeIdleDigest(["A", "B"]).message).toBe(
+      "A and B need your attention",
+    );
+    expect(summarizeIdleDigest(["A", "B", "C"]).message).toBe(
+      "A, B and 1 other need your attention",
+    );
+    expect(summarizeIdleDigest(["A", "B", "C", "D"]).message).toBe(
+      "A, B and 2 others need your attention",
+    );
   });
 });

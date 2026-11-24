@@ -50,10 +50,17 @@ export function statusSpoolPath(dir: string, sessionId: string): string {
 }
 
 /** One record, one line. Ordered against every other writer by the caller. */
-export async function appendStatusSpool(dir: string, sessionId: string, record: unknown): Promise<void> {
+export async function appendStatusSpool(
+  dir: string,
+  sessionId: string,
+  record: unknown,
+): Promise<void> {
   if (!isSafeStatusSessionId(sessionId)) return;
   await fs.promises.mkdir(dir, { recursive: true });
-  await fs.promises.appendFile(statusSpoolPath(dir, sessionId), `${JSON.stringify(record)}\n`);
+  await fs.promises.appendFile(
+    statusSpoolPath(dir, sessionId),
+    `${JSON.stringify(record)}\n`,
+  );
 }
 
 /**
@@ -89,7 +96,9 @@ export async function drainStatusSpool<T>(filePath: string): Promise<T[]> {
   return records;
 }
 
-export async function listStatusSpools(dir: string): Promise<Array<{ sessionId: string; filePath: string }>> {
+export async function listStatusSpools(
+  dir: string,
+): Promise<Array<{ sessionId: string; filePath: string }>> {
   let names: string[];
   try {
     names = await fs.promises.readdir(dir);
@@ -99,11 +108,16 @@ export async function listStatusSpools(dir: string): Promise<Array<{ sessionId: 
   return names
     .filter((name) => name.endsWith(SPOOL_EXT))
     .sort()
-    .map((name) => ({ sessionId: name.slice(0, -SPOOL_EXT.length), filePath: path.join(dir, name) }));
+    .map((name) => ({
+      sessionId: name.slice(0, -SPOOL_EXT.length),
+      filePath: path.join(dir, name),
+    }));
 }
 
 /** Every session's spool, each drained in write order. */
-export async function drainAllStatusSpools<T>(dir: string): Promise<Array<{ sessionId: string; records: T[] }>> {
+export async function drainAllStatusSpools<T>(
+  dir: string,
+): Promise<Array<{ sessionId: string; records: T[] }>> {
   const out: Array<{ sessionId: string; records: T[] }> = [];
   for (const { sessionId, filePath } of await listStatusSpools(dir)) {
     const records = await drainStatusSpool<T>(filePath);
@@ -137,7 +151,10 @@ export async function sweepStatusSpools(
       // The cut lands mid-record, so the kept bytes start after the first
       // newline in the tail — and hold nothing at all if there is none.
       const nl = tail.indexOf(0x0a);
-      await fs.promises.writeFile(filePath, nl < 0 ? Buffer.alloc(0) : tail.subarray(nl + 1));
+      await fs.promises.writeFile(
+        filePath,
+        nl < 0 ? Buffer.alloc(0) : tail.subarray(nl + 1),
+      );
       trimmed.push(sessionId);
     } catch {}
   }

@@ -21,8 +21,14 @@ export function localWorkspaceOf(teamId: Id<"teams">): string {
   return `team:${String(teamId)}`;
 }
 
-export function scopeOf(access: { installation_id?: number; local_team_id?: Id<"teams"> }): CacheScope {
-  return { installation: !!access.installation_id, ...(access.local_team_id ? { local_team_id: access.local_team_id } : {}) };
+export function scopeOf(access: {
+  installation_id?: number;
+  local_team_id?: Id<"teams">;
+}): CacheScope {
+  return {
+    installation: !!access.installation_id,
+    ...(access.local_team_id ? { local_team_id: access.local_team_id } : {}),
+  };
 }
 
 /**
@@ -31,21 +37,41 @@ export function scopeOf(access: { installation_id?: number; local_team_id?: Id<"
  * GitHub's, the newer one answers, except for meta, where GitHub's answer
  * stands over a checkout's placeholder.
  */
-export async function cacheRowByKey(ctx: { db: any }, repository: string, kind: string, ref: string, path: string, scope: CacheScope = INSTALLATION_ONLY) {
+export async function cacheRowByKey(
+  ctx: { db: any },
+  repository: string,
+  kind: string,
+  ref: string,
+  path: string,
+  scope: CacheScope = INSTALLATION_ONLY,
+) {
   const rows: any[] = await ctx.db
     .query("repo_cache")
     .withIndex("by_key", (q: any) =>
-      q.eq("repository", normalizeRepository(repository)).eq("kind", kind).eq("ref", ref).eq("path", path))
+      q
+        .eq("repository", normalizeRepository(repository))
+        .eq("kind", kind)
+        .eq("ref", ref)
+        .eq("path", path),
+    )
     .collect();
-  const local = scope.local_team_id ? rows.find((r) => r.local_workspace === localWorkspaceOf(scope.local_team_id!)) : undefined;
-  const github = scope.installation ? rows.find((r) => !r.local_workspace) : undefined;
+  const local = scope.local_team_id
+    ? rows.find(
+        (r) => r.local_workspace === localWorkspaceOf(scope.local_team_id!),
+      )
+    : undefined;
+  const github = scope.installation
+    ? rows.find((r) => !r.local_workspace)
+    : undefined;
   if (!local || !github) return local ?? github ?? null;
   if (kind === "meta") return github;
   return local.fetched_at >= github.fetched_at ? local : github;
 }
 
 /** A meta row a checkout published: the counts are placeholders and `private` is a guess. */
-export function isLocalMeta(row: { kind: string; content: string } | null): boolean {
+export function isLocalMeta(
+  row: { kind: string; content: string } | null,
+): boolean {
   if (!row || row.kind !== "meta") return false;
   try {
     return JSON.parse(row.content)?.source === "local";
@@ -61,9 +87,23 @@ export function isLocalMeta(row: { kind: string; content: string } | null): bool
 // which every reader already shows as "too large to display".
 const CACHE_CONTENT_MAX_BYTES = 900 * 1024;
 
-export function fitCacheContent(content: string, size?: number): { content: string; truncated?: boolean } {
-  if (new TextEncoder().encode(content).length <= CACHE_CONTENT_MAX_BYTES) return { content };
+export function fitCacheContent(
+  content: string,
+  size?: number,
+): { content: string; truncated?: boolean } {
+  if (new TextEncoder().encode(content).length <= CACHE_CONTENT_MAX_BYTES)
+    return { content };
   let sha: string | undefined;
-  try { sha = JSON.parse(content)?.sha; } catch {}
-  return { content: JSON.stringify({ content: "", size, truncated: true, ...(sha ? { sha } : {}) }), truncated: true };
+  try {
+    sha = JSON.parse(content)?.sha;
+  } catch {}
+  return {
+    content: JSON.stringify({
+      content: "",
+      size,
+      truncated: true,
+      ...(sha ? { sha } : {}),
+    }),
+    truncated: true,
+  };
 }

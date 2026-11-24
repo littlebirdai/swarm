@@ -39,7 +39,10 @@ export function FeatureUpsell({
   const Icon = featureIcon(slug);
   const text = reason ?? FEATURE_EXPLAINERS[slug]?.pitch ?? o.feature.desc;
   const learn = () => router.push(agentFeatureHref(slug));
-  const target = o.onlineCount === 1 ? "your online machine" : `your ${o.onlineCount} online machines`;
+  const target =
+    o.onlineCount === 1
+      ? "your online machine"
+      : `your ${o.onlineCount} online machines`;
 
   const done = (
     <span className="inline-flex items-center gap-1.5 text-sol-green">
@@ -53,7 +56,13 @@ export function FeatureUpsell({
   const name = o.feature.name;
   const ledger = featureOnLedger(o.feature, o.onlineNames);
   const turnOn = (render: (press: () => void) => React.ReactNode) => (
-    <ConsequentialSwitch on={false} ledger={ledger} onTurnOn={() => void o.turnOn()} onTurnOff={() => {}} trigger={({ press }) => render(press)} />
+    <ConsequentialSwitch
+      on={false}
+      ledger={ledger}
+      onTurnOn={() => void o.turnOn()}
+      onTurnOff={() => {}}
+      trigger={({ press }) => render(press)}
+    />
   );
 
   const actions = (
@@ -64,13 +73,21 @@ export function FeatureUpsell({
           onClick={press}
           aria-haspopup="dialog"
           disabled={o.busy || o.onlineCount === 0}
-          title={o.onlineCount === 0 ? "No machine is online to turn it on" : `Turns it on for ${target}`}
+          title={
+            o.onlineCount === 0
+              ? "No machine is online to turn it on"
+              : `Turns it on for ${target}`
+          }
           className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${tone.tile} hover:brightness-110`}
         >
           {o.busy ? "Turning on…" : "Turn on…"}
         </button>
       ))}
-      <button type="button" onClick={learn} className="inline-flex items-center gap-0.5 text-xs text-sol-text-muted hover:text-sol-text">
+      <button
+        type="button"
+        onClick={learn}
+        className="inline-flex items-center gap-0.5 text-xs text-sol-text-muted hover:text-sol-text"
+      >
         How it works
         <ArrowUpRight className="h-3 w-3" />
       </button>
@@ -92,22 +109,42 @@ export function FeatureUpsell({
   if (variant === "quiet") {
     const link = "transition-colors hover:text-sol-text";
     return (
-      <p className={`group/offer text-[12px] leading-relaxed text-sol-text-dim ${className}`}>
-        <Icon className={`mr-1.5 inline h-3 w-3 -translate-y-px ${tone.text} opacity-70`} />
+      <p
+        className={`group/offer text-[12px] leading-relaxed text-sol-text-dim ${className}`}
+      >
+        <Icon
+          className={`mr-1.5 inline h-3 w-3 -translate-y-px ${tone.text} opacity-70`}
+        />
         {o.turnedOn ? (
-          <span className="text-sol-green">{o.feature.name} is on for {target}. Sessions you start from now on can use it.</span>
+          <span className="text-sol-green">
+            {o.feature.name} is on for {target}. Sessions you start from now on
+            can use it.
+          </span>
         ) : (
           <>
             {text}{" "}
             {turnOn((press) => (
-              <button type="button" onClick={press} aria-haspopup="dialog" disabled={o.busy || o.onlineCount === 0} className={`underline decoration-current/40 underline-offset-2 transition-colors hover:decoration-current ${tone.text} disabled:opacity-50`}>
+              <button
+                type="button"
+                onClick={press}
+                aria-haspopup="dialog"
+                disabled={o.busy || o.onlineCount === 0}
+                className={`underline decoration-current/40 underline-offset-2 transition-colors hover:decoration-current ${tone.text} disabled:opacity-50`}
+              >
                 {o.busy ? "Turning on…" : `Turn on ${name}…`}
               </button>
             ))}
             <span className="mx-1.5 text-sol-border">·</span>
-            <button type="button" onClick={learn} className={link}>How it works</button>
+            <button type="button" onClick={learn} className={link}>
+              How it works
+            </button>
             <span className="mx-1.5 text-sol-border">·</span>
-            <button type="button" onClick={o.dismiss} aria-label={`Not now: stop suggesting ${o.feature.name}`} className={link}>
+            <button
+              type="button"
+              onClick={o.dismiss}
+              aria-label={`Not now: stop suggesting ${o.feature.name}`}
+              className={link}
+            >
               Not now
             </button>
           </>
@@ -118,10 +155,14 @@ export function FeatureUpsell({
 
   if (variant === "inline") {
     return (
-      <div className={`flex items-center gap-2 border-t border-sol-border bg-sol-bg-alt px-3 py-1.5 text-meta leading-snug text-sol-text-muted ${className}`}>
+      <div
+        className={`flex items-center gap-2 border-t border-sol-border bg-sol-bg-alt px-3 py-1.5 text-meta leading-snug text-sol-text-muted ${className}`}
+      >
         <Icon className={`h-3.5 w-3.5 shrink-0 ${tone.text}`} />
         <span className="min-w-0 flex-1">{o.turnedOn ? done : text}</span>
-        {!o.turnedOn && <span className="flex shrink-0 items-center gap-2.5">{actions}</span>}
+        {!o.turnedOn && (
+          <span className="flex shrink-0 items-center gap-2.5">{actions}</span>
+        )}
         {dismiss}
       </div>
     );
@@ -133,14 +174,20 @@ export function FeatureUpsell({
       aria-label={`Agent feature: ${o.feature.name}`}
       className={`animate-fadeSlideIn flex items-stretch gap-4 rounded-lg border border-sol-border/70 bg-sol-bg p-3 pr-2 ${className}`}
     >
-      <FeatureVignette slug={slug} className="hidden h-[132px] w-[240px] shrink-0 sm:block" />
+      <FeatureVignette
+        slug={slug}
+        className="hidden h-[132px] w-[240px] shrink-0 sm:block"
+      />
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
         <div className="flex items-center gap-1.5 text-meta text-sol-text-muted">
           <Icon className={`h-3.5 w-3.5 ${tone.text}`} />
-          Agent feature <span className="text-sol-text-dim">·</span> <span className="font-medium text-sol-text">{o.feature.name}</span>
+          Agent feature <span className="text-sol-text-dim">·</span>{" "}
+          <span className="font-medium text-sol-text">{o.feature.name}</span>
         </div>
         <p className="text-[13px] leading-snug text-sol-text">{text}</p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs">{o.turnedOn ? done : actions}</div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs">
+          {o.turnedOn ? done : actions}
+        </div>
       </div>
       <div className="flex flex-col">{dismiss}</div>
     </div>

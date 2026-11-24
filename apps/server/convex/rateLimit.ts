@@ -35,7 +35,7 @@ export async function checkRateLimit(
   userId: Id<"users">,
   endpoint: string,
   limit: number = WRITE_LIMIT,
-  count: number = 1
+  count: number = 1,
 ): Promise<void> {
   const now = Date.now();
   const windowStart = now - WINDOW_MS;
@@ -47,7 +47,7 @@ export async function checkRateLimit(
   const existing = await ctx.db
     .query("rate_limits")
     .withIndex("by_user_endpoint", (q) =>
-      q.eq("user_id", userId).eq("endpoint", key)
+      q.eq("user_id", userId).eq("endpoint", key),
     )
     .first();
 
@@ -70,9 +70,11 @@ export async function checkRateLimit(
   }
 
   if (existing.request_count + count - 1 >= shardLimit) {
-    const secondsRemaining = Math.ceil((existing.window_start + WINDOW_MS - now) / 1000);
+    const secondsRemaining = Math.ceil(
+      (existing.window_start + WINDOW_MS - now) / 1000,
+    );
     throw new RateLimitError(
-      `Rate limit exceeded. Please wait ${secondsRemaining} seconds before retrying.`
+      `Rate limit exceeded. Please wait ${secondsRemaining} seconds before retrying.`,
     );
   }
 

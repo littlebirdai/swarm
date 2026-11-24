@@ -3,7 +3,15 @@ import { useResetRequest } from "../../hooks/useEmailAuth";
 import { Button } from "../../components/ui/button";
 
 export default function ForgotPasswordPage() {
-  const { email, setEmail, error, loading, sent: success, submit: handleSubmit, again } = useResetRequest();
+  const {
+    email,
+    setEmail,
+    error,
+    loading,
+    sent: success,
+    submit: handleSubmit,
+    again,
+  } = useResetRequest();
 
   if (success) {
     return (
@@ -23,7 +31,9 @@ export default function ForgotPasswordPage() {
               Enter the code from your email to reset your password.
             </p>
             <Button asChild variant="amber" size="lg" className="w-full">
-              <Link href={`/reset-password?email=${encodeURIComponent(email)}`}>Enter Reset Code</Link>
+              <Link href={`/reset-password?email=${encodeURIComponent(email)}`}>
+                Enter Reset Code
+              </Link>
             </Button>
             <p className="mt-6 text-sm text-sol-text-muted">
               Didn&apos;t receive the email?{" "}
@@ -79,7 +89,13 @@ export default function ForgotPasswordPage() {
           </div>
 
           {error && (
-            <p id="auth-error" role="alert" className="mt-4 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center">{error}</p>
+            <p
+              id="auth-error"
+              role="alert"
+              className="mt-4 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center"
+            >
+              {error}
+            </p>
           )}
 
           <Button

@@ -39,7 +39,9 @@ export interface ClaimableCommand {
  *  granted it: the laptop and the cloud host both ran the same run, both wrote
  *  its stations, and the loser's stale timeout failed the winner's live run
  *  (ct-57972, 2026-10-13). For these, a hold anywhere is a hold. */
-export const EXCLUSIVE_COMMANDS: ReadonlySet<string> = new Set(["run_workflow"]);
+export const EXCLUSIVE_COMMANDS: ReadonlySet<string> = new Set([
+  "run_workflow",
+]);
 
 /** Who is asking. The boot id names the process, the device names the machine.
  *  Either can be missing during a rollout, and both missing values fail toward
@@ -58,14 +60,24 @@ export type ClaimDecision = "grant" | "already_executed" | "held_by_other";
 
 /** Does this claimer get to run the command? Re-claiming your own live hold is
  *  granted, so a retry after a dropped response is not a deadlock. */
-export function decideCommandClaim(row: ClaimableCommand, claimer: Claimer, now: number): ClaimDecision {
+export function decideCommandClaim(
+  row: ClaimableCommand,
+  claimer: Claimer,
+  now: number,
+): ClaimDecision {
   if (row.executed_at !== undefined) return "already_executed";
   if (!row.claimed_by || row.claimed_by === claimer.bootId) return "grant";
   // A hold from another machine says nothing about this one. Both sides of the
   // comparison have to be known: a hold written before the device rode along
   // has no device, and treating that as "elsewhere" would drop the lease for
   // the two minutes it takes such rows to age out.
-  if (row.claimed_device && claimer.deviceId && row.claimed_device !== claimer.deviceId && !EXCLUSIVE_COMMANDS.has(row.command ?? "")) return "grant";
+  if (
+    row.claimed_device &&
+    claimer.deviceId &&
+    row.claimed_device !== claimer.deviceId &&
+    !EXCLUSIVE_COMMANDS.has(row.command ?? "")
+  )
+    return "grant";
   if (now - (row.claimed_at ?? 0) >= CLAIM_GRACE_MS) return "grant";
   return "held_by_other";
 }
@@ -87,6 +99,13 @@ export function commandVisibleToClaimer(
 
 /** May this claimer drop its own hold? Only the holder can, so a stale release
  *  from a process that already lost the lease cannot free a live one. */
-export function canReleaseCommandClaim(row: ClaimableCommand, claimer: Claimer): boolean {
-  return row.executed_at === undefined && !!row.claimed_by && row.claimed_by === claimer.bootId;
+export function canReleaseCommandClaim(
+  row: ClaimableCommand,
+  claimer: Claimer,
+): boolean {
+  return (
+    row.executed_at === undefined &&
+    !!row.claimed_by &&
+    row.claimed_by === claimer.bootId
+  );
 }

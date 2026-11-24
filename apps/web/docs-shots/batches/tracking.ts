@@ -18,12 +18,17 @@ const tab = (label: string) => [
   { wait: "button", text: label },
   { click: "button", text: label },
   { sleep: 800 },
-  { js: `document.querySelector(${JSON.stringify(PLAN_SECTION)}).scrollIntoView({ block: "start" })` },
+  {
+    js: `document.querySelector(${JSON.stringify(PLAN_SECTION)}).scrollIntoView({ block: "start" })`,
+  },
   { sleep: 400 },
 ];
 const PR = `/pr/${REPO}/${PR_RETRY.number}`;
 /** Settings is a modal over the app (its legacy /settings/* paths open it and land home). */
-const SETTINGS_PANEL = { selector: "[role=dialog][aria-label=Settings] > div", pad: 0 };
+const SETTINGS_PANEL = {
+  selector: "[role=dialog][aria-label=Settings] > div",
+  pad: 0,
+};
 const SETTINGS_INTEGRATIONS = [
   { js: "__inboxStore.getState().openSettingsModal('integrations')" },
   { wait: "[role=dialog][aria-label=Settings]" },
@@ -131,7 +136,11 @@ export const TRACKING: Shot[] = [
   {
     name: "triggers/trigger",
     route: `/triggers/${TRIGGER_IDS.summary}`,
-    steps: [{ wait: "div, span, h2, h3", text: "Run history" }, { wait: "button", text: "Run now" }, { sleep: 600 }],
+    steps: [
+      { wait: "div, span, h2, h3", text: "Run history" },
+      { wait: "button", text: "Run now" },
+      { sleep: 600 },
+    ],
     viewport: { width: 1200, height: 860 },
     frame: "window",
     out: "public/documentation/triggers/trigger.webp",
@@ -160,7 +169,9 @@ export const TRACKING: Shot[] = [
     steps: [
       { wait: "button", text: "notes not sent yet" },
       // The bar's own Finish review (it carries the R key cap); the thread rows have one each too.
-      { js: "[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Finish reviewR').click()" },
+      {
+        js: "[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Finish reviewR').click()",
+      },
       { wait: "textarea[placeholder='Anything else for the author?']" },
       { click: "textarea[placeholder='Anything else for the author?']" },
       { type: "Two small things on the retry path, then it's good to go." },
@@ -191,7 +202,9 @@ export const TRACKING: Shot[] = [
       { click: "button", text: "every…" },
       { wait: "input[aria-invalid]" },
       // Empty the duration field the way a select-all would, then type the cadence.
-      { js: "(() => { const i = document.querySelector('input[aria-invalid]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, ''); i.dispatchEvent(new Event('input', { bubbles: true })); })()" },
+      {
+        js: "(() => { const i = document.querySelector('input[aria-invalid]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, ''); i.dispatchEvent(new Event('input', { bubbles: true })); })()",
+      },
       { click: "input[aria-invalid]" },
       { type: "1d" },
       { click: "label", text: "read-only" },
@@ -220,7 +233,9 @@ export const TRACKING: Shot[] = [
       { wait: "button", text: "graph" },
       { click: "button", text: "graph" },
       { wait: ".react-flow" },
-      { js: "document.querySelector('.react-flow').scrollIntoView({ block: 'center' })" },
+      {
+        js: "document.querySelector('.react-flow').scrollIntoView({ block: 'center' })",
+      },
       // Fit the whole graph, start to Ship, to the frame.
       { click: ".react-flow__controls-fitview" },
       { hover: "button", text: "graph" },
@@ -235,9 +250,13 @@ export const TRACKING: Shot[] = [
     route: "/routines",
     viewport: { width: 1280, height: 860 },
     steps: [
-      { js: "localStorage.setItem('wf_last_project_path', '/Users/alex/src/acme-api')" },
+      {
+        js: "localStorage.setItem('wf_last_project_path', '/Users/alex/src/acme-api')",
+      },
       { wait: "button", text: "Run" },
-      { js: "[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Run').click()" },
+      {
+        js: "[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Run').click()",
+      },
       { sleep: 800 },
     ],
     frame: "window",
@@ -262,7 +281,9 @@ export const TRACKING: Shot[] = [
       ...SETTINGS_INTEGRATIONS,
       { wait: "[role=dialog][aria-label=Settings]", text: "acme/acme-api" },
       // The GitHub card's issue import, centered in the panel.
-      { js: "[...document.querySelectorAll('[role=dialog][aria-label=Settings] *')].find((e) => e.children.length === 0 && e.textContent.trim() === 'acme/acme-api').scrollIntoView({ block: 'center' })" },
+      {
+        js: "[...document.querySelectorAll('[role=dialog][aria-label=Settings] *')].find((e) => e.children.length === 0 && e.textContent.trim() === 'acme/acme-api').scrollIntoView({ block: 'center' })",
+      },
       { sleep: 600 },
     ],
     crop: SETTINGS_PANEL,
@@ -285,11 +306,16 @@ export const TRACKING: Shot[] = [
       { type: "Webhooks lead" },
       { click: "button, label", text: "Webhook retries" },
       // Reports to Sarah Chen, picked the way the select's change would.
-      { js: "(() => { const sel = [...document.querySelectorAll('[role=dialog] select')].find((x) => [...x.options].some((o) => o.text.startsWith('Sarah Chen'))); const opt = [...sel.options].find((o) => o.text.startsWith('Sarah Chen')); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, opt.value); sel.dispatchEvent(new Event('change', { bubbles: true })); })()" },
+      {
+        js: "(() => { const sel = [...document.querySelectorAll('[role=dialog] select')].find((x) => [...x.options].some((o) => o.text.startsWith('Sarah Chen'))); const opt = [...sel.options].find((o) => o.text.startsWith('Sarah Chen')); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, opt.value); sel.dispatchEvent(new Event('change', { bubbles: true })); })()",
+      },
       { js: "document.activeElement?.blur?.()" },
       { sleep: 800 },
     ],
-    crop: { selector: "[role=dialog]:has(input[placeholder='Head of Growth'])", pad: 24 },
+    crop: {
+      selector: "[role=dialog]:has(input[placeholder='Head of Growth'])",
+      pad: 24,
+    },
     frame: "element",
     out: "public/documentation/org-roles/add-a-role.webp",
   },
@@ -299,9 +325,13 @@ export const TRACKING: Shot[] = [
     route: `/conversation/${WEBHOOKS_SEAT._id}`,
     viewport: { width: 1600, height: 900 },
     steps: [
-      { wait: "button[aria-label^='Open the panel'], button[aria-label^='Close the panel']" },
+      {
+        wait: "button[aria-label^='Open the panel'], button[aria-label^='Close the panel']",
+      },
       // The panel remembers being open; open it only when it is closed.
-      { js: "document.querySelector(\"button[aria-label^='Open the panel: overview']\")?.click()" },
+      {
+        js: "document.querySelector(\"button[aria-label^='Open the panel: overview']\")?.click()",
+      },
       { wait: "button", text: "Overview" },
       // The toggle keeps focus after the click, and its tooltip with it.
       { js: "document.activeElement?.blur?.()" },

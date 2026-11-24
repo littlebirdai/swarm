@@ -22,17 +22,31 @@ export type ChatJsonRead = {
 };
 
 /** A paged /cli/chat/read answer: each raw row keeps its fields and gains the common keys. */
-export function chatReadJson(result: { messages?: any[]; authors?: Array<{ _id: string; name?: string; is_bot?: boolean }>; has_more?: boolean; next_cursor?: string | null }): ChatJsonRead {
-  const authors = new Map((result.authors ?? []).map((a) => [String(a._id), a]));
+export function chatReadJson(result: {
+  messages?: any[];
+  authors?: Array<{ _id: string; name?: string; is_bot?: boolean }>;
+  has_more?: boolean;
+  next_cursor?: string | null;
+}): ChatJsonRead {
+  const authors = new Map(
+    (result.authors ?? []).map((a) => [String(a._id), a]),
+  );
   return {
     messages: (result.messages ?? []).map((row) => ({
       ...row,
       id: String(row._id),
       text: row.deleted_at ? "" : String(row.content ?? ""),
-      author_name: row.author_kind === "agent" ? authors.get(String(row.user_id))?.name ?? "anchor" : row.origin_session_title ?? authors.get(String(row.user_id))?.name ?? String(row.user_id),
+      author_name:
+        row.author_kind === "agent"
+          ? (authors.get(String(row.user_id))?.name ?? "anchor")
+          : (row.origin_session_title ??
+            authors.get(String(row.user_id))?.name ??
+            String(row.user_id)),
       is_agent: row.author_kind === "agent" || !!row.origin_session_title,
       created_at: row.created_at,
-      ...(row.thread_root_id ? { thread_root_id: String(row.thread_root_id) } : {}),
+      ...(row.thread_root_id
+        ? { thread_root_id: String(row.thread_root_id) }
+        : {}),
     })),
     has_more: !!result.has_more,
     next_cursor: result.next_cursor ?? null,
@@ -40,9 +54,15 @@ export function chatReadJson(result: { messages?: any[]; authors?: Array<{ _id: 
 }
 
 /** A /cli/chat/lines-since answer, under the same envelope and row keys. */
-export function chatLinesJson(result: { lines?: any[]; truncated?: boolean }): ChatJsonRead {
+export function chatLinesJson(result: {
+  lines?: any[];
+  truncated?: boolean;
+}): ChatJsonRead {
   return {
-    messages: (result.lines ?? []).map((line) => ({ ...line, id: String(line.message_id) })),
+    messages: (result.lines ?? []).map((line) => ({
+      ...line,
+      id: String(line.message_id),
+    })),
     truncated: !!result.truncated,
   };
 }

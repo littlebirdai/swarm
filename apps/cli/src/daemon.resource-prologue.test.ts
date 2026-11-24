@@ -29,13 +29,23 @@ const CLAUDE = "7d3b1e9a-0000-4000-8000-0000000000cc";
 const UNKNOWN = "7d3b1e9a-0000-4000-8000-0000000000dd";
 
 function metaLine(sessionId: string, payload: Record<string, unknown>): string {
-  return JSON.stringify({ type: "session_meta", payload: { id: sessionId, cwd: "/tmp/proj", ...payload } });
+  return JSON.stringify({
+    type: "session_meta",
+    payload: { id: sessionId, cwd: "/tmp/proj", ...payload },
+  });
 }
 
-function writeRollout(dir: string, sessionId: string, payload: Record<string, unknown>): void {
+function writeRollout(
+  dir: string,
+  sessionId: string,
+  payload: Record<string, unknown>,
+): void {
   fs.writeFileSync(
     path.join(dir, `rollout-2026-09-02T10-00-00-${sessionId}.jsonl`),
-    metaLine(sessionId, payload) + "\n" + JSON.stringify({ type: "event_msg", payload: { type: "task_started" } }) + "\n",
+    metaLine(sessionId, payload) +
+      "\n" +
+      JSON.stringify({ type: "event_msg", payload: { type: "task_started" } }) +
+      "\n",
   );
 }
 
@@ -44,12 +54,25 @@ beforeAll(() => {
   process.env.HOME = tmpHome;
   const rollouts = path.join(tmpHome, ".codex", "sessions", "2026", "09", "02");
   fs.mkdirSync(rollouts, { recursive: true });
-  writeRollout(rollouts, PARENT, { originator: "codex-tui", source: "cli", thread_source: "user" });
+  writeRollout(rollouts, PARENT, {
+    originator: "codex-tui",
+    source: "cli",
+    thread_source: "user",
+  });
   writeRollout(rollouts, THREAD, {
     parent_thread_id: PARENT,
     originator: "codex-tui",
     thread_source: "subagent",
-    source: { subagent: { thread_spawn: { parent_thread_id: PARENT, depth: 1, agent_path: "/root/x", agent_role: null } } },
+    source: {
+      subagent: {
+        thread_spawn: {
+          parent_thread_id: PARENT,
+          depth: 1,
+          agent_path: "/root/x",
+          agent_role: null,
+        },
+      },
+    },
   });
   // A large claude store: the walk must happen off the loop. A hundred
   // project dirs, so the walk is many readdir batches rather than one.
@@ -57,9 +80,19 @@ beforeAll(() => {
     const dir = path.join(tmpHome, ".claude", "projects", `-Users-x-proj-${d}`);
     fs.mkdirSync(dir, { recursive: true });
     for (let i = 0; i < 50; i++) {
-      fs.writeFileSync(path.join(dir, `${String(d).padStart(8, "0")}-0000-4000-8000-${String(i).padStart(12, "0")}.jsonl`), "{}\n");
+      fs.writeFileSync(
+        path.join(
+          dir,
+          `${String(d).padStart(8, "0")}-0000-4000-8000-${String(i).padStart(12, "0")}.jsonl`,
+        ),
+        "{}\n",
+      );
     }
-    if (d === 0) fs.writeFileSync(path.join(dir, `${CLAUDE}.jsonl`), JSON.stringify({ type: "user", cwd: "/tmp/proj" }) + "\n");
+    if (d === 0)
+      fs.writeFileSync(
+        path.join(dir, `${CLAUDE}.jsonl`),
+        JSON.stringify({ type: "user", cwd: "/tmp/proj" }) + "\n",
+      );
   }
   resetSessionFileIndexForTests();
 });
@@ -69,7 +102,9 @@ afterAll(() => {
   setSlowSyncFsThresholdForTests(null);
   process.env.HOME = realHome;
   resetSessionFileIndexForTests();
-  try { fs.rmSync(tmpHome, { recursive: true, force: true }); } catch {}
+  try {
+    fs.rmSync(tmpHome, { recursive: true, force: true });
+  } catch {}
 });
 
 describe("classifySharedPidSessions", () => {
@@ -91,13 +126,20 @@ describe("classifySharedPidSessions", () => {
     const builtAt = sessionFileIndexBuiltAtForTests();
     expect(builtAt).toBeGreaterThan(0);
     expect(reports.filter((m) => m.includes("walkDirsSync"))).toEqual([]);
-    expect(reports.filter((m) => m.includes("readCodexSessionMetaHead"))).toEqual([]);
+    expect(
+      reports.filter((m) => m.includes("readCodexSessionMetaHead")),
+    ).toEqual([]);
     expect(reports.filter((m) => m.includes("probeRecent"))).toEqual([]);
     expect(ticks).toBeGreaterThanOrEqual(2);
     expect(maxGapMs).toBeLessThan(loopHoldBoundMs(200));
 
     // Warm: the same answer, no new walk.
-    const again = await classifySharedPidSessions([THREAD, PARENT, CLAUDE, UNKNOWN]);
+    const again = await classifySharedPidSessions([
+      THREAD,
+      PARENT,
+      CLAUDE,
+      UNKNOWN,
+    ]);
     expect([...again]).toEqual([THREAD]);
     expect(sessionFileIndexBuiltAtForTests()).toBe(builtAt);
     expect(reports.filter((m) => m.includes("walkDirsSync"))).toEqual([]);
@@ -120,7 +162,13 @@ describe("resolveTurnEndStatus", () => {
     // must not.
     const fresh = "7d3b1e9a-0000-4000-8000-0000000000ee";
     fs.writeFileSync(
-      path.join(tmpHome, ".claude", "projects", "-Users-x-proj-1", `${fresh}.jsonl`),
+      path.join(
+        tmpHome,
+        ".claude",
+        "projects",
+        "-Users-x-proj-1",
+        `${fresh}.jsonl`,
+      ),
       JSON.stringify({ type: "user", cwd: "/tmp/proj" }) + "\n",
     );
     expect(resolveTurnEndStatus(fresh)).toBe("idle");
@@ -135,6 +183,8 @@ describe("resolveTurnEndStatus", () => {
     expect(findSessionFile(fresh, { staleOk: true })).toBeNull();
     await refreshRecentSessionFileForTests(fresh);
     expect(findSessionFile(fresh)?.path).toContain(fresh);
-    expect(reports.filter((m) => m.includes("probeRecentSessionFiles"))).toEqual([]);
+    expect(
+      reports.filter((m) => m.includes("probeRecentSessionFiles")),
+    ).toEqual([]);
   }, 30_000);
 });

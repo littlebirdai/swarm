@@ -13,7 +13,10 @@ import {
   PROVIDER_KEY_GCM_TAG_BYTES,
   type EncryptedProviderKeyPayload,
 } from "@codecast/shared/contracts";
-import { readProviderKeyStore, writeProviderKeyStore } from "./providerKeyStore.js";
+import {
+  readProviderKeyStore,
+  writeProviderKeyStore,
+} from "./providerKeyStore.js";
 import { atomicWriteFile } from "./atomicWrite.js";
 
 const PRIV_FILE = ".provider-key-ecdh"; // base64 raw private scalar, 0600
@@ -34,7 +37,9 @@ function loadOrCreateEcdh(configDir: string): crypto.ECDH {
     ecdh.generateKeys();
     try {
       fs.mkdirSync(configDir, { recursive: true });
-      atomicWriteFile(file, ecdh.getPrivateKey().toString("base64") + "\n", { mode: 0o600 });
+      atomicWriteFile(file, ecdh.getPrivateKey().toString("base64") + "\n", {
+        mode: 0o600,
+      });
     } catch {
       // If we can't persist, the in-memory keypair still works for this run; the
       // published pubkey just changes on restart (the web re-reads it each time).
@@ -51,22 +56,36 @@ export function getProviderKeyPublicKey(configDir: string): string {
 
 function deriveAesKey(sharedSecret: Buffer): Buffer {
   // HKDF-SHA256, empty salt, domain-separating info → 32-byte AES key.
-  const out = crypto.hkdfSync("sha256", sharedSecret, Buffer.alloc(0), Buffer.from(PROVIDER_KEY_HKDF_INFO), 32);
+  const out = crypto.hkdfSync(
+    "sha256",
+    sharedSecret,
+    Buffer.alloc(0),
+    Buffer.from(PROVIDER_KEY_HKDF_INFO),
+    32,
+  );
   return Buffer.from(out);
 }
 
 /** Decrypt a payload the web sealed to this device's public key. Returns the
  *  plaintext API key, or throws if the payload is malformed or the tag fails
  *  (wrong key / tampering). */
-export function decryptProviderKeyPayload(configDir: string, payload: EncryptedProviderKeyPayload): string {
+export function decryptProviderKeyPayload(
+  configDir: string,
+  payload: EncryptedProviderKeyPayload,
+): string {
   const ecdh = loadOrCreateEcdh(configDir);
   const shared = ecdh.computeSecret(Buffer.from(payload.epk, "base64"));
   const aesKey = deriveAesKey(shared);
   const iv = Buffer.from(payload.iv, "base64");
   const ctWithTag = Buffer.from(payload.ct, "base64");
   const tag = ctWithTag.subarray(ctWithTag.length - PROVIDER_KEY_GCM_TAG_BYTES);
-  const ciphertext = ctWithTag.subarray(0, ctWithTag.length - PROVIDER_KEY_GCM_TAG_BYTES);
-  const decipher = crypto.createDecipheriv("aes-256-gcm", aesKey, iv, { authTagLength: PROVIDER_KEY_GCM_TAG_BYTES });
+  const ciphertext = ctWithTag.subarray(
+    0,
+    ctWithTag.length - PROVIDER_KEY_GCM_TAG_BYTES,
+  );
+  const decipher = crypto.createDecipheriv("aes-256-gcm", aesKey, iv, {
+    authTagLength: PROVIDER_KEY_GCM_TAG_BYTES,
+  });
   decipher.setAuthTag(tag);
   const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
   return plain.toString("utf-8");
@@ -75,14 +94,21 @@ export function decryptProviderKeyPayload(configDir: string, payload: EncryptedP
 /** Encrypt a key to a device public key — the exact operations SubtleCrypto performs
  *  on the web, in node. `cast devices key` seals with it, and the round-trip tests
  *  run it against the real decrypt path with the real parameters. */
-export function encryptProviderKey(devicePublicKeyB64: string, provider: string, apiKey: string): EncryptedProviderKeyPayload {
+export function encryptProviderKey(
+  devicePublicKeyB64: string,
+  provider: string,
+  apiKey: string,
+): EncryptedProviderKeyPayload {
   const eph = crypto.createECDH(PROVIDER_KEY_ECDH_NAMED_CURVE);
   eph.generateKeys();
   const shared = eph.computeSecret(Buffer.from(devicePublicKeyB64, "base64"));
   const aesKey = deriveAesKey(shared);
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", aesKey, iv);
-  const ciphertext = Buffer.concat([cipher.update(Buffer.from(apiKey, "utf-8")), cipher.final()]);
+  const ciphertext = Buffer.concat([
+    cipher.update(Buffer.from(apiKey, "utf-8")),
+    cipher.final(),
+  ]);
   const tag = cipher.getAuthTag();
   return {
     provider,
@@ -102,39 +128,64 @@ export function encryptProviderKey(devicePublicKeyB64: string, provider: string,
  * that cannot do everything codecast uses it for, what it still needs
  * (`detail`); or why it was refused.
  */
-export type ProviderKeyVerdict = ({ ok: true } & ProviderKeyFacts) | { ok: false; error: string };
+export type ProviderKeyVerdict =
+  | ({ ok: true } & ProviderKeyFacts)
+  | { ok: false; error: string };
 /** What a provider said about a key it keeps: the account, and what it still lacks. */
 export type ProviderKeyFacts = { account?: string; detail?: string };
 /** A provider's own check of a key before it is stored. */
-export type ProviderKeyVerifier = (provider: string, apiKey: string) => Promise<ProviderKeyVerdict>;
+export type ProviderKeyVerifier = (
+  provider: string,
+  apiKey: string,
+) => Promise<ProviderKeyVerdict>;
 
 export async function applyProviderKeyCommand(
   configDir: string,
   argsJson: string | undefined,
   verify?: ProviderKeyVerifier,
-): Promise<({ ok: true; op: "set" | "remove"; provider: string } & ProviderKeyFacts) | { ok: false; error: string }> {
+): Promise<
+  | ({ ok: true; op: "set" | "remove"; provider: string } & ProviderKeyFacts)
+  | { ok: false; error: string }
+> {
   let parsed: any;
-  try { parsed = argsJson ? JSON.parse(argsJson) : {}; } catch { return { ok: false, error: "bad JSON args" }; }
+  try {
+    parsed = argsJson ? JSON.parse(argsJson) : {};
+  } catch {
+    return { ok: false, error: "bad JSON args" };
+  }
   const store = readProviderKeyStore(configDir);
   if (parsed.op === "remove") {
-    if (typeof parsed.provider !== "string" || !parsed.provider) return { ok: false, error: "remove without a provider" };
+    if (typeof parsed.provider !== "string" || !parsed.provider)
+      return { ok: false, error: "remove without a provider" };
     delete store[parsed.provider];
     writeProviderKeyStore(configDir, store);
     return { ok: true, op: "remove", provider: parsed.provider };
   }
   if (parsed.op === "set" && parsed.payload) {
     let apiKey: string;
-    try { apiKey = decryptProviderKeyPayload(configDir, parsed.payload); }
-    catch (err) { return { ok: false, error: `decrypt failed: ${err instanceof Error ? err.message : String(err)}` }; }
+    try {
+      apiKey = decryptProviderKeyPayload(configDir, parsed.payload);
+    } catch (err) {
+      return {
+        ok: false,
+        error: `decrypt failed: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
     const provider = String(parsed.payload.provider ?? "");
-    if (!provider || !apiKey) return { ok: false, error: "empty provider or key after decrypt" };
+    if (!provider || !apiKey)
+      return { ok: false, error: "empty provider or key after decrypt" };
     // A key the provider refuses is never stored, so it cannot shadow a good one.
-    const verdict = verify ? await verify(provider, apiKey) : { ok: true as const };
+    const verdict = verify
+      ? await verify(provider, apiKey)
+      : { ok: true as const };
     if (!verdict.ok) return { ok: false, error: verdict.error };
     store[provider] = apiKey;
     writeProviderKeyStore(configDir, store);
     const { ok: _ok, ...facts } = verdict;
     return { ok: true, op: "set", provider, ...facts };
   }
-  return { ok: false, error: `bad args: ${JSON.stringify(parsed).slice(0, 80)}` };
+  return {
+    ok: false,
+    error: `bad args: ${JSON.stringify(parsed).slice(0, 80)}`,
+  };
 }

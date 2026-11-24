@@ -27,18 +27,33 @@ async function mountPeek() {
   document.body.appendChild(container);
   const root = createRoot(container);
   await act(async () => {
-    root.render(<EdgePeek side="right" enabled>list</EdgePeek>);
+    root.render(
+      <EdgePeek side="right" enabled>
+        list
+      </EdgePeek>,
+    );
   });
   const [edge, panel] = [...container.children] as HTMLElement[];
   const isOpen = () => panel.className.includes("translate-x-0");
   // React derives enter/leave from mouseover/mouseout with a relatedTarget.
   const enter = (buttons = 0) =>
     act(() => {
-      edge.dispatchEvent(new dom.window.MouseEvent("mouseover", { bubbles: true, buttons, relatedTarget: document.body }));
+      edge.dispatchEvent(
+        new dom.window.MouseEvent("mouseover", {
+          bubbles: true,
+          buttons,
+          relatedTarget: document.body,
+        }),
+      );
     });
   const leave = () =>
     act(() => {
-      edge.dispatchEvent(new dom.window.MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body }));
+      edge.dispatchEvent(
+        new dom.window.MouseEvent("mouseout", {
+          bubbles: true,
+          relatedTarget: document.body,
+        }),
+      );
     });
   const cleanup = () => {
     root.unmount();

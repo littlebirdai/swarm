@@ -12,9 +12,12 @@ import { toast } from "sonner";
 import { nanoid } from "nanoid";
 import { useInboxStore } from "../store/inboxStore";
 import { cleanTitle } from "../lib/conversationProcessor";
-import { formatPendingComments, sortPendingComments, formatDocFeedback } from "../lib/quoteFormat";
+import {
+  formatPendingComments,
+  sortPendingComments,
+  formatDocFeedback,
+} from "../lib/quoteFormat";
 import { Send } from "lucide-react";
-
 
 export function DocReviewBar({
   reviewKey,
@@ -38,9 +41,9 @@ export function DocReviewBar({
   // Compile the live annotation batch into the same feedback message both the
   // existing-session and new-agent paths post.
   const compileContent = useCallback(() => {
-    const pending = (useInboxStore.getState().reviewComments[reviewKey] ?? []).filter(
-      (c) => c.body.trim() || c.quote.trim(),
-    );
+    const pending = (
+      useInboxStore.getState().reviewComments[reviewKey] ?? []
+    ).filter((c) => c.body.trim() || c.quote.trim());
     const batch = formatPendingComments(sortPendingComments(pending));
     return formatDocFeedback(title, docId, batch, note);
   }, [reviewKey, title, docId, note]);
@@ -78,7 +81,9 @@ export function DocReviewBar({
   // fallback) instead of where the doc lives.
   const sendToNew = useCallback(() => {
     const content = compileContent();
-    const doc = useInboxStore.getState().docs[docId] as { project_path?: string; git_root?: string } | undefined;
+    const doc = useInboxStore.getState().docs[docId] as
+      | { project_path?: string; git_root?: string }
+      | undefined;
     openCompose(content, { projectPath: doc?.project_path || doc?.git_root });
     finishReview();
   }, [compileContent, finishReview, openCompose, docId]);
@@ -86,20 +91,37 @@ export function DocReviewBar({
   // The doc's owning session (if any) is promoted to the first row so the
   // common case is one keystroke; every other session is a search away.
   const pickTarget = useCallback(() => {
-    const owner = ownerConversationId ? useInboxStore.getState().sessions[ownerConversationId] : undefined;
+    const owner = ownerConversationId
+      ? useInboxStore.getState().sessions[ownerConversationId]
+      : undefined;
     useInboxStore.getState().openPalette({
       pick: {
         title: "Send feedback to…",
         kinds: ["session"],
         extras: [
           ...(owner
-            ? [{ key: "owner", label: cleanTitle(owner.title || "New Session"), description: "This doc's session", icon: "sparkles" as const, primary: true }]
+            ? [
+                {
+                  key: "owner",
+                  label: cleanTitle(owner.title || "New Session"),
+                  description: "This doc's session",
+                  icon: "sparkles" as const,
+                  primary: true,
+                },
+              ]
             : []),
-          { key: "new", label: "New agent", description: "Start a fresh session with this feedback", icon: "sparkles" as const, primary: !owner },
+          {
+            key: "new",
+            label: "New agent",
+            description: "Start a fresh session with this feedback",
+            icon: "sparkles" as const,
+            primary: !owner,
+          },
         ],
         onPick: (t) => {
           if (t.kind === "session") void send(t.id, t.label);
-          else if (t.kind === "extra" && t.key === "owner" && owner) void send(owner._id, owner.title || "");
+          else if (t.kind === "extra" && t.key === "owner" && owner)
+            void send(owner._id, owner.title || "");
           else sendToNew();
         },
       },
@@ -111,7 +133,9 @@ export function DocReviewBar({
       <div className="sticky bottom-0 z-20 mx-auto max-w-5xl w-full px-10 pb-4 pt-2">
         <div
           className="flex items-center gap-2 rounded-lg border border-sol-yellow/30 backdrop-blur px-3 py-2 shadow-lg shadow-black/20"
-          style={{ background: "color-mix(in srgb, var(--sol-bg) 92%, transparent)" }}
+          style={{
+            background: "color-mix(in srgb, var(--sol-bg) 92%, transparent)",
+          }}
         >
           <span className="text-meta font-semibold text-sol-yellow whitespace-nowrap">
             {count > 0 ? `${count} note${count === 1 ? "" : "s"}` : "Review"}
@@ -119,9 +143,15 @@ export function DocReviewBar({
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder={count > 0 ? "Add a message (optional)…" : "Hover the document to quote a section…"}
+            placeholder={
+              count > 0
+                ? "Add a message (optional)…"
+                : "Hover the document to quote a section…"
+            }
             className="flex-1 bg-transparent text-sm text-sol-text placeholder:text-sol-text-dim outline-none"
-            onKeyDown={(e) => { if (e.key === "Enter" && count > 0) pickTarget(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && count > 0) pickTarget();
+            }}
           />
           <button
             type="button"

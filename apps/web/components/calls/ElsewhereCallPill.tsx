@@ -23,7 +23,9 @@ import { CallCardRecordingMark } from "./RoomRecording";
  */
 export function ElsewhereCallPill({ className = "" }: { className?: string }) {
   const role = useDesktopWindowRole();
-  const mine = useFaceRowSelect(useCallback((row: FaceRow) => !!row.room && !voiceHostElsewhere(), []));
+  const mine = useFaceRowSelect(
+    useCallback((row: FaceRow) => !!row.room && !voiceHostElsewhere(), []),
+  );
   if ((!role.anyInCall && !role.callPanel) || mine) return null;
   return (
     <button

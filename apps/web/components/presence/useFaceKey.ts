@@ -16,11 +16,15 @@ import {
   walkieJoinedRoom,
   type WalkieStatus,
 } from "../../lib/calls/walkie";
-import { usePushToTalk, useWalkieLevelVar, walkieKeyState, type PushToTalk } from "../../hooks/useWalkie";
+import {
+  usePushToTalk,
+  useWalkieLevelVar,
+  walkieKeyState,
+  type PushToTalk,
+} from "../../hooks/useWalkie";
 import { prewarmRoom } from "../../lib/calls/roomPrewarm";
 import { useInboxStore } from "../../store/inboxStore";
 import { useMountEffect } from "../../hooks/useMountEffect";
-
 
 /** How long a pointer has to REST on a face before it counts as interest.
  *
@@ -143,7 +147,10 @@ export function useFaceKey({
     callsEnabled ? roomKey : undefined,
     // At TALK time, never at render: pointing at a bar of six faces must not
     // create six conversations.
-    useCallback(() => useInboxStore.getState().openDmChannel([memberId]), [memberId]),
+    useCallback(
+      () => useInboxStore.getState().openDmChannel([memberId]),
+      [memberId],
+    ),
   );
   const state = walkieKeyState(ptt);
   // The warm ring lights on the microphone being OPEN, and stays lit through
@@ -171,7 +178,10 @@ export function useFaceKey({
     onPointerEnter: () => {
       if (!callsEnabled) return;
       cancelDwell();
-      dwellTimer.current = setTimeout(() => prewarmRoom(roomKey), PREWARM_DWELL_MS);
+      dwellTimer.current = setTimeout(
+        () => prewarmRoom(roomKey),
+        PREWARM_DWELL_MS,
+      );
     },
     onPointerLeave: cancelDwell,
     // Tabbing onto a face is the deliberate version of resting on one.
@@ -180,5 +190,16 @@ export function useFaceKey({
     },
   };
 
-  return { state, sending, holding: ptt.holding, talking, blocked, roomKey, ptt, txRef, rxRef, warmProps };
+  return {
+    state,
+    sending,
+    holding: ptt.holding,
+    talking,
+    blocked,
+    roomKey,
+    ptt,
+    txRef,
+    rxRef,
+    warmProps,
+  };
 }

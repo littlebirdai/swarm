@@ -5,11 +5,20 @@
 // component is set here, so a slot with nothing behind it never shows a
 // control that does nothing. The actions fill these in this one file.
 import type { ComponentType } from "react";
-import type { LineModel, LineStep, StepDecision } from "../../../lib/line/lineModel";
+import type {
+  LineModel,
+  LineStep,
+  StepDecision,
+} from "../../../lib/line/lineModel";
 import { TryPanel } from "./actions/TryPanel";
 import { AskPanel } from "./actions/AskPanel";
 import { LabelControl } from "./actions/LabelControl";
-import { SaveControl, StepVersions, type SaveSlotProps, type VersionsSlotProps } from "./actions/SaveControl";
+import {
+  SaveControl,
+  StepVersions,
+  type SaveSlotProps,
+  type VersionsSlotProps,
+} from "./actions/SaveControl";
 
 export type { SaveSlotProps, VersionsSlotProps };
 
@@ -22,7 +31,9 @@ export type TrySlotProps = {
   runs?: ReadonlyArray<string>;
 };
 export type AskSlotProps = {
-  model: LineModel; step: LineStep; draft: string | null;
+  model: LineModel;
+  step: LineStep;
+  draft: string | null;
   /** The projects the ask can be filed in, offered as a choice when the line shows no single project. */
   projects?: ReadonlyArray<{ _id: string; title?: string | null }>;
 };
@@ -41,4 +52,10 @@ export type LineActionSlots = {
   Versions: ComponentType<VersionsSlotProps> | null;
 };
 
-export const LINE_ACTIONS: LineActionSlots = { Try: TryPanel, Ask: AskPanel, Label: LabelControl, Save: SaveControl, Versions: StepVersions };
+export const LINE_ACTIONS: LineActionSlots = {
+  Try: TryPanel,
+  Ask: AskPanel,
+  Label: LabelControl,
+  Save: SaveControl,
+  Versions: StepVersions,
+};
