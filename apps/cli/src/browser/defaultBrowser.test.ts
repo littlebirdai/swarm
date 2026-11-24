@@ -3,19 +3,37 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { FakeExtension, testBridgeHost } from "./bridge/host.testutil.js";
-import { BROWSER_EXTENSION_STORE_URL, BROWSER_SNIPPET, agentSetupPageUrl, guideText, renderSectionBody, snippetBySlug } from "@codecast/shared/contracts";
+import {
+  BROWSER_EXTENSION_STORE_URL,
+  BROWSER_SNIPPET,
+  agentSetupPageUrl,
+  guideText,
+  renderSectionBody,
+  snippetBySlug,
+} from "@codecast/shared/contracts";
 
 const dirs: string[] = [];
-const test = (name: string, fn: () => void | Promise<unknown>) => bunTest(name, fn, 30_000);
+const test = (name: string, fn: () => void | Promise<unknown>) =>
+  bunTest(name, fn, 30_000);
 
 afterEach(() => {
-  for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  for (const dir of dirs.splice(0))
+    fs.rmSync(dir, { recursive: true, force: true });
 });
 
-async function run(driver: "engine" | "builtin", args: string[], codecastDir?: string, sticky?: "clone" | "real", actualPin = false) {
-  const dir = codecastDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "cast-browser-default-"));
+async function run(
+  driver: "engine" | "builtin",
+  args: string[],
+  codecastDir?: string,
+  sticky?: "clone" | "real",
+  actualPin = false,
+) {
+  const dir =
+    codecastDir ??
+    fs.mkdtempSync(path.join(os.tmpdir(), "cast-browser-default-"));
   if (!codecastDir) dirs.push(dir);
-  const modulePath = (name: string) => JSON.stringify(path.join(import.meta.dir, name));
+  const modulePath = (name: string) =>
+    JSON.stringify(path.join(import.meta.dir, name));
   const script = `
     import { mock } from "bun:test";
     import { Command } from "commander";
@@ -69,17 +87,34 @@ async function run(driver: "engine" | "builtin", args: string[], codecastDir?: s
   fs.writeFileSync(stderr, "");
   const child = Bun.spawn([process.execPath, "--eval", script], {
     cwd: import.meta.dir,
-    env: { ...process.env, CODECAST_DIR: dir, AGENT_BROWSER_SOCKET_DIR: path.join(dir, "engine"), CODECAST_SESSION_ID: "", CLAUDE_SESSION_ID: "", CAST_BROWSER_LEGACY: "1", NO_COLOR: "1" },
+    env: {
+      ...process.env,
+      CODECAST_DIR: dir,
+      AGENT_BROWSER_SOCKET_DIR: path.join(dir, "engine"),
+      CODECAST_SESSION_ID: "",
+      CLAUDE_SESSION_ID: "",
+      CAST_BROWSER_LEGACY: "1",
+      NO_COLOR: "1",
+    },
     stdout: Bun.file(stdout),
     stderr: Bun.file(stderr),
   });
   const code = await child.exited;
-  return { code, text: fs.readFileSync(stdout, "utf8") + fs.readFileSync(stderr, "utf8") };
+  return {
+    code,
+    text: fs.readFileSync(stdout, "utf8") + fs.readFileSync(stderr, "utf8"),
+  };
 }
 
 for (const driver of ["engine", "builtin"] as const) {
   describe(`${driver} browser routing`, () => {
-    for (const args of [["start"], ["open", "https://example.com"], ["status"], ["snapshot"], ["eval", "1 + 1"]]) {
+    for (const args of [
+      ["start"],
+      ["open", "https://example.com"],
+      ["status"],
+      ["snapshot"],
+      ["eval", "1 + 1"],
+    ]) {
       test(`${args[0]} without pairing refuses instead of launching a clone`, async () => {
         const result = await run(driver, args);
         expect(result.code).toBe(1);
@@ -90,7 +125,14 @@ for (const driver of ["engine", "builtin"] as const) {
       });
     }
 
-    for (const args of [["--fresh"], ["--headless"], ["--resync"], ["--remote", "linux"], ["--profile", "Default"], ["--size", "800x600"]]) {
+    for (const args of [
+      ["--fresh"],
+      ["--headless"],
+      ["--resync"],
+      ["--remote", "linux"],
+      ["--profile", "Default"],
+      ["--size", "800x600"],
+    ]) {
       test(`start ${args[0]} cannot implicitly select the clone`, async () => {
         const result = await run(driver, ["start", ...args]);
         expect(result.code).toBe(1);
@@ -109,14 +151,18 @@ for (const driver of ["engine", "builtin"] as const) {
       const result = await run(driver, ["start"], undefined, "clone");
       expect(result.code, result.text).toBe(1);
       expect(result.text).toContain("not set up");
-        expect(result.text).not.toMatch(/in a terminal|extension setup/);
+      expect(result.text).not.toMatch(/in a terminal|extension setup/);
       expect(result.text).not.toContain("CLONE_LAUNCH");
     });
 
     test("advanced clone use does not change the next ordinary invocation", async () => {
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-browser-advanced-"));
+      const dir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "cast-browser-advanced-"),
+      );
       dirs.push(dir);
-      expect((await run(driver, ["advanced", "clone", "start"], dir)).code).toBe(0);
+      expect(
+        (await run(driver, ["advanced", "clone", "start"], dir)).code,
+      ).toBe(0);
       const next = await run(driver, ["start"], dir);
       expect(next.code, next.text).toBe(1);
       expect(next.text).toContain("not set up");
@@ -124,7 +170,13 @@ for (const driver of ["engine", "builtin"] as const) {
       expect(next.text).not.toContain("CLONE_LAUNCH");
     });
 
-    for (const args of [["start", "--clone"], ["open", "--clone", "https://example.com"], ["eval", "--clone", "1"], ["do", "--clone", "open https://example.com"], ["target", "clone"]]) {
+    for (const args of [
+      ["start", "--clone"],
+      ["open", "--clone", "https://example.com"],
+      ["eval", "--clone", "1"],
+      ["do", "--clone", "open https://example.com"],
+      ["target", "clone"],
+    ]) {
       test(`${args.join(" ")} rejects the retired shortcut before browser work`, async () => {
         const result = await run(driver, args);
         expect(result.code, result.text).toBe(1);
@@ -137,7 +189,9 @@ for (const driver of ["engine", "builtin"] as const) {
       for (const args of [["--help"], ["start", "--help"]]) {
         const result = await run(driver, args);
         expect(result.code, result.text).toBe(0);
-        expect(result.text).not.toMatch(/--clone|--headless|--fresh|--resync|--remote|advanced|target clone/);
+        expect(result.text).not.toMatch(
+          /--clone|--headless|--fresh|--resync|--remote|advanced|target clone/,
+        );
       }
     });
 
@@ -150,7 +204,9 @@ for (const driver of ["engine", "builtin"] as const) {
         expect(result.text).toContain("connected to the human's Chrome");
         expect(result.text).not.toContain("CLONE_LAUNCH");
         expect(result.text).not.toContain("PIN_TAB");
-        expect(extension.seen.filter((m) => m.op === "tabs.create")).toHaveLength(0);
+        expect(
+          extension.seen.filter((m) => m.op === "tabs.create"),
+        ).toHaveLength(0);
       } finally {
         extension.ws.close();
         await host.close();
@@ -163,7 +219,11 @@ test("eval through the real bridge never starts the separate browser", async () 
   const host = await testBridgeHost();
   const extension = await new FakeExtension([]).connect(host.port);
   try {
-    const result = await run("engine", ["eval", "1 + 1"], process.env.CODECAST_DIR);
+    const result = await run(
+      "engine",
+      ["eval", "1 + 1"],
+      process.env.CODECAST_DIR,
+    );
     expect(result.code, result.text).toBe(0);
     expect(result.text).toContain("EVAL_REAL");
     expect(result.text).not.toContain("CLONE_LAUNCH");
@@ -188,15 +248,33 @@ test("ordinary stop closes its real tab and reaps abandoned ones without launchi
   }
 });
 
-for (const args of [["status"], ["tabs"], ["tabs", "--all"], ["eval", "1 + 1"], ["do", "eval 1 + 1"]]) {
+for (const args of [
+  ["status"],
+  ["tabs"],
+  ["tabs", "--all"],
+  ["eval", "1 + 1"],
+  ["do", "eval 1 + 1"],
+]) {
   test(`${args.join(" ")} with no page never creates a placeholder or starts the engine`, async () => {
     const host = await testBridgeHost();
     const extension = await new FakeExtension([]).connect(host.port);
     try {
-      const result = await run("engine", args, process.env.CODECAST_DIR, undefined, true);
-      expect(result.code, result.text).toBe(args[0] === "eval" || args[0] === "do" ? 1 : 0);
+      const result = await run(
+        "engine",
+        args,
+        process.env.CODECAST_DIR,
+        undefined,
+        true,
+      );
+      expect(result.code, result.text).toBe(
+        args[0] === "eval" || args[0] === "do" ? 1 : 0,
+      );
       expect(result.text).not.toContain("ENGINE_CALL");
-      expect(extension.seen.filter((m) => m.op === "tabs.create" || m.op === "attach")).toHaveLength(0);
+      expect(
+        extension.seen.filter(
+          (m) => m.op === "tabs.create" || m.op === "attach",
+        ),
+      ).toHaveLength(0);
     } finally {
       extension.ws.close();
       await host.close();

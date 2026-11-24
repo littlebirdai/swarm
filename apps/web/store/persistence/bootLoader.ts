@@ -1,8 +1,18 @@
 import { authPrincipal } from "../../lib/authPrincipal";
-import { COLLECTION_RETENTION, expireExcludeTombstones, partitionSessionRetention } from "../cacheRetention";
-import { collectionRowHydrator, collectionRowValidator } from "../clientSyncRegistry";
+import {
+  COLLECTION_RETENTION,
+  expireExcludeTombstones,
+  partitionSessionRetention,
+} from "../cacheRetention";
+import {
+  collectionRowHydrator,
+  collectionRowValidator,
+} from "../clientSyncRegistry";
 import { queuedMessagesFromPending } from "../pendingMessageJournal";
-import { lastPersisted, noteConversationRetentionDrops } from "./collectionWriter";
+import {
+  lastPersisted,
+  noteConversationRetentionDrops,
+} from "./collectionWriter";
 import { COLLECTION_TABLES, db } from "./db";
 import { ensureCacheOwnership as resolveOwnership } from "./ownership";
 import { loadPendingInput } from "./pendingInputJournal";
@@ -11,7 +21,14 @@ import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
 
 // Old bundles can still write these values to the web meta table.
-export const RETIRED_META_KEYS = ["messages", "pagination", "sidePanelOpen", "sidePanelUserClosed", "teamUnreadCount", "conversations"];
+export const RETIRED_META_KEYS = [
+  "messages",
+  "pagination",
+  "sidePanelOpen",
+  "sidePanelUserClosed",
+  "teamUnreadCount",
+  "conversations",
+];
 let retiredMetaSwept = false;
 
 // Native kv-store can read SQLite on this thread (getItemSync). Web IndexedDB
@@ -47,19 +64,33 @@ export async function loadCache(
       // message is never withheld. Fail closed on whose rows: only the
       // stored token's principal, never a caller's claim about someone else.
       const principal = await authPrincipal.resolve();
-      const wantsPending = !wanted || wanted.has("pendingMessages") || wanted.has("queuedMessages");
+      const wantsPending =
+        !wanted ||
+        wanted.has("pendingMessages") ||
+        wanted.has("queuedMessages");
       const claimed = context.currentUser?._id;
-      if (!principal || !wantsPending || (claimed !== undefined && claimed !== principal)) return null;
+      if (
+        !principal ||
+        !wantsPending ||
+        (claimed !== undefined && claimed !== principal)
+      )
+        return null;
       const pendingMessages = await loadPendingInput(principal);
       if (Object.keys(pendingMessages).length === 0) return null;
-      return { pendingMessages, queuedMessages: queuedMessagesFromPending(pendingMessages) };
+      return {
+        pendingMessages,
+        queuedMessages: queuedMessagesFromPending(pendingMessages),
+      };
     }
     const result: Record<string, any> = {};
     let hasData = false;
 
-    const collectionEntries = Object.entries(COLLECTION_TABLES)
-      .filter(([key]) => !wanted || wanted.has(key));
-    const metaKeys = (keys ?? [...META_KEYS]).filter((key) => META_KEYS.has(key));
+    const collectionEntries = Object.entries(COLLECTION_TABLES).filter(
+      ([key]) => !wanted || wanted.has(key),
+    );
+    const metaKeys = (keys ?? [...META_KEYS]).filter((key) =>
+      META_KEYS.has(key),
+    );
     const [collectionResults, metaRows] = await Promise.all([
       Promise.all(collectionEntries.map(([, table]) => table.toArray())),
       db.meta.bulkGet(metaKeys),
@@ -88,7 +119,9 @@ export async function loadCache(
       // holds the trimmed row (holding the on-disk original would pin the very
       // bytes we just dropped until the collection's next persist).
       const hydrateRow = collectionRowHydrator(key);
-      const hydrateCtx = { pending: (metaByKey.pending as Record<string, any> | undefined) ?? {} };
+      const hydrateCtx = {
+        pending: (metaByKey.pending as Record<string, any> | undefined) ?? {},
+      };
       const trimmed: any[] = [];
       // Foreign documents persisted under the wrong collection (see validRow in
       // the registry) are excluded from hydration AND removed from disk, so the
@@ -117,10 +150,14 @@ export async function loadCache(
       if (rows.length > 0) {
         const map: Record<string, any> = {};
         for (const row of rows) {
-          if (validRow && !validRow(row)) { invalid.push(row._id); continue; }
+          if (validRow && !validRow(row)) {
+            invalid.push(row._id);
+            continue;
+          }
           const kept = hydrateRow ? hydrateRow(row, hydrateCtx) : row;
           if (kept !== row) trimmed.push(kept);
-          map[row._id] = kept; shadow.set(row._id, kept);
+          map[row._id] = kept;
+          shadow.set(row._id, kept);
         }
         if (Object.keys(map).length > 0) {
           result[key] = map;
@@ -141,11 +178,20 @@ export async function loadCache(
       hasData = true;
     }
 
-    if (!wanted || wanted.has("pendingMessages") || wanted.has("queuedMessages")) {
-      const ownerId = context.currentUser?._id ?? result.currentUser?._id ?? (await db.meta.get("currentUser"))?.value?._id;
+    if (
+      !wanted ||
+      wanted.has("pendingMessages") ||
+      wanted.has("queuedMessages")
+    ) {
+      const ownerId =
+        context.currentUser?._id ??
+        result.currentUser?._id ??
+        (await db.meta.get("currentUser"))?.value?._id;
       if (ownerId) {
         result.pendingMessages = await loadPendingInput(ownerId);
-        result.queuedMessages = queuedMessagesFromPending(result.pendingMessages);
+        result.queuedMessages = queuedMessagesFromPending(
+          result.pendingMessages,
+        );
         hasData = true;
       }
     }

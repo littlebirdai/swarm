@@ -30,7 +30,8 @@ export const ORG_HEALTH_REFRESH_MS = 60_000;
 
 /** Convex's verdict when the websocket drops while an action is running; the
  *  client reconnects on its own but does not resend the action. */
-export const ACTION_CONNECTION_LOST = "Connection lost while action was in flight";
+export const ACTION_CONNECTION_LOST =
+  "Connection lost while action was in flight";
 export const RECONNECT_RETRY_DELAY_MS = 2_000;
 
 /**
@@ -40,11 +41,15 @@ export const RECONNECT_RETRY_DELAY_MS = 2_000;
  * closing the socket) surfaced as a feeder error for a read the next cadence
  * tick would have repeated anyway.
  */
-export async function callWithReconnectRetry<T>(call: () => Promise<T>, delayMs = RECONNECT_RETRY_DELAY_MS): Promise<T> {
+export async function callWithReconnectRetry<T>(
+  call: () => Promise<T>,
+  delayMs = RECONNECT_RETRY_DELAY_MS,
+): Promise<T> {
   try {
     return await call();
   } catch (e: unknown) {
-    if (!(e instanceof Error) || !e.message.includes(ACTION_CONNECTION_LOST)) throw e;
+    if (!(e instanceof Error) || !e.message.includes(ACTION_CONNECTION_LOST))
+      throw e;
     await new Promise((r) => setTimeout(r, delayMs));
     return call();
   }
@@ -90,12 +95,18 @@ function readHealth(key: string): Promise<void> {
       if (entries.get(key) !== entry) return;
       // Stamped with the workspace it answers for: the store holds one
       // snapshot, and a switch must not paint the last workspace's flags.
-      if (result) useInboxStore.getState().syncTable("orgHealth", { ...(result as object), held_for: key });
+      if (result)
+        useInboxStore
+          .getState()
+          .syncTable("orgHealth", { ...(result as object), held_for: key });
       entry.lastOk = Date.now();
       setSnap(entry, { ready: true });
     } catch (e: unknown) {
       if (entries.get(key) !== entry) return;
-      setSnap(entry, { ready: entry.snap.ready, error: e instanceof Error ? e : new Error(String(e)) });
+      setSnap(entry, {
+        ready: entry.snap.ready,
+        error: e instanceof Error ? e : new Error(String(e)),
+      });
     } finally {
       entry.inFlight = null;
     }
@@ -104,17 +115,35 @@ function readHealth(key: string): Promise<void> {
   return run;
 }
 
-function holdHealth(key: string, args: Record<string, unknown>, ask: HealthEntry["ask"]): () => void {
+function holdHealth(
+  key: string,
+  args: Record<string, unknown>,
+  ask: HealthEntry["ask"],
+): () => void {
   let entry = entries.get(key);
   if (!entry) {
-    entry = { refs: 0, args, ask, inFlight: null, lastOk: 0, snap: COLD, listeners: new Set(), timer: null };
+    entry = {
+      refs: 0,
+      args,
+      ask,
+      inFlight: null,
+      lastOk: 0,
+      snap: COLD,
+      listeners: new Set(),
+      timer: null,
+    };
     entries.set(key, entry);
   }
   entry.ask = ask;
   entry.refs++;
-  if (!entry.timer) entry.timer = setInterval(() => void readHealth(key), ORG_HEALTH_REFRESH_MS);
+  if (!entry.timer)
+    entry.timer = setInterval(
+      () => void readHealth(key),
+      ORG_HEALTH_REFRESH_MS,
+    );
   // A fresh answer or a read already under way serves this mount too.
-  if (!entry.inFlight && Date.now() - entry.lastOk >= ORG_HEALTH_REFRESH_MS) void readHealth(key);
+  if (!entry.inFlight && Date.now() - entry.lastOk >= ORG_HEALTH_REFRESH_MS)
+    void readHealth(key);
   const held = entry;
   return () => {
     held.refs--;
@@ -128,42 +157,79 @@ function subscribeHealth(key: string, listener: () => void): () => void {
   const entry = entries.get(key);
   if (!entry) return () => {};
   entry.listeners.add(listener);
-  return () => { entry.listeners.delete(listener); };
+  return () => {
+    entry.listeners.delete(listener);
+  };
 }
 
 /** The held org health when it answers for workspace read `key` (`ws:<team id|personal>`); null while the slot still
  *  holds another workspace's. The workspace-checked selector for the orgHealth slot. */
-export function windowOrgHealth(s: { orgHealth: OrgHealth | null }, key: string): OrgHealth | null {
+export function windowOrgHealth(
+  s: { orgHealth: OrgHealth | null },
+  key: string,
+): OrgHealth | null {
   const h = s.orgHealth as (OrgHealth & { held_for?: string }) | null;
   return h && key && h.held_for === key ? h : null;
 }
 
-export function useSyncOrgHealth(enabled = true): { health: OrgHealth | null; ready: boolean; error?: Error; missing: boolean; refresh: () => Promise<void> } {
+export function useSyncOrgHealth(enabled = true): {
+  health: OrgHealth | null;
+  ready: boolean;
+  error?: Error;
+  missing: boolean;
+  refresh: () => Promise<void>;
+} {
   const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id);
-  const teamArg = !enabled ? "skip" : !activeTeamId ? {} : isConvexId(activeTeamId) ? { team_id: activeTeamId } : "skip";
+  const teamArg = !enabled
+    ? "skip"
+    : !activeTeamId
+      ? {}
+      : isConvexId(activeTeamId)
+        ? { team_id: activeTeamId }
+        : "skip";
   const key = teamArg === "skip" ? "" : `ws:${activeTeamId ?? "personal"}`;
   const report = useAction(api.orgHealth.healthReport);
   // The read is keyed on the workspace alone: the action handle rides in a
   // ref so its identity can never restart the read loop.
   const reportRef = useRef(report);
   reportRef.current = report;
-  const [snap, setLocalSnap] = useState<{ key: string; snap: HealthSnap }>({ key: "", snap: COLD });
+  const [snap, setLocalSnap] = useState<{ key: string; snap: HealthSnap }>({
+    key: "",
+    snap: COLD,
+  });
 
   // eslint-disable-next-line no-restricted-syntax -- holds the workspace's shared read while mounted, rearmed when the key changes
   useEffect(() => {
     if (!key) return;
-    const release = holdHealth(key, teamArg as Record<string, unknown>, (args) => reportRef.current(args));
-    const sync = () => setLocalSnap({ key, snap: entries.get(key)?.snap ?? COLD });
+    const release = holdHealth(
+      key,
+      teamArg as Record<string, unknown>,
+      (args) => reportRef.current(args),
+    );
+    const sync = () =>
+      setLocalSnap({ key, snap: entries.get(key)?.snap ?? COLD });
     const unsubscribe = subscribeHealth(key, sync);
     sync();
-    return () => { unsubscribe(); release(); };
+    return () => {
+      unsubscribe();
+      release();
+    };
     // teamArg is derived from key; key is the identity of the workspace read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  const refresh = useCallback((): Promise<void> => (key ? readHealth(key) : Promise.resolve()), [key]);
+  const refresh = useCallback(
+    (): Promise<void> => (key ? readHealth(key) : Promise.resolve()),
+    [key],
+  );
   const current = snap.key === key ? snap.snap : COLD;
   useFeederError("orgHealth.healthReport", current.error);
   const health = useInboxStore((s) => windowOrgHealth(s, key));
-  return { health, ready: current.ready, error: current.error, missing: isMissingFunctionError(current.error), refresh };
+  return {
+    health,
+    ready: current.ready,
+    error: current.error,
+    missing: isMissingFunctionError(current.error),
+    refresh,
+  };
 }

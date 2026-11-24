@@ -12,14 +12,35 @@ function ctx(messageCount: number, builtAt: number | undefined) {
   return {
     db: makeFakeDb({
       users: [{ _id: ME }],
-      conversations: [{ _id: "conv_1", user_id: ME, is_private: true, message_count: messageCount }],
-      conversation_summaries: builtAt === undefined ? [] : [{ _id: "sum_1", conversation_id: "conv_1", story: beats, story_message_count: builtAt }],
+      conversations: [
+        {
+          _id: "conv_1",
+          user_id: ME,
+          is_private: true,
+          message_count: messageCount,
+        },
+      ],
+      conversation_summaries:
+        builtAt === undefined
+          ? []
+          : [
+              {
+                _id: "sum_1",
+                conversation_id: "conv_1",
+                story: beats,
+                story_message_count: builtAt,
+              },
+            ],
       session_owners: [],
       team_memberships: [],
     }),
   } as any;
 }
-const read = (c: any, user = ME) => (getCachedStory as any)._handler(c, { conversation_id: "conv_1", user_id: user });
+const read = (c: any, user = ME) =>
+  (getCachedStory as any)._handler(c, {
+    conversation_id: "conv_1",
+    user_id: user,
+  });
 
 describe("storyMode.getCachedStory", () => {
   test("reports the count the beats were built at and that they are behind", async () => {
@@ -35,7 +56,10 @@ describe("storyMode.getCachedStory", () => {
   });
 
   test("no story yet is stale, and another user reads nothing", async () => {
-    expect(await read(ctx(5, undefined))).toMatchObject({ beats: [], stale: true });
+    expect(await read(ctx(5, undefined))).toMatchObject({
+      beats: [],
+      stale: true,
+    });
     expect(await read(ctx(5, 5), "users_other")).toBeNull();
   });
 });

@@ -18,7 +18,10 @@ import { useLocalDeviceId } from "../../hooks/useLocalDeviceId";
  * most recently seen online machine.
  */
 /** One device's snippet or machine setting, through the store's action. */
-function setSnippet({ device_id, ...change }: { device_id: string } & DeviceSnippetChange) {
+function setSnippet({
+  device_id,
+  ...change
+}: { device_id: string } & DeviceSnippetChange) {
   return useInboxStore.getState().setDeviceSnippet(device_id, change);
 }
 
@@ -32,7 +35,8 @@ export function useDeviceSettingsPanel() {
     () =>
       [...devices].sort(
         (a, b) =>
-          Number(b.device_id === localDeviceId) - Number(a.device_id === localDeviceId) ||
+          Number(b.device_id === localDeviceId) -
+            Number(a.device_id === localDeviceId) ||
           Number(b.online) - Number(a.online) ||
           Number(a.is_remote) - Number(b.is_remote) ||
           b.last_seen - a.last_seen,
@@ -52,7 +56,9 @@ export function useDeviceSettingsPanel() {
     try {
       await fn();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't apply that change");
+      toast.error(
+        e instanceof Error ? e.message : "Couldn't apply that change",
+      );
     } finally {
       setPending((p) => {
         const n = new Set(p);
@@ -62,5 +68,13 @@ export function useDeviceSettingsPanel() {
     }
   };
 
-  return { devices: sorted, selected, select: setSelectedId, localDeviceId, pending, run, setSnippet };
+  return {
+    devices: sorted,
+    selected,
+    select: setSelectedId,
+    localDeviceId,
+    pending,
+    run,
+    setSnippet,
+  };
 }

@@ -3,7 +3,10 @@ import { planForkFanout } from "./forkFanout";
 
 describe("planForkFanout", () => {
   test("two or more directions: this thread takes the first, the rest become branches", () => {
-    expect(planForkFanout(["A", "B", "C"])).toEqual({ parentDirection: "A", branchDirections: ["B", "C"] });
+    expect(planForkFanout(["A", "B", "C"])).toEqual({
+      parentDirection: "A",
+      branchDirections: ["B", "C"],
+    });
   });
 
   test("one direction is a spin-off branch; this thread keeps its own work", () => {
@@ -15,6 +18,8 @@ describe("planForkFanout", () => {
   });
 
   test("--all-branches keeps every direction off this thread", () => {
-    expect(planForkFanout(["A", "B"], { allBranches: true })).toEqual({ branchDirections: ["A", "B"] });
+    expect(planForkFanout(["A", "B"], { allBranches: true })).toEqual({
+      branchDirections: ["A", "B"],
+    });
   });
 });

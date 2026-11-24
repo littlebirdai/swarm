@@ -12,7 +12,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { descendantRows, snapshotProcessTableAsync, type ProcRow } from "./processTable.js";
+import {
+  descendantRows,
+  snapshotProcessTableAsync,
+  type ProcRow,
+} from "./processTable.js";
 import { tmuxSessionEnvUpdates } from "./processEnv.js";
 import { stillRunning } from "./test-helpers/processLiveness.js";
 import { sessionSocketName } from "./tmuxRoute.js";
@@ -27,8 +31,12 @@ delete process.env.TMUX;
 const { killTmuxSessionAndTree } = await import("./daemon.js");
 
 const run = promisify(execFile);
-const tmux = (args: string[]): Promise<{ stdout: string }> => run("tmux", args, { timeout: 10_000 });
-const hasTmux = await tmux(["-V"]).then(() => true, () => false);
+const tmux = (args: string[]): Promise<{ stdout: string }> =>
+  run("tmux", args, { timeout: 10_000 });
+const hasTmux = await tmux(["-V"]).then(
+  () => true,
+  () => false,
+);
 
 afterAll(async () => {
   await tmux(["kill-server"]).catch(() => {});
@@ -57,9 +65,25 @@ afterAll(async () => {
 describe.skipIf(!hasTmux)("killTmuxSessionAndTree", () => {
   test("kills the pane's whole tree, including a detached process group", async () => {
     fs.writeFileSync(scriptPath, PANE_SCRIPT, { mode: 0o755 });
-    await tmux(["new-session", "-d", "-s", session, "-x", "80", "-y", "24", scriptPath]);
+    await tmux([
+      "new-session",
+      "-d",
+      "-s",
+      session,
+      "-x",
+      "80",
+      "-y",
+      "24",
+      scriptPath,
+    ]);
 
-    const { stdout } = await tmux(["list-panes", "-t", session, "-F", "#{pane_pid}"]);
+    const { stdout } = await tmux([
+      "list-panes",
+      "-t",
+      session,
+      "-F",
+      "#{pane_pid}",
+    ]);
     const panePid = parseInt(stdout.trim(), 10);
     expect(panePid).toBeGreaterThan(1);
 
@@ -67,14 +91,22 @@ describe.skipIf(!hasTmux)("killTmuxSessionAndTree", () => {
     let tree: number[] = [];
     for (let i = 0; i < 40 && tree.length < 3; i++) {
       await new Promise((r) => setTimeout(r, 250));
-      tree = descendantRows(await snapshotProcessTableAsync({ timeout: 10_000 }), panePid).map((p) => p.pid);
+      tree = descendantRows(
+        await snapshotProcessTableAsync({ timeout: 10_000 }),
+        panePid,
+      ).map((p) => p.pid);
     }
     expect(tree.length).toBeGreaterThanOrEqual(3);
 
     // The leak this guards: at least one descendant leads a process group of
     // its own, so the pane's SIGHUP never reaches it.
-    const rows = descendantRows(await snapshotProcessTableAsync({ timeout: 10_000 }), panePid);
-    expect(rows.filter((p) => p.pgid === p.pid).length).toBeGreaterThanOrEqual(1);
+    const rows = descendantRows(
+      await snapshotProcessTableAsync({ timeout: 10_000 }),
+      panePid,
+    );
+    expect(rows.filter((p) => p.pgid === p.pid).length).toBeGreaterThanOrEqual(
+      1,
+    );
 
     await killTmuxSessionAndTree(session);
 
@@ -91,18 +123,51 @@ describe.skipIf(!hasTmux)("killTmuxSessionAndTree", () => {
   // session reached neither.
   test("kills everything on the session's own server, including what left the tree", async () => {
     fs.writeFileSync(ownScriptPath, OWN_SERVER_SCRIPT, { mode: 0o755 });
-    await ownTmux(["new-session", "-d", "-s", ownSession, "-x", "80", "-y", "24", ownScriptPath]);
-    const serverPid = parseInt((await ownTmux(["display-message", "-p", "-t", ownSession, "#{pid}"])).stdout.trim(), 10);
-    const panePid = parseInt((await ownTmux(["list-panes", "-t", ownSession, "-F", "#{pane_pid}"])).stdout.trim(), 10);
+    await ownTmux([
+      "new-session",
+      "-d",
+      "-s",
+      ownSession,
+      "-x",
+      "80",
+      "-y",
+      "24",
+      ownScriptPath,
+    ]);
+    const serverPid = parseInt(
+      (
+        await ownTmux(["display-message", "-p", "-t", ownSession, "#{pid}"])
+      ).stdout.trim(),
+      10,
+    );
+    const panePid = parseInt(
+      (
+        await ownTmux(["list-panes", "-t", ownSession, "-F", "#{pane_pid}"])
+      ).stdout.trim(),
+      10,
+    );
 
     let detached: number[] = [];
     let side: number[] = [];
-    for (let i = 0; i < 40 && (detached.length === 0 || side.length === 0); i++) {
+    for (
+      let i = 0;
+      i < 40 && (detached.length === 0 || side.length === 0);
+      i++
+    ) {
       await new Promise((r) => setTimeout(r, 250));
       const procs = await snapshotProcessTableAsync({ timeout: 10_000 });
       const tree = new Set(descendantRows(procs, panePid).map((p) => p.pid));
-      detached = procs.filter((p) => p.ppid === 1 && p.command.startsWith("sleep 401") && tree.has(p.pgid!)).map((p) => p.pid);
-      side = descendantRows(procs, serverPid).filter((p) => p.command.startsWith("sleep 402")).map((p) => p.pid);
+      detached = procs
+        .filter(
+          (p) =>
+            p.ppid === 1 &&
+            p.command.startsWith("sleep 401") &&
+            tree.has(p.pgid!),
+        )
+        .map((p) => p.pid);
+      side = descendantRows(procs, serverPid)
+        .filter((p) => p.command.startsWith("sleep 402"))
+        .map((p) => p.pid);
     }
     // The shape that escaped: one process outside every pane's tree, one in a
     // session the kill was not asked about.
@@ -111,7 +176,9 @@ describe.skipIf(!hasTmux)("killTmuxSessionAndTree", () => {
 
     await killTmuxSessionAndTree(ownSession);
 
-    expect(await stillRunning([...detached, ...side, panePid, serverPid])).toEqual([]);
+    expect(
+      await stillRunning([...detached, ...side, panePid, serverPid]),
+    ).toEqual([]);
   }, 90_000);
 
   // The launcher and its group leader are both gone before any sample could
@@ -119,15 +186,31 @@ describe.skipIf(!hasTmux)("killTmuxSessionAndTree", () => {
   // reaches the survivor. What it kept is the pane's terminal.
   test("kills what kept the pane's terminal after its whole ancestry exited", async () => {
     fs.writeFileSync(ttyScriptPath, TTY_SCRIPT, { mode: 0o755 });
-    await tmux(["new-session", "-d", "-s", ttySession, "-x", "80", "-y", "24", ttyScriptPath]);
-    const panePid = parseInt((await tmux(["list-panes", "-t", ttySession, "-F", "#{pane_pid}"])).stdout.trim(), 10);
+    await tmux([
+      "new-session",
+      "-d",
+      "-s",
+      ttySession,
+      "-x",
+      "80",
+      "-y",
+      "24",
+      ttyScriptPath,
+    ]);
+    const panePid = parseInt(
+      (
+        await tmux(["list-panes", "-t", ttySession, "-F", "#{pane_pid}"])
+      ).stdout.trim(),
+      10,
+    );
 
     let orphan: ProcRow | undefined;
     for (let i = 0; i < 40 && !orphan; i++) {
       await new Promise((r) => setTimeout(r, 250));
       const procs = await snapshotProcessTableAsync({ timeout: 10_000 });
       orphan = procs.find((p) => p.command.startsWith("sleep 403"));
-      if (orphan && procs.some((p) => p.pid === orphan!.pgid)) orphan = undefined; // leader still alive
+      if (orphan && procs.some((p) => p.pid === orphan!.pgid))
+        orphan = undefined; // leader still alive
     }
     // The shape: reparented, and its group's leader gone.
     expect(orphan?.ppid).toBe(1);
@@ -143,27 +226,56 @@ describe.skipIf(!hasTmux)("killTmuxSessionAndTree", () => {
   // that names the same agent both stay up.
   test("on the shared server, kills the side sessions its agent opened and no one else's", async () => {
     await tmux(["new-session", "-d", "-s", holder, "sleep 600"]);
-    const env = (await tmux(["show-options", "-gv", "update-environment"])).stdout;
+    const env = (await tmux(["show-options", "-gv", "update-environment"]))
+      .stdout;
     for (const args of tmuxSessionEnvUpdates(env)) await tmux(args);
     fs.writeFileSync(sharedScriptPath, SHARED_SCRIPT, { mode: 0o755 });
-    await tmux(["new-session", "-d", "-s", sharedSession, "-x", "80", "-y", "24", "-e", `REAP_ID=${agentId}`, sharedScriptPath]);
-    await tmux(["set-option", "-t", sharedSession, "@codecast_session_id", agentId]);
-    await run("tmux", ["new-session", "-d", "-s", otherSide, "sleep 407"], { env: { ...process.env, CLAUDE_CODE_SESSION_ID: "someone-else" } });
-    await run("tmux", ["new-session", "-d", "-s", decoyHome, "sleep 408"], { env: { ...process.env, CLAUDE_CODE_SESSION_ID: agentId } });
+    await tmux([
+      "new-session",
+      "-d",
+      "-s",
+      sharedSession,
+      "-x",
+      "80",
+      "-y",
+      "24",
+      "-e",
+      `REAP_ID=${agentId}`,
+      sharedScriptPath,
+    ]);
+    await tmux([
+      "set-option",
+      "-t",
+      sharedSession,
+      "@codecast_session_id",
+      agentId,
+    ]);
+    await run("tmux", ["new-session", "-d", "-s", otherSide, "sleep 407"], {
+      env: { ...process.env, CLAUDE_CODE_SESSION_ID: "someone-else" },
+    });
+    await run("tmux", ["new-session", "-d", "-s", decoyHome, "sleep 408"], {
+      env: { ...process.env, CLAUDE_CODE_SESSION_ID: agentId },
+    });
 
     let side: number[] = [];
     for (let i = 0; i < 40 && side.length === 0; i++) {
       await new Promise((r) => setTimeout(r, 250));
-      side = (await snapshotProcessTableAsync({ timeout: 10_000 })).filter((p) => p.command.startsWith("sleep 406")).map((p) => p.pid);
+      side = (await snapshotProcessTableAsync({ timeout: 10_000 }))
+        .filter((p) => p.command.startsWith("sleep 406"))
+        .map((p) => p.pid);
     }
     expect(side.length).toBe(1);
-    const spared = (await snapshotProcessTableAsync({ timeout: 10_000 })).filter((p) => /^sleep 40[78]/.test(p.command)).map((p) => p.pid);
+    const spared = (await snapshotProcessTableAsync({ timeout: 10_000 }))
+      .filter((p) => /^sleep 40[78]/.test(p.command))
+      .map((p) => p.pid);
     expect(spared.length).toBe(2);
 
     await killTmuxSessionAndTree(sharedSession);
 
     expect(await stillRunning(side)).toEqual([]);
-    await expect(tmux(["has-session", "-t", `=reap-side-${agentId}`])).rejects.toThrow();
+    await expect(
+      tmux(["has-session", "-t", `=reap-side-${agentId}`]),
+    ).rejects.toThrow();
     expect(await stillRunning(spared)).toEqual(spared);
     await tmux(["has-session", "-t", otherSide]);
     await tmux(["has-session", "-t", decoyHome]);
@@ -196,8 +308,16 @@ const decoyHome = `cc-reap-decoy-${process.pid}`;
 const holder = `reap-holder-${process.pid}`;
 
 afterAll(async () => {
-  for (const s of [ttySession, sharedSession, otherSide, decoyHome, `reap-side-${agentId}`]) await tmux(["kill-session", "-t", `=${s}`]).catch(() => {});
-  for (const f of [ttyScriptPath, sharedScriptPath]) fs.rmSync(f, { force: true });
+  for (const s of [
+    ttySession,
+    sharedSession,
+    otherSide,
+    decoyHome,
+    `reap-side-${agentId}`,
+  ])
+    await tmux(["kill-session", "-t", `=${s}`]).catch(() => {});
+  for (const f of [ttyScriptPath, sharedScriptPath])
+    fs.rmSync(f, { force: true });
 });
 
 // `set -m` makes the launcher a job with its own group; inside it, job control

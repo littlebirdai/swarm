@@ -13,10 +13,12 @@ export default function SharedMessageClient() {
   // Server-inlined payload paints first (and is what the server-rendered
   // markup was built from, so hydration matches); the live query replaces it
   // once the socket answers. undefined = nothing inlined: loader as before.
-  const data = live !== undefined ? live : readSharePreload<typeof live>("message", token);
+  const data =
+    live !== undefined ? live : readSharePreload<typeof live>("message", token);
   // Same clock as the server render until live data arrives, so relative
   // times hydrate without a mismatch.
-  const now = live !== undefined ? Date.now() : (readSharePreloadNow() ?? Date.now());
+  const now =
+    live !== undefined ? Date.now() : (readSharePreloadNow() ?? Date.now());
 
   if (data === undefined) return <AppLoader />;
   if (data === null) return <SharedMessageNotFound />;

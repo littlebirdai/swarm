@@ -1,7 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { LINE_STARTED_PREFIX, lineCandidates, sweepCore } from "./orgLine";
 import { lineSlugOf, normalizeLineSlug, performSetLine } from "./orgRoles";
-import { HOST, MATE, ROLE, STANDING, NOW, TODAY, TEAM, task, fixtures } from "./orgLine.testkit";
+import {
+  HOST,
+  MATE,
+  ROLE,
+  STANDING,
+  NOW,
+  TODAY,
+  TEAM,
+  task,
+  fixtures,
+} from "./orgLine.testkit";
 
 // the-line.md L2 (a scope owns a line) and L9 (the sweep starts it), driven
 // through the exported core functions against the fake db.
@@ -40,23 +50,38 @@ describe("orgLine.sweep (L9)", () => {
     expect(tables.daemon_commands).toHaveLength(1);
     expect(tables.daemon_commands[0].user_id).toBe(HOST);
     expect(tables.daemon_commands[0].command).toBe("run_workflow");
-    expect(JSON.parse(tables.daemon_commands[0].args)).toEqual({ workflow_run_id: run._id, workflow_slug: "line" });
+    expect(JSON.parse(tables.daemon_commands[0].args)).toEqual({
+      workflow_run_id: run._id,
+      workflow_slug: "line",
+    });
     // The task carries the run and left `open`; one comment names the run.
     expect(tables.tasks[0].workflow_run_id).toBe(run._id);
     expect(tables.tasks[0].status).toBe("in_progress");
-    const comments = tables.task_comments.filter((c) => c.task_id === "tasks_1");
+    const comments = tables.task_comments.filter(
+      (c) => c.task_id === "tasks_1",
+    );
     expect(comments).toHaveLength(1);
     expect(comments[0].text).toBe(`${LINE_STARTED_PREFIX}${run._id}`);
     expect(comments[0].author).toBe("@growth");
     // The run's primary session is a hand of the role and counts as one.
-    expect(tables.conversations.find((c) => c.workflow_run_id === run._id)?.org_role_id).toBe(ROLE);
-    expect(tables.org_roles[0].counters).toEqual({ day: TODAY, hands: 1, wakes: 0, tokens: 0 });
+    expect(
+      tables.conversations.find((c) => c.workflow_run_id === run._id)
+        ?.org_role_id,
+    ).toBe(ROLE);
+    expect(tables.org_roles[0].counters).toEqual({
+      day: TODAY,
+      hands: 1,
+      wakes: 0,
+      tokens: 0,
+    });
 
     const second = await sweepCore(ctx, NOW + 120_000);
     expect(second.started).toHaveLength(0);
     expect(tables.workflow_runs).toHaveLength(1);
     expect(tables.daemon_commands).toHaveLength(1);
-    expect(tables.task_comments.filter((c) => c.task_id === "tasks_1")).toHaveLength(1);
+    expect(
+      tables.task_comments.filter((c) => c.task_id === "tasks_1"),
+    ).toHaveLength(1);
     expect(tables.org_roles[0].counters.hands).toBe(1);
   });
 
@@ -64,7 +89,10 @@ describe("orgLine.sweep (L9)", () => {
     const { ctx, tables } = fixtures();
     // cast pull / cast role move: the session runs under Mate now, and Mate's
     // daemon recorded its own checkout. The role and anchor rows still name Host.
-    Object.assign(tables.conversations.find((c) => c._id === STANDING)!, { user_id: MATE, project_path: "/Users/mate/src/growth" });
+    Object.assign(
+      tables.conversations.find((c) => c._id === STANDING)!,
+      { user_id: MATE, project_path: "/Users/mate/src/growth" },
+    );
     await sweepCore(ctx, NOW);
     const run = tables.workflow_runs[0];
     expect(run.user_id).toBe(MATE);
@@ -76,12 +104,27 @@ describe("orgLine.sweep (L9)", () => {
   test("uses the host's pushed workflow row when one carries the line's slug", async () => {
     const { ctx, tables } = fixtures({
       role: { line_workflow_slug: "feature" },
-      extra: { workflows: [{ _id: "workflows_feat", user_id: HOST, name: "Feature", slug: "feature", nodes: [], edges: [], created_at: 1, updated_at: 1 }] },
+      extra: {
+        workflows: [
+          {
+            _id: "workflows_feat",
+            user_id: HOST,
+            name: "Feature",
+            slug: "feature",
+            nodes: [],
+            edges: [],
+            created_at: 1,
+            updated_at: 1,
+          },
+        ],
+      },
     });
     await sweepCore(ctx, NOW);
     expect(tables.workflow_runs[0].workflow_id).toBe("workflows_feat");
     expect(tables.workflow_runs[0].workflow_name).toBe("Feature");
-    expect(JSON.parse(tables.daemon_commands[0].args).workflow_slug).toBe("feature");
+    expect(JSON.parse(tables.daemon_commands[0].args).workflow_slug).toBe(
+      "feature",
+    );
   });
 
   test("a task private to its owner inside a team gets a private run (L8: access from the task, routing from the team)", async () => {
@@ -93,7 +136,17 @@ describe("orgLine.sweep (L9)", () => {
   });
 
   test("starts nothing once the role's hands cap is reached", async () => {
-    const { ctx, tables } = fixtures({ role: { caps: { hands_per_day: 1, wakes_per_day: 10, tokens_per_day: 1_000_000, line_on: true }, counters: { day: TODAY, hands: 1, wakes: 0, tokens: 0 } } });
+    const { ctx, tables } = fixtures({
+      role: {
+        caps: {
+          hands_per_day: 1,
+          wakes_per_day: 10,
+          tokens_per_day: 1_000_000,
+          line_on: true,
+        },
+        counters: { day: TODAY, hands: 1, wakes: 0, tokens: 0 },
+      },
+    });
     const res = await sweepCore(ctx, NOW);
     expect(res.started).toHaveLength(0);
     expect(res.skipped_capped).toEqual([ROLE]);
@@ -103,10 +156,25 @@ describe("orgLine.sweep (L9)", () => {
   });
 
   test("a stale counter row from yesterday does not hold today's cap", async () => {
-    const { ctx, tables } = fixtures({ role: { caps: { hands_per_day: 1, wakes_per_day: 10, tokens_per_day: 1_000_000, line_on: true }, counters: { day: "2020-01-01", hands: 1, wakes: 0, tokens: 0 } } });
+    const { ctx, tables } = fixtures({
+      role: {
+        caps: {
+          hands_per_day: 1,
+          wakes_per_day: 10,
+          tokens_per_day: 1_000_000,
+          line_on: true,
+        },
+        counters: { day: "2020-01-01", hands: 1, wakes: 0, tokens: 0 },
+      },
+    });
     const res = await sweepCore(ctx, NOW);
     expect(res.started).toHaveLength(1);
-    expect(tables.org_roles[0].counters).toEqual({ day: TODAY, hands: 1, wakes: 0, tokens: 0 });
+    expect(tables.org_roles[0].counters).toEqual({
+      day: TODAY,
+      hands: 1,
+      wakes: 0,
+      tokens: 0,
+    });
   });
 
   test("skips a paused role and a role whose switch is off; decide reads as on (S23.1)", async () => {
@@ -114,7 +182,11 @@ describe("orgLine.sweep (L9)", () => {
       const { ctx } = fixtures({ role: { trust: "decide" } });
       expect((await sweepCore(ctx, NOW)).started).toHaveLength(1);
     }
-    for (const role of [{ status: "paused" }, { trust: "understand" }, { trust: undefined }]) {
+    for (const role of [
+      { status: "paused" },
+      { trust: "understand" },
+      { trust: undefined },
+    ]) {
       const { ctx, tables } = fixtures({ role });
       const res = await sweepCore(ctx, NOW);
       expect(res.started).toHaveLength(0);
@@ -135,8 +207,27 @@ describe("orgLine.sweep (L9)", () => {
       [{ blocked_by: ["ct-9"] }, 0],
       [{ blocked_by: ["ct-8"] }, 1],
       [{ blocked_by: ["ct-404"] }, 1],
-      [{ waits: [{ kind: "time", at: NOW + 3_600_000, state: "waiting", created_at: NOW }] }, 0],
-      [{ waits: [{ kind: "time", at: NOW - 1, state: "met", created_at: NOW - 2 }] }, 1],
+      [
+        {
+          waits: [
+            {
+              kind: "time",
+              at: NOW + 3_600_000,
+              state: "waiting",
+              created_at: NOW,
+            },
+          ],
+        },
+        0,
+      ],
+      [
+        {
+          waits: [
+            { kind: "time", at: NOW - 1, state: "met", created_at: NOW - 2 },
+          ],
+        },
+        1,
+      ],
       [{ project_id: "projects_elsewhere" }, 0],
     ];
     for (const [over, expected] of cases) {
@@ -145,8 +236,19 @@ describe("orgLine.sweep (L9)", () => {
         extra: {
           tasks: [
             task(over),
-            task({ _id: "tasks_9", short_id: "ct-9", assignee: undefined, project_id: undefined }),
-            task({ _id: "tasks_8", short_id: "ct-8", status: "done", assignee: undefined, project_id: undefined }),
+            task({
+              _id: "tasks_9",
+              short_id: "ct-9",
+              assignee: undefined,
+              project_id: undefined,
+            }),
+            task({
+              _id: "tasks_8",
+              short_id: "ct-8",
+              status: "done",
+              assignee: undefined,
+              project_id: undefined,
+            }),
           ],
         },
       });
@@ -157,7 +259,14 @@ describe("orgLine.sweep (L9)", () => {
 
   test("drains a backlog oldest first, bounded by the cap", async () => {
     const { ctx, tables } = fixtures({
-      role: { caps: { hands_per_day: 2, wakes_per_day: 10, tokens_per_day: 1_000_000, line_on: true } },
+      role: {
+        caps: {
+          hands_per_day: 2,
+          wakes_per_day: 10,
+          tokens_per_day: 1_000_000,
+          line_on: true,
+        },
+      },
       extra: {
         tasks: [
           task({ _id: "tasks_new", short_id: "ct-3", created_at: NOW - 10 }),
@@ -167,39 +276,74 @@ describe("orgLine.sweep (L9)", () => {
       },
     });
     const res = await sweepCore(ctx, NOW);
-    expect(res.started.map((s) => s.task_id)).toEqual(["tasks_old", "tasks_mid"]);
+    expect(res.started.map((s) => s.task_id)).toEqual([
+      "tasks_old",
+      "tasks_mid",
+    ]);
     expect(res.skipped_capped).toEqual([ROLE]);
     expect(tables.workflow_runs).toHaveLength(2);
     expect(tables.org_roles[0].counters.hands).toBe(2);
-    expect(tables.tasks.find((t) => t._id === "tasks_new")!.status).toBe("open");
+    expect(tables.tasks.find((t) => t._id === "tasks_new")!.status).toBe(
+      "open",
+    );
   });
 });
 
 describe("orgRoles.setLine (L2)", () => {
   test("a person sets the slug: logged to org_role_history", async () => {
     const { ctx, tables } = fixtures();
-    const updated = await performSetLine(ctx, HOST as any, { role_id: "or-1", slug: "Feature", human_decision: "yes" });
+    const updated = await performSetLine(ctx, HOST as any, {
+      role_id: "or-1",
+      slug: "Feature",
+      human_decision: "yes",
+    });
     expect(updated.line_workflow_slug).toBe("feature");
     expect(updated.previous_line_workflow_slug).toBe("line");
     expect(tables.org_roles[0].line_workflow_slug).toBe("feature");
     expect(tables.org_role_history).toHaveLength(1);
-    expect(tables.org_role_history[0]).toMatchObject({ role_id: ROLE, user_id: HOST, actor_type: "user", action: "line", field: "line_workflow_slug", old_value: "line", new_value: "feature" });
+    expect(tables.org_role_history[0]).toMatchObject({
+      role_id: ROLE,
+      user_id: HOST,
+      actor_type: "user",
+      action: "line",
+      field: "line_workflow_slug",
+      old_value: "line",
+      new_value: "feature",
+    });
   });
 
   test("the same slug again logs nothing", async () => {
-    const { ctx, tables } = fixtures({ role: { line_workflow_slug: "feature" } });
-    await performSetLine(ctx, HOST as any, { role_id: "or-1", slug: "feature.cast", human_decision: "yes" });
+    const { ctx, tables } = fixtures({
+      role: { line_workflow_slug: "feature" },
+    });
+    await performSetLine(ctx, HOST as any, {
+      role_id: "or-1",
+      slug: "feature.cast",
+      human_decision: "yes",
+    });
     expect(tables.org_role_history).toHaveLength(0);
   });
 
   test("a plain member may not change the line", async () => {
     const { ctx } = fixtures();
-    await expect(performSetLine(ctx, MATE as any, { role_id: "or-1", slug: "feature", human_decision: "yes" })).rejects.toThrow(/admin/);
+    await expect(
+      performSetLine(ctx, MATE as any, {
+        role_id: "or-1",
+        slug: "feature",
+        human_decision: "yes",
+      }),
+    ).rejects.toThrow(/admin/);
   });
 
   test("refuses a slug that is not a workflow name", async () => {
     const { ctx } = fixtures();
-    await expect(performSetLine(ctx, HOST as any, { role_id: "or-1", slug: "../etc", human_decision: "yes" })).rejects.toThrow(/slug/);
+    await expect(
+      performSetLine(ctx, HOST as any, {
+        role_id: "or-1",
+        slug: "../etc",
+        human_decision: "yes",
+      }),
+    ).rejects.toThrow(/slug/);
     expect(() => normalizeLineSlug("")).toThrow();
     expect(normalizeLineSlug(" Line.cast ")).toBe("line");
     expect(lineSlugOf({})).toBe("line");
@@ -213,28 +357,50 @@ describe("orgRoles.setLine (L2)", () => {
 describe("startLineCauseCore (LX6)", () => {
   test("starts the lead role's line on a cause in its project, once", async () => {
     const { startLineCauseCore } = await import("./lineCause");
-    const { ctx, tables } = fixtures({ role: { trust: "propose" }, task: { assignee: undefined, source: "signal", category: "line" } });
+    const { ctx, tables } = fixtures({
+      role: { trust: "propose" },
+      task: { assignee: undefined, source: "signal", category: "line" },
+    });
     const out = await startLineCauseCore(ctx, HOST as any, "tasks_1" as any);
     expect(out.role_handle).toBe("growth");
     expect(tables.workflow_runs).toHaveLength(1);
-    expect(tables.workflow_runs[0]).toMatchObject({ task_id: "tasks_1", user_id: HOST, workflow_name: "line" });
+    expect(tables.workflow_runs[0]).toMatchObject({
+      task_id: "tasks_1",
+      user_id: HOST,
+      workflow_name: "line",
+    });
     expect(tables.tasks[0].status).toBe("in_progress");
-    await expect(startLineCauseCore(ctx, HOST as any, "tasks_1" as any)).rejects.toThrow(/already has a live run/);
+    await expect(
+      startLineCauseCore(ctx, HOST as any, "tasks_1" as any),
+    ).rejects.toThrow(/already has a live run/);
   });
 
   // LX4: a card answered Ship whose run then reports nothing has no runner;
   // starting the cause again ends that run instead of refusing.
   test("ends a run stalled at the card gate and starts the cause again", async () => {
     const { startLineCauseCore } = await import("./lineCause");
-    const { ctx, tables } = fixtures({ role: { trust: "propose" }, task: { assignee: undefined, source: "signal", category: "line" } });
+    const { ctx, tables } = fixtures({
+      role: { trust: "propose" },
+      task: { assignee: undefined, source: "signal", category: "line" },
+    });
     await startLineCauseCore(ctx, HOST as any, "tasks_1" as any);
     const first = tables.workflow_runs[0];
-    Object.assign(first, { status: "running", current_node_id: "decide", updated_at: Date.now() - 2 * 60 * 60_000 });
+    Object.assign(first, {
+      status: "running",
+      current_node_id: "decide",
+      updated_at: Date.now() - 2 * 60 * 60_000,
+    });
     await startLineCauseCore(ctx, HOST as any, "tasks_1" as any);
     expect(tables.workflow_runs).toHaveLength(2);
     expect(tables.workflow_runs[0].status).toBe("failed");
     // A run at the gate that reported a minute ago is still driven: refused.
-    Object.assign(tables.workflow_runs[1], { status: "running", current_node_id: "decide", updated_at: Date.now() - 60_000 });
-    await expect(startLineCauseCore(ctx, HOST as any, "tasks_1" as any)).rejects.toThrow(/already has a live run/);
+    Object.assign(tables.workflow_runs[1], {
+      status: "running",
+      current_node_id: "decide",
+      updated_at: Date.now() - 60_000,
+    });
+    await expect(
+      startLineCauseCore(ctx, HOST as any, "tasks_1" as any),
+    ).rejects.toThrow(/already has a live run/);
   });
 });

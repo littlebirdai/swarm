@@ -24,7 +24,7 @@ describe("AuthServer", () => {
     for (const s of servers) s.stop();
     servers = [];
     await Promise.all(
-      occupiers.map((o) => new Promise<void>((res) => o.close(() => res())))
+      occupiers.map((o) => new Promise<void>((res) => o.close(() => res()))),
     );
     occupiers = [];
   });
@@ -37,7 +37,9 @@ describe("AuthServer", () => {
     const base = await getFreePort();
 
     const occupier = http.createServer();
-    await new Promise<void>((res) => occupier.listen(base, "127.0.0.1", () => res()));
+    await new Promise<void>((res) =>
+      occupier.listen(base, "127.0.0.1", () => res()),
+    );
     occupiers.push(occupier);
 
     const server = new AuthServer({ port: base, timeout: 1000 });
@@ -51,10 +53,18 @@ describe("AuthServer", () => {
     const res = await fetch(`http://127.0.0.1:${port}/callback`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "u1", apiToken: "t1", nonce: server.getNonce() }),
+      body: JSON.stringify({
+        userId: "u1",
+        apiToken: "t1",
+        nonce: server.getNonce(),
+      }),
     });
     expect(res.status).toBe(200);
-    expect(await result).toEqual({ userId: "u1", apiToken: "t1", nonce: server.getNonce() });
+    expect(await result).toEqual({
+      userId: "u1",
+      apiToken: "t1",
+      nonce: server.getNonce(),
+    });
   });
 
   // Chrome's Private Network Access blocks a fetch from an https page to
@@ -66,9 +76,13 @@ describe("AuthServer", () => {
     servers.push(server);
     const port = await server.listen();
 
-    const res = await fetch(`http://127.0.0.1:${port}/callback`, { method: "OPTIONS" });
+    const res = await fetch(`http://127.0.0.1:${port}/callback`, {
+      method: "OPTIONS",
+    });
     expect(res.status).toBe(204);
-    expect(res.headers.get("access-control-allow-private-network")).toBe("true");
+    expect(res.headers.get("access-control-allow-private-network")).toBe(
+      "true",
+    );
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
   });
 

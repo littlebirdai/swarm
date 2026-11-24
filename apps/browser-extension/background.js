@@ -74,7 +74,8 @@ const TAB_IDLE_MS = 30 * 60 * 1000;
 const HANDOFF_DEFAULT_MS = 30 * 60 * 1000;
 const HANDOFF_MAX_MS = 24 * 60 * 60 * 1000;
 /** Debugger errors another extension's injected frame causes; evicting the frame and retrying gets past them. */
-const FOREIGN_FRAME = /Cannot access a chrome-extension:\/\/ URL|Debugger is not attached/i;
+const FOREIGN_FRAME =
+  /Cannot access a chrome-extension:\/\/ URL|Debugger is not attached/i;
 
 let ws = null;
 let status = { state: "no-config", detail: "not paired yet" };
@@ -107,17 +108,34 @@ const attached = new (class extends Set {
  * (bridge/frameSessions.ts).
  */
 const frameTargets = new Map();
-const AUTO_ATTACH = { autoAttach: true, waitForDebuggerOnStart: false, flatten: true, filter: [{ type: "iframe" }] };
+const AUTO_ATTACH = {
+  autoAttach: true,
+  waitForDebuggerOnStart: false,
+  flatten: true,
+  filter: [{ type: "iframe" }],
+};
 /** Iframe child sessions need a host that routes their events by `session` (protocol 5); an older host would stamp them with the page's own. */
 const FRAMES_PROTOCOL = 5;
 function enableFrames(debuggee) {
   if (hostProtocol < FRAMES_PROTOCOL) return Promise.resolve();
-  return bounded(chrome.debugger.sendCommand(debuggee, "Target.setAutoAttach", AUTO_ATTACH), "auto-attach").catch((err) =>
-    note(`auto-attach on tab ${debuggee.tabId}${debuggee.sessionId ? " frame" : ""}: ${String((err && err.message) || err)}`),
+  return bounded(
+    chrome.debugger.sendCommand(debuggee, "Target.setAutoAttach", AUTO_ATTACH),
+    "auto-attach",
+  ).catch((err) =>
+    note(
+      `auto-attach on tab ${debuggee.tabId}${debuggee.sessionId ? " frame" : ""}: ${String((err && err.message) || err)}`,
+    ),
   );
 }
 function replayFrames(tabId) {
-  for (const [, t] of frameTargets.get(tabId) || []) send({ op: "event", tabId, session: t.parent, method: "Target.attachedToTarget", params: t.params });
+  for (const [, t] of frameTargets.get(tabId) || [])
+    send({
+      op: "event",
+      tabId,
+      session: t.parent,
+      method: "Target.attachedToTarget",
+      params: t.params,
+    });
 }
 
 // Chrome stops a running service worker that leaves its ping unanswered for
@@ -133,21 +151,34 @@ let selfTarget = null;
 let selfSync = Promise.resolve();
 
 function holdSelf() {
-  selfSync = selfSync.then(async () => {
-    const want = attached.size > 0;
-    if (want === (selfTarget !== null)) return;
-    if (!want) {
-      const targetId = selfTarget;
-      selfTarget = null;
-      await bounded(chrome.debugger.detach({ targetId }), "debugger.detach").catch(() => {});
-      return note("released own worker session");
-    }
-    const self = (await bounded(chrome.debugger.getTargets(), "debugger.getTargets")).find((t) => t.type === "worker" && t.url === chrome.runtime.getURL("background.js"));
-    if (!self) return note("own service worker is not a debugger target");
-    await attachDebugger({ targetId: self.id });
-    selfTarget = self.id;
-    note("holding own worker session");
-  }).catch((err) => note(`self session failed: ${String((err && err.message) || err)}`));
+  selfSync = selfSync
+    .then(async () => {
+      const want = attached.size > 0;
+      if (want === (selfTarget !== null)) return;
+      if (!want) {
+        const targetId = selfTarget;
+        selfTarget = null;
+        await bounded(
+          chrome.debugger.detach({ targetId }),
+          "debugger.detach",
+        ).catch(() => {});
+        return note("released own worker session");
+      }
+      const self = (
+        await bounded(chrome.debugger.getTargets(), "debugger.getTargets")
+      ).find(
+        (t) =>
+          t.type === "worker" &&
+          t.url === chrome.runtime.getURL("background.js"),
+      );
+      if (!self) return note("own service worker is not a debugger target");
+      await attachDebugger({ targetId: self.id });
+      selfTarget = self.id;
+      note("holding own worker session");
+    })
+    .catch((err) =>
+      note(`self session failed: ${String((err && err.message) || err)}`),
+    );
   return selfSync;
 }
 
@@ -176,7 +207,9 @@ function setStatus(state, detail) {
   status = { state, detail: detail || "" };
   // Deferred: setStatus can run while the worker is still evaluating, before the setup-page constants exist.
   if (changed) setTimeout(tellSetupPages, 0);
-  chrome.action.setTitle({ title: `Codecast: ${state}${detail ? `, ${detail}` : ""}` });
+  chrome.action.setTitle({
+    title: `Codecast: ${state}${detail ? `, ${detail}` : ""}`,
+  });
   // A global badge only when something is wrong, so "working" is quiet.
   if (state === "bad-token") {
     chrome.action.setBadgeText({ text: "ERR" });
@@ -227,7 +260,8 @@ function note(what) {
   const last = recent[recent.length - 1];
   const same = last && /^\S+ (\S+) (.*?)(?: x(\d+))?$/.exec(last);
   if (same && same[1] === BOOT.id && same[2] === what) {
-    recent[recent.length - 1] = `${stamp} ${BOOT.id} ${what} x${(parseInt(same[3] || "1", 10) + 1)}`;
+    recent[recent.length - 1] =
+      `${stamp} ${BOOT.id} ${what} x${parseInt(same[3] || "1", 10) + 1}`;
   } else {
     recent.push(`${stamp} ${BOOT.id} ${what}`);
     if (recent.length > RECENT_MAX) recent = recent.slice(-RECENT_MAX);
@@ -265,7 +299,11 @@ function resetRetries() {
 }
 
 async function connect(trigger = "boot") {
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+  if (
+    ws &&
+    (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)
+  )
+    return;
   note(`connect via ${trigger}`);
   const cfg = await getConfig();
   // How this profile proves itself (pairing.ts in the CLI has the scheme):
@@ -275,18 +313,34 @@ async function connect(trigger = "boot") {
   // before profile keys (an older cast on this machine) refused its key; it
   // says hello the old way to that host only, never to one that knows keys,
   // so a revoked key cannot come back in through the token.
-  const mode = !cfg || !cfg.port ? null
-    : cfg.secret ? (cfg.token && keyRefused && (await hostProtocolOn(cfg.port)) < KEY_PROTOCOL ? "legacy" : "key")
-    : cfg.token ? "legacy"
-    : cfg.code && (cfg.codeExpiresAt || 0) > Date.now() ? "code"
-    : null;
+  const mode =
+    !cfg || !cfg.port
+      ? null
+      : cfg.secret
+        ? cfg.token &&
+          keyRefused &&
+          (await hostProtocolOn(cfg.port)) < KEY_PROTOCOL
+          ? "legacy"
+          : "key"
+        : cfg.token
+          ? "legacy"
+          : cfg.code && (cfg.codeExpiresAt || 0) > Date.now()
+            ? "code"
+            : null;
   if (!mode) {
-    setStatus("no-config", "not paired yet; run `cast browser extension setup` in a terminal");
+    setStatus(
+      "no-config",
+      "not paired yet; run `cast browser extension setup` in a terminal",
+    );
     return;
   }
   // A key is proven under the profile key it was issued to, stored with it.
   const profileKey = (mode === "key" && cfg.key) || (await ensureProfileKey());
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+  if (
+    ws &&
+    (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)
+  )
+    return;
   // The key mode's HMAC key is the hash of this profile's key: the host keeps only that hash.
   const proofKey = mode === "key" ? await sha256Hex(cfg.secret) : cfg.token;
   /** The code exchange's session key, once the host's challenge arrives. */
@@ -296,7 +350,8 @@ async function connect(trigger = "boot") {
   ws = sock;
   // A token rejection or a standby stays on the badge until a host welcomes
   // this worker; the attempt itself is silent so the badge does not flicker.
-  if (status.state !== "bad-token" && status.state !== "standby") setStatus("connecting", `127.0.0.1:${cfg.port}`);
+  if (status.state !== "bad-token" && status.state !== "standby")
+    setStatus("connecting", `127.0.0.1:${cfg.port}`);
   const nonce = randomHex(32);
   let proven = false;
   let proving = null;
@@ -315,7 +370,9 @@ async function connect(trigger = "boot") {
       nonce,
       mode,
       key: profileKey,
-      ...(mode === "code" ? {} : { auth: await hmacHex(proofKey, "ext:" + nonce) }),
+      ...(mode === "code"
+        ? {}
+        : { auth: await hmacHex(proofKey, "ext:" + nonce) }),
       version: chrome.runtime.getManifest().version,
       protocol: PROTOCOL,
       userAgent: navigator.userAgent,
@@ -336,45 +393,83 @@ async function connect(trigger = "boot") {
     }
     // Nothing is executed for a host that has not proved it holds the token.
     if (!proven) {
-      if (msg.op === "challenge" && mode === "code" && !codeSession && /^[0-9a-f]{64}$/.test(String(msg.nonce || ""))) {
+      if (
+        msg.op === "challenge" &&
+        mode === "code" &&
+        !codeSession &&
+        /^[0-9a-f]{64}$/.test(String(msg.nonce || ""))
+      ) {
         // Prove the code without showing it; the host proves it back in its welcome.
         const codeKey = await pairingCodeKey(cfg.code);
-        codeSession = await hmacHex(codeKey, `cast-pair-v1|127.0.0.1:${cfg.port}|${nonce}|${msg.nonce}`);
-        if (ws === sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify({ op: "pair", proof: await hmacHex(codeSession, "ext") }));
+        codeSession = await hmacHex(
+          codeKey,
+          `cast-pair-v1|127.0.0.1:${cfg.port}|${nonce}|${msg.nonce}`,
+        );
+        if (ws === sock && sock.readyState === WebSocket.OPEN)
+          sock.send(
+            JSON.stringify({
+              op: "pair",
+              proof: await hmacHex(codeSession, "ext"),
+            }),
+          );
         return;
       }
       if (msg.op === "welcome") {
-        if (!proving) proving = (async () => {
-          const valid = mode === "code"
-            ? !!codeSession && sameHex(msg.proof, await hmacHex(codeSession, "host"))
-            : sameHex(msg.proof, await hmacHex(proofKey, nonce));
-          if (ws !== sock || sock.readyState !== WebSocket.OPEN) return;
-          // A key handed over (a code exchange, or the shared token's
-          // migration) arrives masked with a pad only the two of us can make.
-          if (valid && typeof msg.issue === "string" && /^[0-9a-f]{64}$/.test(msg.issue)) {
-            const pad = mode === "code" ? await hmacHex(codeSession, "wrap") : await hmacHex(cfg.token, "issue:" + nonce);
-            await storePairing({ port: cfg.port, key: profileKey, secret: xorHex(msg.issue, pad), profile: typeof msg.profile === "string" ? msg.profile : undefined, ...(cfg.token ? { token: cfg.token } : {}) });
-            note(mode === "code" ? "paired with a code" : "migrated off the shared token");
-          } else if (valid && mode === "code") {
-            note("host welcomed a code without a key");
-          }
-          if (valid) {
-            proven = true;
-            hostProven = true;
-            if (mode === "key") keyRefused = false;
-            hostProtocol = Number(msg.protocol) || 0;
-            clearTimeout(deadline);
-            resetRetries();
-            startKeepalive();
-            note("proven");
-            setStatus("connected", `127.0.0.1:${cfg.port}`);
-          } else {
-            // Close first, then set the status: the close handler reads it.
-            note("host proof failed");
-            sock.close(4401, "host could not prove the token");
-            setStatus("bad-token", "the host on that port could not prove it holds the token; run `cast browser extension setup` again");
-          }
-        })();
+        if (!proving)
+          proving = (async () => {
+            const valid =
+              mode === "code"
+                ? !!codeSession &&
+                  sameHex(msg.proof, await hmacHex(codeSession, "host"))
+                : sameHex(msg.proof, await hmacHex(proofKey, nonce));
+            if (ws !== sock || sock.readyState !== WebSocket.OPEN) return;
+            // A key handed over (a code exchange, or the shared token's
+            // migration) arrives masked with a pad only the two of us can make.
+            if (
+              valid &&
+              typeof msg.issue === "string" &&
+              /^[0-9a-f]{64}$/.test(msg.issue)
+            ) {
+              const pad =
+                mode === "code"
+                  ? await hmacHex(codeSession, "wrap")
+                  : await hmacHex(cfg.token, "issue:" + nonce);
+              await storePairing({
+                port: cfg.port,
+                key: profileKey,
+                secret: xorHex(msg.issue, pad),
+                profile:
+                  typeof msg.profile === "string" ? msg.profile : undefined,
+                ...(cfg.token ? { token: cfg.token } : {}),
+              });
+              note(
+                mode === "code"
+                  ? "paired with a code"
+                  : "migrated off the shared token",
+              );
+            } else if (valid && mode === "code") {
+              note("host welcomed a code without a key");
+            }
+            if (valid) {
+              proven = true;
+              hostProven = true;
+              if (mode === "key") keyRefused = false;
+              hostProtocol = Number(msg.protocol) || 0;
+              clearTimeout(deadline);
+              resetRetries();
+              startKeepalive();
+              note("proven");
+              setStatus("connected", `127.0.0.1:${cfg.port}`);
+            } else {
+              // Close first, then set the status: the close handler reads it.
+              note("host proof failed");
+              sock.close(4401, "host could not prove the token");
+              setStatus(
+                "bad-token",
+                "the host on that port could not prove it holds the token; run `cast browser extension setup` again",
+              );
+            }
+          })();
         await proving;
         return;
       }
@@ -389,7 +484,12 @@ async function connect(trigger = "boot") {
       const result = await handle(msg);
       if (ws === sock) send({ id: msg.id, ok: true, ...result });
     } catch (err) {
-      if (ws === sock) send({ id: msg.id, ok: false, error: String((err && err.message) || err) });
+      if (ws === sock)
+        send({
+          id: msg.id,
+          ok: false,
+          error: String((err && err.message) || err),
+        });
     }
   };
 
@@ -399,7 +499,9 @@ async function connect(trigger = "boot") {
     ws = null;
     hostProven = false;
     stopKeepalive();
-    note(`close ${e.code}${e.reason ? " " + e.reason : ""}${proven ? "" : " (unproven)"}`);
+    note(
+      `close ${e.code}${e.reason ? " " + e.reason : ""}${proven ? "" : " (unproven)"}`,
+    );
     // 4401 is the "bad token" close, from either side. The badge says so
     // until a host proves the token; the quick retries stop (the same token
     // five seconds later is the same answer) and the alarm keeps asking
@@ -412,22 +514,37 @@ async function connect(trigger = "boot") {
       // it again every 30 s would only spend the host's wrong-attempt budget.
       if (e.code === 4401) {
         dropPairingCode();
-        setStatus("bad-code", "the pairing code was not accepted (wrong, used or expired); run `cast browser extension setup` again");
+        setStatus(
+          "bad-code",
+          "the pairing code was not accepted (wrong, used or expired); run `cast browser extension setup` again",
+        );
       } else {
-        setStatus("disconnected", "waiting for the bridge host to finish pairing");
+        setStatus(
+          "disconnected",
+          "waiting for the bridge host to finish pairing",
+        );
         scheduleRetry();
       }
     } else if (status.state === "bad-token") {
       /* keep it */
     } else if (e.code === 4401) {
-      setStatus("bad-token", "the host rejected the token; run `cast browser extension setup` again, it hands this extension the current token");
+      setStatus(
+        "bad-token",
+        "the host rejected the token; run `cast browser extension setup` again, it hands this extension the current token",
+      );
     } else if (e.code === 4409) {
       // Paired in another Chrome profile too, and that one holds the bridge.
       // No quick retries: the alarm asks every 30 s and takes over once the
       // other profile's extension is gone.
-      setStatus("standby", "another Chrome profile's Codecast extension is connected; agents use that profile");
+      setStatus(
+        "standby",
+        "another Chrome profile's Codecast extension is connected; agents use that profile",
+      );
     } else {
-      setStatus("disconnected", "the bridge host is not running; it starts with the next `cast browser` command in real mode");
+      setStatus(
+        "disconnected",
+        "the bridge host is not running; it starts with the next `cast browser` command in real mode",
+      );
       scheduleRetry();
     }
     // Losing the host means nobody can detach us later; release every tab so
@@ -465,7 +582,11 @@ let profileKeyPending = null;
 function ensureProfileKey() {
   profileKeyPending ??= (async () => {
     const { profileKey } = await chrome.storage.local.get("profileKey");
-    if (typeof profileKey === "string" && /^[A-Za-z0-9_-]{16,64}$/.test(profileKey)) return profileKey;
+    if (
+      typeof profileKey === "string" &&
+      /^[A-Za-z0-9_-]{16,64}$/.test(profileKey)
+    )
+      return profileKey;
     const fresh = randomHex(16);
     await chrome.storage.local.set({ profileKey: fresh });
     return fresh;
@@ -484,7 +605,11 @@ let keyRefused = false;
 /** The protocol the host on the port announces on /healthz (it proves nothing; a squatter still cannot prove the token), or Infinity when unknown. */
 async function hostProtocolOn(port) {
   try {
-    const body = await (await fetch(`http://127.0.0.1:${port}/healthz`, { signal: AbortSignal.timeout(2000) })).text();
+    const body = await (
+      await fetch(`http://127.0.0.1:${port}/healthz`, {
+        signal: AbortSignal.timeout(2000),
+      })
+    ).text();
     const n = Number(/\bprotocol=(\d+)/.exec(body)?.[1]);
     return Number.isFinite(n) && n > 0 ? n : Infinity;
   } catch {
@@ -533,38 +658,74 @@ function reconnect(refreshConfig = true) {
 // --------------------------------------------------------------------------
 
 function randomHex(bytes) {
-  return [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return [...crypto.getRandomValues(new Uint8Array(bytes))]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 async function hmacHex(key, message) {
   const enc = new TextEncoder();
-  const k = await crypto.subtle.importKey("raw", enc.encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const k = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(key),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
   const sig = await crypto.subtle.sign("HMAC", k, enc.encode(message));
-  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return [...new Uint8Array(sig)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 async function sha256Hex(text) {
-  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const d = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(text),
+  );
+  return [...new Uint8Array(d)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /** The slow hash of a pairing code, mirroring pairingCodeKey in apps/cli/src/browser/bridge/pairing.ts. */
 async function pairingCodeKey(code) {
   const enc = new TextEncoder();
-  const k = await crypto.subtle.importKey("raw", enc.encode(normalizePairingCode(code)), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode("cast-pair-v1|code"), iterations: 100_000, hash: "SHA-256" }, k, 256);
-  return [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const k = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(normalizePairingCode(code)),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: enc.encode("cast-pair-v1|code"),
+      iterations: 100_000,
+      hash: "SHA-256",
+    },
+    k,
+    256,
+  );
+  return [...new Uint8Array(bits)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function xorHex(a, b) {
   let out = "";
-  for (let i = 0; i < a.length; i += 2) out += (parseInt(a.slice(i, i + 2), 16) ^ parseInt(b.slice(i, i + 2), 16)).toString(16).padStart(2, "0");
+  for (let i = 0; i < a.length; i += 2)
+    out += (parseInt(a.slice(i, i + 2), 16) ^ parseInt(b.slice(i, i + 2), 16))
+      .toString(16)
+      .padStart(2, "0");
   return out;
 }
 
 /** Constant-time equality for hex strings of the same length. */
 function sameHex(a, b) {
-  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length)
+    return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
@@ -584,7 +745,8 @@ function sameHex(a, b) {
  */
 let keeperPending = null;
 function ensureKeeper() {
-  if (!chrome.offscreen || keeperPending) return keeperPending || Promise.resolve();
+  if (!chrome.offscreen || keeperPending)
+    return keeperPending || Promise.resolve();
   keeperPending = (async () => {
     try {
       if (await chrome.offscreen.hasDocument()) return;
@@ -592,12 +754,14 @@ function ensureKeeper() {
         url: "offscreen.html",
         // WORKERS carries no lifetime limit; an AUDIO_PLAYBACK page is closed after 30 s of silence.
         reasons: [chrome.offscreen.Reason.WORKERS],
-        justification: "Keeps the local bridge connection's service worker running so agent commands are answered promptly.",
+        justification:
+          "Keeps the local bridge connection's service worker running so agent commands are answered promptly.",
       });
       note("keeper page created");
     } catch (err) {
       // "Only a single offscreen document may be created" is a race with ourselves: fine.
-      if (!/single offscreen/i.test(String(err && err.message))) note(`keeper page: ${String((err && err.message) || err)}`);
+      if (!/single offscreen/i.test(String(err && err.message)))
+        note(`keeper page: ${String((err && err.message) || err)}`);
     }
   })().finally(() => {
     keeperPending = null;
@@ -634,7 +798,8 @@ async function showSetupPage() {
     const [tab] = await chrome.tabs.query({ url: `${SETUP_PAGE_URL}*` });
     if (tab?.id !== undefined) {
       await chrome.tabs.update(tab.id, { active: true });
-      if (tab.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
+      if (tab.windowId !== undefined)
+        await chrome.windows.update(tab.windowId, { focused: true });
       await chrome.tabs.reload(tab.id);
       return;
     }
@@ -651,24 +816,41 @@ async function showSetupPage() {
  * only when the profile it is open in can be driven, and offers Pair here
  * otherwise. A page can fake this about itself and nothing else.
  */
-const SETUP_PAGE_MATCHES = [`${SETUP_PAGE_URL}*`, "https://codecast.sh/setup/*", "https://local.codecast.sh/setup/*", "http://localhost/setup/*"];
+const SETUP_PAGE_MATCHES = [
+  `${SETUP_PAGE_URL}*`,
+  "https://codecast.sh/setup/*",
+  "https://local.codecast.sh/setup/*",
+  "http://localhost/setup/*",
+];
 function isSetupPageUrl(url) {
-  return /^(https:\/\/(local\.)?codecast\.sh|http:\/\/localhost(:\d+)?)\/setup\//.test(url || "");
+  return /^(https:\/\/(local\.)?codecast\.sh|http:\/\/localhost(:\d+)?)\/setup\//.test(
+    url || "",
+  );
 }
 async function tellSetupPage(tabId) {
-  const state = { state: status.state, connected: status.state === "connected", version: chrome.runtime.getManifest().version };
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    world: "MAIN",
-    args: [JSON.stringify(state)],
-    func: (json) => {
-      document.documentElement.dataset.codecastExtension = json;
-      window.dispatchEvent(new CustomEvent("codecast-extension", { detail: JSON.parse(json) }));
-    },
-  }).catch(() => {});
+  const state = {
+    state: status.state,
+    connected: status.state === "connected",
+    version: chrome.runtime.getManifest().version,
+  };
+  await chrome.scripting
+    .executeScript({
+      target: { tabId },
+      world: "MAIN",
+      args: [JSON.stringify(state)],
+      func: (json) => {
+        document.documentElement.dataset.codecastExtension = json;
+        window.dispatchEvent(
+          new CustomEvent("codecast-extension", { detail: JSON.parse(json) }),
+        );
+      },
+    })
+    .catch(() => {});
 }
 async function tellSetupPages() {
-  const tabs = await chrome.tabs.query({ url: SETUP_PAGE_MATCHES }).catch(() => []);
+  const tabs = await chrome.tabs
+    .query({ url: SETUP_PAGE_MATCHES })
+    .catch(() => []);
   for (const t of tabs) if (t.id !== undefined) tellSetupPage(t.id);
 }
 chrome.tabs.onUpdated.addListener((tabId, info, t) => {
@@ -695,21 +877,42 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return false;
   }
   // page.js after a navigation: tell it what this tab is doing.
-  if (msg && msg.op === "page-ready" && sender.tab && sender.tab.id !== undefined) {
-    if (pageStatus(sender.tab.id).state !== "idle") syncPage(sender.tab.id).catch(() => {});
+  if (
+    msg &&
+    msg.op === "page-ready" &&
+    sender.tab &&
+    sender.tab.id !== undefined
+  ) {
+    if (pageStatus(sender.tab.id).state !== "idle")
+      syncPage(sender.tab.id).catch(() => {});
     return false;
   }
   // The human's trusted click on Continue, from the card page.js draws in that same tab.
-  if (msg && msg.op === "handoff-done" && sender.tab && sender.tab.id !== undefined && sender.frameId === 0) {
+  if (
+    msg &&
+    msg.op === "handoff-done" &&
+    sender.tab &&
+    sender.tab.id !== undefined &&
+    sender.frameId === 0
+  ) {
     const h = handoffs.get(sender.tab.id);
-    sendResponse({ ok: !!h && h.id === msg.id && settleHandoff(sender.tab.id, "done") });
+    sendResponse({
+      ok: !!h && h.id === msg.id && settleHandoff(sender.tab.id, "done"),
+    });
     return false;
   }
   // The toolbar popup: one tab's roles, and the human's actions on it. Only
   // this extension's own pages reach these, never a content script (whose
   // sender URL is the page's).
-  if (msg && typeof msg.op === "string" && msg.op.startsWith("tab-") && String(sender.url || "").startsWith(chrome.runtime.getURL(""))) {
-    tabAction(msg).then(sendResponse, (err) => sendResponse({ error: String((err && err.message) || err) }));
+  if (
+    msg &&
+    typeof msg.op === "string" &&
+    msg.op.startsWith("tab-") &&
+    String(sender.url || "").startsWith(chrome.runtime.getURL(""))
+  ) {
+    tabAction(msg).then(sendResponse, (err) =>
+      sendResponse({ error: String((err && err.message) || err) }),
+    );
     return true;
   }
   if (msg && msg.op === "reconnect") {
@@ -729,7 +932,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (tab && tab.id !== undefined) {
       chrome.tabs
         .query({ windowId: tab.windowId })
-        .then((tabs) => (tabs.length > 1 ? chrome.tabs.remove(tab.id) : undefined))
+        .then((tabs) =>
+          tabs.length > 1 ? chrome.tabs.remove(tab.id) : undefined,
+        )
         .catch(() => {});
     }
     sendResponse({ ok: true });
@@ -747,7 +952,11 @@ async function handle(m) {
     case "tabs.list": {
       await loadOwnership();
       // Under the host's 40 s listing budget; a frozen process answers when it wakes.
-      const tabs = await bounded(chrome.tabs.query({}), "Chrome tabs.query", 30_000);
+      const tabs = await bounded(
+        chrome.tabs.query({}),
+        "Chrome tabs.query",
+        30_000,
+      );
       return { tabs: tabs.filter((t) => t.id !== undefined).map(describeTab) };
     }
 
@@ -761,7 +970,10 @@ async function handle(m) {
       if (await separateWindowWanted()) t = await openInAgentWindow(props);
       else {
         const windowId = windowOfOwnedGroup(group.title);
-        t = await createTab({ ...props, ...(windowId !== undefined ? { windowId } : {}) });
+        t = await createTab({
+          ...props,
+          ...(windowId !== undefined ? { windowId } : {}),
+        });
       }
       agentActivated(t.id); // a foreground create is the agent's raise, not the human's
       ownedTabs.add(t.id);
@@ -772,7 +984,11 @@ async function handle(m) {
       // failed create: the caller never learns the tab's id, cannot close it,
       // and each retry leaves one more tab behind. The tab stays ours and
       // joins the group on its next attach.
-      await placeInGroup(t, group).catch((err) => note(`tab ${t.id} left ungrouped: ${String((err && err.message) || err)}`));
+      await placeInGroup(t, group).catch((err) =>
+        note(
+          `tab ${t.id} left ungrouped: ${String((err && err.message) || err)}`,
+        ),
+      );
       return { tabId: t.id };
     }
 
@@ -805,24 +1021,52 @@ async function handle(m) {
     case "cdp": {
       // CDP's WebAuthn domain mints virtual authenticators and passkeys in
       // the person's Chrome; the host refuses it too (bridge/protocol.ts).
-      if (/^WebAuthn\./i.test(String(m.method))) throw new Error("refusing CDP's WebAuthn domain: agents cannot create or use passkeys");
+      if (/^WebAuthn\./i.test(String(m.method)))
+        throw new Error(
+          "refusing CDP's WebAuthn domain: agents cannot create or use passkeys",
+        );
       // cast's own methods, answered here and never sent to Chrome.
-      if (m.method === "Cast.handoff" && !m.sessionId) return { result: await setHandoff(m.tabId, m.params || {}) };
-      if (/^Cast\./.test(String(m.method))) throw new Error(`unknown method ${m.method}`);
+      if (m.method === "Cast.handoff" && !m.sessionId)
+        return { result: await setHandoff(m.tabId, m.params || {}) };
+      if (/^Cast\./.test(String(m.method)))
+        throw new Error(`unknown method ${m.method}`);
       if (m.sessionId) {
         // A cross-origin iframe's child session: the tab's own chrome (border, pointer) is not its business.
-        if (!attached.has(m.tabId) || !frameTargets.get(m.tabId)?.has(m.sessionId)) throw new Error("Session with given id not found (the frame is gone)");
+        if (
+          !attached.has(m.tabId) ||
+          !frameTargets.get(m.tabId)?.has(m.sessionId)
+        )
+          throw new Error(
+            "Session with given id not found (the frame is gone)",
+          );
         touch(m.tabId);
-        return { result: (await boundedCdp(m.tabId, m.method, m.params || {}, m.sessionId)) || {} };
+        return {
+          result:
+            (await boundedCdp(
+              m.tabId,
+              m.method,
+              m.params || {},
+              m.sessionId,
+            )) || {},
+        };
       }
       if (!attached.has(m.tabId)) await attachTab(m.tabId);
       touch(m.tabId);
-      if (m.method === "Page.bringToFront" || m.method === "Target.activateTarget") agentActivated(m.tabId);
+      if (
+        m.method === "Page.bringToFront" ||
+        m.method === "Target.activateTarget"
+      )
+        agentActivated(m.tabId);
       const screenshot = m.method === "Page.captureScreenshot";
       try {
         if (screenshot) await setBorderVisible(m.tabId, false);
-        else if (m.method === "Input.dispatchMouseEvent") movePointer(m.tabId, m.params || {});
-        return { result: (await cdpPastForeignFrames(m.tabId, m.method, m.params || {})) || {} };
+        else if (m.method === "Input.dispatchMouseEvent")
+          movePointer(m.tabId, m.params || {});
+        return {
+          result:
+            (await cdpPastForeignFrames(m.tabId, m.method, m.params || {})) ||
+            {},
+        };
       } finally {
         if (screenshot) await setBorderVisible(m.tabId, true);
       }
@@ -853,14 +1097,24 @@ async function handle(m) {
  * to and from normal windows"). So the tab goes to the last focused NORMAL one.
  */
 async function createTab(props) {
-  const windows = await chrome.windows.getAll({ windowTypes: ["normal"] }).catch(() => []);
+  const windows = await chrome.windows
+    .getAll({ windowTypes: ["normal"] })
+    .catch(() => []);
   if (windows.length) {
     if (props.windowId !== undefined) return chrome.tabs.create(props);
-    const w = await chrome.windows.getLastFocused({ windowTypes: ["normal"] }).catch(() => windows[0]);
+    const w = await chrome.windows
+      .getLastFocused({ windowTypes: ["normal"] })
+      .catch(() => windows[0]);
     return chrome.tabs.create({ ...props, windowId: (w || windows[0]).id });
   }
-  const w = await chrome.windows.create({ url: props.url, focused: false, type: "normal" });
-  const t = (w && w.tabs && w.tabs[0]) || (await chrome.tabs.query({ windowId: w.id }))[0];
+  const w = await chrome.windows.create({
+    url: props.url,
+    focused: false,
+    type: "normal",
+  });
+  const t =
+    (w && w.tabs && w.tabs[0]) ||
+    (await chrome.tabs.query({ windowId: w.id }))[0];
   if (!t) throw new Error("Chrome opened a window but reports no tab in it");
   return t;
 }
@@ -901,14 +1155,20 @@ function bounded(promise, what, timeoutMs = ATTACH_STEP_MS) {
   const clock = new Promise((resolve) => {
     timer = setTimeout(resolve, timeoutMs);
   });
-  const late = () => new Promise((resolve) => setTimeout(resolve, STALL_GRACE_MS));
-  return Promise.race([tracked, clock.then(() => (settled ? tracked : Promise.race([tracked, late()])))])
+  const late = () =>
+    new Promise((resolve) => setTimeout(resolve, STALL_GRACE_MS));
+  return Promise.race([
+    tracked,
+    clock.then(() => (settled ? tracked : Promise.race([tracked, late()]))),
+  ])
     .then((v) => {
       if (!settled) {
         // Chrome runs this extension's process at background priority, which
         // macOS schedules on the efficiency cores only: a call that has not
         // answered was not scheduled, or its tab cannot answer.
-        throw new Error(`${what} did not answer within ${timeoutMs}ms (this extension's process runs at background priority and was not scheduled, or the tab is unresponsive)`);
+        throw new Error(
+          `${what} did not answer within ${timeoutMs}ms (this extension's process runs at background priority and was not scheduled, or the tab is unresponsive)`,
+        );
       }
       return v;
     })
@@ -927,13 +1187,26 @@ async function boundedCdp(tabId, method, params, sessionId) {
   let timer;
   const clock = new Promise((_, reject) => {
     timer = setTimeout(() => {
-      note(`${method} on tab ${tabId} hung ${CDP_CALL_MAX_MS / 1000}s; detaching`);
+      note(
+        `${method} on tab ${tabId} hung ${CDP_CALL_MAX_MS / 1000}s; detaching`,
+      );
       detachTab(tabId).catch(() => {});
-      reject(new Error(`${method} did not answer within ${CDP_CALL_MAX_MS / 1000}s; the tab was detached (page hung or renderer frozen)`));
+      reject(
+        new Error(
+          `${method} did not answer within ${CDP_CALL_MAX_MS / 1000}s; the tab was detached (page hung or renderer frozen)`,
+        ),
+      );
     }, CDP_CALL_MAX_MS);
   });
   try {
-    return await Promise.race([chrome.debugger.sendCommand(sessionId ? { tabId, sessionId } : { tabId }, method, params), clock]);
+    return await Promise.race([
+      chrome.debugger.sendCommand(
+        sessionId ? { tabId, sessionId } : { tabId },
+        method,
+        params,
+      ),
+      clock,
+    ]);
   } finally {
     clearTimeout(timer);
   }
@@ -951,19 +1224,31 @@ async function boundedCdp(tabId, method, params, sessionId) {
  * a keystroke or a script run twice could act twice; those fail instead,
  * saying so, with the frame already gone for the agent's next try.
  */
-const RETRY_SAFE = /^(?!Input\.)\w+\.(get|describe|query|capture|enable|disable|resolve|request|set\w*Override$|setFocusEmulationEnabled$)/;
+const RETRY_SAFE =
+  /^(?!Input\.)\w+\.(get|describe|query|capture|enable|disable|resolve|request|set\w*Override$|setFocusEmulationEnabled$)/;
 async function cdpPastForeignFrames(tabId, method, params) {
   for (let attempt = 0; ; attempt++) {
     try {
       return await boundedCdp(tabId, method, params);
     } catch (err) {
       const msg = String((err && err.message) || err);
-      if (attempt >= 2 || !FOREIGN_FRAME.test(msg) || pageStatus(tabId).state === "waiting") throw err;
-      note(`${method} on tab ${tabId} hit a foreign frame (${msg.slice(0, 60)}); evicting`);
-      await chrome.tabs.sendMessage(tabId, { op: "evict" }, { frameId: 0 }).catch(() => {});
+      if (
+        attempt >= 2 ||
+        !FOREIGN_FRAME.test(msg) ||
+        pageStatus(tabId).state === "waiting"
+      )
+        throw err;
+      note(
+        `${method} on tab ${tabId} hit a foreign frame (${msg.slice(0, 60)}); evicting`,
+      );
+      await chrome.tabs
+        .sendMessage(tabId, { op: "evict" }, { frameId: 0 })
+        .catch(() => {});
       if (!RETRY_SAFE.test(method)) {
         if (/not attached/i.test(msg)) forgetSession(tabId);
-        throw new Error(`${method} was interrupted by another extension's frame on this page (${msg.slice(0, 80)}) and was not retried, since it may already have acted; the frame is removed now: check the page, then try again`);
+        throw new Error(
+          `${method} was interrupted by another extension's frame on this page (${msg.slice(0, 80)}) and was not retried, since it may already have acted; the frame is removed now: check the page, then try again`,
+        );
       }
       await new Promise((r) => setTimeout(r, 50));
       if (/not attached/i.test(msg)) {
@@ -990,7 +1275,11 @@ function forgetSession(tabId) {
  * attach, and again after each main-frame navigation.
  */
 function emulateFocus(tabId) {
-  chrome.debugger.sendCommand({ tabId }, "Emulation.setFocusEmulationEnabled", { enabled: true }).catch(() => {});
+  chrome.debugger
+    .sendCommand({ tabId }, "Emulation.setFocusEmulationEnabled", {
+      enabled: true,
+    })
+    .catch(() => {});
 }
 
 /**
@@ -1004,20 +1293,41 @@ async function attachDebugger(debuggee) {
   try {
     await bounded(chrome.debugger.attach(debuggee, "1.3"), "debugger.attach");
   } catch (err) {
-    if (!/already attached/i.test(String((err && err.message) || err))) throw err;
-    const ours = await bounded(chrome.debugger.detach(debuggee), "debugger.detach").then(() => true, () => false);
-    if (!ours) throw new Error(`another debugger holds this target (DevTools, or another extension); close it there first`);
+    if (!/already attached/i.test(String((err && err.message) || err)))
+      throw err;
+    const ours = await bounded(
+      chrome.debugger.detach(debuggee),
+      "debugger.detach",
+    ).then(
+      () => true,
+      () => false,
+    );
+    if (!ours)
+      throw new Error(
+        `another debugger holds this target (DevTools, or another extension); close it there first`,
+      );
     await bounded(chrome.debugger.attach(debuggee, "1.3"), "debugger.attach");
   }
 }
 
 async function attachTab(tabId) {
   await loadOwnership();
-  if (reclaimed.has(tabId)) throw new Error("the human took this tab back from agents; open a tab of your own");
+  if (reclaimed.has(tabId))
+    throw new Error(
+      "the human took this tab back from agents; open a tab of your own",
+    );
   const t = await chrome.tabs.get(tabId).catch(() => null);
-  if (ownedTabs.has(tabId) && t?.groupId === NO_GROUP) await placeInGroup(t, DEFAULT_CAST_GROUP).catch((err) => note(`tab ${tabId} still ungrouped: ${String((err && err.message) || err)}`));
+  if (ownedTabs.has(tabId) && t?.groupId === NO_GROUP)
+    await placeInGroup(t, DEFAULT_CAST_GROUP).catch((err) =>
+      note(
+        `tab ${tabId} still ungrouped: ${String((err && err.message) || err)}`,
+      ),
+    );
   if (!attached.has(tabId)) {
-    if (t && t.discarded) throw new Error("this tab was discarded by Chrome's memory saver; activate it once to wake it");
+    if (t && t.discarded)
+      throw new Error(
+        "this tab was discarded by Chrome's memory saver; activate it once to wake it",
+      );
     await attachDebugger({ tabId });
     attached.add(tabId);
     paintBadge(tabId);
@@ -1029,7 +1339,13 @@ async function attachTab(tabId) {
   // navigation that reset domain state. A tab that answers none of these is
   // reported rather than waited on.
   await bounded(
-    Promise.all(["Page", "DOM", "Runtime", "Accessibility", "Network"].map((domain) => chrome.debugger.sendCommand({ tabId }, domain + ".enable", {}).catch(() => {}))),
+    Promise.all(
+      ["Page", "DOM", "Runtime", "Accessibility", "Network"].map((domain) =>
+        chrome.debugger
+          .sendCommand({ tabId }, domain + ".enable", {})
+          .catch(() => {}),
+      ),
+    ),
     "domain enable",
   );
   // The frame is a courtesy, not a step of the attach. Painting it into the
@@ -1041,7 +1357,11 @@ async function attachTab(tabId) {
   if (!borderScripts.has(tabId) && !borderPending.has(tabId)) {
     borderPending.add(tabId);
     bounded(installBorder(tabId), "overlay install", CDP_CALL_MAX_MS)
-      .catch((err) => note(`overlay install on tab ${tabId}: ${String((err && err.message) || err)}`))
+      .catch((err) =>
+        note(
+          `overlay install on tab ${tabId}: ${String((err && err.message) || err)}`,
+        ),
+      )
       .finally(() => borderPending.delete(tabId));
   }
 }
@@ -1052,7 +1372,9 @@ async function detachTab(tabId) {
     try {
       await bounded(removeBorder(tabId), "overlay removal").catch(() => {});
     } finally {
-      await bounded(chrome.debugger.detach({ tabId }), "debugger.detach").catch(() => {}).finally(() => attached.delete(tabId));
+      await bounded(chrome.debugger.detach({ tabId }), "debugger.detach")
+        .catch(() => {})
+        .finally(() => attached.delete(tabId));
       paintBadge(tabId);
       syncPage(tabId).catch(() => {});
     }
@@ -1080,7 +1402,14 @@ function describeTab(t) {
     ...(g ? { group: { title: plainOf(g.title), color: g.color } } : {}),
     ...(lentTabs.has(t.id) ? { lent: true } : {}),
     ...(adoptedFrom.has(t.id) ? { opener: adoptedFrom.get(t.id) } : {}),
-    ...(handoffs.has(t.id) ? { handoff: { id: handoffs.get(t.id).id, state: handoffs.get(t.id).state } } : {}),
+    ...(handoffs.has(t.id)
+      ? {
+          handoff: {
+            id: handoffs.get(t.id).id,
+            state: handoffs.get(t.id).state,
+          },
+        }
+      : {}),
     ...(keepReason(t) ? { keep: keepReason(t) } : {}),
   };
 }
@@ -1128,24 +1457,46 @@ const madeTabs = new Map();
 let ownershipLoaded = null;
 function loadOwnership() {
   if (!ownershipLoaded) {
-    ownershipLoaded = bounded(chrome.storage.session.get(["ownedGroups", "ownedTabs", "tabRoles", "touched"]), "Chrome storage.session.get")
-      .then(async ({ ownedGroups: gids, ownedTabs: tids, tabRoles, touched: seen }) => {
-        for (const id of gids || []) ownedGroups.add(id);
-        for (const id of tids || []) ownedTabs.add(id);
-        const roles = tabRoles || {};
-        for (const id of roles.lent || []) lentTabs.add(id);
-        for (const id of roles.reclaimed || []) reclaimed.add(id);
-        for (const id of roles.claimed || []) claimed.add(id);
-        for (const id of roles.humanUsed || []) humanUsed.add(id);
-        for (const [id, opener] of roles.adoptedFrom || []) adoptedFrom.set(id, opener);
-        for (const [id, h] of roles.handoffs || []) if (!handoffs.has(id)) handoffs.set(id, h);
-        for (const [id, at] of seen || []) if (!touched.has(id)) touched.set(id, at);
-        const { madeTabs: made, madeUsed } = await bounded(chrome.storage.local.get(["madeTabs", "madeUsed"]), "Chrome storage.local.get").catch(() => ({}));
-        // Always: the host re-marks a few tabs the moment it reconnects, so
-        // "memory is empty" is rarely true by the first listing, while the
-        // tabs a reload orphaned are still sitting there unowned.
-        await adoptMadeTabs(new Map(made || []), new Set(madeUsed || []));
-      }).catch(error => {
+    ownershipLoaded = bounded(
+      chrome.storage.session.get([
+        "ownedGroups",
+        "ownedTabs",
+        "tabRoles",
+        "touched",
+      ]),
+      "Chrome storage.session.get",
+    )
+      .then(
+        async ({
+          ownedGroups: gids,
+          ownedTabs: tids,
+          tabRoles,
+          touched: seen,
+        }) => {
+          for (const id of gids || []) ownedGroups.add(id);
+          for (const id of tids || []) ownedTabs.add(id);
+          const roles = tabRoles || {};
+          for (const id of roles.lent || []) lentTabs.add(id);
+          for (const id of roles.reclaimed || []) reclaimed.add(id);
+          for (const id of roles.claimed || []) claimed.add(id);
+          for (const id of roles.humanUsed || []) humanUsed.add(id);
+          for (const [id, opener] of roles.adoptedFrom || [])
+            adoptedFrom.set(id, opener);
+          for (const [id, h] of roles.handoffs || [])
+            if (!handoffs.has(id)) handoffs.set(id, h);
+          for (const [id, at] of seen || [])
+            if (!touched.has(id)) touched.set(id, at);
+          const { madeTabs: made, madeUsed } = await bounded(
+            chrome.storage.local.get(["madeTabs", "madeUsed"]),
+            "Chrome storage.local.get",
+          ).catch(() => ({}));
+          // Always: the host re-marks a few tabs the moment it reconnects, so
+          // "memory is empty" is rarely true by the first listing, while the
+          // tabs a reload orphaned are still sitting there unowned.
+          await adoptMadeTabs(new Map(made || []), new Set(madeUsed || []));
+        },
+      )
+      .catch((error) => {
         ownershipLoaded = null;
         throw error;
       });
@@ -1166,7 +1517,11 @@ function loadOwnership() {
  */
 async function adoptMadeTabs(records, used) {
   if (!records.size) return;
-  const tabs = await bounded(chrome.tabs.query({}), "Chrome tabs.query", 5_000).catch(() => []);
+  const tabs = await bounded(
+    chrome.tabs.query({}),
+    "Chrome tabs.query",
+    5_000,
+  ).catch(() => []);
   let adopted = 0;
   for (const t of tabs) {
     if (t.id === undefined || records.get(t.id) !== t.url) continue;
@@ -1183,18 +1538,35 @@ async function adoptMadeTabs(records, used) {
     }
   }
   persistOwned();
-  if (adopted) note(`re-adopted ${adopted} agent tab(s) this extension made, by id and URL`);
+  if (adopted)
+    note(
+      `re-adopted ${adopted} agent tab(s) this extension made, by id and URL`,
+    );
 }
 
 /** Both sets outlive this worker (session storage), so a restart keeps telling ours from the human's. */
 function persistOwned() {
-  chrome.storage.session.set({
-    ownedGroups: [...ownedGroups],
-    ownedTabs: [...ownedTabs],
-    tabRoles: { lent: [...lentTabs], reclaimed: [...reclaimed], claimed: [...claimed], adoptedFrom: [...adoptedFrom], handoffs: [...handoffs], humanUsed: [...humanUsed] },
-  }).catch(() => {});
+  chrome.storage.session
+    .set({
+      ownedGroups: [...ownedGroups],
+      ownedTabs: [...ownedTabs],
+      tabRoles: {
+        lent: [...lentTabs],
+        reclaimed: [...reclaimed],
+        claimed: [...claimed],
+        adoptedFrom: [...adoptedFrom],
+        handoffs: [...handoffs],
+        humanUsed: [...humanUsed],
+      },
+    })
+    .catch(() => {});
   // With the made tabs, which of them the human used, so a reload keeps those open too.
-  chrome.storage.local.set({ madeTabs: [...madeTabs], madeUsed: [...humanUsed].filter((id) => madeTabs.has(id)) }).catch(() => {});
+  chrome.storage.local
+    .set({
+      madeTabs: [...madeTabs],
+      madeUsed: [...humanUsed].filter((id) => madeTabs.has(id)),
+    })
+    .catch(() => {});
 }
 
 /** An agent drove this tab now. Written at most every few seconds: every CDP command lands here. */
@@ -1222,21 +1594,32 @@ refreshGroups().catch(() => {});
  */
 async function placeInGroup(tab, group) {
   const existing = [...groups.values()].find(
-    (g) => ownedGroups.has(g.id) && g.windowId === tab.windowId && plainOf(g.title) === group.title,
+    (g) =>
+      ownedGroups.has(g.id) &&
+      g.windowId === tab.windowId &&
+      plainOf(g.title) === group.title,
   );
-  const groupId = await chrome.tabs.group({ tabIds: [tab.id], ...(existing ? { groupId: existing.id } : {}) });
+  const groupId = await chrome.tabs.group({
+    tabIds: [tab.id],
+    ...(existing ? { groupId: existing.id } : {}),
+  });
   tabGroupOf.set(tab.id, groupId);
   if (!existing) {
     ownedGroups.add(groupId);
     persistOwned();
-    const g = await chrome.tabGroups.update(groupId, { title: group.title, color: group.color });
+    const g = await chrome.tabGroups.update(groupId, {
+      title: group.title,
+      color: group.color,
+    });
     groups.set(groupId, g);
   }
 }
 
 /** The window of a group we made with this plain title, if one is open. */
 function windowOfOwnedGroup(title) {
-  const g = [...groups.values()].find((x) => ownedGroups.has(x.id) && plainOf(x.title) === title);
+  const g = [...groups.values()].find(
+    (x) => ownedGroups.has(x.id) && plainOf(x.title) === title,
+  );
   return g ? g.windowId : undefined;
 }
 
@@ -1397,12 +1780,20 @@ async function borderColor(tabId) {
 async function worldContext(tabId) {
   const cached = worlds.get(tabId);
   if (cached) return cached;
-  const { frameTree } = await chrome.debugger.sendCommand({ tabId }, "Page.getFrameTree", {});
-  const { executionContextId } = await chrome.debugger.sendCommand({ tabId }, "Page.createIsolatedWorld", {
-    frameId: frameTree.frame.id,
-    worldName: WORLD,
-    grantUniveralAccess: false,
-  });
+  const { frameTree } = await chrome.debugger.sendCommand(
+    { tabId },
+    "Page.getFrameTree",
+    {},
+  );
+  const { executionContextId } = await chrome.debugger.sendCommand(
+    { tabId },
+    "Page.createIsolatedWorld",
+    {
+      frameId: frameTree.frame.id,
+      worldName: WORLD,
+      grantUniveralAccess: false,
+    },
+  );
   worlds.set(tabId, executionContextId);
   return executionContextId;
 }
@@ -1412,7 +1803,10 @@ async function evalInWorld(tabId, expression) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const contextId = await worldContext(tabId);
-      return await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", { expression, contextId });
+      return await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+        expression,
+        contextId,
+      });
     } catch (err) {
       worlds.delete(tabId);
       if (attempt) throw err;
@@ -1425,7 +1819,10 @@ async function installBorder(tabId) {
   borderIds.set(tabId, id);
   const source = borderSource(await borderColor(tabId));
   const r = await chrome.debugger
-    .sendCommand({ tabId }, "Page.addScriptToEvaluateOnNewDocument", { source, worldName: WORLD })
+    .sendCommand({ tabId }, "Page.addScriptToEvaluateOnNewDocument", {
+      source,
+      worldName: WORLD,
+    })
     .catch(() => null);
   if (r && r.identifier) borderScripts.set(tabId, r.identifier);
   await evalInWorld(tabId, source).catch(() => {});
@@ -1437,19 +1834,34 @@ async function removeBorder(tabId) {
   borderScripts.delete(tabId);
   borderIds.delete(tabId);
   if (identifier) {
-    await chrome.debugger.sendCommand({ tabId }, "Page.removeScriptToEvaluateOnNewDocument", { identifier }).catch(() => {});
+    await chrome.debugger
+      .sendCommand({ tabId }, "Page.removeScriptToEvaluateOnNewDocument", {
+        identifier,
+      })
+      .catch(() => {});
   }
   if (id) {
-    await evalInWorld(tabId, `(() => { const f = globalThis.__castFrame; if (f) f.host.remove(); delete globalThis.__castFrame; })()`).catch(() => {});
+    await evalInWorld(
+      tabId,
+      `(() => { const f = globalThis.__castFrame; if (f) f.host.remove(); delete globalThis.__castFrame; })()`,
+    ).catch(() => {});
   }
   worlds.delete(tabId);
 }
 
 /** The pointer follows the agent's mouse events; a press pulses. Never awaited: it is a courtesy, not a step. */
 function movePointer(tabId, p) {
-  if (typeof p.x !== "number" || typeof p.y !== "number" || !borderIds.has(tabId)) return;
+  if (
+    typeof p.x !== "number" ||
+    typeof p.y !== "number" ||
+    !borderIds.has(tabId)
+  )
+    return;
   const kind = p.type === "mousePressed" ? "down" : "move";
-  evalInWorld(tabId, `globalThis.__castPointer && __castPointer(${p.x}, ${p.y}, ${JSON.stringify(kind)})`).catch(() => {});
+  evalInWorld(
+    tabId,
+    `globalThis.__castPointer && __castPointer(${p.x}, ${p.y}, ${JSON.stringify(kind)})`,
+  ).catch(() => {});
 }
 
 /** Hidden around a screenshot so the capture shows the page, not our frame. */
@@ -1465,7 +1877,8 @@ async function setBorderVisible(tabId, visible) {
 // debugger (not through the `cdp` op, so it never counts as work).
 setInterval(() => {
   for (const tabId of attached) {
-    if (borderIds.has(tabId)) evalInWorld(tabId, "globalThis.__castBeat = Date.now()").catch(() => {});
+    if (borderIds.has(tabId))
+      evalInWorld(tabId, "globalThis.__castBeat = Date.now()").catch(() => {});
   }
 }, BEAT_MS);
 
@@ -1477,13 +1890,29 @@ setInterval(() => {
 // whole frame: a Convex app tab streams megabytes a second of them, and
 // forwarding them queued every command reply behind traffic nobody wanted
 // (2026-10-01). The host drops the same set (bridge/frames.ts UNRELAYED_EVENTS).
-const UNRELAYED_EVENTS = new Set(["Network.webSocketFrameReceived", "Network.webSocketFrameSent"]);
+const UNRELAYED_EVENTS = new Set([
+  "Network.webSocketFrameReceived",
+  "Network.webSocketFrameSent",
+]);
 
 chrome.debugger.onEvent.addListener((source, method, params) => {
   // A navigation tore every context down, our world with it.
   // A child session's events (source.sessionId) are its frame's, not the tab's.
-  if (method === "Runtime.executionContextsCleared" && source.tabId && !source.sessionId) worlds.delete(source.tabId);
-  if (method === "Page.frameNavigated" && source.tabId && !source.sessionId && params && params.frame && !params.frame.parentId) emulateFocus(source.tabId);
+  if (
+    method === "Runtime.executionContextsCleared" &&
+    source.tabId &&
+    !source.sessionId
+  )
+    worlds.delete(source.tabId);
+  if (
+    method === "Page.frameNavigated" &&
+    source.tabId &&
+    !source.sessionId &&
+    params &&
+    params.frame &&
+    !params.frame.parentId
+  )
+    emulateFocus(source.tabId);
   if (UNRELAYED_EVENTS.has(method)) return;
   // Never forward a frame's events to a host that cannot tell them from the page's (enableFrames).
   if (source.sessionId && hostProtocol < FRAMES_PROTOCOL) return;
@@ -1491,18 +1920,34 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
     const tabId = source.tabId;
     if (method === "Target.attachedToTarget" && params && params.sessionId) {
       if (!frameTargets.has(tabId)) frameTargets.set(tabId, new Map());
-      frameTargets.get(tabId).set(params.sessionId, { parent: source.sessionId, params });
+      frameTargets
+        .get(tabId)
+        .set(params.sessionId, { parent: source.sessionId, params });
       const child = { tabId, sessionId: params.sessionId };
       enableFrames(child);
       // Its navigations are how the host learns where the frame landed (bridge/frameSessions.ts navigated).
       chrome.debugger.sendCommand(child, "Page.enable", {}).catch(() => {});
       // Focus emulation is per session: without it a frame in a background tab never reports focus (document.hasFocus()).
-      chrome.debugger.sendCommand(child, "Emulation.setFocusEmulationEnabled", { enabled: true }).catch(() => {});
-    } else if (method === "Target.detachedFromTarget" && params && params.sessionId) {
+      chrome.debugger
+        .sendCommand(child, "Emulation.setFocusEmulationEnabled", {
+          enabled: true,
+        })
+        .catch(() => {});
+    } else if (
+      method === "Target.detachedFromTarget" &&
+      params &&
+      params.sessionId
+    ) {
       frameTargets.get(tabId)?.delete(params.sessionId);
     }
     // `session` is left out (undefined) for the tab's own events, which keeps their bytes as frames.ts reads them.
-    send({ op: "event", tabId, session: source.sessionId, method, params: params || {} });
+    send({
+      op: "event",
+      tabId,
+      session: source.sessionId,
+      method,
+      params: params || {},
+    });
   }
 });
 
@@ -1541,9 +1986,18 @@ chrome.tabs.onUpdated.addListener((tabId, info, t) => {
     // colour. The group means "agent tabs": anything we neither opened nor
     // hold goes back out. After a moment, because a tab an agent's page
     // opened lands there too and is adopted (adoptOpened) a beat later.
-    if (ownedGroups.has(info.groupId) && !ownedTabs.has(tabId) && !attached.has(tabId)) {
+    if (
+      ownedGroups.has(info.groupId) &&
+      !ownedTabs.has(tabId) &&
+      !attached.has(tabId)
+    ) {
       setTimeout(() => {
-        if (!ownedTabs.has(tabId) && !attached.has(tabId) && tabGroupOf.get(tabId) === info.groupId) chrome.tabs.ungroup([tabId]).catch(() => {});
+        if (
+          !ownedTabs.has(tabId) &&
+          !attached.has(tabId) &&
+          tabGroupOf.get(tabId) === info.groupId
+        )
+          chrome.tabs.ungroup([tabId]).catch(() => {});
       }, 400);
     }
     // An agent tab the human dragged out of the Cast group is theirs to keep:
@@ -1551,7 +2005,12 @@ chrome.tabs.onUpdated.addListener((tabId, info, t) => {
     // tab takes it out of its group first too (this event, then onRemoved),
     // and every closed agent tab was claimed and logged as dragged out; so
     // the claim is decided a moment later, for a tab that is still open.
-    if (ownedGroups.has(before) && !ownedGroups.has(info.groupId) && ownedTabs.has(tabId) && !claimed.has(tabId)) {
+    if (
+      ownedGroups.has(before) &&
+      !ownedGroups.has(info.groupId) &&
+      ownedTabs.has(tabId) &&
+      !claimed.has(tabId)
+    ) {
       setTimeout(() => claimDraggedOut(tabId).catch(() => {}), DRAG_SETTLE_MS);
     }
   }
@@ -1566,7 +2025,13 @@ chrome.tabs.onUpdated.addListener((tabId, info, t) => {
 const DRAG_SETTLE_MS = 500;
 async function claimDraggedOut(tabId) {
   const t = await chrome.tabs.get(tabId).catch(() => null);
-  if (!t || !ownedTabs.has(tabId) || claimed.has(tabId) || ownedGroups.has(t.groupId)) return;
+  if (
+    !t ||
+    !ownedTabs.has(tabId) ||
+    claimed.has(tabId) ||
+    ownedGroups.has(t.groupId)
+  )
+    return;
   // Moving a tab to another window takes it out of its group too; that is
   // still the agent's tab, not the human claiming it.
   if (Date.now() - (movedAt.get(tabId) || 0) < WINDOW_MOVE_MS) return;
@@ -1586,14 +2051,31 @@ chrome.tabs.onRemoved.addListener((tabId, info) => {
   movedAt.delete(tabId);
   madeTabs.delete(tabId);
   humanUsed.delete(tabId);
-  const roles = [lentTabs.delete(tabId), reclaimed.delete(tabId), claimed.delete(tabId), adoptedFrom.delete(tabId), handoffs.delete(tabId)].some(Boolean);
+  const roles = [
+    lentTabs.delete(tabId),
+    reclaimed.delete(tabId),
+    claimed.delete(tabId),
+    adoptedFrom.delete(tabId),
+    handoffs.delete(tabId),
+  ].some(Boolean);
   touched.delete(tabId);
   if (ownedTabs.delete(tabId) || roles) persistOwned();
   tabGroupOf.delete(tabId);
   borderScripts.delete(tabId);
   borderIds.delete(tabId);
   worlds.delete(tabId);
-  send({ op: "tab", kind: "removed", tab: { tabId, url: "", title: "", active: false, windowId: info.windowId, attached: false } });
+  send({
+    op: "tab",
+    kind: "removed",
+    tab: {
+      tabId,
+      url: "",
+      title: "",
+      active: false,
+      windowId: info.windowId,
+      attached: false,
+    },
+  });
 });
 
 // --------------------------------------------------------------------------
@@ -1608,19 +2090,34 @@ chrome.tabs.onRemoved.addListener((tabId, info) => {
 function paintBadge(tabId) {
   const h = handoffs.get(tabId);
   const [text, color, title] =
-    h && h.state === "waiting" ? ["WAIT", "#b26a00", "an agent is waiting for you on this tab; click to continue"]
-    : attached.has(tabId) ? ["RUN", "#c62828", "an agent is driving this tab; click to take it back"]
-    : lentTabs.has(tabId) ? ["LENT", "#1a73e8", "lent to agents; click to take it back"]
-    : ["", null, null];
+    h && h.state === "waiting"
+      ? [
+          "WAIT",
+          "#b26a00",
+          "an agent is waiting for you on this tab; click to continue",
+        ]
+      : attached.has(tabId)
+        ? [
+            "RUN",
+            "#c62828",
+            "an agent is driving this tab; click to take it back",
+          ]
+        : lentTabs.has(tabId)
+          ? ["LENT", "#1a73e8", "lent to agents; click to take it back"]
+          : ["", null, null];
   chrome.action.setBadgeText({ tabId, text }).catch(() => {});
-  if (color) chrome.action.setBadgeBackgroundColor({ tabId, color }).catch(() => {});
-  chrome.action.setTitle({ tabId, title: `Codecast: ${title || status.state}` }).catch(() => {});
+  if (color)
+    chrome.action.setBadgeBackgroundColor({ tabId, color }).catch(() => {});
+  chrome.action
+    .setTitle({ tabId, title: `Codecast: ${title || status.state}` })
+    .catch(() => {});
 }
 
 /** What the in-page script (page.js) should be doing on this tab. */
 function pageStatus(tabId) {
   const h = handoffs.get(tabId);
-  if (h && h.state === "waiting") return { state: "waiting", handoff: { id: h.id, text: h.text } };
+  if (h && h.state === "waiting")
+    return { state: "waiting", handoff: { id: h.id, text: h.text } };
   if (attached.has(tabId)) return { state: "running" };
   return { state: "idle" };
 }
@@ -1633,13 +2130,38 @@ function pageStatus(tabId) {
  */
 async function syncPage(tabId) {
   const status = pageStatus(tabId);
-  const tell = () => chrome.tabs.sendMessage(tabId, { op: "page-state", status }, { frameId: 0 });
-  if (await tell().then(() => true, () => false)) return true;
+  const tell = () =>
+    chrome.tabs.sendMessage(
+      tabId,
+      { op: "page-state", status },
+      { frameId: 0 },
+    );
+  if (
+    await tell().then(
+      () => true,
+      () => false,
+    )
+  )
+    return true;
   if (status.state === "idle" || !chrome.scripting) return false;
   const injected = await chrome.scripting
     .executeScript({ target: { tabId, frameIds: [0] }, files: ["page.js"] })
-    .then(() => true, (err) => (note(`page script on tab ${tabId}: ${String((err && err.message) || err)}`), false));
-  return injected && (await tell().then(() => true, () => false));
+    .then(
+      () => true,
+      (err) => (
+        note(
+          `page script on tab ${tabId}: ${String((err && err.message) || err)}`,
+        ),
+        false
+      ),
+    );
+  return (
+    injected &&
+    (await tell().then(
+      () => true,
+      () => false,
+    ))
+  );
 }
 
 /**
@@ -1691,11 +2213,28 @@ async function setHandoff(tabId, p) {
     if (h && h.state === "waiting") settleHandoff(tabId, "cancelled");
     return { id: h ? h.id : null, state: h ? h.state : "none" };
   }
-  const text = String(p.text || "").trim().slice(0, 2000);
-  if (!text) throw new Error("a handoff needs words for the human: what to do on this page");
-  const id = typeof p.id === "string" && /^[\w-]{4,64}$/.test(p.id) ? p.id : randomHex(8);
-  const wait = Math.min(Math.max(Number(p.timeoutMs) || HANDOFF_DEFAULT_MS, 10_000), HANDOFF_MAX_MS);
-  handoffs.set(tabId, { id, text, at: Date.now(), expires: Date.now() + wait, state: "waiting" });
+  const text = String(p.text || "")
+    .trim()
+    .slice(0, 2000);
+  if (!text)
+    throw new Error(
+      "a handoff needs words for the human: what to do on this page",
+    );
+  const id =
+    typeof p.id === "string" && /^[\w-]{4,64}$/.test(p.id)
+      ? p.id
+      : randomHex(8);
+  const wait = Math.min(
+    Math.max(Number(p.timeoutMs) || HANDOFF_DEFAULT_MS, 10_000),
+    HANDOFF_MAX_MS,
+  );
+  handoffs.set(tabId, {
+    id,
+    text,
+    at: Date.now(),
+    expires: Date.now() + wait,
+    state: "waiting",
+  });
   persistOwned();
   paintBadge(tabId);
   const shown = await syncPage(tabId);
@@ -1703,8 +2242,13 @@ async function setHandoff(tabId, p) {
   // Raising is the CLI's to ask for (--show); a handoff alone never takes the human's screen.
   if (p.raise) {
     agentActivated(tabId);
-    const t = await chrome.tabs.update(tabId, { active: true }).catch(() => null);
-    if (t) await chrome.windows.update(t.windowId, { focused: true }).catch(() => {});
+    const t = await chrome.tabs
+      .update(tabId, { active: true })
+      .catch(() => null);
+    if (t)
+      await chrome.windows
+        .update(t.windowId, { focused: true })
+        .catch(() => {});
   }
   return { id, state: "waiting", shown, expires: Date.now() + wait };
 }
@@ -1724,8 +2268,12 @@ function settleHandoff(tabId, state) {
 function sweepHandoffs() {
   const now = Date.now();
   for (const [tabId, h] of handoffs) {
-    if (h.state === "waiting" && now > h.expires) settleHandoff(tabId, "expired");
-    else if (h.state !== "waiting" && now - (h.settledAt || 0) > 60 * 60 * 1000) {
+    if (h.state === "waiting" && now > h.expires)
+      settleHandoff(tabId, "expired");
+    else if (
+      h.state !== "waiting" &&
+      now - (h.settledAt || 0) > 60 * 60 * 1000
+    ) {
       handoffs.delete(tabId);
       persistOwned();
     }
@@ -1769,7 +2317,8 @@ async function takeBack(tabId) {
   if (h && h.state === "waiting") settleHandoff(tabId, "cancelled");
   persistOwned();
   const t = await chrome.tabs.get(tabId).catch(() => null);
-  if (t && ownedGroups.has(t.groupId)) await chrome.tabs.ungroup([tabId]).catch(() => {});
+  if (t && ownedGroups.has(t.groupId))
+    await chrome.tabs.ungroup([tabId]).catch(() => {});
   await detachTab(tabId);
   send({ op: "detached", tabId, reason: "reclaimed" });
   note(`tab ${tabId} taken back by the human`);
@@ -1782,9 +2331,15 @@ async function takeBack(tabId) {
 const activeHistory = new Map();
 chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
   const h = activeHistory.get(windowId);
-  if (!h || h.current !== tabId) activeHistory.set(windowId, { current: tabId, previous: h ? h.current : undefined });
+  if (!h || h.current !== tabId)
+    activeHistory.set(windowId, {
+      current: tabId,
+      previous: h ? h.current : undefined,
+    });
 });
-chrome.windows.onRemoved.addListener((windowId) => activeHistory.delete(windowId));
+chrome.windows.onRemoved.addListener((windowId) =>
+  activeHistory.delete(windowId),
+);
 
 /**
  * The human bringing an agent tab to the front (its tab strip, or focusing
@@ -1798,25 +2353,40 @@ function agentActivated(tabId) {
   agentRaisedAt.set(tabId, Date.now());
 }
 function humanActivated(tabId) {
-  if (!isAgentTab(tabId) || humanUsed.has(tabId) || Date.now() - (agentRaisedAt.get(tabId) || 0) < AGENT_RAISE_MS) return;
+  if (
+    !isAgentTab(tabId) ||
+    humanUsed.has(tabId) ||
+    Date.now() - (agentRaisedAt.get(tabId) || 0) < AGENT_RAISE_MS
+  )
+    return;
   humanUsed.add(tabId);
   persistOwned();
   note(`tab ${tabId} brought to the front by the human; kept`);
   announceTab(tabId).catch(() => {});
 }
 chrome.tabs.onActivated.addListener(({ tabId }) => {
-  loadOwnership().then(() => humanActivated(tabId)).catch(() => {});
+  loadOwnership()
+    .then(() => humanActivated(tabId))
+    .catch(() => {});
 });
 chrome.windows.onFocusChanged.addListener((windowId) => {
   if (windowId === chrome.windows.WINDOW_ID_NONE) return;
-  chrome.tabs.query({ active: true, windowId }).then(async ([t]) => {
-    await loadOwnership();
-    if (t && t.id !== undefined) humanActivated(t.id);
-  }).catch(() => {});
+  chrome.tabs
+    .query({ active: true, windowId })
+    .then(async ([t]) => {
+      await loadOwnership();
+      if (t && t.id !== undefined) humanActivated(t.id);
+    })
+    .catch(() => {});
 });
-chrome.tabs.query({ active: true }).then((tabs) => {
-  for (const t of tabs) if (t.id !== undefined && !activeHistory.has(t.windowId)) activeHistory.set(t.windowId, { current: t.id });
-}).catch(() => {});
+chrome.tabs
+  .query({ active: true })
+  .then((tabs) => {
+    for (const t of tabs)
+      if (t.id !== undefined && !activeHistory.has(t.windowId))
+        activeHistory.set(t.windowId, { current: t.id });
+  })
+  .catch(() => {});
 
 /**
  * A tab an agent's page opened (window.open, a target=_blank link) belongs
@@ -1835,9 +2405,18 @@ async function adoptOpened(tabId, opener) {
   // them (a handoff: their sign-in, OAuth or payment window), from a tab of
   // theirs they lent, or from an agent tab they claimed.
   const h = handoffs.get(opener);
-  const why = h && h.state === "waiting" ? "handoff" : lentTabs.has(opener) ? "lent" : claimed.has(opener) ? "claimed" : null;
+  const why =
+    h && h.state === "waiting"
+      ? "handoff"
+      : lentTabs.has(opener)
+        ? "lent"
+        : claimed.has(opener)
+          ? "claimed"
+          : null;
   if (why) {
-    note(`tab ${tabId} opened from tab ${opener} while it is the human's (${why}); left to them`);
+    note(
+      `tab ${tabId} opened from tab ${opener} while it is the human's (${why}); left to them`,
+    );
     return;
   }
   const tab = await chrome.tabs.get(tabId).catch(() => null);
@@ -1853,17 +2432,37 @@ async function adoptOpened(tabId, opener) {
     agentWindowId(),
   ]);
   if (win && win.type === "normal") {
-    if (agentWindow !== undefined && openerTab && openerTab.windowId === agentWindow && tab.windowId !== agentWindow) {
-      await chrome.tabs.move(tabId, { windowId: agentWindow, index: -1 }).catch(() => {});
+    if (
+      agentWindow !== undefined &&
+      openerTab &&
+      openerTab.windowId === agentWindow &&
+      tab.windowId !== agentWindow
+    ) {
+      await chrome.tabs
+        .move(tabId, { windowId: agentWindow, index: -1 })
+        .catch(() => {});
     }
     const h = activeHistory.get(tab.windowId);
     const previous = h && (h.current === tabId ? h.previous : h.current);
-    if (tab.active && previous !== undefined && previous !== tabId && previous !== opener) {
+    if (
+      tab.active &&
+      previous !== undefined &&
+      previous !== tabId &&
+      previous !== opener
+    ) {
       await chrome.tabs.update(previous, { active: true }).catch(() => {});
     }
     const now = await chrome.tabs.get(tabId).catch(() => null);
-    if (now && openerTab && ownedGroups.has(openerTab.groupId) && openerTab.windowId === now.windowId && now.groupId !== openerTab.groupId) {
-      await chrome.tabs.group({ tabIds: [tabId], groupId: openerTab.groupId }).catch(() => {});
+    if (
+      now &&
+      openerTab &&
+      ownedGroups.has(openerTab.groupId) &&
+      openerTab.windowId === now.windowId &&
+      now.groupId !== openerTab.groupId
+    ) {
+      await chrome.tabs
+        .group({ tabIds: [tabId], groupId: openerTab.groupId })
+        .catch(() => {});
       tabGroupOf.set(tabId, openerTab.groupId);
     }
   } else if (win && win.focused) {
@@ -1874,12 +2473,17 @@ async function adoptOpened(tabId, opener) {
 }
 
 if (chrome.webNavigation) {
-  chrome.webNavigation.onCreatedNavigationTarget.addListener(({ sourceTabId, tabId }) => {
-    adoptOpened(tabId, sourceTabId).catch((err) => note(`adopt tab ${tabId}: ${String((err && err.message) || err)}`));
-  });
+  chrome.webNavigation.onCreatedNavigationTarget.addListener(
+    ({ sourceTabId, tabId }) => {
+      adoptOpened(tabId, sourceTabId).catch((err) =>
+        note(`adopt tab ${tabId}: ${String((err && err.message) || err)}`),
+      );
+    },
+  );
   // page.js lives and dies with its document: a tab an agent holds or waits on gets it again on every main-frame commit.
   chrome.webNavigation.onCommitted.addListener(({ tabId, frameId }) => {
-    if (frameId === 0 && pageStatus(tabId).state !== "idle") syncPage(tabId).catch(() => {});
+    if (frameId === 0 && pageStatus(tabId).state !== "idle")
+      syncPage(tabId).catch(() => {});
   });
 }
 
@@ -1893,14 +2497,18 @@ if (chrome.webNavigation) {
  * the next agent tab makes a new one.
  */
 async function agentWindowId() {
-  const { agentWindowId: id } = await chrome.storage.session.get("agentWindowId").catch(() => ({}));
+  const { agentWindowId: id } = await chrome.storage.session
+    .get("agentWindowId")
+    .catch(() => ({}));
   if (typeof id !== "number") return undefined;
   const w = await chrome.windows.get(id).catch(() => null);
   return w && w.type === "normal" ? id : undefined;
 }
 
 async function separateWindowWanted() {
-  const { agentWindow } = await chrome.storage.local.get("agentWindow").catch(() => ({}));
+  const { agentWindow } = await chrome.storage.local
+    .get("agentWindow")
+    .catch(() => ({}));
   return agentWindow === "separate";
 }
 
@@ -1909,11 +2517,27 @@ let agentWindowQueue = Promise.resolve();
 function openInAgentWindow(props) {
   const run = async () => {
     const windowId = await agentWindowId();
-    if (windowId !== undefined) return chrome.tabs.create({ ...props, windowId, active: false });
-    const user = await chrome.windows.getLastFocused({ windowTypes: ["normal"] }).catch(() => null);
-    const base = { url: props.url, focused: false, type: "normal", state: "normal", width: 1280, height: 900 };
+    if (windowId !== undefined)
+      return chrome.tabs.create({ ...props, windowId, active: false });
+    const user = await chrome.windows
+      .getLastFocused({ windowTypes: ["normal"] })
+      .catch(() => null);
+    const base = {
+      url: props.url,
+      focused: false,
+      type: "normal",
+      state: "normal",
+      width: 1280,
+      height: 900,
+    };
     // Beside the human's window where Chrome accepts the bounds; it refuses a window mostly off screen.
-    const beside = user && typeof user.left === "number" ? [{ left: user.left + (user.width || 0) + 8, top: user.top }, { left: Math.max(0, user.left - 1288), top: user.top }] : [];
+    const beside =
+      user && typeof user.left === "number"
+        ? [
+            { left: user.left + (user.width || 0) + 8, top: user.top },
+            { left: Math.max(0, user.left - 1288), top: user.top },
+          ]
+        : [];
     let w = null;
     for (const at of [...beside, {}]) {
       w = await chrome.windows.create({ ...base, ...at }).catch(() => null);
@@ -1921,7 +2545,8 @@ function openInAgentWindow(props) {
     }
     if (!w) throw new Error("Chrome would not open the agent window");
     await chrome.storage.session.set({ agentWindowId: w.id });
-    const t = (w.tabs && w.tabs[0]) || (await chrome.tabs.query({ windowId: w.id }))[0];
+    const t =
+      (w.tabs && w.tabs[0]) || (await chrome.tabs.query({ windowId: w.id }))[0];
     if (!t) throw new Error("the agent window opened with no tab");
     return t;
   };
@@ -1955,9 +2580,13 @@ async function cleanupIdle() {
     if (idle < TAB_IDLE_MS) continue;
     const t = await chrome.tabs.get(tabId).catch(() => null);
     if (!t || keepReason(t)) continue;
-    if (t.active && focused && focused.focused && t.windowId === focused.id) continue;
+    if (t.active && focused && focused.focused && t.windowId === focused.id)
+      continue;
     await chrome.tabs.remove(tabId).then(
-      () => note(`closed agent tab ${tabId}, idle ${Math.round(idle / 60_000)} min`),
+      () =>
+        note(
+          `closed agent tab ${tabId}, idle ${Math.round(idle / 60_000)} min`,
+        ),
       () => {},
     );
   }
@@ -1966,10 +2595,12 @@ async function cleanupIdle() {
 chrome.alarms.create("cast-tab-roles", { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener((a) => {
   if (a.name !== "cast-tab-roles") return;
-  loadOwnership().then(() => {
-    sweepHandoffs();
-    return cleanupIdle();
-  }).catch((err) => note(`tab sweep: ${String((err && err.message) || err)}`));
+  loadOwnership()
+    .then(() => {
+      sweepHandoffs();
+      return cleanupIdle();
+    })
+    .catch((err) => note(`tab sweep: ${String((err && err.message) || err)}`));
 });
 
 /** The popup's view of one tab, and what its buttons do. */
@@ -1996,7 +2627,9 @@ async function tabAction(msg) {
     adopted: adoptedFrom.has(tabId),
     keep: keepReason(t) || null,
     group: g ? { title: plainOf(g.title), color: g.color } : null,
-    handoff: h ? { id: h.id, text: h.text, state: h.state, expires: h.expires } : null,
+    handoff: h
+      ? { id: h.id, text: h.text, state: h.state, expires: h.expires }
+      : null,
     // Chrome refuses scripts and debuggers on its own pages and the Web Store.
     lendable: /^(https?|file):/i.test(t.url || ""),
   };

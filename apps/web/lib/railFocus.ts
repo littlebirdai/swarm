@@ -13,13 +13,30 @@
 export const RAIL_FOCUS_SINCE = Date.UTC(2026, 9, 27);
 
 /** Rail pages a focused rail leaves to More, beside the whole Agents group. */
-const MORE_PAGES = ["/threads", "/feed", "/goals", "/projects", "/org", "/repo", "/files", "/vault", "/pages", "/changes", "/deploys", "/ops", "/triggers", "/flows"];
+const MORE_PAGES = [
+  "/threads",
+  "/feed",
+  "/goals",
+  "/projects",
+  "/org",
+  "/repo",
+  "/files",
+  "/vault",
+  "/pages",
+  "/changes",
+  "/deploys",
+  "/ops",
+  "/triggers",
+  "/flows",
+];
 
 export type RailFocusFacts = {
   /** The viewer's account creation time (users._creationTime). */
   createdAt: number | undefined;
   /** The viewer's teams, each with its member count. */
-  teams: Array<{ member_count?: number; memberCount?: number } | null | undefined> | undefined;
+  teams:
+    | Array<{ member_count?: number; memberCount?: number } | null | undefined>
+    | undefined;
   /** client_state.ui.rail_everything: the person chose More (true) or Fewer (false). */
   everything: boolean | undefined;
 };
@@ -28,7 +45,9 @@ export type RailFocusFacts = {
  *  RAIL_FOCUS_SINCE on, and no team with anyone else on it. */
 export function railFocusOffered(f: RailFocusFacts): boolean {
   if (f.createdAt === undefined || f.createdAt < RAIL_FOCUS_SINCE) return false;
-  return !(f.teams ?? []).some((t) => (t?.member_count ?? t?.memberCount ?? 0) > 1);
+  return !(f.teams ?? []).some(
+    (t) => (t?.member_count ?? t?.memberCount ?? 0) > 1,
+  );
 }
 
 /** Whether the rail is narrowed now. */

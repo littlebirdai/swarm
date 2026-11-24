@@ -9,7 +9,11 @@ import { closeDomWindow } from "../../../test-helpers/domGlobals";
 import { buildDiffModel } from "../../../lib/diffModel";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>");
-class TestObserver { observe() {} unobserve() {} disconnect() {} }
+class TestObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -30,24 +34,35 @@ const restoreGlobals = replaceGlobals({
 });
 const { createRoot } = await import("react-dom/client");
 const { PierreDiff } = await import("../PierreDiff");
-const { drawableLines, VIRTUALIZE_LINE_THRESHOLD } = await import("../virtualizer");
+const { drawableLines, VIRTUALIZE_LINE_THRESHOLD } =
+  await import("../virtualizer");
 
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
-const lines = (n: number, word = "line") => Array.from({ length: n }, (_, i) => `${word} ${i}`).join("\n") + "\n";
+const lines = (n: number, word = "line") =>
+  Array.from({ length: n }, (_, i) => `${word} ${i}`).join("\n") + "\n";
 
 test("a diff's drawable rows are its whole file when it carries one, else its hunks", () => {
   const old = lines(3000);
   const changed = old.replace("line 1500\n", "changed 1500\n");
   const patch = createTwoFilesPatch("a.ts", "a.ts", old, changed);
-  const whole = processFile(patch, { oldFile: { name: "a.ts", contents: old }, newFile: { name: "a.ts", contents: changed } })!;
+  const whole = processFile(patch, {
+    oldFile: { name: "a.ts", contents: old },
+    newFile: { name: "a.ts", contents: changed },
+  })!;
   expect(drawableLines(whole)).toBeGreaterThan(VIRTUALIZE_LINE_THRESHOLD);
   const hunksOnly = processFile(patch)!;
   expect(drawableLines(hunksOnly)).toBeLessThan(20);
 });
 
 function render(n: number) {
-  const model = buildDiffModel({ oldStr: lines(n, "old"), newStr: lines(n, "new") });
+  const model = buildDiffModel({
+    oldStr: lines(n, "old"),
+    newStr: lines(n, "new"),
+  });
   return (
     <PierreDiff
       model={model}
@@ -67,7 +82,9 @@ test("diffs past the threshold draw windowed under one Virtualizer per scroller;
   const scroller = document.createElement("div");
   scroller.style.overflowY = "auto";
   document.body.append(scroller);
-  const slots = [0, 1, 2].map(() => scroller.appendChild(document.createElement("div")));
+  const slots = [0, 1, 2].map(() =>
+    scroller.appendChild(document.createElement("div")),
+  );
   const roots = slots.map((slot) => createRoot(slot));
   fileDiffRenders.length = 0;
   await act(() => {
@@ -75,7 +92,10 @@ test("diffs past the threshold draw windowed under one Virtualizer per scroller;
     roots[1].render(render(150));
     roots[2].render(render(150));
   });
-  const last = () => roots.map((_, i) => fileDiffRenders.filter((r) => r.fileDiff.name === "a.ts").at(-(3 - i)));
+  const last = () =>
+    roots.map((_, i) =>
+      fileDiffRenders.filter((r) => r.fileDiff.name === "a.ts").at(-(3 - i)),
+    );
   const [short, longA, longB] = last();
   expect(short?.virtualizer).toBeUndefined();
   expect(short?.metrics).toBeUndefined();

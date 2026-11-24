@@ -55,7 +55,11 @@ export const MAX_REMEMBERED_KEYS = 256;
 // (which reads the notifications table) remains the complete record.
 export const MAX_REPLAYED = 5;
 
-export const EMPTY_WATERMARK: CatchUpWatermark = { seq: 0, epoch: null, seen: [] };
+export const EMPTY_WATERMARK: CatchUpWatermark = {
+  seq: 0,
+  epoch: null,
+  seen: [],
+};
 
 /** The local notification identifier — stable per backend and per entry. */
 export function notificationKey(host: string, key: string): string {
@@ -69,9 +73,12 @@ export function watermarkStorageKey(host: string, userId: string): string {
 function sanitize(value: unknown): CatchUpWatermark {
   if (!value || typeof value !== "object") return EMPTY_WATERMARK;
   const raw = value as Partial<CatchUpWatermark>;
-  const seq = typeof raw.seq === "number" && Number.isFinite(raw.seq) ? raw.seq : 0;
+  const seq =
+    typeof raw.seq === "number" && Number.isFinite(raw.seq) ? raw.seq : 0;
   const epoch = typeof raw.epoch === "string" && raw.epoch ? raw.epoch : null;
-  const seen = Array.isArray(raw.seen) ? raw.seen.filter((k): k is string => typeof k === "string") : [];
+  const seen = Array.isArray(raw.seen)
+    ? raw.seen.filter((k): k is string => typeof k === "string")
+    : [];
   return { seq, epoch, seen: seen.slice(-MAX_REMEMBERED_KEYS) };
 }
 
@@ -98,7 +105,10 @@ export async function saveWatermark(
   watermark: CatchUpWatermark,
 ): Promise<void> {
   try {
-    await storage.setItem(watermarkStorageKey(host, userId), JSON.stringify(watermark));
+    await storage.setItem(
+      watermarkStorageKey(host, userId),
+      JSON.stringify(watermark),
+    );
   } catch {
     // Losing the write costs a redundant catch-up, never a duplicate banner.
   }
@@ -160,7 +170,8 @@ export function planCatchUp(input: {
       ? []
       : ordered.filter((entry) => !known.has(notificationKey(host, entry.key)));
 
-  const liveEpoch = input.epoch ?? ordered[ordered.length - 1]?.epoch ?? watermark.epoch;
+  const liveEpoch =
+    input.epoch ?? ordered[ordered.length - 1]?.epoch ?? watermark.epoch;
   const sameEpoch = liveEpoch !== null && liveEpoch === watermark.epoch;
   const highest = ordered.length > 0 ? ordered[ordered.length - 1].seq : 0;
 

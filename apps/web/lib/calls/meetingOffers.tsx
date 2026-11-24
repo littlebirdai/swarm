@@ -11,7 +11,11 @@ import {
   MeetingRecordFailed,
   MeetingRecordingNote,
 } from "../../components/calls/MeetingOfferToast";
-import { canDetectMeetings, onMeetingDetected, type MeetingOffer } from "../desktopMeetings";
+import {
+  canDetectMeetings,
+  onMeetingDetected,
+  type MeetingOffer,
+} from "../desktopMeetings";
 import { getRecorderStatus, startRecording } from "./recorder";
 
 /** One card per app, so an app that starts twice replaces its card rather than
@@ -31,10 +35,16 @@ function glass(face: ReactNode) {
 export function showMeetingOffer(offer: MeetingOffer) {
   const id = offerToastId(offer.app);
   const close = () => toast.dismiss(id);
-  toast.custom(() => glass(<MeetingOfferFace offer={offer} onClose={close} onStarted={close} />), {
-    id,
-    duration: Infinity,
-  });
+  toast.custom(
+    () =>
+      glass(
+        <MeetingOfferFace offer={offer} onClose={close} onStarted={close} />,
+      ),
+    {
+      id,
+      duration: Infinity,
+    },
+  );
 }
 
 export function showAutoRecordNote(offer: MeetingOffer) {
@@ -45,10 +55,13 @@ export function showAutoRecordNote(offer: MeetingOffer) {
 }
 
 export function showRecordFailed(offer: MeetingOffer, message: string) {
-  toast.custom(() => glass(<MeetingRecordFailed offer={offer} message={message} />), {
-    id: `meeting-failed:${offer.app}`,
-    duration: 10000,
-  });
+  toast.custom(
+    () => glass(<MeetingRecordFailed offer={offer} message={message} />),
+    {
+      id: `meeting-failed:${offer.app}`,
+      duration: 10000,
+    },
+  );
 }
 
 export async function handleMeetingOffer(offer: MeetingOffer): Promise<void> {
@@ -65,7 +78,11 @@ export async function handleMeetingOffer(offer: MeetingOffer): Promise<void> {
 
   const id = await startRecording();
   if (id) showAutoRecordNote(offer);
-  else showRecordFailed(offer, getRecorderStatus().error ?? "Could not start the recording.");
+  else
+    showRecordFailed(
+      offer,
+      getRecorderStatus().error ?? "Could not start the recording.",
+    );
 }
 
 // Subscribe this window to the shell's offers. Installed once from
@@ -79,7 +96,11 @@ export async function handleMeetingOffer(offer: MeetingOffer): Promise<void> {
 let installed = false;
 export function installMeetingOfferListener(): void {
   if (installed || !canDetectMeetings()) return;
-  if (typeof window !== "undefined" && window.location.pathname === "/meeting-offer") return;
+  if (
+    typeof window !== "undefined" &&
+    window.location.pathname === "/meeting-offer"
+  )
+    return;
   installed = true;
   onMeetingDetected((offer) => {
     void handleMeetingOffer(offer);
@@ -90,5 +111,13 @@ export function installMeetingOfferListener(): void {
 // trigger needs the desktop shell, so this is the only way to see the card in a
 // browser — __showMeetingOffer("Zoom").
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined")
-  (window as any).__showMeetingOffer = (name = "Zoom", decision: "ask" | "auto" = "ask") =>
-    showMeetingOffer({ app: name.toLowerCase(), name, decision, at: Date.now() });
+  (window as any).__showMeetingOffer = (
+    name = "Zoom",
+    decision: "ask" | "auto" = "ask",
+  ) =>
+    showMeetingOffer({
+      app: name.toLowerCase(),
+      name,
+      decision,
+      at: Date.now(),
+    });

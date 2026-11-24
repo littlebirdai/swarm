@@ -9,8 +9,17 @@ const MIN = 60_000;
 /** A clock the test moves: awake time and wall time advance together. */
 function simulated() {
   let now = 1_000_000;
-  const clock = new ParkedClock(now, () => now, () => now);
-  return { clock, advance: (ms: number) => { now += ms; } };
+  const clock = new ParkedClock(
+    now,
+    () => now,
+    () => now,
+  );
+  return {
+    clock,
+    advance: (ms: number) => {
+      now += ms;
+    },
+  };
 }
 
 describe("a hand's wait", () => {
@@ -37,7 +46,11 @@ describe("a hand's wait", () => {
 
   test("a hand that never stops ends at its station's limit", () => {
     const { clock, advance } = simulated();
-    const watch = new HandWatch(clock, handTimeouts({ timeout: 3600 }, {}), () => 1);
+    const watch = new HandWatch(
+      clock,
+      handTimeouts({ timeout: 3600 }, {}),
+      () => 1,
+    );
     for (let t = 0; t < 55; t += 5) {
       advance(5 * MIN);
       watch.active();
@@ -76,12 +89,38 @@ describe("a hand's wait", () => {
 
 describe("a pane's tail as work", () => {
   test("a hung TUI's ticking clock and spinner are no work; new output and a moving token count are", () => {
-    const pane = (status: string, body = "● Bash(bun test)") => `${body}\n${status}\n> `;
+    const pane = (status: string, body = "● Bash(bun test)") =>
+      `${body}\n${status}\n> `;
     // Claude Code and Codex status lines a second apart, the agent hung.
-    expect(steadyTail(pane("✻ Thinking… (12m 3s · ↓ 1.2k tokens · esc to interrupt)"))).toBe(steadyTail(pane("✶ Thinking… (12m 4s · ↓ 1.2k tokens · esc to interrupt)")));
-    expect(steadyTail(pane("• Working (41s • esc to interrupt)"))).toBe(steadyTail(pane("◦ Working (42s • esc to interrupt)")));
-    expect(steadyTail(pane("✻ Thinking… (12m 3s · ↓ 1.2k tokens · esc to interrupt)"))).not.toBe(steadyTail(pane("✻ Thinking… (12m 9s · ↓ 1.4k tokens · esc to interrupt)")));
-    expect(steadyTail(pane("• Working (41s • esc to interrupt)"))).not.toBe(steadyTail(pane("• Working (49s • esc to interrupt)", "● Bash(bun test)\n  ⎿ 12 pass")));
+    expect(
+      steadyTail(
+        pane("✻ Thinking… (12m 3s · ↓ 1.2k tokens · esc to interrupt)"),
+      ),
+    ).toBe(
+      steadyTail(
+        pane("✶ Thinking… (12m 4s · ↓ 1.2k tokens · esc to interrupt)"),
+      ),
+    );
+    expect(steadyTail(pane("• Working (41s • esc to interrupt)"))).toBe(
+      steadyTail(pane("◦ Working (42s • esc to interrupt)")),
+    );
+    expect(
+      steadyTail(
+        pane("✻ Thinking… (12m 3s · ↓ 1.2k tokens · esc to interrupt)"),
+      ),
+    ).not.toBe(
+      steadyTail(
+        pane("✻ Thinking… (12m 9s · ↓ 1.4k tokens · esc to interrupt)"),
+      ),
+    );
+    expect(steadyTail(pane("• Working (41s • esc to interrupt)"))).not.toBe(
+      steadyTail(
+        pane(
+          "• Working (49s • esc to interrupt)",
+          "● Bash(bun test)\n  ⎿ 12 pass",
+        ),
+      ),
+    );
   });
 });
 

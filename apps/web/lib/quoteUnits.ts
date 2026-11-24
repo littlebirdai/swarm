@@ -28,7 +28,9 @@ function collectUnits(container: HTMLElement, units: HTMLElement[]) {
     // a line: skipping it keeps every unit after it at its index.
     if (child.hasAttribute("data-reveal-slot")) continue;
     if (child.tagName === "OL" || child.tagName === "UL") {
-      const items = (Array.from(child.children) as HTMLElement[]).filter((li) => li.tagName === "LI");
+      const items = (Array.from(child.children) as HTMLElement[]).filter(
+        (li) => li.tagName === "LI",
+      );
       if (items.length) {
         units.push(...items);
         continue;
@@ -37,7 +39,9 @@ function collectUnits(container: HTMLElement, units: HTMLElement[]) {
     if (child.hasAttribute("data-doc-embed")) {
       // First match in document order is this embed's own body (a nested
       // embed's body comes later), so recursion sees each level exactly once.
-      const body = child.querySelector("[data-doc-embed-body]") as HTMLElement | null;
+      const body = child.querySelector(
+        "[data-doc-embed-body]",
+      ) as HTMLElement | null;
       if (body) {
         collectUnits(body, units);
         continue;

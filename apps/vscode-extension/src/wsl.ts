@@ -5,10 +5,18 @@
 // is also the one to run in; any other path runs in the default distro.
 
 export function toWslPath(winPath: string): { path: string; distro?: string } {
-  const unc = winPath.match(/^[\\/]{2}(?:wsl\.localhost|wsl\$)[\\/]([^\\/]+)(.*)$/i);
+  const unc = winPath.match(
+    /^[\\/]{2}(?:wsl\.localhost|wsl\$)[\\/]([^\\/]+)(.*)$/i,
+  );
   if (unc) return { path: unc[2].replace(/\\/g, "/") || "/", distro: unc[1] };
   const drive = winPath.match(/^([A-Za-z]):[\\/]?(.*)$/);
-  if (drive) return { path: `/mnt/${drive[1].toLowerCase()}/${drive[2].replace(/\\/g, "/")}`.replace(/\/$/, "") };
+  if (drive)
+    return {
+      path: `/mnt/${drive[1].toLowerCase()}/${drive[2].replace(/\\/g, "/")}`.replace(
+        /\/$/,
+        "",
+      ),
+    };
   return { path: winPath };
 }
 
@@ -16,7 +24,8 @@ export function toWslPath(winPath: string): { path: string; distro?: string } {
 function translateArg(arg: string): string {
   const m = arg.match(/^(.*?)(:\d+)?$/);
   const base = m?.[1] ?? arg;
-  if (!/^([A-Za-z]:[\\/]|[\\/]{2}(wsl\.localhost|wsl\$)[\\/])/i.test(base)) return arg;
+  if (!/^([A-Za-z]:[\\/]|[\\/]{2}(wsl\.localhost|wsl\$)[\\/])/i.test(base))
+    return arg;
   return toWslPath(base).path + (m?.[2] ?? "");
 }
 
@@ -29,8 +38,13 @@ export function wslCastArgs(args: string[], cwd: string): string[] {
   const where = toWslPath(cwd);
   return [
     ...(where.distro ? ["-d", where.distro] : []),
-    "--cd", where.path,
-    "-e", "sh", "-lc", 'exec cast "$@"', "cast",
+    "--cd",
+    where.path,
+    "-e",
+    "sh",
+    "-lc",
+    'exec cast "$@"',
+    "cast",
     ...args.map(translateArg),
   ];
 }

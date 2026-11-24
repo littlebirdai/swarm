@@ -12,7 +12,10 @@
 // edge right at the target can read differently here than in a brief.
 import { useMemo } from "react";
 import type { MetricSeries } from "@codecast/shared/contracts/initiative";
-import { metricDenominatorRef, windowPlan } from "@codecast/shared/contracts/metricStanding";
+import {
+  metricDenominatorRef,
+  windowPlan,
+} from "@codecast/shared/contracts/metricStanding";
 import { useOpsWatches, useSyncOpsWatches } from "./useSyncOps";
 import { useSyncEnvStandings } from "./useEnvStandings";
 import { useSyncSeriesMany, useWatchSeriesMap } from "./useSyncOpsMetrics";
@@ -25,12 +28,28 @@ export type SeriesLookup = (ref: string) => MetricSeries | undefined;
 const WINDOW_RANGE = "30d" as const;
 const RECENT_MS = 29 * 86_400_000;
 
-const asSeries = (w: OpsWatch, recent?: OpsWatchSeries, all?: OpsWatchSeries): MetricSeries => {
-  const older = all && recent ? all.points.filter((p) => p.at < recent.from) : all?.points ?? [];
-  const history = [...older, ...(recent?.points ?? [])].map((p) => ({ at: p.at, value: p.value }));
+const asSeries = (
+  w: OpsWatch,
+  recent?: OpsWatchSeries,
+  all?: OpsWatchSeries,
+): MetricSeries => {
+  const older =
+    all && recent
+      ? all.points.filter((p) => p.at < recent.from)
+      : (all?.points ?? []);
+  const history = [...older, ...(recent?.points ?? [])].map((p) => ({
+    at: p.at,
+    value: p.value,
+  }));
   return {
-    short_id: w.short_id, name: w.name, unit: w.unit ?? null, points: w.points, last_error: w.last_error ?? null, ...(history.length ? { history } : {}),
-    ...(w.source_points?.length ? { cohorts: w.source_points } : {}), ...(w.version ? { version: w.version } : {}),
+    short_id: w.short_id,
+    name: w.name,
+    unit: w.unit ?? null,
+    points: w.points,
+    last_error: w.last_error ?? null,
+    ...(history.length ? { history } : {}),
+    ...(w.source_points?.length ? { cohorts: w.source_points } : {}),
+    ...(w.version ? { version: w.version } : {}),
   };
 };
 
@@ -46,7 +65,8 @@ export function useSyncMetricWindows() {
   const watches = useOpsWatches();
   const { ids, far } = useMemo(() => {
     const byRef = new Map(watches.map((w) => [w.short_id, w]));
-    const near = new Set<string>(), long = new Set<string>();
+    const near = new Set<string>(),
+      long = new Set<string>();
     for (const m of initiatives.flatMap((r) => r.metrics ?? [])) {
       const main = m.series ? byRef.get(m.series) : undefined;
       const plan = main ? windowPlan(m, main) : null;
@@ -57,19 +77,30 @@ export function useSyncMetricWindows() {
         if (w) (reach > RECENT_MS ? long : near).add(w._id);
       }
     }
-    return { ids: [...new Set([...near, ...long])].sort(), far: [...long].sort() };
+    return {
+      ids: [...new Set([...near, ...long])].sort(),
+      far: [...long].sort(),
+    };
   }, [initiatives, watches]);
   useSyncSeriesMany(ids, WINDOW_RANGE);
   useSyncSeriesMany(far, "all");
 }
 
 /** The series a metric names, by short id; and the watches, for a picker. */
-export function useMetricSeries(): { lookup: SeriesLookup; watches: OpsWatch[] } {
+export function useMetricSeries(): {
+  lookup: SeriesLookup;
+  watches: OpsWatch[];
+} {
   const watches = useOpsWatches();
   const recent = useWatchSeriesMap(WINDOW_RANGE);
   const all = useWatchSeriesMap("all");
   return useMemo(() => {
-    const byRef = new Map(watches.map((w) => [w.short_id, asSeries(w, recent.get(w._id), all.get(w._id))]));
+    const byRef = new Map(
+      watches.map((w) => [
+        w.short_id,
+        asSeries(w, recent.get(w._id), all.get(w._id)),
+      ]),
+    );
     return { lookup: (ref: string) => byRef.get(ref), watches };
   }, [watches, recent, all]);
 }

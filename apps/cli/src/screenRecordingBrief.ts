@@ -63,32 +63,64 @@ export type DeliveryTarget = { conversationId: string; senderUserId: string };
  *  to this very session, by the person who recorded it. Any other tag is
  *  delivered as it was typed: a teammate's text naming the owner's call must
  *  not make the owner's daemon type that call into a shared session. */
-export async function expandScreenRecording(content: string, deps: BriefDeps, waitedMs: number, into: DeliveryTarget): Promise<BriefOutcome> {
+export async function expandScreenRecording(
+  content: string,
+  deps: BriefDeps,
+  waitedMs: number,
+  into: DeliveryTarget,
+): Promise<BriefOutcome> {
   const parsed = parseScreenRecordingMessage(content);
   if (!parsed || parsed.lines.length) return { kind: "unchanged" };
   const call = await deps.getCall(parsed.call);
   if (!call || !call.screen) return { kind: "unchanged" };
-  if (!call.screen.conversation_id || call.screen.conversation_id !== into.conversationId) return { kind: "unchanged" };
-  if (!call.started_by || call.started_by !== into.senderUserId) return { kind: "unchanged" };
+  if (
+    !call.screen.conversation_id ||
+    call.screen.conversation_id !== into.conversationId
+  )
+    return { kind: "unchanged" };
+  if (!call.started_by || call.started_by !== into.senderUserId)
+    return { kind: "unchanged" };
   const pending = call.transcribe_status === "pending";
-  if (pending && waitedMs < (call.filmed ? SCREEN_RECORDING_WORDS_WAIT_MS : SCREEN_RECORDING_UPLOAD_WAIT_MS)) return { kind: "wait" };
+  if (
+    pending &&
+    waitedMs <
+      (call.filmed
+        ? SCREEN_RECORDING_WORDS_WAIT_MS
+        : SCREEN_RECORDING_UPLOAD_WAIT_MS)
+  )
+    return { kind: "wait" };
   const handle = call.short_id ?? parsed.call;
-  const segments: BriefSegment[] = call.segments.map((s) => ({ t0: s.t0, t1: s.t1, text: s.text }));
+  const segments: BriefSegment[] = call.segments.map((s) => ({
+    t0: s.t0,
+    t1: s.t1,
+    text: s.text,
+  }));
   const frames = new Map<number, string>();
   // One at a time: each is an ffmpeg seek into the same file, and the
   // delivery has a budget; a frame that cannot be cut is left out.
   for (const i of framedLines(segments)) {
-    const file = await deps.frameAt(handle, lineMomentMs(segments[i])).catch(() => null);
+    const file = await deps
+      .frameAt(handle, lineMomentMs(segments[i]))
+      .catch(() => null);
     if (file) frames.set(i, file);
   }
-  const opening = segments.length ? null : await deps.frameAt(handle, 500).catch(() => null);
-  const durationMs = Math.max(parsed.durationMs, (call.ended_at ?? call.started_at) - call.started_at);
+  const opening = segments.length
+    ? null
+    : await deps.frameAt(handle, 500).catch(() => null);
+  const durationMs = Math.max(
+    parsed.durationMs,
+    (call.ended_at ?? call.started_at) - call.started_at,
+  );
   const text = screenRecordingBrief({
     ref: { call: handle, transcriptId: parsed.transcriptId, durationMs },
     caption: parsed.caption,
     segments,
     frames,
-    words: pending ? "pending" : call.transcribe_status === "failed" ? "failed" : "done",
+    words: pending
+      ? "pending"
+      : call.transcribe_status === "failed"
+        ? "failed"
+        : "done",
     noAudio: !!call.screen?.no_audio,
     opening,
   });
@@ -98,7 +130,11 @@ export async function expandScreenRecording(content: string, deps: BriefDeps, wa
 /** The deps as the daemon has them: the server over the CLI routes with the
  *  machine's token, and frames cut by `cast call snap`'s own code into the
  *  owner-only scratch directory. */
-export function serverBriefDeps(siteUrl: string, apiToken: string, baseUrl: string = CODECAST_BASE_URL): BriefDeps {
+export function serverBriefDeps(
+  siteUrl: string,
+  apiToken: string,
+  baseUrl: string = CODECAST_BASE_URL,
+): BriefDeps {
   const post = async (route: string, body: Record<string, unknown>) => {
     const res = await fetch(`${siteUrl}${route}`, {
       method: "POST",
@@ -107,14 +143,22 @@ export function serverBriefDeps(siteUrl: string, apiToken: string, baseUrl: stri
       signal: AbortSignal.timeout(30_000),
     });
     const out = await res.json().catch(() => null);
-    if (!res.ok || out?.error) throw new Error(`${route}: ${out?.error ?? res.status}`);
+    if (!res.ok || out?.error)
+      throw new Error(`${route}: ${out?.error ?? res.status}`);
     return out;
   };
   return {
-    getCall: async (call) => (await post("/cli/calls/get", { transcript_id: call })) as ScreenRecordingCall | null,
+    getCall: async (call) =>
+      (await post("/cli/calls/get", {
+        transcript_id: call,
+      })) as ScreenRecordingCall | null,
     frameAt: async (call, atMs) => {
       const { snapCall, snapMomentRef } = await import("./callSnap.js");
-      const res = await snapCall(snapMomentRef(call, atMs), {}, { post, resolveCallId: async (r) => r, baseUrl });
+      const res = await snapCall(
+        snapMomentRef(call, atMs),
+        {},
+        { post, resolveCallId: async (r) => r, baseUrl },
+      );
       return res.frames[0]?.path ?? null;
     },
   };
@@ -125,7 +169,10 @@ type DeliveryOutcome = { wait: true } | { wait: false; content: string };
 /** Expansions in progress or done, by message. The delivery loop never
  *  awaits one: it starts the job, holds the message, and finds the result
  *  waiting on a later pass. */
-const jobs = new Map<string, { done: DeliveryOutcome | null; startedAt: number }>();
+const jobs = new Map<
+  string,
+  { done: DeliveryOutcome | null; startedAt: number }
+>();
 /** A finished job nobody came back for (the message was cancelled) is
  *  dropped after this long. */
 const JOB_TTL_MS = 30 * 60_000;
@@ -145,8 +192,13 @@ export function screenRecordingForDelivery(
   log: (line: string) => void = () => {},
   deps?: BriefDeps,
 ): DeliveryOutcome {
-  if (!content.trimStart().startsWith("<screen-recording")) return { wait: false, content };
-  const briefDeps = deps ?? (server.siteUrl && server.apiToken ? serverBriefDeps(server.siteUrl, server.apiToken) : null);
+  if (!content.trimStart().startsWith("<screen-recording"))
+    return { wait: false, content };
+  const briefDeps =
+    deps ??
+    (server.siteUrl && server.apiToken
+      ? serverBriefDeps(server.siteUrl, server.apiToken)
+      : null);
   if (!briefDeps) return { wait: false, content };
   const now = Date.now();
   for (const [k, j] of jobs) if (now - j.startedAt > JOB_TTL_MS) jobs.delete(k);
@@ -156,7 +208,10 @@ export function screenRecordingForDelivery(
     jobs.delete(key);
     return job.done;
   }
-  const entry: { done: DeliveryOutcome | null; startedAt: number } = { done: null, startedAt: now };
+  const entry: { done: DeliveryOutcome | null; startedAt: number } = {
+    done: null,
+    startedAt: now,
+  };
   jobs.set(key, entry);
   void expandScreenRecording(content, briefDeps, now - createdAt, into).then(
     (brief) => {
@@ -165,8 +220,12 @@ export function screenRecordingForDelivery(
         jobs.delete(key);
         return;
       }
-      if (brief.kind === "ready") log(`expanded with ${brief.frames} frame(s) in ${Date.now() - now} ms`);
-      entry.done = brief.kind === "ready" ? { wait: false, content: brief.text } : { wait: false, content };
+      if (brief.kind === "ready")
+        log(`expanded with ${brief.frames} frame(s) in ${Date.now() - now} ms`);
+      entry.done =
+        brief.kind === "ready"
+          ? { wait: false, content: brief.text }
+          : { wait: false, content };
     },
     (err) => {
       log(`not expanded: ${err instanceof Error ? err.message : String(err)}`);

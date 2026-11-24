@@ -6,7 +6,10 @@
 // that becomes the version's still for everyone (data/stills).
 import { useEffect, useRef } from "react";
 import type { Id } from "../../convex/_generated/dataModel";
-import { RUNTIME_TOKEN_RENEW_MS, runtimeTokenForSecret } from "../../convex/lib/identity";
+import {
+  RUNTIME_TOKEN_RENEW_MS,
+  runtimeTokenForSecret,
+} from "../../convex/lib/identity";
 import { STILL_VIEWPORT } from "../../convex/lib/limits";
 import { versionPath } from "../../convex/lib/runPaths";
 import { RUNTIME_CSP } from "../../convex/lib/runtime";
@@ -31,12 +34,37 @@ type Props = {
   onPictured?: () => void;
 };
 
-export function PreviewFrame({ appId, slug, name, version, pictureIt, className, onPainted, onPictured }: Props) {
+export function PreviewFrame({
+  appId,
+  slug,
+  name,
+  version,
+  pictureIt,
+  className,
+  onPainted,
+  onPictured,
+}: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const { creds, me } = useIdentity();
   const takeStill = useTakeStill();
-  const latest = useRef({ creds, me, name, pictureIt, onPainted, onPictured, takeStill });
-  latest.current = { creds, me, name, pictureIt, onPainted, onPictured, takeStill };
+  const latest = useRef({
+    creds,
+    me,
+    name,
+    pictureIt,
+    onPainted,
+    onPictured,
+    takeStill,
+  });
+  latest.current = {
+    creds,
+    me,
+    name,
+    pictureIt,
+    onPainted,
+    onPictured,
+    takeStill,
+  };
 
   useEffect(() => {
     let answered = false;
@@ -44,19 +72,41 @@ export function PreviewFrame({ appId, slug, name, version, pictureIt, className,
     const onMessage = async (e: MessageEvent) => {
       const target = frame.current?.contentWindow;
       if (!target || e.source !== target || !isAppMessage(e.data)) return;
-      const { creds, me, name, pictureIt, onPainted, onPictured, takeStill } = latest.current;
+      const { creds, me, name, pictureIt, onPainted, onPictured, takeStill } =
+        latest.current;
       if (e.data.type === "ready" && !answered) {
         answered = true;
-        postToApp(target, await initFor({ creds, appId, version, visitor: me, avatars: await avatarUrlsForApps(), app: appLink(slug, name), scope: "watch" }));
+        postToApp(
+          target,
+          await initFor({
+            creds,
+            appId,
+            version,
+            visitor: me,
+            avatars: await avatarUrlsForApps(),
+            app: appLink(slug, name),
+            scope: "watch",
+          }),
+        );
       } else if (e.data.type === "painted") {
         onPainted?.();
-        if (pictureIt) settle = setTimeout(() => void takeStill(target, appId, version).then(onPictured), STILL_SETTLE_MS);
+        if (pictureIt)
+          settle = setTimeout(
+            () => void takeStill(target, appId, version).then(onPictured),
+            STILL_SETTLE_MS,
+          );
       }
     };
     const renew = setInterval(() => {
       const target = frame.current?.contentWindow;
       if (target && answered) {
-        void runtimeTokenForSecret(latest.current.creds.secret, appId, version, Date.now(), "watch").then((token) => postToApp(target, { type: "token", token }));
+        void runtimeTokenForSecret(
+          latest.current.creds.secret,
+          appId,
+          version,
+          Date.now(),
+          "watch",
+        ).then((token) => postToApp(target, { type: "token", token }));
       }
     }, RUNTIME_TOKEN_RENEW_MS);
     addEventListener("message", onMessage);

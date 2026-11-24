@@ -26,7 +26,14 @@ export const landedChangeTables = {
     // The traced fixes that changed this change's lines: the fix's sha, when it landed, how many of this change's
     // lines it changed, and `top`, the most lines any one change gave that fix (this change is the fix's top
     // introducer when lines equals top). Every link is kept; which ones regret is the reader's rule (regret.md R3).
-    fixed_by: v.array(v.object({ sha: v.string(), at: v.number(), lines: v.number(), top: v.optional(v.number()) })),
+    fixed_by: v.array(
+      v.object({
+        sha: v.string(),
+        at: v.number(),
+        lines: v.number(),
+        top: v.optional(v.number()),
+      }),
+    ),
     recorded_at: v.number(),
   })
     .index("by_repository_sha", ["repository", "sha"])

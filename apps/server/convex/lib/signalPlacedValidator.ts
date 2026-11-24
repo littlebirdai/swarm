@@ -3,6 +3,15 @@
 // without the placement code.
 import { v } from "convex/values";
 
-export const SIGNAL_PLACEMENTS = ["expectation", "filer", "source", "default", "none", "ground"] as const;
+export const SIGNAL_PLACEMENTS = [
+  "expectation",
+  "filer",
+  "source",
+  "default",
+  "none",
+  "ground",
+] as const;
 export type Placed = (typeof SIGNAL_PLACEMENTS)[number];
-export const signalPlacedValidator = v.union(...SIGNAL_PLACEMENTS.map((p) => v.literal(p)));
+export const signalPlacedValidator = v.union(
+  ...SIGNAL_PLACEMENTS.map((p) => v.literal(p)),
+);

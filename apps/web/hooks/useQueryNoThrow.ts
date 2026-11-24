@@ -1,7 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQueries, type RequestForQueries } from "convex/react";
 import { getFunctionName } from "convex/server";
-import type { FunctionArgs, FunctionReference, FunctionReturnType } from "convex/server";
+import type {
+  FunctionArgs,
+  FunctionReference,
+  FunctionReturnType,
+} from "convex/server";
 import { convexToJson, type Value } from "convex/values";
 
 import { useWatchEffect } from "./useWatchEffect";
@@ -9,7 +13,7 @@ import { useWatchEffect } from "./useWatchEffect";
 // circuit breaker drops a subscription that never resolved. Renders through the
 // same error paths as a terminal server error.
 export const queryCircuitOpenError = new Error(
-  "Query did not resolve within the deadline; subscription dropped."
+  "Query did not resolve within the deadline; subscription dropped.",
 );
 
 // Drop-in useQuery that returns terminal server errors instead of throwing them
@@ -43,21 +47,28 @@ const remembered = new Map<string, unknown>();
 export function _resetRememberedResults(): void {
   remembered.clear();
 }
-const argsKey = (args: Record<string, Value>) => JSON.stringify(convexToJson(args));
+const argsKey = (args: Record<string, Value>) =>
+  JSON.stringify(convexToJson(args));
 
 /** The answer a `remember` subscription last got for these args, if any. */
 export function rememberedResult<Query extends FunctionReference<"query">>(
   query: Query,
   args: FunctionArgs<Query>,
 ): FunctionReturnType<Query> | undefined {
-  return remembered.get(`${getFunctionName(query)}:${argsKey(args as Record<string, Value>)}`) as FunctionReturnType<Query> | undefined;
+  return remembered.get(
+    `${getFunctionName(query)}:${argsKey(args as Record<string, Value>)}`,
+  ) as FunctionReturnType<Query> | undefined;
 }
 
 export function useQueryNoThrow<Query extends FunctionReference<"query">>(
   query: Query,
   args: FunctionArgs<Query> | "skip",
   opts?: { breakAfterMs?: number; remember?: boolean },
-): { data: FunctionReturnType<Query> | undefined; error: Error | undefined; retry: () => void } {
+): {
+  data: FunctionReturnType<Query> | undefined;
+  error: Error | undefined;
+  retry: () => void;
+} {
   const skip = args === "skip";
   const queryName = getFunctionName(query);
   // Key the memo on serialized args, not object identity: useQueries treats a
@@ -71,7 +82,10 @@ export function useQueryNoThrow<Query extends FunctionReference<"query">>(
   const paused = !skip && pausedKey === key;
   const subscribed = !skip && !broken && !paused;
   const queries = useMemo<RequestForQueries>(
-    () => (subscribed ? { value: { query, args: args as Record<string, Value> } } : ({} as RequestForQueries)),
+    () =>
+      subscribed
+        ? { value: { query, args: args as Record<string, Value> } }
+        : ({} as RequestForQueries),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [argsJson, queryName, subscribed],
   );
@@ -82,7 +96,8 @@ export function useQueryNoThrow<Query extends FunctionReference<"query">>(
   if (remember && live !== undefined && !(live instanceof Error)) {
     remembered.delete(key);
     remembered.set(key, live);
-    if (remembered.size > REMEMBER_MAX) remembered.delete(remembered.keys().next().value!);
+    if (remembered.size > REMEMBER_MAX)
+      remembered.delete(remembered.keys().next().value!);
   }
   const value = loading && remember ? remembered.get(key) : live;
 

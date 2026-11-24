@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { runWatchRelay, type RelayAnswer, type RelayPush, type WatchRelayDeps } from "./watchRelay.js";
+import {
+  runWatchRelay,
+  type RelayAnswer,
+  type RelayPush,
+  type WatchRelayDeps,
+} from "./watchRelay.js";
 import type { WatchSink } from "./watchServer.js";
 
 // The daemon half of the browser relay, on a fake clock: what the watch
@@ -23,7 +28,10 @@ function harness(answers: (push: RelayPush, n: number) => RelayAnswer | null) {
     },
     startSession: (_opts, s) => {
       sink = s;
-      return { input: (ev) => inputs.push(ev), stop: () => void (stopped = true) };
+      return {
+        input: (ev) => inputs.push(ev),
+        stop: () => void (stopped = true),
+      };
     },
     now: () => now,
     sleep: async (ms) => {
@@ -51,7 +59,13 @@ describe("runWatchRelay", () => {
     h.onTick((t) => {
       if (t !== 1) return;
       const s = h.sink();
-      s.send({ type: "ready", targetId: "T1", title: "Login", url: "https://x.test", control: true });
+      s.send({
+        type: "ready",
+        targetId: "T1",
+        title: "Login",
+        url: "https://x.test",
+        control: true,
+      });
       s.send({ type: "frame", data: "OLD", w: 10, h: 10 });
       s.send({ type: "frame", data: "NEW", w: 20, h: 10 });
       s.send({ type: "action", kind: "down", x: 0.5, y: 0.5, at: 5 });
@@ -61,8 +75,18 @@ describe("runWatchRelay", () => {
     // the daemon answered); the session's output rides the next one.
     expect(h.pushes[0]).toEqual({ key: "sess-1" });
     const first = h.pushes[1]!;
-    expect(first).toMatchObject({ key: "sess-1", frame: "NEW", frame_w: 20, frame_h: 10, control: true });
-    expect(first.tab).toEqual({ id: "T1", title: "Login", url: "https://x.test" });
+    expect(first).toMatchObject({
+      key: "sess-1",
+      frame: "NEW",
+      frame_w: 20,
+      frame_h: 10,
+      control: true,
+    });
+    expect(first.tab).toEqual({
+      id: "T1",
+      title: "Login",
+      url: "https://x.test",
+    });
     expect(JSON.parse(first.actions!)).toHaveLength(1);
     // What was sent is not sent again: the next pushes are heartbeats.
     expect(h.pushes[2]).toEqual({ key: "sess-1" });
@@ -71,7 +95,9 @@ describe("runWatchRelay", () => {
 
   test("input in the answer reaches the session", async () => {
     const click = { kind: "mouse", type: "mousePressed", nx: 0.1, ny: 0.1 };
-    const h = harness((_m, n) => (n === 1 ? { stop: false, input: [click], fast: true } : { stop: true }));
+    const h = harness((_m, n) =>
+      n === 1 ? { stop: false, input: [click], fast: true } : { stop: true },
+    );
     await runWatchRelay(args, h.deps);
     expect(h.inputs).toEqual([click]);
   });
@@ -79,12 +105,21 @@ describe("runWatchRelay", () => {
   test("the session's own ending is pushed once and ends the loop", async () => {
     const h = harness(() => ({ stop: false }));
     h.onTick((t) => {
-      if (t === 1) h.sink().finish({ type: "error", code: "no-tab", message: "this session has not driven a browser tab" });
+      if (t === 1)
+        h.sink().finish({
+          type: "error",
+          code: "no-tab",
+          message: "this session has not driven a browser tab",
+        });
     });
     await runWatchRelay(args, h.deps);
     const ends = h.pushes.filter((p) => p.end);
     expect(ends).toHaveLength(1);
-    expect(JSON.parse(ends[0]!.end!)).toEqual({ kind: "error", code: "no-tab", message: "this session has not driven a browser tab" });
+    expect(JSON.parse(ends[0]!.end!)).toEqual({
+      kind: "error",
+      code: "no-tab",
+      message: "this session has not driven a browser tab",
+    });
     expect(h.pushes[h.pushes.length - 1]).toBe(h.pushes.find((p) => p.end)!);
   });
 

@@ -9,7 +9,16 @@
 // be returned here. Keeping that invariant at the source means no client has to
 // re-filter by role (a guard that has been silently dropped by refactors twice).
 
-import { AGENT_SWITCH_NOTICE_PREFIX, MACHINE_SWITCH_NOTICE_PREFIX, MACHINE_MOVE_NOTICE_PREFIX, isAgentContextMessage, isBootstrapPrompt, isCompactionSummaryMessage, isPollResponsePayload, isTurnInterruptionNotice } from "@codecast/shared/contracts";
+import {
+  AGENT_SWITCH_NOTICE_PREFIX,
+  MACHINE_SWITCH_NOTICE_PREFIX,
+  MACHINE_MOVE_NOTICE_PREFIX,
+  isAgentContextMessage,
+  isBootstrapPrompt,
+  isCompactionSummaryMessage,
+  isPollResponsePayload,
+  isTurnInterruptionNotice,
+} from "@codecast/shared/contracts";
 
 export type FilterableMessage = {
   _id: string;
@@ -23,7 +32,12 @@ export type FilterableMessage = {
   tool_results?: Array<unknown> | null;
   subtype?: string;
   timestamp: number;
-  images?: Array<{ media_type: string; storage_id?: string; data?: string; tool_use_id?: string }>;
+  images?: Array<{
+    media_type: string;
+    storage_id?: string;
+    data?: string;
+    tool_use_id?: string;
+  }>;
 };
 
 export type FilteredUserMessage = {
@@ -66,9 +80,15 @@ const SUMMARY_MARKER =
 
 /** A compaction row: the boundary marker, the summary the agent resumed from,
  *  or the prompt that asked for it. The session's own recap, not a turn. */
-export function isCompactionMessage(m: { subtype?: string; content?: string | null }): boolean {
+export function isCompactionMessage(m: {
+  subtype?: string;
+  content?: string | null;
+}): boolean {
   if (m.subtype === "compact_boundary") return true;
-  return isCompactionSummaryMessage(m.content) || (m.content ?? "").includes(SUMMARY_MARKER);
+  return (
+    isCompactionSummaryMessage(m.content) ||
+    (m.content ?? "").includes(SUMMARY_MARKER)
+  );
 }
 
 // Navigator rows carry a snippet, not the body: the list only ever shows two
@@ -92,7 +112,9 @@ export function stripContextTags(s: string): string {
 export function isNavigableUserMessage(m: FilterableMessage): boolean {
   if (m.role !== "user") return false;
   if (m.subtype === "compact_boundary") return false;
-  const hasImages = m.images?.some(image => !image.tool_use_id && image.storage_id);
+  const hasImages = m.images?.some(
+    (image) => !image.tool_use_id && image.storage_id,
+  );
   const t = stripContextTags(m.content ?? "");
   if (!t) return !!hasImages;
   if (isAgentContextMessage(t)) return false;
@@ -117,7 +139,9 @@ export function isNavigableUserMessage(m: FilterableMessage): boolean {
 type NavJudged = Omit<FilterableMessage, "_id" | "timestamp">;
 
 export function navPromptField(m: NavJudged): { nav_prompt?: true } {
-  return isNavigableUserMessage(m as FilterableMessage) ? { nav_prompt: true } : {};
+  return isNavigableUserMessage(m as FilterableMessage)
+    ? { nav_prompt: true }
+    : {};
 }
 
 // What to add to a patch so the flag follows the row's new content: nothing
@@ -128,7 +152,8 @@ export function navPromptPatch(
   patch: Record<string, unknown> | null,
 ): { nav_prompt?: true | undefined } {
   if (!patch) return {};
-  const next = !!navPromptField({ ...existing, ...patch } as NavJudged).nav_prompt;
+  const next = !!navPromptField({ ...existing, ...patch } as NavJudged)
+    .nav_prompt;
   if (next === !!existing.nav_prompt) return {};
   return { nav_prompt: next ? true : undefined };
 }
@@ -140,10 +165,20 @@ export function toNavigatorRow(m: FilterableMessage): FilteredUserMessage {
     message_uuid: m.message_uuid,
     from_user_id: m.from_user_id,
     role: "user" as const,
-    content: (stripContextTags(m.content ?? "") || (m.images?.length ? "Image attached" : "")).slice(0, NAV_ROW_SNIPPET_CHARS),
-    ...(m.images?.some(image => !image.tool_use_id && image.storage_id) ? {
-      images: m.images.filter(image => !image.tool_use_id && image.storage_id).map(image => ({ media_type: image.media_type, storage_id: image.storage_id! })),
-    } : {}),
+    content: (
+      stripContextTags(m.content ?? "") ||
+      (m.images?.length ? "Image attached" : "")
+    ).slice(0, NAV_ROW_SNIPPET_CHARS),
+    ...(m.images?.some((image) => !image.tool_use_id && image.storage_id)
+      ? {
+          images: m.images
+            .filter((image) => !image.tool_use_id && image.storage_id)
+            .map((image) => ({
+              media_type: image.media_type,
+              storage_id: image.storage_id!,
+            })),
+        }
+      : {}),
     timestamp: m.timestamp,
   };
 }
@@ -154,9 +189,17 @@ export function toNavigatorRow(m: FilterableMessage): FilteredUserMessage {
 // from field lengths rather than JSON.stringify, which would itself cost the
 // serialization the number exists to avoid.
 export function approxMessageBytes(m: FilterableMessage): number {
-  let n = (m.content?.length ?? 0) + (m.thinking?.length ?? 0) + (m.embedding?.length ?? 0) * 8 + 200;
-  if (m.tool_results) for (const r of m.tool_results as Array<{ content?: string }>) n += r?.content?.length ?? 0;
-  if (m.tool_calls) for (const c of m.tool_calls as Array<{ input?: string }>) n += c?.input?.length ?? 0;
+  let n =
+    (m.content?.length ?? 0) +
+    (m.thinking?.length ?? 0) +
+    (m.embedding?.length ?? 0) * 8 +
+    200;
+  if (m.tool_results)
+    for (const r of m.tool_results as Array<{ content?: string }>)
+      n += r?.content?.length ?? 0;
+  if (m.tool_calls)
+    for (const c of m.tool_calls as Array<{ input?: string }>)
+      n += c?.input?.length ?? 0;
   if (m.images) for (const i of m.images) n += i.data?.length ?? 0;
   return n;
 }

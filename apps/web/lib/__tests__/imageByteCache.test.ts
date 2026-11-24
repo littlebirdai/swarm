@@ -53,8 +53,16 @@ const settle = () => new Promise((r) => setTimeout(r, 20));
 
 describe("createByteCache prefetch", () => {
   it("fetches each URL once and stores the bytes", async () => {
-    const cache = createByteCache({ cacheName: "t1", whileResolving: "wait", onFailed: "remote" });
-    cache.prefetch(["https://x.test/a", "https://x.test/b", "https://x.test/a"]);
+    const cache = createByteCache({
+      cacheName: "t1",
+      whileResolving: "wait",
+      onFailed: "remote",
+    });
+    cache.prefetch([
+      "https://x.test/a",
+      "https://x.test/b",
+      "https://x.test/a",
+    ]);
     await settle();
     cache.prefetch(["https://x.test/a", "https://x.test/b"]); // session dedup
     await settle();
@@ -66,21 +74,34 @@ describe("createByteCache prefetch", () => {
     const stored = new FakeCache();
     await stored.put("https://x.test/a", new Response("old bytes"));
     cachesByName.set("t2", stored);
-    const cache = createByteCache({ cacheName: "t2", whileResolving: "wait", onFailed: "remote" });
+    const cache = createByteCache({
+      cacheName: "t2",
+      whileResolving: "wait",
+      onFailed: "remote",
+    });
     cache.prefetch(["https://x.test/a"]);
     await settle();
     expect(fetchCalls).toEqual([]);
   });
 
   it("ignores non-http srcs (data:, blob:) and empty slots", async () => {
-    const cache = createByteCache({ cacheName: "t3", whileResolving: "wait", onFailed: "remote" });
+    const cache = createByteCache({
+      cacheName: "t3",
+      whileResolving: "wait",
+      onFailed: "remote",
+    });
     cache.prefetch(["data:image/png;base64,xx", "blob:abc", null, undefined]);
     await settle();
     expect(fetchCalls).toEqual([]);
   });
 
   it("prunes oldest-stored entries beyond maxEntries", async () => {
-    const cache = createByteCache({ cacheName: "t4", whileResolving: "wait", onFailed: "remote", maxEntries: 3 });
+    const cache = createByteCache({
+      cacheName: "t4",
+      whileResolving: "wait",
+      onFailed: "remote",
+      maxEntries: 3,
+    });
     cache.prefetch([1, 2, 3, 4, 5].map((n) => `https://x.test/${n}`));
     await settle();
     const store = cachesByName.get("t4")!.store;
@@ -94,7 +115,11 @@ describe("createByteCache prefetch", () => {
       fetchCalls.push(url);
       return new Response("nope", { status: 500 });
     };
-    const cache = createByteCache({ cacheName: "t5", whileResolving: "wait", onFailed: "remote" });
+    const cache = createByteCache({
+      cacheName: "t5",
+      whileResolving: "wait",
+      onFailed: "remote",
+    });
     cache.prefetch(["https://x.test/a"]);
     await settle();
     expect(cachesByName.get("t5")!.store.size).toBe(0);
@@ -105,7 +130,11 @@ describe("createByteCache prefetch", () => {
   // fetch() cannot. Byte-caching such an origin only spends a blocked request
   // and a console error, so the engine declines to try.
   it("never fetches a seeded origin that refuses cross-origin reads", async () => {
-    const cache = createByteCache({ cacheName: "t6", whileResolving: "remote", onFailed: "none" });
+    const cache = createByteCache({
+      cacheName: "t6",
+      whileResolving: "remote",
+      onFailed: "none",
+    });
     cache.prefetch(["https://avatars.slack-edge.com/2026-08-25/1_a.png"]);
     await settle();
     expect(fetchCalls).toEqual([]);
@@ -116,10 +145,17 @@ describe("createByteCache prefetch", () => {
       fetchCalls.push(url);
       throw new TypeError("Failed to fetch");
     };
-    const cache = createByteCache({ cacheName: "t7", whileResolving: "remote", onFailed: "none" });
+    const cache = createByteCache({
+      cacheName: "t7",
+      whileResolving: "remote",
+      onFailed: "none",
+    });
     cache.prefetch(["https://refuses.test/a.png"]);
     await settle();
-    cache.prefetch(["https://refuses.test/b.png", "https://refuses.test/c.png"]);
+    cache.prefetch([
+      "https://refuses.test/b.png",
+      "https://refuses.test/c.png",
+    ]);
     await settle();
     expect(fetchCalls).toEqual(["https://refuses.test/a.png"]);
   });
@@ -129,11 +165,18 @@ describe("createByteCache prefetch", () => {
       fetchCalls.push(url);
       return new Response("gone", { status: 404 });
     };
-    const cache = createByteCache({ cacheName: "t8", whileResolving: "wait", onFailed: "remote" });
+    const cache = createByteCache({
+      cacheName: "t8",
+      whileResolving: "wait",
+      onFailed: "remote",
+    });
     cache.prefetch(["https://answers.test/a.png"]);
     await settle();
     cache.prefetch(["https://answers.test/b.png"]);
     await settle();
-    expect(fetchCalls).toEqual(["https://answers.test/a.png", "https://answers.test/b.png"]);
+    expect(fetchCalls).toEqual([
+      "https://answers.test/a.png",
+      "https://answers.test/b.png",
+    ]);
   });
 });

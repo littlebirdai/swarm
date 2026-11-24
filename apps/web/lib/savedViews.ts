@@ -31,7 +31,9 @@ export const VIEW_ID_KEY = "view_id";
 const META_FIELDS = new Set([VIEW_ID_KEY]);
 
 /** The view the list was opened from, if any. */
-export function currentViewId(prefs: ViewPrefs | undefined): string | undefined {
+export function currentViewId(
+  prefs: ViewPrefs | undefined,
+): string | undefined {
   const id = prefs?.[VIEW_ID_KEY];
   return typeof id === "string" && id ? id : undefined;
 }
@@ -64,10 +66,13 @@ function isUnset(v: unknown): boolean {
 }
 
 /** The prefs that actually distinguish one view from another, normalised. */
-export function significantPrefs(prefs: ViewPrefs | undefined): Record<string, string> {
+export function significantPrefs(
+  prefs: ViewPrefs | undefined,
+): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(prefs ?? {})) {
-    if (PRESENTATION_FIELDS.has(k) || META_FIELDS.has(k) || isUnset(v)) continue;
+    if (PRESENTATION_FIELDS.has(k) || META_FIELDS.has(k) || isUnset(v))
+      continue;
     out[k] = String(v);
   }
   return out;
@@ -80,7 +85,10 @@ export function significantPrefs(prefs: ViewPrefs | undefined): Record<string, s
  * the list also filters by label — you have narrowed past it — and a view with
  * two filters is not selected when only one is applied.
  */
-export function isViewActive(viewPrefs: ViewPrefs | undefined, currentPrefs: ViewPrefs | undefined): boolean {
+export function isViewActive(
+  viewPrefs: ViewPrefs | undefined,
+  currentPrefs: ViewPrefs | undefined,
+): boolean {
   const want = significantPrefs(viewPrefs);
   const have = significantPrefs(currentPrefs);
   const wantKeys = Object.keys(want);

@@ -12,14 +12,26 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 
 mock.restore();
 const convexReact = await import("convex/react");
-mock.module("convex/react", () => ({ ...convexReact, useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }) }));
+mock.module("convex/react", () => ({
+  ...convexReact,
+  useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
+}));
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "http://localhost/" });
-const restoreGlobals = replaceGlobals({ window: dom.window, document: dom.window.document, navigator: dom.window.navigator });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "http://localhost/",
+});
+const restoreGlobals = replaceGlobals({
+  window: dom.window,
+  document: dom.window.document,
+  navigator: dom.window.navigator,
+});
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { createRoot } = await import("react-dom/client");
-const { useConvexSync } = await import(`${import.meta.dir}/../useConvexSync.ts?fresh-typing`);
+const { useConvexSync } = await import(
+  `${import.meta.dir}/../useConvexSync.ts?fresh-typing`
+);
 const { noteInputForTests } = await import("../../lib/inputQuiet");
 
 afterAll(() => {
@@ -30,7 +42,13 @@ afterAll(() => {
 
 const applied: Array<{ value: number; at: number }> = [];
 function Feed({ value }: { value: number }) {
-  useConvexSync(value, (v: number) => { applied.push({ value: v, at: Date.now() }); }, { coalesceMs: 50 });
+  useConvexSync(
+    value,
+    (v: number) => {
+      applied.push({ value: v, at: Date.now() });
+    },
+    { coalesceMs: 50 },
+  );
   return null;
 }
 
@@ -46,36 +64,58 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 test("applies after its window when nobody is typing", async () => {
   const start = Date.now();
-  await act(async () => { root.render(<Feed value={1} />); });
-  await act(async () => { await sleep(120); });
+  await act(async () => {
+    root.render(<Feed value={1} />);
+  });
+  await act(async () => {
+    await sleep(120);
+  });
   expect(applied.map((a) => a.value)).toEqual([1]);
   expect(applied[0].at - start).toBeLessThan(400);
-  await act(async () => { root.unmount(); });
+  await act(async () => {
+    root.unmount();
+  });
 });
 
 test("waits for a pause in typing, then applies the newest value", async () => {
   noteInputForTests();
   const typing = setInterval(noteInputForTests, 60);
-  await act(async () => { root.render(<Feed value={1} />); });
-  await act(async () => { await sleep(300); });
+  await act(async () => {
+    root.render(<Feed value={1} />);
+  });
+  await act(async () => {
+    await sleep(300);
+  });
   expect(applied).toEqual([]);
-  await act(async () => { root.render(<Feed value={2} />); });
+  await act(async () => {
+    root.render(<Feed value={2} />);
+  });
   clearInterval(typing);
   const stoppedAt = Date.now();
-  await act(async () => { await sleep(600); });
+  await act(async () => {
+    await sleep(600);
+  });
   expect(applied.map((a) => a.value)).toEqual([2]);
   expect(applied[0].at - stoppedAt).toBeGreaterThanOrEqual(300);
-  await act(async () => { root.unmount(); });
+  await act(async () => {
+    root.unmount();
+  });
 });
 
 test("never waits past its cap while typing goes on", async () => {
   const start = Date.now();
   noteInputForTests();
   const typing = setInterval(noteInputForTests, 60);
-  await act(async () => { root.render(<Feed value={7} />); });
-  await act(async () => { await sleep(2200); });
+  await act(async () => {
+    root.render(<Feed value={7} />);
+  });
+  await act(async () => {
+    await sleep(2200);
+  });
   clearInterval(typing);
   expect(applied.map((a) => a.value)).toEqual([7]);
   expect(applied[0].at - start).toBeLessThan(1500 + 50 + 450);
-  await act(async () => { root.unmount(); });
+  await act(async () => {
+    root.unmount();
+  });
 });

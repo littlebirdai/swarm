@@ -26,9 +26,13 @@ export function PhoneCallStrip() {
   const narrow = useMediaQuery(BELOW_SM);
   const stageOpen = useCallStageOpen();
   const card = useFaceRow().card;
-  if (!narrow || card.kind === "none" || (stageOpen && isCallCard(card))) return null;
+  if (!narrow || card.kind === "none" || (stageOpen && isCallCard(card)))
+    return null;
   return (
-    <div className="phone-call-strip flex justify-center border-b border-sol-border/40 bg-sol-bg px-2 py-1" data-phone-call-strip>
+    <div
+      className="phone-call-strip flex justify-center border-b border-sol-border/40 bg-sol-bg px-2 py-1"
+      data-phone-call-strip
+    >
       <EngagementCard
         card={card}
         density="bar"

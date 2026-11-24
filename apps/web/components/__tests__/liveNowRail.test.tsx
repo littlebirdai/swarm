@@ -3,9 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { LiveRoomRow } from "../../hooks/useLiveRooms";
 
 let ROOMS: LiveRoomRow[] = [];
-const realRooms = { ...await import("../../hooks/useLiveRooms") };
-const realCallManager = { ...await import("../../lib/calls/callManager") };
-const realOccupancyChip = { ...await import("../calls/OccupancyChip") };
+const realRooms = { ...(await import("../../hooks/useLiveRooms")) };
+const realCallManager = { ...(await import("../../lib/calls/callManager")) };
+const realOccupancyChip = { ...(await import("../calls/OccupancyChip")) };
 afterAll(() => {
   mock.module("../../hooks/useLiveRooms", () => realRooms);
   mock.module("../../lib/calls/callManager", () => realCallManager);

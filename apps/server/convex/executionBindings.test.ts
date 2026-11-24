@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { Id } from "./_generated/dataModel";
 import { makeFakeDb } from "./testDb";
-import { enqueuePendingMessage, claimPendingMessageForDaemon, updatePendingMessageStatusForDaemon } from "./pendingMessages";
+import {
+  enqueuePendingMessage,
+  claimPendingMessageForDaemon,
+  updatePendingMessageStatusForDaemon,
+} from "./pendingMessages";
 import {
   EXECUTION_PROTOCOL_CAPABILITIES,
   abandonAmbiguousAndResendInDb,
@@ -172,11 +176,20 @@ describe("fenced execution startup authority", () => {
   test("safety holds queued delivery without consuming its message or creating an attempt", async () => {
     const db = makeFakeDb(tables());
     const ctx = await initializeAndReady(db);
-    await db.patch(CONVERSATION, { pending_api_error: true, pending_api_error_kind: "safety" });
+    await db.patch(CONVERSATION, {
+      pending_api_error: true,
+      pending_api_error_kind: "safety",
+    });
     const id = await enqueue(ctx, "safety-queued", "Preserve this update");
-    expect(await claimDelivery(ctx)).toEqual({ state: "busy", reason: "safety" });
+    expect(await claimDelivery(ctx)).toEqual({
+      state: "busy",
+      reason: "safety",
+    });
     expect(db._tables.delivery_attempts).toHaveLength(0);
-    expect(await db.get(id)).toMatchObject({ content: "Preserve this update", status: "pending" });
+    expect(await db.get(id)).toMatchObject({
+      content: "Preserve this update",
+      status: "pending",
+    });
   });
 
   test("safety arriving after a claim prevents the delivery effect", async () => {
@@ -185,9 +198,13 @@ describe("fenced execution startup authority", () => {
     const id = await enqueue(ctx, "safety-race");
     const claim = await claimDelivery(ctx);
     await db.patch(CONVERSATION, { pending_api_error_kind: "safety" });
-    await expect(startDeliveryInDb(ctx, USER, { ...fence(claim.permit), now: 21 }))
-      .rejects.toThrow("CONVERSATION_SAFETY_BLOCKED");
-    expect(await db.get(id)).toMatchObject({ delivery_status: "claimed", content: "safety-race" });
+    await expect(
+      startDeliveryInDb(ctx, USER, { ...fence(claim.permit), now: 21 }),
+    ).rejects.toThrow("CONVERSATION_SAFETY_BLOCKED");
+    expect(await db.get(id)).toMatchObject({
+      delivery_status: "claimed",
+      content: "safety-race",
+    });
     expect(db._tables.delivery_attempts[0].state).toBe("claimed");
   });
 
@@ -196,10 +213,18 @@ describe("fenced execution startup authority", () => {
     const ctx = await initializeAndReady(db);
     const id = await enqueue(ctx, "safety-after-effect");
     const claim = await claimDelivery(ctx);
-    const started = await startDeliveryInDb(ctx, USER, { ...fence(claim.permit), now: 21 });
+    const started = await startDeliveryInDb(ctx, USER, {
+      ...fence(claim.permit),
+      now: 21,
+    });
     await db.patch(CONVERSATION, { pending_api_error_kind: "safety" });
-    expect(await completeDeliveryInDb(ctx, USER, { ...fence(started), externalDeliveryId: "turn-1", now: 22 }))
-      .toEqual({ accepted: true });
+    expect(
+      await completeDeliveryInDb(ctx, USER, {
+        ...fence(started),
+        externalDeliveryId: "turn-1",
+        now: 22,
+      }),
+    ).toEqual({ accepted: true });
     expect((await db.get(id)).delivery_status).toBe("delivered");
   });
 
@@ -208,7 +233,9 @@ describe("fenced execution startup authority", () => {
       auth: { getUserIdentity: async () => ({ subject: String(USER) }) },
       db: {
         query() {
-          throw new Error("token verification must not run without an explicit token");
+          throw new Error(
+            "token verification must not run without an explicit token",
+          );
         },
       },
     };
@@ -242,7 +269,12 @@ describe("fenced execution startup authority", () => {
         now: 1,
       });
       const wrongAgent = canonicalAgent === "codex" ? "claude" : "codex";
-      await recordRestartIntent(ctx, `wrong-agent-${conversationAgent}`, "drain-current", 1.5);
+      await recordRestartIntent(
+        ctx,
+        `wrong-agent-${conversationAgent}`,
+        "drain-current",
+        1.5,
+      );
       await expect(
         requestExecutionSuccessorInDb(ctx, USER, {
           conversationId: CONVERSATION,
@@ -269,11 +301,13 @@ describe("fenced execution startup authority", () => {
       const seeded = tables();
       seeded.conversations[0].agent_type = conversationAgent;
       const ctx = { db: makeFakeDb(seeded) };
-      await expect(initializeFencedExecutionInDb(ctx, USER, {
-        conversationId: CONVERSATION,
-        target: target({ requestedAgent, transport }),
-        now: 1,
-      })).rejects.toThrow("EXECUTION_TRANSPORT_UNSUPPORTED");
+      await expect(
+        initializeFencedExecutionInDb(ctx, USER, {
+          conversationId: CONVERSATION,
+          target: target({ requestedAgent, transport }),
+          now: 1,
+        }),
+      ).rejects.toThrow("EXECUTION_TRANSPORT_UNSUPPORTED");
     }
   });
 
@@ -342,7 +376,10 @@ describe("fenced execution startup authority", () => {
       capabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
       now: 5,
     });
-    expect(staleReady).toEqual({ accepted: false, reason: "compare-and-set-lost" });
+    expect(staleReady).toEqual({
+      accepted: false,
+      reason: "compare-and-set-lost",
+    });
 
     await expect(
       publishReadyBindingInDb(ctx, USER, {
@@ -403,19 +440,21 @@ describe("fenced execution startup authority", () => {
       proposedOperationId: "stable-operation",
       now: 2,
     });
-    expect(await publishStartOutcomeInDb(ctx, USER, {
-      conversationId: CONVERSATION,
-      epoch: 1,
-      ownerDeviceId: "device-1",
-      daemonBootId: "boot-1",
-      configurationRevision: 1,
-      operationId: "stable-operation",
-      failureCode: "TEMPORARY_SETUP_FAILURE",
-      failureMessage: "retry",
-      failureRetryable: true,
-      outcome: "start-failed-before-effect",
-      now: 3,
-    })).toEqual({ accepted: true });
+    expect(
+      await publishStartOutcomeInDb(ctx, USER, {
+        conversationId: CONVERSATION,
+        epoch: 1,
+        ownerDeviceId: "device-1",
+        daemonBootId: "boot-1",
+        configurationRevision: 1,
+        operationId: "stable-operation",
+        failureCode: "TEMPORARY_SETUP_FAILURE",
+        failureMessage: "retry",
+        failureRetryable: true,
+        outcome: "start-failed-before-effect",
+        now: 3,
+      }),
+    ).toEqual({ accepted: true });
 
     const replacementOperation = await claimExecutionStartInDb(ctx, USER, {
       conversationId: CONVERSATION,
@@ -444,7 +483,10 @@ describe("fenced execution startup authority", () => {
       proposedOperationId: "stable-operation",
       now: 5,
     });
-    expect(retry).toMatchObject({ state: "claimed", operationId: "stable-operation" });
+    expect(retry).toMatchObject({
+      state: "claimed",
+      operationId: "stable-operation",
+    });
   });
 
   test("legacy quiescence blocks old endpoints and activation requires the exact old boot", async () => {
@@ -469,7 +511,14 @@ describe("fenced execution startup authority", () => {
       now: 10,
     });
 
-    expect(await claimPendingMessageForDaemon(ctx, legacyMessage._id, USER, "device-1")).toBeNull();
+    expect(
+      await claimPendingMessageForDaemon(
+        ctx,
+        legacyMessage._id,
+        USER,
+        "device-1",
+      ),
+    ).toBeNull();
     expect(
       await updatePendingMessageStatusForDaemon(
         ctx,
@@ -499,12 +548,23 @@ describe("fenced execution startup authority", () => {
       terminationEvidence: "supervisor waitpid proof",
       now: 12,
     });
-    expect(activated).toEqual({ state: "fenced", epoch: 1, migratedMessages: 1 });
+    expect(activated).toEqual({
+      state: "fenced",
+      epoch: 1,
+      migratedMessages: 1,
+    });
     expect(legacyMessage.delivery_id).toBe("legacy-client-1");
     expect(legacyMessage.client_id).toBe("legacy-client-1");
     expect(legacyMessage.conversation_sequence).toBe(1);
     expect(legacyMessage.execution_epoch).toBe(1);
-    expect(await claimPendingMessageForDaemon(ctx, legacyMessage._id, USER, "device-1")).toBeNull();
+    expect(
+      await claimPendingMessageForDaemon(
+        ctx,
+        legacyMessage._id,
+        USER,
+        "device-1",
+      ),
+    ).toBeNull();
 
     const oldBoot = await claimExecutionStartInDb(ctx, USER, {
       conversationId: CONVERSATION,
@@ -750,7 +810,12 @@ describe("fenced execution startup authority", () => {
 });
 
 describe("cross-boot recovery", () => {
-  const claimAs = (ctx: any, daemonBootId: string, proposedOperationId: string, now: number) =>
+  const claimAs = (
+    ctx: any,
+    daemonBootId: string,
+    proposedOperationId: string,
+    now: number,
+  ) =>
     claimExecutionStartInDb(ctx, USER, {
       conversationId: CONVERSATION,
       epoch: 1,
@@ -793,7 +858,9 @@ describe("cross-boot recovery", () => {
     expect(db._tables.execution_bindings[0].daemon_boot_id).toBe("boot-2");
 
     // A different operation id proves the caller does NOT hold the journal.
-    expect((await claimAs(ctx, "boot-2", "unrelated-op", 5)).state).toBe("busy");
+    expect((await claimAs(ctx, "boot-2", "unrelated-op", 5)).state).toBe(
+      "busy",
+    );
   });
 
   test("the registered successor boot adopts a ready binding", async () => {
@@ -806,7 +873,9 @@ describe("cross-boot recovery", () => {
     const recovered = await claimAs(ctx, "boot-2", "any-op", 21);
     expect(recovered.state).toBe("ready");
     expect(recovered.binding.daemonBootId).toBe("boot-2");
-    expect((ctx as any).db._tables.execution_bindings[0].daemon_boot_id).toBe("boot-2");
+    expect((ctx as any).db._tables.execution_bindings[0].daemon_boot_id).toBe(
+      "boot-2",
+    );
   });
 
   test("an unregistered boot and the dead boot's late claim both stay fenced out", async () => {
@@ -824,7 +893,9 @@ describe("cross-boot recovery", () => {
     expect((await claimAs(ctx, "boot-2", "any-op", 22)).state).toBe("ready");
     const stale = await claimAs(ctx, "boot-1", "start-1", 23);
     expect(stale.state).toBe("rejected");
-    expect((ctx as any).db._tables.execution_bindings[0].daemon_boot_id).toBe("boot-2");
+    expect((ctx as any).db._tables.execution_bindings[0].daemon_boot_id).toBe(
+      "boot-2",
+    );
   });
 
   test("a requested binding transfers to the registered successor boot", async () => {
@@ -881,7 +952,12 @@ describe("browser successor intent boundary", () => {
       target: target(),
       now: 13,
     });
-    await recordRestartIntent(ctx, "conversation-one-only", "drain-current", 14);
+    await recordRestartIntent(
+      ctx,
+      "conversation-one-only",
+      "drain-current",
+      14,
+    );
     await expect(
       requestExecutionSuccessorInDb(ctx, USER, {
         conversationId: OTHER_CONVERSATION,
@@ -912,8 +988,18 @@ describe("browser successor intent boundary", () => {
   test("same-id exact replay is idempotent and changed payload is rejected", async () => {
     const db = makeFakeDb(tables());
     const ctx = await initializeAndReady(db);
-    const first = await recordRestartIntent(ctx, "stable-intent", "drain-current", 20);
-    const replay = await recordRestartIntent(ctx, "stable-intent", "drain-current", 21);
+    const first = await recordRestartIntent(
+      ctx,
+      "stable-intent",
+      "drain-current",
+      20,
+    );
+    const replay = await recordRestartIntent(
+      ctx,
+      "stable-intent",
+      "drain-current",
+      21,
+    );
     expect(replay).toEqual(first);
     await expect(
       recordExecutionSuccessorIntentInDb(ctx, USER, {
@@ -940,8 +1026,12 @@ describe("browser successor intent boundary", () => {
       effort: "xhigh",
       now: 20,
     });
-    expect(accepted).toMatchObject({ state: "pending", configurationRevision: 2 });
-    const intent = (db._tables.conversation_execution_heads[0] as any).successor_intent;
+    expect(accepted).toMatchObject({
+      state: "pending",
+      configurationRevision: 2,
+    });
+    const intent = (db._tables.conversation_execution_heads[0] as any)
+      .successor_intent;
     expect(intent).toMatchObject({
       requested_agent: "codex",
       transport: "app-server",
@@ -967,11 +1057,18 @@ describe("conversation-global ordered delivery", () => {
     const secondId = await enqueue(ctx, "command-2", "second");
     const first: any = await db.get(firstId);
     const second: any = await db.get(secondId);
-    expect([first.conversation_sequence, second.conversation_sequence]).toEqual([1, 2]);
-    expect([first.delivery_id, second.delivery_id]).toEqual(["command-1", "command-2"]);
+    expect([first.conversation_sequence, second.conversation_sequence]).toEqual(
+      [1, 2],
+    );
+    expect([first.delivery_id, second.delivery_id]).toEqual([
+      "command-1",
+      "command-2",
+    ]);
 
     await expect(
-      enqueuePendingMessage(ctx, await db.get(CONVERSATION), USER, { content: "missing id" }),
+      enqueuePendingMessage(ctx, await db.get(CONVERSATION), USER, {
+        content: "missing id",
+      }),
     ).rejects.toThrow("FENCED_DELIVERY_ID_REQUIRED");
 
     const wrongCandidate = await claimDelivery(ctx, secondId);
@@ -1135,7 +1232,9 @@ describe("conversation-global ordered delivery", () => {
       resolutionEvidence: "transcript contains command-1 exactly once",
       now: 36,
     });
-    expect((await db.get(firstId)).delivery_status).toBe("correlated-delivered");
+    expect((await db.get(firstId)).delivery_status).toBe(
+      "correlated-delivered",
+    );
 
     const secondClaim = await claimDelivery(ctx, secondId);
     const secondStarted = await startDeliveryInDb(ctx, USER, {
@@ -1183,7 +1282,10 @@ describe("conversation-global ordered delivery", () => {
       now: 40,
     });
     expect(activation.activated).toBe(true);
-    expect((db._tables.conversation_execution_heads[0] as any).next_nonterminal_sequence).toBe(3);
+    expect(
+      (db._tables.conversation_execution_heads[0] as any)
+        .next_nonterminal_sequence,
+    ).toBe(3);
   });
 
   test("failed-before-effect releases the slot but retries the same sequence and delivery id", async () => {
@@ -1210,7 +1312,9 @@ describe("conversation-global ordered delivery", () => {
     const secondClaim = await claimDelivery(ctx, messageId);
     expect(secondClaim.permit.attemptId).not.toBe(firstClaim.permit.attemptId);
     expect(secondClaim.permit.deliveryId).toBe(firstClaim.permit.deliveryId);
-    expect(secondClaim.permit.conversationSequence).toBe(firstClaim.permit.conversationSequence);
+    expect(secondClaim.permit.conversationSequence).toBe(
+      firstClaim.permit.conversationSequence,
+    );
   });
 
   test("restart may release a claimed permit, but a started permit becomes ambiguity", async () => {
@@ -1257,7 +1361,9 @@ describe("conversation-global ordered delivery", () => {
         now: 24,
       }),
     ).toEqual({ blocked: true, deliveryId: "crash-window" });
-    expect((db._tables.conversation_execution_heads[0] as any).active_delivery_state).toBe("ambiguous");
+    expect(
+      (db._tables.conversation_execution_heads[0] as any).active_delivery_state,
+    ).toBe("ambiguous");
   });
 
   test("cancel-unstarted closes admission immediately and materializes a bounded audit batch", async () => {
@@ -1279,9 +1385,11 @@ describe("conversation-global ordered delivery", () => {
       target: target({ configurationRevision: 2, daemonBootId: "boot-2" }),
       now: 30,
     });
-    expect((await db.get(messageIds[0]) as any).delivery_status).toBe("cancelled-by-supersession");
+    expect(((await db.get(messageIds[0])) as any).delivery_status).toBe(
+      "cancelled-by-supersession",
+    );
     const afterBoundaryId = await enqueue(ctx, "successor-message");
-    expect((await db.get(afterBoundaryId) as any).execution_epoch).toBe(2);
+    expect(((await db.get(afterBoundaryId)) as any).execution_epoch).toBe(2);
     expect((await claimDelivery(ctx)).state).toBe("waiting-for-successor");
 
     await claimExecutionStartInDb(ctx, USER, {
@@ -1339,10 +1447,13 @@ describe("conversation-global ordered delivery", () => {
       now: 34,
     });
     expect(firstBatch.activated).toBe(false);
-    if (firstBatch.activated) throw new Error("expected bounded cancellation work");
+    if (firstBatch.activated)
+      throw new Error("expected bounded cancellation work");
     expect(firstBatch.cancelledMessages).toBe(128);
     expect(firstBatch.remainingCancellations).toBe(1);
-    expect((db._tables.conversation_execution_heads[0] as any).current_epoch).toBe(1);
+    expect(
+      (db._tables.conversation_execution_heads[0] as any).current_epoch,
+    ).toBe(1);
 
     const secondBatch = await activateExecutionSuccessorInDb(ctx, USER, {
       conversationId: CONVERSATION,
@@ -1360,11 +1471,17 @@ describe("conversation-global ordered delivery", () => {
       now: 35,
     });
     expect(secondBatch.activated).toBe(true);
-    expect((db._tables.conversation_execution_heads[0] as any).current_epoch).toBe(2);
+    expect(
+      (db._tables.conversation_execution_heads[0] as any).current_epoch,
+    ).toBe(2);
     expect(
       messageIds.every(
-        (id) => (db._tables.pending_messages.find((message: any) => message._id === id) as any)
-          .delivery_status === "cancelled-by-supersession",
+        (id) =>
+          (
+            db._tables.pending_messages.find(
+              (message: any) => message._id === id,
+            ) as any
+          ).delivery_status === "cancelled-by-supersession",
       ),
     ).toBe(true);
   });
@@ -1419,16 +1536,43 @@ describe("conversation-global ordered delivery", () => {
     for (const quiet of [true, false]) {
       const db = makeFakeDb(tables());
       const ctx = await initializeAndReady(db);
-      const originalId = await enqueuePendingMessage(ctx, await db.get(CONVERSATION), USER, { content: "fix what Check found", client_id: "handover", quiet });
-      expect(((await db.get(originalId)) as any).quiet).toBe(quiet || undefined);
+      const originalId = await enqueuePendingMessage(
+        ctx,
+        await db.get(CONVERSATION),
+        USER,
+        { content: "fix what Check found", client_id: "handover", quiet },
+      );
+      expect(((await db.get(originalId)) as any).quiet).toBe(
+        quiet || undefined,
+      );
       const claimed = await claimDelivery(ctx, originalId);
-      const started = await startDeliveryInDb(ctx, USER, { ...fence(claimed.permit), now: 21 });
-      await markDeliveryAmbiguousInDb(ctx, USER, { ...fence(started), failureCode: "ACK_LOST", failureMessage: "the turn may have landed", now: 22 });
-      await db.patch(CONVERSATION, { inbox_stashed_at: 50, inbox_stash_hidden: true });
+      const started = await startDeliveryInDb(ctx, USER, {
+        ...fence(claimed.permit),
+        now: 21,
+      });
+      await markDeliveryAmbiguousInDb(ctx, USER, {
+        ...fence(started),
+        failureCode: "ACK_LOST",
+        failureMessage: "the turn may have landed",
+        now: 22,
+      });
+      await db.patch(CONVERSATION, {
+        inbox_stashed_at: 50,
+        inbox_stash_hidden: true,
+      });
 
-      const resent = await abandonAmbiguousAndResendInDb(ctx, USER, { ...fence(started), newClientId: "handover-again", resolutionEvidence: "user accepted duplicate-effect risk", now: 23 });
-      expect(((await db.get(resent.messageId)) as any).quiet).toBe(quiet || undefined);
-      expect(((await db.get(CONVERSATION)) as any).inbox_stashed_at).toBe(quiet ? 50 : undefined);
+      const resent = await abandonAmbiguousAndResendInDb(ctx, USER, {
+        ...fence(started),
+        newClientId: "handover-again",
+        resolutionEvidence: "user accepted duplicate-effect risk",
+        now: 23,
+      });
+      expect(((await db.get(resent.messageId)) as any).quiet).toBe(
+        quiet || undefined,
+      );
+      expect(((await db.get(CONVERSATION)) as any).inbox_stashed_at).toBe(
+        quiet ? 50 : undefined,
+      );
     }
   });
 });
@@ -1441,44 +1585,104 @@ describe("cancelFencedDeliveriesOnKill", () => {
   test("cutoff excludes later traffic before the read cap and preserves newer claimed authority", async () => {
     const db = makeFakeDb(tables());
     const future = Array.from({ length: 400 }, (_, n) => ({
-      _id: `future_${n}`, conversation_id: CONVERSATION, status: "pending",
-      delivery_protocol_version: 1, delivery_status: "pending", kill_generation: 1,
+      _id: `future_${n}`,
+      conversation_id: CONVERSATION,
+      status: "pending",
+      delivery_protocol_version: 1,
+      delivery_status: "pending",
+      kill_generation: 1,
       created_at: 1,
     }));
-    db._tables.pending_messages.push(...future, {
-      _id: "future_claimed", conversation_id: CONVERSATION, status: "pending",
-      delivery_protocol_version: 1, delivery_status: "claimed", kill_generation: 1,
-      active_delivery_attempt_id: "attempt_future", created_at: 1,
-    }, {
-      _id: "old_missing", conversation_id: CONVERSATION, status: "pending",
-      delivery_protocol_version: 1, delivery_status: "pending", created_at: 9,
-    }, {
-      _id: "old_zero", conversation_id: CONVERSATION, status: "pending",
-      delivery_protocol_version: 1, delivery_status: "pending", kill_generation: 0, created_at: 9,
-    }, {
-      _id: "old_started", conversation_id: CONVERSATION, status: "pending",
-      delivery_protocol_version: 1, delivery_status: "delivery-started", kill_generation: 0,
-    }, {
-      _id: "old_ambiguous", conversation_id: CONVERSATION, status: "pending",
-      delivery_protocol_version: 1, delivery_status: "ambiguous", kill_generation: 0,
-    }, {
-      _id: "foreign", conversation_id: OTHER_CONVERSATION, status: "pending",
-      delivery_protocol_version: 1, delivery_status: "pending", kill_generation: 0,
+    db._tables.pending_messages.push(
+      ...future,
+      {
+        _id: "future_claimed",
+        conversation_id: CONVERSATION,
+        status: "pending",
+        delivery_protocol_version: 1,
+        delivery_status: "claimed",
+        kill_generation: 1,
+        active_delivery_attempt_id: "attempt_future",
+        created_at: 1,
+      },
+      {
+        _id: "old_missing",
+        conversation_id: CONVERSATION,
+        status: "pending",
+        delivery_protocol_version: 1,
+        delivery_status: "pending",
+        created_at: 9,
+      },
+      {
+        _id: "old_zero",
+        conversation_id: CONVERSATION,
+        status: "pending",
+        delivery_protocol_version: 1,
+        delivery_status: "pending",
+        kill_generation: 0,
+        created_at: 9,
+      },
+      {
+        _id: "old_started",
+        conversation_id: CONVERSATION,
+        status: "pending",
+        delivery_protocol_version: 1,
+        delivery_status: "delivery-started",
+        kill_generation: 0,
+      },
+      {
+        _id: "old_ambiguous",
+        conversation_id: CONVERSATION,
+        status: "pending",
+        delivery_protocol_version: 1,
+        delivery_status: "ambiguous",
+        kill_generation: 0,
+      },
+      {
+        _id: "foreign",
+        conversation_id: OTHER_CONVERSATION,
+        status: "pending",
+        delivery_protocol_version: 1,
+        delivery_status: "pending",
+        kill_generation: 0,
+      },
+    );
+    db._tables.delivery_attempts.push({
+      _id: "attempt_future",
+      state: "claimed",
+      message_id: "future_claimed",
     });
-    db._tables.delivery_attempts.push({ _id: "attempt_future", state: "claimed", message_id: "future_claimed" });
     db._tables.conversation_execution_heads.push({
-      _id: "head", conversation_id: CONVERSATION,
-      active_delivery_attempt_id: "attempt_future", active_delivery_state: "claimed",
+      _id: "head",
+      conversation_id: CONVERSATION,
+      active_delivery_attempt_id: "attempt_future",
+      active_delivery_state: "claimed",
     });
-    const preserved = structuredClone(db._tables.pending_messages.filter((row: any) => !["old_missing", "old_zero"].includes(row._id)));
+    const preserved = structuredClone(
+      db._tables.pending_messages.filter(
+        (row: any) => !["old_missing", "old_zero"].includes(row._id),
+      ),
+    );
     const heads = structuredClone(db._tables.conversation_execution_heads);
     const attempts = structuredClone(db._tables.delivery_attempts);
-    expect(await cancelFencedDeliveriesOnKill({ db }, CONVERSATION, 99, 4, 0)).toEqual({ cancelled: 2, inFlight: 2 });
-    for (const id of ["old_missing", "old_zero"]) expect(await db.get(id)).toMatchObject({ status: "cancelled", delivery_status: "cancelled-by-supersession" });
-    expect(db._tables.pending_messages.filter((row: any) => !["old_missing", "old_zero"].includes(row._id))).toEqual(preserved);
+    expect(
+      await cancelFencedDeliveriesOnKill({ db }, CONVERSATION, 99, 4, 0),
+    ).toEqual({ cancelled: 2, inFlight: 2 });
+    for (const id of ["old_missing", "old_zero"])
+      expect(await db.get(id)).toMatchObject({
+        status: "cancelled",
+        delivery_status: "cancelled-by-supersession",
+      });
+    expect(
+      db._tables.pending_messages.filter(
+        (row: any) => !["old_missing", "old_zero"].includes(row._id),
+      ),
+    ).toEqual(preserved);
     expect(db._tables.conversation_execution_heads).toEqual(heads);
     expect(db._tables.delivery_attempts).toEqual(attempts);
-    expect(await cancelFencedDeliveriesOnKill({ db }, CONVERSATION, 100, 4, 0)).toEqual({ cancelled: 0, inFlight: 2 });
+    expect(
+      await cancelFencedDeliveriesOnKill({ db }, CONVERSATION, 100, 4, 0),
+    ).toEqual({ cancelled: 0, inFlight: 2 });
   });
 
   test("terminalizes unstarted deliveries, unwinds a claimed one, releases the head slot", async () => {
@@ -1533,7 +1737,11 @@ describe("cancelFencedDeliveriesOnKill", () => {
     // The user kills the session AFTER the delivery was claimed — so the kill
     // stamps land on a row whose delivery is already past the point of cancel
     // (enqueue's own wake-up rules can't help here; they ran before the kill).
-    await db.patch(CONVERSATION, { inbox_killed_at: 5, inbox_dismissed_at: 5, status: "completed" });
+    await db.patch(CONVERSATION, {
+      inbox_killed_at: 5,
+      inbox_dismissed_at: 5,
+      status: "completed",
+    });
     await startDeliveryInDb(ctx, USER, { ...fence(claim.permit), now: 21 });
 
     const conv: any = await db.get(CONVERSATION);

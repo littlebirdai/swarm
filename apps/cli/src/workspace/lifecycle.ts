@@ -25,11 +25,7 @@ import { randomUUID } from "node:crypto";
 import { WIP_REF_PREFIX, WIP_SNAPSHOT_SUBJECT } from "../wipSnapshot.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import {
-  isPidAlive,
-  launchChrome,
-  stopChrome,
-} from "./chrome.js";
+import { isPidAlive, launchChrome, stopChrome } from "./chrome.js";
 import { copyFiles } from "./copy.js";
 import {
   WORKSPACES_STATE_DIR,
@@ -42,8 +38,19 @@ import {
   type PersistedWorkspaceState,
 } from "./contract.js";
 import { buildHookEnv, runHook } from "./hooks.js";
-import { PortAllocationError, allocatePorts, computePorts, isPortFree, portsToEnv } from "./ports.js";
-import { partitionReservations, withPortReservations, withWorkspaceOperation, type PortReservation } from "./portReservations.js";
+import {
+  PortAllocationError,
+  allocatePorts,
+  computePorts,
+  isPortFree,
+  portsToEnv,
+} from "./ports.js";
+import {
+  partitionReservations,
+  withPortReservations,
+  withWorkspaceOperation,
+  type PortReservation,
+} from "./portReservations.js";
 import { MANIFEST_REL_PATH, resolveManifest } from "./resolver.js";
 import { linkSharedDirectories, unlinkSharedDirectories } from "./share.js";
 import { runSetup } from "./setup.js";
@@ -92,19 +99,33 @@ export async function acquireWorkspace(
   name: string,
   opts: AcquireOptions = {},
 ): Promise<AcquireResult> {
-  return withWorkspaceOperation(repoRoot, name, () => acquireWorkspaceUnlocked(repoRoot, name, opts));
+  return withWorkspaceOperation(repoRoot, name, () =>
+    acquireWorkspaceUnlocked(repoRoot, name, opts),
+  );
 }
 
-async function acquireWorkspaceUnlocked(repoRoot: string, name: string, opts: AcquireOptions): Promise<AcquireResult> {
+async function acquireWorkspaceUnlocked(
+  repoRoot: string,
+  name: string,
+  opts: AcquireOptions,
+): Promise<AcquireResult> {
   if (name === ROOT_WORKSPACE_NAME) {
-    throw new Error(`'${ROOT_WORKSPACE_NAME}' is reserved for the main checkout — use cast ws root`);
+    throw new Error(
+      `'${ROOT_WORKSPACE_NAME}' is reserved for the main checkout — use cast ws root`,
+    );
   }
   await sweepTrash(path.join(repoRoot, WORKTREES_DIR));
   const previous = readState(repoRoot, name);
   const savedInputRoot = previous?.env.CODECAST_WORKSPACE_INPUT_ROOT;
-  const inputRoot = savedInputRoot ?? (opts.inputRoot ? fs.realpathSync(opts.inputRoot) : undefined);
-  const manifest = savedInputRoot ? previous!.manifest : resolveManifest(repoRoot, inputRoot);
-  const cloudWorkspace = process.env.CODECAST_CLOUD_WORKSPACE === "1" || previous?.env.CODECAST_CLOUD_WORKSPACE === "1";
+  const inputRoot =
+    savedInputRoot ??
+    (opts.inputRoot ? fs.realpathSync(opts.inputRoot) : undefined);
+  const manifest = savedInputRoot
+    ? previous!.manifest
+    : resolveManifest(repoRoot, inputRoot);
+  const cloudWorkspace =
+    process.env.CODECAST_CLOUD_WORKSPACE === "1" ||
+    previous?.env.CODECAST_CLOUD_WORKSPACE === "1";
   if (cloudWorkspace) manifest.backend = "local";
   const noPorts = opts.noPorts === true || previous?.noPorts === true;
   if (noPorts) manifest.ports = {};
@@ -123,80 +144,117 @@ async function acquireWorkspaceUnlocked(repoRoot: string, name: string, opts: Ac
   }
 
   const branch = opts.branch ?? previous?.branch ?? `${BRANCH_PREFIX}${name}`;
-  if (opts.startPoint && !opts.branch) throw new Error("a start point needs an explicit branch name");
-  if (opts.altBranch && !opts.startPoint) throw new Error("altBranch only applies with a start point");
+  if (opts.startPoint && !opts.branch)
+    throw new Error("a start point needs an explicit branch name");
+  if (opts.altBranch && !opts.startPoint)
+    throw new Error("altBranch only applies with a start point");
   // A start point never reuses a name: the contract is a NEW branch and
   // directory, so an existing record (ready, broken or mid-creation) is an
   // error rather than a silent return of the old worktree.
-  if (opts.startPoint && readState(repoRoot, name)) throw new Error(`workspace ${name} already exists; a start point needs a fresh name`);
+  if (opts.startPoint && readState(repoRoot, name))
+    throw new Error(
+      `workspace ${name} already exists; a start point needs a fresh name`,
+    );
   // A seeded worktree: the state records where it started and the commit the
   // branch is reset to right after creation (seedBase), so the GC can tell
   // "still the laptop's tree" from host-made work and heal can rebuild it.
-  const seed = opts.startPoint ? seedFieldsFor(repoRoot, opts.startPoint) : undefined;
+  const seed = opts.startPoint
+    ? seedFieldsFor(repoRoot, opts.startPoint)
+    : undefined;
   const purpose = opts.purpose ?? previous?.purpose;
   const seedFields = {
-    ...(seed ? { startPoint: seed.startPoint, seedBase: seed.seedBase } : { ...(previous?.startPoint ? { startPoint: previous.startPoint } : {}), ...(previous?.seedBase ? { seedBase: previous.seedBase } : {}) }),
+    ...(seed
+      ? { startPoint: seed.startPoint, seedBase: seed.seedBase }
+      : {
+          ...(previous?.startPoint ? { startPoint: previous.startPoint } : {}),
+          ...(previous?.seedBase ? { seedBase: previous.seedBase } : {}),
+        }),
     ...(purpose ? { purpose } : {}),
   };
 
-  const prepared = await withPortReservations(repoRoot, async (reservations) => {
-    const existing = readState(repoRoot, name);
-    if (existing && existing.state === "ready" && (!noPorts || existing.noPorts)) {
-      const ws = stateToWorkspace(existing);
-      const contract = await validateContract(ws);
-      if (contract.ok) {
-        ws.contract = contract;
-        return { result: { workspace: ws, created: false } };
+  const prepared = await withPortReservations(
+    repoRoot,
+    async (reservations) => {
+      const existing = readState(repoRoot, name);
+      if (
+        existing &&
+        existing.state === "ready" &&
+        (!noPorts || existing.noPorts)
+      ) {
+        const ws = stateToWorkspace(existing);
+        const contract = await validateContract(ws);
+        if (contract.ok) {
+          ws.contract = contract;
+          return { result: { workspace: ws, created: false } };
+        }
       }
-    }
 
-    if (!noPorts && !opts.skipPool && !opts.branch && !opts.startPoint && !existing && !inputRoot) {
-      // Why record BEFORE claiming: the demand file is what sizes the pool and
-      // what the daemon's maintainer watches, so writing it here is what
-      // re-arms the slot this create is about to consume — and only when the
-      // creates around it look like a burst (ct-49540).
-      const { recordWorkspaceCreate } = await import("./pool/demand.js");
-      await recordWorkspaceCreate(repoRoot).catch(() => {});
-      const { claimFromPool } = await import("./pool/manager.js");
-      const claimed = await claimFromPool(repoRoot, name);
-      if (claimed) {
-        return { result: { workspace: claimed.workspace, created: true } };
+      if (
+        !noPorts &&
+        !opts.skipPool &&
+        !opts.branch &&
+        !opts.startPoint &&
+        !existing &&
+        !inputRoot
+      ) {
+        // Why record BEFORE claiming: the demand file is what sizes the pool and
+        // what the daemon's maintainer watches, so writing it here is what
+        // re-arms the slot this create is about to consume — and only when the
+        // creates around it look like a burst (ct-49540).
+        const { recordWorkspaceCreate } = await import("./pool/demand.js");
+        await recordWorkspaceCreate(repoRoot).catch(() => {});
+        const { claimFromPool } = await import("./pool/manager.js");
+        const claimed = await claimFromPool(repoRoot, name);
+        if (claimed) {
+          return { result: { workspace: claimed.workspace, created: true } };
+        }
       }
-    }
 
-    // A rebuild starts without a browser: one the old record still ran would
-    // be orphaned by the record written below, holding its port and profile.
-    const orphan = liveChrome(existing?.chrome);
-    if (orphan) await stopChrome(orphan.pid, { timeoutMs: 3000 }).catch(() => {});
+      // A rebuild starts without a browser: one the old record still ran would
+      // be orphaned by the record written below, holding its port and profile.
+      const orphan = liveChrome(existing?.chrome);
+      if (orphan)
+        await stopChrome(orphan.pid, { timeoutMs: 3000 }).catch(() => {});
 
-    const root = fs.realpathSync(repoRoot);
-    const { portAlloc, notices } = await allocateWorkspacePorts(
-      name, manifest, reservations, root, opts.resourceIndex ?? existing?.resourceIndex ?? 0,
-    );
-    const initialEnv = buildWorkspaceEnv(manifest, portAlloc.ports);
-    if (inputRoot) initialEnv.CODECAST_WORKSPACE_INPUT_ROOT = inputRoot;
-    if (cloudWorkspace) {
-      Object.assign(initialEnv, {
-        CODECAST_CLOUD_WORKSPACE: "1",
-        BUN_INSTALL_GLOBAL_STORE: "0",
-        BUN_INSTALL_CACHE_DIR: path.join(repoRoot, ".codecast", "workspaces", name, "bun-cache"),
+      const root = fs.realpathSync(repoRoot);
+      const { portAlloc, notices } = await allocateWorkspacePorts(
+        name,
+        manifest,
+        reservations,
+        root,
+        opts.resourceIndex ?? existing?.resourceIndex ?? 0,
+      );
+      const initialEnv = buildWorkspaceEnv(manifest, portAlloc.ports);
+      if (inputRoot) initialEnv.CODECAST_WORKSPACE_INPUT_ROOT = inputRoot;
+      if (cloudWorkspace) {
+        Object.assign(initialEnv, {
+          CODECAST_CLOUD_WORKSPACE: "1",
+          BUN_INSTALL_GLOBAL_STORE: "0",
+          BUN_INSTALL_CACHE_DIR: path.join(
+            repoRoot,
+            ".codecast",
+            "workspaces",
+            name,
+            "bun-cache",
+          ),
+        });
+      }
+      writeState(repoRoot, {
+        name,
+        path: path.join(repoRoot, WORKTREES_DIR, name),
+        branch,
+        resourceIndex: portAlloc.resourceIndex,
+        state: "creating",
+        manifest,
+        ports: portAlloc.ports,
+        env: initialEnv,
+        updatedAt: new Date().toISOString(),
+        ...seedFields,
+        ...(noPorts ? { noPorts: true } : {}),
       });
-    }
-    writeState(repoRoot, {
-      name,
-      path: path.join(repoRoot, WORKTREES_DIR, name),
-      branch,
-      resourceIndex: portAlloc.resourceIndex,
-      state: "creating",
-      manifest,
-      ports: portAlloc.ports,
-      env: initialEnv,
-      updatedAt: new Date().toISOString(),
-      ...seedFields,
-      ...(noPorts ? { noPorts: true } : {}),
-    });
-    return { existing, portAlloc, initialEnv, notices };
-  });
+      return { existing, portAlloc, initialEnv, notices };
+    },
+  );
   if (prepared.result) return prepared.result;
   const { existing, portAlloc, initialEnv, notices } = prepared;
 
@@ -219,14 +277,24 @@ async function acquireWorkspaceUnlocked(repoRoot: string, name: string, opts: Ac
     // Create git worktree (or attach to existing branch if already present;
     // never with a start point, where a collision falls back to altBranch).
     const freshWorktree = !fs.existsSync(ctxBase.worktreePath);
-    const created = await createGitWorktree(repoRoot, name, branch, opts.startPoint, opts.altBranch);
+    const created = await createGitWorktree(
+      repoRoot,
+      name,
+      branch,
+      opts.startPoint,
+      opts.altBranch,
+    );
     const worktreePath = created.path;
     ctxBase.branch = created.branch;
     if (created.branch !== branch) {
       // The alternate name won: record it NOW, so a failure in copy or setup
       // leaves a record naming this worktree's own branch (release and heal
       // act on the branch git created, never on the primary's owner).
-      writeState(repoRoot, { ...readState(repoRoot, name)!, branch: created.branch, updatedAt: new Date().toISOString() });
+      writeState(repoRoot, {
+        ...readState(repoRoot, name)!,
+        branch: created.branch,
+        updatedAt: new Date().toISOString(),
+      });
     }
     if (seed?.snapshot) {
       // A snapshot start point: turn it back into uncommitted work at once,
@@ -236,11 +304,21 @@ async function acquireWorkspaceUnlocked(repoRoot: string, name: string, opts: Ac
     }
 
     // Copy gitignored files from main worktree.
-    copyWorkspaceFiles(manifest, repoRoot, worktreePath, inputRoot, freshWorktree);
+    copyWorkspaceFiles(
+      manifest,
+      repoRoot,
+      worktreePath,
+      inputRoot,
+      freshWorktree,
+    );
 
     // Borrow the shared dependency directories before setup runs, so an
     // install in the worktree finds them already there (ct-49541).
-    linkSharedDirectories(inputRoot ?? repoRoot, worktreePath, manifest.setup.share);
+    linkSharedDirectories(
+      inputRoot ?? repoRoot,
+      worktreePath,
+      manifest.setup.share,
+    );
 
     // Run setup commands.
     if (!opts.skipSetup) {
@@ -290,7 +368,11 @@ export interface RootCheckoutOptions {
 
 /** `git rev-parse --abbrev-ref HEAD` in a checkout ("HEAD" when detached). */
 function currentBranchOf(repoRoot: string): string {
-  return execSync("git rev-parse --abbrev-ref HEAD", { cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  return execSync("git rev-parse --abbrev-ref HEAD", {
+    cwd: repoRoot,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "ignore"],
+  }).trim();
 }
 
 /**
@@ -306,46 +388,66 @@ function currentBranchOf(repoRoot: string): string {
  * env carries NO CODECAST_CLOUD_WORKSPACE / BUN_INSTALL_*: the root keeps
  * bun's global store.
  */
-export async function acquireRootCheckout(repoRoot: string, opts: RootCheckoutOptions = {}): Promise<AcquireResult> {
-  return withWorkspaceOperation(repoRoot, ROOT_WORKSPACE_NAME, () => acquireRootCheckoutUnlocked(repoRoot, opts));
+export async function acquireRootCheckout(
+  repoRoot: string,
+  opts: RootCheckoutOptions = {},
+): Promise<AcquireResult> {
+  return withWorkspaceOperation(repoRoot, ROOT_WORKSPACE_NAME, () =>
+    acquireRootCheckoutUnlocked(repoRoot, opts),
+  );
 }
 
-async function acquireRootCheckoutUnlocked(repoRoot: string, opts: RootCheckoutOptions): Promise<AcquireResult> {
+async function acquireRootCheckoutUnlocked(
+  repoRoot: string,
+  opts: RootCheckoutOptions,
+): Promise<AcquireResult> {
   const name = ROOT_WORKSPACE_NAME;
   const root = fs.realpathSync(repoRoot);
-  const inputRoot = opts.inputRoot ? fs.realpathSync(opts.inputRoot) : undefined;
+  const inputRoot = opts.inputRoot
+    ? fs.realpathSync(opts.inputRoot)
+    : undefined;
   const manifest = resolveManifest(repoRoot, inputRoot);
   manifest.backend = "local";
   const branch = currentBranchOf(root);
 
-  const { existing, portAlloc, initialEnv, notices } = await withPortReservations(repoRoot, async (reservations) => {
-    const existing = readState(repoRoot, name);
-    const { portAlloc, notices } = await allocateWorkspacePorts(
-      name, manifest, reservations, root, existing?.resourceIndex ?? 0,
-    );
-    const initialEnv = buildWorkspaceEnv(manifest, portAlloc.ports);
-    if (inputRoot) initialEnv.CODECAST_WORKSPACE_INPUT_ROOT = inputRoot;
-    writeState(repoRoot, {
-      name,
-      path: root,
-      branch,
-      resourceIndex: portAlloc.resourceIndex,
-      state: "creating",
-      manifest,
-      ports: portAlloc.ports,
-      env: initialEnv,
-      updatedAt: new Date().toISOString(),
-      ...(existing?.chrome ? { chrome: existing.chrome } : {}),
+  const { existing, portAlloc, initialEnv, notices } =
+    await withPortReservations(repoRoot, async (reservations) => {
+      const existing = readState(repoRoot, name);
+      const { portAlloc, notices } = await allocateWorkspacePorts(
+        name,
+        manifest,
+        reservations,
+        root,
+        existing?.resourceIndex ?? 0,
+      );
+      const initialEnv = buildWorkspaceEnv(manifest, portAlloc.ports);
+      if (inputRoot) initialEnv.CODECAST_WORKSPACE_INPUT_ROOT = inputRoot;
+      writeState(repoRoot, {
+        name,
+        path: root,
+        branch,
+        resourceIndex: portAlloc.resourceIndex,
+        state: "creating",
+        manifest,
+        ports: portAlloc.ports,
+        env: initialEnv,
+        updatedAt: new Date().toISOString(),
+        ...(existing?.chrome ? { chrome: existing.chrome } : {}),
+      });
+      return { existing, portAlloc, initialEnv, notices };
     });
-    return { existing, portAlloc, initialEnv, notices };
-  });
 
   try {
-    if (inputRoot && inputRoot !== root) copyFiles(manifest, inputRoot, root, { log: () => {}, overwrite: true });
+    if (inputRoot && inputRoot !== root)
+      copyFiles(manifest, inputRoot, root, { log: () => {}, overwrite: true });
     if (!opts.skipSetup) {
       // The setup log goes under the state dir, not `<root>/.codecast/logs`:
       // the root is a real checkout and an untracked log would dirty it.
-      await runSetup(manifest, root, { env: initialEnv, stream: null, logDir: path.join(root, WORKSPACES_STATE_DIR, name, "logs") });
+      await runSetup(manifest, root, {
+        env: initialEnv,
+        stream: null,
+        logDir: path.join(root, WORKSPACES_STATE_DIR, name, "logs"),
+      });
     }
     // A browser someone started keeps running across a refresh; none starts here.
     const chrome = liveChrome(existing?.chrome);
@@ -373,7 +475,10 @@ async function acquireRootCheckoutUnlocked(repoRoot: string, opts: RootCheckoutO
 }
 
 /** Is this state's path the repository root itself (the shared-checkout record)? */
-function isRootState(repoRoot: string, state: PersistedWorkspaceState): boolean {
+function isRootState(
+  repoRoot: string,
+  state: PersistedWorkspaceState,
+): boolean {
   try {
     return fs.realpathSync(state.path) === fs.realpathSync(repoRoot);
   } catch {
@@ -386,7 +491,11 @@ function isRootState(repoRoot: string, state: PersistedWorkspaceState): boolean 
  * validation, so a checkout that moved between placements is not reported
  * broken. Returns the (possibly rewritten) state.
  */
-function refreshRootBranch(repoRoot: string, state: PersistedWorkspaceState, opts: { persist?: boolean } = {}): PersistedWorkspaceState {
+function refreshRootBranch(
+  repoRoot: string,
+  state: PersistedWorkspaceState,
+  opts: { persist?: boolean } = {},
+): PersistedWorkspaceState {
   if (state.name !== ROOT_WORKSPACE_NAME) return state;
   let branch: string;
   try {
@@ -405,11 +514,19 @@ function refreshRootBranch(repoRoot: string, state: PersistedWorkspaceState, opt
 }
 
 /** Release (tear down) a workspace: stop its Chrome if one runs, run teardown, remove worktree, drop state. */
-export async function releaseWorkspace(repoRoot: string, name: string): Promise<void> {
-  return withWorkspaceOperation(repoRoot, name, () => releaseWorkspaceUnlocked(repoRoot, name));
+export async function releaseWorkspace(
+  repoRoot: string,
+  name: string,
+): Promise<void> {
+  return withWorkspaceOperation(repoRoot, name, () =>
+    releaseWorkspaceUnlocked(repoRoot, name),
+  );
 }
 
-async function releaseWorkspaceUnlocked(repoRoot: string, name: string): Promise<void> {
+async function releaseWorkspaceUnlocked(
+  repoRoot: string,
+  name: string,
+): Promise<void> {
   const state = setState(repoRoot, name, "destroying");
   if (!state) return; // nothing to release
 
@@ -454,35 +571,69 @@ async function releaseWorkspaceUnlocked(repoRoot: string, name: string): Promise
   }
 
   const stateDir = path.join(repoRoot, WORKSPACES_STATE_DIR, name);
-  const retiredDir = path.join(repoRoot, WORKSPACES_STATE_DIR, `_released-${randomUUID()}`);
-  await withPortReservations(repoRoot, async () => fs.renameSync(stateDir, retiredDir));
+  const retiredDir = path.join(
+    repoRoot,
+    WORKSPACES_STATE_DIR,
+    `_released-${randomUUID()}`,
+  );
+  await withPortReservations(repoRoot, async () =>
+    fs.renameSync(stateDir, retiredDir),
+  );
   await fs.promises.rm(retiredDir, { recursive: true, force: true });
   void sweepTrash(path.join(repoRoot, WORKTREES_DIR));
 }
 
 /** Idempotent re-run of setup to recover a broken workspace. */
-export async function healWorkspace(repoRoot: string, name: string): Promise<Workspace> {
-  return withWorkspaceOperation(repoRoot, name, () => healWorkspaceUnlocked(repoRoot, name));
+export async function healWorkspace(
+  repoRoot: string,
+  name: string,
+): Promise<Workspace> {
+  return withWorkspaceOperation(repoRoot, name, () =>
+    healWorkspaceUnlocked(repoRoot, name),
+  );
 }
 
-async function healWorkspaceUnlocked(repoRoot: string, name: string): Promise<Workspace> {
+async function healWorkspaceUnlocked(
+  repoRoot: string,
+  name: string,
+): Promise<Workspace> {
   let state = readState(repoRoot, name);
   if (!state) {
     throw new Error(`workspace '${name}' not found; nothing to heal`);
   }
   state = refreshRootBranch(repoRoot, state, { persist: true });
   setState(repoRoot, name, "creating");
-  if (!fs.existsSync(state.path) && state.startPoint && state.seedBase && name !== ROOT_WORKSPACE_NAME) {
-    await recreateSeededWorktree(repoRoot, name, state.branch, state.startPoint, state.seedBase);
+  if (
+    !fs.existsSync(state.path) &&
+    state.startPoint &&
+    state.seedBase &&
+    name !== ROOT_WORKSPACE_NAME
+  ) {
+    await recreateSeededWorktree(
+      repoRoot,
+      name,
+      state.branch,
+      state.startPoint,
+      state.seedBase,
+    );
   }
   // Re-copy gitignored files (idempotent) then re-run setup. The root record
   // copies only from a recorded input snapshot (overwriting), never from
   // itself.
   if (name === ROOT_WORKSPACE_NAME) {
     const inputRoot = state.env.CODECAST_WORKSPACE_INPUT_ROOT;
-    if (inputRoot && fs.existsSync(inputRoot)) copyFiles(state.manifest, inputRoot, state.path, { log: () => {}, overwrite: true });
+    if (inputRoot && fs.existsSync(inputRoot))
+      copyFiles(state.manifest, inputRoot, state.path, {
+        log: () => {},
+        overwrite: true,
+      });
   } else {
-    copyWorkspaceFiles(state.manifest, repoRoot, state.path, state.env.CODECAST_WORKSPACE_INPUT_ROOT);
+    copyWorkspaceFiles(
+      state.manifest,
+      repoRoot,
+      state.path,
+      state.env.CODECAST_WORKSPACE_INPUT_ROOT,
+    );
   }
   await runSetup(state.manifest, state.path, {
     env: state.env,
@@ -507,7 +658,10 @@ async function healWorkspaceUnlocked(repoRoot: string, name: string): Promise<Wo
  * record is the file as written. Every read path (status, ls, validate)
  * goes through this so none of them prints a branch the root has left.
  */
-export function readWorkspaceState(repoRoot: string, name: string): PersistedWorkspaceState | null {
+export function readWorkspaceState(
+  repoRoot: string,
+  name: string,
+): PersistedWorkspaceState | null {
   const state = readState(repoRoot, name);
   return state && refreshRootBranch(repoRoot, state);
 }
@@ -524,7 +678,9 @@ export async function validateWorkspace(
 
 /** List all tracked workspaces (including broken ones). */
 export function listWorkspaces(repoRoot: string): Workspace[] {
-  return listStates(repoRoot).map((state) => stateToWorkspace(refreshRootBranch(repoRoot, state)));
+  return listStates(repoRoot).map((state) =>
+    stateToWorkspace(refreshRootBranch(repoRoot, state)),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -576,24 +732,48 @@ async function allocateWorkspacePorts(
   startIndex: number,
 ) {
   const notices: string[] = [];
-  const { live: holders, stale } = partitionReservations(reservations.filter(
-    (reservation) => reservation.repoRoot !== root || reservation.workspace.name !== name,
-  ));
-  if (stale.length > 0) notices.push(
-    `reclaimed ${stale.length} port slot(s) from workspaces whose worktree is gone: ` +
-    stale.map(({ reservation, reason }) => `${reservation.workspace.name} (${reason})`).join(", "),
+  const { live: holders, stale } = partitionReservations(
+    reservations.filter(
+      (reservation) =>
+        reservation.repoRoot !== root || reservation.workspace.name !== name,
+    ),
   );
-  const reservedPorts = new Set(holders.flatMap(({ workspace }) => Object.values(workspace.ports)));
-  const portAlloc = await allocatePorts(manifest, { startIndex, reservedPorts }).catch((error) => {
-    if (error instanceof PortAllocationError) error.message = describePortExhaustion(name, manifest, error, holders, root);
+  if (stale.length > 0)
+    notices.push(
+      `reclaimed ${stale.length} port slot(s) from workspaces whose worktree is gone: ` +
+        stale
+          .map(
+            ({ reservation, reason }) =>
+              `${reservation.workspace.name} (${reason})`,
+          )
+          .join(", "),
+    );
+  const reservedPorts = new Set(
+    holders.flatMap(({ workspace }) => Object.values(workspace.ports)),
+  );
+  const portAlloc = await allocatePorts(manifest, {
+    startIndex,
+    reservedPorts,
+  }).catch((error) => {
+    if (error instanceof PortAllocationError)
+      error.message = describePortExhaustion(
+        name,
+        manifest,
+        error,
+        holders,
+        root,
+      );
     throw error;
   });
   const extended = portAlloc.extendedRange;
-  if (extended) notices.push(
-    `port pool of ${extended.poolSize} indices exhausted; extended the range to indices ` +
-    `${extended.from}-${extended.to} and took index ${portAlloc.resourceIndex} ` +
-    `(${Object.entries(portAlloc.ports).map(([n, p]) => `${n}=${p}`).join(" ")})`,
-  );
+  if (extended)
+    notices.push(
+      `port pool of ${extended.poolSize} indices exhausted; extended the range to indices ` +
+        `${extended.from}-${extended.to} and took index ${portAlloc.resourceIndex} ` +
+        `(${Object.entries(portAlloc.ports)
+          .map(([n, p]) => `${n}=${p}`)
+          .join(" ")})`,
+    );
   return { portAlloc, notices };
 }
 
@@ -607,11 +787,14 @@ function describePortExhaustion(
   const searched = error.searched ?? { from: 0, to: 0 };
   const candidates = new Set<number>();
   for (let i = searched.from; i <= searched.to; i++) {
-    for (const port of Object.values(computePorts(manifest, i))) candidates.add(port);
+    for (const port of Object.values(computePorts(manifest, i)))
+      candidates.add(port);
   }
   const named = holders
     .map((holder) => {
-      const ports = Object.entries(holder.workspace.ports).filter(([, port]) => candidates.has(port));
+      const ports = Object.entries(holder.workspace.ports).filter(([, port]) =>
+        candidates.has(port),
+      );
       if (ports.length === 0) return null;
       const where = holder.repoRoot === root ? "" : ` [${holder.repoRoot}]`;
       return `${holder.workspace.name} (${ports.map(([n, p]) => `${n}=${p}`).join(" ")})${where}`;
@@ -620,9 +803,10 @@ function describePortExhaustion(
     .sort();
   const shown = named.slice(0, 10);
   const rest = named.length - shown.length;
-  const heldBy = named.length > 0
-    ? `held by: ${shown.join(", ")}${rest > 0 ? `, and ${rest} more` : ""}`
-    : `no workspace holds them, so another process on this machine is listening on them`;
+  const heldBy =
+    named.length > 0
+      ? `held by: ${shown.join(", ")}${rest > 0 ? `, and ${rest} more` : ""}`
+      : `no workspace holds them, so another process on this machine is listening on them`;
   return (
     `no free port for workspace '${name}': every port for indices ${searched.from}-${searched.to} is taken. ` +
     `${heldBy}. ` +
@@ -632,12 +816,16 @@ function describePortExhaustion(
 }
 
 /** A recorded browser that is still running, else undefined. */
-function liveChrome(chrome: ChromeBinding | undefined): ChromeBinding | undefined {
+function liveChrome(
+  chrome: ChromeBinding | undefined,
+): ChromeBinding | undefined {
   return chrome && isPidAlive(chrome.pid) ? chrome : undefined;
 }
 
 /** The record with no browser: no binding, and no CDP_PORT in its env. */
-function withoutChrome(state: PersistedWorkspaceState): PersistedWorkspaceState {
+function withoutChrome(
+  state: PersistedWorkspaceState,
+): PersistedWorkspaceState {
   const { chrome: _gone, ...rest } = state;
   const { CDP_PORT: _port, CODECAST_CDP_PORT: _legacy, ...env } = state.env;
   return { ...rest, env };
@@ -656,39 +844,64 @@ function withoutChrome(state: PersistedWorkspaceState): PersistedWorkspaceState 
  * and on release. Six parked change runs each held one at ~460% CPU on a
  * laptop, Nov 21 (ct-98941).
  */
-export async function startWorkspaceBrowser(repoRoot: string, name: string): Promise<ChromeBinding> {
+export async function startWorkspaceBrowser(
+  repoRoot: string,
+  name: string,
+): Promise<ChromeBinding> {
   return withWorkspaceOperation(repoRoot, name, async () => {
     const state = readState(repoRoot, name);
     if (!state) throw new Error(`workspace '${name}' not found`);
     const running = liveChrome(state.chrome);
     if (running) return running;
     if (!state.manifest.browser.enabled) {
-      throw new Error(`workspace '${name}' has no browser of its own: set \`[browser] enabled = true\` in ${MANIFEST_REL_PATH} if this project's tooling needs one (\`cast browser\` does not; it drives the machine's managed Chrome)`);
+      throw new Error(
+        `workspace '${name}' has no browser of its own: set \`[browser] enabled = true\` in ${MANIFEST_REL_PATH} if this project's tooling needs one (\`cast browser\` does not; it drives the machine's managed Chrome)`,
+      );
     }
-    const chrome = await launchWorkspaceChrome(repoRoot, name, state.manifest, state.resourceIndex);
+    const chrome = await launchWorkspaceChrome(
+      repoRoot,
+      name,
+      state.manifest,
+      state.resourceIndex,
+    );
     const base = withoutChrome(state);
-    writeState(repoRoot, { ...base, chrome, env: { ...base.env, CDP_PORT: String(chrome.cdpPort) }, updatedAt: new Date().toISOString() });
+    writeState(repoRoot, {
+      ...base,
+      chrome,
+      env: { ...base.env, CDP_PORT: String(chrome.cdpPort) },
+      updatedAt: new Date().toISOString(),
+    });
     return chrome;
   });
 }
 
 /** Stop the workspace's Chrome if one runs and drop its record. True when one was running. */
-export async function stopWorkspaceBrowser(repoRoot: string, name: string): Promise<boolean> {
+export async function stopWorkspaceBrowser(
+  repoRoot: string,
+  name: string,
+): Promise<boolean> {
   return withWorkspaceOperation(repoRoot, name, async () => {
     const state = readState(repoRoot, name);
-    if (!state?.chrome && !state?.env.CDP_PORT && !state?.env.CODECAST_CDP_PORT) return false;
+    if (!state?.chrome && !state?.env.CDP_PORT && !state?.env.CODECAST_CDP_PORT)
+      return false;
     const running = liveChrome(state.chrome);
     if (running) await stopChrome(running.pid, { timeoutMs: 3000 });
-    writeState(repoRoot, { ...withoutChrome(state), updatedAt: new Date().toISOString() });
+    writeState(repoRoot, {
+      ...withoutChrome(state),
+      updatedAt: new Date().toISOString(),
+    });
     return !!running;
   });
 }
 
 /** Stop every workspace Chrome in this repo; the names of the ones that were running. */
-export async function stopAllWorkspaceBrowsers(repoRoot: string): Promise<string[]> {
+export async function stopAllWorkspaceBrowsers(
+  repoRoot: string,
+): Promise<string[]> {
   const stopped: string[] = [];
   for (const state of listStates(repoRoot)) {
-    if (state.chrome && await stopWorkspaceBrowser(repoRoot, state.name)) stopped.push(state.name);
+    if (state.chrome && (await stopWorkspaceBrowser(repoRoot, state.name)))
+      stopped.push(state.name);
   }
   return stopped;
 }
@@ -749,15 +962,28 @@ function buildWorkspaceEnv(
 }
 
 function gitArgv(cwd: string, args: string[]): string {
-  return execFileSync("git", args, { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  return execFileSync("git", args, {
+    cwd,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
 }
 
 /** Git's stderr for a failed argv call, and the line worth reporting (the `fatal:`/`error:` one, else the last). */
 function gitFailure(err: unknown): { all: string; line: string } {
   const e = err as { stderr?: string | Buffer; message?: string };
   const all = (e.stderr?.toString() || e.message || String(err)).trim();
-  const lines = all.split("\n").map((l) => l.trim()).filter(Boolean);
-  return { all, line: lines.find((l) => /^(fatal|error):/.test(l)) ?? lines.at(-1) ?? "git failed" };
+  const lines = all
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  return {
+    all,
+    line:
+      lines.find((l) => /^(fatal|error):/.test(l)) ??
+      lines.at(-1) ??
+      "git failed",
+  };
 }
 
 function firstStderrLine(err: unknown): string {
@@ -779,16 +1005,32 @@ function resolveCommit(repoRoot: string, rev: string): string {
  * tree as uncommitted work, so the base is the parent; any other commit-ish
  * is the base itself (the branch is simply created there).
  */
-function seedFieldsFor(repoRoot: string, startPoint: string): { startPoint: string; seedBase: string; snapshot: boolean } {
+function seedFieldsFor(
+  repoRoot: string,
+  startPoint: string,
+): { startPoint: string; seedBase: string; snapshot: boolean } {
   const commit = resolveCommit(repoRoot, startPoint);
-  const snapshot = gitArgv(repoRoot, ["log", "-1", "--format=%s", commit]) === WIP_SNAPSHOT_SUBJECT;
-  return { startPoint, seedBase: snapshot ? resolveCommit(repoRoot, `${commit}^`) : commit, snapshot };
+  const snapshot =
+    gitArgv(repoRoot, ["log", "-1", "--format=%s", commit]) ===
+    WIP_SNAPSHOT_SUBJECT;
+  return {
+    startPoint,
+    seedBase: snapshot ? resolveCommit(repoRoot, `${commit}^`) : commit,
+    snapshot,
+  };
 }
 
 /** The tip of refs/heads/<branch>, or null when the branch does not exist. */
 function branchTip(repoRoot: string, branch: string): string | null {
   try {
-    return gitArgv(repoRoot, ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}^{commit}`]) || null;
+    return (
+      gitArgv(repoRoot, [
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        `refs/heads/${branch}^{commit}`,
+      ]) || null
+    );
   } catch {
     return null;
   }
@@ -805,15 +1047,35 @@ const SEED_REF_PREFIX = "refs/codecast/cloud/";
  * release must not fail on cleanup.
  */
 function dropSeed(repoRoot: string, state: PersistedWorkspaceState): void {
-  if (!state.startPoint?.startsWith(SEED_REF_PREFIX) && !state.startPoint?.startsWith(`${WIP_REF_PREFIX}/`)) return;
+  if (
+    !state.startPoint?.startsWith(SEED_REF_PREFIX) &&
+    !state.startPoint?.startsWith(`${WIP_REF_PREFIX}/`)
+  )
+    return;
   // A branch still AT the snapshot commit (creation failed before the reset)
   // holds nothing host-made either: only the laptop's tree, which the laptop has.
   let snapshot: string | null = null;
-  try { snapshot = resolveCommit(repoRoot, state.startPoint); } catch { /* ref already gone */ }
-  try { gitArgv(repoRoot, ["update-ref", "-d", state.startPoint]); } catch { /* already gone */ }
+  try {
+    snapshot = resolveCommit(repoRoot, state.startPoint);
+  } catch {
+    /* ref already gone */
+  }
+  try {
+    gitArgv(repoRoot, ["update-ref", "-d", state.startPoint]);
+  } catch {
+    /* already gone */
+  }
   const tip = branchTip(repoRoot, state.branch);
-  if (state.seedBase && tip !== null && (tip === state.seedBase || tip === snapshot)) {
-    try { gitArgv(repoRoot, ["branch", "-D", state.branch]); } catch { /* checked out elsewhere, or gone */ }
+  if (
+    state.seedBase &&
+    tip !== null &&
+    (tip === state.seedBase || tip === snapshot)
+  ) {
+    try {
+      gitArgv(repoRoot, ["branch", "-D", state.branch]);
+    } catch {
+      /* checked out elsewhere, or gone */
+    }
   }
 }
 
@@ -825,16 +1087,30 @@ function dropSeed(repoRoot: string, state: PersistedWorkspaceState): void {
  * ref; a branch that advanced keeps its tree as committed. Without the
  * branch it is created afresh at the start point and reset to the base.
  */
-async function recreateSeededWorktree(repoRoot: string, name: string, branch: string, startPoint: string, seedBase: string): Promise<void> {
+async function recreateSeededWorktree(
+  repoRoot: string,
+  name: string,
+  branch: string,
+  startPoint: string,
+  seedBase: string,
+): Promise<void> {
   const worktreePath = path.join(repoRoot, WORKTREES_DIR, name);
-  try { gitArgv(repoRoot, ["worktree", "prune"]); } catch { /* nothing to prune */ }
+  try {
+    gitArgv(repoRoot, ["worktree", "prune"]);
+  } catch {
+    /* nothing to prune */
+  }
   const tip = branchTip(repoRoot, branch);
   if (tip === null) {
     await createGitWorktree(repoRoot, name, branch, startPoint);
     gitArgv(worktreePath, ["reset", "-q", "--mixed", seedBase]);
     return;
   }
-  await withWorktreeAdd(repoRoot, () => execFileSyncToFile("git", ["worktree", "add", worktreePath, branch], { cwd: repoRoot }));
+  await withWorktreeAdd(repoRoot, () =>
+    execFileSyncToFile("git", ["worktree", "add", worktreePath, branch], {
+      cwd: repoRoot,
+    }),
+  );
   if (tip === seedBase) {
     gitArgv(worktreePath, ["read-tree", "-u", "--reset", startPoint]);
     gitArgv(worktreePath, ["reset", "-q", "--mixed", seedBase]);
@@ -865,25 +1141,42 @@ async function recreateSeededWorktree(repoRoot: string, name: string, branch: st
  * daemon's timer: a synchronous `git worktree add` on a repo this size freezes
  * delivery, injection and the heartbeat for the seconds it runs (ct-49540).
  */
-async function createGitWorktree(repoRoot: string, name: string, branch: string, startPoint?: string, altBranch?: string): Promise<{ path: string; branch: string }> {
+async function createGitWorktree(
+  repoRoot: string,
+  name: string,
+  branch: string,
+  startPoint?: string,
+  altBranch?: string,
+): Promise<{ path: string; branch: string }> {
   const worktreeDir = path.join(repoRoot, WORKTREES_DIR);
   const worktreePath = path.join(worktreeDir, name);
   await fs.promises.mkdir(worktreeDir, { recursive: true });
 
   if (startPoint) {
-    if (fs.existsSync(worktreePath)) throw new Error(`worktree directory ${worktreePath} already exists`);
-    const add = (b: string) => withWorktreeAdd(repoRoot, () => execFileToFile("git", ["worktree", "add", "--no-track", "-b", b, worktreePath, startPoint], { cwd: repoRoot }));
+    if (fs.existsSync(worktreePath))
+      throw new Error(`worktree directory ${worktreePath} already exists`);
+    const add = (b: string) =>
+      withWorktreeAdd(repoRoot, () =>
+        execFileToFile(
+          "git",
+          ["worktree", "add", "--no-track", "-b", b, worktreePath, startPoint],
+          { cwd: repoRoot },
+        ),
+      );
     try {
       await add(branch);
       return { path: worktreePath, branch };
     } catch (err) {
       const { all, line } = gitFailure(err);
-      if (!altBranch || !/already exists|cannot lock ref/i.test(all)) throw new Error(`git worktree add -b ${branch}: ${line}`);
+      if (!altBranch || !/already exists|cannot lock ref/i.test(all))
+        throw new Error(`git worktree add -b ${branch}: ${line}`);
       try {
         await add(altBranch);
         return { path: worktreePath, branch: altBranch };
       } catch (err2) {
-        throw new Error(`git worktree add -b ${altBranch}: ${firstStderrLine(err2)}`);
+        throw new Error(
+          `git worktree add -b ${altBranch}: ${firstStderrLine(err2)}`,
+        );
       }
     }
   }
@@ -895,10 +1188,20 @@ async function createGitWorktree(repoRoot: string, name: string, branch: string,
 
   // Try create-new-branch path first; fall back to attaching to existing branch.
   try {
-    await withWorktreeAdd(repoRoot, () => execFileToFile("git", ["worktree", "add", "--no-track", "-b", branch, worktreePath], { cwd: repoRoot }));
+    await withWorktreeAdd(repoRoot, () =>
+      execFileToFile(
+        "git",
+        ["worktree", "add", "--no-track", "-b", branch, worktreePath],
+        { cwd: repoRoot },
+      ),
+    );
   } catch {
     // Branch may already exist (e.g., from a previous broken attempt).
-    await withWorktreeAdd(repoRoot, () => execFileToFile("git", ["worktree", "add", worktreePath, branch], { cwd: repoRoot }));
+    await withWorktreeAdd(repoRoot, () =>
+      execFileToFile("git", ["worktree", "add", worktreePath, branch], {
+        cwd: repoRoot,
+      }),
+    );
   }
   return { path: worktreePath, branch };
 }

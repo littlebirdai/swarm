@@ -7,7 +7,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 test("the reinstall command fetches the installer over https only", () => {
-  const source = fs.readFileSync(path.join(import.meta.dir, "daemon.ts"), "utf-8");
+  const source = fs.readFileSync(
+    path.join(import.meta.dir, "daemon.ts"),
+    "utf-8",
+  );
   const start = source.indexOf('case "reinstall": {');
   expect(start).toBeGreaterThan(0);
   const handler = source.slice(start, source.indexOf("return;", start));

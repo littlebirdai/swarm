@@ -56,76 +56,91 @@ function sleep(ms: number): Promise<void> {
 
 /** What the composer currently holds: the text after the last `❯` on screen. */
 function composerText(pane: ClientPane): string {
-  const line = pane.capture().split("\n").reverse().find((l) => l.includes("❯")) ?? "";
+  const line =
+    pane
+      .capture()
+      .split("\n")
+      .reverse()
+      .find((l) => l.includes("❯")) ?? "";
   return line.slice(line.indexOf("❯") + 1).trim();
 }
 
-describe.skipIf(!CAN_RUN)("injectViaTmux clears stale draft before pasting", () => {
-  afterAll(() => {
-    sweepStaleSessions(MATRIX_TMUX_PREFIX);
-  });
+describe.skipIf(!CAN_RUN)(
+  "injectViaTmux clears stale draft before pasting",
+  () => {
+    afterAll(() => {
+      sweepStaleSessions(MATRIX_TMUX_PREFIX);
+    });
 
-  test("recalled prompt is fully cleared; second injection lands clean", async () => {
-    // A fake endpoint that rejects, rather than a bad ANTHROPIC_API_KEY: an
-    // unrecognized key parks current builds on a "Do you want to use this API
-    // key?" dialog, which this test used to answer with a blind Enter — the
-    // pane's fate then rode on which row that build highlighted. Rejecting from
-    // the endpoint ends each turn at once instead, so the pane is idle and
-    // classifiable for the next injection, and nothing leaves the machine.
-    const endpoint = await startFakeModelEndpoint();
-    endpoint.reject();
-    const pane = spawnClientPane("claude", { endpointUrl: endpoint.url });
-    try {
-      // 1. Inject a first prompt. After Claude Code records it, the input box
-      //    is empty (Claude Code clears the input on submit).
-      const first = `first prompt that will be recalled ${randomUUID().slice(0, 8)}`;
-      await deliverToPane(pane, first);
-      await waitForRecorded(pane, first, { timeoutMs: 40_000 });
-
-      // 2. Put stale text in the box the way the person at the keyboard does:
-      //    press Up, which recalls the previous prompt (claude 2.1.263 paints
-      //    "History 1/1" over the composer). This is the state the 2026-05-19
-      //    bug report observed.
-      tmuxRun(["send-keys", "-t", pane.target, "Up"]);
-      // Why: without this the test passes vacuously the day Up stops recalling
-      // — an injection over an EMPTY composer proves nothing about clearing,
-      // and that is how this test came to be read as broken (ct-49619). Fail
-      // here, with the pane, rather than assert a guarantee never exercised.
+    test("recalled prompt is fully cleared; second injection lands clean", async () => {
+      // A fake endpoint that rejects, rather than a bad ANTHROPIC_API_KEY: an
+      // unrecognized key parks current builds on a "Do you want to use this API
+      // key?" dialog, which this test used to answer with a blind Enter — the
+      // pane's fate then rode on which row that build highlighted. Rejecting from
+      // the endpoint ends each turn at once instead, so the pane is idle and
+      // classifiable for the next injection, and nothing leaves the machine.
+      const endpoint = await startFakeModelEndpoint();
+      endpoint.reject();
+      const pane = spawnClientPane("claude", { endpointUrl: endpoint.url });
       try {
-        await waitFor(() => composerText(pane).includes(first), { timeoutMs: 10_000 });
-      } catch {
-        throw new Error(
-          `Up did not recall the previous prompt into the composer, so the stale ` +
-          `draft this test needs never existed. Find the gesture that recalls one ` +
-          `today and use it here.\ncomposer: ${JSON.stringify(composerText(pane))}\n` +
-          `pane:\n${pane.capture()}`,
-        );
+        // 1. Inject a first prompt. After Claude Code records it, the input box
+        //    is empty (Claude Code clears the input on submit).
+        const first = `first prompt that will be recalled ${randomUUID().slice(0, 8)}`;
+        await deliverToPane(pane, first);
+        await waitForRecorded(pane, first, { timeoutMs: 40_000 });
+
+        // 2. Put stale text in the box the way the person at the keyboard does:
+        //    press Up, which recalls the previous prompt (claude 2.1.263 paints
+        //    "History 1/1" over the composer). This is the state the 2026-05-19
+        //    bug report observed.
+        tmuxRun(["send-keys", "-t", pane.target, "Up"]);
+        // Why: without this the test passes vacuously the day Up stops recalling
+        // — an injection over an EMPTY composer proves nothing about clearing,
+        // and that is how this test came to be read as broken (ct-49619). Fail
+        // here, with the pane, rather than assert a guarantee never exercised.
+        try {
+          await waitFor(() => composerText(pane).includes(first), {
+            timeoutMs: 10_000,
+          });
+        } catch {
+          throw new Error(
+            `Up did not recall the previous prompt into the composer, so the stale ` +
+              `draft this test needs never existed. Find the gesture that recalls one ` +
+              `today and use it here.\ncomposer: ${JSON.stringify(composerText(pane))}\n` +
+              `pane:\n${pane.capture()}`,
+          );
+        }
+
+        // 3. Inject a second message. With the buggy clear (Escape + single C-u),
+        //    the recalled prompt stays in the box and the injected paste-buffer
+        //    content concatenates with it. With a correct clear, only the payload
+        //    lands.
+        const second = `follow-up content ${randomUUID().slice(0, 8)}`;
+        const delivery = await deliverToPane(pane, second);
+        logMatrix("claude", "recalled_draft", delivery);
+        await waitForRecorded(pane, second, { timeoutMs: 40_000 });
+
+        // The assertion that proves the fix: two separate messages, the second
+        // exactly the injected payload with no fragment of the recalled prompt.
+        // Under the bug the second is something like
+        //   "follow-up contentfirst prompt that will be recalled"
+        // (cursor at start after Up) or
+        //   "first prompt that will be recallefollow-up content"
+        // (a bad clear that ate one trailing word) — and either way there is one
+        // message on disk, not two.
+        expect(pane.userMessages().map((m) => m.trimEnd())).toEqual([
+          first,
+          second,
+        ]);
+      } finally {
+        try {
+          pane.tearDown();
+        } catch {}
+        endpoint.close();
       }
-
-      // 3. Inject a second message. With the buggy clear (Escape + single C-u),
-      //    the recalled prompt stays in the box and the injected paste-buffer
-      //    content concatenates with it. With a correct clear, only the payload
-      //    lands.
-      const second = `follow-up content ${randomUUID().slice(0, 8)}`;
-      const delivery = await deliverToPane(pane, second);
-      logMatrix("claude", "recalled_draft", delivery);
-      await waitForRecorded(pane, second, { timeoutMs: 40_000 });
-
-      // The assertion that proves the fix: two separate messages, the second
-      // exactly the injected payload with no fragment of the recalled prompt.
-      // Under the bug the second is something like
-      //   "follow-up contentfirst prompt that will be recalled"
-      // (cursor at start after Up) or
-      //   "first prompt that will be recallefollow-up content"
-      // (a bad clear that ate one trailing word) — and either way there is one
-      // message on disk, not two.
-      expect(pane.userMessages().map((m) => m.trimEnd())).toEqual([first, second]);
-    } finally {
-      try { pane.tearDown(); } catch {}
-      endpoint.close();
-    }
-  }, 240_000);
-});
+    }, 240_000);
+  },
+);
 
 // ---------------------------------------------------------------------------
 // The same guarantee, once per installed client (the D0 matrix, ct-49536)
@@ -174,9 +189,13 @@ describe("stale composer draft is cleared for every installed client", () => {
 
           // Nothing the client recorded may carry the draft: a missed drain
           // submits "STALE-DRAFT-<payload>" as one message.
-          expect(pane.userMessages().filter((m) => m.includes(draft))).toEqual([]);
+          expect(pane.userMessages().filter((m) => m.includes(draft))).toEqual(
+            [],
+          );
         } finally {
-          try { pane.tearDown(); } catch {}
+          try {
+            pane.tearDown();
+          } catch {}
           endpoint.close();
         }
       },

@@ -42,11 +42,17 @@ export function paneDialogQuestion(pane: string): string | null {
  * null when `payload` is not such a command or `pane` shows no such dialog.
  * A bare `/model` opens the model list, a real panel, and never matches.
  */
-export function modelSwitchConfirmKey(payload: string, pane: string): string | null {
+export function modelSwitchConfirmKey(
+  payload: string,
+  pane: string,
+): string | null {
   const command = canonicalSlashCommand(payload);
   if (!command || !/^\/model \S/.test(command)) return null;
   const prompt = parseInteractivePrompt(pane, true);
-  const idx = prompt?.options.findIndex(o => /^yes,? switch to\b/i.test(o.label.trim())) ?? -1;
+  const idx =
+    prompt?.options.findIndex((o) =>
+      /^yes,? switch to\b/i.test(o.label.trim()),
+    ) ?? -1;
   return idx < 0 ? null : String(idx + 1);
 }
 
@@ -64,14 +70,26 @@ type TmuxExec = (args: string[]) => Promise<{ stdout: string }>;
  * would otherwise be held behind it. Presses nothing unless that same panel is
  * still the dialog on screen. Returns whether it pressed Escape.
  */
-export async function closeOwnCommandPanel(target: string, exec: TmuxExec, settleMs = 500): Promise<boolean> {
+export async function closeOwnCommandPanel(
+  target: string,
+  exec: TmuxExec,
+  settleMs = 500,
+): Promise<boolean> {
   const question = openPanels.get(target);
   if (question === undefined) return false;
   openPanels.delete(target);
-  const { stdout } = await exec(["capture-pane", "-p", "-J", "-t", target, "-S", "-80"]);
+  const { stdout } = await exec([
+    "capture-pane",
+    "-p",
+    "-J",
+    "-t",
+    target,
+    "-S",
+    "-80",
+  ]);
   if (paneDialogQuestion(stdout) !== question) return false;
   await exec(["send-keys", "-t", target, "Escape"]);
-  await new Promise(resolve => setTimeout(resolve, settleMs));
+  await new Promise((resolve) => setTimeout(resolve, settleMs));
   return true;
 }
 
@@ -81,16 +99,30 @@ export async function closeOwnCommandPanel(target: string, exec: TmuxExec, settl
  * after it (a menu where digits only move the highlight), presses Enter.
  * Returns whether it confirmed; presses nothing when no such dialog is up.
  */
-export async function confirmModelSwitch(target: string, payload: string, pane: string, exec: TmuxExec, settleMs = 500): Promise<boolean> {
+export async function confirmModelSwitch(
+  target: string,
+  payload: string,
+  pane: string,
+  exec: TmuxExec,
+  settleMs = 500,
+): Promise<boolean> {
   const key = modelSwitchConfirmKey(payload, pane);
   if (key === null) return false;
   const question = paneDialogQuestion(pane);
   await exec(["send-keys", "-t", target, key]);
-  await new Promise(resolve => setTimeout(resolve, settleMs));
-  const { stdout } = await exec(["capture-pane", "-p", "-J", "-t", target, "-S", "-80"]);
+  await new Promise((resolve) => setTimeout(resolve, settleMs));
+  const { stdout } = await exec([
+    "capture-pane",
+    "-p",
+    "-J",
+    "-t",
+    target,
+    "-S",
+    "-80",
+  ]);
   if (question !== null && paneDialogQuestion(stdout) === question) {
     await exec(["send-keys", "-t", target, "Enter"]);
-    await new Promise(resolve => setTimeout(resolve, settleMs));
+    await new Promise((resolve) => setTimeout(resolve, settleMs));
   }
   return true;
 }

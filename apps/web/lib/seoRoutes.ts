@@ -1,8 +1,22 @@
-import { GUIDES, guideHref } from "../app/(marketing)/documentation/guides/guides";
+import {
+  GUIDES,
+  guideHref,
+} from "../app/(marketing)/documentation/guides/guides";
 import { POSTS } from "../app/(marketing)/blog/posts";
-import { CHAPTERS, chapterHref } from "../app/(marketing)/blog/field-manual/chapters";
-import { COMPARISONS, compareHref } from "../app/(marketing)/compare/comparisons";
-import { FEATURE_DEEP_DIVES, deepDiveForSnippet, featureHref, getFeatureDeepDive } from "../app/(marketing)/features/catalog";
+import {
+  CHAPTERS,
+  chapterHref,
+} from "../app/(marketing)/blog/field-manual/chapters";
+import {
+  COMPARISONS,
+  compareHref,
+} from "../app/(marketing)/compare/comparisons";
+import {
+  FEATURE_DEEP_DIVES,
+  deepDiveForSnippet,
+  featureHref,
+  getFeatureDeepDive,
+} from "../app/(marketing)/features/catalog";
 
 /**
  * seoRoutes — the single source of truth for every publicly indexable route.
@@ -39,7 +53,8 @@ export type SeoEntry = {
 
 export const SITE_URL = "https://codecast.sh";
 
-export const DEFAULT_TITLE = "Codecast: all your coding agents in one workspace";
+export const DEFAULT_TITLE =
+  "Codecast: all your coding agents in one workspace";
 export const DEFAULT_DESCRIPTION =
   "Every session you run with Claude Code, Codex, Cursor, OpenCode and pi, on any machine, in one place: searchable, steerable from your phone, and linked to the code it wrote. Bring your team in when you want, with chat, calls, tasks and docs your agents work in too.";
 
@@ -102,17 +117,20 @@ const STATIC_ENTRIES: SeoEntry[] = [
   {
     path: "/support",
     title: "Support — Codecast",
-    description: "Get help with Codecast: setup, syncing, teams, and troubleshooting.",
+    description:
+      "Get help with Codecast: setup, syncing, teams, and troubleshooting.",
   },
   {
     path: "/privacy",
     title: "Privacy Policy — Codecast",
-    description: "The Codecast privacy policy: what we store, what we never look at, and your rights.",
+    description:
+      "The Codecast privacy policy: what we store, what we never look at, and your rights.",
   },
   {
     path: "/terms",
     title: "Terms of Service — Codecast",
-    description: "The Codecast terms of service: accounts, acceptable use, your content and its ownership, subscriptions and payments, service availability, and liability.",
+    description:
+      "The Codecast terms of service: accounts, acceptable use, your content and its ownership, subscriptions and payments, service availability, and liability.",
   },
 ];
 
@@ -141,13 +159,15 @@ export const SEO_ROUTES: SeoEntry[] = [
     path: "/setup/browser",
     title: "Set up agents in your Chrome — Codecast",
     heading: "Let your agents use your Chrome",
-    description: "Add the Codecast extension and pair it with your computer, so every agent session gets its own background tab in the Chrome you already use.",
+    description:
+      "Add the Codecast extension and pair it with your computer, so every agent session gets its own background tab in the Chrome you already use.",
   },
   {
     path: "/setup/computer",
     title: "Set up agents on your Mac — Codecast",
     heading: "Let your agents use your Mac's apps",
-    description: "Grant two macOS permissions to the Codecast helper, so agents can read and act in any app's window behind yours.",
+    description:
+      "Grant two macOS permissions to the Codecast helper, so agents can read and act in any app's window behind yours.",
   },
   ...GUIDES.map((g) => ({
     path: guideHref(g.slug),
@@ -155,7 +175,9 @@ export const SEO_ROUTES: SeoEntry[] = [
     heading: g.title,
     description: g.dek,
     published: g.published,
-    card: featureCard((g.feature && deepDiveForSnippet(g.feature)?.slug) || g.slug),
+    card: featureCard(
+      (g.feature && deepDiveForSnippet(g.feature)?.slug) || g.slug,
+    ),
   })),
   ...POSTS.map((p) => ({
     path: `/blog/${p.slug}`,
@@ -180,7 +202,9 @@ export const SEO_ROUTES: SeoEntry[] = [
  * `bun scripts/capture-og-art.ts --webp` makes.
  */
 function cardArt(publicSrc: string): string {
-  return publicSrc.endsWith(".webp") ? `scripts/og-art/webp${publicSrc.replace(/\.webp$/, ".jpg")}` : `public${publicSrc}`;
+  return publicSrc.endsWith(".webp")
+    ? `scripts/og-art/webp${publicSrc.replace(/\.webp$/, ".jpg")}`
+    : `public${publicSrc}`;
 }
 
 /** The card of the feature deep dive `slug` (its captured hero and color), if there is one. */
@@ -192,7 +216,9 @@ function featureCard(slug: string): SeoEntry["card"] {
 const BY_PATH = new Map(SEO_ROUTES.map((e) => [e.path, e]));
 
 export function seoFor(path: string): SeoEntry | undefined {
-  return BY_PATH.get(path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path);
+  return BY_PATH.get(
+    path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path,
+  );
 }
 
 /** Big headline on a route's social card: its own name, without the site suffix. */

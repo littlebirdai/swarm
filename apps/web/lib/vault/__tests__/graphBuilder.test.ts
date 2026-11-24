@@ -6,9 +6,15 @@
 
 import { test, expect, describe } from "bun:test";
 import { VaultIndex } from "../vaultIndex";
-import { buildVaultGraph, localSubgraph, topFolder, unresolvedNodeId } from "../graphBuilder";
+import {
+  buildVaultGraph,
+  localSubgraph,
+  topFolder,
+  unresolvedNodeId,
+} from "../graphBuilder";
 
-const build = (files: Record<string, string>) => VaultIndex.build(Object.entries(files));
+const build = (files: Record<string, string>) =>
+  VaultIndex.build(Object.entries(files));
 
 /** Edges as sorted "a|b" strings — order is an implementation detail here. */
 const edgeSet = (g: { edges: { source: string; target: string }[] }) =>
@@ -71,7 +77,9 @@ describe("buildVaultGraph", () => {
   });
 
   test("self-links draw no edge", () => {
-    const graph = buildVaultGraph(build({ "A.md": "[[A]] and [[#a heading]]" }));
+    const graph = buildVaultGraph(
+      build({ "A.md": "[[A]] and [[#a heading]]" }),
+    );
 
     expect(graph.edges).toEqual([]);
     expect(degreeOf(graph, "A.md")).toBe(0);
@@ -145,9 +153,15 @@ describe("buildVaultGraph", () => {
       const ghost = unresolvedNodeId("Nowhere");
 
       // One ghost, linked from BOTH mentioning notes — not one ghost each.
-      expect(graph.nodes.filter((n) => n.isUnresolved).map((n) => n.id)).toEqual([ghost]);
+      expect(
+        graph.nodes.filter((n) => n.isUnresolved).map((n) => n.id),
+      ).toEqual([ghost]);
       expect(graph.nodes.find((n) => n.id === ghost)?.label).toBe("Nowhere");
-      expect(edgeSet(graph)).toEqual([`${ghost}|A.md`, `${ghost}|B.md`, "A.md|B.md"]);
+      expect(edgeSet(graph)).toEqual([
+        `${ghost}|A.md`,
+        `${ghost}|B.md`,
+        "A.md|B.md",
+      ]);
       expect(degreeOf(graph, ghost)).toBe(2);
       // Ghosts raise the degree of the notes that mention them.
       expect(degreeOf(graph, "A.md")).toBe(2);
@@ -171,11 +185,16 @@ describe("buildVaultGraph", () => {
     });
 
     test("missing attachments are not drawn as notes", () => {
-      const graph = buildVaultGraph(build({ "A.md": "![[missing.png]] [[Real Gap]]" }), {
-        includeUnresolved: true,
-      });
+      const graph = buildVaultGraph(
+        build({ "A.md": "![[missing.png]] [[Real Gap]]" }),
+        {
+          includeUnresolved: true,
+        },
+      );
 
-      expect(graph.nodes.filter((n) => n.isUnresolved).map((n) => n.label)).toEqual(["Real Gap"]);
+      expect(
+        graph.nodes.filter((n) => n.isUnresolved).map((n) => n.label),
+      ).toEqual(["Real Gap"]);
     });
 
     test("a ghost id can never collide with a real note path", () => {
@@ -192,7 +211,9 @@ describe("buildVaultGraph", () => {
     };
     const first = buildVaultGraph(build(files));
     // Same files, inserted in the opposite order.
-    const second = buildVaultGraph(VaultIndex.build(Object.entries(files).reverse()));
+    const second = buildVaultGraph(
+      VaultIndex.build(Object.entries(files).reverse()),
+    );
 
     expect(first.nodes.map((n) => n.id)).toEqual(["a.md", "m.md", "z.md"]);
     expect(first).toEqual(second);
@@ -241,13 +262,21 @@ describe("localSubgraph", () => {
   });
 
   test("an unknown root yields an empty graph rather than throwing", () => {
-    expect(localSubgraph(chain(), "gone.md", 2)).toEqual({ nodes: [], edges: [] });
+    expect(localSubgraph(chain(), "gone.md", 2)).toEqual({
+      nodes: [],
+      edges: [],
+    });
   });
 
   test("hops beyond the graph's diameter are harmless", () => {
     const local = localSubgraph(chain(), "A.md", 99);
 
-    expect(local.nodes.map((n) => n.id)).toEqual(["A.md", "B.md", "C.md", "D.md"]);
+    expect(local.nodes.map((n) => n.id)).toEqual([
+      "A.md",
+      "B.md",
+      "C.md",
+      "D.md",
+    ]);
   });
 });
 

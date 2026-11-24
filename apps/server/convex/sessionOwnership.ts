@@ -13,16 +13,34 @@ import {
   syncPrimaryOwnerCache,
   humanStarterUser,
 } from "./sessionOwners";
-import { notifySessionAssigned, notifySessionOwnershipChanged } from "./sessionAssignmentNotifications";
+import {
+  notifySessionAssigned,
+  notifySessionOwnershipChanged,
+} from "./sessionAssignmentNotifications";
 import { routeUpWaitingSession } from "./agentTasks";
 import { requireRole, userCanAdminRole } from "./lib/orgAccess";
 import { holdChangeFor, type HoldChange } from "./lib/orgOwnership";
 import { resolveActor } from "./lib/actor";
 import { reroutePendingDecisionsForConversation } from "./sessionDecisions";
 import { movedFields } from "@codecast/shared/contracts/orgChange";
-import { findOwnableConversation, personName, roleMayHoldSession, tellSession } from "./lib/sessionTell";
+import {
+  findOwnableConversation,
+  personName,
+  roleMayHoldSession,
+  tellSession,
+} from "./lib/sessionTell";
 export { personName, roleMayHoldSession };
-import { labelsOf, noteOrgChange, rememberOrgRecord, roleSubject, sessionParent, sessionSubject, whereOfRole, whereOfSession, withOrgChange } from "./lib/orgChangeLog";
+import {
+  labelsOf,
+  noteOrgChange,
+  rememberOrgRecord,
+  roleSubject,
+  sessionParent,
+  sessionSubject,
+  whereOfRole,
+  whereOfSession,
+  withOrgChange,
+} from "./lib/orgChangeLog";
 
 // Session OWNERS — the humans whose inboxes a session appears in and who may
 // reply into it from the web composer. This is ONE of a session's three
@@ -61,7 +79,8 @@ type OwnerInfo = {
   added_by_image?: string | null;
 };
 
-const avatarOf = (u: any): string | null => u?.image ?? u?.github_avatar_url ?? null;
+const avatarOf = (u: any): string | null =>
+  u?.image ?? u?.github_avatar_url ?? null;
 
 const toOwnerInfo = (u: any): OwnerInfo => ({
   user_id: u._id.toString(),
@@ -83,10 +102,14 @@ async function resolveOwnableConversation(
   authUserId: Id<"users">,
   sessionId: string,
 ): Promise<any> {
-  const conversation = await findOwnableConversation(ctx, authUserId, sessionId);
+  const conversation = await findOwnableConversation(
+    ctx,
+    authUserId,
+    sessionId,
+  );
   if (!conversation) {
     throw new Error(
-      `No session found for "${sessionId}" (you can only set an owner on your own sessions or sessions shared with your team)`
+      `No session found for "${sessionId}" (you can only set an owner on your own sessions or sessions shared with your team)`,
     );
   }
   return conversation;
@@ -123,7 +146,8 @@ async function resolveOwnerRef(
 ): Promise<any> {
   if (ownerRef.toLowerCase() === "me") return ctx.db.get(authUserId);
 
-  const shortId = conversation.short_id ?? conversation._id.toString().slice(0, 7);
+  const shortId =
+    conversation.short_id ?? conversation._id.toString().slice(0, 7);
 
   // A raw user id — the web owners picker passes each member's _id directly
   // (the CLI passes email/name). Resolve it, then apply the same access rule as
@@ -132,19 +156,31 @@ async function resolveOwnerRef(
   // they belong to — a teammate can't own a session they can't even see.
   if (/^[a-z0-9]{16,}$/i.test(ownerRef)) {
     let candidate: any = null;
-    try { candidate = await ctx.db.get(ownerRef as Id<"users">); } catch { candidate = null; }
-    if (candidate && (candidate.email !== undefined || candidate.name !== undefined)) {
+    try {
+      candidate = await ctx.db.get(ownerRef as Id<"users">);
+    } catch {
+      candidate = null;
+    }
+    if (
+      candidate &&
+      (candidate.email !== undefined || candidate.name !== undefined)
+    ) {
       if (candidate._id.toString() === authUserId.toString()) return candidate; // self-claim
       if (!conversation.team_id) {
-        throw new Error(`Session ${shortId} has no team — you can only add teammates to a shared/team session. Claim it yourself instead.`);
+        throw new Error(
+          `Session ${shortId} has no team — you can only add teammates to a shared/team session. Claim it yourself instead.`,
+        );
       }
       const membership = await ctx.db
         .query("team_memberships")
         .withIndex("by_user_team", (q: any) =>
-          q.eq("user_id", candidate._id).eq("team_id", conversation.team_id))
+          q.eq("user_id", candidate._id).eq("team_id", conversation.team_id),
+        )
         .first();
       if (!membership) {
-        throw new Error(`${candidate.name || candidate.email || "That user"} isn't a member of this session's team`);
+        throw new Error(
+          `${candidate.name || candidate.email || "That user"} isn't a member of this session's team`,
+        );
       }
       return candidate;
     }
@@ -152,7 +188,9 @@ async function resolveOwnerRef(
   }
 
   if (!conversation.team_id) {
-    throw new Error(`Session ${shortId} has no team — an owner must be a teammate. Use "me" to claim it yourself.`);
+    throw new Error(
+      `Session ${shortId} has no team — an owner must be a teammate. Use "me" to claim it yourself.`,
+    );
   }
   const members = await teamMemberDocs(ctx, conversation.team_id);
 
@@ -163,15 +201,20 @@ async function resolveOwnerRef(
     null;
   if (!ownerUser) {
     const fuzzy = members.filter(
-      (u) => (u.name || "").toLowerCase().includes(needle) || (u.email || "").toLowerCase().includes(needle)
+      (u) =>
+        (u.name || "").toLowerCase().includes(needle) ||
+        (u.email || "").toLowerCase().includes(needle),
     );
     if (fuzzy.length === 1) ownerUser = fuzzy[0];
     else if (fuzzy.length > 1) {
       const names = fuzzy.map((u) => u.name || u.email).join(", ");
-      throw new Error(`"${ownerRef}" matches multiple team members (${names}) — use an exact email`);
+      throw new Error(
+        `"${ownerRef}" matches multiple team members (${names}) — use an exact email`,
+      );
     }
   }
-  if (!ownerUser) throw new Error(`No team member found matching "${ownerRef}"`);
+  if (!ownerUser)
+    throw new Error(`No team member found matching "${ownerRef}"`);
   return ownerUser;
 }
 
@@ -181,7 +224,7 @@ async function resolveOwnerRef(
 function assertHumanOwner(ownerUser: any): void {
   if (ownerUser.is_bot) {
     throw new Error(
-      `${ownerUser.name || ownerUser.email || "That user"} is an agent account — sessions can only be owned by a human team member`
+      `${ownerUser.name || ownerUser.email || "That user"} is an agent account — sessions can only be owned by a human team member`,
     );
   }
 }
@@ -192,7 +235,9 @@ async function listOwnerInfos(
 ): Promise<OwnerInfo[]> {
   const rows = await ctx.db
     .query("session_owners")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
   rows.sort((a: any, b: any) => a.added_at - b.added_at);
   const infos: OwnerInfo[] = [];
@@ -235,7 +280,12 @@ export type ReparentSessionTarget =
   // person); the ownership menu passes owner refs with the set arithmetic it
   // wants. `add` re-homes under the added person; `set` under the first
   // listed; `remove` leaves the reporting line to whoever remains.
-  | { kind: "user"; user_id?: Id<"users">; owners?: string[]; mode?: "set" | "add" | "remove" }
+  | {
+      kind: "user";
+      user_id?: Id<"users">;
+      owners?: string[];
+      mode?: "set" | "add" | "remove";
+    }
   // `hold` says why the role holds it (org-staffing.md S35): `bound`, the
   // rule moved it for the work it is bound to, so a binding may move it
   // again; `filed` (default), a person or role put it there, so only a
@@ -244,7 +294,13 @@ export type ReparentSessionTarget =
 
 export type ReportsTo =
   | { kind: "user"; user_id: Id<"users">; name: string }
-  | { kind: "role"; role_id: Id<"org_roles">; short_id: string; handle: string; name: string };
+  | {
+      kind: "role";
+      role_id: Id<"org_roles">;
+      short_id: string;
+      handle: string;
+      name: string;
+    };
 
 export type ReparentSessionResult = OwnerMutationResult & {
   org_role_id: Id<"org_roles"> | null;
@@ -261,13 +317,23 @@ export type ReparentSessionResult = OwnerMutationResult & {
 // that their questions now go to them. `note` is written to the agent; a
 // `handoff` note was written to the new owner (the ownership menu, `cast own`)
 // and is quoted as theirs, so the agent does not read it as its own orders.
-export function reportsToLine(to: ReportsTo, opts: { note?: string; handoff?: string } = {}): string {
-  const head = to.kind === "role"
-    ? `You now report to ${to.name} (@${to.handle}): what you need from a person goes to it first, and \`cast send @${to.handle}\` reaches it.`
-    : `You now report to ${to.name}: your questions and decisions go to them.`;
+export function reportsToLine(
+  to: ReportsTo,
+  opts: { note?: string; handoff?: string } = {},
+): string {
+  const head =
+    to.kind === "role"
+      ? `You now report to ${to.name} (@${to.handle}): what you need from a person goes to it first, and \`cast send @${to.handle}\` reaches it.`
+      : `You now report to ${to.name}: your questions and decisions go to them.`;
   const note = opts.note?.trim();
   const handoff = opts.handoff?.trim();
-  return [head, note, handoff && `Note handed to ${to.name} with this session: "${handoff}"`].filter(Boolean).join(" ");
+  return [
+    head,
+    note,
+    handoff && `Note handed to ${to.name} with this session: "${handoff}"`,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 // Who a session reports to: its role, else its primary owner (the
@@ -276,18 +342,34 @@ export function reportsToLine(to: ReportsTo, opts: { note?: string; handoff?: st
 // `read` is the doc read (a batch passes its memo, so a hundred sessions of
 // one host read that host once); `row` is the conversation when the caller
 // already holds it as it stands.
-async function reportsToOf(ctx: { db: any }, conversationId: Id<"conversations">, roleId: Id<"org_roles"> | undefined, known: { read?: (id: any) => Promise<any>; row?: any } = {}): Promise<ReportsTo | null> {
+async function reportsToOf(
+  ctx: { db: any },
+  conversationId: Id<"conversations">,
+  roleId: Id<"org_roles"> | undefined,
+  known: { read?: (id: any) => Promise<any>; row?: any } = {},
+): Promise<ReportsTo | null> {
   const read = known.read ?? ((id: any) => ctx.db.get(id));
   if (roleId) {
     const role = await read(roleId);
-    if (role) return { kind: "role", role_id: role._id, short_id: role.short_id, handle: role.handle, name: role.name };
+    if (role)
+      return {
+        kind: "role",
+        role_id: role._id,
+        short_id: role.short_id,
+        handle: role.handle,
+        name: role.name,
+      };
   }
-  const primary = (known.row ?? await ctx.db.get(conversationId))?.owner_user_id;
+  const primary = (known.row ?? (await ctx.db.get(conversationId)))
+    ?.owner_user_id;
   const user = primary ? await read(primary) : null;
-  return user ? { kind: "user", user_id: user._id, name: personName(user) } : null;
+  return user
+    ? { kind: "user", user_id: user._id, name: personName(user) }
+    : null;
 }
 
-const reportsToKey = (r: ReportsTo | null): string => !r ? "" : r.kind === "role" ? `role:${r.role_id}` : `user:${r.user_id}`;
+const reportsToKey = (r: ReportsTo | null): string =>
+  !r ? "" : r.kind === "role" ? `role:${r.role_id}` : `user:${r.user_id}`;
 
 // Take the previous holder's triage off a row that is being put in front of
 // someone: a handoff to a new owner. Only a stamp that
@@ -301,7 +383,8 @@ async function unhide(ctx: { db: any }, conversation: any): Promise<void> {
     hidden.inbox_stash_hidden = undefined;
   }
   if (conversation.inbox_snoozed_until) hidden.inbox_snoozed_until = undefined;
-  if (Object.keys(hidden).length > 0) await ctx.db.patch(conversation._id, hidden);
+  if (Object.keys(hidden).length > 0)
+    await ctx.db.patch(conversation._id, hidden);
 }
 
 // What many reparents to ONE role resolve once (the takeover moves up to 100
@@ -317,7 +400,12 @@ export type ReparentBatch = {
   read: (id: any) => Promise<any>;
 };
 
-export async function prepareReparentBatch(ctx: { db: any }, authUserId: Id<"users">, roleRef: string, fromSession?: string): Promise<ReparentBatch> {
+export async function prepareReparentBatch(
+  ctx: { db: any },
+  authUserId: Id<"users">,
+  roleRef: string,
+  fromSession?: string,
+): Promise<ReparentBatch> {
   const role = await requireRole(ctx, authUserId, roleRef, "access");
   const docs = new Map<string, Promise<any>>();
   const read = (id: any): Promise<any> => {
@@ -334,7 +422,9 @@ export async function prepareReparentBatch(ctx: { db: any }, authUserId: Id<"use
     role,
     canReshape: await userCanAdminRole(ctx, authUserId, role),
     actor: await read(authUserId),
-    sender: fromRef ? await findOwnableConversation(ctx, authUserId, fromRef) : null,
+    sender: fromRef
+      ? await findOwnableConversation(ctx, authUserId, fromRef)
+      : null,
     read,
   };
 }
@@ -342,25 +432,54 @@ export async function prepareReparentBatch(ctx: { db: any }, authUserId: Id<"use
 export async function performReparentSession(
   ctx: { db: any },
   authUserId: Id<"users">,
-  args: { session_id: string; target: ReparentSessionTarget; note?: string; handoff?: string; from_session?: string },
+  args: {
+    session_id: string;
+    target: ReparentSessionTarget;
+    note?: string;
+    handoff?: string;
+    from_session?: string;
+  },
   // The batch form: the prepared role target, and the session's row as the
   // caller read it in this same transaction. The access rule below is the
   // same one; only the lookups that would answer the same thing are skipped.
   known?: { batch: ReparentBatch; row: any },
 ): Promise<ReparentSessionResult> {
-  return withOrgChange(ctx, authUserId, { kind: "session", door: args.from_session ? "cli" : "chart", gesture: args.from_session ? "command" : "drag" }, () => reparentSessionCore(ctx, authUserId, args, known));
+  return withOrgChange(
+    ctx,
+    authUserId,
+    {
+      kind: "session",
+      door: args.from_session ? "cli" : "chart",
+      gesture: args.from_session ? "command" : "drag",
+    },
+    () => reparentSessionCore(ctx, authUserId, args, known),
+  );
 }
 
 async function reparentSessionCore(
   ctx: { db: any },
   authUserId: Id<"users">,
-  args: { session_id: string; target: ReparentSessionTarget; note?: string; handoff?: string; from_session?: string },
+  args: {
+    session_id: string;
+    target: ReparentSessionTarget;
+    note?: string;
+    handoff?: string;
+    from_session?: string;
+  },
   known?: { batch: ReparentBatch; row: any },
 ): Promise<ReparentSessionResult> {
   const note = args.note?.trim() || undefined;
   const handoff = args.handoff?.trim() || undefined;
-  const targetRole = args.target.kind === "role" ? known?.batch.role ?? await requireRole(ctx, authUserId, args.target.role_id, "access") : null;
-  const canReshapeTarget = known ? known.batch.canReshape : targetRole ? await userCanAdminRole(ctx, authUserId, targetRole) : false;
+  const targetRole =
+    args.target.kind === "role"
+      ? (known?.batch.role ??
+        (await requireRole(ctx, authUserId, args.target.role_id, "access")))
+      : null;
+  const canReshapeTarget = known
+    ? known.batch.canReshape
+    : targetRole
+      ? await userCanAdminRole(ctx, authUserId, targetRole)
+      : false;
   // Who may file: a person target is the ownership rule (the runner, or any
   // teammate who can see the session); a role target is an owner, or a team
   // viewer who may reshape the role. A session the caller cannot see, never.
@@ -368,33 +487,61 @@ async function reparentSessionCore(
     const access = await checkConversationAccess(ctx, authUserId, c);
     return access === "owner" || (access === "team" && canReshapeTarget);
   };
-  const conversation = args.target.kind === "user"
-    ? await resolveOwnableConversation(ctx, authUserId, args.session_id)
-    : known ? ((await mayFileUnderRole(known.row)) ? known.row : null)
-    : await findConversationByAnyRefWhere(ctx, args.session_id, mayFileUnderRole);
-  if (!conversation) throw new Error("Session not found, or you are not one of its owners");
+  const conversation =
+    args.target.kind === "user"
+      ? await resolveOwnableConversation(ctx, authUserId, args.session_id)
+      : known
+        ? (await mayFileUnderRole(known.row))
+          ? known.row
+          : null
+        : await findConversationByAnyRefWhere(
+            ctx,
+            args.session_id,
+            mayFileUnderRole,
+          );
+  if (!conversation)
+    throw new Error("Session not found, or you are not one of its owners");
   // A standing session IS a seat; it reports to no seat (org-roles-standing.md
   // T1). Filed under a role it would count as that role's hand, be interrupted
   // by a pause and spend its hand cap. One refusal here, so every door (the
   // chart, the ownership menu, the CLI) inherits it.
-  if (args.target.kind === "role" && (conversation.standing_role_id || conversation.anchor_id)) {
-    throw new Error("That session is a standing agent's own thread; it cannot be filed under a role");
+  if (
+    args.target.kind === "role" &&
+    (conversation.standing_role_id || conversation.anchor_id)
+  ) {
+    throw new Error(
+      "That session is a standing agent's own thread; it cannot be filed under a role",
+    );
   }
   // A role's own session is owned by whom the role reports to (S28,
   // sessionOwners.stampSeatOwners), so its owner changes only by moving the
   // role. One writer keeps the chart line and the inbox from disagreeing.
   if (args.target.kind === "user" && conversation.standing_role_id) {
     const seatRole = await ctx.db.get(conversation.standing_role_id);
-    throw new Error(`That is @${seatRole?.handle ?? "the role"}'s own session: it belongs to whoever the role reports to. Change who the role reports to instead (cast org reparent @${seatRole?.handle ?? "<role>"} --to <person or @role>, or the role page).`);
+    throw new Error(
+      `That is @${seatRole?.handle ?? "the role"}'s own session: it belongs to whoever the role reports to. Change who the role reports to instead (cast org reparent @${seatRole?.handle ?? "<role>"} --to <person or @role>, or the role page).`,
+    );
   }
   // A session of another team keeps the older refusal below; this one is for a
   // session routed to the role's team that the team cannot see.
-  if (targetRole?.team_id && String(conversation.team_id ?? "") === String(targetRole.team_id) && !(await roleMayHoldSession(ctx, targetRole, conversation))) {
-    throw new Error(`That session is private to you, and @${targetRole.handle} is a role your team can read; share the session with the team first, or keep it under you`);
+  if (
+    targetRole?.team_id &&
+    String(conversation.team_id ?? "") === String(targetRole.team_id) &&
+    !(await roleMayHoldSession(ctx, targetRole, conversation))
+  ) {
+    throw new Error(
+      `That session is private to you, and @${targetRole.handle} is a role your team can read; share the session with the team first, or keep it under you`,
+    );
   }
   rememberOrgRecord(ctx, conversation);
-  const shortId = conversation.short_id ?? conversation._id.toString().slice(0, 7);
-  const before = await reportsToOf(ctx, conversation._id, conversation.org_role_id, { read: known?.batch.read, row: conversation });
+  const shortId =
+    conversation.short_id ?? conversation._id.toString().slice(0, 7);
+  const before = await reportsToOf(
+    ctx,
+    conversation._id,
+    conversation.org_role_id,
+    { read: known?.batch.read, row: conversation },
+  );
   const parentBefore = await sessionParent(ctx, conversation);
 
   const added: Id<"users">[] = [];
@@ -408,13 +555,20 @@ async function reparentSessionCore(
     // does not silently lose the other. The owner list form is the picker's,
     // which holds the whole desired set.
     const mode = args.target.mode ?? (args.target.owners ? "set" : "add");
-    const refs = args.target.owners ?? (args.target.user_id ? [args.target.user_id.toString()] : []);
+    const refs =
+      args.target.owners ??
+      (args.target.user_id ? [args.target.user_id.toString()] : []);
     const desiredKeys = new Set<string>();
     const desired: any[] = [];
     for (const ref of refs) {
       const trimmed = ref.trim();
       if (!trimmed) continue;
-      const user = await resolveOwnerRef(ctx, authUserId, conversation, trimmed);
+      const user = await resolveOwnerRef(
+        ctx,
+        authUserId,
+        conversation,
+        trimmed,
+      );
       if (mode !== "remove") assertHumanOwner(user);
       const key = user._id.toString();
       if (desiredKeys.has(key)) continue;
@@ -423,16 +577,30 @@ async function reparentSessionCore(
     }
     if (mode === "remove") {
       for (const user of desired) {
-        if (await removeSessionOwnerRow(ctx, conversation._id, user._id)) removed.push(user._id);
+        if (await removeSessionOwnerRow(ctx, conversation._id, user._id))
+          removed.push(user._id);
       }
     } else {
       for (const user of desired) {
-        if (await addSessionOwnerRow(ctx, conversation._id, user._id, authUserId, handoff ?? note)) added.push(user._id);
+        if (
+          await addSessionOwnerRow(
+            ctx,
+            conversation._id,
+            user._id,
+            authUserId,
+            handoff ?? note,
+          )
+        )
+          added.push(user._id);
       }
       if (mode === "set") {
-        for (const ownerId of await listSessionOwnerIds(ctx, conversation._id)) {
+        for (const ownerId of await listSessionOwnerIds(
+          ctx,
+          conversation._id,
+        )) {
           if (desiredKeys.has(ownerId.toString())) continue;
-          if (await removeSessionOwnerRow(ctx, conversation._id, ownerId)) removed.push(ownerId);
+          if (await removeSessionOwnerRow(ctx, conversation._id, ownerId))
+            removed.push(ownerId);
         }
       }
     }
@@ -447,49 +615,98 @@ async function reparentSessionCore(
     // added person (a handoff, the chart follows), `set` to the LAST listed —
     // callers put the person the act names at the end of `owners`. A remove
     // leaves the line to whoever remains, oldest first.
-    const preferred = mode === "remove" ? undefined : desired[desired.length - 1]?._id;
+    const preferred =
+      mode === "remove" ? undefined : desired[desired.length - 1]?._id;
     await syncPrimaryOwnerCache(ctx, conversation._id, preferred);
     // A person is now the parent: the role pointer comes off (S11). A remove
     // is not a re-homing, so a session filed under a role stays there.
     if (mode !== "remove" && desired.length > 0 && roleId) {
-      await ctx.db.patch(conversation._id, { org_role_id: undefined, org_role_hold: undefined });
+      await ctx.db.patch(conversation._id, {
+        org_role_id: undefined,
+        org_role_hold: undefined,
+      });
       roleId = undefined;
     }
-    owners = mode === "set" ? desired.map(toOwnerInfo) : await listOwnerInfos(ctx, conversation._id);
+    owners =
+      mode === "set"
+        ? desired.map(toOwnerInfo)
+        : await listOwnerInfos(ctx, conversation._id);
   } else {
-    if (targetRole.status === "retired") throw new Error("That role is retired");
+    if (targetRole.status === "retired")
+      throw new Error("That role is retired");
     // A team role only takes sessions routed to its team; a personal role
     // takes anything its owner may reparent.
-    if (targetRole.team_id && (conversation.team_id?.toString() ?? null) !== targetRole.team_id.toString()) {
+    if (
+      targetRole.team_id &&
+      (conversation.team_id?.toString() ?? null) !==
+        targetRole.team_id.toString()
+    ) {
       throw new Error("That session is not in the role's team");
     }
-    await ctx.db.patch(conversation._id, { org_role_id: targetRole._id, org_role_hold: args.target.hold ?? "filed" });
+    await ctx.db.patch(conversation._id, {
+      org_role_id: targetRole._id,
+      org_role_hold: args.target.hold ?? "filed",
+    });
     roleId = targetRole._id;
     owners = await listOwnerInfos(ctx, conversation._id);
   }
 
-  const after = await reportsToOf(ctx, conversation._id, roleId, { read: known?.batch.read });
-  const told: { sessions: number; roles: number; deferred?: number } = { sessions: 0, roles: 0 };
+  const after = await reportsToOf(ctx, conversation._id, roleId, {
+    read: known?.batch.read,
+  });
+  const told: { sessions: number; roles: number; deferred?: number } = {
+    sessions: 0,
+    roles: 0,
+  };
   if (after && reportsToKey(after) !== reportsToKey(before)) {
-    const how = await tellSession(ctx, authUserId, conversation, reportsToLine(after, { note, handoff }), args.from_session, reportsToKey(after), known?.batch);
-    if (how === "deferred") told.deferred = 1; else told.sessions = 1;
+    const how = await tellSession(
+      ctx,
+      authUserId,
+      conversation,
+      reportsToLine(after, { note, handoff }),
+      args.from_session,
+      reportsToKey(after),
+      known?.batch,
+    );
+    if (how === "deferred") told.deferred = 1;
+    else told.sessions = 1;
   }
   // Open questions follow the new owners. Without this, asked_user_ids and
   // decision_inbox stay on the runner / role parent and the card never leaves
   // their question stack.
-  await reroutePendingDecisionsForConversation(ctx, conversation._id, Date.now());
+  await reroutePendingDecisionsForConversation(
+    ctx,
+    conversation._id,
+    Date.now(),
+  );
   // The org log (org-staffing.md S21): where the session was and where it is
   // now. Inside a takeover this folds into the row of the change that caused
   // it; on its own (the chart, the ownership menu) it is a row.
-  const parentAfter = targetRole ? { ...parentBefore, org_role_id: String(targetRole._id) } : await sessionParent(ctx, { _id: conversation._id, org_role_id: roleId });
-  await noteOrgChange(ctx, authUserId, targetRole ? whereOfRole(targetRole) : whereOfSession(conversation), {
-    kind: "session",
-    subject: sessionSubject(conversation),
-    ...movedFields({ parent: parentBefore }, { parent: parentAfter }),
-    labels: await labelsOf(ctx, [...parentBefore.owner_user_ids, ...parentAfter.owner_user_ids, parentBefore.org_role_id, parentAfter.org_role_id], known?.batch.read),
-    door: args.from_session ? "cli" : "chart",
-    gesture: args.from_session ? "command" : "drag",
-  });
+  const parentAfter = targetRole
+    ? { ...parentBefore, org_role_id: String(targetRole._id) }
+    : await sessionParent(ctx, { _id: conversation._id, org_role_id: roleId });
+  await noteOrgChange(
+    ctx,
+    authUserId,
+    targetRole ? whereOfRole(targetRole) : whereOfSession(conversation),
+    {
+      kind: "session",
+      subject: sessionSubject(conversation),
+      ...movedFields({ parent: parentBefore }, { parent: parentAfter }),
+      labels: await labelsOf(
+        ctx,
+        [
+          ...parentBefore.owner_user_ids,
+          ...parentAfter.owner_user_ids,
+          parentBefore.org_role_id,
+          parentAfter.org_role_id,
+        ],
+        known?.batch.read,
+      ),
+      door: args.from_session ? "cli" : "chart",
+      gesture: args.from_session ? "command" : "drag",
+    },
+  );
   return {
     ok: true,
     short_id: shortId,
@@ -534,19 +751,50 @@ export type RehomeResult = {
 // One takeover is one row of the org log (org-staffing.md S21): each session
 // the loop moves folds into the row of the change that caused it, and the
 // counts land beside them. On its own, the takeover is the row.
-export async function performRehomeSessions(ctx: { db: any }, authUserId: Id<"users">, role: any, candidates: Array<{ raw: any }>, opts: { note?: string; dry?: boolean; from_session?: string; by_rule?: boolean } = {}): Promise<RehomeResult> {
+export async function performRehomeSessions(
+  ctx: { db: any },
+  authUserId: Id<"users">,
+  role: any,
+  candidates: Array<{ raw: any }>,
+  opts: {
+    note?: string;
+    dry?: boolean;
+    from_session?: string;
+    by_rule?: boolean;
+  } = {},
+): Promise<RehomeResult> {
   if (opts.dry) return rehomeSessions(ctx, authUserId, role, candidates, opts);
-  return withOrgChange(ctx, authUserId, { kind: "scope", subject: roleSubject(role) }, async () => {
-    const result = await rehomeSessions(ctx, authUserId, role, candidates, opts);
-    if (result.sessions.length) {
-      await noteOrgChange(ctx, authUserId, whereOfRole(role), {
-        kind: "scope",
-        subject: roleSubject(role),
-        effects: { takeover: { role_id: String(role._id), handle: role.handle, sessions: [], kept_in_front: result.kept_in_front, over_cap: result.over_cap, told: result.told } },
-      });
-    }
-    return result;
-  });
+  return withOrgChange(
+    ctx,
+    authUserId,
+    { kind: "scope", subject: roleSubject(role) },
+    async () => {
+      const result = await rehomeSessions(
+        ctx,
+        authUserId,
+        role,
+        candidates,
+        opts,
+      );
+      if (result.sessions.length) {
+        await noteOrgChange(ctx, authUserId, whereOfRole(role), {
+          kind: "scope",
+          subject: roleSubject(role),
+          effects: {
+            takeover: {
+              role_id: String(role._id),
+              handle: role.handle,
+              sessions: [],
+              kept_in_front: result.kept_in_front,
+              over_cap: result.over_cap,
+              told: result.told,
+            },
+          },
+        });
+      }
+      return result;
+    },
+  );
 }
 
 async function rehomeSessions(
@@ -554,35 +802,71 @@ async function rehomeSessions(
   authUserId: Id<"users">,
   role: any,
   candidates: Array<{ raw: any }>,
-  opts: { note?: string; dry?: boolean; from_session?: string; by_rule?: boolean } = {},
+  opts: {
+    note?: string;
+    dry?: boolean;
+    from_session?: string;
+    by_rule?: boolean;
+  } = {},
 ): Promise<RehomeResult> {
-  const result: RehomeResult = { sessions: [], kept_in_front: [], over_cap: 0, told: { sessions: 0, roles: 0, deferred: 0 } };
+  const result: RehomeResult = {
+    sessions: [],
+    kept_in_front: [],
+    over_cap: 0,
+    told: { sessions: 0, roles: 0, deferred: 0 },
+  };
   const eligible: any[] = [];
   const runner = String(await roleRunner(ctx, role));
   for (const { raw: c } of candidates) {
-    if ((opts.by_rule ? String(c.org_role_id ?? "") !== String(role._id ?? "") : !c.org_role_id) && !c.standing_role_id && !c.anchor_id
-      && String(c.owner_user_id ?? c.user_id) === runner
-      && await roleMayHoldSession(ctx, role, c)) eligible.push(c);
+    if (
+      (opts.by_rule
+        ? String(c.org_role_id ?? "") !== String(role._id ?? "")
+        : !c.org_role_id) &&
+      !c.standing_role_id &&
+      !c.anchor_id &&
+      String(c.owner_user_id ?? c.user_id) === runner &&
+      (await roleMayHoldSession(ctx, role, c))
+    )
+      eligible.push(c);
   }
   result.over_cap = Math.max(0, eligible.length - REHOME_CAP);
   // The role, the admin check, the acting person and the sender are the same
   // for every session of one takeover: resolved once, never per session.
-  const batch = opts.dry || eligible.length === 0 ? null : await prepareReparentBatch(ctx, authUserId, role._id.toString(), opts.from_session);
+  const batch =
+    opts.dry || eligible.length === 0
+      ? null
+      : await prepareReparentBatch(
+          ctx,
+          authUserId,
+          role._id.toString(),
+          opts.from_session,
+        );
   for (const c of eligible.slice(0, REHOME_CAP)) {
     const shortId = c.short_id ?? c._id.toString().slice(0, 7);
     const openAsk = await ctx.db
       .query("session_decisions")
-      .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", c._id).eq("status", "pending"))
+      .withIndex("by_conversation_status", (q: any) =>
+        q.eq("conversation_id", c._id).eq("status", "pending"),
+      )
       .first();
     result.sessions.push(shortId);
     if (openAsk) result.kept_in_front.push(shortId);
     if (opts.dry) continue;
-    const moved = await performReparentSession(ctx, authUserId, {
-      session_id: c._id.toString(),
-      target: { kind: "role", role_id: role._id.toString(), hold: opts.by_rule ? "bound" : "filed" },
-      note: opts.note,
-      from_session: opts.from_session,
-    }, { batch: batch!, row: c });
+    const moved = await performReparentSession(
+      ctx,
+      authUserId,
+      {
+        session_id: c._id.toString(),
+        target: {
+          kind: "role",
+          role_id: role._id.toString(),
+          hold: opts.by_rule ? "bound" : "filed",
+        },
+        note: opts.note,
+        from_session: opts.from_session,
+      },
+      { batch: batch!, row: c },
+    );
     result.told.sessions += moved.told.sessions;
     result.told.deferred += moved.told.deferred ?? 0;
     // A question to the person was open when the session moved: the role
@@ -590,12 +874,18 @@ async function rehomeSessions(
     // its role, and answers or passes it up.
     if (openAsk) {
       const movedRow = await ctx.db.get(c._id);
-      if (movedRow) await routeUpWaitingSession(ctx, movedRow, { why: "question", since: openAsk.created_at ?? openAsk._creationTime });
+      if (movedRow)
+        await routeUpWaitingSession(ctx, movedRow, {
+          why: "question",
+          since: openAsk.created_at ?? openAsk._creationTime,
+        });
     }
     // A moved session that already waits settled before it had a role to
     // tell: its needs-input check runs again, as a role's resume does, so the
     // role hears it, or the person does when the role cannot be told.
-    await ctx.scheduler?.runAfter(0, internal.notifications.checkNeedsInput, { conversation_id: c._id });
+    await ctx.scheduler?.runAfter(0, internal.notifications.checkNeedsInput, {
+      conversation_id: c._id,
+    });
   }
   return result;
 }
@@ -609,18 +899,38 @@ async function rehomeSessions(
 export async function performSetSessionOwners(
   ctx: { db: any },
   authUserId: Id<"users">,
-  args: { session_id: string; owners: string[]; note?: string; from_session?: string },
+  args: {
+    session_id: string;
+    owners: string[];
+    note?: string;
+    from_session?: string;
+  },
 ): Promise<ReparentSessionResult> {
-  return performReparentSession(ctx, authUserId, { session_id: args.session_id, target: { kind: "user", owners: args.owners, mode: "set" }, handoff: args.note, from_session: args.from_session });
+  return performReparentSession(ctx, authUserId, {
+    session_id: args.session_id,
+    target: { kind: "user", owners: args.owners, mode: "set" },
+    handoff: args.note,
+    from_session: args.from_session,
+  });
 }
 
 // Add ONE owner without disturbing the others (`cast own`).
 export async function performAddSessionOwner(
   ctx: { db: any },
   authUserId: Id<"users">,
-  args: { session_id: string; owner: string; note?: string; from_session?: string },
+  args: {
+    session_id: string;
+    owner: string;
+    note?: string;
+    from_session?: string;
+  },
 ): Promise<ReparentSessionResult> {
-  return performReparentSession(ctx, authUserId, { session_id: args.session_id, target: { kind: "user", owners: [args.owner], mode: "add" }, handoff: args.note, from_session: args.from_session });
+  return performReparentSession(ctx, authUserId, {
+    session_id: args.session_id,
+    target: { kind: "user", owners: [args.owner], mode: "add" },
+    handoff: args.note,
+    from_session: args.from_session,
+  });
 }
 
 // Remove ONE owner, leaving the rest (`cast disown`; defaults to self).
@@ -629,7 +939,11 @@ export async function performRemoveSessionOwner(
   authUserId: Id<"users">,
   args: { session_id: string; owner: string; from_session?: string },
 ): Promise<ReparentSessionResult> {
-  return performReparentSession(ctx, authUserId, { session_id: args.session_id, target: { kind: "user", owners: [args.owner], mode: "remove" }, from_session: args.from_session });
+  return performReparentSession(ctx, authUserId, {
+    session_id: args.session_id,
+    target: { kind: "user", owners: [args.owner], mode: "remove" },
+    from_session: args.from_session,
+  });
 }
 
 // Back-compat single-owner form: `owner` REPLACES the whole set; null disowns
@@ -637,14 +951,18 @@ export async function performRemoveSessionOwner(
 export async function performSetSessionOwner(
   ctx: { db: any },
   authUserId: Id<"users">,
-  args: { session_id: string; owner: string | null }
+  args: { session_id: string; owner: string | null },
 ): Promise<{ ok: true; short_id: string; owner: OwnerInfo | null }> {
   const ownerRef = args.owner?.trim() ?? null;
   const result = await performSetSessionOwners(ctx, authUserId, {
     session_id: args.session_id,
     owners: ownerRef ? [ownerRef] : [],
   });
-  return { ok: true, short_id: result.short_id, owner: result.owners[0] ?? null };
+  return {
+    ok: true,
+    short_id: result.short_id,
+    owner: result.owners[0] ?? null,
+  };
 }
 
 // ── Public mutations ─────────────────────────────────────────────────────────
@@ -654,7 +972,8 @@ export async function performSetSessionOwner(
 
 async function requireAuth(ctx: any, apiToken?: string): Promise<Id<"users">> {
   const authUserId = await getAuthenticatedUserId(ctx, apiToken);
-  if (!authUserId) throw new Error("Authentication failed: invalid token or session");
+  if (!authUserId)
+    throw new Error("Authentication failed: invalid token or session");
   return authUserId;
 }
 
@@ -677,9 +996,23 @@ export const setSessionOwner = mutation({
       session_id: args.session_id,
       owners: ownerRef ? [ownerRef] : [],
     });
-    await notifySessionAssigned(ctx, result.conversation_id, result.added, authUserId);
-    await notifySessionOwnershipChanged(ctx, result.conversation_id, result, authUserId);
-    return { ok: true as const, short_id: result.short_id, owner: result.owners[0] ?? null };
+    await notifySessionAssigned(
+      ctx,
+      result.conversation_id,
+      result.added,
+      authUserId,
+    );
+    await notifySessionOwnershipChanged(
+      ctx,
+      result.conversation_id,
+      result,
+      authUserId,
+    );
+    return {
+      ok: true as const,
+      short_id: result.short_id,
+      owner: result.owners[0] ?? null,
+    };
   },
 });
 
@@ -700,8 +1033,19 @@ export const setSessionOwners = mutation({
       note: args.note?.trim() || undefined,
       from_session: args.from_session,
     });
-    await notifySessionAssigned(ctx, result.conversation_id, result.added, authUserId, args.note?.trim());
-    await notifySessionOwnershipChanged(ctx, result.conversation_id, result, authUserId);
+    await notifySessionAssigned(
+      ctx,
+      result.conversation_id,
+      result.added,
+      authUserId,
+      args.note?.trim(),
+    );
+    await notifySessionOwnershipChanged(
+      ctx,
+      result.conversation_id,
+      result,
+      authUserId,
+    );
     return result;
   },
 });
@@ -723,8 +1067,19 @@ export const addSessionOwner = mutation({
       note: args.note?.trim() || undefined,
       from_session: args.from_session,
     });
-    await notifySessionAssigned(ctx, result.conversation_id, result.added, authUserId, args.note?.trim());
-    await notifySessionOwnershipChanged(ctx, result.conversation_id, result, authUserId);
+    await notifySessionAssigned(
+      ctx,
+      result.conversation_id,
+      result.added,
+      authUserId,
+      args.note?.trim(),
+    );
+    await notifySessionOwnershipChanged(
+      ctx,
+      result.conversation_id,
+      result,
+      authUserId,
+    );
     return result;
   },
 });
@@ -736,14 +1091,20 @@ export const ackSessionAssignment = mutation({
   args: { session_id: SESSION_REF, api_token: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const authUserId = await requireAuth(ctx, args.api_token);
-    const conversation = await findOwnableConversation(ctx, authUserId, args.session_id);
+    const conversation = await findOwnableConversation(
+      ctx,
+      authUserId,
+      args.session_id,
+    );
     if (!conversation) return { ok: false as const };
     const row = await ctx.db
       .query("session_owners")
       .withIndex("by_conversation_user", (q: any) =>
-        q.eq("conversation_id", conversation._id).eq("user_id", authUserId))
+        q.eq("conversation_id", conversation._id).eq("user_id", authUserId),
+      )
       .first();
-    if (row && !row.seen_at) await ctx.db.patch(row._id, { seen_at: Date.now() });
+    if (row && !row.seen_at)
+      await ctx.db.patch(row._id, { seen_at: Date.now() });
     return { ok: true as const };
   },
 });
@@ -763,7 +1124,12 @@ export const removeSessionOwner = mutation({
       owner: args.owner?.trim() || "me",
       from_session: args.from_session,
     });
-    await notifySessionOwnershipChanged(ctx, result.conversation_id, result, authUserId);
+    await notifySessionOwnershipChanged(
+      ctx,
+      result.conversation_id,
+      result,
+      authUserId,
+    );
     return result;
   },
 });
@@ -806,9 +1172,9 @@ async function ownerCandidatesFor(
     const me = await ctx.db.get(authUserId);
     return me ? [toOwnerCandidate(me)] : [];
   }
-  return (await teamMemberDocs(ctx, conversation.team_id, OWNER_CANDIDATE_CAP)).map(
-    toOwnerCandidate,
-  );
+  return (
+    await teamMemberDocs(ctx, conversation.team_id, OWNER_CANDIDATE_CAP)
+  ).map(toOwnerCandidate);
 }
 
 // The owner SET for one session — chips, the "assigned to you" banner, ack
@@ -828,13 +1194,18 @@ export async function performListOwners(
   conversation_id: Id<"conversations">;
   owners: OwnerInfo[];
 } | null> {
-  const conversation = await findOwnableConversation(ctx, authUserId, sessionId);
+  const conversation = await findOwnableConversation(
+    ctx,
+    authUserId,
+    sessionId,
+  );
   if (!conversation) return null;
   const owners = await listOwnerInfos(ctx, conversation._id);
   if (owners.length === 0) {
     const starter = await humanStarterUser(ctx, conversation);
     if (starter) {
-      const startedAt = conversation.started_at ?? conversation._creationTime ?? Date.now();
+      const startedAt =
+        conversation.started_at ?? conversation._creationTime ?? Date.now();
       owners.push({
         ...toOwnerInfo(starter),
         added_by: starter._id.toString(),
@@ -862,7 +1233,8 @@ export const listOwners = query({
     // bad token.
     const authUserId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!authUserId) {
-      if (args.api_token) throw new Error("Authentication failed: invalid token or session");
+      if (args.api_token)
+        throw new Error("Authentication failed: invalid token or session");
       return null;
     }
     return performListOwners(ctx, authUserId, args.session_id);
@@ -880,7 +1252,11 @@ export async function performListOwnerCandidates(
   conversation_id: Id<"conversations">;
   team_members: OwnerCandidate[];
 } | null> {
-  const conversation = await findOwnableConversation(ctx, authUserId, sessionId);
+  const conversation = await findOwnableConversation(
+    ctx,
+    authUserId,
+    sessionId,
+  );
   if (!conversation) return null;
   return {
     conversation_id: conversation._id,
@@ -893,7 +1269,8 @@ export const listOwnerCandidates = query({
   handler: async (ctx, args) => {
     const authUserId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!authUserId) {
-      if (args.api_token) throw new Error("Authentication failed: invalid token or session");
+      if (args.api_token)
+        throw new Error("Authentication failed: invalid token or session");
       return null;
     }
     return performListOwnerCandidates(ctx, authUserId, args.session_id);
@@ -947,7 +1324,10 @@ export const backfillSessionOwners = internalMutation({
 //   apps/server/run.sh sessionOwnership:runBackfillSessionOwners '{}'
 export const runBackfillSessionOwners = internalAction({
   args: { batch: v.optional(v.number()) },
-  handler: async (ctx, args): Promise<{ pages: number; scanned: number; migrated: number }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ pages: number; scanned: number; migrated: number }> => {
     const batch = args.batch ?? 400;
     let cursor: string | null = null;
     let pages = 0;
@@ -965,7 +1345,8 @@ export const runBackfillSessionOwners = internalAction({
       if (res.done) break;
       cursor = res.cursor;
       // Backstop: a cursor that stops advancing would otherwise spin forever.
-      if (pages > 5000) throw new Error(`backfill did not converge after ${pages} pages`);
+      if (pages > 5000)
+        throw new Error(`backfill did not converge after ${pages} pages`);
     }
 
     return { pages, scanned, migrated };
@@ -981,18 +1362,30 @@ export const runBackfillSessionOwners = internalAction({
 // told as a takeover tells them, the org log has the row, and the hold is
 // stamped `bound` so a later binding may move it again. A release re-homes
 // the session under whoever started it (`add` keeps its other owners).
-const BOUND_NOTE = "It looks after the work this session is bound to. It reads what you need first and decides what reaches a person.";
+const BOUND_NOTE =
+  "It looks after the work this session is bound to. It reads what you need first and decides what reaches a person.";
 
-export async function applyHoldChange(ctx: { db: any; scheduler?: any }, conversationId: Id<"conversations">): Promise<{ change: HoldChange["kind"]; role?: string }> {
+export async function applyHoldChange(
+  ctx: { db: any; scheduler?: any },
+  conversationId: Id<"conversations">,
+): Promise<{ change: HoldChange["kind"]; role?: string }> {
   const c = await ctx.db.get(conversationId);
   const change = await holdChangeFor(ctx, c);
   if (change.kind === "keep") return { change: "keep" };
   const actor = c.owner_user_id ?? c.user_id;
   if (change.kind === "release") {
-    await performReparentSession(ctx, actor, { session_id: String(c._id), target: { kind: "user", user_id: actor, mode: "add" }, note: `Its work is no longer in @${change.from.handle ?? "the role"}'s area.` });
+    await performReparentSession(ctx, actor, {
+      session_id: String(c._id),
+      target: { kind: "user", user_id: actor, mode: "add" },
+      note: `Its work is no longer in @${change.from.handle ?? "the role"}'s area.`,
+    });
     return { change: "release", role: change.from.handle };
   }
-  await performReparentSession(ctx, actor, { session_id: String(c._id), target: { kind: "role", role_id: String(change.role._id), hold: "bound" }, note: BOUND_NOTE });
+  await performReparentSession(ctx, actor, {
+    session_id: String(c._id),
+    target: { kind: "role", role_id: String(change.role._id), hold: "bound" },
+    note: BOUND_NOTE,
+  });
   return { change: change.kind, role: change.role.handle };
 }
 
@@ -1002,5 +1395,10 @@ export const reconcileHold = internalMutation({
 });
 
 /** Queue the hold check for a session whose binding just changed. */
-export const scheduleHoldCheck = (ctx: { scheduler?: any }, conversationId: any) =>
-  ctx.scheduler?.runAfter(0, internal.sessionOwnership.reconcileHold, { conversation_id: conversationId });
+export const scheduleHoldCheck = (
+  ctx: { scheduler?: any },
+  conversationId: any,
+) =>
+  ctx.scheduler?.runAfter(0, internal.sessionOwnership.reconcileHold, {
+    conversation_id: conversationId,
+  });

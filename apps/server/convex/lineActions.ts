@@ -18,9 +18,20 @@ import { canReadRun } from "./workflow_runs";
 import { findConversationByAnyRef } from "./conversationSessionLookup";
 import { enqueueConfigCommand } from "./users";
 import { canAccessProject, resolveWorkspaceKey } from "./lib/access";
-import { BRIEF_MAX_CHARS, causeHistoryForTask, stationBrief } from "./lineWorkspace";
-import { NO_CAUSE_HISTORY, historyBrief } from "@codecast/shared/contracts/causeHistory";
-import { fileLineCauseCore, startLineCauseCore, type LineCauseInput } from "./lineCause";
+import {
+  BRIEF_MAX_CHARS,
+  causeHistoryForTask,
+  stationBrief,
+} from "./lineWorkspace";
+import {
+  NO_CAUSE_HISTORY,
+  historyBrief,
+} from "@codecast/shared/contracts/causeHistory";
+import {
+  fileLineCauseCore,
+  startLineCauseCore,
+  type LineCauseInput,
+} from "./lineCause";
 import { trialProjectOf } from "./lib/trialDecision";
 
 /** The most cases one try runs: each is a whole agent turn on the publishing machine. */
@@ -44,63 +55,143 @@ export function textHash(text: string): string {
  * the row itself when the viewer pushed it from a file, else the viewer's own
  * push of the same graph (by slug). Throws the reason in words otherwise.
  */
-export async function editableGraph(ctx: any, userId: Id<"users">, workflowId: Id<"workflows">): Promise<Doc<"workflows"> & { origin: NonNullable<Doc<"workflows">["origin"]> }> {
+export async function editableGraph(
+  ctx: any,
+  userId: Id<"users">,
+  workflowId: Id<"workflows">,
+): Promise<
+  Doc<"workflows"> & { origin: NonNullable<Doc<"workflows">["origin"]> }
+> {
   const drawn: Doc<"workflows"> | null = await ctx.db.get(workflowId);
   if (!drawn) throw new ConvexError("This graph is not saved in codecast");
-  const own: Doc<"workflows"> | null = drawn.user_id === userId
-    ? drawn
-    : await ctx.db.query("workflows").withIndex("by_user_slug", (q: any) => q.eq("user_id", userId).eq("slug", drawn.slug)).first();
+  const own: Doc<"workflows"> | null =
+    drawn.user_id === userId
+      ? drawn
+      : await ctx.db
+          .query("workflows")
+          .withIndex("by_user_slug", (q: any) =>
+            q.eq("user_id", userId).eq("slug", drawn.slug),
+          )
+          .first();
   // A teammate's graph and the viewer's own row share only a slug: they are one graph when both
   // were pushed from the same .cast in their checkouts. Another file is another graph, and its edits
   // would land in a repo the runs never read.
-  if (own?.origin && own !== drawn && drawn.origin && own.origin.file !== drawn.origin.file) {
-    throw new ConvexError(`Your ${own.name} is another graph (${own.origin.file}, where this one is ${drawn.origin.file}), so its owner edits this one. To edit it yourself, push ${drawn.origin.file} from your own checkout: cast workflow push ${drawn.origin.file}`);
+  if (
+    own?.origin &&
+    own !== drawn &&
+    drawn.origin &&
+    own.origin.file !== drawn.origin.file
+  ) {
+    throw new ConvexError(
+      `Your ${own.name} is another graph (${own.origin.file}, where this one is ${drawn.origin.file}), so its owner edits this one. To edit it yourself, push ${drawn.origin.file} from your own checkout: cast workflow push ${drawn.origin.file}`,
+    );
   }
   if (own?.origin) return own as any;
   if (drawn.user_id !== userId) {
-    throw new ConvexError(`${drawn.name} was pushed from a teammate's machine, so its owner edits it. To edit it yourself, push it from your own checkout: cast workflow push <its .cast file>`);
+    throw new ConvexError(
+      `${drawn.name} was pushed from a teammate's machine, so its owner edits it. To edit it yourself, push it from your own checkout: cast workflow push <its .cast file>`,
+    );
   }
-  throw new ConvexError(`codecast does not know which file ${drawn.name} lives in: push it once from its checkout (cast workflow push <its .cast file>), then edit it here`);
+  throw new ConvexError(
+    `codecast does not know which file ${drawn.name} lives in: push it once from its checkout (cast workflow push <its .cast file>), then edit it here`,
+  );
 }
 
 /** The step's hash in the graph as last pushed. */
-const nodeHashOf = (row: { origin?: { nodes: Array<{ id: string; h: string }> } | null }, nodeId: string) =>
-  row.origin?.nodes.find((n) => n.id === nodeId)?.h ?? null;
+const nodeHashOf = (
+  row: { origin?: { nodes: Array<{ id: string; h: string }> } | null },
+  nodeId: string,
+) => row.origin?.nodes.find((n) => n.id === nodeId)?.h ?? null;
 
 // ── edit ────────────────────────────────────────────────────────────────────
 
-export type GraphEditInput = { node: string; field?: "prompt" | "script"; text: string; base_hash?: string | null; base_text?: string | null };
+export type GraphEditInput = {
+  node: string;
+  field?: "prompt" | "script";
+  text: string;
+  base_hash?: string | null;
+  base_text?: string | null;
+};
 
 /**
  * Save one step's prompt or script: hands the daemon on the graph's machine a
  * line_graph_edit under the store's request id, so sessionCommands settles
  * the store's row from its answer (and its later push report).
  */
-export async function editLineGraphCore(ctx: any, userId: Id<"users">, requestId: string, workflowId: Id<"workflows">, input: GraphEditInput) {
+export async function editLineGraphCore(
+  ctx: any,
+  userId: Id<"users">,
+  requestId: string,
+  workflowId: Id<"workflows">,
+  input: GraphEditInput,
+) {
   const row = await editableGraph(ctx, userId, workflowId);
   const field = input.field ?? "prompt";
-  if (field !== "prompt" && field !== "script") throw new ConvexError("A step's prompt or script is what can be edited");
-  if (typeof input.text !== "string" || !input.text.trim()) throw new ConvexError(`A step's ${field} cannot be empty`);
-  if (input.text.length > TEXT_MAX_CHARS) throw new ConvexError(`A step's ${field} is at most ${TEXT_MAX_CHARS.toLocaleString()} characters`);
+  if (field !== "prompt" && field !== "script")
+    throw new ConvexError("A step's prompt or script is what can be edited");
+  if (typeof input.text !== "string" || !input.text.trim())
+    throw new ConvexError(`A step's ${field} cannot be empty`);
+  if (input.text.length > TEXT_MAX_CHARS)
+    throw new ConvexError(
+      `A step's ${field} is at most ${TEXT_MAX_CHARS.toLocaleString()} characters`,
+    );
   const node = row.nodes.find((n) => n.id === input.node);
   if (!node) throw new ConvexError(`${row.name} has no step "${input.node}"`);
   // The text the edit was made from travels too: a checkout holding other text refuses rather than mix the two.
-  const baseText = typeof input.base_text === "string" && input.base_text.length <= TEXT_MAX_CHARS ? input.base_text : null;
-  const args = { root: row.origin.root, file: row.origin.file, node: node.id, field, text: input.text, ...(input.base_hash ? { base_hash: input.base_hash } : {}), ...(baseText !== null ? { base_text: baseText } : {}) };
-  const commandId = await enqueueConfigCommand(ctx, userId, "line_graph_edit", JSON.stringify(args), row.origin.device_id, requestId);
+  const baseText =
+    typeof input.base_text === "string" &&
+    input.base_text.length <= TEXT_MAX_CHARS
+      ? input.base_text
+      : null;
+  const args = {
+    root: row.origin.root,
+    file: row.origin.file,
+    node: node.id,
+    field,
+    text: input.text,
+    ...(input.base_hash ? { base_hash: input.base_hash } : {}),
+    ...(baseText !== null ? { base_text: baseText } : {}),
+  };
+  const commandId = await enqueueConfigCommand(
+    ctx,
+    userId,
+    "line_graph_edit",
+    JSON.stringify(args),
+    row.origin.device_id,
+    requestId,
+  );
   return { command_id: commandId, workflow_id: row._id };
 }
 
 // ── try ─────────────────────────────────────────────────────────────────────
 
 /** `base_text` is the text the edit was made from (the drawn graph's step), so the edit replays as the person made it even when the machine's copy differs. */
-export type TryInput = { node: string; text: string; runs: string[]; base_hash?: string | null; base_text?: string | null };
+export type TryInput = {
+  node: string;
+  text: string;
+  runs: string[];
+  base_hash?: string | null;
+  base_text?: string | null;
+};
 
 /** What a step decided when a case ran: its outcome, its pinned words, its json. */
 function oldDecision(nodeStatus: any, conv: any) {
   let result: unknown;
-  try { result = conv?.thread_state_result ? JSON.parse(conv.thread_state_result) : undefined; } catch { result = undefined; }
-  const words = typeof conv?.thread_state === "string" ? conv.thread_state.split("\n").find((l: string) => l.trim())?.trim().slice(0, 600) : undefined;
+  try {
+    result = conv?.thread_state_result
+      ? JSON.parse(conv.thread_state_result)
+      : undefined;
+  } catch {
+    result = undefined;
+  }
+  const words =
+    typeof conv?.thread_state === "string"
+      ? conv.thread_state
+          .split("\n")
+          .find((l: string) => l.trim())
+          ?.trim()
+          .slice(0, 600)
+      : undefined;
   return {
     ...(nodeStatus?.outcome ? { outcome: String(nodeStatus.outcome) } : {}),
     ...(words ? { words } : {}),
@@ -113,35 +204,75 @@ function oldDecision(nodeStatus: any, conv: any) {
  * case, queued, then one line_try command to the graph's machine carrying
  * each case's brief; the daemon reports each row as it settles.
  */
-export async function tryLineStepCore(ctx: any, userId: Id<"users">, tryId: string, workflowId: Id<"workflows">, input: TryInput) {
+export async function tryLineStepCore(
+  ctx: any,
+  userId: Id<"users">,
+  tryId: string,
+  workflowId: Id<"workflows">,
+  input: TryInput,
+) {
   if (!tryId || tryId.length > 64) throw new ConvexError("A try needs its id");
-  const existing = await ctx.db.query("line_tries").withIndex("by_try", (q: any) => q.eq("try_id", tryId)).take(TRY_MAX_CASES);
-  if (existing.length) return { try_id: tryId, rows: existing.map((r: any) => String(r._id)) };
+  const existing = await ctx.db
+    .query("line_tries")
+    .withIndex("by_try", (q: any) => q.eq("try_id", tryId))
+    .take(TRY_MAX_CASES);
+  if (existing.length)
+    return { try_id: tryId, rows: existing.map((r: any) => String(r._id)) };
   const runIds = [...new Set(input.runs ?? [])];
-  if (!runIds.length) throw new ConvexError("Pick at least one case to try the edit on");
-  if (runIds.length > TRY_MAX_CASES) throw new ConvexError(`A try runs at most ${TRY_MAX_CASES} cases at once`);
-  if (typeof input.text !== "string" || !input.text.trim()) throw new ConvexError("Try needs the edited prompt");
-  if (input.text.length > TEXT_MAX_CHARS) throw new ConvexError(`A prompt is at most ${TEXT_MAX_CHARS.toLocaleString()} characters`);
+  if (!runIds.length)
+    throw new ConvexError("Pick at least one case to try the edit on");
+  if (runIds.length > TRY_MAX_CASES)
+    throw new ConvexError(`A try runs at most ${TRY_MAX_CASES} cases at once`);
+  if (typeof input.text !== "string" || !input.text.trim())
+    throw new ConvexError("Try needs the edited prompt");
+  if (input.text.length > TEXT_MAX_CHARS)
+    throw new ConvexError(
+      `A prompt is at most ${TEXT_MAX_CHARS.toLocaleString()} characters`,
+    );
   const row = await editableGraph(ctx, userId, workflowId);
   const node = row.nodes.find((n) => n.id === input.node);
   if (!node) throw new ConvexError(`${row.name} has no step "${input.node}"`);
-  if (!node.prompt || node.type === "command" || node.type === "human") throw new ConvexError(`${node.label} is not an agent's step, so there is no prompt to try`);
+  if (!node.prompt || node.type === "command" || node.type === "human")
+    throw new ConvexError(
+      `${node.label} is not an agent's step, so there is no prompt to try`,
+    );
   const current = nodeHashOf(row, node.id);
   const now = Date.now();
   const text_hash = textHash(input.text);
-  const cases: Array<{ row_id: string; run_id: string; received: string | null; cause_history?: string }> = [];
+  const cases: Array<{
+    row_id: string;
+    run_id: string;
+    received: string | null;
+    cause_history?: string;
+  }> = [];
   // A template that reads $cause_history gets the cause's other attempts, read once per cause (LW5).
   const readsHistory = /\$cause_history\b/.test(input.text);
-  const histories = new Map<string, Awaited<ReturnType<typeof causeHistoryForTask>>["history"]>();
+  const histories = new Map<
+    string,
+    Awaited<ReturnType<typeof causeHistoryForTask>>["history"]
+  >();
   const rows: Id<"line_tries">[] = [];
   for (const runId of runIds) {
-    const run: any = await ctx.db.get(runId as Id<"workflow_runs">).catch(() => null);
-    if (!run || !(await canReadRun(ctx, userId, run))) throw new ConvexError("A case you picked is not one you can read");
-    const status = (run.node_statuses ?? []).find((n: any) => n.node_id === node.id);
-    if (!status) throw new ConvexError(`Case ${run.goal_override ?? runId} never reached ${node.label}`);
-    const conv: any = status.session_id ? await findConversationByAnyRef(ctx, status.session_id, run.user_id) : null;
-    const brief = conv ? await stationBrief(ctx, conv._id) : { text: "", found: false };
-    const ranHash = (run.graph_nodes ?? []).find((n: any) => n.id === node.id)?.h ?? null;
+    const run: any = await ctx.db
+      .get(runId as Id<"workflow_runs">)
+      .catch(() => null);
+    if (!run || !(await canReadRun(ctx, userId, run)))
+      throw new ConvexError("A case you picked is not one you can read");
+    const status = (run.node_statuses ?? []).find(
+      (n: any) => n.node_id === node.id,
+    );
+    if (!status)
+      throw new ConvexError(
+        `Case ${run.goal_override ?? runId} never reached ${node.label}`,
+      );
+    const conv: any = status.session_id
+      ? await findConversationByAnyRef(ctx, status.session_id, run.user_id)
+      : null;
+    const brief = conv
+      ? await stationBrief(ctx, conv._id)
+      : { text: "", found: false };
+    const ranHash =
+      (run.graph_nodes ?? []).find((n: any) => n.id === node.id)?.h ?? null;
     const task: any = run.task_id ? await ctx.db.get(run.task_id) : null;
     const id = await ctx.db.insert("line_tries", {
       key: `${tryId}:${String(run._id)}`,
@@ -157,7 +288,9 @@ export async function tryLineStepCore(ctx: any, userId: Id<"users">, tryId: stri
       at: now,
       updated_at: now,
       status: "queued",
-      ...(ranHash && current && ranHash !== current ? { older_text: true } : {}),
+      ...(ranHash && current && ranHash !== current
+        ? { older_text: true }
+        : {}),
       model: node.model || "opus",
       ...(input.base_hash ? { base_hash: input.base_hash } : {}),
       text_hash,
@@ -168,24 +301,60 @@ export async function tryLineStepCore(ctx: any, userId: Id<"users">, tryId: stri
     let history: string | undefined;
     if (readsHistory && task) {
       const key = String(task._id);
-      if (!histories.has(key)) histories.set(key, (await causeHistoryForTask(ctx, task)).history);
+      if (!histories.has(key))
+        histories.set(key, (await causeHistoryForTask(ctx, task)).history);
       // Every attempt on the cause but this one: what a new attempt is handed now.
-      history = historyBrief(histories.get(key)!, String(run._id), BRIEF_MAX_CHARS) || NO_CAUSE_HISTORY;
+      history =
+        historyBrief(histories.get(key)!, String(run._id), BRIEF_MAX_CHARS) ||
+        NO_CAUSE_HISTORY;
     }
-    cases.push({ row_id: String(id), run_id: String(run._id), received: brief.found && brief.text.length <= TRY_BRIEF_MAX_CHARS ? brief.text : null, ...(history ? { cause_history: history } : {}) });
+    cases.push({
+      row_id: String(id),
+      run_id: String(run._id),
+      received:
+        brief.found && brief.text.length <= TRY_BRIEF_MAX_CHARS
+          ? brief.text
+          : null,
+      ...(history ? { cause_history: history } : {}),
+    });
   }
   const args = {
-    try_id: tryId, root: row.origin.root, file: row.origin.file, node: node.id, model: node.model || "opus",
-    old_template: typeof input.base_text === "string" && input.base_text.trim() ? input.base_text : node.prompt, new_template: input.text, cases,
+    try_id: tryId,
+    root: row.origin.root,
+    file: row.origin.file,
+    node: node.id,
+    model: node.model || "opus",
+    old_template:
+      typeof input.base_text === "string" && input.base_text.trim()
+        ? input.base_text
+        : node.prompt,
+    new_template: input.text,
+    cases,
   };
-  const commandId = await enqueueConfigCommand(ctx, userId, "line_try", JSON.stringify(args), row.origin.device_id);
+  const commandId = await enqueueConfigCommand(
+    ctx,
+    userId,
+    "line_try",
+    JSON.stringify(args),
+    row.origin.device_id,
+  );
   for (const id of rows) await ctx.db.patch(id, { command_id: commandId });
   return { try_id: tryId, rows: rows.map(String), command_id: commandId };
 }
 
-const TRY_STATUS_ORDER = { queued: 0, running: 1, done: 2, not_tryable: 2, failed: 2 } as const;
+const TRY_STATUS_ORDER = {
+  queued: 0,
+  running: 1,
+  done: 2,
+  not_tryable: 2,
+  failed: 2,
+} as const;
 
-const tryDecisionV = v.object({ status: v.optional(v.union(v.string(), v.null())), words: v.optional(v.string()), result: v.optional(v.union(v.any(), v.null())) });
+const tryDecisionV = v.object({
+  status: v.optional(v.union(v.string(), v.null())),
+  words: v.optional(v.string()),
+  result: v.optional(v.union(v.any(), v.null())),
+});
 
 /** The daemon's report on one case (cli lineTry.ts LineTryReport). Only the machine owner who asked writes it, and a settled case stays settled. */
 export const reportTry = mutation({
@@ -193,7 +362,12 @@ export const reportTry = mutation({
     api_token: v.string(),
     row_id: v.id("line_tries"),
     report: v.object({
-      status: v.union(v.literal("running"), v.literal("done"), v.literal("not_tryable"), v.literal("failed")),
+      status: v.union(
+        v.literal("running"),
+        v.literal("done"),
+        v.literal("not_tryable"),
+        v.literal("failed"),
+      ),
       reason: v.optional(v.string()),
       via: v.optional(v.union(v.literal("patch"), v.literal("checkpoint"))),
       decision: v.optional(v.union(tryDecisionV, v.null())),
@@ -209,19 +383,39 @@ export const reportTry = mutation({
     if (!auth) return { error: "Unauthorized" };
     const row = await ctx.db.get(row_id);
     if (!row || row.by !== auth.userId) return { error: "Not found" };
-    if (TRY_STATUS_ORDER[row.status] >= TRY_STATUS_ORDER[report.status] && row.status !== "queued") return { ok: true, ignored: true };
+    if (
+      TRY_STATUS_ORDER[row.status] >= TRY_STATUS_ORDER[report.status] &&
+      row.status !== "queued"
+    )
+      return { ok: true, ignored: true };
     const d = report.decision;
     await ctx.db.patch(row_id, {
       status: report.status,
       updated_at: Date.now(),
       ...(report.reason ? { reason: report.reason.slice(0, 600) } : {}),
       ...(report.via ? { via: report.via } : {}),
-      ...(d ? { new: { ...(d.status ? { status: d.status } : {}), ...(d.words ? { words: d.words.slice(0, 600) } : {}), ...(d.result && typeof d.result === "object" ? { result: d.result } : {}) } } : {}),
+      ...(d
+        ? {
+            new: {
+              ...(d.status ? { status: d.status } : {}),
+              ...(d.words ? { words: d.words.slice(0, 600) } : {}),
+              ...(d.result && typeof d.result === "object"
+                ? { result: d.result }
+                : {}),
+            },
+          }
+        : {}),
       ...(report.reply ? { reply: report.reply.slice(0, 8000) } : {}),
-      ...(typeof report.cost_usd === "number" ? { cost_usd: report.cost_usd } : {}),
+      ...(typeof report.cost_usd === "number"
+        ? { cost_usd: report.cost_usd }
+        : {}),
       ...(typeof report.turns === "number" ? { turns: report.turns } : {}),
-      ...(report.refused ? { refused: report.refused.slice(0, 40).map((r) => r.slice(0, 300)) } : {}),
-      ...(typeof report.took_ms === "number" ? { took_ms: report.took_ms } : {}),
+      ...(report.refused
+        ? { refused: report.refused.slice(0, 40).map((r) => r.slice(0, 300)) }
+        : {}),
+      ...(typeof report.took_ms === "number"
+        ? { took_ms: report.took_ms }
+        : {}),
     });
     return { ok: true };
   },
@@ -231,7 +425,10 @@ export const reportTry = mutation({
 const TRIES_CAP = 400;
 
 /** A try's case as every reader gets it, with its machine's pickup when it has not started. */
-const shapeTry = (r: Doc<"line_tries">, command: Doc<"daemon_commands"> | null) => ({
+const shapeTry = (
+  r: Doc<"line_tries">,
+  command: Doc<"daemon_commands"> | null,
+) => ({
   _id: String(r._id),
   key: r.key,
   try_id: r.try_id,
@@ -260,7 +457,15 @@ const shapeTry = (r: Doc<"line_tries">, command: Doc<"daemon_commands"> | null) 
   ...(r.refused ? { refused: r.refused } : {}),
   ...(typeof r.took_ms === "number" ? { took_ms: r.took_ms } : {}),
   // A case still queued says whether its machine took the command, or why it never will.
-  ...(r.status === "queued" && command ? { pickup: command.error ? { error: command.error } : command.executed_at ? { at: command.executed_at } : { waiting: true } } : {}),
+  ...(r.status === "queued" && command
+    ? {
+        pickup: command.error
+          ? { error: command.error }
+          : command.executed_at
+            ? { at: command.executed_at }
+            : { waiting: true },
+      }
+    : {}),
 });
 
 /** A project's tries: the cases the viewer may read (their run's workspace is the project's, or the viewer asked), newest first. */
@@ -271,8 +476,13 @@ export const tries = query({
     if (!userId) return [];
     const project = await ctx.db.get(args.project_id);
     if (!project || !(await canAccessProject(ctx, userId, project))) return [];
-    const workspace = project.workspace ?? (await resolveWorkspaceKey(ctx, project));
-    const rows = await ctx.db.query("line_tries").withIndex("by_project_at", (q) => q.eq("project_id", args.project_id)).order("desc").take(TRIES_CAP);
+    const workspace =
+      project.workspace ?? (await resolveWorkspaceKey(ctx, project));
+    const rows = await ctx.db
+      .query("line_tries")
+      .withIndex("by_project_at", (q) => q.eq("project_id", args.project_id))
+      .order("desc")
+      .take(TRIES_CAP);
     const commands = new Map<string, Doc<"daemon_commands"> | null>();
     const out = [];
     for (const r of rows) {
@@ -298,18 +508,52 @@ export const versions = query({
     const row = await ctx.db.get(args.workflow_id);
     if (!row) return [];
     if (row.user_id !== userId) {
-      const runs = await ctx.db.query("workflow_runs").withIndex("by_workflow_id", (q) => q.eq("workflow_id", args.workflow_id)).order("desc").take(5);
+      const runs = await ctx.db
+        .query("workflow_runs")
+        .withIndex("by_workflow_id", (q) =>
+          q.eq("workflow_id", args.workflow_id),
+        )
+        .order("desc")
+        .take(5);
       let readable = false;
-      for (const r of runs) if (await canReadRun(ctx, userId, r)) { readable = true; break; }
+      for (const r of runs)
+        if (await canReadRun(ctx, userId, r)) {
+          readable = true;
+          break;
+        }
       if (!readable) return [];
     }
     // The viewer's own push of the same graph carries the versions their edits make.
-    const own = row.user_id === userId ? row : await ctx.db.query("workflows").withIndex("by_user_slug", (q) => q.eq("user_id", userId).eq("slug", row.slug)).first();
-    const ids = [...new Set([String(row._id), ...(own ? [String(own._id)] : [])])] as Id<"workflows">[];
+    const own =
+      row.user_id === userId
+        ? row
+        : await ctx.db
+            .query("workflows")
+            .withIndex("by_user_slug", (q) =>
+              q.eq("user_id", userId).eq("slug", row.slug),
+            )
+            .first();
+    const ids = [
+      ...new Set([String(row._id), ...(own ? [String(own._id)] : [])]),
+    ] as Id<"workflows">[];
     const out = [];
     for (const id of ids) {
-      const vs = await ctx.db.query("workflow_versions").withIndex("by_workflow_at", (q) => q.eq("workflow_id", id)).order("desc").take(100);
-      for (const ver of vs) out.push({ _id: String(ver._id), workflow_id: String(args.workflow_id), pushed_to: String(id), graph_hash: ver.graph_hash, nodes: ver.nodes, changed: ver.changed, by: String(ver.by), at: ver.at });
+      const vs = await ctx.db
+        .query("workflow_versions")
+        .withIndex("by_workflow_at", (q) => q.eq("workflow_id", id))
+        .order("desc")
+        .take(100);
+      for (const ver of vs)
+        out.push({
+          _id: String(ver._id),
+          workflow_id: String(args.workflow_id),
+          pushed_to: String(id),
+          graph_hash: ver.graph_hash,
+          nodes: ver.nodes,
+          changed: ver.changed,
+          by: String(ver.by),
+          at: ver.at,
+        });
     }
     return out.sort((a, b) => b.at - a.at);
   },
@@ -323,18 +567,44 @@ export const editability = query({
     if (!userId) return null;
     try {
       const row = await editableGraph(ctx, userId, args.workflow_id);
-      return { _id: String(args.workflow_id), editable: true as const, file: row.origin.file, files: row.origin.files, device_id: row.origin.device_id, nodes: row.origin.nodes, target: String(row._id), home: await graphHome(ctx, userId, row) };
+      return {
+        _id: String(args.workflow_id),
+        editable: true as const,
+        file: row.origin.file,
+        files: row.origin.files,
+        device_id: row.origin.device_id,
+        nodes: row.origin.nodes,
+        target: String(row._id),
+        home: await graphHome(ctx, userId, row),
+      };
     } catch (err) {
       const drawn: Doc<"workflows"> | null = await ctx.db.get(args.workflow_id);
-      return { _id: String(args.workflow_id), editable: false as const, reason: err instanceof ConvexError ? String(err.data) : "This graph cannot be edited here", ...(drawn ? { home: await graphHome(ctx, userId, drawn) } : {}) };
+      return {
+        _id: String(args.workflow_id),
+        editable: false as const,
+        reason:
+          err instanceof ConvexError
+            ? String(err.data)
+            : "This graph cannot be edited here",
+        ...(drawn ? { home: await graphHome(ctx, userId, drawn) } : {}),
+      };
     }
   },
 });
 
 /** A machine's name as its owner sees it: its hostname, else its label. */
-async function machineName(ctx: any, userId: Id<"users">, deviceId: string | undefined): Promise<string | null> {
+async function machineName(
+  ctx: any,
+  userId: Id<"users">,
+  deviceId: string | undefined,
+): Promise<string | null> {
   if (!deviceId) return null;
-  const d: Doc<"devices"> | null = await ctx.db.query("devices").withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", deviceId)).first();
+  const d: Doc<"devices"> | null = await ctx.db
+    .query("devices")
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", userId).eq("device_id", deviceId),
+    )
+    .first();
   return d?.hostname || d?.label || null;
 }
 
@@ -345,19 +615,32 @@ async function machineName(ctx: any, userId: Id<"users">, deviceId: string | und
  * their file and machine.
  */
 async function graphHome(ctx: any, userId: Id<"users">, row: Doc<"workflows">) {
-  const runs: Doc<"workflow_runs">[] = await ctx.db.query("workflow_runs").withIndex("by_workflow_id", (q: any) => q.eq("workflow_id", row._id)).order("desc").take(5);
+  const runs: Doc<"workflow_runs">[] = await ctx.db
+    .query("workflow_runs")
+    .withIndex("by_workflow_id", (q: any) => q.eq("workflow_id", row._id))
+    .order("desc")
+    .take(5);
   if (row.user_id !== userId) {
     let readable = false;
-    for (const r of runs) if (await canReadRun(ctx, userId, r)) { readable = true; break; }
+    for (const r of runs)
+      if (await canReadRun(ctx, userId, r)) {
+        readable = true;
+        break;
+      }
     if (!readable) return null;
   }
   const ran = runs.find((r) => !!r.runner_device) ?? null;
-  const owner: Doc<"users"> | null = row.user_id === userId ? null : await ctx.db.get(row.user_id);
+  const owner: Doc<"users"> | null =
+    row.user_id === userId ? null : await ctx.db.get(row.user_id);
   return {
     slug: row.slug,
     file: row.origin?.file ?? null,
     files: row.origin?.files ?? [],
-    machine: row.origin ? await machineName(ctx, row.user_id, row.origin.device_id) : ran ? await machineName(ctx, ran.user_id, ran.runner_device) : null,
+    machine: row.origin
+      ? await machineName(ctx, row.user_id, row.origin.device_id)
+      : ran
+        ? await machineName(ctx, ran.user_id, ran.runner_device)
+        : null,
     owner: owner?.name ?? null,
   };
 }
@@ -370,15 +653,38 @@ async function graphHome(ctx: any, userId: Id<"users">, row: Doc<"workflows">) {
  * signal, and the project's line is started on it. A line nobody leads files
  * the cause and says why it did not start, rather than refuse the words.
  */
-export async function askLineAgentCore(ctx: any, userId: Id<"users">, clientKey: string, projectId: Id<"projects">, input: LineCauseInput) {
-  const filed = await fileLineCauseCore(ctx, userId, clientKey, projectId, input);
+export async function askLineAgentCore(
+  ctx: any,
+  userId: Id<"users">,
+  clientKey: string,
+  projectId: Id<"projects">,
+  input: LineCauseInput,
+) {
+  const filed = await fileLineCauseCore(
+    ctx,
+    userId,
+    clientKey,
+    projectId,
+    input,
+  );
   // A replayed ask whose run already started answers with that run.
   const task: any = await ctx.db.get(filed.task_id);
-  if (task?.workflow_run_id) return { ...filed, started: true as const, run_id: task.workflow_run_id };
+  if (task?.workflow_run_id)
+    return { ...filed, started: true as const, run_id: task.workflow_run_id };
   try {
-    const started = await startLineCauseCore(ctx, userId, filed.task_id as Id<"tasks">);
-    if (!started.run_id) return { ...filed, started: false as const, reason: started.queued! };
-    return { ...filed, started: true as const, run_id: started.run_id, role_handle: started.role_handle };
+    const started = await startLineCauseCore(
+      ctx,
+      userId,
+      filed.task_id as Id<"tasks">,
+    );
+    if (!started.run_id)
+      return { ...filed, started: false as const, reason: started.queued! };
+    return {
+      ...filed,
+      started: true as const,
+      run_id: started.run_id,
+      role_handle: started.role_handle,
+    };
   } catch (err) {
     if (!(err instanceof ConvexError)) throw err;
     return { ...filed, started: false as const, reason: String(err.data) };
@@ -395,18 +701,57 @@ export async function askLineAgentCore(ctx: any, userId: Id<"users">, clientKey:
  * (`cast line trial rerun <task> --reask`). One request waits at a time: a
  * second press while the first is still queued answers with it.
  */
-export async function reaskTrialRunCore(ctx: any, userId: Id<"users">, taskRef: string) {
+export async function reaskTrialRunCore(
+  ctx: any,
+  userId: Id<"users">,
+  taskRef: string,
+) {
   const id = ctx.db.normalizeId("tasks", taskRef);
-  const task: Doc<"tasks"> | null = id ? await ctx.db.get(id) : await ctx.db.query("tasks").withIndex("by_short_id", (q: any) => q.eq("short_id", taskRef)).first();
+  const task: Doc<"tasks"> | null = id
+    ? await ctx.db.get(id)
+    : await ctx.db
+        .query("tasks")
+        .withIndex("by_short_id", (q: any) => q.eq("short_id", taskRef))
+        .first();
   const project = await trialProjectOf(ctx, task);
-  if (!task || !project || !(await canAccessProject(ctx, userId, project))) throw new ConvexError("This is not a problem in a trial project");
-  const run: Doc<"workflow_runs"> | null = task.workflow_run_id ? await ctx.db.get(task.workflow_run_id) : null;
-  if (!run || run.status !== "paused" || !run.gate_node_id) throw new ConvexError(`${task.short_id}'s run is not waiting at a card`);
-  if (!run.runner_device) throw new ConvexError(`${task.short_id}'s run names no machine`);
-  const args = JSON.stringify({ task: task.short_id, ...(run.project_path ? { project_path: run.project_path } : {}) });
-  const queued: Doc<"daemon_commands">[] = await ctx.db.query("daemon_commands").withIndex("by_user_pending", (q: any) => q.eq("user_id", userId).eq("executed_at", undefined)).collect();
-  const waiting = queued.find((c) => c.command === "line_trial_reask" && c.args === args);
-  if (waiting) return { task: task.short_id, command_id: String(waiting._id), queued: true as const };
-  const commandId = await enqueueConfigCommand(ctx, userId, "line_trial_reask", args, run.runner_device);
-  return { task: task.short_id, command_id: String(commandId), queued: false as const };
+  if (!task || !project || !(await canAccessProject(ctx, userId, project)))
+    throw new ConvexError("This is not a problem in a trial project");
+  const run: Doc<"workflow_runs"> | null = task.workflow_run_id
+    ? await ctx.db.get(task.workflow_run_id)
+    : null;
+  if (!run || run.status !== "paused" || !run.gate_node_id)
+    throw new ConvexError(`${task.short_id}'s run is not waiting at a card`);
+  if (!run.runner_device)
+    throw new ConvexError(`${task.short_id}'s run names no machine`);
+  const args = JSON.stringify({
+    task: task.short_id,
+    ...(run.project_path ? { project_path: run.project_path } : {}),
+  });
+  const queued: Doc<"daemon_commands">[] = await ctx.db
+    .query("daemon_commands")
+    .withIndex("by_user_pending", (q: any) =>
+      q.eq("user_id", userId).eq("executed_at", undefined),
+    )
+    .collect();
+  const waiting = queued.find(
+    (c) => c.command === "line_trial_reask" && c.args === args,
+  );
+  if (waiting)
+    return {
+      task: task.short_id,
+      command_id: String(waiting._id),
+      queued: true as const,
+    };
+  const commandId = await enqueueConfigCommand(
+    ctx,
+    userId,
+    "line_trial_reask",
+    args,
+    run.runner_device,
+  );
+  return {
+    task: task.short_id,
+    command_id: String(commandId),
+    queued: false as const,
+  };
 }

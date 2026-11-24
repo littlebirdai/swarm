@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
-import { HEAD_OF_PEOPLE_JOB, HEAD_OF_PEOPLE_PROMPT, headOfPeopleOpening, headOfPeoplePrompt } from "./headOfPeoplePrompt";
+import {
+  HEAD_OF_PEOPLE_JOB,
+  HEAD_OF_PEOPLE_PROMPT,
+  headOfPeopleOpening,
+  headOfPeoplePrompt,
+} from "./headOfPeoplePrompt";
 import { ORG_CHANGE_KINDS, parseOrgProposalSpec } from "./orgProposal";
 
 // The Head of People's prompt is the product decision written in
@@ -9,36 +14,71 @@ import { ORG_CHANGE_KINDS, parseOrgProposalSpec } from "./orgProposal";
 
 describe("the Head of People prompt", () => {
   test("is the text of the decision doc", () => {
-    const doc = fs.readFileSync(path.join(import.meta.dir, "../../../docs/architecture/head-of-people-prompt.md"), "utf8");
+    const doc = fs.readFileSync(
+      path.join(
+        import.meta.dir,
+        "../../../docs/architecture/head-of-people-prompt.md",
+      ),
+      "utf8",
+    );
     expect(HEAD_OF_PEOPLE_PROMPT).toBe(doc.trim());
   });
 
   test("fills the workspace and the person everywhere", () => {
     const p = headOfPeoplePrompt({ workspace: "Acme", person: "Ada" });
     expect(p).not.toMatch(/\{workspace\}|\{person\}/);
-    expect(p.startsWith("You are the Head of People for Acme. You report to Ada.")).toBe(true);
+    expect(
+      p.startsWith("You are the Head of People for Acme. You report to Ada."),
+    ).toBe(true);
     expect(p).toContain("where each of Ada's sessions belongs");
   });
 
   test("says leads report to the person by default, in one sentence", () => {
-    expect(HEAD_OF_PEOPLE_PROMPT.match(/Leads report to \{person\} by default[^.]*\./g)).toHaveLength(1);
+    expect(
+      HEAD_OF_PEOPLE_PROMPT.match(
+        /Leads report to \{person\} by default[^.]*\./g,
+      ),
+    ).toHaveLength(1);
   });
   test("the reference's example parses with the reader cast org propose uses, and every shape it lists is a change kind", () => {
-    const p = headOfPeoplePrompt({ workspace: "Acme", person: "Ada", mode: "init" });
+    const p = headOfPeoplePrompt({
+      workspace: "Acme",
+      person: "Ada",
+      mode: "init",
+    });
     const json = p.split("```json\n")[1].split("\n```")[0];
     const parsed = parseOrgProposalSpec(JSON.parse(json));
     expect(parsed.errors).toEqual([]);
     expect(parsed.spec!.mode).toBe("init");
     const kinds = [...p.matchAll(/^- (\w+): \{/gm)].map((m) => m[1]);
     expect(kinds.length).toBeGreaterThan(5);
-    for (const k of kinds) expect(ORG_CHANGE_KINDS as readonly string[]).toContain(k);
+    for (const k of kinds)
+      expect(ORG_CHANGE_KINDS as readonly string[]).toContain(k);
   });
 
   test("an open proposal is a fact in the reference; the team flag rides every workspace verb", () => {
     const now = Date.UTC(2026, 9, 16);
-    const p = headOfPeoplePrompt({ workspace: "Acme", person: "Ada", team: "Acme", now, open: [{ short_id: "op-3", title: "Company review: Acme", decided: 1, total: 4, created_at: now - 8 * 86_400_000 }, { short_id: "op-5", title: "File two sessions", decided: 0, total: 2 }] });
-    expect(p).toContain('Still open:\n- op-3 "Company review: Acme", 1 of 4 changes decided, posted 8 days ago.\n- op-5 "File two sessions", 0 of 2 changes decided.');
-    for (const verb of ["inputs", "health", "propose", "proposals"]) expect(p).toContain(`cast org ${verb} --team "Acme"`);
+    const p = headOfPeoplePrompt({
+      workspace: "Acme",
+      person: "Ada",
+      team: "Acme",
+      now,
+      open: [
+        {
+          short_id: "op-3",
+          title: "Company review: Acme",
+          decided: 1,
+          total: 4,
+          created_at: now - 8 * 86_400_000,
+        },
+        { short_id: "op-5", title: "File two sessions", decided: 0, total: 2 },
+      ],
+    });
+    expect(p).toContain(
+      'Still open:\n- op-3 "Company review: Acme", 1 of 4 changes decided, posted 8 days ago.\n- op-5 "File two sessions", 0 of 2 changes decided.',
+    );
+    for (const verb of ["inputs", "health", "propose", "proposals"])
+      expect(p).toContain(`cast org ${verb} --team "Acme"`);
   });
 });
 
@@ -51,7 +91,9 @@ describe("the Head of People opening", () => {
 
   test("keeps the structure true: reviews weekly, proposes, applies nothing, holds the remainder, routes to the owner", () => {
     expect(o).not.toMatch(/\{workspace\}|\{person\}/);
-    expect(o.startsWith("You are the Head of People for Acme. You report to Ada.")).toBe(true);
+    expect(
+      o.startsWith("You are the Head of People for Acme. You report to Ada."),
+    ).toBe(true);
     expect(o).toContain("keep the company's structure true");
     expect(o).toContain("Company review");
     expect(o).toContain("apply nothing yourself");
@@ -63,7 +105,11 @@ describe("the Head of People opening", () => {
   });
 
   test("its job paragraph is the charter", () => {
-    expect(HEAD_OF_PEOPLE_JOB.startsWith("Your job is to keep the company's structure true")).toBe(true);
+    expect(
+      HEAD_OF_PEOPLE_JOB.startsWith(
+        "Your job is to keep the company's structure true",
+      ),
+    ).toBe(true);
     expect(o).toContain(HEAD_OF_PEOPLE_JOB.split("{person}").join("Ada"));
   });
 });

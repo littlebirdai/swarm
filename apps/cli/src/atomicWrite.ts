@@ -33,4 +33,7 @@
  *    whose directory is not writable is not, and fails before anything is
  *    published.
  */
-export { atomicWriteFile, type AtomicWriteOptions } from "@platform/cli-kit/retryQueue";
+export {
+  atomicWriteFile,
+  type AtomicWriteOptions,
+} from "@platform/cli-kit/retryQueue";

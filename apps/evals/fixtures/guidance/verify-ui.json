@@ -2,9 +2,7 @@
   "asOf": "2026-10-06T12:00:00.000Z",
   "notes": "A page check: the person's Chrome through cast browser.",
   "label": {
-    "want": [
-      "cast\\s+browser\\b"
-    ],
+    "want": ["cast\\s+browser\\b"],
     "avoid": [
       "^WebFetch:",
       "\\bcurl\\b",

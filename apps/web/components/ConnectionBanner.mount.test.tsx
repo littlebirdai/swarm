@@ -12,12 +12,33 @@ import { closeDomWindow } from "../test-helpers/domGlobals";
 async function mountBanner(opts: { online: boolean; wsConnected: boolean }) {
   jest.useFakeTimers();
   const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh" });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "CustomEvent", "Event", "getComputedStyle"]) {
-    Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+  const dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh" },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "MutationObserver",
+    "CustomEvent",
+    "Event",
+    "getComputedStyle",
+  ]) {
+    Object.defineProperty(globalThis, key, {
+      value: (dom.window as any)[key],
+      configurable: true,
+      writable: true,
+    });
   }
   const state = { ...opts };
-  Object.defineProperty(dom.window.navigator, "onLine", { configurable: true, get: () => state.online });
+  Object.defineProperty(dom.window.navigator, "onLine", {
+    configurable: true,
+    get: () => state.online,
+  });
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
   const client = {
@@ -41,14 +62,20 @@ async function mountBanner(opts: { online: boolean; wsConnected: boolean }) {
   const root = createRoot(document.getElementById("root")!);
   act(() => {
     root.render(
-      React.createElement(ConvexProvider, { client: client as any },
+      React.createElement(
+        ConvexProvider,
+        { client: client as any },
         React.createElement(StatusNoticeStack),
         React.createElement(ConnectionBanner),
       ),
     );
   });
 
-  const advance = async (ms: number) => { act(() => { jest.advanceTimersByTime(ms); }); };
+  const advance = async (ms: number) => {
+    act(() => {
+      jest.advanceTimersByTime(ms);
+    });
+  };
   const setOnline = async (online: boolean) => {
     act(() => {
       state.online = online;
@@ -60,7 +87,13 @@ async function mountBanner(opts: { online: boolean; wsConnected: boolean }) {
     useStatusNoticeStore.getState().set("connection", null);
     closeDomWindow(dom);
   };
-  return { ...timing, advance, setOnline, unmount, notices: () => useStatusNoticeStore.getState().notices };
+  return {
+    ...timing,
+    advance,
+    setOnline,
+    unmount,
+    notices: () => useStatusNoticeStore.getState().notices,
+  };
 }
 
 describe("ConnectionBanner", () => {

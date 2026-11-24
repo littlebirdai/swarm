@@ -18,7 +18,10 @@ import { PaletteSessionRow, PaletteSearchResultRow } from "../PaletteRows";
 import { DecisionCompactCardView } from "../decisions/DecisionCompactCard";
 import { offlineConvexClient } from "../../test-helpers/offlineConvex";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "http://localhost/" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "http://localhost/",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -26,9 +29,14 @@ const restoreGlobals = replaceGlobals({
   HTMLElement: dom.window.HTMLElement,
   Element: dom.window.Element,
   getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  requestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0) as unknown as number,
+  requestAnimationFrame: (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(0), 0) as unknown as number,
   cancelAnimationFrame: (id: number) => clearTimeout(id),
-  ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
+  ResizeObserver: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 // cmdk scrolls the selected item into view; jsdom has no layout.
@@ -50,18 +58,50 @@ async function mount(node: React.ReactNode) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await act(async () => { root.render(<ConvexProvider client={convex}><MemoryRouter>{node}</MemoryRouter></ConvexProvider>); });
+  await act(async () => {
+    root.render(
+      <ConvexProvider client={convex}>
+        <MemoryRouter>{node}</MemoryRouter>
+      </ConvexProvider>,
+    );
+  });
   return { container, unmount: () => act(() => root.unmount()) };
 }
 
-const click = (el: Element | null) => act(() => { el!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+const click = (el: Element | null) =>
+  act(() => {
+    el!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
 
 test("KanbanCard hands the assignee click to onAssign", async () => {
   const before = useInboxStore.getState().palette;
   const calls: number[] = [];
-  const task = { _id: "hero-t1", short_id: "ct-hero1", title: "Retry webhooks", task_type: "task", status: "open", priority: "high", source: "human", created_at: NOW, updated_at: NOW, assignee_info: { name: "Ada Lovelace" } };
-  const { container, unmount } = await mount(<KanbanCard task={task} onFilterLabel={() => {}} onClick={() => {}} onContextMenu={() => {}} onAssign={() => calls.push(1)} />);
-  await click(container.querySelector('button[aria-label="Change assignee: Ada Lovelace"]'));
+  const task = {
+    _id: "hero-t1",
+    short_id: "ct-hero1",
+    title: "Retry webhooks",
+    task_type: "task",
+    status: "open",
+    priority: "high",
+    source: "human",
+    created_at: NOW,
+    updated_at: NOW,
+    assignee_info: { name: "Ada Lovelace" },
+  };
+  const { container, unmount } = await mount(
+    <KanbanCard
+      task={task}
+      onFilterLabel={() => {}}
+      onClick={() => {}}
+      onContextMenu={() => {}}
+      onAssign={() => calls.push(1)}
+    />,
+  );
+  await click(
+    container.querySelector(
+      'button[aria-label="Change assignee: Ada Lovelace"]',
+    ),
+  );
   expect(calls).toEqual([1]);
   expect(useInboxStore.getState().palette).toBe(before);
   await unmount();
@@ -70,8 +110,17 @@ test("KanbanCard hands the assignee click to onAssign", async () => {
 test("DocRow hands the star click to onStar", async () => {
   const before = useInboxStore.getState().docs;
   const calls: [string, boolean][] = [];
-  const doc = { _id: "hero-d1", title: "Retry design", doc_type: "design", source: "human", created_at: NOW, updated_at: NOW } as any;
-  const { container, unmount } = await mount(<DocRow doc={doc} onStar={(d, starred) => calls.push([d._id, starred])} />);
+  const doc = {
+    _id: "hero-d1",
+    title: "Retry design",
+    doc_type: "design",
+    source: "human",
+    created_at: NOW,
+    updated_at: NOW,
+  } as any;
+  const { container, unmount } = await mount(
+    <DocRow doc={doc} onStar={(d, starred) => calls.push([d._id, starred])} />,
+  );
   await click(container.querySelector('button[aria-label="Star document"]'));
   expect(calls).toEqual([["hero-d1", true]]);
   expect(useInboxStore.getState().docs).toBe(before);
@@ -83,13 +132,34 @@ test("palette rows draw inside cmdk and select through onSelect", async () => {
   const { container, unmount } = await mount(
     <Command>
       <Command.List>
-        <PaletteSessionRow conv={{ _id: "hero-c1", title: "Fix the auth race", project_path: "/src/api", updated_at: NOW - 5 * 60_000 }} bucket={{ name: "Launch" }} onSelect={() => picked.push("recent")} />
-        <PaletteSearchResultRow result={{ conversationId: "hero-c2", title: "Deploy script", updatedAt: NOW, isOwn: true, matches: [{ content: "rotate the token" }] }} onSelect={() => picked.push("search")} />
+        <PaletteSessionRow
+          conv={{
+            _id: "hero-c1",
+            title: "Fix the auth race",
+            project_path: "/src/api",
+            updated_at: NOW - 5 * 60_000,
+          }}
+          bucket={{ name: "Launch" }}
+          onSelect={() => picked.push("recent")}
+        />
+        <PaletteSearchResultRow
+          result={{
+            conversationId: "hero-c2",
+            title: "Deploy script",
+            updatedAt: NOW,
+            isOwn: true,
+            matches: [{ content: "rotate the token" }],
+          }}
+          onSelect={() => picked.push("search")}
+        />
       </Command.List>
     </Command>,
   );
   const items = [...container.querySelectorAll("[cmdk-item]")];
-  expect(items.map((i) => i.getAttribute("data-palette-id"))).toEqual(["hero-c1", "hero-c2"]);
+  expect(items.map((i) => i.getAttribute("data-palette-id"))).toEqual([
+    "hero-c1",
+    "hero-c2",
+  ]);
   expect(items[0].textContent).toContain("Launch");
   expect(items[0].textContent).toContain("5m ago");
   expect(items[1].textContent).toContain("rotate the token");
@@ -102,13 +172,28 @@ test("palette rows draw inside cmdk and select through onSelect", async () => {
 test("DecisionCompactCardView answers through onAnswer", async () => {
   const answers: unknown[] = [];
   const decision = {
-    _id: "hero-dec1", conversation_id: "hero-c1", session_id: "s1", session_title: "Webhook retry rewrite",
-    question: "Flag or everyone?", options: [{ label: "Behind a flag" }, { label: "Everyone" }],
-    blocking: true, status: "pending", created_at: NOW - 60_000,
+    _id: "hero-dec1",
+    conversation_id: "hero-c1",
+    session_id: "s1",
+    session_title: "Webhook retry rewrite",
+    question: "Flag or everyone?",
+    options: [{ label: "Behind a flag" }, { label: "Everyone" }],
+    blocking: true,
+    status: "pending",
+    created_at: NOW - 60_000,
   } as any;
-  const { container, unmount } = await mount(<DecisionCompactCardView decision={decision} now={NOW} onAnswer={(i) => answers.push(i)} onDismiss={() => {}} />);
+  const { container, unmount } = await mount(
+    <DecisionCompactCardView
+      decision={decision}
+      now={NOW}
+      onAnswer={(i) => answers.push(i)}
+      onDismiss={() => {}}
+    />,
+  );
   expect(container.textContent).toContain("Webhook retry rewrite");
-  const option = [...container.querySelectorAll("button")].find((b) => b.textContent?.includes("Everyone"));
+  const option = [...container.querySelectorAll("button")].find((b) =>
+    b.textContent?.includes("Everyone"),
+  );
   await click(option!);
   expect(answers).toEqual([{ index: 1 }]);
   await unmount();

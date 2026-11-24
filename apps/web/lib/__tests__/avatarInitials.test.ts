@@ -25,7 +25,9 @@ describe("hueFor", () => {
   test("is stable and differs between names", () => {
     expect(hueFor("team")).toBe(hueFor("team"));
     expect(hueFor("team")).toMatch(/^#[0-9a-f]{6}$/);
-    const hues = new Set(["team", "chat-smoke", "general", "ops", "design"].map(hueFor));
+    const hues = new Set(
+      ["team", "chat-smoke", "general", "ops", "design"].map(hueFor),
+    );
     expect(hues.size).toBeGreaterThan(1);
   });
 });

@@ -10,7 +10,12 @@ import type { HeroChapter } from "./contract";
 export const chapter: HeroChapter = {
   id: "memory",
   parts: [
-    { key: "palette", region: "palette.main", order: 0, Component: PaletteSearch },
+    {
+      key: "palette",
+      region: "palette.main",
+      order: 0,
+      Component: PaletteSearch,
+    },
     { key: "blame", region: "blame.main", order: 0, Component: Blame },
   ],
 };

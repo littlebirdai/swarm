@@ -45,11 +45,13 @@ export const POOL_SPLIT_DAYS = 7;
 export const SEALER_STALE_MS = 3 * 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
-
 /** The profile name a pool copy takes on a teammate's machine. The daemon
  *  suffixes it when the name is already taken there. */
 export function poolProfileName(email: string): string {
-  const local = normalizeEmail(email).split("@")[0].replace(/[^a-z0-9._-]/g, "") || "account";
+  const local =
+    normalizeEmail(email)
+      .split("@")[0]
+      .replace(/[^a-z0-9._-]/g, "") || "account";
   return `pool-${local}`.slice(0, 41);
 }
 
@@ -58,10 +60,16 @@ export const LINE_POOL = "line";
 /** Every label a share may carry. */
 export const POOL_LABELS: readonly string[] = [LINE_POOL];
 
-type HoldingDevice = Pick<Doc<"devices">, "device_id" | "is_remote" | "line_slots" | "user_id">;
+type HoldingDevice = Pick<
+  Doc<"devices">,
+  "device_id" | "is_remote" | "line_slots" | "user_id"
+>;
 
-const runsLineWork = (device: Pick<Doc<"devices">, "is_remote" | "line_slots">) => !!device.is_remote && !!device.line_slots?.length;
-const oldest = (rows: Share[]) => [...rows].sort((a, b) => a._creationTime - b._creationTime)[0];
+const runsLineWork = (
+  device: Pick<Doc<"devices">, "is_remote" | "line_slots">,
+) => !!device.is_remote && !!device.line_slots?.length;
+const oldest = (rows: Share[]) =>
+  [...rows].sort((a, b) => a._creationTime - b._creationTime)[0];
 
 /**
  * The one row of an account that puts it on one of its owner's machines: the
@@ -71,10 +79,14 @@ const oldest = (rows: Share[]) => [...rows].sort((a, b) => a._creationTime - b._
  * existed) reaches the owner's machines through its oldest team row until
  * ensurePersonalShares writes one. `rows` is every row of the account's.
  */
-export function servingRow(rows: Share[], device: HoldingDevice): Share | undefined {
+export function servingRow(
+  rows: Share[],
+  device: HoldingDevice,
+): Share | undefined {
   const personal = rows.find((r) => !r.team_id);
   if (personal) {
-    if (!personal.device_ids || personal.device_ids.includes(device.device_id)) return personal;
+    if (!personal.device_ids || personal.device_ids.includes(device.device_id))
+      return personal;
   } else if (!runsLineWork(device)) {
     return oldest(rows);
   }
@@ -87,15 +99,21 @@ export function servingRow(rows: Share[], device: HoldingDevice): Share | undefi
  *  personal machine of a team share, and a cloud host only when the share is
  *  in the line pool and the host runs line work. A personal row reaches no
  *  one else. */
-export function deviceMayHold(share: Share, device: HoldingDevice, ownerRows: Share[] = [share]): boolean {
-  if (String(device.user_id) === String(share.user_id)) return servingRow(ownerRows, device)?._id === share._id;
+export function deviceMayHold(
+  share: Share,
+  device: HoldingDevice,
+  ownerRows: Share[] = [share],
+): boolean {
+  if (String(device.user_id) === String(share.user_id))
+    return servingRow(ownerRows, device)?._id === share._id;
   if (!share.team_id) return false;
   if (!device.is_remote) return true;
   return !!share.pools?.includes(LINE_POOL) && runsLineWork(device);
 }
 
 /** One account in one pool, as the web keys it before the server row exists. */
-export const poolShareKey = (email: string, teamId?: string | null) => `${normalizeEmail(email)}|${teamId ?? "personal"}`;
+export const poolShareKey = (email: string, teamId?: string | null) =>
+  `${normalizeEmail(email)}|${teamId ?? "personal"}`;
 
 /** A team share counts while its contributor is still on its team; a personal one always. */
 export async function shareCounts(ctx: Ctx, share: Share): Promise<boolean> {
@@ -104,20 +122,38 @@ export async function shareCounts(ctx: Ctx, share: Share): Promise<boolean> {
 
 /** May `userId`'s machines draw on this share? The owner's always; a
  *  teammate's while both people are on the team. */
-export async function mayDraw(ctx: Ctx, share: Share, userId: Id<"users">): Promise<boolean> {
+export async function mayDraw(
+  ctx: Ctx,
+  share: Share,
+  userId: Id<"users">,
+): Promise<boolean> {
   if (String(userId) === String(share.user_id)) return true;
   if (!share.team_id) return false;
-  return (await shareCounts(ctx, share)) && (await isTeamMember(ctx, userId, share.team_id));
+  return (
+    (await shareCounts(ctx, share)) &&
+    (await isTeamMember(ctx, userId, share.team_id))
+  );
 }
 
 /** Every row of one account: what servingRow decides between. */
-async function accountRows(ctx: Ctx, userId: Id<"users">, email: string): Promise<Share[]> {
-  return ctx.db.query("account_shares").withIndex("by_user_email", (q: any) => q.eq("user_id", userId).eq("email", email)).collect();
+async function accountRows(
+  ctx: Ctx,
+  userId: Id<"users">,
+  email: string,
+): Promise<Share[]> {
+  return ctx.db
+    .query("account_shares")
+    .withIndex("by_user_email", (q: any) =>
+      q.eq("user_id", userId).eq("email", email),
+    )
+    .collect();
 }
 
 /** The holder's own profile for the shared account, or undefined. */
 function holderProfile(holder: Doc<"devices"> | null, email: string) {
-  return holder?.cc_accounts?.profiles.find((p) => !p.pool_share_id && p.email && normalizeEmail(p.email) === email);
+  return holder?.cc_accounts?.profiles.find(
+    (p) => !p.pool_share_id && p.email && normalizeEmail(p.email) === email,
+  );
 }
 
 /** A share by the id a heartbeat reported, or null for one that is gone or malformed. */
@@ -130,8 +166,14 @@ async function shareById(ctx: Ctx, id: string): Promise<Share | null> {
   }
 }
 
-async function ownerDevices(ctx: Ctx, userId: Id<"users">): Promise<Doc<"devices">[]> {
-  return ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
+async function ownerDevices(
+  ctx: Ctx,
+  userId: Id<"users">,
+): Promise<Doc<"devices">[]> {
+  return ctx.db
+    .query("devices")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .collect();
 }
 
 /**
@@ -141,14 +183,31 @@ async function ownerDevices(ctx: Ctx, userId: Id<"users">): Promise<Doc<"devices
  * stored holder (its copies stand; nobody can reseal). An account is never
  * stranded on one laptop.
  */
-export function sealerFor(share: Pick<Share, "email" | "holder_device_id">, devices: Doc<"devices">[], now: number): Doc<"devices"> | null {
+export function sealerFor(
+  share: Pick<Share, "email" | "holder_device_id">,
+  devices: Doc<"devices">[],
+  now: number,
+): Doc<"devices"> | null {
   const fresh = devices
-    .filter((d) => profileHasSetupToken(holderProfile(d, share.email), now) && now - (d.last_seen ?? 0) < SEALER_STALE_MS)
+    .filter(
+      (d) =>
+        profileHasSetupToken(holderProfile(d, share.email), now) &&
+        now - (d.last_seen ?? 0) < SEALER_STALE_MS,
+    )
     .sort((a, b) => (b.last_seen ?? 0) - (a.last_seen ?? 0));
-  return fresh.find((d) => d.device_id === share.holder_device_id) ?? fresh[0] ?? devices.find((d) => d.device_id === share.holder_device_id) ?? null;
+  return (
+    fresh.find((d) => d.device_id === share.holder_device_id) ??
+    fresh[0] ??
+    devices.find((d) => d.device_id === share.holder_device_id) ??
+    null
+  );
 }
 
-async function holderDevice(ctx: Ctx, share: Share, now = Date.now()): Promise<Doc<"devices"> | null> {
+async function holderDevice(
+  ctx: Ctx,
+  share: Share,
+  now = Date.now(),
+): Promise<Doc<"devices"> | null> {
   return sealerFor(share, await ownerDevices(ctx, share.user_id), now);
 }
 
@@ -158,7 +217,11 @@ async function holderDevice(ctx: Ctx, share: Share, now = Date.now()): Promise<D
  * the share counts), can receive a sealed secret and was seen recently. Not a
  * machine that keeps the account as its own login, the sealer included.
  */
-export async function eligibleTargets(ctx: Ctx, share: Share, now: number): Promise<Doc<"devices">[]> {
+export async function eligibleTargets(
+  ctx: Ctx,
+  share: Share,
+  now: number,
+): Promise<Doc<"devices">[]> {
   const rows = await accountRows(ctx, share.user_id, share.email);
   const userIds = new Set<string>([String(share.user_id)]);
   if (share.team_id && (await shareCounts(ctx, share))) {
@@ -172,7 +235,12 @@ export async function eligibleTargets(ctx: Ctx, share: Share, now: number): Prom
   for (const uid of userIds) {
     const devices = await ownerDevices(ctx, uid as Id<"users">);
     for (const d of devices) {
-      if (!deviceMayHold(share, d, rows) || !d.provider_key_pubkey || now - (d.last_seen ?? 0) > POOL_DEVICE_STALE_MS) continue;
+      if (
+        !deviceMayHold(share, d, rows) ||
+        !d.provider_key_pubkey ||
+        now - (d.last_seen ?? 0) > POOL_DEVICE_STALE_MS
+      )
+        continue;
       if (holderProfile(d, share.email)) continue;
       out.push(d);
     }
@@ -208,23 +276,33 @@ export async function performSetAccountShares(
   const wanted = new Set(teamIds);
   for (const labels of Object.values(pools)) {
     const unknown = labels.filter((l) => !POOL_LABELS.includes(l));
-    if (unknown.length) throw new Error(`Unknown pool ${unknown.join(", ")} (known: ${POOL_LABELS.join(", ")})`);
+    if (unknown.length)
+      throw new Error(
+        `Unknown pool ${unknown.join(", ")} (known: ${POOL_LABELS.join(", ")})`,
+      );
   }
   const labelsFor = (teamId: string) => {
     const labels = [...new Set(pools[teamId] ?? [])].sort();
     return labels.length ? labels : undefined;
   };
-  const existing = (await accountRows(ctx, userId, email)).filter((r) => r.team_id);
+  const existing = (await accountRows(ctx, userId, email)).filter(
+    (r) => r.team_id,
+  );
   if (wanted.size > 0) {
     const device = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", deviceId))
+      .withIndex("by_user_device", (q: any) =>
+        q.eq("user_id", userId).eq("device_id", deviceId),
+      )
       .first();
     if (!device) throw new Error("Unknown device");
     const profile = holderProfile(device, email);
-    if (!profile) throw new Error(`${email} is not a saved account on that machine`);
+    if (!profile)
+      throw new Error(`${email} is not a saved account on that machine`);
     if (!profileHasSetupToken(profile, Date.now())) {
-      throw new Error(`${email} has no live setup-token on that machine. Mint one first (Settings → Claude Accounts → token)`);
+      throw new Error(
+        `${email} has no live setup-token on that machine. Mint one first (Settings → Claude Accounts → token)`,
+      );
     }
     for (const teamId of wanted) {
       if (!(await isTeamMember(ctx, userId, teamId as Id<"teams">))) {
@@ -240,7 +318,10 @@ export async function performSetAccountShares(
       continue;
     }
     have.add(key);
-    await settleRow(ctx, row, { holder_device_id: deviceId, ...(key in pools ? { pools: labelsFor(key) } : {}) });
+    await settleRow(ctx, row, {
+      holder_device_id: deviceId,
+      ...(key in pools ? { pools: labelsFor(key) } : {}),
+    });
   }
   const now = Date.now();
   for (const teamId of wanted) {
@@ -261,24 +342,42 @@ export async function performSetAccountShares(
 /** Patch a kept row. A holder change keeps every copy (the new holder
  *  reseals on its next pass when the stored time differs); a team or label
  *  change takes copies off machines that may no longer hold it. */
-async function settleRow(ctx: any, row: Share, patch: Partial<Pick<Share, "holder_device_id" | "pools" | "device_ids">>) {
-  const changed = (Object.keys(patch) as Array<keyof typeof patch>).filter((k) => JSON.stringify(row[k] ?? null) !== JSON.stringify(patch[k] ?? null));
+async function settleRow(
+  ctx: any,
+  row: Share,
+  patch: Partial<Pick<Share, "holder_device_id" | "pools" | "device_ids">>,
+) {
+  const changed = (Object.keys(patch) as Array<keyof typeof patch>).filter(
+    (k) => JSON.stringify(row[k] ?? null) !== JSON.stringify(patch[k] ?? null),
+  );
   if (!changed.length) return;
-  await ctx.db.patch(row._id, Object.fromEntries(changed.map((k) => [k, patch[k]])));
-  if (changed.some((k) => k !== "holder_device_id")) await dropCopiesNoLongerHeld(ctx, { ...row, ...patch });
+  await ctx.db.patch(
+    row._id,
+    Object.fromEntries(changed.map((k) => [k, patch[k]])),
+  );
+  if (changed.some((k) => k !== "holder_device_id"))
+    await dropCopiesNoLongerHeld(ctx, { ...row, ...patch });
 }
 
 /** A label or device taken off a share takes its copies off the machines that
  *  may no longer hold it; each drops the profile on its next pool pass. */
 async function dropCopiesNoLongerHeld(ctx: any, share: Share) {
-  const rows = (await accountRows(ctx, share.user_id, share.email)).map((r) => (r._id === share._id ? share : r));
-  const copies = await ctx.db.query("account_pool_copies").withIndex("by_share", (q: any) => q.eq("share_id", share._id)).collect();
+  const rows = (await accountRows(ctx, share.user_id, share.email)).map((r) =>
+    r._id === share._id ? share : r,
+  );
+  const copies = await ctx.db
+    .query("account_pool_copies")
+    .withIndex("by_share", (q: any) => q.eq("share_id", share._id))
+    .collect();
   for (const c of copies) {
     const device = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q: any) => q.eq("user_id", c.user_id).eq("device_id", c.device_id))
+      .withIndex("by_user_device", (q: any) =>
+        q.eq("user_id", c.user_id).eq("device_id", c.device_id),
+      )
       .first();
-    if (device && !deviceMayHold(share, device, rows)) await ctx.db.delete(c._id);
+    if (device && !deviceMayHold(share, device, rows))
+      await ctx.db.delete(c._id);
   }
 }
 
@@ -289,15 +388,28 @@ async function dropCopiesNoLongerHeld(ctx: any, share: Share) {
  * untouched: they are separate grants (setAccountShares). Copies on machines
  * taken off the list go now; each drops its profile on its next pool pass.
  */
-export async function performSetAccountDevices(ctx: any, userId: Id<"users">, emailIn: string, deviceIds: string[] | null) {
+export async function performSetAccountDevices(
+  ctx: any,
+  userId: Id<"users">,
+  emailIn: string,
+  deviceIds: string[] | null,
+) {
   const email = normalizeEmail(emailIn);
-  const personal = (await accountRows(ctx, userId, email)).find((r) => !r.team_id);
-  if (!personal) throw new Error(`${email} is not in your pool: none of your machines holds it with a setup-token`);
+  const personal = (await accountRows(ctx, userId, email)).find(
+    (r) => !r.team_id,
+  );
+  if (!personal)
+    throw new Error(
+      `${email} is not in your pool: none of your machines holds it with a setup-token`,
+    );
   let next: string[] | undefined;
   if (deviceIds) {
-    const mine = new Set((await ownerDevices(ctx, userId)).map((d) => d.device_id));
+    const mine = new Set(
+      (await ownerDevices(ctx, userId)).map((d) => d.device_id),
+    );
     const unknown = deviceIds.filter((id) => !mine.has(id));
-    if (unknown.length) throw new Error(`Not your machine: ${unknown.join(", ")}`);
+    if (unknown.length)
+      throw new Error(`Not your machine: ${unknown.join(", ")}`);
     next = [...new Set(deviceIds)].sort();
   }
   await settleRow(ctx, personal, { device_ids: next });
@@ -307,7 +419,11 @@ export async function performSetAccountDevices(ctx: any, userId: Id<"users">, em
 /** `cast accounts devices`: the web writes the same fact through the store's
  *  setAccountDevices dispatch. */
 export const setAccountDevices = mutation({
-  args: { api_token: v.optional(v.string()), email: v.string(), device_ids: v.union(v.array(v.string()), v.null()) },
+  args: {
+    api_token: v.optional(v.string()),
+    email: v.string(),
+    device_ids: v.union(v.array(v.string()), v.null()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
@@ -316,7 +432,10 @@ export const setAccountDevices = mutation({
 });
 
 async function deleteShare(ctx: any, share: Share) {
-  const copies = await ctx.db.query("account_pool_copies").withIndex("by_share", (q: any) => q.eq("share_id", share._id)).collect();
+  const copies = await ctx.db
+    .query("account_pool_copies")
+    .withIndex("by_share", (q: any) => q.eq("share_id", share._id))
+    .collect();
   for (const c of copies) await ctx.db.delete(c._id);
   await ctx.db.delete(share._id);
 }
@@ -335,7 +454,14 @@ export const setAccountShares = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
-    return performSetAccountShares(ctx, userId, args.device_id, args.email, args.team_ids, args.pools);
+    return performSetAccountShares(
+      ctx,
+      userId,
+      args.device_id,
+      args.email,
+      args.team_ids,
+      args.pools,
+    );
   },
 });
 
@@ -357,23 +483,39 @@ export const poolForDevice = query({
     if (!userId) return null;
     const now = Date.now();
     const devices = await ownerDevices(ctx, userId);
-    const own: Share[] = await ctx.db.query("account_shares").withIndex("by_user_email", (q: any) => q.eq("user_id", userId)).collect();
-    const held = own.filter((s) => sealerFor(s, devices, now)?.device_id === args.device_id);
+    const own: Share[] = await ctx.db
+      .query("account_shares")
+      .withIndex("by_user_email", (q: any) => q.eq("user_id", userId))
+      .collect();
+    const held = own.filter(
+      (s) => sealerFor(s, devices, now)?.device_id === args.device_id,
+    );
     const rowsOf = (email: string) => own.filter((s) => s.email === email);
     const seal = [];
     for (const share of held) {
-      const copies = await ctx.db.query("account_pool_copies").withIndex("by_share", (q: any) => q.eq("share_id", share._id)).collect();
+      const copies = await ctx.db
+        .query("account_pool_copies")
+        .withIndex("by_share", (q: any) => q.eq("share_id", share._id))
+        .collect();
       const targets = (await eligibleTargets(ctx, share, now)).map((d) => ({
         device_id: d.device_id,
         pubkey: d.provider_key_pubkey!,
         // A copy sealed to an older key of the machine counts as missing.
-        token_stored_at: copies.find((c: any) => c.device_id === d.device_id && c.user_id === d.user_id && c.pubkey === d.provider_key_pubkey)?.token_stored_at ?? null,
+        token_stored_at:
+          copies.find(
+            (c: any) =>
+              c.device_id === d.device_id &&
+              c.user_id === d.user_id &&
+              c.pubkey === d.provider_key_pubkey,
+          )?.token_stored_at ?? null,
       }));
       seal.push({ share_id: share._id, email: share.email, targets });
     }
     const mine = await ctx.db
       .query("account_pool_copies")
-      .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", args.device_id))
+      .withIndex("by_user_device", (q: any) =>
+        q.eq("user_id", userId).eq("device_id", args.device_id),
+      )
       .collect();
     const self = devices.find((d) => d.device_id === args.device_id);
     const copies = [];
@@ -386,17 +528,29 @@ export const poolForDevice = query({
       // Kept while the row now serving the machine has no copy for it yet,
       // so a move between rows never leaves the machine without the account.
       const ownShare = share.user_id === userId;
-      if (self && !deviceMayHold(share, self, ownShare ? rowsOf(share.email) : [share])) {
-        const serving = ownShare ? servingRow(rowsOf(share.email), self) : undefined;
-        if (!serving || mine.some((c: any) => c.share_id === serving._id)) continue;
+      if (
+        self &&
+        !deviceMayHold(share, self, ownShare ? rowsOf(share.email) : [share])
+      ) {
+        const serving = ownShare
+          ? servingRow(rowsOf(share.email), self)
+          : undefined;
+        if (!serving || mine.some((c: any) => c.share_id === serving._id))
+          continue;
       }
       const contributor = await ctx.db.get(share.user_id);
-      const holder = holderProfile(ownShare ? sealerFor(share, devices, now) : await holderDevice(ctx, share, now), share.email);
+      const holder = holderProfile(
+        ownShare
+          ? sealerFor(share, devices, now)
+          : await holderDevice(ctx, share, now),
+        share.email,
+      );
       copies.push({
         share_id: share._id,
         email: share.email,
         name: poolProfileName(share.email),
-        contributor_name: contributor?.name ?? contributor?.email ?? "a teammate",
+        contributor_name:
+          contributor?.name ?? contributor?.email ?? "a teammate",
         tier: holder?.tier,
         subscription: holder?.subscription,
         token_stored_at: copy.token_stored_at,
@@ -415,30 +569,61 @@ export const storePoolCopies = mutation({
     device_id: v.string(),
     share_id: v.id("account_shares"),
     token_stored_at: v.number(),
-    copies: v.array(v.object({
-      device_id: v.string(),
-      sealed: v.object({ provider: v.string(), epk: v.string(), iv: v.string(), ct: v.string() }),
-    })),
+    copies: v.array(
+      v.object({
+        device_id: v.string(),
+        sealed: v.object({
+          provider: v.string(),
+          epk: v.string(),
+          iv: v.string(),
+          ct: v.string(),
+        }),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
     const share: Share | null = await ctx.db.get(args.share_id);
     const now = Date.now();
-    if (!share || share.user_id !== userId || sealerFor(share, await ownerDevices(ctx, userId), now)?.device_id !== args.device_id) {
+    if (
+      !share ||
+      share.user_id !== userId ||
+      sealerFor(share, await ownerDevices(ctx, userId), now)?.device_id !==
+        args.device_id
+    ) {
       throw new Error("Not this machine's shared account");
     }
-    if (share.holder_device_id !== args.device_id) await ctx.db.patch(share._id, { holder_device_id: args.device_id });
-    const targets = new Map((await eligibleTargets(ctx, share, now)).map((d) => [d.device_id, d]));
-    const existing = await ctx.db.query("account_pool_copies").withIndex("by_share", (q: any) => q.eq("share_id", share._id)).collect();
+    if (share.holder_device_id !== args.device_id)
+      await ctx.db.patch(share._id, { holder_device_id: args.device_id });
+    const targets = new Map(
+      (await eligibleTargets(ctx, share, now)).map((d) => [d.device_id, d]),
+    );
+    const existing = await ctx.db
+      .query("account_pool_copies")
+      .withIndex("by_share", (q: any) => q.eq("share_id", share._id))
+      .collect();
     let stored = 0;
     for (const c of args.copies) {
       const device = targets.get(c.device_id);
       if (!device) continue;
-      const row = { sealed: c.sealed, token_stored_at: args.token_stored_at, sealed_at: now, pubkey: device.provider_key_pubkey };
-      const prior = existing.find((e: any) => e.device_id === c.device_id && e.user_id === device.user_id);
+      const row = {
+        sealed: c.sealed,
+        token_stored_at: args.token_stored_at,
+        sealed_at: now,
+        pubkey: device.provider_key_pubkey,
+      };
+      const prior = existing.find(
+        (e: any) => e.device_id === c.device_id && e.user_id === device.user_id,
+      );
       if (prior) await ctx.db.patch(prior._id, row);
-      else await ctx.db.insert("account_pool_copies", { share_id: share._id, user_id: device.user_id, device_id: c.device_id, ...row });
+      else
+        await ctx.db.insert("account_pool_copies", {
+          share_id: share._id,
+          user_id: device.user_id,
+          device_id: c.device_id,
+          ...row,
+        });
       stored++;
     }
     return { stored };
@@ -449,7 +634,9 @@ export const storePoolCopies = mutation({
 // Reading the pool
 // ---------------------------------------------------------------------------
 
-function usageMeasured(usage: { fetched_at?: number } | null | undefined): boolean {
+function usageMeasured(
+  usage: { fetched_at?: number } | null | undefined,
+): boolean {
   return typeof usage?.fetched_at === "number" && usage.fetched_at > 0;
 }
 
@@ -469,7 +656,11 @@ function accountUsage(holderUsage: any, drawerUsage: any): any {
  *  local copy the pool pass never stamped. A copy whose own holder has no
  *  reading must not be the meter: auto-switch scores "no reading" as unknown
  *  and leaves the account for whichever other login has a number. */
-async function bestSharedUsage(ctx: Ctx, userId: Id<"users">, emails: readonly string[]): Promise<any | undefined> {
+async function bestSharedUsage(
+  ctx: Ctx,
+  userId: Id<"users">,
+  emails: readonly string[],
+): Promise<any | undefined> {
   const want = normalizeEmail(emails[0] ?? "");
   if (!want) return undefined;
   const userIds = new Set<string>([String(userId)]);
@@ -490,10 +681,14 @@ async function bestSharedUsage(ctx: Ctx, userId: Id<"users">, emails: readonly s
     const seen = new Set<string>();
     for (const raw of emails) {
       for (const share of await accountRows(ctx, uid as Id<"users">, raw)) {
-        if (seen.has(String(share._id)) || normalizeEmail(share.email) !== want) continue;
+        if (seen.has(String(share._id)) || normalizeEmail(share.email) !== want)
+          continue;
         seen.add(String(share._id));
         if (!(await mayDraw(ctx, share, userId))) continue;
-        const holder = holderProfile(await holderDevice(ctx, share), share.email);
+        const holder = holderProfile(
+          await holderDevice(ctx, share),
+          share.email,
+        );
         const usage = holder?.usage;
         const at = usage?.fetched_at;
         if (!usage || typeof at !== "number" || at <= 0) continue;
@@ -508,13 +703,18 @@ async function bestSharedUsage(ctx: Ctx, userId: Id<"users">, emails: readonly s
  *  any drawable share of that login has. Only pool copies, and local profiles
  *  named like one (`pool-…`), so an ordinary account that has not been probed
  *  yet does not pay for a team scan. */
-async function fillUnmeasuredSharedUsage<P extends { name?: string; email?: string; pool_share_id?: string; usage?: any }>(
-  ctx: Ctx,
-  userId: Id<"users">,
-  profiles: P[],
-): Promise<P[]> {
+async function fillUnmeasuredSharedUsage<
+  P extends {
+    name?: string;
+    email?: string;
+    pool_share_id?: string;
+    usage?: any;
+  },
+>(ctx: Ctx, userId: Id<"users">, profiles: P[]): Promise<P[]> {
   const poolEmails = new Set(
-    profiles.filter((p) => p.pool_share_id && p.email).map((p) => normalizeEmail(p.email!)),
+    profiles
+      .filter((p) => p.pool_share_id && p.email)
+      .map((p) => normalizeEmail(p.email!)),
   );
   const rawByEmail = new Map<string, string[]>();
   const need = new Set<string>();
@@ -524,7 +724,12 @@ async function fillUnmeasuredSharedUsage<P extends { name?: string; email?: stri
     const raws = rawByEmail.get(key) ?? [];
     if (!raws.includes(p.email)) raws.push(p.email);
     rawByEmail.set(key, raws);
-    if (p.pool_share_id || poolEmails.has(key) || (p.name ?? "").startsWith("pool-")) need.add(key);
+    if (
+      p.pool_share_id ||
+      poolEmails.has(key) ||
+      (p.name ?? "").startsWith("pool-")
+    )
+      need.add(key);
   }
   if (need.size === 0) return profiles;
   const meters = new Map<string, any>();
@@ -549,15 +754,21 @@ async function fillUnmeasuredSharedUsage<P extends { name?: string; email?: stri
  * whose share no longer counts for `userId` are left out. Auto-switch and
  * the web read a pool profile's usage only through here.
  */
-export async function poolUsageOverlay<P extends { name?: string; email?: string; pool_share_id?: string; usage?: any }>(
-  ctx: Ctx,
-  userId: Id<"users">,
-  profiles: readonly P[],
-): Promise<P[]> {
+export async function poolUsageOverlay<
+  P extends {
+    name?: string;
+    email?: string;
+    pool_share_id?: string;
+    usage?: any;
+  },
+>(ctx: Ctx, userId: Id<"users">, profiles: readonly P[]): Promise<P[]> {
   const out: P[] = [];
   if (profiles.some((p) => p.pool_share_id)) {
     for (const p of profiles) {
-      if (!p.pool_share_id) { out.push(p); continue; }
+      if (!p.pool_share_id) {
+        out.push(p);
+        continue;
+      }
       const share = await shareById(ctx, p.pool_share_id);
       if (!share || !(await mayDraw(ctx, share, userId))) continue;
       const holder = holderProfile(await holderDevice(ctx, share), share.email);
@@ -582,8 +793,13 @@ export const listPool = query({
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return [];
-    const memberships = await ctx.db.query("team_memberships").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
-    const cutoff = dayStartUtc(Date.now() - (POOL_SPLIT_DAYS - 1) * 24 * 3600_000);
+    const memberships = await ctx.db
+      .query("team_memberships")
+      .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+      .collect();
+    const cutoff = dayStartUtc(
+      Date.now() - (POOL_SPLIT_DAYS - 1) * 24 * 3600_000,
+    );
     const names = new Map<string, string>();
     const nameOf = async (id: Id<"users">) => {
       const key = String(id);
@@ -595,18 +811,31 @@ export const listPool = query({
     };
     const rowFor = async (share: Share, memberIds: Set<string>) => {
       const holder = holderProfile(await holderDevice(ctx, share), share.email);
-      const copies = await ctx.db.query("account_pool_copies").withIndex("by_share", (q: any) => q.eq("share_id", share._id)).collect();
+      const copies = await ctx.db
+        .query("account_pool_copies")
+        .withIndex("by_share", (q: any) => q.eq("share_id", share._id))
+        .collect();
       const days = await ctx.db
         .query("account_usage_daily")
-        .withIndex("by_email_day", (q: any) => q.eq("email", share.email).gte("day_start", cutoff))
+        .withIndex("by_email_day", (q: any) =>
+          q.eq("email", share.email).gte("day_start", cutoff),
+        )
         .collect();
       const byUser = new Map<string, number>();
       for (const d of days) {
         if (!memberIds.has(String(d.user_id))) continue;
-        byUser.set(String(d.user_id), (byUser.get(String(d.user_id)) ?? 0) + d.tokens);
+        byUser.set(
+          String(d.user_id),
+          (byUser.get(String(d.user_id)) ?? 0) + d.tokens,
+        );
       }
       const split = [];
-      for (const [uid, tokens] of byUser) split.push({ user_id: uid, name: await nameOf(uid as Id<"users">), tokens });
+      for (const [uid, tokens] of byUser)
+        split.push({
+          user_id: uid,
+          name: await nameOf(uid as Id<"users">),
+          tokens,
+        });
       split.sort((a, b) => b.tokens - a.tokens);
       return {
         _id: share._id,
@@ -625,25 +854,36 @@ export const listPool = query({
         tier: holder?.tier ?? null,
         subscription: holder?.subscription ?? null,
         usage: holder?.usage ?? null,
-        machines: copies.filter((c: any) => memberIds.has(String(c.user_id))).length,
+        machines: copies.filter((c: any) => memberIds.has(String(c.user_id)))
+          .length,
         shared_at: share.shared_at,
         split,
       };
     };
     const rows = [];
     for (const m of memberships) {
-      const members = await ctx.db.query("team_memberships").withIndex("by_team_id", (q: any) => q.eq("team_id", m.team_id)).collect();
+      const members = await ctx.db
+        .query("team_memberships")
+        .withIndex("by_team_id", (q: any) => q.eq("team_id", m.team_id))
+        .collect();
       const memberIds = new Set(members.map((x: any) => String(x.user_id)));
-      const shares: Share[] = await ctx.db.query("account_shares").withIndex("by_team", (q: any) => q.eq("team_id", m.team_id)).collect();
+      const shares: Share[] = await ctx.db
+        .query("account_shares")
+        .withIndex("by_team", (q: any) => q.eq("team_id", m.team_id))
+        .collect();
       for (const share of shares) {
-        if (memberIds.has(String(share.user_id))) rows.push(await rowFor(share, memberIds));
+        if (memberIds.has(String(share.user_id)))
+          rows.push(await rowFor(share, memberIds));
       }
     }
-    const personal: Share[] = (await ctx.db
-      .query("account_shares")
-      .withIndex("by_user_email", (q: any) => q.eq("user_id", userId))
-      .collect()).filter((s: Share) => !s.team_id);
-    for (const share of personal) rows.push(await rowFor(share, new Set([String(userId)])));
+    const personal: Share[] = (
+      await ctx.db
+        .query("account_shares")
+        .withIndex("by_user_email", (q: any) => q.eq("user_id", userId))
+        .collect()
+    ).filter((s: Share) => !s.team_id);
+    for (const share of personal)
+      rows.push(await rowFor(share, new Set([String(userId)])));
     return rows;
   },
 });
@@ -652,13 +892,23 @@ export const listPool = query({
 // The personal pool: every account on every one of the owner's machines
 // ---------------------------------------------------------------------------
 
-type HeartbeatAccounts = { profiles?: Array<{ email?: string; setup_token?: { expires_at: number }; pool_share_id?: string }> } | null | undefined;
+type HeartbeatAccounts =
+  | {
+      profiles?: Array<{
+        email?: string;
+        setup_token?: { expires_at: number };
+        pool_share_id?: string;
+      }>;
+    }
+  | null
+  | undefined;
 
 /** The accounts a machine keeps as its own with a live setup-token: the ones it can seal. */
 function ownTokenEmails(accounts: HeartbeatAccounts, now: number): string[] {
   const out = new Set<string>();
   for (const p of accounts?.profiles ?? []) {
-    if (!p.pool_share_id && p.email && profileHasSetupToken(p, now)) out.add(normalizeEmail(p.email));
+    if (!p.pool_share_id && p.email && profileHasSetupToken(p, now))
+      out.add(normalizeEmail(p.email));
   }
   return [...out].sort();
 }
@@ -683,12 +933,26 @@ export async function ensurePersonalShares(
   const emails = ownTokenEmails(accounts, now);
   if (!emails.length) return [];
   const changed = emails.join(",") !== ownTokenEmails(previous, now).join(",");
-  if (!changed && lastSeen !== undefined && Math.floor(lastSeen / HOUR_MS) === Math.floor(now / HOUR_MS)) return [];
-  const rows: Share[] = await ctx.db.query("account_shares").withIndex("by_user_email", (q: any) => q.eq("user_id", userId)).collect();
+  if (
+    !changed &&
+    lastSeen !== undefined &&
+    Math.floor(lastSeen / HOUR_MS) === Math.floor(now / HOUR_MS)
+  )
+    return [];
+  const rows: Share[] = await ctx.db
+    .query("account_shares")
+    .withIndex("by_user_email", (q: any) => q.eq("user_id", userId))
+    .collect();
   const have = new Set(rows.filter((r) => !r.team_id).map((r) => r.email));
   const added = emails.filter((e) => !have.has(e));
   for (const email of added) {
-    await ctx.db.insert("account_shares", { user_id: userId, provider: "claude", email, holder_device_id: deviceId, shared_at: now });
+    await ctx.db.insert("account_shares", {
+      user_id: userId,
+      provider: "claude",
+      email,
+      holder_device_id: deviceId,
+      shared_at: now,
+    });
   }
   return added;
 }

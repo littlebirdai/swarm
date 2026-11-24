@@ -19,7 +19,10 @@ export function chatFrecency(
     const m = messages[id];
     const age = (now - m.created_at) / DAY_MS;
     if (m.deleted_at || age > 30) continue;
-    volume.set(m.channel_id, (volume.get(m.channel_id) ?? 0) + 1 / (1 + age / 7));
+    volume.set(
+      m.channel_id,
+      (volume.get(m.channel_id) ?? 0) + 1 / (1 + age / 7),
+    );
   }
   const out = new Map<string, number>();
   for (const r of rows) {

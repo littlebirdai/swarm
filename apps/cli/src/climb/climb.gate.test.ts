@@ -9,39 +9,74 @@ import { GATE_LIMIT_DEFAULT_S, gateLimitS, runGate, tailLines } from "./gate";
 import { pollUntil } from "../test-helpers/pollUntil.js";
 
 let tmp: string;
-beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), "climb-gate-")); });
+beforeEach(() => {
+  tmp = fs.mkdtempSync(path.join(os.tmpdir(), "climb-gate-"));
+});
 afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 test("a gate past its limit is stopped with its whole process group, and says what it last printed", async () => {
   // Like proof-tree.sh: a wrapper that prints, then waits on a child (the ssh) that never returns.
   const pidFile = path.join(tmp, "child.pid");
-  const run = await runGate(`echo "proof tree at e1afa7d70"; echo "running the eval on the eval host"; sleep 60 & echo $! > ${pidFile}; wait`, { cwd: tmp, env: process.env, limitS: 1, log: path.join(tmp, "gate.log") });
+  const run = await runGate(
+    `echo "proof tree at e1afa7d70"; echo "running the eval on the eval host"; sleep 60 & echo $! > ${pidFile}; wait`,
+    { cwd: tmp, env: process.env, limitS: 1, log: path.join(tmp, "gate.log") },
+  );
   expect(run.timedOut).toBe(true);
   expect(run.ms).toBeLessThan(10_000);
   expect(run.tail).toContain("running the eval on the eval host");
   // SIGKILL reached the group before runGate returned, but the orphaned child
   // exits and is reaped on its own clock, so it may still answer for a moment.
   const child = Number(fs.readFileSync(pidFile, "utf8"));
-  const gone = () => { try { process.kill(child, 0); return false; } catch { return true; } };
+  const gone = () => {
+    try {
+      process.kill(child, 0);
+      return false;
+    } catch {
+      return true;
+    }
+  };
   await pollUntil(gone, "the gate's child to exit", { ms: 2000 });
 });
 
 test("a gate past its limit leaves nothing it started running, a setsid child that ignores TERM included", async () => {
   const pidFile = path.join(tmp, "child.pid");
-  const run = await runGate(`perl -MPOSIX -e 'POSIX::setsid(); $SIG{TERM}="IGNORE"; sleep 600' >/dev/null 2>&1 & echo $! > ${pidFile}; wait`, { cwd: tmp, env: process.env, limitS: 1, log: path.join(tmp, "gate.log"), graceMs: 500 });
+  const run = await runGate(
+    `perl -MPOSIX -e 'POSIX::setsid(); $SIG{TERM}="IGNORE"; sleep 600' >/dev/null 2>&1 & echo $! > ${pidFile}; wait`,
+    {
+      cwd: tmp,
+      env: process.env,
+      limitS: 1,
+      log: path.join(tmp, "gate.log"),
+      graceMs: 500,
+    },
+  );
   const child = Number(fs.readFileSync(pidFile, "utf8"));
-  const alive = () => { try { process.kill(child, 0); return true; } catch { return false; } };
+  const alive = () => {
+    try {
+      process.kill(child, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
   try {
     expect(run.timedOut).toBe(true);
     // runGate returns once the KILL has gone out; the kernel may take a moment to reap.
     await pollUntil(() => !alive(), "the setsid child to end", { ms: 5000 });
   } finally {
-    try { process.kill(child, "SIGKILL"); } catch {}
+    try {
+      process.kill(child, "SIGKILL");
+    } catch {}
   }
 }, 30_000);
 
 test("a gate within its limit finishes with its own exit code", async () => {
-  const run = await runGate("echo ok; exit 3", { cwd: tmp, env: process.env, limitS: 30, log: path.join(tmp, "gate.log") });
+  const run = await runGate("echo ok; exit 3", {
+    cwd: tmp,
+    env: process.env,
+    limitS: 30,
+    log: path.join(tmp, "gate.log"),
+  });
   expect([run.timedOut, run.code, run.tail]).toEqual([false, 3, "ok"]);
   expect(tailLines("")).toBe("(no output)");
 });
@@ -49,15 +84,33 @@ test("a gate within its limit finishes with its own exit code", async () => {
 test("the limit: declared in climb.toml at the base, else twice the longest gate this climb ran, else two hours", () => {
   const repo = path.join(tmp, "repo");
   fs.mkdirSync(repo);
-  const g = (...args: string[]) => execFileSync("git", args, { cwd: repo, encoding: "utf8" }).trim();
-  g("init", "-q", "-b", "main"); g("config", "user.email", "t@t"); g("config", "user.name", "t");
-  fs.writeFileSync(path.join(repo, "a.txt"), "a\n"); g("add", "-A"); g("commit", "-q", "-m", "a");
+  const g = (...args: string[]) =>
+    execFileSync("git", args, { cwd: repo, encoding: "utf8" }).trim();
+  g("init", "-q", "-b", "main");
+  g("config", "user.email", "t@t");
+  g("config", "user.name", "t");
+  fs.writeFileSync(path.join(repo, "a.txt"), "a\n");
+  g("add", "-A");
+  g("commit", "-q", "-m", "a");
   const bare = g("rev-parse", "HEAD");
-  expect(gateLimitS(repo, bare, [])).toEqual({ s: GATE_LIMIT_DEFAULT_S, from: "default" });
+  expect(gateLimitS(repo, bare, [])).toEqual({
+    s: GATE_LIMIT_DEFAULT_S,
+    from: "default",
+  });
   // Union's full gate takes 25 to 60 minutes: twice the longest it took.
-  expect(gateLimitS(repo, bare, [25 * 60_000, 60 * 60_000])).toEqual({ s: 2 * 60 * 60, from: "recent" });
+  expect(gateLimitS(repo, bare, [25 * 60_000, 60 * 60_000])).toEqual({
+    s: 2 * 60 * 60,
+    from: "recent",
+  });
   fs.mkdirSync(path.join(repo, ".codecast"));
-  fs.writeFileSync(path.join(repo, ".codecast/climb.toml"), "[guard]\ntimeout_s = 5400\n");
-  g("add", "-A"); g("commit", "-q", "-m", "declare");
-  expect(gateLimitS(repo, g("rev-parse", "HEAD"), [60_000])).toEqual({ s: 5400, from: "declared" });
+  fs.writeFileSync(
+    path.join(repo, ".codecast/climb.toml"),
+    "[guard]\ntimeout_s = 5400\n",
+  );
+  g("add", "-A");
+  g("commit", "-q", "-m", "declare");
+  expect(gateLimitS(repo, g("rev-parse", "HEAD"), [60_000])).toEqual({
+    s: 5400,
+    from: "declared",
+  });
 });

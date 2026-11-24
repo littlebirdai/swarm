@@ -30,8 +30,14 @@ function makeHarness(
   source: { _id: string; messages: ForkMessage[] },
   fork: Partial<ForkConvRow> & { _id: string; user_id: string },
 ): Harness {
-  const conversations = new Map<string, ForkConvRow & Record<string, unknown>>();
-  conversations.set(source._id, { _id: source._id, user_id: "src_user" } as ForkConvRow);
+  const conversations = new Map<
+    string,
+    ForkConvRow & Record<string, unknown>
+  >();
+  conversations.set(source._id, {
+    _id: source._id,
+    user_id: "src_user",
+  } as ForkConvRow);
   conversations.set(fork._id, {
     fork_status: "copying",
     fork_copy_cursor: 0,
@@ -51,7 +57,11 @@ function makeHarness(
         const all = messagesBySource.get(conversationId) ?? [];
         // Mirror the real Convex index: filter, asc-sort, take(limit).
         return all
-          .filter((m) => m.timestamp > cursorGt && (cutoffLte === undefined || m.timestamp <= cutoffLte))
+          .filter(
+            (m) =>
+              m.timestamp > cursorGt &&
+              (cutoffLte === undefined || m.timestamp <= cutoffLte),
+          )
           .sort((a, b) => a.timestamp - b.timestamp)
           .slice(0, limit);
       },
@@ -93,7 +103,9 @@ function makeHarness(
       let iters = 0;
       while (pendingContinuations.length > 0) {
         if (iters >= maxIters) {
-          throw new Error(`drain: exceeded ${maxIters} iterations — chain did not settle`);
+          throw new Error(
+            `drain: exceeded ${maxIters} iterations — chain did not settle`,
+          );
         }
         const id = pendingContinuations.shift()!;
         await advanceForkCopy(ctx, id);
@@ -137,7 +149,10 @@ describe("advanceForkCopy", () => {
     expect(h.conversations.get("fork1")!.fork_status).toBe("complete");
     expect(h.daemonCommands.length).toBe(1);
     // Daemon args should have been cleared after emit (no double-fire under retry).
-    expect((h.conversations.get("fork1") as Record<string, unknown>).fork_daemon_args).toBeUndefined();
+    expect(
+      (h.conversations.get("fork1") as Record<string, unknown>)
+        .fork_daemon_args,
+    ).toBeUndefined();
   });
 
   test("per-message sender attribution (from_user_id) survives the copy", async () => {
@@ -204,7 +219,10 @@ describe("advanceForkCopy", () => {
     expect(uuids.size).toBe(N);
     expect(h.conversations.get("fork3")!.fork_status).toBe("complete");
     expect(h.conversations.get("fork3")!.fork_copied).toBe(N);
-    expect((h.conversations.get("fork3") as { message_count?: number }).message_count).toBe(N);
+    expect(
+      (h.conversations.get("fork3") as { message_count?: number })
+        .message_count,
+    ).toBe(N);
     // Daemon emitted exactly once, even after many chained batches.
     expect(h.daemonCommands.length).toBe(1);
   });
@@ -251,7 +269,10 @@ describe("advanceForkCopy", () => {
     // Each message body ~1 MB → ~9 messages per byte-budgeted batch.
     const bigBody = "x".repeat(1_000_000);
     const N = 30;
-    const source = { _id: "src5", messages: makeMessages(N, { body: bigBody }) };
+    const source = {
+      _id: "src5",
+      messages: makeMessages(N, { body: bigBody }),
+    };
     const h = makeHarness(source, {
       _id: "fork5",
       user_id: "u1",
@@ -367,7 +388,10 @@ describe("advanceForkCopy", () => {
 
     expect(live).toBeGreaterThan(0);
     expect(h.conversations.get("fork10")!.fork_copied).toBe(1500);
-    expect((h.conversations.get("fork10") as { message_count?: number }).message_count).toBe(1500 + live);
+    expect(
+      (h.conversations.get("fork10") as { message_count?: number })
+        .message_count,
+    ).toBe(1500 + live);
   });
 
   test("emitForkDaemonCommand lifts _target_device_id onto the command row", async () => {
@@ -416,7 +440,9 @@ describe("advanceForkCopy", () => {
     await advanceForkCopy(h.ctx, "fork_cursor");
     expect(h.daemonCommands.length).toBe(1);
     expect(h.daemonCommands[0].command).toBe("resume_session");
-    expect(JSON.parse(h.daemonCommands[0].args as string).agent_type).toBe("cursor");
+    expect(JSON.parse(h.daemonCommands[0].args as string).agent_type).toBe(
+      "cursor",
+    );
   });
 
   test("messages added to source after cutoff are not picked up by later batches", async () => {
@@ -452,6 +478,8 @@ describe("advanceForkCopy", () => {
     const inserted = h.insertedMessagesByFork.get("fork9")!;
     expect(inserted.length).toBe(2000);
     // No drift_* uuids made it into the fork.
-    expect(inserted.every((m) => m.message_uuid?.startsWith("uuid_"))).toBe(true);
+    expect(inserted.every((m) => m.message_uuid?.startsWith("uuid_"))).toBe(
+      true,
+    );
   });
 });

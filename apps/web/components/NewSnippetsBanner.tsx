@@ -18,10 +18,17 @@ import type { SnippetDescriptor } from "@codecast/shared/contracts";
 import { useInboxStore } from "../store/inboxStore";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { deviceDisplayName, useDevices } from "./DeviceBadge";
-import { ConsequentialSwitch, type SwitchLedger } from "./consequential/ConsequentialSwitch";
+import {
+  ConsequentialSwitch,
+  type SwitchLedger,
+} from "./consequential/ConsequentialSwitch";
 import { featuresAllLedger } from "./consequential/ledgers";
 import { turnOnFeature } from "./agentFeatures/useFeatureOffer";
-import { newSnippetsFor, snippetEnabledOn, snippetIntroKey } from "../lib/newSnippets";
+import {
+  newSnippetsFor,
+  snippetEnabledOn,
+  snippetIntroKey,
+} from "../lib/newSnippets";
 import {
   Dialog,
   DialogContent,
@@ -45,7 +52,10 @@ export function NewSnippetsBanner() {
   const fresh = useMemo(
     () =>
       newSnippetsFor({
-        userCreatedAt: typeof user?._creationTime === "number" ? user._creationTime : undefined,
+        userCreatedAt:
+          typeof user?._creationTime === "number"
+            ? user._creationTime
+            : undefined,
         devices,
         dismissed,
         teams,
@@ -70,10 +80,16 @@ export function NewSnippetsBanner() {
     const one = machineNames.length === 1;
     const machines = one ? machineNames[0] : `${machineNames.length} machines`;
     return {
-      ...featuresAllLedger({ group: s.name, machine: machines, names: [s.name] }),
+      ...featuresAllLedger({
+        group: s.name,
+        machine: machines,
+        names: [s.name],
+      }),
       name: s.name,
       rows: [
-        one ? { k: "Machine", v: machines } : { k: "Machines", v: machines, list: machineNames },
+        one
+          ? { k: "Machine", v: machines }
+          : { k: "Machines", v: machines, list: machineNames },
         { k: "Writes", v: s.writesTo },
         { k: "Applies to", v: "New sessions" },
       ],
@@ -114,7 +130,9 @@ export function NewSnippetsBanner() {
             <div className="flex items-center gap-3 min-w-0">
               <Sparkles className="w-4 h-4 text-sol-cyan flex-shrink-0" />
               <span className="text-sm text-sol-text truncate">
-                {fresh.length === 1 ? "New agent feature: " : "New agent features: "}
+                {fresh.length === 1
+                  ? "New agent feature: "
+                  : "New agent features: "}
                 <span className="font-medium">{names}</span>
               </span>
             </div>
@@ -146,10 +164,10 @@ export function NewSnippetsBanner() {
               New agent features
             </DialogTitle>
             <DialogDescription className="text-sol-text-muted">
-              These shipped since you set up codecast. Each one installs a small section into a
-              machine&apos;s CLAUDE.md that teaches agents the capability — nothing runs until an
-              agent uses it. You can turn any of them on or off later on the Agent features
-              page.
+              These shipped since you set up codecast. Each one installs a small
+              section into a machine&apos;s CLAUDE.md that teaches agents the
+              capability — nothing runs until an agent uses it. You can turn any
+              of them on or off later on the Agent features page.
             </DialogDescription>
           </DialogHeader>
 
@@ -157,18 +175,27 @@ export function NewSnippetsBanner() {
             {shown.map((s) => {
               const on =
                 enabledNow.has(s.slug) ||
-                devices.some((d) => snippetEnabledOn(d.settings ?? undefined, s));
+                devices.some((d) =>
+                  snippetEnabledOn(d.settings ?? undefined, s),
+                );
               return (
-                <div key={s.slug} className="rounded-lg border border-sol-border bg-sol-bg-alt p-4">
+                <div
+                  key={s.slug}
+                  className="rounded-lg border border-sol-border bg-sol-bg-alt p-4"
+                >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-sol-text">{s.name}</span>
+                        <span className="text-sm font-semibold text-sol-text">
+                          {s.name}
+                        </span>
                         <span className="text-meta px-1.5 py-px rounded-full border bg-sol-cyan/10 text-sol-cyan border-sol-cyan/30">
                           New
                         </span>
                       </div>
-                      <div className="text-[13px] text-sol-text-muted mt-0.5">{s.desc}</div>
+                      <div className="text-[13px] text-sol-text-muted mt-0.5">
+                        {s.desc}
+                      </div>
                     </div>
                     {on ? (
                       <span className="inline-flex items-center gap-1 text-xs text-sol-green flex-shrink-0 mt-0.5">
@@ -183,7 +210,9 @@ export function NewSnippetsBanner() {
                         trigger={({ press, reviewing }) => (
                           <button
                             type="button"
-                            disabled={busy.has(s.slug) || onlineDevices.length === 0}
+                            disabled={
+                              busy.has(s.slug) || onlineDevices.length === 0
+                            }
                             onClick={press}
                             aria-haspopup="dialog"
                             aria-expanded={reviewing}
@@ -195,8 +224,12 @@ export function NewSnippetsBanner() {
                       />
                     )}
                   </div>
-                  <p className="text-[12px] text-sol-text-muted leading-relaxed mt-2">{s.detail}</p>
-                  <p className="text-meta text-sol-text-dim mt-2 font-mono">{s.writesTo}</p>
+                  <p className="text-[12px] text-sol-text-muted leading-relaxed mt-2">
+                    {s.detail}
+                  </p>
+                  <p className="text-meta text-sol-text-dim mt-2 font-mono">
+                    {s.writesTo}
+                  </p>
                 </div>
               );
             })}

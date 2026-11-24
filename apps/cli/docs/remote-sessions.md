@@ -67,14 +67,14 @@ clean and its commits are on origin; otherwise it is kept and logged
 
 ## Commands
 
-| Command | What it does |
-|---|---|
-| `cast remote hosts` | List this device + registered remote Macs |
-| `cast remote push <sid>` | Transfer worktree (git-over-SSH) + transcript + credential |
-| `cast remote pull <sid>` | Pull back (git fast-forward, never clobbers; surfaces conflicts) |
-| `cast remote run <sid> "msg"` | One-shot prompt on the remote (print mode, acceptEdits) |
-| `cast remote move <sid>` | **Atomic live handoff**: push + prep + flip ownership + resume on Mac |
-| `cast remote back <sid>` | **Reverse**: pull + flip ownership back + resume locally |
+| Command                       | What it does                                                          |
+| ----------------------------- | --------------------------------------------------------------------- |
+| `cast remote hosts`           | List this device + registered remote Macs                             |
+| `cast remote push <sid>`      | Transfer worktree (git-over-SSH) + transcript + credential            |
+| `cast remote pull <sid>`      | Pull back (git fast-forward, never clobbers; surfaces conflicts)      |
+| `cast remote run <sid> "msg"` | One-shot prompt on the remote (print mode, acceptEdits)               |
+| `cast remote move <sid>`      | **Atomic live handoff**: push + prep + flip ownership + resume on Mac |
+| `cast remote back <sid>`      | **Reverse**: pull + flip ownership back + resume locally              |
 
 ## Bulk migration (many sessions, either direction)
 
@@ -82,11 +82,11 @@ clean and its commits are on origin; otherwise it is kept and logged
 runs it. To move a whole set — the laptop's sessions to the cloud host before
 closing the lid, or the host's sessions back — use the batch rail:
 
-| Where | How |
-|---|---|
-| Web | Settings → **Migration**: pick a destination, tick sessions, go. Progress narrates row by row. |
-| CLI | `cast migrate start --to <device> [<short-id…>] [--label x] [--from <device>] [--project <path\|name>] [--all] [--dry-run]` · `cast migrate ls` · `cast migrate show <batch>` · `cast migrate cancel\|retry <batch>` |
-| Inbox | ⌘-click / shift-click cards to select several; right-click → "Move N sessions to…", or ⌘K → "Move to machine…". A single card's menu has "Move to machine" too. |
+| Where | How                                                                                                                                                                                                                  |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web   | Settings → **Migration**: pick a destination, tick sessions, go. Progress narrates row by row.                                                                                                                       |
+| CLI   | `cast migrate start --to <device> [<short-id…>] [--label x] [--from <device>] [--project <path\|name>] [--all] [--dry-run]` · `cast migrate ls` · `cast migrate show <batch>` · `cast migrate cancel\|retry <batch>` |
+| Inbox | ⌘-click / shift-click cards to select several; right-click → "Move N sessions to…", or ⌘K → "Move to machine…". A single card's menu has "Move to machine" too.                                                      |
 
 Selectors AND together and resolve on the server (`sessionMigrations.createBatch`
 `selector`): `--label` is your personal filing (buckets), `--from` a device,
@@ -198,6 +198,7 @@ A remote daemon only manages sessions it explicitly owns (safety gate in
 2. **SSH key**: `~/.codecast/scaleway/<host-id>/id_ed25519` (generated at provision, registered with Scaleway IAM).
 
 3. **Install toolchain on the Mac** (via SSH):
+
    ```bash
    # Claude Code
    curl -fsSL https://claude.ai/install.sh | bash
@@ -224,6 +225,7 @@ A remote daemon only manages sessions it explicitly owns (safety gate in
 ## Architecture
 
 The Mac is "just another device":
+
 - `device_id` derived from `~/.codecast/.machine_key` (unique per machine).
 - Daemon heartbeats register the device + its local project roots.
 - Sessions carry `owner_device_id` → single-owner invariant.

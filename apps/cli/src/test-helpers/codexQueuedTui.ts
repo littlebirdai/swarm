@@ -4,39 +4,71 @@ import { codexQueuedPane } from "./codexQueuedPane.js";
 const [statePath, finishPath, layout, inputReleasePath] = process.argv.slice(2);
 let inputHeld = !!inputReleasePath;
 let footerTick = 0;
-const state = { active: true, interrupts: 0, queued: ["Existing worker report."], delivered: [] as string[] } as {
-  active: boolean; interrupts: number; queued: string[]; delivered: string[]; commands?: string[]; panelKeys?: number;
+const state = {
+  active: true,
+  interrupts: 0,
+  queued: ["Existing worker report."],
+  delivered: [] as string[],
+} as {
+  active: boolean;
+  interrupts: number;
+  queued: string[];
+  delivered: string[];
+  commands?: string[];
+  panelKeys?: number;
 };
 // A Claude layout runs "/mcp" as a local command, as Claude Code does: no turn,
 // no transcript line, a panel that owns the keyboard until Escape. For its
 // first frames the panel draws under the composer that still shows the command.
 let panel: "opening" | "open" | null = null;
-const PANEL = ["▔".repeat(80), "   Manage MCP servers", "   1 server", "", "     Built-in MCPs (always available)", "   ❯ ◯ computer-use", "", "   https://code.claude.com/docs/en/mcp for help", "   ↑/↓ to navigate · Enter to confirm · Esc to cancel"].join("\n");
+const PANEL = [
+  "▔".repeat(80),
+  "   Manage MCP servers",
+  "   1 server",
+  "",
+  "     Built-in MCPs (always available)",
+  "   ❯ ◯ computer-use",
+  "",
+  "   https://code.claude.com/docs/en/mcp for help",
+  "   ↑/↓ to navigate · Enter to confirm · Esc to cancel",
+].join("\n");
 let composer = "";
 let input = "";
 let swallowEnter = layout === "claude-collapsed";
 // A starved client: the text renders, every Enter is lost until the file appears.
-const enterHeard = () => layout !== "claude-deaf" || existsSync(`${statePath}.hear`);
+const enterHeard = () =>
+  layout !== "claude-deaf" || existsSync(`${statePath}.hear`);
 
 function render() {
   writeFileSync(`${statePath}.tmp`, JSON.stringify(state));
   renameSync(`${statePath}.tmp`, statePath);
-  const prompt = layout?.endsWith("collapsed") && composer.length > 1000
-    ? layout === "claude-collapsed" ? "[Pasted text #98]" : `[Pasted Content ${composer.length} chars]`
-    : composer || (layout?.startsWith("claude") ? "" : "Ask Codex to do anything");
+  const prompt =
+    layout?.endsWith("collapsed") && composer.length > 1000
+      ? layout === "claude-collapsed"
+        ? "[Pasted text #98]"
+        : `[Pasted Content ${composer.length} chars]`
+      : composer ||
+        (layout?.startsWith("claude") ? "" : "Ask Codex to do anything");
   // Claude Code draws the panel at the bottom of the screen, under the transcript.
-  const atBottom = (text: string) => "\n".repeat(Math.max(0, (process.stdout.rows || 50) - text.split("\n").length)) + text;
-  const pane = panel === "open"
-    ? atBottom(`⏺ Done.\n\n${PANEL}`)
-    : panel === "opening"
-    ? atBottom(`${"─".repeat(80)}\n❯ /mcp\n${"─".repeat(80)}\n${PANEL}`)
-    : layout?.startsWith("claude")
-    ? `${"─".repeat(80)}\n❯ ${prompt}\n${"─".repeat(80)}\n  bypass permissions on (shift+tab to cycle)${inputReleasePath ? ` · ${footerTick}` : ""}`
-    : state.active
-    ? layout === "clipped"
-      ? `    Existing queued report …\n\n› ${prompt}\n\n  gpt-6-astra xhigh · /tmp`
-      : codexQueuedPane(prompt, state.queued.flatMap((message) => message.split("\n")))
-    : `• Completed turn.\n\n› ${prompt}\n\n  gpt-6-astra xhigh · /tmp`;
+  const atBottom = (text: string) =>
+    "\n".repeat(
+      Math.max(0, (process.stdout.rows || 50) - text.split("\n").length),
+    ) + text;
+  const pane =
+    panel === "open"
+      ? atBottom(`⏺ Done.\n\n${PANEL}`)
+      : panel === "opening"
+        ? atBottom(`${"─".repeat(80)}\n❯ /mcp\n${"─".repeat(80)}\n${PANEL}`)
+        : layout?.startsWith("claude")
+          ? `${"─".repeat(80)}\n❯ ${prompt}\n${"─".repeat(80)}\n  bypass permissions on (shift+tab to cycle)${inputReleasePath ? ` · ${footerTick}` : ""}`
+          : state.active
+            ? layout === "clipped"
+              ? `    Existing queued report …\n\n› ${prompt}\n\n  gpt-6-astra xhigh · /tmp`
+              : codexQueuedPane(
+                  prompt,
+                  state.queued.flatMap((message) => message.split("\n")),
+                )
+            : `• Completed turn.\n\n› ${prompt}\n\n  gpt-6-astra xhigh · /tmp`;
   process.stdout.write(`\x1b[2J\x1b[H${pane.replace(/\n/g, "\r\n")}`);
 }
 
@@ -52,7 +84,12 @@ process.stdin.on("data", (chunk: string) => {
       composer += input.slice(6, end).replace(/\r\n?/g, "\n");
       input = input.slice(end + 6);
     } else {
-      if (input.startsWith("\x1b") && "\x1b[200~".startsWith(input) && input.length > 1) break;
+      if (
+        input.startsWith("\x1b") &&
+        "\x1b[200~".startsWith(input) &&
+        input.length > 1
+      )
+        break;
       const key = input[0];
       input = input.slice(1);
       if (panel) {
@@ -71,8 +108,14 @@ process.stdin.on("data", (chunk: string) => {
           state.commands = [...(state.commands ?? []), composer];
           state.panelKeys ??= 0;
           panel = "opening";
-          setTimeout(() => { if (panel) { panel = "open"; render(); } }, 1_000);
-        } else if (composer) (state.active ? state.queued : state.delivered).push(composer);
+          setTimeout(() => {
+            if (panel) {
+              panel = "open";
+              render();
+            }
+          }, 1_000);
+        } else if (composer)
+          (state.active ? state.queued : state.delivered).push(composer);
         composer = "";
       } else if (key === "\x0b" || key === "\x15") {
         composer = "";

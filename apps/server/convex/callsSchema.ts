@@ -1,6 +1,11 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
-import { callRecordingErrorKindValidator, callRecordingKindValidator, callRecordingStatusValidator, callRecordingStopReasonValidator } from "./lib/callValidators";
+import {
+  callRecordingErrorKindValidator,
+  callRecordingKindValidator,
+  callRecordingStatusValidator,
+  callRecordingStopReasonValidator,
+} from "./lib/callValidators";
 import { chatAttachmentValidator } from "./lib/chatAttachment";
 
 /**
@@ -213,7 +218,9 @@ export const callTables = {
     // record_deleted: the stretch of the call the deleted run had filmed, in
     // ms on the call's clock (transcript started_at), so the line can say
     // which recording went. Absent when the run never began filming.
-    event_span: v.optional(v.object({ from_ms: v.number(), to_ms: v.number() })),
+    event_span: v.optional(
+      v.object({ from_ms: v.number(), to_ms: v.number() }),
+    ),
     // The huddle this line was said in: the room's live transcript when it
     // was written (callChat.insertRoomRow), or the one a line typed before
     // the record existed was claimed by when it started. Absent on a line
@@ -292,7 +299,14 @@ export const callTables = {
     // the bot is done (meetingBots.saveVideo) and filed as the call's
     // call_recordings row: "saving" while it copies, then "saved", "none"
     // (Recall made no video) or "failed". Absent until the bot is done.
-    video_status: v.optional(v.union(v.literal("saving"), v.literal("saved"), v.literal("none"), v.literal("failed"))),
+    video_status: v.optional(
+      v.union(
+        v.literal("saving"),
+        v.literal("saved"),
+        v.literal("none"),
+        v.literal("failed"),
+      ),
+    ),
     video_attempts: v.optional(v.number()),
     // A bot the calendar scheduled (meetingCalendar.ts): the event it joins,
     // as meeting_calendar_events.event_id. Absent on a bot sent by hand.
@@ -352,11 +366,15 @@ export const callTables = {
     updated_at: v.number(),
     live: v.optional(v.boolean()),
     // Segment seq ranges sent, inclusive, newest last (capped).
-    excerpts: v.optional(v.array(v.object({
-      from_seq: v.number(),
-      to_seq: v.number(),
-      at: v.number(),
-    }))),
+    excerpts: v.optional(
+      v.array(
+        v.object({
+          from_seq: v.number(),
+          to_seq: v.number(),
+          at: v.number(),
+        }),
+      ),
+    ),
   })
     .index("by_transcript", ["transcript_id"])
     .index("by_conversation", ["conversation_id"]),

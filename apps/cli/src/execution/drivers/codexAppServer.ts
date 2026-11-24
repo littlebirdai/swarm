@@ -28,8 +28,7 @@ export interface CodexAppServerClient {
   turnStart(params: {
     threadId: string;
     input: Array<
-      | { type: "text"; text: string }
-      | { type: "localImage"; path: string }
+      { type: "text"; text: string } | { type: "localImage"; path: string }
     >;
     model?: string;
     cwd?: string;
@@ -54,7 +53,10 @@ export interface CodexAppServerIo {
 export interface CodexAppServerRuntimeDriverOptions {
   io: CodexAppServerIo;
   capabilities?: readonly RuntimeCapability[];
-  defaultPermissions?: () => { sandbox: "read-only" | "workspace-write" | "danger-full-access"; approvalPolicy: "untrusted" | "on-failure" | "on-request" | "never" };
+  defaultPermissions?: () => {
+    sandbox: "read-only" | "workspace-write" | "danger-full-access";
+    approvalPolicy: "untrusted" | "on-failure" | "on-request" | "never";
+  };
 }
 
 export class CodexAppServerRuntimeDriver implements RuntimeDriver {
@@ -69,11 +71,16 @@ export class CodexAppServerRuntimeDriver implements RuntimeDriver {
   constructor(options: CodexAppServerRuntimeDriverOptions) {
     this.io = options.io;
     this.defaultPermissions = options.defaultPermissions;
-    this.capabilities = options.capabilities ?? [...FENCED_RUNTIME_CAPABILITIES];
+    this.capabilities = options.capabilities ?? [
+      ...FENCED_RUNTIME_CAPABILITIES,
+    ];
   }
 
   async start(request: RuntimeStartRequest): Promise<RuntimeStartResult> {
-    if (request.target.requestedAgent !== "codex" || request.target.transport !== "app-server") {
+    if (
+      request.target.requestedAgent !== "codex" ||
+      request.target.transport !== "app-server"
+    ) {
       return {
         state: "failed-before-effect",
         failure: {
@@ -84,8 +91,14 @@ export class CodexAppServerRuntimeDriver implements RuntimeDriver {
     }
     try {
       const defaults = this.defaultPermissions?.();
-      const sandbox = request.target.isolation?.sandbox ?? defaults?.sandbox ?? "danger-full-access";
-      const approvalPolicy = request.target.isolation?.approvalPolicy ?? defaults?.approvalPolicy ?? "never";
+      const sandbox =
+        request.target.isolation?.sandbox ??
+        defaults?.sandbox ??
+        "danger-full-access";
+      const approvalPolicy =
+        request.target.isolation?.approvalPolicy ??
+        defaults?.approvalPolicy ??
+        "never";
       const response = await this.io.client.threadStart({
         cwd: request.target.projectPath,
         sandbox,
@@ -132,7 +145,8 @@ export class CodexAppServerRuntimeDriver implements RuntimeDriver {
         state: "unknown",
         failure: {
           code: "CODEX_THREAD_HANDLE_UNKNOWN",
-          message: "A recovering Codex start has no durably journaled thread handle",
+          message:
+            "A recovering Codex start has no durably journaled thread handle",
         },
       };
     }
@@ -158,7 +172,8 @@ export class CodexAppServerRuntimeDriver implements RuntimeDriver {
         state: "unknown",
         failure: {
           code: "CODEX_THREAD_INSPECTION_UNKNOWN",
-          message: "Codex app-server could not prove whether the journaled thread exists",
+          message:
+            "Codex app-server could not prove whether the journaled thread exists",
         },
       };
     } catch (error) {
@@ -169,9 +184,14 @@ export class CodexAppServerRuntimeDriver implements RuntimeDriver {
     }
   }
 
-  async deliver(request: RuntimeDeliveryRequest): Promise<DriverDeliveryResult> {
+  async deliver(
+    request: RuntimeDeliveryRequest,
+  ): Promise<DriverDeliveryResult> {
     assertRuntimeDeliveryFence(request);
-    if (request.binding.actualAgent !== "codex" || request.binding.transport !== "app-server") {
+    if (
+      request.binding.actualAgent !== "codex" ||
+      request.binding.transport !== "app-server"
+    ) {
       return {
         state: "failed-before-effect",
         failure: {
@@ -203,7 +223,10 @@ export class CodexAppServerRuntimeDriver implements RuntimeDriver {
     return this.io.stopThread(binding.handle);
   }
 
-  quarantine(binding: Parameters<RuntimeDriver["quarantine"]>[0], reason: string): Promise<void> {
+  quarantine(
+    binding: Parameters<RuntimeDriver["quarantine"]>[0],
+    reason: string,
+  ): Promise<void> {
     return this.io.quarantineThread(binding.handle, reason);
   }
 }

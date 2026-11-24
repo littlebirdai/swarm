@@ -26,11 +26,19 @@ import { crawlWatermarkScope, syncMetaKey } from "./syncMetaKeys";
 //                (it walked from the old watermark or a resume checkpoint, so
 //                its backfilledAt would stamp over the full backfill the clear
 //                asked for) and drops the in-session throttle.
-type ReconcileState = { doneAt: Map<string, number>; runningKey: string | null; gen: number; resets: Map<string, number> };
+type ReconcileState = {
+  doneAt: Map<string, number>;
+  runningKey: string | null;
+  gen: number;
+  resets: Map<string, number>;
+};
 const states = new Map<string, ReconcileState>();
 function stateFor(namespace: string): ReconcileState {
   let s = states.get(namespace);
-  if (!s) { s = { doneAt: new Map(), runningKey: null, gen: 0, resets: new Map() }; states.set(namespace, s); }
+  if (!s) {
+    s = { doneAt: new Map(), runningKey: null, gen: 0, resets: new Map() };
+    states.set(namespace, s);
+  }
   return s;
 }
 
@@ -54,10 +62,16 @@ export function cancelReconcileCrawl(namespace: string): void {
 
 function setProgress(namespace: string, loading: boolean, loaded: number) {
   const prev = useInboxStore.getState().syncProgress;
-  useInboxStore.setState({ syncProgress: { ...prev, [namespace]: { loading, loaded } } });
+  useInboxStore.setState({
+    syncProgress: { ...prev, [namespace]: { loading, loaded } },
+  });
 }
 
-export type CrawlPage = { rows: any[]; isDone: boolean; continueCursor: string | null };
+export type CrawlPage = {
+  rows: any[];
+  isDone: boolean;
+  continueCursor: string | null;
+};
 
 export type CrawlOptions = {
   /** Throttle/progress key — also the store scope the badge reads ("tasks" | "docs"). */
@@ -75,7 +89,10 @@ export type CrawlOptions = {
    */
   since?: number;
   /** Fetch one page given the previous page's cursor (null for the first page) and the run's bound. */
-  fetchPage: (cursor: string | null, since: number | undefined) => Promise<CrawlPage>;
+  fetchPage: (
+    cursor: string | null,
+    since: number | undefined,
+  ) => Promise<CrawlPage>;
   /** Overlay a freshly-fetched page (delta — never prunes). */
   onPage: (rows: any[]) => void;
   /** Dynamic lifecycle fence (principal changes, durable replay gates, etc.). */
@@ -87,7 +104,11 @@ export type CrawlOptions = {
    * ignore it; a consumer that PRUNES on this pass (the docs absent-prune)
    * must gate on `complete` so a truncated crawl can't drop real rows.
    */
-  onComplete: (all: any[], complete: boolean, isCurrent: () => boolean) => void | Promise<void>;
+  onComplete: (
+    all: any[],
+    complete: boolean,
+    isCurrent: () => boolean,
+  ) => void | Promise<void>;
   /** Ignore the durable watermark on the first run in this page session. */
   bootEager?: boolean;
 };
@@ -109,10 +130,11 @@ export function crawlThrottledAt(
   persistedDoneAt: number,
   bootEager: boolean,
 ): boolean {
-  const lastDoneAt = bootEager ? sessionDoneAt : Math.max(sessionDoneAt, persistedDoneAt);
+  const lastDoneAt = bootEager
+    ? sessionDoneAt
+    : Math.max(sessionDoneAt, persistedDoneAt);
   return now - lastDoneAt < throttleMs;
 }
-
 
 // The watermark key lives in a leaf (./syncMetaKeys) so the store can read it.
 export { syncMetaKey };
@@ -131,16 +153,23 @@ export function countLogMissedRows(
   let n = 0;
   for (const r of rows) {
     const cur = current[String(r?._id)];
-    if (!cur || (typeof r?.updated_at === "number" && cur.updated_at !== r.updated_at)) n++;
+    if (
+      !cur ||
+      (typeof r?.updated_at === "number" && cur.updated_at !== r.updated_at)
+    )
+      n++;
   }
   return n;
 }
 
 /** How many times a resync cleared this watermark's scope this page session:
  *  the crawl hooks relaunch when it moves, the runner supersedes on it. */
-export function crawlResetsFor(s: { crawlResets: Record<string, number> }, metaKey: string): number {
+export function crawlResetsFor(
+  s: { crawlResets: Record<string, number> },
+  metaKey: string,
+): number {
   const scope = crawlWatermarkScope(metaKey);
-  return scope ? s.crawlResets[scope] ?? 0 : 0;
+  return scope ? (s.crawlResets[scope] ?? 0) : 0;
 }
 
 /**
@@ -171,8 +200,18 @@ export function runReconcileCrawl(opts: CrawlOptions): void {
   // The completion time is DURABLE (persisted in syncMeta), so a fresh page load
   // honors a backfill that finished in a prior session instead of re-crawling the
   // whole table on every launch. The module-scope doneAt covers the in-session case.
-  const persistedDoneAt = useInboxStore.getState().syncMeta[metaKey]?.backfilledAt ?? 0;
-  if (crawlThrottledAt(Date.now(), throttleMs, st.doneAt.get(wsKey) ?? 0, persistedDoneAt, !!opts.bootEager)) return;
+  const persistedDoneAt =
+    useInboxStore.getState().syncMeta[metaKey]?.backfilledAt ?? 0;
+  if (
+    crawlThrottledAt(
+      Date.now(),
+      throttleMs,
+      st.doneAt.get(wsKey) ?? 0,
+      persistedDoneAt,
+      !!opts.bootEager,
+    )
+  )
+    return;
   // A crawl for THIS workspace is already in flight → let it finish.
   if (st.runningKey === wsKey) return;
 
@@ -203,11 +242,13 @@ export function runReconcileCrawl(opts: CrawlOptions): void {
   const meta = useInboxStore.getState().syncMeta[metaKey];
   // A bounded crawl resumes only a checkpoint that recorded its bound.
   const resumeCursor =
-    meta?.resumeCursor && Date.now() - (meta.resumeAt ?? 0) < RESUME_WINDOW_MS
-      && (opts.since === undefined || typeof meta.resumeSince === "number")
+    meta?.resumeCursor &&
+    Date.now() - (meta.resumeAt ?? 0) < RESUME_WINDOW_MS &&
+    (opts.since === undefined || typeof meta.resumeSince === "number")
       ? meta.resumeCursor
       : null;
-  const since = resumeCursor && opts.since !== undefined ? meta!.resumeSince : opts.since;
+  const since =
+    resumeCursor && opts.since !== undefined ? meta!.resumeSince : opts.since;
 
   (async () => {
     setProgress(namespace, true, 0);
@@ -237,7 +278,11 @@ export function runReconcileCrawl(opts: CrawlOptions): void {
       lastFlush = Date.now();
       setProgress(namespace, loading, all.length);
       if (ckpt !== undefined && ckpt !== null && !superseded()) {
-        useInboxStore.getState().recordSyncMeta(metaKey, { resumeCursor: ckpt, resumeAt: Date.now(), resumeSince: since });
+        useInboxStore.getState().recordSyncMeta(metaKey, {
+          resumeCursor: ckpt,
+          resumeAt: Date.now(),
+          resumeSince: since,
+        });
       }
     };
     for (let i = 0; i < maxPages; i++) {
@@ -245,9 +290,14 @@ export function runReconcileCrawl(opts: CrawlOptions): void {
       // the whole crawl and leave a partial list. Give up only after several tries.
       let page: CrawlPage | null = null;
       for (let attempt = 0; attempt < 5; attempt++) {
-        if (!isCurrent()) { stop(all.length); return; }
-        try { page = await opts.fetchPage(cursor, since); break; }
-        catch {
+        if (!isCurrent()) {
+          stop(all.length);
+          return;
+        }
+        try {
+          page = await opts.fetchPage(cursor, since);
+          break;
+        } catch {
           if (attempt === 4) {
             // Persistent failure: don't snapshot a partial set (it would prune
             // real rows). Leave overlaid pages in place; retry next effect run.
@@ -255,9 +305,14 @@ export function runReconcileCrawl(opts: CrawlOptions): void {
             // expired continuation cursor — clear the checkpoint (after flush,
             // which re-records it) so the next run restarts from page zero
             // instead of failing forever.
-            if (!superseded()) { flush(false, cursor); st.runningKey = null; }
+            if (!superseded()) {
+              flush(false, cursor);
+              st.runningKey = null;
+            }
             if (resumedMidway && all.length === 0) {
-              useInboxStore.getState().recordSyncMeta(metaKey, { resumeCursor: null });
+              useInboxStore
+                .getState()
+                .recordSyncMeta(metaKey, { resumeCursor: null });
             }
             return;
           }
@@ -267,7 +322,10 @@ export function runReconcileCrawl(opts: CrawlOptions): void {
       // A newer crawl, a cancel or a principal switch took over while the page
       // was in flight: the fence is closed, so the buffered rows are dropped
       // unwritten and the progress flag is left to whoever owns the slot now.
-      if (!isCurrent() || !page) { stop(all.length); return; }
+      if (!isCurrent() || !page) {
+        stop(all.length);
+        return;
+      }
       const rows = page.rows ?? [];
       all.push(...rows);
       buffer.push(...rows);
@@ -276,13 +334,24 @@ export function runReconcileCrawl(opts: CrawlOptions): void {
       // belt-and-braces guard against a cursor that never advances.
       const next = page.continueCursor || null;
       const more = !page.isDone && !!next && !seenCursors.has(next);
-      if (!more || buffer.length >= FLUSH_ROWS || Date.now() - lastFlush >= FLUSH_MS) flush(more, next);
-      if (!more) { completed = true; break; }
+      if (
+        !more ||
+        buffer.length >= FLUSH_ROWS ||
+        Date.now() - lastFlush >= FLUSH_MS
+      )
+        flush(more, next);
+      if (!more) {
+        completed = true;
+        break;
+      }
       seenCursors.add(next!);
       cursor = next;
       await new Promise((r) => setTimeout(r, pageDelayMs));
     }
-    if (!isCurrent()) { stop(all.length); return; }
+    if (!isCurrent()) {
+      stop(all.length);
+      return;
+    }
     if (buffer.length) flush(true, cursor); // maxPages-truncated: land the tail overlay
     // Final completeness pass: re-overlay the full set. onComplete is a DELTA
     // overlay (the big collections are isDelta in SYNC_REGISTRY) — additive, never
@@ -292,12 +361,18 @@ export function runReconcileCrawl(opts: CrawlOptions): void {
     // A resumed run only walked the tail — its `all` is partial, so consumers
     // must treat it as incomplete even though the table is cumulatively covered.
     await opts.onComplete(all, completed && !resumedMidway, isCurrent);
-    if (!isCurrent()) { stop(all.length); return; }
+    if (!isCurrent()) {
+      stop(all.length);
+      return;
+    }
     // Stopped at maxPages with rows unfetched: stamp no watermark. backfilledAt
     // would throttle the next crawl and an advanced cursor would start it past
     // the tail this run never read, so the tail would never be revisited. The
     // checkpoint the last flush recorded stays, and the next run resumes there.
-    if (!completed) { stop(all.length); return; }
+    if (!completed) {
+      stop(all.length);
+      return;
+    }
     // Persist the watermark: backfilledAt (durable throttle — skip the crawl on
     // the next launch) and cursor = the highest updated_at we just saw (so the
     // NEXT crawl resumes incrementally from here via `since`). cursor advances
@@ -311,7 +386,11 @@ export function runReconcileCrawl(opts: CrawlOptions): void {
     // resumeCursor: null clears the mid-crawl checkpoint — the walk finished
     // (cumulatively, when resumed), so the next crawl starts fresh after the
     // throttle window and regains full deletion-reconcile authority.
-    useInboxStore.getState().recordSyncMeta(metaKey, { backfilledAt: now, cursor: maxUpdated || undefined, resumeCursor: null });
+    useInboxStore.getState().recordSyncMeta(metaKey, {
+      backfilledAt: now,
+      cursor: maxUpdated || undefined,
+      resumeCursor: null,
+    });
     setProgress(namespace, false, all.length);
     st.doneAt.set(wsKey, now);
     st.runningKey = null;

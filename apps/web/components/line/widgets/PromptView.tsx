@@ -16,10 +16,21 @@ import { useLineNav } from "./parts";
 type NodeName = { id: string; label: string };
 
 /** A link to another step inside a prompt opens that step. */
-function StepRefLink({ href, children }: { href?: string; children?: ReactNode }) {
+function StepRefLink({
+  href,
+  children,
+}: {
+  href?: string;
+  children?: ReactNode;
+}) {
   const nav = useLineNav();
   const step = stationRefOf(href);
-  if (!step) return <a href={href} target="_blank" rel="noreferrer">{children}</a>;
+  if (!step)
+    return (
+      <a href={href} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    );
   return (
     <a
       className="lw-stepref"
@@ -36,41 +47,90 @@ function StepRefLink({ href, children }: { href?: string; children?: ReactNode }
 }
 
 // Module-level, so react-markdown's parse is cached across renders.
-const PROMPT_MD: Components = { a: ({ href, children }) => <StepRefLink href={href}>{children}</StepRefLink> };
+const PROMPT_MD: Components = {
+  a: ({ href, children }) => <StepRefLink href={href}>{children}</StepRefLink>,
+};
 
 /** One stretch of prompt text, its inserted values said in words. */
-const PromptMarkdown = memo(function PromptMarkdown({ text, nodes }: { text: string; nodes: ReadonlyArray<NodeName> }) {
+const PromptMarkdown = memo(function PromptMarkdown({
+  text,
+  nodes,
+}: {
+  text: string;
+  nodes: ReadonlyArray<NodeName>;
+}) {
   const readable = useMemo(() => readableTemplate(text, nodes), [text, nodes]);
   return <MarkdownBlocks content={readable} components={PROMPT_MD} />;
 });
 
-function Include({ include }: { include: PromptInclude | undefined; name: string }) {
+function Include({
+  include,
+}: {
+  include: PromptInclude | undefined;
+  name: string;
+}) {
   const text = include?.text ?? null;
   const name = include?.name ?? "";
   if (text == null) {
     return (
       <details className="lw-include" data-missing="">
-        <summary><span className="lw-plus" aria-hidden>+</span><b>{name}</b><span>shared text; its words are not recorded with the runs</span></summary>
+        <summary>
+          <span className="lw-plus" aria-hidden>
+            +
+          </span>
+          <b>{name}</b>
+          <span>shared text; its words are not recorded with the runs</span>
+        </summary>
       </details>
     );
   }
   const words = text.split(/\s+/).filter(Boolean).length;
   return (
     <details className="lw-include">
-      <summary><span className="lw-plus" aria-hidden>+</span><b>{name}</b><span>shared text, {words} words</span></summary>
-      <div className="lw-include-body lw-doc"><PromptMarkdown text={text} nodes={[]} /></div>
+      <summary>
+        <span className="lw-plus" aria-hidden>
+          +
+        </span>
+        <b>{name}</b>
+        <span>shared text, {words} words</span>
+      </summary>
+      <div className="lw-include-body lw-doc">
+        <PromptMarkdown text={text} nodes={[]} />
+      </div>
     </details>
   );
 }
 
 /** A stretch of text with its shared sections folded in place. */
-function PromptBody({ text, includes, nodes }: { text: string; includes: ReadonlyArray<PromptInclude>; nodes: ReadonlyArray<NodeName> }) {
+function PromptBody({
+  text,
+  includes,
+  nodes,
+}: {
+  text: string;
+  includes: ReadonlyArray<PromptInclude>;
+  nodes: ReadonlyArray<NodeName>;
+}) {
   const parts = useMemo(() => promptParts(text), [text]);
   return (
     <div className="lw-doc">
-      {parts.map((p, i) => p.kind === "include"
-        ? <Include key={`i${i}`} name={p.name} include={includes.find((x) => x.name === p.name) ?? { name: p.name, from: p.from, text: null }} />
-        : <PromptMarkdown key={`t${i}`} text={p.text} nodes={nodes} />)}
+      {parts.map((p, i) =>
+        p.kind === "include" ? (
+          <Include
+            key={`i${i}`}
+            name={p.name}
+            include={
+              includes.find((x) => x.name === p.name) ?? {
+                name: p.name,
+                from: p.from,
+                text: null,
+              }
+            }
+          />
+        ) : (
+          <PromptMarkdown key={`t${i}`} text={p.text} nodes={nodes} />
+        ),
+      )}
     </div>
   );
 }
@@ -90,10 +150,21 @@ export type PromptViewProps = {
 };
 
 /** A prompt read as an outline, or edited as text. */
-export function PromptView({ prompt, nodes = [], text, changed, layout = "outline", editing, onEdit }: PromptViewProps) {
+export function PromptView({
+  prompt,
+  nodes = [],
+  text,
+  changed,
+  layout = "outline",
+  editing,
+  onEdit,
+}: PromptViewProps) {
   const shown = text ?? prompt.text;
   const [openAll, setOpenAll] = useState(false);
-  const sections = useMemo(() => (layout === "outline" ? promptSections(shown) : []), [layout, shown]);
+  const sections = useMemo(
+    () => (layout === "outline" ? promptSections(shown) : []),
+    [layout, shown],
+  );
 
   if (editing) {
     return (
@@ -108,10 +179,18 @@ export function PromptView({ prompt, nodes = [], text, changed, layout = "outlin
       />
     );
   }
-  if (prompt.kind === "script") return <pre className="lw-cmd" data-line-prompt="script">{shown}</pre>;
+  if (prompt.kind === "script")
+    return (
+      <pre className="lw-cmd" data-line-prompt="script">
+        {shown}
+      </pre>
+    );
   if (layout !== "outline" || sections.length <= 1) {
     return (
-      <div className={layout === "peek" ? "lw-clamp" : undefined} data-line-prompt={layout}>
+      <div
+        className={layout === "peek" ? "lw-clamp" : undefined}
+        data-line-prompt={layout}
+      >
         <PromptBody text={shown} includes={prompt.includes} nodes={nodes} />
       </div>
     );
@@ -119,22 +198,46 @@ export function PromptView({ prompt, nodes = [], text, changed, layout = "outlin
   return (
     <div data-line-prompt="outline">
       {sections.length > 2 && (
-        <div className="lw-doctools" style={{ justifyContent: "flex-end", marginTop: -6 }}>
-          <button type="button" className="lw-link" onClick={() => setOpenAll((v) => !v)} aria-pressed={openAll}>{openAll ? "Fold all" : "Open all"}</button>
+        <div
+          className="lw-doctools"
+          style={{ justifyContent: "flex-end", marginTop: -6 }}
+        >
+          <button
+            type="button"
+            className="lw-link"
+            onClick={() => setOpenAll((v) => !v)}
+            aria-pressed={openAll}
+          >
+            {openAll ? "Fold all" : "Open all"}
+          </button>
         </div>
       )}
       <div className="lw-outline">
         {sections.map((s) => {
-          const isChanged = !!changed && [...changed].some((n) => n >= s.start && n < s.end);
+          const isChanged =
+            !!changed && [...changed].some((n) => n >= s.start && n < s.end);
           return (
-            <details key={`${s.start}:${openAll}`} className="lw-psec" open={openAll || isChanged || sections.length === 1} data-changed={isChanged ? "" : undefined}>
+            <details
+              key={`${s.start}:${openAll}`}
+              className="lw-psec"
+              open={openAll || isChanged || sections.length === 1}
+              data-changed={isChanged ? "" : undefined}
+            >
               <summary>
                 <span className="lw-chev" aria-hidden />
                 <b>{s.title}</b>
                 <span className="lw-psec-lead">{s.lead}</span>
-                <span className="lw-psec-wc">{isChanged ? "changed" : `${s.words} words`}</span>
+                <span className="lw-psec-wc">
+                  {isChanged ? "changed" : `${s.words} words`}
+                </span>
               </summary>
-              <div className="lw-psec-body"><PromptBody text={s.body} includes={prompt.includes} nodes={nodes} /></div>
+              <div className="lw-psec-body">
+                <PromptBody
+                  text={s.body}
+                  includes={prompt.includes}
+                  nodes={nodes}
+                />
+              </div>
             </details>
           );
         })}

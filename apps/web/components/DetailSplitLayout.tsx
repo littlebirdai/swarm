@@ -25,7 +25,11 @@ export function DetailSplitLayout(props: {
   closeHref: string;
   children?: ReactNode;
 }) {
-  return useIsModernStyle() ? <ModernDetailSplit {...props} /> : <ClassicDetailSplit {...props} />;
+  return useIsModernStyle() ? (
+    <ModernDetailSplit {...props} />
+  ) : (
+    <ClassicDetailSplit {...props} />
+  );
 }
 
 function ClassicDetailSplit({
@@ -48,10 +52,14 @@ function ClassicDetailSplit({
 
   return (
     <div className="relative h-full overflow-hidden">
-      <div className="h-full cq-container" inert={hasDetail}>{list}</div>
+      <div className="h-full cq-container" inert={hasDetail}>
+        {list}
+      </div>
       {hasDetail && (
         <div className="absolute inset-0 z-30 bg-sol-bg flex flex-col">
-          <div ref={detailRef} className="flex-1 min-h-0">{children}</div>
+          <div ref={detailRef} className="flex-1 min-h-0">
+            {children}
+          </div>
         </div>
       )}
     </div>

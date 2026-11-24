@@ -8,7 +8,10 @@ export default function RepoBranchesPage() {
   const family = useRepoFamily();
   return (
     <RepoSectionPage tab="branches" accent="var(--sol-blue)">
-      <RepoRefsContent repository={`${params.owner}/${params.name}`} family={family} />
+      <RepoRefsContent
+        repository={`${params.owner}/${params.name}`}
+        family={family}
+      />
     </RepoSectionPage>
   );
 }

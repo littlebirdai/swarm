@@ -9,7 +9,10 @@ import {
   cascadeHideToNestedChildren,
   applyHideTransition,
 } from "./cleanup";
-import { continueKillCancellation, enqueuePendingMessage } from "./pendingMessages";
+import {
+  continueKillCancellation,
+  enqueuePendingMessage,
+} from "./pendingMessages";
 
 // Minimal in-memory ctx.db honoring the .withIndex(name, q => q.eq(field,val))
 // chains the cleanup helpers use, so the reap logic is testable without the full
@@ -26,31 +29,61 @@ function makeFakeDb(tables: Record<string, any[]>) {
       // Copies, matching Convex semantics: a fetched row is a snapshot that a
       // later patch never mutates (applyHideTransition's transition gate needs
       // the PRE-patch flags on the row it was handed).
-      const apply = () => (tables[table] ?? [])
-        .filter((r) => filters.every(([f, v]) => r[f] === v))
-        .filter((r) => upperBounds.every(([f, v]) => r[f] === undefined || (v !== undefined && r[f] <= v)))
-        .map((r) => ({ ...r }));
+      const apply = () =>
+        (tables[table] ?? [])
+          .filter((r) => filters.every(([f, v]) => r[f] === v))
+          .filter((r) =>
+            upperBounds.every(
+              ([f, v]) => r[f] === undefined || (v !== undefined && r[f] <= v),
+            ),
+          )
+          .map((r) => ({ ...r }));
       const builder: any = {
         withIndex(_name: string, fn?: (q: any) => any) {
           if (fn) {
             const q: any = {
-              eq(field: string, val: any) { filters.push([field, val]); return q; },
-              lte(field: string, val: any) { upperBounds.push([field, val]); return q; },
-              gte() { return q; }, gt() { return q; }, lt() { return q; },
+              eq(field: string, val: any) {
+                filters.push([field, val]);
+                return q;
+              },
+              lte(field: string, val: any) {
+                upperBounds.push([field, val]);
+                return q;
+              },
+              gte() {
+                return q;
+              },
+              gt() {
+                return q;
+              },
+              lt() {
+                return q;
+              },
             };
             fn(q);
           }
           return builder;
         },
-        order() { return builder; },
-        async first() { return apply()[0] ?? null; },
-        async collect() { return apply(); },
-        async take(n: number) { return apply().slice(0, n); },
+        order() {
+          return builder;
+        },
+        async first() {
+          return apply()[0] ?? null;
+        },
+        async collect() {
+          return apply();
+        },
+        async take(n: number) {
+          return apply().slice(0, n);
+        },
       };
       return builder;
     },
     async get(id: any) {
-      for (const rows of Object.values(tables)) { const r = rows.find((x: any) => x._id === id); if (r) return r; }
+      for (const rows of Object.values(tables)) {
+        const r = rows.find((x: any) => x._id === id);
+        if (r) return r;
+      }
       return null;
     },
     async insert(table: string, doc: any) {
@@ -61,12 +94,18 @@ function makeFakeDb(tables: Record<string, any[]>) {
     },
     async delete(id: any) {
       deleted.push(id);
-      for (const rows of Object.values(tables)) { const i = rows.findIndex((x: any) => x._id === id); if (i >= 0) rows.splice(i, 1); }
+      for (const rows of Object.values(tables)) {
+        const i = rows.findIndex((x: any) => x._id === id);
+        if (i >= 0) rows.splice(i, 1);
+      }
     },
     // Applied, not a no-op: the hide cascade reads back the flags it writes
     // (the already-hidden skip), so patches must land on the row objects.
     async patch(id: any, fields: any) {
-      for (const rows of Object.values(tables)) { const r = rows.find((x: any) => x._id === id); if (r) Object.assign(r, fields); }
+      for (const rows of Object.values(tables)) {
+        const r = rows.find((x: any) => x._id === id);
+        if (r) Object.assign(r, fields);
+      }
     },
   };
   return db;
@@ -83,11 +122,18 @@ describe("isGcableEmptyConversation", () => {
 
   test("anything with messages or pending sends is kept", () => {
     expect(isGcableEmptyConversation({ message_count: 1 })).toBe(false);
-    expect(isGcableEmptyConversation({ message_count: 0, has_pending_messages: true })).toBe(false);
+    expect(
+      isGcableEmptyConversation({
+        message_count: 0,
+        has_pending_messages: true,
+      }),
+    ).toBe(false);
   });
 
   test("user intent keeps the row: drafts, pins, favorites, custom titles, shares", () => {
-    expect(isGcableEmptyConversation({ draft_message: "half-typed thought" })).toBe(false);
+    expect(
+      isGcableEmptyConversation({ draft_message: "half-typed thought" }),
+    ).toBe(false);
     expect(isGcableEmptyConversation({ draft_message: "   " })).toBe(true); // whitespace ≠ intent
     expect(isGcableEmptyConversation({ inbox_pinned_at: 123 })).toBe(false);
     expect(isGcableEmptyConversation({ inbox_snoozed_until: 123 })).toBe(false);
@@ -101,12 +147,16 @@ describe("isGcableEmptyConversation", () => {
     expect(isGcableEmptyConversation({ active_plan_id: "p" })).toBe(false);
     expect(isGcableEmptyConversation({ plan_ids: ["p"] })).toBe(false);
     expect(isGcableEmptyConversation({ workflow_run_id: "w" })).toBe(false);
-    expect(isGcableEmptyConversation({ is_workflow_primary: true })).toBe(false);
+    expect(isGcableEmptyConversation({ is_workflow_primary: true })).toBe(
+      false,
+    );
     expect(isGcableEmptyConversation({ forked_from: "c" })).toBe(false);
     // A fork mid-copy legitimately has 0 messages — never sweep it.
     expect(isGcableEmptyConversation({ fork_status: "copying" })).toBe(false);
     expect(isGcableEmptyConversation({ is_subagent: true })).toBe(false);
-    expect(isGcableEmptyConversation({ parent_conversation_id: "c" })).toBe(false);
+    expect(isGcableEmptyConversation({ parent_conversation_id: "c" })).toBe(
+      false,
+    );
   });
 });
 
@@ -131,18 +181,23 @@ describe("shouldReapEmpty", () => {
 });
 
 describe("reapEmptyConversation", () => {
-  const liveHb = Date.now();                       // fresh heartbeat → live agent
+  const liveHb = Date.now(); // fresh heartbeat → live agent
   const staleHb = Date.now() - 2 * 60 * 60 * 1000; // 2h old → agent gone
 
   test("a LIVE agent → enqueue kill_session and DEFER deletion (deleting first orphans the tmux)", async () => {
     const tables: Record<string, any[]> = {
       conversations: [{ _id: "c1", user_id: "u1" }],
-      managed_sessions: [{ _id: "m1", conversation_id: "c1", last_heartbeat: liveHb }],
+      managed_sessions: [
+        { _id: "m1", conversation_id: "c1", last_heartbeat: liveHb },
+      ],
       conversation_git_diffs: [{ _id: "d1", conversation_id: "c1" }],
       daemon_commands: [],
     };
     const db = makeFakeDb(tables);
-    const outcome = await reapEmptyConversation({ db }, { _id: "c1", user_id: "u1" });
+    const outcome = await reapEmptyConversation(
+      { db },
+      { _id: "c1", user_id: "u1" },
+    );
     expect(outcome).toBe("kill_enqueued");
     const cmd = db._inserted.find((i: any) => i.table === "daemon_commands");
     expect(cmd?.doc.command).toBe("kill_session");
@@ -156,14 +211,21 @@ describe("reapEmptyConversation", () => {
   test("no live agent (stale managed row) → delete the conversation + stale row + diffs, no kill", async () => {
     const tables: Record<string, any[]> = {
       conversations: [{ _id: "c2", user_id: "u1" }],
-      managed_sessions: [{ _id: "m2", conversation_id: "c2", last_heartbeat: staleHb }],
+      managed_sessions: [
+        { _id: "m2", conversation_id: "c2", last_heartbeat: staleHb },
+      ],
       conversation_git_diffs: [{ _id: "d2", conversation_id: "c2" }],
       daemon_commands: [],
     };
     const db = makeFakeDb(tables);
-    const outcome = await reapEmptyConversation({ db }, { _id: "c2", user_id: "u1" });
+    const outcome = await reapEmptyConversation(
+      { db },
+      { _id: "c2", user_id: "u1" },
+    );
     expect(outcome).toBe("deleted");
-    expect(db._inserted.find((i: any) => i.table === "daemon_commands")).toBeUndefined();
+    expect(
+      db._inserted.find((i: any) => i.table === "daemon_commands"),
+    ).toBeUndefined();
     expect(db._deleted).toEqual(expect.arrayContaining(["c2", "m2", "d2"]));
   });
 
@@ -175,52 +237,97 @@ describe("reapEmptyConversation", () => {
       daemon_commands: [],
     };
     const db = makeFakeDb(tables);
-    expect(await reapEmptyConversation({ db }, { _id: "c3", user_id: "u1" })).toBe("deleted");
-    expect(db._inserted.find((i: any) => i.table === "daemon_commands")).toBeUndefined();
+    expect(
+      await reapEmptyConversation({ db }, { _id: "c3", user_id: "u1" }),
+    ).toBe("deleted");
+    expect(
+      db._inserted.find((i: any) => i.table === "daemon_commands"),
+    ).toBeUndefined();
     expect(db._deleted).toContain("c3");
   });
 
   test("a live agent with a kill already pending → no duplicate command (dedup)", async () => {
     const tables: Record<string, any[]> = {
       conversations: [{ _id: "c4", user_id: "u1" }],
-      managed_sessions: [{ _id: "m4", conversation_id: "c4", last_heartbeat: liveHb }],
+      managed_sessions: [
+        { _id: "m4", conversation_id: "c4", last_heartbeat: liveHb },
+      ],
       conversation_git_diffs: [],
-      daemon_commands: [{ _id: "cmdX", user_id: "u1", command: "kill_session", args: JSON.stringify({ conversation_id: "c4" }), created_at: liveHb, _creationTime: liveHb }],
+      daemon_commands: [
+        {
+          _id: "cmdX",
+          user_id: "u1",
+          command: "kill_session",
+          args: JSON.stringify({ conversation_id: "c4" }),
+          created_at: liveHb,
+          _creationTime: liveHb,
+        },
+      ],
     };
     const db = makeFakeDb(tables);
-    expect(await reapEmptyConversation({ db }, { _id: "c4", user_id: "u1" })).toBe("kill_enqueued");
-    expect(db._inserted.filter((i: any) => i.table === "daemon_commands").length).toBe(0);
+    expect(
+      await reapEmptyConversation({ db }, { _id: "c4", user_id: "u1" }),
+    ).toBe("kill_enqueued");
+    expect(
+      db._inserted.filter((i: any) => i.table === "daemon_commands").length,
+    ).toBe(0);
   });
 });
 
 describe("conversationHasNoWork", () => {
   const empty = { _id: "c1", user_id: "u1", message_count: 0 };
   test("a truly empty conversation has no work", async () => {
-    const db = makeFakeDb({ messages: [], pending_messages: [], client_state: [] });
+    const db = makeFakeDb({
+      messages: [],
+      pending_messages: [],
+      client_state: [],
+    });
     expect(await conversationHasNoWork({ db }, empty)).toBe(true);
   });
   test("an actual message keeps it (denormalized count can lag)", async () => {
-    const db = makeFakeDb({ messages: [{ _id: "x", conversation_id: "c1" }], pending_messages: [], client_state: [] });
+    const db = makeFakeDb({
+      messages: [{ _id: "x", conversation_id: "c1" }],
+      pending_messages: [],
+      client_state: [],
+    });
     expect(await conversationHasNoWork({ db }, empty)).toBe(false);
   });
   test("a pending send keeps it", async () => {
-    const db = makeFakeDb({ messages: [], pending_messages: [{ _id: "p", conversation_id: "c1" }], client_state: [] });
+    const db = makeFakeDb({
+      messages: [],
+      pending_messages: [{ _id: "p", conversation_id: "c1" }],
+      client_state: [],
+    });
     expect(await conversationHasNoWork({ db }, empty)).toBe(false);
   });
   test("a live per-user draft for this conversation keeps it", async () => {
-    const db = makeFakeDb({ messages: [], pending_messages: [], client_state: [{ _id: "cs", user_id: "u1", drafts: { c1: { draft_message: "wip" } } }] });
+    const db = makeFakeDb({
+      messages: [],
+      pending_messages: [],
+      client_state: [
+        { _id: "cs", user_id: "u1", drafts: { c1: { draft_message: "wip" } } },
+      ],
+    });
     expect(await conversationHasNoWork({ db }, empty)).toBe(false);
   });
   test("row-level intent (custom title) keeps it without touching the source tables", async () => {
-    const db = makeFakeDb({ messages: [], pending_messages: [], client_state: [] });
-    expect(await conversationHasNoWork({ db }, { ...empty, title_is_custom: true })).toBe(false);
+    const db = makeFakeDb({
+      messages: [],
+      pending_messages: [],
+      client_state: [],
+    });
+    expect(
+      await conversationHasNoWork({ db }, { ...empty, title_is_custom: true }),
+    ).toBe(false);
   });
 });
 
 describe("hasLiveDraft", () => {
   test("non-empty text or attachments count as a live draft", () => {
     expect(hasLiveDraft({ draft_message: "wip" })).toBe(true);
-    expect(hasLiveDraft({ draft_message: "", draft_images: ["s1"] })).toBe(true);
+    expect(hasLiveDraft({ draft_message: "", draft_images: ["s1"] })).toBe(
+      true,
+    );
   });
 
   test("cleared or empty entries do not", () => {
@@ -242,12 +349,45 @@ describe("cascadeHideToNestedChildren", () => {
   const LEAD = "conv_lead";
   const mkTables = (): Record<string, any[]> => ({
     conversations: [
-      { _id: LEAD, user_id: "u1", agent_team_name: "session-team", agent_name: "team-lead", message_count: 10 },
-      { _id: "conv_sub", user_id: "u1", session_id: "s-sub", parent_conversation_id: LEAD, is_subagent: true, message_count: 5 },
-      { _id: "conv_mate", user_id: "u1", session_id: "s-mate", spawned_by_conversation_id: LEAD, agent_team_name: "session-team", agent_name: "review-worker", message_count: 5 },
+      {
+        _id: LEAD,
+        user_id: "u1",
+        agent_team_name: "session-team",
+        agent_name: "team-lead",
+        message_count: 10,
+      },
+      {
+        _id: "conv_sub",
+        user_id: "u1",
+        session_id: "s-sub",
+        parent_conversation_id: LEAD,
+        is_subagent: true,
+        message_count: 5,
+      },
+      {
+        _id: "conv_mate",
+        user_id: "u1",
+        session_id: "s-mate",
+        spawned_by_conversation_id: LEAD,
+        agent_team_name: "session-team",
+        agent_name: "review-worker",
+        message_count: 5,
+      },
       // cast-spawn lineage: spawned_by WITHOUT a team name stays first-class.
-      { _id: "conv_spawn", user_id: "u1", session_id: "s-spawn", spawned_by_conversation_id: LEAD, message_count: 5 },
-      { _id: "conv_fork", user_id: "u1", session_id: "s-fork", forked_from: LEAD, message_count: 5 },
+      {
+        _id: "conv_spawn",
+        user_id: "u1",
+        session_id: "s-spawn",
+        spawned_by_conversation_id: LEAD,
+        message_count: 5,
+      },
+      {
+        _id: "conv_fork",
+        user_id: "u1",
+        session_id: "s-fork",
+        forked_from: LEAD,
+        message_count: 5,
+      },
     ],
     daemon_commands: [],
     messages: [],
@@ -262,16 +402,21 @@ describe("cascadeHideToNestedChildren", () => {
     const db = makeFakeDb(tables);
     const lead = tables.conversations[0];
 
-    const cascaded = await cascadeHideToNestedChildren({ db }, lead, { inbox_dismissed_at: 111 });
+    const cascaded = await cascadeHideToNestedChildren({ db }, lead, {
+      inbox_dismissed_at: 111,
+    });
     expect(cascaded).toBe(2);
 
-    const row = (id: string) => tables.conversations.find((r: any) => r._id === id)!;
+    const row = (id: string) =>
+      tables.conversations.find((r: any) => r._id === id)!;
     expect(row("conv_sub").inbox_dismissed_at).toBe(111);
     expect(row("conv_mate").inbox_dismissed_at).toBe(111);
     // applyHideTransition ran per child: retired + teardown enqueued.
     expect(row("conv_sub").status).toBe("completed");
     expect(row("conv_mate").inbox_killed_at).toBeGreaterThan(0);
-    const kills = db._inserted.filter((i: any) => i.table === "daemon_commands");
+    const kills = db._inserted.filter(
+      (i: any) => i.table === "daemon_commands",
+    );
     expect(kills).toHaveLength(2);
     // First-class lineages untouched.
     expect(row("conv_spawn").inbox_dismissed_at).toBeUndefined();
@@ -285,22 +430,38 @@ describe("cascadeHideToNestedChildren", () => {
     const tables = mkTables();
     const db = makeFakeDb(tables);
     const lead = tables.conversations[0];
-    const kills = () => db._inserted.filter((i: any) => i.table === "daemon_commands");
+    const kills = () =>
+      db._inserted.filter((i: any) => i.table === "daemon_commands");
 
-    await cascadeHideToNestedChildren({ db }, lead, { inbox_dismissed_at: 111 });
+    await cascadeHideToNestedChildren({ db }, lead, {
+      inbox_dismissed_at: 111,
+    });
     expect(kills()).toHaveLength(2);
     // The daemon executed those kills; a resurrection bug brought the workers
     // back. Executed commands leave nothing pending, so the re-kill enqueues.
     for (const cmd of tables.daemon_commands) cmd.executed_at = 1;
 
-    const firstKilledAt = tables.conversations.find((r: any) => r._id === "conv_sub")!.inbox_killed_at;
-    const again = await cascadeHideToNestedChildren({ db }, lead, { inbox_dismissed_at: 222 }, { forceKill: true });
+    const firstKilledAt = tables.conversations.find(
+      (r: any) => r._id === "conv_sub",
+    )!.inbox_killed_at;
+    const again = await cascadeHideToNestedChildren(
+      { db },
+      lead,
+      { inbox_dismissed_at: 222 },
+      { forceKill: true },
+    );
     expect(again).toBe(2);
     expect(kills()).toHaveLength(4);
     // Already-hidden children keep their original stamps — no timestamp churn,
     // on the hide flag OR on the record of when they were first killed.
-    expect(tables.conversations.find((r: any) => r._id === "conv_sub")!.inbox_dismissed_at).toBe(111);
-    expect(tables.conversations.find((r: any) => r._id === "conv_sub")!.inbox_killed_at).toBe(firstKilledAt);
+    expect(
+      tables.conversations.find((r: any) => r._id === "conv_sub")!
+        .inbox_dismissed_at,
+    ).toBe(111);
+    expect(
+      tables.conversations.find((r: any) => r._id === "conv_sub")!
+        .inbox_killed_at,
+    ).toBe(firstKilledAt);
   });
 
   test("already-hidden children are skipped — a re-asserted hide never re-kills", async () => {
@@ -308,11 +469,20 @@ describe("cascadeHideToNestedChildren", () => {
     const db = makeFakeDb(tables);
     const lead = tables.conversations[0];
 
-    await cascadeHideToNestedChildren({ db }, lead, { inbox_dismissed_at: 111 });
-    const again = await cascadeHideToNestedChildren({ db }, lead, { inbox_dismissed_at: 222 });
+    await cascadeHideToNestedChildren({ db }, lead, {
+      inbox_dismissed_at: 111,
+    });
+    const again = await cascadeHideToNestedChildren({ db }, lead, {
+      inbox_dismissed_at: 222,
+    });
     expect(again).toBe(0);
-    expect(tables.conversations.find((r: any) => r._id === "conv_sub")!.inbox_dismissed_at).toBe(111);
-    expect(db._inserted.filter((i: any) => i.table === "daemon_commands")).toHaveLength(2);
+    expect(
+      tables.conversations.find((r: any) => r._id === "conv_sub")!
+        .inbox_dismissed_at,
+    ).toBe(111);
+    expect(
+      db._inserted.filter((i: any) => i.table === "daemon_commands"),
+    ).toHaveLength(2);
   });
 
   // A lead with 175 subagents could not be stashed, killed or restored: every
@@ -321,21 +491,45 @@ describe("cascadeHideToNestedChildren", () => {
   test("a big group hides one batch inline and schedules the rest", async () => {
     const tables = mkTables();
     for (let i = 0; i < 50; i++) {
-      tables.conversations.push({ _id: `conv_big_${i}`, user_id: "u1", parent_conversation_id: LEAD, is_subagent: true, message_count: 5 });
+      tables.conversations.push({
+        _id: `conv_big_${i}`,
+        user_id: "u1",
+        parent_conversation_id: LEAD,
+        is_subagent: true,
+        message_count: 5,
+      });
     }
     const db = makeFakeDb(tables);
     const scheduled: any[] = [];
-    const scheduler = { runAfter: async (_ms: number, _fn: any, args: any) => { scheduled.push(args); } };
+    const scheduler = {
+      runAfter: async (_ms: number, _fn: any, args: any) => {
+        scheduled.push(args);
+      },
+    };
     const lead = tables.conversations[0];
 
-    const cascaded = await cascadeHideToNestedChildren({ db, scheduler } as any, lead, { inbox_dismissed_at: 444 });
+    const cascaded = await cascadeHideToNestedChildren(
+      { db, scheduler } as any,
+      lead,
+      { inbox_dismissed_at: 444 },
+    );
     expect(cascaded).toBe(52);
-    const hidden = tables.conversations.filter((r: any) => r.inbox_dismissed_at === 444);
+    const hidden = tables.conversations.filter(
+      (r: any) => r.inbox_dismissed_at === 444,
+    );
     expect(hidden).toHaveLength(20);
     expect(scheduled).toHaveLength(1);
     expect(scheduled[0].child_ids).toHaveLength(32);
-    expect(scheduled[0]).toMatchObject({ lead_id: LEAD, field: "inbox_dismissed_at", stamp: 444 });
-    expect(scheduled[0].child_ids.some((id: string) => hidden.some((r: any) => r._id === id))).toBe(false);
+    expect(scheduled[0]).toMatchObject({
+      lead_id: LEAD,
+      field: "inbox_dismissed_at",
+      stamp: 444,
+    });
+    expect(
+      scheduled[0].child_ids.some((id: string) =>
+        hidden.some((r: any) => r._id === id),
+      ),
+    ).toBe(false);
   });
 
   // A Task subagent files with its parent at read time, so a stash writes no
@@ -346,14 +540,19 @@ describe("cascadeHideToNestedChildren", () => {
     const db = makeFakeDb(tables);
     const lead = tables.conversations[0];
 
-    const cascaded = await cascadeHideToNestedChildren({ db }, lead, { inbox_stashed_at: 333 });
+    const cascaded = await cascadeHideToNestedChildren({ db }, lead, {
+      inbox_stashed_at: 333,
+    });
     expect(cascaded).toBe(1);
-    const row = (id: string) => tables.conversations.find((r: any) => r._id === id)!;
+    const row = (id: string) =>
+      tables.conversations.find((r: any) => r._id === id)!;
     expect(row("conv_mate").inbox_stashed_at).toBe(333);
     expect(row("conv_mate").inbox_killed_at).toBeUndefined();
     expect(row("conv_sub").inbox_stashed_at).toBeUndefined();
     expect(row("conv_sub").status).toBeUndefined();
-    expect(db._inserted.filter((i: any) => i.table === "daemon_commands")).toHaveLength(0);
+    expect(
+      db._inserted.filter((i: any) => i.table === "daemon_commands"),
+    ).toHaveLength(0);
   });
 
   // The cascade is built into applyHideTransition itself, so EVERY hide
@@ -370,7 +569,8 @@ describe("cascadeHideToNestedChildren", () => {
     await db.patch(LEAD, patch);
     const { cascaded } = await applyHideTransition({ db }, lead, patch);
     expect(cascaded).toBe(2);
-    const row = (id: string) => tables.conversations.find((r: any) => r._id === id)!;
+    const row = (id: string) =>
+      tables.conversations.find((r: any) => r._id === id)!;
     expect(row("conv_sub").inbox_dismissed_at).toBe(444);
     expect(row("conv_mate").inbox_dismissed_at).toBe(444);
   });
@@ -385,8 +585,14 @@ describe("cascadeHideToNestedChildren", () => {
     const { action, cascaded } = await applyHideTransition({ db }, lead, patch);
     expect(action).toBe("none");
     expect(cascaded).toBe(1);
-    expect(tables.conversations.find((r: any) => r._id === "conv_mate")!.inbox_stashed_at).toBe(555);
-    expect(tables.conversations.find((r: any) => r._id === "conv_sub")!.inbox_stashed_at).toBeUndefined();
+    expect(
+      tables.conversations.find((r: any) => r._id === "conv_mate")!
+        .inbox_stashed_at,
+    ).toBe(555);
+    expect(
+      tables.conversations.find((r: any) => r._id === "conv_sub")!
+        .inbox_stashed_at,
+    ).toBeUndefined();
   });
 
   test("cascade: false keeps the per-child transition single-level", async () => {
@@ -396,9 +602,14 @@ describe("cascadeHideToNestedChildren", () => {
 
     const patch = { inbox_dismissed_at: 666 };
     await db.patch(LEAD, patch);
-    const { cascaded } = await applyHideTransition({ db }, lead, patch, { cascade: false });
+    const { cascaded } = await applyHideTransition({ db }, lead, patch, {
+      cascade: false,
+    });
     expect(cascaded).toBe(0);
-    expect(tables.conversations.find((r: any) => r._id === "conv_sub")!.inbox_dismissed_at).toBeUndefined();
+    expect(
+      tables.conversations.find((r: any) => r._id === "conv_sub")!
+        .inbox_dismissed_at,
+    ).toBeUndefined();
   });
 });
 
@@ -414,11 +625,21 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
   // Already killed (dismissed + completed), with real work so the empty-reap
   // path can't fire — the resurrection case. `extra` overrides the row (e.g.
   // back to a live, never-killed session for the fresh-kill cases).
-  const mkTables = (extra: Record<string, any> = {}): Record<string, any[]> => ({
-    conversations: [{
-      _id: CONV, user_id: "u1", session_id: "s-1", message_count: 12,
-      inbox_dismissed_at: 111, inbox_killed_at: 111, status: "completed", ...extra,
-    }],
+  const mkTables = (
+    extra: Record<string, any> = {},
+  ): Record<string, any[]> => ({
+    conversations: [
+      {
+        _id: CONV,
+        user_id: "u1",
+        session_id: "s-1",
+        message_count: 12,
+        inbox_dismissed_at: 111,
+        inbox_killed_at: 111,
+        status: "completed",
+        ...extra,
+      },
+    ],
     daemon_commands: [],
     messages: [],
     pending_messages: [],
@@ -426,29 +647,69 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
     client_state: [],
     agent_tasks: [],
   });
-  const prePatch = (tables: Record<string, any[]>) => ({ ...tables.conversations[0] });
-  const kills = (db: any) => db._inserted.filter((i: any) => i.table === "daemon_commands");
+  const prePatch = (tables: Record<string, any[]>) => ({
+    ...tables.conversations[0],
+  });
+  const kills = (db: any) =>
+    db._inserted.filter((i: any) => i.table === "daemon_commands");
 
   test("a cutoff continuation cancels old generations and preserves later queued intent", async () => {
-    const tables = mkTables({ pending_kill_generation: 2, has_pending_messages: true });
+    const tables = mkTables({
+      pending_kill_generation: 2,
+      has_pending_messages: true,
+    });
     tables.pending_messages.push(
-      { _id: "later", conversation_id: CONV, status: "pending", kill_generation: 2 },
+      {
+        _id: "later",
+        conversation_id: CONV,
+        status: "pending",
+        kill_generation: 2,
+      },
       { _id: "legacy", conversation_id: CONV, status: "pending" },
-      { _id: "zero", conversation_id: CONV, status: "pending", kill_generation: 0 },
-      { _id: "one", conversation_id: CONV, status: "pending", kill_generation: 1 },
-      { _id: "foreign", conversation_id: "other", status: "pending", kill_generation: 0 },
+      {
+        _id: "zero",
+        conversation_id: CONV,
+        status: "pending",
+        kill_generation: 0,
+      },
+      {
+        _id: "one",
+        conversation_id: CONV,
+        status: "pending",
+        kill_generation: 1,
+      },
+      {
+        _id: "foreign",
+        conversation_id: "other",
+        status: "pending",
+        kill_generation: 0,
+      },
     );
     const db = makeFakeDb(tables);
-    expect(await (continueKillCancellation as any)._handler({ db }, {
-      conversation_id: CONV, cutoff_generation: 1,
-    })).toEqual({ cancelled: 3 });
+    expect(
+      await (continueKillCancellation as any)._handler(
+        { db },
+        {
+          conversation_id: CONV,
+          cutoff_generation: 1,
+        },
+      ),
+    ).toEqual({ cancelled: 3 });
     for (const id of ["legacy", "zero", "one"]) {
-      expect(tables.pending_messages.find((row) => row._id === id)?.status).toBe("cancelled");
+      expect(
+        tables.pending_messages.find((row) => row._id === id)?.status,
+      ).toBe("cancelled");
     }
     for (const id of ["later", "foreign"]) {
-      expect(tables.pending_messages.find((row) => row._id === id)?.status).toBe("pending");
+      expect(
+        tables.pending_messages.find((row) => row._id === id)?.status,
+      ).toBe("pending");
     }
-    expect(tables.conversations[0]).toMatchObject({ pending_kill_generation: 2, has_pending_messages: true, inbox_killed_at: 111 });
+    expect(tables.conversations[0]).toMatchObject({
+      pending_kill_generation: 2,
+      has_pending_messages: true,
+      inbox_killed_at: 111,
+    });
   });
 
   // The command names who asked, and the daemon logs it with the teardown:
@@ -461,8 +722,14 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
     const patch = { inbox_dismissed_at: 222 };
     await db.patch(CONV, patch);
 
-    await applyHideTransition({ db }, doc, patch, { forceKill: true, cause: "web:killSession" });
-    expect(JSON.parse(kills(db)[0].doc.args)).toMatchObject({ conversation_id: CONV, cause: "web:killSession" });
+    await applyHideTransition({ db }, doc, patch, {
+      forceKill: true,
+      cause: "web:killSession",
+    });
+    expect(JSON.parse(kills(db)[0].doc.args)).toMatchObject({
+      conversation_id: CONV,
+      cause: "web:killSession",
+    });
   });
 
   test("a re-asserted EXPLICIT kill enqueues teardown again", async () => {
@@ -472,12 +739,20 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
     const patch = { inbox_dismissed_at: 222 };
     await db.patch(CONV, patch);
 
-    const { action, teardownEnqueued } = await applyHideTransition({ db }, doc, patch, { forceKill: true });
+    const { action, teardownEnqueued } = await applyHideTransition(
+      { db },
+      doc,
+      patch,
+      { forceKill: true },
+    );
     expect(action).toBe("kill");
     expect(teardownEnqueued).toBe(true);
     expect(kills(db)).toHaveLength(1);
     expect(kills(db)[0].doc.command).toBe("kill_session");
-    expect(JSON.parse(kills(db)[0].doc.args)).toMatchObject({ conversation_id: CONV, session_id: "s-1" });
+    expect(JSON.parse(kills(db)[0].doc.args)).toMatchObject({
+      conversation_id: CONV,
+      session_id: "s-1",
+    });
     // inbox_killed_at is FIRST-kill time: the re-kill re-runs teardown, it does
     // not rewrite when the user retired the session.
     expect(tables.conversations[0].inbox_killed_at).toBe(111);
@@ -490,20 +765,30 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
     const patch = { inbox_dismissed_at: 222 };
     await db.patch(CONV, patch);
 
-    const { action, teardownEnqueued } = await applyHideTransition({ db }, doc, patch);
+    const { action, teardownEnqueued } = await applyHideTransition(
+      { db },
+      doc,
+      patch,
+    );
     expect(action).toBe("none");
     expect(teardownEnqueued).toBe(false);
     expect(kills(db)).toHaveLength(0);
   });
 
   test("forceKill never turns a STASH into a kill", async () => {
-    const tables = mkTables({ inbox_dismissed_at: undefined, inbox_killed_at: undefined, status: "active" });
+    const tables = mkTables({
+      inbox_dismissed_at: undefined,
+      inbox_killed_at: undefined,
+      status: "active",
+    });
     const db = makeFakeDb(tables);
     const doc = prePatch(tables);
     const patch = { inbox_stashed_at: 333 };
     await db.patch(CONV, patch);
 
-    const { action } = await applyHideTransition({ db }, doc, patch, { forceKill: true });
+    const { action } = await applyHideTransition({ db }, doc, patch, {
+      forceKill: true,
+    });
     expect(action).toBe("none");
     expect(kills(db)).toHaveLength(0);
     expect(tables.conversations[0].status).toBe("active");
@@ -513,15 +798,23 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
     const tables = mkTables();
     // An UNEXECUTED kill_session for this conversation is already on the queue.
     tables.daemon_commands.push({
-      _id: "cmdPending", user_id: "u1", command: "kill_session",
-      args: JSON.stringify({ conversation_id: CONV }), created_at: 111,
+      _id: "cmdPending",
+      user_id: "u1",
+      command: "kill_session",
+      args: JSON.stringify({ conversation_id: CONV }),
+      created_at: 111,
     });
     const db = makeFakeDb(tables);
     const doc = prePatch(tables);
     const patch = { inbox_dismissed_at: 222 };
     await db.patch(CONV, patch);
 
-    const { action, teardownEnqueued } = await applyHideTransition({ db }, doc, patch, { forceKill: true });
+    const { action, teardownEnqueued } = await applyHideTransition(
+      { db },
+      doc,
+      patch,
+      { forceKill: true },
+    );
     expect(action).toBe("kill");
     expect(teardownEnqueued).toBe(false);
     expect(kills(db)).toHaveLength(0);
@@ -535,13 +828,23 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
   // schedules is the worst of both: the anchor wakes on its next trigger and
   // runs without the messages the human queued, silently.
   test("a forced kill on a persistent anchor keeps anchor semantics: schedules AND queued messages", async () => {
-    const tables = mkTables({ persistent: true, status: "active", has_pending_messages: true });
-    tables.agent_tasks.push({
-      _id: "t1", user_id: "u1", status: "scheduled", originating_conversation_id: CONV,
+    const tables = mkTables({
+      persistent: true,
+      status: "active",
+      has_pending_messages: true,
     });
-    tables.pending_messages.push(
-      { _id: "pm_queued", conversation_id: CONV, status: "pending", retry_count: 0 },
-    );
+    tables.agent_tasks.push({
+      _id: "t1",
+      user_id: "u1",
+      status: "scheduled",
+      originating_conversation_id: CONV,
+    });
+    tables.pending_messages.push({
+      _id: "pm_queued",
+      conversation_id: CONV,
+      status: "pending",
+      retry_count: 0,
+    });
     const db = makeFakeDb(tables);
     const doc = prePatch(tables);
     const patch = { inbox_dismissed_at: 222 };
@@ -566,13 +869,30 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
   // row completed + has_pending_messages forever.
   test("a kill cancels the messages already queued and clears has_pending_messages", async () => {
     const tables = mkTables({
-      inbox_dismissed_at: undefined, inbox_killed_at: undefined,
-      status: "active", has_pending_messages: true,
+      inbox_dismissed_at: undefined,
+      inbox_killed_at: undefined,
+      status: "active",
+      has_pending_messages: true,
     });
     tables.pending_messages.push(
-      { _id: "pm_pending", conversation_id: CONV, status: "pending", retry_count: 0 },
-      { _id: "pm_undeliverable", conversation_id: CONV, status: "undeliverable", retry_count: 9 },
-      { _id: "pm_delivered", conversation_id: CONV, status: "delivered", retry_count: 1 },
+      {
+        _id: "pm_pending",
+        conversation_id: CONV,
+        status: "pending",
+        retry_count: 0,
+      },
+      {
+        _id: "pm_undeliverable",
+        conversation_id: CONV,
+        status: "undeliverable",
+        retry_count: 9,
+      },
+      {
+        _id: "pm_delivered",
+        conversation_id: CONV,
+        status: "delivered",
+        retry_count: 1,
+      },
     );
     const db = makeFakeDb(tables);
     const doc = prePatch(tables);
@@ -580,10 +900,15 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
     await db.patch(CONV, patch);
 
     // A FRESH kill (no force needed) — the flag transitions here.
-    const { action, canceledMessages } = await applyHideTransition({ db }, doc, patch);
+    const { action, canceledMessages } = await applyHideTransition(
+      { db },
+      doc,
+      patch,
+    );
     expect(action).toBe("kill");
     expect(canceledMessages).toBe(2);
-    const msg = (id: string) => tables.pending_messages.find((r: any) => r._id === id)!;
+    const msg = (id: string) =>
+      tables.pending_messages.find((r: any) => r._id === id)!;
     expect(msg("pm_pending").status).toBe("cancelled");
     expect(msg("pm_undeliverable").status).toBe("cancelled");
     expect(msg("pm_delivered").status).toBe("delivered"); // terminal, untouched
@@ -592,15 +917,20 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
 
   test("a forced re-kill cancels what was queued since the first kill", async () => {
     const tables = mkTables({ has_pending_messages: true });
-    tables.pending_messages.push(
-      { _id: "pm_since", conversation_id: CONV, status: "pending", retry_count: 0 },
-    );
+    tables.pending_messages.push({
+      _id: "pm_since",
+      conversation_id: CONV,
+      status: "pending",
+      retry_count: 0,
+    });
     const db = makeFakeDb(tables);
     const doc = prePatch(tables);
     const patch = { inbox_dismissed_at: 222 };
     await db.patch(CONV, patch);
 
-    const { canceledMessages } = await applyHideTransition({ db }, doc, patch, { forceKill: true });
+    const { canceledMessages } = await applyHideTransition({ db }, doc, patch, {
+      forceKill: true,
+    });
     expect(canceledMessages).toBe(1);
     expect(tables.pending_messages[0].status).toBe("cancelled");
     expect(tables.conversations[0].has_pending_messages).toBe(false);
@@ -611,9 +941,12 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
   // wake-up rules clear the dismissed/killed flags and flip completed → active.
   test("a later send still revives the killed session; the pre-kill queue stays dead", async () => {
     const tables = mkTables({ has_pending_messages: true });
-    tables.pending_messages.push(
-      { _id: "pm_before", conversation_id: CONV, status: "pending", retry_count: 0 },
-    );
+    tables.pending_messages.push({
+      _id: "pm_before",
+      conversation_id: CONV,
+      status: "pending",
+      retry_count: 0,
+    });
     const db = makeFakeDb(tables);
     const doc = prePatch(tables);
     const patch = { inbox_dismissed_at: 222 };
@@ -622,15 +955,21 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
     expect(tables.pending_messages[0].status).toBe("cancelled");
 
     const conv = await db.get(CONV);
-    const newId = await enqueuePendingMessage({ db }, conv, "u1" as any, { content: "back to work" });
+    const newId = await enqueuePendingMessage({ db }, conv, "u1" as any, {
+      content: "back to work",
+    });
 
-    expect(tables.pending_messages.find((r: any) => r._id === newId)!.status).toBe("pending");
+    expect(
+      tables.pending_messages.find((r: any) => r._id === newId)!.status,
+    ).toBe("pending");
     expect(conv.inbox_dismissed_at).toBeUndefined();
     expect(conv.inbox_killed_at).toBeUndefined();
     expect(conv.status).toBe("active");
     expect(conv.has_pending_messages).toBe(true);
     // The message queued before the kill is terminal — it must not ride along.
-    expect(tables.pending_messages.find((r: any) => r._id === "pm_before")!.status).toBe("cancelled");
+    expect(
+      tables.pending_messages.find((r: any) => r._id === "pm_before")!.status,
+    ).toBe("cancelled");
   });
 
   // Re-running the schedule sweep is safe: it only touches
@@ -639,14 +978,22 @@ describe("applyHideTransition — explicit kill forces teardown", () => {
   test("a forced kill re-cancels a schedule re-armed since the first kill", async () => {
     const tables = mkTables();
     tables.agent_tasks.push({
-      _id: "t1", user_id: "u1", status: "scheduled", originating_conversation_id: CONV,
+      _id: "t1",
+      user_id: "u1",
+      status: "scheduled",
+      originating_conversation_id: CONV,
     });
     const db = makeFakeDb(tables);
     const doc = prePatch(tables);
     const patch = { inbox_dismissed_at: 222 };
     await db.patch(CONV, patch);
 
-    const { canceledSchedules } = await applyHideTransition({ db }, doc, patch, { forceKill: true });
+    const { canceledSchedules } = await applyHideTransition(
+      { db },
+      doc,
+      patch,
+      { forceKill: true },
+    );
     expect(canceledSchedules).toBe(1);
     expect(tables.agent_tasks[0].status).toBe("completed");
     expect(tables.agent_tasks[0].canceled_on_kill_at).toBeGreaterThan(0);
@@ -671,7 +1018,11 @@ describe("applyHideTransition — hiding an empty pre-warm keeps the row", () =>
       };
       const db = makeFakeDb(tables);
       const doc = { ...tables.conversations[0] };
-      const { action, teardownEnqueued } = await applyHideTransition({ db }, doc, { [field]: Date.now() });
+      const { action, teardownEnqueued } = await applyHideTransition(
+        { db },
+        doc,
+        { [field]: Date.now() },
+      );
       expect(action).toBe("reap");
       expect(teardownEnqueued).toBe(true);
       expect(db._deleted).not.toContain("c9");

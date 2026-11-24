@@ -2,7 +2,10 @@
 // cap; agentClients.ts lists it in LOCAL_AGENT_CLIENTS like every other client.
 
 import type { AgentClientDescriptor, AgentModelConfig } from "./agentClients";
-import { ANTIGRAVITY_EFFORT_LEVELS, ANTIGRAVITY_MODEL_OPTIONS } from "./modelOptions";
+import {
+  ANTIGRAVITY_EFFORT_LEVELS,
+  ANTIGRAVITY_MODEL_OPTIONS,
+} from "./modelOptions";
 
 const ANTIGRAVITY_MODEL: AgentModelConfig = {
   models: ANTIGRAVITY_MODEL_OPTIONS,
@@ -67,7 +70,11 @@ export const ANTIGRAVITY_CLIENT: AgentClientDescriptor = {
     // ~/.gemini/GEMINI.md each supplied a code word `agy -p` repeated back.
     // agy also reads project GEMINI.md and ~/.gemini/AGENTS.md (its bundled
     // docs); GEMINI.md is the user slot because Gemini CLI reads it too.
-    instructionFile: { user: "~/.gemini/GEMINI.md", project: "AGENTS.md", format: "markdown" },
+    instructionFile: {
+      user: "~/.gemini/GEMINI.md",
+      project: "AGENTS.md",
+      format: "markdown",
+    },
     // OMITTED, honestly: skillsDir (~/.gemini/config/skills), mcpConfig
     // (~/.gemini/config/mcp_config.json), hooksConfig (~/.gemini/config/
     // hooks.json) and plugins all appear in agy's bundled docs but were not

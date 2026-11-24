@@ -1,13 +1,27 @@
 import type { Patch } from "mutative";
 import { partitionSessionRetention } from "../cacheRetention";
-import { createCoalescedWriter, deleteAllowed, diffCollection, diffPatchedRows, durableDeletes, hasSnapshotDrops, patchedIds } from "../idbCollectionDiff";
-import { connectLivenessLane, flushLivenessWrites, holdLiveMeta, holdLivenessRows, holdLivenessSyncMeta, resetLivenessLane } from "../idbLivenessLane";
+import {
+  createCoalescedWriter,
+  deleteAllowed,
+  diffCollection,
+  diffPatchedRows,
+  durableDeletes,
+  hasSnapshotDrops,
+  patchedIds,
+} from "../idbCollectionDiff";
+import {
+  connectLivenessLane,
+  flushLivenessWrites,
+  holdLiveMeta,
+  holdLivenessRows,
+  holdLivenessSyncMeta,
+  resetLivenessLane,
+} from "../idbLivenessLane";
 import { COLLECTION_TABLES, db } from "./db";
 import { persistenceOwned } from "./ownership";
 import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
 import { _hydrating } from "./hydration";
-
 
 // What each collection table currently holds on disk, by id → row reference.
 // Lets writePatchesToIDB persist only the rows that actually changed (and delete
@@ -28,7 +42,9 @@ export function _resetPersistedShadow() {
   lastPersisted.clear();
 }
 
-const metaWriter = createCoalescedWriter((key, value) => { db.meta.put({ key, value }).catch(() => {}); }, 250);
+const metaWriter = createCoalescedWriter((key, value) => {
+  db.meta.put({ key, value }).catch(() => {});
+}, 250);
 connectLivenessLane({
   db,
   tables: COLLECTION_TABLES,
@@ -38,7 +54,10 @@ connectLivenessLane({
 });
 
 if (typeof window !== "undefined") {
-  window.addEventListener("pagehide", () => { metaWriter.flush(); flushLivenessWrites(); });
+  window.addEventListener("pagehide", () => {
+    metaWriter.flush();
+    flushLivenessWrites();
+  });
   window.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "hidden") return;
     metaWriter.flush();
@@ -70,15 +89,31 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
         // of a few rows into a big collection costs the rows. A whole-collection replace,
         // or snapshot drops only a full diff can find, take the full diff.
         // A row whose change is only liveness fields waits for the liveness lane's flush.
-        const ids = holdLivenessRows(key, prevShadow, prevShadow && !hasSnapshotDrops(key) ? patchedIds(patches, key) : null, data, state);
+        const ids = holdLivenessRows(
+          key,
+          prevShadow,
+          prevShadow && !hasSnapshotDrops(key)
+            ? patchedIds(patches, key)
+            : null,
+          data,
+          state,
+        );
         let puts: any[];
         let deletes: string[];
         if (prevShadow && ids) {
-          ({ puts, deletes } = diffPatchedRows(prevShadow, data, ids, (id) => deleteAllowed(key, id, pending)));
+          ({ puts, deletes } = diffPatchedRows(prevShadow, data, ids, (id) =>
+            deleteAllowed(key, id, pending),
+          ));
         } else {
           const diff = diffCollection(prevShadow, data);
           puts = diff.puts;
-          deletes = durableDeletes(key, diff.deletes, pending, prevShadow, diff.next);
+          deletes = durableDeletes(
+            key,
+            diff.deletes,
+            pending,
+            prevShadow,
+            diff.next,
+          );
           lastPersisted.set(key, diff.next);
         }
         if (puts.length || deletes.length) {
@@ -95,22 +130,39 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
           const queued = conversationRetentionDrops;
           const candidates = [...queued];
           queued.clear();
-          void deleteInBatches({
-            bulkDelete: (batch) => db.transaction("rw", table, async () => {
-              if (queued !== conversationRetentionDrops || !persistenceOwned()) return;
-              const shadow = lastPersisted.get(key);
-              const absent = batch.filter((id) => !(id in data) && !shadow?.has(id));
-              if (!absent.length) return;
-              const rows = (await table.bulkGet(absent)).filter((row) => row !== undefined);
-              // Include the held rows so the retention cap still applies to this batch.
-              const { drop } = partitionSessionRetention(
-                [...(shadow?.values() ?? []), ...rows], state.liveInboxIdList, state.lastFocusedConversationId, Date.now(),
-              );
-              const dropped = new Set(drop);
-              const expired = rows.filter((row) => dropped.has(row._id)).map((row) => row._id);
-              if (expired.length) await table.bulkDelete(expired);
-            }),
-          }, candidates);
+          void deleteInBatches(
+            {
+              bulkDelete: (batch) =>
+                db.transaction("rw", table, async () => {
+                  if (
+                    queued !== conversationRetentionDrops ||
+                    !persistenceOwned()
+                  )
+                    return;
+                  const shadow = lastPersisted.get(key);
+                  const absent = batch.filter(
+                    (id) => !(id in data) && !shadow?.has(id),
+                  );
+                  if (!absent.length) return;
+                  const rows = (await table.bulkGet(absent)).filter(
+                    (row) => row !== undefined,
+                  );
+                  // Include the held rows so the retention cap still applies to this batch.
+                  const { drop } = partitionSessionRetention(
+                    [...(shadow?.values() ?? []), ...rows],
+                    state.liveInboxIdList,
+                    state.lastFocusedConversationId,
+                    Date.now(),
+                  );
+                  const dropped = new Set(drop);
+                  const expired = rows
+                    .filter((row) => dropped.has(row._id))
+                    .map((row) => row._id);
+                  if (expired.length) await table.bulkDelete(expired);
+                }),
+            },
+            candidates,
+          );
         }
       }
     } else if (key === "pending") {
@@ -127,7 +179,6 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
     }
   }
 }
-
 
 /** Dexie writes only the diffed rows and lands them itself; nothing is held
  *  back. The native engine schedules whole-blob writes and drains them here. */

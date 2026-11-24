@@ -5,7 +5,9 @@ import { useEffect } from "react";
 import type { AppView } from "../../convex/apps";
 
 function setMeta(property: string, content: string) {
-  let el = document.head.querySelector<HTMLMetaElement>(`meta[property="${property}"]`);
+  let el = document.head.querySelector<HTMLMetaElement>(
+    `meta[property="${property}"]`,
+  );
   if (!el) {
     el = document.createElement("meta");
     el.setAttribute("property", property);
@@ -17,7 +19,9 @@ function setMeta(property: string, content: string) {
 export function useOpenGraph(app: AppView | null): void {
   useEffect(() => {
     const title = app ? `${app.name} · Clayground` : "Clayground";
-    const description = app?.live ? app.live.summary : "Make a thing. Pass it around. Anyone can change it by chatting.";
+    const description = app?.live
+      ? app.live.summary
+      : "Make a thing. Pass it around. Anyone can change it by chatting.";
     document.title = title;
     setMeta("og:title", app?.name ?? "Clayground");
     setMeta("og:description", description);

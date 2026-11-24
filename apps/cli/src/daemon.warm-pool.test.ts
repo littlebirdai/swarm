@@ -19,30 +19,52 @@ const cand = (over: Partial<WarmCandidate>): WarmCandidate => ({
 });
 
 test("warms a recently-active session whose agent has died", () => {
-  const out = selectSessionsToWarm([cand({ sessionId: "a" })], NOW, { recencyWindowMs: WINDOW, cap: 3 });
+  const out = selectSessionsToWarm([cand({ sessionId: "a" })], NOW, {
+    recencyWindowMs: WINDOW,
+    cap: 3,
+  });
   expect(out).toEqual(["a"]);
 });
 
 test("skips sessions whose agent is already alive (already warm)", () => {
-  const out = selectSessionsToWarm([cand({ sessionId: "a", agentAlive: true })], NOW, { recencyWindowMs: WINDOW, cap: 3 });
+  const out = selectSessionsToWarm(
+    [cand({ sessionId: "a", agentAlive: true })],
+    NOW,
+    { recencyWindowMs: WINDOW, cap: 3 },
+  );
   expect(out).toEqual([]);
 });
 
 test("skips stale sessions outside the recency window", () => {
-  const out = selectSessionsToWarm([cand({ sessionId: "a", tsMs: NOW - WINDOW - 1 })], NOW, { recencyWindowMs: WINDOW, cap: 3 });
+  const out = selectSessionsToWarm(
+    [cand({ sessionId: "a", tsMs: NOW - WINDOW - 1 })],
+    NOW,
+    { recencyWindowMs: WINDOW, cap: 3 },
+  );
   expect(out).toEqual([]);
 });
 
 test("skips non-active statuses (stopped/completed) — never resurrects finished work", () => {
-  const stopped = selectSessionsToWarm([cand({ sessionId: "a", status: "stopped" })], NOW, { recencyWindowMs: WINDOW, cap: 3 });
-  const completed = selectSessionsToWarm([cand({ sessionId: "b", status: "completed" })], NOW, { recencyWindowMs: WINDOW, cap: 3 });
+  const stopped = selectSessionsToWarm(
+    [cand({ sessionId: "a", status: "stopped" })],
+    NOW,
+    { recencyWindowMs: WINDOW, cap: 3 },
+  );
+  const completed = selectSessionsToWarm(
+    [cand({ sessionId: "b", status: "completed" })],
+    NOW,
+    { recencyWindowMs: WINDOW, cap: 3 },
+  );
   expect(stopped).toEqual([]);
   expect(completed).toEqual([]);
 });
 
 test("skips circuit-broken and fatally-failed sessions — never piles onto failures", () => {
   const out = selectSessionsToWarm(
-    [cand({ sessionId: "a", circuitOpen: true }), cand({ sessionId: "b", fatal: true })],
+    [
+      cand({ sessionId: "a", circuitOpen: true }),
+      cand({ sessionId: "b", fatal: true }),
+    ],
     NOW,
     { recencyWindowMs: WINDOW, cap: 3 },
   );
@@ -63,13 +85,19 @@ test("respects the cap, picking the most-recently-active first", () => {
 });
 
 test("cap of 0 (default / disabled) selects nothing", () => {
-  const out = selectSessionsToWarm([cand({ sessionId: "a" })], NOW, { recencyWindowMs: WINDOW, cap: 0 });
+  const out = selectSessionsToWarm([cand({ sessionId: "a" })], NOW, {
+    recencyWindowMs: WINDOW,
+    cap: 0,
+  });
   expect(out).toEqual([]);
 });
 
 test("accepts working/thinking/connected as active", () => {
   for (const status of ["working", "thinking", "connected"]) {
-    const out = selectSessionsToWarm([cand({ sessionId: "a", status })], NOW, { recencyWindowMs: WINDOW, cap: 3 });
+    const out = selectSessionsToWarm([cand({ sessionId: "a", status })], NOW, {
+      recencyWindowMs: WINDOW,
+      cap: 3,
+    });
     expect(out).toEqual(["a"]);
   }
 });

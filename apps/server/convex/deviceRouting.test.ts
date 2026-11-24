@@ -5,14 +5,20 @@ const NOW = 1_000_000_000;
 const fresh = NOW - 10_000; // seen 10s ago → online
 const stale = NOW - 5 * 60 * 1000; // seen 5m ago → offline
 
-const local = (id: string, over: Partial<RoutableDevice> = {}): RoutableDevice => ({
+const local = (
+  id: string,
+  over: Partial<RoutableDevice> = {},
+): RoutableDevice => ({
   device_id: id,
   last_seen: fresh,
   is_remote: false,
   local_project_roots: [],
   ...over,
 });
-const remote = (id: string, over: Partial<RoutableDevice> = {}): RoutableDevice => ({
+const remote = (
+  id: string,
+  over: Partial<RoutableDevice> = {},
+): RoutableDevice => ({
   device_id: id,
   last_seen: fresh,
   is_remote: true,
@@ -21,16 +27,38 @@ const remote = (id: string, over: Partial<RoutableDevice> = {}): RoutableDevice 
 });
 
 describe("cross-platform startup routing", () => {
-  const mac = local("mac", { platform: "darwin", last_seen: stale, local_project_roots: ["/Users/ashot/src/codecast"] });
-  const runtime = local("runtime", { platform: "linux", local_project_roots: ["/home/hatch/.codex"] });
+  const mac = local("mac", {
+    platform: "darwin",
+    last_seen: stale,
+    local_project_roots: ["/Users/ashot/src/codecast"],
+  });
+  const runtime = local("runtime", {
+    platform: "linux",
+    local_project_roots: ["/home/hatch/.codex"],
+  });
 
   test("queues for the checkout holder when only an incompatible runtime is online", () => {
-    expect(pickOwnerDevice([runtime, mac], { projectPath: "/Users/ashot/src/codecast" }, NOW)).toBe("mac");
+    expect(
+      pickOwnerDevice(
+        [runtime, mac],
+        { projectPath: "/Users/ashot/src/codecast" },
+        NOW,
+      ),
+    ).toBe("mac");
   });
 
   test("a reported checkout remains stronger evidence than the platform heuristic", () => {
-    const mounted = { ...runtime, local_project_roots: ["/Users/ashot/src/codecast"] };
-    expect(pickOwnerDevice([mounted, mac], { projectPath: "/Users/ashot/src/codecast" }, NOW)).toBe("runtime");
+    const mounted = {
+      ...runtime,
+      local_project_roots: ["/Users/ashot/src/codecast"],
+    };
+    expect(
+      pickOwnerDevice(
+        [mounted, mac],
+        { projectPath: "/Users/ashot/src/codecast" },
+        NOW,
+      ),
+    ).toBe("runtime");
   });
 });
 
@@ -39,37 +67,63 @@ describe("pickOwnerDevice — a remote without the checkout is never auto-owned 
     // The exact bug: a blank iOS session while the laptop sleeps must queue for
     // the laptop (it wakes and serves), never land on the remote's $HOME.
     const devices = [local("L1", { last_seen: stale }), remote("r1")];
-    expect(pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app" }, NOW)).toBe("L1");
+    expect(
+      pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app" }, NOW),
+    ).toBe("L1");
   });
 
   test("with a local + a remote online, the LOCAL device wins", () => {
     const devices = [remote("r1"), local("L1")];
-    expect(pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app" }, NOW)).toBe("L1");
+    expect(
+      pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app" }, NOW),
+    ).toBe("L1");
   });
 });
 
 describe("pickOwnerDevice — sticky ownership preserves an explicit move", () => {
   test("a remote that is already the owner stays the owner (move respected)", () => {
     const devices = [remote("r1"), local("L1")];
-    const r = pickOwnerDevice(devices, { projectPath: "/Users/m1/work/app", ownerDeviceId: "r1" }, NOW);
+    const r = pickOwnerDevice(
+      devices,
+      { projectPath: "/Users/m1/work/app", ownerDeviceId: "r1" },
+      NOW,
+    );
     expect(r).toBe("r1");
   });
 
   test("a sticky local owner stays the owner over a more-recent peer", () => {
-    const devices = [local("L1", { last_seen: NOW - 60_000 }), local("L2", { last_seen: fresh })];
-    const r = pickOwnerDevice(devices, { projectPath: "/x", ownerDeviceId: "L1" }, NOW);
+    const devices = [
+      local("L1", { last_seen: NOW - 60_000 }),
+      local("L2", { last_seen: fresh }),
+    ];
+    const r = pickOwnerDevice(
+      devices,
+      { projectPath: "/x", ownerDeviceId: "L1" },
+      NOW,
+    );
     expect(r).toBe("L1");
   });
 
   test("an OFFLINE sticky owner is dropped and routing re-resolves to a local", () => {
-    const devices = [local("L1", { last_seen: stale }), local("L2", { last_seen: fresh })];
-    const r = pickOwnerDevice(devices, { projectPath: "/x", ownerDeviceId: "L1" }, NOW);
+    const devices = [
+      local("L1", { last_seen: stale }),
+      local("L2", { last_seen: fresh }),
+    ];
+    const r = pickOwnerDevice(
+      devices,
+      { projectPath: "/x", ownerDeviceId: "L1" },
+      NOW,
+    );
     expect(r).toBe("L2");
   });
 
   test("an offline remote sticky owner falls back to the online local", () => {
     const devices = [remote("r1", { last_seen: stale }), local("L1")];
-    const r = pickOwnerDevice(devices, { projectPath: "/x", ownerDeviceId: "r1" }, NOW);
+    const r = pickOwnerDevice(
+      devices,
+      { projectPath: "/x", ownerDeviceId: "r1" },
+      NOW,
+    );
     expect(r).toBe("L1");
   });
 
@@ -100,7 +154,9 @@ describe("pickOwnerDevice — sticky ownership preserves an explicit move", () =
 
   test("an online machine with this home wins over a more recent machine with a different home", () => {
     const devices = [
-      local("mini", { local_project_roots: ["/Users/ec2-user/src/union-mobile"] }),
+      local("mini", {
+        local_project_roots: ["/Users/ec2-user/src/union-mobile"],
+      }),
       local("laptop", {
         last_seen: NOW - 1_000,
         local_project_roots: ["/Users/ashot/src/codecast"],
@@ -119,19 +175,39 @@ describe("pickOwnerDevice — sticky ownership preserves an explicit move", () =
 describe("pickOwnerDevice — checkout match beats recency among locals", () => {
   test("the local that has the checkout wins even if seen less recently", () => {
     const devices = [
-      local("L1", { last_seen: NOW - 90_000, local_project_roots: ["/Users/ashot/src/app"] }),
-      local("L2", { last_seen: fresh, local_project_roots: ["/Users/ashot/src/other"] }),
+      local("L1", {
+        last_seen: NOW - 90_000,
+        local_project_roots: ["/Users/ashot/src/app"],
+      }),
+      local("L2", {
+        last_seen: fresh,
+        local_project_roots: ["/Users/ashot/src/other"],
+      }),
     ];
-    const r = pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app/apps/web" }, NOW);
+    const r = pickOwnerDevice(
+      devices,
+      { projectPath: "/Users/ashot/src/app/apps/web" },
+      NOW,
+    );
     expect(r).toBe("L1");
   });
 
   test("ties on checkout-match are broken by most-recently-seen", () => {
     const devices = [
-      local("L1", { last_seen: NOW - 90_000, local_project_roots: ["/Users/ashot/src/app"] }),
-      local("L2", { last_seen: fresh, local_project_roots: ["/Users/ashot/src/app"] }),
+      local("L1", {
+        last_seen: NOW - 90_000,
+        local_project_roots: ["/Users/ashot/src/app"],
+      }),
+      local("L2", {
+        last_seen: fresh,
+        local_project_roots: ["/Users/ashot/src/app"],
+      }),
     ];
-    const r = pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app" }, NOW);
+    const r = pickOwnerDevice(
+      devices,
+      { projectPath: "/Users/ashot/src/app" },
+      NOW,
+    );
     expect(r).toBe("L2");
   });
 });
@@ -163,7 +239,9 @@ describe("pickOwnerDevice — most-recently-active local (the mobile rule)", () 
       local("L2", { last_seen: stale }), // seen more recently, but not the owner
       remote("r1", { last_seen: fresh }),
     ];
-    expect(pickOwnerDevice(devices, { projectPath: "/x", ownerDeviceId: "L1" }, NOW)).toBe("L1");
+    expect(
+      pickOwnerDevice(devices, { projectPath: "/x", ownerDeviceId: "L1" }, NOW),
+    ).toBe("L1");
   });
 });
 
@@ -184,7 +262,11 @@ describe("pickOwnerDevice — an explicit pick outranks the heuristics", () => {
   test("an online REMOTE target wins even with a local online and no matching root", () => {
     // Picking a machine by hand is the explicit consent the invariant asks for.
     const devices = [local("L1"), remote("r1")];
-    const r = pickOwnerDevice(devices, { projectPath: "/x", targetDeviceId: "r1" }, NOW);
+    const r = pickOwnerDevice(
+      devices,
+      { projectPath: "/x", targetDeviceId: "r1" },
+      NOW,
+    );
     expect(r).toBe("r1");
   });
 
@@ -196,7 +278,11 @@ describe("pickOwnerDevice — an explicit pick outranks the heuristics", () => {
       local("L2", { last_seen: fresh, local_project_roots: ["/x"] }),
       remote("r1", { local_project_roots: ["/x"] }),
     ];
-    const r = pickOwnerDevice(devices, { projectPath: "/x", targetDeviceId: "L1" }, NOW);
+    const r = pickOwnerDevice(
+      devices,
+      { projectPath: "/x", targetDeviceId: "L1" },
+      NOW,
+    );
     expect(r).toBe("L1");
   });
 
@@ -207,18 +293,31 @@ describe("pickOwnerDevice — an explicit pick outranks the heuristics", () => {
       local("L1", { last_seen: stale, local_project_roots: ["/x"] }),
       local("L2", { last_seen: fresh, local_project_roots: ["/y"] }),
     ];
-    const r = pickOwnerDevice(devices, { projectPath: "/x", targetDeviceId: "L1" }, NOW);
+    const r = pickOwnerDevice(
+      devices,
+      { projectPath: "/x", targetDeviceId: "L1" },
+      NOW,
+    );
     expect(r).toBe("L1");
   });
 
   test("an OFFLINE target with NO path hint queues for the target", () => {
-    const devices = [local("L1", { last_seen: stale }), local("L2", { last_seen: fresh })];
+    const devices = [
+      local("L1", { last_seen: stale }),
+      local("L2", { last_seen: fresh }),
+    ];
     expect(pickOwnerDevice(devices, { targetDeviceId: "L1" }, NOW)).toBe("L1");
   });
 
   test("an unknown target device id is ignored", () => {
     const devices = [local("L1")];
-    expect(pickOwnerDevice(devices, { projectPath: "/x", targetDeviceId: "ghost" }, NOW)).toBe("L1");
+    expect(
+      pickOwnerDevice(
+        devices,
+        { projectPath: "/x", targetDeviceId: "ghost" },
+        NOW,
+      ),
+    ).toBe("L1");
   });
 });
 
@@ -228,7 +327,11 @@ describe("pickOwnerDevice — an online remote with the checkout beats a sleepin
       local("L1", { last_seen: stale }),
       remote("r1", { local_project_roots: ["/Users/ashot/src/app"] }),
     ];
-    const r = pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app/apps/web" }, NOW);
+    const r = pickOwnerDevice(
+      devices,
+      { projectPath: "/Users/ashot/src/app/apps/web" },
+      NOW,
+    );
     expect(r).toBe("r1");
   });
 
@@ -237,7 +340,9 @@ describe("pickOwnerDevice — an online remote with the checkout beats a sleepin
       local("L1", { last_seen: stale }),
       remote("r1", { local_project_roots: ["/Users/ashot/src/other"] }),
     ];
-    expect(pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app" }, NOW)).toBe("L1");
+    expect(
+      pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app" }, NOW),
+    ).toBe("L1");
   });
 
   test("no path hint → no root match is possible, so the sleeping local still wins", () => {
@@ -253,25 +358,40 @@ describe("pickOwnerDevice — an online remote with the checkout beats a sleepin
       local("L1", { local_project_roots: [] }),
       remote("r1", { local_project_roots: ["/Users/ashot/src/app"] }),
     ];
-    expect(pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app" }, NOW)).toBe("L1");
+    expect(
+      pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app" }, NOW),
+    ).toBe("L1");
   });
 
   test("an OFFLINE remote with the checkout loses to the sleeping local", () => {
     const devices = [
       local("L1", { last_seen: stale }),
-      remote("r1", { last_seen: stale, local_project_roots: ["/Users/ashot/src/app"] }),
+      remote("r1", {
+        last_seen: stale,
+        local_project_roots: ["/Users/ashot/src/app"],
+      }),
     ];
-    expect(pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app" }, NOW)).toBe("L1");
+    expect(
+      pickOwnerDevice(devices, { projectPath: "/Users/ashot/src/app" }, NOW),
+    ).toBe("L1");
   });
 });
 
 describe("pickOwnerDevice — cloud-only fallback (no local device exists)", () => {
   test("no local devices at all → an online remote serves", () => {
-    expect(pickOwnerDevice([remote("r1")], { projectPath: "/x" }, NOW)).toBe("r1");
+    expect(pickOwnerDevice([remote("r1")], { projectPath: "/x" }, NOW)).toBe(
+      "r1",
+    );
   });
 
   test("no local devices and the remote is offline too → null (broadcast)", () => {
-    expect(pickOwnerDevice([remote("r1", { last_seen: stale })], { projectPath: "/x" }, NOW)).toBeNull();
+    expect(
+      pickOwnerDevice(
+        [remote("r1", { last_seen: stale })],
+        { projectPath: "/x" },
+        NOW,
+      ),
+    ).toBeNull();
   });
 
   test("no devices at all → null", () => {
@@ -289,7 +409,13 @@ describe("pickOwnerDevice — a machine that can't open the path doesn't win on 
       local("nose", { platform: "linux", last_seen: NOW - 1_000 }),
       local("mac", { platform: "darwin", last_seen: NOW - 30_000 }),
     ];
-    expect(pickOwnerDevice(devices, { projectPath: "/Users/jasonbenn/.claude" }, NOW)).toBe("mac");
+    expect(
+      pickOwnerDevice(
+        devices,
+        { projectPath: "/Users/jasonbenn/.claude" },
+        NOW,
+      ),
+    ).toBe("mac");
   });
 
   test("and symmetrically, a /home/... path skips the Mac", () => {
@@ -297,7 +423,9 @@ describe("pickOwnerDevice — a machine that can't open the path doesn't win on 
       local("mac", { platform: "darwin", last_seen: NOW - 1_000 }),
       local("nose", { platform: "linux", last_seen: NOW - 30_000 }),
     ];
-    expect(pickOwnerDevice(devices, { projectPath: "/home/jasonbenn/src" }, NOW)).toBe("nose");
+    expect(
+      pickOwnerDevice(devices, { projectPath: "/home/jasonbenn/src" }, NOW),
+    ).toBe("nose");
   });
 
   test("a shared namespace is not evidence — /opt still goes to the most recent", () => {
@@ -305,17 +433,32 @@ describe("pickOwnerDevice — a machine that can't open the path doesn't win on 
       local("nose", { platform: "linux", last_seen: NOW - 1_000 }),
       local("mac", { platform: "darwin", last_seen: NOW - 30_000 }),
     ];
-    expect(pickOwnerDevice(devices, { projectPath: "/opt/shared" }, NOW)).toBe("nose");
+    expect(pickOwnerDevice(devices, { projectPath: "/opt/shared" }, NOW)).toBe(
+      "nose",
+    );
   });
 
   test("preference, not a filter: nobody can open it → still owned, never null", () => {
-    const devices = [local("nose", { platform: "linux", last_seen: NOW - 1_000 })];
-    expect(pickOwnerDevice(devices, { projectPath: "/Users/jasonbenn/.claude" }, NOW)).toBe("nose");
+    const devices = [
+      local("nose", { platform: "linux", last_seen: NOW - 1_000 }),
+    ];
+    expect(
+      pickOwnerDevice(
+        devices,
+        { projectPath: "/Users/jasonbenn/.claude" },
+        NOW,
+      ),
+    ).toBe("nose");
   });
 
   test("devices with no platform reported are never excluded", () => {
-    const devices = [local("unknown", { last_seen: NOW - 1_000 }), local("mac", { platform: "darwin" })];
-    expect(pickOwnerDevice(devices, { projectPath: "/Users/j/app" }, NOW)).toBe("unknown");
+    const devices = [
+      local("unknown", { last_seen: NOW - 1_000 }),
+      local("mac", { platform: "darwin" }),
+    ];
+    expect(pickOwnerDevice(devices, { projectPath: "/Users/j/app" }, NOW)).toBe(
+      "unknown",
+    );
   });
 
   test("the offline-queue rung applies it too — don't queue for a machine that can't serve", () => {
@@ -323,7 +466,13 @@ describe("pickOwnerDevice — a machine that can't open the path doesn't win on 
       local("nose", { platform: "linux", last_seen: stale }),
       local("mac", { platform: "darwin", last_seen: stale - 60_000 }),
     ];
-    expect(pickOwnerDevice(devices, { projectPath: "/Users/jasonbenn/.claude" }, NOW)).toBe("mac");
+    expect(
+      pickOwnerDevice(
+        devices,
+        { projectPath: "/Users/jasonbenn/.claude" },
+        NOW,
+      ),
+    ).toBe("mac");
   });
 
   test("an explicit pick still outranks it — you may target a box deliberately", () => {
@@ -332,7 +481,11 @@ describe("pickOwnerDevice — a machine that can't open the path doesn't win on 
       local("mac", { platform: "darwin" }),
     ];
     expect(
-      pickOwnerDevice(devices, { projectPath: "/Users/jasonbenn/.claude", targetDeviceId: "nose" }, NOW),
+      pickOwnerDevice(
+        devices,
+        { projectPath: "/Users/jasonbenn/.claude", targetDeviceId: "nose" },
+        NOW,
+      ),
     ).toBe("nose");
   });
 });
@@ -340,51 +493,101 @@ describe("pickOwnerDevice — a machine that can't open the path doesn't win on 
 describe("pickOwnerDevice — dead VMs and sleeping cloud hosts (jx7bt5n, 2026-10-12)", () => {
   const DAY = 24 * 60 * 60 * 1000;
   const path = "/home/ubuntu/src/union-mobile";
-  const laptop = local("laptop", { platform: "darwin", local_project_roots: ["/Users/ashot/src/union-mobile"] });
-  const deadVm = local("grok-vm", { platform: "linux", last_seen: NOW - 9 * DAY, local_project_roots: ["/home/box/.claude"] });
+  const laptop = local("laptop", {
+    platform: "darwin",
+    local_project_roots: ["/Users/ashot/src/union-mobile"],
+  });
+  const deadVm = local("grok-vm", {
+    platform: "linux",
+    last_seen: NOW - 9 * DAY,
+    local_project_roots: ["/home/box/.claude"],
+  });
   const host = remote("host", {
     platform: "linux",
     last_seen: NOW - 3 * 60 * 60 * 1000,
     local_project_roots: ["/home/ubuntu/src/union-mobile"],
-    cloud_host: { managed_by: "laptop", state: "stopped", at: NOW - 10 * 60 * 1000 },
+    cloud_host: {
+      managed_by: "laptop",
+      state: "stopped",
+      at: NOW - 10 * 60 * 1000,
+    },
   });
 
   test("a sleeping cloud host that has the folder wins over a dead VM of the same platform", () => {
-    expect(pickOwnerDevice([laptop, deadVm, host], { projectPath: path }, NOW)).toBe("host");
+    expect(
+      pickOwnerDevice([laptop, deadVm, host], { projectPath: path }, NOW),
+    ).toBe("host");
   });
 
   test("a host the laptop stopped reporting is gone, so it never takes the session", () => {
-    const sibling = remote("sibling", { platform: "darwin", last_seen: NOW - 60_000, cloud_host: { managed_by: "laptop", state: "running", at: NOW - 60_000 } });
-    const gone = { ...host, cloud_host: { managed_by: "laptop", state: "stopped", at: NOW - 3 * DAY } };
-    expect(pickOwnerDevice([laptop, deadVm, gone, sibling], { projectPath: path }, NOW)).not.toBe("host");
+    const sibling = remote("sibling", {
+      platform: "darwin",
+      last_seen: NOW - 60_000,
+      cloud_host: { managed_by: "laptop", state: "running", at: NOW - 60_000 },
+    });
+    const gone = {
+      ...host,
+      cloud_host: { managed_by: "laptop", state: "stopped", at: NOW - 3 * DAY },
+    };
+    expect(
+      pickOwnerDevice(
+        [laptop, deadVm, gone, sibling],
+        { projectPath: path },
+        NOW,
+      ),
+    ).not.toBe("host");
   });
 
   test("a remote nothing reports as a cloud host is not booted for the work", () => {
     const plainRemote = { ...host, cloud_host: undefined };
-    expect(pickOwnerDevice([deadVm, plainRemote], { projectPath: path }, NOW)).not.toBe("host");
+    expect(
+      pickOwnerDevice([deadVm, plainRemote], { projectPath: path }, NOW),
+    ).not.toBe("host");
   });
 
   test("with no machine serving the path, the queue skips a VM quiet for a day", () => {
     const offlineLaptop = { ...laptop, last_seen: stale };
-    expect(pickOwnerDevice([offlineLaptop, deadVm], { projectPath: path }, NOW)).toBe("laptop");
+    expect(
+      pickOwnerDevice([offlineLaptop, deadVm], { projectPath: path }, NOW),
+    ).toBe("laptop");
   });
 
   test("a sleeping local that has the folder still gets the queue, however long it slept", () => {
     const away = { ...laptop, last_seen: NOW - 3 * DAY };
     const recentVm = { ...deadVm, last_seen: stale };
-    expect(pickOwnerDevice([away, recentVm], { projectPath: "/Users/ashot/src/union-mobile" }, NOW)).toBe("laptop");
+    expect(
+      pickOwnerDevice(
+        [away, recentVm],
+        { projectPath: "/Users/ashot/src/union-mobile" },
+        NOW,
+      ),
+    ).toBe("laptop");
   });
 
   test("when every local has gone quiet, the most recent one still owns it rather than nobody", () => {
-    expect(pickOwnerDevice([deadVm], { projectPath: path }, NOW)).toBe("grok-vm");
+    expect(pickOwnerDevice([deadVm], { projectPath: path }, NOW)).toBe(
+      "grok-vm",
+    );
   });
 });
 
 describe("pickOwnerDevice — a quiet laptop still outranks a remote without the checkout", () => {
   test("every local quiet for days, an online remote Mac with no checkout → still the laptop", () => {
-    const laptop = local("laptop", { platform: "darwin", last_seen: NOW - 3 * 24 * 60 * 60 * 1000 });
-    const mini = remote("mini", { platform: "darwin", local_project_roots: ["/Users/codecast/src/app"] });
-    expect(pickOwnerDevice([laptop, mini], { projectPath: "/Users/ashot/src/other" }, NOW)).toBe("laptop");
+    const laptop = local("laptop", {
+      platform: "darwin",
+      last_seen: NOW - 3 * 24 * 60 * 60 * 1000,
+    });
+    const mini = remote("mini", {
+      platform: "darwin",
+      local_project_roots: ["/Users/codecast/src/app"],
+    });
+    expect(
+      pickOwnerDevice(
+        [laptop, mini],
+        { projectPath: "/Users/ashot/src/other" },
+        NOW,
+      ),
+    ).toBe("laptop");
   });
 });
 
@@ -393,30 +596,62 @@ describe("pickOwnerDevice — a reserved machine takes only work sent to it by n
   // /home/ubuntu/work/union-mobile, landed on a Union line host because every
   // line host holds that checkout and heartbeated last.
   const path = "/home/ubuntu/work/union-mobile";
-  const offload = local("offload", { platform: "linux", last_seen: fresh - 5_000, local_project_roots: [path] });
-  const line = local("line-4", { platform: "linux", local_project_roots: [path], reserved_for: "Union line" });
+  const offload = local("offload", {
+    platform: "linux",
+    last_seen: fresh - 5_000,
+    local_project_roots: [path],
+  });
+  const line = local("line-4", {
+    platform: "linux",
+    local_project_roots: [path],
+    reserved_for: "Union line",
+  });
 
   test("a checkout holder that is reserved never wins on recency", () => {
-    expect(pickOwnerDevice([line, offload], { projectPath: path }, NOW)).toBe("offload");
+    expect(pickOwnerDevice([line, offload], { projectPath: path }, NOW)).toBe(
+      "offload",
+    );
   });
 
   test("an explicit pick still lands on the reserved machine", () => {
-    expect(pickOwnerDevice([line, offload], { projectPath: path, targetDeviceId: "line-4" }, NOW)).toBe("line-4");
+    expect(
+      pickOwnerDevice(
+        [line, offload],
+        { projectPath: path, targetDeviceId: "line-4" },
+        NOW,
+      ),
+    ).toBe("line-4");
   });
 
   test("a session it already owns stays there", () => {
-    expect(pickOwnerDevice([line, offload], { projectPath: path, ownerDeviceId: "line-4" }, NOW)).toBe("line-4");
+    expect(
+      pickOwnerDevice(
+        [line, offload],
+        { projectPath: path, ownerDeviceId: "line-4" },
+        NOW,
+      ),
+    ).toBe("line-4");
     const asleep = { ...line, last_seen: stale };
-    expect(pickOwnerDevice([asleep], { projectPath: path, ownerDeviceId: "line-4" }, NOW)).toBe("line-4");
+    expect(
+      pickOwnerDevice(
+        [asleep],
+        { projectPath: path, ownerDeviceId: "line-4" },
+        NOW,
+      ),
+    ).toBe("line-4");
   });
 
   test("with only reserved machines left, nothing is picked", () => {
     expect(pickOwnerDevice([line], { projectPath: path }, NOW)).toBeNull();
-    expect(pickOwnerDevice([remote("box", { reserved_for: "evals" })], {}, NOW)).toBeNull();
+    expect(
+      pickOwnerDevice([remote("box", { reserved_for: "evals" })], {}, NOW),
+    ).toBeNull();
   });
 
   test("a blank purpose is no reservation", () => {
     const blank = { ...line, reserved_for: "  " };
-    expect(pickOwnerDevice([blank, offload], { projectPath: path }, NOW)).toBe("line-4");
+    expect(pickOwnerDevice([blank, offload], { projectPath: path }, NOW)).toBe(
+      "line-4",
+    );
   });
 });

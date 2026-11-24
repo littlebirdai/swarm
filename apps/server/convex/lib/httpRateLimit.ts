@@ -15,11 +15,18 @@ import { internal } from "../_generated/api";
  */
 export function clientIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
-  const last = forwarded?.split(",").map((s) => s.trim()).filter(Boolean).pop();
+  const last = forwarded
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .pop();
   return last || "unknown";
 }
 
-function tooManyRequests(retryAfterMs: number, extraHeaders: Record<string, string>): Response {
+function tooManyRequests(
+  retryAfterMs: number,
+  extraHeaders: Record<string, string>,
+): Response {
   return new Response(JSON.stringify({ error: "Too many requests" }), {
     status: 429,
     headers: {
@@ -47,18 +54,25 @@ export async function keyRateLimited(
   failClosed = false,
 ): Promise<Response | null> {
   try {
-    const res = await ctx.runMutation(internal.ipRateLimit.bump, { key, max, window_ms: windowMs });
+    const res = await ctx.runMutation(internal.ipRateLimit.bump, {
+      key,
+      max,
+      window_ms: windowMs,
+    });
     if (!res.ok) return tooManyRequests(res.retry_after_ms ?? windowMs, {});
   } catch {
     if (!failClosed) return null;
-    return new Response(JSON.stringify({ error: "Temporarily unavailable — please retry." }), {
-      status: 503,
-      headers: {
-        "Content-Type": "application/json",
-        "Retry-After": "5",
-        "Access-Control-Allow-Origin": "*",
+    return new Response(
+      JSON.stringify({ error: "Temporarily unavailable — please retry." }),
+      {
+        status: 503,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": "5",
+          "Access-Control-Allow-Origin": "*",
+        },
       },
-    });
+    );
   }
   return null;
 }
@@ -71,5 +85,11 @@ export async function ipRateLimited(
   max: number,
   windowMs: number,
 ): Promise<Response | null> {
-  return await keyRateLimited(ctx, `${name}:${clientIp(request)}`, max, windowMs, false);
+  return await keyRateLimited(
+    ctx,
+    `${name}:${clientIp(request)}`,
+    max,
+    windowMs,
+    false,
+  );
 }

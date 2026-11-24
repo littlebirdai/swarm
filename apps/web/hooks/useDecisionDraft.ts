@@ -2,7 +2,11 @@ import { useCallback, useState } from "react";
 import { useWatchEffect } from "./useWatchEffect";
 import { useInboxStore } from "../store/inboxStore";
 import { decisionDraftKey } from "../lib/decisionQueue";
-import { flushDraftWrite, hasPendingDraftWrite, scheduleDraftWrite } from "../lib/pendingDraftWrites";
+import {
+  flushDraftWrite,
+  hasPendingDraftWrite,
+  scheduleDraftWrite,
+} from "../lib/pendingDraftWrites";
 
 // A decision's answer in progress, kept in the store's persisted `drafts`
 // (decisionDraftKey) rather than component state: the card folds, the page
@@ -13,15 +17,24 @@ import { flushDraftWrite, hasPendingDraftWrite, scheduleDraftWrite } from "../li
 // box lands first (useDecisionDraftText), so a patch never overwrites it.
 export function useDecisionDraft<T extends Record<string, any>>(
   decisionId: string,
-): [Partial<T>, (patch: Partial<T> | ((cur: Partial<T>) => Partial<T>)) => void] {
+): [
+  Partial<T>,
+  (patch: Partial<T> | ((cur: Partial<T>) => Partial<T>)) => void,
+] {
   const key = decisionDraftKey(decisionId);
   const draft = useInboxStore((s) => s.drafts[key]) as Partial<T> | undefined;
-  const patch = useCallback((fields: Partial<T> | ((cur: Partial<T>) => Partial<T>)) => {
-    flushDraftWrite(key);
-    const s = useInboxStore.getState();
-    const cur = (s.drafts[key] ?? {}) as Partial<T>;
-    s.setDraft(key, { ...cur, ...(typeof fields === "function" ? fields(cur) : fields) });
-  }, [key]);
+  const patch = useCallback(
+    (fields: Partial<T> | ((cur: Partial<T>) => Partial<T>)) => {
+      flushDraftWrite(key);
+      const s = useInboxStore.getState();
+      const cur = (s.drafts[key] ?? {}) as Partial<T>;
+      s.setDraft(key, {
+        ...cur,
+        ...(typeof fields === "function" ? fields(cur) : fields),
+      });
+    },
+    [key],
+  );
   return [draft ?? EMPTY, patch];
 }
 
@@ -32,19 +45,29 @@ export function useDecisionDraft<T extends Record<string, any>>(
 // and leaving the page flush it; answering cancels it (answerDecisionDraft).
 // When the store's copy changes and nothing typed is waiting, the box follows
 // it: another window's edit, or the draft cleared by an answer.
-export function useDecisionDraftText(decisionId: string, field: string): [string, (text: string) => void] {
+export function useDecisionDraftText(
+  decisionId: string,
+  field: string,
+): [string, (text: string) => void] {
   const key = decisionDraftKey(decisionId);
-  const stored = useInboxStore((s) => (s.drafts[key]?.[field] as string | undefined) ?? "");
+  const stored = useInboxStore(
+    (s) => (s.drafts[key]?.[field] as string | undefined) ?? "",
+  );
   const [text, setText] = useState(stored);
-  useWatchEffect(() => { if (!hasPendingDraftWrite(key)) setText(stored); }, [key, stored]);
+  useWatchEffect(() => {
+    if (!hasPendingDraftWrite(key)) setText(stored);
+  }, [key, stored]);
   useWatchEffect(() => () => flushDraftWrite(key), [key]);
-  const type = useCallback((next: string) => {
-    setText(next);
-    scheduleDraftWrite(key, () => {
-      const s = useInboxStore.getState();
-      s.setDraft(key, { ...(s.drafts[key] ?? {}), [field]: next });
-    });
-  }, [key, field]);
+  const type = useCallback(
+    (next: string) => {
+      setText(next);
+      scheduleDraftWrite(key, () => {
+        const s = useInboxStore.getState();
+        s.setDraft(key, { ...(s.drafts[key] ?? {}), [field]: next });
+      });
+    },
+    [key, field],
+  );
   return [text, type];
 }
 

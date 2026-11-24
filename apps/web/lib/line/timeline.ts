@@ -4,7 +4,15 @@
 // (causeHistory.ts), so nothing here re-derives a ship, a deploy or a
 // regression, it only places them in time.
 import { backTimes, shortDay } from "@codecast/shared/contracts/causeHistory";
-import type { CauseHistory, CloseKind, FixBasis, HistoryAttempt, HistoryClose, HistoryRecurrence, HistoryRegression } from "./causeHistory";
+import type {
+  CauseHistory,
+  CloseKind,
+  FixBasis,
+  HistoryAttempt,
+  HistoryClose,
+  HistoryRecurrence,
+  HistoryRegression,
+} from "./causeHistory";
 import type { LineIssue } from "./lineModel";
 
 export const HOUR = 3_600_000;
@@ -12,8 +20,16 @@ export const DAY = 24 * HOUR;
 
 // ── where a problem stands ───────────────────────────────────────────────────
 
-export type ProblemState = "regressed" | "cameback" | "fixing" | "unapproved" | "watching" | "held" | "folded" | "open" | "closed";
-
+export type ProblemState =
+  | "regressed"
+  | "cameback"
+  | "fixing"
+  | "unapproved"
+  | "watching"
+  | "held"
+  | "folded"
+  | "open"
+  | "closed";
 
 export const PROBLEM_STATE_WORDS: Record<ProblemState, string> = {
   regressed: "Regressed",
@@ -27,8 +43,14 @@ export const PROBLEM_STATE_WORDS: Record<ProblemState, string> = {
   closed: "Closed",
 };
 
-
-const CLOSED = new Set(["dropped", "closed", "cancelled", "canceled", "wontfix", "done"]);
+const CLOSED = new Set([
+  "dropped",
+  "closed",
+  "cancelled",
+  "canceled",
+  "wontfix",
+  "done",
+]);
 
 /**
  * A problem's state from its history: regressed when the newest fix did not
@@ -50,7 +72,9 @@ export function problemState(h: CauseHistory, status: string): ProblemState {
     if (watch?.state === "quiet") return "held";
     const watching = watch?.state === "watching" || !CLOSED.has(status);
     if (!watching) return "held";
-    return h.attempts.find((a) => a.runId === close.runId)?.unapproved ? "unapproved" : "watching";
+    return h.attempts.find((a) => a.runId === close.runId)?.unapproved
+      ? "unapproved"
+      : "watching";
   }
   if (close?.fold && close.fold.liveAt == null) return "folded";
   if (close || CLOSED.has(status)) return "closed";
@@ -58,66 +82,142 @@ export function problemState(h: CauseHistory, status: string): ProblemState {
 }
 
 /** What came back after a close at time `at`: the regression after a fix, or the recurrence after a close without one. */
-export function comebackAt(at: number, h: Pick<CauseHistory, "regressions" | "recurrences">): HistoryRegression | HistoryRecurrence | null {
-  return regressionAt(at, h.regressions) ?? h.recurrences.find((r) => at >= r.at && at < (r.until ?? Infinity)) ?? null;
+export function comebackAt(
+  at: number,
+  h: Pick<CauseHistory, "regressions" | "recurrences">,
+): HistoryRegression | HistoryRecurrence | null {
+  return (
+    regressionAt(at, h.regressions) ??
+    h.recurrences.find((r) => at >= r.at && at < (r.until ?? Infinity)) ??
+    null
+  );
 }
 
 /** All the occurrences that came back after any close, in time order. */
-export const comebackTimes = (h: CauseHistory): number[] => h.occurrences.filter((o) => comebackAt(o.at, h)).map((o) => o.at);
+export const comebackTimes = (h: CauseHistory): number[] =>
+  h.occurrences.filter((o) => comebackAt(o.at, h)).map((o) => o.at);
 
 /** How many times a problem came back after any close: the one count its page header and its "Came back" tile both say. */
-export const cameBackCount = (h: CauseHistory, offTopic?: ReadonlySet<number>): number => comebackTimes(h).filter((t) => !offTopic?.has(t)).length;
+export const cameBackCount = (
+  h: CauseHistory,
+  offTopic?: ReadonlySet<number>,
+): number => comebackTimes(h).filter((t) => !offTopic?.has(t)).length;
 
 /** A finding as the off-topic test reads it: when it was seen, and the expectation it cites (a codecast judge's `subject`). */
-export type TopicSignal = { observed_at?: number; created_at: number; subject?: string | null; title?: string };
+export type TopicSignal = {
+  observed_at?: number;
+  created_at: number;
+  subject?: string | null;
+  title?: string;
+};
 
 /** The expectation a problem is about: the one most of its findings before its first close cite (all of them when it never
  *  closed), ties to the earliest. Null when its findings cite none. */
-export function homeExpectation(h: Pick<CauseHistory, "closes">, signals: ReadonlyArray<TopicSignal>): string | null {
+export function homeExpectation(
+  h: Pick<CauseHistory, "closes">,
+  signals: ReadonlyArray<TopicSignal>,
+): string | null {
   const at = (s: TopicSignal) => s.observed_at ?? s.created_at;
   const firstClose = h.closes[0]?.at ?? Infinity;
   const before = signals.filter((s) => s.subject && at(s) <= firstClose);
   const pool = before.length ? before : signals.filter((s) => s.subject);
   const n = new Map<string, { c: number; first: number }>();
-  for (const s of pool) { const k = s.subject!; const w = n.get(k); n.set(k, { c: (w?.c ?? 0) + 1, first: Math.min(w?.first ?? Infinity, at(s)) }); }
-  return [...n].sort((a, b) => b[1].c - a[1].c || a[1].first - b[1].first)[0]?.[0] ?? null;
+  for (const s of pool) {
+    const k = s.subject!;
+    const w = n.get(k);
+    n.set(k, {
+      c: (w?.c ?? 0) + 1,
+      first: Math.min(w?.first ?? Infinity, at(s)),
+    });
+  }
+  return (
+    [...n].sort((a, b) => b[1].c - a[1].c || a[1].first - b[1].first)[0]?.[0] ??
+    null
+  );
 }
 
 /** The history with the off-topic findings taken out of what came back: each comeback window counts and starts at its on-topic
  *  findings only, and one with none left is gone. The page reads this, so its header, chart, runs and close marks agree. */
-export function withoutOffTopic(h: CauseHistory, off: ReadonlySet<number>): CauseHistory {
+export function withoutOffTopic(
+  h: CauseHistory,
+  off: ReadonlySet<number>,
+): CauseHistory {
   if (!off.size) return h;
-  const adjust = <T extends { at: number; until: number | null; count: number }>(r: T): T | null => {
-    const inside = h.occurrences.filter((o) => o.at >= r.at && o.at < (r.until ?? Infinity));
+  const adjust = <
+    T extends { at: number; until: number | null; count: number },
+  >(
+    r: T,
+  ): T | null => {
+    const inside = h.occurrences.filter(
+      (o) => o.at >= r.at && o.at < (r.until ?? Infinity),
+    );
     const kept = inside.filter((o) => !off.has(o.at));
     const dropped = inside.length - kept.length;
     if (!dropped) return r;
     const count = r.count - dropped;
-    return count > 0 && kept.length ? { ...r, at: kept[0].at, count, words: (r as { words?: string }).words?.replace(/\b\d+x\b|\b\d+ times\b/, `${count}x`) } : null;
+    return count > 0 && kept.length
+      ? {
+          ...r,
+          at: kept[0].at,
+          count,
+          words: (r as { words?: string }).words?.replace(
+            /\b\d+x\b|\b\d+ times\b/,
+            `${count}x`,
+          ),
+        }
+      : null;
   };
-  const regressions = h.regressions.map(adjust).filter((r): r is NonNullable<typeof r> => !!r);
-  const recurrences = h.recurrences.map(adjust).filter((r): r is NonNullable<typeof r> => !!r);
+  const regressions = h.regressions
+    .map(adjust)
+    .filter((r): r is NonNullable<typeof r> => !!r);
+  const recurrences = h.recurrences
+    .map(adjust)
+    .filter((r): r is NonNullable<typeof r> => !!r);
   const kept = new Set(recurrences.map((r) => r.afterRunId));
   const keptFix = new Set(regressions.map((r) => r.afterRunId));
   const latest = h.closes[h.closes.length - 1]?.runId ?? "";
-  return { ...h, regressions, recurrences, cameBack: h.cameBack && kept.has(latest), regressed: h.regressed && keptFix.has(latest) };
+  return {
+    ...h,
+    regressions,
+    recurrences,
+    cameBack: h.cameBack && kept.has(latest),
+    regressed: h.regressed && keptFix.has(latest),
+  };
 }
 
 /** The comeback times whose finding cites another expectation than the problem's own: the cluster drifted, it did not come back. */
-export function offTopicComebacks(h: CauseHistory, signals: ReadonlyArray<TopicSignal>): Set<number> {
+export function offTopicComebacks(
+  h: CauseHistory,
+  signals: ReadonlyArray<TopicSignal>,
+): Set<number> {
   const home = homeExpectation(h, signals);
   if (!home) return new Set();
   const subjectAt = new Map<number, string>();
-  for (const s of signals) if (s.subject) subjectAt.set(s.observed_at ?? s.created_at, s.subject);
-  return new Set(comebackTimes(h).filter((t) => { const sub = subjectAt.get(t); return !!sub && sub !== home; }));
+  for (const s of signals)
+    if (s.subject) subjectAt.set(s.observed_at ?? s.created_at, s.subject);
+  return new Set(
+    comebackTimes(h).filter((t) => {
+      const sub = subjectAt.get(t);
+      return !!sub && sub !== home;
+    }),
+  );
 }
 
-
 /** The step a close happened at, as a reader says it: the model's label, else the id in words. */
-export const closeStepLabel = (step: string | null, labelOf?: (id: string) => string | undefined): string | null =>
-  step ? labelOf?.(step) ?? step.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()) : null;
+export const closeStepLabel = (
+  step: string | null,
+  labelOf?: (id: string) => string | undefined,
+): string | null =>
+  step
+    ? (labelOf?.(step) ??
+      step.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()))
+    : null;
 
-const CLOSE_VERB: Record<CloseKind, string> = { shipped: "Shipped", dissolved: "Dissolved", dropped: "Dropped" };
+const CLOSE_VERB: Record<CloseKind, string> = {
+  shipped: "Shipped",
+  dissolved: "Dissolved",
+  dropped: "Dropped",
+};
 
 /**
  * Where a problem stands, in one line for its row and page header. After a
@@ -125,25 +225,41 @@ const CLOSE_VERB: Record<CloseKind, string> = { shipped: "Shipped", dissolved: "
  * "Dissolved at Investigate Oct 7, came back 5x since". Otherwise the cause's
  * own sentence (LineIssue.where).
  */
-export function problemLine(issue: LineIssue, labelOf?: (id: string) => string | undefined, now = Date.now()): string {
+export function problemLine(
+  issue: LineIssue,
+  labelOf?: (id: string) => string | undefined,
+  now = Date.now(),
+): string {
   const h = issue.history;
   const live = h.attempts.some((a) => a.live);
   const close = h.closes[h.closes.length - 1];
   if (live || !close) return issue.where.text;
-  const back = close.kind === "shipped" ? h.regressions.find((r) => r.afterRunId === close.runId) : h.recurrences.find((r) => r.afterRunId === close.runId);
+  const back =
+    close.kind === "shipped"
+      ? h.regressions.find((r) => r.afterRunId === close.runId)
+      : h.recurrences.find((r) => r.afterRunId === close.runId);
   if (close.kind === "shipped" && !back) return fixLine(h, close, now);
   const what = closeWords(close, labelOf);
   if (!back && close.fold) return `${what}, ${close.fold.words}`;
   if (!back) return `${what}, quiet since`;
   // Earlier closes that did not hold either are in the same count the page's tile says, so the two never disagree.
   const total = Math.max(back.count, cameBackCount(h));
-  if (total === back.count) return `${what}, came back ${backTimes(total)} since`;
+  if (total === back.count)
+    return `${what}, came back ${backTimes(total)} since`;
   // One number on the line: every time it came back, and how many closes it came back after.
-  const missed = h.closes.filter((c) => [...h.regressions, ...h.recurrences].some((r) => r.afterRunId === c.runId && r.count > 0)).length;
+  const missed = h.closes.filter((c) =>
+    [...h.regressions, ...h.recurrences].some(
+      (r) => r.afterRunId === c.runId && r.count > 0,
+    ),
+  ).length;
   return `${what}, came back ${backTimes(total)} after ${missed} closes`;
 }
 
-const FIX_VERB: Record<FixBasis, string> = { deploy: "deployed", merge: "merged", ship: "shipped" };
+const FIX_VERB: Record<FixBasis, string> = {
+  deploy: "deployed",
+  merge: "merged",
+  ship: "shipped",
+};
 
 /** A fix that went live and has not come back, from the same close and watch problemState reads:
  *  "Fix merged Oct 8 (#2), watching for 6 more days; no recurrence yet". One
@@ -152,28 +268,43 @@ const FIX_VERB: Record<FixBasis, string> = { deploy: "deployed", merge: "merged"
  *  "Merged Oct 7 (#2) though its card was never answered; watching 4 more days, no recurrence yet". */
 function fixLine(h: CauseHistory, close: HistoryClose, now: number): string {
   const ship = h.ships.find((s) => s.runId === close.runId);
-  const unapproved = h.attempts.find((a) => a.runId === close.runId)?.unapproved;
+  const unapproved = h.attempts.find(
+    (a) => a.runId === close.runId,
+  )?.unapproved;
   const verb = FIX_VERB[ship?.basis ?? "ship"];
   const when = `${shortDay(close.at)} (#${close.n})`;
   const watch = [...h.watches].reverse().find((w) => w.runId === close.runId);
-  const days = watch?.state === "watching" && watch.end ? Math.max(1, Math.ceil((watch.end - now) / DAY)) : null;
-  const dayWords = days != null ? `${days} more ${days === 1 ? "day" : "days"}` : null;
+  const days =
+    watch?.state === "watching" && watch.end
+      ? Math.max(1, Math.ceil((watch.end - now) / DAY))
+      : null;
+  const dayWords =
+    days != null ? `${days} more ${days === 1 ? "day" : "days"}` : null;
   if (unapproved) {
     const lead = `${verb.charAt(0).toUpperCase()}${verb.slice(1)} ${when} though its card was never answered`;
-    if (watch?.state === "quiet") return `${lead}; held: the watch ended quiet${watch.end ? ` ${shortDay(watch.end)}` : ""}`;
-    return dayWords ? `${lead}; watching ${dayWords}, no recurrence yet` : `${lead}; no recurrence since`;
+    if (watch?.state === "quiet")
+      return `${lead}; held: the watch ended quiet${watch.end ? ` ${shortDay(watch.end)}` : ""}`;
+    return dayWords
+      ? `${lead}; watching ${dayWords}, no recurrence yet`
+      : `${lead}; no recurrence since`;
   }
   const lead = `Fix ${verb} ${when}`;
-  if (watch?.state === "quiet") return `${lead}, held: the watch ended quiet${watch.end ? ` ${shortDay(watch.end)}` : ""}`;
-  return dayWords ? `${lead}, watching for ${dayWords}; no recurrence yet` : `${lead}; no recurrence since`;
+  if (watch?.state === "quiet")
+    return `${lead}, held: the watch ended quiet${watch.end ? ` ${shortDay(watch.end)}` : ""}`;
+  return dayWords
+    ? `${lead}, watching for ${dayWords}; no recurrence yet`
+    : `${lead}; no recurrence since`;
 }
 
 /** A close in words, the lead of problemLine: "Dissolved at Investigate Oct 7", "Shipped Oct 3". */
-export function closeWords(close: HistoryClose, labelOf?: (id: string) => string | undefined): string {
-  const at = close.kind === "shipped" ? null : closeStepLabel(close.step, labelOf);
+export function closeWords(
+  close: HistoryClose,
+  labelOf?: (id: string) => string | undefined,
+): string {
+  const at =
+    close.kind === "shipped" ? null : closeStepLabel(close.step, labelOf);
   return `${CLOSE_VERB[close.kind]}${at ? ` at ${at}` : ""} ${shortDay(close.at)}`;
 }
-
 
 /**
  * Everything a problem's row in the list draws, as one string: its words, its
@@ -184,25 +315,51 @@ export function closeWords(close: HistoryClose, labelOf?: (id: string) => string
 export function problemRowSig(issue: LineIssue, state: ProblemState): string {
   const h = issue.history;
   return [
-    issue.id, issue.title, issue.ref ?? "", issue.where.text, issue.findings, issue.runs.length, h.capped ? 1 : 0, state, h.lastActivity,
-    h.occurrences.map((o) => (comebackAt(o.at, h) ? `${o.at}r` : o.at)).join(","),
+    issue.id,
+    issue.title,
+    issue.ref ?? "",
+    issue.where.text,
+    issue.findings,
+    issue.runs.length,
+    h.capped ? 1 : 0,
+    state,
+    h.lastActivity,
+    h.occurrences
+      .map((o) => (comebackAt(o.at, h) ? `${o.at}r` : o.at))
+      .join(","),
     h.closes.map((c) => `${c.kind}${c.at}${c.step ?? ""}`).join(","),
-    h.attempts.map((a) => `${a.runId}:${a.n}:${a.live ? 1 : 0}:${attemptTone(a)}:${attemptEndWords(a, h)}`).join(","),
+    h.attempts
+      .map(
+        (a) =>
+          `${a.runId}:${a.n}:${a.live ? 1 : 0}:${attemptTone(a)}:${attemptEndWords(a, h)}`,
+      )
+      .join(","),
   ].join("|");
 }
 
-
 /** How an attempt reads as a mark: its tone in the workspace's palette. "closed" is a close without a change (dissolved, dropped). */
-export type MarkTone = "ok" | "bad" | "warn" | "live" | "person" | "closed" | "none";
+export type MarkTone =
+  | "ok"
+  | "bad"
+  | "warn"
+  | "live"
+  | "person"
+  | "closed"
+  | "none";
 
 /** A fix where deploys are recorded and none carried it: it is not live, so no watch runs on it yet. */
-export function notDeployed(runId: string, h: Pick<CauseHistory, "ships" | "coverage">): boolean {
+export function notDeployed(
+  runId: string,
+  h: Pick<CauseHistory, "ships" | "coverage">,
+): boolean {
   const ship = h.ships.find((s) => s.runId === runId);
   return !!ship && ship.deploys.length === 0 && h.coverage.state === "known";
 }
 
 /** The watches a reader is shown: a watch after a fix that never deployed watches nothing. */
-export const shownWatches = (h: Pick<CauseHistory, "watches" | "ships" | "coverage">) => h.watches.filter((w) => !notDeployed(w.runId, h));
+export const shownWatches = (
+  h: Pick<CauseHistory, "watches" | "ships" | "coverage">,
+) => h.watches.filter((w) => !notDeployed(w.runId, h));
 
 /**
  * An attempt's one outcome, word and tone, that every surface of a run reads
@@ -215,10 +372,16 @@ export const shownWatches = (h: Pick<CauseHistory, "watches" | "ships" | "covera
  * ran after. One reading for the run's verdict, the Problems chart's ship marks and the Fix column, so no screen
  * says "shipped" where another says "not shipped".
  */
-export const neverShipped = (a: Pick<HistoryAttempt, "unapproved" | "merge"> | undefined, ship?: { merge?: unknown; deploys?: ReadonlyArray<unknown> } | null): boolean =>
+export const neverShipped = (
+  a: Pick<HistoryAttempt, "unapproved" | "merge"> | undefined,
+  ship?: { merge?: unknown; deploys?: ReadonlyArray<unknown> } | null,
+): boolean =>
   !!a?.unapproved && !(a.merge || ship?.merge) && !ship?.deploys?.length;
 
-export function attemptVerdict(a: HistoryAttempt, h?: Pick<CauseHistory, "ships" | "coverage">): { word: string; tone: MarkTone } {
+export function attemptVerdict(
+  a: HistoryAttempt,
+  h?: Pick<CauseHistory, "ships" | "coverage">,
+): { word: string; tone: MarkTone } {
   if (a.live) return { word: "running", tone: "live" };
   const ship = h?.ships.find((s) => s.runId === a.runId);
   if (a.ended === "shipped" || a.merge || ship) {
@@ -226,46 +389,79 @@ export function attemptVerdict(a: HistoryAttempt, h?: Pick<CauseHistory, "ships"
     if (neverShipped(a, ship)) return { word: "not shipped", tone: "warn" };
     const fixTone: MarkTone = a.unapproved ? "warn" : "ok";
     if (ship?.deploys.length) return { word: "deployed", tone: fixTone };
-    if (h && notDeployed(a.runId, h)) return { word: `${merged ? "merged" : "shipped"}, not deployed`, tone: "warn" };
+    if (h && notDeployed(a.runId, h))
+      return {
+        word: `${merged ? "merged" : "shipped"}, not deployed`,
+        tone: "warn",
+      };
     return { word: merged ? "merged" : "shipped", tone: fixTone };
   }
-  if (a.ended === "dissolved" || a.ended === "dropped") return { word: a.ended, tone: "closed" };
+  if (a.ended === "dissolved" || a.ended === "dropped")
+    return { word: a.ended, tone: "closed" };
   if (a.ended) return { word: a.ended, tone: toneOf(a.outcome.tone) };
   if (a.outcome.tone === "failed") return { word: "failed", tone: "bad" };
   // A run that stopped with a finished step waits for review; a paused run waits for an answer.
-  if (a.outcome.tone === "waiting") return { word: a.outcome.text.startsWith("Stopped") ? "stopped, waiting for review" : "waiting on you", tone: "person" };
+  if (a.outcome.tone === "waiting")
+    return {
+      word: a.outcome.text.startsWith("Stopped")
+        ? "stopped, waiting for review"
+        : "waiting on you",
+      tone: "person",
+    };
   if (a.outcome.tone === "stuck") return { word: "stuck", tone: "warn" };
   return { word: "stopped", tone: toneOf(a.outcome.tone) };
 }
 
 function toneOf(t: string): MarkTone {
   switch (t) {
-    case "shipped": return "ok";
-    case "failed": return "bad";
-    case "stuck": return "warn";
-    case "waiting": return "person";
-    case "live": return "live";
-    default: return "none";
+    case "shipped":
+      return "ok";
+    case "failed":
+      return "bad";
+    case "stuck":
+      return "warn";
+    case "waiting":
+      return "person";
+    case "live":
+      return "live";
+    default:
+      return "none";
   }
 }
 
-export const attemptTone = (a: HistoryAttempt, h?: Pick<CauseHistory, "ships" | "coverage">): MarkTone => attemptVerdict(a, h).tone;
+export const attemptTone = (
+  a: HistoryAttempt,
+  h?: Pick<CauseHistory, "ships" | "coverage">,
+): MarkTone => attemptVerdict(a, h).tone;
 
 /** An attempt's end in a few words: "deployed", "dissolved", "failed". */
-export const attemptEndWords = (a: HistoryAttempt, h?: Pick<CauseHistory, "ships" | "coverage">): string => attemptVerdict(a, h).word;
+export const attemptEndWords = (
+  a: HistoryAttempt,
+  h?: Pick<CauseHistory, "ships" | "coverage">,
+): string => attemptVerdict(a, h).word;
 
 /** An attempt's mark in words, for its tooltip: "#2 dissolved at Investigate Oct 7". */
-export function attemptMarkWords(a: HistoryAttempt, labelOf?: (id: string) => string | undefined, h?: Pick<CauseHistory, "ships" | "coverage">): string {
-  const at = a.ended && a.ended !== "shipped" ? closeStepLabel(a.endStep, labelOf) : null;
+export function attemptMarkWords(
+  a: HistoryAttempt,
+  labelOf?: (id: string) => string | undefined,
+  h?: Pick<CauseHistory, "ships" | "coverage">,
+): string {
+  const at =
+    a.ended && a.ended !== "shipped"
+      ? closeStepLabel(a.endStep, labelOf)
+      : null;
   return `#${a.n} ${attemptEndWords(a, h)}${at ? ` at ${at}` : ""} ${shortDay(a.end ?? a.start)}`;
 }
-
 
 // ── occurrences ──────────────────────────────────────────────────────────────
 
 /** The regression an occurrence belongs to: after a fix went live and before the next one did. */
-export function regressionAt(at: number, regressions: ReadonlyArray<HistoryRegression>): HistoryRegression | null {
-  for (const r of regressions) if (at > r.liveAt && at < (r.until ?? Infinity)) return r;
+export function regressionAt(
+  at: number,
+  regressions: ReadonlyArray<HistoryRegression>,
+): HistoryRegression | null {
+  for (const r of regressions)
+    if (at > r.liveAt && at < (r.until ?? Infinity)) return r;
   return null;
 }
 
@@ -282,18 +478,33 @@ export function lowerBound(times: ReadonlyArray<number>, t: number): number {
 }
 
 /** Counts per bucket of `step` over [t0, t1), on an ascending list of times. */
-export function bucketCounts(times: ReadonlyArray<number>, t0: number, t1: number, step: number): number[] {
+export function bucketCounts(
+  times: ReadonlyArray<number>,
+  t0: number,
+  t1: number,
+  step: number,
+): number[] {
   const n = Math.max(1, Math.ceil((t1 - t0) / step));
   const out = new Array<number>(n).fill(0);
-  for (let i = lowerBound(times, t0); i < times.length && times[i] < t1; i++) out[Math.min(n - 1, Math.floor((times[i] - t0) / step))]++;
+  for (let i = lowerBound(times, t0); i < times.length && times[i] < t1; i++)
+    out[Math.min(n - 1, Math.floor((times[i] - t0) / step))]++;
   return out;
 }
 
 // ── the axis ─────────────────────────────────────────────────────────────────
 
 export type TimeRange = "24h" | "7d" | "30d" | "all";
-export const TIME_RANGES: ReadonlyArray<TimeRange> = ["24h", "7d", "30d", "all"];
-const RANGE_MS: Record<Exclude<TimeRange, "all">, number> = { "24h": DAY, "7d": 7 * DAY, "30d": 30 * DAY };
+export const TIME_RANGES: ReadonlyArray<TimeRange> = [
+  "24h",
+  "7d",
+  "30d",
+  "all",
+];
+const RANGE_MS: Record<Exclude<TimeRange, "all">, number> = {
+  "24h": DAY,
+  "7d": 7 * DAY,
+  "30d": 30 * DAY,
+};
 
 export type Domain = readonly [number, number];
 
@@ -309,15 +520,28 @@ function historySpan(h: CauseHistory): [number, number] | null {
   at(h.occurrences[0]?.at);
   at(h.occurrences[h.occurrences.length - 1]?.at);
   at(h.firstAt);
-  for (const a of h.attempts) { at(a.start); at(a.end); }
-  for (const s of h.ships) { at(s.at); at(s.merge?.at); }
+  for (const a of h.attempts) {
+    at(a.start);
+    at(a.end);
+  }
+  for (const s of h.ships) {
+    at(s.at);
+    at(s.merge?.at);
+  }
   for (const d of h.deploys) at(d.at);
-  for (const w of h.watches) { at(w.start); at(w.end); }
+  for (const w of h.watches) {
+    at(w.start);
+    at(w.end);
+  }
   return lo === Infinity ? null : [lo, hi];
 }
 
 /** The window a range preset shows, ending now; "all" frames the whole history with a little air. */
-export function rangeDomain(range: TimeRange, h: CauseHistory, now: number): Domain {
+export function rangeDomain(
+  range: TimeRange,
+  h: CauseHistory,
+  now: number,
+): Domain {
   if (range !== "all") return [now - RANGE_MS[range], now];
   const span = historySpan(h);
   if (!span) return [now - 7 * DAY, now];
@@ -339,14 +563,34 @@ export function defaultRange(h: CauseHistory, now: number): TimeRange {
   const lastFinding = h.occurrences[h.occurrences.length - 1]?.at ?? Infinity;
   const firstFinding = h.occurrences[0]?.at ?? Infinity;
   // Findings older than a month stay behind All: the window frames the recent ones and the runs on them.
-  const need = Math.min(firstRun, lastFinding, firstFinding >= now - 30 * DAY ? firstFinding : Infinity, Number.isFinite(firstRun) || Number.isFinite(lastFinding) ? Infinity : span[0]);
+  const need = Math.min(
+    firstRun,
+    lastFinding,
+    firstFinding >= now - 30 * DAY ? firstFinding : Infinity,
+    Number.isFinite(firstRun) || Number.isFinite(lastFinding)
+      ? Infinity
+      : span[0],
+  );
   if (need >= now - DAY) return "24h";
   if (need >= now - 7 * DAY) return "7d";
   if (need >= now - 30 * DAY) return "30d";
   return "all";
 }
 
-const STEPS = [5 * 60_000, 15 * 60_000, 30 * 60_000, HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY, 2 * DAY, 7 * DAY, 14 * DAY, 30 * DAY];
+const STEPS = [
+  5 * 60_000,
+  15 * 60_000,
+  30 * 60_000,
+  HOUR,
+  3 * HOUR,
+  6 * HOUR,
+  12 * HOUR,
+  DAY,
+  2 * DAY,
+  7 * DAY,
+  14 * DAY,
+  30 * DAY,
+];
 
 /** A bucket width that gives at most `target` bars over the span. */
 export function bucketStep(span: number, target = 72): number {
@@ -372,20 +616,38 @@ export function alignDown(t: number, step: number): number {
 
 export type Tick = { at: number; label: string; major: boolean };
 
-const TICK_STEPS = [HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY, 2 * DAY, 7 * DAY, 14 * DAY, 30 * DAY];
-const dayLabel = (t: number) => new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-const hourLabel = (t: number) => new Date(t).toLocaleTimeString(undefined, { hour: "numeric" });
+const TICK_STEPS = [
+  HOUR,
+  3 * HOUR,
+  6 * HOUR,
+  12 * HOUR,
+  DAY,
+  2 * DAY,
+  7 * DAY,
+  14 * DAY,
+  30 * DAY,
+];
+const dayLabel = (t: number) =>
+  new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const hourLabel = (t: number) =>
+  new Date(t).toLocaleTimeString(undefined, { hour: "numeric" });
 
 /** Ticks under the axis: at most `max`, aligned to local hours or midnights; a midnight is major and named by its day. */
 export function timeTicks(d: Domain, max: number): Tick[] {
   const span = d[1] - d[0];
-  const step = TICK_STEPS.find((s) => span / s <= max) ?? TICK_STEPS[TICK_STEPS.length - 1];
+  const step =
+    TICK_STEPS.find((s) => span / s <= max) ??
+    TICK_STEPS[TICK_STEPS.length - 1];
   const out: Tick[] = [];
   let t = alignDown(d[0], step);
   if (t < d[0]) t = step >= DAY ? nextDay(t, step) : t + step;
   for (let guard = 0; t <= d[1] && guard < 400; guard++) {
     const midnight = new Date(t).getHours() === 0;
-    out.push({ at: t, label: step < DAY && !midnight ? hourLabel(t) : dayLabel(t), major: midnight });
+    out.push({
+      at: t,
+      label: step < DAY && !midnight ? hourLabel(t) : dayLabel(t),
+      major: midnight,
+    });
     t = step >= DAY ? nextDay(t, step) : t + step;
   }
   return out;
@@ -404,12 +666,22 @@ export function bucketWords(start: number, step: number): string {
   const end = start + step;
   if (step === DAY) return dayLabel(start);
   if (step > DAY) return `${dayLabel(start)} to ${dayLabel(end - 1)}`;
-  const time = (t: number) => new Date(t).toLocaleTimeString(undefined, { hour: "numeric", minute: step < HOUR ? "2-digit" : undefined });
+  const time = (t: number) =>
+    new Date(t).toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: step < HOUR ? "2-digit" : undefined,
+    });
   return `${dayLabel(start)}, ${time(start)} to ${time(end)}`;
 }
 
 /** A moment in words for a hover: "Oct 8, 2:14 PM". */
-export const momentWords = (t: number) => new Date(t).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+export const momentWords = (t: number) =>
+  new Date(t).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
 /** A span in its largest unit: "3h", "2d", "40m". */
 export function spanWords(ms: number): string {

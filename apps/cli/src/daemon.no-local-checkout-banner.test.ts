@@ -10,22 +10,43 @@ import { noLocalCheckoutBannerActionable } from "./resumePlacement.js";
 // real git remote earns the banner.
 describe("noLocalCheckoutBannerActionable", () => {
   test("suppressed when there is no git remote (the dead-end cases)", () => {
-    expect(noLocalCheckoutBannerActionable({ remote: null, recordedPath: undefined })).toBe(false);
-    expect(noLocalCheckoutBannerActionable({ remote: undefined, recordedPath: null })).toBe(false);
-    expect(noLocalCheckoutBannerActionable({ remote: "", recordedPath: "" })).toBe(false);
+    expect(
+      noLocalCheckoutBannerActionable({
+        remote: null,
+        recordedPath: undefined,
+      }),
+    ).toBe(false);
+    expect(
+      noLocalCheckoutBannerActionable({
+        remote: undefined,
+        recordedPath: null,
+      }),
+    ).toBe(false);
+    expect(
+      noLocalCheckoutBannerActionable({ remote: "", recordedPath: "" }),
+    ).toBe(false);
     // A foreign recorded path with no remote — the flashing-banner bug. The user
     // can't act on "clone <unknown remote>", so stay silent.
     expect(
-      noLocalCheckoutBannerActionable({ remote: null, recordedPath: "/Users/m1/work/codecast/apps/cli" }),
+      noLocalCheckoutBannerActionable({
+        remote: null,
+        recordedPath: "/Users/m1/work/codecast/apps/cli",
+      }),
     ).toBe(false);
     expect(
-      noLocalCheckoutBannerActionable({ remote: "", recordedPath: "/Users/ec2-user/src/union-mobile/outreach" }),
+      noLocalCheckoutBannerActionable({
+        remote: "",
+        recordedPath: "/Users/ec2-user/src/union-mobile/outreach",
+      }),
     ).toBe(false);
   });
 
   test("actionable when we know the git remote to clone", () => {
     expect(
-      noLocalCheckoutBannerActionable({ remote: "git@github.com:ashot/codecast.git", recordedPath: undefined }),
+      noLocalCheckoutBannerActionable({
+        remote: "git@github.com:ashot/codecast.git",
+        recordedPath: undefined,
+      }),
     ).toBe(true);
     expect(
       noLocalCheckoutBannerActionable({

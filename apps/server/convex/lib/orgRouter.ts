@@ -66,23 +66,55 @@ const clip = (s: string | undefined, max: number) => {
 export function rosterText(roster: RouterRoster): string {
   const lines: string[] = [`Workspace: ${roster.workspace}`, ""];
   for (const r of roster.roles) {
-    lines.push(`## @${r.handle}: ${r.given_name ? `${r.given_name}, ` : ""}${r.name}${r.whole_workspace ? " (looks after the whole workspace: whatever no narrower role covers)" : ""}`);
+    lines.push(
+      `## @${r.handle}: ${r.given_name ? `${r.given_name}, ` : ""}${r.name}${r.whole_workspace ? " (looks after the whole workspace: whatever no narrower role covers)" : ""}`,
+    );
     if (r.charter) lines.push(`Charter: ${clip(r.charter, CHARTER_CHARS)}`);
-    if (r.areas.length) lines.push(`Areas: ${r.areas.map((a) => `${a.kind} "${a.title}"${a.goal ? ` (goal: ${clip(a.goal, 160)})` : ""}`).join("; ")}`);
-    else if (!r.whole_workspace) lines.push("Areas: none (a standing role that answers what it is asked)");
-    if (r.standing.length) lines.push(`Where it stands: ${r.standing.slice(0, LINES_PER_ROLE).map((l) => clip(l, 200)).join(" | ")}`);
-    if (r.holding.length) lines.push(`Holding: ${r.holding.slice(0, LINES_PER_ROLE).map((l) => clip(l, 120)).join(" | ")}`);
+    if (r.areas.length)
+      lines.push(
+        `Areas: ${r.areas.map((a) => `${a.kind} "${a.title}"${a.goal ? ` (goal: ${clip(a.goal, 160)})` : ""}`).join("; ")}`,
+      );
+    else if (!r.whole_workspace)
+      lines.push("Areas: none (a standing role that answers what it is asked)");
+    if (r.standing.length)
+      lines.push(
+        `Where it stands: ${r.standing
+          .slice(0, LINES_PER_ROLE)
+          .map((l) => clip(l, 200))
+          .join(" | ")}`,
+      );
+    if (r.holding.length)
+      lines.push(
+        `Holding: ${r.holding
+          .slice(0, LINES_PER_ROLE)
+          .map((l) => clip(l, 120))
+          .join(" | ")}`,
+      );
     lines.push("");
   }
   if (roster.unled) {
     const whole = roster.roles.find((r) => r.whole_workspace);
-    lines.push(`## Areas no role names${whole ? ` (the whole workspace role's, @${whole.handle})` : ""}`);
-    lines.push(roster.unled.length ? roster.unled.map((a) => `${a.kind} "${a.title}"${a.goal ? ` (goal: ${clip(a.goal, 160)})` : ""}`).join("; ") : "none: every area has a role");
+    lines.push(
+      `## Areas no role names${whole ? ` (the whole workspace role's, @${whole.handle})` : ""}`,
+    );
+    lines.push(
+      roster.unled.length
+        ? roster.unled
+            .map(
+              (a) =>
+                `${a.kind} "${a.title}"${a.goal ? ` (goal: ${clip(a.goal, 160)})` : ""}`,
+            )
+            .join("; ")
+        : "none: every area has a role",
+    );
   }
   return lines.join("\n").trim();
 }
 
-export function routerRequest(roster: RouterRoster, request: string): SurfaceRequest {
+export function routerRequest(
+  roster: RouterRoster,
+  request: string,
+): SurfaceRequest {
   return {
     model: ROUTER_MODEL,
     max_tokens: ROUTER_MAX_TOKENS,
@@ -92,36 +124,86 @@ export function routerRequest(roster: RouterRoster, request: string): SurfaceReq
 }
 
 /** The reply as JSON, with every handle checked against the roster; null when unreadable. */
-export function parseRouterReply(text: string, roster: RouterRoster): RouterReply | null {
+export function parseRouterReply(
+  text: string,
+  roster: RouterRoster,
+): RouterReply | null {
   const raw = parseJsonBlock(text) as any;
   if (!raw || typeof raw !== "object") return null;
   const handles = new Set(roster.roles.map((r) => r.handle));
   const clean = (h: unknown): string | null => {
-    const s = typeof h === "string" ? h.trim().replace(/^@/, "").toLowerCase() : "";
+    const s =
+      typeof h === "string" ? h.trim().replace(/^@/, "").toLowerCase() : "";
     return handles.has(s) ? s : null;
   };
-  const conf = (c: unknown): number => { const n = typeof c === "number" ? c : Number(c); return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0; };
+  const conf = (c: unknown): number => {
+    const n = typeof c === "number" ? c : Number(c);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0;
+  };
   const handle = clean(raw.handle);
   const alternatives = Array.isArray(raw.alternatives)
     ? raw.alternatives
-        .map((a: any) => ({ handle: clean(a?.handle), confidence: conf(a?.confidence), reason: typeof a?.reason === "string" ? a.reason.trim() : "" }))
-        .filter((a: any): a is RouterReply["alternatives"][number] => !!a.handle && a.handle !== handle)
+        .map((a: any) => ({
+          handle: clean(a?.handle),
+          confidence: conf(a?.confidence),
+          reason: typeof a?.reason === "string" ? a.reason.trim() : "",
+        }))
+        .filter(
+          (a: any): a is RouterReply["alternatives"][number] =>
+            !!a.handle && a.handle !== handle,
+        )
         .sort((a: any, b: any) => b.confidence - a.confidence)
     : [];
-  return { handle, confidence: handle ? conf(raw.confidence) : 0, reason: typeof raw.reason === "string" ? raw.reason.trim() : "", alternatives: alternatives.slice(0, 2) };
+  return {
+    handle,
+    confidence: handle ? conf(raw.confidence) : 0,
+    reason: typeof raw.reason === "string" ? raw.reason.trim() : "",
+    alternatives: alternatives.slice(0, 2),
+  };
 }
 
 export type RouterDecision =
   | { kind: "file"; handle: string; confidence: number; reason: string }
-  | { kind: "ask"; choices: Array<{ handle: string; confidence: number; reason: string }>; confidence: number; reason: string };
+  | {
+      kind: "ask";
+      choices: Array<{ handle: string; confidence: number; reason: string }>;
+      confidence: number;
+      reason: string;
+    };
 
 /** Files when the top choice is confident and clear of the runner-up (S35); otherwise the choices, best first. */
 export function routerDecision(reply: RouterReply | null): RouterDecision {
-  if (!reply || !reply.handle) return { kind: "ask", choices: reply?.alternatives ?? [], confidence: 0, reason: reply?.reason || "the router could not read the request" };
+  if (!reply || !reply.handle)
+    return {
+      kind: "ask",
+      choices: reply?.alternatives ?? [],
+      confidence: 0,
+      reason: reply?.reason || "the router could not read the request",
+    };
   const runnerUp = reply.alternatives[0]?.confidence ?? 0;
   // 1e-9: 0.9 - 0.6 is 0.30000000000000004 in floating point, which is the margin.
-  if (reply.confidence >= ROUTER_CONFIDENT - 1e-9 && reply.confidence - runnerUp >= ROUTER_MARGIN - 1e-9) {
-    return { kind: "file", handle: reply.handle, confidence: reply.confidence, reason: reply.reason };
+  if (
+    reply.confidence >= ROUTER_CONFIDENT - 1e-9 &&
+    reply.confidence - runnerUp >= ROUTER_MARGIN - 1e-9
+  ) {
+    return {
+      kind: "file",
+      handle: reply.handle,
+      confidence: reply.confidence,
+      reason: reply.reason,
+    };
   }
-  return { kind: "ask", choices: [{ handle: reply.handle, confidence: reply.confidence, reason: reply.reason }, ...reply.alternatives], confidence: reply.confidence, reason: reply.reason };
+  return {
+    kind: "ask",
+    choices: [
+      {
+        handle: reply.handle,
+        confidence: reply.confidence,
+        reason: reply.reason,
+      },
+      ...reply.alternatives,
+    ],
+    confidence: reply.confidence,
+    reason: reply.reason,
+  };
 }

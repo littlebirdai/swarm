@@ -1,11 +1,17 @@
 import { useMemo } from "react";
 import { useInboxStore } from "../store/inboxStore";
-import { guestsSig, rosterWithGuests, withGuestMedia } from "../lib/calls/roomGuests";
+import {
+  guestsSig,
+  rosterWithGuests,
+  withGuestMedia,
+} from "../lib/calls/roomGuests";
 import { walkieCallState } from "../lib/calls/walkie";
 
 const NO_SEATS: any[] = [];
 const roomGuestsOf = (st: any, roomKey: string | null) =>
-  roomKey ? st.liveRooms?.find((r: any) => r.room_key === roomKey)?.guests : undefined;
+  roomKey
+    ? st.liveRooms?.find((r: any) => r.room_key === roomKey)?.guests
+    : undefined;
 
 /**
  * Everyone a member's call surface draws for a room: its seats, then the
@@ -22,14 +28,23 @@ const roomGuestsOf = (st: any, roomKey: string | null) =>
  * caller re-renders with the call tiles, which is when the media moves.
  */
 export function useStageRoster(roomKey: string | null, connected: boolean) {
-  const seats: any[] = useInboxStore((st: any) => (roomKey ? st.callOccupancy[roomKey] : undefined)) ?? NO_SEATS;
-  const guestKey = useInboxStore((st: any) => guestsSig(roomGuestsOf(st, roomKey)));
+  const seats: any[] =
+    useInboxStore((st: any) =>
+      roomKey ? st.callOccupancy[roomKey] : undefined,
+    ) ?? NO_SEATS;
+  const guestKey = useInboxStore((st: any) =>
+    guestsSig(roomGuestsOf(st, roomKey)),
+  );
   const listed: any[] = useMemo(
-    () => rosterWithGuests(seats, roomGuestsOf(useInboxStore.getState(), roomKey)),
+    () =>
+      rosterWithGuests(seats, roomGuestsOf(useInboxStore.getState(), roomKey)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [seats, guestKey, roomKey],
   );
   const guestMedia = connected ? walkieCallState().guests : null;
-  const roster: any[] = useMemo(() => withGuestMedia(listed, guestMedia), [listed, guestMedia]);
+  const roster: any[] = useMemo(
+    () => withGuestMedia(listed, guestMedia),
+    [listed, guestMedia],
+  );
   return { listed, roster, guestMedia };
 }

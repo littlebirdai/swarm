@@ -11,12 +11,19 @@ import { readInventory, readInventoryAsync } from "./inventory.js";
 
 function skill(dir: string, name: string, description = `does ${name}`): void {
   fs.mkdirSync(path.join(dir, name), { recursive: true });
-  fs.writeFileSync(path.join(dir, name, "SKILL.md"), `---\nname: ${name}\ndescription: ${description}\n---\n`);
+  fs.writeFileSync(
+    path.join(dir, name, "SKILL.md"),
+    `---\nname: ${name}\ndescription: ${description}\n---\n`,
+  );
 }
 
 function markdownDir(dir: string, count: number, key: string): void {
   fs.mkdirSync(dir, { recursive: true });
-  for (let i = 0; i < count; i++) fs.writeFileSync(path.join(dir, `${key}-${i}.md`), `---\ndescription: ${key} ${i}\n---\n`);
+  for (let i = 0; i < count; i++)
+    fs.writeFileSync(
+      path.join(dir, `${key}-${i}.md`),
+      `---\ndescription: ${key} ${i}\n---\n`,
+    );
 }
 
 function fakeHome(skillCount: number): { home: string; project: string } {
@@ -26,15 +33,46 @@ function fakeHome(skillCount: number): { home: string; project: string } {
   fs.mkdirSync(path.join(home, ".claude", "agents"), { recursive: true });
   fs.mkdirSync(path.join(home, ".claude", "plugins"), { recursive: true });
   fs.mkdirSync(path.join(project, ".claude", "commands"), { recursive: true });
-  for (let i = 0; i < skillCount; i++) skill(path.join(home, ".claude", "skills"), `skill-${i}`);
+  for (let i = 0; i < skillCount; i++)
+    skill(path.join(home, ".claude", "skills"), `skill-${i}`);
   skill(path.join(project, ".claude", "skills"), "proj-skill");
-  fs.writeFileSync(path.join(home, ".claude", "commands", "ship.md"), "---\ndescription: ship it\n---\nship\n");
-  fs.writeFileSync(path.join(project, ".claude", "commands", "lint.md"), "---\ndescription: lint it\n---\nlint\n");
-  fs.writeFileSync(path.join(home, ".claude", "agents", "reviewer.md"), "---\nname: reviewer\ndescription: reviews\n---\n");
-  fs.writeFileSync(path.join(home, ".claude", "settings.json"), JSON.stringify({ enabledPlugins: { "tools@acme": true, "off@acme": false } }));
-  fs.writeFileSync(path.join(home, ".claude", "plugins", "installed_plugins.json"), JSON.stringify({ version: 1, plugins: { "tools@acme": [{ scope: "user", version: "1.0.0", gitCommitSha: "abc" }] } }));
-  fs.writeFileSync(path.join(home, ".claude.json"), JSON.stringify({ mcpServers: { db: { command: "db-mcp" } } }));
-  fs.writeFileSync(path.join(project, ".mcp.json"), JSON.stringify({ mcpServers: { repo: { command: "repo-mcp" } } }));
+  fs.writeFileSync(
+    path.join(home, ".claude", "commands", "ship.md"),
+    "---\ndescription: ship it\n---\nship\n",
+  );
+  fs.writeFileSync(
+    path.join(project, ".claude", "commands", "lint.md"),
+    "---\ndescription: lint it\n---\nlint\n",
+  );
+  fs.writeFileSync(
+    path.join(home, ".claude", "agents", "reviewer.md"),
+    "---\nname: reviewer\ndescription: reviews\n---\n",
+  );
+  fs.writeFileSync(
+    path.join(home, ".claude", "settings.json"),
+    JSON.stringify({
+      enabledPlugins: { "tools@acme": true, "off@acme": false },
+    }),
+  );
+  fs.writeFileSync(
+    path.join(home, ".claude", "plugins", "installed_plugins.json"),
+    JSON.stringify({
+      version: 1,
+      plugins: {
+        "tools@acme": [
+          { scope: "user", version: "1.0.0", gitCommitSha: "abc" },
+        ],
+      },
+    }),
+  );
+  fs.writeFileSync(
+    path.join(home, ".claude.json"),
+    JSON.stringify({ mcpServers: { db: { command: "db-mcp" } } }),
+  );
+  fs.writeFileSync(
+    path.join(project, ".mcp.json"),
+    JSON.stringify({ mcpServers: { repo: { command: "repo-mcp" } } }),
+  );
   fs.mkdirSync(path.join(home, ".codex"), { recursive: true });
   fs.mkdirSync(path.join(home, ".cursor"), { recursive: true });
   return { home, project };
@@ -48,8 +86,12 @@ describe("readInventoryAsync", () => {
       const async = await readInventoryAsync(home, project);
       expect(async).toEqual(sync);
       expect(sync.items.length).toBeGreaterThan(5);
-      expect(sync.items.some((i) => i.kind === "skill" && i.name === "proj-skill")).toBe(true);
-      expect(sync.items.some((i) => i.kind === "command" && i.name === "lint")).toBe(true);
+      expect(
+        sync.items.some((i) => i.kind === "skill" && i.name === "proj-skill"),
+      ).toBe(true);
+      expect(
+        sync.items.some((i) => i.kind === "command" && i.name === "lint"),
+      ).toBe(true);
     } finally {
       fs.rmSync(home, { recursive: true, force: true });
     }
@@ -63,7 +105,10 @@ describe("readInventoryAsync", () => {
     markdownDir(path.join(home, ".claude", "agents"), 300, "agent");
     markdownDir(path.join(project, ".claude", "commands"), 300, "pcmd");
     try {
-      const { result, ticks } = await measureLoopHold(() => readInventoryAsync(home, project), 1);
+      const { result, ticks } = await measureLoopHold(
+        () => readInventoryAsync(home, project),
+        1,
+      );
       expect(result.items.length).toBeGreaterThanOrEqual(1200);
       expect(ticks).toBeGreaterThanOrEqual(2);
     } finally {

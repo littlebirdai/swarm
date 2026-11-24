@@ -18,7 +18,11 @@ export type TeamShareMode = "private" | "summary" | "full";
 export type TeamShareState = { mode: TeamShareMode; gated: boolean };
 
 export function teamShareState(
-  conv: { is_private?: boolean; team_visibility?: string | null; started_at?: number | null },
+  conv: {
+    is_private?: boolean;
+    team_visibility?: string | null;
+    started_at?: number | null;
+  },
   membership: MembershipVisibilityFacts | null | undefined,
 ): TeamShareState {
   const level = effectiveMembershipVisibility(membership, conv.started_at);
@@ -45,15 +49,20 @@ export type OwnSessionRow = {
   team_visibility?: string | null;
 };
 
-export function visibleTeamFeedRows<T extends { user_id?: string | null; acting_user_id?: string | null }>(
+export function visibleTeamFeedRows<
+  T extends { user_id?: string | null; acting_user_id?: string | null },
+>(
   rows: T[],
   memberIds: ReadonlySet<string> | undefined,
   orgEnabled: boolean,
 ): T[] {
   if (!memberIds) return [];
-  return rows.filter((row) =>
-    !!row.user_id && memberIds.has(row.user_id) &&
-    (!row.acting_user_id || (orgEnabled && memberIds.has(row.acting_user_id))),
+  return rows.filter(
+    (row) =>
+      !!row.user_id &&
+      memberIds.has(row.user_id) &&
+      (!row.acting_user_id ||
+        (orgEnabled && memberIds.has(row.acting_user_id))),
   );
 }
 
@@ -78,10 +87,26 @@ export function mergeOwnSessionsIntoTeamFeed<S extends OwnSessionRow>(opts: {
   for (const row of feedRows) {
     inFeed.add(row._id);
     const own = row.is_own ? sessions[row._id] : undefined;
-    if (!own || own.is_private === undefined) { out.push(row); continue; }
-    const teamVisibility = own.team_visibility === undefined ? row.team_visibility : own.team_visibility;
-    if (own.is_private === (row.is_private ?? false) && teamVisibility === row.team_visibility) { out.push(row); continue; }
-    out.push({ ...row, is_private: own.is_private, team_visibility: teamVisibility });
+    if (!own || own.is_private === undefined) {
+      out.push(row);
+      continue;
+    }
+    const teamVisibility =
+      own.team_visibility === undefined
+        ? row.team_visibility
+        : own.team_visibility;
+    if (
+      own.is_private === (row.is_private ?? false) &&
+      teamVisibility === row.team_visibility
+    ) {
+      out.push(row);
+      continue;
+    }
+    out.push({
+      ...row,
+      is_private: own.is_private,
+      team_visibility: teamVisibility,
+    });
   }
   for (const id in sessions) {
     const s = sessions[id];
@@ -89,7 +114,8 @@ export function mergeOwnSessionsIntoTeamFeed<S extends OwnSessionRow>(opts: {
     if (String(s.team_id ?? "") !== teamId) continue;
     // A teammate's session injected into the cache (a deep link, a search
     // result) is not the viewer's to list here.
-    if (s.user_id && viewerId && String(s.user_id) !== String(viewerId)) continue;
+    if (s.user_id && viewerId && String(s.user_id) !== String(viewerId))
+      continue;
     if (!keep(s)) continue;
     out.push(toConv(s));
   }

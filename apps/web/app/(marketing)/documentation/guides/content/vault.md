@@ -8,7 +8,7 @@ The Vault is one place your team fills once. Every agent on every machine, cloud
 
 The Vault page is there for everyone: open **Vault** under **More** in the sidebar, or search "vault" in the command palette.
 
-For agents to use it, open **Settings**, choose **Agent Features** under *Machines*, pick the computer your agents run on, and switch on **Vault** under *Hands on the machine*. New sessions on that computer take credentials from the Vault from then on, and ask for the ones it lacks instead of asking you to paste them.
+For agents to use it, open **Settings**, choose **Agent Features** under _Machines_, pick the computer your agents run on, and switch on **Vault** under _Hands on the machine_. New sessions on that computer take credentials from the Vault from then on, and ask for the ones it lacks instead of asking you to paste them.
 
 ## The Vault page
 
@@ -16,12 +16,12 @@ One row per secret: its kind, its name, the env vars it fills or the sites it's 
 
 **Add** offers four kinds, and **Import .env**:
 
-| Kind | What it holds | How agents use it |
-|------|---------------|-------------------|
-| Key | One value, such as an API key | As an environment variable for the command that needs it |
-| Username and password | A login, with an optional 2FA setup key | Username and password as variables, and the current 2FA code when a site asks |
-| File | A whole file: a service account JSON, an SSH key | As the path of a private temporary file, removed when the command ends |
-| Browser sign-in | A site's signed-in browser session | Loaded into the agent's browser before it opens that site |
+| Kind                  | What it holds                                    | How agents use it                                                             |
+| --------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Key                   | One value, such as an API key                    | As an environment variable for the command that needs it                      |
+| Username and password | A login, with an optional 2FA setup key          | Username and password as variables, and the current 2FA code when a site asks |
+| File                  | A whole file: a service account JSON, an SSH key | As the path of a private temporary file, removed when the command ends        |
+| Browser sign-in       | A site's signed-in browser session               | Loaded into the agent's browser before it opens that site                     |
 
 ![The Add to Vault dialog for a key, with name, env var, value and who can use it](/documentation/vault/add-secret.webp "Adding a key. Pasting an ENV=value line fills both fields.")
 

@@ -6,7 +6,10 @@ import { setGestureChannelFactory } from "../../../store/gestureBridge";
 
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
 const realCallManager = { ...(await import("../../../lib/calls/callManager")) };
-mock.module("../../../lib/calls/callManager", () => ({ ...realCallManager, getRoom: () => null }));
+mock.module("../../../lib/calls/callManager", () => ({
+  ...realCallManager,
+  getRoom: () => null,
+}));
 const { useInboxStore } = await import("../../../store/inboxStore");
 const { FollowChip } = await import("../FollowInCall");
 
@@ -23,7 +26,7 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
 // The bridge posts on every follow change; a null channel keeps the test silent.
 setGestureChannelFactory(() => null);
@@ -34,7 +37,12 @@ afterAll(() => {
   mock.module("../../../lib/calls/callManager", () => realCallManager);
 });
 afterEach(() => {
-  useInboxStore.setState({ followLeaderId: null, followBlocked: false, followedBy: [], currentUser: null } as any);
+  useInboxStore.setState({
+    followLeaderId: null,
+    followBlocked: false,
+    followedBy: [],
+    currentUser: null,
+  } as any);
 });
 
 async function render(node: React.ReactNode) {
@@ -47,23 +55,50 @@ async function render(node: React.ReactNode) {
 
 test("a remote person's chip follows them, then offers to stop", async () => {
   useInboxStore.setState({ currentUser: { _id: "u-me" } } as any);
-  const r = await render(<FollowChip identity="u-ann" name="Ann Lee" variant="tile" always />);
-  const btn = r.container.querySelector("button[data-sv-call-follow]") as HTMLButtonElement;
+  const r = await render(
+    <FollowChip identity="u-ann" name="Ann Lee" variant="tile" always />,
+  );
+  const btn = r.container.querySelector(
+    "button[data-sv-call-follow]",
+  ) as HTMLButtonElement;
   expect(btn.dataset.svCallFollow).toBe("follow");
   expect(btn.textContent).toContain("Follow");
-  await act(() => { btn.click(); });
+  await act(() => {
+    btn.click();
+  });
   expect(useInboxStore.getState().followLeaderId).toBe("u-ann");
-  expect((r.container.querySelector("button[data-sv-call-follow]") as HTMLButtonElement).dataset.svCallFollow).toBe("following");
-  await act(() => { (r.container.querySelector("button[data-sv-call-follow]") as HTMLButtonElement).click(); });
+  expect(
+    (
+      r.container.querySelector(
+        "button[data-sv-call-follow]",
+      ) as HTMLButtonElement
+    ).dataset.svCallFollow,
+  ).toBe("following");
+  await act(() => {
+    (
+      r.container.querySelector(
+        "button[data-sv-call-follow]",
+      ) as HTMLButtonElement
+    ).click();
+  });
   expect(useInboxStore.getState().followLeaderId).toBeNull();
   await r.unmount();
 });
 
 test("my own tile shows how many follow me, and nothing when nobody does", async () => {
   useInboxStore.setState({ currentUser: { _id: "u-me" } } as any);
-  const r = await render(<FollowChip identity="u-me" name="Me" variant="tile" />);
+  const r = await render(
+    <FollowChip identity="u-me" name="Me" variant="tile" />,
+  );
   expect(r.container.querySelector("[data-sv-call-follow]")).toBeNull();
-  await act(() => { useInboxStore.getState().setFollowedBy([{ user_id: "a", name: "Ann" }, { user_id: "b", name: "Bob" }]); });
-  expect(r.container.querySelector("[data-sv-call-follow='followers']")?.textContent).toBe("2 following you");
+  await act(() => {
+    useInboxStore.getState().setFollowedBy([
+      { user_id: "a", name: "Ann" },
+      { user_id: "b", name: "Bob" },
+    ]);
+  });
+  expect(
+    r.container.querySelector("[data-sv-call-follow='followers']")?.textContent,
+  ).toBe("2 following you");
   await r.unmount();
 });

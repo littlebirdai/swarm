@@ -33,7 +33,7 @@
 name = "backend"
 when = ["apps/server/**", "packages/shared/**", "platform/**"]
 run = "apps/server/deploy.sh --typecheck=disable"
-live = "marker"                       # deploy.sh records each deploy
+live = "marker" # deploy.sh records each deploy
 policy = "release"
 
 # Railway builds every push to main and posts a commit status per deploy.

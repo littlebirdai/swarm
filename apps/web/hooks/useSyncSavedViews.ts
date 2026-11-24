@@ -46,16 +46,22 @@ export function useSyncSavedViews() {
   );
   const syncTable = useInboxStore((s) => s.syncTable);
 
-  useConvexSync(result, useCallback((data: any) => {
-    // webList returns the COMPLETE set this user can see, so the registry keeps
-    // savedViews OUT of delta mode: a plain replace makes a view someone
-    // deleted — or stopped sharing — leave your rail too. Deliberately NOT
-    // pruneAbsentScope, which marks absent rows with a DURABLE tombstone: the
-    // list is legitimately empty for a beat while auth settles, and pruning on
-    // that beat hides every view you own for good. A replace self-heals on the
-    // next push; a tombstone never does.
-    syncTable("savedViews", data as any);
-  }, [syncTable]));
+  useConvexSync(
+    result,
+    useCallback(
+      (data: any) => {
+        // webList returns the COMPLETE set this user can see, so the registry keeps
+        // savedViews OUT of delta mode: a plain replace makes a view someone
+        // deleted — or stopped sharing — leave your rail too. Deliberately NOT
+        // pruneAbsentScope, which marks absent rows with a DURABLE tombstone: the
+        // list is legitimately empty for a beat while auth settles, and pruning on
+        // that beat hides every view you own for good. A replace self-heals on the
+        // next push; a tombstone never does.
+        syncTable("savedViews", data as any);
+      },
+      [syncTable],
+    ),
+  );
 
   useWatchEffect(() => {
     // Wait for the server list: migrating before it lands would race the very

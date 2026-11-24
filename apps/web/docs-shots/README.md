@@ -21,15 +21,15 @@ if you have none) and never borrows another session's. Open
 
 ## Pieces
 
-| What | Where |
-| --- | --- |
-| The mode (dev only, folds out of production builds) | `lib/docsShots/flag.ts`, `install.ts`, `seed.ts` |
-| The world, shared with the phone's store shots | `lib/acmeWorld/world.ts` (core: people, team, sessions, chat, plan, tasks) |
-| World parts, one file per surface | `lib/acmeWorld/parts.ts` lists them |
-| The offline Convex client | `lib/acmeWorld/convexStub.ts` |
-| Shot entries, one file per batch | `docs-shots/batches/*.ts`, listed in `docs-shots/manifest.ts` |
-| What each image must show | `docs-shots/shots-desktop.json` |
-| Frame page | `docs-shots/frame.html` |
+| What                                                | Where                                                                      |
+| --------------------------------------------------- | -------------------------------------------------------------------------- |
+| The mode (dev only, folds out of production builds) | `lib/docsShots/flag.ts`, `install.ts`, `seed.ts`                           |
+| The world, shared with the phone's store shots      | `lib/acmeWorld/world.ts` (core: people, team, sessions, chat, plan, tasks) |
+| World parts, one file per surface                   | `lib/acmeWorld/parts.ts` lists them                                        |
+| The offline Convex client                           | `lib/acmeWorld/convexStub.ts`                                              |
+| Shot entries, one file per batch                    | `docs-shots/batches/*.ts`, listed in `docs-shots/manifest.ts`              |
+| What each image must show                           | `docs-shots/shots-desktop.json`                                            |
+| Frame page                                          | `docs-shots/frame.html`                                                    |
 
 ## Adding a shot
 

@@ -23,9 +23,17 @@ import { mcpProxyPlugin } from "./plugins/mcpProxy";
 import { frameCheckResponse } from "./server/frameCheck";
 import { uiFontPreloadPlugin } from "./plugins/uiFontPreload";
 import { precacheScope } from "./plugins/precacheScope";
-import { REACT_COMPILER_RUNTIME, reactCompilerBabelOptions, reactCompilerOff } from "./plugins/reactCompiler";
+import {
+  REACT_COMPILER_RUNTIME,
+  reactCompilerBabelOptions,
+  reactCompilerOff,
+} from "./plugins/reactCompiler";
 import autoprefixer from "autoprefixer";
-import { APP_SHELL_GLOB_IGNORES, APP_SHELL_GLOB_PATTERNS, NAVIGATION_ROUTE } from "./vite.pwa";
+import {
+  APP_SHELL_GLOB_IGNORES,
+  APP_SHELL_GLOB_PATTERNS,
+  NAVIGATION_ROUTE,
+} from "./vite.pwa";
 
 const appShell = precacheScope();
 
@@ -41,7 +49,10 @@ function buildIdentity(mode: string) {
   let sha = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_SHA || "";
   if (!sha) {
     try {
-      sha = execSync("git rev-parse HEAD", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+      sha = execSync("git rev-parse HEAD", {
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
     } catch {
       sha = "unknown";
     }
@@ -53,11 +64,17 @@ export default defineConfig(({ mode, command }) => ({
   // Docs shots (lib/docsShots) run a second dev server beside the main one; its
   // pre-bundled deps live apart so neither server rewrites the other's. Inside
   // node_modules/.vite, so a cache purge (vendor-platform.sh) clears both.
-  ...(process.env.VITE_DOCS_SHOTS === "1" ? { cacheDir: "node_modules/.vite/docs-shots" } : {}),
+  ...(process.env.VITE_DOCS_SHOTS === "1"
+    ? { cacheDir: "node_modules/.vite/docs-shots" }
+    : {}),
   plugins: [
     // Replaces the dev server with a fresh one if its main thread stops running.
     stallWatchdogPlugin(),
-    updatePromptVite({ releaseFile: path.resolve(__dirname, "release-prompt.json"), define: "__CODECAST_BUILD__", identity: buildIdentity }),
+    updatePromptVite({
+      releaseFile: path.resolve(__dirname, "release-prompt.json"),
+      define: "__CODECAST_BUILD__",
+      identity: buildIdentity,
+    }),
     // Before react(): gives hooks in plain .ts files a Fast Refresh signature,
     // so editing their hook list remounts consumers instead of crashing them.
     hookRefreshPlugin(),
@@ -65,7 +82,11 @@ export default defineConfig(({ mode, command }) => ({
     // which also says what a file must not do to join it). REACT_COMPILER=0
     // builds and serves exactly as before. Per file, so a production build
     // runs babel on the listed files and on no others.
-    react(reactCompilerOff() ? {} : { babel: (id) => reactCompilerBabelOptions(id) }),
+    react(
+      reactCompilerOff()
+        ? {}
+        : { babel: (id) => reactCompilerBabelOptions(id) },
+    ),
     // Lets an edit to a store action hot-swap instead of reloading the whole app.
     storeHmrPlugin(),
     // An edit to a file no window has loaded updates the stylesheet that scans
@@ -102,7 +123,9 @@ export default defineConfig(({ mode, command }) => ({
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
           if (!req.url?.startsWith("/api/frame-check")) return next();
-          void frameCheckResponse(new URL(req.url, "http://dev").searchParams).then((body) => {
+          void frameCheckResponse(
+            new URL(req.url, "http://dev").searchParams,
+          ).then((body) => {
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify(body));
           });
@@ -117,7 +140,9 @@ export default defineConfig(({ mode, command }) => ({
           if (!m) return next();
           const edge = process.env.ARTIFACT_EDGE_URL || "https://a.codecast.sh";
           const qs = req.url?.split("?")[1];
-          res.writeHead(302, { Location: `${edge}/${m[1]}${qs ? `?${qs}` : ""}` });
+          res.writeHead(302, {
+            Location: `${edge}/${m[1]}${qs ? `?${qs}` : ""}`,
+          });
           res.end();
         });
       },
@@ -154,7 +179,11 @@ export default defineConfig(({ mode, command }) => ({
             handler: "CacheFirst",
             options: {
               cacheName: "assets",
-              expiration: { maxEntries: 1000, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true },
+              expiration: {
+                maxEntries: 1000,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
+                purgeOnQuotaError: true,
+              },
             },
           },
           {
@@ -189,12 +218,24 @@ export default defineConfig(({ mode, command }) => ({
   // builds read postcss.config.mjs as is.
   css:
     command === "serve"
-      ? { postcss: { plugins: [tailwindInWorker(path.resolve(__dirname, "tailwind.config.ts")), autoprefixer()] } }
+      ? {
+          postcss: {
+            plugins: [
+              tailwindInWorker(path.resolve(__dirname, "tailwind.config.ts")),
+              autoprefixer(),
+            ],
+          },
+        }
       : sharedCss,
   server: {
     port: 3000,
     host: true,
-    allowedHosts: ["local.codecast.sh", "local.1.codecast.sh", "local.2.codecast.sh", "local.3.codecast.sh"],
+    allowedHosts: [
+      "local.codecast.sh",
+      "local.1.codecast.sh",
+      "local.2.codecast.sh",
+      "local.3.codecast.sh",
+    ],
     // Tests run under bun, never through vite — but a single stray HTTP fetch
     // of a test file (an agent probing the dev server) makes it a permanent
     // orphan module in the graph, and every later save of it broadcasts a
@@ -204,7 +245,12 @@ export default defineConfig(({ mode, command }) => ({
     // underscore-prefixed scratch .html pages parked in the served root —
     // any html change full-reloads all clients by design.
     watch: {
-      ignored: ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**", "**/_*.html"],
+      ignored: [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/__tests__/**",
+        "**/_*.html",
+      ],
     },
     // NOTE: server.warmup is deliberately omitted. Warming up a 10k-LOC
     // module (ConversationView.tsx) on boot kicks the optimizer into a
@@ -292,8 +338,12 @@ export default defineConfig(({ mode, command }) => ({
           // (lib/sharedDraft.ts) needs only these, on every composer route.
           // Its own chunk, so the editor below is not pulled in with it.
           if (
-            /\/node_modules\/@tiptap\/pm\/dist\/(?:model|state|transform)\//.test(id) ||
-            /\/node_modules\/prosemirror-(?:model|state|transform|collab)\//.test(id) ||
+            /\/node_modules\/@tiptap\/pm\/dist\/(?:model|state|transform)\//.test(
+              id,
+            ) ||
+            /\/node_modules\/prosemirror-(?:model|state|transform|collab)\//.test(
+              id,
+            ) ||
             id.includes("/node_modules/orderedmap/")
           ) {
             return "prosemirror";
@@ -332,7 +382,11 @@ export default defineConfig(({ mode, command }) => ({
           ) {
             return "vendor";
           }
-          if (id.includes("/node_modules/convex/") || id.includes("/node_modules/@convex-dev/auth/")) return "convex";
+          if (
+            id.includes("/node_modules/convex/") ||
+            id.includes("/node_modules/@convex-dev/auth/")
+          )
+            return "convex";
           if (id.includes("/node_modules/@radix-ui/")) return "ui";
           // The shell's markdown renderer. Not the Vault's math and raw HTML
           // plugins (components/vault/VaultMarkdown, a lazy route): matched
@@ -342,7 +396,9 @@ export default defineConfig(({ mode, command }) => ({
               id.includes("/node_modules/rehype-") ||
               id.includes("/node_modules/remark-") ||
               id.includes("/node_modules/mdast-")) &&
-            !/\/node_modules\/(?:rehype-katex|rehype-raw|remark-math|mdast-util-math)\//.test(id)
+            !/\/node_modules\/(?:rehype-katex|rehype-raw|remark-math|mdast-util-math)\//.test(
+              id,
+            )
           ) {
             return "markdown";
           }

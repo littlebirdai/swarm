@@ -9,6 +9,8 @@ import type { SessionActivity } from "@codecast/shared/contracts";
  * a new activity object, so a subscription on the object would re-render on
  * every heartbeat; the text and the stamp together are what the line draws.
  */
-export function activitySig(activity: SessionActivity | null | undefined): string {
+export function activitySig(
+  activity: SessionActivity | null | undefined,
+): string {
   return activity ? `${activity.at}:${activity.text}` : "";
 }

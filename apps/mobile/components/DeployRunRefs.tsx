@@ -1,14 +1,25 @@
 // A GitHub Actions run in a message is the deploy it carried, when codecast
 // knows one, and stays what was written otherwise (web: remarkEntityIds and
 // EntityAwareLink). Most runs are CI, so the fallback is the common case.
-import React from 'react';
-import { actionsRunKey } from '@codecast/shared/contracts/deploys';
-import { deployRunRefRegex, splitDeployRunRef } from '@codecast/shared/entities';
-import { EntityPill } from './EntityPill';
+import React from "react";
+import { actionsRunKey } from "@codecast/shared/contracts/deploys";
+import {
+  deployRunRefRegex,
+  splitDeployRunRef,
+} from "@codecast/shared/entities";
+import { EntityPill } from "./EntityPill";
 
 /** A run's url: its deploy's pill, else `link` as it was. */
-export function runOrLink(url: string, link: React.ReactElement, key?: string): React.ReactElement {
-  return actionsRunKey(url) ? <EntityPill key={key} type="deploy" id={url} fallback={link} /> : link;
+export function runOrLink(
+  url: string,
+  link: React.ReactElement,
+  key?: string,
+): React.ReactElement {
+  return actionsRunKey(url) ? (
+    <EntityPill key={key} type="deploy" id={url} fallback={link} />
+  ) : (
+    link
+  );
 }
 
 /**
@@ -29,7 +40,14 @@ export function pushRunRefs(
     const { text: lead } = splitDeployRunRef(r[1], r[2]);
     words(s.slice(at, r.index) + lead);
     const key = `${kp}run${r.index}`;
-    out.push(<EntityPill key={key} type="deploy" id={r[2]} fallback={asWritten(r[0].slice(lead.length), `${key}-`)} />);
+    out.push(
+      <EntityPill
+        key={key}
+        type="deploy"
+        id={r[2]}
+        fallback={asWritten(r[0].slice(lead.length), `${key}-`)}
+      />,
+    );
     at = r.index + r[0].length;
   }
   if (at < s.length) words(s.slice(at));

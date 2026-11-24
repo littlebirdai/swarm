@@ -8,13 +8,30 @@ import { identityRowOf } from "../lib/sessionIdentity";
 import { RepositoryPaletteItems } from "./repo/RepositoryPaletteItems";
 import { getPaletteSessionCommands } from "../lib/paletteSessionCommands";
 import { withInboxView } from "../lib/inboxViewHistory";
-import { useCreateKinds, type CreateEnv, type CreateKind } from "../hooks/useCreateKinds";
+import {
+  useCreateKinds,
+  type CreateEnv,
+  type CreateKind,
+} from "../hooks/useCreateKinds";
 import { docTypeIcon } from "../lib/docTypeStyle";
 import { DocTypeMark } from "./docs/DocTypeMark";
-import { useTeamFeature, useCallsAvailable, useWorkspaceFeature, workspaceHasFeatureNow } from "../lib/teamFeatures";
+import {
+  useTeamFeature,
+  useCallsAvailable,
+  useWorkspaceFeature,
+  workspaceHasFeatureNow,
+} from "../lib/teamFeatures";
 import type { TeamFeatureKey } from "@codecast/shared/contracts";
 import { pagePath, palettePages, queryNamesPage } from "../lib/navPages";
-import { useState, useCallback, useDeferredValue, useMemo, useRef, memo, Suspense } from "react";
+import {
+  useState,
+  useCallback,
+  useDeferredValue,
+  useMemo,
+  useRef,
+  memo,
+  Suspense,
+} from "react";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { useIdentityPrefs } from "../hooks/useIdentityPrefs";
 import { useShortcuts, isMac, type ShortcutAction } from "../shortcuts";
@@ -31,29 +48,96 @@ import { sessionCardTitle } from "../lib/sessionCard";
 import { AvatarImg } from "../lib/avatarCache";
 import { canControlModel, modelOptionKey } from "../lib/modelSwitch";
 import { commitModelChange } from "../lib/modelSwitchWeb";
-import { AGENT_LAUNCH_OPTIONS, AGENT_MODEL_CONFIG, modelAgentKey, dynamicModelOption, canSessionBecomeAgent, listedModels, type ConvexAgentType } from "@codecast/shared/contracts";
+import {
+  AGENT_LAUNCH_OPTIONS,
+  AGENT_MODEL_CONFIG,
+  modelAgentKey,
+  dynamicModelOption,
+  canSessionBecomeAgent,
+  listedModels,
+  type ConvexAgentType,
+} from "@codecast/shared/contracts";
 import { useDynamicModels } from "../hooks/useDynamicModels";
-import { useOnlyHostedAgent, usePinnedAgentIds } from "../hooks/usePinnedAgents";
-import { deviceDisplayName, deviceWakesOnUse, rosterDeviceOf, type Device } from "./DeviceBadge";
-import { useBulkMoveSessions, useMoveTargets } from "../hooks/useBulkMoveSessions";
+import {
+  useOnlyHostedAgent,
+  usePinnedAgentIds,
+} from "../hooks/usePinnedAgents";
+import {
+  deviceDisplayName,
+  deviceWakesOnUse,
+  rosterDeviceOf,
+  type Device,
+} from "./DeviceBadge";
+import {
+  useBulkMoveSessions,
+  useMoveTargets,
+} from "../hooks/useBulkMoveSessions";
 import { useInboxSelection } from "../lib/inboxSelection";
 import { useVaultStore } from "../store/vaultStore";
 import { filesHref } from "../lib/vault/vaultHref";
-import { useInboxStore, isConvexId, InboxSession, TaskItem, DocItem, BucketItem, BucketAssignmentItem, placeInboxRows, filterInboxScopeFromState, convBucketMap, sortLabels, computeChipCounts, projectOfFromState, getProjectName, RecentVisit, selectSessionRailOpen, sessionRowFromSummary } from "../store/inboxStore";
+import {
+  useInboxStore,
+  isConvexId,
+  InboxSession,
+  TaskItem,
+  DocItem,
+  BucketItem,
+  BucketAssignmentItem,
+  placeInboxRows,
+  filterInboxScopeFromState,
+  convBucketMap,
+  sortLabels,
+  computeChipCounts,
+  projectOfFromState,
+  getProjectName,
+  RecentVisit,
+  selectSessionRailOpen,
+  sessionRowFromSummary,
+} from "../store/inboxStore";
 import { projectChipLabel } from "../store/workProjects";
-import { resolveRecentVisits, visitTimeAgo, visitObjectLabel, type ResolvedVisit } from "../lib/recentVisits";
-import { activeWorkspaceKey, inWorkspace, workspaceKeyOfRow } from "../lib/workspaceScope";
-import { kindOfQuery, matchGoals, matchMentionGroups, matchProjects, matchRoles, matchRoutines, searchIndexOf, type MentionRecord } from "../lib/universalSearch";
+import {
+  resolveRecentVisits,
+  visitTimeAgo,
+  visitObjectLabel,
+  type ResolvedVisit,
+} from "../lib/recentVisits";
+import {
+  activeWorkspaceKey,
+  inWorkspace,
+  workspaceKeyOfRow,
+} from "../lib/workspaceScope";
+import {
+  kindOfQuery,
+  matchGoals,
+  matchMentionGroups,
+  matchProjects,
+  matchRoles,
+  matchRoutines,
+  searchIndexOf,
+  type MentionRecord,
+} from "../lib/universalSearch";
 import { useRemoteSearch } from "../hooks/useRemoteSearch";
 import { RecentVisitGlyph } from "./RecentVisitRow";
 import { useOpenRecentVisit } from "../hooks/useOpenRecentVisit";
 import { isNonTabRoute } from "../src/compat/tabRouting";
 import { score, matchScore } from "../hooks/useMentionQuery";
 import { collapseSameTitle } from "../lib/mentionRanking";
-import { sessionSearchHaystack, mergeSearchRows, rankSessions, sessionStanding, type SessionStanding } from "../lib/instantSessionSearch";
+import {
+  sessionSearchHaystack,
+  mergeSearchRows,
+  rankSessions,
+  sessionStanding,
+  type SessionStanding,
+} from "../lib/instantSessionSearch";
 import { agentAccent } from "../lib/agentColors";
 import { startHandoff, HANDOFF_EXPLAINER } from "../lib/handoffWeb";
-import { channelDisplayName, dmCounterpart, lineAuthorFor, memberName, type LineAuthorFields } from "../lib/chatViews";
+import {
+  channelDisplayName,
+  dmCounterpart,
+  lineAuthorFor,
+  memberName,
+  type LineAuthorFields,
+} from "../lib/chatViews";
 import { chatAuthorLookupsNow } from "../hooks/useChatSync";
 import { memberAvatarUrl, memberDisplayName } from "../lib/liveEntities";
 import { useOrgRoles } from "../hooks/useOrgRoles";
@@ -62,16 +146,28 @@ import { isPerson } from "@codecast/shared/team/memberKind";
 import { lazyNamed } from "../lib/lazyNamed";
 
 const NO_MEMBERS: any[] = [];
-import { compactDuration, teammateWhereabouts, type TeammateWhereabouts } from "./presence/memberPresence";
+import {
+  compactDuration,
+  teammateWhereabouts,
+  type TeammateWhereabouts,
+} from "./presence/memberPresence";
 import { MemberFace } from "./presence/MemberFace";
 import { useMissingSessionRow } from "../hooks/useMissingSessionRow";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { useSessionQuerySuggestions } from "../hooks/useSessionQuerySuggestions";
 import { SessionQuerySuggestionRow } from "./SessionQuerySuggestList";
-import { applySessionQueryCompletion, parseSessionQuery, sessionQuerySearches } from "@codecast/shared/search";
+import {
+  applySessionQueryCompletion,
+  parseSessionQuery,
+  sessionQuerySearches,
+} from "@codecast/shared/search";
 import { useCollectionRows } from "../hooks/useCollectionRows";
 import { triggerSig, useSyncTriggers } from "../hooks/useSyncTriggers";
-import { POP_OUT_PEOPLE_TITLE, isElectron, isPeopleWindow } from "../lib/desktop";
+import {
+  POP_OUT_PEOPLE_TITLE,
+  isElectron,
+  isPeopleWindow,
+} from "../lib/desktop";
 import { stageIsSplit } from "../hooks/useStageShortcuts";
 import {
   Columns2 as StageSplitGlyph,
@@ -93,18 +189,47 @@ import { ComposerAttachButton } from "./chat/ComposerAttachButton";
 import "./chat/chat.css";
 import "./CommandPalette.css";
 import { PalettePickHeader } from "./PalettePickPreview";
-import { groupClass, itemClass, paletteClass, paletteInputClass } from "./paletteStyles";
+import {
+  groupClass,
+  itemClass,
+  paletteClass,
+  paletteInputClass,
+} from "./paletteStyles";
 import { DecisionPalette } from "./decisions/DecisionPalette";
-import { NavIcon, PaletteSearchBar, PaletteSessionRow, PaletteSearchResultRow, PaletteTaskRow } from "./PaletteRows";
+import {
+  NavIcon,
+  PaletteSearchBar,
+  PaletteSessionRow,
+  PaletteSearchResultRow,
+  PaletteTaskRow,
+} from "./PaletteRows";
 import { RailIcon } from "./sidebar/RailIcon";
 import { useIsModernStyle } from "../hooks/useVisualStyle";
 import { formatDateSmart } from "@codecast/shared/time";
 
 // Loaded only on the confirm step so the search palette does not pull the
 // composer module (and the HMR cycle that comes with an eager import).
-const PaletteMessageInput = lazyNamed(() => import("./MessageInput"), "MessageInput");
-import { forkSessionAsAgent, switchSessionAgent } from "../lib/sessionAgentActions";
-import { PALETTE_KIND, PALETTE_ORG, paletteActions, paletteObjectPath, paletteDigitIndex, paletteActionForKey, paletteItemScore, palettePageValue, paletteValue, type PaletteTargetType, type PalettePerson } from "../lib/paletteActions";
+const PaletteMessageInput = lazyNamed(
+  () => import("./MessageInput"),
+  "MessageInput",
+);
+import {
+  forkSessionAsAgent,
+  switchSessionAgent,
+} from "../lib/sessionAgentActions";
+import {
+  PALETTE_KIND,
+  PALETTE_ORG,
+  paletteActions,
+  paletteObjectPath,
+  paletteDigitIndex,
+  paletteActionForKey,
+  paletteItemScore,
+  palettePageValue,
+  paletteValue,
+  type PaletteTargetType,
+  type PalettePerson,
+} from "../lib/paletteActions";
 import { useOpenDm } from "../hooks/useOpenDm";
 import { useLiveRoomOfMember } from "../hooks/useLiveRooms";
 import { useMemberHuddle } from "./presence/useMemberHuddle";
@@ -116,14 +241,30 @@ import type { WorkbenchSnapshot } from "../store/workbench";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { getLabelColor, DEFAULT_LABELS } from "../lib/labelColors";
 import { toast } from "sonner";
-import { animatedCloseSessions, animatedSetSessionRest, toggleSessionsLikeFirst, undoAsOne } from "../store/undoActions";
+import {
+  animatedCloseSessions,
+  animatedSetSessionRest,
+  toggleSessionsLikeFirst,
+  undoAsOne,
+} from "../store/undoActions";
 import { gestureToast } from "../store/undoStack";
 import { counted } from "../store/undo/labels";
 
 import type { UserRest } from "@codecast/shared/contracts";
 import { useTriggerKillNotice } from "../hooks/useTriggerKillNotice";
-import { STATUS_OPTIONS, PRIORITY_OPTIONS, PLAN_STATUS_OPTIONS, DOC_RETYPE_OPTIONS } from "./menus/entityOptions";
-import { statusByKey, statusEntityOptions, statusWriteFields, taskStatusKey, useTeamTaskStatusList } from "../lib/taskStatuses";
+import {
+  STATUS_OPTIONS,
+  PRIORITY_OPTIONS,
+  PLAN_STATUS_OPTIONS,
+  DOC_RETYPE_OPTIONS,
+} from "./menus/entityOptions";
+import {
+  statusByKey,
+  statusEntityOptions,
+  statusWriteFields,
+  taskStatusKey,
+  useTeamTaskStatusList,
+} from "../lib/taskStatuses";
 import { copyToClipboard, shareOrigin } from "../lib/utils";
 import { UNDO_HISTORY_TIER } from "../lib/undoTimelineOpen";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
@@ -206,36 +347,103 @@ import { BROWSER_ROUTE, displayHost } from "../lib/browserPane";
 import { typedAddress } from "../lib/browserPaneLinks";
 import { openBeside, openBrowserPane } from "../lib/stage";
 import { isTriageBarCompact } from "./triage/graduation";
-import { setTaskParent, closeTaskWithGuard, updateTasksAsOne } from "../lib/taskActions";
-import { applyRelationPick, relationItems, reportRelationPick, type RelationTask } from "../lib/taskRelations";
+import {
+  setTaskParent,
+  closeTaskWithGuard,
+  updateTasksAsOne,
+} from "../lib/taskActions";
+import {
+  applyRelationPick,
+  relationItems,
+  reportRelationPick,
+  type RelationTask,
+} from "../lib/taskRelations";
 import { taskVisual } from "./TaskStatusBadge";
 import { WAIT_STATE_STYLE } from "./tasks/TaskBlockedMark";
 import { RelationQueryHint, relationQueryError } from "./tasks/TaskRelations";
-import { pickWhoRows, type PalettePickKind, type PalettePickTarget } from "../lib/palettePick";
+import {
+  pickWhoRows,
+  type PalettePickKind,
+  type PalettePickTarget,
+} from "../lib/palettePick";
 
 import { Button } from "./ui/button";
 
 const api = _api as any;
-import { SESSION_SNOOZE_CHOICES, sessionSnoozeUntil, type SessionSnoozeKey } from "@codecast/shared/contracts";
+import {
+  SESSION_SNOOZE_CHOICES,
+  sessionSnoozeUntil,
+  type SessionSnoozeKey,
+} from "@codecast/shared/contracts";
 import { hoverFocus } from "../shortcuts/focusSource";
-import { SwitchReview, type SwitchLedger } from "./consequential/ConsequentialSwitch";
+import {
+  SwitchReview,
+  type SwitchLedger,
+} from "./consequential/ConsequentialSwitch";
 import { killReviewOf } from "./consequential/killReview";
 import type { TaskRow } from "./triggerTasks";
-import { permanentDeleteLedger, regulatedTeam, SESSION_REACHES } from "./consequential/deletionLedgers";
+import {
+  permanentDeleteLedger,
+  regulatedTeam,
+  SESSION_REACHES,
+} from "./consequential/deletionLedgers";
 import { teamMembersOf } from "../lib/activeTeam";
 
 /** A relation pick's leading glyph, as every other palette mode has one: the
  *  task's status, or the hourglass of a wait parsed from the query. */
-function withRelationIcon<T extends { task?: RelationTask }>(item: T): T & { icon: unknown; color: string } {
-  const v = item.task ? taskVisual(item.task.status) : { icon: WAIT_STATE_STYLE.waiting.icon, color: WAIT_STATE_STYLE.waiting.text };
+function withRelationIcon<T extends { task?: RelationTask }>(
+  item: T,
+): T & { icon: unknown; color: string } {
+  const v = item.task
+    ? taskVisual(item.task.status)
+    : {
+        icon: WAIT_STATE_STYLE.waiting.icon,
+        color: WAIT_STATE_STYLE.waiting.text,
+      };
   return { ...item, icon: v.icon, color: v.color };
 }
 
-type ActionMode = "device" | "snooze" | "rename" | "character" | "project" | "project_status" | "deadline" | "trigger_cancel" | "trigger_delete" | "session_delete" | "status" | "priority" | "labels" | "assign" | "type" | "plan_status" | "agent_run" | "agent_switch" | "agent_fork" | "agent_handoff" | "bucket" | "model" | "view" | "parent" | "blocker" | "related" | "layout_save" | "layout_update" | "layout_rename" | "layout_delete";
+type ActionMode =
+  | "device"
+  | "snooze"
+  | "rename"
+  | "character"
+  | "project"
+  | "project_status"
+  | "deadline"
+  | "trigger_cancel"
+  | "trigger_delete"
+  | "session_delete"
+  | "status"
+  | "priority"
+  | "labels"
+  | "assign"
+  | "type"
+  | "plan_status"
+  | "agent_run"
+  | "agent_switch"
+  | "agent_fork"
+  | "agent_handoff"
+  | "bucket"
+  | "model"
+  | "view"
+  | "parent"
+  | "blocker"
+  | "related"
+  | "layout_save"
+  | "layout_update"
+  | "layout_rename"
+  | "layout_delete";
 
 // Modes that act on the WORKSPACE rather than on selected rows: they open with
 // no target and show no entity header. Everything else needs something picked.
-const TARGETLESS_MODES = new Set<ActionMode>(["view", "layout_save", "layout_update", "layout_rename", "layout_delete"]);
+const TARGETLESS_MODES = new Set<ActionMode>([
+  "view",
+  "layout_save",
+  "layout_update",
+  "layout_rename",
+  "layout_delete",
+]);
 
 // The layout modes all pick from (or name) a saved workbench.
 const isLayoutMode = (m: ActionMode) => m.startsWith("layout_");
@@ -253,9 +461,19 @@ function isTask(item: any): item is TaskItem {
 // Status key → {label,color}, derived from the option arrays above so the
 // palette's entity rows reuse the same labels/colors as the action submenus.
 const TASK_STATUS_META: Record<string, { label: string; color: string }> =
-  Object.fromEntries(STATUS_OPTIONS.map((o) => [o.key, { label: o.label, color: o.color ?? "" }]));
+  Object.fromEntries(
+    STATUS_OPTIONS.map((o) => [
+      o.key,
+      { label: o.label, color: o.color ?? "" },
+    ]),
+  );
 const PLAN_STATUS_META: Record<string, { label: string; color: string }> =
-  Object.fromEntries(PLAN_STATUS_OPTIONS.map((o) => [o.key, { label: o.label, color: o.color ?? "" }]));
+  Object.fromEntries(
+    PLAN_STATUS_OPTIONS.map((o) => [
+      o.key,
+      { label: o.label, color: o.color ?? "" },
+    ]),
+  );
 
 const AGENT_OPTIONS = AGENT_LAUNCH_OPTIONS.map((agent) => ({
   key: `agent:${agent.convexType}`,
@@ -266,8 +484,13 @@ const AGENT_OPTIONS = AGENT_LAUNCH_OPTIONS.map((agent) => ({
 
 /** The agent rows a pick offers: the viewer's pinned agents plus the one the
  *  target session already runs. Labels elsewhere still read AGENT_OPTIONS. */
-function pinnedAgentRows(pinned: readonly string[], currentAgentType: string | undefined) {
-  return AGENT_OPTIONS.filter((o) => pinned.includes(o.id) || o.agentType === currentAgentType);
+function pinnedAgentRows(
+  pinned: readonly string[],
+  currentAgentType: string | undefined,
+) {
+  return AGENT_OPTIONS.filter(
+    (o) => pinned.includes(o.id) || o.agentType === currentAgentType,
+  );
 }
 
 // One accent per agent (lib/agentColors), keyed the way the rows are.
@@ -293,33 +516,171 @@ const GLOBAL_COMMANDS: ReadonlyArray<{
    *  list like a query that begins its label (namedCommands). */
   names?: readonly string[];
 }> = [
-  { action: "anchor.toggle", label: "Talk to the workspace's agent", icon: HeadOfPeopleFace, keywords: "agent assistant bot standing member ask personal team head of people", hidden: () => !workspaceHasFeatureNow("org") },
-  { action: "people.wall", label: "The team: hold a face to talk", icon: Users, keywords: "people wall faces who is around hold to talk walkie everyone roster", hidden: isPeopleWindow },
-  { action: "terminal.toggle", label: "Toggle terminal", icon: Terminal, keywords: "shell console panel tmux" },
-  { action: "ui.zenToggle", label: "Toggle zen mode", icon: Focus, keywords: "focus minimal distraction free" },
-  { action: "sidebar.toggleLeft", label: "Toggle left sidebar", icon: PanelLeft, keywords: "nav collapse" },
-  { action: "sidebar.toggleRight", label: "Toggle sessions panel", icon: PanelRight, keywords: "right rail collapse sessions conversations" },
-  { action: "pane.split", label: "Split: open this view beside itself", icon: StageSplitGlyph, keywords: "split pane side by side column duplicate stage" },
-  { action: "pane.close", label: "Close pane", icon: StageCloseGlyph, keywords: "split pane close stage", hidden: () => !stageIsSplit() },
-  { action: "pane.expand", label: "Pane takes the whole stage", icon: StageExpandGlyph, keywords: "split pane expand maximize full stage", hidden: () => !stageIsSplit() },
-  { action: "pane.next", label: "Focus next pane", icon: StageNextGlyph, keywords: "split pane focus cycle", hidden: () => !stageIsSplit() },
-  { action: "inbox.toggleFlatView", label: "Cycle inbox view", icon: Rows3, keywords: "grouped time label flat layout" },
-  { action: "inbox.toggleTriageBar", label: () => (isTriageBarCompact(useInboxStore.getState().clientState.ui) ? "Show triage bar" : "Hide triage bar"), icon: PanelBottom, keywords: "triage bar defer stash kill verbs footer show hide" },
-  { action: "ui.undo", label: "Undo", icon: Undo2, keywords: "restore revert last action" },
-  { action: "ui.redo", label: "Redo", icon: Redo2, keywords: "repeat undone action" },
+  {
+    action: "anchor.toggle",
+    label: "Talk to the workspace's agent",
+    icon: HeadOfPeopleFace,
+    keywords:
+      "agent assistant bot standing member ask personal team head of people",
+    hidden: () => !workspaceHasFeatureNow("org"),
+  },
+  {
+    action: "people.wall",
+    label: "The team: hold a face to talk",
+    icon: Users,
+    keywords:
+      "people wall faces who is around hold to talk walkie everyone roster",
+    hidden: isPeopleWindow,
+  },
+  {
+    action: "terminal.toggle",
+    label: "Toggle terminal",
+    icon: Terminal,
+    keywords: "shell console panel tmux",
+  },
+  {
+    action: "ui.zenToggle",
+    label: "Toggle zen mode",
+    icon: Focus,
+    keywords: "focus minimal distraction free",
+  },
+  {
+    action: "sidebar.toggleLeft",
+    label: "Toggle left sidebar",
+    icon: PanelLeft,
+    keywords: "nav collapse",
+  },
+  {
+    action: "sidebar.toggleRight",
+    label: "Toggle sessions panel",
+    icon: PanelRight,
+    keywords: "right rail collapse sessions conversations",
+  },
+  {
+    action: "pane.split",
+    label: "Split: open this view beside itself",
+    icon: StageSplitGlyph,
+    keywords: "split pane side by side column duplicate stage",
+  },
+  {
+    action: "pane.close",
+    label: "Close pane",
+    icon: StageCloseGlyph,
+    keywords: "split pane close stage",
+    hidden: () => !stageIsSplit(),
+  },
+  {
+    action: "pane.expand",
+    label: "Pane takes the whole stage",
+    icon: StageExpandGlyph,
+    keywords: "split pane expand maximize full stage",
+    hidden: () => !stageIsSplit(),
+  },
+  {
+    action: "pane.next",
+    label: "Focus next pane",
+    icon: StageNextGlyph,
+    keywords: "split pane focus cycle",
+    hidden: () => !stageIsSplit(),
+  },
+  {
+    action: "inbox.toggleFlatView",
+    label: "Cycle inbox view",
+    icon: Rows3,
+    keywords: "grouped time label flat layout",
+  },
+  {
+    action: "inbox.toggleTriageBar",
+    label: () =>
+      isTriageBarCompact(useInboxStore.getState().clientState.ui)
+        ? "Show triage bar"
+        : "Hide triage bar",
+    icon: PanelBottom,
+    keywords: "triage bar defer stash kill verbs footer show hide",
+  },
+  {
+    action: "ui.undo",
+    label: "Undo",
+    icon: Undo2,
+    keywords: "restore revert last action",
+  },
+  {
+    action: "ui.redo",
+    label: "Redo",
+    icon: Redo2,
+    keywords: "repeat undone action",
+  },
   // While the timeline is a hidden tier, its row is a doorway found by search,
   // not by browsing (undo-history S9).
-  { action: "ui.undoHistory", label: "Undo history", icon: History, keywords: "undo redo history timeline changes take back revert recent actions", searchOnly: UNDO_HISTORY_TIER === "hidden" },
+  {
+    action: "ui.undoHistory",
+    label: "Undo history",
+    icon: History,
+    keywords:
+      "undo redo history timeline changes take back revert recent actions",
+    searchOnly: UNDO_HISTORY_TIER === "hidden",
+  },
   { action: "tab.new", label: "New tab", icon: Plus, keywords: "tab create" },
-  { action: "tab.close", label: "Close tab", icon: Square, keywords: "tab dismiss" },
-  { action: "tab.next", label: "Next tab", icon: ArrowDown, keywords: "tab switch navigate" },
-  { action: "tab.prev", label: "Previous tab", icon: ArrowUp, keywords: "tab switch navigate" },
-  { action: "pane.prev", label: "Focus previous pane", icon: StageNextGlyph, keywords: "split pane focus cycle", hidden: () => !stageIsSplit() },
-  { action: "sidebar.toggleComments", label: "Toggle comments rail", icon: MessageSquare, keywords: "discussion thread comments" },
-  { action: "ui.toggleShortcutsHelp", label: "Keyboard shortcuts help", icon: Keyboard, keywords: "keys bindings hotkeys cheatsheet" },
-  { action: "ui.openTours", label: "Tours: learn a feature on the real page", icon: Compass, keywords: "tour guide walkthrough onboarding learn how does this work help org inbox" },
-  { action: "ui.guideOrg", label: "Org guide: roles, the chart, decisions, on an example", icon: Network, keywords: "org guide tour roles head of people hire chart decisions organization agents learn turn on", names: ["org guide"] },
-  { action: "ui.guideFlows", label: "Flows guide: a change from check to ship, on an example", icon: Waypoints, keywords: "flows guide tour flow check review decide ship live flows problems line learn turn on", names: ["flows guide"] },
+  {
+    action: "tab.close",
+    label: "Close tab",
+    icon: Square,
+    keywords: "tab dismiss",
+  },
+  {
+    action: "tab.next",
+    label: "Next tab",
+    icon: ArrowDown,
+    keywords: "tab switch navigate",
+  },
+  {
+    action: "tab.prev",
+    label: "Previous tab",
+    icon: ArrowUp,
+    keywords: "tab switch navigate",
+  },
+  {
+    action: "pane.prev",
+    label: "Focus previous pane",
+    icon: StageNextGlyph,
+    keywords: "split pane focus cycle",
+    hidden: () => !stageIsSplit(),
+  },
+  {
+    action: "sidebar.toggleComments",
+    label: "Toggle comments rail",
+    icon: MessageSquare,
+    keywords: "discussion thread comments",
+  },
+  {
+    action: "ui.toggleShortcutsHelp",
+    label: "Keyboard shortcuts help",
+    icon: Keyboard,
+    keywords: "keys bindings hotkeys cheatsheet",
+  },
+  {
+    action: "ui.openTours",
+    label: "Tours: learn a feature on the real page",
+    icon: Compass,
+    keywords:
+      "tour guide walkthrough onboarding learn how does this work help org inbox",
+  },
+  {
+    action: "ui.guideOrg",
+    label: "Org guide: roles, the chart, decisions, on an example",
+    icon: Network,
+    keywords:
+      "org guide tour roles head of people hire chart decisions organization agents learn turn on",
+    names: ["org guide"],
+  },
+  {
+    action: "ui.guideFlows",
+    label: "Flows guide: a change from check to ship, on an example",
+    icon: Waypoints,
+    keywords:
+      "flows guide tour flow check review decide ship live flows problems line learn turn on",
+    names: ["flows guide"],
+  },
 ];
 
 /** A row's label, read now when it depends on state. */
@@ -335,7 +696,11 @@ function getShortPath(p: string): string {
 // ─── Action submenu component (Linear-style) ───────────────────
 /** A teammate row as a palette target. `session` is the row their follow
  *  opens: a fetched one when the caller has it, else the inbox row or a stub. */
-function palettePerson(row: TeammateWhereabouts, following: boolean, session?: { _id: string; title?: string } | null): PalettePerson {
+function palettePerson(
+  row: TeammateWhereabouts,
+  following: boolean,
+  session?: { _id: string; title?: string } | null,
+): PalettePerson {
   const id = row.conversationId;
   return {
     _id: row.id,
@@ -343,7 +708,10 @@ function palettePerson(row: TeammateWhereabouts, following: boolean, session?: {
     member: row.member,
     online: row.online,
     following,
-    session: id ? (session ?? useInboxStore.getState().sessions[id] ?? { _id: id, title: row.title }) : null,
+    session: id
+      ? (session ??
+        useInboxStore.getState().sessions[id] ?? { _id: id, title: row.title })
+      : null,
   };
 }
 
@@ -386,22 +754,34 @@ export function TeammateItem({
   const fetched = useMissingSessionRow(id && !row.inStore ? id : null);
   const title = row.title ?? fetched?.title;
   const where = !id
-    ? row.online ? "around, not in a session" : "offline"
-    : title ? cleanTitle(title) : fetched === null ? "a session that no longer opens" : "a session";
+    ? row.online
+      ? "around, not in a session"
+      : "offline"
+    : title
+      ? cleanTitle(title)
+      : fetched === null
+        ? "a session that no longer opens"
+        : "a session";
   return (
     <CommandPrimitive.Item
       value={`__teammate__ ${row.name}|||${row.id}`}
-      data-palette-type="person" data-palette-id={row.id} data-palette-title={row.name}
+      data-palette-type="person"
+      data-palette-id={row.id}
+      data-palette-title={row.name}
       onSelect={() => onOpen(palettePerson(row, following, fetched))}
       className={className}
     >
       <MemberFace member={row.member} size={16} title="" showHuddle={false} />
       <div className="flex-1 min-w-0">
         <div className="truncate">{row.name}</div>
-        <div className="truncate text-meta text-sol-text-dim mt-0.5">{following ? `following · ${where}` : where}</div>
+        <div className="truncate text-meta text-sol-text-dim mt-0.5">
+          {following ? `following · ${where}` : where}
+        </div>
       </div>
       {row.since !== undefined && Date.now() - row.since >= 60_000 && (
-        <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">for {compactDuration(Date.now() - row.since)}</span>
+        <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">
+          for {compactDuration(Date.now() - row.since)}
+        </span>
       )}
       <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 text-sol-text-dim" />
     </CommandPrimitive.Item>
@@ -411,10 +791,22 @@ export function TeammateItem({
 /** The huddle verb on a drilled teammate. Its word (Huddle, Join huddle,
  *  Knock, Add to call) is live call state from the face card's own hook, so
  *  it renders here, mounted only while the palette is on a person. */
-function PersonHuddleItem({ person, className, onDone }: { person: PalettePerson; className: string; onDone: () => void }) {
+function PersonHuddleItem({
+  person,
+  className,
+  onDone,
+}: {
+  person: PalettePerson;
+  className: string;
+  onDone: () => void;
+}) {
   const callsOn = useCallsAvailable();
   const viewerId = useInboxStore((s) => String(s.currentUser?._id ?? ""));
-  const member = useInboxStore((s) => teamMembersOf(s).find((m: any) => String(m?._id) === person._id) ?? person.member);
+  const member = useInboxStore(
+    (s) =>
+      teamMembersOf(s).find((m: any) => String(m?._id) === person._id) ??
+      person.member,
+  );
   const room = useLiveRoomOfMember(person._id);
   const huddle = useMemberHuddle(member, viewerId, room, person.name);
   if (!callsOn || !person.online) return null;
@@ -424,7 +816,10 @@ function PersonHuddleItem({ person, className, onDone }: { person: PalettePerson
       value={`action ${huddle.label}|||person_huddle`}
       disabled={huddle.waiting}
       title={huddle.title}
-      onSelect={() => { huddle.go(); onDone(); }}
+      onSelect={() => {
+        huddle.go();
+        onDone();
+      }}
       className={className}
     >
       <Headphones className="w-4 h-4 flex-shrink-0" />
@@ -461,7 +856,12 @@ export function ActionSubmenu({
 }) {
   // Rename seeds the field with the current name, shown the way lists show it.
   const pinnedAgents = usePinnedAgentIds();
-  const seedSearch = () => mode !== "rename" ? initialSearch : targetType === "session" ? cleanTitle(targets[0]?.title || "") : targets[0]?.title || "";
+  const seedSearch = () =>
+    mode !== "rename"
+      ? initialSearch
+      : targetType === "session"
+        ? cleanTitle(targets[0]?.title || "")
+        : targets[0]?.title || "";
   const [search, setSearch] = useState(seedSearch);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -472,7 +872,9 @@ export function ActionSubmenu({
   // People and roles for the assign mode, from the one list every picker
   // shares; who is a person is read off the roster row, so a cold deep link
   // (no org tree yet) still lists no bot as a person.
-  const { people: assignPeople, roles: assignRoles } = useRolesAndPeopleOptions(teamMembers ?? NO_MEMBERS);
+  const { people: assignPeople, roles: assignRoles } = useRolesAndPeopleOptions(
+    teamMembers ?? NO_MEMBERS,
+  );
 
   // Two-step state for the "Start agent run" mode: pick an agent, then compose
   // the initial message before launching a run per selected task.
@@ -496,11 +898,22 @@ export function ActionSubmenu({
   const deleteSessions = () => {
     const store = useInboxStore.getState();
     for (const row of targets) store.deleteSession(row._id);
-    toast.success(targets.length > 1 ? `Deleted ${targets.length} sessions` : "Session deleted");
+    toast.success(
+      targets.length > 1
+        ? `Deleted ${targets.length} sessions`
+        : "Session deleted",
+    );
     if (targets.length > 1) useInboxSelection.getState().clear();
     onClose();
   };
-  const deleteTeam = mode === "session_delete" ? targets.map((row) => regulatedTeam(useInboxStore.getState().teams, row.team_id)).find(Boolean) ?? null : null;
+  const deleteTeam =
+    mode === "session_delete"
+      ? (targets
+          .map((row) =>
+            regulatedTeam(useInboxStore.getState().teams, row.team_id),
+          )
+          .find(Boolean) ?? null)
+      : null;
 
   const updatePlan = useInboxStore((s) => s.updatePlan);
   const assignToAgent = useInboxStore((s) => s.assignTaskToAgent);
@@ -512,8 +925,12 @@ export function ActionSubmenu({
   const bucketAssignments = useInboxStore((s) => s.bucketAssignments);
   // Exclude-mode chips don't read as "the active view" here — the palette's
   // view rows mark only include filters; picking any row sets include mode.
-  const activeBucketFilter = useInboxStore((s) => (s.chipFilterExclude ? null : s.activeBucketFilter));
-  const activeProjectFilter = useInboxStore((s) => (s.chipFilterExclude ? null : s.activeProjectFilter));
+  const activeBucketFilter = useInboxStore((s) =>
+    s.chipFilterExclude ? null : s.activeBucketFilter,
+  );
+  const activeProjectFilter = useInboxStore((s) =>
+    s.chipFilterExclude ? null : s.activeProjectFilter,
+  );
   // Exclude-mode chips don't mark their own row active (masked above), but
   // they DO hide sessions — "All sessions" must not claim the inbox is
   // unfiltered while one is on.
@@ -547,12 +964,18 @@ export function ActionSubmenu({
     setSelectedAgentKey(null);
     setAgentMessage(mode === "agent_handoff" ? "" : DEFAULT_AGENT_RUN_MESSAGE);
     setRenameId(null);
-    const timer = setTimeout(() => { inputRef.current?.focus(); if (mode === "rename") inputRef.current?.select(); }, 0);
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+      if (mode === "rename") inputRef.current?.select();
+    }, 0);
     return () => clearTimeout(timer);
   }, [mode, initialSearch]);
 
   useWatchEffect(() => {
-    if ((mode === "agent_run" || mode === "agent_handoff") && agentStep === "message") {
+    if (
+      (mode === "agent_run" || mode === "agent_handoff") &&
+      agentStep === "message"
+    ) {
       setTimeout(() => messageRef.current?.focus(), 0);
     }
   }, [mode, agentStep]);
@@ -574,9 +997,22 @@ export function ActionSubmenu({
     // The placement chokepoint (placeInboxRows, sync-convergence C5): the
     // same scoped working-set selection every other counting surface uses, so
     // the view badges here can never disagree with the panel's chip row.
-    const placed = placeInboxRows(st, { focusedId: st.currentSessionId ?? null });
-    const bucketByConv = convBucketMap(st.bucketAssignments as Record<string, BucketAssignmentItem>);
-    const counts = computeChipCounts([...placed.sorted, ...placed.snoozed, ...placed.stashed, ...placed.dismissed], bucketByConv, projectOfFromState(st));
+    const placed = placeInboxRows(st, {
+      focusedId: st.currentSessionId ?? null,
+    });
+    const bucketByConv = convBucketMap(
+      st.bucketAssignments as Record<string, BucketAssignmentItem>,
+    );
+    const counts = computeChipCounts(
+      [
+        ...placed.sorted,
+        ...placed.snoozed,
+        ...placed.stashed,
+        ...placed.dismissed,
+      ],
+      bucketByConv,
+      projectOfFromState(st),
+    );
     // Label counts come from the assignments themselves, not from cached
     // sessions: bucket_assignments sync completely (buckets.webList collects the
     // whole per-user table), while the session cache is windowed and boot-pruned
@@ -597,7 +1033,8 @@ export function ActionSubmenu({
       const name = getProjectName(rp.path);
       if (name === "unknown") continue;
       byName.set(name, Math.max(byName.get(name) || 0, rp.count));
-      if (!counts.projectPathByName[name]) counts.projectPathByName[name] = rp.path;
+      if (!counts.projectPathByName[name])
+        counts.projectPathByName[name] = rp.path;
     }
     return {
       bucketCounts,
@@ -607,24 +1044,43 @@ export function ActionSubmenu({
   }, [mode]);
 
   const layouts = useMemo(
-    () => sortedWorkbenches({ savedViews: savedViews ?? {}, clientState: { ui: { active_team_id: activeTeamId } } }),
+    () =>
+      sortedWorkbenches({
+        savedViews: savedViews ?? {},
+        clientState: { ui: { active_team_id: activeTeamId } },
+      }),
     [savedViews, activeTeamId],
   );
   // Update / rename / delete only ever act on your OWN layouts; a teammate's
   // shared one is read-only here exactly as it is in the rail.
-  const myLayouts = useMemo(() => layouts.filter((v) => v.is_mine !== false), [layouts]);
+  const myLayouts = useMemo(
+    () => layouts.filter((v) => v.is_mine !== false),
+    [layouts],
+  );
 
   const items = useMemo(() => {
     const q = search.toLowerCase();
-    if (mode === "snooze") return SESSION_SNOOZE_CHOICES.filter((item) => item.label.includes(q)).map((item) => ({ ...item, icon: Clock }));
+    if (mode === "snooze")
+      return SESSION_SNOOZE_CHOICES.filter((item) =>
+        item.label.includes(q),
+      ).map((item) => ({ ...item, icon: Clock }));
     // A character is picked by typing what sets the face apart (or a name to give them), so
     // the whole set is one keystroke away without a grid to arrow around.
     if (mode === "character") {
-      const faces = AVATAR_KEYS
-        .filter((k) => AVATAR_LABELS[k].toLowerCase().includes(q))
-        .map((k) => ({ key: k, label: AVATAR_LABELS[k], face: k }));
+      const faces = AVATAR_KEYS.filter((k) =>
+        AVATAR_LABELS[k].toLowerCase().includes(q),
+      ).map((k) => ({ key: k, label: AVATAR_LABELS[k], face: k }));
       const typed = q.trim();
-      const naming = typed && !faces.length ? [{ key: "__name__", label: `Name them "${search.trim()}"`, icon: Pencil }] : [];
+      const naming =
+        typed && !faces.length
+          ? [
+              {
+                key: "__name__",
+                label: `Name them "${search.trim()}"`,
+                icon: Pencil,
+              },
+            ]
+          : [];
       return [...naming, ...faces];
     }
 
@@ -633,19 +1089,47 @@ export function ActionSubmenu({
       // Save, and rename's second step, are pure naming: one create-shaped row
       // carrying the typed name, and nothing at all until something is typed.
       if (mode === "layout_save") {
-        return trimmed ? [{ key: "__name__", label: `Save as "${trimmed}"`, active: false, icon: Plus }] : [];
+        return trimmed
+          ? [
+              {
+                key: "__name__",
+                label: `Save as "${trimmed}"`,
+                active: false,
+                icon: Plus,
+              },
+            ]
+          : [];
       }
       if (mode === "layout_rename" && renameId) {
-        return trimmed ? [{ key: "__name__", label: `Rename to "${trimmed}"`, active: false, icon: Pencil }] : [];
+        return trimmed
+          ? [
+              {
+                key: "__name__",
+                label: `Rename to "${trimmed}"`,
+                active: false,
+                icon: Pencil,
+              },
+            ]
+          : [];
       }
       // Otherwise: pick a layout. Rail order is kept deliberately — it is the
       // order the ⌥N chords index into, so re-sorting would desync the keycap
       // the user just learned from the row it names. The active one is marked
       // with the usual check instead of being floated to the top.
-      const icon = mode === "layout_update" ? RefreshCw : mode === "layout_delete" ? Trash2 : Pencil;
+      const icon =
+        mode === "layout_update"
+          ? RefreshCw
+          : mode === "layout_delete"
+            ? Trash2
+            : Pencil;
       return myLayouts
         .filter((v) => (v.name || "").toLowerCase().includes(q))
-        .map((v) => ({ key: v._id, label: v.name || "Untitled layout", active: v._id === activeWorkbenchId, icon }));
+        .map((v) => ({
+          key: v._id,
+          label: v.name || "Untitled layout",
+          active: v._id === activeWorkbenchId,
+          icon,
+        }));
     }
 
     if (mode === "view") {
@@ -657,54 +1141,130 @@ export function ActionSubmenu({
       // count, same as the chip row's +N popover.
       const rows: any[] = [];
       for (const b of sortLabels(buckets as Record<string, BucketItem>)) {
-        rows.push({ key: `label:${b._id}`, id: b._id, kind: "label", label: b.name, count: bucketCounts[b._id] || 0, active: activeBucketFilter === b._id, dot: getLabelColor(b.name).dot });
+        rows.push({
+          key: `label:${b._id}`,
+          id: b._id,
+          kind: "label",
+          label: b.name,
+          count: bucketCounts[b._id] || 0,
+          active: activeBucketFilter === b._id,
+          dot: getLabelColor(b.name).dot,
+        });
       }
       for (const [name, count] of projectCounts) {
         const label = projectChipLabel(name, useInboxStore.getState().projects);
-        rows.push({ key: `project:${name}`, kind: "project", label, count, active: activeProjectFilter === name, path: projectPathByName[name] || null, dot: getLabelColor(label).dot });
+        rows.push({
+          key: `project:${name}`,
+          kind: "project",
+          label,
+          count,
+          active: activeProjectFilter === name,
+          path: projectPathByName[name] || null,
+          dot: getLabelColor(label).dot,
+        });
       }
       const matched = rows.filter((r) => r.label.toLowerCase().includes(q));
       // "All sessions" mirrors bucket-mode's remove row: empty-search only, on
       // the 0 key so the views keep 1-9.
       if (!q.trim()) {
-        matched.unshift({ key: "__all__", kind: "all", label: "All sessions", active: !activeBucketFilter && !activeProjectFilter && !chipFilterExclude, icon: Circle, quickKey: "0" });
+        matched.unshift({
+          key: "__all__",
+          kind: "all",
+          label: "All sessions",
+          active:
+            !activeBucketFilter && !activeProjectFilter && !chipFilterExclude,
+          icon: Circle,
+          quickKey: "0",
+        });
       }
       return matched;
     }
 
     if (mode === "rename" || mode === "deadline") {
-      return search.trim() ? [{ key: search.trim(), label: mode === "rename" ? `Rename to “${search.trim()}”` : `Set target date to ${search.trim()}`, icon: Pencil }] : [];
+      return search.trim()
+        ? [
+            {
+              key: search.trim(),
+              label:
+                mode === "rename"
+                  ? `Rename to “${search.trim()}”`
+                  : `Set target date to ${search.trim()}`,
+              icon: Pencil,
+            },
+          ]
+        : [];
     }
-    if (mode === "trigger_cancel" || mode === "trigger_delete") return [{ key: "confirm", label: mode === "trigger_delete" ? "Confirm delete trigger" : "Confirm cancel trigger", icon: Trash2 }];
-    if (mode === "session_delete") return [{ key: "confirm", label: targets.length > 1 ? `Delete ${targets.length} sessions and their messages for good` : "Delete this session and its messages for good", icon: Trash2 }];
-    if (mode === "project_status") return ["active", "planning", "paused", "done"].filter(key => key.includes(q)).map(key => ({ key, label: key[0].toUpperCase() + key.slice(1), active: target?.status === key, icon: CircleDot }));
+    if (mode === "trigger_cancel" || mode === "trigger_delete")
+      return [
+        {
+          key: "confirm",
+          label:
+            mode === "trigger_delete"
+              ? "Confirm delete trigger"
+              : "Confirm cancel trigger",
+          icon: Trash2,
+        },
+      ];
+    if (mode === "session_delete")
+      return [
+        {
+          key: "confirm",
+          label:
+            targets.length > 1
+              ? `Delete ${targets.length} sessions and their messages for good`
+              : "Delete this session and its messages for good",
+          icon: Trash2,
+        },
+      ];
+    if (mode === "project_status")
+      return ["active", "planning", "paused", "done"]
+        .filter((key) => key.includes(q))
+        .map((key) => ({
+          key,
+          label: key[0].toUpperCase() + key.slice(1),
+          active: target?.status === key,
+          icon: CircleDot,
+        }));
     if (mode === "project") {
       const rows = workspaceProjects;
-      return [{ key: "", label: "No project" }, ...rows.filter(row => !target?.workspace || row.workspace === target.workspace).map(row => ({ key: row._id, label: row.title || row.short_id || "Untitled", active: target?.project_id === row._id }))].filter(row => row.label.toLowerCase().includes(q));
+      return [
+        { key: "", label: "No project" },
+        ...rows
+          .filter(
+            (row) => !target?.workspace || row.workspace === target.workspace,
+          )
+          .map((row) => ({
+            key: row._id,
+            label: row.title || row.short_id || "Untitled",
+            active: target?.project_id === row._id,
+          })),
+      ].filter((row) => row.label.toLowerCase().includes(q));
     }
     if (mode === "status") {
       return statusEntityOptions(taskStatuses)
         .filter((o) => o.label.toLowerCase().includes(q))
         .map((o) => ({
           ...o,
-          active: isTask(target) && taskStatusKey(target as any, taskStatuses) === o.key,
+          active:
+            isTask(target) &&
+            taskStatusKey(target as any, taskStatuses) === o.key,
         }));
     }
     if (mode === "priority") {
-      return PRIORITY_OPTIONS
-        .filter((o) => o.label.toLowerCase().includes(q))
-        .map((o) => ({
-          ...o,
-          active: isTask(target) && target.priority === o.key,
-        }));
+      return PRIORITY_OPTIONS.filter((o) =>
+        o.label.toLowerCase().includes(q),
+      ).map((o) => ({
+        ...o,
+        active: isTask(target) && target.priority === o.key,
+      }));
     }
     if (mode === "type") {
-      return DOC_RETYPE_OPTIONS
-        .filter((o) => o.label.toLowerCase().includes(q))
-        .map((o) => ({
-          ...o,
-          active: !isTask(target) && (target as DocItem).doc_type === o.key,
-        }));
+      return DOC_RETYPE_OPTIONS.filter((o) =>
+        o.label.toLowerCase().includes(q),
+      ).map((o) => ({
+        ...o,
+        active: !isTask(target) && (target as DocItem).doc_type === o.key,
+      }));
     }
     if (mode === "labels") {
       const all = [...new Set([...DEFAULT_LABELS, ...currentLabels])];
@@ -717,7 +1277,12 @@ export function ActionSubmenu({
           dot: getLabelColor(l).dot,
         }));
       if (q && !matched.some((l) => l.key.toLowerCase() === q)) {
-        matched.unshift({ key: q, label: `Create "${q}"`, active: false, dot: getLabelColor(q).dot });
+        matched.unshift({
+          key: q,
+          label: `Create "${q}"`,
+          active: false,
+          dot: getLabelColor(q).dot,
+        });
       }
       return matched;
     }
@@ -726,85 +1291,182 @@ export function ActionSubmenu({
       // People stay first so the number keys people already know do not move.
       const people = assignPeople.map((o) => ({
         key: o.key,
-        label: currentUser && o.key === currentUser._id ? `${o.label} (you)` : o.label,
+        label:
+          currentUser && o.key === currentUser._id
+            ? `${o.label} (you)`
+            : o.label,
         type: "user" as const,
         image: o.info.image,
         section: o.section,
       }));
-      const roles = assignRoles.map((o) => ({ key: o.key, label: o.label, hint: o.hint, type: "user" as const, image: undefined, role: o.info.kind === "role" ? { _id: o.info.role_id, short_id: o.info.role_short_id, handle: o.info.handle, avatar: o.info.avatar, name: o.info.name } : undefined, section: o.section }));
-      return [{ key: "", label: "Unassign", type: "user" as const, image: undefined }, ...people, ...roles]
-        .filter((o: { label: string; hint?: string }) => `${o.label} ${o.hint ?? ""}`.toLowerCase().includes(q));
+      const roles = assignRoles.map((o) => ({
+        key: o.key,
+        label: o.label,
+        hint: o.hint,
+        type: "user" as const,
+        image: undefined,
+        role:
+          o.info.kind === "role"
+            ? {
+                _id: o.info.role_id,
+                short_id: o.info.role_short_id,
+                handle: o.info.handle,
+                avatar: o.info.avatar,
+                name: o.info.name,
+              }
+            : undefined,
+        section: o.section,
+      }));
+      return [
+        { key: "", label: "Unassign", type: "user" as const, image: undefined },
+        ...people,
+        ...roles,
+      ].filter((o: { label: string; hint?: string }) =>
+        `${o.label} ${o.hint ?? ""}`.toLowerCase().includes(q),
+      );
     }
-    if (mode === "agent_run" || mode === "agent_switch" || mode === "agent_fork" || mode === "agent_handoff") {
+    if (
+      mode === "agent_run" ||
+      mode === "agent_switch" ||
+      mode === "agent_fork" ||
+      mode === "agent_handoff"
+    ) {
       const currentAgentType = (target as InboxSession | undefined)?.agent_type;
       const messageCount = (target as InboxSession | undefined)?.message_count;
-      return pinnedAgentRows(pinnedAgents, currentAgentType)
-        .filter((o) => mode !== "agent_switch" || o.agentType !== (currentAgentType || "claude_code"))
-        // A session with history can only become an agent that can rebuild it.
-        // A hand-off starts fresh, so every agent (the current one included)
-        // is a valid destination.
-        .filter((o) => mode === "agent_run" || mode === "agent_handoff" || canSessionBecomeAgent(o.agentType, messageCount))
-        .filter((o) => o.label.toLowerCase().includes(q))
-        .map((a) => ({ ...a, type: "agent" as const, image: undefined }));
+      return (
+        pinnedAgentRows(pinnedAgents, currentAgentType)
+          .filter(
+            (o) =>
+              mode !== "agent_switch" ||
+              o.agentType !== (currentAgentType || "claude_code"),
+          )
+          // A session with history can only become an agent that can rebuild it.
+          // A hand-off starts fresh, so every agent (the current one included)
+          // is a valid destination.
+          .filter(
+            (o) =>
+              mode === "agent_run" ||
+              mode === "agent_handoff" ||
+              canSessionBecomeAgent(o.agentType, messageCount),
+          )
+          .filter((o) => o.label.toLowerCase().includes(q))
+          .map((a) => ({ ...a, type: "agent" as const, image: undefined }))
+      );
     }
     // A task search, or (blocker) any blocker ref pasted whole (lib/taskRelations).
     if (mode === "blocker" || mode === "related") {
-      return relationItems(mode, search, targets as TaskItem[], useInboxStore.getState().tasks as Record<string, TaskItem>).map(withRelationIcon);
+      return relationItems(
+        mode,
+        search,
+        targets as TaskItem[],
+        useInboxStore.getState().tasks as Record<string, TaskItem>,
+      ).map(withRelationIcon);
     }
     if (mode === "parent") {
       // Candidate parents: same-workspace, open, not the targets themselves.
       const targetIds = new Set(targets.map((t: any) => String(t._id)));
       // The target's own access key; a row minted before the key existed and
       // tagged with no team is personal to the viewer.
-      const workspaceKey = (isTask(target) ? workspaceKeyOfRow(target) : null) ?? activeWorkspaceKey(null, String(useInboxStore.getState().currentUser?._id ?? "") || null);
+      const workspaceKey =
+        (isTask(target) ? workspaceKeyOfRow(target) : null) ??
+        activeWorkspaceKey(
+          null,
+          String(useInboxStore.getState().currentUser?._id ?? "") || null,
+        );
       const all = Object.values(useInboxStore.getState().tasks) as TaskItem[];
       return all
-        .filter((t: any) =>
-          !targetIds.has(String(t._id)) &&
-          inWorkspace(t, workspaceKey) &&
-          t.status !== "done" && t.status !== "dropped" &&
-          !String(t._id).startsWith("temp_") &&
-          (q === "" || t.title?.toLowerCase().includes(q) || t.short_id?.toLowerCase().includes(q)))
+        .filter(
+          (t: any) =>
+            !targetIds.has(String(t._id)) &&
+            inWorkspace(t, workspaceKey) &&
+            t.status !== "done" &&
+            t.status !== "dropped" &&
+            !String(t._id).startsWith("temp_") &&
+            (q === "" ||
+              t.title?.toLowerCase().includes(q) ||
+              t.short_id?.toLowerCase().includes(q)),
+        )
         .slice(0, 8)
-        .map((t: any) => withRelationIcon({ key: t.short_id, label: `${t.short_id}  ${t.title}`, task: { ref: t.short_id, title: t.title, status: t.status }, active: false }));
+        .map((t: any) =>
+          withRelationIcon({
+            key: t.short_id,
+            label: `${t.short_id}  ${t.title}`,
+            task: { ref: t.short_id, title: t.title, status: t.status },
+            active: false,
+          }),
+        );
     }
     if (mode === "plan_status") {
-      return PLAN_STATUS_OPTIONS
-        .filter((o) => o.label.toLowerCase().includes(q))
-        .map((o) => ({
-          ...o,
-          active: target?.status === o.key,
-        }));
+      return PLAN_STATUS_OPTIONS.filter((o) =>
+        o.label.toLowerCase().includes(q),
+      ).map((o) => ({
+        ...o,
+        active: target?.status === o.key,
+      }));
     }
     if (mode === "device") {
-      const everyOwner = targets.length && targets.every((t: any) => t.owner_device_id === targets[0]?.owner_device_id) ? targets[0]?.owner_device_id : null;
+      const everyOwner =
+        targets.length &&
+        targets.every(
+          (t: any) => t.owner_device_id === targets[0]?.owner_device_id,
+        )
+          ? targets[0]?.owner_device_id
+          : null;
       return moveTargets
         .map((d: any) => {
           const usable = d.online || (d.is_remote && deviceWakesOnUse(d));
           const state = d.is_remote
-            ? (d.online ? "cloud host" : usable ? "cloud host · asleep, wakes on move" : "cloud host · offline")
+            ? d.online
+              ? "cloud host"
+              : usable
+                ? "cloud host · asleep, wakes on move"
+                : "cloud host · offline"
             : `${d.runner_name ? `${d.runner_name}'s machine` : "laptop"}${d.online ? "" : " · offline"}`;
-          return { key: d.device_id, label: `${deviceDisplayName(d)} — ${state}${d.device_id === everyOwner ? " · running" : ""}`, active: d.device_id === everyOwner, icon: d.is_remote ? Cloud : Laptop, usable: usable && d.device_id !== everyOwner };
+          return {
+            key: d.device_id,
+            label: `${deviceDisplayName(d)} — ${state}${d.device_id === everyOwner ? " · running" : ""}`,
+            active: d.device_id === everyOwner,
+            icon: d.is_remote ? Cloud : Laptop,
+            usable: usable && d.device_id !== everyOwner,
+          };
         })
         .filter((row) => row.label.toLowerCase().includes(q));
     }
     if (mode === "bucket") {
       const convId = target?._id as string | undefined;
       const currentBucketId = convId
-        ? ((Object.values(bucketAssignments) as BucketAssignmentItem[])
-            .find((a) => a.conversation_id === convId)?.bucket_id ?? null)
+        ? ((Object.values(bucketAssignments) as BucketAssignmentItem[]).find(
+            (a) => a.conversation_id === convId,
+          )?.bucket_id ?? null)
         : null;
       const all = (Object.values(buckets) as BucketItem[])
         .filter((b) => !b.archived_at)
-        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+        .sort(
+          (a, b) =>
+            (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+            a.name.localeCompare(b.name),
+        );
       const matched: any[] = all
         .filter((b) => b.name.toLowerCase().includes(q))
-        .map((b) => ({ key: b._id, label: b.name, active: b._id === currentBucketId, dot: getLabelColor(b.name).dot }));
+        .map((b) => ({
+          key: b._id,
+          label: b.name,
+          active: b._id === currentBucketId,
+          dot: getLabelColor(b.name).dot,
+        }));
       // Create-from-query, same shape as the labels mode. This is also how the
       // very FIRST bucket gets made — no dedicated create UI exists anywhere.
       const trimmed = search.trim();
-      if (trimmed && !all.some((b) => b.name.toLowerCase() === trimmed.toLowerCase())) {
-        matched.unshift({ key: "__create__", label: `Create "${trimmed}"`, active: false, dot: getLabelColor(trimmed).dot });
+      if (
+        trimmed &&
+        !all.some((b) => b.name.toLowerCase() === trimmed.toLowerCase())
+      ) {
+        matched.unshift({
+          key: "__create__",
+          label: `Create "${trimmed}"`,
+          active: false,
+          dot: getLabelColor(trimmed).dot,
+        });
       }
       if (currentBucketId && !trimmed) {
         // First option, naming the label it clears — when a label is already
@@ -813,7 +1475,9 @@ export function ActionSubmenu({
         // letter from the filter-or-create input — the remove row only exists
         // while the search is empty, exactly when the next keystroke may be
         // the first letter of a label name.
-        const currentName = (buckets as Record<string, BucketItem>)[currentBucketId]?.name;
+        const currentName = (buckets as Record<string, BucketItem>)[
+          currentBucketId
+        ]?.name;
         matched.unshift({
           key: "__remove__",
           label: currentName ? `Remove "${currentName}"` : "Remove label",
@@ -841,11 +1505,22 @@ export function ActionSubmenu({
         ? [cfg.models[0], ...dynamicModels.featured]
         : listedModels(cfg);
       for (const m of models) {
-        rows.push({ key: `model:${m.key}`, label: m.label, sub: m.hint, active: m.key === curModelKey, icon: Cpu });
+        rows.push({
+          key: `model:${m.key}`,
+          label: m.label,
+          sub: m.hint,
+          active: m.key === curModelKey,
+          icon: Cpu,
+        });
       }
       for (const level of [...(blank ? ["default"] : []), ...cfg.efforts]) {
         const active = level === "default" ? !curEffort : level === curEffort;
-        rows.push({ key: `effort:${level}`, label: `${level} effort`, active, icon: CircleDot });
+        rows.push({
+          key: `effort:${level}`,
+          label: `${level} effort`,
+          active,
+          icon: CircleDot,
+        });
       }
       const filtered = rows.filter((r) => r.label.toLowerCase().includes(q));
       if (dynamicModels.dynamic && q) {
@@ -854,296 +1529,473 @@ export function ActionSubmenu({
           if (filtered.length >= 24) break;
           if (seen.has(id) || !id.toLowerCase().includes(q)) continue;
           const opt = dynamicModelOption(id);
-          filtered.push({ key: `model:${id}`, label: opt.label, sub: opt.hint, active: id === curModelKey, icon: Cpu });
+          filtered.push({
+            key: `model:${id}`,
+            label: opt.label,
+            sub: opt.hint,
+            active: id === curModelKey,
+            icon: Cpu,
+          });
         }
       }
       return filtered;
     }
     return [];
-  }, [mode, search, target, targets, currentLabels, teamMembers, currentUser, buckets, bucketAssignments, viewChipData, activeBucketFilter, activeProjectFilter, chipFilterExclude, dynamicModels, taskStatuses, myLayouts, renameId, activeWorkbenchId, workspaceProjects, moveTargets, orgRoles, assignPeople, assignRoles, pinnedAgents]);
+  }, [
+    mode,
+    search,
+    target,
+    targets,
+    currentLabels,
+    teamMembers,
+    currentUser,
+    buckets,
+    bucketAssignments,
+    viewChipData,
+    activeBucketFilter,
+    activeProjectFilter,
+    chipFilterExclude,
+    dynamicModels,
+    taskStatuses,
+    myLayouts,
+    renameId,
+    activeWorkbenchId,
+    workspaceProjects,
+    moveTargets,
+    orgRoles,
+    assignPeople,
+    assignRoles,
+    pinnedAgents,
+  ]);
 
-  useWatchEffect(() => { setHighlightIndex(0); }, [search]);
+  useWatchEffect(() => {
+    setHighlightIndex(0);
+  }, [search]);
 
-  const selectItem = useCallback((index: number) => {
-    const item = items[index] as any;
-    if (!item) return;
-    if (mode === "character") {
-      const store = useInboxStore.getState();
-      const ids = targets.map((t) => t._id);
-      if (item.key === "__name__") {
-        const name = search.trim();
-        store.setSessionCharacters(ids.map((id) => ({ id, name })));
-        toast.success(ids.length > 1 ? `Named ${ids.length} sessions` : `Named ${name}`);
-      } else {
-        // Picking a face also personifies the row, which is the opt in.
-        store.setSessionCharacters(ids.map((id) => ({ id, avatar: item.key, name: characterNameFor(id, item.key) })));
-        toast.success(ids.length > 1 ? `${ids.length} sessions are now ${item.label}s` : `Now a ${item.label}`);
-      }
-      onClose();
-      return;
-    }
-    if (mode === "snooze") {
-      const until = sessionSnoozeUntil(item.key as SessionSnoozeKey);
-      undoAsOne(`Snoozed ${counted(targets.length, "session")}`, () => {
-        for (const target of targets) useInboxStore.getState().snoozeSession(target._id, until);
-      });
-      toast.success(`Snoozed for ${item.label}`);
-      onClose();
-      return;
-    }
-
-    // Layout CRUD is global too — the workspace arrangement, not a row. Same
-    // gestures the rail's Layouts section offers, for when the rail is closed.
-    if (isLayoutMode(mode)) {
-      const store = useInboxStore.getState();
-      const trimmed = search.trim();
-      if (mode === "layout_save") {
-        if (!trimmed) return;
-        store.saveWorkbench(trimmed, pathname ?? undefined);
-        toast.success(`Saved the current layout as "${trimmed}"`);
-      } else if (mode === "layout_update") {
-        store.updateWorkbench(item.key, pathname ?? undefined);
-        toast.success(`"${item.label}" now matches the current layout`);
-      } else if (mode === "layout_rename") {
-        // First press picks the layout and hands the input over to the new name.
-        if (!renameId) {
-          setRenameId(item.key);
-          setSearch("");
-          return;
+  const selectItem = useCallback(
+    (index: number) => {
+      const item = items[index] as any;
+      if (!item) return;
+      if (mode === "character") {
+        const store = useInboxStore.getState();
+        const ids = targets.map((t) => t._id);
+        if (item.key === "__name__") {
+          const name = search.trim();
+          store.setSessionCharacters(ids.map((id) => ({ id, name })));
+          toast.success(
+            ids.length > 1 ? `Named ${ids.length} sessions` : `Named ${name}`,
+          );
+        } else {
+          // Picking a face also personifies the row, which is the opt in.
+          store.setSessionCharacters(
+            ids.map((id) => ({
+              id,
+              avatar: item.key,
+              name: characterNameFor(id, item.key),
+            })),
+          );
+          toast.success(
+            ids.length > 1
+              ? `${ids.length} sessions are now ${item.label}s`
+              : `Now a ${item.label}`,
+          );
         }
-        if (!trimmed) return;
-        store.updateSavedView(renameId, { name: trimmed });
-        toast.success(`Renamed to "${trimmed}"`);
-      } else {
-        // No confirm, matching the rail's ✕ — a saved layout is cheap to remake.
-        store.deleteSavedView(item.key);
-        toast.success(`Removed "${item.label}"`);
+        onClose();
+        return;
       }
-      onClose();
-      return;
-    }
-
-    // View switching is global — no target entity involved. Picking the
-    // already-active view toggles back to All, mirroring the chips.
-    if (mode === "view") {
-      const store = useInboxStore.getState();
-      if (item.key === "__all__" || item.active) {
-        store.setActiveBucketFilter(null);
-        store.setActiveProjectFilter(null, null);
-      } else if (item.kind === "project") {
-        store.setActiveProjectFilter(item.label, item.path ?? null);
-      } else {
-        store.setActiveBucketFilter(item.id);
-      }
-      onClose();
-      return;
-    }
-
-    if (!target) return;
-    const count = targets.length;
-    const store = useInboxStore.getState();
-    if (mode === "session_delete") {
-      if (deleteTeam) setDeleteReview(true);
-      else deleteSessions();
-      return;
-    }
-    if (mode === "rename" || mode === "deadline" || mode === "project" || mode === "project_status" || mode === "trigger_cancel" || mode === "trigger_delete") {
-      if (mode === "trigger_delete") store.deleteTrigger(target._id);
-      else if (mode === "trigger_cancel") store.triggerAction(target._id, "cancel");
-      else {
-        let fields: Record<string, any>;
-        if (mode === "deadline") {
-          const date = /^\d{4}-\d{2}-\d{2}$/.test(search.trim()) ? new Date(`${search.trim()}T12:00:00`) : null;
-          const localDate = date && !Number.isNaN(date.getTime()) ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}` : null;
-          if (!date || localDate !== search.trim()) { toast.error("Enter a date as YYYY-MM-DD"); return; }
-          fields = { target_date: date.getTime() };
-        } else fields = mode === "rename" ? { title: search.trim() } : mode === "project" ? { project_id: item.key } : { status: item.key };
-        undoAsOne(`Changed ${counted(targets.length, targetType === "doc" ? "document" : targetType === "session" ? "session" : targetType)}`, () => {
-          for (const row of targets) {
-            if (targetType === "session") store.renameSession(row._id, fields.title);
-            else if (targetType === "task") store.updateTask(row.short_id, fields);
-            else if (targetType === "doc") store.updateDoc(row._id, fields);
-            else if (targetType === "plan") store.updatePlan(row.short_id || row._id, fields);
-            else if (targetType === "project") store.updateProject(row._id, fields);
-          }
+      if (mode === "snooze") {
+        const until = sessionSnoozeUntil(item.key as SessionSnoozeKey);
+        undoAsOne(`Snoozed ${counted(targets.length, "session")}`, () => {
+          for (const target of targets)
+            useInboxStore.getState().snoozeSession(target._id, until);
         });
+        toast.success(`Snoozed for ${item.label}`);
+        onClose();
+        return;
       }
-      onClose();
-      return;
-    }
 
-    // Agent-run and hand-off pick an agent, then advance to the message step
-    // (not a fire).
-    if (mode === "agent_run" || mode === "agent_handoff") {
-      setSelectedAgentKey(item.key);
-      setAgentStep("message");
-      return;
-    }
+      // Layout CRUD is global too — the workspace arrangement, not a row. Same
+      // gestures the rail's Layouts section offers, for when the rail is closed.
+      if (isLayoutMode(mode)) {
+        const store = useInboxStore.getState();
+        const trimmed = search.trim();
+        if (mode === "layout_save") {
+          if (!trimmed) return;
+          store.saveWorkbench(trimmed, pathname ?? undefined);
+          toast.success(`Saved the current layout as "${trimmed}"`);
+        } else if (mode === "layout_update") {
+          store.updateWorkbench(item.key, pathname ?? undefined);
+          toast.success(`"${item.label}" now matches the current layout`);
+        } else if (mode === "layout_rename") {
+          // First press picks the layout and hands the input over to the new name.
+          if (!renameId) {
+            setRenameId(item.key);
+            setSearch("");
+            return;
+          }
+          if (!trimmed) return;
+          store.updateSavedView(renameId, { name: trimmed });
+          toast.success(`Renamed to "${trimmed}"`);
+        } else {
+          // No confirm, matching the rail's ✕ — a saved layout is cheap to remake.
+          store.deleteSavedView(item.key);
+          toast.success(`Removed "${item.label}"`);
+        }
+        onClose();
+        return;
+      }
 
-    if (mode === "agent_switch") {
-      void switchSessionAgent(target as InboxSession, item.agentType as ConvexAgentType)
-        .then(() => toast.success(`Switch to ${item.label} requested`))
-        .catch((error) => { captureException(error); toast.error(error instanceof Error ? error.message : "Failed to switch agent"); });
-      onClose();
-      return;
-    }
+      // View switching is global — no target entity involved. Picking the
+      // already-active view toggles back to All, mirroring the chips.
+      if (mode === "view") {
+        const store = useInboxStore.getState();
+        if (item.key === "__all__" || item.active) {
+          store.setActiveBucketFilter(null);
+          store.setActiveProjectFilter(null, null);
+        } else if (item.kind === "project") {
+          store.setActiveProjectFilter(item.label, item.path ?? null);
+        } else {
+          store.setActiveBucketFilter(item.id);
+        }
+        onClose();
+        return;
+      }
 
-    if (mode === "agent_fork") {
-      try {
-        const fork = forkSessionAsAgent(target as InboxSession, item.agentType as ConvexAgentType);
-        void fork.ready.catch((error) => {
+      if (!target) return;
+      const count = targets.length;
+      const store = useInboxStore.getState();
+      if (mode === "session_delete") {
+        if (deleteTeam) setDeleteReview(true);
+        else deleteSessions();
+        return;
+      }
+      if (
+        mode === "rename" ||
+        mode === "deadline" ||
+        mode === "project" ||
+        mode === "project_status" ||
+        mode === "trigger_cancel" ||
+        mode === "trigger_delete"
+      ) {
+        if (mode === "trigger_delete") store.deleteTrigger(target._id);
+        else if (mode === "trigger_cancel")
+          store.triggerAction(target._id, "cancel");
+        else {
+          let fields: Record<string, any>;
+          if (mode === "deadline") {
+            const date = /^\d{4}-\d{2}-\d{2}$/.test(search.trim())
+              ? new Date(`${search.trim()}T12:00:00`)
+              : null;
+            const localDate =
+              date && !Number.isNaN(date.getTime())
+                ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+                : null;
+            if (!date || localDate !== search.trim()) {
+              toast.error("Enter a date as YYYY-MM-DD");
+              return;
+            }
+            fields = { target_date: date.getTime() };
+          } else
+            fields =
+              mode === "rename"
+                ? { title: search.trim() }
+                : mode === "project"
+                  ? { project_id: item.key }
+                  : { status: item.key };
+          undoAsOne(
+            `Changed ${counted(targets.length, targetType === "doc" ? "document" : targetType === "session" ? "session" : targetType)}`,
+            () => {
+              for (const row of targets) {
+                if (targetType === "session")
+                  store.renameSession(row._id, fields.title);
+                else if (targetType === "task")
+                  store.updateTask(row.short_id, fields);
+                else if (targetType === "doc") store.updateDoc(row._id, fields);
+                else if (targetType === "plan")
+                  store.updatePlan(row.short_id || row._id, fields);
+                else if (targetType === "project")
+                  store.updateProject(row._id, fields);
+              }
+            },
+          );
+        }
+        onClose();
+        return;
+      }
+
+      // Agent-run and hand-off pick an agent, then advance to the message step
+      // (not a fire).
+      if (mode === "agent_run" || mode === "agent_handoff") {
+        setSelectedAgentKey(item.key);
+        setAgentStep("message");
+        return;
+      }
+
+      if (mode === "agent_switch") {
+        void switchSessionAgent(
+          target as InboxSession,
+          item.agentType as ConvexAgentType,
+        )
+          .then(() => toast.success(`Switch to ${item.label} requested`))
+          .catch((error) => {
+            captureException(error);
+            toast.error(
+              error instanceof Error ? error.message : "Failed to switch agent",
+            );
+          });
+        onClose();
+        return;
+      }
+
+      if (mode === "agent_fork") {
+        try {
+          const fork = forkSessionAsAgent(
+            target as InboxSession,
+            item.agentType as ConvexAgentType,
+          );
+          void fork.ready.catch((error) => {
+            captureException(error);
+            toast.error(
+              error instanceof Error ? error.message : "Failed to fork session",
+            );
+          });
+          onClose();
+        } catch (error) {
           captureException(error);
-          toast.error(error instanceof Error ? error.message : "Failed to fork session");
+          toast.error(
+            error instanceof Error ? error.message : "Failed to fork session",
+          );
+        }
+        return;
+      }
+
+      if (mode === "model") {
+        const store = useInboxStore.getState();
+        const real = store.getConvexId(target._id) ?? target._id;
+        const s0 = target as any;
+        // Split on the FIRST colon only — dynamic model ids can contain ":"
+        // (openrouter variant suffixes like ":free").
+        const keyStr = String(item.key);
+        const sep = keyStr.indexOf(":");
+        const kind = keyStr.slice(0, sep);
+        const value = keyStr.slice(sep + 1);
+        // commitModelChange owns the not-ready decision: a blank session records
+        // the choice locally on the stub (the create carries it), only the live
+        // rail needs a real id. Passing `real` (possibly still a stub) lets it
+        // stamp + defer instead of erroring here.
+        void commitModelChange({
+          conversationId: real,
+          agentType: s0?.agent_type,
+          current: { model: s0?.model, effort: s0?.effort },
+          sel: kind === "model" ? { model: value } : { effort: value },
+          blank: (s0?.message_count ?? 0) === 0,
         });
         onClose();
-      } catch (error) {
-        captureException(error);
-        toast.error(error instanceof Error ? error.message : "Failed to fork session");
+        return;
       }
-      return;
-    }
 
-    if (mode === "model") {
-      const store = useInboxStore.getState();
-      const real = store.getConvexId(target._id) ?? target._id;
-      const s0 = target as any;
-      // Split on the FIRST colon only — dynamic model ids can contain ":"
-      // (openrouter variant suffixes like ":free").
-      const keyStr = String(item.key);
-      const sep = keyStr.indexOf(":");
-      const kind = keyStr.slice(0, sep);
-      const value = keyStr.slice(sep + 1);
-      // commitModelChange owns the not-ready decision: a blank session records
-      // the choice locally on the stub (the create carries it), only the live
-      // rail needs a real id. Passing `real` (possibly still a stub) lets it
-      // stamp + defer instead of erroring here.
-      void commitModelChange({
-        conversationId: real,
-        agentType: s0?.agent_type,
-        current: { model: s0?.model, effort: s0?.effort },
-        sel: kind === "model" ? { model: value } : { effort: value },
-        blank: (s0?.message_count ?? 0) === 0,
-      });
-      onClose();
-      return;
-    }
-
-    if (mode === "device") {
-      if (item.usable === false) { toast.error(item.label.endsWith(" · running") ? "Already running there" : "That machine is offline"); return; }
-      const device = moveTargets.find((d: any) => d.device_id === item.key);
-      if (device) void bulkMove(targets, device);
-      onClose();
-      return;
-    }
-    if (mode === "bucket") {
-      const store = useInboxStore.getState();
-      const resolveConvId = (t: any): string | null => {
-        const real = store.getConvexId(t._id) ?? t._id;
-        return isConvexId(real) || store.sessions[real] || store.conversations[real] ? real : null;
-      };
-      const applyBucket = (bucketId: string | null, bucketLabel?: string) => {
-        const convIds = targets.map(resolveConvId).filter((id): id is string => !!id);
-        const applied = convIds.length;
-        if (!applied) {
-          toast.error("Session is no longer available");
+      if (mode === "device") {
+        if (item.usable === false) {
+          toast.error(
+            item.label.endsWith(" · running")
+              ? "Already running there"
+              : "That machine is offline",
+          );
           return;
         }
-        const sessions = counted(applied, "session");
-        gestureToast(bucketId ? `Labeled ${bucketLabel}` : "Label removed", () =>
-          undoAsOne(bucketId ? `Labeled ${sessions} ${bucketLabel ?? ""}`.trimEnd() : `Removed the label from ${sessions}`, () => {
-            for (const convId of convIds) store.assignSessionToBucket(convId, bucketId);
-          }));
-      };
-      if (item.key === "__remove__") {
-        applyBucket(null);
-      } else if (item.key === "__create__") {
-        const name = search.trim();
-        const conversationIds = targets
-          .map(resolveConvId)
-          .filter((id): id is string => !!id);
-        store.createBucket(
-          { name },
-          conversationIds.length > 0
-            ? { version: 1, kind: "assignBucket", conversationIds }
-            : undefined,
-        ).then((r: any) => {
-          if (!r?.bucketId) return;
-          toast.success(`Created label "${name}"`);
-        }).catch(() => toast.error("Couldn't create label"));
+        const device = moveTargets.find((d: any) => d.device_id === item.key);
+        if (device) void bulkMove(targets, device);
+        onClose();
+        return;
+      }
+      if (mode === "bucket") {
+        const store = useInboxStore.getState();
+        const resolveConvId = (t: any): string | null => {
+          const real = store.getConvexId(t._id) ?? t._id;
+          return isConvexId(real) ||
+            store.sessions[real] ||
+            store.conversations[real]
+            ? real
+            : null;
+        };
+        const applyBucket = (bucketId: string | null, bucketLabel?: string) => {
+          const convIds = targets
+            .map(resolveConvId)
+            .filter((id): id is string => !!id);
+          const applied = convIds.length;
+          if (!applied) {
+            toast.error("Session is no longer available");
+            return;
+          }
+          const sessions = counted(applied, "session");
+          gestureToast(
+            bucketId ? `Labeled ${bucketLabel}` : "Label removed",
+            () =>
+              undoAsOne(
+                bucketId
+                  ? `Labeled ${sessions} ${bucketLabel ?? ""}`.trimEnd()
+                  : `Removed the label from ${sessions}`,
+                () => {
+                  for (const convId of convIds)
+                    store.assignSessionToBucket(convId, bucketId);
+                },
+              ),
+          );
+        };
+        if (item.key === "__remove__") {
+          applyBucket(null);
+        } else if (item.key === "__create__") {
+          const name = search.trim();
+          const conversationIds = targets
+            .map(resolveConvId)
+            .filter((id): id is string => !!id);
+          store
+            .createBucket(
+              { name },
+              conversationIds.length > 0
+                ? { version: 1, kind: "assignBucket", conversationIds }
+                : undefined,
+            )
+            .then((r: any) => {
+              if (!r?.bucketId) return;
+              toast.success(`Created label "${name}"`);
+            })
+            .catch(() => toast.error("Couldn't create label"));
+        } else {
+          applyBucket(item.key, item.label);
+        }
+        onClose();
+        return;
+      }
+
+      if (targetType === "task") {
+        // One undo named for the change; terminal moves route through the
+        // single close gateway (a parent with open subtasks opens its dialog).
+        const applyTaskUpdate = (fields: Record<string, any>) =>
+          updateTasksAsOne(
+            (targets as TaskItem[]).map((t) => t.short_id),
+            fields,
+          );
+        const label =
+          count === 1 ? (targets[0] as TaskItem).short_id : `${count} tasks`;
+
+        if (mode === "status") {
+          // Keys are team status ids; the status carries its category, which is
+          // what the terminal check and the server's side effects key on.
+          const picked = statusByKey(taskStatuses, item.key);
+          if (!picked) return;
+          if (!applyTaskUpdate(statusWriteFields(picked)).needsConfirm)
+            toast.success(`${label} \u2192 ${item.label}`);
+        } else if (mode === "priority") {
+          applyTaskUpdate({ priority: item.key });
+          toast.success(`${label} priority \u2192 ${item.label}`);
+        } else if (mode === "labels") {
+          undoAsOne(
+            `${item.active ? "Removed" : "Added"} label ${item.key} on ${counted(targets.length, "task")}`,
+            () => {
+              for (const task of targets as TaskItem[])
+                updateTask(task.short_id, {
+                  labels: item.active
+                    ? (task.labels || []).filter((l) => l !== item.key)
+                    : [...new Set([...(task.labels || []), item.key])],
+                });
+            },
+          );
+          toast.success(
+            `${item.active ? "Removed" : "Added"} label: ${item.key}`,
+          );
+        } else if (mode === "assign") {
+          applyTaskUpdate({ assignee: item.key });
+          const member = (teamMembers || []).find(
+            (m: any) => m._id === item.key,
+          );
+          toast.success(
+            item.key
+              ? `Assigned to ${item.role ? item.label : memberDisplayName(member, "user")}`
+              : "Unassigned",
+          );
+        } else if (mode === "blocker" || mode === "related") {
+          const res = applyRelationPick(mode, targets as TaskItem[], item.pick);
+          reportRelationPick(res);
+          if (!res.ok) return;
+        } else if (mode === "parent") {
+          let failed = 0;
+          undoAsOne(
+            `Nested ${counted(targets.length, "task")} under ${item.key}`,
+            () => {
+              for (const t of targets as TaskItem[]) {
+                const res = setTaskParent(t.short_id, item.key);
+                if (!res.ok) failed++;
+              }
+            },
+          );
+          if (failed === 0) toast.success(`Nested under ${item.key}`);
+          else
+            toast.error(
+              `${failed} could not be nested (cycle, depth, or workspace)`,
+            );
+        }
+      } else if (targetType === "plan") {
+        if (mode === "plan_status") {
+          const shortId = target.short_id || target._id;
+          updatePlan(shortId, { status: item.key });
+          toast.success(`Plan \u2192 ${item.label}`);
+        }
       } else {
-        applyBucket(item.key, item.label);
+        if (mode === "type") {
+          undoAsOne(
+            `Changed the type of ${counted(targets.length, "document")}`,
+            () => {
+              for (const row of targets)
+                updateDoc(row._id, { doc_type: item.key });
+            },
+          );
+          toast.success(`Type \u2192 ${item.label}`);
+        } else if (mode === "labels") {
+          undoAsOne(
+            `${item.active ? "Removed" : "Added"} label ${item.key} on ${counted(targets.length, "document")}`,
+            () => {
+              for (const row of targets)
+                updateDoc(row._id, {
+                  labels: item.active
+                    ? (row.labels || []).filter((l: string) => l !== item.key)
+                    : [...new Set([...(row.labels || []), item.key])],
+                });
+            },
+          );
+          toast.success(
+            `${item.active ? "Removed" : "Added"} label: ${item.key}`,
+          );
+        }
       }
       onClose();
-      return;
-    }
-
-    if (targetType === "task") {
-      // One undo named for the change; terminal moves route through the
-      // single close gateway (a parent with open subtasks opens its dialog).
-      const applyTaskUpdate = (fields: Record<string, any>) =>
-        updateTasksAsOne((targets as TaskItem[]).map((t) => t.short_id), fields);
-      const label = count === 1 ? (targets[0] as TaskItem).short_id : `${count} tasks`;
-
-      if (mode === "status") {
-        // Keys are team status ids; the status carries its category, which is
-        // what the terminal check and the server's side effects key on.
-        const picked = statusByKey(taskStatuses, item.key);
-        if (!picked) return;
-        if (!applyTaskUpdate(statusWriteFields(picked)).needsConfirm) toast.success(`${label} \u2192 ${item.label}`);
-      } else if (mode === "priority") {
-        applyTaskUpdate({ priority: item.key });
-        toast.success(`${label} priority \u2192 ${item.label}`);
-      } else if (mode === "labels") {
-        undoAsOne(`${item.active ? "Removed" : "Added"} label ${item.key} on ${counted(targets.length, "task")}`, () => {
-          for (const task of targets as TaskItem[]) updateTask(task.short_id, { labels: item.active ? (task.labels || []).filter(l => l !== item.key) : [...new Set([...(task.labels || []), item.key])] });
-        });
-        toast.success(`${item.active ? "Removed" : "Added"} label: ${item.key}`);
-      } else if (mode === "assign") {
-        applyTaskUpdate({ assignee: item.key });
-        const member = (teamMembers || []).find((m: any) => m._id === item.key);
-        toast.success(item.key ? `Assigned to ${item.role ? item.label : memberDisplayName(member, "user")}` : "Unassigned");
-      } else if (mode === "blocker" || mode === "related") {
-        const res = applyRelationPick(mode, targets as TaskItem[], item.pick);
-        reportRelationPick(res);
-        if (!res.ok) return;
-      } else if (mode === "parent") {
-        let failed = 0;
-        undoAsOne(`Nested ${counted(targets.length, "task")} under ${item.key}`, () => {
-          for (const t of targets as TaskItem[]) {
-            const res = setTaskParent(t.short_id, item.key);
-            if (!res.ok) failed++;
-          }
-        });
-        if (failed === 0) toast.success(`Nested under ${item.key}`);
-        else toast.error(`${failed} could not be nested (cycle, depth, or workspace)`);
-      }
-    } else if (targetType === "plan") {
-      if (mode === "plan_status") {
-        const shortId = target.short_id || target._id;
-        updatePlan(shortId, { status: item.key });
-        toast.success(`Plan \u2192 ${item.label}`);
-      }
-    } else {
-      if (mode === "type") {
-        undoAsOne(`Changed the type of ${counted(targets.length, "document")}`, () => {
-          for (const row of targets) updateDoc(row._id, { doc_type: item.key });
-        });
-        toast.success(`Type \u2192 ${item.label}`);
-      } else if (mode === "labels") {
-        undoAsOne(`${item.active ? "Removed" : "Added"} label ${item.key} on ${counted(targets.length, "document")}`, () => {
-          for (const row of targets) updateDoc(row._id, { labels: item.active ? (row.labels || []).filter((l: string) => l !== item.key) : [...new Set([...(row.labels || []), item.key])] });
-        });
-        toast.success(`${item.active ? "Removed" : "Added"} label: ${item.key}`);
-      }
-    }
-    onClose();
-  }, [items, target, targets, targetType, mode, onClose, updateTask, updatePlan, updateDoc, teamMembers, search, taskStatuses, pathname, renameId, moveTargets, bulkMove]);
+    },
+    [
+      items,
+      target,
+      targets,
+      targetType,
+      mode,
+      onClose,
+      updateTask,
+      updatePlan,
+      updateDoc,
+      teamMembers,
+      search,
+      taskStatuses,
+      pathname,
+      renameId,
+      moveTargets,
+      bulkMove,
+    ],
+  );
 
   // Launch a session per selected task with the chosen agent + initial message.
   const launchAgentRun = useCallback(() => {
     if (!selectedAgentKey) return;
     const agentType = selectedAgentKey.replace("agent:", "");
-    const agentLabel = AGENT_OPTIONS.find((a) => a.key === selectedAgentKey)?.label || "agent";
+    const agentLabel =
+      AGENT_OPTIONS.find((a) => a.key === selectedAgentKey)?.label || "agent";
     const msg = agentMessage.trim() || undefined;
     const runnable = (targets as TaskItem[]).filter((t) => t && t.short_id);
     if (!runnable.length) {
@@ -1151,17 +2003,31 @@ export function ActionSubmenu({
       return;
     }
     Promise.allSettled(
-      runnable.map((t) => assignToAgent(t.short_id, agentType, msg))
+      runnable.map((t) => assignToAgent(t.short_id, agentType, msg)),
     ).then((results) => {
-      const failures = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+      const failures = results.filter(
+        (r) => r.status === "rejected",
+      ) as PromiseRejectedResult[];
       const ok = runnable.length - failures.length;
-      if (failures.length) console.error("[agent_run] failures", failures.map((f) => f.reason));
+      if (failures.length)
+        console.error(
+          "[agent_run] failures",
+          failures.map((f) => f.reason),
+        );
       if (!ok) {
-        toast.error(`Couldn't start ${agentLabel}: ${failures[0]?.reason?.message || "failed"}`);
+        toast.error(
+          `Couldn't start ${agentLabel}: ${failures[0]?.reason?.message || "failed"}`,
+        );
       } else if (failures.length) {
-        toast.warning(`Started ${ok}/${runnable.length} ${agentLabel} runs — ${failures.length} failed`);
+        toast.warning(
+          `Started ${ok}/${runnable.length} ${agentLabel} runs — ${failures.length} failed`,
+        );
       } else {
-        toast.success(ok === 1 ? `Starting ${agentLabel}` : `Starting ${ok} ${agentLabel} sessions`);
+        toast.success(
+          ok === 1
+            ? `Starting ${agentLabel}`
+            : `Starting ${ok} ${agentLabel} sessions`,
+        );
       }
     });
     onClose();
@@ -1173,65 +2039,107 @@ export function ActionSubmenu({
   const launchHandoff = useCallback(() => {
     if (!selectedAgentKey || !target) return;
     const agentType = selectedAgentKey.replace("agent:", "");
-    const agentLabel = AGENT_OPTIONS.find((a) => a.key === selectedAgentKey)?.label || "agent";
+    const agentLabel =
+      AGENT_OPTIONS.find((a) => a.key === selectedAgentKey)?.label || "agent";
     const store = useInboxStore.getState();
     const real = store.getConvexId(target._id) ?? target._id;
-    void startHandoff(convex, { conversation_id: real, agent_type: agentType, direction: agentMessage })
+    void startHandoff(convex, {
+      conversation_id: real,
+      agent_type: agentType,
+      direction: agentMessage,
+    })
       .then((res) => {
         toast.success(`Handed off to ${res.short_id} on ${agentLabel}`);
         useInboxStore.getState().requestNavigate(res.conversation_id);
       })
-      .catch((error) => { captureException(error); toast.error(error instanceof Error ? error.message : "Failed to hand off"); });
+      .catch((error) => {
+        captureException(error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to hand off",
+        );
+      });
     onClose();
   }, [selectedAgentKey, agentMessage, target, convex, onClose]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.nativeEvent.isComposing) return;
-    if (mode === "snooze" && search === "" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-      const index = items.findIndex((item) => item.key === e.key.toLowerCase());
-      if (index >= 0) { e.preventDefault(); selectItem(index); return; }
-    }
-    // Esc from a deep view escapes to GLOBAL (closes the palette), never just
-    // one level — climbing back up is ↑ past the top / Backspace-on-empty,
-    // and only exists when the user came down from the root palette.
-    // Rename's second step climbs back to the layout picker before it leaves —
-    // the same one-step-back Esc the agent_run message step offers.
-    const backOutOfRename = () => { setRenameId(null); setSearch(""); };
-    if (e.key === "Escape") {
-      e.preventDefault();
-      if (renameId) backOutOfRename(); else onClose();
-      return;
-    }
-    if ((e.key === "Backspace" || e.key === "ArrowLeft") && search === "") {
-      e.preventDefault();
-      if (renameId) backOutOfRename();
-      else if (enteredViaRoot) onBack();
-      else onClose();
-      return;
-    }
-    if (e.key === "ArrowDown" || (e.key === "j" && e.ctrlKey)) {
-      e.preventDefault();
-      setHighlightIndex((i) => Math.min(i + 1, items.length - 1));
-      return;
-    }
-    if (e.key === "ArrowUp" || (e.key === "k" && e.ctrlKey)) {
-      e.preventDefault();
-      if (highlightIndex === 0 && enteredViaRoot) {
-        onBack();
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.nativeEvent.isComposing) return;
+      if (
+        mode === "snooze" &&
+        search === "" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey
+      ) {
+        const index = items.findIndex(
+          (item) => item.key === e.key.toLowerCase(),
+        );
+        if (index >= 0) {
+          e.preventDefault();
+          selectItem(index);
+          return;
+        }
+      }
+      // Esc from a deep view escapes to GLOBAL (closes the palette), never just
+      // one level — climbing back up is ↑ past the top / Backspace-on-empty,
+      // and only exists when the user came down from the root palette.
+      // Rename's second step climbs back to the layout picker before it leaves —
+      // the same one-step-back Esc the agent_run message step offers.
+      const backOutOfRename = () => {
+        setRenameId(null);
+        setSearch("");
+      };
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (renameId) backOutOfRename();
+        else onClose();
         return;
       }
-      setHighlightIndex((i) => Math.max(i - 1, 0));
-      return;
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      selectItem(highlightIndex);
-      return;
-    }
-    const quickPick = paletteDigitIndex(e.nativeEvent, items.length);
-    if (quickPick >= 0) { e.preventDefault(); selectItem(quickPick); return; }
-
-  }, [items, highlightIndex, selectItem, onBack, onClose, enteredViaRoot, search, renameId, mode]);
+      if ((e.key === "Backspace" || e.key === "ArrowLeft") && search === "") {
+        e.preventDefault();
+        if (renameId) backOutOfRename();
+        else if (enteredViaRoot) onBack();
+        else onClose();
+        return;
+      }
+      if (e.key === "ArrowDown" || (e.key === "j" && e.ctrlKey)) {
+        e.preventDefault();
+        setHighlightIndex((i) => Math.min(i + 1, items.length - 1));
+        return;
+      }
+      if (e.key === "ArrowUp" || (e.key === "k" && e.ctrlKey)) {
+        e.preventDefault();
+        if (highlightIndex === 0 && enteredViaRoot) {
+          onBack();
+          return;
+        }
+        setHighlightIndex((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        selectItem(highlightIndex);
+        return;
+      }
+      const quickPick = paletteDigitIndex(e.nativeEvent, items.length);
+      if (quickPick >= 0) {
+        e.preventDefault();
+        selectItem(quickPick);
+        return;
+      }
+    },
+    [
+      items,
+      highlightIndex,
+      selectItem,
+      onBack,
+      onClose,
+      enteredViaRoot,
+      search,
+      renameId,
+      mode,
+    ],
+  );
 
   useWatchEffect(() => {
     const el = listRef.current;
@@ -1241,36 +2149,70 @@ export function ActionSubmenu({
   }, [highlightIndex]);
 
   const modeLabel =
-    mode === "character" ? "Pick a face, or type a name…" :
-    mode === "snooze" ? "Snooze session for…" :
-    mode === "rename" ? "Enter a new name…" :
-    mode === "deadline" ? "Target date (YYYY-MM-DD)…" :
-    mode === "project" ? "Move to project…" :
-    mode === "project_status" ? "Change project status…" :
-    mode === "trigger_delete" ? "Delete trigger" :
-    mode === "session_delete" ? "Delete session: gone for you and your team, cannot be undone" :
-    mode === "trigger_cancel" ? "Cancel trigger" :
-    mode === "status" ? "Change status..." :
-    mode === "priority" ? "Set priority..." :
-    mode === "labels" ? "Toggle label..." :
-    mode === "assign" ? "Assign to a person or a role" :
-    mode === "type" ? "Change document type..." :
-    mode === "agent_run" ? "Start agent run — pick an agent..." :
-    mode === "agent_switch" ? "Switch agent..." :
-    mode === "agent_fork" ? "Fork session as…" :
-    mode === "agent_handoff" ? "Hand off to — pick an agent…" :
-    mode === "bucket" ? "Label session — type to filter or create..." :
-    mode === "device" ? "Move to machine — pick where these sessions run…" :
-    mode === "model" ? "Change model & effort..." :
-    mode === "view" ? "Switch view — filter by label or project..." :
-    mode === "parent" ? "Set parent — search tasks..." :
-    mode === "blocker" ? "Add blocker — search tasks..." :
-    mode === "related" ? "Link a related task — search tasks..." :
-    mode === "layout_save" ? "Save current layout — type a name..." :
-    mode === "layout_update" ? "Update layout to the current arrangement..." :
-    mode === "layout_rename" ? (renameId ? "Rename layout — type the new name..." : "Rename layout — pick one...") :
-    mode === "layout_delete" ? "Delete layout..." :
-    "Select...";
+    mode === "character"
+      ? "Pick a face, or type a name…"
+      : mode === "snooze"
+        ? "Snooze session for…"
+        : mode === "rename"
+          ? "Enter a new name…"
+          : mode === "deadline"
+            ? "Target date (YYYY-MM-DD)…"
+            : mode === "project"
+              ? "Move to project…"
+              : mode === "project_status"
+                ? "Change project status…"
+                : mode === "trigger_delete"
+                  ? "Delete trigger"
+                  : mode === "session_delete"
+                    ? "Delete session: gone for you and your team, cannot be undone"
+                    : mode === "trigger_cancel"
+                      ? "Cancel trigger"
+                      : mode === "status"
+                        ? "Change status..."
+                        : mode === "priority"
+                          ? "Set priority..."
+                          : mode === "labels"
+                            ? "Toggle label..."
+                            : mode === "assign"
+                              ? "Assign to a person or a role"
+                              : mode === "type"
+                                ? "Change document type..."
+                                : mode === "agent_run"
+                                  ? "Start agent run — pick an agent..."
+                                  : mode === "agent_switch"
+                                    ? "Switch agent..."
+                                    : mode === "agent_fork"
+                                      ? "Fork session as…"
+                                      : mode === "agent_handoff"
+                                        ? "Hand off to — pick an agent…"
+                                        : mode === "bucket"
+                                          ? "Label session — type to filter or create..."
+                                          : mode === "device"
+                                            ? "Move to machine — pick where these sessions run…"
+                                            : mode === "model"
+                                              ? "Change model & effort..."
+                                              : mode === "view"
+                                                ? "Switch view — filter by label or project..."
+                                                : mode === "parent"
+                                                  ? "Set parent — search tasks..."
+                                                  : mode === "blocker"
+                                                    ? "Add blocker — search tasks..."
+                                                    : mode === "related"
+                                                      ? "Link a related task — search tasks..."
+                                                      : mode === "layout_save"
+                                                        ? "Save current layout — type a name..."
+                                                        : mode ===
+                                                            "layout_update"
+                                                          ? "Update layout to the current arrangement..."
+                                                          : mode ===
+                                                              "layout_rename"
+                                                            ? renameId
+                                                              ? "Rename layout — type the new name..."
+                                                              : "Rename layout — pick one..."
+                                                            : mode ===
+                                                                "layout_delete"
+                                                              ? "Delete layout..."
+                                                              : "Select...";
 
   const itemClass = (i: number) =>
     `w-full flex items-center gap-3 px-4 py-2.5 text-sm ${
@@ -1281,13 +2223,19 @@ export function ActionSubmenu({
 
   // Second step of "Start agent run" and "Hand off to": compose the initial
   // message (a hand-off's direction), then launch.
-  if ((mode === "agent_run" || mode === "agent_handoff") && agentStep === "message") {
+  if (
+    (mode === "agent_run" || mode === "agent_handoff") &&
+    agentStep === "message"
+  ) {
     const handoff = mode === "agent_handoff";
-    const agentLabel = AGENT_OPTIONS.find((a) => a.key === selectedAgentKey)?.label || "Agent";
+    const agentLabel =
+      AGENT_OPTIONS.find((a) => a.key === selectedAgentKey)?.label || "Agent";
     const count = targets.length;
     const targetSummary = handoff
       ? ((target as { short_id?: string } | undefined)?.short_id ?? "session")
-      : count === 1 ? (targets[0] as TaskItem).short_id : `${count} tasks`;
+      : count === 1
+        ? (targets[0] as TaskItem).short_id
+        : `${count} tasks`;
     const launch = handoff ? launchHandoff : launchAgentRun;
     return (
       <>
@@ -1298,9 +2246,13 @@ export function ActionSubmenu({
           >
             &larr;
           </button>
-          <Bot className={`w-4 h-4 flex-shrink-0 ${AGENT_COLORS[selectedAgentKey || ""] || "text-sol-violet"}`} />
+          <Bot
+            className={`w-4 h-4 flex-shrink-0 ${AGENT_COLORS[selectedAgentKey || ""] || "text-sol-violet"}`}
+          />
           <span className="text-sm text-sol-text">{agentLabel}</span>
-          <span className="text-xs text-sol-text-dim font-mono">· {targetSummary}</span>
+          <span className="text-xs text-sol-text-dim font-mono">
+            · {targetSummary}
+          </span>
         </div>
         <div className="p-4">
           <label className="block text-mark font-semibold uppercase tracking-widest text-sol-text-dim/70 mb-2">
@@ -1320,18 +2272,28 @@ export function ActionSubmenu({
               }
             }}
             rows={4}
-            placeholder={handoff ? "What should the next session do first?" : "Message the agent starts with..."}
+            placeholder={
+              handoff
+                ? "What should the next session do first?"
+                : "Message the agent starts with..."
+            }
             className="w-full resize-none rounded-lg bg-sol-bg-alt/40 border border-sol-border/40 px-3 py-2 text-sm text-sol-text placeholder:text-sol-text-dim/60 outline-none focus:border-sol-cyan/50 transition-colors"
           />
           {handoff && (
-            <p className="mt-2 text-meta leading-snug text-sol-text-dim">{HANDOFF_EXPLAINER}</p>
+            <p className="mt-2 text-meta leading-snug text-sol-text-dim">
+              {HANDOFF_EXPLAINER}
+            </p>
           )}
           <button
             onClick={launch}
             className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-sol-cyan/15 hover:bg-sol-cyan/25 border border-sol-cyan/30 text-sol-cyan text-sm font-medium transition-colors"
           >
             <Bot className="w-4 h-4" />
-            {handoff ? `Hand off to ${agentLabel}` : count === 1 ? `Launch ${agentLabel}` : `Launch ${count} ${agentLabel} runs`}
+            {handoff
+              ? `Hand off to ${agentLabel}`
+              : count === 1
+                ? `Launch ${agentLabel}`
+                : `Launch ${count} ${agentLabel} runs`}
           </button>
         </div>
         <div className="flex items-center gap-3 px-4 py-2 border-t border-sol-border/30 text-meta text-sol-text-dim">
@@ -1362,20 +2324,35 @@ export function ActionSubmenu({
           ledger={permanentDeleteLedger({
             what: "session",
             count: targets.length,
-            title: targets.length > 1 ? `${targets.length} sessions` : cleanTitle(targets[0]?.title || "") || "Untitled session",
+            title:
+              targets.length > 1
+                ? `${targets.length} sessions`
+                : cleanTitle(targets[0]?.title || "") || "Untitled session",
             team: deleteTeam.name,
-            figures: [{ value: String(targets.reduce((n, row) => n + (row.message_count ?? 0), 0)), label: "messages", tone: "warn" }],
+            figures: [
+              {
+                value: String(
+                  targets.reduce((n, row) => n + (row.message_count ?? 0), 0),
+                ),
+                label: "messages",
+                tone: "warn",
+              },
+            ],
             reaches: SESSION_REACHES,
           })}
           onClose={() => setDeleteReview(false)}
-          onConfirm={() => { setDeleteReview(false); deleteSessions(); }}
+          onConfirm={() => {
+            setDeleteReview(false);
+            deleteSessions();
+          }}
         />
       )}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-sol-border/30">
         {enteredViaRoot && (
           <button
             onClick={onBack}
-            title="Back to actions" aria-label="Back to actions"
+            title="Back to actions"
+            aria-label="Back to actions"
             className="text-xs px-1.5 py-0.5 rounded bg-sol-bg-alt border border-sol-border/50 text-sol-text-dim hover:text-sol-text transition-colors flex-shrink-0"
           >
             <KeyCap size="xs">←</KeyCap>
@@ -1394,18 +2371,32 @@ export function ActionSubmenu({
         />
       </div>
       {(mode === "blocker" || mode === "related") && (
-        <RelationQueryHint mode={mode} search={search} matched={items.length > 0} targets={targets as TaskItem[]} />
+        <RelationQueryHint
+          mode={mode}
+          search={search}
+          matched={items.length > 0}
+          targets={targets as TaskItem[]}
+        />
       )}
       <div ref={listRef} className="max-h-[320px] overflow-y-auto py-1">
-        {items.length === 0 && !((mode === "blocker" || mode === "related") && relationQueryError(search, mode, false)) && (
-          <div className="px-4 py-6 text-center text-sm text-sol-text-dim">No results</div>
-        )}
+        {items.length === 0 &&
+          !(
+            (mode === "blocker" || mode === "related") &&
+            relationQueryError(search, mode, false)
+          ) && (
+            <div className="px-4 py-6 text-center text-sm text-sol-text-dim">
+              No results
+            </div>
+          )}
         {items.map((item: any, i: number) => {
           const Icon = item.icon;
           // A heading rides inside its first item's own child, so the list
           // keeps one child per item and the highlight scroll (children[i])
           // still lands on the right row.
-          const heading = item.section && item.section !== items[i - 1]?.section ? item.section : null;
+          const heading =
+            item.section && item.section !== items[i - 1]?.section
+              ? item.section
+              : null;
           const row = (
             <button
               key={item.key}
@@ -1414,7 +2405,10 @@ export function ActionSubmenu({
               className={itemClass(i)}
             >
               {item.type === "agent" ? (
-                <AgentTypeIcon agentType={item.agentType} className={`w-4 h-4 flex-shrink-0 ${AGENT_COLORS[item.key] || "text-sol-violet"}`} />
+                <AgentTypeIcon
+                  agentType={item.agentType}
+                  className={`w-4 h-4 flex-shrink-0 ${AGENT_COLORS[item.key] || "text-sol-violet"}`}
+                />
               ) : mode === "assign" && !item.role ? (
                 <AvatarImg
                   src={item.image}
@@ -1422,24 +2416,44 @@ export function ActionSubmenu({
                   className="w-4 h-4 rounded-full flex-shrink-0"
                   fallback={
                     <div className="w-[18px] h-[18px] rounded-full flex-shrink-0 bg-sol-bg-highlight border border-sol-border/50 flex items-center justify-center text-mark font-medium text-sol-text-muted">
-                      {item.label.replace(" (you)", "").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+                      {item.label
+                        .replace(" (you)", "")
+                        .split(" ")
+                        .map((w: string) => w[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase()}
                     </div>
                   }
                 />
               ) : mode === "labels" ? (
-                <span className={`w-3 h-3 rounded-full flex-shrink-0 ${item.dot || "bg-neutral-400"}`} />
+                <span
+                  className={`w-3 h-3 rounded-full flex-shrink-0 ${item.dot || "bg-neutral-400"}`}
+                />
               ) : mode === "bucket" && item.dot ? (
                 // Square swatch: manual buckets read differently from the round
                 // auto-derived label/project dots.
-                <span className={`w-3 h-3 rounded-[3px] flex-shrink-0 ${item.dot}`} />
+                <span
+                  className={`w-3 h-3 rounded-[3px] flex-shrink-0 ${item.dot}`}
+                />
               ) : mode === "view" && item.dot ? (
                 // Same shape convention as the chip row: square = manual label,
                 // round = auto-derived project.
-                <span className={`w-3 h-3 flex-shrink-0 ${item.kind === "project" ? "rounded-full" : "rounded-[3px]"} ${item.dot}`} />
+                <span
+                  className={`w-3 h-3 flex-shrink-0 ${item.kind === "project" ? "rounded-full" : "rounded-[3px]"} ${item.dot}`}
+                />
               ) : item.role ? (
-                <RoleFace role={item.role} size={18} className="flex-shrink-0" />
+                <RoleFace
+                  role={item.role}
+                  size={18}
+                  className="flex-shrink-0"
+                />
               ) : item.face ? (
-                <RoleAvatar avatar={item.face} size={18} className="flex-shrink-0" />
+                <RoleAvatar
+                  avatar={item.face}
+                  size={18}
+                  className="flex-shrink-0"
+                />
               ) : Icon ? (
                 <Icon className={`w-4 h-4 flex-shrink-0 ${item.color || ""}`} />
               ) : null}
@@ -1447,35 +2461,64 @@ export function ActionSubmenu({
                 // A task pick: one line, its id then its title cut to fit, and
                 // any hint in its own slot so a refusal is never lost.
                 <span className="flex-1 min-w-0 flex items-center gap-2 text-left">
-                  <span className="font-mono text-xs text-sol-text-dim flex-shrink-0">{item.task.ref}</span>
+                  <span className="font-mono text-xs text-sol-text-dim flex-shrink-0">
+                    {item.task.ref}
+                  </span>
                   <span className="truncate">{item.task.title}</span>
                 </span>
               ) : (
                 <span className="flex-1 text-left">
                   {item.label}
-                  {item.hint && <span className="ml-1.5 text-sol-text-dim">{item.hint}</span>}
+                  {item.hint && (
+                    <span className="ml-1.5 text-sol-text-dim">
+                      {item.hint}
+                    </span>
+                  )}
                 </span>
               )}
               {item.task && item.hint && (
-                <span className={`text-xs flex-shrink-0 ${item.warn ? "text-sol-red" : "text-sol-text-dim"}`}>{item.hint}</span>
+                <span
+                  className={`text-xs flex-shrink-0 ${item.warn ? "text-sol-red" : "text-sol-text-dim"}`}
+                >
+                  {item.hint}
+                </span>
               )}
               {mode === "view" && item.kind === "project" && (
-                <span className="text-meta text-sol-text-dim/60 flex-shrink-0">project</span>
+                <span className="text-meta text-sol-text-dim/60 flex-shrink-0">
+                  project
+                </span>
               )}
               {typeof item.count === "number" && (
-                <span className="text-meta tabular-nums text-sol-text-dim/70 flex-shrink-0">{item.count}</span>
+                <span className="text-meta tabular-nums text-sol-text-dim/70 flex-shrink-0">
+                  {item.count}
+                </span>
               )}
-              {item.active && <Check className="w-4 h-4 text-sol-cyan flex-shrink-0" />}
-              {mode === "snooze" ? <KeyCap size="xs">{item.key.toUpperCase()}</KeyCap> : i < 9 && <span className="flex gap-0.5"><KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap><KeyCap size="xs">{i + 1}</KeyCap></span>}
+              {item.active && (
+                <Check className="w-4 h-4 text-sol-cyan flex-shrink-0" />
+              )}
+              {mode === "snooze" ? (
+                <KeyCap size="xs">{item.key.toUpperCase()}</KeyCap>
+              ) : (
+                i < 9 && (
+                  <span className="flex gap-0.5">
+                    <KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap>
+                    <KeyCap size="xs">{i + 1}</KeyCap>
+                  </span>
+                )
+              )}
               {item.type === "agent" && mode === "agent_run" && (
-                <span className="text-meta text-sol-text-dim font-mono">&rarr;</span>
+                <span className="text-meta text-sol-text-dim font-mono">
+                  &rarr;
+                </span>
               )}
             </button>
           );
           if (!heading) return row;
           return (
             <div key={item.key}>
-              <div className="px-4 pt-2 pb-1 text-mark font-semibold uppercase tracking-widest text-sol-text-dim/70">{heading}</div>
+              <div className="px-4 pt-2 pb-1 text-mark font-semibold uppercase tracking-widest text-sol-text-dim/70">
+                {heading}
+              </div>
               {row}
             </div>
           );
@@ -1503,7 +2546,8 @@ export function ActionSubmenu({
         )}
         {numberedCount > 0 && (
           <span className="flex items-center gap-1">
-            <KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap><KeyCap size="xs">1-{Math.min(items.length, 9)}</KeyCap>
+            <KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap>
+            <KeyCap size="xs">1-{Math.min(items.length, 9)}</KeyCap>
             quick pick
           </span>
         )}
@@ -1566,13 +2610,29 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { open: paletteOpen, targets: initialTargets, targetType: initialTargetType, initialMode, initialQuery: paletteInitialQuery, pick } = useInboxStore((s) => s.palette);
-  const [drilled, setDrilled] = useState<{ type: PaletteTargetType; row: any; query: string } | null>(null);
+  const {
+    open: paletteOpen,
+    targets: initialTargets,
+    targetType: initialTargetType,
+    initialMode,
+    initialQuery: paletteInitialQuery,
+    pick,
+  } = useInboxStore((s) => s.palette);
+  const [drilled, setDrilled] = useState<{
+    type: PaletteTargetType;
+    row: any;
+    query: string;
+  } | null>(null);
   const followLeaderId = useInboxStore((s) => s.followLeaderId);
   // A drilled teammate's follow state reads the store, not the row taken at
   // drill time, so the verb flips the moment the follow does.
   const targets = useMemo(
-    () => !drilled ? initialTargets : drilled.type === "person" ? [{ ...drilled.row, following: followLeaderId === drilled.row._id }] : [drilled.row],
+    () =>
+      !drilled
+        ? initialTargets
+        : drilled.type === "person"
+          ? [{ ...drilled.row, following: followLeaderId === drilled.row._id }]
+          : [drilled.row],
     [drilled, initialTargets, followLeaderId],
   );
   const targetType = drilled?.type ?? initialTargetType;
@@ -1582,12 +2642,18 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // through pick.onPick instead of navigating, and the caller's extra rows
   // (e.g. "new agent session") sit on top.
   const picking = !!pick;
-  const pickAllows = useCallback((kind: PalettePickKind) => !pick || pick.kinds.includes(kind), [pick]);
+  const pickAllows = useCallback(
+    (kind: PalettePickKind) => !pick || pick.kinds.includes(kind),
+    [pick],
+  );
   // Two-step pick (pick.notePlaceholder set): the chosen target waits here
   // while the confirm step collects the optional note. The query is captured
   // at choose time — needsQuery extras read it from the search box. The note
   // itself lives in MessageInput's draft under PALETTE_PICK_DRAFT.
-  const [pickChosen, setPickChosen] = useState<{ target: PalettePickTarget; query: string } | null>(null);
+  const [pickChosen, setPickChosen] = useState<{
+    target: PalettePickTarget;
+    query: string;
+  } | null>(null);
   const pickConfirmRef = useRef<HTMLDivElement>(null);
   const pickDropRef = useRef<((files: File[]) => void) | null>(null);
   const closePalette = useInboxStore((s) => s.closePalette);
@@ -1600,9 +2666,14 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   const { killManyWithNotice } = useTriggerKillNotice();
   // A kill that would cut a turn off or cancel what the session waits on asks
   // first, the same review the card menu shows (killReviewOf).
-  const [killReview, setKillReview] = useState<{ ids: string[]; ledger: SwitchLedger } | null>(null);
+  const [killReview, setKillReview] = useState<{
+    ids: string[];
+    ledger: SwitchLedger;
+  } | null>(null);
   const { user: currentUser } = useCurrentUser();
-  const teamMembers = useInboxStore((s) => teamMembersOf(s).length > 0 ? teamMembersOf(s) : undefined);
+  const teamMembers = useInboxStore((s) =>
+    teamMembersOf(s).length > 0 ? teamMembersOf(s) : undefined,
+  );
   const openDm = useOpenDm();
 
   const open = standalone || paletteOpen;
@@ -1633,7 +2704,8 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // from the store. Captured at open (already pre-synced) so a closed palette
   // ignores entity-sync churn and an open one doesn't re-render on it.
   const mentionIndex = useMemo(
-    () => (open ? searchIndexOf(useInboxStore.getState()) : EMPTY_MENTION_INDEX),
+    () =>
+      open ? searchIndexOf(useInboxStore.getState()) : EMPTY_MENTION_INDEX,
     [open],
   );
   // Workspace scoping uses the active-team pointer alone: an unset pointer IS
@@ -1651,7 +2723,13 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // Flows among them where the workspace has it, as the Modern rail does.
   const modernStyle = useIsModernStyle();
   const flowsOn = useWorkspaceFeature("line");
-  const featuresOn: Partial<Record<TeamFeatureKey, boolean>> = { chat: chatOn, calls: callsOn, org: orgOn, changes: changesOn, line: modernStyle && flowsOn };
+  const featuresOn: Partial<Record<TeamFeatureKey, boolean>> = {
+    chat: chatOn,
+    calls: callsOn,
+    org: orgOn,
+    changes: changesOn,
+    line: modernStyle && flowsOn,
+  };
   const featureOn = (f: TeamFeatureKey | undefined) => !f || featuresOn[f];
 
   // Merge locally-loaded inbox sessions (own, instant) with the server list (own +
@@ -1660,10 +2738,14 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // sort while the palette is open, and the query above flips to "skip".
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   useWatchEffect(() => {
-    if (!open) { recentFrozenRef.current = false; setRecentSessions([]); return; }
+    if (!open) {
+      recentFrozenRef.current = false;
+      setRecentSessions([]);
+      return;
+    }
     if (recentFrozenRef.current) return;
     const byId = new Map<string, any>();
-    for (const c of (recentConversations ?? [])) byId.set(c._id, c);
+    for (const c of recentConversations ?? []) byId.set(c._id, c);
     // Scope the local cache like the inbox panel (and the chip counts above):
     // the store caches sessions across scopes, so an unfiltered merge would
     // resurface rows from a previously viewed scope as recents.
@@ -1678,11 +2760,22 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
     // August answers here too. A row held above stays the live one and only
     // learns what it began as; the index's own rows fill in the rest.
     const meId = state.currentUser?._id;
-    for (const row of Object.values(state.sessionIndex as Record<string, any>)) {
+    for (const row of Object.values(
+      state.sessionIndex as Record<string, any>,
+    )) {
       const held = byId.get(row._id);
-      byId.set(row._id, held ? { ...held, first_prompt: held.first_prompt ?? row.first_prompt } : { ...row, user_id: meId });
+      byId.set(
+        row._id,
+        held
+          ? { ...held, first_prompt: held.first_prompt ?? row.first_prompt }
+          : { ...row, user_id: meId },
+      );
     }
-    setRecentSessions(Array.from(byId.values()).sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0)));
+    setRecentSessions(
+      Array.from(byId.values()).sort(
+        (a, b) => (b.updated_at || 0) - (a.updated_at || 0),
+      ),
+    );
     // Server query has landed (undefined = still loading) → freeze.
     if (recentConversations !== undefined) recentFrozenRef.current = true;
   }, [open, recentConversations]);
@@ -1692,19 +2785,27 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // with a query the dedicated search groups below take over. The standalone
   // Electron palette window has its own store, so chip-view items (which
   // mutate THIS window's filters) are meaningless there and skipped.
-  const vaultReady = useVaultStore((st) => st.vaults.length > 0 || st.activeVaultId !== null);
+  const vaultReady = useVaultStore(
+    (st) => st.vaults.length > 0 || st.activeVaultId !== null,
+  );
 
   // Vault notes are searchable from Cmd+K like any entity. Snapshot the file
   // index at open (same pattern as mentionIndex): the vault store churns on
   // watcher events, and a transient overlay shouldn't re-render on them.
   const vaultFiles = useMemo(
-    () => (open && vaultReady ? useVaultStore.getState().files : EMPTY_VAULT_FILES),
+    () =>
+      open && vaultReady ? useVaultStore.getState().files : EMPTY_VAULT_FILES,
     [open, vaultReady],
   );
   const vaultNoteMatches = useMemo(() => {
     const q = rankQuery.trim().toLowerCase();
     if (!q) return [];
-    const ranked: Array<{ path: string; base: string; rank: number; mtime: number }> = [];
+    const ranked: Array<{
+      path: string;
+      base: string;
+      rank: number;
+      mtime: number;
+    }> = [];
     for (const [path, entry] of Object.entries(vaultFiles)) {
       if (entry.dir || !MARKDOWN_RE.test(path)) continue;
       const base = (path.split("/").pop() || path).replace(MARKDOWN_RE, "");
@@ -1723,14 +2824,21 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // roster; the feeder mounts only while a search is live.
   useSyncTriggers(open && rankQuery.trim().length >= 2);
   const identityPrefs = useIdentityPrefs();
-  const favorites = useMemo(() => (allFavorites ?? []) as any[], [allFavorites]);
+  const favorites = useMemo(
+    () => (allFavorites ?? []) as any[],
+    [allFavorites],
+  );
   const triggerList = useCollectionRows<any>("agentTasks", { sig: triggerSig });
   // A query that is a kind's word ("routines") lists that kind; its rows
   // rank as title hits (PALETTE_KIND), above a snippet-only conversation.
   const listedKind = kindOfQuery(rankQuery);
-  const entityValuePrefix = (kind: "task" | "doc" | "routine") => (listedKind === kind ? PALETTE_KIND : "__entity__");
+  const entityValuePrefix = (kind: "task" | "doc" | "routine") =>
+    listedKind === kind ? PALETTE_KIND : "__entity__";
   const triggerMatches = useMemo(
-    () => (Array.isArray(triggerList) ? matchRoutines<any>(triggerList, rankQuery, 6) : []),
+    () =>
+      Array.isArray(triggerList)
+        ? matchRoutines<any>(triggerList, rankQuery, 6)
+        : [],
     [triggerList, rankQuery],
   );
 
@@ -1738,14 +2846,18 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   const { dispatchAction } = useShortcuts();
   const { theme, toggleTheme, visualStyle, setVisualStyle } = useTheme();
   const createKinds = useCreateKinds();
-  const recentVisits = useInboxStore((s) => (open ? s.recentVisits : EMPTY_RECENT_VISITS));
+  const recentVisits = useInboxStore((s) =>
+    open ? s.recentVisits : EMPTY_RECENT_VISITS,
+  );
   // The conversation already open is the palette's own context row, so it
   // never repeats as a recent place.
   const recentVisitRows = useMemo(() => {
     if (!open) return [];
     const st = useInboxStore.getState();
     const here = st.currentSessionId;
-    return resolveRecentVisits(st, RECENT_VISITS_RENDER_CAP + 1, { skipViews: standalone })
+    return resolveRecentVisits(st, RECENT_VISITS_RENDER_CAP + 1, {
+      skipViews: standalone,
+    })
       .filter((row) => !here || row.sessionId !== here)
       .slice(0, RECENT_VISITS_RENDER_CAP);
   }, [recentVisits, open, standalone]);
@@ -1754,9 +2866,13 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // field — resolve it live from the same assignment rows the session panel
   // uses. Gated on `open` so a closed palette ignores filing churn.
   const buckets = useInboxStore((s) => (open ? s.buckets : EMPTY_BUCKETS));
-  const bucketAssignments = useInboxStore((s) => (open ? s.bucketAssignments : EMPTY_BUCKET_ASSIGNMENTS));
+  const bucketAssignments = useInboxStore((s) =>
+    open ? s.bucketAssignments : EMPTY_BUCKET_ASSIGNMENTS,
+  );
   const labelForConv = useMemo(() => {
-    const byConv = convBucketMap(bucketAssignments as Record<string, BucketAssignmentItem>);
+    const byConv = convBucketMap(
+      bucketAssignments as Record<string, BucketAssignmentItem>,
+    );
     const all = buckets as Record<string, BucketItem>;
     return (convId: string): BucketItem | null => {
       const id = byConv[convId];
@@ -1771,11 +2887,17 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // A pick's exclusions (a session already in the call) leave the recents
   // too, and so does a role's standing agent while the role has its own row.
   const { roles: orgRoles } = useOrgRoles();
-  const { people: pickPeople, roles: pickRoles } = useRolesAndPeopleOptions(teamMembers ?? NO_MEMBERS);
+  const { people: pickPeople, roles: pickRoles } = useRolesAndPeopleOptions(
+    teamMembers ?? NO_MEMBERS,
+  );
   const recentPool = useMemo(() => {
     const skip = new Set(pick?.exclude ?? []);
-    if (picking && pickAllows("role")) for (const r of orgRoles) if (r.standing?.conversation_id) skip.add(r.standing.conversation_id);
-    return skip.size ? recentSessions.filter((c: any) => !skip.has(String(c._id))) : recentSessions;
+    if (picking && pickAllows("role"))
+      for (const r of orgRoles)
+        if (r.standing?.conversation_id) skip.add(r.standing.conversation_id);
+    return skip.size
+      ? recentSessions.filter((c: any) => !skip.has(String(c._id)))
+      : recentSessions;
   }, [recentSessions, pick, picking, pickAllows, orgRoles]);
   // Where each recent stands (who acts next, set aside, a worker, whose),
   // read once per frozen pool: the inbox's own placement when it holds the
@@ -1783,44 +2905,83 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   const standingOf = useMemo(() => {
     const state = useInboxStore.getState() as any;
     const meId = state.currentUser?._id ? String(state.currentUser._id) : null;
-    const placements = recentPool.length ? placeInboxRows(state).placements : null;
+    const placements = recentPool.length
+      ? placeInboxRows(state).placements
+      : null;
     const byId = new Map<string, SessionStanding>();
     for (const c of recentPool) {
       const id = String(c._id);
-      byId.set(id, sessionStanding(c, meId, placements?.get(id) ?? state.sessions[id] ?? null));
+      byId.set(
+        id,
+        sessionStanding(
+          c,
+          meId,
+          placements?.get(id) ?? state.sessions[id] ?? null,
+        ),
+      );
     }
-    return (c: any) => byId.get(String(c._id)) ?? sessionStanding(c, meId, null);
+    return (c: any) =>
+      byId.get(String(c._id)) ?? sessionStanding(c, meId, null);
   }, [recentPool]);
   const recentMatches = useMemo(() => {
     const q = rankQuery.trim().toLowerCase();
     // A typed query ranks favorites with everything else, by how well the
     // words name them: a favorite is not a reason to outrank a title that
     // starts with what was typed. The Favorites group is the empty palette's.
-    const pool = q && favorites?.length ? withFavorites(recentPool, favorites, pick?.exclude) : recentPool;
+    const pool =
+      q && favorites?.length
+        ? withFavorites(recentPool, favorites, pick?.exclude)
+        : recentPool;
     // One ranking for every session search (lib/instantSessionSearch): how
     // directly the words name it, then where it stands and how recent it is.
-    return rankSessions(pool, q, standingOf, q ? RECENT_RENDER_CAP : RECENT_IDLE_CAP);
+    return rankSessions(
+      pool,
+      q,
+      standingOf,
+      q ? RECENT_RENDER_CAP : RECENT_IDLE_CAP,
+    );
   }, [recentPool, rankQuery, standingOf, favorites, pick]);
   // The machine most recents run on goes unsaid; a row names its machine only
   // when it runs somewhere else (a cloud host, the other laptop).
-  const machineRoster = useInboxStore((s) => (open ? s.machineRoster : EMPTY_ROSTER)) as Device[];
+  const machineRoster = useInboxStore((s) =>
+    open ? s.machineRoster : EMPTY_ROSTER,
+  ) as Device[];
   const hostedFirst = useOnlyHostedAgent();
   const deviceOfRecent = useMemo(() => {
     if (machineRoster.length < 2) return () => undefined;
     const counts = new Map<string, number>();
-    for (const c of recentPool) if (c.owner_device_id) counts.set(c.owner_device_id, (counts.get(c.owner_device_id) ?? 0) + 1);
+    for (const c of recentPool)
+      if (c.owner_device_id)
+        counts.set(c.owner_device_id, (counts.get(c.owner_device_id) ?? 0) + 1);
     let usual: string | null = null;
-    for (const [id, n] of counts) if (!usual || n > counts.get(usual)!) usual = id;
+    for (const [id, n] of counts)
+      if (!usual || n > counts.get(usual)!) usual = id;
     return (c: any): Device | undefined =>
-      c.owner_device_id && c.owner_device_id !== usual ? rosterDeviceOf(machineRoster, c.owner_device_id) : undefined;
+      c.owner_device_id && c.owner_device_id !== usual
+        ? rosterDeviceOf(machineRoster, c.owner_device_id)
+        : undefined;
   }, [machineRoster, recentPool]);
 
   // Search tasks / docs / plans over the mention index. Only when there's a
   // query — the empty palette stays session-focused. Plan-type docs are excluded
   // from Documents so they don't double up with the Plans group.
-  const { tasks: taskMatches, docs: docMatches, plans: planMatches } = useMemo(() => {
-    const browse = { task: picking && pickAllows("task"), doc: picking && pickAllows("doc"), plan: picking && pickAllows("plan") };
-    return matchMentionGroups(mentionIndex as any, rankQuery, activeTeamId, ENTITY_RENDER_CAP, browse);
+  const {
+    tasks: taskMatches,
+    docs: docMatches,
+    plans: planMatches,
+  } = useMemo(() => {
+    const browse = {
+      task: picking && pickAllows("task"),
+      doc: picking && pickAllows("doc"),
+      plan: picking && pickAllows("plan"),
+    };
+    return matchMentionGroups(
+      mentionIndex as any,
+      rankQuery,
+      activeTeamId,
+      ENTITY_RENDER_CAP,
+      browse,
+    );
   }, [mentionIndex, rankQuery, activeTeamId, picking, pickAllows]);
 
   // The server tier (hooks/useRemoteSearch): session content and titles, and
@@ -1828,13 +2989,28 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // cmdk keeps the first row it selected. Full-search / new-session / new-note
   // always match, so if they mount before conversation search answers, Enter
   // never opens a hit: they wait on searchAwaiting.
-  const { debouncedQuery, sessionSearchOn, searchRows: allSearchRows, searchError, contentLoaded: searchData, titlesLoaded: titleData, searchAwaiting, chatHits } =
-    useRemoteSearch(rankQuery, { enabled: open, chatTeamId: chatOn ? activeTeamId : null });
+  const {
+    debouncedQuery,
+    sessionSearchOn,
+    searchRows: allSearchRows,
+    searchError,
+    contentLoaded: searchData,
+    titlesLoaded: titleData,
+    searchAwaiting,
+    chatHits,
+  } = useRemoteSearch(rankQuery, {
+    enabled: open,
+    chatTeamId: chatOn ? activeTeamId : null,
+  });
   // The server tier never repeats a conversation the recents above already show.
-  const recentIdSig = recentMatches.map((conv: any) => String(conv._id)).join(",");
+  const recentIdSig = recentMatches
+    .map((conv: any) => String(conv._id))
+    .join(",");
   const searchRows = useMemo(() => {
     const shown = new Set(recentIdSig.split(","));
-    return allSearchRows.filter((r: any) => !shown.has(String(r.conversationId)));
+    return allSearchRows.filter(
+      (r: any) => !shown.has(String(r.conversationId)),
+    );
   }, [allSearchRows, recentIdSig]);
   // Where only the assistant can answer, the Ask row leads a query nothing
   // here matched yet. Results that land later go above it (askLeads), and
@@ -1844,8 +3020,17 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   useWatchEffect(() => {
     if (!hostedFirst || searchRows.length === 0) return;
     const root = paletteRef.current;
-    if (!root?.querySelector('[cmdk-item][aria-selected="true"][data-palette-ask]')) return;
-    root.querySelector("input")?.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    if (
+      !root?.querySelector(
+        '[cmdk-item][aria-selected="true"][data-palette-ask]',
+      )
+    )
+      return;
+    root
+      .querySelector("input")
+      ?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Home", bubbles: true }),
+      );
   }, [searchRows.length, hostedFirst]);
 
   // Chat rooms by name — a SNAPSHOT read (getState), not a subscription: the
@@ -1860,20 +3045,36 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
     // the DM on pick.
     const pickingChannels = picking && pickAllows("channel");
     if (!open || !chatOn || (!pickingChannels && rankQuery.trim().length < 1))
-      return [] as Array<{ id: string; label: string; kind?: string; isPrivate?: boolean; image?: string }>;
+      return [] as Array<{
+        id: string;
+        label: string;
+        kind?: string;
+        isPrivate?: boolean;
+        image?: string;
+      }>;
     const state = useInboxStore.getState() as any;
-    const viewerId = state.currentUser?._id ? String(state.currentUser._id) : "";
+    const viewerId = state.currentUser?._id
+      ? String(state.currentUser._id)
+      : "";
     const members = teamMembersOf(state);
     const teamScope = activeTeamId ? String(activeTeamId) : undefined;
     const q = rankQuery.trim().toLowerCase();
-    const rows: Array<{ id: string; label: string; kind?: string; isPrivate?: boolean; image?: string; s: number; t: number }> = [];
+    const rows: Array<{
+      id: string;
+      label: string;
+      kind?: string;
+      isPrivate?: boolean;
+      image?: string;
+      s: number;
+      t: number;
+    }> = [];
     const dmPartners = new Set<string>();
     // The rail's rooms in the rail's scope, ranked by who you actually talk
     // to: recent and frequent rooms first, never by row churn (updated_at).
     const rail = selectChatRail(state, viewerId, teamScope);
     const frecency = chatFrecency(rail, state.chatMessages ?? {});
     for (const c of rail) {
-      const others = c.kind === "dm" ? c.dmMemberIds ?? [] : [];
+      const others = c.kind === "dm" ? (c.dmMemberIds ?? []) : [];
       if (c.kind === "dm" && !others.length) continue;
       if (c.kind === "dm" && others.length === 1) dmPartners.add(others[0]);
       const label = channelDisplayName(c, members);
@@ -1881,20 +3082,38 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
       const counterpart = dmCounterpart(c, members);
       const s = matchScore(label, q);
       if (s === Infinity) continue;
-      rows.push({ id: c.id, label, kind: c.kind, isPrivate: c.isPrivate, image: memberAvatarUrl(counterpart), s, t: frecency.get(c.id) ?? 0 });
+      rows.push({
+        id: c.id,
+        label,
+        kind: c.kind,
+        isPrivate: c.isPrivate,
+        image: memberAvatarUrl(counterpart),
+        s,
+        t: frecency.get(c.id) ?? 0,
+      });
     }
     if (pickingChannels) {
       for (const m of members) {
         const mid = m?._id ? String(m._id) : "";
-        if (!mid || mid === viewerId || dmPartners.has(mid) || !isPerson(m)) continue;
+        if (!mid || mid === viewerId || dmPartners.has(mid) || !isPerson(m))
+          continue;
         const label = memberName(m);
         if (!label) continue;
         const s = matchScore(label, q);
         if (s === Infinity) continue;
-        rows.push({ id: mid, label, kind: "person", image: memberAvatarUrl(m), s, t: 0 });
+        rows.push({
+          id: mid,
+          label,
+          kind: "person",
+          image: memberAvatarUrl(m),
+          s,
+          t: 0,
+        });
       }
     }
-    return rows.sort((a, b) => a.s - b.s || b.t - a.t).slice(0, pickingChannels ? 12 : 5);
+    return rows
+      .sort((a, b) => a.s - b.s || b.t - a.t)
+      .slice(0, pickingChannels ? 12 : 5);
   }, [open, rankQuery, activeTeamId, chatOn, picking, pick]);
 
   // Person and role pick (e.g. "add to the call"): the one people and roles
@@ -1904,15 +3123,28 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   const whoRows = useMemo(() => {
     const allow = (k: PalettePickKind) => picking && pickAllows(k);
     if (!open || (!allow("person") && !allow("role"))) return [];
-    const viewerId = String((useInboxStore.getState() as any).currentUser?._id ?? "");
+    const viewerId = String(
+      (useInboxStore.getState() as any).currentUser?._id ?? "",
+    );
     return pickWhoRows({
       people: allow("person") ? pickPeople : null,
       roles: allow("role") ? pickRoles : null,
-      standing: new Map(orgRoles.map((r) => [String(r._id), r.standing?.conversation_id])),
+      standing: new Map(
+        orgRoles.map((r) => [String(r._id), r.standing?.conversation_id]),
+      ),
       skip: new Set([viewerId, ...(pick?.exclude ?? [])]),
       query: rankQuery,
     });
-  }, [open, rankQuery, picking, pick, pickAllows, pickPeople, pickRoles, orgRoles]);
+  }, [
+    open,
+    rankQuery,
+    picking,
+    pick,
+    pickAllows,
+    pickPeople,
+    pickRoles,
+    orgRoles,
+  ]);
 
   // Where each teammate is, from the roster SNAPSHOT (getState): the roster
   // re-pushes on every teammate heartbeat and the palette must not re-render
@@ -1923,17 +3155,30 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   const teammateRows = useMemo(() => {
     if (!open || picking) return [] as TeammateWhereabouts[];
     const state = useInboxStore.getState() as any;
-    const viewerId = state.currentUser?._id ? String(state.currentUser._id) : null;
-    return teammateWhereabouts(teamMembersOf(state), viewerId, rankQuery, state.sessions, state.followLeaderId ?? null).slice(0, 6);
+    const viewerId = state.currentUser?._id
+      ? String(state.currentUser._id)
+      : null;
+    return teammateWhereabouts(
+      teamMembersOf(state),
+      viewerId,
+      rankQuery,
+      state.sessions,
+      state.followLeaderId ?? null,
+    ).slice(0, 6);
   }, [open, rankQuery, picking]);
 
   const chatAuthorName = useCallback((hit: LineAuthorFields) => {
     const members = teamMembersOf(useInboxStore.getState());
-    return lineAuthorFor(hit, { members: new Map(members.map((m) => [String(m._id), m])), ...chatAuthorLookupsNow() }).name;
+    return lineAuthorFor(hit, {
+      members: new Map(members.map((m) => [String(m._id), m])),
+      ...chatAuthorLookupsNow(),
+    }).name;
   }, []);
 
   const projectRows = useWorkspaceCollection<any>("projects");
-  const projectMatches = rankQuery.trim() ? matchProjects(projectRows, rankQuery, 8) : projectRows.slice(0, 8);
+  const projectMatches = rankQuery.trim()
+    ? matchProjects(projectRows, rankQuery, 8)
+    : projectRows.slice(0, 8);
   // The company's goals and roles, found by title or handle the way a project
   // is, and opened on the Org screen (objectHref). A role answers to its
   // `@handle` as written.
@@ -1961,7 +3206,11 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
       setActionSearch("");
       setDrilled(null);
       setQuery(paletteInitialQuery || "");
-      setActionMode(initialMode !== "root" && initialMode !== "actions" ? initialMode as ActionMode : null);
+      setActionMode(
+        initialMode !== "root" && initialMode !== "actions"
+          ? (initialMode as ActionMode)
+          : null,
+      );
       setEnteredViaRoot(false);
       setPickChosen(null);
       useInboxStore.getState().clearDraft(PALETTE_PICK_DRAFT);
@@ -2022,7 +3271,7 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
       router.push(path);
       closePalette();
     },
-    [router, standalone, closePalette]
+    [router, standalone, closePalette],
   );
 
   // A typed decision or stack short id (`sd-12`, `ds-3`) resolves to its page
@@ -2057,32 +3306,58 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // /search box offers. A value list outranks every match (a dangling
   // operator searches nothing yet); operator names sit below real matches,
   // since the word may just be text (paletteItemScore reads the kind).
-  const { completion: filterCompletion, suggestions: filterSuggestions } = useSessionQuerySuggestions(
-    !picking && !drilled ? query : "",
-  );
+  const { completion: filterCompletion, suggestions: filterSuggestions } =
+    useSessionQuerySuggestions(!picking && !drilled ? query : "");
 
-  const openVaultNote = useCallback((path: string) => {
-    useVaultStore.getState().noteOpened(path);
-    navigate(filesHref({ path }));
-  }, [navigate]);
+  const openVaultNote = useCallback(
+    (path: string) => {
+      useVaultStore.getState().noteOpened(path);
+      navigate(filesHref({ path }));
+    },
+    [navigate],
+  );
 
   // One compose entry for both hosts: the standalone Electron palette window
   // flips itself into the compose popup; in-app opens the compose overlay.
   // `dock` asks for the small docked composer; the standalone window has no
   // dock to open it in, so it keeps its one popup.
-  const startCompose = useCallback((text: string, dock = false) => {
-    if (standalone) {
-      window.dispatchEvent(new CustomEvent("codecast-compose", { detail: text }));
-    } else {
-      closePalette();
-      useInboxStore.getState().openCompose(text || undefined, undefined, { dock });
-    }
-  }, [standalone, closePalette]);
+  const startCompose = useCallback(
+    (text: string, dock = false) => {
+      if (standalone) {
+        window.dispatchEvent(
+          new CustomEvent("codecast-compose", { detail: text }),
+        );
+      } else {
+        closePalette();
+        useInboxStore
+          .getState()
+          .openCompose(text || undefined, undefined, { dock });
+      }
+    },
+    [standalone, closePalette],
+  );
 
   const navigateToSession = useCallback(
     (
-      conv: { _id: string; session_id?: string; title?: string; updated_at?: number; project_path?: string; git_root?: string; agent_type?: string; message_count?: number; is_idle?: boolean; user_id?: string; authorName?: string | null; authorAvatar?: string | null; inbox_killed_at?: number | null; inbox_dismissed_at?: number | null; inbox_stashed_at?: number | null; inbox_pinned_at?: number | null },
-      opts?: { messageId?: string; highlight?: string }
+      conv: {
+        _id: string;
+        session_id?: string;
+        title?: string;
+        updated_at?: number;
+        project_path?: string;
+        git_root?: string;
+        agent_type?: string;
+        message_count?: number;
+        is_idle?: boolean;
+        user_id?: string;
+        authorName?: string | null;
+        authorAvatar?: string | null;
+        inbox_killed_at?: number | null;
+        inbox_dismissed_at?: number | null;
+        inbox_stashed_at?: number | null;
+        inbox_pinned_at?: number | null;
+      },
+      opts?: { messageId?: string; highlight?: string },
     ) => {
       const hash = opts?.messageId ? `#msg-${opts.messageId}` : "";
       const conversationPath = `/conversation/${conv._id}${hash}`;
@@ -2101,24 +3376,30 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
         // and a stashed one flashed into the inbox as an active card at boot
         // (ct-42666). Both palette sources supply them: favorites pass whole
         // store rows, performListRecentSessions projects them off the doc.
-        store.injectSession(sessionRowFromSummary({
-          ...conv,
-          // Search/recent results null out author for own sessions, so a present
-          // authorName means "not mine" — carry it so the card labels whose it is.
-          author_name: conv.authorName ?? null,
-          author_avatar: conv.authorAvatar ?? null,
-        }));
+        store.injectSession(
+          sessionRowFromSummary({
+            ...conv,
+            // Search/recent results null out author for own sessions, so a present
+            // authorName means "not mine" — carry it so the card labels whose it is.
+            author_name: conv.authorName ?? null,
+            author_avatar: conv.authorAvatar ?? null,
+          }),
+        );
       } else {
         store.navigateToSession(conv._id);
       }
       if (isInboxRoute(pathname) || pathname?.startsWith("/conversation/")) {
-        window.history.pushState(withInboxView({ inboxId: conv._id }), "", conversationPath);
+        window.history.pushState(
+          withInboxView({ inboxId: conv._id }),
+          "",
+          conversationPath,
+        );
       } else {
         router.push(conversationPath);
       }
       closePalette();
     },
-    [router, pathname, standalone, closePalette]
+    [router, pathname, standalone, closePalette],
   );
 
   // Pick mode: report the choice to the caller and close. Session rows go
@@ -2137,32 +3418,54 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
     },
     [pick, query, closePalette],
   );
-  const sendPick = useCallback((note?: string, attachments?: ChatAttachment[]) => {
-    if (!pick || !pickChosen) return;
-    const trimmed = (note ?? "").trim();
-    pick.onPick(pickChosen.target, {
-      note: trimmed || undefined,
-      query: pickChosen.query,
-      attachments: attachments?.length ? attachments : undefined,
-    });
-    closePalette();
-  }, [pick, pickChosen, closePalette]);
+  const sendPick = useCallback(
+    (note?: string, attachments?: ChatAttachment[]) => {
+      if (!pick || !pickChosen) return;
+      const trimmed = (note ?? "").trim();
+      pick.onPick(pickChosen.target, {
+        note: trimmed || undefined,
+        query: pickChosen.query,
+        attachments: attachments?.length ? attachments : undefined,
+      });
+      closePalette();
+    },
+    [pick, pickChosen, closePalette],
+  );
   const submitPickConfirm = useCallback(() => {
     const form = pickConfirmRef.current?.querySelector("form");
-    const submit = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
+    const submit = form?.querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    );
     if (form && submit && !submit.disabled) form.requestSubmit();
     else sendPick("");
   }, [sendPick]);
   const chooseSession = useCallback(
-    (conv: Parameters<typeof navigateToSession>[0], opts?: Parameters<typeof navigateToSession>[1]) => {
-      if (pick) return finishPick({ kind: "session", id: conv._id, label: sessionCardTitle(conv) });
+    (
+      conv: Parameters<typeof navigateToSession>[0],
+      opts?: Parameters<typeof navigateToSession>[1],
+    ) => {
+      if (pick)
+        return finishPick({
+          kind: "session",
+          id: conv._id,
+          label: sessionCardTitle(conv),
+        });
       navigateToSession(conv, opts);
     },
     [pick, finishPick, navigateToSession],
   );
   const chooseEntity = useCallback(
-    (kind: Exclude<PalettePickKind, "session">, rec: { _id: string; title?: string }, path: string) => {
-      if (pick) return finishPick({ kind, id: rec._id, label: rec.title || "Untitled" });
+    (
+      kind: Exclude<PalettePickKind, "session">,
+      rec: { _id: string; title?: string },
+      path: string,
+    ) => {
+      if (pick)
+        return finishPick({
+          kind,
+          id: rec._id,
+          label: rec.title || "Untitled",
+        });
       navigate(path);
     },
     [pick, finishPick, navigate],
@@ -2190,155 +3493,314 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
 
   // A teammate's verbs, from the drilled person or a root "name › verb" row.
   // The huddle is not here: its word is live call state (PersonHuddleItem).
-  const runPersonAction = useCallback((person: PalettePerson, actionKey: string) => {
-    const state = useInboxStore.getState();
-    const path = paletteObjectPath("person", person);
-    if (actionKey === "person_follow") {
-      if (state.followLeaderId === person._id) { state.setFollowLeader(null); closePalette(); return; }
-      state.setFollowLeader(person._id);
-      if (person.session) navigateToSession(state.sessions[person.session._id] ?? person.session);
-      else closePalette();
-      return;
-    }
-    if (actionKey === "person_message") { closePalette(); openDm([person._id]); return; }
-    if (actionKey === "open") { navigate(path); return; }
-    if (actionKey === "newtab") { window.open(path, "_blank"); closePalette(); return; }
-    if (actionKey === "copylink") { void copyToClipboard(`${shareOrigin()}${path}`).then(() => toast.success("Link copied")); closePalette(); }
-  }, [closePalette, navigate, navigateToSession, openDm]);
+  const runPersonAction = useCallback(
+    (person: PalettePerson, actionKey: string) => {
+      const state = useInboxStore.getState();
+      const path = paletteObjectPath("person", person);
+      if (actionKey === "person_follow") {
+        if (state.followLeaderId === person._id) {
+          state.setFollowLeader(null);
+          closePalette();
+          return;
+        }
+        state.setFollowLeader(person._id);
+        if (person.session)
+          navigateToSession(
+            state.sessions[person.session._id] ?? person.session,
+          );
+        else closePalette();
+        return;
+      }
+      if (actionKey === "person_message") {
+        closePalette();
+        openDm([person._id]);
+        return;
+      }
+      if (actionKey === "open") {
+        navigate(path);
+        return;
+      }
+      if (actionKey === "newtab") {
+        window.open(path, "_blank");
+        closePalette();
+        return;
+      }
+      if (actionKey === "copylink") {
+        void copyToClipboard(`${shareOrigin()}${path}`).then(() =>
+          toast.success("Link copied"),
+        );
+        closePalette();
+      }
+    },
+    [closePalette, navigate, navigateToSession, openDm],
+  );
 
   // Root action handlers
-  const handleRootAction = useCallback((actionKey: string) => {
-    if (!targets.length) return;
-    const target = targets[0] as any;
+  const handleRootAction = useCallback(
+    (actionKey: string) => {
+      if (!targets.length) return;
+      const target = targets[0] as any;
 
-    if (["device", "snooze", "status", "priority", "labels", "assign", "type", "plan_status", "agent_run", "agent_switch", "agent_fork", "agent_handoff", "rename", "project", "project_status", "deadline", "trigger_cancel", "trigger_delete", "session_delete", "bucket", "model", "parent", "blocker", "related", "character"].includes(actionKey)) {
-      setActionSearch("");
-      setEnteredViaRoot(true);
-      setActionMode(actionKey as ActionMode);
-      return;
-    }
-
-    const state = useInboxStore.getState();
-    if (!targetType) return;
-    if (targetType === "person") { runPersonAction(target as PalettePerson, actionKey); return; }
-    const path = paletteObjectPath(targetType, target);
-    const viewCommand = targetType === "session" && targets.length === 1 ? getPaletteSessionCommands(target._id).find(command => command.key === actionKey) : undefined;
-    if (viewCommand) { closePalette(); viewCommand.run(); return; }
-    if (actionKey === "open") {
-      if (targetType === "session") navigateToSession(target);
-      else navigate(path);
-      return;
-    }
-    if (actionKey === "newtab") { window.open(path, "_blank"); closePalette(); return; }
-    if (actionKey === "copylink") { void copyToClipboard(`${shareOrigin()}${path}`).then(() => toast.success("Link copied")); closePalette(); return; }
-    if (actionKey === "forward") { openForwardToChat({ url: `${shareOrigin()}${path}`, label: targetType, previewTitle: target.display_title || target.title || target.name }); return; }
-    if (actionKey.startsWith("create_")) { closePalette(); openCreateModal(actionKey.slice(7) as "task" | "plan" | "doc", targetType === "project" ? { project_id: target._id } : { plan_id: target._id, project_id: target.project_id }); return; }
-    if (actionKey === "clear_deadline") { state.updateProject(target._id, { target_date: null }); closePalette(); return; }
-    if (actionKey === "project_board") { navigate(`/projects/${target.short_id || target._id}`); return; }
-    if (actionKey === "trigger_duplicate") { navigate(`/triggers?task=${target._id}&duplicate=1`); return; }
-    if (actionKey === "trigger_prompt") { void copyToClipboard(target.prompt || "").then(() => toast.success("Prompt copied")); closePalette(); return; }
-    if (actionKey === "trigger_edit") { navigate(`/triggers?task=${target._id}&edit=1`); return; }
-    if (actionKey.startsWith("trigger_")) { state.triggerAction(target._id, actionKey.slice(8) as "pause" | "resume" | "runNow" | "reactivate"); closePalette(); return; }
-
-    if (actionKey === "remove_parent" && targetType === "task") {
-      const nested = (targets as TaskItem[]).filter((t) => (t as any).parent_id);
-      undoAsOne(`Removed the parent of ${counted(nested.length, "task")}`, () => {
-        for (const t of nested) setTaskParent(t.short_id, "");
-      });
-      toast.success("Parent removed");
-      closePalette();
-      return;
-    }
-
-    if (actionKey === "copy") {
-      if (targetType === "task" && isTask(target)) {
-        copyToClipboard(target.short_id);
-        toast.success(`Copied ${target.short_id}`);
-      } else if (targetType === "plan") {
-        copyToClipboard(target.short_id || target._id);
-        toast.success(`Copied ${target.short_id || target._id}`);
-      } else {
-        copyToClipboard(target.short_id || target._id);
-        toast.success("Copied ID");
+      if (
+        [
+          "device",
+          "snooze",
+          "status",
+          "priority",
+          "labels",
+          "assign",
+          "type",
+          "plan_status",
+          "agent_run",
+          "agent_switch",
+          "agent_fork",
+          "agent_handoff",
+          "rename",
+          "project",
+          "project_status",
+          "deadline",
+          "trigger_cancel",
+          "trigger_delete",
+          "session_delete",
+          "bucket",
+          "model",
+          "parent",
+          "blocker",
+          "related",
+          "character",
+        ].includes(actionKey)
+      ) {
+        setActionSearch("");
+        setEnteredViaRoot(true);
+        setActionMode(actionKey as ActionMode);
+        return;
       }
-      closePalette();
-      return;
-    }
 
-    if (actionKey === "drop" && targetType === "task") {
-      let deferred = false;
-      undoAsOne(`Dropped ${counted(targets.length, "task")}`, () => {
-        for (const t of targets as TaskItem[]) {
-          if (closeTaskWithGuard(t.short_id, "dropped").needsConfirm) deferred = true;
-        }
-      });
-      if (!deferred) toast.success("Task dropped");
-      closePalette();
-      return;
-    }
-
-    if (actionKey === "pin" && targetType === "doc") {
-      const doc = target as DocItem;
-      pinDoc(doc._id, !doc.pinned);
-      toast.success(doc.pinned ? "Unstarred" : "Starred");
-      closePalette();
-      return;
-    }
-
-    if (actionKey === "archive" && targetType === "doc") {
-      undoAsOne(`Archived ${counted(targets.length, "document")}`, () => {
-        for (const doc of targets) state.archiveDoc(doc._id);
-      });
-      router.push("/docs");
-      closePalette();
-      return;
-    }
-
-    // Session actions. The single row verbs read targets[0]; every other verb
-    // runs once per target, so a ticked selection acts as one gesture.
-    if (targetType === "session") {
-      const session = target as InboxSession;
-      // The palette's row can predate a toggle; the store says what the star shows now.
-      if (actionKey === "session_parent") { navigate(`/conversation/${session.parent_conversation_id}`); return; }
-      if (actionKey === "session_branch") { void copyToClipboard(session.git_branch || "").then(() => toast.success("Branch copied")); closePalette(); return; }
-      if (actionKey === "session_files") { navigate(filesHref({ localPath: session.project_path || session.git_root })); return; }
-      const each: Record<string, (id: string) => void> = {
-        session_restore: (id) => state.restoreSession(id),
-        // The teardown rides the hide transition server side (dispatch.applyPatches);
-        // the notice hook names any schedules the kill cancels.
-        session_stash: (id) => state.stashSession(id),
-        session_stash_hide: (id) => state.stashSession(id, { hidden: true }),
-        session_unsnooze: (id) => state.wakeSnoozedSession(id),
-        session_defer: (id) => state.deferSession(id),
-      };
-      // The rest verdicts animate every row out, then file them as one undo.
-      const rest = PALETTE_REST_VERDICT[actionKey];
-      const ids = targets.map((t) => t._id);
-      if (rest) void animatedSetSessionRest(ids, rest);
-      // A kill waits on the cards' collapse and records its own entry then
-      // (one undo, one sound, one notice), so it is never wrapped in a group
-      // that closes before it lands.
-      else if (actionKey === "session_close") void animatedCloseSessions(ids);
-      else if (actionKey === "session_kill") {
-        const ledger = killReviewOf(targets as InboxSession[], Object.values(state.agentTasks ?? {}) as TaskRow[]);
-        if (ledger) { setKillReview({ ids, ledger }); return; }
-        killManyWithNotice(ids);
+      const state = useInboxStore.getState();
+      if (!targetType) return;
+      if (targetType === "person") {
+        runPersonAction(target as PalettePerson, actionKey);
+        return;
       }
-      else if (actionKey === "session_pin") toggleSessionsLikeFirst(ids, "pin");
-      else if (actionKey === "session_favorite") toggleSessionsLikeFirst(ids, "favorite");
-      else {
-        const run = each[actionKey];
-        if (!run) return;
-        const verb = PALETTE_SESSION_VERB[actionKey] ?? "Changed";
-        undoAsOne(`${verb} ${counted(ids.length, "session")}`, () => {
-          for (const id of ids) run(id);
+      const path = paletteObjectPath(targetType, target);
+      const viewCommand =
+        targetType === "session" && targets.length === 1
+          ? getPaletteSessionCommands(target._id).find(
+              (command) => command.key === actionKey,
+            )
+          : undefined;
+      if (viewCommand) {
+        closePalette();
+        viewCommand.run();
+        return;
+      }
+      if (actionKey === "open") {
+        if (targetType === "session") navigateToSession(target);
+        else navigate(path);
+        return;
+      }
+      if (actionKey === "newtab") {
+        window.open(path, "_blank");
+        closePalette();
+        return;
+      }
+      if (actionKey === "copylink") {
+        void copyToClipboard(`${shareOrigin()}${path}`).then(() =>
+          toast.success("Link copied"),
+        );
+        closePalette();
+        return;
+      }
+      if (actionKey === "forward") {
+        openForwardToChat({
+          url: `${shareOrigin()}${path}`,
+          label: targetType,
+          previewTitle: target.display_title || target.title || target.name,
         });
+        return;
       }
-      if (targets.length > 1) useInboxSelection.getState().clear();
-      closePalette();
-      return;
-    }
-  }, [targets, targetType, closePalette, pinDoc, router, navigate, navigateToSession, killManyWithNotice, openCreateModal, runPersonAction]);
+      if (actionKey.startsWith("create_")) {
+        closePalette();
+        openCreateModal(
+          actionKey.slice(7) as "task" | "plan" | "doc",
+          targetType === "project"
+            ? { project_id: target._id }
+            : { plan_id: target._id, project_id: target.project_id },
+        );
+        return;
+      }
+      if (actionKey === "clear_deadline") {
+        state.updateProject(target._id, { target_date: null });
+        closePalette();
+        return;
+      }
+      if (actionKey === "project_board") {
+        navigate(`/projects/${target.short_id || target._id}`);
+        return;
+      }
+      if (actionKey === "trigger_duplicate") {
+        navigate(`/triggers?task=${target._id}&duplicate=1`);
+        return;
+      }
+      if (actionKey === "trigger_prompt") {
+        void copyToClipboard(target.prompt || "").then(() =>
+          toast.success("Prompt copied"),
+        );
+        closePalette();
+        return;
+      }
+      if (actionKey === "trigger_edit") {
+        navigate(`/triggers?task=${target._id}&edit=1`);
+        return;
+      }
+      if (actionKey.startsWith("trigger_")) {
+        state.triggerAction(
+          target._id,
+          actionKey.slice(8) as "pause" | "resume" | "runNow" | "reactivate",
+        );
+        closePalette();
+        return;
+      }
+
+      if (actionKey === "remove_parent" && targetType === "task") {
+        const nested = (targets as TaskItem[]).filter(
+          (t) => (t as any).parent_id,
+        );
+        undoAsOne(
+          `Removed the parent of ${counted(nested.length, "task")}`,
+          () => {
+            for (const t of nested) setTaskParent(t.short_id, "");
+          },
+        );
+        toast.success("Parent removed");
+        closePalette();
+        return;
+      }
+
+      if (actionKey === "copy") {
+        if (targetType === "task" && isTask(target)) {
+          copyToClipboard(target.short_id);
+          toast.success(`Copied ${target.short_id}`);
+        } else if (targetType === "plan") {
+          copyToClipboard(target.short_id || target._id);
+          toast.success(`Copied ${target.short_id || target._id}`);
+        } else {
+          copyToClipboard(target.short_id || target._id);
+          toast.success("Copied ID");
+        }
+        closePalette();
+        return;
+      }
+
+      if (actionKey === "drop" && targetType === "task") {
+        let deferred = false;
+        undoAsOne(`Dropped ${counted(targets.length, "task")}`, () => {
+          for (const t of targets as TaskItem[]) {
+            if (closeTaskWithGuard(t.short_id, "dropped").needsConfirm)
+              deferred = true;
+          }
+        });
+        if (!deferred) toast.success("Task dropped");
+        closePalette();
+        return;
+      }
+
+      if (actionKey === "pin" && targetType === "doc") {
+        const doc = target as DocItem;
+        pinDoc(doc._id, !doc.pinned);
+        toast.success(doc.pinned ? "Unstarred" : "Starred");
+        closePalette();
+        return;
+      }
+
+      if (actionKey === "archive" && targetType === "doc") {
+        undoAsOne(`Archived ${counted(targets.length, "document")}`, () => {
+          for (const doc of targets) state.archiveDoc(doc._id);
+        });
+        router.push("/docs");
+        closePalette();
+        return;
+      }
+
+      // Session actions. The single row verbs read targets[0]; every other verb
+      // runs once per target, so a ticked selection acts as one gesture.
+      if (targetType === "session") {
+        const session = target as InboxSession;
+        // The palette's row can predate a toggle; the store says what the star shows now.
+        if (actionKey === "session_parent") {
+          navigate(`/conversation/${session.parent_conversation_id}`);
+          return;
+        }
+        if (actionKey === "session_branch") {
+          void copyToClipboard(session.git_branch || "").then(() =>
+            toast.success("Branch copied"),
+          );
+          closePalette();
+          return;
+        }
+        if (actionKey === "session_files") {
+          navigate(
+            filesHref({ localPath: session.project_path || session.git_root }),
+          );
+          return;
+        }
+        const each: Record<string, (id: string) => void> = {
+          session_restore: (id) => state.restoreSession(id),
+          // The teardown rides the hide transition server side (dispatch.applyPatches);
+          // the notice hook names any schedules the kill cancels.
+          session_stash: (id) => state.stashSession(id),
+          session_stash_hide: (id) => state.stashSession(id, { hidden: true }),
+          session_unsnooze: (id) => state.wakeSnoozedSession(id),
+          session_defer: (id) => state.deferSession(id),
+        };
+        // The rest verdicts animate every row out, then file them as one undo.
+        const rest = PALETTE_REST_VERDICT[actionKey];
+        const ids = targets.map((t) => t._id);
+        if (rest) void animatedSetSessionRest(ids, rest);
+        // A kill waits on the cards' collapse and records its own entry then
+        // (one undo, one sound, one notice), so it is never wrapped in a group
+        // that closes before it lands.
+        else if (actionKey === "session_close") void animatedCloseSessions(ids);
+        else if (actionKey === "session_kill") {
+          const ledger = killReviewOf(
+            targets as InboxSession[],
+            Object.values(state.agentTasks ?? {}) as TaskRow[],
+          );
+          if (ledger) {
+            setKillReview({ ids, ledger });
+            return;
+          }
+          killManyWithNotice(ids);
+        } else if (actionKey === "session_pin")
+          toggleSessionsLikeFirst(ids, "pin");
+        else if (actionKey === "session_favorite")
+          toggleSessionsLikeFirst(ids, "favorite");
+        else {
+          const run = each[actionKey];
+          if (!run) return;
+          const verb = PALETTE_SESSION_VERB[actionKey] ?? "Changed";
+          undoAsOne(`${verb} ${counted(ids.length, "session")}`, () => {
+            for (const id of ids) run(id);
+          });
+        }
+        if (targets.length > 1) useInboxSelection.getState().clear();
+        closePalette();
+        return;
+      }
+    },
+    [
+      targets,
+      targetType,
+      closePalette,
+      pinDoc,
+      router,
+      navigate,
+      navigateToSession,
+      killManyWithNotice,
+      openCreateModal,
+      runPersonAction,
+    ],
+  );
 
   const hasTargets = targets.length > 0 && targetType;
   const target = targets[0] as any;
@@ -2356,20 +3818,79 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
     return `${targets.length} ${targetType}s selected`;
   }, [targets, target, targetType, hasTargets]);
 
-  const actions = [...paletteActions(targetType, targets, currentUser?._id, chatOn, identityPrefs), ...(targetType === "session" && target && targets.length === 1 ? getPaletteSessionCommands(target._id) : [])];
+  const actions = [
+    ...paletteActions(
+      targetType,
+      targets,
+      currentUser?._id,
+      chatOn,
+      identityPrefs,
+    ),
+    ...(targetType === "session" && target && targets.length === 1
+      ? getPaletteSessionCommands(target._id)
+      : []),
+  ];
 
   const rootTaskStatuses = useTeamTaskStatusList(target?.team_id);
   const pinnedAgents = usePinnedAgentIds();
-  const nestedMatches = query.trim().length < 2 ? [] : actions.flatMap(action => {
-    const options = action.key === "agent_switch" || action.key === "agent_fork" || action.key === "agent_run" || action.key === "agent_handoff" ? pinnedAgentRows(pinnedAgents, target?.agent_type)
-      : action.key === "status" ? statusEntityOptions(rootTaskStatuses)
-      : action.key === "priority" ? PRIORITY_OPTIONS
-      : action.key === "type" ? DOC_RETYPE_OPTIONS
-      : action.key === "plan_status" ? PLAN_STATUS_OPTIONS
-      : action.key === "model" ? listedModels(AGENT_MODEL_CONFIG[modelAgentKey(target?.agent_type)] ?? { models: [] })
-      : [];
-    return options.filter(option => action.key !== "agent_switch" || option.key !== `agent:${target?.agent_type || "claude_code"}`).filter((option: any) => (action.key !== "agent_switch" && action.key !== "agent_fork") || canSessionBecomeAgent(option.agentType, target?.message_count)).filter(option => `${action.label} ${option.label}`.toLowerCase().includes(query.toLowerCase()) || query.toLowerCase().split(/\s+/).every(word => `${action.label} ${option.label}`.toLowerCase().includes(word))).map(option => ({ action, option }));
-  }).slice(0, 8);
+  const nestedMatches =
+    query.trim().length < 2
+      ? []
+      : actions
+          .flatMap((action) => {
+            const options =
+              action.key === "agent_switch" ||
+              action.key === "agent_fork" ||
+              action.key === "agent_run" ||
+              action.key === "agent_handoff"
+                ? pinnedAgentRows(pinnedAgents, target?.agent_type)
+                : action.key === "status"
+                  ? statusEntityOptions(rootTaskStatuses)
+                  : action.key === "priority"
+                    ? PRIORITY_OPTIONS
+                    : action.key === "type"
+                      ? DOC_RETYPE_OPTIONS
+                      : action.key === "plan_status"
+                        ? PLAN_STATUS_OPTIONS
+                        : action.key === "model"
+                          ? listedModels(
+                              AGENT_MODEL_CONFIG[
+                                modelAgentKey(target?.agent_type)
+                              ] ?? { models: [] },
+                            )
+                          : [];
+            return options
+              .filter(
+                (option) =>
+                  action.key !== "agent_switch" ||
+                  option.key !== `agent:${target?.agent_type || "claude_code"}`,
+              )
+              .filter(
+                (option: any) =>
+                  (action.key !== "agent_switch" &&
+                    action.key !== "agent_fork") ||
+                  canSessionBecomeAgent(
+                    option.agentType,
+                    target?.message_count,
+                  ),
+              )
+              .filter(
+                (option) =>
+                  `${action.label} ${option.label}`
+                    .toLowerCase()
+                    .includes(query.toLowerCase()) ||
+                  query
+                    .toLowerCase()
+                    .split(/\s+/)
+                    .every((word) =>
+                      `${action.label} ${option.label}`
+                        .toLowerCase()
+                        .includes(word),
+                    ),
+              )
+              .map((option) => ({ action, option }));
+          })
+          .slice(0, 8);
 
   // "samvit mes" → Samvit Ramadurgam › Message: a query naming a teammate and
   // one of their verbs offers the verb at the root, the same one-step reach
@@ -2380,20 +3901,34 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
     const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (!open || picking || hasTargets || words.length < 2) return [];
     const state = useInboxStore.getState() as any;
-    const viewerId = state.currentUser?._id ? String(state.currentUser._id) : null;
+    const viewerId = state.currentUser?._id
+      ? String(state.currentUser._id)
+      : null;
     const people = new Map<string, TeammateWhereabouts>();
     for (const w of words) {
-      for (const r of teammateWhereabouts(teamMembersOf(state), viewerId, w, state.sessions, state.followLeaderId ?? null)) {
+      for (const r of teammateWhereabouts(
+        teamMembersOf(state),
+        viewerId,
+        w,
+        state.sessions,
+        state.followLeaderId ?? null,
+      )) {
         if (matchScore(r.name, w) !== Infinity) people.set(r.id, r);
       }
     }
-    return [...people.values()].flatMap((row) => {
-      if (words.every((w) => matchScore(row.name, w) !== Infinity)) return [];
-      const person = palettePerson(row, state.followLeaderId === row.id);
-      return paletteActions("person", [person], viewerId ?? undefined, chatOn)
-        .filter((a) => a.key !== "person_huddle" && matchScore(`${row.name} ${a.label}`, query) !== Infinity)
-        .map((action) => ({ person, action }));
-    }).slice(0, 6);
+    return [...people.values()]
+      .flatMap((row) => {
+        if (words.every((w) => matchScore(row.name, w) !== Infinity)) return [];
+        const person = palettePerson(row, state.followLeaderId === row.id);
+        return paletteActions("person", [person], viewerId ?? undefined, chatOn)
+          .filter(
+            (a) =>
+              a.key !== "person_huddle" &&
+              matchScore(`${row.name} ${a.label}`, query) !== Infinity,
+          )
+          .map((action) => ({ person, action }));
+      })
+      .slice(0, 6);
   }, [open, picking, hasTargets, query, chatOn]);
 
   const showFavorites = favorites && favorites.length > 0;
@@ -2401,10 +3936,17 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   const showWorkspaces = projects.length > 0;
   // Rail order (yours first, then teammates'), the same order ⌥1-⌥9 index into.
   const layouts = useMemo(
-    () => sortedWorkbenches({ savedViews: savedViewRows ?? {}, clientState: { ui: { active_team_id: activeTeamId } } }),
+    () =>
+      sortedWorkbenches({
+        savedViews: savedViewRows ?? {},
+        clientState: { ui: { active_team_id: activeTeamId } },
+      }),
     [savedViewRows, activeTeamId],
   );
-  const myLayouts = useMemo(() => layouts.filter((v) => v.is_mine !== false), [layouts]);
+  const myLayouts = useMemo(
+    () => layouts.filter((v) => v.is_mine !== false),
+    [layouts],
+  );
   // The layout you switched to last, if it is yours: one row updates it in
   // place without picking — the rail's inline "update" for a closed rail.
   const activeWorkbenchId = useInboxStore((s) => s.activeWorkbenchId);
@@ -2420,7 +3962,12 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
           key={s.text}
           value={`__filter__${filterCompletion.kind === "value" ? "v" : "o"} ${s.text}`}
           data-palette-action="complete"
-          onSelect={() => setQuery(applySessionQueryCompletion(query, filterCompletion, s.text).value)}
+          onSelect={() =>
+            setQuery(
+              applySessionQueryCompletion(query, filterCompletion, s.text)
+                .value,
+            )
+          }
           className={itemClass}
         >
           <Search className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
@@ -2434,7 +3981,15 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // holds whichever view renders.
   const askHold = useHostedAskGate(!standalone);
   // A selection of decisions has its own verbs (components/decisions/DecisionPalette).
-  if (open && targetType === "decision" && hasTargets) return <DecisionPalette targets={targets} mode={initialMode} standalone={standalone} onClose={closePalette} />;
+  if (open && targetType === "decision" && hasTargets)
+    return (
+      <DecisionPalette
+        targets={targets}
+        mode={initialMode}
+        standalone={standalone}
+        onClose={closePalette}
+      />
+    );
 
   // Action submenu mode. The workspace modes ("view", layout CRUD) are global,
   // so they need no target entity — and show no entity header. The `open` check
@@ -2442,11 +3997,12 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // next open), so without it the overlay would stick.
   if (open && actionMode && (hasTargets || TARGETLESS_MODES.has(actionMode))) {
     const paletteContent = (
-      <div ref={paletteRef}
-      className={paletteClass}>
+      <div ref={paletteRef} className={paletteClass}>
         {contextLabel && !TARGETLESS_MODES.has(actionMode) && (
           <div className="px-4 pt-3 pb-0">
-            <div className="text-xs font-mono modern:[font-family:inherit] text-sol-text-dim truncate">{contextLabel}</div>
+            <div className="text-xs font-mono modern:[font-family:inherit] text-sol-text-dim truncate">
+              {contextLabel}
+            </div>
           </div>
         )}
         <ActionSubmenu
@@ -2467,8 +4023,16 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
     if (standalone) return paletteContent;
 
     return (
-      <div role="dialog" aria-modal="true" aria-label="Command menu" className="fixed inset-0 z-[9999]">
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onClick={closePalette} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command menu"
+        className="fixed inset-0 z-[9999]"
+      >
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+          onClick={closePalette}
+        />
         <div className="absolute inset-0 flex items-start justify-center pt-[min(20vh,160px)]">
           {paletteContent}
         </div>
@@ -2482,25 +4046,40 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // the empty note field or the target row itself goes back to the list.
   if (pick && pickChosen) {
     const target = pickChosen.target;
-    const extra = target.kind === "extra" ? (pick.extras ?? []).find((x) => x.key === target.key) : null;
-    const label = target.kind === "extra" ? (extra?.label ?? "Selection") : target.label;
+    const extra =
+      target.kind === "extra"
+        ? (pick.extras ?? []).find((x) => x.key === target.key)
+        : null;
+    const label =
+      target.kind === "extra" ? (extra?.label ?? "Selection") : target.label;
     // Chat rows collapse DMs and channels into kind "channel" — recover the
     // row for its real icon (avatar / lock / hash) and tag.
-    const chatRow = target.kind === "channel" || target.kind === "person"
-      ? chatChannelRows.find((r) => r.id === target.id)
-      : null;
-    const tag =
-      chatRow ? (chatRow.kind === "dm" ? "direct message" : chatRow.kind === "person" ? "new direct message" : "channel")
-      : target.kind === "extra" ? null
-      : target.kind === "person" ? "new direct message"
-      : target.kind;
+    const chatRow =
+      target.kind === "channel" || target.kind === "person"
+        ? chatChannelRows.find((r) => r.id === target.id)
+        : null;
+    const tag = chatRow
+      ? chatRow.kind === "dm"
+        ? "direct message"
+        : chatRow.kind === "person"
+          ? "new direct message"
+          : "channel"
+      : target.kind === "extra"
+        ? null
+        : target.kind === "person"
+          ? "new direct message"
+          : target.kind;
     const icon =
-      chatRow?.kind === "dm" || chatRow?.kind === "person" || target.kind === "person" ? (
+      chatRow?.kind === "dm" ||
+      chatRow?.kind === "person" ||
+      target.kind === "person" ? (
         <AvatarImg
           src={chatRow?.image}
           alt=""
           className="w-4 h-4 rounded-full flex-shrink-0"
-          fallback={<User className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />}
+          fallback={
+            <User className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
+          }
         />
       ) : chatRow?.isPrivate ? (
         <Lock className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
@@ -2536,8 +4115,14 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
           <span className="text-meta text-sol-text-dim">To</span>
           {icon}
           <span className="truncate flex-1 text-sm text-sol-text">{label}</span>
-          {tag && <span className="hidden text-meta text-sol-text-dim flex-shrink-0 sm:inline">{tag}</span>}
-          <span className="text-meta text-sol-text-muted flex-shrink-0">change</span>
+          {tag && (
+            <span className="hidden text-meta text-sol-text-dim flex-shrink-0 sm:inline">
+              {tag}
+            </span>
+          )}
+          <span className="text-meta text-sol-text-muted flex-shrink-0">
+            change
+          </span>
         </button>
         <div className="px-3 pt-3">
           <div
@@ -2545,8 +4130,14 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
             onKeyDownCapture={(e) => {
               if (e.key !== "Backspace") return;
               const t = e.target as HTMLTextAreaElement;
-              if (!(t instanceof HTMLTextAreaElement) || t.value !== "" || t.selectionStart !== 0) return;
-              const images = useInboxStore.getState().drafts[PALETTE_PICK_DRAFT]?.draft_image_storage_ids as unknown[] | undefined;
+              if (
+                !(t instanceof HTMLTextAreaElement) ||
+                t.value !== "" ||
+                t.selectionStart !== 0
+              )
+                return;
+              const images = useInboxStore.getState().drafts[PALETTE_PICK_DRAFT]
+                ?.draft_image_storage_ids as unknown[] | undefined;
               if (images && images.length > 0) return;
               e.preventDefault();
               e.stopPropagation();
@@ -2577,7 +4168,12 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
             <KeyCap size="xs">&#9003;</KeyCap>
             back
           </span>
-          <Button type="button" variant="secondary" size="sm" onClick={submitPickConfirm}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={submitPickConfirm}
+          >
             {pick.confirmLabel ?? "Send"}
             <KeyCap size="xs">&#9166;</KeyCap>
           </Button>
@@ -2587,8 +4183,16 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
     if (standalone) return confirmContent;
     if (!open) return null;
     return (
-      <div role="dialog" aria-modal="true" aria-label="Command menu" className="fixed inset-0 z-[9999]">
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onClick={closePalette} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command menu"
+        className="fixed inset-0 z-[9999]"
+      >
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+          onClick={closePalette}
+        />
         <div className="absolute inset-0 flex items-start justify-center pt-[min(20vh,160px)]">
           {confirmContent}
         </div>
@@ -2599,27 +4203,48 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   // The palette's commands, split: the ones whose label starts with the
   // query lead the list (see the leading group), the rest sit with Commands.
   const commandQuery = query.trim().toLowerCase();
-  const commandLabel = (cmd: (typeof GLOBAL_COMMANDS)[number]) => labelText(cmd.label);
-  const shownCommands = GLOBAL_COMMANDS.filter((cmd) => !cmd.hidden?.() && !(cmd.searchOnly && !commandQuery));
-  const namedCommands = commandQuery ? shownCommands.filter((cmd) => [commandLabel(cmd), ...(cmd.names ?? [])].some((name) => name.toLowerCase().startsWith(commandQuery))) : [];
-  const otherCommands = namedCommands.length ? shownCommands.filter((cmd) => !namedCommands.includes(cmd)) : shownCommands;
+  const commandLabel = (cmd: (typeof GLOBAL_COMMANDS)[number]) =>
+    labelText(cmd.label);
+  const shownCommands = GLOBAL_COMMANDS.filter(
+    (cmd) => !cmd.hidden?.() && !(cmd.searchOnly && !commandQuery),
+  );
+  const namedCommands = commandQuery
+    ? shownCommands.filter((cmd) =>
+        [commandLabel(cmd), ...(cmd.names ?? [])].some((name) =>
+          name.toLowerCase().startsWith(commandQuery),
+        ),
+      )
+    : [];
+  const otherCommands = namedCommands.length
+    ? shownCommands.filter((cmd) => !namedCommands.includes(cmd))
+    : shownCommands;
   // Where only the assistant can answer, a query either names something here
   // (a command, a conversation, a task, a page) or is a request. A real match
   // leads, so Enter opens it and the ask waits last on its own key
   // (Cmd+Enter); with nothing here to open, the ask leads and Enter sends it.
   // A held month or a thinking outage keeps the Ask row's words and says why,
   // rather than starting a conversation that can only stop (askHold, above).
-  const askable = hostedFirst && !standalone && !picking && !!commandQuery && !askHold;
-  const localHit = askable && (
-    namedCommands.length > 0 || recentMatches.length > 0 || searchRows.length > 0 || taskMatches.length > 0 || docMatches.length > 0 ||
-    planMatches.length > 0 || triggerMatches.length > 0 ||
-    palettePages(featureOn, true, modernStyle).some((row) => paletteItemScore(palettePageValue(row), query) > 0)
-  );
+  const askable =
+    hostedFirst && !standalone && !picking && !!commandQuery && !askHold;
+  const localHit =
+    askable &&
+    (namedCommands.length > 0 ||
+      recentMatches.length > 0 ||
+      searchRows.length > 0 ||
+      taskMatches.length > 0 ||
+      docMatches.length > 0 ||
+      planMatches.length > 0 ||
+      triggerMatches.length > 0 ||
+      palettePages(featureOn, true, modernStyle).some(
+        (row) => paletteItemScore(palettePageValue(row), query) > 0,
+      ));
   const askLeads = askable && !localHit;
   // A query that names a page ("notes", "rout", "ops", "issues") leads with
   // that page, as a named command does, so Enter goes there before any object
   // named alike: from an exact name or three letters of one.
-  const pageLeads = !picking && !!commandQuery &&
+  const pageLeads =
+    !picking &&
+    !!commandQuery &&
     queryNamesPage(palettePages(featureOn, true, modernStyle), commandQuery, 3);
   const renderCommand = (cmd: (typeof GLOBAL_COMMANDS)[number]) => {
     const Icon = cmd.icon;
@@ -2628,7 +4253,10 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
       <CommandPrimitive.Item
         key={`cmd-${cmd.action}`}
         value={paletteValue(label, cmd.keywords)}
-        onSelect={() => { closePalette(); dispatchAction(cmd.action); }}
+        onSelect={() => {
+          closePalette();
+          dispatchAction(cmd.action);
+        }}
         className={itemClass}
       >
         <Icon className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
@@ -2648,19 +4276,31 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
       data-palette-ask=""
       value="__compose__ ask the codecast assistant hosted"
       disabled={!!askHold}
-      onSelect={() => { if (!askHold) navigateToSession({ _id: startHostedConversation(query.trim()) }); }}
+      onSelect={() => {
+        if (!askHold)
+          navigateToSession({ _id: startHostedConversation(query.trim()) });
+      }}
       className={itemClass}
     >
       <AgentTypeIcon agentType={HOSTED_AGENT_TYPE} className="w-4 h-4" />
-      <span className="truncate flex-1">Ask Cast: &ldquo;{previewQuery(query)}&rdquo;</span>
-      {askHold ? <AskHeldLine hold={askHold} className="ml-auto shrink text-xs" /> : askable && <ModEnterCaps />}
+      <span className="truncate flex-1">
+        Ask Cast: &ldquo;{previewQuery(query)}&rdquo;
+      </span>
+      {askHold ? (
+        <AskHeldLine hold={askHold} className="ml-auto shrink text-xs" />
+      ) : (
+        askable && <ModEnterCaps />
+      )}
     </CommandPrimitive.Item>
   );
 
   // The palette's ways to make something new.
   const createEnv: CreateEnv = {
     compose: (dock) => startCompose("", dock),
-    openModal: (kind) => { closePalette(); openCreateModal(kind); },
+    openModal: (kind) => {
+      closePalette();
+      openCreateModal(kind);
+    },
     navigate,
   };
   const createItem = (k: CreateKind) => (
@@ -2676,94 +4316,116 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
     </CommandPrimitive.Item>
   );
   const createGroup = (
-        <CommandPrimitive.Group heading="Create" className={groupClass}>
-          {/* The docked composer has no dock to open in the standalone window. */}
-          {createKinds.filter((k) => !(standalone && k.variant)).map(createItem)}
-        </CommandPrimitive.Group>
+    <CommandPrimitive.Group heading="Create" className={groupClass}>
+      {/* The docked composer has no dock to open in the standalone window. */}
+      {createKinds.filter((k) => !(standalone && k.variant)).map(createItem)}
+    </CommandPrimitive.Group>
   );
 
   // The app's pages, to go to.
   const pagesGroup = (
-        <CommandPrimitive.Group heading="Pages" className={groupClass}>
-          {palettePages(featureOn, !!query.trim(), modernStyle).map(({ page, label }) => {
-            return (
+    <CommandPrimitive.Group heading="Pages" className={groupClass}>
+      {palettePages(featureOn, !!query.trim(), modernStyle).map(
+        ({ page, label }) => {
+          return (
             <CommandPrimitive.Item
               key={typeof page.path === "string" ? page.path + label : label}
               value={palettePageValue({ page, label })}
-              onSelect={() => navigate(typeof page.path === "function" ? page.path() : page.path)}
+              onSelect={() =>
+                navigate(
+                  typeof page.path === "function" ? page.path() : page.path,
+                )
+              }
               className={itemClass}
             >
               <span className="text-sol-text-dim flex-shrink-0">
-                {page.navIcon ? <RailIcon name={page.navIcon} /> : <NavIcon type={page.icon} />}
+                {page.navIcon ? (
+                  <RailIcon name={page.navIcon} />
+                ) : (
+                  <NavIcon type={page.icon} />
+                )}
               </span>
               <span className="truncate flex-1">{label}</span>
               {/* An Ops page says whether anything is wrong, with the count its tab and the sidebar show. */}
-              {pagePath(page).startsWith("/ops") ? <OpsPageCount path={pagePath(page)} /> : null}
+              {pagePath(page).startsWith("/ops") ? (
+                <OpsPageCount path={pagePath(page)} />
+              ) : null}
               {page.action ? <MenuKeyCaps action={page.action} /> : null}
             </CommandPrimitive.Item>
-            );
-          })}
-        </CommandPrimitive.Group>
+          );
+        },
+      )}
+    </CommandPrimitive.Group>
   );
 
   // The server tier's conversation hits.
   const serverSearchGroups = (
-      <>
-        {/* Async conversation search results */}
-        {sessionSearchOn && pickAllows("session") && (
-          <CommandPrimitive.Group
-            heading={searchData || titleData ? `Search results (${searchRows.length})` : searchError ? "Search results" : undefined}
-            className={groupClass}
-          >
-            {!searchData && !searchError && searchRows.length === 0 && (
-              <CommandPrimitive.Item
-                value="__search__ loading"
-                disabled
-                className="px-4 py-3 text-center text-xs text-sol-text-dim animate-pulse cursor-default"
-              >
-                Searching more…
-              </CommandPrimitive.Item>
-            )}
-            {searchError && (
-              <CommandPrimitive.Item
-                value="__search__ error"
-                disabled
-                className="px-4 py-3 text-center text-xs text-sol-text-dim cursor-default"
-              >
-                {searchRows.length > 0
-                  ? "Content search timed out — showing title matches only."
-                  : "Search timed out — broad terms scan your whole history. Try a more specific word or a quoted phrase."}
-              </CommandPrimitive.Item>
-            )}
-            {searchRows.map((result: any) => (
-              <PaletteSearchResultRow
-                key={`search-${result.conversationId}`}
-                result={result}
-                label={labelForConv(result.conversationId)?.name}
-                query={debouncedQuery}
-                onSelect={() => chooseSession(
+    <>
+      {/* Async conversation search results */}
+      {sessionSearchOn && pickAllows("session") && (
+        <CommandPrimitive.Group
+          heading={
+            searchData || titleData
+              ? `Search results (${searchRows.length})`
+              : searchError
+                ? "Search results"
+                : undefined
+          }
+          className={groupClass}
+        >
+          {!searchData && !searchError && searchRows.length === 0 && (
+            <CommandPrimitive.Item
+              value="__search__ loading"
+              disabled
+              className="px-4 py-3 text-center text-xs text-sol-text-dim animate-pulse cursor-default"
+            >
+              Searching more…
+            </CommandPrimitive.Item>
+          )}
+          {searchError && (
+            <CommandPrimitive.Item
+              value="__search__ error"
+              disabled
+              className="px-4 py-3 text-center text-xs text-sol-text-dim cursor-default"
+            >
+              {searchRows.length > 0
+                ? "Content search timed out — showing title matches only."
+                : "Search timed out — broad terms scan your whole history. Try a more specific word or a quoted phrase."}
+            </CommandPrimitive.Item>
+          )}
+          {searchRows.map((result: any) => (
+            <PaletteSearchResultRow
+              key={`search-${result.conversationId}`}
+              result={result}
+              label={labelForConv(result.conversationId)?.name}
+              query={debouncedQuery}
+              onSelect={() =>
+                chooseSession(
                   {
                     _id: result.conversationId,
                     title: result.title,
                     updated_at: result.updatedAt,
                     message_count: result.messageCount,
                   },
-                  { messageId: result.matches?.[0]?.messageId }
-                )}
-              />
-            ))}
-            {!searchData && !searchError && searchRows.length > 0 && (
-              <CommandPrimitive.Item
-                value="__search__ content-loading"
-                disabled
-                className="px-4 py-2 text-center text-meta text-sol-text-dim animate-pulse cursor-default"
-              >
-                Searching message content...
-              </CommandPrimitive.Item>
-            )}
-            {/* "No conversations matched" only when nothing did: a recent
+                  { messageId: result.matches?.[0]?.messageId },
+                )
+              }
+            />
+          ))}
+          {!searchData && !searchError && searchRows.length > 0 && (
+            <CommandPrimitive.Item
+              value="__search__ content-loading"
+              disabled
+              className="px-4 py-2 text-center text-meta text-sol-text-dim animate-pulse cursor-default"
+            >
+              Searching message content...
+            </CommandPrimitive.Item>
+          )}
+          {/* "No conversations matched" only when nothing did: a recent
                 conversation above that matched is a match. */}
-            {searchData && searchRows.length === 0 && recentMatches.length === 0 && (
+          {searchData &&
+            searchRows.length === 0 &&
+            recentMatches.length === 0 && (
               <CommandPrimitive.Item
                 value="__search__ empty"
                 disabled
@@ -2772,11 +4434,10 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                 No conversations matched
               </CommandPrimitive.Item>
             )}
-          </CommandPrimitive.Group>
-        )}
-      </>
+        </CommandPrimitive.Group>
+      )}
+    </>
   );
-
 
   // Root mode: navigation + context actions
   const paletteContent = (
@@ -2785,13 +4446,32 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
       onKeyDown={(e) => {
         if (picking) return;
         const action = paletteActionForKey(e.nativeEvent, actions);
-        if (action) { e.preventDefault(); e.stopPropagation(); handleRootAction(action.key); }
+        if (action) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleRootAction(action.key);
+        }
       }}
       className={paletteClass}
       filter={paletteItemScore}
       loop
     >
-      {drilled && <div className="flex items-center gap-2 px-4 pt-3 text-xs text-sol-text-dim"><button aria-label="Back to search" className="flex items-center gap-1 hover:text-sol-text" onClick={() => { setQuery(drilled.query); setDrilled(null); }}><KeyCap size="xs">←</KeyCap> Search</button><span aria-hidden>›</span><span className="truncate">{contextLabel}</span></div>}
+      {drilled && (
+        <div className="flex items-center gap-2 px-4 pt-3 text-xs text-sol-text-dim">
+          <button
+            aria-label="Back to search"
+            className="flex items-center gap-1 hover:text-sol-text"
+            onClick={() => {
+              setQuery(drilled.query);
+              setDrilled(null);
+            }}
+          >
+            <KeyCap size="xs">←</KeyCap> Search
+          </button>
+          <span aria-hidden>›</span>
+          <span className="truncate">{contextLabel}</span>
+        </div>
+      )}
       {pick && (
         <div className="px-4 pt-3 pb-0">
           <PalettePickHeader pick={pick} />
@@ -2801,7 +4481,15 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
         <CommandPrimitive.Input
           value={query}
           onValueChange={setQuery}
-          placeholder={pick ? (pick.kinds.includes("person") ? "Search people, roles, sessions..." : "Search sessions, docs...") : hasTargets ? "Action or jump to..." : "Jump to..."}
+          placeholder={
+            pick
+              ? pick.kinds.includes("person")
+                ? "Search people, roles, sessions..."
+                : "Search sessions, docs..."
+              : hasTargets
+                ? "Action or jump to..."
+                : "Jump to..."
+          }
           className={paletteInputClass}
           autoFocus
           onKeyDown={(e) => {
@@ -2809,31 +4497,91 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
             // The visible rows, read only for the keys that act on them: the
             // query plus offsetParent forces a layout, which on every typed
             // character made each keystroke lay out the whole page.
-            const visibleRows = () => Array.from(paletteRef.current?.querySelectorAll<HTMLElement>('[cmdk-item]:not([aria-disabled="true"])') ?? []).filter(row => row.offsetParent !== null);
+            const visibleRows = () =>
+              Array.from(
+                paletteRef.current?.querySelectorAll<HTMLElement>(
+                  '[cmdk-item]:not([aria-disabled="true"])',
+                ) ?? [],
+              ).filter((row) => row.offsetParent !== null);
             if (paletteDigitIndex(e.nativeEvent, Infinity) >= 0) {
               const rows = visibleRows();
               const index = paletteDigitIndex(e.nativeEvent, rows.length);
-              if (index >= 0) { e.preventDefault(); rows[index].click(); return; }
+              if (index >= 0) {
+                e.preventDefault();
+                rows[index].click();
+                return;
+              }
             }
-            if ((e.key === "Backspace" || e.key === "ArrowLeft") && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && !query && drilled) { e.preventDefault(); setQuery(drilled.query); setDrilled(null); return; }
-            if ((e.key === "ArrowRight" || e.key === "Tab") && !e.shiftKey && !picking) {
-              const selected = visibleRows().find(row => row.getAttribute("aria-selected") === "true");
-              const type = selected?.dataset.paletteType as PaletteTargetType | undefined;
+            if (
+              (e.key === "Backspace" || e.key === "ArrowLeft") &&
+              !e.altKey &&
+              !e.ctrlKey &&
+              !e.metaKey &&
+              !e.shiftKey &&
+              !query &&
+              drilled
+            ) {
+              e.preventDefault();
+              setQuery(drilled.query);
+              setDrilled(null);
+              return;
+            }
+            if (
+              (e.key === "ArrowRight" || e.key === "Tab") &&
+              !e.shiftKey &&
+              !picking
+            ) {
+              const selected = visibleRows().find(
+                (row) => row.getAttribute("aria-selected") === "true",
+              );
+              const type = selected?.dataset.paletteType as
+                | PaletteTargetType
+                | undefined;
               const id = selected?.dataset.paletteId;
-              if (type === "person") { e.preventDefault(); selected!.click(); return; }
+              if (type === "person") {
+                e.preventDefault();
+                selected!.click();
+                return;
+              }
               if (type && id) {
                 e.preventDefault();
                 const store = useInboxStore.getState();
                 // A role has no collection of its own: its row is the stub below, by its short id.
-                const collection = ({ session: store.sessions, task: store.tasks, doc: store.docs, plan: store.plans, project: store.projects, trigger: store.agentTasks, initiative: store.initiatives } as Partial<Record<PaletteTargetType, Record<string, any>>>)[type];
-                const row = collection?.[id] || (type === "session" ? recentSessions.find(row => row._id === id) : undefined) || { _id: id, title: selected?.dataset.paletteTitle, short_id: selected?.dataset.paletteShortId };
-                setDrilled({ type, row, query }); setQuery(""); return;
+                const collection = (
+                  {
+                    session: store.sessions,
+                    task: store.tasks,
+                    doc: store.docs,
+                    plan: store.plans,
+                    project: store.projects,
+                    trigger: store.agentTasks,
+                    initiative: store.initiatives,
+                  } as Partial<Record<PaletteTargetType, Record<string, any>>>
+                )[type];
+                const row = collection?.[id] ||
+                  (type === "session"
+                    ? recentSessions.find((row) => row._id === id)
+                    : undefined) || {
+                    _id: id,
+                    title: selected?.dataset.paletteTitle,
+                    short_id: selected?.dataset.paletteShortId,
+                  };
+                setDrilled({ type, row, query });
+                setQuery("");
+                return;
               }
-              if (selected?.dataset.paletteAction) { e.preventDefault(); selected.click(); return; }
+              if (selected?.dataset.paletteAction) {
+                e.preventDefault();
+                selected.click();
+                return;
+              }
             }
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
               e.preventDefault();
-              if (askable) navigateToSession({ _id: startHostedConversation(query.trim()) });
+              if (askable)
+                navigateToSession({
+                  _id: startHostedConversation(query.trim()),
+                });
               else openFullSearch();
             }
           }}
@@ -2866,79 +4614,153 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
         {pageLeads && pagesGroup}
 
         {askLeads && askHostedRow && (
-          <CommandPrimitive.Group className={groupClass}>{askHostedRow}</CommandPrimitive.Group>
+          <CommandPrimitive.Group className={groupClass}>
+            {askHostedRow}
+          </CommandPrimitive.Group>
         )}
 
         {(["person", "role"] as const).map((kind) => {
           const rows = whoRows.filter((r) => r.kind === kind);
-          return rows.length > 0 && (
-            <CommandPrimitive.Group key={kind} heading={kind === "person" ? "People" : "Roles"} className={groupClass}>
-              {rows.map((r) => (
-                <CommandPrimitive.Item
-                  key={`pickwho-${r.kind}-${r.id}`}
-                  value={`__pick__ ${r.o.label}|||${r.kind}:${r.id}`}
-                  onSelect={() => finishPick({ kind: r.kind, id: r.id, label: r.o.label })}
-                  className={itemClass}
-                >
-                  <span className="flex w-4 flex-shrink-0 justify-center">{r.o.face}</span>
-                  <span className="truncate flex-1">{r.o.label}</span>
-                  {r.o.hint && <span className="text-meta text-sol-text-dim flex-shrink-0">{r.o.hint}</span>}
-                </CommandPrimitive.Item>
-              ))}
-            </CommandPrimitive.Group>
+          return (
+            rows.length > 0 && (
+              <CommandPrimitive.Group
+                key={kind}
+                heading={kind === "person" ? "People" : "Roles"}
+                className={groupClass}
+              >
+                {rows.map((r) => (
+                  <CommandPrimitive.Item
+                    key={`pickwho-${r.kind}-${r.id}`}
+                    value={`__pick__ ${r.o.label}|||${r.kind}:${r.id}`}
+                    onSelect={() =>
+                      finishPick({ kind: r.kind, id: r.id, label: r.o.label })
+                    }
+                    className={itemClass}
+                  >
+                    <span className="flex w-4 flex-shrink-0 justify-center">
+                      {r.o.face}
+                    </span>
+                    <span className="truncate flex-1">{r.o.label}</span>
+                    {r.o.hint && (
+                      <span className="text-meta text-sol-text-dim flex-shrink-0">
+                        {r.o.hint}
+                      </span>
+                    )}
+                  </CommandPrimitive.Item>
+                ))}
+              </CommandPrimitive.Group>
+            )
           );
         })}
 
-        {pick && (pick.extras ?? []).some((x) => !x.needsQuery || query.trim()) && (
-          <CommandPrimitive.Group heading={whoRows.length ? "Agents" : undefined} className={groupClass}>
-            {(pick.extras ?? []).filter((x) => !x.needsQuery || query.trim()).map((x) => (
-              <CommandPrimitive.Item
-                key={`pick-${x.key}`}
-                value={`__pick__ ${x.label}|||${x.key}`}
-                onSelect={() => finishPick({ kind: "extra", key: x.key })}
-                className={`${itemClass} ${x.primary ? "text-sol-text data-[selected=true]:bg-sol-violet/15" : ""}`}
-              >
-                {x.icon === "doc" ? (
-                  <FileText className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
-                ) : x.icon === "slack" ? (
-                  <Hash className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
-                ) : (
-                  <Sparkles className="w-4 h-4 flex-shrink-0 text-sol-violet" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="truncate">{x.label}</div>
-                  {x.description && <div className="truncate text-meta text-sol-text-dim mt-0.5">{x.description}</div>}
-                </div>
-              </CommandPrimitive.Item>
-            ))}
-          </CommandPrimitive.Group>
+        {pick &&
+          (pick.extras ?? []).some((x) => !x.needsQuery || query.trim()) && (
+            <CommandPrimitive.Group
+              heading={whoRows.length ? "Agents" : undefined}
+              className={groupClass}
+            >
+              {(pick.extras ?? [])
+                .filter((x) => !x.needsQuery || query.trim())
+                .map((x) => (
+                  <CommandPrimitive.Item
+                    key={`pick-${x.key}`}
+                    value={`__pick__ ${x.label}|||${x.key}`}
+                    onSelect={() => finishPick({ kind: "extra", key: x.key })}
+                    className={`${itemClass} ${x.primary ? "text-sol-text data-[selected=true]:bg-sol-violet/15" : ""}`}
+                  >
+                    {x.icon === "doc" ? (
+                      <FileText className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
+                    ) : x.icon === "slack" ? (
+                      <Hash className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 flex-shrink-0 text-sol-violet" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate">{x.label}</div>
+                      {x.description && (
+                        <div className="truncate text-meta text-sol-text-dim mt-0.5">
+                          {x.description}
+                        </div>
+                      )}
+                    </div>
+                  </CommandPrimitive.Item>
+                ))}
+            </CommandPrimitive.Group>
+          )}
+
+        {!picking && query.trim() && (
+          <RepositoryPaletteItems
+            query={query}
+            navigate={navigate}
+            itemClass={itemClass}
+            groupClass={groupClass}
+          />
         )}
 
-        {!picking && query.trim() && <RepositoryPaletteItems query={query} navigate={navigate} itemClass={itemClass} groupClass={groupClass} />}
-
-        {!picking && (nestedMatches.length > 0 || personVerbMatches.length > 0) && (
-          <CommandPrimitive.Group heading="Go to action" className={groupClass}>
-            {personVerbMatches.map(({ person, action }) => (
-              <CommandPrimitive.Item key={`personverb-${person._id}-${action.key}`} value={`__entity__ ${person.name} ${action.label}`} data-palette-action={action.key} className={itemClass} onSelect={() => runPersonAction(person, action.key)}>
-                <MemberFace member={person.member} size={16} title="" showHuddle={false} /><span className="truncate text-sol-text-dim">{person.name}</span><span aria-hidden>›</span><span className="flex-1 truncate">{action.label}</span>
-              </CommandPrimitive.Item>
-            ))}
-            {nestedMatches.map(({ action, option }) => (
-              <CommandPrimitive.Item key={`nested-${action.key}-${option.key}`} value={`__entity__ ${action.label} ${option.label}`} data-palette-action={action.key} className={itemClass} onSelect={() => { setEnteredViaRoot(true); setActionSearch(option.label); setActionMode(action.key as ActionMode); }}>
-                <action.icon className="w-4 h-4 shrink-0" /><span className="truncate text-sol-text-dim">{action.label.replace(/[…]|\.\.\./g, "")}</span><span aria-hidden>›</span><span className="flex-1 truncate">{option.label}</span><KeyCap size="xs">→</KeyCap>
-              </CommandPrimitive.Item>
-            ))}
-          </CommandPrimitive.Group>
-        )}
+        {!picking &&
+          (nestedMatches.length > 0 || personVerbMatches.length > 0) && (
+            <CommandPrimitive.Group
+              heading="Go to action"
+              className={groupClass}
+            >
+              {personVerbMatches.map(({ person, action }) => (
+                <CommandPrimitive.Item
+                  key={`personverb-${person._id}-${action.key}`}
+                  value={`__entity__ ${person.name} ${action.label}`}
+                  data-palette-action={action.key}
+                  className={itemClass}
+                  onSelect={() => runPersonAction(person, action.key)}
+                >
+                  <MemberFace
+                    member={person.member}
+                    size={16}
+                    title=""
+                    showHuddle={false}
+                  />
+                  <span className="truncate text-sol-text-dim">
+                    {person.name}
+                  </span>
+                  <span aria-hidden>›</span>
+                  <span className="flex-1 truncate">{action.label}</span>
+                </CommandPrimitive.Item>
+              ))}
+              {nestedMatches.map(({ action, option }) => (
+                <CommandPrimitive.Item
+                  key={`nested-${action.key}-${option.key}`}
+                  value={`__entity__ ${action.label} ${option.label}`}
+                  data-palette-action={action.key}
+                  className={itemClass}
+                  onSelect={() => {
+                    setEnteredViaRoot(true);
+                    setActionSearch(option.label);
+                    setActionMode(action.key as ActionMode);
+                  }}
+                >
+                  <action.icon className="w-4 h-4 shrink-0" />
+                  <span className="truncate text-sol-text-dim">
+                    {action.label.replace(/[…]|\.\.\./g, "")}
+                  </span>
+                  <span aria-hidden>›</span>
+                  <span className="flex-1 truncate">{option.label}</span>
+                  <KeyCap size="xs">→</KeyCap>
+                </CommandPrimitive.Item>
+              ))}
+            </CommandPrimitive.Group>
+          )}
 
         {hasTargets && !picking && (
-          <CommandPrimitive.Group
-            heading={contextLabel}
-            className={groupClass}
-          >
+          <CommandPrimitive.Group heading={contextLabel} className={groupClass}>
             {actions.map((action) => {
               const Icon = action.icon;
-              if (action.key === "person_huddle") return <PersonHuddleItem key="action-person_huddle" person={target as PalettePerson} className={itemClass} onDone={closePalette} />;
+              if (action.key === "person_huddle")
+                return (
+                  <PersonHuddleItem
+                    key="action-person_huddle"
+                    person={target as PalettePerson}
+                    className={itemClass}
+                    onDone={closePalette}
+                  />
+                );
               return (
                 <CommandPrimitive.Item
                   key={`action-${action.key}`}
@@ -2949,7 +4771,16 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
                   <span className="truncate flex-1">{action.label}</span>
-                  {action.shortcutAction ? <MenuKeyCaps action={action.shortcutAction} /> : action.hotkey && <span className="flex gap-0.5"><KeyCap size="xs">{isMac ? "⌥" : "Alt"}</KeyCap><KeyCap size="xs">{action.hotkey.toUpperCase()}</KeyCap></span>}
+                  {action.shortcutAction ? (
+                    <MenuKeyCaps action={action.shortcutAction} />
+                  ) : (
+                    action.hotkey && (
+                      <span className="flex gap-0.5">
+                        <KeyCap size="xs">{isMac ? "⌥" : "Alt"}</KeyCap>
+                        <KeyCap size="xs">{action.hotkey.toUpperCase()}</KeyCap>
+                      </span>
+                    )
+                  )}
                 </CommandPrimitive.Item>
               );
             })}
@@ -2957,19 +4788,42 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
         )}
 
         {!picking && !query.trim() && recentVisitRows.length > 0 && (
-          <CommandPrimitive.Group heading="Recently visited" className={groupClass}>
+          <CommandPrimitive.Group
+            heading="Recently visited"
+            className={groupClass}
+          >
             {recentVisitRows.map((row) => (
               <CommandPrimitive.Item
                 key={`rv-${row.key}`}
-                data-palette-type={["session", "task", "doc", "plan", "project", "trigger"].includes(row.objectType) ? row.objectType : undefined} data-palette-id={row.sessionId || row.entity?._id} data-palette-title={row.title}
+                data-palette-type={
+                  [
+                    "session",
+                    "task",
+                    "doc",
+                    "plan",
+                    "project",
+                    "trigger",
+                  ].includes(row.objectType)
+                    ? row.objectType
+                    : undefined
+                }
+                data-palette-id={row.sessionId || row.entity?._id}
+                data-palette-title={row.title}
                 value={`recently visited ${row.title}|||${row.key}`}
                 onSelect={() => handleRecentVisitSelect(row)}
                 className={itemClass}
               >
-                <RecentVisitGlyph item={row} className="w-4 h-4 flex-shrink-0" />
+                <RecentVisitGlyph
+                  item={row}
+                  className="w-4 h-4 flex-shrink-0"
+                />
                 <span className="truncate flex-1">{row.title}</span>
-                <span className="text-meta text-sol-text-dim flex-shrink-0">{visitObjectLabel(row.objectType).toLowerCase()}</span>
-                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">{visitTimeAgo(row.ts)}</span>
+                <span className="text-meta text-sol-text-dim flex-shrink-0">
+                  {visitObjectLabel(row.objectType).toLowerCase()}
+                </span>
+                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">
+                  {visitTimeAgo(row.ts)}
+                </span>
               </CommandPrimitive.Item>
             ))}
           </CommandPrimitive.Group>
@@ -2983,11 +4837,16 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
             <CommandPrimitive.Item
               key="view-switch"
               value="switch view filter label project sessions"
-              onSelect={() => { setEnteredViaRoot(true); setActionMode("view"); }}
+              onSelect={() => {
+                setEnteredViaRoot(true);
+                setActionMode("view");
+              }}
               className={itemClass}
             >
               <Filter className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
-              <span className="truncate flex-1">Switch view (label / project)...</span>
+              <span className="truncate flex-1">
+                Switch view (label / project)...
+              </span>
               <MenuKeyCaps action="view.switch" />
             </CommandPrimitive.Item>
           </CommandPrimitive.Group>
@@ -3004,12 +4863,26 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
               <CommandPrimitive.Item
                 key={`wb-${v._id}`}
                 value={`switch to layout ${v.name} layout workbench arrangement`}
-                onSelect={() => { closePalette(); switchToWorkbench(v.prefs as WorkbenchSnapshot, router, pathname, v._id); }}
+                onSelect={() => {
+                  closePalette();
+                  switchToWorkbench(
+                    v.prefs as WorkbenchSnapshot,
+                    router,
+                    pathname,
+                    v._id,
+                  );
+                }}
                 className={itemClass}
               >
                 <LayoutDashboard className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
-                <span className="truncate flex-1">Switch to layout: {v.name}</span>
-                {i < 9 && <MenuKeyCaps action={`workbench.${i + 1}` as ShortcutAction} />}
+                <span className="truncate flex-1">
+                  Switch to layout: {v.name}
+                </span>
+                {i < 9 && (
+                  <MenuKeyCaps
+                    action={`workbench.${i + 1}` as ShortcutAction}
+                  />
+                )}
               </CommandPrimitive.Item>
             ))}
             {currentLayout && (
@@ -3018,19 +4891,28 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                 value={`update current layout ${currentLayout.name} workbench arrangement`}
                 onSelect={() => {
                   closePalette();
-                  useInboxStore.getState().updateWorkbench(currentLayout._id, pathname ?? undefined);
-                  toast.success(`"${currentLayout.name}" now matches the current layout`);
+                  useInboxStore
+                    .getState()
+                    .updateWorkbench(currentLayout._id, pathname ?? undefined);
+                  toast.success(
+                    `"${currentLayout.name}" now matches the current layout`,
+                  );
                 }}
                 className={itemClass}
               >
                 <RefreshCw className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
-                <span className="truncate flex-1">Update current layout: {currentLayout.name}</span>
+                <span className="truncate flex-1">
+                  Update current layout: {currentLayout.name}
+                </span>
               </CommandPrimitive.Item>
             )}
             <CommandPrimitive.Item
               key="wb-save"
               value="save current layout as new layout workbench arrangement"
-              onSelect={() => { setEnteredViaRoot(true); setActionMode("layout_save"); }}
+              onSelect={() => {
+                setEnteredViaRoot(true);
+                setActionMode("layout_save");
+              }}
               className={itemClass}
             >
               <Plus className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
@@ -3041,7 +4923,10 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                 <CommandPrimitive.Item
                   key="wb-update"
                   value="update layout to current arrangement workbench"
-                  onSelect={() => { setEnteredViaRoot(true); setActionMode("layout_update"); }}
+                  onSelect={() => {
+                    setEnteredViaRoot(true);
+                    setActionMode("layout_update");
+                  }}
                   className={itemClass}
                 >
                   <RefreshCw className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
@@ -3050,7 +4935,10 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                 <CommandPrimitive.Item
                   key="wb-rename"
                   value="rename layout workbench arrangement"
-                  onSelect={() => { setEnteredViaRoot(true); setActionMode("layout_rename"); }}
+                  onSelect={() => {
+                    setEnteredViaRoot(true);
+                    setActionMode("layout_rename");
+                  }}
                   className={itemClass}
                 >
                   <Pencil className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
@@ -3059,7 +4947,10 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                 <CommandPrimitive.Item
                   key="wb-delete"
                   value="delete remove layout workbench arrangement"
-                  onSelect={() => { setEnteredViaRoot(true); setActionMode("layout_delete"); }}
+                  onSelect={() => {
+                    setEnteredViaRoot(true);
+                    setActionMode("layout_delete");
+                  }}
                   className={itemClass}
                 >
                   <Trash2 className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
@@ -3078,7 +4969,10 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                 row={row}
                 className={itemClass}
                 following={followLeaderId === row.id}
-                onOpen={(person) => { setDrilled({ type: "person", row: person, query }); setQuery(""); }}
+                onOpen={(person) => {
+                  setDrilled({ type: "person", row: person, query });
+                  setQuery("");
+                }}
               />
             ))}
           </CommandPrimitive.Group>
@@ -3093,13 +4987,19 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
               <CommandPrimitive.Item
                 key={`goal-${g._id}`}
                 value={`${PALETTE_ORG} ${g.title} ${g.short_id}|||${g._id}`}
-                data-palette-type="initiative" data-palette-id={g._id} data-palette-title={g.title} data-palette-short-id={g.short_id}
+                data-palette-type="initiative"
+                data-palette-id={g._id}
+                data-palette-title={g.title}
+                data-palette-short-id={g.short_id}
                 onSelect={() => navigate(objectHref("initiative", g.short_id))}
                 className={itemClass}
               >
                 <Flag className="w-4 h-4 flex-shrink-0 text-sol-magenta" />
                 <span className="truncate flex-1">{g.title || "Untitled"}</span>
-                <ShortId id={g.short_id} className="text-meta text-sol-text-dim tabular-nums" />
+                <ShortId
+                  id={g.short_id}
+                  className="text-meta text-sol-text-dim tabular-nums"
+                />
               </CommandPrimitive.Item>
             ))}
           </CommandPrimitive.Group>
@@ -3111,13 +5011,18 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
               <CommandPrimitive.Item
                 key={`role-${r._id}`}
                 value={`${PALETTE_ORG} ${r.name} @${r.handle} ${r.short_id}|||${r._id}`}
-                data-palette-type="role" data-palette-id={r._id} data-palette-title={r.name} data-palette-short-id={r.short_id}
+                data-palette-type="role"
+                data-palette-id={r._id}
+                data-palette-title={r.name}
+                data-palette-short-id={r.short_id}
                 onSelect={() => navigate(objectHref("role", r.short_id))}
                 className={itemClass}
               >
                 <RoleFace role={r} size={16} className="flex-shrink-0" />
                 <span className="truncate flex-1">{r.name}</span>
-                <span className="text-meta text-sol-text-dim font-mono flex-shrink-0">@{r.handle}</span>
+                <span className="text-meta text-sol-text-dim font-mono flex-shrink-0">
+                  @{r.handle}
+                </span>
               </CommandPrimitive.Item>
             ))}
           </CommandPrimitive.Group>
@@ -3125,9 +5030,18 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
 
         {!picking && projectMatches.length > 0 && (
           <CommandPrimitive.Group heading="Projects" className={groupClass}>
-            {projectMatches.map(project => (
-              <CommandPrimitive.Item key={`project-${project._id}`} value={`${PALETTE_ORG} ${project.title}|||${project._id}`} data-palette-type="project" data-palette-id={project._id} data-palette-title={project.title} onSelect={() => navigate(paletteObjectPath("project", project))} className={itemClass}>
-                <Folder className="w-4 h-4 shrink-0 text-sol-blue" /><span className="truncate flex-1">{project.title}</span>
+            {projectMatches.map((project) => (
+              <CommandPrimitive.Item
+                key={`project-${project._id}`}
+                value={`${PALETTE_ORG} ${project.title}|||${project._id}`}
+                data-palette-type="project"
+                data-palette-id={project._id}
+                data-palette-title={project.title}
+                onSelect={() => navigate(paletteObjectPath("project", project))}
+                className={itemClass}
+              >
+                <Folder className="w-4 h-4 shrink-0 text-sol-blue" />
+                <span className="truncate flex-1">{project.title}</span>
               </CommandPrimitive.Item>
             ))}
           </CommandPrimitive.Group>
@@ -3138,7 +5052,10 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
             {favorites!.slice(0, 5).map((fav: any) => (
               <CommandPrimitive.Item
                 key={`fav-${fav._id}`}
-                data-palette-type="session" data-palette-id={fav._id} data-palette-title={fav.title} data-palette-short-id={fav.short_id}
+                data-palette-type="session"
+                data-palette-id={fav._id}
+                data-palette-title={fav.title}
+                data-palette-short-id={fav.short_id}
                 value={`favorite ${sessionSearchHaystack(fav)} ${fav.session_id || ""}|||${fav._id}`}
                 onSelect={() => chooseSession(fav)}
                 className={itemClass}
@@ -3146,11 +5063,23 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                 <SessionGlyph
                   row={identityRowOf(fav)}
                   className="flex-shrink-0"
-                  fallback={<span className="text-amber-400 flex-shrink-0"><NavIcon type="star" /></span>}
+                  fallback={
+                    <span className="text-amber-400 flex-shrink-0">
+                      <NavIcon type="star" />
+                    </span>
+                  }
                 />
-                <SessionIdentityLine row={identityRowOf(fav)} title={sessionCardTitle(fav)} className="flex-1" />
-                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">{fav.message_count} msgs</span>
-                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">{formatDateSmart(fav.updated_at, Date.now())}</span>
+                <SessionIdentityLine
+                  row={identityRowOf(fav)}
+                  title={sessionCardTitle(fav)}
+                  className="flex-1"
+                />
+                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">
+                  {fav.message_count} msgs
+                </span>
+                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">
+                  {formatDateSmart(fav.updated_at, Date.now())}
+                </span>
               </CommandPrimitive.Item>
             ))}
           </CommandPrimitive.Group>
@@ -3162,30 +5091,44 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
               <CommandPrimitive.Item
                 key={`bm-${bm._id}`}
                 value={`bookmark ${bm.message_preview || bm.conversation_title || ""}|||${bm._id}`}
-                onSelect={() => navigateToSession(
-                  {
-                    _id: bm.conversation_id,
-                    title: bm.conversation_title,
-                    updated_at: bm.conversation_updated_at,
-                    message_count: bm.conversation_message_count,
-                  },
-                  { messageId: bm.message_id }
-                )}
+                onSelect={() =>
+                  navigateToSession(
+                    {
+                      _id: bm.conversation_id,
+                      title: bm.conversation_title,
+                      updated_at: bm.conversation_updated_at,
+                      message_count: bm.conversation_message_count,
+                    },
+                    { messageId: bm.message_id },
+                  )
+                }
                 className={itemClass}
               >
                 <span className="text-sol-cyan flex-shrink-0">
                   <NavIcon type="bookmark" />
                 </span>
-                <span className="truncate flex-1">{bm.message_preview || bm.conversation_title}</span>
+                <span className="truncate flex-1">
+                  {bm.message_preview || bm.conversation_title}
+                </span>
               </CommandPrimitive.Item>
             ))}
           </CommandPrimitive.Group>
         )}
 
         {recentMatches.length > 0 && pickAllows("session") && (
-          <CommandPrimitive.Group heading={query.trim() ? "Sessions" : "Recent Sessions"} className={groupClass}>
+          <CommandPrimitive.Group
+            heading={query.trim() ? "Sessions" : "Recent Sessions"}
+            className={groupClass}
+          >
             {recentMatches.map((conv: any) => (
-              <PaletteSessionRow key={`recent-${conv._id}`} conv={conv} bucket={labelForConv(conv._id)} standing={standingOf(conv)} device={deviceOfRecent(conv)} onSelect={() => chooseSession(conv)} />
+              <PaletteSessionRow
+                key={`recent-${conv._id}`}
+                conv={conv}
+                bucket={labelForConv(conv._id)}
+                standing={standingOf(conv)}
+                device={deviceOfRecent(conv)}
+                onSelect={() => chooseSession(conv)}
+              />
             ))}
           </CommandPrimitive.Group>
         )}
@@ -3216,7 +5159,9 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                     src={c.image}
                     alt=""
                     className="w-4 h-4 rounded-full flex-shrink-0"
-                    fallback={<User className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />}
+                    fallback={
+                      <User className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
+                    }
                   />
                 ) : c.isPrivate ? (
                   <Lock className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
@@ -3225,7 +5170,11 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                 )}
                 <span className="truncate flex-1">{c.label}</span>
                 <span className="text-meta text-sol-text-dim flex-shrink-0">
-                  {c.kind === "dm" ? "direct message" : c.kind === "person" ? "new direct message" : "channel"}
+                  {c.kind === "dm"
+                    ? "direct message"
+                    : c.kind === "person"
+                      ? "new direct message"
+                      : "channel"}
                 </span>
               </CommandPrimitive.Item>
             ))}
@@ -3235,7 +5184,13 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
         {taskMatches.length > 0 && (
           <CommandPrimitive.Group heading="Tasks" className={groupClass}>
             {taskMatches.map((t: any) => (
-              <PaletteTaskRow key={`task-${t._id}`} task={t} status={TASK_STATUS_META[t.status]} valuePrefix={entityValuePrefix("task")} onSelect={() => chooseEntity("task", t, `/tasks/${t._id}`)} />
+              <PaletteTaskRow
+                key={`task-${t._id}`}
+                task={t}
+                status={TASK_STATUS_META[t.status]}
+                valuePrefix={entityValuePrefix("task")}
+                onSelect={() => chooseEntity("task", t, `/tasks/${t._id}`)}
+              />
             ))}
           </CommandPrimitive.Group>
         )}
@@ -3245,18 +5200,31 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
             {docMatches.map((d: any) => (
               <CommandPrimitive.Item
                 key={`doc-${d._id}`}
-                data-palette-type="doc" data-palette-id={d._id} data-palette-title={d.title} data-palette-short-id={d.short_id}
+                data-palette-type="doc"
+                data-palette-id={d._id}
+                data-palette-title={d.title}
+                data-palette-short-id={d.short_id}
                 value={`${entityValuePrefix("doc")} ${d.title} ${d.doc_type || ""}|||${d._id}`}
                 onSelect={() => chooseEntity("doc", d, `/docs/${d._id}`)}
                 className={itemClass}
               >
-                {docTypeIcon(d.doc_type) ? <DocTypeMark type={d.doc_type} size={16} /> : <FileText className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />}
+                {docTypeIcon(d.doc_type) ? (
+                  <DocTypeMark type={d.doc_type} size={16} />
+                ) : (
+                  <FileText className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
+                )}
                 <span className="truncate flex-1">{d.title || "Untitled"}</span>
                 {d.source_file && (
-                  <span className="text-meta text-sol-text-dim/70 font-mono truncate max-w-[140px] flex-shrink-0">{d.source_file.split("/").pop()}</span>
+                  <span className="text-meta text-sol-text-dim/70 font-mono truncate max-w-[140px] flex-shrink-0">
+                    {d.source_file.split("/").pop()}
+                  </span>
                 )}
-                <span className="text-meta text-sol-text-dim flex-shrink-0 capitalize">{d.doc_type || "note"}</span>
-                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">{formatDateSmart(d.updated_at, Date.now())}</span>
+                <span className="text-meta text-sol-text-dim flex-shrink-0 capitalize">
+                  {d.doc_type || "note"}
+                </span>
+                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">
+                  {formatDateSmart(d.updated_at, Date.now())}
+                </span>
               </CommandPrimitive.Item>
             ))}
           </CommandPrimitive.Group>
@@ -3269,16 +5237,32 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
               return (
                 <CommandPrimitive.Item
                   key={`plan-${p._id}`}
-                data-palette-type="plan" data-palette-id={p._id} data-palette-title={p.title} data-palette-short-id={p.short_id}
+                  data-palette-type="plan"
+                  data-palette-id={p._id}
+                  data-palette-title={p.title}
+                  data-palette-short-id={p.short_id}
                   value={`__entity__ ${p.title} ${p.short_id}|||${p._id}`}
-                  onSelect={() => chooseEntity("plan", p, `/plans/${p.short_id || p._id}`)}
+                  onSelect={() =>
+                    chooseEntity("plan", p, `/plans/${p.short_id || p._id}`)
+                  }
                   className={itemClass}
                 >
                   <MapIcon className="w-4 h-4 flex-shrink-0 text-sol-yellow" />
-                  <span className="truncate flex-1">{p.title || "Untitled"}</span>
-                  {st && <span className={`text-meta flex-shrink-0 ${st.color}`}>{st.label}</span>}
-                  <ShortId id={p.short_id} className="text-meta text-sol-text-dim tabular-nums" />
-                  <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">{formatDateSmart(p.updated_at, Date.now())}</span>
+                  <span className="truncate flex-1">
+                    {p.title || "Untitled"}
+                  </span>
+                  {st && (
+                    <span className={`text-meta flex-shrink-0 ${st.color}`}>
+                      {st.label}
+                    </span>
+                  )}
+                  <ShortId
+                    id={p.short_id}
+                    className="text-meta text-sol-text-dim tabular-nums"
+                  />
+                  <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">
+                    {formatDateSmart(p.updated_at, Date.now())}
+                  </span>
                 </CommandPrimitive.Item>
               );
             })}
@@ -3286,47 +5270,86 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
         )}
 
         {!picking && decisionRef && (
-          <CommandPrimitive.Group heading={decisionRef.kind === "stack" ? "Decision stack" : decisionRef.kind === "proposal" ? "Staffing proposal" : "Decision"} className={groupClass}>
+          <CommandPrimitive.Group
+            heading={
+              decisionRef.kind === "stack"
+                ? "Decision stack"
+                : decisionRef.kind === "proposal"
+                  ? "Staffing proposal"
+                  : "Decision"
+            }
+            className={groupClass}
+          >
             <CommandPrimitive.Item
               value={`__entity__ ${decisionRef.id}|||${decisionRef.id}`}
-              data-palette-type={decisionRef.kind === "stack" ? "decision_stack" : decisionRef.kind === "proposal" ? "org_proposal" : "decision"}
+              data-palette-type={
+                decisionRef.kind === "stack"
+                  ? "decision_stack"
+                  : decisionRef.kind === "proposal"
+                    ? "org_proposal"
+                    : "decision"
+              }
               data-palette-short-id={decisionRef.id}
               onSelect={() => navigate(decisionRef.href)}
               className={itemClass}
             >
               <Sparkles className="w-4 h-4 flex-shrink-0 text-sol-yellow" />
-              <span className="font-mono text-sol-text-dim">{decisionRef.id}</span>
-              <span className="flex-1 truncate">{decisionRef.kind === "stack" ? "open the stack" : decisionRef.kind === "proposal" ? "open it on the org page" : "open the decision page"}</span>
+              <span className="font-mono text-sol-text-dim">
+                {decisionRef.id}
+              </span>
+              <span className="flex-1 truncate">
+                {decisionRef.kind === "stack"
+                  ? "open the stack"
+                  : decisionRef.kind === "proposal"
+                    ? "open it on the org page"
+                    : "open the decision page"}
+              </span>
               <KeyCap size="xs">→</KeyCap>
             </CommandPrimitive.Item>
           </CommandPrimitive.Group>
         )}
 
-        {!picking && query.trim() && <OpsPaletteGroup query={query} navigate={navigate} />}
+        {!picking && query.trim() && (
+          <OpsPaletteGroup query={query} navigate={navigate} />
+        )}
 
         {!picking && triggerMatches.length > 0 && (
           <CommandPrimitive.Group heading="Triggers" className={groupClass}>
             {triggerMatches.map((t: any) => (
               <CommandPrimitive.Item
                 key={`trigger-${t._id}`}
-                data-palette-type="trigger" data-palette-id={t._id} data-palette-title={t.title} data-palette-short-id={t.short_id}
+                data-palette-type="trigger"
+                data-palette-id={t._id}
+                data-palette-title={t.title}
+                data-palette-short-id={t.short_id}
                 value={`${entityValuePrefix("routine")} ${t.title} ${t.short_id || ""}|||${t._id}`}
                 onSelect={() => navigate(`/triggers/${t._id}`)}
                 className={itemClass}
               >
                 {t.schedule_type === "recurring" ? (
-                  <Repeat className={`w-4 h-4 flex-shrink-0 ${t.status === "paused" ? "text-sol-yellow" : "text-sol-violet"}`} />
+                  <Repeat
+                    className={`w-4 h-4 flex-shrink-0 ${t.status === "paused" ? "text-sol-yellow" : "text-sol-violet"}`}
+                  />
                 ) : t.schedule_type === "event" ? (
                   <Zap className="w-4 h-4 flex-shrink-0 text-sol-yellow" />
                 ) : (
-                  <Clock className={`w-4 h-4 flex-shrink-0 ${t.status === "paused" ? "text-sol-yellow" : "text-sol-cyan"}`} />
+                  <Clock
+                    className={`w-4 h-4 flex-shrink-0 ${t.status === "paused" ? "text-sol-yellow" : "text-sol-cyan"}`}
+                  />
                 )}
-                <span className="truncate flex-1">{t.title || "Untitled trigger"}</span>
+                <span className="truncate flex-1">
+                  {t.title || "Untitled trigger"}
+                </span>
                 {t.status === "paused" && (
-                  <span className="text-meta text-sol-yellow flex-shrink-0">paused</span>
+                  <span className="text-meta text-sol-yellow flex-shrink-0">
+                    paused
+                  </span>
                 )}
                 {t.short_id && (
-                  <ShortId id={t.short_id} className="text-meta text-sol-text-dim tabular-nums" />
+                  <ShortId
+                    id={t.short_id}
+                    className="text-meta text-sol-text-dim tabular-nums"
+                  />
                 )}
               </CommandPrimitive.Item>
             ))}
@@ -3349,18 +5372,27 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                     {n.path.slice(0, n.path.lastIndexOf("/"))}
                   </span>
                 )}
-                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">{formatDateSmart(n.mtime)}</span>
+                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">
+                  {formatDateSmart(n.mtime)}
+                </span>
               </CommandPrimitive.Item>
             ))}
           </CommandPrimitive.Group>
         )}
 
-
         {!picking && createGroup}
 
         {!picking && !pageLeads && pagesGroup}
 
-        {!picking && <ModPaletteGroup groupClass={groupClass} itemClass={itemClass} navigate={navigate} close={closePalette} query={query} />}
+        {!picking && (
+          <ModPaletteGroup
+            groupClass={groupClass}
+            itemClass={itemClass}
+            navigate={navigate}
+            close={closePalette}
+            query={query}
+          />
+        )}
 
         {!picking && vaultReady && (
           <CommandPrimitive.Group heading="Files" className={groupClass}>
@@ -3387,9 +5419,12 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
               value="Files vault new note create markdown"
               onSelect={() => {
                 closePalette();
-                void useVaultStore.getState().newNote("").then((p) => {
-                  if (p) navigate(filesHref({ path: p }));
-                });
+                void useVaultStore
+                  .getState()
+                  .newNote("")
+                  .then((p) => {
+                    if (p) navigate(filesHref({ path: p }));
+                  });
               }}
               className={itemClass}
             >
@@ -3401,12 +5436,15 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
               value="Files vault daily note today journal"
               onSelect={() => {
                 closePalette();
-                void useVaultStore.getState().openDailyNote().then((p) => {
-                  if (p) {
-                    useVaultStore.getState().noteOpened(p);
-                    navigate(filesHref({ path: p }));
-                  }
-                });
+                void useVaultStore
+                  .getState()
+                  .openDailyNote()
+                  .then((p) => {
+                    if (p) {
+                      useVaultStore.getState().noteOpened(p);
+                      navigate(filesHref({ path: p }));
+                    }
+                  });
               }}
               className={itemClass}
             >
@@ -3426,13 +5464,19 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
         )}
 
         {!standalone && !picking && (
-          <CommandPrimitive.Group heading={namedCommands.length > 0 ? "More commands" : "Commands"} className={groupClass}>
+          <CommandPrimitive.Group
+            heading={namedCommands.length > 0 ? "More commands" : "Commands"}
+            className={groupClass}
+          >
             {otherCommands.map(renderCommand)}
             {!isPeopleWindow() && (
               <CommandPrimitive.Item
                 key="cmd-people"
                 value="People window buddy list roster presence pop out floating who is online"
-                onSelect={() => { closePalette(); void popOutPeople(); }}
+                onSelect={() => {
+                  closePalette();
+                  void popOutPeople();
+                }}
                 className={itemClass}
               >
                 <PictureInPicture2 className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
@@ -3455,20 +5499,26 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
               }
               onSelect={() => {
                 closePalette();
-                if (browserPaneUrl) openBrowserPane({ kind: "url", url: browserPaneUrl });
+                if (browserPaneUrl)
+                  openBrowserPane({ kind: "url", url: browserPaneUrl });
                 else if (!openBeside(BROWSER_ROUTE)) navigate(BROWSER_ROUTE);
               }}
               className={itemClass}
             >
               <Globe className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
               <span className="truncate flex-1">
-                {browserPaneUrl ? `Open ${displayHost(browserPaneUrl)} in a pane` : "Open a URL in a pane"}
+                {browserPaneUrl
+                  ? `Open ${displayHost(browserPaneUrl)} in a pane`
+                  : "Open a URL in a pane"}
               </span>
             </CommandPrimitive.Item>
             <CommandPrimitive.Item
               key="cmd-theme"
               value="Switch theme dark light mode appearance"
-              onSelect={() => { closePalette(); toggleTheme(); }}
+              onSelect={() => {
+                closePalette();
+                toggleTheme();
+              }}
               className={itemClass}
             >
               {theme === "dark" ? (
@@ -3476,16 +5526,25 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
               ) : (
                 <Moon className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
               )}
-              <span className="truncate flex-1">Switch to {theme === "dark" ? "light" : "dark"} theme</span>
+              <span className="truncate flex-1">
+                Switch to {theme === "dark" ? "light" : "dark"} theme
+              </span>
             </CommandPrimitive.Item>
             <CommandPrimitive.Item
               key="cmd-visual-style"
               value="Switch interface style minimal mono classic appearance"
-              onSelect={() => { closePalette(); setVisualStyle(visualStyle === "minimal" ? "classic" : "minimal"); }}
+              onSelect={() => {
+                closePalette();
+                setVisualStyle(
+                  visualStyle === "minimal" ? "classic" : "minimal",
+                );
+              }}
               className={itemClass}
             >
               <LayoutDashboard className="w-4 h-4 flex-shrink-0 text-sol-text-dim" />
-              <span className="truncate flex-1">Switch to {visualStyle === "minimal" ? "Mono" : "Minimal"} style</span>
+              <span className="truncate flex-1">
+                Switch to {visualStyle === "minimal" ? "Mono" : "Minimal"} style
+              </span>
             </CommandPrimitive.Item>
           </CommandPrimitive.Group>
         )}
@@ -3496,21 +5555,32 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
               <CommandPrimitive.Item
                 key={`proj-${dir}`}
                 value={`workspace ${getShortPath(dir)} ${dir}`}
-                onSelect={() => navigate(`/team/activity?filter=my&dir=${encodeURIComponent(dir)}`)}
+                onSelect={() =>
+                  navigate(
+                    `/team/activity?filter=my&dir=${encodeURIComponent(dir)}`,
+                  )
+                }
                 className={itemClass}
               >
                 <span className="text-sol-text-dim flex-shrink-0">
                   <NavIcon type="folder" />
                 </span>
-                <span className="truncate modern:font-mono">{getShortPath(dir)}</span>
-                <span className="modern:font-mono text-meta text-sol-text-dim truncate ml-auto max-w-[200px]">{dir}</span>
+                <span className="truncate modern:font-mono">
+                  {getShortPath(dir)}
+                </span>
+                <span className="modern:font-mono text-meta text-sol-text-dim truncate ml-auto max-w-[200px]">
+                  {dir}
+                </span>
               </CommandPrimitive.Item>
             ))}
           </CommandPrimitive.Group>
         )}
 
         {!picking && chatHits.length > 0 && (
-          <CommandPrimitive.Group heading="Chat messages" className={groupClass}>
+          <CommandPrimitive.Group
+            heading="Chat messages"
+            className={groupClass}
+          >
             {chatHits.map((h) => (
               <CommandPrimitive.Item
                 key={`chatm-${h._id}`}
@@ -3522,10 +5592,15 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                 <div className="flex-1 min-w-0">
                   <div className="truncate text-sm">{h.snippet}</div>
                   <div className="truncate text-meta text-sol-text-dim mt-0.5">
-                    {chatAuthorName(h)} · {h.channel_kind === "dm" ? "direct message" : `#${h.channel_name}`}
+                    {chatAuthorName(h)} ·{" "}
+                    {h.channel_kind === "dm"
+                      ? "direct message"
+                      : `#${h.channel_name}`}
                   </div>
                 </div>
-                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">{formatDateSmart(h.created_at)}</span>
+                <span className="text-meta text-sol-text-dim tabular-nums flex-shrink-0">
+                  {formatDateSmart(h.created_at)}
+                </span>
               </CommandPrimitive.Item>
             ))}
           </CommandPrimitive.Group>
@@ -3569,7 +5644,9 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                   // back to the busiest channel and offer the wrong in: filter.
                   const m = pathname?.match(/^\/chat\/([^/?#]+)/);
                   const base = m ? `/chat/${m[1]}` : "/chat";
-                  navigate(`${base}?search=${encodeURIComponent(query.trim())}`);
+                  navigate(
+                    `${base}?search=${encodeURIComponent(query.trim())}`,
+                  );
                 }}
                 className={itemClass}
               >
@@ -3591,11 +5668,23 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                 className={itemClass}
               >
                 <span className="text-sol-yellow flex-shrink-0">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M12 4v16m8-8H4"
+                    />
                   </svg>
                 </span>
-                <span className="truncate">New session: &ldquo;{previewQuery(query)}&rdquo;</span>
+                <span className="truncate">
+                  New session: &ldquo;{previewQuery(query)}&rdquo;
+                </span>
               </CommandPrimitive.Item>
             )}
             {!askLeads && askHostedRow}
@@ -3608,12 +5697,18 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
                   const path = MARKDOWN_RE.test(name) ? name : `${name}.md`;
                   const s = useVaultStore.getState();
                   // Name already taken → this is an open, not a create.
-                  if (s.files[path]) { openVaultNote(path); return; }
+                  if (s.files[path]) {
+                    openVaultNote(path);
+                    return;
+                  }
                   closePalette();
-                  void s.createFile(path).then(() => {
-                    s.noteOpened(path);
-                    navigate(filesHref({ path }));
-                  }).catch(() => toast.error(`Couldn't create ${path}`));
+                  void s
+                    .createFile(path)
+                    .then(() => {
+                      s.noteOpened(path);
+                      navigate(filesHref({ path }));
+                    })
+                    .catch(() => toast.error(`Couldn't create ${path}`));
                 }}
                 className={itemClass}
               >
@@ -3629,7 +5724,9 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
         {/* Operator names trail everything and, like compose, wait for the
             search to answer: cmdk preselects the first row it registers,
             and a word that may be plain text must not be completed by Enter. */}
-        {filterCompletion?.kind === "operator" && !searchAwaiting && filterGroup}
+        {filterCompletion?.kind === "operator" &&
+          !searchAwaiting &&
+          filterGroup}
       </CommandPaletteList>
 
       {/* Key hints only where there is room and, usually, a keyboard: at
@@ -3646,9 +5743,20 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
             open
           </span>
           {/* The palette's speed keys work in every mode, so every mode says them. */}
-          {!picking && <span className="flex items-center gap-1"><KeyCap size="xs">→</KeyCap> actions</span>}
-          <span className="flex items-center gap-1"><KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap><KeyCap size="xs">1–9</KeyCap> pick</span>
-          {drilled && <span className="flex items-center gap-1"><KeyCap size="xs">←</KeyCap> back</span>}
+          {!picking && (
+            <span className="flex items-center gap-1">
+              <KeyCap size="xs">→</KeyCap> actions
+            </span>
+          )}
+          <span className="flex items-center gap-1">
+            <KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap>
+            <KeyCap size="xs">1–9</KeyCap> pick
+          </span>
+          {drilled && (
+            <span className="flex items-center gap-1">
+              <KeyCap size="xs">←</KeyCap> back
+            </span>
+          )}
           {askable && !askLeads && (
             <span className="flex items-center gap-1">
               <KeyCap size="xs">{isMac ? "⌘" : "Ctrl"}</KeyCap>
@@ -3686,13 +5794,23 @@ function CommandPaletteImpl({ standalone = false }: { standalone?: boolean }) {
   );
 
   if (standalone) {
-    return <>{paletteContent}{killDialog}</>;
+    return (
+      <>
+        {paletteContent}
+        {killDialog}
+      </>
+    );
   }
 
   if (!open) return null;
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Command menu" className="fixed inset-0 z-[9999]">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command menu"
+      className="fixed inset-0 z-[9999]"
+    >
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
         onClick={closePalette}

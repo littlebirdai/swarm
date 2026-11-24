@@ -1,7 +1,13 @@
 // What a hosted assistant plan gives, in plain words, for every surface that
 // shows the plans: Settings > Plan, the phone and the public pricing page. A
 // leaf over the PLANS catalog, so the public pages read it without the store.
-import { PLANS, PLAN_CATALOG, TYPICAL_REQUEST_USD, routineFloor, type PlanSpec } from "@codecast/shared/contracts/assistant";
+import {
+  PLANS,
+  PLAN_CATALOG,
+  TYPICAL_REQUEST_USD,
+  routineFloor,
+  type PlanSpec,
+} from "@codecast/shared/contracts/assistant";
 import { cadenceLabel } from "../../lib/cadence";
 
 export function plural(n: number, one: string, many = `${one}s`): string {
@@ -48,9 +54,20 @@ export function allowancePoint(plan: PlanSpec): string {
 export function planPoints(plan: PlanSpec): string[] {
   const { max } = plan.routines;
   const routines = `${max === null ? "Unlimited routines" : plural(max, "routine")}, ${cadenceLabel(routineFloor(plan)).replace(/^every /, "at most every ")}`;
-  const together = plan.concurrent_turns === 1 ? "Works on one request at a time" : `Works on ${plan.concurrent_turns === 2 ? "two" : plan.concurrent_turns} requests at once`;
-  const thinking = plan.strong_model !== plan.default_model ? "Deeper thinking for hard problems" : null;
-  return [allowancePoint(plan), routines, together, ...(thinking ? [thinking] : [])];
+  const together =
+    plan.concurrent_turns === 1
+      ? "Works on one request at a time"
+      : `Works on ${plan.concurrent_turns === 2 ? "two" : plan.concurrent_turns} requests at once`;
+  const thinking =
+    plan.strong_model !== plan.default_model
+      ? "Deeper thinking for hard problems"
+      : null;
+  return [
+    allowancePoint(plan),
+    routines,
+    together,
+    ...(thinking ? [thinking] : []),
+  ];
 }
 
 export function planPrice(plan: PlanSpec): string {

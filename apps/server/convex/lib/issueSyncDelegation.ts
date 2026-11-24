@@ -12,17 +12,32 @@ import type { SourceDoc } from "../issueSync";
  * provider side that means "an agent takes this". Guarded by the task having
  * no session yet, so the signal spawns once and re-firing events are inert.
  */
-export async function maybeDelegate(ctx: any, source: SourceDoc | null, task: any, issue: NormalizedIssue) {
+export async function maybeDelegate(
+  ctx: any,
+  source: SourceDoc | null,
+  task: any,
+  issue: NormalizedIssue,
+) {
   if (!source?.auto_spawn) return;
   if ((task.conversation_ids ?? []).length > 0) return;
 
   const label = (source.delegate_label || "agent").toLowerCase();
   const byLabel = issue.labels.some((l) => l.toLowerCase() === label);
   const target = source.delegate_assignee?.toLowerCase();
-  const byAssignee = !!target
-    && [issue.assignee_id, issue.assignee_login, issue.assignee_email, issue.assignee_label]
-      .some((v) => typeof v === "string" && v.toLowerCase() === target);
-  if (!byLabel && !byAssignee && !(await delegatedToSourceApp(ctx, source, issue.delegate_id))) return;
+  const byAssignee =
+    !!target &&
+    [
+      issue.assignee_id,
+      issue.assignee_login,
+      issue.assignee_email,
+      issue.assignee_label,
+    ].some((v) => typeof v === "string" && v.toLowerCase() === target);
+  if (
+    !byLabel &&
+    !byAssignee &&
+    !(await delegatedToSourceApp(ctx, source, issue.delegate_id))
+  )
+    return;
 
   await ctx.scheduler.runAfter(0, internal.tasks.spawnSessionForTaskInternal, {
     task_id: task._id,
@@ -97,19 +112,27 @@ export async function fireTriggers(
     repository,
     // A personal source has no team, and an event with neither a team nor a
     // workspace wakes every user's trigger: scope it to the source's own key.
-    ...(source.team_id ? { team_id: source.team_id } : { workspace: source.workspace }),
+    ...(source.team_id
+      ? { team_id: source.team_id }
+      : { workspace: source.workspace }),
   });
 }
 
 function linearActionFor(kind: string | undefined): string | undefined {
   switch (kind) {
-    case "issue_opened": return "opened";
-    case "issue_assigned": return "assigned";
-    case "issue_labeled": return "labeled";
-    case "issue_closed": return "closed";
-    case "issue_reopened": return "reopened";
-    case "issue_commented": return "created";
-    default: return "edited";
+    case "issue_opened":
+      return "opened";
+    case "issue_assigned":
+      return "assigned";
+    case "issue_labeled":
+      return "labeled";
+    case "issue_closed":
+      return "closed";
+    case "issue_reopened":
+      return "reopened";
+    case "issue_commented":
+      return "created";
+    default:
+      return "edited";
   }
 }
-

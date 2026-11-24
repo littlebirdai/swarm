@@ -12,8 +12,46 @@ import { machineCap } from "./machineCaps.js";
 import { thisMachineTooSmall } from "./repoNeed.js";
 import { CheckFailure } from "./checkOutcome.js";
 import { isPidAlive } from "./workspace/chrome.js";
-import { admissionBudget, coldReservationBytes, expectedBytes, learnedSizes, machineMemoryProbe, watcherCeilingBytes, budgetBytes, fitsBudget, fmtGb, holdBytes, percentile, procTable, readPeaks, reservationBytes, treeRssBytes, usablePeaks, type MachineMemory, type Peak, type ProcTable } from "./watcherMemory.js";
-import { checkHome, isWanted, launchdHolds, listWatchers, lockFor, logPath, logWatcherEvent, mainCheckoutOf, readWatchState, removeOwnState, sleep, watchDir, watcherDeath, watcherLabel, type CheckProject, type WatcherStarter, type WatchState } from "./check.js";
+import {
+  admissionBudget,
+  coldReservationBytes,
+  expectedBytes,
+  learnedSizes,
+  machineMemoryProbe,
+  watcherCeilingBytes,
+  budgetBytes,
+  fitsBudget,
+  fmtGb,
+  holdBytes,
+  percentile,
+  procTable,
+  readPeaks,
+  reservationBytes,
+  treeRssBytes,
+  usablePeaks,
+  type MachineMemory,
+  type Peak,
+  type ProcTable,
+} from "./watcherMemory.js";
+import {
+  checkHome,
+  isWanted,
+  launchdHolds,
+  listWatchers,
+  lockFor,
+  logPath,
+  logWatcherEvent,
+  mainCheckoutOf,
+  readWatchState,
+  removeOwnState,
+  sleep,
+  watchDir,
+  watcherDeath,
+  watcherLabel,
+  type CheckProject,
+  type WatcherStarter,
+  type WatchState,
+} from "./check.js";
 
 /** The line an evicted watcher's log ends with, so an asker still on it is told to ask again (75) rather than of a death (70). */
 export const EVICTED_LINE = "stopped to make room for another watcher";
@@ -41,7 +79,14 @@ export function repoOf(root: string): string {
   return repos.get(root)!;
 }
 
-export type MachineCapacity = Capacity & { ceilingBytes: number; coldBytes: number; budgetBytes: number; capBytes: number; pressure: boolean; memory: MachineMemory | null };
+export type MachineCapacity = Capacity & {
+  ceilingBytes: number;
+  coldBytes: number;
+  budgetBytes: number;
+  capBytes: number;
+  pressure: boolean;
+  memory: MachineMemory | null;
+};
 
 /**
  * The capacity rule, from its inputs: the machine's memory (its size, and
@@ -77,7 +122,8 @@ export function capacityFor(input: {
     const known = input.peaksOf(w);
     const measured = input.measure(w);
     // Its size unreadable (ps failed or timed out under load) is unknown, not zero: it holds what its project reaches.
-    if (measured === null) return Math.max(w.peakRssBytes ?? 0, expectedBytes(known, ceiling, cold));
+    if (measured === null)
+      return Math.max(w.peakRssBytes ?? 0, expectedBytes(known, ceiling, cold));
     return holdBytes(w, measured, known, ceiling, cold);
   };
   // Lazy, and measured once: sizing the head of the queue needs only its reservation, never the machine.
@@ -87,17 +133,36 @@ export function capacityFor(input: {
     if (admitted) return admitted;
     memory = input.memory?.() ?? null;
     // What killing the live watchers would give back: their measured size (an unreadable one, its hold).
-    const watcherBytes = memory ? (input.watchers?.() ?? []).reduce((a, w) => a + (input.measure(w) ?? holdOf(w)), 0) : 0;
-    return (admitted = admissionBudget({ totalBytes: input.totalBytes, capBytes: budget, watcherBytes, memory }));
+    const watcherBytes = memory
+      ? (input.watchers?.() ?? []).reduce(
+          (a, w) => a + (input.measure(w) ?? holdOf(w)),
+          0,
+        )
+      : 0;
+    return (admitted = admissionBudget({
+      totalBytes: input.totalBytes,
+      capBytes: budget,
+      watcherBytes,
+      memory,
+    }));
   };
   return {
     maxWatchers: input.maxWatchers,
-    get budgetBytes() { return admit().budgetBytes; },
-    get pressure() { return admit().pressure; },
-    get memory() { admit(); return memory; },
+    get budgetBytes() {
+      return admit().budgetBytes;
+    },
+    get pressure() {
+      return admit().pressure;
+    },
+    get memory() {
+      admit();
+      return memory;
+    },
     capBytes: budget,
     // Lazy: status readers need the budget and holds, not a reservation for a project they are not asking about.
-    get needBytes() { return reservationBytes(input.needPeaks(), ceiling, cold); },
+    get needBytes() {
+      return reservationBytes(input.needPeaks(), ceiling, cold);
+    },
     holdOf,
     ceilingBytes: ceiling,
     coldBytes: cold,
@@ -105,7 +170,12 @@ export function capacityFor(input: {
 }
 
 /** This machine's capacity for one more watcher of `project` in `root`, measured now. */
-export function machineCapacity(root: string, project: string, maxWatchers = machineCap("check"), table?: ProcTable): MachineCapacity {
+export function machineCapacity(
+  root: string,
+  project: string,
+  maxWatchers = machineCap("check"),
+  table?: ProcTable,
+): MachineCapacity {
   const peaksOf = new Map<string, Peak[]>();
   const peaks = (repo: string, p: string) => {
     const key = `${repo}\0${p}`;
@@ -117,7 +187,9 @@ export function machineCapacity(root: string, project: string, maxWatchers = mac
     maxWatchers,
     needPeaks: () => peaks(repoOf(root), project),
     peaksOf: (w) => peaks(w.repo ?? repoOf(w.root), w.project),
-    learnedP95s: learnedSizes().flatMap((l) => (l.warm && l.p95Bytes ? [l.p95Bytes] : [])),
+    learnedP95s: learnedSizes().flatMap((l) =>
+      l.warm && l.p95Bytes ? [l.p95Bytes] : [],
+    ),
     measure: (w) => {
       table ??= procTable();
       return table.size ? treeRssBytes(w.pid, table) : null;
@@ -136,17 +208,44 @@ export function machineCapacity(root: string, project: string, maxWatchers = mac
  * wanted pass (nothing is stopped then). A watcher's state file goes with it,
  * so a later ask for that project starts a fresh one.
  */
-export function makeRoom(capacity: number | Capacity, kill: (pid: number) => void = (pid) => process.kill(pid, "SIGTERM"), now = Date.now(), protect: ReadonlySet<string> = new Set(), evict = true): Array<WatchState & { dir: string }> | null {
-  const cap: Capacity = typeof capacity === "number" ? { maxWatchers: capacity } : capacity;
-  const byAsk = (a: WatchState, b: WatchState) => (a.askedAt ?? a.startedAt) - (b.askedAt ?? b.startedAt);
+export function makeRoom(
+  capacity: number | Capacity,
+  kill: (pid: number) => void = (pid) => process.kill(pid, "SIGTERM"),
+  now = Date.now(),
+  protect: ReadonlySet<string> = new Set(),
+  evict = true,
+): Array<WatchState & { dir: string }> | null {
+  const cap: Capacity =
+    typeof capacity === "number" ? { maxWatchers: capacity } : capacity;
+  const byAsk = (a: WatchState, b: WatchState) =>
+    (a.askedAt ?? a.startedAt) - (b.askedAt ?? b.startedAt);
   const live = listWatchers();
-  const holds = new Map(live.map((w) => [w.dir, cap.budgetBytes === undefined ? 0 : cap.holdOf?.(w) ?? 0]));
+  const holds = new Map(
+    live.map((w) => [
+      w.dir,
+      cap.budgetBytes === undefined ? 0 : (cap.holdOf?.(w) ?? 0),
+    ]),
+  );
   const fits = (rest: Array<WatchState & { dir: string }>) =>
-    rest.length < cap.maxWatchers && (cap.budgetBytes === undefined || (cap.strict
-      ? rest.reduce((a, w) => a + holds.get(w.dir)!, 0) + (cap.needBytes ?? 0) <= cap.budgetBytes
-      : fitsBudget(rest.map((w) => holds.get(w.dir)!), cap.needBytes ?? 0, cap.budgetBytes)));
-  const stoppable = (ws: Array<WatchState & { dir: string }>) => [...ws.filter((w) => !w.inProgress).sort(byAsk), ...ws.filter((w) => w.inProgress && !isWanted(w, now)).sort(byAsk)];
-  const eligible = [...stoppable(live.filter((w) => !protect.has(w.dir))), ...stoppable(live.filter((w) => protect.has(w.dir)))];
+    rest.length < cap.maxWatchers &&
+    (cap.budgetBytes === undefined ||
+      (cap.strict
+        ? rest.reduce((a, w) => a + holds.get(w.dir)!, 0) +
+            (cap.needBytes ?? 0) <=
+          cap.budgetBytes
+        : fitsBudget(
+            rest.map((w) => holds.get(w.dir)!),
+            cap.needBytes ?? 0,
+            cap.budgetBytes,
+          )));
+  const stoppable = (ws: Array<WatchState & { dir: string }>) => [
+    ...ws.filter((w) => !w.inProgress).sort(byAsk),
+    ...ws.filter((w) => w.inProgress && !isWanted(w, now)).sort(byAsk),
+  ];
+  const eligible = [
+    ...stoppable(live.filter((w) => !protect.has(w.dir))),
+    ...stoppable(live.filter((w) => protect.has(w.dir))),
+  ];
   const victims: Array<WatchState & { dir: string }> = [];
   let rest = live;
   while (!fits(rest)) {
@@ -156,7 +255,10 @@ export function makeRoom(capacity: number | Capacity, kill: (pid: number) => voi
     rest = rest.filter((w) => w !== next);
   }
   const held = [...holds.values()].reduce((a, b) => a + b, 0);
-  const why = cap.budgetBytes === undefined ? `cap ${cap.maxWatchers}` : `cap ${cap.maxWatchers}, ${fmtGb(held)} reserved of ${fmtGb(cap.budgetBytes)}${cap.pressure ? " under memory pressure" : ""}, need ${fmtGb(cap.needBytes ?? 0)}`;
+  const why =
+    cap.budgetBytes === undefined
+      ? `cap ${cap.maxWatchers}`
+      : `cap ${cap.maxWatchers}, ${fmtGb(held)} reserved of ${fmtGb(cap.budgetBytes)}${cap.pressure ? " under memory pressure" : ""}, need ${fmtGb(cap.needBytes ?? 0)}`;
   // A successor may already hold a victim's dir (a --fresh restart): then the room counted is not there, and nothing is stopped.
   if (victims.some((v) => readWatchState(v.dir)?.pid !== v.pid)) return null;
   for (const victim of victims) {
@@ -167,7 +269,11 @@ export function makeRoom(capacity: number | Capacity, kill: (pid: number) => voi
       kill(victim.pid);
     } catch {}
     removeOwnState(victim.dir, victim.pid);
-    logWatcherEvent("evict", victim, `asked ${Math.round((now - (victim.askedAt ?? victim.startedAt)) / 60_000)}m ago, ${live.length} live, ${why}${cap.budgetBytes === undefined ? "" : `, frees ${fmtGb(holds.get(victim.dir)!)}`}`);
+    logWatcherEvent(
+      "evict",
+      victim,
+      `asked ${Math.round((now - (victim.askedAt ?? victim.startedAt)) / 60_000)}m ago, ${live.length} live, ${why}${cap.budgetBytes === undefined ? "" : `, frees ${fmtGb(holds.get(victim.dir)!)}`}`,
+    );
   }
   return victims;
 }
@@ -187,7 +293,10 @@ export const COLD_BUILDS_ENV = "CAST_CHECK_COLD_BUILDS";
 /** A project past this (its learned p95) builds as two. */
 export const BIG_BUILD_BYTES = 8 * 2 ** 30;
 
-export function coldBuildCap(cores = os.availableParallelism?.() ?? os.cpus().length, env: NodeJS.ProcessEnv = process.env): number {
+export function coldBuildCap(
+  cores = os.availableParallelism?.() ?? os.cpus().length,
+  env: NodeJS.ProcessEnv = process.env,
+): number {
   const set = parseInt(env[COLD_BUILDS_ENV] ?? "", 10);
   if (Number.isInteger(set) && set >= 1) return set;
   return Math.max(1, Math.min(3, Math.floor(cores / 6)));
@@ -198,13 +307,22 @@ export function coldBuildCap(cores = os.availableParallelism?.() ?? os.cpus().le
  * project's learned p95 (null: not measured). A big project counts as two.
  * One always runs on a machine building nothing, however big.
  */
-export function coldBuildsFit(running: Array<number | null>, need: number | null, cap: number): boolean {
-  const weight = (p95: number | null) => (p95 !== null && p95 > BIG_BUILD_BYTES ? 2 : 1);
-  return running.length === 0 || running.reduce((a: number, p) => a + weight(p), 0) + weight(need) <= cap;
+export function coldBuildsFit(
+  running: Array<number | null>,
+  need: number | null,
+  cap: number,
+): boolean {
+  const weight = (p95: number | null) =>
+    p95 !== null && p95 > BIG_BUILD_BYTES ? 2 : 1;
+  return (
+    running.length === 0 ||
+    running.reduce((a: number, p) => a + weight(p), 0) + weight(need) <= cap
+  );
 }
 
 /** A watcher still on its first pass. finishedAt: watchers from before firstFinishedAt existed. */
-export const isColdBuild = (w: WatchState): boolean => !(w.firstFinishedAt ?? w.finishedAt);
+export const isColdBuild = (w: WatchState): boolean =>
+  !(w.firstFinishedAt ?? w.finishedAt);
 
 /** A project's learned p95, or null while none is known. */
 export function learnedP95(repo: string, project: string): number | null {
@@ -214,7 +332,9 @@ export function learnedP95(repo: string, project: string): number | null {
 
 /** The live watchers still on their first pass, by their projects' learned p95. */
 export function runningColdBuilds(live = listWatchers()): Array<number | null> {
-  return live.filter(isColdBuild).map((w) => learnedP95(w.repo ?? repoOf(w.root), w.project));
+  return live
+    .filter(isColdBuild)
+    .map((w) => learnedP95(w.repo ?? repoOf(w.root), w.project));
 }
 
 // ---------------------------------------------------------------------------
@@ -228,7 +348,14 @@ export const QUEUE_WAIT_MS = 3 * 60_000;
 
 /** A capacity that also sets aside room for the ask first in line: its memory and its watcher slot. */
 function withHeadNeed(cap: Capacity, headNeed: number): Capacity {
-  return { maxWatchers: cap.maxWatchers - 1, budgetBytes: cap.budgetBytes, needBytes: (cap.needBytes ?? 0) + headNeed, holdOf: cap.holdOf, pressure: cap.pressure, strict: true };
+  return {
+    maxWatchers: cap.maxWatchers - 1,
+    budgetBytes: cap.budgetBytes,
+    needBytes: (cap.needBytes ?? 0) + headNeed,
+    holdOf: cap.holdOf,
+    pressure: cap.pressure,
+    strict: true,
+  };
 }
 
 interface QueueTicket {
@@ -247,7 +374,10 @@ export function listQueue(): QueueTicket[] {
   for (const name of fs.readdirSync(dir)) {
     const file = path.join(dir, name);
     try {
-      const t = JSON.parse(fs.readFileSync(file, "utf-8")) as Omit<QueueTicket, "file">;
+      const t = JSON.parse(fs.readFileSync(file, "utf-8")) as Omit<
+        QueueTicket,
+        "file"
+      >;
       if (isPidAlive(t.pid)) out.push({ ...t, file });
       else fs.rmSync(file, { force: true });
     } catch {}
@@ -278,20 +408,40 @@ function queuePlace(dir: string, now = Date.now()): number {
 export async function startWhenSlotFrees(
   target: CheckProject,
   root: string,
-  opts: { start: WatcherStarter; note: (line: string) => void; kill: (pid: number) => void; maxWatchers?: number; deadline: number; protect?: ReadonlySet<string>; queueWaitMs?: number },
+  opts: {
+    start: WatcherStarter;
+    note: (line: string) => void;
+    kill: (pid: number) => void;
+    maxWatchers?: number;
+    deadline: number;
+    protect?: ReadonlySet<string>;
+    queueWaitMs?: number;
+  },
 ): Promise<boolean> {
   const project = target.name;
   const dir = watchDir(root, project);
   // A caller's own count (tests) is a count alone; otherwise memory admits, under the machine's count.
-  const capacity = (): Capacity => (opts.maxWatchers !== undefined ? { maxWatchers: opts.maxWatchers } : machineCapacity(root, project));
+  const capacity = (): Capacity =>
+    opts.maxWatchers !== undefined
+      ? { maxWatchers: opts.maxWatchers }
+      : machineCapacity(root, project);
   // A queued ask answers within a few minutes, as 75 with a hint, rather than outlive the caller's own timeout.
-  const queueDeadline = Math.min(opts.deadline, Date.now() + (opts.queueWaitMs ?? QUEUE_WAIT_MS));
+  const queueDeadline = Math.min(
+    opts.deadline,
+    Date.now() + (opts.queueWaitMs ?? QUEUE_WAIT_MS),
+  );
   let cap: Capacity | null = null;
   fs.mkdirSync(queueDir(), { recursive: true });
   fs.mkdirSync(dir, { recursive: true });
   const at = queuePlace(dir);
-  const file = path.join(queueDir(), `${process.pid}-${Math.random().toString(36).slice(2, 8)}.json`);
-  fs.writeFileSync(file, JSON.stringify({ pid: process.pid, root, project, at }));
+  const file = path.join(
+    queueDir(),
+    `${process.pid}-${Math.random().toString(36).slice(2, 8)}.json`,
+  );
+  fs.writeFileSync(
+    file,
+    JSON.stringify({ pid: process.pid, root, project, at }),
+  );
   let lastNote = "";
   let lastBehindCheck = 0;
   const coldCap = coldBuildCap();
@@ -303,7 +453,10 @@ export async function startWhenSlotFrees(
     for (;;) {
       // Every wait inside the queue is bounded by the queue's own deadline, so it answers on time.
       const left = () => Math.max(1_000, queueDeadline - Date.now());
-      const release = await lockFor(path.join(dir, "start.lock"), { describe: `cast check ${project}`, waitMs: left() });
+      const release = await lockFor(path.join(dir, "start.lock"), {
+        describe: `cast check ${project}`,
+        waitMs: left(),
+      });
       try {
         const state = readWatchState(dir);
         if (state && isPidAlive(state.pid)) {
@@ -315,7 +468,10 @@ export async function startWhenSlotFrees(
         // A first pass starts only with a cold-build slot free; one behind the first in line also leaves the first's.
         const coldSlotFree = (): boolean => {
           const running = runningColdBuilds();
-          const head = ahead > 0 ? [learnedP95(repoOf(queue[0]!.root), queue[0]!.project)] : [];
+          const head =
+            ahead > 0
+              ? [learnedP95(repoOf(queue[0]!.root), queue[0]!.project)]
+              : [];
           const free = coldBuildsFit([...running, ...head], need, coldCap);
           coldRunning = free ? 0 : running.length;
           return free;
@@ -327,34 +483,88 @@ export async function startWhenSlotFrees(
           if (Date.now() - lastBehindCheck < BEHIND_CHECK_MS) return false;
           lastBehindCheck = Date.now();
           const head = queue[0];
-          if (!head || opts.maxWatchers !== undefined || !coldSlotFree()) return false;
-          return makeRoom(withHeadNeed(capacity(), machineCapacity(head.root, head.project).needBytes ?? 0), () => {}, Date.now(), opts.protect, false) !== null;
+          if (!head || opts.maxWatchers !== undefined || !coldSlotFree())
+            return false;
+          return (
+            makeRoom(
+              withHeadNeed(
+                capacity(),
+                machineCapacity(head.root, head.project).needBytes ?? 0,
+              ),
+              () => {},
+              Date.now(),
+              opts.protect,
+              false,
+            ) !== null
+          );
         };
         if (ahead === 0 || (ahead > 0 && fitsBehind())) {
-          const releaseCapacity = await lockFor(path.join(checkHome(), "capacity.lock"), { describe: "cast check watcher start", waitMs: Math.min(60_000, left()) });
+          const releaseCapacity = await lockFor(
+            path.join(checkHome(), "capacity.lock"),
+            {
+              describe: "cast check watcher start",
+              waitMs: Math.min(60_000, left()),
+            },
+          );
           try {
             cap = capacity();
             // Under the lock, so two asks cannot both take the last cold-build slot. A running first pass is never
             // stopped for another: the ask waits for one to finish.
-            const evicted = coldSlotFree() ? makeRoom(ahead === 0 ? cap : withHeadNeed(cap, machineCapacity(queue[0]!.root, queue[0]!.project).needBytes ?? 0), opts.kill, Date.now(), opts.protect, ahead === 0) : null;
+            const evicted = coldSlotFree()
+              ? makeRoom(
+                  ahead === 0
+                    ? cap
+                    : withHeadNeed(
+                        cap,
+                        machineCapacity(queue[0]!.root, queue[0]!.project)
+                          .needBytes ?? 0,
+                      ),
+                  opts.kill,
+                  Date.now(),
+                  opts.protect,
+                  ahead === 0,
+                )
+              : null;
             if (evicted) {
-              const limit = cap.budgetBytes === undefined ? `under ${cap.maxWatchers} watchers` : `within the ${fmtGb(cap.budgetBytes)} typecheck watchers share`;
-              for (const w of evicted) opts.note(`stopped the ${w.project} watcher for ${w.root} (${w.inProgress ? "a pass nobody waits on" : "idle longest"}) to stay ${limit} on this machine`);
+              const limit =
+                cap.budgetBytes === undefined
+                  ? `under ${cap.maxWatchers} watchers`
+                  : `within the ${fmtGb(cap.budgetBytes)} typecheck watchers share`;
+              for (const w of evicted)
+                opts.note(
+                  `stopped the ${w.project} watcher for ${w.root} (${w.inProgress ? "a pass nobody waits on" : "idle longest"}) to stay ${limit} on this machine`,
+                );
               const small = thisMachineTooSmall(root);
               if (small) opts.note(small);
-              const logFrom = (() => { try { return fs.statSync(logPath(dir)).size; } catch { return 0; } })();
+              const logFrom = (() => {
+                try {
+                  return fs.statSync(logPath(dir)).size;
+                } catch {
+                  return 0;
+                }
+              })();
               // A job still running under this label (a watcher just evicted, still on its way out) would make launchd
               // leave the start alone, and the ask would wait for a watcher that never comes.
               const label = watcherLabel(dir);
-              for (const settle = Date.now() + 5_000; Date.now() < settle && launchdHolds(label) === "running"; ) await sleep(250);
+              for (
+                const settle = Date.now() + 5_000;
+                Date.now() < settle && launchdHolds(label) === "running";
+              )
+                await sleep(250);
               opts.start(root, target);
               logWatcherEvent("start", { project, root });
               fs.rmSync(queuedAtPath(dir), { force: true });
-              opts.note(`starting the ${project} typecheck watcher for ${root} (first pass builds the whole program; later asks take seconds)`);
+              opts.note(
+                `starting the ${project} typecheck watcher for ${root} (first pass builds the whole program; later asks take seconds)`,
+              );
               const deadline = Date.now() + 30_000;
-              const live = () => { const s = readWatchState(dir); return !!s && isPidAlive(s.pid); };
+              const live = () => {
+                const s = readWatchState(dir);
+                return !!s && isPidAlive(s.pid);
+              };
               while (Date.now() < deadline && !live()) await sleep(200);
-              if (!live()) throw watcherDeath(project, dir, "did not start", logFrom);
+              if (!live())
+                throw watcherDeath(project, dir, "did not start", logFrom);
               return true;
             }
           } finally {
@@ -368,20 +578,29 @@ export async function startWhenSlotFrees(
           if (ahead !== 0) cap = capacity();
           cap ??= capacity();
           // Name what actually blocks it: every slot taken, or memory.
-          const room = cap.budgetBytes === undefined || live.length >= cap.maxWatchers ? `the ${cap.maxWatchers} typecheck slot${cap.maxWatchers === 1 ? "" : "s"}` : `typecheck memory (needs ${fmtGb(cap.needBytes ?? 0)} of ${fmtGb(cap.budgetBytes)})`;
+          const room =
+            cap.budgetBytes === undefined || live.length >= cap.maxWatchers
+              ? `the ${cap.maxWatchers} typecheck slot${cap.maxWatchers === 1 ? "" : "s"}`
+              : `typecheck memory (needs ${fmtGb(cap.needBytes ?? 0)} of ${fmtGb(cap.budgetBytes)})`;
           const cold = `waiting for ${coldRunning} cold build${coldRunning === 1 ? "" : "s"} to finish (${coldCap} first pass${coldCap === 1 ? "" : "es"} at a time on this machine)`;
-          opts.note(coldRunning && ahead === 0
-            ? `queued: ${cold}; starting when one does (cast queue lists them)`
-            : coldRunning
-            ? `queued: ${ahead} ask${ahead === 1 ? "" : "s"} ahead, ${cold} (cast queue lists them)`
-            : ahead === 0
-            ? `queued for ${room}: the live watchers hold passes someone is waiting on (${busy}); starting when one finishes (cast queue lists them)`
-            : `queued: ${ahead} ask${ahead === 1 ? "" : "s"} ahead for ${room} (${busy ? `${busy}; ` : ""}cast queue lists them)`);
+          opts.note(
+            coldRunning && ahead === 0
+              ? `queued: ${cold}; starting when one does (cast queue lists them)`
+              : coldRunning
+                ? `queued: ${ahead} ask${ahead === 1 ? "" : "s"} ahead, ${cold} (cast queue lists them)`
+                : ahead === 0
+                  ? `queued for ${room}: the live watchers hold passes someone is waiting on (${busy}); starting when one finishes (cast queue lists them)`
+                  : `queued: ${ahead} ask${ahead === 1 ? "" : "s"} ahead for ${room} (${busy ? `${busy}; ` : ""}cast queue lists them)`,
+          );
         }
       } finally {
         release();
       }
-      if (Date.now() > queueDeadline) throw new CheckFailure(`the ${project} typecheck is still queued after ${Math.round((Date.now() - queuedSince) / 1000)}s: ${coldRunning ? `${coldRunning} cold build${coldRunning === 1 ? " is" : "s are"} still running (${coldCap} at a time on this machine)` : "the live watchers hold passes someone is waiting on"}`, "busy");
+      if (Date.now() > queueDeadline)
+        throw new CheckFailure(
+          `the ${project} typecheck is still queued after ${Math.round((Date.now() - queuedSince) / 1000)}s: ${coldRunning ? `${coldRunning} cold build${coldRunning === 1 ? " is" : "s are"} still running (${coldCap} at a time on this machine)` : "the live watchers hold passes someone is waiting on"}`,
+          "busy",
+        );
       await sleep(1_000);
     }
   } finally {

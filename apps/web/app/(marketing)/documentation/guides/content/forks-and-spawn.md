@@ -6,7 +6,7 @@ The difference is who looks after the result. A worker reports to the session th
 
 ## Turn it on
 
-Open **Settings**, pick **Agent Features** under *Machines*, choose the computer your agents run on, and switch on **Forks & Sessions** under *Working together*. Your agents can then start workers on any agent you have installed (Claude Code, Codex, Cursor and others), fork when you ask, and hand work to a fresh session.
+Open **Settings**, pick **Agent Features** under _Machines_, choose the computer your agents run on, and switch on **Forks & Sessions** under _Working together_. Your agents can then start workers on any agent you have installed (Claude Code, Codex, Cursor and others), fork when you ask, and hand work to a fresh session.
 
 ## Ask for workers
 
@@ -33,7 +33,7 @@ A fork copies the conversation up to a point into a new session, which then goes
 
 ![A message's menu open with Fork from here highlighted](/documentation/forks-and-spawn/fork-from-message.webp "Forking from a message.")
 
-- Hover a message and click the fork icon (*Fork from this message*), or pick **Fork from here** from its menu, or press `Alt` `F`.
+- Hover a message and click the fork icon (_Fork from this message_), or pick **Fork from here** from its menu, or press `Alt` `F`.
 - Write your next message and press `Cmd` `Shift` `Enter` (`Ctrl` `Shift` `Enter` off a Mac) to fork and send it in one step.
 
 Or ask your agent: "Fork this two ways: try the queue, and try per endpoint limits." This thread continues on the first direction, and each other direction appears in your inbox as its own branch. A branch doesn't know it is a fork and reports to nobody; you steer it like any conversation.
@@ -47,7 +47,7 @@ Press `T` or `Ctrl` `B` for the **Branch map**: every branch of the conversation
 
 ![The branch map open over a conversation, showing the original thread and two branches with the current one highlighted](/documentation/forks-and-spawn/branch-map.webp "The branch map for a conversation with two forks.")
 
-Opening a teammate's session works the same way. Its message box reads *Reply to fork this session...*, and replying gives you your own copy, leaving theirs untouched.
+Opening a teammate's session works the same way. Its message box reads _Reply to fork this session..._, and replying gives you your own copy, leaving theirs untouched.
 
 ## Change the agent or the model
 
@@ -55,11 +55,11 @@ The model chip in a session's message box opens a menu whose **Move this session
 
 ![The model chip menu: the model, effort, where the session runs, and Switch agent, Fork as and Hand off to under Move this session](/documentation/forks-and-spawn/move-menu.webp "Moving a session to another agent from the model chip.")
 
-| Choice | What it does |
-|--------|--------------|
+| Choice           | What it does                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | **Switch agent** | Same session, another agent. The conversation continues under Codex (or another agent) with a divider marking the change |
-| **Fork as** | A copy of this session on another agent, alongside the original |
-| **Hand off to** | A fresh session, seeded with a brief of where the work stands |
+| **Fork as**      | A copy of this session on another agent, alongside the original                                                          |
+| **Hand off to**  | A fresh session, seeded with a brief of where the work stands                                                            |
 
 **Change model & effort** in the command palette changes the model without changing the agent. To start something new yourself, click **New session** in the sidebar or press `Ctrl` `N`.
 
@@ -69,9 +69,9 @@ In the iPhone app, press and hold a message and pick **Fork from here**. The ses
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
+| What you notice                                 | What to do                                                             |
+| ----------------------------------------------- | ---------------------------------------------------------------------- |
 | Workers show up as separate cards in your inbox | Ask the agent to start them as workers under its own session next time |
-| The parent looks stuck while its workers run | It is **dormant**, waiting for them. It wakes when they finish |
-| A worker is marked **needs you** | Open it. It may be asking a question or waiting on a permission prompt |
-| You can't find a worker | Expand **+N more sub-sessions** under its parent |
+| The parent looks stuck while its workers run    | It is **dormant**, waiting for them. It wakes when they finish         |
+| A worker is marked **needs you**                | Open it. It may be asking a question or waiting on a permission prompt |
+| You can't find a worker                         | Expand **+N more sub-sessions** under its parent                       |

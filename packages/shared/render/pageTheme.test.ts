@@ -1,18 +1,35 @@
 import { describe, expect, test } from "bun:test";
-import { injectPageTheme, PAGE_ESCAPE_MESSAGE, PAGE_PARK_MESSAGE, PAGE_THEME_DEFAULTS, PAGE_THEME_TOKENS } from "./pageTheme";
+import {
+  injectPageTheme,
+  PAGE_ESCAPE_MESSAGE,
+  PAGE_PARK_MESSAGE,
+  PAGE_THEME_DEFAULTS,
+  PAGE_THEME_TOKENS,
+} from "./pageTheme";
 
 describe("injectPageTheme", () => {
   test("goes first in <head>, so the page's own styles win", () => {
-    const html = '<!doctype html><html><head><style>:root{--sol-blue:red}</style></head><body>x</body></html>';
+    const html =
+      "<!doctype html><html><head><style>:root{--sol-blue:red}</style></head><body>x</body></html>";
     const out = injectPageTheme(html);
-    expect(out.indexOf('id="cc-page-theme"')).toBeGreaterThan(out.indexOf("<head>"));
-    expect(out.indexOf('id="cc-page-theme"')).toBeLessThan(out.indexOf("--sol-blue:red"));
+    expect(out.indexOf('id="cc-page-theme"')).toBeGreaterThan(
+      out.indexOf("<head>"),
+    );
+    expect(out.indexOf('id="cc-page-theme"')).toBeLessThan(
+      out.indexOf("--sol-blue:red"),
+    );
   });
 
   test("adds a head to a document without one", () => {
-    expect(injectPageTheme("<!doctype html><html><body>x</body></html>")).toMatch(/^<!doctype html><html><head><style id="cc-page-theme">/);
-    expect(injectPageTheme("<!doctype html><div>x</div>")).toMatch(/^<!doctype html><head><style id="cc-page-theme">/);
-    expect(injectPageTheme("<div>x</div>")).toMatch(/^<style id="cc-page-theme">/);
+    expect(
+      injectPageTheme("<!doctype html><html><body>x</body></html>"),
+    ).toMatch(/^<!doctype html><html><head><style id="cc-page-theme">/);
+    expect(injectPageTheme("<!doctype html><div>x</div>")).toMatch(
+      /^<!doctype html><head><style id="cc-page-theme">/,
+    );
+    expect(injectPageTheme("<div>x</div>")).toMatch(
+      /^<style id="cc-page-theme">/,
+    );
   });
 
   test("injects once", () => {
@@ -29,36 +46,68 @@ describe("injectPageTheme", () => {
     }
     // Nothing but custom properties: a page that ignores the tokens is unchanged.
     for (const rule of css.match(/\{[^{}]*\}/g)!) {
-      for (const decl of rule.slice(1, -1).split(";").filter(Boolean)) expect(decl.startsWith("--")).toBe(true);
+      for (const decl of rule.slice(1, -1).split(";").filter(Boolean))
+        expect(decl.startsWith("--")).toBe(true);
     }
   });
 
   test("never measures a frame that is not laid out yet, and carries the declared height", () => {
-    const script = /<script>([\s\S]*?)<\/script>/.exec(injectPageTheme("<head></head>"))![1]!;
+    const script = /<script>([\s\S]*?)<\/script>/.exec(
+      injectPageTheme("<head></head>"),
+    )![1]!;
     const posted: { height: number; preferred: number | null }[] = [];
     const listeners: Record<string, () => void> = {};
     const size = { w: 0, h: 0, content: 0 };
     const win = {
-      get innerWidth() { return size.w; },
-      get innerHeight() { return size.h; },
+      get innerWidth() {
+        return size.w;
+      },
+      get innerHeight() {
+        return size.h;
+      },
       scrollY: 0,
-      self: 1, top: 2,
+      self: 1,
+      top: 2,
       location: { search: "" },
-      parent: { postMessage: (m: { height: number; preferred: number | null }) => posted.push({ height: m.height, preferred: m.preferred }) },
-      addEventListener: (type: string, fn: () => void) => { listeners[type] = fn; },
+      parent: {
+        postMessage: (m: { height: number; preferred: number | null }) =>
+          posted.push({ height: m.height, preferred: m.preferred }),
+      },
+      addEventListener: (type: string, fn: () => void) => {
+        listeners[type] = fn;
+      },
     };
     const body = { getBoundingClientRect: () => ({ bottom: size.content }) };
     const doc = {
       body,
-      documentElement: { setAttribute() {}, get scrollHeight() { return Math.max(size.content, size.h); } },
+      documentElement: {
+        setAttribute() {},
+        get scrollHeight() {
+          return Math.max(size.content, size.h);
+        },
+      },
       getElementById: () => ({ textContent: "" }),
-      querySelector: (sel: string) => (sel === 'meta[name="codecast:height"]' && meta.content ? { getAttribute: () => meta.content } : null),
+      querySelector: (sel: string) =>
+        sel === 'meta[name="codecast:height"]' && meta.content
+          ? { getAttribute: () => meta.content }
+          : null,
       addEventListener() {},
     };
     const meta = { content: "" };
-    class RO { observe() {} constructor(_fn: () => void) {} }
-    new Function("window", "document", "innerWidth", "innerHeight", "ResizeObserver", "getComputedStyle", "location",
-      `with (window) { ${script} }`)(win, doc, 0, 0, RO, () => ({ marginBottom: "0" }), win.location);
+    class RO {
+      observe() {}
+      constructor(_fn: () => void) {}
+    }
+    new Function(
+      "window",
+      "document",
+      "innerWidth",
+      "innerHeight",
+      "ResizeObserver",
+      "getComputedStyle",
+      "location",
+      `with (window) { ${script} }`,
+    )(win, doc, 0, 0, RO, () => ({ marginBottom: "0" }), win.location);
     // Loaded at 0x0, its text wrapped at zero width: nothing is posted.
     size.content = 160000;
     listeners.load!();
@@ -75,19 +124,36 @@ describe("injectPageTheme", () => {
   });
 
   test("parked by the window framing it, the page stops what it plays, inside open shadow roots too", () => {
-    const script = /<script>([\s\S]*?)<\/script>/.exec(injectPageTheme("<head></head>"))![1]!;
+    const script = /<script>([\s\S]*?)<\/script>/.exec(
+      injectPageTheme("<head></head>"),
+    )![1]!;
     const listeners: Record<string, (e: unknown) => void> = {};
     const parent = { postMessage() {} };
     const win = {
-      innerWidth: 0, innerHeight: 0, scrollY: 0, self: 1, top: 2,
+      innerWidth: 0,
+      innerHeight: 0,
+      scrollY: 0,
+      self: 1,
+      top: 2,
       location: { search: "" },
       parent,
-      addEventListener: (type: string, fn: (e: unknown) => void) => { listeners[type] = fn; },
+      addEventListener: (type: string, fn: (e: unknown) => void) => {
+        listeners[type] = fn;
+      },
     };
-    const media = (tagName: string) => ({ tagName, paused: false, pause() { this.paused = true; } });
+    const media = (tagName: string) => ({
+      tagName,
+      paused: false,
+      pause() {
+        this.paused = true;
+      },
+    });
     const video = media("VIDEO");
     const audio = media("AUDIO");
-    const host = { tagName: "CAST-PLAYER", shadowRoot: { querySelectorAll: () => [audio] } };
+    const host = {
+      tagName: "CAST-PLAYER",
+      shadowRoot: { querySelectorAll: () => [audio] },
+    };
     const doc = {
       body: null,
       documentElement: { setAttribute() {} },
@@ -95,7 +161,13 @@ describe("injectPageTheme", () => {
       querySelectorAll: () => [video, host],
       addEventListener() {},
     };
-    new Function("window", "document", "ResizeObserver", "location", `with (window) { ${script} }`)(win, doc, undefined, win.location);
+    new Function(
+      "window",
+      "document",
+      "ResizeObserver",
+      "location",
+      `with (window) { ${script} }`,
+    )(win, doc, undefined, win.location);
     // Only the framing window may park it.
     listeners.message!({ source: {}, data: { type: PAGE_PARK_MESSAGE } });
     expect(video.paused).toBe(false);
@@ -105,17 +177,37 @@ describe("injectPageTheme", () => {
   });
 
   test("framed, the page tells the window framing it that Escape was pressed, unless the page used the key", () => {
-    const script = /<script>([\s\S]*?)<\/script>/.exec(injectPageTheme("<head></head>"))![1]!;
+    const script = /<script>([\s\S]*?)<\/script>/.exec(
+      injectPageTheme("<head></head>"),
+    )![1]!;
     const listeners: Record<string, (e: unknown) => void> = {};
     const sent: unknown[] = [];
     const win = {
-      innerWidth: 0, innerHeight: 0, scrollY: 0, self: 1, top: 2,
+      innerWidth: 0,
+      innerHeight: 0,
+      scrollY: 0,
+      self: 1,
+      top: 2,
       location: { search: "" },
       parent: { postMessage: (m: unknown) => sent.push(m) },
-      addEventListener: (type: string, fn: (e: unknown) => void) => { listeners[type] = fn; },
+      addEventListener: (type: string, fn: (e: unknown) => void) => {
+        listeners[type] = fn;
+      },
     };
-    const doc = { body: null, documentElement: { setAttribute() {} }, getElementById: () => ({ textContent: "" }), querySelectorAll: () => [], addEventListener() {} };
-    new Function("window", "document", "ResizeObserver", "location", `with (window) { ${script} }`)(win, doc, undefined, win.location);
+    const doc = {
+      body: null,
+      documentElement: { setAttribute() {} },
+      getElementById: () => ({ textContent: "" }),
+      querySelectorAll: () => [],
+      addEventListener() {},
+    };
+    new Function(
+      "window",
+      "document",
+      "ResizeObserver",
+      "location",
+      `with (window) { ${script} }`,
+    )(win, doc, undefined, win.location);
     listeners.keydown!({ key: "a", defaultPrevented: false });
     listeners.keydown!({ key: "Escape", defaultPrevented: true });
     expect(sent).toEqual([]);

@@ -9,14 +9,19 @@ import { useFileDragTarget } from "./useFileDragTarget";
 export function useConversationFileDrop(opts: { anyFile?: boolean } = {}) {
   const dropFilesRef = useRef<((files: File[]) => void) | null>(null);
   const anyFile = !!opts.anyFile;
-  const onFiles = useCallback((dropped: File[]) => {
-    const files = anyFile ? dropped : dropped.filter(f => f.type.startsWith("image/"));
-    if (files.length > 0 && dropFilesRef.current) {
-      dropFilesRef.current(files);
-    } else if (files.length === 0 && dropped.length > 0) {
-      toast.error("Only image files are supported");
-    }
-  }, [anyFile]);
+  const onFiles = useCallback(
+    (dropped: File[]) => {
+      const files = anyFile
+        ? dropped
+        : dropped.filter((f) => f.type.startsWith("image/"));
+      if (files.length > 0 && dropFilesRef.current) {
+        dropFilesRef.current(files);
+      } else if (files.length === 0 && dropped.length > 0) {
+        toast.error("Only image files are supported");
+      }
+    },
+    [anyFile],
+  );
   const { isOver, handlers } = useFileDragTarget(onFiles);
   return {
     dropFilesRef,

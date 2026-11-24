@@ -10,10 +10,17 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 // neither is a plain step. Run: bun test components/__tests__/workflowRunNodes.mount.test.tsx
 
 mock.module("next/link", () => ({
-  default: ({ href, children, ...props }: any) => <a href={String(href)} {...props}>{children}</a>,
+  default: ({ href, children, ...props }: any) => (
+    <a href={String(href)} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://codecast.sh/tasks/ct-1" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "https://codecast.sh/tasks/ct-1",
+});
 const restoreGlobals = replaceGlobals({
   window: Object.assign(dom.window, { innerWidth: 1400 }),
   document: dom.window.document,
@@ -28,7 +35,10 @@ const { MemoryRouter } = await import("react-router");
 const { TooltipProvider } = await import("../ui/tooltip");
 const { WorkflowRunNodes } = await import("../WorkflowRunNodes");
 
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 const CONV_ID = "kc1abcdefabcdefabcdefabcdefabcde";
 const now = Date.now();
@@ -39,12 +49,33 @@ const run = {
   current_node_id: "web-client",
   node_statuses: [
     {
-      node_id: "protocol-package", status: "completed", outcome: "success",
-      started_at: now - 600_000, completed_at: now - 300_000,
-      session: { _id: CONV_ID, session_id: "sess-protocol", title: "Define the wire protocol", message_count: 42, is_active: false, updated_at: now - 300_000, agent_type: "claude_code" },
+      node_id: "protocol-package",
+      status: "completed",
+      outcome: "success",
+      started_at: now - 600_000,
+      completed_at: now - 300_000,
+      session: {
+        _id: CONV_ID,
+        session_id: "sess-protocol",
+        title: "Define the wire protocol",
+        message_count: 42,
+        is_active: false,
+        updated_at: now - 300_000,
+        agent_type: "claude_code",
+      },
     },
-    { node_id: "integrate-deploy", status: "failed", session_id: "sess-deploy", started_at: now - 200_000, completed_at: now - 100_000 },
-    { node_id: "web-client", status: "running", activity: "Editing apps/web/app/page.tsx" },
+    {
+      node_id: "integrate-deploy",
+      status: "failed",
+      session_id: "sess-deploy",
+      started_at: now - 200_000,
+      completed_at: now - 100_000,
+    },
+    {
+      node_id: "web-client",
+      status: "running",
+      activity: "Editing apps/web/app/page.tsx",
+    },
     { node_id: "independent-verify", status: "pending" },
   ],
 };
@@ -66,11 +97,15 @@ async function mount(props: { run: any; workflow?: any }) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await act(() => root.render(
-    <MemoryRouter>
-      <TooltipProvider><WorkflowRunNodes {...props} /></TooltipProvider>
-    </MemoryRouter>,
-  ));
+  await act(() =>
+    root.render(
+      <MemoryRouter>
+        <TooltipProvider>
+          <WorkflowRunNodes {...props} />
+        </TooltipProvider>
+      </MemoryRouter>,
+    ),
+  );
   return { container, unmount: () => act(() => root.unmount()) };
 }
 
@@ -80,12 +115,16 @@ describe("WorkflowRunNodes", () => {
     try {
       const row = container.querySelector(`[data-session-id="${CONV_ID}"]`)!;
       expect(row).not.toBeNull();
-      expect(row.querySelector(`a[href="/conversation/${CONV_ID}"]`)).not.toBeNull();
+      expect(
+        row.querySelector(`a[href="/conversation/${CONV_ID}"]`),
+      ).not.toBeNull();
       // The session's own title leads; the node label rides as a chip.
       expect(row.textContent).toContain("Define the wire protocol");
       expect(row.textContent).toContain("protocol-package");
       expect(row.textContent).toContain("42 msgs");
-      expect(row.querySelector('[data-step-status="completed"]')).not.toBeNull();
+      expect(
+        row.querySelector('[data-step-status="completed"]'),
+      ).not.toBeNull();
     } finally {
       unmount();
     }
@@ -95,7 +134,9 @@ describe("WorkflowRunNodes", () => {
     const { container, unmount } = await mount({ run, workflow });
     try {
       const row = container.querySelector('[data-step="integrate-deploy"]')!;
-      expect(row.querySelector('a[href="/conversation/sess-deploy"]')).not.toBeNull();
+      expect(
+        row.querySelector('a[href="/conversation/sess-deploy"]'),
+      ).not.toBeNull();
       expect(row.querySelector('[data-step-status="failed"]')).not.toBeNull();
     } finally {
       unmount();
@@ -107,8 +148,12 @@ describe("WorkflowRunNodes", () => {
     try {
       const current = container.querySelector('[data-step="web-client"]')!;
       expect(current.textContent).toContain("Editing apps/web/app/page.tsx");
-      expect(current.querySelector('[data-step-status="running"]')).not.toBeNull();
-      const pending = container.querySelector('[data-step="independent-verify"]')!;
+      expect(
+        current.querySelector('[data-step-status="running"]'),
+      ).not.toBeNull();
+      const pending = container.querySelector(
+        '[data-step="independent-verify"]',
+      )!;
       expect(pending.querySelector("a")).toBeNull();
       // start and exit never render.
       expect(container.querySelector('[data-step="start"]')).toBeNull();
@@ -125,8 +170,21 @@ describe("WorkflowRunNodes", () => {
       run_kind: "workflow",
       phases: [{ title: "Review" }, { title: "Verify" }],
       node_statuses: [
-        { node_id: "a1", status: "completed", label: "review:bugs", phase: "Review", tokens: 12_400, result_preview: "3 findings" },
-        { node_id: "a2", status: "completed", label: "verify:bugs", phase: "Verify", tokens: 800 },
+        {
+          node_id: "a1",
+          status: "completed",
+          label: "review:bugs",
+          phase: "Review",
+          tokens: 12_400,
+          result_preview: "3 findings",
+        },
+        {
+          node_id: "a2",
+          status: "completed",
+          label: "verify:bugs",
+          phase: "Verify",
+          tokens: 800,
+        },
       ],
     };
     const { container, unmount } = await mount({ run: dynamic });

@@ -37,8 +37,18 @@ import { convexStore } from "@platform/tidemark/stores/convex";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { vendorRefusalFor } from "../lib/vendorGuard";
-import { internalAction, internalMutation, internalQuery, type MutationCtx, type QueryCtx } from "../functions";
-import { callModelMetered, cheapModelCost, estimatedUsage } from "../lib/anthropic";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  type MutationCtx,
+  type QueryCtx,
+} from "../functions";
+import {
+  callModelMetered,
+  cheapModelCost,
+  estimatedUsage,
+} from "../lib/anthropic";
 import { isRefusalProse } from "../idleSummary";
 import { actionStore } from "../tidemark";
 import { isNoticeUuid, type WindowStart } from "./history";
@@ -48,8 +58,11 @@ import { utcDayKey as utcDay } from "@codecast/shared/contracts/flowMap";
 export const SCOPE_TYPE = "conversation";
 export const AGENT_ID = "assistant";
 
-export const scopeOf = (conversationId: Id<"conversations"> | string): Scope => ({ type: SCOPE_TYPE, id: String(conversationId) });
-export const partitionOf = (userId: Id<"users"> | string): string => `user:${userId}`;
+export const scopeOf = (
+  conversationId: Id<"conversations"> | string,
+): Scope => ({ type: SCOPE_TYPE, id: String(conversationId) });
+export const partitionOf = (userId: Id<"users"> | string): string =>
+  `user:${userId}`;
 
 /** Most messages one mutation logs; the rest follow in the next. */
 export const LOG_BATCH = 50;
@@ -89,7 +102,12 @@ export const CONTEXT_BUDGET: ReadBudget = {
 };
 
 /** What one read_history call may spend. */
-export const TOOL_BUDGET: ReadBudget = { coverLines: 16, maxCoverLines: 64, tokens: 12_000, rawWindow: { kind: "age", ms: 0 } };
+export const TOOL_BUDGET: ReadBudget = {
+  coverLines: 16,
+  maxCoverLines: 64,
+  tokens: 12_000,
+  rawWindow: { kind: "age", ms: 0 },
+};
 
 /** The summary pass: how often, how long, and what it may spend; and the
  *  store a turn reads through. Tests replace these. */
@@ -107,7 +125,8 @@ export const historyDeps = {
   summaryMaxTokens: 300,
 };
 
-const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+const clip = (text: string, max: number) =>
+  text.length > max ? `${text.slice(0, max - 1)}…` : text;
 const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
 
 /**
@@ -116,13 +135,22 @@ const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
  * them and no more, so a summary never repeats what a page or an email said,
  * and the opened entry fences them as outside content.
  */
-export function entryOf(doc: Doc<"messages">, outside: ReadonlySet<string>): (Omit<NewActivity, "scope" | "partition"> & { outside: boolean }) | null {
+export function entryOf(
+  doc: Doc<"messages">,
+  outside: ReadonlySet<string>,
+): (Omit<NewActivity, "scope" | "partition"> & { outside: boolean }) | null {
   if (isNoticeUuid(doc.message_uuid)) return null;
   const text = doc.is_encrypted ? "" : (doc.content ?? "").trim();
   const ref = { table: "messages", id: doc._id };
   if (doc.tool_results?.length) {
     const body = doc.tool_results.map((r) => r.content).join("\n\n");
-    return { kind: "tool_result", summary: `${doc.tool_results.length === 1 ? "a tool result" : `${doc.tool_results.length} tool results`} came back`, data: { text: clip(body, TEXT_CHARS) }, ref, outside: false };
+    return {
+      kind: "tool_result",
+      summary: `${doc.tool_results.length === 1 ? "a tool result" : `${doc.tool_results.length} tool results`} came back`,
+      data: { text: clip(body, TEXT_CHARS) },
+      ref,
+      outside: false,
+    };
   }
   if (doc.role === "assistant") {
     const calls = (doc.tool_calls ?? []).map((c) => c.name);
@@ -131,27 +159,42 @@ export function entryOf(doc: Doc<"messages">, outside: ReadonlySet<string>): (Om
     return {
       kind: text ? "assistant" : "tool_call",
       summary: `${clip(oneLine(text), LINE_CHARS)}${called}`.trim(),
-      data: { text: clip(text, TEXT_CHARS), ...(calls.length ? { tools: calls } : {}) },
+      data: {
+        text: clip(text, TEXT_CHARS),
+        ...(calls.length ? { tools: calls } : {}),
+      },
       ref,
       outside: calls.some((name) => outside.has(name)),
     };
   }
   if (!text) return null;
-  return { kind: doc.role === "user" ? "person" : doc.role, summary: clip(oneLine(text), LINE_CHARS), data: { text: clip(text, TEXT_CHARS) }, ref, outside: false };
+  return {
+    kind: doc.role === "user" ? "person" : doc.role,
+    summary: clip(oneLine(text), LINE_CHARS),
+    data: { text: clip(text, TEXT_CHARS) },
+    ref,
+    outside: false,
+  };
 }
 
 /** Lines as a read shows them; an opened entry shows the original message. */
 export const renderer: EventRenderer<undefined> = {
-  line: (a, _h, ctx) => ({ text: `[${formatStamp(a.atMs, ctx.zone)}] ${a.kind}: ${a.summary}` }),
+  line: (a, _h, ctx) => ({
+    text: `[${formatStamp(a.atMs, ctx.zone)}] ${a.kind}: ${a.summary}`,
+  }),
   full: (a, _h, ctx) => {
     const head = `[${formatStamp(a.atMs, ctx.zone)}] ${a.kind}`;
     const text = typeof a.data?.text === "string" ? a.data.text : a.summary;
-    return a.kind === "tool_result" ? `${head}:\n${untrusted("tool output", text)}` : `${head}:\n${text}`;
+    return a.kind === "tool_result"
+      ? `${head}:\n${untrusted("tool output", text)}`
+      : `${head}:\n${text}`;
   },
   foreign: (a) => a.kind === "tool_result",
 };
 
-const before = (a: WindowStart, b: WindowStart) => a.timestamp < b.timestamp || (a.timestamp === b.timestamp && a.creationTime < b.creationTime);
+const before = (a: WindowStart, b: WindowStart) =>
+  a.timestamp < b.timestamp ||
+  (a.timestamp === b.timestamp && a.creationTime < b.creationTime);
 
 /**
  * Logs the messages that have left the replayed window and are not logged
@@ -162,19 +205,30 @@ const before = (a: WindowStart, b: WindowStart) => a.timestamp < b.timestamp || 
  * same reason. Returns the conversation's history row, or null when nothing
  * is logged.
  */
-export async function logBeyondWindow(ctx: MutationCtx, conversation: Doc<"conversations">, start: WindowStart | null): Promise<Doc<"assistant_history"> | null> {
+export async function logBeyondWindow(
+  ctx: MutationCtx,
+  conversation: Doc<"conversations">,
+  start: WindowStart | null,
+): Promise<Doc<"assistant_history"> | null> {
   const state = await ctx.db
     .query("assistant_history")
-    .withIndex("by_conversation", (q) => q.eq("conversation_id", conversation._id))
+    .withIndex("by_conversation", (q) =>
+      q.eq("conversation_id", conversation._id),
+    )
     .unique();
   if (!start) return state;
-  const from: WindowStart | null = state ? { timestamp: state.logged_ts, creationTime: state.logged_ct } : null;
+  const from: WindowStart | null = state
+    ? { timestamp: state.logged_ts, creationTime: state.logged_ct }
+    : null;
   if (from && from.timestamp >= start.timestamp) return state;
   const query = ctx.db
     .query("messages")
     .withIndex("by_conversation_timestamp", (q) => {
       const mine = q.eq("conversation_id", conversation._id);
-      return (from ? mine.gte("timestamp", from.timestamp) : mine).lt("timestamp", start.timestamp);
+      return (from ? mine.gte("timestamp", from.timestamp) : mine).lt(
+        "timestamp",
+        start.timestamp,
+      );
     });
   const batch: Array<Doc<"messages">> = [];
   let more = false;
@@ -202,14 +256,35 @@ export async function logBeyondWindow(ctx: MutationCtx, conversation: Doc<"conve
     const entry = entryOf(doc, outsideNames);
     if (!entry) continue;
     const { outside: readsOutside, ...activity } = entry;
-    await store.append({ ...activity, scope, partition, at: store.cursorAt(doc.timestamp) });
+    await store.append({
+      ...activity,
+      scope,
+      partition,
+      at: store.cursorAt(doc.timestamp),
+    });
     outside ||= readsOutside;
     logged++;
   }
   const last = batch[batch.length - 1];
-  const fields = { logged_ts: last.timestamp, logged_ct: last._creationTime, logged: (state?.logged ?? 0) + logged, outside };
-  const id = state ? (await ctx.db.patch(state._id, fields), state._id) : await ctx.db.insert("assistant_history", { conversation_id: conversation._id, user_id: conversation.user_id, ...fields });
-  if (more) await ctx.scheduler.runAfter(0, internal.assistant.longHistory.logWindow, { conversation_id: conversation._id, timestamp: start.timestamp, creation_time: start.creationTime });
+  const fields = {
+    logged_ts: last.timestamp,
+    logged_ct: last._creationTime,
+    logged: (state?.logged ?? 0) + logged,
+    outside,
+  };
+  const id = state
+    ? (await ctx.db.patch(state._id, fields), state._id)
+    : await ctx.db.insert("assistant_history", {
+        conversation_id: conversation._id,
+        user_id: conversation.user_id,
+        ...fields,
+      });
+  if (more)
+    await ctx.scheduler.runAfter(0, internal.assistant.longHistory.logWindow, {
+      conversation_id: conversation._id,
+      timestamp: start.timestamp,
+      creation_time: start.creationTime,
+    });
   return await ctx.db.get(id);
 }
 
@@ -217,17 +292,36 @@ export async function logBeyondWindow(ctx: MutationCtx, conversation: Doc<"conve
  *  transaction so a turn never fails for it; also each next batch of a long
  *  backlog. Returns what the turn needs to read the result. */
 export const logWindow = internalMutation({
-  args: { conversation_id: v.id("conversations"), timestamp: v.number(), creation_time: v.number() },
+  args: {
+    conversation_id: v.id("conversations"),
+    timestamp: v.number(),
+    creation_time: v.number(),
+  },
   handler: async (ctx, args): Promise<LongHistory | null> => {
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation) return null;
-    return longHistoryOf(await logBeyondWindow(ctx, conversation, { timestamp: args.timestamp, creationTime: args.creation_time }));
+    return longHistoryOf(
+      await logBeyondWindow(ctx, conversation, {
+        timestamp: args.timestamp,
+        creationTime: args.creation_time,
+      }),
+    );
   },
 });
 
 /** The conversation's long history as logged so far, for a turn's begin. */
-export async function historyState(ctx: QueryCtx, conversationId: Id<"conversations">): Promise<LongHistory | null> {
-  return longHistoryOf(await ctx.db.query("assistant_history").withIndex("by_conversation", (q) => q.eq("conversation_id", conversationId)).unique());
+export async function historyState(
+  ctx: QueryCtx,
+  conversationId: Id<"conversations">,
+): Promise<LongHistory | null> {
+  return longHistoryOf(
+    await ctx.db
+      .query("assistant_history")
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversation_id", conversationId),
+      )
+      .unique(),
+  );
 }
 
 /** What a turn needs to read its conversation's longer history. */
@@ -237,14 +331,27 @@ export interface LongHistory {
   outside: boolean;
 }
 
-export function longHistoryOf(state: Doc<"assistant_history"> | null): LongHistory | null {
-  return state && state.logged > 0 ? { partition: partitionOf(state.user_id), outside: state.outside } : null;
+export function longHistoryOf(
+  state: Doc<"assistant_history"> | null,
+): LongHistory | null {
+  return state && state.logged > 0
+    ? { partition: partitionOf(state.user_id), outside: state.outside }
+    : null;
 }
 
-type ActionLike = { runQuery: (ref: any, args: any) => Promise<any>; runMutation: (ref: any, args: any) => Promise<any> };
+type ActionLike = {
+  runQuery: (ref: any, args: any) => Promise<any>;
+  runMutation: (ref: any, args: any) => Promise<any>;
+};
 
 function historyFor(ctx: ActionLike, summarizer?: Summarizer) {
-  return createHistory({ store: historyDeps.store(ctx), scopes: [{ type: SCOPE_TYPE, inGlobalFeed: false }], renderer, summarizer, compress: COMPRESS });
+  return createHistory({
+    store: historyDeps.store(ctx),
+    scopes: [{ type: SCOPE_TYPE, inGlobalFeed: false }],
+    renderer,
+    summarizer,
+    compress: COMPRESS,
+  });
 }
 
 /**
@@ -254,14 +361,37 @@ function historyFor(ctx: ActionLike, summarizer?: Summarizer) {
  */
 export async function historyContext(
   ctx: ActionLike,
-  args: { conversationId: Id<"conversations">; long: LongHistory; turnId: string; timezone?: string },
+  args: {
+    conversationId: Id<"conversations">;
+    long: LongHistory;
+    turnId: string;
+    timezone?: string;
+  },
 ): Promise<{ section: string | null; tools: Tool[] }> {
   const history = historyFor(ctx);
   const scope = scopeOf(args.conversationId);
   const viewer = scopedViewer(AGENT_ID, scope, args.long.partition);
-  const run = { runId: args.turnId, agentId: AGENT_ID, scope, partition: args.long.partition, reason: "turn" };
-  const tools = historyTools(history, { run, viewer, zone: args.timezone, build: false, profile: { id: AGENT_ID, history: TOOL_BUDGET } });
-  const view = await history.view({ select: { scope }, viewer, budget: CONTEXT_BUDGET, run, zone: args.timezone });
+  const run = {
+    runId: args.turnId,
+    agentId: AGENT_ID,
+    scope,
+    partition: args.long.partition,
+    reason: "turn",
+  };
+  const tools = historyTools(history, {
+    run,
+    viewer,
+    zone: args.timezone,
+    build: false,
+    profile: { id: AGENT_ID, history: TOOL_BUDGET },
+  });
+  const view = await history.view({
+    select: { scope },
+    viewer,
+    budget: CONTEXT_BUDGET,
+    run,
+    zone: args.timezone,
+  });
   if (!view.text.trim()) return { section: null, tools };
   const cut = view.truncated
     ? "\n\n(Some of the earlier part did not fit here. read_history with from and to reads any stretch of it.)"
@@ -269,7 +399,9 @@ export async function historyContext(
   // Once outside content (mail, pages) reached this conversation, the
   // assistant's own earlier words may quote it, and so may summaries of them:
   // the log is then fenced as outside text, never read as instructions.
-  const body = args.long.outside ? untrusted("earlier conversation", view.text + cut) : view.text + cut;
+  const body = args.long.outside
+    ? untrusted("earlier conversation", view.text + cut)
+    : view.text + cut;
   return {
     section:
       "## Earlier in this conversation\n" +
@@ -288,21 +420,48 @@ export async function historyContext(
  */
 export async function earlierHistory(
   ctx: ActionLike,
-  args: { conversationId: Id<"conversations">; start: WindowStart | null; long: LongHistory | null; turnId: string; timezone?: string },
+  args: {
+    conversationId: Id<"conversations">;
+    start: WindowStart | null;
+    long: LongHistory | null;
+    turnId: string;
+    timezone?: string;
+  },
 ): Promise<{ section: string | null; tools: Tool[]; outside: boolean }> {
   let long = args.long;
   if (args.start) {
     try {
-      long = (await ctx.runMutation(internal.assistant.longHistory.logWindow, { conversation_id: args.conversationId, timestamp: args.start.timestamp, creation_time: args.start.creationTime })) ?? long;
+      long =
+        (await ctx.runMutation(internal.assistant.longHistory.logWindow, {
+          conversation_id: args.conversationId,
+          timestamp: args.start.timestamp,
+          creation_time: args.start.creationTime,
+        })) ?? long;
     } catch (error) {
-      console.error("[assistant] logging the long history failed", args.conversationId, error);
+      console.error(
+        "[assistant] logging the long history failed",
+        args.conversationId,
+        error,
+      );
     }
   }
   if (!long) return { section: null, tools: [], outside: false };
   try {
-    return { ...(await historyContext(ctx, { conversationId: args.conversationId, long, turnId: args.turnId, timezone: args.timezone })), outside: long.outside };
+    return {
+      ...(await historyContext(ctx, {
+        conversationId: args.conversationId,
+        long,
+        turnId: args.turnId,
+        timezone: args.timezone,
+      })),
+      outside: long.outside,
+    };
   } catch (error) {
-    console.error("[assistant] reading the long history failed", args.conversationId, error);
+    console.error(
+      "[assistant] reading the long history failed",
+      args.conversationId,
+      error,
+    );
     return { section: null, tools: [], outside: long.outside };
   }
 }
@@ -320,12 +479,23 @@ export const forget = internalMutation({
   handler: async (ctx, args) => {
     const state = await ctx.db
       .query("assistant_history")
-      .withIndex("by_conversation", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .unique();
     if (!state) return null;
-    const { done } = await convexStore(ctx.db).dropLog(scopeOf(args.conversation_id), partitionOf(state.user_id), FORGET_BATCH);
+    const { done } = await convexStore(ctx.db).dropLog(
+      scopeOf(args.conversation_id),
+      partitionOf(state.user_id),
+      FORGET_BATCH,
+    );
     if (done) await ctx.db.delete(state._id);
-    else await ctx.scheduler.runAfter(0, internal.assistant.longHistory.forget, args);
+    else
+      await ctx.scheduler.runAfter(
+        0,
+        internal.assistant.longHistory.forget,
+        args,
+      );
     return null;
   },
 });
@@ -336,14 +506,19 @@ export const forget = internalMutation({
 export const forgetDeleted = internalMutation({
   args: {},
   handler: async (ctx): Promise<number> => {
-    const due = await ctx.db.query("assistant_history").withIndex("by_checked").take(CHECKS_PER_PASS);
+    const due = await ctx.db
+      .query("assistant_history")
+      .withIndex("by_checked")
+      .take(CHECKS_PER_PASS);
     let gone = 0;
     for (const state of due) {
       if (await ctx.db.get(state.conversation_id)) {
         await ctx.db.patch(state._id, { checked_at: Date.now() });
       } else {
         gone++;
-        await ctx.scheduler.runAfter(0, internal.assistant.longHistory.forget, { conversation_id: state.conversation_id });
+        await ctx.scheduler.runAfter(0, internal.assistant.longHistory.forget, {
+          conversation_id: state.conversation_id,
+        });
       }
     }
     return gone;
@@ -355,7 +530,10 @@ export const forgetLater = internalMutation({
   args: { conversation_id: v.string() },
   handler: async (ctx, args) => {
     const id = ctx.db.normalizeId("conversations", args.conversation_id);
-    if (id) await ctx.scheduler.runAfter(0, internal.assistant.longHistory.forget, { conversation_id: id });
+    if (id)
+      await ctx.scheduler.runAfter(0, internal.assistant.longHistory.forget, {
+        conversation_id: id,
+      });
     return null;
   },
 });
@@ -378,20 +556,43 @@ const EVERYONE = "all";
 export const spentToday = internalQuery({
   args: { day: v.string(), who: v.optional(v.string()) },
   handler: async (ctx, args): Promise<number> => {
-    const row = await ctx.db.query("assistant_history_spend").withIndex("by_day_who", (q) => q.eq("day", args.day).eq("who", args.who ?? EVERYONE)).unique();
+    const row = await ctx.db
+      .query("assistant_history_spend")
+      .withIndex("by_day_who", (q) =>
+        q.eq("day", args.day).eq("who", args.who ?? EVERYONE),
+      )
+      .unique();
     return row?.usd ?? 0;
   },
 });
 
 /** One summary call's cost, on the day's row for everyone and for the person. */
 export const recordSpend = internalMutation({
-  args: { day: v.string(), who: v.optional(v.string()), usd: v.number(), failed: v.boolean() },
+  args: {
+    day: v.string(),
+    who: v.optional(v.string()),
+    usd: v.number(),
+    failed: v.boolean(),
+  },
   handler: async (ctx, args) => {
     for (const who of new Set([EVERYONE, args.who ?? EVERYONE])) {
-      const row = await ctx.db.query("assistant_history_spend").withIndex("by_day_who", (q) => q.eq("day", args.day).eq("who", who)).unique();
+      const row = await ctx.db
+        .query("assistant_history_spend")
+        .withIndex("by_day_who", (q) => q.eq("day", args.day).eq("who", who))
+        .unique();
       const add = { usd: args.usd, calls: 1, failures: args.failed ? 1 : 0 };
-      if (row) await ctx.db.patch(row._id, { usd: row.usd + add.usd, calls: row.calls + add.calls, failures: row.failures + add.failures });
-      else await ctx.db.insert("assistant_history_spend", { day: args.day, who, ...add });
+      if (row)
+        await ctx.db.patch(row._id, {
+          usd: row.usd + add.usd,
+          calls: row.calls + add.calls,
+          failures: row.failures + add.failures,
+        });
+      else
+        await ctx.db.insert("assistant_history_spend", {
+          day: args.day,
+          who,
+          ...add,
+        });
     }
     return null;
   },
@@ -411,28 +612,58 @@ export const recordSpend = internalMutation({
  */
 export const compress = internalAction({
   args: {},
-  handler: async (ctx): Promise<CompressReport & { spentUsd: number; stoppedForFailures: boolean }> => {
+  handler: async (
+    ctx,
+  ): Promise<
+    CompressReport & { spentUsd: number; stoppedForFailures: boolean }
+  > => {
     await ctx.runMutation(internal.assistant.longHistory.forgetDeleted, {});
     const day = utcDay(Date.now());
-    const dayBefore: number = await ctx.runQuery(internal.assistant.longHistory.spentToday, { day });
+    const dayBefore: number = await ctx.runQuery(
+      internal.assistant.longHistory.spentToday,
+      { day },
+    );
     let spent = 0;
     let failingInRow = 0;
     const owners = new Map<string, Promise<string | null>>();
     const userSpent = new Map<string, Promise<number>>();
     const call = async (scope: Scope, system: string, prompt: string) => {
-      if (!owners.has(scope.id)) owners.set(scope.id, ctx.runQuery(internal.assistant.longHistory.conversationOwner, { conversation_id: scope.id }));
+      if (!owners.has(scope.id))
+        owners.set(
+          scope.id,
+          ctx.runQuery(internal.assistant.longHistory.conversationOwner, {
+            conversation_id: scope.id,
+          }),
+        );
       const who = await owners.get(scope.id)!;
       if (!who) {
-        await ctx.runMutation(internal.assistant.longHistory.forgetLater, { conversation_id: scope.id });
+        await ctx.runMutation(internal.assistant.longHistory.forgetLater, {
+          conversation_id: scope.id,
+        });
         throw new Error("the conversation was deleted");
       }
-      if (!userSpent.has(who)) userSpent.set(who, ctx.runQuery(internal.assistant.longHistory.spentToday, { day, who }));
-      if ((await userSpent.get(who)!) >= historyDeps.userDayCapUsd) throw new Error("this person's summaries are at today's cap");
+      if (!userSpent.has(who))
+        userSpent.set(
+          who,
+          ctx.runQuery(internal.assistant.longHistory.spentToday, { day, who }),
+        );
+      if ((await userSpent.get(who)!) >= historyDeps.userDayCapUsd)
+        throw new Error("this person's summaries are at today's cap");
       // A regulated team's conversation is not summarized while the model's vendor has no BAA; nothing is billed.
-      const gate = { ctx, scope: { conversationId: scope.id as Id<"conversations"> } };
+      const gate = {
+        ctx,
+        scope: { conversationId: scope.id as Id<"conversations"> },
+      };
       const refusal = await vendorRefusalFor(ctx, gate.scope, "anthropic");
       if (refusal) throw new Error(refusal);
-      const { reply, usage } = await historyDeps.call({ system, prompt, max_tokens: historyDeps.summaryMaxTokens, label: "History summary", timeout_ms: 60_000, gate });
+      const { reply, usage } = await historyDeps.call({
+        system,
+        prompt,
+        max_tokens: historyDeps.summaryMaxTokens,
+        label: "History summary",
+        timeout_ms: 60_000,
+        gate,
+      });
       const usd = cheapModelCost(usage ?? estimatedUsage(system, prompt));
       // A refusal and a summary cut off at its limit are billed like any
       // reply but are no summary. tidemark refuses to store a truncated one.
@@ -440,20 +671,44 @@ export const compress = internalAction({
       const truncated = reply?.stop_reason === "max_tokens";
       const failed = !reply || refused || truncated;
       spent += usd;
-      userSpent.set(who, userSpent.get(who)!.then((before) => before + usd));
+      userSpent.set(
+        who,
+        userSpent.get(who)!.then((before) => before + usd),
+      );
       failingInRow = failed ? failingInRow + 1 : 0;
-      await ctx.runMutation(internal.assistant.longHistory.recordSpend, { day, who, usd, failed });
-      if (!reply || refused) throw new Error(reply ? "the summary call refused" : "the summary call failed");
+      await ctx.runMutation(internal.assistant.longHistory.recordSpend, {
+        day,
+        who,
+        usd,
+        failed,
+      });
+      if (!reply || refused)
+        throw new Error(
+          reply ? "the summary call refused" : "the summary call failed",
+        );
       return { text: reply.text, truncated };
     };
     const summarizer: Summarizer = {
-      leaf: (input) => promptSummarizer((system, prompt) => call(input.scope, system, prompt)).leaf(input),
-      merge: (input) => promptSummarizer((system, prompt) => call(input.scope, system, prompt)).merge(input),
+      leaf: (input) =>
+        promptSummarizer((system, prompt) =>
+          call(input.scope, system, prompt),
+        ).leaf(input),
+      merge: (input) =>
+        promptSummarizer((system, prompt) =>
+          call(input.scope, system, prompt),
+        ).merge(input),
     };
     const report = await historyFor(ctx, summarizer).compressOnce({
       deadlineAt: Date.now() + historyDeps.passDeadlineMs,
-      budgetCheck: () => failingInRow < historyDeps.failuresToStop && spent < historyDeps.passCapUsd && dayBefore + spent < historyDeps.dayCapUsd,
+      budgetCheck: () =>
+        failingInRow < historyDeps.failuresToStop &&
+        spent < historyDeps.passCapUsd &&
+        dayBefore + spent < historyDeps.dayCapUsd,
     });
-    return { ...report, spentUsd: spent, stoppedForFailures: failingInRow >= historyDeps.failuresToStop };
+    return {
+      ...report,
+      spentUsd: spent,
+      stoppedForFailures: failingInRow >= historyDeps.failuresToStop,
+    };
   },
 });

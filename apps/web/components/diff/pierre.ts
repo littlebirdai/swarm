@@ -29,7 +29,9 @@ function load(name: string, language?: string) {
   import("./PierreDiff")
     .then((m) => {
       pierre = m;
-      return m.preloadDiffLanguage(m.diffLanguage(name, language)).catch(() => {});
+      return m
+        .preloadDiffLanguage(m.diffLanguage(name, language))
+        .catch(() => {});
     })
     .catch(() => {})
     .then(() => {
@@ -38,9 +40,15 @@ function load(name: string, language?: string) {
     });
 }
 
-export type DiffRenderer = { PierreDiff: typeof PierreDiffComponent; lang: string };
+export type DiffRenderer = {
+  PierreDiff: typeof PierreDiffComponent;
+  lang: string;
+};
 
-export function useDiffRenderer(name: string, language?: string): DiffRenderer | null {
+export function useDiffRenderer(
+  name: string,
+  language?: string,
+): DiffRenderer | null {
   const ready = useSyncExternalStore(
     (onChange) => {
       listeners.add(onChange);
@@ -50,7 +58,12 @@ export function useDiffRenderer(name: string, language?: string): DiffRenderer |
     () => settled.has(keyFor(name, language)),
     () => false,
   );
-  return ready && pierre ? { PierreDiff: pierre.PierreDiff, lang: pierre.diffLanguage(name, language) } : null;
+  return ready && pierre
+    ? {
+        PierreDiff: pierre.PierreDiff,
+        lang: pierre.diffLanguage(name, language),
+      }
+    : null;
 }
 
 // Pierre draws each diff inside a shadow root of a `diffs-container`, which a
@@ -59,10 +72,14 @@ export function useDiffRenderer(name: string, language?: string): DiffRenderer |
 // pane.
 
 /** Every rendered line under `scope`, in document order, with its side and number. */
-export function diffLineElements(scope: ParentNode): Array<{ el: HTMLElement; anchor: DiffLineAnchor }> {
+export function diffLineElements(
+  scope: ParentNode,
+): Array<{ el: HTMLElement; anchor: DiffLineAnchor }> {
   const out: Array<{ el: HTMLElement; anchor: DiffLineAnchor }> = [];
   for (const host of scope.querySelectorAll<HTMLElement>("diffs-container")) {
-    for (const el of host.shadowRoot?.querySelectorAll<HTMLElement>("[data-code] [data-line]") ?? []) {
+    for (const el of host.shadowRoot?.querySelectorAll<HTMLElement>(
+      "[data-code] [data-line]",
+    ) ?? []) {
       const lineNumber = Number(el.dataset.line);
       if (!Number.isFinite(lineNumber)) continue;
       const side = el.dataset.lineType === "change-deletion" ? "LEFT" : "RIGHT";
@@ -73,8 +90,16 @@ export function diffLineElements(scope: ParentNode): Array<{ el: HTMLElement; an
 }
 
 /** The rendered line an anchor names, if the diff under `scope` shows it. */
-export function findDiffLine(scope: ParentNode, anchor: DiffLineAnchor): HTMLElement | null {
-  return diffLineElements(scope).find(({ anchor: a }) => a.side === anchor.side && a.lineNumber === anchor.lineNumber)?.el ?? null;
+export function findDiffLine(
+  scope: ParentNode,
+  anchor: DiffLineAnchor,
+): HTMLElement | null {
+  return (
+    diffLineElements(scope).find(
+      ({ anchor: a }) =>
+        a.side === anchor.side && a.lineNumber === anchor.lineNumber,
+    )?.el ?? null
+  );
 }
 
 /** A long diff draws only the rows near the viewport (components/diff/virtualizer.ts).
@@ -82,7 +107,11 @@ export function findDiffLine(scope: ParentNode, anchor: DiffLineAnchor): HTMLEle
  *  scroll it into the drawn window and return true: the line is there on the
  *  next look. False when no diff under `scope` will draw it. `orEarlier`
  *  takes the nearest drawable line before one inside a collapsed stretch. */
-export function revealDiffLine(scope: ParentNode, anchor: DiffLineAnchor, opts: { orEarlier?: boolean } = {}): boolean {
+export function revealDiffLine(
+  scope: ParentNode,
+  anchor: DiffLineAnchor,
+  opts: { orEarlier?: boolean } = {},
+): boolean {
   if (!pierre) return false;
   for (const host of scope.querySelectorAll<HTMLElement>("diffs-container")) {
     if (pierre.revealVirtualLine(host, anchor, opts)) return true;

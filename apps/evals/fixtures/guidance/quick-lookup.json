@@ -7,10 +7,7 @@
       "^(Grep|Glob|Read):",
       "^Agent:"
     ],
-    "avoid": [
-      "cast\\s+(spawn|fork|exec)\\b",
-      "^Workflow:"
-    ]
+    "avoid": ["cast\\s+(spawn|fork|exec)\\b", "^Workflow:"]
   },
   "snapshot": {
     "captured_at": "2026-10-06T12:00:00.000Z",

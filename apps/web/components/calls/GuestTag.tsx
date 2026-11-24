@@ -12,7 +12,13 @@ import { modernPill } from "../ui/modernLook";
 // Store free on purpose: the guest's own page (app/meet) draws the same
 // stage with the same marks and never loads the app's store.
 
-export function GuestTag({ className = "", title = PARTICIPANT_MARKS.guest.title }: { className?: string; title?: string }) {
+export function GuestTag({
+  className = "",
+  title = PARTICIPANT_MARKS.guest.title,
+}: {
+  className?: string;
+  title?: string;
+}) {
   return (
     <span
       title={title}
@@ -27,7 +33,13 @@ export function GuestTag({ className = "", title = PARTICIPANT_MARKS.guest.title
  *  worker): a face and a name that can pass for a person's, so it is marked
  *  with the same rigor as a guest, in the other direction. A guest has no
  *  thread or agents panel to learn otherwise from. */
-export function AgentTag({ className = "", title = PARTICIPANT_MARKS.agent.title }: { className?: string; title?: string }) {
+export function AgentTag({
+  className = "",
+  title = PARTICIPANT_MARKS.agent.title,
+}: {
+  className?: string;
+  title?: string;
+}) {
   return (
     <span
       title={title}
@@ -42,10 +54,21 @@ export function AgentTag({ className = "", title = PARTICIPANT_MARKS.agent.title
  *  for a teammate, decided by the shared participantMark (the phone's words
  *  come from the same answer), so the two marks are never decided by two
  *  different tests. */
-export function ParticipantTag({ identity, name, className = "" }: { identity?: string | null; name?: string | null; className?: string }) {
+export function ParticipantTag({
+  identity,
+  name,
+  className = "",
+}: {
+  identity?: string | null;
+  name?: string | null;
+  className?: string;
+}) {
   const mark = participantMark(identity, name);
-  if (mark === PARTICIPANT_MARKS.agent) return <AgentTag className={className} />;
-  return mark === PARTICIPANT_MARKS.guest ? <GuestTag className={className} /> : null;
+  if (mark === PARTICIPANT_MARKS.agent)
+    return <AgentTag className={className} />;
+  return mark === PARTICIPANT_MARKS.guest ? (
+    <GuestTag className={className} />
+  ) : null;
 }
 
 /** A participant's first name, with the guest or agent mark when they are one. The one
@@ -70,8 +93,16 @@ export function PersonName({
   you = you || (!!self && !!identity && identity === self);
   return (
     <>
-      <span className={`min-w-0 truncate ${className}`}>{you ? "you" : firstName(name)}</span>
-      {!you && <ParticipantTag identity={identity} name={name} className={tagClassName} />}
+      <span className={`min-w-0 truncate ${className}`}>
+        {you ? "you" : firstName(name)}
+      </span>
+      {!you && (
+        <ParticipantTag
+          identity={identity}
+          name={name}
+          className={tagClassName}
+        />
+      )}
     </>
   );
 }

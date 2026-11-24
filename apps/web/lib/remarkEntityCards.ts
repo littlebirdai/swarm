@@ -1,5 +1,14 @@
-import { parseCallRef, parseReplayRef, replayRefStart } from "@codecast/shared/entities";
-import { parseEntityUrl, CONTEXTUAL_PR_REF_PREFIX, entityTypeFromId, type EntityType } from "./entityLinks";
+import {
+  parseCallRef,
+  parseReplayRef,
+  replayRefStart,
+} from "@codecast/shared/entities";
+import {
+  parseEntityUrl,
+  CONTEXTUAL_PR_REF_PREFIX,
+  entityTypeFromId,
+  type EntityType,
+} from "./entityLinks";
 
 const CARD_PREFIX = "card:";
 
@@ -23,7 +32,12 @@ export type EntityCardsOptions = {
  *  conversation can complete to an object and so stays an inline pill. With
  *  `types`, only a reference of one of those types. */
 function cardEligible(payload: string, types?: readonly EntityType[]): boolean {
-  if (/^date:/i.test(payload) || payload.startsWith("embed:") || payload.startsWith(CONTEXTUAL_PR_REF_PREFIX)) return false;
+  if (
+    /^date:/i.test(payload) ||
+    payload.startsWith("embed:") ||
+    payload.startsWith(CONTEXTUAL_PR_REF_PREFIX)
+  )
+    return false;
   if (!types) return true;
   const type = payload.startsWith("doc:") ? "doc" : entityTypeFromId(payload);
   return !!type && types.includes(type);
@@ -38,7 +52,8 @@ export const REF_CERTAIN_ATTR = "data-ref-certain";
 export function mdastText(node: any): string {
   if (!node) return "";
   if (node.type === "text") return node.value ?? "";
-  if (Array.isArray(node.children)) return node.children.map(mdastText).join("");
+  if (Array.isArray(node.children))
+    return node.children.map(mdastText).join("");
   return "";
 }
 
@@ -64,7 +79,10 @@ function normalizeEntityLinks(node: any) {
       child.url = `entity://${payload}`;
       child.children = [{ type: "text", value: payload }];
       if (ref.type === "pr" || ref.type === "commit") {
-        child.data = { ...child.data, hProperties: { ...child.data?.hProperties, [REF_CERTAIN_ATTR]: "1" } };
+        child.data = {
+          ...child.data,
+          hProperties: { ...child.data?.hProperties, [REF_CERTAIN_ATTR]: "1" },
+        };
       }
     } else {
       normalizeEntityLinks(child);
@@ -78,7 +96,10 @@ function isIgnorable(node: any): boolean {
 }
 
 /** The entity links of a references-only paragraph, or null if it has prose. */
-function paragraphLinks(node: any, types?: readonly EntityType[]): any[] | null {
+function paragraphLinks(
+  node: any,
+  types?: readonly EntityType[],
+): any[] | null {
   if (node?.type !== "paragraph" || !Array.isArray(node.children)) return null;
   const links: any[] = [];
   for (const child of node.children) {
@@ -90,7 +111,12 @@ function paragraphLinks(node: any, types?: readonly EntityType[]): any[] | null 
 
 /** The entity links of a list whose every item is references-only, else null. */
 function listLinks(node: any, types?: readonly EntityType[]): any[] | null {
-  if (node?.type !== "list" || !Array.isArray(node.children) || node.children.length === 0) return null;
+  if (
+    node?.type !== "list" ||
+    !Array.isArray(node.children) ||
+    node.children.length === 0
+  )
+    return null;
   const links: any[] = [];
   for (const item of node.children) {
     if (item?.type !== "listItem" || !Array.isArray(item.children)) return null;
@@ -106,21 +132,29 @@ function listLinks(node: any, types?: readonly EntityType[]): any[] | null {
 function toCardRow(links: any[]): any {
   for (const link of links) {
     const payload = mdastText(link);
-    link.children = [{ type: "text", value: `${CARD_PREFIX}${links.length}:${payload}` }];
+    link.children = [
+      { type: "text", value: `${CARD_PREFIX}${links.length}:${payload}` },
+    ];
     // The marker class is the authenticity check: EntityAwareLink renders a
     // card only when BOTH the payload and this class are present. Without it,
     // a hand-typed `[card:1:ct-…](url)` in a doc or task description — a
     // surface that never registered this plugin — would render a card into a
     // <p>, which is both a surprise and invalid HTML (cards are divs; only
     // this plugin re-tags the containing paragraph as a div).
-    link.data = { ...link.data, hProperties: { ...link.data?.hProperties, className: "entity-card-ref" } };
+    link.data = {
+      ...link.data,
+      hProperties: { ...link.data?.hProperties, className: "entity-card-ref" },
+    };
   }
   return {
     type: "paragraph",
     children: links,
     data: {
       hName: "div",
-      hProperties: { className: "entity-card-row", "data-card-count": String(links.length) },
+      hProperties: {
+        className: "entity-card-row",
+        "data-card-count": String(links.length),
+      },
     },
   };
 }
@@ -133,12 +167,19 @@ function toCardRow(links: any[]): any {
  *  stack of pictures below the words. Only a moment on its own line is a card. */
 function isMoment(node: any): boolean {
   const text = mdastText(node);
-  return parseCallRef(text)?.at_ms != null || replayRefStart(parseReplayRef(text)) != null;
+  return (
+    parseCallRef(text)?.at_ms != null ||
+    replayRefStart(parseReplayRef(text)) != null
+  );
 }
 
 /** Whether children[i] stands on a line of its own: nothing but other
  *  references and whitespace between it and the line breaks on either side. */
-function onOwnLine(children: any[], i: number, types?: readonly EntityType[]): boolean {
+function onOwnLine(
+  children: any[],
+  i: number,
+  types?: readonly EntityType[],
+): boolean {
   const side = (step: 1 | -1): boolean => {
     for (let j = i + step; j >= 0 && j < children.length; j += step) {
       const c = children[j];
@@ -160,10 +201,17 @@ function onOwnLine(children: any[], i: number, types?: readonly EntityType[]): b
  *  card rows in place and the prose lines around them stay paragraphs. A
  *  reference inside a sentence is left where it is (see unfurl). Null when no
  *  line is references-only. */
-function paragraphBlocks(node: any, types?: readonly EntityType[]): any[] | null {
+function paragraphBlocks(
+  node: any,
+  types?: readonly EntityType[],
+): any[] | null {
   if (node.type !== "paragraph" || !Array.isArray(node.children)) return null;
   const children: any[] = node.children;
-  const cards = new Set(children.filter((c, i) => isEntityLink(c, types) && onOwnLine(children, i, types)));
+  const cards = new Set(
+    children.filter(
+      (c, i) => isEntityLink(c, types) && onOwnLine(children, i, types),
+    ),
+  );
   if (cards.size === 0) return null;
   const blocks: any[] = [];
   let prose: any[] = [];
@@ -213,16 +261,22 @@ function walk(node: any, types?: readonly EntityType[], aloneOnly?: boolean) {
  *  card per item would bury the words; the pills already open each one. */
 const MAX_UNFURLED = 3;
 
-const isCardRow = (node: any) => node?.data?.hProperties?.className === "entity-card-row";
+const isCardRow = (node: any) =>
+  node?.data?.hProperties?.className === "entity-card-row";
 
 /** The references a block names inside its prose, in reading order. */
-function proseLinks(node: any, types: readonly EntityType[] | undefined, out: any[] = []): any[] {
+function proseLinks(
+  node: any,
+  types: readonly EntityType[] | undefined,
+  out: any[] = [],
+): any[] {
   if (isCardRow(node)) return out;
   if (isEntityLink(node, types)) {
     if (!isMoment(node)) out.push(node);
     return out;
   }
-  if (Array.isArray(node?.children)) for (const c of node.children) proseLinks(c, types, out);
+  if (Array.isArray(node?.children))
+    for (const c of node.children) proseLinks(c, types, out);
   return out;
 }
 
@@ -238,7 +292,11 @@ function unfurl(root: any, types?: readonly EntityType[]) {
     else if (Array.isArray(node?.children)) node.children.forEach(collectShown);
   };
   collectShown(root);
-  const pending = new Set(proseLinks(root, types).map((l) => l.url).filter((u) => !shown.has(u)));
+  const pending = new Set(
+    proseLinks(root, types)
+      .map((l) => l.url)
+      .filter((u) => !shown.has(u)),
+  );
   if (pending.size === 0 || pending.size > MAX_UNFURLED) return;
   const visit = (container: any) => {
     container.children = container.children.flatMap((child: any) => {
@@ -249,7 +307,11 @@ function unfurl(root: any, types?: readonly EntityType[]) {
       const fresh: any[] = [];
       for (const link of proseLinks(child, types)) {
         if (!pending.delete(link.url)) continue;
-        fresh.push({ ...link, children: [...link.children], data: link.data && { ...link.data } });
+        fresh.push({
+          ...link,
+          children: [...link.children],
+          data: link.data && { ...link.data },
+        });
       }
       return fresh.length ? [child, toCardRow(fresh)] : [child];
     });

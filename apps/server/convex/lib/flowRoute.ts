@@ -42,10 +42,13 @@ export type FlowRoute<W extends FlowRouteRow = FlowRouteRow> =
 export const NO_JUDGE_FLOW = "no judge flow";
 
 /** An `extends` that names a file (a path, or a .cast), not a library flow by slug. */
-export const isExtendsPath = (ext: string) => ext.includes("/") || ext.endsWith(".cast");
+export const isExtendsPath = (ext: string) =>
+  ext.includes("/") || ext.endsWith(".cast");
 
 /** The checkout file an `extends` path names, read from the row's own file; null for none or a slug. */
-export function extendsFile(row: Pick<FlowRouteRow, "source" | "origin">): string | null {
+export function extendsFile(
+  row: Pick<FlowRouteRow, "source" | "origin">,
+): string | null {
   const ext = flowGraphAttr(row.source, "extends");
   if (!ext || !isExtendsPath(ext) || !row.origin?.file) return null;
   const parts = row.origin.file.split("/").slice(0, -1);
@@ -67,12 +70,25 @@ export function extendsFlow(row: FlowRouteRow, base: FlowRouteRow): boolean {
 
 /** The family, from the rows of the flow's workspace: the spine first, then its variants and its judge route. */
 export function flowFamily<W extends FlowRouteRow>(spine: W, rows: W[]): W[] {
-  const judgeRoute = (r: W) => r.runs_from === "library" && (r.serves ?? []).includes(JUDGE_CASE_SOURCE);
-  return [spine, ...rows.filter((r) => String(r._id) !== String(spine._id) && (extendsFlow(r, spine) || judgeRoute(r)))];
+  const judgeRoute = (r: W) =>
+    r.runs_from === "library" && (r.serves ?? []).includes(JUDGE_CASE_SOURCE);
+  return [
+    spine,
+    ...rows.filter(
+      (r) =>
+        String(r._id) !== String(spine._id) &&
+        (extendsFlow(r, spine) || judgeRoute(r)),
+    ),
+  ];
 }
 
-const newestServing = <W extends FlowRouteRow>(family: W[], source: string): W | null =>
-  family.filter((w) => (w.serves ?? []).includes(source)).sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0))[0] ?? null;
+const newestServing = <W extends FlowRouteRow>(
+  family: W[],
+  source: string,
+): W | null =>
+  family
+    .filter((w) => (w.serves ?? []).includes(source))
+    .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0))[0] ?? null;
 
 /**
  * The route of a problem under its workspace's live flow, or null when the
@@ -81,16 +97,27 @@ const newestServing = <W extends FlowRouteRow>(family: W[], source: string): W |
  * lowercased (null for a task that is no problem, which runs the spine);
  * `judge` is isJudgeProblem on its cause.
  */
-export function flowRouteFor<W extends FlowRouteRow>(o: { flow: FlowRouteFlow | null | undefined; spine: W | null | undefined; rows: W[]; source: string | null | undefined; judge: boolean }): FlowRoute<W> | null {
+export function flowRouteFor<W extends FlowRouteRow>(o: {
+  flow: FlowRouteFlow | null | undefined;
+  spine: W | null | undefined;
+  rows: W[];
+  source: string | null | undefined;
+  judge: boolean;
+}): FlowRoute<W> | null {
   const { flow, spine } = o;
-  if (!flow?.on || !spine || String(spine._id) !== String(flow.workflow_id)) return null;
+  if (!flow?.on || !spine || String(spine._id) !== String(flow.workflow_id))
+    return null;
   const family = flowFamily(spine, o.rows);
   const live_flow_id = String(flow._id);
   if (o.judge) {
     const judge = newestServing(family, JUDGE_CASE_SOURCE);
-    return judge ? { live_flow_id, lane: "judge", workflow: judge, waiting: null } : { live_flow_id, lane: "judge", workflow: null, waiting: NO_JUDGE_FLOW };
+    return judge
+      ? { live_flow_id, lane: "judge", workflow: judge, waiting: null }
+      : { live_flow_id, lane: "judge", workflow: null, waiting: NO_JUDGE_FLOW };
   }
   const source = o.source?.trim().toLowerCase();
   const serving = source ? newestServing(family, source) : null;
-  return serving ? { live_flow_id, lane: "serves", workflow: serving, waiting: null } : { live_flow_id, lane: "spine", workflow: spine, waiting: null };
+  return serving
+    ? { live_flow_id, lane: "serves", workflow: serving, waiting: null }
+    : { live_flow_id, lane: "spine", workflow: spine, waiting: null };
 }

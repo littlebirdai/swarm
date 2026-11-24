@@ -19,8 +19,16 @@ import { adminClient, prodDeployment } from "./stack.mjs";
 // these, so a run leaves no message and no changed preference behind
 // (endWalkie and leaveCall on every exit; the flows send no text).
 export const IDENTITIES = {
-  riley: { id: "kd777ypck8b0bzxzgs8cq9rqg9894p29", name: "Riley Chen", port: 9611 },
-  jordan: { id: "kd764edpkn8344ffz3fpgen8418cvdt7", name: "Jordan Lee", port: 9612 },
+  riley: {
+    id: "kd777ypck8b0bzxzgs8cq9rqg9894p29",
+    name: "Riley Chen",
+    port: 9611,
+  },
+  jordan: {
+    id: "kd764edpkn8344ffz3fpgen8418cvdt7",
+    name: "Jordan Lee",
+    port: 9612,
+  },
 };
 
 /** The deployment the face row rig runs on (calls need prod's LiveKit). */
@@ -32,8 +40,13 @@ function storageSuffix(url) {
 
 /** Mint a signed in session for a user id on a deployment: { token, refreshToken }. */
 export async function mintTokens(dep, userId) {
-  const out = await adminClient(dep).mutation("auth:store", { args: { type: "signIn", userId, generateTokens: true } });
-  if (!out?.tokens?.token) throw new Error(`auth:store answered without tokens: ${JSON.stringify(out).slice(0, 200)}`);
+  const out = await adminClient(dep).mutation("auth:store", {
+    args: { type: "signIn", userId, generateTokens: true },
+  });
+  if (!out?.tokens?.token)
+    throw new Error(
+      `auth:store answered without tokens: ${JSON.stringify(out).slice(0, 200)}`,
+    );
   return out.tokens;
 }
 

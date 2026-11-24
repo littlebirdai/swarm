@@ -14,10 +14,23 @@
 import type { SimOrientation } from "./pool.js";
 
 /** One quarter turn of the device, the way Simulator.app's Rotate Left and Right go. */
-export function turned(from: SimOrientation, direction: "left" | "right"): SimOrientation {
+export function turned(
+  from: SimOrientation,
+  direction: "left" | "right",
+): SimOrientation {
   // Turning the device left (counterclockwise) from portrait is landscape left.
-  const left: Record<SimOrientation, SimOrientation> = { 1: 3, 3: 2, 2: 4, 4: 1 };
-  const right: Record<SimOrientation, SimOrientation> = { 1: 4, 4: 2, 2: 3, 3: 1 };
+  const left: Record<SimOrientation, SimOrientation> = {
+    1: 3,
+    3: 2,
+    2: 4,
+    4: 1,
+  };
+  const right: Record<SimOrientation, SimOrientation> = {
+    1: 4,
+    4: 2,
+    2: 3,
+    3: 1,
+  };
   return (direction === "left" ? left : right)[from];
 }
 
@@ -29,7 +42,12 @@ export function isSideways(o: SimOrientation): boolean {
  * A point in the upright interface, on the portrait panel. `ui` is the
  * interface's size in points (describe-ui's root frame), already turned.
  */
-export function toPanel(x: number, y: number, o: SimOrientation, ui: { width: number; height: number }): { x: number; y: number } {
+export function toPanel(
+  x: number,
+  y: number,
+  o: SimOrientation,
+  ui: { width: number; height: number },
+): { x: number; y: number } {
   // The panel's portrait size: the interface's, unturned.
   const W = isSideways(o) ? ui.height : ui.width;
   const H = isSideways(o) ? ui.width : ui.height;

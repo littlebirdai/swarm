@@ -6,14 +6,14 @@ One address, `https://codecast.sh/mcp`, lets an agent that has no `cast` CLI (cl
 
 Every tool runs as the signed-in person and goes through the access rule that already decides what that person sees in the app. No tool has an access check of its own.
 
-| Tool | Reads | Rule |
-|---|---|---|
-| `whoami` | name, teams, what the grant allows | the grant |
-| `list_docs`, `read_doc` | docs in the person's workspaces | `canAccessDoc` |
-| `list_tasks`, `read_task` | tasks, their comments | `canAccessTask` |
-| `list_plans`, `read_plan` | plans and their tasks | `canAccessPlan` |
-| `list_pages`, `read_page` | published pages (`codecast.sh/a/<slug>`) | the page's own gates, below |
-| `list_sessions`, `read_session` | a session's title, pinned state, idle summary, status, project | `canAccessConversation` |
+| Tool                            | Reads                                                          | Rule                        |
+| ------------------------------- | -------------------------------------------------------------- | --------------------------- |
+| `whoami`                        | name, teams, what the grant allows                             | the grant                   |
+| `list_docs`, `read_doc`         | docs in the person's workspaces                                | `canAccessDoc`              |
+| `list_tasks`, `read_task`       | tasks, their comments                                          | `canAccessTask`             |
+| `list_plans`, `read_plan`       | plans and their tasks                                          | `canAccessPlan`             |
+| `list_pages`, `read_page`       | published pages (`codecast.sh/a/<slug>`)                       | the page's own gates, below |
+| `list_sessions`, `read_session` | a session's title, pinned state, idle summary, status, project | `canAccessConversation`     |
 
 A published page opens to an agent as far as it opens to that account in a browser, through `accountAdmission` (artifacts.ts), the rule page state and comments share: an expired page is shut to everyone, the owner included; the password, email and team gates open only to the keys the app would hand that account (the owner holds them all, a team-gated page's members hold them all, nobody else holds any). Being a teammate who sees the page in the gallery is not a key. A locked page comes back as `{locked: true, reason}`; a page or row the account cannot read comes back `{found: false}`, the same as one that does not exist.
 

@@ -72,9 +72,16 @@ export function noteViewNavApplied(): void {
 // hydration skips its restore and the adopt paths hold off, so nothing
 // flashes first.
 function readFreshHomeLaunch(): boolean {
-  if (typeof window === "undefined" || !window.location || typeof performance === "undefined") return false;
+  if (
+    typeof window === "undefined" ||
+    !window.location ||
+    typeof performance === "undefined"
+  )
+    return false;
   if (windowFlavor() !== "main") return false;
-  const nav = performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
+  const nav = performance.getEntriesByType?.("navigation")?.[0] as
+    | PerformanceNavigationTiming
+    | undefined;
   if (nav?.type !== "navigate") return false;
   const page = window.location.pathname.replace(/\/+$/, "") || "/";
   if (page !== "/" && page !== "/inbox") return false;
@@ -96,7 +103,10 @@ export function windowFlavor(): string {
 
 function loadLog(): NavEvent[] {
   try {
-    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(LOG_KEY) : null;
+    const raw =
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem(LOG_KEY)
+        : null;
     return raw ? (JSON.parse(raw) as NavEvent[]) : [];
   } catch {
     return [];
@@ -115,7 +125,9 @@ export function subscribeNavEvents(fn: (e: NavEvent) => void): () => void {
   };
 }
 
-export function recordNavEvent(e: Omit<NavEvent, "ts" | "win" | "stack">): void {
+export function recordNavEvent(
+  e: Omit<NavEvent, "ts" | "win" | "stack">,
+): void {
   if (navLog === null) navLog = loadLog();
   // Stacks only for problem events (blocked / untracked writers) — they're what
   // the log exists to name, and stacks on every allowed click would bloat the
@@ -124,7 +136,9 @@ export function recordNavEvent(e: Omit<NavEvent, "ts" | "win" | "stack">): void 
   const event: NavEvent = {
     ts: Date.now(),
     win: windowFlavor(),
-    stack: needsStack ? new Error().stack?.split("\n").slice(2, 8).join("\n") : undefined,
+    stack: needsStack
+      ? new Error().stack?.split("\n").slice(2, 8).join("\n")
+      : undefined,
     ...e,
   };
   navLog.push(event);
@@ -166,9 +180,17 @@ export function _resetViewNavForTests(): void {
 
 /** Sim seam: the intent token and lifetime counter belong to one window. */
 export function __viewNavSimSlots() {
-  type Slots = { pendingSource: ViewNavSource | null; appliedNavCount: number; freshHomeLaunch: boolean | null };
+  type Slots = {
+    pendingSource: ViewNavSource | null;
+    appliedNavCount: number;
+    freshHomeLaunch: boolean | null;
+  };
   return {
-    fresh: (): Slots => ({ pendingSource: null, appliedNavCount: 0, freshHomeLaunch: null }),
+    fresh: (): Slots => ({
+      pendingSource: null,
+      appliedNavCount: 0,
+      freshHomeLaunch: null,
+    }),
     get: (): Slots => ({ pendingSource, appliedNavCount, freshHomeLaunch }),
     set: (s: Slots): void => {
       pendingSource = s.pendingSource;

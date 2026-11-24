@@ -13,13 +13,39 @@ export interface ToolCallLike {
   input: string;
 }
 
-import { isShellTool, isReadTool, isWriteTool, isEditTool, isGrepTool, isGlobTool, isTodoTool, isAskTool, isAgentTool } from "./toolKinds";
-export { isShellTool, isReadTool, isWriteTool, isEditTool, isGrepTool, isGlobTool, isTodoTool, isAskTool, isPlanModeTool, isAgentTool } from "./toolKinds";
+import {
+  isShellTool,
+  isReadTool,
+  isWriteTool,
+  isEditTool,
+  isGrepTool,
+  isGlobTool,
+  isTodoTool,
+  isAskTool,
+  isAgentTool,
+} from "./toolKinds";
+export {
+  isShellTool,
+  isReadTool,
+  isWriteTool,
+  isEditTool,
+  isGrepTool,
+  isGlobTool,
+  isTodoTool,
+  isAskTool,
+  isPlanModeTool,
+  isAgentTool,
+} from "./toolKinds";
 
 /** Path argument across Claude (`file_path`), Codex (`path`), opencode (`filePath`), and Grok (`target_file` / `target_directory`). */
 export function toolPathFromInput(parsed: Record<string, unknown>): string {
   return String(
-    parsed.file_path || parsed.filePath || parsed.path || parsed.target_file || parsed.target_directory || "",
+    parsed.file_path ||
+      parsed.filePath ||
+      parsed.path ||
+      parsed.target_file ||
+      parsed.target_directory ||
+      "",
   );
 }
 
@@ -97,7 +123,9 @@ function decodeStaticString(source: string, start: number): string | undefined {
     }
   }
   return raw
-    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex: string) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    )
     .replace(/\\n/g, "\n")
     .replace(/\\r/g, "\r")
     .replace(/\\t/g, "\t")
@@ -106,13 +134,17 @@ function decodeStaticString(source: string, start: number): string | undefined {
 
 function staticProperty(source: string, key: string): unknown {
   const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = new RegExp(`(?:^|[,{]\\s*)[\"']?${escapedKey}[\"']?\\s*:\\s*`).exec(source);
+  const match = new RegExp(
+    `(?:^|[,{]\\s*)[\"']?${escapedKey}[\"']?\\s*:\\s*`,
+  ).exec(source);
   if (!match) return undefined;
   let valueAt = match.index + match[0].length;
   while (/\s/.test(source[valueAt] || "")) valueAt++;
   const stringValue = decodeStaticString(source, valueAt);
   if (stringValue !== undefined) return stringValue;
-  const scalar = /^(true|false|null|-?\d+(?:\.\d+)?)/.exec(source.slice(valueAt));
+  const scalar = /^(true|false|null|-?\d+(?:\.\d+)?)/.exec(
+    source.slice(valueAt),
+  );
   if (!scalar) return undefined;
   if (scalar[1] === "true") return true;
   if (scalar[1] === "false") return false;
@@ -121,15 +153,35 @@ function staticProperty(source: string, key: string): unknown {
 }
 
 const EXEC_ACTION_SUMMARY_KEYS = [
-  "cmd", "command", "path", "file_path", "filePath", "query", "url", "title",
-  "prompt", "question", "pattern", "action", "text", "code", "cell_id", "q",
-  "ref_id", "location", "session_id", "yield_time_ms", "timeout_ms", "detail",
+  "cmd",
+  "command",
+  "path",
+  "file_path",
+  "filePath",
+  "query",
+  "url",
+  "title",
+  "prompt",
+  "question",
+  "pattern",
+  "action",
+  "text",
+  "code",
+  "cell_id",
+  "q",
+  "ref_id",
+  "location",
+  "session_id",
+  "yield_time_ms",
+  "timeout_ms",
+  "detail",
 ] as const;
 
 function staticActionInput(source: string): string {
   const trimmed = source.trim();
   const directString = decodeStaticString(trimmed, 0);
-  if (directString !== undefined) return JSON.stringify({ input: directString });
+  if (directString !== undefined)
+    return JSON.stringify({ input: directString });
   try {
     const parsed = JSON.parse(trimmed);
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
@@ -234,8 +286,12 @@ export function extractBrowserBatchActions(tc: ToolCallLike): NestedAction[] {
   return actions
     .filter((a: any) => a && typeof a.name === "string")
     .map((a: any) => ({
-      name: a.name.startsWith("mcp__") ? a.name : `${BROWSER_MCP_PREFIX}${a.name}`,
-      input: JSON.stringify(a.input && typeof a.input === "object" ? a.input : {}),
+      name: a.name.startsWith("mcp__")
+        ? a.name
+        : `${BROWSER_MCP_PREFIX}${a.name}`,
+      input: JSON.stringify(
+        a.input && typeof a.input === "object" ? a.input : {},
+      ),
     }));
 }
 
@@ -245,7 +301,10 @@ export function extractBrowserBatchActions(tc: ToolCallLike): NestedAction[] {
  * batch, and of what" — the collapsed-row name, the summary, the tool-group
  * counts and the expanded step list all key off it.
  */
-const nestedActionCache = new WeakMap<ToolCallLike, { name: string; input: string; actions: NestedAction[] }>();
+const nestedActionCache = new WeakMap<
+  ToolCallLike,
+  { name: string; input: string; actions: NestedAction[] }
+>();
 
 export function extractNestedActions(tc: ToolCallLike): NestedAction[] {
   if (tc.name !== "exec" && tc.name !== BROWSER_BATCH_TOOL) {
@@ -253,18 +312,26 @@ export function extractNestedActions(tc: ToolCallLike): NestedAction[] {
     return [];
   }
   const cached = nestedActionCache.get(tc);
-  if (cached && cached.name === tc.name && cached.input === tc.input) return cached.actions;
-  const actions = tc.name === "exec" ? extractCodexExecActions(tc) : extractBrowserBatchActions(tc);
+  if (cached && cached.name === tc.name && cached.input === tc.input)
+    return cached.actions;
+  const actions =
+    tc.name === "exec"
+      ? extractCodexExecActions(tc)
+      : extractBrowserBatchActions(tc);
   nestedActionCache.set(tc, { name: tc.name, input: tc.input, actions });
   return actions;
 }
 
-export function summarizeNestedActions(actions: readonly NestedAction[]): string {
+export function summarizeNestedActions(
+  actions: readonly NestedAction[],
+): string {
   if (actions.length === 0) return "";
   if (actions.length === 1) {
     const action = actions[0];
     const summary = toolSummary(action);
-    return summary ? `${formatToolName(action.name)} · ${summary}` : formatToolName(action.name);
+    return summary
+      ? `${formatToolName(action.name)} · ${summary}`
+      : formatToolName(action.name);
   }
   const counts = new Map<string, number>();
   for (const action of actions) {
@@ -274,19 +341,23 @@ export function summarizeNestedActions(actions: readonly NestedAction[]): string
   // A batch of one tool kind (five Browser steps), or of browser tools only
   // (Navigate · Wait · Screenshot), says nothing through its labels; the steps
   // themselves are the summary. Mixed kinds keep the counts.
-  const browserOnly = actions.every(a => a.name.startsWith(BROWSER_MCP_PREFIX));
+  const browserOnly = actions.every((a) =>
+    a.name.startsWith(BROWSER_MCP_PREFIX),
+  );
   if (counts.size === 1 || browserOnly) {
-    const steps = actions.map(a => {
+    const steps = actions.map((a) => {
       const label = formatToolName(a.name);
       const summary = toolSummary(a);
       if (!summary) return label;
-      return counts.size === 1 || label === "Browser" ? summary : `${label} ${summary}`;
+      return counts.size === 1 || label === "Browser"
+        ? summary
+        : `${label} ${summary}`;
     });
     return truncateStr(`${actions.length} steps · ${steps.join(" · ")}`, 100);
   }
   const groups = [...counts.entries()]
     .slice(0, 3)
-    .map(([label, count]) => count === 1 ? label : `${label} ×${count}`);
+    .map(([label, count]) => (count === 1 ? label : `${label} ×${count}`));
   if (counts.size > 3) groups.push(`+${counts.size - 3} more`);
   return `${actions.length} actions · ${groups.join(" · ")}`;
 }
@@ -306,11 +377,18 @@ export interface NestedStepOutcome {
 // after which nothing else ran. A screenshot step's image is not in the text;
 // it rides on the message as an image keyed by the tool call id.
 const BATCH_STEP_TAG = /\[[a-z][\w-]*(?::[a-z][\w-]*)?\]\s?/gi;
-const BATCH_FAILURE = /^\s*actions\[(\d+)\]\s+\([^)]*\)\s+failed:\s*([\s\S]*?)(?:\s*\(\d+ completed, \d+ remaining\))?\s*$/i;
+const BATCH_FAILURE =
+  /^\s*actions\[(\d+)\]\s+\([^)]*\)\s+failed:\s*([\s\S]*?)(?:\s*\(\d+ completed, \d+ remaining\))?\s*$/i;
 
-export function splitBrowserBatchResult(content: string, actionCount: number): NestedStepOutcome[] {
+export function splitBrowserBatchResult(
+  content: string,
+  actionCount: number,
+): NestedStepOutcome[] {
   const text = content.replace(/\n?\n?Tab Context:[\s\S]*$/, "").trim();
-  const outcomes: NestedStepOutcome[] = Array.from({ length: actionCount }, () => ({ output: "" }));
+  const outcomes: NestedStepOutcome[] = Array.from(
+    { length: actionCount },
+    () => ({ output: "" }),
+  );
   if (!text) return outcomes;
 
   // Peel a trailing failure line off first so its "actions[i]" index binds the
@@ -319,7 +397,9 @@ export function splitBrowserBatchResult(content: string, actionCount: number): N
   let failure: { index: number; reason: string } | null = null;
   const lastLineAt = text.lastIndexOf("\n");
   const lastLine = text.slice(lastLineAt + 1);
-  const failMatch = BATCH_FAILURE.exec(lastLine) ?? (lastLineAt < 0 ? BATCH_FAILURE.exec(text) : null);
+  const failMatch =
+    BATCH_FAILURE.exec(lastLine) ??
+    (lastLineAt < 0 ? BATCH_FAILURE.exec(text) : null);
   if (failMatch) {
     failure = { index: Number(failMatch[1]), reason: failMatch[2].trim() };
     body = lastLineAt < 0 ? "" : text.slice(0, lastLineAt);
@@ -330,20 +410,26 @@ export function splitBrowserBatchResult(content: string, actionCount: number): N
   if (tags.length > 0) {
     tags.forEach((m, i) => {
       const start = (m.index ?? 0) + m[0].length;
-      const end = i + 1 < tags.length ? (tags[i + 1].index ?? body.length) : body.length;
-      if (i < actionCount) outcomes[i] = { output: body.slice(start, end).trim(), ok: true };
+      const end =
+        i + 1 < tags.length ? (tags[i + 1].index ?? body.length) : body.length;
+      if (i < actionCount)
+        outcomes[i] = { output: body.slice(start, end).trim(), ok: true };
     });
     ran = Math.min(tags.length, actionCount);
   } else if (body.trim() && actionCount > 0) {
     // Untagged text: attribute it to the last step that ran.
-    const last = failure ? Math.max(0, Math.min(failure.index, actionCount) - 1) : actionCount - 1;
+    const last = failure
+      ? Math.max(0, Math.min(failure.index, actionCount) - 1)
+      : actionCount - 1;
     outcomes[last] = { output: body.trim(), ok: true };
     ran = last + 1;
   }
   if (failure) {
-    if (failure.index < actionCount) outcomes[failure.index] = { output: failure.reason, ok: false };
+    if (failure.index < actionCount)
+      outcomes[failure.index] = { output: failure.reason, ok: false };
     // Everything after the failure never ran; everything before it did.
-    for (let i = 0; i < Math.min(failure.index, actionCount); i++) if (outcomes[i].ok === undefined) outcomes[i].ok = true;
+    for (let i = 0; i < Math.min(failure.index, actionCount); i++)
+      if (outcomes[i].ok === undefined) outcomes[i].ok = true;
   } else if (ran > 0 && ran === actionCount) {
     for (const o of outcomes) if (o.ok === undefined) o.ok = true;
   }
@@ -368,7 +454,9 @@ export function isPlanWriteToolCall(tc: ToolCallLike): boolean {
 // boilerplate. Summarize the payload's top-level shape: short scalar values
 // inline, array lengths in brackets, bare key names for anything bigger
 // (e.g. `verdict: SAFE, findings[4], reasoning`).
-export function structuredPayloadSummary(parsed: Record<string, unknown>): string {
+export function structuredPayloadSummary(
+  parsed: Record<string, unknown>,
+): string {
   const parts = Object.entries(parsed).map(([key, value]) => {
     if (Array.isArray(value)) return `${key}[${value.length}]`;
     if (value !== null && typeof value === "object") return key;
@@ -443,7 +531,12 @@ export function toolSummary(tc: ToolCallLike): string {
   // File-based tools. opencode/pi lower-case their names (`read`/`edit`/`write`)
   // and key the path off `filePath` (camelCase); codex uses `path`; claude file_path;
   // grok read_file uses `target_file`, list_dir uses `target_directory`.
-  if (isReadTool(tc.name) || isEditTool(tc.name) || isWriteTool(tc.name) || tc.name === "list_dir") {
+  if (
+    isReadTool(tc.name) ||
+    isEditTool(tc.name) ||
+    isWriteTool(tc.name) ||
+    tc.name === "list_dir"
+  ) {
     const path = toolPathFromInput(parsedInput);
     if (path) return getRelativePath(path);
   }
@@ -455,14 +548,27 @@ export function toolSummary(tc: ToolCallLike): string {
   }
 
   // Search tools
-  if (isGrepTool(tc.name) && parsedInput.pattern) return String(parsedInput.pattern);
-  if (isGlobTool(tc.name) && parsedInput.pattern) return String(parsedInput.pattern);
-  if (tc.name === "WebSearch" || tc.name === "web_search" || tc.name === "code_search" || tc.name === "Web search:") {
+  if (isGrepTool(tc.name) && parsedInput.pattern)
+    return String(parsedInput.pattern);
+  if (isGlobTool(tc.name) && parsedInput.pattern)
+    return String(parsedInput.pattern);
+  if (
+    tc.name === "WebSearch" ||
+    tc.name === "web_search" ||
+    tc.name === "code_search" ||
+    tc.name === "Web search:"
+  ) {
     return parsedInput.query ? truncateStr(String(parsedInput.query), 40) : "";
   }
-  if (tc.name === "WebFetch" || tc.name === "web_fetch" || tc.name === "webfetch") return parsedInput.url ? shortenUrl(String(parsedInput.url)) : "";
+  if (
+    tc.name === "WebFetch" ||
+    tc.name === "web_fetch" ||
+    tc.name === "webfetch"
+  )
+    return parsedInput.url ? shortenUrl(String(parsedInput.url)) : "";
   if (tc.name === "open_page" || tc.name === "open_page_with_find") {
-    if (parsedInput.pattern) return truncateStr(String(parsedInput.pattern), 40);
+    if (parsedInput.pattern)
+      return truncateStr(String(parsedInput.pattern), 40);
     return parsedInput.url ? shortenUrl(String(parsedInput.url)) : "";
   }
 
@@ -482,9 +588,11 @@ export function toolSummary(tc: ToolCallLike): string {
       const coord = parsedInput.coordinate as number[] | undefined;
       return coord ? `Click (${coord[0]}, ${coord[1]})` : "Click";
     }
-    if (action === "type") return `Type "${truncateStr(String(parsedInput.text || ""), 20)}"`;
+    if (action === "type")
+      return `Type "${truncateStr(String(parsedInput.text || ""), 20)}"`;
     if (action === "key") return `Key: ${String(parsedInput.text || "")}`;
-    if (action === "scroll") return `Scroll ${String(parsedInput.scroll_direction || "")}`;
+    if (action === "scroll")
+      return `Scroll ${String(parsedInput.scroll_direction || "")}`;
     if (action === "wait") return `Wait ${String(parsedInput.duration || "")}s`;
     return action || "";
   }
@@ -500,12 +608,15 @@ export function toolSummary(tc: ToolCallLike): string {
     return "Page content";
   }
   if (tc.name === "mcp__claude-in-chrome__find") {
-    return parsedInput.query ? `"${truncateStr(String(parsedInput.query), 30)}"` : "";
+    return parsedInput.query
+      ? `"${truncateStr(String(parsedInput.query), 30)}"`
+      : "";
   }
   if (tc.name === "mcp__claude-in-chrome__form_input") {
     const ref = parsedInput.ref ? String(parsedInput.ref) : "";
     const val = parsedInput.value;
-    if (ref && val !== undefined) return `${ref} = "${truncateStr(String(val), 20)}"`;
+    if (ref && val !== undefined)
+      return `${ref} = "${truncateStr(String(val), 20)}"`;
     return "";
   }
   if (tc.name === "mcp__claude-in-chrome__javascript_tool") {
@@ -520,36 +631,61 @@ export function toolSummary(tc: ToolCallLike): string {
     }
     return "";
   }
-  if (tc.name === "mcp__claude-in-chrome__gif_creator") return String(parsedInput.action || "");
+  if (tc.name === "mcp__claude-in-chrome__gif_creator")
+    return String(parsedInput.action || "");
   if (tc.name === "mcp__claude-in-chrome__read_console_messages") {
     return parsedInput.pattern ? `Filter: ${String(parsedInput.pattern)}` : "";
   }
   if (tc.name === "mcp__claude-in-chrome__read_network_requests") {
-    return parsedInput.urlPattern ? `Filter: ${String(parsedInput.urlPattern)}` : "";
+    return parsedInput.urlPattern
+      ? `Filter: ${String(parsedInput.urlPattern)}`
+      : "";
   }
   if (tc.name === "mcp__claude-in-chrome__get_page_text") return "Extract text";
-  if (tc.name === "mcp__claude-in-chrome__upload_image") return parsedInput.filename ? String(parsedInput.filename) : "Upload";
-  if (tc.name === "mcp__claude-in-chrome__resize_window") return parsedInput.width && parsedInput.height ? `${parsedInput.width}x${parsedInput.height}` : "Resize";
-  if (tc.name === "mcp__claude-in-chrome__shortcuts_list") return "List shortcuts";
-  if (tc.name === "mcp__claude-in-chrome__shortcuts_execute") return parsedInput.command ? `/${String(parsedInput.command)}` : "Shortcut";
+  if (tc.name === "mcp__claude-in-chrome__upload_image")
+    return parsedInput.filename ? String(parsedInput.filename) : "Upload";
+  if (tc.name === "mcp__claude-in-chrome__resize_window")
+    return parsedInput.width && parsedInput.height
+      ? `${parsedInput.width}x${parsedInput.height}`
+      : "Resize";
+  if (tc.name === "mcp__claude-in-chrome__shortcuts_list")
+    return "List shortcuts";
+  if (tc.name === "mcp__claude-in-chrome__shortcuts_execute")
+    return parsedInput.command ? `/${String(parsedInput.command)}` : "Shortcut";
 
-  if (tc.name === "StructuredOutput") return structuredPayloadSummary(parsedInput);
+  if (tc.name === "StructuredOutput")
+    return structuredPayloadSummary(parsedInput);
 
   // Task tools
-  if (isAgentTool(tc.name)) return parsedInput.description ? truncateStr(String(parsedInput.description), 40) : "";
+  if (isAgentTool(tc.name))
+    return parsedInput.description
+      ? truncateStr(String(parsedInput.description), 40)
+      : "";
   if (isAskTool(tc.name)) {
     const questions = parsedInput.questions as any[];
-    return questions?.[0]?.question ? truncateStr(String(questions[0].question), 50) : "";
+    return questions?.[0]?.question
+      ? truncateStr(String(questions[0].question), 50)
+      : "";
   }
   if (isTodoTool(tc.name)) {
     const todos = parsedInput.todos as any[];
     return `${todos?.length || 0} tasks`;
   }
-  if (tc.name === "TaskGet") return parsedInput.taskId ? `#${parsedInput.taskId}` : "";
-  if (tc.name === "TaskOutput") return parsedInput.task_id ? `task ${String(parsedInput.task_id).slice(0, 8)}` : "";
-  if (tc.name === "TaskStop") return parsedInput.task_id ? `stop ${String(parsedInput.task_id).slice(0, 8)}` : "";
+  if (tc.name === "TaskGet")
+    return parsedInput.taskId ? `#${parsedInput.taskId}` : "";
+  if (tc.name === "TaskOutput")
+    return parsedInput.task_id
+      ? `task ${String(parsedInput.task_id).slice(0, 8)}`
+      : "";
+  if (tc.name === "TaskStop")
+    return parsedInput.task_id
+      ? `stop ${String(parsedInput.task_id).slice(0, 8)}`
+      : "";
   if (tc.name === "TaskList") return "";
-  if (tc.name === "TaskCreate") return parsedInput.subject ? truncateStr(String(parsedInput.subject), 40) : "";
+  if (tc.name === "TaskCreate")
+    return parsedInput.subject
+      ? truncateStr(String(parsedInput.subject), 40)
+      : "";
   if (tc.name === "TaskUpdate") {
     const id = parsedInput.taskId ? `#${parsedInput.taskId}` : "";
     const status = parsedInput.status ? String(parsedInput.status) : "";
@@ -557,16 +693,20 @@ export function toolSummary(tc: ToolCallLike): string {
     return id || "";
   }
   if (tc.name === "SendMessage") {
-    if (parsedInput.summary) return truncateStr(String(parsedInput.summary), 40);
+    if (parsedInput.summary)
+      return truncateStr(String(parsedInput.summary), 40);
     if (parsedInput.recipient) return `to ${String(parsedInput.recipient)}`;
     if (parsedInput.type === "broadcast") return "broadcast";
     return "";
   }
-  if (tc.name === "TeamCreate") return parsedInput.team_name ? String(parsedInput.team_name) : "";
+  if (tc.name === "TeamCreate")
+    return parsedInput.team_name ? String(parsedInput.team_name) : "";
   if (tc.name === "TeamDelete") return "Cleanup";
   if (tc.name === "Skill") return `/${parsedInput.skill || ""}`;
   if (tc.name === "NotebookEdit") {
-    const path = parsedInput.notebook_path ? getRelativePath(String(parsedInput.notebook_path)) : "";
+    const path = parsedInput.notebook_path
+      ? getRelativePath(String(parsedInput.notebook_path))
+      : "";
     return path;
   }
 
@@ -575,17 +715,23 @@ export function toolSummary(tc: ToolCallLike): string {
   }
   if (tc.name === "write_stdin") {
     if (parsedInput.chars) return truncateStr(String(parsedInput.chars), 40);
-    return parsedInput.session_id != null ? `session ${String(parsedInput.session_id)}` : "";
+    return parsedInput.session_id != null
+      ? `session ${String(parsedInput.session_id)}`
+      : "";
   }
   if (tc.name === "wait") {
     return parsedInput.cell_id ? `cell ${String(parsedInput.cell_id)}` : "";
   }
   if (tc.name === "update_plan") {
-    return Array.isArray(parsedInput.plan) ? `${parsedInput.plan.length} steps` : "";
+    return Array.isArray(parsedInput.plan)
+      ? `${parsedInput.plan.length} steps`
+      : "";
   }
   if (tc.name === "request_user_input") {
     const questions = parsedInput.questions as any[];
-    return questions?.[0]?.question ? truncateStr(String(questions[0].question), 50) : "";
+    return questions?.[0]?.question
+      ? truncateStr(String(questions[0].question), 50)
+      : "";
   }
   if (tc.name === "tool_search") {
     return parsedInput.query ? truncateStr(String(parsedInput.query), 50) : "";
@@ -593,8 +739,16 @@ export function toolSummary(tc: ToolCallLike): string {
   if (tc.name === "mcp__node_repl__js") {
     return parsedInput.title ? truncateStr(String(parsedInput.title), 60) : "";
   }
-  if (tc.name === "image_gen__imagegen" || tc.name === "image_gen" || tc.name === "image_edit" || tc.name === "image_to_video" || tc.name === "reference_to_video") {
-    return parsedInput.prompt ? truncateStr(String(parsedInput.prompt), 60) : "";
+  if (
+    tc.name === "image_gen__imagegen" ||
+    tc.name === "image_gen" ||
+    tc.name === "image_edit" ||
+    tc.name === "image_to_video" ||
+    tc.name === "reference_to_video"
+  ) {
+    return parsedInput.prompt
+      ? truncateStr(String(parsedInput.prompt), 60)
+      : "";
   }
   if (tc.name === "get_command_or_subagent_output") {
     const ids = parsedInput.task_ids;
@@ -602,7 +756,9 @@ export function toolSummary(tc: ToolCallLike): string {
     return "";
   }
   if (tc.name === "kill_command_or_subagent") {
-    return parsedInput.task_id ? truncateStr(String(parsedInput.task_id), 24) : "";
+    return parsedInput.task_id
+      ? truncateStr(String(parsedInput.task_id), 24)
+      : "";
   }
   if (tc.name === "use_tool") {
     return parsedInput.tool_name ? String(parsedInput.tool_name) : "";
@@ -610,17 +766,28 @@ export function toolSummary(tc: ToolCallLike): string {
   if (tc.name === "search_tool") {
     return parsedInput.query ? truncateStr(String(parsedInput.query), 50) : "";
   }
-  if (tc.name === "x_user_search" || tc.name === "x_semantic_search" || tc.name === "x_keyword_search") {
+  if (
+    tc.name === "x_user_search" ||
+    tc.name === "x_semantic_search" ||
+    tc.name === "x_keyword_search"
+  ) {
     return parsedInput.query ? truncateStr(String(parsedInput.query), 50) : "";
   }
   if (tc.name === "x_thread_fetch") {
     return parsedInput.post_id ? String(parsedInput.post_id) : "";
   }
   if (tc.name === "scheduler_create") {
-    return parsedInput.interval ? String(parsedInput.interval) : (parsedInput.prompt ? truncateStr(String(parsedInput.prompt), 40) : "");
+    return parsedInput.interval
+      ? String(parsedInput.interval)
+      : parsedInput.prompt
+        ? truncateStr(String(parsedInput.prompt), 40)
+        : "";
   }
   if (tc.name === "web__run") {
-    if (Array.isArray(parsedInput.search_query) && parsedInput.search_query[0]?.q) {
+    if (
+      Array.isArray(parsedInput.search_query) &&
+      parsedInput.search_query[0]?.q
+    ) {
       return truncateStr(String(parsedInput.search_query[0].q), 50);
     }
     if (Array.isArray(parsedInput.open) && parsedInput.open[0]?.ref_id) {
@@ -668,55 +835,186 @@ type ToolPhrase = {
 };
 
 const WEB_SEARCH_TOOLS = new Set(["WebSearch", "web_search", "Web search:"]);
-const WEB_FETCH_TOOLS = new Set(["WebFetch", "web_fetch", "web__run", "open_page", "open_page_with_find"]);
+const WEB_FETCH_TOOLS = new Set([
+  "WebFetch",
+  "web_fetch",
+  "web__run",
+  "open_page",
+  "open_page_with_find",
+]);
 const CHROME_TOOL_PREFIX = "mcp__claude-in-chrome__";
 
 function toolPhrase(rawName: string): ToolPhrase {
-  if (isReadTool(rawName)) return { verb: "read", doing: "reading", path: true, one: "read 1 file", many: (n) => `read ${n} files` };
-  if (isEditTool(rawName) || rawName === "apply_patch" || rawName === "fileChange" || rawName === "NotebookEdit") {
-    return { verb: "edited", doing: "editing", path: true, one: "1 edit", many: (n) => `${n} edits` };
+  if (isReadTool(rawName))
+    return {
+      verb: "read",
+      doing: "reading",
+      path: true,
+      one: "read 1 file",
+      many: (n) => `read ${n} files`,
+    };
+  if (
+    isEditTool(rawName) ||
+    rawName === "apply_patch" ||
+    rawName === "fileChange" ||
+    rawName === "NotebookEdit"
+  ) {
+    return {
+      verb: "edited",
+      doing: "editing",
+      path: true,
+      one: "1 edit",
+      many: (n) => `${n} edits`,
+    };
   }
-  if (isWriteTool(rawName)) return { verb: "wrote", doing: "writing", path: true, one: "wrote 1 file", many: (n) => `wrote ${n} files` };
-  if (isShellTool(rawName)) return { verb: "ran", doing: "running", one: "ran 1 command", many: (n) => `ran ${n} commands` };
-  if (rawName === "list_dir") return { verb: "searched", doing: "listing", path: true, one: "1 search", many: (n) => `${n} searches` };
-  if (isGrepTool(rawName) || isGlobTool(rawName) || rawName === "code_search" || rawName === "code_analysis") {
-    return { verb: "searched", doing: "searching for", one: "1 search", many: (n) => `${n} searches` };
+  if (isWriteTool(rawName))
+    return {
+      verb: "wrote",
+      doing: "writing",
+      path: true,
+      one: "wrote 1 file",
+      many: (n) => `wrote ${n} files`,
+    };
+  if (isShellTool(rawName))
+    return {
+      verb: "ran",
+      doing: "running",
+      one: "ran 1 command",
+      many: (n) => `ran ${n} commands`,
+    };
+  if (rawName === "list_dir")
+    return {
+      verb: "searched",
+      doing: "listing",
+      path: true,
+      one: "1 search",
+      many: (n) => `${n} searches`,
+    };
+  if (
+    isGrepTool(rawName) ||
+    isGlobTool(rawName) ||
+    rawName === "code_search" ||
+    rawName === "code_analysis"
+  ) {
+    return {
+      verb: "searched",
+      doing: "searching for",
+      one: "1 search",
+      many: (n) => `${n} searches`,
+    };
   }
   if (WEB_SEARCH_TOOLS.has(rawName)) {
-    return { verb: "looked up", doing: "searching the web for", one: "1 web lookup", many: (n) => `${n} web lookups` };
+    return {
+      verb: "looked up",
+      doing: "searching the web for",
+      one: "1 web lookup",
+      many: (n) => `${n} web lookups`,
+    };
   }
   if (WEB_FETCH_TOOLS.has(rawName)) {
-    return { verb: "looked up", doing: "browsing", one: "1 web lookup", many: (n) => `${n} web lookups` };
+    return {
+      verb: "looked up",
+      doing: "browsing",
+      one: "1 web lookup",
+      many: (n) => `${n} web lookups`,
+    };
   }
-  if (isAgentTool(rawName)) return { doing: "running an agent", doingAlone: true, one: "ran 1 agent", many: (n) => `ran ${n} agents` };
-  if (isTodoTool(rawName)) return { doing: "updating todos", doingAlone: true, one: "updated todos", many: () => "updated todos" };
+  if (isAgentTool(rawName))
+    return {
+      doing: "running an agent",
+      doingAlone: true,
+      one: "ran 1 agent",
+      many: (n) => `ran ${n} agents`,
+    };
+  if (isTodoTool(rawName))
+    return {
+      doing: "updating todos",
+      doingAlone: true,
+      one: "updated todos",
+      many: () => "updated todos",
+    };
   if (isAskTool(rawName) || rawName === "request_user_input") {
     const label = formatToolName(rawName) || rawName;
-    return { verb: label, doing: "asking a question", doingAlone: true, one: label, many: (n) => `${label} ×${n}` };
+    return {
+      verb: label,
+      doing: "asking a question",
+      doingAlone: true,
+      one: label,
+      many: (n) => `${label} ×${n}`,
+    };
   }
   if (rawName === CHROME_TOOL_PREFIX + "navigate") {
     const label = formatToolName(rawName) || rawName;
-    return { verb: label, doing: "browsing", one: label, many: (n) => `${label} ×${n}` };
+    return {
+      verb: label,
+      doing: "browsing",
+      one: label,
+      many: (n) => `${label} ×${n}`,
+    };
   }
   if (rawName.startsWith(CHROME_TOOL_PREFIX)) {
     const label = formatToolName(rawName) || rawName;
-    return { verb: label, doing: "using the browser", doingAlone: true, one: label, many: (n) => `${label} ×${n}` };
+    return {
+      verb: label,
+      doing: "using the browser",
+      doingAlone: true,
+      one: label,
+      many: (n) => `${label} ×${n}`,
+    };
   }
   switch (rawName) {
     case "update_plan":
     case "enter_plan_mode":
     case "exit_plan_mode":
     case "EnterPlanMode":
-    case "ExitPlanMode": return { doing: "updating the plan", doingAlone: true, one: "updated plan", many: () => "updated plan" };
-    case "view_image": return { verb: "viewed", doing: "viewing", path: true, one: "viewed 1 image", many: (n) => `viewed ${n} images` };
+    case "ExitPlanMode":
+      return {
+        doing: "updating the plan",
+        doingAlone: true,
+        one: "updated plan",
+        many: () => "updated plan",
+      };
+    case "view_image":
+      return {
+        verb: "viewed",
+        doing: "viewing",
+        path: true,
+        one: "viewed 1 image",
+        many: (n) => `viewed ${n} images`,
+      };
     case "image_gen__imagegen":
     case "image_gen":
-    case "image_edit": return { verb: "generated", doing: "generating an image", doingAlone: true, one: "generated 1 image", many: (n) => `generated ${n} images` };
-    case "Skill": return { verb: "ran", doing: "running", one: "ran 1 skill", many: (n) => `ran ${n} skills` };
-    case "StructuredOutput": return { doing: "returning a result", doingAlone: true, one: "returned a result", many: () => "returned a result" };
+    case "image_edit":
+      return {
+        verb: "generated",
+        doing: "generating an image",
+        doingAlone: true,
+        one: "generated 1 image",
+        many: (n) => `generated ${n} images`,
+      };
+    case "Skill":
+      return {
+        verb: "ran",
+        doing: "running",
+        one: "ran 1 skill",
+        many: (n) => `ran ${n} skills`,
+      };
+    case "StructuredOutput":
+      return {
+        doing: "returning a result",
+        doingAlone: true,
+        one: "returned a result",
+        many: () => "returned a result",
+      };
     default: {
       const label = formatToolName(rawName) || rawName;
-      return { verb: label, doing: `using ${label}`, doingAlone: true, one: label, many: (n) => `${label} ×${n}` };
+      return {
+        verb: label,
+        doing: `using ${label}`,
+        doingAlone: true,
+        one: label,
+        many: (n) => `${label} ×${n}`,
+      };
     }
   }
 }
@@ -726,7 +1024,9 @@ function toolPhrase(rawName: string): ToolPhrase {
 // line input (a heredoc, a chained shell) collapses to one line first, so a
 // clip spends its budget on words rather than indentation.
 function toolSubject(action: ToolCallLike): string {
-  const raw = isShellTool(action.name) ? shellLead(shellCommand(action)) : toolSummary(action);
+  const raw = isShellTool(action.name)
+    ? shellLead(shellCommand(action))
+    : toolSummary(action);
   return raw.replace(/\s+/g, " ").trim();
 }
 
@@ -744,7 +1044,11 @@ export function activityLine(tc: ToolCallLike): string {
   const { doing, doingAlone, path } = toolPhrase(tc.name);
   if (!doing) return "";
   if (doingAlone) return truncateStr(doing, ACTIVITY_TEXT_MAX);
-  const subject = clipSubject(toolSubject(tc), ACTIVITY_SUBJECT_BUDGET, path === true);
+  const subject = clipSubject(
+    toolSubject(tc),
+    ACTIVITY_SUBJECT_BUDGET,
+    path === true,
+  );
   if (!subject) return "";
   return truncateStr(`${doing} ${subject}`, ACTIVITY_TEXT_MAX);
 }
@@ -759,7 +1063,17 @@ export function describeToolGroup(rawName: string, count: number): string {
 // env assignment, a privilege or timing wrapper. The receipt names what follows.
 // A wrapper that takes an argument of its own (`cd repo`, `timeout 600`) takes
 // it along.
-const SHELL_PREFIX_WORDS = new Set(["cd", "sudo", "time", "env", "nohup", "exec", "command", "builtin", "timeout"]);
+const SHELL_PREFIX_WORDS = new Set([
+  "cd",
+  "sudo",
+  "time",
+  "env",
+  "nohup",
+  "exec",
+  "command",
+  "builtin",
+  "timeout",
+]);
 const SHELL_PREFIX_ARGS: Record<string, number> = { cd: 1, timeout: 1 };
 
 // Programs that say nothing about what a command is for: a banner `echo`, a
@@ -767,17 +1081,68 @@ const SHELL_PREFIX_ARGS: Record<string, number> = { cd: 1, timeout: 1 };
 // yields to the first segment that names something; a command that is ONLY
 // an echo still reads "echo".
 const SHELL_NOISE_PROGRAMS = new Set([
-  "echo", "printf", "true", "false", "set", "export", "sleep", "pwd", "date", "mkdir", "touch",
-  "source", ".", "test", "[", "wait", "trap", "shopt", "unset", "unalias", "type", "which",
+  "echo",
+  "printf",
+  "true",
+  "false",
+  "set",
+  "export",
+  "sleep",
+  "pwd",
+  "date",
+  "mkdir",
+  "touch",
+  "source",
+  ".",
+  "test",
+  "[",
+  "wait",
+  "trap",
+  "shopt",
+  "unset",
+  "unalias",
+  "type",
+  "which",
 ]);
 
 // Programs whose first bare word is the real name of what ran ("git status",
 // "cast browser", "bun test"). Everything else is named by its program alone,
 // since the next word is usually a flag or a file ("ps", "cat", "grep").
 const SHELL_SUBCOMMAND_PROGRAMS = new Set([
-  "git", "gh", "npm", "npx", "pnpm", "yarn", "bun", "bunx", "cast", "cargo", "go", "pip", "pip3",
-  "brew", "docker", "kubectl", "tmux", "xcrun", "gcloud", "aws", "railway", "convex", "vercel",
-  "terraform", "eas", "expo", "whisk", "make", "rails", "poetry", "uv", "deno", "flutter", "swift",
+  "git",
+  "gh",
+  "npm",
+  "npx",
+  "pnpm",
+  "yarn",
+  "bun",
+  "bunx",
+  "cast",
+  "cargo",
+  "go",
+  "pip",
+  "pip3",
+  "brew",
+  "docker",
+  "kubectl",
+  "tmux",
+  "xcrun",
+  "gcloud",
+  "aws",
+  "railway",
+  "convex",
+  "vercel",
+  "terraform",
+  "eas",
+  "expo",
+  "whisk",
+  "make",
+  "rails",
+  "poetry",
+  "uv",
+  "deno",
+  "flutter",
+  "swift",
 ]);
 
 // The program a shell command ran, with its subcommand when it has one:
@@ -789,21 +1154,36 @@ export function shellLead(command: string): string {
   let fallback = "";
   let noise = "";
   for (const segment of command.split(/\r?\n|&&|\|\||[;|]/)) {
-    const words = segment.replace(/^[\s({!]+/, "").replace(/[)}\s]+$/, "").split(/\s+/).filter(Boolean);
+    const words = segment
+      .replace(/^[\s({!]+/, "")
+      .replace(/[)}\s]+$/, "")
+      .split(/\s+/)
+      .filter(Boolean);
     if (words.length === 0) continue;
     if (!fallback) fallback = words[0];
-    while (words.length > 0 && (SHELL_PREFIX_WORDS.has(words[0]) || /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0]))) {
+    while (
+      words.length > 0 &&
+      (SHELL_PREFIX_WORDS.has(words[0]) ||
+        /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0]))
+    ) {
       // A wrapper takes its own argument with it; an assignment is one word.
       words.splice(0, 1 + (SHELL_PREFIX_ARGS[words[0]] ?? 0));
     }
     if (words.length === 0) continue;
-    const program = words[0].startsWith("/") ? words[0].slice(words[0].lastIndexOf("/") + 1) : words[0];
+    const program = words[0].startsWith("/")
+      ? words[0].slice(words[0].lastIndexOf("/") + 1)
+      : words[0];
     if (SHELL_NOISE_PROGRAMS.has(program)) {
       if (!noise) noise = program;
       continue;
     }
     const sub = words[1];
-    if (SHELL_SUBCOMMAND_PROGRAMS.has(program) && sub && /^[a-z][a-z0-9-]*$/i.test(sub)) return `${program} ${sub}`;
+    if (
+      SHELL_SUBCOMMAND_PROGRAMS.has(program) &&
+      sub &&
+      /^[a-z][a-z0-9-]*$/i.test(sub)
+    )
+      return `${program} ${sub}`;
     return program;
   }
   return noise || fallback;
@@ -817,7 +1197,9 @@ export function shellLead(command: string): string {
 // the prose instead of competing with it. Returns "" when a subject is
 // missing (unparsed args, a tool with nothing to show), which leaves the caller
 // on the counting phrase.
-export function describeSmallToolGroup(actions: readonly ToolCallLike[]): string {
+export function describeSmallToolGroup(
+  actions: readonly ToolCallLike[],
+): string {
   if (actions.length === 0) return "";
   const budget = actions.length === 1 ? 72 : 30;
   const parts: string[] = [];
@@ -835,12 +1217,18 @@ export function describeSmallToolGroup(actions: readonly ToolCallLike[]): string
 // A folded run of tool calls counted by kind: "read 3 files · ran 2 commands".
 export function countToolGroup(actions: readonly ToolCallLike[]): string {
   const counts = new Map<string, number>();
-  for (const action of actions) counts.set(action.name, (counts.get(action.name) ?? 0) + 1);
-  return [...counts.entries()].map(([name, count]) => describeToolGroup(name, count)).join(" · ");
+  for (const action of actions)
+    counts.set(action.name, (counts.get(action.name) ?? 0) + 1);
+  return [...counts.entries()]
+    .map(([name, count]) => describeToolGroup(name, count))
+    .join(" · ");
 }
 
 // The one line a folded run of tool calls reads as: what one or two did, else the counts.
-export function summarizeToolGroup(actions: readonly ToolCallLike[], counted = countToolGroup(actions)): string {
+export function summarizeToolGroup(
+  actions: readonly ToolCallLike[],
+  counted = countToolGroup(actions),
+): string {
   return (actions.length <= 2 && describeSmallToolGroup(actions)) || counted;
 }
 
@@ -852,7 +1240,11 @@ function clipSubject(subject: string, budget: number, isPath: boolean): string {
   if (!isPath || subject.length <= budget) return truncateStr(subject, budget);
   const segments = subject.split("/");
   let kept = segments[segments.length - 1];
-  for (let i = segments.length - 2; i >= 0 && `${segments[i]}/${kept}`.length <= budget; i--) {
+  for (
+    let i = segments.length - 2;
+    i >= 0 && `${segments[i]}/${kept}`.length <= budget;
+    i--
+  ) {
     kept = `${segments[i]}/${kept}`;
   }
   return truncateStr(kept, budget);
@@ -863,13 +1255,25 @@ function clipSubject(subject: string, budget: number, isPath: boolean): string {
  * how the call came out, in a word or a count ("(3 lines)", "(+4 -1)",
  * "(error)"), or null when there is nothing to say.
  */
-export function toolResultHint(toolCall: ToolCallLike, result: { content: string; is_error?: boolean } | undefined): string | null {
+export function toolResultHint(
+  toolCall: ToolCallLike,
+  result: { content: string; is_error?: boolean } | undefined,
+): string | null {
   if (!result) return null;
   if (result.is_error) return "(error)";
-  const isEditOrWrite = isEditTool(toolCall.name) || isWriteTool(toolCall.name) || toolCall.name === "apply_patch";
-  const isGlobGrep = isGlobTool(toolCall.name) || isGrepTool(toolCall.name) || toolCall.name === "code_search" || toolCall.name === "code_analysis";
+  const isEditOrWrite =
+    isEditTool(toolCall.name) ||
+    isWriteTool(toolCall.name) ||
+    toolCall.name === "apply_patch";
+  const isGlobGrep =
+    isGlobTool(toolCall.name) ||
+    isGrepTool(toolCall.name) ||
+    toolCall.name === "code_search" ||
+    toolCall.name === "code_analysis";
   if (isEditOrWrite) {
-    const match = result.content.match(/with (\d+) additions? and (\d+) removals?/);
+    const match = result.content.match(
+      /with (\d+) additions? and (\d+) removals?/,
+    );
     if (match) return `(+${match[1]} -${match[2]})`;
     return result.content.includes("has been updated") ? "(ok)" : "";
   }
@@ -878,7 +1282,10 @@ export function toolResultHint(toolCall: ToolCallLike, result: { content: string
     return `(${lines} lines)`;
   }
   if (isGlobGrep) {
-    const lines = result.content.trim().split("\n").filter((l: string) => l.trim()).length;
+    const lines = result.content
+      .trim()
+      .split("\n")
+      .filter((l: string) => l.trim()).length;
     return `(${lines} matches)`;
   }
   if (isShellTool(toolCall.name) && result.content) {
@@ -886,7 +1293,9 @@ export function toolResultHint(toolCall: ToolCallLike, result: { content: string
     if (lines > 1) return `(${lines} lines)`;
   }
   if (toolCall.name === "TaskList") {
-    const taskLines = result.content.split("\n").filter((l: string) => l.match(/#\d+\s+\[/));
+    const taskLines = result.content
+      .split("\n")
+      .filter((l: string) => l.match(/#\d+\s+\[/));
     if (taskLines.length > 0) return `(${taskLines.length} tasks)`;
   }
   return null;

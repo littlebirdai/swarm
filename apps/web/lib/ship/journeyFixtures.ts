@@ -13,40 +13,105 @@
 // Hand-written, so a flow rewritten in the library does not move what they show.
 // Pure and free of the `@/` alias: the phone's bundle imports the gallery.
 
-type Node = { id: string; label: string; type: string; shape: string; timeout?: number };
+type Node = {
+  id: string;
+  label: string;
+  type: string;
+  shape: string;
+  timeout?: number;
+};
 type Edge = { from: string; to: string; label?: string; condition?: string };
 
 const SHAPE: Record<string, string> = {
-  start: "Mdiamond", exit: "Msquare", command: "parallelogram", agent: "box", human: "hexagon",
-  conditional: "diamond", parallel_fanout: "component", parallel_fanin: "tripleoctagon",
+  start: "Mdiamond",
+  exit: "Msquare",
+  command: "parallelogram",
+  agent: "box",
+  human: "hexagon",
+  conditional: "diamond",
+  parallel_fanout: "component",
+  parallel_fanin: "tripleoctagon",
 };
-const node = (id: string, label: string, type: string, extra: Partial<Node> = {}): Node => ({ id, label, type, shape: SHAPE[type], ...extra });
+const node = (
+  id: string,
+  label: string,
+  type: string,
+  extra: Partial<Node> = {},
+): Node => ({ id, label, type, shape: SHAPE[type], ...extra });
 
 /** A segment as the parser expands it: its entry, its steps in a row, a done exit and a stop exit. */
-function segment(id: string, label: string, steps: Node[], done: string, stop: string): { nodes: Node[]; edges: Edge[] } {
-  const nodes = [...steps, node(`${id}__${done}`, done, "command"), node(`${id}__${stop}`, stop, "command"), node(id, label, "conditional")];
+function segment(
+  id: string,
+  label: string,
+  steps: Node[],
+  done: string,
+  stop: string,
+): { nodes: Node[]; edges: Edge[] } {
+  const nodes = [
+    ...steps,
+    node(`${id}__${done}`, done, "command"),
+    node(`${id}__${stop}`, stop, "command"),
+    node(id, label, "conditional"),
+  ];
   const edges: Edge[] = [{ from: id, to: steps[0].id }];
-  steps.forEach((s, i) => edges.push({ from: s.id, to: steps[i + 1]?.id ?? `${id}__${done}`, condition: "outcome = success" }));
-  edges.push({ from: steps[steps.length - 1].id, to: `${id}__${stop}`, condition: "outcome = failure" });
+  steps.forEach((s, i) =>
+    edges.push({
+      from: s.id,
+      to: steps[i + 1]?.id ?? `${id}__${done}`,
+      condition: "outcome = success",
+    }),
+  );
+  edges.push({
+    from: steps[steps.length - 1].id,
+    to: `${id}__${stop}`,
+    condition: "outcome = failure",
+  });
   return { nodes, edges };
 }
 
 const deploy = () => {
-  const nodes = [node("deploy__wait", "Go live", "command", { timeout: 2_700 }), node("deploy__live", "Live", "command"), node("deploy__failed", "Deploy failed", "exit"), node("deploy", "Deploy", "conditional")];
+  const nodes = [
+    node("deploy__wait", "Go live", "command", { timeout: 2_700 }),
+    node("deploy__live", "Live", "command"),
+    node("deploy__failed", "Deploy failed", "exit"),
+    node("deploy", "Deploy", "conditional"),
+  ];
   const edges: Edge[] = [
     { from: "deploy", to: "deploy__wait" },
-    { from: "deploy__wait", to: "deploy__live", condition: "outcome = success" },
-    { from: "deploy__wait", to: "deploy__failed", condition: "outcome = failure" },
+    {
+      from: "deploy__wait",
+      to: "deploy__live",
+      condition: "outcome = success",
+    },
+    {
+      from: "deploy__wait",
+      to: "deploy__failed",
+      condition: "outcome = failure",
+    },
     { from: "deploy__live", to: "exit" },
   ];
   return { nodes, edges };
 };
 
-export type FixtureFlowRow = { slug: string; name: string; label: string; kind: "line"; source: string; nodes: Node[]; edges: Edge[] };
+export type FixtureFlowRow = {
+  slug: string;
+  name: string;
+  label: string;
+  kind: "line";
+  source: string;
+  nodes: Node[];
+  edges: Edge[];
+};
 
 const d = deploy();
 // The person's card a change that edits CI goes to, off the main path.
-const ciDecide = segment("decide", "Decide", [node("decide__decide", "Decide", "human")], "ship", "revise");
+const ciDecide = segment(
+  "decide",
+  "Decide",
+  [node("decide__decide", "Decide", "human")],
+  "ship",
+  "revise",
+);
 
 export const FANOUT_FLOW: FixtureFlowRow = {
   slug: "gallery-change-fanout",
@@ -97,7 +162,12 @@ export const FANOUT_FLOW: FixtureFlowRow = {
   edges: [
     { from: "start", to: "pr" },
     { from: "pr", to: "checks", condition: "outcome = success" },
-    { from: "pr", to: "nopr", label: "no pull request", condition: "outcome = failure" },
+    {
+      from: "pr",
+      to: "nopr",
+      label: "no pull request",
+      condition: "outcome = failure",
+    },
     { from: "checks", to: "ci" },
     { from: "checks", to: "review" },
     { from: "ci", to: "joined", condition: "outcome = success" },
@@ -105,25 +175,89 @@ export const FANOUT_FLOW: FixtureFlowRow = {
     { from: "review", to: "joined" },
     { from: "joined", to: "verdicts" },
     { from: "verdicts", to: "merge", condition: "verdicts.json.next = merge" },
-    { from: "verdicts", to: "rejected", label: "rejected", condition: "verdicts.json.next = rejected" },
-    { from: "verdicts", to: "rerun_ci", label: "CI never reported", condition: "verdicts.json.next = rerun_ci and rerun_ci.visits < 1" },
-    { from: "verdicts", to: "noci", label: "CI never reported again", condition: "verdicts.json.next = rerun_ci" },
-    { from: "verdicts", to: "wait_main", label: "every failure is main's", condition: "verdicts.json.next = wait_main and wait_main.visits < 2" },
-    { from: "verdicts", to: "ci_card", label: "edits CI", condition: "verdicts.json.next = decide and change_conversation" },
+    {
+      from: "verdicts",
+      to: "rejected",
+      label: "rejected",
+      condition: "verdicts.json.next = rejected",
+    },
+    {
+      from: "verdicts",
+      to: "rerun_ci",
+      label: "CI never reported",
+      condition: "verdicts.json.next = rerun_ci and rerun_ci.visits < 1",
+    },
+    {
+      from: "verdicts",
+      to: "noci",
+      label: "CI never reported again",
+      condition: "verdicts.json.next = rerun_ci",
+    },
+    {
+      from: "verdicts",
+      to: "wait_main",
+      label: "every failure is main's",
+      condition: "verdicts.json.next = wait_main and wait_main.visits < 2",
+    },
+    {
+      from: "verdicts",
+      to: "ci_card",
+      label: "edits CI",
+      condition: "verdicts.json.next = decide and change_conversation",
+    },
     { from: "wait_main", to: "rebase", condition: "outcome = success" },
-    { from: "wait_main", to: "mainred", label: "main stayed red", condition: "outcome = failure" },
+    {
+      from: "wait_main",
+      to: "mainred",
+      label: "main stayed red",
+      condition: "outcome = failure",
+    },
     { from: "rebase", to: "ci", condition: "outcome = success" },
-    { from: "rebase", to: "unrebased", label: "not onto main", condition: "outcome = failure" },
+    {
+      from: "rebase",
+      to: "unrebased",
+      label: "not onto main",
+      condition: "outcome = failure",
+    },
     { from: "ci_card", to: "decide" },
     ...ciDecide.edges,
     { from: "decide__ship", to: "merge" },
-    { from: "decide__revise", to: "brief", label: "revise", condition: "outcome = failure and decide.exit = revise" },
-    { from: "decide__revise", to: "dropped", label: "dropped", condition: "outcome = failure and decide.exit = dropped" },
-    { from: "verdicts", to: "brief", label: "CI red, changes asked or no verdict" },
+    {
+      from: "decide__revise",
+      to: "brief",
+      label: "revise",
+      condition: "outcome = failure and decide.exit = revise",
+    },
+    {
+      from: "decide__revise",
+      to: "dropped",
+      label: "dropped",
+      condition: "outcome = failure and decide.exit = dropped",
+    },
+    {
+      from: "verdicts",
+      to: "brief",
+      label: "CI red, changes asked or no verdict",
+    },
     { from: "rerun_ci", to: "ci" },
-    { from: "merge", to: "landed", condition: "outcome = success and merge.json.sha" },
-    { from: "merge", to: "fix_conflict", label: "conflict", condition: "outcome = failure and merge.exit_code = 1" },
-    { from: "merge", to: "retest", label: "retest", condition: "outcome = failure and merge.exit_code = 3 and retest.visits < 3" },
+    {
+      from: "merge",
+      to: "landed",
+      condition: "outcome = success and merge.json.sha",
+    },
+    {
+      from: "merge",
+      to: "fix_conflict",
+      label: "conflict",
+      condition: "outcome = failure and merge.exit_code = 1",
+    },
+    {
+      from: "merge",
+      to: "retest",
+      label: "retest",
+      condition:
+        "outcome = failure and merge.exit_code = 3 and retest.visits < 3",
+    },
     { from: "merge", to: "unshipped", label: "not merged" },
     { from: "retest", to: "ci", condition: "outcome = success" },
     { from: "landed", to: "deploy" },
@@ -133,10 +267,34 @@ export const FANOUT_FLOW: FixtureFlowRow = {
   ],
 };
 
-const check = segment("check", "Check", [node("check__verify", "Verify", "command")], "passed", "failed");
-const review = segment("review", "Review", [node("review__review", "Review", "agent")], "approved", "changes");
-const decide = segment("decide", "Decide", [node("decide__decide", "Decide", "human")], "ship", "revise");
-const land = segment("ship", "Land", [node("ship__ship", "Land", "command")], "shipped", "unshipped");
+const check = segment(
+  "check",
+  "Check",
+  [node("check__verify", "Verify", "command")],
+  "passed",
+  "failed",
+);
+const review = segment(
+  "review",
+  "Review",
+  [node("review__review", "Review", "agent")],
+  "approved",
+  "changes",
+);
+const decide = segment(
+  "decide",
+  "Decide",
+  [node("decide__decide", "Decide", "human")],
+  "ship",
+  "revise",
+);
+const land = segment(
+  "ship",
+  "Land",
+  [node("ship__ship", "Land", "command")],
+  "shipped",
+  "unshipped",
+);
 
 export const BRANCHING_FLOW: FixtureFlowRow = {
   slug: "gallery-change-branching",
@@ -178,24 +336,59 @@ export const BRANCHING_FLOW: FixtureFlowRow = {
     { from: "start", to: "check" },
     ...check.edges,
     { from: "check__passed", to: "review" },
-    { from: "check__failed", to: "fix_check", label: "check failed", condition: "outcome = failure" },
+    {
+      from: "check__failed",
+      to: "fix_check",
+      label: "check failed",
+      condition: "outcome = failure",
+    },
     ...review.edges,
     { from: "review__approved", to: "intent" },
-    { from: "review__changes", to: "fix_review", label: "changes asked", condition: "outcome = failure" },
+    {
+      from: "review__changes",
+      to: "fix_review",
+      label: "changes asked",
+      condition: "outcome = failure",
+    },
     { from: "intent", to: "intent_gate" },
-    { from: "intent_gate", to: "cleared", label: "cleared", condition: "outcome = success and intent_gate.json.next = land" },
+    {
+      from: "intent_gate",
+      to: "cleared",
+      label: "cleared",
+      condition: "outcome = success and intent_gate.json.next = land",
+    },
     { from: "cleared", to: "ship", condition: "outcome = success" },
     { from: "cleared", to: "decide" },
     { from: "intent_gate", to: "ask" },
     { from: "ask", to: "decide" },
     ...decide.edges,
     { from: "decide__ship", to: "ship" },
-    { from: "decide__revise", to: "revise", label: "revise", condition: "outcome = failure" },
+    {
+      from: "decide__revise",
+      to: "revise",
+      label: "revise",
+      condition: "outcome = failure",
+    },
     ...land.edges,
     { from: "ship__shipped", to: "deploy" },
-    { from: "ship__unshipped", to: "fix_conflict", label: "conflict", condition: "outcome = failure and ship.exit = conflict" },
-    { from: "ship__unshipped", to: "unmerged", label: "not merged", condition: "outcome = failure and ship.exit = unshipped" },
-    { from: "unmerged", to: "decide", label: "ask", condition: "outcome = success" },
+    {
+      from: "ship__unshipped",
+      to: "fix_conflict",
+      label: "conflict",
+      condition: "outcome = failure and ship.exit = conflict",
+    },
+    {
+      from: "ship__unshipped",
+      to: "unmerged",
+      label: "not merged",
+      condition: "outcome = failure and ship.exit = unshipped",
+    },
+    {
+      from: "unmerged",
+      to: "decide",
+      label: "ask",
+      condition: "outcome = success",
+    },
     { from: "unmerged", to: "unshipped" },
     ...d.edges,
     { from: "fix_conflict", to: "check" },

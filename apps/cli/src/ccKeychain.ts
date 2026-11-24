@@ -39,12 +39,16 @@ export interface CcKeychainItem {
 }
 
 /** The config dir the session runs under, or undefined for the machine login. */
-export function claudeConfigDir(env: NodeJS.ProcessEnv = process.env): string | undefined {
+export function claudeConfigDir(
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined {
   return env.CLAUDE_CONFIG_DIR?.trim() || undefined;
 }
 
 /** The account name Claude Code stores its item under. */
-export function ccKeychainAccount(env: NodeJS.ProcessEnv = process.env): string {
+export function ccKeychainAccount(
+  env: NodeJS.ProcessEnv = process.env,
+): string {
   let user: string;
   try {
     user = env.USER || env.USERNAME || os.userInfo().username;
@@ -55,7 +59,9 @@ export function ccKeychainAccount(env: NodeJS.ProcessEnv = process.env): string 
 }
 
 function scopedService(configDir: string): string {
-  const digest = createHash("sha256").update(configDir.normalize("NFC")).digest("hex");
+  const digest = createHash("sha256")
+    .update(configDir.normalize("NFC"))
+    .digest("hex");
   return `${LEGACY_CC_KEYCHAIN_SERVICE}-${digest.slice(0, 8)}`;
 }
 
@@ -75,9 +81,13 @@ function configDirSpellings(configDir: string): string[] {
  * comes last when a config dir is set (a machine that never ran a scoped claude
  * has only the old item) and is the only candidate when none is.
  */
-export function ccKeychainReadItems(configDir = claudeConfigDir()): CcKeychainItem[] {
+export function ccKeychainReadItems(
+  configDir = claudeConfigDir(),
+): CcKeychainItem[] {
   const account = ccKeychainAccount();
-  const services = configDir ? configDirSpellings(configDir).map(scopedService) : [];
+  const services = configDir
+    ? configDirSpellings(configDir).map(scopedService)
+    : [];
   services.push(LEGACY_CC_KEYCHAIN_SERVICE);
   return [...new Set(services)].map((service) => ({ service, account }));
 }
@@ -87,7 +97,9 @@ export function ccKeychainReadItems(configDir = claudeConfigDir()): CcKeychainIt
  * updated: the two hold different accounts by design, so writing both would
  * overwrite the machine login with the session's.
  */
-export function ccKeychainWriteItem(configDir = claudeConfigDir()): CcKeychainItem {
+export function ccKeychainWriteItem(
+  configDir = claudeConfigDir(),
+): CcKeychainItem {
   return {
     service: configDir ? scopedService(configDir) : LEGACY_CC_KEYCHAIN_SERVICE,
     account: ccKeychainAccount(),
@@ -104,7 +116,11 @@ export function ccKeychainReadArgs(item: CcKeychainItem): string[] {
  *  os.homedir(): bun caches the latter at startup, breaking $HOME-sandboxed
  *  tests; real environments always have HOME set. */
 export function ccCredentialFile(): string {
-  return path.join(process.env.HOME || os.homedir(), ".claude", ".credentials.json");
+  return path.join(
+    process.env.HOME || os.homedir(),
+    ".claude",
+    ".credentials.json",
+  );
 }
 
 /** The file form of the login, or null when there is none. */
@@ -124,7 +140,9 @@ export function readCredentialFileAsync(): Promise<string | null> {
 export function readLocalCredential(): string | null {
   for (const item of ccKeychainReadItems()) {
     try {
-      return execFileSync("security", ccKeychainReadArgs(item), { encoding: "utf-8" }).trim();
+      return execFileSync("security", ccKeychainReadArgs(item), {
+        encoding: "utf-8",
+      }).trim();
     } catch {}
   }
   return readCredentialFile();

@@ -39,7 +39,9 @@ test("a ~900KB transcript gets a window Claude can actually boot in", () => {
 
 test("no tier exceeds the declared ceiling", () => {
   for (const size of [0, 500_001, 1_000_001, 10_000_001, 500_000_000]) {
-    expect(resumeReadinessPollMs(size)).toBeLessThanOrEqual(MAX_RESUME_READINESS_POLL_MS);
+    expect(resumeReadinessPollMs(size)).toBeLessThanOrEqual(
+      MAX_RESUME_READINESS_POLL_MS,
+    );
   }
 });
 
@@ -50,11 +52,14 @@ test("no tier exceeds the declared ceiling", () => {
 // with two `claude --resume` lines typed into one pane. Any future tier bump that
 // crosses the guard re-opens that window, so pin the ordering here.
 test("the in-flight guard outlives the longest readiness window", () => {
-  expect(RESUME_IN_FLIGHT_TIMEOUT_MS).toBeGreaterThan(MAX_RESUME_READINESS_POLL_MS);
+  expect(RESUME_IN_FLIGHT_TIMEOUT_MS).toBeGreaterThan(
+    MAX_RESUME_READINESS_POLL_MS,
+  );
 });
 
 // ---- 2b: bare-shell detection ----
-const classify = (pane: string) => classifyTmuxLiveState(extractTmuxLiveRegion(pane));
+const classify = (pane: string) =>
+  classifyTmuxLiveState(extractTmuxLiveRegion(pane));
 
 test("a resume that exited to a bare shell classifies as 'exited' (fast-fail trigger)", () => {
   // What Claude prints when the session ends / a resume bails back to the shell.
@@ -70,7 +75,11 @@ test("a resume that exited to a bare shell classifies as 'exited' (fast-fail tri
 });
 
 test("a failed launch (shell command-not-found) classifies as 'exited'", () => {
-  const pane = ["ashot@mac codecast % claude --resume abc", "-bash: claude: command not found", "ashot@mac codecast %"].join("\n");
+  const pane = [
+    "ashot@mac codecast % claude --resume abc",
+    "-bash: claude: command not found",
+    "ashot@mac codecast %",
+  ].join("\n");
   expect(classify(pane)).toBe("exited");
 });
 

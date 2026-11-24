@@ -11,7 +11,8 @@ import type { Doc } from "../_generated/dataModel";
 import { refreshAppManifestSoon } from "./appSource";
 
 /** A vendor answer that means the credential no longer works: no retry will fix it. */
-export const isTokenRefusal = (status: number | undefined): boolean => status === 401 || status === 403;
+export const isTokenRefusal = (status: number | undefined): boolean =>
+  status === 401 || status === 403;
 
 const ERROR_CHARS = 500;
 
@@ -20,11 +21,21 @@ const ERROR_CHARS = 500;
  * stays paused (a person's pause outranks a poller's error); a repeat of the
  * same error writes nothing.
  */
-export async function markConnectionLost(ctx: { db: any }, source: Doc<"event_sources">, error: string, now = Date.now()): Promise<boolean> {
+export async function markConnectionLost(
+  ctx: { db: any },
+  source: Doc<"event_sources">,
+  error: string,
+  now = Date.now(),
+): Promise<boolean> {
   if (source.status === "paused") return false;
   const last_error = error.slice(0, ERROR_CHARS);
-  if (source.status === "error" && source.last_error === last_error) return false;
-  await ctx.db.patch(source._id, { status: "error", last_error, updated_at: now });
+  if (source.status === "error" && source.last_error === last_error)
+    return false;
+  await ctx.db.patch(source._id, {
+    status: "error",
+    last_error,
+    updated_at: now,
+  });
   return true;
 }
 
@@ -35,7 +46,12 @@ export async function markConnectionLost(ctx: { db: any }, source: Doc<"event_so
  * one from now on (tokenConnectors.connectionIdForSource). An app source
  * also refetches its manifest.
  */
-export async function resumeSourcesOnConnect(ctx: { db: any; scheduler: any }, provider: string, workspace: string, now = Date.now()): Promise<number> {
+export async function resumeSourcesOnConnect(
+  ctx: { db: any; scheduler: any },
+  provider: string,
+  workspace: string,
+  now = Date.now(),
+): Promise<number> {
   const rows: Doc<"event_sources">[] = await ctx.db
     .query("event_sources")
     .withIndex("by_workspace_name", (q: any) => q.eq("workspace", workspace))
@@ -43,7 +59,9 @@ export async function resumeSourcesOnConnect(ctx: { db: any; scheduler: any }, p
   let resumed = 0;
   for (const row of rows) {
     if (row.provider !== provider || row.status !== "error") continue;
-    const named = row.connection_id ? await ctx.db.get(row.connection_id) : null;
+    const named = row.connection_id
+      ? await ctx.db.get(row.connection_id)
+      : null;
     await ctx.db.patch(row._id, {
       status: "active",
       last_error: undefined,

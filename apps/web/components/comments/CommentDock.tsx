@@ -8,7 +8,10 @@ import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { isConvexId } from "../../lib/entityLinks";
 import { cleanContent } from "../../lib/conversationProcessor";
 import { useConversationComments } from "../../hooks/useConversationComments";
-import { messageExcerpt, type CommentThread as CommentThreadModel } from "../../lib/commentThread";
+import {
+  messageExcerpt,
+  type CommentThread as CommentThreadModel,
+} from "../../lib/commentThread";
 import { useConversationAgentType } from "../../hooks/useConversationAgentType";
 import { CommentThread } from "./CommentThread";
 
@@ -28,7 +31,8 @@ const MAX_W = 760;
 const DEFAULT_W = 384;
 const WIDTH_KEY = "cc-comment-rail-width";
 
-const commitWidth = (w: number) => useInboxStore.getState().wsSetSize("context", w);
+const commitWidth = (w: number) =>
+  useInboxStore.getState().wsSetSize("context", w);
 
 // The context slot's size serves whichever pane holds the right edge — pixels
 // for this rail, a percent for the session list — so only a plausibly-pixel
@@ -43,23 +47,49 @@ function slotPixelWidth(v: number | undefined): number | undefined {
 function jumpToFileThread(t: CommentThreadModel) {
   const st = useDiffViewerStore.getState();
   st.setDiffPanelOpen(true);
-  const change = st.changes.find((c) => getRelativePath(c.filePath) === t.filePath);
+  const change = st.changes.find(
+    (c) => getRelativePath(c.filePath) === t.filePath,
+  );
   if (change) st.selectFile(change.filePath);
 }
 
 /** One row per anchored thread: where it hangs, its opening words, its size.
  *  Opening it scrolls the transcript to the message (or opens the diff at the
  *  line); the check resolves or reopens it in place. */
-function ThreadRow({ t, conversationId, label, onJump }: { t: CommentThreadModel; conversationId: string; label: string; onJump: () => void }) {
+function ThreadRow({
+  t,
+  conversationId,
+  label,
+  onJump,
+}: {
+  t: CommentThreadModel;
+  conversationId: string;
+  label: string;
+  onJump: () => void;
+}) {
   // What the thread says; what it hangs on is the row's tooltip.
-  const text = messageExcerpt(t.comments[0]?.content, 90, cleanContent) ?? label;
+  const text =
+    messageExcerpt(t.comments[0]?.content, 90, cleanContent) ?? label;
   const Icon = t.filePath ? FileCode2 : Quote;
   return (
-    <div className={"cc-railx-row" + (t.resolved ? " is-resolved" : "")} data-comment-rail-row>
-      <button type="button" className="cc-railx-row-main" onClick={onJump} title={label}>
+    <div
+      className={"cc-railx-row" + (t.resolved ? " is-resolved" : "")}
+      data-comment-rail-row
+    >
+      <button
+        type="button"
+        className="cc-railx-row-main"
+        onClick={onJump}
+        title={label}
+      >
         <Icon className="cc-railx-row-icon" />
         <span className="cc-railx-row-text">
-          {t.filePath && <span className="cc-railx-row-where">{t.filePath.split("/").pop()}{t.lineNumber ? `:${t.lineNumber}` : ""}</span>}
+          {t.filePath && (
+            <span className="cc-railx-row-where">
+              {t.filePath.split("/").pop()}
+              {t.lineNumber ? `:${t.lineNumber}` : ""}
+            </span>
+          )}
           {text}
         </span>
         <span className="cc-railx-row-count">{t.comments.length}</span>
@@ -69,15 +99,35 @@ function ThreadRow({ t, conversationId, label, onJump }: { t: CommentThreadModel
         className="cc-railx-row-resolve"
         title={t.resolved ? "Reopen" : "Resolve"}
         aria-label={t.resolved ? "Reopen" : "Resolve"}
-        onClick={() => useInboxStore.getState().resolveCommentThread(conversationId, { messageId: t.messageId, filePath: t.filePath, lineNumber: t.lineNumber }, !t.resolved)}
+        onClick={() =>
+          useInboxStore.getState().resolveCommentThread(
+            conversationId,
+            {
+              messageId: t.messageId,
+              filePath: t.filePath,
+              lineNumber: t.lineNumber,
+            },
+            !t.resolved,
+          )
+        }
       >
-        {t.resolved ? <RotateCcw className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+        {t.resolved ? (
+          <RotateCcw className="w-3 h-3" />
+        ) : (
+          <CheckCircle2 className="w-3 h-3" />
+        )}
       </button>
     </div>
   );
 }
 
-function CommentRailImpl({ conversationId, onJumpToMessage }: { conversationId: string; onJumpToMessage?: (messageId: string) => void }) {
+function CommentRailImpl({
+  conversationId,
+  onJumpToMessage,
+}: {
+  conversationId: string;
+  onJumpToMessage?: (messageId: string) => void;
+}) {
   const { user, isAuthenticated } = useCurrentUser();
   const currentUserId = user?._id as string | undefined;
   const comments = useConversationComments(conversationId);
@@ -85,19 +135,30 @@ function CommentRailImpl({ conversationId, onJumpToMessage }: { conversationId: 
   const open = useInboxStore(selectCommentRailOpen);
   const setOpen = useInboxStore((s) => s.setCommentRailOpen);
   const setWidth = useInboxStore((s) => s.setCommentRailWidth);
-  const commentsEnabled = useInboxStore((s) => resolveCommentsEnabled(s.clientState.ui));
+  const commentsEnabled = useInboxStore((s) =>
+    resolveCommentsEnabled(s.clientState.ui),
+  );
   // The rail is opt-in, but a conversation that already has comments keeps it
   // available so you can read + reply to what teammates left.
   const railEnabled = commentsEnabled || comments.totalCount > 0;
   const agentType = useConversationAgentType(conversationId);
-  const messages = useInboxStore((s) => s.messages[conversationId]) as Array<{ _id: string; content?: string }> | undefined;
+  const messages = useInboxStore((s) => s.messages[conversationId]) as
+    | Array<{ _id: string; content?: string }>
+    | undefined;
 
   // The context slot owns the rail's width (a workbench restores it with the
   // rest of the chrome); localStorage is the seed for widths that predate that.
   const slotWidth = useInboxStore((s) =>
-    s.workspace.context.pane?.kind === "comments" ? slotPixelWidth(s.workspace.context.size) : undefined,
+    s.workspace.context.pane?.kind === "comments"
+      ? slotPixelWidth(s.workspace.context.size)
+      : undefined,
   );
-  const { width, setWidth: setW, dragging, onResizeDown } = useEdgeResize({
+  const {
+    width,
+    setWidth: setW,
+    dragging,
+    onResizeDown,
+  } = useEdgeResize({
     storageKey: WIDTH_KEY,
     min: MIN_W,
     max: MAX_W,
@@ -114,7 +175,10 @@ function CommentRailImpl({ conversationId, onJumpToMessage }: { conversationId: 
   // then unmount it a beat later so a closed rail renders nothing off-screen.
   const [mounted, setMounted] = useState(open);
   useWatchEffect(() => {
-    if (open) { setMounted(true); return; }
+    if (open) {
+      setMounted(true);
+      return;
+    }
     const t = setTimeout(() => setMounted(false), 240);
     return () => clearTimeout(t);
   }, [open]);
@@ -129,7 +193,12 @@ function CommentRailImpl({ conversationId, onJumpToMessage }: { conversationId: 
 
   // Open threads first, newest activity first; resolved ones sink below.
   const threads = useMemo(
-    () => [...comments.files, ...comments.anchored].sort((a, b) => Number(a.resolved) - Number(b.resolved) || b.lastActivity - a.lastActivity),
+    () =>
+      [...comments.files, ...comments.anchored].sort(
+        (a, b) =>
+          Number(a.resolved) - Number(b.resolved) ||
+          b.lastActivity - a.lastActivity,
+      ),
     [comments.files, comments.anchored],
   );
 
@@ -137,53 +206,73 @@ function CommentRailImpl({ conversationId, onJumpToMessage }: { conversationId: 
   // also catches the keyboard shortcut, not just the now-hidden header toggle).
   if (!railEnabled) return null;
 
-  const messageText = (id?: string) => messageExcerpt((messages ?? []).find((m) => m._id === id)?.content, 140, cleanContent);
+  const messageText = (id?: string) =>
+    messageExcerpt(
+      (messages ?? []).find((m) => m._id === id)?.content,
+      140,
+      cleanContent,
+    );
 
   return (
-    <aside className={`cc-railx${open ? "" : " cc-railx--closed"}`} style={{ width }} aria-hidden={!open} data-comment-rail>
+    <aside
+      className={`cc-railx${open ? "" : " cc-railx--closed"}`}
+      style={{ width }}
+      aria-hidden={!open}
+      data-comment-rail
+    >
       {mounted && (
-      <>
-      <EdgeResizeHandle onResizeDown={onResizeDown} />
-      <header className="cc-railx-head">
-        <span className="cc-railx-title">Comments</span>
-        {comments.totalCount > 0 && <span className="cc-railx-count">{comments.totalCount}</span>}
-        {/* Shared controls: this rail dismisses exactly like the session list
+        <>
+          <EdgeResizeHandle onResizeDown={onResizeDown} />
+          <header className="cc-railx-head">
+            <span className="cc-railx-title">Comments</span>
+            {comments.totalCount > 0 && (
+              <span className="cc-railx-count">{comments.totalCount}</span>
+            )}
+            {/* Shared controls: this rail dismisses exactly like the session list
             it shares this edge with. */}
-        <SlotActions slot="context" onClose={() => setOpen(false)} />
-      </header>
+            <SlotActions slot="context" onClose={() => setOpen(false)} />
+          </header>
 
-      {threads.length > 0 && (
-        <div className="cc-railx-threads" data-comment-rail-threads>
-          {threads.map((t) => (
-            <ThreadRow
-              key={t.key}
-              t={t}
+          {threads.length > 0 && (
+            <div className="cc-railx-threads" data-comment-rail-threads>
+              {threads.map((t) => (
+                <ThreadRow
+                  key={t.key}
+                  t={t}
+                  conversationId={conversationId}
+                  label={
+                    t.filePath
+                      ? `${t.filePath}${t.lineNumber ? `:${t.lineNumber}` : ""}`
+                      : (messageText(t.messageId) ?? "Comment on a message")
+                  }
+                  onJump={() =>
+                    t.filePath
+                      ? jumpToFileThread(t)
+                      : t.messageId && onJumpToMessage?.(t.messageId)
+                  }
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="cc-railx-global">
+            <CommentThread
+              thread={comments.global}
               conversationId={conversationId}
-              label={t.filePath ? `${t.filePath}${t.lineNumber ? `:${t.lineNumber}` : ""}` : messageText(t.messageId) ?? "Comment on a message"}
-              onJump={() => (t.filePath ? jumpToFileThread(t) : t.messageId && onJumpToMessage?.(t.messageId))}
+              variant="global"
+              authed={isAuthenticated}
+              canWrite={isAuthenticated}
+              currentUserId={currentUserId}
+              composerAutoFocus
+              placeholder="Comment on this conversation…"
+              onAdd={comments.addComment}
+              onEdit={comments.editComment}
+              onDelete={comments.deleteComment}
+              onAskAgent={comments.askAgent}
+              agentType={agentType}
             />
-          ))}
-        </div>
-      )}
-
-      <div className="cc-railx-global">
-        <CommentThread
-          thread={comments.global}
-          conversationId={conversationId}
-          variant="global"
-          authed={isAuthenticated}
-          canWrite={isAuthenticated}
-          currentUserId={currentUserId}
-          composerAutoFocus
-          placeholder="Comment on this conversation…"
-          onAdd={comments.addComment}
-          onEdit={comments.editComment}
-          onDelete={comments.deleteComment}
-          onAskAgent={comments.askAgent}
-          agentType={agentType}
-        />
-      </div>
-      </>
+          </div>
+        </>
       )}
     </aside>
   );
@@ -198,5 +287,10 @@ export const CommentDock = memo(function CommentDock({
   onJumpToMessage?: (messageId: string) => void;
 }) {
   if (!isConvexId(conversationId)) return null;
-  return <CommentRailImpl conversationId={conversationId} onJumpToMessage={onJumpToMessage} />;
+  return (
+    <CommentRailImpl
+      conversationId={conversationId}
+      onJumpToMessage={onJumpToMessage}
+    />
+  );
 });

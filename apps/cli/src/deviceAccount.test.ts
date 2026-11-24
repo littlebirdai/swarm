@@ -25,7 +25,9 @@ describe("device account switch", () => {
     expect(readDeviceAccountStamp(dir)).toBe("ashot");
     expect(previousAccountToClaim("ashot", "aivery")).toBe("ashot");
     expect(previousAccountToClaim("aivery", "aivery")).toBeNull();
-    expect(fs.statSync(path.join(dir, "device-account.json")).mode & 0o077).toBe(0);
+    expect(
+      fs.statSync(path.join(dir, "device-account.json")).mode & 0o077,
+    ).toBe(0);
   });
 
   // F31: the stamp keeps the previous login's token, encrypted, so the claim
@@ -43,11 +45,26 @@ describe("device account switch", () => {
   });
 
   test("a handover refused for want of proof, still pending, or with more to move is kept", () => {
-    expect(deviceClaimSettled({ moved: 0, more: false, needs_proof: true, error: "no proof" })).toBe(false);
-    expect(deviceClaimSettled({ moved: 0, more: false, pending: true })).toBe(false);
+    expect(
+      deviceClaimSettled({
+        moved: 0,
+        more: false,
+        needs_proof: true,
+        error: "no proof",
+      }),
+    ).toBe(false);
+    expect(deviceClaimSettled({ moved: 0, more: false, pending: true })).toBe(
+      false,
+    );
     expect(deviceClaimSettled({ moved: 100, more: true })).toBe(false);
     expect(deviceClaimSettled(undefined)).toBe(false);
     expect(deviceClaimSettled({ moved: 3, more: false })).toBe(true);
-    expect(deviceClaimSettled({ moved: 0, more: false, error: "the two accounts do not share a team" })).toBe(true);
+    expect(
+      deviceClaimSettled({
+        moved: 0,
+        more: false,
+        error: "the two accounts do not share a team",
+      }),
+    ).toBe(true);
   });
 });

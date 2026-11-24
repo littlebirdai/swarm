@@ -34,7 +34,10 @@ export function defaultClaudeConfigDir(home: string = homeDir()): string {
 }
 
 /** Extra config dirs found under `home`, sorted, the default dir excluded. */
-export function discoverClaudeConfigDirs(home: string, envConfigDir?: string): string[] {
+export function discoverClaudeConfigDirs(
+  home: string,
+  envConfigDir?: string,
+): string[] {
   const def = defaultClaudeConfigDir(home);
   const found = new Set<string>();
   let entries: fs.Dirent[] = [];
@@ -62,8 +65,12 @@ export function claudeConfigDirs(home: string = homeDir()): string[] {
   const env = process.env.CLAUDE_CONFIG_DIR || "";
   const key = `${home}\0${env}`;
   const now = Date.now();
-  if (cache && cache.key === key && now - cache.at < CACHE_MS) return cache.dirs;
-  const dirs = [defaultClaudeConfigDir(home), ...discoverClaudeConfigDirs(home, env || undefined)];
+  if (cache && cache.key === key && now - cache.at < CACHE_MS)
+    return cache.dirs;
+  const dirs = [
+    defaultClaudeConfigDir(home),
+    ...discoverClaudeConfigDirs(home, env || undefined),
+  ];
   cache = { key, at: now, dirs };
   return dirs;
 }

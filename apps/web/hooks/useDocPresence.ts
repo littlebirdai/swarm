@@ -45,11 +45,17 @@ export type PresenceRow = {
 const NO_ROWS: PresenceRow[] = [];
 
 /** Read-only: who else is on a doc id. Several surfaces may read one id; only one broadcasts. */
-export function usePresenceRows(docId: string, enabled: boolean): PresenceRow[] {
+export function usePresenceRows(
+  docId: string,
+  enabled: boolean,
+): PresenceRow[] {
   // Presence only decorates the editor: when the doc is gone or the viewer
   // lost access the query throws NOT_FOUND, and the editor's own doc read says
   // so. The avatars go empty rather than taking the surface down.
-  return (useQueryNoThrow(api.docSync.getPresence, enabled ? { doc_id: docId } : "skip").data ?? NO_ROWS) as PresenceRow[];
+  return (useQueryNoThrow(
+    api.docSync.getPresence,
+    enabled ? { doc_id: docId } : "skip",
+  ).data ?? NO_ROWS) as PresenceRow[];
 }
 
 export function useDocPresence(opts: {
@@ -64,7 +70,15 @@ export function useDocPresence(opts: {
   enabled: boolean;
   forceBroadcast: boolean;
 }): PresenceRow[] {
-  const { docId, draftText = "", anchor = null, cursor = null, inDraft = false, enabled, forceBroadcast } = opts;
+  const {
+    docId,
+    draftText = "",
+    anchor = null,
+    cursor = null,
+    inDraft = false,
+    enabled,
+    forceBroadcast,
+  } = opts;
   const update = useMutation(api.docSync.updatePresence);
   const remove = useMutation(api.docSync.removePresence);
   const present = usePresenceRows(docId, enabled);
@@ -78,7 +92,14 @@ export function useDocPresence(opts: {
   cursorRef.current = cursor;
   const inDraftRef = useRef(inDraft);
   inDraftRef.current = inDraft;
-  const push = () => update({ doc_id: docId, draft_text: draftRef.current, anchor: anchorRef.current ?? undefined, cursor_pos: cursorRef.current ?? undefined, in_draft: inDraftRef.current || undefined }).catch(() => {});
+  const push = () =>
+    update({
+      doc_id: docId,
+      draft_text: draftRef.current,
+      anchor: anchorRef.current ?? undefined,
+      cursor_pos: cursorRef.current ?? undefined,
+      in_draft: inDraftRef.current || undefined,
+    }).catch(() => {});
 
   // Heartbeat while broadcasting (keeps the row inside the 30s stale window),
   // and clear it on exit so the other side sees us leave promptly.
@@ -86,13 +107,18 @@ export function useDocPresence(opts: {
     if (!broadcast) return;
     push();
     const iv = setInterval(push, 3000);
-    return () => { clearInterval(iv); remove({ doc_id: docId }).catch(() => {}); };
+    return () => {
+      clearInterval(iv);
+      remove({ doc_id: docId }).catch(() => {});
+    };
   }, [broadcast, docId, update, remove]);
 
   // Snappier than the heartbeat: push shortly after the draft or the reading
   // place changes: words after 250ms of quiet, the reading place at most
   // twice a second while it moves.
-  const anchorKey = anchor ? `${anchor.message_id}|${anchor.offset.toFixed(2)}` : "";
+  const anchorKey = anchor
+    ? `${anchor.message_id}|${anchor.offset.toFixed(2)}`
+    : "";
   useWatchEffect(() => {
     if (!broadcast) return;
     const t = setTimeout(push, 250);
@@ -102,7 +128,10 @@ export function useDocPresence(opts: {
   useWatchEffect(() => {
     if (!broadcast || !anchorKey) return;
     const wait = Math.max(0, 500 - (Date.now() - anchorPushedAt.current));
-    const t = setTimeout(() => { anchorPushedAt.current = Date.now(); push(); }, wait);
+    const t = setTimeout(() => {
+      anchorPushedAt.current = Date.now();
+      push();
+    }, wait);
     return () => clearTimeout(t);
   }, [anchorKey, broadcast, docId, update]);
 

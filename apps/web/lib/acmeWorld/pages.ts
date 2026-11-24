@@ -4,20 +4,98 @@
 // reaches this file, so imports stay relative.
 
 import type { AcmePart } from "./parts";
-import { DAY, HOUR, MIN, PEOPLE, SESSIONS, WORKSPACE, cid, session, type Person } from "./world";
+import {
+  DAY,
+  HOUR,
+  MIN,
+  PEOPLE,
+  SESSIONS,
+  WORKSPACE,
+  cid,
+  session,
+  type Person,
+} from "./world";
 
 /** Slugs are 8 to 24 letters and digits, as `cast publish` mints them: the app embeds nothing else. */
 export const REPORT_SLUG = "r7k2xq9wbmhp";
 
-type PageSeed = { slug: string; title: string; who: Person; ago: number; version: number; views: number; comments: number; kind?: string; session?: string; password?: boolean; expires?: number };
+type PageSeed = {
+  slug: string;
+  title: string;
+  who: Person;
+  ago: number;
+  version: number;
+  views: number;
+  comments: number;
+  kind?: string;
+  session?: string;
+  password?: boolean;
+  expires?: number;
+};
 
 const SEEDS: PageSeed[] = [
-  { slug: REPORT_SLUG, title: "Webhook retry failures, last 7 days", who: PEOPLE.me, ago: 14 * MIN, version: 3, views: 42, comments: 2, session: SESSIONS.lead.short_id },
-  { slug: "d4nq8vz2tlwc", title: "Retry queue dashboard", who: PEOPLE.maya, ago: 2 * HOUR, version: 5, views: 118, comments: 1, session: "jx7r4dl" },
-  { slug: "m9hc3pxr6ayk", title: "Attempt history mockup", who: PEOPLE.sarah, ago: 5 * HOUR, version: 2, views: 23, comments: 3, session: "jx7s1hm" },
-  { slug: "b2wf7kqn5jre", title: "Backoff strategies compared", who: PEOPLE.maya, ago: 2 * DAY, version: 1, views: 61, comments: 0, session: "jx7p2mb" },
-  { slug: "s8tz4mvd1ghq", title: "Stripe v14 call site diff", who: PEOPLE.me, ago: 30 * MIN, version: 2, views: 9, comments: 0, session: SESSIONS.stripe.short_id, password: true },
-  { slug: "l5yr9cbw3npx", title: "Ledger restart incident review", who: PEOPLE.sarah, ago: 3 * DAY, version: 4, views: 87, comments: 0, kind: "markdown", expires: 27 * DAY },
+  {
+    slug: REPORT_SLUG,
+    title: "Webhook retry failures, last 7 days",
+    who: PEOPLE.me,
+    ago: 14 * MIN,
+    version: 3,
+    views: 42,
+    comments: 2,
+    session: SESSIONS.lead.short_id,
+  },
+  {
+    slug: "d4nq8vz2tlwc",
+    title: "Retry queue dashboard",
+    who: PEOPLE.maya,
+    ago: 2 * HOUR,
+    version: 5,
+    views: 118,
+    comments: 1,
+    session: "jx7r4dl",
+  },
+  {
+    slug: "m9hc3pxr6ayk",
+    title: "Attempt history mockup",
+    who: PEOPLE.sarah,
+    ago: 5 * HOUR,
+    version: 2,
+    views: 23,
+    comments: 3,
+    session: "jx7s1hm",
+  },
+  {
+    slug: "b2wf7kqn5jre",
+    title: "Backoff strategies compared",
+    who: PEOPLE.maya,
+    ago: 2 * DAY,
+    version: 1,
+    views: 61,
+    comments: 0,
+    session: "jx7p2mb",
+  },
+  {
+    slug: "s8tz4mvd1ghq",
+    title: "Stripe v14 call site diff",
+    who: PEOPLE.me,
+    ago: 30 * MIN,
+    version: 2,
+    views: 9,
+    comments: 0,
+    session: SESSIONS.stripe.short_id,
+    password: true,
+  },
+  {
+    slug: "l5yr9cbw3npx",
+    title: "Ledger restart incident review",
+    who: PEOPLE.sarah,
+    ago: 3 * DAY,
+    version: 4,
+    views: 87,
+    comments: 0,
+    kind: "markdown",
+    expires: 27 * DAY,
+  },
 ];
 
 export const PAGES = (now: number) =>
@@ -62,16 +140,41 @@ export const PAGES = (now: number) =>
 
 /** The session that published the report, with the page's link alone on a line of its reply: the app embeds it.
  *  Filed out of the inbox (dismissed), so the inbox shots are unchanged. */
-export const REPORT_SESSION = { _id: cid("rptfailures"), short_id: "jx7m8rp", title: "Failure report for support", agent_type: "claude_code" };
+export const REPORT_SESSION = {
+  _id: cid("rptfailures"),
+  short_id: "jx7m8rp",
+  title: "Failure report for support",
+  agent_type: "claude_code",
+};
 
 const REPORT_TRANSCRIPT = (now: number) => [
-  { _id: "hero-rpt-m1", role: "user", content: "Make a page with last week's webhook retry failures that support can read.", timestamp: now - 16 * MIN },
+  {
+    _id: "hero-rpt-m1",
+    role: "user",
+    content:
+      "Make a page with last week's webhook retry failures that support can read.",
+    timestamp: now - 16 * MIN,
+  },
   {
     _id: "hero-rpt-m2",
     role: "assistant",
     content: "Pulling last week's failed deliveries and building the report.",
-    tool_calls: [{ id: "hero-rpt-tc1", name: "Bash", input: JSON.stringify({ command: "cast publish report.html", description: "Publish the report" }) }],
-    tool_results: [{ tool_use_id: "hero-rpt-tc1", content: `Published v3: https://codecast.sh/a/${REPORT_SLUG}` }],
+    tool_calls: [
+      {
+        id: "hero-rpt-tc1",
+        name: "Bash",
+        input: JSON.stringify({
+          command: "cast publish report.html",
+          description: "Publish the report",
+        }),
+      },
+    ],
+    tool_results: [
+      {
+        tool_use_id: "hero-rpt-tc1",
+        content: `Published v3: https://codecast.sh/a/${REPORT_SLUG}`,
+      },
+    ],
     timestamp: now - 15 * MIN,
   },
   {
@@ -83,27 +186,56 @@ const REPORT_TRANSCRIPT = (now: number) => [
 ];
 
 const reportRow = (now: number) =>
-  session(now, REPORT_SESSION, { ago: 14 * MIN, waiting: "done", project: "~/src/billing", messages: 3, extra: { inbox_dismissed_at: now - 10 * MIN } });
+  session(now, REPORT_SESSION, {
+    ago: 14 * MIN,
+    waiting: "done",
+    project: "~/src/billing",
+    messages: 3,
+    extra: { inbox_dismissed_at: now - 10 * MIN },
+  });
 
 export const PAGES_PART: AcmePart = {
   name: "pages",
   sessions: (now) => [reportRow(now)],
   seed: (s, now) => {
-    s.applyTailMessages(REPORT_SESSION._id, 0, REPORT_TRANSCRIPT(now) as any, null);
+    s.applyTailMessages(
+      REPORT_SESSION._id,
+      0,
+      REPORT_TRANSCRIPT(now) as any,
+      null,
+    );
   },
   answers: {
     // The pages one session published (the header's Pages chip), by the session's short id.
     "conversationPages:list": (a) => {
-      const short = [...Object.values(SESSIONS), REPORT_SESSION].find((x) => x._id === a?.conversation_id)?.short_id;
-      const pages = PAGES(Date.now()).filter((p) => short && p.session_short_id === short);
-      return { _id: a?.conversation_id, pages: pages.map((p) => ({ slug: p.slug, created_at: p.created_at })).sort((x, y) => x.created_at - y.created_at) };
+      const short = [...Object.values(SESSIONS), REPORT_SESSION].find(
+        (x) => x._id === a?.conversation_id,
+      )?.short_id;
+      const pages = PAGES(Date.now()).filter(
+        (p) => short && p.session_short_id === short,
+      );
+      return {
+        _id: a?.conversation_id,
+        pages: pages
+          .map((p) => ({ slug: p.slug, created_at: p.created_at }))
+          .sort((x, y) => x.created_at - y.created_at),
+      };
     },
     "artifacts:listForWeb": () => ({ artifacts: PAGES(Date.now()) }),
     // What an embed needs to frame a page (artifacts.embedInfo): open pages only, so no gate tokens.
     "artifacts:embedInfo": (a) =>
       (a?.pages ?? []).map((p: { slug: string }) => {
         const page = PAGES(Date.now()).find((x) => x.slug === p.slug);
-        return page ? { slug: page.slug, title: page.title, version: page.version, kind: page.kind, gated: false, thumb: false } : { slug: p.slug, missing: true };
+        return page
+          ? {
+              slug: page.slug,
+              title: page.title,
+              version: page.version,
+              kind: page.kind,
+              gated: false,
+              thumb: false,
+            }
+          : { slug: p.slug, missing: true };
       }),
   },
 };

@@ -7,16 +7,20 @@ const WEB_ROOT = join(import.meta.dir, "..", "..");
 
 describe("offline boot auth", () => {
   test("a stored token renders while server auth is unresolved or offline", () => {
-    expect(authGateDecision({
-      localAuthed: true,
-      isAuthenticated: false,
-      isLoading: true,
-    })).toBe("children");
-    expect(authGateDecision({
-      localAuthed: true,
-      isAuthenticated: false,
-      isLoading: false,
-    })).toBe("children");
+    expect(
+      authGateDecision({
+        localAuthed: true,
+        isAuthenticated: false,
+        isLoading: true,
+      }),
+    ).toBe("children");
+    expect(
+      authGateDecision({
+        localAuthed: true,
+        isAuthenticated: false,
+        isLoading: false,
+      }),
+    ).toBe("children");
   });
 
   test("boot-critical conversation surfaces use the local-first auth gate", () => {
@@ -42,7 +46,9 @@ describe("offline boot auth", () => {
     // Phone: a sync SQLite read fills the store at module eval so kill-and-reopen
     // paints the cached inbox without waiting on that message preload.
     const paintRead = source.indexOf("loadPaintCacheSync()");
-    const firstAwait = source.indexOf("await loadCache(HYDRATION_CRITICAL_READ_KEYS)");
+    const firstAwait = source.indexOf(
+      "await loadCache(HYDRATION_CRITICAL_READ_KEYS)",
+    );
     expect(paintRead).toBeGreaterThan(-1);
     expect(paintRead).toBeLessThan(firstAwait);
     // The session to restore is chosen before that preload, so the preload warms the
@@ -55,14 +61,19 @@ describe("offline boot auth", () => {
     expect(remembered).not.toBeNull();
     expect(restore).not.toBeNull();
     expect(source.indexOf(restore![0])).toBeLessThan(hydrate);
-    expect(remembered![1]).toBe("ownId ?? st.clientState?.current_conversation_id");
+    expect(remembered![1]).toBe(
+      "ownId ?? st.clientState?.current_conversation_id",
+    );
     expect(restore![1].replace(/\s+/g, " ")).toBe(
       "linked !== undefined ? linked : !freshHome && remembered ? remembered : null",
     );
   });
 
   test("interaction-only conversation tools stay outside the blocking route graph", () => {
-    const source = ["components/ConversationView.tsx", "components/MessageInput.tsx"]
+    const source = [
+      "components/ConversationView.tsx",
+      "components/MessageInput.tsx",
+    ]
       .map((file) => readFileSync(join(WEB_ROOT, file), "utf8"))
       .join("\n");
 
@@ -78,9 +89,14 @@ describe("offline boot auth", () => {
 
   test("a warm cache can paint before either boot indicator appears", () => {
     const html = readFileSync(join(WEB_ROOT, "index.html"), "utf8");
-    const layout = readFileSync(join(WEB_ROOT, "components/DashboardLayout.tsx"), "utf8");
+    const layout = readFileSync(
+      join(WEB_ROOT, "components/DashboardLayout.tsx"),
+      "utf8",
+    );
 
-    expect(html).toContain("animation: boot-loader-reveal 100ms ease-out 1s forwards");
+    expect(html).toContain(
+      "animation: boot-loader-reveal 100ms ease-out 1s forwards",
+    );
     expect(layout).toContain("<AppLoader deferIndicator />");
   });
 });

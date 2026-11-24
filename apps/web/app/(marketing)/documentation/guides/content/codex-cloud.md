@@ -4,7 +4,7 @@ A task runs on OpenAI's machines, but one of your computers does the talking: th
 
 ## Connect Codex
 
-1. Open **Settings** and choose **Provider Keys** under *Machines*. The **Codex Cloud** row says whether the selected computer is signed in.
+1. Open **Settings** and choose **Provider Keys** under _Machines_. The **Codex Cloud** row says whether the selected computer is signed in.
 2. Click **Connect Codex**, then **Sign in to Codex**. Codex opens its sign-in page in the browser on that computer; sign in with the ChatGPT account your tasks run on. On a computer with no browser, such as a cloud machine, use **Sign in with a code** and enter the code it shows.
 3. The dialog says the computer is signed in to Codex, with your account and plan, and the row's button reads **Codex connected**.
 
@@ -49,12 +49,12 @@ The **Codex Cloud** chip in the session header holds the task's actions. They ar
 
 ![The Codex Cloud chip's menu in a session header](/documentation/codex-cloud/chip-menu.webp "The task's actions live on the Codex Cloud chip.")
 
-| Action | What it does |
-|--------|--------------|
-| **Open on chatgpt.com** | Opens the task on chatgpt.com |
-| **Create draft PR** | Opens a draft pull request with this attempt's changes. A toast links to it, and the session's branch and pull request follow |
-| **Apply locally** | Writes this attempt's changes into the repository's checkout on your computer, uncommitted. It refuses if you have local edits to a file the change touches, and says so if the checkout already has the changes |
-| **Archive** / **Unarchive** | Hides the task on chatgpt.com, or brings it back. The session stays in codecast either way |
+| Action                      | What it does                                                                                                                                                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Open on chatgpt.com**     | Opens the task on chatgpt.com                                                                                                                                                                                    |
+| **Create draft PR**         | Opens a draft pull request with this attempt's changes. A toast links to it, and the session's branch and pull request follow                                                                                    |
+| **Apply locally**           | Writes this attempt's changes into the repository's checkout on your computer, uncommitted. It refuses if you have local edits to a file the change touches, and says so if the checkout already has the changes |
+| **Archive** / **Unarchive** | Hides the task on chatgpt.com, or brings it back. The session stays in codecast either way                                                                                                                       |
 
 An ask task doesn't change code, so its PR and apply actions are off.
 
@@ -62,13 +62,13 @@ An ask task doesn't change code, so its PR and apply actions are off.
 
 When something stops Codex Cloud, a word appears beside the composer control and on the session chip, and a message you send waits with a card that says why. It goes out on its own once the cause clears.
 
-| You see | What it means | What to do |
-|---------|---------------|-----------|
-| **not connected** | The computer has no Codex sign-in, or it expired | Click **Connect Codex** on the card and sign in again |
-| **needs setup** | The repository has no Codex environment | Create one under Codex → Environments |
-| **limited** | A window of your ChatGPT plan's Codex limits is used up | Wait for the reset; the card counts down. Running tasks keep syncing |
-| **no access** | Your ChatGPT Business or Enterprise workspace keeps Codex Cloud off for you | Ask a workspace owner to turn on *Use Codex in the cloud* for you. Signing in again won't help |
-| **paused** | Codex Cloud changed in a way codecast can't read yet | Nothing to do: codecast checks again every few minutes and resumes on its own |
+| You see           | What it means                                                               | What to do                                                                                     |
+| ----------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **not connected** | The computer has no Codex sign-in, or it expired                            | Click **Connect Codex** on the card and sign in again                                          |
+| **needs setup**   | The repository has no Codex environment                                     | Create one under Codex → Environments                                                          |
+| **limited**       | A window of your ChatGPT plan's Codex limits is used up                     | Wait for the reset; the card counts down. Running tasks keep syncing                           |
+| **no access**     | Your ChatGPT Business or Enterprise workspace keeps Codex Cloud off for you | Ask a workspace owner to turn on _Use Codex in the cloud_ for you. Signing in again won't help |
+| **paused**        | Codex Cloud changed in a way codecast can't read yet                        | Nothing to do: codecast checks again every few minutes and resumes on its own                  |
 
 A waiting message's card also offers **Start on API key instead**, which runs it on the other lane.
 

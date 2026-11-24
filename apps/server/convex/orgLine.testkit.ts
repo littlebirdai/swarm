@@ -15,7 +15,11 @@ const PROJECT = "projects_p1";
 export const NOW = Date.now();
 export const TODAY = new Date(NOW).toISOString().slice(0, 10);
 
-type Overrides = { role?: Record<string, any>; task?: Record<string, any>; extra?: Record<string, any[]> };
+type Overrides = {
+  role?: Record<string, any>;
+  task?: Record<string, any>;
+  extra?: Record<string, any[]>;
+};
 
 export function task(over: Record<string, any> = {}) {
   return {
@@ -46,7 +50,17 @@ export function fixtures(o: Overrides = {}) {
       { _id: "m2", user_id: MATE, team_id: TEAM, role: "member", joined_at: 1 },
     ],
     teams: [{ _id: TEAM, name: "Acme", features: { org: true, line: true } }],
-    projects: [{ _id: PROJECT, title: "Growth", user_id: HOST, team_id: TEAM, workspace: `team:${TEAM}`, created_at: 1, updated_at: 1 }],
+    projects: [
+      {
+        _id: PROJECT,
+        title: "Growth",
+        user_id: HOST,
+        team_id: TEAM,
+        workspace: `team:${TEAM}`,
+        created_at: 1,
+        updated_at: 1,
+      },
+    ],
     plans: [],
     tasks: [task(o.task)],
     org_roles: [
@@ -63,15 +77,43 @@ export function fixtures(o: Overrides = {}) {
         status: "active",
         trust: "direct",
         anchor_id: ANCHOR,
-        caps: { hands_per_day: 3, wakes_per_day: 10, tokens_per_day: 1_000_000, line_on: true },
+        caps: {
+          hands_per_day: 3,
+          wakes_per_day: 10,
+          tokens_per_day: 1_000_000,
+          line_on: true,
+        },
         created_by: HOST,
         created_at: 1,
         updated_at: 1,
         ...(o.role ?? {}),
       },
     ],
-    anchors: [{ _id: ANCHOR, team_id: TEAM, bot_user_id: "users_bot", host_user_id: HOST, conversation_id: STANDING }],
-    conversations: [{ _id: STANDING, session_id: "standing", user_id: HOST, team_id: TEAM, status: "active", title: "Growth lead", agent_type: "claude_code", message_count: 1, standing_role_id: ROLE, anchor_id: ANCHOR, updated_at: NOW, project_path: "/srv/growth" }],
+    anchors: [
+      {
+        _id: ANCHOR,
+        team_id: TEAM,
+        bot_user_id: "users_bot",
+        host_user_id: HOST,
+        conversation_id: STANDING,
+      },
+    ],
+    conversations: [
+      {
+        _id: STANDING,
+        session_id: "standing",
+        user_id: HOST,
+        team_id: TEAM,
+        status: "active",
+        title: "Growth lead",
+        agent_type: "claude_code",
+        message_count: 1,
+        standing_role_id: ROLE,
+        anchor_id: ANCHOR,
+        updated_at: NOW,
+        project_path: "/srv/growth",
+      },
+    ],
     workflows: [],
     workflow_runs: [],
     daemon_commands: [],
@@ -84,5 +126,9 @@ export function fixtures(o: Overrides = {}) {
     counters: [],
     ...(o.extra ?? {}),
   });
-  return { db, ctx: { db } as any, tables: db._tables as Record<string, any[]> };
+  return {
+    db,
+    ctx: { db } as any,
+    tables: db._tables as Record<string, any[]>,
+  };
 }

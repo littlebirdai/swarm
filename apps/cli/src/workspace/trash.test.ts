@@ -34,7 +34,9 @@ test("two destroys in a row do not collide", () => {
   const first = moveToTrash(makeTree("alpha"));
   const second = moveToTrash(makeTree("beta"));
   expect(first).not.toBe(second);
-  expect(fs.readdirSync(dir).sort()).toEqual([path.basename(first), path.basename(second)].sort());
+  expect(fs.readdirSync(dir).sort()).toEqual(
+    [path.basename(first), path.basename(second)].sort(),
+  );
 });
 
 test("the sweep deletes trash past the grace period and nothing else", async () => {

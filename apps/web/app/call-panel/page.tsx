@@ -26,7 +26,10 @@ import { lazyNamed } from "../../lib/lazyNamed";
 // of the shell that normally renders it, so without this the feed button set
 // a flag nobody painted. Loaded on first use: most of this window's life is
 // a strip or a few circles that never open it.
-const CommandPalette = lazyNamed(() => import("../../components/CommandPalette"), "CommandPalette");
+const CommandPalette = lazyNamed(
+  () => import("../../components/CommandPalette"),
+  "CommandPalette",
+);
 
 /**
  * /call-panel — a huddle as a whole window, in whichever of its four sizes.
@@ -109,9 +112,9 @@ function CallPanelWindow() {
 }
 
 function CallPanelSyncEffects() {
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as
-    | Id<"teams">
-    | undefined;
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as Id<"teams"> | undefined;
   // The stage's chat rail sends messages, so this window needs the server
   // dispatch wired. Idempotent across windows.
   useEnsureDispatch();

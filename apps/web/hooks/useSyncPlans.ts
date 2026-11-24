@@ -8,19 +8,25 @@ import { useConvexSync } from "./useConvexSync";
 
 const api = _api as any;
 
-export function useSyncPlansWithArgs(wsArgs: WorkspaceArgs, statusFilter?: string, includeAll?: boolean) {
+export function useSyncPlansWithArgs(
+  wsArgs: WorkspaceArgs,
+  statusFilter?: string,
+  includeAll?: boolean,
+) {
   // Bootstrap floor, one-shot per workspace (sync-log-cargo E8); steady-state
   // freshness rides the sync log's cargo. See useBootstrapCollection.
   const { ready } = useBootstrapCollection(
     "plans",
     api.plans.webList,
-    wsArgs === "skip" ? "skip" : {
-      status: statusFilter || undefined,
-      // include_all lifts webList's default done/abandoned filter — for
-      // surfaces that read the whole workspace (orchestration).
-      include_all: includeAll || undefined,
-      ...wsArgs,
-    },
+    wsArgs === "skip"
+      ? "skip"
+      : {
+          status: statusFilter || undefined,
+          // include_all lifts webList's default done/abandoned filter — for
+          // surfaces that read the whole workspace (orchestration).
+          include_all: includeAll || undefined,
+          ...wsArgs,
+        },
     { liveLoadingScope: "plans" },
   );
   return { ready };
@@ -49,9 +55,17 @@ export function ingestPlanDetail(d: any): void {
  */
 export function useSyncMentionPlans() {
   const syncMentionIndex = useInboxStore((s) => s.syncMentionIndex);
-  const result = useQueryNoThrow(api.plans.webMentionList, { workspace: "all" } as any).data;
+  const result = useQueryNoThrow(api.plans.webMentionList, {
+    workspace: "all",
+  } as any).data;
 
-  useConvexSync(result, useCallback((data: any) => {
-    syncMentionIndex("plans", data?.items ?? []);
-  }, [syncMentionIndex]));
+  useConvexSync(
+    result,
+    useCallback(
+      (data: any) => {
+        syncMentionIndex("plans", data?.items ?? []);
+      },
+      [syncMentionIndex],
+    ),
+  );
 }

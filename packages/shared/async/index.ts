@@ -15,14 +15,17 @@ export async function mapLimit<T, R>(
   const out: R[] = new Array(items.length);
   let next = 0;
   let stopped = false;
-  const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
-    while (!stopped) {
-      const i = next++;
-      if (i >= items.length) return;
-      out[i] = await fn(items[i]!, i);
-      if (opts.until?.(out[i]!)) stopped = true;
-    }
-  });
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(limit, items.length)) },
+    async () => {
+      while (!stopped) {
+        const i = next++;
+        if (i >= items.length) return;
+        out[i] = await fn(items[i]!, i);
+        if (opts.until?.(out[i]!)) stopped = true;
+      }
+    },
+  );
   await Promise.all(workers);
   return out;
 }

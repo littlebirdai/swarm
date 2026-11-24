@@ -6,14 +6,17 @@
 
 export type CardBarsMode = "strip" | "full" | "hidden";
 
-type UIPrefs = {
-  inbox_image_thumbs?: boolean;
-  show_characters?: boolean;
-  show_branch_pill?: boolean;
-  comments_enabled?: boolean;
-  card_bars?: CardBarsMode;
-  show_triggers?: boolean;
-} | null | undefined;
+type UIPrefs =
+  | {
+      inbox_image_thumbs?: boolean;
+      show_characters?: boolean;
+      show_branch_pill?: boolean;
+      comments_enabled?: boolean;
+      card_bars?: CardBarsMode;
+      show_triggers?: boolean;
+    }
+  | null
+  | undefined;
 
 export function resolveImageThumbs(ui: UIPrefs): boolean {
   return ui?.inbox_image_thumbs ?? true;

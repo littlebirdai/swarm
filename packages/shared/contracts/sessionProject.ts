@@ -34,10 +34,16 @@ export interface SessionProjectLookup<R extends SessionProjectRow> {
   planProject(id: string): string | null | undefined;
 }
 
-type TaskPlanLookup = Pick<SessionProjectLookup<SessionProjectRow>, "taskProject" | "taskPlan" | "planProject">;
+type TaskPlanLookup = Pick<
+  SessionProjectLookup<SessionProjectRow>,
+  "taskProject" | "taskPlan" | "planProject"
+>;
 
 /** A task's project: its own, else its plan's (a task filed only under a plan). */
-export function taskProjectId(taskId: string, lookup: TaskPlanLookup): string | null {
+export function taskProjectId(
+  taskId: string,
+  lookup: TaskPlanLookup,
+): string | null {
   const own = lookup.taskProject(taskId);
   if (own) return own;
   const plan = lookup.taskPlan(taskId);
@@ -49,11 +55,18 @@ export function taskProjectId(taskId: string, lookup: TaskPlanLookup): string | 
  *  (nestParentIdOf) on purpose: a plain spawn and a fork never nest, but both
  *  continue their starter's work. */
 export function projectParentIdOf(conv: SessionProjectRow): string | null {
-  return conv.parent_conversation_id?.toString() || conv.spawned_by_conversation_id?.toString() || null;
+  return (
+    conv.parent_conversation_id?.toString() ||
+    conv.spawned_by_conversation_id?.toString() ||
+    null
+  );
 }
 
 /** Rules 1 and 2: the project a session names for itself, without its parents. */
-export function ownSessionProjectId(conv: SessionProjectRow, lookup: TaskPlanLookup): string | null {
+export function ownSessionProjectId(
+  conv: SessionProjectRow,
+  lookup: TaskPlanLookup,
+): string | null {
   if (conv.project_id) return conv.project_id.toString();
   if (conv.active_task_id) {
     const p = taskProjectId(conv.active_task_id.toString(), lookup);

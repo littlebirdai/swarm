@@ -1,5 +1,5 @@
-import { DOMPURIFY_SOURCE } from './vendor/dompurifySource';
-import { CANVAS_POLICY_SOURCE } from './vendor/canvasPolicySource';
+import { DOMPURIFY_SOURCE } from "./vendor/dompurifySource";
+import { CANVAS_POLICY_SOURCE } from "./vendor/canvasPolicySource";
 
 // Matches web's canvasSanitize.ts policy. <use> is off DOMPurify's default
 // allowlist (it can pull external content); we re-allow it and the shell script
@@ -8,10 +8,19 @@ const PURIFY_CONFIG = JSON.stringify({
   // Body-context parse: without it a LEADING <style> is hoisted into <head> and
   // dropped, since only <body> is serialized back. See canvasSanitize.ts.
   FORCE_BODY: true,
-  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'base', 'form', 'meta', 'link'],
-  FORBID_ATTR: ['ping', 'formaction', 'onclick', 'srcset', 'srcdoc'],
-  ADD_TAGS: ['use'],
-  ADD_ATTR: ['target'],
+  FORBID_TAGS: [
+    "script",
+    "iframe",
+    "object",
+    "embed",
+    "base",
+    "form",
+    "meta",
+    "link",
+  ],
+  FORBID_ATTR: ["ping", "formaction", "onclick", "srcset", "srcdoc"],
+  ADD_TAGS: ["use"],
+  ADD_ATTR: ["target"],
 });
 
 // --sol-* tokens bridged from the app theme so canvases authored against
@@ -19,12 +28,16 @@ const PURIFY_CONFIG = JSON.stringify({
 // The document shell: tokens + base styles, vendored DOMPurify, then our
 // injector script. Raw agent HTML rides in as a JSON string literal — it is
 // never parsed as markup until DOMPurify has cleaned it.
-export function buildCanvasShell(code: string, tokensCss: string, convexOrigin: string): string {
+export function buildCanvasShell(
+  code: string,
+  tokensCss: string,
+  convexOrigin: string,
+): string {
   const TRUSTED_IMG_ORIGINS_JS = JSON.stringify([convexOrigin]);
   // Escape "<" so a literal "</script>" (or "<!--") inside the agent HTML can't
   // terminate the shell's script block — the HTML parser doesn't know about JS
   // string boundaries.
-  const raw = JSON.stringify(code).replace(/</g, '\\u003C');
+  const raw = JSON.stringify(code).replace(/</g, "\\u003C");
   const documentShell = `<!doctype html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <style>
@@ -152,7 +165,7 @@ export function buildCanvasShell(code: string, tokensCss: string, convexOrigin: 
 })();
 </script></body></html>`;
   const policy = `default-src 'none'; script-src 'nonce-NONCE'; style-src 'unsafe-inline'; img-src data: ${convexOrigin}; media-src data: ${convexOrigin}; font-src data:; base-uri 'none'; form-action 'none'; object-src 'none'; connect-src 'none'`;
-  const shellLiteral = JSON.stringify(documentShell).replace(/</g, '\\u003C');
+  const shellLiteral = JSON.stringify(documentShell).replace(/</g, "\\u003C");
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><script>
   const nonce = Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16)).join('');
   const policy = document.createElement('meta');

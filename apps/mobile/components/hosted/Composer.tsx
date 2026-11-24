@@ -2,13 +2,13 @@
 // sheet. Return breaks the line, as a phone keyboard expects; the round
 // button sends. A reply in an open conversation is the session screen's own
 // composer (app/session/[id]).
-import { useRef, useState } from 'react';
-import { Pressable, View, type TextInput as RNTextInput } from 'react-native';
-import Feather from '@expo/vector-icons/Feather';
-import * as Haptics from 'expo-haptics';
-import { TextInput } from '@/components/Themed';
-import { LANE_COPY } from '@codecast/web/components/simple/lane';
-import { HOSTED_RADIUS, sendDisc, useHostedTheme } from './hostedTheme';
+import { useRef, useState } from "react";
+import { Pressable, View, type TextInput as RNTextInput } from "react-native";
+import Feather from "@expo/vector-icons/Feather";
+import * as Haptics from "expo-haptics";
+import { TextInput } from "@/components/Themed";
+import { LANE_COPY } from "@codecast/web/components/simple/lane";
+import { HOSTED_RADIUS, sendDisc, useHostedTheme } from "./hostedTheme";
 
 const MAX_HEIGHT = 200;
 
@@ -32,7 +32,7 @@ export function Composer({
   allowEmpty?: boolean;
 }) {
   const { c } = useHostedTheme();
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
   const [seededAt, setSeededAt] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
   const ref = useRef<RNTextInput>(null);
@@ -49,14 +49,14 @@ export function Composer({
     if (!ready) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     onSend(value);
-    setText('');
+    setText("");
   };
 
   return (
     <View
       style={{
-        flexDirection: 'row',
-        alignItems: 'flex-end',
+        flexDirection: "row",
+        alignItems: "flex-end",
         gap: 8,
         paddingVertical: 6,
         paddingLeft: 14,
@@ -87,7 +87,7 @@ export function Composer({
           fontSize: 14.5,
           lineHeight: 21,
           color: c.ink,
-          textAlignVertical: 'top',
+          textAlignVertical: "top",
         }}
       />
       <Pressable
@@ -101,8 +101,8 @@ export function Composer({
           width: 36,
           height: 36,
           borderRadius: 18,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
           ...sendDisc(c, ready, pressed).style,
           transform: [{ scale: pressed ? 0.94 : 1 }],
         })}

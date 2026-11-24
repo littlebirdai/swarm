@@ -75,18 +75,27 @@ describe("callWindowSizeOnFailedJoin", () => {
 
 describe("callWindowLeaveGesture", () => {
   it("hangs up when the window holds the call", () => {
-    expect(callWindowLeaveGesture(true)).toEqual({ close: true, ended: true, hangUp: true });
+    expect(callWindowLeaveGesture(true)).toEqual({
+      close: true,
+      ended: true,
+      hangUp: true,
+    });
   });
 
   it("never hangs up from a window that failed to join", () => {
     // `leaveCall` would delete the `call_members` seat — one row per (user,
     // room), shared with whichever window DOES hold the call. This window must
     // close and touch nothing.
-    expect(callWindowLeaveGesture(false)).toEqual({ close: true, ended: false, hangUp: false });
+    expect(callWindowLeaveGesture(false)).toEqual({
+      close: true,
+      ended: false,
+      hangUp: false,
+    });
   });
 
   it("always closes, whichever state the window is in", () => {
-    for (const held of [true, false]) expect(callWindowLeaveGesture(held).close).toBe(true);
+    for (const held of [true, false])
+      expect(callWindowLeaveGesture(held).close).toBe(true);
   });
 });
 
@@ -136,17 +145,33 @@ describe("shouldYieldCallOnDisconnect", () => {
 
   it("yields any disconnect once the call panel exists elsewhere", () => {
     // The panel is already open; this renderer is the one being vacated.
-    expect(shouldYieldCallOnDisconnect(1, { elsewhere: true, outlivesWindow: false })).toBe(true);
-    expect(shouldYieldCallOnDisconnect(undefined, { elsewhere: true, outlivesWindow: false })).toBe(true);
+    expect(
+      shouldYieldCallOnDisconnect(1, {
+        elsewhere: true,
+        outlivesWindow: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldYieldCallOnDisconnect(undefined, {
+        elsewhere: true,
+        outlivesWindow: false,
+      }),
+    ).toBe(true);
   });
 
   it("yields PARTICIPANT_REMOVED from a window that was going to leave", () => {
     // Some livekit-client versions report the eviction as a removal, not 2.
     expect(
-      shouldYieldCallOnDisconnect(4, { elsewhere: false, outlivesWindow: true }),
+      shouldYieldCallOnDisconnect(4, {
+        elsewhere: false,
+        outlivesWindow: true,
+      }),
     ).toBe(true);
     expect(
-      shouldYieldCallOnDisconnect("PARTICIPANT_REMOVED", { elsewhere: false, outlivesWindow: true }),
+      shouldYieldCallOnDisconnect("PARTICIPANT_REMOVED", {
+        elsewhere: false,
+        outlivesWindow: true,
+      }),
     ).toBe(true);
   });
 
@@ -160,7 +185,19 @@ describe("shouldYieldCallOnDisconnect", () => {
 
 describe("shouldRejoinAfterDisconnect", () => {
   it("rejoins a drop nobody chose: the network, a server, a refused resume", () => {
-    for (const reason of [undefined, 0, 3, 5, 6, 7, 8, 9, 10, "SIGNAL_CLOSE", "ROOM_CLOSED"]) {
+    for (const reason of [
+      undefined,
+      0,
+      3,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      "SIGNAL_CLOSE",
+      "ROOM_CLOSED",
+    ]) {
       expect(shouldRejoinAfterDisconnect(reason)).toBe(true);
     }
   });

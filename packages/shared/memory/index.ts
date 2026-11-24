@@ -20,7 +20,12 @@ export const MEMORY_INDEX_MAX_BYTES = 25_000;
 export const MEMORY_INDEX_MAX_LINES = 200;
 /** Past this an index line is spending budget that belongs to later lines. */
 export const MEMORY_INDEX_LINE_SOFT_MAX = 200;
-export const MEMORY_TYPES = ["user", "feedback", "project", "reference"] as const;
+export const MEMORY_TYPES = [
+  "user",
+  "feedback",
+  "project",
+  "reference",
+] as const;
 export const MEMORY_FILE_RE = /^[\w.\- ]+\.md$/;
 
 const encoder = new TextEncoder();
@@ -29,7 +34,11 @@ const byteLength = (s: string) => encoder.encode(s).length;
 /** A link names a memory by its `name:` slug or its file stem, in any case and
  *  with hyphens or underscores; this key makes all of those meet. */
 export function memoryLinkKey(s: string): string {
-  return s.trim().toLowerCase().replace(/\.md$/, "").replace(/[-\s]+/g, "_");
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\.md$/, "")
+    .replace(/[-\s]+/g, "_");
 }
 
 /** Every memory a piece of markdown points at, as written, code excluded. */
@@ -37,13 +46,16 @@ export function memoryLinkTargets(markdown: string): string[] {
   const parsed = parseNote(markdown);
   const out = new Set<string>();
   for (const l of parsed.links) if (l.target) out.add(l.target);
-  for (const l of parsed.markdownLinks) if (/\.md$/i.test(l.target)) out.add(l.target.split("/").pop()!);
+  for (const l of parsed.markdownLinks)
+    if (/\.md$/i.test(l.target)) out.add(l.target.split("/").pop()!);
   return [...out];
 }
 
 /** The memory files one MEMORY.md line links to. */
 export function indexLineFiles(line: string): string[] {
-  return parseNote(line).markdownLinks.map((l) => l.target).filter((t) => /\.md$/i.test(t));
+  return parseNote(line)
+    .markdownLinks.map((l) => l.target)
+    .filter((t) => /\.md$/i.test(t));
 }
 
 export function indexLines(raw: string): string[] {
@@ -67,9 +79,19 @@ export function memoryIndexBudget(raw: string): MemoryIndexBudget {
   let cutAt: number | null = null;
   lines.forEach((line, i) => {
     bytes += byteLength(line) + 1;
-    if (cutAt === null && (bytes > MEMORY_INDEX_MAX_BYTES || i + 1 > MEMORY_INDEX_MAX_LINES)) cutAt = i + 1;
+    if (
+      cutAt === null &&
+      (bytes > MEMORY_INDEX_MAX_BYTES || i + 1 > MEMORY_INDEX_MAX_LINES)
+    )
+      cutAt = i + 1;
   });
-  return { bytes: byteLength(raw), lines: lines.length, cutAt, maxBytes: MEMORY_INDEX_MAX_BYTES, maxLines: MEMORY_INDEX_MAX_LINES };
+  return {
+    bytes: byteLength(raw),
+    lines: lines.length,
+    cutAt,
+    maxBytes: MEMORY_INDEX_MAX_BYTES,
+    maxLines: MEMORY_INDEX_MAX_LINES,
+  };
 }
 
 export const lineBytes = (line: string) => byteLength(line) + 1;
@@ -82,7 +104,9 @@ export const lineBytes = (line: string) => byteLength(line) + 1;
  *  The body starts at its first non-blank line. */
 export function splitFrontmatter(raw: string): { fm: string; body: string } {
   const [fm, body] = splitVaultFrontmatter(raw);
-  return fm === null ? { fm: "", body: raw } : { fm, body: body.replace(/^(?:\r?\n)+/, "") };
+  return fm === null
+    ? { fm: "", body: raw }
+    : { fm, body: body.replace(/^(?:\r?\n)+/, "") };
 }
 
 export function joinFrontmatter(fm: string, body: string): string {
@@ -95,10 +119,15 @@ export interface MemoryFields {
   type: string;
 }
 
-export function readMemoryFields(raw: string): MemoryFields & { hasFrontmatter: boolean } {
+export function readMemoryFields(
+  raw: string,
+): MemoryFields & { hasFrontmatter: boolean } {
   const fm = parseNote(raw).frontmatter ?? {};
-  const meta = (fm.metadata && typeof fm.metadata === "object" ? fm.metadata : {}) as Record<string, unknown>;
-  const str = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
+  const meta = (
+    fm.metadata && typeof fm.metadata === "object" ? fm.metadata : {}
+  ) as Record<string, unknown>;
+  const str = (v: unknown) =>
+    typeof v === "string" ? v : v == null ? "" : String(v);
   return {
     name: str(fm.name),
     description: str(fm.description),
@@ -107,22 +136,33 @@ export function readMemoryFields(raw: string): MemoryFields & { hasFrontmatter: 
   };
 }
 
-const yamlScalar = (v: string) => (/^[\w./-]+$/.test(v) ? v : JSON.stringify(v));
+const yamlScalar = (v: string) =>
+  /^[\w./-]+$/.test(v) ? v : JSON.stringify(v);
 
 /** Set one of the fields the editor owns. Every other line of the frontmatter
  *  (originSessionId, modified, node_type, …) is left byte for byte. */
-export function writeMemoryField(raw: string, key: keyof MemoryFields, value: string): string {
+export function writeMemoryField(
+  raw: string,
+  key: keyof MemoryFields,
+  value: string,
+): string {
   const { fm, body } = splitFrontmatter(raw);
   const line = `${key}: ${yamlScalar(value)}`;
   let next: string;
   if (key === "type") {
     const block = fm.match(/^metadata:[ \t]*\n((?:[ \t]+.*(?:\n|$))*)/m);
     if (block && /^[ \t]+type:/m.test(block[1])) {
-      next = fm.replace(block[1], block[1].replace(/^([ \t]+)type:.*$/m, `$1type: ${yamlScalar(value)}`));
+      next = fm.replace(
+        block[1],
+        block[1].replace(/^([ \t]+)type:.*$/m, `$1type: ${yamlScalar(value)}`),
+      );
     } else if (/^type:/m.test(fm)) {
       next = fm.replace(/^type:.*$/m, line);
     } else if (block) {
-      next = fm.replace(/^metadata:[ \t]*\n/m, `metadata:\n  type: ${yamlScalar(value)}\n`);
+      next = fm.replace(
+        /^metadata:[ \t]*\n/m,
+        `metadata:\n  type: ${yamlScalar(value)}\n`,
+      );
     } else {
       next = `${fm ? `${fm.replace(/\n*$/, "")}\n` : ""}metadata:\n  type: ${yamlScalar(value)}`;
     }
@@ -145,11 +185,18 @@ export function newMemoryRaw(fields: MemoryFields, body = ""): string {
 
 /** The file a new memory named `name` gets. */
 export function memoryFileFor(name: string): string {
-  return `${memoryLinkKey(name).replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "") || "memory"}.md`;
+  return `${
+    memoryLinkKey(name)
+      .replace(/[^\w]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "memory"
+  }.md`;
 }
 
 /** The MEMORY.md line that points at a memory. */
-export function memoryIndexLine(file: string, fields: Pick<MemoryFields, "name" | "description">): string {
+export function memoryIndexLine(
+  file: string,
+  fields: Pick<MemoryFields, "name" | "description">,
+): string {
   return `- [${(fields.description || fields.name).replace(/[[\]]/g, "")}](${file})`;
 }
 
@@ -159,7 +206,10 @@ export function appendIndexLine(indexRaw: string, line: string): string {
 
 /** Drop the index lines that point at `file` and nothing else. A line that also
  *  points elsewhere stays, and the atlas reports its dangling link. */
-export function removeIndexLinesFor(indexRaw: string, file: string): { raw: string; removed: number } {
+export function removeIndexLinesFor(
+  indexRaw: string,
+  file: string,
+): { raw: string; removed: number } {
   const key = memoryLinkKey(file);
   let removed = 0;
   const kept = indexRaw.split("\n").filter((line) => {
@@ -205,7 +255,12 @@ export interface MemoryProject {
 
 /** How a memory reaches Claude at session start, best first. */
 export type MemoryReach = "loaded" | "reachable" | "cut" | "orphan";
-export const MEMORY_REACH: readonly MemoryReach[] = ["loaded", "reachable", "cut", "orphan"];
+export const MEMORY_REACH: readonly MemoryReach[] = [
+  "loaded",
+  "reachable",
+  "cut",
+  "orphan",
+];
 
 export interface MemoryNote extends MemoryFields {
   file: string;
@@ -225,11 +280,19 @@ export interface MemoryAtlas {
   notes: MemoryNote[];
   byFile: Map<string, MemoryNote>;
   edges: { source: string; target: string }[];
-  index: { raw: string; lines: string[]; refs: { raw: string; file: string | null }[][]; budget: MemoryIndexBudget };
+  index: {
+    raw: string;
+    lines: string[];
+    refs: { raw: string; file: string | null }[][];
+    budget: MemoryIndexBudget;
+  };
   resolve: (target: string) => string | null;
 }
 
-export function buildMemoryAtlas(files: readonly MemoryFile[], indexRaw: string): MemoryAtlas {
+export function buildMemoryAtlas(
+  files: readonly MemoryFile[],
+  indexRaw: string,
+): MemoryAtlas {
   const memories = files.filter((f) => f.file !== MEMORY_INDEX_FILE);
   const byKey = new Map<string, string>();
   const parsed = memories.map((f) => {
@@ -238,12 +301,20 @@ export function buildMemoryAtlas(files: readonly MemoryFile[], indexRaw: string)
     if (fields.name) byKey.set(memoryLinkKey(fields.name), f.file);
     return { f, fields };
   });
-  const resolve = (target: string) => byKey.get(memoryLinkKey(target.split("/").pop() ?? target)) ?? null;
+  const resolve = (target: string) =>
+    byKey.get(memoryLinkKey(target.split("/").pop() ?? target)) ?? null;
 
   const lines = indexLines(indexRaw);
-  const refs = lines.map((line) => indexLineFiles(line).map((raw) => ({ raw, file: resolve(raw) })));
+  const refs = lines.map((line) =>
+    indexLineFiles(line).map((raw) => ({ raw, file: resolve(raw) })),
+  );
   const indexLineOf = new Map<string, number>();
-  refs.forEach((rs, i) => rs.forEach((r) => r.file && !indexLineOf.has(r.file) && indexLineOf.set(r.file, i + 1)));
+  refs.forEach((rs, i) =>
+    rs.forEach(
+      (r) =>
+        r.file && !indexLineOf.has(r.file) && indexLineOf.set(r.file, i + 1),
+    ),
+  );
   const budget = memoryIndexBudget(indexRaw);
 
   const notes: MemoryNote[] = parsed.map(({ f, fields }) => ({
@@ -255,7 +326,10 @@ export function buildMemoryAtlas(files: readonly MemoryFile[], indexRaw: string)
     body: splitFrontmatter(f.raw).body,
     bytes: f.bytes,
     mtime: f.mtime,
-    links: memoryLinkTargets(splitFrontmatter(f.raw).body).map((raw) => ({ raw, file: resolve(raw) })),
+    links: memoryLinkTargets(splitFrontmatter(f.raw).body).map((raw) => ({
+      raw,
+      file: resolve(raw),
+    })),
     indexLine: indexLineOf.get(f.file) ?? null,
     reach: "orphan",
     inbound: [],
@@ -264,14 +338,19 @@ export function buildMemoryAtlas(files: readonly MemoryFile[], indexRaw: string)
 
   const edges: MemoryAtlas["edges"] = [];
   for (const n of notes) {
-    for (const target of new Set(n.links.map((l) => l.file).filter((f): f is string => !!f && f !== n.file))) {
+    for (const target of new Set(
+      n.links
+        .map((l) => l.file)
+        .filter((f): f is string => !!f && f !== n.file),
+    )) {
       edges.push({ source: n.file, target });
       byFile.get(target)!.inbound.push(n.file);
     }
   }
 
   // Loaded = indexed above the cut; reachable = a link chain from a loaded one.
-  const loads = (line: number | null) => line !== null && (budget.cutAt === null || line < budget.cutAt);
+  const loads = (line: number | null) =>
+    line !== null && (budget.cutAt === null || line < budget.cutAt);
   const queue = notes.filter((n) => loads(n.indexLine));
   const seen = new Set(queue.map((n) => n.file));
   for (const n of queue) n.reach = "loaded";
@@ -284,7 +363,14 @@ export function buildMemoryAtlas(files: readonly MemoryFile[], indexRaw: string)
       queue.push(target);
     }
   }
-  for (const n of notes) if (!seen.has(n.file)) n.reach = n.indexLine !== null ? "cut" : "orphan";
+  for (const n of notes)
+    if (!seen.has(n.file)) n.reach = n.indexLine !== null ? "cut" : "orphan";
 
-  return { notes, byFile, edges, index: { raw: indexRaw, lines, refs, budget }, resolve };
+  return {
+    notes,
+    byFile,
+    edges,
+    index: { raw: indexRaw, lines, refs, budget },
+    resolve,
+  };
 }

@@ -1,12 +1,16 @@
-import { create } from 'zustand';
-import { useInboxStore } from './inboxStore';
+import { create } from "zustand";
+import { useInboxStore } from "./inboxStore";
 
 // FileChange and its text-free twin FileChangeRef are defined once in the
 // shared extractor (@codecast/convex) so the server materializer and the
 // client viewer can't drift. Re-exported here to preserve the many
 // `import type { FileChange } from '../store/diffViewerStore'` sites.
-import type { FileChange, FileChangeBody, FileChangeRef } from '../lib/fileChangeExtractor';
-import type { DiffBase } from '@codecast/shared/diff';
+import type {
+  FileChange,
+  FileChangeBody,
+  FileChangeRef,
+} from "../lib/fileChangeExtractor";
+import type { DiffBase } from "@codecast/shared/diff";
 export type { FileChange, FileChangeBody, FileChangeRef };
 
 /** What the timeline holds: the server's references (sizes, no text) merged
@@ -24,7 +28,7 @@ interface DiffViewerState {
   selectedChangeIndex: number | null;
   rangeStart: number | null;
   rangeEnd: number | null;
-  diffMode: 'cumulative' | 'single';
+  diffMode: "cumulative" | "single";
   syncScroll: boolean;
   showFileTree: boolean;
   changes: FileChangeEntry[];
@@ -46,8 +50,15 @@ interface DiffViewerState {
   toggleDiffMode: () => void;
   toggleSyncScroll: () => void;
   toggleFileTree: () => void;
-  setChanges: (conversationId: string | null, changes: FileChangeEntry[]) => void;
-  addBodies: (conversationId: string, bodies: Array<FileChangeBody & { id: string }>, missing?: string[]) => void;
+  setChanges: (
+    conversationId: string | null,
+    changes: FileChangeEntry[],
+  ) => void;
+  addBodies: (
+    conversationId: string,
+    bodies: Array<FileChangeBody & { id: string }>,
+    missing?: string[],
+  ) => void;
   selectFile: (filePath: string | null) => void;
   nextChange: () => void;
   prevChange: () => void;
@@ -66,7 +77,7 @@ export const useDiffViewerStore = create<DiffViewerState>((set, get) => ({
   selectedChangeIndex: null,
   rangeStart: null,
   rangeEnd: null,
-  diffMode: 'cumulative',
+  diffMode: "cumulative",
   syncScroll: true,
   showFileTree: true,
   changes: [],
@@ -103,18 +114,19 @@ export const useDiffViewerStore = create<DiffViewerState>((set, get) => ({
 
   toggleDiffMode: () =>
     set((state) => ({
-      diffMode: state.diffMode === 'cumulative' ? 'single' : 'cumulative',
+      diffMode: state.diffMode === "cumulative" ? "single" : "cumulative",
     })),
 
   toggleSyncScroll: () => set((state) => ({ syncScroll: !state.syncScroll })),
 
   toggleFileTree: () => set((state) => ({ showFileTree: !state.showFileTree })),
 
-  toggleDiffPanel: () => set((state) => {
-    const newValue = !state.diffPanelOpen;
-    useInboxStore.getState()?.updateClientUI?.({ diff_panel_open: newValue });
-    return { diffPanelOpen: newValue };
-  }),
+  toggleDiffPanel: () =>
+    set((state) => {
+      const newValue = !state.diffPanelOpen;
+      useInboxStore.getState()?.updateClientUI?.({ diff_panel_open: newValue });
+      return { diffPanelOpen: newValue };
+    }),
 
   setDiffPanelOpen: (open) => {
     useInboxStore.getState()?.updateClientUI?.({ diff_panel_open: open });
@@ -125,7 +137,10 @@ export const useDiffViewerStore = create<DiffViewerState>((set, get) => ({
     const inbox = useInboxStore.getState();
     const all = inbox?.clientState?.ui?.diff_base ?? {};
     const { [conversationId]: _old, ...rest } = all;
-    inbox?.updateClientUI?.({ diff_base: base === 'session' ? rest : { ...rest, [conversationId]: base } });
+    inbox?.updateClientUI?.({
+      diff_base:
+        base === "session" ? rest : { ...rest, [conversationId]: base },
+    });
     set({ selectedChangeIndex: null, rangeStart: null, rangeEnd: null });
   },
 
@@ -137,14 +152,18 @@ export const useDiffViewerStore = create<DiffViewerState>((set, get) => ({
         conversationId === state.conversationId ? { ...state.bodies } : {};
       for (const change of changes) {
         if (change.newContent !== undefined && !bodies[change.id]) {
-          bodies[change.id] = { oldContent: change.oldContent, newContent: change.newContent };
+          bodies[change.id] = {
+            oldContent: change.oldContent,
+            newContent: change.newContent,
+          };
         }
       }
       return {
         conversationId,
         changes,
         bodies,
-        missingBodies: conversationId === state.conversationId ? state.missingBodies : {},
+        missingBodies:
+          conversationId === state.conversationId ? state.missingBodies : {},
       };
     }),
 
@@ -159,7 +178,11 @@ export const useDiffViewerStore = create<DiffViewerState>((set, get) => ({
       return { bodies, missingBodies };
     }),
 
-  selectFile: (filePath) => set((state) => ({ selectedFile: filePath, focusNonce: state.focusNonce + 1 })),
+  selectFile: (filePath) =>
+    set((state) => ({
+      selectedFile: filePath,
+      focusNonce: state.focusNonce + 1,
+    })),
 
   nextChange: () => {
     const { selectedChangeIndex, changes } = get();
@@ -194,14 +217,15 @@ export const useDiffViewerStore = create<DiffViewerState>((set, get) => ({
   },
 
   getSelectedChanges: () => {
-    const { changes, selectedChangeIndex, rangeStart, rangeEnd, diffMode } = get();
+    const { changes, selectedChangeIndex, rangeStart, rangeEnd, diffMode } =
+      get();
 
     if (rangeStart !== null && rangeEnd !== null) {
       return changes.slice(rangeStart, rangeEnd + 1);
     }
 
     if (selectedChangeIndex !== null) {
-      if (diffMode === 'cumulative') {
+      if (diffMode === "cumulative") {
         return changes.slice(0, selectedChangeIndex + 1);
       } else {
         return [changes[selectedChangeIndex]];

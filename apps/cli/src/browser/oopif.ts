@@ -52,10 +52,17 @@ export function splitRef(ref: number): { key: number; node: number } {
   return { key: Math.floor(ref / FRAME_REF_BASE), node: ref % FRAME_REF_BASE };
 }
 
-const AUTO_ATTACH = { autoAttach: true, waitForDebuggerOnStart: false, flatten: true };
+const AUTO_ATTACH = {
+  autoAttach: true,
+  waitForDebuggerOnStart: false,
+  flatten: true,
+};
 
 /** Per connection and page session: the children seen so far, kept live by the connection's events. */
-const live = new WeakMap<CdpClient, Map<string, Promise<Map<string, ChildFrame>>>>();
+const live = new WeakMap<
+  CdpClient,
+  Map<string, Promise<Map<string, ChildFrame>>>
+>();
 
 /**
  * The cross-origin frames of a page, nested ones included, each as its own
@@ -83,19 +90,34 @@ async function watch(page: PageSession): Promise<Map<string, ChildFrame>> {
   const onEvent = (ev: CdpEvent): void => {
     if (!ev.sessionId || !ours.has(ev.sessionId)) return;
     const p = ev.params as any;
-    if (ev.method === "Target.attachedToTarget" && p?.sessionId && p.targetInfo?.type === "iframe") {
+    if (
+      ev.method === "Target.attachedToTarget" &&
+      p?.sessionId &&
+      p.targetInfo?.type === "iframe"
+    ) {
       const targetId = String(p.targetInfo.targetId);
-      frames.set(p.sessionId, { sessionId: p.sessionId, targetId, url: String(p.targetInfo.url ?? ""), key: frameKey(targetId) });
+      frames.set(p.sessionId, {
+        sessionId: p.sessionId,
+        targetId,
+        url: String(p.targetInfo.url ?? ""),
+        key: frameKey(targetId),
+      });
       ours.add(p.sessionId);
       // Its own cross-origin frames, and the domains a snapshot and a click read.
       pending.push(
-        conn.send("Target.setAutoAttach", AUTO_ATTACH, p.sessionId).catch(() => {}),
+        conn
+          .send("Target.setAutoAttach", AUTO_ATTACH, p.sessionId)
+          .catch(() => {}),
         conn.send("DOM.enable", {}, p.sessionId).catch(() => {}),
       );
     } else if (ev.method === "Target.detachedFromTarget" && p?.sessionId) {
       frames.delete(p.sessionId);
       ours.delete(p.sessionId);
-    } else if (ev.method === "Page.frameNavigated" && p?.frame && !p.frame.parentId) {
+    } else if (
+      ev.method === "Page.frameNavigated" &&
+      p?.frame &&
+      !p.frame.parentId
+    ) {
       const f = frames.get(ev.sessionId);
       if (f) f.url = String(p.frame.url ?? f.url);
     }
@@ -107,7 +129,7 @@ async function watch(page: PageSession): Promise<Map<string, ChildFrame>> {
     return frames; // a target that cannot auto-attach has no reachable frames
   }
   // Children announce themselves before the reply; their own children before theirs.
-  for (let seen = -1; seen !== pending.length; ) {
+  for (let seen = -1; seen !== pending.length;) {
     seen = pending.length;
     await Promise.all(pending.slice());
   }
@@ -118,10 +140,24 @@ async function watch(page: PageSession): Promise<Map<string, ChildFrame>> {
  * The page session and node id a ref acts on: the page itself, or the
  * cross-origin frame the ref came from. Throws when that frame is gone.
  */
-export async function pageForRef(page: PageSession, ref: number): Promise<{ page: PageSession; ref: number; frame?: ChildFrame }> {
+export async function pageForRef(
+  page: PageSession,
+  ref: number,
+): Promise<{ page: PageSession; ref: number; frame?: ChildFrame }> {
   const { key, node } = splitRef(ref);
   if (!key) return { page, ref };
   const frame = (await childFrames(page)).find((f) => f.key === key);
-  if (!frame) throw new Error(`the frame holding #e${ref} is gone from the page; take a fresh snapshot`);
-  return { page: { conn: page.conn, sessionId: frame.sessionId, targetId: frame.targetId }, ref: node, frame };
+  if (!frame)
+    throw new Error(
+      `the frame holding #e${ref} is gone from the page; take a fresh snapshot`,
+    );
+  return {
+    page: {
+      conn: page.conn,
+      sessionId: frame.sessionId,
+      targetId: frame.targetId,
+    },
+    ref: node,
+    frame,
+  };
 }

@@ -53,7 +53,9 @@ function ms(t: number | string | undefined): number {
 }
 
 /** The moment a snapshot describes: the turn's end when it closed one, else when it was taken. */
-export function snapshotMoment(row: Pick<TurnSnapshotRow, "taken_at" | "turn_completed_at">): number {
+export function snapshotMoment(
+  row: Pick<TurnSnapshotRow, "taken_at" | "turn_completed_at">,
+): number {
   return row.turn_completed_at ?? row.taken_at;
 }
 
@@ -71,8 +73,13 @@ function clipAsk(content: string | undefined): string | undefined {
  * closed by an earlier snapshot; a sweep that found nothing new carries no
  * turn and keeps the previous ask.
  */
-export function labelTurns(rows: TurnSnapshotRow[], messages: TurnMessage[]): LabeledTurn[] {
-  const sorted = [...rows].sort((a, b) => snapshotMoment(a) - snapshotMoment(b));
+export function labelTurns(
+  rows: TurnSnapshotRow[],
+  messages: TurnMessage[],
+): LabeledTurn[] {
+  const sorted = [...rows].sort(
+    (a, b) => snapshotMoment(a) - snapshotMoment(b),
+  );
   const out: LabeledTurn[] = [];
   let cursor = 0; // messages consumed by earlier snapshots
   sorted.forEach((row, i) => {
@@ -101,7 +108,11 @@ export function labelTurns(rows: TurnSnapshotRow[], messages: TurnMessage[]): La
  * the newest whose moment is at or before that message's time. Null when no
  * snapshot is that old; the caller then starts from the base commit.
  */
-export function snapshotAtLine(rows: TurnSnapshotRow[], messages: TurnMessage[], line: number): TurnSnapshotRow | null {
+export function snapshotAtLine(
+  rows: TurnSnapshotRow[],
+  messages: TurnMessage[],
+  line: number,
+): TurnSnapshotRow | null {
   const msg = messages[line - 1];
   if (!msg) return null;
   const at = ms(msg.timestamp);
@@ -118,17 +129,45 @@ export function snapshotAtLine(rows: TurnSnapshotRow[], messages: TurnMessage[],
  * else fetched on the session's wip ref from the remote (the chain travels
  * with the tip, so any snapshot the tip descends from arrives too).
  */
-export async function ensureSnapshotLocal(cwd: string, sha: string, conversationId: string, remote: string | null): Promise<boolean> {
-  if ((await gitTry(cwd, ["cat-file", "-e", `${sha}^{commit}`])) !== null) return true;
+export async function ensureSnapshotLocal(
+  cwd: string,
+  sha: string,
+  conversationId: string,
+  remote: string | null,
+): Promise<boolean> {
+  if ((await gitTry(cwd, ["cat-file", "-e", `${sha}^{commit}`])) !== null)
+    return true;
   if (!remote) return false;
   const ref = wipRef(conversationId);
-  if ((await gitTry(cwd, ["fetch", "--quiet", "--force", "--no-tags", remote, `+${ref}:${ref}`])) === null) return false;
+  if (
+    (await gitTry(cwd, [
+      "fetch",
+      "--quiet",
+      "--force",
+      "--no-tags",
+      remote,
+      `+${ref}:${ref}`,
+    ])) === null
+  )
+    return false;
   return (await gitTry(cwd, ["cat-file", "-e", `${sha}^{commit}`])) !== null;
 }
 
 /** `git diff` between the trees of two snapshots (or a snapshot's base and itself). */
-export async function diffBetween(cwd: string, from: string, to: string, opts: { stat?: boolean; paths?: string[] } = {}): Promise<string | null> {
-  const args = ["diff", "--no-color", ...(opts.stat ? ["--stat"] : []), `${from}^{tree}`, `${to}^{tree}`, ...(opts.paths?.length ? ["--", ...opts.paths] : [])];
+export async function diffBetween(
+  cwd: string,
+  from: string,
+  to: string,
+  opts: { stat?: boolean; paths?: string[] } = {},
+): Promise<string | null> {
+  const args = [
+    "diff",
+    "--no-color",
+    ...(opts.stat ? ["--stat"] : []),
+    `${from}^{tree}`,
+    `${to}^{tree}`,
+    ...(opts.paths?.length ? ["--", ...opts.paths] : []),
+  ];
   return gitTry(cwd, args);
 }
 

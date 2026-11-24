@@ -7,6 +7,8 @@
  * is no diff to show (a binary, a pure rename). So only a patch field, empty or
  * not, means the diff is here; counted lines alone still need the fetch.
  */
-export function commitCarriesDiffs(files: ReadonlyArray<{ patch?: string }> | undefined): boolean {
+export function commitCarriesDiffs(
+  files: ReadonlyArray<{ patch?: string }> | undefined,
+): boolean {
   return (files ?? []).some((f) => f.patch !== undefined);
 }

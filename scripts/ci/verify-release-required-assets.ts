@@ -56,10 +56,15 @@ export function findAssetShortfall(
   return {
     missing: requiredNames.filter((name) => !byName.has(name)).sort(),
     notUploaded: present
-      .filter((asset) => asset.state !== undefined && asset.state !== "uploaded")
+      .filter(
+        (asset) => asset.state !== undefined && asset.state !== "uploaded",
+      )
       .map((asset) => `${asset.name}:${asset.state}`)
       .sort(),
-    empty: present.filter((asset) => asset.size === 0).map((asset) => asset.name).sort(),
+    empty: present
+      .filter((asset) => asset.size === 0)
+      .map((asset) => asset.name)
+      .sort(),
   };
 }
 
@@ -68,8 +73,12 @@ export function assertRequiredAssets(
   release: ReleaseSummary,
   requiredNames: string[] = getRequiredReleaseAssetNames(),
 ): void {
-  const { missing, notUploaded, empty } = findAssetShortfall(release, requiredNames);
-  if (missing.length === 0 && notUploaded.length === 0 && empty.length === 0) return;
+  const { missing, notUploaded, empty } = findAssetShortfall(
+    release,
+    requiredNames,
+  );
+  if (missing.length === 0 && notUploaded.length === 0 && empty.length === 0)
+    return;
   throw new Error(
     [
       `Release ${tag} is not ready to publish.`,
@@ -89,22 +98,29 @@ export async function fetchDraftAwareRelease(input: {
   fetchImpl?: typeof fetch;
 }): Promise<ReleaseSummary> {
   const { repo, tag, token, fetchImpl = fetch } = input;
-  const res = await fetchImpl(`https://api.github.com/repos/${repo}/releases?per_page=100`, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": API_VERSION,
+  const res = await fetchImpl(
+    `https://api.github.com/repos/${repo}/releases?per_page=100`,
+    {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": API_VERSION,
+      },
     },
-  });
+  );
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`GitHub releases request failed ${res.status}: ${body.slice(0, 300)}`);
+    throw new Error(
+      `GitHub releases request failed ${res.status}: ${body.slice(0, 300)}`,
+    );
   }
   const releases = (await res.json()) as unknown;
   if (!Array.isArray(releases)) {
     throw new Error(`GitHub releases response for ${repo} was not an array`);
   }
-  const matches = (releases as ReleaseSummary[]).filter((r) => r.tag_name === tag);
+  const matches = (releases as ReleaseSummary[]).filter(
+    (r) => r.tag_name === tag,
+  );
   if (matches.length !== 1) {
     throw new Error(
       `Release ${repo}@${tag} appears ${matches.length} times in the draft-aware releases list`,
@@ -127,7 +143,10 @@ export async function verifyRequiredReleaseAssets(input: {
 
 async function main(): Promise<void> {
   const tag = process.argv[2];
-  if (!tag) throw new Error("Usage: bun scripts/ci/verify-release-required-assets.ts <tag>");
+  if (!tag)
+    throw new Error(
+      "Usage: bun scripts/ci/verify-release-required-assets.ts <tag>",
+    );
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
   if (!token) throw new Error("GH_TOKEN or GITHUB_TOKEN must be set");
   const repo = process.env.GITHUB_REPOSITORY || "codecast-sh/codecast";
@@ -139,7 +158,9 @@ async function main(): Promise<void> {
 
 if (import.meta.main) {
   main().catch((error: unknown) => {
-    console.error(`::error::${error instanceof Error ? error.message : String(error)}`);
+    console.error(
+      `::error::${error instanceof Error ? error.message : String(error)}`,
+    );
     process.exit(1);
   });
 }

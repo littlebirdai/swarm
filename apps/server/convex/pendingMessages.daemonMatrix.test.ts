@@ -37,7 +37,8 @@ function createDb(seed: Record<string, Rec[]>) {
       Object.assign(row, patch);
     },
     query(table: string) {
-      const constraints: Array<{ field: string; op: "eq" | "gt"; val: any }> = [];
+      const constraints: Array<{ field: string; op: "eq" | "gt"; val: any }> =
+        [];
       const q: any = {
         eq(field: string, val: any) {
           constraints.push({ field, op: "eq", val });
@@ -137,44 +138,86 @@ function seedOwnershipWorld(opts: {
 // checkout to host it. Unowned conversations stay first-claim.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("DPM-02 — a stamped owner is exclusive, online or not", () => {
-  const expectRefused = async (db: any, tables: Record<string, Rec[]>, owner: string) => {
-    const deliverable = await collectDeliverableForOwner({ db } as any, "user_a" as any, "device_live");
+  const expectRefused = async (
+    db: any,
+    tables: Record<string, Rec[]>,
+    owner: string,
+  ) => {
+    const deliverable = await collectDeliverableForOwner(
+      { db } as any,
+      "user_a" as any,
+      "device_live",
+    );
     expect(deliverable).toEqual([]);
-    const claimed = await claimPendingMessageForDaemon({ db } as any, "pm_1" as any, "user_a" as any, "device_live");
+    const claimed = await claimPendingMessageForDaemon(
+      { db } as any,
+      "pm_1" as any,
+      "user_a" as any,
+      "device_live",
+    );
     expect(claimed).toBeNull();
     expect(tables.conversations[0].owner_device_id).toBe(owner);
   };
 
   test("SECURITY PIN: an ONLINE owner device stays exclusive — row invisible to peers", async () => {
-    const { db, tables } = seedOwnershipWorld({ ownerDeviceId: "device_other", ownerLastSeen: NOW - ONLINE_AGO });
+    const { db, tables } = seedOwnershipWorld({
+      ownerDeviceId: "device_other",
+      ownerLastSeen: NOW - ONLINE_AGO,
+    });
     await expectRefused(db, tables, "device_other");
   });
 
   test("SECURITY PIN: an OFFLINE owner device stays exclusive — a live local daemon of the same user does not adopt the row", async () => {
-    const { db, tables } = seedOwnershipWorld({ ownerDeviceId: "device_dead", ownerLastSeen: NOW - OFFLINE_AGO });
+    const { db, tables } = seedOwnershipWorld({
+      ownerDeviceId: "device_dead",
+      ownerLastSeen: NOW - OFFLINE_AGO,
+    });
     await expectRefused(db, tables, "device_dead");
   });
 
   test("SECURITY PIN: an owner with NO device row at all is still exclusive (the rule reads only the conversation)", async () => {
-    const { db, tables } = seedOwnershipWorld({ ownerDeviceId: "device_ghost" }); // no dev row
+    const { db, tables } = seedOwnershipWorld({
+      ownerDeviceId: "device_ghost",
+    }); // no dev row
     await expectRefused(db, tables, "device_ghost");
   });
 
   test("a person's move restamps the owner, and the new owner delivers", async () => {
-    const { db, tables } = seedOwnershipWorld({ ownerDeviceId: "device_dead", ownerLastSeen: NOW - OFFLINE_AGO });
+    const { db, tables } = seedOwnershipWorld({
+      ownerDeviceId: "device_dead",
+      ownerLastSeen: NOW - OFFLINE_AGO,
+    });
     await db.patch("conv_1", { owner_device_id: "device_live" }); // what reassignToDevice / moveToRemote do
-    const deliverable = await collectDeliverableForOwner({ db } as any, "user_a" as any, "device_live");
+    const deliverable = await collectDeliverableForOwner(
+      { db } as any,
+      "user_a" as any,
+      "device_live",
+    );
     expect(deliverable.map((m: any) => m._id)).toEqual(["pm_1"]);
-    const claimed = await claimPendingMessageForDaemon({ db } as any, "pm_1" as any, "user_a" as any, "device_live");
+    const claimed = await claimPendingMessageForDaemon(
+      { db } as any,
+      "pm_1" as any,
+      "user_a" as any,
+      "device_live",
+    );
     expect(claimed?._id).toBe("pm_1");
     expect(tables.conversations[0].owner_device_id).toBe("device_live");
   });
 
   test("unowned conversations keep first-claim semantics", async () => {
     const { db, tables } = seedOwnershipWorld({});
-    const deliverable = await collectDeliverableForOwner({ db } as any, "user_a" as any, "device_live");
+    const deliverable = await collectDeliverableForOwner(
+      { db } as any,
+      "user_a" as any,
+      "device_live",
+    );
     expect(deliverable.map((m: any) => m._id)).toEqual(["pm_1"]);
-    await claimPendingMessageForDaemon({ db } as any, "pm_1" as any, "user_a" as any, "device_live");
+    await claimPendingMessageForDaemon(
+      { db } as any,
+      "pm_1" as any,
+      "user_a" as any,
+      "device_live",
+    );
     expect(tables.conversations[0].owner_device_id).toBe("device_live");
   });
 });
@@ -185,17 +228,37 @@ describe("DPM-02 — a stamped owner is exclusive, online or not", () => {
 describe("DPM-01/DLF-01 — claim is ownership-only and loser-safe", () => {
   test("DLF-01: a successful claim does NOT change row status — a crash mid-claim leaves the row deliverable", async () => {
     const { db, tables } = seedOwnershipWorld({});
-    await claimPendingMessageForDaemon({ db } as any, "pm_1" as any, "user_a" as any, "device_live");
+    await claimPendingMessageForDaemon(
+      { db } as any,
+      "pm_1" as any,
+      "user_a" as any,
+      "device_live",
+    );
     expect(tables.pending_messages[0].status).toBe("pending");
   });
 
   test("DPM-01: the second device to claim after a first-claim lands sees null and backs off", async () => {
     const { db, tables } = seedOwnershipWorld({});
     // second live device for the same user
-    tables.devices.push({ _id: "dev_b", user_id: "user_a", device_id: "device_b", last_seen: NOW - ONLINE_AGO });
-    const first = await claimPendingMessageForDaemon({ db } as any, "pm_1" as any, "user_a" as any, "device_live");
+    tables.devices.push({
+      _id: "dev_b",
+      user_id: "user_a",
+      device_id: "device_b",
+      last_seen: NOW - ONLINE_AGO,
+    });
+    const first = await claimPendingMessageForDaemon(
+      { db } as any,
+      "pm_1" as any,
+      "user_a" as any,
+      "device_live",
+    );
     expect(first?._id).toBe("pm_1");
-    const second = await claimPendingMessageForDaemon({ db } as any, "pm_1" as any, "user_a" as any, "device_b");
+    const second = await claimPendingMessageForDaemon(
+      { db } as any,
+      "pm_1" as any,
+      "user_a" as any,
+      "device_b",
+    );
     expect(second).toBeNull();
     expect(tables.conversations[0].owner_device_id).toBe("device_live");
   });
@@ -215,7 +278,9 @@ describe("DPM-01/DLF-01 — claim is ownership-only and loser-safe", () => {
 describe("DEC-01 — scoped injected-ack", () => {
   function seedInjectedWorld() {
     return createDb({
-      conversations: [{ _id: "conv_1", user_id: "user_a", has_pending_messages: true }],
+      conversations: [
+        { _id: "conv_1", user_id: "user_a", has_pending_messages: true },
+      ],
       pending_messages: [
         {
           _id: "pm_landed",
@@ -243,25 +308,39 @@ describe("DEC-01 — scoped injected-ack", () => {
 
   test("an injected row the daemon did not report as pasted is NOT acked by an unrelated echo", async () => {
     const { db, tables } = seedInjectedWorld();
-    const acked = await ackInjectedForDaemon({ db } as any, "conv_1" as any, ["pm_landed" as any]);
+    const acked = await ackInjectedForDaemon({ db } as any, "conv_1" as any, [
+      "pm_landed" as any,
+    ]);
     expect(acked).toBe(1);
-    expect(tables.pending_messages.find((m) => m._id === "pm_landed")!.status).toBe("delivered");
+    expect(
+      tables.pending_messages.find((m) => m._id === "pm_landed")!.status,
+    ).toBe("delivered");
     // The stranded row stays `injected` for the heal cron to re-pend and re-deliver.
-    expect(tables.pending_messages.find((m) => m._id === "pm_stranded")!.status).toBe("injected");
+    expect(
+      tables.pending_messages.find((m) => m._id === "pm_stranded")!.status,
+    ).toBe("injected");
     // has_pending_messages must survive: something is still in flight.
     expect(tables.conversations[0].has_pending_messages).toBe(true);
   });
 
   test("a daemon that knows of NO pastes (fresh restart) acks nothing", async () => {
     const { db, tables } = seedInjectedWorld();
-    const acked = await ackInjectedForDaemon({ db } as any, "conv_1" as any, []);
+    const acked = await ackInjectedForDaemon(
+      { db } as any,
+      "conv_1" as any,
+      [],
+    );
     expect(acked).toBe(0);
     for (const m of tables.pending_messages) expect(m.status).toBe("injected");
   });
 
   test("back-compat: an OLD daemon that passes no id list keeps the blanket behavior", async () => {
     const { db, tables } = seedInjectedWorld();
-    const acked = await ackInjectedForDaemon({ db } as any, "conv_1" as any, undefined);
+    const acked = await ackInjectedForDaemon(
+      { db } as any,
+      "conv_1" as any,
+      undefined,
+    );
     expect(acked).toBe(2);
     for (const m of tables.pending_messages) expect(m.status).toBe("delivered");
     expect(tables.conversations[0].has_pending_messages).toBe(false);
@@ -270,9 +349,13 @@ describe("DEC-01 — scoped injected-ack", () => {
   test("ids from a stale process for rows already content-acked are harmless no-ops", async () => {
     const { db, tables } = seedInjectedWorld();
     await db.patch("pm_landed", { status: "delivered" });
-    const acked = await ackInjectedForDaemon({ db } as any, "conv_1" as any, ["pm_landed" as any]);
+    const acked = await ackInjectedForDaemon({ db } as any, "conv_1" as any, [
+      "pm_landed" as any,
+    ]);
     expect(acked).toBe(0);
-    expect(tables.pending_messages.find((m) => m._id === "pm_landed")!.status).toBe("delivered");
+    expect(
+      tables.pending_messages.find((m) => m._id === "pm_landed")!.status,
+    ).toBe("delivered");
   });
 });
 
@@ -284,7 +367,8 @@ describe("DEC-01 — scoped injected-ack", () => {
 describe("DEC-05 — oversized message echo", () => {
   test("a truncated echo is scoped-acked and stamped for send/v2 coverage", async () => {
     const fullContent = "x".repeat(500) + " tail that will be cut";
-    const truncatedEcho = fullContent.slice(0, 500) + "\n... [truncated 22 chars]";
+    const truncatedEcho =
+      fullContent.slice(0, 500) + "\n... [truncated 22 chars]";
     const pendingRow = {
       _id: "pm_big",
       content: fullContent,
@@ -292,34 +376,42 @@ describe("DEC-05 — oversized message echo", () => {
       status: "injected",
     };
     // The content-matched ack provably cannot see this echo…
-    expect(findEchoedPendingMessage([pendingRow], truncatedEcho, NOW)).toBeUndefined();
+    expect(
+      findEchoedPendingMessage([pendingRow], truncatedEcho, NOW),
+    ).toBeUndefined();
 
     // …so the scoped bulk ack (daemon-reported paste) must be what delivers it.
     const { db, tables } = createDb({
       conversations: [{ _id: "conv_1", user_id: "user_a" }],
-      pending_messages: [{
-        ...pendingRow,
-        conversation_id: "conv_1",
-        from_user_id: "user_a",
-        client_id: "command_big",
-        retry_count: 0,
-      }],
-      messages: [{
-        _id: "message_truncated",
-        conversation_id: "conv_1",
-        role: "user",
-        content: truncatedEcho,
-        timestamp: NOW,
-      }],
+      pending_messages: [
+        {
+          ...pendingRow,
+          conversation_id: "conv_1",
+          from_user_id: "user_a",
+          client_id: "command_big",
+          retry_count: 0,
+        },
+      ],
+      messages: [
+        {
+          _id: "message_truncated",
+          conversation_id: "conv_1",
+          role: "user",
+          content: truncatedEcho,
+          timestamp: NOW,
+        },
+      ],
     });
     const acked = await ackInjectedForDaemon(
       { db } as any,
       "conv_1" as any,
       ["pm_big" as any],
-      [{
-        pendingMessageId: "pm_big" as any,
-        transcriptMessageId: "message_truncated" as any,
-      }],
+      [
+        {
+          pendingMessageId: "pm_big" as any,
+          transcriptMessageId: "message_truncated" as any,
+        },
+      ],
     );
     expect(acked).toBe(1);
     expect(tables.pending_messages[0].status).toBe("delivered");
@@ -329,33 +421,39 @@ describe("DEC-05 — oversized message echo", () => {
   test("a daemon ack never overwrites a transcript owned by another command", async () => {
     const { db, tables } = createDb({
       conversations: [{ _id: "conv_1", user_id: "user_a" }],
-      pending_messages: [{
-        _id: "pm_new",
-        conversation_id: "conv_1",
-        from_user_id: "user_a",
-        client_id: "command_new",
-        content: "same",
-        status: "injected",
-        created_at: NOW,
-        retry_count: 0,
-      }],
-      messages: [{
-        _id: "message_old",
-        conversation_id: "conv_1",
-        role: "user",
-        content: "same",
-        client_id: "command_old",
-        timestamp: NOW,
-      }],
+      pending_messages: [
+        {
+          _id: "pm_new",
+          conversation_id: "conv_1",
+          from_user_id: "user_a",
+          client_id: "command_new",
+          content: "same",
+          status: "injected",
+          created_at: NOW,
+          retry_count: 0,
+        },
+      ],
+      messages: [
+        {
+          _id: "message_old",
+          conversation_id: "conv_1",
+          role: "user",
+          content: "same",
+          client_id: "command_old",
+          timestamp: NOW,
+        },
+      ],
     });
     await ackInjectedForDaemon(
       { db } as any,
       "conv_1" as any,
       ["pm_new" as any],
-      [{
-        pendingMessageId: "pm_new" as any,
-        transcriptMessageId: "message_old" as any,
-      }],
+      [
+        {
+          pendingMessageId: "pm_new" as any,
+          transcriptMessageId: "message_old" as any,
+        },
+      ],
     );
     expect(tables.messages[0].client_id).toBe("command_old");
   });
@@ -370,39 +468,48 @@ describe("DEC-05 — oversized message echo", () => {
   test("a vouched ack ties the row to its transcript so a later content-matched echo cannot re-adopt it", async () => {
     const { db, tables } = createDb({
       conversations: [{ _id: "conv_1", user_id: "user_a" }],
-      pending_messages: [{
-        _id: "pm_continue",
-        conversation_id: "conv_1",
-        from_user_id: "user_a",
-        client_id: "acct-switch-cmd1-conv_1",
-        content: "continue",
-        status: "injected",
-        created_at: NOW - 10_000,
-        retry_count: 0,
-      }],
-      messages: [{
-        _id: "message_notification",
-        conversation_id: "conv_1",
-        role: "user",
-        content: "<task-notification>\n<task-id>b1</task-id>\n<status>stopped</status>\n</task-notification>",
-        timestamp: NOW,
-      }],
+      pending_messages: [
+        {
+          _id: "pm_continue",
+          conversation_id: "conv_1",
+          from_user_id: "user_a",
+          client_id: "acct-switch-cmd1-conv_1",
+          content: "continue",
+          status: "injected",
+          created_at: NOW - 10_000,
+          retry_count: 0,
+        },
+      ],
+      messages: [
+        {
+          _id: "message_notification",
+          conversation_id: "conv_1",
+          role: "user",
+          content:
+            "<task-notification>\n<task-id>b1</task-id>\n<status>stopped</status>\n</task-notification>",
+          timestamp: NOW,
+        },
+      ],
     });
     await ackInjectedForDaemon(
       { db } as any,
       "conv_1" as any,
       ["pm_continue" as any],
-      [{
-        pendingMessageId: "pm_continue" as any,
-        transcriptMessageId: "message_notification" as any,
-      }],
+      [
+        {
+          pendingMessageId: "pm_continue" as any,
+          transcriptMessageId: "message_notification" as any,
+        },
+      ],
     );
     const row = tables.pending_messages[0];
     expect(row.status).toBe("delivered");
     expect(row.echo_message_id).toBe("message_notification");
     // The true echo arrives later: the delivered tier must NOT re-match a row
     // that already has its transcript relation.
-    expect(findEchoedPendingMessage([row as any], "continue", NOW + 240_000)).toBeUndefined();
+    expect(
+      findEchoedPendingMessage([row as any], "continue", NOW + 240_000),
+    ).toBeUndefined();
   });
 });
 
@@ -420,11 +527,33 @@ describe("DOF-01 — backlog ordering", () => {
       devices: [],
       pending_messages: [
         // Self-sends appear under BOTH by_owner_status and by_user_status.
-        { _id: "pm_old", conversation_id: "conv_1", from_user_id: "user_a", owner_user_id: "user_a", content: "first", status: "pending", created_at: NOW - 30_000, retry_count: 0 },
-        { _id: "pm_new", conversation_id: "conv_1", from_user_id: "user_a", owner_user_id: "user_a", content: "second", status: "pending", created_at: NOW - 10_000, retry_count: 0 },
+        {
+          _id: "pm_old",
+          conversation_id: "conv_1",
+          from_user_id: "user_a",
+          owner_user_id: "user_a",
+          content: "first",
+          status: "pending",
+          created_at: NOW - 30_000,
+          retry_count: 0,
+        },
+        {
+          _id: "pm_new",
+          conversation_id: "conv_1",
+          from_user_id: "user_a",
+          owner_user_id: "user_a",
+          content: "second",
+          status: "pending",
+          created_at: NOW - 10_000,
+          retry_count: 0,
+        },
       ],
     });
-    const deliverable = await collectDeliverableForOwner({ db } as any, "user_a" as any, "device_live");
+    const deliverable = await collectDeliverableForOwner(
+      { db } as any,
+      "user_a" as any,
+      "device_live",
+    );
     expect(deliverable.map((m: any) => m._id)).toEqual(["pm_old"]);
   });
 });
@@ -442,12 +571,22 @@ describe("canDaemonSeePendingMessage — default remains fail-closed", () => {
   };
   test("owner mismatch without liveness facts is invisible", () => {
     expect(
-      canDaemonSeePendingMessage(msg, { user_id: "user_a" as any, owner_device_id: "other" }, "user_a" as any, "mine"),
+      canDaemonSeePendingMessage(
+        msg,
+        { user_id: "user_a" as any, owner_device_id: "other" },
+        "user_a" as any,
+        "mine",
+      ),
     ).toBe(false);
   });
   test("unowned conversation stays visible", () => {
     expect(
-      canDaemonSeePendingMessage(msg, { user_id: "user_a" as any }, "user_a" as any, "mine"),
+      canDaemonSeePendingMessage(
+        msg,
+        { user_id: "user_a" as any },
+        "user_a" as any,
+        "mine",
+      ),
     ).toBe(true);
   });
 });

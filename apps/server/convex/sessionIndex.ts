@@ -28,7 +28,8 @@ export type SessionIndexRow = {
   message_count: number;
 };
 
-const cut = (text: string | null | undefined) => (text ? clipText(text, TEXT_CUT) : null);
+const cut = (text: string | null | undefined) =>
+  text ? clipText(text, TEXT_CUT) : null;
 
 function indexRowOf(conv: Doc<"conversations">): SessionIndexRow {
   return {
@@ -46,7 +47,12 @@ function indexRowOf(conv: Doc<"conversations">): SessionIndexRow {
 /** A session a person would look for by name: not a worker folded under
  *  another session, and not one that never got a message. */
 function listed(conv: Doc<"conversations">): boolean {
-  return !conv.is_subagent && !conv.parent_conversation_id && !conv.comment_fork_parent && (conv.message_count ?? 0) > 0;
+  return (
+    !conv.is_subagent &&
+    !conv.parent_conversation_id &&
+    !conv.comment_fork_parent &&
+    (conv.message_count ?? 0) > 0
+  );
 }
 
 /**
@@ -56,14 +62,20 @@ function listed(conv: Doc<"conversations">): boolean {
  */
 export const page = query({
   args: { before: v.optional(v.number()), after: v.optional(v.number()) },
-  handler: async (ctx, args): Promise<{ rows: SessionIndexRow[]; next: number | null }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ rows: SessionIndexRow[]; next: number | null }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { rows: [], next: null };
     const scanned = await ctx.db
       .query("conversations")
       .withIndex("by_user_updated", (q) => {
         const mine = q.eq("user_id", userId);
-        if (args.before != null && args.after != null) return mine.gt("updated_at", args.after).lt("updated_at", args.before);
+        if (args.before != null && args.after != null)
+          return mine
+            .gt("updated_at", args.after)
+            .lt("updated_at", args.before);
         if (args.before != null) return mine.lt("updated_at", args.before);
         if (args.after != null) return mine.gt("updated_at", args.after);
         return mine;
@@ -72,7 +84,10 @@ export const page = query({
       .take(SCAN_ROWS);
     return {
       rows: scanned.filter(listed).map(indexRowOf),
-      next: scanned.length < SCAN_ROWS ? null : scanned[scanned.length - 1].updated_at,
+      next:
+        scanned.length < SCAN_ROWS
+          ? null
+          : scanned[scanned.length - 1].updated_at,
     };
   },
 });

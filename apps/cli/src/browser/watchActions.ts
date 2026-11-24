@@ -52,7 +52,13 @@ const WHEEL_INTERVAL_MS = 80;
 /** Keystrokes into one field within this gap read as one caption. */
 const TYPING_GAP_MS = 3000;
 
-export type WatchActionKind = "move" | "down" | "up" | "type" | "nav" | "scroll";
+export type WatchActionKind =
+  | "move"
+  | "down"
+  | "up"
+  | "type"
+  | "nav"
+  | "scroll";
 
 /** One action frame, server to viewer. x/y are 0..1 of the page viewport. */
 export interface WatchAction {
@@ -177,23 +183,42 @@ export function actionObserverInstallExpression(): string {
 JSON.stringify((window.__castWatch && window.__castWatch.recent) || [])`;
 }
 
-const KINDS = new Set<WatchActionKind>(["move", "down", "up", "type", "nav", "scroll"]);
+const KINDS = new Set<WatchActionKind>([
+  "move",
+  "down",
+  "up",
+  "type",
+  "nav",
+  "scroll",
+]);
 
-const unit = (v: number): number => Math.round(Math.min(1, Math.max(0, v)) * 10000) / 10000;
+const unit = (v: number): number =>
+  Math.round(Math.min(1, Math.max(0, v)) * 10000) / 10000;
 
 /**
  * Shape one raw report from the page into an action frame. Null for anything
  * malformed, and for an event with no viewport to normalize against (a page
  * with a zero-size window has nowhere to draw a cursor).
  */
-export function normalizeAction(raw: unknown, now = Date.now()): WatchAction | null {
+export function normalizeAction(
+  raw: unknown,
+  now = Date.now(),
+): WatchAction | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const kind = r.kind;
-  if (typeof kind !== "string" || !KINDS.has(kind as WatchActionKind)) return null;
+  if (typeof kind !== "string" || !KINDS.has(kind as WatchActionKind))
+    return null;
   const { x, y, w, h } = r;
-  if (typeof x !== "number" || typeof y !== "number" || typeof w !== "number" || typeof h !== "number") return null;
-  if (!Number.isFinite(x) || !Number.isFinite(y) || !(w > 0) || !(h > 0)) return null;
+  if (
+    typeof x !== "number" ||
+    typeof y !== "number" ||
+    typeof w !== "number" ||
+    typeof h !== "number"
+  )
+    return null;
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !(w > 0) || !(h > 0))
+    return null;
   const action: WatchAction = {
     type: "action",
     kind: kind as WatchActionKind,
@@ -203,18 +228,24 @@ export function normalizeAction(raw: unknown, now = Date.now()): WatchAction | n
   };
   if (kind === "type") {
     if (r.secret === true) action.secret = true;
-    else if (typeof r.text === "string") action.text = r.text.slice(-ACTION_TEXT_CAP);
+    else if (typeof r.text === "string")
+      action.text = r.text.slice(-ACTION_TEXT_CAP);
   }
   if (kind === "scroll") {
-    if (typeof r.dx === "number" && Number.isFinite(r.dx)) action.dx = Math.round(r.dx);
-    if (typeof r.dy === "number" && Number.isFinite(r.dy)) action.dy = Math.round(r.dy);
+    if (typeof r.dx === "number" && Number.isFinite(r.dx))
+      action.dx = Math.round(r.dx);
+    if (typeof r.dy === "number" && Number.isFinite(r.dy))
+      action.dy = Math.round(r.dy);
   }
   if (kind === "nav" && typeof r.url === "string") action.url = r.url;
   return action;
 }
 
 /** Parse one binding payload (JSON text) into an action frame, or null. */
-export function parseActionPayload(payload: unknown, now = Date.now()): WatchAction | null {
+export function parseActionPayload(
+  payload: unknown,
+  now = Date.now(),
+): WatchAction | null {
   if (typeof payload !== "string") return null;
   try {
     return normalizeAction(JSON.parse(payload), now);
@@ -224,7 +255,10 @@ export function parseActionPayload(payload: unknown, now = Date.now()): WatchAct
 }
 
 /** The actions a page reported before this viewer arrived, still fresh. */
-export function replayableActions(recentJson: unknown, now = Date.now()): WatchAction[] {
+export function replayableActions(
+  recentJson: unknown,
+  now = Date.now(),
+): WatchAction[] {
   if (typeof recentJson !== "string") return [];
   let list: unknown;
   try {
@@ -236,7 +270,10 @@ export function replayableActions(recentJson: unknown, now = Date.now()): WatchA
   return list
     .slice(-ACTION_RECENT)
     .map((r) => normalizeAction(r, now))
-    .filter((a): a is WatchAction => a !== null && now - a.at <= ACTION_REPLAY_MAX_AGE_MS);
+    .filter(
+      (a): a is WatchAction =>
+        a !== null && now - a.at <= ACTION_REPLAY_MAX_AGE_MS,
+    );
 }
 
 /**
@@ -251,12 +288,14 @@ export class RecentActions {
     let list = this.byTab.get(tabId);
     if (!list) {
       // Keep insertion order so the oldest tab is the one dropped.
-      if (this.byTab.size >= 32) this.byTab.delete(this.byTab.keys().next().value!);
+      if (this.byTab.size >= 32)
+        this.byTab.delete(this.byTab.keys().next().value!);
       list = [];
       this.byTab.set(tabId, list);
     }
     list.push(action);
-    if (list.length > ACTION_RECENT) list.splice(0, list.length - ACTION_RECENT);
+    if (list.length > ACTION_RECENT)
+      list.splice(0, list.length - ACTION_RECENT);
   }
 
   recall(tabId: string, now = Date.now()): WatchAction[] {

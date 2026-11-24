@@ -47,14 +47,21 @@ describe("parseAgentDefinitionFile", () => {
     expect(def.system_prompt).toBe("You are a scout.");
   });
   test("falls back to the file stem for the name and maps isolation and safe", () => {
-    const def = parseAgentDefinitionFile("---\ndescription: d\nisolation: worktree\nmode: safe\n---\nbody", "worker");
+    const def = parseAgentDefinitionFile(
+      "---\ndescription: d\nisolation: worktree\nmode: safe\n---\nbody",
+      "worker",
+    );
     expect(def.name).toBe("worker");
     expect(def.isolated).toBe(true);
     expect(def.mode).toBe("propose");
   });
   test("a file with no frontmatter is all prompt", () => {
     const def = parseAgentDefinitionFile("Just a prompt.", "plain");
-    expect(def).toEqual({ name: "plain", description: "", system_prompt: "Just a prompt." });
+    expect(def).toEqual({
+      name: "plain",
+      description: "",
+      system_prompt: "Just a prompt.",
+    });
   });
 });
 

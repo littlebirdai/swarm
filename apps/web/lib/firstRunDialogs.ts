@@ -46,7 +46,10 @@ const getServerSnapshot = () => "";
  * auto-open effect depends on `blocked` and opens only when `claim()` agrees.
  * A deliberate open by the user needs neither: it just opens, and holds.
  */
-export function useFirstRunDialog(id: string, open: boolean): { blocked: boolean; claim: () => boolean } {
+export function useFirstRunDialog(
+  id: string,
+  open: boolean,
+): { blocked: boolean; claim: () => boolean } {
   const snap = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   useWatchEffect(() => {
     if (open) {

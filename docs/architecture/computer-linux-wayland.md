@@ -12,14 +12,14 @@ Today the Linux provider (`apps/cli/src/computer/linux/helper.py`) is X11 only: 
 
 ## What changes
 
-| Piece | X11 today | Wayland |
-|---|---|---|
-| Pointer and keyboard | XTEST, any window, no consent | libei through the RemoteDesktop portal (GNOME 46+, KDE Plasma 6), one consent per session; input reaches the focused surface only |
-| Pixels | `XGetImage` on the root, any rectangle | ScreenCast portal, frames over PipeWire; monitor or window source picked at consent time |
-| Window list, ids, geometry | `_NET_CLIENT_LIST_STACKING`, X window ids | no client can list or place other clients' windows; AT-SPI frames are the only portable list |
-| Element frames | AT-SPI `SCREEN` extents minus the window origin | toolkits report coordinates relative to their own window (GTK 4, GTK 3 on Wayland); the window's screen origin is unknown to clients |
-| Raise and focus (`--restore-window`) | `_NET_ACTIVE_WINDOW` | not available to clients; compositors refuse focus stealing |
-| Unicode typing | temporary keycode bindings | libei sends keycodes against the compositor's keymap; characters outside it need the keymap the EIS device carries, or AT-SPI `insert_text` |
+| Piece                                | X11 today                                       | Wayland                                                                                                                                     |
+| ------------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pointer and keyboard                 | XTEST, any window, no consent                   | libei through the RemoteDesktop portal (GNOME 46+, KDE Plasma 6), one consent per session; input reaches the focused surface only           |
+| Pixels                               | `XGetImage` on the root, any rectangle          | ScreenCast portal, frames over PipeWire; monitor or window source picked at consent time                                                    |
+| Window list, ids, geometry           | `_NET_CLIENT_LIST_STACKING`, X window ids       | no client can list or place other clients' windows; AT-SPI frames are the only portable list                                                |
+| Element frames                       | AT-SPI `SCREEN` extents minus the window origin | toolkits report coordinates relative to their own window (GTK 4, GTK 3 on Wayland); the window's screen origin is unknown to clients        |
+| Raise and focus (`--restore-window`) | `_NET_ACTIVE_WINDOW`                            | not available to clients; compositors refuse focus stealing                                                                                 |
+| Unicode typing                       | temporary keycode bindings                      | libei sends keycodes against the compositor's keymap; characters outside it need the keymap the EIS device carries, or AT-SPI `insert_text` |
 
 The consequences for the verbs:
 
@@ -49,14 +49,14 @@ A cloud host has no person to click a consent dialog and no monitor, so the port
 
 ### Cost next to Xvfb
 
-| | Xvfb (today) | GNOME headless |
-|---|---|---|
-| Processes | `Xvfb` (~30 MB) | gnome-shell, mutter, xdg-desktop-portal and -gnome, pipewire, wireplumber, gnome-remote-desktop: several hundred MB before any app |
-| Rendering | X server software paths | the compositor composites every frame with llvmpipe on the CPU |
-| Input | XTEST, no consent, any window | EIS session to set up and keep alive; focus-bound |
-| Pixels | one `XGetImage` per read | PipeWire stream per window, open or opened on demand |
-| Window list and geometry | EWMH, complete | no portable source |
-| Packages | Xvfb plus the AT-SPI and python-xlib packages | `gnome-shell`, `gnome-remote-desktop`, portals, pipewire stack |
+|                          | Xvfb (today)                                  | GNOME headless                                                                                                                     |
+| ------------------------ | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Processes                | `Xvfb` (~30 MB)                               | gnome-shell, mutter, xdg-desktop-portal and -gnome, pipewire, wireplumber, gnome-remote-desktop: several hundred MB before any app |
+| Rendering                | X server software paths                       | the compositor composites every frame with llvmpipe on the CPU                                                                     |
+| Input                    | XTEST, no consent, any window                 | EIS session to set up and keep alive; focus-bound                                                                                  |
+| Pixels                   | one `XGetImage` per read                      | PipeWire stream per window, open or opened on demand                                                                               |
+| Window list and geometry | EWMH, complete                                | no portable source                                                                                                                 |
+| Packages                 | Xvfb plus the AT-SPI and python-xlib packages | `gnome-shell`, `gnome-remote-desktop`, portals, pipewire stack                                                                     |
 
 On a 4 vCPU / 8 GB host such as the one this work was measured on, GNOME headless fits, but it is a session's worth of standing CPU and memory next to a 30 MB X server, and it adds a moving private API.
 

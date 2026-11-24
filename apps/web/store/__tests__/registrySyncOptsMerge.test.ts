@@ -1,7 +1,11 @@
 import { expect, test } from "bun:test";
 import { useInboxStore } from "../inboxStore";
 
-const detail = (id: string, short: string) => ({ _id: id, decision: { _id: id, short_id: short }, doc: null });
+const detail = (id: string, short: string) => ({
+  _id: id,
+  decision: { _id: id, short_id: short },
+  doc: null,
+});
 
 // A store-internal entry once replaced decisionDetails' registered isDelta with
 // `{}`: each decision a page fed evicted the others, and the one on screen

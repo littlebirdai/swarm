@@ -42,7 +42,8 @@ export const CHAT_PREFETCH_INTERVAL = 1_000;
 
 type Known = { thread_root_id?: string };
 
-const keyOf = (target: Pick<ChatPrefetchTarget, "kind" | "id">) => `${target.kind}:${target.id}`;
+const keyOf = (target: Pick<ChatPrefetchTarget, "kind" | "id">) =>
+  `${target.kind}:${target.id}`;
 
 /** Newest rooms first, so the top of the rail fills before its tail. */
 export function chatPrefetchTargets(
@@ -50,7 +51,7 @@ export function chatPrefetchTargets(
   notifications: ChatPrefetchNotification[],
   read: (id: string) => ChatMessageRow | undefined,
 ): ChatPrefetchTarget[] {
-  const channels = new Map(rail.map(row => [row.channel_id, row]));
+  const channels = new Map(rail.map((row) => [row.channel_id, row]));
   const targets = new Map<string, ChatPrefetchTarget>();
   const add = (target: ChatPrefetchTarget) => {
     const prev = targets.get(keyOf(target));
@@ -58,22 +59,51 @@ export function chatPrefetchTargets(
   };
   // The rows a click on this message lands on. `hint` is the rail's copy of
   // the newest line, which already says whether it is a reply.
-  const lookup = (row: ChatRailRow, messageId: string, at: number, hint?: Known) => {
+  const lookup = (
+    row: ChatRailRow,
+    messageId: string,
+    at: number,
+    hint?: Known,
+  ) => {
     const cached = read(messageId);
     const root = (cached ?? hint)?.thread_root_id;
     if (root) {
-      if (!cached || !read(root)) add({ kind: "thread", id: root, channelId: row.channel_id, messageId, at });
-    } else if (!cached && !hint && !targets.has(keyOf({ kind: "channel", id: row.channel_id }))) {
+      if (!cached || !read(root))
+        add({
+          kind: "thread",
+          id: root,
+          channelId: row.channel_id,
+          messageId,
+          at,
+        });
+    } else if (
+      !cached &&
+      !hint &&
+      !targets.has(keyOf({ kind: "channel", id: row.channel_id }))
+    ) {
       // Unknown shape: ask for the one row. Never while the channel's page is
       // still coming, which usually carries it, and would otherwise leave a
       // lone new row above a gap in the cached room.
-      add({ kind: "message", id: messageId, channelId: row.channel_id, messageId, at });
+      add({
+        kind: "message",
+        id: messageId,
+        channelId: row.channel_id,
+        messageId,
+        at,
+      });
     }
   };
   const page = (row: ChatRailRow) => {
     const tip = row.last_message;
     if (!tip) return;
-    if (!read(tip._id)) add({ kind: "channel", id: row.channel_id, channelId: row.channel_id, messageId: tip._id, at: row.sort_at });
+    if (!read(tip._id))
+      add({
+        kind: "channel",
+        id: row.channel_id,
+        channelId: row.channel_id,
+        messageId: tip._id,
+        at: row.sort_at,
+      });
     lookup(row, tip._id, tip.created_at, tip);
   };
 
@@ -83,14 +113,25 @@ export function chatPrefetchTargets(
   // A notification names its channel and message. The channel must be one the
   // viewer's rail carries: a room they left keeps its old notifications.
   const pending = notifications
-    .filter(n => !n.read && n.entity_type === "chat_channel" && n.chat_message_id && channels.has(n.entity_id ?? ""))
+    .filter(
+      (n) =>
+        !n.read &&
+        n.entity_type === "chat_channel" &&
+        n.chat_message_id &&
+        channels.has(n.entity_id ?? ""),
+    )
     .sort((a, b) => b.created_at - a.created_at)
     .slice(0, CHAT_PREFETCH_NOTIFICATIONS);
   for (const n of pending) {
     const row = channels.get(n.entity_id!)!;
     page(row);
     const tip = row.last_message ?? undefined;
-    lookup(row, n.chat_message_id!, n.created_at, tip?._id === n.chat_message_id ? tip : undefined);
+    lookup(
+      row,
+      n.chat_message_id!,
+      n.created_at,
+      tip?._id === n.chat_message_id ? tip : undefined,
+    );
   }
   return [...targets.values()].sort((a, b) => b.at - a.at);
 }
@@ -117,24 +158,42 @@ export function createChatPrefetcher(options: {
   const nextStart = new Map<string, number>();
 
   // Still the viewer's room: on the newest rail, and the caller agrees.
-  const allowed = (channelId: string) => rail.some(row => row.channel_id === channelId) && options.allowed(channelId);
+  const allowed = (channelId: string) =>
+    rail.some((row) => row.channel_id === channelId) &&
+    options.allowed(channelId);
   const ready = (key: string, target: ChatPrefetchTarget) =>
-    !active.has(key) && fetchedFor.get(key) !== target.messageId && allowed(target.channelId);
+    !active.has(key) &&
+    fetchedFor.get(key) !== target.messageId &&
+    allowed(target.channelId);
 
   const refresh = () => {
-    desired = new Map(chatPrefetchTargets(rail, notifications, options.read).map(target => [keyOf(target), target]));
-    for (const key of fetchedFor.keys()) if (!desired.has(key)) fetchedFor.delete(key);
+    desired = new Map(
+      chatPrefetchTargets(rail, notifications, options.read).map((target) => [
+        keyOf(target),
+        target,
+      ]),
+    );
+    for (const key of fetchedFor.keys())
+      if (!desired.has(key)) fetchedFor.delete(key);
     // A spacing timer outlives its target: a room whose page just landed drops
     // out of the wanted set, and its next line must still wait out the second.
     const now = Date.now();
-    for (const [key, at] of nextStart) if (at <= now && !desired.has(key) && !active.has(key)) nextStart.delete(key);
+    for (const [key, at] of nextStart)
+      if (at <= now && !desired.has(key) && !active.has(key))
+        nextStart.delete(key);
   };
 
   const schedule = () => {
-    if (stopped || timer !== undefined || active.size >= CHAT_PREFETCH_CONCURRENCY) return;
+    if (
+      stopped ||
+      timer !== undefined ||
+      active.size >= CHAT_PREFETCH_CONCURRENCY
+    )
+      return;
     let wait = Infinity;
     for (const [key, target] of desired) {
-      if (ready(key, target)) wait = Math.min(wait, (nextStart.get(key) ?? 0) - Date.now());
+      if (ready(key, target))
+        wait = Math.min(wait, (nextStart.get(key) ?? 0) - Date.now());
     }
     if (wait !== Infinity) timer = setTimeout(pump, Math.max(0, wait));
   };
@@ -144,7 +203,8 @@ export function createChatPrefetcher(options: {
     if (stopped) return;
     for (const [key, target] of desired) {
       if (active.size >= CHAT_PREFETCH_CONCURRENCY) break;
-      if (!ready(key, target) || (nextStart.get(key) ?? 0) > Date.now()) continue;
+      if (!ready(key, target) || (nextStart.get(key) ?? 0) > Date.now())
+        continue;
       active.add(key);
       fetchedFor.set(key, target.messageId);
       nextStart.set(key, Date.now() + CHAT_PREFETCH_INTERVAL);
@@ -153,10 +213,16 @@ export function createChatPrefetcher(options: {
       // channel page still in flight beside it.
       void Promise.resolve()
         .then(() => options.load(target))
-        .then(data => {
-          if (!stopped && data && !data.unavailable && allowed(target.channelId)) options.ingest(data);
+        .then((data) => {
+          if (
+            !stopped &&
+            data &&
+            !data.unavailable &&
+            allowed(target.channelId)
+          )
+            options.ingest(data);
         })
-        .catch(error => {
+        .catch((error) => {
           if (!stopped) options.onError(error);
         })
         .finally(() => {
@@ -170,7 +236,10 @@ export function createChatPrefetcher(options: {
   };
 
   return {
-    update(nextRail: ChatRailRow[], nextNotifications: ChatPrefetchNotification[]) {
+    update(
+      nextRail: ChatRailRow[],
+      nextNotifications: ChatPrefetchNotification[],
+    ) {
       if (stopped) return;
       rail = nextRail;
       notifications = nextNotifications;
@@ -211,8 +280,13 @@ export function offRailChatNotificationMessageIds(
   for (const n of notifications) {
     if (!n || n.read || n.entity_type !== "chat_channel") continue;
     const msgId = n.chat_message_id ? String(n.chat_message_id) : "";
-    if (!msgId || !isConvexId(msgId) || seen.has(msgId) || hasMessage(msgId)) continue;
-    if (typeof n.created_at !== "number" || now - n.created_at > NOTIF_PREFETCH_FRESH_MS) continue;
+    if (!msgId || !isConvexId(msgId) || seen.has(msgId) || hasMessage(msgId))
+      continue;
+    if (
+      typeof n.created_at !== "number" ||
+      now - n.created_at > NOTIF_PREFETCH_FRESH_MS
+    )
+      continue;
     if (n.entity_id && activeRailChannelIds.has(String(n.entity_id))) continue;
     seen.add(msgId);
     ids.push(msgId);

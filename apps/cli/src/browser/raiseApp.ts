@@ -35,17 +35,30 @@ function raiseJxa(pid: number): string {
 }
 
 /** Fire-and-forget raise, for long-lived processes (the daemon). Best effort. */
-export function raiseAppByPid(pid: number, log: (line: string) => void = () => {}): void {
+export function raiseAppByPid(
+  pid: number,
+  log: (line: string) => void = () => {},
+): void {
   if (process.platform !== "darwin") return;
-  execFile("osascript", ["-l", "JavaScript", "-e", raiseJxa(pid)], (error, stdout, stderr) => {
-    const out = `${stdout ?? ""}`.trim();
-    if (error || out !== "ok") log(`[BROWSER] raise pid ${pid}: ${error ? error.message : out} ${`${stderr ?? ""}`.trim()}`.trim());
-  });
+  execFile(
+    "osascript",
+    ["-l", "JavaScript", "-e", raiseJxa(pid)],
+    (error, stdout, stderr) => {
+      const out = `${stdout ?? ""}`.trim();
+      if (error || out !== "ok")
+        log(
+          `[BROWSER] raise pid ${pid}: ${error ? error.message : out} ${`${stderr ?? ""}`.trim()}`.trim(),
+        );
+    },
+  );
 }
 
 /** Blocking raise, for a CLI about to exit — an async child would be killed
  *  by process.exit before the event ever sends. */
 export function raiseAppByPidSync(pid: number): void {
   if (process.platform !== "darwin") return;
-  spawnSync("osascript", ["-l", "JavaScript", "-e", raiseJxa(pid)], { timeout: 3_000, stdio: "ignore" });
+  spawnSync("osascript", ["-l", "JavaScript", "-e", raiseJxa(pid)], {
+    timeout: 3_000,
+    stdio: "ignore",
+  });
 }

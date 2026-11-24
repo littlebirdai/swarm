@@ -19,7 +19,10 @@ import { Command } from "commander";
 import { guideText, snippetBySlug } from "@codecast/shared/contracts";
 import { recoverSwallowedPrompt } from "./spawnArgs.js";
 
-const indexSrc = fs.readFileSync(path.join(import.meta.dir, "index.ts"), "utf8");
+const indexSrc = fs.readFileSync(
+  path.join(import.meta.dir, "index.ts"),
+  "utf8",
+);
 
 /** The `program.command("spawn")` block, up to its action handler. */
 function spawnBlock(): string {
@@ -32,7 +35,9 @@ function spawnBlock(): string {
 
 /** Every flag string the real spawn command declares. */
 function spawnFlags(): string[] {
-  const flags = [...spawnBlock().matchAll(/\.option\(\s*"([^"]+)"/g)].map((m) => m[1]);
+  const flags = [...spawnBlock().matchAll(/\.option\(\s*"([^"]+)"/g)].map(
+    (m) => m[1],
+  );
   expect(flags.length).toBeGreaterThan(5);
   return flags;
 }
@@ -55,7 +60,11 @@ function parseSpawn(argv: string[]): { prompts: string[]; subagent: unknown } {
     .command("spawn")
     .argument(spawnArgument())
     .action((prompts: string[], options: Record<string, unknown>) => {
-      seen = recoverSwallowedPrompt(prompts, options.subagent, () => "stdin body");
+      seen = recoverSwallowedPrompt(
+        prompts,
+        options.subagent,
+        () => "stdin body",
+      );
     });
   for (const flag of spawnFlags()) spawn.option(flag, "");
   spawn.exitOverride();
@@ -68,50 +77,72 @@ function parseSpawn(argv: string[]): { prompts: string[]; subagent: unknown } {
 /** A documented command line as argv (the leading `cast` dropped): comments,
  *  heredocs and quotes removed. The first token is the subcommand itself. */
 function argvOf(line: string): string[] {
-  const bare = line.replace(/<<'?\w+'?.*$/, "").replace(/\s+#.*$/, "").trim();
+  const bare = line
+    .replace(/<<'?\w+'?.*$/, "")
+    .replace(/\s+#.*$/, "")
+    .trim();
   const tokens = bare.match(/"[^"]*"|\S+/g) ?? [];
   return tokens.slice(1).map((t) => t.replace(/^"|"$/g, ""));
 }
 
 /** Every `cast spawn …` line in the guide's fenced examples: the installed body and its reference. */
-const spawnExamples = guideText(snippetBySlug("forks")!).split("\n")
+const spawnExamples = guideText(snippetBySlug("forks")!)
+  .split("\n")
   .map((l) => l.trim())
   .filter((l) => l.startsWith("cast spawn "));
 
 describe("cast spawn --subagent: the option shape the guidance is written for", () => {
   test("--subagent takes an optional parent, and a task it swallowed is handed back", () => {
     expect(spawnFlags()).toContain("--subagent [parent]");
-    expect(parseSpawn(["spawn", "--subagent", "audit the auth flow"]))
-      .toEqual({ prompts: ["audit the auth flow"], subagent: true });
-    expect(parseSpawn(["spawn", "--subagent", "task A", "task B"]))
-      .toEqual({ prompts: ["task A", "task B"], subagent: true });
+    expect(parseSpawn(["spawn", "--subagent", "audit the auth flow"])).toEqual({
+      prompts: ["audit the auth flow"],
+      subagent: true,
+    });
+    expect(parseSpawn(["spawn", "--subagent", "task A", "task B"])).toEqual({
+      prompts: ["task A", "task B"],
+      subagent: true,
+    });
   });
 
   test("a '-' that --subagent swallowed still reads the heredoc", () => {
     // The preAction hook expands '-' prompts before the action; this one sat in
     // the parent slot, so the recovery expands it, never spawning a task of "-".
-    expect(recoverSwallowedPrompt([], "-", () => "audit the auth flow\n"))
-      .toEqual({ prompts: ["audit the auth flow"], subagent: true });
-    expect(recoverSwallowedPrompt(["second task"], "-", () => "first task\n"))
-      .toEqual({ prompts: ["first task", "second task"], subagent: true });
+    expect(
+      recoverSwallowedPrompt([], "-", () => "audit the auth flow\n"),
+    ).toEqual({ prompts: ["audit the auth flow"], subagent: true });
+    expect(
+      recoverSwallowedPrompt(["second task"], "-", () => "first task\n"),
+    ).toEqual({ prompts: ["first task", "second task"], subagent: true });
   });
 
   test("the documented separators keep the prompt a prompt and still nest the worker", () => {
-    expect(parseSpawn(["spawn", "--subagent", "--", "audit the auth flow"]))
-      .toEqual({ prompts: ["audit the auth flow"], subagent: true });
+    expect(
+      parseSpawn(["spawn", "--subagent", "--", "audit the auth flow"]),
+    ).toEqual({ prompts: ["audit the auth flow"], subagent: true });
     // A flag after --subagent needs no separator: the flag ends the value.
-    expect(parseSpawn(["spawn", "--subagent", "--label", "fleet", "task A", "task B"]))
-      .toEqual({ prompts: ["task A", "task B"], subagent: true });
+    expect(
+      parseSpawn([
+        "spawn",
+        "--subagent",
+        "--label",
+        "fleet",
+        "task A",
+        "task B",
+      ]),
+    ).toEqual({ prompts: ["task A", "task B"], subagent: true });
     // An explicit parent is still read as the parent, not as the task.
-    expect(parseSpawn(["spawn", "--subagent", "jx7abcd", "audit the auth flow"]))
-      .toEqual({ prompts: ["audit the auth flow"], subagent: "jx7abcd" });
+    expect(
+      parseSpawn(["spawn", "--subagent", "jx7abcd", "audit the auth flow"]),
+    ).toEqual({ prompts: ["audit the auth flow"], subagent: "jx7abcd" });
   });
 });
 
 describe("every cast spawn example in the snippet parses as written", () => {
   test("the snippet shows both a nested worker and an independent thread", () => {
     expect(spawnExamples.length).toBeGreaterThanOrEqual(3);
-    expect(spawnExamples.filter((l) => l.includes("--subagent")).length).toBeGreaterThanOrEqual(2);
+    expect(
+      spawnExamples.filter((l) => l.includes("--subagent")).length,
+    ).toBeGreaterThanOrEqual(2);
     expect(spawnExamples.some((l) => !l.includes("--subagent"))).toBe(true);
   });
 

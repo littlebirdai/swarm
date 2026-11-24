@@ -15,10 +15,20 @@
 // - Expiry is not stored: a done entry is past ⌘Z's reach once it is older
 //   than the engine's keyboard window. A generic entry stays reachable from the
 //   timeline (the guard makes that safe); a manual one is closed for good.
-import { DEFAULT_UNDO_KEYBOARD_WINDOW_MS, undoKeyboardSince, undoRowCount, type UndoHistoryItem, type UndoHistorySnapshot } from "@platform/engine";
+import {
+  DEFAULT_UNDO_KEYBOARD_WINDOW_MS,
+  undoKeyboardSince,
+  undoRowCount,
+  type UndoHistoryItem,
+  type UndoHistorySnapshot,
+} from "@platform/engine";
 import type { RecentVisit } from "../store/inboxStore";
 import type { ClientSyncStoreKey } from "../store/clientSyncRegistry";
-import { resolveVisit, type ResolvedVisit, type VisitResolveMemo } from "./recentVisits";
+import {
+  resolveVisit,
+  type ResolvedVisit,
+  type VisitResolveMemo,
+} from "./recentVisits";
 import { visitDetailParts } from "./recentVisitDetails";
 import { paletteObjectPath } from "./paletteActions";
 import { objectHref } from "./entityLinks";
@@ -33,11 +43,21 @@ export { UNDO_HISTORY_TIER } from "./undoTimelineOpen";
  *  History panel open. */
 export const ORG_RECORD_PATH = "/org?panel=history";
 
-export type UndoRowState = "done" | "undone" | "partial" | "conflict" | "refused" | "dropped" | "external";
+export type UndoRowState =
+  | "done"
+  | "undone"
+  | "partial"
+  | "conflict"
+  | "refused"
+  | "dropped"
+  | "external";
 
 /** What the row's one button does: walk back or forward to it, or open the
  *  org record. null = the row is inert. */
-export type UndoRowAct = { kind: "back" | "forward"; steps: number } | { kind: "org" } | null;
+export type UndoRowAct =
+  | { kind: "back" | "forward"; steps: number }
+  | { kind: "org" }
+  | null;
 
 export type UndoTimelineRow = {
   id: string;
@@ -79,51 +99,92 @@ const SESSION_STORES = new Set(["sessions", "conversations"]);
  * and where its row opens. Triggers live in two stores, the caller's own
  * (agentTasks) and a teammate's (foreignTriggers).
  */
-const OBJECT_KINDS: Partial<Record<ClientSyncStoreKey, { noun: string; path?: (id: string, row: any) => string }>> = {
+const OBJECT_KINDS: Partial<
+  Record<
+    ClientSyncStoreKey,
+    { noun: string; path?: (id: string, row: any) => string }
+  >
+> = {
   sessions: { noun: "session" },
   conversations: { noun: "session" },
   bucketAssignments: { noun: "session" },
   buckets: { noun: "label" },
   tasks: { noun: "task", path: (id) => paletteObjectPath("task", { _id: id }) },
   docs: { noun: "doc", path: (id) => paletteObjectPath("doc", { _id: id }) },
-  docDetails: { noun: "doc", path: (id) => paletteObjectPath("doc", { _id: id }) },
+  docDetails: {
+    noun: "doc",
+    path: (id) => paletteObjectPath("doc", { _id: id }),
+  },
   plans: { noun: "plan", path: (id) => paletteObjectPath("plan", { _id: id }) },
-  projects: { noun: "project", path: (id) => paletteObjectPath("project", { _id: id }) },
-  agentTasks: { noun: "trigger", path: (id) => paletteObjectPath("trigger", { _id: id }) },
-  foreignTriggers: { noun: "trigger", path: (id) => paletteObjectPath("trigger", { _id: id }) },
-  initiatives: { noun: "goal", path: (id, row) => objectHref("initiative", row?.short_id || id) },
+  projects: {
+    noun: "project",
+    path: (id) => paletteObjectPath("project", { _id: id }),
+  },
+  agentTasks: {
+    noun: "trigger",
+    path: (id) => paletteObjectPath("trigger", { _id: id }),
+  },
+  foreignTriggers: {
+    noun: "trigger",
+    path: (id) => paletteObjectPath("trigger", { _id: id }),
+  },
+  initiatives: {
+    noun: "goal",
+    path: (id, row) => objectHref("initiative", row?.short_id || id),
+  },
   chatChannels: { noun: "channel", path: (id) => `/chat/${id}` },
-  decisionStacks: { noun: "stack", path: (id, row) => `/decisions/stacks/${row?.short_id ?? id}` },
+  decisionStacks: {
+    noun: "stack",
+    path: (id, row) => `/decisions/stacks/${row?.short_id ?? id}`,
+  },
   savedViews: { noun: "view" },
 };
 
-const rowName = (row: any): string | undefined => row?.title ?? row?.display_title ?? row?.name ?? undefined;
+const rowName = (row: any): string | undefined =>
+  row?.title ?? row?.display_title ?? row?.name ?? undefined;
 
 /**
  * One object an entry changed, as the recent-visit shape, so `resolveVisit`
  * names it live (and hides what this workspace cannot reach) and
  * `useOpenRecentVisit` opens it. null = a store with nowhere to go.
  */
-export function describeUndoObject(state: any, store: string, id: string, ts = 0): RecentVisit | null {
+export function describeUndoObject(
+  state: any,
+  store: string,
+  id: string,
+  ts = 0,
+): RecentVisit | null {
   if (SESSION_STORES.has(store)) return { kind: "session", key: id, ts };
   if (store === "bucketAssignments") {
     const conv = state.bucketAssignments?.[id]?.conversation_id;
     return conv ? { kind: "session", key: conv, ts } : null;
   }
-  if (store === "buckets") return { kind: "view", key: `label:${id}`, ts, label: state.buckets?.[id]?.name };
+  if (store === "buckets")
+    return {
+      kind: "view",
+      key: `label:${id}`,
+      ts,
+      label: state.buckets?.[id]?.name,
+    };
   const row = state[store]?.[id];
   const path = OBJECT_KINDS[store as ClientSyncStoreKey]?.path?.(id, row);
   if (!path) return null;
   return { kind: "page", key: `page:${path}`, ts, path, label: rowName(row) };
 }
 
-function objectsOf(item: UndoHistoryItem): Array<{ store: string; id: string }> {
+function objectsOf(
+  item: UndoHistoryItem,
+): Array<{ store: string; id: string }> {
   if (item.objects?.length) return item.objects;
   return (item.children ?? []).flatMap((c) => c.objects ?? []);
 }
 
 /** The entry's objects, resolved live and deduplicated by destination. */
-export function undoRowVisits(state: any, item: UndoHistoryItem, memo: VisitResolveMemo = {}): ResolvedVisit[] {
+export function undoRowVisits(
+  state: any,
+  item: UndoHistoryItem,
+  memo: VisitResolveMemo = {},
+): ResolvedVisit[] {
   const out: ResolvedVisit[] = [];
   const seen = new Set<string>();
   for (const { store, id } of objectsOf(item)) {
@@ -138,12 +199,15 @@ export function undoRowVisits(state: any, item: UndoHistoryItem, memo: VisitReso
 
 /** A cheap signature of the store facts the rows paint (each object's
  *  presence and name), so the card wakes on a rename and not on a heartbeat. */
-export function undoObjectsSig(state: any, snapshot: UndoHistorySnapshot): string {
+export function undoObjectsSig(
+  state: any,
+  snapshot: UndoHistorySnapshot,
+): string {
   let sig = "";
   for (const item of snapshot.items) {
     for (const { store, id } of objectsOf(item)) {
       const row = state[store]?.[id];
-      sig += `${row ? rowName(row) ?? "1" : ""}|`;
+      sig += `${row ? (rowName(row) ?? "1") : ""}|`;
     }
   }
   return sig;
@@ -154,14 +218,17 @@ export function undoObjectsSig(state: any, snapshot: UndoHistorySnapshot): strin
 /** The stores the timeline can name and open (exported for the registry guard). */
 export const UNDO_OBJECT_STORES = Object.keys(OBJECT_KINDS);
 
-const nounOf = (store: string): string | undefined => OBJECT_KINDS[store as ClientSyncStoreKey]?.noun;
+const nounOf = (store: string): string | undefined =>
+  OBJECT_KINDS[store as ClientSyncStoreKey]?.noun;
 
 /** A group's fold words: "5 sessions" when every member is one kind of thing. */
 export function undoFoldLabel(item: UndoHistoryItem): string {
   const children = item.children ?? [];
   const objects = objectsOf(item);
   const nouns = new Set(objects.map((o) => nounOf(o.store) ?? "change"));
-  const ids = new Set(objects.map((o) => `${nounOf(o.store) ?? o.store}:${o.id}`));
+  const ids = new Set(
+    objects.map((o) => `${nounOf(o.store) ?? o.store}:${o.id}`),
+  );
   if (nouns.size === 1 && ids.size > 1) {
     const noun = [...nouns][0];
     return `${ids.size} ${noun}s`;
@@ -180,7 +247,10 @@ export function undoAgo(ts: number, now: number): string {
 
 /** The keyboard window in words ("5 minutes"), for the copy that names ⌘Z's reach. */
 export function undoWindowWords(windowMs: number): string {
-  const n = windowMs < 60_000 ? Math.round(windowMs / 1000) : Math.round(windowMs / 60_000);
+  const n =
+    windowMs < 60_000
+      ? Math.round(windowMs / 1000)
+      : Math.round(windowMs / 60_000);
   return `${n} ${windowMs < 60_000 ? "second" : "minute"}${n === 1 ? "" : "s"}`;
 }
 
@@ -216,11 +286,16 @@ export function undoActLabel(act: UndoRowAct): string | null {
 // ---------------------------------------------------------------- rows
 
 function stateOf(item: UndoHistoryItem): UndoRowState {
-  if (item.status === "undone" && (item.skipped?.length ?? 0) > 0) return "partial";
+  if (item.status === "undone" && (item.skipped?.length ?? 0) > 0)
+    return "partial";
   return item.status;
 }
 
-function keyboardLeft(item: UndoHistoryItem, now: number, windowMs: number): number {
+function keyboardLeft(
+  item: UndoHistoryItem,
+  now: number,
+  windowMs: number,
+): number {
   return windowMs - (now - undoKeyboardSince(item));
 }
 
@@ -232,7 +307,10 @@ function secondsLeftOf(left: number): number | null {
 
 /** The clock projection the card renders from: the minute (relative times)
  *  and each done row's expiry step. useNowWhen re-renders only when it moves. */
-export function undoTimelineNowSig(snapshot: UndoHistorySnapshot, windowMs = DEFAULT_UNDO_KEYBOARD_WINDOW_MS): (now: number) => string {
+export function undoTimelineNowSig(
+  snapshot: UndoHistorySnapshot,
+  windowMs = DEFAULT_UNDO_KEYBOARD_WINDOW_MS,
+): (now: number) => string {
   return (now) => {
     let sig = String(Math.floor(now / 60_000));
     for (const item of snapshot.items) {
@@ -244,7 +322,13 @@ export function undoTimelineNowSig(snapshot: UndoHistorySnapshot, windowMs = DEF
   };
 }
 
-function detailOf(row: Omit<UndoTimelineRow, "detail">, item: UndoHistoryItem, now: number, teams: any[], windowMs: number): string {
+function detailOf(
+  row: Omit<UndoTimelineRow, "detail">,
+  item: UndoHistoryItem,
+  now: number,
+  teams: any[],
+  windowMs: number,
+): string {
   switch (row.state) {
     case "undone":
       return `undone ${undoAgo(item.undoneAt ?? item.ts, now)}`;
@@ -263,16 +347,22 @@ function detailOf(row: Omit<UndoTimelineRow, "detail">, item: UndoHistoryItem, n
     case "done": {
       // The keyboard stops at it (its undo widens access): say where it goes back from.
       if (item.confirm) {
-        const where = row.visits[0] ? visitDetailParts(row.visits[0], teams).join(" · ") : "";
+        const where = row.visits[0]
+          ? visitDetailParts(row.visits[0], teams).join(" · ")
+          : "";
         return `${where ? `${where} · ` : ""}its undo widens access: take it back from here`;
       }
-      if (row.secondsLeft !== null) return `can undo for ${row.secondsLeft}s more`;
+      if (row.secondsLeft !== null)
+        return `can undo for ${row.secondsLeft}s more`;
       if (row.expired && item.mode === "manual") return "too old to take back";
       // A group spans several places, and its fold names them; a single row
       // says where it happened, minus what its label already says (a short id).
-      const where = row.visits[0] && !row.fold
-        ? visitDetailParts(row.visits[0], teams).filter((p) => !row.label.includes(p)).join(" · ")
-        : "";
+      const where =
+        row.visits[0] && !row.fold
+          ? visitDetailParts(row.visits[0], teams)
+              .filter((p) => !row.label.includes(p))
+              .join(" · ")
+          : "";
       if (!row.expired) return where;
       // Past the keyboard window: only a row that still has its button is reachable.
       const older = `older than ${undoWindowWords(windowMs)}`;
@@ -301,7 +391,11 @@ export function undoTimelineRows(
   const setAside = new Map<string, UndoHistoryItem[]>();
   const items: UndoHistoryItem[] = [];
   for (const item of snapshot.items) {
-    if (item.status === "dropped" && item.droppedBy && ids.has(item.droppedBy)) {
+    if (
+      item.status === "dropped" &&
+      item.droppedBy &&
+      ids.has(item.droppedBy)
+    ) {
       const list = setAside.get(item.droppedBy) ?? [];
       list.push(item);
       setAside.set(item.droppedBy, list);
@@ -325,8 +419,12 @@ export function undoTimelineRows(
       expired,
       secondsLeft: state_ === "done" ? secondsLeftOf(left) : null,
       visits: state ? undoRowVisits(state, item, memo) : [],
-      fold: item.children?.length ? { label: undoFoldLabel(item), children: item.children } : null,
-      setAside: branch ? { count: branch.length, labels: branch.map((b) => b.label) } : null,
+      fold: item.children?.length
+        ? { label: undoFoldLabel(item), children: item.children }
+        : null,
+      setAside: branch
+        ? { count: branch.length, labels: branch.map((b) => b.label) }
+        : null,
     };
   });
 
@@ -336,12 +434,17 @@ export function undoTimelineRows(
   const redoDepth = new Map(snapshot.redoOrder.map((id, i) => [id, i + 1]));
   // A manual entry past the window is about to be pruned from the stacks.
   const reachable = (r: (typeof base)[number]) =>
-    r.item.mode !== "manual" || (r.state === "done" ? !r.expired : now - (r.item.undoneAt ?? r.ts) <= windowMs);
+    r.item.mode !== "manual" ||
+    (r.state === "done"
+      ? !r.expired
+      : now - (r.item.undoneAt ?? r.ts) <= windowMs);
   for (const r of base) {
     if (r.state === "external") r.act = { kind: "org" };
     else if (!reachable(r)) continue;
-    else if (undoDepth.has(r.id)) r.act = { kind: "back", steps: undoDepth.get(r.id)! };
-    else if (redoDepth.has(r.id)) r.act = { kind: "forward", steps: redoDepth.get(r.id)! };
+    else if (undoDepth.has(r.id))
+      r.act = { kind: "back", steps: undoDepth.get(r.id)! };
+    else if (redoDepth.has(r.id))
+      r.act = { kind: "forward", steps: redoDepth.get(r.id)! };
   }
 
   // The rule sits under the undone rows that lead the list: under the lowest
@@ -351,11 +454,22 @@ export function undoTimelineRows(
   // goes over it, at the top.
   const firstUndo = base.findIndex((r) => undoDepth.has(r.id));
   let lastRedo = -1;
-  base.forEach((r, i) => { if (redoDepth.has(r.id) && (firstUndo === -1 || i < firstUndo)) lastRedo = i; });
+  base.forEach((r, i) => {
+    if (redoDepth.has(r.id) && (firstUndo === -1 || i < firstUndo))
+      lastRedo = i;
+  });
   const headIndex = lastRedo + 1;
 
-  const rows = base.map((r) => ({ ...r, detail: detailOf(r, r.item, now, teams, windowMs) }));
-  return { rows, headIndex, headId: snapshot.head ?? rows[headIndex]?.id ?? null, windowMs };
+  const rows = base.map((r) => ({
+    ...r,
+    detail: detailOf(r, r.item, now, teams, windowMs),
+  }));
+  return {
+    rows,
+    headIndex,
+    headId: snapshot.head ?? rows[headIndex]?.id ?? null,
+    windowMs,
+  };
 }
 
 // ---------------------------------------------------------------- fixture
@@ -363,18 +477,36 @@ export function undoTimelineRows(
 /** A state the fixture's objects resolve against: sessions as conversations
  *  (no inbox scope to pass), one task, one doc. */
 function fixtureState() {
-  const conv = (id: string, title: string, project: string) => ({ _id: id, title, message_count: 12, agent_type: "claude_code", project_path: `/Users/you/src/${project}` });
+  const conv = (id: string, title: string, project: string) => ({
+    _id: id,
+    title,
+    message_count: 12,
+    agent_type: "claude_code",
+    project_path: `/Users/you/src/${project}`,
+  });
   return {
     teams: [],
     conversations: {
       "fx-auth": conv("fx-auth", "Fix the auth race on sign-in", "codecast"),
       "fx-changes": conv("fx-changes", "Ship the changes page", "codecast"),
-      "fx-billing": conv("fx-billing", "Billing migration to usage pricing", "billing"),
+      "fx-billing": conv(
+        "fx-billing",
+        "Billing migration to usage pricing",
+        "billing",
+      ),
       "fx-a": conv("fx-a", "Triage the flaky e2e run", "codecast"),
       "fx-b": conv("fx-b", "Draft the release notes", "codecast"),
       "fx-c": conv("fx-c", "Answer the Linear sync question", "codecast"),
     },
-    tasks: { "fx-task": { _id: "fx-task", short_id: "ct-4102", title: "Undo history timeline", status: "in_review", priority: "high" } },
+    tasks: {
+      "fx-task": {
+        _id: "fx-task",
+        short_id: "ct-4102",
+        title: "Undo history timeline",
+        status: "in_review",
+        priority: "high",
+      },
+    },
     docs: { "fx-doc": { _id: "fx-doc", title: "Q3 plan", doc_type: "plan" } },
   };
 }
@@ -385,30 +517,127 @@ function fixtureState() {
  * row in its last 40 seconds with a set-aside branch under it, a conflict, a
  * refusal, a generic row past the window and a manual one closed for good.
  */
-export function undoHistoryFixture(now: number): { snapshot: UndoHistorySnapshot; state: ReturnType<typeof fixtureState> } {
+export function undoHistoryFixture(now: number): {
+  snapshot: UndoHistorySnapshot;
+  state: ReturnType<typeof fixtureState>;
+} {
   const S = 1000;
   const M = 60 * S;
   const base = { mode: "generic" as const };
   const conv = (id: string) => [{ store: "conversations", id }];
-  const child = (id: string, conv_: string, ts: number): UndoHistoryItem => ({ ...base, id, label: "Filed as Done", ts, status: "undone", objects: conv(conv_) });
+  const child = (id: string, conv_: string, ts: number): UndoHistoryItem => ({
+    ...base,
+    id,
+    label: "Filed as Done",
+    ts,
+    status: "undone",
+    objects: conv(conv_),
+  });
   const items: UndoHistoryItem[] = [
-    { ...base, id: "fx-pin", label: "Pinned “Fix the auth race on sign-in”", ts: now - 50 * S, status: "undone", undoneAt: now - 10 * S, objects: conv("fx-auth") },
     {
-      ...base, id: "fx-file", label: "Filed 3 sessions as Done", ts: now - 80 * S, status: "undone", undoneAt: now - 20 * S,
-      skipped: [{ store: "conversations", id: "fx-a" }, { store: "conversations", id: "fx-b" }],
-      children: [child("fx-file-a", "fx-a", now - 80 * S), child("fx-file-b", "fx-b", now - 80 * S), child("fx-file-c", "fx-c", now - 80 * S)],
+      ...base,
+      id: "fx-pin",
+      label: "Pinned “Fix the auth race on sign-in”",
+      ts: now - 50 * S,
+      status: "undone",
+      undoneAt: now - 10 * S,
+      objects: conv("fx-auth"),
     },
-    { ...base, id: "fx-status", label: "Moved ct-4102 to In review", ts: now - 2 * M, status: "done", objects: [{ store: "tasks", id: "fx-task" }] },
-    { ...base, id: "fx-org", label: "Hired a Growth lead", ts: now - 3 * M, status: "external", external: "org" },
-    { ...base, id: "fx-defer", label: "Deferred “Ship the changes page”", ts: now - 4 * M - 20 * S, status: "done", objects: conv("fx-changes") },
-    { ...base, id: "fx-drop-1", label: "Renamed “Ship it” to “Ship the changes page”", ts: now - 4 * M - 40 * S, status: "dropped", droppedBy: "fx-defer", objects: conv("fx-changes") },
-    { ...base, id: "fx-drop-2", label: "Labeled “Ship the changes page” Review", ts: now - 4 * M - 50 * S, status: "dropped", droppedBy: "fx-defer", objects: conv("fx-changes") },
-    { ...base, id: "fx-conflict", label: "Renamed “Auth race” to “Fix the auth race on sign-in”", ts: now - 6 * M, status: "conflict", objects: conv("fx-auth") },
-    { ...base, id: "fx-refused", label: "Archived “Q3 plan”", ts: now - 8 * M, status: "refused", objects: [{ store: "docs", id: "fx-doc" }] },
-    { ...base, id: "fx-old", label: "Stashed “Billing migration to usage pricing”", ts: now - 20 * M, status: "done", objects: conv("fx-billing") },
-    { id: "fx-manual", label: "Moved 2 sessions to Billing", ts: now - 30 * M, status: "done", mode: "manual" },
+    {
+      ...base,
+      id: "fx-file",
+      label: "Filed 3 sessions as Done",
+      ts: now - 80 * S,
+      status: "undone",
+      undoneAt: now - 20 * S,
+      skipped: [
+        { store: "conversations", id: "fx-a" },
+        { store: "conversations", id: "fx-b" },
+      ],
+      children: [
+        child("fx-file-a", "fx-a", now - 80 * S),
+        child("fx-file-b", "fx-b", now - 80 * S),
+        child("fx-file-c", "fx-c", now - 80 * S),
+      ],
+    },
+    {
+      ...base,
+      id: "fx-status",
+      label: "Moved ct-4102 to In review",
+      ts: now - 2 * M,
+      status: "done",
+      objects: [{ store: "tasks", id: "fx-task" }],
+    },
+    {
+      ...base,
+      id: "fx-org",
+      label: "Hired a Growth lead",
+      ts: now - 3 * M,
+      status: "external",
+      external: "org",
+    },
+    {
+      ...base,
+      id: "fx-defer",
+      label: "Deferred “Ship the changes page”",
+      ts: now - 4 * M - 20 * S,
+      status: "done",
+      objects: conv("fx-changes"),
+    },
+    {
+      ...base,
+      id: "fx-drop-1",
+      label: "Renamed “Ship it” to “Ship the changes page”",
+      ts: now - 4 * M - 40 * S,
+      status: "dropped",
+      droppedBy: "fx-defer",
+      objects: conv("fx-changes"),
+    },
+    {
+      ...base,
+      id: "fx-drop-2",
+      label: "Labeled “Ship the changes page” Review",
+      ts: now - 4 * M - 50 * S,
+      status: "dropped",
+      droppedBy: "fx-defer",
+      objects: conv("fx-changes"),
+    },
+    {
+      ...base,
+      id: "fx-conflict",
+      label: "Renamed “Auth race” to “Fix the auth race on sign-in”",
+      ts: now - 6 * M,
+      status: "conflict",
+      objects: conv("fx-auth"),
+    },
+    {
+      ...base,
+      id: "fx-refused",
+      label: "Archived “Q3 plan”",
+      ts: now - 8 * M,
+      status: "refused",
+      objects: [{ store: "docs", id: "fx-doc" }],
+    },
+    {
+      ...base,
+      id: "fx-old",
+      label: "Stashed “Billing migration to usage pricing”",
+      ts: now - 20 * M,
+      status: "done",
+      objects: conv("fx-billing"),
+    },
+    {
+      id: "fx-manual",
+      label: "Moved 2 sessions to Billing",
+      ts: now - 30 * M,
+      status: "done",
+      mode: "manual",
+    },
   ];
-  return { snapshot: undoFixtureWalk(items, "fx-status", now), state: fixtureState() };
+  return {
+    snapshot: undoFixtureWalk(items, "fx-status", now),
+    state: fixtureState(),
+  };
 }
 
 /**
@@ -424,12 +653,19 @@ export function undoFixtureWalk(
   windowMs = DEFAULT_UNDO_KEYBOARD_WINDOW_MS,
 ): UndoHistorySnapshot {
   const walkable = (i: UndoHistoryItem) =>
-    (i.status === "done" || i.status === "undone") && !(i.mode === "manual" && now - i.ts > windowMs);
+    (i.status === "done" || i.status === "undone") &&
+    !(i.mode === "manual" && now - i.ts > windowMs);
   const at = head ? items.findIndex((i) => i.id === head) : items.length;
   const walked = items.map((item, i) => {
     if (!walkable(item)) return item;
     const status: UndoHistoryItem["status"] = i < at ? "undone" : "done";
-    return status === item.status ? item : { ...item, status, undoneAt: status === "undone" ? item.undoneAt ?? now : undefined };
+    return status === item.status
+      ? item
+      : {
+          ...item,
+          status,
+          undoneAt: status === "undone" ? (item.undoneAt ?? now) : undefined,
+        };
   });
   const onStack = walked.filter(walkable);
   return {
@@ -437,7 +673,10 @@ export function undoFixtureWalk(
     items: walked,
     head: onStack.find((i) => i.status === "done")?.id ?? null,
     undoOrder: onStack.filter((i) => i.status === "done").map((i) => i.id),
-    redoOrder: onStack.filter((i) => i.status === "undone").map((i) => i.id).reverse(),
+    redoOrder: onStack
+      .filter((i) => i.status === "undone")
+      .map((i) => i.id)
+      .reverse(),
   };
 }
 

@@ -25,17 +25,30 @@ const server = Bun.serve({
   port: 0,
   idleTimeout: 0,
   async fetch(req) {
-    const body = (await req.json().catch(() => ({}))) as { path?: string; args?: any[] };
+    const body = (await req.json().catch(() => ({}))) as {
+      path?: string;
+      args?: any[];
+    };
     seen.push(body.path ?? new URL(req.url).pathname);
-    if (body.path !== "apiTokens:mintForDevice") return Response.json({ status: "error", errorMessage: `no ${body.path}` });
+    if (body.path !== "apiTokens:mintForDevice")
+      return Response.json({
+        status: "error",
+        errorMessage: `no ${body.path}`,
+      });
     const { api_token, device_id } = body.args![0];
     const [secret, device] = api_token.split(".");
     // A real round trip, so concurrent readers overlap it; or a server that never answers.
     // The hung wait ends when the client gives up, so the server can stop.
-    await Promise.race([Bun.sleep(hang ? 60_000 : 250), new Promise((r) => req.signal.addEventListener("abort", r))]);
+    await Promise.race([
+      Bun.sleep(hang ? 60_000 : 250),
+      new Promise((r) => req.signal.addEventListener("abort", r)),
+    ]);
     if (req.signal.aborted) return new Response(null, { status: 499 });
     if (refuseAll || !rows.has(secret) || rows.get(secret) !== device) {
-      return Response.json({ status: "error", errorMessage: "Unauthorized: invalid or expired token" });
+      return Response.json({
+        status: "error",
+        errorMessage: "Unauthorized: invalid or expired token",
+      });
     }
     const token = `bound_n3w${++mints}`;
     rows.set(token, device_id);
@@ -85,15 +98,25 @@ try {
 console.log(JSON.stringify(out));
 `;
 
-async function cast(mode: string, arg = ""): Promise<{ device: string; bearer?: string; error?: string }> {
+async function cast(
+  mode: string,
+  arg = "",
+): Promise<{ device: string; bearer?: string; error?: string }> {
   const script = path.join(dir, "run.ts");
   if (!fs.existsSync(script)) fs.writeFileSync(script, SCRIPT);
   const proc = Bun.spawn(["bun", script, mode, arg], {
-    env: { ...process.env, CODECAST_DIR: dir, FAKE_CONVEX: `http://127.0.0.1:${server.port}` },
+    env: {
+      ...process.env,
+      CODECAST_DIR: dir,
+      FAKE_CONVEX: `http://127.0.0.1:${server.port}`,
+    },
     stdout: "pipe",
     stderr: "pipe",
   });
-  const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+  const [out, err] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
   await proc.exited;
   const line = out.trim().split("\n").pop() ?? "";
   if (!line.startsWith("{")) throw new Error(`child failed: ${out}\n${err}`);
@@ -102,12 +125,22 @@ async function cast(mode: string, arg = ""): Promise<{ device: string; bearer?: 
 
 /** Make the scratch dir look like it was copied here from other hardware. */
 function migrate(): void {
-  fs.writeFileSync(path.join(dir, ".machine_key.hostid"), "0".repeat(64) + "\n");
-  const binding = JSON.parse(fs.readFileSync(path.join(dir, ".device_binding.json"), "utf-8"));
-  fs.writeFileSync(path.join(dir, ".device_binding.json"), JSON.stringify({ ...binding, hw: "OLD-HARDWARE" }));
+  fs.writeFileSync(
+    path.join(dir, ".machine_key.hostid"),
+    "0".repeat(64) + "\n",
+  );
+  const binding = JSON.parse(
+    fs.readFileSync(path.join(dir, ".device_binding.json"), "utf-8"),
+  );
+  fs.writeFileSync(
+    path.join(dir, ".device_binding.json"),
+    JSON.stringify({ ...binding, hw: "OLD-HARDWARE" }),
+  );
 }
 
-const storedToken = () => JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf-8")).auth_token as string;
+const storedToken = () =>
+  JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf-8"))
+    .auth_token as string;
 
 // Rotation keys off the hardware id; a box without one never rotates.
 const it = hardwareId() ? test : test.skip;
@@ -137,7 +170,11 @@ describe("a bound token on a machine whose device id moved", () => {
     rows.set(OLD, oldDevice);
     migrate();
 
-    const [a, b, c] = await Promise.all([cast("read"), cast("read"), cast("read")]);
+    const [a, b, c] = await Promise.all([
+      cast("read"),
+      cast("read"),
+      cast("read"),
+    ]);
     for (const r of [a, b, c]) expect(r.error).toBeUndefined();
     expect(mints).toBe(1);
     expect((await cast("read")).bearer).toBe(`bound_n3w1.${a.device}`);
@@ -194,7 +231,10 @@ describe("a heal never holds a process up", () => {
       stdout: "pipe",
       stderr: "pipe",
     });
-    const exit = await Promise.race([proc.exited, Bun.sleep(15_000).then(() => "hung")]);
+    const exit = await Promise.race([
+      proc.exited,
+      Bun.sleep(15_000).then(() => "hung"),
+    ]);
     if (exit === "hung") proc.kill();
     expect(exit).not.toBe("hung");
     expect(Date.now() - started).toBeLessThan(10_000);
@@ -211,7 +251,9 @@ describe("a heal never holds a process up", () => {
     const stuck = await cast("read");
     expect(stuck.bearer).toBe(`${OLD}.${oldDevice}`);
     expect(Date.now() - started).toBeLessThan(10_000);
-    expect(fs.existsSync(path.join(dir, ".device_token_heal.json"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, ".device_token_heal.json"))).toBe(
+      false,
+    );
 
     hang = false;
     await cast("read");

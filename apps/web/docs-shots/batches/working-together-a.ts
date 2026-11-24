@@ -8,7 +8,9 @@ import { CALL_ID, RECAP_SESSION } from "../../lib/acmeWorld/calls";
 const D = DECISION_SESSIONS;
 const conv = (id: string) => `/conversation/${id}`;
 /** Full density: every tool call as its own card (a `cast send` as its Message to card), not folded into a receipt. */
-const FULL = { js: "__inboxStore.getState().updateClientUI({ simple_view: false })" };
+const FULL = {
+  js: "__inboxStore.getState().updateClientUI({ simple_view: false })",
+};
 
 export const WORKING_TOGETHER_A: Shot[] = [
   /* ── Decisions ─────────────────────────────────────────────────────────── */
@@ -53,7 +55,11 @@ export const WORKING_TOGETHER_A: Shot[] = [
     name: "decisions/answered",
     route: conv(D.retries._id),
     viewport: { width: 1100, height: 1100 },
-    steps: [{ js: "__acmeScene.answered()" }, { wait: "[data-sv-feed]" }, { sleep: 1200 }],
+    steps: [
+      { js: "__acmeScene.answered()" },
+      { wait: "[data-sv-feed]" },
+      { sleep: 1200 },
+    ],
     crop: { selector: "[data-sv-feed]", pad: 0 },
     frame: "element",
     out: "public/documentation/decisions/answered.webp",
@@ -74,7 +80,10 @@ export const WORKING_TOGETHER_A: Shot[] = [
     route: conv(D.deadLetters._id),
     viewport: { width: 1280, height: 820 },
     rail: true,
-    steps: [{ rightClick: `[data-sv-rail] [data-session-id="${D.deadLetters._id}"]` }, { sleep: 700 }],
+    steps: [
+      { rightClick: `[data-sv-rail] [data-session-id="${D.deadLetters._id}"]` },
+      { sleep: 700 },
+    ],
     frame: "window",
     out: "public/documentation/messaging/triage-menu.webp",
   },
@@ -83,7 +92,11 @@ export const WORKING_TOGETHER_A: Shot[] = [
     name: "messaging/message-from",
     route: conv(D.queue._id),
     viewport: { width: 1100, height: 1400 },
-    steps: [FULL, { wait: "[data-sv-feed]", text: "Message to" }, { sleep: 1000 }],
+    steps: [
+      FULL,
+      { wait: "[data-sv-feed]", text: "Message to" },
+      { sleep: 1000 },
+    ],
     crop: { selector: "[data-sv-feed]", pad: 0 },
     frame: "element",
     out: "public/documentation/messaging/message-from.webp",
@@ -114,17 +127,29 @@ export const WORKING_TOGETHER_A: Shot[] = [
     name: "forks-and-spawn/branch-map",
     route: conv(FORK_SESSIONS.queue._id),
     viewport: { width: 1100, height: 820 },
-    steps: [{ wait: "[data-sv-feed]" }, { click: "[data-sv-feed]" }, { sleep: 600 }, { key: "Control+b" }, { sleep: 1200 }],
+    steps: [
+      { wait: "[data-sv-feed]" },
+      { click: "[data-sv-feed]" },
+      { sleep: 600 },
+      { key: "Control+b" },
+      { sleep: 1200 },
+    ],
     frame: "window",
     out: "public/documentation/forks-and-spawn/branch-map.webp",
   },
-
 
   {
     name: "forks-and-spawn/fork-from-message",
     route: conv(FORK_SESSIONS.queue._id),
     viewport: { width: 1100, height: 820 },
-    steps: [{ wait: "[data-sv-feed] p", text: "The queue holds up" }, { hover: "[data-sv-feed] p", text: "The queue holds up" }, { rightClick: "[data-sv-feed] p", text: "The queue holds up" }, { sleep: 600 }, { hover: "[role=menuitem]", text: "Fork from here" }, { sleep: 400 }],
+    steps: [
+      { wait: "[data-sv-feed] p", text: "The queue holds up" },
+      { hover: "[data-sv-feed] p", text: "The queue holds up" },
+      { rightClick: "[data-sv-feed] p", text: "The queue holds up" },
+      { sleep: 600 },
+      { hover: "[role=menuitem]", text: "Fork from here" },
+      { sleep: 400 },
+    ],
     frame: "window",
     out: "public/documentation/forks-and-spawn/fork-from-message.webp",
   },
@@ -132,7 +157,11 @@ export const WORKING_TOGETHER_A: Shot[] = [
     name: "forks-and-spawn/move-menu",
     route: conv(FORK_SESSIONS.queue._id),
     viewport: { width: 1100, height: 760 },
-    steps: [{ wait: "[data-sv-feed]" }, { click: "[data-session-control-trigger=composer]" }, { sleep: 800 }],
+    steps: [
+      { wait: "[data-sv-feed]" },
+      { click: "[data-session-control-trigger=composer]" },
+      { sleep: 800 },
+    ],
     frame: "window",
     out: "public/documentation/forks-and-spawn/move-menu.webp",
   },
@@ -143,7 +172,11 @@ export const WORKING_TOGETHER_A: Shot[] = [
     route: `/calls/${CALL_ID}`,
     viewport: { width: 1280, height: 860 },
     ready: "[data-cc-shell]",
-    steps: [{ wait: "[data-cc-shell]", text: "Makes sense. Sarah" }, { click: "button", text: "Summary" }, { sleep: 700 }],
+    steps: [
+      { wait: "[data-cc-shell]", text: "Makes sense. Sarah" },
+      { click: "button", text: "Summary" },
+      { sleep: 700 },
+    ],
     frame: "window",
     out: "public/docs/app/call.webp",
   },
@@ -151,7 +184,11 @@ export const WORKING_TOGETHER_A: Shot[] = [
     name: "calls/call-page",
     route: `/calls/${CALL_ID}`,
     viewport: { width: 1280, height: 860 },
-    steps: [{ wait: "[data-cc-shell]", text: "Makes sense. Sarah" }, { click: "button", text: "Summary" }, { sleep: 700 }],
+    steps: [
+      { wait: "[data-cc-shell]", text: "Makes sense. Sarah" },
+      { click: "button", text: "Summary" },
+      { sleep: 700 },
+    ],
     frame: "window",
     out: "public/documentation/calls/call-page.webp",
   },
@@ -190,7 +227,11 @@ export const WORKING_TOGETHER_A: Shot[] = [
     route: "/chat",
     viewport: { width: 1200, height: 760 },
     ready: "[data-chat-input]",
-    steps: [{ click: ".ch-composer [data-chat-input]" }, { type: "@" }, { sleep: 900 }],
+    steps: [
+      { click: ".ch-composer [data-chat-input]" },
+      { type: "@" },
+      { sleep: 900 },
+    ],
     frame: "window",
     out: "public/documentation/team-chat/mention-picker.webp",
   },
@@ -199,7 +240,11 @@ export const WORKING_TOGETHER_A: Shot[] = [
     route: "/chat",
     viewport: { width: 1280, height: 680 },
     ready: ".ch-thread-link",
-    steps: [{ click: ".ch-thread-link" }, { wait: "aside.ch-thread", text: "evt_1Q8" }, { sleep: 600 }],
+    steps: [
+      { click: ".ch-thread-link" },
+      { wait: "aside.ch-thread", text: "evt_1Q8" },
+      { sleep: 600 },
+    ],
     crop: { selector: "aside.ch-thread", pad: 0 },
     frame: "element",
     out: "public/documentation/team-chat/session-thread.webp",
@@ -244,7 +289,10 @@ export const WORKING_TOGETHER_A: Shot[] = [
       { click: "[data-open-call]" },
       { wait: ".call-stage" },
       { click: ".call-stage button[aria-label^='Open the thread']" },
-      { wait: ".call-stage aside", text: "Two tests on the five-attempt limit" },
+      {
+        wait: ".call-stage aside",
+        text: "Two tests on the five-attempt limit",
+      },
       { sleep: 900 },
     ],
     frame: "window",
@@ -257,10 +305,17 @@ export const WORKING_TOGETHER_A: Shot[] = [
     steps: [
       { js: "__acmeScene.huddle()" },
       { wait: "[data-open-call]" },
-      { js: "document.querySelector('.call-stage') || document.querySelector('[data-open-call]').click()" },
+      {
+        js: "document.querySelector('.call-stage') || document.querySelector('[data-open-call]').click()",
+      },
       { wait: ".call-stage" },
-      { js: "document.querySelector('.call-stage aside') || document.querySelector(\".call-stage button[aria-label^='Open the thread']\").click()" },
-      { wait: ".call-stage aside", text: "Two tests on the five-attempt limit" },
+      {
+        js: "document.querySelector('.call-stage aside') || document.querySelector(\".call-stage button[aria-label^='Open the thread']\").click()",
+      },
+      {
+        wait: ".call-stage aside",
+        text: "Two tests on the five-attempt limit",
+      },
       { sleep: 900 },
     ],
     crop: { selector: ".call-stage aside", pad: 0 },
@@ -275,10 +330,14 @@ export const WORKING_TOGETHER_A: Shot[] = [
     viewport: { width: 1440, height: 900 },
     steps: [
       // Hang up the huddle the call shots joined, so no call chrome rides along.
-      { js: "__inboxStore.getState().setCallState({ phase: 'idle', roomKey: null })" },
+      {
+        js: "__inboxStore.getState().setCallState({ phase: 'idle', roomKey: null })",
+      },
       FULL,
       { wait: "[data-sv-feed]" },
-      { js: `__inboxStore.getState().stageInsertLeaf("root", "right", "${conv(D.hooksApi._id)}", { focus: false })` },
+      {
+        js: `__inboxStore.getState().stageInsertLeaf("root", "right", "${conv(D.hooksApi._id)}", { focus: false })`,
+      },
       { sleep: 2500 },
     ],
     frame: "window",

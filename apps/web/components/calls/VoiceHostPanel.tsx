@@ -1,4 +1,10 @@
-import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { toast } from "sonner";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
@@ -18,11 +24,24 @@ import { PeoplePanel } from "../people/PeoplePanel";
 import { voiceHostView } from "../../lib/calls/voiceHostView";
 import { soundCallRing } from "../../lib/sounds";
 import { CALL_RING_PERIOD_MS } from "@codecast/shared/contracts";
-import { acceptInvite, getCallTiles, subscribeCallTiles, takeOverCall } from "../../lib/calls/callManager";
-import { onHostExpand, publishVoiceMirror, runVoiceCommand, walkieHoldsRoom } from "../../lib/calls/walkie";
+import {
+  acceptInvite,
+  getCallTiles,
+  subscribeCallTiles,
+  takeOverCall,
+} from "../../lib/calls/callManager";
+import {
+  onHostExpand,
+  publishVoiceMirror,
+  runVoiceCommand,
+  walkieHoldsRoom,
+} from "../../lib/calls/walkie";
 import { callWindowReport } from "../../lib/calls/callHandoff";
 import { TOASTLESS_WINDOW_CLASS } from "../../lib/calls/sayRefusal";
-import { getScribeStatus, subscribeScribe } from "../../lib/calls/transcription";
+import {
+  getScribeStatus,
+  subscribeScribe,
+} from "../../lib/calls/transcription";
 import {
   declareVoiceHost,
   onCallPanelOpen,
@@ -38,7 +57,11 @@ import {
   showCallPanel,
   voiceShapeForCallSize,
   type CallWindowSize,
-  type VoiceWindowShape, DOCK_FACES_TITLE, navigateMainWindow, useFacesFloating } from "../../lib/desktop";
+  type VoiceWindowShape,
+  DOCK_FACES_TITLE,
+  navigateMainWindow,
+  useFacesFloating,
+} from "../../lib/desktop";
 import "./voiceHost.css";
 import { objectHref, personRefOf } from "../../lib/entityLinks";
 
@@ -69,7 +92,13 @@ import { objectHref, personRefOf } from "../../lib/entityLinks";
  * other window knows the call lives here. And, once, that it is the host:
  * from then on rooms arrive as commands rather than in the URL.
  */
-export function VoiceHostPanel({ urlRoom, params }: { urlRoom: string | null; params: URLSearchParams }) {
+export function VoiceHostPanel({
+  urlRoom,
+  params,
+}: {
+  urlRoom: string | null;
+  params: URLSearchParams;
+}) {
   const role = useDesktopWindowRole();
   const walkie = useWalkieStatus();
   const row = useFaceRow();
@@ -128,7 +157,8 @@ export function VoiceHostPanel({ urlRoom, params }: { urlRoom: string | null; pa
   const [docking, setDocking] = useState(false);
   const wasFloating = useRef(floating.floating);
   if (wasFloating.current !== floating.floating) {
-    if (wasFloating.current && !floating.floating && !role.appFocused) setDocking(true);
+    if (wasFloating.current && !floating.floating && !role.appFocused)
+      setDocking(true);
     wasFloating.current = floating.floating;
   }
   useWatchEffect(() => {
@@ -209,7 +239,10 @@ export function VoiceHostPanel({ urlRoom, params }: { urlRoom: string | null; pa
   // up, the sound is not. And the dock bounces for as long as the ring is.
   const quiet = s.currentUser?.status === "busy";
   const invite: any = ringIn
-    ? (s.myCalls?.incoming ?? []).find((r: any) => r.room_key === ringIn.roomKey && String(r.from_user) === ringIn.from)
+    ? (s.myCalls?.incoming ?? []).find(
+        (r: any) =>
+          r.room_key === ringIn.roomKey && String(r.from_user) === ringIn.from,
+      )
     : null;
   const inviteId = invite ? String(invite._id) : null;
   useWatchEffect(() => {
@@ -219,7 +252,10 @@ export function VoiceHostPanel({ urlRoom, params }: { urlRoom: string | null; pa
     if (!quiet) {
       let cycle = 0;
       soundCallRing(cycle, inviteId);
-      t = setInterval(() => soundCallRing(++cycle, inviteId), CALL_RING_PERIOD_MS);
+      t = setInterval(
+        () => soundCallRing(++cycle, inviteId),
+        CALL_RING_PERIOD_MS,
+      );
     }
     return () => {
       if (t) clearInterval(t);
@@ -260,7 +296,8 @@ export function VoiceHostPanel({ urlRoom, params }: { urlRoom: string | null; pa
   useWatchEffect(() => {
     if (view === "panel") return;
     document.documentElement.classList.add(TOASTLESS_WINDOW_CLASS);
-    return () => document.documentElement.classList.remove(TOASTLESS_WINDOW_CLASS);
+    return () =>
+      document.documentElement.classList.remove(TOASTLESS_WINDOW_CLASS);
   }, [view]);
 
   useMountEffect(() => {
@@ -317,11 +354,23 @@ export function VoiceHostPanel({ urlRoom, params }: { urlRoom: string | null; pa
   // another window" and raises this one on a click. A seat the walkie holds,
   // a burst being spoken or heard, is not a huddle, and is not reported as
   // one: the row is already the whole of what there is to see.
-  const scribe = useSyncExternalStore(subscribeScribe, getScribeStatus, getScribeStatus).active;
-  const hostedRoom = walkieHoldsRoom(walkie, call.roomKey) ? null : call.roomKey;
+  const scribe = useSyncExternalStore(
+    subscribeScribe,
+    getScribeStatus,
+    getScribeStatus,
+  ).active;
+  const hostedRoom = walkieHoldsRoom(walkie, call.roomKey)
+    ? null
+    : call.roomKey;
   useWatchEffect(() => {
     reportCallPanelState(
-      callWindowReport({ roomKey: hostedRoom, windowRoom: null, muted: call.muted, camera: call.camera, scribe }),
+      callWindowReport({
+        roomKey: hostedRoom,
+        windowRoom: null,
+        muted: call.muted,
+        camera: call.camera,
+        scribe,
+      }),
     );
   }, [hostedRoom, call.muted, call.camera, scribe]);
 
@@ -329,10 +378,22 @@ export function VoiceHostPanel({ urlRoom, params }: { urlRoom: string | null; pa
   // mute, a camera or the speaker list moves the call slice without the
   // walkie noticing, and a remote's face row draws all three. The tiles are
   // who has a camera up, which the header draws as video.
-  const tiles = useSyncExternalStore(subscribeCallTiles, getCallTiles, getCallTiles);
+  const tiles = useSyncExternalStore(
+    subscribeCallTiles,
+    getCallTiles,
+    getCallTiles,
+  );
   useWatchEffect(() => {
     publishVoiceMirror();
-  }, [call.phase, call.roomKey, call.muted, call.camera, call.micDenied, call.speaking, tiles]);
+  }, [
+    call.phase,
+    call.roomKey,
+    call.muted,
+    call.camera,
+    call.micDenied,
+    call.speaking,
+    tiles,
+  ]);
 
   if (view === "panel") {
     return (
@@ -364,12 +425,16 @@ export function VoiceHostPanel({ urlRoom, params }: { urlRoom: string | null; pa
           callsEnabled={callsEnabled}
           bridge={CALL_WINDOW_BRIDGE}
           // The profile opens where the work is: the main window, raised.
-          onOpenProfile={(m) => navigateMainWindow(objectHref("person", personRefOf(m)))}
+          onOpenProfile={(m) =>
+            navigateMainWindow(objectHref("person", personRefOf(m)))
+          }
           chrome={{
             onExpand: openCall,
             onClose: closeFloat,
             closeWord: floating.floating ? "Dock" : "Hide",
-            closeTitle: floating.floating ? DOCK_FACES_TITLE : "Hide the faces until the next call or voice",
+            closeTitle: floating.floating
+              ? DOCK_FACES_TITLE
+              : "Hide the faces until the next call or voice",
             docks: floating.floating,
           }}
         >

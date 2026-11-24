@@ -10,7 +10,13 @@
 import { quietWatchEnd } from "./flowMap";
 import { segmentTopOf } from "./flowPool";
 import { clearsBar, type FlowBar } from "./linePriority";
-import { endedFailing, mergeLeft, runEnd, type AnsweredGate, type LineRunStations } from "./lineRunEnd";
+import {
+  endedFailing,
+  mergeLeft,
+  runEnd,
+  type AnsweredGate,
+  type LineRunStations,
+} from "./lineRunEnd";
 
 export const DAY = 86_400_000;
 /** The windows the chart switches between, in days. The longest bounds what the rollup reads. */
@@ -24,9 +30,36 @@ export const FUNNEL_ITEM_CAP = 40;
  *  run, no active role owns its project (unowned), the flow does not take its source (offsource), or nothing keeps it
  *  from the live queue but a free hand (unstarted); it is held back (not ready, or under the bar), it is under watch, or it came back after
  *  it shipped. */
-export type FunnelReason = "closed" | "dropped" | "failed" | "cancelled" | "here" | "waiting" | "unowned" | "offsource" | "unstarted" | "held" | "watching" | "regressed" | "other";
+export type FunnelReason =
+  | "closed"
+  | "dropped"
+  | "failed"
+  | "cancelled"
+  | "here"
+  | "waiting"
+  | "unowned"
+  | "offsource"
+  | "unstarted"
+  | "held"
+  | "watching"
+  | "regressed"
+  | "other";
 /** Display order: what ended first, what still moves after. */
-export const FUNNEL_REASONS: readonly FunnelReason[] = ["closed", "dropped", "failed", "cancelled", "regressed", "other", "here", "waiting", "unowned", "offsource", "unstarted", "held", "watching"];
+export const FUNNEL_REASONS: readonly FunnelReason[] = [
+  "closed",
+  "dropped",
+  "failed",
+  "cancelled",
+  "regressed",
+  "other",
+  "here",
+  "waiting",
+  "unowned",
+  "offsource",
+  "unstarted",
+  "held",
+  "watching",
+];
 
 /** A station step of the funnel: one or more graph nodes a run passes as one (a fan-out and its branches, Push with
  *  Merge and Ready to land). */
@@ -49,8 +82,18 @@ export type FunnelItem = {
   status: string | null;
 };
 
-export type FunnelStep = { key: string; label: string; n: number; drops: Partial<Record<FunnelReason, number>> };
-export type FunnelWindow = { days: number; signals: number; sources: Array<{ key: string; n: number }>; steps: FunnelStep[] };
+export type FunnelStep = {
+  key: string;
+  label: string;
+  n: number;
+  drops: Partial<Record<FunnelReason, number>>;
+};
+export type FunnelWindow = {
+  days: number;
+  signals: number;
+  sources: Array<{ key: string; n: number }>;
+  steps: FunnelStep[];
+};
 export type FlowFunnel = {
   /** The moment the windows end (the rollup's pass). */
   at: number;
@@ -76,7 +119,10 @@ const DEPLOYING = /^(?:deploy|wait_for_live)$/;
  * agent or a person works at, a fan-out standing for its branches; the landing stations as one step; then deploy and
  * watch. The scripts between (bind, queue, the close stations) are no step: a run passes them on its way.
  */
-export function funnelStations(nodes: ReadonlyArray<GraphNode>, edges: ReadonlyArray<GraphEdge>): FunnelStation[] {
+export function funnelStations(
+  nodes: ReadonlyArray<GraphNode>,
+  edges: ReadonlyArray<GraphEdge>,
+): FunnelStation[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const out = new Map<string, string[]>();
   for (const e of edges) out.set(e.from, [...(out.get(e.from) ?? []), e.to]);
@@ -117,20 +163,35 @@ export function funnelStations(nodes: ReadonlyArray<GraphNode>, edges: ReadonlyA
       landing.ids.push(id);
       continue;
     }
-    if (WORK.has(n.type ?? "") || n.type === "parallel_fanout" || DEPLOYING.test(id) || id === "watch") {
-      steps.push({ key: id, label, ids: [id, ...[...owner].filter(([, o]) => o === id).map(([c]) => c)] });
+    if (
+      WORK.has(n.type ?? "") ||
+      n.type === "parallel_fanout" ||
+      DEPLOYING.test(id) ||
+      id === "watch"
+    ) {
+      steps.push({
+        key: id,
+        label,
+        ids: [id, ...[...owner].filter(([, o]) => o === id).map(([c]) => c)],
+      });
     }
   }
   if (landing) {
     // Named by where the change lands (Merge, Ready to land); a push alone names it Push.
-    const names = LANDING_NAMES.filter((id) => landing!.ids.includes(id)).map((id) => byId.get(id)?.label || id);
-    landing.label = names.length ? names.join(" or ") : byId.get(landing.ids[0])?.label || "Push";
+    const names = LANDING_NAMES.filter((id) => landing!.ids.includes(id)).map(
+      (id) => byId.get(id)?.label || id,
+    );
+    landing.label = names.length
+      ? names.join(" or ")
+      : byId.get(landing.ids[0])?.label || "Push";
   }
   return steps;
 }
 
 /** Every step of the funnel after the signals, with the index FunnelItem.level counts. */
-export function funnelSteps(stations: ReadonlyArray<FunnelStation>): Array<{ key: string; label: string }> {
+export function funnelSteps(
+  stations: ReadonlyArray<FunnelStation>,
+): Array<{ key: string; label: string }> {
   return [
     { key: "problems", label: "Problems opened" },
     { key: "runs", label: "Runs started" },
@@ -156,9 +217,19 @@ export type FunnelTask = Parameters<typeof clearsBar>[0] & {
   watch_until?: number | null;
   resolved_at?: number | null;
   closed_at?: number | null;
-  cause?: { merged_into?: unknown; named?: { name: string } | null; scored?: { score: number } | null; signal_count?: number } | null;
+  cause?: {
+    merged_into?: unknown;
+    named?: { name: string } | null;
+    scored?: { score: number } | null;
+    signal_count?: number;
+  } | null;
 };
-export type FunnelRun = { _id: string; status: string; current_node_id?: string | null } & LineRunStations & AnsweredGate;
+export type FunnelRun = {
+  _id: string;
+  status: string;
+  current_node_id?: string | null;
+} & LineRunStations &
+  AnsweredGate;
 
 const LIVE = new Set(["pending", "running", "paused"]);
 const TITLE_MAX = 140;
@@ -188,49 +259,113 @@ export function funnelItem(o: {
   const { task, run, stations, now } = o;
   if (task.cause?.merged_into) return null;
   const levelOf = new Map<string, number>();
-  stations.forEach((s, i) => { for (const id of s.ids) levelOf.set(id, 2 + i); });
-  const stationLevel = (id: string) => levelOf.get(id) ?? levelOf.get(segmentTopOf(id));
+  stations.forEach((s, i) => {
+    for (const id of s.ids) levelOf.set(id, 2 + i);
+  });
+  const stationLevel = (id: string) =>
+    levelOf.get(id) ?? levelOf.get(segmentTopOf(id));
   const merged = 2 + stations.length;
   const nodes = run?.node_statuses ?? [];
 
   let level = 0;
   if (run) {
     level = 1;
-    const visited = [...nodes.filter((n) => n.status !== "pending").map((n) => n.node_id), ...(run.current_node_id ? [run.current_node_id] : [])];
+    const visited = [
+      ...nodes.filter((n) => n.status !== "pending").map((n) => n.node_id),
+      ...(run.current_node_id ? [run.current_node_id] : []),
+    ];
     for (const id of visited) level = Math.max(level, stationLevel(id) ?? 0);
     const end = runEnd(run);
     if (end?.kind === "shipped" && !mergeLeft(run)) {
       level = merged;
       const deploy = stations.findIndex((s) => DEPLOYING.test(s.key));
       // A run whose own graph has no deploy station (an older flow's) is live once it ships.
-      const hasDeploy = deploy >= 0 && (!run.graph_nodes?.length || run.graph_nodes.some((n) => stationLevel(n.id) === 2 + deploy));
-      const deployed = !hasDeploy || nodes.some((n) => n.status === "completed" && stationLevel(n.node_id) === 2 + deploy);
+      const hasDeploy =
+        deploy >= 0 &&
+        (!run.graph_nodes?.length ||
+          run.graph_nodes.some((n) => stationLevel(n.id) === 2 + deploy));
+      const deployed =
+        !hasDeploy ||
+        nodes.some(
+          (n) =>
+            n.status === "completed" && stationLevel(n.node_id) === 2 + deploy,
+        );
       if (deployed) {
         level = merged + 1;
-        if (task.status === "done" && quietWatchEnd(task, now) != null) level = merged + 2;
+        if (task.status === "done" && quietWatchEnd(task, now) != null)
+          level = merged + 2;
       }
     }
   }
   const live = !!run && LIVE.has(run.status);
-  const waiting = live && (run!.status === "paused" || !!o.waiting || !!task.waiting_since);
-  const why = level === merged + 2 ? null : reasonOf({ task, run, level, merged, live, waiting, bar: o.bar, owned: o.owned, sourceTaken: o.sourceTaken, now });
+  const waiting =
+    live && (run!.status === "paused" || !!o.waiting || !!task.waiting_since);
+  const why =
+    level === merged + 2
+      ? null
+      : reasonOf({
+          task,
+          run,
+          level,
+          merged,
+          live,
+          waiting,
+          bar: o.bar,
+          owned: o.owned,
+          sourceTaken: o.sourceTaken,
+          now,
+        });
 
   // Where it stands: the station it is at, else the last it reached before its exit.
-  const at = live ? run!.current_node_id : [...nodes].filter((n) => n.status !== "pending" && n.node_id !== "exit").sort((a, b) => (a.completed_at ?? a.started_at ?? 0) - (b.completed_at ?? b.started_at ?? 0)).pop()?.node_id;
-  const node = at ? o.labels.get(at) ?? o.labels.get(segmentTopOf(at)) ?? words(at) : null;
+  const at = live
+    ? run!.current_node_id
+    : [...nodes]
+        .filter((n) => n.status !== "pending" && n.node_id !== "exit")
+        .sort(
+          (a, b) =>
+            (a.completed_at ?? a.started_at ?? 0) -
+            (b.completed_at ?? b.started_at ?? 0),
+        )
+        .pop()?.node_id;
+  const node = at
+    ? (o.labels.get(at) ?? o.labels.get(segmentTopOf(at)) ?? words(at))
+    : null;
   const name = task.cause?.named?.name?.trim() || task.title;
   return {
-    task: task._id, ref: task.short_id ?? null, title: name.length > TITLE_MAX ? `${name.slice(0, TITLE_MAX - 1)}…` : name,
-    run: run?._id ?? null, at: task.created_at, level, why, node, status: run?.status ?? null,
+    task: task._id,
+    ref: task.short_id ?? null,
+    title: name.length > TITLE_MAX ? `${name.slice(0, TITLE_MAX - 1)}…` : name,
+    run: run?._id ?? null,
+    at: task.created_at,
+    level,
+    why,
+    node,
+    status: run?.status ?? null,
   };
 }
 
-function reasonOf(o: { task: FunnelTask; run: FunnelRun | null | undefined; level: number; merged: number; live: boolean; waiting: boolean; bar?: Pick<FlowBar, "score" | "findings"> | null; owned?: boolean; sourceTaken?: boolean; now: number }): FunnelReason {
+function reasonOf(o: {
+  task: FunnelTask;
+  run: FunnelRun | null | undefined;
+  level: number;
+  merged: number;
+  live: boolean;
+  waiting: boolean;
+  bar?: Pick<FlowBar, "score" | "findings"> | null;
+  owned?: boolean;
+  sourceTaken?: boolean;
+  now: number;
+}): FunnelReason {
   const { task, run } = o;
   if (!run) {
     if (task.status === "dropped") return "dropped";
     if (task.status === "done") return "closed";
-    if (task.readiness !== "ready" || !task.goal_ref?.trim() || !clearsBar(task, o.bar)) return "held";
+    if (
+      task.readiness !== "ready" ||
+      !task.goal_ref?.trim() ||
+      !clearsBar(task, o.bar)
+    )
+      return "held";
     if (o.sourceTaken === false) return "offsource";
     return o.owned === false ? "unowned" : "unstarted";
   }
@@ -241,7 +376,8 @@ function reasonOf(o: { task: FunnelTask; run: FunnelRun | null | undefined; leve
   if (run.status === "cancelled") return "cancelled";
   // Shipped: under watch, or back after it shipped.
   if (o.level > o.merged || (o.level === o.merged && end?.kind === "shipped")) {
-    if (typeof task.watch_until === "number" && task.watch_until > o.now) return "watching";
+    if (typeof task.watch_until === "number" && task.watch_until > o.now)
+      return "watching";
     return task.status === "done" ? "other" : "regressed";
   }
   // Pushed, with the merge left to a person (its Watch station closes the task all the same).
@@ -250,13 +386,17 @@ function reasonOf(o: { task: FunnelTask; run: FunnelRun | null | undefined; leve
   if (task.status === "dropped") return "dropped";
   if (task.status === "done") return "closed";
   if (task.waiting_since) return "waiting";
-  if (run.status === "failed" || endedFailing(run) || stoppedAt(run)) return "failed";
+  if (run.status === "failed" || endedFailing(run) || stoppedAt(run))
+    return "failed";
   if (end?.kind === "parked") return "held";
   return "other";
 }
 
 /** A run that ended through its graph's stop station (onefix's Stopped: the run gave up). */
-const stoppedAt = (run: FunnelRun) => (run.node_statuses ?? []).some((n) => n.node_id === "stopped" && n.status === "completed");
+const stoppedAt = (run: FunnelRun) =>
+  (run.node_statuses ?? []).some(
+    (n) => n.node_id === "stopped" && n.status === "completed",
+  );
 
 const words = (id: string) => {
   const own = id.split("__").pop() || id;
@@ -275,16 +415,24 @@ const dayKey = (at: number) => new Date(at).toISOString().slice(0, 10);
 export function foldFunnel(o: {
   items: ReadonlyArray<FunnelItem>;
   stations: ReadonlyArray<FunnelStation>;
-  sources: ReadonlyArray<{ key: string; days: ReadonlyArray<{ day: string; n: number }> }>;
+  sources: ReadonlyArray<{
+    key: string;
+    days: ReadonlyArray<{ day: string; n: number }>;
+  }>;
   now: number;
 }): FlowFunnel {
   const steps = funnelSteps(o.stations);
   const windows = FUNNEL_WINDOWS.map((days): FunnelWindow => {
     const since = o.now - days * DAY;
     const items = o.items.filter((x) => x.at >= since);
-    const keys = new Set(Array.from({ length: days }, (_, i) => dayKey(o.now - i * DAY)));
+    const keys = new Set(
+      Array.from({ length: days }, (_, i) => dayKey(o.now - i * DAY)),
+    );
     const sources = o.sources
-      .map((s) => ({ key: s.key, n: s.days.reduce((t, d) => t + (keys.has(d.day) ? d.n : 0), 0) }))
+      .map((s) => ({
+        key: s.key,
+        n: s.days.reduce((t, d) => t + (keys.has(d.day) ? d.n : 0), 0),
+      }))
       .filter((s) => s.n > 0)
       .sort((a, b) => b.n - a.n);
     return {
@@ -293,24 +441,36 @@ export function foldFunnel(o: {
       sources,
       steps: steps.map((s, i) => {
         const drops: Partial<Record<FunnelReason, number>> = {};
-        for (const x of items) if (x.level === i && x.why) drops[x.why] = (drops[x.why] ?? 0) + 1;
+        for (const x of items)
+          if (x.level === i && x.why) drops[x.why] = (drops[x.why] ?? 0) + 1;
         return { ...s, n: items.filter((x) => x.level >= i).length, drops };
       }),
     };
   });
   const kept = new Map<string, number>();
-  const items = [...o.items].sort((a, b) => b.at - a.at).filter((x) => {
-    const k = `${x.level}|${x.why ?? ""}`;
-    const n = kept.get(k) ?? 0;
-    kept.set(k, n + 1);
-    return n < FUNNEL_ITEM_CAP;
-  });
+  const items = [...o.items]
+    .sort((a, b) => b.at - a.at)
+    .filter((x) => {
+      const k = `${x.level}|${x.why ?? ""}`;
+      const n = kept.get(k) ?? 0;
+      kept.set(k, n + 1);
+      return n < FUNNEL_ITEM_CAP;
+    });
   return { at: o.now, windows, items };
 }
 
 /** The items behind a number in a window: everyone who reached `level` (a step's count), or, with `why`, those who
  *  stopped there for that reason (a drop). At most what the rollup kept. */
-export function funnelItemsOf(f: FlowFunnel, days: number, level: number, why?: FunnelReason): FunnelItem[] {
+export function funnelItemsOf(
+  f: FlowFunnel,
+  days: number,
+  level: number,
+  why?: FunnelReason,
+): FunnelItem[] {
   const since = f.at - days * DAY;
-  return f.items.filter((x) => x.at >= since && (why ? x.level === level && x.why === why : x.level >= level));
+  return f.items.filter(
+    (x) =>
+      x.at >= since &&
+      (why ? x.level === level && x.why === why : x.level >= level),
+  );
 }

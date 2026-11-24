@@ -1,4 +1,9 @@
-import { internalMutation, mutation, syncAckPositions, syncAckReceipts } from "./functions";
+import {
+  internalMutation,
+  mutation,
+  syncAckPositions,
+  syncAckReceipts,
+} from "./functions";
 import { requestDeployCore } from "./deploys";
 import { requestTargetDeployCore } from "./deployTargetRequest";
 import { noteWriteCause } from "./lifecycleEvents";
@@ -7,31 +12,81 @@ import { addWaitCore, removeWaitCore, type AddWaitInput } from "./taskWaits";
 import { relateCore } from "./taskLinks";
 import { normalizeCharacterFields } from "@codecast/shared/contracts/sessionCharacter";
 import type { CodeAnchorText } from "@codecast/shared/comments";
-import { answerRefusal, guardClientResolution, personMayResolve, reopenCore, settleClientResolution, userMayRead } from "./sessionDecisions";
-import { escalateCore, passCore, type PassTarget, unassignCore } from "./decisionHandoff";
+import {
+  answerRefusal,
+  guardClientResolution,
+  personMayResolve,
+  reopenCore,
+  settleClientResolution,
+  userMayRead,
+} from "./sessionDecisions";
+import {
+  escalateCore,
+  passCore,
+  type PassTarget,
+  unassignCore,
+} from "./decisionHandoff";
 import { applyAreasCore } from "./decisionAreas";
 import { shareOutCore } from "./decisionShareOut";
 import type { AreaAssignment } from "@codecast/shared/contracts/decisionAreas";
-import { createStackWithCore, removeFromStackCore, reorderStackCore } from "./decisionStacks";
+import {
+  createStackWithCore,
+  removeFromStackCore,
+  reorderStackCore,
+} from "./decisionStacks";
 import { performGoalControl, performSetGoal } from "./sessionGoals";
-import { askCore as askDecisionCore, commentCore, deleteCore as deleteDecisionCommentCore, editCore as editDecisionCommentCore, resolveCore as resolveDecisionThreadCore } from "./decisionThread";
+import {
+  askCore as askDecisionCore,
+  commentCore,
+  deleteCore as deleteDecisionCommentCore,
+  editCore as editDecisionCommentCore,
+  resolveCore as resolveDecisionThreadCore,
+} from "./decisionThread";
 import { sendLineChatCore } from "./lineChat";
 import { askCore as askSideQuestionCore } from "./sideAnswers";
-import { clearHoldCore, libraryFlowId, moveLiveFlowCore, setOnCore, startLiveFlowCore, type LibraryFlowRef } from "./liveFlows";
+import {
+  clearHoldCore,
+  libraryFlowId,
+  moveLiveFlowCore,
+  setOnCore,
+  startLiveFlowCore,
+  type LibraryFlowRef,
+} from "./liveFlows";
 import type { ThreadKind } from "./threadReads";
 import { ConvexError, v } from "convex/values";
 import { resolveSpawnDefinition } from "./spawn";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { performSetDeviceDirectLinks } from "./peerLinks";
-import { performSetDeviceAppearance, type DeviceAppearanceChange } from "./deviceAppearance";
+import {
+  performSetDeviceAppearance,
+  type DeviceAppearanceChange,
+} from "./deviceAppearance";
 import { performSetDeviceReservation } from "./deviceReservation";
-import { enqueueStartSession, performRemoveDevices, performSetDeviceShares, performSetDeviceSnippet, performRequestDeviceUpdate, performSetProviderKey } from "./devices";
-import { performJoinTeamHost, performRemoveTeamHostMember, performRenameTeamHost, performUnregisterTeamHost } from "./teamHosts";
-import { performSetAccountDevices, performSetAccountShares } from "./accountPool";
+import {
+  enqueueStartSession,
+  performRemoveDevices,
+  performSetDeviceShares,
+  performSetDeviceSnippet,
+  performRequestDeviceUpdate,
+  performSetProviderKey,
+} from "./devices";
+import {
+  performJoinTeamHost,
+  performRemoveTeamHostMember,
+  performRenameTeamHost,
+  performUnregisterTeamHost,
+} from "./teamHosts";
+import {
+  performSetAccountDevices,
+  performSetAccountShares,
+} from "./accountPool";
 import { cancelBot, requestBot } from "./meetingBots";
 import { disconnectCore } from "./mcpAuth";
 import { setJoinAllFor, setMeetingChoiceFor } from "./lib/meetingCalendarCore";
-import type { DeviceSnippetChange, ProviderKeyCommand } from "@codecast/shared/contracts";
+import type {
+  DeviceSnippetChange,
+  ProviderKeyCommand,
+} from "@codecast/shared/contracts";
 import { upsertBinding } from "./capabilityBindings";
 import { Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./rateLimit";
@@ -39,11 +94,25 @@ import { resolveTeamForPath, buildShareUpdate, isTeamMember } from "./privacy";
 import { applyMembershipVisibilityChange } from "./teams";
 import { isTeamVisibilityLevel } from "./teamVisibility";
 import { resumeConversationSession } from "./daemonCommandUtils";
-import { addDepCore, removeDepCore, resolveAssigneeToUserId, recalcPlanProgress, subscribeUser } from "./tasks";
-import { resolveWorkerParentConversation, resolveTaskGitContext } from "./lib/taskLaunch";
+import {
+  addDepCore,
+  removeDepCore,
+  resolveAssigneeToUserId,
+  recalcPlanProgress,
+  subscribeUser,
+} from "./tasks";
+import {
+  resolveWorkerParentConversation,
+  resolveTaskGitContext,
+} from "./lib/taskLaunch";
 import { api, internal } from "./_generated/api";
 import { sentryStatusFor } from "./sources/sentry";
-import { AGENT_MODEL_CONFIG, findModelOption, modelAgentKey, fromConvexAgentType, type ConvexAgentType,
+import {
+  AGENT_MODEL_CONFIG,
+  findModelOption,
+  modelAgentKey,
+  fromConvexAgentType,
+  type ConvexAgentType,
   isHostedAgentType,
   checkoutInUseMessage,
   normalizeCloudWorkspace,
@@ -51,13 +120,23 @@ import { AGENT_MODEL_CONFIG, findModelOption, modelAgentKey, fromConvexAgentType
   recordingPressStale,
   recordingPressStaleWords,
 } from "@codecast/shared/contracts";
-import { applyHideTransition, hideBudgetLeft, noteGestureRows } from "./cleanup";
+import {
+  applyHideTransition,
+  hideBudgetLeft,
+  noteGestureRows,
+} from "./cleanup";
 import { closeSetsAsideOnServer } from "./lib/closeAside";
 import { isClosePatch } from "@codecast/shared/contracts";
 import { stampBrowserPaneOfferHandled, writeShareLink } from "./conversations";
-import { performCancelPeerTransfer, performDismissPeerTransfer } from "./peerTransfers";
+import {
+  performCancelPeerTransfer,
+  performDismissPeerTransfer,
+} from "./peerTransfers";
 import { writeObjectShareLink } from "./publicShare";
-import { setWeeklyCardEnabledFor, setWeeklyCardOptionsFor } from "./weeklyCards";
+import {
+  setWeeklyCardEnabledFor,
+  setWeeklyCardOptionsFor,
+} from "./weeklyCards";
 import { deleteSessionAsOwner } from "./sessionDelete";
 import { reactivateTasksCanceledOnKill } from "./lib/agentTaskRows";
 import { canAccessDoc } from "./docs";
@@ -66,15 +145,46 @@ import { applyAsWebUser } from "./liveArtifacts";
 import { docTypeChangeAllowed } from "@codecast/shared/docs";
 import { startHostedConversationFor } from "./assistant/entry";
 import { castMachinesEnabledFor, startOnCastMachine } from "./castMachines";
-import { parseQuoteDrafts, quotesWaiting, removeQuotes, saveQuotes, stampQuotesSent } from "./quoteDrafts";
-import { canSendProductMessage, enqueuePendingMessage, retryPendingMessageForUser, cancelPendingMessageForUser, reorderQueuedForUser, mergeQueuedForUser, releaseQueuedForUser } from "./pendingMessages";
+import {
+  parseQuoteDrafts,
+  quotesWaiting,
+  removeQuotes,
+  saveQuotes,
+  stampQuotesSent,
+} from "./quoteDrafts";
+import {
+  canSendProductMessage,
+  enqueuePendingMessage,
+  retryPendingMessageForUser,
+  cancelPendingMessageForUser,
+  reorderQueuedForUser,
+  mergeQueuedForUser,
+  releaseQueuedForUser,
+} from "./pendingMessages";
 import { composerChannel } from "./pendingMessageWrites";
-import { enqueueCloudSpawn, performCloudHostAction, performSetCloudAutoscale, performSetLocalMirror } from "./cloud";
-import type { CloudHostAction, LocalMirrorMode, MirrorResolve } from "@codecast/shared/contracts";
-import { effectiveStartFrom, parkOnCloudHost, resolveCloudDevice } from "./cloudPlacement";
+import {
+  enqueueCloudSpawn,
+  performCloudHostAction,
+  performSetCloudAutoscale,
+  performSetLocalMirror,
+} from "./cloud";
+import type {
+  CloudHostAction,
+  LocalMirrorMode,
+  MirrorResolve,
+} from "@codecast/shared/contracts";
+import {
+  effectiveStartFrom,
+  parkOnCloudHost,
+  resolveCloudDevice,
+} from "./cloudPlacement";
 import { findSharedCheckoutOccupant } from "./cloudPlacement";
 import { findConversationBySessionReference } from "./conversationSessionLookup";
-import { findAgentBoxSessionCreatedBy, retainSessionCreator, sessionLaunchRunner } from "./sessionLaunch";
+import {
+  findAgentBoxSessionCreatedBy,
+  retainSessionCreator,
+  sessionLaunchRunner,
+} from "./sessionLaunch";
 import {
   BUCKETS_VIEW_CONTRACT_ID,
   BUCKETS_VIEW_KEY,
@@ -83,15 +193,33 @@ import {
   assignConversationToBucketForUser,
   canFileConversation,
 } from "./buckets";
-import { advanceLocalViewRevision, runLocalCommand } from "./localFirstCommands";
-import { RECEIPT_OWNS_SERVER_WRITE, hasReceiptCommandId, receiptCommandId, receiptLocalResult, receiptOrLegacyCommandId, runReceiptBackedCreate, validatedCreateContinuation } from "./dispatchReceipts";
+import {
+  advanceLocalViewRevision,
+  runLocalCommand,
+} from "./localFirstCommands";
+import {
+  RECEIPT_OWNS_SERVER_WRITE,
+  hasReceiptCommandId,
+  receiptCommandId,
+  receiptLocalResult,
+  receiptOrLegacyCommandId,
+  runReceiptBackedCreate,
+  validatedCreateContinuation,
+} from "./dispatchReceipts";
 import { deleteRecordingRun } from "./callRecordings";
 import { isSessionOwner } from "./sessionOwners";
-import { hideConversationForViewer, unhideConversationForViewer } from "./inboxHides";
+import {
+  hideConversationForViewer,
+  unhideConversationForViewer,
+} from "./inboxHides";
 import { patchCommentWithRevision } from "./commentViewWrites";
 import { getComment } from "./commentStore";
 import type { CommentId } from "./lib/conversationCommentRows";
-import { canAccessConversation, canAccessProject, requireTeamMembership } from "./lib/access";
+import {
+  canAccessConversation,
+  canAccessProject,
+  requireTeamMembership,
+} from "./lib/access";
 import { patchConversationVisibility } from "./lib/conversationVisibility";
 import { enqueueConfigCommand } from "./users";
 import { patchConversationThroughFavoriteView } from "./favoriteViewWrites";
@@ -99,16 +227,57 @@ import { startShipCore } from "./ship";
 import { personEditCore, resolveProposalCore } from "./expectations";
 import { fileLineCauseCore, startLineCauseCore } from "./lineCause";
 import { askCheckoutCore } from "./checkoutAsk";
-import { makeProblemOfFindingCore, markAskDoneCore, mergeProblemCore, moveFindingOutCore } from "./signals";
-import { askLineAgentCore, editLineGraphCore, reaskTrialRunCore, tryLineStepCore } from "./lineActions";
-import { cancelRunByPerson, landAgainCore, resumeRunCore } from "./workflow_runs";
+import {
+  makeProblemOfFindingCore,
+  markAskDoneCore,
+  mergeProblemCore,
+  moveFindingOutCore,
+} from "./signals";
+import {
+  askLineAgentCore,
+  editLineGraphCore,
+  reaskTrialRunCore,
+  tryLineStepCore,
+} from "./lineActions";
+import {
+  cancelRunByPerson,
+  landAgainCore,
+  resumeRunCore,
+} from "./workflow_runs";
 import { pinCapExceeded, PIN_CAP_ERROR } from "./inboxProjection";
-import { dismissGuestSuggestionFor, sendGuestSuggestionFor, writeGuestSuggestions } from "./guestSuggestions";
-import { proposeAnswerFor, proposePermissionFor, sendMineNowFor, withdrawTeamSuggestionFor } from "./teamSuggestions";
+import {
+  dismissGuestSuggestionFor,
+  sendGuestSuggestionFor,
+  writeGuestSuggestions,
+} from "./guestSuggestions";
+import {
+  proposeAnswerFor,
+  proposePermissionFor,
+  sendMineNowFor,
+  withdrawTeamSuggestionFor,
+} from "./teamSuggestions";
 import { acknowledgeIfReadable, markUnreadIfReadable } from "./sessionReads";
-import { answerPresence, charterWire, deepMergeField, isServerId, linkConversationToObject, liveSecretWrite, opsRowId, type HandlerCtx } from "./dispatchHelpers";
-import { assertMayBind, handIsPrivate, handThreadToSession, handableThread } from "./chatHandoff";
-import { DISPATCHABLE_CONVERSATION_FIELDS, CLOUD_SESSION_SOURCES, type CloudSessionSource } from "@codecast/shared/contracts";
+import {
+  answerPresence,
+  charterWire,
+  deepMergeField,
+  isServerId,
+  linkConversationToObject,
+  liveSecretWrite,
+  opsRowId,
+  type HandlerCtx,
+} from "./dispatchHelpers";
+import {
+  assertMayBind,
+  handIsPrivate,
+  handThreadToSession,
+  handableThread,
+} from "./chatHandoff";
+import {
+  DISPATCHABLE_CONVERSATION_FIELDS,
+  CLOUD_SESSION_SOURCES,
+  type CloudSessionSource,
+} from "@codecast/shared/contracts";
 import { claimProjectDefaultSession, readableProject } from "./sessionProjects";
 import { insertProject } from "./projects";
 
@@ -117,7 +286,10 @@ type TableConfig =
       kind: "collection";
       ownerField: string;
       editable: Set<string>;
-      beforePatch?: (doc: any, safe: Record<string, any>) => Record<string, any>;
+      beforePatch?: (
+        doc: any,
+        safe: Record<string, any>,
+      ) => Record<string, any>;
     }
   | {
       kind: "singleton";
@@ -132,20 +304,41 @@ const TABLE_CONFIG: Record<string, TableConfig> = {
     ownerField: "user_id",
     editable: new Set([
       ...DISPATCHABLE_CONVERSATION_FIELDS,
-      "title_is_custom", "project_path", "git_root", "draft_message", "inbox_killed_at",
-      "model", "effort", "agent_definition",
-      "thread_state", "thread_state_at", "thread_state_msg_count", "thread_state_status",
+      "title_is_custom",
+      "project_path",
+      "git_root",
+      "draft_message",
+      "inbox_killed_at",
+      "model",
+      "effort",
+      "agent_definition",
+      "thread_state",
+      "thread_state_at",
+      "thread_state_msg_count",
+      "thread_state_status",
     ]),
-    beforePatch: (_doc: any, safe: Record<string, any>) => normalizeCharacterFields(safe),
+    beforePatch: (_doc: any, safe: Record<string, any>) =>
+      normalizeCharacterFields(safe),
   },
   client_state: {
     kind: "singleton",
     ownerField: "user_id",
     lookupIndex: "by_user_id",
     editable: new Set([
-      "current_conversation_id", "show_dismissed", "dismissed_ids", "ui", "layouts",
-      "dismissed", "tips", "drafts", "tabs", "activeTabId", "sidebar_collapsed",
-      "zen_mode", "layout", "updated_at",
+      "current_conversation_id",
+      "show_dismissed",
+      "dismissed_ids",
+      "ui",
+      "layouts",
+      "dismissed",
+      "tips",
+      "drafts",
+      "tabs",
+      "activeTabId",
+      "sidebar_collapsed",
+      "zen_mode",
+      "layout",
+      "updated_at",
     ]),
   },
   // Bucket field edits (rename / color / sort_order / archived_at) ride the
@@ -154,7 +347,13 @@ const TABLE_CONFIG: Record<string, TableConfig> = {
   inbox_buckets: {
     kind: "collection",
     ownerField: "user_id",
-    editable: new Set(["name", "color", "sort_order", "archived_at", "updated_at"]),
+    editable: new Set([
+      "name",
+      "color",
+      "sort_order",
+      "archived_at",
+      "updated_at",
+    ]),
   },
   // Decision-queue resolutions (answer / dismiss) ride the generic patch
   // path. Creation comes only from the CLI (/cli/decide → sessionDecisions.ask),
@@ -162,10 +361,17 @@ const TABLE_CONFIG: Record<string, TableConfig> = {
   session_decisions: {
     kind: "collection",
     ownerField: "user_id",
-    editable: new Set(["status", "answer_index", "answer_text", "answer_json", "resolved_at"]),
+    editable: new Set([
+      "status",
+      "answer_index",
+      "answer_text",
+      "answer_json",
+      "resolved_at",
+    ]),
     // First writer wins on this rail too: a resolution patch on a row a role
     // or a stack policy already resolved is dropped whole.
-    beforePatch: (doc: any, safe: Record<string, any>) => guardClientResolution(doc, safe),
+    beforePatch: (doc: any, safe: Record<string, any>) =>
+      guardClientResolution(doc, safe),
   },
   // Kept for backward compatibility with already-persisted generic edit
   // outbox rows. Current comment writes use named receipt-backed side effects;
@@ -178,26 +384,75 @@ const TABLE_CONFIG: Record<string, TableConfig> = {
 };
 
 const PATCH_ONLY_ACTIONS = new Set([
-  "answerDecision", "applyWorkbench", "clearCurrentConversation", "clearSelection",
-  "clearSidePanelSession", "closeSidePanel", "closeTab", "deferSession",
-  "initPagination", "injectSession", "markKilling", "navigateToSession", "openSidePanel", "openTab",
-  "adoptSession", "patchConversation", "pinSession", "renameSession", "requestNavigate",
-  "saveCurrentTabState", "selectPanelSession", "setActiveBucketFilter",
-  "setActiveProjectFilter", "setCloudSessionMode", "setCloudSharedCheckout", "setConversationAgent",
-  "setConversationAgentDefinition", "setConversationModel", "setCurrentConversation", "setCurrentSession",
-  "setIsolatedWorktreeMode", "setNavCollapsed", "setPagination", "setRecentProjects",
-  "setSessionCharacter", "setSessionCharacters", "setSessionRest", "setViewingDismissedId",
-  "snoozeSession", "stageCloseLeaf", "stageExpandLeaf", "stageFocusLeaf",
-  "stageInsertLeaf", "stageMoveLeaf", "stageSetLeafPath", "stageSetSizes",
-  "switchTab", "toggleBucketFilterTerm", "toggleCollapsedSection",
-  "toggleFavorite", "toggleProjectFilterTerm", "toggleSidePanel", "touchMru",
-  "updateClientDismissed", "updateSessionProject", "updateTab", "wakeSnoozedSession",
-  "wsHide", "wsSetPresentation", "wsSetSize", "wsShow",
+  "answerDecision",
+  "applyWorkbench",
+  "clearCurrentConversation",
+  "clearSelection",
+  "clearSidePanelSession",
+  "closeSidePanel",
+  "closeTab",
+  "deferSession",
+  "initPagination",
+  "injectSession",
+  "markKilling",
+  "navigateToSession",
+  "openSidePanel",
+  "openTab",
+  "adoptSession",
+  "patchConversation",
+  "pinSession",
+  "renameSession",
+  "requestNavigate",
+  "saveCurrentTabState",
+  "selectPanelSession",
+  "setActiveBucketFilter",
+  "setActiveProjectFilter",
+  "setCloudSessionMode",
+  "setCloudSharedCheckout",
+  "setConversationAgent",
+  "setConversationAgentDefinition",
+  "setConversationModel",
+  "setCurrentConversation",
+  "setCurrentSession",
+  "setIsolatedWorktreeMode",
+  "setNavCollapsed",
+  "setPagination",
+  "setRecentProjects",
+  "setSessionCharacter",
+  "setSessionCharacters",
+  "setSessionRest",
+  "setViewingDismissedId",
+  "snoozeSession",
+  "stageCloseLeaf",
+  "stageExpandLeaf",
+  "stageFocusLeaf",
+  "stageInsertLeaf",
+  "stageMoveLeaf",
+  "stageSetLeafPath",
+  "stageSetSizes",
+  "switchTab",
+  "toggleBucketFilterTerm",
+  "toggleCollapsedSection",
+  "toggleFavorite",
+  "toggleProjectFilterTerm",
+  "toggleSidePanel",
+  "touchMru",
+  "updateClientDismissed",
+  "updateSessionProject",
+  "updateTab",
+  "wakeSnoozedSession",
+  "wsHide",
+  "wsSetPresentation",
+  "wsSetSize",
+  "wsShow",
   "wsToggle",
 ]);
 
 export function isDispatchAction(action: string): boolean {
-  return Object.prototype.hasOwnProperty.call(SIDE_EFFECTS, action) || PATCH_ONLY_ACTIONS.has(action);
+  return (
+    Object.prototype.hasOwnProperty.call(SIDE_EFFECTS, action) ||
+    PATCH_ONLY_ACTIONS.has(action)
+  );
 }
 
 /**
@@ -208,7 +463,10 @@ export function isDispatchAction(action: string): boolean {
 async function docFor(ctx: any, docId: string): Promise<any | null> {
   const id = ctx.db.normalizeId("docs", docId);
   if (id) return await ctx.db.get(id);
-  return await ctx.db.query("docs").withIndex("by_client_key", (q: any) => q.eq("client_key", docId)).first();
+  return await ctx.db
+    .query("docs")
+    .withIndex("by_client_key", (q: any) => q.eq("client_key", docId))
+    .first();
 }
 
 export const dispatch = mutation({
@@ -223,14 +481,27 @@ export const dispatch = mutation({
     // it, so the unwrapped shape old bundles rely on never changes.
     ack_positions: v.optional(v.boolean()),
   },
-  handler: async (ctx, { action, args: actionArgs, patches, result, ack_positions }) => {
+  handler: async (
+    ctx,
+    { action, args: actionArgs, patches, result, ack_positions },
+  ) => {
     noteWriteCause(ctx, `web:${action}`);
     const userId = await getAuthUserId(ctx);
     // Signed out is a state, not a verdict on the write: retryable keeps it in
     // the client outbox to land once auth returns, instead of dropping it and
     // toasting about an action the person may never have taken.
-    if (!userId) throw new ConvexError({ code: "UNAUTHENTICATED", message: "Not authenticated", retryable: true });
-    const sideEffect = Object.prototype.hasOwnProperty.call(SIDE_EFFECTS, action) ? SIDE_EFFECTS[action] : undefined;
+    if (!userId)
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+        retryable: true,
+      });
+    const sideEffect = Object.prototype.hasOwnProperty.call(
+      SIDE_EFFECTS,
+      action,
+    )
+      ? SIDE_EFFECTS[action]
+      : undefined;
     if (!isDispatchAction(action)) throw new Error("Unknown dispatch action");
 
     // In final mode the receipt envelope is the one durable-write rail. Do not
@@ -242,23 +513,43 @@ export const dispatch = mutation({
       !(hasReceiptCommandId(result) && RECEIPT_OWNS_SERVER_WRITE.has(action))
     ) {
       const close = EXPLICIT_CLOSE_ACTIONS.has(action);
-      await applyPatches(ctx, userId, patches, { forceKill: close || EXPLICIT_KILL_ACTIONS.has(action), close, cause: `web:${action}`, presence: answerPresence(action, actionArgs) });
+      await applyPatches(ctx, userId, patches, {
+        forceKill: close || EXPLICIT_KILL_ACTIONS.has(action),
+        close,
+        cause: `web:${action}`,
+        presence: answerPresence(action, actionArgs),
+      });
     }
 
-    const out = sideEffect ? await sideEffect(ctx, userId, actionArgs, result) : undefined;
+    const out = sideEffect
+      ? await sideEffect(ctx, userId, actionArgs, result)
+      : undefined;
     if (ack_positions) {
       const held = new Set(await heldKeysFor(ctx, userId));
-      return { __syncAckV1: syncAckPositions(ctx),
-        __syncAckV2: syncAckReceipts(ctx).filter((r: any) => held.has(r.scope_key)), result: out };
+      return {
+        __syncAckV1: syncAckPositions(ctx),
+        __syncAckV2: syncAckReceipts(ctx).filter((r: any) =>
+          held.has(r.scope_key),
+        ),
+        result: out,
+      };
     }
     return out;
   },
 });
 
 // A role or session the web puts in a chat room (web chatTypes ChatChannelAgentRef).
-type ChatAgentArg = { kind: "role"; role_id: string } | { kind: "session"; conversation_id: string };
-const chatAgentArgId = (a: ChatAgentArg) => (a.kind === "role" ? a.role_id : a.conversation_id);
-type HandlerFn = (ctx: HandlerCtx, userId: Id<"users">, args: any, result?: any) => Promise<any>;
+type ChatAgentArg =
+  | { kind: "role"; role_id: string }
+  | { kind: "session"; conversation_id: string };
+const chatAgentArgId = (a: ChatAgentArg) =>
+  a.kind === "role" ? a.role_id : a.conversation_id;
+type HandlerFn = (
+  ctx: HandlerCtx,
+  userId: Id<"users">,
+  args: any,
+  result?: any,
+) => Promise<any>;
 
 // The hide-transition decision + side effects live in cleanup.ts
 // (classifyHideTransition / applyHideTransition), shared with the CLI
@@ -268,7 +559,12 @@ export { classifyHideTransition } from "./cleanup";
 // The hide gestures carry whatever id the web row has, and a draft session
 // that never reached the server has a local stub id. The store already deleted
 // that row, so there is nothing to record here.
-async function hideForViewerByClientId(ctx: any, userId: Id<"users">, convId: string, kind: "stash" | "dismiss") {
+async function hideForViewerByClientId(
+  ctx: any,
+  userId: Id<"users">,
+  convId: string,
+  kind: "stash" | "dismiss",
+) {
   const id = ctx.db.normalizeId("conversations", convId);
   if (!id) return;
   await hideConversationForViewer(ctx, userId, await ctx.db.get(id), kind);
@@ -302,7 +598,11 @@ export const applyDeferredPatches = internalMutation({
   },
   handler: async (ctx, { user_id, patches, force_kill, close, cause }) => {
     if (cause) noteWriteCause(ctx, cause);
-    await applyPatches(ctx, user_id, patches, { forceKill: force_kill, close, cause });
+    await applyPatches(ctx, user_id, patches, {
+      forceKill: force_kill,
+      close,
+      cause,
+    });
   },
 });
 
@@ -311,12 +611,18 @@ export async function applyPatches(
   ctx: HandlerCtx,
   userId: Id<"users">,
   patches: Record<string, Record<string, Record<string, any>>>,
-  opts?: { forceKill?: boolean; close?: boolean; cause?: string; presence?: string }
+  opts?: {
+    forceKill?: boolean;
+    close?: boolean;
+    cause?: string;
+    presence?: string;
+  },
 ) {
   let bucketViewChanged = false;
   // Every row this gesture names decides for itself: a lead's cascade never
   // writes over one, whatever order the rows come in (cleanup.ts).
-  if (patches.conversations) noteGestureRows(ctx, Object.keys(patches.conversations));
+  if (patches.conversations)
+    noteGestureRows(ctx, Object.keys(patches.conversations));
   // A gesture on a lead patches every row of its group, and each conversation
   // row runs its hide or un-kill teardown here. A lead with 175 subagents did
   // all of that in one transaction and passed Convex's 4096-read cap, so it
@@ -325,15 +631,24 @@ export async function applyPatches(
   // function in scheduled batches.
   const scheduler = (ctx as any).scheduler;
   let inline = PATCH_ROWS_INLINE;
-  let deferred: Record<string, Record<string, Record<string, any>>> | null = null;
+  let deferred: Record<string, Record<string, Record<string, any>>> | null =
+    null;
   for (const [table, docs] of Object.entries(patches)) {
-    const config = Object.prototype.hasOwnProperty.call(TABLE_CONFIG, table) ? TABLE_CONFIG[table] : undefined;
+    const config = Object.prototype.hasOwnProperty.call(TABLE_CONFIG, table)
+      ? TABLE_CONFIG[table]
+      : undefined;
     if (!config) continue;
 
     for (const [docKey, fields] of Object.entries(docs)) {
       // Hide teardowns share the transaction's budget with the cascade they
       // start (cleanup.ts hideBudgetLeft), so a conversation row waits once it is spent.
-      if ((inline-- <= 0 || (table === "conversations" && ("inbox_dismissed_at" in fields || "inbox_stashed_at" in fields) && hideBudgetLeft(ctx) === 0)) && scheduler) {
+      if (
+        (inline-- <= 0 ||
+          (table === "conversations" &&
+            ("inbox_dismissed_at" in fields || "inbox_stashed_at" in fields) &&
+            hideBudgetLeft(ctx) === 0)) &&
+        scheduler
+      ) {
         ((deferred ??= {})[table] ??= {})[docKey] = fields;
         continue;
       }
@@ -349,9 +664,19 @@ export async function applyPatches(
         const comment = await getComment(ctx, docKey);
         if (!comment || String(comment.user_id) !== String(userId)) continue;
         const conversation = await ctx.db.get(comment.conversation_id);
-        if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) continue;
-        if ("resolved_at" in safe) safe.resolved_by = safe.resolved_at ? userId : undefined;
-        await patchCommentWithRevision(ctx as any, comment, safe as any, conversation as any);
+        if (
+          !conversation ||
+          !(await canAccessConversation(ctx, userId, conversation))
+        )
+          continue;
+        if ("resolved_at" in safe)
+          safe.resolved_by = safe.resolved_at ? userId : undefined;
+        await patchCommentWithRevision(
+          ctx as any,
+          comment,
+          safe as any,
+          conversation as any,
+        );
         continue;
       }
 
@@ -363,39 +688,64 @@ export async function applyPatches(
         // an assigned session from their inbox exactly like the runner would.
         // owner_user_id itself is immutable here — assignment goes through the
         // validated setSessionOwner mutation only.
-        let permitted = !!doc && (
-          (doc as any)[config.ownerField] === userId ||
-          (table === "conversations" && (doc as any).owner_user_id?.toString() === userId.toString()) ||
-          // A decision is answerable by every person it was asked of
-          // (docs/architecture/decisions-as-documents.md D6), and by anyone
-          // else who may read it (the people then hear who answered).
-          (table === "session_decisions" && (personMayResolve(doc as any, userId) || await userMayRead(ctx as any, userId, doc as any)))
-        );
+        let permitted =
+          !!doc &&
+          ((doc as any)[config.ownerField] === userId ||
+            (table === "conversations" &&
+              (doc as any).owner_user_id?.toString() === userId.toString()) ||
+            // A decision is answerable by every person it was asked of
+            // (docs/architecture/decisions-as-documents.md D6), and by anyone
+            // else who may read it (the people then hear who answered).
+            (table === "session_decisions" &&
+              (personMayResolve(doc as any, userId) ||
+                (await userMayRead(ctx as any, userId, doc as any)))));
         // owner_user_id caches only the PRIMARY (first-added) owner; a SECONDARY
         // owner's triage patch must resolve through the canonical owner set or
         // it silently drops and the reconcile resurrects their dismiss forever.
         if (!permitted && doc && table === "conversations") {
-          permitted = await isSessionOwner(ctx, doc._id as Id<"conversations">, userId);
+          permitted = await isSessionOwner(
+            ctx,
+            doc._id as Id<"conversations">,
+            userId,
+          );
         }
         if (!permitted) continue;
-        if (table === "session_decisions" && safe.status !== "answered" && safe.status !== "dismissed") continue;
+        if (
+          table === "session_decisions" &&
+          safe.status !== "answered" &&
+          safe.status !== "dismissed"
+        )
+          continue;
         // A hosted assistant's question is answered by its owner only, and a
         // Vault Ask first one by the asking session's owner, whose Approve
         // takes a passkey grant. The refusal
         // throws, so the outbox treats it as permanent and the client takes
         // its painted answer back instead of showing it as answered.
         if (table === "session_decisions") {
-          const refusal = await answerRefusal(ctx as any, doc as any, { kind: "user", id: String(userId), user_id: userId, signed_in: true, presence: opts?.presence }, { status: safe.status, answer_index: safe.answer_index });
+          const refusal = await answerRefusal(
+            ctx as any,
+            doc as any,
+            {
+              kind: "user",
+              id: String(userId),
+              user_id: userId,
+              signed_in: true,
+              presence: opts?.presence,
+            },
+            { status: safe.status, answer_index: safe.answer_index },
+          );
           if (refusal) throw new Error(refusal);
         }
-        const finalSafe = config.beforePatch ? config.beforePatch(doc, { ...safe }) : safe;
+        const finalSafe = config.beforePatch
+          ? config.beforePatch(doc, { ...safe })
+          : safe;
         // Favorite membership belongs to the conversation's runner principal,
         // not to second-party inbox owners. Those owners may triage the row but
         // cannot mutate somebody else's favorites relation.
         if (
-          table === "conversations"
-          && "is_favorite" in finalSafe
-          && String(doc.user_id) !== String(userId)
+          table === "conversations" &&
+          "is_favorite" in finalSafe &&
+          String(doc.user_id) !== String(userId)
         ) {
           delete finalSafe.is_favorite;
         }
@@ -413,10 +763,13 @@ export async function applyPatches(
         // send (pendingMessages.enqueue), delivery, Restart — are mutations and
         // never ride this rail. SETTING it is untouched.
         if (
-          table === "conversations"
-          && "inbox_killed_at" in finalSafe
-          && !(finalSafe as any).inbox_killed_at
-          && !("inbox_dismissed_at" in finalSafe && !(finalSafe as any).inbox_dismissed_at)
+          table === "conversations" &&
+          "inbox_killed_at" in finalSafe &&
+          !(finalSafe as any).inbox_killed_at &&
+          !(
+            "inbox_dismissed_at" in finalSafe &&
+            !(finalSafe as any).inbox_dismissed_at
+          )
         ) {
           delete (finalSafe as any).inbox_killed_at;
         }
@@ -425,36 +778,61 @@ export async function applyPatches(
         // (and every sibling patch in it) rather than one gesture — so the pin
         // is dropped here and the server echo reverts the optimistic pin; the
         // explicit patchConversation mutation refuses with the clear error.
-        if (table === "conversations" && await pinCapExceeded(ctx, userId, doc as any, finalSafe)) {
-          console.warn(`[dispatch] ${PIN_CAP_ERROR} (dropped pin on ${docKey})`);
+        if (
+          table === "conversations" &&
+          (await pinCapExceeded(ctx, userId, doc as any, finalSafe))
+        ) {
+          console.warn(
+            `[dispatch] ${PIN_CAP_ERROR} (dropped pin on ${docKey})`,
+          );
           delete (finalSafe as any).inbox_pinned_at;
         }
         // A close is a close by its fields (inbox_closed_at written equal to
         // the dismissed stamp) on any rail: a stub re-key flush or a deferred
         // batch carries no close action name. The action name still marks a
         // close whose client sent only the stamp.
-        const close = table === "conversations" && (!!opts?.close || isClosePatch(finalSafe as any));
+        const close =
+          table === "conversations" &&
+          (!!opts?.close || isClosePatch(finalSafe as any));
         // The server decides a close. A row the client closed that is in flight
         // by the server's own read (lib/closeAside: itself or a member of its
         // nested group, by the shared closeInFlightReason) is set aside
         // instead: a stash, so nothing is stopped. The client's paint was the
         // guess; this write's echo corrects it.
-        if (close && (finalSafe as any).inbox_dismissed_at && await closeSetsAsideOnServer(ctx, doc, Date.now(), { forceKill: opts?.forceKill })) {
-          (finalSafe as any).inbox_stashed_at = (finalSafe as any).inbox_dismissed_at;
+        if (
+          close &&
+          (finalSafe as any).inbox_dismissed_at &&
+          (await closeSetsAsideOnServer(ctx, doc, Date.now(), {
+            forceKill: opts?.forceKill,
+          }))
+        ) {
+          (finalSafe as any).inbox_stashed_at = (
+            finalSafe as any
+          ).inbox_dismissed_at;
           delete (finalSafe as any).inbox_dismissed_at;
           // inbox_closed_at stays: with no dismissed stamp it is inert (not a close),
           // and it is the cell the close's undo finds to clear this stash with.
-          if ((finalSafe as any).inbox_closed_at == null) (finalSafe as any).inbox_closed_at = (finalSafe as any).inbox_stashed_at;
+          if ((finalSafe as any).inbox_closed_at == null)
+            (finalSafe as any).inbox_closed_at = (
+              finalSafe as any
+            ).inbox_stashed_at;
         }
         if (Object.keys(finalSafe).length === 0) continue;
         // Capture the PRE-patch hide state. The un-kill mirror below decides on
         // what the row looked like BEFORE this write, and reading it afterwards
         // would depend on ctx.db.get having handed back a snapshot rather than
         // the row the patch mutates.
-        const wasDismissed = table === "conversations" && !!(doc as any).inbox_dismissed_at;
-        const wasKilled = table === "conversations" && !!(doc as any).inbox_killed_at;
+        const wasDismissed =
+          table === "conversations" && !!(doc as any).inbox_dismissed_at;
+        const wasKilled =
+          table === "conversations" && !!(doc as any).inbox_killed_at;
         if (table === "conversations" && "is_favorite" in finalSafe) {
-          await patchConversationThroughFavoriteView(ctx as any, doc as any, finalSafe as any, "advance");
+          await patchConversationThroughFavoriteView(
+            ctx as any,
+            doc as any,
+            finalSafe as any,
+            "advance",
+          );
         } else {
           await ctx.db.patch(documentId, finalSafe);
         }
@@ -462,14 +840,29 @@ export async function applyPatches(
         // A decision resolved from the web: the same side effects a server
         // answer carries (inbox rows done, stack close, override scoring).
         if (table === "session_decisions" && "status" in finalSafe) {
-          await settleClientResolution(ctx, doc as any, finalSafe as any, userId, Date.now(), opts?.presence);
+          await settleClientResolution(
+            ctx,
+            doc as any,
+            finalSafe as any,
+            userId,
+            Date.now(),
+            opts?.presence,
+          );
         }
         // Lifecycle hooks on the DATA transition (a conversation patch setting
         // inbox_dismissed_at / inbox_stashed_at), not any one action, so every
         // dismiss/stash path funnels through here — the inbox shortcuts, the
         // palette, the /sessions toggle (patchConversation), and any future one.
-        if (table === "conversations" && ((finalSafe as any).inbox_dismissed_at || (finalSafe as any).inbox_stashed_at)) {
-          await applyHideTransition(ctx, doc, finalSafe as any, { forceKill: opts?.forceKill, close, cause: opts?.cause });
+        if (
+          table === "conversations" &&
+          ((finalSafe as any).inbox_dismissed_at ||
+            (finalSafe as any).inbox_stashed_at)
+        ) {
+          await applyHideTransition(ctx, doc, finalSafe as any, {
+            forceKill: opts?.forceKill,
+            close,
+            cause: opts?.cause,
+          });
         }
         // The un-kill mirror: a patch CLEARING either hide stamp on a row that
         // had it is the restore/undo gesture (web restoreSession, the /sessions
@@ -496,9 +889,11 @@ export async function applyPatches(
         // the runner's by construction, so restoring without them would hand
         // back a session whose standing loop is silently dead.
         const clearsDismissed =
-          "inbox_dismissed_at" in (finalSafe as any) && !(finalSafe as any).inbox_dismissed_at;
+          "inbox_dismissed_at" in (finalSafe as any) &&
+          !(finalSafe as any).inbox_dismissed_at;
         const clearsKilled =
-          "inbox_killed_at" in (finalSafe as any) && !(finalSafe as any).inbox_killed_at;
+          "inbox_killed_at" in (finalSafe as any) &&
+          !(finalSafe as any).inbox_killed_at;
         if (
           table === "conversations" &&
           ((clearsDismissed && wasDismissed) || (clearsKilled && wasKilled))
@@ -511,18 +906,28 @@ export async function applyPatches(
           // and matches `cast undismiss`. `status` is left alone: restore brings
           // the CARD back, Restart brings the agent back.
           if (wasKilled) {
-            await ctx.db.patch(doc._id as Id<"conversations">, { inbox_killed_at: undefined });
+            await ctx.db.patch(doc._id as Id<"conversations">, {
+              inbox_killed_at: undefined,
+            });
           }
-          await reactivateTasksCanceledOnKill(ctx, (doc as any).user_id, doc._id as Id<"conversations">);
+          await reactivateTasksCanceledOnKill(
+            ctx,
+            (doc as any).user_id,
+            doc._id as Id<"conversations">,
+          );
           if ((doc as any).user_id?.toString() !== userId.toString()) {
-            await reactivateTasksCanceledOnKill(ctx, userId, doc._id as Id<"conversations">);
+            await reactivateTasksCanceledOnKill(
+              ctx,
+              userId,
+              doc._id as Id<"conversations">,
+            );
           }
         }
       } else {
         const existing = await ctx.db
           .query(table as any)
           .withIndex(config.lookupIndex, (q: any) =>
-            q.eq(config.ownerField, userId)
+            q.eq(config.ownerField, userId),
           )
           .first();
         if (existing) {
@@ -530,7 +935,10 @@ export async function applyPatches(
           for (const [k, v] of Object.entries(safe)) {
             merged[k] = deepMergeField((existing as any)[k], v);
           }
-          await ctx.db.patch(existing._id, { ...merged, updated_at: Date.now() });
+          await ctx.db.patch(existing._id, {
+            ...merged,
+            updated_at: Date.now(),
+          });
         } else {
           await ctx.db.insert(table as any, {
             [config.ownerField]: userId,
@@ -543,7 +951,11 @@ export async function applyPatches(
   }
   if (deferred) {
     await scheduler.runAfter(0, internal.dispatch.applyDeferredPatches, {
-      user_id: userId, patches: deferred, force_kill: opts?.forceKill, close: opts?.close, cause: opts?.cause,
+      user_id: userId,
+      patches: deferred,
+      force_kill: opts?.forceKill,
+      close: opts?.close,
+      cause: opts?.cause,
     });
   }
   if (bucketViewChanged) {
@@ -560,49 +972,170 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // Decisions (docs/architecture/decisions-as-documents.md D2 / D5). The web
   // patches sessionDecisions and decisionStacks on the draft first; these are
   // the server writes the optimistic rows reconcile against.
-  reopenDecision: async (ctx, userId, [decisionId]: [string]) => reopenCore(ctx, userId, decisionId as Id<"session_decisions">),
+  reopenDecision: async (ctx, userId, [decisionId]: [string]) =>
+    reopenCore(ctx, userId, decisionId as Id<"session_decisions">),
   // A person hands an open question to a teammate or a role, with a note; refused by return.
-  passDecision: async (ctx, userId, [decisionId, to, note]: [string, PassTarget, string | undefined]) => passCore(ctx, userId, decisionId, to, note),
+  passDecision: async (
+    ctx,
+    userId,
+    [decisionId, to, note]: [string, PassTarget, string | undefined],
+  ) => passCore(ctx, userId, decisionId, to, note),
   // A person sends it up to the owner's manager, else the admins, with a required note.
-  escalateDecision: async (ctx, userId, [decisionId, note]: [string, string]) => escalateCore(ctx, userId, decisionId, note),
+  escalateDecision: async (ctx, userId, [decisionId, note]: [string, string]) =>
+    escalateCore(ctx, userId, decisionId, note),
   // A person takes a pass or an escalation back: the decision is routed as its session would route it now.
-  unassignDecision: async (ctx, userId, [decisionId]: [string]) => unassignCore(ctx, userId, decisionId),
+  unassignDecision: async (ctx, userId, [decisionId]: [string]) =>
+    unassignCore(ctx, userId, decisionId),
   // Who decides for which areas, from the map "Change areas" previewed; and Share out's previewed moves (decisionAreas.ts, decisionShareOut.ts).
-  applyDecisionAreas: async (ctx, userId, [teamId, map]: [string, AreaAssignment[]]) => applyAreasCore(ctx, userId, teamId as Id<"teams">, map),
-  shareOutDecisions: async (ctx, userId, [teamId, moves]: [string, Array<{ decision_id: string; to: string }>]) => shareOutCore(ctx, userId, teamId as Id<"teams">, moves),
+  applyDecisionAreas: async (
+    ctx,
+    userId,
+    [teamId, map]: [string, AreaAssignment[]],
+  ) => applyAreasCore(ctx, userId, teamId as Id<"teams">, map),
+  shareOutDecisions: async (
+    ctx,
+    userId,
+    [teamId, moves]: [string, Array<{ decision_id: string; to: string }>],
+  ) => shareOutCore(ctx, userId, teamId as Id<"teams">, moves),
   // A decision's team thread (decisionThread.ts): comment, ask its session, edit or delete your own, resolve.
   // A refusal is returned, not thrown: the outbox would redrive a throw forever.
-  askDecisionSession: async (ctx, userId, [decisionId, clientId]: [string, string]) => askDecisionCore(ctx, userId, { decision: decisionId, client_id: clientId }),
-  editDecisionComment: async (ctx, userId, [commentId, text]: [string, string]) => editDecisionCommentCore(ctx, userId, { comment_id: commentId, text }),
-  deleteDecisionComment: async (ctx, userId, [commentId]: [string]) => deleteDecisionCommentCore(ctx, userId, { comment_id: commentId }),
-  resolveDecisionThread: async (ctx, userId, [decisionId, resolved]: [string, boolean]) => resolveDecisionThreadCore(ctx, userId, { decision: decisionId, resolved }),
-  commentOnDecision: async (ctx, userId, [decisionId, text, clientId, parentId]: [string, string, string, string | undefined]) =>
-    commentCore(ctx, userId, { decision: decisionId, text, client_id: clientId, ...(parentId ? { parent_id: parentId } : {}) }),
+  askDecisionSession: async (
+    ctx,
+    userId,
+    [decisionId, clientId]: [string, string],
+  ) =>
+    askDecisionCore(ctx, userId, { decision: decisionId, client_id: clientId }),
+  editDecisionComment: async (
+    ctx,
+    userId,
+    [commentId, text]: [string, string],
+  ) => editDecisionCommentCore(ctx, userId, { comment_id: commentId, text }),
+  deleteDecisionComment: async (ctx, userId, [commentId]: [string]) =>
+    deleteDecisionCommentCore(ctx, userId, { comment_id: commentId }),
+  resolveDecisionThread: async (
+    ctx,
+    userId,
+    [decisionId, resolved]: [string, boolean],
+  ) =>
+    resolveDecisionThreadCore(ctx, userId, { decision: decisionId, resolved }),
+  commentOnDecision: async (
+    ctx,
+    userId,
+    [decisionId, text, clientId, parentId]: [
+      string,
+      string,
+      string,
+      string | undefined,
+    ],
+  ) =>
+    commentCore(ctx, userId, {
+      decision: decisionId,
+      text,
+      client_id: clientId,
+      ...(parentId ? { parent_id: parentId } : {}),
+    }),
   // The name bundles from before the thread send under.
-  discussDecision: async (ctx, userId, [decisionId, text, clientId]: [string, string, string]) =>
-    commentCore(ctx, userId, { decision: decisionId, text, client_id: clientId }),
+  discussDecision: async (
+    ctx,
+    userId,
+    [decisionId, text, clientId]: [string, string, string],
+  ) =>
+    commentCore(ctx, userId, {
+      decision: decisionId,
+      text,
+      client_id: clientId,
+    }),
   // `/btw` in a conversation's composer (sideAnswers.ts): a pending row the cheap model answers, never sent to the agent.
-  askSideQuestion: async (ctx, userId, [conversationId, question, clientId]: [string, string, string]) =>
-    askSideQuestionCore(ctx as any, userId, { conversation_id: conversationId, question, client_id: clientId }),
+  askSideQuestion: async (
+    ctx,
+    userId,
+    [conversationId, question, clientId]: [string, string, string],
+  ) =>
+    askSideQuestionCore(ctx as any, userId, {
+      conversation_id: conversationId,
+      question,
+      client_id: clientId,
+    }),
   // A person's words to the session that answers a project's line (lineChat.ts),
   // refused the same way: returned, never thrown.
-  sendLineChat: async (ctx, userId, [projectId, text, clientId, graph, focus]: [string, string, string, string | null, string | null]) =>
-    sendLineChatCore(ctx, userId, { project_id: projectId, text, client_id: clientId, graph, focus }),
+  sendLineChat: async (
+    ctx,
+    userId,
+    [projectId, text, clientId, graph, focus]: [
+      string,
+      string,
+      string,
+      string | null,
+      string | null,
+    ],
+  ) =>
+    sendLineChatCore(ctx, userId, {
+      project_id: projectId,
+      text,
+      client_id: clientId,
+      graph,
+      focus,
+    }),
   // A session's goal (sessionGoals.ts): /goal and the pill's controls. The
   // store paints first; a refusal throws, so the write rolls back whole and
   // the client's permanent-refusal path takes the paint back and says why.
-  setSessionGoal: async (ctx, userId, [conversationId, objective, clientKey]: [string, string, string]) =>
-    performSetGoal(ctx as any, userId, conversationId, objective, clientKey),
-  pauseSessionGoal: async (ctx, userId, [conversationId]: [string]) => performGoalControl(ctx as any, userId, conversationId, "pause"),
-  resumeSessionGoal: async (ctx, userId, [conversationId]: [string]) => performGoalControl(ctx as any, userId, conversationId, "resume"),
-  clearSessionGoal: async (ctx, userId, [conversationId]: [string]) => performGoalControl(ctx as any, userId, conversationId, "clear"),
-  reorderStack: async (ctx, userId, [stackId, decisionIds]: [string, string[]]) =>
-    reorderStackCore(ctx, userId, stackId, decisionIds as Id<"session_decisions">[]),
-  removeFromStack: async (ctx, userId, [stackId, decisionId]: [string, string]) => removeFromStackCore(ctx, userId, stackId, decisionId),
-  setStackPolicy: async (ctx, _userId, [stackId, args]: [string, Record<string, any>]) => ctx.runMutation!((api as any).decisionStacks.setStackPolicy, { stack: stackId, ...args }),
+  setSessionGoal: async (
+    ctx,
+    userId,
+    [conversationId, objective, clientKey]: [string, string, string],
+  ) => performSetGoal(ctx as any, userId, conversationId, objective, clientKey),
+  pauseSessionGoal: async (ctx, userId, [conversationId]: [string]) =>
+    performGoalControl(ctx as any, userId, conversationId, "pause"),
+  resumeSessionGoal: async (ctx, userId, [conversationId]: [string]) =>
+    performGoalControl(ctx as any, userId, conversationId, "resume"),
+  clearSessionGoal: async (ctx, userId, [conversationId]: [string]) =>
+    performGoalControl(ctx as any, userId, conversationId, "clear"),
+  reorderStack: async (
+    ctx,
+    userId,
+    [stackId, decisionIds]: [string, string[]],
+  ) =>
+    reorderStackCore(
+      ctx,
+      userId,
+      stackId,
+      decisionIds as Id<"session_decisions">[],
+    ),
+  removeFromStack: async (
+    ctx,
+    userId,
+    [stackId, decisionId]: [string, string],
+  ) => removeFromStackCore(ctx, userId, stackId, decisionId),
+  setStackPolicy: async (
+    ctx,
+    _userId,
+    [stackId, args]: [string, Record<string, any>],
+  ) =>
+    ctx.runMutation!((api as any).decisionStacks.setStackPolicy, {
+      stack: stackId,
+      ...args,
+    }),
   // A session's flow saved to the library (flowLibrary.save, the /flows "Used in sessions" shelf).
-  saveSessionFlow: async (ctx, _userId, [id, opts]: [string, { slug?: string; label?: string; variant_of?: string }]) => ctx.runMutation!((api as any).flowLibrary.save, { id, ...opts }),
-  createStackWith: async (ctx, userId, [input]: [{ title: string; decision_ids: string[]; team_id?: string; client_key?: string }]) =>
+  saveSessionFlow: async (
+    ctx,
+    _userId,
+    [id, opts]: [
+      string,
+      { slug?: string; label?: string; variant_of?: string },
+    ],
+  ) => ctx.runMutation!((api as any).flowLibrary.save, { id, ...opts }),
+  createStackWith: async (
+    ctx,
+    userId,
+    [input]: [
+      {
+        title: string;
+        decision_ids: string[];
+        team_id?: string;
+        client_key?: string;
+      },
+    ],
+  ) =>
     createStackWithCore(ctx, userId, {
       title: input.title,
       decision_ids: input.decision_ids,
@@ -619,7 +1152,15 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // the core through here. `target` carries the owner-set arithmetic
   // ({ owners, mode }) or a role; `note` rides the reparent into the line the
   // session and role are told.
-  reparentOrgSession: async (ctx, _userId, [conversationId, target, opts]: [string, any, { note?: string; from_session?: string } | undefined]) => {
+  reparentOrgSession: async (
+    ctx,
+    _userId,
+    [conversationId, target, opts]: [
+      string,
+      any,
+      { note?: string; from_session?: string } | undefined,
+    ],
+  ) => {
     return await ctx.runMutation!((api as any).orgRoles.reparentSession, {
       conversation_id: conversationId,
       target,
@@ -627,11 +1168,28 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       ...(opts?.from_session ? { from_session: opts.from_session } : {}),
     });
   },
-  reparentOrgRole: async (ctx, _userId, [roleId, reportsTo, note]: [string, any, string | undefined]) => {
-    return await ctx.runMutation!((api as any).orgRoles.reparent, { role_id: roleId, reports_to: reportsTo, ...(note ? { note } : {}) });
+  reparentOrgRole: async (
+    ctx,
+    _userId,
+    [roleId, reportsTo, note]: [string, any, string | undefined],
+  ) => {
+    return await ctx.runMutation!((api as any).orgRoles.reparent, {
+      role_id: roleId,
+      reports_to: reportsTo,
+      ...(note ? { note } : {}),
+    });
   },
   // A person reports to a person (orgPeople.ts); null lets them report to nobody.
-  reparentOrgPerson: async (ctx, _userId, [teamId, userId, to]: [string, string, string | null]) => ctx.runMutation!((api as any).orgPeople.reparentPerson, { team_id: teamId, user_id: userId, reports_to_user_id: to }),
+  reparentOrgPerson: async (
+    ctx,
+    _userId,
+    [teamId, userId, to]: [string, string, string | null],
+  ) =>
+    ctx.runMutation!((api as any).orgPeople.reparentPerson, {
+      team_id: teamId,
+      user_id: userId,
+      reports_to_user_id: to,
+    }),
   createOrgRole: async (ctx, _userId, [input]: [any]) => {
     // The hire form (org-init.md O3) creates and provisions in one gesture and
     // may set caps; the plain add-a-role path passes neither. Caps have their
@@ -646,47 +1204,115 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       // Standing or program (S10) and the face (S13) ride the create.
       ...(input.tenure ? { tenure: input.tenure } : {}),
       ...(input.avatar ? { avatar: input.avatar } : {}),
-      ...(input.provision ? { provision: true, project_path: input.project_path } : {}),
-      ...(input.adopt_conversation_id ? { adopt_conversation_id: input.adopt_conversation_id } : {}),
+      ...(input.provision
+        ? { provision: true, project_path: input.project_path }
+        : {}),
+      ...(input.adopt_conversation_id
+        ? { adopt_conversation_id: input.adopt_conversation_id }
+        : {}),
       // The person's one edit on a hire with projects (R1).
       ...(input.leave_sessions ? { leave_sessions: true } : {}),
     });
     if (input.caps && role?._id) {
-      await ctx.runMutation!((api as any).orgRoles.setCaps, { role_id: String(role._id), hands: input.caps.hands_per_day, wakes: input.caps.wakes_per_day, tokens: input.caps.tokens_per_day });
+      await ctx.runMutation!((api as any).orgRoles.setCaps, {
+        role_id: String(role._id),
+        hands: input.caps.hands_per_day,
+        wakes: input.caps.wakes_per_day,
+        tokens: input.caps.tokens_per_day,
+      });
     }
     return role;
   },
   // `opts.leave_sessions` is the person's one edit on a scope that gains refs
   // (R1): the scope lands and the sessions in it stay with their owner.
-  updateOrgRole: async (ctx, _userId, [roleId, fields, opts]: [string, any, { leave_sessions?: boolean } | undefined]) => {
+  updateOrgRole: async (
+    ctx,
+    _userId,
+    [roleId, fields, opts]: [
+      string,
+      any,
+      { leave_sessions?: boolean } | undefined,
+    ],
+  ) => {
     // A pause or resume is the standing agent's (org-roles-standing.md T4):
     // hands get their interrupt and held wakes flush, which a bare status
     // patch would skip. The switch and the limits have their own human-only mutations.
-    if (fields.status === "paused") await ctx.runMutation!((api as any).orgRoles.pause, { role_id: roleId });
-    else if (fields.status === "active") await ctx.runMutation!((api as any).orgRoles.resume, { role_id: roleId });
-    if (fields.starts_on_its_own !== undefined) await ctx.runMutation!((api as any).orgRoles.setTrust, { role_id: roleId, on: !!fields.starts_on_its_own });
-    else if (fields.trust !== undefined) await ctx.runMutation!((api as any).orgRoles.setTrust, { role_id: roleId, trust: fields.trust });
+    if (fields.status === "paused")
+      await ctx.runMutation!((api as any).orgRoles.pause, { role_id: roleId });
+    else if (fields.status === "active")
+      await ctx.runMutation!((api as any).orgRoles.resume, { role_id: roleId });
+    if (fields.starts_on_its_own !== undefined)
+      await ctx.runMutation!((api as any).orgRoles.setTrust, {
+        role_id: roleId,
+        on: !!fields.starts_on_its_own,
+      });
+    else if (fields.trust !== undefined)
+      await ctx.runMutation!((api as any).orgRoles.setTrust, {
+        role_id: roleId,
+        trust: fields.trust,
+      });
     if (fields.caps !== undefined) {
-      await ctx.runMutation!((api as any).orgRoles.setCaps, { role_id: roleId, hands: fields.caps.hands_per_day, wakes: fields.caps.wakes_per_day, tokens: fields.caps.tokens_per_day, cards: fields.caps.cards, line_on: fields.caps.line_on });
+      await ctx.runMutation!((api as any).orgRoles.setCaps, {
+        role_id: roleId,
+        hands: fields.caps.hands_per_day,
+        wakes: fields.caps.wakes_per_day,
+        tokens: fields.caps.tokens_per_day,
+        cards: fields.caps.cards,
+        line_on: fields.caps.line_on,
+      });
     }
     // Who reports to the role (org-roles-run-work.md R6): the tab wrote the
     // whole list, and the mutation takes the difference against its own row.
-    if (fields.reports_user_ids !== undefined) await ctx.runMutation!((api as any).orgRoles.setReports, { role_id: roleId, set: fields.reports_user_ids });
+    if (fields.reports_user_ids !== undefined)
+      await ctx.runMutation!((api as any).orgRoles.setReports, {
+        role_id: roleId,
+        set: fields.reports_user_ids,
+      });
     // Leeway to hire: human only, through its own mutation.
-    if (fields.hires_freely !== undefined) await ctx.runMutation!((api as any).orgRoles.setHiresFreely, { role_id: roleId, on: !!fields.hires_freely });
+    if (fields.hires_freely !== undefined)
+      await ctx.runMutation!((api as any).orgRoles.setHiresFreely, {
+        role_id: roleId,
+        on: !!fields.hires_freely,
+      });
     // Containment: off by default, human only, through its own mutation.
-    if (fields.keeps_reports_inside !== undefined) await ctx.runMutation!((api as any).orgRoles.setKeepsReportsInside, { role_id: roleId, on: !!fields.keeps_reports_inside });
+    if (fields.keeps_reports_inside !== undefined)
+      await ctx.runMutation!((api as any).orgRoles.setKeepsReportsInside, {
+        role_id: roleId,
+        on: !!fields.keeps_reports_inside,
+      });
     const rest: Record<string, any> = { ...fields };
-    delete rest.trust; delete rest.starts_on_its_own; delete rest.caps; delete rest.reports_user_ids; delete rest.hires_freely; delete rest.keeps_reports_inside;
-    if (rest.status === "paused" || rest.status === "active") delete rest.status;
+    delete rest.trust;
+    delete rest.starts_on_its_own;
+    delete rest.caps;
+    delete rest.reports_user_ids;
+    delete rest.hires_freely;
+    delete rest.keeps_reports_inside;
+    if (rest.status === "paused" || rest.status === "active")
+      delete rest.status;
     // tenure (S10) and avatar (S13) go through the plain update.
-    if (!["name", "handle", "scope", "charter", "status", "tenure", "avatar"].some((k) => rest[k] !== undefined)) return null;
+    if (
+      ![
+        "name",
+        "handle",
+        "scope",
+        "charter",
+        "status",
+        "tenure",
+        "avatar",
+      ].some((k) => rest[k] !== undefined)
+    )
+      return null;
     fields = rest;
     return await ctx.runMutation!((api as any).orgRoles.update, {
       role_id: roleId,
       ...(fields.name !== undefined ? { name: fields.name } : {}),
       ...(fields.handle !== undefined ? { handle: fields.handle } : {}),
-      ...(fields.scope !== undefined ? { scope: fields.scope, ...(opts?.leave_sessions ? { leave_sessions: true } : {}) } : {}),
+      ...(fields.scope !== undefined
+        ? {
+            scope: fields.scope,
+            ...(opts?.leave_sessions ? { leave_sessions: true } : {}),
+          }
+        : {}),
       ...(fields.charter !== undefined ? { charter: fields.charter } : {}),
       ...(fields.status !== undefined ? { status: fields.status } : {}),
       ...(fields.tenure !== undefined ? { tenure: fields.tenure } : {}),
@@ -695,18 +1321,50 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   // The scope's line (the-line.md L2): human only, logged, wakes the role.
   // A standing agent's clean chat (anchors.setCleanChat): its thread and its opening.
-  setAnchorCleanChat: async (ctx, _userId, [anchorId, on]: [string, boolean]) => {
-    return await ctx.runMutation!((api as any).anchors.setCleanChat, { anchor_id: anchorId, on });
+  setAnchorCleanChat: async (
+    ctx,
+    _userId,
+    [anchorId, on]: [string, boolean],
+  ) => {
+    return await ctx.runMutation!((api as any).anchors.setCleanChat, {
+      anchor_id: anchorId,
+      on,
+    });
   },
   setRoleLine: async (ctx, _userId, [roleId, slug]: [string, string]) => {
-    return await ctx.runMutation!((api as any).orgRoles.setLine, { role_id: roleId, slug });
+    return await ctx.runMutation!((api as any).orgRoles.setLine, {
+      role_id: roleId,
+      slug,
+    });
   },
   // A project's customized line (plan pl-838): the whole workflow by slug.
   // `create` (the fork) refuses a slug that already has a row, so a page that
   // has not seen the fork yet can never write the shipped stations over it.
-  saveLineWorkflow: async (ctx, _userId, [wf, opts]: [{ slug: string; name: string; goal?: string; source?: string; nodes: any[]; edges: any[] }, { create?: boolean } | undefined]) => {
+  saveLineWorkflow: async (
+    ctx,
+    _userId,
+    [wf, opts]: [
+      {
+        slug: string;
+        name: string;
+        goal?: string;
+        source?: string;
+        nodes: any[];
+        edges: any[];
+      },
+      { create?: boolean } | undefined,
+    ],
+  ) => {
     const { slug, name, goal, source, nodes, edges } = wf;
-    return await ctx.runMutation!((api as any).workflows.webUpsert, { slug, name, goal, source, nodes, edges, ...(opts?.create ? { create_only: true } : {}) });
+    return await ctx.runMutation!((api as any).workflows.webUpsert, {
+      slug,
+      name,
+      goal,
+      source,
+      nodes,
+      edges,
+      ...(opts?.create ? { create_only: true } : {}),
+    });
   },
   // Stop customizing: the fork goes, roles on it having moved back first.
   removeLineWorkflow: async (ctx, _userId, [slug]: [string]) => {
@@ -714,25 +1372,52 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   // A trial card answered on /trial (lineTrial.ts): the paused run reads it.
   // A cast-driven tab's answer (result.agent) is recorded as a stand-in.
-  trialAnswer: async (ctx, _userId, [cardId, key, note]: [string, string, string | null | undefined], result?: { agent?: boolean }) => {
+  trialAnswer: async (
+    ctx,
+    _userId,
+    [cardId, key, note]: [string, string, string | null | undefined],
+    result?: { agent?: boolean },
+  ) => {
     if (!(ctx.db as any).normalizeId("trial_cards", cardId)) return null;
-    return await ctx.runMutation!((api as any).lineTrial.answer, { card: cardId, key, ...(note ? { note } : {}), ...(result?.agent ? { agent: true } : {}) });
+    return await ctx.runMutation!((api as any).lineTrial.answer, {
+      card: cardId,
+      key,
+      ...(note ? { note } : {}),
+      ...(result?.agent ? { agent: true } : {}),
+    });
   },
   // A failed trial run, run again on /trial (lineTrial.rerun): its daemon starts it on a fresh branch.
   // `newApproach`: the stopped station's approach did not work, and the rerun asks for a different one.
-  trialRerun: async (ctx, _userId, [taskId, newApproach]: [string, boolean?]) => {
+  trialRerun: async (
+    ctx,
+    _userId,
+    [taskId, newApproach]: [string, boolean?],
+  ) => {
     if (!(ctx.db as any).normalizeId("tasks", taskId)) return null;
-    return await ctx.runMutation!((api as any).lineTrial.rerun, { task: taskId, ...(newApproach ? { new_approach: true } : {}) });
+    return await ctx.runMutation!((api as any).lineTrial.rerun, {
+      task: taskId,
+      ...(newApproach ? { new_approach: true } : {}),
+    });
   },
   // A stopped trial run's problem closed on /trial (lineTrial.closeStopped): it drops, its findings retire with it.
   trialClose: async (ctx, _userId, [taskId]: [string]) => {
     if (!(ctx.db as any).normalizeId("tasks", taskId)) return null;
-    return await ctx.runMutation!((api as any).lineTrial.closeStopped, { task: taskId });
+    return await ctx.runMutation!((api as any).lineTrial.closeStopped, {
+      task: taskId,
+    });
   },
   // /trial's "Raise the limits…" (lineTrial.raiseLimits): the trial's dispatcher may start runs again.
-  trialRaiseLimits: async (ctx, _userId, [projectId, maxRuns, capUsd]: [string, number, number]) => {
+  trialRaiseLimits: async (
+    ctx,
+    _userId,
+    [projectId, maxRuns, capUsd]: [string, number, number],
+  ) => {
     if (!(ctx.db as any).normalizeId("projects", projectId)) return null;
-    return await ctx.runMutation!((api as any).lineTrial.raiseLimits, { project: projectId, max_runs: maxRuns, cap_usd: capUsd });
+    return await ctx.runMutation!((api as any).lineTrial.raiseLimits, {
+      project: projectId,
+      max_runs: maxRuns,
+      cap_usd: capUsd,
+    });
   },
   // "Re-ask" on a trial run paused where no answer can land (lineActions
   // reaskTrialRunCore): its machine asks the run again.
@@ -742,23 +1427,55 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   // A person's verdict on one decision a line step made (line-workspace.md
   // LW4); null takes it back. The label lands where the run lives.
-  labelDecision: async (ctx, _userId, [runId, nodeId, verdict, note]: [string, string, "right" | "wrong" | null, string | null | undefined]) => {
-    if (!(ctx.db as any).normalizeId("workflow_runs", runId) && !(ctx.db as any).normalizeId("signals", runId)) return null;
-    return await ctx.runMutation!((api as any).lineWorkspace.label, { run_id: runId, node_id: nodeId, verdict, ...(note ? { note } : {}) });
+  labelDecision: async (
+    ctx,
+    _userId,
+    [runId, nodeId, verdict, note]: [
+      string,
+      string,
+      "right" | "wrong" | null,
+      string | null | undefined,
+    ],
+  ) => {
+    if (
+      !(ctx.db as any).normalizeId("workflow_runs", runId) &&
+      !(ctx.db as any).normalizeId("signals", runId)
+    )
+      return null;
+    return await ctx.runMutation!((api as any).lineWorkspace.label, {
+      run_id: runId,
+      node_id: nodeId,
+      verdict,
+      ...(note ? { note } : {}),
+    });
   },
   // A role following a chat channel (agent-channels.md C1). orgChannels
   // resolves the role by short id or handle and checks the admin grant.
-  followOrgChannel: async (ctx, _userId, [roleShortId, channelId, follow]: [string, string, boolean]) => {
+  followOrgChannel: async (
+    ctx,
+    _userId,
+    [roleShortId, channelId, follow]: [string, string, boolean],
+  ) => {
     if (!isServerId(channelId)) return;
-    return await ctx.runMutation!((api as any).orgChannels[follow ? "follow" : "unfollow"], {
-      role: roleShortId,
-      channel: channelId,
-    });
+    return await ctx.runMutation!(
+      (api as any).orgChannels[follow ? "follow" : "unfollow"],
+      {
+        role: roleShortId,
+        channel: channelId,
+      },
+    );
   },
-  retireOrgRole: async (ctx, _userId, [roleId, standingSession]: [string, "keep" | "retire" | undefined]) => {
+  retireOrgRole: async (
+    ctx,
+    _userId,
+    [roleId, standingSession]: [string, "keep" | "retire" | undefined],
+  ) => {
     // S16: what becomes of the seat's standing agent. Absent lets the server
     // choose (keep for the head of people, retire for any other seat).
-    return await ctx.runMutation!((api as any).orgRoles.retire, { role_id: roleId, ...(standingSession ? { standing_session: standingSession } : {}) });
+    return await ctx.runMutation!((api as any).orgRoles.retire, {
+      role_id: roleId,
+      ...(standingSession ? { standing_session: standingSession } : {}),
+    });
   },
   // Staffing (org-staffing.md S4/S6). The web pushes a role stub for the
   // head of people and flips a proposal's changes to accepted on the draft;
@@ -766,7 +1483,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   staffHeadOfPeople: async (ctx, _userId, [input]: [any]) => {
     return await ctx.runMutation!((api as any).orgRoles.staff, {
       ...(input.team_id ? { team_id: input.team_id } : {}),
-      ...(input.adopt_conversation_id ? { adopt_conversation_id: input.adopt_conversation_id } : {}),
+      ...(input.adopt_conversation_id
+        ? { adopt_conversation_id: input.adopt_conversation_id }
+        : {}),
       ...(input.project_path ? { project_path: input.project_path } : {}),
       // S16: seat the existing standing agent (default) or start a fresh one.
       ...(input.seat ? { seat: input.seat } : {}),
@@ -781,75 +1500,202 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       ...(input.handle ? { handle: input.handle } : {}),
       ...(input.avatar ? { avatar: input.avatar } : {}),
       ...(input.project_path ? { project_path: input.project_path } : {}),
-      ...(input.adopt_conversation_id ? { adopt_conversation_id: input.adopt_conversation_id } : {}),
+      ...(input.adopt_conversation_id
+        ? { adopt_conversation_id: input.adopt_conversation_id }
+        : {}),
     });
   },
   // Org gestures the server shapes (orgSlice OrgServerVerbs): each runs the
   // mutation the page used to call itself, and returns its result.
-  splitOrgRole: async (ctx, _userId, [args]: [{ role_id: string; halves: { name: string; handle: string; refs: string[] }[]; standing_session: "keep" | "retire" }]) => {
-    return await ctx.runMutation!((api as any).orgSplit.split, { role_id: args.role_id, halves: args.halves, standing_session: args.standing_session });
+  splitOrgRole: async (
+    ctx,
+    _userId,
+    [args]: [
+      {
+        role_id: string;
+        halves: { name: string; handle: string; refs: string[] }[];
+        standing_session: "keep" | "retire";
+      },
+    ],
+  ) => {
+    return await ctx.runMutation!((api as any).orgSplit.split, {
+      role_id: args.role_id,
+      halves: args.halves,
+      standing_session: args.standing_session,
+    });
   },
-  settleOrgHandoff: async (ctx, _userId, [roleId, how]: [string, "run" | "close"]) => {
-    return await ctx.runMutation!((api as any).orgHandoff.settle, { role_id: roleId, how });
+  settleOrgHandoff: async (
+    ctx,
+    _userId,
+    [roleId, how]: [string, "run" | "close"],
+  ) => {
+    return await ctx.runMutation!((api as any).orgHandoff.settle, {
+      role_id: roleId,
+      how,
+    });
   },
-  setOrgLineMerge: async (ctx, _userId, [roleId, on, perDay, rate]: [string, boolean, number | undefined, { bar: number; min: number } | null | undefined]) => {
-    return await ctx.runMutation!((api as any).orgLineMerge.setLineMerge, { role_id: roleId, on, ...(perDay !== undefined && perDay !== null ? { per_day: perDay } : {}), ...(rate !== undefined ? { rate } : {}) });
+  setOrgLineMerge: async (
+    ctx,
+    _userId,
+    [roleId, on, perDay, rate]: [
+      string,
+      boolean,
+      number | undefined,
+      { bar: number; min: number } | null | undefined,
+    ],
+  ) => {
+    return await ctx.runMutation!((api as any).orgLineMerge.setLineMerge, {
+      role_id: roleId,
+      on,
+      ...(perDay !== undefined && perDay !== null ? { per_day: perDay } : {}),
+      ...(rate !== undefined ? { rate } : {}),
+    });
   },
   resetOrg: async (ctx, _userId, [teamId]: [string | undefined]) => {
-    return await ctx.runMutation!((api as any).orgRoles.reset, teamId ? { team_id: teamId } : {});
+    return await ctx.runMutation!(
+      (api as any).orgRoles.reset,
+      teamId ? { team_id: teamId } : {},
+    );
   },
   provisionOrgRole: async (ctx, _userId, [roleId]: [string]) => {
-    return await ctx.runMutation!((api as any).orgRoles.provision, { role_id: roleId });
+    return await ctx.runMutation!((api as any).orgRoles.provision, {
+      role_id: roleId,
+    });
   },
   moveOrgRoleBack: async (ctx, _userId, [roleId]: [string]) => {
-    return await ctx.runMutation!((api as any).roleFailover.moveBack, { role_id: roleId });
+    return await ctx.runMutation!((api as any).roleFailover.moveBack, {
+      role_id: roleId,
+    });
   },
   keepOrgRoleHere: async (ctx, _userId, [roleId]: [string]) => {
-    return await ctx.runMutation!((api as any).roleFailover.keepHere, { role_id: roleId });
+    return await ctx.runMutation!((api as any).roleFailover.keepHere, {
+      role_id: roleId,
+    });
   },
-  markOrgTemplateSetup: async (ctx, _userId, [instanceKey, id, status]: [string, string, "done" | "open" | "skipped"]) => {
-    return await ctx.runMutation!((api as any).orgTemplates.setup, { instance_key: instanceKey, id, status });
+  markOrgTemplateSetup: async (
+    ctx,
+    _userId,
+    [instanceKey, id, status]: [string, string, "done" | "open" | "skipped"],
+  ) => {
+    return await ctx.runMutation!((api as any).orgTemplates.setup, {
+      instance_key: instanceKey,
+      id,
+      status,
+    });
   },
-  answerOrgTemplateInput: async (ctx, _userId, [instanceKey, key, value]: [string, string, string]) => {
-    return await ctx.runMutation!((api as any).orgTemplates.answer, { instance_key: instanceKey, key, value });
+  answerOrgTemplateInput: async (
+    ctx,
+    _userId,
+    [instanceKey, key, value]: [string, string, string],
+  ) => {
+    return await ctx.runMutation!((api as any).orgTemplates.answer, {
+      instance_key: instanceKey,
+      key,
+      value,
+    });
   },
   activateOrgTemplateRoutine: async (ctx, _userId, [taskId]: [string]) => {
-    return await ctx.runMutation!((api as any).orgTemplates.activateRoutine, { task_id: taskId });
+    return await ctx.runMutation!((api as any).orgTemplates.activateRoutine, {
+      task_id: taskId,
+    });
   },
-  requestOrgTemplateBind: async (ctx, _userId, [instanceKey, secrets, deviceId]: [string, any[], string | undefined]) => {
-    return await ctx.runMutation!((api as any).orgTemplates.requestBind, { instance_key: instanceKey, secrets, ...(deviceId ? { device_id: deviceId } : {}) });
+  requestOrgTemplateBind: async (
+    ctx,
+    _userId,
+    [instanceKey, secrets, deviceId]: [string, any[], string | undefined],
+  ) => {
+    return await ctx.runMutation!((api as any).orgTemplates.requestBind, {
+      instance_key: instanceKey,
+      secrets,
+      ...(deviceId ? { device_id: deviceId } : {}),
+    });
   },
-  setOrgTemplateLearning: async (ctx, _userId, [teamId, enabled]: [string | undefined, boolean]) => {
-    return await ctx.runMutation!((api as any).orgTemplateLearning.setLearning, { ...(teamId ? { team_id: teamId } : {}), enabled });
+  setOrgTemplateLearning: async (
+    ctx,
+    _userId,
+    [teamId, enabled]: [string | undefined, boolean],
+  ) => {
+    return await ctx.runMutation!(
+      (api as any).orgTemplateLearning.setLearning,
+      { ...(teamId ? { team_id: teamId } : {}), enabled },
+    );
   },
   // Withdraw (S4 supersession: the person takes the replaced proposal down;
   // the human gate on the mutation is what allows it).
   withdrawOrgProposal: async (ctx, _userId, [proposalRef]: [string]) => {
-    return await ctx.runMutation!((api as any).orgProposals.withdraw, { proposal: proposalRef });
+    return await ctx.runMutation!((api as any).orgProposals.withdraw, {
+      proposal: proposalRef,
+    });
   },
   // A person's answers to a proposal, sent together (org-staffing.md S39):
   // approve, reject or a note per card, applied and kept by the mutation. The
   // store's items carry change ids for its own rows; the mutation reads seqs.
   // `say` is for a surface with no composer: the mutation writes the answers
   // into the proposal's thread as one message under the given client id.
-  replyOnOrgProposal: async (ctx, _userId, [proposalId, items, seen, opts]: [string, Array<{ verdict: "approve" | "reject" | "note"; seqs: number[]; text?: string; change_ids?: string[] }>, { revised_at: number; seqs?: number[] } | undefined, { leave_sessions?: boolean; say?: { thread?: string; body?: string; client_id?: string } } | undefined]) => {
+  replyOnOrgProposal: async (
+    ctx,
+    _userId,
+    [proposalId, items, seen, opts]: [
+      string,
+      Array<{
+        verdict: "approve" | "reject" | "note";
+        seqs: number[];
+        text?: string;
+        change_ids?: string[];
+      }>,
+      { revised_at: number; seqs?: number[] } | undefined,
+      (
+        | {
+            leave_sessions?: boolean;
+            say?: { thread?: string; body?: string; client_id?: string };
+          }
+        | undefined
+      ),
+    ],
+  ) => {
     return await ctx.runMutation!((api as any).orgProposals.reply, {
       proposal: proposalId,
-      items: items.map((i) => ({ verdict: i.verdict, seqs: i.seqs, ...(i.change_ids?.length ? { change_ids: i.change_ids } : {}), ...(i.text ? { text: i.text } : {}) })),
+      items: items.map((i) => ({
+        verdict: i.verdict,
+        seqs: i.seqs,
+        ...(i.change_ids?.length ? { change_ids: i.change_ids } : {}),
+        ...(i.text ? { text: i.text } : {}),
+      })),
       ...(seen ? { seen } : {}),
       ...(opts?.leave_sessions ? { leave_sessions: true } : {}),
-      ...(opts?.say ? { say: { ...(opts.say.body ? { body: opts.say.body } : {}), ...(opts.say.client_id ? { client_id: opts.say.client_id } : {}) } } : {}),
+      ...(opts?.say
+        ? {
+            say: {
+              ...(opts.say.body ? { body: opts.say.body } : {}),
+              ...(opts.say.client_id ? { client_id: opts.say.client_id } : {}),
+            },
+          }
+        : {}),
     });
   },
   // Take an entry of the org record back, or apply it again (org-staffing.md
   // S21). `with` names the later entries the preview said go with it: the
   // mutation undoes them together or refuses the gesture. Human only; the
   // mutation's own gate is what refuses a session.
-  undoOrgChange: async (ctx, _userId, [batch, opts]: [string, { with?: string[] } | undefined]) => {
-    return await ctx.runMutation!((api as any).orgChanges.undo, { batch, ...(opts?.with?.length ? { with: opts.with } : {}) });
+  undoOrgChange: async (
+    ctx,
+    _userId,
+    [batch, opts]: [string, { with?: string[] } | undefined],
+  ) => {
+    return await ctx.runMutation!((api as any).orgChanges.undo, {
+      batch,
+      ...(opts?.with?.length ? { with: opts.with } : {}),
+    });
   },
-  redoOrgChange: async (ctx, _userId, [batch, opts]: [string, { with?: string[] } | undefined]) => {
-    return await ctx.runMutation!((api as any).orgChanges.redo, { batch, ...(opts?.with?.length ? { with: opts.with } : {}) });
+  redoOrgChange: async (
+    ctx,
+    _userId,
+    [batch, opts]: [string, { with?: string[] } | undefined],
+  ) => {
+    return await ctx.runMutation!((api as any).orgChanges.redo, {
+      batch,
+      ...(opts?.with?.length ? { with: opts.with } : {}),
+    });
   },
   // Capability bindings ride dispatch as NAMED side effects, never as generic
   // table patches: applyPatches drops any table missing from TABLE_CONFIG with
@@ -881,7 +1727,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   removeKitItem: async (ctx, _userId, [itemId]: [string]) => {
     if (!itemId || itemId.startsWith("tk_")) return null;
-    return await ctx.runMutation!((api as any).teamKit.removeItem, { item_id: itemId });
+    return await ctx.runMutation!((api as any).teamKit.removeItem, {
+      item_id: itemId,
+    });
   },
   adoptKitItem: async (ctx, _userId, [opts]: [any]) => {
     return await ctx.runMutation!((api as any).teamKit.adoptKitItem, {
@@ -918,9 +1766,14 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     // null tombstones, and secondary-owner rules stay identical to ordinary
     // local-first patches. The named action exists solely to make the
     // stub→real flush durable in the legacy outbox.
-    await applyPatches(ctx, userId, {
-      conversations: { [conversationId]: fields || {} },
-    }, { cause: "web:flushResolvedSessionFields" });
+    await applyPatches(
+      ctx,
+      userId,
+      {
+        conversations: { [conversationId]: fields || {} },
+      },
+      { cause: "web:flushResolvedSessionFields" },
+    );
   },
 
   applyUndoPatches: async (
@@ -930,7 +1783,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   ) => {
     // Undo values use the same allowlists, ownership checks, immutable-field
     // filtering, and null-tombstone semantics as ordinary optimistic patches.
-    await applyPatches(ctx, userId, patches || {}, { cause: "web:applyUndoPatches" });
+    await applyPatches(ctx, userId, patches || {}, {
+      cause: "web:applyUndoPatches",
+    });
   },
 
   updateClientUI: async (ctx, userId, _args, result) => {
@@ -957,22 +1812,14 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     });
   },
 
-  updateClientLayout: async (
-    ctx,
-    userId,
-    [key, value]: [string, any],
-  ) => {
+  updateClientLayout: async (ctx, userId, [key, value]: [string, any]) => {
     if (typeof key !== "string" || !key) return;
     await applyPatches(ctx, userId, {
       client_state: { _: { layouts: { [key]: value } } },
     });
   },
 
-  persistClientTips: async (
-    ctx,
-    userId,
-    [partial]: [Record<string, any>],
-  ) => {
+  persistClientTips: async (ctx, userId, [partial]: [Record<string, any>]) => {
     // `_inlineSuppressed` is deliberately removed by the client wrapper. Build
     // the singleton patch here so its exact local update can remain one sync()
     // while this cross-device subset still rides a named durable action.
@@ -1008,7 +1855,10 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     await ctx.db.insert("daemon_commands", {
       user_id: userId,
       command: "kill_session" as const,
-      args: JSON.stringify({ conversation_id: convId, cause: "web:switchProject" }),
+      args: JSON.stringify({
+        conversation_id: convId,
+        cause: "web:switchProject",
+      }),
       created_at: now,
     });
     const daemonType = fromConvexAgentType(conv.agent_type);
@@ -1021,16 +1871,59 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     });
   },
 
-  createSession: async (ctx, userId, [opts]: [{ agent_type?: string; project_path?: string; git_root?: string; session_id?: string; linked_object?: { type: string; id: string }; model?: string; effort?: string; isolated?: boolean; worktree_name?: string; stable_mode?: string; stable_exclude?: string[]; target_device_id?: string; cloud_device_id?: string; cloud_workspace?: string; cloud_start_from?: string; agent_definition?: string; private?: boolean; first_message?: string; first_message_client_id?: string; project_id?: string; project_default?: boolean; new_project?: { title: string; client_key?: string; description?: string; team_id?: string } }]) => {
+  createSession: async (
+    ctx,
+    userId,
+    [opts]: [
+      {
+        agent_type?: string;
+        project_path?: string;
+        git_root?: string;
+        session_id?: string;
+        linked_object?: { type: string; id: string };
+        model?: string;
+        effort?: string;
+        isolated?: boolean;
+        worktree_name?: string;
+        stable_mode?: string;
+        stable_exclude?: string[];
+        target_device_id?: string;
+        cloud_device_id?: string;
+        cloud_workspace?: string;
+        cloud_start_from?: string;
+        agent_definition?: string;
+        private?: boolean;
+        first_message?: string;
+        first_message_client_id?: string;
+        project_id?: string;
+        project_default?: boolean;
+        new_project?: {
+          title: string;
+          client_key?: string;
+          description?: string;
+          team_id?: string;
+        };
+      },
+    ],
+  ) => {
     // A hosted conversation (the simple lane's assistant) runs in this
     // backend: no device, no daemon command. Its start queues the first
     // message in the same transaction, idempotent on session_id like below.
-    const handThread = opts.linked_object?.type === "chat_thread" ? opts.linked_object.id : null;
+    const handThread =
+      opts.linked_object?.type === "chat_thread" ? opts.linked_object.id : null;
     // Cast for a person with a cast machine: the same start, as a pi session
     // on their own cloud machine (castMachines.ts) instead of in this backend.
-    const onCastMachine = isHostedAgentType(opts.agent_type) && castMachinesEnabledFor(userId);
-    if (onCastMachine) opts = { ...opts, agent_type: "pi", target_device_id: undefined, cloud_device_id: undefined };
-    if (handThread && isHostedAgentType(opts.agent_type)) throw new Error("A thread can only be handed to an agent on a machine");
+    const onCastMachine =
+      isHostedAgentType(opts.agent_type) && castMachinesEnabledFor(userId);
+    if (onCastMachine)
+      opts = {
+        ...opts,
+        agent_type: "pi",
+        target_device_id: undefined,
+        cloud_device_id: undefined,
+      };
+    if (handThread && isHostedAgentType(opts.agent_type))
+      throw new Error("A thread can only be handed to an agent on a machine");
     if (isHostedAgentType(opts.agent_type)) {
       const started = await startHostedConversationFor(ctx as any, userId, {
         session_id: opts.session_id,
@@ -1042,7 +1935,11 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     const sessionId = opts.session_id || crypto.randomUUID();
     // Dispatch args are v.any(): the mode and the seed choice are normalised at the boundary.
     const cloudWorkspace = normalizeCloudWorkspace(opts.cloud_workspace);
-    const cloudStartFrom = effectiveStartFrom(cloudWorkspace, opts.cloud_start_from, undefined);
+    const cloudStartFrom = effectiveStartFrom(
+      cloudWorkspace,
+      opts.cloud_start_from,
+      undefined,
+    );
     // Idempotent on (user, session_id). The optimistic web client keys a New
     // Session by a client-minted stub id and passes it as session_id, then
     // waits for this conversation to sync back and supersede the stub. That
@@ -1054,8 +1951,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     // and is what makes client-side re-create safe. Skips the rate limit too —
     // reviving an already-created session shouldn't count against the quota.
     if (opts.session_id) {
-      const existing = await findConversationBySessionReference(ctx, sessionId, userId)
-        ?? await findAgentBoxSessionCreatedBy(ctx, sessionId, userId);
+      const existing =
+        (await findConversationBySessionReference(ctx, sessionId, userId)) ??
+        (await findAgentBoxSessionCreatedBy(ctx, sessionId, userId));
       if (existing) {
         // Older ContextChat created first and linked in a second dispatch. If
         // that follow-up was lost, an idempotent replay must repair the source
@@ -1073,7 +1971,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       }
     }
     await checkRateLimit(ctx as any, userId, "createConversation");
-    const handFacts = handThread ? await handableThread(ctx as any, userId, handThread) : null;
+    const handFacts = handThread
+      ? await handableThread(ctx as any, userId, handThread)
+      : null;
     const handChannel = handFacts?.channel ?? null;
     if (handFacts) {
       await assertMayBind(ctx as any, userId, handFacts.root);
@@ -1083,23 +1983,47 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     // The compose bar's "as <definition>" pick: the definition's client, model
     // and effort fill whatever the row left unset, and the rest of it (tools,
     // prompt, mode, worktree) rides the start command to the daemon.
-    const asDef = await resolveSpawnDefinition(ctx, userId, opts.agent_definition, {
-      agentType: opts.agent_type,
-      model: opts.model,
-      effort: opts.effort,
-      isolated: opts.isolated,
-    });
+    const asDef = await resolveSpawnDefinition(
+      ctx,
+      userId,
+      opts.agent_definition,
+      {
+        agentType: opts.agent_type,
+        model: opts.model,
+        effort: opts.effort,
+        isolated: opts.isolated,
+      },
+    );
     if (asDef.definition) {
-      opts = { ...opts, agent_type: asDef.agentType ?? opts.agent_type, model: asDef.model, effort: asDef.effort, isolated: asDef.isolated };
+      opts = {
+        ...opts,
+        agent_type: asDef.agentType ?? opts.agent_type,
+        model: asDef.model,
+        effort: asDef.effort,
+        isolated: asDef.isolated,
+      };
     }
-    if (handThread && isHostedAgentType(opts.agent_type)) throw new Error("A thread can only be handed to an agent on a machine");
+    if (handThread && isHostedAgentType(opts.agent_type))
+      throw new Error("A thread can only be handed to an agent on a machine");
     const agentType = (opts.agent_type || "claude_code") as ConvexAgentType;
-    const runnerUserId = await sessionLaunchRunner(ctx, userId, opts.target_device_id);
-    if (handChannel && handIsPrivate(handChannel) && String(runnerUserId) !== String(userId)) throw new Error("A thread from a private room can only run on your own machine");
+    const runnerUserId = await sessionLaunchRunner(
+      ctx,
+      userId,
+      opts.target_device_id,
+    );
+    if (
+      handChannel &&
+      handIsPrivate(handChannel) &&
+      String(runnerUserId) !== String(userId)
+    )
+      throw new Error(
+        "A thread from a private room can only run on your own machine",
+      );
     // "Run in the cloud" names one of the RUNNER's own wake-on-use hosts; an
     // agent box (runner ≠ caller) or a foreign/laptop device id is refused
     // before any row exists.
-    if (opts.cloud_device_id) await resolveCloudDevice(ctx, runnerUserId, opts.cloud_device_id);
+    if (opts.cloud_device_id)
+      await resolveCloudDevice(ctx, runnerUserId, opts.cloud_device_id);
 
     const mappings = await ctx.db
       .query("directory_team_mappings")
@@ -1114,22 +2038,34 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     if (opts.linked_object?.type === "task" && opts.linked_object.id) {
       try {
         linkedTask = await ctx.db.get(opts.linked_object.id as Id<"tasks">);
-      } catch { linkedTask = null; }
+      } catch {
+        linkedTask = null;
+      }
       if (linkedTask) {
-        const hasAccess = linkedTask.user_id.toString() === userId.toString()
-          || (linkedTask.team_id && !!(await ctx.db
+        const hasAccess =
+          linkedTask.user_id.toString() === userId.toString() ||
+          (linkedTask.team_id &&
+            !!(await ctx.db
               .query("team_memberships")
-              .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", linkedTask.team_id))
+              .withIndex("by_user_team", (q: any) =>
+                q.eq("user_id", userId).eq("team_id", linkedTask.team_id),
+              )
               .first()));
         if (!hasAccess) {
           linkedTask = null;
         } else {
           // Resolve project_path/git_root/git_remote_url from the task. Shared
           // with tasks.assignToAgent so both task-launch paths route identically.
-          const resolved = await resolveTaskGitContext(ctx, userId, linkedTask, mappings, {
-            project_path: resolvedProjectPath,
-            git_root: resolvedGitRoot,
-          });
+          const resolved = await resolveTaskGitContext(
+            ctx,
+            userId,
+            linkedTask,
+            mappings,
+            {
+              project_path: resolvedProjectPath,
+              git_root: resolvedGitRoot,
+            },
+          );
           resolvedProjectPath = resolved.project_path;
           resolvedGitRoot = resolved.git_root;
           resolvedGitRemoteUrl = resolved.git_remote_url;
@@ -1138,11 +2074,11 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     }
 
     const conversationPath = resolvedGitRoot || resolvedProjectPath;
-    let { teamId: resolvedTeamId, isPrivate, autoShared } = resolveTeamForPath(
-      mappings,
-      conversationPath,
-      linkedTask?.team_id
-    );
+    let {
+      teamId: resolvedTeamId,
+      isPrivate,
+      autoShared,
+    } = resolveTeamForPath(mappings, conversationPath, linkedTask?.team_id);
     // Nest orchestration workers under their plan's creator session so they
     // don't clutter the top-level inbox. The plan is found via a linked task
     // or a directly-linked plan; resolveWorkerParentConversation only returns
@@ -1152,7 +2088,11 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       (opts.linked_object?.type === "plan" && opts.linked_object.id
         ? (opts.linked_object.id as Id<"plans">)
         : undefined);
-    const parentConversationId = await resolveWorkerParentConversation(ctx, userId, workerPlanId);
+    const parentConversationId = await resolveWorkerParentConversation(
+      ctx,
+      userId,
+      workerPlanId,
+    );
 
     // Born in the project its composer named (session-projects.md SP1). A
     // team project routes the session to its team when the folder names none;
@@ -1160,15 +2100,43 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     // Started as a new project (the composer's Project toggle): the project is
     // made here, in the session's own transaction, in the workspace the
     // composer was in, and this session is its canonical one.
-    const newProjectTeam = opts.new_project?.team_id && (await isTeamMember(ctx as any, userId, opts.new_project.team_id as Id<"teams">))
-      ? (opts.new_project.team_id as Id<"teams">) : undefined;
+    const newProjectTeam =
+      opts.new_project?.team_id &&
+      (await isTeamMember(
+        ctx as any,
+        userId,
+        opts.new_project.team_id as Id<"teams">,
+      ))
+        ? (opts.new_project.team_id as Id<"teams">)
+        : undefined;
     const newProjectId = opts.new_project?.title?.trim()
-      ? await insertProject(ctx, userId, { title: opts.new_project.title.trim().slice(0, 120), client_key: opts.new_project.client_key, title_from_session: true, ...(opts.new_project.description?.trim() ? { description: opts.new_project.description.trim().slice(0, 2000) } : {}), ...(newProjectTeam ? { team_id: newProjectTeam } : {}) })
+      ? await insertProject(ctx, userId, {
+          title: opts.new_project.title.trim().slice(0, 120),
+          client_key: opts.new_project.client_key,
+          title_from_session: true,
+          ...(opts.new_project.description?.trim()
+            ? {
+                description: opts.new_project.description.trim().slice(0, 2000),
+              }
+            : {}),
+          ...(newProjectTeam ? { team_id: newProjectTeam } : {}),
+        })
       : null;
-    const project = newProjectId ? await ctx.db.get(newProjectId) : await readableProject(ctx, userId, opts.project_id);
+    const project = newProjectId
+      ? await ctx.db.get(newProjectId)
+      : await readableProject(ctx, userId, opts.project_id);
     const projectId = project?._id ?? null;
-    if (project?.team_id && !resolvedTeamId && (await isTeamMember(ctx as any, userId, project.team_id))) resolvedTeamId = project.team_id;
-    if (handChannel && String(resolvedTeamId ?? "") !== String(handChannel.team_id)) opts = { ...opts, private: true };
+    if (
+      project?.team_id &&
+      !resolvedTeamId &&
+      (await isTeamMember(ctx as any, userId, project.team_id))
+    )
+      resolvedTeamId = project.team_id;
+    if (
+      handChannel &&
+      String(resolvedTeamId ?? "") !== String(handChannel.team_id)
+    )
+      opts = { ...opts, private: true };
     const conversationId = await ctx.db.insert("conversations", {
       user_id: runnerUserId,
       ...(runnerUserId !== userId ? { author_user_id: userId } : {}),
@@ -1200,15 +2168,28 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       // The same pair createQuickSession stamps — the web's deferred create just
       // reaches this side effect instead of that mutation.
       ...(opts.cloud_device_id
-        ? { owner_device_id: opts.cloud_device_id, cloud_placement: "pending" as const, cloud_workspace: cloudWorkspace, cloud_start_from: cloudStartFrom }
+        ? {
+            owner_device_id: opts.cloud_device_id,
+            cloud_placement: "pending" as const,
+            cloud_workspace: cloudWorkspace,
+            cloud_start_from: cloudStartFrom,
+          }
         : {}),
     });
 
-    await ctx.db.patch(conversationId, { short_id: conversationId.toString().slice(0, 7) });
+    await ctx.db.patch(conversationId, {
+      short_id: conversationId.toString().slice(0, 7),
+    });
     await retainSessionCreator(ctx, conversationId, userId, runnerUserId);
-    if (projectId && (opts.project_default || newProjectId)) await claimProjectDefaultSession(ctx, projectId, conversationId);
+    if (projectId && (opts.project_default || newProjectId))
+      await claimProjectDefaultSession(ctx, projectId, conversationId);
     // A session born bound to a task or plan a lead owns is the lead's (S35).
-    if (linkedTask || workerPlanId) await (ctx as any).scheduler?.runAfter(0, internal.sessionOwnership.reconcileHold, { conversation_id: conversationId });
+    if (linkedTask || workerPlanId)
+      await (ctx as any).scheduler?.runAfter(
+        0,
+        internal.sessionOwnership.reconcileHold,
+        { conversation_id: conversationId },
+      );
 
     // Context-launched sessions keep their source relation in the SAME
     // transaction as creation. A parked asyncAction has no later Promise result
@@ -1223,18 +2204,37 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
         conversationId,
       );
     }
-    if (handThread) await handThreadToSession(ctx as any, userId, (await ctx.db.get(conversationId))!, handThread);
+    if (handThread)
+      await handThreadToSession(
+        ctx as any,
+        userId,
+        (await ctx.db.get(conversationId))!,
+        handThread,
+      );
 
     const daemonType = fromConvexAgentType(agentType);
     // Per-session model/effort (validated against the shared contract; "default"
     // = omit). Stamped on the conversation so the badge is right from t=0 — the
     // rollup confirms/corrects from the first turn's switch echo or model field.
-    const modelOpt = opts.model ? findModelOption(agentType, opts.model) : undefined;
-    const effortOk = opts.effort && AGENT_MODEL_CONFIG[modelAgentKey(agentType)]?.efforts.includes(opts.effort);
+    const modelOpt = opts.model
+      ? findModelOption(agentType, opts.model)
+      : undefined;
+    const effortOk =
+      opts.effort &&
+      AGENT_MODEL_CONFIG[modelAgentKey(agentType)]?.efforts.includes(
+        opts.effort,
+      );
     const requestedModel = modelOpt?.cliAlias ? modelOpt.key : undefined;
     if (requestedModel || effortOk) {
       await ctx.db.patch(conversationId, {
-        ...(requestedModel ? { model: daemonType === "claude" ? `claude-${requestedModel}` : requestedModel } : {}),
+        ...(requestedModel
+          ? {
+              model:
+                daemonType === "claude"
+                  ? `claude-${requestedModel}`
+                  : requestedModel,
+            }
+          : {}),
         ...(effortOk ? { effort: opts.effort } : {}),
       });
     }
@@ -1252,10 +2252,20 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
         // cloud_spawn — a pending shared row with an error holds nothing, so
         // it frees nothing it does not have; a later re-pick re-claims.
         const repo = resolvedGitRoot || resolvedProjectPath;
-        const occupant = repo ? await findSharedCheckoutOccupant(ctx, runnerUserId, opts.cloud_device_id, { repoBasename: posixRepoBasename(repo) }) : null;
+        const occupant = repo
+          ? await findSharedCheckoutOccupant(
+              ctx,
+              runnerUserId,
+              opts.cloud_device_id,
+              { repoBasename: posixRepoBasename(repo) },
+            )
+          : null;
         if (occupant) {
           await ctx.db.patch(conversationId, {
-            session_error: checkoutInUseMessage(occupant.cloud_checkout_path ?? occupant.project_path ?? repo!, occupant),
+            session_error: checkoutInUseMessage(
+              occupant.cloud_checkout_path ?? occupant.project_path ?? repo!,
+              occupant,
+            ),
             updated_at: Date.now(),
           });
           return conversationId;
@@ -1273,9 +2283,16 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     if (onCastMachine) {
       await startOnCastMachine(ctx as any, userId, conversationId);
       if (opts.first_message?.trim()) {
-        await enqueuePendingMessage(ctx as any, await ctx.db.get(conversationId), userId, {
-          content: opts.first_message, client_id: opts.first_message_client_id, human: true,
-        });
+        await enqueuePendingMessage(
+          ctx as any,
+          await ctx.db.get(conversationId),
+          userId,
+          {
+            content: opts.first_message,
+            client_id: opts.first_message_client_id,
+            human: true,
+          },
+        );
       }
       return conversationId;
     }
@@ -1299,33 +2316,83 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       // the first send, so the pick rides the create itself — there is no blank
       // conversation to reconfigure beforehand (reconfigureSession serves the
       // eager-create surfaces, e.g. mobile).
-      ...(opts.target_device_id ? { targetDeviceId: opts.target_device_id } : {}),
+      ...(opts.target_device_id
+        ? { targetDeviceId: opts.target_device_id }
+        : {}),
       ...(requestedModel ? { model: requestedModel } : {}),
       ...(effortOk ? { effort: opts.effort } : {}),
       ...(opts.stable_mode ? { stableMode: opts.stable_mode } : {}),
-      ...(opts.stable_exclude?.length ? { stableExclude: opts.stable_exclude } : {}),
+      ...(opts.stable_exclude?.length
+        ? { stableExclude: opts.stable_exclude }
+        : {}),
       ...(asDef.definition ? { definition: asDef.definition } : {}),
     });
 
     return conversationId;
   },
 
-  retryPendingMessage: async (ctx, userId, [convId, ref]: [string, { messageId?: string; clientId?: string; force?: boolean }]) =>
+  retryPendingMessage: async (
+    ctx,
+    userId,
+    [convId, ref]: [
+      string,
+      { messageId?: string; clientId?: string; force?: boolean },
+    ],
+  ) =>
     retryPendingMessageForUser(ctx, userId, convId as Id<"conversations">, ref),
 
-  cancelPendingMessage: async (ctx, userId, [convId, ref]: [string, { messageId?: string; clientId?: string }]) =>
-    cancelPendingMessageForUser(ctx, userId, convId as Id<"conversations">, ref),
+  cancelPendingMessage: async (
+    ctx,
+    userId,
+    [convId, ref]: [string, { messageId?: string; clientId?: string }],
+  ) =>
+    cancelPendingMessageForUser(
+      ctx,
+      userId,
+      convId as Id<"conversations">,
+      ref,
+    ),
   // A shared session's queue, steered by anyone who may send into it.
-  reorderQueued: async (ctx, userId, [convId, messageId, beforeId]: [string, string, string | null]) =>
-    reorderQueuedForUser(ctx, userId, convId as Id<"conversations">, { messageId, beforeId }),
-  mergeQueued: async (ctx, userId, [convId, messageId, intoId]: [string, string, string]) =>
-    mergeQueuedForUser(ctx, userId, convId as Id<"conversations">, { messageId, intoId }),
+  reorderQueued: async (
+    ctx,
+    userId,
+    [convId, messageId, beforeId]: [string, string, string | null],
+  ) =>
+    reorderQueuedForUser(ctx, userId, convId as Id<"conversations">, {
+      messageId,
+      beforeId,
+    }),
+  mergeQueued: async (
+    ctx,
+    userId,
+    [convId, messageId, intoId]: [string, string, string],
+  ) =>
+    mergeQueuedForUser(ctx, userId, convId as Id<"conversations">, {
+      messageId,
+      intoId,
+    }),
   // The composer's "Queue for later": a row held for the end of the turn.
-  queueMessage: async (ctx, userId, [convId, content, clientId, typed]: [string, string, string, string | undefined]) => {
+  queueMessage: async (
+    ctx,
+    userId,
+    [convId, content, clientId, typed]: [
+      string,
+      string,
+      string,
+      string | undefined,
+    ],
+  ) => {
     const conversation = await ctx.db.get(convId as Id<"conversations">);
     if (!conversation) throw new Error("conversation_deleted");
-    if (!(await canSendProductMessage(ctx, userId, conversation))) throw new Error("Unauthorized");
-    return await enqueuePendingMessage(ctx, conversation, userId, { content, client_id: clientId, human: true, ...composerChannel(typed), queue: true });
+    if (!(await canSendProductMessage(ctx, userId, conversation)))
+      throw new Error("Unauthorized");
+    return await enqueuePendingMessage(ctx, conversation, userId, {
+      content,
+      client_id: clientId,
+      human: true,
+      ...composerChannel(typed),
+      queue: true,
+    });
   },
   releaseQueued: async (ctx, userId, [convId]: [string]) =>
     releaseQueuedForUser(ctx, userId, convId as Id<"conversations">),
@@ -1336,10 +2403,18 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     // quoteIds: the composer quotes the message carries (quoteDrafts.ts), sent
     // only by builds with the quote record on. Older builds send four args.
     // typed: the words the person typed, only from the composer's own submit (composerChannel).
-    [convId, content, imageIds, clientId, quoteIds, typed]: [string, string, string[] | undefined, string | undefined, string[] | undefined, string | undefined],
+    [convId, content, imageIds, clientId, quoteIds, typed]: [
+      string,
+      string,
+      string[] | undefined,
+      string | undefined,
+      string[] | undefined,
+      string | undefined,
+    ],
     result,
   ) => {
-    const quoteClientIds = Array.isArray(quoteIds) && quoteIds.length ? quoteIds : undefined;
+    const quoteClientIds =
+      Array.isArray(quoteIds) && quoteIds.length ? quoteIds : undefined;
     if (hasReceiptCommandId(result)) {
       const commandId = receiptCommandId("sendMessage", result);
       return await ctx.runMutation!(api.pendingMessages.sendMessageV2, {
@@ -1347,7 +2422,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
         client_id: commandId,
         conversation_id: convId as Id<"conversations">,
         content,
-        ...(imageIds?.length ? { image_storage_ids: imageIds as Id<"_storage">[] } : {}),
+        ...(imageIds?.length
+          ? { image_storage_ids: imageIds as Id<"_storage">[] }
+          : {}),
         ...(quoteClientIds ? { quote_client_ids: quoteClientIds } : {}),
         ...(typeof typed === "string" ? { typed } : {}),
       });
@@ -1363,7 +2440,8 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     // (runner, owner set, team member of a team-visible session, or a collab
     // grant). Delivery routing is unaffected: enqueuePendingMessage stamps the
     // RUNNER's id for the daemon poll either way.
-    if (!(await canSendProductMessage(ctx, userId, conversation))) throw new Error("Unauthorized");
+    if (!(await canSendProductMessage(ctx, userId, conversation)))
+      throw new Error("Unauthorized");
 
     // Single canonical writer: dedups on client_id, stamps owner_user_id for the daemon's
     // delivery poll, and wakes the conversation (un-dismiss, completed→active).
@@ -1376,7 +2454,15 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       human: true,
       ...composerChannel(typed),
     });
-    if (stampQuotes) await stampQuotesSent(ctx, userId, conversation._id, clientId!, stampQuotes, waiting);
+    if (stampQuotes)
+      await stampQuotesSent(
+        ctx,
+        userId,
+        conversation._id,
+        clientId!,
+        stampQuotes,
+        waiting,
+      );
     return queued;
   },
   // The composer's quote batch, mirrored (quoteDrafts.ts). The batch itself is
@@ -1388,7 +2474,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     return await saveQuotes(ctx, userId, convId as Id<"conversations">, drafts);
   },
   removeQuoteDrafts: async (ctx, userId, [clientIds]: [unknown]) => {
-    const ids = Array.isArray(clientIds) ? clientIds.filter((id): id is string => typeof id === "string") : [];
+    const ids = Array.isArray(clientIds)
+      ? clientIds.filter((id): id is string => typeof id === "string")
+      : [];
     if (ids.length === 0) return;
     return await removeQuotes(ctx, userId, ids);
   },
@@ -1404,80 +2492,180 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // (it transfers the worktree, then resumes there); a local one re-homes the
   // session and resumes it on that device, or brings it back from a cloud host
   // as a real move (sessionMigrations.runHere). Both writers carry the request id.
-  moveSessionToDevice: async (ctx, _userId, [requestId, convId, toDeviceId, toRemote]: [string, string, string, boolean]) => {
+  moveSessionToDevice: async (
+    ctx,
+    _userId,
+    [requestId, convId, toDeviceId, toRemote]: [
+      string,
+      string,
+      string,
+      boolean,
+    ],
+  ) => {
     return toRemote
-      ? await ctx.runMutation!(api.devices.moveToRemote, { conversation_id: convId, to_device_id: toDeviceId, request_id: requestId })
-      : await ctx.runMutation!(api.sessionMigrations.runHere, { conversation_id: convId, device_id: toDeviceId, request_id: requestId });
+      ? await ctx.runMutation!(api.devices.moveToRemote, {
+          conversation_id: convId,
+          to_device_id: toDeviceId,
+          request_id: requestId,
+        })
+      : await ctx.runMutation!(api.sessionMigrations.runHere, {
+          conversation_id: convId,
+          device_id: toDeviceId,
+          request_id: requestId,
+        });
   },
 
   // A cloud session's live mirror into a laptop worktree: the web stamps
   // local_mirror starting/stopping on the draft; this queues the laptop job.
-  setLocalMirror: async (ctx, userId, [convId, enable, deviceId, opts]: [string, boolean, string | undefined, boolean | { overwrite?: boolean; mode?: LocalMirrorMode; resolve?: MirrorResolve } | undefined]) =>
+  setLocalMirror: async (
+    ctx,
+    userId,
+    [convId, enable, deviceId, opts]: [
+      string,
+      boolean,
+      string | undefined,
+      (
+        | boolean
+        | {
+            overwrite?: boolean;
+            mode?: LocalMirrorMode;
+            resolve?: MirrorResolve;
+          }
+        | undefined
+      ),
+    ],
+  ) =>
     // A bare boolean is an older web's overwrite flag.
-    performSetLocalMirror(ctx as any, userId, convId as Id<"conversations">, { enable, deviceId, ...(typeof opts === "boolean" ? { overwrite: opts } : opts ?? {}) }),
+    performSetLocalMirror(ctx as any, userId, convId as Id<"conversations">, {
+      enable,
+      deviceId,
+      ...(typeof opts === "boolean" ? { overwrite: opts } : (opts ?? {})),
+    }),
 
   // Settings > Machines: wake, sleep, apply setup, save or delete an image on a
   // cloud host, or launch another like it (`arg`: the image, or the size).
   // The web marks the action running on the roster draft.
-  cloudHostAction: async (ctx, userId, [hostDeviceId, action, arg]: [string, CloudHostAction, string | undefined]) =>
-    performCloudHostAction(ctx as any, userId, hostDeviceId, action, arg),
+  cloudHostAction: async (
+    ctx,
+    userId,
+    [hostDeviceId, action, arg]: [string, CloudHostAction, string | undefined],
+  ) => performCloudHostAction(ctx as any, userId, hostDeviceId, action, arg),
   // Settings > Machines' autoscale switch on a Linux host (the template). The
   // web paints the roster row; this stores the policy the laptop reads.
-  setCloudAutoscale: async (ctx, userId, [hostDeviceId, policy]: [string, { enabled: boolean; max_extra: number; size: string }]) =>
-    performSetCloudAutoscale(ctx as any, userId, hostDeviceId, policy),
+  setCloudAutoscale: async (
+    ctx,
+    userId,
+    [hostDeviceId, policy]: [
+      string,
+      { enabled: boolean; max_extra: number; size: string },
+    ],
+  ) => performSetCloudAutoscale(ctx as any, userId, hostDeviceId, policy),
 
   // Settings > Machines. The web drops the rows from `machineRoster` on the
   // draft; that list is not a dispatch table, so this is the only server write.
-  removeMachines: async (ctx, userId, [deviceIds]: [string[]]) => performRemoveDevices(ctx as any, userId, deviceIds),
+  removeMachines: async (ctx, userId, [deviceIds]: [string[]]) =>
+    performRemoveDevices(ctx as any, userId, deviceIds),
 
   // Settings > Machines' share control: the web writes the device's team set
   // on the roster draft; device_shares is the server home of that fact.
-  setDeviceShares: async (ctx, userId, [deviceId, teamIds]: [string, string[]]) =>
-    performSetDeviceShares(ctx as any, userId, deviceId, teamIds),
+  setDeviceShares: async (
+    ctx,
+    userId,
+    [deviceId, teamIds]: [string, string[]],
+  ) => performSetDeviceShares(ctx as any, userId, deviceId, teamIds),
   // Settings > Machines' "Accept direct links": the web flips the roster row's
   // direct_links_off; the device row is what folderSync reads.
-  setDeviceDirectLinks: async (ctx, userId, [deviceId, enabled]: [string, boolean]) =>
-    performSetDeviceDirectLinks(ctx as any, userId, deviceId, enabled),
+  setDeviceDirectLinks: async (
+    ctx,
+    userId,
+    [deviceId, enabled]: [string, boolean],
+  ) => performSetDeviceDirectLinks(ctx as any, userId, deviceId, enabled),
   // Settings > Machines' "Reserved for": the web writes the roster row's
   // reserved_for; the device row is what every automatic placement reads.
-  setDeviceReservation: async (ctx, userId, [deviceId, purpose]: [string, string]) =>
-    performSetDeviceReservation(ctx as any, userId, deviceId, purpose),
+  setDeviceReservation: async (
+    ctx,
+    userId,
+    [deviceId, purpose]: [string, string],
+  ) => performSetDeviceReservation(ctx as any, userId, deviceId, purpose),
   // Settings > Claude Accounts' pool pill: the web writes the account's team
   // set on the accountPool draft; account_shares is the server home.
-  setAccountShares: async (ctx, userId, [deviceId, email, teamIds]: [string, string, string[]]) =>
-    performSetAccountShares(ctx as any, userId, deviceId, email, teamIds),
+  setAccountShares: async (
+    ctx,
+    userId,
+    [deviceId, email, teamIds]: [string, string, string[]],
+  ) => performSetAccountShares(ctx as any, userId, deviceId, email, teamIds),
   // Settings > Claude Accounts' machine control: narrow an account to some of
   // the owner's machines, or open it to all of them (null).
-  setAccountDevices: async (ctx, userId, [email, deviceIds]: [string, string[] | null]) =>
-    performSetAccountDevices(ctx as any, userId, email, deviceIds),
+  setAccountDevices: async (
+    ctx,
+    userId,
+    [email, deviceIds]: [string, string[] | null],
+  ) => performSetAccountDevices(ctx as any, userId, email, deviceIds),
   // Team machines (teamHosts.ts): the web paints the teamMachines rows; the
   // server writes the member row and queues the admin daemon's work.
-  joinTeamMachine: async (ctx, userId, [hostId, opts]: [string, { linux_user?: string } | undefined]) =>
-    performJoinTeamHost(ctx as any, userId, hostId as Id<"team_hosts">, opts ?? {}),
+  joinTeamMachine: async (
+    ctx,
+    userId,
+    [hostId, opts]: [string, { linux_user?: string } | undefined],
+  ) =>
+    performJoinTeamHost(
+      ctx as any,
+      userId,
+      hostId as Id<"team_hosts">,
+      opts ?? {},
+    ),
   removeTeamMachineMember: async (ctx, userId, [memberId]: [string]) =>
-    performRemoveTeamHostMember(ctx as any, userId, memberId as Id<"team_host_members">),
+    performRemoveTeamHostMember(
+      ctx as any,
+      userId,
+      memberId as Id<"team_host_members">,
+    ),
   renameTeamMachine: async (ctx, userId, [hostId, name]: [string, string]) =>
     performRenameTeamHost(ctx as any, userId, hostId as Id<"team_hosts">, name),
   unregisterTeamMachine: async (ctx, userId, [hostId]: [string]) =>
     performUnregisterTeamHost(ctx as any, userId, hostId as Id<"team_hosts">),
   // A snippet or machine setting switched on one device: the web paints the
   // roster row's settings; the device's apply_snippet command does the rest.
-  setDeviceSnippet: async (ctx, userId, [deviceId, change]: [string, DeviceSnippetChange]) =>
-    performSetDeviceSnippet(ctx as any, userId, deviceId, change),
+  setDeviceSnippet: async (
+    ctx,
+    userId,
+    [deviceId, change]: [string, DeviceSnippetChange],
+  ) => performSetDeviceSnippet(ctx as any, userId, deviceId, change),
   // A provider key set or removed on one device: the web paints the roster
   // row's managed ids; the key itself travels sealed to the device.
-  setProviderKey: async (ctx, userId, [deviceId, change]: [string, ProviderKeyCommand]) =>
-    performSetProviderKey(ctx as any, userId, deviceId, change),
+  setProviderKey: async (
+    ctx,
+    userId,
+    [deviceId, change]: [string, ProviderKeyCommand],
+  ) => performSetProviderKey(ctx as any, userId, deviceId, change),
   // Settings > Daemon's Update: the web paints the row's request; the row
   // itself is what the device's next beat picks up.
   requestDeviceUpdate: async (ctx, userId, [deviceId]: [string]) =>
     performRequestDeviceUpdate(ctx as any, userId, deviceId),
   // Settings > Devices' name and icon: the web paints the roster row (or the
   // agent box's settings row); the device row is the server home.
-  setDeviceAppearance: async (ctx, userId, [deviceId, change, ownerUserId]: [string, DeviceAppearanceChange, string | undefined]) =>
-    performSetDeviceAppearance(ctx as any, userId, deviceId, change, ownerUserId as Id<"users"> | undefined),
+  setDeviceAppearance: async (
+    ctx,
+    userId,
+    [deviceId, change, ownerUserId]: [
+      string,
+      DeviceAppearanceChange,
+      string | undefined,
+    ],
+  ) =>
+    performSetDeviceAppearance(
+      ctx as any,
+      userId,
+      deviceId,
+      change,
+      ownerUserId as Id<"users"> | undefined,
+    ),
 
-  linkConversation: async (ctx, userId, [objectType, objectId, conversationId]: [string, string, string]) => {
+  linkConversation: async (
+    ctx,
+    userId,
+    [objectType, objectId, conversationId]: [string, string, string],
+  ) => {
     await linkConversationToObject(
       ctx,
       userId,
@@ -1492,16 +2680,43 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // own timestamp, written verbatim, so the optimistic value and the server's
   // echo are the same object and the local field lock retires (see
   // stampBrowserPaneOfferHandled).
-  dismissBrowserPaneOffer: async (ctx, userId, [convId, at]: [string, number]) => {
-    await stampBrowserPaneOfferHandled(ctx, userId, convId as Id<"conversations">, at);
+  dismissBrowserPaneOffer: async (
+    ctx,
+    userId,
+    [convId, at]: [string, number],
+  ) => {
+    await stampBrowserPaneOfferHandled(
+      ctx,
+      userId,
+      convId as Id<"conversations">,
+      at,
+    );
   },
   // The folder-transfer strip's Cancel: the web marks the row cancelling; the
   // owner's daemon reads the stamp back on its next progress report.
-  cancelPeerTransfer: async (ctx, userId, [convId, startedAt]: [string, number]) => {
-    await performCancelPeerTransfer(ctx, userId, convId as Id<"conversations">, startedAt);
+  cancelPeerTransfer: async (
+    ctx,
+    userId,
+    [convId, startedAt]: [string, number],
+  ) => {
+    await performCancelPeerTransfer(
+      ctx,
+      userId,
+      convId as Id<"conversations">,
+      startedAt,
+    );
   },
-  dismissPeerTransfer: async (ctx, userId, [convId, startedAt]: [string, number]) => {
-    await performDismissPeerTransfer(ctx, userId, convId as Id<"conversations">, startedAt);
+  dismissPeerTransfer: async (
+    ctx,
+    userId,
+    [convId, startedAt]: [string, number],
+  ) => {
+    await performDismissPeerTransfer(
+      ctx,
+      userId,
+      convId as Id<"conversations">,
+      startedAt,
+    );
   },
 
   // The inbox hide gestures. For the runner and the owner set the patches above
@@ -1511,22 +2726,48 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // viewer's gesture is recorded in inbox_hides instead, which the team scan
   // skips. hideConversationForViewer is a no-op for the runner and owners, so
   // one handler serves both cases without the client telling them apart.
-  stashSession: async (ctx, userId, [convId]: [string, { hidden?: boolean } | undefined]) => {
+  stashSession: async (
+    ctx,
+    userId,
+    [convId]: [string, { hidden?: boolean } | undefined],
+  ) => {
     await hideForViewerByClientId(ctx, userId, convId, "stash");
   },
   killSession: async (ctx, userId, [convId]: [string]) => {
     await hideForViewerByClientId(ctx, userId, convId, "dismiss");
   },
   killSessions: async (ctx, userId, [convIds]: [string[]]) => {
-    for (const convId of convIds ?? []) await hideForViewerByClientId(ctx, userId, convId, "dismiss");
+    for (const convId of convIds ?? [])
+      await hideForViewerByClientId(ctx, userId, convId, "dismiss");
   },
   // A close sets a session that is mid-turn aside and closes the rest; the
   // action's result names the ones it set aside (inboxStore closeSessions).
-  closeSession: async (ctx, userId, [convId]: [string], result?: { aside?: string[] }) => {
-    await hideForViewerByClientId(ctx, userId, convId, result?.aside?.includes(convId) ? "stash" : "dismiss");
+  closeSession: async (
+    ctx,
+    userId,
+    [convId]: [string],
+    result?: { aside?: string[] },
+  ) => {
+    await hideForViewerByClientId(
+      ctx,
+      userId,
+      convId,
+      result?.aside?.includes(convId) ? "stash" : "dismiss",
+    );
   },
-  closeSessions: async (ctx, userId, [convIds]: [string[]], result?: { aside?: string[] }) => {
-    for (const convId of convIds ?? []) await hideForViewerByClientId(ctx, userId, convId, result?.aside?.includes(convId) ? "stash" : "dismiss");
+  closeSessions: async (
+    ctx,
+    userId,
+    [convIds]: [string[]],
+    result?: { aside?: string[] },
+  ) => {
+    for (const convId of convIds ?? [])
+      await hideForViewerByClientId(
+        ctx,
+        userId,
+        convId,
+        result?.aside?.includes(convId) ? "stash" : "dismiss",
+      );
   },
   deleteSession: async (ctx, userId, [convId]: [string]) => {
     const id = ctx.db.normalizeId("conversations", convId);
@@ -1543,7 +2784,8 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   setPrivacy: async (ctx, userId, [convId, isPrivate]: [string, boolean]) => {
     const conv = await ctx.db.get(convId as Id<"conversations">);
     if (!conv) throw new Error("Conversation not found");
-    if (conv.user_id.toString() !== userId.toString()) throw new Error("Unauthorized");
+    if (conv.user_id.toString() !== userId.toString())
+      throw new Error("Unauthorized");
     // Sharing must guarantee a team_id (buildShareUpdate); locking forces the
     // private visibility marker. Never let is_private:false and team_id diverge.
     const updates = isPrivate
@@ -1555,16 +2797,28 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
 
   // "Anyone with the link" on (a client-minted token) or off (null). share_token
   // is not a dispatchable field, so this is its only web write path.
-  setShareLink: async (ctx, userId, [convId, token]: [string, string | null]) => {
+  setShareLink: async (
+    ctx,
+    userId,
+    [convId, token]: [string, string | null],
+  ) => {
     await writeShareLink(ctx, userId, convId, token ?? null);
   },
 
   // Guest suggestions on a shared session (guestSuggestions.ts), owner only.
   // The client already shows the switch flipped and the decided card gone.
-  setGuestSuggestions: async (ctx, userId, [convId, enabled]: [string, boolean]) => {
+  setGuestSuggestions: async (
+    ctx,
+    userId,
+    [convId, enabled]: [string, boolean],
+  ) => {
     await writeGuestSuggestions(ctx, userId, convId, !!enabled);
   },
-  sendGuestSuggestion: async (ctx, userId, [suggestionId, body]: [string, string?]) => {
+  sendGuestSuggestion: async (
+    ctx,
+    userId,
+    [suggestionId, body]: [string, string?],
+  ) => {
     return await sendGuestSuggestionFor(ctx, userId, suggestionId, body);
   },
   dismissGuestSuggestion: async (ctx, userId, [suggestionId]: [string]) => {
@@ -1573,27 +2827,75 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // A teammate's side of the same cards (teamSuggestions.ts): take one back,
   // propose an answer to the agent's question or a permission, and the
   // owner's switch for whether teammates suggest while they are here.
-  withdrawTeamSuggestion: async (ctx, userId, [suggestionId, convId]: [string, string?]) => {
+  withdrawTeamSuggestion: async (
+    ctx,
+    userId,
+    [suggestionId, convId]: [string, string?],
+  ) => {
     return await withdrawTeamSuggestionFor(ctx, userId, suggestionId, convId);
   },
-  sendTeamSuggestionNow: async (ctx, userId, [suggestionId, convId]: [string, string?]) => {
+  sendTeamSuggestionNow: async (
+    ctx,
+    userId,
+    [suggestionId, convId]: [string, string?],
+  ) => {
     return await sendMineNowFor(ctx, userId, suggestionId, convId);
   },
-  proposeAnswer: async (ctx, userId, [convId, toolUseId, body, clientKey]: [string, string, string, string?]) => {
-    return await proposeAnswerFor(ctx, userId, convId, toolUseId, body, clientKey);
+  proposeAnswer: async (
+    ctx,
+    userId,
+    [convId, toolUseId, body, clientKey]: [string, string, string, string?],
+  ) => {
+    return await proposeAnswerFor(
+      ctx,
+      userId,
+      convId,
+      toolUseId,
+      body,
+      clientKey,
+    );
   },
-  proposePermission: async (ctx, userId, [_convId, permissionId, decision, clientKey]: [string, string, "approved" | "denied", string?]) => {
-    return await proposePermissionFor(ctx, userId, permissionId, decision, clientKey);
+  proposePermission: async (
+    ctx,
+    userId,
+    [_convId, permissionId, decision, clientKey]: [
+      string,
+      string,
+      "approved" | "denied",
+      string?,
+    ],
+  ) => {
+    return await proposePermissionFor(
+      ctx,
+      userId,
+      permissionId,
+      decision,
+      clientKey,
+    );
   },
 
   // The same switch for docs, plans, tasks and calls (publicShare.ts).
-  setObjectShareLink: async (ctx, userId, [kind, id, token]: [string, string, string | null]) => {
+  setObjectShareLink: async (
+    ctx,
+    userId,
+    [kind, id, token]: [string, string, string | null],
+  ) => {
     await writeObjectShareLink(ctx, userId, kind, id, token ?? null);
   },
 
   // The weekly card (weeklyCards.ts): what the card shows, and the opt-in.
-  setWeeklyCardOptions: async (ctx, userId, [cardId, opts]: [string, { show_projects?: boolean; show_tokens?: boolean }]) => {
-    await setWeeklyCardOptionsFor(ctx, userId, cardId, { show_projects: opts?.show_projects, show_tokens: opts?.show_tokens });
+  setWeeklyCardOptions: async (
+    ctx,
+    userId,
+    [cardId, opts]: [
+      string,
+      { show_projects?: boolean; show_tokens?: boolean },
+    ],
+  ) => {
+    await setWeeklyCardOptionsFor(ctx, userId, cardId, {
+      show_projects: opts?.show_projects,
+      show_tokens: opts?.show_tokens,
+    });
   },
   setWeeklyCardEnabled: async (ctx, userId, [enabled]: [boolean]) => {
     await setWeeklyCardEnabledFor(ctx, userId, enabled === true);
@@ -1601,16 +2903,37 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
 
   // A member's level for a whole team (settings, the share-in-full nudge).
   // Distinct from setTeamVisibility below, which is one conversation's override.
-  setTeamMembershipVisibility: async (ctx, userId, [teamId, visibility, mode]: [string, string, "everything" | "going_forward" | undefined]) => {
+  setTeamMembershipVisibility: async (
+    ctx,
+    userId,
+    [teamId, visibility, mode]: [
+      string,
+      string,
+      "everything" | "going_forward" | undefined,
+    ],
+  ) => {
     if (!isServerId(teamId)) throw new Error("Unknown team");
-    if (!isTeamVisibilityLevel(visibility)) throw new Error("Unknown visibility level");
-    if (mode !== undefined && mode !== "everything" && mode !== "going_forward") throw new Error("Unknown visibility mode");
-    return applyMembershipVisibilityChange(ctx, userId, teamId as Id<"teams">, visibility, mode);
+    if (!isTeamVisibilityLevel(visibility))
+      throw new Error("Unknown visibility level");
+    if (mode !== undefined && mode !== "everything" && mode !== "going_forward")
+      throw new Error("Unknown visibility mode");
+    return applyMembershipVisibilityChange(
+      ctx,
+      userId,
+      teamId as Id<"teams">,
+      visibility,
+      mode,
+    );
   },
 
-  setTeamVisibility: async (ctx, userId, [convId, visibility]: [string, "summary" | "full" | null]) => {
+  setTeamVisibility: async (
+    ctx,
+    userId,
+    [convId, visibility]: [string, "summary" | "full" | null],
+  ) => {
     const conv = await ctx.db.get(convId as Id<"conversations">);
-    if (!conv || conv.user_id.toString() !== userId.toString()) throw new Error("Unauthorized");
+    if (!conv || conv.user_id.toString() !== userId.toString())
+      throw new Error("Unauthorized");
     // Setting any team visibility shares the conversation, so guarantee a
     // team_id alongside it (else it's shared-with-nobody).
     const updates = await buildShareUpdate(ctx, conv, userId);
@@ -1627,11 +2950,18 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // progress recalc, and subscriber notifications — the old inline fork had
   // already drifted (it skipped recalc + notify on status-only changes).
   // The optional third element carries the close-guard resolution.
-  updateTaskStatus: async (ctx, userId, [shortId, newStatus, resolution]: [string, string, string?]) => {
+  updateTaskStatus: async (
+    ctx,
+    userId,
+    [shortId, newStatus, resolution]: [string, string, string?],
+  ) => {
     await (ctx as any).runMutation(api.tasks.webUpdate, {
       short_id: shortId,
       status: newStatus,
-      subtask_resolution: resolution === "cascade" || resolution === "only_parent" ? resolution : undefined,
+      subtask_resolution:
+        resolution === "cascade" || resolution === "only_parent"
+          ? resolution
+          : undefined,
     });
   },
 
@@ -1639,7 +2969,11 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // from the client, and an unknown key must never silently become a write.
   // `parent` goes through here so resolveParentTask stays the ONLY entry point
   // for nesting writes; never copy it into a dispatch-side patch.
-  updateTask: async (ctx, userId, [shortId, fields]: [string, Record<string, any>]) => {
+  updateTask: async (
+    ctx,
+    userId,
+    [shortId, fields]: [string, Record<string, any>],
+  ) => {
     await (ctx as any).runMutation(api.tasks.webUpdate, {
       short_id: shortId,
       status: fields.status,
@@ -1663,7 +2997,8 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       effort: fields.effort,
       ephemeral: fields.ephemeral,
       subtask_resolution:
-        fields.subtask_resolution === "cascade" || fields.subtask_resolution === "only_parent"
+        fields.subtask_resolution === "cascade" ||
+        fields.subtask_resolution === "only_parent"
           ? fields.subtask_resolution
           : undefined,
     });
@@ -1673,16 +3008,27 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // palette and the Blocked by row's remove, through the same core as
   // `cast task dep`. The store patches both rows' mirrors on the draft.
   addBlocker: async (ctx, userId, [shortId, blocker]: [string, string]) =>
-    addDepCore(ctx as any, userId, { short_id: String(shortId), blocked_by: String(blocker) }),
+    addDepCore(ctx as any, userId, {
+      short_id: String(shortId),
+      blocked_by: String(blocker),
+    }),
   removeBlocker: async (ctx, userId, [shortId, blocker]: [string, string]) =>
-    removeDepCore(ctx as any, userId, { short_id: String(shortId), blocked_by: String(blocker) }),
+    removeDepCore(ctx as any, userId, {
+      short_id: String(shortId),
+      blocked_by: String(blocker),
+    }),
   removeBlocks: async (ctx, userId, [shortId, dependent]: [string, string]) =>
-    removeDepCore(ctx as any, userId, { short_id: String(shortId), blocks: String(dependent) }),
+    removeDepCore(ctx as any, userId, {
+      short_id: String(shortId),
+      blocks: String(dependent),
+    }),
 
   // Task links that do not block (task-graph.md TG5). The store's relateTasks
   // and unrelateTasks patch both rows' related on the draft.
-  relateTasks: async (ctx, userId, [shortId, other]: [string, string]) => relateCore(ctx as any, userId, shortId, other, "add"),
-  unrelateTasks: async (ctx, userId, [shortId, other]: [string, string]) => relateCore(ctx as any, userId, shortId, other, "remove"),
+  relateTasks: async (ctx, userId, [shortId, other]: [string, string]) =>
+    relateCore(ctx as any, userId, shortId, other, "add"),
+  unrelateTasks: async (ctx, userId, [shortId, other]: [string, string]) =>
+    relateCore(ctx as any, userId, shortId, other, "remove"),
 
   // Delegate to tasks.webCreate so every workspace rule lives in one place:
   // team_id membership enforcement (createDataContext.resolveWorkspace),
@@ -1721,7 +3067,11 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // client JSON, which addWaitCore rebuilds field by field.
   addWait: async (ctx, userId, [shortId, input]: [string, AddWaitInput]) =>
     addWaitCore(ctx as any, userId, shortId, {
-      ref: input?.ref, target: input?.target, repository: input?.repository, time_zone: input?.time_zone, id: input?.id,
+      ref: input?.ref,
+      target: input?.target,
+      repository: input?.repository,
+      time_zone: input?.time_zone,
+      id: input?.id,
     }),
   removeWait: async (ctx, userId, [shortId, waitId]: [string, string]) =>
     removeWaitCore(ctx as any, userId, shortId, { wait_id: String(waitId) }),
@@ -1729,7 +3079,16 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // Delegate to tasks.webAddComment so the local-first path keeps image
   // attachments, the canAccessTask check, and subscriber notifications — none of
   // which the old inline insert had. Same ctx.runMutation reuse as updatePlan.
-  addTaskComment: async (ctx, userId, [shortId, text, commentType, imageIds]: [string, string, string?, string[]?]) => {
+  addTaskComment: async (
+    ctx,
+    userId,
+    [shortId, text, commentType, imageIds]: [
+      string,
+      string,
+      string?,
+      string[]?,
+    ],
+  ) => {
     await (ctx as any).runMutation(api.tasks.webAddComment, {
       short_id: shortId,
       text,
@@ -1744,7 +3103,8 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   pinDoc: async (ctx, userId, [docId, pinned]: [string, boolean]) => {
     const doc = await ctx.db.get(docId as Id<"docs">);
     if (!doc) throw new Error("Doc not found");
-    if (!(await canAccessDoc(ctx, userId, doc))) throw new Error("Unauthorized");
+    if (!(await canAccessDoc(ctx, userId, doc)))
+      throw new Error("Unauthorized");
     await ctx.db.patch(doc._id, { pinned, updated_at: Date.now() });
   },
 
@@ -1752,15 +3112,20 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     const doc = await docFor(ctx, docId);
     if (!doc) throw new Error("Doc not found");
     // The doc's own workspace rule, as pinDoc: team_id is routing, never access.
-    if (!(await canAccessDoc(ctx, userId, doc))) throw new Error("Not authorized");
+    if (!(await canAccessDoc(ctx, userId, doc)))
+      throw new Error("Not authorized");
     await requireArtifactEditor(ctx, doc, userId);
-    await ctx.db.patch(doc._id, { archived_at: Date.now(), updated_at: Date.now() });
+    await ctx.db.patch(doc._id, {
+      archived_at: Date.now(),
+      updated_at: Date.now(),
+    });
   },
 
   restoreArchivedDoc: async (ctx, userId, [docId]: [string]) => {
     const doc = await ctx.db.get(docId as Id<"docs">);
     if (!doc) throw new Error("Doc not found");
-    if (!(await canAccessDoc(ctx, userId, doc))) throw new Error("Unauthorized");
+    if (!(await canAccessDoc(ctx, userId, doc)))
+      throw new Error("Unauthorized");
     await requireArtifactEditor(ctx, doc, userId);
     // Preserve the undo snapshot's exact metadata: only clear the archive flag;
     // do not synthesize a new updated_at that would reorder the restored doc.
@@ -1769,42 +3134,130 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
 
   // Live artifacts (web store/liveArtifactsSlice.ts): an element batch, the
   // draft's save/discard, a named checkpoint. Same core the CLI writes through.
-  applyLiveOps: async (ctx, userId, [docId, layer, ops, clientId, claim]: [string, "main" | "draft" | "comments", any[], string | undefined, any]) => {
-    return await applyAsWebUser(ctx, userId, docId, layer, ops, clientId, claim);
+  applyLiveOps: async (
+    ctx,
+    userId,
+    [docId, layer, ops, clientId, claim]: [
+      string,
+      "main" | "draft" | "comments",
+      any[],
+      string | undefined,
+      any,
+    ],
+  ) => {
+    return await applyAsWebUser(
+      ctx,
+      userId,
+      docId,
+      layer,
+      ops,
+      clientId,
+      claim,
+    );
   },
   // The rest of a big write (web liveSendOps): the same batch, painted on the client without
   // pending locks, since the page holds the doc's rows back until the whole write is in.
-  liveSendOps: async (ctx, userId, [docId, layer, ops, clientId, claim]: [string, "main" | "draft" | "comments", any[], string | undefined, any]) => {
-    return await applyAsWebUser(ctx, userId, docId, layer, ops, clientId, claim);
+  liveSendOps: async (
+    ctx,
+    userId,
+    [docId, layer, ops, clientId, claim]: [
+      string,
+      "main" | "draft" | "comments",
+      any[],
+      string | undefined,
+      any,
+    ],
+  ) => {
+    return await applyAsWebUser(
+      ctx,
+      userId,
+      docId,
+      layer,
+      ops,
+      clientId,
+      claim,
+    );
   },
-  liveDraft: async (ctx, _userId, [docId, op, draftAt]: [string, "start" | "save" | "discard", number | undefined]) => {
+  liveDraft: async (
+    ctx,
+    _userId,
+    [docId, op, draftAt]: [
+      string,
+      "start" | "save" | "discard",
+      number | undefined,
+    ],
+  ) => {
     if (!ctx.db.normalizeId("docs", docId)) return null;
-    if (op === "start") return await (ctx as any).runMutation(api.liveArtifacts.draftStart, { doc_id: docId });
-    const fn = op === "save" ? api.liveArtifacts.draftSave : api.liveArtifacts.draftDiscard;
-    return await (ctx as any).runMutation(fn, { doc_id: docId, ...(typeof draftAt === "number" ? { draft_at: draftAt } : {}) });
+    if (op === "start")
+      return await (ctx as any).runMutation(api.liveArtifacts.draftStart, {
+        doc_id: docId,
+      });
+    const fn =
+      op === "save"
+        ? api.liveArtifacts.draftSave
+        : api.liveArtifacts.draftDiscard;
+    return await (ctx as any).runMutation(fn, {
+      doc_id: docId,
+      ...(typeof draftAt === "number" ? { draft_at: draftAt } : {}),
+    });
   },
-  liveSetEditAccess: async (ctx, _userId, [docId, edit, editors]: [string, "team" | "owners", string[]]) => {
+  liveSetEditAccess: async (
+    ctx,
+    _userId,
+    [docId, edit, editors]: [string, "team" | "owners", string[]],
+  ) => {
     if (!ctx.db.normalizeId("docs", docId)) return null;
-    return await (ctx as any).runMutation(api.liveArtifacts.setEditAccess, { doc_id: docId, edit, editors });
+    return await (ctx as any).runMutation(api.liveArtifacts.setEditAccess, {
+      doc_id: docId,
+      edit,
+      editors,
+    });
   },
   liveAskToEdit: async (ctx, _userId, [docId]: [string]) => {
     if (!ctx.db.normalizeId("docs", docId)) return null;
-    return await (ctx as any).runMutation(api.liveArtifacts.askToEdit, { doc_id: docId });
+    return await (ctx as any).runMutation(api.liveArtifacts.askToEdit, {
+      doc_id: docId,
+    });
   },
-  liveCheckpoint: async (ctx, _userId, [docId, label]: [string, string | undefined]) => {
+  liveCheckpoint: async (
+    ctx,
+    _userId,
+    [docId, label]: [string, string | undefined],
+  ) => {
     const doc = await docFor(ctx, docId);
     if (!doc) return null;
-    return await (ctx as any).runMutation(api.liveArtifacts.checkpoint, { doc_id: doc._id, ...(label ? { label } : {}) });
+    return await (ctx as any).runMutation(api.liveArtifacts.checkpoint, {
+      doc_id: doc._id,
+      ...(label ? { label } : {}),
+    });
   },
-  updateDoc: async (ctx, userId, [docId, fields]: [string, { content?: string; title?: string; doc_type?: string; labels?: string[]; overflow?: string }]) => {
+  updateDoc: async (
+    ctx,
+    userId,
+    [docId, fields]: [
+      string,
+      {
+        content?: string;
+        title?: string;
+        doc_type?: string;
+        labels?: string[];
+        overflow?: string;
+      },
+    ],
+  ) => {
     const doc = await docFor(ctx, docId);
     if (!doc) throw new Error("Doc not found");
-    if (!(await canAccessDoc(ctx, userId, doc))) throw new Error("Unauthorized");
+    if (!(await canAccessDoc(ctx, userId, doc)))
+      throw new Error("Unauthorized");
     await requireArtifactEditor(ctx, doc, userId);
     const updates: any = { updated_at: Date.now() };
     if (fields.content !== undefined) updates.content = fields.content;
     if (fields.title !== undefined) updates.title = fields.title;
-    if (fields.doc_type !== undefined && docTypeChangeAllowed(doc.doc_type, fields.doc_type)) updates.doc_type = fields.doc_type;
+    if (
+      fields.doc_type !== undefined &&
+      docTypeChangeAllowed(doc.doc_type, fields.doc_type)
+    )
+      updates.doc_type = fields.doc_type;
     if (fields.labels !== undefined) updates.labels = fields.labels;
     if (fields.overflow !== undefined) updates.overflow = fields.overflow;
     await ctx.db.patch(doc._id, updates);
@@ -1818,12 +3271,26 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // The charter's owner is stored as `owner_role_id` (the field the web row
   // paints) but travels as `owner`, a role ref the mutation resolves inside
   // the row's workspace (lib/orgCharter.ts). One translation for both tables.
-  updatePlan: async (ctx, userId, [shortId, fields]: [string, Record<string, any>]) => {
-    await (ctx as any).runMutation(api.plans.webUpdate, { short_id: shortId, ...charterWire(fields) });
+  updatePlan: async (
+    ctx,
+    userId,
+    [shortId, fields]: [string, Record<string, any>],
+  ) => {
+    await (ctx as any).runMutation(api.plans.webUpdate, {
+      short_id: shortId,
+      ...charterWire(fields),
+    });
   },
 
-  updateProject: async (ctx, userId, [id, fields]: [string, Record<string, any>]) => {
-    await (ctx as any).runMutation(api.projects.webUpdate, { id, ...charterWire(fields) });
+  updateProject: async (
+    ctx,
+    userId,
+    [id, fields]: [string, Record<string, any>],
+  ) => {
+    await (ctx as any).runMutation(api.projects.webUpdate, {
+      id,
+      ...charterWire(fields),
+    });
   },
 
   // An edit of a project's .codecast/line.toml from /line/settings (pl-838).
@@ -1836,11 +3303,18 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // The store paints a sessionCommands row keyed by `requestId`; the command
   // carries it, so sessionCommands.results settles that row from the daemon's
   // answer (and its later republish report) in whichever window asked.
-  editLineProfile: async (ctx, userId, [requestId, projectId, edits]: [string, string, unknown]) => {
-    if (!isServerId(projectId)) throw new ConvexError("This project is not saved yet");
-    if (!Array.isArray(edits) || edits.length === 0 || edits.length > 50) throw new ConvexError("An edit names one to fifty changes");
+  editLineProfile: async (
+    ctx,
+    userId,
+    [requestId, projectId, edits]: [string, string, unknown],
+  ) => {
+    if (!isServerId(projectId))
+      throw new ConvexError("This project is not saved yet");
+    if (!Array.isArray(edits) || edits.length === 0 || edits.length > 50)
+      throw new ConvexError("An edit names one to fifty changes");
     const project = await ctx.db.get(projectId as Id<"projects">);
-    if (!project || !(await canAccessProject(ctx as any, userId, project))) throw new ConvexError("Project not found");
+    if (!project || !(await canAccessProject(ctx as any, userId, project)))
+      throw new ConvexError("Project not found");
     const lp = project.line_profile;
     if (!lp?.root || !lp.device_id) {
       // A line nothing has published yet (line-map.md LX5): the first edit
@@ -1848,20 +3322,46 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       // the project's checkout, and that machine's republish makes it the
       // line's. The daemon admits only a checkout it tracks.
       const checkout = project.project_path;
-      if (lp || !checkout) throw new ConvexError("No machine has uploaded this flow's settings yet, and the project does not name its folder: run one session in the project's folder, then change it here");
-      const last = await ctx.db.query("conversations")
-        .withIndex("by_user_git_root", (q: any) => q.eq("user_id", userId).eq("git_root", checkout))
+      if (lp || !checkout)
+        throw new ConvexError(
+          "No machine has uploaded this flow's settings yet, and the project does not name its folder: run one session in the project's folder, then change it here",
+        );
+      const last = await ctx.db
+        .query("conversations")
+        .withIndex("by_user_git_root", (q: any) =>
+          q.eq("user_id", userId).eq("git_root", checkout),
+        )
         .order("desc")
         .filter((q: any) => q.neq(q.field("owner_device_id"), undefined))
         .first();
-      if (!last?.owner_device_id) throw new ConvexError("None of your machines has run a session in this project's folder yet: open one there, then change it here");
-      const commandId = await enqueueConfigCommand(ctx as any, userId, "line_profile_edit", JSON.stringify({ root: checkout, edits }), last.owner_device_id, requestId);
+      if (!last?.owner_device_id)
+        throw new ConvexError(
+          "None of your machines has run a session in this project's folder yet: open one there, then change it here",
+        );
+      const commandId = await enqueueConfigCommand(
+        ctx as any,
+        userId,
+        "line_profile_edit",
+        JSON.stringify({ root: checkout, edits }),
+        last.owner_device_id,
+        requestId,
+      );
       return { command_id: commandId };
     }
     // Only the publisher's own machine is ever a target: the row names who
     // published it, and enqueueConfigCommand refuses a device not the viewer's.
-    if (lp.publisher_user_id && lp.publisher_user_id !== String(userId)) throw new ConvexError("The checkout is on a teammate's machine: its owner can edit this file");
-    const commandId = await enqueueConfigCommand(ctx as any, userId, "line_profile_edit", JSON.stringify({ root: lp.root, edits }), lp.device_id, requestId);
+    if (lp.publisher_user_id && lp.publisher_user_id !== String(userId))
+      throw new ConvexError(
+        "The checkout is on a teammate's machine: its owner can edit this file",
+      );
+    const commandId = await enqueueConfigCommand(
+      ctx as any,
+      userId,
+      "line_profile_edit",
+      JSON.stringify({ root: lp.root, edits }),
+      lp.device_id,
+      requestId,
+    );
     return { command_id: commandId };
   },
 
@@ -1870,19 +3370,47 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // the signal door's own commit (lineCause.ts). The store painted the cause
   // under `temp_task_<clientKey>`; the row carries the key, so it supersedes.
   // "Tell <writer>" / "File a finding" on a stuck checkout (checkoutAsk.ts): the store painted the ask on the row's told.
-  askCheckout: async (ctx, userId, [checkoutId, who, at]: [string, string, number?]) => {
+  askCheckout: async (
+    ctx,
+    userId,
+    [checkoutId, who, at]: [string, string, number?],
+  ) => {
     return await askCheckoutCore(ctx, userId, checkoutId, who, at);
   },
-  fileLineCause: async (ctx, userId, [clientKey, projectId, input]: [string, string, any]) => {
-    if (!isServerId(projectId)) throw new ConvexError("This project is not saved yet");
-    return await fileLineCauseCore(ctx, userId, clientKey, projectId as Id<"projects">, input);
+  fileLineCause: async (
+    ctx,
+    userId,
+    [clientKey, projectId, input]: [string, string, any],
+  ) => {
+    if (!isServerId(projectId))
+      throw new ConvexError("This project is not saved yet");
+    return await fileLineCauseCore(
+      ctx,
+      userId,
+      clientKey,
+      projectId as Id<"projects">,
+      input,
+    );
   },
   // "Make this a problem" on a finding nothing filed (signals.ts makeProblemOfFindingCore).
-  makeProblemOfFinding: async (ctx, userId, [signalId, more, title, into]: [string, string[]?, string?, string?]) => {
+  makeProblemOfFinding: async (
+    ctx,
+    userId,
+    [signalId, more, title, into]: [string, string[]?, string?, string?],
+  ) => {
     const id = (ctx.db as any).normalizeId("signals", signalId);
     if (!id) throw new ConvexError("Finding not found");
-    const also = (more ?? []).map((m) => (ctx.db as any).normalizeId("signals", m)).filter(Boolean);
-    return await makeProblemOfFindingCore(ctx, userId, id, also, title, into ? (ctx.db as any).normalizeId("tasks", into) : null);
+    const also = (more ?? [])
+      .map((m) => (ctx.db as any).normalizeId("signals", m))
+      .filter(Boolean);
+    return await makeProblemOfFindingCore(
+      ctx,
+      userId,
+      id,
+      also,
+      title,
+      into ? (ctx.db as any).normalizeId("tasks", into) : null,
+    );
   },
   // "Not this problem" on a finding: it leaves its problem for one of its own (signals.ts moveFindingOutCore).
   moveFindingOut: async (ctx, userId, [signalId]: [string]) => {
@@ -1891,7 +3419,8 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     return await moveFindingOutCore(ctx, userId, id);
   },
   // "Merge into ct-N" on a problem the line reads as an older one's twin (signals.ts mergeProblemCore).
-  mergeProblem: async (ctx, userId, [taskRef, intoRef]: [string, string]) => await mergeProblemCore(ctx, userId, taskRef, intoRef),
+  mergeProblem: async (ctx, userId, [taskRef, intoRef]: [string, string]) =>
+    await mergeProblemCore(ctx, userId, taskRef, intoRef),
   // "Done" on a finding that asks a person to act: it leaves For you (signals.ts markAskDoneCore).
   markAskDone: async (ctx, userId, [signalId, done]: [string, boolean]) => {
     const id = (ctx.db as any).normalizeId("signals", signalId);
@@ -1900,52 +3429,117 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   // "Start now" on a line cause: the project lead's line, started on it.
   startLineCause: async (ctx, userId, [taskId]: [string]) => {
-    if (!isServerId(taskId)) throw new ConvexError("The problem is still being filed; start it in a moment");
+    if (!isServerId(taskId))
+      throw new ConvexError(
+        "The problem is still being filed; start it in a moment",
+      );
     return await startLineCauseCore(ctx, userId, taskId as Id<"tasks">);
   },
   // "Resume" on a run whose runner died: its machine continues it where it stands.
   resumeLineRun: async (ctx, userId, [runId]: [string]) => {
-    if (!isServerId(runId)) throw new ConvexError("The run is still being created");
+    if (!isServerId(runId))
+      throw new ConvexError("The run is still being created");
     return await resumeRunCore(ctx, userId, runId as Id<"workflow_runs">);
   },
   // "Rebase and land…" on an approved fix its landing step refused for being behind: the run picks up at its Rebase station.
   landLineRun: async (ctx, userId, [runId]: [string]) => {
-    if (!isServerId(runId)) throw new ConvexError("The run is still being created");
+    if (!isServerId(runId))
+      throw new ConvexError("The run is still being created");
     return await landAgainCore(ctx, userId, runId as Id<"workflow_runs">);
   },
   // "Deploy" on the Line page's Deploys view (deploys.md DP2): one deploy sending the project's waiting fixes, run on the machine that publishes its line.
   deployLine: async (ctx, userId, [clientKey, projectId]: [string, string]) => {
-    if (!isServerId(projectId)) throw new ConvexError("The project is still being created");
-    return await requestDeployCore(ctx, userId as Id<"users">, projectId, { clientKey });
+    if (!isServerId(projectId))
+      throw new ConvexError("The project is still being created");
+    return await requestDeployCore(ctx, userId as Id<"users">, projectId, {
+      clientKey,
+    });
   },
   // "Deploy", "Redeploy" or "Roll back" on the Deploys page (deploys.md DP12): one target of a team, sent from the machine that publishes it.
-  deployTarget: async (ctx, userId, [clientKey, teamId, repository, target, action, of]: [string, string, string, string, "deploy" | "redeploy" | "rollback", string | null]) => {
-    if (!isServerId(teamId)) throw new ConvexError("The team is still being created");
-    return await requestTargetDeployCore(ctx, userId as Id<"users">, { team_id: teamId as Id<"teams">, repository, target, action, ...(of ? { of } : {}), client_key: clientKey });
+  deployTarget: async (
+    ctx,
+    userId,
+    [clientKey, teamId, repository, target, action, of]: [
+      string,
+      string,
+      string,
+      string,
+      "deploy" | "redeploy" | "rollback",
+      string | null,
+    ],
+  ) => {
+    if (!isServerId(teamId))
+      throw new ConvexError("The team is still being created");
+    return await requestTargetDeployCore(ctx, userId as Id<"users">, {
+      team_id: teamId as Id<"teams">,
+      repository,
+      target,
+      action,
+      ...(of ? { of } : {}),
+      client_key: clientKey,
+    });
   },
   // "Stop the run" on a run far past its usual time: it ends as a person's cancel, and its task says so.
   stopLineRun: async (ctx, userId, [runId]: [string]) => {
-    if (!isServerId(runId)) throw new ConvexError("The run is still being created");
-    await cancelRunByPerson(ctx, userId as Id<"users">, runId as Id<"workflow_runs">);
+    if (!isServerId(runId))
+      throw new ConvexError("The run is still being created");
+    await cancelRunByPerson(
+      ctx,
+      userId as Id<"users">,
+      runId as Id<"workflow_runs">,
+    );
     return { ok: true as const };
   },
 
   // The line workspace's actions (line-workspace.md LW4, lineActions.ts).
   // Save a step's prompt: the daemon on the graph's machine writes the file
   // the .cast names, under the store's request id (sessionCommands settles it).
-  editLineGraph: async (ctx, userId, [requestId, workflowId, input]: [string, string, any]) => {
-    if (!isServerId(workflowId)) throw new ConvexError("This graph is not saved in codecast");
-    return await editLineGraphCore(ctx, userId, requestId, workflowId as Id<"workflows">, input);
+  editLineGraph: async (
+    ctx,
+    userId,
+    [requestId, workflowId, input]: [string, string, any],
+  ) => {
+    if (!isServerId(workflowId))
+      throw new ConvexError("This graph is not saved in codecast");
+    return await editLineGraphCore(
+      ctx,
+      userId,
+      requestId,
+      workflowId as Id<"workflows">,
+      input,
+    );
   },
   // Try an edit on past cases: one line_tries row per case, run on the graph's machine.
-  tryLineStep: async (ctx, userId, [tryId, workflowId, input]: [string, string, any]) => {
-    if (!isServerId(workflowId)) throw new ConvexError("This graph is not saved in codecast");
-    return await tryLineStepCore(ctx, userId, tryId, workflowId as Id<"workflows">, input);
+  tryLineStep: async (
+    ctx,
+    userId,
+    [tryId, workflowId, input]: [string, string, any],
+  ) => {
+    if (!isServerId(workflowId))
+      throw new ConvexError("This graph is not saved in codecast");
+    return await tryLineStepCore(
+      ctx,
+      userId,
+      tryId,
+      workflowId as Id<"workflows">,
+      input,
+    );
   },
   // Ask an agent to change a step: the line cause filed with the labeled cases, and its run started.
-  askLineAgent: async (ctx, userId, [clientKey, projectId, input]: [string, string, any]) => {
-    if (!isServerId(projectId)) throw new ConvexError("This project is not saved yet");
-    return await askLineAgentCore(ctx, userId, clientKey, projectId as Id<"projects">, input);
+  askLineAgent: async (
+    ctx,
+    userId,
+    [clientKey, projectId, input]: [string, string, any],
+  ) => {
+    if (!isServerId(projectId))
+      throw new ConvexError("This project is not saved yet");
+    return await askLineAgentCore(
+      ctx,
+      userId,
+      clientKey,
+      projectId as Id<"projects">,
+      input,
+    );
   },
 
   // A project's expectations, changed where they are read (line-map.md LX3,
@@ -1955,19 +3549,43 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // queue and the panel settle one decision. A throw is a permanent refusal:
   // the store takes its paint back.
   editExpectations: async (ctx, userId, [projectId, edit]: [string, any]) => {
-    if (!isServerId(projectId)) throw new ConvexError("This project is not saved yet");
+    if (!isServerId(projectId))
+      throw new ConvexError("This project is not saved yet");
     return await personEditCore(ctx as any, userId, projectId, edit);
   },
-  resolveExpectationProposal: async (ctx, userId, [_projectId, proposal, verdict]: [string, string, "apply" | "drop"]) => {
-    if (verdict !== "apply" && verdict !== "drop") throw new ConvexError("Apply or drop");
-    return await resolveProposalCore(ctx as any, userId, proposal, verdict, { settled: true });
+  resolveExpectationProposal: async (
+    ctx,
+    userId,
+    [_projectId, proposal, verdict]: [string, string, "apply" | "drop"],
+  ) => {
+    if (verdict !== "apply" && verdict !== "drop")
+      throw new ConvexError("Apply or drop");
+    return await resolveProposalCore(ctx as any, userId, proposal, verdict, {
+      settled: true,
+    });
   },
 
   // Naming a project's lead (org-roles-run-work.md R4): the owner and, when
   // the role's scope does not list the project, the scope, in one transaction.
-  setProjectLead: async (ctx, userId, [projectId, roleId, opts]: [string, string | null, { leave_sessions?: boolean } | undefined]) => {
-    if (!isServerId(projectId) || (roleId !== null && !isServerId(roleId))) return null;
-    return await (ctx as any).runMutation((api as any).orgRoles.setProjectLead, { project_id: projectId, role_id: roleId, ...(opts?.leave_sessions ? { leave_sessions: true } : {}) });
+  setProjectLead: async (
+    ctx,
+    userId,
+    [projectId, roleId, opts]: [
+      string,
+      string | null,
+      { leave_sessions?: boolean } | undefined,
+    ],
+  ) => {
+    if (!isServerId(projectId) || (roleId !== null && !isServerId(roleId)))
+      return null;
+    return await (ctx as any).runMutation(
+      (api as any).orgRoles.setProjectLead,
+      {
+        project_id: projectId,
+        role_id: roleId,
+        ...(opts?.leave_sessions ? { leave_sessions: true } : {}),
+      },
+    );
   },
 
   // Initiatives (initiatives-projects-role-page.md I1). The store paints
@@ -1981,22 +3599,60 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   createInitiative: async (ctx, userId, [opts]: [Record<string, any>]) => {
     return await (ctx as any).runMutation(api.initiatives.create, opts);
   },
-  updateInitiative: async (ctx, userId, [id, fields]: [string, Record<string, any>]) => {
-    return await (ctx as any).runMutation(api.initiatives.update, { id, ...fields });
+  updateInitiative: async (
+    ctx,
+    userId,
+    [id, fields]: [string, Record<string, any>],
+  ) => {
+    return await (ctx as any).runMutation(api.initiatives.update, {
+      id,
+      ...fields,
+    });
   },
-  addInitiativeProject: async (ctx, userId, [id, projectId]: [string, string]) => {
+  addInitiativeProject: async (
+    ctx,
+    userId,
+    [id, projectId]: [string, string],
+  ) => {
     if (!isServerId(projectId)) throw new Error("Project not created yet");
-    return await (ctx as any).runMutation(api.initiatives.addProject, { id, project_id: projectId });
+    return await (ctx as any).runMutation(api.initiatives.addProject, {
+      id,
+      project_id: projectId,
+    });
   },
-  removeInitiativeProject: async (ctx, userId, [id, projectId]: [string, string]) => {
+  removeInitiativeProject: async (
+    ctx,
+    userId,
+    [id, projectId]: [string, string],
+  ) => {
     if (!isServerId(projectId)) return null;
-    return await (ctx as any).runMutation(api.initiatives.removeProject, { id, project_id: projectId });
+    return await (ctx as any).runMutation(api.initiatives.removeProject, {
+      id,
+      project_id: projectId,
+    });
   },
-  setInitiativeProjects: async (ctx, userId, [id, projectIds]: [string, string[]]) => {
-    return await (ctx as any).runMutation(api.initiatives.setProjects, { id, project_ids: projectIds.filter(isServerId) });
+  setInitiativeProjects: async (
+    ctx,
+    userId,
+    [id, projectIds]: [string, string[]],
+  ) => {
+    return await (ctx as any).runMutation(api.initiatives.setProjects, {
+      id,
+      project_ids: projectIds.filter(isServerId),
+    });
   },
-  postInitiativeUpdate: async (ctx, userId, [id, update]: [string, { client_key?: string; body: string; health?: string }]) => {
-    return await (ctx as any).runMutation(api.initiatives.postUpdate, { id, ...update });
+  postInitiativeUpdate: async (
+    ctx,
+    userId,
+    [id, update]: [
+      string,
+      { client_key?: string; body: string; health?: string },
+    ],
+  ) => {
+    return await (ctx as any).runMutation(api.initiatives.postUpdate, {
+      id,
+      ...update,
+    });
   },
   // One entry of the intent record (I5). The store settles the entry it
   // paints with the reducer the mutation runs (applyRecordOp) and hands that
@@ -2004,8 +3660,16 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // stores the entry the page shows. A call with no result painted nothing:
   // the caller's op goes as given, and the mutation finds it moves nothing or
   // refuses it in words.
-  recordInitiativeEntry: async (ctx, userId, [id, op]: [string, Record<string, any>], result) => {
-    return await (ctx as any).runMutation(api.initiatives.record, { id, ...((result as Record<string, any> | null | undefined) ?? op) });
+  recordInitiativeEntry: async (
+    ctx,
+    userId,
+    [id, op]: [string, Record<string, any>],
+    result,
+  ) => {
+    return await (ctx as any).runMutation(api.initiatives.record, {
+      id,
+      ...((result as Record<string, any> | null | undefined) ?? op),
+    });
   },
 
   // Issue sync sources (docs/architecture/issue-sync.md S1.3, S9). Like plans
@@ -2047,14 +3711,39 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // secrets functions answer a refusal as { error } for the CLI; here it
   // throws, so the outbox reads it as permanent and the client takes its paint
   // back. A row that is gone settles quietly instead (liveSecretWrite).
-  updateSecretMeta: async (ctx, userId, [id, fields]: [string, Record<string, any>]) =>
-    liveSecretWrite(ctx, id, () => (ctx as any).runMutation(api.secrets.updateMeta, { ref: id, ...fields })),
+  updateSecretMeta: async (
+    ctx,
+    userId,
+    [id, fields]: [string, Record<string, any>],
+  ) =>
+    liveSecretWrite(ctx, id, () =>
+      (ctx as any).runMutation(api.secrets.updateMeta, { ref: id, ...fields }),
+    ),
   // A decline names "requested": a request filled since then is kept (secrets.remove).
-  removeSecret: async (ctx, userId, [id, only]: [string, "requested" | undefined]) =>
-    liveSecretWrite(ctx, id, () => (ctx as any).runMutation(api.secrets.remove, { ref: id, ...(only ? { only } : {}) })),
+  removeSecret: async (
+    ctx,
+    userId,
+    [id, only]: [string, "requested" | undefined],
+  ) =>
+    liveSecretWrite(ctx, id, () =>
+      (ctx as any).runMutation(api.secrets.remove, {
+        ref: id,
+        ...(only ? { only } : {}),
+      }),
+    ),
   // `grant`: the Touch ID grant string turning it off spends.
-  setSecretAskFirst: async (ctx, userId, [id, askFirst, grant]: [string, boolean, string?]) =>
-    liveSecretWrite(ctx, id, () => (ctx as any).runMutation(api.secrets.setAskFirst, { ref: id, ask_first: askFirst, grant })),
+  setSecretAskFirst: async (
+    ctx,
+    userId,
+    [id, askFirst, grant]: [string, boolean, string?],
+  ) =>
+    liveSecretWrite(ctx, id, () =>
+      (ctx as any).runMutation(api.secrets.setAskFirst, {
+        ref: id,
+        ask_first: askFirst,
+        grant,
+      }),
+    ),
   addIssueSyncSource: async (ctx, userId, [opts]: [any]) => {
     return await (ctx as any).runMutation(api.issueSync.addSource, {
       provider: opts.provider,
@@ -2075,12 +3764,19 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       push_new_tasks: opts.push_new_tasks,
     });
   },
-  updateIssueSyncSource: async (ctx, userId, [id, fields]: [string, Record<string, any>]) => {
+  updateIssueSyncSource: async (
+    ctx,
+    userId,
+    [id, fields]: [string, Record<string, any>],
+  ) => {
     // A gesture on a row whose create is still in flight names a stub id that
     // no server row answers to; the outbox would re-drive the argument error
     // forever. Drop it — the create carries the same settings.
     if (!isServerId(id)) return;
-    await (ctx as any).runMutation(api.issueSync.updateSource, { id, ...fields });
+    await (ctx as any).runMutation(api.issueSync.updateSource, {
+      id,
+      ...fields,
+    });
   },
   removeIssueSyncSource: async (ctx, userId, [id]: [string]) => {
     if (!isServerId(id)) return;
@@ -2091,53 +3787,116 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // lands through the public function `cast sources|events|app` calls, which
   // owns the access check; nothing is re-derived here. A gesture on a stub
   // row (a source whose create is in flight) names no server row: dropped.
-  setOpsGroupStatus: async (ctx, userId, [id, status, restore]: [string, string, { resolved_at: number | null; resolved_in: string | null; resolved_via?: "person" | "recovered" | "vendor" | null; resolved_by?: string | null }?]) => {
+  setOpsGroupStatus: async (
+    ctx,
+    userId,
+    [id, status, restore]: [
+      string,
+      string,
+      {
+        resolved_at: number | null;
+        resolved_in: string | null;
+        resolved_via?: "person" | "recovered" | "vendor" | null;
+        resolved_by?: string | null;
+      }?,
+    ],
+  ) => {
     const groupId = opsRowId(ctx, "event_groups", id);
     if (!groupId) return null;
-    await (ctx as any).runMutation(api.ingest.setGroupStatus, { group: id, status, ...(restore ? { restore } : {}) });
+    await (ctx as any).runMutation(api.ingest.setGroupStatus, {
+      group: id,
+      status,
+      ...(restore ? { restore } : {}),
+    });
     // A group mirrored from Sentry follows Sentry's status on the next poll,
     // so the gesture is also made there, as the person, on their grant: the
     // same route `cast events` takes (sources/sentry.ts setEventGroupStatus).
     const group = await ctx.db.get(groupId as Id<"event_groups">);
     const sentryStatus = group ? sentryStatusFor(group, status as any) : null;
-    if (sentryStatus) await (ctx as any).scheduler.runAfter(0, internal.sources.sentry.setIssueStatusFor, { user_id: userId as Id<"users">, group: id, status: sentryStatus });
+    if (sentryStatus)
+      await (ctx as any).scheduler.runAfter(
+        0,
+        internal.sources.sentry.setIssueStatusFor,
+        { user_id: userId as Id<"users">, group: id, status: sentryStatus },
+      );
     return null;
   },
   // The fix session started from an issue's page, recorded on the group
   // (ingest.setGroupFix). The web sends it once the session has its real id.
-  setOpsGroupFix: async (ctx, _userId, [id, conversationId]: [string, string]) => {
-    if (!opsRowId(ctx, "event_groups", id) || !opsRowId(ctx, "conversations", conversationId)) return null;
-    await (ctx as any).runMutation(api.ingest.setGroupFix, { group: id, conversation_id: conversationId });
+  setOpsGroupFix: async (
+    ctx,
+    _userId,
+    [id, conversationId]: [string, string],
+  ) => {
+    if (
+      !opsRowId(ctx, "event_groups", id) ||
+      !opsRowId(ctx, "conversations", conversationId)
+    )
+      return null;
+    await (ctx as any).runMutation(api.ingest.setGroupFix, {
+      group: id,
+      conversation_id: conversationId,
+    });
     return null;
   },
   // A group re-pointed at its real problem task, or unlinked from a misfiled
   // one (ingest.setGroupTask). The task is named by the id the store holds.
-  setOpsGroupTask: async (ctx, _userId, [id, taskId]: [string, string | null]) => {
+  setOpsGroupTask: async (
+    ctx,
+    _userId,
+    [id, taskId]: [string, string | null],
+  ) => {
     if (!opsRowId(ctx, "event_groups", id)) return null;
-    await (ctx as any).runMutation(api.ingest.setGroupTask, { group: id, task: taskId });
+    await (ctx as any).runMutation(api.ingest.setGroupTask, {
+      group: id,
+      task: taskId,
+    });
     return null;
   },
-  setOpsSourceStatus: async (ctx, _userId, [id, status]: [string, "active" | "paused"]) => {
+  setOpsSourceStatus: async (
+    ctx,
+    _userId,
+    [id, status]: [string, "active" | "paused"],
+  ) => {
     if (!opsRowId(ctx, "event_sources", id)) return null;
-    await (ctx as any).runMutation(api.ingest.updateSource, { source: id, status });
+    await (ctx as any).runMutation(api.ingest.updateSource, {
+      source: id,
+      status,
+    });
     return null;
   },
   // The project a source belongs to; an empty ref detaches it (updateSource resolves it inside the source's workspace).
-  setOpsSourceProject: async (ctx, _userId, [id, projectId]: [string, string | null]) => {
+  setOpsSourceProject: async (
+    ctx,
+    _userId,
+    [id, projectId]: [string, string | null],
+  ) => {
     if (!opsRowId(ctx, "event_sources", id)) return null;
-    await (ctx as any).runMutation(api.ingest.updateSource, { source: id, project: projectId ?? "" });
+    await (ctx as any).runMutation(api.ingest.updateSource, {
+      source: id,
+      project: projectId ?? "",
+    });
     return null;
   },
   // The bulk import of a vendor source's recordings (sources/replayBackfill.ts):
   // the same start and stop `cast replay import` calls.
-  startOpsReplayImport: async (ctx, _userId, [id, window]: [string, string | undefined]) => {
+  startOpsReplayImport: async (
+    ctx,
+    _userId,
+    [id, window]: [string, string | undefined],
+  ) => {
     if (!opsRowId(ctx, "event_sources", id)) return null;
-    await (ctx as any).runMutation(api.sources.replayBackfill.start, { source: id, ...(window ? { window } : {}) });
+    await (ctx as any).runMutation(api.sources.replayBackfill.start, {
+      source: id,
+      ...(window ? { window } : {}),
+    });
     return null;
   },
   stopOpsReplayImport: async (ctx, _userId, [id]: [string]) => {
     if (!opsRowId(ctx, "event_sources", id)) return null;
-    await (ctx as any).runMutation(api.sources.replayBackfill.stop, { source: id });
+    await (ctx as any).runMutation(api.sources.replayBackfill.stop, {
+      source: id,
+    });
     return null;
   },
   // A watch's past values from its source (metrics.loadHistory): the same call `cast metrics backfill` makes.
@@ -2148,37 +3907,102 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   // Poll watches now rather than at their next check (metrics.readNow): Read now on a failing watch.
   readOpsWatchesNow: async (ctx, _userId, [ids]: [string[]]) => {
-    const refs = (Array.isArray(ids) ? ids : []).filter((id) => typeof id === "string" && opsRowId(ctx, "metric_watches", id));
-    if (refs.length) await (ctx as any).runMutation(api.metrics.readNow, { watches: refs });
+    const refs = (Array.isArray(ids) ? ids : []).filter(
+      (id) => typeof id === "string" && opsRowId(ctx, "metric_watches", id),
+    );
+    if (refs.length)
+      await (ctx as any).runMutation(api.metrics.readNow, { watches: refs });
     return null;
   },
   // A watch's line, direction, unit, interval, name or pause (metrics.updateWatch), and its removal.
-  updateOpsWatch: async (ctx, _userId, [id, patch]: [string, { name?: string; query?: string; threshold?: number | null; direction?: "above" | "below"; unit?: string | null; interval_ms?: number; status?: "active" | "paused"; eval_reads?: number | null; warn?: number | null; no_data_after?: number | null; muted_until?: number | null; on_alert?: "task" | "timeline" | null; notify?: { users?: string[]; roles?: string[]; channel?: string; fix?: boolean; renotify_ms?: number; recovery?: boolean } | null }]) => {
+  updateOpsWatch: async (
+    ctx,
+    _userId,
+    [id, patch]: [
+      string,
+      {
+        name?: string;
+        query?: string;
+        threshold?: number | null;
+        direction?: "above" | "below";
+        unit?: string | null;
+        interval_ms?: number;
+        status?: "active" | "paused";
+        eval_reads?: number | null;
+        warn?: number | null;
+        no_data_after?: number | null;
+        muted_until?: number | null;
+        on_alert?: "task" | "timeline" | null;
+        notify?: {
+          users?: string[];
+          roles?: string[];
+          channel?: string;
+          fix?: boolean;
+          renotify_ms?: number;
+          recovery?: boolean;
+        } | null;
+      },
+    ],
+  ) => {
     if (!opsRowId(ctx, "metric_watches", id)) return null;
     const p = patch ?? {};
     await (ctx as any).runMutation(api.metrics.updateWatch, {
       watch: id,
       ...(typeof p.name === "string" ? { name: p.name } : {}),
       ...(typeof p.query === "string" ? { query: p.query } : {}),
-      ...(p.threshold === null || typeof p.threshold === "number" ? { threshold: p.threshold } : {}),
-      ...(p.direction === "above" || p.direction === "below" ? { direction: p.direction } : {}),
-      ...(p.unit === null || typeof p.unit === "string" ? { unit: p.unit } : {}),
-      ...(typeof p.interval_ms === "number" ? { interval_ms: p.interval_ms } : {}),
-      ...(p.status === "active" || p.status === "paused" ? { status: p.status } : {}),
+      ...(p.threshold === null || typeof p.threshold === "number"
+        ? { threshold: p.threshold }
+        : {}),
+      ...(p.direction === "above" || p.direction === "below"
+        ? { direction: p.direction }
+        : {}),
+      ...(p.unit === null || typeof p.unit === "string"
+        ? { unit: p.unit }
+        : {}),
+      ...(typeof p.interval_ms === "number"
+        ? { interval_ms: p.interval_ms }
+        : {}),
+      ...(p.status === "active" || p.status === "paused"
+        ? { status: p.status }
+        : {}),
       // The monitor (contracts/metricMonitor.ts): null takes a setting off.
-      ...Object.fromEntries((["eval_reads", "warn", "no_data_after", "muted_until"] as const).filter((k) => p[k] === null || typeof p[k] === "number").map((k) => [k, p[k]])),
-      ...(p.on_alert === null || p.on_alert === "task" || p.on_alert === "timeline" ? { on_alert: p.on_alert } : {}),
+      ...Object.fromEntries(
+        (["eval_reads", "warn", "no_data_after", "muted_until"] as const)
+          .filter((k) => p[k] === null || typeof p[k] === "number")
+          .map((k) => [k, p[k]]),
+      ),
+      ...(p.on_alert === null ||
+      p.on_alert === "task" ||
+      p.on_alert === "timeline"
+        ? { on_alert: p.on_alert }
+        : {}),
       // Who else the alert reaches (metricAlerts.ts); null clears it. Only the stored fields pass, without `by`, which is the caller.
-      ...(p.notify === null ? { notify: null } : p.notify && typeof p.notify === "object" ? {
-        notify: {
-          ...(Array.isArray(p.notify.users) ? { users: p.notify.users } : {}),
-          ...(Array.isArray(p.notify.roles) ? { roles: p.notify.roles } : {}),
-          ...(typeof p.notify.channel === "string" ? { channel: p.notify.channel } : {}),
-          ...(typeof p.notify.fix === "boolean" ? { fix: p.notify.fix } : {}),
-          ...(typeof p.notify.renotify_ms === "number" ? { renotify_ms: p.notify.renotify_ms } : {}),
-          ...(typeof p.notify.recovery === "boolean" ? { recovery: p.notify.recovery } : {}),
-        },
-      } : {}),
+      ...(p.notify === null
+        ? { notify: null }
+        : p.notify && typeof p.notify === "object"
+          ? {
+              notify: {
+                ...(Array.isArray(p.notify.users)
+                  ? { users: p.notify.users }
+                  : {}),
+                ...(Array.isArray(p.notify.roles)
+                  ? { roles: p.notify.roles }
+                  : {}),
+                ...(typeof p.notify.channel === "string"
+                  ? { channel: p.notify.channel }
+                  : {}),
+                ...(typeof p.notify.fix === "boolean"
+                  ? { fix: p.notify.fix }
+                  : {}),
+                ...(typeof p.notify.renotify_ms === "number"
+                  ? { renotify_ms: p.notify.renotify_ms }
+                  : {}),
+                ...(typeof p.notify.recovery === "boolean"
+                  ? { recovery: p.notify.recovery }
+                  : {}),
+              },
+            }
+          : {}),
     });
     return null;
   },
@@ -2188,23 +4012,55 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     return null;
   },
   // A new watch on a source, in the source's own workspace: the id is the server's to mint.
-  createOpsWatch: async (ctx, _userId, [input]: [{ source: string; name: string; query_kind: "hogql" | "insight" | "reader" | "volume"; query: string; threshold?: number; direction?: "above" | "below"; unit?: string; interval_ms?: number; eval_reads?: number; warn?: number; no_data_after?: number }]) => {
+  createOpsWatch: async (
+    ctx,
+    _userId,
+    [input]: [
+      {
+        source: string;
+        name: string;
+        query_kind: "hogql" | "insight" | "reader" | "volume";
+        query: string;
+        threshold?: number;
+        direction?: "above" | "below";
+        unit?: string;
+        interval_ms?: number;
+        eval_reads?: number;
+        warn?: number;
+        no_data_after?: number;
+      },
+    ],
+  ) => {
     if (!opsRowId(ctx, "event_sources", input?.source)) return null;
     const source = await ctx.db.get(input.source as Id<"event_sources">);
     if (!source) return null;
     const key = String(source.workspace ?? "");
-    const scope = key.startsWith("team:") ? { workspace: "team", team_id: key.slice(5) } : { workspace: "personal" };
+    const scope = key.startsWith("team:")
+      ? { workspace: "team", team_id: key.slice(5) }
+      : { workspace: "personal" };
     const res = await (ctx as any).runMutation(api.metrics.createWatch, {
       ...scope,
       source: input.source,
       name: input.name,
       query_kind: input.query_kind,
       query: input.query,
-      ...(typeof input.threshold === "number" ? { threshold: input.threshold } : {}),
-      ...(input.direction === "above" || input.direction === "below" ? { direction: input.direction } : {}),
-      ...(typeof input.unit === "string" && input.unit.trim() ? { unit: input.unit } : {}),
-      ...(typeof input.interval_ms === "number" ? { interval_ms: input.interval_ms } : {}),
-      ...Object.fromEntries((["eval_reads", "warn", "no_data_after"] as const).filter((k) => typeof input[k] === "number").map((k) => [k, input[k]])),
+      ...(typeof input.threshold === "number"
+        ? { threshold: input.threshold }
+        : {}),
+      ...(input.direction === "above" || input.direction === "below"
+        ? { direction: input.direction }
+        : {}),
+      ...(typeof input.unit === "string" && input.unit.trim()
+        ? { unit: input.unit }
+        : {}),
+      ...(typeof input.interval_ms === "number"
+        ? { interval_ms: input.interval_ms }
+        : {}),
+      ...Object.fromEntries(
+        (["eval_reads", "warn", "no_data_after"] as const)
+          .filter((k) => typeof input[k] === "number")
+          .map((k) => [k, input[k]]),
+      ),
     });
     return { watch_id: res.watch._id, short_id: res.watch.short_id };
   },
@@ -2213,45 +4069,116 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     await (ctx as any).runMutation(api.ingest.removeSource, { source: id });
     return null;
   },
-  grantOpsAction: async (ctx, _userId, [sourceId, action]: [string, string]) => {
+  grantOpsAction: async (
+    ctx,
+    _userId,
+    [sourceId, action]: [string, string],
+  ) => {
     if (!opsRowId(ctx, "event_sources", sourceId)) return null;
-    await (ctx as any).runMutation(api.sources.app.grant, { source: sourceId, action });
+    await (ctx as any).runMutation(api.sources.app.grant, {
+      source: sourceId,
+      action,
+    });
     return null;
   },
   // An app watch paused or resumed, or polled now (sources/app.ts setWatchPaused, pollWatchNow).
-  setOpsAppWatchPaused: async (ctx, _userId, [sourceId, watch, paused]: [string, string, boolean]) => {
-    if (!opsRowId(ctx, "event_sources", sourceId) || typeof watch !== "string") return null;
-    await (ctx as any).runMutation(api.sources.app.setWatchPaused, { source: sourceId, watch, paused: !!paused });
+  setOpsAppWatchPaused: async (
+    ctx,
+    _userId,
+    [sourceId, watch, paused]: [string, string, boolean],
+  ) => {
+    if (!opsRowId(ctx, "event_sources", sourceId) || typeof watch !== "string")
+      return null;
+    await (ctx as any).runMutation(api.sources.app.setWatchPaused, {
+      source: sourceId,
+      watch,
+      paused: !!paused,
+    });
     return null;
   },
-  pollOpsAppWatch: async (ctx, _userId, [sourceId, watch]: [string, string]) => {
-    if (!opsRowId(ctx, "event_sources", sourceId) || typeof watch !== "string") return null;
-    await (ctx as any).runMutation(api.sources.app.pollWatchNow, { source: sourceId, watch });
+  pollOpsAppWatch: async (
+    ctx,
+    _userId,
+    [sourceId, watch]: [string, string],
+  ) => {
+    if (!opsRowId(ctx, "event_sources", sourceId) || typeof watch !== "string")
+      return null;
+    await (ctx as any).runMutation(api.sources.app.pollWatchNow, {
+      source: sourceId,
+      watch,
+    });
     return null;
   },
-  revokeOpsAction: async (ctx, _userId, [sourceId, action]: [string, string]) => {
+  revokeOpsAction: async (
+    ctx,
+    _userId,
+    [sourceId, action]: [string, string],
+  ) => {
     if (!opsRowId(ctx, "event_sources", sourceId)) return null;
-    await (ctx as any).runMutation(api.sources.app.revoke, { source: sourceId, action });
+    await (ctx as any).runMutation(api.sources.app.revoke, {
+      source: sourceId,
+      action,
+    });
     return null;
   },
   // The two writes whose answer is shown once: the ingest key leaves the
   // backend only here, and only to the person who asked.
-  createOpsSource: async (ctx, _userId, [input]: [{ name: string; provider: "sdk" | "http" | "sentry" | "posthog" | "app"; workspace: "personal" | "team"; team_id?: string; config?: { projects?: string[] }; base_url?: string }]) => {
-    const projects = Array.isArray(input.config?.projects) ? input.config.projects.filter((p) => typeof p === "string") : undefined;
+  createOpsSource: async (
+    ctx,
+    _userId,
+    [input]: [
+      {
+        name: string;
+        provider: "sdk" | "http" | "sentry" | "posthog" | "app";
+        workspace: "personal" | "team";
+        team_id?: string;
+        config?: { projects?: string[] };
+        base_url?: string;
+      },
+    ],
+  ) => {
+    const projects = Array.isArray(input.config?.projects)
+      ? input.config.projects.filter((p) => typeof p === "string")
+      : undefined;
     const res = await (ctx as any).runMutation(api.ingest.createSource, {
       name: input.name,
       provider: input.provider,
       workspace: input.workspace,
-      team_id: input.workspace === "team" && input.team_id && opsRowId(ctx, "teams", input.team_id) ? input.team_id : undefined,
+      team_id:
+        input.workspace === "team" &&
+        input.team_id &&
+        opsRowId(ctx, "teams", input.team_id)
+          ? input.team_id
+          : undefined,
       ...(projects?.length ? { config: { projects } } : {}),
-      ...(input.provider === "app" && typeof input.base_url === "string" && input.base_url.trim() ? { base_url: input.base_url.trim() } : {}),
+      ...(input.provider === "app" &&
+      typeof input.base_url === "string" &&
+      input.base_url.trim()
+        ? { base_url: input.base_url.trim() }
+        : {}),
     });
-    return { source_id: res.source._id, short_id: res.source.short_id, name: res.source.name, workspace: res.source.workspace, ingest_key: res.ingest_key ?? null };
+    return {
+      source_id: res.source._id,
+      short_id: res.source.short_id,
+      name: res.source.name,
+      workspace: res.source.workspace,
+      ingest_key: res.ingest_key ?? null,
+    };
   },
-  rotateOpsSourceKey: async (ctx, _userId, [id, endOld]: [string, boolean?]) => {
+  rotateOpsSourceKey: async (
+    ctx,
+    _userId,
+    [id, endOld]: [string, boolean?],
+  ) => {
     if (!opsRowId(ctx, "event_sources", id)) return null;
-    const res = await (ctx as any).runMutation(api.ingest.rotateKey, { source: id, ...(endOld === true ? { end_old: true } : {}) });
-    return { ingest_key: res.ingest_key, key_prefix: res.source.key_prefix ?? null };
+    const res = await (ctx as any).runMutation(api.ingest.rotateKey, {
+      source: id,
+      ...(endOld === true ? { end_old: true } : {}),
+    });
+    return {
+      ingest_key: res.ingest_key,
+      key_prefix: res.source.key_prefix ?? null,
+    };
   },
   endOpsSourceOldKey: async (ctx, _userId, [id]: [string]) => {
     if (!opsRowId(ctx, "event_sources", id)) return null;
@@ -2267,7 +4194,19 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // client's stub id, so rewrite it with the real id in the same transaction.
   // The stub id doubles as the idempotency key: a replayed dispatch returns
   // the team the first run made instead of minting a duplicate.
-  dispatchCreateTeam: async (ctx, userId, [stubId, opts]: [string, { name: string; icon?: string; icon_color?: string; discoverable?: boolean }]) => {
+  dispatchCreateTeam: async (
+    ctx,
+    userId,
+    [stubId, opts]: [
+      string,
+      {
+        name: string;
+        icon?: string;
+        icon_color?: string;
+        discoverable?: boolean;
+      },
+    ],
+  ) => {
     const teamId = await (ctx as any).runMutation(api.teams.createTeam, {
       name: opts.name,
       icon: opts.icon,
@@ -2285,91 +4224,236 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // already moved to the client's fallback, so re-stamp it with the server's
   // answer in the same transaction. Both apply the oldest-membership rule.
   // `permanent`: a regulated team's data destroyed for good (regulatedDeletion.destroyTeam).
-  dispatchDeleteTeam: async (ctx, userId, [teamId, confirmName, , permanent]: [string, string, string | undefined, boolean?]) => {
-    const result = await (ctx as any).runMutation(permanent ? api.regulatedDeletion.destroyTeam : api.teams.deleteTeam, {
-      team_id: teamId,
-      confirm_name: confirmName,
-    });
+  dispatchDeleteTeam: async (
+    ctx,
+    userId,
+    [teamId, confirmName, , permanent]: [
+      string,
+      string,
+      string | undefined,
+      boolean?,
+    ],
+  ) => {
+    const result = await (ctx as any).runMutation(
+      permanent ? api.regulatedDeletion.destroyTeam : api.teams.deleteTeam,
+      {
+        team_id: teamId,
+        confirm_name: confirmName,
+      },
+    );
     await applyPatches(ctx, userId, {
-      client_state: { _: { ui: { active_team_id: result?.active_team_id ?? undefined } } },
+      client_state: {
+        _: { ui: { active_team_id: result?.active_team_id ?? undefined } },
+      },
     });
     return result;
   },
   // Team settings and membership (inboxStore renameTeam and the rest): each
   // runs the teams mutation the settings pages used to call themselves.
   renameTeam: async (ctx, _userId, [teamId, name]: [string, string]) => {
-    return await ctx.runMutation!((api as any).teams.renameTeam, { team_id: teamId as Id<"teams">, name });
+    return await ctx.runMutation!((api as any).teams.renameTeam, {
+      team_id: teamId as Id<"teams">,
+      name,
+    });
   },
-  updateTeamIcon: async (ctx, _userId, [teamId, fields]: [string, { icon?: string; icon_color?: string }]) => {
-    return await ctx.runMutation!((api as any).teams.updateTeamIcon, { team_id: teamId as Id<"teams">, icon: fields.icon, icon_color: fields.icon_color });
+  updateTeamIcon: async (
+    ctx,
+    _userId,
+    [teamId, fields]: [string, { icon?: string; icon_color?: string }],
+  ) => {
+    return await ctx.runMutation!((api as any).teams.updateTeamIcon, {
+      team_id: teamId as Id<"teams">,
+      icon: fields.icon,
+      icon_color: fields.icon_color,
+    });
   },
-  updateTeamTaskStatuses: async (ctx, _userId, [teamId, statuses]: [string, { id: string; name: string; category: string; color?: string }[]]) => {
-    return await ctx.runMutation!((api as any).teams.updateTaskStatuses, { team_id: teamId as Id<"teams">, statuses });
+  updateTeamTaskStatuses: async (
+    ctx,
+    _userId,
+    [teamId, statuses]: [
+      string,
+      { id: string; name: string; category: string; color?: string }[],
+    ],
+  ) => {
+    return await ctx.runMutation!((api as any).teams.updateTaskStatuses, {
+      team_id: teamId as Id<"teams">,
+      statuses,
+    });
   },
-  setTeamDefaultFlow: async (ctx, _userId, [teamId, slug]: [string, string | null]) => {
-    return await ctx.runMutation!((api as any).teams.setDefaultFlow, { team_id: teamId as Id<"teams">, slug });
+  setTeamDefaultFlow: async (
+    ctx,
+    _userId,
+    [teamId, slug]: [string, string | null],
+  ) => {
+    return await ctx.runMutation!((api as any).teams.setDefaultFlow, {
+      team_id: teamId as Id<"teams">,
+      slug,
+    });
   },
-  setTeamWorkspaceAgent: async (ctx, _userId, [teamId, roleId]: [string, string | null]) => {
-    return await ctx.runMutation!((api as any).anchors.setWorkspaceAgent, { team_id: teamId as Id<"teams">, role_id: roleId as Id<"org_roles"> | null });
+  setTeamWorkspaceAgent: async (
+    ctx,
+    _userId,
+    [teamId, roleId]: [string, string | null],
+  ) => {
+    return await ctx.runMutation!((api as any).anchors.setWorkspaceAgent, {
+      team_id: teamId as Id<"teams">,
+      role_id: roleId as Id<"org_roles"> | null,
+    });
   },
-  setTeamMemberRole: async (ctx, _userId, [teamId, userId, role]: [string, string, "member" | "admin"]) => {
-    return await ctx.runMutation!((api as any).teams.setMemberRole, { team_id: teamId as Id<"teams">, member_user_id: userId as Id<"users">, role });
+  setTeamMemberRole: async (
+    ctx,
+    _userId,
+    [teamId, userId, role]: [string, string, "member" | "admin"],
+  ) => {
+    return await ctx.runMutation!((api as any).teams.setMemberRole, {
+      team_id: teamId as Id<"teams">,
+      member_user_id: userId as Id<"users">,
+      role,
+    });
   },
-  removeTeamMember: async (ctx, _userId, [teamId, userId]: [string, string]) => {
-    return await ctx.runMutation!((api as any).teams.removeMember, { team_id: teamId as Id<"teams">, member_user_id: userId as Id<"users"> });
+  removeTeamMember: async (
+    ctx,
+    _userId,
+    [teamId, userId]: [string, string],
+  ) => {
+    return await ctx.runMutation!((api as any).teams.removeMember, {
+      team_id: teamId as Id<"teams">,
+      member_user_id: userId as Id<"users">,
+    });
   },
   createSavedView: async (ctx, userId, [opts]: [any]) => {
     return await (ctx as any).runMutation(api.savedViews.webCreate, opts);
   },
-  updateSavedView: async (ctx, userId, [id, fields]: [string, Record<string, any>]) => {
+  updateSavedView: async (
+    ctx,
+    userId,
+    [id, fields]: [string, Record<string, any>],
+  ) => {
     await (ctx as any).runMutation(api.savedViews.webUpdate, { id, ...fields });
   },
   deleteSavedView: async (ctx, userId, [id]: [string]) => {
     await (ctx as any).runMutation(api.savedViews.webDelete, { id });
   },
   setModEnabled: async (ctx, _userId, [id, enabled]: [string, boolean]) => {
-    await (ctx as any).runMutation((api as any).mods.webSetEnabled, { id, enabled });
+    await (ctx as any).runMutation((api as any).mods.webSetEnabled, {
+      id,
+      enabled,
+    });
   },
-  setModLocalDevice: async (ctx, _userId, [id, device, on]: [string, string, boolean]) => {
-    await (ctx as any).runMutation((api as any).mods.webSetLocalDevice, { id, device, on });
+  setModLocalDevice: async (
+    ctx,
+    _userId,
+    [id, device, on]: [string, string, boolean],
+  ) => {
+    await (ctx as any).runMutation((api as any).mods.webSetLocalDevice, {
+      id,
+      device,
+      on,
+    });
   },
   createModObject: async (ctx, _userId, [opts]: [any]) => {
-    return await (ctx as any).runMutation((api as any).modObjects.webCreate, opts);
+    return await (ctx as any).runMutation(
+      (api as any).modObjects.webCreate,
+      opts,
+    );
   },
-  updateModObject: async (ctx, _userId, [id, patch]: [string, Record<string, unknown>]) => {
-    await (ctx as any).runMutation((api as any).modObjects.webUpdate, { id, ...patch });
+  updateModObject: async (
+    ctx,
+    _userId,
+    [id, patch]: [string, Record<string, unknown>],
+  ) => {
+    await (ctx as any).runMutation((api as any).modObjects.webUpdate, {
+      id,
+      ...patch,
+    });
   },
 
   linkEntityConversation: async (ctx, userId, [opts]: [any]) => {
-    return await (ctx as any).runMutation(api.conversationLinks.webLinkConversation, opts);
+    return await (ctx as any).runMutation(
+      api.conversationLinks.webLinkConversation,
+      opts,
+    );
   },
   unlinkEntityConversation: async (ctx, userId, [id]: [string]) => {
-    await (ctx as any).runMutation(api.conversationLinks.webUnlinkConversation, { id });
+    await (ctx as any).runMutation(
+      api.conversationLinks.webUnlinkConversation,
+      { id },
+    );
   },
 
   // The client already removed the permission card (store resolvePermission).
-  resolvePermission: async (ctx, _userId, [permissionId, status, opts]: [string, "approved" | "denied", { message?: string; remember?: boolean }?]) => {
-    return await (ctx as any).runMutation(api.permissions.updatePermissionStatus, {
-      permission_id: permissionId as Id<"pending_permissions">,
-      status,
-      ...(opts?.message ? { message: opts.message } : {}),
-      ...(opts?.remember ? { remember: true } : {}),
-    });
+  resolvePermission: async (
+    ctx,
+    _userId,
+    [permissionId, status, opts]: [
+      string,
+      "approved" | "denied",
+      { message?: string; remember?: boolean }?,
+    ],
+  ) => {
+    return await (ctx as any).runMutation(
+      api.permissions.updatePermissionStatus,
+      {
+        permission_id: permissionId as Id<"pending_permissions">,
+        status,
+        ...(opts?.message ? { message: opts.message } : {}),
+        ...(opts?.remember ? { remember: true } : {}),
+      },
+    );
   },
   // The client already shows the stub (store addPermissionRule).
-  addPermissionRule: async (ctx, _userId, [rule]: [{ project: string; scope: string; permission: string; pattern: string; action: "allow" | "deny" }]) => {
+  addPermissionRule: async (
+    ctx,
+    _userId,
+    [rule]: [
+      {
+        project: string;
+        scope: string;
+        permission: string;
+        pattern: string;
+        action: "allow" | "deny";
+      },
+    ],
+  ) => {
     await (ctx as any).runMutation(api.permissionRules.add, {
-      project: rule.project, scope: rule.scope, permission: rule.permission, pattern: rule.pattern, action: rule.action,
+      project: rule.project,
+      scope: rule.scope,
+      permission: rule.permission,
+      pattern: rule.pattern,
+      action: rule.action,
     });
   },
   // The client already removed the row (store removePermissionRule).
   // A stub's add rides the outbox ahead of this, so its row exists by now and
   // is found by its fields.
-  removePermissionRule: async (ctx, _userId, [ruleId, rule]: [string, { project: string; scope: string; permission: string; pattern: string; action: "allow" | "deny" }?]) => {
+  removePermissionRule: async (
+    ctx,
+    _userId,
+    [ruleId, rule]: [
+      string,
+      {
+        project: string;
+        scope: string;
+        permission: string;
+        pattern: string;
+        action: "allow" | "deny";
+      }?,
+    ],
+  ) => {
     if (isServerId(ruleId)) {
-      await (ctx as any).runMutation(api.permissionRules.remove, { rule_id: ruleId as Id<"permission_rules"> });
+      await (ctx as any).runMutation(api.permissionRules.remove, {
+        rule_id: ruleId as Id<"permission_rules">,
+      });
     } else if (rule) {
-      await (ctx as any).runMutation(api.permissionRules.remove, { match: { project: rule.project, scope: rule.scope, permission: rule.permission, pattern: rule.pattern, action: rule.action } });
+      await (ctx as any).runMutation(api.permissionRules.remove, {
+        match: {
+          project: rule.project,
+          scope: rule.scope,
+          permission: rule.permission,
+          pattern: rule.pattern,
+          action: rule.action,
+        },
+      });
     }
   },
   // The client already shows the run as running (store respondToGate).
@@ -2380,7 +4464,11 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     });
   },
 
-  toggleBookmark: async (ctx, userId, [conversationId, messageId]: [string, string]) => {
+  toggleBookmark: async (
+    ctx,
+    userId,
+    [conversationId, messageId]: [string, string],
+  ) => {
     return await (ctx as any).runMutation(api.bookmarks.toggleBookmark, {
       conversation_id: conversationId,
       message_id: messageId,
@@ -2390,7 +4478,11 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // Manual presence status from the avatar-bar hover card. The client already
   // flipped its local roster row (store setMyStatus); this is the
   // authoritative write.
-  setMyStatus: async (ctx, userId, [status]: ["available" | "busy" | "away"]) => {
+  setMyStatus: async (
+    ctx,
+    userId,
+    [status]: ["available" | "busy" | "away"],
+  ) => {
     await (ctx as any).runMutation(api.users.updateProfile, { status });
   },
 
@@ -2404,14 +4496,18 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // useSwitchWorkspace). The client already re-scoped; this is the
   // authoritative write, membership-checked by the mutation.
   setActiveTeamPointer: async (ctx, userId, [teamId]: [string | null]) => {
-    await (ctx as any).runMutation(api.teams.setActiveTeam, { team_id: teamId ?? undefined });
+    await (ctx as any).runMutation(api.teams.setActiveTeam, {
+      team_id: teamId ?? undefined,
+    });
   },
 
   // The walkie door, from settings (store setWalkiePref). Same shape as the
   // status above: the client already closed or opened its own door, this is the
   // authoritative write.
   setWalkiePref: async (ctx, userId, [pref]: ["team" | "off"]) => {
-    await (ctx as any).runMutation(api.users.updateProfile, { walkie_pref: pref });
+    await (ctx as any).runMutation(api.users.updateProfile, {
+      walkie_pref: pref,
+    });
   },
 
   // A device's timezone for a profile that has none (store adoptTimezone).
@@ -2422,10 +4518,16 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // Cloud session sync (Claude Code, Cursor Cloud), from the sync settings
   // page (store setCloudSessionSync). The client already flipped its own copy; this is the
   // authoritative write, and every daemon picks it up on its next heartbeat.
-  setCloudSessionSync: async (ctx, userId, [source, enabled]: [CloudSessionSource, boolean]) => {
+  setCloudSessionSync: async (
+    ctx,
+    userId,
+    [source, enabled]: [CloudSessionSource, boolean],
+  ) => {
     const spec = CLOUD_SESSION_SOURCES[source];
     if (!spec) throw new Error(`Unknown cloud session source: ${source}`);
-    await (ctx as any).runMutation(api.users.updateSyncSettings, { [spec.field]: enabled });
+    await (ctx as any).runMutation(api.users.updateSyncSettings, {
+      [spec.field]: enabled,
+    });
   },
   // One folder into the person's sync (store syncFolder).
   syncFolder: async (ctx, userId, [folder]: [string]) => {
@@ -2433,7 +4535,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   // Web builds from before setCloudSessionSync still send this.
   setClaudeCloudSync: async (ctx, userId, [enabled]: [boolean]) => {
-    await (ctx as any).runMutation(api.users.updateSyncSettings, { claude_cloud_sync: enabled });
+    await (ctx as any).runMutation(api.users.updateSyncSettings, {
+      claude_cloud_sync: enabled,
+    });
   },
 
   // Snooze, from the receiver strip (store snoozeWalkie). On the user doc
@@ -2441,7 +4545,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // statement about the person: it has to hold on every device they are
   // signed in on, and the door is decided per client.
   snoozeWalkie: async (ctx, userId, [until]: [number]) => {
-    await (ctx as any).runMutation(api.users.updateProfile, { walkie_snoozed_until: until });
+    await (ctx as any).runMutation(api.users.updateProfile, {
+      walkie_snoozed_until: until,
+    });
   },
 
   // Trigger verbs (store triggerAction / deleteTrigger). The client flipped
@@ -2451,7 +4557,11 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   triggerAction: async (
     ctx,
     userId,
-    [taskId, verb, focus]: [string, "pause" | "resume" | "runNow" | "cancel" | "reactivate", string?],
+    [taskId, verb, focus]: [
+      string,
+      "pause" | "resume" | "runNow" | "cancel" | "reactivate",
+      string?,
+    ],
   ) => {
     const fn = {
       pause: api.agentTasks.webPause,
@@ -2461,16 +4571,31 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       reactivate: api.agentTasks.webReactivate,
     }[verb];
     if (!fn) throw new Error(`Unknown trigger verb: ${verb}`);
-    return await (ctx as any).runMutation(fn, { task_id: taskId, ...(verb === "runNow" && focus ? { focus } : {}) });
+    return await (ctx as any).runMutation(fn, {
+      task_id: taskId,
+      ...(verb === "runNow" && focus ? { focus } : {}),
+    });
   },
   deleteTrigger: async (ctx, userId, [taskId]: [string]) => {
-    await (ctx as any).runMutation(api.agentTasks.webDelete, { task_id: taskId });
+    await (ctx as any).runMutation(api.agentTasks.webDelete, {
+      task_id: taskId,
+    });
   },
   // A project's new source (store addProjectSource); the row carries the stub's key.
-  addProjectSource: async (ctx, userId, [projectId, source, clientKey]: [string, { channel_id?: string; event?: string }, string]) => {
+  addProjectSource: async (
+    ctx,
+    userId,
+    [projectId, source, clientKey]: [
+      string,
+      { channel_id?: string; event?: string },
+      string,
+    ],
+  ) => {
     return await (ctx as any).runMutation(api.projectSources.webAddSource, {
       project_id: projectId,
-      ...(source.channel_id ? { channel_id: source.channel_id } : { event: source.event }),
+      ...(source.channel_id
+        ? { channel_id: source.channel_id }
+        : { event: source.event }),
       client_key: clientKey,
     });
   },
@@ -2478,22 +4603,43 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // the row on its draft; the engine ends the running turn
   // (assistant/turns.ts stopRunningTurn).
   stopHostedTurn: async (ctx, userId, [conversationId]: [string]) => {
-    return await (ctx as any).runMutation(api.assistant.entry.stop, { conversation_id: conversationId });
+    return await (ctx as any).runMutation(api.assistant.entry.stop, {
+      conversation_id: conversationId,
+    });
   },
-  setTriggerInterval: async (ctx, userId, [taskId, intervalMs]: [string, number]) => {
-    return await (ctx as any).runMutation(api.agentTasks.webUpdate, { task_id: taskId, interval_ms: intervalMs });
+  setTriggerInterval: async (
+    ctx,
+    userId,
+    [taskId, intervalMs]: [string, number],
+  ) => {
+    return await (ctx as any).runMutation(api.agentTasks.webUpdate, {
+      task_id: taskId,
+      interval_ms: intervalMs,
+    });
   },
   // The triggers page's edit form, and its undo with the prior values. A
   // trigger that ran or ended in the meantime refuses the edit; throwing makes
   // the refusal permanent, so the client takes its optimistic edit back.
-  editTrigger: async (ctx, userId, [taskId, fields]: [string, Record<string, unknown>]) => {
-    const ok = await (ctx as any).runMutation(api.agentTasks.webUpdate, { ...fields, task_id: taskId });
-    if (ok === false) throw new Error("This trigger can no longer be edited: it is running or finished");
+  editTrigger: async (
+    ctx,
+    userId,
+    [taskId, fields]: [string, Record<string, unknown>],
+  ) => {
+    const ok = await (ctx as any).runMutation(api.agentTasks.webUpdate, {
+      ...fields,
+      task_id: taskId,
+    });
+    if (ok === false)
+      throw new Error(
+        "This trigger can no longer be edited: it is running or finished",
+      );
     return ok;
   },
 
   markNotificationRead: async (ctx, userId, [id]: [string]) => {
-    return await (ctx as any).runMutation(api.notifications.markAsRead, { notificationId: id });
+    return await (ctx as any).runMutation(api.notifications.markAsRead, {
+      notificationId: id,
+    });
   },
   markAllNotificationsRead: async (ctx, userId) => {
     return await (ctx as any).runMutation(api.notifications.markAllAsRead, {});
@@ -2502,7 +4648,12 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // Result-dependent creates carry a client-minted command id in their durable
   // outbox result. Exact replay returns the stored receipt instead of inserting
   // a duplicate, and the receipt's canonical id resumes navigation/assignment.
-  createBucket: async (ctx, userId, [opts]: [{ name: string; color?: string }], result) => {
+  createBucket: async (
+    ctx,
+    userId,
+    [opts]: [{ name: string; color?: string }],
+    result,
+  ) => {
     // Backward compatibility for an outbox entry persisted by an older client,
     // before receiptActionVersion existed. New calls always take the V2 path.
     if (!hasReceiptCommandId(result)) {
@@ -2510,16 +4661,12 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     }
     const continuation = validatedCreateContinuation("createBucket", result);
     if (continuation?.kind === "assignBucket") {
-      return await createBucketWithAssignmentsV2ForUser(
-        ctx as any,
-        userId,
-        {
-          commandId: receiptCommandId("createBucket", result),
-          name: opts.name,
-          color: opts.color,
-          conversationIds: continuation.conversationIds as Id<"conversations">[],
-        },
-      );
+      return await createBucketWithAssignmentsV2ForUser(ctx as any, userId, {
+        commandId: receiptCommandId("createBucket", result),
+        name: opts.name,
+        color: opts.color,
+        conversationIds: continuation.conversationIds as Id<"conversations">[],
+      });
     }
     return await ctx.runMutation!(api.buckets.webCreateV2, {
       command_id: receiptCommandId("createBucket", result),
@@ -2552,16 +4699,20 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     // would then re-fire on every boot forever.
     const realBucketId = ctx.db.normalizeId("inbox_buckets", bucketId);
     if (!realBucketId) {
-      return await runLocalCommand(ctx as any, {
-        principalId: _userId,
-        commandId: receiptCommandId("updateBucket", result),
-        commandName: "buckets.update/v2",
-        arguments: { bucketId, fields },
-      }, async () => ({
-        status: "rejected",
-        code: "NOT_FOUND",
-        message: "Label not found",
-      }));
+      return await runLocalCommand(
+        ctx as any,
+        {
+          principalId: _userId,
+          commandId: receiptCommandId("updateBucket", result),
+          commandName: "buckets.update/v2",
+          arguments: { bucketId, fields },
+        },
+        async () => ({
+          status: "rejected",
+          code: "NOT_FOUND",
+          message: "Label not found",
+        }),
+      );
     }
     return await ctx.runMutation!(api.buckets.webUpdateV2, {
       command_id: receiptCommandId("updateBucket", result),
@@ -2570,7 +4721,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       ...(fields.color !== undefined
         ? { color: fields.color === null ? null : fields.color }
         : {}),
-      ...(fields.sort_order !== undefined ? { sort_order: fields.sort_order } : {}),
+      ...(fields.sort_order !== undefined
+        ? { sort_order: fields.sort_order }
+        : {}),
       ...(fields.archived_at !== undefined
         ? { archived: fields.archived_at !== null }
         : {}),
@@ -2601,7 +4754,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       conversation_id: r.conversationId as Id<"conversations">,
       content: r.content,
       message_id: r.messageId ? (r.messageId as Id<"messages">) : undefined,
-      parent_comment_id: r.parentCommentId ? (r.parentCommentId as CommentId) : undefined,
+      parent_comment_id: r.parentCommentId
+        ? (r.parentCommentId as CommentId)
+        : undefined,
       file_path: r.filePath || undefined,
       line_number: typeof r.lineNumber === "number" ? r.lineNumber : undefined,
       anchor_lines: r.anchorLines,
@@ -2683,16 +4838,25 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   resolveCommentThread: async (
     ctx,
     _userId,
-    [conversationId, anchor, resolved]: [string, { messageId?: string; filePath?: string; lineNumber?: number } | undefined, boolean],
+    [conversationId, anchor, resolved]: [
+      string,
+      (
+        | { messageId?: string; filePath?: string; lineNumber?: number }
+        | undefined
+      ),
+      boolean,
+    ],
   ) => {
     if (!isServerId(conversationId)) return;
     return ctx.runMutation!(api.comments.resolveThread, {
       conversation_id: conversationId as Id<"conversations">,
-      message_id: anchor?.messageId && isServerId(anchor.messageId)
-        ? (anchor.messageId as Id<"messages">)
-        : undefined,
+      message_id:
+        anchor?.messageId && isServerId(anchor.messageId)
+          ? (anchor.messageId as Id<"messages">)
+          : undefined,
       file_path: anchor?.filePath || undefined,
-      line_number: typeof anchor?.lineNumber === "number" ? anchor.lineNumber : undefined,
+      line_number:
+        typeof anchor?.lineNumber === "number" ? anchor.lineNumber : undefined,
       resolved: !!resolved,
     });
   },
@@ -2702,21 +4866,57 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // (no server row yet) has nothing to resolve.
   // One Ship control (ship.ts): the store paints the press on shipTargets,
   // this starts it. A press on a target that is not a server row yet waits.
-  startShip: async (ctx, userId, [target, clientKey, decisionId]: [{ kind: "task" | "conversation" | "pull_request"; id: string }, string, string | undefined]) => {
+  startShip: async (
+    ctx,
+    userId,
+    [target, clientKey, decisionId]: [
+      { kind: "task" | "conversation" | "pull_request"; id: string },
+      string,
+      string | undefined,
+    ],
+  ) => {
     if (!isServerId(target?.id)) throw new Error("Nothing to ship yet");
-    return await startShipCore(ctx as any, userId, target, { clientKey, decisionId });
+    return await startShipCore(ctx as any, userId, target, {
+      clientKey,
+      decisionId,
+    });
   },
-  setPrShepherd: async (ctx, _userId, [prId, conversationId, enabled]: [string, string | undefined, boolean]) => {
-    return await ctx.runMutation!((api as any).prShepherd.setShepherd, { pr_id: prId, ...(conversationId ? { conversation_id: conversationId } : {}), enabled });
+  setPrShepherd: async (
+    ctx,
+    _userId,
+    [prId, conversationId, enabled]: [string, string | undefined, boolean],
+  ) => {
+    return await ctx.runMutation!((api as any).prShepherd.setShepherd, {
+      pr_id: prId,
+      ...(conversationId ? { conversation_id: conversationId } : {}),
+      enabled,
+    });
   },
-  assignTaskToAgent: async (ctx, _userId, [shortId, agentType, initialMessage]: [string, string, string | undefined]) => {
-    return await ctx.runMutation!((api as any).tasks.assignToAgent, { short_id: shortId, agent_type: agentType, ...(initialMessage !== undefined ? { initial_message: initialMessage } : {}) });
+  assignTaskToAgent: async (
+    ctx,
+    _userId,
+    [shortId, agentType, initialMessage]: [string, string, string | undefined],
+  ) => {
+    return await ctx.runMutation!((api as any).tasks.assignToAgent, {
+      short_id: shortId,
+      agent_type: agentType,
+      ...(initialMessage !== undefined
+        ? { initial_message: initialMessage }
+        : {}),
+    });
   },
   // Project updates (the project page's Updates tab). The store paints each
   // gesture on projectUpdates first; these run the web mutations. A post's
   // stub is keyed by its client_key, which the row carries, so the echo
   // supersedes it; a write against a stub not yet created waits (null).
-  postProjectUpdate: async (ctx, _userId, [projectId, update]: [string, { client_key: string; body: string; title?: string }]) => {
+  postProjectUpdate: async (
+    ctx,
+    _userId,
+    [projectId, update]: [
+      string,
+      { client_key: string; body: string; title?: string },
+    ],
+  ) => {
     return ctx.runMutation!(api.projectUpdates.webPost, {
       project_id: projectId as Id<"projects">,
       body: update.body,
@@ -2724,26 +4924,53 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       ...(update.title ? { title: update.title } : {}),
     });
   },
-  commentProjectUpdate: async (ctx, _userId, [updateId, text]: [string, string]) => {
+  commentProjectUpdate: async (
+    ctx,
+    _userId,
+    [updateId, text]: [string, string],
+  ) => {
     if (!isServerId(updateId)) throw new Error("Update not created yet");
-    return ctx.runMutation!(api.projectUpdates.webComment, { update_id: updateId as Id<"project_updates">, text });
+    return ctx.runMutation!(api.projectUpdates.webComment, {
+      update_id: updateId as Id<"project_updates">,
+      text,
+    });
   },
-  editProjectUpdate: async (ctx, _userId, [updateId, body]: [string, string]) => {
+  editProjectUpdate: async (
+    ctx,
+    _userId,
+    [updateId, body]: [string, string],
+  ) => {
     if (!isServerId(updateId)) throw new Error("Update not created yet");
-    return ctx.runMutation!(api.projectUpdates.webEdit, { id: updateId as Id<"project_updates">, body });
+    return ctx.runMutation!(api.projectUpdates.webEdit, {
+      id: updateId as Id<"project_updates">,
+      body,
+    });
   },
   deleteProjectUpdate: async (ctx, _userId, [updateId]: [string]) => {
     if (!isServerId(updateId)) return null;
-    return ctx.runMutation!(api.projectUpdates.webDelete, { id: updateId as Id<"project_updates"> });
-  },
-  resolveCodeCommentThread: async (ctx, _userId, [commentIds, resolved]: [string[], boolean]) => {
-    const id = (commentIds ?? []).find((c) => isServerId(c));
-    if (!id) return;
-    return ctx.runMutation!(resolved ? api.codeComments.resolve : api.codeComments.unresolve, {
-      comment_id: id as Id<"review_comments">,
+    return ctx.runMutation!(api.projectUpdates.webDelete, {
+      id: updateId as Id<"project_updates">,
     });
   },
-  editCodeComment: async (ctx, _userId, [commentId, content]: [string, string]) => {
+  resolveCodeCommentThread: async (
+    ctx,
+    _userId,
+    [commentIds, resolved]: [string[], boolean],
+  ) => {
+    const id = (commentIds ?? []).find((c) => isServerId(c));
+    if (!id) return;
+    return ctx.runMutation!(
+      resolved ? api.codeComments.resolve : api.codeComments.unresolve,
+      {
+        comment_id: id as Id<"review_comments">,
+      },
+    );
+  },
+  editCodeComment: async (
+    ctx,
+    _userId,
+    [commentId, content]: [string, string],
+  ) => {
     if (!isServerId(commentId)) return;
     return ctx.runMutation!(api.codeComments.update, {
       comment_id: commentId as Id<"review_comments">,
@@ -2799,18 +5026,29 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       // and its error toast — on every boot forever. Acknowledge the no-op
       // with a durable receipt instead, mirroring the legacy gate results.
       const realConvId = ctx.db.normalizeId("conversations", convId);
-      const realBucketId = bucketId ? ctx.db.normalizeId("inbox_buckets", bucketId) : null;
+      const realBucketId = bucketId
+        ? ctx.db.normalizeId("inbox_buckets", bucketId)
+        : null;
       if (!realConvId || (bucketId && !realBucketId)) {
-        return await runLocalCommand(ctx as any, {
-          principalId: userId,
-          commandId: receiptCommandId("assignSessionToBucket", result),
-          commandName: "buckets.assign/v2",
-          arguments: { conversationId: convId, bucketId: bucketId ?? undefined },
-        }, async () => ({
-          status: "acknowledged",
-          result: { gate: !realConvId ? "conv_not_found" : "bucket_not_owned" },
-          coverageViews: [],
-        }));
+        return await runLocalCommand(
+          ctx as any,
+          {
+            principalId: userId,
+            commandId: receiptCommandId("assignSessionToBucket", result),
+            commandName: "buckets.assign/v2",
+            arguments: {
+              conversationId: convId,
+              bucketId: bucketId ?? undefined,
+            },
+          },
+          async () => ({
+            status: "acknowledged",
+            result: {
+              gate: !realConvId ? "conv_not_found" : "bucket_not_owned",
+            },
+            coverageViews: [],
+          }),
+        );
       }
       return await ctx.runMutation!(api.buckets.webAssignV2, {
         command_id: receiptCommandId("assignSessionToBucket", result),
@@ -2826,17 +5064,21 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       convErr = String(e?.message || e);
     }
     if (!conv) return { gate: "conv_not_found", convErr };
-    if (!(await canFileConversation(ctx as any, userId, conv))) return { gate: "conv_not_owned" };
+    if (!(await canFileConversation(ctx as any, userId, conv)))
+      return { gate: "conv_not_owned" };
     if (bucketId) {
-      const bucket = await ctx.db.get(bucketId as Id<"inbox_buckets">).catch(() => null);
-      if (!bucket || String((bucket as any).user_id) !== String(userId)) return { gate: "bucket_not_owned" };
+      const bucket = await ctx.db
+        .get(bucketId as Id<"inbox_buckets">)
+        .catch(() => null);
+      if (!bucket || String((bucket as any).user_id) !== String(userId))
+        return { gate: "bucket_not_owned" };
     }
     // Shared with the CLI's `cast label set/clear` — see buckets.assignConversationToBucketForUser.
     await assignConversationToBucketForUser(
       ctx as any,
       userId,
       convId as Id<"conversations">,
-      (bucketId ?? null) as Id<"inbox_buckets"> | null
+      (bucketId ?? null) as Id<"inbox_buckets"> | null,
     );
     return { gate: "ok" };
   },
@@ -2880,32 +5122,55 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       create: async () => {
         const created = await ctx.runMutation!(api.projects.webCreate, opts);
         if (continuation?.kind === "attachToInitiative") {
-          await ctx.runMutation!(api.initiatives.addProject, { id: continuation.initiativeId, project_id: String(created.id) });
+          await ctx.runMutation!(api.initiatives.addProject, {
+            id: continuation.initiativeId,
+            project_id: String(created.id),
+          });
         }
         return created;
       },
     });
   },
   promoteDocToPlan: async (ctx, userId, [docId]: [string]) => {
-    return await (ctx as any).runMutation(api.docs.webPromoteToPlan, { doc_id: docId });
+    return await (ctx as any).runMutation(api.docs.webPromoteToPlan, {
+      doc_id: docId,
+    });
   },
   ensurePlanDoc: async (ctx, userId, [planId]: [string]) => {
-    return await (ctx as any).runMutation(api.plans.ensureDoc, { plan_id: planId });
+    return await (ctx as any).runMutation(api.plans.ensureDoc, {
+      plan_id: planId,
+    });
   },
   // Opening a long conversation written before the navigator's prompt index
   // existed: flag its history once (the mutation no-ops when indexed or running).
-  requestNavPromptIndex: async (ctx, userId, [conversationId, shareToken]: [string, string?]) => {
-    await (ctx as any).runMutation(api.conversations.backfillNavPrompts, { conversation_id: conversationId, ...(shareToken ? { share_token: shareToken } : {}) });
+  requestNavPromptIndex: async (
+    ctx,
+    userId,
+    [conversationId, shareToken]: [string, string?],
+  ) => {
+    await (ctx as any).runMutation(api.conversations.backfillNavPrompts, {
+      conversation_id: conversationId,
+      ...(shareToken ? { share_token: shareToken } : {}),
+    });
   },
   // A replay's capture ran past its stored length (the Ops player): the server
   // re-reads the capture and keeps the longer length, so the list agrees.
   checkReplayCaptureLength: async (ctx, userId, [replayId]: [string]) => {
-    await (ctx as any).runMutation(api.replays.checkCaptureLength, { replay: replayId });
+    await (ctx as any).runMutation(api.replays.checkCaptureLength, {
+      replay: replayId,
+    });
   },
   publishToDirectory: async (ctx, userId, [opts]: [any]) => {
-    return await (ctx as any).runMutation(api.conversations.publishToDirectory, opts);
+    return await (ctx as any).runMutation(
+      api.conversations.publishToDirectory,
+      opts,
+    );
   },
-  moveDoc: async (ctx, userId, [id, parentId, sortOrder]: [string, string?, number?]) => {
+  moveDoc: async (
+    ctx,
+    userId,
+    [id, parentId, sortOrder]: [string, string?, number?],
+  ) => {
     return await (ctx as any).runMutation(api.docs.webMoveDoc, {
       id,
       parent_id: parentId ?? undefined,
@@ -2931,7 +5196,14 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       string,
       string,
       string,
-      { threadRootId?: string; broadcast?: boolean; attachments?: any[]; origin?: "agent"; syncLocalOnly?: boolean; contextSessionId?: string }?,
+      {
+        threadRootId?: string;
+        broadcast?: boolean;
+        attachments?: any[];
+        origin?: "agent";
+        syncLocalOnly?: boolean;
+        contextSessionId?: string;
+      }?,
     ],
   ) => {
     if (!isServerId(channelId)) return;
@@ -2944,9 +5216,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       client_id: clientId,
       ...(opts?.threadRootId && isServerId(opts.threadRootId)
         ? {
-          thread_root_id: opts.threadRootId as Id<"chat_messages">,
-          ...(opts?.broadcast ? { broadcast: true } : {}),
-        }
+            thread_root_id: opts.threadRootId as Id<"chat_messages">,
+            ...(opts?.broadcast ? { broadcast: true } : {}),
+          }
         : {}),
       ...(opts?.attachments?.length ? { attachments: opts.attachments } : {}),
       ...(opts?.origin ? { origin: opts.origin } : {}),
@@ -2955,7 +5227,11 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
         : {}),
     });
   },
-  dispatchChatEdit: async (ctx, _userId, [messageId, content]: [string, string]) => {
+  dispatchChatEdit: async (
+    ctx,
+    _userId,
+    [messageId, content]: [string, string],
+  ) => {
     if (!isServerId(messageId)) return;
     return await ctx.runMutation!(api.chat.editMessage, {
       message_id: messageId as Id<"chat_messages">,
@@ -2970,14 +5246,22 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   // An intent, not a state: the mutation splices the caller's own id in or out,
   // so a replayed toggle can never forge or wipe a teammate's reaction.
-  toggleChatReaction: async (ctx, _userId, [messageId, emoji]: [string, string]) => {
+  toggleChatReaction: async (
+    ctx,
+    _userId,
+    [messageId, emoji]: [string, string],
+  ) => {
     if (!isServerId(messageId)) return;
     return await ctx.runMutation!(api.chat.toggleReaction, {
       message_id: messageId as Id<"chat_messages">,
       emoji,
     });
   },
-  markChannelRead: async (ctx, _userId, [channelId, lastMessageId]: [string, string?]) => {
+  markChannelRead: async (
+    ctx,
+    _userId,
+    [channelId, lastMessageId]: [string, string?],
+  ) => {
     if (!isServerId(channelId)) return;
     return await ctx.runMutation!(api.chat.markRead, {
       channel_id: channelId as Id<"chat_channels">,
@@ -2989,9 +5273,18 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // The viewer is looking at this session right now. `at` is the conversation's
   // own updated_at, so the mark the client already rendered is exactly what
   // lands and the card cannot flicker back to unread on the echo.
-  writeSessionAck: async (ctx, userId, [conversationId, at]: [string, number?]) => {
+  writeSessionAck: async (
+    ctx,
+    userId,
+    [conversationId, at]: [string, number?],
+  ) => {
     if (!isServerId(conversationId)) return;
-    return await acknowledgeIfReadable(ctx as any, userId, conversationId, typeof at === "number" && at > 0 ? at : undefined);
+    return await acknowledgeIfReadable(
+      ctx as any,
+      userId,
+      conversationId,
+      typeof at === "number" && at > 0 ? at : undefined,
+    );
   },
   // The manual "leave it lit" gesture. Cleared by the next presence ack.
   writeSessionUnread: async (ctx, userId, [conversationId]: [string]) => {
@@ -3001,14 +5294,22 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // Two arg shapes: the legacy [rootId] (old bundles and persisted outbox
   // entries, always a chat thread) and [kind, rootKey]. A comment key is
   // `${conversation_id}:${anchor}`, so only its conversation half is an id.
-  markThreadRead: async (ctx, _userId, args: [string] | [ThreadKind, string]) => {
-    const [kind, rootKey] = args.length >= 2
-      ? [args[0] as ThreadKind, String(args[1])]
-      : ["chat" as ThreadKind, String(args[0])];
+  markThreadRead: async (
+    ctx,
+    _userId,
+    args: [string] | [ThreadKind, string],
+  ) => {
+    const [kind, rootKey] =
+      args.length >= 2
+        ? [args[0] as ThreadKind, String(args[1])]
+        : ["chat" as ThreadKind, String(args[0])];
     if (!["chat", "comment", "task", "page"].includes(kind)) return;
     const idPart = kind === "comment" ? rootKey.split(":")[0] : rootKey;
     if (!isServerId(idPart)) return;
-    return await ctx.runMutation!(api.threads.markRead, { kind, root_key: rootKey });
+    return await ctx.runMutation!(api.threads.markRead, {
+      kind,
+      root_key: rootKey,
+    });
   },
   // One thread card's "done": archive the caller's own follow (threads.dismiss
   // deletes their thread_reads row). Same key rules as markThreadRead.
@@ -3017,17 +5318,28 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     if (!["chat", "comment", "task", "page"].includes(kind)) return;
     const idPart = kind === "comment" ? rootKey.split(":")[0] : rootKey;
     if (!isServerId(idPart)) return;
-    return await ctx.runMutation!(api.threads.dismiss, { kind, root_key: rootKey });
+    return await ctx.runMutation!(api.threads.dismiss, {
+      kind,
+      root_key: rootKey,
+    });
   },
-  markAllThreadsRead: async (ctx, _userId, args: [string?] | [string | null | undefined, (ThreadKind | "all")?]) => {
+  markAllThreadsRead: async (
+    ctx,
+    _userId,
+    args: [string?] | [string | null | undefined, (ThreadKind | "all")?],
+  ) => {
     const teamId = args[0] ?? undefined;
     // A one-argument call is the legacy chat-only sweep (old bundles and
     // persisted outbox entries). The unscoped every-kind sweep is opt-in: the
     // new client sends the explicit "all" sentinel.
     const kind = args.length === 1 ? "chat" : args[1];
     return await ctx.runMutation!(api.threads.markAllRead, {
-      ...(teamId && isServerId(teamId) ? { team_id: teamId as Id<"teams"> } : {}),
-      ...(kind && kind !== "all" && ["chat", "comment", "task", "page"].includes(kind)
+      ...(teamId && isServerId(teamId)
+        ? { team_id: teamId as Id<"teams"> }
+        : {}),
+      ...(kind &&
+      kind !== "all" &&
+      ["chat", "comment", "task", "page"].includes(kind)
         ? { kind: kind as ThreadKind }
         : {}),
     });
@@ -3038,22 +5350,39 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   addPageComment: async (
     ctx,
     _userId,
-    [o]: [{ slug?: string; artifactId?: string; text: string; parentId?: string; clientId: string }],
+    [o]: [
+      {
+        slug?: string;
+        artifactId?: string;
+        text: string;
+        parentId?: string;
+        clientId: string;
+      },
+    ],
   ) => {
-    if (!o?.text || (!o.slug && !(o.artifactId && isServerId(o.artifactId)))) return;
+    if (!o?.text || (!o.slug && !(o.artifactId && isServerId(o.artifactId))))
+      return;
     return await ctx.runMutation!(api.artifacts.submitComments, {
-      ...(o.slug ? { slug: o.slug } : { artifact_id: o.artifactId as Id<"artifacts"> }),
+      ...(o.slug
+        ? { slug: o.slug }
+        : { artifact_id: o.artifactId as Id<"artifacts"> }),
       author_name: "",
       deliver: false,
       from_app: true,
-      ...(o.parentId && isServerId(o.parentId) ? { parent_id: o.parentId } : {}),
+      ...(o.parentId && isServerId(o.parentId)
+        ? { parent_id: o.parentId }
+        : {}),
       client_id: o.clientId,
       comments: [{ text: o.text }],
     });
   },
   // The owner resolving or reopening one comment on a published page (the
   // phone's page screen). Idempotent, so the plain optimistic path is enough.
-  resolvePageComment: async (ctx, _userId, [, commentId, resolved]: [string, string, boolean]) => {
+  resolvePageComment: async (
+    ctx,
+    _userId,
+    [, commentId, resolved]: [string, string, boolean],
+  ) => {
     if (!isServerId(commentId)) return;
     return await ctx.runMutation!(api.artifacts.setCommentStatusForApp, {
       comment_id: commentId as Id<"artifact_comments">,
@@ -3099,7 +5428,15 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   updateChatSlackLink: async (
     ctx,
     _userId,
-    [linkId, patch]: [string, { direction?: any; options?: Record<string, boolean>; paused?: boolean; reimport?: boolean }],
+    [linkId, patch]: [
+      string,
+      {
+        direction?: any;
+        options?: Record<string, boolean>;
+        paused?: boolean;
+        reimport?: boolean;
+      },
+    ],
   ) => {
     if (!isServerId(linkId)) return;
     return await ctx.runMutation!(api.slackSync.updateLink, {
@@ -3112,46 +5449,94 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   unlinkChatSlack: async (ctx, _userId, [linkId]: [string]) => {
     if (!isServerId(linkId)) return;
-    return await ctx.runMutation!(api.slackSync.unlinkChannel, { link_id: linkId as Id<"slack_channel_links"> });
+    return await ctx.runMutation!(api.slackSync.unlinkChannel, {
+      link_id: linkId as Id<"slack_channel_links">,
+    });
   },
   // A team's opt-in feature switch (store setTeamFeature paints the teams row).
-  setTeamFeature: async (ctx, _userId, [teamId, feature, enabled]: [string, string, boolean]) => {
+  setTeamFeature: async (
+    ctx,
+    _userId,
+    [teamId, feature, enabled]: [string, string, boolean],
+  ) => {
     if (!isServerId(teamId)) return;
-    return await ctx.runMutation!(api.teamFeatures.setTeamFeature, { team_id: teamId as Id<"teams">, feature: feature as any, enabled: !!enabled });
+    return await ctx.runMutation!(api.teamFeatures.setTeamFeature, {
+      team_id: teamId as Id<"teams">,
+      feature: feature as any,
+      enabled: !!enabled,
+    });
   },
   // A team's managed policy (store setTeamPolicy paints the teams row).
   setTeamPolicy: async (ctx, _userId, [teamId, policy]: [string, unknown]) => {
     if (!isServerId(teamId)) return;
-    return await ctx.runMutation!(api.managedDevices.setTeamPolicy, { team_id: teamId as Id<"teams">, policy });
+    return await ctx.runMutation!(api.managedDevices.setTeamPolicy, {
+      team_id: teamId as Id<"teams">,
+      policy,
+    });
   },
   // Revoke a managed-devices enrollment token or a device enrollment (store
   // actions paint the settings row).
-  revokeEnrollmentToken: async (ctx, _userId, [, tokenId]: [string, string]) => {
+  revokeEnrollmentToken: async (
+    ctx,
+    _userId,
+    [, tokenId]: [string, string],
+  ) => {
     if (!isServerId(tokenId)) return;
-    return await ctx.runMutation!(api.managedDevices.revokeEnrollmentToken, { token_id: tokenId as Id<"team_enrollment_tokens"> });
+    return await ctx.runMutation!(api.managedDevices.revokeEnrollmentToken, {
+      token_id: tokenId as Id<"team_enrollment_tokens">,
+    });
   },
-  revokeDeviceEnrollment: async (ctx, _userId, [, enrollmentId]: [string, string]) => {
+  revokeDeviceEnrollment: async (
+    ctx,
+    _userId,
+    [, enrollmentId]: [string, string],
+  ) => {
     if (!isServerId(enrollmentId)) return;
-    return await ctx.runMutation!(api.managedDevices.revokeDeviceEnrollment, { enrollment_id: enrollmentId as Id<"device_enrollments"> });
+    return await ctx.runMutation!(api.managedDevices.revokeDeviceEnrollment, {
+      enrollment_id: enrollmentId as Id<"device_enrollments">,
+    });
   },
-  restoreDeviceEnrollment: async (ctx, _userId, [, enrollmentId]: [string, string]) => {
+  restoreDeviceEnrollment: async (
+    ctx,
+    _userId,
+    [, enrollmentId]: [string, string],
+  ) => {
     if (!isServerId(enrollmentId)) return;
-    return await ctx.runMutation!(api.managedDevices.restoreDeviceEnrollment, { enrollment_id: enrollmentId as Id<"device_enrollments"> });
+    return await ctx.runMutation!(api.managedDevices.restoreDeviceEnrollment, {
+      enrollment_id: enrollmentId as Id<"device_enrollments">,
+    });
   },
   // Revoke a team read key (store revokeTeamReadKey paints the settings row).
-  revokeTeamReadKey: async (ctx, _userId, [teamId, keyId]: [string, string]) => {
+  revokeTeamReadKey: async (
+    ctx,
+    _userId,
+    [teamId, keyId]: [string, string],
+  ) => {
     if (!isServerId(teamId) || !isServerId(keyId)) return;
-    return await ctx.runMutation!(api.teamReadKeys.revoke, { team_id: teamId as Id<"teams">, key_id: keyId as Id<"team_read_keys"> });
+    return await ctx.runMutation!(api.teamReadKeys.revoke, {
+      team_id: teamId as Id<"teams">,
+      key_id: keyId as Id<"team_read_keys">,
+    });
   },
   // A team's monthly model budget (store setTeamBudget paints the settings row).
   setTeamBudget: async (ctx, _userId, [teamId, capUsd]: [string, number]) => {
     if (!isServerId(teamId)) return;
-    return await ctx.runMutation!(api.modelCalls.setTeamBudget, { team_id: teamId as Id<"teams">, cap_usd: capUsd });
+    return await ctx.runMutation!(api.modelCalls.setTeamBudget, {
+      team_id: teamId as Id<"teams">,
+      cap_usd: capUsd,
+    });
   },
   // The viewer's default model for one agent client (store setDefaultModel
   // paints currentUser.default_models).
-  setDefaultModel: async (ctx, _userId, [agent, model]: [string, string | null]) => {
-    return await ctx.runMutation!(api.users.updateDefaultModel, { agent, model: model ?? null });
+  setDefaultModel: async (
+    ctx,
+    _userId,
+    [agent, model]: [string, string | null],
+  ) => {
+    return await ctx.runMutation!(api.users.updateDefaultModel, {
+      agent,
+      model: model ?? null,
+    });
   },
   // The agents the viewer's pickers show (store setPinnedAgents paints
   // currentUser.pinned_agents).
@@ -3160,35 +5545,74 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   // The viewer's own settings on the users row (store actions paint
   // currentUser first).
-  updateNotificationSettings: async (ctx, _userId, [patch]: [Record<string, any>]) => {
-    return await ctx.runMutation!(api.users.updateNotificationPreferences, patch as any);
+  updateNotificationSettings: async (
+    ctx,
+    _userId,
+    [patch]: [Record<string, any>],
+  ) => {
+    return await ctx.runMutation!(
+      api.users.updateNotificationPreferences,
+      patch as any,
+    );
   },
-  setAgentPermissionModes: async (ctx, _userId, [modes]: [Record<string, any>]) => {
-    return await ctx.runMutation!(api.users.updateAgentPermissionModes, modes as any);
+  setAgentPermissionModes: async (
+    ctx,
+    _userId,
+    [modes]: [Record<string, any>],
+  ) => {
+    return await ctx.runMutation!(
+      api.users.updateAgentPermissionModes,
+      modes as any,
+    );
   },
   setClaudeBackend: async (ctx, _userId, [backend]: ["sdk" | "tmux"]) => {
     return await ctx.runMutation!(api.users.setClaudeBackend, { backend });
   },
-  setAgentDefaultParams: async (ctx, _userId, [agent, params]: [string, Record<string, string>]) => {
-    return await ctx.runMutation!(api.users.updateAgentDefaultParams, { agent: agent as any, params });
+  setAgentDefaultParams: async (
+    ctx,
+    _userId,
+    [agent, params]: [string, Record<string, string>],
+  ) => {
+    return await ctx.runMutation!(api.users.updateAgentDefaultParams, {
+      agent: agent as any,
+      params,
+    });
   },
   // A huddle's flags, flipped from inside it (store setRoomLocked /
   // setRoomTranscribeOff paint the callRooms row first).
   setRoomLocked: async (ctx, _userId, [roomKey, locked]: [string, boolean]) => {
-    return await ctx.runMutation!(api.calls.setRoomLocked, { room_key: roomKey, locked: !!locked });
+    return await ctx.runMutation!(api.calls.setRoomLocked, {
+      room_key: roomKey,
+      locked: !!locked,
+    });
   },
   // The huddle's stage (store pinToStage / unpinFromStage paint the callStagePins row first).
   pinToStage: async (ctx, _userId, [roomKey, ref]: [string, string]) => {
-    return await ctx.runMutation!(api.callStage.pin, { room_key: roomKey, ref });
+    return await ctx.runMutation!(api.callStage.pin, {
+      room_key: roomKey,
+      ref,
+    });
   },
   unpinFromStage: async (ctx, _userId, [roomKey, ref]: [string, string]) => {
-    return await ctx.runMutation!(api.callStage.unpin, { room_key: roomKey, ref });
+    return await ctx.runMutation!(api.callStage.unpin, {
+      room_key: roomKey,
+      ref,
+    });
   },
   pinCallBoard: async (ctx, _userId, [roomKey]: [string]) => {
-    return await ctx.runMutation!(api.callStage.pinCallBoard, { room_key: roomKey });
+    return await ctx.runMutation!(api.callStage.pinCallBoard, {
+      room_key: roomKey,
+    });
   },
-  setRoomTranscribeOff: async (ctx, _userId, [roomKey, off]: [string, boolean]) => {
-    return await ctx.runMutation!(api.calls.setRoomTranscribeOff, { room_key: roomKey, off: !!off });
+  setRoomTranscribeOff: async (
+    ctx,
+    _userId,
+    [roomKey, off]: [string, boolean],
+  ) => {
+    return await ctx.runMutation!(api.calls.setRoomTranscribeOff, {
+      room_key: roomKey,
+      off: !!off,
+    });
   },
   // Record and Stop (store setRoomRecording paints the callRooms mark first).
   // A press is a moment, and this write rides a durable outbox: one that
@@ -3198,11 +5622,26 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // so the client reads it as final and drops the row. A Stop carries the
   // run its mark showed (`runId`), so one landing late never ends a run
   // somebody started after it was pressed.
-  setRoomRecording: async (ctx, _userId, [roomKey, on, pressedAt, runId]: [string, boolean, number | undefined, string | undefined]) => {
-    if (recordingPressStale(pressedAt, Date.now())) throw new Error(recordingPressStaleWords(!!on));
+  setRoomRecording: async (
+    ctx,
+    _userId,
+    [roomKey, on, pressedAt, runId]: [
+      string,
+      boolean,
+      number | undefined,
+      string | undefined,
+    ],
+  ) => {
+    if (recordingPressStale(pressedAt, Date.now()))
+      throw new Error(recordingPressStaleWords(!!on));
     return on
-      ? await ctx.runMutation!(api.callRecordings.startRecording, { room_key: roomKey })
-      : await ctx.runMutation!(api.callRecordings.stopRecording, { room_key: roomKey, ...(runId ? { run_id: runId } : {}) });
+      ? await ctx.runMutation!(api.callRecordings.startRecording, {
+          room_key: roomKey,
+        })
+      : await ctx.runMutation!(api.callRecordings.stopRecording, {
+          room_key: roomKey,
+          ...(runId ? { run_id: runId } : {}),
+        });
   },
   // The room's answers to a guest (store admitGuestKnock / denyGuestKnock
   // drop the knock from roomKnocks, removeCallGuest drops the guest from the
@@ -3211,13 +5650,30 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // their name, the link closed) comes back as this dispatch's failure and
   // the row returns.
   admitGuestKnock: async (ctx, _userId, [guestId, name]: [string, string]) => {
-    return await ctx.runMutation!(api.callGuests.admitGuest, { guest_id: guestId, name });
+    return await ctx.runMutation!(api.callGuests.admitGuest, {
+      guest_id: guestId,
+      name,
+    });
   },
-  denyGuestKnock: async (ctx, _userId, [guestId, revokeLink]: [string, boolean | undefined]) => {
-    return await ctx.runMutation!(api.callGuests.denyGuest, { guest_id: guestId, ...(revokeLink ? { revoke_link: true } : {}) });
+  denyGuestKnock: async (
+    ctx,
+    _userId,
+    [guestId, revokeLink]: [string, boolean | undefined],
+  ) => {
+    return await ctx.runMutation!(api.callGuests.denyGuest, {
+      guest_id: guestId,
+      ...(revokeLink ? { revoke_link: true } : {}),
+    });
   },
-  removeCallGuest: async (ctx, _userId, [, guestId, revokeLink]: [string, string, boolean | undefined]) => {
-    return await ctx.runMutation!(api.callGuests.removeGuest, { guest_id: guestId, ...(revokeLink ? { revoke_link: true } : {}) });
+  removeCallGuest: async (
+    ctx,
+    _userId,
+    [, guestId, revokeLink]: [string, string, boolean | undefined],
+  ) => {
+    return await ctx.runMutation!(api.callGuests.removeGuest, {
+      guest_id: guestId,
+      ...(revokeLink ? { revoke_link: true } : {}),
+    });
   },
   // A call's video, from the call page (store deleteCallRecording drops the
   // run's rows first; setCallShareVideo moves the share switch first).
@@ -3231,35 +5687,70 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // are gone either way, and putting them back would show dead files.
   // A regulated team's call deleted for good by a team admin (store deleteCall).
   deleteCall: async (ctx, _userId, [transcriptId]: [string]) => {
-    return await ctx.runMutation!(api.regulatedDeletion.deleteCall, { transcript_id: transcriptId as Id<"transcripts"> });
+    return await ctx.runMutation!(api.regulatedDeletion.deleteCall, {
+      transcript_id: transcriptId as Id<"transcripts">,
+    });
   },
   deleteCallRecording: async (ctx, userId, [recordingId]: [string], result) => {
     if (!hasReceiptCommandId(result)) {
-      return await ctx.runMutation!(api.callRecordings.deleteRecording, { recording_id: recordingId });
+      return await ctx.runMutation!(api.callRecordings.deleteRecording, {
+        recording_id: recordingId,
+      });
     }
-    return await runLocalCommand(ctx as any, {
-      principalId: userId,
-      commandId: receiptCommandId("deleteCallRecording", result),
-      commandName: "callRecordings.delete/v1",
-      arguments: { recordingId },
-    }, async () => {
-      const out = await deleteRecordingRun(ctx, userId, recordingId);
-      if (out.ok) return { status: "acknowledged", result: { deleted: out.deleted }, coverageViews: [] };
-      if (out.code === "NOT_FOUND") return { status: "acknowledged", result: { deleted: 0 }, coverageViews: [] };
-      return { status: "rejected", code: out.code, message: out.message };
+    return await runLocalCommand(
+      ctx as any,
+      {
+        principalId: userId,
+        commandId: receiptCommandId("deleteCallRecording", result),
+        commandName: "callRecordings.delete/v1",
+        arguments: { recordingId },
+      },
+      async () => {
+        const out = await deleteRecordingRun(ctx, userId, recordingId);
+        if (out.ok)
+          return {
+            status: "acknowledged",
+            result: { deleted: out.deleted },
+            coverageViews: [],
+          };
+        if (out.code === "NOT_FOUND")
+          return {
+            status: "acknowledged",
+            result: { deleted: 0 },
+            coverageViews: [],
+          };
+        return { status: "rejected", code: out.code, message: out.message };
+      },
+    );
+  },
+  setCallShareVideo: async (
+    ctx,
+    _userId,
+    [transcriptId, include]: [string, boolean],
+  ) => {
+    return await ctx.runMutation!(api.callRecordings.setCallShareVideo, {
+      call: transcriptId,
+      include: !!include,
     });
   },
-  setCallShareVideo: async (ctx, _userId, [transcriptId, include]: [string, boolean]) => {
-    return await ctx.runMutation!(api.callRecordings.setCallShareVideo, { call: transcriptId, include: !!include });
-  },
   // An agent's video avatar in a live call (store setCallAgentFace moves the toggle first).
-  setCallAgentFace: async (ctx, _userId, [transcriptId, target, face]: [string, string, boolean]) => {
-    return await ctx.runMutation!(api.transcripts.setAgentFace, { transcript_id: transcriptId as Id<"transcripts">, target, face: !!face });
+  setCallAgentFace: async (
+    ctx,
+    _userId,
+    [transcriptId, target, face]: [string, string, boolean],
+  ) => {
+    return await ctx.runMutation!(api.transcripts.setAgentFace, {
+      transcript_id: transcriptId as Id<"transcripts">,
+      target,
+      face: !!face,
+    });
   },
   // A picture of the call taken off its public link (store
   // deleteCallFrameShare drops the row first). Already gone is acknowledged.
   deleteCallFrameShare: async (ctx, _userId, [shareId]: [string]) => {
-    return await ctx.runMutation!(api.callRecordings.deleteCallFrameShare, { share_id: shareId });
+    return await ctx.runMutation!(api.callRecordings.deleteCallFrameShare, {
+      share_id: shareId,
+    });
   },
   setChatSlackMember: async (
     ctx,
@@ -3275,7 +5766,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   shareChatMessageToSlack: async (ctx, _userId, [messageId]: [string]) => {
     if (!isServerId(messageId)) return;
-    return await ctx.runMutation!(api.slackSync.shareMessageToSlack, { message_id: messageId as Id<"chat_messages"> });
+    return await ctx.runMutation!(api.slackSync.shareMessageToSlack, {
+      message_id: messageId as Id<"chat_messages">,
+    });
   },
   archiveChatChannel: async (
     ctx,
@@ -3296,18 +5789,28 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     [clientId, name, opts]: [
       string,
       string,
-      { topic?: string; teamId?: string; kind?: "private"; memberIds?: string[]; agents?: ChatAgentArg[] }?,
+      {
+        topic?: string;
+        teamId?: string;
+        kind?: "private";
+        memberIds?: string[];
+        agents?: ChatAgentArg[];
+      }?,
     ],
   ) => {
     const created = await ctx.runMutation!(api.chat.createChannel, {
       name,
       client_id: clientId,
       ...(opts?.topic ? { topic: opts.topic } : {}),
-      ...(opts?.teamId && isServerId(opts.teamId) ? { team_id: opts.teamId as Id<"teams"> } : {}),
+      ...(opts?.teamId && isServerId(opts.teamId)
+        ? { team_id: opts.teamId as Id<"teams"> }
+        : {}),
       ...(opts?.kind === "private"
         ? {
             kind: "private" as const,
-            member_ids: (opts.memberIds ?? []).filter(isServerId) as Id<"users">[],
+            member_ids: (opts.memberIds ?? []).filter(
+              isServerId,
+            ) as Id<"users">[],
           }
         : {}),
     });
@@ -3315,7 +5818,10 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     // so a replayed create lands the same room with the same members.
     const refs = (opts?.agents ?? []).map(chatAgentArgId).filter(isServerId);
     if (created?.channel_id && refs.length > 0) {
-      await ctx.runMutation!(api.chatAgents.addChannelAgents, { channel_id: created.channel_id, refs });
+      await ctx.runMutation!(api.chatAgents.addChannelAgents, {
+        channel_id: created.channel_id,
+        refs,
+      });
     }
     return created;
   },
@@ -3334,11 +5840,15 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   },
   skipChatRoundFloor: async (ctx, _userId, [rootId]: [string]) => {
     if (!isServerId(rootId)) return;
-    return await ctx.runMutation!(api.chatRounds.skipFloor, { root_id: rootId as Id<"chat_messages"> });
+    return await ctx.runMutation!(api.chatRounds.skipFloor, {
+      root_id: rootId as Id<"chat_messages">,
+    });
   },
   endChatRound: async (ctx, _userId, [rootId]: [string]) => {
     if (!isServerId(rootId)) return;
-    return await ctx.runMutation!(api.chatRounds.endRound, { root_id: rootId as Id<"chat_messages"> });
+    return await ctx.runMutation!(api.chatRounds.endRound, {
+      root_id: rootId as Id<"chat_messages">,
+    });
   },
   removeChatChannelAgent: async (
     ctx,
@@ -3385,23 +5895,48 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     return await ctx.runMutation!(api.chat.openDm, {
       member_ids: memberIds.filter(isServerId) as Id<"users">[],
       client_id: clientId,
-      ...(teamId && isServerId(teamId) ? { team_id: teamId as Id<"teams"> } : {}),
+      ...(teamId && isServerId(teamId)
+        ? { team_id: teamId as Id<"teams"> }
+        : {}),
     });
   },
 
   // Restart (kill + resume ladder) or repair (forced rebuild from history),
   // from the store's restartSession action: the request id rides the resume
   // row, so the row painted on the click settles from the daemon's report.
-  restartSession: async (ctx, _userId, [requestId, convId, ghost, repair]: [string, string, Record<string, string | undefined>?, boolean?]) => {
-    return await ctx.runMutation!(repair ? api.conversations.repairSession : api.conversations.restartSession, {
-      ...(ghost ?? {}), conversation_id: convId as Id<"conversations">, request_id: requestId,
-    });
+  restartSession: async (
+    ctx,
+    _userId,
+    [requestId, convId, ghost, repair]: [
+      string,
+      string,
+      Record<string, string | undefined>?,
+      boolean?,
+    ],
+  ) => {
+    return await ctx.runMutation!(
+      repair
+        ? api.conversations.repairSession
+        : api.conversations.restartSession,
+      {
+        ...(ghost ?? {}),
+        conversation_id: convId as Id<"conversations">,
+        request_id: requestId,
+      },
+    );
   },
 
   // A machine account switch or a blocked-session revive, from the store's
   // requestAccountSwitch. args are requestAccountSwitch's own.
-  requestAccountSwitch: async (ctx, _userId, [requestId, args]: [string, Record<string, any>]) => {
-    return await ctx.runMutation!(api.accountSwitch.requestAccountSwitch, { ...args, request_id: requestId });
+  requestAccountSwitch: async (
+    ctx,
+    _userId,
+    [requestId, args]: [string, Record<string, any>],
+  ) => {
+    return await ctx.runMutation!(api.accountSwitch.requestAccountSwitch, {
+      ...args,
+      request_id: requestId,
+    });
   },
 
   // Generic session daemon-command dispatch: delegates to the existing mutation
@@ -3410,13 +5945,19 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
   // rewind/fork/sendKeys/sendEscape/resume here. Every target takes
   // conversation_id as its first arg; per-command extras ride extraArgs.
   startResourceOffload: async (ctx, _userId, [args], result) => {
-    return ctx.runMutation!(api.resourceOffload.start, { ...args, batch_ids: result.batch_ids });
+    return ctx.runMutation!(api.resourceOffload.start, {
+      ...args,
+      batch_ids: result.batch_ids,
+    });
   },
   requestMoveRehearsals: async (ctx, _userId, [args]) => {
     return ctx.runMutation!(api.moveRehearsals.request, args);
   },
   cancelResourceOffload: async (ctx, _userId, [batch_id], result) => {
-    return ctx.runMutation!(api.sessionMigrations.cancelBatch, { batch_id, requested_at: result.requested_at });
+    return ctx.runMutation!(api.sessionMigrations.cancelBatch, {
+      batch_id,
+      requested_at: result.requested_at,
+    });
   },
   retryMigrationBatch: async (ctx, _userId, [batch_id]: [string]) => {
     return ctx.runMutation!(api.sessionMigrations.retryFailed, { batch_id });
@@ -3427,48 +5968,130 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     const flowId = ctx.db.normalizeId("live_flows", id);
     await setOnCore(ctx, userId, flowId ? await ctx.db.get(flowId) : null, on);
   },
-  startLiveFlow: async (ctx, userId, [team_id, flow, client_key]: [string, LibraryFlowRef, string]) => {
-    await startLiveFlowCore(ctx, userId, { team_id, workflow_id: libraryFlowId(flow), client_key });
+  startLiveFlow: async (
+    ctx,
+    userId,
+    [team_id, flow, client_key]: [string, LibraryFlowRef, string],
+  ) => {
+    await startLiveFlowCore(ctx, userId, {
+      team_id,
+      workflow_id: libraryFlowId(flow),
+      client_key,
+    });
   },
   // The calls page's meeting link field (meetingBots.ts): the web paints a
   // stub row keyed by client_key, which the server row carries back. Sending
   // a bad link throws the server's own words to the caller.
-  sendMeetingBot: async (ctx, userId, [meeting_url, client_key]: [string, string]) =>
-    requestBot(ctx, userId, { meeting_url, client_key }),
-  cancelMeetingBot: async (ctx, userId, [meet_id]: [string]) => cancelBot(ctx, userId, meet_id),
+  sendMeetingBot: async (
+    ctx,
+    userId,
+    [meeting_url, client_key]: [string, string],
+  ) => requestBot(ctx, userId, { meeting_url, client_key }),
+  cancelMeetingBot: async (ctx, userId, [meet_id]: [string]) =>
+    cancelBot(ctx, userId, meet_id),
   // Settings › Connected agents: end an outside agent's MCP grant, or revoke a cast token seen reading through /mcp (mcpAuth.ts).
-  disconnectAgent: async (ctx, userId, [kind, id]: ["grant" | "cast_token", string]) => disconnectCore(ctx, userId, kind, id),
+  disconnectAgent: async (
+    ctx,
+    userId,
+    [kind, id]: ["grant" | "cast_token", string],
+  ) => disconnectCore(ctx, userId, kind, id),
   // The calls page's calendar meetings (meetingCalendar.ts): one meeting's
   // switch, and join-all. Both bring the person's bots in line at once.
-  setCalendarMeetingChoice: async (ctx, userId, [id, choice]: [string, "on" | "off" | null]) =>
-    setMeetingChoiceFor(ctx, userId, id, choice),
-  setMeetingBotJoinAll: async (ctx, userId, [join_all]: [boolean]) => setJoinAllFor(ctx, userId, !!join_all),
-  moveLiveFlow: async (ctx, userId, [id, to]: [string, LibraryFlowRef]) => { const f = ctx.db.normalizeId("live_flows", id); await moveLiveFlowCore(ctx, userId, f ? await ctx.db.get(f) : null, libraryFlowId(to)); },
+  setCalendarMeetingChoice: async (
+    ctx,
+    userId,
+    [id, choice]: [string, "on" | "off" | null],
+  ) => setMeetingChoiceFor(ctx, userId, id, choice),
+  setMeetingBotJoinAll: async (ctx, userId, [join_all]: [boolean]) =>
+    setJoinAllFor(ctx, userId, !!join_all),
+  moveLiveFlow: async (ctx, userId, [id, to]: [string, LibraryFlowRef]) => {
+    const f = ctx.db.normalizeId("live_flows", id);
+    await moveLiveFlowCore(
+      ctx,
+      userId,
+      f ? await ctx.db.get(f) : null,
+      libraryFlowId(to),
+    );
+  },
   clearLiveFlowHold: async (ctx, userId, [id]: [string]) => {
     const flowId = ctx.db.normalizeId("live_flows", id);
     await clearHoldCore(ctx, userId, flowId ? await ctx.db.get(flowId) : null);
   },
-  setSessionBackground: async (ctx, _userId, [device_id, session_id, background]: [string, string, boolean]) => {
-    return ctx.runMutation!(api.machineResources.setSessionBackground, { device_id, session_id, background });
+  setSessionBackground: async (
+    ctx,
+    _userId,
+    [device_id, session_id, background]: [string, string, boolean],
+  ) => {
+    return ctx.runMutation!(api.machineResources.setSessionBackground, {
+      device_id,
+      session_id,
+      background,
+    });
   },
-  switchClaudeBackend: async (ctx, _userId, [requestId, convId, backend, interrupt]: [string, string, "sdk" | "tmux", boolean?]) => {
+  switchClaudeBackend: async (
+    ctx,
+    _userId,
+    [requestId, convId, backend, interrupt]: [
+      string,
+      string,
+      "sdk" | "tmux",
+      boolean?,
+    ],
+  ) => {
     return await ctx.runMutation!((api as any).sessionCommands.switchBackend, {
-      request_id: requestId, conversation_id: convId as Id<"conversations">, backend, interrupt: interrupt === true,
+      request_id: requestId,
+      conversation_id: convId as Id<"conversations">,
+      backend,
+      interrupt: interrupt === true,
     });
   },
-  rewindFiles: async (ctx, _userId, [requestId, convId, op, opts]: [string, string, string, { message_ts?: number; fingerprint?: string; overwrite?: boolean; path?: string; staged_id?: string; discard_token?: string }?]) => {
+  rewindFiles: async (
+    ctx,
+    _userId,
+    [requestId, convId, op, opts]: [
+      string,
+      string,
+      string,
+      {
+        message_ts?: number;
+        fingerprint?: string;
+        overwrite?: boolean;
+        path?: string;
+        staged_id?: string;
+        discard_token?: string;
+      }?,
+    ],
+  ) => {
     return await ctx.runMutation!((api as any).sessionCommands.rewindFiles, {
-      request_id: requestId, conversation_id: convId as Id<"conversations">, op, ...(opts ?? {}),
+      request_id: requestId,
+      conversation_id: convId as Id<"conversations">,
+      op,
+      ...(opts ?? {}),
     });
   },
-  hibernateSession: async (ctx, _userId, [requestId, convId, sessionId, ownerDeviceId]: [string, string, string, string]) => {
+  hibernateSession: async (
+    ctx,
+    _userId,
+    [requestId, convId, sessionId, ownerDeviceId]: [
+      string,
+      string,
+      string,
+      string,
+    ],
+  ) => {
     return await ctx.runMutation!((api as any).sessionCommands.hibernate, {
-      request_id: requestId, conversation_id: convId as Id<"conversations">,
-      session_id: sessionId, owner_device_id: ownerDeviceId,
+      request_id: requestId,
+      conversation_id: convId as Id<"conversations">,
+      session_id: sessionId,
+      owner_device_id: ownerDeviceId,
     });
   },
 
-  convCommand: async (ctx, userId, [convId, command, extraArgs]: [string, string, Record<string, any>?]) => {
+  convCommand: async (
+    ctx,
+    userId,
+    [convId, command, extraArgs]: [string, string, Record<string, any>?],
+  ) => {
     const fn = (SESSION_COMMANDS as Record<string, any>)[command];
     if (!fn) throw new Error(`convCommand: unknown command ${command}`);
     try {
@@ -3479,7 +6102,9 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
     } catch (e: any) {
       // Re-throw with routing context: the bare "Not authorized" from the
       // target mutation is undiagnosable in server logs (no args are logged).
-      throw new Error(`convCommand ${command} conv=${convId} user=${userId}: ${e?.message ?? e}`);
+      throw new Error(
+        `convCommand ${command} conv=${convId} user=${userId}: ${e?.message ?? e}`,
+      );
     }
   },
 };
@@ -3502,5 +6127,9 @@ const SESSION_COMMANDS = {
 /** Start a session the way the composer does (createSession), for server code
  *  with no client to dispatch from: a project trigger's first run when the
  *  project has no main session yet (projectSources.fireProjectTrigger). */
-export const startSessionAsComposer = (ctx: HandlerCtx, userId: Id<"users">, opts: Record<string, any>): Promise<Id<"conversations">> =>
+export const startSessionAsComposer = (
+  ctx: HandlerCtx,
+  userId: Id<"users">,
+  opts: Record<string, any>,
+): Promise<Id<"conversations">> =>
   SIDE_EFFECTS.createSession(ctx, userId, [opts]);

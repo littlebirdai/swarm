@@ -21,9 +21,13 @@ export async function visibleAnchorsForUser(
   // own seats only while some team of the person's has it on (the shared
   // workspaceFeatureEnabled rule). Bot users reach every roster, chat member
   // list and face row through this function, so this is where they stop.
-  const teams = await Promise.all(memberships.map((m: any) => ctx.db.get(m.team_id)));
+  const teams = await Promise.all(
+    memberships.map((m: any) => ctx.db.get(m.team_id)),
+  );
   const orgOnFor = new Set(
-    teams.filter((t: any) => t && workspaceFeatureEnabled([t], t._id, "org")).map((t: any) => t._id.toString()),
+    teams
+      .filter((t: any) => t && workspaceFeatureEnabled([t], t._id, "org"))
+      .map((t: any) => t._id.toString()),
   );
   const personalOrgOn = workspaceFeatureEnabled(teams, null, "org");
   const teamAnchors: any[] = [];

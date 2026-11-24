@@ -45,26 +45,55 @@ export function eligibilityFor(
 ): Eligibility {
   if (!target) return { ok: false, reason: "pick a destination" };
   if (c.held_reason) return { ok: false, reason: c.held_reason };
-  if (c.migration) return { ok: false, reason: `already migrating (${c.migration.batch_id})` };
-  if (c.cloud_placement === "pending") return { ok: false, reason: "still being placed on the cloud host" };
-  if (!CLAUDE_TYPES.has((c.agent_type ?? "").toLowerCase())) return { ok: false, reason: "only Claude Code sessions can be transferred" };
-  if (c.owner_device_id === target.device_id) return { ok: false, reason: "already here" };
+  if (c.migration)
+    return { ok: false, reason: `already migrating (${c.migration.batch_id})` };
+  if (c.cloud_placement === "pending")
+    return { ok: false, reason: "still being placed on the cloud host" };
+  if (!CLAUDE_TYPES.has((c.agent_type ?? "").toLowerCase()))
+    return {
+      ok: false,
+      reason: "only Claude Code sessions can be transferred",
+    };
+  if (c.owner_device_id === target.device_id)
+    return { ok: false, reason: "already here" };
   const owner = devices.find((d) => d.device_id === c.owner_device_id);
   if (target.is_remote) {
-    if (owner?.is_remote) return { ok: false, reason: "cloud-to-cloud moves are not supported" };
+    if (owner?.is_remote)
+      return { ok: false, reason: "cloud-to-cloud moves are not supported" };
     // Only the owner holds the transcript and worktree; it must be up to push them.
-    if (owner && !owner.online) return { ok: false, reason: `${owner.label ?? "its machine"} is offline` };
+    if (owner && !owner.online)
+      return {
+        ok: false,
+        reason: `${owner.label ?? "its machine"} is offline`,
+      };
     const anyLocalOnline = devices.some((d) => !d.is_remote && d.online);
-    if (!anyLocalOnline) return { ok: false, reason: "no online laptop can run the transfer" };
+    if (!anyLocalOnline)
+      return { ok: false, reason: "no online laptop can run the transfer" };
     return { ok: true, direction: "to_cloud" };
   }
-  if (!owner?.is_remote) return { ok: false, reason: "not on a cloud host (use Run on this device instead)" };
-  if (!target.online) return { ok: false, reason: `${target.label ?? "the destination"} is offline` };
+  if (!owner?.is_remote)
+    return {
+      ok: false,
+      reason: "not on a cloud host (use Run on this device instead)",
+    };
+  if (!target.online)
+    return {
+      ok: false,
+      reason: `${target.label ?? "the destination"} is offline`,
+    };
   return { ok: true, direction: "to_local" };
 }
 
 export type MigrationRowStatus =
-  | "queued" | "waiting_idle" | "quiescing" | "transferring" | "switching" | "resuming" | "done" | "failed" | "cancelled";
+  | "queued"
+  | "waiting_idle"
+  | "quiescing"
+  | "transferring"
+  | "switching"
+  | "resuming"
+  | "done"
+  | "failed"
+  | "cancelled";
 
 export const ROW_STATUS_LABEL: Record<MigrationRowStatus, string> = {
   queued: "queued",
@@ -79,7 +108,13 @@ export const ROW_STATUS_LABEL: Record<MigrationRowStatus, string> = {
 };
 
 export function isRowActive(status: string): boolean {
-  return status === "waiting_idle" || status === "quiescing" || status === "transferring" || status === "switching" || status === "resuming";
+  return (
+    status === "waiting_idle" ||
+    status === "quiescing" ||
+    status === "transferring" ||
+    status === "switching" ||
+    status === "resuming"
+  );
 }
 
 export function isRowTerminal(status: string): boolean {
@@ -128,12 +163,18 @@ export type MigrationBatch = {
 };
 
 /** A row of a batch being cancelled reads cancelled while queued, so a stale push cannot flash it back. */
-export function effectiveRowStatus(b: { cancelled_at: number | null }, r: { status: MigrationRowStatus }): MigrationRowStatus {
+export function effectiveRowStatus(
+  b: { cancelled_at: number | null },
+  r: { status: MigrationRowStatus },
+): MigrationRowStatus {
   return b.cancelled_at && r.status === "queued" ? "cancelled" : r.status;
 }
 
 /** A just-created batch the server has not echoed yet: its rows still carry the client stub ids. */
-export function batchAwaitingEcho(b: { batch_id: string; rows: Array<{ migration_id: string }> }): boolean {
+export function batchAwaitingEcho(b: {
+  batch_id: string;
+  rows: Array<{ migration_id: string }>;
+}): boolean {
   return b.rows.some((r) => r.migration_id.startsWith(`${b.batch_id}:`));
 }
 
@@ -147,14 +188,27 @@ export const WAIT_PRESETS: Array<{ value: number; label: string }> = [
 ];
 
 /** Sessions the batch hand-off should mention as mid-turn. */
-export const MID_TURN_STATUSES: ReadonlySet<string> = new Set(["working", "thinking", "compacting"]);
+export const MID_TURN_STATUSES: ReadonlySet<string> = new Set([
+  "working",
+  "thinking",
+  "compacting",
+]);
 
 /** How long a batch may sit with nothing started before the UI suspects the executor never picked it up. */
 export const BATCH_UNCLAIMED_WARN_MS = 45_000;
 
-export function batchLooksUnclaimed(b: { created_at: number; rows: Array<{ status: string }> }, now: number): boolean {
-  const started = b.rows.some((r) => r.status !== "queued" && r.status !== "cancelled");
-  return !started && b.rows.some((r) => r.status === "queued") && now - b.created_at > BATCH_UNCLAIMED_WARN_MS;
+export function batchLooksUnclaimed(
+  b: { created_at: number; rows: Array<{ status: string }> },
+  now: number,
+): boolean {
+  const started = b.rows.some(
+    (r) => r.status !== "queued" && r.status !== "cancelled",
+  );
+  return (
+    !started &&
+    b.rows.some((r) => r.status === "queued") &&
+    now - b.created_at > BATCH_UNCLAIMED_WARN_MS
+  );
 }
 
 /** The newest migration of one conversation in the batch list, with its batch. */
@@ -166,7 +220,8 @@ export function conversationMigrationOf(
   let best: { batch: MigrationBatch; row: MigrationBatchRow } | null = null;
   for (const batch of batches) {
     const row = batch.rows.find((r) => r.conversation_id === conversationId);
-    if (row && (!best || batch.created_at > best.batch.created_at)) best = { batch, row };
+    if (row && (!best || batch.created_at > best.batch.created_at))
+      best = { batch, row };
   }
   return best;
 }
@@ -176,7 +231,15 @@ export const MIGRATION_DONE_LINGER_MS = 8_000;
 export const MIGRATION_FAILED_LINGER_MS = 10 * 60_000;
 
 export type MigrationMoveView =
-  | { phase: "moving"; status: MigrationRowStatus; label: string; detail: string | null; tone: "active" | "warn"; startedAt: number; cancellable: boolean }
+  | {
+      phase: "moving";
+      status: MigrationRowStatus;
+      label: string;
+      detail: string | null;
+      tone: "active" | "warn";
+      startedAt: number;
+      cancellable: boolean;
+    }
   | { phase: "done"; label: string }
   | { phase: "failed"; label: string };
 
@@ -195,16 +258,27 @@ export function migrationMoveView(
   if (!m) return null;
   const status = effectiveRowStatus(m.batch, m.row);
   const settledAt = m.row.finished_at ?? m.row.updated_at;
-  if (status === "done") return now - settledAt < MIGRATION_DONE_LINGER_MS ? { phase: "done", label: `Now running on ${names.dest}` } : null;
+  if (status === "done")
+    return now - settledAt < MIGRATION_DONE_LINGER_MS
+      ? { phase: "done", label: `Now running on ${names.dest}` }
+      : null;
   if (status === "cancelled") return null;
   if (status === "failed") {
     return now - settledAt < MIGRATION_FAILED_LINGER_MS
-      ? { phase: "failed", label: `Move to ${names.dest} failed${m.row.error ? ` · ${m.row.error}` : ""}` }
+      ? {
+          phase: "failed",
+          label: `Move to ${names.dest} failed${m.row.error ? ` · ${m.row.error}` : ""}`,
+        }
       : null;
   }
   const unclaimed = status === "queued" && batchLooksUnclaimed(m.batch, now);
-  const detail: Record<Exclude<MigrationRowStatus, "done" | "failed" | "cancelled">, string> = {
-    queued: unclaimed ? `waiting for ${names.executor} to start it` : "starting",
+  const detail: Record<
+    Exclude<MigrationRowStatus, "done" | "failed" | "cancelled">,
+    string
+  > = {
+    queued: unclaimed
+      ? `waiting for ${names.executor} to start it`
+      : "starting",
     waiting_idle: "waiting for the current turn to end",
     quiescing: `stopping the agent on ${names.from}`,
     transferring: "copying work and transcript",

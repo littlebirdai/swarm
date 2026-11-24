@@ -26,6 +26,9 @@ export function setFilePathMenuListener(next: Listener): () => void {
 }
 
 /** Called by a FilePathLink's onContextMenu; no-op until the host mounts. */
-export function requestFilePathMenu(e: React.MouseEvent, payload: FilePathMenuPayload): void {
+export function requestFilePathMenu(
+  e: React.MouseEvent,
+  payload: FilePathMenuPayload,
+): void {
   listener?.(e, payload);
 }

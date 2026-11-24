@@ -2,7 +2,8 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { parseAgentAuthoredMessage } from "../sessionMessage";
 
-const read = (file: string) => readFileSync(new URL(file, import.meta.url), "utf8");
+const read = (file: string) =>
+  readFileSync(new URL(file, import.meta.url), "utf8");
 const classifierSource = read("../conversation/classify.ts");
 const containerSource = read("../ConversationView.tsx");
 const cardSource = read("../conversation/blocks/systemBlocks.tsx");
@@ -19,7 +20,11 @@ function block(source: string, startMarker: string, endMarker: string) {
 // wrapped in <agent-message from="…">. Before this rail existed the transcript
 // showed the wire tag verbatim under the human's name and avatar.
 test("the classifier routes a subagent report onto the session-message rail", () => {
-  const classifier = block(classifierSource, "function classifyUserMessage(", "function isStickyWorthy(");
+  const classifier = block(
+    classifierSource,
+    "function classifyUserMessage(",
+    "function isStickyWorthy(",
+  );
   expect(classifier).toContain("isAgentMessage(t)");
   expect(classifier).toContain("parseAgentAuthoredMessage(t)");
   expect(classifier).toMatch(/kind: 'session_message',[^\n]*variant: 'agent'/);
@@ -28,13 +33,23 @@ test("the classifier routes a subagent report onto the session-message rail", ()
 });
 
 test("the card gets the agent variant and the sender's session when it resolves", () => {
-  const renderCase = block(containerSource, "case 'session_message':", "case 'huddle_summary':");
-  expect(renderCase).toContain(`variant={kind.variant === 'agent' ? "agent" : "session"}`);
+  const renderCase = block(
+    containerSource,
+    "case 'session_message':",
+    "case 'huddle_summary':",
+  );
+  expect(renderCase).toContain(
+    `variant={kind.variant === 'agent' ? "agent" : "session"}`,
+  );
   expect(renderCase).toContain("agentNameToChildMap?.[kind.from]");
 });
 
 test("an agent name is a badge, never an EntityIdPill", () => {
-  const card = block(cardSource, "function SessionMessageBlock(", "// ── Team chat");
+  const card = block(
+    cardSource,
+    "function SessionMessageBlock(",
+    "// ── Team chat",
+  );
   // A subagent name and a teammate id both fail to resolve as session short ids,
   // so both take the badge branch; only a real session id gets the pill.
   expect(card).toContain("const namedSender = isTeammate || isAgentReport;");
@@ -42,8 +57,20 @@ test("an agent name is a badge, never an EntityIdPill", () => {
 });
 
 test("the parser strips the envelope both rails share", () => {
-  const report = parseAgentAuthoredMessage('<agent-message from="critic-K-L">\nsweep done\n</agent-message>');
-  expect(report).toEqual({ from: "critic-K-L", body: "sweep done", label: "report from" });
-  const sent = parseAgentAuthoredMessage('<session-message from="jx7c6zk">\ntake the auth half\n</session-message>');
-  expect(sent).toEqual({ from: "jx7c6zk", body: "take the auth half", label: "message from" });
+  const report = parseAgentAuthoredMessage(
+    '<agent-message from="critic-K-L">\nsweep done\n</agent-message>',
+  );
+  expect(report).toEqual({
+    from: "critic-K-L",
+    body: "sweep done",
+    label: "report from",
+  });
+  const sent = parseAgentAuthoredMessage(
+    '<session-message from="jx7c6zk">\ntake the auth half\n</session-message>',
+  );
+  expect(sent).toEqual({
+    from: "jx7c6zk",
+    body: "take the auth half",
+    label: "message from",
+  });
 });

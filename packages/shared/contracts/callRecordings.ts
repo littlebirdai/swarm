@@ -44,14 +44,22 @@ export type CallRecordingKind = (typeof CALL_RECORDING_KINDS)[number];
 // ends, so a file still recording has nothing in the bucket yet. What a
 // recording file DOES have is a live frame, one JPEG LiveKit rewrites every
 // couple of seconds, which is how the CLI shows a call as it is right now.
-export const CALL_RECORDING_STATUSES = ["starting", "recording", "stopping", "ready", "failed"] as const;
+export const CALL_RECORDING_STATUSES = [
+  "starting",
+  "recording",
+  "stopping",
+  "ready",
+  "failed",
+] as const;
 export type CallRecordingStatus = (typeof CALL_RECORDING_STATUSES)[number];
 
 /** A run is live while any of its files is still being written. Active
  *  includes "stopping": LiveKit is still finishing and uploading the file, so
  *  the run holds its place (no second press, the loop keeps looking). */
 export function isRecordingActive(status: CallRecordingStatus): boolean {
-  return status === "starting" || status === "recording" || status === "stopping";
+  return (
+    status === "starting" || status === "recording" || status === "stopping"
+  );
 }
 
 /** Is this file filming the room right now? Unlike isRecordingActive, a
@@ -60,7 +68,9 @@ export function isRecordingActive(status: CallRecordingStatus): boolean {
  *  they are on camera (the REC mark, a live frame, the CLI's "filming" note)
  *  asks this, so a new status lands on all of them at once. No status (no
  *  run) is not filming. */
-export function isRecordingFilming(status: CallRecordingStatus | null | undefined): boolean {
+export function isRecordingFilming(
+  status: CallRecordingStatus | null | undefined,
+): boolean {
   return status === "starting" || status === "recording";
 }
 
@@ -72,8 +82,18 @@ export function isRecordingFilming(status: CallRecordingStatus | null | undefine
 // LiveKit's); "ended" is LiveKit finishing a file without saying why;
 // "calls_off" is an admin turning calls off for the team, which takes the
 // room (and its REC mark, and every Stop) away from the people in it.
-export const CALL_RECORDING_STOP_REASONS = ["pressed", "huddle_ended", "room_empty", "share_ended", "limit", "ended", "failed", "calls_off"] as const;
-export type CallRecordingStopReason = (typeof CALL_RECORDING_STOP_REASONS)[number];
+export const CALL_RECORDING_STOP_REASONS = [
+  "pressed",
+  "huddle_ended",
+  "room_empty",
+  "share_ended",
+  "limit",
+  "ended",
+  "failed",
+  "calls_off",
+] as const;
+export type CallRecordingStopReason =
+  (typeof CALL_RECORDING_STOP_REASONS)[number];
 
 // What kind of failure a failed file's `error` words describe, kept beside the
 // words so decisions never read copy: "minutes_spent" is the plan out of
@@ -81,8 +101,15 @@ export type CallRecordingStopReason = (typeof CALL_RECORDING_STOP_REASONS)[numbe
 // no egress capacity this minute (passes on its own); "credentials" is LiveKit
 // refusing this server's keys; "server" is this server's own fault (storage,
 // configuration, an exception); "livekit" is anything else LiveKit did.
-export const CALL_RECORDING_ERROR_KINDS = ["minutes_spent", "busy", "credentials", "server", "livekit"] as const;
-export type CallRecordingErrorKind = (typeof CALL_RECORDING_ERROR_KINDS)[number];
+export const CALL_RECORDING_ERROR_KINDS = [
+  "minutes_spent",
+  "busy",
+  "credentials",
+  "server",
+  "livekit",
+] as const;
+export type CallRecordingErrorKind =
+  (typeof CALL_RECORDING_ERROR_KINDS)[number];
 
 /** The fields of a recording row that alignment reads. Ids are strings so the
  *  web, the CLI and Convex all hand their own row shapes straight in. */
@@ -105,7 +132,10 @@ export type CallRecordingSpan = {
  *  ready file's length wins over its ended_at (the length is the file; the
  *  end stamp is when LiveKit noticed). A file still being written runs to
  *  `now`. */
-export function recordingWindow<R extends CallRecordingSpan>(rec: R, now: number): { start: number; end: number } | null {
+export function recordingWindow<R extends CallRecordingSpan>(
+  rec: R,
+  now: number,
+): { start: number; end: number } | null {
   if (rec.started_at == null || !Number.isFinite(rec.started_at)) return null;
   const start = rec.started_at;
   const end =
@@ -123,7 +153,12 @@ export function recordingWindow<R extends CallRecordingSpan>(rec: R, now: number
  *  does not cover it: the alignment rule above, over recordingWindow, with
  *  the end exclusive (a file has no frame at its own length). The one
  *  conversion; locateCallMoment and the call page's player both ask it. */
-export function offsetIntoRecording<R extends CallRecordingSpan>(rec: R, callStartedAt: number, atMs: number, now: number = Date.now()): number | null {
+export function offsetIntoRecording<R extends CallRecordingSpan>(
+  rec: R,
+  callStartedAt: number,
+  atMs: number,
+  now: number = Date.now(),
+): number | null {
   const w = recordingWindow(rec, now);
   const wall = callStartedAt + atMs;
   if (!w || wall < w.start || wall >= w.end) return null;
@@ -134,7 +169,10 @@ export function offsetIntoRecording<R extends CallRecordingSpan>(rec: R, callSta
  *  for this very link (setCallShareVideo): a link made to share a transcript
  *  never starts handing out faces and screens because Record was pressed
  *  later, and a link turned off and on is a new token that starts without. */
-export function shareIncludesVideo(call: { share_token?: string | null; share_video_token?: string | null }): boolean {
+export function shareIncludesVideo(call: {
+  share_token?: string | null;
+  share_video_token?: string | null;
+}): boolean {
   return !!call.share_token && call.share_video_token === call.share_token;
 }
 
@@ -157,7 +195,9 @@ export const CALL_FRAME_PREFER: CallMomentPrefer = "screen";
  *  A ready file the server could not sign a link to (its bucket is not
  *  configured there) is left out, so a caller can say so rather than seek a
  *  null. Oldest first. */
-export function playableFiles<R extends CallRecordingSpan & { url?: string | null }>(files: readonly R[]): R[] {
+export function playableFiles<
+  R extends CallRecordingSpan & { url?: string | null },
+>(files: readonly R[]): R[] {
   return files
     .filter((f) => f.status === "ready" && !!f.url && f.started_at != null)
     .sort((a, b) => a.started_at! - b.started_at!);
@@ -177,18 +217,25 @@ export function playableFiles<R extends CallRecordingSpan & { url?: string | nul
  * guest badge right after it (ParticipantTag on the identity).
  */
 export function recordingSubject(
-  rec: Pick<CallRecordingSpan, "kind" | "participant_name" | "participant_identity">,
+  rec: Pick<
+    CallRecordingSpan,
+    "kind" | "participant_name" | "participant_identity"
+  >,
   style: "label" | "prose" = "prose",
 ): string {
   const guest = isGuestIdentity(rec.participant_identity);
-  const name = (guest ? normalizeGuestName(rec.participant_name) : rec.participant_name?.trim()) ?? "";
+  const name =
+    (guest
+      ? normalizeGuestName(rec.participant_name)
+      : rec.participant_name?.trim()) ?? "";
   if (style === "label") {
     if (rec.kind === "composite") return "Room";
     const first = name.split(/\s+/)[0];
     return first ? `${first}'s screen` : "Screen";
   }
   if (rec.kind === "composite") return "the room";
-  if (name) return markedName(name, rec.participant_identity, null, "'s screen");
+  if (name)
+    return markedName(name, rec.participant_identity, null, "'s screen");
   return guest ? "a guest's shared screen" : "a shared screen";
 }
 
@@ -210,7 +257,11 @@ export type CallCoveredSpan = {
  *  room file and each screen share inside it, in call time. Failed files and
  *  files LiveKit never started are left out. Ordered by start, the room
  *  before a share that starts with it. */
-export function coveredSpans<R extends CallRecordingSpan>(recordings: readonly R[], callStartedAt: number, now: number): CallCoveredSpan[] {
+export function coveredSpans<R extends CallRecordingSpan>(
+  recordings: readonly R[],
+  callStartedAt: number,
+  now: number,
+): CallCoveredSpan[] {
   const out: CallCoveredSpan[] = [];
   for (const r of recordings) {
     if (r.status === "failed") continue;
@@ -226,7 +277,12 @@ export function coveredSpans<R extends CallRecordingSpan>(recordings: readonly R
       participant_name: r.participant_name ?? null,
     });
   }
-  return out.sort((a, b) => a.fromMs - b.fromMs || (a.kind === b.kind ? 0 : a.kind === "composite" ? -1 : 1) || a.toMs - b.toMs);
+  return out.sort(
+    (a, b) =>
+      a.fromMs - b.fromMs ||
+      (a.kind === b.kind ? 0 : a.kind === "composite" ? -1 : 1) ||
+      a.toMs - b.toMs,
+  );
 }
 
 /** The player clock for a time into a call: `0:07`, `12:34`, `1:02:03`.
@@ -267,26 +323,39 @@ export function wholeSecond(ms: number, limit = Infinity): number {
  *  so a reader who snaps the printed start is answered, never refused for a
  *  second the stretch began just after; the end rounds down as every clock
  *  does. */
-export function describeClockSpan(span: { fromMs: number; toMs: number }): string {
+export function describeClockSpan(span: {
+  fromMs: number;
+  toMs: number;
+}): string {
   return `${formatCallTime(spanStartSecond(span))}-${formatCallTime(span.toMs)}`;
 }
 
 /** The first whole second inside a stretch (wholeSecond, bounded by its last
  *  millisecond): where its printed start points. A stretch shorter than its
  *  first whole second keeps the second it began in. */
-export function spanStartSecond(span: { fromMs: number; toMs: number }): number {
+export function spanStartSecond(span: {
+  fromMs: number;
+  toMs: number;
+}): number {
   return wholeSecond(span.fromMs, span.toMs - 1);
 }
 
 /** Several stretches as clock pairs: `2:12-6:15, 9:40-12:02`. */
-export function describeClockSpans(spans: ReadonlyArray<{ fromMs: number; toMs: number }>): string {
+export function describeClockSpans(
+  spans: ReadonlyArray<{ fromMs: number; toMs: number }>,
+): string {
   return spans.map(describeClockSpan).join(", ");
 }
 
 /** The reader of describeClockSpans: `2:12-6:15, 9:40-12:02` back into
  *  stretches, or null when any pair is not a clock pair. */
-export function parseClockSpans(text: string | null | undefined): Array<{ fromMs: number; toMs: number }> | null {
-  const parts = (text ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+export function parseClockSpans(
+  text: string | null | undefined,
+): Array<{ fromMs: number; toMs: number }> | null {
+  const parts = (text ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
   if (!parts.length) return null;
   const out: Array<{ fromMs: number; toMs: number }> = [];
   for (const p of parts) {
@@ -303,7 +372,9 @@ export function parseClockSpans(text: string | null | undefined): Array<{ fromMs
  *  screen inside its room's run adding nothing, so a surface can say which
  *  part of a call has video (the call page's header, a huddle's digest) and
  *  the transcript can mark the lines in it. */
-export function videoStretches(spans: ReadonlyArray<{ fromMs: number; toMs: number }>): Array<{ fromMs: number; toMs: number }> {
+export function videoStretches(
+  spans: ReadonlyArray<{ fromMs: number; toMs: number }>,
+): Array<{ fromMs: number; toMs: number }> {
   const out: Array<{ fromMs: number; toMs: number }> = [];
   for (const s of [...spans].sort((a, b) => a.fromMs - b.fromMs)) {
     const last = out[out.length - 1];
@@ -316,7 +387,10 @@ export function videoStretches(spans: ReadonlyArray<{ fromMs: number; toMs: numb
 /** One recorded span in words: `1:02-3:30 Ana's screen (still saving)`.
  *  `lead` replaces the clock pair when a caller has more to say before the
  *  subject (`cast call`'s `lines 6-41 (2:12-6:15)`). */
-export function describeSpan(span: CallCoveredSpan, lead: string = describeClockSpan(span)): string {
+export function describeSpan(
+  span: CallCoveredSpan,
+  lead: string = describeClockSpan(span),
+): string {
   return `${lead} ${recordingSubject(span)}${span.pending ? " (still saving)" : ""}`;
 }
 
@@ -338,12 +412,21 @@ export const NEAREST_END_INSET_MS = 2_000;
  *  inside it), so the hint is a reference that will itself succeed. An end
  *  is approached from NEAREST_END_INSET_MS inside it, never its last
  *  keyframe, unless the span is shorter than that. */
-export function nearestRecordedMs(spans: readonly CallCoveredSpan[], atMs: number): number | null {
+export function nearestRecordedMs(
+  spans: readonly CallCoveredSpan[],
+  atMs: number,
+): number | null {
   let best: number | null = null;
   for (const s of spans) {
     if (s.pending) continue;
-    const end = Math.max(s.fromMs, Math.min(s.toMs - 1, s.toMs - NEAREST_END_INSET_MS));
-    const at = wholeSecond(atMs >= s.toMs ? end : Math.max(atMs, s.fromMs), s.toMs - 1);
+    const end = Math.max(
+      s.fromMs,
+      Math.min(s.toMs - 1, s.toMs - NEAREST_END_INSET_MS),
+    );
+    const at = wholeSecond(
+      atMs >= s.toMs ? end : Math.max(atMs, s.fromMs),
+      s.toMs - 1,
+    );
     if (at < s.fromMs) continue;
     if (best === null || Math.abs(at - atMs) < Math.abs(best - atMs)) best = at;
   }
@@ -396,23 +479,34 @@ export function locateCallMoment<R extends CallRecordingSpan>(opts: {
   const now = opts.now ?? Date.now();
   const usable = opts.recordings.filter((r) => r.status !== "failed");
   const covered = coveredSpans(usable, opts.callStartedAt, now);
-  if (usable.length === 0) return { ok: false, reason: "no_recordings", covered };
+  if (usable.length === 0)
+    return { ok: false, reason: "no_recordings", covered };
 
-  const order: CallRecordingKind[] = opts.prefer === "screen" ? ["screen", "composite"] : ["composite", "screen"];
+  const order: CallRecordingKind[] =
+    opts.prefer === "screen"
+      ? ["screen", "composite"]
+      : ["composite", "screen"];
   let pending = false;
   for (const kind of order) {
     const hits = usable
       .filter((r) => r.kind === kind)
       // The end is exclusive: a file has no frame at its own length, so a
       // moment exactly at a stop belongs to whatever was recording next.
-      .map((r) => ({ r, offset: offsetIntoRecording(r, opts.callStartedAt, opts.atMs, now) }))
+      .map((r) => ({
+        r,
+        offset: offsetIntoRecording(r, opts.callStartedAt, opts.atMs, now),
+      }))
       .filter((x): x is { r: R; offset: number } => x.offset !== null);
     const ready = hits.filter((x) => x.r.status === "ready");
     if (hits.length > ready.length) pending = true;
     if (ready.length === 0) continue;
-    const mine = opts.identity ? ready.filter((x) => x.r.participant_identity === opts.identity) : [];
+    const mine = opts.identity
+      ? ready.filter((x) => x.r.participant_identity === opts.identity)
+      : [];
     // The latest start is the smallest offset into its file.
-    const pick = (mine.length ? mine : ready).sort((a, b) => a.offset - b.offset)[0];
+    const pick = (mine.length ? mine : ready).sort(
+      (a, b) => a.offset - b.offset,
+    )[0];
     return { ok: true, recording: pick.r, offsetMs: Math.max(0, pick.offset) };
   }
   return { ok: false, reason: pending ? "not_ready" : "outside", covered };
@@ -441,7 +535,9 @@ export function segmentAt(
   }
   if (last === null || !opts.holdMs) return null;
   const s = segments[last];
-  return atMs - Math.max(s.t0, s.t1 ?? s.t0) <= opts.holdMs ? { index: last, during: false } : null;
+  return atMs - Math.max(s.t0, s.t1 ?? s.t0) <= opts.holdMs
+    ? { index: last, during: false }
+    : null;
 }
 
 /** How long after its last word a line is still "what was being said" at a
@@ -478,8 +574,12 @@ export function callFrameSeenText(ref: string): string {
 }
 
 /** The moment a tool result's text says the agent looked at, or null. */
-export function callFrameSeenRef(text: string | null | undefined): string | null {
-  const m = /(?:^|\n)Frame of the call: (cl-\d+@[0-9:.]+s?)[ \t]*(?:\n|$)/.exec(text ?? "");
+export function callFrameSeenRef(
+  text: string | null | undefined,
+): string | null {
+  const m = /(?:^|\n)Frame of the call: (cl-\d+@[0-9:.]+s?)[ \t]*(?:\n|$)/.exec(
+    text ?? "",
+  );
   return m ? m[1] : null;
 }
 
@@ -489,13 +589,23 @@ export function callFrameSeenRef(text: string | null | undefined): string | null
  * more than one per `minGapMs`. A short stretch yields one frame, its middle,
  * rather than several copies of the same picture.
  */
-export function sampleCallMoments(fromMs: number, toMs: number, count: number, minGapMs = 1000): number[] {
+export function sampleCallMoments(
+  fromMs: number,
+  toMs: number,
+  count: number,
+  minGapMs = 1000,
+): number[] {
   const a = Math.min(fromMs, toMs);
   const b = Math.max(fromMs, toMs);
   const span = b - a;
-  const n = Math.max(1, Math.min(Math.floor(count), Math.floor(span / Math.max(1, minGapMs)) + 1));
+  const n = Math.max(
+    1,
+    Math.min(Math.floor(count), Math.floor(span / Math.max(1, minGapMs)) + 1),
+  );
   if (n === 1) return [Math.round(a + span / 2)];
-  return Array.from({ length: n }, (_, i) => Math.round(a + (span * i) / (n - 1)));
+  return Array.from({ length: n }, (_, i) =>
+    Math.round(a + (span * i) / (n - 1)),
+  );
 }
 
 /**
@@ -524,18 +634,27 @@ export function lineFrameMs(seg: { t0: number; t1?: number }): number {
 
 /** Whether a line was on camera: some stretch covers the moment its frame is
  *  taken (lineFrameMs), the moment `cast call snap cl-42:<line>` shows. */
-export function lineFilmed(spans: ReadonlyArray<{ fromMs: number; toMs: number }>, seg: { t0: number; t1?: number }): boolean {
+export function lineFilmed(
+  spans: ReadonlyArray<{ fromMs: number; toMs: number }>,
+  seg: { t0: number; t1?: number },
+): boolean {
   return spanCovers(spans, lineFrameMs(seg));
 }
 
-const spanCovers = (spans: ReadonlyArray<{ fromMs: number; toMs: number }>, at: number) => spans.some((s) => s.fromMs <= at && at < s.toMs);
+const spanCovers = (
+  spans: ReadonlyArray<{ fromMs: number; toMs: number }>,
+  at: number,
+) => spans.some((s) => s.fromMs <= at && at < s.toMs);
 
 /** Where a click on a line seeks the call's media: its first word (t0), so
  *  the line is heard from its start, unless no stretch covers that moment
  *  while the line still reads as filmed (lineFilmed: its first word came a
  *  moment before the recording's first frame). Then it seeks to the frame
  *  the rail promised (lineFrameMs), never to a moment with no video. */
-export function lineSeekMs(spans: ReadonlyArray<{ fromMs: number; toMs: number }>, seg: { t0: number; t1?: number }): number {
+export function lineSeekMs(
+  spans: ReadonlyArray<{ fromMs: number; toMs: number }>,
+  seg: { t0: number; t1?: number },
+): number {
   if (spanCovers(spans, seg.t0) || !lineFilmed(spans, seg)) return seg.t0;
   return lineFrameMs(seg);
 }
@@ -583,14 +702,24 @@ export const RECORDING_RESTART_COOLDOWN_MS = 5_000;
  *  stopping and the stop was asked for less than the cooldown ago (or when,
  *  is not known yet). The Record button on every platform asks this, so the
  *  web's and the phone's "saving" agree with what the server would refuse. */
-export function recordingCooling(status: CallRecordingStatus | null | undefined, stopRequestedAt: number | null | undefined, now: number): boolean {
-  return status === "stopping" && (stopRequestedAt == null || now - stopRequestedAt < RECORDING_RESTART_COOLDOWN_MS);
+export function recordingCooling(
+  status: CallRecordingStatus | null | undefined,
+  stopRequestedAt: number | null | undefined,
+  now: number,
+): boolean {
+  return (
+    status === "stopping" &&
+    (stopRequestedAt == null ||
+      now - stopRequestedAt < RECORDING_RESTART_COOLDOWN_MS)
+  );
 }
 
 /** Is a press made at `pressedAt` too old to act on at `now`? A press with no
  *  stamp (a client older than the rule) is taken as made now. */
 export function recordingPressStale(pressedAt: unknown, now: number): boolean {
-  return typeof pressedAt === "number" && now - pressedAt > RECORDING_PRESS_FRESH_MS;
+  return (
+    typeof pressedAt === "number" && now - pressedAt > RECORDING_PRESS_FRESH_MS
+  );
 }
 
 /** What a person is told when their press was dropped as stale. */
@@ -642,7 +771,8 @@ export const FRAME_SHARE_REFUSED_WORDS =
 /** Why a reader of a call may not open it to anyone: the server's
  *  mayPublishCall, said by the refusal and by the share popover before the
  *  press. Closing the link is any reader's. */
-export const CALL_LINK_REFUSED_WORDS = "Only someone who was in this call, or a team admin, can open it to anyone.";
+export const CALL_LINK_REFUSED_WORDS =
+  "Only someone who was in this call, or a team admin, can open it to anyone.";
 
 /** How a run that stopped by itself is said, by its reason, for the room's
  *  thread and the notice: null for the reasons said otherwise (a press names
@@ -650,7 +780,9 @@ export const CALL_LINK_REFUSED_WORDS = "Only someone who was in this call, or a 
  *  huddle ending, the media room left without a teammate (guests may still
  *  be in it), a ceiling, or LiveKit closing the file with no cause the
  *  room could see, which says so rather than reading as unexplained. */
-export function recordingStoppedItselfWords(reason: string | null | undefined): string | null {
+export function recordingStoppedItselfWords(
+  reason: string | null | undefined,
+): string | null {
   switch (reason) {
     case "huddle_ended":
       return "Recording stopped when the huddle ended";
@@ -673,10 +805,17 @@ export function recordingStoppedItselfWords(reason: string | null | undefined): 
  *  reasons (convex callRecordings: "Recording is not set up ...", "Stopped
  *  before ...", "LiveKit lost track ...") already are one; LiveKit's raw
  *  errors get the plain prefix. */
-export function recordingFailureWords(error: string | null | undefined): string {
+export function recordingFailureWords(
+  error: string | null | undefined,
+): string {
   const e = (error ?? "").trim();
   if (!e) return "The recording failed.";
-  if (/^(the recording|recording is|stopped before|livekit (lost|accepted))/i.test(e)) return e;
+  if (
+    /^(the recording|recording is|stopped before|livekit (lost|accepted))/i.test(
+      e,
+    )
+  )
+    return e;
   return `The recording failed. ${e}`;
 }
 

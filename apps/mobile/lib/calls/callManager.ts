@@ -13,14 +13,27 @@
 //   LEGITIMATE on a phone; the 45s server lease covers a killed app).
 // - Camera flip and speakerphone toggle are first-class (phone ergonomics).
 import { Room, RoomEvent, Track, ConnectionState } from "livekit-client";
-import type { Participant, RemoteParticipant, LocalParticipant } from "livekit-client";
-import { getLivekit, ensureLivekitGlobals, callsNativeAvailable } from "./livekitNative";
+import type {
+  Participant,
+  RemoteParticipant,
+  LocalParticipant,
+} from "livekit-client";
+import {
+  getLivekit,
+  ensureLivekitGlobals,
+  callsNativeAvailable,
+} from "./livekitNative";
 
 // AudioSession from the guarded native module (null on a binary that lacks it).
 const audioSession = () => getLivekit()?.AudioSession ?? null;
 import { api } from "@codecast/convex/convex/_generated/api";
 import { convex } from "../convex";
-import { CALL_HEARTBEAT_MS, humanizeConvexError, isRoomMachineryKind, localTranscribeLanguages } from "@codecast/shared/contracts";
+import {
+  CALL_HEARTBEAT_MS,
+  humanizeConvexError,
+  isRoomMachineryKind,
+  localTranscribeLanguages,
+} from "@codecast/shared/contracts";
 
 export type CallPhase = "idle" | "connecting" | "connected" | "error";
 
@@ -107,13 +120,17 @@ function rebuildParticipants() {
   }
   // The room's machinery (a recording's egress, the agent-face worker) is
   // in the media room too, and is nobody to draw.
-  const all: Participant[] = [room.localParticipant, ...room.remoteParticipants.values()].filter((p) => !isRoomMachineryKind(p.kind));
+  const all: Participant[] = [
+    room.localParticipant,
+    ...room.remoteParticipants.values(),
+  ].filter((p) => !isRoomMachineryKind(p.kind));
   emit({
     participants: all.map((p) => {
       const mic = p.getTrackPublication(Track.Source.Microphone);
       const cam = p.getTrackPublication(Track.Source.Camera);
       const scr = p.getTrackPublication(Track.Source.ScreenShare);
-      const subscribed = (pub: any) => !!pub && (p.isLocal || pub.isSubscribed) && !!pub.track;
+      const subscribed = (pub: any) =>
+        !!pub && (p.isLocal || pub.isSubscribed) && !!pub.track;
       return {
         identity: p.identity,
         name: p.name || p.identity,
@@ -147,7 +164,11 @@ function startHeartbeat(roomKey: string) {
       .then((res: any) => {
         // Lease swept while we were backgrounded/asleep: retake the seat, or
         // fall out honestly if authorization is gone.
-        if (res?.ok === false && snap.roomKey === roomKey && snap.phase === "connected") {
+        if (
+          res?.ok === false &&
+          snap.roomKey === roomKey &&
+          snap.phase === "connected"
+        ) {
           convex
             .mutation(api.calls.joinRoom, {
               room_key: roomKey,
@@ -197,7 +218,10 @@ export type JoinOpts = {
   muted?: boolean;
 };
 
-export async function joinCall(roomKey: string, opts: JoinOpts = {}): Promise<void> {
+export async function joinCall(
+  roomKey: string,
+  opts: JoinOpts = {},
+): Promise<void> {
   // The connecting-branch must also prove the live Room BELONGS to this key:
   // accepting a ring while connected elsewhere paints {connecting, roomKey:B}
   // while `room` is still call A's Room — without the currentRoomKey check
@@ -206,7 +230,9 @@ export async function joinCall(roomKey: string, opts: JoinOpts = {}): Promise<vo
     snap.roomKey === roomKey &&
     (snap.phase === "connected"
       ? currentRoomKey === roomKey
-      : snap.phase === "connecting" && room !== null && currentRoomKey === roomKey)
+      : snap.phase === "connecting" &&
+        room !== null &&
+        currentRoomKey === roomKey)
   ) {
     return;
   }
@@ -241,7 +267,9 @@ export async function joinCall(roomKey: string, opts: JoinOpts = {}): Promise<vo
       languages: localTranscribeLanguages(),
     });
     if (superseded()) return;
-    const { url, token } = await convex.action(api.calls.mintAccessToken, { room_key: roomKey });
+    const { url, token } = await convex.action(api.calls.mintAccessToken, {
+      room_key: roomKey,
+    });
     if (superseded()) return;
     if (!opts.callKitManaged) {
       await audioSession()!.startAudioSession();
@@ -249,7 +277,10 @@ export async function joinCall(roomKey: string, opts: JoinOpts = {}): Promise<vo
     }
     callKitOwnsAudio = !!opts.callKitManaged;
 
-    const r = new Room({ adaptiveStream: { pixelDensity: "screen" }, dynacast: true });
+    const r = new Room({
+      adaptiveStream: { pixelDensity: "screen" },
+      dynacast: true,
+    });
     room = r;
     currentRoomKey = roomKey;
 
@@ -297,9 +328,13 @@ export async function joinCall(roomKey: string, opts: JoinOpts = {}): Promise<vo
       emit({
         phase: "error",
         error:
-          err?.message?.includes("permission") || err?.name === "NotAllowedError"
+          err?.message?.includes("permission") ||
+          err?.name === "NotAllowedError"
             ? "Microphone access is off — allow it in Settings › Codecast"
-            : humanizeConvexError(err, "Could not join the huddle").slice(0, 160),
+            : humanizeConvexError(err, "Could not join the huddle").slice(
+                0,
+                160,
+              ),
       });
     }
     convex.mutation(api.calls.leaveRoom, { room_key: roomKey }).catch(() => {});
@@ -320,7 +355,12 @@ export async function leaveCall(opts?: { hangup?: boolean }): Promise<void> {
   emit({ ...IDLE });
   await teardownMedia();
   if (roomKey) {
-    await convex.mutation(api.calls.leaveRoom, { room_key: roomKey, ...(hangup ? { hangup: true } : {}) }).catch(() => {});
+    await convex
+      .mutation(api.calls.leaveRoom, {
+        room_key: roomKey,
+        ...(hangup ? { hangup: true } : {}),
+      })
+      .catch(() => {});
   }
 }
 
@@ -344,7 +384,11 @@ export async function setMuted(muted: boolean): Promise<void> {
       await room.localParticipant.setMicrophoneEnabled(!muted);
       emit({ pending: null });
     } catch (err: any) {
-      emit({ muted: true, pending: null, error: "Microphone access is off — allow it in Settings › Codecast" });
+      emit({
+        muted: true,
+        pending: null,
+        error: "Microphone access is off — allow it in Settings › Codecast",
+      });
       return;
     }
   }
@@ -360,9 +404,16 @@ export async function setCamera(on: boolean): Promise<void> {
       });
       const live = on ? !!pub?.track : false;
       emit({ cameraOn: live, pending: null });
-      if (on && !live) emit({ error: "Camera access is off — allow it in Settings › Codecast" });
+      if (on && !live)
+        emit({
+          error: "Camera access is off — allow it in Settings › Codecast",
+        });
     } catch {
-      emit({ cameraOn: false, pending: null, error: "Camera access is off — allow it in Settings › Codecast" });
+      emit({
+        cameraOn: false,
+        pending: null,
+        error: "Camera access is off — allow it in Settings › Codecast",
+      });
       return;
     }
     rebuildParticipants();
@@ -395,10 +446,17 @@ async function applyAudioRoute(speakerOn: boolean): Promise<void> {
   try {
     await AudioSession.setAppleAudioConfiguration({
       audioCategory: "playAndRecord",
-      audioCategoryOptions: ["allowBluetooth", "allowBluetoothA2DP", "allowAirPlay", "mixWithOthers"],
+      audioCategoryOptions: [
+        "allowBluetooth",
+        "allowBluetoothA2DP",
+        "allowAirPlay",
+        "mixWithOthers",
+      ],
       audioMode: speakerOn ? "videoChat" : "voiceChat",
     } as any);
-    await AudioSession.selectAudioOutput(speakerOn ? "force_speaker" : "default");
+    await AudioSession.selectAudioOutput(
+      speakerOn ? "force_speaker" : "default",
+    );
   } catch {}
 }
 
@@ -414,17 +472,29 @@ export async function setSpeaker(on: boolean): Promise<void> {
 // Ring people into a room, joining it yourself first. The caller's mic goes
 // LIVE — tapping "huddle at someone" is the intent to talk (joining an
 // existing room stays muted, the shoulder-tap contract).
-export async function startHuddle(opts: { roomKey: string; toUserIds: string[]; anchorTitle?: string; ringChannel?: boolean }) {
+export async function startHuddle(opts: {
+  roomKey: string;
+  toUserIds: string[];
+  anchorTitle?: string;
+  ringChannel?: boolean;
+}) {
   await joinCall(opts.roomKey, { muted: false });
   if (getCallSnapshot().phase !== "connected") return;
-  await ringInto(opts.roomKey, opts.toUserIds, opts.anchorTitle, { ringChannel: opts.ringChannel });
+  await ringInto(opts.roomKey, opts.toUserIds, opts.anchorTitle, {
+    ringChannel: opts.ringChannel,
+  });
 }
 
 // Ring people into a room you are already in ("add people"); the ring is
 // their grant to a room they are not otherwise a member of. A refused ring
 // must not leave the caller sitting in silence believing phones are ringing:
 // the error lands in the call snapshot, which the call screen shows.
-export async function ringInto(roomKey: string, toUserIds: string[], anchorTitle?: string, opts?: { ringChannel?: boolean }) {
+export async function ringInto(
+  roomKey: string,
+  toUserIds: string[],
+  anchorTitle?: string,
+  opts?: { ringChannel?: boolean },
+) {
   if (toUserIds.length === 0 && !opts?.ringChannel) return;
   try {
     await convex.mutation(api.calls.invite, {
@@ -435,7 +505,9 @@ export async function ringInto(roomKey: string, toUserIds: string[], anchorTitle
     });
   } catch (err: any) {
     if (getCallSnapshot().roomKey === roomKey) {
-      emit({ error: humanizeConvexError(err, "Could not ring them").slice(0, 160) });
+      emit({
+        error: humanizeConvexError(err, "Could not ring them").slice(0, 160),
+      });
     }
   }
 }
@@ -450,7 +522,11 @@ async function roomStillLive(roomKey: string): Promise<boolean> {
   return !!(live as any)?.[roomKey]?.length;
 }
 
-export async function acceptInvite(inviteId: string, roomKey: string, opts: JoinOpts = {}): Promise<void> {
+export async function acceptInvite(
+  inviteId: string,
+  roomKey: string,
+  opts: JoinOpts = {},
+): Promise<void> {
   // Accepting while in ANOTHER live call must not destroy that call on
   // failure: remember it, and restore it if the ring turns out expired — an
   // error banner over a still-flowing call would also kill its heartbeat
@@ -480,20 +556,29 @@ export async function acceptInvite(inviteId: string, roomKey: string, opts: Join
     // Release the old seat immediately — joinCall tears down its media, but
     // only leaveRoom frees the lease before the 45s sweep.
     if (switching && prior.roomKey) {
-      convex.mutation(api.calls.leaveRoom, { room_key: prior.roomKey }).catch(() => {});
+      convex
+        .mutation(api.calls.leaveRoom, { room_key: prior.roomKey })
+        .catch(() => {});
     }
     // Join the room the server ACCEPTED — a re-ring can move an invite. An
     // expired ring names no room, so fall back to the one we were rung into.
     await joinCall(res?.room_key ?? roomKey, opts);
   } catch (err: any) {
     if (switching) emit({ ...prior });
-    else emit({ phase: "error", error: humanizeConvexError(err, "Could not join").slice(0, 160) });
+    else
+      emit({
+        phase: "error",
+        error: humanizeConvexError(err, "Could not join").slice(0, 160),
+      });
   }
 }
 
 export async function declineInvite(inviteId: string): Promise<void> {
   await convex
-    .mutation(api.calls.respondInvite, { invite_id: inviteId as any, accept: false })
+    .mutation(api.calls.respondInvite, {
+      invite_id: inviteId as any,
+      accept: false,
+    })
     .catch(() => {});
 }
 

@@ -1,4 +1,7 @@
-export type CommentRows = Record<string, { conversation_id?: string; message_id?: string }>;
+export type CommentRows = Record<
+  string,
+  { conversation_id?: string; message_id?: string }
+>;
 
 // Comment counts by message, built once per comments collection (the store
 // hands back a new object only when a comment changes) and shared by every
@@ -6,7 +9,11 @@ export type CommentRows = Record<string, { conversation_id?: string; message_id?
 // every comment there.
 const COMMENT_COUNTS = new WeakMap<object, Map<string, number>>();
 
-export function teamCommentCount(comments: CommentRows | undefined, conversationId: string, messageId: string): number {
+export function teamCommentCount(
+  comments: CommentRows | undefined,
+  conversationId: string,
+  messageId: string,
+): number {
   if (!comments) return 0;
   let counts = COMMENT_COUNTS.get(comments);
   if (!counts) {

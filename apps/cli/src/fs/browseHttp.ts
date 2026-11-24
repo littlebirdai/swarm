@@ -27,9 +27,16 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { execFile } from "../proc.js";
-import { authorizeLocalRequest, corsHeaders, type TerminalServerOptions } from "../terminal/terminalServer.js";
+import {
+  authorizeLocalRequest,
+  corsHeaders,
+  type TerminalServerOptions,
+} from "../terminal/terminalServer.js";
 import { readLocalConfig } from "../config/readLocalConfig.js";
-import { summarizeLocalSessions, type LocalSessionsSummary } from "./localSessions.js";
+import {
+  summarizeLocalSessions,
+  type LocalSessionsSummary,
+} from "./localSessions.js";
 
 export interface DirEntry {
   name: string;
@@ -65,12 +72,21 @@ export interface BrowseDeps {
 // A page open and a refresh a few seconds later share one walk; the walk reads
 // every transcript's first line, which is seconds on a large machine.
 const LOCAL_SESSIONS_TTL_MS = 30_000;
-let localSessionsCache: { at: number; value: Promise<LocalSessionsSummary> } | null = null;
+let localSessionsCache: {
+  at: number;
+  value: Promise<LocalSessionsSummary>;
+} | null = null;
 function cachedLocalSessions(): Promise<LocalSessionsSummary> {
-  if (localSessionsCache && Date.now() - localSessionsCache.at < LOCAL_SESSIONS_TTL_MS) return localSessionsCache.value;
+  if (
+    localSessionsCache &&
+    Date.now() - localSessionsCache.at < LOCAL_SESSIONS_TTL_MS
+  )
+    return localSessionsCache.value;
   const value = summarizeLocalSessions(readLocalConfig(), os.homedir());
   localSessionsCache = { at: Date.now(), value };
-  value.catch(() => { localSessionsCache = null; });
+  value.catch(() => {
+    localSessionsCache = null;
+  });
   return value;
 }
 
@@ -92,7 +108,9 @@ export const defaultBrowseDeps: BrowseDeps = {
   // Best effort: a machine without git still gets its folder.
   gitInit: (p) =>
     new Promise((resolve) => {
-      execFile("git", ["init", "-q"], { cwd: p, timeout: 10_000 }, () => resolve());
+      execFile("git", ["init", "-q"], { cwd: p, timeout: 10_000 }, () =>
+        resolve(),
+      );
     }),
   localSessions: cachedLocalSessions,
 };
@@ -118,7 +136,8 @@ export async function listDirectories(
   const home = deps.home();
   const dir = resolveBrowsePath(rawPath, home);
   if (!dir) return null;
-  if (!(await deps.isDir(dir))) return { home, path: dir, exists: false, dirs: [] };
+  if (!(await deps.isDir(dir)))
+    return { home, path: dir, exists: false, dirs: [] };
 
   let entries: fs.Dirent[];
   try {
@@ -127,7 +146,11 @@ export async function listDirectories(
     return { home, path: dir, exists: false, dirs: [] };
   }
   const names = entries
-    .filter((e) => (e.isDirectory() || e.isSymbolicLink()) && (showHidden || !e.name.startsWith(".")))
+    .filter(
+      (e) =>
+        (e.isDirectory() || e.isSymbolicLink()) &&
+        (showHidden || !e.name.startsWith(".")),
+    )
     .map((e) => e.name)
     .sort((a, b) => a.localeCompare(b))
     .slice(0, MAX_ENTRIES);
@@ -137,10 +160,19 @@ export async function listDirectories(
       const full = path.join(dir, name);
       // A symlink is listed only when it points at a directory.
       if (!(await deps.isDir(full))) return null;
-      return { name, path: full, repo: await deps.isDir(path.join(full, ".git")) };
+      return {
+        name,
+        path: full,
+        repo: await deps.isDir(path.join(full, ".git")),
+      };
     }),
   );
-  return { home, path: dir, exists: true, dirs: dirs.filter((d): d is DirEntry => d !== null) };
+  return {
+    home,
+    path: dir,
+    exists: true,
+    dirs: dirs.filter((d): d is DirEntry => d !== null),
+  };
 }
 
 export async function createProjectDir(
@@ -158,7 +190,9 @@ export async function createProjectDir(
   return { path: dir, created: !existed };
 }
 
-async function readJsonBody(req: http.IncomingMessage): Promise<Record<string, unknown> | null> {
+async function readJsonBody(
+  req: http.IncomingMessage,
+): Promise<Record<string, unknown> | null> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
@@ -169,7 +203,9 @@ async function readJsonBody(req: http.IncomingMessage): Promise<Record<string, u
   }
   try {
     const parsed = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }
@@ -187,7 +223,10 @@ export function handleFsBrowseHttp(
 ): boolean {
   const url = req.url ?? "";
   if (!url.startsWith("/fs/")) return false;
-  const headers = { "Content-Type": "application/json", ...corsHeaders(req.headers.origin, opts) };
+  const headers = {
+    "Content-Type": "application/json",
+    ...corsHeaders(req.headers.origin, opts),
+  };
   const send = (status: number, body: unknown) => {
     res.writeHead(status, headers);
     res.end(JSON.stringify(body));
@@ -211,19 +250,37 @@ export function handleFsBrowseHttp(
         parsed.searchParams.get("hidden") === "1",
         deps,
       );
-      return listing ? send(200, listing) : send(400, { error: "path must be absolute or ~-relative" });
+      return listing
+        ? send(200, listing)
+        : send(400, { error: "path must be absolute or ~-relative" });
     }
     if (req.method === "GET" && parsed.pathname === "/fs/exists") {
-      const paths = parsed.searchParams.getAll("p").filter((p) => p.startsWith("/")).slice(0, 300);
+      const paths = parsed.searchParams
+        .getAll("p")
+        .filter((p) => p.startsWith("/"))
+        .slice(0, 300);
       const exists: Record<string, boolean> = {};
-      await Promise.all(paths.map(async (p) => { exists[p] = await deps.isDir(p); }));
+      await Promise.all(
+        paths.map(async (p) => {
+          exists[p] = await deps.isDir(p);
+        }),
+      );
       return send(200, { home: deps.home(), exists });
     }
     if (req.method === "GET" && parsed.pathname === "/fs/files") {
-      const root = resolveBrowsePath(parsed.searchParams.get("root") ?? "", deps.home());
-      if (!root || root === "/") return send(400, { error: "root must be an absolute or ~-relative folder" });
+      const root = resolveBrowsePath(
+        parsed.searchParams.get("root") ?? "",
+        deps.home(),
+      );
+      if (!root || root === "/")
+        return send(400, {
+          error: "root must be an absolute or ~-relative folder",
+        });
       const { searchProjectFiles } = await import("./fileSearch.js");
-      return send(200, await searchProjectFiles(root, parsed.searchParams.get("q") ?? ""));
+      return send(
+        200,
+        await searchProjectFiles(root, parsed.searchParams.get("q") ?? ""),
+      );
     }
     if (req.method === "GET" && parsed.pathname === "/fs/sessions") {
       return send(200, await deps.localSessions());
@@ -232,7 +289,8 @@ export function handleFsBrowseHttp(
       const body = await readJsonBody(req);
       const target = typeof body?.path === "string" ? body.path : "";
       const made = await createProjectDir(target, deps);
-      if (!made) return send(400, { error: "path must be absolute or ~-relative" });
+      if (!made)
+        return send(400, { error: "path must be absolute or ~-relative" });
       if (made.created) opts.log(`[FS] Created project folder ${made.path}`);
       return send(200, made);
     }
@@ -240,7 +298,9 @@ export function handleFsBrowseHttp(
   };
 
   void dispatch().catch((err) => {
-    opts.log(`[FS] ${req.method} ${url} failed: ${(err as Error)?.message ?? err}`);
+    opts.log(
+      `[FS] ${req.method} ${url} failed: ${(err as Error)?.message ?? err}`,
+    );
     if (!res.headersSent) send(500, { error: "server error" });
     else res.end();
   });

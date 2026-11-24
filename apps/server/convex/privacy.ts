@@ -1,8 +1,18 @@
 import { matchDirectoryMapping } from "@codecast/shared/team/directoryRules";
-import { isRunLog, repositoryKeyOfRemote, teamVisibleConvTeam as sharedTeamVisibleConvTeam, type RunLogIdentity } from "@codecast/shared/contracts";
+import {
+  isRunLog,
+  repositoryKeyOfRemote,
+  teamVisibleConvTeam as sharedTeamVisibleConvTeam,
+  type RunLogIdentity,
+} from "@codecast/shared/contracts";
 import { Doc, Id } from "./_generated/dataModel";
 import { isSessionOwner } from "./sessionOwners";
-import { currentMembershipVisibility, effectiveMembershipVisibility, isVisibilityShareable, type MembershipVisibilityFacts } from "./teamVisibility";
+import {
+  currentMembershipVisibility,
+  effectiveMembershipVisibility,
+  isVisibilityShareable,
+  type MembershipVisibilityFacts,
+} from "./teamVisibility";
 
 type DbCtx = { db: any };
 
@@ -24,12 +34,12 @@ export type AccessLevel = "owner" | "team" | "shared" | "denied";
 export async function isTeamMember(
   ctx: DbCtx,
   userId: Id<"users">,
-  teamId: Id<"teams">
+  teamId: Id<"teams">,
 ): Promise<boolean> {
   const m = await ctx.db
     .query("team_memberships")
     .withIndex("by_user_team", (q: any) =>
-      q.eq("user_id", userId).eq("team_id", teamId)
+      q.eq("user_id", userId).eq("team_id", teamId),
     )
     .first();
   return !!m;
@@ -41,7 +51,7 @@ export async function isTeamMember(
 export async function shareATeam(
   ctx: DbCtx,
   a: Id<"users">,
-  b: Id<"users">
+  b: Id<"users">,
 ): Promise<boolean> {
   if (String(a) === String(b)) return true;
   const memberships = await ctx.db
@@ -62,7 +72,7 @@ export async function shareATeam(
 export async function standsWithRunner(
   ctx: DbCtx,
   userId: Id<"users">,
-  runnerId: Id<"users">
+  runnerId: Id<"users">,
 ): Promise<boolean> {
   if (String(userId) === String(runnerId)) return true;
   const runner = await ctx.db.get(runnerId);
@@ -81,12 +91,12 @@ export async function standsWithRunner(
 export async function isTeamAdmin(
   ctx: DbCtx,
   userId: Id<"users">,
-  teamId: Id<"teams">
+  teamId: Id<"teams">,
 ): Promise<boolean> {
   const m = await ctx.db
     .query("team_memberships")
     .withIndex("by_user_team", (q: any) =>
-      q.eq("user_id", userId).eq("team_id", teamId)
+      q.eq("user_id", userId).eq("team_id", teamId),
     )
     .first();
   return m?.role === "admin";
@@ -95,12 +105,12 @@ export async function isTeamAdmin(
 export async function getOwnerMembership(
   ctx: DbCtx,
   ownerId: Id<"users">,
-  teamId: Id<"teams">
+  teamId: Id<"teams">,
 ): Promise<MembershipVisibilityFacts | null> {
   return ctx.db
     .query("team_memberships")
     .withIndex("by_user_team", (q: any) =>
-      q.eq("user_id", ownerId).eq("team_id", teamId)
+      q.eq("user_id", ownerId).eq("team_id", teamId),
     )
     .first();
 }
@@ -115,24 +125,36 @@ export { isVisibilityShareable } from "./teamVisibility";
 
 export async function isConversationTeamVisible(
   ctx: DbCtx,
-  conversation: ConversationForAccess
+  conversation: ConversationForAccess,
 ): Promise<boolean> {
   if (!conversation.team_id) return false;
-  const membership = await getOwnerMembership(ctx, conversation.user_id, conversation.team_id);
+  const membership = await getOwnerMembership(
+    ctx,
+    conversation.user_id,
+    conversation.team_id,
+  );
   return isConversationTeamVisibleSync(
     conversation,
-    effectiveMembershipVisibility(membership, conversation.started_at)
+    effectiveMembershipVisibility(membership, conversation.started_at),
   );
 }
 
 function isConversationTeamVisibleSync(
-  conversation: { is_private: boolean; team_visibility?: string; team_id?: any; user_id: any },
-  ownerMembershipVisibility: string
+  conversation: {
+    is_private: boolean;
+    team_visibility?: string;
+    team_id?: any;
+    user_id: any;
+  },
+  ownerMembershipVisibility: string,
 ): boolean {
   if (!conversation.team_id) return false;
   if (!isVisibilityShareable(ownerMembershipVisibility)) return false;
   if (conversation.is_private === false) return true;
-  if (conversation.team_visibility && conversation.team_visibility !== "private")
+  if (
+    conversation.team_visibility &&
+    conversation.team_visibility !== "private"
+  )
     return true;
   return false;
 }
@@ -144,20 +166,38 @@ function isConversationTeamVisibleSync(
 export type TeamReadLevel = "none" | "summary" | "content";
 
 export function teamReadLevelSync(
-  conversation: { is_private: boolean; team_visibility?: string; team_id?: any; user_id: any },
-  ownerMembershipVisibility: string
+  conversation: {
+    is_private: boolean;
+    team_visibility?: string;
+    team_id?: any;
+    user_id: any;
+  },
+  ownerMembershipVisibility: string,
 ): TeamReadLevel {
-  if (!isConversationTeamVisibleSync(conversation, ownerMembershipVisibility)) return "none";
-  const mode = conversation.team_visibility === "summary" || conversation.team_visibility === "full"
-    ? conversation.team_visibility
-    : ownerMembershipVisibility;
+  if (!isConversationTeamVisibleSync(conversation, ownerMembershipVisibility))
+    return "none";
+  const mode =
+    conversation.team_visibility === "summary" ||
+    conversation.team_visibility === "full"
+      ? conversation.team_visibility
+      : ownerMembershipVisibility;
   return mode === "full" ? "content" : "summary";
 }
 
-export async function teamReadLevel(ctx: DbCtx, conversation: ConversationForAccess): Promise<TeamReadLevel> {
+export async function teamReadLevel(
+  ctx: DbCtx,
+  conversation: ConversationForAccess,
+): Promise<TeamReadLevel> {
   if (!conversation.team_id) return "none";
-  const membership = await getOwnerMembership(ctx, conversation.user_id, conversation.team_id);
-  return teamReadLevelSync(conversation, effectiveMembershipVisibility(membership, conversation.started_at));
+  const membership = await getOwnerMembership(
+    ctx,
+    conversation.user_id,
+    conversation.team_id,
+  );
+  return teamReadLevelSync(
+    conversation,
+    effectiveMembershipVisibility(membership, conversation.started_at),
+  );
 }
 
 // THE team gate for a single session, and it fails closed: a teammate gets
@@ -169,7 +209,7 @@ export async function teamReadLevel(ctx: DbCtx, conversation: ConversationForAcc
 export async function canTeamMemberAccess(
   ctx: DbCtx,
   viewerId: Id<"users">,
-  conversation: ConversationForAccess
+  conversation: ConversationForAccess,
 ): Promise<boolean> {
   if (!conversation.team_id) return false;
   if (!(await isTeamMember(ctx, viewerId, conversation.team_id))) return false;
@@ -181,7 +221,7 @@ export async function canTeamMemberAccess(
 export async function canTeamMemberReadSummary(
   ctx: DbCtx,
   viewerId: Id<"users">,
-  conversation: ConversationForAccess
+  conversation: ConversationForAccess,
 ): Promise<boolean> {
   if (!conversation.team_id) return false;
   if (!(await isTeamMember(ctx, viewerId, conversation.team_id))) return false;
@@ -196,17 +236,21 @@ export async function canTeamMemberReadSummary(
 export async function isConversationOwner(
   ctx: DbCtx,
   viewerId: Id<"users">,
-  conversation: ConversationForAccess
+  conversation: ConversationForAccess,
 ): Promise<boolean> {
   if (conversation.user_id.toString() === viewerId.toString()) return true;
-  if ((conversation as any).owner_user_id?.toString() === viewerId.toString()) return true;
-  return !!conversation._id && (await isSessionOwner(ctx, conversation._id, viewerId));
+  if ((conversation as any).owner_user_id?.toString() === viewerId.toString())
+    return true;
+  return (
+    !!conversation._id &&
+    (await isSessionOwner(ctx, conversation._id, viewerId))
+  );
 }
 
 export async function canOwnerOrTeamAccess(
   ctx: DbCtx,
   viewerId: Id<"users">,
-  conversation: ConversationForAccess
+  conversation: ConversationForAccess,
 ): Promise<boolean> {
   if (await isConversationOwner(ctx, viewerId, conversation)) return true;
   return canTeamMemberAccess(ctx, viewerId, conversation);
@@ -219,13 +263,13 @@ export async function canOwnerOrTeamAccess(
 export async function hasMentionReadGrant(
   ctx: DbCtx,
   viewerId: Id<"users">,
-  conversation: ConversationForAccess
+  conversation: ConversationForAccess,
 ): Promise<boolean> {
   if (!conversation._id || !conversation.team_id) return false;
   const grant = await ctx.db
     .query("conversation_read_grants")
     .withIndex("by_conversation_user", (q: any) =>
-      q.eq("conversation_id", conversation._id).eq("user_id", viewerId)
+      q.eq("conversation_id", conversation._id).eq("user_id", viewerId),
     )
     .first();
   if (!grant) return false;
@@ -236,7 +280,7 @@ export async function checkConversationAccess(
   ctx: DbCtx,
   viewerId: Id<"users"> | null,
   conversation: ConversationForAccess,
-  presentedShareToken?: string | null
+  presentedShareToken?: string | null,
 ): Promise<AccessLevel> {
   if (viewerId) {
     if (conversation.user_id.toString() === viewerId.toString()) return "owner";
@@ -246,10 +290,19 @@ export async function checkConversationAccess(
     // grant made by someone who already had runner-or-team access. owner_user_id
     // is the denormalized primary-owner fast path; the session_owners lookup
     // covers secondary owners (a session may have several).
-    if ((conversation as any).owner_user_id?.toString() === viewerId.toString()) return "owner";
-    if (conversation._id && (await isSessionOwner(ctx, conversation._id, viewerId))) return "owner";
+    if ((conversation as any).owner_user_id?.toString() === viewerId.toString())
+      return "owner";
+    if (
+      conversation._id &&
+      (await isSessionOwner(ctx, conversation._id, viewerId))
+    )
+      return "owner";
     if (await canTeamMemberAccess(ctx, viewerId, conversation)) return "team";
-    if (conversation._id && (await hasMentionReadGrant(ctx, viewerId, conversation))) return "shared";
+    if (
+      conversation._id &&
+      (await hasMentionReadGrant(ctx, viewerId, conversation))
+    )
+      return "shared";
   }
   // "shared" means the viewer PRESENTED the share link — the token itself on
   // this call, or (signed in) a prior redemption of it recorded when they
@@ -259,12 +312,13 @@ export async function checkConversationAccess(
   // anyone holding its id (issue #27). A redemption counts only while its
   // stored token matches the current one, so rotation revokes past redeemers.
   if (conversation.share_token) {
-    if (presentedShareToken && presentedShareToken === conversation.share_token) return "shared";
+    if (presentedShareToken && presentedShareToken === conversation.share_token)
+      return "shared";
     if (viewerId && conversation._id) {
       const redemption = await ctx.db
         .query("share_redemptions")
         .withIndex("by_conversation_user", (q: any) =>
-          q.eq("conversation_id", conversation._id).eq("user_id", viewerId)
+          q.eq("conversation_id", conversation._id).eq("user_id", viewerId),
         )
         .first();
       if (redemption?.token === conversation.share_token) return "shared";
@@ -310,7 +364,7 @@ export type TeamFeedFilter = {
 
 export async function createTeamFeedFilter(
   ctx: DbCtx,
-  teamId: Id<"teams">
+  teamId: Id<"teams">,
 ): Promise<TeamFeedFilter> {
   const memberships = await ctx.db
     .query("team_memberships")
@@ -318,25 +372,44 @@ export async function createTeamFeedFilter(
     .collect();
 
   const membershipMap = new Map<string, MembershipVisibilityFacts>(
-    memberships.map((m: any) => [m.user_id.toString(), m])
+    memberships.map((m: any) => [m.user_id.toString(), m]),
   );
 
   const getVisibilityFor = (conversation: ConversationForFeed): string =>
-    effectiveMembershipVisibility(membershipMap.get(conversation.user_id.toString()), conversation.started_at);
+    effectiveMembershipVisibility(
+      membershipMap.get(conversation.user_id.toString()),
+      conversation.started_at,
+    );
 
   // Visible to THIS team only: a member of several teams shares each session
   // with the one team it is routed to, never with every team they belong to.
   const isVisible = (conversation: ConversationForFeed): boolean => {
-    if (!conversation.team_id || String(conversation.team_id) !== String(teamId)) return false;
-    return isConversationTeamVisibleSync(conversation as any, getVisibilityFor(conversation));
+    if (
+      !conversation.team_id ||
+      String(conversation.team_id) !== String(teamId)
+    )
+      return false;
+    return isConversationTeamVisibleSync(
+      conversation as any,
+      getVisibilityFor(conversation),
+    );
   };
 
   const contentVisible = (conversation: ConversationForFeed): boolean =>
-    isVisible(conversation) && teamReadLevelSync(conversation as any, getVisibilityFor(conversation)) === "content";
+    isVisible(conversation) &&
+    teamReadLevelSync(conversation as any, getVisibilityFor(conversation)) ===
+      "content";
 
-  const getVisibility = (userId: string): string => currentMembershipVisibility(membershipMap.get(userId));
+  const getVisibility = (userId: string): string =>
+    currentMembershipVisibility(membershipMap.get(userId));
 
-  return { isVisible, contentVisible, getVisibility, getVisibilityFor, memberships };
+  return {
+    isVisible,
+    contentVisible,
+    getVisibility,
+    getVisibilityFor,
+    memberships,
+  };
 }
 
 // ── Team floor ──
@@ -350,20 +423,29 @@ export type TeamFloor = {
   /** The team's current members. */
   members: Doc<"users">[];
   isVisible: (conversation: ConversationForFeed & RunLogIdentity) => boolean;
-  contentVisible: (conversation: ConversationForFeed & RunLogIdentity) => boolean;
+  contentVisible: (
+    conversation: ConversationForFeed & RunLogIdentity,
+  ) => boolean;
 };
 
-export async function teamFloorScope(ctx: DbCtx, teamId: Id<"teams">): Promise<TeamFloor> {
+export async function teamFloorScope(
+  ctx: DbCtx,
+  teamId: Id<"teams">,
+): Promise<TeamFloor> {
   const filter = await createTeamFeedFilter(ctx, teamId);
-  const members: Doc<"users">[] = (await Promise.all(filter.memberships.map((m) => ctx.db.get(m.user_id)))).filter(Boolean);
+  const members: Doc<"users">[] = (
+    await Promise.all(filter.memberships.map((m) => ctx.db.get(m.user_id)))
+  ).filter(Boolean);
   const memberIds = new Set(members.map((u) => String(u._id)));
   const onFloor = (conversation: ConversationForFeed & RunLogIdentity) =>
     memberIds.has(String(conversation.user_id)) && !isRunLog(conversation);
   return {
     filter,
     members,
-    isVisible: (conversation) => onFloor(conversation) && filter.isVisible(conversation),
-    contentVisible: (conversation) => onFloor(conversation) && filter.contentVisible(conversation),
+    isVisible: (conversation) =>
+      onFloor(conversation) && filter.isVisible(conversation),
+    contentVisible: (conversation) =>
+      onFloor(conversation) && filter.contentVisible(conversation),
   };
 }
 
@@ -379,11 +461,14 @@ export function profileConversationVisible(
   isOwner: boolean,
   isViewerTeamMember: boolean,
   ownerMembershipVisibility: string,
-  conversation: ConversationForFeed
+  conversation: ConversationForFeed,
 ): boolean {
   if (isOwner) return true; // viewing your own profile → see all your activity
   if (!isViewerTeamMember) return false; // not a member of the scoping team → nothing
-  return isConversationTeamVisibleSync(conversation as any, ownerMembershipVisibility);
+  return isConversationTeamVisibleSync(
+    conversation as any,
+    ownerMembershipVisibility,
+  );
 }
 
 // Builds the predicate used to filter a target user's conversations on their
@@ -394,13 +479,14 @@ export async function getProfileVisibilityPredicate(
   ctx: DbCtx,
   viewerId: Id<"users"> | null,
   targetUserId: Id<"users">,
-  teamId: Id<"teams"> | undefined
+  teamId: Id<"teams"> | undefined,
 ): Promise<(conversation: ConversationForFeed) => boolean> {
-  if (viewerId && viewerId.toString() === targetUserId.toString()) return () => true;
+  if (viewerId && viewerId.toString() === targetUserId.toString())
+    return () => true;
   if (!viewerId || !teamId) return () => false;
   const filter = await createTeamFeedFilter(ctx, teamId);
   const isMember = filter.memberships.some(
-    (m) => m.user_id.toString() === viewerId.toString()
+    (m) => m.user_id.toString() === viewerId.toString(),
   );
   // The feed filter's own rule, so a profile read under this team shows only
   // what the owner shares with THIS team.
@@ -449,7 +535,9 @@ export type DirectoryMapping = {
 };
 
 /** The repository key of a session, from the remote its checkout recorded. */
-export function conversationRepository(conv: { git_remote_url?: string | null } | null | undefined): string | undefined {
+export function conversationRepository(
+  conv: { git_remote_url?: string | null } | null | undefined,
+): string | undefined {
   return repositoryKeyOfRemote(conv?.git_remote_url) ?? undefined;
 }
 
@@ -461,7 +549,11 @@ export function mappingCoversStart(
   mapping: Pick<DirectoryMapping, "share_since">,
   startedAt: number | undefined,
 ): boolean {
-  return mapping.share_since == null || startedAt == null || startedAt >= mapping.share_since;
+  return (
+    mapping.share_since == null ||
+    startedAt == null ||
+    startedAt >= mapping.share_since
+  );
 }
 
 // The mapping a session falls under. A directory rule is the explicit word
@@ -478,13 +570,21 @@ export function resolveTeamForPath(
   fallbackTeamId: Id<"teams"> | undefined,
   startedAt?: number,
   repository?: string | null,
-): { teamId: Id<"teams"> | undefined; isPrivate: boolean; autoShared: boolean } {
+): {
+  teamId: Id<"teams"> | undefined;
+  isPrivate: boolean;
+  autoShared: boolean;
+} {
   let resolvedTeamId = fallbackTeamId;
   let isPrivate = true;
   let autoShared = false;
 
   if ((conversationPath || repository) && userMappings.length > 0) {
-    const bestMatch = matchDirectoryMapping(userMappings, conversationPath, repository);
+    const bestMatch = matchDirectoryMapping(
+      userMappings,
+      conversationPath,
+      repository,
+    );
 
     if (bestMatch?.private) {
       // A lock: private, and routed nowhere. The team fallback never applies.
@@ -508,12 +608,17 @@ export function resolveTeamForPath(
 // routing — stamped even on private sessions — but on work items team_id alone
 // grants every team member full read access (canAccessTask has no privacy
 // gate), so propagating it from a private session leaks the item to the team.
-export function teamVisibleConvTeam<T = Id<"teams">>(conv: {
-  team_id?: T;
-  is_private?: boolean;
-  auto_shared?: boolean;
-  team_visibility?: string;
-} | null | undefined): T | undefined {
+export function teamVisibleConvTeam<T = Id<"teams">>(
+  conv:
+    | {
+        team_id?: T;
+        is_private?: boolean;
+        auto_shared?: boolean;
+        team_visibility?: string;
+      }
+    | null
+    | undefined,
+): T | undefined {
   return sharedTeamVisibleConvTeam<T>(conv);
 }
 
@@ -564,13 +669,16 @@ export async function resolveCreationPrivacy(
  * other row returns null and the caller resolves from the path as usual.
  */
 export function inheritedChildPrivacy(
-  parent: {
-    user_id?: Id<"users">;
-    team_id?: Id<"teams">;
-    is_private?: boolean;
-    auto_shared?: boolean;
-    team_visibility?: "summary" | "full" | "private";
-  } | null | undefined,
+  parent:
+    | {
+        user_id?: Id<"users">;
+        team_id?: Id<"teams">;
+        is_private?: boolean;
+        auto_shared?: boolean;
+        team_visibility?: "summary" | "full" | "private";
+      }
+    | null
+    | undefined,
   ownerId: Id<"users">,
 ): {
   team_id: Id<"teams"> | undefined;
@@ -584,7 +692,9 @@ export function inheritedChildPrivacy(
     team_id: parent.team_id,
     is_private: isPrivate,
     auto_shared: !isPrivate && parent.auto_shared ? true : undefined,
-    ...(parent.team_visibility ? { team_visibility: parent.team_visibility } : {}),
+    ...(parent.team_visibility
+      ? { team_visibility: parent.team_visibility }
+      : {}),
   };
 }
 
@@ -599,10 +709,17 @@ export function inheritedChildPrivacy(
 // team_id is only omitted if the owner belongs to no team at all.
 export async function buildShareUpdate(
   ctx: DbCtx,
-  conversation: { team_id?: Id<"teams">; git_root?: string; project_path?: string; git_remote_url?: string },
-  ownerId: Id<"users">
+  conversation: {
+    team_id?: Id<"teams">;
+    git_root?: string;
+    project_path?: string;
+    git_remote_url?: string;
+  },
+  ownerId: Id<"users">,
 ): Promise<{ is_private: false; team_id?: Id<"teams"> }> {
-  const updates: { is_private: false; team_id?: Id<"teams"> } = { is_private: false };
+  const updates: { is_private: false; team_id?: Id<"teams"> } = {
+    is_private: false,
+  };
   if (conversation.team_id) {
     updates.team_id = conversation.team_id;
     return updates;
@@ -628,7 +745,8 @@ export async function buildShareUpdate(
   const fallback = owner?.active_team_id ?? owner?.team_id;
   // The pointer outlives a lapsed membership: sharing into a team the owner
   // has left would show the conversation to people they no longer work with.
-  if (fallback && (await isTeamMember(ctx, ownerId, fallback))) updates.team_id = fallback;
+  if (fallback && (await isTeamMember(ctx, ownerId, fallback)))
+    updates.team_id = fallback;
   return updates;
 }
 
@@ -658,10 +776,18 @@ export function buildPathRestampUpdate(
     git_remote_url?: string;
   },
   mappings: DirectoryMapping[],
-  conversationPath: string | undefined
-): { team_id?: Id<"teams">; is_private?: boolean; auto_shared?: boolean } | null {
+  conversationPath: string | undefined,
+): {
+  team_id?: Id<"teams">;
+  is_private?: boolean;
+  auto_shared?: boolean;
+} | null {
   if (conversation.team_visibility === "private") return null;
-  if (conversation.is_private === false && !conversation.auto_shared && conversation.team_id)
+  if (
+    conversation.is_private === false &&
+    !conversation.auto_shared &&
+    conversation.team_id
+  )
     return null;
 
   const { teamId, autoShared } = resolveTeamForPath(
@@ -673,7 +799,11 @@ export function buildPathRestampUpdate(
   );
   if (!teamId) return null;
 
-  const patch: { team_id?: Id<"teams">; is_private?: boolean; auto_shared?: boolean } = {};
+  const patch: {
+    team_id?: Id<"teams">;
+    is_private?: boolean;
+    auto_shared?: boolean;
+  } = {};
   if (conversation.team_id?.toString() !== teamId.toString()) {
     patch.team_id = teamId;
   }
@@ -700,7 +830,7 @@ const MEMBERSHIP_TO_VISIBILITY: Record<string, VisibilityMode> = {
 export function resolveVisibilityMode(
   teamVisibility: string | undefined,
   ownerMembershipVisibility: string | undefined,
-  isTeamFilter: boolean
+  isTeamFilter: boolean,
 ): VisibilityMode {
   if (!isTeamFilter) return "full";
   if (teamVisibility) return teamVisibility as VisibilityMode;

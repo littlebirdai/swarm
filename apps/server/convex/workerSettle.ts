@@ -2,7 +2,15 @@ import { isClosedSession } from "@codecast/shared/contracts";
 import { internalMutation } from "./functions";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { ACTIVE_AGENT_STATUSES, WORKER_SETTLE_WORDS, formatScheduledTask, isToolResultCarrier, parseUserMessage, threadStateFreshness, threadStateHeadline } from "@codecast/shared/contracts";
+import {
+  ACTIVE_AGENT_STATUSES,
+  WORKER_SETTLE_WORDS,
+  formatScheduledTask,
+  isToolResultCarrier,
+  parseUserMessage,
+  threadStateFreshness,
+  threadStateHeadline,
+} from "@codecast/shared/contracts";
 import { isUserMessageNoise, stripMessageTags } from "./lib/userSend";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { drainFleet } from "./subagentFleet";
@@ -38,19 +46,33 @@ export const REPORT_COVERS_SETTLE_MS = 5 * 60_000;
  *  daemon re-derives dormant, done and waiting from the declaration at every
  *  turn end, so the status alone decides; the pinned line only words a plain
  *  settle. */
-export function workerSettleWhy(w: WorkerRow, agentStatus: string | undefined, now: number): string | null {
+export function workerSettleWhy(
+  w: WorkerRow,
+  agentStatus: string | undefined,
+  now: number,
+): string | null {
   if (!agentStatus || ACTIVE_AGENT_STATUSES.has(agentStatus)) return null;
   if (agentStatus === "dormant" || agentStatus === "waiting") return null;
-  if (agentStatus === "stopped" || agentStatus === "permission_blocked" || agentStatus === "done") return agentStatus;
-  const blocked = w.thread_state_status === "blocked" && !!w.thread_state &&
+  if (
+    agentStatus === "stopped" ||
+    agentStatus === "permission_blocked" ||
+    agentStatus === "done"
+  )
+    return agentStatus;
+  const blocked =
+    w.thread_state_status === "blocked" &&
+    !!w.thread_state &&
     threadStateFreshness(w, w.message_count ?? 0, now).freshness !== "stale";
   return blocked ? "blocked" : "ended";
 }
 
 /** The worker told its parent the result itself at the end of this turn. */
 function reportedItself(w: WorkerRow, why: string, settledAt: number): boolean {
-  return (why === "ended" || why === "done") && w.reported_to_parent_at !== undefined &&
-    settledAt - w.reported_to_parent_at <= REPORT_COVERS_SETTLE_MS;
+  return (
+    (why === "ended" || why === "done") &&
+    w.reported_to_parent_at !== undefined &&
+    settledAt - w.reported_to_parent_at <= REPORT_COVERS_SETTLE_MS
+  );
 }
 
 function episodeOf(w: WorkerRow): string {
@@ -63,30 +85,54 @@ function refOf(w: WorkerRow): string {
 
 /** The frame the parent reads: one `<worker-report>` per worker (the web draws
  *  each as a live session row), a title for previews, and the ask. */
-export function workerSettleFrame(told: Array<{ worker: WorkerRow; why: string; typed?: string }>, now: number) {
+export function workerSettleFrame(
+  told: Array<{ worker: WorkerRow; why: string; typed?: string }>,
+  now: number,
+) {
   const workers = told.map(({ worker, why, typed }) => ({
     short_id: refOf(worker),
     title: (worker.title ?? "").slice(0, 80),
     why,
     since: now,
-    state: threadStateHeadline(worker.thread_state ?? "") || (typed ?? "").replace(/\s+/g, " ").slice(0, 200),
+    state:
+      threadStateHeadline(worker.thread_state ?? "") ||
+      (typed ?? "").replace(/\s+/g, " ").slice(0, 200),
   }));
-  const title = told.length === 1
-    ? `Worker ${workers[0].short_id} ${WORKER_SETTLE_WORDS[told[0].why]}`
-    : `${told.length} workers settled`;
-  const read = told.length === 1 ? `cast read ${workers[0].short_id}` : "cast read <id>";
-  return { title, workers, body: `Read the result with ${read} and act on it.` };
+  const title =
+    told.length === 1
+      ? `Worker ${workers[0].short_id} ${WORKER_SETTLE_WORDS[told[0].why]}`
+      : `${told.length} workers settled`;
+  const read =
+    told.length === 1 ? `cast read ${workers[0].short_id}` : "cast read <id>";
+  return {
+    title,
+    workers,
+    body: `Read the result with ${read} and act on it.`,
+  };
 }
 
 /** The last line a person typed into the worker, for a report with nothing
  *  pinned. The conversation's last_message_preview is the last user-role row of
  *  any origin, so a harness notification or a session message would read as
  *  the report; those are skipped, and so is everything else that is not typed. */
-async function lastTypedLine(ctx: any, conversationId: Id<"conversations">): Promise<string> {
+async function lastTypedLine(
+  ctx: any,
+  conversationId: Id<"conversations">,
+): Promise<string> {
   let seen = 0;
-  for await (const m of ctx.db.query("messages").withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conversationId)).order("desc")) {
+  for await (const m of ctx.db
+    .query("messages")
+    .withIndex("by_conversation_timestamp", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
+    .order("desc")) {
     if (++seen > TYPED_SCAN_LIMIT) break;
-    if (m.role !== "user" || isToolResultCarrier(m) || isUserMessageNoise(m.content ?? "")) continue;
+    if (
+      m.role !== "user" ||
+      isToolResultCarrier(m) ||
+      isUserMessageNoise(m.content ?? "")
+    )
+      continue;
     return parseUserMessage(m.content)?.body ?? stripMessageTags(m.content);
   }
   return "";
@@ -95,7 +141,9 @@ async function lastTypedLine(ctx: any, conversationId: Id<"conversations">): Pro
 async function statusOf(ctx: any, conversationId: Id<"conversations">) {
   return await ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .first();
 }
 
@@ -104,38 +152,62 @@ export async function performTellParent(
   args: { conversation_id: Id<"conversations">; status_ts?: number },
 ): Promise<{ told: number; reason?: string }> {
   const worker: WorkerRow | null = await ctx.db.get(args.conversation_id);
-  if (!worker || !worker.message_count || !isSpawnedWorker(worker)) return { told: 0, reason: "not_worker" };
+  if (!worker || !worker.message_count || !isSpawnedWorker(worker))
+    return { told: 0, reason: "not_worker" };
   // A closed worker stopped because the person closed it: its "stopped" is the
   // teardown, not news for its lead (closedSession.ts: machine reports treat a
   // close like a kill).
   if (isClosedSession(worker)) return { told: 0, reason: "closed" };
   const session = await statusOf(ctx, worker._id);
   // A newer status change owns its own check.
-  if (args.status_ts !== undefined && session?.agent_status_updated_at !== args.status_ts) return { told: 0, reason: "superseded" };
+  if (
+    args.status_ts !== undefined &&
+    session?.agent_status_updated_at !== args.status_ts
+  )
+    return { told: 0, reason: "superseded" };
   const parent = await ctx.db.get(worker.parent_conversation_id!);
   // A closed lead still hears its worker: a worker woken by its own trigger or a
   // send did real work, and its report is a wake for the lead (a real one).
-  if (!parent || String(parent.user_id) !== String(worker.user_id) || parent.inbox_killed_at) return { told: 0, reason: "no_parent" };
+  if (
+    !parent ||
+    String(parent.user_id) !== String(worker.user_id) ||
+    parent.inbox_killed_at
+  )
+    return { told: 0, reason: "no_parent" };
 
   const now = Date.now();
   const siblings: WorkerRow[] = await ctx.db
     .query("conversations")
-    .withIndex("by_parent_conversation_id", (q: any) => q.eq("parent_conversation_id", parent._id))
+    .withIndex("by_parent_conversation_id", (q: any) =>
+      q.eq("parent_conversation_id", parent._id),
+    )
     .order("desc")
     .take(SIBLING_SCAN_LIMIT);
-  const candidates = [worker, ...siblings.filter((s) => String(s._id) !== String(worker._id))];
+  const candidates = [
+    worker,
+    ...siblings.filter((s) => String(s._id) !== String(worker._id)),
+  ];
   const told: Array<{ worker: WorkerRow; why: string; typed?: string }> = [];
   for (const c of candidates) {
-    if (!c.message_count || !isSpawnedWorker(c) || c.hand_wake_notified_key === episodeOf(c) || isClosedSession(c)) continue;
+    if (
+      !c.message_count ||
+      !isSpawnedWorker(c) ||
+      c.hand_wake_notified_key === episodeOf(c) ||
+      isClosedSession(c)
+    )
+      continue;
     const status = c === worker ? session : await statusOf(ctx, c._id);
     const why = workerSettleWhy(c, status?.agent_status, now);
-    if (why && !reportedItself(c, why, status?.agent_status_updated_at ?? now)) told.push({ worker: c, why });
+    if (why && !reportedItself(c, why, status?.agent_status_updated_at ?? now))
+      told.push({ worker: c, why });
   }
   // A settled worker gives its slot back, and the queue behind it starts.
-  if ((worker as any).subagent_slot === "running") await drainFleet(ctx, worker.user_id);
+  if ((worker as any).subagent_slot === "running")
+    await drainFleet(ctx, worker.user_id);
   if (told.length === 0) return { told: 0, reason: "already" };
   for (const t of told) {
-    if (!threadStateHeadline(t.worker.thread_state ?? "")) t.typed = await lastTypedLine(ctx, t.worker._id);
+    if (!threadStateHeadline(t.worker.thread_state ?? ""))
+      t.typed = await lastTypedLine(ctx, t.worker._id);
   }
 
   await enqueuePendingMessage(ctx, parent, worker.user_id, {
@@ -143,7 +215,8 @@ export async function performTellParent(
     origin: "scheduler",
     client_id: `worker-settled:${told.map(({ worker: w }) => `${w._id}@${episodeOf(w)}`).join(",")}`,
   });
-  for (const { worker: w } of told) await ctx.db.patch(w._id, { hand_wake_notified_key: episodeOf(w) });
+  for (const { worker: w } of told)
+    await ctx.db.patch(w._id, { hand_wake_notified_key: episodeOf(w) });
   return { told: told.length };
 }
 
@@ -151,6 +224,9 @@ export async function performTellParent(
  *  for spawned workers only, one idle grace out. */
 
 export const tellParent = internalMutation({
-  args: { conversation_id: v.id("conversations"), status_ts: v.optional(v.number()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    status_ts: v.optional(v.number()),
+  },
   handler: (ctx, args) => performTellParent(ctx, args),
 });

@@ -20,8 +20,16 @@ describe("rich editor text", () => {
     }
   });
   test("what the browser makes while typing becomes marks", () => {
-    expect(fromHtml("Ship <b>now</b><div>second <i>line</i></div><div><br></div><div>• item</div>")).toBe("Ship **now**\nsecond *line*\n\n- item");
-    expect(fromHtml('<span style="font-weight: 700;">bold</span> and <strike>gone</strike>')).toBe("**bold** and ~~gone~~");
+    expect(
+      fromHtml(
+        "Ship <b>now</b><div>second <i>line</i></div><div><br></div><div>• item</div>",
+      ),
+    ).toBe("Ship **now**\nsecond *line*\n\n- item");
+    expect(
+      fromHtml(
+        '<span style="font-weight: 700;">bold</span> and <strike>gone</strike>',
+      ),
+    ).toBe("**bold** and ~~gone~~");
     expect(fromHtml('see <a href="javascript:x">trap</a>')).toBe("see trap");
   });
   test("marks keep surrounding spaces outside them", () => {
@@ -31,7 +39,9 @@ describe("rich editor text", () => {
 
 describe("a mark over a whole list line", () => {
   test("the bullet stays list formatting, outside the link or bold", () => {
-    expect(fromHtml('<div><a href="https://x.dev/d">• see dashboard</a></div>')).toBe("- [see dashboard](https://x.dev/d)");
+    expect(
+      fromHtml('<div><a href="https://x.dev/d">• see dashboard</a></div>'),
+    ).toBe("- [see dashboard](https://x.dev/d)");
     expect(fromHtml("<div><b>• ship it</b></div>")).toBe("- **ship it**");
   });
 });

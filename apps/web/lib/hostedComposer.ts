@@ -9,9 +9,21 @@ import { hostedNoticeKind } from "./hostedNotice";
 /** The last exchange: the assistant asked the person something, answered,
  *  stopped on a notice; or the person's message is the last word, after
  *  saying no to one of its approvals or not. Null for an empty conversation. */
-export type HostedLast = "asked" | "answered" | "declined" | "stopped" | "sent" | null;
+export type HostedLast =
+  | "asked"
+  | "answered"
+  | "declined"
+  | "stopped"
+  | "sent"
+  | null;
 
-type Row = { role?: string; content?: string | null; timestamp?: number; subtype?: string | null; message_uuid?: string | null };
+type Row = {
+  role?: string;
+  content?: string | null;
+  timestamp?: number;
+  subtype?: string | null;
+  message_uuid?: string | null;
+};
 
 /** A no invites a change only for DECLINE_HINT_MS (hostedDeclinedSince with
  *  `now`), so a cold revisit reads as an answered conversation rather than an
@@ -31,7 +43,14 @@ export function hostedLastExchange(
       return replyAsksPerson(row.content) ? "asked" : "answered";
     }
     if (row?.role === "user" && row.content?.trim()) {
-      return hostedDeclinedSince(decisions, conversationId, row.timestamp ?? 0, now) ? "declined" : "sent";
+      return hostedDeclinedSince(
+        decisions,
+        conversationId,
+        row.timestamp ?? 0,
+        now,
+      )
+        ? "declined"
+        : "sent";
     }
   }
   return null;
@@ -40,11 +59,16 @@ export function hostedLastExchange(
 /** The composer's resting words for that exchange: an open card is answered
  *  above, a question gets a reply, a no invites a change, a stop points at
  *  its own Try again, and an empty conversation invites a new chore. */
-export function hostedComposerWords(last: HostedLast, awaitsOk: boolean): string {
+export function hostedComposerWords(
+  last: HostedLast,
+  awaitsOk: boolean,
+): string {
   if (awaitsOk) return "Answer the card above, or tell me what to change";
   if (last === "asked") return "Reply…";
   if (last === "declined") return "Tell me what to change";
   // The stop notice carries its own Try again, so this offers the other way on.
   if (last === "stopped") return "Or ask something else";
-  return last ? "Reply, or ask a follow-up" : "Ask anything, or hand me a chore";
+  return last
+    ? "Reply, or ask a follow-up"
+    : "Ask anything, or hand me a chore";
 }

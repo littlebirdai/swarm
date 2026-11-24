@@ -7,6 +7,13 @@ import { useVisitorQuery } from "../lib/identity";
 
 const NONE: BuildProgress = { narration: [], files_touched: [] };
 
-export function useBuildProgress(buildId: Id<"builds"> | null | undefined): BuildProgress {
-  return useVisitorQuery(api.builds.progress, buildId ? { build_id: buildId } : "skip") ?? NONE;
+export function useBuildProgress(
+  buildId: Id<"builds"> | null | undefined,
+): BuildProgress {
+  return (
+    useVisitorQuery(
+      api.builds.progress,
+      buildId ? { build_id: buildId } : "skip",
+    ) ?? NONE
+  );
 }

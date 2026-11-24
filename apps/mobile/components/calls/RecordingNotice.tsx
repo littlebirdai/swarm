@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import * as Haptics from "expo-haptics";
-import { owesRecordingNotice, RECORDING_STARTED_TITLE, startedWords, STOP_RECORDING_ASK } from "@codecast/web/lib/calls/roomRecordingEnd";
+import {
+  owesRecordingNotice,
+  RECORDING_STARTED_TITLE,
+  startedWords,
+  STOP_RECORDING_ASK,
+} from "@codecast/web/lib/calls/roomRecordingEnd";
 import { Text } from "@/components/Themed";
 // A call surface is always dark (Solarized base03), whatever the app scheme.
 import { SolarizedLight as Theme } from "@/constants/Theme";
 import { getCallSnapshot, subscribeCall } from "@/lib/calls/callManager";
-import { useConfirmStopRecording, useRoomRecordingMark } from "@/lib/calls/recordingMark";
+import {
+  useConfirmStopRecording,
+  useRoomRecordingMark,
+} from "@/lib/calls/recordingMark";
 import { useMyUserId } from "@codecast/web/store/inboxStore";
 import { LivePulse } from "./LiveRooms";
 
@@ -24,7 +32,8 @@ function noteToldRun(runId: string, roomKey: string): void {
   toldRuns.set(runId, roomKey);
   forgetOnLeave ??= subscribeCall(() => {
     const seat = getCallSnapshot().roomKey;
-    for (const [run, room] of [...toldRuns]) if (room !== seat) toldRuns.delete(run);
+    for (const [run, room] of [...toldRuns])
+      if (room !== seat) toldRuns.delete(run);
   });
 }
 const toldRun = (runId: string) => toldRuns.has(runId);
@@ -38,7 +47,13 @@ const toldRun = (runId: string) => toldRuns.has(runId);
  * a run started while the person is on another tab must not wait for them
  * to reopen the call to be said.
  */
-export function RecordingNotice({ roomKey, floating }: { roomKey: string | null; floating?: { top: number } }) {
+export function RecordingNotice({
+  roomKey,
+  floating,
+}: {
+  roomKey: string | null;
+  floating?: { top: number };
+}) {
   const { live } = useRoomRecordingMark(roomKey);
   const confirmStop = useConfirmStopRecording(roomKey);
   const me = useMyUserId();
@@ -58,17 +73,40 @@ export function RecordingNotice({ roomKey, floating }: { roomKey: string | null;
   }, [roomKey, runId, owed]);
   if (!live || live.status === "stopping" || shown !== live.run_id) return null;
   const card = (
-    <View style={[recNoticeStyles.recNotice, floating && styles.floatingCard]} accessibilityRole="alert">
+    <View
+      style={[recNoticeStyles.recNotice, floating && styles.floatingCard]}
+      accessibilityRole="alert"
+    >
       <LivePulse color={Theme.red} size={6} />
       <View style={recNoticeStyles.recNoticeBody}>
-        <Text style={recNoticeStyles.recNoticeTitle}>{RECORDING_STARTED_TITLE}</Text>
+        <Text style={recNoticeStyles.recNoticeTitle}>
+          {RECORDING_STARTED_TITLE}
+        </Text>
         <Text style={recNoticeStyles.recNoticeText}>{startedWords(live)}</Text>
         <View style={recNoticeStyles.recNoticeActions}>
-          <Pressable onPress={() => setShown(null)} hitSlop={6} style={({ pressed }) => [recNoticeStyles.recNoticeBtn, pressed && recNoticeStyles.pressed]}>
+          <Pressable
+            onPress={() => setShown(null)}
+            hitSlop={6}
+            style={({ pressed }) => [
+              recNoticeStyles.recNoticeBtn,
+              pressed && recNoticeStyles.pressed,
+            ]}
+          >
             <Text style={recNoticeStyles.recNoticeBtnText}>Got it</Text>
           </Pressable>
-          <Pressable onPress={confirmStop} hitSlop={6} style={({ pressed }) => [recNoticeStyles.recNoticeBtn, pressed && recNoticeStyles.pressed]}>
-            <Text style={[recNoticeStyles.recNoticeBtnText, { color: Theme.red }]}>{STOP_RECORDING_ASK.stop}</Text>
+          <Pressable
+            onPress={confirmStop}
+            hitSlop={6}
+            style={({ pressed }) => [
+              recNoticeStyles.recNoticeBtn,
+              pressed && recNoticeStyles.pressed,
+            ]}
+          >
+            <Text
+              style={[recNoticeStyles.recNoticeBtnText, { color: Theme.red }]}
+            >
+              {STOP_RECORDING_ASK.stop}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -96,13 +134,24 @@ export const recNoticeStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(220,50,47,0.30)",
   },
-  recNoticeEnded: { backgroundColor: "rgba(253,246,227,0.06)", borderColor: "rgba(253,246,227,0.14)" },
-  recNoticeFailed: { backgroundColor: "rgba(203,75,22,0.12)", borderColor: "rgba(203,75,22,0.35)" },
+  recNoticeEnded: {
+    backgroundColor: "rgba(253,246,227,0.06)",
+    borderColor: "rgba(253,246,227,0.14)",
+  },
+  recNoticeFailed: {
+    backgroundColor: "rgba(203,75,22,0.12)",
+    borderColor: "rgba(203,75,22,0.35)",
+  },
   recNoticeDot: { width: 7, height: 7, borderRadius: 3.5, marginTop: 4 },
   recNoticeBody: { flex: 1, gap: 2, marginTop: -3 },
   recNoticeTitle: { fontSize: 12.5, color: Theme.bgAlt },
   recNoticeText: { fontSize: 11.5, lineHeight: 16, color: Theme.textDim },
-  recNoticeActions: { flexDirection: "row", gap: 6, marginTop: 6, marginLeft: -6 },
+  recNoticeActions: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 6,
+    marginLeft: -6,
+  },
   recNoticeBtn: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 },
   recNoticeBtnText: { fontSize: 11.5, color: Theme.bgAlt },
   pressed: { opacity: 0.6 },

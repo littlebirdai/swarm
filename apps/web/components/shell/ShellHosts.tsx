@@ -9,12 +9,30 @@ import { useInboxStore, type CreateModalKind } from "../../store/inboxStore";
 import { teamMembersOf } from "../../lib/activeTeam";
 import { lazyNamed } from "../../lib/lazyNamed";
 
-const CommandPalette = lazyNamed(() => import("../CommandPalette"), "CommandPalette");
-const PeopleWallModal = lazyNamed(() => import("../people/PeopleWallModal"), "PeopleWallModal");
-const CreateTaskModal = lazyNamed(() => import("../CreateTaskModal"), "CreateTaskModal");
-const CreateDocModal = lazyNamed(() => import("../CreateDocModal"), "CreateDocModal");
-const CreateChannelModal = lazyNamed(() => import("../CreateChannelModal"), "CreateChannelModal");
-const NewMessageModal = lazyNamed(() => import("../chat/NewMessageModal"), "NewMessageModal");
+const CommandPalette = lazyNamed(
+  () => import("../CommandPalette"),
+  "CommandPalette",
+);
+const PeopleWallModal = lazyNamed(
+  () => import("../people/PeopleWallModal"),
+  "PeopleWallModal",
+);
+const CreateTaskModal = lazyNamed(
+  () => import("../CreateTaskModal"),
+  "CreateTaskModal",
+);
+const CreateDocModal = lazyNamed(
+  () => import("../CreateDocModal"),
+  "CreateDocModal",
+);
+const CreateChannelModal = lazyNamed(
+  () => import("../CreateChannelModal"),
+  "CreateChannelModal",
+);
+const NewMessageModal = lazyNamed(
+  () => import("../chat/NewMessageModal"),
+  "NewMessageModal",
+);
 
 // The create dialogs (New → Task, Doc, Plan, Channel, Huddle; the palette's
 // Create group; the board's "+"). One host for the window, mounted at every
@@ -51,7 +69,12 @@ function CreateModal({ kind }: { kind: CreateModalKind }) {
   return (
     <Suspense fallback={null}>
       {kind === "task" && (
-        <CreateTaskModal onClose={close} teamMembers={teamMembers ?? []} currentUser={currentUser} defaults={defaults} />
+        <CreateTaskModal
+          onClose={close}
+          teamMembers={teamMembers ?? []}
+          currentUser={currentUser}
+          defaults={defaults}
+        />
       )}
       {kind === "doc" && <CreateDocModal onClose={close} initialType="note" />}
       {kind === "plan" && <CreateDocModal onClose={close} initialType="plan" />}
@@ -65,7 +88,9 @@ function CreateModal({ kind }: { kind: CreateModalKind }) {
       )}
       {/* "New huddle" is the new-message field with a huddle intent: the
           same people/rooms search, ending in a ring instead of a room. */}
-      {kind === "huddle" && callsOn && <NewMessageModal intent="huddle" onClose={close} />}
+      {kind === "huddle" && callsOn && (
+        <NewMessageModal intent="huddle" onClose={close} />
+      )}
     </Suspense>
   );
 }
@@ -79,7 +104,9 @@ export function PaletteHost() {
     <>
       {open && (
         <ErrorBoundary name="CommandPalette" level="inline">
-          <Suspense fallback={null}><CommandPalette /></Suspense>
+          <Suspense fallback={null}>
+            <CommandPalette />
+          </Suspense>
         </ErrorBoundary>
       )}
       <ErrorBoundary name="AppAddressBar" level="inline">
@@ -97,7 +124,9 @@ export function PeopleWallHost() {
   if (!open) return null;
   return (
     <ErrorBoundary name="PeopleWallModal" level="panel">
-      <Suspense fallback={null}><PeopleWallModal /></Suspense>
+      <Suspense fallback={null}>
+        <PeopleWallModal />
+      </Suspense>
     </ErrorBoundary>
   );
 }

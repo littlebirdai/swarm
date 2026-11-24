@@ -16,12 +16,12 @@ import { checkConversationAccess } from "./privacy";
 async function getGrant(
   ctx: { db: any },
   conversationId: Id<"conversations">,
-  granteeId: Id<"users">
+  granteeId: Id<"users">,
 ): Promise<any | null> {
   return await ctx.db
     .query("collab_grants")
     .withIndex("by_conversation_grantee", (q: any) =>
-      q.eq("conversation_id", conversationId).eq("grantee_user_id", granteeId)
+      q.eq("conversation_id", conversationId).eq("grantee_user_id", granteeId),
     )
     .first();
 }
@@ -31,7 +31,7 @@ async function getGrant(
 export async function hasGrantedSendAccess(
   ctx: { db: any },
   conversationId: Id<"conversations">,
-  userId: Id<"users">
+  userId: Id<"users">,
 ): Promise<boolean> {
   const grant = await getGrant(ctx, conversationId, userId);
   return grant?.status === "granted";
@@ -51,8 +51,13 @@ export const mySendAccess = query({
   args: { conversation_id: v.string() },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    const conversationId = ctx.db.normalizeId("conversations", args.conversation_id);
-    const conversation = conversationId ? await ctx.db.get(conversationId) : null;
+    const conversationId = ctx.db.normalizeId(
+      "conversations",
+      args.conversation_id,
+    );
+    const conversation = conversationId
+      ? await ctx.db.get(conversationId)
+      : null;
     if (!conversation) return { level: "denied" as const };
 
     if (!userId) return { level: "anonymous" as const };
@@ -64,7 +69,10 @@ export const mySendAccess = query({
 
     const grant = await getGrant(ctx, conversation._id, userId);
     if (!grant) return { level: "shared" as const };
-    return { level: grant.status as "requested" | "granted" | "denied" | "revoked", grant_id: grant._id };
+    return {
+      level: grant.status as "requested" | "granted" | "denied" | "revoked",
+      grant_id: grant._id,
+    };
   },
 });
 
@@ -80,22 +88,31 @@ export const requestSendAccess = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Sign in to request send access");
 
-    const conversationId = ctx.db.normalizeId("conversations", args.conversation_id);
-    const conversation = conversationId ? await ctx.db.get(conversationId) : null;
-    if (!conversation || !conversationId) throw new Error("Conversation not found");
+    const conversationId = ctx.db.normalizeId(
+      "conversations",
+      args.conversation_id,
+    );
+    const conversation = conversationId
+      ? await ctx.db.get(conversationId)
+      : null;
+    if (!conversation || !conversationId)
+      throw new Error("Conversation not found");
 
     const access = await checkConversationAccess(ctx, userId, conversation);
     if (access === "owner") return { level: "owner" as const };
     if (access === "team") return { level: "team" as const };
     // Only a share-link recipient (not owner, not team) goes through the gate.
-    if (access !== "shared") throw new Error("This conversation isn't shared with you");
+    if (access !== "shared")
+      throw new Error("This conversation isn't shared with you");
 
     const user = await ctx.db.get(userId);
-    const name = user?.name || user?.github_username || user?.email || "A teammate";
+    const name =
+      user?.name || user?.github_username || user?.email || "A teammate";
     const image = user?.image || user?.github_avatar_url;
 
     const existing = await getGrant(ctx, conversationId, userId);
-    if (existing?.status === "granted") return { level: "granted" as const, grant_id: existing._id };
+    if (existing?.status === "granted")
+      return { level: "granted" as const, grant_id: existing._id };
 
     const now = Date.now();
     let grantId: Id<"collab_grants">;
@@ -174,7 +191,10 @@ export const revokeSendAccess = mutation({
       throw new Error("Only the session owner can revoke this");
     }
 
-    await ctx.db.patch(args.grant_id, { status: "revoked" as const, updated_at: Date.now() });
+    await ctx.db.patch(args.grant_id, {
+      status: "revoked" as const,
+      updated_at: Date.now(),
+    });
     return { status: "revoked" };
   },
 });
@@ -192,15 +212,21 @@ export const collabRequests = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
-    const conversationId = ctx.db.normalizeId("conversations", args.conversation_id);
+    const conversationId = ctx.db.normalizeId(
+      "conversations",
+      args.conversation_id,
+    );
     if (!conversationId) return [];
 
     const conversation = await ctx.db.get(conversationId);
-    if (!conversation || conversation.user_id.toString() !== userId.toString()) return [];
+    if (!conversation || conversation.user_id.toString() !== userId.toString())
+      return [];
 
     const grants = await ctx.db
       .query("collab_grants")
-      .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+      .withIndex("by_conversation", (q: any) =>
+        q.eq("conversation_id", conversationId),
+      )
       .collect();
 
     return grants

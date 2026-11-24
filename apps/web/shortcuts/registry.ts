@@ -11,10 +11,17 @@ import {
   isEditableTarget,
   inputGuardBypass,
   altChordDirection,
-} from '@platform/keys';
-import { useSyncExternalStore } from 'react';
-import { SHORTCUTS, type ShortcutAction, type ShortcutDef } from '@codecast/shared/contracts/shortcutCatalog';
-import { applyKeyBindings, type KeyBindingOverride } from '@codecast/shared/contracts/keyBindings';
+} from "@platform/keys";
+import { useSyncExternalStore } from "react";
+import {
+  SHORTCUTS,
+  type ShortcutAction,
+  type ShortcutDef,
+} from "@codecast/shared/contracts/shortcutCatalog";
+import {
+  applyKeyBindings,
+  type KeyBindingOverride,
+} from "@codecast/shared/contracts/keyBindings";
 
 export { SHORTCUTS, type ShortcutAction, type ShortcutDef };
 export { hasOpenModal, isEditableTarget, inputGuardBypass, altChordDirection };
@@ -29,12 +36,19 @@ const listeners = new Set<() => void>();
 
 /** Applies the person's bindings (client_state.ui.key_bindings) to the live
  *  catalog. Every chord match, label and help row reads the result. */
-export function setKeyBindings(overrides: KeyBindingOverride[] | undefined): void {
+export function setKeyBindings(
+  overrides: KeyBindingOverride[] | undefined,
+): void {
   const next = overrides ?? [];
   if (JSON.stringify(next) === JSON.stringify(appliedOverrides)) return;
   appliedOverrides = next;
   const live = applyKeyBindings(SHORTCUTS, next, shortcutCatalog.isMac);
-  Object.assign(shortcutCatalog, createShortcutCatalog<ShortcutAction>(live, { isMac: shortcutCatalog.isMac }));
+  Object.assign(
+    shortcutCatalog,
+    createShortcutCatalog<ShortcutAction>(live, {
+      isMac: shortcutCatalog.isMac,
+    }),
+  );
   version++;
   for (const fn of [...listeners]) fn();
 }
@@ -47,7 +61,12 @@ export function getKeyBindings(): KeyBindingOverride[] {
 /** Re-renders when the bindings change. For surfaces that list or label keys. */
 export function useKeyBindingsVersion(): number {
   return useSyncExternalStore(
-    (fn) => { listeners.add(fn); return () => { listeners.delete(fn); }; },
+    (fn) => {
+      listeners.add(fn);
+      return () => {
+        listeners.delete(fn);
+      };
+    },
     () => version,
     () => version,
   );
@@ -55,9 +74,13 @@ export function useKeyBindingsVersion(): number {
 
 /** An action's first live binding as keycap parts (null when unbound),
  *  re-rendering when the person rebinds it. Every key hint reads this. */
-export function useShortcutParts(action: ShortcutAction | undefined): string[] | null {
+export function useShortcutParts(
+  action: ShortcutAction | undefined,
+): string[] | null {
   useKeyBindingsVersion();
-  const def = action ? shortcutCatalog.getShortcutsForAction(action)[0] : undefined;
+  const def = action
+    ? shortcutCatalog.getShortcutsForAction(action)[0]
+    : undefined;
   return def ? shortcutCatalog.formatShortcutParts(def) : null;
 }
 
@@ -69,16 +92,29 @@ export function withShortcut(label: string, action: ShortcutAction): string {
 }
 
 export const isMac = shortcutCatalog.isMac;
-export const matchShortcut: typeof shortcutCatalog.matchShortcut = (e, def) => shortcutCatalog.matchShortcut(e, def);
-export const getShortcutsForAction: typeof shortcutCatalog.getShortcutsForAction = (action) => shortcutCatalog.getShortcutsForAction(action);
-export const getShortcutsByContext: typeof shortcutCatalog.getShortcutsByContext = (when) => shortcutCatalog.getShortcutsByContext(when);
-export const formatShortcutParts: typeof shortcutCatalog.formatShortcutParts = (def) => shortcutCatalog.formatShortcutParts(def);
-export const formatAcceleratorParts: typeof shortcutCatalog.formatAcceleratorParts = (acc) => shortcutCatalog.formatAcceleratorParts(acc);
-export const formatShortcutLabel: typeof shortcutCatalog.formatShortcutLabel = (action) => shortcutCatalog.formatShortcutLabel(action);
+export const matchShortcut: typeof shortcutCatalog.matchShortcut = (e, def) =>
+  shortcutCatalog.matchShortcut(e, def);
+export const getShortcutsForAction: typeof shortcutCatalog.getShortcutsForAction =
+  (action) => shortcutCatalog.getShortcutsForAction(action);
+export const getShortcutsByContext: typeof shortcutCatalog.getShortcutsByContext =
+  (when) => shortcutCatalog.getShortcutsByContext(when);
+export const formatShortcutParts: typeof shortcutCatalog.formatShortcutParts = (
+  def,
+) => shortcutCatalog.formatShortcutParts(def);
+export const formatAcceleratorParts: typeof shortcutCatalog.formatAcceleratorParts =
+  (acc) => shortcutCatalog.formatAcceleratorParts(acc);
+export const formatShortcutLabel: typeof shortcutCatalog.formatShortcutLabel = (
+  action,
+) => shortcutCatalog.formatShortcutLabel(action);
 
 /** Whether a key event is any of an action's live chords. For a page that
  *  reads its own keys rather than registering with the dispatcher, so a
  *  rebinding reaches it too. */
-export function matchesAction(e: KeyboardEvent, action: ShortcutAction): boolean {
-  return shortcutCatalog.getShortcutsForAction(action).some((def) => shortcutCatalog.matchShortcut(e, def));
+export function matchesAction(
+  e: KeyboardEvent,
+  action: ShortcutAction,
+): boolean {
+  return shortcutCatalog
+    .getShortcutsForAction(action)
+    .some((def) => shortcutCatalog.matchShortcut(e, def));
 }

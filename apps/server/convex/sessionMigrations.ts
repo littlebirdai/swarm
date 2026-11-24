@@ -40,27 +40,59 @@ import type { ResourceOffloadIntent } from "@codecast/shared/contracts/resourceO
  * Nothing here moves files; that is the CLI (apps/cli/src/migrate).
  */
 
-import { policyWorkspaceOf, requireTeamPolicyAllows } from "./lib/teamPolicyGuard";
+import {
+  policyWorkspaceOf,
+  requireTeamPolicyAllows,
+} from "./lib/teamPolicyGuard";
 import { mutation, query, internalMutation } from "./functions";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
 import { Id } from "./_generated/dataModel";
 import { DEVICE_ONLINE_MS } from "./deviceRouting";
-import { enqueueTargetedResume, findPullableConversation, performMoveSessionToDevice, performReassignToDevice } from "./devices";
+import {
+  enqueueTargetedResume,
+  findPullableConversation,
+  performMoveSessionToDevice,
+  performReassignToDevice,
+} from "./devices";
 import { findSharedCheckoutOccupant } from "./cloudPlacement";
 import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
 import { resolveLabelConvIds } from "./buckets";
-import { isDaemonManagedRow, listLiveManagedSessions } from "./lib/liveSessions";
-import { DAEMON_COMMAND_TTL_MS, isClosedSession } from "@codecast/shared/contracts";
+import {
+  isDaemonManagedRow,
+  listLiveManagedSessions,
+} from "./lib/liveSessions";
+import {
+  DAEMON_COMMAND_TTL_MS,
+  isClosedSession,
+} from "@codecast/shared/contracts";
 import { invalidBringPaths } from "@codecast/shared/contracts/moveRehearsal";
 import {
-  type MigrationDirection, type MigrationStatus, IN_FLIGHT_STATUSES, TERMINAL_STATUSES, type PlannedRow, type SkippedRow, type PlanConversation, planMigration, summarizeBatch, STALE_MIGRATION_MS, isStaleMigration, DEFAULT_WAIT_FOR_IDLE_MS, MAX_WAIT_FOR_IDLE_MS, DEFAULT_CONCURRENCY, MAX_CONCURRENCY, MAX_BATCH_ROWS,
+  type MigrationDirection,
+  type MigrationStatus,
+  IN_FLIGHT_STATUSES,
+  TERMINAL_STATUSES,
+  type PlannedRow,
+  type SkippedRow,
+  type PlanConversation,
+  planMigration,
+  summarizeBatch,
+  STALE_MIGRATION_MS,
+  isStaleMigration,
+  DEFAULT_WAIT_FOR_IDLE_MS,
+  MAX_WAIT_FOR_IDLE_MS,
+  DEFAULT_CONCURRENCY,
+  MAX_CONCURRENCY,
+  MAX_BATCH_ROWS,
 } from "./lib/sessionMigrationPlan";
 // planMigration is the one planning rule; resourceOffload plans its offloads through it from here.
 export { planMigration };
 
-export async function getAuthenticatedUserId(ctx: { db: any }, apiToken?: string): Promise<Id<"users"> | null> {
+export async function getAuthenticatedUserId(
+  ctx: { db: any },
+  apiToken?: string,
+): Promise<Id<"users"> | null> {
   const sessionUserId = await getAuthUserId(ctx as any);
   if (sessionUserId) return sessionUserId;
   if (apiToken) {
@@ -73,14 +105,21 @@ export async function getAuthenticatedUserId(ctx: { db: any }, apiToken?: string
 function newBatchId(): string {
   const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
   let out = "";
-  for (let i = 0; i < 8; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  for (let i = 0; i < 8; i++)
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
   return `mg-${out}`;
 }
 
 // ── Batch creation ───────────────────────────────────────────────────────────
 
 /** Wake one executor to run its rows of a batch (`cast migrate run`). */
-async function enqueueRunner(ctx: { db: any }, userId: Id<"users">, batchId: string, executor: string, now: number): Promise<string> {
+async function enqueueRunner(
+  ctx: { db: any },
+  userId: Id<"users">,
+  batchId: string,
+  executor: string,
+  now: number,
+): Promise<string> {
   const id = await ctx.db.insert("daemon_commands", {
     user_id: userId,
     command: "migrate_sessions" as const,
@@ -100,24 +139,60 @@ export const WAITING_MIGRATION_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
  * planned onto an offline executor on purpose (planMigration `waits_for`), so
  * this is what makes them run, however long the machine was gone.
  */
-export async function reissueWaitingMigrations(ctx: { db: any }, userId: Id<"users">, deviceId: string, now = Date.now()): Promise<string[]> {
+export async function reissueWaitingMigrations(
+  ctx: { db: any },
+  userId: Id<"users">,
+  deviceId: string,
+  now = Date.now(),
+): Promise<string[]> {
   const batches = await ctx.db
     .query("migration_batches")
-    .withIndex("by_user_created", (q: any) => q.eq("user_id", userId).gte("created_at", now - WAITING_MIGRATION_LOOKBACK_MS))
+    .withIndex("by_user_created", (q: any) =>
+      q
+        .eq("user_id", userId)
+        .gte("created_at", now - WAITING_MIGRATION_LOOKBACK_MS),
+    )
     .collect();
   const pending = await ctx.db
     .query("daemon_commands")
-    .withIndex("by_user_pending", (q: any) => q.eq("user_id", userId).eq("executed_at", undefined))
+    .withIndex("by_user_pending", (q: any) =>
+      q.eq("user_id", userId).eq("executed_at", undefined),
+    )
     .collect();
-  const queuedFor = new Set(pending
-    .filter((c: any) => c.command === "migrate_sessions" && c.target_device_id === deviceId && now - (c.created_at ?? c._creationTime) < DAEMON_COMMAND_TTL_MS)
-    .map((c: any) => { try { return JSON.parse(c.args).batch_id; } catch { return null; } }));
+  const queuedFor = new Set(
+    pending
+      .filter(
+        (c: any) =>
+          c.command === "migrate_sessions" &&
+          c.target_device_id === deviceId &&
+          now - (c.created_at ?? c._creationTime) < DAEMON_COMMAND_TTL_MS,
+      )
+      .map((c: any) => {
+        try {
+          return JSON.parse(c.args).batch_id;
+        } catch {
+          return null;
+        }
+      }),
+  );
   const issued: string[] = [];
   for (const batch of batches) {
-    if (batch.cancelled_at || !batch.executor_device_ids?.includes(deviceId) || queuedFor.has(batch.batch_id)) continue;
+    if (
+      batch.cancelled_at ||
+      !batch.executor_device_ids?.includes(deviceId) ||
+      queuedFor.has(batch.batch_id)
+    )
+      continue;
     const rows = await batchRowsOf(ctx, batch.batch_id);
-    if (!rows.some((r: any) => r.status === "queued" && r.executor_device_id === deviceId)) continue;
-    issued.push(await enqueueRunner(ctx, userId, batch.batch_id, deviceId, now));
+    if (
+      !rows.some(
+        (r: any) => r.status === "queued" && r.executor_device_id === deviceId,
+      )
+    )
+      continue;
+    issued.push(
+      await enqueueRunner(ctx, userId, batch.batch_id, deviceId, now),
+    );
   }
   return issued;
 }
@@ -130,37 +205,68 @@ export async function reissueWaitingMigrations(ctx: { db: any }, userId: Id<"use
  * through a handle on the machine it started on, and a moved step reads as a
  * dead station.
  */
-export type MovabilityFacts = { live: Set<string>; stepRefs: Set<string>; runParents: Set<string> };
+export type MovabilityFacts = {
+  live: Set<string>;
+  stepRefs: Set<string>;
+  runParents: Set<string>;
+};
 
-export async function movabilityFacts(ctx: { db: any }, userId: Id<"users">): Promise<MovabilityFacts> {
+export async function movabilityFacts(
+  ctx: { db: any },
+  userId: Id<"users">,
+): Promise<MovabilityFacts> {
   const live = new Set(
-    (await listLiveManagedSessions(ctx, userId)).filter((s) => s.conversation_id && isDaemonManagedRow(s)).map((s) => String(s.conversation_id)),
+    (await listLiveManagedSessions(ctx, userId))
+      .filter((s) => s.conversation_id && isDaemonManagedRow(s))
+      .map((s) => String(s.conversation_id)),
   );
   const stepRefs = new Set<string>();
   const runParents = new Set<string>();
   for (const status of ["running", "paused"] as const) {
-    const runs = await ctx.db.query("workflow_runs").withIndex("by_user_status", (q: any) => q.eq("user_id", userId).eq("status", status)).collect();
+    const runs = await ctx.db
+      .query("workflow_runs")
+      .withIndex("by_user_status", (q: any) =>
+        q.eq("user_id", userId).eq("status", status),
+      )
+      .collect();
     for (const run of runs) {
-      if (run.primary_conversation_id) runParents.add(String(run.primary_conversation_id));
-      for (const n of run.node_statuses ?? []) if (n.status === "running" && n.session_id) stepRefs.add(n.session_id);
+      if (run.primary_conversation_id)
+        runParents.add(String(run.primary_conversation_id));
+      for (const n of run.node_statuses ?? [])
+        if (n.status === "running" && n.session_id) stepRefs.add(n.session_id);
     }
   }
   return { live, stepRefs, runParents };
 }
 
 /** Why a conversation cannot move on its own, or null when it can. */
-export function heldReason(c: { _id: string; session_id?: string; is_subagent?: boolean; parent_conversation_id?: string }, facts: MovabilityFacts): string | null {
+export function heldReason(
+  c: {
+    _id: string;
+    session_id?: string;
+    is_subagent?: boolean;
+    parent_conversation_id?: string;
+  },
+  facts: MovabilityFacts,
+): string | null {
   const id = String(c._id);
   // A step's session is named by its conversation short id, its session id, or (tmux runtime) only by its parent run.
-  const isStep = (c.session_id && facts.stepRefs.has(c.session_id))
-    || [...facts.stepRefs].some((ref) => ref.length >= 7 && id.startsWith(ref))
-    || (!!c.parent_conversation_id && facts.runParents.has(String(c.parent_conversation_id)));
+  const isStep =
+    (c.session_id && facts.stepRefs.has(c.session_id)) ||
+    [...facts.stepRefs].some((ref) => ref.length >= 7 && id.startsWith(ref)) ||
+    (!!c.parent_conversation_id &&
+      facts.runParents.has(String(c.parent_conversation_id)));
   if (isStep) return "a workflow step stays with its run";
-  if (c.is_subagent && !facts.live.has(id)) return "a subagent moves with its parent";
+  if (c.is_subagent && !facts.live.has(id))
+    return "a subagent moves with its parent";
   return null;
 }
 
-export async function annotateHeld<T extends { _id: string }>(ctx: { db: any }, userId: Id<"users">, convs: T[]): Promise<Array<T & { held: string | null }>> {
+export async function annotateHeld<T extends { _id: string }>(
+  ctx: { db: any },
+  userId: Id<"users">,
+  convs: T[],
+): Promise<Array<T & { held: string | null }>> {
   const facts = await movabilityFacts(ctx, userId);
   return convs.map((c) => ({ ...c, held: heldReason(c as any, facts) }));
 }
@@ -173,17 +279,32 @@ export async function annotateHeld<T extends { _id: string }>(ctx: { db: any }, 
  * Bounded per device so a long history stays one small pass. Shared by the web
  * roster and the CLI selectors.
  */
-export async function collectMigrationCandidates(ctx: { db: any }, userId: Id<"users">, devices: Array<{ device_id: string }>): Promise<any[]> {
-  const ownerIds: Array<string | undefined> = [...devices.map((d) => d.device_id), undefined];
+export async function collectMigrationCandidates(
+  ctx: { db: any },
+  userId: Id<"users">,
+  devices: Array<{ device_id: string }>,
+): Promise<any[]> {
+  const ownerIds: Array<string | undefined> = [
+    ...devices.map((d) => d.device_id),
+    undefined,
+  ];
   const out: any[] = [];
   for (const ownerId of ownerIds) {
     const rows = await ctx.db
       .query("conversations")
-      .withIndex("by_owner_device", (q: any) => q.eq("user_id", userId).eq("owner_device_id", ownerId))
+      .withIndex("by_owner_device", (q: any) =>
+        q.eq("user_id", userId).eq("owner_device_id", ownerId),
+      )
       .order("desc")
       .take(300);
     for (const c of rows) {
-      if (c.status === "completed" || c.inbox_killed_at || isClosedSession(c) || c.is_subagent) continue;
+      if (
+        c.status === "completed" ||
+        c.inbox_killed_at ||
+        isClosedSession(c) ||
+        c.is_subagent
+      )
+        continue;
       out.push(c);
     }
   }
@@ -192,11 +313,20 @@ export async function collectMigrationCandidates(ctx: { db: any }, userId: Id<"u
   // live since yesterday falls out of it. Every live session's conversation is a
   // candidate whatever its age.
   const seen = new Set(out.map((c) => String(c._id)));
-  for (const s of await listLiveManagedSessions(ctx, userId, { aliveMs: 24 * 60 * 60 * 1000 })) {
+  for (const s of await listLiveManagedSessions(ctx, userId, {
+    aliveMs: 24 * 60 * 60 * 1000,
+  })) {
     if (!s.conversation_id || seen.has(String(s.conversation_id))) continue;
     seen.add(String(s.conversation_id));
     const c = await ctx.db.get(s.conversation_id);
-    if (!c || c.user_id !== userId || c.status === "completed" || c.inbox_killed_at || isClosedSession(c)) continue;
+    if (
+      !c ||
+      c.user_id !== userId ||
+      c.status === "completed" ||
+      c.inbox_killed_at ||
+      isClosedSession(c)
+    )
+      continue;
     out.push(c);
   }
   return out;
@@ -215,16 +345,25 @@ export type MigrationSelector = {
   all?: boolean;
 };
 
-export function matchesProject(projectPath: string | undefined, project: string): boolean {
+export function matchesProject(
+  projectPath: string | undefined,
+  project: string,
+): boolean {
   if (!projectPath) return false;
   const needle = project.trim().replace(/\/+$/, "");
   if (!needle) return false;
-  if (needle.startsWith("/")) return projectPath === needle || projectPath.startsWith(`${needle}/`);
+  if (needle.startsWith("/"))
+    return projectPath === needle || projectPath.startsWith(`${needle}/`);
   const segments = projectPath.split("/").filter(Boolean);
   // A worktree path (<repo>/.codecast/worktrees/<name>) is still the repo's.
-  const repo = segments.includes(".codecast") ? segments[segments.indexOf(".codecast") - 1] : segments[segments.length - 1];
+  const repo = segments.includes(".codecast")
+    ? segments[segments.indexOf(".codecast") - 1]
+    : segments[segments.length - 1];
   const lower = needle.toLowerCase();
-  return (repo ?? "").toLowerCase().includes(lower) || segments.some((seg) => seg.toLowerCase() === lower);
+  return (
+    (repo ?? "").toLowerCase().includes(lower) ||
+    segments.some((seg) => seg.toLowerCase() === lower)
+  );
 }
 
 export async function resolveSelector(
@@ -233,20 +372,32 @@ export async function resolveSelector(
   devices: Array<{ device_id: string }>,
   selector: MigrationSelector,
 ): Promise<{ conversations: any[] } | { error: string }> {
-  const hasTerm = !!(selector.label || selector.from_device_id || selector.project || selector.all);
+  const hasTerm = !!(
+    selector.label ||
+    selector.from_device_id ||
+    selector.project ||
+    selector.all
+  );
   if (!hasTerm) return { conversations: [] };
   let labelIds: Set<string> | null = null;
   if (selector.label) {
-    const resolved = await resolveLabelConvIds(ctx as any, userId, selector.label);
+    const resolved = await resolveLabelConvIds(
+      ctx as any,
+      userId,
+      selector.label,
+    );
     if ("error" in resolved) return { error: resolved.error };
     labelIds = resolved.convIds;
   }
   const all = await collectMigrationCandidates(ctx, userId, devices);
   return {
-    conversations: all.filter((c) =>
-      (!labelIds || labelIds.has(c._id.toString())) &&
-      (!selector.from_device_id || c.owner_device_id === selector.from_device_id) &&
-      (!selector.project || matchesProject(c.project_path, selector.project))),
+    conversations: all.filter(
+      (c) =>
+        (!labelIds || labelIds.has(c._id.toString())) &&
+        (!selector.from_device_id ||
+          c.owner_device_id === selector.from_device_id) &&
+        (!selector.project || matchesProject(c.project_path, selector.project)),
+    ),
   };
 }
 
@@ -279,7 +430,8 @@ export async function performCreateBatch(
   dry_run: boolean;
 }> {
   const ids = args.conversation_ids ?? [];
-  if (ids.length === 0 && !args.selector) throw new Error("Pick at least one session");
+  if (ids.length === 0 && !args.selector)
+    throw new Error("Pick at least one session");
   const devices = await ctx.db
     .query("devices")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
@@ -289,8 +441,11 @@ export async function performCreateBatch(
   for (const raw of ids) {
     // Any ref: a conversation id, a short id, or a session UUID (the CLI
     // takes short ids; the web sends ids).
-    const conv = await findConversationByAnyRefWhere(ctx, raw, (candidate: any) =>
-      candidate.user_id.toString() === userId.toString());
+    const conv = await findConversationByAnyRefWhere(
+      ctx,
+      raw,
+      (candidate: any) => candidate.user_id.toString() === userId.toString(),
+    );
     if (!conv) {
       skipped.push({ conversation_id: raw, reason: "not a session you run" });
       continue;
@@ -305,13 +460,29 @@ export async function performCreateBatch(
   // A move to a cloud host under a team policy with cloud hosts off: refused
   // for a request from an enrolled device and for any row in the team's workspace.
   if (devices.find((d: any) => d.device_id === args.to_device_id)?.is_remote) {
-    await requireTeamPolicyAllows(ctx, { apiToken: args.api_token }, "cloud_hosts_disabled");
+    await requireTeamPolicyAllows(
+      ctx,
+      { apiToken: args.api_token },
+      "cloud_hosts_disabled",
+    );
     for (const conv of conversations) {
-      await requireTeamPolicyAllows(ctx, { workspace: policyWorkspaceOf("conversations", conv) }, "cloud_hosts_disabled");
+      await requireTeamPolicyAllows(
+        ctx,
+        { workspace: policyWorkspaceOf("conversations", conv) },
+        "cloud_hosts_disabled",
+      );
     }
   }
-  if (conversations.length > MAX_BATCH_ROWS) throw new Error(`At most ${MAX_BATCH_ROWS} sessions per batch (${conversations.length} matched) — narrow the selection`);
-  const plan = planMigration({ conversations: await annotateHeld(ctx, userId, conversations), devices, targetDeviceId: args.to_device_id, now });
+  if (conversations.length > MAX_BATCH_ROWS)
+    throw new Error(
+      `At most ${MAX_BATCH_ROWS} sessions per batch (${conversations.length} matched) — narrow the selection`,
+    );
+  const plan = planMigration({
+    conversations: await annotateHeld(ctx, userId, conversations),
+    devices,
+    targetDeviceId: args.to_device_id,
+    now,
+  });
   skipped.push(...plan.skipped);
   if (plan.rows.length === 0 || args.dry_run) {
     return {
@@ -323,26 +494,39 @@ export async function performCreateBatch(
     };
   }
 
-  const waitForIdle = Math.min(MAX_WAIT_FOR_IDLE_MS, Math.max(0, Math.round(args.wait_for_idle_ms ?? DEFAULT_WAIT_FOR_IDLE_MS)));
-  const concurrency = Math.min(MAX_CONCURRENCY, Math.max(1, Math.round(args.concurrency ?? DEFAULT_CONCURRENCY)));
+  const waitForIdle = Math.min(
+    MAX_WAIT_FOR_IDLE_MS,
+    Math.max(0, Math.round(args.wait_for_idle_ms ?? DEFAULT_WAIT_FOR_IDLE_MS)),
+  );
+  const concurrency = Math.min(
+    MAX_CONCURRENCY,
+    Math.max(1, Math.round(args.concurrency ?? DEFAULT_CONCURRENCY)),
+  );
   const executors = [...new Set(plan.rows.map((r) => r.executor_device_id))];
   const batchId = args.batch_id ?? newBatchId();
   await ctx.db.insert("migration_batches", {
     user_id: userId,
     batch_id: batchId,
-    ...(args.resource_offload ? { resource_offload: args.resource_offload } : {}),
+    ...(args.resource_offload
+      ? { resource_offload: args.resource_offload }
+      : {}),
     to_device_id: args.to_device_id,
     created_at: now,
     updated_at: now,
     wait_for_idle_ms: waitForIdle,
-    ...(args.interrupt_on_timeout === undefined ? {} : { interrupt_on_timeout: args.interrupt_on_timeout }),
+    ...(args.interrupt_on_timeout === undefined
+      ? {}
+      : { interrupt_on_timeout: args.interrupt_on_timeout }),
     concurrency,
     executor_device_ids: executors,
   });
   const rows: Array<PlannedRow & { migration_id: string }> = [];
   let position = 0;
   for (const r of plan.rows) {
-    const bring = args.resource_offload?.selections.find((s) => s.conversation_id === r.conversation_id)?.bring ?? args.bring_paths;
+    const bring =
+      args.resource_offload?.selections.find(
+        (s) => s.conversation_id === r.conversation_id,
+      )?.bring ?? args.bring_paths;
     const migrationId = await ctx.db.insert("session_migrations", {
       user_id: userId,
       batch_id: batchId,
@@ -364,8 +548,15 @@ export async function performCreateBatch(
     rows.push({ ...r, migration_id: migrationId.toString() });
   }
   const commandIds: string[] = [];
-  for (const executor of executors) commandIds.push(await enqueueRunner(ctx, userId, batchId, executor, now));
-  return { batch_id: batchId, rows, skipped, command_ids: commandIds, dry_run: false };
+  for (const executor of executors)
+    commandIds.push(await enqueueRunner(ctx, userId, batchId, executor, now));
+  return {
+    batch_id: batchId,
+    rows,
+    skipped,
+    command_ids: commandIds,
+    dry_run: false,
+  };
 }
 
 const selectorValidator = v.object({
@@ -396,7 +587,11 @@ export const createBatch = mutation({
   },
 });
 
-async function loadBatch(ctx: { db: any }, userId: Id<"users">, batchId: string): Promise<any | null> {
+async function loadBatch(
+  ctx: { db: any },
+  userId: Id<"users">,
+  batchId: string,
+): Promise<any | null> {
   const batch = await ctx.db
     .query("migration_batches")
     .withIndex("by_batch_id", (q: any) => q.eq("batch_id", batchId))
@@ -417,16 +612,29 @@ async function clearFence(ctx: { db: any }, row: any): Promise<void> {
   const conv = await ctx.db.get(row.conversation_id);
   if (!conv?.migration) return;
   if (conv.migration.migration_id.toString() !== row._id.toString()) return;
-  await ctx.db.patch(conv._id, { migration: undefined, updated_at: Date.now() });
+  await ctx.db.patch(conv._id, {
+    migration: undefined,
+    updated_at: Date.now(),
+  });
 }
 
-export async function performCancelBatch(ctx: { db: any }, userId: Id<"users">, batchId: string, now = Date.now()): Promise<{ cancelled: number }> {
+export async function performCancelBatch(
+  ctx: { db: any },
+  userId: Id<"users">,
+  batchId: string,
+  now = Date.now(),
+): Promise<{ cancelled: number }> {
   const batch = await loadBatch(ctx, userId, batchId);
   if (!batch) throw new Error("no such batch");
   let cancelled = 0;
   for (const row of await batchRowsOf(ctx, batchId)) {
     if (row.status !== "queued") continue;
-    await ctx.db.patch(row._id, { status: "cancelled" as const, finished_at: now, updated_at: now, stage: undefined });
+    await ctx.db.patch(row._id, {
+      status: "cancelled" as const,
+      finished_at: now,
+      updated_at: now,
+      stage: undefined,
+    });
     cancelled++;
   }
   await ctx.db.patch(batch._id, { cancelled_at: now, updated_at: now });
@@ -434,11 +642,21 @@ export async function performCancelBatch(ctx: { db: any }, userId: Id<"users">, 
 }
 
 export const cancelBatch = mutation({
-  args: { api_token: v.optional(v.string()), batch_id: v.string(), requested_at: v.optional(v.number()) },
+  args: {
+    api_token: v.optional(v.string()),
+    batch_id: v.string(),
+    requested_at: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
-    if (args.requested_at !== undefined && (!Number.isFinite(args.requested_at) || args.requested_at <= 0 || args.requested_at > Date.now() + 30_000)) throw new Error("Invalid cancellation time");
+    if (
+      args.requested_at !== undefined &&
+      (!Number.isFinite(args.requested_at) ||
+        args.requested_at <= 0 ||
+        args.requested_at > Date.now() + 30_000)
+    )
+      throw new Error("Invalid cancellation time");
     return performCancelBatch(ctx, userId, args.batch_id, args.requested_at);
   },
 });
@@ -448,17 +666,28 @@ export const cancelBatch = mutation({
  * their ids and attempt counts; a row whose session moved meanwhile is
  * re-validated by beginSession, not here.
  */
-export async function performRetryFailed(ctx: { db: any }, userId: Id<"users">, batchId: string, now = Date.now()): Promise<{ requeued: number; command_ids: string[] }> {
+export async function performRetryFailed(
+  ctx: { db: any },
+  userId: Id<"users">,
+  batchId: string,
+  now = Date.now(),
+): Promise<{ requeued: number; command_ids: string[] }> {
   const batch = await loadBatch(ctx, userId, batchId);
   if (!batch) throw new Error("no such batch");
-  if (batch.resource_offload) throw new Error("Review resource offload again before retrying this batch");
+  if (batch.resource_offload)
+    throw new Error("Review resource offload again before retrying this batch");
   const executors = new Set<string>();
   let requeued = 0;
   for (const row of await batchRowsOf(ctx, batchId)) {
     if (row.status !== "failed" && row.status !== "cancelled") continue;
     await ctx.db.patch(row._id, {
-      status: "queued" as const, error: undefined, stage: undefined, finished_at: undefined, started_at: undefined,
-      resume_command_id: undefined, updated_at: now,
+      status: "queued" as const,
+      error: undefined,
+      stage: undefined,
+      finished_at: undefined,
+      started_at: undefined,
+      resume_command_id: undefined,
+      updated_at: now,
     });
     executors.add(row.executor_device_id);
     requeued++;
@@ -466,7 +695,8 @@ export async function performRetryFailed(ctx: { db: any }, userId: Id<"users">, 
   const commandIds: string[] = [];
   if (requeued > 0) {
     await ctx.db.patch(batch._id, { cancelled_at: undefined, updated_at: now });
-    for (const executor of executors) commandIds.push(await enqueueRunner(ctx, userId, batchId, executor, now));
+    for (const executor of executors)
+      commandIds.push(await enqueueRunner(ctx, userId, batchId, executor, now));
   }
   return { requeued, command_ids: commandIds };
 }
@@ -484,7 +714,11 @@ export const retryFailed = mutation({
 
 /** Everything `cast migrate run <batch>` needs: the batch and ITS rows. */
 export const runnerBatch = query({
-  args: { api_token: v.optional(v.string()), batch_id: v.string(), device_id: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    batch_id: v.string(),
+    device_id: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
@@ -552,53 +786,86 @@ export async function performBeginSession(
     }
 > {
   const row = await ctx.db.get(args.migration_id);
-  if (!row || row.user_id.toString() !== userId.toString()) return { ok: false, reason: "no such migration" };
-  if (row.executor_device_id !== args.device_id) return { ok: false, reason: "another machine executes this row" };
-  if (row.status !== "queued") return { ok: false, reason: `row is ${row.status}` };
+  if (!row || row.user_id.toString() !== userId.toString())
+    return { ok: false, reason: "no such migration" };
+  if (row.executor_device_id !== args.device_id)
+    return { ok: false, reason: "another machine executes this row" };
+  if (row.status !== "queued")
+    return { ok: false, reason: `row is ${row.status}` };
   const batch = await loadBatch(ctx, userId, row.batch_id);
   if (!batch) return { ok: false, reason: "no such batch" };
   if (batch.cancelled_at) {
-    await ctx.db.patch(row._id, { status: "cancelled" as const, finished_at: now, updated_at: now });
+    await ctx.db.patch(row._id, {
+      status: "cancelled" as const,
+      finished_at: now,
+      updated_at: now,
+    });
     return { ok: false, reason: "batch cancelled" };
   }
   const conv = await ctx.db.get(row.conversation_id);
   if (!conv || conv.user_id.toString() !== userId.toString()) {
-    await ctx.db.patch(row._id, { status: "failed" as const, error: "the session no longer exists", finished_at: now, updated_at: now });
+    await ctx.db.patch(row._id, {
+      status: "failed" as const,
+      error: "the session no longer exists",
+      finished_at: now,
+      updated_at: now,
+    });
     return { ok: false, reason: "conversation gone" };
   }
   const fail = async (error: string) => {
-    await ctx.db.patch(row._id, { status: "failed" as const, error, finished_at: now, updated_at: now });
+    await ctx.db.patch(row._id, {
+      status: "failed" as const,
+      error,
+      finished_at: now,
+      updated_at: now,
+    });
     return { ok: false as const, reason: error };
   };
-  if (conv.migration && conv.migration.migration_id.toString() !== row._id.toString()) {
+  if (
+    conv.migration &&
+    conv.migration.migration_id.toString() !== row._id.toString()
+  ) {
     return fail(`already migrating (${conv.migration.batch_id})`);
   }
-  if (conv.status === "completed" && row.direction === "to_cloud") return fail("the session has ended");
+  if (conv.status === "completed" && row.direction === "to_cloud")
+    return fail("the session has ended");
   if (conv.inbox_killed_at) return fail("the session was killed");
   if (isClosedSession(conv)) return fail("the session was closed");
-  if (conv.owner_device_id === row.to_device_id) return fail("already on the destination");
+  if (conv.owner_device_id === row.to_device_id)
+    return fail("already on the destination");
   if (!conv.session_id) return fail("the session has no transcript yet");
 
   const devices = await ctx.db
     .query("devices")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
     .collect();
-  const owner = conv.owner_device_id ? devices.find((d: any) => d.device_id === conv.owner_device_id) : undefined;
+  const owner = conv.owner_device_id
+    ? devices.find((d: any) => d.device_id === conv.owner_device_id)
+    : undefined;
   const target = devices.find((d: any) => d.device_id === row.to_device_id);
   if (!target) return fail("the destination device is no longer registered");
   // The direction was decided at planning time; refuse if the world moved.
-  if (row.direction === "to_cloud" && owner?.is_remote) return fail("the session is already on a cloud host");
-  if (row.direction === "to_local" && !owner?.is_remote) return fail("the session is no longer on a cloud host");
+  if (row.direction === "to_cloud" && owner?.is_remote)
+    return fail("the session is already on a cloud host");
+  if (row.direction === "to_local" && !owner?.is_remote)
+    return fail("the session is no longer on a cloud host");
 
   const managed = conv.session_id
     ? await ctx.db
         .query("managed_sessions")
-        .withIndex("by_session_id", (q: any) => q.eq("session_id", conv.session_id))
+        .withIndex("by_session_id", (q: any) =>
+          q.eq("session_id", conv.session_id),
+        )
         .first()
     : null;
 
   await ctx.db.patch(conv._id, {
-    migration: { batch_id: row.batch_id, migration_id: row._id, to_device_id: row.to_device_id, started_at: now },
+    migration: {
+      batch_id: row.batch_id,
+      migration_id: row._id,
+      to_device_id: row.to_device_id,
+      started_at: now,
+    },
     updated_at: now,
   });
   await ctx.db.patch(row._id, {
@@ -632,7 +899,11 @@ export async function performBeginSession(
 }
 
 export const beginSession = mutation({
-  args: { api_token: v.optional(v.string()), migration_id: v.id("session_migrations"), device_id: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    migration_id: v.id("session_migrations"),
+    device_id: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
@@ -642,7 +913,10 @@ export const beginSession = mutation({
 
 /** What the idle wait polls: the live agent status and whether the batch was cancelled. */
 export const sessionFacts = query({
-  args: { api_token: v.optional(v.string()), migration_id: v.id("session_migrations") },
+  args: {
+    api_token: v.optional(v.string()),
+    migration_id: v.id("session_migrations"),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
@@ -653,13 +927,17 @@ export const sessionFacts = query({
     const managed = conv?.session_id
       ? await ctx.db
           .query("managed_sessions")
-          .withIndex("by_session_id", (q: any) => q.eq("session_id", conv.session_id))
+          .withIndex("by_session_id", (q: any) =>
+            q.eq("session_id", conv.session_id),
+          )
           .first()
       : null;
     const owner = conv?.owner_device_id
       ? await ctx.db
           .query("devices")
-          .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", conv.owner_device_id))
+          .withIndex("by_user_device", (q: any) =>
+            q.eq("user_id", userId).eq("device_id", conv.owner_device_id),
+          )
           .first()
       : null;
     const now = Date.now();
@@ -670,7 +948,9 @@ export const sessionFacts = query({
       owner_online: !!owner && now - owner.last_seen < DEVICE_ONLINE_MS,
       agent_status: managed?.agent_status ?? null,
       agent_status_updated_at: managed?.agent_status_updated_at ?? null,
-      fenced: !!conv?.migration && conv.migration.migration_id.toString() === row._id.toString(),
+      fenced:
+        !!conv?.migration &&
+        conv.migration.migration_id.toString() === row._id.toString(),
     };
   },
 });
@@ -680,9 +960,15 @@ export const reportSession = mutation({
   args: {
     api_token: v.optional(v.string()),
     migration_id: v.id("session_migrations"),
-    status: v.optional(v.union(
-      v.literal("waiting_idle"), v.literal("quiescing"), v.literal("transferring"), v.literal("switching"), v.literal("resuming"),
-    )),
+    status: v.optional(
+      v.union(
+        v.literal("waiting_idle"),
+        v.literal("quiescing"),
+        v.literal("transferring"),
+        v.literal("switching"),
+        v.literal("resuming"),
+      ),
+    ),
     stage: v.optional(v.string()),
     source_path: v.optional(v.string()),
     destination_path: v.optional(v.string()),
@@ -692,14 +978,22 @@ export const reportSession = mutation({
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
     const row = await ctx.db.get(args.migration_id);
-    if (!row || row.user_id.toString() !== userId.toString()) throw new Error("no such migration");
-    if (TERMINAL_STATUSES.has(row.status)) return { ok: false, status: row.status };
+    if (!row || row.user_id.toString() !== userId.toString())
+      throw new Error("no such migration");
+    if (TERMINAL_STATUSES.has(row.status))
+      return { ok: false, status: row.status };
     await ctx.db.patch(row._id, {
       ...(args.status ? { status: args.status } : {}),
       ...(args.stage !== undefined ? { stage: args.stage } : {}),
-      ...(args.source_path !== undefined ? { source_path: args.source_path } : {}),
-      ...(args.destination_path !== undefined ? { destination_path: args.destination_path } : {}),
-      ...(args.verification !== undefined ? { verification: args.verification } : {}),
+      ...(args.source_path !== undefined
+        ? { source_path: args.source_path }
+        : {}),
+      ...(args.destination_path !== undefined
+        ? { destination_path: args.destination_path }
+        : {}),
+      ...(args.verification !== undefined
+        ? { verification: args.verification }
+        : {}),
       updated_at: Date.now(),
     });
     return { ok: true, status: args.status ?? row.status };
@@ -718,24 +1012,41 @@ export async function performEnqueueQuiesce(
   now = Date.now(),
 ): Promise<{ command_id: string | null; target_device_id: string | null }> {
   const row = await ctx.db.get(args.migration_id);
-  if (!row || row.user_id.toString() !== userId.toString()) throw new Error("no such migration");
+  if (!row || row.user_id.toString() !== userId.toString())
+    throw new Error("no such migration");
   const batch = await loadBatch(ctx, userId, row.batch_id);
-  if (args.mode === "force" && batch?.interrupt_on_timeout === false) throw new Error("This move must not interrupt a running turn");
-  if (batch?.interrupt_on_timeout === false && batch.cancelled_at) throw new Error("This offload was cancelled before the session stopped");
+  if (args.mode === "force" && batch?.interrupt_on_timeout === false)
+    throw new Error("This move must not interrupt a running turn");
+  if (batch?.interrupt_on_timeout === false && batch.cancelled_at)
+    throw new Error("This offload was cancelled before the session stopped");
   const conv = await ctx.db.get(row.conversation_id);
   if (!conv) throw new Error("the session no longer exists");
   // An unowned row moving to the cloud can only be running on the executor
   // (it holds the transcript); a move back always has a remote owner.
-  const target: string | undefined = conv.owner_device_id ?? (row.direction === "to_cloud" ? row.executor_device_id : undefined);
+  const target: string | undefined =
+    conv.owner_device_id ??
+    (row.direction === "to_cloud" ? row.executor_device_id : undefined);
   if (!target) return { command_id: null, target_device_id: null };
   const id = await ctx.db.insert("daemon_commands", {
     user_id: userId,
     command: "quiesce_session" as const,
-    args: JSON.stringify({ conversation_id: conv._id, session_id: conv.session_id, mode: args.mode, migration_id: row._id }),
+    args: JSON.stringify({
+      conversation_id: conv._id,
+      session_id: conv.session_id,
+      mode: args.mode,
+      migration_id: row._id,
+    }),
     created_at: now,
     target_device_id: target,
   });
-  await ctx.db.patch(row._id, { status: "quiescing" as const, stage: args.mode === "force" ? "interrupting the turn and stopping the agent" : "stopping the agent", updated_at: now });
+  await ctx.db.patch(row._id, {
+    status: "quiescing" as const,
+    stage:
+      args.mode === "force"
+        ? "interrupting the turn and stopping the agent"
+        : "stopping the agent",
+    updated_at: now,
+  });
   return { command_id: id.toString(), target_device_id: target };
 }
 
@@ -754,7 +1065,10 @@ export const enqueueQuiesce = mutation({
 
 /** Poll a daemon command the runner enqueued (quiesce, resume). */
 export const commandStatus = query({
-  args: { api_token: v.optional(v.string()), command_id: v.id("daemon_commands") },
+  args: {
+    api_token: v.optional(v.string()),
+    command_id: v.id("daemon_commands"),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
@@ -788,21 +1102,34 @@ export async function performFinishSession(
     source_path?: string;
   },
   now = Date.now(),
-): Promise<{ ok: true; resume_command_id: string | null; owner_device_id: string } | { ok: false; reason: string }> {
+): Promise<
+  | { ok: true; resume_command_id: string | null; owner_device_id: string }
+  | { ok: false; reason: string }
+> {
   const row = await ctx.db.get(args.migration_id);
-  if (!row || row.user_id.toString() !== userId.toString()) return { ok: false, reason: "no such migration" };
-  if (!IN_FLIGHT_STATUSES.has(row.status)) return { ok: false, reason: `row is ${row.status}` };
+  if (!row || row.user_id.toString() !== userId.toString())
+    return { ok: false, reason: "no such migration" };
+  if (!IN_FLIGHT_STATUSES.has(row.status))
+    return { ok: false, reason: `row is ${row.status}` };
   const conv = await ctx.db.get(row.conversation_id);
   if (!conv) return { ok: false, reason: "the session no longer exists" };
   // Sessions moved together from one laptop folder had one tree pushed for all
   // of them (the runner's ledger), so they share the host checkout as they
   // shared the folder; anyone else still holds it exclusively.
-  const batchRows = args.source_path === undefined ? [] : await ctx.db
-    .query("session_migrations")
-    .withIndex("by_batch", (q: any) => q.eq("batch_id", row.batch_id))
-    .collect();
+  const batchRows =
+    args.source_path === undefined
+      ? []
+      : await ctx.db
+          .query("session_migrations")
+          .withIndex("by_batch", (q: any) => q.eq("batch_id", row.batch_id))
+          .collect();
   const sharedWith = batchRows
-    .filter((r: any) => r._id.toString() !== row._id.toString() && r.to_device_id === row.to_device_id && r.source_path === args.source_path)
+    .filter(
+      (r: any) =>
+        r._id.toString() !== row._id.toString() &&
+        r.to_device_id === row.to_device_id &&
+        r.source_path === args.source_path,
+    )
     .map((r: any) => r.conversation_id.toString());
   let moved: Awaited<ReturnType<typeof performMoveSessionToDevice>>;
   try {
@@ -814,7 +1141,10 @@ export async function performFinishSession(
       shared_with: sharedWith,
     });
   } catch (err) {
-    return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    return {
+      ok: false,
+      reason: err instanceof Error ? err.message : String(err),
+    };
   }
   await ctx.db.patch(row.conversation_id, {
     migration: undefined,
@@ -826,12 +1156,20 @@ export async function performFinishSession(
     status: "resuming" as const,
     stage: "resuming on the destination",
     destination_path: args.project_path,
-    ...(args.source_path !== undefined ? { source_path: args.source_path } : {}),
-    ...(args.verification !== undefined ? { verification: args.verification } : {}),
+    ...(args.source_path !== undefined
+      ? { source_path: args.source_path }
+      : {}),
+    ...(args.verification !== undefined
+      ? { verification: args.verification }
+      : {}),
     resume_command_id: moved.command_id ?? undefined,
     updated_at: now,
   });
-  return { ok: true, resume_command_id: moved.command_id ?? null, owner_device_id: moved.owner_device_id };
+  return {
+    ok: true,
+    resume_command_id: moved.command_id ?? null,
+    owner_device_id: moved.owner_device_id,
+  };
 }
 
 /**
@@ -841,19 +1179,41 @@ export async function performFinishSession(
  * handoff, and they land beside it instead. Rows of this batch are the
  * runner's to coordinate (one push per laptop folder) and never count.
  */
-export async function performCheckoutHolder(ctx: { db: any }, userId: Id<"users">, args: { migration_id: Id<"session_migrations">; project_path: string }) {
+export async function performCheckoutHolder(
+  ctx: { db: any },
+  userId: Id<"users">,
+  args: { migration_id: Id<"session_migrations">; project_path: string },
+) {
   const row = await ctx.db.get(args.migration_id);
   if (!row || row.user_id.toString() !== userId.toString()) return null;
-  const batch = await ctx.db.query("session_migrations").withIndex("by_batch", (q: any) => q.eq("batch_id", row.batch_id)).collect();
-  const occupant = await findSharedCheckoutOccupant(ctx, userId, row.to_device_id, {
-    projectPath: args.project_path,
-    sharedWith: batch.map((r: any) => r.conversation_id.toString()),
-  });
-  return occupant ? { conversation_id: occupant.conversation_id, short_id: occupant.short_id, title: occupant.title } : null;
+  const batch = await ctx.db
+    .query("session_migrations")
+    .withIndex("by_batch", (q: any) => q.eq("batch_id", row.batch_id))
+    .collect();
+  const occupant = await findSharedCheckoutOccupant(
+    ctx,
+    userId,
+    row.to_device_id,
+    {
+      projectPath: args.project_path,
+      sharedWith: batch.map((r: any) => r.conversation_id.toString()),
+    },
+  );
+  return occupant
+    ? {
+        conversation_id: occupant.conversation_id,
+        short_id: occupant.short_id,
+        title: occupant.title,
+      }
+    : null;
 }
 
 export const checkoutHolder = query({
-  args: { api_token: v.optional(v.string()), migration_id: v.id("session_migrations"), project_path: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    migration_id: v.id("session_migrations"),
+    project_path: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
@@ -890,15 +1250,20 @@ export const confirmSession = mutation({
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
     const row = await ctx.db.get(args.migration_id);
-    if (!row || row.user_id.toString() !== userId.toString()) throw new Error("no such migration");
-    if (TERMINAL_STATUSES.has(row.status)) return { ok: false, status: row.status };
+    if (!row || row.user_id.toString() !== userId.toString())
+      throw new Error("no such migration");
+    if (TERMINAL_STATUSES.has(row.status))
+      return { ok: false, status: row.status };
     const now = Date.now();
     const batch = await loadBatch(ctx, userId, row.batch_id);
     if (args.ok && batch?.interrupt_on_timeout === false) {
-      const resume = row.resume_command_id ? await ctx.db.get(row.resume_command_id) : null;
+      const resume = row.resume_command_id
+        ? await ctx.db.get(row.resume_command_id)
+        : null;
       if (!resume?.executed_at || resume.error) {
         args.ok = false;
-        args.error = "The session moved, but destination continuation was not confirmed. Open it on the destination before retrying.";
+        args.error =
+          "The session moved, but destination continuation was not confirmed. Open it on the destination before retrying.";
         args.stage = undefined;
       }
     }
@@ -918,18 +1283,38 @@ export const confirmSession = mutation({
  * (a loaded machine can take longer than RESUME_CONFIRM_TIMEOUT_MS): the move
  * landed, so its row says done rather than the "not confirmed" failure.
  */
-export async function settleLateResume(ctx: { db: any }, command: { _id: any; user_id: any; args?: string }, now = Date.now()) {
+export async function settleLateResume(
+  ctx: { db: any },
+  command: { _id: any; user_id: any; args?: string },
+  now = Date.now(),
+) {
   let conversationId: string | undefined;
-  try { conversationId = JSON.parse(command.args ?? "{}").conversation_id; } catch { return; }
+  try {
+    conversationId = JSON.parse(command.args ?? "{}").conversation_id;
+  } catch {
+    return;
+  }
   if (!conversationId) return;
   const rows = await ctx.db
     .query("session_migrations")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
   for (const row of rows) {
-    if (row.resume_command_id?.toString() !== command._id.toString() || row.status === "done") continue;
+    if (
+      row.resume_command_id?.toString() !== command._id.toString() ||
+      row.status === "done"
+    )
+      continue;
     if (row.user_id.toString() !== command.user_id.toString()) continue;
-    await ctx.db.patch(row._id, { status: "done" as const, stage: "running on the destination", error: undefined, finished_at: now, updated_at: now });
+    await ctx.db.patch(row._id, {
+      status: "done" as const,
+      stage: "running on the destination",
+      error: undefined,
+      finished_at: now,
+      updated_at: now,
+    });
   }
 }
 
@@ -937,18 +1322,32 @@ export async function settleLateResume(ctx: { db: any }, command: { _id: any; us
 export async function performFailSession(
   ctx: { db: any },
   userId: Id<"users">,
-  args: { migration_id: Id<"session_migrations">; error: string; cancelled?: boolean; restore?: boolean },
+  args: {
+    migration_id: Id<"session_migrations">;
+    error: string;
+    cancelled?: boolean;
+    restore?: boolean;
+  },
   now = Date.now(),
 ): Promise<{ ok: boolean; status: MigrationStatus }> {
   const row = await ctx.db.get(args.migration_id);
-  if (!row || row.user_id.toString() !== userId.toString()) throw new Error("no such migration");
-  if (TERMINAL_STATUSES.has(row.status)) return { ok: false, status: row.status };
+  if (!row || row.user_id.toString() !== userId.toString())
+    throw new Error("no such migration");
+  if (TERMINAL_STATUSES.has(row.status))
+    return { ok: false, status: row.status };
   await clearFence(ctx, row);
   // The runner stopped a running session for a move that then failed: it
   // starts again where it is, so a failed move leaves nothing interrupted.
   if (args.restore) {
     const conv = await ctx.db.get(row.conversation_id);
-    if (conv?.owner_device_id) await enqueueTargetedResume(ctx, userId, conv, conv.owner_device_id, conv.project_path);
+    if (conv?.owner_device_id)
+      await enqueueTargetedResume(
+        ctx,
+        userId,
+        conv,
+        conv.owner_device_id,
+        conv.project_path,
+      );
   }
   const status = args.cancelled ? ("cancelled" as const) : ("failed" as const);
   await ctx.db.patch(row._id, {
@@ -962,7 +1361,13 @@ export async function performFailSession(
 }
 
 export const failSession = mutation({
-  args: { api_token: v.optional(v.string()), migration_id: v.id("session_migrations"), error: v.string(), cancelled: v.optional(v.boolean()), restore: v.optional(v.boolean()) },
+  args: {
+    api_token: v.optional(v.string()),
+    migration_id: v.id("session_migrations"),
+    error: v.string(),
+    cancelled: v.optional(v.boolean()),
+    restore: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
@@ -989,7 +1394,11 @@ export const candidates = query({
       .collect();
     const out: any[] = [];
     {
-      for (const c of await annotateHeld(ctx, userId, await collectMigrationCandidates(ctx, userId, devices))) {
+      for (const c of await annotateHeld(
+        ctx,
+        userId,
+        await collectMigrationCandidates(ctx, userId, devices),
+      )) {
         out.push({
           held_reason: c.held,
           _id: c._id,
@@ -1002,7 +1411,12 @@ export const candidates = query({
           worktree_branch: c.worktree_branch ?? null,
           updated_at: c.updated_at ?? 0,
           has_pending_messages: !!c.has_pending_messages,
-          migration: c.migration ? { batch_id: c.migration.batch_id, migration_id: c.migration.migration_id } : null,
+          migration: c.migration
+            ? {
+                batch_id: c.migration.batch_id,
+                migration_id: c.migration.migration_id,
+              }
+            : null,
           cloud_placement: c.cloud_placement ?? null,
           inbox_stashed_at: c.inbox_stashed_at ?? null,
           inbox_dismissed_at: c.inbox_dismissed_at ?? null,
@@ -1035,7 +1449,10 @@ export const listBatches = query({
         ...(b.resource_offload ? { resource_offload: b.resource_offload } : {}),
         to_device_id: b.to_device_id,
         created_at: b.created_at,
-        updated_at: Math.max(b.updated_at, ...rows.map((r: any) => r.updated_at ?? 0)),
+        updated_at: Math.max(
+          b.updated_at,
+          ...rows.map((r: any) => r.updated_at ?? 0),
+        ),
         cancelled_at: b.cancelled_at ?? null,
         wait_for_idle_ms: b.wait_for_idle_ms,
         interrupt_on_timeout: b.interrupt_on_timeout ?? true,
@@ -1079,7 +1496,10 @@ export const listBatches = query({
  * not reported for STALE_MIGRATION_MS fails and its fence lifts, so messages
  * flow again to wherever the session still lives.
  */
-export async function performReapStale(ctx: { db: any }, now = Date.now()): Promise<{ reaped: number }> {
+export async function performReapStale(
+  ctx: { db: any },
+  now = Date.now(),
+): Promise<{ reaped: number }> {
   const recent = await ctx.db
     .query("session_migrations")
     .withIndex("by_user_created")
@@ -1091,7 +1511,8 @@ export async function performReapStale(ctx: { db: any }, now = Date.now()): Prom
     await clearFence(ctx, row);
     await ctx.db.patch(row._id, {
       status: "failed" as const,
-      error: "the migration runner stopped reporting (its machine may have gone offline); the session stays where it was",
+      error:
+        "the migration runner stopped reporting (its machine may have gone offline); the session stays where it was",
       stage: undefined,
       finished_at: now,
       updated_at: now,
@@ -1115,7 +1536,12 @@ export const reapStale = internalMutation({
  * else re-homes as before.
  */
 export const runHere = mutation({
-  args: { api_token: v.optional(v.string()), conversation_id: v.string(), device_id: v.string(), request_id: v.optional(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    conversation_id: v.string(),
+    device_id: v.string(),
+    request_id: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
@@ -1124,23 +1550,51 @@ export const runHere = mutation({
 });
 
 /** The conversation's migration row that is still queued or running, if any (a queued row holds no fence yet). */
-async function openMigrationOf(ctx: { db: any }, userId: Id<"users">, conversationId: Id<"conversations">) {
+async function openMigrationOf(
+  ctx: { db: any },
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+) {
   const rows = await ctx.db
     .query("session_migrations")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
   for (const row of rows) {
-    if (row.user_id.toString() !== userId.toString() || TERMINAL_STATUSES.has(row.status)) continue;
-    if (row.status === "queued" && (await loadBatch(ctx, userId, row.batch_id))?.cancelled_at) continue;
+    if (
+      row.user_id.toString() !== userId.toString() ||
+      TERMINAL_STATUSES.has(row.status)
+    )
+      continue;
+    if (
+      row.status === "queued" &&
+      (await loadBatch(ctx, userId, row.batch_id))?.cancelled_at
+    )
+      continue;
     return row as { batch_id: string; to_device_id: string };
   }
   return null;
 }
 
-export async function performRunHere(ctx: any, userId: Id<"users">, args: { conversation_id: string; device_id: string; request_id?: string }) {
-  const conv = await findPullableConversation(ctx, userId, args.conversation_id);
-  if (!conv) throw new Error("not your conversation (you can only move a session you run or own, or one visible to your team)");
-  const devices = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
+export async function performRunHere(
+  ctx: any,
+  userId: Id<"users">,
+  args: { conversation_id: string; device_id: string; request_id?: string },
+) {
+  const conv = await findPullableConversation(
+    ctx,
+    userId,
+    args.conversation_id,
+  );
+  if (!conv)
+    throw new Error(
+      "not your conversation (you can only move a session you run or own, or one visible to your team)",
+    );
+  const devices = await ctx.db
+    .query("devices")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .collect();
   const owner = devices.find((d: any) => d.device_id === conv.owner_device_id);
   const target = devices.find((d: any) => d.device_id === args.device_id);
   // A move already under way answers for a second press toward the same
@@ -1149,15 +1603,47 @@ export async function performRunHere(ctx: any, userId: Id<"users">, args: { conv
   const open = await openMigrationOf(ctx, userId, conv._id);
   if (open) {
     if (open.to_device_id === args.device_id) {
-      return { ok: true as const, command_id: null, device_id: args.device_id, label: target?.label ?? "", batch_id: open.batch_id };
+      return {
+        ok: true as const,
+        command_id: null,
+        device_id: args.device_id,
+        label: target?.label ?? "",
+        batch_id: open.batch_id,
+      };
     }
     const heading = devices.find((d: any) => d.device_id === open.to_device_id);
-    throw new Error(`already moving to ${heading?.label ?? "another machine"}; cancel that move first`);
+    throw new Error(
+      `already moving to ${heading?.label ?? "another machine"}; cancel that move first`,
+    );
   }
-  if (owner?.is_remote && conv.cloud_placement !== "pending" && target && !target.is_remote && conv.user_id.toString() === userId.toString()) {
-    const batch = await performCreateBatch(ctx, userId, { conversation_ids: [conv._id.toString()], to_device_id: args.device_id, interrupt_on_timeout: false });
-    if (batch.batch_id) return { ok: true as const, command_id: batch.command_ids[0], device_id: args.device_id, label: target.label ?? "", batch_id: batch.batch_id };
-    throw new Error(batch.skipped[0]?.reason ?? "this session cannot be brought back right now");
+  if (
+    owner?.is_remote &&
+    conv.cloud_placement !== "pending" &&
+    target &&
+    !target.is_remote &&
+    conv.user_id.toString() === userId.toString()
+  ) {
+    const batch = await performCreateBatch(ctx, userId, {
+      conversation_ids: [conv._id.toString()],
+      to_device_id: args.device_id,
+      interrupt_on_timeout: false,
+    });
+    if (batch.batch_id)
+      return {
+        ok: true as const,
+        command_id: batch.command_ids[0],
+        device_id: args.device_id,
+        label: target.label ?? "",
+        batch_id: batch.batch_id,
+      };
+    throw new Error(
+      batch.skipped[0]?.reason ??
+        "this session cannot be brought back right now",
+    );
   }
-  return performReassignToDevice(ctx, userId, { conversation_id: conv._id, device_id: args.device_id, request_id: args.request_id });
+  return performReassignToDevice(ctx, userId, {
+    conversation_id: conv._id,
+    device_id: args.device_id,
+    request_id: args.request_id,
+  });
 }

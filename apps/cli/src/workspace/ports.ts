@@ -64,7 +64,9 @@ export function computePorts(
 }
 
 /** Build the env-var map for a port allocation. */
-export function portsToEnv(ports: Record<string, number>): Record<string, string> {
+export function portsToEnv(
+  ports: Record<string, number>,
+): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [name, port] of Object.entries(ports)) {
     env[`PORT_${name.toUpperCase()}`] = String(port);
@@ -97,13 +99,20 @@ export async function allocatePorts(
     const reserved = Object.entries(ports)
       .filter(([, port]) => opts.reservedPorts?.has(port))
       .map(([name, port]) => ({ name, port }));
-    const conflicts = reserved.length > 0 || opts.noProbe ? reserved : await findConflicts(ports);
+    const conflicts =
+      reserved.length > 0 || opts.noProbe
+        ? reserved
+        : await findConflicts(ports);
     if (conflicts.length === 0) {
       const block = Math.floor((i - startIndex) / poolSize);
       const from = startIndex + block * poolSize;
       return {
-        ports, env: portsToEnv(ports), resourceIndex: i,
-        ...(block > 0 ? { extendedRange: { poolSize, from, to: from + poolSize - 1 } } : {}),
+        ports,
+        env: portsToEnv(ports),
+        resourceIndex: i,
+        ...(block > 0
+          ? { extendedRange: { poolSize, from, to: from + poolSize - 1 } }
+          : {}),
       };
     }
     lastConflicts = conflicts;
@@ -139,7 +148,9 @@ async function findConflicts(
  * heavy concurrency (TOCTOU), which is acceptable for workspace setup.
  */
 export async function isPortFree(port: number): Promise<boolean> {
-  const taken = await Promise.all(["127.0.0.1", "::1"].map((host) => accepts(host, port)));
+  const taken = await Promise.all(
+    ["127.0.0.1", "::1"].map((host) => accepts(host, port)),
+  );
   if (taken.includes(true)) return false;
   return bindsOnLoopback(port);
 }
@@ -147,7 +158,10 @@ export async function isPortFree(port: number): Promise<boolean> {
 function accepts(host: string, port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = connect({ host, port });
-    const done = (yes: boolean) => { socket.destroy(); resolve(yes); };
+    const done = (yes: boolean) => {
+      socket.destroy();
+      resolve(yes);
+    };
     socket.setTimeout(500, () => done(false));
     socket.once("connect", () => done(true));
     socket.once("error", () => done(false));

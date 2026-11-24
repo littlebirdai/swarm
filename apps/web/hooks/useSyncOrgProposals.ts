@@ -26,15 +26,35 @@ const api = _api as any;
  *  an authoritative empty list: returning undefined makes useSyncCollection
  *  skip the push, so no prune runs and no durable exclude tombstone lands on
  *  every proposal in scope. */
-export const selectList = (payload: any): any[] | undefined => (payload && Array.isArray(payload.proposals) ? payload.proposals : undefined);
+export const selectList = (payload: any): any[] | undefined =>
+  payload && Array.isArray(payload.proposals) ? payload.proposals : undefined;
 
 /** The active workspace's proposals, scoped like the org tree. */
-export function useSyncOrgProposals(enabled = true): { ready: boolean; error?: Error; missing: boolean } {
+export function useSyncOrgProposals(enabled = true): {
+  ready: boolean;
+  error?: Error;
+  missing: boolean;
+} {
   const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id);
-  const teamArg = !enabled ? "skip" : !activeTeamId ? {} : isConvexId(activeTeamId) ? { team_id: activeTeamId } : "skip";
-  const teamId = teamArg !== "skip" ? (teamArg as { team_id?: string }).team_id : undefined;
-  const syncOpts = useMemo(() => ({ pruneAbsentScope: proposalListScope(teamId) }), [teamId]);
-  const { ready, error } = useSyncCollection("orgProposals", api.orgProposals.list, teamArg, { select: selectList, syncOpts });
+  const teamArg = !enabled
+    ? "skip"
+    : !activeTeamId
+      ? {}
+      : isConvexId(activeTeamId)
+        ? { team_id: activeTeamId }
+        : "skip";
+  const teamId =
+    teamArg !== "skip" ? (teamArg as { team_id?: string }).team_id : undefined;
+  const syncOpts = useMemo(
+    () => ({ pruneAbsentScope: proposalListScope(teamId) }),
+    [teamId],
+  );
+  const { ready, error } = useSyncCollection(
+    "orgProposals",
+    api.orgProposals.list,
+    teamArg,
+    { select: selectList, syncOpts },
+  );
   return { ready, error, missing: isMissingFunctionError(error) };
 }
 
@@ -45,17 +65,29 @@ export function useSyncOrgProposals(enabled = true): { ready: boolean; error?: E
  * `orgProposalChanges` rows. `missing` is a server answer of null: no such
  * proposal, or one the viewer cannot read.
  */
-export function useSyncOrgProposal(proposal: string | null): { ready: boolean; missing: boolean; error?: Error } {
-  const { data, error } = useQueryNoThrow(api.orgProposals.get, proposal ? { proposal } : "skip");
+export function useSyncOrgProposal(proposal: string | null): {
+  ready: boolean;
+  missing: boolean;
+  error?: Error;
+} {
+  const { data, error } = useQueryNoThrow(
+    api.orgProposals.get,
+    proposal ? { proposal } : "skip",
+  );
   const syncTable = useInboxStore((s) => s.syncTable);
   useConvexSync(
     data,
-    useCallback((payload: any) => {
-      if (!payload) return;
-      const { changes, ...row } = payload;
-      syncTable("orgProposals", [row]);
-      syncTable("orgProposalChanges", changes ?? [], { pruneAbsentScope: (c: any) => c?.proposal_id === row._id });
-    }, [syncTable]),
+    useCallback(
+      (payload: any) => {
+        if (!payload) return;
+        const { changes, ...row } = payload;
+        syncTable("orgProposals", [row]);
+        syncTable("orgProposalChanges", changes ?? [], {
+          pruneAbsentScope: (c: any) => c?.proposal_id === row._id,
+        });
+      },
+      [syncTable],
+    ),
   );
   const ready = !!proposal && data !== undefined;
   return { ready, missing: ready && data === null, error };

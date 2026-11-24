@@ -52,6 +52,7 @@ removed and switches off every binding that names it, so machines uninstall it.
 ## Turning items on
 
 Bindings, as for every other capability:
+
 - for me, on all my machines: scope `user`, any member.
 - for the whole team: scope `team`, team admins only, and only for that
   team's own items (a personal item has no team scope).
@@ -80,6 +81,7 @@ On each heartbeat the reconciler resolves bindings; for every enabled
 metadata and a download URL), verifies `folder_hash`, keeps it in
 `~/.codecast/capabilities/store/<hash>/`, and plans writes through
 `driver.ts`:
+
 - skill: `~/.agents/skills/<name>/` via `materializeSkill`, client symlinks.
 - command: `~/.claude/commands/<name>.md`.
 - subagent: `~/.claude/agents/<name>.md`.

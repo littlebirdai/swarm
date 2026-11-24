@@ -1,30 +1,62 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useActiveTeamFeature } from '@/lib/teamFeatures';
-import { StyleSheet, FlatList, TouchableOpacity, View as RNView, KeyboardAvoidingView, Platform, AppState } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import * as Haptics from 'expo-haptics';
-import { copyToClipboard } from '@/lib/clipboard';
-import { setChatFocus, clearChatFocus } from '@/lib/chatFocus';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from 'expo-router';
-import { useMutation } from 'convex/react';
-import { api } from '@codecast/convex/convex/_generated/api';
-import { useInboxStore, selectChannelReadMarker, selectThreadMuted } from '@codecast/web/store/inboxStore';
-import { useThreadMessages, useThreadSync } from '@codecast/web/hooks/useChatSync';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { lineGroupKey, buildChatTimeline, memberHandle, dmOtherIds } from '@codecast/shared/chat';
-import { channelDisplayName } from '@codecast/web/lib/chatViews';
-import { MessageRow, fromChatView, type MobileChatMessage } from '@/components/chat/MessageRow';
-import { type MentionCandidate } from '@/components/chat/MentionStrip';
-import { useSessionIdentityLookup } from '@/components/identity';
-import { ChatComposerBar } from '@/components/chat/ChatComposerBar';
-import { MessageActionsSheet, type MessageAction } from '@/components/chat/MessageActionsSheet';
-import { ImageViewer } from '@/components/chat/ImageViewer';
-import { TypingRow } from '@/components/chat/TypingRow';
-import type { ChatAttachmentArg } from '@/components/chat/chatUpload';
-import { appAlert } from '@/lib/popups';
-import { teamMembersOf } from '@codecast/web/lib/activeTeam';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useActiveTeamFeature } from "@/lib/teamFeatures";
+import {
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  View as RNView,
+  KeyboardAvoidingView,
+  Platform,
+  AppState,
+} from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import * as Haptics from "expo-haptics";
+import { copyToClipboard } from "@/lib/clipboard";
+import { setChatFocus, clearChatFocus } from "@/lib/chatFocus";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  useLocalSearchParams,
+  useRouter,
+  Stack,
+  useFocusEffect,
+} from "expo-router";
+import { useMutation } from "convex/react";
+import { api } from "@codecast/convex/convex/_generated/api";
+import {
+  useInboxStore,
+  selectChannelReadMarker,
+  selectThreadMuted,
+} from "@codecast/web/store/inboxStore";
+import {
+  useThreadMessages,
+  useThreadSync,
+} from "@codecast/web/hooks/useChatSync";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import {
+  lineGroupKey,
+  buildChatTimeline,
+  memberHandle,
+  dmOtherIds,
+} from "@codecast/shared/chat";
+import { channelDisplayName } from "@codecast/web/lib/chatViews";
+import {
+  MessageRow,
+  fromChatView,
+  type MobileChatMessage,
+} from "@/components/chat/MessageRow";
+import { type MentionCandidate } from "@/components/chat/MentionStrip";
+import { useSessionIdentityLookup } from "@/components/identity";
+import { ChatComposerBar } from "@/components/chat/ChatComposerBar";
+import {
+  MessageActionsSheet,
+  type MessageAction,
+} from "@/components/chat/MessageActionsSheet";
+import { ImageViewer } from "@/components/chat/ImageViewer";
+import { TypingRow } from "@/components/chat/TypingRow";
+import type { ChatAttachmentArg } from "@/components/chat/chatUpload";
+import { appAlert } from "@/lib/popups";
+import { teamMembersOf } from "@codecast/web/lib/activeTeam";
 
 // One thread: the root as the subject, the replies under it, and a composer
 // that says out loud when a plain reply will reach the anchor. That hint comes
@@ -36,7 +68,11 @@ import { teamMembersOf } from '@codecast/web/lib/activeTeam';
 
 export default function ChatThreadScreen() {
   const Theme = useTheme();
-  const { id, channel: channelParam, m: targetParam } = useLocalSearchParams<{ id: string; channel?: string; m?: string }>();
+  const {
+    id,
+    channel: channelParam,
+    m: targetParam,
+  } = useLocalSearchParams<{ id: string; channel?: string; m?: string }>();
   const rootId = id as string;
   const router = useRouter();
 
@@ -44,16 +80,20 @@ export default function ChatThreadScreen() {
   // the store (a reply the channel page or a push prefetch already holds
   // paints at once); useThreadSync only feeds it.
   const currentUser = useInboxStore((s) => s.currentUser) as any;
-  const viewerId = currentUser?._id ? String(currentUser._id) : '';
+  const viewerId = currentUser?._id ? String(currentUser._id) : "";
 
   const chatOn = useActiveTeamFeature("chat");
   const thread = useThreadSync(chatOn === false ? undefined : rootId);
   const { root, replies } = useThreadMessages(rootId);
   const rootRow = useInboxStore((s) => s.chatMessages[rootId]) as any;
   const channelId = (rootRow?.channel_id ?? channelParam) as string | undefined;
-  const channel = useInboxStore((s) => (channelId ? s.chatChannels[channelId] : undefined)) as any;
+  const channel = useInboxStore((s) =>
+    channelId ? s.chatChannels[channelId] : undefined,
+  ) as any;
   const teamMembers = useInboxStore(teamMembersOf) as any[];
-  const muted = useInboxStore((s) => (channelId ? selectThreadMuted(s, channelId, rootId) : false));
+  const muted = useInboxStore((s) =>
+    channelId ? selectThreadMuted(s, channelId, rootId) : false,
+  );
   const memberById = useMemo(() => {
     const map = new Map<string, any>();
     for (const m of teamMembers ?? []) if (m) map.set(String(m._id), m);
@@ -72,7 +112,8 @@ export default function ChatThreadScreen() {
         id: String(m._id),
         handle,
         name: m.name || handle,
-        avatarUrl: (m as any).github_avatar_url || (m as any).image || undefined,
+        avatarUrl:
+          (m as any).github_avatar_url || (m as any).image || undefined,
         isAgent: (m as any).is_bot,
       });
     }
@@ -86,8 +127,13 @@ export default function ChatThreadScreen() {
     [mentionCandidates],
   );
 
-  const [sheetTarget, setSheetTarget] = useState<MobileChatMessage | null>(null);
-  const [editing, setEditing] = useState<{ messageId: string; content: string } | null>(null);
+  const [sheetTarget, setSheetTarget] = useState<MobileChatMessage | null>(
+    null,
+  );
+  const [editing, setEditing] = useState<{
+    messageId: string;
+    content: string;
+  } | null>(null);
   const [viewerUri, setViewerUri] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
@@ -95,7 +141,9 @@ export default function ChatThreadScreen() {
   const setFollow = useMutation(api.chat.setAnchorFollow);
 
   const [now, setNow] = useState(() => Date.now());
-  const anyThinking = replies.some((m) => m.agentStatus === 'thinking' || m.agentStatus === 'streaming');
+  const anyThinking = replies.some(
+    (m) => m.agentStatus === "thinking" || m.agentStatus === "streaming",
+  );
   useEffect(() => {
     if (!anyThinking) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -108,7 +156,7 @@ export default function ChatThreadScreen() {
   // forever, because the channel view alone can never reach those rows. But
   // only while the person is actually looking (focused + foregrounded).
   const focusedRef = useRef(false);
-  const appActiveRef = useRef(AppState.currentState === 'active');
+  const appActiveRef = useRef(AppState.currentState === "active");
   const newestReplyId = replies.at(-1)?.id;
   const markIfPresent = useCallback(() => {
     if (!focusedRef.current || !appActiveRef.current || !channelId) return;
@@ -119,7 +167,11 @@ export default function ChatThreadScreen() {
   useFocusEffect(
     useCallback(() => {
       focusedRef.current = true;
-      if (channelId) setChatFocus({ channelId: String(channelId), threadRootId: String(rootId) });
+      if (channelId)
+        setChatFocus({
+          channelId: String(channelId),
+          threadRootId: String(rootId),
+        });
       markIfPresent();
       return () => {
         focusedRef.current = false;
@@ -128,24 +180,33 @@ export default function ChatThreadScreen() {
     }, [markIfPresent, channelId, rootId]),
   );
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => {
-      appActiveRef.current = s === 'active';
-      if (s === 'active') markIfPresent();
+    const sub = AppState.addEventListener("change", (s) => {
+      appActiveRef.current = s === "active";
+      if (s === "active") markIfPresent();
     });
     return () => sub.remove();
   }, [markIfPresent]);
-  useEffect(() => { markIfPresent(); }, [newestReplyId, markIfPresent]);
+  useEffect(() => {
+    markIfPresent();
+  }, [newestReplyId, markIfPresent]);
 
   // Replies paint in this tick through the store's send action. `broadcast`
   // also posts the reply into the channel (the composer's per-message choice).
-  const onSend = useCallback((content: string, attachments: ChatAttachmentArg[], opts?: { broadcast?: boolean }) => {
-    if (!channelId) return;
-    useInboxStore.getState().sendChatMessage(channelId, content, {
-      threadRootId: rootId,
-      attachments: attachments.length ? (attachments as any) : undefined,
-      broadcast: opts?.broadcast || undefined,
-    });
-  }, [channelId, rootId]);
+  const onSend = useCallback(
+    (
+      content: string,
+      attachments: ChatAttachmentArg[],
+      opts?: { broadcast?: boolean },
+    ) => {
+      if (!channelId) return;
+      useInboxStore.getState().sendChatMessage(channelId, content, {
+        threadRootId: rootId,
+        attachments: attachments.length ? (attachments as any) : undefined,
+        broadcast: opts?.broadcast || undefined,
+      });
+    },
+    [channelId, rootId],
+  );
 
   const onRetrySend = useCallback((rowId: string) => {
     useInboxStore.getState().retryChatSend(rowId);
@@ -162,7 +223,8 @@ export default function ChatThreadScreen() {
   const identityFor = useSessionIdentityLookup();
   const chatMessages = useInboxStore.getState().chatMessages;
   const rootView = useMemo(
-    () => (root ? fromChatView(root, chatMessages[root.id], identityFor) : null),
+    () =>
+      root ? fromChatView(root, chatMessages[root.id], identityFor) : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [root, identityFor],
   );
@@ -171,15 +233,18 @@ export default function ChatThreadScreen() {
     if (!root) return [];
     // Day separators add noise, not orientation, in a short dense thread.
     return buildChatTimeline(
-      replies.map((v) => fromChatView(v, chatMessages[v.id], identityFor)).map((m) => ({
-        id: m.id,
-        authorId: m.author.id,
-        groupKey: lineGroupKey(m.author, m.contextSession?.id),
-        createdAt: m.createdAt,
-        pendingAgent: m.agentStatus === 'thinking' || m.agentStatus === 'streaming',
-        deleted: !!m.deletedAt,
-        view: m,
-      })),
+      replies
+        .map((v) => fromChatView(v, chatMessages[v.id], identityFor))
+        .map((m) => ({
+          id: m.id,
+          authorId: m.author.id,
+          groupKey: lineGroupKey(m.author, m.contextSession?.id),
+          createdAt: m.createdAt,
+          pendingAgent:
+            m.agentStatus === "thinking" || m.agentStatus === "streaming",
+          deleted: !!m.deletedAt,
+          view: m,
+        })),
       { now, viewerId, withoutDays: true },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -193,16 +258,26 @@ export default function ChatThreadScreen() {
   const listRef = useRef<FlatList>(null);
   const doneTargetRef = useRef<string | null>(null);
   useEffect(() => {
-    const target = typeof targetParam === 'string' ? targetParam : undefined;
+    const target = typeof targetParam === "string" ? targetParam : undefined;
     if (!target || doneTargetRef.current === target || !root) return;
-    const index = inverted.findIndex((it: any) => it.kind === 'message' && it.message?.id === target);
+    const index = inverted.findIndex(
+      (it: any) => it.kind === "message" && it.message?.id === target,
+    );
     // A cached thread may not hold the reply yet: wait for the page.
     if (index < 0 && thread.loading) return;
     doneTargetRef.current = target;
     if (index >= 0) {
       setHighlightId(target);
       if (index > 2) {
-        setTimeout(() => listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true }), 250);
+        setTimeout(
+          () =>
+            listRef.current?.scrollToIndex({
+              index,
+              viewPosition: 0.5,
+              animated: true,
+            }),
+          250,
+        );
       }
       setTimeout(() => setHighlightId(null), 3200);
     }
@@ -211,68 +286,112 @@ export default function ChatThreadScreen() {
   // ── Long-press sheet ──────────────────────────────────────────────────────
   const onLongPress = useCallback((message: MobileChatMessage) => {
     if (message.pending || message.failed || message.deletedAt) return;
-    if (Platform.OS === 'ios') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS === "ios")
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSheetTarget(message);
   }, []);
 
-  const onSheetAction = useCallback((action: MessageAction) => {
-    const message = sheetTarget;
-    if (!message) return;
-    if (action.kind === 'react') {
-      toggleReaction(message.id, action.emoji);
-    } else if (action.kind === 'copy') {
-      copyToClipboard(message.content);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else if (action.kind === 'edit') {
-      setEditing({ messageId: message.id, content: message.content });
-    } else if (action.kind === 'delete') {
-      appAlert('Delete message?', 'It will show as deleted for everyone.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => useInboxStore.getState().deleteChatMessage(message.id) },
-      ]);
-    }
-  }, [sheetTarget, toggleReaction]);
+  const onSheetAction = useCallback(
+    (action: MessageAction) => {
+      const message = sheetTarget;
+      if (!message) return;
+      if (action.kind === "react") {
+        toggleReaction(message.id, action.emoji);
+      } else if (action.kind === "copy") {
+        copyToClipboard(message.content);
+        void Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success,
+        );
+      } else if (action.kind === "edit") {
+        setEditing({ messageId: message.id, content: message.content });
+      } else if (action.kind === "delete") {
+        appAlert("Delete message?", "It will show as deleted for everyone.", [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () =>
+              useInboxStore.getState().deleteChatMessage(message.id),
+          },
+        ]);
+      }
+    },
+    [sheetTarget, toggleReaction],
+  );
 
-  const nameOf = useCallback((uid: string) => {
-    const m = memberById.get(uid);
-    return m?.name?.split(/\s+/)[0] || m?.github_username || '';
-  }, [memberById]);
+  const nameOf = useCallback(
+    (uid: string) => {
+      const m = memberById.get(uid);
+      return m?.name?.split(/\s+/)[0] || m?.github_username || "";
+    },
+    [memberById],
+  );
 
   const armed = thread.anchor?.armed ?? false;
-  const isDm = channel?.kind === 'dm';
-  const roomLabel = !channel ? '' : isDm
-    ? channelDisplayName({ name: channel.name ?? '', kind: 'dm', dmMemberIds: dmOtherIds(channel.dm_key, viewerId) }, teamMembers)
-    : channel.name ? `#${channel.name}` : '';
+  const isDm = channel?.kind === "dm";
+  const roomLabel = !channel
+    ? ""
+    : isDm
+      ? channelDisplayName(
+          {
+            name: channel.name ?? "",
+            kind: "dm",
+            dmMemberIds: dmOtherIds(channel.dm_key, viewerId),
+          },
+          teamMembers,
+        )
+      : channel.name
+        ? `#${channel.name}`
+        : "";
   // The rollup the channel page carried says how many replies exist; until
   // the thread page lands, the gap is said rather than drawn as an empty room.
-  const expectedReplies = useInboxStore((s: any) => s.chatThreadSummaries?.[rootId]?.reply_count ?? 0) as number;
+  const expectedReplies = useInboxStore(
+    (s: any) => s.chatThreadSummaries?.[rootId]?.reply_count ?? 0,
+  ) as number;
   const replyCount = Math.max(replies.length, expectedReplies);
   const repliesComing = thread.loading && replies.length < expectedReplies;
-  const anchorName = thread.anchor?.name ?? 'Workspace agent';
+  const anchorName = thread.anchor?.name ?? "Workspace agent";
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <Stack.Screen options={{ headerShown: false }} />
       <RNView style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8} style={styles.back} accessibilityLabel="Back">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={8}
+          style={styles.back}
+          accessibilityLabel="Back"
+        >
           <FontAwesome name="chevron-left" size={18} color={Theme.text} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.headMain}
           disabled={!channelId}
           activeOpacity={0.6}
-          onPress={() => channelId && router.push({ pathname: '/chat/[id]', params: { id: String(channelId) } } as never)}
+          onPress={() =>
+            channelId &&
+            router.push({
+              pathname: "/chat/[id]",
+              params: { id: String(channelId) },
+            } as never)
+          }
           accessibilityRole="link"
-          accessibilityLabel={roomLabel ? `Thread in ${roomLabel}. Open the channel` : 'Thread'}
+          accessibilityLabel={
+            roomLabel ? `Thread in ${roomLabel}. Open the channel` : "Thread"
+          }
         >
           <RNText style={styles.title}>Thread</RNText>
           {!!roomLabel && (
-            <RNText style={styles.subtitle} numberOfLines={1}>{roomLabel}</RNText>
+            <RNText style={styles.subtitle} numberOfLines={1}>
+              {roomLabel}
+            </RNText>
           )}
         </TouchableOpacity>
         {armed && (
           <TouchableOpacity
-            onPress={() => void setFollow({ root_id: rootId as any, follow: false })}
+            onPress={() =>
+              void setFollow({ root_id: rootId as any, follow: false })
+            }
             hitSlop={8}
             style={styles.armedPill}
           >
@@ -282,20 +401,28 @@ export default function ChatThreadScreen() {
         )}
         {!!channelId && !!currentUser && (
           <TouchableOpacity
-            onPress={() => useInboxStore.getState().setChatThreadMuted(channelId, rootId, !muted)}
+            onPress={() =>
+              useInboxStore
+                .getState()
+                .setChatThreadMuted(channelId, rootId, !muted)
+            }
             hitSlop={10}
             accessibilityRole="switch"
             accessibilityState={{ checked: muted }}
             accessibilityLabel="Mute notifications for replies"
           >
-            <FontAwesome name={muted ? 'bell-slash' : 'bell-o'} size={15} color={muted ? Theme.orange : Theme.textMuted} />
+            <FontAwesome
+              name={muted ? "bell-slash" : "bell-o"}
+              size={15}
+              color={muted ? Theme.orange : Theme.textMuted}
+            />
           </TouchableOpacity>
         )}
       </RNView>
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <FlatList
           ref={listRef}
@@ -307,10 +434,12 @@ export default function ChatThreadScreen() {
           // tap on a link, reaction or image acts first time.
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => {
-            if (item.kind !== 'message') return null;
+            if (item.kind !== "message") return null;
             const view = (item.message as any).view as MobileChatMessage;
             return (
-              <RNView style={view.id === highlightId ? styles.highlight : undefined}>
+              <RNView
+                style={view.id === highlightId ? styles.highlight : undefined}
+              >
                 <MessageRow
                   message={view}
                   grouped={item.grouped}
@@ -319,7 +448,9 @@ export default function ChatThreadScreen() {
                   knownMentionHandles={knownHandles}
                   onLongPress={onLongPress}
                   onToggleReaction={toggleReaction}
-                  onStopAgent={(mid) => void stopAnchor({ message_id: mid as any })}
+                  onStopAgent={(mid) =>
+                    void stopAnchor({ message_id: mid as any })
+                  }
                   onRetrySend={onRetrySend}
                   onOpenImage={setViewerUri}
                 />
@@ -341,11 +472,17 @@ export default function ChatThreadScreen() {
                   onOpenImage={setViewerUri}
                 />
               ) : (
-                <RNText style={styles.placeholder}>{thread.loading ? 'Loading the thread…' : 'This message is not available.'}</RNText>
+                <RNText style={styles.placeholder}>
+                  {thread.loading
+                    ? "Loading the thread…"
+                    : "This message is not available."}
+                </RNText>
               )}
               <RNView style={styles.replyRule}>
                 <RNText style={styles.replyRuleText}>
-                  {replyCount === 0 ? 'No replies yet' : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
+                  {replyCount === 0
+                    ? "No replies yet"
+                    : `${replyCount} ${replyCount === 1 ? "reply" : "replies"}`}
                 </RNText>
                 <RNView style={styles.replyRuleLine} />
               </RNView>
@@ -356,9 +493,13 @@ export default function ChatThreadScreen() {
           // because the list is inverted).
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
-            repliesComing ? <RNText style={styles.placeholder}>Loading replies…</RNText> : null
+            repliesComing ? (
+              <RNText style={styles.placeholder}>Loading replies…</RNText>
+            ) : null
           }
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardDismissMode={
+            Platform.OS === "ios" ? "interactive" : "on-drag"
+          }
         />
 
         <TypingRow
@@ -371,9 +512,9 @@ export default function ChatThreadScreen() {
           atScreenBottom
           channelId={channelId ? String(channelId) : undefined}
           threadRootId={String(rootId)}
-          placeholder={armed ? `Reply — ${anchorName} will answer` : 'Reply…'}
+          placeholder={armed ? `Reply — ${anchorName} will answer` : "Reply…"}
           broadcastTo={channel?.name && !isDm ? `#${channel.name}` : undefined}
-          placeholderTint={armed ? Theme.violet + 'AA' : undefined}
+          placeholderTint={armed ? Theme.violet + "AA" : undefined}
           mentionCandidates={mentionCandidates}
           editing={editing}
           onCancelEdit={() => setEditing(null)}
@@ -394,49 +535,61 @@ export default function ChatThreadScreen() {
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: Theme.bg },
-  flex: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingLeft: 4,
-    paddingRight: Spacing.md,
-    minHeight: 56,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.border + '80',
-  },
-  back: { width: 36, height: 44, alignItems: 'center', justifyContent: 'center' },
-  headMain: { flex: 1, minWidth: 0 },
-  title: { fontSize: 15.5, fontWeight: '700', color: Theme.text },
-  subtitle: { fontSize: 12, color: Theme.textMuted },
-  armedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderWidth: 1,
-    borderColor: Theme.violet + '55',
-    borderRadius: 10,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
-  armedText: { fontSize: 11, fontWeight: '600', color: Theme.violet },
-  // No counter-flip: on this RN (0.81 / Fabric) an inverted list does NOT
-  // transform header/footer components — flipping here rendered the root
-  // upside down (caught in the simulator, 2026-08-15).
-  rootWrap: { paddingTop: 4 },
-  listContent: { flexGrow: 1, justifyContent: 'flex-end', paddingBottom: 12 },
-  replyRule: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 14,
-    marginBottom: 2,
-    paddingHorizontal: Spacing.md,
-  },
-  replyRuleText: { fontSize: 12, fontWeight: '700', color: Theme.textMuted },
-  replyRuleLine: { flex: 1, height: 1, backgroundColor: Theme.border },
-  placeholder: { fontSize: 13, color: Theme.textMuted0, paddingHorizontal: Spacing.md, paddingVertical: 14 },
-  highlight: { backgroundColor: Theme.accent + '1E' },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: Theme.bg },
+    flex: { flex: 1 },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingLeft: 4,
+      paddingRight: Spacing.md,
+      minHeight: 56,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.border + "80",
+    },
+    back: {
+      width: 36,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headMain: { flex: 1, minWidth: 0 },
+    title: { fontSize: 15.5, fontWeight: "700", color: Theme.text },
+    subtitle: { fontSize: 12, color: Theme.textMuted },
+    armedPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      borderWidth: 1,
+      borderColor: Theme.violet + "55",
+      borderRadius: 10,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+    },
+    armedText: { fontSize: 11, fontWeight: "600", color: Theme.violet },
+    // No counter-flip: on this RN (0.81 / Fabric) an inverted list does NOT
+    // transform header/footer components — flipping here rendered the root
+    // upside down (caught in the simulator, 2026-08-15).
+    rootWrap: { paddingTop: 4 },
+    listContent: { flexGrow: 1, justifyContent: "flex-end", paddingBottom: 12 },
+    replyRule: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginTop: 14,
+      marginBottom: 2,
+      paddingHorizontal: Spacing.md,
+    },
+    replyRuleText: { fontSize: 12, fontWeight: "700", color: Theme.textMuted },
+    replyRuleLine: { flex: 1, height: 1, backgroundColor: Theme.border },
+    placeholder: {
+      fontSize: 13,
+      color: Theme.textMuted0,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 14,
+    },
+    highlight: { backgroundColor: Theme.accent + "1E" },
+  }),
+);

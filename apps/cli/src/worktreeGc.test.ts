@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, test, setDefaultTimeout } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  setDefaultTimeout,
+} from "bun:test";
 
 // Seeded-worktree cases read whole trees with the sync program (cloud/syncSide.ts); a loaded machine needs the room.
 setDefaultTimeout(60_000);
@@ -7,7 +14,16 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createGitCapabilityStore } from "./gitCapability";
-import { keepReason, lockHolds, probeWorktree, releaseSessionMadeWorktrees, releaseSessionWorktree, releaseTree, runTreesInUseVia, type WorktreeProbe } from "./worktreeGc";
+import {
+  keepReason,
+  lockHolds,
+  probeWorktree,
+  releaseSessionMadeWorktrees,
+  releaseSessionWorktree,
+  releaseTree,
+  runTreesInUseVia,
+  type WorktreeProbe,
+} from "./worktreeGc";
 import { acquireWorkspace } from "./workspace/lifecycle";
 import { readState, recordWorkspaceSession } from "./workspace/contract";
 
@@ -15,7 +31,9 @@ let savedCodecastDir: string | undefined;
 beforeEach(() => {
   savedCodecastDir = process.env.CODECAST_DIR;
   // The git capability cache is a host file; keep the suite out of the user's.
-  process.env.CODECAST_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "wtgc-home-"));
+  process.env.CODECAST_DIR = fs.mkdtempSync(
+    path.join(os.tmpdir(), "wtgc-home-"),
+  );
 });
 afterEach(() => {
   fs.rmSync(process.env.CODECAST_DIR!, { recursive: true, force: true });
@@ -24,40 +42,89 @@ afterEach(() => {
 });
 
 test("daemon GC is opt-in for retirement, never account or agent recycling", () => {
-  const source = fs.readFileSync(path.join(import.meta.dir, "daemon.ts"), "utf8");
-  const kill = source.slice(source.indexOf("async function killConversationBackends("), source.indexOf("async function killConversationBackendsForAgentSwitch("));
+  const source = fs.readFileSync(
+    path.join(import.meta.dir, "daemon.ts"),
+    "utf8",
+  );
+  const kill = source.slice(
+    source.indexOf("async function killConversationBackends("),
+    source.indexOf("async function killConversationBackendsForAgentSwitch("),
+  );
   expect(kill).toContain("retireWorkspace = false");
-  expect(kill).toContain("if (retireWorkspace && gcCwd && (teardown.killedAppServer || teardown.killedSdk || teardownPlan.reapPidTree)");
+  expect(kill).toContain(
+    "if (retireWorkspace && gcCwd && (teardown.killedAppServer || teardown.killedSdk || teardownPlan.reapPidTree)",
+  );
   // Only the explicit kill command retires, and a kill that says the worktree is
   // someone else's (a workflow station's, shared by its run) keeps it.
-  expect(source.match(/killConversationBackends\(\w+, \w+, [^\n]*?\)(?=;)/g)).toEqual([
+  expect(
+    source.match(/killConversationBackends\(\w+, \w+, [^\n]*?\)(?=;)/g),
+  ).toEqual([
     "killConversationBackends(conversationId, sessionIdHint, parsed.keep_workspace !== true)",
   ]);
-  expect(source).toContain("killConversationBackends(convId, sessionIds[convId])");
+  expect(source).toContain(
+    "killConversationBackends(convId, sessionIds[convId])",
+  );
 });
 
 describe("keepReason", () => {
   test("clean and on origin → release", () => {
-    expect(keepReason({ dirty: false, aheadOfOrigin: 0, contentInBase: true })).toBeNull();
+    expect(
+      keepReason({ dirty: false, aheadOfOrigin: 0, contentInBase: true }),
+    ).toBeNull();
   });
   test("dirty, ahead, or unknown → keep, with the reason", () => {
-    expect(keepReason({ dirty: true, aheadOfOrigin: 0, contentInBase: true })).toBe("uncommitted changes");
-    expect(keepReason({ dirty: false, aheadOfOrigin: 2, contentInBase: false })).toBe("2 commit(s) not on origin");
-    expect(keepReason({ dirty: false, aheadOfOrigin: null, contentInBase: false })).toMatch(/cannot tell/);
+    expect(
+      keepReason({ dirty: true, aheadOfOrigin: 0, contentInBase: true }),
+    ).toBe("uncommitted changes");
+    expect(
+      keepReason({ dirty: false, aheadOfOrigin: 2, contentInBase: false }),
+    ).toBe("2 commit(s) not on origin");
+    expect(
+      keepReason({ dirty: false, aheadOfOrigin: null, contentInBase: false }),
+    ).toMatch(/cannot tell/);
   });
   test("content already on the base outranks the commit count", () => {
-    expect(keepReason({ dirty: false, aheadOfOrigin: 3, contentInBase: true })).toBeNull();
-    expect(keepReason({ dirty: false, aheadOfOrigin: null, contentInBase: true })).toBeNull();
+    expect(
+      keepReason({ dirty: false, aheadOfOrigin: 3, contentInBase: true }),
+    ).toBeNull();
+    expect(
+      keepReason({ dirty: false, aheadOfOrigin: null, contentInBase: true }),
+    ).toBeNull();
   });
   test("a seeded worktree: no host-only work releases even when dirty and ahead; host-only work keeps; unknown falls through (ct-49433)", () => {
-    expect(keepReason({ dirty: true, aheadOfOrigin: 3, contentInBase: false, hostOnlyWork: false })).toBeNull();
-    expect(keepReason({ dirty: true, aheadOfOrigin: 3, contentInBase: false, hostOnlyWork: true })).toBe("changes since the laptop seed");
-    expect(keepReason({ dirty: true, aheadOfOrigin: 3, contentInBase: false, hostOnlyWork: null })).toBe("uncommitted changes");
+    expect(
+      keepReason({
+        dirty: true,
+        aheadOfOrigin: 3,
+        contentInBase: false,
+        hostOnlyWork: false,
+      }),
+    ).toBeNull();
+    expect(
+      keepReason({
+        dirty: true,
+        aheadOfOrigin: 3,
+        contentInBase: false,
+        hostOnlyWork: true,
+      }),
+    ).toBe("changes since the laptop seed");
+    expect(
+      keepReason({
+        dirty: true,
+        aheadOfOrigin: 3,
+        contentInBase: false,
+        hostOnlyWork: null,
+      }),
+    ).toBe("uncommitted changes");
   });
 });
 
 function sh(cwd: string, cmd: string, args: string[]): string {
-  return execFileSync(cmd, args, { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  return execFileSync(cmd, args, {
+    cwd,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
 }
 
 /** A repo with an "origin" clone, so origin/main exists and worktrees can be probed. */
@@ -66,16 +133,40 @@ function makeRepo(): { origin: string; repo: string } {
   const origin = path.join(dir, "origin");
   fs.mkdirSync(origin);
   sh(origin, "git", ["init", "-q", "-b", "main"]);
-  sh(origin, "git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "root"]);
+  sh(origin, "git", [
+    "-c",
+    "user.email=t@t",
+    "-c",
+    "user.name=t",
+    "commit",
+    "-q",
+    "--allow-empty",
+    "-m",
+    "root",
+  ]);
   const repo = path.join(dir, "repo");
   sh(dir, "git", ["clone", "-q", origin, repo]);
   return { origin, repo };
 }
 
-function commit(cwd: string, message: string, files: Record<string, string>): void {
-  for (const [name, body] of Object.entries(files)) fs.writeFileSync(path.join(cwd, name), body);
+function commit(
+  cwd: string,
+  message: string,
+  files: Record<string, string>,
+): void {
+  for (const [name, body] of Object.entries(files))
+    fs.writeFileSync(path.join(cwd, name), body);
   sh(cwd, "git", ["add", "-A"]);
-  sh(cwd, "git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", message]);
+  sh(cwd, "git", [
+    "-c",
+    "user.email=t@t",
+    "-c",
+    "user.name=t",
+    "commit",
+    "-q",
+    "-m",
+    message,
+  ]);
 }
 
 /** A worktree of `repo` at `.codecast/worktrees/<name>`, on its own branch. */
@@ -92,13 +183,42 @@ describe("releaseSessionWorktree", () => {
     const wt = path.join(repo, ".codecast", "worktrees", "shared");
     fs.mkdirSync(path.dirname(wt), { recursive: true });
     sh(repo, "git", ["worktree", "add", "-q", "-b", "codecast/shared", wt]);
-    expect(await releaseSessionWorktree(wt, () => {}, async () => true)).toMatchObject({ action: "kept", reason: "another session uses this worktree" });
-    expect(await releaseSessionWorktree(wt, () => {}, async () => { throw new Error("offline"); })).toMatchObject({ action: "kept", reason: "cannot verify exclusive session ownership" });
+    expect(
+      await releaseSessionWorktree(
+        wt,
+        () => {},
+        async () => true,
+      ),
+    ).toMatchObject({
+      action: "kept",
+      reason: "another session uses this worktree",
+    });
+    expect(
+      await releaseSessionWorktree(
+        wt,
+        () => {},
+        async () => {
+          throw new Error("offline");
+        },
+      ),
+    ).toMatchObject({
+      action: "kept",
+      reason: "cannot verify exclusive session ownership",
+    });
     expect(fs.existsSync(wt)).toBe(true);
-    expect(await releaseSessionWorktree(wt, () => {}, async () => false)).toMatchObject({ action: "released" });
+    expect(
+      await releaseSessionWorktree(
+        wt,
+        () => {},
+        async () => false,
+      ),
+    ).toMatchObject({ action: "released" });
   }, 30_000);
   test("ignores paths that are not codecast worktrees", async () => {
-    expect(await releaseSessionWorktree(undefined)).toEqual({ action: "skipped", reason: "no cwd" });
+    expect(await releaseSessionWorktree(undefined)).toEqual({
+      action: "skipped",
+      reason: "no cwd",
+    });
     expect((await releaseSessionWorktree("/tmp/plain")).action).toBe("skipped");
   });
 
@@ -108,17 +228,38 @@ describe("releaseSessionWorktree", () => {
     fs.mkdirSync(wtDir, { recursive: true });
     const clean = path.join(wtDir, "clean-one");
     const dirty = path.join(wtDir, "dirty-one");
-    sh(repo, "git", ["worktree", "add", "-q", "-b", "codecast/clean-one", clean]);
-    sh(repo, "git", ["worktree", "add", "-q", "-b", "codecast/dirty-one", dirty]);
+    sh(repo, "git", [
+      "worktree",
+      "add",
+      "-q",
+      "-b",
+      "codecast/clean-one",
+      clean,
+    ]);
+    sh(repo, "git", [
+      "worktree",
+      "add",
+      "-q",
+      "-b",
+      "codecast/dirty-one",
+      dirty,
+    ]);
     fs.writeFileSync(path.join(dirty, "scratch.txt"), "work in progress");
 
-    expect(await probeWorktree(clean)).toEqual({ dirty: false, aheadOfOrigin: 0, contentInBase: true });
+    expect(await probeWorktree(clean)).toEqual({
+      dirty: false,
+      aheadOfOrigin: 0,
+      contentInBase: true,
+    });
     const released = await releaseSessionWorktree(path.join(clean, "packages"));
     expect(released.action).toBe("released");
     expect(fs.existsSync(clean)).toBe(false);
 
     const kept = await releaseSessionWorktree(dirty);
-    expect(kept).toMatchObject({ action: "kept", reason: "uncommitted changes" });
+    expect(kept).toMatchObject({
+      action: "kept",
+      reason: "uncommitted changes",
+    });
     expect(fs.existsSync(dirty)).toBe(true);
   }, 30_000);
 
@@ -126,9 +267,15 @@ describe("releaseSessionWorktree", () => {
     const { repo } = makeRepo();
     const wt = addWorktree(repo, "ahead");
     commit(wt, "local work", { "feature.txt": "unmerged work\n" });
-    expect(await probeWorktree(wt)).toMatchObject({ aheadOfOrigin: 1, contentInBase: false });
+    expect(await probeWorktree(wt)).toMatchObject({
+      aheadOfOrigin: 1,
+      contentInBase: false,
+    });
     const kept = await releaseSessionWorktree(wt);
-    expect(kept).toMatchObject({ action: "kept", reason: "1 commit(s) not on origin" });
+    expect(kept).toMatchObject({
+      action: "kept",
+      reason: "1 commit(s) not on origin",
+    });
     expect(fs.existsSync(wt)).toBe(true);
   }, 30_000);
 
@@ -142,8 +289,14 @@ describe("releaseSessionWorktree", () => {
 
     // probeWorktree fetches, so the clone has not seen the merge yet.
     const probe = await probeWorktree(wt);
-    expect(probe).toMatchObject({ dirty: false, aheadOfOrigin: 2, contentInBase: true });
-    expect(await releaseSessionWorktree(wt)).toMatchObject({ action: "released" });
+    expect(probe).toMatchObject({
+      dirty: false,
+      aheadOfOrigin: 2,
+      contentInBase: true,
+    });
+    expect(await releaseSessionWorktree(wt)).toMatchObject({
+      action: "released",
+    });
     expect(fs.existsSync(wt)).toBe(false);
   }, 30_000);
 
@@ -154,8 +307,13 @@ describe("releaseSessionWorktree", () => {
     commit(origin, "someone else", { "other.txt": "unrelated\n" });
     commit(origin, "feature (rebased)", { "feature.txt": "work\n" });
 
-    expect(await probeWorktree(wt)).toMatchObject({ aheadOfOrigin: 1, contentInBase: true });
-    expect(await releaseSessionWorktree(wt)).toMatchObject({ action: "released" });
+    expect(await probeWorktree(wt)).toMatchObject({
+      aheadOfOrigin: 1,
+      contentInBase: true,
+    });
+    expect(await releaseSessionWorktree(wt)).toMatchObject({
+      action: "released",
+    });
     expect(fs.existsSync(wt)).toBe(false);
   }, 30_000);
 
@@ -165,7 +323,10 @@ describe("releaseSessionWorktree", () => {
     commit(wt, "mine", { "feature.txt": "mine\n" });
     commit(origin, "theirs", { "feature.txt": "theirs\n" });
 
-    expect(await probeWorktree(wt)).toMatchObject({ aheadOfOrigin: 1, contentInBase: false });
+    expect(await probeWorktree(wt)).toMatchObject({
+      aheadOfOrigin: 1,
+      contentInBase: false,
+    });
     expect(await releaseSessionWorktree(wt)).toMatchObject({ action: "kept" });
     expect(fs.existsSync(wt)).toBe(true);
   }, 30_000);
@@ -176,23 +337,42 @@ describe("fetching origin", () => {
     const { origin, repo } = makeRepo();
     const wt = addWorktree(repo, "burst");
     commit(wt, "work", { "feature.txt": "work\n" });
-    expect(await probeWorktree(wt, { repoKey: repo })).toMatchObject({ aheadOfOrigin: 1, contentInBase: false });
+    expect(await probeWorktree(wt, { repoKey: repo })).toMatchObject({
+      aheadOfOrigin: 1,
+      contentInBase: false,
+    });
 
     commit(origin, "merge the branch", { "feature.txt": "work\n" });
     // The next worktree of the same repo reuses that fetch, so it still reads
     // the origin refs from before the merge.
-    expect(await probeWorktree(wt, { repoKey: repo })).toMatchObject({ aheadOfOrigin: 1, contentInBase: false });
+    expect(await probeWorktree(wt, { repoKey: repo })).toMatchObject({
+      aheadOfOrigin: 1,
+      contentInBase: false,
+    });
     // A different repo is a different remote to refresh, and it sees the merge.
-    expect(await probeWorktree(wt, { repoKey: `${repo}-other` })).toMatchObject({ contentInBase: true });
+    expect(await probeWorktree(wt, { repoKey: `${repo}-other` })).toMatchObject(
+      { contentInBase: true },
+    );
   }, 30_000);
 
   test("a failed fetch answers from the origin refs already on disk", async () => {
     const { origin, repo } = makeRepo();
     const wt = addWorktree(repo, "offline");
-    sh(repo, "git", ["remote", "set-url", "origin", path.join(path.dirname(origin), "gone")]);
+    sh(repo, "git", [
+      "remote",
+      "set-url",
+      "origin",
+      path.join(path.dirname(origin), "gone"),
+    ]);
 
-    expect(await probeWorktree(wt)).toEqual({ dirty: false, aheadOfOrigin: 0, contentInBase: true });
-    expect(await releaseSessionWorktree(wt)).toMatchObject({ action: "released" });
+    expect(await probeWorktree(wt)).toEqual({
+      dirty: false,
+      aheadOfOrigin: 0,
+      contentInBase: true,
+    });
+    expect(await releaseSessionWorktree(wt)).toMatchObject({
+      action: "released",
+    });
     expect(fs.existsSync(wt)).toBe(false);
   }, 30_000);
 });
@@ -200,7 +380,10 @@ describe("fetching origin", () => {
 describe("old git without merge-tree --write-tree", () => {
   /** A `git` that rejects `--write-tree` the way pre-2.38 git does, and logs the attempt. */
   function shimOldGit(dir: string, log: string): string {
-    const realGit = execFileSync("command", ["-v", "git"], { encoding: "utf8", shell: "/bin/sh" }).trim();
+    const realGit = execFileSync("command", ["-v", "git"], {
+      encoding: "utf8",
+      shell: "/bin/sh",
+    }).trim();
     const bin = path.join(dir, "old-git-bin");
     fs.mkdirSync(bin, { recursive: true });
     fs.writeFileSync(
@@ -221,12 +404,19 @@ exec ${JSON.stringify(realGit)} "$@"
   }
 
   /** Probe in a child process, because a PATH shim only reaches a fresh spawn. */
-  async function probeOnHost(worktree: string, env: Record<string, string>): Promise<WorktreeProbe> {
+  async function probeOnHost(
+    worktree: string,
+    env: Record<string, string>,
+  ): Promise<WorktreeProbe> {
     const child = Bun.spawn(
-      [process.execPath, "-e", `
+      [
+        process.execPath,
+        "-e",
+        `
         import { probeWorktree } from ${JSON.stringify(path.join(import.meta.dir, "worktreeGc.ts"))};
         console.log(JSON.stringify(await probeWorktree(${JSON.stringify(worktree)})));
-      `],
+      `,
+      ],
       { stdout: "pipe", stderr: "pipe", env: { ...process.env, ...env } },
     );
     const out = await new Response(child.stdout).text();
@@ -250,24 +440,49 @@ exec ${JSON.stringify(realGit)} "$@"
     expect(first).toMatchObject({ aheadOfOrigin: 1, contentInBase: false });
     expect(keepReason(first)).toBe("1 commit(s) not on origin");
     // A second run is a second process: it reads the cache instead of the option.
-    expect(await probeOnHost(wt, env)).toMatchObject({ aheadOfOrigin: 1, contentInBase: false });
-    expect(fs.readFileSync(log, "utf8").trim().split("\n")).toEqual(["attempt"]);
+    expect(await probeOnHost(wt, env)).toMatchObject({
+      aheadOfOrigin: 1,
+      contentInBase: false,
+    });
+    expect(fs.readFileSync(log, "utf8").trim().split("\n")).toEqual([
+      "attempt",
+    ]);
 
     // The same cache file, seen by an upgraded git: a different version is a
     // different key, so the capability is probed again and the merge is visible.
     const cachePath = path.join(env.CODECAST_DIR, "git-capabilities.json");
-    expect(JSON.parse(fs.readFileSync(cachePath, "utf8")).capabilities).toEqual({ "merge-tree-write-tree": false });
-    const upgraded = createGitCapabilityStore({ cachePath, gitVersion: "git version 99.0.0" });
-    expect(await probeWorktree(wt, { capabilities: upgraded })).toMatchObject({ aheadOfOrigin: 1, contentInBase: true });
-    expect(await releaseSessionWorktree(wt)).toMatchObject({ action: "released" });
+    expect(JSON.parse(fs.readFileSync(cachePath, "utf8")).capabilities).toEqual(
+      { "merge-tree-write-tree": false },
+    );
+    const upgraded = createGitCapabilityStore({
+      cachePath,
+      gitVersion: "git version 99.0.0",
+    });
+    expect(await probeWorktree(wt, { capabilities: upgraded })).toMatchObject({
+      aheadOfOrigin: 1,
+      contentInBase: true,
+    });
+    expect(await releaseSessionWorktree(wt)).toMatchObject({
+      action: "released",
+    });
   }, 30_000);
 });
 
 describe("seeded worktrees (ct-49433): released when the laptop still holds all of it", () => {
-  const opts = { skipSetup: true, skipHooks: true, skipBrowser: true, skipPool: true };
+  const opts = {
+    skipSetup: true,
+    skipHooks: true,
+    skipBrowser: true,
+    skipPool: true,
+  };
   let savedDir: string | undefined;
-  beforeEach(() => { savedDir = process.env.CODECAST_DIR; });
-  afterEach(() => { if (savedDir === undefined) delete process.env.CODECAST_DIR; else process.env.CODECAST_DIR = savedDir; });
+  beforeEach(() => {
+    savedDir = process.env.CODECAST_DIR;
+  });
+  afterEach(() => {
+    if (savedDir === undefined) delete process.env.CODECAST_DIR;
+    else process.env.CODECAST_DIR = savedDir;
+  });
 
   /** A repo whose "laptop seed" is a feature commit ahead of origin/main plus a snapshot with an untracked file. */
   async function seeded(name: string) {
@@ -276,22 +491,54 @@ describe("seeded worktrees (ct-49433): released when the laptop still holds all 
     sh(repo, "git", ["checkout", "-qb", "feat/x"]);
     fs.writeFileSync(path.join(repo, "feature.txt"), "feature\n");
     sh(repo, "git", ["add", "feature.txt"]);
-    sh(repo, "git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "feature"]);
+    sh(repo, "git", [
+      "-c",
+      "user.email=t@t",
+      "-c",
+      "user.name=t",
+      "commit",
+      "-qm",
+      "feature",
+    ]);
     const base = sh(repo, "git", ["rev-parse", "HEAD"]);
     sh(repo, "git", ["checkout", "-q", "main"]);
     const idx = path.join(repo, "seed-index");
     const env = { ...process.env, GIT_INDEX_FILE: idx };
-    execFileSync("git", ["-C", repo, "read-tree", base], { env, stdio: "ignore" });
+    execFileSync("git", ["-C", repo, "read-tree", base], {
+      env,
+      stdio: "ignore",
+    });
     fs.writeFileSync(path.join(repo, "wip.txt"), "wip\n");
-    execFileSync("git", ["-C", repo, "add", "wip.txt"], { env, stdio: "ignore" });
-    const tree = execFileSync("git", ["-C", repo, "write-tree"], { env, encoding: "utf-8" }).trim();
+    execFileSync("git", ["-C", repo, "add", "wip.txt"], {
+      env,
+      stdio: "ignore",
+    });
+    const tree = execFileSync("git", ["-C", repo, "write-tree"], {
+      env,
+      encoding: "utf-8",
+    }).trim();
     fs.rmSync(path.join(repo, "wip.txt"));
     // commit-tree writes a commit, so it needs an identity like every other
     // commit here: a CI runner has none configured and git refuses outright.
-    const snapshot = sh(repo, "git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit-tree", tree, "-p", base, "-m", "codecast wip snapshot"]);
+    const snapshot = sh(repo, "git", [
+      "-c",
+      "user.email=t@t",
+      "-c",
+      "user.name=t",
+      "commit-tree",
+      tree,
+      "-p",
+      base,
+      "-m",
+      "codecast wip snapshot",
+    ]);
     const ref = `refs/codecast/cloud/${name}`;
     sh(repo, "git", ["update-ref", ref, snapshot]);
-    const r = await acquireWorkspace(repo, name, { ...opts, branch: "feat/x-" + name, startPoint: ref });
+    const r = await acquireWorkspace(repo, name, {
+      ...opts,
+      branch: "feat/x-" + name,
+      startPoint: ref,
+    });
     sh(r.workspace.path, "git", ["reset", "-q", "--mixed", base]);
     return { repo, wt: r.workspace.path, base, ref };
   }
@@ -300,34 +547,73 @@ describe("seeded worktrees (ct-49433): released when the laptop still holds all 
     const { repo, wt, ref } = await seeded("s1");
     expect(sh(wt, "git", ["status", "--porcelain"])).toBe("?? wip.txt");
     const probe = await probeWorktree(wt, readState(repo, "s1"));
-    expect(probe).toMatchObject({ dirty: true, aheadOfOrigin: 1, hostOnlyWork: false });
-    expect(await releaseSessionWorktree(wt)).toMatchObject({ action: "released" });
+    expect(probe).toMatchObject({
+      dirty: true,
+      aheadOfOrigin: 1,
+      hostOnlyWork: false,
+    });
+    expect(await releaseSessionWorktree(wt)).toMatchObject({
+      action: "released",
+    });
     expect(fs.existsSync(wt)).toBe(false);
-    expect(spawnSyncOk(repo, ["show-ref", "--verify", "--quiet", ref])).toBe(false);
-    expect(sh(repo, "git", ["for-each-ref", "--format=%(refname:short)", "refs/heads/"]).split("\n")).not.toContain("feat/x-s1");
+    expect(spawnSyncOk(repo, ["show-ref", "--verify", "--quiet", ref])).toBe(
+      false,
+    );
+    expect(
+      sh(repo, "git", [
+        "for-each-ref",
+        "--format=%(refname:short)",
+        "refs/heads/",
+      ]).split("\n"),
+    ).not.toContain("feat/x-s1");
   });
 
   test("an extra edit or a new commit is host-only work → kept with 'changes since the laptop seed'", async () => {
     const edited = await seeded("s2");
     fs.writeFileSync(path.join(edited.wt, "extra.txt"), "host edit\n");
-    expect(await releaseSessionWorktree(edited.wt)).toMatchObject({ action: "kept", reason: "changes since the laptop seed" });
+    expect(await releaseSessionWorktree(edited.wt)).toMatchObject({
+      action: "kept",
+      reason: "changes since the laptop seed",
+    });
     expect(fs.existsSync(edited.wt)).toBe(true);
     const committed = await seeded("s3");
     sh(committed.wt, "git", ["add", "wip.txt"]);
-    sh(committed.wt, "git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "host commit"]);
-    expect(await releaseSessionWorktree(committed.wt)).toMatchObject({ action: "kept", reason: "changes since the laptop seed" });
+    sh(committed.wt, "git", [
+      "-c",
+      "user.email=t@t",
+      "-c",
+      "user.name=t",
+      "commit",
+      "-qm",
+      "host commit",
+    ]);
+    expect(await releaseSessionWorktree(committed.wt)).toMatchObject({
+      action: "kept",
+      reason: "changes since the laptop seed",
+    });
   });
 
   test("a missing seed ref falls through to today's rules (dirty → kept)", async () => {
     const { repo, wt, ref } = await seeded("s4");
     sh(repo, "git", ["update-ref", "-d", ref]);
-    expect(await probeWorktree(wt, readState(repo, "s4"))).toMatchObject({ dirty: true, hostOnlyWork: null });
-    expect(await releaseSessionWorktree(wt)).toMatchObject({ action: "kept", reason: "uncommitted changes" });
+    expect(await probeWorktree(wt, readState(repo, "s4"))).toMatchObject({
+      dirty: true,
+      hostOnlyWork: null,
+    });
+    expect(await releaseSessionWorktree(wt)).toMatchObject({
+      action: "kept",
+      reason: "uncommitted changes",
+    });
   });
 });
 
 function spawnSyncOk(repo: string, args: string[]): boolean {
-  try { execFileSync("git", ["-C", repo, ...args], { stdio: "ignore" }); return true; } catch { return false; }
+  try {
+    execFileSync("git", ["-C", repo, ...args], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Two of Union's line hosts filled their disks with 202 and 222 run worktrees
@@ -341,7 +627,14 @@ describe("line run worktrees: released once no live run or session works in them
     fs.writeFileSync(path.join(wt, "scratch.log"), "left by the run");
     const runs = path.join(repo, ".git", "cast-line", name, "runs");
     fs.mkdirSync(runs, { recursive: true });
-    fs.writeFileSync(path.join(runs, `${runId}.json`), JSON.stringify({ run_id: runId, node_id: "build", context: { worktree: name } }));
+    fs.writeFileSync(
+      path.join(runs, `${runId}.json`),
+      JSON.stringify({
+        run_id: runId,
+        node_id: "build",
+        context: { worktree: name },
+      }),
+    );
     return wt;
   }
 
@@ -349,18 +642,52 @@ describe("line run worktrees: released once no live run or session works in them
     const { repo } = makeRepo();
     const wt = runTree(repo, "agentwatch-ct-1", "run_done");
     const tip = sh(wt, "git", ["rev-parse", "HEAD"]);
-    const verdict = await releaseSessionWorktree(wt, () => {}, async () => false, runTreesInUseVia(async () => new Set(["run_other"])));
+    const verdict = await releaseSessionWorktree(
+      wt,
+      () => {},
+      async () => false,
+      runTreesInUseVia(async () => new Set(["run_other"])),
+    );
     expect(verdict).toMatchObject({ action: "released" });
     expect(fs.existsSync(wt)).toBe(false);
-    expect(sh(repo, "git", ["rev-parse", "codecast/agentwatch-ct-1"])).toBe(tip);
+    expect(sh(repo, "git", ["rev-parse", "codecast/agentwatch-ct-1"])).toBe(
+      tip,
+    );
   }, 30_000);
 
   test("kept while its run is live, while a session works in it, and when the live runs cannot be read", async () => {
     const { repo } = makeRepo();
     const wt = runTree(repo, "agentwatch-ct-2", "run_live");
-    expect(await releaseSessionWorktree(wt, () => {}, async () => false, runTreesInUseVia(async () => new Set(["run_live"])))).toMatchObject({ action: "kept", reason: "a live run works in it" });
-    expect(await releaseSessionWorktree(wt, () => {}, async () => true, runTreesInUseVia(async () => new Set()))).toMatchObject({ action: "kept", reason: "another session uses this worktree" });
-    expect(await releaseSessionWorktree(wt, () => {}, async () => false, runTreesInUseVia(async () => null))).toMatchObject({ action: "kept", reason: "cannot tell whether a live run works in it" });
+    expect(
+      await releaseSessionWorktree(
+        wt,
+        () => {},
+        async () => false,
+        runTreesInUseVia(async () => new Set(["run_live"])),
+      ),
+    ).toMatchObject({ action: "kept", reason: "a live run works in it" });
+    expect(
+      await releaseSessionWorktree(
+        wt,
+        () => {},
+        async () => true,
+        runTreesInUseVia(async () => new Set()),
+      ),
+    ).toMatchObject({
+      action: "kept",
+      reason: "another session uses this worktree",
+    });
+    expect(
+      await releaseSessionWorktree(
+        wt,
+        () => {},
+        async () => false,
+        runTreesInUseVia(async () => null),
+      ),
+    ).toMatchObject({
+      action: "kept",
+      reason: "cannot tell whether a live run works in it",
+    });
     expect(fs.existsSync(wt)).toBe(true);
   }, 30_000);
 
@@ -368,7 +695,14 @@ describe("line run worktrees: released once no live run or session works in them
     const { repo } = makeRepo();
     const wt = addWorktree(repo, "session-abc");
     commit(wt, "local work", { "feature.txt": "unmerged work\n" });
-    expect(await releaseSessionWorktree(wt, () => {}, async () => false, runTreesInUseVia(async () => new Set()))).toMatchObject({ action: "kept", reason: "1 commit(s) not on origin" });
+    expect(
+      await releaseSessionWorktree(
+        wt,
+        () => {},
+        async () => false,
+        runTreesInUseVia(async () => new Set()),
+      ),
+    ).toMatchObject({ action: "kept", reason: "1 commit(s) not on origin" });
   }, 30_000);
 });
 
@@ -378,37 +712,90 @@ describe("releaseSessionMadeWorktrees", () => {
   const SID = "11111111-2222-3333-4444-555555555555";
   /** Push `wt`'s branch to origin's main, the way a landed change arrives. */
   const land = (repo: string, wt: string) => {
-    sh(sh(repo, "git", ["remote", "get-url", "origin"]), "git", ["config", "receive.denyCurrentBranch", "ignore"]);
+    sh(sh(repo, "git", ["remote", "get-url", "origin"]), "git", [
+      "config",
+      "receive.denyCurrentBranch",
+      "ignore",
+    ]);
     sh(wt, "git", ["push", "-q", "origin", "HEAD:main"]);
     sh(repo, "git", ["fetch", "-q", "origin"]);
   };
   /** A Claude Code agent tree, locked the way Claude Code locks one, and its transcript under SID. */
-  function agentTree(repo: string, projects: string, id: string, lockPid: number): string {
+  function agentTree(
+    repo: string,
+    projects: string,
+    id: string,
+    lockPid: number,
+  ): string {
     const wt = path.join(repo, ".claude", "worktrees", `agent-${id}`);
-    sh(repo, "git", ["worktree", "add", "-q", "-b", `worktree-agent-${id}`, wt]);
-    sh(repo, "git", ["worktree", "lock", "--reason", `claude agent agent-${id} (pid ${lockPid})`, wt]);
-    fs.mkdirSync(path.join(projects, "-repo", SID, "subagents"), { recursive: true });
-    fs.writeFileSync(path.join(projects, "-repo", SID, "subagents", `agent-${id}.jsonl`), "");
+    sh(repo, "git", [
+      "worktree",
+      "add",
+      "-q",
+      "-b",
+      `worktree-agent-${id}`,
+      wt,
+    ]);
+    sh(repo, "git", [
+      "worktree",
+      "lock",
+      "--reason",
+      `claude agent agent-${id} (pid ${lockPid})`,
+      wt,
+    ]);
+    fs.mkdirSync(path.join(projects, "-repo", SID, "subagents"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(projects, "-repo", SID, "subagents", `agent-${id}.jsonl`),
+      "",
+    );
     return wt;
   }
-  const deps = (projects: string, cwds: string[] = []) => ({ claudeProjects: projects, processCwds: async () => cwds });
+  const deps = (projects: string, cwds: string[] = []) => ({
+    claudeProjects: projects,
+    processCwds: async () => cwds,
+  });
 
   test("a workspace it acquired goes once main holds it; its branch stays", async () => {
     const { repo } = makeRepo();
-    const ws = (await acquireWorkspace(repo, "fix-x", { branch: "feat/fix-x", skipPool: true, skipSetup: true, skipHooks: true, noPorts: true })).workspace;
+    const ws = (
+      await acquireWorkspace(repo, "fix-x", {
+        branch: "feat/fix-x",
+        skipPool: true,
+        skipSetup: true,
+        skipHooks: true,
+        noPorts: true,
+      })
+    ).workspace;
     recordWorkspaceSession(repo, "fix-x", SID);
     commit(ws.path, "fix", { "fix.txt": "fixed\n" });
     land(repo, ws.path);
-    const out = await releaseSessionMadeWorktrees(SID, repo, () => {}, deps(path.join(repo, "none")));
+    const out = await releaseSessionMadeWorktrees(
+      SID,
+      repo,
+      () => {},
+      deps(path.join(repo, "none")),
+    );
     expect(out).toMatchObject([{ action: "released", name: "fix-x" }]);
     expect(fs.existsSync(ws.path)).toBe(false);
-    expect(sh(repo, "git", ["branch", "--list", "feat/fix-x"])).toContain("feat/fix-x");
+    expect(sh(repo, "git", ["branch", "--list", "feat/fix-x"])).toContain(
+      "feat/fix-x",
+    );
   }, 60_000);
 
   test("kept: work main lacks, another session acquired it too, a process sits in it", async () => {
     const { repo } = makeRepo();
     const mk = async (name: string, sessions: string[]) => {
-      const ws = (await acquireWorkspace(repo, name, { branch: `feat/${name}`, skipPool: true, skipSetup: true, skipHooks: true, noPorts: true })).workspace;
+      const ws = (
+        await acquireWorkspace(repo, name, {
+          branch: `feat/${name}`,
+          skipPool: true,
+          skipSetup: true,
+          skipHooks: true,
+          noPorts: true,
+        })
+      ).workspace;
       for (const s of sessions) recordWorkspaceSession(repo, name, s);
       return ws.path;
     };
@@ -416,47 +803,100 @@ describe("releaseSessionMadeWorktrees", () => {
     commit(unlanded, "wip", { "wip.txt": "not on main\n" });
     const shared = await mk("shared", [SID, "other-session"]);
     const busy = await mk("busy", [SID]);
-    const out = await releaseSessionMadeWorktrees(SID, repo, () => {}, deps(path.join(repo, "none"), [path.join(busy, "packages")]));
-    const reason = (p: string) => out.find((v) => v.action === "kept" && v.path === p && v.reason);
-    expect(reason(unlanded)).toMatchObject({ reason: "1 commit(s) not on origin" });
-    expect(reason(shared)).toMatchObject({ reason: "another session acquired it too" });
-    expect(reason(busy)).toMatchObject({ reason: "a running process sits in it" });
+    const out = await releaseSessionMadeWorktrees(
+      SID,
+      repo,
+      () => {},
+      deps(path.join(repo, "none"), [path.join(busy, "packages")]),
+    );
+    const reason = (p: string) =>
+      out.find((v) => v.action === "kept" && v.path === p && v.reason);
+    expect(reason(unlanded)).toMatchObject({
+      reason: "1 commit(s) not on origin",
+    });
+    expect(reason(shared)).toMatchObject({
+      reason: "another session acquired it too",
+    });
+    expect(reason(busy)).toMatchObject({
+      reason: "a running process sits in it",
+    });
     expect([unlanded, shared, busy].every((p) => fs.existsSync(p))).toBe(true);
   }, 60_000);
 
   test("kept when the process table could not be read", async () => {
     const { repo } = makeRepo();
-    const ws = (await acquireWorkspace(repo, "unread", { branch: "feat/unread", skipPool: true, skipSetup: true, skipHooks: true, noPorts: true })).workspace;
+    const ws = (
+      await acquireWorkspace(repo, "unread", {
+        branch: "feat/unread",
+        skipPool: true,
+        skipSetup: true,
+        skipHooks: true,
+        noPorts: true,
+      })
+    ).workspace;
     recordWorkspaceSession(repo, "unread", SID);
     commit(ws.path, "fix", { "fix.txt": "fixed\n" });
     land(repo, ws.path);
-    const out = await releaseSessionMadeWorktrees(SID, repo, () => {}, { claudeProjects: path.join(repo, "none"), processCwds: async () => null });
-    expect(out).toMatchObject([{ action: "kept", reason: "could not read which processes sit in it" }]);
+    const out = await releaseSessionMadeWorktrees(SID, repo, () => {}, {
+      claudeProjects: path.join(repo, "none"),
+      processCwds: async () => null,
+    });
+    expect(out).toMatchObject([
+      { action: "kept", reason: "could not read which processes sit in it" },
+    ]);
     expect(fs.existsSync(ws.path)).toBe(true);
   }, 60_000);
 
   test("a session working in its own workspace releases what it acquired and leaves its own tree to releaseSessionWorktree", async () => {
     const { repo } = makeRepo();
     const acquire = async (name: string) => {
-      const ws = (await acquireWorkspace(repo, name, { branch: `feat/${name}`, skipPool: true, skipSetup: true, skipHooks: true, noPorts: true })).workspace;
+      const ws = (
+        await acquireWorkspace(repo, name, {
+          branch: `feat/${name}`,
+          skipPool: true,
+          skipSetup: true,
+          skipHooks: true,
+          noPorts: true,
+        })
+      ).workspace;
       recordWorkspaceSession(repo, name, SID);
       return ws.path;
     };
     const own = await acquire("own");
     const other = await acquire("other");
     fs.mkdirSync(path.join(own, "src")); // the pane sits below its tree's root
-    const out = await releaseSessionMadeWorktrees(SID, path.join(own, "src"), () => {}, deps(path.join(repo, "none")));
+    const out = await releaseSessionMadeWorktrees(
+      SID,
+      path.join(own, "src"),
+      () => {},
+      deps(path.join(repo, "none")),
+    );
     expect(out.map((v) => v.action !== "skipped" && v.path)).toEqual([other]);
     expect(fs.existsSync(other)).toBe(false);
     expect(fs.existsSync(own)).toBe(true);
     // The daemon then releases the session's own tree the usual way.
-    expect(await releaseSessionWorktree(own, () => {}, async () => false)).toMatchObject({ action: "released" });
+    expect(
+      await releaseSessionWorktree(
+        own,
+        () => {},
+        async () => false,
+      ),
+    ).toMatchObject({ action: "released" });
   }, 60_000);
 
   test("both kill paths release the made trees before the session's own, whose release can take its cwd away", () => {
-    const source = fs.readFileSync(path.join(import.meta.dir, "daemon.ts"), "utf8");
-    const kill = source.slice(source.indexOf("async function killConversationBackends("), source.indexOf("async function killConversationBackendsForAgentSwitch("));
-    const reap = source.slice(source.indexOf("const gcCwd = opts.gcWorktree"), source.indexOf("async function reapOrphanEngines("));
+    const source = fs.readFileSync(
+      path.join(import.meta.dir, "daemon.ts"),
+      "utf8",
+    );
+    const kill = source.slice(
+      source.indexOf("async function killConversationBackends("),
+      source.indexOf("async function killConversationBackendsForAgentSwitch("),
+    );
+    const reap = source.slice(
+      source.indexOf("const gcCwd = opts.gcWorktree"),
+      source.indexOf("async function reapOrphanEngines("),
+    );
     for (const body of [kill, reap]) {
       const made = body.indexOf("releaseSessionMadeWorktrees(");
       expect(made).toBeGreaterThan(-1);
@@ -472,11 +912,26 @@ describe("releaseSessionMadeWorktrees", () => {
     land(repo, done);
     const pending = agentTree(repo, projects, "a2", 999_999);
     commit(pending, "agent wip", { "wip.txt": "not landed\n" });
-    const out = await releaseSessionMadeWorktrees(SID, repo, () => {}, deps(projects));
-    expect(out.find((v) => v.action !== "skipped" && v.path === done)?.action).toBe("released");
-    expect(out.find((v) => v.action !== "skipped" && v.path === pending)).toMatchObject({ action: "kept", reason: "1 commit(s) not on origin" });
+    const out = await releaseSessionMadeWorktrees(
+      SID,
+      repo,
+      () => {},
+      deps(projects),
+    );
+    expect(
+      out.find((v) => v.action !== "skipped" && v.path === done)?.action,
+    ).toBe("released");
+    expect(
+      out.find((v) => v.action !== "skipped" && v.path === pending),
+    ).toMatchObject({ action: "kept", reason: "1 commit(s) not on origin" });
     expect(sh(repo, "git", ["worktree", "list"])).not.toContain("agent-a1");
-    sh(repo, "git", ["worktree", "add", "-q", path.join(path.dirname(repo), "back"), "worktree-agent-a1"]);
+    sh(repo, "git", [
+      "worktree",
+      "add",
+      "-q",
+      path.join(path.dirname(repo), "back"),
+      "worktree-agent-a1",
+    ]);
   }, 60_000);
 
   test("another session's agents and an agent still running are left alone", async () => {
@@ -484,10 +939,23 @@ describe("releaseSessionMadeWorktrees", () => {
     const projects = path.join(path.dirname(repo), "projects");
     const running = agentTree(repo, projects, "a3", process.pid); // a live pid holds the lock
     land(repo, running);
-    const out = await releaseSessionMadeWorktrees("another-session", repo, () => {}, deps(projects));
+    const out = await releaseSessionMadeWorktrees(
+      "another-session",
+      repo,
+      () => {},
+      deps(projects),
+    );
     expect(out).toEqual([]);
-    const mine = await releaseSessionMadeWorktrees(SID, repo, () => {}, deps(projects));
-    expect(mine[0]).toMatchObject({ action: "kept", reason: expect.stringMatching(/^remove failed: locked/) });
+    const mine = await releaseSessionMadeWorktrees(
+      SID,
+      repo,
+      () => {},
+      deps(projects),
+    );
+    expect(mine[0]).toMatchObject({
+      action: "kept",
+      reason: expect.stringMatching(/^remove failed: locked/),
+    });
     expect(fs.existsSync(running)).toBe(true);
   }, 60_000);
 });
@@ -511,7 +979,9 @@ describe("releaseTree", () => {
   }, 30_000);
 
   test("lockHolds reads the pid out of a lock reason", () => {
-    expect(lockHolds("claude agent agent-x (pid 42)", (p) => p === 42)).toBe(true);
+    expect(lockHolds("claude agent agent-x (pid 42)", (p) => p === 42)).toBe(
+      true,
+    );
     expect(lockHolds("pid=43", () => false)).toBe(false);
     expect(lockHolds("a person locked it", () => false)).toBe(true);
   });

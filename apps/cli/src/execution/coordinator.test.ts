@@ -61,11 +61,13 @@ class FakeControlPlane implements ExecutionControlPlane {
 
   async claimStart(request: ClaimStartRequest): Promise<StartClaimResult> {
     this.claimCalls.push(request);
-    return this.claimResult ?? {
-      state: "claimed",
-      operationId: request.proposedOperationId,
-      recovery: { state: "fresh" },
-    };
+    return (
+      this.claimResult ?? {
+        state: "claimed",
+        operationId: request.proposedOperationId,
+        recovery: { state: "fresh" },
+      }
+    );
   }
 
   async publishReady(binding: ReadyBinding): Promise<{ accepted: boolean }> {
@@ -79,7 +81,9 @@ class FakeControlPlane implements ExecutionControlPlane {
     this.ambiguousStarts.push(input);
   }
 
-  async completeDelivery(input: Parameters<ExecutionControlPlane["completeDelivery"]>[0]): Promise<void> {
+  async completeDelivery(
+    input: Parameters<ExecutionControlPlane["completeDelivery"]>[0],
+  ): Promise<void> {
     this.deliveredAttempts.push(input.permit.attemptId);
   }
 
@@ -107,8 +111,12 @@ class FakeDriver implements RuntimeDriver {
   quarantineCalls: Array<{ binding: ReadyBinding; reason: string }> = [];
   stopCalls = 0;
   startImpl: (_request: RuntimeStartRequest) => Promise<RuntimeStartResult>;
-  adoptImpl: () => Promise<RuntimeAdoptionResult> = async () => ({ state: "missing" });
-  deliverImpl: (_request: RuntimeDeliveryRequest) => Promise<DriverDeliveryResult> = async () => ({ state: "delivered" });
+  adoptImpl: () => Promise<RuntimeAdoptionResult> = async () => ({
+    state: "missing",
+  });
+  deliverImpl: (
+    _request: RuntimeDeliveryRequest,
+  ) => Promise<DriverDeliveryResult> = async () => ({ state: "delivered" });
 
   constructor(
     readonly transport: RuntimeTransport,
@@ -117,10 +125,12 @@ class FakeDriver implements RuntimeDriver {
   ) {
     this.id = `fake-${agents.join("-")}-${transport}`;
     this.supportedAgents = new Set(agents);
-    this.startImpl = startImpl ?? (async () => ({
-      state: "started",
-      handle: this.handle(agents[0]),
-    }));
+    this.startImpl =
+      startImpl ??
+      (async () => ({
+        state: "started",
+        handle: this.handle(agents[0]),
+      }));
   }
 
   handle(agent = [...this.supportedAgents][0]): RuntimeHandle {
@@ -144,7 +154,9 @@ class FakeDriver implements RuntimeDriver {
     return this.adoptImpl();
   }
 
-  async deliver(request: RuntimeDeliveryRequest): Promise<DriverDeliveryResult> {
+  async deliver(
+    request: RuntimeDeliveryRequest,
+  ): Promise<DriverDeliveryResult> {
     this.deliverCalls++;
     return this.deliverImpl(request);
   }
@@ -164,7 +176,8 @@ class PhaseFailingJournal extends InMemoryExecutionOperationJournal {
   }
 
   override record(entry: ExecutionJournalRecord): void {
-    if (entry.phase === this.failedPhase) throw new Error(`disk full at ${entry.phase}`);
+    if (entry.phase === this.failedPhase)
+      throw new Error(`disk full at ${entry.phase}`);
     super.record(entry);
   }
 }
@@ -202,7 +215,11 @@ function coordinator(controlPlane: FakeControlPlane, drivers: RuntimeDriver[]) {
 }
 
 describe("ExecutionCoordinator single-flight binding", () => {
-  for (const order of ["start-first", "message-first", "simultaneous"] as const) {
+  for (const order of [
+    "start-first",
+    "message-first",
+    "simultaneous",
+  ] as const) {
     test(`${order} converges on one runtime`, async () => {
       const entered = deferred<void>();
       const release = deferred<RuntimeStartResult>();
@@ -233,7 +250,10 @@ describe("ExecutionCoordinator single-flight binding", () => {
 
       expect(startPromise).toBe(deliveryPromise);
       release.resolve({ state: "started", handle: driver.handle("codex") });
-      const [fromStart, fromDelivery] = await Promise.all([startPromise, deliveryPromise]);
+      const [fromStart, fromDelivery] = await Promise.all([
+        startPromise,
+        deliveryPromise,
+      ]);
       expect(fromStart.runtimeId).toBe("runtime-codex");
       expect(fromDelivery).toEqual(fromStart);
       expect(driver.startCalls).toBe(1);
@@ -271,7 +291,9 @@ describe("ExecutionCoordinator single-flight binding", () => {
       journal: new InMemoryExecutionOperationJournal(),
     });
 
-    await expect(execution.ensureBinding(bindingRequest("start-session"))).rejects.toMatchObject({
+    await expect(
+      execution.ensureBinding(bindingRequest("start-session")),
+    ).rejects.toMatchObject({
       code: "FENCED_CONTROL_PLANE_DORMANT",
     });
     expect(driver.startCalls).toBe(0);
@@ -283,16 +305,22 @@ describe("ExecutionCoordinator single-flight binding", () => {
     const controlPlane = new FakeControlPlane();
     const execution = coordinator(controlPlane, [driver]);
 
-    expect(() => execution.ensureBinding(bindingRequest("start-session", { epoch: 0 }))).toThrow(
-      ExecutionCoordinatorError,
-    );
+    expect(() =>
+      execution.ensureBinding(bindingRequest("start-session", { epoch: 0 })),
+    ).toThrow(ExecutionCoordinatorError);
     const zeroRevision = bindingRequest("start-session");
     zeroRevision.configuration = { revision: 0 };
-    expect(() => execution.ensureBinding(zeroRevision)).toThrow(ExecutionCoordinatorError);
-    expect(() => execution.ensureBinding(bindingRequest("start-session", {
-      requestedAgent: "claude",
-      transport: "app-server",
-    }))).toThrow(ExecutionCoordinatorError);
+    expect(() => execution.ensureBinding(zeroRevision)).toThrow(
+      ExecutionCoordinatorError,
+    );
+    expect(() =>
+      execution.ensureBinding(
+        bindingRequest("start-session", {
+          requestedAgent: "claude",
+          transport: "app-server",
+        }),
+      ),
+    ).toThrow(ExecutionCoordinatorError);
 
     expect(controlPlane.claimCalls).toHaveLength(0);
     expect(driver.startCalls).toBe(0);
@@ -306,7 +334,11 @@ describe("ExecutionCoordinator single-flight binding", () => {
       return attempt === 1
         ? {
             state: "failed-before-effect" as const,
-            failure: { code: "TEMPORARY_SETUP_FAILURE", message: "try again", retryable: true },
+            failure: {
+              code: "TEMPORARY_SETUP_FAILURE",
+              message: "try again",
+              retryable: true,
+            },
           }
         : { state: "started" as const, handle: driver.handle("codex") };
     };
@@ -328,10 +360,9 @@ describe("ExecutionCoordinator single-flight binding", () => {
     const ready = await execution.ensureBinding(request);
 
     expect(ready.operationId).toBe("operation-1");
-    expect(controlPlane.claimCalls.map((call) => call.proposedOperationId)).toEqual([
-      "operation-1",
-      "operation-1",
-    ]);
+    expect(
+      controlPlane.claimCalls.map((call) => call.proposedOperationId),
+    ).toEqual(["operation-1", "operation-1"]);
     expect(driver.startOperationIds).toEqual(["operation-1", "operation-1"]);
     expect(driver.adoptCalls).toBe(0);
     expect(journal.get("conversation-1", 1)?.phase).toBe("ready");
@@ -345,7 +376,11 @@ describe("ExecutionCoordinator single-flight binding", () => {
       return attempt === 1
         ? {
             state: "failed-before-effect" as const,
-            failure: { code: "TEMPORARY_SETUP_FAILURE", message: "try again", retryable: true },
+            failure: {
+              code: "TEMPORARY_SETUP_FAILURE",
+              message: "try again",
+              retryable: true,
+            },
           }
         : { state: "started" as const, handle: driver.handle("codex") };
     };
@@ -368,27 +403,41 @@ describe("ExecutionCoordinator single-flight binding", () => {
       journal,
       operationIdFactory: () => "operation-must-not-be-used",
     });
-    const ready = await restarted.ensureBinding({ ...request, trigger: "recovery" });
+    const ready = await restarted.ensureBinding({
+      ...request,
+      trigger: "recovery",
+    });
 
     expect(ready.operationId).toBe("operation-original");
-    expect(driver.startOperationIds).toEqual(["operation-original", "operation-original"]);
+    expect(driver.startOperationIds).toEqual([
+      "operation-original",
+      "operation-original",
+    ]);
     expect(driver.adoptCalls).toBe(0);
   });
 
   test("keeps nonretryable pre-effect failures sticky", async () => {
     const driver = new FakeDriver("app-server", ["codex"], async () => ({
       state: "failed-before-effect",
-      failure: { code: "INVALID_SETUP", message: "cannot retry", retryable: false },
+      failure: {
+        code: "INVALID_SETUP",
+        message: "cannot retry",
+        retryable: false,
+      },
     }));
     const controlPlane = new FakeControlPlane();
     const execution = coordinator(controlPlane, [driver]);
     const request = bindingRequest("start-session");
 
     const first = execution.ensureBinding(request);
-    await expect(first).rejects.toMatchObject({ code: "START_FAILED_BEFORE_EFFECT" });
+    await expect(first).rejects.toMatchObject({
+      code: "START_FAILED_BEFORE_EFFECT",
+    });
     const second = execution.ensureBinding(request);
     expect(second).toBe(first);
-    await expect(second).rejects.toMatchObject({ code: "START_FAILED_BEFORE_EFFECT" });
+    await expect(second).rejects.toMatchObject({
+      code: "START_FAILED_BEFORE_EFFECT",
+    });
     expect(controlPlane.claimCalls).toHaveLength(1);
     expect(driver.startCalls).toBe(1);
   });
@@ -413,7 +462,9 @@ describe("ExecutionCoordinator recovery proof", () => {
     };
     const execution = coordinator(controlPlane, [driver]);
 
-    await expect(execution.ensureBinding(bindingRequest("recovery"))).rejects.toMatchObject({
+    await expect(
+      execution.ensureBinding(bindingRequest("recovery")),
+    ).rejects.toMatchObject({
       code: "START_AMBIGUOUS",
     });
     expect(driver.adoptCalls).toBe(1);
@@ -553,13 +604,22 @@ describe("ExecutionCoordinator delivery ambiguity", () => {
       input: [{ type: "text" as const, text: "hello" }],
     };
 
-    const timedOut = await execution.deliver({ binding: request, permit, delivery, timeoutMs: 5 });
+    const timedOut = await execution.deliver({
+      binding: request,
+      permit,
+      delivery,
+      timeoutMs: 5,
+    });
     expect(timedOut.state).toBe("ambiguous");
-    expect(execution.getActiveDelivery("conversation-1")?.state).toBe("ambiguous");
+    expect(execution.getActiveDelivery("conversation-1")?.state).toBe(
+      "ambiguous",
+    );
     expect(controlPlane.ambiguousAttempts).toEqual(["attempt-1"]);
 
     // Re-observing the same attempt returns its existing result without reinjection.
-    expect((await execution.deliver({ binding: request, permit, delivery })).state).toBe("ambiguous");
+    expect(
+      (await execution.deliver({ binding: request, permit, delivery })).state,
+    ).toBe("ambiguous");
     expect(driver.deliverCalls).toBe(1);
 
     const secondPermit = parseStartedDeliveryPermit({
@@ -583,19 +643,25 @@ describe("ExecutionCoordinator delivery ambiguity", () => {
     ).rejects.toMatchObject({ code: "DELIVERY_SLOT_BUSY" });
 
     firstDelivery.resolve({ state: "delivered" });
-    await waitFor(() => execution.getActiveDelivery("conversation-1") === undefined);
+    await waitFor(
+      () => execution.getActiveDelivery("conversation-1") === undefined,
+    );
     expect(controlPlane.deliveredAttempts).toEqual(["attempt-1"]);
 
     // Even after the late success, repeating attempt-1 is a local idempotent read.
-    expect((await execution.deliver({ binding: request, permit, delivery })).state).toBe("delivered");
+    expect(
+      (await execution.deliver({ binding: request, permit, delivery })).state,
+    ).toBe("delivered");
     expect(driver.deliverCalls).toBe(1);
   });
 
   test("timeout becomes locally visible even when the ambiguity mutation hangs", async () => {
     const driver = new FakeDriver("app-server", ["codex"]);
-    driver.deliverImpl = async () => new Promise<DriverDeliveryResult>(() => {});
+    driver.deliverImpl = async () =>
+      new Promise<DriverDeliveryResult>(() => {});
     const controlPlane = new FakeControlPlane();
-    controlPlane.markDeliveryAmbiguous = async () => new Promise<void>(() => {});
+    controlPlane.markDeliveryAmbiguous = async () =>
+      new Promise<void>(() => {});
     const execution = coordinator(controlPlane, [driver]);
     const permit = parseStartedDeliveryPermit({
       state: "delivery-started",
@@ -623,18 +689,26 @@ describe("ExecutionCoordinator delivery ambiguity", () => {
         },
         timeoutMs: 5,
       }),
-      new Promise<"test-timeout">((resolve) => setTimeout(() => resolve("test-timeout"), 100)),
+      new Promise<"test-timeout">((resolve) =>
+        setTimeout(() => resolve("test-timeout"), 100),
+      ),
     ]);
     expect(outcome).not.toBe("test-timeout");
     expect(outcome).toMatchObject({ state: "ambiguous" });
-    expect(execution.getActiveDelivery("conversation-1")?.state).toBe("ambiguous");
+    expect(execution.getActiveDelivery("conversation-1")?.state).toBe(
+      "ambiguous",
+    );
   });
 });
 
 describe("ExecutionCoordinator stale completion", () => {
   test("quarantines a runtime whose ready CAS loses", async () => {
     const release = deferred<RuntimeStartResult>();
-    const driver = new FakeDriver("app-server", ["codex"], () => release.promise);
+    const driver = new FakeDriver(
+      "app-server",
+      ["codex"],
+      () => release.promise,
+    );
     const controlPlane = new FakeControlPlane();
     controlPlane.acceptReady = false;
     const journal = new InMemoryExecutionOperationJournal();
@@ -648,7 +722,9 @@ describe("ExecutionCoordinator stale completion", () => {
     const promise = execution.ensureBinding(bindingRequest("start-session"));
     await waitFor(() => driver.startCalls === 1);
     release.resolve({ state: "started", handle: driver.handle("codex") });
-    await expect(promise).rejects.toMatchObject({ code: "STALE_START_COMPLETION" });
+    await expect(promise).rejects.toMatchObject({
+      code: "STALE_START_COMPLETION",
+    });
 
     expect(driver.quarantineCalls).toHaveLength(1);
     expect(driver.quarantineCalls[0].binding.actualAgent).toBe("codex");
@@ -663,7 +739,9 @@ describe("ExecutionCoordinator stale completion", () => {
 
     const changed = bindingRequest("delivery");
     changed.configuration = { revision: 2 };
-    await expect(execution.ensureBinding(changed)).rejects.toBeInstanceOf(ExecutionCoordinatorError);
+    await expect(execution.ensureBinding(changed)).rejects.toBeInstanceOf(
+      ExecutionCoordinatorError,
+    );
     expect(driver.startCalls).toBe(1);
   });
 
@@ -677,7 +755,9 @@ describe("ExecutionCoordinator stale completion", () => {
       operationIdFactory: () => "operation-journal-failure",
     });
 
-    await expect(execution.ensureBinding(bindingRequest("start-session"))).rejects.toMatchObject({
+    await expect(
+      execution.ensureBinding(bindingRequest("start-session")),
+    ).rejects.toMatchObject({
       code: "START_AMBIGUOUS",
       failure: { code: "LOCAL_RUNTIME_HANDLE_JOURNAL_FAILED" },
     });

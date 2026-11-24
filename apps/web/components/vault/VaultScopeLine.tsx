@@ -14,7 +14,11 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight, Cloud, FileText, Laptop } from "lucide-react";
-import { getProjectName, useInboxStore, selectSessionRailOpen } from "../../store/inboxStore";
+import {
+  getProjectName,
+  useInboxStore,
+  selectSessionRailOpen,
+} from "../../store/inboxStore";
 import { shortenVaultRoot } from "../../lib/vault/projectVault";
 import {
   describeVaultScope,
@@ -23,7 +27,10 @@ import {
   type VaultTeamScope,
 } from "../../lib/vault/scopeModel";
 
-const PRESENCE_ICON: Record<VaultPresence, React.ComponentType<{ className?: string }>> = {
+const PRESENCE_ICON: Record<
+  VaultPresence,
+  React.ComponentType<{ className?: string }>
+> = {
   "this-machine": Laptop,
   both: Cloud,
   "other-machine": Cloud,
@@ -108,7 +115,10 @@ export function VaultScopeLine({
           spending. */}
       {/* min-w-0: without it a flex item refuses to shrink below its text, and
           the overflow pushes the buttons off the rail instead of ellipsing. */}
-      <span className="truncate min-w-0 [flex-shrink:9999]" title={fullRoot ?? name}>
+      <span
+        className="truncate min-w-0 [flex-shrink:9999]"
+        title={fullRoot ?? name}
+      >
         · {fullRoot ? shortenVaultRoot(fullRoot) : name}
       </span>
       {/* Icon-only, like the project link beside it: spelling out "Also a doc"

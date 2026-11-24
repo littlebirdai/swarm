@@ -2,7 +2,12 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { processLookupAllowsCwdFallback, readCodexSessionMetaHeadAsync, sessionMetaHeadCut, acquireSessionProcessOwnership as sessionProcessOwnership } from "./daemon.js";
+import {
+  processLookupAllowsCwdFallback,
+  readCodexSessionMetaHeadAsync,
+  sessionMetaHeadCut,
+  acquireSessionProcessOwnership as sessionProcessOwnership,
+} from "./daemon.js";
 import { planSessionTeardown, shortId } from "./sessionProcessMatcher.js";
 
 // ct-41071, anchored to the incident that produced it: ~/.codex/sessions/2026/08/02.
@@ -66,15 +71,31 @@ const CLAUDE_SESSION = "5b1c47b3-16c0-42d5-a6d2-82459a01f640";
 function metaLine(sessionId: string, payload: Record<string, unknown>): string {
   return JSON.stringify({
     type: "session_meta",
-    payload: { id: sessionId, cwd: "/Users/jasonbenn/code/codecast", ...payload },
+    payload: {
+      id: sessionId,
+      cwd: "/Users/jasonbenn/code/codecast",
+      ...payload,
+    },
   });
 }
 
-function writeRollout(sessionId: string, payload: Record<string, unknown>, stamp = "14-08-13"): string {
-  const p = path.join(rolloutDir, `rollout-2026-08-02T${stamp}-${sessionId}.jsonl`);
+function writeRollout(
+  sessionId: string,
+  payload: Record<string, unknown>,
+  stamp = "14-08-13",
+): string {
+  const p = path.join(
+    rolloutDir,
+    `rollout-2026-08-02T${stamp}-${sessionId}.jsonl`,
+  );
   // readCodexSessionMetaHead reads complete lines until the first non-meta one.
-  fs.writeFileSync(p, metaLine(sessionId, payload) + "\n" +
-    JSON.stringify({ type: "event_msg", payload: { type: "task_started" } }) + "\n");
+  fs.writeFileSync(
+    p,
+    metaLine(sessionId, payload) +
+      "\n" +
+      JSON.stringify({ type: "event_msg", payload: { type: "task_started" } }) +
+      "\n",
+  );
   return p;
 }
 
@@ -86,7 +107,12 @@ function writeThreadSubagent(sessionId: string, agentPath: string): string {
     thread_source: "subagent",
     source: {
       subagent: {
-        thread_spawn: { parent_thread_id: PARENT, depth: 1, agent_path: agentPath, agent_role: null },
+        thread_spawn: {
+          parent_thread_id: PARENT,
+          depth: 1,
+          agent_path: agentPath,
+          agent_role: null,
+        },
       },
     },
   });
@@ -108,22 +134,40 @@ beforeAll(() => {
   rolloutDir = path.join(tmpHome, ".codex", "sessions", "2026", "08", "02");
   fs.mkdirSync(rolloutDir, { recursive: true });
 
-  writeRollout(PARENT, { originator: "codex-tui", source: "cli", thread_source: "user" });
-  THREAD_SUBAGENTS.forEach((sid, i) => writeThreadSubagent(sid, `/root/verify_${i}`));
+  writeRollout(PARENT, {
+    originator: "codex-tui",
+    source: "cli",
+    thread_source: "user",
+  });
+  THREAD_SUBAGENTS.forEach((sid, i) =>
+    writeThreadSubagent(sid, `/root/verify_${i}`),
+  );
   EXEC_SUBAGENTS.forEach(writeExecSubagent);
-  writeRollout(ROOT_SIBLING, { originator: "codex_cli_rs", source: "cli" }, "14-18-01");
+  writeRollout(
+    ROOT_SIBLING,
+    { originator: "codex_cli_rs", source: "cli" },
+    "14-18-01",
+  );
 
-  const claudeDir = path.join(tmpHome, ".claude", "projects", "-Users-jasonbenn-code-codecast");
+  const claudeDir = path.join(
+    tmpHome,
+    ".claude",
+    "projects",
+    "-Users-jasonbenn-code-codecast",
+  );
   fs.mkdirSync(claudeDir, { recursive: true });
   fs.writeFileSync(
     path.join(claudeDir, `${CLAUDE_SESSION}.jsonl`),
-    JSON.stringify({ type: "user", cwd: "/Users/jasonbenn/code/codecast" }) + "\n",
+    JSON.stringify({ type: "user", cwd: "/Users/jasonbenn/code/codecast" }) +
+      "\n",
   );
 });
 
 afterAll(() => {
   process.env.HOME = realHome;
-  try { fs.rmSync(tmpHome, { recursive: true, force: true }); } catch {}
+  try {
+    fs.rmSync(tmpHome, { recursive: true, force: true });
+  } catch {}
 });
 
 describe("sessionProcessOwnership — the incident's own sessions", () => {
@@ -161,7 +205,9 @@ describe("sessionProcessOwnership — the incident's own sessions", () => {
 
   test("an id with no file on disk is UNKNOWN, not owned", async () => {
     // "unknown" is what makes the destructive paths fail closed.
-    expect(await sessionProcessOwnership("00000000-0000-0000-0000-000000000000")).toBe("unknown");
+    expect(
+      await sessionProcessOwnership("00000000-0000-0000-0000-000000000000"),
+    ).toBe("unknown");
   });
 
   test("a materialized Claude JSONL must not override the Codex rollout", async () => {
@@ -176,11 +222,17 @@ describe("sessionProcessOwnership — the incident's own sessions", () => {
     // gesture guard #2 exists for), a reset cache, or the startup race.
     const MAT = "019fc292-0000-7000-8000-00000000000b";
     writeThreadSubagent(MAT, "/root/materialized");
-    const matDir = path.join(tmpHome, ".claude", "projects", "-Users-jasonbenn-code-codecast");
+    const matDir = path.join(
+      tmpHome,
+      ".claude",
+      "projects",
+      "-Users-jasonbenn-code-codecast",
+    );
     fs.mkdirSync(matDir, { recursive: true });
     fs.writeFileSync(
       path.join(matDir, `${MAT}.jsonl`),
-      JSON.stringify({ type: "user", cwd: "/Users/jasonbenn/code/codecast" }) + "\n",
+      JSON.stringify({ type: "user", cwd: "/Users/jasonbenn/code/codecast" }) +
+        "\n",
     );
 
     expect(await sessionProcessOwnership(MAT)).toBe("borrowed");
@@ -200,15 +252,23 @@ describe("sessionProcessOwnership — the incident's own sessions", () => {
     const full = metaLine(PARTIAL, {
       parent_thread_id: PARENT,
       originator: "codex-tui",
-      source: { subagent: { thread_spawn: { parent_thread_id: PARENT, depth: 1 } } },
+      source: {
+        subagent: { thread_spawn: { parent_thread_id: PARENT, depth: 1 } },
+      },
     });
-    const p = path.join(rolloutDir, `rollout-2026-08-02T14-08-13-${PARTIAL}.jsonl`);
+    const p = path.join(
+      rolloutDir,
+      `rollout-2026-08-02T14-08-13-${PARTIAL}.jsonl`,
+    );
     fs.writeFileSync(p, full.slice(0, Math.floor(full.length / 2))); // truncated mid-line
     expect(await sessionProcessOwnership(PARTIAL)).toBe("unknown");
 
     // …and once the writer finishes, the real answer must still be reachable —
     // i.e. the undecided pass must NOT have been memoized.
-    fs.writeFileSync(p, full + "\n" + JSON.stringify({ type: "event_msg", payload: {} }) + "\n");
+    fs.writeFileSync(
+      p,
+      full + "\n" + JSON.stringify({ type: "event_msg", payload: {} }) + "\n",
+    );
     expect(await sessionProcessOwnership(PARTIAL)).toBe("borrowed");
   });
 });
@@ -243,7 +303,10 @@ describe("planSessionTeardown — what a kill may destroy", () => {
     // The S1 bypass, end to end at the decision level: Resume caches the PARENT's
     // tmux name under the SUBAGENT's id, then a later kill/dismiss reads it back.
     for (const sid of THREAD_SUBAGENTS) {
-      expect(planSessionTeardown(await sessionProcessOwnership(sid)).killCachedResumeTmux).toBe(false);
+      expect(
+        planSessionTeardown(await sessionProcessOwnership(sid))
+          .killCachedResumeTmux,
+      ).toBe(false);
     }
   });
 
@@ -258,7 +321,9 @@ describe("planSessionTeardown — what a kill may destroy", () => {
 
   test("killing a `codex exec` review card still reaps it", async () => {
     for (const sid of EXEC_SUBAGENTS) {
-      expect(planSessionTeardown(await sessionProcessOwnership(sid)).reapPidTree).toBe(true);
+      expect(
+        planSessionTeardown(await sessionProcessOwnership(sid)).reapPidTree,
+      ).toBe(true);
     }
   });
 });
@@ -276,7 +341,10 @@ describe("the guards are actually wired into the kill sites", () => {
   // planSessionTeardown tests above cover the policy, and these cover that the
   // policy is actually consulted. Together they close the gap that let S1 through,
   // where the reap was gated and the cached-resume-tmux kill was not.
-  const daemonSrc = fs.readFileSync(path.join(import.meta.dir, "daemon.ts"), "utf-8");
+  const daemonSrc = fs.readFileSync(
+    path.join(import.meta.dir, "daemon.ts"),
+    "utf-8",
+  );
 
   /** Source with comments stripped. A comment mentioning the flag must never be
    *  able to satisfy these assertions — "a comment standing in for behavior" is
@@ -334,7 +402,9 @@ describe("the guards are actually wired into the kill sites", () => {
       const cacheVar = binding![1];
 
       const lines = body.split("\n");
-      const killPattern = new RegExp(`killTmuxSessionAndTree\\(\\s*${cacheVar}\\s*\\)`);
+      const killPattern = new RegExp(
+        `killTmuxSessionAndTree\\(\\s*${cacheVar}\\s*\\)`,
+      );
       let checked = 0;
       for (let i = 0; i < lines.length; i++) {
         if (!killPattern.test(lines[i])) continue;
@@ -357,7 +427,11 @@ describe("the guards are actually wired into the kill sites", () => {
       const actsWhenAllowed = /if \(teardownPlan\.reapPidTree\)/.test(body);
       expect(skipsWhenDenied || actsWhenAllowed).toBe(true);
       // …and never both-negated, which would be the inverted form.
-      expect(/if \(!teardownPlan\.reapPidTree\) \{\s*\n\s*const proc = await findSessionProcess/.test(body)).toBe(false);
+      expect(
+        /if \(!teardownPlan\.reapPidTree\) \{\s*\n\s*const proc = await findSessionProcess/.test(
+          body,
+        ),
+      ).toBe(false);
     });
   }
 });
@@ -384,7 +458,7 @@ describe("shortId on the incident's ids", () => {
     const colliding = THREAD_SUBAGENTS.filter((s) => s.startsWith("019fc262"));
     expect(colliding.length).toBe(3);
     expect(new Set(colliding.map((s) => s.slice(0, 8))).size).toBe(1); // old width: one id
-    expect(new Set(colliding.map(shortId)).size).toBe(3);              // new width: three
+    expect(new Set(colliding.map(shortId)).size).toBe(3); // new width: three
   });
 
   test("distinguishes the parent from every one of its subagents", () => {
@@ -400,26 +474,50 @@ describe("shortId on the incident's ids", () => {
 describe("readCodexSessionMetaHeadAsync", () => {
   test("returns the leading session_meta block of a 3 deep chain", async () => {
     const p = path.join(rolloutDir, "rollout-2026-08-02T15-00-00-chain.jsonl");
-    const metas = [metaLine("a", {}), metaLine("b", { parent_thread_id: "a" }), metaLine("c", { parent_thread_id: "b" })];
+    const metas = [
+      metaLine("a", {}),
+      metaLine("b", { parent_thread_id: "a" }),
+      metaLine("c", { parent_thread_id: "b" }),
+    ];
     const head = metas.join("\n") + "\n";
-    fs.writeFileSync(p, head + JSON.stringify({ type: "event_msg", payload: {} }) + "\n" + "x".repeat(1000) + "\n");
+    fs.writeFileSync(
+      p,
+      head +
+        JSON.stringify({ type: "event_msg", payload: {} }) +
+        "\n" +
+        "x".repeat(1000) +
+        "\n",
+    );
     expect(await readCodexSessionMetaHeadAsync(p)).toBe(head);
     expect(sessionMetaHeadCut(head + '{"type":"other"}\n')).toBe(head.length);
   });
 
   test("an empty block when the first line is not session_meta", async () => {
     const p = path.join(rolloutDir, "rollout-2026-08-02T15-00-01-nometa.jsonl");
-    fs.writeFileSync(p, JSON.stringify({ type: "event_msg", payload: {} }) + "\n" + metaLine("late", {}) + "\n");
+    fs.writeFileSync(
+      p,
+      JSON.stringify({ type: "event_msg", payload: {} }) +
+        "\n" +
+        metaLine("late", {}) +
+        "\n",
+    );
     expect(await readCodexSessionMetaHeadAsync(p)).toBe("");
   });
 
   test("stops at the byte cap on a file with no non meta line", async () => {
-    const p = path.join(rolloutDir, "rollout-2026-08-02T15-00-02-allmeta.jsonl");
+    const p = path.join(
+      rolloutDir,
+      "rollout-2026-08-02T15-00-02-allmeta.jsonl",
+    );
     // Each meta line is ~37KB in real rollouts; 17MB of them exceeds the 16MB cap.
-    const line = metaLine("big", { base_instructions: "i".repeat(36 * 1024) }) + "\n";
+    const line =
+      metaLine("big", { base_instructions: "i".repeat(36 * 1024) }) + "\n";
     const fd = fs.openSync(p, "w");
     let written = 0;
-    while (written < 17 * 1024 * 1024) { fs.writeSync(fd, line); written += line.length; }
+    while (written < 17 * 1024 * 1024) {
+      fs.writeSync(fd, line);
+      written += line.length;
+    }
     fs.closeSync(fd);
     const head = await readCodexSessionMetaHeadAsync(p);
     expect(head.length).toBeLessThanOrEqual(16 * 1024 * 1024);

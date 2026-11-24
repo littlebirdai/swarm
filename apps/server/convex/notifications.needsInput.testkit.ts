@@ -74,7 +74,7 @@ export function createCtx(seed: Record<string, Rec[]>) {
           (r) =>
             constraints.every((c) => String(r[c.field]) === String(c.val)) &&
             ranges.every((p) => p(r)) &&
-            rowPredicates.every((p) => p(r))
+            rowPredicates.every((p) => p(r)),
         );
         if (desc) rows.sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
         return rows;
@@ -88,7 +88,9 @@ export function createCtx(seed: Record<string, Rec[]>) {
           const expr = builder(filterQ);
           rowPredicates.push((r) => {
             const [a, b] = expr.__eq;
-            return String(resolveOperand(r, a)) === String(resolveOperand(r, b));
+            return (
+              String(resolveOperand(r, a)) === String(resolveOperand(r, b))
+            );
           });
           return chain;
         },
@@ -127,13 +129,15 @@ export function createCtx(seed: Record<string, Rec[]>) {
 // flipped agent_status to "idle" 60s ago (grace is 45s), the last synced
 // message is the assistant's answer, heartbeat fresh. This is the exact state
 // the web inbox files under NEEDS YOU and chimes for.
-export function settledIdleWorld(overrides: {
-  conv?: Rec;
-  session?: Rec;
-  users?: Rec[];
-  messages?: Rec[];
-  extra?: Record<string, Rec[]>;
-} = {}) {
+export function settledIdleWorld(
+  overrides: {
+    conv?: Rec;
+    session?: Rec;
+    users?: Rec[];
+    messages?: Rec[];
+    extra?: Record<string, Rec[]>;
+  } = {},
+) {
   const now = Date.now();
   return createCtx({
     users: overrides.users ?? [

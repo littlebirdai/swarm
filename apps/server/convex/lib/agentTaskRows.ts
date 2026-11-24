@@ -10,7 +10,12 @@ import { runParentOf } from "@codecast/shared/contracts";
 import { hostedHomeStamp } from "../assistant/routines";
 import { nextCadenceRun } from "@platform/assistant/cadence";
 
-export type TaskCtx = { db: any; scheduler?: { runAfter: (delayMs: number, fn: any, args: any) => Promise<unknown> } };
+export type TaskCtx = {
+  db: any;
+  scheduler?: {
+    runAfter: (delayMs: number, fn: any, args: any) => Promise<unknown>;
+  };
+};
 
 // Recompute conversations.armed_trigger_kind for one home from EVERY trigger
 // that injects into it (several can), and write it only when it changed — the
@@ -22,7 +27,9 @@ export async function refreshArmedTriggerKind(
   ctx: TaskCtx,
   conversationId: Id<"conversations">,
 ): Promise<void> {
-  const kind = armedTriggerKindFor(await tasksOriginatedBy(ctx, conversationId));
+  const kind = armedTriggerKindFor(
+    await tasksOriginatedBy(ctx, conversationId),
+  );
   const conv = await ctx.db.get(conversationId);
   if (!conv) return;
   if ((conv.armed_trigger_kind ?? "none") === kind) return;
@@ -30,28 +37,50 @@ export async function refreshArmedTriggerKind(
 }
 
 // Patch a trigger and keep its home's armed_trigger_kind in step.
-export async function patchTask(ctx: TaskCtx, task: Doc<"agent_tasks">, patch: Record<string, any>) {
+export async function patchTask(
+  ctx: TaskCtx,
+  task: Doc<"agent_tasks">,
+  patch: Record<string, any>,
+) {
   if ("originating_conversation_id" in patch) {
-    patch = { ...patch, hosted_home: await hostedHomeStamp(ctx, patch.originating_conversation_id) };
+    patch = {
+      ...patch,
+      hosted_home: await hostedHomeStamp(
+        ctx,
+        patch.originating_conversation_id,
+      ),
+    };
   }
   await ctx.db.patch(task._id, patch);
-  if (task.originating_conversation_id) await refreshArmedTriggerKind(ctx, task.originating_conversation_id);
+  if (task.originating_conversation_id)
+    await refreshArmedTriggerKind(ctx, task.originating_conversation_id);
   const next = { ...task, ...patch };
-  if (("run_at" in patch || "status" in patch) && next.status === "scheduled") await scheduleProjectFire(ctx, next, next.run_at);
+  if (("run_at" in patch || "status" in patch) && next.status === "scheduled")
+    await scheduleProjectFire(ctx, next, next.run_at);
 }
 
 /** A project trigger whose runs are turns in the project's main session: the
  *  server fires it (projectSources.fireProjectTrigger), never a daemon. */
-export function projectRunsInline(task: Pick<Doc<"agent_tasks">, "project_id" | "project_spawn">): boolean {
+export function projectRunsInline(
+  task: Pick<Doc<"agent_tasks">, "project_id" | "project_spawn">,
+): boolean {
   return !!task.project_id && !task.project_spawn;
 }
 
 /** Wake the server firing for an inline project trigger at its run_at. Every
  *  arming path reaches it (patchTask, insertTask, matchTaskTriggers); the
  *  firing reads the row again, so an outrun wake does nothing. */
-export async function scheduleProjectFire(ctx: TaskCtx, task: Pick<Doc<"agent_tasks">, "_id" | "project_id" | "project_spawn">, runAt: number | undefined): Promise<void> {
+export async function scheduleProjectFire(
+  ctx: TaskCtx,
+  task: Pick<Doc<"agent_tasks">, "_id" | "project_id" | "project_spawn">,
+  runAt: number | undefined,
+): Promise<void> {
   if (!projectRunsInline(task) || runAt === undefined || !ctx.scheduler) return;
-  await ctx.scheduler.runAfter(Math.max(0, runAt - Date.now()), internal.projectSources.fireProjectTrigger, { task_id: task._id });
+  await ctx.scheduler.runAfter(
+    Math.max(0, runAt - Date.now()),
+    internal.projectSources.fireProjectTrigger,
+    { task_id: task._id },
+  );
 }
 
 // A recurring trigger keeps a cadence: slots one interval apart. run_at is when
@@ -62,8 +91,14 @@ export async function scheduleProjectFire(ctx: TaskCtx, task: Pick<Doc<"agent_ta
 // wherever the detour ended.
 // The first cadence slot after `after`: on the wall clock when the routine
 // keeps one (hostedWallCadence), else one interval on.
-export function nextRecurringRun(task: Pick<Doc<"agent_tasks">, "interval_ms"> & Partial<Pick<Doc<"agent_tasks">, "cadence">>, after: number): number {
-  return task.cadence ? nextCadenceRun(task.cadence, after) : after + (task.interval_ms ?? 0);
+export function nextRecurringRun(
+  task: Pick<Doc<"agent_tasks">, "interval_ms"> &
+    Partial<Pick<Doc<"agent_tasks">, "cadence">>,
+  after: number,
+): number {
+  return task.cadence
+    ? nextCadenceRun(task.cadence, after)
+    : after + (task.interval_ms ?? 0);
 }
 
 // Re-arm a retired schedule. Exists for the hide-gesture affordance: killing a
@@ -139,7 +174,10 @@ export async function stampRunConversation(
   // A run blocked on the human is an open ask and is never hidden.
   if (!conv.parent_conversation_id) {
     const parent = runParentOf(task);
-    const parentConv = parent && parent.toString() !== conv._id.toString() ? await ctx.db.get(parent) : null;
+    const parentConv =
+      parent && parent.toString() !== conv._id.toString()
+        ? await ctx.db.get(parent)
+        : null;
     if (parentConv && parentConv.user_id.toString() === userId.toString()) {
       patch.parent_conversation_id = parent;
       patch.is_subagent = true;
@@ -173,15 +211,27 @@ export async function stampRunConversation(
 export async function cancelTasksBoundToConversation(
   ctx: TaskCtx,
   userId: Id<"users">,
-  conversationId: Id<"conversations">
+  conversationId: Id<"conversations">,
 ): Promise<number> {
   let cancelled = 0;
-  for (const task of await runnerTasksOriginatedBy(ctx, userId, conversationId)) {
-    if (task.status !== "scheduled" && task.status !== "running" && task.status !== "paused") continue;
+  for (const task of await runnerTasksOriginatedBy(
+    ctx,
+    userId,
+    conversationId,
+  )) {
+    if (
+      task.status !== "scheduled" &&
+      task.status !== "running" &&
+      task.status !== "paused"
+    )
+      continue;
     // Stamp WHY it completed: a restore of the killed session re-arms exactly
     // the schedules this kill took down (reactivateTasksCanceledOnKill),
     // without touching schedules that ran to natural completion.
-    await patchTask(ctx, task, { status: "completed", canceled_on_kill_at: Date.now() });
+    await patchTask(ctx, task, {
+      status: "completed",
+      canceled_on_kill_at: Date.now(),
+    });
     cancelled++;
   }
   return cancelled;
@@ -192,23 +242,39 @@ export async function cancelTasksBoundToConversation(
 // the runner's tasks by status instead read their whole trigger history each
 // time (2.3 MB per session for a heavy user), so undoing the kill of a session
 // with a handful of subagents read 19 MB in one mutation and was refused.
-export async function tasksOriginatedBy(ctx: TaskCtx, conversationId: Id<"conversations">): Promise<Doc<"agent_tasks">[]> {
+export async function tasksOriginatedBy(
+  ctx: TaskCtx,
+  conversationId: Id<"conversations">,
+): Promise<Doc<"agent_tasks">[]> {
   return await ctx.db
     .query("agent_tasks")
-    .withIndex("by_originating_conversation", (q: any) => q.eq("originating_conversation_id", conversationId))
+    .withIndex("by_originating_conversation", (q: any) =>
+      q.eq("originating_conversation_id", conversationId),
+    )
     .collect();
 }
 
-export async function runnerTasksOriginatedBy(ctx: TaskCtx, userId: Id<"users">, conversationId: Id<"conversations">) {
-  return (await tasksOriginatedBy(ctx, conversationId)).filter((task) => task.user_id.toString() === userId.toString());
+export async function runnerTasksOriginatedBy(
+  ctx: TaskCtx,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+) {
+  return (await tasksOriginatedBy(ctx, conversationId)).filter(
+    (task) => task.user_id.toString() === userId.toString(),
+  );
 }
 
 /** The session a role is seated in: its anchor's conversation, read as a
  *  leaf (orgRoles.standingConversationOf reaches the big import cycle). */
-export async function roleSeatOf(ctx: TaskCtx, roleId: Id<"org_roles"> | undefined): Promise<Doc<"conversations"> | null> {
+export async function roleSeatOf(
+  ctx: TaskCtx,
+  roleId: Id<"org_roles"> | undefined,
+): Promise<Doc<"conversations"> | null> {
   const role = roleId ? await ctx.db.get(roleId) : null;
   const anchor = role?.anchor_id ? await ctx.db.get(role.anchor_id) : null;
-  return anchor?.conversation_id ? await ctx.db.get(anchor.conversation_id) : null;
+  return anchor?.conversation_id
+    ? await ctx.db.get(anchor.conversation_id)
+    : null;
 }
 
 // A role's triggers belong to its standing session, so they fire as the
@@ -221,17 +287,30 @@ export async function roleSeatOf(ctx: TaskCtx, roleId: Id<"org_roles"> | undefin
 // seat follows the seat: a role trigger pointed anywhere else is never handed
 // to whoever owns that session, so nobody can choose a teammate's machine to
 // run it on. A person's own trigger on a session is theirs and keeps its owner.
-export async function roleTriggerRunnerOf(ctx: TaskCtx, task: Pick<Doc<"agent_tasks">, "role_id" | "user_id" | "originating_conversation_id">): Promise<Id<"users"> | null> {
+export async function roleTriggerRunnerOf(
+  ctx: TaskCtx,
+  task: Pick<
+    Doc<"agent_tasks">,
+    "role_id" | "user_id" | "originating_conversation_id"
+  >,
+): Promise<Id<"users"> | null> {
   const seat = await seatOfRoleTrigger(ctx, task);
-  return seat && String(seat.user_id) !== String(task.user_id) ? seat.user_id : null;
+  return seat && String(seat.user_id) !== String(task.user_id)
+    ? seat.user_id
+    : null;
 }
 
 /** The seat of a role trigger that lives on it; null for a person's trigger
  *  or a role trigger left anywhere else. */
-export async function seatOfRoleTrigger(ctx: TaskCtx, task: Pick<Doc<"agent_tasks">, "role_id" | "originating_conversation_id">): Promise<Doc<"conversations"> | null> {
+export async function seatOfRoleTrigger(
+  ctx: TaskCtx,
+  task: Pick<Doc<"agent_tasks">, "role_id" | "originating_conversation_id">,
+): Promise<Doc<"conversations"> | null> {
   if (!task.role_id || !task.originating_conversation_id) return null;
   const seat = await roleSeatOf(ctx, task.role_id);
-  return seat && String(seat._id) === String(task.originating_conversation_id) ? seat : null;
+  return seat && String(seat._id) === String(task.originating_conversation_id)
+    ? seat
+    : null;
 }
 
 /** The one account that may change what a trigger runs or where (its
@@ -240,14 +319,25 @@ export async function seatOfRoleTrigger(ctx: TaskCtx, task: Pick<Doc<"agent_task
  *  next (roleTriggerRunnerOf hands it over at the claim, before any precheck
  *  runs), even while the row still names a stale owner; for every other
  *  trigger its owner. Nobody else picks what runs on someone's machine. */
-export async function rewriterOf(ctx: TaskCtx, task: Pick<Doc<"agent_tasks">, "role_id" | "user_id" | "originating_conversation_id">): Promise<{ userId: Id<"users">; seat: boolean }> {
+export async function rewriterOf(
+  ctx: TaskCtx,
+  task: Pick<
+    Doc<"agent_tasks">,
+    "role_id" | "user_id" | "originating_conversation_id"
+  >,
+): Promise<{ userId: Id<"users">; seat: boolean }> {
   const seat = await seatOfRoleTrigger(ctx, task);
-  return seat ? { userId: seat.user_id, seat: true } : { userId: task.user_id, seat: false };
+  return seat
+    ? { userId: seat.user_id, seat: true }
+    : { userId: task.user_id, seat: false };
 }
 
 /** Hand every role trigger seated on a conversation to the account that runs
  *  it. Returns how many changed hands. */
-export async function handRoleTriggersToRunner(ctx: TaskCtx, conversationId: Id<"conversations">): Promise<number> {
+export async function handRoleTriggersToRunner(
+  ctx: TaskCtx,
+  conversationId: Id<"conversations">,
+): Promise<number> {
   let handed = 0;
   for (const task of await tasksOriginatedBy(ctx, conversationId)) {
     const runner = await roleTriggerRunnerOf(ctx, task);
@@ -262,10 +352,20 @@ export async function handRoleTriggersToRunner(ctx: TaskCtx, conversationId: Id<
  *  routines): cancelled, not completed, so nothing re-arms them. Returns the count. */
 // `only` narrows the cancel to the tasks a caller owns (a seat's own routine),
 // leaving whatever else the person armed on the thread alone.
-export async function cancelTasksOriginatingFrom(ctx: TaskCtx, conversationId: Id<"conversations">, now = Date.now(), only?: (task: any) => boolean): Promise<number> {
+export async function cancelTasksOriginatingFrom(
+  ctx: TaskCtx,
+  conversationId: Id<"conversations">,
+  now = Date.now(),
+  only?: (task: any) => boolean,
+): Promise<number> {
   let cancelled = 0;
   for (const task of await tasksOriginatedBy(ctx, conversationId)) {
-    if (task.status === "cancelled" || task.status === "completed" || task.status === "failed") continue;
+    if (
+      task.status === "cancelled" ||
+      task.status === "completed" ||
+      task.status === "failed"
+    )
+      continue;
     if (only && !only(task)) continue;
     await patchTask(ctx, task, { status: "cancelled", updated_at: now });
     cancelled++;
@@ -281,10 +381,14 @@ export async function cancelTasksOriginatingFrom(ctx: TaskCtx, conversationId: I
 export async function reactivateTasksCanceledOnKill(
   ctx: TaskCtx,
   userId: Id<"users">,
-  conversationId: Id<"conversations">
+  conversationId: Id<"conversations">,
 ): Promise<number> {
   let rearmed = 0;
-  for (const task of await runnerTasksOriginatedBy(ctx, userId, conversationId)) {
+  for (const task of await runnerTasksOriginatedBy(
+    ctx,
+    userId,
+    conversationId,
+  )) {
     if (task.status !== "completed" || !task.canceled_on_kill_at) continue;
     if (await applyReactivate(ctx, task)) rearmed++;
   }
@@ -300,20 +404,48 @@ export function projectQuiet(status: string | undefined): boolean {
  *  and stamps each, waking resumes only the ones its quiet paused, so a
  *  trigger a person paused by hand stays paused. Same rule as a role's pause
  *  (org-staffing.md S25). */
-export async function syncProjectTriggers(ctx: TaskCtx, projectId: Id<"projects">, from: string | undefined, to: string | undefined): Promise<number> {
+export async function syncProjectTriggers(
+  ctx: TaskCtx,
+  projectId: Id<"projects">,
+  from: string | undefined,
+  to: string | undefined,
+): Promise<number> {
   if (projectQuiet(from) === projectQuiet(to)) return 0;
-  const rows: Doc<"agent_tasks">[] = await ctx.db.query("agent_tasks").withIndex("by_project", (q: any) => q.eq("project_id", projectId)).collect();
+  const rows: Doc<"agent_tasks">[] = await ctx.db
+    .query("agent_tasks")
+    .withIndex("by_project", (q: any) => q.eq("project_id", projectId))
+    .collect();
   let moved = 0;
   for (const t of rows) {
-    if (projectQuiet(to) && (t.status === "scheduled" || t.status === "running")) {
-      await patchTask(ctx, t, { status: "paused", paused_by_project_id: projectId, paused_by_role_id: undefined });
+    if (
+      projectQuiet(to) &&
+      (t.status === "scheduled" || t.status === "running")
+    ) {
+      await patchTask(ctx, t, {
+        status: "paused",
+        paused_by_project_id: projectId,
+        paused_by_role_id: undefined,
+      });
       moved++;
-    } else if (!projectQuiet(to) && t.status === "paused" && String(t.paused_by_project_id ?? "") === String(projectId)) {
+    } else if (
+      !projectQuiet(to) &&
+      t.status === "paused" &&
+      String(t.paused_by_project_id ?? "") === String(projectId)
+    ) {
       // An event trigger stays disarmed until its next event, as applyResume
       // leaves it, unless a window was open at the pause: its lines run now.
       const now = Date.now();
-      const run_at = t.schedule_type === "event" ? (t.pending_events?.length ? now : undefined) : Math.max(t.run_at ?? 0, now);
-      await patchTask(ctx, t, { status: "scheduled", paused_by_project_id: undefined, run_at });
+      const run_at =
+        t.schedule_type === "event"
+          ? t.pending_events?.length
+            ? now
+            : undefined
+          : Math.max(t.run_at ?? 0, now);
+      await patchTask(ctx, t, {
+        status: "scheduled",
+        paused_by_project_id: undefined,
+        run_at,
+      });
       moved++;
     }
   }

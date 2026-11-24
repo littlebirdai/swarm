@@ -2,7 +2,11 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { mergeManifests, resolveManifest, MANIFEST_REL_PATH } from "./resolver.js";
+import {
+  mergeManifests,
+  resolveManifest,
+  MANIFEST_REL_PATH,
+} from "./resolver.js";
 import type { WorkspaceManifest } from "./types.js";
 
 const emptyManifest = (): WorkspaceManifest => ({
@@ -11,7 +15,11 @@ const emptyManifest = (): WorkspaceManifest => ({
   services: {},
   env: {},
   teardown: { run: [] },
-  browser: { enabled: false, headless: true, cdpPort: { base: 9222, range: 100 } },
+  browser: {
+    enabled: false,
+    headless: true,
+    cdpPort: { base: 9222, range: 100 },
+  },
   backend: "local",
 });
 
@@ -23,7 +31,13 @@ describe("mergeManifests", () => {
   test("null override returns base unchanged", () => {
     const base: WorkspaceManifest = {
       ...emptyManifest(),
-      setup: { copy: [".env"], share: [], install: ["bun install"], generate: [], migrate: [] },
+      setup: {
+        copy: [".env"],
+        share: [],
+        install: ["bun install"],
+        generate: [],
+        migrate: [],
+      },
       detected: "bun",
     };
     expect(mergeManifests(base, null)).toBe(base);
@@ -32,7 +46,13 @@ describe("mergeManifests", () => {
   test("non-empty override array replaces detection", () => {
     const base: WorkspaceManifest = {
       ...emptyManifest(),
-      setup: { copy: [], share: [], install: ["bun install"], generate: [], migrate: [] },
+      setup: {
+        copy: [],
+        share: [],
+        install: ["bun install"],
+        generate: [],
+        migrate: [],
+      },
     };
     const override: WorkspaceManifest = {
       ...emptyManifest(),
@@ -53,12 +73,24 @@ describe("mergeManifests", () => {
   test("absent (empty) override array keeps detection's value", () => {
     const base: WorkspaceManifest = {
       ...emptyManifest(),
-      setup: { copy: [".env"], share: [], install: ["bun install"], generate: [], migrate: [] },
+      setup: {
+        copy: [".env"],
+        share: [],
+        install: ["bun install"],
+        generate: [],
+        migrate: [],
+      },
     };
     const override: WorkspaceManifest = {
       ...emptyManifest(),
       // copy and install both empty (absent in TOML)
-      setup: { copy: [], share: [], install: [], generate: ["bun run codegen"], migrate: [] },
+      setup: {
+        copy: [],
+        share: [],
+        install: [],
+        generate: ["bun run codegen"],
+        migrate: [],
+      },
     };
     const merged = mergeManifests(base, override);
     expect(merged.setup.copy).toEqual([".env"]);
@@ -131,13 +163,17 @@ describe("mergeManifests", () => {
       ...emptyManifest(),
       teardown: { run: [] }, // absent
     };
-    expect(mergeManifests(base, override1).teardown.run).toEqual(["bun run cleanup"]);
+    expect(mergeManifests(base, override1).teardown.run).toEqual([
+      "bun run cleanup",
+    ]);
 
     const override2: WorkspaceManifest = {
       ...emptyManifest(),
       teardown: { run: ["docker compose down"] },
     };
-    expect(mergeManifests(base, override2).teardown.run).toEqual(["docker compose down"]);
+    expect(mergeManifests(base, override2).teardown.run).toEqual([
+      "docker compose down",
+    ]);
   });
 
   test("detected: base wins unless override sets it explicitly", () => {
@@ -145,7 +181,10 @@ describe("mergeManifests", () => {
     const override1: WorkspaceManifest = { ...emptyManifest() };
     expect(mergeManifests(base, override1).detected).toBe("bun");
 
-    const override2: WorkspaceManifest = { ...emptyManifest(), detected: "custom-runner" };
+    const override2: WorkspaceManifest = {
+      ...emptyManifest(),
+      detected: "custom-runner",
+    };
     expect(mergeManifests(base, override2).detected).toBe("custom-runner");
   });
 });
@@ -221,10 +260,7 @@ describe("resolveManifest", () => {
     write("bun.lock", "");
     write(".env", "FOO=1");
     // manifest only declares ports; install + copy come from detection
-    write(
-      MANIFEST_REL_PATH,
-      `[ports.web]\nbase = 3000\nrange = 100\n`,
-    );
+    write(MANIFEST_REL_PATH, `[ports.web]\nbase = 3000\nrange = 100\n`);
     const m = resolveManifest(tmpDir);
     expect(m.setup.install).toEqual(["bun install"]); // from detection
     expect(m.setup.copy).toEqual([".env"]); // from detection
@@ -249,15 +285,23 @@ describe("resolveManifest", () => {
 // ---------------------------------------------------------------------------
 
 import { execFileSync } from "node:child_process";
-import { AGENT_CONFIG_COPY_CANDIDATES, withAgentConfigCopies } from "./resolver.js";
+import {
+  AGENT_CONFIG_COPY_CANDIDATES,
+  withAgentConfigCopies,
+} from "./resolver.js";
 
 describe("withAgentConfigCopies", () => {
   let repo: string;
   const warnings: string[] = [];
-  const warn = (m: string) => { warnings.push(m); };
+  const warn = (m: string) => {
+    warnings.push(m);
+  };
 
   function git(...args: string[]): string {
-    return execFileSync("git", ["-C", repo, ...args], { encoding: "utf-8", stdio: "pipe" }).trim();
+    return execFileSync("git", ["-C", repo, ...args], {
+      encoding: "utf-8",
+      stdio: "pipe",
+    }).trim();
   }
   function write(rel: string, content = "x\n") {
     const p = path.join(repo, rel);
@@ -267,7 +311,17 @@ describe("withAgentConfigCopies", () => {
   function commit(rel: string, content = "tracked\n") {
     write(rel, content);
     git("add", rel);
-    git("-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-qm", "fixture");
+    git(
+      "-c",
+      "user.name=t",
+      "-c",
+      "user.email=t@t",
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "-qm",
+      "fixture",
+    );
   }
   function copyOf(m: WorkspaceManifest) {
     return m.setup.copy;
@@ -275,7 +329,9 @@ describe("withAgentConfigCopies", () => {
 
   beforeEach(() => {
     warnings.length = 0;
-    repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "ws-agent-copy-")));
+    repo = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "ws-agent-copy-")),
+    );
     git("init", "-q", "-b", "main");
   });
   afterEach(() => {
@@ -294,7 +350,15 @@ describe("withAgentConfigCopies", () => {
     write("AGENTS.md", "untracked agents\n");
     write(".mcp.json", "{}");
     const m = resolveManifest(repo);
-    expect(copyOf(m)).toEqual([".env", ".claude/settings.local.json", ".claude/skills/b/SKILL.md", ".claude/skills/b/helper.py", ".mcp.json", "AGENTS.md", "CLAUDE.local.md"]);
+    expect(copyOf(m)).toEqual([
+      ".env",
+      ".claude/settings.local.json",
+      ".claude/skills/b/SKILL.md",
+      ".claude/skills/b/helper.py",
+      ".mcp.json",
+      "AGENTS.md",
+      "CLAUDE.local.md",
+    ]);
     expect(copyOf(m)).not.toContain("CLAUDE.md");
     expect(copyOf(m)).not.toContain(".claude/skills/a/SKILL.md");
     expect(copyOf(m)).toContain(".mcp.json");
@@ -308,9 +372,16 @@ describe("withAgentConfigCopies", () => {
     fs.symlinkSync(shared, path.join(repo, ".claude/skills/linked"));
     write(".claude/skills/local/SKILL.md");
     try {
-      const m = withAgentConfigCopies(emptyManifest(), repo, { isInputRoot: false, warn });
+      const m = withAgentConfigCopies(emptyManifest(), repo, {
+        isInputRoot: false,
+        warn,
+      });
       expect(copyOf(m)).toEqual([".claude/skills/local/SKILL.md"]);
-      expect(warnings.some((w) => w.includes(".claude/skills/linked") && w.includes("symlink"))).toBe(true);
+      expect(
+        warnings.some(
+          (w) => w.includes(".claude/skills/linked") && w.includes("symlink"),
+        ),
+      ).toBe(true);
     } finally {
       fs.rmSync(shared, { recursive: true, force: true });
     }
@@ -320,7 +391,10 @@ describe("withAgentConfigCopies", () => {
     commit("README.md");
     for (let i = 0; i < 210; i++) write(`.claude/skills/big/f${i}.md`);
     write(".claude/commands/c.md");
-    const m = withAgentConfigCopies(emptyManifest(), repo, { isInputRoot: false, warn });
+    const m = withAgentConfigCopies(emptyManifest(), repo, {
+      isInputRoot: false,
+      warn,
+    });
     expect(copyOf(m)).toHaveLength(211);
     expect(copyOf(m)).toContain(".claude/commands/c.md");
     expect(warnings).toEqual([]);
@@ -328,7 +402,10 @@ describe("withAgentConfigCopies", () => {
 
   test("explicit setup.copy in workspace.toml is appended to, not replaced; a covering entry is not duplicated", () => {
     commit("README.md");
-    write(".codecast/workspace.toml", '[setup]\ncopy = ["secrets", ".claude/skills"]\n');
+    write(
+      ".codecast/workspace.toml",
+      '[setup]\ncopy = ["secrets", ".claude/skills"]\n',
+    );
     write("secrets/key");
     write(".claude/skills/x/SKILL.md");
     write("CLAUDE.local.md");
@@ -341,15 +418,26 @@ describe("withAgentConfigCopies", () => {
     fs.mkdirSync(inputs, { recursive: true });
     fs.writeFileSync(path.join(inputs, "CLAUDE.local.md"), "staged\n");
     fs.mkdirSync(path.join(inputs, ".claude/skills/s"), { recursive: true });
-    fs.writeFileSync(path.join(inputs, ".claude/skills/s/SKILL.md"), "staged\n");
+    fs.writeFileSync(
+      path.join(inputs, ".claude/skills/s/SKILL.md"),
+      "staged\n",
+    );
     fs.writeFileSync(path.join(inputs, ".mcp.json"), "{}");
     commit("CLAUDE.md");
     const m = resolveManifest(repo, inputs);
-    expect(copyOf(m)).toEqual([".claude/skills/s/SKILL.md", ".mcp.json", "CLAUDE.local.md"]);
+    expect(copyOf(m)).toEqual([
+      ".claude/skills/s/SKILL.md",
+      ".mcp.json",
+      "CLAUDE.local.md",
+    ]);
     const plain = fs.mkdtempSync(path.join(os.tmpdir(), "ws-plain-"));
     try {
       fs.writeFileSync(path.join(plain, "AGENTS.md"), "a\n");
-      expect(copyOf(withAgentConfigCopies(emptyManifest(), plain, { isInputRoot: false }))).toEqual(["AGENTS.md"]);
+      expect(
+        copyOf(
+          withAgentConfigCopies(emptyManifest(), plain, { isInputRoot: false }),
+        ),
+      ).toEqual(["AGENTS.md"]);
     } finally {
       fs.rmSync(plain, { recursive: true, force: true });
     }
@@ -375,11 +463,23 @@ describe("withAgentConfigCopies", () => {
     const previous = process.env.CODECAST_DIR;
     process.env.CODECAST_DIR = configDir;
     try {
-      expect(copyOf(withAgentConfigCopies(emptyManifest(), repo, { isInputRoot: false }))).toContain(".sim/run/notes.md");
-      fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ cloud_mirror_exclude: ".sim" }));
-      expect(copyOf(withAgentConfigCopies(emptyManifest(), repo, { isInputRoot: false }))).toEqual(["CLAUDE.local.md"]);
+      expect(
+        copyOf(
+          withAgentConfigCopies(emptyManifest(), repo, { isInputRoot: false }),
+        ),
+      ).toContain(".sim/run/notes.md");
+      fs.writeFileSync(
+        path.join(configDir, "config.json"),
+        JSON.stringify({ cloud_mirror_exclude: ".sim" }),
+      );
+      expect(
+        copyOf(
+          withAgentConfigCopies(emptyManifest(), repo, { isInputRoot: false }),
+        ),
+      ).toEqual(["CLAUDE.local.md"]);
     } finally {
-      if (previous === undefined) delete process.env.CODECAST_DIR; else process.env.CODECAST_DIR = previous;
+      if (previous === undefined) delete process.env.CODECAST_DIR;
+      else process.env.CODECAST_DIR = previous;
       fs.rmSync(configDir, { recursive: true, force: true });
     }
   });

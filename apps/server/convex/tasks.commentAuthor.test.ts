@@ -15,11 +15,39 @@ const CONVERSATION = "conversations_codex";
 
 async function fixture() {
   const tables = {
-    users: [{ _id: OWNER, name: "Owner" }, { _id: MEMBER, name: "Member" }],
-    api_tokens: [{ _id: "tokens_one", user_id: OWNER, token_hash: await hashToken(TOKEN) }],
-    tasks: [{ _id: TASK, short_id: "ct-1", title: "Task", user_id: OWNER, workspace: `team:${TEAM}`, team_id: TEAM, status: "open" }],
-    conversations: [{ _id: CONVERSATION, session_id: "codex-thread", title: "Cast browser routing", agent_type: "codex", user_id: OWNER, is_private: true, status: "active" }],
-    team_memberships: [{ _id: "memberships_owner", user_id: OWNER, team_id: TEAM }, { _id: "memberships_member", user_id: MEMBER, team_id: TEAM }],
+    users: [
+      { _id: OWNER, name: "Owner" },
+      { _id: MEMBER, name: "Member" },
+    ],
+    api_tokens: [
+      { _id: "tokens_one", user_id: OWNER, token_hash: await hashToken(TOKEN) },
+    ],
+    tasks: [
+      {
+        _id: TASK,
+        short_id: "ct-1",
+        title: "Task",
+        user_id: OWNER,
+        workspace: `team:${TEAM}`,
+        team_id: TEAM,
+        status: "open",
+      },
+    ],
+    conversations: [
+      {
+        _id: CONVERSATION,
+        session_id: "codex-thread",
+        title: "Cast browser routing",
+        agent_type: "codex",
+        user_id: OWNER,
+        is_private: true,
+        status: "active",
+      },
+    ],
+    team_memberships: [
+      { _id: "memberships_owner", user_id: OWNER, team_id: TEAM },
+      { _id: "memberships_member", user_id: MEMBER, team_id: TEAM },
+    ],
     task_comments: [] as any[],
   };
   const db = makeFakeDb(tables);
@@ -31,7 +59,11 @@ async function fixture() {
     runQuery: async () => null,
   } as any;
   await (addComment as any)._handler(ctx, {
-    api_token: TOKEN, short_id: "ct-1", text: "Browser pairing recovered", author: "Claude", conversation_id: "codex-thread",
+    api_token: TOKEN,
+    short_id: "ct-1",
+    text: "Browser pairing recovered",
+    author: "Claude",
+    conversation_id: "codex-thread",
   });
   return { ctx, tables };
 }
@@ -45,18 +77,41 @@ describe("task comment session authors", () => {
   });
 
   const readers = {
-    "task detail": async (ctx: any) => (await (webGetTaskDetail as any)._handler(ctx, { id: "ct-1" })).comments,
-    "task reference": async (ctx: any) => (await (webGet as any)._handler(ctx, { short_id: "ct-1" })).comments,
-    "change feed": async (ctx: any) => (await (webGetByIds as any)._handler(ctx, { ids: [TASK] })).items[0].comments,
-    "CLI show": async (ctx: any) => (await (get as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-1" })).comments,
-    "CLI context": async (ctx: any) => (await (context as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-1" })).comments,
+    "task detail": async (ctx: any) =>
+      (await (webGetTaskDetail as any)._handler(ctx, { id: "ct-1" })).comments,
+    "task reference": async (ctx: any) =>
+      (await (webGet as any)._handler(ctx, { short_id: "ct-1" })).comments,
+    "change feed": async (ctx: any) =>
+      (await (webGetByIds as any)._handler(ctx, { ids: [TASK] })).items[0]
+        .comments,
+    "CLI show": async (ctx: any) =>
+      (await (get as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-1" }))
+        .comments,
+    "CLI context": async (ctx: any) =>
+      (
+        await (context as any)._handler(ctx, {
+          api_token: TOKEN,
+          short_id: "ct-1",
+        })
+      ).comments,
   };
 
   for (const [name, read] of Object.entries(readers)) {
     test(`${name} shows the session title and Codex identity to its owner`, async () => {
       const { ctx } = await fixture();
       const [comment] = await read(ctx);
-      expect(comment.session_info).toEqual({ _id: CONVERSATION, session_id: "codex-thread", title: "Cast browser routing", agent_type: "codex", character_avatar: null, character_name: null, drawn_icon: null, org_role_id: null, standing_role_id: null, role: null });
+      expect(comment.session_info).toEqual({
+        _id: CONVERSATION,
+        session_id: "codex-thread",
+        title: "Cast browser routing",
+        agent_type: "codex",
+        character_avatar: null,
+        character_name: null,
+        drawn_icon: null,
+        org_role_id: null,
+        standing_role_id: null,
+        role: null,
+      });
     });
 
     test(`${name} hides the private session from another task viewer`, async () => {
@@ -72,18 +127,35 @@ describe("task comment session authors", () => {
 
   test("deleted sessions and human comments render without a session link", async () => {
     const { ctx } = await fixture();
-    const result = await attachCommentSessionInfo(ctx, [{ conversation_id: "conversations_deleted" as any }, {}], OWNER as any);
-    expect(result).toEqual([{ conversation_id: undefined, session_info: null }, { conversation_id: undefined, session_info: null }]);
+    const result = await attachCommentSessionInfo(
+      ctx,
+      [{ conversation_id: "conversations_deleted" as any }, {}],
+      OWNER as any,
+    );
+    expect(result).toEqual([
+      { conversation_id: undefined, session_info: null },
+      { conversation_id: undefined, session_info: null },
+    ]);
   });
 
   test("the evidence-based repair previews first, then restores the original comment without duplicating it", async () => {
     const { ctx, tables } = await fixture();
     delete tables.task_comments[0].conversation_id;
-    const args = { comment_id: tables.task_comments[0]._id, conversation_id: CONVERSATION, expected_text: "Browser pairing recovered" };
+    const args = {
+      comment_id: tables.task_comments[0]._id,
+      conversation_id: CONVERSATION,
+      expected_text: "Browser pairing recovered",
+    };
     await (restoreSessionAuthor as any)._handler(ctx, args);
     expect(tables.task_comments[0].conversation_id).toBeUndefined();
-    await (restoreSessionAuthor as any)._handler(ctx, { ...args, dry_run: false });
-    await (restoreSessionAuthor as any)._handler(ctx, { ...args, dry_run: false });
+    await (restoreSessionAuthor as any)._handler(ctx, {
+      ...args,
+      dry_run: false,
+    });
+    await (restoreSessionAuthor as any)._handler(ctx, {
+      ...args,
+      dry_run: false,
+    });
     expect(tables.task_comments).toHaveLength(1);
     expect(tables.task_comments[0].conversation_id).toBe(CONVERSATION);
     expect(tables.tasks[0]).toHaveProperty("last_comment_at");
@@ -91,14 +163,25 @@ describe("task comment session authors", () => {
 
   test("the repair refuses changed evidence, human comments, and an existing different author", async () => {
     const { ctx, tables } = await fixture();
-    const args = { comment_id: tables.task_comments[0]._id, conversation_id: CONVERSATION, expected_text: "wrong text", dry_run: false };
-    await expect((restoreSessionAuthor as any)._handler(ctx, args)).rejects.toThrow("evidence");
+    const args = {
+      comment_id: tables.task_comments[0]._id,
+      conversation_id: CONVERSATION,
+      expected_text: "wrong text",
+      dry_run: false,
+    };
+    await expect(
+      (restoreSessionAuthor as any)._handler(ctx, args),
+    ).rejects.toThrow("evidence");
     args.expected_text = tables.task_comments[0].text;
     tables.task_comments[0].author_user_id = OWNER;
-    await expect((restoreSessionAuthor as any)._handler(ctx, args)).rejects.toThrow("evidence");
+    await expect(
+      (restoreSessionAuthor as any)._handler(ctx, args),
+    ).rejects.toThrow("evidence");
     delete tables.task_comments[0].author_user_id;
     tables.task_comments[0].conversation_id = "conversations_other";
-    await expect((restoreSessionAuthor as any)._handler(ctx, args)).rejects.toThrow("different author");
+    await expect(
+      (restoreSessionAuthor as any)._handler(ctx, args),
+    ).rejects.toThrow("different author");
   });
 });
 
@@ -113,9 +196,22 @@ describe("task comment author is the resolved actor", () => {
 
   test("a hand of a role signs as the host, not the role, whatever it claims", async () => {
     const { ctx, tables } = await fixture();
-    (tables as Record<string, any[]>).org_roles = [{ _id: "org_roles_r", name: "Infra lead", handle: "infra", status: "active" }];
+    (tables as Record<string, any[]>).org_roles = [
+      {
+        _id: "org_roles_r",
+        name: "Infra lead",
+        handle: "infra",
+        status: "active",
+      },
+    ];
     (tables.conversations[0] as any).org_role_id = "org_roles_r";
-    await (addComment as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-1", text: "done", author: "Infra lead", conversation_id: "codex-thread" });
+    await (addComment as any)._handler(ctx, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      text: "done",
+      author: "Infra lead",
+      conversation_id: "codex-thread",
+    });
     expect(tables.task_comments[1].author).toBe("Owner");
   });
 });

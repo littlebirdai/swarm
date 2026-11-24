@@ -41,18 +41,34 @@ function taskSubagentMeta(meta: unknown): { finished?: unknown } | null {
  *  the end of the transcript, not before a later resumed run. */
 export function subagentLooksFinished(state: SubagentFileState): boolean {
   const meta = taskSubagentMeta(state.meta);
-  return meta?.finished === true && state.metaMtimeMs >= state.jsonlMtimeMs - FINISH_META_SLACK_MS;
+  return (
+    meta?.finished === true &&
+    state.metaMtimeMs >= state.jsonlMtimeMs - FINISH_META_SLACK_MS
+  );
 }
 
 export function isSubagentTranscriptPath(filePath: string): boolean {
-  return filePath.endsWith(".jsonl") && filePath.split(path.sep).includes("subagents");
+  return (
+    filePath.endsWith(".jsonl") &&
+    filePath.split(path.sep).includes("subagents")
+  );
 }
 
-async function readSubagentFileState(filePath: string): Promise<SubagentFileState | null> {
+async function readSubagentFileState(
+  filePath: string,
+): Promise<SubagentFileState | null> {
   const metaPath = filePath.replace(/\.jsonl$/, ".meta.json");
   try {
-    const [metaStat, jsonlStat, raw] = await Promise.all([fsp.stat(metaPath), fsp.stat(filePath), fsp.readFile(metaPath, "utf8")]);
-    return { meta: JSON.parse(raw), metaMtimeMs: metaStat.mtimeMs, jsonlMtimeMs: jsonlStat.mtimeMs };
+    const [metaStat, jsonlStat, raw] = await Promise.all([
+      fsp.stat(metaPath),
+      fsp.stat(filePath),
+      fsp.readFile(metaPath, "utf8"),
+    ]);
+    return {
+      meta: JSON.parse(raw),
+      metaMtimeMs: metaStat.mtimeMs,
+      jsonlMtimeMs: jsonlStat.mtimeMs,
+    };
   } catch {
     return null;
   }
@@ -81,7 +97,9 @@ export interface SubagentFinishDeps {
 
 export class SubagentFinishTracker {
   private readonly entries = new Map<string, Entry>();
-  private readonly readState: (filePath: string) => Promise<SubagentFileState | null>;
+  private readonly readState: (
+    filePath: string,
+  ) => Promise<SubagentFileState | null>;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (handle: unknown) => void;
   private readonly quietMs: number;
@@ -89,26 +107,39 @@ export class SubagentFinishTracker {
 
   constructor(deps: SubagentFinishDeps = {}) {
     this.readState = deps.readState ?? readSubagentFileState;
-    this.setTimer = deps.setTimer ?? ((fn, ms) => {
-      const t = setTimeout(fn, ms);
-      t.unref?.();
-      return t;
-    });
-    this.clearTimer = deps.clearTimer ?? ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
+    this.setTimer =
+      deps.setTimer ??
+      ((fn, ms) => {
+        const t = setTimeout(fn, ms);
+        t.unref?.();
+        return t;
+      });
+    this.clearTimer =
+      deps.clearTimer ??
+      ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
     this.quietMs = deps.quietMs ?? FINISH_QUIET_MS;
   }
 
   private entry(filePath: string): Entry {
     let e = this.entries.get(filePath);
     if (!e) {
-      e = { generation: 0, completed: false, confirmed: false, queue: Promise.resolve() };
+      e = {
+        generation: 0,
+        completed: false,
+        confirmed: false,
+        queue: Promise.resolve(),
+      };
       this.entries.set(filePath, e);
     }
     return e;
   }
 
-  private send(e: Entry, write: (sink: SubagentStatusSink, id: string) => Promise<void>): Promise<void> {
-    const sink = e.sink, id = e.conversationId;
+  private send(
+    e: Entry,
+    write: (sink: SubagentStatusSink, id: string) => Promise<void>,
+  ): Promise<void> {
+    const sink = e.sink,
+      id = e.conversationId;
     if (!sink || !id) return e.queue;
     e.queue = e.queue.then(() => write(sink, id)).catch(() => {});
     return e.queue;
@@ -116,12 +147,17 @@ export class SubagentFinishTracker {
 
   /** The row was just created by this daemon, so it is active already. */
   noteCreated(filePath: string): void {
-    if (isSubagentTranscriptPath(filePath)) this.entry(filePath).confirmed = true;
+    if (isSubagentTranscriptPath(filePath))
+      this.entry(filePath).confirmed = true;
   }
 
   /** A pass synced new lines of `filePath`. Reopens a row this daemon (or an
    *  earlier run) completed, and re-arms the finish check. */
-  async noteGrowth(filePath: string, conversationId: string | undefined, sink: SubagentStatusSink): Promise<void> {
+  async noteGrowth(
+    filePath: string,
+    conversationId: string | undefined,
+    sink: SubagentStatusSink,
+  ): Promise<void> {
     if (this.stopped || !isSubagentTranscriptPath(filePath)) return;
     const e = this.entry(filePath);
     e.generation++;
@@ -147,7 +183,8 @@ export class SubagentFinishTracker {
       // completed it. Only Task subagents (meta present, not a teammate).
       e.confirmed = true;
       const state = await this.readState(filePath);
-      if (state && taskSubagentMeta(state.meta)) await this.send(e, (s, id) => s.markSessionActive(id));
+      if (state && taskSubagentMeta(state.meta))
+        await this.send(e, (s, id) => s.markSessionActive(id));
     }
   }
 

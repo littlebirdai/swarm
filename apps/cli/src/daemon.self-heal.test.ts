@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { shouldSelfHeal, buildLaunchdKickstartCommand, buildLaunchdPlistReloadCommand, parseLaunchdPrintPid, summarizeSamplingTraces } from "./daemon.js";
+import {
+  shouldSelfHeal,
+  buildLaunchdKickstartCommand,
+  buildLaunchdPlistReloadCommand,
+  parseLaunchdPrintPid,
+  summarizeSamplingTraces,
+} from "./daemon.js";
 
 const THRESHOLD = 5 * 60 * 1000;
 
@@ -36,7 +42,9 @@ describe("shouldSelfHeal", () => {
   test("a genuinely dead timer still restarts, wake or no wake", () => {
     expect(shouldSelfHeal(2_234_000, false, THRESHOLD, 2_234_000)).toBe(true);
     // Loop time past the bar counts even when the wall gap is shorter.
-    expect(shouldSelfHeal(THRESHOLD + 1, false, THRESHOLD, THRESHOLD + 1)).toBe(true);
+    expect(shouldSelfHeal(THRESHOLD + 1, false, THRESHOLD, THRESHOLD + 1)).toBe(
+      true,
+    );
   });
 
   test("post-wake dead timers recover after three missed ticks instead of five minutes", () => {
@@ -59,7 +67,9 @@ describe("buildLaunchdKickstartCommand", () => {
   });
 
   test("interpolates the real uid", () => {
-    expect(buildLaunchdKickstartCommand(0)).toContain("gui/0/sh.codecast.daemon");
+    expect(buildLaunchdKickstartCommand(0)).toContain(
+      "gui/0/sh.codecast.daemon",
+    );
     expect(buildLaunchdKickstartCommand(1234)).toContain("gui/1234/");
   });
 });
@@ -70,7 +80,12 @@ describe("buildLaunchdPlistReloadCommand", () => {
   // The reload must bootout (killing the daemon, since it IS the job instance) and
   // then bootstrap the rewritten plist from the same detached shell.
   test("boots the job out, then bootstraps the rewritten plist", () => {
-    expect(buildLaunchdPlistReloadCommand(501, "/Users/x/Library/LaunchAgents/sh.codecast.daemon.plist")).toBe(
+    expect(
+      buildLaunchdPlistReloadCommand(
+        501,
+        "/Users/x/Library/LaunchAgents/sh.codecast.daemon.plist",
+      ),
+    ).toBe(
       "sleep 1; launchctl bootout gui/501/sh.codecast.daemon; sleep 1; launchctl bootstrap gui/501 '/Users/x/Library/LaunchAgents/sh.codecast.daemon.plist'",
     );
   });
@@ -101,18 +116,28 @@ describe("parseLaunchdPrintPid", () => {
   });
 
   test("returns null when the job is loaded but has no running instance", () => {
-    const notRunning = RUNNING_JOB.split("\n").filter(l => !l.includes("pid =")).join("\n");
+    const notRunning = RUNNING_JOB.split("\n")
+      .filter((l) => !l.includes("pid ="))
+      .join("\n");
     expect(parseLaunchdPrintPid(notRunning)).toBeNull();
   });
 
   test("ignores pid-like text that is not the instance pid line", () => {
-    expect(parseLaunchdPrintPid('\tspawn type = daemon\n\tsomething = "pid = 999 in a string"\n')).toBeNull();
+    expect(
+      parseLaunchdPrintPid(
+        '\tspawn type = daemon\n\tsomething = "pid = 999 in a string"\n',
+      ),
+    ).toBeNull();
     expect(parseLaunchdPrintPid("")).toBeNull();
   });
 });
 
 describe("summarizeSamplingTraces", () => {
-  const frame = (name: string, file = "daemon.ts", line = 1) => ({ name, sourceURL: `/x/${file}`, line });
+  const frame = (name: string, file = "daemon.ts", line = 1) => ({
+    name,
+    sourceURL: `/x/${file}`,
+    line,
+  });
 
   test("names the dominant frame with its share of traces", () => {
     const traces = {
@@ -130,7 +155,9 @@ describe("summarizeSamplingTraces", () => {
   test("counts a self-recursive frame once per trace", () => {
     const traces = {
       traces: [
-        { frames: [frame("walk"), frame("walk"), frame("walk"), frame("main")] },
+        {
+          frames: [frame("walk"), frame("walk"), frame("walk"), frame("main")],
+        },
         { frames: [frame("main")] },
       ],
     };
@@ -138,7 +165,11 @@ describe("summarizeSamplingTraces", () => {
   });
 
   test("accepts the JSON-string form and returns empty on garbage or no traces", () => {
-    expect(summarizeSamplingTraces(JSON.stringify({ traces: [{ frames: [frame("f")] }] }))).toBe("f@daemon.ts:1 100%");
+    expect(
+      summarizeSamplingTraces(
+        JSON.stringify({ traces: [{ frames: [frame("f")] }] }),
+      ),
+    ).toBe("f@daemon.ts:1 100%");
     expect(summarizeSamplingTraces("not json")).toBe("");
     expect(summarizeSamplingTraces(null)).toBe("");
     expect(summarizeSamplingTraces({ traces: [] })).toBe("");

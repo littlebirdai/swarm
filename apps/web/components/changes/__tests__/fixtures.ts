@@ -1,6 +1,10 @@
 // Store-shaped rows for the Changes page tests: a story and an edition with
 // every field the page reads, overridable per case.
-import type { EditionRow, LiveRow, StoryRow } from "../../../hooks/useSyncChanges";
+import type {
+  EditionRow,
+  LiveRow,
+  StoryRow,
+} from "../../../hooks/useSyncChanges";
 
 const DAY = "2026-10-02";
 const at = (hhmm: string) => Date.parse(`${DAY}T${hhmm}:00Z`);

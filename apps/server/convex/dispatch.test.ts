@@ -15,32 +15,60 @@ import { shouldShowInInbox } from "./inboxFilters";
 describe("classifyHideTransition", () => {
   test("a patch with neither hide flag is inert", () => {
     expect(classifyHideTransition({}, {}, false)).toBe("none");
-    expect(classifyHideTransition({ title: "x" } as any, {}, true)).toBe("none");
+    expect(classifyHideTransition({ title: "x" } as any, {}, true)).toBe(
+      "none",
+    );
   });
 
   test("undo (flags cleared to null/undefined) never reaps or kills", () => {
-    expect(classifyHideTransition({ inbox_dismissed_at: undefined, inbox_stashed_at: undefined }, {}, false)).toBe("none");
+    expect(
+      classifyHideTransition(
+        { inbox_dismissed_at: undefined, inbox_stashed_at: undefined },
+        {},
+        false,
+      ),
+    ).toBe("none");
   });
 
   test("hiding an EMPTY conversation reaps it — dismissed or stashed alike", () => {
-    expect(classifyHideTransition({ inbox_dismissed_at: 111 }, {}, true)).toBe("reap");
-    expect(classifyHideTransition({ inbox_stashed_at: 111 }, {}, true)).toBe("reap");
+    expect(classifyHideTransition({ inbox_dismissed_at: 111 }, {}, true)).toBe(
+      "reap",
+    );
+    expect(classifyHideTransition({ inbox_stashed_at: 111 }, {}, true)).toBe(
+      "reap",
+    );
   });
 
   test("dismissing a conversation with real work kills the agent", () => {
-    expect(classifyHideTransition({ inbox_dismissed_at: 111 }, {}, false)).toBe("kill");
+    expect(classifyHideTransition({ inbox_dismissed_at: 111 }, {}, false)).toBe(
+      "kill",
+    );
   });
 
   test("stashing a conversation with real work does NOT kill — the whole point of stash", () => {
-    expect(classifyHideTransition({ inbox_stashed_at: 111 }, {}, false)).toBe("none");
+    expect(classifyHideTransition({ inbox_stashed_at: 111 }, {}, false)).toBe(
+      "none",
+    );
   });
 
   test("a re-asserted dismiss (already dismissed pre-patch) does not re-kill", () => {
-    expect(classifyHideTransition({ inbox_dismissed_at: 222 }, { inbox_dismissed_at: 111 }, false)).toBe("none");
+    expect(
+      classifyHideTransition(
+        { inbox_dismissed_at: 222 },
+        { inbox_dismissed_at: 111 },
+        false,
+      ),
+    ).toBe("none");
   });
 
   test("dismissing a previously-stashed session kills (stash is no shield once you dismiss)", () => {
-    expect(classifyHideTransition({ inbox_dismissed_at: 222, inbox_stashed_at: null }, { inbox_dismissed_at: null }, false)).toBe("kill");
+    expect(
+      classifyHideTransition(
+        { inbox_dismissed_at: 222, inbox_stashed_at: null },
+        { inbox_dismissed_at: null },
+        false,
+      ),
+    ).toBe("kill");
   });
 });
 
@@ -68,8 +96,20 @@ describe("applyPatches conversation owner gate", () => {
         },
       ],
       session_owners: [
-        { _id: "so_1", conversation_id: CONV, user_id: PRIMARY, added_by: RUNNER, added_at: 1 },
-        { _id: "so_2", conversation_id: CONV, user_id: SECONDARY, added_by: RUNNER, added_at: 2 },
+        {
+          _id: "so_1",
+          conversation_id: CONV,
+          user_id: PRIMARY,
+          added_by: RUNNER,
+          added_at: 1,
+        },
+        {
+          _id: "so_2",
+          conversation_id: CONV,
+          user_id: SECONDARY,
+          added_by: RUNNER,
+          added_at: 2,
+        },
       ],
       messages: [],
       pending_messages: [],
@@ -97,7 +137,11 @@ describe("applyPatches conversation owner gate", () => {
   test("a secondary owner's accepted triage acks a position in their own scope", async () => {
     const db = fixtures();
     const collector = makeSyncAckCollector();
-    await applyPatches({ db: makeChangeTrackedDb(db, collector) } as any, SECONDARY as any, stashPatch);
+    await applyPatches(
+      { db: makeChangeTrackedDb(db, collector) } as any,
+      SECONDARY as any,
+      stashPatch,
+    );
     const scopes = collector.positions.map((p) => p.scope_key);
     expect(scopes).toContain(`user:${SECONDARY}`);
     expect(scopes).toContain(`user:${RUNNER}`);
@@ -111,15 +155,18 @@ describe("applyPatches conversation owner gate", () => {
 
   test("named rekey flush applies the latest fields through the same owner gate", async () => {
     const db = fixtures();
-    await (dispatch as any)._handler({
-      auth: {
-        getUserIdentity: async () => ({ subject: `${RUNNER}|session` }),
+    await (dispatch as any)._handler(
+      {
+        auth: {
+          getUserIdentity: async () => ({ subject: `${RUNNER}|session` }),
+        },
+        db,
       },
-      db,
-    }, {
-      action: "flushResolvedSessionFields",
-      args: [CONV, { project_path: "/latest", git_root: "/latest" }],
-    });
+      {
+        action: "flushResolvedSessionFields",
+        args: [CONV, { project_path: "/latest", git_root: "/latest" }],
+      },
+    );
     expect(db._tables.conversations[0]).toMatchObject({
       project_path: "/latest",
       git_root: "/latest",
@@ -133,22 +180,44 @@ describe("applyPatches batches a big patch set", () => {
   test("the first rows land now and the rest are scheduled with the same intent", async () => {
     const ids = Array.from({ length: 40 }, (_, i) => `conversations_${i}`);
     const db = makeFakeDb({
-      conversations: ids.map((_id) => ({ _id, user_id: "users_me", status: "active", message_count: 5 })),
+      conversations: ids.map((_id) => ({
+        _id,
+        user_id: "users_me",
+        status: "active",
+        message_count: 5,
+      })),
       session_owners: [],
       messages: [],
       pending_messages: [],
     });
     const scheduled: any[] = [];
-    const scheduler = { runAfter: async (_ms: number, _fn: any, args: any) => { scheduled.push(args); } };
-    const patches = { conversations: Object.fromEntries(ids.map((id) => [id, { inbox_stashed_at: 555 }])) };
+    const scheduler = {
+      runAfter: async (_ms: number, _fn: any, args: any) => {
+        scheduled.push(args);
+      },
+    };
+    const patches = {
+      conversations: Object.fromEntries(
+        ids.map((id) => [id, { inbox_stashed_at: 555 }]),
+      ),
+    };
 
-    await applyPatches({ db, scheduler } as any, "users_me" as any, patches, { cause: "web:stashSession" });
+    await applyPatches({ db, scheduler } as any, "users_me" as any, patches, {
+      cause: "web:stashSession",
+    });
 
     // Each hide row spends the transaction's teardown budget (cleanup.ts hideBudgetLeft).
-    expect(db._tables.conversations.filter((r: any) => r.inbox_stashed_at === 555)).toHaveLength(20);
+    expect(
+      db._tables.conversations.filter((r: any) => r.inbox_stashed_at === 555),
+    ).toHaveLength(20);
     expect(scheduled).toHaveLength(1);
-    expect(Object.keys(scheduled[0].patches.conversations)).toEqual(ids.slice(20));
-    expect(scheduled[0]).toMatchObject({ user_id: "users_me", cause: "web:stashSession" });
+    expect(Object.keys(scheduled[0].patches.conversations)).toEqual(
+      ids.slice(20),
+    );
+    expect(scheduled[0]).toMatchObject({
+      user_id: "users_me",
+      cause: "web:stashSession",
+    });
   });
 });
 
@@ -158,28 +227,61 @@ describe("applyPatches batches a big patch set", () => {
 // spends one teardown budget and tears each conversation down once.
 describe("hide teardowns share one budget per transaction", () => {
   test("a group kill tears down at most the budget inline, each row once, and schedules the rest", async () => {
-    const leads = ["conversations_lead0", "conversations_lead1", "conversations_lead2"];
+    const leads = [
+      "conversations_lead0",
+      "conversations_lead1",
+      "conversations_lead2",
+    ];
     const children = leads.flatMap((lead, l) =>
       Array.from({ length: 15 }, (_, i) => ({
-        _id: `conversations_c${l}_${i}`, user_id: "users_me", session_id: `s-c${l}-${i}`,
-        status: "active", message_count: 5, parent_conversation_id: lead,
-      })));
+        _id: `conversations_c${l}_${i}`,
+        user_id: "users_me",
+        session_id: `s-c${l}-${i}`,
+        status: "active",
+        message_count: 5,
+        parent_conversation_id: lead,
+      })),
+    );
     const db = makeFakeDb({
       conversations: [
-        ...leads.map((_id, l) => ({ _id, user_id: "users_me", session_id: `s-lead${l}`, status: "active", message_count: 5 })),
+        ...leads.map((_id, l) => ({
+          _id,
+          user_id: "users_me",
+          session_id: `s-lead${l}`,
+          status: "active",
+          message_count: 5,
+        })),
         ...children,
       ],
-      session_owners: [], messages: [], pending_messages: [], client_state: [],
-      managed_sessions: [], agent_tasks: [], daemon_commands: [],
+      session_owners: [],
+      messages: [],
+      pending_messages: [],
+      client_state: [],
+      managed_sessions: [],
+      agent_tasks: [],
+      daemon_commands: [],
     });
     const scheduled: any[] = [];
-    const scheduler = { runAfter: async (_ms: number, _fn: any, args: any) => { scheduled.push(args); } };
+    const scheduler = {
+      runAfter: async (_ms: number, _fn: any, args: any) => {
+        scheduled.push(args);
+      },
+    };
     const ids = [...leads, ...children.map((c) => c._id)];
-    const patches = { conversations: Object.fromEntries(ids.map((id) => [id, { inbox_dismissed_at: 777 }])) };
+    const patches = {
+      conversations: Object.fromEntries(
+        ids.map((id) => [id, { inbox_dismissed_at: 777 }]),
+      ),
+    };
 
-    await applyPatches({ db, scheduler } as any, "users_me" as any, patches, { forceKill: true, cause: "web:killSessions" });
+    await applyPatches({ db, scheduler } as any, "users_me" as any, patches, {
+      forceKill: true,
+      cause: "web:killSessions",
+    });
 
-    const kills = db._tables.daemon_commands.filter((c: any) => c.command === "kill_session");
+    const kills = db._tables.daemon_commands.filter(
+      (c: any) => c.command === "kill_session",
+    );
     const killed = kills.map((c: any) => JSON.parse(c.args).conversation_id);
     expect(killed.length).toBeLessThanOrEqual(20);
     expect(new Set(killed).size).toBe(killed.length);
@@ -201,10 +303,17 @@ describe("explicit kill actions force teardown", () => {
     return makeFakeDb({
       // Already in the Killed bucket, with real work (so the empty-reap path
       // can't fire) — the resurrection case.
-      conversations: [{
-        _id: CONV, user_id: RUNNER, session_id: "s-1", status: "completed",
-        message_count: 12, inbox_dismissed_at: 111, inbox_killed_at: 111,
-      }],
+      conversations: [
+        {
+          _id: CONV,
+          user_id: RUNNER,
+          session_id: "s-1",
+          status: "completed",
+          message_count: 12,
+          inbox_dismissed_at: 111,
+          inbox_killed_at: 111,
+        },
+      ],
       messages: [],
       pending_messages: [],
       client_state: [],
@@ -215,14 +324,20 @@ describe("explicit kill actions force teardown", () => {
     });
   }
 
-  const run = (db: any, action: string) => (dispatch as any)._handler({
-    auth: { getUserIdentity: async () => ({ subject: `${RUNNER}|session` }) },
-    db,
-  }, {
-    action,
-    args: [],
-    patches: { conversations: { [CONV]: { inbox_dismissed_at: 222 } } },
-  });
+  const run = (db: any, action: string) =>
+    (dispatch as any)._handler(
+      {
+        auth: {
+          getUserIdentity: async () => ({ subject: `${RUNNER}|session` }),
+        },
+        db,
+      },
+      {
+        action,
+        args: [],
+        patches: { conversations: { [CONV]: { inbox_dismissed_at: 222 } } },
+      },
+    );
 
   const teardowns = (db: any) =>
     db._tables.daemon_commands.filter((c: any) => c.command === "kill_session");
@@ -231,7 +346,10 @@ describe("explicit kill actions force teardown", () => {
     const db = fixtures();
     await run(db, "killSession");
     expect(teardowns(db)).toHaveLength(1);
-    expect(JSON.parse(teardowns(db)[0].args)).toMatchObject({ conversation_id: CONV, session_id: "s-1" });
+    expect(JSON.parse(teardowns(db)[0].args)).toMatchObject({
+      conversation_id: CONV,
+      session_id: "s-1",
+    });
   });
 
   test("killSessions (the bulk gesture) forces the same way", async () => {
@@ -259,18 +377,35 @@ describe("inbox_killed_at survives patches that are not a revival", () => {
 
   const fixtures = () =>
     makeFakeDb({
-      conversations: [{
-        _id: CONV, user_id: RUNNER, status: "completed", message_count: 12,
-        inbox_dismissed_at: 111, inbox_killed_at: 111,
-      }],
-      messages: [], pending_messages: [], client_state: [], managed_sessions: [],
-      agent_tasks: [], daemon_commands: [], session_owners: [],
+      conversations: [
+        {
+          _id: CONV,
+          user_id: RUNNER,
+          status: "completed",
+          message_count: 12,
+          inbox_dismissed_at: 111,
+          inbox_killed_at: 111,
+        },
+      ],
+      messages: [],
+      pending_messages: [],
+      client_state: [],
+      managed_sessions: [],
+      agent_tasks: [],
+      daemon_commands: [],
+      session_owners: [],
     });
 
   test("a pin-shaped patch (pin set, killed nulled) leaves inbox_killed_at intact", async () => {
     const db = fixtures();
     await applyPatches({ db } as any, RUNNER as any, {
-      conversations: { [CONV]: { inbox_pinned_at: 555, is_pinned: true, inbox_killed_at: null } },
+      conversations: {
+        [CONV]: {
+          inbox_pinned_at: 555,
+          is_pinned: true,
+          inbox_killed_at: null,
+        },
+      },
     });
     const row = db._tables.conversations[0];
     expect(row.inbox_killed_at).toBe(111); // the marker survives…
@@ -280,7 +415,13 @@ describe("inbox_killed_at survives patches that are not a revival", () => {
   test("an un-kill (a patch clearing inbox_dismissed_at) DOES clear it", async () => {
     const db = fixtures();
     await applyPatches({ db } as any, RUNNER as any, {
-      conversations: { [CONV]: { inbox_dismissed_at: null, inbox_stashed_at: null, inbox_killed_at: null } },
+      conversations: {
+        [CONV]: {
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+          inbox_killed_at: null,
+        },
+      },
     });
     const row = db._tables.conversations[0];
     expect(row.inbox_dismissed_at).toBeUndefined();
@@ -294,7 +435,9 @@ describe("inbox_killed_at survives patches that are not a revival", () => {
   test("a web-restore-shaped patch un-kills the row server-side", async () => {
     const db = fixtures();
     await applyPatches({ db } as any, RUNNER as any, {
-      conversations: { [CONV]: { inbox_dismissed_at: null, inbox_stashed_at: null } },
+      conversations: {
+        [CONV]: { inbox_dismissed_at: null, inbox_stashed_at: null },
+      },
     });
     const row = db._tables.conversations[0];
     expect(row.inbox_dismissed_at).toBeUndefined();
@@ -306,9 +449,16 @@ describe("inbox_killed_at survives patches that are not a revival", () => {
 
   test("SETTING inbox_killed_at is never blocked", async () => {
     const db = makeFakeDb({
-      conversations: [{ _id: CONV, user_id: RUNNER, status: "active", message_count: 12 }],
-      messages: [], pending_messages: [], client_state: [], managed_sessions: [],
-      agent_tasks: [], daemon_commands: [], session_owners: [],
+      conversations: [
+        { _id: CONV, user_id: RUNNER, status: "active", message_count: 12 },
+      ],
+      messages: [],
+      pending_messages: [],
+      client_state: [],
+      managed_sessions: [],
+      agent_tasks: [],
+      daemon_commands: [],
+      session_owners: [],
     });
     await applyPatches({ db } as any, RUNNER as any, {
       conversations: { [CONV]: { inbox_killed_at: 777 } },
@@ -332,23 +482,40 @@ describe("un-kill re-arms schedules for BOTH kill surfaces", () => {
   // never come back. Both are the runner's, both bound to this conversation.
   const fixtures = (conv: Record<string, any>) =>
     makeFakeDb({
-      conversations: [{
-        _id: CONV, user_id: RUNNER, status: "completed", message_count: 12, ...conv,
-      }],
-      agent_tasks: [
+      conversations: [
         {
-          _id: "task_killed", user_id: RUNNER, status: "completed",
-          canceled_on_kill_at: 111, originating_conversation_id: CONV,
-          schedule_type: "recurring", interval_ms: 60 * 60 * 1000,
-        },
-        {
-          _id: "task_natural", user_id: RUNNER, status: "completed",
-          originating_conversation_id: CONV,
-          schedule_type: "recurring", interval_ms: 60 * 60 * 1000,
+          _id: CONV,
+          user_id: RUNNER,
+          status: "completed",
+          message_count: 12,
+          ...conv,
         },
       ],
-      messages: [], pending_messages: [], client_state: [], managed_sessions: [],
-      daemon_commands: [], session_owners: [],
+      agent_tasks: [
+        {
+          _id: "task_killed",
+          user_id: RUNNER,
+          status: "completed",
+          canceled_on_kill_at: 111,
+          originating_conversation_id: CONV,
+          schedule_type: "recurring",
+          interval_ms: 60 * 60 * 1000,
+        },
+        {
+          _id: "task_natural",
+          user_id: RUNNER,
+          status: "completed",
+          originating_conversation_id: CONV,
+          schedule_type: "recurring",
+          interval_ms: 60 * 60 * 1000,
+        },
+      ],
+      messages: [],
+      pending_messages: [],
+      client_state: [],
+      managed_sessions: [],
+      daemon_commands: [],
+      session_owners: [],
     });
 
   const task = (db: any, id: string) =>
@@ -359,7 +526,13 @@ describe("un-kill re-arms schedules for BOTH kill surfaces", () => {
   test("restoring a COMMAND-killed row (marker alone) re-arms its schedules", async () => {
     const db = fixtures({ inbox_killed_at: 111 });
     await applyPatches({ db } as any, RUNNER as any, {
-      conversations: { [CONV]: { inbox_dismissed_at: null, inbox_stashed_at: null, inbox_killed_at: null } },
+      conversations: {
+        [CONV]: {
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+          inbox_killed_at: null,
+        },
+      },
     });
     expect(db._tables.conversations[0].inbox_killed_at).toBeUndefined();
     expect(task(db, "task_killed").status).toBe("scheduled");
@@ -371,7 +544,13 @@ describe("un-kill re-arms schedules for BOTH kill surfaces", () => {
   test("restoring a cast-kill-killed row (both stamps) still re-arms", async () => {
     const db = fixtures({ inbox_dismissed_at: 111, inbox_killed_at: 111 });
     await applyPatches({ db } as any, RUNNER as any, {
-      conversations: { [CONV]: { inbox_dismissed_at: null, inbox_stashed_at: null, inbox_killed_at: null } },
+      conversations: {
+        [CONV]: {
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+          inbox_killed_at: null,
+        },
+      },
     });
     expect(db._tables.conversations[0].inbox_killed_at).toBeUndefined();
     expect(task(db, "task_killed").status).toBe("scheduled");
@@ -383,7 +562,13 @@ describe("un-kill re-arms schedules for BOTH kill surfaces", () => {
   test("a pin-shaped patch on a command-killed row neither un-kills nor re-arms", async () => {
     const db = fixtures({ inbox_killed_at: 111 });
     await applyPatches({ db } as any, RUNNER as any, {
-      conversations: { [CONV]: { inbox_pinned_at: 555, is_pinned: true, inbox_killed_at: null } },
+      conversations: {
+        [CONV]: {
+          inbox_pinned_at: 555,
+          is_pinned: true,
+          inbox_killed_at: null,
+        },
+      },
     });
     expect(db._tables.conversations[0].inbox_killed_at).toBe(111);
     expect(db._tables.conversations[0].inbox_pinned_at).toBe(555);
@@ -395,7 +580,13 @@ describe("un-kill re-arms schedules for BOTH kill surfaces", () => {
   test("clearing stamps on a row that was never hidden re-arms nothing", async () => {
     const db = fixtures({});
     await applyPatches({ db } as any, RUNNER as any, {
-      conversations: { [CONV]: { inbox_dismissed_at: null, inbox_stashed_at: null, inbox_killed_at: null } },
+      conversations: {
+        [CONV]: {
+          inbox_dismissed_at: null,
+          inbox_stashed_at: null,
+          inbox_killed_at: null,
+        },
+      },
     });
     expect(task(db, "task_killed").status).toBe("completed");
   });
@@ -405,7 +596,9 @@ describe("applyPatches bucket coverage", () => {
   test("a legacy generic bucket patch advances the v2 complete-view head once", async () => {
     const userId = "users_owner";
     const db = makeFakeDb({
-      inbox_buckets: [{ _id: "bucket_1", user_id: userId, name: "Before", updated_at: 1 }],
+      inbox_buckets: [
+        { _id: "bucket_1", user_id: userId, name: "Before", updated_at: 1 },
+      ],
       local_view_heads: [],
     });
     await applyPatches({ db } as any, userId as any, {
@@ -414,17 +607,21 @@ describe("applyPatches bucket coverage", () => {
       },
     });
     expect(db._tables.inbox_buckets[0].name).toBe("After");
-    expect(db._tables.local_view_heads).toMatchObject([{
-      principal_id: userId,
-      contract_id: "buckets.principal/v2",
-      view_key: "buckets:principal",
-      revision: 1,
-    }]);
+    expect(db._tables.local_view_heads).toMatchObject([
+      {
+        principal_id: userId,
+        contract_id: "buckets.principal/v2",
+        view_key: "buckets:principal",
+        revision: 1,
+      },
+    ]);
   });
 
   test("a forbidden bucket patch neither writes nor advances coverage", async () => {
     const db = makeFakeDb({
-      inbox_buckets: [{ _id: "bucket_1", user_id: "owner", name: "Before", updated_at: 1 }],
+      inbox_buckets: [
+        { _id: "bucket_1", user_id: "owner", name: "Before", updated_at: 1 },
+      ],
       local_view_heads: [],
     });
     await applyPatches({ db } as any, "stranger" as any, {
@@ -460,40 +657,50 @@ describe("createSession side effect", () => {
     linkedObject: { type: "task" | "doc" | "plan"; id: string },
     sessionId = `client-${linkedObject.type}`,
   ) {
-    return await (dispatch as any)._handler({
-      auth: {
-        getUserIdentity: async () => ({ subject: `${userId}|session` }),
+    return await (dispatch as any)._handler(
+      {
+        auth: {
+          getUserIdentity: async () => ({ subject: `${userId}|session` }),
+        },
+        db,
       },
-      db,
-    }, {
-      action: "createSession",
-      args: [{
-        agent_type: "claude_code",
-        project_path: "/repo",
-        session_id: sessionId,
-        linked_object: linkedObject,
-      }],
-    });
+      {
+        action: "createSession",
+        args: [
+          {
+            agent_type: "claude_code",
+            project_path: "/repo",
+            session_id: sessionId,
+            linked_object: linkedObject,
+          },
+        ],
+      },
+    );
   }
 
   test("forwards per-session stable-context preferences to start_session", async () => {
     const db = createSessionDb();
 
-    await (dispatch as any)._handler({
-      auth: {
-        getUserIdentity: async () => ({ subject: `${userId}|session` }),
+    await (dispatch as any)._handler(
+      {
+        auth: {
+          getUserIdentity: async () => ({ subject: `${userId}|session` }),
+        },
+        db,
       },
-      db,
-    }, {
-      action: "createSession",
-      args: [{
-        agent_type: "claude_code",
-        project_path: "/repo",
-        session_id: "client-stub",
-        stable_mode: "solo",
-        stable_exclude: ["team-feed", "recent-sessions"],
-      }],
-    });
+      {
+        action: "createSession",
+        args: [
+          {
+            agent_type: "claude_code",
+            project_path: "/repo",
+            session_id: "client-stub",
+            stable_mode: "solo",
+            stable_exclude: ["team-feed", "recent-sessions"],
+          },
+        ],
+      },
+    );
 
     const start = db._tables.daemon_commands.find(
       (row: any) => row.command === "start_session",
@@ -506,37 +713,74 @@ describe("createSession side effect", () => {
   });
 
   test("a session created private stays off the team its folder is shared with", async () => {
-    const run = (sessionId: string, extra: Record<string, unknown>) => (dispatch as any)._handler({
-      auth: { getUserIdentity: async () => ({ subject: `${userId}|session` }) },
-      db,
-    }, { action: "createSession", args: [{ agent_type: "claude_code", project_path: "/repo", session_id: sessionId, ...extra }] });
+    const run = (sessionId: string, extra: Record<string, unknown>) =>
+      (dispatch as any)._handler(
+        {
+          auth: {
+            getUserIdentity: async () => ({ subject: `${userId}|session` }),
+          },
+          db,
+        },
+        {
+          action: "createSession",
+          args: [
+            {
+              agent_type: "claude_code",
+              project_path: "/repo",
+              session_id: sessionId,
+              ...extra,
+            },
+          ],
+        },
+      );
     const db = createSessionDb({
-      directory_team_mappings: [{ _id: "dtm_1", user_id: userId, path_prefix: "/repo", team_id: "teams_acme", auto_share: true }],
-      team_memberships: [{ _id: "tm_1", user_id: userId, team_id: "teams_acme", role: "member" }],
+      directory_team_mappings: [
+        {
+          _id: "dtm_1",
+          user_id: userId,
+          path_prefix: "/repo",
+          team_id: "teams_acme",
+          auto_share: true,
+        },
+      ],
+      team_memberships: [
+        { _id: "tm_1", user_id: userId, team_id: "teams_acme", role: "member" },
+      ],
     });
     await run("shared-stub", {});
     await run("private-stub", { private: true });
-    const row = (id: string) => db._tables.conversations.find((c: any) => c.session_id === id);
+    const row = (id: string) =>
+      db._tables.conversations.find((c: any) => c.session_id === id);
     expect(row("shared-stub")).toMatchObject({ is_private: false });
-    expect(row("private-stub")).toMatchObject({ is_private: true, team_visibility: "private" });
+    expect(row("private-stub")).toMatchObject({
+      is_private: true,
+      team_visibility: "private",
+    });
     expect(row("private-stub").auto_shared).toBeUndefined();
   });
 
   test("atomically links a context-created session to its task", async () => {
     const taskId = "tasks_context";
     const db = createSessionDb({
-      tasks: [{
-        _id: taskId,
-        user_id: userId,
-        title: "Investigate",
-        project_path: "/repo",
-        conversation_ids: [],
-      }],
+      tasks: [
+        {
+          _id: taskId,
+          user_id: userId,
+          title: "Investigate",
+          project_path: "/repo",
+          conversation_ids: [],
+        },
+      ],
     });
 
-    const conversationId = await createLinkedSession(db, { type: "task", id: taskId });
+    const conversationId = await createLinkedSession(db, {
+      type: "task",
+      id: taskId,
+    });
     const task = db._tables.tasks.find((row: any) => row._id === taskId);
-    const conversation = db._tables.conversations.find((row: any) => row._id === conversationId);
+    const conversation = db._tables.conversations.find(
+      (row: any) => row._id === conversationId,
+    );
 
     expect(task.conversation_ids).toEqual([conversationId]);
     expect(conversation.active_task_id).toBe(taskId);
@@ -546,15 +790,40 @@ describe("createSession side effect", () => {
     const taskId = "tasks_union";
     const db = createSessionDb({
       directory_team_mappings: [
-        { _id: "m1", user_id: userId, team_id: "teams_codecast", path_prefix: "/repo", auto_share: true },
-        { _id: "m2", user_id: userId, team_id: "teams_union", path_prefix: "/union", auto_share: true },
+        {
+          _id: "m1",
+          user_id: userId,
+          team_id: "teams_codecast",
+          path_prefix: "/repo",
+          auto_share: true,
+        },
+        {
+          _id: "m2",
+          user_id: userId,
+          team_id: "teams_union",
+          path_prefix: "/union",
+          auto_share: true,
+        },
       ],
-      tasks: [{ _id: taskId, user_id: userId, team_id: "teams_union", title: "Tips", conversation_ids: [] }],
+      tasks: [
+        {
+          _id: taskId,
+          user_id: userId,
+          team_id: "teams_union",
+          title: "Tips",
+          conversation_ids: [],
+        },
+      ],
     });
 
     // createLinkedSession sends project_path "/repo": the viewer's open repo.
-    const conversationId = await createLinkedSession(db, { type: "task", id: taskId });
-    const conversation = db._tables.conversations.find((row: any) => row._id === conversationId);
+    const conversationId = await createLinkedSession(db, {
+      type: "task",
+      id: taskId,
+    });
+    const conversation = db._tables.conversations.find(
+      (row: any) => row._id === conversationId,
+    );
 
     expect(conversation.project_path).toBe("/union");
     expect(conversation.team_id).toBe("teams_union");
@@ -564,15 +833,20 @@ describe("createSession side effect", () => {
   test("atomically links a context-created session to its doc", async () => {
     const docId = "docs_context";
     const db = createSessionDb({
-      docs: [{
-        _id: docId,
-        user_id: userId,
-        title: "Context",
-        related_conversation_ids: [],
-      }],
+      docs: [
+        {
+          _id: docId,
+          user_id: userId,
+          title: "Context",
+          related_conversation_ids: [],
+        },
+      ],
     });
 
-    const conversationId = await createLinkedSession(db, { type: "doc", id: docId });
+    const conversationId = await createLinkedSession(db, {
+      type: "doc",
+      id: docId,
+    });
     const doc = db._tables.docs.find((row: any) => row._id === docId);
 
     expect(doc.related_conversation_ids).toEqual([conversationId]);
@@ -581,17 +855,24 @@ describe("createSession side effect", () => {
   test("atomically links a context-created session to its plan", async () => {
     const planId = "plans_context";
     const db = createSessionDb({
-      plans: [{
-        _id: planId,
-        user_id: userId,
-        title: "Context plan",
-        session_ids: [],
-      }],
+      plans: [
+        {
+          _id: planId,
+          user_id: userId,
+          title: "Context plan",
+          session_ids: [],
+        },
+      ],
     });
 
-    const conversationId = await createLinkedSession(db, { type: "plan", id: planId });
+    const conversationId = await createLinkedSession(db, {
+      type: "plan",
+      id: planId,
+    });
     const plan = db._tables.plans.find((row: any) => row._id === planId);
-    const conversation = db._tables.conversations.find((row: any) => row._id === conversationId);
+    const conversation = db._tables.conversations.find(
+      (row: any) => row._id === conversationId,
+    );
 
     expect(plan.session_ids).toEqual([conversationId]);
     expect(conversation.active_plan_id).toBe(planId);
@@ -600,16 +881,26 @@ describe("createSession side effect", () => {
   test("replaying a linked create is idempotent", async () => {
     const docId = "docs_replayed";
     const db = createSessionDb({
-      docs: [{
-        _id: docId,
-        user_id: userId,
-        title: "Replay",
-        related_conversation_ids: [],
-      }],
+      docs: [
+        {
+          _id: docId,
+          user_id: userId,
+          title: "Replay",
+          related_conversation_ids: [],
+        },
+      ],
     });
 
-    const first = await createLinkedSession(db, { type: "doc", id: docId }, "client-replayed");
-    const second = await createLinkedSession(db, { type: "doc", id: docId }, "client-replayed");
+    const first = await createLinkedSession(
+      db,
+      { type: "doc", id: docId },
+      "client-replayed",
+    );
+    const second = await createLinkedSession(
+      db,
+      { type: "doc", id: docId },
+      "client-replayed",
+    );
     const doc = db._tables.docs.find((row: any) => row._id === docId);
 
     expect(second).toBe(first);
@@ -621,22 +912,30 @@ describe("createSession side effect", () => {
     const docId = "docs_repair";
     const existingConversationId = "conversations_existing";
     const db = createSessionDb({
-      conversations: [{
-        _id: existingConversationId,
-        user_id: userId,
-        session_id: "client-repair",
-        agent_type: "claude_code",
-        status: "active",
-      }],
-      docs: [{
-        _id: docId,
-        user_id: userId,
-        title: "Repair",
-        related_conversation_ids: [],
-      }],
+      conversations: [
+        {
+          _id: existingConversationId,
+          user_id: userId,
+          session_id: "client-repair",
+          agent_type: "claude_code",
+          status: "active",
+        },
+      ],
+      docs: [
+        {
+          _id: docId,
+          user_id: userId,
+          title: "Repair",
+          related_conversation_ids: [],
+        },
+      ],
     });
 
-    const result = await createLinkedSession(db, { type: "doc", id: docId }, "client-repair");
+    const result = await createLinkedSession(
+      db,
+      { type: "doc", id: docId },
+      "client-repair",
+    );
     const doc = db._tables.docs.find((row: any) => row._id === docId);
 
     expect(result).toBe(existingConversationId);
@@ -717,11 +1016,13 @@ describe("receipt-backed create side effects", () => {
       args: [{ title: "First", doc_type: "note" }],
       result,
     });
-    await expect((dispatch as any)._handler(ctx, {
-      action: "createDoc",
-      args: [{ title: "Different", doc_type: "note" }],
-      result,
-    })).rejects.toThrow(/already bound to different intent/i);
+    await expect(
+      (dispatch as any)._handler(ctx, {
+        action: "createDoc",
+        args: [{ title: "Different", doc_type: "note" }],
+        result,
+      }),
+    ).rejects.toThrow(/already bound to different intent/i);
 
     expect(creates).toBe(1);
   });
@@ -789,14 +1090,24 @@ describe("receipt-backed create side effects", () => {
       db,
       runMutation: async (_mutation: unknown, args: any) => {
         calls.push(args);
-        return calls.length === 1 ? { id: "projects_created", short_id: "pj-created" } : { ok: true };
+        return calls.length === 1
+          ? { id: "projects_created", short_id: "pj-created" }
+          : { ok: true };
       },
     };
-    const continuation = { version: 1, kind: "attachToInitiative", initiativeId: "initiatives_goal" };
+    const continuation = {
+      version: 1,
+      kind: "attachToInitiative",
+      initiativeId: "initiatives_goal",
+    };
     const input = {
       action: "createProject",
       args: [{ title: "Launch", client_key: "projstub-1" }, continuation],
-      result: { receiptActionVersion: 1, commandId: "create-project-under-goal", localResult: { stubId: "projstub-1", continuation } },
+      result: {
+        receiptActionVersion: 1,
+        commandId: "create-project-under-goal",
+        localResult: { stubId: "projstub-1", continuation },
+      },
     };
     const first = await (dispatch as any)._handler(ctx, input);
     const replay = await (dispatch as any)._handler(ctx, input);
@@ -804,7 +1115,10 @@ describe("receipt-backed create side effects", () => {
       { title: "Launch", client_key: "projstub-1" },
       { id: "initiatives_goal", project_id: "projects_created" },
     ]);
-    expect(first).toMatchObject({ status: "acknowledged", result: { id: "projects_created" } });
+    expect(first).toMatchObject({
+      status: "acknowledged",
+      result: { id: "projects_created" },
+    });
     expect(replay).toEqual(first);
   });
 
@@ -821,23 +1135,26 @@ describe("receipt-backed create side effects", () => {
       coverage: [],
       retryUntil: null,
     };
-    const result = await (dispatch as any)._handler({
-      auth: {
-        getUserIdentity: async () => ({ subject: `${userId}|session` }),
+    const result = await (dispatch as any)._handler(
+      {
+        auth: {
+          getUserIdentity: async () => ({ subject: `${userId}|session` }),
+        },
+        db,
+        runMutation: async (_mutation: unknown, args: unknown) => {
+          mutationArgs = args;
+          return receipt;
+        },
       },
-      db,
-      runMutation: async (_mutation: unknown, args: unknown) => {
-        mutationArgs = args;
-        return receipt;
+      {
+        action: "createBucket",
+        args: [{ name: "Investigations", color: "cyan" }],
+        result: {
+          receiptActionVersion: 1,
+          commandId: "create-bucket-command",
+        },
       },
-    }, {
-      action: "createBucket",
-      args: [{ name: "Investigations", color: "cyan" }],
-      result: {
-        receiptActionVersion: 1,
-        commandId: "create-bucket-command",
-      },
-    });
+    );
 
     expect(mutationArgs).toEqual({
       command_id: "create-bucket-command",
@@ -851,11 +1168,13 @@ describe("receipt-backed create side effects", () => {
     const userId = "users_owner";
     const conversationId = "conversations_target";
     const db = makeFakeDb({
-      conversations: [{
-        _id: conversationId,
-        user_id: userId,
-        session_id: "session-target",
-      }],
+      conversations: [
+        {
+          _id: conversationId,
+          user_id: userId,
+          session_id: "session-target",
+        },
+      ],
       inbox_buckets: [],
       bucket_assignments: [],
       local_command_receipts: [],
@@ -898,11 +1217,13 @@ describe("receipt-backed create side effects", () => {
       result: { bucketId: expect.any(String) },
     });
     expect(db._tables.inbox_buckets).toHaveLength(1);
-    expect(db._tables.bucket_assignments).toMatchObject([{
-      user_id: userId,
-      conversation_id: conversationId,
-      bucket_id: first.result.bucketId,
-    }]);
+    expect(db._tables.bucket_assignments).toMatchObject([
+      {
+        user_id: userId,
+        conversation_id: conversationId,
+        bucket_id: first.result.bucketId,
+      },
+    ]);
 
     // A newer manual filing happens after the acknowledged command. Replaying
     // the create receipt must be a pure read, not reapply the old continuation.
@@ -911,28 +1232,32 @@ describe("receipt-backed create side effects", () => {
 
     expect(replay).toEqual(first);
     expect(db._tables.inbox_buckets).toHaveLength(1);
-    expect(db._tables.bucket_assignments[0].bucket_id)
-      .toBe("inbox_buckets_newer");
+    expect(db._tables.bucket_assignments[0].bucket_id).toBe(
+      "inbox_buckets_newer",
+    );
   });
 
   test("a pre-receipt create entry retains its legacy delivery path during rollout", async () => {
     const userId = "users_owner";
     const db = makeFakeDb({});
     let creates = 0;
-    const result = await (dispatch as any)._handler({
-      auth: {
-        getUserIdentity: async () => ({ subject: `${userId}|session` }),
+    const result = await (dispatch as any)._handler(
+      {
+        auth: {
+          getUserIdentity: async () => ({ subject: `${userId}|session` }),
+        },
+        db,
+        runMutation: async () => {
+          creates++;
+          return { id: "docs_legacy" };
+        },
       },
-      db,
-      runMutation: async () => {
-        creates++;
-        return { id: "docs_legacy" };
+      {
+        action: "createDoc",
+        args: [{ title: "Already queued" }],
+        result: null,
       },
-    }, {
-      action: "createDoc",
-      args: [{ title: "Already queued" }],
-      result: null,
-    });
+    );
 
     expect(creates).toBe(1);
     expect(result).toEqual({ id: "docs_legacy" });
@@ -1017,11 +1342,13 @@ describe("bucket receipt dispatches tolerate client stub ids", () => {
       result: { receiptActionVersion: 1, commandId: "assign-real" },
     });
 
-    expect(mutationCalls).toEqual([{
-      command_id: "assign-real",
-      conversation_id: CONV,
-      bucket_id: BUCKET,
-    }]);
+    expect(mutationCalls).toEqual([
+      {
+        command_id: "assign-real",
+        conversation_id: CONV,
+        bucket_id: BUCKET,
+      },
+    ]);
   });
 
   test("updateBucket against a label stub returns a rejected receipt instead of throwing", async () => {
@@ -1046,17 +1373,19 @@ describe("reconfigureSession stable-context forwarding", () => {
     const userId = "users_owner";
     const conversationId = "conversations_reconfigure";
     const db = makeFakeDb({
-      conversations: [{
-        _id: conversationId,
-        user_id: userId,
-        session_id: "client-reconfigure",
-        agent_type: "claude_code",
-        project_path: "/repo",
-        git_root: "/repo",
-        message_count: 0,
-        status: "active",
-        updated_at: 1,
-      }],
+      conversations: [
+        {
+          _id: conversationId,
+          user_id: userId,
+          session_id: "client-reconfigure",
+          agent_type: "claude_code",
+          project_path: "/repo",
+          git_root: "/repo",
+          message_count: 0,
+          status: "active",
+          updated_at: 1,
+        },
+      ],
       devices: [],
       daemon_commands: [],
       directory_team_mappings: [],
@@ -1064,16 +1393,19 @@ describe("reconfigureSession stable-context forwarding", () => {
       local_view_heads: [],
     });
 
-    await (reconfigureSession as any)._handler({
-      auth: {
-        getUserIdentity: async () => ({ subject: `${userId}|session` }),
+    await (reconfigureSession as any)._handler(
+      {
+        auth: {
+          getUserIdentity: async () => ({ subject: `${userId}|session` }),
+        },
+        db,
       },
-      db,
-    }, {
-      conversation_id: conversationId,
-      stable_mode: "solo",
-      stable_exclude: ["conversation-old"],
-    });
+      {
+        conversation_id: conversationId,
+        stable_mode: "solo",
+        stable_exclude: ["conversation-old"],
+      },
+    );
 
     const start = db._tables.daemon_commands.find(
       (row: any) => row.command === "start_session",
@@ -1100,7 +1432,9 @@ describe("thread read side effects: both arg shapes", () => {
   function makeCtx() {
     const calls: Array<{ name: string; args: any }> = [];
     const ctx = {
-      auth: { getUserIdentity: async () => ({ subject: "users_owner|session" }) },
+      auth: {
+        getUserIdentity: async () => ({ subject: "users_owner|session" }),
+      },
       db: makeFakeDb({}),
       runMutation: async (fn: unknown, args: any) => {
         calls.push({ name: getFunctionName(fn as any), args });
@@ -1115,28 +1449,34 @@ describe("thread read side effects: both arg shapes", () => {
   test("legacy [rootId] shape marks a chat thread", async () => {
     const { ctx, calls } = makeCtx();
     await run(ctx, "markThreadRead", [CHAT_ROOT]);
-    expect(calls).toEqual([{
-      name: "threads:markRead",
-      args: { kind: "chat", root_key: CHAT_ROOT },
-    }]);
+    expect(calls).toEqual([
+      {
+        name: "threads:markRead",
+        args: { kind: "chat", root_key: CHAT_ROOT },
+      },
+    ]);
   });
 
   test("new [kind, rootKey] shape forwards the kind", async () => {
     const { ctx, calls } = makeCtx();
     await run(ctx, "markThreadRead", ["task", TASK]);
-    expect(calls).toEqual([{
-      name: "threads:markRead",
-      args: { kind: "task", root_key: TASK },
-    }]);
+    expect(calls).toEqual([
+      {
+        name: "threads:markRead",
+        args: { kind: "task", root_key: TASK },
+      },
+    ]);
   });
 
   test("a comment key keeps its colons; only its conversation half is id-checked", async () => {
     const { ctx, calls } = makeCtx();
     await run(ctx, "markThreadRead", ["comment", COMMENT_KEY]);
-    expect(calls).toEqual([{
-      name: "threads:markRead",
-      args: { kind: "comment", root_key: COMMENT_KEY },
-    }]);
+    expect(calls).toEqual([
+      {
+        name: "threads:markRead",
+        args: { kind: "comment", root_key: COMMENT_KEY },
+      },
+    ]);
   });
 
   test("stub ids and unknown kinds are dropped, not forwarded", async () => {
@@ -1163,7 +1503,7 @@ describe("thread read side effects: both arg shapes", () => {
     ]);
   });
 
-  test("a legacy one-argument call is chat's sweep; \"all\" is the explicit unscoped one", async () => {
+  test('a legacy one-argument call is chat\'s sweep; "all" is the explicit unscoped one', async () => {
     const { ctx, calls } = makeCtx();
     await run(ctx, "markAllThreadsRead", [TEAM]); // old bundle: chat only
     await run(ctx, "markAllThreadsRead", [TEAM, "all"]);
@@ -1180,25 +1520,50 @@ describe("thread read side effects: both arg shapes", () => {
     const ART = "a".repeat(32);
     await run(ctx, "markThreadRead", ["page", ART]);
     await run(ctx, "markThreadRead", ["page", "pagestub-1"]); // stub dropped
-    expect(calls).toEqual([{ name: "threads:markRead", args: { kind: "page", root_key: ART } }]);
+    expect(calls).toEqual([
+      { name: "threads:markRead", args: { kind: "page", root_key: ART } },
+    ]);
   });
 
   test("addPageComment forwards slug or artifact id with the client_id; stubs are dropped", async () => {
     const { ctx, calls } = makeCtx();
     const ART = "a".repeat(32);
-    await run(ctx, "addPageComment", [{ slug: "report", text: "hi", clientId: "cl-1" }]);
-    await run(ctx, "addPageComment", [{ artifactId: ART, text: "yo", parentId: "b".repeat(32), clientId: "cl-2" }]);
-    await run(ctx, "addPageComment", [{ artifactId: "pagestub-1", text: "nope", clientId: "cl-3" }]);
+    await run(ctx, "addPageComment", [
+      { slug: "report", text: "hi", clientId: "cl-1" },
+    ]);
+    await run(ctx, "addPageComment", [
+      {
+        artifactId: ART,
+        text: "yo",
+        parentId: "b".repeat(32),
+        clientId: "cl-2",
+      },
+    ]);
+    await run(ctx, "addPageComment", [
+      { artifactId: "pagestub-1", text: "nope", clientId: "cl-3" },
+    ]);
     expect(calls).toEqual([
       {
         name: "artifacts:submitComments",
-        args: { slug: "report", author_name: "", deliver: false, from_app: true, client_id: "cl-1", comments: [{ text: "hi" }] },
+        args: {
+          slug: "report",
+          author_name: "",
+          deliver: false,
+          from_app: true,
+          client_id: "cl-1",
+          comments: [{ text: "hi" }],
+        },
       },
       {
         name: "artifacts:submitComments",
         args: {
-          artifact_id: ART, author_name: "", deliver: false, from_app: true,
-          parent_id: "b".repeat(32), client_id: "cl-2", comments: [{ text: "yo" }],
+          artifact_id: ART,
+          author_name: "",
+          deliver: false,
+          from_app: true,
+          parent_id: "b".repeat(32),
+          client_id: "cl-2",
+          comments: [{ text: "yo" }],
         },
       },
     ]);
@@ -1299,12 +1664,14 @@ describe("legacy comment action bridge", () => {
       },
     });
 
-    expect(calls).toEqual([{
-      command_id: "outbox-command-1",
-      conversation_id: "conversations_1",
-      content: "hello",
-      client_id: "commentstub-1",
-    }]);
+    expect(calls).toEqual([
+      {
+        command_id: "outbox-command-1",
+        conversation_id: "conversations_1",
+        content: "hello",
+        client_id: "commentstub-1",
+      },
+    ]);
   });
 
   test("routes receipt-backed comment edits through updateCommentV2", async () => {
@@ -1339,13 +1706,15 @@ describe("legacy comment action bridge", () => {
       },
     });
 
-    expect(calls).toEqual([{
-      command_id: "edit-outbox-command",
-      conversation_id: "conversations_1",
-      comment_id: "comments_1",
-      client_id: "comment-client-1",
-      content: "after",
-    }]);
+    expect(calls).toEqual([
+      {
+        command_id: "edit-outbox-command",
+        conversation_id: "conversations_1",
+        comment_id: "comments_1",
+        client_id: "comment-client-1",
+        content: "after",
+      },
+    ]);
   });
 
   test("replays pre-command-id comment payloads with deterministic V2 ids", async () => {
@@ -1399,13 +1768,27 @@ describe("applyPatches drops org tree pointers", () => {
   const CONV = "c".repeat(32);
   test("org_role_id and standing_role_id never land through a client patch", async () => {
     const db = makeFakeDb({
-      conversations: [{ _id: CONV, user_id: RUNNER, status: "active", title: "x", message_count: 1 }],
+      conversations: [
+        {
+          _id: CONV,
+          user_id: RUNNER,
+          status: "active",
+          title: "x",
+          message_count: 1,
+        },
+      ],
       session_owners: [],
       messages: [],
       pending_messages: [],
     });
     await applyPatches({ db } as any, RUNNER as any, {
-      conversations: { [CONV]: { org_role_id: "org_roles_1", standing_role_id: "org_roles_1", title: "renamed" } },
+      conversations: {
+        [CONV]: {
+          org_role_id: "org_roles_1",
+          standing_role_id: "org_roles_1",
+          title: "renamed",
+        },
+      },
     });
     const row = db._tables.conversations[0];
     expect(row.org_role_id).toBeUndefined();
@@ -1421,17 +1804,40 @@ describe("staffHeadOfPeople side effect", () => {
   const userId = "users_owner";
   const run = async (input: Record<string, unknown>) => {
     let mutationArgs: unknown;
-    await (dispatch as any)._handler({
-      auth: { getUserIdentity: async () => ({ subject: `${userId}|session` }) },
-      db: makeFakeDb({}),
-      runMutation: async (_mutation: unknown, args: unknown) => { mutationArgs = args; return { role: {}, created: true }; },
-    }, { action: "staffHeadOfPeople", args: [input] });
+    await (dispatch as any)._handler(
+      {
+        auth: {
+          getUserIdentity: async () => ({ subject: `${userId}|session` }),
+        },
+        db: makeFakeDb({}),
+        runMutation: async (_mutation: unknown, args: unknown) => {
+          mutationArgs = args;
+          return { role: {}, created: true };
+        },
+      },
+      { action: "staffHeadOfPeople", args: [input] },
+    );
     return mutationArgs;
   };
   test("forwards team_id and project_path for a provisioned seat, and adopt_conversation_id without a path for an adoption", async () => {
-    expect(await run({ team_id: "teams_acme", host_user_id: userId, client_id: "orgrolestub-head-1", project_path: "/Users/me/src/app" }))
-      .toEqual({ team_id: "teams_acme", project_path: "/Users/me/src/app" });
-    expect(await run({ team_id: "teams_acme", host_user_id: userId, client_id: "orgrolestub-head-2", adopt_conversation_id: "conversations_me" }))
-      .toEqual({ team_id: "teams_acme", adopt_conversation_id: "conversations_me" });
+    expect(
+      await run({
+        team_id: "teams_acme",
+        host_user_id: userId,
+        client_id: "orgrolestub-head-1",
+        project_path: "/Users/me/src/app",
+      }),
+    ).toEqual({ team_id: "teams_acme", project_path: "/Users/me/src/app" });
+    expect(
+      await run({
+        team_id: "teams_acme",
+        host_user_id: userId,
+        client_id: "orgrolestub-head-2",
+        adopt_conversation_id: "conversations_me",
+      }),
+    ).toEqual({
+      team_id: "teams_acme",
+      adopt_conversation_id: "conversations_me",
+    });
   });
 });

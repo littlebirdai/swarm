@@ -3,7 +3,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { LayoutList } from "lucide-react";
 import { useInboxStore } from "../../store/inboxStore";
 import { useChatMembers, useChatRail } from "../../hooks/useChatSync";
-import { useCommentThreadMap, useQuestionThreadCards, useThreadInbox, useThreadInboxCards, useThreadsInboxSync } from "../../hooks/useThreadsSync";
+import {
+  useCommentThreadMap,
+  useQuestionThreadCards,
+  useThreadInbox,
+  useThreadInboxCards,
+  useThreadsInboxSync,
+} from "../../hooks/useThreadsSync";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useTeamFeature } from "../../lib/teamFeatures";
 import { memberName } from "../../lib/chatViews";
@@ -28,7 +34,10 @@ import {
   type ThreadsVisit,
 } from "../../lib/threadKinds";
 import type { ThreadInboxRow } from "../../store/threadTypes";
-import { useShortcutAction, useShortcutContext } from "../../shortcuts/ShortcutProvider";
+import {
+  useShortcutAction,
+  useShortcutContext,
+} from "../../shortcuts/ShortcutProvider";
 import { MenuKeyCaps } from "../KeyboardShortcutsHelp";
 import { SegmentedToggle } from "../SegmentedToggle";
 import { Switch } from "../ui/switch";
@@ -71,17 +80,28 @@ const NEW_VISIT_AFTER_MS = 2 * 60_000;
  *  fresh request. */
 const FOCUS_REQUEST_MS = 400;
 
-export function ThreadsView({ present, reading }: { present: boolean; reading: boolean }) {
+export function ThreadsView({
+  present,
+  reading,
+}: {
+  present: boolean;
+  reading: boolean;
+}) {
   const router = useRouter();
   const search = useSearchParams();
   const chatOn = useTeamFeature("chat");
   const chip = chipFromSearch(search.get("type"), chatOn);
   const setChip = useCallback(
-    (key: string) => router.replace(key === "all" ? "/threads" : `/threads?type=${key}`),
+    (key: string) =>
+      router.replace(key === "all" ? "/threads" : `/threads?type=${key}`),
     [router],
   );
-  const includeSessions = useInboxStore((s) => s.clientState.ui?.threads_include_sessions === true);
-  const teamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as string | undefined;
+  const includeSessions = useInboxStore(
+    (s) => s.clientState.ui?.threads_include_sessions === true,
+  );
+  const teamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as
+    | string
+    | undefined;
   const now = useCoarseNow(CLOCK_MS);
 
   // ── Sources ───────────────────────────────────────────────────────────────
@@ -89,22 +109,31 @@ export function ThreadsView({ present, reading }: { present: boolean; reading: b
   const rows = useThreadInbox();
   const rail = useChatRail();
   const chatCardList = useThreadInboxCards();
-  const chatCards = useMemo(() => new Map(chatCardList.map((c) => [c.entry.root_key, c])), [chatCardList]);
+  const chatCards = useMemo(
+    () => new Map(chatCardList.map((c) => [c.entry.root_key, c])),
+    [chatCardList],
+  );
   const { members, byId, viewerId, handles } = useChatMembers();
-  const sessionCardList = useSessionThreadCards(includeSessions && chip === "all");
+  const sessionCardList = useSessionThreadCards(
+    includeSessions && chip === "all",
+  );
   const questionCardList = useQuestionThreadCards();
   const commentThreads = useCommentThreadMap(rows);
   // Task short ids give the canonical /tasks/<short_id> link. One string
   // signature over just the task rows on the page, not the tasks collection.
   const taskShortSig = useInboxStore((s) => {
     let sig = "";
-    for (const r of rows) if (r.kind === "task") sig += `${(s.tasks[String(r.task_id ?? r.root_key)] as any)?.short_id ?? ""}|`;
+    for (const r of rows)
+      if (r.kind === "task")
+        sig += `${(s.tasks[String(r.task_id ?? r.root_key)] as any)?.short_id ?? ""}|`;
     return sig;
   });
   // Page slugs give the published page link; one string over just the page rows.
   const pageSlugSig = useInboxStore((s) => {
     let sig = "";
-    for (const r of rows) if (r.kind === "page") sig += `${(s.pageThreads[r.root_key] as any)?.slug ?? ""}|`;
+    for (const r of rows)
+      if (r.kind === "page")
+        sig += `${(s.pageThreads[r.root_key] as any)?.slug ?? ""}|`;
     return sig;
   });
 
@@ -113,11 +142,31 @@ export function ThreadsView({ present, reading }: { present: boolean; reading: b
     const st = useInboxStore.getState();
     const tasks = st.tasks as Record<string, { short_id?: string }>;
     const pages = st.pageThreads as Record<string, { slug?: string }>;
-    const server = serverCards(rows, (id) => railById.get(id)?.kind, (id) => tasks[id]?.short_id, (id) => pages[id]?.slug, viewerId);
-    return [...server, ...dmCards(chatOn ? rail : []), ...sessionCardList, ...withoutThreadedQuestions(questionCardList, rows)];
+    const server = serverCards(
+      rows,
+      (id) => railById.get(id)?.kind,
+      (id) => tasks[id]?.short_id,
+      (id) => pages[id]?.slug,
+      viewerId,
+    );
+    return [
+      ...server,
+      ...dmCards(chatOn ? rail : []),
+      ...sessionCardList,
+      ...withoutThreadedQuestions(questionCardList, rows),
+    ];
     // taskShortSig / pageSlugSig are the wakes for the id lookups.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, rail, chatOn, sessionCardList, questionCardList, taskShortSig, pageSlugSig, viewerId]);
+  }, [
+    rows,
+    rail,
+    chatOn,
+    sessionCardList,
+    questionCardList,
+    taskShortSig,
+    pageSlugSig,
+    viewerId,
+  ]);
   const counts = useMemo(() => unreadByChip(allCards), [allCards]);
   const chipped = useMemo(
     () => sortCards(cardsForChip(allCards, chip, includeSessions)),
@@ -127,9 +176,11 @@ export function ThreadsView({ present, reading }: { present: boolean; reading: b
   // that view's own stable list. Returning after a real absence starts over.
   const visitsRef = useRef<Map<string, ThreadsVisit>>(new Map());
   const awaySinceRef = useRef<number | null>(null);
-  if (!reading && awaySinceRef.current === null) awaySinceRef.current = Date.now();
+  if (!reading && awaySinceRef.current === null)
+    awaySinceRef.current = Date.now();
   if (reading && awaySinceRef.current !== null) {
-    if (Date.now() - awaySinceRef.current > NEW_VISIT_AFTER_MS) visitsRef.current.clear();
+    if (Date.now() - awaySinceRef.current > NEW_VISIT_AFTER_MS)
+      visitsRef.current.clear();
     awaySinceRef.current = null;
   }
   const visitKey = `${chip}|${includeSessions}`;
@@ -138,7 +189,10 @@ export function ThreadsView({ present, reading }: { present: boolean; reading: b
     visit = newVisit();
     visitsRef.current.set(visitKey, visit);
   }
-  const arranged = useMemo(() => arrangeVisit(visit!, chipped), [visit, chipped]);
+  const arranged = useMemo(
+    () => arrangeVisit(visit!, chipped),
+    [visit, chipped],
+  );
   const fresh = useMemo(() => forYouFirst(arranged.fresh), [arranged]);
   const seen = arranged.seen;
   const cards = useMemo(() => [...fresh, ...seen], [fresh, seen]);
@@ -147,21 +201,39 @@ export function ThreadsView({ present, reading }: { present: boolean; reading: b
   // The thread the keyboard is on. It lives in the store (ephemeral UI) so
   // leaving and returning lands on the same thread.
   const cursorId = useInboxStore((s) => s.threadsCursor.id);
-  const cursorIndex = useMemo(() => cards.findIndex((c) => c.id === cursorId), [cards, cursorId]);
-  const setCursor = useCallback((id: string | null) => useInboxStore.getState().setThreadsCursor({ id }), []);
+  const cursorIndex = useMemo(
+    () => cards.findIndex((c) => c.id === cursorId),
+    [cards, cursorId],
+  );
+  const setCursor = useCallback(
+    (id: string | null) => useInboxStore.getState().setThreadsCursor({ id }),
+    [],
+  );
   // A click inside a card only moves the cursor; the page never scrolls
   // under the reader's mouse.
-  const select = useCallback((card: ThreadCardModel) => setCursor(card.id), [setCursor]);
+  const select = useCallback(
+    (card: ThreadCardModel) => setCursor(card.id),
+    [setCursor],
+  );
   // The keyboard walk moves the cursor AND brings the card's head to the top.
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const jump = useCallback((index: number): boolean => {
-    const target = cards[index];
-    if (!target) return false;
-    setCursor(target.id);
-    scrollRef.current?.querySelector(`[data-thread-index="${index}"]`)?.scrollIntoView({ block: "start" });
-    return true;
-  }, [cards, setCursor]);
-  const move = useCallback((delta: number): boolean => jump(walkIndex(cards.length, cursorIndex, delta)), [cards.length, cursorIndex, jump]);
+  const jump = useCallback(
+    (index: number): boolean => {
+      const target = cards[index];
+      if (!target) return false;
+      setCursor(target.id);
+      scrollRef.current
+        ?.querySelector(`[data-thread-index="${index}"]`)
+        ?.scrollIntoView({ block: "start" });
+      return true;
+    },
+    [cards, setCursor],
+  );
+  const move = useCallback(
+    (delta: number): boolean =>
+      jump(walkIndex(cards.length, cursorIndex, delta)),
+    [cards.length, cursorIndex, jump],
+  );
 
   // Done: archive the follow (or, for a kind with no follow to archive, mark
   // it read) and step to the next thread. The thread itself stays in place
@@ -186,7 +258,10 @@ export function ThreadsView({ present, reading }: { present: boolean; reading: b
     if (!card) return false;
     setCursor(card.id);
     setFocusId(card.id);
-    window.setTimeout(() => setFocusId((id) => (id === card.id ? null : id)), FOCUS_REQUEST_MS);
+    window.setTimeout(
+      () => setFocusId((id) => (id === card.id ? null : id)),
+      FOCUS_REQUEST_MS,
+    );
     return true;
   }, [cards, cursorIndex, setCursor]);
   const openCurrent = useCallback((): boolean => {
@@ -203,34 +278,85 @@ export function ThreadsView({ present, reading }: { present: boolean; reading: b
   // page in the active one.
   useShortcutContext("list", present);
   useShortcutContext("threads", present);
-  const here = useCallback((fn: () => boolean) => () => (present ? fn() : false), [present]);
-  useShortcutAction("list.down", here(() => move(1)));
-  useShortcutAction("list.up", here(() => move(-1)));
-  useShortcutAction("list.first", here(() => jump(0)));
-  useShortcutAction("list.last", here(() => jump(cards.length - 1)));
+  const here = useCallback(
+    (fn: () => boolean) => () => (present ? fn() : false),
+    [present],
+  );
+  useShortcutAction(
+    "list.down",
+    here(() => move(1)),
+  );
+  useShortcutAction(
+    "list.up",
+    here(() => move(-1)),
+  );
+  useShortcutAction(
+    "list.first",
+    here(() => jump(0)),
+  );
+  useShortcutAction(
+    "list.last",
+    here(() => jump(cards.length - 1)),
+  );
   useShortcutAction("list.open", here(openCurrent));
   useShortcutAction("threads.done", here(done));
   useShortcutAction("threads.reply", here(reply));
   useShortcutAction("threads.openIn", here(openCurrent));
 
-  const nameOf = useCallback((userId: string) => memberName(byId.get(String(userId))), [byId]);
+  const nameOf = useCallback(
+    (userId: string) => memberName(byId.get(String(userId))),
+    [byId],
+  );
   const ctx = useMemo<ThreadsPageContextValue>(
-    () => ({ now, present: reading, teamId, viewerId, members, handles, nameOf, chatCards, commentThreads, select }),
-    [now, reading, teamId, viewerId, members, handles, nameOf, chatCards, commentThreads, select],
+    () => ({
+      now,
+      present: reading,
+      teamId,
+      viewerId,
+      members,
+      handles,
+      nameOf,
+      chatCards,
+      commentThreads,
+      select,
+    }),
+    [
+      now,
+      reading,
+      teamId,
+      viewerId,
+      members,
+      handles,
+      nameOf,
+      chatCards,
+      commentThreads,
+      select,
+    ],
   );
 
   // ── Header + chips ────────────────────────────────────────────────────────
   const viewUnread = counts[chip];
   const anyUnread = cards.some((c) => c.unread > 0);
-  const markAll = useCallback(() => markViewRead(cards, chip, teamId), [cards, chip, teamId]);
-  useShortcutAction("threads.markAllRead", here(() => { if (!anyUnread) return false; markAll(); return true; }));
+  const markAll = useCallback(
+    () => markViewRead(cards, chip, teamId),
+    [cards, chip, teamId],
+  );
+  useShortcutAction(
+    "threads.markAllRead",
+    here(() => {
+      if (!anyUnread) return false;
+      markAll();
+      return true;
+    }),
+  );
   const chipItems = useMemo(
-    () => visibleChips(chatOn).map((c) => ({
-      key: c.key,
-      label: c.label,
-      icon: c.key === "all" ? LayoutList : THREAD_KIND_META[c.key].icon,
-      count: counts[c.key] || undefined,
-    })),
+    () =>
+      visibleChips(chatOn).map((c) => ({
+        key: c.key,
+        label: c.label,
+        icon: c.key === "all" ? LayoutList : THREAD_KIND_META[c.key].icon,
+        count: counts[c.key] || undefined,
+      })),
     [chatOn, counts],
   );
   const toggleSessions = useCallback(() => {
@@ -262,33 +388,69 @@ export function ThreadsView({ present, reading }: { present: boolean; reading: b
     <ThreadsPageCtx.Provider value={ctx}>
       <div className="ch-shell">
         <div className="ch-main">
-          <ThreadsHeader unread={viewUnread} forYou={chip === "all"} anyUnread={anyUnread} total={cards.length} onMarkAllRead={markAll} />
+          <ThreadsHeader
+            unread={viewUnread}
+            forYou={chip === "all"}
+            anyUnread={anyUnread}
+            total={cards.length}
+            onMarkAllRead={markAll}
+          />
 
           <div className="th-bar">
-            <SegmentedToggle value={chip} onChange={setChip} items={chipItems} collapse />
+            <SegmentedToggle
+              value={chip}
+              onChange={setChip}
+              items={chipItems}
+              collapse
+            />
             {/* An additive switch, not a second chip: sessions join the All view. */}
-            <label className="th-toggle" title="Show the sessions waiting on you (under All)">
-              <Switch checked={includeSessions} onCheckedChange={toggleSessions} />
+            <label
+              className="th-toggle"
+              title="Show the sessions waiting on you (under All)"
+            >
+              <Switch
+                checked={includeSessions}
+                onCheckedChange={toggleSessions}
+              />
               Sessions
             </label>
             {cards.length > 0 && (
               <span className="th-keys" aria-hidden="true">
-                <span className="th-key"><MenuKeyCaps action="list.down" className="contents" /><MenuKeyCaps action="list.up" className="contents" /> move</span>
-                <span className="th-key"><MenuKeyCaps action="threads.done" className="contents" /> done</span>
-                <span className="th-key"><MenuKeyCaps action="threads.reply" className="contents" /> reply</span>
-                <span className="th-key"><MenuKeyCaps action="threads.openIn" className="contents" /> open</span>
+                <span className="th-key">
+                  <MenuKeyCaps action="list.down" className="contents" />
+                  <MenuKeyCaps action="list.up" className="contents" /> move
+                </span>
+                <span className="th-key">
+                  <MenuKeyCaps action="threads.done" className="contents" />{" "}
+                  done
+                </span>
+                <span className="th-key">
+                  <MenuKeyCaps action="threads.reply" className="contents" />{" "}
+                  reply
+                </span>
+                <span className="th-key">
+                  <MenuKeyCaps action="threads.openIn" className="contents" />{" "}
+                  open
+                </span>
               </span>
             )}
           </div>
 
           {showSkeleton ? (
-            <div className="ch-skeleton" role="status" aria-label="Loading threads">
+            <div
+              className="ch-skeleton"
+              role="status"
+              aria-label="Loading threads"
+            >
               {[0, 1, 2].map((i) => (
                 <div className="ch-skel-row" key={i}>
                   <div className="ch-skel-avatar" />
                   <div className="ch-skel-lines">
                     <div className="ch-skel-line ch-skel-head" />
-                    <div className="ch-skel-line" style={{ width: `${70 - i * 12}%` }} />
+                    <div
+                      className="ch-skel-line"
+                      style={{ width: `${70 - i * 12}%` }}
+                    />
                   </div>
                 </div>
               ))}
@@ -297,17 +459,29 @@ export function ThreadsView({ present, reading }: { present: boolean; reading: b
             <ThreadsEmpty
               chip={chip}
               sessionsOn={includeSessions}
-              caughtUp={allCards.some((c) => (chip === "all" ? c.chip !== "session" : c.chip === chip))}
+              caughtUp={allCards.some((c) =>
+                chip === "all" ? c.chip !== "session" : c.chip === chip,
+              )}
               onNewMessage={chatOn ? openNewMessage : undefined}
             />
           ) : (
             <div className="th-scroll" ref={scrollRef}>
               {feedFailed && (
                 <div className="ch-search-hint" role="alert">
-                  <p>{feed.error === queryCircuitOpenError ? "Threads timed out." : "Threads are not answering."}</p>
+                  <p>
+                    {feed.error === queryCircuitOpenError
+                      ? "Threads timed out."
+                      : "Threads are not answering."}
+                  </p>
                   <p className="ch-search-hint-sub">
                     {cards.length > 0 ? "Showing what is cached. " : ""}
-                    <button type="button" className="ch-agent-retry" onClick={feed.retry}>Try again</button>
+                    <button
+                      type="button"
+                      className="ch-agent-retry"
+                      onClick={feed.retry}
+                    >
+                      Try again
+                    </button>
                   </p>
                 </div>
               )}
@@ -320,14 +494,23 @@ export function ThreadsView({ present, reading }: { present: boolean; reading: b
                 <span>You&apos;re up to date</span>
               </div>
               {seen.length > 0 && (
-                <div className="th-list th-list-seen" role="list" aria-label="Seen">
+                <div
+                  className="th-list th-list-seen"
+                  role="list"
+                  aria-label="Seen"
+                >
                   {seen.map((card, i) => renderCard(card, fresh.length + i))}
                 </div>
               )}
               {/* The feed pages the mixed list, so only All can promise older
                   items; a kind chip's list is whatever has paged in. */}
               {feed.hasMore && chip === "all" && (
-                <button type="button" className="th-older" onClick={feed.loadOlder} disabled={feed.isLoadingOlder}>
+                <button
+                  type="button"
+                  className="th-older"
+                  onClick={feed.loadOlder}
+                  disabled={feed.isLoadingOlder}
+                >
                   {feed.isLoadingOlder ? "Loading…" : "Show older threads"}
                 </button>
               )}
@@ -335,7 +518,9 @@ export function ThreadsView({ present, reading }: { present: boolean; reading: b
           )}
         </div>
       </div>
-      {newMessageOpen && <NewMessageModal onClose={() => setNewMessageOpen(false)} />}
+      {newMessageOpen && (
+        <NewMessageModal onClose={() => setNewMessageOpen(false)} />
+      )}
     </ThreadsPageCtx.Provider>
   );
 }

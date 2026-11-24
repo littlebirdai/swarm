@@ -6,8 +6,19 @@ import { downloadAttachedFile } from "./attachedFileDownload";
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "attached-files-"));
 let hits = 0;
-const server = Bun.serve({ port: 0, fetch: (req) => (hits++, new URL(req.url).pathname === "/ok" ? new Response("bytes") : new Response("no", { status: 503 })) });
-afterAll(() => { server.stop(true); fs.rmSync(root, { recursive: true, force: true }); });
+const server = Bun.serve({
+  port: 0,
+  fetch: (req) => (
+    hits++,
+    new URL(req.url).pathname === "/ok"
+      ? new Response("bytes")
+      : new Response("no", { status: 503 })
+  ),
+});
+afterAll(() => {
+  server.stop(true);
+  fs.rmSync(root, { recursive: true, force: true });
+});
 
 describe("downloadAttachedFile", () => {
   test("saves under the picked name in a folder per upload, then reuses it", async () => {
@@ -22,7 +33,21 @@ describe("downloadAttachedFile", () => {
   });
 
   test("a file the server reports gone is null; a failed fetch throws", async () => {
-    expect(await downloadAttachedFile({ storageId: "kg2bbbbbbbbbbbb", name: "a" }, async () => null, undefined, root)).toBeNull();
-    await expect(downloadAttachedFile({ storageId: "kg2cccccccccccc", name: "a" }, async () => `http://localhost:${server.port}/fail`, undefined, root)).rejects.toThrow("HTTP 503");
+    expect(
+      await downloadAttachedFile(
+        { storageId: "kg2bbbbbbbbbbbb", name: "a" },
+        async () => null,
+        undefined,
+        root,
+      ),
+    ).toBeNull();
+    await expect(
+      downloadAttachedFile(
+        { storageId: "kg2cccccccccccc", name: "a" },
+        async () => `http://localhost:${server.port}/fail`,
+        undefined,
+        root,
+      ),
+    ).rejects.toThrow("HTTP 503");
   });
 });

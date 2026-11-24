@@ -16,10 +16,18 @@ const PAGE = 40;
 export const page = internalQuery({
   args: { cursor: v.union(v.string(), v.null()) },
   handler: async (ctx, args) => {
-    const res = await ctx.db.query("moments").withIndex("by_status_due", (q: any) => q.eq("status", "ready")).paginate({ cursor: args.cursor, numItems: PAGE });
+    const res = await ctx.db
+      .query("moments")
+      .withIndex("by_status_due", (q: any) => q.eq("status", "ready"))
+      .paginate({ cursor: args.cursor, numItems: PAGE });
     const now = Date.now();
     return {
-      todo: (res.page as Doc<"moments">[]).filter((m) => !m.who).flatMap((m) => { const key = liveBodyKey(m, now); return key ? [{ id: m._id, key }] : []; }),
+      todo: (res.page as Doc<"moments">[])
+        .filter((m) => !m.who)
+        .flatMap((m) => {
+          const key = liveBodyKey(m, now);
+          return key ? [{ id: m._id, key }] : [];
+        }),
       cursor: res.isDone ? null : res.continueCursor,
     };
   },
@@ -35,17 +43,34 @@ export const setWho = internalMutation({
 
 export const run = internalAction({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
-  handler: async (ctx, args): Promise<{ named: number; next: string | null }> => {
-    const { todo, cursor }: { todo: Array<{ id: Id<"moments">; key: string }>; cursor: string | null } = await ctx.runQuery(internal.momentWhoBackfill.page, { cursor: args.cursor ?? null });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ named: number; next: string | null }> => {
+    const {
+      todo,
+      cursor,
+    }: {
+      todo: Array<{ id: Id<"moments">; key: string }>;
+      cursor: string | null;
+    } = await ctx.runQuery(internal.momentWhoBackfill.page, {
+      cursor: args.cursor ?? null,
+    });
     let named = 0;
     for (const t of todo) {
       const body = await readKeptBody(t.key).catch(() => null);
       const who = body ? momentWho(body) : null;
       if (!who) continue;
-      await ctx.runMutation(internal.momentWhoBackfill.setWho, { id: t.id, who });
+      await ctx.runMutation(internal.momentWhoBackfill.setWho, {
+        id: t.id,
+        who,
+      });
       named++;
     }
-    if (cursor) await ctx.scheduler.runAfter(0, internal.momentWhoBackfill.run, { cursor });
+    if (cursor)
+      await ctx.scheduler.runAfter(0, internal.momentWhoBackfill.run, {
+        cursor,
+      });
     return { named, next: cursor };
   },
 });

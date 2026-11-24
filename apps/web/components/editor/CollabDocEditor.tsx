@@ -97,7 +97,8 @@ function buildExtensions(
     ...(draftingRef
       ? [
           DraftingExtension.configure({
-            onOpenAlternatives: (r) => draftingRef.current.onOpenAlternatives?.(r),
+            onOpenAlternatives: (r) =>
+              draftingRef.current.onOpenAlternatives?.(r),
             onAiAlternatives: (r) => draftingRef.current.onAiAlternatives?.(r),
             onStash: (t) => draftingRef.current.onStash?.(t),
           }),
@@ -235,12 +236,16 @@ function EditorInner({
   // came back → the deltas were wiped by a CLI rewrite and this tab can never
   // catch up by replay, so drop the cache and remount from the snapshot.
   const convex = useConvex();
-  const serverVersion = useQuery(api.docSync.latestVersion, { id: docId }) as number | null | undefined;
+  const serverVersion = useQuery(api.docSync.latestVersion, { id: docId }) as
+    | number
+    | null
+    | undefined;
   const checkedVersionRef = useRef<number | null>(null);
   useWatchEffect(() => {
     if (!editor || editor.isDestroyed || serverVersion == null) return;
     const local = getVersion(editor.state);
-    if (serverVersion <= local || checkedVersionRef.current === serverVersion) return;
+    if (serverVersion <= local || checkedVersionRef.current === serverVersion)
+      return;
     checkedVersionRef.current = serverVersion;
     let cancelled = false;
     convex
@@ -264,7 +269,9 @@ function EditorInner({
   }, [editor, serverVersion, docId, convex, onSyncGap]);
 
   const readMarkdown = () =>
-    editor ? ((editor.storage as any).markdown?.getMarkdown?.() ?? editor.getText()) : "";
+    editor
+      ? ((editor.storage as any).markdown?.getMarkdown?.() ?? editor.getText())
+      : "";
 
   if (getMarkdownRef && editor && !editor.isDestroyed) {
     getMarkdownRef.current = readMarkdown;
@@ -276,8 +283,12 @@ function EditorInner({
       getMarkdown: readMarkdown,
       focus: () => editor.commands.focus("end"),
       clear: () => editor.commands.clearContent(),
-      insertText: (text: string) => { editor.chain().focus().insertContent(text).run(); },
-      setMarkdown: (markdown: string) => { editor.commands.setContent(markdown); },
+      insertText: (text: string) => {
+        editor.chain().focus().insertContent(text).run();
+      },
+      setMarkdown: (markdown: string) => {
+        editor.commands.setContent(markdown);
+      },
     };
   }
 
@@ -297,7 +308,10 @@ function EditorInner({
   const updatePresence = useMutation(api.docSync.updatePresence);
   const removePresence = useMutation(api.docSync.removePresence);
   const presenceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastPosRef = useRef<{ cursor: number | undefined; anchor: number | undefined }>({
+  const lastPosRef = useRef<{
+    cursor: number | undefined;
+    anchor: number | undefined;
+  }>({
     cursor: undefined,
     anchor: undefined,
   });
@@ -327,7 +341,12 @@ function EditorInner({
     const sendPresence = (edited = false) => {
       if (!editor || editor.isDestroyed) return;
       const { from, to } = editor.state.selection;
-      if (!edited && from === lastPosRef.current.cursor && to === lastPosRef.current.anchor) return;
+      if (
+        !edited &&
+        from === lastPosRef.current.cursor &&
+        to === lastPosRef.current.anchor
+      )
+        return;
       sentAt = performance.now();
       lastPosRef.current = { cursor: from, anchor: to };
       updatePresence({ doc_id: docId, cursor_pos: from, anchor_pos: to });
@@ -335,7 +354,9 @@ function EditorInner({
     const onSelection = () => sendPresence();
     // One send per keystroke, whichever of the two events a transaction
     // fires first: the other sees the send and stays quiet.
-    const onEdit = () => { if (performance.now() - sentAt > 50) sendPresence(true); };
+    const onEdit = () => {
+      if (performance.now() - sentAt > 50) sendPresence(true);
+    };
     presenceTimerRef.current = setInterval(onSelection, 2000);
     editor.on("selectionUpdate", onSelection);
     editor.on("update", onEdit);
@@ -405,13 +426,16 @@ function CollabDocEditorLive({
   titleRef.current = title ?? "";
   // What the editor shows: the raw body in compose mode; the body opened by its
   // title heading in title-first mode (`# title` only when it has none).
-  const seedMarkdown = titleFirst ? withTitleHeading(title, markdownContent) : markdownContent;
+  const seedMarkdown = titleFirst
+    ? withTitleHeading(title, markdownContent)
+    : markdownContent;
   const editorClass = `doc-editor ${titleFirst ? "doc-editor--title-first " : ""}${className}`;
   const syncApi = api.docSync as unknown as SyncApi;
   const sync = useTiptapSync(syncApi, docId);
   // Enrichment only (see useDocPresence): a NOT_FOUND here must not unmount
   // the editor, which reads the doc itself and reports that on its own.
-  const presences = useQueryNoThrow(api.docSync.getPresence, { doc_id: docId }).data || [];
+  const presences =
+    useQueryNoThrow(api.docSync.getPresence, { doc_id: docId }).data || [];
   const createdRef = useRef(false);
   const extensionsRef = useRef<any[] | null>(null);
 
@@ -428,8 +452,14 @@ function CollabDocEditorLive({
       name: "composeKeymap",
       addKeyboardShortcuts() {
         return {
-          "Mod-Enter": () => { onSubmitRef.current?.(); return true; },
-          "Mod-Shift-e": () => { onExitRef.current?.(); return true; },
+          "Mod-Enter": () => {
+            onSubmitRef.current?.();
+            return true;
+          },
+          "Mod-Shift-e": () => {
+            onExitRef.current?.();
+            return true;
+          },
         };
       },
     });
@@ -514,7 +544,12 @@ function CollabDocEditorLive({
                 const file = item.getAsFile();
                 if (!file) continue;
                 event.preventDefault();
-                uploadImageWithPlaceholder(view, file, view.state.selection.from, onImageUploadRef.current);
+                uploadImageWithPlaceholder(
+                  view,
+                  file,
+                  view.state.selection.from,
+                  onImageUploadRef.current,
+                );
                 return true;
               }
             }
@@ -523,12 +558,21 @@ function CollabDocEditorLive({
           handleDrop: (view, event) => {
             const files = event.dataTransfer?.files;
             if (!files?.length || !onImageUploadRef.current) return false;
-            const imageFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
+            const imageFiles = Array.from(files).filter((f) =>
+              f.type.startsWith("image/"),
+            );
             if (!imageFiles.length) return false;
             event.preventDefault();
-            const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.from;
+            const pos =
+              view.posAtCoords({ left: event.clientX, top: event.clientY })
+                ?.pos ?? view.state.selection.from;
             for (const file of imageFiles) {
-              uploadImageWithPlaceholder(view, file, pos, onImageUploadRef.current);
+              uploadImageWithPlaceholder(
+                view,
+                file,
+                pos,
+                onImageUploadRef.current,
+              );
             }
             return true;
           },
@@ -548,7 +592,11 @@ function CollabDocEditorLive({
             the doc detail (which carries cliEditedAt) has synced would race the
             "first open" vs. "edited while open" distinction in shouldResyncOnExternalEdit. */}
         {cliEditedAt && contentReady && (
-          <ExternalEditSync docId={docId} cliEditedAt={cliEditedAt} onSyncGap={onSyncGap} />
+          <ExternalEditSync
+            docId={docId}
+            cliEditedAt={cliEditedAt}
+            onSyncGap={onSyncGap}
+          />
         )}
       </EditorProvider>
     </div>
@@ -563,5 +611,7 @@ function CollabDocEditorLive({
 export function CollabDocEditor(props: CollabDocEditorProps) {
   const [generation, setGeneration] = useState(0);
   const onSyncGap = useCallback(() => setGeneration((g) => g + 1), []);
-  return <CollabDocEditorLive key={generation} {...props} onSyncGap={onSyncGap} />;
+  return (
+    <CollabDocEditorLive key={generation} {...props} onSyncGap={onSyncGap} />
+  );
 }

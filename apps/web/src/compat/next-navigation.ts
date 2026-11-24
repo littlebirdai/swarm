@@ -8,7 +8,11 @@ import {
 import { useTabContext } from "@/lib/tabParams";
 import { useInboxStore } from "@/store/inboxStore";
 import { borrowsTabShell } from "@/lib/desktop";
-import { interceptSettingsNav, shouldUseTabRouting, tabNavigate } from "./tabRouting";
+import {
+  interceptSettingsNav,
+  shouldUseTabRouting,
+  tabNavigate,
+} from "./tabRouting";
 import { divertNavigation } from "@/lib/openIntent";
 
 /**
@@ -54,7 +58,10 @@ export function useRouter() {
         // A Cmd-click's push opens the path in a background tab / detached
         // window instead (lib/openIntent) — the current view stays put.
         if (divertNavigation(path)) return;
-        if (paneNavigate) { paneNavigate(path, "push"); return; }
+        if (paneNavigate) {
+          paneNavigate(path, "push");
+          return;
+        }
         const settings = interceptSettingsNav(path);
         if (settings) {
           if (settings.carryUrl) navigate(settings.carryUrl, { replace: true });
@@ -66,11 +73,17 @@ export function useRouter() {
           navigate(path, { state: options?.state });
         }
       },
-      replace: (path: string, options?: { scroll?: boolean; state?: unknown }) => {
+      replace: (
+        path: string,
+        options?: { scroll?: boolean; state?: unknown },
+      ) => {
         // A replace canonicalizes the current URL; it never claims a Cmd-click
         // on its own, but stands down when a sibling push in the same click did.
         if (divertNavigation(path, { openable: false })) return;
-        if (paneNavigate) { paneNavigate(path, "replace"); return; }
+        if (paneNavigate) {
+          paneNavigate(path, "replace");
+          return;
+        }
         const settings = interceptSettingsNav(path);
         if (settings) {
           if (settings.carryUrl) navigate(settings.carryUrl, { replace: true });
@@ -97,7 +110,9 @@ export function useSearchParams(): URLSearchParams {
   return tabCtx ? tabCtx.searchParams : rrSearchParams;
 }
 
-export function useParams<T extends Record<string, string> = Record<string, string>>(): T {
+export function useParams<
+  T extends Record<string, string> = Record<string, string>,
+>(): T {
   const tabCtx = useTabContext();
   const rrParams = useRRParams();
   return (tabCtx ? tabCtx.params : rrParams) as T;

@@ -21,10 +21,24 @@
 // sessions and never "mine".
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
+import {
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { huddleChatLineHeader, isAskDelivery, isHuddlePass, isMeetRoomKey, isRecRoomKey, isRoomlessKey, isToolResultCarrier, reportedWorkIds } from "@codecast/shared/contracts";
+import {
+  huddleChatLineHeader,
+  isAskDelivery,
+  isHuddlePass,
+  isMeetRoomKey,
+  isRecRoomKey,
+  isRoomlessKey,
+  isToolResultCarrier,
+  reportedWorkIds,
+} from "@codecast/shared/contracts";
 import { characterOf } from "@codecast/shared/contracts/sessionCharacter";
 import { authorizeRoom, canReadRoomlessCall } from "./callRooms";
 import { MAX_ATTACHMENTS } from "./chatText";
@@ -63,8 +77,15 @@ export const list = query({
     // A call with no room (a meeting a bot attended) is read by its record's
     // own rule, and only one call at a time: its key names no room to list.
     if (isRoomlessKey(args.room_key)) {
-      const t = args.transcript_id ? await ctx.db.get(args.transcript_id) : null;
-      if (!t || t.room_key !== args.room_key || !(await canReadRoomlessCall(ctx, userId, t))) return null;
+      const t = args.transcript_id
+        ? await ctx.db.get(args.transcript_id)
+        : null;
+      if (
+        !t ||
+        t.room_key !== args.room_key ||
+        !(await canReadRoomlessCall(ctx, userId, t))
+      )
+        return null;
     } else if (!(await authorizeRoom(ctx, userId, args.room_key)).ok) {
       return null;
     }
@@ -73,7 +94,9 @@ export const list = query({
       ? (
           await ctx.db
             .query("call_chat_messages")
-            .withIndex("by_transcript", (q) => q.eq("transcript_id", args.transcript_id))
+            .withIndex("by_transcript", (q) =>
+              q.eq("transcript_id", args.transcript_id),
+            )
             .order("desc")
             .take(take)
         ).filter((r) => r.room_key === args.room_key)
@@ -89,15 +112,26 @@ export const list = query({
       const key = String(r.user_id);
       if (!users.has(key)) {
         const u = await ctx.db.get(r.user_id);
-        users.set(key, { name: u?.name ?? u?.email ?? "someone", image: u?.image ?? undefined });
+        users.set(key, {
+          name: u?.name ?? u?.email ?? "someone",
+          image: u?.image ?? undefined,
+        });
       }
-      if (r.agent_conversation_id && !agents.has(String(r.agent_conversation_id))) {
-        agents.set(String(r.agent_conversation_id), await agentIdentity(ctx, r.agent_conversation_id));
+      if (
+        r.agent_conversation_id &&
+        !agents.has(String(r.agent_conversation_id))
+      ) {
+        agents.set(
+          String(r.agent_conversation_id),
+          await agentIdentity(ctx, r.agent_conversation_id),
+        );
       }
     }
     return rows.map((r) => {
       const u = users.get(String(r.user_id))!;
-      const agent = r.agent_conversation_id ? agents.get(String(r.agent_conversation_id)) ?? null : null;
+      const agent = r.agent_conversation_id
+        ? (agents.get(String(r.agent_conversation_id)) ?? null)
+        : null;
       // An event row names its ACTOR (the person who added the agent or
       // pressed the switch) and carries the agent beside it, so the room can
       // read "Ada added Ember". An agent's own line is the agent's: its name
@@ -107,12 +141,19 @@ export const list = query({
       return {
         _id: r._id,
         user_id: String(r.user_id),
-        user_name: spoken ? agent.name : (r.author_name ?? r.event_guest_name ?? u.name),
-        user_image: spoken || r.event_guest_name || r.author_name ? undefined : u.image,
+        user_name: spoken
+          ? agent.name
+          : (r.author_name ?? r.event_guest_name ?? u.name),
+        user_image:
+          spoken || r.event_guest_name || r.author_name ? undefined : u.image,
         text: r.text,
         attachments: r.attachments,
         at: r._creationTime,
-        mine: !agent && !r.event && !r.author_name && String(r.user_id) === String(userId),
+        mine:
+          !agent &&
+          !r.event &&
+          !r.author_name &&
+          String(r.user_id) === String(userId),
         transcript_id: r.transcript_id ? String(r.transcript_id) : null,
         agent,
         event: (r.event ?? null) as RoomEvent | null,
@@ -179,7 +220,9 @@ export async function postEvent(
     user_id: args.user_id,
     text: args.detail ?? "",
     event: args.event,
-    ...(args.agent_conversation_id ? { agent_conversation_id: args.agent_conversation_id } : {}),
+    ...(args.agent_conversation_id
+      ? { agent_conversation_id: args.agent_conversation_id }
+      : {}),
     ...(args.transcript_id ? { transcript_id: args.transcript_id } : {}),
     ...(args.reason ? { event_reason: args.reason } : {}),
     ...(args.guest_name ? { event_guest_name: args.guest_name } : {}),
@@ -196,8 +239,12 @@ export async function insertRoomRow(
   ctx: any,
   row: Omit<Doc<"call_chat_messages">, "_id" | "_creationTime">,
 ): Promise<Id<"call_chat_messages">> {
-  const transcript_id = row.transcript_id ?? (await liveTranscriptFor(ctx, row.room_key))?._id;
-  return await ctx.db.insert("call_chat_messages", { ...row, ...(transcript_id ? { transcript_id } : {}) });
+  const transcript_id =
+    row.transcript_id ?? (await liveTranscriptFor(ctx, row.room_key))?._id;
+  return await ctx.db.insert("call_chat_messages", {
+    ...row,
+    ...(transcript_id ? { transcript_id } : {}),
+  });
 }
 
 /** A huddle's record just started: the lines typed in the room since the
@@ -211,7 +258,9 @@ export async function claimRoomRows(
 ): Promise<number> {
   const rows: Doc<"call_chat_messages">[] = await ctx.db
     .query("call_chat_messages")
-    .withIndex("by_room", (q: any) => q.eq("room_key", roomKey).gte("_creationTime", since))
+    .withIndex("by_room", (q: any) =>
+      q.eq("room_key", roomKey).gte("_creationTime", since),
+    )
     .collect();
   let n = 0;
   for (const r of rows) {
@@ -234,7 +283,10 @@ type AgentIdentity = {
   character_name: string | null;
 };
 
-export async function agentIdentity(ctx: any, id: Id<"conversations">): Promise<AgentIdentity | null> {
+export async function agentIdentity(
+  ctx: any,
+  id: Id<"conversations">,
+): Promise<AgentIdentity | null> {
   const conv: Doc<"conversations"> | null = await ctx.db.get(id);
   if (!conv) return null;
   return {
@@ -242,7 +294,11 @@ export async function agentIdentity(ctx: any, id: Id<"conversations">): Promise<
     short_id: conv.short_id ?? null,
     title: conv.title || "agent session",
     agent_type: conv.agent_type,
-    name: characterOf({ _id: String(conv._id), character_avatar: conv.character_avatar, character_name: conv.character_name }).name,
+    name: characterOf({
+      _id: String(conv._id),
+      character_avatar: conv.character_avatar,
+      character_name: conv.character_name,
+    }).name,
     character_avatar: conv.character_avatar ?? null,
     character_name: conv.character_name ?? null,
   };
@@ -270,19 +326,29 @@ export const post = mutation({
       throw new Error(`At most ${MAX_ATTACHMENTS} attachments per message`);
     }
     if (!text && attachments.length === 0) return;
-    const named = args.transcript_id ? await ctx.db.get(args.transcript_id) : null;
+    const named = args.transcript_id
+      ? await ctx.db.get(args.transcript_id)
+      : null;
     await insertRoomRow(ctx, {
       room_key: args.room_key,
       team_id: auth.teamId,
       user_id: userId,
       text,
       attachments: attachments.length > 0 ? attachments : undefined,
-      ...(named && named.room_key === args.room_key ? { transcript_id: named._id } : {}),
+      ...(named && named.room_key === args.room_key
+        ? { transcript_id: named._id }
+        : {}),
     });
     const live = await liveTranscriptFor(ctx, args.room_key);
     if (!live) return;
     const poster = await ctx.db.get(userId);
-    await relayLineToFeeds(ctx, live._id, poster?.name ?? poster?.email ?? "Someone", text, attachments.map((a) => a.storage_id));
+    await relayLineToFeeds(
+      ctx,
+      live._id,
+      poster?.name ?? poster?.email ?? "Someone",
+      text,
+      attachments.map((a) => a.storage_id),
+    );
   },
 });
 
@@ -317,7 +383,10 @@ export async function relayLineToFeeds(
   }
 }
 
-export async function liveTranscriptFor(ctx: any, roomKey: string): Promise<Doc<"transcripts"> | null> {
+export async function liveTranscriptFor(
+  ctx: any,
+  roomKey: string,
+): Promise<Doc<"transcripts"> | null> {
   const rows: Doc<"transcripts">[] = await ctx.db
     .query("transcripts")
     .withIndex("by_room", (q: any) => q.eq("room_key", roomKey))
@@ -328,17 +397,28 @@ export async function liveTranscriptFor(ctx: any, roomKey: string): Promise<Doc<
 // The text of an assistant message as a chat line: the message's own prose,
 // nothing from tool calls, clipped to a bubble. Empty when the turn ended on
 // a tool call with no words, or on content the server cannot read.
-export function agentLineText(m: { content?: string; is_encrypted?: boolean } | null | undefined): string {
+export function agentLineText(
+  m: { content?: string; is_encrypted?: boolean } | null | undefined,
+): string {
   if (!m || m.is_encrypted) return "";
   const text = (m.content ?? "").trim();
   if (!text) return "";
-  return text.length > AGENT_LINE_MAX ? `${text.slice(0, AGENT_LINE_MAX - 1).trimEnd()}…` : text;
+  return text.length > AGENT_LINE_MAX
+    ? `${text.slice(0, AGENT_LINE_MAX - 1).trimEnd()}…`
+    : text;
 }
 
 /** Each turn's reply, oldest first: the last assistant words before the next
  *  thing said to the session. A user row that only carries tool results is
  *  the harness, not a new turn, so narration between tool calls never posts. */
-export function turnReplies<M extends { role: string; content?: string; is_encrypted?: boolean; tool_results?: readonly unknown[] }>(rows: M[]): { reply: M; prompt: M | null }[] {
+export function turnReplies<
+  M extends {
+    role: string;
+    content?: string;
+    is_encrypted?: boolean;
+    tool_results?: readonly unknown[];
+  },
+>(rows: M[]): { reply: M; prompt: M | null }[] {
   const out: { reply: M; prompt: M | null }[] = [];
   let last: M | null = null;
   let prompt: M | null = null;
@@ -361,25 +441,46 @@ export function turnReplies<M extends { role: string; content?: string; is_encry
  *  answer nobody in the room. A background worker's result is judged by the
  *  turn that started the worker, found by the first tool result that printed
  *  its id. A turn whose prompt or start is out of reach was not asked. */
-async function turnWasAsked(ctx: MutationCtx, conversationId: Id<"conversations">, turn: { reply: Doc<"messages">; prompt: Doc<"messages"> | null }): Promise<boolean> {
-  let prompt = turn.prompt ?? latestPrompt(await userRowsBefore(ctx, conversationId, turn.reply.timestamp));
+async function turnWasAsked(
+  ctx: MutationCtx,
+  conversationId: Id<"conversations">,
+  turn: { reply: Doc<"messages">; prompt: Doc<"messages"> | null },
+): Promise<boolean> {
+  let prompt =
+    turn.prompt ??
+    latestPrompt(
+      await userRowsBefore(ctx, conversationId, turn.reply.timestamp),
+    );
   for (let hop = 0; prompt && hop < 3; hop++) {
     const ids = reportedWorkIds(prompt.content);
     if (ids.length === 0) return isAskDelivery(prompt.content);
     const earlier = await userRowsBefore(ctx, conversationId, prompt.timestamp);
     let start = earlier.length - 1;
-    while (start >= 0 && !earlier[start].tool_results?.some((r) => ids.some((id) => r.content.includes(id)))) start--;
+    while (
+      start >= 0 &&
+      !earlier[start].tool_results?.some((r) =>
+        ids.some((id) => r.content.includes(id)),
+      )
+    )
+      start--;
     prompt = start < 0 ? null : latestPrompt(earlier.slice(start + 1));
   }
   return false;
 }
 
 /** The session's user rows before a moment, newest first. */
-function userRowsBefore(ctx: MutationCtx, conversationId: Id<"conversations">, before: number): Promise<Doc<"messages">[]> {
+function userRowsBefore(
+  ctx: MutationCtx,
+  conversationId: Id<"conversations">,
+  before: number,
+): Promise<Doc<"messages">[]> {
   return ctx.db
     .query("messages")
     .withIndex("by_conversation_role_timestamp", (q) =>
-      q.eq("conversation_id", conversationId).eq("role", "user").lt("timestamp", before),
+      q
+        .eq("conversation_id", conversationId)
+        .eq("role", "user")
+        .lt("timestamp", before),
     )
     .order("desc")
     .take(ORIGIN_SCAN);
@@ -398,11 +499,16 @@ function latestPrompt(rows: Doc<"messages">[]): Doc<"messages"> | null {
  *  have ended between the settle and now; then the feed row is already gone
  *  and there is nothing to do. */
 export const mirrorAgentTurn = internalMutation({
-  args: { conversation_id: v.id("conversations"), attempt: v.optional(v.number()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    attempt: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const feed: Doc<"call_agent_feeds"> | null = await ctx.db
       .query("call_agent_feeds")
-      .withIndex("by_conversation", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .first();
     if (!feed) return { mirrored: false, reason: "not_fed" };
     const transcript = await ctx.db.get(feed.transcript_id);
@@ -415,7 +521,9 @@ export const mirrorAgentTurn = internalMutation({
     // next words over at once but mirrors a beat later, so a quick next turn
     // (a [pass] to those words) can land first; reading only the newest reply
     // let it bury the one before. With no watermark yet, only the newest turn.
-    const seen = feed.last_mirrored_message_id ? await ctx.db.get(feed.last_mirrored_message_id) : null;
+    const seen = feed.last_mirrored_message_id
+      ? await ctx.db.get(feed.last_mirrored_message_id)
+      : null;
     let since = seen?.timestamp;
     if (since === undefined) {
       const recent = await ctx.db
@@ -440,12 +548,19 @@ export const mirrorAgentTurn = internalMutation({
     const attempt = args.attempt ?? 0;
     if (replies.length === 0) {
       if (attempt + 1 < MIRROR_ATTEMPTS) {
-        await ctx.scheduler.runAfter(MIRROR_RETRY_MS, internal.callChat.mirrorAgentTurn, {
-          conversation_id: args.conversation_id,
-          attempt: attempt + 1,
-        });
+        await ctx.scheduler.runAfter(
+          MIRROR_RETRY_MS,
+          internal.callChat.mirrorAgentTurn,
+          {
+            conversation_id: args.conversation_id,
+            attempt: attempt + 1,
+          },
+        );
       }
-      return { mirrored: false, reason: seen ? "already_mirrored" : "no_words" };
+      return {
+        mirrored: false,
+        reason: seen ? "already_mirrored" : "no_words",
+      };
     }
     // A turn that passed is seen, and the room gets nothing for it.
     const posted = replies.filter((m) => !isHuddlePass(m.content));
@@ -460,7 +575,9 @@ export const mirrorAgentTurn = internalMutation({
         transcript_id: feed.transcript_id,
       });
     }
-    await ctx.db.patch(feed._id, { last_mirrored_message_id: replies[replies.length - 1]._id });
+    await ctx.db.patch(feed._id, {
+      last_mirrored_message_id: replies[replies.length - 1]._id,
+    });
     if (posted.length === 0) return { mirrored: false, reason: "passed" };
     // A meeting on another platform has its own chat, where its people
     // actually are: the bot says the reply there too (meetingBots.sayInMeeting).
@@ -476,7 +593,11 @@ export const mirrorAgentTurn = internalMutation({
     const spoken: string[] = [];
     if ((feed.addressed_at ?? 0) > Date.now() - ASKED_TELL_MS) {
       for (const t of turns) {
-        if (!isHuddlePass(t.reply.content) && (await turnWasAsked(ctx, args.conversation_id, t))) spoken.push(t.reply.content ?? "");
+        if (
+          !isHuddlePass(t.reply.content) &&
+          (await turnWasAsked(ctx, args.conversation_id, t))
+        )
+          spoken.push(t.reply.content ?? "");
       }
     }
     if (spoken.length) await scheduleFaceTell(ctx, feed, spoken);
@@ -490,16 +611,25 @@ export const mirrorAgentTurn = internalMutation({
  *  it worked (transcripts.deliverRoutes holds them for a busy agent) are
  *  delivered now as one catch up. One indexed read on the hot path;
  *  everything else runs later. */
-export async function scheduleFedSessionSettle(ctx: any, conversationId: Id<"conversations">): Promise<boolean> {
+export async function scheduleFedSessionSettle(
+  ctx: any,
+  conversationId: Id<"conversations">,
+): Promise<boolean> {
   const feed = await ctx.db
     .query("call_agent_feeds")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .first();
   if (!feed) return false;
-  await ctx.scheduler.runAfter(MIRROR_DELAY_MS, internal.callChat.mirrorAgentTurn, {
-    conversation_id: conversationId,
-    attempt: 0,
-  });
+  await ctx.scheduler.runAfter(
+    MIRROR_DELAY_MS,
+    internal.callChat.mirrorAgentTurn,
+    {
+      conversation_id: conversationId,
+      attempt: 0,
+    },
+  );
   await ctx.scheduler.runAfter(0, internal.transcripts.deliverRoutes, {
     transcript_id: feed.transcript_id,
     include_after_routes: false,

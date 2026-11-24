@@ -127,7 +127,10 @@ const HIDDEN_VALUES_SOURCE = (all: boolean) => `(() => {
 
 /** One synchronous expression for the engine's `eval`: installs the clock if
  *  the page has none, reads it, and lists the values to hide. */
-export function settleProbeSource(redactAllValues = false, refName?: string): string {
+export function settleProbeSource(
+  redactAllValues = false,
+  refName?: string,
+): string {
   return `(() => {
   const fresh = !(window.__castSettle && window.__castSettle.gone);
   ${MUTATION_CLOCK_SOURCE};
@@ -190,17 +193,22 @@ export const MAX_CAPTURES = 3;
 export function parseSettleProbe(stdout: string): SettleProbe | null {
   try {
     let v: unknown = JSON.parse(stdout.trim());
-    if (v && typeof v === "object" && "data" in (v as object)) v = (v as { data: { result?: unknown } }).data?.result;
+    if (v && typeof v === "object" && "data" in (v as object))
+      v = (v as { data: { result?: unknown } }).data?.result;
     if (typeof v === "string") v = JSON.parse(v);
     const p = v as Partial<SettleProbe>;
-    if (!p || typeof p.url !== "string" || typeof p.sinceLoad !== "number") return null;
+    if (!p || typeof p.url !== "string" || typeof p.sinceLoad !== "number")
+      return null;
     return {
       url: p.url,
       sinceLoad: p.sinceLoad,
-      sinceMutation: typeof p.sinceMutation === "number" ? p.sinceMutation : null,
+      sinceMutation:
+        typeof p.sinceMutation === "number" ? p.sinceMutation : null,
       doc: typeof p.doc === "string" ? p.doc : null,
       goneAt: typeof p.goneAt === "number" ? p.goneAt : null,
-      hidden: Array.isArray(p.hidden) ? p.hidden.filter((v): v is string => typeof v === "string") : [],
+      hidden: Array.isArray(p.hidden)
+        ? p.hidden.filter((v): v is string => typeof v === "string")
+        : [],
     };
   } catch {
     return null;
@@ -216,7 +224,10 @@ export function parseSettleProbe(stdout: string): SettleProbe | null {
  *   - `unknown`: the clock was just installed; take a first look.
  *   - `stable`: nothing moved.
  */
-export function judgeCapture(probe: SettleProbe, elapsedMs: number): "navigated" | "mutated" | "unknown" | "stable" {
+export function judgeCapture(
+  probe: SettleProbe,
+  elapsedMs: number,
+): "navigated" | "mutated" | "unknown" | "stable" {
   if (probe.sinceLoad < elapsedMs) return "navigated";
   if (probe.sinceMutation === null) return "unknown";
   return probe.sinceMutation < elapsedMs ? "mutated" : "stable";
@@ -253,7 +264,9 @@ export interface SettledCapture<R extends CaptureRun> {
  * Synchronous because its callers are (findRefs, stale-ref recovery); the
  * waits are tens of milliseconds and only happen on a page that is changing.
  */
-export function captureSettled<R extends CaptureRun>(deps: SettleDeps<R>): SettledCapture<R> {
+export function captureSettled<R extends CaptureRun>(
+  deps: SettleDeps<R>,
+): SettledCapture<R> {
   let settledOnce = false;
   for (let captures = 1; ; captures++) {
     const began = deps.now();
@@ -261,7 +274,12 @@ export function captureSettled<R extends CaptureRun>(deps: SettleDeps<R>): Settl
     if (res.status !== 0) return { res, page: null, hidden: [], captures };
     const probe = deps.probe();
     if (!probe) return { res, page: null, hidden: [], captures };
-    const kept = { res, page: pageStamp(probe), hidden: probe.hidden, captures };
+    const kept = {
+      res,
+      page: pageStamp(probe),
+      hidden: probe.hidden,
+      captures,
+    };
     const verdict = judgeCapture(probe, deps.now() - began);
     if (verdict === "navigated") {
       if (captures >= MAX_CAPTURES) return { ...kept, navigating: true };
@@ -281,7 +299,10 @@ export function captureSettled<R extends CaptureRun>(deps: SettleDeps<R>): Settl
  * Returns whether the page changed at all while being watched (on a first
  * look, nothing changing means the capture already stands).
  */
-function waitForQuiet<R extends CaptureRun>(deps: SettleDeps<R>, firstLook: boolean): boolean {
+function waitForQuiet<R extends CaptureRun>(
+  deps: SettleDeps<R>,
+  firstLook: boolean,
+): boolean {
   const start = deps.now();
   let moved = !firstLook;
   let wait = firstLook ? FIRST_LOOK_MS : QUIET_MS;

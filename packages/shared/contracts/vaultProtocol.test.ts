@@ -55,8 +55,19 @@ describe("vaultFileKind", () => {
   });
 
   test("the kinds partition: every path is exactly one of them", () => {
-    for (const p of ["a.md", "a.png", "a.ts", "a.bin", "Makefile", ".gitignore"]) {
-      const flags = [isVaultMarkdownPath(p), isVaultAssetPath(p), isVaultTextPath(p)];
+    for (const p of [
+      "a.md",
+      "a.png",
+      "a.ts",
+      "a.bin",
+      "Makefile",
+      ".gitignore",
+    ]) {
+      const flags = [
+        isVaultMarkdownPath(p),
+        isVaultAssetPath(p),
+        isVaultTextPath(p),
+      ];
       const kind = vaultFileKind(p);
       // A path may match more than one predicate (".md" is not text, but a
       // future overlap must not change what kind() answers), so assert the

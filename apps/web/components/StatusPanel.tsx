@@ -25,17 +25,40 @@ export function StatusPanelHeader({
 }) {
   return (
     <div className="px-3 pt-2 pb-2">
-      <div className="text-mark font-semibold uppercase tracking-wider text-sol-text-dim">{kicker}</div>
-      <div className="flex items-center gap-2 pt-1">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
-        <span className="min-w-0 truncate text-xs font-semibold text-sol-text">{headline}</span>
-        {aside && <span className="ml-auto shrink-0 tabular-nums text-meta font-normal text-sol-text-dim">{aside}</span>}
+      <div className="text-mark font-semibold uppercase tracking-wider text-sol-text-dim">
+        {kicker}
       </div>
-      {sub && <div className="truncate pl-3.5 text-meta text-sol-text-dim">{sub}</div>}
+      <div className="flex items-center gap-2 pt-1">
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ background: color }}
+        />
+        <span className="min-w-0 truncate text-xs font-semibold text-sol-text">
+          {headline}
+        </span>
+        {aside && (
+          <span className="ml-auto shrink-0 tabular-nums text-meta font-normal text-sol-text-dim">
+            {aside}
+          </span>
+        )}
+      </div>
+      {sub && (
+        <div className="truncate pl-3.5 text-meta text-sol-text-dim">{sub}</div>
+      )}
     </div>
   );
 }
 
-export function StatusPanelSection({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("border-t border-sol-border/60 px-3 py-2", className)}>{children}</div>;
+export function StatusPanelSection({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("border-t border-sol-border/60 px-3 py-2", className)}>
+      {children}
+    </div>
+  );
 }

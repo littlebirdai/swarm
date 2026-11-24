@@ -56,7 +56,7 @@ Every line carries the words of the person who said it. Propose; never apply.
   where it happens and draft the one-line event it would post, without
   shipping it.
 - **One extractor per kind** (`.codecast/moments/<kind>.ts`; `cast flow
-  judges try --help` shows both file shapes). It reads the product's read-only
+judges try --help` shows both file shapes). It reads the product's read-only
   data and prints everything a judge needs to decide and nothing it does not:
   what each side said, when, through which channel, whether it was delivered,
   and the facts an expectation turns on (what was promised, what was due). A

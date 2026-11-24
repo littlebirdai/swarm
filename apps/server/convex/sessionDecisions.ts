@@ -18,25 +18,54 @@ import { mutation, query, internalMutation } from "./functions";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
-import { canAccessConversation, canAccessTask, computeWorkspaceKey } from "./lib/access";
+import {
+  canAccessConversation,
+  canAccessTask,
+  computeWorkspaceKey,
+} from "./lib/access";
 import { isTeamMember, teamVisibleConvTeam } from "./privacy";
 import { withDecisionFacts } from "./lib/decisionRowFacts";
 import { decisionTeamOf } from "./lib/decisionTeam";
-import { pickAnsweredDecision, formatDecisionAnswer, decisionAnswerClientId, advisoryAnswerOpen, isHostedAgentType } from "@codecast/shared/contracts";
+import {
+  pickAnsweredDecision,
+  formatDecisionAnswer,
+  decisionAnswerClientId,
+  advisoryAnswerOpen,
+  isHostedAgentType,
+} from "@codecast/shared/contracts";
 import type { Doc, Id } from "./_generated/dataModel";
 import { emitNotification } from "./notificationRouter";
 import { nextShortId } from "./counters";
 import { internal } from "./_generated/api";
-import { enqueuePendingMessage, reachableRole, tellRole, wakeHostedConversation } from "./pendingMessages";
+import {
+  enqueuePendingMessage,
+  reachableRole,
+  tellRole,
+  wakeHostedConversation,
+} from "./pendingMessages";
 import { roleStartsOnItsOwn } from "./lib/orgCaps";
 import { roleOfConversation } from "./lib/actor";
-import { headOfPeopleIn, projectLeadRole, userCanAccessRole, userCanAdminRole } from "./lib/orgAccess";
+import {
+  headOfPeopleIn,
+  projectLeadRole,
+  userCanAccessRole,
+  userCanAdminRole,
+} from "./lib/orgAccess";
 import { findDecision, userMayRead } from "./lib/decisionAccess";
 import { gateMirror, gateResponseOf, optionMoves } from "./lib/gateChoices";
-import { categoryFor, isHumanOnlyCategory, isProtectedCategory } from "./lib/decisionCategory";
+import {
+  categoryFor,
+  isHumanOnlyCategory,
+  isProtectedCategory,
+} from "./lib/decisionCategory";
 import { syncDecisionInbox } from "./lib/decisionInbox";
 import { settleDecisionWaiting } from "./lib/decisionRing";
-import { answerLabel, normalizeVerdict, verdictOfRow, type Verdict } from "./lib/decisionVerdict";
+import {
+  answerLabel,
+  normalizeVerdict,
+  verdictOfRow,
+  type Verdict,
+} from "./lib/decisionVerdict";
 import { noticeAreaOwner, routeByArea } from "./decisionRouting";
 import { settleAreasCard } from "./decisionAreas";
 export { syncDecisionInbox };
@@ -45,22 +74,58 @@ import { humanStarterUser, listSessionOwnerIds } from "./sessionOwners";
 import { resolveAskedPeople } from "./lib/decisionAudience";
 import { learnFromCardGate } from "./lineLearn";
 import { settleCardWaiting } from "./lineNotices";
-import { gateTrialPages, runOfStation, settleTrialCard, trialDeciderOf, trialProjectOf, trialStackOf, trialStationOf } from "./lib/trialDecision";
-import { linkProposalDecision, proposalToAsk, settleExpectationCard } from "./lib/expectationsApply";
-import { pendingApproval, secretApprovalRefusal, settleSecretApproval } from "./lib/secretApprovals";
-import { applyCommandRunReport, commandRunRefusal, settleCommandRun } from "./lib/commandRuns";
-import { RUN_OPTION, RUN_OPTIONS, parseRunCommand, type CommandRun } from "@codecast/shared/contracts/commandRun";
+import {
+  gateTrialPages,
+  runOfStation,
+  settleTrialCard,
+  trialDeciderOf,
+  trialProjectOf,
+  trialStackOf,
+  trialStationOf,
+} from "./lib/trialDecision";
+import {
+  linkProposalDecision,
+  proposalToAsk,
+  settleExpectationCard,
+} from "./lib/expectationsApply";
+import {
+  pendingApproval,
+  secretApprovalRefusal,
+  settleSecretApproval,
+} from "./lib/secretApprovals";
+import {
+  applyCommandRunReport,
+  commandRunRefusal,
+  settleCommandRun,
+} from "./lib/commandRuns";
+import {
+  RUN_OPTION,
+  RUN_OPTIONS,
+  parseRunCommand,
+  type CommandRun,
+} from "@codecast/shared/contracts/commandRun";
 import { proposalAnswersError } from "@codecast/shared/contracts/expectations";
 import { invalidImpact } from "@codecast/shared/contracts/decisionImpact";
 import { reopenTaskWaits, scheduleDecisionSettle } from "./taskWaits";
-import { currentDecisions, decisionSuperseded, newLineMemo, type LineMemo } from "./lib/superseded";
-import { CARD_GATE_NODE_ID, validateChangeCard, type ChangeCard } from "@codecast/shared/contracts/changeCard";
+import {
+  currentDecisions,
+  decisionSuperseded,
+  newLineMemo,
+  type LineMemo,
+} from "./lib/superseded";
+import {
+  CARD_GATE_NODE_ID,
+  validateChangeCard,
+  type ChangeCard,
+} from "@codecast/shared/contracts/changeCard";
 
 export const optionValidator = v.object({
   label: v.string(),
   description: v.optional(v.string()),
   body_md: v.optional(v.string()),
-  evidence: v.optional(v.array(v.object({ label: v.string(), url: v.string() }))),
+  evidence: v.optional(
+    v.array(v.object({ label: v.string(), url: v.string() })),
+  ),
   cost: v.optional(v.string()),
   risk: v.optional(v.string()),
   // A published page of its own (the-line.md L6), rendered as a comparison row.
@@ -72,13 +137,23 @@ export const formValidator = v.object({
     v.object({
       key: v.string(),
       label: v.string(),
-      type: v.union(v.literal("text"), v.literal("number"), v.literal("select"), v.literal("bool")),
+      type: v.union(
+        v.literal("text"),
+        v.literal("number"),
+        v.literal("select"),
+        v.literal("bool"),
+      ),
       options: v.optional(v.array(v.string())),
-    })
+    }),
   ),
 });
 
-export const kindValidator = v.union(v.literal("single"), v.literal("multi"), v.literal("rank"), v.literal("form"));
+export const kindValidator = v.union(
+  v.literal("single"),
+  v.literal("multi"),
+  v.literal("rank"),
+  v.literal("form"),
+);
 
 type DecisionKind = "single" | "multi" | "rank" | "form";
 type DecisionRow = Doc<"session_decisions">;
@@ -122,7 +197,10 @@ async function findTask(ctx: Ctx, ref: string): Promise<any | null> {
   return id ? await ctx.db.get(id) : null;
 }
 
-export async function findStack(ctx: Ctx, ref: string): Promise<Doc<"decision_stacks"> | null> {
+export async function findStack(
+  ctx: Ctx,
+  ref: string,
+): Promise<Doc<"decision_stacks"> | null> {
   if (/^ds-\d+$/.test(ref)) {
     return (
       (await ctx.db
@@ -143,23 +221,33 @@ export async function resolveDecisionBindings(
   ctx: Ctx,
   userId: Id<"users">,
   refs: { task?: string; stack?: string },
-  opts: { write?: boolean } = {}
-): Promise<{ task: any | null; stack: Doc<"decision_stacks"> | null } | { error: string }> {
+  opts: { write?: boolean } = {},
+): Promise<
+  { task: any | null; stack: Doc<"decision_stacks"> | null } | { error: string }
+> {
   let task: any = null;
   if (refs.task) {
     task = await findTask(ctx, refs.task);
     if (!task) return { error: `Task not found: ${refs.task}` };
-    if (!(await canAccessTask(ctx, userId, task))) return { error: `Task not accessible: ${refs.task}` };
+    if (!(await canAccessTask(ctx, userId, task)))
+      return { error: `Task not accessible: ${refs.task}` };
   }
   let stack: Doc<"decision_stacks"> | null = null;
   if (refs.stack) {
     // Short ids are sequential, so a bare lookup would list any team's stack.
     stack = await findStack(ctx, refs.stack);
     if (!stack) return { error: `Stack not found: ${refs.stack}` };
-    if (!(await userCanAccessRole(ctx, userId, { host_user_id: stack.owner_user_id, scope_user_id: stack.scope_user_id, team_id: stack.team_id }))) {
+    if (
+      !(await userCanAccessRole(ctx, userId, {
+        host_user_id: stack.owner_user_id,
+        scope_user_id: stack.scope_user_id,
+        team_id: stack.team_id,
+      }))
+    ) {
       return { error: `Stack not accessible: ${refs.stack}` };
     }
-    if (opts.write && stack.status === "done") return { error: `Stack ${stack.short_id} is done; create a new one` };
+    if (opts.write && stack.status === "done")
+      return { error: `Stack ${stack.short_id} is done; create a new one` };
   }
   return { task, stack };
 }
@@ -170,16 +258,31 @@ export async function resolveDecisionBindings(
 export async function joinStack(
   ctx: Ctx,
   stack: Doc<"decision_stacks">,
-  row: { _id: Id<"session_decisions">; stack_id?: Id<"decision_stacks">; scope_keys?: string[] },
-  now: number
-): Promise<{ stack_id?: Id<"decision_stacks">; stack_joined_at?: number; scope_keys?: string[] }> {
+  row: {
+    _id: Id<"session_decisions">;
+    stack_id?: Id<"decision_stacks">;
+    scope_keys?: string[];
+  },
+  now: number,
+): Promise<{
+  stack_id?: Id<"decision_stacks">;
+  stack_joined_at?: number;
+  scope_keys?: string[];
+}> {
   if (!stack.decision_ids.includes(row._id)) {
-    await ctx.db.patch(stack._id, { decision_ids: [...stack.decision_ids, row._id], updated_at: now });
+    await ctx.db.patch(stack._id, {
+      decision_ids: [...stack.decision_ids, row._id],
+      updated_at: now,
+    });
   }
   if (row.stack_id === stack._id) return {};
   const key = `stack:${stack._id}`;
   const keys = row.scope_keys ?? [];
-  return { stack_id: stack._id, stack_joined_at: now, scope_keys: keys.includes(key) ? keys : [...keys, key] };
+  return {
+    stack_id: stack._id,
+    stack_joined_at: now,
+    scope_keys: keys.includes(key) ? keys : [...keys, key],
+  };
 }
 
 // ── People, ladder, holder ────────────────────────────────────────────────────
@@ -188,7 +291,13 @@ export async function joinStack(
 // (a standing session; that field may not exist yet on every deployment).
 export { roleOfConversation } from "./lib/actor";
 
-type Hop = { role_id: Id<"org_roles">; recommendation?: number; note?: string; at: number; passed_at?: number };
+type Hop = {
+  role_id: Id<"org_roles">;
+  recommendation?: number;
+  note?: string;
+  at: number;
+  passed_at?: number;
+};
 
 // A decision's options rewritten (a re-ask, cast decide edit): what names an
 // option by position follows it by its words. A role's recommendation moves to
@@ -197,17 +306,38 @@ type Hop = { role_id: Id<"org_roles">; recommendation?: number; note?: string; a
 // its option names. sd-2373 was re-asked with Ship moved from 1 to 2, the run
 // read the answer 1 by position as Ship, and the ladder still said
 // "recommends 1" beside a Ship note.
-async function followOptions(ctx: Ctx, row: DecisionRow, options: DecisionRow["options"], now: number): Promise<{ hops?: Hop[] }> {
-  if (JSON.stringify(row.options.map((o) => o.label)) === JSON.stringify(options.map((o) => o.label))) return {};
+async function followOptions(
+  ctx: Ctx,
+  row: DecisionRow,
+  options: DecisionRow["options"],
+  now: number,
+): Promise<{ hops?: Hop[] }> {
+  if (
+    JSON.stringify(row.options.map((o) => o.label)) ===
+    JSON.stringify(options.map((o) => o.label))
+  )
+    return {};
   if (row.workflow_run_id) {
     const run = await ctx.db.get(row.workflow_run_id);
-    if (run?.gate_choices && String(run.gate_decision_id ?? "") === String(row._id)) {
-      await ctx.db.patch(run._id, { gate_choices: gateMirror(options, run.gate_choices), updated_at: now });
+    if (
+      run?.gate_choices &&
+      String(run.gate_decision_id ?? "") === String(row._id)
+    ) {
+      await ctx.db.patch(run._id, {
+        gate_choices: gateMirror(options, run.gate_choices),
+        updated_at: now,
+      });
     }
   }
   if (!row.hops?.some((h: Hop) => h.recommendation !== undefined)) return {};
   const moves = optionMoves(row.options, options);
-  return { hops: row.hops.map((h: Hop) => (h.recommendation === undefined ? h : { ...h, recommendation: moves[h.recommendation] })) };
+  return {
+    hops: row.hops.map((h: Hop) =>
+      h.recommendation === undefined
+        ? h
+        : { ...h, recommendation: moves[h.recommendation] },
+    ),
+  };
 }
 
 // A card the presenting station of a run posts is the run's current card at once, before any
@@ -217,14 +347,33 @@ async function followOptions(ctx: Ctx, row: DecisionRow, options: DecisionRow["o
 // answered card (sd-1676, Ship), and everything that follows the row's card
 // followed that Ship. The row names the new card and drops the old answer; the
 // gate aligns the card's options when it pauses on it (pauseAtGateCore).
-async function followStationCard(ctx: Ctx, conversation: Doc<"conversations">, id: Id<"session_decisions">, now: number): Promise<void> {
-  const runId = (conversation as any).workflow_run_id as Id<"workflow_runs"> | undefined;
+async function followStationCard(
+  ctx: Ctx,
+  conversation: Doc<"conversations">,
+  id: Id<"session_decisions">,
+  now: number,
+): Promise<void> {
+  const runId = (conversation as any).workflow_run_id as
+    | Id<"workflow_runs">
+    | undefined;
   if (!runId) return;
   const run = await ctx.db.get(runId);
-  if (!run || run.status === "paused" || run.status === "completed" || !run.gate_decision_id || String(run.gate_decision_id) === String(id)) return;
+  if (
+    !run ||
+    run.status === "paused" ||
+    run.status === "completed" ||
+    !run.gate_decision_id ||
+    String(run.gate_decision_id) === String(id)
+  )
+    return;
   const previous = await ctx.db.get(run.gate_decision_id);
   // Only the station that presented the run's card replaces it; another station's question is not the run's card.
-  if (!previous || previous.status === "pending" || String(previous.conversation_id) !== String(conversation._id)) return;
+  if (
+    !previous ||
+    previous.status === "pending" ||
+    String(previous.conversation_id) !== String(conversation._id)
+  )
+    return;
   // A gate with a stack keeps its stack through the new card, as adopting it would.
   const stack = previous.stack_id ? await ctx.db.get(previous.stack_id) : null;
   if (stack) {
@@ -234,7 +383,12 @@ async function followStationCard(ctx: Ctx, conversation: Doc<"conversations">, i
       if ("stack_id" in joined) await ctx.db.patch(id, joined);
     }
   }
-  await ctx.db.patch(run._id, { gate_decision_id: id, gate_response: undefined, gate_choices: undefined, updated_at: now });
+  await ctx.db.patch(run._id, {
+    gate_decision_id: id,
+    gate_response: undefined,
+    gate_choices: undefined,
+    updated_at: now,
+  });
 }
 
 // A card a session withdrew and then asked again as a new decision on the
@@ -242,17 +396,39 @@ async function followStationCard(ctx: Ctx, conversation: Doc<"conversations">, i
 // recommendation moves to the option that says the same words, with its note,
 // and is left out when no option does. Without it every repost started the
 // ladder over (sd-2514 to sd-2517, sd-2376 to sd-2516, sd-2513 to sd-2528).
-async function carriedHops(ctx: Ctx, conversationId: Id<"conversations">, taskId: Id<"tasks"> | undefined, options: DecisionRow["options"], hops: Hop[]): Promise<Hop[]> {
+async function carriedHops(
+  ctx: Ctx,
+  conversationId: Id<"conversations">,
+  taskId: Id<"tasks"> | undefined,
+  options: DecisionRow["options"],
+  hops: Hop[],
+): Promise<Hop[]> {
   if (!taskId || !hops.length) return hops;
-  const withdrawn = await ctx.db.query("session_decisions").withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversationId).eq("status", "withdrawn")).collect();
-  const last = withdrawn.filter((d: any) => String(d.task_id ?? "") === String(taskId)).sort((a: any, b: any) => (b.resolved_at ?? b.created_at) - (a.resolved_at ?? a.created_at))[0];
-  const said = (last?.hops ?? []).filter((h: Hop) => h.recommendation !== undefined);
+  const withdrawn = await ctx.db
+    .query("session_decisions")
+    .withIndex("by_conversation_status", (q: any) =>
+      q.eq("conversation_id", conversationId).eq("status", "withdrawn"),
+    )
+    .collect();
+  const last = withdrawn
+    .filter((d: any) => String(d.task_id ?? "") === String(taskId))
+    .sort(
+      (a: any, b: any) =>
+        (b.resolved_at ?? b.created_at) - (a.resolved_at ?? a.created_at),
+    )[0];
+  const said = (last?.hops ?? []).filter(
+    (h: Hop) => h.recommendation !== undefined,
+  );
   if (!said.length) return hops;
   const moves = optionMoves(last!.options, options);
   return hops.map((h) => {
-    const before = said.find((o: Hop) => String(o.role_id) === String(h.role_id));
+    const before = said.find(
+      (o: Hop) => String(o.role_id) === String(h.role_id),
+    );
     const at = before ? moves[before.recommendation!] : undefined;
-    return before && at !== undefined ? { ...h, recommendation: at, note: before.note, at: before.at } : h;
+    return before && at !== undefined
+      ? { ...h, recommendation: at, note: before.note, at: before.at }
+      : h;
   });
 }
 
@@ -263,7 +439,11 @@ export async function buildLadder(
   ctx: Ctx,
   startRole: Doc<"org_roles"> | null,
   now: number,
-): Promise<{ hops: Hop[]; firstPersonId?: Id<"users">; activeRoles: Doc<"org_roles">[] }> {
+): Promise<{
+  hops: Hop[];
+  firstPersonId?: Id<"users">;
+  activeRoles: Doc<"org_roles">[];
+}> {
   const hops: Hop[] = [];
   const activeRoles: Doc<"org_roles">[] = [];
   const seen = new Set<string>();
@@ -297,13 +477,19 @@ export async function buildLadder(
 // wants them in (routeFor): the first person above a hand's role, so a
 // manager sees questions from work that reports to them, and the person a
 // lead's role reports to, who may not be the host its seat runs on.
-export async function peopleFor(ctx: Ctx, conversation: any, firstPersonId?: Id<"users">): Promise<Id<"users">[]> {
+export async function peopleFor(
+  ctx: Ctx,
+  conversation: any,
+  firstPersonId?: Id<"users">,
+): Promise<Id<"users">[]> {
   const owners = await listSessionOwnerIds(ctx, conversation._id);
   // The join table is canonical. A stale owner_user_id cache (the runner
   // after the seat was assigned away) must not keep questions on that person.
   const ids: Id<"users">[] = [...owners];
   if (ids.length === 0) {
-    const implicit = conversation.owner_user_id ?? (await humanStarterUser(ctx, conversation))?._id;
+    const implicit =
+      conversation.owner_user_id ??
+      (await humanStarterUser(ctx, conversation))?._id;
     if (implicit) ids.push(implicit);
   }
   if (firstPersonId) ids.push(firstPersonId);
@@ -332,7 +518,13 @@ export async function peopleFor(ctx: Ctx, conversation: any, firstPersonId?: Id<
 // a ladder: `trial: "owner"` is the trial owner's practice answer, in nobody's
 // queue. A judge-route run's decision is the role the trial names for that
 // route (`trial: "role"`, trialDeciderOf): it climbs that role's line alone.
-export async function routeFor(ctx: Ctx, conversation: any, now: number, task?: any, asStation?: any): Promise<{
+export async function routeFor(
+  ctx: Ctx,
+  conversation: any,
+  now: number,
+  task?: any,
+  asStation?: any,
+): Promise<{
   role: Doc<"org_roles"> | null;
   ladder: Awaited<ReturnType<typeof buildLadder>>;
   people: Id<"users">[];
@@ -342,29 +534,78 @@ export async function routeFor(ctx: Ctx, conversation: any, now: number, task?: 
   // A hosted conversation's question is its owner's alone (hostedAnswerRefusal):
   // no role hears it and nobody else is asked.
   if (isHostedAgentType(conversation.agent_type)) {
-    return { role: null, ladder: await buildLadder(ctx, null, now), people: [conversation.user_id as Id<"users">], hears: null, trial: null };
+    return {
+      role: null,
+      ladder: await buildLadder(ctx, null, now),
+      people: [conversation.user_id as Id<"users">],
+      hears: null,
+      trial: null,
+    };
   }
-  const station = (await trialStationOf(ctx, conversation)) ?? (asStation ? await trialStationOf(ctx, asStation) : null);
-  const decider = station ? await trialDeciderOf(ctx, station.project, station.run) : null;
-  if (decider) return { role: await roleOfConversation(ctx, conversation), ...(await routeToRole(ctx, decider, now)), trial: "role" };
+  const station =
+    (await trialStationOf(ctx, conversation)) ??
+    (asStation ? await trialStationOf(ctx, asStation) : null);
+  const decider = station
+    ? await trialDeciderOf(ctx, station.project, station.run)
+    : null;
+  if (decider)
+    return {
+      role: await roleOfConversation(ctx, conversation),
+      ...(await routeToRole(ctx, decider, now)),
+      trial: "role",
+    };
   const routed = await routeForSession(ctx, conversation, now, task);
-  return station ? { ...routed, ladder: { ...routed.ladder, activeRoles: [], hops: [] }, hears: null, trial: "owner" } : { ...routed, trial: null };
+  return station
+    ? {
+        ...routed,
+        ladder: { ...routed.ladder, activeRoles: [], hops: [] },
+        hears: null,
+        trial: "owner",
+      }
+    : { ...routed, trial: null };
 }
 
-async function routeForSession(ctx: Ctx, conversation: any, now: number, task?: any) {
+async function routeForSession(
+  ctx: Ctx,
+  conversation: any,
+  now: number,
+  task?: any,
+) {
   const role = await roleOfConversation(ctx, conversation);
   const parent = conversation.standing_role_id ? role?.reports_to : undefined;
-  const first = parent ? (parent.kind === "role" ? await ctx.db.get(parent.role_id) : null) : role;
+  const first = parent
+    ? parent.kind === "role"
+      ? await ctx.db.get(parent.role_id)
+      : null
+    : role;
   const ladder = await buildLadder(ctx, first, now);
-  const people = await peopleFor(ctx, conversation, parent ? (parent.kind === "user" ? parent.user_id : undefined) : ladder.firstPersonId);
+  const people = await peopleFor(
+    ctx,
+    conversation,
+    parent
+      ? parent.kind === "user"
+        ? parent.user_id
+        : undefined
+      : ladder.firstPersonId,
+  );
   const hears = first && (await reachableRole(ctx, first._id)) ? first : null;
   if (people.length > 0) return { role, ladder, people, hears };
   const lead = await projectLeadRole(ctx, task);
   const leadLadder = lead ? await buildLadder(ctx, lead, now) : null;
   if (lead && leadLadder?.firstPersonId) {
-    return { role, ladder: leadLadder, people: [leadLadder.firstPersonId], hears: (await reachableRole(ctx, lead._id)) ? lead : null };
+    return {
+      role,
+      ladder: leadLadder,
+      people: [leadLadder.firstPersonId],
+      hears: (await reachableRole(ctx, lead._id)) ? lead : null,
+    };
   }
-  return { role, ladder, people: await workspaceAdmins(ctx, conversation.team_id), hears };
+  return {
+    role,
+    ladder,
+    people: await workspaceAdmins(ctx, conversation.team_id),
+    hears,
+  };
 }
 
 /**
@@ -373,15 +614,31 @@ async function routeForSession(ctx: Ctx, conversation: any, now: number, task?: 
  * under a grant, and hands it up its own line to the person that line ends at.
  * Nobody outside that line is asked.
  */
-export async function routeToRole(ctx: Ctx, role: Doc<"org_roles">, now: number) {
+export async function routeToRole(
+  ctx: Ctx,
+  role: Doc<"org_roles">,
+  now: number,
+) {
   const ladder = await buildLadder(ctx, role, now);
-  const people = ladder.firstPersonId ? [ladder.firstPersonId] : await workspaceAdmins(ctx, role.team_id);
-  return { ladder, people, hears: (await reachableRole(ctx, role._id)) ? role : null };
+  const people = ladder.firstPersonId
+    ? [ladder.firstPersonId]
+    : await workspaceAdmins(ctx, role.team_id);
+  return {
+    ladder,
+    people,
+    hears: (await reachableRole(ctx, role._id)) ? role : null,
+  };
 }
 
-async function workspaceAdmins(ctx: Ctx, teamId: Id<"teams"> | undefined): Promise<Id<"users">[]> {
+async function workspaceAdmins(
+  ctx: Ctx,
+  teamId: Id<"teams"> | undefined,
+): Promise<Id<"users">[]> {
   if (!teamId) return [];
-  const members = await ctx.db.query("team_memberships").withIndex("by_team_id", (q: any) => q.eq("team_id", teamId)).collect();
+  const members = await ctx.db
+    .query("team_memberships")
+    .withIndex("by_team_id", (q: any) => q.eq("team_id", teamId))
+    .collect();
   const admins: Id<"users">[] = [];
   for (const m of members) {
     if (m.role !== "admin") continue;
@@ -405,7 +662,9 @@ export async function reroutePendingDecisionsForConversation(
   // sessions would otherwise repeat for nothing.
   const openRows: DecisionRow[] = await ctx.db
     .query("session_decisions")
-    .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversationId).eq("status", "pending"))
+    .withIndex("by_conversation_status", (q: any) =>
+      q.eq("conversation_id", conversationId).eq("status", "pending"),
+    )
     .collect();
   if (openRows.length === 0) return { moved: 0 };
   const conversation = await ctx.db.get(conversationId);
@@ -419,22 +678,63 @@ export async function reroutePendingDecisionsForConversation(
 }
 
 /** One open decision routed again from its asking session: its people, inbox rows, ladder and holder. */
-export async function rerouteRow(ctx: Ctx, conversation: any, row: DecisionRow, now: number): Promise<void> {
+export async function rerouteRow(
+  ctx: Ctx,
+  conversation: any,
+  row: DecisionRow,
+  now: number,
+): Promise<void> {
   const task = row.task_id ? await ctx.db.get(row.task_id) : null;
   // A proposal's decision asked by another session keeps routing as the station that proposed it.
-  const proposal = await ctx.db.query("expectation_proposals").withIndex("by_decision", (q: any) => q.eq("decision_id", row._id)).first();
-  const asStation = proposal?.conversation_id && String(proposal.conversation_id) !== String(conversation._id) ? await ctx.db.get(proposal.conversation_id) : undefined;
-  const { role, people: chain, hears, ladder, trial } = await routeFor(ctx, conversation, now, task, asStation);
+  const proposal = await ctx.db
+    .query("expectation_proposals")
+    .withIndex("by_decision", (q: any) => q.eq("decision_id", row._id))
+    .first();
+  const asStation =
+    proposal?.conversation_id &&
+    String(proposal.conversation_id) !== String(conversation._id)
+      ? await ctx.db.get(proposal.conversation_id)
+      : undefined;
+  const {
+    role,
+    people: chain,
+    hears,
+    ladder,
+    trial,
+  } = await routeFor(ctx, conversation, now, task, asStation);
   // Shared out by area (decisionRouting.ts): its owner keeps it while they still cover its project.
-  const kept = row.holder?.kind === "user" ? (row.holder.id as Id<"users">) : row.asked_user_ids?.[0];
-  const areaOwner = await routeByArea(ctx, { conversation, task, role, category: row.category ?? "unknown", team_id: row.team_id, addressed: !!row.addressed, trial: trial ?? (row.trial ? "owner" : null), workflow_run_id: row.workflow_run_id, keep: kept, now });
+  const kept =
+    row.holder?.kind === "user"
+      ? (row.holder.id as Id<"users">)
+      : row.asked_user_ids?.[0];
+  const areaOwner = await routeByArea(ctx, {
+    conversation,
+    task,
+    role,
+    category: row.category ?? "unknown",
+    team_id: row.team_id,
+    addressed: !!row.addressed,
+    trial: trial ?? (row.trial ? "owner" : null),
+    workflow_run_id: row.workflow_run_id,
+    keep: kept,
+    now,
+  });
   const people = areaOwner ? [areaOwner] : chain;
   // A row asked with no ladder takes the one it now climbs, and its first
   // role hears; a row that has one keeps it and the recommendations on it.
   const climbs = !row.hops?.length && ladder.hops.length > 0;
-  await ctx.db.patch(row._id, { asked_user_ids: people, ...(climbs ? { hops: ladder.hops } : {}) });
+  await ctx.db.patch(row._id, {
+    asked_user_ids: people,
+    ...(climbs ? { hops: ladder.hops } : {}),
+  });
   const woken = climbs ? await tellHearingRole(ctx, hears, row, now) : [];
-  await syncDecisionInbox(ctx, row._id, people, now, trial !== "owner" && (!hears || (climbs && woken.length === 0)));
+  await syncDecisionInbox(
+    ctx,
+    row._id,
+    people,
+    now,
+    trial !== "owner" && (!hears || (climbs && woken.length === 0)),
+  );
   const updated = await ctx.db.get(row._id);
   if (updated) await refreshHolder(ctx, updated, now);
 }
@@ -447,8 +747,17 @@ export const restoreAskedPeople = internalMutation({
     const row = await findDecision(ctx, args.decision);
     if (!row || row.status !== "pending") return { restored: false };
     const now = Date.now();
-    await ctx.db.patch(row._id, { asked_user_ids: args.people, updated_at: now });
-    await syncDecisionInbox(ctx, row._id, args.people, now, !(row.trial && !row.hops?.length));
+    await ctx.db.patch(row._id, {
+      asked_user_ids: args.people,
+      updated_at: now,
+    });
+    await syncDecisionInbox(
+      ctx,
+      row._id,
+      args.people,
+      now,
+      !(row.trial && !row.hops?.length),
+    );
     const fresh = await ctx.db.get(row._id);
     if (fresh) await refreshHolder(ctx, fresh, now);
     return { restored: true };
@@ -476,7 +785,12 @@ export const rerouteDecisionsHeldByAgents = internalMutation({
       }
     }
     if (!args.dry_run) {
-      for (const id of conversations) await reroutePendingDecisionsForConversation(ctx, id as Id<"conversations">, Date.now());
+      for (const id of conversations)
+        await reroutePendingDecisionsForConversation(
+          ctx,
+          id as Id<"conversations">,
+          Date.now(),
+        );
     }
     return { held, conversations: conversations.size, dry_run: !!args.dry_run };
   },
@@ -484,7 +798,11 @@ export const rerouteDecisionsHeldByAgents = internalMutation({
 
 // The scope keys a grant may match for this decision: the asker's role and
 // its projects and plans, the task's project and plan, the stack.
-export function scopeKeysFor(role: Doc<"org_roles"> | null, task: any | null, stackId?: Id<"decision_stacks">): string[] {
+export function scopeKeysFor(
+  role: Doc<"org_roles"> | null,
+  task: any | null,
+  stackId?: Id<"decision_stacks">,
+): string[] {
   const keys: string[] = [];
   if (role) {
     keys.push(`role:${role._id}`);
@@ -512,9 +830,13 @@ export async function activeGrantFor(
   for (const roleId of roleIds) {
     const rows: Doc<"decision_grants">[] = await ctx.db
       .query("decision_grants")
-      .withIndex("by_role", (q: any) => q.eq("role_id", roleId).eq("category", category))
+      .withIndex("by_role", (q: any) =>
+        q.eq("role_id", roleId).eq("category", category),
+      )
       .collect();
-    const hit = rows.find((g) => grantIsLive(g, now) && scopeKeys.includes(g.scope_key));
+    const hit = rows.find(
+      (g) => grantIsLive(g, now) && scopeKeys.includes(g.scope_key),
+    );
     if (hit) return hit;
   }
   return null;
@@ -532,19 +854,36 @@ export async function resolveHolder(
     scopeKeys: string[];
     now: number;
   },
-): Promise<{ holder: { kind: "user" | "role"; id: string }; holder_key: string; grant: Doc<"decision_grants"> | null }> {
+): Promise<{
+  holder: { kind: "user" | "role"; id: string };
+  holder_key: string;
+  grant: Doc<"decision_grants"> | null;
+}> {
   const person = { kind: "user" as const, id: String(input.people[0]) };
   if (isHumanOnlyCategory(input.category) || input.roleIds.length === 0) {
     return { holder: person, holder_key: `user:${person.id}`, grant: null };
   }
-  const grant = await activeGrantFor(ctx, input.roleIds, input.category, input.scopeKeys, input.now);
+  const grant = await activeGrantFor(
+    ctx,
+    input.roleIds,
+    input.category,
+    input.scopeKeys,
+    input.now,
+  );
   if (grant) {
-    return { holder: { kind: "role", id: String(grant.role_id) }, holder_key: `role:${grant.role_id}`, grant };
+    return {
+      holder: { kind: "role", id: String(grant.role_id) },
+      holder_key: `role:${grant.role_id}`,
+      grant,
+    };
   }
   return { holder: person, holder_key: `user:${person.id}`, grant: null };
 }
 
-async function stackDelegateRoleId(ctx: Ctx, stackId: Id<"decision_stacks"> | undefined): Promise<Id<"org_roles"> | undefined> {
+async function stackDelegateRoleId(
+  ctx: Ctx,
+  stackId: Id<"decision_stacks"> | undefined,
+): Promise<Id<"org_roles"> | undefined> {
   if (!stackId) return undefined;
   const stack = await ctx.db.get(stackId);
   return stack?.policy?.delegate_role_id;
@@ -560,14 +899,22 @@ export async function refreshHolder(
 ): Promise<void> {
   if (row.passed_to) {
     const { kind, id } = row.passed_to;
-    await ctx.db.patch(row._id, { holder: { kind, id }, holder_key: `${kind}:${id}` });
+    await ctx.db.patch(row._id, {
+      holder: { kind, id },
+      holder_key: `${kind}:${id}`,
+    });
     return;
   }
   const excluded = new Set((opts.excludeRoleIds ?? []).map(String));
   const roleIds = (row.hops ?? [])
     // A role that passed the question up gave up its hold ("escalated" is
     // the same fact on rows from before S28).
-    .filter((h) => !h.note?.startsWith("skipped") && !h.note?.startsWith("escalated") && !h.passed_at)
+    .filter(
+      (h) =>
+        !h.note?.startsWith("skipped") &&
+        !h.note?.startsWith("escalated") &&
+        !h.passed_at,
+    )
     .map((h) => h.role_id)
     .filter((id) => !excluded.has(String(id)));
   const delegate = await stackDelegateRoleId(ctx, row.stack_id);
@@ -579,7 +926,10 @@ export async function refreshHolder(
     scopeKeys: (row as any).scope_keys ?? [],
     now,
   });
-  await ctx.db.patch(row._id, { holder: resolved.holder, holder_key: resolved.holder_key });
+  await ctx.db.patch(row._id, {
+    holder: resolved.holder,
+    holder_key: resolved.holder_key,
+  });
 }
 
 // Tell the role that hears a decision (routeFor), once, through its
@@ -591,24 +941,44 @@ export async function refreshHolder(
 export async function tellHearingRole(
   ctx: Ctx,
   role: Doc<"org_roles"> | null,
-  row: { _id: Id<"session_decisions">; short_id?: string; question: string; conversation_id?: Id<"conversations"> },
+  row: {
+    _id: Id<"session_decisions">;
+    short_id?: string;
+    question: string;
+    conversation_id?: Id<"conversations">;
+  },
   now: number,
   silentLead?: string,
 ) {
   if (!role) return [];
-  const conv = row.conversation_id ? await ctx.db.get(row.conversation_id) : null;
-  const id = await fireRoleNeedsInput(ctx as any, role._id, {
-    short_id: conv?.short_id ?? String(row.conversation_id ?? "").slice(0, 7),
-    title: (conv?.title ?? "").slice(0, 80),
-    why: "decision",
-    since: now,
-    decision: row.short_id ?? String(row._id),
-    ...(silentLead ? { silent_lead: silentLead } : {}),
-    state: row.question.split("\n")[0].slice(0, 200),
-  }, `decision:${row._id}:${role._id}`);
+  const conv = row.conversation_id
+    ? await ctx.db.get(row.conversation_id)
+    : null;
+  const id = await fireRoleNeedsInput(
+    ctx as any,
+    role._id,
+    {
+      short_id: conv?.short_id ?? String(row.conversation_id ?? "").slice(0, 7),
+      title: (conv?.title ?? "").slice(0, 80),
+      why: "decision",
+      since: now,
+      decision: row.short_id ?? String(row._id),
+      ...(silentLead ? { silent_lead: silentLead } : {}),
+      state: row.question.split("\n")[0].slice(0, 200),
+    },
+    `decision:${row._id}:${role._id}`,
+  );
   if (!id) return [];
-  await ctx.scheduler.runAfter(HOP_DEADLINE_MS, internal.sessionDecisions.handUpLapsed, { decision_id: row._id });
-  await ctx.scheduler.runAfter(LEAD_ACT_DEADLINE_MS, internal.sessionDecisions.rehearSilent, { decision_id: row._id, role_id: role._id });
+  await ctx.scheduler.runAfter(
+    HOP_DEADLINE_MS,
+    internal.sessionDecisions.handUpLapsed,
+    { decision_id: row._id },
+  );
+  await ctx.scheduler.runAfter(
+    LEAD_ACT_DEADLINE_MS,
+    internal.sessionDecisions.rehearSilent,
+    { decision_id: row._id, role_id: role._id },
+  );
   return [role._id];
 }
 
@@ -617,12 +987,21 @@ export async function tellHearingRole(
 // Idempotent, so a recommendation and the lapse after it hand up once.
 async function handUp(ctx: Ctx, row: DecisionRow, now: number): Promise<void> {
   if (row.status !== "pending") return;
-  await syncDecisionInbox(ctx, row._id, row.asked_user_ids ?? [row.user_id], now);
+  await syncDecisionInbox(
+    ctx,
+    row._id,
+    row.asked_user_ids ?? [row.user_id],
+    now,
+  );
 }
 
 // The hearing role's window closed. A role holding a live grant still owns
 // the answer, so the card stays with it.
-export async function handUpLapsedCore(ctx: Ctx, decisionId: Id<"session_decisions">, now: number): Promise<void> {
+export async function handUpLapsedCore(
+  ctx: Ctx,
+  decisionId: Id<"session_decisions">,
+  now: number,
+): Promise<void> {
   const row: DecisionRow | null = await ctx.db.get(decisionId);
   if (!row || row.holder?.kind === "role") return;
   await handUp(ctx, row, now);
@@ -633,13 +1012,19 @@ export const handUpLapsed = internalMutation({
   handler: (ctx, args) => handUpLapsedCore(ctx, args.decision_id, Date.now()),
 });
 
-const wroteOnHop = (h: Hop) => h.recommendation !== undefined || !!h.note || !!h.passed_at;
+const wroteOnHop = (h: Hop) =>
+  h.recommendation !== undefined || !!h.note || !!h.passed_at;
 
 // The told lead's hour passed and its ladder line is still blank: the next
 // lead hears the same card and may recommend on it. That is the next active
 // role up the ladder that can be told, else the workspace's head of people.
 // Nothing moves once any lead has written on the card.
-export async function rehearSilentCore(ctx: Ctx, decisionId: Id<"session_decisions">, roleId: Id<"org_roles">, now: number): Promise<Id<"org_roles"> | null> {
+export async function rehearSilentCore(
+  ctx: Ctx,
+  decisionId: Id<"session_decisions">,
+  roleId: Id<"org_roles">,
+  now: number,
+): Promise<Id<"org_roles"> | null> {
   const row: DecisionRow | null = await ctx.db.get(decisionId);
   if (!row || row.status !== "pending") return null;
   const hops: Hop[] = row.hops ?? [];
@@ -656,10 +1041,17 @@ export async function rehearSilentCore(ctx: Ctx, decisionId: Id<"session_decisio
   // reads that, so it never takes the card for one filed under nobody.
   const lead: Doc<"org_roles"> | null = await ctx.db.get(hops[0].role_id);
   for (const next of candidates) {
-    if (String(next._id) === String(roleId) || !(await reachableRole(ctx, next._id))) continue;
-    if (!(await tellHearingRole(ctx, next, row, now, lead?.handle)).length) continue;
+    if (
+      String(next._id) === String(roleId) ||
+      !(await reachableRole(ctx, next._id))
+    )
+      continue;
+    if (!(await tellHearingRole(ctx, next, row, now, lead?.handle)).length)
+      continue;
     if (!hops.some((h) => String(h.role_id) === String(next._id))) {
-      await ctx.db.patch(row._id, { hops: [...hops, { role_id: next._id, at: now }] });
+      await ctx.db.patch(row._id, {
+        hops: [...hops, { role_id: next._id, at: now }],
+      });
     }
     return next._id;
   }
@@ -668,7 +1060,8 @@ export async function rehearSilentCore(ctx: Ctx, decisionId: Id<"session_decisio
 
 export const rehearSilent = internalMutation({
   args: { decision_id: v.id("session_decisions"), role_id: v.id("org_roles") },
-  handler: (ctx, args) => rehearSilentCore(ctx, args.decision_id, args.role_id, Date.now()),
+  handler: (ctx, args) =>
+    rehearSilentCore(ctx, args.decision_id, args.role_id, Date.now()),
 });
 
 // Repair for decisions asked before a lapse was scheduled: an open one a role
@@ -679,12 +1072,17 @@ export const handUpStranded = internalMutation({
     const now = Date.now();
     const open: DecisionRow[] = await ctx.db
       .query("session_decisions")
-      .withIndex("by_status_created", (q: any) => q.eq("status", "pending").lt("created_at", now - HOP_DEADLINE_MS))
+      .withIndex("by_status_created", (q: any) =>
+        q.eq("status", "pending").lt("created_at", now - HOP_DEADLINE_MS),
+      )
       .collect();
     const stranded: string[] = [];
     for (const row of open) {
       if (!row.hops?.length || row.holder?.kind === "role") continue;
-      const queued = await ctx.db.query("decision_inbox").withIndex("by_decision", (q: any) => q.eq("decision_id", row._id)).first();
+      const queued = await ctx.db
+        .query("decision_inbox")
+        .withIndex("by_decision", (q: any) => q.eq("decision_id", row._id))
+        .first();
       if (queued) continue;
       stranded.push(row.short_id ?? String(row._id));
       if (!args.dry_run) await handUp(ctx, row, now);
@@ -704,9 +1102,18 @@ export { answerLabel, normalizeVerdict, verdictOfRow, type Verdict };
 // session that asked holds too. presence: the grant string a Touch ID
 // confirmation handed that person's client (passkeys.ts presenceBegin). Only
 // Vault's Ask first reads them (secretApprovalRefusal).
-export type AnsweredBy = { kind: "user" | "role" | "policy"; id: string; user_id?: Id<"users">; grant_id?: Id<"decision_grants">; via?: Id<"conversations">; signed_in?: boolean; presence?: string };
+export type AnsweredBy = {
+  kind: "user" | "role" | "policy";
+  id: string;
+  user_id?: Id<"users">;
+  grant_id?: Id<"decision_grants">;
+  via?: Id<"conversations">;
+  signed_in?: boolean;
+  presence?: string;
+};
 
-export const HOSTED_ANSWER_REFUSED = "Only the owner can answer a hosted assistant's question";
+export const HOSTED_ANSWER_REFUSED =
+  "Only the owner can answer a hosted assistant's question";
 
 // A hosted conversation's question is its consent gate
 // (docs/architecture/hosted-assistant.md): only the conversation's owner
@@ -715,10 +1122,17 @@ export const HOSTED_ANSWER_REFUSED = "Only the owner can answer a hosted assista
 // it writes: finalizeAnswer (CLI, web resolve, a run's gate, a stack
 // default), answerCore (so the CLI gets the reason back as an error), the
 // stack's auto default (which skips the row) and the web's dispatch rail. Returns why the answer is refused, or null.
-export async function hostedAnswerRefusal(ctx: Ctx, row: { conversation_id?: Id<"conversations"> }, by: AnsweredBy): Promise<string | null> {
-  const conversation: any = row.conversation_id ? await ctx.db.get(row.conversation_id) : null;
+export async function hostedAnswerRefusal(
+  ctx: Ctx,
+  row: { conversation_id?: Id<"conversations"> },
+  by: AnsweredBy,
+): Promise<string | null> {
+  const conversation: any = row.conversation_id
+    ? await ctx.db.get(row.conversation_id)
+    : null;
   if (!conversation || !isHostedAgentType(conversation.agent_type)) return null;
-  if (by.kind === "user" && String(by.user_id) === String(conversation.user_id)) return null;
+  if (by.kind === "user" && String(by.user_id) === String(conversation.user_id))
+    return null;
   return HOSTED_ANSWER_REFUSED;
 }
 
@@ -726,8 +1140,17 @@ export async function hostedAnswerRefusal(ctx: Ctx, row: { conversation_id?: Id<
 // conversation's question is its owner's, and a Vault Ask first decision is a
 // signed-in person's, whose Approve takes Touch ID (secretApprovalRefusal,
 // which reads the verdict for that). Returns why, or null.
-export async function answerRefusal(ctx: Ctx, row: DecisionRow, by: AnsweredBy, verdict?: Pick<Verdict, "status" | "answer_index">): Promise<string | null> {
-  return (await hostedAnswerRefusal(ctx, row, by)) ?? (await secretApprovalRefusal(ctx, row, by, verdict)) ?? (await commandRunRefusal(ctx, row as any, by, verdict));
+export async function answerRefusal(
+  ctx: Ctx,
+  row: DecisionRow,
+  by: AnsweredBy,
+  verdict?: Pick<Verdict, "status" | "answer_index">,
+): Promise<string | null> {
+  return (
+    (await hostedAnswerRefusal(ctx, row, by)) ??
+    (await secretApprovalRefusal(ctx, row, by, verdict)) ??
+    (await commandRunRefusal(ctx, row as any, by, verdict))
+  );
 }
 
 // The one place a decision is resolved, for every path (web resolve, CLI
@@ -743,7 +1166,12 @@ export async function finalizeAnswer(
   verdict: Verdict,
   by: AnsweredBy,
   opts: { deliver: boolean; now?: number },
-): Promise<{ already_resolved: boolean; answer_label?: string; delivered?: boolean; resumed_run?: boolean }> {
+): Promise<{
+  already_resolved: boolean;
+  answer_label?: string;
+  delivered?: boolean;
+  resumed_run?: boolean;
+}> {
   if (row.status !== "pending") return { already_resolved: true };
   const refusal = await answerRefusal(ctx, row, by, verdict);
   if (refusal) throw new Error(refusal);
@@ -756,7 +1184,11 @@ export async function finalizeAnswer(
     answer_json: verdict.answer_json,
     resolved_at: now,
     resolved_by: by.user_id,
-    answered_by: { kind: by.kind, id: by.id, ...(by.via ? { via: by.via } : {}) },
+    answered_by: {
+      kind: by.kind,
+      id: by.id,
+      ...(by.via ? { via: by.via } : {}),
+    },
     grant_id: by.grant_id,
   });
   const consumed = await settleResolution(ctx, row, verdict, by, now);
@@ -765,31 +1197,53 @@ export async function finalizeAnswer(
   // open gate (the runner's poll reads gate_response instead). A failure
   // gate on a run that is already failed is still delivered to its asker.
   // A silent card (a pointer) is cleared by the answer and delivers nothing.
-  const delivered = (opts.deliver || !!row.workflow_run_id) && !consumed && !row.silent;
+  const delivered =
+    (opts.deliver || !!row.workflow_run_id) && !consumed && !row.silent;
   if (delivered) await deliverAnswer(ctx, row, verdict, by);
   // `resumed_run` tells a caller the run took the answer (the-line.md L4), so
   // the CLI can say "the run resumes" instead of promising a message.
-  return { already_resolved: false, answer_label: label, delivered, resumed_run: consumed };
+  return {
+    already_resolved: false,
+    answer_label: label,
+    delivered,
+    resumed_run: consumed,
+  };
 }
 
 // The "Decision: …" user message into the asking session, the one delivery
 // for every server path (finalizeAnswer, settleClientResolution).
-async function deliverAnswer(ctx: Ctx, row: DecisionRow, verdict: Verdict, by: Pick<AnsweredBy, "kind" | "user_id">, detail?: string) {
+async function deliverAnswer(
+  ctx: Ctx,
+  row: DecisionRow,
+  verdict: Verdict,
+  by: Pick<AnsweredBy, "kind" | "user_id">,
+  detail?: string,
+) {
   const label = answerLabel(row, verdict);
   if (verdict.status !== "answered" || !label) return;
   const conversation = await ctx.db.get(row.conversation_id);
   if (!conversation) return;
-  await enqueuePendingMessage(ctx, conversation, by.user_id ?? conversation.user_id, {
-    content: formatDecisionAnswer({ id: String(row._id), question: row.question, answer: label, detail }),
-    client_id: decisionAnswerClientId(String(row._id)),
-    human: by.kind === "user",
-    // Only the owner answers a hosted conversation's question
-    // (hostedAnswerRefusal), so this always wakes it as an approval; every
-    // other conversation ignores the cause. It is a scheduling hint, never
-    // consent: a hosted turn executes a write only after reading its
-    // session_decisions row.
-    wake_cause: "approval",
-  });
+  await enqueuePendingMessage(
+    ctx,
+    conversation,
+    by.user_id ?? conversation.user_id,
+    {
+      content: formatDecisionAnswer({
+        id: String(row._id),
+        question: row.question,
+        answer: label,
+        detail,
+      }),
+      client_id: decisionAnswerClientId(String(row._id)),
+      human: by.kind === "user",
+      // Only the owner answers a hosted conversation's question
+      // (hostedAnswerRefusal), so this always wakes it as an approval; every
+      // other conversation ignores the cause. It is a scheduling hint, never
+      // consent: a hosted turn executes a write only after reading its
+      // session_decisions row.
+      wake_cause: "approval",
+    },
+  );
 }
 
 // A gate decision resumes its run (the-line.md L4): gate_response is the
@@ -802,18 +1256,38 @@ async function deliverAnswer(ctx: Ctx, row: DecisionRow, verdict: Verdict, by: P
 // Returns true when the run consumed the answer (it was paused on this
 // decision); a decision on a run that is past it, or failed, is not consumed
 // and is delivered to its asker like any other.
-async function settleGateRun(ctx: Ctx, row: DecisionRow, verdict: Verdict, now: number): Promise<boolean> {
+async function settleGateRun(
+  ctx: Ctx,
+  row: DecisionRow,
+  verdict: Verdict,
+  now: number,
+): Promise<boolean> {
   if (!row.workflow_run_id) return false;
   const run = await ctx.db.get(row.workflow_run_id);
   if (!run || run.status !== "paused") return false;
   if (String(run.gate_decision_id ?? "") !== String(row._id)) return false;
   if (verdict.status !== "answered") {
-    await ctx.db.patch(run._id, { status: "failed", fail_reason: "gate dismissed", updated_at: now });
+    await ctx.db.patch(run._id, {
+      status: "failed",
+      fail_reason: "gate dismissed",
+      updated_at: now,
+    });
     return true;
   }
-  const key: string | undefined = verdict.answer_index !== undefined ? run.gate_choices?.[verdict.answer_index]?.key : undefined;
-  const response = gateResponseOf(key, verdict.answer_text, answerLabel(row, verdict));
-  await ctx.db.patch(run._id, { gate_response: response, status: "running", updated_at: now });
+  const key: string | undefined =
+    verdict.answer_index !== undefined
+      ? run.gate_choices?.[verdict.answer_index]?.key
+      : undefined;
+  const response = gateResponseOf(
+    key,
+    verdict.answer_text,
+    answerLabel(row, verdict),
+  );
+  await ctx.db.patch(run._id, {
+    gate_response: response,
+    status: "running",
+    updated_at: now,
+  });
   return true;
 }
 
@@ -822,7 +1296,13 @@ async function settleGateRun(ctx: Ctx, row: DecisionRow, verdict: Verdict, now: 
 // this was its last member. Shared by finalizeAnswer (server answers) and the
 // web's generic dispatch patch (settleClientResolution), so the two paths
 // cannot drift. Returns whether a run consumed the answer as its open gate.
-async function settleResolution(ctx: Ctx, row: DecisionRow, verdict: Verdict, by: AnsweredBy, now: number): Promise<boolean> {
+async function settleResolution(
+  ctx: Ctx,
+  row: DecisionRow,
+  verdict: Verdict,
+  by: AnsweredBy,
+  now: number,
+): Promise<boolean> {
   await setInboxStatus(ctx, row._id, "done");
   await scoreOverride(ctx, row, verdict, by, now);
   await closeStackIfDone(ctx, row.stack_id, row._id, now);
@@ -831,7 +1311,11 @@ async function settleResolution(ctx: Ctx, row: DecisionRow, verdict: Verdict, by
   // Its "card waiting" notice stops claiming a card waits (LE16), and so does its phone notice (lib/decisionPush.ts).
   await settleCardWaiting(ctx, row);
   const holderId = row.holder?.kind === "user" ? row.holder.id : null;
-  await settleDecisionWaiting(ctx, row.conversation_id, [...(row.asked_user_ids ?? []), row.user_id, ...(holderId ? [holderId] : [])]);
+  await settleDecisionWaiting(ctx, row.conversation_id, [
+    ...(row.asked_user_ids ?? []),
+    row.user_id,
+    ...(holderId ? [holderId] : []),
+  ]);
   // A trial card reads its decision's answer; its row only learns the run is past it.
   if (row.trial) await settleTrialCard(ctx, row._id, verdict.status, now);
   await noticeAnsweredForPeople(ctx, row, verdict, by);
@@ -848,34 +1332,58 @@ async function settleResolution(ctx: Ctx, row: DecisionRow, verdict: Verdict, by
   // wakes through its delivered message (deliverAnswer).
   if (verdict.status === "dismissed") {
     const conversation = await ctx.db.get(row.conversation_id);
-    if (conversation) await wakeHostedConversation(ctx, conversation, "approval");
+    if (conversation)
+      await wakeHostedConversation(ctx, conversation, "approval");
   }
   // A Run (`cast decide --run`) goes to the session's machine; its answer is delivered with the result (lib/commandRuns.ts).
-  const ran = await settleCommandRun(ctx, row as any, verdict, by, now, (detail) => deliverAnswer(ctx, row, verdict, by, detail));
+  const ran = await settleCommandRun(
+    ctx,
+    row as any,
+    verdict,
+    by,
+    now,
+    (detail) => deliverAnswer(ctx, row, verdict, by, detail),
+  );
   return (await settleGateRun(ctx, row, verdict, now)) || ran;
 }
 
 // What the asking session reads when its Run ends: the Run answer, with the
 // command's result after the tag.
-const deliverRunResult = (ctx: Ctx) => async (row: DecisionRow, detail: string) => {
-  const conversation = await ctx.db.get(row.conversation_id);
-  const index = row.options.findIndex((o) => o.label === RUN_OPTION);
-  await deliverAnswer(ctx, row, { status: "answered", answer_index: index }, { kind: "user", user_id: row.resolved_by ?? conversation?.user_id }, detail);
-};
+const deliverRunResult =
+  (ctx: Ctx) => async (row: DecisionRow, detail: string) => {
+    const conversation = await ctx.db.get(row.conversation_id);
+    const index = row.options.findIndex((o) => o.label === RUN_OPTION);
+    await deliverAnswer(
+      ctx,
+      row,
+      { status: "answered", answer_index: index },
+      { kind: "user", user_id: row.resolved_by ?? conversation?.user_id },
+      detail,
+    );
+  };
 
 // The machine that ran a `cast decide --run` command reports it (daemon run_cast).
 export const reportCommandRun = mutation({
   args: {
     api_token: v.string(),
     decision_id: v.id("session_decisions"),
-    state: v.union(v.literal("running"), v.literal("done"), v.literal("failed")),
+    state: v.union(
+      v.literal("running"),
+      v.literal("done"),
+      v.literal("failed"),
+    ),
     exit_code: v.optional(v.number()),
     output: v.optional(v.string()),
   },
   handler: async (ctx, { api_token, ...args }) => {
     const auth = await verifyApiToken(ctx, api_token);
     if (!auth) throw new Error("Unauthorized");
-    return await applyCommandRunReport(ctx, auth.userId, args, deliverRunResult(ctx) as any);
+    return await applyCommandRunReport(
+      ctx,
+      auth.userId,
+      args,
+      deliverRunResult(ctx) as any,
+    );
   },
 });
 
@@ -886,7 +1394,16 @@ export const failCommandRun = internalMutation({
   handler: async (ctx, args) => {
     const id = ctx.db.normalizeId("session_decisions", args.decision_id);
     if (!id) return;
-    await applyCommandRunReport(ctx, args.user_id, { decision_id: id, state: "failed", output: `The machine did not run it: ${args.error}` }, deliverRunResult(ctx) as any).catch(() => {});
+    await applyCommandRunReport(
+      ctx,
+      args.user_id,
+      {
+        decision_id: id,
+        state: "failed",
+        output: `The machine did not run it: ${args.error}`,
+      },
+      deliverRunResult(ctx) as any,
+    ).catch(() => {});
   },
 });
 
@@ -895,11 +1412,19 @@ export const failCommandRun = internalMutation({
 // (hostedAnswerRefusal). When someone outside the people acts, the people
 // hear who answered for them, so an answer they did not give never lands
 // unannounced.
-async function noticeAnsweredForPeople(ctx: Ctx, row: DecisionRow, verdict: Verdict, by: AnsweredBy) {
+async function noticeAnsweredForPeople(
+  ctx: Ctx,
+  row: DecisionRow,
+  verdict: Verdict,
+  by: AnsweredBy,
+) {
   if (by.kind !== "user" || !by.user_id) return;
   const people = (row.asked_user_ids ?? [row.user_id]).map(String);
   if (people.includes(by.id)) return;
-  const question = row.question.length > 120 ? `${row.question.slice(0, 117)}...` : row.question;
+  const question =
+    row.question.length > 120
+      ? `${row.question.slice(0, 117)}...`
+      : row.question;
   const label = answerLabel(row, verdict);
   await emitNotification(ctx as any, {
     event_type: "decision_answered_for_you",
@@ -907,11 +1432,14 @@ async function noticeAnsweredForPeople(ctx: Ctx, row: DecisionRow, verdict: Verd
     entity_type: "conversation",
     entity_id: String(row.conversation_id),
     conversation_id: row.conversation_id,
-    message: verdict.status === "dismissed" || !label
-      ? `dismissed "${question}" for you`
-      : `answered "${question}" for you: ${label}`,
+    message:
+      verdict.status === "dismissed" || !label
+        ? `dismissed "${question}" for you`
+        : `answered "${question}" for you: ${label}`,
     ...(row.short_id ? { link: `/decisions/${row.short_id}` } : {}),
-    recipient_ids: people.map((id) => ctx.db.normalizeId("users", id)).filter((id): id is Id<"users"> => !!id),
+    recipient_ids: people
+      .map((id) => ctx.db.normalizeId("users", id))
+      .filter((id): id is Id<"users"> => !!id),
   });
 }
 
@@ -924,7 +1452,12 @@ async function noticeAnsweredForPeople(ctx: Ctx, row: DecisionRow, verdict: Verd
 export async function settleClientResolution(
   ctx: Ctx,
   row: DecisionRow,
-  patch: { status?: string; answer_index?: number; answer_text?: string; answer_json?: any },
+  patch: {
+    status?: string;
+    answer_index?: number;
+    answer_text?: string;
+    answer_json?: any;
+  },
   userId: Id<"users">,
   now: number,
   presence?: string,
@@ -936,7 +1469,11 @@ export async function settleClientResolution(
   // waits it met carry the new answer (taskWaits.restateAnswer).
   if (row.status !== "pending") {
     if (patch.status === "answered" && advisoryAnswerOpen(row)) {
-      await ctx.db.patch(row._id, { answered_by: { kind: "user", id: String(userId) }, resolved_by: userId, resolved_at: now });
+      await ctx.db.patch(row._id, {
+        answered_by: { kind: "user", id: String(userId) },
+        resolved_by: userId,
+        resolved_at: now,
+      });
       await scheduleDecisionSettle(ctx as any, row, { user_id: userId });
     }
     return;
@@ -947,10 +1484,21 @@ export async function settleClientResolution(
     answer_text: patch.answer_text,
     answer_json: patch.answer_json,
   };
-  const by: AnsweredBy = { kind: "user", id: String(userId), user_id: userId, signed_in: true, presence };
-  await ctx.db.patch(row._id, { answered_by: { kind: "user", id: String(userId) }, resolved_by: userId, resolved_at: now });
+  const by: AnsweredBy = {
+    kind: "user",
+    id: String(userId),
+    user_id: userId,
+    signed_in: true,
+    presence,
+  };
+  await ctx.db.patch(row._id, {
+    answered_by: { kind: "user", id: String(userId) },
+    resolved_by: userId,
+    resolved_at: now,
+  });
   const consumed = await settleResolution(ctx, row, verdict, by, now);
-  if (row.workflow_run_id && !consumed) await deliverAnswer(ctx, row, verdict, by);
+  if (row.workflow_run_id && !consumed)
+    await deliverAnswer(ctx, row, verdict, by);
 }
 
 // The dispatch rail's pending guard (first writer wins on every rail): a
@@ -959,8 +1507,22 @@ export async function settleClientResolution(
 // a new answer on an advisory ask (advisoryAnswerOpen): the agent went ahead
 // on its default, and a person may still change its course.
 // Pure, so it is unit tested without the dispatch mutation.
-const RESOLUTION_FIELDS = ["status", "answer_index", "answer_text", "answer_json", "resolved_at"];
-export function guardClientResolution(doc: { status?: string; blocking?: boolean; workflow_run_id?: unknown; answered_by?: { kind: string } | null }, safe: Record<string, any>): Record<string, any> {
+const RESOLUTION_FIELDS = [
+  "status",
+  "answer_index",
+  "answer_text",
+  "answer_json",
+  "resolved_at",
+];
+export function guardClientResolution(
+  doc: {
+    status?: string;
+    blocking?: boolean;
+    workflow_run_id?: unknown;
+    answered_by?: { kind: string } | null;
+  },
+  safe: Record<string, any>,
+): Record<string, any> {
   if (doc.status === "pending") return safe;
   if (safe.status === "answered" && advisoryAnswerOpen(doc as any)) return safe;
   return RESOLUTION_FIELDS.some((f) => f in safe) ? {} : safe;
@@ -968,31 +1530,54 @@ export function guardClientResolution(doc: { status?: string; blocking?: boolean
 
 // Whether a signed-in person may resolve this row from the web: anyone in its
 // people set (asked_user_ids), or the legacy owner.
-export function personMayResolve(row: { user_id: any; asked_user_ids?: any[] }, userId: any): boolean {
+export function personMayResolve(
+  row: { user_id: any; asked_user_ids?: any[] },
+  userId: any,
+): boolean {
   if (row.asked_user_ids !== undefined) {
     return row.asked_user_ids.some((id) => id.toString() === userId.toString());
   }
   return row.user_id?.toString() === userId.toString();
 }
 
-export async function setInboxStatus(ctx: Ctx, decisionId: Id<"session_decisions">, status: "pending" | "done") {
+export async function setInboxStatus(
+  ctx: Ctx,
+  decisionId: Id<"session_decisions">,
+  status: "pending" | "done",
+) {
   const rows = await ctx.db
     .query("decision_inbox")
     .withIndex("by_decision", (q: any) => q.eq("decision_id", decisionId))
     .collect();
-  for (const r of rows) if (r.status !== status) await ctx.db.patch(r._id, { status, status_at: Date.now() });
+  for (const r of rows)
+    if (r.status !== status)
+      await ctx.db.patch(r._id, { status, status_at: Date.now() });
 }
 
 // Override tracking (D2): a person answering a reopened granted decision
 // differently is an override; two in a row revoke the grant. An agreement
 // resets the streak.
-async function scoreOverride(ctx: Ctx, row: DecisionRow, verdict: Verdict, by: AnsweredBy, now: number) {
-  if (by.kind !== "user" || !row.reopened_from || verdict.status === "withdrawn") return;
+async function scoreOverride(
+  ctx: Ctx,
+  row: DecisionRow,
+  verdict: Verdict,
+  by: AnsweredBy,
+  now: number,
+) {
+  if (
+    by.kind !== "user" ||
+    !row.reopened_from ||
+    verdict.status === "withdrawn"
+  )
+    return;
   const grant = await ctx.db.get(row.reopened_from.grant_id);
   if (!grant || grant.revoked_at) return;
-  const agreed = verdict.status === "answered" && verdict.answer_index === row.reopened_from.answer_index;
+  const agreed =
+    verdict.status === "answered" &&
+    verdict.answer_index === row.reopened_from.answer_index;
   if (agreed) {
-    if (grant.override_streak) await ctx.db.patch(grant._id, { override_streak: 0 });
+    if (grant.override_streak)
+      await ctx.db.patch(grant._id, { override_streak: 0 });
     return;
   }
   const streak = (grant.override_streak ?? 0) + 1;
@@ -1009,7 +1594,12 @@ async function scoreOverride(ctx: Ctx, row: DecisionRow, verdict: Verdict, by: A
 
 // A stack is done when every member is resolved. `resolvingId` is the row
 // being patched in this same transaction (its status is already written).
-async function closeStackIfDone(ctx: Ctx, stackId: Id<"decision_stacks"> | undefined, resolvingId: Id<"session_decisions">, now: number) {
+async function closeStackIfDone(
+  ctx: Ctx,
+  stackId: Id<"decision_stacks"> | undefined,
+  resolvingId: Id<"session_decisions">,
+  now: number,
+) {
   if (!stackId) return;
   const stack = await ctx.db.get(stackId);
   if (!stack || stack.status === "done") return;
@@ -1026,7 +1616,15 @@ async function closeStackIfDone(ctx: Ctx, stackId: Id<"decision_stacks"> | undef
 export type AskArgs = {
   session_id: string;
   question: string;
-  options: Array<{ label: string; description?: string; body_md?: string; evidence?: { label: string; url: string }[]; cost?: string; risk?: string; page_slug?: string }>;
+  options: Array<{
+    label: string;
+    description?: string;
+    body_md?: string;
+    evidence?: { label: string; url: string }[];
+    cost?: string;
+    risk?: string;
+    page_slug?: string;
+  }>;
   context_md?: string;
   report_slug?: string;
   /** A change card (LE10) the decision is about; rendered natively by the web. */
@@ -1044,7 +1642,14 @@ export type AskArgs = {
   kind?: DecisionKind;
   category?: string;
   doc_md?: string;
-  form?: { fields: Array<{ key: string; label: string; type: "text" | "number" | "select" | "bool"; options?: string[] }> };
+  form?: {
+    fields: Array<{
+      key: string;
+      label: string;
+      type: "text" | "number" | "select" | "bool";
+      options?: string[];
+    }>;
+  };
   task?: string;
   station?: string;
   stack?: string;
@@ -1065,11 +1670,17 @@ export type AskArgs = {
 
 // An option's page (the-line.md L6) must be a published page: a mistyped
 // file path would otherwise be stored as a slug and render a dead card.
-async function missingOptionPage(ctx: Ctx, options: Array<{ page_slug?: string }>): Promise<string | null> {
+async function missingOptionPage(
+  ctx: Ctx,
+  options: Array<{ page_slug?: string }>,
+): Promise<string | null> {
   for (let i = 0; i < options.length; i++) {
     const slug = options[i]?.page_slug;
     if (!slug) continue;
-    const page = await ctx.db.query("artifacts").withIndex("by_slug", (q: any) => q.eq("slug", slug)).first();
+    const page = await ctx.db
+      .query("artifacts")
+      .withIndex("by_slug", (q: any) => q.eq("slug", slug))
+      .first();
     if (!page) return `Option ${i + 1}: no page ${slug}`;
   }
   return null;
@@ -1080,21 +1691,38 @@ async function missingOptionPage(ctx: Ctx, options: Array<{ page_slug?: string }
 function invalidCard(card: unknown): string | null {
   if (card === undefined) return null;
   const checked = validateChangeCard(card);
-  return checked.ok ? null : `Invalid change card: ${checked.errors.slice(0, 5).join("; ")}`;
+  return checked.ok
+    ? null
+    : `Invalid change card: ${checked.errors.slice(0, 5).join("; ")}`;
 }
 
-function validateShape(kind: DecisionKind, args: { question: string; options: any[]; default_option?: number; form?: any; card?: unknown }): string | null {
+function validateShape(
+  kind: DecisionKind,
+  args: {
+    question: string;
+    options: any[];
+    default_option?: number;
+    form?: any;
+    card?: unknown;
+  },
+): string | null {
   if (args.question.trim().length === 0) return "Empty question";
   const cardError = invalidCard(args.card);
   if (cardError) return cardError;
   if (kind === "form") {
-    if (!args.form || args.form.fields.length === 0) return "A form decision needs at least one field";
+    if (!args.form || args.form.fields.length === 0)
+      return "A form decision needs at least one field";
     const keys = args.form.fields.map((f: any) => f.key);
-    if (new Set(keys).size !== keys.length) return "Form field keys must be unique";
-  // One option is a single course: the person takes it or answers in their own words.
+    if (new Set(keys).size !== keys.length)
+      return "Form field keys must be unique";
+    // One option is a single course: the person takes it or answers in their own words.
   } else if (args.options.length < 1) return "At least one option required";
-  if (args.options.length > 9) return "At most nine options (they map to keys 1-9)";
-  if (args.default_option !== undefined && (args.default_option < 0 || args.default_option >= args.options.length)) {
+  if (args.options.length > 9)
+    return "At most nine options (they map to keys 1-9)";
+  if (
+    args.default_option !== undefined &&
+    (args.default_option < 0 || args.default_option >= args.options.length)
+  ) {
     return "default_option out of range";
   }
   return null;
@@ -1114,14 +1742,21 @@ async function upsertDecisionDoc(
   if (existingDocId) {
     const doc = await ctx.db.get(existingDocId);
     if (doc) {
-      await ctx.db.patch(existingDocId, { title: question, content: doc_md, updated_at: now });
+      await ctx.db.patch(existingDocId, {
+        title: question,
+        content: doc_md,
+        updated_at: now,
+      });
       return existingDocId;
     }
   }
   return ctx.db.insert("docs", {
     user_id: conversation.user_id,
     team_id: teamVisibleConvTeam(conversation),
-    workspace: computeWorkspaceKey({ user_id: conversation.user_id } as any, conversation as any),
+    workspace: computeWorkspaceKey(
+      { user_id: conversation.user_id } as any,
+      conversation as any,
+    ),
     title: question,
     content: doc_md,
     doc_type: "decision",
@@ -1134,18 +1769,42 @@ async function upsertDecisionDoc(
 }
 
 /** Whether `userId` drives the run `runId`, and that run was started by `conversationId`. */
-async function runAsksThrough(ctx: Ctx, userId: Id<"users">, runId: Id<"workflow_runs"> | undefined, conversationId: Id<"conversations">): Promise<boolean> {
+async function runAsksThrough(
+  ctx: Ctx,
+  userId: Id<"users">,
+  runId: Id<"workflow_runs"> | undefined,
+  conversationId: Id<"conversations">,
+): Promise<boolean> {
   const run: any = runId ? await ctx.db.get(runId) : null;
-  return !!run && String(run.user_id) === String(userId) && String(run.spawner_conversation_id ?? "") === String(conversationId);
+  return (
+    !!run &&
+    String(run.user_id) === String(userId) &&
+    String(run.spawner_conversation_id ?? "") === String(conversationId)
+  );
 }
 
-export async function askCore(ctx: Ctx, auth: { userId: Id<"users"> }, args: AskArgs): Promise<any> {
+export async function askCore(
+  ctx: Ctx,
+  auth: { userId: Id<"users"> },
+  args: AskArgs,
+): Promise<any> {
   // A run request is always the same card: the command, Run or Don't run.
   const parsedRun = args.run !== undefined ? parseRunCommand(args.run) : null;
   if (parsedRun && "error" in parsedRun) return { error: parsedRun.error };
-  if (parsedRun) args = { ...args, options: RUN_OPTIONS.map((o) => ({ ...o })), kind: "single", form: undefined, default_option: undefined, blocking: true };
+  if (parsedRun)
+    args = {
+      ...args,
+      options: RUN_OPTIONS.map((o) => ({ ...o })),
+      kind: "single",
+      form: undefined,
+      default_option: undefined,
+      blocking: true,
+    };
   const kind: DecisionKind = args.kind ?? "single";
-  const shapeError = validateShape(kind, args) ?? invalidImpact(args.impact) ?? (await missingOptionPage(ctx, args.options));
+  const shapeError =
+    validateShape(kind, args) ??
+    invalidImpact(args.impact) ??
+    (await missingOptionPage(ctx, args.options));
   if (shapeError) return { error: shapeError };
 
   const conversation = await ctx.db
@@ -1156,24 +1815,48 @@ export async function askCore(ctx: Ctx, auth: { userId: Id<"users"> }, args: Ask
   if (conversation.user_id.toString() !== auth.userId.toString()) {
     // A run on another account's machine (a role's run on the team's line pool) asks its own decisions through the
     // session that started it, the role's standing session, as that session's account (as pauseAtGateCore does).
-    if (!(await runAsksThrough(ctx, auth.userId, args.workflow_run_id, conversation._id))) return { error: "Unauthorized: not your session" };
+    if (
+      !(await runAsksThrough(
+        ctx,
+        auth.userId,
+        args.workflow_run_id,
+        conversation._id,
+      ))
+    )
+      return { error: "Unauthorized: not your session" };
     auth = { userId: conversation.user_id };
   }
 
   const now = Date.now();
 
-  const bound = await resolveDecisionBindings(ctx, auth.userId, args, { write: true });
+  const bound = await resolveDecisionBindings(ctx, auth.userId, args, {
+    write: true,
+  });
   if ("error" in bound) return bound;
   // A station of a trial run asks into the trial (lib/trialDecision): the run's
   // task, the trial's one stack, and nobody's queue, inbox or ladder.
   // A decision about a station's work asked by another session (a proposal re-asked, AskArgs.as_station) routes as that station's.
-  const station = (await trialStationOf(ctx, conversation)) ?? (args.as_station ? await trialStationOf(ctx, args.as_station) : null);
+  const station =
+    (await trialStationOf(ctx, conversation)) ??
+    (args.as_station ? await trialStationOf(ctx, args.as_station) : null);
   // A trial decision is a station's: a session outside the run (the plan driving it) cannot post one for it.
-  if (args.trial && !station) return { error: "Only a station of the trial run (a session nested under its primary conversation) asks its decision" };
+  if (args.trial && !station)
+    return {
+      error:
+        "Only a station of the trial run (a session nested under its primary conversation) asks its decision",
+    };
   const trialProject = station?.project ?? null;
   const task = bound.task ?? station?.task ?? null;
-  const stack = trialProject ? await trialStackOf(ctx, trialProject, now) : bound.stack;
-  if (trialProject) await gateTrialPages(ctx, trialProject, [args.report_slug, ...args.options.map((o) => o.page_slug)], now);
+  const stack = trialProject
+    ? await trialStackOf(ctx, trialProject, now)
+    : bound.stack;
+  if (trialProject)
+    await gateTrialPages(
+      ctx,
+      trialProject,
+      [args.report_slug, ...args.options.map((o) => o.page_slug)],
+      now,
+    );
 
   const run: CommandRun | undefined = parsedRun
     ? {
@@ -1189,7 +1872,9 @@ export async function askCore(ctx: Ctx, auth: { userId: Id<"users"> }, args: Ask
   // instead of stacking duplicates (an agent may retry after a crash).
   const openRows: DecisionRow[] = await ctx.db
     .query("session_decisions")
-    .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversation._id).eq("status", "pending"))
+    .withIndex("by_conversation_status", (q: any) =>
+      q.eq("conversation_id", conversation._id).eq("status", "pending"),
+    )
     .collect();
   // Earlier asks still open in this session: the poster is the one party who
   // can withdraw the ones the work has moved past, so the response names them.
@@ -1202,7 +1887,9 @@ export async function askCore(ctx: Ctx, auth: { userId: Id<"users"> }, args: Ask
         question: r.question,
         created_at: r.created_at,
         messages_since:
-          r.asked_message_count !== undefined ? Math.max(0, conversation.message_count - r.asked_message_count) : undefined,
+          r.asked_message_count !== undefined
+            ? Math.max(0, conversation.message_count - r.asked_message_count)
+            : undefined,
       }));
 
   const existing = openRows.find((r) => r.question === args.question);
@@ -1211,38 +1898,84 @@ export async function askCore(ctx: Ctx, auth: { userId: Id<"users"> }, args: Ask
   const assigned = categoryFor(args.category, {
     current: existing ? existing.category : null,
     runDeclares: !!args.workflow_run_id,
-    runs: !!args.workflow_run_id || !!existing?.workflow_run_id || !!(await runOfStation(ctx, conversation)),
+    runs:
+      !!args.workflow_run_id ||
+      !!existing?.workflow_run_id ||
+      !!(await runOfStation(ctx, conversation)),
   });
   // Running a command in the person's name is always the person's (never a role's under a grant).
-  const category = parsedRun && !isProtectedCategory(assigned) ? "access" : assigned;
-  const docId = args.doc_md ? await upsertDecisionDoc(ctx, conversation, args.question, args.doc_md, now, existing?.doc_id) : undefined;
+  const category =
+    parsedRun && !isProtectedCategory(assigned) ? "access" : assigned;
+  const docId = args.doc_md
+    ? await upsertDecisionDoc(
+        ctx,
+        conversation,
+        args.question,
+        args.doc_md,
+        now,
+        existing?.doc_id,
+      )
+    : undefined;
   const routed = await routeFor(ctx, conversation, now, task, args.as_station);
   // A hosted conversation asks its owner only, so an address (--to) is ignored.
-  const named = args.to?.length && !isHostedAgentType(conversation.agent_type)
-    ? await resolveAskedPeople(ctx, conversation, args.to)
-    : null;
+  const named =
+    args.to?.length && !isHostedAgentType(conversation.agent_type)
+      ? await resolveAskedPeople(ctx, conversation, args.to)
+      : null;
   if (named && "error" in named) return named;
   // A run request is the session's people's alone, like a named card: no role hears it and no area owner takes it.
   const addressed = named ?? (parsedRun ? { people: routed.people } : null);
   // An addressed card (--to) is the named people's alone: the ladder does not
   // hear it and nobody else is asked.
-  const { role, ladder, people: routedPeople, hears } = addressed
-    ? { ...routed, ladder: { ...routed.ladder, activeRoles: [], hops: [] }, people: addressed.people, hears: null }
+  const {
+    role,
+    ladder,
+    people: routedPeople,
+    hears,
+  } = addressed
+    ? {
+        ...routed,
+        ladder: { ...routed.ladder, activeRoles: [], hops: [] },
+        people: addressed.people,
+        hears: null,
+      }
     : routed;
   // Its team (routing): the problem's, else the asking conversation's; a re-ask without a task keeps the one it had.
-  const teamTask = task ?? (existing?.task_id ? await ctx.db.get(existing.task_id) : null);
+  const teamTask =
+    task ?? (existing?.task_id ? await ctx.db.get(existing.task_id) : null);
   const team_id = decisionTeamOf(conversation, teamTask);
   // Shared out by area (decisionRouting.ts): the member covering its project owns it; no match keeps the chain's people.
-  const areaOwner = await routeByArea(ctx, { conversation, task, role, category, team_id, addressed: !!addressed, trial: routed.trial, workflow_run_id: args.workflow_run_id, keep: existing?.asked_user_ids?.[0], now });
+  const areaOwner = await routeByArea(ctx, {
+    conversation,
+    task,
+    role,
+    category,
+    team_id,
+    addressed: !!addressed,
+    trial: routed.trial,
+    workflow_run_id: args.workflow_run_id,
+    keep: existing?.asked_user_ids?.[0],
+    now,
+  });
   const people = areaOwner ? [areaOwner] : routedPeople;
   if (existing) {
     // A question a person gave to a teammate or escalated (decisionHandoff.ts) stays theirs when it is asked again.
-    const given = existing.passed_to?.kind === "user" ? existing.asked_user_ids ?? [existing.passed_to.id as Id<"users">] : null;
+    const given =
+      existing.passed_to?.kind === "user"
+        ? (existing.asked_user_ids ?? [existing.passed_to.id as Id<"users">])
+        : null;
     // The re-ask lands on the open row: text, category and task move with it,
     // a --stack appends it (once), and the holder is recomputed because the
     // category or the stack's delegate may have changed who may answer.
-    const joined = stack ? await joinStack(ctx, stack, existing as any, now) : {};
-    const followed = await followOptions(ctx, existing as DecisionRow, args.options, now);
+    const joined = stack
+      ? await joinStack(ctx, stack, existing as any, now)
+      : {};
+    const followed = await followOptions(
+      ctx,
+      existing as DecisionRow,
+      args.options,
+      now,
+    );
     await ctx.db.patch(existing._id, {
       ...followed,
       options: args.options,
@@ -1253,15 +1986,26 @@ export async function askCore(ctx: Ctx, auth: { userId: Id<"users"> }, args: Ask
       blocking: args.blocking ?? true,
       default_option: args.default_option,
       impact: args.impact ?? existing.impact,
-      impact_reason: args.impact !== undefined ? args.impact_reason : existing.impact_reason,
+      impact_reason:
+        args.impact !== undefined ? args.impact_reason : existing.impact_reason,
       kind,
       category,
       category_proposed: args.category,
       form: args.form,
       asked_user_ids: given ?? people,
       ...(docId ? { doc_id: docId } : {}),
-      ...(task ? { task_id: task._id, station: args.station ?? task.status_id ?? task.status } : {}),
-      ...(args.workflow_run_id ? { workflow_run_id: args.workflow_run_id, gate_node_id: args.gate_node_id } : {}),
+      ...(task
+        ? {
+            task_id: task._id,
+            station: args.station ?? task.status_id ?? task.status,
+          }
+        : {}),
+      ...(args.workflow_run_id
+        ? {
+            workflow_run_id: args.workflow_run_id,
+            gate_node_id: args.gate_node_id,
+          }
+        : {}),
       ...joined,
       ...(trialProject ? { trial: true, hops: ladder.hops } : {}),
       team_id,
@@ -1270,7 +2014,13 @@ export async function askCore(ctx: Ctx, auth: { userId: Id<"users"> }, args: Ask
       session_title: conversation.title,
       project_path: conversation.project_path,
     });
-    await syncDecisionInbox(ctx, existing._id, given ?? people, now, !!given || (!hears && routed.trial !== "owner"));
+    await syncDecisionInbox(
+      ctx,
+      existing._id,
+      given ?? people,
+      now,
+      !!given || (!hears && routed.trial !== "owner"),
+    );
     const updated = await ctx.db.get(existing._id);
     if (updated) await refreshHolder(ctx, updated, now);
     return {
@@ -1287,10 +2037,23 @@ export async function askCore(ctx: Ctx, auth: { userId: Id<"users"> }, args: Ask
 
   const scopeKeys = scopeKeysFor(role, task, stack?._id);
   const roleIds = ladder.activeRoles.map((r) => r._id);
-  if (stack?.policy?.delegate_role_id) roleIds.push(stack.policy.delegate_role_id);
-  const { holder, holder_key, grant } = await resolveHolder(ctx, { people, roleIds, category, scopeKeys, now });
+  if (stack?.policy?.delegate_role_id)
+    roleIds.push(stack.policy.delegate_role_id);
+  const { holder, holder_key, grant } = await resolveHolder(ctx, {
+    people,
+    roleIds,
+    category,
+    scopeKeys,
+    now,
+  });
 
-  const hops = await carriedHops(ctx, conversation._id, task?._id, args.options, ladder.hops);
+  const hops = await carriedHops(
+    ctx,
+    conversation._id,
+    task?._id,
+    args.options,
+    ladder.hops,
+  );
   const short_id = await nextShortId(ctx.db as any, "sd");
   const id: Id<"session_decisions"> = await ctx.db.insert("session_decisions", {
     conversation_id: conversation._id,
@@ -1312,10 +2075,14 @@ export async function askCore(ctx: Ctx, auth: { userId: Id<"users"> }, args: Ask
     silent: args.silent || undefined,
     ...(trialProject ? { trial: true } : {}),
     default_option: args.default_option,
-    ...(args.impact !== undefined ? { impact: args.impact, impact_reason: args.impact_reason } : {}),
+    ...(args.impact !== undefined
+      ? { impact: args.impact, impact_reason: args.impact_reason }
+      : {}),
     status: "pending",
     task_id: task?._id,
-    station: task ? args.station ?? task.status_id ?? task.status : args.station,
+    station: task
+      ? (args.station ?? task.status_id ?? task.status)
+      : args.station,
     stack_id: stack?._id,
     stack_joined_at: stack ? now : undefined,
     workflow_run_id: args.workflow_run_id,
@@ -1334,13 +2101,54 @@ export async function askCore(ctx: Ctx, auth: { userId: Id<"users"> }, args: Ask
   });
   // The role hears first; when it cannot, the decision is the people's.
   // A role whose recommendation carried over from the card this one replaces has said its piece: the people see it now.
-  const carried = !!hears && hops.some((h) => String(h.role_id) === String(hears._id) && h.recommendation !== undefined);
-  const woken = carried ? [] : await tellHearingRole(ctx, hears, { _id: id, short_id, question: args.question, conversation_id: conversation._id }, now);
+  const carried =
+    !!hears &&
+    hops.some(
+      (h) =>
+        String(h.role_id) === String(hears._id) &&
+        h.recommendation !== undefined,
+    );
+  const woken = carried
+    ? []
+    : await tellHearingRole(
+        ctx,
+        hears,
+        {
+          _id: id,
+          short_id,
+          question: args.question,
+          conversation_id: conversation._id,
+        },
+        now,
+      );
   // A card shared out by area rings through noticeAreaOwner just below, which never tells the asker's own person.
-  await syncDecisionInbox(ctx, id, people, now, woken.length === 0 && routed.trial !== "owner", { announce: !areaOwner || String(areaOwner) === String(conversation.user_id) });
-  if (areaOwner && woken.length === 0) await noticeAreaOwner(ctx, areaOwner, { question: args.question, short_id, conversation_id: conversation._id }, conversation.user_id);
-  if (stack) await joinStack(ctx, stack, { _id: id, stack_id: stack._id, scope_keys: scopeKeys }, now);
-  if (!args.workflow_run_id) await followStationCard(ctx, conversation, id, now);
+  await syncDecisionInbox(
+    ctx,
+    id,
+    people,
+    now,
+    woken.length === 0 && routed.trial !== "owner",
+    {
+      announce:
+        !areaOwner || String(areaOwner) === String(conversation.user_id),
+    },
+  );
+  if (areaOwner && woken.length === 0)
+    await noticeAreaOwner(
+      ctx,
+      areaOwner,
+      { question: args.question, short_id, conversation_id: conversation._id },
+      conversation.user_id,
+    );
+  if (stack)
+    await joinStack(
+      ctx,
+      stack,
+      { _id: id, stack_id: stack._id, scope_keys: scopeKeys },
+      now,
+    );
+  if (!args.workflow_run_id)
+    await followStationCard(ctx, conversation, id, now);
 
   return {
     id,
@@ -1350,8 +2158,18 @@ export async function askCore(ctx: Ctx, auth: { userId: Id<"users"> }, args: Ask
     holder,
     grant_id: grant?._id,
     people: people.length,
-    ladder: ladder.hops.map((h) => ({ role_id: h.role_id, skipped: h.note, woken: woken.includes(h.role_id) })),
-    task: task ? { id: task._id, short_id: task.short_id, station: args.station ?? task.status_id ?? task.status } : undefined,
+    ladder: ladder.hops.map((h) => ({
+      role_id: h.role_id,
+      skipped: h.note,
+      woken: woken.includes(h.role_id),
+    })),
+    task: task
+      ? {
+          id: task._id,
+          short_id: task.short_id,
+          station: args.station ?? task.status_id ?? task.status,
+        }
+      : undefined,
     stack: stack ? { id: stack._id, short_id: stack.short_id } : undefined,
     doc_id: docId,
     other_open: staleOpen(),
@@ -1391,16 +2209,28 @@ export const ask = mutation({
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) return { error: "Unauthorized" };
     const { api_token: _t, proposal: proposalRef, ...rest } = args;
-    const target = proposalRef ? await proposalToAsk(ctx, auth.userId, proposalRef, rest.options) : null;
+    const target = proposalRef
+      ? await proposalToAsk(ctx, auth.userId, proposalRef, rest.options)
+      : null;
     if (target && "error" in target) return target;
-    const proposer = target?.proposal.conversation_id ? await ctx.db.get(target.proposal.conversation_id) : null;
-    const asked = await askCore(ctx, auth, { ...(rest as AskArgs), ...(proposer ? { as_station: proposer } : {}) });
+    const proposer = target?.proposal.conversation_id
+      ? await ctx.db.get(target.proposal.conversation_id)
+      : null;
+    const asked = await askCore(ctx, auth, {
+      ...(rest as AskArgs),
+      ...(proposer ? { as_station: proposer } : {}),
+    });
     if (!target || asked?.error) return asked;
     const now = Date.now();
     const row = await ctx.db.get(asked.id as Id<"session_decisions">);
     const linked = await linkProposalDecision(ctx, target.proposal, row!, now);
     if (linked.replaced) await withdrawCore(ctx, linked.replaced, now);
-    return { ...asked, proposal: target.proposal.short_id, ...(linked.replaced ? { replaced: linked.replaced.short_id } : {}), ...(linked.trial_card ? { trial_card: linked.trial_card } : {}) };
+    return {
+      ...asked,
+      proposal: target.proposal.short_id,
+      ...(linked.replaced ? { replaced: linked.replaced.short_id } : {}),
+      ...(linked.trial_card ? { trial_card: linked.trial_card } : {}),
+    };
   },
 });
 
@@ -1411,25 +2241,36 @@ async function ownedDecision(
   ctx: any,
   auth: { userId: any },
   decisionRef: string,
-  sessionId?: string
+  sessionId?: string,
 ): Promise<{ row: DecisionRow } | { error: string }> {
   const row = await findDecision(ctx, decisionRef);
   if (!row) return { error: "Decision not found" };
-  if (row.user_id.toString() !== auth.userId.toString()) return { error: "Unauthorized: not your decision" };
-  if (sessionId && row.session_id !== sessionId) return { error: "Decision belongs to another session" };
+  if (row.user_id.toString() !== auth.userId.toString())
+    return { error: "Unauthorized: not your decision" };
+  if (sessionId && row.session_id !== sessionId)
+    return { error: "Decision belongs to another session" };
   return { row };
 }
 
 // Every non-pending row explains itself the same way to the CLI: the agent
 // learns what happened to the question instead of a bare refusal.
-function resolvedSummary(row: any): { status: string; answer_index?: number; answer_text?: string; answer_label?: string } {
+function resolvedSummary(row: any): {
+  status: string;
+  answer_index?: number;
+  answer_text?: string;
+  answer_label?: string;
+} {
   return {
     status: row.status,
     answer_index: row.answer_index,
     answer_text: row.answer_text,
     answer_label:
       row.answer_index !== undefined
-        ? answerLabel(row, { status: "answered", answer_index: row.answer_index, answer_json: row.answer_json })
+        ? answerLabel(row, {
+            status: "answered",
+            answer_index: row.answer_index,
+            answer_json: row.answer_json,
+          })
         : undefined,
   };
 }
@@ -1468,16 +2309,32 @@ export const edit = mutation({
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) return { error: "Unauthorized" };
-    const found = await ownedDecision(ctx, auth, args.decision_id, args.session_id);
+    const found = await ownedDecision(
+      ctx,
+      auth,
+      args.decision_id,
+      args.session_id,
+    );
     if ("error" in found) return found;
     const { row } = found;
     if (row.status !== "pending") {
-      return { error: `Decision is already ${row.status}`, ...resolvedSummary(row) };
+      return {
+        error: `Decision is already ${row.status}`,
+        ...resolvedSummary(row),
+      };
     }
     // The person confirms an Ask first read with Touch ID on the words of this decision, so its asker may not rewrite them.
-    if (await pendingApproval(ctx, row._id)) return { error: "An Ask first decision is filed by the Vault and cannot be edited" };
+    if (await pendingApproval(ctx, row._id))
+      return {
+        error:
+          "An Ask first decision is filed by the Vault and cannot be edited",
+      };
     // The person approves exactly the command on the card, so a run request is withdrawn and asked again, never rewritten.
-    if (row.run) return { error: "A --run decision cannot be edited: cancel it and ask again with the new command" };
+    if (row.run)
+      return {
+        error:
+          "A --run decision cannot be edited: cancel it and ask again with the new command",
+      };
     const now = Date.now();
 
     const question = args.question ?? row.question;
@@ -1485,32 +2342,84 @@ export const edit = mutation({
     const blocking = args.blocking ?? row.blocking;
     const kind = (args.kind ?? row.kind ?? "single") as DecisionKind;
     const form = args.form ?? row.form;
-    let defaultOption = args.clear_default ? undefined : args.default_option ?? row.default_option;
-    const shapeError = validateShape(kind, { question, options, default_option: defaultOption, form, card: args.card }) ?? invalidImpact(args.impact) ?? (await missingOptionPage(ctx, options));
+    let defaultOption = args.clear_default
+      ? undefined
+      : (args.default_option ?? row.default_option);
+    const shapeError =
+      validateShape(kind, {
+        question,
+        options,
+        default_option: defaultOption,
+        form,
+        card: args.card,
+      }) ??
+      invalidImpact(args.impact) ??
+      (await missingOptionPage(ctx, options));
     if (shapeError) return { error: shapeError };
     // A proposal's decision keeps answers that can settle it (expectationsApply.proposalToAsk).
-    if (args.options && (await ctx.db.query("expectation_proposals").withIndex("by_decision", (q: any) => q.eq("decision_id", row._id)).first())) {
+    if (
+      args.options &&
+      (await ctx.db
+        .query("expectation_proposals")
+        .withIndex("by_decision", (q: any) => q.eq("decision_id", row._id))
+        .first())
+    ) {
       const answers = proposalAnswersError(options);
       if (answers) return { error: answers };
     }
     // A blocking ask has no default; an advisory one needs one.
     if (blocking) defaultOption = undefined;
-    else if (defaultOption === undefined) return { error: "An advisory decision needs a default option" };
+    else if (defaultOption === undefined)
+      return { error: "An advisory decision needs a default option" };
 
-    const bound = await resolveDecisionBindings(ctx, auth.userId, args, { write: true });
+    const bound = await resolveDecisionBindings(ctx, auth.userId, args, {
+      write: true,
+    });
     if ("error" in bound) return bound;
     const { task, stack } = bound;
-    const conversation = args.doc_md ? await ctx.db.get(row.conversation_id) : null;
-    const docId = args.doc_md && conversation ? await upsertDecisionDoc(ctx, conversation, question, args.doc_md, now, row.doc_id) : undefined;
+    const conversation = args.doc_md
+      ? await ctx.db.get(row.conversation_id)
+      : null;
+    const docId =
+      args.doc_md && conversation
+        ? await upsertDecisionDoc(
+            ctx,
+            conversation,
+            question,
+            args.doc_md,
+            now,
+            row.doc_id,
+          )
+        : undefined;
 
     // Without a proposal the row keeps its category; a run's card is only tightened (categoryFor).
     const proposed = args.category ?? row.category_proposed;
-    const asker = row.workflow_run_id ? null : await ctx.db.get(row.conversation_id);
-    const category = categoryFor(args.category, { current: row.category, runDeclares: false, runs: !!row.workflow_run_id || !!(await runOfStation(ctx, asker)) });
+    const asker = row.workflow_run_id
+      ? null
+      : await ctx.db.get(row.conversation_id);
+    const category = categoryFor(args.category, {
+      current: row.category,
+      runDeclares: false,
+      runs: !!row.workflow_run_id || !!(await runOfStation(ctx, asker)),
+    });
     const joined = stack ? await joinStack(ctx, stack, row as any, now) : {};
     const joinsStack = "stack_id" in joined;
-    const trialProject = row.trial ? await trialProjectOf(ctx, task ?? (row.task_id ? await ctx.db.get(row.task_id) : null)) : null;
-    if (trialProject) await gateTrialPages(ctx, trialProject, [args.report_slug ?? row.report_slug, ...options.map((o) => o.page_slug)], now);
+    const trialProject = row.trial
+      ? await trialProjectOf(
+          ctx,
+          task ?? (row.task_id ? await ctx.db.get(row.task_id) : null),
+        )
+      : null;
+    if (trialProject)
+      await gateTrialPages(
+        ctx,
+        trialProject,
+        [
+          args.report_slug ?? row.report_slug,
+          ...options.map((o) => o.page_slug),
+        ],
+        now,
+      );
     const followed = await followOptions(ctx, row, options, now);
     await ctx.db.patch(row._id, {
       ...followed,
@@ -1526,9 +2435,20 @@ export const edit = mutation({
       category,
       category_proposed: proposed,
       // A new score replaces the old one and its why; a why alone rewrites only the why.
-      ...(args.impact !== undefined ? { impact: args.impact, impact_reason: args.impact_reason } : args.impact_reason !== undefined ? { impact_reason: args.impact_reason } : {}),
+      ...(args.impact !== undefined
+        ? { impact: args.impact, impact_reason: args.impact_reason }
+        : args.impact_reason !== undefined
+          ? { impact_reason: args.impact_reason }
+          : {}),
       ...(docId ? { doc_id: docId } : {}),
-      ...(task ? { task_id: task._id, station: args.station ?? task.status_id ?? task.status } : args.station ? { station: args.station } : {}),
+      ...(task
+        ? {
+            task_id: task._id,
+            station: args.station ?? task.status_id ?? task.status,
+          }
+        : args.station
+          ? { station: args.station }
+          : {}),
       ...joined,
       updated_at: now,
     });
@@ -1542,7 +2462,13 @@ export const edit = mutation({
       short_id: row.short_id,
       status: "pending",
       category,
-      task: task ? { id: task._id, short_id: task.short_id, station: args.station ?? task.status_id ?? task.status } : undefined,
+      task: task
+        ? {
+            id: task._id,
+            short_id: task.short_id,
+            station: args.station ?? task.status_id ?? task.status,
+          }
+        : undefined,
       stack: stack ? { id: stack._id, short_id: stack.short_id } : undefined,
       doc_id: docId,
     };
@@ -1560,13 +2486,23 @@ export const withdraw = mutation({
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) return { error: "Unauthorized" };
-    const found = await ownedDecision(ctx, auth, args.decision_id, args.session_id);
+    const found = await ownedDecision(
+      ctx,
+      auth,
+      args.decision_id,
+      args.session_id,
+    );
     if ("error" in found) return found;
     const { row } = found;
     if (row.status !== "pending") {
-      return { error: `Decision is already ${row.status}`, ...resolvedSummary(row) };
+      return {
+        error: `Decision is already ${row.status}`,
+        ...resolvedSummary(row),
+      };
     }
-    return withdrawCore(ctx, row, Date.now(), row.conversation_id, undefined, { presentAgain: true });
+    return withdrawCore(ctx, row, Date.now(), row.conversation_id, undefined, {
+      presentAgain: true,
+    });
   },
 });
 
@@ -1578,12 +2514,31 @@ export const GATE_PRESENT_AGAIN = "gate withdrawn: back to the presenter";
 // with "gate withdrawn" unless the run is already past it. A card its asker
 // or a person took back (`presentAgain`) asks for a card in its place, so the
 // run's runner returns it to the presenting station instead of ending it.
-export async function withdrawCore(ctx: Ctx, row: DecisionRow, now: number, via?: Id<"conversations">, reason?: string, opts?: { presentAgain?: boolean }) {
-  await ctx.db.patch(row._id, { status: "withdrawn", resolved_at: now, ...(reason ? { withdrawn_reason: reason.slice(0, 2000) } : {}) });
+export async function withdrawCore(
+  ctx: Ctx,
+  row: DecisionRow,
+  now: number,
+  via?: Id<"conversations">,
+  reason?: string,
+  opts?: { presentAgain?: boolean },
+) {
+  await ctx.db.patch(row._id, {
+    status: "withdrawn",
+    resolved_at: now,
+    ...(reason ? { withdrawn_reason: reason.slice(0, 2000) } : {}),
+  });
   if (row.workflow_run_id) {
     const run = await ctx.db.get(row.workflow_run_id);
-    if (run && run.status === "paused" && String(run.gate_decision_id ?? "") === String(row._id)) {
-      await ctx.db.patch(run._id, { status: "failed", fail_reason: opts?.presentAgain ? GATE_PRESENT_AGAIN : "gate withdrawn", updated_at: now });
+    if (
+      run &&
+      run.status === "paused" &&
+      String(run.gate_decision_id ?? "") === String(row._id)
+    ) {
+      await ctx.db.patch(run._id, {
+        status: "failed",
+        fail_reason: opts?.presentAgain ? GATE_PRESENT_AGAIN : "gate withdrawn",
+        updated_at: now,
+      });
     }
   }
   // The same settle every resolution takes (the-line.md L4): inbox rows
@@ -1591,7 +2546,18 @@ export async function withdrawCore(ctx: Ctx, row: DecisionRow, now: number, via?
   // roles receive the withdrawal as a passive fact. The run is failed above,
   // so the gate settle finds it past the pause and leaves "gate withdrawn".
   // `via`: the session withdrawing, so a task it parked on this is not woken by its own act.
-  await settleResolution(ctx, row, { status: "withdrawn" }, { kind: "user", id: String(row.user_id), user_id: row.user_id, ...(via ? { via } : {}) }, now);
+  await settleResolution(
+    ctx,
+    row,
+    { status: "withdrawn" },
+    {
+      kind: "user",
+      id: String(row.user_id),
+      user_id: row.user_id,
+      ...(via ? { via } : {}),
+    },
+    now,
+  );
   return { id: row._id, short_id: row.short_id, status: "withdrawn" };
 }
 
@@ -1602,8 +2568,18 @@ export async function withdrawCore(ctx: Ctx, row: DecisionRow, now: number, via?
  * it asked about. Called from tasks.afterStatusMove on every close, whoever
  * closes it.
  */
-export async function withdrawClosedProblemAsks(ctx: Ctx, task: { _id: Id<"tasks"> }, reason: string, now: number): Promise<string[]> {
-  const pending: DecisionRow[] = await ctx.db.query("session_decisions").withIndex("by_task", (q: any) => q.eq("task_id", task._id).eq("status", "pending")).collect();
+export async function withdrawClosedProblemAsks(
+  ctx: Ctx,
+  task: { _id: Id<"tasks"> },
+  reason: string,
+  now: number,
+): Promise<string[]> {
+  const pending: DecisionRow[] = await ctx.db
+    .query("session_decisions")
+    .withIndex("by_task", (q: any) =>
+      q.eq("task_id", task._id).eq("status", "pending"),
+    )
+    .collect();
   for (const row of pending) await withdrawWithCard(ctx, row, reason, now);
   return pending.map((r) => r.short_id ?? String(r._id));
 }
@@ -1616,12 +2592,31 @@ export async function withdrawClosedProblemAsks(ctx: Ctx, task: { _id: Id<"tasks
  * were closed by hand (Nov 15). A proposal asked again on a newer card points
  * at that card instead, so it stays open. The card's withdrawn_reason says why.
  */
-async function withdrawWithCard(ctx: Ctx, row: DecisionRow, reason: string, now: number): Promise<void> {
+async function withdrawWithCard(
+  ctx: Ctx,
+  row: DecisionRow,
+  reason: string,
+  now: number,
+): Promise<void> {
   await withdrawCore(ctx, row, now, undefined, reason);
-  const cards = await ctx.db.query("trial_cards").withIndex("by_decision", (q: any) => q.eq("decision_id", row._id)).collect();
-  for (const c of cards) if (c.status === "waiting") await ctx.db.patch(c._id, { status: "closed", updated_at: now });
-  const proposals = await ctx.db.query("expectation_proposals").withIndex("by_decision", (q: any) => q.eq("decision_id", row._id)).collect();
-  for (const p of proposals) if (p.status === "open") await ctx.db.patch(p._id, { status: "dropped", resolved_at: now, updated_at: now });
+  const cards = await ctx.db
+    .query("trial_cards")
+    .withIndex("by_decision", (q: any) => q.eq("decision_id", row._id))
+    .collect();
+  for (const c of cards)
+    if (c.status === "waiting")
+      await ctx.db.patch(c._id, { status: "closed", updated_at: now });
+  const proposals = await ctx.db
+    .query("expectation_proposals")
+    .withIndex("by_decision", (q: any) => q.eq("decision_id", row._id))
+    .collect();
+  for (const p of proposals)
+    if (p.status === "open")
+      await ctx.db.patch(p._id, {
+        status: "dropped",
+        resolved_at: now,
+        updated_at: now,
+      });
 }
 
 /**
@@ -1630,14 +2625,22 @@ async function withdrawWithCard(ctx: Ctx, row: DecisionRow, reason: string, now:
  * takes back only the caller's own). `dry` reports only.
  */
 export const withdrawNamed = internalMutation({
-  args: { decisions: v.array(v.string()), reason: v.string(), dry: v.boolean() },
+  args: {
+    decisions: v.array(v.string()),
+    reason: v.string(),
+    dry: v.boolean(),
+  },
   handler: async (ctx, args) => {
     const now = Date.now();
     const out: Array<{ decision: string; was: string }> = [];
     for (const ref of args.decisions) {
-      const row: DecisionRow | null = await ctx.db.query("session_decisions").withIndex("by_short_id", (q: any) => q.eq("short_id", ref)).first();
+      const row: DecisionRow | null = await ctx.db
+        .query("session_decisions")
+        .withIndex("by_short_id", (q: any) => q.eq("short_id", ref))
+        .first();
       out.push({ decision: ref, was: row?.status ?? "missing" });
-      if (!args.dry && row?.status === "pending") await withdrawWithCard(ctx, row, args.reason, now);
+      if (!args.dry && row?.status === "pending")
+        await withdrawWithCard(ctx, row, args.reason, now);
     }
     return out;
   },
@@ -1652,7 +2655,9 @@ function cliRowShape(r: DecisionRow, conversation?: any) {
     kind: r.kind ?? "single",
     category: r.category,
     // An option page (the-line.md L6) prints as a url; the slug stays for edits.
-    options: r.options.map((o) => (o.page_slug ? { ...o, page_url: artifactUrl(o.page_slug) } : o)),
+    options: r.options.map((o) =>
+      o.page_slug ? { ...o, page_url: artifactUrl(o.page_slug) } : o,
+    ),
     form: r.form,
     blocking: r.blocking,
     default_option: r.default_option,
@@ -1674,7 +2679,9 @@ function cliRowShape(r: DecisionRow, conversation?: any) {
     // How far the session has run past an open ask — the staleness signal
     // the CLI prints so the poster can cancel questions the work outgrew.
     messages_since:
-      conversation && r.status === "pending" && r.asked_message_count !== undefined
+      conversation &&
+      r.status === "pending" &&
+      r.asked_message_count !== undefined
         ? Math.max(0, conversation.message_count - r.asked_message_count)
         : undefined,
     ...resolvedSummary(r),
@@ -1696,7 +2703,9 @@ export async function listForSessionCore(
   if (args.session_id) {
     conversation = await ctx.db
       .query("conversations")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.session_id),
+      )
       .first();
     if (!conversation) return { error: "Session not found" };
     if (conversation.user_id.toString() !== auth.userId.toString()) {
@@ -1705,42 +2714,67 @@ export async function listForSessionCore(
   } else if (!args.stack && !args.task && !args.mine) {
     return { error: "Missing session_id" };
   }
-  const own = (r: DecisionRow) => (conversation && r.conversation_id === conversation._id ? conversation : undefined);
+  const own = (r: DecisionRow) =>
+    conversation && r.conversation_id === conversation._id
+      ? conversation
+      : undefined;
   let rows: DecisionRow[] = [];
   if (args.mine) {
     // `cast decide ls --mine` (the-line.md L10): every pending decision the
     // caller holds, from the same read the web queue uses, oldest first so
     // the list reads as the queue does.
-    rows = (await listForUserCore(ctx, auth.userId, Date.now())).filter((r) => r.status === "pending");
+    rows = (await listForUserCore(ctx, auth.userId, Date.now())).filter(
+      (r) => r.status === "pending",
+    );
     rows.sort((a, b) => a.created_at - b.created_at);
     return { decisions: rows.map((r) => cliRowShape(r, own(r))) };
   }
   if (args.stack) {
-    const bound = await resolveDecisionBindings(ctx, auth.userId, { stack: args.stack });
+    const bound = await resolveDecisionBindings(ctx, auth.userId, {
+      stack: args.stack,
+    });
     if ("error" in bound) return bound;
     const stack = bound.stack!;
-    rows = (await Promise.all(stack.decision_ids.map((id) => ctx.db.get(id)))).filter(Boolean) as DecisionRow[];
+    rows = (
+      await Promise.all(stack.decision_ids.map((id) => ctx.db.get(id)))
+    ).filter(Boolean) as DecisionRow[];
     return { decisions: rows.map((r) => cliRowShape(r, own(r))) };
   }
   if (args.task) {
-    const bound = await resolveDecisionBindings(ctx, auth.userId, { task: args.task });
+    const bound = await resolveDecisionBindings(ctx, auth.userId, {
+      task: args.task,
+    });
     if ("error" in bound) return bound;
     const task = bound.task;
-    for (const status of ["pending", "answered", "dismissed", "withdrawn"] as const) {
+    for (const status of [
+      "pending",
+      "answered",
+      "dismissed",
+      "withdrawn",
+    ] as const) {
       rows.push(
         ...(await ctx.db
           .query("session_decisions")
-          .withIndex("by_task", (q: any) => q.eq("task_id", task._id).eq("status", status))
-          .collect())
+          .withIndex("by_task", (q: any) =>
+            q.eq("task_id", task._id).eq("status", status),
+          )
+          .collect()),
       );
     }
   } else {
-    for (const status of ["pending", "answered", "dismissed", "withdrawn"] as const) {
+    for (const status of [
+      "pending",
+      "answered",
+      "dismissed",
+      "withdrawn",
+    ] as const) {
       rows.push(
         ...(await ctx.db
           .query("session_decisions")
-          .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversation._id).eq("status", status))
-          .collect())
+          .withIndex("by_conversation_status", (q: any) =>
+            q.eq("conversation_id", conversation._id).eq("status", status),
+          )
+          .collect()),
       );
     }
   }
@@ -1769,10 +2803,17 @@ export async function listAnsweredSinceCore(
 ): Promise<any> {
   const teamId = ctx.db.normalizeId("teams", args.team_id);
   if (!teamId) return { error: `Unknown team: ${args.team_id}` };
-  if (!(await isTeamMember(ctx, userId, teamId))) return { error: "Not a member of that team" };
+  if (!(await isTeamMember(ctx, userId, teamId)))
+    return { error: "Not a member of that team" };
   const workspace = `team:${teamId}`;
-  const limit = Math.max(1, Math.min(ANSWERED_PAGE_MAX, Math.floor(args.limit ?? 50)));
-  const members = await ctx.db.query("team_memberships").withIndex("by_team_id", (q: any) => q.eq("team_id", teamId)).collect();
+  const limit = Math.max(
+    1,
+    Math.min(ANSWERED_PAGE_MAX, Math.floor(args.limit ?? 50)),
+  );
+  const members = await ctx.db
+    .query("team_memberships")
+    .withIndex("by_team_id", (q: any) => q.eq("team_id", teamId))
+    .collect();
   // The cursor is a bare resolved_at read with gt, so a page never ends inside
   // one millisecond: every card answered at the cursor's time is on the page
   // that returns it. A member whose page came back full may hold more answers
@@ -1783,19 +2824,33 @@ export async function listAnsweredSinceCore(
   for (const m of members) {
     const page: DecisionRow[] = await ctx.db
       .query("session_decisions")
-      .withIndex("by_user_status_resolved", (q: any) => q.eq("user_id", m.user_id).eq("status", "answered").gt("resolved_at", args.answered_since))
+      .withIndex("by_user_status_resolved", (q: any) =>
+        q
+          .eq("user_id", m.user_id)
+          .eq("status", "answered")
+          .gt("resolved_at", args.answered_since),
+      )
       .take(limit);
     answered.push(...page);
     if (page.length < limit) continue;
     const last = page[page.length - 1].resolved_at ?? 0;
     const inclusive = (page[0].resolved_at ?? 0) === last;
-    if (last < bound.at || (last === bound.at && !inclusive)) bound = { at: last, inclusive };
+    if (last < bound.at || (last === bound.at && !inclusive))
+      bound = { at: last, inclusive };
   }
-  const withinBound = (at: number) => at < bound.at || (bound.inclusive && at === bound.at);
-  answered.sort((a, b) => (a.resolved_at ?? 0) - (b.resolved_at ?? 0) || String(a._id).localeCompare(String(b._id)));
+  const withinBound = (at: number) =>
+    at < bound.at || (bound.inclusive && at === bound.at);
+  answered.sort(
+    (a, b) =>
+      (a.resolved_at ?? 0) - (b.resolved_at ?? 0) ||
+      String(a._id).localeCompare(String(b._id)),
+  );
   const tasks = new Map<string, any>();
   const names = new Map<string, string | undefined>();
-  const nameOf = async (table: "users" | "projects" | "org_roles", id: string | undefined) => {
+  const nameOf = async (
+    table: "users" | "projects" | "org_roles",
+    id: string | undefined,
+  ) => {
     if (!id) return undefined;
     const key = `${table}:${id}`;
     if (!names.has(key)) {
@@ -1815,7 +2870,14 @@ export async function listAnsweredSinceCore(
     const key = String(r.task_id);
     if (!tasks.has(key)) {
       const task = await ctx.db.get(r.task_id);
-      tasks.set(key, task && task.workspace === workspace && (await canAccessTask(ctx, userId, task)) ? task : null);
+      tasks.set(
+        key,
+        task &&
+          task.workspace === workspace &&
+          (await canAccessTask(ctx, userId, task))
+          ? task
+          : null,
+      );
     }
     const task = tasks.get(key);
     if (!task) continue;
@@ -1827,16 +2889,39 @@ export async function listAnsweredSinceCore(
       options: r.options.map((o) => o.label),
       ...resolvedSummary(r),
       answered_by: by
-        ? { kind: by.kind, name: by.kind === "role" ? await nameOf("org_roles", by.id) : by.kind === "user" ? await nameOf("users", by.id) : undefined }
+        ? {
+            kind: by.kind,
+            name:
+              by.kind === "role"
+                ? await nameOf("org_roles", by.id)
+                : by.kind === "user"
+                  ? await nameOf("users", by.id)
+                  : undefined,
+          }
         : r.resolved_by
           ? { kind: "user", name: await nameOf("users", String(r.resolved_by)) }
           : undefined,
       resolved_at: r.resolved_at,
       // What the card's author recommended, and how sure it said it was, so a reader can check the confidence against the answers.
       ...(r.card?.recommend?.verdict
-        ? { recommended: { verdict: r.card.recommend.verdict, ...(typeof r.card.recommend.confidence === "number" ? { confidence: r.card.recommend.confidence } : {}) } }
+        ? {
+            recommended: {
+              verdict: r.card.recommend.verdict,
+              ...(typeof r.card.recommend.confidence === "number"
+                ? { confidence: r.card.recommend.confidence }
+                : {}),
+            },
+          }
         : {}),
-      task: { short_id: task.short_id, title: task.title, status: task.status, project: await nameOf("projects", task.project_id ? String(task.project_id) : undefined) },
+      task: {
+        short_id: task.short_id,
+        title: task.title,
+        status: task.status,
+        project: await nameOf(
+          "projects",
+          task.project_id ? String(task.project_id) : undefined,
+        ),
+      },
     });
   }
   return { decisions: out, cursor };
@@ -1858,7 +2943,11 @@ export const listForSession = mutation({
     if (!auth) return { error: "Unauthorized" };
     if (args.answered_since !== undefined) {
       if (!args.team_id) return { error: "--answered-since needs --team" };
-      return listAnsweredSinceCore(ctx, auth.userId, { answered_since: args.answered_since, team_id: args.team_id, limit: args.limit });
+      return listAnsweredSinceCore(ctx, auth.userId, {
+        answered_since: args.answered_since,
+        team_id: args.team_id,
+        limit: args.limit,
+      });
     }
     return listForSessionCore(ctx, auth, args);
   },
@@ -1875,43 +2964,77 @@ async function callerHop(
   row: DecisionRow,
   sessionId: string | undefined,
 ): Promise<{ role: Doc<"org_roles">; hopIndex: number } | { error: string }> {
-  if (!sessionId) return { error: "A role acts from its session: pass --session or run inside one" };
+  if (!sessionId)
+    return {
+      error: "A role acts from its session: pass --session or run inside one",
+    };
   const conversation = await ctx.db
     .query("conversations")
     .withIndex("by_session_id", (q: any) => q.eq("session_id", sessionId))
     .first();
   if (!conversation) return { error: "Session not found" };
-  if (conversation.user_id.toString() !== auth.userId.toString()) return { error: "Unauthorized: not your session" };
+  if (conversation.user_id.toString() !== auth.userId.toString())
+    return { error: "Unauthorized: not your session" };
   const role = await roleOfConversation(ctx, conversation);
-  if (!role) return { error: "This session speaks for no role; only a role on the ladder may recommend" };
+  if (!role)
+    return {
+      error:
+        "This session speaks for no role; only a role on the ladder may recommend",
+    };
   const hopIndex = (row.hops ?? []).findIndex((h) => h.role_id === role._id);
-  if (hopIndex === -1) return { error: `${role.name} is not on this decision's ladder` };
+  if (hopIndex === -1)
+    return { error: `${role.name} is not on this decision's ladder` };
   return { role, hopIndex };
 }
 
 export async function recommendCore(
   ctx: Ctx,
   auth: { userId: Id<"users"> },
-  args: { decision_id: string; session_id?: string; recommendation?: number; note?: string },
+  args: {
+    decision_id: string;
+    session_id?: string;
+    recommendation?: number;
+    note?: string;
+  },
 ): Promise<any> {
   const row = await findDecision(ctx, args.decision_id);
   if (!row) return { error: "Decision not found" };
-  if (row.status !== "pending") return { error: `Decision is already ${row.status}`, ...resolvedSummary(row) };
+  if (row.status !== "pending")
+    return {
+      error: `Decision is already ${row.status}`,
+      ...resolvedSummary(row),
+    };
   // No recommendation is a pass: the role hands the card up with only its note.
   const passes = args.recommendation === undefined;
-  if (!passes && (!Number.isInteger(args.recommendation) || args.recommendation! < 0 || args.recommendation! >= row.options.length)) {
+  if (
+    !passes &&
+    (!Number.isInteger(args.recommendation) ||
+      args.recommendation! < 0 ||
+      args.recommendation! >= row.options.length)
+  ) {
     return { error: "recommendation out of range" };
   }
   const found = await callerHop(ctx, auth, row, args.session_id);
   if ("error" in found) return found;
-  if (passes && row.holder?.kind === "role" && row.holder.id === String(found.role._id)) {
-    return { error: `${found.role.name} holds this decision under a grant: answer it (cast decide answer), or recommend an option` };
+  if (
+    passes &&
+    row.holder?.kind === "role" &&
+    row.holder.id === String(found.role._id)
+  ) {
+    return {
+      error: `${found.role.name} holds this decision under a grant: answer it (cast decide answer), or recommend an option`,
+    };
   }
   const now = Date.now();
   const hops = [...(row.hops ?? [])];
   hops[found.hopIndex] = passes
     ? { role_id: found.role._id, note: args.note, at: now, passed_at: now }
-    : { role_id: found.role._id, recommendation: args.recommendation, note: args.note, at: now };
+    : {
+        role_id: found.role._id,
+        recommendation: args.recommendation,
+        note: args.note,
+        at: now,
+      };
   await ctx.db.patch(row._id, { hops, updated_at: now });
   await handUp(ctx, row, now);
   return {
@@ -1952,7 +3075,9 @@ export const recommend = mutation({
 // in that conversation. It is recorded as their answer with the session as
 // its route (answered_by.via). An agent account speaks for nobody, and a
 // session never answers a question it asked.
-const isChangeCard = (row: DecisionRow): boolean => !!row.card || (!!row.workflow_run_id && row.gate_node_id === CARD_GATE_NODE_ID);
+const isChangeCard = (row: DecisionRow): boolean =>
+  !!row.card ||
+  (!!row.workflow_run_id && row.gate_node_id === CARD_GATE_NODE_ID);
 
 export const SESSION_CANNOT_ANSWER_AS_PERSON =
   "A session cannot answer as a person on its own judgment. If your human explicitly told you in this conversation to answer this decision (or agreed to this choice), pass --for-human. Otherwise they answer it from the web or a plain shell; only the holder role under a grant answers on its own.";
@@ -1971,60 +3096,130 @@ async function answererFor(
       .withIndex("by_session_id", (q: any) => q.eq("session_id", sessionId))
       .first();
     if (!conversation) return { error: "Session not found" };
-    if (conversation.user_id.toString() !== auth.userId.toString()) return { error: "Unauthorized: not your session" };
+    if (conversation.user_id.toString() !== auth.userId.toString())
+      return { error: "Unauthorized: not your session" };
     if (forHuman) {
       const person = await ctx.db.get(auth.userId);
-      if (!person || person.is_bot) return { error: "This session runs on an agent account, which answers for no person. A person answers it from the web." };
-      if (String(row.conversation_id) === String(conversation._id)) return { error: "A session cannot answer its own question; your human answers it." };
-      if (!(await userMayRead(ctx, auth.userId, row))) return { error: "Unauthorized: not your human's decision" };
-      return { kind: "user", id: String(auth.userId), user_id: auth.userId, via: conversation._id };
+      if (!person || person.is_bot)
+        return {
+          error:
+            "This session runs on an agent account, which answers for no person. A person answers it from the web.",
+        };
+      if (String(row.conversation_id) === String(conversation._id))
+        return {
+          error:
+            "A session cannot answer its own question; your human answers it.",
+        };
+      if (!(await userMayRead(ctx, auth.userId, row)))
+        return { error: "Unauthorized: not your human's decision" };
+      return {
+        kind: "user",
+        id: String(auth.userId),
+        user_id: auth.userId,
+        via: conversation._id,
+      };
     }
     const role = await roleOfConversation(ctx, conversation);
     if (!role) return { error: SESSION_CANNOT_ANSWER_AS_PERSON };
     // A line run's change card: the lead on its ladder answers it when the
     // lead starts work on its own, whatever its category; the session that
     // asked it never does.
-    if (isChangeCard(row) && (row.hops ?? []).some((h) => String(h.role_id) === String(role._id)) && roleStartsOnItsOwn(role)) {
-      if (String(row.conversation_id) === String(conversation._id)) return { error: "A session cannot answer its own question" };
+    if (
+      isChangeCard(row) &&
+      (row.hops ?? []).some((h) => String(h.role_id) === String(role._id)) &&
+      roleStartsOnItsOwn(role)
+    ) {
+      if (String(row.conversation_id) === String(conversation._id))
+        return { error: "A session cannot answer its own question" };
       return { kind: "role", id: String(role._id) };
     }
     if (row.holder?.kind !== "role" || String(role._id) !== row.holder.id) {
-      return { error: `${role.name} does not hold this decision; recommend instead (cast decide recommend), or a person answers it` };
+      return {
+        error: `${role.name} does not hold this decision; recommend instead (cast decide recommend), or a person answers it`,
+      };
     }
     // A person handed it to this role: their word is the authority, so no
     // grant or switch is needed.
-    if (row.passed_to?.kind === "role" && row.passed_to.id === String(role._id)) return { kind: "role", id: String(role._id) };
+    if (row.passed_to?.kind === "role" && row.passed_to.id === String(role._id))
+      return { kind: "role", id: String(role._id) };
     // The switch (org-staffing.md S23.1): a role that does not start work on
     // its own reads and recommends; it may not answer, grant or no grant, and
     // it never asks a person to change its own settings.
     if (!roleStartsOnItsOwn(role)) {
-      return { error: `${role.name} does not start work on its own, so it recommends rather than answers: cast decide recommend` };
+      return {
+        error: `${role.name} does not start work on its own, so it recommends rather than answers: cast decide recommend`,
+      };
     }
-    const grant = await activeGrantFor(ctx, [role._id], row.category ?? "unknown", (row as any).scope_keys ?? [], now);
-    if (!grant) return { error: `${role.name} no longer holds a grant for this decision; a person answers it` };
+    const grant = await activeGrantFor(
+      ctx,
+      [role._id],
+      row.category ?? "unknown",
+      (row as any).scope_keys ?? [],
+      now,
+    );
+    if (!grant)
+      return {
+        error: `${role.name} no longer holds a grant for this decision; a person answers it`,
+      };
     return { kind: "role", id: String(role._id), grant_id: grant._id };
   }
-  if (await userMayRead(ctx, auth.userId, row)) return { kind: "user", id: String(auth.userId), user_id: auth.userId };
+  if (await userMayRead(ctx, auth.userId, row))
+    return { kind: "user", id: String(auth.userId), user_id: auth.userId };
   return { error: "Unauthorized: not your decision" };
 }
 
 export async function answerCore(
   ctx: Ctx,
   auth: { userId: Id<"users"> },
-  args: { decision_id: string; session_id?: string; for_human?: boolean; answer_index?: number; answer_json?: any; answer_text?: string },
+  args: {
+    decision_id: string;
+    session_id?: string;
+    for_human?: boolean;
+    answer_index?: number;
+    answer_json?: any;
+    answer_text?: string;
+  },
 ): Promise<any> {
   const row = await findDecision(ctx, args.decision_id);
   if (!row) return { error: "Decision not found" };
-  if (row.status !== "pending") return { error: `Decision is already ${row.status}`, ...resolvedSummary(row) };
+  if (row.status !== "pending")
+    return {
+      error: `Decision is already ${row.status}`,
+      ...resolvedSummary(row),
+    };
   const now = Date.now();
-  const by = await answererFor(ctx, auth, row, args.session_id, now, !!args.for_human);
+  const by = await answererFor(
+    ctx,
+    auth,
+    row,
+    args.session_id,
+    now,
+    !!args.for_human,
+  );
   if ("error" in by) return by;
   const refusal = await answerRefusal(ctx, row, by);
   if (refusal) return { error: refusal };
-  const verdict = normalizeVerdict(row, { status: "answered", answer_index: args.answer_index, answer_json: args.answer_json, answer_text: args.answer_text });
+  const verdict = normalizeVerdict(row, {
+    status: "answered",
+    answer_index: args.answer_index,
+    answer_json: args.answer_json,
+    answer_text: args.answer_text,
+  });
   if ("error" in verdict) return verdict;
-  const result = await finalizeAnswer(ctx, row, verdict, by, { deliver: true, now });
-  return { id: row._id, short_id: row.short_id, ...result, answered_by: { kind: by.kind, id: by.id, ...(by.via ? { via: by.via } : {}) } };
+  const result = await finalizeAnswer(ctx, row, verdict, by, {
+    deliver: true,
+    now,
+  });
+  return {
+    id: row._id,
+    short_id: row.short_id,
+    ...result,
+    answered_by: {
+      kind: by.kind,
+      id: by.id,
+      ...(by.via ? { via: by.via } : {}),
+    },
+  };
 }
 
 export const answer = mutation({
@@ -2055,8 +3250,12 @@ export const showForCli = query({
     if (!auth) return { error: "Unauthorized" };
     const row = await findDecision(ctx, args.decision_id);
     if (!row) return { error: "Decision not found" };
-    if (!(await userMayRead(ctx, auth.userId, row))) return { error: "Unauthorized: not your decision" };
-    return { decision: cliRowShape(row), ...(await decisionContext(ctx, row, auth.userId)) };
+    if (!(await userMayRead(ctx, auth.userId, row)))
+      return { error: "Unauthorized: not your decision" };
+    return {
+      decision: cliRowShape(row),
+      ...(await decisionContext(ctx, row, auth.userId)),
+    };
   },
 });
 
@@ -2080,47 +3279,77 @@ export const resolve = mutation({
 
     const row = await ctx.db.get(args.decision_id);
     if (!row) throw new Error("Decision not found");
-    if (!(await userMayRead(ctx, userId, row))) throw new Error("Unauthorized: not your decision");
+    if (!(await userMayRead(ctx, userId, row)))
+      throw new Error("Unauthorized: not your decision");
     // Answering an already-resolved row is a no-op, not an error — two devices
     // can race and the first resolution wins.
     if (row.status !== "pending") return { already_resolved: true };
     const verdict = normalizeVerdict(row, args);
     if ("error" in verdict) throw new Error(verdict.error);
-    return finalizeAnswer(ctx, row, verdict, { kind: "user", id: String(userId), user_id: userId, signed_in: true, presence: args.grant }, { deliver: false });
+    return finalizeAnswer(
+      ctx,
+      row,
+      verdict,
+      {
+        kind: "user",
+        id: String(userId),
+        user_id: userId,
+        signed_in: true,
+        presence: args.grant,
+      },
+      { deliver: false },
+    );
   },
 });
 
 // A person reopens an answer a role gave under a grant ("disagree" on the
 // Handled without you list). The row goes back to pending, held by the
 // people; the person's own answer is then scored against the role's.
-export async function reopenCore(ctx: Ctx, userId: Id<"users">, decisionId: Id<"session_decisions">) {
-    const row: DecisionRow | null = await ctx.db.get(decisionId);
-    if (!row) throw new Error("Decision not found");
-    const people = (row.asked_user_ids ?? [row.user_id]).map(String);
-    if (!people.includes(String(userId))) throw new Error("Unauthorized: not your decision");
-    if (row.status !== "answered" || row.answered_by?.kind !== "role" || !row.grant_id) {
-      return { reopened: false, reason: "only an answer a role gave under a grant can be reopened" };
-    }
-    const now = Date.now();
-    await ctx.db.patch(row._id, {
-      status: "pending",
-      answer_index: undefined,
-      answer_text: undefined,
-      answer_json: undefined,
-      resolved_at: undefined,
-      resolved_by: undefined,
-      answered_by: undefined,
-      grant_id: undefined,
-      reopened_from: { grant_id: row.grant_id, answer_index: row.answer_index, at: now },
-      holder: { kind: "user", id: String(userId) },
-      holder_key: `user:${userId}`,
-      updated_at: now,
-    });
-    await setInboxStatus(ctx, row._id, "pending");
-    await reopenTaskWaits(ctx as any, row);
-    const stack = row.stack_id ? await ctx.db.get(row.stack_id) : null;
-    if (stack && stack.status === "done") await ctx.db.patch(stack._id, { status: "open", updated_at: now });
-    return { reopened: true };
+export async function reopenCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  decisionId: Id<"session_decisions">,
+) {
+  const row: DecisionRow | null = await ctx.db.get(decisionId);
+  if (!row) throw new Error("Decision not found");
+  const people = (row.asked_user_ids ?? [row.user_id]).map(String);
+  if (!people.includes(String(userId)))
+    throw new Error("Unauthorized: not your decision");
+  if (
+    row.status !== "answered" ||
+    row.answered_by?.kind !== "role" ||
+    !row.grant_id
+  ) {
+    return {
+      reopened: false,
+      reason: "only an answer a role gave under a grant can be reopened",
+    };
+  }
+  const now = Date.now();
+  await ctx.db.patch(row._id, {
+    status: "pending",
+    answer_index: undefined,
+    answer_text: undefined,
+    answer_json: undefined,
+    resolved_at: undefined,
+    resolved_by: undefined,
+    answered_by: undefined,
+    grant_id: undefined,
+    reopened_from: {
+      grant_id: row.grant_id,
+      answer_index: row.answer_index,
+      at: now,
+    },
+    holder: { kind: "user", id: String(userId) },
+    holder_key: `user:${userId}`,
+    updated_at: now,
+  });
+  await setInboxStatus(ctx, row._id, "pending");
+  await reopenTaskWaits(ctx as any, row);
+  const stack = row.stack_id ? await ctx.db.get(row.stack_id) : null;
+  if (stack && stack.status === "done")
+    await ctx.db.patch(stack._id, { status: "open", updated_at: now });
+  return { reopened: true };
 }
 
 export const reopen = mutation({
@@ -2138,13 +3367,23 @@ export const reopen = mutation({
 // One range read per category over the 90 day window (by_category_status_
 // created), folded into a map keyed "role|scope" so a card with several hops
 // and scope keys costs one read instead of one scan per pair.
-export type AgreementMap = Map<string, { agreements: number; askers: Set<string> }>;
+export type AgreementMap = Map<
+  string,
+  { agreements: number; askers: Set<string> }
+>;
 
-export async function agreementHistoryForCategory(ctx: Ctx, category: string, now: number): Promise<AgreementMap> {
+export async function agreementHistoryForCategory(
+  ctx: Ctx,
+  category: string,
+  now: number,
+): Promise<AgreementMap> {
   const rows: DecisionRow[] = await ctx.db
     .query("session_decisions")
     .withIndex("by_category_status_created", (q: any) =>
-      q.eq("category", category).eq("status", "answered").gte("created_at", now - HISTORY_WINDOW_MS),
+      q
+        .eq("category", category)
+        .eq("status", "answered")
+        .gte("created_at", now - HISTORY_WINDOW_MS),
     )
     .collect();
   const out: AgreementMap = new Map();
@@ -2152,10 +3391,17 @@ export async function agreementHistoryForCategory(ctx: Ctx, category: string, no
     if (r.category !== category || r.status !== "answered") continue; // the fake db ignores ranges
     if (r.answered_by?.kind !== "user") continue;
     for (const hop of r.hops ?? []) {
-      if (hop.recommendation === undefined || hop.recommendation !== r.answer_index) continue;
+      if (
+        hop.recommendation === undefined ||
+        hop.recommendation !== r.answer_index
+      )
+        continue;
       for (const scopeKey of (r as any).scope_keys ?? []) {
         const key = `${hop.role_id}|${scopeKey}`;
-        const entry = out.get(key) ?? { agreements: 0, askers: new Set<string>() };
+        const entry = out.get(key) ?? {
+          agreements: 0,
+          askers: new Set<string>(),
+        };
         entry.agreements += 1;
         entry.askers.add(String(r.conversation_id));
         out.set(key, entry);
@@ -2173,7 +3419,12 @@ export function agreementFor(
   const entry = map.get(`${roleId}|${scopeKey}`);
   const agreements = entry?.agreements ?? 0;
   const askers = entry?.askers.size ?? 0;
-  return { agreements, askers, eligible: agreements >= GRANT_RULE.agreements && askers >= GRANT_RULE.askers };
+  return {
+    agreements,
+    askers,
+    eligible:
+      agreements >= GRANT_RULE.agreements && askers >= GRANT_RULE.askers,
+  };
 }
 
 export async function agreementHistory(
@@ -2183,22 +3434,51 @@ export async function agreementHistory(
   scopeKey: string,
   now: number,
 ): Promise<{ agreements: number; askers: number; eligible: boolean }> {
-  return agreementFor(await agreementHistoryForCategory(ctx, category, now), roleId, scopeKey);
+  return agreementFor(
+    await agreementHistoryForCategory(ctx, category, now),
+    roleId,
+    scopeKey,
+  );
 }
 
 export async function grantCore(
   ctx: Ctx,
   userId: Id<"users">,
-  args: { role_id: Id<"org_roles">; category: string; scope_key: string; from_decision_id?: Id<"session_decisions">; force?: boolean },
+  args: {
+    role_id: Id<"org_roles">;
+    category: string;
+    scope_key: string;
+    from_decision_id?: Id<"session_decisions">;
+    force?: boolean;
+  },
 ): Promise<any> {
   const role = await ctx.db.get(args.role_id);
   if (!role) return { error: "Role not found" };
-  if (!(await userCanAdminRole(ctx, userId, role))) return { error: "Only the role's host or a team admin can grant" };
-  if (isHumanOnlyCategory(args.category)) return { error: `${args.category} is always held by a person` };
+  if (!(await userCanAdminRole(ctx, userId, role)))
+    return { error: "Only the role's host or a team admin can grant" };
+  if (isHumanOnlyCategory(args.category))
+    return { error: `${args.category} is always held by a person` };
   const now = Date.now();
-  const existing = await activeGrantFor(ctx, [args.role_id], args.category, [args.scope_key], now);
-  if (existing) return { id: existing._id, already_granted: true, expires_at: existing.expires_at };
-  const history = await agreementHistory(ctx, args.role_id, args.category, args.scope_key, now);
+  const existing = await activeGrantFor(
+    ctx,
+    [args.role_id],
+    args.category,
+    [args.scope_key],
+    now,
+  );
+  if (existing)
+    return {
+      id: existing._id,
+      already_granted: true,
+      expires_at: existing.expires_at,
+    };
+  const history = await agreementHistory(
+    ctx,
+    args.role_id,
+    args.category,
+    args.scope_key,
+    now,
+  );
   if (!history.eligible && !args.force) {
     return {
       error: `Not earned yet: ${history.agreements}/${GRANT_RULE.agreements} agreements from ${history.askers}/${GRANT_RULE.askers} askers. Pass --force as an admin to grant anyway.`,
@@ -2218,14 +3498,21 @@ export async function grantCore(
   // Pending rows of this category in the scope move to the role.
   const pending: DecisionRow[] = await ctx.db
     .query("session_decisions")
-    .withIndex("by_category_status_created", (q: any) => q.eq("category", args.category).eq("status", "pending"))
+    .withIndex("by_category_status_created", (q: any) =>
+      q.eq("category", args.category).eq("status", "pending"),
+    )
     .collect();
   for (const r of pending) {
     if (r.category !== args.category || r.status !== "pending") continue;
     if (!((r as any).scope_keys ?? []).includes(args.scope_key)) continue;
     await refreshHolder(ctx, r, now);
   }
-  return { id, already_granted: false, expires_at: now + GRANT_TTL_MS, forced: !history.eligible };
+  return {
+    id,
+    already_granted: false,
+    expires_at: now + GRANT_TTL_MS,
+    forced: !history.eligible,
+  };
 }
 
 // Web only: grants come from the card's "Let this role answer questions like
@@ -2257,16 +3544,23 @@ export const revoke = mutation({
     const g = await ctx.db.get(args.grant_id);
     if (!g) return { error: "Grant not found" };
     const role = await ctx.db.get(g.role_id);
-    if (!role || !(await userCanAdminRole(ctx, userId, role))) return { error: "Only the role's host or a team admin can revoke" };
+    if (!role || !(await userCanAdminRole(ctx, userId, role)))
+      return { error: "Only the role's host or a team admin can revoke" };
     if (g.revoked_at) return { id: g._id, already_revoked: true };
     const now = Date.now();
-    await ctx.db.patch(g._id, { revoked_at: now, revoked_reason: args.reason ?? "revoked" });
+    await ctx.db.patch(g._id, {
+      revoked_at: now,
+      revoked_reason: args.reason ?? "revoked",
+    });
     // Pending rows the role held under this grant go back to their people.
     const held: DecisionRow[] = await ctx.db
       .query("session_decisions")
-      .withIndex("by_holder_status", (q: any) => q.eq("holder_key", `role:${g.role_id}`).eq("status", "pending"))
+      .withIndex("by_holder_status", (q: any) =>
+        q.eq("holder_key", `role:${g.role_id}`).eq("status", "pending"),
+      )
       .collect();
-    for (const r of held) if (r.category === g.category) await refreshHolder(ctx, r, now);
+    for (const r of held)
+      if (r.category === g.category) await refreshHolder(ctx, r, now);
     return { id: g._id, already_revoked: false };
   },
 });
@@ -2274,7 +3568,10 @@ export const revoke = mutation({
 // ── Reads ─────────────────────────────────────────────────────────────────────
 
 // A decision row the signed-in viewer may read.
-async function readableDecision(ctx: any, decisionId: any): Promise<DecisionRow | null> {
+async function readableDecision(
+  ctx: any,
+  decisionId: any,
+): Promise<DecisionRow | null> {
   const userId = await getAuthUserId(ctx);
   if (!userId) return null;
   const row = await ctx.db.get(decisionId);
@@ -2334,19 +3631,37 @@ export const get = query({
 async function roleSummary(ctx: Ctx, roleId: Id<"org_roles">) {
   const role = await ctx.db.get(roleId);
   return role
-    ? { _id: role._id, short_id: role.short_id, name: role.name, handle: role.handle, status: role.status, host_user_id: role.host_user_id }
+    ? {
+        _id: role._id,
+        short_id: role.short_id,
+        name: role.name,
+        handle: role.handle,
+        status: role.status,
+        host_user_id: role.host_user_id,
+      }
     : null;
 }
 
 async function userSummary(ctx: Ctx, userId: Id<"users">) {
   const u = await ctx.db.get(userId);
-  return u ? { _id: u._id, name: u.name ?? u.github_username ?? u.email?.split("@")[0] ?? "someone", avatar_url: u.avatar_url ?? u.image } : null;
+  return u
+    ? {
+        _id: u._id,
+        name:
+          u.name ?? u.github_username ?? u.email?.split("@")[0] ?? "someone",
+        avatar_url: u.avatar_url ?? u.image,
+      }
+    : null;
 }
 
 // Everything the document page renders around the row: the doc body, the
 // task, the stack, the ladder with role names, the people, the holder role,
 // and (on an answered row) whether the card may offer a grant.
-async function decisionContext(ctx: Ctx, row: DecisionRow, viewerId: Id<"users">) {
+async function decisionContext(
+  ctx: Ctx,
+  row: DecisionRow,
+  viewerId: Id<"users">,
+) {
   const doc = row.doc_id ? await ctx.db.get(row.doc_id) : null;
   const task = row.task_id ? await ctx.db.get(row.task_id) : null;
   const stack = row.stack_id ? await ctx.db.get(row.stack_id) : null;
@@ -2359,23 +3674,52 @@ async function decisionContext(ctx: Ctx, row: DecisionRow, viewerId: Id<"users">
     const u = await userSummary(ctx, id);
     if (u) asked_users.push(u);
   }
-  const holder_role = row.holder?.kind === "role" ? await roleSummary(ctx, row.holder.id as Id<"org_roles">) : null;
+  const holder_role =
+    row.holder?.kind === "role"
+      ? await roleSummary(ctx, row.holder.id as Id<"org_roles">)
+      : null;
   // The grant offer (D2): the person picked what a role recommended, and the
   // role has earned it in this category and scope.
   // may_grant is the server's own rule (userCanAdminRole: the role's host,
   // the personal scope owner, or an admin of the ROLE's team), so the card
   // never guesses from the viewer's active team.
-  let grant_offer: { role_id: Id<"org_roles">; role_name: string; category: string; scope_key: string; agreements: number; askers: number; may_grant: boolean } | null = null;
-  if (row.status === "answered" && row.answered_by?.kind === "user" && row.category && !isHumanOnlyCategory(row.category)) {
+  let grant_offer: {
+    role_id: Id<"org_roles">;
+    role_name: string;
+    category: string;
+    scope_key: string;
+    agreements: number;
+    askers: number;
+    may_grant: boolean;
+  } | null = null;
+  if (
+    row.status === "answered" &&
+    row.answered_by?.kind === "user" &&
+    row.category &&
+    !isHumanOnlyCategory(row.category)
+  ) {
     const scopeKeys: string[] = (row as any).scope_keys ?? [];
     const now = Date.now();
     // One category read for the whole card, whatever the hop and scope count.
     const history = await agreementHistoryForCategory(ctx, row.category, now);
     for (const hop of row.hops ?? []) {
-      if (hop.recommendation === undefined || hop.recommendation !== row.answer_index) continue;
+      if (
+        hop.recommendation === undefined ||
+        hop.recommendation !== row.answer_index
+      )
+        continue;
       for (const scopeKey of scopeKeys) {
         const h = agreementFor(history, hop.role_id, scopeKey);
-        if (h.eligible && !(await activeGrantFor(ctx, [hop.role_id], row.category, [scopeKey], now))) {
+        if (
+          h.eligible &&
+          !(await activeGrantFor(
+            ctx,
+            [hop.role_id],
+            row.category,
+            [scopeKey],
+            now,
+          ))
+        ) {
           const role = await ctx.db.get(hop.role_id);
           grant_offer = {
             role_id: hop.role_id,
@@ -2392,9 +3736,34 @@ async function decisionContext(ctx: Ctx, row: DecisionRow, viewerId: Id<"users">
     }
   }
   return {
-    doc: doc ? { _id: doc._id, title: doc.title, content: doc.content, updated_at: doc.updated_at } : null,
-    task: task ? { _id: task._id, short_id: task.short_id, title: task.title, status: task.status, status_id: task.status_id, project_id: task.project_id } : null,
-    stack: stack ? { _id: stack._id, short_id: stack.short_id, title: stack.title, decision_ids: stack.decision_ids, policy: stack.policy, status: stack.status } : null,
+    doc: doc
+      ? {
+          _id: doc._id,
+          title: doc.title,
+          content: doc.content,
+          updated_at: doc.updated_at,
+        }
+      : null,
+    task: task
+      ? {
+          _id: task._id,
+          short_id: task.short_id,
+          title: task.title,
+          status: task.status,
+          status_id: task.status_id,
+          project_id: task.project_id,
+        }
+      : null,
+    stack: stack
+      ? {
+          _id: stack._id,
+          short_id: stack.short_id,
+          title: stack.title,
+          decision_ids: stack.decision_ids,
+          policy: stack.policy,
+          status: stack.status,
+        }
+      : null,
     ladder,
     asked_users,
     holder_role,
@@ -2406,9 +3775,18 @@ async function decisionContext(ctx: Ctx, row: DecisionRow, viewerId: Id<"users">
 // One decision's page payload: the row with its live session, its context,
 // and what replaced it. Unfiltered: a superseded decision's own page opens,
 // and says what replaced it (line-versions.md LV3).
-async function decisionDetail(ctx: Ctx, row: DecisionRow, viewerId: Id<"users">, memo?: LineMemo) {
+async function decisionDetail(
+  ctx: Ctx,
+  row: DecisionRow,
+  viewerId: Id<"users">,
+  memo?: LineMemo,
+) {
   const [live] = await withLiveSession(ctx, [row]);
-  return { decision: live, ...(await decisionContext(ctx, row, viewerId)), superseded: await decisionSuperseded(ctx, row, memo) };
+  return {
+    decision: live,
+    ...(await decisionContext(ctx, row, viewerId)),
+    superseded: await decisionSuperseded(ctx, row, memo),
+  };
 }
 
 // The document page (D4): the decision, its doc body, task title, stack,
@@ -2437,7 +3815,10 @@ export const getWithDocMany = query({
     if (!userId) return [];
     const memo = newLineMemo();
     const out = [];
-    for (const id of [...new Set(args.decision_ids)].slice(0, DETAIL_PREFETCH_CAP)) {
+    for (const id of [...new Set(args.decision_ids)].slice(
+      0,
+      DETAIL_PREFETCH_CAP,
+    )) {
       const docId = ctx.db.normalizeId("session_decisions", id);
       const row: DecisionRow | null = docId ? await ctx.db.get(docId) : null;
       if (!row || !(await userMayRead(ctx, userId, row))) continue;
@@ -2462,10 +3843,16 @@ export const findByAnswer = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
     const conversation = await ctx.db.get(args.conversation_id);
-    if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) return null;
+    if (
+      !conversation ||
+      !(await canAccessConversation(ctx, userId, conversation))
+    )
+      return null;
     const rows = await ctx.db
       .query("session_decisions")
-      .withIndex("by_conversation_status", (q) => q.eq("conversation_id", args.conversation_id).eq("status", "answered"))
+      .withIndex("by_conversation_status", (q) =>
+        q.eq("conversation_id", args.conversation_id).eq("status", "answered"),
+      )
       .collect();
     const row = pickAnsweredDecision(rows, args.answer, args.near);
     return row ? answerBubbleShape(row) : null;
@@ -2483,20 +3870,30 @@ export const findAskMessage = query({
     const row = await readableDecision(ctx, args.decision_id);
     if (!row) return null;
 
-    const ids = [args.decision_id.toString(), ...(row.short_id ? [row.short_id] : [])];
-    const mentions = (text: string | undefined) => !!text && ids.some((id) => text.includes(id));
+    const ids = [
+      args.decision_id.toString(),
+      ...(row.short_id ? [row.short_id] : []),
+    ];
+    const mentions = (text: string | undefined) =>
+      !!text && ids.some((id) => text.includes(id));
     const messages = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_timestamp", (q) => q.eq("conversation_id", row.conversation_id))
+      .withIndex("by_conversation_timestamp", (q) =>
+        q.eq("conversation_id", row.conversation_id),
+      )
       .order("asc")
       .collect();
     // tool-call id → its message: a hit inside a tool RESULT resolves to the
     // message carrying the call, because the result rides a content-less
     // carrier row that the client renders folded into the call's row.
     const callMessage = new Map<string, (typeof messages)[number]>();
-    for (const m of messages) for (const tc of m.tool_calls ?? []) callMessage.set(tc.id, m);
+    for (const m of messages)
+      for (const tc of m.tool_calls ?? []) callMessage.set(tc.id, m);
     for (const m of messages) {
-      if (mentions(m.content) || m.tool_calls?.some((tc) => mentions(tc.input))) {
+      if (
+        mentions(m.content) ||
+        m.tool_calls?.some((tc) => mentions(tc.input))
+      ) {
         return { message_id: m._id, timestamp: m.timestamp };
       }
       const hit = m.tool_results?.find((r) => mentions(r.content));
@@ -2518,10 +3915,13 @@ export const findAskMessage = query({
 // its first minutes — the stamp taken then is empty forever, which is why an
 // old decision read "See the conversation" with nothing to identify it. The
 // conversation's current title is the truth, so every read overlays it.
-export async function withLiveSession<T extends { conversation_id: Id<"conversations">; session_title?: string; project_path?: string }>(
-  ctx: Ctx,
-  rows: T[],
-): Promise<T[]> {
+export async function withLiveSession<
+  T extends {
+    conversation_id: Id<"conversations">;
+    session_title?: string;
+    project_path?: string;
+  },
+>(ctx: Ctx, rows: T[]): Promise<T[]> {
   const seen = new Map<string, { title?: string; project_path?: string }>();
   const out: T[] = [];
   for (const r of rows) {
@@ -2529,7 +3929,10 @@ export async function withLiveSession<T extends { conversation_id: Id<"conversat
     let live = seen.get(key);
     if (!live) {
       const conversation = await ctx.db.get(r.conversation_id);
-      live = { title: conversation?.title, project_path: conversation?.project_path };
+      live = {
+        title: conversation?.title,
+        project_path: conversation?.project_path,
+      };
       seen.set(key, live);
     }
     out.push({
@@ -2541,37 +3944,80 @@ export async function withLiveSession<T extends { conversation_id: Id<"conversat
   return out;
 }
 
-export async function listForUserCore(ctx: Ctx, userId: Id<"users">, now: number): Promise<DecisionRow[]> {
+export async function listForUserCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  now: number,
+): Promise<DecisionRow[]> {
   const cutoff = now - RESOLVED_WINDOW_MS;
   const out = new Map<string, DecisionRow>();
 
   // Pending rows whole; resolved ones only inside the window, by index. Reading
   // every row a person was ever asked, to keep the last day's, cost 12 MB a call.
   const inboxRows = [
-    ...(await ctx.db.query("decision_inbox").withIndex("by_user_status", (q: any) => q.eq("user_id", userId).eq("status", "pending")).collect()),
-    ...(await ctx.db.query("decision_inbox").withIndex("by_user_status_at", (q: any) => q.eq("user_id", userId).eq("status", "done").gte("status_at", cutoff)).collect()),
+    ...(await ctx.db
+      .query("decision_inbox")
+      .withIndex("by_user_status", (q: any) =>
+        q.eq("user_id", userId).eq("status", "pending"),
+      )
+      .collect()),
+    ...(await ctx.db
+      .query("decision_inbox")
+      .withIndex("by_user_status_at", (q: any) =>
+        q.eq("user_id", userId).eq("status", "done").gte("status_at", cutoff),
+      )
+      .collect()),
   ];
   for (const r of inboxRows) {
     const d: DecisionRow | null = await ctx.db.get(r.decision_id);
     if (!d) continue;
     // A stale inbox row from before assignment must not keep the card on
     // the previous person's stack: asked_user_ids is the people set.
-    if (d.asked_user_ids !== undefined && !d.asked_user_ids.some((id) => String(id) === String(userId))) continue;
-    if (d.status === "pending" || (d.resolved_at ?? 0) >= cutoff) out.set(String(d._id), d);
+    if (
+      d.asked_user_ids !== undefined &&
+      !d.asked_user_ids.some((id) => String(id) === String(userId))
+    )
+      continue;
+    if (d.status === "pending" || (d.resolved_at ?? 0) >= cutoff)
+      out.set(String(d._id), d);
   }
 
-  for (const status of ["pending", "answered", "dismissed", "withdrawn"] as const) {
-    const rows: DecisionRow[] = status === "pending"
-      ? await ctx.db.query("session_decisions").withIndex("by_user_status", (q: any) => q.eq("user_id", userId).eq("status", status)).collect()
-      : await ctx.db.query("session_decisions").withIndex("by_user_status_resolved", (q: any) => q.eq("user_id", userId).eq("status", status).gte("resolved_at", cutoff)).collect();
+  for (const status of [
+    "pending",
+    "answered",
+    "dismissed",
+    "withdrawn",
+  ] as const) {
+    const rows: DecisionRow[] =
+      status === "pending"
+        ? await ctx.db
+            .query("session_decisions")
+            .withIndex("by_user_status", (q: any) =>
+              q.eq("user_id", userId).eq("status", status),
+            )
+            .collect()
+        : await ctx.db
+            .query("session_decisions")
+            .withIndex("by_user_status_resolved", (q: any) =>
+              q
+                .eq("user_id", userId)
+                .eq("status", status)
+                .gte("resolved_at", cutoff),
+            )
+            .collect();
     for (const r of rows) {
       if (r.asked_user_ids !== undefined) continue; // an inbox row carries it
-      if (r.status === "pending" || (r.resolved_at ?? 0) >= cutoff) out.set(String(r._id), r);
+      if (r.status === "pending" || (r.resolved_at ?? 0) >= cutoff)
+        out.set(String(r._id), r);
     }
   }
   // A decision escalated to this person comes first (decisionHandoff.ts); the rest keep their order.
-  const escalatedHere = (d: DecisionRow) => d.status === "pending" && !!d.escalated?.to.some((id) => String(id) === String(userId));
-  const rows = Array.from(out.values()).sort((a, b) => Number(escalatedHere(b)) - Number(escalatedHere(a)));
+  const escalatedHere = (d: DecisionRow) =>
+    d.status === "pending" &&
+    !!d.escalated?.to.some((id) => String(id) === String(userId));
+  const rows = Array.from(out.values()).sort(
+    (a, b) => Number(escalatedHere(b)) - Number(escalatedHere(a)),
+  );
   return withLiveSession(ctx, await currentDecisions(ctx, rows));
 }
 
@@ -2580,7 +4026,11 @@ export const listForUser = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
-    return decisionRowsForViewer(ctx, await listForUserCore(ctx, userId, Date.now()), () => true);
+    return decisionRowsForViewer(
+      ctx,
+      await listForUserCore(ctx, userId, Date.now()),
+      () => true,
+    );
   },
 });
 
@@ -2593,7 +4043,12 @@ const SEVERITY_SIGNALS_CAP = 30;
 const PENDING_DECISIONS_CAP = 2000;
 /** Waiting trial cards one workspace's read covers. */
 const WAITING_TRIAL_CARDS_CAP = 1000;
-const OPEN_PROBLEM_STATUSES = ["backlog", "open", "in_progress", "in_review"] as const;
+const OPEN_PROBLEM_STATUSES = [
+  "backlog",
+  "open",
+  "in_progress",
+  "in_review",
+] as const;
 
 /**
  * Decision rows as the web's one decision collection holds them, whichever
@@ -2607,7 +4062,12 @@ const OPEN_PROBLEM_STATUSES = ["backlog", "open", "in_progress", "in_review"] as
  * currentDecisions): each check reads the run, its problem and its workflow
  * per row, so a feed runs it once.
  */
-export async function decisionRowsForViewer(ctx: Ctx, given: DecisionRow[], inQueue: (row: DecisionRow) => boolean | Promise<boolean>, extra: Record<string, unknown> = {}) {
+export async function decisionRowsForViewer(
+  ctx: Ctx,
+  given: DecisionRow[],
+  inQueue: (row: DecisionRow) => boolean | Promise<boolean>,
+  extra: Record<string, unknown> = {},
+) {
   const rows = await withDecisionFacts(ctx, given);
   const severity = new Map<string, number | null>();
   const out = [];
@@ -2616,23 +4076,53 @@ export async function decisionRowsForViewer(ctx: Ctx, given: DecisionRow[], inQu
     if (r.workflow_run_id && r.task_id) {
       const key = String(r.task_id);
       if (!severity.has(key)) {
-        const signals = await ctx.db.query("signals").withIndex("by_task", (q: any) => q.eq("task_id", r.task_id)).order("desc").take(SEVERITY_SIGNALS_CAP);
-        const scored = signals.map((x: any) => x.severity).filter((n: unknown): n is number => typeof n === "number");
+        const signals = await ctx.db
+          .query("signals")
+          .withIndex("by_task", (q: any) => q.eq("task_id", r.task_id))
+          .order("desc")
+          .take(SEVERITY_SIGNALS_CAP);
+        const scored = signals
+          .map((x: any) => x.severity)
+          .filter((n: unknown): n is number => typeof n === "number");
         severity.set(key, scored.length ? Math.max(...scored) : null);
       }
       worst = severity.get(key) ?? null;
     }
-    out.push({ ...r, ...extra, passed_to: r.passed_to ? { by: r.passed_to.by, id: r.passed_to.id, kind: r.passed_to.kind, ...(r.passed_to.note ? { note: r.passed_to.note } : {}) } : null, in_queue: await inQueue(r), problem_severity: worst });
+    out.push({
+      ...r,
+      ...extra,
+      passed_to: r.passed_to
+        ? {
+            by: r.passed_to.by,
+            id: r.passed_to.id,
+            kind: r.passed_to.kind,
+            ...(r.passed_to.note ? { note: r.passed_to.note } : {}),
+          }
+        : null,
+      in_queue: await inQueue(r),
+      problem_severity: worst,
+    });
   }
   return out;
 }
 
 /** Whether a decision sits in the viewer's own queue: an inbox row of theirs, or (an older row) they asked it. */
-export async function inViewerQueue(ctx: Ctx, row: DecisionRow, userId: Id<"users">): Promise<boolean> {
-  if (row.asked_user_ids === undefined) return String(row.user_id) === String(userId);
-  if (!row.asked_user_ids.some((id) => String(id) === String(userId))) return false;
-  const inbox = await ctx.db.query("decision_inbox").withIndex("by_decision", (q: any) => q.eq("decision_id", row._id)).collect();
-  return inbox.some((i: any) => String(i.user_id) === String(userId) && i.status === "pending");
+export async function inViewerQueue(
+  ctx: Ctx,
+  row: DecisionRow,
+  userId: Id<"users">,
+): Promise<boolean> {
+  if (row.asked_user_ids === undefined)
+    return String(row.user_id) === String(userId);
+  if (!row.asked_user_ids.some((id) => String(id) === String(userId)))
+    return false;
+  const inbox = await ctx.db
+    .query("decision_inbox")
+    .withIndex("by_decision", (q: any) => q.eq("decision_id", row._id))
+    .collect();
+  return inbox.some(
+    (i: any) => String(i.user_id) === String(userId) && i.status === "pending",
+  );
 }
 
 /**
@@ -2658,40 +4148,99 @@ export const listOpenForLines = query({
     const askedTasks = new Map<string, Doc<"tasks"> | null>();
     for (const workspace of [...new Set(args.workspaces)].slice(0, 20)) {
       const [kind, id] = workspace.split(":");
-      if (kind === "user" ? id !== String(userId) : kind !== "team" || !(await isTeamMember(ctx, userId, id as Id<"teams">))) continue;
+      if (
+        kind === "user"
+          ? id !== String(userId)
+          : kind !== "team" ||
+            !(await isTeamMember(ctx, userId, id as Id<"teams">))
+      )
+        continue;
       // The workspace's own pending rows: a team's routed to it (session_decisions.team_id, lib/decisionTeam.ts), the
       // personal workspace's asked by the viewer's own sessions.
-      const pending: DecisionRow[] = kind === "team"
-        ? await ctx.db.query("session_decisions").withIndex("by_team_status_created", (q: any) => q.eq("team_id", id as Id<"teams">).eq("status", "pending")).order("desc").take(PENDING_DECISIONS_CAP)
-        : await ctx.db.query("session_decisions").withIndex("by_user_status_created", (q: any) => q.eq("user_id", userId).eq("status", "pending")).order("desc").take(PENDING_DECISIONS_CAP);
+      const pending: DecisionRow[] =
+        kind === "team"
+          ? await ctx.db
+              .query("session_decisions")
+              .withIndex("by_team_status_created", (q: any) =>
+                q.eq("team_id", id as Id<"teams">).eq("status", "pending"),
+              )
+              .order("desc")
+              .take(PENDING_DECISIONS_CAP)
+          : await ctx.db
+              .query("session_decisions")
+              .withIndex("by_user_status_created", (q: any) =>
+                q.eq("user_id", userId).eq("status", "pending"),
+              )
+              .order("desc")
+              .take(PENDING_DECISIONS_CAP);
       const asked = pending.filter((d) => d.workflow_run_id && d.task_id);
-      for (const d of asked) if (!askedTasks.has(String(d.task_id))) askedTasks.set(String(d.task_id), await ctx.db.get(d.task_id as Id<"tasks">));
-      const projects = await ctx.db.query("projects").withIndex("by_workspace", (q: any) => q.eq("workspace", workspace)).collect();
-      const trialProjects = new Set(projects.filter((p: Doc<"projects">) => p.line_trial).map((p: Doc<"projects">) => String(p._id)));
+      for (const d of asked)
+        if (!askedTasks.has(String(d.task_id)))
+          askedTasks.set(
+            String(d.task_id),
+            await ctx.db.get(d.task_id as Id<"tasks">),
+          );
+      const projects = await ctx.db
+        .query("projects")
+        .withIndex("by_workspace", (q: any) => q.eq("workspace", workspace))
+        .collect();
+      const trialProjects = new Set(
+        projects
+          .filter((p: Doc<"projects">) => p.line_trial)
+          .map((p: Doc<"projects">) => String(p._id)),
+      );
       const rows: DecisionRow[] = [];
       const seen = new Set<string>();
       const take = (d: DecisionRow | null) => {
-        if (!d || d.status !== "pending" || !d.workflow_run_id || seen.has(String(d._id))) return;
+        if (
+          !d ||
+          d.status !== "pending" ||
+          !d.workflow_run_id ||
+          seen.has(String(d._id))
+        )
+          return;
         seen.add(String(d._id));
         rows.push(d);
       };
       // A trial files a card for every decision its runs ask (fileTrialCard), so its open decisions are its waiting
       // cards', read by index however many problems the trial opened.
-      const waiting = await ctx.db.query("trial_cards").withIndex("by_workspace_status_created", (q: any) => q.eq("workspace", workspace).eq("status", "waiting")).take(WAITING_TRIAL_CARDS_CAP);
+      const waiting = await ctx.db
+        .query("trial_cards")
+        .withIndex("by_workspace_status_created", (q: any) =>
+          q.eq("workspace", workspace).eq("status", "waiting"),
+        )
+        .take(WAITING_TRIAL_CARDS_CAP);
       for (const card of waiting) {
         if (!card.decision_id) continue;
         // A problem private to its owner inside the team is theirs alone.
         const task = await ctx.db.get(card.task_id);
-        if (task?.workspace === workspace) take(await ctx.db.get(card.decision_id));
+        if (task?.workspace === workspace)
+          take(await ctx.db.get(card.decision_id));
       }
       for (const d of asked) {
         const task = askedTasks.get(String(d.task_id));
-        if (!task?.cause || task.workspace !== workspace || !(OPEN_PROBLEM_STATUSES as readonly string[]).includes(task.status)) continue;
-        if (task.project_id && trialProjects.has(String(task.project_id))) continue;
+        if (
+          !task?.cause ||
+          task.workspace !== workspace ||
+          !(OPEN_PROBLEM_STATUSES as readonly string[]).includes(task.status)
+        )
+          continue;
+        if (task.project_id && trialProjects.has(String(task.project_id)))
+          continue;
         take(d);
       }
-      const standing = await withLiveSession(ctx, await currentDecisions(ctx, rows));
-      out.push(...(await decisionRowsForViewer(ctx, standing, (r) => inViewerQueue(ctx, r, userId), { line_workspace: workspace })));
+      const standing = await withLiveSession(
+        ctx,
+        await currentDecisions(ctx, rows),
+      );
+      out.push(
+        ...(await decisionRowsForViewer(
+          ctx,
+          standing,
+          (r) => inViewerQueue(ctx, r, userId),
+          { line_workspace: workspace },
+        )),
+      );
     }
     return out;
   },
@@ -2704,19 +4253,28 @@ export const listOpenForLines = query({
 // rows whose ladder names it inside the window a role page shows. Shared by
 // the role page list and the brief's open count (org.computeScopeSummary),
 // so the two never disagree.
-export async function pendingOnLadder(ctx: Ctx, roleId: Id<"org_roles">, now: number): Promise<DecisionRow[]> {
+export async function pendingOnLadder(
+  ctx: Ctx,
+  roleId: Id<"org_roles">,
+  now: number,
+): Promise<DecisionRow[]> {
   const out = new Map<string, DecisionRow>();
   const held: DecisionRow[] = await ctx.db
     .query("session_decisions")
-    .withIndex("by_holder_status", (q: any) => q.eq("holder_key", `role:${roleId}`).eq("status", "pending"))
+    .withIndex("by_holder_status", (q: any) =>
+      q.eq("holder_key", `role:${roleId}`).eq("status", "pending"),
+    )
     .collect();
   for (const r of held) out.set(String(r._id), r);
   const recent: DecisionRow[] = await ctx.db
     .query("session_decisions")
-    .withIndex("by_status_created", (q: any) => q.eq("status", "pending").gte("created_at", now - HANDLED_WINDOW_MS))
+    .withIndex("by_status_created", (q: any) =>
+      q.eq("status", "pending").gte("created_at", now - HANDLED_WINDOW_MS),
+    )
     .collect();
   for (const r of recent) {
-    if ((r.hops ?? []).some((h) => String(h.role_id) === String(roleId))) out.set(String(r._id), r);
+    if ((r.hops ?? []).some((h) => String(h.role_id) === String(roleId)))
+      out.set(String(r._id), r);
   }
   return currentDecisions(ctx, Array.from(out.values()));
 }
@@ -2733,8 +4291,12 @@ export const listForRole = query({
     // asking conversation's visibility (userMayRead), so a private session's
     // decisions do not show to the whole team through the role.
     const visible: DecisionRow[] = [];
-    for (const r of rows) if (await userMayRead(ctx, userId, r)) visible.push(r);
-    return visible.map((r) => ({ ...r, held_by_role: r.holder_key === `role:${args.role_id}` }));
+    for (const r of rows)
+      if (await userMayRead(ctx, userId, r)) visible.push(r);
+    return visible.map((r) => ({
+      ...r,
+      held_by_role: r.holder_key === `role:${args.role_id}`,
+    }));
   },
 });
 
@@ -2749,12 +4311,20 @@ export const listHandledByRoles = query({
     const cutoff = Date.now() - HANDLED_WINDOW_MS;
     const inbox = await ctx.db
       .query("decision_inbox")
-      .withIndex("by_user_status_at", (q) => q.eq("user_id", userId).eq("status", "done").gte("status_at", cutoff))
+      .withIndex("by_user_status_at", (q) =>
+        q.eq("user_id", userId).eq("status", "done").gte("status_at", cutoff),
+      )
       .collect();
     const out = [];
     for (const r of inbox) {
       const d = await ctx.db.get(r.decision_id);
-      if (!d || d.status !== "answered" || d.answered_by?.kind !== "role" || (d.resolved_at ?? 0) < cutoff) continue;
+      if (
+        !d ||
+        d.status !== "answered" ||
+        d.answered_by?.kind !== "role" ||
+        (d.resolved_at ?? 0) < cutoff
+      )
+        continue;
       out.push({
         ...d,
         role: await roleSummary(ctx, d.answered_by.id as Id<"org_roles">),

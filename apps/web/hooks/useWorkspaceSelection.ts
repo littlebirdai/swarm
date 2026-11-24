@@ -30,18 +30,26 @@ export function useWorkspaceSelection(
   teamId: Id<"teams"> | null,
 ) {
   const { allProjects, suggestedPaths } = data;
-  const [selectedPaths, setSelectedPaths] = useState<Record<string, boolean>>({});
+  const [selectedPaths, setSelectedPaths] = useState<Record<string, boolean>>(
+    {},
+  );
 
   // Reseed only when the SEED CONTENT changes, not on every new query ref.
   // The workspace query is live and `last_active` churns while sessions run,
   // so a ref-keyed effect would wipe the user's toggles seconds after they
   // make them.
   const seed = useMemo(
-    () => (allProjects ? seedWorkspaceSelection(allProjects, suggestedPaths, teamId) : null),
+    () =>
+      allProjects
+        ? seedWorkspaceSelection(allProjects, suggestedPaths, teamId)
+        : null,
     [allProjects, suggestedPaths, teamId],
   );
   const seedSig = seed
-    ? Object.keys(seed).sort().map((p) => `${p}:${seed[p] ? 1 : 0}`).join("|")
+    ? Object.keys(seed)
+        .sort()
+        .map((p) => `${p}:${seed[p] ? 1 : 0}`)
+        .join("|")
     : null;
   const seedRef = useRef(seed);
   seedRef.current = seed;
@@ -54,15 +62,24 @@ export function useWorkspaceSelection(
   const selectedCount = Object.values(selectedPaths).filter(Boolean).length;
   // Sorted, so the preview query's args are stable across toggles.
   const selectedList = useMemo(
-    () => Object.keys(selectedPaths).filter((p) => selectedPaths[p]).sort(),
+    () =>
+      Object.keys(selectedPaths)
+        .filter((p) => selectedPaths[p])
+        .sort(),
     [selectedPaths],
   );
   // The share start: null covers past sessions, the default; the band shows
   // the count either way so the default is a read choice, not a blind one.
   const [since, setSince] = useState<number | null>(null);
-  return { selectedPaths, toggle, selectedCount, selectedList, since, setSince };
+  return {
+    selectedPaths,
+    toggle,
+    selectedCount,
+    selectedList,
+    since,
+    setSince,
+  };
 }
-
 
 // The selection state (seedWorkspaceSelection, useWorkspaceSelection) lives in
 // hooks/useWorkspaceSelection so this file stays a clean Fast Refresh boundary.

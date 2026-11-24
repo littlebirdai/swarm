@@ -24,34 +24,58 @@ import { leadRoleOf } from "./lineCause";
 import { reachableRole, enqueuePendingMessage } from "./pendingMessages";
 import { spawnSessionCore } from "./spawn";
 import { normalizeSubagentCaps } from "@codecast/shared/contracts";
-import { DISCUSSION_MAX_CHARS, ownerName, placeReplies } from "./decisionDiscussion";
-import { formatLineChat, lineFenceGuide, parseLineChat } from "@codecast/shared/contracts/lineChat";
+import {
+  DISCUSSION_MAX_CHARS,
+  ownerName,
+  placeReplies,
+} from "./decisionDiscussion";
+import {
+  formatLineChat,
+  lineFenceGuide,
+  parseLineChat,
+} from "@codecast/shared/contracts/lineChat";
 
 type Ctx = { db: any };
 
 /** Why a session answers the line: it was started for this chat, under the project's lead ("lead") or on its own ("line"). */
 export type LineChatVia = "lead" | "line";
-export type LineChatOwner = { conversation: Doc<"conversations">; via: LineChatVia };
+export type LineChatOwner = {
+  conversation: Doc<"conversations">;
+  via: LineChatVia;
+};
 
 /** The most asks a row keeps: a conversation, not a log. */
 export const LINE_CHAT_MAX_ASKS = 200;
 
-const projectRef = (p: Pick<Doc<"projects">, "_id" | "short_id">) => p.short_id ?? String(p._id);
+const projectRef = (p: Pick<Doc<"projects">, "_id" | "short_id">) =>
+  p.short_id ?? String(p._id);
 
 const alive = (conv: any) => !!conv && !conv.inbox_killed_at;
 
 /** The lead's standing session, when the project has a lead that can be reached: a line session starts under it. */
-async function leadSession(ctx: Ctx, project: Doc<"projects">): Promise<Doc<"conversations"> | null> {
+async function leadSession(
+  ctx: Ctx,
+  project: Doc<"projects">,
+): Promise<Doc<"conversations"> | null> {
   const lead = await leadRoleOf(ctx, project);
   const standing = lead ? (await reachableRole(ctx, lead._id))?.standing : null;
   return alive(standing) ? standing : null;
 }
 
 /** The session that answers a person's chat with a project's line right now, or null when the next message must start one. */
-export async function lineChatOwner(ctx: Ctx, _project: Doc<"projects">, row: Pick<Doc<"line_chats">, "line_conversation_id"> | null): Promise<LineChatOwner | null> {
-  const own = row?.line_conversation_id ? await ctx.db.get(row.line_conversation_id) : null;
+export async function lineChatOwner(
+  ctx: Ctx,
+  _project: Doc<"projects">,
+  row: Pick<Doc<"line_chats">, "line_conversation_id"> | null,
+): Promise<LineChatOwner | null> {
+  const own = row?.line_conversation_id
+    ? await ctx.db.get(row.line_conversation_id)
+    : null;
   if (!alive(own)) return null;
-  return { conversation: own, via: own.parent_conversation_id ? "lead" : "line" };
+  return {
+    conversation: own,
+    via: own.parent_conversation_id ? "lead" : "line",
+  };
 }
 
 /**
@@ -59,7 +83,10 @@ export async function lineChatOwner(ctx: Ctx, _project: Doc<"projects">, row: Pi
  * states the job and where the truth lives, and hands over the fence's
  * vocabulary; how to phrase an answer is the session's own judgment.
  */
-export function lineChatBrief(project: Pick<Doc<"projects">, "_id" | "short_id" | "title" | "line_profile">, graph: string | null): string {
+export function lineChatBrief(
+  project: Pick<Doc<"projects">, "_id" | "short_id" | "title" | "line_profile">,
+  graph: string | null,
+): string {
   const ref = projectRef(project);
   const root = (project.line_profile as { root?: string } | undefined)?.root;
   return [
@@ -86,20 +113,36 @@ export function lineChatBrief(project: Pick<Doc<"projects">, "_id" | "short_id" 
 export async function sendLineChatCore(
   ctx: any,
   userId: Id<"users">,
-  args: { project_id: string; text: string; client_id: string; graph?: string | null; focus?: string | null },
-): Promise<{ ok: true; conversation_id: Id<"conversations"> } | { error: string }> {
+  args: {
+    project_id: string;
+    text: string;
+    client_id: string;
+    graph?: string | null;
+    focus?: string | null;
+  },
+): Promise<
+  { ok: true; conversation_id: Id<"conversations"> } | { error: string }
+> {
   const projectId = ctx.db.normalizeId("projects", args.project_id);
-  const project: Doc<"projects"> | null = projectId ? await ctx.db.get(projectId) : null;
-  if (!project || !(await canAccessProject(ctx, userId, project))) return { error: "Project not found" };
+  const project: Doc<"projects"> | null = projectId
+    ? await ctx.db.get(projectId)
+    : null;
+  if (!project || !(await canAccessProject(ctx, userId, project)))
+    return { error: "Project not found" };
   const text = (args.text ?? "").trim();
   if (!text) return { error: "The message is empty" };
-  if (text.length > DISCUSSION_MAX_CHARS) return { error: `A message to the flow can be at most ${DISCUSSION_MAX_CHARS.toLocaleString("en-US")} characters` };
+  if (text.length > DISCUSSION_MAX_CHARS)
+    return {
+      error: `A message to the flow can be at most ${DISCUSSION_MAX_CHARS.toLocaleString("en-US")} characters`,
+    };
   const graph = args.graph?.trim() || null;
   const focus = args.focus?.trim().slice(0, 300) || null;
 
   const row: Doc<"line_chats"> | null = await ctx.db
     .query("line_chats")
-    .withIndex("by_project_user", (q: any) => q.eq("project_id", project._id).eq("user_id", userId))
+    .withIndex("by_project_user", (q: any) =>
+      q.eq("project_id", project._id).eq("user_id", userId),
+    )
     .first();
   const already = row?.asks.find((a) => a.client_id === args.client_id);
   if (already) return { ok: true, conversation_id: already.conversation_id };
@@ -112,33 +155,66 @@ export async function sendLineChatCore(
   let spawned: Id<"conversations"> | null = null;
   if (owner) {
     // The brief rides the first message this session hears from this chat.
-    const briefed = row?.asks.some((a) => String(a.conversation_id) === String(owner.conversation._id)) ?? false;
+    const briefed =
+      row?.asks.some(
+        (a) => String(a.conversation_id) === String(owner.conversation._id),
+      ) ?? false;
     await enqueuePendingMessage(ctx, owner.conversation, userId, {
-      content: formatLineChat({ project: ref, graph, from, body: text, focus, brief: briefed ? null : brief }),
+      content: formatLineChat({
+        project: ref,
+        graph,
+        from,
+        body: text,
+        focus,
+        brief: briefed ? null : brief,
+      }),
       client_id: args.client_id,
       human: true,
     });
     conversationId = owner.conversation._id;
   } else {
-    const root = (project.line_profile as { root?: string; publisher_user_id?: string } | undefined);
+    const root = project.line_profile as
+      | { root?: string; publisher_user_id?: string }
+      | undefined;
     // The checkout that publishes the line, when this person published it; else the project's own folder.
-    const path = root?.root && root.publisher_user_id === String(userId) ? root.root : project.project_path;
+    const path =
+      root?.root && root.publisher_user_id === String(userId)
+        ? root.root
+        : project.project_path;
     const parent = await leadSession(ctx, project);
     const started = await spawnSessionCore(ctx, userId, {
       projectPath: path,
       gitRoot: path,
       title: `${project.title} · line chat`,
-      prompt: formatLineChat({ project: ref, graph, from, body: text, focus, brief }),
-      subagentFields: parent ? { parent_conversation_id: parent._id, is_subagent: true } : null,
+      prompt: formatLineChat({
+        project: ref,
+        graph,
+        from,
+        body: text,
+        focus,
+        brief,
+      }),
+      subagentFields: parent
+        ? { parent_conversation_id: parent._id, is_subagent: true }
+        : null,
       spawnerConversationId: parent?._id,
-      fleet: parent ? { device: null, caps: normalizeSubagentCaps(undefined) } : undefined,
+      fleet: parent
+        ? { device: null, caps: normalizeSubagentCaps(undefined) }
+        : undefined,
     });
     conversationId = started.conversationId;
     spawned = conversationId;
   }
 
   const now = Date.now();
-  const ask = { client_id: args.client_id, text, at: now, user_id: userId, conversation_id: conversationId, ...(graph ? { graph } : {}) };
+  const ask = {
+    client_id: args.client_id,
+    text,
+    at: now,
+    user_id: userId,
+    conversation_id: conversationId,
+    ...(graph ? { graph } : {}),
+  };
   if (row) {
     await ctx.db.patch(row._id, {
       asks: [...row.asks, ask].slice(-LINE_CHAT_MAX_ASKS),
@@ -159,7 +235,11 @@ export async function sendLineChatCore(
 }
 
 /** A chat's asks with the replies their sessions gave. */
-export async function lineChatTurns(ctx: Ctx, project: Pick<Doc<"projects">, "_id" | "short_id">, asks: Doc<"line_chats">["asks"]) {
+export async function lineChatTurns(
+  ctx: Ctx,
+  project: Pick<Doc<"projects">, "_id" | "short_id">,
+  asks: Doc<"line_chats">["asks"],
+) {
   const ref = projectRef(project);
   return placeReplies(ctx, asks, (content) => {
     const said = parseLineChat(content);
@@ -180,11 +260,16 @@ export const thread = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
     const projectId = ctx.db.normalizeId("projects", args.project_id);
-    const project: Doc<"projects"> | null = projectId ? await ctx.db.get(projectId) : null;
-    if (!project || !(await canAccessProject(ctx, userId, project))) return null;
+    const project: Doc<"projects"> | null = projectId
+      ? await ctx.db.get(projectId)
+      : null;
+    if (!project || !(await canAccessProject(ctx, userId, project)))
+      return null;
     const row: Doc<"line_chats"> | null = await ctx.db
       .query("line_chats")
-      .withIndex("by_project_user", (q: any) => q.eq("project_id", project._id).eq("user_id", userId))
+      .withIndex("by_project_user", (q: any) =>
+        q.eq("project_id", project._id).eq("user_id", userId),
+      )
       .first();
     const owner = await lineChatOwner(ctx, project, row);
     const turns = row ? await lineChatTurns(ctx, project, row.asks) : [];
@@ -192,7 +277,12 @@ export const thread = query({
       _id: String(project._id),
       project_id: String(project._id),
       owner: owner
-        ? { conversation_id: String(owner.conversation._id), short_id: owner.conversation.short_id ?? null, name: await ownerName(ctx, owner.conversation), via: owner.via }
+        ? {
+            conversation_id: String(owner.conversation._id),
+            short_id: owner.conversation.short_id ?? null,
+            name: await ownerName(ctx, owner.conversation),
+            via: owner.via,
+          }
         : null,
       turns: turns.map((t) => ({
         client_id: t.client_id,

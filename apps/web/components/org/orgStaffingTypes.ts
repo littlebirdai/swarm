@@ -5,9 +5,30 @@
 import type { HealthFlag } from "@codecast/shared/contracts/orgCapacity";
 import type { RoleArea } from "@codecast/shared/contracts/orgAreas";
 import type { OrgAppliedDiffRow } from "@codecast/shared/contracts/orgChange";
-import type { OrgAsk, OrgChange, OrgChangeAnswer, OrgChangeKind, OrgChangeReply, OrgChangeRevision, OrgChangeStatus, OrgEvidenceLink, OrgProposalMode, OrgProposalThread } from "@codecast/shared/contracts/orgProposal";
+import type {
+  OrgAsk,
+  OrgChange,
+  OrgChangeAnswer,
+  OrgChangeKind,
+  OrgChangeReply,
+  OrgChangeRevision,
+  OrgChangeStatus,
+  OrgEvidenceLink,
+  OrgProposalMode,
+  OrgProposalThread,
+} from "@codecast/shared/contracts/orgProposal";
 
-export type { HealthFlag, RoleArea, OrgAsk, OrgChange, OrgChangeKind, OrgChangeRevision, OrgChangeStatus, OrgEvidenceLink, OrgProposalThread };
+export type {
+  HealthFlag,
+  RoleArea,
+  OrgAsk,
+  OrgChange,
+  OrgChangeKind,
+  OrgChangeRevision,
+  OrgChangeStatus,
+  OrgEvidenceLink,
+  OrgProposalThread,
+};
 
 // ---------------------------------------------------------------- org.health
 
@@ -16,13 +37,33 @@ export type OrgRoleHealth = {
   short_id: string;
   handle: string;
   /** What reached the seat this week (orgCapacity.RoleLoad): the counts the overloaded flag reads. */
-  load: { items_per_day: number; decisions_per_day: number; live_hands: number; direct_reports: number; open_stalls: number; cap_hit_days: number };
+  load: {
+    items_per_day: number;
+    decisions_per_day: number;
+    live_hands: number;
+    direct_reports: number;
+    open_stalls: number;
+    cap_hit_days: number;
+  };
   /** What the scope holds today (orgCapacity.RoleLedger): context, never load. */
   ledger: { open_tasks: number; in_flight: number; active_plans: number };
   /** Which rows the load and the ledger were counted from, and by what rule. */
-  counted?: { rule: "scope" | "remainder"; projects: number; plans: number; tasks: number; complete: boolean; note: string };
+  counted?: {
+    rule: "scope" | "remainder";
+    projects: number;
+    plans: number;
+    tasks: number;
+    complete: boolean;
+    note: string;
+  };
   spend: {
-    wakes_today: number; wakes_7d_avg: number; wakes_cap: number | null; tokens_today: number; tokens_7d_avg: number | null; tokens_cap: number | null; cap_hits_7d: number;
+    wakes_today: number;
+    wakes_7d_avg: number;
+    wakes_cap: number | null;
+    tokens_today: number;
+    tokens_7d_avg: number | null;
+    tokens_cap: number | null;
+    cap_hits_7d: number;
     /** Delivered wakes by UTC day (YYYY-MM-DD) over the week. */
     wakes_by_day?: Record<string, number>;
   };
@@ -35,7 +76,10 @@ export type OrgRoleHealth = {
     decisions_by_day?: Record<string, number>;
     handoffs_7d: { done: number; blocked: number; needs_context: number };
     review_stalls: number;
-    sends_7d: { to: { role_id: string; n: number }[]; from: { role_id: string; n: number }[] };
+    sends_7d: {
+      to: { role_id: string; n: number }[];
+      from: { role_id: string; n: number }[];
+    };
     /** The fix loop: defects its runs introduced (szz signals), promises it owns, hands that finished with a concern. */
     bugs_introduced_30d?: number;
     promises_open?: number;
@@ -127,7 +171,12 @@ export type OrgProposalAuthor = {
   avatar?: string;
 };
 
-export type OrgProposalPointer = { id: string; short_id: string; status: "open" | "resolved" | "withdrawn"; created_at: number };
+export type OrgProposalPointer = {
+  id: string;
+  short_id: string;
+  status: "open" | "resolved" | "withdrawn";
+  created_at: number;
+};
 
 export type OrgProposalRow = {
   _id: string;
@@ -163,7 +212,13 @@ export type OrgProposalRow = {
   reply?: OrgChangeReply;
   /** orgProposals.list and get both stamp these. */
   link?: string;
-  counts?: { total: number; decided: number; applied: number; failed: number; skipped: number };
+  counts?: {
+    total: number;
+    decided: number;
+    applied: number;
+    failed: number;
+    skipped: number;
+  };
   /** The proposal's changes, in seq order: the `orgProposalChanges` store
    *  collection joined by proposal_id (orgProposals.get feeds it). */
   changes: OrgProposalChange[];
@@ -174,20 +229,33 @@ export type OrgProposalRow = {
 export type OrgProposalListRow = Omit<OrgProposalRow, "changes">;
 
 /** Join the two collections into the rows the pane reads. */
-export function joinProposals(rows: Record<string, OrgProposalListRow>, changes: Record<string, OrgProposalChange>): OrgProposalRow[] {
+export function joinProposals(
+  rows: Record<string, OrgProposalListRow>,
+  changes: Record<string, OrgProposalChange>,
+): OrgProposalRow[] {
   const byProposal = new Map<string, OrgProposalChange[]>();
   for (const c of Object.values(changes)) {
     const list = byProposal.get(c.proposal_id) ?? [];
     list.push(c);
     byProposal.set(c.proposal_id, list);
   }
-  return Object.values(rows).map((p) => ({ ...p, changes: (byProposal.get(p._id) ?? []).sort((a, b) => a.seq - b.seq) }));
+  return Object.values(rows).map((p) => ({
+    ...p,
+    changes: (byProposal.get(p._id) ?? []).sort((a, b) => a.seq - b.seq),
+  }));
 }
 
 // The handle and birth name live in the shared contract (orgLead.ts), with
 // the legacy handle rule every reader needs; re-exported for the web's imports.
-export { HEAD_OF_PEOPLE_HANDLE, HEAD_OF_PEOPLE_NAME, isHeadOfPeopleRole } from "@codecast/shared/contracts/orgLead";
-import { roleIdentity, type RoleIdentity } from "@codecast/shared/contracts/orgIdentity";
+export {
+  HEAD_OF_PEOPLE_HANDLE,
+  HEAD_OF_PEOPLE_NAME,
+  isHeadOfPeopleRole,
+} from "@codecast/shared/contracts/orgLead";
+import {
+  roleIdentity,
+  type RoleIdentity,
+} from "@codecast/shared/contracts/orgIdentity";
 export { roleIdentity, type RoleIdentity };
 
 /** How a role is named on every web surface (S30): its given name, with its
@@ -195,6 +263,19 @@ export { roleIdentity, type RoleIdentity };
  *  assistant for a team reads "Executive Assistant, <team>". `characters`
  *  false (the viewer turned them off) names it by the subtitle alone: then
  *  `name === subtitle`, and a surface printing both prints it once. */
-export function roleWords(role: { _id: string; name: string; handle: string; avatar?: string | null; given_name?: string | null; assistant?: any; scope_type?: "team" | "user"; team_id?: string }, teamName?: string | null, characters = true): RoleIdentity {
+export function roleWords(
+  role: {
+    _id: string;
+    name: string;
+    handle: string;
+    avatar?: string | null;
+    given_name?: string | null;
+    assistant?: any;
+    scope_type?: "team" | "user";
+    team_id?: string;
+  },
+  teamName?: string | null,
+  characters = true,
+): RoleIdentity {
   return roleIdentity(role, { teamName: teamName ?? null, characters });
 }

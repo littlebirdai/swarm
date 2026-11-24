@@ -15,24 +15,48 @@ export const MAX_IMAGE_SIZE = 5_000_000;
 
 // Formats sips can safely re-encode when a file is over the size cap. GIFs are
 // excluded (resampling flattens animation), webp/avif are already compressed.
-const DOWNSCALABLE_TYPES = new Set(["image/png", "image/jpeg", "image/tiff", "image/bmp"]);
+const DOWNSCALABLE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/tiff",
+  "image/bmp",
+]);
 
 // Oversized screenshot rescue: Retina PNG captures routinely exceed the 5MB
 // upload cap. On macOS, sips (built-in) re-encodes to a bounded JPEG; two
 // passes, progressively smaller, before giving up.
 /** Exported so screenshot capture can shrink an oversized frame with the same
  *  ladder the upload path uses, instead of growing a second one. */
-export function downscaleWithSips(bytes: Buffer, mediaType: string): Buffer | null {
-  if (process.platform !== "darwin" || !DOWNSCALABLE_TYPES.has(mediaType)) return null;
+export function downscaleWithSips(
+  bytes: Buffer,
+  mediaType: string,
+): Buffer | null {
+  if (process.platform !== "darwin" || !DOWNSCALABLE_TYPES.has(mediaType))
+    return null;
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "cast-image-"));
   const src = path.join(scratch, "in");
   fs.writeFileSync(src, new Uint8Array(bytes));
   try {
-    for (const [maxDim, quality] of [[2400, 80], [1600, 65]] as const) {
+    for (const [maxDim, quality] of [
+      [2400, 80],
+      [1600, 65],
+    ] as const) {
       const out = path.join(scratch, `out-${maxDim}.jpg`);
       const result = spawnSync(
         "sips",
-        ["-Z", String(maxDim), "-s", "format", "jpeg", "-s", "formatOptions", String(quality), src, "--out", out],
+        [
+          "-Z",
+          String(maxDim),
+          "-s",
+          "format",
+          "jpeg",
+          "-s",
+          "formatOptions",
+          String(quality),
+          src,
+          "--out",
+          out,
+        ],
         { stdio: "ignore" },
       );
       if (result.status !== 0 || !fs.existsSync(out)) return null;

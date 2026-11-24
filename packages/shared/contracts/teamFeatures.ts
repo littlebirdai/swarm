@@ -10,7 +10,16 @@
 // the snippet fan-out can never disagree about which features exist or which
 // snippet belongs to which. PURE isomorphic data — no Node or DOM APIs.
 
-export type TeamFeatureKey = "chat" | "calls" | "org" | "changes" | "agent_faces" | "agent_realtime" | "ship" | "line" | "member_spend";
+export type TeamFeatureKey =
+  | "chat"
+  | "calls"
+  | "org"
+  | "changes"
+  | "agent_faces"
+  | "agent_realtime"
+  | "ship"
+  | "line"
+  | "member_spend";
 
 export interface TeamFeatureDescriptor {
   key: TeamFeatureKey;
@@ -123,18 +132,25 @@ export const TEAM_FEATURES: TeamFeatureDescriptor[] = [
   },
 ];
 
-export const TEAM_FEATURE_KEYS: TeamFeatureKey[] = TEAM_FEATURES.map((f) => f.key);
+export const TEAM_FEATURE_KEYS: TeamFeatureKey[] = TEAM_FEATURES.map(
+  (f) => f.key,
+);
 
 /** The flags a new team is created with: every feature marked onByDefault, on. */
-export const DEFAULT_TEAM_FEATURES: Partial<Record<TeamFeatureKey, boolean>> = Object.fromEntries(
-  TEAM_FEATURES.filter((f) => f.onByDefault).map((f) => [f.key, true]),
-);
+export const DEFAULT_TEAM_FEATURES: Partial<Record<TeamFeatureKey, boolean>> =
+  Object.fromEntries(
+    TEAM_FEATURES.filter((f) => f.onByDefault).map((f) => [f.key, true]),
+  );
 
 /** The setup features a team has never decided on: what the setup page offers a
  *  team created before new teams started with them on. */
-export function undecidedSetupFeatures(team: { features?: TeamFeatures | null } | null | undefined): TeamFeatureDescriptor[] {
+export function undecidedSetupFeatures(
+  team: { features?: TeamFeatures | null } | null | undefined,
+): TeamFeatureDescriptor[] {
   if (!team) return [];
-  return TEAM_FEATURES.filter((f) => f.onByDefault && team.features?.[f.key] === undefined);
+  return TEAM_FEATURES.filter(
+    (f) => f.onByDefault && team.features?.[f.key] === undefined,
+  );
 }
 
 /** The stored shape on a team row: only flags that were ever set. */
@@ -156,11 +172,17 @@ export function teamFeatureEnabled(
  * so a person whose teams all have org off sees none of it anywhere.
  */
 export function workspaceFeatureEnabled(
-  teams: Array<{ _id?: unknown; features?: TeamFeatures | null } | null | undefined>,
+  teams: Array<
+    { _id?: unknown; features?: TeamFeatures | null } | null | undefined
+  >,
   activeTeamId: string | null | undefined,
   key: TeamFeatureKey,
 ): boolean {
-  if (activeTeamId) return teamFeatureEnabled(teams.find((t) => String(t?._id) === String(activeTeamId)), key);
+  if (activeTeamId)
+    return teamFeatureEnabled(
+      teams.find((t) => String(t?._id) === String(activeTeamId)),
+      key,
+    );
   if (!TEAM_FEATURES.find((f) => f.key === key)?.personal) return false;
   return teams.some((t) => teamFeatureEnabled(t, key));
 }
@@ -177,19 +199,28 @@ export function workspaceFeatureEnabled(
 export type FeatureState = "on" | "offer" | "off";
 
 export function workspaceFeatureState(
-  teams: Array<{ _id?: unknown; features?: TeamFeatures | null } | null | undefined>,
+  teams: Array<
+    { _id?: unknown; features?: TeamFeatures | null } | null | undefined
+  >,
   activeTeamId: string | null | undefined,
   key: TeamFeatureKey,
 ): FeatureState {
   if (workspaceFeatureEnabled(teams, activeTeamId, key)) return "on";
-  const undecided = (t: { features?: TeamFeatures | null } | null | undefined) => !!t && t.features?.[key] === undefined;
-  if (activeTeamId) return undecided(teams.find((t) => String(t?._id) === String(activeTeamId))) ? "offer" : "off";
+  const undecided = (
+    t: { features?: TeamFeatures | null } | null | undefined,
+  ) => !!t && t.features?.[key] === undefined;
+  if (activeTeamId)
+    return undecided(teams.find((t) => String(t?._id) === String(activeTeamId)))
+      ? "offer"
+      : "off";
   if (!TEAM_FEATURES.find((f) => f.key === key)?.personal) return "off";
   return teams.some(undecided) ? "offer" : "off";
 }
 
 /** Every catalog entry that names `snippet` in its snippet list. */
-export function teamFeaturesForSnippet(snippet: string): TeamFeatureDescriptor[] {
+export function teamFeaturesForSnippet(
+  snippet: string,
+): TeamFeatureDescriptor[] {
   return TEAM_FEATURES.filter((f) => f.snippets.includes(snippet));
 }
 

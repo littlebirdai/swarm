@@ -15,9 +15,18 @@ export async function resolveOwnerDeviceView(
   ctx: { db: any },
   conv: { user_id: any; owner_device_id?: string | null },
   now: number = Date.now(),
-): Promise<{ owner_device_id: string | null; owner_is_remote: boolean; owner_online: boolean }> {
+): Promise<{
+  owner_device_id: string | null;
+  owner_is_remote: boolean;
+  owner_online: boolean;
+}> {
   const owner = conv.owner_device_id ?? null;
-  if (!owner) return { owner_device_id: null, owner_is_remote: false, owner_online: false };
+  if (!owner)
+    return {
+      owner_device_id: null,
+      owner_is_remote: false,
+      owner_online: false,
+    };
   const ownerDevice = await ctx.db
     .query("devices")
     .withIndex("by_user_device", (q: any) =>
@@ -27,6 +36,7 @@ export async function resolveOwnerDeviceView(
   return {
     owner_device_id: owner,
     owner_is_remote: !!ownerDevice?.is_remote,
-    owner_online: !!ownerDevice && now - ownerDevice.last_seen < DEVICE_ONLINE_MS,
+    owner_online:
+      !!ownerDevice && now - ownerDevice.last_seen < DEVICE_ONLINE_MS,
   };
 }

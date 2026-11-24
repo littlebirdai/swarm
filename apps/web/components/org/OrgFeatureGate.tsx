@@ -13,7 +13,13 @@ import { useOrgFeatureOn } from "../../hooks/useOrgFeatureOn";
 
 /** Children when the feature is on; `off` when it is not (the off landing by
  *  default, for a whole route; pass null to drop a pane). */
-export function OrgFeatureGate({ children, off }: { children: ReactNode; off?: ReactNode }) {
+export function OrgFeatureGate({
+  children,
+  off,
+}: {
+  children: ReactNode;
+  off?: ReactNode;
+}) {
   const on = useOrgFeatureOn();
   if (on) return <>{children}</>;
   return off === undefined ? <TeamFeatureOff feature="org" /> : <>{off}</>;

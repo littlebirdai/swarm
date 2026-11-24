@@ -30,7 +30,11 @@ import {
   type ScopeKind,
   parseAnyCapabilitySlug,
 } from "./capabilities";
-import { AGENT_CLIENTS, capabilitySupport, type AgentClientId } from "./agentClients.js";
+import {
+  AGENT_CLIENTS,
+  capabilitySupport,
+  type AgentClientId,
+} from "./agentClients.js";
 
 /**
  * Where you are standing. Every field is the identity of a scope instance, and
@@ -124,10 +128,13 @@ function compareAuthority(a: Candidate, b: Candidate): number {
   const byScope = scopePrecedence(b.scopeKind) - scopePrecedence(a.scopeKind);
   if (byScope !== 0) return byScope;
 
-  const byTime = normalizeUpdatedAt(b.binding.updatedAt) - normalizeUpdatedAt(a.binding.updatedAt);
+  const byTime =
+    normalizeUpdatedAt(b.binding.updatedAt) -
+    normalizeUpdatedAt(a.binding.updatedAt);
   if (byTime !== 0) return byTime;
 
-  if (a.binding.id !== b.binding.id) return a.binding.id < b.binding.id ? -1 : 1;
+  if (a.binding.id !== b.binding.id)
+    return a.binding.id < b.binding.id ? -1 : 1;
   return a.index - b.index;
 }
 
@@ -138,7 +145,10 @@ function compareAuthority(a: Candidate, b: Candidate): number {
  * phrase is rendered to a person, so it names the missing thing rather than the
  * failed check.
  */
-function scopeMismatch(candidate: Candidate, context: ScopeContext): string | null {
+function scopeMismatch(
+  candidate: Candidate,
+  context: ScopeContext,
+): string | null {
   const { scopeKind, scopeKey } = candidate;
 
   // Team is the one scope where the row's owner is not the person it lands on:
@@ -154,7 +164,8 @@ function scopeMismatch(candidate: Candidate, context: ScopeContext): string | nu
 
   switch (scopeKind) {
     case "team":
-      if (!context.teamIds || context.teamIds.length === 0) return "not in any team here";
+      if (!context.teamIds || context.teamIds.length === 0)
+        return "not in any team here";
       return context.teamIds.includes(scopeKey) ? null : "another team";
     case "user":
       // Redundant with the owner check above now that the key is the owner for
@@ -166,7 +177,8 @@ function scopeMismatch(candidate: Candidate, context: ScopeContext): string | nu
       if (!context.deviceId) return "no device in this context";
       return scopeKey === context.deviceId ? null : "another device";
     case "project":
-      if (!context.projectKeys || context.projectKeys.length === 0) return "no project in this context";
+      if (!context.projectKeys || context.projectKeys.length === 0)
+        return "no project in this context";
       return context.projectKeys.includes(scopeKey) ? null : "another project";
     case "session":
       if (!context.conversationId) return "no session in this context";
@@ -185,7 +197,11 @@ function scopeMismatch(candidate: Candidate, context: ScopeContext): string | nu
  * So a config is usable only when the person who wrote the binding is the
  * person whose machine it lands on, at a scope that person controls directly.
  */
-function configIsTrusted(binding: CapabilityBinding, scopeKind: ScopeKind, context: ScopeContext): boolean {
+function configIsTrusted(
+  binding: CapabilityBinding,
+  scopeKind: ScopeKind,
+  context: ScopeContext,
+): boolean {
   if (scopeKind !== "user" && scopeKind !== "device") return false;
   return binding.userId === context.userId;
 }
@@ -211,11 +227,16 @@ function readConfig(binding: CapabilityBinding): ConfigShape {
   const config: unknown = binding.config;
   // A string would pass a bare `Object.keys` length test and then spread into
   // `{0: "a", 1: "b"}` — a config nobody wrote, reaching a driver.
-  if (typeof config !== "object" || config === null || Array.isArray(config)) return NO_CONFIG;
+  if (typeof config !== "object" || config === null || Array.isArray(config))
+    return NO_CONFIG;
   const pairs = Object.entries(config as Record<string, unknown>);
   if (pairs.length === 0) return NO_CONFIG;
-  if (!pairs.every(([, value]) => typeof value === "string")) return { kind: "malformed" };
-  return { kind: "values", values: Object.fromEntries(pairs) as Record<string, string> };
+  if (!pairs.every(([, value]) => typeof value === "string"))
+    return { kind: "malformed" };
+  return {
+    kind: "values",
+    values: Object.fromEntries(pairs) as Record<string, string>,
+  };
 }
 
 /**
@@ -226,8 +247,12 @@ function readConfig(binding: CapabilityBinding): ConfigShape {
  */
 function validationError(binding: CapabilityBinding): string | null {
   if (!binding || typeof binding !== "object") return "not an object";
-  if (typeof binding.id !== "string" || binding.id.length === 0) return "no binding id";
-  if (typeof binding.capabilitySlug !== "string" || binding.capabilitySlug.trim().length === 0) {
+  if (typeof binding.id !== "string" || binding.id.length === 0)
+    return "no binding id";
+  if (
+    typeof binding.capabilitySlug !== "string" ||
+    binding.capabilitySlug.trim().length === 0
+  ) {
     return "no capability slug";
   }
   // The slug is a denormalized free string on the row, so this is the one gate
@@ -238,14 +263,17 @@ function validationError(binding: CapabilityBinding): string | null {
     return `capability slug ${forDisplay(binding.capabilitySlug)} is not a valid reference`;
   }
   if (typeof binding.enabled !== "boolean") return "enabled is not a boolean";
-  if (!isScopeKind(binding.scopeKind)) return `unknown scope "${String(binding.scopeKind)}"`;
-  if (typeof binding.userId !== "string" || binding.userId.length === 0) return "no owner";
+  if (!isScopeKind(binding.scopeKind))
+    return `unknown scope "${String(binding.scopeKind)}"`;
+  if (typeof binding.userId !== "string" || binding.userId.length === 0)
+    return "no owner";
   if (binding.scopeKey !== undefined && typeof binding.scopeKey !== "string") {
     // Never fall through to the blank-key rule below with a non-string: a user
     // scope row keyed `42` would silently become a row for the owner.
     return "scope key is not a string";
   }
-  if (effectiveScopeKey(binding).length === 0) return `no scope key for ${binding.scopeKind} scope`;
+  if (effectiveScopeKey(binding).length === 0)
+    return `no scope key for ${binding.scopeKind} scope`;
   // A team row says whose team it is twice, and the two must agree — the design
   // requires `team_id` on every team row and the server validates it there. A
   // row that disagrees with itself is not one to guess about. Absence is left
@@ -278,7 +306,8 @@ function forDisplay(raw: string): string {
  * malformed, and every other scope still requires a real key.
  */
 function effectiveScopeKey(binding: CapabilityBinding): string {
-  const key = typeof binding.scopeKey === "string" ? binding.scopeKey.trim() : "";
+  const key =
+    typeof binding.scopeKey === "string" ? binding.scopeKey.trim() : "";
   if (key.length > 0) return key;
   return binding.scopeKind === "user" ? binding.userId : "";
 }
@@ -313,7 +342,10 @@ function applyConfig(
     const shape = readConfig(candidate.binding);
     if (shape.kind === "none") continue;
     if (!firstOffer) firstOffer = { candidate, shape };
-    if (shape.kind === "values" && configIsTrusted(candidate.binding, candidate.scopeKind, context)) {
+    if (
+      shape.kind === "values" &&
+      configIsTrusted(candidate.binding, candidate.scopeKind, context)
+    ) {
       entry.config = { ...shape.values };
       noteConfigSource(entry, candidate);
       return;
@@ -325,18 +357,28 @@ function applyConfig(
   // whose MCP command interpolates `${user_config.KEY}` launches wrong without
   // it, and a half-configured server that starts is worse than one that does
   // not.
-  entry.withheld = firstOffer.shape.kind === "malformed" ? "config_malformed" : "config_scope_not_trusted";
+  entry.withheld =
+    firstOffer.shape.kind === "malformed"
+      ? "config_malformed"
+      : "config_scope_not_trusted";
   noteConfigSource(entry, firstOffer.candidate);
 }
 
 /** `decidedBy` already names the winner, so only record the config's origin
  *  when it is somewhere else — the case a card cannot otherwise explain. */
-function noteConfigSource(entry: ResolvedCapability, candidate: Candidate): void {
-  if (candidate.binding.id !== entry.decidedBy.bindingId) entry.configFrom = trace(candidate);
+function noteConfigSource(
+  entry: ResolvedCapability,
+  candidate: Candidate,
+): void {
+  if (candidate.binding.id !== entry.decidedBy.bindingId)
+    entry.configFrom = trace(candidate);
 }
 
 /** The client filter is a whitelist. Empty or absent means every client. */
-function clientExcluded(binding: CapabilityBinding, context: ScopeContext): boolean {
+function clientExcluded(
+  binding: CapabilityBinding,
+  context: ScopeContext,
+): boolean {
   const filter = binding.clientFilter;
   if (!Array.isArray(filter) || filter.length === 0) return false;
   if (!context.client) return false;
@@ -367,7 +409,10 @@ export function resolveCapabilities(
     // The grammar refuses an unpinned git slug outright (a moving ref names no
     // fixed bytes), so these rows would otherwise fall into malformed_binding.
     // Named apart because the fix is specific and human-actionable: pin it.
-    const rawSlug = typeof binding?.capabilitySlug === "string" ? binding.capabilitySlug.trim() : "";
+    const rawSlug =
+      typeof binding?.capabilitySlug === "string"
+        ? binding.capabilitySlug.trim()
+        : "";
     if (rawSlug.startsWith("git/") && !rawSlug.includes("@")) {
       ignored.push({
         bindingId: typeof binding?.id === "string" ? binding.id : "",
@@ -375,7 +420,8 @@ export function resolveCapabilities(
         scopeKind: String(binding?.scopeKind ?? ""),
         scopeKey: typeof binding?.scopeKey === "string" ? binding.scopeKey : "",
         reason: "unpinned_source",
-        detail: "a git source must be pinned to a commit — a moving ref names no fixed bytes",
+        detail:
+          "a git source must be pinned to a commit — a moving ref names no fixed bytes",
       });
       continue;
     }
@@ -384,7 +430,10 @@ export function resolveCapabilities(
     if (invalid) {
       ignored.push({
         bindingId: typeof binding?.id === "string" ? binding.id : "",
-        capabilitySlug: typeof binding?.capabilitySlug === "string" ? binding.capabilitySlug : "",
+        capabilitySlug:
+          typeof binding?.capabilitySlug === "string"
+            ? binding.capabilitySlug
+            : "",
         scopeKind: String(binding?.scopeKind ?? ""),
         scopeKey: typeof binding?.scopeKey === "string" ? binding.scopeKey : "",
         reason: "malformed_binding",
@@ -422,7 +471,8 @@ export function resolveCapabilities(
         scopeKind: binding.scopeKind,
         scopeKey: binding.scopeKey,
         reason: "loadout_not_expanded",
-        detail: "loadout expansion has not shipped; this binding is parked, not broken",
+        detail:
+          "loadout expansion has not shipped; this binding is parked, not broken",
       });
       continue;
     }
@@ -433,11 +483,18 @@ export function resolveCapabilities(
     // (git/authored sources ship any kind) is not evidence of anything.
     if (context.client && context.client in AGENT_CLIENTS) {
       const impliedKind =
-        parsedSlug?.source === "builtin" ? ("snippet" as const)
-        : parsedSlug?.source === "marketplace" ? ("plugin" as const)
-        : parsedSlug?.source === "mcp_registry" ? ("mcp" as const)
-        : undefined;
-      if (impliedKind && capabilitySupport(impliedKind, context.client as AgentClientId) === "unsupported") {
+        parsedSlug?.source === "builtin"
+          ? ("snippet" as const)
+          : parsedSlug?.source === "marketplace"
+            ? ("plugin" as const)
+            : parsedSlug?.source === "mcp_registry"
+              ? ("mcp" as const)
+              : undefined;
+      if (
+        impliedKind &&
+        capabilitySupport(impliedKind, context.client as AgentClientId) ===
+          "unsupported"
+      ) {
         ignored.push({
           bindingId: binding.id,
           capabilitySlug: binding.capabilitySlug,
@@ -508,7 +565,8 @@ export function resolveCapabilities(
 
   entries.sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
   ignored.sort((a, b) => {
-    if (a.capabilitySlug !== b.capabilitySlug) return a.capabilitySlug < b.capabilitySlug ? -1 : 1;
+    if (a.capabilitySlug !== b.capabilitySlug)
+      return a.capabilitySlug < b.capabilitySlug ? -1 : 1;
     return a.bindingId < b.bindingId ? -1 : a.bindingId > b.bindingId ? 1 : 0;
   });
 
@@ -530,7 +588,10 @@ export function desiredCapabilitySlugs(state: DesiredState): string[] {
 }
 
 /** One capability's full story — the winning binding, and everything it beat. */
-export function findResolved(state: DesiredState, slug: string): ResolvedCapability | undefined {
+export function findResolved(
+  state: DesiredState,
+  slug: string,
+): ResolvedCapability | undefined {
   return state.entries.find((e) => e.slug === slug);
 }
 
@@ -548,7 +609,6 @@ export function explainCapability(
     ignored: state.ignored.filter((i) => i.capabilitySlug === slug),
   };
 }
-
 
 /** Dotted-integer version compare: negative when a < b. Non-numeric segments
  *  compare as 0 rather than throwing — versions arrive from other machines. */
@@ -585,7 +645,11 @@ export function withAvailability(
       if (result === undefined) return entry;
       return result.ok
         ? { ...entry, availability: "available" as const }
-        : { ...entry, availability: "unavailable" as const, lastOk: result.lastOk };
+        : {
+            ...entry,
+            availability: "unavailable" as const,
+            lastOk: result.lastOk,
+          };
     }),
   };
 }
@@ -663,7 +727,11 @@ export function withConsent(
     if (now.selfUpdating) {
       // Holding is impossible: the new bytes are already where the old ones
       // were. A real disable, not a skipped write.
-      needsConsent.push({ slug: entry.slug, had: consent.manifestHash, now: now.manifestHash });
+      needsConsent.push({
+        slug: entry.slug,
+        had: consent.manifestHash,
+        now: now.manifestHash,
+      });
       return { ...entry, enabled: false as const };
     }
 

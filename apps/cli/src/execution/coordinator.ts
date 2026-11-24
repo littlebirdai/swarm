@@ -102,7 +102,9 @@ function permitSignature(permit: StartedDeliveryPermit): string {
 }
 
 function validateBindingRequest(request: EnsureBindingRequest): void {
-  const canonicalAgent = parseExecutionAgentClientId(request.target.requestedAgent);
+  const canonicalAgent = parseExecutionAgentClientId(
+    request.target.requestedAgent,
+  );
   if (canonicalAgent !== request.target.requestedAgent) {
     throw new ExecutionCoordinatorError(
       "INVALID_BINDING_REQUEST",
@@ -124,7 +126,9 @@ function validateBindingRequest(request: EnsureBindingRequest): void {
       "Execution target, epoch, configuration revision, absolute project path, and owner are required",
     );
   }
-  if (!agentSupportsExecutionTransport(canonicalAgent, request.target.transport)) {
+  if (
+    !agentSupportsExecutionTransport(canonicalAgent, request.target.transport)
+  ) {
     throw new ExecutionCoordinatorError(
       "INVALID_BINDING_REQUEST",
       `${canonicalAgent} does not support fenced ${request.target.transport} execution`,
@@ -147,7 +151,10 @@ function validateBindingRequest(request: EnsureBindingRequest): void {
   }
 }
 
-function validateReadyBinding(request: EnsureBindingRequest, binding: ReadyBinding): void {
+function validateReadyBinding(
+  request: EnsureBindingRequest,
+  binding: ReadyBinding,
+): void {
   const invalid =
     binding.conversationId !== request.target.conversationId ||
     binding.epoch !== request.target.epoch ||
@@ -221,14 +228,16 @@ export class ExecutionCoordinator {
 
   constructor(options: ExecutionCoordinatorOptions) {
     this.controlPlane = options.controlPlane;
-    this.drivers = options.drivers instanceof RuntimeDriverRegistry
-      ? options.drivers
-      : new RuntimeDriverRegistry(options.drivers);
+    this.drivers =
+      options.drivers instanceof RuntimeDriverRegistry
+        ? options.drivers
+        : new RuntimeDriverRegistry(options.drivers);
     this.journal = options.journal;
     this.operationIdFactory = options.operationIdFactory ?? randomUUID;
     this.now = options.now ?? Date.now;
     this.defaultDeliveryTimeoutMs = options.defaultDeliveryTimeoutMs ?? 30_000;
-    this.completedAttemptCacheSize = options.completedAttemptCacheSize ?? 10_000;
+    this.completedAttemptCacheSize =
+      options.completedAttemptCacheSize ?? 10_000;
   }
 
   /**
@@ -261,7 +270,10 @@ export class ExecutionCoordinator {
         // may clear the local single-flight. Everything else remains sticky.
         let retryable = false;
         try {
-          const record = this.journal.get(request.target.conversationId, request.target.epoch);
+          const record = this.journal.get(
+            request.target.conversationId,
+            request.target.epoch,
+          );
           retryable =
             error instanceof ExecutionCoordinatorError &&
             error.code === "START_FAILED_BEFORE_EFFECT" &&
@@ -279,7 +291,9 @@ export class ExecutionCoordinator {
     return promise;
   }
 
-  getActiveDelivery(conversationId: string): ActiveDeliverySnapshot | undefined {
+  getActiveDelivery(
+    conversationId: string,
+  ): ActiveDeliverySnapshot | undefined {
     const active = this.activeDeliveries.get(conversationId);
     return active ? { ...active.snapshot } : undefined;
   }
@@ -305,7 +319,9 @@ export class ExecutionCoordinator {
   private transitionJournal(
     previous: ExecutionJournalRecord,
     phase: ExecutionJournalPhase,
-    patch: Partial<Pick<ExecutionJournalRecord, "handle" | "binding" | "failure">> = {},
+    patch: Partial<
+      Pick<ExecutionJournalRecord, "handle" | "binding" | "failure">
+    > = {},
   ): ExecutionJournalRecord {
     const next: ExecutionJournalRecord = {
       ...previous,
@@ -339,7 +355,10 @@ export class ExecutionCoordinator {
       ...failure,
       details: {
         ...failure.details,
-        journalError: journalError instanceof Error ? journalError.message : String(journalError),
+        journalError:
+          journalError instanceof Error
+            ? journalError.message
+            : String(journalError),
       },
     };
   }
@@ -357,8 +376,13 @@ export class ExecutionCoordinator {
     }
   }
 
-  private async runEnsureBinding(request: EnsureBindingRequest): Promise<ReadyBinding> {
-    const driver = this.drivers.resolve(request.target.requestedAgent, request.target.transport);
+  private async runEnsureBinding(
+    request: EnsureBindingRequest,
+  ): Promise<ReadyBinding> {
+    const driver = this.drivers.resolve(
+      request.target.requestedAgent,
+      request.target.transport,
+    );
     const missingDriverCapabilities = request.requiredCapabilities.filter(
       (capability) => !driver.capabilities.includes(capability),
     );
@@ -371,12 +395,18 @@ export class ExecutionCoordinator {
 
     let journal: ExecutionJournalRecord | undefined;
     try {
-      journal = this.journal.get(request.target.conversationId, request.target.epoch);
+      journal = this.journal.get(
+        request.target.conversationId,
+        request.target.epoch,
+      );
     } catch (error) {
       const proposedOperationId = this.operationIdFactory();
       let operationId = proposedOperationId;
       try {
-        const claim = await this.controlPlane.claimStart({ ...request, proposedOperationId });
+        const claim = await this.controlPlane.claimStart({
+          ...request,
+          proposedOperationId,
+        });
         if (claim.state === "claimed" || claim.state === "busy") {
           operationId = claim.operationId ?? operationId;
         }
@@ -385,23 +415,43 @@ export class ExecutionCoordinator {
         // authority is also unavailable, recovery will retry the report later.
       }
       const failure = structuredFailure("LOCAL_START_JOURNAL_CORRUPT", error);
-      await this.publishStartAmbiguousBestEffort({ request, operationId, failure });
-      throw new ExecutionCoordinatorError("START_AMBIGUOUS", failure.message, failure);
+      await this.publishStartAmbiguousBestEffort({
+        request,
+        operationId,
+        failure,
+      });
+      throw new ExecutionCoordinatorError(
+        "START_AMBIGUOUS",
+        failure.message,
+        failure,
+      );
     }
 
     // Recovery and safe pre-effect retry retain one durable operation identity.
     // A fresh random id is used only when this epoch has no local operation.
-    const proposedOperationId = journal?.operationId ?? this.operationIdFactory();
-    const claim = await this.controlPlane.claimStart({ ...request, proposedOperationId });
+    const proposedOperationId =
+      journal?.operationId ?? this.operationIdFactory();
+    const claim = await this.controlPlane.claimStart({
+      ...request,
+      proposedOperationId,
+    });
     if (claim.state === "ready") {
       validateReadyBinding(request, claim.binding);
       return claim.binding;
     }
     if (claim.state === "busy") {
-      throw new ExecutionCoordinatorError("START_BUSY", claim.failure.message, claim.failure);
+      throw new ExecutionCoordinatorError(
+        "START_BUSY",
+        claim.failure.message,
+        claim.failure,
+      );
     }
     if (claim.state === "rejected") {
-      throw new ExecutionCoordinatorError("START_REJECTED", claim.failure.message, claim.failure);
+      throw new ExecutionCoordinatorError(
+        "START_REJECTED",
+        claim.failure.message,
+        claim.failure,
+      );
     }
     if (!claim.operationId) {
       throw new ExecutionCoordinatorError(
@@ -420,7 +470,11 @@ export class ExecutionCoordinator {
         operationId: claim.operationId,
         failure,
       });
-      throw new ExecutionCoordinatorError("START_AMBIGUOUS", failure.message, failure);
+      throw new ExecutionCoordinatorError(
+        "START_AMBIGUOUS",
+        failure.message,
+        failure,
+      );
     }
     const journalWasPresent = journal !== undefined;
     const requestWithoutBoot = JSON.stringify({
@@ -433,14 +487,19 @@ export class ExecutionCoordinator {
     if (journal && journalRequestFingerprint(journal) !== requestWithoutBoot) {
       const failure: StructuredFailure = {
         code: "LOCAL_EXECUTION_REQUEST_CONFLICT",
-        message: "Local journal target, configuration, owner, or daemon boot differs from the claimed execution",
+        message:
+          "Local journal target, configuration, owner, or daemon boot differs from the claimed execution",
       };
       await this.publishStartAmbiguousBestEffort({
         request,
         operationId: claim.operationId,
         failure,
       });
-      throw new ExecutionCoordinatorError("START_AMBIGUOUS", failure.message, failure);
+      throw new ExecutionCoordinatorError(
+        "START_AMBIGUOUS",
+        failure.message,
+        failure,
+      );
     }
     if (journal && journal.daemonBootId !== request.daemonBootId) {
       const recovery = claim.recovery;
@@ -458,7 +517,11 @@ export class ExecutionCoordinator {
           operationId: claim.operationId,
           failure,
         });
-        throw new ExecutionCoordinatorError("START_AMBIGUOUS", failure.message, failure);
+        throw new ExecutionCoordinatorError(
+          "START_AMBIGUOUS",
+          failure.message,
+          failure,
+        );
       }
 
       const priorBoot = journal.daemonBootId;
@@ -477,13 +540,20 @@ export class ExecutionCoordinator {
         });
         journal = transferred;
       } catch (error) {
-        const failure = structuredFailure("DAEMON_BOOT_RECOVERY_JOURNAL_FAILED", error);
+        const failure = structuredFailure(
+          "DAEMON_BOOT_RECOVERY_JOURNAL_FAILED",
+          error,
+        );
         await this.publishStartAmbiguousBestEffort({
           request,
           operationId: claim.operationId,
           failure,
         });
-        throw new ExecutionCoordinatorError("START_AMBIGUOUS", failure.message, failure);
+        throw new ExecutionCoordinatorError(
+          "START_AMBIGUOUS",
+          failure.message,
+          failure,
+        );
       }
     }
     if (!journal) {
@@ -491,7 +561,10 @@ export class ExecutionCoordinator {
       try {
         this.journal.record(journal);
       } catch (error) {
-        const failure = structuredFailure("LOCAL_START_JOURNAL_FAILED_BEFORE_EFFECT", error);
+        const failure = structuredFailure(
+          "LOCAL_START_JOURNAL_FAILED_BEFORE_EFFECT",
+          error,
+        );
         await this.publishStartFailedBeforeEffectBestEffort({
           request,
           operationId: claim.operationId,
@@ -506,7 +579,8 @@ export class ExecutionCoordinator {
     }
 
     const retryingBeforeEffect =
-      journal.phase === "start-failed-before-effect" && journal.failure?.retryable === true;
+      journal.phase === "start-failed-before-effect" &&
+      journal.failure?.retryable === true;
     if (
       journalWasPresent &&
       claim.recovery.state === "fresh" &&
@@ -522,10 +596,17 @@ export class ExecutionCoordinator {
         operationId: claim.operationId,
         failure,
       });
-      throw new ExecutionCoordinatorError("START_AMBIGUOUS", failure.message, failure);
+      throw new ExecutionCoordinatorError(
+        "START_AMBIGUOUS",
+        failure.message,
+        failure,
+      );
     }
 
-    if (journal.phase === "start-failed-before-effect" && !retryingBeforeEffect) {
+    if (
+      journal.phase === "start-failed-before-effect" &&
+      !retryingBeforeEffect
+    ) {
       throw new ExecutionCoordinatorError(
         "START_FAILED_BEFORE_EFFECT",
         journal.failure?.message ?? "Prior start failed before effect",
@@ -559,7 +640,9 @@ export class ExecutionCoordinator {
       } else if (adoption.state !== "missing") {
         let failure = adoption.failure;
         try {
-          journal = this.transitionJournal(journal, "start-ambiguous", { failure });
+          journal = this.transitionJournal(journal, "start-ambiguous", {
+            failure,
+          });
         } catch (error) {
           failure = this.withJournalFailure(failure, error);
         }
@@ -568,7 +651,11 @@ export class ExecutionCoordinator {
           operationId: claim.operationId,
           failure,
         });
-        throw new ExecutionCoordinatorError("START_AMBIGUOUS", failure.message, failure);
+        throw new ExecutionCoordinatorError(
+          "START_AMBIGUOUS",
+          failure.message,
+          failure,
+        );
       }
     }
 
@@ -580,7 +667,10 @@ export class ExecutionCoordinator {
           failure: undefined,
         });
       } catch (error) {
-        const failure = structuredFailure("LOCAL_EFFECT_JOURNAL_FAILED_BEFORE_EFFECT", error);
+        const failure = structuredFailure(
+          "LOCAL_EFFECT_JOURNAL_FAILED_BEFORE_EFFECT",
+          error,
+        );
         await this.publishStartFailedBeforeEffectBestEffort({
           request,
           operationId: claim.operationId,
@@ -594,7 +684,10 @@ export class ExecutionCoordinator {
       }
       let result;
       try {
-        result = await driver.start({ ...request, operationId: claim.operationId });
+        result = await driver.start({
+          ...request,
+          operationId: claim.operationId,
+        });
       } catch (error) {
         result = {
           state: "ambiguous" as const,
@@ -604,9 +697,13 @@ export class ExecutionCoordinator {
       if (result.state === "failed-before-effect") {
         let failure = result.failure;
         try {
-          journal = this.transitionJournal(journal, "start-failed-before-effect", {
-            failure,
-          });
+          journal = this.transitionJournal(
+            journal,
+            "start-failed-before-effect",
+            {
+              failure,
+            },
+          );
         } catch (error) {
           failure = this.withJournalFailure(failure, error);
         }
@@ -636,7 +733,11 @@ export class ExecutionCoordinator {
           failure,
           suspectedRuntimeId: result.suspectedRuntimeId,
         });
-        throw new ExecutionCoordinatorError("START_AMBIGUOUS", failure.message, failure);
+        throw new ExecutionCoordinatorError(
+          "START_AMBIGUOUS",
+          failure.message,
+          failure,
+        );
       }
       runtimeHandle = result.handle;
     }
@@ -645,14 +746,20 @@ export class ExecutionCoordinator {
       validateRuntimeHandle(request, driver, runtimeHandle);
     } catch (error) {
       const failure = structuredFailure("RUNTIME_HANDLE_FENCE_MISMATCH", error);
-      const unsafeBinding = this.bindingFromHandle(request, claim.operationId, runtimeHandle);
+      const unsafeBinding = this.bindingFromHandle(
+        request,
+        claim.operationId,
+        runtimeHandle,
+      );
       try {
         await driver.quarantine(unsafeBinding, failure.message);
       } catch {
         // Server state below remains ambiguous even if physical quarantine failed.
       }
       try {
-        journal = this.transitionJournal(journal, "start-ambiguous", { failure });
+        journal = this.transitionJournal(journal, "start-ambiguous", {
+          failure,
+        });
       } catch (error) {
         Object.assign(failure, this.withJournalFailure(failure, error));
       }
@@ -662,10 +769,18 @@ export class ExecutionCoordinator {
         failure,
         suspectedRuntimeId: runtimeHandle.runtimeId,
       });
-      throw new ExecutionCoordinatorError("START_AMBIGUOUS", failure.message, failure);
+      throw new ExecutionCoordinatorError(
+        "START_AMBIGUOUS",
+        failure.message,
+        failure,
+      );
     }
 
-    const binding = this.bindingFromHandle(request, claim.operationId, runtimeHandle);
+    const binding = this.bindingFromHandle(
+      request,
+      claim.operationId,
+      runtimeHandle,
+    );
     validateReadyBinding(request, binding);
     try {
       journal = this.transitionJournal(journal, "handle-recorded", {
@@ -673,14 +788,18 @@ export class ExecutionCoordinator {
         failure: undefined,
       });
     } catch (error) {
-      const failure = structuredFailure("LOCAL_RUNTIME_HANDLE_JOURNAL_FAILED", error);
+      const failure = structuredFailure(
+        "LOCAL_RUNTIME_HANDLE_JOURNAL_FAILED",
+        error,
+      );
       try {
         await driver.quarantine(binding, failure.message);
       } catch (quarantineError) {
         failure.details = {
-          quarantineError: quarantineError instanceof Error
-            ? quarantineError.message
-            : String(quarantineError),
+          quarantineError:
+            quarantineError instanceof Error
+              ? quarantineError.message
+              : String(quarantineError),
         };
       }
       await this.publishStartAmbiguousBestEffort({
@@ -689,7 +808,11 @@ export class ExecutionCoordinator {
         failure,
         suspectedRuntimeId: binding.runtimeId,
       });
-      throw new ExecutionCoordinatorError("START_AMBIGUOUS", failure.message, failure);
+      throw new ExecutionCoordinatorError(
+        "START_AMBIGUOUS",
+        failure.message,
+        failure,
+      );
     }
 
     let accepted = false;
@@ -701,17 +824,22 @@ export class ExecutionCoordinator {
     if (!accepted) {
       const failure: StructuredFailure = {
         code: "STALE_READY_PUBLICATION",
-        message: "Server rejected or could not confirm the completed runtime binding",
+        message:
+          "Server rejected or could not confirm the completed runtime binding",
       };
       try {
         await driver.quarantine(binding, failure.message);
       } catch (error) {
         failure.details = {
-          quarantineError: error instanceof Error ? error.message : String(error),
+          quarantineError:
+            error instanceof Error ? error.message : String(error),
         };
       }
       try {
-        journal = this.transitionJournal(journal, "quarantined", { binding, failure });
+        journal = this.transitionJournal(journal, "quarantined", {
+          binding,
+          failure,
+        });
       } catch (error) {
         Object.assign(failure, this.withJournalFailure(failure, error));
       }
@@ -721,11 +849,18 @@ export class ExecutionCoordinator {
         failure,
         suspectedRuntimeId: binding.runtimeId,
       });
-      throw new ExecutionCoordinatorError("STALE_START_COMPLETION", failure.message, failure);
+      throw new ExecutionCoordinatorError(
+        "STALE_START_COMPLETION",
+        failure.message,
+        failure,
+      );
     }
 
     try {
-      this.transitionJournal(journal, "ready", { binding, handle: runtimeHandle });
+      this.transitionJournal(journal, "ready", {
+        binding,
+        handle: runtimeHandle,
+      });
     } catch {
       // Convex accepted the exact boot/epoch/runtime binding and handle-recorded
       // is already durable. Recovery can adopt it; do not misreport a safe ready
@@ -781,7 +916,10 @@ export class ExecutionCoordinator {
 
     let existing = this.activeDeliveries.get(request.permit.conversationId);
     if (existing) {
-      if (existing.snapshot.attemptId === request.permit.attemptId && existing.signature === signature) {
+      if (
+        existing.snapshot.attemptId === request.permit.attemptId &&
+        existing.signature === signature
+      ) {
         return existing.publicPromise;
       }
       throw new ExecutionCoordinatorError(
@@ -815,7 +953,10 @@ export class ExecutionCoordinator {
     }
     existing = this.activeDeliveries.get(request.permit.conversationId);
     if (existing) {
-      if (existing.snapshot.attemptId === request.permit.attemptId && existing.signature === signature) {
+      if (
+        existing.snapshot.attemptId === request.permit.attemptId &&
+        existing.signature === signature
+      ) {
         return existing.publicPromise;
       }
       throw new ExecutionCoordinatorError(
@@ -828,7 +969,10 @@ export class ExecutionCoordinator {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
       throw new TypeError("Delivery timeout must be positive");
     }
-    const driver = this.drivers.resolve(binding.requestedAgent, binding.transport);
+    const driver = this.drivers.resolve(
+      binding.requestedAgent,
+      binding.transport,
+    );
     let resolvePublic!: (outcome: DeliveryOutcome) => void;
     const publicPromise = new Promise<DeliveryOutcome>((resolve) => {
       resolvePublic = resolve;
@@ -855,13 +999,22 @@ export class ExecutionCoordinator {
         code: "DELIVERY_TIMEOUT_AMBIGUOUS",
         message: `Delivery attempt ${request.permit.attemptId} did not settle within ${timeoutMs}ms`,
       };
-      void this.reportDeliveryAmbiguous(active, request.permit, { state: "ambiguous", failure });
+      void this.reportDeliveryAmbiguous(active, request.permit, {
+        state: "ambiguous",
+        failure,
+      });
     }, timeoutMs);
 
     // Publish the slot before the driver microtask can perform an external effect.
     this.activeDeliveries.set(binding.conversationId, active);
     void Promise.resolve().then(() =>
-      this.runDelivery(active, driver, binding, request.permit, request.delivery),
+      this.runDelivery(
+        active,
+        driver,
+        binding,
+        request.permit,
+        request.delivery,
+      ),
     );
     return publicPromise;
   }
@@ -872,7 +1025,10 @@ export class ExecutionCoordinator {
     active.resolvePublic(outcome);
   }
 
-  private enqueueControl(active: ActiveDelivery, work: () => Promise<void>): Promise<void> {
+  private enqueueControl(
+    active: ActiveDelivery,
+    work: () => Promise<void>,
+  ): Promise<void> {
     const action = active.controlChain.then(work);
     active.controlChain = action.catch(() => {});
     return action;
@@ -936,7 +1092,10 @@ export class ExecutionCoordinator {
         );
       } else {
         await this.enqueueControl(active, () =>
-          this.controlPlane.failDeliveryBeforeEffect({ permit, outcome: result }),
+          this.controlPlane.failDeliveryBeforeEffect({
+            permit,
+            outcome: result,
+          }),
         );
       }
     } catch (error) {
@@ -961,7 +1120,9 @@ export class ExecutionCoordinator {
   ): void {
     this.completedAttempts.set(attemptId, { signature, outcome });
     while (this.completedAttempts.size > this.completedAttemptCacheSize) {
-      const oldest = this.completedAttempts.keys().next().value as string | undefined;
+      const oldest = this.completedAttempts.keys().next().value as
+        | string
+        | undefined;
       if (!oldest) break;
       this.completedAttempts.delete(oldest);
     }

@@ -1,31 +1,63 @@
 import { captureException } from "@sentry/react";
 import { awaitingOkIds } from "../lib/decisionQueue";
-import { hostedComposerWords, hostedLastExchange, type HostedLast } from "../lib/hostedComposer";
+import {
+  hostedComposerWords,
+  hostedLastExchange,
+  type HostedLast,
+} from "../lib/hostedComposer";
 import { HostedStatusLine } from "./conversation/HostedStatusLine";
 import { useIsHostedConversation } from "../hooks/useConversationAgentType";
 import { useAllowanceOut } from "./simple/usePlanFigures";
-import { useContext, useLayoutEffect, useRef, useState, useMemo, useCallback, memo, Suspense, type ReactElement } from "react";
+import {
+  useContext,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+  memo,
+  Suspense,
+  type ReactElement,
+} from "react";
 import { RevealInBandCtx } from "../lib/revealHost";
 import { useMountEffect } from "../hooks/useMountEffect";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { isMac, hasOpenModal, altChordDirection } from "../shortcuts";
-import { armJointSend, disarmJointSend, jointSendReady, takeJointSend } from "../lib/jointSend";
+import {
+  armJointSend,
+  disarmJointSend,
+  jointSendReady,
+  takeJointSend,
+} from "../lib/jointSend";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { createPortal } from "react-dom";
 import { compressImage } from "../lib/compressImage";
 import { captureError } from "../lib/analytics";
 import { uploadBlobToStorage } from "../lib/uploadBlob";
 import { textareaCaretRect } from "../lib/textareaCaret";
-import { classifyApiErrorBanner, ACTIVE_AGENT_STATUSES, isHostedAgentType, type AgentStatus } from "@codecast/shared/contracts";
+import {
+  classifyApiErrorBanner,
+  ACTIVE_AGENT_STATUSES,
+  isHostedAgentType,
+  type AgentStatus,
+} from "@codecast/shared/contracts";
 import { useRunnerSilence } from "../hooks/useRunnerSilence";
 import { HOSTED_IMAGE_REFUSAL } from "@codecast/shared/contracts/assistant";
 import { useLimitRecovery } from "../hooks/useLimitRecovery";
 import { useCoarseNow, useNowWhen } from "../hooks/useCoarseNow";
 import { formatCountdown, HIBERNATED_COPY } from "@codecast/shared/contracts";
 import { parseLimitResetAt } from "../lib/limitReset";
-import { pendingImageUploads, persistDraftImages, restoreDraftImages, settleDraftImageUpload } from "../lib/draftImages";
+import {
+  pendingImageUploads,
+  persistDraftImages,
+  restoreDraftImages,
+  settleDraftImageUpload,
+} from "../lib/draftImages";
 import { cancelPendingSend } from "../lib/cancelPendingSend";
-import { cancelDraftWrite, scheduleDraftWrite } from "../lib/pendingDraftWrites";
+import {
+  cancelDraftWrite,
+  scheduleDraftWrite,
+} from "../lib/pendingDraftWrites";
 import { isResentCopyOfSentMessage } from "../lib/staleDraft";
 import type { SkillItem } from "../lib/conversationProcessor";
 import { KeyCap, ShortcutTooltip } from "./KeyboardShortcutsHelp";
@@ -33,22 +65,46 @@ import { QUEUE_CHORD } from "../shortcuts/sendChords";
 import { toast } from "sonner";
 import { toastWriteError } from "../lib/dispatchBinding";
 import { appendToDraft } from "../lib/quoteFormat";
-import { imagePlaceholderToken, insertImagePlaceholder, dropImagePlaceholder } from "../lib/imagePlaceholder";
-import { attachReviewForSend, attachReviewToMessage, batchSendWords, quotedImages } from "../lib/reviewActions";
+import {
+  imagePlaceholderToken,
+  insertImagePlaceholder,
+  dropImagePlaceholder,
+} from "../lib/imagePlaceholder";
+import {
+  attachReviewForSend,
+  attachReviewToMessage,
+  batchSendWords,
+  quotedImages,
+} from "../lib/reviewActions";
 import { useShallow } from "zustand/react/shallow";
 import { uploadMarkedImage } from "../lib/markedImage";
 import { enterReviewFromComposer } from "../lib/reviewNav";
 import { ReviewBar } from "./ReviewBar";
 import { useReviewComposer } from "./reviewContext";
-import { ComposerFoot, ComposerSendButton, ComposerShell, ComposerTextarea, ComposerTextRow } from "./ComposerShell";
+import {
+  ComposerFoot,
+  ComposerSendButton,
+  ComposerShell,
+  ComposerTextarea,
+  ComposerTextRow,
+} from "./ComposerShell";
 import { composerColumn, FIELD_SIZING_SUPPORTED } from "./composerLayout";
-import { ComposerSuggestion, ComposerSuggestionHandle } from "./ComposerSuggestion";
+import {
+  ComposerSuggestion,
+  ComposerSuggestionHandle,
+} from "./ComposerSuggestion";
 import { useMutation, useConvex } from "convex/react";
 import { api as _typedApi } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { HandoffPicker, useOwnersFromStore } from "./OwnersBadge";
 import { usePendingMessageStatus } from "../hooks/useSyncPendingPermissions";
-import { useInboxStore, isConvexId, convHasPendingSend, viewerCommandsSession, type OptimisticImage } from "../store/inboxStore";
+import {
+  useInboxStore,
+  isConvexId,
+  convHasPendingSend,
+  viewerCommandsSession,
+  type OptimisticImage,
+} from "../store/inboxStore";
 import { useChangedState } from "../hooks/useChangedState";
 import { isParkedDispatchError } from "../store/mutativeMiddleware";
 import { windowOrgTree } from "../store/orgSlice";
@@ -56,33 +112,78 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { soundSend } from "../lib/sounds";
 import type { MentionItem } from "./editor/MentionList";
 import { MentionMenu } from "./editor/MentionMenu";
-import { mergeMentionSuggestions, mentionViewTimes, orderMentionItems } from "../lib/mentionRanking";
-import { Maximize2, Minimize2, Split, Archive, ArrowRightLeft, MonitorPlay, Paperclip } from "lucide-react";
+import {
+  mergeMentionSuggestions,
+  mentionViewTimes,
+  orderMentionItems,
+} from "../lib/mentionRanking";
+import {
+  Maximize2,
+  Minimize2,
+  Split,
+  Archive,
+  ArrowRightLeft,
+  MonitorPlay,
+  Paperclip,
+} from "lucide-react";
 import { formatCallTime } from "@codecast/shared/contracts";
-import { isRecordingFile, useScreenRecordingAttach } from "../hooks/useScreenRecordingAttach";
+import {
+  isRecordingFile,
+  useScreenRecordingAttach,
+} from "../hooks/useScreenRecordingAttach";
 import { useFileAttach } from "../hooks/useFileAttach";
 import { ComposerAttachButton } from "./chat/ComposerAttachButton";
 import type { ComposeEditorHandle } from "./editor/ComposeEditor";
-import { useMentionQuery, useMentionServerSearch, sessionMentionTeamId, SERVER_MENTION_TYPES, matchScore, filterMentionItems, channelMentionItems } from "../hooks/useMentionQuery";
+import {
+  useMentionQuery,
+  useMentionServerSearch,
+  sessionMentionTeamId,
+  SERVER_MENTION_TYPES,
+  matchScore,
+  filterMentionItems,
+  channelMentionItems,
+} from "../hooks/useMentionQuery";
 import { mentionContextFor } from "../lib/mentionContext";
 import { parseChatDraftKey } from "../lib/chatDraftKey";
-import { inFlightPending, isAliveIdleStatus, pendingRowHoldReason, type LiveAgentStatus } from "../lib/pendingBanner";
+import {
+  inFlightPending,
+  isAliveIdleStatus,
+  pendingRowHoldReason,
+  type LiveAgentStatus,
+} from "../lib/pendingBanner";
 import { expandEntityMentions } from "../lib/mentionExpansion";
 import { identityLine } from "../lib/sessionIdentity";
 import { identityPrefsNow } from "../hooks/useIdentityPrefs";
-import { ghostRestartContextFor, deriveRestartStage, restartPhaseOf } from "../hooks/useSessionRestart";
+import {
+  ghostRestartContextFor,
+  deriveRestartStage,
+  restartPhaseOf,
+} from "../hooks/useSessionRestart";
 import { useConversationCommands } from "../hooks/useSessionCommands";
-import { latestRestartRow, requestSessionRestart } from "../lib/sessionCommands";
+import {
+  latestRestartRow,
+  requestSessionRestart,
+} from "../lib/sessionCommands";
 import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
 import { WorkingStatusLine } from "./conversation/sessionChrome";
 import { LiveCompactionCard } from "./conversation/CompactionProgressCard";
 import { followRestoredConversation } from "../lib/followRestoredConversation";
-import { SLASH_QUERY_RE, SLASH_TRIGGER_RE, matchSlashSkills } from "../lib/sessionSkills";
-import { parseSideQuestion, withSideQuestionCommand } from "../lib/builtinCommands";
+import {
+  SLASH_QUERY_RE,
+  SLASH_TRIGGER_RE,
+  matchSlashSkills,
+} from "../lib/sessionSkills";
+import {
+  parseSideQuestion,
+  withSideQuestionCommand,
+} from "../lib/builtinCommands";
 import { useSharedDraft } from "../hooks/useSharedDraft";
 import { SharedCarets } from "./SharedCarets";
 import { useFileSearch } from "../lib/fsBrowse";
-import { findSecrets, type FoundSecret } from "@codecast/shared/contracts/secretShapes";
+import {
+  findSecrets,
+  type FoundSecret,
+} from "@codecast/shared/contracts/secretShapes";
 import { ComposerCatch } from "./secrets/ComposerCatch";
 import { runningSubagents } from "../lib/runningSubagents";
 import { StopConfirm, type StopRequest } from "./conversation/StopConfirm";
@@ -90,7 +191,10 @@ import { stopNeedsConfirm } from "../lib/stopNeedsConfirm";
 import { lazyNamed } from "../lib/lazyNamed";
 
 const api = _typedApi as any;
-const ComposeEditor = lazyNamed(() => import("./editor/ComposeEditor"), "ComposeEditor");
+const ComposeEditor = lazyNamed(
+  () => import("./editor/ComposeEditor"),
+  "ComposeEditor",
+);
 
 // An @-mention query may contain spaces so multi-word titles are searchable: a
 // first token (possibly empty, so a bare "@" still opens recents) plus up to 4
@@ -124,7 +228,6 @@ const MENTION_QUERY_RE = /^[\w./\\-]*(?: [\w./\\-]+){0,4} ?/;
 const CHANNEL_TRIGGER_RE = /(?:^|[\s(])#([a-z0-9_-]*)$/i;
 const CHANNEL_QUERY_RE = /^[a-z0-9_-]*/i;
 
-
 // deriveRestartStage (the live label for a kill+restart in flight) lives in
 // hooks/useSessionRestart so the composer footer ladder, the on-message retry
 // bar, and the header restart strip all report the same real progress.
@@ -154,20 +257,44 @@ function readSacred(keys: string[]): string | undefined {
 // conversation (see lib/staleDraft.ts) — refuse it at restore time. Reads the
 // loaded message window; on a cold first visit it may be empty, in which case
 // the draft shows once more and heals on the next mount.
-function isStaleSentDraft(conversationId: string, text: string | null | undefined): boolean {
-  return isResentCopyOfSentMessage(useInboxStore.getState().messages[conversationId], text);
+function isStaleSentDraft(
+  conversationId: string,
+  text: string | null | undefined,
+): boolean {
+  return isResentCopyOfSentMessage(
+    useInboxStore.getState().messages[conversationId],
+    text,
+  );
 }
 const EMPTY_QUEUE: string[] = [];
 
-const ForkReplyInput = memo(function ForkReplyInput({ userName, userAvatar, onForkReply, autoFocusInput }: { userName: string; userAvatar?: string | null; onForkReply: (content: string) => void; autoFocusInput?: boolean }) {
+const ForkReplyInput = memo(function ForkReplyInput({
+  userName,
+  userAvatar,
+  onForkReply,
+  autoFocusInput,
+}: {
+  userName: string;
+  userAvatar?: string | null;
+  onForkReply: (content: string) => void;
+  autoFocusInput?: boolean;
+}) {
   const [message, setMessage] = useState("");
   const [isForking, setIsForking] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  useMountEffect(() => { if (autoFocusInput && textareaRef.current && !hasOpenModal(textareaRef.current)) textareaRef.current.focus(); });
+  useMountEffect(() => {
+    if (
+      autoFocusInput &&
+      textareaRef.current &&
+      !hasOpenModal(textareaRef.current)
+    )
+      textareaRef.current.focus();
+  });
   useWatchEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+      textareaRef.current.style.height =
+        textareaRef.current.scrollHeight + "px";
     }
   }, [message]);
   const handleSubmit = (e: React.FormEvent) => {
@@ -186,16 +313,35 @@ const ForkReplyInput = memo(function ForkReplyInput({ userName, userAvatar, onFo
   return (
     <div className="bg-sol-bg">
       <div className="flex items-center gap-2 px-4 py-1.5 text-meta text-sol-violet border-t border-sol-violet/15 bg-sol-violet/5">
-        <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" />
+        <svg
+          className="w-3 h-3 shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101"
+          />
         </svg>
         <span>
           Viewing <span className="font-medium">{userName}</span>'s session
-          <span className="text-sol-text-dim ml-1">-- reply to fork as your own</span>
+          <span className="text-sol-text-dim ml-1">
+            -- reply to fork as your own
+          </span>
         </span>
       </div>
-      <form onSubmit={handleSubmit} className="mx-auto conv-col px-2 sm:px-4 pb-3 pt-1.5">
+      <form
+        onSubmit={handleSubmit}
+        className="mx-auto conv-col px-2 sm:px-4 pb-3 pt-1.5"
+      >
         <div className="flex items-end gap-2 border px-4 py-2 rounded-2xl bg-sol-bg-alt border-sol-violet/30 shadow-lg">
           <textarea
             ref={textareaRef}
@@ -218,13 +364,38 @@ const ForkReplyInput = memo(function ForkReplyInput({ userName, userAvatar, onFo
             }`}
           >
             {isForking ? (
-              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <svg
+                className="w-3.5 h-3.5 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
               </svg>
             ) : (
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5M5 12l7-7 7 7" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 19V5M5 12l7-7 7 7"
+                />
               </svg>
             )}
             Fork & reply
@@ -241,11 +412,168 @@ const ForkReplyInput = memo(function ForkReplyInput({ userName, userAvatar, onFo
 function commitDraftText(conversationId: string, text: string) {
   const store = useInboxStore.getState();
   const existing = store.getDraft(conversationId);
-  if (!text && !existing?.draft_image_storage_ids?.length) store.clearDraftFinal(conversationId);
-  else store.setDraft(conversationId, { ...existing, draft_message: text || null });
+  if (!text && !existing?.draft_image_storage_ids?.length)
+    store.clearDraftFinal(conversationId);
+  else
+    store.setDraft(conversationId, {
+      ...existing,
+      draft_message: text || null,
+    });
 }
 
-export const MessageInput = memo(function MessageInput({ conversationId, status, embedded, onSendAndAdvance, onSendAndDismiss, autoFocusInput, initialDraft, isWaitingForResponse, isThinking, isConversationLive, isSessionDisconnected, isSessionStarting, isSessionReady, sessionId, agentType, agentStatus, deliveryStatus, pendingPermissionsCount, hasAskUserQuestion, selectedMessageContent, selectedMessageUuid, onClearSelection, onForkFromMessage, onForkTail, onSendEscape, onOpenNavigator, onPopulateInput, clearInputRef, permissionMode, permissionModePending, onCycleMode, onMessageSent, onLightboxChange, onDropFiles, onWorkflowLaunch, onSideQuestion, onEscapeClose, onGateSend, onGoalCommand, skills, filePaths, mentionItemsRef, onMentionQuery, onSubmitWithIntent, onDidSend, branchControl, branchMapNode, threadStateNode, composerNode, sessionControl, composerFoot, bareComposer, hero, inline, chatMentionMode, mentionTeamId, composerPlaceholder, workingSinceTs, workingPhrase, escapeOwnedRef, escapeCloses, sharedDraft, maxLength, acceptFiles }: { conversationId: string; status?: string; embedded?: boolean; onSendAndAdvance?: () => void; onSendAndDismiss?: () => void; autoFocusInput?: boolean; initialDraft?: string; isWaitingForResponse?: boolean; isThinking?: boolean; isConversationLive?: boolean; isSessionDisconnected?: boolean; isSessionStarting?: boolean; isSessionReady?: boolean; sessionId?: string; agentType?: string; agentStatus?: AgentStatus; deliveryStatus?: string; pendingPermissionsCount?: number; hasAskUserQuestion?: boolean; selectedMessageContent?: string | null; selectedMessageUuid?: string | null; onClearSelection?: () => void; onForkFromMessage?: (uuid: string) => void; /** Branches the session from its latest message and returns the fork's id; the composer then sends into it. */ onForkTail?: () => Promise<string | null>; onSendEscape?: () => void; onOpenNavigator?: () => void; onPopulateInput?: React.MutableRefObject<((text: string, opts?: { append?: boolean }) => void) | null>; /** Filled with a function that empties the composer and deletes its draft: text, images and the stored row. */ clearInputRef?: React.MutableRefObject<(() => void) | null>; permissionMode?: string; permissionModePending?: boolean; onCycleMode?: () => void; onMessageSent?: () => void; onLightboxChange?: (active: boolean) => void; onDropFiles?: React.MutableRefObject<((files: File[]) => void) | null>; onWorkflowLaunch?: (goal: string) => Promise<void>; /** `/btw <question>`: a side answer about this session, never sent to the agent ("" for a bare `/btw`). Unset, `/btw` goes to the agent like any text. */ onSideQuestion?: (question: string) => Promise<string | null> | null; /** A panel open beside the composer (the Ask panel): an empty composer's Escape closes it instead of stopping the turn. */ onEscapeClose?: () => void; onGateSend?: (content: string, images?: Array<{ storageId?: string; previewUrl: string; mime: string; uploading: boolean }>) => void | Promise<void>; /** Codecast's own `/goal` command: true when it took the text (the composer then sends nothing). */ onGoalCommand?: (text: string) => boolean; skills?: SkillItem[]; filePaths?: string[]; mentionItemsRef?: React.MutableRefObject<MentionItem[]>; onMentionQuery?: (q: string) => void; onSubmitWithIntent?: (navigate: boolean) => void; onDidSend?: (info: { conversationId: string; content: string; clientId: string }) => void; /** Opens the branch map; present only when the session has forks. Drawn on the field's top edge. */ branchControl?: React.ReactNode; branchMapNode?: React.ReactNode; threadStateNode?: React.ReactNode; composerNode?: React.ReactNode; /** The session's agent/model control, at the right of the status line. */ sessionControl?: React.ReactNode; /** The framed surface's toolbar (attach, voice, options). Renders as a row under the field, and send moves into it. */ composerFoot?: React.ReactNode; bareComposer?: boolean; /** The new-session page's centred card (ComposerShell hero): always expanded, foot inside the box. */ hero?: boolean; /** The full session composer laid out inside another surface (a Threads card): full width, not pinned to the bottom, tighter. */ inline?: boolean; chatMentionMode?: boolean; mentionTeamId?: string; composerPlaceholder?: string; workingSinceTs?: number; workingPhrase?: string; escapeOwnedRef?: React.MutableRefObject<boolean>; /** Escape closes the surface around the composer (the compose sheet), so the status line offers no Escape hint. */ escapeCloses?: boolean; /** A session's own composer: becomes one shared draft while anyone else has this session's composer open (hooks/useSharedDraft). */ sharedDraft?: boolean; /** A session's composer: files other than images are uploaded and reach the agent as a local path (hooks/useFileAttach). */ acceptFiles?: boolean; /** The most characters the receiver takes (team chat's limit). Past it the send is held, the text stays in the box, and the count shows beside send. */ maxLength?: number }) {
+export const MessageInput = memo(function MessageInput({
+  conversationId,
+  status,
+  embedded,
+  onSendAndAdvance,
+  onSendAndDismiss,
+  autoFocusInput,
+  initialDraft,
+  isWaitingForResponse,
+  isThinking,
+  isConversationLive,
+  isSessionDisconnected,
+  isSessionStarting,
+  isSessionReady,
+  sessionId,
+  agentType,
+  agentStatus,
+  deliveryStatus,
+  pendingPermissionsCount,
+  hasAskUserQuestion,
+  selectedMessageContent,
+  selectedMessageUuid,
+  onClearSelection,
+  onForkFromMessage,
+  onForkTail,
+  onSendEscape,
+  onOpenNavigator,
+  onPopulateInput,
+  clearInputRef,
+  permissionMode,
+  permissionModePending,
+  onCycleMode,
+  onMessageSent,
+  onLightboxChange,
+  onDropFiles,
+  onWorkflowLaunch,
+  onSideQuestion,
+  onEscapeClose,
+  onGateSend,
+  onGoalCommand,
+  skills,
+  filePaths,
+  mentionItemsRef,
+  onMentionQuery,
+  onSubmitWithIntent,
+  onDidSend,
+  branchControl,
+  branchMapNode,
+  threadStateNode,
+  composerNode,
+  sessionControl,
+  composerFoot,
+  bareComposer,
+  hero,
+  inline,
+  chatMentionMode,
+  mentionTeamId,
+  composerPlaceholder,
+  workingSinceTs,
+  workingPhrase,
+  escapeOwnedRef,
+  escapeCloses,
+  sharedDraft,
+  maxLength,
+  acceptFiles,
+}: {
+  conversationId: string;
+  status?: string;
+  embedded?: boolean;
+  onSendAndAdvance?: () => void;
+  onSendAndDismiss?: () => void;
+  autoFocusInput?: boolean;
+  initialDraft?: string;
+  isWaitingForResponse?: boolean;
+  isThinking?: boolean;
+  isConversationLive?: boolean;
+  isSessionDisconnected?: boolean;
+  isSessionStarting?: boolean;
+  isSessionReady?: boolean;
+  sessionId?: string;
+  agentType?: string;
+  agentStatus?: AgentStatus;
+  deliveryStatus?: string;
+  pendingPermissionsCount?: number;
+  hasAskUserQuestion?: boolean;
+  selectedMessageContent?: string | null;
+  selectedMessageUuid?: string | null;
+  onClearSelection?: () => void;
+  onForkFromMessage?: (uuid: string) => void;
+  /** Branches the session from its latest message and returns the fork's id; the composer then sends into it. */ onForkTail?: () => Promise<
+    string | null
+  >;
+  onSendEscape?: () => void;
+  onOpenNavigator?: () => void;
+  onPopulateInput?: React.MutableRefObject<
+    ((text: string, opts?: { append?: boolean }) => void) | null
+  >;
+  /** Filled with a function that empties the composer and deletes its draft: text, images and the stored row. */ clearInputRef?: React.MutableRefObject<
+    (() => void) | null
+  >;
+  permissionMode?: string;
+  permissionModePending?: boolean;
+  onCycleMode?: () => void;
+  onMessageSent?: () => void;
+  onLightboxChange?: (active: boolean) => void;
+  onDropFiles?: React.MutableRefObject<((files: File[]) => void) | null>;
+  onWorkflowLaunch?: (goal: string) => Promise<void>;
+  /** `/btw <question>`: a side answer about this session, never sent to the agent ("" for a bare `/btw`). Unset, `/btw` goes to the agent like any text. */ onSideQuestion?: (
+    question: string,
+  ) => Promise<string | null> | null;
+  /** A panel open beside the composer (the Ask panel): an empty composer's Escape closes it instead of stopping the turn. */ onEscapeClose?: () => void;
+  onGateSend?: (
+    content: string,
+    images?: Array<{
+      storageId?: string;
+      previewUrl: string;
+      mime: string;
+      uploading: boolean;
+    }>,
+  ) => void | Promise<void>;
+  /** Codecast's own `/goal` command: true when it took the text (the composer then sends nothing). */ onGoalCommand?: (
+    text: string,
+  ) => boolean;
+  skills?: SkillItem[];
+  filePaths?: string[];
+  mentionItemsRef?: React.MutableRefObject<MentionItem[]>;
+  onMentionQuery?: (q: string) => void;
+  onSubmitWithIntent?: (navigate: boolean) => void;
+  onDidSend?: (info: {
+    conversationId: string;
+    content: string;
+    clientId: string;
+  }) => void;
+  /** Opens the branch map; present only when the session has forks. Drawn on the field's top edge. */ branchControl?: React.ReactNode;
+  branchMapNode?: React.ReactNode;
+  threadStateNode?: React.ReactNode;
+  composerNode?: React.ReactNode;
+  /** The session's agent/model control, at the right of the status line. */ sessionControl?: React.ReactNode;
+  /** The framed surface's toolbar (attach, voice, options). Renders as a row under the field, and send moves into it. */ composerFoot?: React.ReactNode;
+  bareComposer?: boolean;
+  /** The new-session page's centred card (ComposerShell hero): always expanded, foot inside the box. */ hero?: boolean;
+  /** The full session composer laid out inside another surface (a Threads card): full width, not pinned to the bottom, tighter. */ inline?: boolean;
+  chatMentionMode?: boolean;
+  mentionTeamId?: string;
+  composerPlaceholder?: string;
+  workingSinceTs?: number;
+  workingPhrase?: string;
+  escapeOwnedRef?: React.MutableRefObject<boolean>;
+  /** Escape closes the surface around the composer (the compose sheet), so the status line offers no Escape hint. */ escapeCloses?: boolean;
+  /** A session's own composer: becomes one shared draft while anyone else has this session's composer open (hooks/useSharedDraft). */ sharedDraft?: boolean;
+  /** A session's composer: files other than images are uploaded and reach the agent as a local path (hooks/useFileAttach). */ acceptFiles?: boolean;
+  /** The most characters the receiver takes (team chat's limit). Past it the send is held, the text stays in the box, and the count shows beside send. */ maxLength?: number;
+}) {
   const sacredKey = sessionId || conversationId;
   const sacredKeyRef = useRef(sacredKey);
   const convIdRef = useRef(conversationId);
@@ -299,30 +627,47 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // box, a workflow gate and a chat room have nobody to hand to.
   const [handoffOpen, setHandoffOpen] = useState(false);
   const owners = useOwnersFromStore(conversationId);
-  const canHandoff = !bareComposer && !onGateSend && !onWorkflowLaunch && !chatMentionMode && isConvexId(conversationId) && !!owners.currentUser && owners.canManage !== false;
+  const canHandoff =
+    !bareComposer &&
+    !onGateSend &&
+    !onWorkflowLaunch &&
+    !chatMentionMode &&
+    isConvexId(conversationId) &&
+    !!owners.currentUser &&
+    owners.canManage !== false;
   // Narrowed: MessageInput only needs the session's team_id (for mention scope), which
   // never changes on a heartbeat. Subscribing to the whole row re-rendered the input
   // (and its draft textarea) ~1×/s for a live session.
-  const composeTeamId = useInboxStore((s) => s.sessions[conversationId]?.team_id);
+  const composeTeamId = useInboxStore(
+    (s) => s.sessions[conversationId]?.team_id,
+  );
   // A new session has no team until the server stamps it: mention from the
   // team its directory files into meanwhile (sessionMentionTeamId).
   const composePath = useInboxStore((s) => {
     const row = s.sessions[conversationId];
-    return row && !row.team_id ? row.git_root || row.project_path || null : null;
+    return row && !row.team_id
+      ? row.git_root || row.project_path || null
+      : null;
   });
   // Parked on a usage limit: the status line says so instead of "Ready", with
   // the reset counted down from the park stamp's banner (a primitive
   // signature, so heartbeats never re-render the composer for it).
   const limitParkedAt = useInboxStore((s) => {
     const row = s.sessions[conversationId];
-    return row?.pending_api_error && row.pending_api_error_kind === "limit" ? (row.pending_api_error_at ?? 0) : null;
+    return row?.pending_api_error && row.pending_api_error_kind === "limit"
+      ? (row.pending_api_error_at ?? 0)
+      : null;
   });
   const limitResetAt = useInboxStore((s) => {
     if (limitParkedAt == null) return undefined;
     const msgs = s.messages[conversationId];
     for (let i = (msgs?.length ?? 0) - 1; i >= 0; i--) {
       const m = msgs![i];
-      if (m.role === "assistant" && m.content && classifyApiErrorBanner(m.content.trim()) === "limit") {
+      if (
+        m.role === "assistant" &&
+        m.content &&
+        classifyApiErrorBanner(m.content.trim()) === "limit"
+      ) {
         return parseLimitResetAt(m.content, m.timestamp);
       }
     }
@@ -330,28 +675,51 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   });
   // A recovery acting on the park (the same phase the park card shows): the
   // status line follows it instead of counting down a window nobody waits on.
-  const { phase: limitPhase } = useLimitRecovery(conversationId, limitParkedAt || undefined, limitParkedAt != null);
+  const { phase: limitPhase } = useLimitRecovery(
+    conversationId,
+    limitParkedAt || undefined,
+    limitParkedAt != null,
+  );
   // Re-render only when the countdown's printed minutes change.
   const limitNow = useNowWhen(
-    (t) => (limitParkedAt == null ? "" : limitResetAt != null ? formatCountdown(limitResetAt - t) + (t >= limitResetAt ? "!" : "") : "parked"),
+    (t) =>
+      limitParkedAt == null
+        ? ""
+        : limitResetAt != null
+          ? formatCountdown(limitResetAt - t) + (t >= limitResetAt ? "!" : "")
+          : "parked",
     30_000,
   );
   // Suggestion pills pref — off by default; the strip mounts only when on.
-  const suggestionsEnabled = useInboxStore((s) => s.clientState?.ui?.composer_suggestions === true);
+  const suggestionsEnabled = useInboxStore(
+    (s) => s.clientState?.ui?.composer_suggestions === true,
+  );
   const memberTeams = useInboxStore((s) => s.teams);
   const mentionScope = useMemo(() => {
     const teamId = mentionTeamId
       ? String(mentionTeamId)
-      : sessionMentionTeamId(useInboxStore.getState(), { team_id: composeTeamId, project_path: composePath });
+      : sessionMentionTeamId(useInboxStore.getState(), {
+          team_id: composeTeamId,
+          project_path: composePath,
+        });
     const isMember = teamId
       ? (memberTeams || []).some((t: any) => String(t._id) === teamId)
       : false;
     if (teamId && isMember) return { kind: "team" as const, teamId };
     const uid = mentionUser?._id ? String(mentionUser._id) : "";
-    return uid ? { kind: "personal" as const, userId: uid } : { kind: "any" as const };
-  }, [mentionTeamId, composeTeamId, composePath, memberTeams, mentionUser?._id]);
+    return uid
+      ? { kind: "personal" as const, userId: uid }
+      : { kind: "any" as const };
+  }, [
+    mentionTeamId,
+    composeTeamId,
+    composePath,
+    memberTeams,
+    mentionUser?._id,
+  ]);
   const composeMentionQuery = useMentionQuery(mentionScope);
-  const [pendingMessageId, setPendingMessageId] = useState<Id<"pending_messages"> | null>(null);
+  const [pendingMessageId, setPendingMessageId] =
+    useState<Id<"pending_messages"> | null>(null);
   const [sentAt, setSentAt] = useState<number | null>(null);
   // A hosted conversation has no machine to resume or restart: its turn
   // engine owns delivery, so the stuck banner and the resumes it drives never
@@ -362,7 +730,10 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   const hostedConversation = isHostedAgentType(agentType) || storeHosted;
   // A video dropped or pasted in is a screen recording for the session
   // (hooks/useScreenRecordingAttach): the agent gets its words and frames.
-  const screenRec = useScreenRecordingAttach(conversationId, isConvexId(conversationId) && !hostedConversation);
+  const screenRec = useScreenRecordingAttach(
+    conversationId,
+    isConvexId(conversationId) && !hostedConversation,
+  );
   // Any other file dropped, pasted or picked is uploaded and reaches the agent
   // as a path on its own machine (hooks/useFileAttach).
   const fileAttach = useFileAttach();
@@ -372,7 +743,11 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // A pending decision row waits on the person (awaitingOkIds, the one home
   // the inbox and the card read too): the composer points at the card only
   // while there is one, and clears with the optimistic answer.
-  const hostedAwaitsOk = useInboxStore((s) => hostedConversation && awaitingOkIds(s.sessionDecisions).has(conversationId));
+  const hostedAwaitsOk = useInboxStore(
+    (s) =>
+      hostedConversation &&
+      awaitingOkIds(s.sessionDecisions).has(conversationId),
+  );
   // Where the conversation stands, from its last words: the assistant just
   // asked the person something (the composer invites the answer), it has
   // answered (a follow-up belongs here), the person said no to its card
@@ -381,7 +756,16 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // A stop notice (an error, an outage) points at its own Try again; a no
   // invites a change only for DECLINE_HINT_MS, so a cold revisit reads as
   // an answered conversation rather than an ask still pending.
-  const hostedLast = useInboxStore((s): HostedLast => (hostedConversation ? hostedLastExchange(s.messages[conversationId], s.sessionDecisions, conversationId, Date.now()) : null));
+  const hostedLast = useInboxStore((s): HostedLast =>
+    hostedConversation
+      ? hostedLastExchange(
+          s.messages[conversationId],
+          s.sessionDecisions,
+          conversationId,
+          Date.now(),
+        )
+      : null,
+  );
   const [stuckBannerRaised, setShowStuckBanner] = useState(false);
   const showStuckBanner = stuckBannerRaised && !hostedConversation;
   const [isResuming, setIsResuming] = useState(false);
@@ -389,10 +773,17 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // footer can say "Killing & restarting" instead of the gentler "Waiting for connection".
   // A restart of this conversation in flight, from its sessionCommands row
   // (whoever asked: this footer, the header, the inbox row).
-  const restartRow = useInboxStore((s) => latestRestartRow(s.sessionCommands, conversationId));
-  const restartNow = useCoarseNow(restartRow && !restartRow.confirmed_at ? 1_000 : 60_000);
-  const isRestarting = restartPhaseOf(restartRow, restartNow).phase === "restarting";
-  const hasPendingSend = useInboxStore((s) => convHasPendingSend(s.pendingMessages[conversationId]));
+  const restartRow = useInboxStore((s) =>
+    latestRestartRow(s.sessionCommands, conversationId),
+  );
+  const restartNow = useCoarseNow(
+    restartRow && !restartRow.confirmed_at ? 1_000 : 60_000,
+  );
+  const isRestarting =
+    restartPhaseOf(restartRow, restartNow).phase === "restarting";
+  const hasPendingSend = useInboxStore((s) =>
+    convHasPendingSend(s.pendingMessages[conversationId]),
+  );
   const [showModeLabel, setShowModeLabel] = useState(false);
   const [modeTooltip, setModeTooltip] = useState(false);
   const modeLabelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -414,9 +805,15 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // each command row (executed_at + result/error), so the footer can show what
   // is actually happening instead of an indefinite spinner. Fed only during
   // recovery, so it costs nothing otherwise.
-  const recoveryRows = useConversationCommands(conversationId, isRestarting || isResuming);
+  const recoveryRows = useConversationCommands(
+    conversationId,
+    isRestarting || isResuming,
+  );
   const restartProgress = useMemo(
-    () => recoveryRows.filter((c) => c.command === "kill_session" || c.command === "resume_session"),
+    () =>
+      recoveryRows.filter(
+        (c) => c.command === "kill_session" || c.command === "resume_session",
+      ),
     [recoveryRows],
   );
   // Flips on when a restart request has sat unclaimed long enough that the
@@ -428,8 +825,14 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     [restartProgress, restartWaitingLong],
   );
   useWatchEffect(() => {
-    if (!isRestarting && !isResuming) { setRestartWaitingLong(false); return; }
-    if (restartProgress?.some((c) => c.executed_at)) { setRestartWaitingLong(false); return; }
+    if (!isRestarting && !isResuming) {
+      setRestartWaitingLong(false);
+      return;
+    }
+    if (restartProgress?.some((c) => c.executed_at)) {
+      setRestartWaitingLong(false);
+      return;
+    }
     const t = setTimeout(() => setRestartWaitingLong(true), 20_000);
     return () => clearTimeout(t);
   }, [isRestarting, isResuming, restartProgress]);
@@ -448,7 +851,12 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // the flow, pushes the box itself out of the frame. Chat anchors it at the
   // @ itself, measured from the @'s pixel position inside the textarea, and
   // keeps it within the box (a reply thread narrower than the popup caps it).
-  const [acBox, setAcBox] = useState<{ left: number; width: number; bottom: number; maxHeight: number } | null>(null);
+  const [acBox, setAcBox] = useState<{
+    left: number;
+    width: number;
+    bottom: number;
+    maxHeight: number;
+  } | null>(null);
   useLayoutEffect(() => {
     const ta = textareaRef.current;
     const field = ta?.closest("form")?.firstElementChild;
@@ -461,10 +869,21 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
         width = Math.min(CHAT_AC_WIDTH, box.width);
         if (acTrigger.type !== "/") {
           const caret = textareaCaretRect(ta, acTrigger.startPos);
-          left = Math.max(box.left, Math.min(ta.getBoundingClientRect().left + caret.left - ta.scrollLeft, box.right - width));
+          left = Math.max(
+            box.left,
+            Math.min(
+              ta.getBoundingClientRect().left + caret.left - ta.scrollLeft,
+              box.right - width,
+            ),
+          );
         }
       }
-      setAcBox({ left, width, bottom: window.innerHeight - box.top + 6, maxHeight: Math.max(160, box.top - 18) });
+      setAcBox({
+        left,
+        width,
+        bottom: window.innerHeight - box.top + 6,
+        maxHeight: Math.max(160, box.top - 18),
+      });
     };
     place();
     window.addEventListener("resize", place);
@@ -480,31 +899,46 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   const localMentionItemsRef = useRef<MentionItem[]>([]);
   const [, setLocalMentionTick] = useState(0);
   const effectiveMentionItemsRef = mentionItemsRef ?? localMentionItemsRef;
-  const queryMentions = useCallback((q: string) => {
-    if (mentionItemsRef) { onMentionQuery?.(q); return; }
-    void composeMentionQuery(q).then((items) => {
-      localMentionItemsRef.current = items;
-      setLocalMentionTick((t) => t + 1);
-    });
-  }, [mentionItemsRef, onMentionQuery, composeMentionQuery]);
+  const queryMentions = useCallback(
+    (q: string) => {
+      if (mentionItemsRef) {
+        onMentionQuery?.(q);
+        return;
+      }
+      void composeMentionQuery(q).then((items) => {
+        localMentionItemsRef.current = items;
+        setLocalMentionTick((t) => t + 1);
+      });
+    },
+    [mentionItemsRef, onMentionQuery, composeMentionQuery],
+  );
 
   const acQuery = useMemo(() => {
     if (!acTrigger) return "";
     const rawQuery = message.slice(acTrigger.startPos + 1);
-    const queryRe = acTrigger.type === "@" ? MENTION_QUERY_RE : acTrigger.type === "#" ? CHANNEL_QUERY_RE : SLASH_QUERY_RE;
+    const queryRe =
+      acTrigger.type === "@"
+        ? MENTION_QUERY_RE
+        : acTrigger.type === "#"
+          ? CHANNEL_QUERY_RE
+          : SLASH_QUERY_RE;
     return (rawQuery.match(queryRe)?.[0] ?? "").trim().toLowerCase();
   }, [acTrigger, message]);
 
   // While an @-mention is being typed, also search the server — it reaches
   // sessions/entities outside the local cache window. People are fully cached
   // locally, so only the windowed types go over the wire.
-  const { items: acServerItems, loading: acServerLoading } = useMentionServerSearch(
-    acTrigger?.type === "@" ? acQuery : null,
-    // mentionScope, not raw composeTeamId: the scope is membership-checked, so
-    // a conversation routed to a team the viewer isn't in searches personal
-    // instead of tripping the server's membership guard.
-    { teamId: mentionScope.kind === "team" ? mentionScope.teamId : undefined, types: SERVER_MENTION_TYPES },
-  );
+  const { items: acServerItems, loading: acServerLoading } =
+    useMentionServerSearch(
+      acTrigger?.type === "@" ? acQuery : null,
+      // mentionScope, not raw composeTeamId: the scope is membership-checked, so
+      // a conversation routed to a team the viewer isn't in searches personal
+      // instead of tripping the server's membership guard.
+      {
+        teamId: mentionScope.kind === "team" ? mentionScope.teamId : undefined,
+        types: SERVER_MENTION_TYPES,
+      },
+    );
 
   // The folder the session's agent runs in, whose files the @ list completes
   // from (through this machine's daemon; empty when the session lives elsewhere).
@@ -513,22 +947,37 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     return chatMentionMode ? null : row?.project_path || row?.git_root || null;
   });
   const convex = useConvex();
-  const diskFiles = useFileSearch(convex, fileRoot, acTrigger?.type === "@" && acQuery ? acQuery : null);
+  const diskFiles = useFileSearch(
+    convex,
+    fileRoot,
+    acTrigger?.type === "@" && acQuery ? acQuery : null,
+  );
 
   // What this session or chat thread already names leads the @ and # lists
   // (lib/mentionContext). Read once per opened trigger, not per keystroke:
   // the transcript does not change while a mention is being typed.
-  const acTriggerKey = acTrigger && acTrigger.type !== "/" ? `${acTrigger.type}${acTrigger.startPos}` : null;
+  const acTriggerKey =
+    acTrigger && acTrigger.type !== "/"
+      ? `${acTrigger.type}${acTrigger.startPos}`
+      : null;
   const acContext = useMemo(() => {
     if (!acTriggerKey) return undefined;
     const st = useInboxStore.getState();
-    return mentionContextFor(st, conversationId, st.currentUser?._id ? String(st.currentUser._id) : undefined);
+    return mentionContextFor(
+      st,
+      conversationId,
+      st.currentUser?._id ? String(st.currentUser._id) : undefined,
+    );
   }, [acTriggerKey, conversationId]);
 
   const mentionState = useInboxStore.getState();
   const localMentionItems = effectiveMentionItemsRef.current;
-  const mentionRoles = chatMentionMode ? windowOrgTree(mentionState)?.roles : undefined;
-  const mentionAnchors = chatMentionMode ? windowOrgTree(mentionState)?.anchors : undefined;
+  const mentionRoles = chatMentionMode
+    ? windowOrgTree(mentionState)?.roles
+    : undefined;
+  const mentionAnchors = chatMentionMode
+    ? windowOrgTree(mentionState)?.anchors
+    : undefined;
   const recentMentionVisits = mentionState.recentVisits;
   const lastMentionViews = mentionState._lastViewedAt;
   const acCandidates = useMemo(() => {
@@ -536,68 +985,156 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     const roleItems: MentionItem[] = (mentionRoles ?? [])
       .filter((r: any) => r.status !== "retired")
       .map((r: any) => ({
-        id: String(r._id), type: "role", label: r.name, sublabel: `@${r.handle}`,
-        handle: r.handle, shortId: r.short_id, updatedAt: r.updated_at,
+        id: String(r._id),
+        type: "role",
+        label: r.name,
+        sublabel: `@${r.handle}`,
+        handle: r.handle,
+        shortId: r.short_id,
+        updatedAt: r.updated_at,
       }));
     // A role's standing agent is also a team member (a bot named after the
     // role). The role is what the room addresses, so its bot is not offered
     // beside it as a second "person" with a different handle.
     const offered = new Set(roleItems.map((r) => r.id));
-    const roleBots = new Set((mentionAnchors ?? [])
-      .filter((a: any) => a.org_role_id && offered.has(String(a.org_role_id)))
-      .map((a: any) => String(a.bot_user_id)));
-    const people = roleBots.size
-      ? (localMentionItems ?? []).filter((m) => !(m.type === "person" && roleBots.has(m.id)))
-      : localMentionItems ?? [];
-    return mergeMentionSuggestions(
-      [...roleItems, ...people], acServerItems,
-      mentionViewTimes({ recentVisits: recentMentionVisits, _lastViewedAt: lastMentionViews }), Infinity, "", identityPrefsNow(), acContext,
+    const roleBots = new Set(
+      (mentionAnchors ?? [])
+        .filter((a: any) => a.org_role_id && offered.has(String(a.org_role_id)))
+        .map((a: any) => String(a.bot_user_id)),
     );
-  }, [acTrigger?.type, mentionRoles, mentionAnchors, localMentionItems, acServerItems, recentMentionVisits, lastMentionViews, acContext]);
+    const people = roleBots.size
+      ? (localMentionItems ?? []).filter(
+          (m) => !(m.type === "person" && roleBots.has(m.id)),
+        )
+      : (localMentionItems ?? []);
+    return mergeMentionSuggestions(
+      [...roleItems, ...people],
+      acServerItems,
+      mentionViewTimes({
+        recentVisits: recentMentionVisits,
+        _lastViewedAt: lastMentionViews,
+      }),
+      Infinity,
+      "",
+      identityPrefsNow(),
+      acContext,
+    );
+  }, [
+    acTrigger?.type,
+    mentionRoles,
+    mentionAnchors,
+    localMentionItems,
+    acServerItems,
+    recentMentionVisits,
+    lastMentionViews,
+    acContext,
+  ]);
 
   const acItems: AcItem[] = useMemo(() => {
     if (!acTrigger) return [];
     if (acTrigger.type === "#") {
-      const channels = channelMentionItems(useInboxStore.getState(), mentionScope)
-        .filter((c) => matchScore(c.label, acQuery) !== Infinity || (!!c.sublabel && matchScore(c.sublabel, acQuery) !== Infinity));
-      return orderMentionItems(mergeMentionSuggestions(channels, [], new Map(), 12, acQuery, identityPrefsNow(), acContext));
+      const channels = channelMentionItems(
+        useInboxStore.getState(),
+        mentionScope,
+      ).filter(
+        (c) =>
+          matchScore(c.label, acQuery) !== Infinity ||
+          (!!c.sublabel && matchScore(c.sublabel, acQuery) !== Infinity),
+      );
+      return orderMentionItems(
+        mergeMentionSuggestions(
+          channels,
+          [],
+          new Map(),
+          12,
+          acQuery,
+          identityPrefsNow(),
+          acContext,
+        ),
+      );
     }
     if (acTrigger.type === "/") {
       // `/btw` opening the message is a side question (onSideQuestion); anywhere else it is the agent's command.
-      const sideQuestion = !!onSideQuestion && !messageRef.current.slice(0, acTrigger.startPos).trim();
-      return matchSlashSkills(sideQuestion ? withSideQuestionCommand(skills) : skills, acQuery)
-        .map(s => ({ label: s.name, description: s.description, type: "skill" as string }));
+      const sideQuestion =
+        !!onSideQuestion &&
+        !messageRef.current.slice(0, acTrigger.startPos).trim();
+      return matchSlashSkills(
+        sideQuestion ? withSideQuestionCommand(skills) : skills,
+        acQuery,
+      ).map((s) => ({
+        label: s.name,
+        description: s.description,
+        type: "skill" as string,
+      }));
     }
     if (acTrigger.type === "@") {
       // Chat mode's own vocabulary (docs/architecture/agent-channels.md C2):
       // the org roles of the active workspace answer to @handle, and a
       // session is inserted as its short id (chatMentionOffers decides which
       // ones the room is offered).
-      const candidates = filterMentionItems(acCandidates, acQuery, chatMentionMode);
-      const items: AcItem[] = mergeMentionSuggestions(candidates, [], new Map(), acQuery ? 10 : 6, acQuery, identityPrefsNow());
+      const candidates = filterMentionItems(
+        acCandidates,
+        acQuery,
+        chatMentionMode,
+      );
+      const items: AcItem[] = mergeMentionSuggestions(
+        candidates,
+        [],
+        new Map(),
+        acQuery ? 10 : 6,
+        acQuery,
+        identityPrefsNow(),
+      );
 
       // Files this session already touched lead, then the project's own files
       // on disk (useFileSearch), both as paths relative to the folder the
       // agent runs in, which is how it resolves an @path.
-      const rel = (p: string) => (fileRoot && p.startsWith(fileRoot + "/") ? p.slice(fileRoot.length + 1) : p);
+      const rel = (p: string) =>
+        fileRoot && p.startsWith(fileRoot + "/")
+          ? p.slice(fileRoot.length + 1)
+          : p;
       const touched = (filePathsRef.current || [])
-        .filter(p => {
+        .filter((p) => {
           const name = p.split("/").pop() || p;
-          return matchScore(name, acQuery) !== Infinity || matchScore(p, acQuery) !== Infinity;
+          return (
+            matchScore(name, acQuery) !== Infinity ||
+            matchScore(p, acQuery) !== Infinity
+          );
         })
         .map(rel);
-      const onDisk = acQuery && diskFiles ? diskFiles.files.filter((f) => matchScore(f, acQuery) !== Infinity) : [];
-      const fileMatches = [...new Set([...touched.slice(0, 4), ...onDisk, ...touched.slice(4)])]
+      const onDisk =
+        acQuery && diskFiles
+          ? diskFiles.files.filter((f) => matchScore(f, acQuery) !== Infinity)
+          : [];
+      const fileMatches = [
+        ...new Set([...touched.slice(0, 4), ...onDisk, ...touched.slice(4)]),
+      ]
         .slice(0, 8)
-        .map(p => ({ label: p, description: undefined, type: "file" as string }));
+        .map((p) => ({
+          label: p,
+          description: undefined,
+          type: "file" as string,
+        }));
       items.push(...fileMatches);
 
       return orderMentionItems(items);
     }
     return [];
-  }, [acTrigger, acQuery, skills, onSideQuestion, acCandidates, chatMentionMode, acContext, mentionScope, fileRoot, diskFiles]);
+  }, [
+    acTrigger,
+    acQuery,
+    skills,
+    onSideQuestion,
+    acCandidates,
+    chatMentionMode,
+    acContext,
+    mentionScope,
+    fileRoot,
+    diskFiles,
+  ]);
 
-  const clampedAcIndex = acItems.length > 0 ? Math.min(acIndex, acItems.length - 1) : 0;
+  const clampedAcIndex =
+    acItems.length > 0 ? Math.min(acIndex, acItems.length - 1) : 0;
 
   // A multi-word @ query that has settled on zero matches is prose, not a
   // mention: every word must hit, so typing more can never bring matches back.
@@ -605,83 +1142,111 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // closed while the query only grows, and lets it reopen once the user
   // deletes back past that point. Without this every further keystroke would
   // reopen the popup on a spinner and fire another server search.
-  const mentionDeadEndRef = useRef<{ startPos: number; len: number } | null>(null);
+  const mentionDeadEndRef = useRef<{ startPos: number; len: number } | null>(
+    null,
+  );
   useWatchEffect(() => {
     if (!acTrigger || acTrigger.type !== "@" || acServerLoading) return;
     if (acItems.length > 0 || !acQuery.includes(" ")) return;
-    mentionDeadEndRef.current = { startPos: acTrigger.startPos, len: acQuery.length };
+    mentionDeadEndRef.current = {
+      startPos: acTrigger.startPos,
+      len: acQuery.length,
+    };
     setAcTrigger(null);
   }, [acTrigger, acItems, acServerLoading, acQuery]);
 
-  const applyAutocomplete = useCallback((item: AcItem) => {
-    if (!acTrigger) return;
-    const before = message.slice(0, acTrigger.startPos);
-    const cursorPos = textareaRef.current?.selectionStart ?? message.length;
-    // A slash command replaces its whole token, so picking one with the
-    // caret mid-word leaves no stray tail behind.
-    const after = acTrigger.type === "/"
-      ? message.slice(acTrigger.startPos + 1).replace(SLASH_QUERY_RE, "").replace(/^ /, "")
-      : message.slice(cursorPos);
+  const applyAutocomplete = useCallback(
+    (item: AcItem) => {
+      if (!acTrigger) return;
+      const before = message.slice(0, acTrigger.startPos);
+      const cursorPos = textareaRef.current?.selectionStart ?? message.length;
+      // A slash command replaces its whole token, so picking one with the
+      // caret mid-word leaves no stray tail behind.
+      const after =
+        acTrigger.type === "/"
+          ? message
+              .slice(acTrigger.startPos + 1)
+              .replace(SLASH_QUERY_RE, "")
+              .replace(/^ /, "")
+          : message.slice(cursorPos);
 
-    let inserted: string;
-    if (acTrigger.type === "/") {
-      inserted = `/${item.label} `;
-    } else if (acTrigger.type === "#") {
-      inserted = `#${item.label} `;
-    } else if (chatMentionMode && (item.type === "person" || item.type === "role") && item.handle) {
-      // The handle the server resolves, at the @ the user typed. The ref form
-      // (`@[Name id]`) is the session vocabulary; for people in chat it only
-      // notified when the label happened to contain the handle — and the
-      // anchor's label never did, which is how "@[Anchor] hi" woke nothing.
-      // A role is the same shape: `@growth` wakes it, `@[Growth or-3]` is prose.
-      inserted = `@${item.handle} `;
-    } else if (chatMentionMode && item.type === "session" && item.shortId) {
-      // Only the bare 7-char short id resolves to a session in chat.
-      inserted = `@${item.shortId} `;
-    } else if (item.type === "file" || item.type === "skill") {
-      inserted = `@${item.label} `;
-    } else {
-      // A session that wears a character or a role is named as that person:
-      // the reference reads "@[Ember jx7abcd]" and renders as its face and
-      // name (session-characters.md S3). A plain session keeps its title.
-      const persona = item.type === "session" && item.identity
-        ? identityLine(item.identity, item.label, identityPrefsNow()).name
-        : null;
-      const refTitle = persona ?? item.label;
-      const truncTitle = refTitle.length > 30 ? refTitle.slice(0, 30) + "..." : refTitle;
-      const id = item.shortId || (item.type === "doc" ? `doc:${item.id}` : "");
-      const ref = id ? `@[${truncTitle} ${id}]` : `@[${truncTitle}]`;
-      inserted = `${ref} `;
-    }
-
-    const newVal = before + inserted + after;
-    setMessage(newVal);
-    const newCursor = before.length + inserted.length;
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = newCursor;
+      let inserted: string;
+      if (acTrigger.type === "/") {
+        inserted = `/${item.label} `;
+      } else if (acTrigger.type === "#") {
+        inserted = `#${item.label} `;
+      } else if (
+        chatMentionMode &&
+        (item.type === "person" || item.type === "role") &&
+        item.handle
+      ) {
+        // The handle the server resolves, at the @ the user typed. The ref form
+        // (`@[Name id]`) is the session vocabulary; for people in chat it only
+        // notified when the label happened to contain the handle — and the
+        // anchor's label never did, which is how "@[Anchor] hi" woke nothing.
+        // A role is the same shape: `@growth` wakes it, `@[Growth or-3]` is prose.
+        inserted = `@${item.handle} `;
+      } else if (chatMentionMode && item.type === "session" && item.shortId) {
+        // Only the bare 7-char short id resolves to a session in chat.
+        inserted = `@${item.shortId} `;
+      } else if (item.type === "file" || item.type === "skill") {
+        inserted = `@${item.label} `;
+      } else {
+        // A session that wears a character or a role is named as that person:
+        // the reference reads "@[Ember jx7abcd]" and renders as its face and
+        // name (session-characters.md S3). A plain session keeps its title.
+        const persona =
+          item.type === "session" && item.identity
+            ? identityLine(item.identity, item.label, identityPrefsNow()).name
+            : null;
+        const refTitle = persona ?? item.label;
+        const truncTitle =
+          refTitle.length > 30 ? refTitle.slice(0, 30) + "..." : refTitle;
+        const id =
+          item.shortId || (item.type === "doc" ? `doc:${item.id}` : "");
+        const ref = id ? `@[${truncTitle} ${id}]` : `@[${truncTitle}]`;
+        inserted = `${ref} `;
       }
-    }, 0);
-    setAcTrigger(null);
-    setAcIndex(0);
-    textareaRef.current?.focus();
-  }, [acTrigger, message, chatMentionMode]);
+
+      const newVal = before + inserted + after;
+      setMessage(newVal);
+      const newCursor = before.length + inserted.length;
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart =
+            textareaRef.current.selectionEnd = newCursor;
+        }
+      }, 0);
+      setAcTrigger(null);
+      setAcIndex(0);
+      textareaRef.current?.focus();
+    },
+    [acTrigger, message, chatMentionMode],
+  );
 
   // Enrichment only (banner + kill guard); the composer renders without it, so a
   // server error must degrade the feature, not unmount the composer.
   const { data: messageStatus } = useQueryNoThrow(
     api.pendingMessages.getMessageStatus,
-    pendingMessageId ? { message_id: pendingMessageId } : "skip"
+    pendingMessageId ? { message_id: pendingMessageId } : "skip",
   );
 
   const canQueryServer = isConvexId(conversationId);
   // In-flight only: the query's settled fallback row is for the transcript bubble.
-  const existingPending = inFlightPending(usePendingMessageStatus(canQueryServer ? conversationId : null));
+  const existingPending = inFlightPending(
+    usePendingMessageStatus(canQueryServer ? conversationId : null),
+  );
   // A message waiting with no agent to answer usually waits on the machine
   // the session runs on; when that machine is silent, the status line names
   // it instead of "Processing...", which read as live for days while a
   // teammate's laptop was off.
-  const runnerSilence = useRunnerSilence(conversationId, canQueryServer && !hostedConversation && !agentStatus && !!(pendingMessageId || existingPending));
+  const runnerSilence = useRunnerSilence(
+    conversationId,
+    canQueryServer &&
+      !hostedConversation &&
+      !agentStatus &&
+      !!(pendingMessageId || existingPending),
+  );
 
   // The send is fire-and-forget through the store sync, so we no longer get the
   // message id back. Recover precise per-message status tracking from the
@@ -694,8 +1259,12 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     setPendingMessageId(existingPending.message_id);
   }, [pendingMessageId, sentAt, existingPending]);
 
-  const isAgentStarting = agentStatus === "starting" || agentStatus === "resuming" || deliveryStatus === "starting";
-  const isAgentDelivering = agentStatus === "connected" || deliveryStatus === "connected";
+  const isAgentStarting =
+    agentStatus === "starting" ||
+    agentStatus === "resuming" ||
+    deliveryStatus === "starting";
+  const isAgentDelivering =
+    agentStatus === "connected" || deliveryStatus === "connected";
   const isAgentResuming = agentStatus === "resuming";
   // Alive-but-parked (dormant/waiting/done): the pane heartbeats and the daemon
   // delivers on its next pass. These — and "connected", which means the daemon
@@ -703,25 +1272,42 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // cold start. The old 15-30s threshold fired the stuck banner (and its
   // auto-resume) while a delivery was already in flight, which is exactly what
   // made slow deliveries look like lost messages.
-  const isAgentAliveIdle = isAliveIdleStatus(agentStatus as LiveAgentStatus | undefined);
+  const isAgentAliveIdle = isAliveIdleStatus(
+    agentStatus as LiveAgentStatus | undefined,
+  );
   // The floor (no agent status reported at all) is 30s: a slow inject or a
   // heartbeat that has not propagated yet routinely takes 15-20s, and reading
   // that as "Disconnected" was the most common false alarm in the composer.
-  const stuckThresholdMs = isAgentResuming ? 120_000 : isSessionStarting || isAgentStarting || isAgentDelivering || isAgentAliveIdle ? 60_000 : 30_000;
+  const stuckThresholdMs = isAgentResuming
+    ? 120_000
+    : isSessionStarting ||
+        isAgentStarting ||
+        isAgentDelivering ||
+        isAgentAliveIdle
+      ? 60_000
+      : 30_000;
 
-  const isExistingMessageDead = existingPending?.status === "failed" || existingPending?.status === "undeliverable";
+  const isExistingMessageDead =
+    existingPending?.status === "failed" ||
+    existingPending?.status === "undeliverable";
 
   // Daemon-reported agent_status is the authoritative "session is alive and processing"
   // signal: it propagates via heartbeat seconds ahead of an assistant message reaching the
   // timeline (which is what isConversationLive/isThinking rely on). Trust it as proof the
   // message reached the session so we never resume — or worse, kill+restart — a live agent.
-  const isAgentActive = agentStatus === "thinking" || agentStatus === "working" || agentStatus === "compacting" || agentStatus === "permission_blocked";
+  const isAgentActive =
+    agentStatus === "thinking" ||
+    agentStatus === "working" ||
+    agentStatus === "compacting" ||
+    agentStatus === "permission_blocked";
   // Durable, persisted proof of delivery: the daemon marks a message "injected" the moment
   // it lands in tmux and "delivered" once acked. (It resets "injected"→"pending" if the
   // session dies, so this is only set while the message genuinely sits in a live session.)
   // Unlike the transient heartbeat this doesn't race propagation — once set, a kill+restart
   // would only destroy a session that already has the message.
-  const messageReachedSession = messageStatus?.status === "injected" || messageStatus?.status === "delivered";
+  const messageReachedSession =
+    messageStatus?.status === "injected" ||
+    messageStatus?.status === "delivered";
 
   useWatchEffect(() => {
     if (pendingMessageId) return;
@@ -751,10 +1337,19 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     if (age > stuckThresholdMs) {
       setShowStuckBanner(true);
     } else {
-      const timer = setTimeout(() => setShowStuckBanner(true), stuckThresholdMs - age);
+      const timer = setTimeout(
+        () => setShowStuckBanner(true),
+        stuckThresholdMs - age,
+      );
       return () => clearTimeout(timer);
     }
-  }, [existingPending, pendingMessageId, isWaitingForResponse, stuckThresholdMs, isExistingMessageDead]);
+  }, [
+    existingPending,
+    pendingMessageId,
+    isWaitingForResponse,
+    stuckThresholdMs,
+    isExistingMessageDead,
+  ]);
 
   // Agent actively working — or durable proof the message was injected/delivered — proves it
   // reached the session, so clear any stale stuck banner. messageReachedSession is the same
@@ -769,7 +1364,10 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     if (!sentAt || !pendingMessageId) return;
     // Both delivered (success) and cancelled (user stopped it) are terminal — tear down the
     // tracker and banner either way so the composer returns to its resting state.
-    if (messageStatus?.status === "delivered" || messageStatus?.status === "cancelled") {
+    if (
+      messageStatus?.status === "delivered" ||
+      messageStatus?.status === "cancelled"
+    ) {
       if (messageStatus?.status === "delivered" && sentContentRef.current) {
         markAsQueued(conversationId, sentContentRef.current);
       }
@@ -785,32 +1383,66 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       }
     }, stuckThresholdMs);
     return () => clearTimeout(timer);
-  }, [sentAt, pendingMessageId, messageStatus?.status, conversationId, markAsQueued, stuckThresholdMs]);
+  }, [
+    sentAt,
+    pendingMessageId,
+    messageStatus?.status,
+    conversationId,
+    markAsQueued,
+    stuckThresholdMs,
+  ]);
 
   // Removed: generic 60s timeout was showing "not responding" even when no message was sent.
   // The banner should only show when we sent a message and it wasn't delivered (handled by the effects above).
 
   const sendRef = useRef<HTMLDivElement>(null);
-  const pastedImagesRef = useRef<Array<{ file: File; previewUrl: string; storageId?: Id<"_storage">; uploading: boolean }>>([]);
-  const [pastedImages, setPastedImages] = useState<Array<{ file: File; previewUrl: string; storageId?: Id<"_storage">; uploading: boolean }>>(
-    () => restoreDraftImages(cached) as Array<{ file: File; previewUrl: string; storageId?: Id<"_storage">; uploading: boolean }>
+  const pastedImagesRef = useRef<
+    Array<{
+      file: File;
+      previewUrl: string;
+      storageId?: Id<"_storage">;
+      uploading: boolean;
+    }>
+  >([]);
+  const [pastedImages, setPastedImages] = useState<
+    Array<{
+      file: File;
+      previewUrl: string;
+      storageId?: Id<"_storage">;
+      uploading: boolean;
+    }>
+  >(
+    () =>
+      restoreDraftImages(cached) as Array<{
+        file: File;
+        previewUrl: string;
+        storageId?: Id<"_storage">;
+        uploading: boolean;
+      }>,
   );
   const staleImageIds = useMemo(() => {
     const ids = pastedImages
-      .filter(img => img.storageId && (!img.previewUrl || img.previewUrl.startsWith("blob:")))
-      .map(img => img.storageId!);
+      .filter(
+        (img) =>
+          img.storageId &&
+          (!img.previewUrl || img.previewUrl.startsWith("blob:")),
+      )
+      .map((img) => img.storageId!);
     return ids.length > 0 ? ids : null;
   }, [pastedImages]);
   const resolvedImageUrls = useQueryNoThrow(
     api.images.getImageUrls,
-    staleImageIds ? { storageIds: staleImageIds as Id<"_storage">[] } : "skip"
+    staleImageIds ? { storageIds: staleImageIds as Id<"_storage">[] } : "skip",
   ).data;
   useWatchEffect(() => {
     if (!resolvedImageUrls) return;
-    setPastedImages(prev => {
-      const updated = prev.map(img => {
+    setPastedImages((prev) => {
+      const updated = prev.map((img) => {
         if (img.storageId && resolvedImageUrls[img.storageId as string]) {
-          return { ...img, previewUrl: resolvedImageUrls[img.storageId as string]! };
+          return {
+            ...img,
+            previewUrl: resolvedImageUrls[img.storageId as string]!,
+          };
         }
         return img;
       });
@@ -821,7 +1453,14 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     });
   }, [resolvedImageUrls, conversationId]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const shared = useSharedDraft({ conversationId, enabled: !!sharedDraft && !composeMode, seed: true, text: message, setText: setMessage, inputRef: textareaRef });
+  const shared = useSharedDraft({
+    conversationId,
+    enabled: !!sharedDraft && !composeMode,
+    seed: true,
+    text: message,
+    setText: setMessage,
+    inputRef: textareaRef,
+  });
   // Root of the composer, used to find the stacking context the image lightbox
   // must portal into. In the regular conversation the lightbox goes to
   // document.body (z-10001) and the composer raises itself above it (z-10002).
@@ -832,10 +1471,19 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   const composerRootRef = useRef<HTMLDivElement>(null);
   const escapeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const escapeQuietUntilRef = useRef(0);
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
-  const [lightboxImageIndex, setLightboxImageIndex] = useState<number | null>(null);
-  const dismissLightbox = useCallback(() => { setLightboxImageIndex(null); textareaRef.current?.focus(); }, []);
-  useWatchEffect(() => { onLightboxChange?.(lightboxImageIndex !== null); }, [lightboxImageIndex, onLightboxChange]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
+    null,
+  );
+  const [lightboxImageIndex, setLightboxImageIndex] = useState<number | null>(
+    null,
+  );
+  const dismissLightbox = useCallback(() => {
+    setLightboxImageIndex(null);
+    textareaRef.current?.focus();
+  }, []);
+  useWatchEffect(() => {
+    onLightboxChange?.(lightboxImageIndex !== null);
+  }, [lightboxImageIndex, onLightboxChange]);
   const lightboxSwipe = useSwipeToDismiss(dismissLightbox);
   // Durable send: routes through the store's dispatch outbox so a reload
   // mid-send survives and is redriven on next load (idempotent on client_id).
@@ -845,11 +1493,14 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // a stalled convex.query (reconnecting socket / auth refresh) falls back to the
   // raw text within the timeout instead of stranding the whole message. See
   // lib/mentionExpansion.ts for why the cardinal "never drop a send" rule lives here.
-  const expandMentionsInMessage = useCallback((text: string): Promise<string> => {
-    return expandEntityMentions(text, (mentions) =>
-      convex.query(api.docs.expandMentions, { mentions }),
-    );
-  }, [convex]);
+  const expandMentionsInMessage = useCallback(
+    (text: string): Promise<string> => {
+      return expandEntityMentions(text, (mentions) =>
+        convex.query(api.docs.expandMentions, { mentions }),
+      );
+    },
+    [convex],
+  );
   pastedImagesRef.current = pastedImages;
 
   // Re-attach to uploads a previous composer instance started: this component
@@ -859,13 +1510,23 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // module-level registry. If the promise is gone (a reload killed the upload),
   // drop the orphan row from state and draft.
   useMountEffect(() => {
-    pastedImagesRef.current.forEach(img => {
+    pastedImagesRef.current.forEach((img) => {
       if (!img.uploading || img.storageId) return;
       const pending = pendingImageUploads.get(img.previewUrl);
       if (pending) {
-        void pending.then(storageId => {
+        void pending.then((storageId) => {
           if (storageId) {
-            setPastedImages(prev => prev.map(i => i.previewUrl === img.previewUrl ? { ...i, storageId: storageId as Id<"_storage">, uploading: false } : i));
+            setPastedImages((prev) =>
+              prev.map((i) =>
+                i.previewUrl === img.previewUrl
+                  ? {
+                      ...i,
+                      storageId: storageId as Id<"_storage">,
+                      uploading: false,
+                    }
+                  : i,
+              ),
+            );
           } else {
             clearImageByPreview(img.previewUrl);
           }
@@ -882,25 +1543,34 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   }, []);
 
   useMountEffect(() => {
-    return () => { if (escapeTimerRef.current) clearTimeout(escapeTimerRef.current); };
+    return () => {
+      if (escapeTimerRef.current) clearTimeout(escapeTimerRef.current);
+    };
   });
 
   useWatchEffect(() => {
     if (onPopulateInput) {
       onPopulateInput.current = (text: string, opts?: { append?: boolean }) => {
         if (opts?.append) {
-          const current = textareaRef.current?.value ?? messageRef.current ?? "";
+          const current =
+            textareaRef.current?.value ?? messageRef.current ?? "";
           setMessage(appendToDraft(current, text));
           setTimeout(() => {
             const el = textareaRef.current;
-            if (el) { el.focus(); const end = el.value.length; el.setSelectionRange(end, end); }
+            if (el) {
+              el.focus();
+              const end = el.value.length;
+              el.setSelectionRange(end, end);
+            }
           }, 0);
         } else {
           setMessage(text);
           setTimeout(() => textareaRef.current?.select(), 0);
         }
       };
-      return () => { if (onPopulateInput) onPopulateInput.current = null; };
+      return () => {
+        if (onPopulateInput) onPopulateInput.current = null;
+      };
     }
   }, [onPopulateInput]);
 
@@ -915,68 +1585,115 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     const store = useInboxStore.getState();
     store.setComposerPrefill(null);
     const row = store.getDraft(conversationId);
-    if (messageRef.current.trim() || row?.draft_message?.trim() || row?.draft_image_storage_ids?.length) return;
+    if (
+      messageRef.current.trim() ||
+      row?.draft_message?.trim() ||
+      row?.draft_image_storage_ids?.length
+    )
+      return;
     setMessage(prefillReq.text);
     setTimeout(() => {
       const el = textareaRef.current;
-      if (el) { el.focus(); const end = el.value.length; el.setSelectionRange(end, end); }
+      if (el) {
+        el.focus();
+        const end = el.value.length;
+        el.setSelectionRange(end, end);
+      }
     }, 0);
   }, [prefillReq, conversationId, setMessage]);
 
   // Set when a dispatch/restart learned the server row no longer exists: the
   // cached copy renders fine but every conversation-scoped mutation will fail.
   const serverDeleted = useInboxStore((s) =>
-    Boolean((s.sessions[conversationId] as any)?.server_deleted || (s.conversations[conversationId] as any)?.server_deleted));
+    Boolean(
+      (s.sessions[conversationId] as any)?.server_deleted ||
+      (s.conversations[conversationId] as any)?.server_deleted,
+    ),
+  );
 
-  const ghostRestartContext = useCallback(() => ghostRestartContextFor(conversationId), [conversationId]);
-  const handleRestartResult = useCallback((res: any) => followRestoredConversation(res, conversationId), [conversationId]);
+  const ghostRestartContext = useCallback(
+    () => ghostRestartContextFor(conversationId),
+    [conversationId],
+  );
+  const handleRestartResult = useCallback(
+    (res: any) => followRestoredConversation(res, conversationId),
+    [conversationId],
+  );
 
   // Resume and restore are daemon commands the server allows only the
   // session's runner or second-party owner to send (commandsSession). A
   // teammate's send into the session waits for its owner instead.
-  const canResume = useInboxStore((s) => viewerCommandsSession(
-    (s.sessions[conversationId] ?? s.conversations[conversationId]) as any,
-    s.currentUser?._id ? String(s.currentUser._id) : null,
-  ));
-  const handleForceResume = useCallback(async (opts?: { auto?: boolean }) => {
-    if (isResuming || !canResume) return;
-    setIsResuming(true);
-    // Automatic recovery here is always the gentle, non-destructive resume (re-attach + redeliver).
-    // The only automatic kill+restart lives in the confirmed-undeliverable effect below; this
-    // path kills only on an explicit human click of a dead-message control — never on idleness.
-    // A known-deleted server row skips the gentle attempt: it can only fail, the
-    // restore lives behind restartSession.
-    const shouldRestart = serverDeleted ||
-      (!opts?.auto && (isExistingMessageDead || messageStatus?.status === "failed" || messageStatus?.status === "undeliverable"));
-    try {
-      if (shouldRestart) {
-        handleRestartResult(await requestSessionRestart(conversationId, ghostRestartContext()));
-      } else {
-        await convCommand(conversationId, "resumeSession");
-      }
-    } catch (err) {
-      // A parked request is durable but has no response from which to infer a
-      // ghost-restore redirect. Leave the recovery indicators active.
-      if (isParkedDispatchError(err)) return;
-      const msg = err instanceof Error ? err.message : String(err);
-      // The server row is gone (cached ghost) — escalate to the restore path,
-      // which targets the live twin / recreates the row before resuming.
-      if (/conversation_deleted|Conversation not found/i.test(msg)) {
-        try {
-          handleRestartResult(await requestSessionRestart(conversationId, ghostRestartContext()));
-          return;
-        } catch (err2) {
-          if (isParkedDispatchError(err2)) return;
-          useInboxStore.getState().markServerDeleted(conversationId);
-          toast.error("This conversation no longer exists on the server", { description: "It couldn't be restored automatically." });
-          setIsResuming(false);
-          return;
+  const canResume = useInboxStore((s) =>
+    viewerCommandsSession(
+      (s.sessions[conversationId] ?? s.conversations[conversationId]) as any,
+      s.currentUser?._id ? String(s.currentUser._id) : null,
+    ),
+  );
+  const handleForceResume = useCallback(
+    async (opts?: { auto?: boolean }) => {
+      if (isResuming || !canResume) return;
+      setIsResuming(true);
+      // Automatic recovery here is always the gentle, non-destructive resume (re-attach + redeliver).
+      // The only automatic kill+restart lives in the confirmed-undeliverable effect below; this
+      // path kills only on an explicit human click of a dead-message control — never on idleness.
+      // A known-deleted server row skips the gentle attempt: it can only fail, the
+      // restore lives behind restartSession.
+      const shouldRestart =
+        serverDeleted ||
+        (!opts?.auto &&
+          (isExistingMessageDead ||
+            messageStatus?.status === "failed" ||
+            messageStatus?.status === "undeliverable"));
+      try {
+        if (shouldRestart) {
+          handleRestartResult(
+            await requestSessionRestart(conversationId, ghostRestartContext()),
+          );
+        } else {
+          await convCommand(conversationId, "resumeSession");
         }
+      } catch (err) {
+        // A parked request is durable but has no response from which to infer a
+        // ghost-restore redirect. Leave the recovery indicators active.
+        if (isParkedDispatchError(err)) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        // The server row is gone (cached ghost) — escalate to the restore path,
+        // which targets the live twin / recreates the row before resuming.
+        if (/conversation_deleted|Conversation not found/i.test(msg)) {
+          try {
+            handleRestartResult(
+              await requestSessionRestart(
+                conversationId,
+                ghostRestartContext(),
+              ),
+            );
+            return;
+          } catch (err2) {
+            if (isParkedDispatchError(err2)) return;
+            useInboxStore.getState().markServerDeleted(conversationId);
+            toast.error("This conversation no longer exists on the server", {
+              description: "It couldn't be restored automatically.",
+            });
+            setIsResuming(false);
+            return;
+          }
+        }
+        toastWriteError(err, "Failed to resume session");
+        setIsResuming(false);
       }
-      toastWriteError(err, "Failed to resume session");
-      setIsResuming(false);
-    }
-  }, [conversationId, convCommand, isResuming, canResume, isExistingMessageDead, messageStatus?.status, ghostRestartContext, handleRestartResult, serverDeleted]);
+    },
+    [
+      conversationId,
+      convCommand,
+      isResuming,
+      canResume,
+      isExistingMessageDead,
+      messageStatus?.status,
+      ghostRestartContext,
+      handleRestartResult,
+      serverDeleted,
+    ],
+  );
 
   // Stop the (otherwise indefinite) retry loop for a message that genuinely can't land. Resolve
   // the id from either the precise tracker or the conversation-scoped pending row, since a reload
@@ -984,20 +1701,32 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   const handleCancelMessage = useCallback(async () => {
     if (!conversationId) return;
     const ref = pendingMessageId
-      ? { messageId: pendingMessageId, clientId: existingPending?.client_id as string | undefined }
+      ? {
+          messageId: pendingMessageId,
+          clientId: existingPending?.client_id as string | undefined,
+        }
       : existingPending?.message_id
-        ? { messageId: existingPending.message_id as string, clientId: existingPending.client_id as string | undefined }
+        ? {
+            messageId: existingPending.message_id as string,
+            clientId: existingPending.client_id as string | undefined,
+          }
         : null;
     if (!ref) return;
     try {
-      await cancelPendingSend(conversationId, ref, existingPending?.content ?? sentContentRef.current);
+      await cancelPendingSend(
+        conversationId,
+        ref,
+        existingPending?.content ?? sentContentRef.current,
+      );
       setPendingMessageId(null);
       setSentAt(null);
       setShowStuckBanner(false);
       setIsResuming(false);
       sentContentRef.current = null;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to cancel message");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to cancel message",
+      );
     }
   }, [conversationId, pendingMessageId, existingPending]);
 
@@ -1005,7 +1734,13 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     // Clear the spinner/banner the moment the session shows life. isAgentActive (daemon
     // heartbeat) is the fast, authoritative signal that the agent is alive — working,
     // thinking, compacting, or waiting on input — so there's nothing to recover.
-    if (isResuming && (isConversationLive || isThinking || isAgentActive || messageReachedSession)) {
+    if (
+      isResuming &&
+      (isConversationLive ||
+        isThinking ||
+        isAgentActive ||
+        messageReachedSession)
+    ) {
       setIsResuming(false);
       setShowStuckBanner(false);
       return;
@@ -1016,10 +1751,22 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     // escalate to a destructive kill on our own — that's a human decision.
     const timeout = setTimeout(() => setIsResuming(false), 90_000);
     return () => clearTimeout(timeout);
-  }, [isResuming, isConversationLive, isThinking, isAgentActive, messageReachedSession]);
+  }, [
+    isResuming,
+    isConversationLive,
+    isThinking,
+    isAgentActive,
+    messageReachedSession,
+  ]);
 
   useWatchEffect(() => {
-    if (!showStuckBanner || !sessionId || isResuming || autoResumeTriggeredRef.current) return;
+    if (
+      !showStuckBanner ||
+      !sessionId ||
+      isResuming ||
+      autoResumeTriggeredRef.current
+    )
+      return;
     // Agent already processing, or the message already reached tmux — nothing to resume.
     if (isAgentActive || messageReachedSession) return;
     // The daemon is already on it: booting the session ("starting"/"resuming") or
@@ -1035,7 +1782,19 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     if (!existingPending && !pendingMessageId) return;
     autoResumeTriggeredRef.current = true;
     handleForceResume({ auto: true });
-  }, [showStuckBanner, sessionId, isResuming, isAgentActive, isAgentStarting, isAgentDelivering, messageReachedSession, messageStatus?.status, existingPending, pendingMessageId, handleForceResume]);
+  }, [
+    showStuckBanner,
+    sessionId,
+    isResuming,
+    isAgentActive,
+    isAgentStarting,
+    isAgentDelivering,
+    messageReachedSession,
+    messageStatus?.status,
+    existingPending,
+    pendingMessageId,
+    handleForceResume,
+  ]);
 
   // The one allowed automatic kill+restart. Trigger is a CONFIRMED delivery failure, never
   // idleness: the daemon marks a message "undeliverable" only after ~10 failed injects over
@@ -1050,19 +1809,35 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     autoRestartTriggeredRef.current = true;
     toast("Message couldn't be delivered — restarting session…");
     requestSessionRestart(conversationId, ghostRestartContext())
-      .then((res) => { handleRestartResult(res); setIsResuming(true); })
+      .then((res) => {
+        handleRestartResult(res);
+        setIsResuming(true);
+      })
       .catch((err) => {
         if (isParkedDispatchError(err)) return;
         const msg = err instanceof Error ? err.message : String(err);
         if (/conversation_deleted/i.test(msg)) {
           useInboxStore.getState().markServerDeleted(conversationId);
-          toast.error("This conversation no longer exists on the server", { description: "Use Restore to bring its session back." });
+          toast.error("This conversation no longer exists on the server", {
+            description: "Use Restore to bring its session back.",
+          });
         } else {
-          captureError(err instanceof Error ? err : new Error(msg), { source: "auto-restart-undeliverable", conversationId });
+          captureError(err instanceof Error ? err : new Error(msg), {
+            source: "auto-restart-undeliverable",
+            conversationId,
+          });
           toastWriteError(err, "Session restart failed");
         }
       });
-  }, [messageStatus?.status, isAgentActive, messageReachedSession, conversationId, ghostRestartContext, handleRestartResult, hostedConversation]);
+  }, [
+    messageStatus?.status,
+    isAgentActive,
+    messageReachedSession,
+    conversationId,
+    ghostRestartContext,
+    handleRestartResult,
+    hostedConversation,
+  ]);
 
   // The draft id with a debounced write in flight (lib/pendingDraftWrites).
   const draftPendingIdRef = useRef<string | null>(null);
@@ -1077,50 +1852,70 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // is how old messages used to resurrect as drafts; the real draft is what
   // the user had typed before selecting. The moment they edit the preview it
   // becomes typed input and persists like any other draft.
-  const draftTextForPersist = useCallback(() => (
-    prevSelectionRef.current !== null && !isSelectionEditedRef.current
-      ? (savedDraftRef.current ?? "")
-      : messageRef.current
-  ), []);
+  const draftTextForPersist = useCallback(
+    () =>
+      prevSelectionRef.current !== null && !isSelectionEditedRef.current
+        ? (savedDraftRef.current ?? "")
+        : messageRef.current,
+    [],
+  );
 
-  const saveDraftSnapshot = useCallback((targetId: string) => {
-    if (sendingRef.current) return;
-    const msg = draftTextForPersist();
-    // Uploading rows are kept: their pending upload lives in the module-level
-    // registry, so a successor composer instance can restore and re-attach.
-    const imgs = pastedImagesRef.current.filter(i => i.storageId || i.uploading);
-    // An untouched seeded draft is display state — persisting it adds nothing
-    // (its source already holds it) and, if another surface cleared the draft
-    // while this composer sat mounted, re-persisting is exactly how a deleted
-    // draft resurrects. Only user-edited text earns a snapshot.
-    if (msg && seededDraftRef.current !== null && msg === seededDraftRef.current) return;
-    if (!msg && imgs.length === 0) {
-      // A composer that held text and leaves empty is an explicit clear —
-      // commit it durably. Without this, delete-then-navigate loses the race
-      // against the 300ms draft debounce (cancelled on key flip below) and the
-      // persisted draft resurrects on the next app launch. hadTextRef keeps a
-      // never-filled composer (second tab on the same conversation) from
-      // eating a draft another surface wrote meanwhile.
-      if (hadTextRef.current && useInboxStore.getState().getDraft(targetId)) {
-        useInboxStore.getState().clearDraftFinal(targetId);
+  const saveDraftSnapshot = useCallback(
+    (targetId: string) => {
+      if (sendingRef.current) return;
+      const msg = draftTextForPersist();
+      // Uploading rows are kept: their pending upload lives in the module-level
+      // registry, so a successor composer instance can restore and re-attach.
+      const imgs = pastedImagesRef.current.filter(
+        (i) => i.storageId || i.uploading,
+      );
+      // An untouched seeded draft is display state — persisting it adds nothing
+      // (its source already holds it) and, if another surface cleared the draft
+      // while this composer sat mounted, re-persisting is exactly how a deleted
+      // draft resurrects. Only user-edited text earns a snapshot.
+      if (
+        msg &&
+        seededDraftRef.current !== null &&
+        msg === seededDraftRef.current
+      )
+        return;
+      if (!msg && imgs.length === 0) {
+        // A composer that held text and leaves empty is an explicit clear —
+        // commit it durably. Without this, delete-then-navigate loses the race
+        // against the 300ms draft debounce (cancelled on key flip below) and the
+        // persisted draft resurrects on the next app launch. hadTextRef keeps a
+        // never-filled composer (second tab on the same conversation) from
+        // eating a draft another surface wrote meanwhile.
+        if (hadTextRef.current && useInboxStore.getState().getDraft(targetId)) {
+          useInboxStore.getState().clearDraftFinal(targetId);
+        }
+        return;
       }
-      return;
-    }
-    persistDraftImages(targetId, msg, imgs);
-  }, [draftTextForPersist]);
+      persistDraftImages(targetId, msg, imgs);
+    },
+    [draftTextForPersist],
+  );
 
   // Re-check a seeded persisted draft against the message window after it has
   // had time to load. The seed-time stale check often runs before any messages
   // are in the store (cold visit), so a resent-copy draft shows once — this
   // catches it, empties the composer, and retires the draft for good. Skipped
   // the moment the user edits (seededDraftRef voids) or a fork preview is up.
-  const staleRecheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const staleRecheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const scheduleStaleRecheck = useCallback(() => {
-    if (staleRecheckTimerRef.current) clearTimeout(staleRecheckTimerRef.current);
+    if (staleRecheckTimerRef.current)
+      clearTimeout(staleRecheckTimerRef.current);
     if (!seededDraftRef.current) return;
     staleRecheckTimerRef.current = setTimeout(() => {
       const seed = seededDraftRef.current;
-      if (!seed || messageRef.current !== seed || prevSelectionRef.current !== null) return;
+      if (
+        !seed ||
+        messageRef.current !== seed ||
+        prevSelectionRef.current !== null
+      )
+        return;
       if (!isStaleSentDraft(convIdRef.current, seed)) return;
       setMessage("");
       useInboxStore.getState().clearDraftFinal(convIdRef.current);
@@ -1137,7 +1932,11 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       // The store still holds it if it's real; the successor re-seeds from
       // there with the heals applied.
       const flipText = draftTextForPersist();
-      if (flipText && seededDraftRef.current !== null && flipText === seededDraftRef.current) {
+      if (
+        flipText &&
+        seededDraftRef.current !== null &&
+        flipText === seededDraftRef.current
+      ) {
         sacredInputs.delete(sacredKeyRef.current);
       } else {
         writeSacred([sacredKeyRef.current, convIdRef.current], flipText);
@@ -1151,7 +1950,11 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       // Same stale-sent check the mount seed applies — without it, a resent-copy
       // draft that the mount heal missed re-enters the composer (and from there
       // the sacred cache, where no heal ever looks) on every key flip.
-      if (storeDraft && !row?.draft_image_storage_ids?.length && isStaleSentDraft(conversationId, storeDraft)) {
+      if (
+        storeDraft &&
+        !row?.draft_image_storage_ids?.length &&
+        isStaleSentDraft(conversationId, storeDraft)
+      ) {
         useInboxStore.getState().clearDraftFinal(conversationId);
         storeDraft = undefined;
       }
@@ -1164,69 +1967,100 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     } else if (convIdRef.current !== conversationId) {
       convIdRef.current = conversationId;
     }
-  }, [sacredKey, conversationId, saveDraftSnapshot, draftTextForPersist, scheduleStaleRecheck]);
+  }, [
+    sacredKey,
+    conversationId,
+    saveDraftSnapshot,
+    draftTextForPersist,
+    scheduleStaleRecheck,
+  ]);
 
   useMountEffect(() => {
     // One-shot heal for drafts poisoned before draftTextForPersist existed: a
     // persisted draft that duplicates a sent message would otherwise resurface
     // on every surface that reads the draft store.
     const d = useInboxStore.getState().getDraft(conversationId);
-    if (d?.draft_message && !d.draft_image_storage_ids?.length && isStaleSentDraft(conversationId, d.draft_message)) {
+    if (
+      d?.draft_message &&
+      !d.draft_image_storage_ids?.length &&
+      isStaleSentDraft(conversationId, d.draft_message)
+    ) {
       useInboxStore.getState().clearDraftFinal(conversationId);
     }
     scheduleStaleRecheck();
     return () => {
       cancelPendingDraft();
-      if (staleRecheckTimerRef.current) clearTimeout(staleRecheckTimerRef.current);
+      if (staleRecheckTimerRef.current)
+        clearTimeout(staleRecheckTimerRef.current);
       saveDraftSnapshot(convIdRef.current);
     };
   });
 
-  const handleMessageChange = useCallback((val: string) => {
-    setMessage(val);
-    if (savedDraftRef.current !== null) {
-      isSelectionEditedRef.current = true;
-    }
-    const cursorPos = textareaRef.current?.selectionStart ?? val.length;
-    const textBefore = val.slice(0, cursorPos);
-    const slashMatch = (skills?.length ?? 0) > 0 || onSideQuestion ? textBefore.match(SLASH_TRIGGER_RE) : null;
-    const hashMatch = slashMatch ? null : textBefore.match(CHANNEL_TRIGGER_RE);
-    if (slashMatch) {
-      setAcTrigger({ type: "/", startPos: cursorPos - slashMatch[1].length - 1 });
-      setAcIndex(0);
-    } else if (hashMatch) {
-      setAcTrigger({ type: "#", startPos: cursorPos - hashMatch[1].length - 1 });
-      setAcIndex(0);
-    } else {
-      const atMatch = textBefore.match(MENTION_TRIGGER_RE);
-      const startPos = atMatch ? cursorPos - atMatch[0].length : -1;
-      const dead = mentionDeadEndRef.current;
-      if (atMatch && dead && dead.startPos === startPos && (atMatch[1] || "").trim().length > dead.len) {
-        // Still extending a mention that already settled on nothing.
-        setAcTrigger(null);
-      } else if (atMatch) {
-        mentionDeadEndRef.current = null;
-        setAcTrigger({ type: "@", startPos });
-        setAcIndex(0);
-        queryMentions(atMatch[1] || "");
-      } else {
-        // No active @-mention: don't rebuild the mention index. buildMentionItems
-        // (in the parent) sorts/maps every session/task/doc/plan, and it only
-        // matters once the @ dropdown is open — doing it on every normal keystroke
-        // was pure waste on the typing hot path.
-        setAcTrigger(null);
+  const handleMessageChange = useCallback(
+    (val: string) => {
+      setMessage(val);
+      if (savedDraftRef.current !== null) {
+        isSelectionEditedRef.current = true;
       }
-    }
-    if (!sendingRef.current) {
-      cancelPendingDraft();
-      draftPendingIdRef.current = conversationId;
-      scheduleDraftWrite(conversationId, () => {
-        if (draftPendingIdRef.current === conversationId) draftPendingIdRef.current = null;
-        if (sendingRef.current) return;
-        commitDraftText(conversationId, val);
-      });
-    }
-  }, [conversationId, skills, onSideQuestion, queryMentions, cancelPendingDraft]);
+      const cursorPos = textareaRef.current?.selectionStart ?? val.length;
+      const textBefore = val.slice(0, cursorPos);
+      const slashMatch =
+        (skills?.length ?? 0) > 0 || onSideQuestion
+          ? textBefore.match(SLASH_TRIGGER_RE)
+          : null;
+      const hashMatch = slashMatch
+        ? null
+        : textBefore.match(CHANNEL_TRIGGER_RE);
+      if (slashMatch) {
+        setAcTrigger({
+          type: "/",
+          startPos: cursorPos - slashMatch[1].length - 1,
+        });
+        setAcIndex(0);
+      } else if (hashMatch) {
+        setAcTrigger({
+          type: "#",
+          startPos: cursorPos - hashMatch[1].length - 1,
+        });
+        setAcIndex(0);
+      } else {
+        const atMatch = textBefore.match(MENTION_TRIGGER_RE);
+        const startPos = atMatch ? cursorPos - atMatch[0].length : -1;
+        const dead = mentionDeadEndRef.current;
+        if (
+          atMatch &&
+          dead &&
+          dead.startPos === startPos &&
+          (atMatch[1] || "").trim().length > dead.len
+        ) {
+          // Still extending a mention that already settled on nothing.
+          setAcTrigger(null);
+        } else if (atMatch) {
+          mentionDeadEndRef.current = null;
+          setAcTrigger({ type: "@", startPos });
+          setAcIndex(0);
+          queryMentions(atMatch[1] || "");
+        } else {
+          // No active @-mention: don't rebuild the mention index. buildMentionItems
+          // (in the parent) sorts/maps every session/task/doc/plan, and it only
+          // matters once the @ dropdown is open — doing it on every normal keystroke
+          // was pure waste on the typing hot path.
+          setAcTrigger(null);
+        }
+      }
+      if (!sendingRef.current) {
+        cancelPendingDraft();
+        draftPendingIdRef.current = conversationId;
+        scheduleDraftWrite(conversationId, () => {
+          if (draftPendingIdRef.current === conversationId)
+            draftPendingIdRef.current = null;
+          if (sendingRef.current) return;
+          commitDraftText(conversationId, val);
+        });
+      }
+    },
+    [conversationId, skills, onSideQuestion, queryMentions, cancelPendingDraft],
+  );
 
   const isSelectionActive = !!(selectedMessageContent && selectedMessageUuid);
   const savedDraftRef = useRef<string | null>(null);
@@ -1264,20 +2098,27 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   }, [selectedMessageContent, selectedMessageUuid]);
 
   // "Message to resume" speaks of a process; a hosted conversation has none.
-  const isInactive = status && status !== "active" && !pendingMessageId && !hostedConversation;
+  const isInactive =
+    status && status !== "active" && !pendingMessageId && !hostedConversation;
   // Queued messages live in the inbox store (persisted to IDB like drafts) so
   // they survive navigating away and reloads — a queued user message must never
   // be lost. Read reactively here; write through the store. The wrapper keeps the
   // prior useState call signature (a new array or a functional updater) so every
   // existing call site stays unchanged.
-  const queuedMessages = useInboxStore((s) => s.queuedMessages[conversationId]) ?? EMPTY_QUEUE;
-  const setQueuedMessages = useCallback((updater: string[] | ((prev: string[]) => string[])) => {
-    const store = useInboxStore.getState();
-    const prev = store.getQueuedMessages(conversationId);
-    const next = typeof updater === "function" ? updater(prev) : updater;
-    store.setQueuedMessagesFor(conversationId, next);
-  }, [conversationId]);
-  const [selectedQueueIndex, setSelectedQueueIndex] = useState<number | null>(null);
+  const queuedMessages =
+    useInboxStore((s) => s.queuedMessages[conversationId]) ?? EMPTY_QUEUE;
+  const setQueuedMessages = useCallback(
+    (updater: string[] | ((prev: string[]) => string[])) => {
+      const store = useInboxStore.getState();
+      const prev = store.getQueuedMessages(conversationId);
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      store.setQueuedMessagesFor(conversationId, next);
+    },
+    [conversationId],
+  );
+  const [selectedQueueIndex, setSelectedQueueIndex] = useState<number | null>(
+    null,
+  );
   // The ghost suggestion in the empty composer (components/ComposerSuggestion):
   // the composer drives it through this handle from its keydown (Tab accepts)
   // and blanks its own placeholder while the ghost is showing.
@@ -1290,10 +2131,24 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // gets to unwind that state instead of the whole dialog closing.
   useWatchEffect(() => {
     if (escapeOwnedRef) {
-      escapeOwnedRef.current = acTrigger !== null || selectedImageIndex !== null || selectedQueueIndex !== null || lightboxImageIndex !== null || handoffOpen;
+      escapeOwnedRef.current =
+        acTrigger !== null ||
+        selectedImageIndex !== null ||
+        selectedQueueIndex !== null ||
+        lightboxImageIndex !== null ||
+        handoffOpen;
     }
-  }, [escapeOwnedRef, acTrigger, selectedImageIndex, selectedQueueIndex, lightboxImageIndex, handoffOpen]);
-  const setSessionHasQueuedMessages = useInboxStore((s) => s.setSessionHasQueuedMessages);
+  }, [
+    escapeOwnedRef,
+    acTrigger,
+    selectedImageIndex,
+    selectedQueueIndex,
+    lightboxImageIndex,
+    handoffOpen,
+  ]);
+  const setSessionHasQueuedMessages = useInboxStore(
+    (s) => s.setSessionHasQueuedMessages,
+  );
   useWatchEffect(() => {
     setSessionHasQueuedMessages(conversationId, queuedMessages.length > 0);
     return () => setSessionHasQueuedMessages(conversationId, false);
@@ -1302,23 +2157,52 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // handleSubmit auto-attaches them (attachReviewToMessage), so a bare Enter
   // with an empty input is a valid send. batchSendWords is the one home for
   // the counting; its flat object under useShallow keeps re-renders quiet.
-  const batchWords = useInboxStore(useShallow((s) => batchSendWords(s.reviewComments[conversationId] ?? [])));
-  const reviewCount = batchWords.applies + batchWords.answers + batchWords.quotes;
+  const batchWords = useInboxStore(
+    useShallow((s) => batchSendWords(s.reviewComments[conversationId] ?? [])),
+  );
+  const reviewCount =
+    batchWords.applies + batchWords.answers + batchWords.quotes;
   // Hand this composer's send to the review bridge while mounted, so a
   // proposal ledger in the thread can press it. Only the conversation's own
   // composer attaches: a comment composer inside the same view never does.
   const reviewComposer = useReviewComposer();
-  const attachSend = reviewComposer?.conversationId === conversationId ? reviewComposer.attachSend : undefined;
-  const handleSubmitRef = useRef<((e: React.FormEvent, forkTail?: boolean) => Promise<unknown>) | null>(null);
+  const attachSend =
+    reviewComposer?.conversationId === conversationId
+      ? reviewComposer.attachSend
+      : undefined;
+  const handleSubmitRef = useRef<
+    ((e: React.FormEvent, forkTail?: boolean) => Promise<unknown>) | null
+  >(null);
   useWatchEffect(() => {
     if (!attachSend) return;
-    attachSend(() => { void handleSubmitRef.current?.({ preventDefault: () => {} } as unknown as React.FormEvent); });
+    attachSend(() => {
+      void handleSubmitRef.current?.({
+        preventDefault: () => {},
+      } as unknown as React.FormEvent);
+    });
     return () => attachSend(null);
   }, [attachSend]);
-  const hasContent = (composeMode ? composeHasContent : message.trim().length > 0) || pastedImages.length > 0 || !!screenRec.recording || fileAttach.files.length > 0 || queuedMessages.length > 0;
+  const hasContent =
+    (composeMode ? composeHasContent : message.trim().length > 0) ||
+    pastedImages.length > 0 ||
+    !!screenRec.recording ||
+    fileAttach.files.length > 0 ||
+    queuedMessages.length > 0;
   // A showing ghost suggestion is content too: it can run several lines, and
   // the collapsed pill (narrow, fully rounded) bends that into an ellipse.
-  const isExpanded = !!hero || composeMode || !!onSubmitWithIntent || !!onSendAndAdvance || isFocused || message.length > 0 || ghostVisible || pastedImages.length > 0 || fileAttach.files.length > 0 || queuedMessages.length > 0 || reviewCount > 0 || !!branchMapNode;
+  const isExpanded =
+    !!hero ||
+    composeMode ||
+    !!onSubmitWithIntent ||
+    !!onSendAndAdvance ||
+    isFocused ||
+    message.length > 0 ||
+    ghostVisible ||
+    pastedImages.length > 0 ||
+    fileAttach.files.length > 0 ||
+    queuedMessages.length > 0 ||
+    reviewCount > 0 ||
+    !!branchMapNode;
 
   const toggleCompose = useCallback(() => {
     if (composeMode) {
@@ -1380,26 +2264,32 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   ghostTextRef.current = ghostText;
   const measureFitsBesideControls = useCallback(() => {
     const typed = messageRef.current;
-    const text = typed || ghostTextRef.current || textareaRef.current?.placeholder || "";
+    const text =
+      typed || ghostTextRef.current || textareaRef.current?.placeholder || "";
     let fits = !text.includes("\n");
     const ctx = measureCtxRef.current;
     let room = controlsRoomRef.current;
     // The ghost shares its line with its Tab chip (gap-2 between them). Only
     // an empty box shows it, so this layout read never runs on a keystroke.
     if (!typed && ghostTextRef.current && room != null) {
-      const chip = controlsRowRef.current?.querySelector<HTMLElement>("[data-composer-ghost] > :last-child");
+      const chip = controlsRowRef.current?.querySelector<HTMLElement>(
+        "[data-composer-ghost] > :last-child",
+      );
       if (chip) room -= chip.offsetWidth + 8;
     }
     // One character of slack so subpixel rounding never lets the browser
     // wrap text we measured as fitting.
-    if (fits && text && ctx && room != null) fits = ctx.measureText(text).width <= room - ctx.measureText("M").width;
+    if (fits && text && ctx && room != null)
+      fits = ctx.measureText(text).width <= room - ctx.measureText("M").width;
     setFitsBesideControls(fits);
   }, []);
   const readControlsGeometry = useCallback(() => {
     const ta = textareaRef.current;
     const row = controlsRowRef.current;
     if (!ta || !row) return;
-    const ctx = (measureCtxRef.current ??= document.createElement("canvas").getContext("2d"));
+    const ctx = (measureCtxRef.current ??= document
+      .createElement("canvas")
+      .getContext("2d"));
     if (!ctx) return;
     const font = getComputedStyle(ta);
     ctx.font = `${font.fontStyle} ${font.fontWeight} ${font.fontSize} ${font.fontFamily}`;
@@ -1407,12 +2297,26 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     // the buttons instead (gap-1 between them), so the reading is the same in
     // either state. gap-x-2 sits between the field and the cluster.
     // The expand button is left out and its w-7 slot plus gap always counted.
-    const buttons = (Array.from(sendRef.current?.children ?? []) as HTMLElement[]).filter((b) => !b.querySelector("[data-composer-expand]") && !b.matches("[data-composer-expand]"));
-    const controls = buttons.reduce((w, b) => w + b.offsetWidth, 0) + Math.max(0, buttons.length - 1) * 4 + 28 + 4;
+    const buttons = (
+      Array.from(sendRef.current?.children ?? []) as HTMLElement[]
+    ).filter(
+      (b) =>
+        !b.querySelector("[data-composer-expand]") &&
+        !b.matches("[data-composer-expand]"),
+    );
+    const controls =
+      buttons.reduce((w, b) => w + b.offsetWidth, 0) +
+      Math.max(0, buttons.length - 1) * 4 +
+      28 +
+      4;
     controlsRoomRef.current = row.clientWidth - controls - 8;
     measureFitsBesideControls();
   }, [measureFitsBesideControls]);
-  useLayoutEffect(measureFitsBesideControls, [message, ghostText, measureFitsBesideControls]);
+  useLayoutEffect(measureFitsBesideControls, [
+    message,
+    ghostText,
+    measureFitsBesideControls,
+  ]);
   // The row and every button in the cluster are observed, and the button set
   // is re-observed whenever it changes (the expand button comes and goes with
   // isMultiline), so a button that arrives or leaves re-reads the room.
@@ -1424,12 +2328,16 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     const observeAll = () => {
       resize.disconnect();
       resize.observe(row);
-      for (const button of Array.from(cluster?.children ?? [])) resize.observe(button);
+      for (const button of Array.from(cluster?.children ?? []))
+        resize.observe(button);
     };
     observeAll();
     const buttons = new MutationObserver(observeAll);
     if (cluster) buttons.observe(cluster, { childList: true });
-    return () => { resize.disconnect(); buttons.disconnect(); };
+    return () => {
+      resize.disconnect();
+      buttons.disconnect();
+    };
   }, [composeMode, readControlsGeometry]);
   const controlsTucked = !fitsBesideControls;
 
@@ -1486,99 +2394,125 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // Drop a numbered token into the draft text for each attached image so the
   // user can refer to attachments in prose ("crop it like [Image 2]"). Numbers
   // follow attach order, which is the order the agent receives the images in.
-  const addImagePlaceholder = useCallback((n: number) => {
-    // Gate mode (chat): attachments render as their own grid under the message,
-    // so the draft never carries an [Image N] token to point at them.
-    if (onGateSend) return;
-    if (composeMode && composeRef.current) {
-      composeRef.current.insertText(`${imagePlaceholderToken(n)} `);
-      return;
-    }
-    const current = messageRef.current;
-    const el = textareaRef.current;
-    // Dropping or pasting several images fires this once per file in a single
-    // tick, so for files 2..N the textarea is still a render behind and its
-    // caret points before the tokens we just added — reading it would stack
-    // every token at the same spot, in reverse. Carry the caret forward
-    // ourselves for the batch and trust the DOM only once it has caught up.
-    const domCaret = el && el.value === current && document.activeElement === el
-      ? (el.selectionEnd ?? current.length)
-      : current.length;
-    const next = insertImagePlaceholder(current, batchCaretRef.current ?? domCaret, n);
-    batchCaretRef.current = next.caret;
-    setMessage(next.text);
-    // Sync so a draft snapshot taken later this tick carries the placeholder.
-    messageRef.current = next.text;
-    setTimeout(() => {
-      batchCaretRef.current = null;
-      if (textareaRef.current) {
-        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = next.caret;
+  const addImagePlaceholder = useCallback(
+    (n: number) => {
+      // Gate mode (chat): attachments render as their own grid under the message,
+      // so the draft never carries an [Image N] token to point at them.
+      if (onGateSend) return;
+      if (composeMode && composeRef.current) {
+        composeRef.current.insertText(`${imagePlaceholderToken(n)} `);
+        return;
       }
-    }, 0);
-  }, [composeMode, setMessage, onGateSend]);
+      const current = messageRef.current;
+      const el = textareaRef.current;
+      // Dropping or pasting several images fires this once per file in a single
+      // tick, so for files 2..N the textarea is still a render behind and its
+      // caret points before the tokens we just added — reading it would stack
+      // every token at the same spot, in reverse. Carry the caret forward
+      // ourselves for the batch and trust the DOM only once it has caught up.
+      const domCaret =
+        el && el.value === current && document.activeElement === el
+          ? (el.selectionEnd ?? current.length)
+          : current.length;
+      const next = insertImagePlaceholder(
+        current,
+        batchCaretRef.current ?? domCaret,
+        n,
+      );
+      batchCaretRef.current = next.caret;
+      setMessage(next.text);
+      // Sync so a draft snapshot taken later this tick carries the placeholder.
+      messageRef.current = next.text;
+      setTimeout(() => {
+        batchCaretRef.current = null;
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart =
+            textareaRef.current.selectionEnd = next.caret;
+        }
+      }, 0);
+    },
+    [composeMode, setMessage, onGateSend],
+  );
 
   // The nth image is gone: drop its token and renumber the rest, so what's left
   // still points at the attachments the agent will actually receive.
-  const removeImagePlaceholder = useCallback((n: number) => {
-    if (onGateSend) return;
-    if (composeMode && composeRef.current) {
-      const md = composeRef.current.getMarkdown();
-      const next = dropImagePlaceholder(md, n);
-      if (next !== md) composeRef.current.setMarkdown(next);
-      return;
-    }
-    const next = dropImagePlaceholder(messageRef.current, n);
-    if (next === messageRef.current) return;
-    setMessage(next);
-    messageRef.current = next;
-  }, [composeMode, setMessage, onGateSend]);
-
-  const clearImage = useCallback((index: number) => {
-    // Renumber first: persistDraftImages below snapshots messageRef, so the
-    // draft must already carry the corrected text.
-    removeImagePlaceholder(index + 1);
-    pastedImagesRef.current = pastedImagesRef.current.filter((_, i) => i !== index);
-    setPastedImages(prev => {
-      const img = prev[index];
-      if (img) {
-        pendingImageUploads.delete(img.previewUrl);
-        URL.revokeObjectURL(img.previewUrl);
+  const removeImagePlaceholder = useCallback(
+    (n: number) => {
+      if (onGateSend) return;
+      if (composeMode && composeRef.current) {
+        const md = composeRef.current.getMarkdown();
+        const next = dropImagePlaceholder(md, n);
+        if (next !== md) composeRef.current.setMarkdown(next);
+        return;
       }
-      const next = prev.filter((_, i) => i !== index);
-      persistDraftImages(conversationId, messageRef.current, next);
-      return next;
-    });
-  }, [conversationId, removeImagePlaceholder]);
+      const next = dropImagePlaceholder(messageRef.current, n);
+      if (next === messageRef.current) return;
+      setMessage(next);
+      messageRef.current = next;
+    },
+    [composeMode, setMessage, onGateSend],
+  );
+
+  const clearImage = useCallback(
+    (index: number) => {
+      // Renumber first: persistDraftImages below snapshots messageRef, so the
+      // draft must already carry the corrected text.
+      removeImagePlaceholder(index + 1);
+      pastedImagesRef.current = pastedImagesRef.current.filter(
+        (_, i) => i !== index,
+      );
+      setPastedImages((prev) => {
+        const img = prev[index];
+        if (img) {
+          pendingImageUploads.delete(img.previewUrl);
+          URL.revokeObjectURL(img.previewUrl);
+        }
+        const next = prev.filter((_, i) => i !== index);
+        persistDraftImages(conversationId, messageRef.current, next);
+        return next;
+      });
+    },
+    [conversationId, removeImagePlaceholder],
+  );
 
   // Same drop, addressed by blob url — for the paths that lose an image without
   // the user asking (upload failed, or a reload orphaned an in-flight upload).
   // They must renumber too, or the draft keeps a token for an image that will
   // never be sent.
-  const clearImageByPreview = useCallback((previewUrl: string) => {
-    const index = pastedImagesRef.current.findIndex(i => i.previewUrl === previewUrl);
-    if (index < 0) return;
-    clearImage(index);
-  }, [clearImage]);
+  const clearImageByPreview = useCallback(
+    (previewUrl: string) => {
+      const index = pastedImagesRef.current.findIndex(
+        (i) => i.previewUrl === previewUrl,
+      );
+      if (index < 0) return;
+      clearImage(index);
+    },
+    [clearImage],
+  );
 
   // revoke=false transfers blob ownership to the pending bubble (so its
   // thumbnail keeps rendering after the composer clears on send).
-  const clearAllImages = useCallback((revoke = true) => {
-    if (revoke) pastedImages.forEach(img => {
-      pendingImageUploads.delete(img.previewUrl);
-      URL.revokeObjectURL(img.previewUrl);
-    });
-    setPastedImages([]);
-    // Clear the ref synchronously too, exactly as the send clears
-    // `messageRef.current` alongside `setMessage("")`. saveDraftSnapshot reads
-    // this ref (not state) and runs on unmount / key-flip with sendingRef
-    // already reset to false — the compose popup unmounts the same tick it
-    // sends, before any re-render updates the ref, so a stale ref here would
-    // re-persist the just-sent images into the draft, which then rides rekeyId
-    // onto the new conversation and reappears attached in "send & open".
-    pastedImagesRef.current = [];
-    setSelectedImageIndex(null);
-    setLightboxImageIndex(null);
-  }, [pastedImages]);
+  const clearAllImages = useCallback(
+    (revoke = true) => {
+      if (revoke)
+        pastedImages.forEach((img) => {
+          pendingImageUploads.delete(img.previewUrl);
+          URL.revokeObjectURL(img.previewUrl);
+        });
+      setPastedImages([]);
+      // Clear the ref synchronously too, exactly as the send clears
+      // `messageRef.current` alongside `setMessage("")`. saveDraftSnapshot reads
+      // this ref (not state) and runs on unmount / key-flip with sendingRef
+      // already reset to false — the compose popup unmounts the same tick it
+      // sends, before any re-render updates the ref, so a stale ref here would
+      // re-persist the just-sent images into the draft, which then rides rekeyId
+      // onto the new conversation and reappears attached in "send & open".
+      pastedImagesRef.current = [];
+      setSelectedImageIndex(null);
+      setLightboxImageIndex(null);
+    },
+    [pastedImages],
+  );
 
   useWatchEffect(() => {
     if (!clearInputRef) return;
@@ -1590,106 +2524,143 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       useInboxStore.getState().clearDraftFinal(convIdRef.current);
       textareaRef.current?.focus();
     };
-    return () => { clearInputRef.current = null; };
+    return () => {
+      clearInputRef.current = null;
+    };
   }, [clearInputRef, cancelPendingDraft, setMessage, clearAllImages]);
 
-  const uploadImage = useCallback((file: File) => {
-    const previewUrl = URL.createObjectURL(file);
-    const entry = { file, previewUrl, uploading: true };
-    // Ref-first so several images attached in one tick number sequentially —
-    // the render-time ref sync hasn't happened yet.
-    pastedImagesRef.current = [...pastedImagesRef.current, entry];
-    addImagePlaceholder(pastedImagesRef.current.length);
-    setPastedImages(prev => {
-      const next = [...prev, entry];
-      // Sacred from the moment of paste: the draft row (uploading, blob
-      // preview) is what survives the composer remount that follows session
-      // registration, before the upload has produced a storageId.
-      persistDraftImages(conversationId, messageRef.current, next);
-      return next;
-    });
-    const promise = (async (): Promise<string | null> => {
-      // Shrink large pastes before they hit the wire (preview above already
-      // rendered from the original blob, so this stays invisible to the user).
-      // The shared helper retries a transient failure; a paste that reaches
-      // the composer is sacred input and one dropped connection must not lose
-      // it. It never throws — null means every attempt failed.
-      const uploaded = await compressImage(file);
-      const storageId = await uploadBlobToStorage(convex, uploaded, uploaded.type) as Id<"_storage"> | null;
-      if (storageId) {
-        // Draft first — it lands even if this composer instance has unmounted
-        // (a state updater on a dead instance is a silent no-op).
-        settleDraftImageUpload(previewUrl, storageId as string);
-        setPastedImages(prev => prev.map(img => img.previewUrl === previewUrl ? { ...img, storageId, uploading: false } : img));
-        return storageId as string;
-      }
-      console.error("[uploadImage] failed after retries");
-      captureError(new Error("image upload failed after retries"), { source: "uploadImage", conversationId, bytes: uploaded.size, type: uploaded.type });
-      toast.error("Failed to upload image");
-      settleDraftImageUpload(previewUrl, null);
-      clearImageByPreview(previewUrl);
-      return null;
-    })();
-    pendingImageUploads.set(previewUrl, promise);
-    return previewUrl;
-  }, [convex, conversationId, addImagePlaceholder, clearImageByPreview]);
+  const uploadImage = useCallback(
+    (file: File) => {
+      const previewUrl = URL.createObjectURL(file);
+      const entry = { file, previewUrl, uploading: true };
+      // Ref-first so several images attached in one tick number sequentially —
+      // the render-time ref sync hasn't happened yet.
+      pastedImagesRef.current = [...pastedImagesRef.current, entry];
+      addImagePlaceholder(pastedImagesRef.current.length);
+      setPastedImages((prev) => {
+        const next = [...prev, entry];
+        // Sacred from the moment of paste: the draft row (uploading, blob
+        // preview) is what survives the composer remount that follows session
+        // registration, before the upload has produced a storageId.
+        persistDraftImages(conversationId, messageRef.current, next);
+        return next;
+      });
+      const promise = (async (): Promise<string | null> => {
+        // Shrink large pastes before they hit the wire (preview above already
+        // rendered from the original blob, so this stays invisible to the user).
+        // The shared helper retries a transient failure; a paste that reaches
+        // the composer is sacred input and one dropped connection must not lose
+        // it. It never throws — null means every attempt failed.
+        const uploaded = await compressImage(file);
+        const storageId = (await uploadBlobToStorage(
+          convex,
+          uploaded,
+          uploaded.type,
+        )) as Id<"_storage"> | null;
+        if (storageId) {
+          // Draft first — it lands even if this composer instance has unmounted
+          // (a state updater on a dead instance is a silent no-op).
+          settleDraftImageUpload(previewUrl, storageId as string);
+          setPastedImages((prev) =>
+            prev.map((img) =>
+              img.previewUrl === previewUrl
+                ? { ...img, storageId, uploading: false }
+                : img,
+            ),
+          );
+          return storageId as string;
+        }
+        console.error("[uploadImage] failed after retries");
+        captureError(new Error("image upload failed after retries"), {
+          source: "uploadImage",
+          conversationId,
+          bytes: uploaded.size,
+          type: uploaded.type,
+        });
+        toast.error("Failed to upload image");
+        settleDraftImageUpload(previewUrl, null);
+        clearImageByPreview(previewUrl);
+        return null;
+      })();
+      pendingImageUploads.set(previewUrl, promise);
+      return previewUrl;
+    },
+    [convex, conversationId, addImagePlaceholder, clearImageByPreview],
+  );
 
   // Every way an image reaches the composer (paste, drop, the compose
   // editor's paste) goes through here. A hosted assistant reads text only, so
   // there the image is turned away at once, in the server's own words, rather
   // than sent and refused after it shows as sent.
-  const takeImage = useCallback((file: File) => {
-    if (hostedConversation) {
-      toast.error(HOSTED_IMAGE_REFUSAL, { id: "hosted-image-refusal" });
-      return;
-    }
-    uploadImage(file);
-  }, [hostedConversation, uploadImage]);
+  const takeImage = useCallback(
+    (file: File) => {
+      if (hostedConversation) {
+        toast.error(HOSTED_IMAGE_REFUSAL, { id: "hosted-image-refusal" });
+        return;
+      }
+      uploadImage(file);
+    },
+    [hostedConversation, uploadImage],
+  );
 
-  const takeFile = useCallback((file: File) => {
-    if (!acceptFiles) {
-      toast.error("Only images can be attached here", { id: "files-unsupported" });
-      return;
-    }
-    if (hostedConversation) {
-      toast.error("The assistant can't read files. Paste the text instead.", { id: "hosted-file-refusal" });
-      return;
-    }
-    fileAttach.attach(file);
-  }, [acceptFiles, hostedConversation, fileAttach.attach]);
-
+  const takeFile = useCallback(
+    (file: File) => {
+      if (!acceptFiles) {
+        toast.error("Only images can be attached here", {
+          id: "files-unsupported",
+        });
+        return;
+      }
+      if (hostedConversation) {
+        toast.error("The assistant can't read files. Paste the text instead.", {
+          id: "hosted-file-refusal",
+        });
+        return;
+      }
+      fileAttach.attach(file);
+    },
+    [acceptFiles, hostedConversation, fileAttach.attach],
+  );
 
   useWatchEffect(() => {
     if (onDropFiles) {
       onDropFiles.current = (files: File[]) => {
-        files.forEach(f => {
+        files.forEach((f) => {
           if (isRecordingFile(f)) void screenRec.attach(f);
           else if (f.type.startsWith("image/")) takeImage(f);
           else takeFile(f);
         });
       };
-      return () => { if (onDropFiles) onDropFiles.current = null; };
+      return () => {
+        if (onDropFiles) onDropFiles.current = null;
+      };
     }
   }, [onDropFiles, takeImage, takeFile, screenRec.attach]);
 
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-    let hasImage = false;
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith("image/")) {
-        if (!hasImage) { e.preventDefault(); hasImage = true; }
-        const file = items[i].getAsFile();
-        if (file) takeImage(file);
-      } else if (items[i].kind === "file") {
-        const file = items[i].getAsFile();
-        if (!file) continue;
-        e.preventDefault();
-        if (isRecordingFile(file)) void screenRec.attach(file);
-        else takeFile(file);
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      let hasImage = false;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          if (!hasImage) {
+            e.preventDefault();
+            hasImage = true;
+          }
+          const file = items[i].getAsFile();
+          if (file) takeImage(file);
+        } else if (items[i].kind === "file") {
+          const file = items[i].getAsFile();
+          if (!file) continue;
+          e.preventDefault();
+          if (isRecordingFile(file)) void screenRec.attach(file);
+          else takeFile(file);
+        }
       }
-    }
-  }, [takeImage, takeFile, screenRec.attach]);
+    },
+    [takeImage, takeFile, screenRec.attach],
+  );
 
   // Set when a submit could not commit its send (the optimistic row + outbox
   // enqueue refused). Read synchronously right after handleSubmit() is called:
@@ -1700,7 +2671,11 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // A send whose text holds a credential waits for the person in
   // ComposerCatch. Checked once per send, never per keystroke (typing budget).
   // The bar's decision re-runs the same send with catchPassRef set.
-  const [caught, setCaught] = useState<{ text: string; found: FoundSecret[]; resume: () => void } | null>(null);
+  const [caught, setCaught] = useState<{
+    text: string;
+    found: FoundSecret[];
+    resume: () => void;
+  } | null>(null);
   const catchPassRef = useRef(false);
   useWatchEffect(() => setCaught(null), [conversationId]);
   const holdForCredential = (text: string, resume: () => void): boolean => {
@@ -1711,7 +2686,11 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     // value an older build or another surface left there.
     const store = useInboxStore.getState();
     const stored = store.getDraft(conversationId);
-    if (typeof stored?.draft_message === "string" && findSecrets(stored.draft_message).length > 0) store.setDraft(conversationId, stored);
+    if (
+      typeof stored?.draft_message === "string" &&
+      findSecrets(stored.draft_message).length > 0
+    )
+      store.setDraft(conversationId, stored);
     setCaught({ text, found, resume });
     submitRefusedRef.current = true;
     return true;
@@ -1720,11 +2699,19 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     if (!caught) return;
     setCaught(null);
     if (text !== caught.text) {
-      if (composeMode && composeRef.current) composeRef.current.setMarkdown(text);
-      else { setMessage(text); messageRef.current = text; }
+      if (composeMode && composeRef.current)
+        composeRef.current.setMarkdown(text);
+      else {
+        setMessage(text);
+        messageRef.current = text;
+      }
     }
     catchPassRef.current = true;
-    try { caught.resume(); } finally { catchPassRef.current = false; }
+    try {
+      caught.resume();
+    } finally {
+      catchPassRef.current = false;
+    }
   };
   const cancelCaught = () => {
     setCaught(null);
@@ -1753,11 +2740,19 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     cancelPendingDraft();
     setMessage("");
     messageRef.current = "";
-    if (composeMode) { composeRef.current?.clear(); setComposeMode(false); setComposeHasContent(false); }
+    if (composeMode) {
+      composeRef.current?.clear();
+      setComposeMode(false);
+      setComposeHasContent(false);
+    }
     commitDraftText(conversationId, "");
     sendingRef.current = false;
     void onSideQuestion!(question)?.then((refusal) => {
-      if (refusal && !messageRef.current) { setMessage(message); messageRef.current = message; commitDraftText(conversationId, message); }
+      if (refusal && !messageRef.current) {
+        setMessage(message);
+        messageRef.current = message;
+        commitDraftText(conversationId, message);
+      }
     });
     return true;
   };
@@ -1768,14 +2763,21 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     submitRefusedRef.current = false;
     setAcTrigger(null);
     // In compose mode, read content from the TipTap editor
-    let message = composeMode && composeRef.current
-      ? composeRef.current.getMarkdown()
-      : messageRef.current;
+    let message =
+      composeMode && composeRef.current
+        ? composeRef.current.getMarkdown()
+        : messageRef.current;
     if (onGoalCommand?.(message)) return false;
-    if (holdForCredential(message, () => {
-      void handleSubmitRef.current?.({ preventDefault: () => {} } as unknown as React.FormEvent, forkTail);
-      if (!submitRefusedRef.current) onSubmitWithIntent?.(false);
-    })) return false;
+    if (
+      holdForCredential(message, () => {
+        void handleSubmitRef.current?.(
+          { preventDefault: () => {} } as unknown as React.FormEvent,
+          forkTail,
+        );
+        if (!submitRefusedRef.current) onSubmitWithIntent?.(false);
+      })
+    )
+      return false;
     if (takeSideQuestion(message)) {
       // Nothing went to the agent: send-and-advance and send-and-stash stay on this session.
       submitRefusedRef.current = true;
@@ -1794,15 +2796,23 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       // the quotes, and a proposal's answers (org-staffing.md S39), lead the
       // text and are taken here, so a bare Enter with answers waiting is a
       // send. The gate's host receives the whole body and takes nothing.
-      const text = fileAttach.take(attachReviewToMessage(conversationId, message)).trim();
+      const text = fileAttach
+        .take(attachReviewToMessage(conversationId, message))
+        .trim();
       // Same reconcile as the main path: the durable draft is the record of
       // pasted images, memory can lose rows across a remount (jx7byyk).
-      const gateDraftRows = restoreDraftImages(useInboxStore.getState().drafts[conversationId] ?? undefined);
-      const gateMemory = pastedImagesRef.current.filter(img => img.storageId || img.uploading);
+      const gateDraftRows = restoreDraftImages(
+        useInboxStore.getState().drafts[conversationId] ?? undefined,
+      );
+      const gateMemory = pastedImagesRef.current.filter(
+        (img) => img.storageId || img.uploading,
+      );
       const gateDraftOnly = gateDraftRows.filter(
-        row => row.storageId && !gateMemory.some(img => img.storageId === row.storageId)
+        (row) =>
+          row.storageId &&
+          !gateMemory.some((img) => img.storageId === row.storageId),
       ) as typeof gateMemory;
-      const gateImages = [...gateMemory, ...gateDraftOnly].map(img => ({
+      const gateImages = [...gateMemory, ...gateDraftOnly].map((img) => ({
         storageId: img.storageId as string | undefined,
         previewUrl: img.previewUrl,
         mime: img.file?.type ?? "image/png",
@@ -1820,7 +2830,7 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       // In-flight uploads go to the receiver with their blob and registry
       // entry (it releases them once settled); the settled ones are done with
       // theirs.
-      pastedImagesRef.current.forEach(img => {
+      pastedImagesRef.current.forEach((img) => {
         if (img.uploading) return;
         pendingImageUploads.delete(img.previewUrl);
         URL.revokeObjectURL(img.previewUrl);
@@ -1851,10 +2861,16 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     // or cross-tab handoff while the draft keeps them, and a send that trusts
     // only memory then silently drops the user's images (jx7byyk, 2026-07-31).
     // Reconcile: any settled draft row missing from memory rides along.
-    const draftRows = restoreDraftImages(useInboxStore.getState().drafts[conversationId] ?? undefined);
-    const memoryImages = pastedImagesRef.current.filter(img => img.storageId || img.uploading);
+    const draftRows = restoreDraftImages(
+      useInboxStore.getState().drafts[conversationId] ?? undefined,
+    );
+    const memoryImages = pastedImagesRef.current.filter(
+      (img) => img.storageId || img.uploading,
+    );
     const draftOnlyImages = draftRows.filter(
-      row => row.storageId && !memoryImages.some(img => img.storageId === row.storageId)
+      (row) =>
+        row.storageId &&
+        !memoryImages.some((img) => img.storageId === row.storageId),
     ) as typeof memoryImages;
     const submitImages = [...memoryImages, ...draftOnlyImages];
     if (refuseHostedImages(submitImages.length)) return false;
@@ -1865,14 +2881,22 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     // and each quote names its picture by that attachment number. A fork leaves
     // quoted pictures out, so its image quotes point by address instead.
     // A message selected forks from it; fork-and-send forks from the tail.
-    const forkingFromSelection = !!(isSelectionActive && selectedMessageUuid && onForkFromMessage);
+    const forkingFromSelection = !!(
+      isSelectionActive &&
+      selectedMessageUuid &&
+      onForkFromMessage
+    );
     const forking = forkingFromSelection || (forkTail && !!onForkTail);
     // Each quoted picture is sent as a copy with its notes' points drawn on as
     // numbered markers; the bubble shows the original until that copy lands.
     const quoted = forking ? [] : quotedImages(conversationId);
     // The quotes it takes ride the send as ids too, so the server stamps their
     // records sent (lib/quoteDraftWire; empty unless the person turned it on).
-    const review = attachReviewForSend(conversationId, message, quoted.length ? submitImages.length + 1 : undefined);
+    const review = attachReviewForSend(
+      conversationId,
+      message,
+      quoted.length ? submitImages.length + 1 : undefined,
+    );
     message = review.text;
     const quoteIds = review.quoteIds;
     // "Send together" (lib/jointSend): others' live drafts fold in as named parts.
@@ -1884,9 +2908,13 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     if (!forking) message = screenRec.take(message);
     // Attached files ride as tags the daemon turns into local paths.
     if (!forking) message = fileAttach.take(message);
-    const quotedOriginals: OptimisticImage[] = quoted.map(q => ({ media_type: "image/png", storage_id: q.storageId }));
-    const quotedUploads = quoted.map(q => uploadMarkedImage(convex, q));
-    const hasUploadingImages = submitImages.some(img => img.uploading) || quotedUploads.length > 0;
+    const quotedOriginals: OptimisticImage[] = quoted.map((q) => ({
+      media_type: "image/png",
+      storage_id: q.storageId,
+    }));
+    const quotedUploads = quoted.map((q) => uploadMarkedImage(convex, q));
+    const hasUploadingImages =
+      submitImages.some((img) => img.uploading) || quotedUploads.length > 0;
     const canSend = message.trim() || submitImages.length > 0;
     if (!canSend) return;
 
@@ -1911,25 +2939,41 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       targetConvId = forkId;
     }
     const targetCanQuery = isConvexId(targetConvId);
-    const trimmed = message.trim() || (submitImages.length > 0 ? "[image]" : "");
+    const trimmed =
+      message.trim() || (submitImages.length > 0 ? "[image]" : "");
     // The optimistic bubble shows ready images via storage_id, and still-
     // uploading ones via their local preview + a spinner (dropped on resolve).
-    const optimisticImages: OptimisticImage[] = [...submitImages.map((img): OptimisticImage =>
-      img.storageId
-        ? { media_type: img.file.type, storage_id: img.storageId as string }
-        : { media_type: img.file.type, preview_url: img.previewUrl, uploading: true }
-    ), ...quotedOriginals];
+    const optimisticImages: OptimisticImage[] = [
+      ...submitImages.map((img): OptimisticImage =>
+        img.storageId
+          ? { media_type: img.file.type, storage_id: img.storageId as string }
+          : {
+              media_type: img.file.type,
+              preview_url: img.previewUrl,
+              uploading: true,
+            },
+      ),
+      ...quotedOriginals,
+    ];
     sendingRef.current = true;
     let clientId: string;
     try {
-      clientId = addOptimistic(targetConvId, trimmed, optimisticImages.length > 0 ? optimisticImages : undefined);
+      clientId = addOptimistic(
+        targetConvId,
+        trimmed,
+        optimisticImages.length > 0 ? optimisticImages : undefined,
+      );
     } catch (error) {
       captureException(error);
       sendingRef.current = false;
       setMessage(message);
       messageRef.current = message;
       if (composeMode) composeRef.current?.setMarkdown(message);
-      toast.error(error instanceof Error ? error.message : "Could not save your message. Please try again.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not save your message. Please try again.",
+      );
       submitRefusedRef.current = true;
       return false;
     }
@@ -1943,7 +2987,11 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     // bubble; the background task revokes them once the upload resolves.
     clearAllImages(!hasUploadingImages);
     useInboxStore.getState().clearDraftFinal(conversationId);
-    if (composeMode) { composeRef.current?.clear(); setComposeMode(false); setComposeHasContent(false); }
+    if (composeMode) {
+      composeRef.current?.clear();
+      setComposeMode(false);
+      setComposeHasContent(false);
+    }
     sendingRef.current = false;
     requestAnimationFrame(() => textareaRef.current?.focus());
     onMessageSent?.();
@@ -1955,23 +3003,48 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     const finishSend = async (ids: string[]) => {
       try {
         const expandedContent = await expandMentionsInMessage(trimmed);
-        const resolvedId = targetCanQuery ? targetConvId : await useInboxStore.getState().awaitConvexId(targetConvId);
+        const resolvedId = targetCanQuery
+          ? targetConvId
+          : await useInboxStore.getState().awaitConvexId(targetConvId);
         // Record the exact dispatched bytes on the pending row BEFORE sending:
         // the server fingerprints this client id's args, so any later redrive
         // must replay them verbatim or be refused as COMMAND_ID_REUSED. The row
         // may sit under the stub key or the rekeyed real id — stamp both.
         if (expandedContent !== trimmed) {
-          useInboxStore.getState().stampPendingDispatchContent(targetConvId, clientId, expandedContent);
+          useInboxStore
+            .getState()
+            .stampPendingDispatchContent(
+              targetConvId,
+              clientId,
+              expandedContent,
+            );
           if (resolvedId !== targetConvId) {
-            useInboxStore.getState().stampPendingDispatchContent(resolvedId, clientId, expandedContent);
+            useInboxStore
+              .getState()
+              .stampPendingDispatchContent(
+                resolvedId,
+                clientId,
+                expandedContent,
+              );
           }
         }
         // typed: what the person typed in this box, before quotes, mentions and attachments (server composerChannel).
-        sendMessage(resolvedId, expandedContent, ids.length > 0 ? ids : undefined, clientId, quoteIds.length > 0 ? quoteIds : undefined, typedWords);
+        sendMessage(
+          resolvedId,
+          expandedContent,
+          ids.length > 0 ? ids : undefined,
+          clientId,
+          quoteIds.length > 0 ? quoteIds : undefined,
+          typedWords,
+        );
         // Hand the resolved id + the send's clientId to the popup so it can paint
         // this same message optimistically in the MAIN window (send & open) without
         // a second send — same clientId means it dedupes against the server echo.
-        onDidSend?.({ conversationId: resolvedId, content: expandedContent, clientId });
+        onDidSend?.({
+          conversationId: resolvedId,
+          content: expandedContent,
+          clientId,
+        });
         setSentAt(Date.now());
         sentContentRef.current = trimmed;
         setShowStuckBanner(false);
@@ -1982,7 +3055,9 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
         if (isParkedDispatchError(error)) {
           return;
         }
-        toast.error(error instanceof Error ? error.message : "Failed to send message");
+        toast.error(
+          error instanceof Error ? error.message : "Failed to send message",
+        );
         useInboxStore.getState().markOptimisticAsFailed(targetConvId, clientId);
       }
     };
@@ -1995,44 +3070,67 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       // survives a session switch or composer remount. The user can already
       // type/send the next message.
       void (async () => {
-        const tasks = submitImages.map(img => ({
+        const tasks = submitImages.map((img) => ({
           previewUrl: img.previewUrl,
           mediaType: img.file.type,
           promise: img.storageId
             ? Promise.resolve<string | null>(img.storageId as string)
-            : (pendingImageUploads.get(img.previewUrl) ?? Promise.resolve<string | null>(null)),
+            : (pendingImageUploads.get(img.previewUrl) ??
+              Promise.resolve<string | null>(null)),
         }));
-        const settled = await Promise.all(tasks.map(t => t.promise.then(storageId => ({ ...t, storageId }))));
-        const resolvedImages: OptimisticImage[] = [...settled
-          .filter(t => t.storageId)
-          .map(t => ({ media_type: t.mediaType, storage_id: t.storageId as string })),
-          ...(await Promise.all(quotedUploads)).map(storage_id => ({ media_type: "image/png", storage_id }))];
+        const settled = await Promise.all(
+          tasks.map((t) =>
+            t.promise.then((storageId) => ({ ...t, storageId })),
+          ),
+        );
+        const resolvedImages: OptimisticImage[] = [
+          ...settled
+            .filter((t) => t.storageId)
+            .map((t) => ({
+              media_type: t.mediaType,
+              storage_id: t.storageId as string,
+            })),
+          ...(await Promise.all(quotedUploads)).map((storage_id) => ({
+            media_type: "image/png",
+            storage_id,
+          })),
+        ];
         // Every upload failed and there was no text — nothing real to send.
         // uploadImage already toasted each failure; just fail the bubble.
         if (resolvedImages.length === 0 && !message.trim()) {
-          useInboxStore.getState().markOptimisticAsFailed(targetConvId, clientId);
-          tasks.forEach(t => pendingImageUploads.delete(t.previewUrl));
+          useInboxStore
+            .getState()
+            .markOptimisticAsFailed(targetConvId, clientId);
+          tasks.forEach((t) => pendingImageUploads.delete(t.previewUrl));
           return;
         }
-        useInboxStore.getState().resolvePendingUploads(targetConvId, clientId, resolvedImages);
+        useInboxStore
+          .getState()
+          .resolvePendingUploads(targetConvId, clientId, resolvedImages);
         // Free the handed-off blobs after the bubble has re-rendered without
         // its preview_url (resolvePendingUploads stripped it), so a still-
         // mounted ImageBlock never loads a revoked URL and gets stuck errored.
-        tasks.forEach(t => {
+        tasks.forEach((t) => {
           pendingImageUploads.delete(t.previewUrl);
           setTimeout(() => URL.revokeObjectURL(t.previewUrl), 1000);
         });
-        await finishSend(resolvedImages.map(i => i.storage_id as string));
+        await finishSend(resolvedImages.map((i) => i.storage_id as string));
       })();
     } else {
-      await finishSend(submitImages.map(img => img.storageId as string));
+      await finishSend(submitImages.map((img) => img.storageId as string));
     }
   };
 
   const queueDrainingRef = useRef(false);
   useWatchEffect(() => {
     if (queuedMessages.length === 0 || queueDrainingRef.current) return;
-    const isIdle = agentStatus === "idle" || (!agentStatus && !isWaitingForResponse && !isThinking && !isConversationLive && !isSessionStarting);
+    const isIdle =
+      agentStatus === "idle" ||
+      (!agentStatus &&
+        !isWaitingForResponse &&
+        !isThinking &&
+        !isConversationLive &&
+        !isSessionStarting);
     if (!isIdle) return;
     queueDrainingRef.current = true;
     const queueTargetConvId = conversationId;
@@ -2043,10 +3141,17 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     } catch (error) {
       captureException(error);
       queueDrainingRef.current = false;
-      toast.error(error instanceof Error ? error.message : "Could not save the queued message.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not save the queued message.",
+      );
       return;
     }
-    if (!queued) { queueDrainingRef.current = false; return; }
+    if (!queued) {
+      queueDrainingRef.current = false;
+      return;
+    }
     const { content: next, clientId } = queued;
     setSelectedQueueIndex(null);
     soundSend();
@@ -2054,12 +3159,18 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     (async () => {
       try {
         const expanded = await expandMentionsInMessage(next);
-        const resolvedId = queueCanQuery ? queueTargetConvId : await waitForConvexId(queueTargetConvId);
+        const resolvedId = queueCanQuery
+          ? queueTargetConvId
+          : await waitForConvexId(queueTargetConvId);
         // Same dispatch-bytes stamp as finishSend: redrives must replay exactly.
         if (expanded !== next) {
-          useInboxStore.getState().stampPendingDispatchContent(queueTargetConvId, clientId, expanded);
+          useInboxStore
+            .getState()
+            .stampPendingDispatchContent(queueTargetConvId, clientId, expanded);
           if (resolvedId !== queueTargetConvId) {
-            useInboxStore.getState().stampPendingDispatchContent(resolvedId, clientId, expanded);
+            useInboxStore
+              .getState()
+              .stampPendingDispatchContent(resolvedId, clientId, expanded);
           }
         }
         sendMessage(resolvedId, expanded, undefined, clientId, undefined, next);
@@ -2067,13 +3178,28 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
         sentContentRef.current = next;
         setShowStuckBanner(false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to send queued message");
-        useInboxStore.getState().markOptimisticAsFailed(queueTargetConvId, clientId);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to send queued message",
+        );
+        useInboxStore
+          .getState()
+          .markOptimisticAsFailed(queueTargetConvId, clientId);
       } finally {
         queueDrainingRef.current = false;
       }
     })();
-  }, [queuedMessages, agentStatus, isWaitingForResponse, isThinking, isConversationLive, isSessionStarting, conversationId, canQueryServer]);
+  }, [
+    queuedMessages,
+    agentStatus,
+    isWaitingForResponse,
+    isThinking,
+    isConversationLive,
+    isSessionStarting,
+    conversationId,
+    canQueryServer,
+  ]);
 
   const flashModeLabel = useCallback(() => {
     setShowModeLabel(true);
@@ -2088,12 +3214,19 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // still running. Same handler the Alt+Shift+Enter chord fires.
   const handleSendAndStash = () => {
     if (!onSendAndDismiss) return;
-    void handleSubmit({ preventDefault: () => {} } as unknown as React.FormEvent).then(saved => { if (saved !== false) onSendAndDismiss(); });
+    void handleSubmit({
+      preventDefault: () => {},
+    } as unknown as React.FormEvent).then((saved) => {
+      if (saved !== false) onSendAndDismiss();
+    });
   };
 
   const handleForkSend = () => {
     if (!onForkTail) return;
-    void handleSubmit({ preventDefault: () => {} } as unknown as React.FormEvent, true);
+    void handleSubmit(
+      { preventDefault: () => {} } as unknown as React.FormEvent,
+      true,
+    );
   };
 
   // Opens the branch a fork send delivers into and returns its id, or null when
@@ -2108,7 +3241,9 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     const savedPopulateFn = onPopulateInput?.current ?? null;
     if (onPopulateInput) onPopulateInput.current = null;
     await onForkFromMessage!(selectedMessageUuid!);
-    setTimeout(() => { if (onPopulateInput) onPopulateInput.current = savedPopulateFn; }, 200);
+    setTimeout(() => {
+      if (onPopulateInput) onPopulateInput.current = savedPopulateFn;
+    }, 200);
     // The fork navigated, so the visible session is the new branch.
     const forkId = useInboxStore.getState().currentSessionId;
     return forkId && forkId !== conversationId ? forkId : null;
@@ -2116,8 +3251,14 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
 
   // Hand off: the box empties the moment a teammate is picked (the marker is
   // drawn optimistically), and the text comes back only if the server refuses.
-  const handleHandoffPick = (target: { id: string; name: string }, keepSelf: boolean) => {
-    const raw = composeMode && composeRef.current ? composeRef.current.getMarkdown() : message;
+  const handleHandoffPick = (
+    target: { id: string; name: string },
+    keepSelf: boolean,
+  ) => {
+    const raw =
+      composeMode && composeRef.current
+        ? composeRef.current.getMarkdown()
+        : message;
     const text = raw.trim();
     sendingRef.current = true;
     cancelPendingDraft();
@@ -2128,8 +3269,12 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     sendingRef.current = false;
     textareaRef.current?.focus();
     void owners.handoffTo(target.id, text, { keepSelf }).then((ok) => {
-      if (ok) { onMessageSent?.(); return; }
-      if (composeMode && composeRef.current) composeRef.current.setMarkdown?.(text);
+      if (ok) {
+        onMessageSent?.();
+        return;
+      }
+      if (composeMode && composeRef.current)
+        composeRef.current.setMarkdown?.(text);
       setMessage(text);
       messageRef.current = text;
     });
@@ -2148,19 +3293,26 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     setSelectedQueueIndex(null);
   };
   // A turn this composer can stop: the agent is mid-turn and Escape reaches it.
-  const turnRunning = !!onSendEscape && !hostedConversation && (isAgentActive || (agentStatus !== "idle" && (!!isThinking || !!isConversationLive)));
+  const turnRunning =
+    !!onSendEscape &&
+    !hostedConversation &&
+    (isAgentActive ||
+      (agentStatus !== "idle" && (!!isThinking || !!isConversationLive)));
   // Stopping a turn stops the subagents it launched, so with any running the
   // stop names them first (StopConfirm).
   const [stopRequest, setStopRequest] = useState<StopRequest | null>(null);
   const confirmStop = (run: () => void, send = false) => {
-    const subagents = runningSubagents(useInboxStore.getState().messages[conversationId]);
+    const subagents = runningSubagents(
+      useInboxStore.getState().messages[conversationId],
+    );
     if (stopNeedsConfirm(subagents)) setStopRequest({ subagents, run, send });
     else run();
   };
   const interruptTurn = () => confirmStop(() => onSendEscape?.());
   // Stop & send (⇧Esc): stop the running turn, then deliver the text once it
   // has stopped. A plain send still lands mid-turn.
-  const canStopAndSend = turnRunning && canQueryServer && pastedImages.length === 0;
+  const canStopAndSend =
+    turnRunning && canQueryServer && pastedImages.length === 0;
   const stopAndSendComposerText = () => {
     if (!canStopAndSend || !messageRef.current.trim()) return;
     if (takeSideQuestion(messageRef.current)) return;
@@ -2180,14 +3332,28 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       // queue in this window.
       const clientId = `queued_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       if (stop) {
-        void useInboxStore.getState().stopAndSend(conversationId, text, clientId).catch((err) => toast.error(err instanceof Error ? err.message : "Could not stop and send"));
+        void useInboxStore
+          .getState()
+          .stopAndSend(conversationId, text, clientId)
+          .catch((err) =>
+            toast.error(
+              err instanceof Error ? err.message : "Could not stop and send",
+            ),
+          );
         onMessageSent?.();
-      } else if (canQueryServer && !hostedConversation) useInboxStore.getState().queueMessage(conversationId, text, clientId, text);
-      else setQueuedMessages(prev => [...prev, text]);
+      } else if (canQueryServer && !hostedConversation)
+        useInboxStore
+          .getState()
+          .queueMessage(conversationId, text, clientId, text);
+      else setQueuedMessages((prev) => [...prev, text]);
     } catch (error) {
       captureException(error);
       sendingRef.current = false;
-      toast.error(error instanceof Error ? error.message : "Could not save the queued message.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not save the queued message.",
+      );
       return;
     }
     cancelPendingDraft();
@@ -2201,7 +3367,8 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   // Queue for the end of the turn, from the chord or the pill's button alike;
   // a credential in the text is held first, as a plain send holds it.
   const queueFromComposer = () => {
-    if (!holdForCredential(messageRef.current, queueComposerText)) queueComposerText();
+    if (!holdForCredential(messageRef.current, queueComposerText))
+      queueComposerText();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -2219,12 +3386,12 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     if (acTrigger && acItems.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setAcIndex(i => Math.min(i + 1, acItems.length - 1));
+        setAcIndex((i) => Math.min(i + 1, acItems.length - 1));
         return;
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setAcIndex(i => Math.max(i - 1, 0));
+        setAcIndex((i) => Math.max(i - 1, 0));
         return;
       }
       if (e.key === "Tab" && !e.shiftKey) {
@@ -2278,7 +3445,11 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     // are word and line deletes in the text, so they leave the queue alone.
     // Images have no delete key: a Backspace meant for words would lose one,
     // so only the thumbnail's × removes an image.
-    const isStripDelete = (e.key === "Backspace" || e.key === "Delete") && !e.altKey && !e.metaKey && !e.ctrlKey;
+    const isStripDelete =
+      (e.key === "Backspace" || e.key === "Delete") &&
+      !e.altKey &&
+      !e.metaKey &&
+      !e.ctrlKey;
     if (altChordDirection(e.nativeEvent) === "up" && climbIntoTranscript()) {
       e.preventDefault();
       return;
@@ -2306,7 +3477,9 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       }
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        setLightboxImageIndex(lightboxImageIndex === selectedImageIndex ? null : selectedImageIndex);
+        setLightboxImageIndex(
+          lightboxImageIndex === selectedImageIndex ? null : selectedImageIndex,
+        );
         return;
       }
       if (e.key === "Escape") {
@@ -2344,7 +3517,8 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
         e.preventDefault();
         // ↑ from the top queue row climbs on into the transcript.
-        if (selectedQueueIndex === 0 && e.key === "ArrowUp") climbIntoTranscript();
+        if (selectedQueueIndex === 0 && e.key === "ArrowUp")
+          climbIntoTranscript();
         else setSelectedQueueIndex(Math.max(0, selectedQueueIndex - 1));
         return;
       }
@@ -2360,7 +3534,9 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       }
       if (isStripDelete) {
         e.preventDefault();
-        setQueuedMessages(prev => prev.filter((_, i) => i !== selectedQueueIndex));
+        setQueuedMessages((prev) =>
+          prev.filter((_, i) => i !== selectedQueueIndex),
+        );
         const newLen = queuedMessages.length - 1;
         if (newLen === 0) {
           setSelectedQueueIndex(null);
@@ -2380,7 +3556,9 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         const text = queuedMessages[selectedQueueIndex];
-        setQueuedMessages(prev => prev.filter((_, i) => i !== selectedQueueIndex));
+        setQueuedMessages((prev) =>
+          prev.filter((_, i) => i !== selectedQueueIndex),
+        );
         setSelectedQueueIndex(null);
         setMessage(text);
         requestAnimationFrame(() => textareaRef.current?.focus());
@@ -2390,16 +3568,28 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
 
     if (e.key === "ArrowUp" && pastedImages.length > 0) {
       const textarea = textareaRef.current;
-      if (textarea && textarea.selectionStart === 0 && textarea.selectionEnd === 0) {
+      if (
+        textarea &&
+        textarea.selectionStart === 0 &&
+        textarea.selectionEnd === 0
+      ) {
         e.preventDefault();
         setSelectedImageIndex(pastedImages.length - 1);
         return;
       }
     }
 
-    if (e.key === "ArrowUp" && queuedMessages.length > 0 && selectedImageIndex === null) {
+    if (
+      e.key === "ArrowUp" &&
+      queuedMessages.length > 0 &&
+      selectedImageIndex === null
+    ) {
       const textarea = textareaRef.current;
-      if (textarea && textarea.selectionStart === 0 && textarea.selectionEnd === 0) {
+      if (
+        textarea &&
+        textarea.selectionStart === 0 &&
+        textarea.selectionEnd === 0
+      ) {
         e.preventDefault();
         setSelectedQueueIndex(queuedMessages.length - 1);
         return;
@@ -2408,13 +3598,23 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
 
     if (e.key === "ArrowUp" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
       const textarea = textareaRef.current;
-      if (textarea && textarea.selectionStart === 0 && textarea.selectionEnd === 0 && climbIntoTranscript()) {
+      if (
+        textarea &&
+        textarea.selectionStart === 0 &&
+        textarea.selectionEnd === 0 &&
+        climbIntoTranscript()
+      ) {
         e.preventDefault();
         return;
       }
     }
 
-    if (e.key === "Escape" && e.shiftKey && canStopAndSend && messageRef.current.trim()) {
+    if (
+      e.key === "Escape" &&
+      e.shiftKey &&
+      canStopAndSend &&
+      messageRef.current.trim()
+    ) {
       e.preventDefault();
       e.stopPropagation();
       stopAndSendComposerText();
@@ -2431,7 +3631,11 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       // An empty composer's Escape closes the panel open beside it before it can stop the turn,
       // and a quick second press (a double tap to dismiss) stops nothing either.
       if (!hasText && Date.now() < escapeQuietUntilRef.current) return;
-      if (!hasText && onEscapeClose) { onEscapeClose(); escapeQuietUntilRef.current = Date.now() + 400; return; }
+      if (!hasText && onEscapeClose) {
+        onEscapeClose();
+        escapeQuietUntilRef.current = Date.now() + 400;
+        return;
+      }
       // A hosted conversation has no agent to send Escape to: an empty
       // composer hands the keys back to the app, so its single-key layer
       // (?, j/k, c) works without the mouse.
@@ -2451,14 +3655,28 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       if (escapeTimerRef.current) {
         clearTimeout(escapeTimerRef.current);
         escapeTimerRef.current = null;
-        if (hasText) { setMessage(""); } else if (queuedMessages.length > 0) { setQueuedMessages([]); setSelectedQueueIndex(null); } else { onOpenNavigator?.(); }
+        if (hasText) {
+          setMessage("");
+        } else if (queuedMessages.length > 0) {
+          setQueuedMessages([]);
+          setSelectedQueueIndex(null);
+        } else {
+          onOpenNavigator?.();
+        }
       } else {
         if (hasText) {
-          escapeTimerRef.current = setTimeout(() => { escapeTimerRef.current = null; }, 250);
+          escapeTimerRef.current = setTimeout(() => {
+            escapeTimerRef.current = null;
+          }, 250);
         } else if (queuedMessages.length > 0) {
-          escapeTimerRef.current = setTimeout(() => { escapeTimerRef.current = null; }, 250);
+          escapeTimerRef.current = setTimeout(() => {
+            escapeTimerRef.current = null;
+          }, 250);
         } else {
-          escapeTimerRef.current = setTimeout(() => { escapeTimerRef.current = null; interruptTurn(); }, 250);
+          escapeTimerRef.current = setTimeout(() => {
+            escapeTimerRef.current = null;
+            interruptTurn();
+          }, 250);
         }
       }
       return;
@@ -2488,7 +3706,12 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       return;
     }
     // Send together: my draft and everyone else's in this composer, one turn.
-    if (e.key === "Enter" && e.altKey && (isMac ? e.metaKey : e.ctrlKey && e.shiftKey) && jointSendReady(conversationId)) {
+    if (
+      e.key === "Enter" &&
+      e.altKey &&
+      (isMac ? e.metaKey : e.ctrlKey && e.shiftKey) &&
+      jointSendReady(conversationId)
+    ) {
       e.preventDefault();
       armJointSend(conversationId);
       void handleSubmit(e);
@@ -2496,7 +3719,13 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     }
     // Fork-and-send: branch the session from its latest message and deliver the
     // composed text into the fork, leaving the parent thread untouched.
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && onForkTail) {
+    if (
+      e.key === "Enter" &&
+      (e.ctrlKey || e.metaKey) &&
+      e.shiftKey &&
+      !e.altKey &&
+      onForkTail
+    ) {
       e.preventDefault();
       handleForkSend();
       return;
@@ -2507,20 +3736,32 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
     // chord swallowed the comment with no error. There it posts instead, which
     // is what the composer's own hint promised and what anyone arriving from
     // GitHub presses.
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+    if (
+      e.key === "Enter" &&
+      (e.ctrlKey || e.metaKey) &&
+      !e.shiftKey &&
+      !e.altKey
+    ) {
       e.preventDefault();
-      if (onGateSend) { void handleSubmit(e); return; }
+      if (onGateSend) {
+        void handleSubmit(e);
+        return;
+      }
       queueFromComposer();
       return;
     }
     if (e.key === "Enter" && e.altKey && e.shiftKey && onSendAndDismiss) {
       e.preventDefault();
-      handleSubmit(e).then(saved => { if (saved !== false) onSendAndDismiss(); });
+      handleSubmit(e).then((saved) => {
+        if (saved !== false) onSendAndDismiss();
+      });
       return;
     }
     if (e.key === "Enter" && e.altKey && !e.shiftKey && onSendAndAdvance) {
       e.preventDefault();
-      handleSubmit(e).then(saved => { if (saved !== false) onSendAndAdvance(); });
+      handleSubmit(e).then((saved) => {
+        if (saved !== false) onSendAndAdvance();
+      });
       return;
     }
     if (e.key === "Enter" && !e.shiftKey) {
@@ -2542,42 +3783,119 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
   handleSubmitRef.current = handleSubmit;
   // Length is compared before the trim, so a message under the limit (every
   // ordinary keystroke) costs one number comparison here.
-  const typedLength = maxLength != null && message.length > maxLength ? message.trim().length : 0;
+  const typedLength =
+    maxLength != null && message.length > maxLength ? message.trim().length : 0;
   const overLimit = maxLength != null && typedLength > maxLength;
-  const canSubmit = (hasContent || reviewCount > 0) && !allowanceOut && !overLimit;
+  const canSubmit =
+    (hasContent || reviewCount > 0) && !allowanceOut && !overLimit;
   // When the send is carried entirely by attached quotes, tint the button cyan to
   // match the tray so it reads as "this sends the quotes".
   const quotesOnlySend = !hasContent && reviewCount > 0;
-  const { colWidth, colClass } = composerColumn({ inline, expanded: isExpanded });
+  const { colWidth, colClass } = composerColumn({
+    inline,
+    expanded: isExpanded,
+  });
   // A hosted turn at work with an empty box: the disc is the visible Stop
   // (store stopHostedTurn), so stopping never rests on a key a person who
   // does not code would not know.
-  const hostedStop = hostedConversation && (agentStatus === "working" || agentStatus === "thinking") && !canSubmit
-    ? { label: "Stop", onStop: () => useInboxStore.getState().stopHostedTurn(conversationId) }
-    : undefined;
+  const hostedStop =
+    hostedConversation &&
+    (agentStatus === "working" || agentStatus === "thinking") &&
+    !canSubmit
+      ? {
+          label: "Stop",
+          onStop: () => useInboxStore.getState().stopHostedTurn(conversationId),
+        }
+      : undefined;
   // A session's turn at work with nothing to send: the disc stops it.
-  const sessionStop = turnRunning && !canSubmit ? { label: "Stop", onStop: interruptTurn, accel: onEscapeClose ? undefined : "escape" } : undefined;
+  const sessionStop =
+    turnRunning && !canSubmit
+      ? {
+          label: "Stop",
+          onStop: interruptTurn,
+          accel: onEscapeClose ? undefined : "escape",
+        }
+      : undefined;
   // A session's turn at work with text in the box: a Stop square joins the
   // disc, so stopping first is part of sending.
-  const stopAndSend = canStopAndSend && hasContent && !onGateSend && !onWorkflowLaunch ? {
-    onStopAndSend: stopAndSendComposerText,
-    wrap: (square: ReactElement) => <ShortcutTooltip label="Stop the turn, then send" action="msg.stopSend" side="top">{square}</ShortcutTooltip>,
-  } : undefined;
+  const stopAndSend =
+    canStopAndSend && hasContent && !onGateSend && !onWorkflowLaunch
+      ? {
+          onStopAndSend: stopAndSendComposerText,
+          wrap: (square: ReactElement) => (
+            <ShortcutTooltip
+              label="Stop the turn, then send"
+              action="msg.stopSend"
+              side="top"
+            >
+              {square}
+            </ShortcutTooltip>
+          ),
+        }
+      : undefined;
   // The same pill's middle choice: hold the text for the end of the turn
   // (the shared queue, the same as its chord) rather than send it into the turn now. A session
   // the server queues for; a hosted one keeps its queue in this window.
   // The queue holds words only, so it is offered for words only.
-  const queueSend = stopAndSend && canSubmit && canQueryServer && !hostedConversation && !!message.trim() && pastedImages.length === 0 ? {
-    onQueue: queueFromComposer,
-    wrap: (button: ReactElement) => <ShortcutTooltip label="Send when this turn ends" accel={QUEUE_CHORD} side="top">{button}</ShortcutTooltip>,
-  } : undefined;
-  const sendButton = <>{overLimit && <span data-cc-over-limit role="status" title="Too long to send" className="text-meta tabular-nums text-sol-red whitespace-nowrap">{typedLength.toLocaleString()} / {maxLength!.toLocaleString()}</span>}<ComposerSendButton canSubmit={canSubmit} bare={bareComposer} quotesOnly={quotesOnlySend} title={allowanceOut ?? undefined} label={batchWords.button ?? undefined} stop={hostedStop ?? sessionStop} stopAndSend={stopAndSend} queueSend={queueSend} tip={(button, words, accel) => <ShortcutTooltip label={words} accel={accel} side="top">{button}</ShortcutTooltip>} /></>;
+  const queueSend =
+    stopAndSend &&
+    canSubmit &&
+    canQueryServer &&
+    !hostedConversation &&
+    !!message.trim() &&
+    pastedImages.length === 0
+      ? {
+          onQueue: queueFromComposer,
+          wrap: (button: ReactElement) => (
+            <ShortcutTooltip
+              label="Send when this turn ends"
+              accel={QUEUE_CHORD}
+              side="top"
+            >
+              {button}
+            </ShortcutTooltip>
+          ),
+        }
+      : undefined;
+  const sendButton = (
+    <>
+      {overLimit && (
+        <span
+          data-cc-over-limit
+          role="status"
+          title="Too long to send"
+          className="text-meta tabular-nums text-sol-red whitespace-nowrap"
+        >
+          {typedLength.toLocaleString()} / {maxLength!.toLocaleString()}
+        </span>
+      )}
+      <ComposerSendButton
+        canSubmit={canSubmit}
+        bare={bareComposer}
+        quotesOnly={quotesOnlySend}
+        title={allowanceOut ?? undefined}
+        label={batchWords.button ?? undefined}
+        stop={hostedStop ?? sessionStop}
+        stopAndSend={stopAndSend}
+        queueSend={queueSend}
+        tip={(button, words, accel) => (
+          <ShortcutTooltip label={words} accel={accel} side="top">
+            {button}
+          </ShortcutTooltip>
+        )}
+      />
+    </>
+  );
   // Expand, stash, hand off and fork: beside the text, or in the surface's foot
   // row next to send when it brings one.
   const rowActions = (
     <>
       {composeMode ? (
-        <ShortcutTooltip label="Collapse editor" action="compose.richToggle" side="top">
+        <ShortcutTooltip
+          label="Collapse editor"
+          action="compose.richToggle"
+          side="top"
+        >
           <button
             type="button"
             onClick={toggleCompose}
@@ -2587,22 +3905,33 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
             <Minimize2 className="w-3.5 h-3.5" />
           </button>
         </ShortcutTooltip>
-      ) : isMultiline && (
-        // A hosted conversation's phone composer is the text and Send alone.
-        <ShortcutTooltip label="Expand editor" action="compose.richToggle" side="top">
-          <button
-            type="button"
-            onClick={toggleCompose}
-            data-composer-expand
-            className={`w-7 h-7 rounded-full transition-colors flex items-center justify-center text-sol-text-dim/30 hover:text-sol-text-dim hover:bg-sol-bg/50 ${hostedConversation ? "max-md:hidden" : ""}`}
-            aria-label="Expand editor"
+      ) : (
+        isMultiline && (
+          // A hosted conversation's phone composer is the text and Send alone.
+          <ShortcutTooltip
+            label="Expand editor"
+            action="compose.richToggle"
+            side="top"
           >
-            <Maximize2 className="w-3 h-3" />
-          </button>
-        </ShortcutTooltip>
+            <button
+              type="button"
+              onClick={toggleCompose}
+              data-composer-expand
+              className={`w-7 h-7 rounded-full transition-colors flex items-center justify-center text-sol-text-dim/30 hover:text-sol-text-dim hover:bg-sol-bg/50 ${hostedConversation ? "max-md:hidden" : ""}`}
+              aria-label="Expand editor"
+            >
+              <Maximize2 className="w-3 h-3" />
+            </button>
+          </ShortcutTooltip>
+        )
       )}
       {onSendAndDismiss && canSubmit && !onGateSend && !onWorkflowLaunch && (
-        <ShortcutTooltip label="Send and stash" action="msg.sendDismiss" hint="the agent keeps running out of the inbox" side="top">
+        <ShortcutTooltip
+          label="Send and stash"
+          action="msg.sendDismiss"
+          hint="the agent keeps running out of the inbox"
+          side="top"
+        >
           <button
             type="button"
             onClick={handleSendAndStash}
@@ -2614,31 +3943,55 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
         </ShortcutTooltip>
       )}
       {canHandoff && (
-        <HandoffPicker owners={owners} conversationId={conversationId} note={composeMode && composeRef.current ? composeRef.current.getMarkdown() : message} open={handoffOpen} onOpenChange={openHandoff} onPick={handleHandoffPick}>
-          <ShortcutTooltip label="Hand off to a teammate" action="msg.handoff" hint="your message goes along as the note" side="top">
-          <button
-            type="button"
-            className={`w-7 h-7 rounded-full transition-colors flex items-center justify-center ${handoffOpen ? "text-sol-violet bg-sol-violet/15" : "text-[color-mix(in_srgb,var(--sol-text-dim)_40%,transparent)] hover:text-sol-violet hover:bg-sol-violet/10"}`}
-            aria-label="Hand off to a teammate"
-            onClick={() => openHandoff(!handoffOpen)}
+        <HandoffPicker
+          owners={owners}
+          conversationId={conversationId}
+          note={
+            composeMode && composeRef.current
+              ? composeRef.current.getMarkdown()
+              : message
+          }
+          open={handoffOpen}
+          onOpenChange={openHandoff}
+          onPick={handleHandoffPick}
+        >
+          <ShortcutTooltip
+            label="Hand off to a teammate"
+            action="msg.handoff"
+            hint="your message goes along as the note"
+            side="top"
           >
-            <ArrowRightLeft className="w-3.5 h-3.5" />
-          </button>
+            <button
+              type="button"
+              className={`w-7 h-7 rounded-full transition-colors flex items-center justify-center ${handoffOpen ? "text-sol-violet bg-sol-violet/15" : "text-[color-mix(in_srgb,var(--sol-text-dim)_40%,transparent)] hover:text-sol-violet hover:bg-sol-violet/10"}`}
+              aria-label="Hand off to a teammate"
+              onClick={() => openHandoff(!handoffOpen)}
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+            </button>
           </ShortcutTooltip>
         </HandoffPicker>
       )}
-      {onForkTail && !hostedConversation && canSubmit && !onGateSend && !onWorkflowLaunch && (
-        <ShortcutTooltip label="Fork and send" action="msg.forkSend" side="top">
-          <button
-            type="button"
-            onClick={handleForkSend}
-            className="w-7 h-7 rounded-full transition-colors flex items-center justify-center text-[color-mix(in_srgb,var(--sol-text-dim)_40%,transparent)] hover:text-sol-cyan hover:bg-sol-cyan/10"
-            aria-label="Fork and send"
+      {onForkTail &&
+        !hostedConversation &&
+        canSubmit &&
+        !onGateSend &&
+        !onWorkflowLaunch && (
+          <ShortcutTooltip
+            label="Fork and send"
+            action="msg.forkSend"
+            side="top"
           >
-            <Split className="w-3.5 h-3.5" />
-          </button>
-        </ShortcutTooltip>
-      )}
+            <button
+              type="button"
+              onClick={handleForkSend}
+              className="w-7 h-7 rounded-full transition-colors flex items-center justify-center text-[color-mix(in_srgb,var(--sol-text-dim)_40%,transparent)] hover:text-sol-cyan hover:bg-sol-cyan/10"
+              aria-label="Fork and send"
+            >
+              <Split className="w-3.5 h-3.5" />
+            </button>
+          </ShortcutTooltip>
+        )}
     </>
   );
 
@@ -2653,14 +4006,36 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
       composeMode={composeMode}
       selectionActive={isSelectionActive}
       onSubmit={handleFormSubmit}
-      foot={composerFoot && !composeMode ? <ComposerFoot start={composerFoot} end={<>{rowActions}{sendButton}</>} /> : undefined}
-      before={<>
-          <StopConfirm request={stopRequest} onClose={() => { setStopRequest(null); requestAnimationFrame(() => textareaRef.current?.focus()); }} />
+      foot={
+        composerFoot && !composeMode ? (
+          <ComposerFoot
+            start={composerFoot}
+            end={
+              <>
+                {rowActions}
+                {sendButton}
+              </>
+            }
+          />
+        ) : undefined
+      }
+      before={
+        <>
+          <StopConfirm
+            request={stopRequest}
+            onClose={() => {
+              setStopRequest(null);
+              requestAnimationFrame(() => textareaRef.current?.focus());
+            }}
+          />
           {serverDeleted && !isRestarting && canResume && (
-            <div className={`mx-auto mb-2 ${inline ? "" : "px-4"} ${colWidth} ${lightboxImageIndex !== null ? "hidden" : ""}`}>
+            <div
+              className={`mx-auto mb-2 ${inline ? "" : "px-4"} ${colWidth} ${lightboxImageIndex !== null ? "hidden" : ""}`}
+            >
               <div className="flex items-center justify-between gap-3 rounded-lg border border-sol-orange/40 bg-sol-orange/10 px-3 py-2">
                 <p className="text-[12px] text-sol-text">
-                  This conversation was deleted on the server — you&apos;re viewing a cached copy.
+                  This conversation was deleted on the server — you&apos;re
+                  viewing a cached copy.
                 </p>
                 <button
                   type="button"
@@ -2672,253 +4047,363 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
               </div>
             </div>
           )}
-          {!bareComposer && lightboxImageIndex === null && agentStatus === "compacting" && (
-            <LiveCompactionCard conversationId={conversationId} expanded={isExpanded} />
-          )}
+          {!bareComposer &&
+            lightboxImageIndex === null &&
+            agentStatus === "compacting" && (
+              <LiveCompactionCard
+                conversationId={conversationId}
+                expanded={isExpanded}
+              />
+            )}
           {caught && (
-            <div className={`mx-auto mb-2 ${inline ? "" : "px-4"} ${colWidth} ${lightboxImageIndex !== null ? "hidden" : ""}`}>
-              <ComposerCatch text={caught.text} found={caught.found} teamId={composeTeamId ? String(composeTeamId) : null} onSend={releaseCaught} onCancel={cancelCaught} />
+            <div
+              className={`mx-auto mb-2 ${inline ? "" : "px-4"} ${colWidth} ${lightboxImageIndex !== null ? "hidden" : ""}`}
+            >
+              <ComposerCatch
+                text={caught.text}
+                found={caught.found}
+                teamId={composeTeamId ? String(composeTeamId) : null}
+                onSend={releaseCaught}
+                onCancel={cancelCaught}
+              />
             </div>
           )}
-      </>}
-      meta={hostedConversation ? (
-                  <HostedStatusLine
-                    conversationId={conversationId}
-                    agentStatus={agentStatus}
-                    phrase={workingPhrase}
-                    sending={!!(pendingMessageId || existingPending || hasPendingSend)}
-                    allowanceOut={allowanceOut}
-                    escapeHint={!escapeCloses && isFocused && message.length === 0}
-                    awaitsOk={hostedAwaitsOk}
-                    stopInDisc={!!hostedStop && !bareComposer}
-                  />
-                ) : ((isSessionStarting && !agentStatus) || isAgentStarting) && !showStuckBanner ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
-                    Starting session...
-                  </span>
-                ) : pendingRowHoldReason(existingPending) ? (
-                  // Held on purpose: the message's bubble says why, and nothing is being processed.
-                  null
-                ) : (pendingMessageId || existingPending) && !showStuckBanner && (isAgentStarting || isAgentDelivering) ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
-                    {agentStatus === "resuming" ? "Resuming session..." : isAgentStarting ? "Starting session..." : "Delivering..."}
-                  </span>
-                ) : (pendingMessageId || existingPending) && !showStuckBanner && !agentStatus ? (
-                  runnerSilence ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-sol-text-dim/50" />
-                      Waiting for {runnerSilence}
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
-                      Processing...
-                    </span>
-                  )
-                ) : limitPhase.phase === "recovering" && !showStuckBanner ? (
-                  <span className="flex items-center gap-1.5 text-sol-cyan">
-                    <span className="w-2 h-2 rounded-full bg-sol-cyan animate-pulse" />
-                    {limitPhase.step === "resuming"
-                      ? "Recovering · picking up where it left off"
-                      : `Recovering · restarting on ${limitPhase.action.target ?? "an account with room"}`}
-                  </span>
-                ) : limitParkedAt != null && !showStuckBanner && (!agentStatus || agentStatus === "idle" || agentStatus === "connected") ? (
-                  <span className="flex items-center gap-1.5 text-amber-500">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    {limitResetAt != null && limitResetAt > limitNow
-                      ? `Usage limit · resets in ${formatCountdown(limitResetAt - limitNow)}`
-                      : limitResetAt != null
-                        ? "Usage limit · window open — send continue"
-                        : "Usage limit · parked until the window resets"}
-                  </span>
-                ) : isSessionReady && !showStuckBanner && (!agentStatus || agentStatus === "idle" || agentStatus === "connected") ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    Ready
-                  </span>
-                ) : showStuckBanner && sessionId ? (
-                  <span className="flex items-center gap-2">
-                    {isRestarting ? (
-                      <span className={`flex items-center gap-1.5 ${restartStage?.tone === "error" ? "text-sol-red" : restartStage?.tone === "warn" ? "text-sol-yellow" : "text-sol-orange"}`}>
-                        <span className={`w-2 h-2 rounded-full ${restartStage?.tone === "error" ? "bg-sol-red" : restartStage?.tone === "warn" ? "bg-sol-yellow" : "bg-sol-orange"} ${restartStage?.tone === "error" ? "" : "animate-pulse"}`} />
-                        {restartStage?.label ?? "Killing & restarting session…"}
-                      </span>
-                    ) : isResuming ? (
-                      isSessionStarting ? (
-                        <span className="flex items-center gap-1.5 text-sol-cyan">
-                          <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
-                          Starting session — waiting for agent to connect...
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1.5 text-sol-yellow">
-                          <span className="w-2 h-2 rounded-full bg-sol-yellow animate-pulse" />
-                          {restartStage?.label ?? "Waiting for connection…"}
-                        </span>
-                      )
-                    ) : (
-                      <span className="flex items-center gap-1.5 text-sol-orange">
-                        <span className="w-2 h-2 rounded-full bg-sol-orange" />
-                        Disconnected
-                      </span>
-                    )}
-                    {(pendingMessageId || existingPending) && (
-                      <button
-                        type="button"
-                        onClick={handleCancelMessage}
-                        className="text-meta text-sol-text-dim/60 hover:text-sol-orange underline underline-offset-2 transition-colors"
-                        title="Stop retrying and discard this message"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </span>
-                ) : agentStatus === "hibernated" ? (
-                  /* The parked session's one home in the conversation: the
+        </>
+      }
+      meta={
+        hostedConversation ? (
+          <HostedStatusLine
+            conversationId={conversationId}
+            agentStatus={agentStatus}
+            phrase={workingPhrase}
+            sending={!!(pendingMessageId || existingPending || hasPendingSend)}
+            allowanceOut={allowanceOut}
+            escapeHint={!escapeCloses && isFocused && message.length === 0}
+            awaitsOk={hostedAwaitsOk}
+            stopInDisc={!!hostedStop && !bareComposer}
+          />
+        ) : ((isSessionStarting && !agentStatus) || isAgentStarting) &&
+          !showStuckBanner ? (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
+            Starting session...
+          </span>
+        ) : pendingRowHoldReason(existingPending) ? null : (pendingMessageId || // Held on purpose: the message's bubble says why, and nothing is being processed.
+            existingPending) &&
+          !showStuckBanner &&
+          (isAgentStarting || isAgentDelivering) ? (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
+            {agentStatus === "resuming"
+              ? "Resuming session..."
+              : isAgentStarting
+                ? "Starting session..."
+                : "Delivering..."}
+          </span>
+        ) : (pendingMessageId || existingPending) &&
+          !showStuckBanner &&
+          !agentStatus ? (
+          runnerSilence ? (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-sol-text-dim/50" />
+              Waiting for {runnerSilence}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
+              Processing...
+            </span>
+          )
+        ) : limitPhase.phase === "recovering" && !showStuckBanner ? (
+          <span className="flex items-center gap-1.5 text-sol-cyan">
+            <span className="w-2 h-2 rounded-full bg-sol-cyan animate-pulse" />
+            {limitPhase.step === "resuming"
+              ? "Recovering · picking up where it left off"
+              : `Recovering · restarting on ${limitPhase.action.target ?? "an account with room"}`}
+          </span>
+        ) : limitParkedAt != null &&
+          !showStuckBanner &&
+          (!agentStatus ||
+            agentStatus === "idle" ||
+            agentStatus === "connected") ? (
+          <span className="flex items-center gap-1.5 text-amber-500">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            {limitResetAt != null && limitResetAt > limitNow
+              ? `Usage limit · resets in ${formatCountdown(limitResetAt - limitNow)}`
+              : limitResetAt != null
+                ? "Usage limit · window open — send continue"
+                : "Usage limit · parked until the window resets"}
+          </span>
+        ) : isSessionReady &&
+          !showStuckBanner &&
+          (!agentStatus ||
+            agentStatus === "idle" ||
+            agentStatus === "connected") ? (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            Ready
+          </span>
+        ) : showStuckBanner && sessionId ? (
+          <span className="flex items-center gap-2">
+            {isRestarting ? (
+              <span
+                className={`flex items-center gap-1.5 ${restartStage?.tone === "error" ? "text-sol-red" : restartStage?.tone === "warn" ? "text-sol-yellow" : "text-sol-orange"}`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${restartStage?.tone === "error" ? "bg-sol-red" : restartStage?.tone === "warn" ? "bg-sol-yellow" : "bg-sol-orange"} ${restartStage?.tone === "error" ? "" : "animate-pulse"}`}
+                />
+                {restartStage?.label ?? "Killing & restarting session…"}
+              </span>
+            ) : isResuming ? (
+              isSessionStarting ? (
+                <span className="flex items-center gap-1.5 text-sol-cyan">
+                  <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
+                  Starting session — waiting for agent to connect...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-sol-yellow">
+                  <span className="w-2 h-2 rounded-full bg-sol-yellow animate-pulse" />
+                  {restartStage?.label ?? "Waiting for connection…"}
+                </span>
+              )
+            ) : (
+              <span className="flex items-center gap-1.5 text-sol-orange">
+                <span className="w-2 h-2 rounded-full bg-sol-orange" />
+                Disconnected
+              </span>
+            )}
+            {(pendingMessageId || existingPending) && (
+              <button
+                type="button"
+                onClick={handleCancelMessage}
+                className="text-meta text-sol-text-dim/60 hover:text-sol-orange underline underline-offset-2 transition-colors"
+                title="Stop retrying and discard this message"
+              >
+                Cancel
+              </button>
+            )}
+          </span>
+        ) : agentStatus === "hibernated" ? (
+          /* The parked session's one home in the conversation: the
                      header and the inbox row stay quiet about it. */
-                  <span data-hibernated-marker className="flex items-center gap-1.5 text-sol-blue">
-                    <span className="w-2 h-2 rounded-full bg-sol-blue/70" />
-                    {HIBERNATED_COPY}
-                  </span>
-                ) : agentStatus === "thinking" ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-sol-violet/50 animate-pulse" />
-                    Thinking...
-                  </span>
-                ) : agentStatus === "compacting" ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-400/60 animate-pulse" />
-                    Compacting...
-                  </span>
-                ) : agentStatus === "permission_blocked" ? (
-                  <span className="flex items-center gap-1.5 text-sol-orange">
-                    <span className="w-2 h-2 rounded-full bg-sol-orange animate-pulse" />
-                    {(pendingPermissionsCount ?? 0) > 0 ? "Permission needed" : hasAskUserQuestion ? "Answer needed" : "Needs you"}
-                  </span>
-                ) : agentStatus === "connected" ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
-                    Connected
-                  </span>
-                ) : agentStatus === "working" ? (
-                  <WorkingStatusLine startedAt={workingSinceTs} phrase={workingPhrase} conversationId={conversationId} stopHint={!!onSendEscape && !onEscapeClose && !message.trim() && queuedMessages.length === 0} />
-                ) : agentStatus === "idle" && queuedMessages.length > 0 ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
-                    Sending queued ({queuedMessages.length})...
-                  </span>
-                ) : agentStatus === "idle" ? (
-                  "\u00A0"
-                ) : isThinking ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-sol-violet/50 animate-pulse" />
-                    Thinking...
-                  </span>
-                ) : isWaitingForResponse ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
-                    Connecting...
-                  </span>
-                ) : isConversationLive ? (
-                  <WorkingStatusLine startedAt={workingSinceTs} phrase={workingPhrase} conversationId={conversationId} stopHint={!!onSendEscape && !onEscapeClose && !message.trim() && queuedMessages.length === 0} />
-                ) : isSessionDisconnected ? (
-                  isResuming ? (
-                    <span className="flex items-center gap-1.5 text-sol-text-dim">
-                      <span className="w-2 h-2 rounded-full bg-sol-text-dim animate-pulse" />
-                      Restarting...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5 text-sol-text-dim/50">
-                      <span className="w-2 h-2 rounded-full bg-sol-text-dim/30" />
-                      Session idle
-                    </span>
-                  )
-                ) : hasPendingSend ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
-                    {hostedConversation ? "Sending…" : "Resuming session..."}
-                  </span>
-                ) : isInactive ? "Session idle — message to resume" : "\u00A0"}
+          <span
+            data-hibernated-marker
+            className="flex items-center gap-1.5 text-sol-blue"
+          >
+            <span className="w-2 h-2 rounded-full bg-sol-blue/70" />
+            {HIBERNATED_COPY}
+          </span>
+        ) : agentStatus === "thinking" ? (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sol-violet/50 animate-pulse" />
+            Thinking...
+          </span>
+        ) : agentStatus === "compacting" ? (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400/60 animate-pulse" />
+            Compacting...
+          </span>
+        ) : agentStatus === "permission_blocked" ? (
+          <span className="flex items-center gap-1.5 text-sol-orange">
+            <span className="w-2 h-2 rounded-full bg-sol-orange animate-pulse" />
+            {(pendingPermissionsCount ?? 0) > 0
+              ? "Permission needed"
+              : hasAskUserQuestion
+                ? "Answer needed"
+                : "Needs you"}
+          </span>
+        ) : agentStatus === "connected" ? (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
+            Connected
+          </span>
+        ) : agentStatus === "working" ? (
+          <WorkingStatusLine
+            startedAt={workingSinceTs}
+            phrase={workingPhrase}
+            conversationId={conversationId}
+            stopHint={
+              !!onSendEscape &&
+              !onEscapeClose &&
+              !message.trim() &&
+              queuedMessages.length === 0
+            }
+          />
+        ) : agentStatus === "idle" && queuedMessages.length > 0 ? (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
+            Sending queued ({queuedMessages.length})...
+          </span>
+        ) : agentStatus === "idle" ? (
+          "\u00A0"
+        ) : isThinking ? (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sol-violet/50 animate-pulse" />
+            Thinking...
+          </span>
+        ) : isWaitingForResponse ? (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
+            Connecting...
+          </span>
+        ) : isConversationLive ? (
+          <WorkingStatusLine
+            startedAt={workingSinceTs}
+            phrase={workingPhrase}
+            conversationId={conversationId}
+            stopHint={
+              !!onSendEscape &&
+              !onEscapeClose &&
+              !message.trim() &&
+              queuedMessages.length === 0
+            }
+          />
+        ) : isSessionDisconnected ? (
+          isResuming ? (
+            <span className="flex items-center gap-1.5 text-sol-text-dim">
+              <span className="w-2 h-2 rounded-full bg-sol-text-dim animate-pulse" />
+              Restarting...
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-sol-text-dim/50">
+              <span className="w-2 h-2 rounded-full bg-sol-text-dim/30" />
+              Session idle
+            </span>
+          )
+        ) : hasPendingSend ? (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-sol-cyan/50 animate-pulse" />
+            {hostedConversation ? "Sending…" : "Resuming session..."}
+          </span>
+        ) : isInactive ? (
+          "Session idle — message to resume"
+        ) : (
+          "\u00A0"
+        )
+      }
       // A hosted conversation has no Claude Code permission mode to cycle: its
       // status line owns the whole meta row.
-      metaEnd={<>
-                {acceptFiles && !hostedConversation && !composerFoot && onDropFiles && (
-                  <ComposerAttachButton dropRef={onDropFiles} anyFile className="flex h-5 w-5 items-center justify-center rounded text-sol-text-dim hover:text-sol-text transition-colors" />
-                )}
-                {sessionControl}
-                {permissionMode && !hostedConversation && (
-                  <div className="relative" data-composer-mode={permissionMode}>
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => { onCycleMode?.(); flashModeLabel(); }}
-                      onMouseEnter={() => setModeTooltip(true)}
-                      onMouseLeave={() => setModeTooltip(false)}
-                      className="flex items-center gap-1.5"
-                    >
-                      {/* The dot pulses while the daemon walks the session's
+      metaEnd={
+        <>
+          {acceptFiles &&
+            !hostedConversation &&
+            !composerFoot &&
+            onDropFiles && (
+              <ComposerAttachButton
+                dropRef={onDropFiles}
+                anyFile
+                className="flex h-5 w-5 items-center justify-center rounded text-sol-text-dim hover:text-sol-text transition-colors"
+              />
+            )}
+          {sessionControl}
+          {permissionMode && !hostedConversation && (
+            <div className="relative" data-composer-mode={permissionMode}>
+              <button
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onCycleMode?.();
+                  flashModeLabel();
+                }}
+                onMouseEnter={() => setModeTooltip(true)}
+                onMouseLeave={() => setModeTooltip(false)}
+                className="flex items-center gap-1.5"
+              >
+                {/* The dot pulses while the daemon walks the session's
                           cycle and reads the landing mode back off the pane;
                           it settles the moment the observed mode arrives. */}
-                      <div className={`w-2 h-2 rounded-full transition-colors ${permissionModePending ? "animate-pulse" : ""} ${
-                        permissionMode === "plan" ? "bg-sol-blue" :
-                        permissionMode === "acceptEdits" ? "bg-emerald-400" :
-                        permissionMode === "bypassPermissions" ? "bg-orange-500" :
-                        permissionMode === "auto" ? "bg-sol-violet" :
-                        permissionMode === "dontAsk" ? "bg-sol-yellow" :
-                        "bg-sol-text-dim/50"
-                      }`} />
-                      {/* The mode label appears for a beat when the mode
+                <div
+                  className={`w-2 h-2 rounded-full transition-colors ${permissionModePending ? "animate-pulse" : ""} ${
+                    permissionMode === "plan"
+                      ? "bg-sol-blue"
+                      : permissionMode === "acceptEdits"
+                        ? "bg-emerald-400"
+                        : permissionMode === "bypassPermissions"
+                          ? "bg-orange-500"
+                          : permissionMode === "auto"
+                            ? "bg-sol-violet"
+                            : permissionMode === "dontAsk"
+                              ? "bg-sol-yellow"
+                              : "bg-sol-text-dim/50"
+                  }`}
+                />
+                {/* The mode label appears for a beat when the mode
                           cycles, then collapses back to the dot. Hover the
                           dot for the full name. */}
-                      {permissionMode !== "default" && (
-                        <span
-                          className={`text-meta font-mono transition-[opacity,transform] duration-150 ease-out overflow-hidden whitespace-nowrap ${
-                            showModeLabel ? "max-w-[96px] opacity-100 translate-x-0" : "max-w-0 opacity-0 -translate-x-1"
-                          } ${
-                            permissionMode === "plan" ? "text-sol-blue" :
-                            permissionMode === "acceptEdits" ? "text-emerald-400" :
-                            permissionMode === "bypassPermissions" ? "text-orange-500" :
-                            permissionMode === "auto" ? "text-sol-violet" :
-                            "text-sol-yellow"
-                          }`}
-                        >
-                          {permissionMode === "plan" ? "plan" :
-                           permissionMode === "acceptEdits" ? "accept edits" :
-                           permissionMode === "bypassPermissions" ? "bypass" :
-                           permissionMode === "auto" ? "auto" :
-                           permissionMode === "dontAsk" ? "don't ask" :
-                           permissionMode}
-                        </span>
-                      )}
-                    </button>
-                    {modeTooltip && (
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-sol-bg border border-sol-border/60 shadow-lg whitespace-nowrap text-meta pointer-events-none flex items-center gap-1.5">
-                        <span className={
-                          permissionMode === "plan" ? "text-sol-blue" :
-                          permissionMode === "acceptEdits" ? "text-emerald-400" :
-                          permissionMode === "bypassPermissions" ? "text-orange-500" :
-                          permissionMode === "auto" ? "text-sol-violet" :
-                          permissionMode === "dontAsk" ? "text-sol-yellow" :
-                          "text-sol-text-dim"
-                        }>
-                          {permissionMode === "default" ? "default" :
-                           permissionMode === "plan" ? "plan mode" :
-                           permissionMode === "acceptEdits" ? "accept edits" :
-                           permissionMode === "bypassPermissions" ? "bypass permissions" :
-                           permissionMode === "auto" ? "auto mode" :
-                           permissionMode === "dontAsk" ? "don't ask" :
-                           permissionMode}
-                        </span>
-                        <span className="flex items-center gap-1 text-sol-text-dim/50">
-                          <KeyCap size="xs">{isMac ? "⇧" : "Shift"}</KeyCap>
-                          <KeyCap size="xs">Tab</KeyCap>
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                {permissionMode !== "default" && (
+                  <span
+                    className={`text-meta font-mono transition-[opacity,transform] duration-150 ease-out overflow-hidden whitespace-nowrap ${
+                      showModeLabel
+                        ? "max-w-[96px] opacity-100 translate-x-0"
+                        : "max-w-0 opacity-0 -translate-x-1"
+                    } ${
+                      permissionMode === "plan"
+                        ? "text-sol-blue"
+                        : permissionMode === "acceptEdits"
+                          ? "text-emerald-400"
+                          : permissionMode === "bypassPermissions"
+                            ? "text-orange-500"
+                            : permissionMode === "auto"
+                              ? "text-sol-violet"
+                              : "text-sol-yellow"
+                    }`}
+                  >
+                    {permissionMode === "plan"
+                      ? "plan"
+                      : permissionMode === "acceptEdits"
+                        ? "accept edits"
+                        : permissionMode === "bypassPermissions"
+                          ? "bypass"
+                          : permissionMode === "auto"
+                            ? "auto"
+                            : permissionMode === "dontAsk"
+                              ? "don't ask"
+                              : permissionMode}
+                  </span>
                 )}
-              </>}
-      between={<>
+              </button>
+              {modeTooltip && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-sol-bg border border-sol-border/60 shadow-lg whitespace-nowrap text-meta pointer-events-none flex items-center gap-1.5">
+                  <span
+                    className={
+                      permissionMode === "plan"
+                        ? "text-sol-blue"
+                        : permissionMode === "acceptEdits"
+                          ? "text-emerald-400"
+                          : permissionMode === "bypassPermissions"
+                            ? "text-orange-500"
+                            : permissionMode === "auto"
+                              ? "text-sol-violet"
+                              : permissionMode === "dontAsk"
+                                ? "text-sol-yellow"
+                                : "text-sol-text-dim"
+                    }
+                  >
+                    {permissionMode === "default"
+                      ? "default"
+                      : permissionMode === "plan"
+                        ? "plan mode"
+                        : permissionMode === "acceptEdits"
+                          ? "accept edits"
+                          : permissionMode === "bypassPermissions"
+                            ? "bypass permissions"
+                            : permissionMode === "auto"
+                              ? "auto mode"
+                              : permissionMode === "dontAsk"
+                                ? "don't ask"
+                                : permissionMode}
+                  </span>
+                  <span className="flex items-center gap-1 text-sol-text-dim/50">
+                    <KeyCap size="xs">{isMac ? "⇧" : "Shift"}</KeyCap>
+                    <KeyCap size="xs">Tab</KeyCap>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      }
+      between={
+        <>
           {/* The pinned thread state slots between the status line and the
               box: the status line says what the session is doing right now,
               the pinned state says where the work stands, the box is where you
@@ -2926,261 +4411,484 @@ export const MessageInput = memo(function MessageInput({ conversationId, status,
               them in. */}
           {threadStateNode}
           {composerNode}
-          {acTrigger && (acItems.length > 0 || (acTrigger.type === "@" && acServerLoading && !acQuery.includes(" "))) && (() => {
-            const chatKey = parseChatDraftKey(conversationId);
-            if (!acBox) return null;
-            return createPortal(
-              <div
-                className="fixed z-[10050]"
-                style={{ left: acBox.left, width: acBox.width, bottom: acBox.bottom }}
-              >
-                <MentionMenu
-                  style={{ maxHeight: acBox.maxHeight }}
-                  items={acItems}
-                  selectedIndex={clampedAcIndex}
-                  onHover={setAcIndex}
-                  onPick={(index) => applyAutocomplete(acItems[index])}
-                  query={acQuery}
-                  loading={acTrigger.type === "@" && acServerLoading}
-                  heading={acTrigger.type === "/" ? "Commands" : undefined}
-                  contextTitle={chatKey ? (chatKey.threadRootId ? "In this thread" : "In this channel") : "In this conversation"}
-                />
-              </div>,
-              document.body,
-            );
-          })()}
-      </>}
+          {acTrigger &&
+            (acItems.length > 0 ||
+              (acTrigger.type === "@" &&
+                acServerLoading &&
+                !acQuery.includes(" "))) &&
+            (() => {
+              const chatKey = parseChatDraftKey(conversationId);
+              if (!acBox) return null;
+              return createPortal(
+                <div
+                  className="fixed z-[10050]"
+                  style={{
+                    left: acBox.left,
+                    width: acBox.width,
+                    bottom: acBox.bottom,
+                  }}
+                >
+                  <MentionMenu
+                    style={{ maxHeight: acBox.maxHeight }}
+                    items={acItems}
+                    selectedIndex={clampedAcIndex}
+                    onHover={setAcIndex}
+                    onPick={(index) => applyAutocomplete(acItems[index])}
+                    query={acQuery}
+                    loading={acTrigger.type === "@" && acServerLoading}
+                    heading={acTrigger.type === "/" ? "Commands" : undefined}
+                    contextTitle={
+                      chatKey
+                        ? chatKey.threadRootId
+                          ? "In this thread"
+                          : "In this channel"
+                        : "In this conversation"
+                    }
+                  />
+                </div>,
+                document.body,
+              );
+            })()}
+        </>
+      }
       tab={branchControl}
-      fieldTop={<>
-              {isSelectionActive && (
-                <div className="flex items-center gap-2 pb-1.5 mb-1.5 border-b border-sol-cyan/20 text-meta text-sol-cyan">
-                  <span className="font-medium">Rewriting message</span>
-                  <span className="text-sol-text-dim">Enter to fork &amp; send</span>
-                  <span className="text-sol-text-dim">Esc to cancel</span>
-                </div>
-              )}
-              {branchMapNode}
-              {!bareComposer && <ReviewBar conversationId={conversationId} />}
-              {!bareComposer && queuedMessages.length > 0 && (
-                <div className="flex flex-col gap-1 pb-2 mb-2 border-b border-sol-border/50">
-                  {queuedMessages.map((qMsg, idx) => (
-                    <div
-                      key={idx}
-                      className={`group flex items-center gap-1.5 px-2 py-1 rounded text-meta cursor-pointer transition-colors ${
-                        selectedQueueIndex === idx
-                          ? "bg-sol-blue/15 border border-sol-blue/40 text-sol-text"
-                          : "bg-sol-bg/50 border border-sol-border/30 text-sol-text-secondary hover:border-sol-border/60"
-                      }`}
-                      onClick={() => {
-                        setSelectedQueueIndex(selectedQueueIndex === idx ? null : idx);
-                        textareaRef.current?.focus();
-                      }}
+      fieldTop={
+        <>
+          {isSelectionActive && (
+            <div className="flex items-center gap-2 pb-1.5 mb-1.5 border-b border-sol-cyan/20 text-meta text-sol-cyan">
+              <span className="font-medium">Rewriting message</span>
+              <span className="text-sol-text-dim">
+                Enter to fork &amp; send
+              </span>
+              <span className="text-sol-text-dim">Esc to cancel</span>
+            </div>
+          )}
+          {branchMapNode}
+          {!bareComposer && <ReviewBar conversationId={conversationId} />}
+          {!bareComposer && queuedMessages.length > 0 && (
+            <div className="flex flex-col gap-1 pb-2 mb-2 border-b border-sol-border/50">
+              {queuedMessages.map((qMsg, idx) => (
+                <div
+                  key={idx}
+                  className={`group flex items-center gap-1.5 px-2 py-1 rounded text-meta cursor-pointer transition-colors ${
+                    selectedQueueIndex === idx
+                      ? "bg-sol-blue/15 border border-sol-blue/40 text-sol-text"
+                      : "bg-sol-bg/50 border border-sol-border/30 text-sol-text-secondary hover:border-sol-border/60"
+                  }`}
+                  onClick={() => {
+                    setSelectedQueueIndex(
+                      selectedQueueIndex === idx ? null : idx,
+                    );
+                    textareaRef.current?.focus();
+                  }}
+                >
+                  <span className="text-sol-text-dim text-meta font-mono shrink-0">
+                    {idx + 1}
+                  </span>
+                  <span className="truncate flex-1 font-mono">{qMsg}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setQueuedMessages((prev) =>
+                        prev.filter((_, i) => i !== idx),
+                      );
+                      if (selectedQueueIndex === idx)
+                        setSelectedQueueIndex(null);
+                      else if (
+                        selectedQueueIndex !== null &&
+                        selectedQueueIndex > idx
+                      )
+                        setSelectedQueueIndex(selectedQueueIndex - 1);
+                    }}
+                    className="shrink-0 w-4 h-4 flex items-center justify-center rounded text-sol-text-dim hover:text-sol-text opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
                     >
-                      <span className="text-sol-text-dim text-meta font-mono shrink-0">{idx + 1}</span>
-                      <span className="truncate flex-1 font-mono">{qMsg}</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setQueuedMessages(prev => prev.filter((_, i) => i !== idx));
-                          if (selectedQueueIndex === idx) setSelectedQueueIndex(null);
-                          else if (selectedQueueIndex !== null && selectedQueueIndex > idx) setSelectedQueueIndex(selectedQueueIndex - 1);
-                        }}
-                        className="shrink-0 w-4 h-4 flex items-center justify-center rounded text-sol-text-dim hover:text-sol-text opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                  {selectedQueueIndex !== null && (
-                    <span className="text-meta text-sol-text-dim flex items-center gap-2 pl-1">
-                      <span className="inline-flex items-center gap-1"><KeyCap size="xs">↑</KeyCap><KeyCap size="xs">↓</KeyCap> navigate</span>
-                      <span className="inline-flex items-center gap-1"><KeyCap size="xs">Del</KeyCap> remove</span>
-                      <span className="inline-flex items-center gap-1"><KeyCap size="xs">Enter</KeyCap> edit</span>
-                      <span className="inline-flex items-center gap-1"><KeyCap size="xs">Esc</KeyCap> deselect</span>
-                    </span>
-                  )}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
                 </div>
+              ))}
+              {selectedQueueIndex !== null && (
+                <span className="text-meta text-sol-text-dim flex items-center gap-2 pl-1">
+                  <span className="inline-flex items-center gap-1">
+                    <KeyCap size="xs">↑</KeyCap>
+                    <KeyCap size="xs">↓</KeyCap> navigate
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <KeyCap size="xs">Del</KeyCap> remove
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <KeyCap size="xs">Enter</KeyCap> edit
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <KeyCap size="xs">Esc</KeyCap> deselect
+                  </span>
+                </span>
               )}
-              {screenRec.recording && (
-                <div className="flex items-center gap-2 pb-2 mb-2 border-b border-sol-border/50">
-                  <div className="group relative flex h-16 items-center gap-2 rounded-lg bg-sol-bg px-3 ring-1 ring-sol-border/40" title={screenRec.recording.file.name}>
-                    <MonitorPlay className="h-4 w-4 shrink-0 text-sol-cyan" />
-                    <div className="min-w-0">
-                      <div className="text-sm text-sol-text">Screen recording</div>
-                      <div className="text-meta tabular-nums text-sol-text-dim">
-                        {formatCallTime(screenRec.recording.durationMs)}
-                        {!screenRec.recording.uploaded && <span className="ml-2 text-sol-yellow">uploading</span>}
-                      </div>
-                    </div>
-                    <button type="button" onClick={screenRec.remove} aria-label="Remove recording" className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-sol-bg-alt border border-sol-border flex items-center justify-center text-sol-text-secondary hover:text-sol-text transition-colors opacity-0 group-hover:opacity-100">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+            </div>
+          )}
+          {screenRec.recording && (
+            <div className="flex items-center gap-2 pb-2 mb-2 border-b border-sol-border/50">
+              <div
+                className="group relative flex h-16 items-center gap-2 rounded-lg bg-sol-bg px-3 ring-1 ring-sol-border/40"
+                title={screenRec.recording.file.name}
+              >
+                <MonitorPlay className="h-4 w-4 shrink-0 text-sol-cyan" />
+                <div className="min-w-0">
+                  <div className="text-sm text-sol-text">Screen recording</div>
+                  <div className="text-meta tabular-nums text-sol-text-dim">
+                    {formatCallTime(screenRec.recording.durationMs)}
+                    {!screenRec.recording.uploaded && (
+                      <span className="ml-2 text-sol-yellow">uploading</span>
+                    )}
                   </div>
                 </div>
-              )}
-              {fileAttach.files.length > 0 && (
-                <div className="flex items-center gap-2 pb-2 mb-2 border-b border-sol-border/50 flex-wrap">
-                  {fileAttach.files.map((f) => (
-                    <div key={f.key} className="group relative flex h-9 max-w-[240px] items-center gap-2 rounded-lg bg-sol-bg px-2.5 ring-1 ring-sol-border/40" title={f.file.name}>
-                      <Paperclip className={`h-3.5 w-3.5 shrink-0 ${f.storageId ? "text-sol-cyan" : "text-sol-yellow"}`} />
-                      <span className="truncate text-sm text-sol-text">{f.file.name}</span>
-                      <button type="button" onClick={() => fileAttach.remove(f.key)} aria-label={`Remove ${f.file.name}`} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-sol-bg-alt border border-sol-border flex items-center justify-center text-sol-text-secondary hover:text-sol-text transition-colors opacity-0 group-hover:opacity-100">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {pastedImages.length > 0 && (
-                <div className="flex items-center gap-2 pb-2 mb-2 border-b border-sol-border/50 flex-wrap">
-                  {pastedImages.map((img, idx) => (
-                    <div
-                      key={idx}
-                      className="relative group cursor-pointer"
-                      onClick={() => {
-                        setSelectedImageIndex(idx);
-                        setLightboxImageIndex(idx);
-                        textareaRef.current?.focus();
-                      }}
+                <button
+                  type="button"
+                  onClick={screenRec.remove}
+                  aria-label="Remove recording"
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-sol-bg-alt border border-sol-border flex items-center justify-center text-sol-text-secondary hover:text-sol-text transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+          {fileAttach.files.length > 0 && (
+            <div className="flex items-center gap-2 pb-2 mb-2 border-b border-sol-border/50 flex-wrap">
+              {fileAttach.files.map((f) => (
+                <div
+                  key={f.key}
+                  className="group relative flex h-9 max-w-[240px] items-center gap-2 rounded-lg bg-sol-bg px-2.5 ring-1 ring-sol-border/40"
+                  title={f.file.name}
+                >
+                  <Paperclip
+                    className={`h-3.5 w-3.5 shrink-0 ${f.storageId ? "text-sol-cyan" : "text-sol-yellow"}`}
+                  />
+                  <span className="truncate text-sm text-sol-text">
+                    {f.file.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => fileAttach.remove(f.key)}
+                    aria-label={`Remove ${f.file.name}`}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-sol-bg-alt border border-sol-border flex items-center justify-center text-sol-text-secondary hover:text-sol-text transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
                     >
-                      <div className={`relative h-16 w-16 rounded-lg overflow-hidden bg-sol-bg shrink-0 transition-all ${selectedImageIndex === idx ? "ring-2 ring-sol-blue ring-offset-1 ring-offset-sol-bg" : ""}`}>
-                        <img src={img.previewUrl} alt="Pasted" className="h-full w-full object-cover" />
-                        {img.uploading && (
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <svg className="w-5 h-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); clearImage(idx); if (selectedImageIndex === idx) { setSelectedImageIndex(null); setLightboxImageIndex(null); } }} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-sol-bg-alt border border-sol-border flex items-center justify-center text-sol-text-secondary hover:text-sol-text transition-colors opacity-0 group-hover:opacity-100">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {pastedImages.length > 0 && (
+            <div className="flex items-center gap-2 pb-2 mb-2 border-b border-sol-border/50 flex-wrap">
+              {pastedImages.map((img, idx) => (
+                <div
+                  key={idx}
+                  className="relative group cursor-pointer"
+                  onClick={() => {
+                    setSelectedImageIndex(idx);
+                    setLightboxImageIndex(idx);
+                    textareaRef.current?.focus();
+                  }}
+                >
+                  <div
+                    className={`relative h-16 w-16 rounded-lg overflow-hidden bg-sol-bg shrink-0 transition-all ${selectedImageIndex === idx ? "ring-2 ring-sol-blue ring-offset-1 ring-offset-sol-bg" : ""}`}
+                  >
+                    <img
+                      src={img.previewUrl}
+                      alt="Pasted"
+                      className="h-full w-full object-cover"
+                    />
+                    {img.uploading && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <svg
+                          className="w-5 h-5 animate-spin text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
                         </svg>
-                      </button>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearImage(idx);
+                      if (selectedImageIndex === idx) {
+                        setSelectedImageIndex(null);
+                        setLightboxImageIndex(null);
+                      }
+                    }}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-sol-bg-alt border border-sol-border flex items-center justify-center text-sol-text-secondary hover:text-sol-text transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              {selectedImageIndex !== null && (
+                <span className="text-meta text-sol-text-dim ml-1 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1">
+                    <KeyCap size="xs">←</KeyCap>
+                    <KeyCap size="xs">→</KeyCap> navigate
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <KeyCap size="xs">Space</KeyCap> preview
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <KeyCap size="xs">Esc</KeyCap> exit
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
+        </>
+      }
+      after={
+        lightboxImageIndex !== null &&
+        pastedImages[lightboxImageIndex] &&
+        createPortal(
+          // Center the preview in the space ABOVE the composer, not the whole
+          // viewport: the composer stays visible over the lightbox (so you can
+          // keep typing), and a viewport-centered tall image would run behind and
+          // past it — worst in the compose dialog, where the composer sits
+          // mid-screen. paddingBottom pushes the centering box up to the
+          // composer's top edge; the img maxHeight clamps to that space so a
+          // vertical image fits it instead of 70vh of viewport.
+          (() => {
+            const composerTop =
+              composerRootRef.current?.getBoundingClientRect().top;
+            const reserved =
+              composerTop != null
+                ? Math.max(0, window.innerHeight - composerTop)
+                : 0;
+            const available =
+              composerTop != null ? Math.max(120, composerTop - 24) : undefined;
+            return (
+              <div
+                className="fixed inset-0 z-[10001] flex items-center justify-center"
+                style={{
+                  backgroundColor: `rgba(0,0,0,${0.8 * lightboxSwipe.backdropOpacity})`,
+                  paddingBottom: reserved,
+                  paddingTop: 12,
+                }}
+              >
+                <div className="absolute inset-0" onClick={dismissLightbox} />
+                <div
+                  className="relative"
+                  onClick={(e) => e.stopPropagation()}
+                  style={lightboxSwipe.style}
+                  {...lightboxSwipe.handlers}
+                >
+                  <img
+                    src={pastedImages[lightboxImageIndex].previewUrl}
+                    alt="Image preview"
+                    className="max-w-[85vw] max-h-[70vh] object-contain rounded-lg shadow-2xl"
+                    style={
+                      available != null ? { maxHeight: available } : undefined
+                    }
+                  />
+                  {pastedImages.length > 1 && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                      {pastedImages.map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-1.5 h-1.5 rounded-full transition-colors ${i === lightboxImageIndex ? "bg-white" : "bg-white/30"}`}
+                        />
+                      ))}
                     </div>
-                  ))}
-                  {selectedImageIndex !== null && (
-                    <span className="text-meta text-sol-text-dim ml-1 flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1"><KeyCap size="xs">←</KeyCap><KeyCap size="xs">→</KeyCap> navigate</span>
-                      <span className="inline-flex items-center gap-1"><KeyCap size="xs">Space</KeyCap> preview</span>
-                      <span className="inline-flex items-center gap-1"><KeyCap size="xs">Esc</KeyCap> exit</span>
-                    </span>
                   )}
                 </div>
-              )}
-      </>}
-      after={lightboxImageIndex !== null && pastedImages[lightboxImageIndex] && createPortal(
-        // Center the preview in the space ABOVE the composer, not the whole
-        // viewport: the composer stays visible over the lightbox (so you can
-        // keep typing), and a viewport-centered tall image would run behind and
-        // past it — worst in the compose dialog, where the composer sits
-        // mid-screen. paddingBottom pushes the centering box up to the
-        // composer's top edge; the img maxHeight clamps to that space so a
-        // vertical image fits it instead of 70vh of viewport.
-        (() => {
-          const composerTop = composerRootRef.current?.getBoundingClientRect().top;
-          const reserved = composerTop != null ? Math.max(0, window.innerHeight - composerTop) : 0;
-          const available = composerTop != null ? Math.max(120, composerTop - 24) : undefined;
-          return (
-        <div className="fixed inset-0 z-[10001] flex items-center justify-center" style={{ backgroundColor: `rgba(0,0,0,${0.8 * lightboxSwipe.backdropOpacity})`, paddingBottom: reserved, paddingTop: 12 }}>
-          <div className="absolute inset-0" onClick={dismissLightbox} />
-          <div className="relative" onClick={(e) => e.stopPropagation()} style={lightboxSwipe.style} {...lightboxSwipe.handlers}>
-            <img
-              src={pastedImages[lightboxImageIndex].previewUrl}
-              alt="Image preview"
-              className="max-w-[85vw] max-h-[70vh] object-contain rounded-lg shadow-2xl"
-              style={available != null ? { maxHeight: available } : undefined}
-            />
-            {pastedImages.length > 1 && (
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {pastedImages.map((_, i) => (
-                  <div key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === lightboxImageIndex ? "bg-white" : "bg-white/30"}`} />
-                ))}
               </div>
-            )}
+            );
+          })(),
+          composerRootRef.current?.closest<HTMLElement>(
+            '[role="dialog"][aria-modal="true"]',
+          ) ?? document.body,
+        )
+      }
+    >
+      {composeMode ? (
+        <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <Suspense fallback={null}>
+              <ComposeEditor
+                ref={composeRef}
+                initialContent={message}
+                onMentionQuery={composeMentionQuery}
+                onImagePaste={takeImage}
+                onSubmit={() =>
+                  handleFormSubmit({ preventDefault: () => {} } as any)
+                }
+                onExit={toggleCompose}
+                onContentChange={setComposeHasContent}
+                placeholder="Compose your message... / for commands, @ to mention"
+              />
+            </Suspense>
+          </div>
+          <div className="flex items-center justify-between pt-2 mt-1 border-t border-sol-border/20">
+            <span className="text-meta text-sol-text-dim/50 select-none">
+              {navigator.platform?.includes("Mac") ? "Cmd" : "Ctrl"}+Enter send
+              &middot; Esc collapse
+            </span>
+            <div ref={sendRef} className="flex items-center gap-1.5">
+              {rowActions}
+              {sendButton}
+            </div>
           </div>
         </div>
-          );
-        })(),
-        composerRootRef.current?.closest<HTMLElement>('[role="dialog"][aria-modal="true"]') ?? document.body
+      ) : (
+        <ComposerTextRow
+          rowRef={controlsRowRef}
+          sendRef={sendRef}
+          tucked={controlsTucked}
+          send={composerFoot ? undefined : sendButton}
+          actions={composerFoot ? undefined : rowActions}
+        >
+          <ComposerTextarea
+            ref={textareaRef}
+            data-chat-input
+            data-composer-field
+            data-draft-conv={conversationId}
+            value={message}
+            onChange={(e) => {
+              leaveStripSelection();
+              handleMessageChange(e.target.value);
+            }}
+            onMouseDown={leaveStripSelection}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => {
+              setIsFocused(false);
+              setAcTrigger(null);
+            }}
+            placeholder={
+              ghostVisible
+                ? ""
+                : (composerPlaceholder ??
+                  (bareComposer
+                    ? "Comment…"
+                    : onGateSend
+                      ? "Send a message to continue the workflow..."
+                      : onWorkflowLaunch
+                        ? "Goal override (optional) — press send to run workflow..."
+                        : reviewCount > 0
+                          ? (batchWords.placeholder ??
+                            `Send ${batchWords.quotes} quote${batchWords.quotes !== 1 ? "s" : ""} as-is, or add a reply first...`)
+                          : hostedConversation
+                            ? allowanceOut
+                              ? allowanceOut
+                              : hostedComposerWords(hostedLast, hostedAwaitsOk)
+                            : agentStatus === "permission_blocked"
+                              ? (pendingPermissionsCount ?? 0) > 0
+                                ? "Approve or deny permission to continue..."
+                                : hasAskUserQuestion
+                                  ? "Answer the question to continue..."
+                                  : "Send a message..."
+                              : "Send a message..."))
+            }
+            dim={isSelectionActive && !isSelectionEditedRef.current}
+          />
+          {shared.active && (
+            <SharedCarets
+              inputRef={textareaRef}
+              text={message}
+              rows={shared.others}
+              editors={shared.editors}
+            />
+          )}
+          {!bareComposer &&
+            suggestionsEnabled &&
+            !onGateSend &&
+            !onWorkflowLaunch &&
+            !hasAskUserQuestion && (
+              <ComposerSuggestion
+                ref={suggestionRef}
+                conversationId={conversationId}
+                idle={
+                  !isWaitingForResponse &&
+                  !isThinking &&
+                  !(agentStatus && ACTIVE_AGENT_STATUSES.has(agentStatus))
+                }
+                hidden={!!message || pastedImages.length > 0}
+                onAccept={(t) => {
+                  setMessage(t);
+                  messageRef.current = t;
+                  const ta = textareaRef.current;
+                  if (ta) {
+                    ta.focus();
+                    requestAnimationFrame(() =>
+                      ta.setSelectionRange(t.length, t.length),
+                    );
+                  }
+                }}
+                onShownChange={setGhostText}
+              />
+            )}
+        </ComposerTextRow>
       )}
-    >
-              {composeMode ? (
-                <div className="flex flex-col flex-1 min-h-0">
-                  <div className="flex-1 min-h-0 overflow-y-auto">
-                    <Suspense fallback={null}>
-                      <ComposeEditor
-                        ref={composeRef}
-                        initialContent={message}
-                        onMentionQuery={composeMentionQuery}
-                        onImagePaste={takeImage}
-                        onSubmit={() => handleFormSubmit({ preventDefault: () => {} } as any)}
-                        onExit={toggleCompose}
-                        onContentChange={setComposeHasContent}
-                        placeholder="Compose your message... / for commands, @ to mention"
-                      />
-                    </Suspense>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-sol-border/20">
-                    <span className="text-meta text-sol-text-dim/50 select-none">
-                      {navigator.platform?.includes("Mac") ? "Cmd" : "Ctrl"}+Enter send &middot; Esc collapse
-                    </span>
-                    <div ref={sendRef} className="flex items-center gap-1.5">
-                      {rowActions}
-                      {sendButton}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <ComposerTextRow
-                  rowRef={controlsRowRef}
-                  sendRef={sendRef}
-                  tucked={controlsTucked}
-                  send={composerFoot ? undefined : sendButton}
-                  actions={composerFoot ? undefined : rowActions}
-                >
-                  <ComposerTextarea
-                    ref={textareaRef}
-                    data-chat-input
-                    data-composer-field
-                    data-draft-conv={conversationId}
-                    value={message}
-                    onChange={(e) => { leaveStripSelection(); handleMessageChange(e.target.value); }}
-                    onMouseDown={leaveStripSelection}
-                    onKeyDown={handleKeyDown}
-                    onPaste={handlePaste}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => { setIsFocused(false); setAcTrigger(null); }}
-                    placeholder={ghostVisible ? "" : composerPlaceholder ?? (bareComposer ? "Comment…" : onGateSend ? "Send a message to continue the workflow..." : onWorkflowLaunch ? "Goal override (optional) — press send to run workflow..." : reviewCount > 0 ? (batchWords.placeholder ?? `Send ${batchWords.quotes} quote${batchWords.quotes !== 1 ? "s" : ""} as-is, or add a reply first...`) : hostedConversation ? (allowanceOut ? allowanceOut : hostedComposerWords(hostedLast, hostedAwaitsOk)) : agentStatus === "permission_blocked" ? ((pendingPermissionsCount ?? 0) > 0 ? "Approve or deny permission to continue..." : hasAskUserQuestion ? "Answer the question to continue..." : "Send a message...") : "Send a message...")}
-                    dim={isSelectionActive && !isSelectionEditedRef.current}
-                  />
-                  {shared.active && <SharedCarets inputRef={textareaRef} text={message} rows={shared.others} editors={shared.editors} />}
-                  {!bareComposer && suggestionsEnabled && !onGateSend && !onWorkflowLaunch && !hasAskUserQuestion && (
-                    <ComposerSuggestion
-                      ref={suggestionRef}
-                      conversationId={conversationId}
-                      idle={!isWaitingForResponse && !isThinking && !(agentStatus && ACTIVE_AGENT_STATUSES.has(agentStatus))}
-                      hidden={!!message || pastedImages.length > 0}
-                      onAccept={(t) => {
-                        setMessage(t);
-                        messageRef.current = t;
-                        const ta = textareaRef.current;
-                        if (ta) { ta.focus(); requestAnimationFrame(() => ta.setSelectionRange(t.length, t.length)); }
-                      }}
-                      onShownChange={setGhostText}
-                    />
-                  )}
-                </ComposerTextRow>
-              )}
     </ComposerShell>
   );
 });

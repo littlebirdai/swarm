@@ -131,7 +131,8 @@ const STEP = 50;
  *  next step. Zero for a file within the cap, which is not an offender. */
 function pinnedSize(source: string): number {
   // Trailing newline dropped first, so this agrees with `wc -l`.
-  const lines = source === "" ? 0 : source.replace(/\n$/, "").split("\n").length;
+  const lines =
+    source === "" ? 0 : source.replace(/\n$/, "").split("\n").length;
   return lines > CAP ? Math.ceil(lines / STEP) * STEP : 0;
 }
 
@@ -149,7 +150,8 @@ const result = checkRatchet({
   allowlist: ALLOWLIST,
   pin: PIN,
   fix: `Split it. A file over ${CAP} lines is not allowed to be new, and a listed one may not grow past its ${STEP}-line step.`,
-  pruneCommand: "cd packages/shared && RATCHET_WRITE=prune bun test ratchet/maxLines.ratchet.test.ts",
+  pruneCommand:
+    "cd packages/shared && RATCHET_WRITE=prune bun test ratchet/maxLines.ratchet.test.ts",
   minScanned: 1500,
   shrinkFloor: 0.9,
 });

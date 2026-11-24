@@ -4,7 +4,10 @@ import * as readline from "node:readline";
 
 /** The line typed in answer to `question`, untrimmed; "" on Ctrl C. */
 export async function askLine(question: string): Promise<string> {
-  const iface = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const iface = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
   try {
     return await new Promise<string>((resolve) => {
       iface.on("SIGINT", () => resolve(""));

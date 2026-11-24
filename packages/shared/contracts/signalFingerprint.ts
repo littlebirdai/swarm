@@ -6,7 +6,14 @@
 import { fnv1a32 } from "./inboxProjection";
 
 /** What a signal can say it saw (LE3). The door, the CLI and a repo's line profile share this list. */
-export const SIGNAL_KINDS = ["bug", "regression", "prompt_miss", "ux", "cohesion", "request"] as const;
+export const SIGNAL_KINDS = [
+  "bug",
+  "regression",
+  "prompt_miss",
+  "ux",
+  "cohesion",
+  "request",
+] as const;
 export type SignalKind = (typeof SIGNAL_KINDS)[number];
 
 /** An eval finding: a surface and the check (a gate, a verdict) or freeze id it concerns. */
@@ -36,7 +43,11 @@ const GROUP_FINGERPRINT_SEGMENT: Record<string, string> = {
  * `<segment>:<fp>` without. Groups store the unprefixed form (it is already
  * source-scoped by its index); signals use the prefixed one.
  */
-export function groupFingerprint(prefix: string | undefined, kind: string, fp: string): string {
+export function groupFingerprint(
+  prefix: string | undefined,
+  kind: string,
+  fp: string,
+): string {
   const segment = GROUP_FINGERPRINT_SEGMENT[kind] ?? kind;
   const head = prefix?.trim();
   return head ? `${head}:${segment}:${fp}` : `${segment}:${fp}`;
@@ -57,7 +68,10 @@ export function sentryIssueFingerprint(issueId: string | number): string {
  * they push the part that does (the function, the error) out of sight.
  */
 export function dropRequestIds(text: string): string {
-  return text.replace(/\s*[\[(]request[ _-]?id:?\s*[\w-]+[\])]/gi, "").replace(/ {2,}/g, " ").trim();
+  return text
+    .replace(/\s*[\[(]request[ _-]?id:?\s*[\w-]+[\])]/gi, "")
+    .replace(/ {2,}/g, " ")
+    .trim();
 }
 
 /**
@@ -69,7 +83,10 @@ export function dropRequestIds(text: string): string {
  */
 export function normalizeErrorMessage(message: string): string {
   return message
-    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "<uuid>")
+    .replace(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+      "<uuid>",
+    )
     .replace(/\b0x[0-9a-f]+\b/gi, "<hex>")
     .replace(/\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{8,}\b/gi, "<hex>")
     .replace(/\b(?=[a-z0-9]*\d)(?=[a-z0-9]*[a-z])[a-z0-9]{8,}\b/gi, "<id>")
@@ -125,7 +142,10 @@ export function parseStackFrame(raw: string): StackFrame | null {
     .replace(/[?#].*$/, "")
     .replace(/^[a-z]+:\/\/[^/]+/i, "")
     .replace(/[-.][A-Za-z0-9_]{8,}(?=\.(m?js|cjs|jsx?|tsx?)$)/, "");
-  const in_app = !/node_modules|^node:|^native|<anonymous>|^internal\/|chrome-extension:|webpack\/bootstrap/.test(loc);
+  const in_app =
+    !/node_modules|^node:|^native|<anonymous>|^internal\/|chrome-extension:|webpack\/bootstrap/.test(
+      loc,
+    );
   return { fn: (m[1] ?? "").trim(), loc, file, in_app };
 }
 
@@ -139,7 +159,8 @@ const CONVEX_RELAYED = /^\[CONVEX [QMA]\(([^)\s]+)\)\]/;
  * the one fix (do less work) ends all of them, so they are one error. A value
  * or a return value too large is another fix and stays its own error.
  */
-const CONVEX_LIMIT = /^(?:Uncaught Error: )?(?:Function execution timed out|Your request timed out|JavaScript execution ran out of memory|Too many (?:reads|bytes read|documents read))\b.*$/gm;
+const CONVEX_LIMIT =
+  /^(?:Uncaught Error: )?(?:Function execution timed out|Your request timed out|JavaScript execution ran out of memory|Too many (?:reads|bytes read|documents read))\b.*$/gm;
 
 /**
  * Where an error was thrown, as `fn@file`. A Convex error reaching the client
@@ -148,7 +169,10 @@ const CONVEX_LIMIT = /^(?:Uncaught Error: )?(?:Function execution timed out|Your
  * build. Its own message carries the server's stack when there is one, and
  * otherwise the function names the place.
  */
-export function errorCulprit(error: { message: string; stack?: string }): string | undefined {
+export function errorCulprit(error: {
+  message: string;
+  stack?: string;
+}): string | undefined {
   const relayed = CONVEX_RELAYED.exec(error.message.trimStart());
   if (relayed) return topInAppFrame(error.message) ?? relayed[1];
   return topInAppFrame(error.stack);
@@ -173,7 +197,11 @@ function errorKey(message: string): string {
  * An SDK error's fingerprint: the caller's own when it sent one, else a hash
  * of what the error says (errorKey) and where it was thrown (errorCulprit).
  */
-export function sdkErrorFingerprint(error: { message: string; stack?: string; fingerprint?: string }): string {
+export function sdkErrorFingerprint(error: {
+  message: string;
+  stack?: string;
+  fingerprint?: string;
+}): string {
   const explicit = error.fingerprint?.trim();
   if (explicit) return explicit;
   return hex8(`${errorKey(error.message)}|${errorCulprit(error) ?? ""}`);
@@ -189,7 +217,10 @@ export function checkFingerprint(id: string): string {
  * one check per repository and workflow name, so a red run after red counts
  * on the same group and a green one recovers it.
  */
-export function ciCheckFingerprint(repository: string, workflow: string): string {
+export function ciCheckFingerprint(
+  repository: string,
+  workflow: string,
+): string {
   return checkFingerprint(`ci:${repository.trim().toLowerCase()}:${workflow}`);
 }
 
@@ -210,8 +241,15 @@ export function isCiRunRecord(g: { kind: string; title: string }): boolean {
  * newest run a late one is checked against), but a monitor is an issue only
  * once it fails, so lists and counts leave these out.
  */
-export function isRecordNotIssue(g: { kind: string; title: string; count: number }): boolean {
-  return isCiRunRecord(g) || ((g.kind === "check" || g.kind === "metric") && g.count === 0);
+export function isRecordNotIssue(g: {
+  kind: string;
+  title: string;
+  count: number;
+}): boolean {
+  return (
+    isCiRunRecord(g) ||
+    ((g.kind === "check" || g.kind === "metric") && g.count === 0)
+  );
 }
 
 /**
@@ -230,10 +268,20 @@ export function replayIssueFingerprint(kind: string, failure: string): string {
  * page splits the kept samples the same way.
  */
 export function failureMessageKey(message: string | undefined | null): string {
-  const line = (message ?? "").split("\n").map((l) => l.trim()).find(Boolean) ?? "";
+  const line =
+    (message ?? "")
+      .split("\n")
+      .map((l) => l.trim())
+      .find(Boolean) ?? "";
   return line
-    .replace(/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?/g, "#")
-    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "#")
+    .replace(
+      /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?/g,
+      "#",
+    )
+    .replace(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+      "#",
+    )
     .replace(/\b(?=[0-9a-f]*\d)[0-9a-f]{12,}\b/gi, "#")
     .replace(/\d{6,}/g, "#")
     .replace(/\s+/g, " ")

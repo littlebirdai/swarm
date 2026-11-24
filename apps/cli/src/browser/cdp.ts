@@ -32,9 +32,17 @@ export type EventHandler = (ev: CdpEvent) => void;
  * work on both browsers.
  */
 export interface CdpClient {
-  send<T = any>(method: string, params?: Record<string, unknown>, sessionId?: string, timeoutMs?: number): Promise<T>;
+  send<T = any>(
+    method: string,
+    params?: Record<string, unknown>,
+    sessionId?: string,
+    timeoutMs?: number,
+  ): Promise<T>;
   on(handler: EventHandler): () => void;
-  waitFor(predicate: (ev: CdpEvent) => boolean, timeoutMs: number): Promise<CdpEvent>;
+  waitFor(
+    predicate: (ev: CdpEvent) => boolean,
+    timeoutMs: number,
+  ): Promise<CdpEvent>;
   close(): void;
 }
 
@@ -74,22 +82,34 @@ export class CdpConnection implements CdpClient {
 
   private constructor(private readonly url: string) {}
 
-  static async connect(webSocketDebuggerUrl: string, timeoutMs = 10_000): Promise<CdpConnection> {
+  static async connect(
+    webSocketDebuggerUrl: string,
+    timeoutMs = 10_000,
+  ): Promise<CdpConnection> {
     const conn = new CdpConnection(webSocketDebuggerUrl);
     await conn.open(timeoutMs);
     return conn;
   }
 
   /** Discover the browser-level socket from the CDP HTTP endpoint. */
-  static async fromPort(ep: CdpEndpoint, timeoutMs = 10_000): Promise<CdpConnection> {
-    return CdpConnection.connect(await browserSocketUrl(ep, timeoutMs), timeoutMs);
+  static async fromPort(
+    ep: CdpEndpoint,
+    timeoutMs = 10_000,
+  ): Promise<CdpConnection> {
+    return CdpConnection.connect(
+      await browserSocketUrl(ep, timeoutMs),
+      timeoutMs,
+    );
   }
 
   private open(timeoutMs: number): Promise<void> {
     return new Promise((resolve, reject) => {
       // Chrome sends large AX trees in one frame; the default 100MB max is fine
       // but permessage-deflate costs real CPU on every snapshot, so decline it.
-      const ws = new WebSocket(this.url, { perMessageDeflate: false, maxPayload: 256 * 1024 * 1024 });
+      const ws = new WebSocket(this.url, {
+        perMessageDeflate: false,
+        maxPayload: 256 * 1024 * 1024,
+      });
       this.ws = ws;
       const timer = setTimeout(() => {
         ws.terminate();
@@ -107,7 +127,8 @@ export class CdpConnection implements CdpClient {
       ws.on("close", () => {
         this.closed = true;
         // Fail every in-flight call rather than hanging the CLI forever.
-        for (const [, p] of this.pending) p.reject(new Error("CDP connection closed"));
+        for (const [, p] of this.pending)
+          p.reject(new Error("CDP connection closed"));
         this.pending.clear();
       });
       ws.on("message", (raw) => this.onMessage(String(raw)));
@@ -133,7 +154,11 @@ export class CdpConnection implements CdpClient {
       return;
     }
     if (msg.method) {
-      const ev: CdpEvent = { method: msg.method, params: msg.params ?? {}, sessionId: msg.sessionId };
+      const ev: CdpEvent = {
+        method: msg.method,
+        params: msg.params ?? {},
+        sessionId: msg.sessionId,
+      };
       for (const h of this.handlers) {
         try {
           h(ev);
@@ -161,7 +186,9 @@ export class CdpConnection implements CdpClient {
     timeoutMs = 30_000,
   ): Promise<T> {
     if (this.closed || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      return Promise.reject(new Error(`CDP connection is not open (${method})`));
+      return Promise.reject(
+        new Error(`CDP connection is not open (${method})`),
+      );
     }
     return new Promise<T>((resolve, reject) => {
       const id = this.nextId++;
@@ -169,12 +196,25 @@ export class CdpConnection implements CdpClient {
         this.pending.delete(id);
         reject(new CdpTimeout(method, timeoutMs));
       }, timeoutMs);
-      const settle = <R>(fn: (v: R) => void) => (v: R) => {
-        clearTimeout(timer);
-        fn(v);
-      };
-      this.pending.set(id, { resolve: settle(resolve), reject: settle(reject), method });
-      this.ws!.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+      const settle =
+        <R>(fn: (v: R) => void) =>
+        (v: R) => {
+          clearTimeout(timer);
+          fn(v);
+        };
+      this.pending.set(id, {
+        resolve: settle(resolve),
+        reject: settle(reject),
+        method,
+      });
+      this.ws!.send(
+        JSON.stringify({
+          id,
+          method,
+          params,
+          ...(sessionId ? { sessionId } : {}),
+        }),
+      );
     });
   }
 
@@ -190,7 +230,10 @@ export class CdpConnection implements CdpClient {
   }
 
   /** Resolve once `predicate` matches an event, or reject on timeout. */
-  waitFor(predicate: (ev: CdpEvent) => boolean, timeoutMs: number): Promise<CdpEvent> {
+  waitFor(
+    predicate: (ev: CdpEvent) => boolean,
+    timeoutMs: number,
+  ): Promise<CdpEvent> {
     return new Promise((resolve, reject) => {
       const off = this.on((ev) => {
         if (!predicate(ev)) return;
@@ -200,7 +243,9 @@ export class CdpConnection implements CdpClient {
       });
       const timer = setTimeout(() => {
         off();
-        reject(new Error(`timed out after ${timeoutMs}ms waiting for a CDP event`));
+        reject(
+          new Error(`timed out after ${timeoutMs}ms waiting for a CDP event`),
+        );
       }, timeoutMs);
     });
   }
@@ -236,24 +281,42 @@ export interface CdpTarget {
  *  to the front on purpose (the focus route, `tab --show`); the host lets no
  *  other socket raise the human's Chrome. */
 /** `profile` names the bridge's Chrome profile (bridge/links.ts id) a session's new tabs open in. */
-export type CdpEndpoint = number | { port: number; token?: string; session?: string; raise?: boolean; profile?: string };
+export type CdpEndpoint =
+  | number
+  | {
+      port: number;
+      token?: string;
+      session?: string;
+      raise?: boolean;
+      profile?: string;
+    };
 
 /** Longer than the host's own tab listing budget (host.ts listTabs, 40 s), so the host answers before the reader gives up. */
 export const BRIDGE_HTTP_TIMEOUT_MS = 45_000;
 
-export function cdpHttpTimeout(ep: CdpEndpoint, directMs = 5_000, bridgeMs = BRIDGE_HTTP_TIMEOUT_MS): number {
+export function cdpHttpTimeout(
+  ep: CdpEndpoint,
+  directMs = 5_000,
+  bridgeMs = BRIDGE_HTTP_TIMEOUT_MS,
+): number {
   return typeof ep !== "number" && ep.token ? bridgeMs : directMs;
 }
 
-const portOf = (ep: CdpEndpoint): number => (typeof ep === "number" ? ep : ep.port);
+const portOf = (ep: CdpEndpoint): number =>
+  typeof ep === "number" ? ep : ep.port;
 
 export function cdpHttpUrl(ep: CdpEndpoint, path: string): string {
   const url = new URL(`http://127.0.0.1:${portOf(ep)}${path}`);
-  if (typeof ep !== "number" && ep.token) url.searchParams.set("token", ep.token);
+  if (typeof ep !== "number" && ep.token)
+    url.searchParams.set("token", ep.token);
   return withSession(url.toString(), ep);
 }
 
-export async function readCdpJson<T>(ep: CdpEndpoint, route: string, timeoutMs = cdpHttpTimeout(ep)): Promise<T> {
+export async function readCdpJson<T>(
+  ep: CdpEndpoint,
+  route: string,
+  timeoutMs = cdpHttpTimeout(ep),
+): Promise<T> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
@@ -264,15 +327,21 @@ export async function readCdpJson<T>(ep: CdpEndpoint, route: string, timeoutMs =
     }, timeoutMs);
   });
   try {
-    const read = fetchBridge(cdpHttpUrl(ep, route), { signal: controller.signal }).then(async response => {
+    const read = fetchBridge(cdpHttpUrl(ep, route), {
+      signal: controller.signal,
+    }).then(async (response) => {
       if (!response.ok) {
         // The bridge host says why in the body (a stalled worker, a missing
         // extension); the reason is what the caller's retry reads (stall.ts).
         let reason = "";
         try {
-          reason = String(((await response.json()) as { error?: string }).error ?? "");
+          reason = String(
+            ((await response.json()) as { error?: string }).error ?? "",
+          );
         } catch {}
-        throw new Error(`CDP ${route} returned ${response.status}${reason ? ` — ${reason}` : ""}`);
+        throw new Error(
+          `CDP ${route} returned ${response.status}${reason ? ` — ${reason}` : ""}`,
+        );
       }
       return response.json() as Promise<T>;
     });
@@ -289,16 +358,27 @@ export async function readCdpJson<T>(ep: CdpEndpoint, route: string, timeoutMs =
  * `cdpHttpUrl`, so a token-carrying bridge endpoint is discovered the same way
  * as Chrome's own.
  */
-export async function browserSocketUrl(ep: CdpEndpoint, timeoutMs = 10_000): Promise<string> {
-  const body = await readCdpJson<{ webSocketDebuggerUrl?: string }>(ep, "/json/version", timeoutMs);
-  if (!body.webSocketDebuggerUrl) throw new Error(`CDP endpoint on port ${portOf(ep)} exposed no browser socket`);
+export async function browserSocketUrl(
+  ep: CdpEndpoint,
+  timeoutMs = 10_000,
+): Promise<string> {
+  const body = await readCdpJson<{ webSocketDebuggerUrl?: string }>(
+    ep,
+    "/json/version",
+    timeoutMs,
+  );
+  if (!body.webSocketDebuggerUrl)
+    throw new Error(
+      `CDP endpoint on port ${portOf(ep)} exposed no browser socket`,
+    );
   return withSession(body.webSocketDebuggerUrl, ep);
 }
 
 /** The bridge scopes a socket to the session named on its URL, and lets it
  *  raise tabs only with `raise=1`; Chrome ignores the query. */
 export function withSession(wsUrl: string, ep: CdpEndpoint): string {
-  if (typeof ep === "number" || (!ep.session && !ep.raise && !ep.profile)) return wsUrl;
+  if (typeof ep === "number" || (!ep.session && !ep.raise && !ep.profile))
+    return wsUrl;
   const u = new URL(wsUrl);
   if (ep.session) u.searchParams.set("session", ep.session);
   if (ep.raise) u.searchParams.set("raise", "1");
@@ -310,23 +390,52 @@ export function withSession(wsUrl: string, ep: CdpEndpoint): string {
  * List page targets over an open connection — one message on a socket we
  * already hold, instead of a fresh HTTP request.
  */
-export async function listTargetsVia(conn: CdpClient, timeoutMs = 5000): Promise<CdpTarget[]> {
-  const res = await conn.send<{ targetInfos: Array<Record<string, any>> }>("Target.getTargets", {}, undefined, timeoutMs);
+export async function listTargetsVia(
+  conn: CdpClient,
+  timeoutMs = 5000,
+): Promise<CdpTarget[]> {
+  const res = await conn.send<{ targetInfos: Array<Record<string, any>> }>(
+    "Target.getTargets",
+    {},
+    undefined,
+    timeoutMs,
+  );
   return res.targetInfos
     .filter((t) => t.type === "page")
-    .map((t) => ({ targetId: t.targetId, type: t.type, title: t.title ?? "", url: t.url ?? "", attached: t.attached }));
+    .map((t) => ({
+      targetId: t.targetId,
+      type: t.type,
+      title: t.title ?? "",
+      url: t.url ?? "",
+      attached: t.attached,
+    }));
 }
 
 /** List page targets via the HTTP endpoint (cheaper than attaching). */
-export async function listTargets(ep: CdpEndpoint, timeoutMs = cdpHttpTimeout(ep)): Promise<CdpTarget[]> {
-  const raw = await readCdpJson<Array<Record<string, any>>>(ep, "/json/list", timeoutMs);
+export async function listTargets(
+  ep: CdpEndpoint,
+  timeoutMs = cdpHttpTimeout(ep),
+): Promise<CdpTarget[]> {
+  const raw = await readCdpJson<Array<Record<string, any>>>(
+    ep,
+    "/json/list",
+    timeoutMs,
+  );
   return raw
     .filter((t) => t.type === "page")
-    .map((t) => ({ targetId: t.id, type: t.type, title: t.title ?? "", url: t.url ?? "" }));
+    .map((t) => ({
+      targetId: t.id,
+      type: t.type,
+      title: t.title ?? "",
+      url: t.url ?? "",
+    }));
 }
 
 /** True if a CDP endpoint is answering on this port. */
-export async function isCdpAlive(ep: CdpEndpoint, timeoutMs = 1500): Promise<boolean> {
+export async function isCdpAlive(
+  ep: CdpEndpoint,
+  timeoutMs = 1500,
+): Promise<boolean> {
   try {
     const res = await fetch(cdpHttpUrl(ep, "/json/version"), {
       signal: AbortSignal.timeout(timeoutMs),

@@ -59,18 +59,30 @@ describe("every emitted inbox row carries the projection stamp", () => {
   test("every projected row carries a stamp, the subagent child included", async () => {
     const { sessions } = await run(fixtures());
     for (const s of sessions) {
-      expect({ id: s._id.toString(), work_state: s.work_state, bucket: s.bucket }).toEqual({
+      expect({
+        id: s._id.toString(),
+        work_state: s.work_state,
+        bucket: s.bucket,
+      }).toEqual({
         id: s._id.toString(),
         work_state: expect.any(String),
         bucket: expect.any(String),
       });
     }
-    expect(sessions.map((s: any) => s._id.toString())).toContain("conversations_sub");
+    expect(sessions.map((s: any) => s._id.toString())).toContain(
+      "conversations_sub",
+    );
   });
 
   test("without projection:true the child stays unstamped — the web base list owns its own bucket", async () => {
-    const { sessions } = await computeInboxSessions({ db: fixtures() }, ME as any, { show_all: true });
-    const sub = sessions.find((s: any) => s._id.toString() === "conversations_sub");
+    const { sessions } = await computeInboxSessions(
+      { db: fixtures() },
+      ME as any,
+      { show_all: true },
+    );
+    const sub = sessions.find(
+      (s: any) => s._id.toString() === "conversations_sub",
+    );
     expect(sub.bucket).toBeUndefined();
     expect(sub.work_state).toBeUndefined();
   });
@@ -108,18 +120,31 @@ describe("a subagent named without its parent still answers", () => {
 
   test("the named read returns the worker alone, stamped, once", async () => {
     const { sessions } = await narrow(fixtures());
-    expect(sessions.map((s: any) => s._id.toString())).toEqual(["conversations_sub"]);
-    expect(sessions[0]).toMatchObject({ is_subagent: true, work_state: expect.any(String), bucket: expect.any(String) });
+    expect(sessions.map((s: any) => s._id.toString())).toEqual([
+      "conversations_sub",
+    ]);
+    expect(sessions[0]).toMatchObject({
+      is_subagent: true,
+      work_state: expect.any(String),
+      bucket: expect.any(String),
+    });
   });
 
   test("named with its parent, it is listed once, under it", async () => {
-    const { sessions } = await computeInboxSessions({ db: fixtures() }, ME as any, {
-      show_all: true,
-      projection: true,
-      extraConvIds: ["conversations_parent", "conversations_sub"],
-      namedOnly: true,
-    });
-    expect(sessions.map((s: any) => s._id.toString()).sort()).toEqual(["conversations_parent", "conversations_sub"]);
+    const { sessions } = await computeInboxSessions(
+      { db: fixtures() },
+      ME as any,
+      {
+        show_all: true,
+        projection: true,
+        extraConvIds: ["conversations_parent", "conversations_sub"],
+        namedOnly: true,
+      },
+    );
+    expect(sessions.map((s: any) => s._id.toString()).sort()).toEqual([
+      "conversations_parent",
+      "conversations_sub",
+    ]);
   });
 });
 
@@ -140,7 +165,15 @@ describe("one stampless row degrades to one missing row, never a dead inbox", ()
 
   test("the stampless row is skipped and counted; its neighbours still list", () => {
     const { counts, rows } = tallyInboxRows(
-      [row(), row({ _id: "conversations_bad", session_id: "sess-bad", work_state: undefined, bucket: undefined })],
+      [
+        row(),
+        row({
+          _id: "conversations_bad",
+          session_id: "sess-bad",
+          work_state: undefined,
+          bucket: undefined,
+        }),
+      ],
       { showAll: true, stateFilter: null, labelByConv: new Map() },
     );
     expect(counts.unstamped).toBe(1);

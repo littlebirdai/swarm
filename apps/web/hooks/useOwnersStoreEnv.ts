@@ -22,19 +22,26 @@ import type { OwnersEnv } from "./useOwners";
 /** The session row a conversation id names: the live session, else the
  *  conversation it was opened from. */
 function sessionRowOf(s: any, conversationId: string): any {
-  const live = typeof s.resolveLiveSessionId === "function" ? s.resolveLiveSessionId(conversationId) : conversationId;
+  const live =
+    typeof s.resolveLiveSessionId === "function"
+      ? s.resolveLiveSessionId(conversationId)
+      : conversationId;
   return s.sessions?.[live] ?? s.conversations?.[conversationId];
 }
 
 export function useStoreOwnersEnv(
   conversationId: string,
-  base: Pick<OwnersEnv, "teamMembers" | "currentUser"> & { notify: NonNullable<OwnersEnv["notify"]> },
+  base: Pick<OwnersEnv, "teamMembers" | "currentUser"> & {
+    notify: NonNullable<OwnersEnv["notify"]>;
+  },
 ): OwnersEnv {
   const { teamMembers, currentUser, notify } = base;
-  const starterIds = useInboxStore(useShallow((s) => {
-    const row = sessionRowOf(s, conversationId);
-    return [row?.author_user_id ?? null, row?.user_id ?? null] as const;
-  }));
+  const starterIds = useInboxStore(
+    useShallow((s) => {
+      const row = sessionRowOf(s, conversationId);
+      return [row?.author_user_id ?? null, row?.user_id ?? null] as const;
+    }),
+  );
   const implicitOwnerId = (() => {
     const isBot = (id: string) => {
       if (currentUser?._id === id) return !!currentUser.is_bot;
@@ -52,12 +59,22 @@ export function useStoreOwnersEnv(
     implicitOwnerId,
     notify,
     reparent: async (target, opts) => {
-      const r = await useInboxStore.getState().reparentOrgSession(conversationId, target, { note: opts.note });
+      const r = await useInboxStore
+        .getState()
+        .reparentOrgSession(conversationId, target, { note: opts.note });
       // Always a SESSION reparent here, whether the new parent is a person or a
       // role: the session is what is told. A stale session is DEFERRED rather
       // than woken, which still deserves the line — it says when it will read.
       if (r && (r.told?.sessions || r.told?.deferred)) {
-        notify(reparentToastLine(r.short_id ?? "The session", r.reports_to?.name ?? opts.parentName ?? "its new parent", "session", r.told), "success");
+        notify(
+          reparentToastLine(
+            r.short_id ?? "The session",
+            r.reports_to?.name ?? opts.parentName ?? "its new parent",
+            "session",
+            r.told,
+          ),
+          "success",
+        );
       } else if (opts.toastFallback) {
         notify(opts.toastFallback, "success");
       }
@@ -82,13 +99,23 @@ export function useSessionRoleFacts(conversationId: string) {
     return row ? ((row.team_id as string | undefined) ?? null) : undefined;
   });
   const liveRoles = roles.filter(
-    (r) => r.status !== "retired" && (sessionTeamId === undefined || !r.team_id || r.team_id === sessionTeamId),
+    (r) =>
+      r.status !== "retired" &&
+      (sessionTeamId === undefined ||
+        !r.team_id ||
+        r.team_id === sessionTeamId),
   );
   const orgRoleId = useInboxStore((s) => {
-    const live = (s as any).resolveLiveSessionId?.(conversationId) ?? conversationId;
-    return ((s.sessions as any)?.[live]?.org_role_id ?? (s.conversations as any)?.[conversationId]?.org_role_id) as string | undefined;
+    const live =
+      (s as any).resolveLiveSessionId?.(conversationId) ?? conversationId;
+    return ((s.sessions as any)?.[live]?.org_role_id ??
+      (s.conversations as any)?.[conversationId]?.org_role_id) as
+      | string
+      | undefined;
   });
-  const currentRole = orgRoleId ? liveRoles.find((r) => r._id === orgRoleId) : undefined;
+  const currentRole = orgRoleId
+    ? liveRoles.find((r) => r._id === orgRoleId)
+    : undefined;
   // A standing agent's own thread is a seat, not a hand: the server refuses to
   // file it under a role (sessionOwnership.performReparentSession), so the
   // menu does not offer it.
@@ -98,6 +125,9 @@ export function useSessionRoleFacts(conversationId: string) {
   });
   // A role's own session belongs to whom the role reports to (S28): its owner
   // changes by moving the role, never by a separate owner list.
-  const seatRoleId = useInboxStore((s) => sessionRowOf(s, conversationId)?.standing_role_id as string | undefined);
+  const seatRoleId = useInboxStore(
+    (s) =>
+      sessionRowOf(s, conversationId)?.standing_role_id as string | undefined,
+  );
   return { liveRoles, orgRoleId, currentRole, isStandingThread, seatRoleId };
 }

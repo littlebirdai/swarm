@@ -8,9 +8,16 @@
 import { isClosedSession } from "@codecast/shared/contracts";
 import type { Id } from "../_generated/dataModel";
 import { findConversationByAnyRefWhere } from "../conversationSessionLookup";
-import { checkConversationAccess, isVisibilityShareable, teamVisibleConvTeam } from "../privacy";
+import {
+  checkConversationAccess,
+  isVisibilityShareable,
+  teamVisibleConvTeam,
+} from "../privacy";
 import { effectiveMembershipVisibility } from "../teamVisibility";
-import { enqueuePendingMessage, formatSessionMessage } from "../pendingMessages";
+import {
+  enqueuePendingMessage,
+  formatSessionMessage,
+} from "../pendingMessages";
 import { wakeCost, wakeFieldsOf } from "../wakeCost";
 
 // Runner-or-team, exactly cast send's access rule: the running account may
@@ -33,7 +40,9 @@ export async function findOwnableConversation(
 // A person's name as the product shows it: display name, then login, then
 // the email's local part. Shared with the role reparent's line.
 export function personName(u: any): string {
-  return u?.name || u?.github_username || u?.email?.split("@")[0] || "a teammate";
+  return (
+    u?.name || u?.github_username || u?.email?.split("@")[0] || "a teammate"
+  );
 }
 
 // A team role's standing session is team visible, and its wake frame prints
@@ -42,20 +51,35 @@ export function personName(u: any): string {
 // A personal role (no team) has only its owner as a reader and takes any.
 const sessionVisibility = new WeakMap<object, Map<string, Promise<any>>>();
 
-export async function roleMayHoldSession(ctx: { db: any }, role: { team_id?: any }, c: any): Promise<boolean> {
+export async function roleMayHoldSession(
+  ctx: { db: any },
+  role: { team_id?: any },
+  c: any,
+): Promise<boolean> {
   if (!role.team_id) return true;
-  if (String(teamVisibleConvTeam(c) ?? "") !== String(role.team_id)) return false;
+  if (String(teamVisibleConvTeam(c) ?? "") !== String(role.team_id))
+    return false;
   let cache = sessionVisibility.get(ctx);
-  if (!cache) { cache = new Map(); sessionVisibility.set(ctx, cache); }
+  if (!cache) {
+    cache = new Map();
+    sessionVisibility.set(ctx, cache);
+  }
   const key = `${role.team_id}:${c.user_id}`;
   let membership = cache.get(key);
   if (!membership) {
-    membership = ctx.db.query("team_memberships").withIndex("by_user_team", (q: any) => q.eq("user_id", c.user_id).eq("team_id", role.team_id)).first();
+    membership = ctx.db
+      .query("team_memberships")
+      .withIndex("by_user_team", (q: any) =>
+        q.eq("user_id", c.user_id).eq("team_id", role.team_id),
+      )
+      .first();
     cache.set(key, membership!);
   }
   const m = await membership;
   // Per conversation: a "going forward" switch reads older sessions at the level they had.
-  return !!m && isVisibilityShareable(effectiveMembershipVisibility(m, c.started_at));
+  return (
+    !!m && isVisibilityShareable(effectiveMembershipVisibility(m, c.started_at))
+  );
 }
 
 // One message into the session, attributed to the acting person through the
@@ -75,10 +99,18 @@ export async function tellSession(
 ): Promise<"told" | "deferred"> {
   const actor = batch ? batch.actor : await ctx.db.get(authUserId);
   const fromRef = fromSession?.trim();
-  const sender = batch ? batch.sender : fromRef ? await findOwnableConversation(ctx, authUserId, fromRef) : null;
-  const fromShortId = sender ? (sender.short_id ?? sender._id.toString().slice(0, 7)) : "unknown";
+  const sender = batch
+    ? batch.sender
+    : fromRef
+      ? await findOwnableConversation(ctx, authUserId, fromRef)
+      : null;
+  const fromShortId = sender
+    ? (sender.short_id ?? sender._id.toString().slice(0, 7))
+    : "unknown";
   return sayIntoSession(ctx, authUserId, conversation, {
-    content: formatSessionMessage(fromShortId, body, { name: personName(actor) }),
+    content: formatSessionMessage(fromShortId, body, {
+      name: personName(actor),
+    }),
     client_id: `reparent:${conversation._id}:${moveKey}:${Date.now()}`,
     sender,
     human: !sender,
@@ -94,18 +126,29 @@ export async function sayIntoSession(
   ctx: { db: any },
   authUserId: Id<"users">,
   conversation: any,
-  line: { content: string; client_id: string; sender: any | null; human: boolean; hold?: boolean },
+  line: {
+    content: string;
+    client_id: string;
+    sender: any | null;
+    human: boolean;
+    hold?: boolean;
+  },
 ): Promise<"told" | "deferred"> {
   const crossUser = conversation.user_id.toString() !== authUserId.toString();
-  const cost = wakeCost({ ...conversation, ...wakeFieldsOf(conversation) }, Date.now());
-  const defer = !conversation.standing_role_id && (cost.killed || cost.cacheCold);
+  const cost = wakeCost(
+    { ...conversation, ...wakeFieldsOf(conversation) },
+    Date.now(),
+  );
+  const defer =
+    !conversation.standing_role_id && (cost.killed || cost.cacheCold);
   // A closed session (its seat included) is not woken for a product line: the
   // line is held and rides its next turn (closedSession.ts, machine notices).
   const hold = line.hold || isClosedSession(conversation);
   await enqueuePendingMessage(ctx, conversation, authUserId, {
     content: line.content,
     client_id: line.client_id,
-    from_conversation_id: crossUser && line.sender ? line.sender._id : undefined,
+    from_conversation_id:
+      crossUser && line.sender ? line.sender._id : undefined,
     human: line.human,
     defer,
     hold,
@@ -114,10 +157,15 @@ export async function sayIntoSession(
 }
 
 // The role's standing session: the row the role speaks from.
-export async function standingSessionOf(ctx: { db: any }, role: any): Promise<any | null> {
+export async function standingSessionOf(
+  ctx: { db: any },
+  role: any,
+): Promise<any | null> {
   return await ctx.db
     .query("conversations")
-    .withIndex("by_standing_role", (q: any) => q.eq("standing_role_id", role._id))
+    .withIndex("by_standing_role", (q: any) =>
+      q.eq("standing_role_id", role._id),
+    )
     .first();
 }
 
@@ -128,19 +176,44 @@ export async function standingSessionOf(ctx: { db: any }, role: any): Promise<an
 // fold into that patch; `tell` writes the line once the patch is in.
 export async function roleDropForVisibility(
   ctx: { db: any },
-  after: { _id: Id<"conversations">; user_id: Id<"users"> } & Record<string, any>,
-): Promise<{ patch: Record<string, undefined>; tell: () => Promise<void> } | null> {
+  after: { _id: Id<"conversations">; user_id: Id<"users"> } & Record<
+    string,
+    any
+  >,
+): Promise<{
+  patch: Record<string, undefined>;
+  tell: () => Promise<void>;
+} | null> {
   const row = await ctx.db.get(after._id);
   if (!row?.org_role_id) return null;
   const role = await ctx.db.get(row.org_role_id);
-  if (!role || await roleMayHoldSession(ctx, role, { ...row, ...after })) return null;
-  const patch: Record<string, undefined> = { org_role_id: undefined, org_role_hold: undefined };
+  if (!role || (await roleMayHoldSession(ctx, role, { ...row, ...after })))
+    return null;
+  const patch: Record<string, undefined> = {
+    org_role_id: undefined,
+    org_role_hold: undefined,
+  };
   const tell = async () => {
     const line = `This session is no longer visible to the team, so it left @${role.handle}.`;
     const moveKey = `left:${role._id}`;
-    await tellSession(ctx, row.user_id, { ...row, ...after, ...patch }, line, undefined, moveKey);
+    await tellSession(
+      ctx,
+      row.user_id,
+      { ...row, ...after, ...patch },
+      line,
+      undefined,
+      moveKey,
+    );
     const standing = await standingSessionOf(ctx, role);
-    if (standing) await tellSession(ctx, row.user_id, standing, `${row.short_id ?? String(row._id).slice(0, 7)} "${(row.title ?? "").trim()}" is no longer visible to the team, so it left @${role.handle}.`, undefined, moveKey);
+    if (standing)
+      await tellSession(
+        ctx,
+        row.user_id,
+        standing,
+        `${row.short_id ?? String(row._id).slice(0, 7)} "${(row.title ?? "").trim()}" is no longer visible to the team, so it left @${role.handle}.`,
+        undefined,
+        moveKey,
+      );
   };
   return { patch, tell };
 }

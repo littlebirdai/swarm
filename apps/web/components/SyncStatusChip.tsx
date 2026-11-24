@@ -6,7 +6,10 @@ import { useWatchEffect } from "../hooks/useWatchEffect";
 import { useInboxStore } from "../store/inboxStore";
 import { useLocalDaemonHealth } from "../hooks/useLocalDaemonHealth";
 import { connectionChipCopy, useAppOffline } from "../hooks/useAppOffline";
-import { describeDaemonHealth, type DaemonHealthCopy } from "../lib/daemonHealthCopy";
+import {
+  describeDaemonHealth,
+  type DaemonHealthCopy,
+} from "../lib/daemonHealthCopy";
 import { HoverCard } from "./ui/HoverCard";
 import { StatusPanelHeader, StatusPanelSection } from "./StatusPanel";
 
@@ -93,7 +96,10 @@ function collectionIsCold(s: SyncSelectorState, scope: string): boolean {
 }
 // Exported for the regression test: { settled, total } over everything the
 // pill watches. total === 0 means idle.
-export function selectSyncSummary(s: SyncSelectorState): { settled: number; total: number } {
+export function selectSyncSummary(s: SyncSelectorState): {
+  settled: number;
+  total: number;
+} {
   let settled = 0;
   let total = 0;
   for (const lag of Object.values(s.syncLogLag ?? {})) {
@@ -152,11 +158,14 @@ const knownScopeRank = (scope: string) => {
 // treated as cold because the collection was empty or unmapped) must not keep
 // a "✓ up to date" row on an otherwise idle panel.
 export function selectRosterScopes(s: SyncSelectorState): string[] {
-  const coldLabeled = Object.keys(s.liveLoading)
-    .filter((scope) => SCOPE_LABELS[scope] && collectionIsCold(s, scope));
+  const coldLabeled = Object.keys(s.liveLoading).filter(
+    (scope) => SCOPE_LABELS[scope] && collectionIsCold(s, scope),
+  );
   const wave = coldLabeled.some((scope) => s.liveLoading[scope]);
   if (!wave) return [];
-  return coldLabeled.sort((a, b) => knownScopeRank(a) - knownScopeRank(b) || a.localeCompare(b));
+  return coldLabeled.sort(
+    (a, b) => knownScopeRank(a) - knownScopeRank(b) || a.localeCompare(b),
+  );
 }
 
 export function SyncStatusChip() {
@@ -183,7 +192,8 @@ export function SyncStatusChip() {
   const daemonHealth = useLocalDaemonHealth();
   const appOffline = useAppOffline();
   const connection = mounted ? connectionChipCopy(appOffline) : null;
-  const daemonIssue = mounted && !appOffline.offline ? describeDaemonHealth(daemonHealth) : null;
+  const daemonIssue =
+    mounted && !appOffline.offline ? describeDaemonHealth(daemonHealth) : null;
 
   // Arm a timer when sync starts; trip the slow state if it's still going past
   // the threshold. Reset the moment sync settles (the timer is cleared too).
@@ -206,14 +216,29 @@ export function SyncStatusChip() {
   // The panel still lists it.
   const active = mounted && (coldLoad || stalled || !!connection);
   if (!active && !daemonIssue) return null;
-  const color = connection || stalled ? "var(--sol-yellow)" : active ? "var(--sol-cyan)" : "var(--sol-green)";
+  const color =
+    connection || stalled
+      ? "var(--sol-yellow)"
+      : active
+        ? "var(--sol-cyan)"
+        : "var(--sol-green)";
   return (
     <HoverCard
       side="bottom"
       align="end"
       className="w-[280px]"
       focusable
-      card={mounted && <SyncDetailPanel syncing={syncing} stalled={stalled} color={color} daemonIssue={daemonIssue} connection={connection} />}
+      card={
+        mounted && (
+          <SyncDetailPanel
+            syncing={syncing}
+            stalled={stalled}
+            color={color}
+            daemonIssue={daemonIssue}
+            connection={connection}
+          />
+        )
+      }
     >
       <button
         type="button"
@@ -234,7 +259,19 @@ export function SyncStatusChip() {
 // Hover detail: the only consumer of the churning `liveLoading` / `syncProgress`
 // objects. Mounted solely while the pill is hovered, so their per-page identity
 // churn costs nothing the rest of the time.
-function SyncDetailPanel({ syncing, stalled, color, daemonIssue, connection }: { syncing: boolean; stalled: boolean; color: string; daemonIssue: DaemonHealthCopy | null; connection: ReturnType<typeof connectionChipCopy> }) {
+function SyncDetailPanel({
+  syncing,
+  stalled,
+  color,
+  daemonIssue,
+  connection,
+}: {
+  syncing: boolean;
+  stalled: boolean;
+  color: string;
+  daemonIssue: DaemonHealthCopy | null;
+  connection: ReturnType<typeof connectionChipCopy>;
+}) {
   const liveLoading = useInboxStore((s) => s.liveLoading);
   const settled = useInboxStore((s) => selectSyncSummary(s).settled);
   const total = useInboxStore((s) => selectSyncSummary(s).total);
@@ -245,30 +282,77 @@ function SyncDetailPanel({ syncing, stalled, color, daemonIssue, connection }: {
   const scopes = rosterKey ? rosterKey.split(",") : [];
   const behind = Object.entries(syncLogLag).filter(([, lag]) => lag > 0);
   const logScopeLabel = (scope: string) =>
-    scope.startsWith("user:") ? "Your workspace" : scope.startsWith("team:") ? "Team workspace" : scope;
+    scope.startsWith("user:")
+      ? "Your workspace"
+      : scope.startsWith("team:")
+        ? "Team workspace"
+        : scope;
   const crawls = Object.entries(syncProgress)
     .filter(([, p]) => p.loading)
-    .sort(([a], [b]) => knownScopeRank(a) - knownScopeRank(b) || a.localeCompare(b));
-  const headline = connection?.label ?? daemonIssue?.label ?? (!syncing ? "Up to date" : stalled ? "Sync is slow" : "Syncing the latest data");
-  const hasBody = !!connection || !!daemonIssue || !syncing || applyStats.direct > 0 || applyStats.refetch > 0 || behind.length > 0 || scopes.length > 0;
+    .sort(
+      ([a], [b]) => knownScopeRank(a) - knownScopeRank(b) || a.localeCompare(b),
+    );
+  const headline =
+    connection?.label ??
+    daemonIssue?.label ??
+    (!syncing
+      ? "Up to date"
+      : stalled
+        ? "Sync is slow"
+        : "Syncing the latest data");
+  const hasBody =
+    !!connection ||
+    !!daemonIssue ||
+    !syncing ||
+    applyStats.direct > 0 ||
+    applyStats.refetch > 0 ||
+    behind.length > 0 ||
+    scopes.length > 0;
   return (
     <div className="min-w-0">
-      <StatusPanelHeader kicker="Sync status" color={color} headline={headline} aside={syncing && total > 1 ? `${settled}/${total}` : undefined} />
+      <StatusPanelHeader
+        kicker="Sync status"
+        color={color}
+        headline={headline}
+        aside={syncing && total > 1 ? `${settled}/${total}` : undefined}
+      />
       {hasBody && (
         <StatusPanelSection className="space-y-1.5">
-          {connection ? <p className="text-xs leading-snug text-sol-text-dim">{connection.detail}</p> : daemonIssue ? <div className="space-y-1.5 text-xs leading-snug text-sol-text-dim">
-            <p>{daemonIssue.detail}</p>
-            <p>Check the affected machine with <code>{daemonIssue.command}</code>.</p>
-          </div> : !syncing && <p className="text-xs leading-snug text-sol-text-dim">New changes arrive automatically.</p>}
+          {connection ? (
+            <p className="text-xs leading-snug text-sol-text-dim">
+              {connection.detail}
+            </p>
+          ) : daemonIssue ? (
+            <div className="space-y-1.5 text-xs leading-snug text-sol-text-dim">
+              <p>{daemonIssue.detail}</p>
+              <p>
+                Check the affected machine with{" "}
+                <code>{daemonIssue.command}</code>.
+              </p>
+            </div>
+          ) : (
+            !syncing && (
+              <p className="text-xs leading-snug text-sol-text-dim">
+                New changes arrive automatically.
+              </p>
+            )
+          )}
           {(applyStats.direct > 0 || applyStats.refetch > 0) && (
             <p className="text-meta leading-snug tabular-nums text-sol-text-dim">
               {applyStats.direct.toLocaleString()} applied
-              {applyStats.refetch > 0 && <> · {applyStats.refetch.toLocaleString()} refetched</>}
+              {applyStats.refetch > 0 && (
+                <> · {applyStats.refetch.toLocaleString()} refetched</>
+              )}
             </p>
           )}
           {behind.map(([scope, lag]) => (
-            <div key={scope} className="flex min-w-0 items-center gap-2 text-xs">
-              <span className="min-w-0 truncate text-sol-text">{logScopeLabel(scope)}</span>
+            <div
+              key={scope}
+              className="flex min-w-0 items-center gap-2 text-xs"
+            >
+              <span className="min-w-0 truncate text-sol-text">
+                {logScopeLabel(scope)}
+              </span>
               <span className="ml-auto flex shrink-0 items-center gap-1.5 tabular-nums text-sol-text-dim">
                 <Loader2 className="h-3 w-3 animate-spin" style={{ color }} />
                 {lag.toLocaleString()} behind
@@ -276,8 +360,13 @@ function SyncDetailPanel({ syncing, stalled, color, daemonIssue, connection }: {
             </div>
           ))}
           {scopes.map((scope) => (
-            <div key={scope} className="flex min-w-0 items-center gap-2 text-xs">
-              <span className="min-w-0 truncate text-sol-text">{scopeLabel(scope)}</span>
+            <div
+              key={scope}
+              className="flex min-w-0 items-center gap-2 text-xs"
+            >
+              <span className="min-w-0 truncate text-sol-text">
+                {scopeLabel(scope)}
+              </span>
               {liveLoading[scope] ? (
                 <span className="ml-auto flex shrink-0 items-center gap-1.5 text-sol-text-dim">
                   <Loader2 className="h-3 w-3 animate-spin" style={{ color }} />
@@ -300,23 +389,32 @@ function SyncDetailPanel({ syncing, stalled, color, daemonIssue, connection }: {
           </div>
           <div className="space-y-1.5">
             {crawls.map(([scope, p]) => (
-              <div key={scope} className="flex min-w-0 items-center gap-2 text-xs">
-                <span className="min-w-0 truncate text-sol-text">{scopeLabel(scope)}</span>
+              <div
+                key={scope}
+                className="flex min-w-0 items-center gap-2 text-xs"
+              >
+                <span className="min-w-0 truncate text-sol-text">
+                  {scopeLabel(scope)}
+                </span>
                 <span className="ml-auto flex shrink-0 items-center gap-1.5 tabular-nums text-sol-text-dim">
                   <Loader2 className="h-3 w-3 animate-spin opacity-60" />
-                  {p.loaded > 0 ? `${p.loaded.toLocaleString()} rows` : "starting"}
+                  {p.loaded > 0
+                    ? `${p.loaded.toLocaleString()} rows`
+                    : "starting"}
                 </span>
               </div>
             ))}
           </div>
           <div className="pt-1.5 text-meta leading-snug text-sol-text-dim">
-            Older items stream in at a throttled pace. The app is usable meanwhile.
+            Older items stream in at a throttled pace. The app is usable
+            meanwhile.
           </div>
         </StatusPanelSection>
       )}
       {stalled && !connection && (
         <StatusPanelSection className="text-meta leading-snug text-sol-yellow">
-          Still waiting on the server. Recent data can be incomplete until this settles.
+          Still waiting on the server. Recent data can be incomplete until this
+          settles.
         </StatusPanelSection>
       )}
     </div>

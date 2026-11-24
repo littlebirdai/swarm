@@ -43,7 +43,8 @@ export function decideNotificationNudge(args: {
   // only when a person wrote it and the snooze has already held for a day;
   // dismissing again waits for the next such miss (or expiry).
   if (miss && miss.at > snoozedAt) {
-    const overrides = miss.fromPerson && now - snoozedAt >= NUDGE_MISS_OVERRIDE_AFTER_MS;
+    const overrides =
+      miss.fromPerson && now - snoozedAt >= NUDGE_MISS_OVERRIDE_AFTER_MS;
     if (!snoozed || overrides) return { show: true, escalated: true, miss };
   }
   if (snoozed) return { show: false };
@@ -61,7 +62,9 @@ export function decideNotificationNudge(args: {
 const MISS_EVENT = "codecast-notification-miss";
 let lastMiss: NotificationMiss | null = null;
 
-export function recordNotificationMiss(miss: Omit<NotificationMiss, "at">): void {
+export function recordNotificationMiss(
+  miss: Omit<NotificationMiss, "at">,
+): void {
   // A person messaging never gets downgraded by a later work-item miss; the
   // reverse upgrade is fine.
   if (lastMiss && lastMiss.fromPerson && !miss.fromPerson) {
@@ -69,7 +72,8 @@ export function recordNotificationMiss(miss: Omit<NotificationMiss, "at">): void
   } else {
     lastMiss = { ...miss, at: Date.now() };
   }
-  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(MISS_EVENT));
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new CustomEvent(MISS_EVENT));
 }
 
 export function getLastNotificationMiss(): NotificationMiss | null {

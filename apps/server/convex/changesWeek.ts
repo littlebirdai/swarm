@@ -16,7 +16,12 @@
 // was asked about.
 
 import { v } from "convex/values";
-import { internalAction, internalMutation, internalQuery, type MutationCtx } from "./functions";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  type MutationCtx,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
@@ -35,11 +40,25 @@ import {
   type WeekRelease,
   type WeekStats,
 } from "@codecast/shared/changes";
-import { STRONG_MODEL, callModel, parseJsonBlock, type SurfaceRequest } from "./lib/anthropic";
+import {
+  STRONG_MODEL,
+  callModel,
+  parseJsonBlock,
+  type SurfaceRequest,
+} from "./lib/anthropic";
 import { BACKFILL_DAYS, RECONCILE_DAYS, changesZone } from "./lib/changesDirty";
 import { addDays, dayBounds, localDate, teamDayBounds } from "./lib/teamDay";
 import { hasEditionProse, releaseArg } from "./changes";
-import { HEADLINE_SLACK, hasModelKey, sentences, spend, str, usageArg, usageOf, type Usage } from "./changesProse";
+import {
+  HEADLINE_SLACK,
+  hasModelKey,
+  sentences,
+  spend,
+  str,
+  usageArg,
+  usageOf,
+  type Usage,
+} from "./changesProse";
 import { pendingJob } from "./lib/pendingJob";
 
 export const WEEK_PROMPT_VERSION = "week-2";
@@ -57,20 +76,50 @@ const WEEK_TIMEOUT_MS = 120_000;
 /** Reconciled week builds go out this far apart. */
 const WEEK_RECONCILE_SPACING_MS = 30_000;
 
-const weekArgs = { team_id: v.id("teams"), repository: v.string(), week: v.string() };
+const weekArgs = {
+  team_id: v.id("teams"),
+  repository: v.string(),
+  week: v.string(),
+};
 
 // ── Reads ────────────────────────────────────────────────────────────────
 
 /** What the week reads of a day edition. */
-export type DayEditionFacts = Pick<Doc<"digests">, "date" | "status" | "headline" | "narrative" | "stats" | "releases" | "inputs_hash">;
+export type DayEditionFacts = Pick<
+  Doc<"digests">,
+  | "date"
+  | "status"
+  | "headline"
+  | "narrative"
+  | "stats"
+  | "releases"
+  | "inputs_hash"
+>;
 
 /** What the week reads of a story: its facts and its gated text. */
 export type WeekStory = Pick<
   Doc<"change_stories">,
-  "_id" | "story_key" | "date" | "area" | "kind" | "importance" | "headline" | "dek" | "insertions" | "deletions" | "area_counts" | "release" | "author_names"
+  | "_id"
+  | "story_key"
+  | "date"
+  | "area"
+  | "kind"
+  | "importance"
+  | "headline"
+  | "dek"
+  | "insertions"
+  | "deletions"
+  | "area_counts"
+  | "release"
+  | "author_names"
 >;
 
-export type WeekDay = { date: string; end: number; edition: DayEditionFacts | null; stories: WeekStory[] };
+export type WeekDay = {
+  date: string;
+  end: number;
+  edition: DayEditionFacts | null;
+  stories: WeekStory[];
+};
 
 const editionFacts = (d: Doc<"digests">): DayEditionFacts => ({
   date: d.date,
@@ -98,19 +147,43 @@ const storyFacts = (s: Doc<"change_stories">): WeekStory => ({
   author_names: s.author_names,
 });
 
-const dayEditionQuery = (ctx: { db: any }, teamId: Id<"teams">, repository: string, from: string, to: string) =>
+const dayEditionQuery = (
+  ctx: { db: any },
+  teamId: Id<"teams">,
+  repository: string,
+  from: string,
+  to: string,
+) =>
   ctx.db
     .query("digests")
-    .withIndex("by_team_repo_scope_date", (q: any) => q.eq("team_id", teamId).eq("repository", repository).eq("scope", "day").gte("date", from).lte("date", to));
+    .withIndex("by_team_repo_scope_date", (q: any) =>
+      q
+        .eq("team_id", teamId)
+        .eq("repository", repository)
+        .eq("scope", "day")
+        .gte("date", from)
+        .lte("date", to),
+    );
 
 /** One day of the week: its edition and its default-branch stories. */
 export const readWeekDay = internalQuery({
   args: { team_id: v.id("teams"), repository: v.string(), date: v.string() },
   handler: async (ctx, args): Promise<WeekDay> => {
-    const edition: Doc<"digests"> | null = await dayEditionQuery(ctx, args.team_id, args.repository, args.date, args.date).first();
+    const edition: Doc<"digests"> | null = await dayEditionQuery(
+      ctx,
+      args.team_id,
+      args.repository,
+      args.date,
+      args.date,
+    ).first();
     const stories = await ctx.db
       .query("change_stories")
-      .withIndex("by_team_repo_date", (q) => q.eq("team_id", args.team_id).eq("repository", args.repository).eq("date", args.date))
+      .withIndex("by_team_repo_date", (q) =>
+        q
+          .eq("team_id", args.team_id)
+          .eq("repository", args.repository)
+          .eq("date", args.date),
+      )
       .collect();
     const day = await teamDayBounds(ctx, args.team_id, args.date);
     return {
@@ -122,10 +195,21 @@ export const readWeekDay = internalQuery({
   },
 });
 
-const weekRow = (ctx: { db: any }, teamId: Id<"teams">, repository: string, week: string): Promise<Doc<"digests"> | null> =>
+const weekRow = (
+  ctx: { db: any },
+  teamId: Id<"teams">,
+  repository: string,
+  week: string,
+): Promise<Doc<"digests"> | null> =>
   ctx.db
     .query("digests")
-    .withIndex("by_team_repo_scope_date", (q: any) => q.eq("team_id", teamId).eq("repository", repository).eq("scope", "week").eq("date", week))
+    .withIndex("by_team_repo_scope_date", (q: any) =>
+      q
+        .eq("team_id", teamId)
+        .eq("repository", repository)
+        .eq("scope", "week")
+        .eq("date", week),
+    )
     .first();
 
 // ── Facts ────────────────────────────────────────────────────────────────
@@ -142,10 +226,18 @@ export type WeekFacts = {
 export function weekFacts(days: readonly WeekDay[]): WeekFacts {
   const stories = days.flatMap((d) => d.stories);
   const ships = new Map<string, WeekRelease>();
-  for (const d of days) for (const r of d.edition?.releases ?? []) ships.set(`${r.surface}|${r.sha}`, r);
-  const releases = [...ships.values()].sort((a, b) => a.at - b.at || a.surface.localeCompare(b.surface));
+  for (const d of days)
+    for (const r of d.edition?.releases ?? [])
+      ships.set(`${r.surface}|${r.sha}`, r);
+  const releases = [...ships.values()].sort(
+    (a, b) => a.at - b.at || a.surface.localeCompare(b.surface),
+  );
   return {
-    stats: weekStats(days.map((d) => d.edition?.stats), stories.flatMap((s) => s.author_names), releases.length),
+    stats: weekStats(
+      days.map((d) => d.edition?.stats),
+      stories.flatMap((s) => s.author_names),
+      releases.length,
+    ),
     releases,
     area_totals: weekAreaTotals(stories),
     top_story_keys: topWeekStories(stories).map((s) => s.story_key),
@@ -173,7 +265,13 @@ export type WeekPromptInput = {
   week: string;
   stats: Omit<WeekStats, "private_sessions">;
   /** Each day with an edition: its headline and standfirst when it has prose, and its counts. */
-  days: Array<{ day: string; headline: string | null; standfirst: string | null; commits: number; stories: number }>;
+  days: Array<{
+    day: string;
+    headline: string | null;
+    standfirst: string | null;
+    commits: number;
+    stories: number;
+  }>;
   /** "cli 1.1.157 to 1.1.163, 7 releases". */
   ledger: string[];
   areas: AreaTotal[];
@@ -193,7 +291,8 @@ export type WeekLoad = {
 };
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const dayName = (date: string) => `${WEEKDAY[new Date(`${date}T00:00:00Z`).getUTCDay()]} ${date}`;
+const dayName = (date: string) =>
+  `${WEEKDAY[new Date(`${date}T00:00:00Z`).getUTCDay()]} ${date}`;
 
 /**
  * What a week's prose was written over: its day editions and the text of the
@@ -201,17 +300,52 @@ const dayName = (date: string) => `${WEEKDAY[new Date(`${date}T00:00:00Z`).getUT
  * edition or stories changed (a session that went private resets both) is
  * dropped.
  */
-export function sourcesSignature(editions: readonly DayEditionFacts[], stories: ReadonlyArray<Pick<WeekStory, "_id" | "headline" | "dek" | "importance" | "area" | "kind">>): string {
+export function sourcesSignature(
+  editions: readonly DayEditionFacts[],
+  stories: ReadonlyArray<
+    Pick<WeekStory, "_id" | "headline" | "dek" | "importance" | "area" | "kind">
+  >,
+): string {
   return hash64([
     "week-sources",
-    ...[...editions].sort((a, b) => a.date.localeCompare(b.date)).map((e) => JSON.stringify([e.date, e.status, e.inputs_hash, e.headline, e.narrative, e.stats, e.releases])),
-    ...[...stories].sort((a, b) => String(a._id).localeCompare(String(b._id))).map((s) => JSON.stringify([s._id, s.headline, s.dek, s.importance, s.area, s.kind])),
+    ...[...editions]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((e) =>
+        JSON.stringify([
+          e.date,
+          e.status,
+          e.inputs_hash,
+          e.headline,
+          e.narrative,
+          e.stats,
+          e.releases,
+        ]),
+      ),
+    ...[...stories]
+      .sort((a, b) => String(a._id).localeCompare(String(b._id)))
+      .map((s) =>
+        JSON.stringify([
+          s._id,
+          s.headline,
+          s.dek,
+          s.importance,
+          s.area,
+          s.kind,
+        ]),
+      ),
   ]);
 }
 
 /** The week prompt's input, or null when nothing landed on the default branch all week. */
-export function weekPromptInput(week: string, days: readonly WeekDay[], facts: WeekFacts): WeekLoad | null {
-  const ranked = days.flatMap((d) => d.stories).sort(byStoryWeight).slice(0, WEEK_STORIES);
+export function weekPromptInput(
+  week: string,
+  days: readonly WeekDay[],
+  facts: WeekFacts,
+): WeekLoad | null {
+  const ranked = days
+    .flatMap((d) => d.stories)
+    .sort(byStoryWeight)
+    .slice(0, WEEK_STORIES);
   if (!ranked.length) return null;
   const keys: Record<string, string> = {};
   const stories = ranked.map((s, n): WeekPromptStory => {
@@ -227,7 +361,11 @@ export function weekPromptInput(week: string, days: readonly WeekDay[], facts: W
       dek: s.dek,
       insertions: s.insertions,
       deletions: s.deletions,
-      ...(s.release ? { release: `${s.release.surface} ${s.release.version ?? s.release.sha.slice(0, 7)}` } : {}),
+      ...(s.release
+        ? {
+            release: `${s.release.surface} ${s.release.version ?? s.release.sha.slice(0, 7)}`,
+          }
+        : {}),
     };
   });
   const editions = days.flatMap((d) => (d.edition ? [d.edition] : []));
@@ -239,7 +377,7 @@ export function weekPromptInput(week: string, days: readonly WeekDay[], facts: W
       const prose = hasEditionProse(e);
       return {
         day: dayName(e.date),
-        headline: prose ? e.headline ?? null : null,
+        headline: prose ? (e.headline ?? null) : null,
         standfirst: prose && e.narrative.trim() ? e.narrative.trim() : null,
         commits: e.stats?.commits ?? 0,
         stories: e.stats?.stories ?? 0,
@@ -253,28 +391,55 @@ export function weekPromptInput(week: string, days: readonly WeekDay[], facts: W
     input,
     keys,
     candidates: ranked.map((s) => s._id),
-    hash: hash64(["week", WEEK_PROMPT_VERSION, STRONG_MODEL, JSON.stringify(input), JSON.stringify(keys)]),
+    hash: hash64([
+      "week",
+      WEEK_PROMPT_VERSION,
+      STRONG_MODEL,
+      JSON.stringify(input),
+      JSON.stringify(keys),
+    ]),
     sources: sourcesSignature(editions, ranked),
   };
 }
 
 const WEEK_SYSTEM = `You are the editor of a team's Changes page. Each day has an edition of what the team shipped; once a week you write the week's edition for a teammate coming back from a few days away, who wants the shape of the week in under a minute. You are given the week's day editions and its biggest stories, already written. Answer with one JSON object and nothing else.`;
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n} ${n === 1 ? one : many}`;
 
 function renderWeekInput(i: WeekPromptInput): string {
   const s = i.stats;
-  const out: string[] = [`Week: ${i.week}.`, `${s.commits} commits, ${s.stories} stories, ${s.releases} releases, ${s.people} people, ${s.sessions} team-visible sessions.`];
+  const out: string[] = [
+    `Week: ${i.week}.`,
+    `${s.commits} commits, ${s.stories} stories, ${s.releases} releases, ${s.people} people, ${s.sessions} team-visible sessions.`,
+  ];
   out.push("", "Days:");
   for (const d of i.days) {
-    out.push(`- ${d.day} (${plural(d.commits, "commit")}, ${plural(d.stories, "story", "stories")})${d.headline ? `: ${d.headline}` : ""}`);
+    out.push(
+      `- ${d.day} (${plural(d.commits, "commit")}, ${plural(d.stories, "story", "stories")})${d.headline ? `: ${d.headline}` : ""}`,
+    );
     if (d.standfirst) out.push(`    ${d.standfirst}`);
   }
-  if (i.ledger.length) out.push("", "Releases:", ...i.ledger.map((l) => `- ${l}`));
-  if (i.areas.length) out.push("", "Areas:", ...i.areas.map((a) => `- ${a.area}: ${plural(a.stories, "story", "stories")}, ${plural(a.files, "file")} touched`));
+  if (i.ledger.length)
+    out.push("", "Releases:", ...i.ledger.map((l) => `- ${l}`));
+  if (i.areas.length)
+    out.push(
+      "",
+      "Areas:",
+      ...i.areas.map(
+        (a) =>
+          `- ${a.area}: ${plural(a.stories, "story", "stories")}, ${plural(a.files, "file")} touched`,
+      ),
+    );
   out.push("", "Biggest stories:");
   for (const st of i.stories) {
-    const facts = [st.day, st.area, st.kind, `importance ${st.importance}`, `+${st.insertions} -${st.deletions}`];
+    const facts = [
+      st.day,
+      st.area,
+      st.kind,
+      `importance ${st.importance}`,
+      `+${st.insertions} -${st.deletions}`,
+    ];
     if (st.release) facts.push(`shipped in ${st.release}`);
     out.push(`- ${st.key} [${facts.join("; ")}] ${st.headline}`);
     if (st.dek) out.push(`    ${st.dek}`);
@@ -295,39 +460,86 @@ Edit this week into an edition.
 - No em dashes.
 
 {"week_headline": "...", "standfirst": "...", "top_story_keys": ["w1", "w2", "w3", "w4", "w5"]}`;
-  return { model: STRONG_MODEL, max_tokens: WEEK_MAX_TOKENS, system: WEEK_SYSTEM, prompt };
+  return {
+    model: STRONG_MODEL,
+    max_tokens: WEEK_MAX_TOKENS,
+    system: WEEK_SYSTEM,
+    prompt,
+  };
 }
 
-export type WeekProse = { headline: string; standfirst: string; top_story_keys: string[] };
+export type WeekProse = {
+  headline: string;
+  standfirst: string;
+  top_story_keys: string[];
+};
 
 /**
  * The week a reply describes, with refs mapped back to story keys. Unknown
  * refs are dropped and the heaviest stories fill the list to five. No
  * headline or no standfirst is unusable.
  */
-export function parseWeekReply(text: string, load: Pick<WeekLoad, "keys">, fallbackTop: readonly string[]): WeekProse | null {
+export function parseWeekReply(
+  text: string,
+  load: Pick<WeekLoad, "keys">,
+  fallbackTop: readonly string[],
+): WeekProse | null {
   const raw = parseJsonBlock(text);
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const r = raw as Record<string, unknown>;
-  const headline = fitProse(str(r.week_headline), WEEK_HEADLINE_MAX, WEEK_HEADLINE_MAX + HEADLINE_SLACK);
+  const headline = fitProse(
+    str(r.week_headline),
+    WEEK_HEADLINE_MAX,
+    WEEK_HEADLINE_MAX + HEADLINE_SLACK,
+  );
   const standfirst = sentences(str(r.standfirst), WEEK_STANDFIRST_SENTENCES);
   if (!headline || !standfirst) return null;
-  const picked = Array.isArray(r.top_story_keys) ? r.top_story_keys.map(str).map((k) => load.keys[k]).filter((k): k is string => !!k) : [];
-  const top = [...new Set([...picked, ...fallbackTop])].slice(0, fallbackTop.length || picked.length);
+  const picked = Array.isArray(r.top_story_keys)
+    ? r.top_story_keys
+        .map(str)
+        .map((k) => load.keys[k])
+        .filter((k): k is string => !!k)
+    : [];
+  const top = [...new Set([...picked, ...fallbackTop])].slice(
+    0,
+    fallbackTop.length || picked.length,
+  );
   return { headline, standfirst, top_story_keys: top };
 }
 
 // ── Scheduling ───────────────────────────────────────────────────────────
 
 /** The row's scheduled build while it has not started. */
-const pendingBuild = async (ctx: { db: any }, row: Doc<"digests"> | null) => !!(await pendingJob(ctx, row?.scheduled_id));
+const pendingBuild = async (ctx: { db: any }, row: Doc<"digests"> | null) =>
+  !!(await pendingJob(ctx, row?.scheduled_id));
 
 /** Queue one build of a week unless one is waiting. The row starts as an empty facts row when the week has none yet. */
-async function queueWeek(ctx: MutationCtx, teamId: Id<"teams">, repository: string, week: string, row: Doc<"digests"> | null, delay: number): Promise<boolean> {
+async function queueWeek(
+  ctx: MutationCtx,
+  teamId: Id<"teams">,
+  repository: string,
+  week: string,
+  row: Doc<"digests"> | null,
+  delay: number,
+): Promise<boolean> {
   if (await pendingBuild(ctx, row)) return false;
-  const scheduled_id = await ctx.scheduler.runAfter(delay, internal.changesWeek.rebuildWeek, { team_id: teamId, repository, week });
+  const scheduled_id = await ctx.scheduler.runAfter(
+    delay,
+    internal.changesWeek.rebuildWeek,
+    { team_id: teamId, repository, week },
+  );
   if (row) await ctx.db.patch(row._id, { scheduled_id });
-  else await ctx.db.insert("digests", { team_id: teamId, repository, scope: "week", date: week, narrative: "", generated_at: Date.now(), status: "facts", scheduled_id });
+  else
+    await ctx.db.insert("digests", {
+      team_id: teamId,
+      repository,
+      scope: "week",
+      date: week,
+      narrative: "",
+      generated_at: Date.now(),
+      status: "facts",
+      scheduled_id,
+    });
   return true;
 }
 
@@ -340,7 +552,14 @@ export const scheduleWeek = internalMutation({
   handler: async (ctx, args): Promise<void> => {
     if (!(await changesZone(ctx, args.team_id))) return;
     const week = isoWeekOf(args.date);
-    await queueWeek(ctx, args.team_id, args.repository, week, await weekRow(ctx, args.team_id, args.repository, week), WEEK_DELAY_MS);
+    await queueWeek(
+      ctx,
+      args.team_id,
+      args.repository,
+      week,
+      await weekRow(ctx, args.team_id, args.repository, week),
+      WEEK_DELAY_MS,
+    );
   },
 });
 
@@ -372,25 +591,55 @@ export const reconcileWeeks = internalMutation({
     const now = Date.now();
     const today = localDate(now, zone);
     const recent = new Set(endedWeeks(today, RECONCILE_DAYS));
-    const byDate = (scope: "day" | "week", date: string): Promise<Doc<"digests">[]> =>
-      ctx.db.query("digests").withIndex("by_team_scope_date", (q) => q.eq("team_id", args.team_id).eq("scope", scope).eq("date", date)).collect();
+    const byDate = (
+      scope: "day" | "week",
+      date: string,
+    ): Promise<Doc<"digests">[]> =>
+      ctx.db
+        .query("digests")
+        .withIndex("by_team_scope_date", (q) =>
+          q.eq("team_id", args.team_id).eq("scope", scope).eq("date", date),
+        )
+        .collect();
     let queued = 0;
     for (const week of endedWeeks(today, BACKFILL_DAYS)) {
       const dates = weekDates(week)!;
       if (dayBounds(dates[6], zone).end > now) continue;
       const rows = new Map<string, Doc<"digests"> | null>();
-      for (const date of dates) for (const day of await byDate("day", date)) if (day.repository) rows.set(day.repository, null);
-      for (const row of await byDate("week", week)) if (row.repository) rows.set(row.repository, row);
+      for (const date of dates)
+        for (const day of await byDate("day", date))
+          if (day.repository) rows.set(day.repository, null);
+      for (const row of await byDate("week", week))
+        if (row.repository) rows.set(row.repository, row);
       for (const [repository, row] of rows) {
-        if (row && (!recent.has(week) || row.status === "final" || (row.cost_usd ?? 0) >= WEEK_CAP_USD)) continue;
-        if (await queueWeek(ctx, args.team_id, repository, week, row, queued * WEEK_RECONCILE_SPACING_MS)) queued += 1;
+        if (
+          row &&
+          (!recent.has(week) ||
+            row.status === "final" ||
+            (row.cost_usd ?? 0) >= WEEK_CAP_USD)
+        )
+          continue;
+        if (
+          await queueWeek(
+            ctx,
+            args.team_id,
+            repository,
+            week,
+            row,
+            queued * WEEK_RECONCILE_SPACING_MS,
+          )
+        )
+          queued += 1;
       }
     }
     return queued;
   },
 });
 
-type WeekClaim = Pick<Doc<"digests">, "status" | "inputs_hash" | "cost_usd" | "capped_at"> | null;
+type WeekClaim = Pick<
+  Doc<"digests">,
+  "status" | "inputs_hash" | "cost_usd" | "capped_at"
+> | null;
 
 /** A build starts: asks from here on schedule the next one. Null with Changes off. */
 export const claimWeek = internalMutation({
@@ -398,18 +647,37 @@ export const claimWeek = internalMutation({
   handler: async (ctx, args): Promise<{ row: WeekClaim } | null> => {
     if (!(await changesZone(ctx, args.team_id))) return null;
     const row = await weekRow(ctx, args.team_id, args.repository, args.week);
-    if (row?.scheduled_id) await ctx.db.patch(row._id, { scheduled_id: undefined });
-    return { row: row ? { status: row.status, inputs_hash: row.inputs_hash, cost_usd: row.cost_usd, capped_at: row.capped_at } : null };
+    if (row?.scheduled_id)
+      await ctx.db.patch(row._id, { scheduled_id: undefined });
+    return {
+      row: row
+        ? {
+            status: row.status,
+            inputs_hash: row.inputs_hash,
+            cost_usd: row.cost_usd,
+            capped_at: row.capped_at,
+          }
+        : null,
+    };
   },
 });
 
 // ── Writes ───────────────────────────────────────────────────────────────
 
-const statsArg = v.object({ commits: v.number(), stories: v.number(), releases: v.number(), people: v.number(), sessions: v.number(), private_sessions: v.number() });
+const statsArg = v.object({
+  commits: v.number(),
+  stories: v.number(),
+  releases: v.number(),
+  people: v.number(),
+  sessions: v.number(),
+  private_sessions: v.number(),
+});
 const factsArg = v.object({
   stats: statsArg,
   releases: v.array(releaseArg),
-  area_totals: v.array(v.object({ area: v.string(), stories: v.number(), files: v.number() })),
+  area_totals: v.array(
+    v.object({ area: v.string(), stories: v.number(), files: v.number() }),
+  ),
   top_story_keys: v.array(v.string()),
 });
 
@@ -419,23 +687,51 @@ export const writeWeekFacts = internalMutation({
   handler: async (ctx, args): Promise<void> => {
     const f = args.facts;
     const row = await weekRow(ctx, args.team_id, args.repository, args.week);
-    const facts = { stats: f.stats, releases: f.releases, area_totals: f.area_totals, session_count: f.stats.sessions };
-    const deterministic = { headline: statsHeadline(f.stats), top_story_keys: f.top_story_keys };
+    const facts = {
+      stats: f.stats,
+      releases: f.releases,
+      area_totals: f.area_totals,
+      session_count: f.stats.sessions,
+    };
+    const deterministic = {
+      headline: statsHeadline(f.stats),
+      top_story_keys: f.top_story_keys,
+    };
     if (!row) {
       await ctx.db.insert("digests", {
-        team_id: args.team_id, repository: args.repository, scope: "week", date: args.week,
-        narrative: "", generated_at: Date.now(), status: "facts", ...facts, ...deterministic,
+        team_id: args.team_id,
+        repository: args.repository,
+        scope: "week",
+        date: args.week,
+        narrative: "",
+        generated_at: Date.now(),
+        status: "facts",
+        ...facts,
+        ...deterministic,
       });
       return;
     }
-    const patch: Record<string, unknown> = { ...facts, ...(hasEditionProse(row) ? {} : deterministic) };
-    const diff = Object.fromEntries(Object.entries(patch).filter(([k, val]) => JSON.stringify((row as any)[k]) !== JSON.stringify(val)));
+    const patch: Record<string, unknown> = {
+      ...facts,
+      ...(hasEditionProse(row) ? {} : deterministic),
+    };
+    const diff = Object.fromEntries(
+      Object.entries(patch).filter(
+        ([k, val]) => JSON.stringify((row as any)[k]) !== JSON.stringify(val),
+      ),
+    );
     if (Object.keys(diff).length) await ctx.db.patch(row._id, diff);
   },
 });
 
 const weekOutcome = v.union(
-  v.object({ status: v.literal("written"), final: v.boolean(), headline: v.string(), standfirst: v.string(), top_story_keys: v.array(v.string()) }),
+  v.object({
+    status: v.literal("written"),
+    final: v.boolean(),
+    headline: v.string(),
+    standfirst: v.string(),
+    top_story_keys: v.array(v.string()),
+  }),
   // The week ended and nothing moved since its prose: it is final as written.
   v.object({ status: v.literal("final") }),
   v.object({ status: v.literal("failed") }),
@@ -465,24 +761,40 @@ export const writeWeekProse = internalMutation({
       if (hasEditionProse(row)) {
         if (args.usage) await ctx.db.patch(row._id, cost);
       } else {
-        await ctx.db.patch(row._id, { status: "failed", generated_at: Date.now(), ...cost });
+        await ctx.db.patch(row._id, {
+          status: "failed",
+          generated_at: Date.now(),
+          ...cost,
+        });
       }
       return "written";
     }
 
     const dates = weekDates(args.week);
-    const editions: Doc<"digests">[] = dates ? await dayEditionQuery(ctx, args.team_id, args.repository, dates[0], dates[6]).collect() : [];
+    const editions: Doc<"digests">[] = dates
+      ? await dayEditionQuery(
+          ctx,
+          args.team_id,
+          args.repository,
+          dates[0],
+          dates[6],
+        ).collect()
+      : [];
     const stories: WeekStory[] = [];
     for (const id of args.candidates) {
       const s = await ctx.db.get(id);
       if (s) stories.push(storyFacts(s));
     }
-    if (stories.length !== args.candidates.length || sourcesSignature(editions.map(editionFacts), stories) !== args.sources) {
+    if (
+      stories.length !== args.candidates.length ||
+      sourcesSignature(editions.map(editionFacts), stories) !== args.sources
+    ) {
       if (args.usage) await ctx.db.patch(row._id, cost);
       return "stale";
     }
     if (o.status === "final") {
-      if (row.inputs_hash === args.inputs_hash && hasEditionProse(row)) await ctx.db.patch(row._id, { status: "final" });
+      if (row.inputs_hash === args.inputs_hash && hasEditionProse(row))
+        await ctx.db.patch(row._id, { status: "final" });
       return "written";
     }
     await ctx.db.patch(row._id, {
@@ -503,13 +815,23 @@ export const markWeekCapped = internalMutation({
   args: weekArgs,
   handler: async (ctx, args): Promise<void> => {
     const row = await weekRow(ctx, args.team_id, args.repository, args.week);
-    if (row && !row.capped_at) await ctx.db.patch(row._id, { capped_at: Date.now() });
+    if (row && !row.capped_at)
+      await ctx.db.patch(row._id, { capped_at: Date.now() });
   },
 });
 
 // ── The build ────────────────────────────────────────────────────────────
 
-export type WeekResult = "written" | "final" | "unchanged" | "capped" | "held" | "failed" | "stale" | "none" | "off";
+export type WeekResult =
+  | "written"
+  | "final"
+  | "unchanged"
+  | "capped"
+  | "held"
+  | "failed"
+  | "stale"
+  | "none"
+  | "off";
 
 /**
  * Build one week of a repository: read its seven days, write its facts, then
@@ -520,26 +842,49 @@ export const rebuildWeek = internalAction({
   handler: async (ctx, args): Promise<WeekResult> => {
     const dates = weekDates(args.week);
     if (!dates) return "none";
-    const claim: { row: WeekClaim } | null = await ctx.runMutation(internal.changesWeek.claimWeek, args);
+    const claim: { row: WeekClaim } | null = await ctx.runMutation(
+      internal.changesWeek.claimWeek,
+      args,
+    );
     if (!claim) return "off";
 
     const days: WeekDay[] = [];
-    for (const date of dates) days.push(await ctx.runQuery(internal.changesWeek.readWeekDay, { team_id: args.team_id, repository: args.repository, date }));
+    for (const date of dates)
+      days.push(
+        await ctx.runQuery(internal.changesWeek.readWeekDay, {
+          team_id: args.team_id,
+          repository: args.repository,
+          date,
+        }),
+      );
     const facts = weekFacts(days);
-    await ctx.runMutation(internal.changesWeek.writeWeekFacts, { ...args, facts });
+    await ctx.runMutation(internal.changesWeek.writeWeekFacts, {
+      ...args,
+      facts,
+    });
 
     const load = weekPromptInput(args.week, days, facts);
     if (!load) return "none";
     const row = claim.row;
     const final = Date.now() >= days[6].end;
-    const write = (outcome: typeof weekOutcome.type, usage?: Usage): Promise<"written" | "stale" | "gone"> =>
+    const write = (
+      outcome: typeof weekOutcome.type,
+      usage?: Usage,
+    ): Promise<"written" | "stale" | "gone"> =>
       ctx.runMutation(internal.changesWeek.writeWeekProse, {
-        ...args, inputs_hash: load.hash, sources: load.sources, candidates: load.candidates, outcome, ...(usage ? { usage } : {}),
+        ...args,
+        inputs_hash: load.hash,
+        sources: load.sources,
+        candidates: load.candidates,
+        outcome,
+        ...(usage ? { usage } : {}),
       });
 
     if (row && hasEditionProse(row) && row.inputs_hash === load.hash) {
       if (!final || row.status === "final") return "unchanged";
-      return (await write({ status: "final" })) === "written" ? "final" : "stale";
+      return (await write({ status: "final" })) === "written"
+        ? "final"
+        : "stale";
     }
     if ((row?.cost_usd ?? 0) >= WEEK_CAP_USD) {
       await ctx.runMutation(internal.changesWeek.markWeekCapped, args);
@@ -548,7 +893,12 @@ export const rebuildWeek = internalAction({
     if (!hasModelKey()) return "held";
 
     const req = weekRequest(load.input);
-    const reply = await callModel({ ...req, label: "Changes week", timeout_ms: WEEK_TIMEOUT_MS, gate: { ctx, scope: { workspace: `team:${args.team_id}` } } });
+    const reply = await callModel({
+      ...req,
+      label: "Changes week",
+      timeout_ms: WEEK_TIMEOUT_MS,
+      gate: { ctx, scope: { workspace: `team:${args.team_id}` } },
+    });
     if (!reply) {
       await write({ status: "failed" });
       return "failed";
@@ -556,7 +906,12 @@ export const rebuildWeek = internalAction({
     const usage = usageOf(req.model, reply.usage);
     const prose = parseWeekReply(reply.text, load, facts.top_story_keys);
     if (!prose) {
-      console.error("Changes week: unusable reply", args.repository, args.week, reply.text.slice(0, 300));
+      console.error(
+        "Changes week: unusable reply",
+        args.repository,
+        args.week,
+        reply.text.slice(0, 300),
+      );
       await write({ status: "failed" }, usage);
       return "failed";
     }

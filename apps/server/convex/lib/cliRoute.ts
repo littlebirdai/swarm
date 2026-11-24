@@ -39,9 +39,12 @@ export function registerCliRoute(
         // this is the better error, not the only check: a direct Convex call
         // that never passes through here is refused just the same.
         if (typeof body?.api_token === "string") {
-          const allowed = await ctx.runQuery(internal.apiTokens.deviceBindingAllows, {
-            api_token: body.api_token,
-          });
+          const allowed = await ctx.runQuery(
+            internal.apiTokens.deviceBindingAllows,
+            {
+              api_token: body.api_token,
+            },
+          );
           if (!allowed) {
             return new Response(
               JSON.stringify({
@@ -49,7 +52,10 @@ export function registerCliRoute(
                   "This token is bound to a different machine. Run `cast auth` on this machine to mint its own.",
                 code: "FORBIDDEN",
               }),
-              { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } },
+              {
+                status: 403,
+                headers: { "Content-Type": "application/json", ...corsHeaders },
+              },
             );
           }
         }
@@ -60,7 +66,12 @@ export function registerCliRoute(
         // function REQUIRES device_id, deleting it is an equally hard rejection
         // the other way (this broke cast pull, vault mirror, and terminal
         // streaming: ct-44344 follow-up).
-        if (!opts?.forwardDeviceId && body && typeof body === "object" && "device_id" in body) {
+        if (
+          !opts?.forwardDeviceId &&
+          body &&
+          typeof body === "object" &&
+          "device_id" in body
+        ) {
           delete body.device_id;
         }
         const result = await handler(ctx, body);
@@ -85,4 +96,6 @@ export function registerCliPreflight(http: HttpRouter, path: string) {
   http.route({ path, method: "OPTIONS", handler: cliPreflight });
 }
 
-const cliPreflight = httpAction(async () => new Response(null, { status: 204, headers: CLI_CORS_HEADERS }));
+const cliPreflight = httpAction(
+  async () => new Response(null, { status: 204, headers: CLI_CORS_HEADERS }),
+);

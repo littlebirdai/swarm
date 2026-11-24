@@ -49,7 +49,11 @@ export async function deliver(
 export const sendWelcome = internalAction({
   args: { email: v.string(), name: v.optional(v.string()) },
   handler: async (_ctx, args) => {
-    await deliver(args.email, welcome({ email: args.email, name: args.name }), "welcome");
+    await deliver(
+      args.email,
+      welcome({ email: args.email, name: args.name }),
+      "welcome",
+    );
   },
 });
 
@@ -89,22 +93,42 @@ export const sendPasswordChanged = internalAction({
 });
 
 export const sendPasskeyAdded = internalAction({
-  args: { email: v.string(), passkey_name: v.string(), added_at: v.number(), settings_url: v.string() },
+  args: {
+    email: v.string(),
+    passkey_name: v.string(),
+    added_at: v.number(),
+    settings_url: v.string(),
+  },
   handler: async (_ctx, args) => {
     await deliver(
       args.email,
-      passkeyAdded({ email: args.email, passkeyName: args.passkey_name, addedAt: args.added_at, settingsUrl: args.settings_url }),
+      passkeyAdded({
+        email: args.email,
+        passkeyName: args.passkey_name,
+        addedAt: args.added_at,
+        settingsUrl: args.settings_url,
+      }),
       "passkey-added",
     );
   },
 });
 
 export const sendEmailChanged = internalAction({
-  args: { old_email: v.string(), new_email: v.string(), changed_at: v.number(), settings_url: v.string() },
+  args: {
+    old_email: v.string(),
+    new_email: v.string(),
+    changed_at: v.number(),
+    settings_url: v.string(),
+  },
   handler: async (_ctx, args) => {
     await deliver(
       args.old_email,
-      emailChanged({ oldEmail: args.old_email, newEmail: args.new_email, changedAt: args.changed_at, settingsUrl: args.settings_url }),
+      emailChanged({
+        oldEmail: args.old_email,
+        newEmail: args.new_email,
+        changedAt: args.changed_at,
+        settingsUrl: args.settings_url,
+      }),
       "email-changed",
     );
   },

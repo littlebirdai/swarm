@@ -7,7 +7,10 @@ import { useMemo } from "react";
 import { useDevices } from "../DeviceBadge";
 import { useInboxStore } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
-import { useSyncCapabilityState, useSyncCapabilityBindings } from "../../hooks/useSyncCapabilityState";
+import {
+  useSyncCapabilityState,
+  useSyncCapabilityBindings,
+} from "../../hooks/useSyncCapabilityState";
 import { useSyncDevices } from "../../hooks/useSyncDevices";
 import { useSyncTeamKit } from "../../hooks/useSyncTeamKit";
 import {
@@ -47,12 +50,17 @@ type ObservedEntry = {
 const str = (v: unknown): string | undefined =>
   typeof v === "string" && v !== "" ? v : undefined;
 
-function toInventoryItem(raw: ObservedEntry, rowScopeKey: string): FleetInventoryItem | null {
+function toInventoryItem(
+  raw: ObservedEntry,
+  rowScopeKey: string,
+): FleetInventoryItem | null {
   const kind = str(raw.kind);
   const name = str(raw.name);
   if (!kind || !name) return null;
   const scope = str(raw.scope);
-  const meta = (raw.meta && typeof raw.meta === "object" ? raw.meta : {}) as Record<string, unknown>;
+  const meta = (
+    raw.meta && typeof raw.meta === "object" ? raw.meta : {}
+  ) as Record<string, unknown>;
   return {
     kind,
     name,
@@ -133,8 +141,8 @@ const NO_CAPABILITY_STATE: Record<string, CapabilityStateRow> = {};
 
 function readCapabilityState(s: unknown): Record<string, CapabilityStateRow> {
   return (
-    (s as { capabilityState?: Record<string, CapabilityStateRow> }).capabilityState ??
-    NO_CAPABILITY_STATE
+    (s as { capabilityState?: Record<string, CapabilityStateRow> })
+      .capabilityState ?? NO_CAPABILITY_STATE
   );
 }
 
@@ -175,7 +183,9 @@ export function useCapabilityFleet(): {
   const { ready: rosterLive } = useSyncDevices();
   const rosterCached = useInboxStore((s) => s.machineRoster.length > 0);
   const rosterResolved = rosterLive || rosterCached;
-  const sig = useInboxStore((s) => capabilityStateWakeSig(readCapabilityState(s)));
+  const sig = useInboxStore((s) =>
+    capabilityStateWakeSig(readCapabilityState(s)),
+  );
   const now = useCoarseNow(60_000);
 
   return useMemo(() => {
@@ -197,18 +207,24 @@ export function useCapabilityFleet(): {
         // Presence of a rollup — not a non-empty inventory — is what "reported"
         // means. A machine that scanned and found nothing has answered.
         reportedAt: rollup?.reportedAt,
-        stale: rollup ? isCapabilityReportStale({ reported_at: rollup.reportedAt }, now) : false,
+        stale: rollup
+          ? isCapabilityReportStale({ reported_at: rollup.reportedAt }, now)
+          : false,
         error:
           rollup && rollup.errors.length > 0
             ? rollup.errors.join(" · ")
             : rollup && rollup.unreadableRows > 0
               ? `${rollup.unreadableRows} unreadable report${rollup.unreadableRows === 1 ? "" : "s"}`
               : undefined,
-        clientVersion: rollup ? Object.values(rollup.clientVersions).join(" · ") : undefined,
+        clientVersion: rollup
+          ? Object.values(rollup.clientVersions).join(" · ")
+          : undefined,
       });
     });
 
-    const driftKeys = new Set(index.drift.filter((r) => r.drifting).map((r) => r.key));
+    const driftKeys = new Set(
+      index.drift.filter((r) => r.drifting).map((r) => r.key),
+    );
     // Loading is "we asked and nobody has answered". Once the roster resolves,
     // an empty fleet is an answer, and the empty states below say which kind of
     // nothing it is.

@@ -42,7 +42,9 @@ export const STARTER_FREE_CAPACITY = 3;
  *  shared Stripe webhook tells it from a hosted-assistant plan. */
 export const TEAM_SEATS_KIND = "team_seats";
 
-export function isTeamSeatSubscription(subscription: { metadata?: Record<string, string> | null } | null | undefined): boolean {
+export function isTeamSeatSubscription(
+  subscription: { metadata?: Record<string, string> | null } | null | undefined,
+): boolean {
   return subscription?.metadata?.kind === TEAM_SEATS_KIND;
 }
 
@@ -50,7 +52,12 @@ export function isTeamSeatSubscription(subscription: { metadata?: Record<string,
 export const CHECKOUT_GRACE_MS = 60 * 60 * 1000;
 
 /** Statuses Stripe reports for a subscription that no longer pays for anything. */
-const LAPSED_STATUSES: readonly string[] = ["canceled", "unpaid", "incomplete_expired", "paused"];
+const LAPSED_STATUSES: readonly string[] = [
+  "canceled",
+  "unpaid",
+  "incomplete_expired",
+  "paused",
+];
 
 export type SeatBilling = "monthly" | "annual";
 
@@ -68,7 +75,9 @@ export interface SeatBillingEnv {
   portalConfiguration?: string;
 }
 
-export function seatBillingEnv(env: Record<string, string | undefined> = process.env): SeatBillingEnv {
+export function seatBillingEnv(
+  env: Record<string, string | undefined> = process.env,
+): SeatBillingEnv {
   const read = (name: string) => env[name]?.trim() || undefined;
   const trial = Number(read("TEAM_SEAT_TRIAL_DAYS") ?? 0);
   const until = Date.parse(read("TEAM_SEAT_GRANDFATHER_UNTIL") ?? "");
@@ -84,13 +93,23 @@ export function seatBillingEnv(env: Record<string, string | undefined> = process
 }
 
 /** The seat price for a billing choice; annual falls back to monthly where no annual price is set. */
-export function seatPriceId(env: SeatBillingEnv, billing: SeatBilling = "monthly"): string | undefined {
-  return billing === "annual" ? env.annualPriceId ?? env.priceId : env.priceId;
+export function seatPriceId(
+  env: SeatBillingEnv,
+  billing: SeatBilling = "monthly",
+): string | undefined {
+  return billing === "annual"
+    ? (env.annualPriceId ?? env.priceId)
+    : env.priceId;
 }
 
 /** Whether a price is one of the team seat prices. */
-export function isSeatPrice(env: SeatBillingEnv, priceId: string | null | undefined): boolean {
-  return !!priceId && (priceId === env.priceId || priceId === env.annualPriceId);
+export function isSeatPrice(
+  env: SeatBillingEnv,
+  priceId: string | null | undefined,
+): boolean {
+  return (
+    !!priceId && (priceId === env.priceId || priceId === env.annualPriceId)
+  );
 }
 
 /** Whether seat billing is on: a seat price, and the secrets to sell it and hear back. */
@@ -121,13 +140,29 @@ export interface SeatLimit {
 export type SeatPlan = "starter" | "pro";
 
 export type SeatDecision =
-  | { kind: "allowed"; plan: SeatPlan; why: "billing_off" | "subscribed" | "within_free" | "grandfathered" }
-  | { kind: "fail_open"; why: "checkout_pending" | "payment_processing" | "plan_unconfirmed" }
+  | {
+      kind: "allowed";
+      plan: SeatPlan;
+      why: "billing_off" | "subscribed" | "within_free" | "grandfathered";
+    }
+  | {
+      kind: "fail_open";
+      why: "checkout_pending" | "payment_processing" | "plan_unconfirmed";
+    }
   | { kind: "blocked"; limit: SeatLimit };
 
 export interface SeatInput {
   on: boolean;
-  row: Pick<Doc<"team_subscriptions">, "subscription_status" | "subscription_read_at" | "refresh_failed_at" | "checkout_started_at" | "checkout_seats" | "grandfathered_at" | "stripe_customer_id"> | null;
+  row: Pick<
+    Doc<"team_subscriptions">,
+    | "subscription_status"
+    | "subscription_read_at"
+    | "refresh_failed_at"
+    | "checkout_started_at"
+    | "checkout_seats"
+    | "grandfathered_at"
+    | "stripe_customer_id"
+  > | null;
   counts: SeatCounts;
   /** Seats the operation adds: 1 for an invite or a join. */
   adding: number;
@@ -136,16 +171,21 @@ export interface SeatInput {
   grandfatherUntil?: number;
 }
 
-export function seatLimit(code: SeatLimit["code"], counts: SeatCounts): SeatLimit {
+export function seatLimit(
+  code: SeatLimit["code"],
+  counts: SeatCounts,
+): SeatLimit {
   return {
     code,
-    message: code === "subscription_lapsed"
-      ? `The team's Pro plan has lapsed. Starter is free for up to ${STARTER_FREE_CAPACITY} members and pending invites; renew Pro to add more.`
-      : `Starter is free for up to ${STARTER_FREE_CAPACITY} members and pending invites. Upgrade to Pro to add more.`,
+    message:
+      code === "subscription_lapsed"
+        ? `The team's Pro plan has lapsed. Starter is free for up to ${STARTER_FREE_CAPACITY} members and pending invites; renew Pro to add more.`
+        : `Starter is free for up to ${STARTER_FREE_CAPACITY} members and pending invites. Upgrade to Pro to add more.`,
     current_seats: counts.members,
     pending_invites: counts.pending,
     free_capacity: STARTER_FREE_CAPACITY,
-    action_label: code === "subscription_lapsed" ? "Renew Pro" : "Upgrade to Pro",
+    action_label:
+      code === "subscription_lapsed" ? "Renew Pro" : "Upgrade to Pro",
   };
 }
 
@@ -162,7 +202,12 @@ export function isLapsed(status: string | null | undefined): boolean {
  *  stamped already, or never subscribed and over capacity now. Only a team
  *  that existed before the gate can be over it without a plan. Nobody is
  *  grandfathered from `until` on. */
-export function grandfathered(row: SeatInput["row"], counts: SeatCounts, now: number, until?: number): boolean {
+export function grandfathered(
+  row: SeatInput["row"],
+  counts: SeatCounts,
+  now: number,
+  until?: number,
+): boolean {
   if (until !== undefined && now >= until) return false;
   if (row?.grandfathered_at) return true;
   // Join requests are left out: anyone with a proven address can file one, and
@@ -170,35 +215,78 @@ export function grandfathered(row: SeatInput["row"], counts: SeatCounts, now: nu
   // A team that opened checkout has met the gate: seats a checkout let in
   // while it was landing never grandfather it either.
   if (row?.stripe_customer_id || row?.checkout_started_at) return false;
-  return counts.members + counts.pending - (counts.requests ?? 0) > STARTER_FREE_CAPACITY;
+  return (
+    counts.members + counts.pending - (counts.requests ?? 0) >
+    STARTER_FREE_CAPACITY
+  );
 }
 
 /** Whether an open checkout covers this add: it fails open only up to the
  *  seats it is for plus the one seat the upgrade was opened to add, so an
  *  abandoned checkout cannot admit a crowd. The window opens once per team
  *  until a subscription lands (teamBilling.markCheckoutStarted). */
-function checkoutCovers(row: SeatInput["row"], counts: SeatCounts, adding: number, now: number): boolean {
-  if (!row?.checkout_started_at || now - row.checkout_started_at >= CHECKOUT_GRACE_MS) return false;
-  return counts.members + adding <= Math.max(STARTER_FREE_CAPACITY, row.checkout_seats ?? 0) + 1;
+function checkoutCovers(
+  row: SeatInput["row"],
+  counts: SeatCounts,
+  adding: number,
+  now: number,
+): boolean {
+  if (
+    !row?.checkout_started_at ||
+    now - row.checkout_started_at >= CHECKOUT_GRACE_MS
+  )
+    return false;
+  return (
+    counts.members + adding <=
+    Math.max(STARTER_FREE_CAPACITY, row.checkout_seats ?? 0) + 1
+  );
 }
 
 /** The pure decision; `checkSeat` adds the reads, the stamp and the log. */
-export function decideSeat({ on, row, counts, adding, now, grandfatherUntil }: SeatInput): SeatDecision {
+export function decideSeat({
+  on,
+  row,
+  counts,
+  adding,
+  now,
+  grandfatherUntil,
+}: SeatInput): SeatDecision {
   if (!on) return { kind: "allowed", plan: "starter", why: "billing_off" };
-  if (seatPlan(row) === "pro") return { kind: "allowed", plan: "pro", why: "subscribed" };
-  if (counts.members + counts.pending + adding <= STARTER_FREE_CAPACITY) return { kind: "allowed", plan: "starter", why: "within_free" };
-  if (grandfathered(row, counts, now, grandfatherUntil)) return { kind: "allowed", plan: "starter", why: "grandfathered" };
+  if (seatPlan(row) === "pro")
+    return { kind: "allowed", plan: "pro", why: "subscribed" };
+  if (counts.members + counts.pending + adding <= STARTER_FREE_CAPACITY)
+    return { kind: "allowed", plan: "starter", why: "within_free" };
+  if (grandfathered(row, counts, now, grandfatherUntil))
+    return { kind: "allowed", plan: "starter", why: "grandfathered" };
   const status = row?.subscription_status;
-  if (row?.refresh_failed_at && row.refresh_failed_at > (row.subscription_read_at ?? 0)) return { kind: "fail_open", why: "plan_unconfirmed" };
-  if (status === "incomplete") return { kind: "fail_open", why: "payment_processing" };
-  if (!isLapsed(status) && checkoutCovers(row, counts, adding, now)) return { kind: "fail_open", why: "checkout_pending" };
-  return { kind: "blocked", limit: seatLimit(isLapsed(status) ? "subscription_lapsed" : "upgrade_required", counts) };
+  if (
+    row?.refresh_failed_at &&
+    row.refresh_failed_at > (row.subscription_read_at ?? 0)
+  )
+    return { kind: "fail_open", why: "plan_unconfirmed" };
+  if (status === "incomplete")
+    return { kind: "fail_open", why: "payment_processing" };
+  if (!isLapsed(status) && checkoutCovers(row, counts, adding, now))
+    return { kind: "fail_open", why: "checkout_pending" };
+  return {
+    kind: "blocked",
+    limit: seatLimit(
+      isLapsed(status) ? "subscription_lapsed" : "upgrade_required",
+      counts,
+    ),
+  };
 }
 
 type Ctx = QueryCtx | MutationCtx;
 
-export async function teamSubscriptionRow(ctx: Ctx, teamId: Id<"teams">): Promise<Doc<"team_subscriptions"> | null> {
-  return ctx.db.query("team_subscriptions").withIndex("by_team", (q) => q.eq("team_id", teamId)).first();
+export async function teamSubscriptionRow(
+  ctx: Ctx,
+  teamId: Id<"teams">,
+): Promise<Doc<"team_subscriptions"> | null> {
+  return ctx.db
+    .query("team_subscriptions")
+    .withIndex("by_team", (q) => q.eq("team_id", teamId))
+    .first();
 }
 
 /** Whom a count leaves out: the person joining, whose own invite or request
@@ -208,8 +296,15 @@ export interface SeatExclusion {
   email?: string | null;
 }
 
-export async function countSeats(ctx: Ctx, team: Doc<"teams">, exclude: SeatExclusion = {}): Promise<SeatCounts> {
-  const memberships = await ctx.db.query("team_memberships").withIndex("by_team_id", (q) => q.eq("team_id", team._id)).collect();
+export async function countSeats(
+  ctx: Ctx,
+  team: Doc<"teams">,
+  exclude: SeatExclusion = {},
+): Promise<SeatCounts> {
+  const memberships = await ctx.db
+    .query("team_memberships")
+    .withIndex("by_team_id", (q) => q.eq("team_id", team._id))
+    .collect();
   const memberEmails = new Set<string>();
   let members = 0;
   for (const m of memberships) {
@@ -220,14 +315,35 @@ export async function countSeats(ctx: Ctx, team: Doc<"teams">, exclude: SeatExcl
   }
   const excludedEmail = exclude.email?.trim().toLowerCase();
   const now = Date.now();
-  const linkLive = !team.invite_code_expires_at || now <= team.invite_code_expires_at;
+  const linkLive =
+    !team.invite_code_expires_at || now <= team.invite_code_expires_at;
   const invites = linkLive
-    ? (await ctx.db.query("team_invites").withIndex("by_team_email", (q) => q.eq("team_id", team._id)).collect())
-        .filter((i) => !i.accepted_at && i.invite_code === team.invite_code && !memberEmails.has(i.email) && i.email !== excludedEmail)
+    ? (
+        await ctx.db
+          .query("team_invites")
+          .withIndex("by_team_email", (q) => q.eq("team_id", team._id))
+          .collect()
+      ).filter(
+        (i) =>
+          !i.accepted_at &&
+          i.invite_code === team.invite_code &&
+          !memberEmails.has(i.email) &&
+          i.email !== excludedEmail,
+      )
     : [];
-  const requests = (await ctx.db.query("team_join_requests").withIndex("by_team_status", (q) => q.eq("team_id", team._id).eq("status", "pending")).collect())
-    .filter((r) => r.user_id !== exclude.userId);
-  return { members, pending: invites.length + requests.length, requests: requests.length };
+  const requests = (
+    await ctx.db
+      .query("team_join_requests")
+      .withIndex("by_team_status", (q) =>
+        q.eq("team_id", team._id).eq("status", "pending"),
+      )
+      .collect()
+  ).filter((r) => r.user_id !== exclude.userId);
+  return {
+    members,
+    pending: invites.length + requests.length,
+    requests: requests.length,
+  };
 }
 
 /** Judges adding `adding` seats to `team` for `operation`, logs a fail-open or
@@ -243,26 +359,61 @@ export async function checkSeat(
   if (!on) return { kind: "allowed", plan: "starter", why: "billing_off" };
   const row = await teamSubscriptionRow(ctx, team._id);
   const counts = await countSeats(ctx, team, opts.exclude);
-  const decision = decideSeat({ on, row, counts, adding: opts.adding ?? 1, now: Date.now(), grandfatherUntil: env.grandfatherUntil });
+  const decision = decideSeat({
+    on,
+    row,
+    counts,
+    adding: opts.adding ?? 1,
+    now: Date.now(),
+    grandfatherUntil: env.grandfatherUntil,
+  });
   const where = `team=${team._id} op=${operation} members=${counts.members} pending=${counts.pending} status=${row?.subscription_status ?? "none"}`;
-  if (decision.kind === "allowed" && decision.why === "grandfathered" && !row?.grandfathered_at) {
+  if (
+    decision.kind === "allowed" &&
+    decision.why === "grandfathered" &&
+    !row?.grandfathered_at
+  ) {
     if (row) await ctx.db.patch(row._id, { grandfathered_at: Date.now() });
-    else await ctx.db.insert("team_subscriptions", { team_id: team._id, grandfathered_at: Date.now() });
+    else
+      await ctx.db.insert("team_subscriptions", {
+        team_id: team._id,
+        grandfathered_at: Date.now(),
+      });
     console.log(`[seat-billing] grandfathered ${where}`);
   }
-  if (decision.kind === "fail_open") console.warn(`[seat-billing] fail_open reason=${decision.why} ${where}`);
-  if (decision.kind === "blocked") console.warn(`[seat-billing] blocked reason=${decision.limit.code} ${where}`);
+  if (decision.kind === "fail_open")
+    console.warn(`[seat-billing] fail_open reason=${decision.why} ${where}`);
+  if (decision.kind === "blocked")
+    console.warn(
+      `[seat-billing] blocked reason=${decision.limit.code} ${where}`,
+    );
   return decision;
 }
 
-export type SeatSyncReason = "member_joined" | "member_left" | "team_deleted" | "team_restored" | "subscription_changed";
+export type SeatSyncReason =
+  | "member_joined"
+  | "member_left"
+  | "team_deleted"
+  | "team_restored"
+  | "subscription_changed";
 
 /** Brings the Stripe seat quantity in line with the members, after a change
  *  that may have moved it. A team without a live subscription has nothing to
  *  sync; the action re-reads everything, so a spare run costs one Stripe read. */
-export async function scheduleSeatSync(ctx: MutationCtx, teamId: Id<"teams">, reason: SeatSyncReason): Promise<void> {
+export async function scheduleSeatSync(
+  ctx: MutationCtx,
+  teamId: Id<"teams">,
+  reason: SeatSyncReason,
+): Promise<void> {
   if (!seatBillingOn()) return;
   const row = await teamSubscriptionRow(ctx, teamId);
-  if (!row?.stripe_subscription_id || !isLiveSubscription(row.subscription_status)) return;
-  await ctx.scheduler.runAfter(0, internal.teamBilling.syncSeats, { team_id: teamId, reason });
+  if (
+    !row?.stripe_subscription_id ||
+    !isLiveSubscription(row.subscription_status)
+  )
+    return;
+  await ctx.scheduler.runAfter(0, internal.teamBilling.syncSeats, {
+    team_id: teamId,
+    reason,
+  });
 }

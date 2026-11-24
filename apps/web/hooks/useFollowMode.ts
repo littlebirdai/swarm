@@ -13,7 +13,17 @@ import { useWatchEffect } from "./useWatchEffect";
 import { useOpenSession } from "./useOpenSession";
 import { isCallPanelWindow, isPaletteWindow } from "../lib/desktop";
 import { viewedConversationId } from "./usePresenceReporter";
-import { applyFollowView, followersSig, followViewSig, planFollowApply, planViewApply, samePath, shouldEndFollow, subscribeFollowSurfaces, type FollowView } from "../lib/follow";
+import {
+  applyFollowView,
+  followersSig,
+  followViewSig,
+  planFollowApply,
+  planViewApply,
+  samePath,
+  shouldEndFollow,
+  subscribeFollowSurfaces,
+  type FollowView,
+} from "../lib/follow";
 import { useLeaderView } from "./useFollowSurface";
 import { toast } from "sonner";
 import { memberDisplayName } from "../components/presence/memberPresence";
@@ -45,11 +55,21 @@ const REPORT_MS = 250;
 /** How long in-page parts wait for their surface to mount after a move. */
 const PENDING_VIEW_MS = 10_000;
 
-const PAGING_KEYS = new Set(["PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown", " "]);
+const PAGING_KEYS = new Set([
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  "ArrowUp",
+  "ArrowDown",
+  " ",
+]);
 
 function inEditable(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
-  return !!el?.closest?.("input, textarea, [contenteditable=''], [contenteditable='true']");
+  return !!el?.closest?.(
+    "input, textarea, [contenteditable=''], [contenteditable='true']",
+  );
 }
 
 /** The one window that follows: not the huddle window, not the palette. The
@@ -72,7 +92,8 @@ export function useFollowMode(): void {
   // ── follower: the lease ──
   useWatchEffect(() => {
     if (!leaderId) return;
-    const renew = (fresh?: boolean) => followMut({ leader_id: leaderId as Id<"users">, fresh }).catch(() => {});
+    const renew = (fresh?: boolean) =>
+      followMut({ leader_id: leaderId as Id<"users">, fresh }).catch(() => {});
     renew(true);
     const iv = setInterval(() => renew(), FOLLOW_RENEW_MS);
     return () => {
@@ -82,7 +103,11 @@ export function useFollowMode(): void {
   }, [leaderId, followMut, unfollowMut]);
 
   // ── follower: the leader's view, applied ──
-  const view = useQueryNoThrow(api.follow.viewOf, leaderId ? { leader_id: leaderId as Id<"users"> } : "skip").data ?? null;
+  const view =
+    useQueryNoThrow(
+      api.follow.viewOf,
+      leaderId ? { leader_id: leaderId as Id<"users"> } : "skip",
+    ).data ?? null;
   const appliedRef = useRef("");
   // What the last apply asked for: the session, or the route. A move of this
   // window's own is one that lands somewhere else.
@@ -91,37 +116,58 @@ export function useFollowMode(): void {
   // The in-page parts last handed to the surfaces on this page, and those no
   // surface has taken yet (the page is still mounting).
   const appliedViewRef = useRef<FollowView | null>(null);
-  const pendingViewRef = useRef<{ view: FollowView; until: number; ready: () => boolean } | null>(null);
-  const viewSig = view ? `${view.updated_at}|${view.withheld}|${view.ended ? "ended" : ""}|${view.path}|${view.conversation_id ?? ""}|${view.anchor?.message_id ?? ""}|${followViewSig(view.view)}` : "";
+  const pendingViewRef = useRef<{
+    view: FollowView;
+    until: number;
+    ready: () => boolean;
+  } | null>(null);
+  const viewSig = view
+    ? `${view.updated_at}|${view.withheld}|${view.ended ? "ended" : ""}|${view.path}|${view.conversation_id ?? ""}|${view.anchor?.message_id ?? ""}|${followViewSig(view.view)}`
+    : "";
   useWatchEffect(() => {
     if (!leaderId || !view) return;
     const st = useInboxStore.getState();
     // The leader stopped sharing their view with this window's person.
     if (view.ended) {
-      const leader = teamMembersOf(st).find((m: any) => String(m?._id) === leaderId);
+      const leader = teamMembersOf(st).find(
+        (m: any) => String(m?._id) === leaderId,
+      );
       st.setFollowLeader(null);
-      toast(`${firstName(memberDisplayName(leader))} stopped sharing their view`);
+      toast(
+        `${firstName(memberDisplayName(leader))} stopped sharing their view`,
+      );
       return;
     }
-    const here = typeof window !== "undefined" ? window.location.pathname : pathname;
+    const here =
+      typeof window !== "undefined" ? window.location.pathname : pathname;
     const plan = planFollowApply(view, {
       pathname: here,
       conversationId: viewedConversationId(st as any, pathname),
-      anchorMessageId: appliedRef.current.startsWith("session:") ? appliedRef.current.split(":")[2] || null : null,
+      anchorMessageId: appliedRef.current.startsWith("session:")
+        ? appliedRef.current.split(":")[2] || null
+        : null,
       appliedView: appliedViewRef.current,
     });
     st.setFollowBlocked(plan.kind === "blocked");
     if (plan.kind === "blocked") return;
-    const sig = plan.kind === "route" ? `route:${plan.path}` : plan.kind === "session" ? `session:${plan.conversationId}:${plan.scrollTo ?? ""}` : appliedRef.current;
+    const sig =
+      plan.kind === "route"
+        ? `route:${plan.path}`
+        : plan.kind === "session"
+          ? `session:${plan.conversationId}:${plan.scrollTo ?? ""}`
+          : appliedRef.current;
     let parts = plan.view;
     // After a move, the old page's surfaces are still mounted for a moment:
     // the parts wait until this window is on the page they belong to.
     let ready: () => boolean = () => true;
     // A move already made (a route whose query this pathname cannot show)
     // is the same page: only what changed in it applies.
-    if (sig === appliedRef.current && plan.kind !== "stay") parts = planViewApply(view.view, appliedViewRef.current);
+    if (sig === appliedRef.current && plan.kind !== "stay")
+      parts = planViewApply(view.view, appliedViewRef.current);
     else if (sig !== appliedRef.current) {
-      const samePage = plan.kind === "session" && appliedRef.current.startsWith(`session:${plan.conversationId}:`);
+      const samePage =
+        plan.kind === "session" &&
+        appliedRef.current.startsWith(`session:${plan.conversationId}:`);
       appliedRef.current = sig;
       if (!samePage) appliedViewRef.current = null;
       if (plan.kind === "route") {
@@ -134,14 +180,27 @@ export function useFollowMode(): void {
         expectedConvRef.current = plan.conversationId;
         expectedPathRef.current = null;
         openSession(plan.conversationId);
-        if (plan.scrollTo) st.requestNavigate(plan.conversationId, { scrollToMessageId: plan.scrollTo, source: "follow" });
+        if (plan.scrollTo)
+          st.requestNavigate(plan.conversationId, {
+            scrollToMessageId: plan.scrollTo,
+            source: "follow",
+          });
         const conversationId = plan.conversationId;
-        if (!samePage) ready = () => viewedConversationId(useInboxStore.getState() as any, window.location.pathname) === conversationId;
+        if (!samePage)
+          ready = () =>
+            viewedConversationId(
+              useInboxStore.getState() as any,
+              window.location.pathname,
+            ) === conversationId;
       }
     }
     if (!parts) return;
     appliedViewRef.current = { ...appliedViewRef.current, ...parts };
-    pendingViewRef.current = { view: parts, until: Date.now() + PENDING_VIEW_MS, ready };
+    pendingViewRef.current = {
+      view: parts,
+      until: Date.now() + PENDING_VIEW_MS,
+      ready,
+    };
     flushPendingView();
   }, [leaderId, viewSig]);
 
@@ -184,19 +243,31 @@ export function useFollowMode(): void {
     }
     const end = () => useInboxStore.getState().setFollowLeader(null);
     const unsubNav = subscribeNavEvents((e) => {
-      if (!e.blocked && shouldEndFollow(e.source, e.to, expectedConvRef.current)) end();
+      if (
+        !e.blocked &&
+        shouldEndFollow(e.source, e.to, expectedConvRef.current)
+      )
+        end();
     });
     const onScroll = () => end();
     const onKey = (e: KeyboardEvent) => {
       if (PAGING_KEYS.has(e.key) && !inEditable(e.target)) onScroll();
     };
-    window.addEventListener("wheel", onScroll, { passive: true, capture: true });
-    window.addEventListener("touchmove", onScroll, { passive: true, capture: true });
+    window.addEventListener("wheel", onScroll, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("touchmove", onScroll, {
+      passive: true,
+      capture: true,
+    });
     window.addEventListener("keydown", onKey, true);
     return () => {
       unsubNav();
       window.removeEventListener("wheel", onScroll, { capture: true } as any);
-      window.removeEventListener("touchmove", onScroll, { capture: true } as any);
+      window.removeEventListener("touchmove", onScroll, {
+        capture: true,
+      } as any);
       window.removeEventListener("keydown", onKey, true);
     };
   }, [leaderId]);
@@ -207,37 +278,64 @@ export function useFollowMode(): void {
   useWatchEffect(() => {
     if (!leaderId || !appliedRef.current || !pathname) return;
     if (expectedPathRef.current) {
-      if (!samePath(pathname, expectedPathRef.current.split("?")[0] ?? "")) useInboxStore.getState().setFollowLeader(null);
+      if (!samePath(pathname, expectedPathRef.current.split("?")[0] ?? ""))
+        useInboxStore.getState().setFollowLeader(null);
       return;
     }
     if (expectedConvRef.current) {
       const st = useInboxStore.getState();
-      if (viewedConversationId(st as any, pathname) !== expectedConvRef.current) useInboxStore.getState().setFollowLeader(null);
+      if (viewedConversationId(st as any, pathname) !== expectedConvRef.current)
+        useInboxStore.getState().setFollowLeader(null);
     }
   }, [pathname]);
 
   // ── leader: who follows me, and my place while they do ──
-  const followers = useQueryNoThrow(api.follow.followersOf, host ? {} : "skip").data;
+  const followers = useQueryNoThrow(
+    api.follow.followersOf,
+    host ? {} : "skip",
+  ).data;
   const followersKey = followersSig(followers as any);
   useWatchEffect(() => {
-    useInboxStore.getState().setFollowedBy((followers ?? []).map((f: any) => ({ user_id: String(f.user_id), name: f.name, image: f.image })));
+    useInboxStore.getState().setFollowedBy(
+      (followers ?? []).map((f: any) => ({
+        user_id: String(f.user_id),
+        name: f.name,
+        image: f.image,
+      })),
+    );
   }, [followersKey]);
   const followed = !!followers && followers.length > 0;
-  const viewedId = useInboxStore((s) => (followed ? viewedConversationId(s as any, pathname) : null));
+  const viewedId = useInboxStore((s) =>
+    followed ? viewedConversationId(s as any, pathname) : null,
+  );
   const anchor = useInboxStore((s) => (followed ? s.viewAnchor : null));
-  const anchorKey = anchor ? `${anchor.conversationId}|${anchor.messageId}|${anchor.offset}` : "";
+  const anchorKey = anchor
+    ? `${anchor.conversationId}|${anchor.messageId}|${anchor.offset}`
+    : "";
   const leaderView = useLeaderView(followed);
   // Trailing throttle: a leader scrolling steadily streams a report every
   // REPORT_MS rather than one when they stop, and the report carries the
   // latest values when it fires. Nothing goes out when nothing changed.
-  const latestRef = useRef<() => Parameters<typeof reportMut>[0]>(() => ({ path: "/" }));
+  const latestRef = useRef<() => Parameters<typeof reportMut>[0]>(() => ({
+    path: "/",
+  }));
   latestRef.current = () => ({
-    path: typeof window !== "undefined" ? window.location.pathname + window.location.search : pathname ?? "/",
+    path:
+      typeof window !== "undefined"
+        ? window.location.pathname + window.location.search
+        : (pathname ?? "/"),
     conversation_id: (viewedId as Id<"conversations"> | null) ?? undefined,
-    anchor: anchor && viewedId && anchor.conversationId === viewedId ? { message_id: anchor.messageId, offset: anchor.offset } : undefined,
+    anchor:
+      anchor && viewedId && anchor.conversationId === viewedId
+        ? { message_id: anchor.messageId, offset: anchor.offset }
+        : undefined,
     view: leaderView.view,
   });
-  const reportRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; at: number; sent: string }>({ timer: null, at: 0, sent: "" });
+  const reportRef = useRef<{
+    timer: ReturnType<typeof setTimeout> | null;
+    at: number;
+    sent: string;
+  }>({ timer: null, at: 0, sent: "" });
   useWatchEffect(() => {
     const r = reportRef.current;
     if (!followed) {
@@ -246,18 +344,24 @@ export function useFollowMode(): void {
       return;
     }
     if (r.timer) return;
-    r.timer = setTimeout(() => {
-      r.timer = null;
-      const args = latestRef.current();
-      const sig = JSON.stringify(args);
-      if (sig === r.sent) return;
-      r.sent = sig;
-      r.at = Date.now();
-      reportMut(args).catch(() => {});
-    }, Math.max(0, REPORT_MS - (Date.now() - r.at)));
+    r.timer = setTimeout(
+      () => {
+        r.timer = null;
+        const args = latestRef.current();
+        const sig = JSON.stringify(args);
+        if (sig === r.sent) return;
+        r.sent = sig;
+        r.at = Date.now();
+        reportMut(args).catch(() => {});
+      },
+      Math.max(0, REPORT_MS - (Date.now() - r.at)),
+    );
   }, [followed, pathname, viewedId, anchorKey, leaderView.sig, reportMut]);
-  useWatchEffect(() => () => {
-    const r = reportRef.current;
-    if (r.timer) clearTimeout(r.timer);
-  }, []);
+  useWatchEffect(
+    () => () => {
+      const r = reportRef.current;
+      if (r.timer) clearTimeout(r.timer);
+    },
+    [],
+  );
 }

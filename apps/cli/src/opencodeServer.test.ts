@@ -28,10 +28,14 @@ import {
 
 describe("parseListeningPort", () => {
   test("reads the port from opencode's announce line", () => {
-    expect(parseListeningPort("opencode server listening on http://127.0.0.1:41968")).toBe(41968);
+    expect(
+      parseListeningPort("opencode server listening on http://127.0.0.1:41968"),
+    ).toBe(41968);
   });
   test("handles an arbitrary hostname and https", () => {
-    expect(parseListeningPort("listening on https://localhost:3000")).toBe(3000);
+    expect(parseListeningPort("listening on https://localhost:3000")).toBe(
+      3000,
+    );
   });
   test("returns null for unrelated log lines", () => {
     expect(parseListeningPort("level=INFO message=bootstrapping")).toBeNull();
@@ -43,7 +47,8 @@ describe("parseListeningPort", () => {
 
 describe("parseSseFrames", () => {
   test("decodes a single complete frame", () => {
-    const buf = 'data: {"id":"evt_1","type":"session.idle","properties":{"sessionID":"ses_a"}}\n\n';
+    const buf =
+      'data: {"id":"evt_1","type":"session.idle","properties":{"sessionID":"ses_a"}}\n\n';
     const { events, rest } = parseSseFrames(buf);
     expect(rest).toBe("");
     expect(events).toHaveLength(1);
@@ -56,34 +61,44 @@ describe("parseSseFrames", () => {
       'data: {"type":"session.idle","properties":{"sessionID":"ses_a"}}\n\n' +
       'data: {"type":"message.part.delta",';
     const { events, rest } = parseSseFrames(buf);
-    expect(events.map((e) => e.type)).toEqual(["session.status", "session.idle"]);
+    expect(events.map((e) => e.type)).toEqual([
+      "session.status",
+      "session.idle",
+    ]);
     expect(rest).toBe('data: {"type":"message.part.delta",');
   });
 
   test("resumes across chunks: a partial frame completes on the next call", () => {
     const first = parseSseFrames('data: {"type":"session.idle",');
     expect(first.events).toHaveLength(0);
-    const second = parseSseFrames(first.rest + '"properties":{"sessionID":"ses_a"}}\n\n');
+    const second = parseSseFrames(
+      first.rest + '"properties":{"sessionID":"ses_a"}}\n\n',
+    );
     expect(second.events).toHaveLength(1);
     expect(second.events[0]?.type).toBe("session.idle");
   });
 
   test("ignores comments/heartbeats and concatenates multi-line data", () => {
-    const buf = ':heartbeat\n\n' + 'data: {"type":\ndata: "session.idle","properties":{"sessionID":"ses_a"}}\n\n';
+    const buf =
+      ":heartbeat\n\n" +
+      'data: {"type":\ndata: "session.idle","properties":{"sessionID":"ses_a"}}\n\n';
     const { events } = parseSseFrames(buf);
     expect(events).toHaveLength(1);
     expect(events[0]?.type).toBe("session.idle");
   });
 
   test("normalizes CRLF frame delimiters", () => {
-    const buf = 'data: {"type":"session.idle","properties":{"sessionID":"ses_a"}}\r\n\r\n';
+    const buf =
+      'data: {"type":"session.idle","properties":{"sessionID":"ses_a"}}\r\n\r\n';
     const { events, rest } = parseSseFrames(buf);
     expect(events).toHaveLength(1);
     expect(rest).toBe("");
   });
 
   test("drops unparseable payloads without throwing", () => {
-    const buf = "data: not-json\n\n" + 'data: {"type":"session.idle","properties":{"sessionID":"ses_a"}}\n\n';
+    const buf =
+      "data: not-json\n\n" +
+      'data: {"type":"session.idle","properties":{"sessionID":"ses_a"}}\n\n';
     const { events } = parseSseFrames(buf);
     expect(events).toHaveLength(1);
     expect(events[0]?.type).toBe("session.idle");
@@ -93,56 +108,89 @@ describe("parseSseFrames", () => {
 // ── mapOpencodeEvent ──────────────────────────────────────────────────────────
 
 describe("mapOpencodeEvent", () => {
-  const ev = (type: string, properties: Record<string, unknown> = {}): OpencodeRawEvent => ({
+  const ev = (
+    type: string,
+    properties: Record<string, unknown> = {},
+  ): OpencodeRawEvent => ({
     id: "evt_x",
     type,
     properties,
   });
 
   test("session.status busy → working", () => {
-    const m = mapOpencodeEvent(ev("session.status", { sessionID: "ses_a", status: { type: "busy" } }));
+    const m = mapOpencodeEvent(
+      ev("session.status", { sessionID: "ses_a", status: { type: "busy" } }),
+    );
     expect(m?.workState).toBe("working");
     expect(m?.sessionId).toBe("ses_a");
   });
 
   test("session.status retry → working (still active)", () => {
-    expect(mapOpencodeEvent(ev("session.status", { sessionID: "ses_a", status: { type: "retry" } }))?.workState).toBe(
-      "working",
-    );
+    expect(
+      mapOpencodeEvent(
+        ev("session.status", { sessionID: "ses_a", status: { type: "retry" } }),
+      )?.workState,
+    ).toBe("working");
   });
 
   test("session.status idle → idle", () => {
-    expect(mapOpencodeEvent(ev("session.status", { sessionID: "ses_a", status: { type: "idle" } }))?.workState).toBe(
-      "idle",
-    );
+    expect(
+      mapOpencodeEvent(
+        ev("session.status", { sessionID: "ses_a", status: { type: "idle" } }),
+      )?.workState,
+    ).toBe("idle");
   });
 
   test("session.idle → idle (turn complete)", () => {
-    expect(mapOpencodeEvent(ev("session.idle", { sessionID: "ses_a" }))?.workState).toBe("idle");
+    expect(
+      mapOpencodeEvent(ev("session.idle", { sessionID: "ses_a" }))?.workState,
+    ).toBe("idle");
   });
 
   test("session.error → idle (turn ended)", () => {
-    expect(mapOpencodeEvent(ev("session.error", { sessionID: "ses_a" }))?.workState).toBe("idle");
+    expect(
+      mapOpencodeEvent(ev("session.error", { sessionID: "ses_a" }))?.workState,
+    ).toBe("idle");
   });
 
   test("permission.asked → permission_blocked; replied → working", () => {
-    expect(mapOpencodeEvent(ev("permission.asked", { sessionID: "ses_a" }))?.workState).toBe("permission_blocked");
-    expect(mapOpencodeEvent(ev("permission.v2.asked", { sessionID: "ses_a" }))?.workState).toBe("permission_blocked");
-    expect(mapOpencodeEvent(ev("permission.replied", { sessionID: "ses_a" }))?.workState).toBe("working");
+    expect(
+      mapOpencodeEvent(ev("permission.asked", { sessionID: "ses_a" }))
+        ?.workState,
+    ).toBe("permission_blocked");
+    expect(
+      mapOpencodeEvent(ev("permission.v2.asked", { sessionID: "ses_a" }))
+        ?.workState,
+    ).toBe("permission_blocked");
+    expect(
+      mapOpencodeEvent(ev("permission.replied", { sessionID: "ses_a" }))
+        ?.workState,
+    ).toBe("working");
   });
 
   test("content/metadata events carry sessionId but no workState", () => {
     const delta = mapOpencodeEvent(
-      ev("message.part.delta", { sessionID: "ses_a", messageID: "msg_1", partID: "prt_1", field: "text", delta: "x" }),
+      ev("message.part.delta", {
+        sessionID: "ses_a",
+        messageID: "msg_1",
+        partID: "prt_1",
+        field: "text",
+        delta: "x",
+      }),
     );
     expect(delta?.sessionId).toBe("ses_a");
     expect(delta?.workState).toBeUndefined();
-    expect(mapOpencodeEvent(ev("session.updated", { sessionID: "ses_a" }))?.workState).toBeUndefined();
+    expect(
+      mapOpencodeEvent(ev("session.updated", { sessionID: "ses_a" }))
+        ?.workState,
+    ).toBeUndefined();
     expect(mapOpencodeEvent(ev("server.connected"))?.sessionId).toBeUndefined();
   });
 
   test("rejects malformed input", () => {
-    expect(mapOpencodeEvent({ type: 123 } as unknown as OpencodeRawEvent)).toBeNull();
+    expect(
+      mapOpencodeEvent({ type: 123 } as unknown as OpencodeRawEvent),
+    ).toBeNull();
   });
 });
 
@@ -165,17 +213,24 @@ const announce = "opencode server listening on http://127.0.0.1:45999";
 
 /** A fetch stand-in routing by URL: healthy /global/health, an SSE /event body
  *  emitting the given frames then closing, and JSON for fork/list. */
-function makeFetch(opts: { eventFrames?: string; forkId?: string; sessions?: unknown[] } = {}) {
+function makeFetch(
+  opts: { eventFrames?: string; forkId?: string; sessions?: unknown[] } = {},
+) {
   const calls: { url: string; init?: RequestInit }[] = [];
   const fetchImpl = (async (url: string, init?: RequestInit) => {
     calls.push({ url, init });
     if (url.endsWith("/global/health")) {
-      return { ok: true, status: 200, json: async () => ({ healthy: true, version: "1.18.3" }) } as Response;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ healthy: true, version: "1.18.3" }),
+      } as Response;
     }
     if (url.endsWith("/event")) {
       const body = new ReadableStream<Uint8Array>({
         start(controller) {
-          if (opts.eventFrames) controller.enqueue(new TextEncoder().encode(opts.eventFrames));
+          if (opts.eventFrames)
+            controller.enqueue(new TextEncoder().encode(opts.eventFrames));
           controller.close();
         },
       });
@@ -185,26 +240,52 @@ function makeFetch(opts: { eventFrames?: string; forkId?: string; sessions?: unk
       return {
         ok: true,
         status: 200,
-        json: async () => ({ id: opts.forkId ?? "ses_forked", title: "x (fork #1)" }),
+        json: async () => ({
+          id: opts.forkId ?? "ses_forked",
+          title: "x (fork #1)",
+        }),
       } as Response;
     }
     if (url.includes("/message")) {
-      return { ok: true, status: 200, json: async () => ({ info: { id: "msg_imported" }, parts: [] }) } as Response;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ info: { id: "msg_imported" }, parts: [] }),
+      } as Response;
     }
     if (url.includes("/session") && init?.method === "POST") {
-      return { ok: true, status: 200, json: async () => ({ id: "ses_created", title: "t" }) } as Response;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ id: "ses_created", title: "t" }),
+      } as Response;
     }
     if (url.endsWith("/session")) {
-      return { ok: true, status: 200, json: async () => opts.sessions ?? [] } as Response;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => opts.sessions ?? [],
+      } as Response;
     }
-    return { ok: false, status: 404, text: async () => "not found" } as Response;
+    return {
+      ok: false,
+      status: 404,
+      text: async () => "not found",
+    } as Response;
   }) as unknown as typeof fetch;
   return { fetchImpl, calls };
 }
 
-function once(emitter: EventEmitter, event: string, timeoutMs = 2000): Promise<unknown[]> {
+function once(
+  emitter: EventEmitter,
+  event: string,
+  timeoutMs = 2000,
+): Promise<unknown[]> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`timed out waiting for "${event}"`)), timeoutMs);
+    const timer = setTimeout(
+      () => reject(new Error(`timed out waiting for "${event}"`)),
+      timeoutMs,
+    );
     emitter.once(event, (...args) => {
       clearTimeout(timer);
       resolve(args);
@@ -228,7 +309,9 @@ describe("OpencodeServer lifecycle", () => {
     });
 
     const workStates: [string, string][] = [];
-    server.on("workState", (sid: string, st: string) => workStates.push([sid, st]));
+    server.on("workState", (sid: string, st: string) =>
+      workStates.push([sid, st]),
+    );
 
     const ready = once(server, "ready");
     server.start();
@@ -278,7 +361,8 @@ describe("OpencodeServer lifecycle", () => {
     const child = makeFakeChild();
     // fetch that never reports healthy
     const fetchImpl = (async (url: string) => {
-      if (url.endsWith("/global/health")) return { ok: false, status: 503, json: async () => ({}) } as Response;
+      if (url.endsWith("/global/health"))
+        return { ok: false, status: 503, json: async () => ({}) } as Response;
       return { ok: false, status: 404, text: async () => "" } as Response;
     }) as unknown as typeof fetch;
 
@@ -310,7 +394,12 @@ describe("OpencodeServer authentication", () => {
     const { fetchImpl, calls } = makeFetch({ forkId: "ses_auth" });
     const server = new OpencodeServer({
       log: () => {},
-      spawnFn: ((_bin: string, _args: string[], opts: any) => { envs.push(opts.env); const c = makeFakeChild(); children.push(c); return c; }) as any,
+      spawnFn: ((_bin: string, _args: string[], opts: any) => {
+        envs.push(opts.env);
+        const c = makeFakeChild();
+        children.push(c);
+        return c;
+      }) as any,
       fetchImpl,
       healthTimeoutMs: 1000,
     });
@@ -324,12 +413,20 @@ describe("OpencodeServer authentication", () => {
     expect(password.length).toBeGreaterThanOrEqual(32);
     expect(envs[0]!.OPENCODE_SERVER_USERNAME).toBe("opencode");
     const expected = `Basic ${Buffer.from(`opencode:${password}`).toString("base64")}`;
-    const auth = (c: (typeof calls)[number]) => (c.init?.headers as Record<string, string> | undefined)?.authorization;
+    const auth = (c: (typeof calls)[number]) =>
+      (c.init?.headers as Record<string, string> | undefined)?.authorization;
     for (const path of ["/global/health", "/event", "/fork"]) {
       const call = calls.find((c) => c.url.includes(path));
       expect(call && auth(call)).toBe(expected);
     }
-    expect((calls.find((c) => c.url.includes("/fork"))!.init!.headers as Record<string, string>)["content-type"]).toBe("application/json");
+    expect(
+      (
+        calls.find((c) => c.url.includes("/fork"))!.init!.headers as Record<
+          string,
+          string
+        >
+      )["content-type"],
+    ).toBe("application/json");
     server.stop();
 
     // A restart mints a new password; the old one opens nothing.
@@ -342,7 +439,12 @@ describe("OpencodeServer authentication", () => {
 describe("OpencodeServer HTTP helpers", () => {
   async function readyServer(fetchImpl: typeof fetch) {
     const child = makeFakeChild();
-    const server = new OpencodeServer({ log: () => {}, spawnFn: (() => child) as any, fetchImpl, healthTimeoutMs: 1000 });
+    const server = new OpencodeServer({
+      log: () => {},
+      spawnFn: (() => child) as any,
+      fetchImpl,
+      healthTimeoutMs: 1000,
+    });
     const ready = once(server, "ready");
     server.start();
     child.stdout.write(announce + "\n");
@@ -360,7 +462,9 @@ describe("OpencodeServer HTTP helpers", () => {
     const forkCall = calls.find((c) => c.url.includes("/fork"));
     expect(forkCall?.url).toContain("/session/ses_parent/fork");
     expect(forkCall?.init?.method).toBe("POST");
-    expect(JSON.parse(String(forkCall?.init?.body))).toEqual({ messageID: "msg_cut" });
+    expect(JSON.parse(String(forkCall?.init?.body))).toEqual({
+      messageID: "msg_cut",
+    });
 
     server.stop();
   });
@@ -390,7 +494,9 @@ describe("OpencodeServer HTTP helpers", () => {
   });
 
   test("listSessions returns the project-scoped list", async () => {
-    const { fetchImpl } = makeFetch({ sessions: [{ id: "ses_1" }, { id: "ses_2" }] });
+    const { fetchImpl } = makeFetch({
+      sessions: [{ id: "ses_1" }, { id: "ses_2" }],
+    });
     const server = await readyServer(fetchImpl);
     const list = await server.listSessions();
     expect(list.map((s) => s.id)).toEqual(["ses_1", "ses_2"]);
@@ -417,7 +523,13 @@ describe("OpencodeServer sidecar lifetime hardening", () => {
   test("stops itself after the idle timeout and emits idleStopped — no lingering serve", async () => {
     const { children, spawnFn } = multiSpawn();
     const { fetchImpl } = makeFetch();
-    const server = new OpencodeServer({ log: () => {}, spawnFn, fetchImpl, healthTimeoutMs: 1000, idleTimeoutMs: 120 });
+    const server = new OpencodeServer({
+      log: () => {},
+      spawnFn,
+      fetchImpl,
+      healthTimeoutMs: 1000,
+      idleTimeoutMs: 120,
+    });
 
     const ready = once(server, "ready");
     const idleStopped = once(server, "idleStopped");
@@ -436,7 +548,13 @@ describe("OpencodeServer sidecar lifetime hardening", () => {
     const { children, spawnFn } = multiSpawn();
     const { fetchImpl } = makeFetch({ forkId: "ses_reborn" });
     // idleTimeoutMs 0 disables the idle timer so this test is purely about restart.
-    const server = new OpencodeServer({ log: () => {}, spawnFn, fetchImpl, healthTimeoutMs: 1000, idleTimeoutMs: 0 });
+    const server = new OpencodeServer({
+      log: () => {},
+      spawnFn,
+      fetchImpl,
+      healthTimeoutMs: 1000,
+      idleTimeoutMs: 0,
+    });
 
     const firstReady = once(server, "ready");
     server.start();
@@ -461,7 +579,13 @@ describe("OpencodeServer sidecar lifetime hardening", () => {
   test("stop() on the crash/exit path synchronously reaps the child (no orphaned serve)", async () => {
     const child = makeFakeChild();
     const { fetchImpl } = makeFetch();
-    const server = new OpencodeServer({ log: () => {}, spawnFn: (() => child) as any, fetchImpl, healthTimeoutMs: 1000, idleTimeoutMs: 0 });
+    const server = new OpencodeServer({
+      log: () => {},
+      spawnFn: (() => child) as any,
+      fetchImpl,
+      healthTimeoutMs: 1000,
+      idleTimeoutMs: 0,
+    });
     const ready = once(server, "ready");
     server.start();
     child.stdout.write(announce + "\n");
@@ -483,17 +607,35 @@ describe("OpencodeServer sidecar lifetime hardening", () => {
 describe("OpencodeServer rebuild calls", () => {
   test("createSession and appendUserMessage scope to the directory and never start a turn", async () => {
     const { fetchImpl, calls } = makeFetch();
-    const server = new OpencodeServer({ log: () => {}, fetchImpl, spawnFn: (() => { throw new Error("no spawn"); }) as any });
+    const server = new OpencodeServer({
+      log: () => {},
+      fetchImpl,
+      spawnFn: (() => {
+        throw new Error("no spawn");
+      }) as any,
+    });
     (server as any).resolvedPort = 4096;
-    const created = await server.createSession({ title: "Rebuilt" }, { directory: "/tmp/my project" });
+    const created = await server.createSession(
+      { title: "Rebuilt" },
+      { directory: "/tmp/my project" },
+    );
     expect(created.id).toBe("ses_created");
-    const appended = await server.appendUserMessage("ses_created", "[Codecast import] …", { directory: "/tmp/my project" });
+    const appended = await server.appendUserMessage(
+      "ses_created",
+      "[Codecast import] …",
+      { directory: "/tmp/my project" },
+    );
     expect(appended.info.id).toBe("msg_imported");
     const create = calls.find((c) => c.url.includes("/session?"))!;
     expect(create.url).toContain("/session?directory=%2Ftmp%2Fmy%20project");
     expect(JSON.parse(String(create.init?.body))).toEqual({ title: "Rebuilt" });
     const msg = calls.find((c) => c.url.includes("/message"))!;
-    expect(msg.url).toContain("/session/ses_created/message?directory=%2Ftmp%2Fmy%20project");
-    expect(JSON.parse(String(msg.init?.body))).toEqual({ noReply: true, parts: [{ type: "text", text: "[Codecast import] …" }] });
+    expect(msg.url).toContain(
+      "/session/ses_created/message?directory=%2Ftmp%2Fmy%20project",
+    );
+    expect(JSON.parse(String(msg.init?.body))).toEqual({
+      noReply: true,
+      parts: [{ type: "text", text: "[Codecast import] …" }],
+    });
   });
 });

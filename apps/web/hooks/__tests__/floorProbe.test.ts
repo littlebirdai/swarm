@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { getFunctionName } from "convex/server";
-import { byIdsMustReturn, inboxFloorFlags, runInboxFloorStep } from "../useSyncInboxSessions";
+import {
+  byIdsMustReturn,
+  inboxFloorFlags,
+  runInboxFloorStep,
+} from "../useSyncInboxSessions";
 import { useInboxStore } from "../../store/inboxStore";
 
 // The floor's warm-cache probe re-reads by id the cached rows a complete floor
@@ -23,7 +27,16 @@ const THIN = id("d");
 const STALE_CLAIM = id("e");
 
 function row(_id: string, extra: Record<string, unknown>) {
-  return { _id, session_id: `s-${_id}`, updated_at: 1, agent_type: "claude_code", message_count: 1, is_idle: false, has_pending: false, ...extra };
+  return {
+    _id,
+    session_id: `s-${_id}`,
+    updated_at: 1,
+    agent_type: "claude_code",
+    message_count: 1,
+    is_idle: false,
+    has_pending: false,
+    ...extra,
+  };
 }
 
 describe("byIdsMustReturn", () => {
@@ -31,7 +44,9 @@ describe("byIdsMustReturn", () => {
     expect(byIdsMustReturn({ user_id: ME }, ME)).toBe(true);
     expect(byIdsMustReturn({}, ME)).toBe(true);
     expect(byIdsMustReturn({ user_id: OTHER }, ME)).toBe(false);
-    expect(byIdsMustReturn({ user_id: OTHER, owned_by_me: true } as any, ME)).toBe(false);
+    expect(
+      byIdsMustReturn({ user_id: OTHER, owned_by_me: true } as any, ME),
+    ).toBe(false);
   });
 });
 
@@ -44,7 +59,10 @@ describe("runInboxFloorStep probe", () => {
       syncLogScopeStamps: { [`user:${ME}`]: 1 } as any,
       sessions: {
         [OWN]: row(OWN, { user_id: ME }),
-        [OWNED_FOREIGN]: row(OWNED_FOREIGN, { user_id: OTHER, owned_by_me: true }),
+        [OWNED_FOREIGN]: row(OWNED_FOREIGN, {
+          user_id: OTHER,
+          owned_by_me: true,
+        }),
         [TEAMMATE]: row(TEAMMATE, { user_id: OTHER }),
         [THIN]: row(THIN, {}),
         // Team-visible to me, but I was disowned while away: the cached claim is stale.
@@ -53,7 +71,9 @@ describe("runInboxFloorStep probe", () => {
     });
     const asked: string[][] = [];
     let done!: () => void;
-    const finished = new Promise<void>((r) => { done = r; });
+    const finished = new Promise<void>((r) => {
+      done = r;
+    });
     const convex = {
       query: async (fn: any, args: any) => {
         const name = getFunctionName(fn);
@@ -65,7 +85,10 @@ describe("runInboxFloorStep probe", () => {
           asked.push([...args.ids].sort());
           if (asked.length === 2) done();
           // byIds' truth: it serves the rows the caller runs or still owns.
-          const served = [row(OWN, { user_id: ME }), row(OWNED_FOREIGN, { user_id: OTHER, owned_by_me: true })];
+          const served = [
+            row(OWN, { user_id: ME }),
+            row(OWNED_FOREIGN, { user_id: OTHER, owned_by_me: true }),
+          ];
           return { sessions: served.filter((r) => args.ids.includes(r._id)) };
         }
         throw new Error(`unexpected query ${name}`);
@@ -77,7 +100,10 @@ describe("runInboxFloorStep probe", () => {
     await finished;
     await new Promise((r) => setTimeout(r, 0));
     // The pruning probe, then the claim settlement.
-    expect(asked).toEqual([[OWN, THIN].sort(), [OWNED_FOREIGN, STALE_CLAIM].sort()]);
+    expect(asked).toEqual([
+      [OWN, THIN].sort(),
+      [OWNED_FOREIGN, STALE_CLAIM].sort(),
+    ]);
     const s = useInboxStore.getState();
     expect(s.sessions[TEAMMATE]).toBeDefined();
     expect(s.sessions[OWN]).toBeDefined();

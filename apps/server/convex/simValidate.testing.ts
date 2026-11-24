@@ -15,13 +15,29 @@ import { convexToJson, jsonToConvex } from "convex/values";
 
 // The JSON form of a validator, as `Validator.json` produces it.
 export type ValidatorJson =
-  | { type: "any" | "string" | "number" | "bigint" | "boolean" | "null" | "bytes" }
+  | {
+      type:
+        | "any"
+        | "string"
+        | "number"
+        | "bigint"
+        | "boolean"
+        | "null"
+        | "bytes";
+    }
   | { type: "id"; tableName: string }
   | { type: "literal"; value: unknown }
   | { type: "array"; value: ValidatorJson }
   | { type: "union"; value: ValidatorJson[] }
-  | { type: "object"; value: Record<string, { fieldType: ValidatorJson; optional: boolean }> }
-  | { type: "record"; keys: ValidatorJson; values: { fieldType: ValidatorJson; optional: boolean } };
+  | {
+      type: "object";
+      value: Record<string, { fieldType: ValidatorJson; optional: boolean }>;
+    }
+  | {
+      type: "record";
+      keys: ValidatorJson;
+      values: { fieldType: ValidatorJson; optional: boolean };
+    };
 
 export interface ValidateOptions {
   // Whether `value` is a valid id of `table`. Prod decodes the table from the
@@ -38,14 +54,24 @@ export class ArgumentValidationError extends Error {
 
 // Validate `args` against a registered function's exported args validator
 // (the string `fn.exportArgs()` returns, or its parsed form).
-export function validateArgs(validator: string | ValidatorJson, args: unknown, opts: ValidateOptions = {}): void {
-  const json: ValidatorJson = typeof validator === "string" ? JSON.parse(validator) : validator;
+export function validateArgs(
+  validator: string | ValidatorJson,
+  args: unknown,
+  opts: ValidateOptions = {},
+): void {
+  const json: ValidatorJson =
+    typeof validator === "string" ? JSON.parse(validator) : validator;
   const failure = check(json, args, "", opts);
   if (failure) throw new ArgumentValidationError(failure);
 }
 
 // The first mismatch as prod words it, or null when the value conforms.
-function check(validator: ValidatorJson, value: unknown, path: string, opts: ValidateOptions): string | null {
+function check(
+  validator: ValidatorJson,
+  value: unknown,
+  path: string,
+  opts: ValidateOptions,
+): string | null {
   const noMatch = () =>
     `Value does not match validator.\nPath: ${path || "."}\nValue: ${display(value)}\nValidator: ${render(validator)}`;
   switch (validator.type) {
@@ -66,8 +92,10 @@ function check(validator: ValidatorJson, value: unknown, path: string, opts: Val
     case "id":
       if (typeof value !== "string") return noMatch();
       if (opts.isId && !opts.isId(validator.tableName, value)) {
-        return `Value does not match validator.\nPath: ${path || "."}\nValue: ${display(value)}\nValidator: ${render(validator)}\n`
-          + `Unable to decode ID: not an id of table "${validator.tableName}"`;
+        return (
+          `Value does not match validator.\nPath: ${path || "."}\nValue: ${display(value)}\nValidator: ${render(validator)}\n` +
+          `Unable to decode ID: not an id of table "${validator.tableName}"`
+        );
       }
       return null;
     case "literal":
@@ -81,7 +109,11 @@ function check(validator: ValidatorJson, value: unknown, path: string, opts: Val
       return null;
     }
     case "union":
-      return validator.value.some((member) => check(member, value, path, opts) === null) ? null : noMatch();
+      return validator.value.some(
+        (member) => check(member, value, path, opts) === null,
+      )
+        ? null
+        : noMatch();
     case "object": {
       if (!isPlainObject(value)) return noMatch();
       const where = path ? `Path: ${path}\n` : "";
@@ -89,27 +121,46 @@ function check(validator: ValidatorJson, value: unknown, path: string, opts: Val
         const fieldValue = (value as Record<string, unknown>)[field];
         if (fieldValue === undefined) {
           if (spec.optional) continue;
-          return `Object is missing the required field \`${field}\`. Consider wrapping the field validator in \`v.optional(...)\` if this is expected.\n\n`
-            + `${where}Object: ${display(value)}\nValidator: ${render(validator)}`;
+          return (
+            `Object is missing the required field \`${field}\`. Consider wrapping the field validator in \`v.optional(...)\` if this is expected.\n\n` +
+            `${where}Object: ${display(value)}\nValidator: ${render(validator)}`
+          );
         }
-        const inner = check(spec.fieldType, fieldValue, `${path}.${field}`, opts);
+        const inner = check(
+          spec.fieldType,
+          fieldValue,
+          `${path}.${field}`,
+          opts,
+        );
         if (inner) return inner;
       }
       for (const field of Object.keys(value as object)) {
-        if (!(field in validator.value) && (value as Record<string, unknown>)[field] !== undefined) {
-          return `Object contains extra field \`${field}\` that is not in the validator.\n\n`
-            + `${where}Object: ${display(value)}\nValidator: ${render(validator)}`;
+        if (
+          !(field in validator.value) &&
+          (value as Record<string, unknown>)[field] !== undefined
+        ) {
+          return (
+            `Object contains extra field \`${field}\` that is not in the validator.\n\n` +
+            `${where}Object: ${display(value)}\nValidator: ${render(validator)}`
+          );
         }
       }
       return null;
     }
     case "record": {
       if (!isPlainObject(value)) return noMatch();
-      for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+      for (const [key, inner] of Object.entries(
+        value as Record<string, unknown>,
+      )) {
         const badKey = check(validator.keys, key, `${path}.${key}`, opts);
         if (badKey) return badKey;
         if (inner === undefined && validator.values.optional) continue;
-        const badValue = check(validator.values.fieldType, inner, `${path}.${key}`, opts);
+        const badValue = check(
+          validator.values.fieldType,
+          inner,
+          `${path}.${key}`,
+          opts,
+        );
         if (badValue) return badValue;
       }
       return null;
@@ -118,7 +169,13 @@ function check(validator: ValidatorJson, value: unknown, path: string, opts: Val
 }
 
 function isPlainObject(value: unknown): boolean {
-  if (value === null || typeof value !== "object" || Array.isArray(value) || value instanceof ArrayBuffer) return false;
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    value instanceof ArrayBuffer
+  )
+    return false;
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
 }
@@ -154,7 +211,10 @@ export function render(validator: ValidatorJson): string {
       return `v.union(${validator.value.map(render).join(", ")})`;
     case "object":
       return `v.object({${Object.entries(validator.value)
-        .map(([field, spec]) => `${field}: ${spec.optional ? `v.optional(${render(spec.fieldType)})` : render(spec.fieldType)}`)
+        .map(
+          ([field, spec]) =>
+            `${field}: ${spec.optional ? `v.optional(${render(spec.fieldType)})` : render(spec.fieldType)}`,
+        )
         .join(", ")}})`;
     case "record":
       return `v.record(${render(validator.keys)}, ${render(validator.values.fieldType)})`;

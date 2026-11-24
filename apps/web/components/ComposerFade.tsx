@@ -7,5 +7,11 @@
  * that composer (the org proposal's preview frame) draws this same one.
  */
 export function ComposerFade() {
-  return <div aria-hidden className="h-16 bg-gradient-to-t from-sol-bg via-[color-mix(in_srgb,var(--sol-bg)_80%,transparent)] to-transparent -mt-16 relative pointer-events-none" data-composer-fade />;
+  return (
+    <div
+      aria-hidden
+      className="h-16 bg-gradient-to-t from-sol-bg via-[color-mix(in_srgb,var(--sol-bg)_80%,transparent)] to-transparent -mt-16 relative pointer-events-none"
+      data-composer-fade
+    />
+  );
 }

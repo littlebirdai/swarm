@@ -1,4 +1,8 @@
-import { escapeTagAttr, stripInjectionNoise, unescapeTagAttr } from "./machineMessages";
+import {
+  escapeTagAttr,
+  stripInjectionNoise,
+  unescapeTagAttr,
+} from "./machineMessages";
 
 // --- Decision answers (cast decide) ------------------------------------------------
 // The human's answer to a `cast decide` question enters the session as a user
@@ -13,7 +17,8 @@ import { escapeTagAttr, stripInjectionNoise, unescapeTagAttr } from "./machineMe
 //
 // The tag rides the same message as the text, so tmux injection collapsing
 // the newline to a space must not matter: the parser never requires one.
-export const DECISION_ANSWER_TAG_RE = /<cast-decision\s+id="([^"]*)"(?:\s+question="([^"]*)")?\s*\/>/;
+export const DECISION_ANSWER_TAG_RE =
+  /<cast-decision\s+id="([^"]*)"(?:\s+question="([^"]*)")?\s*\/>/;
 
 export interface DecisionAnswerMessage {
   id: string;
@@ -32,9 +37,18 @@ export interface DecisionAnswerMessage {
 // (sessionDecisions.findByAnswer) and the web store scan so both resolve
 // the same row.
 export function pickAnsweredDecision<
-  T extends { options: { label: string }[]; answer_index?: number; answer_text?: string; resolved_at?: number; created_at: number },
+  T extends {
+    options: { label: string }[];
+    answer_index?: number;
+    answer_text?: string;
+    resolved_at?: number;
+    created_at: number;
+  },
 >(rows: T[], answer: string, near?: number): T | null {
-  const recorded = (r: T) => (r.answer_index !== undefined ? r.options[r.answer_index]?.label : r.answer_text);
+  const recorded = (r: T) =>
+    r.answer_index !== undefined
+      ? r.options[r.answer_index]?.label
+      : r.answer_text;
   const matches = rows.filter((r) => recorded(r) === answer);
   if (matches.length === 0) return null;
   if (near === undefined) return matches[matches.length - 1];
@@ -54,15 +68,26 @@ export function decisionAnswerLabel(
   if (verdict.answer_text) return verdict.answer_text;
   const kind = row.kind ?? "single";
   const label = (i: number) => row.options[i]?.label ?? `option ${i + 1}`;
-  if (kind === "single") return verdict.answer_index !== undefined ? label(verdict.answer_index) : undefined;
-  if (kind === "multi" && Array.isArray(verdict.answer_json)) return verdict.answer_json.map(label).join(", ");
-  if (kind === "rank" && Array.isArray(verdict.answer_json)) return verdict.answer_json.map(label).join(" > ");
-  if (kind === "form" && verdict.answer_json && typeof verdict.answer_json === "object") {
+  if (kind === "single")
+    return verdict.answer_index !== undefined
+      ? label(verdict.answer_index)
+      : undefined;
+  if (kind === "multi" && Array.isArray(verdict.answer_json))
+    return verdict.answer_json.map(label).join(", ");
+  if (kind === "rank" && Array.isArray(verdict.answer_json))
+    return verdict.answer_json.map(label).join(" > ");
+  if (
+    kind === "form" &&
+    verdict.answer_json &&
+    typeof verdict.answer_json === "object"
+  ) {
     return Object.entries(verdict.answer_json)
       .map(([k, val]) => `${k}=${String(val)}`)
       .join("; ");
   }
-  return verdict.answer_index !== undefined ? label(verdict.answer_index) : undefined;
+  return verdict.answer_index !== undefined
+    ? label(verdict.answer_index)
+    : undefined;
 }
 
 // The client id the server's delivery of an answer carries (sessionDecisions
@@ -74,11 +99,20 @@ export function decisionAnswerClientId(decisionId: string): string {
   return `${DECISION_ANSWER_CLIENT_PREFIX}${decisionId}`;
 }
 
-export function decisionIdFromClientId(clientId: string | null | undefined): string | null {
-  return clientId?.startsWith(DECISION_ANSWER_CLIENT_PREFIX) ? clientId.slice(DECISION_ANSWER_CLIENT_PREFIX.length) || null : null;
+export function decisionIdFromClientId(
+  clientId: string | null | undefined,
+): string | null {
+  return clientId?.startsWith(DECISION_ANSWER_CLIENT_PREFIX)
+    ? clientId.slice(DECISION_ANSWER_CLIENT_PREFIX.length) || null
+    : null;
 }
 
-export function formatDecisionAnswer(a: { id: string; question: string; answer: string; detail?: string }): string {
+export function formatDecisionAnswer(a: {
+  id: string;
+  question: string;
+  answer: string;
+  detail?: string;
+}): string {
   return `Decision: ${a.answer}\n<cast-decision id="${a.id}" question="${escapeTagAttr(a.question)}"/>${a.detail ? `\n\n${a.detail}` : ""}`;
 }
 
@@ -87,11 +121,15 @@ export function formatDecisionAnswer(a: { id: string; question: string; answer: 
  *  writes it to the transcript (convex/assistant/input.ts decisionAnswerOf),
  *  so a client that painted it has no echo to wait for. The legacy untagged
  *  line does not count: a person may type exactly that. */
-export function isTaggedDecisionAnswer(rawContent: string | null | undefined): boolean {
+export function isTaggedDecisionAnswer(
+  rawContent: string | null | undefined,
+): boolean {
   return !!parseDecisionAnswer(rawContent)?.id;
 }
 
-export function parseDecisionAnswer(rawContent: string | null | undefined): DecisionAnswerMessage | null {
+export function parseDecisionAnswer(
+  rawContent: string | null | undefined,
+): DecisionAnswerMessage | null {
   if (!rawContent) return null;
   const text = stripInjectionNoise(rawContent);
   const match = text.match(DECISION_ANSWER_TAG_RE);
@@ -105,7 +143,10 @@ export function parseDecisionAnswer(rawContent: string | null | undefined): Deci
     return legacy ? { id: "", answer: legacy[1].trim() } : null;
   }
   const at = match.index ?? 0;
-  const answer = text.slice(0, at).trim().replace(/^Decision:\s*/, "");
+  const answer = text
+    .slice(0, at)
+    .trim()
+    .replace(/^Decision:\s*/, "");
   const detail = text.slice(at + match[0].length).trim();
   return {
     id: match[1],
@@ -114,4 +155,3 @@ export function parseDecisionAnswer(rawContent: string | null | undefined): Deci
     ...(detail ? { detail } : {}),
   };
 }
-

@@ -6,11 +6,23 @@
 // mounted once in the dashboard shell next to the other docks.
 
 import { FileDiff, Folder, FolderOpen } from "lucide-react";
-import { ContextMenu, CtxItem, CtxSeparator, useContextMenu } from "./ui/context-menu";
+import {
+  ContextMenu,
+  CtxItem,
+  CtxSeparator,
+  useContextMenu,
+} from "./ui/context-menu";
 import { OpenLinkItems, SessionsLinkItem } from "./LinkMenuHost";
 import { fileSessionsLink } from "../lib/sessionSearchLinks";
-import { filePathHref, matchSessionChangedFile, resolveMentionPath } from "../lib/filePathLinks";
-import { setFilePathMenuListener, type FilePathMenuPayload } from "../lib/filePathMenu";
+import {
+  filePathHref,
+  matchSessionChangedFile,
+  resolveMentionPath,
+} from "../lib/filePathLinks";
+import {
+  setFilePathMenuListener,
+  type FilePathMenuPayload,
+} from "../lib/filePathMenu";
 import { parentDir } from "../lib/utils";
 import { openFiles } from "../lib/filesPane";
 import { resolveVaultTarget } from "../lib/vault/vaultHref";
@@ -23,7 +35,13 @@ import { openSessionChangedPath } from "../lib/sessionChangedFiles";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 export function FilePathMenuHost() {
   const menu = useContextMenu<FilePathMenuPayload>();
-  useWatchEffect(() => setFilePathMenuListener((e, payload) => menu.open(e, payload, { force: true })), [menu]);
+  useWatchEffect(
+    () =>
+      setFilePathMenuListener((e, payload) =>
+        menu.open(e, payload, { force: true }),
+      ),
+    [menu],
+  );
 
   return (
     <ContextMenu state={menu}>
@@ -31,7 +49,10 @@ export function FilePathMenuHost() {
         const abs = resolveMentionPath(p.path, p.ctx) ?? p.path;
         const folderHref = filePathHref(parentDir(abs), undefined, null);
         const vs = useVaultStore.getState();
-        const target = vs.endpoint && !vs.isRemote ? resolveVaultTarget(abs, vs.vaults) : null;
+        const target =
+          vs.endpoint && !vs.isRemote
+            ? resolveVaultTarget(abs, vs.vaults)
+            : null;
         const dv = useDiffViewerStore.getState();
         const inSessionDiff =
           !!p.ctx?.conversationId &&
@@ -41,7 +62,10 @@ export function FilePathMenuHost() {
           <>
             {inSessionDiff && (
               <>
-                <CtxItem icon={FileDiff} onSelect={() => openSessionChangedPath(p.path, p.ctx)}>
+                <CtxItem
+                  icon={FileDiff}
+                  onSelect={() => openSessionChangedPath(p.path, p.ctx)}
+                >
                   Open in session changes
                 </CtxItem>
                 <CtxSeparator />
@@ -56,7 +80,11 @@ export function FilePathMenuHost() {
               <CtxItem
                 icon={FolderOpen}
                 onSelect={() => {
-                  void vaultOp(vs.endpoint!, target.vaultId, { op: "reveal", path: target.rel, mode: "reveal" }).catch(() => {});
+                  void vaultOp(vs.endpoint!, target.vaultId, {
+                    op: "reveal",
+                    path: target.rel,
+                    mode: "reveal",
+                  }).catch(() => {});
                 }}
               >
                 {`Reveal in ${fileManagerName()}`}

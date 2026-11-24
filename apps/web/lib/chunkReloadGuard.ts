@@ -82,7 +82,8 @@ export function tryReloadForStaleChunk(): boolean {
     // rather than risk an unbounded loop with no counter to stop it.
     return false;
   }
-  if (window.navigator?.serviceWorker?.controller) void reloadPastServiceWorker();
+  if (window.navigator?.serviceWorker?.controller)
+    void reloadPastServiceWorker();
   else window.location.reload();
   return true;
 }
@@ -99,7 +100,8 @@ export function tryReloadForStaleChunk(): boolean {
 async function reloadPastServiceWorker(): Promise<void> {
   try {
     if (await servedBuildDiffers()) {
-      const registration = await window.navigator.serviceWorker.getRegistration();
+      const registration =
+        await window.navigator.serviceWorker.getRegistration();
       await registration?.unregister();
     }
   } catch {
@@ -116,7 +118,8 @@ async function servedBuildDiffers(): Promise<boolean> {
     });
     if (!res.ok) return false;
     const served = (await res.json()) as { sha?: string };
-    const running = (window as Window & { __CODECAST_BUILD?: { sha?: string } }).__CODECAST_BUILD?.sha;
+    const running = (window as Window & { __CODECAST_BUILD?: { sha?: string } })
+      .__CODECAST_BUILD?.sha;
     return !!served.sha && served.sha !== running;
   } catch {
     return false;
@@ -132,7 +135,8 @@ async function servedBuildDiffers(): Promise<boolean> {
 export function installStaleChunkReload(): void {
   window.addEventListener("vite:preloadError", (event) => {
     const message = (event as Event & { payload?: unknown }).payload;
-    const summary = message instanceof Error ? message.message : String(message ?? "");
+    const summary =
+      message instanceof Error ? message.message : String(message ?? "");
     // Only staleness. A preload that failed because the user is offline, or
     // for any other reason, must not spend the budget or hide its own report.
     if (!isChunkLoadError(summary)) return;

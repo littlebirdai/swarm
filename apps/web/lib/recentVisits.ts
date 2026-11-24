@@ -12,8 +12,16 @@ import { channelDisplayName } from "./chatViews";
 import { dmOtherIds } from "@codecast/shared/chat";
 import { cleanTitle } from "./conversationProcessor";
 import { sessionCardTitle } from "./sessionCard";
-import { isHostedAgentType, workspaceFeatureEnabled } from "@codecast/shared/contracts";
-import { convBucketMap, filterInboxScopeFromState, getProjectName, type RecentVisit } from "../store/inboxStore";
+import {
+  isHostedAgentType,
+  workspaceFeatureEnabled,
+} from "@codecast/shared/contracts";
+import {
+  convBucketMap,
+  filterInboxScopeFromState,
+  getProjectName,
+  type RecentVisit,
+} from "../store/inboxStore";
 import { isForeignSession } from "./liveEntities";
 import { activeTeamIdOf } from "./activeTeam";
 import { formatShortDate } from "./utils";
@@ -22,7 +30,15 @@ import { teamMembersOf } from "./activeTeam";
 
 // What a visit points at, resolved live so a row can show the object's own
 // detail (a task's status, a plan's progress, a label's session count).
-export type VisitObjectType = "session" | "task" | "plan" | "doc" | "channel" | "label" | "project" | "page";
+export type VisitObjectType =
+  | "session"
+  | "task"
+  | "plan"
+  | "doc"
+  | "channel"
+  | "label"
+  | "project"
+  | "page";
 
 export type ResolvedVisit = {
   key: string;
@@ -44,7 +60,10 @@ export type ResolvedVisit = {
   path?: string;
 };
 
-function resolvePageObject(state: any, path: string): { objectType: VisitObjectType; entity?: any; title?: string } {
+function resolvePageObject(
+  state: any,
+  path: string,
+): { objectType: VisitObjectType; entity?: any; title?: string } {
   const m = path.match(/^\/(tasks|docs|plans|chat)\/([^/?#]+)/);
   if (!m) return { objectType: "page" };
   const [, kind, id] = m;
@@ -60,22 +79,45 @@ function resolvePageObject(state: any, path: string): { objectType: VisitObjectT
         objectType: "channel",
         entity: channel,
         title: channelDisplayName(
-          { name: "", kind: "dm", dmMemberIds: dmOtherIds(channel.dm_key, String(state.currentUser?._id ?? "")) },
+          {
+            name: "",
+            kind: "dm",
+            dmMemberIds: dmOtherIds(
+              channel.dm_key,
+              String(state.currentUser?._id ?? ""),
+            ),
+          },
           teamMembersOf(state),
         ),
       };
     }
-    return { objectType: "channel", entity: channel, title: channel.name || undefined };
+    return {
+      objectType: "channel",
+      entity: channel,
+      title: channel.name || undefined,
+    };
   }
   if (kind === "tasks") {
-    const t = state.tasks?.[id] ?? Object.values(state.tasks ?? {}).find((t: any) => t._id === id || t.short_id === id);
+    const t =
+      state.tasks?.[id] ??
+      Object.values(state.tasks ?? {}).find(
+        (t: any) => t._id === id || t.short_id === id,
+      );
     return { objectType: "task", entity: t, title: (t as any)?.title };
   }
   if (kind === "docs") {
     const d = state.docDetails?.[id] ?? state.docs?.[id];
-    return { objectType: "doc", entity: d, title: d?.display_title ?? d?.title };
+    return {
+      objectType: "doc",
+      entity: d,
+      title: d?.display_title ?? d?.title,
+    };
   }
-  const p = state.plans?.[id] ?? Object.values(state.plans ?? {}).find((p: any) => p._id === id || p.short_id === id);
+  const p =
+    state.plans?.[id] ??
+    Object.values(state.plans ?? {}).find(
+      (p: any) => p._id === id || p.short_id === id,
+    );
   return { objectType: "plan", entity: p, title: (p as any)?.title };
 }
 
@@ -89,7 +131,8 @@ function countViewSessions(state: any) {
     const bucket = bucketByConv[s._id];
     if (bucket) byBucket.set(bucket, (byBucket.get(bucket) ?? 0) + 1);
     const project = getProjectName(s.git_root, s.project_path);
-    if (project !== "unknown") byProject.set(project, (byProject.get(project) ?? 0) + 1);
+    if (project !== "unknown")
+      byProject.set(project, (byProject.get(project) ?? 0) + 1);
   }
   return { byBucket, byProject };
 }
@@ -121,17 +164,36 @@ export function resolveVisit(
     // have since switched away from (routing: the row's team vs the one on
     // screen).
     const row = state.sessions?.[v.key];
-    if (row && isForeignSession(row, state.conversations?.[v.key], state.currentUser?._id?.toString?.())
-      && String(row.team_id ?? "") !== String(activeTeamIdOf(state) ?? "")) return null;
+    if (
+      row &&
+      isForeignSession(
+        row,
+        state.conversations?.[v.key],
+        state.currentUser?._id?.toString?.(),
+      ) &&
+      String(row.team_id ?? "") !== String(activeTeamIdOf(state) ?? "")
+    )
+      return null;
     // Untitled blanks (pre-warm stubs the user summoned but never used) are
     // noise, and entries we can't name at all are unrenderable — skip both.
     if (sess && !sess.title && (sess.message_count ?? 0) === 0) return null;
     // A hosted conversation is named by the one rule every surface reads
     // (sessionCardTitle), so an untitled one shows what was asked, never a
     // stale "New conversation" label from its stub.
-    const title = sess && isHostedAgentType(sess.agent_type) ? sessionCardTitle(sess) : cleanTitle(sess?.title || v.label || "");
+    const title =
+      sess && isHostedAgentType(sess.agent_type)
+        ? sessionCardTitle(sess)
+        : cleanTitle(sess?.title || v.label || "");
     if (!title) return null;
-    return { key: v.key, kind: v.kind, ts: v.ts, title, objectType: "session", entity: sess, sessionId: v.key };
+    return {
+      key: v.key,
+      kind: v.kind,
+      ts: v.ts,
+      title,
+      objectType: "session",
+      entity: sess,
+      sessionId: v.key,
+    };
   }
   if (v.kind === "view") {
     if (opts?.skipViews) return null;
@@ -143,27 +205,62 @@ export function resolveVisit(
       // A deleted/archived label is no longer a place you can go.
       if (!name || bucket?.archived_at) return null;
       return {
-        key: v.key, kind: v.kind, ts: v.ts, title: name, objectType: "label", entity: bucket,
-        sessionCount: counts.byBucket.get(id) ?? 0, bucketId: id,
+        key: v.key,
+        kind: v.kind,
+        ts: v.ts,
+        title: name,
+        objectType: "label",
+        entity: bucket,
+        sessionCount: counts.byBucket.get(id) ?? 0,
+        bucketId: id,
       };
     }
     const name = v.label ?? v.key.slice("project:".length);
     return {
-      key: v.key, kind: v.kind, ts: v.ts, title: name, objectType: "project",
-      sessionCount: counts.byProject.get(name) ?? 0, projectName: name, projectPath: v.path ?? null,
+      key: v.key,
+      kind: v.kind,
+      ts: v.ts,
+      title: name,
+      objectType: "project",
+      sessionCount: counts.byProject.get(name) ?? 0,
+      projectName: name,
+      projectPath: v.path ?? null,
     };
   }
   const path = v.path ?? v.key.slice("page:".length);
   // A Flows page while the workspace has Flows off is not a place to go back
   // to, whatever history holds.
-  if (featurePageRedirect(path, workspaceFeatureEnabled(state.teams || [], state.clientState?.ui?.active_team_id, "line"))) return null;
+  if (
+    featurePageRedirect(
+      path,
+      workspaceFeatureEnabled(
+        state.teams || [],
+        state.clientState?.ui?.active_team_id,
+        "line",
+      ),
+    )
+  )
+    return null;
   const obj = resolvePageObject(state, path);
   // A label stored under the other interface style's name for the page reads
   // this style's name (lib/navRegistry staleNavTitle). Modern names every
   // object page by its object, as its tab, crumbs and back control do
   // (lib/placeTitle).
-  const title = obj.title ?? (isModernStyle() ? placeTitle(state, path) : null) ?? (v.label != null && !staleNavTitle(path, v.label, isModernStyle()) ? v.label : pathLabel(path));
-  return { key: v.key, kind: v.kind, ts: v.ts, title, objectType: obj.objectType, entity: obj.entity, path };
+  const title =
+    obj.title ??
+    (isModernStyle() ? placeTitle(state, path) : null) ??
+    (v.label != null && !staleNavTitle(path, v.label, isModernStyle())
+      ? v.label
+      : pathLabel(path));
+  return {
+    key: v.key,
+    kind: v.kind,
+    ts: v.ts,
+    title,
+    objectType: obj.objectType,
+    entity: obj.entity,
+    path,
+  };
 }
 
 export function resolveRecentVisits(

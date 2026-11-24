@@ -18,10 +18,20 @@ import { useDragGatedLayoutPersist } from "./useDragGatedLayoutPersist";
 import { useMountEffect } from "./useMountEffect";
 import { useWatchEffect } from "./useWatchEffect";
 
-const near = (a: Layout, b: Layout) => Object.keys(b).every((k) => Math.abs((a[k] ?? 0) - (b[k] ?? 0)) < 0.1);
-const signature = (l: Layout) => Object.keys(l).sort().map((k) => `${k}:${l[k]}`).join("|");
+const near = (a: Layout, b: Layout) =>
+  Object.keys(b).every((k) => Math.abs((a[k] ?? 0) - (b[k] ?? 0)) < 0.1);
+const signature = (l: Layout) =>
+  Object.keys(l)
+    .sort()
+    .map((k) => `${k}:${l[k]}`)
+    .join("|");
 
-export function useFoldingSplit({ target, folded, onPersist, onReset }: {
+export function useFoldingSplit({
+  target,
+  folded,
+  onPersist,
+  onReset,
+}: {
   /** The layout to hold: the person's split, or a side folded to 0. */
   target: Layout;
   /** A side is folded away: nothing is dragged, persisted or reset. */
@@ -42,7 +52,13 @@ export function useFoldingSplit({ target, folded, onPersist, onReset }: {
   const apply = () => {
     const group = groupRef.current;
     const el = elementRef.current;
-    if (!group || !el || el.offsetWidth === 0 || near(group.getLayout(), targetRef.current)) return;
+    if (
+      !group ||
+      !el ||
+      el.offsetWidth === 0 ||
+      near(group.getLayout(), targetRef.current)
+    )
+      return;
     group.setLayout(targetRef.current);
   };
   useWatchEffect(() => queueMicrotask(apply), [signature(target)]);
@@ -64,10 +80,20 @@ export function useFoldingSplit({ target, folded, onPersist, onReset }: {
     return () => ro.disconnect();
   });
 
-  const onLayoutChange = useDragGatedLayoutPersist((next) => { if (!foldedRef.current) onPersist(next); }, elementRef);
+  const onLayoutChange = useDragGatedLayoutPersist((next) => {
+    if (!foldedRef.current) onPersist(next);
+  }, elementRef);
   // The library's double-click puts the separator back at the panels' default
   // after the pointer is up, outside the drag gate, so the reset is written here.
-  const onSeparatorDoubleClick = () => { if (!foldedRef.current) onReset(); };
+  const onSeparatorDoubleClick = () => {
+    if (!foldedRef.current) onReset();
+  };
 
-  return { groupRef, elementRef, defaultLayout, onLayoutChange, onSeparatorDoubleClick };
+  return {
+    groupRef,
+    elementRef,
+    defaultLayout,
+    onLayoutChange,
+    onSeparatorDoubleClick,
+  };
 }

@@ -27,6 +27,10 @@ export class VersionedObservationSet<T> extends Set<T> {
   }
 
   consume(value: T, observation: symbol | undefined): boolean {
-    return observation !== undefined && this.capture(value) === observation && this.delete(value);
+    return (
+      observation !== undefined &&
+      this.capture(value) === observation &&
+      this.delete(value)
+    );
   }
 }

@@ -1,24 +1,70 @@
 import {
-  Rocket, Flame, Zap, Star, Diamond, Crown,
-  Shield, Sword, Anchor, Compass, Mountain, TreePine,
-  Sun, Moon, Cloud, Bolt, Atom, Dna,
-  Hexagon, Triangle, Box, Circle, Infinity, Omega,
-  Users
+  Rocket,
+  Flame,
+  Zap,
+  Star,
+  Diamond,
+  Crown,
+  Shield,
+  Sword,
+  Anchor,
+  Compass,
+  Mountain,
+  TreePine,
+  Sun,
+  Moon,
+  Cloud,
+  Bolt,
+  Atom,
+  Dna,
+  Hexagon,
+  Triangle,
+  Box,
+  Circle,
+  Infinity,
+  Omega,
+  Users,
 } from "lucide-react";
 
 export const TEAM_ICONS = [
-  "rocket", "flame", "zap", "star", "diamond", "crown",
-  "shield", "sword", "anchor", "compass", "mountain", "tree",
-  "sun", "moon", "cloud", "bolt", "atom", "dna",
-  "hexagon", "triangle", "cube", "sphere", "infinity", "omega"
+  "rocket",
+  "flame",
+  "zap",
+  "star",
+  "diamond",
+  "crown",
+  "shield",
+  "sword",
+  "anchor",
+  "compass",
+  "mountain",
+  "tree",
+  "sun",
+  "moon",
+  "cloud",
+  "bolt",
+  "atom",
+  "dna",
+  "hexagon",
+  "triangle",
+  "cube",
+  "sphere",
+  "infinity",
+  "omega",
 ] as const;
 
 export const TEAM_COLORS = [
-  "cyan", "blue", "violet", "magenta", "green", "yellow", "orange"
+  "cyan",
+  "blue",
+  "violet",
+  "magenta",
+  "green",
+  "yellow",
+  "orange",
 ] as const;
 
-export type TeamIconName = typeof TEAM_ICONS[number];
-export type TeamColorName = typeof TEAM_COLORS[number];
+export type TeamIconName = (typeof TEAM_ICONS)[number];
+export type TeamColorName = (typeof TEAM_COLORS)[number];
 
 /** Spoken names for the icon radios. The key is an internal token ("dna",
  *  "zap"); a screen reader should hear the shape a sighted user sees. */
@@ -49,7 +95,10 @@ export const iconLabelMap: Record<TeamIconName, string> = {
   omega: "Omega",
 };
 
-const iconMap: Record<TeamIconName, React.ComponentType<{ className?: string }>> = {
+const iconMap: Record<
+  TeamIconName,
+  React.ComponentType<{ className?: string }>
+> = {
   rocket: Rocket,
   flame: Flame,
   zap: Zap,
@@ -96,7 +145,6 @@ export const colorBgClassMap: Record<TeamColorName, string> = {
   orange: "bg-sol-orange",
 };
 
-
 interface TeamIconProps {
   icon?: string | null;
   color?: string | null;
@@ -104,11 +152,11 @@ interface TeamIconProps {
 }
 
 export function TeamIcon({ icon, color, className }: TeamIconProps) {
-  const IconComponent = icon && icon in iconMap
-    ? iconMap[icon as TeamIconName]
-    : Users;
-  const colorClass = color && color in colorClassMap
-    ? colorClassMap[color as TeamColorName]
-    : "";
+  const IconComponent =
+    icon && icon in iconMap ? iconMap[icon as TeamIconName] : Users;
+  const colorClass =
+    color && color in colorClassMap
+      ? colorClassMap[color as TeamColorName]
+      : "";
   return <IconComponent className={`${colorClass} ${className || ""}`} />;
 }

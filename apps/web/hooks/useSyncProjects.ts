@@ -1,6 +1,10 @@
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useMemo } from "react";
-import { useFeederWorkspace, useWorkspaceArgs, workspaceStamp } from "./useWorkspaceArgs";
+import {
+  useFeederWorkspace,
+  useWorkspaceArgs,
+  workspaceStamp,
+} from "./useWorkspaceArgs";
 import { useSyncCollection } from "./useSyncCollection";
 import { useBootstrapCollection } from "./useBootstrapCollection";
 
@@ -28,7 +32,15 @@ export function useSyncProjects() {
  */
 export function useSyncWorkspaceProjects(workspace: string | null | undefined) {
   const { args } = useFeederWorkspace(workspace);
-  const teamId = args === "skip" ? "skip" : args.team_id ?? "";
-  const queryArgs = useMemo(() => (!workspace || teamId === "skip" ? "skip" : teamId ? { workspace: "team", team_id: teamId } : { workspace: "personal" }), [workspace, teamId]);
+  const teamId = args === "skip" ? "skip" : (args.team_id ?? "");
+  const queryArgs = useMemo(
+    () =>
+      !workspace || teamId === "skip"
+        ? "skip"
+        : teamId
+          ? { workspace: "team", team_id: teamId }
+          : { workspace: "personal" },
+    [workspace, teamId],
+  );
   return useSyncCollection("projects", api.projects.webList, queryArgs as any);
 }

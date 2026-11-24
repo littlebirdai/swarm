@@ -5,7 +5,15 @@
 // you only, and the past bar says what you are looking at. Hover peeks at a
 // version before you go there, with Make live and Fork from here. Esc
 // returns to live, Home/End jump.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import type { TimelineEntry } from "../../convex/versions";
 import { ago, plural, since } from "../lib/format";
 import { appUrl } from "../lib/router";
@@ -41,14 +49,21 @@ export function TimelineDock({ onClose }: { onClose?: () => void }) {
   return (
     <section className={s.dock} aria-label="Timeline">
       <div className={s.label}>
-        <b>{timeline?.length === 0 ? "No versions yet" : plural(timeline?.length ?? 0, "version")}</b>
+        <b>
+          {timeline?.length === 0
+            ? "No versions yet"
+            : plural(timeline?.length ?? 0, "version")}
+        </b>
         {first && <span>{since(first.created_at, now)}</span>}
       </div>
       <Track />
       {/* Both hints always hold their place, so viewing never moves the rail. */}
       <span className={s.keys}>
         <Keys keys={["←", "→"]}>to step</Keys>
-        <span className={viewing === null ? s.unseen : ""} aria-hidden={viewing === null}>
+        <span
+          className={viewing === null ? s.unseen : ""}
+          aria-hidden={viewing === null}
+        >
           <Keys keys={["esc"]}>back to live</Keys>
         </span>
       </span>
@@ -86,28 +101,42 @@ function useSlotWidth(count: number) {
 }
 
 function Track({ faces: alwaysFaces = false }: { faces?: boolean }) {
-  const { app, timeline: all = [], viewing, view, warm, landed, cheer, versionByNumber } = useAppState();
+  const {
+    app,
+    timeline: all = [],
+    viewing,
+    view,
+    warm,
+    landed,
+    cheer,
+    versionByNumber,
+  } = useAppState();
   const { building } = useStream();
   const watching = useWatching();
   // A version still on its way to your screen stays the building mark.
   const timeline = all.filter((v) => v.number <= landed);
   const desktop = useDesktop();
   const [focus, setFocus] = useState<number | null>(null);
-  const [peek, setPeek] = useState<{ n: number; anchor: HTMLElement } | null>(null);
+  const [peek, setPeek] = useState<{ n: number; anchor: HTMLElement } | null>(
+    null,
+  );
   const marks = useRef(new Map<number, HTMLButtonElement>());
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const { box, slot } = useSlotWidth(timeline.length + (building ? 1 : 0));
   const faces = alwaysFaces || slot >= FACE_MIN_PX;
   const roomy = slot >= ROOMY_PX;
   const first = timeline[0]?.number ?? 1;
-  const forkedFrom = app.forked_from && timeline[0]?.kind === "fork" ? app.forked_from : null;
+  const forkedFrom =
+    app.forked_from && timeline[0]?.kind === "fork" ? app.forked_from : null;
 
   const shown = viewing ?? landed;
   const tabbable = focus ?? shown;
 
   // Keep the live mark (or the one you are viewing) in view.
   useLayoutEffect(() => {
-    marks.current.get(shown)?.scrollIntoView({ inline: "center", block: "nearest" });
+    marks.current
+      .get(shown)
+      ?.scrollIntoView({ inline: "center", block: "nearest" });
   }, [shown, timeline.length]);
 
   useEffect(() => () => clearTimeout(hoverTimer.current), []);
@@ -209,8 +238,12 @@ function Track({ faces: alwaysFaces = false }: { faces?: boolean }) {
         <div className={s.rail}>
           {forkedFrom && (
             <span className={s.stub}>
-              <Link to={appUrl(forkedFrom.slug)} title={`Forked from ${forkedFrom.name} v${forkedFrom.version}`}>
-                <ForkIcon />from {forkedFrom.name} v{forkedFrom.version}
+              <Link
+                to={appUrl(forkedFrom.slug)}
+                title={`Forked from ${forkedFrom.name} v${forkedFrom.version}`}
+              >
+                <ForkIcon />
+                from {forkedFrom.name} v{forkedFrom.version}
               </Link>
             </span>
           )}
@@ -218,7 +251,13 @@ function Track({ faces: alwaysFaces = false }: { faces?: boolean }) {
             const live = v.number === landed;
             const isViewing = v.number === viewing;
             const crowdsLive = !roomy && v.number === landed - 1;
-            const label = live ? `v${v.number} live` : isViewing ? `v${v.number}` : faces && !crowdsLive ? String(v.number) : null;
+            const label = live
+              ? `v${v.number} live`
+              : isViewing
+                ? `v${v.number}`
+                : faces && !crowdsLive
+                  ? String(v.number)
+                  : null;
             const state = isViewing ? s.viewing : live ? s.live : "";
             return (
               <span key={v.number} className={s.slot}>
@@ -238,7 +277,12 @@ function Track({ faces: alwaysFaces = false }: { faces?: boolean }) {
                     // Tabbing in peeks; a click or a step shows the version instead.
                     // Focus handed back from the peek (Esc, or a choice in it) has no
                     // relatedTarget: it stays closed, so Tab can leave the track.
-                    if (!quietFocus.current && e.relatedTarget && e.currentTarget.matches(":focus-visible")) showPeek(v.number);
+                    if (
+                      !quietFocus.current &&
+                      e.relatedTarget &&
+                      e.currentTarget.matches(":focus-visible")
+                    )
+                      showPeek(v.number);
                   }}
                   onClick={() => {
                     if (drag.current?.moved) return;
@@ -248,24 +292,46 @@ function Track({ faces: alwaysFaces = false }: { faces?: boolean }) {
                   }}
                 >
                   {!v.author ? (
-                    <i className={`${s.tick} ${v.kind === "restore" ? s.restore : ""}`} />
+                    <i
+                      className={`${s.tick} ${v.kind === "restore" ? s.restore : ""}`}
+                    />
                   ) : faces ? (
                     <span className={s.face}>
                       <Face person={v.author} size={20} />
-                      {v.kind === "restore" && <span className={s.restoreBadge}><RestoreIcon /></span>}
+                      {v.kind === "restore" && (
+                        <span className={s.restoreBadge}>
+                          <RestoreIcon />
+                        </span>
+                      )}
                     </span>
                   ) : (
                     <>
-                      <i className={`${s.tick} ${v.kind === "restore" ? s.restore : ""}`} />
-                      <span className={s.hoverFace}><Face person={v.author} size={20} /></span>
+                      <i
+                        className={`${s.tick} ${v.kind === "restore" ? s.restore : ""}`}
+                      />
+                      <span className={s.hoverFace}>
+                        <Face person={v.author} size={20} />
+                      </span>
                     </>
                   )}
                   {v.forks.length > 0 && <i className={s.forked} />}
                 </button>
                 {label && <span className={`${s.num} ${state}`}>{label}</span>}
                 {watching.has(v.number) && (
-                  <span className={s.watchers} title={`${watching.get(v.number)!.map((p) => p.name).join(", ")} ${watching.get(v.number)!.length === 1 ? "is" : "are"} viewing v${v.number}`}>
-                    <FaceStack people={watching.get(v.number)!} max={3} size={16} />
+                  <span
+                    className={s.watchers}
+                    title={`${watching
+                      .get(v.number)!
+                      .map((p) => p.name)
+                      .join(
+                        ", ",
+                      )} ${watching.get(v.number)!.length === 1 ? "is" : "are"} viewing v${v.number}`}
+                  >
+                    <FaceStack
+                      people={watching.get(v.number)!}
+                      max={3}
+                      size={16}
+                    />
                   </span>
                 )}
               </span>
@@ -273,15 +339,33 @@ function Track({ faces: alwaysFaces = false }: { faces?: boolean }) {
           })}
           {building && (
             <span className={s.slot}>
-              <span className={s.building} aria-label="Building the next version" />
+              <span
+                className={s.building}
+                aria-label="Building the next version"
+              />
             </span>
           )}
         </div>
       </div>
       {peek && (
-        <Popover anchor={peek.anchor} place="above" align="center" width={320} className={s.peekBox} onClose={() => setPeek(null)} label={`v${peek.n}`} takeFocus={false}>
-          <div onPointerEnter={() => clearTimeout(hoverTimer.current)} onPointerLeave={hoverOut}>
-            <Peek entry={timeline.find((v) => v.number === peek.n)!} onDone={() => setPeek(null)} />
+        <Popover
+          anchor={peek.anchor}
+          place="above"
+          align="center"
+          width={320}
+          className={s.peekBox}
+          onClose={() => setPeek(null)}
+          label={`v${peek.n}`}
+          takeFocus={false}
+        >
+          <div
+            onPointerEnter={() => clearTimeout(hoverTimer.current)}
+            onPointerLeave={hoverOut}
+          >
+            <Peek
+              entry={timeline.find((v) => v.number === peek.n)!}
+              onDone={() => setPeek(null)}
+            />
           </div>
         </Popover>
       )}
@@ -298,60 +382,98 @@ function useWatching() {
     const by = new Map<number, Person[]>();
     for (const e of here.entries) {
       if (e.viewing_version == null || e.visitor.id === me.id) continue;
-      by.set(e.viewing_version, [...(by.get(e.viewing_version) ?? []), e.visitor]);
+      by.set(e.viewing_version, [
+        ...(by.get(e.viewing_version) ?? []),
+        e.visitor,
+      ]);
     }
     return by;
   }, [here.entries, me.id]);
 }
 
 function Peek({ entry, onDone }: { entry: TimelineEntry; onDone: () => void }) {
-  const { app, viewing, view, restore, startFork, versionByNumber } = useAppState();
+  const { app, viewing, view, restore, startFork, versionByNumber } =
+    useAppState();
   const stream = useStream();
   const now = useNow(60_000);
   const [restoring, setRestoring] = useState(false);
   if (!entry) return null;
   const live = entry.number === app.live_version;
-  const request = entry.request_message_id ? stream.messages.find((m) => m.id === entry.request_message_id)?.body : null;
+  const request = entry.request_message_id
+    ? stream.messages.find((m) => m.id === entry.request_message_id)?.body
+    : null;
   return (
     <div className={s.peek}>
       <div className={s.peekHead}>
         <b>v{entry.number}</b>
         {entry.author && <Face person={entry.author} size={20} />}
-        <small>{entry.author ? `${entry.author.name} · ` : ""}{ago(entry.created_at, now)}</small>
+        <small>
+          {entry.author ? `${entry.author.name} · ` : ""}
+          {ago(entry.created_at, now)}
+        </small>
       </div>
       <p className={s.summary}>{versionSummary(entry, versionByNumber)}</p>
       {request && <q className={s.request}>{request}</q>}
       {entry.kind === "fork" && app.forked_from && (
         <p className={s.origin}>
           <ForkIcon />
-          <span>Forked from <Link to={appUrl(app.forked_from.slug)}>{app.forked_from.name} v{app.forked_from.version}</Link></span>
+          <span>
+            Forked from{" "}
+            <Link to={appUrl(app.forked_from.slug)}>
+              {app.forked_from.name} v{app.forked_from.version}
+            </Link>
+          </span>
         </p>
       )}
-      {entry.forks.length > 0 && <p className={s.origin}><ForkIcon /><ForkedInto forks={entry.forks} /></p>}
-      {!live && <p className={s.takes}>{makeLiveSays(entry.number, app.live_version, versionByNumber)}</p>}
+      {entry.forks.length > 0 && (
+        <p className={s.origin}>
+          <ForkIcon />
+          <ForkedInto forks={entry.forks} />
+        </p>
+      )}
+      {!live && (
+        <p className={s.takes}>
+          {makeLiveSays(entry.number, app.live_version, versionByNumber)}
+        </p>
+      )}
       <div className={s.peekActions}>
         {live ? (
           <span className={s.isLive}>This is live</span>
         ) : (
           <>
             {entry.number !== viewing && (
-              <Button variant="ink" onClick={() => {
-                view(entry.number);
-                onDone();
-              }}>View</Button>
+              <Button
+                variant="ink"
+                onClick={() => {
+                  view(entry.number);
+                  onDone();
+                }}
+              >
+                View
+              </Button>
             )}
-            <Button busy={restoring} onClick={async () => {
-              setRestoring(true);
-              await restore(entry.number, app.live_version);
-              setRestoring(false);
-              onDone();
-            }}>Make v{entry.number} live</Button>
+            <Button
+              busy={restoring}
+              onClick={async () => {
+                setRestoring(true);
+                await restore(entry.number, app.live_version);
+                setRestoring(false);
+                onDone();
+              }}
+            >
+              Make v{entry.number} live
+            </Button>
           </>
         )}
-        <Button onClick={() => {
-          startFork(entry.number);
-          onDone();
-        }}><ForkIcon />Fork from here</Button>
+        <Button
+          onClick={() => {
+            startFork(entry.number);
+            onDone();
+          }}
+        >
+          <ForkIcon />
+          Fork from here
+        </Button>
       </div>
     </div>
   );

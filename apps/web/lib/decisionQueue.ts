@@ -30,11 +30,20 @@
 // whatever its score, so blocked-and-reachable always leads (sd-3584).
 // Among equal scores the oldest leads: a parked agent's cost grows with its
 // age, so oldest-first minimizes fleet idle time.
-import { BLOCKED_BANNER_KINDS, isHostedAgentType, isStackedAsk } from "@codecast/shared/contracts";
+import {
+  BLOCKED_BANNER_KINDS,
+  isHostedAgentType,
+  isStackedAsk,
+} from "@codecast/shared/contracts";
 import { APPROVAL_ANSWERS } from "@codecast/shared/contracts/assistant";
 import { byImpact } from "@codecast/shared/contracts/decisionImpact";
 import { nestParentIdOf } from "@codecast/convex/convex/ccAccountsShared";
-import type { DecisionKind, DecisionOption, InboxSession, SessionDecisionItem } from "../store/inboxStore";
+import type {
+  DecisionKind,
+  DecisionOption,
+  InboxSession,
+  SessionDecisionItem,
+} from "../store/inboxStore";
 import { agentStatusAt } from "./liveness";
 
 export type QueueItemSource = "decide" | "ask" | "permission";
@@ -132,7 +141,13 @@ export type QueueKeyAction =
   | { kind: "exit-queue" };
 
 export function routeQueueKey(
-  e: { key: string; shiftKey: boolean; metaKey: boolean; ctrlKey: boolean; altKey: boolean },
+  e: {
+    key: string;
+    shiftKey: boolean;
+    metaKey: boolean;
+    ctrlKey: boolean;
+    altKey: boolean;
+  },
   ctx: {
     /** An aria-modal layer (new-session compose, settings) sits above the queue. */
     modalOpen: boolean;
@@ -145,7 +160,7 @@ export function routeQueueKey(
     isPermissionCard: boolean;
     optionCount: number;
     sheet: "full" | "peek";
-  }
+  },
 ): QueueKeyAction | null {
   if (e.metaKey || e.ctrlKey || e.altKey) return null;
   // A modal owns the keyboard entirely; the queue behind it must not answer,
@@ -173,7 +188,8 @@ export function routeQueueKey(
     return n < ctx.optionCount ? { kind: "answer", option: n } : null;
   }
   if (e.key === "o" || e.key === "O") return { kind: "open-session" };
-  if (e.key === "s" || e.key === "S" || e.key === "ArrowRight") return { kind: "skip" };
+  if (e.key === "s" || e.key === "S" || e.key === "ArrowRight")
+    return { kind: "skip" };
   if (e.key === "ArrowLeft") return { kind: "prev" };
   // Dismiss = "I am not going to answer this": the card leaves the queue for
   // good (a `cast decide` row resolves as dismissed), the session is not told.
@@ -186,7 +202,10 @@ export function routeQueueKey(
   // the key that means "back" would skip a step.
   if (e.key === "ArrowUp" || e.key === "k") return { kind: "peek" };
   if (e.key === "ArrowDown" || e.key === "j") return { kind: "full" };
-  if (e.key === "Escape") return ctx.sheet === "peek" ? { kind: "restore-question" } : { kind: "exit-queue" };
+  if (e.key === "Escape")
+    return ctx.sheet === "peek"
+      ? { kind: "restore-question" }
+      : { kind: "exit-queue" };
   return null;
 }
 
@@ -217,7 +236,9 @@ export function findDecisionAnchorMessage(
 ): TranscriptMessageLite | null {
   if (!messages) return null;
   const callMessageFor = (toolUseId: string | undefined) =>
-    toolUseId ? messages.find((m) => m.tool_calls?.some((tc) => tc.id === toolUseId)) : undefined;
+    toolUseId
+      ? messages.find((m) => m.tool_calls?.some((tc) => tc.id === toolUseId))
+      : undefined;
   if (decisionId) {
     for (const m of messages) {
       if (m.content?.includes(decisionId)) return m;
@@ -228,7 +249,15 @@ export function findDecisionAnchorMessage(
   }
   if (question) {
     for (const m of messages) {
-      if (m.tool_calls?.some((tc) => tc.name === "Bash" && tc.input?.includes("cast decide") && tc.input?.includes(question))) return m;
+      if (
+        m.tool_calls?.some(
+          (tc) =>
+            tc.name === "Bash" &&
+            tc.input?.includes("cast decide") &&
+            tc.input?.includes(question),
+        )
+      )
+        return m;
     }
   }
   return null;
@@ -245,7 +274,10 @@ export function messagesSinceAsk(
   session: Pick<InboxSession, "message_count"> | undefined,
   messages: readonly TranscriptMessageLite[] | undefined,
 ): number {
-  if (item.askedMessageCount !== undefined && session?.message_count !== undefined) {
+  if (
+    item.askedMessageCount !== undefined &&
+    session?.message_count !== undefined
+  ) {
     return Math.max(0, session.message_count - item.askedMessageCount);
   }
   let n = 0;
@@ -254,20 +286,31 @@ export function messagesSinceAsk(
 }
 
 /** Slugs of the pages the options carry, in option order (L6). */
-export function optionPageSlugs(options: ReadonlyArray<Pick<DecisionOption, "page_slug">>): string[] {
-  return options.map((o) => o.page_slug).filter((slug): slug is string => !!slug);
+export function optionPageSlugs(
+  options: ReadonlyArray<Pick<DecisionOption, "page_slug">>,
+): string[] {
+  return options
+    .map((o) => o.page_slug)
+    .filter((slug): slug is string => !!slug);
 }
 
 /** Whether a decision row is this viewer's: no people set (a legacy row), or
  *  they are among its people. A row passed to a teammate leaves the passer's
  *  queue on the draft, before the server drops it from their feed. */
-export function askedOfViewer(d: { asked_user_ids?: string[]; in_queue?: boolean }, meId: string | undefined): boolean {
-  return inViewerQueue(d) && (!d.asked_user_ids || !meId || d.asked_user_ids.includes(meId));
+export function askedOfViewer(
+  d: { asked_user_ids?: string[]; in_queue?: boolean },
+  meId: string | undefined,
+): boolean {
+  return (
+    inViewerQueue(d) &&
+    (!d.asked_user_ids || !meId || d.asked_user_ids.includes(meId))
+  );
 }
 
 /** Whether a decision row is in the viewer's own queue. The store also holds the team's open line decisions (For you
  *  lists them), each saying whether it is the viewer's; a row from before that flag came from the queue. */
-export const inViewerQueue = (d: { in_queue?: boolean }): boolean => d.in_queue !== false;
+export const inViewerQueue = (d: { in_queue?: boolean }): boolean =>
+  d.in_queue !== false;
 
 /** What a PERSON must answer: the queue minus the rows a lead holds. */
 export function waitingOnPerson(items: readonly QueueItem[]): QueueItem[] {
@@ -276,7 +319,9 @@ export function waitingOnPerson(items: readonly QueueItem[]): QueueItem[] {
 
 export function sortQueue(items: QueueItem[]): QueueItem[] {
   return [...items].sort((a, b) => {
-    return queueTier(a) - queueTier(b) || byImpact(a, b) || a.createdAt - b.createdAt;
+    return (
+      queueTier(a) - queueTier(b) || byImpact(a, b) || a.createdAt - b.createdAt
+    );
   });
 }
 
@@ -342,7 +387,10 @@ export function decisionQueueItems(
  * resolved server-side too, or there is a genuinely new ask that deserves to
  * surface. Either way the mark expires and server truth takes over.
  */
-export type QuestionResolutions = Record<string, { at: number; message_count: number }>;
+export type QuestionResolutions = Record<
+  string,
+  { at: number; message_count: number }
+>;
 
 /**
  * The store `drafts` key holding a decision's answer in progress (ticks, an
@@ -393,7 +441,11 @@ export function sessionHasOpenQuestion(
   // bury the real questions under noise the queue cannot resolve anyway.
   // BLOCKED_BANNER_KINDS is the same set that drives those badges, so the two
   // surfaces can never disagree about what counts as parked.
-  if (s.pending_api_error_kind && BLOCKED_BANNER_KINDS.has(s.pending_api_error_kind)) return false;
+  if (
+    s.pending_api_error_kind &&
+    BLOCKED_BANNER_KINDS.has(s.pending_api_error_kind)
+  )
+    return false;
   if (questionResolvedLocally(s, resolutions)) return false;
   return !!s.awaiting_input || s.agent_status === "permission_blocked";
 }
@@ -406,7 +458,12 @@ export function pendingDecisionConvIds(
   const ids = new Set<string>();
   for (const d of Object.values(decisions)) {
     if (!isStackedAsk(d) || !inViewerQueue(d)) continue;
-    if (meId && d.asked_user_ids && !d.asked_user_ids.some((id) => String(id) === String(meId))) continue;
+    if (
+      meId &&
+      d.asked_user_ids &&
+      !d.asked_user_ids.some((id) => String(id) === String(meId))
+    )
+      continue;
     ids.add(d.conversation_id);
   }
   return ids;
@@ -421,8 +478,14 @@ const awaitingOkMemo = new WeakMap<object, Set<string>>();
  *  every card can ask in a render without a scan each. */
 /** The label a decision row was answered with (APPROVAL_ANSWERS for a
  *  hosted approval), or undefined while it is open. */
-export function answeredLabel(d: Pick<SessionDecisionItem, "status" | "answer_index" | "options"> | null | undefined): string | undefined {
-  if (d?.status !== "answered" || typeof d.answer_index !== "number") return undefined;
+export function answeredLabel(
+  d:
+    | Pick<SessionDecisionItem, "status" | "answer_index" | "options">
+    | null
+    | undefined,
+): string | undefined {
+  if (d?.status !== "answered" || typeof d.answer_index !== "number")
+    return undefined;
   const label = d.options?.[d.answer_index]?.label;
   return typeof label === "string" ? label : undefined;
 }
@@ -441,7 +504,10 @@ export function answerSaid(label: string): string {
  *  The first letter drops its capital only when it begins an ordinary word. */
 export function questionAsStatement(question: string): string {
   // Curly quotes, as the assistant's other words set a name.
-  const q = question.trim().replace(/\?+$/, "").replace(/"([^"]*)"/g, "\u201c$1\u201d");
+  const q = question
+    .trim()
+    .replace(/\?+$/, "")
+    .replace(/"([^"]*)"/g, "\u201c$1\u201d");
   return /^[A-Z][a-z]/.test(q) ? q[0].toLowerCase() + q.slice(1) : q;
 }
 
@@ -452,20 +518,34 @@ export function questionAsStatement(question: string): string {
 export function answeredLine(label: string, question: string): string {
   const said = answerSaid(label);
   const statement = questionAsStatement(question);
-  const yesOrNo = label === APPROVAL_ANSWERS.approve || label === APPROVAL_ANSWERS.decline;
+  const yesOrNo =
+    label === APPROVAL_ANSWERS.approve || label === APPROVAL_ANSWERS.decline;
   // Only a thing named by its quoted name ("the routine “X”"): "a page on
   // example.com" read after "You said yes to" says less than the question.
-  const thing = statement.match(/^[a-z]+(?: (?:up|out|off|on|in|back|over|away|down))?\s+((?:the|a|an|this|that|your|my)\s[^\u201c]*\u201c[^\u201d]+\u201d)$/);
+  const thing = statement.match(
+    /^[a-z]+(?: (?:up|out|off|on|in|back|over|away|down))?\s+((?:the|a|an|this|that|your|my)\s[^\u201c]*\u201c[^\u201d]+\u201d)$/,
+  );
   return yesOrNo && thing ? `${said} to ${thing[1]}` : `${said}: ${statement}`;
 }
 
 /** Whether the person said no to one of this conversation's approvals after
  *  `since` (their last message): the composer then invites a change rather
  *  than a new chore. Given `now`, only a no from the last DECLINE_HINT_MS. */
-export function hostedDeclinedSince(decisions: Record<string, SessionDecisionItem> | undefined, conversationId: string, since: number, now?: number): boolean {
+export function hostedDeclinedSince(
+  decisions: Record<string, SessionDecisionItem> | undefined,
+  conversationId: string,
+  since: number,
+  now?: number,
+): boolean {
   for (const d of Object.values(decisions ?? {})) {
     const at = d.resolved_at ?? 0;
-    if (d.conversation_id === conversationId && at >= since && (now === undefined || now - at < DECLINE_HINT_MS) && answeredLabel(d) === APPROVAL_ANSWERS.decline) return true;
+    if (
+      d.conversation_id === conversationId &&
+      at >= since &&
+      (now === undefined || now - at < DECLINE_HINT_MS) &&
+      answeredLabel(d) === APPROVAL_ANSWERS.decline
+    )
+      return true;
   }
   return false;
 }
@@ -475,7 +555,9 @@ export function hostedDeclinedSince(decisions: Record<string, SessionDecisionIte
  *  not as an ask still pending. */
 export const DECLINE_HINT_MS = 10 * 60_000;
 
-export function awaitingOkIds(decisions: Record<string, SessionDecisionItem> | undefined): Set<string> {
+export function awaitingOkIds(
+  decisions: Record<string, SessionDecisionItem> | undefined,
+): Set<string> {
   if (!decisions) return new Set();
   let ids = awaitingOkMemo.get(decisions);
   if (!ids) {
@@ -487,13 +569,21 @@ export function awaitingOkIds(decisions: Record<string, SessionDecisionItem> | u
 
 /** The session that has waited longest on a permission prompt, by when its
  *  status turned blocked. Undefined when none is blocked. */
-export function oldestBlocked<T extends { agent_status?: string | null; agent_status_updated_at?: number | null }>(
-  sessions: readonly T[],
-): T | undefined {
+export function oldestBlocked<
+  T extends {
+    agent_status?: string | null;
+    agent_status_updated_at?: number | null;
+  },
+>(sessions: readonly T[]): T | undefined {
   let oldest: T | undefined;
   for (const s of sessions) {
     if (s.agent_status !== "permission_blocked") continue;
-    if (!oldest || (s.agent_status_updated_at ?? Infinity) < (oldest.agent_status_updated_at ?? Infinity)) oldest = s;
+    if (
+      !oldest ||
+      (s.agent_status_updated_at ?? Infinity) <
+        (oldest.agent_status_updated_at ?? Infinity)
+    )
+      oldest = s;
   }
   return oldest;
 }

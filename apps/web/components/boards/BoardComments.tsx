@@ -6,9 +6,19 @@ import { Bot, Check } from "lucide-react";
 import type { ArtifactElement } from "@codecast/shared/artifacts";
 import { relativeTime } from "../../lib/entityDisplay";
 import type { BoardEl } from "./boardTypes";
-import { initialsOf, pinOnFace, pinPoints, type Thread } from "./commentThreads";
+import {
+  initialsOf,
+  pinOnFace,
+  pinPoints,
+  type Thread,
+} from "./commentThreads";
 
-export const CommentPins = memo(function CommentPins({ threads, byKey, open, onOpen }: {
+export const CommentPins = memo(function CommentPins({
+  threads,
+  byKey,
+  open,
+  onOpen,
+}: {
   threads: Thread[];
   byKey: Map<string, BoardEl>;
   open: string | null;
@@ -40,7 +50,13 @@ export const CommentPins = memo(function CommentPins({ threads, byKey, open, onO
   );
 });
 
-export function CommentThreadPopover({ thread, at, onReply, onResolve, onClose }: {
+export function CommentThreadPopover({
+  thread,
+  at,
+  onReply,
+  onResolve,
+  onClose,
+}: {
   thread: Thread;
   at: { x: number; y: number };
   onReply(text: string): void;
@@ -50,17 +66,43 @@ export function CommentThreadPopover({ thread, at, onReply, onResolve, onClose }
   const [text, setText] = useState("");
   const all = [thread.root, ...thread.replies];
   return (
-    <div className="board-thread" data-board-ui style={{ left: at.x, top: at.y }} onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+    <div
+      className="board-thread"
+      data-board-ui
+      style={{ left: at.x, top: at.y }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
       <div className="board-thread-head">
-        {thread.root.sent_to ? <span className="board-thread-agent"><Bot size={12} strokeWidth={1.75} /> Sent to agent</span> : <span />}
-        <button type="button" className="board-bar-btn" aria-label="Resolve" onClick={onResolve}><Check size={14} strokeWidth={2} /></button>
+        {thread.root.sent_to ? (
+          <span className="board-thread-agent">
+            <Bot size={12} strokeWidth={1.75} /> Sent to agent
+          </span>
+        ) : (
+          <span />
+        )}
+        <button
+          type="button"
+          className="board-bar-btn"
+          aria-label="Resolve"
+          onClick={onResolve}
+        >
+          <Check size={14} strokeWidth={2} />
+        </button>
       </div>
       <div className="board-thread-list" data-board-scroll>
         {all.map((c) => (
           <div key={c.key} className="board-thread-item">
-            <span className="board-prompt-avatar is-small">{initialsOf(String(c.author_name ?? "?"))}</span>
+            <span className="board-prompt-avatar is-small">
+              {initialsOf(String(c.author_name ?? "?"))}
+            </span>
             <div>
-              <div className="board-thread-meta"><b>{String(c.author_name ?? "Someone")}</b> {typeof c.created_at === "number" ? relativeTime(c.created_at) : ""}</div>
+              <div className="board-thread-meta">
+                <b>{String(c.author_name ?? "Someone")}</b>{" "}
+                {typeof c.created_at === "number"
+                  ? relativeTime(c.created_at)
+                  : ""}
+              </div>
               <div className="board-thread-text">{String(c.text ?? "")}</div>
             </div>
           </div>
@@ -74,7 +116,11 @@ export function CommentThreadPopover({ thread, at, onReply, onResolve, onClose }
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Escape") onClose();
-          if (e.key === "Enter" && !e.shiftKey && text.trim()) { e.preventDefault(); onReply(text.trim()); setText(""); }
+          if (e.key === "Enter" && !e.shiftKey && text.trim()) {
+            e.preventDefault();
+            onReply(text.trim());
+            setText("");
+          }
         }}
       />
     </div>

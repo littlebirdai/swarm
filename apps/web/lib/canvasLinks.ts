@@ -6,7 +6,9 @@ import { parseEntityUrl, entityRoute } from "./entityLinks";
  * Null means the link is genuinely external and keeps its new-tab default.
  * The fragment survives so message deep links (#msg-<id>) still land.
  */
-export function canvasHrefToRoute(href: string | null | undefined): string | null {
+export function canvasHrefToRoute(
+  href: string | null | undefined,
+): string | null {
   if (!href) return null;
   const ref = parseEntityUrl(href);
   if (!ref) return null;

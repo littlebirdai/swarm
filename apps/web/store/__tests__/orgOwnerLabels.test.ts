@@ -16,13 +16,38 @@ const before = {
   orgTree: { roles: [{ _id: ROLE, name: "Infra lead" }] },
 };
 const label = (target: unknown) =>
-  UNDO_SPECS.reparentOrgSession!.label({ action: "reparentOrgSession", args: [S, target], before, after: before, result: undefined, changes: [] } as UndoCtx);
+  UNDO_SPECS.reparentOrgSession!.label({
+    action: "reparentOrgSession",
+    args: [S, target],
+    before,
+    after: before,
+    result: undefined,
+    changes: [],
+  } as UndoCtx);
 
 describe("owner gestures name what they did", () => {
-  test("hand off", () => expect(label({ kind: "user", owners: [SAM], mode: "set" })).toBe("Handed “Fix the build” off to Sam"));
-  test("add an owner", () => expect(label({ kind: "user", owners: [SAM], mode: "add" })).toBe("Made Sam an owner of “Fix the build”"));
-  test("remove an owner", () => expect(label({ kind: "user", owners: [SAM], mode: "remove" })).toBe("Removed Sam from “Fix the build”"));
-  test("clear the owners", () => expect(label({ kind: "user", owners: [], mode: "set" })).toBe("Cleared the owners of “Fix the build”"));
-  test("file under a role", () => expect(label({ kind: "role", role_id: ROLE })).toBe("Filed “Fix the build” under “Infra lead”"));
-  test("a chart move under a person", () => expect(label({ kind: "user", user_id: SAM })).toBe("Moved “Fix the build” under Sam"));
+  test("hand off", () =>
+    expect(label({ kind: "user", owners: [SAM], mode: "set" })).toBe(
+      "Handed “Fix the build” off to Sam",
+    ));
+  test("add an owner", () =>
+    expect(label({ kind: "user", owners: [SAM], mode: "add" })).toBe(
+      "Made Sam an owner of “Fix the build”",
+    ));
+  test("remove an owner", () =>
+    expect(label({ kind: "user", owners: [SAM], mode: "remove" })).toBe(
+      "Removed Sam from “Fix the build”",
+    ));
+  test("clear the owners", () =>
+    expect(label({ kind: "user", owners: [], mode: "set" })).toBe(
+      "Cleared the owners of “Fix the build”",
+    ));
+  test("file under a role", () =>
+    expect(label({ kind: "role", role_id: ROLE })).toBe(
+      "Filed “Fix the build” under “Infra lead”",
+    ));
+  test("a chart move under a person", () =>
+    expect(label({ kind: "user", user_id: SAM })).toBe(
+      "Moved “Fix the build” under Sam",
+    ));
 });

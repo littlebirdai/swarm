@@ -22,7 +22,8 @@ function sources(dir: string, out: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const file = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name !== "node_modules" && entry.name !== "dist") sources(file, out);
+      if (entry.name !== "node_modules" && entry.name !== "dist")
+        sources(file, out);
     } else if (entry.name.endsWith(".ts") && !entry.name.includes(".test.")) {
       out.push(file);
     }
@@ -46,7 +47,10 @@ describe("screenshots stay out of the shared temp directory", () => {
   });
 
   test("the helper the offenders should use is exported where they can reach it", () => {
-    const shotFile = fs.readFileSync(path.join(SRC, "browser", "shotFile.ts"), "utf-8");
+    const shotFile = fs.readFileSync(
+      path.join(SRC, "browser", "shotFile.ts"),
+      "utf-8",
+    );
     expect(shotFile).toContain("export function defaultShotPath");
     const temp = fs.readFileSync(path.join(SRC, "tempFiles.ts"), "utf-8");
     expect(temp).toContain("export function agentTempPath");

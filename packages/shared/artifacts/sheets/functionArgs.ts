@@ -90,20 +90,31 @@ export function finite(n: number): Value {
   return Number.isFinite(n) ? n : err("#NUM!");
 }
 
-export function roundTo(n: number, digits: number, mode: "half" | "up" | "down"): number {
+export function roundTo(
+  n: number,
+  digits: number,
+  mode: "half" | "up" | "down",
+): number {
   const f = 10 ** digits;
   const x = Math.abs(n) * f;
   const fixed = Number(x.toPrecision(15));
-  const r = mode === "half" ? Math.round(fixed) : mode === "up" ? Math.ceil(fixed) : Math.floor(fixed);
+  const r =
+    mode === "half"
+      ? Math.round(fixed)
+      : mode === "up"
+        ? Math.ceil(fixed)
+        : Math.floor(fixed);
   return (Math.sign(n) * r) / f;
 }
 
 // ── Criteria (SUMIF, COUNTIF, ...) ──────────────────────────────────────────
 
 export function criteriaMatcher(criterion: Scalar): (v: Scalar) => boolean {
-  if (typeof criterion === "number" || typeof criterion === "boolean") return (v) => scalarsEqual(v, criterion);
+  if (typeof criterion === "number" || typeof criterion === "boolean")
+    return (v) => scalarsEqual(v, criterion);
   if (criterion === null) return (v) => v === null || v === "";
-  if (isError(criterion)) return (v) => isError(v) && v.error === criterion.error;
+  if (isError(criterion))
+    return (v) => isError(v) && v.error === criterion.error;
   const m = criterion.match(/^(<>|>=|<=|=|>|<)?([\s\S]*)$/)!;
   const op = m[1] ?? "=";
   const rhsText = m[2];
@@ -125,9 +136,16 @@ export function criteriaMatcher(criterion: Scalar): (v: Scalar) => boolean {
       return (v) => {
         let c: number;
         if (isNum && typeof v === "number") c = v - (rhsNum as number);
-        else if (!isNum && typeof v === "string") c = v.localeCompare(rhsText, undefined, { sensitivity: "base" });
+        else if (!isNum && typeof v === "string")
+          c = v.localeCompare(rhsText, undefined, { sensitivity: "base" });
         else return false;
-        return op === ">" ? c > 0 : op === "<" ? c < 0 : op === ">=" ? c >= 0 : c <= 0;
+        return op === ">"
+          ? c > 0
+          : op === "<"
+            ? c < 0
+            : op === ">="
+              ? c >= 0
+              : c <= 0;
       };
     }
   }
@@ -155,9 +173,12 @@ export function criteriaMask(pairs: Value[]): boolean[] | SheetError {
   for (let i = 0; i < pairs.length; i += 2) {
     const range = cells(pairs[i]);
     const crit = scalarOf(pairs[i + 1]);
-    if (mask && range.length !== mask.length) return err("#VALUE!", "criteria ranges differ in size");
+    if (mask && range.length !== mask.length)
+      return err("#VALUE!", "criteria ranges differ in size");
     const match = criteriaMatcher(crit);
-    const next: boolean[] = range.map((v, j) => (mask ? mask[j] : true) && match(v));
+    const next: boolean[] = range.map(
+      (v, j) => (mask ? mask[j] : true) && match(v),
+    );
     mask = next;
   }
   return mask ?? [];
@@ -172,32 +193,52 @@ export function lookupVector(v: Value): Scalar[] {
 }
 
 /** Index of needle in vec; mode 0 exact, -1 exact-or-next-smaller, 1 exact-or-next-larger, 2 wildcard. */
-export function findIndex(needle: Scalar, vec: Scalar[], mode: number, reverse: boolean): number {
+export function findIndex(
+  needle: Scalar,
+  vec: Scalar[],
+  mode: number,
+  reverse: boolean,
+): number {
   if (mode === 2 && typeof needle === "string") {
     const re = wildcardRegex(needle);
     const order = reverse ? [...vec.keys()].reverse() : [...vec.keys()];
-    return order.find((i) => typeof vec[i] === "string" && re.test(vec[i] as string)) ?? -1;
+    return (
+      order.find(
+        (i) => typeof vec[i] === "string" && re.test(vec[i] as string),
+      ) ?? -1
+    );
   }
   const order = reverse ? [...vec.keys()].reverse() : [...vec.keys()];
-  for (const i of order) if (sameKind(vec[i], needle) && scalarsEqual(vec[i], needle)) return i;
+  for (const i of order)
+    if (sameKind(vec[i], needle) && scalarsEqual(vec[i], needle)) return i;
   if (mode === 0 || mode === 2) return -1;
   let best = -1;
   for (const i of order) {
     const v = vec[i];
     if (!sameKind(v, needle)) continue;
     const c = compareScalars(v, needle);
-    if (mode === -1 && c < 0 && (best < 0 || compareScalars(v, vec[best]) > 0)) best = i;
-    if (mode === 1 && c > 0 && (best < 0 || compareScalars(v, vec[best]) < 0)) best = i;
+    if (mode === -1 && c < 0 && (best < 0 || compareScalars(v, vec[best]) > 0))
+      best = i;
+    if (mode === 1 && c > 0 && (best < 0 || compareScalars(v, vec[best]) < 0))
+      best = i;
   }
   return best;
 }
 
 export function sameKind(a: Scalar, b: Scalar): boolean {
-  return typeof a === typeof b || (a === null && b === "") || (b === null && a === "");
+  return (
+    typeof a === typeof b ||
+    (a === null && b === "") ||
+    (b === null && a === "")
+  );
 }
 
 /** Sorted approximate match (VLOOKUP TRUE, MATCH 1): the last position <= needle. */
-export function approxSorted(needle: Scalar, vec: Scalar[], descending = false): number {
+export function approxSorted(
+  needle: Scalar,
+  vec: Scalar[],
+  descending = false,
+): number {
   let best = -1;
   for (let i = 0; i < vec.length; i++) {
     const v = vec[i];
@@ -220,7 +261,10 @@ export function dateArg(v: Value): number | SheetError {
   return toNumber(s);
 }
 
-export function addMonths(serial: number, months: number): { y: number; m: number; d: number } {
+export function addMonths(
+  serial: number,
+  months: number,
+): { y: number; m: number; d: number } {
   const d = serialToDate(serial);
   const total = d.y * 12 + (d.m - 1) + months;
   const y = Math.floor(total / 12);

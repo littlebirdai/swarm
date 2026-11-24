@@ -80,15 +80,26 @@ const inflight = new Map<string, Promise<TerminalEndpoint | null>>();
  *    browser refused the loopback request — on a hosted origin that's Chrome's
  *    local-network permission. Restarting the daemon fixes neither.
  *  - "other-device": a targeted lookup missed; the pane lives elsewhere. */
-export type DiscoveryFailure = "none" | "no-devices" | "daemon-slow" | "probe-failed" | "other-device";
+export type DiscoveryFailure =
+  | "none"
+  | "no-devices"
+  | "daemon-slow"
+  | "probe-failed"
+  | "other-device";
 /** Why a page on the loopback bridge has nothing to show: discovery failed, or
  *  the daemon it found is too old, refused, or the request itself failed. */
-export type LoopbackUnreachableReason = DiscoveryFailure | "old-daemon" | "refused" | "error";
+export type LoopbackUnreachableReason =
+  | DiscoveryFailure
+  | "old-daemon"
+  | "refused"
+  | "error";
 
 /** A route call failed after discovery found the daemon. Only a 404 means the
  *  daemon predates the route; reporting anything else as "too old" sends people
  *  to update a daemon that is already current. */
-export function loopbackFailureReason(status: number): LoopbackUnreachableReason {
+export function loopbackFailureReason(
+  status: number,
+): LoopbackUnreachableReason {
   return status === 404 ? "old-daemon" : status ? "refused" : "error";
 }
 let lastFailure: DiscoveryFailure = "none";
@@ -122,7 +133,12 @@ function readOverride(): TerminalEndpoint | null {
     if (!raw) return null;
     const [port, token] = raw.split(":");
     if (!port || !/^\d+$/.test(port)) return null;
-    const ep = { port: Number(port), token, deviceId: OVERRIDE_DEVICE_ID, tmux: true };
+    const ep = {
+      port: Number(port),
+      token,
+      deviceId: OVERRIDE_DEVICE_ID,
+      tmux: true,
+    };
     return isUsableEndpoint(ep) ? ep : null;
   } catch {
     return null;
@@ -175,7 +191,12 @@ export async function probeEndpoint(
         const body = await res.json();
         if (body.unavailable === true) {
           lastProbeMiss = "timeout";
-          await new Promise(resolve => setTimeout(resolve, Math.min(200, Math.max(0, deadline - Date.now()))));
+          await new Promise((resolve) =>
+            setTimeout(
+              resolve,
+              Math.min(200, Math.max(0, deadline - Date.now())),
+            ),
+          );
           continue;
         }
       }
@@ -183,7 +204,10 @@ export async function probeEndpoint(
         lastProbeMiss = "rejected";
         return null;
       }
-      const body = (await res.json()) as { sessions?: TerminalSessionInfo[]; tmux?: boolean };
+      const body = (await res.json()) as {
+        sessions?: TerminalSessionInfo[];
+        tmux?: boolean;
+      };
       if (!body.tmux) {
         lastProbeMiss = "rejected";
         return null;
@@ -200,7 +224,9 @@ export async function probeEndpoint(
 }
 
 /** Probe, and give a daemon that timed out one slower second chance. */
-async function probeWithPatience(ep: TerminalEndpoint): Promise<TerminalSessionInfo[] | null> {
+async function probeWithPatience(
+  ep: TerminalEndpoint,
+): Promise<TerminalSessionInfo[] | null> {
   const first = await probeEndpoint(ep);
   if (first !== null || lastProbeMiss !== "timeout") return first;
   const second = await probeEndpoint(ep, PROBE_RETRY_TIMEOUT_MS);
@@ -211,7 +237,9 @@ async function probeWithPatience(ep: TerminalEndpoint): Promise<TerminalSessionI
 }
 
 function requestEndpoints(convex: ConvexReactClient, deviceId?: string) {
-  return convex.mutation(api.users.requestTerminalEndpoints, { ...(deviceId ? { device_id: deviceId } : {}) });
+  return convex.mutation(api.users.requestTerminalEndpoints, {
+    ...(deviceId ? { device_id: deviceId } : {}),
+  });
 }
 
 // The last reply a targeted lookup got whose loopback probe missed: the
@@ -226,7 +254,10 @@ function mayDiscover(): boolean {
   return !!useInboxStore.getState().currentUser;
 }
 
-async function discover(convex: ConvexReactClient, deviceId?: string): Promise<TerminalEndpoint | null> {
+async function discover(
+  convex: ConvexReactClient,
+  deviceId?: string,
+): Promise<TerminalEndpoint | null> {
   if (!mayDiscover()) {
     lastFailure = "no-devices";
     return null;
@@ -244,7 +275,8 @@ async function discover(convex: ConvexReactClient, deviceId?: string): Promise<T
     lastFailure = "no-devices";
     return null;
   }
-  const deadline = Date.now() + (deviceId ? TARGETED_POLL_TIMEOUT_MS : RESULT_POLL_TIMEOUT_MS);
+  const deadline =
+    Date.now() + (deviceId ? TARGETED_POLL_TIMEOUT_MS : RESULT_POLL_TIMEOUT_MS);
   const unresolved = new Map(commands.map((c) => [c.command_id, c] as const));
   let sawTimeout = false;
 
@@ -261,7 +293,12 @@ async function discover(convex: ConvexReactClient, deviceId?: string): Promise<T
       unresolved.delete(id);
       if (!res.result) continue;
       try {
-        const parsed = JSON.parse(res.result) as { port: number; token: string; device_id: string; tmux: boolean };
+        const parsed = JSON.parse(res.result) as {
+          port: number;
+          token: string;
+          device_id: string;
+          tmux: boolean;
+        };
         const ep: TerminalEndpoint = {
           port: parsed.port,
           token: parsed.token,
@@ -273,7 +310,8 @@ async function discover(convex: ConvexReactClient, deviceId?: string): Promise<T
           lastFailure = "none";
           return ep;
         }
-        if (deviceId && isUsableEndpoint(ep) && ep.deviceId === deviceId) missedReplies.set(deviceId, ep);
+        if (deviceId && isUsableEndpoint(ep) && ep.deviceId === deviceId)
+          missedReplies.set(deviceId, ep);
         if (lastProbeMiss === "timeout") sawTimeout = true;
       } catch {}
     }
@@ -282,7 +320,8 @@ async function discover(convex: ConvexReactClient, deviceId?: string): Promise<T
   // probe was refused outright. A daemon that never posted its reply, or a
   // port that timed out, is a daemon that is slow — and that reads very
   // differently to the person deciding whether to restart it.
-  lastFailure = unresolved.size > 0 || sawTimeout ? "daemon-slow" : "probe-failed";
+  lastFailure =
+    unresolved.size > 0 || sawTimeout ? "daemon-slow" : "probe-failed";
   return null;
 }
 
@@ -301,7 +340,14 @@ export async function getTerminalEndpoint(
   opts?: { force?: boolean; deviceId?: string; trustCache?: boolean },
 ): Promise<TerminalEndpoint | null> {
   const direct = await directTerminalEndpoint(convex, opts);
-  if (direct || !opts?.deviceId || lastFailure !== "other-device" || readOverride() || forceRelay()) return direct;
+  if (
+    direct ||
+    !opts?.deviceId ||
+    lastFailure !== "other-device" ||
+    readOverride() ||
+    forceRelay()
+  )
+    return direct;
   const forwarded = await hostForwardedEndpoint(convex, opts.deviceId);
   lastFailure = forwarded ? "none" : "other-device";
   return forwarded;
@@ -319,7 +365,10 @@ const forwardedByDevice = new Map<string, TerminalEndpoint>();
  * host in its registry can forward; everything else answers 404 and the
  * caller keeps its relay path.
  */
-async function hostForwardedEndpoint(convex: ConvexReactClient, deviceId: string): Promise<TerminalEndpoint | null> {
+async function hostForwardedEndpoint(
+  convex: ConvexReactClient,
+  deviceId: string,
+): Promise<TerminalEndpoint | null> {
   const known = forwardedByDevice.get(deviceId);
   if (known && (await probeEndpoint(known)) !== null) return known;
   forwardedByDevice.delete(deviceId);
@@ -345,15 +394,20 @@ async function hostForwardedEndpoint(convex: ConvexReactClient, deviceId: string
  * machine has no daemon, or its daemon cannot reach that host. With no
  * port, only asks whether the daemon manages that host (0 when it does).
  */
-export async function forwardHostPort(convex: ConvexReactClient, deviceId: string, port?: number): Promise<number | null> {
+export async function forwardHostPort(
+  convex: ConvexReactClient,
+  deviceId: string,
+  port?: number,
+): Promise<number | null> {
   const local = await directTerminalEndpoint(convex);
   if (!local || local.deviceId === deviceId) return null;
   try {
     const query = `device=${encodeURIComponent(deviceId)}${port === undefined ? "" : `&port=${port}`}`;
-    const res = await fetch(
-      `${termHttpBase(local)}/term/forward?${query}`,
-      { method: "POST", headers: { Authorization: `Bearer ${local.token}` }, signal: AbortSignal.timeout(PROBE_RETRY_TIMEOUT_MS) },
-    );
+    const res = await fetch(`${termHttpBase(local)}/term/forward?${query}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${local.token}` },
+      signal: AbortSignal.timeout(PROBE_RETRY_TIMEOUT_MS),
+    });
     if (!res.ok) return null;
     if (port === undefined) return 0;
     const forwarded = ((await res.json()) as { port?: unknown }).port;
@@ -422,13 +476,19 @@ async function directTerminalEndpoint(
   return run;
 }
 
-export async function killTerminalSession(ep: TerminalEndpoint, name: string): Promise<boolean> {
+export async function killTerminalSession(
+  ep: TerminalEndpoint,
+  name: string,
+): Promise<boolean> {
   try {
-    const res = await fetch(`${termHttpBase(ep)}/term/kill?name=${encodeURIComponent(name)}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${ep.token}` },
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-    });
+    const res = await fetch(
+      `${termHttpBase(ep)}/term/kill?name=${encodeURIComponent(name)}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${ep.token}` },
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      },
+    );
     return res.ok;
   } catch {
     return false;

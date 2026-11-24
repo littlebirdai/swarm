@@ -9,7 +9,12 @@
 // and the bare reference `union:conversation/<contact id>@<iso>` in prose
 // (contracts/productView.ts). Alone on its line a reference is the view; in
 // running text it is a pill. Pure.
-import { formatProductViewRef, isProductViewAt, parseProductViewRef, type ProductViewRef } from "@codecast/shared/contracts/productView";
+import {
+  formatProductViewRef,
+  isProductViewAt,
+  parseProductViewRef,
+  type ProductViewRef,
+} from "@codecast/shared/contracts/productView";
 
 export const VIEW_FENCE_LANG = "view";
 
@@ -23,7 +28,11 @@ export const VIEW_REF_PREFIX = "view:";
  * (convex sources/appViews.ts, appSlug).
  */
 export function appSlug(name: string): string {
-  return name.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 export type ViewFenceSpec = {
@@ -34,9 +43,12 @@ export type ViewFenceSpec = {
   url: string | null;
   title: string | null;
 };
-export type ViewFenceRead = { ok: true; spec: ViewFenceSpec } | { ok: false; why: string };
+export type ViewFenceRead =
+  | { ok: true; spec: ViewFenceSpec }
+  | { ok: false; why: string };
 
-const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
+const str = (v: unknown): string | null =>
+  typeof v === "string" && v.trim() ? v.trim() : null;
 
 /** A ```view block's body read as one view of one thing, or why it cannot be. */
 export function readViewFence(code: string): ViewFenceRead {
@@ -46,18 +58,35 @@ export function readViewFence(code: string): ViewFenceRead {
   } catch {
     return { ok: false, why: "The block is not JSON." };
   }
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, why: "The block is not a JSON object." };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    return { ok: false, why: "The block is not a JSON object." };
   const o = raw as Record<string, unknown>;
   const app = str(o.source) ?? str(o.app);
   const view = str(o.view);
   const id = str(o.id);
-  if (!app || !view || !id) return { ok: false, why: "A view needs a source, a view and an id." };
+  if (!app || !view || !id)
+    return { ok: false, why: "A view needs a source, a view and an id." };
   const at = str(o.at);
-  if (at && !isProductViewAt(at)) return { ok: false, why: `"${at}" is not an ISO time.` };
-  const ref = parseProductViewRef(formatProductViewRef({ app: appSlug(app), view, id, at }));
-  if (!ref) return { ok: false, why: "The source, view or id has characters a view reference cannot carry." };
+  if (at && !isProductViewAt(at))
+    return { ok: false, why: `"${at}" is not an ISO time.` };
+  const ref = parseProductViewRef(
+    formatProductViewRef({ app: appSlug(app), view, id, at }),
+  );
+  if (!ref)
+    return {
+      ok: false,
+      why: "The source, view or id has characters a view reference cannot carry.",
+    };
   const url = str(o.url);
-  return { ok: true, spec: { ref, moment: str(o.moment), url: url && /^https?:\/\//i.test(url) ? url : null, title: str(o.title) } };
+  return {
+    ok: true,
+    spec: {
+      ref,
+      moment: str(o.moment),
+      url: url && /^https?:\/\//i.test(url) ? url : null,
+      title: str(o.title),
+    },
+  };
 }
 
 /**
@@ -70,7 +99,9 @@ export const VIEW_REF_SCAN_SOURCE =
 export const viewRefScanRegex = () => new RegExp(VIEW_REF_SCAN_SOURCE, "g");
 
 /** The reference a link's `view:<ref>` payload carries, or null for any other text. */
-export function viewRefFromPayload(text: string | null | undefined): ProductViewRef | null {
+export function viewRefFromPayload(
+  text: string | null | undefined,
+): ProductViewRef | null {
   if (!text || !text.startsWith(VIEW_REF_PREFIX)) return null;
   return parseProductViewRef(text.slice(VIEW_REF_PREFIX.length));
 }
@@ -84,14 +115,30 @@ const kindView = (kind: string) => kind.split("-").pop() ?? kind;
  * then. Null when the parts cannot form a reference. Whether the app
  * declares the view is the server's to say when it mints.
  */
-export function momentViewRef(m: { source: string | null; kind: string; subject: string; at: number | null }): ProductViewRef | null {
+export function momentViewRef(m: {
+  source: string | null;
+  kind: string;
+  subject: string;
+  at: number | null;
+}): ProductViewRef | null {
   if (!m.source) return null;
-  const at = m.at != null && Number.isFinite(m.at) ? new Date(m.at).toISOString() : null;
-  return parseProductViewRef(formatProductViewRef({ app: appSlug(m.source), view: kindView(m.kind), id: m.subject, at }));
+  const at =
+    m.at != null && Number.isFinite(m.at) ? new Date(m.at).toISOString() : null;
+  return parseProductViewRef(
+    formatProductViewRef({
+      app: appSlug(m.source),
+      view: kindView(m.kind),
+      id: m.subject,
+      at,
+    }),
+  );
 }
 
 /** How a view reads in a title row: "Union conversation". */
-export function viewLabel(ref: Pick<ProductViewRef, "app" | "view">, appTitle?: string | null): string {
+export function viewLabel(
+  ref: Pick<ProductViewRef, "app" | "view">,
+  appTitle?: string | null,
+): string {
   const app = appTitle ?? ref.app.replace(/^./, (c) => c.toUpperCase());
   return `${app} ${ref.view}`;
 }

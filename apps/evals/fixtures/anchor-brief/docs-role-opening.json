@@ -10,10 +10,7 @@
       "teamName": "Fernhill",
       "role": {
         "handle": "docs",
-        "scopeNames": [
-          "Docs site",
-          "API reference"
-        ],
+        "scopeNames": ["Docs site", "API reference"],
         "parentName": "Mara",
         "startsOnItsOwn": false
       }

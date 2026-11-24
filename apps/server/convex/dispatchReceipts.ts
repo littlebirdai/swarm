@@ -24,11 +24,15 @@ export function receiptCommandId(action: string, result: unknown): string {
   return envelope.commandId;
 }
 
-export function hasReceiptCommandId(result: unknown): result is ReceiptActionEnvelope {
+export function hasReceiptCommandId(
+  result: unknown,
+): result is ReceiptActionEnvelope {
   const envelope = result as Partial<ReceiptActionEnvelope> | null;
-  return envelope?.receiptActionVersion === 1 &&
+  return (
+    envelope?.receiptActionVersion === 1 &&
     typeof envelope.commandId === "string" &&
-    envelope.commandId.length > 0;
+    envelope.commandId.length > 0
+  );
 }
 
 export const RECEIPT_OWNS_SERVER_WRITE = new Set([
@@ -43,9 +47,7 @@ export const RECEIPT_OWNS_SERVER_WRITE = new Set([
 ]);
 
 export function receiptLocalResult<T>(result: unknown): T {
-  return (hasReceiptCommandId(result)
-    ? result.localResult
-    : result) as T;
+  return (hasReceiptCommandId(result) ? result.localResult : result) as T;
 }
 
 export function receiptOrLegacyCommandId(
@@ -113,7 +115,11 @@ export function validatedCreateContinuation(
     typeof continuation.initiativeId === "string" &&
     continuation.initiativeId.length > 0
   ) {
-    return { version: 1, kind: "attachToInitiative", initiativeId: continuation.initiativeId };
+    return {
+      version: 1,
+      kind: "attachToInitiative",
+      initiativeId: continuation.initiativeId,
+    };
   }
   throw new Error(`Invalid ${action} continuation`);
 }
@@ -129,17 +135,21 @@ export async function runReceiptBackedCreate(
     create: () => Promise<unknown>;
   },
 ) {
-  return await runLocalCommand(ctx as any, {
-    principalId: userId,
-    commandId: receiptCommandId(input.action, input.result),
-    commandName: input.commandName,
-    arguments: input.arguments,
-  }, async () => ({
-    status: "acknowledged",
-    result: await input.create(),
-    // Docs/plans/projects still use their legacy paginated sync surfaces. The
-    // receipt provides exact create dedupe/result recovery; those lists do not
-    // yet expose a revision or command-id coverage contract to name here.
-    coverageViews: [],
-  }));
+  return await runLocalCommand(
+    ctx as any,
+    {
+      principalId: userId,
+      commandId: receiptCommandId(input.action, input.result),
+      commandName: input.commandName,
+      arguments: input.arguments,
+    },
+    async () => ({
+      status: "acknowledged",
+      result: await input.create(),
+      // Docs/plans/projects still use their legacy paginated sync surfaces. The
+      // receipt provides exact create dedupe/result recovery; those lists do not
+      // yet expose a revision or command-id coverage contract to name here.
+      coverageViews: [],
+    }),
+  );
 }

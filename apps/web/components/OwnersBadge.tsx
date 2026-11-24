@@ -11,10 +11,26 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { X, UserCheck, ArrowRightLeft, ArrowLeft, Network, BadgePlus } from "lucide-react";
+import {
+  X,
+  UserCheck,
+  ArrowRightLeft,
+  ArrowLeft,
+  Network,
+  BadgePlus,
+} from "lucide-react";
 import { useInboxStore } from "../store/inboxStore";
-import { useOwners, useOwnerCandidates, pickRoster, type OwnersApi, type HandoffInfo } from "../hooks/useOwners";
-import { useStoreOwnersEnv, useSessionRoleFacts } from "../hooks/useOwnersStoreEnv";
+import {
+  useOwners,
+  useOwnerCandidates,
+  pickRoster,
+  type OwnersApi,
+  type HandoffInfo,
+} from "../hooks/useOwners";
+import {
+  useStoreOwnersEnv,
+  useSessionRoleFacts,
+} from "../hooks/useOwnersStoreEnv";
 import { useSyncOrgTreeFeeder } from "../hooks/useSyncOrgTree";
 import { RoleFace } from "./org/RoleFace";
 import type { OrgReportsTo, OrgRole } from "./org/orgTypes";
@@ -33,7 +49,13 @@ import {
   DropdownMenuSubContent,
 } from "./ui/dropdown-menu";
 import { Popover, PopoverAnchor, PopoverContent } from "./ui/popover";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "./ui/command";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandItem,
+} from "./ui/command";
 import { Switch } from "./ui/switch";
 import { KeyCap } from "./KeyboardShortcutsHelp";
 import { isPerson } from "@codecast/shared/team/memberKind";
@@ -42,15 +64,30 @@ import { teamMembersOf } from "../lib/activeTeam";
 
 export type { OwnersApi, HandoffInfo };
 
-export function OwnerAvatar({ name, image, size = "w-4 h-4" }: { name: string; image?: string; size?: string }) {
-  const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+export function OwnerAvatar({
+  name,
+  image,
+  size = "w-4 h-4",
+}: {
+  name: string;
+  image?: string;
+  size?: string;
+}) {
+  const initials = name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
   return (
     <AvatarImg
       src={image}
       alt={name}
       className={`${size} rounded-full object-cover`}
       fallback={
-        <div className={`${size} rounded-full bg-sol-bg-highlight border border-sol-border/50 flex items-center justify-center text-meta font-medium text-sol-text-muted`}>
+        <div
+          className={`${size} rounded-full bg-sol-bg-highlight border border-sol-border/50 flex items-center justify-center text-meta font-medium text-sol-text-muted`}
+        >
           {initials || "?"}
         </div>
       }
@@ -66,11 +103,15 @@ export function OwnerAvatar({ name, image, size = "w-4 h-4" }: { name: string; i
 export function useOwnersFromStore(conversationId: string): OwnersApi {
   const teamMembers = useInboxStore(teamMembersOf) as any[];
   const currentUser = useInboxStore((s) => s.currentUser) as any;
-  return useOwners(conversationId, useStoreOwnersEnv(conversationId, {
-    teamMembers,
-    currentUser,
-    notify: (msg, kind) => (kind === "success" ? toast.success(msg) : toast.error(msg)),
-  }));
+  return useOwners(
+    conversationId,
+    useStoreOwnersEnv(conversationId, {
+      teamMembers,
+      currentUser,
+      notify: (msg, kind) =>
+        kind === "success" ? toast.success(msg) : toast.error(msg),
+    }),
+  );
 }
 
 /**
@@ -105,16 +146,25 @@ export function OwnerMenuItems({
   // role names it and "Move to a role" can list the workspace's roles even off
   // the org page (org-staffing.md S11). Bounded to the menu's lifetime.
   useSyncOrgTreeFeeder();
-  const { liveRoles, orgRoleId, currentRole, isStandingThread, seatRoleId } = useSessionRoleFacts(conversationId);
-  const reparentOrgRole = useInboxStore((s) => (s as any).reparentOrgRole) as ((roleId: string, to: OrgReportsTo) => unknown) | undefined;
+  const { liveRoles, orgRoleId, currentRole, isStandingThread, seatRoleId } =
+    useSessionRoleFacts(conversationId);
+  const reparentOrgRole = useInboxStore((s) => (s as any).reparentOrgRole) as
+    | ((roleId: string, to: OrgReportsTo) => unknown)
+    | undefined;
   // A session older than a week may already be a role nobody has named
   // (org-roles-run-work.md R2); the analyzer proposes those it finds, and this
   // is the way to name one it left out. Read once: the menu is short lived.
   const fitsARole = useInboxStore((s) => {
-    const live = (s as any).resolveLiveSessionId?.(conversationId) ?? conversationId;
-    return sessionFitsARole((s.sessions as any)?.[live] ?? (s.conversations as any)?.[conversationId], Date.now());
+    const live =
+      (s as any).resolveLiveSessionId?.(conversationId) ?? conversationId;
+    return sessionFitsARole(
+      (s.sessions as any)?.[live] ?? (s.conversations as any)?.[conversationId],
+      Date.now(),
+    );
   });
-  const selectable = pickRoster(serverRoster, owners.selectable).filter(isPerson);
+  const selectable = pickRoster(serverRoster, owners.selectable).filter(
+    isPerson,
+  );
   return (
     <>
       {seatRoleId && reparentOrgRole ? (
@@ -127,65 +177,98 @@ export function OwnerMenuItems({
           onPick={(to) => reparentOrgRole(seatRoleId, to)}
         />
       ) : (
-        <OwnersSection owners={owners} people={selectable} handingOff={handingOff} onHandingOff={onHandingOff} onDone={onDone} />
+        <OwnersSection
+          owners={owners}
+          people={selectable}
+          handingOff={handingOff}
+          onHandingOff={onHandingOff}
+          onDone={onDone}
+        />
       )}
-      {!handingOff && (<>
-      {/* The reporting line to a role (S11): the same act as a chart drag. When
+      {!handingOff && (
+        <>
+          {/* The reporting line to a role (S11): the same act as a chart drag. When
           the session already reports to a role, name it; either way, offer to
           file it under a role, which clears the person-owner line. */}
-      {currentRole && !seatRoleId && (
-        <>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">
-            Reports to a role
-          </DropdownMenuLabel>
-          <div className="px-2 pb-1 text-xs text-sol-text">
-            {/* What the role looks after is one hover away (org-roles-run-work.md R3). */}
-            <RoleHoverCard role={currentRole} side="left" triggerClassName="inline-flex min-w-0 items-center gap-2">
-              <RoleFace role={currentRole} size={18} />
-              <span className="truncate">{currentRole.name}</span>
-              <span className="text-sol-text-dim font-mono text-meta">@{currentRole.handle}</span>
-            </RoleHoverCard>
-          </div>
-        </>
-      )}
-      {moveToRole && !isStandingThread && liveRoles.length > 0 && (
-        <>
-          {!currentRole && <DropdownMenuSeparator />}
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="text-xs gap-2">
-              <Network className="w-3.5 h-3.5 shrink-0" /> Move to a role
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="max-h-[280px] overflow-y-auto">
-              {liveRoles.map((r) => (
-                <DropdownMenuItem
-                  key={r._id}
-                  disabled={r._id === orgRoleId}
-                  onSelect={(e) => { e.preventDefault(); void moveToRole(r._id, r.name); }}
-                  className="text-xs gap-2"
+          {currentRole && !seatRoleId && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">
+                Reports to a role
+              </DropdownMenuLabel>
+              <div className="px-2 pb-1 text-xs text-sol-text">
+                {/* What the role looks after is one hover away (org-roles-run-work.md R3). */}
+                <RoleHoverCard
+                  role={currentRole}
+                  side="left"
+                  triggerClassName="inline-flex min-w-0 items-center gap-2"
                 >
-                  {/* Before a person files a session under a role, its scope is a hover away. */}
-                  <RoleHoverCard role={r} side="right" triggerClassName="flex flex-1 min-w-0 items-center gap-2">
-                    <RoleFace role={r} size={18} />
-                    <span className="flex-1 truncate">{r.name}</span>
-                    <span className="text-sol-text-dim font-mono text-meta">@{r.handle}</span>
-                  </RoleHoverCard>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
+                  <RoleFace role={currentRole} size={18} />
+                  <span className="truncate">{currentRole.name}</span>
+                  <span className="text-sol-text-dim font-mono text-meta">
+                    @{currentRole.handle}
+                  </span>
+                </RoleHoverCard>
+              </div>
+            </>
+          )}
+          {moveToRole && !isStandingThread && liveRoles.length > 0 && (
+            <>
+              {!currentRole && <DropdownMenuSeparator />}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="text-xs gap-2">
+                  <Network className="w-3.5 h-3.5 shrink-0" /> Move to a role
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-[280px] overflow-y-auto">
+                  {liveRoles.map((r) => (
+                    <DropdownMenuItem
+                      key={r._id}
+                      disabled={r._id === orgRoleId}
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        void moveToRole(r._id, r.name);
+                      }}
+                      className="text-xs gap-2"
+                    >
+                      {/* Before a person files a session under a role, its scope is a hover away. */}
+                      <RoleHoverCard
+                        role={r}
+                        side="right"
+                        triggerClassName="flex flex-1 min-w-0 items-center gap-2"
+                      >
+                        <RoleFace role={r} size={18} />
+                        <span className="flex-1 truncate">{r.name}</span>
+                        <span className="text-sol-text-dim font-mono text-meta">
+                          @{r.handle}
+                        </span>
+                      </RoleHoverCard>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </>
+          )}
+          {onMakeRole && fitsARole && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={onMakeRole}
+                className="text-xs gap-2"
+                data-make-role
+              >
+                <BadgePlus className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  Make this a role
+                  <span className="block text-meta text-sol-text-dim">
+                    It keeps running as it is, and gets a name and a place on
+                    the chart
+                  </span>
+                </span>
+              </DropdownMenuItem>
+            </>
+          )}
         </>
       )}
-      {onMakeRole && fitsARole && (
-        <>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={onMakeRole} className="text-xs gap-2" data-make-role>
-            <BadgePlus className="w-3.5 h-3.5 shrink-0" />
-            <span>Make this a role<span className="block text-meta text-sol-text-dim">It keeps running as it is, and gets a name and a place on the chart</span></span>
-          </DropdownMenuItem>
-        </>
-      )}
-      </>)}
     </>
   );
 }
@@ -200,7 +283,13 @@ const memberImage = (m: any) => m.image || m.github_avatar_url;
  * (OwnersApi.handoffTo, the composer's path). The picked person and the
  * button's own label say what will happen before it does.
  */
-function OwnersSection({ owners, people, handingOff, onHandingOff, onDone }: {
+function OwnersSection({
+  owners,
+  people,
+  handingOff,
+  onHandingOff,
+  onDone,
+}: {
   owners: OwnersApi;
   people: any[];
   handingOff: boolean;
@@ -211,7 +300,14 @@ function OwnersSection({ owners, people, handingOff, onHandingOff, onDone }: {
   const meId = currentUser?._id?.toString?.();
   const others = people.filter((m) => m._id !== meId);
   if (handingOff) {
-    return <HandoffStep owners={owners} people={others} onBack={() => onHandingOff(false)} onSent={onDone} />;
+    return (
+      <HandoffStep
+        owners={owners}
+        people={others}
+        onBack={() => onHandingOff(false)}
+        onSent={onDone}
+      />
+    );
   }
   return (
     <>
@@ -222,15 +318,28 @@ function OwnersSection({ owners, people, handingOff, onHandingOff, onDone }: {
         <div className="px-2 py-1 text-xs text-sol-text-dim">Nobody yet</div>
       )}
       {ownerList.map((id) => {
-        const disp = id === meId && isPerson(currentUser) ? { name: memberName(currentUser), image: memberImage(currentUser) } : displayFor(id);
+        const disp =
+          id === meId && isPerson(currentUser)
+            ? { name: memberName(currentUser), image: memberImage(currentUser) }
+            : displayFor(id);
         return (
-          <div key={id} className="group flex items-center gap-2 px-2 py-1 text-xs text-sol-text">
+          <div
+            key={id}
+            className="group flex items-center gap-2 px-2 py-1 text-xs text-sol-text"
+          >
             <OwnerAvatar name={disp.name} image={disp.image} size="w-5 h-5" />
-            <span className="flex-1 truncate">{disp.name}{id === meId ? " (you)" : ""}</span>
+            <span className="flex-1 truncate">
+              {disp.name}
+              {id === meId ? " (you)" : ""}
+            </span>
             <button
               type="button"
               onClick={() => toggle(id)}
-              title={id === meId ? "Leave: take it out of your inbox" : `Remove ${disp.name}`}
+              title={
+                id === meId
+                  ? "Leave: take it out of your inbox"
+                  : `Remove ${disp.name}`
+              }
               aria-label={id === meId ? "Leave" : `Remove ${disp.name}`}
               className="shrink-0 p-0.5 rounded text-sol-text-dim opacity-40 group-hover:opacity-100 hover:text-sol-red hover:bg-sol-red/10 transition-opacity"
             >
@@ -240,13 +349,22 @@ function OwnersSection({ owners, people, handingOff, onHandingOff, onDone }: {
         );
       })}
       {isPerson(currentUser) && meId && !ownerIds.has(meId) && (
-        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggle(meId); }} className="text-xs gap-2 text-sol-cyan">
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            toggle(meId);
+          }}
+          className="text-xs gap-2 text-sol-cyan"
+        >
           <UserCheck className="w-3.5 h-3.5 shrink-0" /> Take ownership
         </DropdownMenuItem>
       )}
       {others.length > 0 && (
         <DropdownMenuItem
-          onSelect={(e) => { e.preventDefault(); onHandingOff(true); }}
+          onSelect={(e) => {
+            e.preventDefault();
+            onHandingOff(true);
+          }}
           className="mx-1 my-1 justify-center gap-2 rounded-md border border-sol-violet/40 bg-sol-violet/10 py-1.5 text-xs font-medium text-sol-violet focus:bg-sol-violet/20 focus:text-sol-violet"
           data-handoff-open
         >
@@ -259,7 +377,12 @@ function OwnersSection({ owners, people, handingOff, onHandingOff, onDone }: {
 
 /** Pick one person, write a note, send. Plain buttons rather than menu items,
  *  so a pointer passing over the list does not pull focus out of the note. */
-function HandoffStep({ owners, people, onBack, onSent }: {
+function HandoffStep({
+  owners,
+  people,
+  onBack,
+  onSent,
+}: {
   owners: OwnersApi;
   people: any[];
   onBack: () => void;
@@ -267,7 +390,9 @@ function HandoffStep({ owners, people, onBack, onSent }: {
 }) {
   const { ownerIds, handoffTo, currentUser } = owners;
   const meId = currentUser?._id?.toString?.();
-  const [pickedId, setPickedId] = useState<string | null>(people.length === 1 ? people[0]._id : null);
+  const [pickedId, setPickedId] = useState<string | null>(
+    people.length === 1 ? people[0]._id : null,
+  );
   const [note, setNote] = useState("");
   const [keepSelf, setKeepSelf] = useState(false);
   const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -282,7 +407,9 @@ function HandoffStep({ owners, people, onBack, onSent }: {
     <div
       // Keys belong to the step: the menu's typeahead and arrow handling would
       // otherwise swallow letters typed into the note.
-      onKeyDown={(e) => { if (e.key !== "Escape") e.stopPropagation(); }}
+      onKeyDown={(e) => {
+        if (e.key !== "Escape") e.stopPropagation();
+      }}
       className="px-1 pb-1"
       data-handoff-step
     >
@@ -295,9 +422,15 @@ function HandoffStep({ owners, people, onBack, onSent }: {
         >
           <ArrowLeft className="w-3.5 h-3.5" />
         </button>
-        <span className="text-mark font-semibold uppercase tracking-[0.15em] text-sol-violet">Hand off to</span>
+        <span className="text-mark font-semibold uppercase tracking-[0.15em] text-sol-violet">
+          Hand off to
+        </span>
       </div>
-      <div role="radiogroup" aria-label="Hand off to" className="max-h-[220px] overflow-y-auto">
+      <div
+        role="radiogroup"
+        aria-label="Hand off to"
+        className="max-h-[220px] overflow-y-auto"
+      >
         {people.map((m) => {
           const on = m._id === pickedId;
           return (
@@ -306,15 +439,30 @@ function HandoffStep({ owners, people, onBack, onSent }: {
               type="button"
               role="radio"
               aria-checked={on}
-              onClick={() => { setPickedId(m._id); noteRef.current?.focus(); }}
+              onClick={() => {
+                setPickedId(m._id);
+                noteRef.current?.focus();
+              }}
               className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-xs transition-colors ${
-                on ? "bg-sol-violet/15 text-sol-text ring-1 ring-inset ring-sol-violet/50" : "text-sol-text hover:bg-sol-bg-highlight"
+                on
+                  ? "bg-sol-violet/15 text-sol-text ring-1 ring-inset ring-sol-violet/50"
+                  : "text-sol-text hover:bg-sol-bg-highlight"
               }`}
             >
-              <OwnerAvatar name={memberName(m)} image={memberImage(m)} size="w-5 h-5" />
+              <OwnerAvatar
+                name={memberName(m)}
+                image={memberImage(m)}
+                size="w-5 h-5"
+              />
               <span className="flex-1 truncate">{memberName(m)}</span>
-              {ownerIds.has(m._id) && <span className="shrink-0 text-mark uppercase tracking-wide text-sol-text-dim">owner</span>}
-              <span className={`shrink-0 w-3.5 h-3.5 rounded-full border flex items-center justify-center ${on ? "border-sol-violet bg-sol-violet" : "border-sol-border"}`}>
+              {ownerIds.has(m._id) && (
+                <span className="shrink-0 text-mark uppercase tracking-wide text-sol-text-dim">
+                  owner
+                </span>
+              )}
+              <span
+                className={`shrink-0 w-3.5 h-3.5 rounded-full border flex items-center justify-center ${on ? "border-sol-violet bg-sol-violet" : "border-sol-border"}`}
+              >
                 {on && <span className="w-1.5 h-1.5 rounded-full bg-sol-bg" />}
               </span>
             </button>
@@ -325,20 +473,38 @@ function HandoffStep({ owners, people, onBack, onSent }: {
         ref={noteRef}
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            send();
+          }
+        }}
         rows={2}
-        placeholder={picked ? `Note for ${firstName} (optional)` : "Note (optional)"}
+        placeholder={
+          picked ? `Note for ${firstName} (optional)` : "Note (optional)"
+        }
         className="mt-1.5 w-full resize-none px-2 py-1.5 text-xs rounded-md border border-sol-border/60 bg-sol-bg text-sol-text placeholder:text-sol-text-dim/70 outline-none focus:border-sol-violet/60"
       />
       <div className="mt-1.5 flex items-center gap-2">
         {/* Only an owner has anything to keep. */}
         {meId && ownerIds.has(meId) && (
           <label className="flex items-center gap-1.5 text-meta text-sol-text-muted cursor-pointer select-none">
-            <Switch checked={keepSelf} onCheckedChange={setKeepSelf} aria-label="Stay an owner" />
+            <Switch
+              checked={keepSelf}
+              onCheckedChange={setKeepSelf}
+              aria-label="Stay an owner"
+            />
             Stay an owner
           </label>
         )}
-        <Button type="button" variant="violet" size="xs" disabled={!picked} onClick={send} className="ml-auto">
+        <Button
+          type="button"
+          variant="violet"
+          size="xs"
+          disabled={!picked}
+          onClick={send}
+          className="ml-auto"
+        >
           {picked ? `Hand off to ${firstName}` : "Pick someone"}
           {picked && <KeyCap size="xs">↵</KeyCap>}
         </Button>
@@ -351,7 +517,14 @@ function HandoffStep({ owners, people, onBack, onSent }: {
  *  inbox it is in. People and roles sit in one list, each a hover away from
  *  who it is. Picking one moves the role (the chart's drag), so the chart and
  *  the inbox can never disagree. */
-function SeatReportsToItems({ people, currentUserId, ownerId, roles, parentRoleId, onPick }: {
+function SeatReportsToItems({
+  people,
+  currentUserId,
+  ownerId,
+  roles,
+  parentRoleId,
+  onPick,
+}: {
   people: any[];
   currentUserId?: string;
   ownerId?: string;
@@ -371,22 +544,54 @@ function SeatReportsToItems({ people, currentUserId, ownerId, roles, parentRoleI
             <DropdownMenuCheckboxItem
               key={m._id}
               checked={!parentRoleId && ownerId === m._id}
-              onSelect={() => { if (parentRoleId || ownerId !== m._id) onPick({ kind: "user", user_id: m._id }); }}
+              onSelect={() => {
+                if (parentRoleId || ownerId !== m._id)
+                  onPick({ kind: "user", user_id: m._id });
+              }}
               className="text-xs gap-2"
             >
-              <PersonHoverCard person={{ userId: m._id, handle: m.github_username, name, image: m.image || m.github_avatar_url }} side="left" triggerClassName="flex flex-1 min-w-0 items-center gap-2">
-                <OwnerAvatar name={name || "?"} image={m.image || m.github_avatar_url} />
-                <span className="flex-1 truncate">{name}{m._id === currentUserId ? " (you)" : ""}</span>
+              <PersonHoverCard
+                person={{
+                  userId: m._id,
+                  handle: m.github_username,
+                  name,
+                  image: m.image || m.github_avatar_url,
+                }}
+                side="left"
+                triggerClassName="flex flex-1 min-w-0 items-center gap-2"
+              >
+                <OwnerAvatar
+                  name={name || "?"}
+                  image={m.image || m.github_avatar_url}
+                />
+                <span className="flex-1 truncate">
+                  {name}
+                  {m._id === currentUserId ? " (you)" : ""}
+                </span>
               </PersonHoverCard>
             </DropdownMenuCheckboxItem>
           );
         })}
         {roles.map((r) => (
-          <DropdownMenuCheckboxItem key={r._id} checked={parentRoleId === r._id} onSelect={() => { if (parentRoleId !== r._id) onPick({ kind: "role", role_id: r._id }); }} className="text-xs gap-2">
-            <RoleHoverCard role={r} side="left" triggerClassName="flex flex-1 min-w-0 items-center gap-2">
+          <DropdownMenuCheckboxItem
+            key={r._id}
+            checked={parentRoleId === r._id}
+            onSelect={() => {
+              if (parentRoleId !== r._id)
+                onPick({ kind: "role", role_id: r._id });
+            }}
+            className="text-xs gap-2"
+          >
+            <RoleHoverCard
+              role={r}
+              side="left"
+              triggerClassName="flex flex-1 min-w-0 items-center gap-2"
+            >
               <RoleFace role={r} size={16} />
               <span className="flex-1 truncate">{r.name}</span>
-              <span className="text-sol-text-dim font-mono text-meta">@{r.handle}</span>
+              <span className="text-sol-text-dim font-mono text-meta">
+                @{r.handle}
+              </span>
             </RoleHoverCard>
           </DropdownMenuCheckboxItem>
         ))}
@@ -401,7 +606,11 @@ function SeatReportsToItems({ people, currentUserId, ownerId, roles, parentRoleI
  * assigner + their optional note; "Got it" acks (server) and clears the inbox
  * row's assigned ping (local-first), so both surfaces retire together.
  */
-export function AssignedToYouBanner({ conversationId }: { conversationId: string }) {
+export function AssignedToYouBanner({
+  conversationId,
+}: {
+  conversationId: string;
+}) {
   const owners = useOwnersFromStore(conversationId);
   const a = owners.myAssignment;
   if (!a) return null;
@@ -413,8 +622,12 @@ export function AssignedToYouBanner({ conversationId }: { conversationId: string
         <div className="text-xs font-semibold text-sol-text">
           {by} assigned this thread to you
           {a.added_at && (
-            <span className="font-normal text-sol-text-dim whitespace-nowrap" title={formatDateFull(a.added_at)}>
-              {" · "}{formatRelative(a.added_at)}
+            <span
+              className="font-normal text-sol-text-dim whitespace-nowrap"
+              title={formatDateFull(a.added_at)}
+            >
+              {" · "}
+              {formatRelative(a.added_at)}
             </span>
           )}
         </div>
@@ -474,13 +687,21 @@ export function HandoffPicker({
   );
   const [keepSelf, setKeepSelf] = useState(false);
   const anchorRef = useRef<HTMLSpanElement>(null);
-  const preview = note.trim().split("\n").find((l) => l.trim()) ?? "";
+  const preview =
+    note
+      .trim()
+      .split("\n")
+      .find((l) => l.trim()) ?? "";
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       {/* An anchor, not a trigger: the button lives inside a tooltip wrapper
           that would swallow a trigger's cloned props, so it toggles `open`
           itself and the popover only positions against it. */}
-      <PopoverAnchor asChild><span ref={anchorRef} className="inline-flex">{children}</span></PopoverAnchor>
+      <PopoverAnchor asChild>
+        <span ref={anchorRef} className="inline-flex">
+          {children}
+        </span>
+      </PopoverAnchor>
       <PopoverContent
         side="top"
         align="end"
@@ -490,7 +711,9 @@ export function HandoffPicker({
         onKeyDown={(e) => e.stopPropagation()}
         // A click on the button itself is the toggle's job, not a dismissal —
         // otherwise the outside-click closes and the toggle reopens.
-        onInteractOutside={(e) => { if (anchorRef.current?.contains(e.target as Node)) e.preventDefault(); }}
+        onInteractOutside={(e) => {
+          if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
+        }}
       >
         <div className="px-3 pt-2.5 pb-2 border-b border-sol-border/60">
           <div className="flex items-center gap-1.5 text-mark font-semibold uppercase tracking-[0.15em] text-sol-violet">
@@ -498,7 +721,10 @@ export function HandoffPicker({
             Hand off to
           </div>
           {preview ? (
-            <div className="mt-1 text-meta text-sol-text-muted truncate" title={note.trim()}>
+            <div
+              className="mt-1 text-meta text-sol-text-muted truncate"
+              title={note.trim()}
+            >
               with your note: <span className="text-sol-text">“{preview}”</span>
             </div>
           ) : (
@@ -509,7 +735,9 @@ export function HandoffPicker({
         </div>
         <Command
           loop
-          filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase().trim()) ? 1 : 0)}
+          filter={(value, search) =>
+            value.toLowerCase().includes(search.toLowerCase().trim()) ? 1 : 0
+          }
         >
           <CommandInput
             autoFocus
@@ -518,7 +746,9 @@ export function HandoffPicker({
           />
           <CommandList className="max-h-[240px] py-1">
             <CommandEmpty className="py-5 text-center text-xs text-sol-text-dim">
-              {people.length === 0 ? "No teammates on this session's team." : "Nobody matches."}
+              {people.length === 0
+                ? "No teammates on this session's team."
+                : "Nobody matches."}
             </CommandEmpty>
             {people.map((m: any) => {
               const name = m.name || m.email?.split("@")[0] || "Teammate";
@@ -533,10 +763,16 @@ export function HandoffPicker({
                   }}
                   className="mx-1 gap-2.5 px-2 py-1.5 text-[13px] text-sol-text data-[selected=true]:bg-sol-violet/15 data-[selected=true]:text-sol-text [&[data-selected=true]_*]:text-inherit"
                 >
-                  <OwnerAvatar name={name} image={m.image || m.github_avatar_url} size="w-5 h-5" />
+                  <OwnerAvatar
+                    name={name}
+                    image={m.image || m.github_avatar_url}
+                    size="w-5 h-5"
+                  />
                   <span className="flex-1 min-w-0 truncate">{name}</span>
                   {isOwner && (
-                    <span className="shrink-0 text-mark uppercase tracking-wide text-sol-text-dim">owner</span>
+                    <span className="shrink-0 text-mark uppercase tracking-wide text-sol-text-dim">
+                      owner
+                    </span>
                   )}
                 </CommandItem>
               );
@@ -547,10 +783,16 @@ export function HandoffPicker({
           {/* Only an owner has anything to keep. */}
           {meId && ownerIds.has(meId) ? (
             <label className="flex items-center gap-2 text-meta text-sol-text-muted cursor-pointer select-none">
-              <Switch checked={keepSelf} onCheckedChange={setKeepSelf} aria-label="Stay an owner" />
+              <Switch
+                checked={keepSelf}
+                onCheckedChange={setKeepSelf}
+                aria-label="Stay an owner"
+              />
               Stay an owner
             </label>
-          ) : <span />}
+          ) : (
+            <span />
+          )}
           <span className="flex items-center gap-1 text-meta text-sol-text-dim">
             <KeyCap size="xs">↵</KeyCap> hand off
           </span>

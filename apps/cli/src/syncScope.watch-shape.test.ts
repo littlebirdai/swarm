@@ -2,7 +2,10 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { claudeProjectsDir, isClaudeTranscriptOutOfWatchScope } from "./syncScope.js";
+import {
+  claudeProjectsDir,
+  isClaudeTranscriptOutOfWatchScope,
+} from "./syncScope.js";
 import { isTranscriptFileInSyncScope } from "./reconciliation.js";
 
 // The startup/wake sweeps and reconciliation walk ~/.claude/projects with a bare
@@ -25,7 +28,10 @@ afterEach(() => {
   fs.rmSync(home, { recursive: true, force: true });
 });
 
-function write(rel: string, body = '{"type":"user","cwd":"/tmp/x","message":{"role":"user","content":"hi"}}\n'): string {
+function write(
+  rel: string,
+  body = '{"type":"user","cwd":"/tmp/x","message":{"role":"user","content":"hi"}}\n',
+): string {
   const p = path.join(claudeProjectsDir(), rel);
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, body);
@@ -33,8 +39,13 @@ function write(rel: string, body = '{"type":"user","cwd":"/tmp/x","message":{"ro
 }
 
 test("the workflow run journal is out of watch scope; transcripts around it are in", () => {
-  const journal = write(`-proj/${uuid}/subagents/workflows/wf_abc/journal.jsonl`, '{"agent":"a1","event":"started"}\n');
-  const workflowAgent = write(`-proj/${uuid}/subagents/workflows/wf_abc/agent-a1b2c3.jsonl`);
+  const journal = write(
+    `-proj/${uuid}/subagents/workflows/wf_abc/journal.jsonl`,
+    '{"agent":"a1","event":"started"}\n',
+  );
+  const workflowAgent = write(
+    `-proj/${uuid}/subagents/workflows/wf_abc/agent-a1b2c3.jsonl`,
+  );
   const taskSubagent = write(`-proj/${uuid}/subagents/agent-deadbeef.jsonl`);
   const session = write(`-proj/${uuid}.jsonl`);
 
@@ -45,11 +56,18 @@ test("the workflow run journal is out of watch scope; transcripts around it are 
 });
 
 test("paths outside ~/.claude/projects are never refused by the claude rule", () => {
-  expect(isClaudeTranscriptOutOfWatchScope(path.join(home, ".codex", "sessions", "2026", "rollout-x.jsonl"))).toBe(false);
+  expect(
+    isClaudeTranscriptOutOfWatchScope(
+      path.join(home, ".codex", "sessions", "2026", "rollout-x.jsonl"),
+    ),
+  ).toBe(false);
 });
 
 test("isTranscriptFileInSyncScope rejects the journal even with no config", () => {
-  const journal = write(`-proj/${uuid}/subagents/workflows/wf_abc/journal.jsonl`, '{"agent":"a1"}\n');
+  const journal = write(
+    `-proj/${uuid}/subagents/workflows/wf_abc/journal.jsonl`,
+    '{"agent":"a1"}\n',
+  );
   const session = write(`-proj/${uuid}.jsonl`);
   expect(isTranscriptFileInSyncScope(journal)).toBe(false);
   expect(isTranscriptFileInSyncScope(session)).toBe(true);

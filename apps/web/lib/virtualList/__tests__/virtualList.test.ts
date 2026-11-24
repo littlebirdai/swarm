@@ -9,19 +9,32 @@ function setup(keys: string[], estimate = 100) {
   const win = {
     requestAnimationFrame: (fn: () => void) => frames.push(fn),
     cancelAnimationFrame: () => {},
-    setTimeout, clearTimeout,
+    setTimeout,
+    clearTimeout,
   };
   let onOffset: (offset: number, isScrolling: boolean) => void = () => {};
   let top = 0;
   const writes: number[] = [];
   const el = {
-    get scrollTop() { return top; },
-    set scrollTop(t: number) { top = Math.max(0, Math.min(t, el.scrollHeight - el.clientHeight)); writes.push(top); onOffset(top, false); },
+    get scrollTop() {
+      return top;
+    },
+    set scrollTop(t: number) {
+      top = Math.max(0, Math.min(t, el.scrollHeight - el.clientHeight));
+      writes.push(top);
+      onOffset(top, false);
+    },
     clientHeight: 500,
-    get scrollHeight() { return v.getTotalSize(); },
+    get scrollHeight() {
+      return v.getTotalSize();
+    },
     children: [] as unknown[],
     ownerDocument: { defaultView: win },
-    addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent() {
+      return true;
+    },
   };
   const list = { keys };
   const v: Virtualizer<any, any> = new Virtualizer({
@@ -29,14 +42,29 @@ function setup(keys: string[], estimate = 100) {
     getItemKey: (i) => list.keys[i] ?? i,
     getScrollElement: () => el,
     estimateSize: () => estimate,
-    observeElementRect: (_i, cb) => { cb({ width: 800, height: 500 }); return () => {}; },
-    observeElementOffset: (_i, cb) => { onOffset = cb; cb(0, false); return () => {}; },
-    scrollToFn: (offset, { adjustments = 0 }) => { el.scrollTop = offset + adjustments; },
+    observeElementRect: (_i, cb) => {
+      cb({ width: 800, height: 500 });
+      return () => {};
+    },
+    observeElementOffset: (_i, cb) => {
+      onOffset = cb;
+      cb(0, false);
+      return () => {};
+    },
+    scrollToFn: (offset, { adjustments = 0 }) => {
+      el.scrollTop = offset + adjustments;
+    },
   });
   v._didMount();
   v._willUpdate();
-  const runFrames = () => { for (let i = 0; i < 20 && frames.length; i++) frames.splice(0).forEach((f) => f()); };
-  const setKeys = (next: string[]) => { list.keys = next; v.setOptions({ ...v.options, count: next.length }); };
+  const runFrames = () => {
+    for (let i = 0; i < 20 && frames.length; i++)
+      frames.splice(0).forEach((f) => f());
+  };
+  const setKeys = (next: string[]) => {
+    list.keys = next;
+    v.setOptions({ ...v.options, count: next.length });
+  };
   return { v, el, runFrames, setKeys, writes };
 }
 
@@ -44,7 +72,8 @@ function setup(keys: string[], estimate = 100) {
 // data-vkey its own key.
 const row = (vkey: string | undefined, dataIndex: number) => ({
   dataset: vkey === undefined ? {} : { vkey },
-  getAttribute: (name: string) => (name === "data-index" ? String(dataIndex) : null),
+  getAttribute: (name: string) =>
+    name === "data-index" ? String(dataIndex) : null,
 });
 
 describe("attributeMeasurementsByKey", () => {
@@ -83,17 +112,23 @@ describe("createScrollHold", () => {
   const settle = () => Promise.resolve();
 
   test("a bottom hold re-aims when rows grow after the library let go", async () => {
-    const { v, el, runFrames } = setup(Array.from({ length: 50 }, (_, i) => `k${i}`));
+    const { v, el, runFrames } = setup(
+      Array.from({ length: 50 }, (_, i) => `k${i}`),
+    );
     const hold = createScrollHold(v, () => el as any);
     hold.set("bottom", { holdMs: 1000 });
     runFrames();
-    expect(el.scrollHeight - el.scrollTop - el.clientHeight).toBeLessThanOrEqual(1);
+    expect(
+      el.scrollHeight - el.scrollTop - el.clientHeight,
+    ).toBeLessThanOrEqual(1);
     // An image in a row above loads 300ms later: the library's loop is done.
     v.resizeItem(40, 600);
     hold.onChange();
     await settle();
     runFrames();
-    expect(el.scrollHeight - el.scrollTop - el.clientHeight).toBeLessThanOrEqual(1);
+    expect(
+      el.scrollHeight - el.scrollTop - el.clientHeight,
+    ).toBeLessThanOrEqual(1);
   });
 
   // Each re-aim reads the scroller's geometry (a forced layout). Bursts of size
@@ -102,9 +137,14 @@ describe("createScrollHold", () => {
   test("size bursts inside one frame re-aim once, then at the next frame", async () => {
     const queued: Array<() => void> = [];
     const realRaf = (globalThis as any).requestAnimationFrame;
-    (globalThis as any).requestAnimationFrame = (fn: () => void) => { queued.push(fn); return queued.length; };
+    (globalThis as any).requestAnimationFrame = (fn: () => void) => {
+      queued.push(fn);
+      return queued.length;
+    };
     try {
-      const { v, el, runFrames } = setup(Array.from({ length: 50 }, (_, i) => `k${i}`));
+      const { v, el, runFrames } = setup(
+        Array.from({ length: 50 }, (_, i) => `k${i}`),
+      );
       const hold = createScrollHold(v, () => el as any);
       hold.set("bottom", { holdMs: 1000 });
       runFrames();
@@ -112,7 +152,16 @@ describe("createScrollHold", () => {
       // its observer), so its reads count the re-aims.
       let reads = 0;
       const top = Object.getOwnPropertyDescriptor(el, "scrollTop")!;
-      Object.defineProperty(el, "scrollTop", { get() { reads++; return top.get!.call(el); }, set(t: number) { top.set!.call(el, t); }, configurable: true });
+      Object.defineProperty(el, "scrollTop", {
+        get() {
+          reads++;
+          return top.get!.call(el);
+        },
+        set(t: number) {
+          top.set!.call(el, t);
+        },
+        configurable: true,
+      });
       v.resizeItem(40, 600);
       hold.onChange();
       await settle();
@@ -125,14 +174,18 @@ describe("createScrollHold", () => {
       queued.splice(0).forEach((f) => f());
       expect(reads).toBeGreaterThan(afterFirst);
       runFrames();
-      expect(el.scrollHeight - el.scrollTop - el.clientHeight).toBeLessThanOrEqual(1);
+      expect(
+        el.scrollHeight - el.scrollTop - el.clientHeight,
+      ).toBeLessThanOrEqual(1);
     } finally {
       (globalThis as any).requestAnimationFrame = realRaf;
     }
   });
 
   test("an idle hold writes nothing when sizes have not moved", async () => {
-    const { v, el, runFrames, writes } = setup(Array.from({ length: 50 }, (_, i) => `k${i}`));
+    const { v, el, runFrames, writes } = setup(
+      Array.from({ length: 50 }, (_, i) => `k${i}`),
+    );
     const hold = createScrollHold(v, () => el as any);
     hold.set("bottom", { holdMs: 1000 });
     runFrames();
@@ -144,7 +197,9 @@ describe("createScrollHold", () => {
   });
 
   test("a released hold leaves the reader where they are", async () => {
-    const { v, el, runFrames } = setup(Array.from({ length: 50 }, (_, i) => `k${i}`));
+    const { v, el, runFrames } = setup(
+      Array.from({ length: 50 }, (_, i) => `k${i}`),
+    );
     const hold = createScrollHold(v, () => el as any);
     hold.set("bottom", { holdMs: 1000 });
     runFrames();
@@ -159,7 +214,9 @@ describe("createScrollHold", () => {
   });
 
   test("the bail predicate ends the hold", async () => {
-    const { v, el, runFrames } = setup(Array.from({ length: 50 }, (_, i) => `k${i}`));
+    const { v, el, runFrames } = setup(
+      Array.from({ length: 50 }, (_, i) => `k${i}`),
+    );
     let scrolledUp = false;
     const hold = createScrollHold(v, () => el as any);
     hold.set("bottom", { holdMs: 1000, bail: () => scrolledUp });
@@ -175,7 +232,9 @@ describe("createScrollHold", () => {
   });
 
   test("the hold lapses after its visible budget", async () => {
-    const { v, el, runFrames } = setup(Array.from({ length: 50 }, (_, i) => `k${i}`));
+    const { v, el, runFrames } = setup(
+      Array.from({ length: 50 }, (_, i) => `k${i}`),
+    );
     setSystemTime(new Date(1_000_000));
     const hold = createScrollHold(v, () => el as any);
     hold.set("bottom", { holdMs: 1000 });
@@ -190,7 +249,9 @@ describe("createScrollHold", () => {
   });
 
   test("an index hold keeps the row at the top while rows above it measure in", async () => {
-    const { v, el, runFrames } = setup(Array.from({ length: 50 }, (_, i) => `k${i}`));
+    const { v, el, runFrames } = setup(
+      Array.from({ length: 50 }, (_, i) => `k${i}`),
+    );
     const hold = createScrollHold(v, () => el as any);
     hold.set({ index: 30, align: "start" }, { holdMs: 8000 });
     runFrames();
@@ -209,23 +270,42 @@ describe("scroll seek", () => {
   const run = (steps: Array<[top: number, at: number, input?: boolean]>) => {
     const seen: boolean[] = [];
     const t = createScrollSeekTracker((s) => seen.push(s), { idleMs: 10_000 });
-    for (const [top, at, input] of steps) { if (input) t.input(at); t.scroll(top, at); }
+    for (const [top, at, input] of steps) {
+      if (input) t.input(at);
+      t.scroll(top, at);
+    }
     t.dispose();
     return { seen, seeking: t.seeking };
   };
 
   test("a fast reader flick enters seeking and slowing down leaves it", () => {
-    const { seen } = run([[0, 0, true], [160, 16, true], [320, 32, true], [340, 48, true], [345, 64, true], [346, 80, true]]);
+    const { seen } = run([
+      [0, 0, true],
+      [160, 16, true],
+      [320, 32, true],
+      [340, 48, true],
+      [345, 64, true],
+      [346, 80, true],
+    ]);
     expect(seen).toEqual([true, false]);
   });
 
   test("a programmatic jump of thousands of px never seeks", () => {
-    const { seen } = run([[0, 0], [40_000, 16], [40_000, 32]]);
+    const { seen } = run([
+      [0, 0],
+      [40_000, 16],
+      [40_000, 32],
+    ]);
     expect(seen).toEqual([]);
   });
 
   test("slow reading never seeks", () => {
-    const { seen } = run([[0, 0, true], [20, 16, true], [40, 32, true], [60, 48, true]]);
+    const { seen } = run([
+      [0, 0, true],
+      [20, 16, true],
+      [40, 32, true],
+      [60, 48, true],
+    ]);
     expect(seen).toEqual([]);
   });
 

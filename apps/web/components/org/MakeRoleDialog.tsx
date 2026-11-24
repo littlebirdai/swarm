@@ -14,14 +14,34 @@ import { HireRoleDialog } from "./HireRoleDialog";
 import { seatOfSession } from "../../lib/makeRole";
 import { windowOrgTree } from "../../store/orgSlice";
 
-export function MakeRoleDialog({ conversationId, onClose }: { conversationId: string; onClose: () => void }) {
+export function MakeRoleDialog({
+  conversationId,
+  onClose,
+}: {
+  conversationId: string;
+  onClose: () => void;
+}) {
   // The hire form reads the chart for handles and parents; feed it while open.
   useSyncOrgTreeFeeder();
   const tree = useInboxStore(windowOrgTree);
-  const meId = useInboxStore((s) => (s.currentUser as any)?._id as string | undefined) ?? "";
-  const offered = useMemo(() => seatOfSession(conversationId), [conversationId]);
+  const meId =
+    useInboxStore((s) => (s.currentUser as any)?._id as string | undefined) ??
+    "";
+  const offered = useMemo(
+    () => seatOfSession(conversationId),
+    [conversationId],
+  );
   const projects = useWorkspaceCollection<ProjectItem>("projects");
-  const home = useMemo(() => projects.filter((p) => offered?.project_path && (p as { project_path?: string }).project_path === offered.project_path), [projects, offered]);
+  const home = useMemo(
+    () =>
+      projects.filter(
+        (p) =>
+          offered?.project_path &&
+          (p as { project_path?: string }).project_path ===
+            offered.project_path,
+      ),
+    [projects, offered],
+  );
   if (!tree || !offered) return null;
   return (
     <HireRoleDialog
@@ -37,7 +57,9 @@ export function MakeRoleDialog({ conversationId, onClose }: { conversationId: st
       initialProjects={home}
       onCreate={(input) => {
         useInboxStore.getState().createOrgRole(input);
-        toast.success(`${input.name} is now a role`, { description: "The session keeps running as it was." });
+        toast.success(`${input.name} is now a role`, {
+          description: "The session keeps running as it was.",
+        });
         onClose();
       }}
     />

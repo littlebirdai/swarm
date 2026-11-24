@@ -9,7 +9,13 @@ import { getLabelColor } from "../../lib/labelColors";
 import { useIsModernStyle } from "../../hooks/useVisualStyle";
 import { modernPill, modernPillShape } from "../ui/modernLook";
 
-export function DocRow({ doc, onStar, timeKey = "updated_at", match, query }: {
+export function DocRow({
+  doc,
+  onStar,
+  timeKey = "updated_at",
+  match,
+  query,
+}: {
   doc: DocItem;
   /** The words inside the doc a search matched, shown after its title. */
   match?: string;
@@ -35,7 +41,11 @@ export function DocRow({ doc, onStar, timeKey = "updated_at", match, query }: {
           sorts first. Hidden until hover on an unstarred row so the list
           stays quiet; always shown once set. */}
       <button
-        onClick={(e) => { e.stopPropagation(); if (onStar) onStar(doc, !doc.pinned); else useInboxStore.getState().pinDoc(doc._id, !doc.pinned); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onStar) onStar(doc, !doc.pinned);
+          else useInboxStore.getState().pinDoc(doc._id, !doc.pinned);
+        }}
         className={`flex-shrink-0 p-0.5 -m-0.5 rounded transition-colors ${doc.pinned ? "text-sol-yellow" : "text-sol-text-dim/50 opacity-0 group-hover:opacity-100 hover:text-sol-yellow"}${m ? " modern:-m-1.5 modern:rounded-control modern:p-1.5 modern:hover:bg-sol-text/[0.06]" : ""}`}
         title={doc.pinned ? "Unstar" : "Star (keeps it on your shelf)"}
         aria-label={doc.pinned ? "Unstar document" : "Star document"}
@@ -44,14 +54,26 @@ export function DocRow({ doc, onStar, timeKey = "updated_at", match, query }: {
       </button>
       {match ? (
         <>
-          <span className="shrink text-sol-text truncate min-w-0 max-w-[45%]">{title}</span>
-          <span className="flex-1 text-sol-text-dim truncate min-w-0" data-doc-match>{markWords(match, query)}</span>
+          <span className="shrink text-sol-text truncate min-w-0 max-w-[45%]">
+            {title}
+          </span>
+          <span
+            className="flex-1 text-sol-text-dim truncate min-w-0"
+            data-doc-match
+          >
+            {markWords(match, query)}
+          </span>
         </>
       ) : (
         <span className="flex-1 text-sol-text truncate min-w-0">{title}</span>
       )}
       {docOrigin(doc) === "agent" && (
-        <span className="flex-shrink-0 cq-hide-compact" title={`${doc.source} created`}><Bot className="w-3.5 h-3.5 text-sol-text-dim/60" /></span>
+        <span
+          className="flex-shrink-0 cq-hide-compact"
+          title={`${doc.source} created`}
+        >
+          <Bot className="w-3.5 h-3.5 text-sol-text-dim/60" />
+        </span>
       )}
       {doc.plan_short_id && (
         <Link
@@ -67,7 +89,10 @@ export function DocRow({ doc, onStar, timeKey = "updated_at", match, query }: {
           {doc.labels.slice(0, 2).map((l) => {
             const lc = getLabelColor(l);
             return (
-              <span key={l} className={`inline-flex items-center gap-1 text-meta px-1.5 py-0 rounded-full border whitespace-nowrap ${lc.bg} ${lc.border} ${lc.text}${m ? ` ${modernPillShape()}` : ""}`}>
+              <span
+                key={l}
+                className={`inline-flex items-center gap-1 text-meta px-1.5 py-0 rounded-full border whitespace-nowrap ${lc.bg} ${lc.border} ${lc.text}${m ? ` ${modernPillShape()}` : ""}`}
+              >
                 <span className={`w-1.5 h-1.5 rounded-full ${lc.dot}`} />
                 {l}
               </span>
@@ -76,21 +101,43 @@ export function DocRow({ doc, onStar, timeKey = "updated_at", match, query }: {
           {doc.labels.slice(2).map((l) => {
             const lc = getLabelColor(l);
             return (
-              <span key={l} className={`w-2 h-2 rounded-full flex-shrink-0 ${lc.dot}`} title={l} />
+              <span
+                key={l}
+                className={`w-2 h-2 rounded-full flex-shrink-0 ${lc.dot}`}
+                title={l}
+              />
             );
           })}
         </div>
       )}
-      <span className="text-meta text-sol-text-dim flex-shrink-0 tabular-nums cq-hide-minimal">{docTypeLabel(doc.doc_type)}</span>
-      <DocDates doc={doc} timeKey={timeKey} className="text-xs text-sol-text-dim flex-shrink-0 cq-hide-minimal" />
+      <span className="text-meta text-sol-text-dim flex-shrink-0 tabular-nums cq-hide-minimal">
+        {docTypeLabel(doc.doc_type)}
+      </span>
+      <DocDates
+        doc={doc}
+        timeKey={timeKey}
+        className="text-xs text-sol-text-dim flex-shrink-0 cq-hide-minimal"
+      />
     </>
   );
 }
 
 /** `text` with each searched word in bold. */
 function markWords(text: string, query?: string) {
-  const words = (query ?? "").trim().split(/\s+/).filter((w) => w.length >= 2).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const words = (query ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length >= 2)
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   if (!words.length) return text;
   const re = new RegExp(`(${words.join("|")})`, "gi");
-  return text.split(re).map((part, i) => (i % 2 ? <b key={i} className="font-semibold text-sol-text-muted">{part}</b> : part));
+  return text.split(re).map((part, i) =>
+    i % 2 ? (
+      <b key={i} className="font-semibold text-sol-text-muted">
+        {part}
+      </b>
+    ) : (
+      part
+    ),
+  );
 }

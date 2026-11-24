@@ -43,13 +43,15 @@ export function remoteAssetHosts(events: unknown[]): string[] {
     if (attrs && typeof attrs === "object" && !Array.isArray(attrs)) {
       const a = attrs as Record<string, unknown>;
       const tag = typeof o.tagName === "string" ? o.tagName.toLowerCase() : "";
-      for (const k of ["src", "poster"]) if (typeof a[k] === "string") add(a[k] as string);
+      for (const k of ["src", "poster"])
+        if (typeof a[k] === "string") add(a[k] as string);
       if (typeof a.srcset === "string") css(a.srcset);
       if (typeof a.href === "string" && tag === "link") add(a.href);
       if (typeof a.style === "string") css(a.style);
       if (typeof a._cssText === "string") css(a._cssText);
     }
-    if (o.isStyle === true && typeof o.textContent === "string") css(o.textContent);
+    if (o.isStyle === true && typeof o.textContent === "string")
+      css(o.textContent);
     for (const k in o) {
       const x = o[k];
       if (x && typeof x === "object") stack.push(x);

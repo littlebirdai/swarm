@@ -22,14 +22,25 @@ const THIS_FILE = fileURLToPath(import.meta.url);
 const SRC = path.resolve(path.dirname(THIS_FILE), "..");
 
 /** Naming one of these writes a file under `browserHome()`. */
-const WRITERS = ["writeBridgeState", "ensureBridgeConfig", "rotateBridgeToken", "testBridgeHost", "browserHome("];
+const WRITERS = [
+  "writeBridgeState",
+  "ensureBridgeConfig",
+  "rotateBridgeToken",
+  "testBridgeHost",
+  "browserHome(",
+];
 
 /** Any of these puts the writes somewhere other than the human's ~/.codecast. */
-const REDIRECTS = [/process\.env\.CODECAST_DIR\s*=/, /CODECAST_DIR\s*:/, /isolateCodecastDir(?:EachTest)?\s*\(/];
+const REDIRECTS = [
+  /process\.env\.CODECAST_DIR\s*=/,
+  /CODECAST_DIR\s*:/,
+  /isolateCodecastDir(?:EachTest)?\s*\(/,
+];
 
 const SKIP_DIRS = new Set(["node_modules", "dist", "__fixtures__"]);
 
-const isTestSource = (name: string) => name.endsWith(".test.ts") || name.endsWith(".testutil.ts");
+const isTestSource = (name: string) =>
+  name.endsWith(".test.ts") || name.endsWith(".testutil.ts");
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -38,7 +49,9 @@ function walk(dir: string, out: string[] = []): string[] {
       if (!SKIP_DIRS.has(entry.name)) walk(full, out);
       continue;
     }
-    const isHelper = path.basename(dir) === "test-helpers" && (entry.name.endsWith(".ts") || entry.name.endsWith(".mjs"));
+    const isHelper =
+      path.basename(dir) === "test-helpers" &&
+      (entry.name.endsWith(".ts") || entry.name.endsWith(".mjs"));
     if (isTestSource(entry.name) || isHelper) out.push(full);
   }
   return out;
@@ -49,11 +62,15 @@ describe("no test writes the human's browser state", () => {
   for (const file of walk(SRC)) {
     if (file === THIS_FILE) continue; // this guard names every writer it looks for
     const lines = codeLines(fs.readFileSync(file, "utf8"));
-    const writes = lines.filter(({ line }) => WRITERS.some((w) => line.includes(w)));
+    const writes = lines.filter(({ line }) =>
+      WRITERS.some((w) => line.includes(w)),
+    );
     if (writes.length === 0) continue;
     if (lines.some(({ line }) => REDIRECTS.some((r) => r.test(line)))) continue;
     const rel = path.relative(SRC, file);
-    offenders.push(`${rel}:${writes[0].n} writes browser state with no CODECAST_DIR redirect`);
+    offenders.push(
+      `${rel}:${writes[0].n} writes browser state with no CODECAST_DIR redirect`,
+    );
   }
 
   test("every test that writes browser state redirects CODECAST_DIR first", () => {
@@ -61,6 +78,10 @@ describe("no test writes the human's browser state", () => {
   });
 
   test("the guard is looking at real files", () => {
-    expect(walk(SRC).some((f) => f.endsWith(path.join("bridge", "host.testutil.ts")))).toBe(true);
+    expect(
+      walk(SRC).some((f) =>
+        f.endsWith(path.join("bridge", "host.testutil.ts")),
+      ),
+    ).toBe(true);
   });
 });

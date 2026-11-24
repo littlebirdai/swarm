@@ -12,7 +12,11 @@ import { useSyncCollection } from "./useSyncCollection";
 import { useSyncTeamDeployRecords } from "./useSyncDeployTargets";
 import { workspaceRows } from "./useWorkspaceCollection";
 import { activeWorkspaceKeyOf } from "../lib/workspaceScope";
-import { landedShas, sessionShips, type SessionShip } from "../lib/ship/sessionShip";
+import {
+  landedShas,
+  sessionShips,
+  type SessionShip,
+} from "../lib/ship/sessionShip";
 import type { TeamDeployRow } from "../lib/deploys/targets";
 import { cachedAt, pinDetailRows } from "../lib/detailRows";
 import { useWatchEffect } from "./useWatchEffect";
@@ -28,18 +32,36 @@ export function useSyncTeamShipFeeds() {
     const id = activeTeamIdOf(s);
     return id && isConvexId(id) ? id : null;
   });
-  useSyncCollection("workflowRuns", api.sessionFlowRuns.forTeam, teamId ? { team_id: teamId } : "skip");
+  useSyncCollection(
+    "workflowRuns",
+    api.sessionFlowRuns.forTeam,
+    teamId ? { team_id: teamId } : "skip",
+  );
   useSyncTeamDeployRecords(teamId);
 }
 
 /** The landed runs' commits, sorted and joined: the feeder's args change only when the set does. */
-let landedMemo: { runs: unknown; workspace: string | null; key: string } | null = null;
+let landedMemo: {
+  runs: unknown;
+  workspace: string | null;
+  key: string;
+} | null = null;
 const landedKey = (s: ShipState): string => {
   // The cards on screen are the active workspace's: its runs only.
   const workspace = activeWorkspaceKeyOf(s);
-  if (!landedMemo || landedMemo.runs !== s.workflowRuns || landedMemo.workspace !== workspace) {
-    const runs = Object.values(s.workflowRuns ?? {}).filter((r: any) => !workspace || !r.workspace || r.workspace === workspace);
-    landedMemo = { runs: s.workflowRuns, workspace, key: landedShas(runs).join(",") };
+  if (
+    !landedMemo ||
+    landedMemo.runs !== s.workflowRuns ||
+    landedMemo.workspace !== workspace
+  ) {
+    const runs = Object.values(s.workflowRuns ?? {}).filter(
+      (r: any) => !workspace || !r.workspace || r.workspace === workspace,
+    );
+    landedMemo = {
+      runs: s.workflowRuns,
+      workspace,
+      key: landedShas(runs).join(","),
+    };
   }
   return landedMemo.key;
 };
@@ -57,14 +79,31 @@ export function useSyncLandedReach() {
     return {
       refs,
       opts: {
-        select: (rows: DeployReachRow[] | null) => rows?.map((r) => ({ ...r, _cachedAt: cachedAt(useInboxStore.getState().deployReach?.[r._id] as DeployReachRow | undefined, Date.now()) })),
+        select: (rows: DeployReachRow[] | null) =>
+          rows?.map((r) => ({
+            ...r,
+            _cachedAt: cachedAt(
+              useInboxStore.getState().deployReach?.[r._id] as
+                | DeployReachRow
+                | undefined,
+              Date.now(),
+            ),
+          })),
         // The answer is the whole truth about the refs asked: one it leaves out touches no target, or is not on main yet.
         dropAbsent: (row: { _id: string }) => asked.has(row._id),
       },
     };
   }, [key]);
-  useSyncCollection("deployReach", api.deployReach.many, refs.length ? { refs } : "skip", opts);
-  useWatchEffect(() => (refs.length ? pinDetailRows("deployReach", refs) : undefined), [key]);
+  useSyncCollection(
+    "deployReach",
+    api.deployReach.many,
+    refs.length ? { refs } : "skip",
+    opts,
+  );
+  useWatchEffect(
+    () => (refs.length ? pinDetailRows("deployReach", refs) : undefined),
+    [key],
+  );
 }
 
 type ShipState = {
@@ -77,33 +116,82 @@ type ShipState = {
   sessionDecisions?: Record<string, any>;
 };
 
-let memo: { runs: unknown; deploys: unknown; reach: unknown; decisions: unknown; workspace: string | null; viewer: string | null; map: Map<string, SessionShip> } | null = null;
+let memo: {
+  runs: unknown;
+  deploys: unknown;
+  reach: unknown;
+  decisions: unknown;
+  workspace: string | null;
+  viewer: string | null;
+  map: Map<string, SessionShip>;
+} | null = null;
 
 function shipMap(s: ShipState): Map<string, SessionShip> {
   const workspace = activeWorkspaceKeyOf(s);
   const viewer = s.currentUser?._id ? String(s.currentUser._id) : null;
-  if (memo && memo.runs === s.workflowRuns && memo.deploys === s.teamDeploys && memo.reach === s.deployReach && memo.decisions === s.sessionDecisions && memo.workspace === workspace && memo.viewer === viewer) return memo.map;
-  const deploys = workspaceRows<TeamDeployRow>("teamDeploys", s.teamDeploys ?? {}, workspace);
-  const map = sessionShips(Object.values(s.workflowRuns ?? {}), deploys, s.deployReach ?? {}, viewer, s.sessionDecisions ?? {});
-  memo = { runs: s.workflowRuns, deploys: s.teamDeploys, reach: s.deployReach, decisions: s.sessionDecisions, workspace, viewer, map };
+  if (
+    memo &&
+    memo.runs === s.workflowRuns &&
+    memo.deploys === s.teamDeploys &&
+    memo.reach === s.deployReach &&
+    memo.decisions === s.sessionDecisions &&
+    memo.workspace === workspace &&
+    memo.viewer === viewer
+  )
+    return memo.map;
+  const deploys = workspaceRows<TeamDeployRow>(
+    "teamDeploys",
+    s.teamDeploys ?? {},
+    workspace,
+  );
+  const map = sessionShips(
+    Object.values(s.workflowRuns ?? {}),
+    deploys,
+    s.deployReach ?? {},
+    viewer,
+    s.sessionDecisions ?? {},
+  );
+  memo = {
+    runs: s.workflowRuns,
+    deploys: s.teamDeploys,
+    reach: s.deployReach,
+    decisions: s.sessionDecisions,
+    workspace,
+    viewer,
+    map,
+  };
   return map;
 }
 
 /** One session's ship state as a string, "" when nothing of its work is on its way or out: a dep for the card's subscription, so it wakes only when the words change. */
-export function sessionShipSig(s: ShipState, conversationId: string | null | undefined): string {
+export function sessionShipSig(
+  s: ShipState,
+  conversationId: string | null | undefined,
+): string {
   const v = conversationId ? shipMap(s).get(conversationId) : undefined;
-  return v ? `${v.tone}\u0000${v.words}\u0000${v.deploy ?? ""}\u0000${v.run ?? ""}` : "";
+  return v
+    ? `${v.tone}\u0000${v.words}\u0000${v.deploy ?? ""}\u0000${v.run ?? ""}`
+    : "";
 }
 
 /** The ship state a signature from sessionShipSig spells, or null for "". */
 export function sessionShipFromSig(sig: string): SessionShip | null {
   if (!sig) return null;
   const [tone, words, deploy, run] = sig.split("\u0000");
-  return { tone: tone as SessionShip["tone"], words, deploy: deploy || null, run: run || null };
+  return {
+    tone: tone as SessionShip["tone"],
+    words,
+    deploy: deploy || null,
+    run: run || null,
+  };
 }
 
 /** One session's ship state, for a list row that has no card subscription to fold it into (mobile's SessionItem). */
-export function useSessionShip(conversationId: string | null | undefined): SessionShip | null {
-  const sig = useInboxStore((s) => sessionShipSig(s as unknown as ShipState, conversationId));
+export function useSessionShip(
+  conversationId: string | null | undefined,
+): SessionShip | null {
+  const sig = useInboxStore((s) =>
+    sessionShipSig(s as unknown as ShipState, conversationId),
+  );
   return sessionShipFromSig(sig);
 }

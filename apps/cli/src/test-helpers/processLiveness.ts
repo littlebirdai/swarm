@@ -38,11 +38,11 @@ export async function stillRunning(pids: number[]): Promise<number[]> {
   if (holding.length === 0) return [];
   let stdout = "";
   try {
-    ({ stdout } = await execFileAsync(
+    ({ stdout } = (await execFileAsync(
       "ps",
       ["-ww", "-p", holding.join(","), "-o", "pid=,command="],
       { encoding: "utf-8", timeout: 10_000 },
-    ) as { stdout: string });
+    )) as { stdout: string });
   } catch {
     // Every pid here already answered `kill(pid, 0)`, so `ps` failing is `ps`
     // failing, not an empty match. Report them running: a caller waiting for a

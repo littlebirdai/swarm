@@ -27,8 +27,16 @@ scenario({ name: "viewerHideVsOwner" }, async (w) => {
   await w.settle();
 
   // bo's kill is the only inbox_hides insert, so the row is #1 in every order.
-  await w.expect.server.row("inbox_hides#1").has({ user_id: w.idOf("bo"), conversation_id: w.idOf(s), kind: "dismiss" });
-  await w.expect.server.row(s).has({ status: "active", inbox_dismissed_at: undefined, inbox_killed_at: undefined });
+  await w.expect.server.row("inbox_hides#1").has({
+    user_id: w.idOf("bo"),
+    conversation_id: w.idOf(s),
+    kind: "dismiss",
+  });
+  await w.expect.server.row(s).has({
+    status: "active",
+    inbox_dismissed_at: undefined,
+    inbox_killed_at: undefined,
+  });
   for (const win of a.windows) await w.expect(win).shows(s);
   await w.expect(b.host).hides(s);
 });

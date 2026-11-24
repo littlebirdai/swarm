@@ -11,11 +11,24 @@ import { stripInjectionNoise } from "./machineMessages";
 
 export const LINE_FENCE_LANG = "line";
 
-export const LINE_WIDGETS = ["graph", "step", "prompt", "diff", "decision", "decisions", "before-after", "run", "problem"] as const;
+export const LINE_WIDGETS = [
+  "graph",
+  "step",
+  "prompt",
+  "diff",
+  "decision",
+  "decisions",
+  "before-after",
+  "run",
+  "problem",
+] as const;
 export type LineWidgetKind = (typeof LINE_WIDGETS)[number];
 
 /** The spec fields a widget cannot draw without. */
-export const LINE_WIDGET_NEEDS: Record<LineWidgetKind, ReadonlyArray<"step" | "run" | "after" | "rows" | "case">> = {
+export const LINE_WIDGET_NEEDS: Record<
+  LineWidgetKind,
+  ReadonlyArray<"step" | "run" | "after" | "rows" | "case">
+> = {
   graph: [],
   step: ["step"],
   prompt: ["step"],
@@ -29,15 +42,18 @@ export const LINE_WIDGET_NEEDS: Record<LineWidgetKind, ReadonlyArray<"step" | "r
 
 /** What each widget shows, and the optional fields it reads, as an agent writing one needs to know it. */
 const LINE_WIDGET_WORDS: Record<LineWidgetKind, string> = {
-  graph: "the flow's steps as a graph; `run` lights one run's path, `step` marks one step",
+  graph:
+    "the flow's steps as a graph; `run` lights one run's path, `step` marks one step",
   step: "one step: who does it, its job, where it sends work and how often, its recent decisions",
   prompt: "a step's prompt as it reads today, shared sections folded",
   diff: "a proposed change to a step's prompt: `after` is the whole new text, `before` defaults to today's",
   decision: "what one step received and decided on one run, with its reasoning",
   decisions: "a step's decisions as a list; `limit` and `outcome` narrow it",
-  "before-after": "a table of cases: `rows` is [{case, before, after, ref?}], what the step said and what it says now",
+  "before-after":
+    "a table of cases: `rows` is [{case, before, after, ref?}], what the step said and what it says now",
   run: "one run's path through the flow, step by step",
-  problem: "one cause over time (`case` is its task id or ref): how often it happened, every earlier attempt and how it ended (dissolved, dropped, shipped), what came back after each, and what was already tried",
+  problem:
+    "one cause over time (`case` is its task id or ref): how often it happened, every earlier attempt and how it ended (dissolved, dropped, shipped), what came back after each, and what was already tried",
 };
 
 /**
@@ -46,7 +62,9 @@ const LINE_WIDGET_WORDS: Record<LineWidgetKind, string> = {
  * from the catalog above, so the brief and the reader cannot disagree.
  */
 export function lineFenceGuide(project: string, graph: string | null): string {
-  const base = graph ? `"project":"${project}","graph":"${graph}"` : `"project":"${project}"`;
+  const base = graph
+    ? `"project":"${project}","graph":"${graph}"`
+    : `"project":"${project}"`;
   const lines = LINE_WIDGETS.map((w) => {
     const needs = LINE_WIDGET_NEEDS[w].map((k) => `"${k}"`).join(", ");
     return `- \`${w}\`${needs ? ` (needs ${needs})` : ""}: ${LINE_WIDGET_WORDS[w]}`;
@@ -65,7 +83,11 @@ export function lineFenceGuide(project: string, graph: string | null): string {
 
 /** The fence in one sentence, for a frame about the line that is not a chat (a line decision's discussion). */
 export function lineFenceHint(project: string): string {
-  const widgets = LINE_WIDGETS.map((w) => (LINE_WIDGET_NEEDS[w].length ? `${w} (${LINE_WIDGET_NEEDS[w].join(", ")})` : w)).join(", ");
+  const widgets = LINE_WIDGETS.map((w) =>
+    LINE_WIDGET_NEEDS[w].length
+      ? `${w} (${LINE_WIDGET_NEEDS[w].join(", ")})`
+      : w,
+  ).join(", ");
   return `Your reply can draw live widgets of this flow: a \`\`\`line fenced block holding JSON such as {"widget":"step","project":"${project}","step":"<step id>"}; widgets and what each needs: ${widgets}.`;
 }
 
@@ -77,7 +99,8 @@ const BRIEF_CLOSE = "</line-chat-brief>";
 const TAIL_LEAD = "(A message from the line workspace's chat";
 const FOCUS_LEAD = "Looking at";
 
-const attrSafe = (x: string) => x.replace(/"/g, "'").replace(/\s*\r?\n\s*/g, " ");
+const attrSafe = (x: string) =>
+  x.replace(/"/g, "'").replace(/\s*\r?\n\s*/g, " ");
 
 /**
  * A person's words to the session that answers for a project's line. `brief`
@@ -85,9 +108,18 @@ const attrSafe = (x: string) => x.replace(/"/g, "'").replace(/\s*\r?\n\s*/g, " "
  * the line is, where its record lives, and how a reply can draw widgets. The
  * tail reminds every turn where the reply lands.
  */
-export function formatLineChat(o: { project: string; graph: string | null; from: string; body: string; brief?: string | null; focus?: string | null }): string {
+export function formatLineChat(o: {
+  project: string;
+  graph: string | null;
+  from: string;
+  body: string;
+  brief?: string | null;
+  focus?: string | null;
+}): string {
   const graph = o.graph ? ` graph="${attrSafe(o.graph)}"` : "";
-  const brief = o.brief?.trim() ? `${BRIEF_OPEN}\n${o.brief.trim()}\n${BRIEF_CLOSE}\n\n` : "";
+  const brief = o.brief?.trim()
+    ? `${BRIEF_OPEN}\n${o.brief.trim()}\n${BRIEF_CLOSE}\n\n`
+    : "";
   // What the person has open in the workspace, ahead of their words: the
   // reply is matched by the words' ending, so a lead-in never breaks that.
   const focus = o.focus?.trim() ? `${FOCUS_LEAD} ${o.focus.trim()}.\n\n` : "";
@@ -96,12 +128,24 @@ export function formatLineChat(o: { project: string; graph: string | null; from:
 }
 
 /** The person's words out of a frame, with the brief, what they had open and the tail left out; null for anything else. */
-export function parseLineChat(rawContent: string | null | undefined): { project: string; graph: string | null; from: string; body: string; focus: string | null; briefed: boolean } | null {
+export function parseLineChat(rawContent: string | null | undefined): {
+  project: string;
+  graph: string | null;
+  from: string;
+  body: string;
+  focus: string | null;
+  briefed: boolean;
+} | null {
   if (!rawContent) return null;
   const text = stripInjectionNoise(rawContent);
-  const m = text.match(/^<line-chat\s+([^>]*)>([\s\S]*?)(?:<\/line-chat>\s*$|$)/);
+  const m = text.match(
+    /^<line-chat\s+([^>]*)>([\s\S]*?)(?:<\/line-chat>\s*$|$)/,
+  );
   if (!m) return null;
-  const attr = (k: string) => { const a = m[1].match(new RegExp(`\\b${k}="([^"]*)"`)); return a ? a[1] : ""; };
+  const attr = (k: string) => {
+    const a = m[1].match(new RegExp(`\\b${k}="([^"]*)"`));
+    return a ? a[1] : "";
+  };
   let body = m[2];
   const open = body.indexOf(BRIEF_OPEN);
   const close = body.indexOf(BRIEF_CLOSE);
@@ -113,7 +157,19 @@ export function parseLineChat(rawContent: string | null | undefined): { project:
   let focus: string | null = null;
   body = body.trim();
   // An injection that collapsed the newlines leaves the paragraph break as two spaces.
-  const lead = body.startsWith(`${FOCUS_LEAD} `) ? /^\S+ \S+ ([\s\S]+?)\.(?:\n\n|\s{2,})/.exec(body) : null;
-  if (lead) { focus = lead[1].trim(); body = body.slice(lead[0].length); }
-  return { project: attr("project"), graph: attr("graph") || null, from: attr("from").trim(), body: body.trim(), focus, briefed };
+  const lead = body.startsWith(`${FOCUS_LEAD} `)
+    ? /^\S+ \S+ ([\s\S]+?)\.(?:\n\n|\s{2,})/.exec(body)
+    : null;
+  if (lead) {
+    focus = lead[1].trim();
+    body = body.slice(lead[0].length);
+  }
+  return {
+    project: attr("project"),
+    graph: attr("graph") || null,
+    from: attr("from").trim(),
+    body: body.trim(),
+    focus,
+    briefed,
+  };
 }

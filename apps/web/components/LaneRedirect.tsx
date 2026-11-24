@@ -6,5 +6,14 @@ import { laneRedirectTarget, pageAliasTarget } from "../lib/laneRedirect";
 
 export default function LaneRedirect() {
   const { pathname, search, hash } = useLocation();
-  return <Navigate to={laneRedirectTarget(pathname, search, hash) ?? pageAliasTarget(pathname, search, hash) ?? "/inbox"} replace />;
+  return (
+    <Navigate
+      to={
+        laneRedirectTarget(pathname, search, hash) ??
+        pageAliasTarget(pathname, search, hash) ??
+        "/inbox"
+      }
+      replace
+    />
+  );
 }

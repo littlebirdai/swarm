@@ -2,7 +2,9 @@ import { LOCAL_AGENT_CLIENTS } from "@codecast/shared/contracts";
 
 /** Every agent CLI the daemon launches in a pane: a dormant one waits on its
  *  person and must not hold the host awake. */
-const AGENT_BINARIES = [...new Set(Object.values(LOCAL_AGENT_CLIENTS).map((c) => c.binary))].sort();
+const AGENT_BINARIES = [
+  ...new Set(Object.values(LOCAL_AGENT_CLIENTS).map((c) => c.binary)),
+].sort();
 
 export const cloudIdleProbeScript = String.raw`#!/usr/bin/python3
 import json

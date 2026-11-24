@@ -218,10 +218,17 @@ export function flatTurns(passages: Passage[]): Turn[] {
  * that starts at the same instant a line was typed was split by that line,
  * so the line reads first. Equal kinds keep their input order.
  */
-export function mergeTimeline(passages: Passage[], rows: ThreadRow[]): TimelineItem[] {
+export function mergeTimeline(
+  passages: Passage[],
+  rows: ThreadRow[],
+): TimelineItem[] {
   const items: TimelineItem[] = [...passages];
   for (const row of rows) {
-    items.push(isEventRow(row) ? { kind: "event", at: row.at, row } : { kind: "chat", at: row.at, row: row as ChatRow });
+    items.push(
+      isEventRow(row)
+        ? { kind: "event", at: row.at, row }
+        : { kind: "chat", at: row.at, row: row as ChatRow },
+    );
   }
   return items.sort((a, b) => a.at - b.at || rank(a) - rank(b));
 }
@@ -236,9 +243,14 @@ function rank(item: TimelineItem): number {
 function previewOf(turns: Turn[], single: boolean): string {
   let out = "";
   for (const t of turns) {
-    const words = t.segments.map((s) => s.text.trim()).filter(Boolean).join(" ");
+    const words = t.segments
+      .map((s) => s.text.trim())
+      .filter(Boolean)
+      .join(" ");
     if (!words) continue;
-    const piece = single ? words : `${speakerShortName(t.speaker_name, t.speaker_id)}: ${words}`;
+    const piece = single
+      ? words
+      : `${speakerShortName(t.speaker_name, t.speaker_id)}: ${words}`;
     out = out ? `${out} · ${piece}` : piece;
     if (out.length > PASSAGE_PREVIEW_CHARS) break;
   }

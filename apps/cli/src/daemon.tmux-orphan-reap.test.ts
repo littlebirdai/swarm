@@ -18,7 +18,10 @@ const lines = [
 test("kills only orphaned one-shot clients, never servers, attachers or waiters", () => {
   expect(orphanedTmuxClientPids(lines)).toEqual([
     { pid: 84305, args: "tmux has-session -t cc-codex-000000000000" },
-    { pid: 80186, args: "/opt/homebrew/bin/tmux -S /tmp/sock show-options -qv -t cc-claude-abc @codecast_session_id" },
+    {
+      pid: 80186,
+      args: "/opt/homebrew/bin/tmux -S /tmp/sock show-options -qv -t cc-claude-abc @codecast_session_id",
+    },
   ]);
 });
 

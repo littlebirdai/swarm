@@ -20,13 +20,20 @@ function row(id: string, userId: string, extra: Record<string, unknown> = {}) {
 beforeEach(() => {
   useInboxStore.setState({
     feedConversations: {
-      [`${TEAM}|`]: [row("a", GONE), row("b", STAYS), row("seat", GONE, { acting_user_id: "users_head" })],
+      [`${TEAM}|`]: [
+        row("a", GONE),
+        row("b", STAYS),
+        row("seat", GONE, { acting_user_id: "users_head" }),
+      ],
       [`${TEAM}|repo`]: [row("c", GONE)],
       [`${OTHER}|`]: [row("d", GONE)],
     },
     feedHasMore: { [`${TEAM}|`]: true, [`${OTHER}|`]: true },
     feedCursors: { [`${TEAM}|`]: "5", [`${OTHER}|`]: "7" },
-    syncMeta: { [feedCoverMetaKey(`${TEAM}|`)]: { cursor: 9 }, [feedCoverMetaKey(`${OTHER}|`)]: { cursor: 9 } },
+    syncMeta: {
+      [feedCoverMetaKey(`${TEAM}|`)]: { cursor: 9 },
+      [feedCoverMetaKey(`${OTHER}|`)]: { cursor: 9 },
+    },
   } as any);
 });
 
@@ -34,20 +41,30 @@ describe("purgeMemberTeamRows", () => {
   it("drops the departed member's rows from every key of that team and no other", () => {
     useInboxStore.getState().purgeMemberTeamRows(TEAM, GONE);
     const s = useInboxStore.getState();
-    expect(s.feedConversations[`${TEAM}|`].map((c: any) => c._id)).toEqual(["b"]);
+    expect(s.feedConversations[`${TEAM}|`].map((c: any) => c._id)).toEqual([
+      "b",
+    ]);
     expect(s.feedConversations[`${TEAM}|repo`]).toEqual([]);
-    expect(s.feedConversations[`${OTHER}|`].map((c: any) => c._id)).toEqual(["d"]);
+    expect(s.feedConversations[`${OTHER}|`].map((c: any) => c._id)).toEqual([
+      "d",
+    ]);
   });
 
   it("keys on the runner, so a seat row leaves with its host", () => {
     useInboxStore.getState().purgeMemberTeamRows(TEAM, GONE);
-    expect(useInboxStore.getState().feedConversations[`${TEAM}|`].some((c: any) => c._id === "seat")).toBe(false);
+    expect(
+      useInboxStore
+        .getState()
+        .feedConversations[`${TEAM}|`].some((c: any) => c._id === "seat"),
+    ).toBe(false);
   });
 
   it("leaves a key untouched when the member has no rows in it", () => {
     const before = useInboxStore.getState().feedConversations[`${OTHER}|`];
     useInboxStore.getState().purgeMemberTeamRows(OTHER, STAYS);
-    expect(useInboxStore.getState().feedConversations[`${OTHER}|`]).toBe(before);
+    expect(useInboxStore.getState().feedConversations[`${OTHER}|`]).toBe(
+      before,
+    );
   });
 });
 
@@ -64,6 +81,8 @@ describe("dropTeamFeedCache", () => {
 
   it("rides the viewer's own revocation of the team scope", () => {
     useInboxStore.getState().purgeTeamScopeRows(TEAM);
-    expect(Object.keys(useInboxStore.getState().feedConversations)).toEqual([`${OTHER}|`]);
+    expect(Object.keys(useInboxStore.getState().feedConversations)).toEqual([
+      `${OTHER}|`,
+    ]);
   });
 });

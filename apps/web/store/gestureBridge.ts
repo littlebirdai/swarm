@@ -61,7 +61,18 @@ export type GestureMessage =
   // values. The receiver writes and locks exactly those, so it holds the
   // sender's own locks and the write's bridged acknowledgement retires every
   // one. A message from an older bundle omits it and gets the full transition.
-  | { kind: "hide"; mode: "kill" | "stash"; hidden?: boolean; ids: string[]; forget?: string[]; writes?: Record<string, Partial<Record<BridgedField, number | boolean | null>>>; ts: number }
+  | {
+      kind: "hide";
+      mode: "kill" | "stash";
+      hidden?: boolean;
+      ids: string[];
+      forget?: string[];
+      writes?: Record<
+        string,
+        Partial<Record<BridgedField, number | boolean | null>>
+      >;
+      ts: number;
+    }
   | { kind: "restore"; ids: string[]; ts: number }
   /** Follow mode changed in one window (started, or stopped with null): the
    *  siblings mirror the state so a face in the huddle window and the pill in
@@ -73,7 +84,13 @@ export type GestureMessage =
   // value, and that lock only retires when the server echo matches it — so a
   // receiver that re-derived the timestamp would pin a value the server will
   // never send and the lock would stick forever.
-  | { kind: "pin"; id: string; pinned: boolean; pinnedAt: number | null; ts: number }
+  | {
+      kind: "pin";
+      id: string;
+      pinned: boolean;
+      pinnedAt: number | null;
+      ts: number;
+    }
   // A verbatim write of the bridged fields, for the generic `patchConversation`
   // path: the /sessions surface drives its own pin and stash/restore toggles
   // through it, writing whichever subset of these four fields it wants. Copying
@@ -82,7 +99,13 @@ export type GestureMessage =
   // sender dispatched. `exact` (an undo's replay) says the map is every
   // bridged field the sender dispatched: the receiver locks only those, with
   // no barrier locks on coupled fields that no acknowledgement would cover.
-  | { kind: "fields"; id: string; fields: Partial<Record<BridgedField, number | boolean | null>>; exact?: boolean; ts: number }
+  | {
+      kind: "fields";
+      id: string;
+      fields: Partial<Record<BridgedField, number | boolean | null>>;
+      exact?: boolean;
+      ts: number;
+    }
   // Rows the sender DELETED outright rather than flagged: local-only stubs,
   // injected teammate rows, and server-verified ghosts. A sibling holding one
   // in memory would re-put it, so it has to drop it too.
@@ -98,7 +121,15 @@ export type GestureMessage =
   // that applied the forget holds excludes for them, which drop every later
   // push of the row, so the message carries the rows themselves: the receiver
   // lifts the excludes the forget planted and puts the rows back.
-  | { kind: "unforget"; rows: Array<{ id: string; sessions?: Record<string, unknown>; conversations?: Record<string, unknown> }>; ts: number }
+  | {
+      kind: "unforget";
+      rows: Array<{
+        id: string;
+        sessions?: Record<string, unknown>;
+        conversations?: Record<string, unknown>;
+      }>;
+      ts: number;
+    }
   // A dispatch acknowledgement (sync-log-migration D8): the log positions the
   // sender's write landed at, keyed by the table-grouped patches it sent.
   // Sibling windows hold mirrored locks for the same write — planted by a
@@ -106,7 +137,14 @@ export type GestureMessage =
   // replicated rows — and retire them at the same position the sender does,
   // instead of waiting for a value echo that a later remote write may never
   // deliver (a restore right after a kill).
-  | { kind: "ack"; patches: Record<string, unknown>; ack: Array<{ scope_key: string; position: number }>; sentAt: number; ts: number; lockIds?: string[] };
+  | {
+      kind: "ack";
+      patches: Record<string, unknown>;
+      ack: Array<{ scope_key: string; position: number }>;
+      sentAt: number;
+      ts: number;
+      lockIds?: string[];
+    };
 
 type Envelope = GestureMessage & {
   v: 1;
@@ -162,7 +200,10 @@ export function gestureSourceToken(): string {
  * sync with account switches — posted messages are still delivered after the
  * synchronous close().
  */
-export function broadcastGesture(msg: GestureMessage, userId: string | null): void {
+export function broadcastGesture(
+  msg: GestureMessage,
+  userId: string | null,
+): void {
   // Sent once the action asking for it commits: a draft the undo engine
   // vetoes (a refused redo) must not reach sibling windows either.
   afterCommit(() => postGesture(msg, userId));
@@ -171,7 +212,12 @@ export function broadcastGesture(msg: GestureMessage, userId: string | null): vo
 function postGesture(msg: GestureMessage, userId: string | null): void {
   const ch = channelFactory(channelName(userId));
   if (!ch) return;
-  const envelope: Envelope = { ...msg, v: PROTOCOL_VERSION, source: gestureSourceToken(), userId };
+  const envelope: Envelope = {
+    ...msg,
+    v: PROTOCOL_VERSION,
+    source: gestureSourceToken(),
+    userId,
+  };
   try {
     ch.postMessage(envelope);
   } catch {
@@ -191,9 +237,11 @@ function postGesture(msg: GestureMessage, userId: string | null): void {
 // arbitrary row state.
 function isBridgedFieldMap(fields: unknown): boolean {
   if (!fields || typeof fields !== "object") return false;
-  return Object.entries(fields).every(([k, v]) =>
-    (BRIDGED_FIELDS as readonly string[]).includes(k) &&
-    (v === null || typeof v === "number" || typeof v === "boolean"));
+  return Object.entries(fields).every(
+    ([k, v]) =>
+      (BRIDGED_FIELDS as readonly string[]).includes(k) &&
+      (v === null || typeof v === "number" || typeof v === "boolean"),
+  );
 }
 
 function isGestureMessage(data: unknown): data is Envelope {
@@ -201,8 +249,11 @@ function isGestureMessage(data: unknown): data is Envelope {
   const e = data as Partial<Envelope>;
   if (e.v !== PROTOCOL_VERSION || typeof e.ts !== "number") return false;
   if (e.kind === "pin") {
-    return typeof e.id === "string" && typeof e.pinned === "boolean" &&
-      (e.pinnedAt === null || typeof e.pinnedAt === "number");
+    return (
+      typeof e.id === "string" &&
+      typeof e.pinned === "boolean" &&
+      (e.pinnedAt === null || typeof e.pinnedAt === "number")
+    );
   }
   if (e.kind === "fields") {
     if (typeof e.id !== "string") return false;
@@ -212,21 +263,44 @@ function isGestureMessage(data: unknown): data is Envelope {
   if (e.kind === "hide") {
     if (e.forget !== undefined && !Array.isArray(e.forget)) return false;
     if (e.hidden !== undefined && typeof e.hidden !== "boolean") return false;
-    if (e.writes !== undefined && (!e.writes || typeof e.writes !== "object" || !Object.values(e.writes).every(isBridgedFieldMap))) return false;
+    if (
+      e.writes !== undefined &&
+      (!e.writes ||
+        typeof e.writes !== "object" ||
+        !Object.values(e.writes).every(isBridgedFieldMap))
+    )
+      return false;
     return Array.isArray(e.ids) && (e.mode === "kill" || e.mode === "stash");
   }
   if (e.kind === "forget") {
-    if (e.scope !== undefined && e.scope !== "session-row" && e.scope !== "all") return false;
+    if (e.scope !== undefined && e.scope !== "session-row" && e.scope !== "all")
+      return false;
     return Array.isArray(e.ids);
   }
   if (e.kind === "restore") return Array.isArray(e.ids);
   if (e.kind === "unforget") {
-    return Array.isArray(e.rows) && e.rows.every((r) => r && typeof r === "object" && typeof r.id === "string");
+    return (
+      Array.isArray(e.rows) &&
+      e.rows.every(
+        (r) => r && typeof r === "object" && typeof r.id === "string",
+      )
+    );
   }
-  if (e.kind === "follow") return e.leaderId === null || typeof e.leaderId === "string";
+  if (e.kind === "follow")
+    return e.leaderId === null || typeof e.leaderId === "string";
   if (e.kind === "ack") {
-    return !!e.patches && typeof e.patches === "object" && typeof e.sentAt === "number" &&
-      Array.isArray(e.ack) && e.ack.every((a) => a && typeof a.scope_key === "string" && typeof a.position === "number");
+    return (
+      !!e.patches &&
+      typeof e.patches === "object" &&
+      typeof e.sentAt === "number" &&
+      Array.isArray(e.ack) &&
+      e.ack.every(
+        (a) =>
+          a &&
+          typeof a.scope_key === "string" &&
+          typeof a.position === "number",
+      )
+    );
   }
   return false;
 }

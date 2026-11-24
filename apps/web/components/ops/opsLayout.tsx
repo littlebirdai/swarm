@@ -6,7 +6,14 @@
 import type { CSSProperties, ReactNode } from "react";
 import "./opsLayout.css";
 
-export function OpsSection({ title, meta, action, children, id, className }: {
+export function OpsSection({
+  title,
+  meta,
+  action,
+  children,
+  id,
+  className,
+}: {
   title: ReactNode;
   /** A short dim note beside the title: a window, a count. */
   meta?: ReactNode;
@@ -40,13 +47,26 @@ export type StatItem = {
   key?: string;
 };
 
-export function StatLine({ items, size = "md", className }: { items: readonly StatItem[]; size?: "md" | "lg"; className?: string }) {
+export function StatLine({
+  items,
+  size = "md",
+  className,
+}: {
+  items: readonly StatItem[];
+  size?: "md" | "lg";
+  className?: string;
+}) {
   return (
-    <div className={`osx-stats${className ? ` ${className}` : ""}`} data-size={size}>
+    <div
+      className={`osx-stats${className ? ` ${className}` : ""}`}
+      data-size={size}
+    >
       {items.map((s, i) => (
         <div key={s.key ?? i} className="osx-stat" title={s.title}>
           <span className="osx-stat-label">{s.label}</span>
-          <b className="osx-stat-value" data-tone={s.tone}>{s.value}</b>
+          <b className="osx-stat-value" data-tone={s.tone}>
+            {s.value}
+          </b>
           {s.sub !== undefined && <span className="osx-stat-sub">{s.sub}</span>}
         </div>
       ))}
@@ -54,13 +74,48 @@ export function StatLine({ items, size = "md", className }: { items: readonly St
   );
 }
 
-
 /** A state as a colored dot and word: OK, Alerting, Muted. */
-export function StateMark({ ink, children, title }: { ink: string; children: ReactNode; title?: string }) {
-  return <span className="osx-state" style={{ ["--ink" as string]: ink } as CSSProperties} title={title}><i aria-hidden />{children}</span>;
+export function StateMark({
+  ink,
+  children,
+  title,
+}: {
+  ink: string;
+  children: ReactNode;
+  title?: string;
+}) {
+  return (
+    <span
+      className="osx-state"
+      style={{ ["--ink" as string]: ink } as CSSProperties}
+      title={title}
+    >
+      <i aria-hidden />
+      {children}
+    </span>
+  );
 }
 
 /** The one raised level a screen may use: a card on the page, never inside another. */
-export function Surface({ children, className, pad = true, as: Tag = "div", ...rest }: { children: ReactNode; className?: string; pad?: boolean; as?: "div" | "section" } & Record<`data-${string}`, string | undefined>) {
-  return <Tag className={`osx-surface${className ? ` ${className}` : ""}`} data-pad={pad ? "" : undefined} {...rest}>{children}</Tag>;
+export function Surface({
+  children,
+  className,
+  pad = true,
+  as: Tag = "div",
+  ...rest
+}: {
+  children: ReactNode;
+  className?: string;
+  pad?: boolean;
+  as?: "div" | "section";
+} & Record<`data-${string}`, string | undefined>) {
+  return (
+    <Tag
+      className={`osx-surface${className ? ` ${className}` : ""}`}
+      data-pad={pad ? "" : undefined}
+      {...rest}
+    >
+      {children}
+    </Tag>
+  );
 }

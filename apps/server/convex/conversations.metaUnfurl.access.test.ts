@@ -32,7 +32,12 @@ function tables(convExtra: Record<string, any> = {}): Record<string, any[]> {
       },
     ],
     messages: [
-      { _id: "m1", conversation_id: "conv", role: "user", content: "my secret prompt" },
+      {
+        _id: "m1",
+        conversation_id: "conv",
+        role: "user",
+        content: "my secret prompt",
+      },
     ],
   };
 }
@@ -48,13 +53,19 @@ function ctx(userId: string | null, t: Record<string, any[]>) {
   } as any;
 }
 
-const meta = (uid: string | null, t: Record<string, any[]>, shareToken?: string) =>
+const meta = (
+  uid: string | null,
+  t: Record<string, any[]>,
+  shareToken?: string,
+) =>
   (getConversationMeta as any)._handler(ctx(uid, t), {
     conversation_id: "conv",
     ...(shareToken ? { share_token: shareToken } : {}),
   });
 const mention = (uid: string | null, t: Record<string, any[]>) =>
-  (getConversationMention as any)._handler(ctx(uid, t), { conversation_id: "conv" });
+  (getConversationMention as any)._handler(ctx(uid, t), {
+    conversation_id: "conv",
+  });
 
 describe("getConversationMeta unfurl gate", () => {
   test("an anonymous bot gets NOTHING for a private session", async () => {
@@ -71,7 +82,9 @@ describe("getConversationMeta unfurl gate", () => {
   });
 
   test("presenting a wrong token unfurls nothing", async () => {
-    expect(await meta(null, tables({ share_token: "tok" }), "guess")).toBeNull();
+    expect(
+      await meta(null, tables({ share_token: "tok" }), "guess"),
+    ).toBeNull();
   });
 
   test("the owner always gets their own meta", async () => {
@@ -93,28 +106,42 @@ describe("getConversationMeta description derivation", () => {
     meta(OWNER, tables(convExtra)).then((r: any) => r?.description);
 
   test("idle_summary wins over subtitle", async () => {
-    expect(await desc({ subtitle: "- first bullet\n- second bullet" }))
-      .toBe("leaking secrets");
+    expect(await desc({ subtitle: "- first bullet\n- second bullet" })).toBe(
+      "leaking secrets",
+    );
   });
 
   test("without idle_summary, only subtitle's first bullet survives, marker stripped", async () => {
-    expect(await desc({ idle_summary: undefined, subtitle: "- first bullet\n- second bullet" }))
-      .toBe("first bullet");
+    expect(
+      await desc({
+        idle_summary: undefined,
+        subtitle: "- first bullet\n- second bullet",
+      }),
+    ).toBe("first bullet");
   });
 
   test("indented bullets and blank leading lines are handled", async () => {
-    expect(await desc({ idle_summary: undefined, subtitle: "\n  - indented bullet\n- second" }))
-      .toBe("indented bullet");
+    expect(
+      await desc({
+        idle_summary: undefined,
+        subtitle: "\n  - indented bullet\n- second",
+      }),
+    ).toBe("indented bullet");
   });
 
   test("a bold opener is not mangled by the marker strip", async () => {
-    expect(await desc({ idle_summary: undefined, subtitle: "**Bold heading**\n- bullet" }))
-      .toBe("**Bold heading**");
+    expect(
+      await desc({
+        idle_summary: undefined,
+        subtitle: "**Bold heading**\n- bullet",
+      }),
+    ).toBe("**Bold heading**");
   });
 
   test("whitespace-only idle_summary falls through to subtitle", async () => {
-    expect(await desc({ idle_summary: "   ", subtitle: "- real summary" }))
-      .toBe("real summary");
+    expect(
+      await desc({ idle_summary: "   ", subtitle: "- real summary" }),
+    ).toBe("real summary");
   });
 
   test("with neither, falls back to the first user message", async () => {

@@ -88,19 +88,26 @@ function sameValue(a: unknown, b: unknown): boolean {
   if (typeof a !== typeof b) return false;
   if (a === null || b === null) return false;
   if (Array.isArray(a) || Array.isArray(b)) {
-    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length)
+      return false;
     return a.every((x, i) => sameValue(x, b[i]));
   }
   if (isRecord(a) && isRecord(b)) {
     const ka = Object.keys(a);
     const kb = Object.keys(b);
     if (ka.length !== kb.length) return false;
-    return ka.every((k) => Object.prototype.hasOwnProperty.call(b, k) && sameValue(a[k], b[k]));
+    return ka.every(
+      (k) =>
+        Object.prototype.hasOwnProperty.call(b, k) && sameValue(a[k], b[k]),
+    );
   }
   return false;
 }
 
-function getAt(doc: unknown, keyPath: string[]): { found: boolean; value: unknown } {
+function getAt(
+  doc: unknown,
+  keyPath: string[],
+): { found: boolean; value: unknown } {
   let node: unknown = doc;
   for (const key of keyPath) {
     if (!isRecord(node) || !Object.prototype.hasOwnProperty.call(node, key)) {
@@ -114,7 +121,11 @@ function getAt(doc: unknown, keyPath: string[]): { found: boolean; value: unknow
 /** Set a value, cloning only the objects along the path. A non-object standing
  *  where a container belongs is replaced — a malformed file should not stop the
  *  reconcile, and the ledger records nothing about a value we never wrote. */
-function setAt(doc: unknown, keyPath: string[], value: unknown): Record<string, unknown> {
+function setAt(
+  doc: unknown,
+  keyPath: string[],
+  value: unknown,
+): Record<string, unknown> {
   const [head, ...rest] = keyPath;
   const base: Record<string, unknown> = isRecord(doc) ? { ...doc } : {};
   base[head] = rest.length === 0 ? value : setAt(base[head], rest, value);
@@ -123,7 +134,10 @@ function setAt(doc: unknown, keyPath: string[], value: unknown): Record<string, 
 
 /** Delete a value, pruning containers we emptied — but never the root, and
  *  never a container that still holds anything of the user's. */
-function deleteAt(doc: Record<string, unknown>, keyPath: string[]): Record<string, unknown> {
+function deleteAt(
+  doc: Record<string, unknown>,
+  keyPath: string[],
+): Record<string, unknown> {
   const [head, ...rest] = keyPath;
   if (!Object.prototype.hasOwnProperty.call(doc, head)) return doc;
   const base: Record<string, unknown> = { ...doc };
@@ -155,19 +169,29 @@ export function planJsonMerge(
   const conflicts: MergeConflict[] = [];
   const ledger: OwnershipLedger = {};
 
-  const desiredByKey = new Map(desired.map((d) => [encodeKeyPath(d.keyPath), d]));
+  const desiredByKey = new Map(
+    desired.map((d) => [encodeKeyPath(d.keyPath), d]),
+  );
 
   for (const [encoded, want] of desiredByKey) {
     const { keyPath, value } = want;
     const existing = getAt(next, keyPath);
-    const wasOwned = Object.prototype.hasOwnProperty.call(previousLedger, encoded);
+    const wasOwned = Object.prototype.hasOwnProperty.call(
+      previousLedger,
+      encoded,
+    );
 
     if (existing.found && !wasOwned) {
       // Somebody else's key that happens to be one we now want. Adopting it
       // silently would let a later removal delete their setting, so report it
       // and leave the file alone.
       if (!sameValue(existing.value, value)) {
-        conflicts.push({ keyPath, ours: value, theirs: existing.value, intent: "update" });
+        conflicts.push({
+          keyPath,
+          ours: value,
+          theirs: existing.value,
+          intent: "update",
+        });
         continue;
       }
       // Already exactly what we wanted. Claim it without writing anything.
@@ -175,7 +199,11 @@ export function planJsonMerge(
       continue;
     }
 
-    if (existing.found && wasOwned && !sameValue(existing.value, previousLedger[encoded])) {
+    if (
+      existing.found &&
+      wasOwned &&
+      !sameValue(existing.value, previousLedger[encoded])
+    ) {
       // We wrote it, then the user changed it. Their edit wins.
       conflicts.push({
         keyPath,
@@ -204,7 +232,12 @@ export function planJsonMerge(
     if (!sameValue(existing.value, wroteValue)) {
       // Changed since we wrote it — the user has adopted this key. Leave it and
       // stop claiming it, so we never delete an edit we did not make.
-      conflicts.push({ keyPath, ours: wroteValue, theirs: existing.value, intent: "remove" });
+      conflicts.push({
+        keyPath,
+        ours: wroteValue,
+        theirs: existing.value,
+        intent: "remove",
+      });
       continue;
     }
     next = deleteAt(next, keyPath);
@@ -226,7 +259,10 @@ export function planJsonMerge(
 /** Where the ledger for `target` lives: a dotfile beside it, named for the
  *  file it tracks, so one directory can hold several without collision. */
 export function ledgerPathFor(target: string): string {
-  return path.join(path.dirname(target), `.codecast-owned.${path.basename(target)}`);
+  return path.join(
+    path.dirname(target),
+    `.codecast-owned.${path.basename(target)}`,
+  );
 }
 
 /**
@@ -257,7 +293,11 @@ function ledgerMac(entries: OwnershipLedger): string | undefined {
   try {
     const { getMachineKey } = require("../machineKey.js");
     const key = getMachineKey().secret;
-    return crypto.createHmac("sha256", key).update(JSON.stringify(entries)).digest("hex").slice(0, 32);
+    return crypto
+      .createHmac("sha256", key)
+      .update(JSON.stringify(entries))
+      .digest("hex")
+      .slice(0, 32);
   } catch {
     // No machine key (fresh install, exotic platform): the ledger still works,
     // unverified — refusing to function without a MAC would break the feature
@@ -279,11 +319,16 @@ export interface LedgerReadResult {
 export function readLedgerDetailed(target: string): LedgerReadResult {
   try {
     const doc = JSON.parse(fs.readFileSync(ledgerPathFor(target), "utf-8"));
-    if (!isRecord(doc)) return { entries: {}, needsUpgrade: false, tampered: false };
+    if (!isRecord(doc))
+      return { entries: {}, needsUpgrade: false, tampered: false };
     // Legacy (pre-envelope) ledgers are bare entry maps: readable, unversioned,
     // un-MACed. Preserved as-is; the next write upgrades them to the envelope.
     if (typeof (doc as unknown as LedgerEnvelope).schema_version !== "number") {
-      return { entries: doc as OwnershipLedger, needsUpgrade: false, tampered: false };
+      return {
+        entries: doc as OwnershipLedger,
+        needsUpgrade: false,
+        tampered: false,
+      };
     }
     const env = doc as unknown as LedgerEnvelope;
     if (env.schema_version > LEDGER_SCHEMA_VERSION) {
@@ -330,7 +375,14 @@ export interface ApplyResult extends MergePlan {
 export function applyOwnedJson(
   target: string,
   desired: OwnedKey[],
-  opts: { dryRun?: boolean; indent?: number; mode?: number; adopt?: boolean; claim?: string[][]; what?: string } = {},
+  opts: {
+    dryRun?: boolean;
+    indent?: number;
+    mode?: number;
+    adopt?: boolean;
+    claim?: string[][];
+    what?: string;
+  } = {},
 ): ApplyResult {
   const text = (() => {
     try {
@@ -420,7 +472,8 @@ export function applyOwnedJson(
   const ledgerFile = ledgerPathFor(target);
   // A tampered ledger is always rewritten, so the refusal happens once and the
   // next pass reads a ledger this binary MACed.
-  const ledgerChanged = detailed.tampered || !sameValue(plan.ledger, detailed.entries);
+  const ledgerChanged =
+    detailed.tampered || !sameValue(plan.ledger, detailed.entries);
 
   if (opts.dryRun || (!plan.changed && !ledgerChanged)) {
     return { ...plan, status: "applied", wrote: false, ...tamperNote };
@@ -431,7 +484,12 @@ export function applyOwnedJson(
     // The user's own indentation wins over ours, so a one key change does not
     // show up as a whole file reformat in their diff.
     const indent = jsonIndentOf(text) ?? opts.indent ?? 2;
-    writeHarnessFile(target, JSON.stringify(plan.next, null, indent) + "\n", opts.what ?? "settings", { mode: opts.mode ?? 0o600 });
+    writeHarnessFile(
+      target,
+      JSON.stringify(plan.next, null, indent) + "\n",
+      opts.what ?? "settings",
+      { mode: opts.mode ?? 0o600 },
+    );
   }
   if (Object.keys(plan.ledger).length === 0) {
     try {
@@ -443,9 +501,13 @@ export function applyOwnedJson(
     const envelope: LedgerEnvelope = {
       schema_version: LEDGER_SCHEMA_VERSION,
       entries: plan.ledger,
-      ...(ledgerMac(plan.ledger) !== undefined ? { mac: ledgerMac(plan.ledger) } : {}),
+      ...(ledgerMac(plan.ledger) !== undefined
+        ? { mac: ledgerMac(plan.ledger) }
+        : {}),
     };
-    fs.writeFileSync(ledgerFile, JSON.stringify(envelope, null, 2) + "\n", { mode: 0o600 });
+    fs.writeFileSync(ledgerFile, JSON.stringify(envelope, null, 2) + "\n", {
+      mode: 0o600,
+    });
   }
   return { ...plan, status: "applied", wrote: plan.changed, ...tamperNote };
 }

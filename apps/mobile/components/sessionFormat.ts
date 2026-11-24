@@ -1,11 +1,14 @@
 // Pure helpers for naming and colouring a session row, shared by the inbox,
 // search and the long-press sheet. SessionItem.tsx re-exports them.
-import { Theme } from '@/constants/Theme';
-import { agentStatusAt } from '@codecast/web/lib/liveness';
-import { agentDisplayName, isHostedAgentType } from '@codecast/shared/contracts';
-import { MOBILE_AGENT_TINT } from '@codecast/shared/render/mobileSessionStyle';
-import { conversationTitle } from '@codecast/web/components/simple/lane';
-import type { SessionData } from '@/components/SessionItem';
+import { Theme } from "@/constants/Theme";
+import { agentStatusAt } from "@codecast/web/lib/liveness";
+import {
+  agentDisplayName,
+  isHostedAgentType,
+} from "@codecast/shared/contracts";
+import { MOBILE_AGENT_TINT } from "@codecast/shared/render/mobileSessionStyle";
+import { conversationTitle } from "@codecast/web/components/simple/lane";
+import type { SessionData } from "@/components/SessionItem";
 
 export function formatRelativeTime(timestamp: number): string {
   const now = Date.now();
@@ -32,21 +35,30 @@ export function formatDuration(ms: number): string {
 }
 
 export function cleanTitle(raw?: string): string {
-  if (!raw) return 'Untitled';
+  if (!raw) return "Untitled";
   let t = raw.trim();
-  const jsonMatch = t.match(/```(?:json)?\s*\{[\s\S]*?"title"\s*:\s*"([^"]+)"[\s\S]*?```/);
+  const jsonMatch = t.match(
+    /```(?:json)?\s*\{[\s\S]*?"title"\s*:\s*"([^"]+)"[\s\S]*?```/,
+  );
   if (jsonMatch) return jsonMatch[1];
-  t = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-  try { const p = JSON.parse(t); if (p.title) return p.title; } catch {}
-  return t || 'Untitled';
+  t = t.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  try {
+    const p = JSON.parse(t);
+    if (p.title) return p.title;
+  } catch {}
+  return t || "Untitled";
 }
 
 /** What a row is called, wherever the inbox names it (a row, the set-aside
  *  and closed lists, the long-press sheet). A conversation with the assistant
  *  is named the way its own screen names it, so it never reads "Untitled" or
  *  "New session" while its title is on the way. */
-export function sessionTitle(session: Pick<SessionData, 'agent_type' | 'title' | 'last_user_message'>): string {
-  return isHostedAgentType(session.agent_type) ? conversationTitle(session) : cleanTitle(session.title);
+export function sessionTitle(
+  session: Pick<SessionData, "agent_type" | "title" | "last_user_message">,
+): string {
+  return isHostedAgentType(session.agent_type)
+    ? conversationTitle(session)
+    : cleanTitle(session.title);
 }
 
 /** The agent's name from the shared registry, so a new agent is named here
@@ -55,11 +67,19 @@ export function agentLabel(agentType: string): string {
   return agentType ? agentDisplayName(agentType) : "";
 }
 
-const projectColors = [Theme.blue, Theme.cyan, Theme.violet, Theme.magenta, Theme.green, Theme.orange];
+const projectColors = [
+  Theme.blue,
+  Theme.cyan,
+  Theme.violet,
+  Theme.magenta,
+  Theme.green,
+  Theme.orange,
+];
 
 export function projectColor(name: string): string {
   let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+  for (let i = 0; i < name.length; i++)
+    hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
   return projectColors[Math.abs(hash) % projectColors.length];
 }
 
@@ -71,7 +91,8 @@ export function agentColor(agentType: string): string {
   return agentType ? Theme.accent : Theme.textMuted0;
 }
 
-export const isProducingStatus = (status: string | undefined) => status === "working" || status === "thinking";
+export const isProducingStatus = (status: string | undefined) =>
+  status === "working" || status === "thinking";
 
 export function statusColor(session: SessionData, now = Date.now()): string {
   if (session.session_error) return Theme.red;
@@ -94,8 +115,11 @@ export function statusLabel(session: SessionData): string | null {
   return null;
 }
 
-export function projectName(conv: { git_root?: string | null; project_path?: string | null }): string | null {
+export function projectName(conv: {
+  git_root?: string | null;
+  project_path?: string | null;
+}): string | null {
   const path = conv.git_root || conv.project_path;
   if (!path) return null;
-  return path.split('/').pop() || null;
+  return path.split("/").pop() || null;
 }

@@ -25,7 +25,10 @@ export type { PublicPage };
 
 /** The page at `start` as text, or null when the URL is not a public web
  *  page, the server refuses, or the content type is not one `accept` takes. */
-export async function fetchPublicPage(start: string, opts: PublicFetchOptions): Promise<PublicPage | null> {
+export async function fetchPublicPage(
+  start: string,
+  opts: PublicFetchOptions,
+): Promise<PublicPage | null> {
   const doFetch = opts.fetch ?? fetch;
   let url = parseLinkPreviewUrl(start);
   if (!url) return null;
@@ -36,7 +39,9 @@ export async function fetchPublicPage(start: string, opts: PublicFetchOptions): 
       headers: opts.headers,
     });
     if (resp.status >= 300 && resp.status < 400) {
-      const next = parseLinkPreviewUrl(new URL(resp.headers.get("location") ?? "", url).href);
+      const next = parseLinkPreviewUrl(
+        new URL(resp.headers.get("location") ?? "", url).href,
+      );
       if (!next) return null;
       url = next;
       continue;

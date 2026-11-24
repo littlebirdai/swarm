@@ -6,16 +6,31 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { type SecretKind, type SecretMeta } from "@codecast/shared/contracts/secrets";
-import { useFillRequest, useSwapValue, useVaultActions } from "../../hooks/useSyncSecrets";
-import { SwitchReview, type SwitchLedger } from "../consequential/ConsequentialSwitch";
+import {
+  type SecretKind,
+  type SecretMeta,
+} from "@codecast/shared/contracts/secrets";
+import {
+  useFillRequest,
+  useSwapValue,
+  useVaultActions,
+} from "../../hooks/useSyncSecrets";
+import {
+  SwitchReview,
+  type SwitchLedger,
+} from "../consequential/ConsequentialSwitch";
 import { Row, SecretInput } from "./parts";
 import { FIELD_MONO } from "../../lib/secretLook";
 import { Button } from "../ui/button";
 import { declineLedger } from "../../lib/secretLedgers";
 import { useFileDrop } from "../../hooks/useFileDrop";
 import { SigninRequestFill } from "./SaveSignin";
-import { EMPTY_DRAFT, checkedPayload, classifyPaste, type ValueDraft } from "./vaultModel";
+import {
+  EMPTY_DRAFT,
+  checkedPayload,
+  classifyPaste,
+  type ValueDraft,
+} from "./vaultModel";
 import { modernButton } from "../ui/modernLook";
 
 const KEEP = "Keep current";
@@ -55,7 +70,10 @@ export function ValueFields({
     if (!p) return;
     if (p.kind === "otp" && kind === "login") {
       e.preventDefault();
-      set({ totp_seed: p.seed, ...(p.account && !draft.username ? { username: p.account } : {}) });
+      set({
+        totp_seed: p.seed,
+        ...(p.account && !draft.username ? { username: p.account } : {}),
+      });
       if (p.issuer) onIssuer?.(p.issuer);
     } else if (p.kind === "env-line" && kind === "key") {
       e.preventDefault();
@@ -68,7 +86,16 @@ export function ValueFields({
   };
 
   if (kind === "key") {
-    return <SecretInput value={draft.value} onChange={(value) => set({ value })} onPaste={smartPaste} placeholder="Paste the key" autoFocus={autoFocus} name="vault-value" />;
+    return (
+      <SecretInput
+        value={draft.value}
+        onChange={(value) => set({ value })}
+        onPaste={smartPaste}
+        placeholder="Paste the key"
+        autoFocus={autoFocus}
+        name="vault-value"
+      />
+    );
   }
   if (kind === "login") {
     // Each line keeps a short label, since a filled field has no placeholder left to say which it is.
@@ -79,32 +106,96 @@ export function ValueFields({
         </Row>
       ) : (
         <div className="flex min-w-0 items-start gap-2">
-          <span className="w-16 shrink-0 pt-1.5 text-meta text-sol-text-dim">{label}</span>
+          <span className="w-16 shrink-0 pt-1.5 text-meta text-sol-text-dim">
+            {label}
+          </span>
           {field}
         </div>
       );
     return (
       <div className={`flex min-w-0 flex-col ${rows ? "" : "gap-1.5"}`}>
-        {line("Username", <input value={draft.username} onChange={(e) => set({ username: e.target.value })} onPaste={smartPaste} placeholder={keep ? KEEP : "bot@acme.dev"} autoFocus={autoFocus && !keep} autoComplete="new-password" spellCheck={false} data-1p-ignore className={FIELD_MONO} name="vault-username" />)}
-        {line("Password", <SecretInput value={draft.password} onChange={(password) => set({ password })} onPaste={smartPaste} placeholder={keep ? KEEP : undefined} autoFocus={autoFocus && keep} name="vault-password" />)}
-        {line("2FA", <SecretInput value={draft.totp_seed} onChange={(totp_seed) => set({ totp_seed })} onPaste={smartPaste} placeholder={keep ? KEEP : "Setup key or otpauth:// link"} name="vault-totp" />)}
+        {line(
+          "Username",
+          <input
+            value={draft.username}
+            onChange={(e) => set({ username: e.target.value })}
+            onPaste={smartPaste}
+            placeholder={keep ? KEEP : "bot@acme.dev"}
+            autoFocus={autoFocus && !keep}
+            autoComplete="new-password"
+            spellCheck={false}
+            data-1p-ignore
+            className={FIELD_MONO}
+            name="vault-username"
+          />,
+        )}
+        {line(
+          "Password",
+          <SecretInput
+            value={draft.password}
+            onChange={(password) => set({ password })}
+            onPaste={smartPaste}
+            placeholder={keep ? KEEP : undefined}
+            autoFocus={autoFocus && keep}
+            name="vault-password"
+          />,
+        )}
+        {line(
+          "2FA",
+          <SecretInput
+            value={draft.totp_seed}
+            onChange={(totp_seed) => set({ totp_seed })}
+            onPaste={smartPaste}
+            placeholder={keep ? KEEP : "Setup key or otpauth:// link"}
+            name="vault-totp"
+          />,
+        )}
       </div>
     );
   }
   // A sign-in is never typed: it is captured from a browser (SaveSignin.tsx).
-  return kind === "file" ? <FileFields draft={draft} set={set} onPaste={smartPaste} autoFocus={autoFocus} /> : null;
+  return kind === "file" ? (
+    <FileFields
+      draft={draft}
+      set={set}
+      onPaste={smartPaste}
+      autoFocus={autoFocus}
+    />
+  ) : null;
 }
 
 /** A file's name and content: typed, pasted, chosen or dropped. */
-function FileFields({ draft, set, onPaste, autoFocus }: { draft: ValueDraft; set: (patch: Partial<ValueDraft>) => void; onPaste: (e: React.ClipboardEvent) => void; autoFocus?: boolean }) {
+function FileFields({
+  draft,
+  set,
+  onPaste,
+  autoFocus,
+}: {
+  draft: ValueDraft;
+  set: (patch: Partial<ValueDraft>) => void;
+  onPaste: (e: React.ClipboardEvent) => void;
+  autoFocus?: boolean;
+}) {
   const picker = useRef<HTMLInputElement>(null);
-  const take = async (f: File) => set({ filename: f.name, content: await f.text() });
+  const take = async (f: File) =>
+    set({ filename: f.name, content: await f.text() });
   const drop = useFileDrop((f) => void take(f));
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex min-w-0 items-center gap-1.5">
-        <input value={draft.filename} onChange={(e) => set({ filename: e.target.value })} placeholder="Filename (optional), like service-account.json" spellCheck={false} className={FIELD_MONO} />
-        <button type="button" onClick={() => picker.current?.click()} className={`h-8 shrink-0 rounded-md border border-sol-border px-2.5 text-[12px] text-sol-text-muted hover:text-sol-text ${modernButton({ variant: "outline", size: "md" })}`} data-vault-file-choose>
+        <input
+          value={draft.filename}
+          onChange={(e) => set({ filename: e.target.value })}
+          placeholder="Filename (optional), like service-account.json"
+          spellCheck={false}
+          className={FIELD_MONO}
+        />
+        <button
+          type="button"
+          onClick={() => picker.current?.click()}
+          className={`h-8 shrink-0 rounded-md border border-sol-border px-2.5 text-[12px] text-sol-text-muted hover:text-sol-text ${modernButton({ variant: "outline", size: "md" })}`}
+          data-vault-file-choose
+        >
           Choose file
         </button>
         <input
@@ -118,7 +209,16 @@ function FileFields({ draft, set, onPaste, autoFocus }: { draft: ValueDraft; set
           }}
         />
       </div>
-      <SecretInput value={draft.content} onChange={(content) => set({ content })} onPaste={onPaste} placeholder="Paste or drop the file" autoFocus={autoFocus} multiline name="vault-file" drop={drop} />
+      <SecretInput
+        value={draft.content}
+        onChange={(content) => set({ content })}
+        onPaste={onPaste}
+        placeholder="Paste or drop the file"
+        autoFocus={autoFocus}
+        multiline
+        name="vault-file"
+        drop={drop}
+      />
     </div>
   );
 }
@@ -151,7 +251,11 @@ export function ValueEditor(props: ValueEditorProps) {
         <SigninRequestFill row={props.row} />
       </div>
       {props.onCancel && (
-        <button type="button" onClick={props.onCancel} className="h-8 shrink-0 px-1.5 text-[12px] text-sol-text-muted hover:text-sol-text">
+        <button
+          type="button"
+          onClick={props.onCancel}
+          className="h-8 shrink-0 px-1.5 text-[12px] text-sol-text-muted hover:text-sol-text"
+        >
           Cancel
         </button>
       )}
@@ -159,7 +263,15 @@ export function ValueEditor(props: ValueEditorProps) {
   );
 }
 
-function TypedValueEditor({ row, mode, review, onStart, onDone, onCancel, autoFocus }: ValueEditorProps) {
+function TypedValueEditor({
+  row,
+  mode,
+  review,
+  onStart,
+  onDone,
+  onCancel,
+  autoFocus,
+}: ValueEditorProps) {
   const swapValue = useSwapValue();
   const fill = useFillRequest();
   const [draft, setDraft] = useState<ValueDraft>(EMPTY_DRAFT);
@@ -177,7 +289,10 @@ function TypedValueEditor({ row, mode, review, onStart, onDone, onCancel, autoFo
       // The editor closes on the press; the panel already shows the swap, and a refusal puts it back.
       setDraft(EMPTY_DRAFT);
       onDone?.({});
-      const error = await swapValue(row, { kind: "rotated", payload: checked.payload });
+      const error = await swapValue(row, {
+        kind: "rotated",
+        payload: checked.payload,
+      });
       if (error) toast.error(`${row.name} was not replaced: ${error}`);
       return;
     }
@@ -193,11 +308,21 @@ function TypedValueEditor({ row, mode, review, onStart, onDone, onCancel, autoFo
   };
   const actions = (
     <span className="flex shrink-0 items-center gap-1.5">
-      <Button type="submit" variant="yellow" size="sm" disabled={!ready || busy} className="shrink-0">
+      <Button
+        type="submit"
+        variant="yellow"
+        size="sm"
+        disabled={!ready || busy}
+        className="shrink-0"
+      >
         {busy ? "Saving" : mode === "fulfill" ? "Save" : "Replace"}
       </Button>
       {onCancel && (
-        <button type="button" onClick={onCancel} className="h-[30px] shrink-0 px-1.5 text-[12px] text-sol-text-muted hover:text-sol-text">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="h-[30px] shrink-0 px-1.5 text-[12px] text-sol-text-muted hover:text-sol-text"
+        >
           Cancel
         </button>
       )}
@@ -205,33 +330,55 @@ function TypedValueEditor({ row, mode, review, onStart, onDone, onCancel, autoFo
   );
   return (
     <>
-    <form
-      className={`flex min-w-0 flex-col ${loginReplace ? "" : "gap-1.5"}`}
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (review && ready) setReviewing(true);
-        else void save();
-      }}
-      data-vault-value-editor={mode}
-      data-private
-    >
-      {mode === "rotate" ? (
-        // A replace takes the field's whole width, its buttons under it.
-        <>
-          <ValueFields kind={row.kind} draft={draft} onChange={setDraft} autoFocus={autoFocus} rows={loginReplace} keep={loginReplace} />
-          {loginReplace ? <Row label="">{actions}</Row> : <div className="flex items-center">{actions}</div>}
-        </>
-      ) : (
-        <div className="flex min-w-0 items-start gap-1.5">
-          <div className="min-w-0 flex-1">
-            <ValueFields kind={row.kind} draft={draft} onChange={setDraft} autoFocus={autoFocus} />
+      <form
+        className={`flex min-w-0 flex-col ${loginReplace ? "" : "gap-1.5"}`}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (review && ready) setReviewing(true);
+          else void save();
+        }}
+        data-vault-value-editor={mode}
+        data-private
+      >
+        {mode === "rotate" ? (
+          // A replace takes the field's whole width, its buttons under it.
+          <>
+            <ValueFields
+              kind={row.kind}
+              draft={draft}
+              onChange={setDraft}
+              autoFocus={autoFocus}
+              rows={loginReplace}
+              keep={loginReplace}
+            />
+            {loginReplace ? (
+              <Row label="">{actions}</Row>
+            ) : (
+              <div className="flex items-center">{actions}</div>
+            )}
+          </>
+        ) : (
+          <div className="flex min-w-0 items-start gap-1.5">
+            <div className="min-w-0 flex-1">
+              <ValueFields
+                kind={row.kind}
+                draft={draft}
+                onChange={setDraft}
+                autoFocus={autoFocus}
+              />
+            </div>
+            {actions}
           </div>
-          {actions}
-        </div>
+        )}
+        {error ? <div className="text-meta text-sol-red">{error}</div> : null}
+      </form>
+      {reviewing && review && (
+        <SwitchReview
+          ledger={review}
+          onClose={() => setReviewing(false)}
+          onConfirm={() => void save()}
+        />
       )}
-      {error ? <div className="text-meta text-sol-red">{error}</div> : null}
-    </form>
-    {reviewing && review && <SwitchReview ledger={review} onClose={() => setReviewing(false)} onConfirm={() => void save()} />}
     </>
   );
 }
@@ -242,7 +389,15 @@ function TypedValueEditor({ row, mode, review, onStart, onDone, onCancel, autoFo
  * a request no session made closes on the press. The decline names the
  * request, so a stale card or a replay after someone filled it removes nothing.
  */
-export function DeclineRequest({ row, onDeclined, className }: { row: SecretMeta; onDeclined?: () => void; className: string }) {
+export function DeclineRequest({
+  row,
+  onDeclined,
+  className,
+}: {
+  row: SecretMeta;
+  onDeclined?: () => void;
+  className: string;
+}) {
   const { remove } = useVaultActions();
   const [reviewing, setReviewing] = useState(false);
   const decline = () => {
@@ -252,10 +407,23 @@ export function DeclineRequest({ row, onDeclined, className }: { row: SecretMeta
   };
   return (
     <>
-      <button type="button" onClick={() => (row.requested_from_conversation ? setReviewing(true) : decline())} className={className} data-vault-request-decline>
+      <button
+        type="button"
+        onClick={() =>
+          row.requested_from_conversation ? setReviewing(true) : decline()
+        }
+        className={className}
+        data-vault-request-decline
+      >
         Decline
       </button>
-      {reviewing && <SwitchReview ledger={declineLedger(row)} onClose={() => setReviewing(false)} onConfirm={decline} />}
+      {reviewing && (
+        <SwitchReview
+          ledger={declineLedger(row)}
+          onClose={() => setReviewing(false)}
+          onConfirm={decline}
+        />
+      )}
     </>
   );
 }

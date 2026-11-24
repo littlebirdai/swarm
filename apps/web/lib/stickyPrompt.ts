@@ -3,9 +3,25 @@
 // Convex typed-send counters, so it must stay free of DOM, React and web-only
 // dependencies, and import by relative path.
 
-import { isCommandMessage, isStrippedCommand, parseBashInput, parseBashOutput, cleanContent, isSystemMessage, commandExpansionName } from "./conversationProcessor";
-import { cleanUserMessage, isBareNudge, isSpawnedTaskPrompt, vaultReadyName } from "../components/sessionMessage";
-import { isTurnInterruptionNotice, parseDecisionAnswer } from "@codecast/shared/contracts";
+import {
+  isCommandMessage,
+  isStrippedCommand,
+  parseBashInput,
+  parseBashOutput,
+  cleanContent,
+  isSystemMessage,
+  commandExpansionName,
+} from "./conversationProcessor";
+import {
+  cleanUserMessage,
+  isBareNudge,
+  isSpawnedTaskPrompt,
+  vaultReadyName,
+} from "../components/sessionMessage";
+import {
+  isTurnInterruptionNotice,
+  parseDecisionAnswer,
+} from "@codecast/shared/contracts";
 import { LRUCache } from "./lruCache";
 
 // A slash command ("/model opus") and `!` bash mode are the human talking to
@@ -14,10 +30,12 @@ import { LRUCache } from "./lruCache";
 // so a surface that only strips tags paints "/model model opus" as if it were
 // a prompt. The thread already renders them as command blocks.
 function isClientCommand(raw: string): boolean {
-  return isCommandMessage(raw)
-    || isStrippedCommand(raw.trim()) !== null
-    || parseBashInput(raw) !== null
-    || parseBashOutput(raw) !== null;
+  return (
+    isCommandMessage(raw) ||
+    isStrippedCommand(raw.trim()) !== null ||
+    parseBashInput(raw) !== null ||
+    parseBashOutput(raw) !== null
+  );
 }
 
 // The text a sticky prompt header may show for a user message, or null when
@@ -35,12 +53,22 @@ function isClientCommand(raw: string): boolean {
 const contentCache = new LRUCache<string, string | null>(4000);
 const eligibleCache = new LRUCache<string, boolean>(4000);
 
-export function stickyPromptContent(raw: string | null | undefined): string | null {
+export function stickyPromptContent(
+  raw: string | null | undefined,
+): string | null {
   if (!raw) return null;
   const hit = contentCache.get(raw);
   if (hit !== undefined) return hit;
   let out: string | null = null;
-  if (!(isSpawnedTaskPrompt(raw) || isClientCommand(raw) || isTurnInterruptionNotice(raw) || parseDecisionAnswer(raw) || vaultReadyName(raw) !== null)) {
+  if (
+    !(
+      isSpawnedTaskPrompt(raw) ||
+      isClientCommand(raw) ||
+      isTurnInterruptionNotice(raw) ||
+      parseDecisionAnswer(raw) ||
+      vaultReadyName(raw) !== null
+    )
+  ) {
     const display = cleanUserMessage(raw);
     out = display && !isBareNudge(display) ? display : null;
   }
@@ -63,7 +91,12 @@ export function isStickyEligible(content: string): boolean {
   return out;
 }
 
-export type StickySequenceMessage = { _id: string; role?: string; content?: string | null; timestamp?: number };
+export type StickySequenceMessage = {
+  _id: string;
+  role?: string;
+  content?: string | null;
+  timestamp?: number;
+};
 
 // A custom slash command ("/deploy") lands as two user messages written in one
 // batch: the tagged invocation and the command file's body, which has no
@@ -73,7 +106,10 @@ export type StickySequenceMessage = { _id: string; role?: string; content?: stri
 // over the ordered list. Both share a timestamp, and a list ordered by
 // (timestamp, id) can hold the body first, so either neighbour may be the
 // invocation. Returns the invocation's index, or -1 when `i` is not a body.
-export function commandBodyInvocationIndex(messages: ReadonlyArray<StickySequenceMessage>, i: number): number {
+export function commandBodyInvocationIndex(
+  messages: ReadonlyArray<StickySequenceMessage>,
+  i: number,
+): number {
   const m = messages[i];
   if (m.role && m.role !== "user") return -1;
   for (const j of [i - 1, i + 1]) {
@@ -86,7 +122,9 @@ export function commandBodyInvocationIndex(messages: ReadonlyArray<StickySequenc
 
 // Ids of the messages a sticky header may show. A command with no body
 // ("/model opus") stays a client command and is never eligible.
-export function stickyEligibleIds(messages: ReadonlyArray<StickySequenceMessage>): Set<string> {
+export function stickyEligibleIds(
+  messages: ReadonlyArray<StickySequenceMessage>,
+): Set<string> {
   const ids = new Set<string>();
   for (let i = 0; i < messages.length; i++) {
     const m = messages[i];

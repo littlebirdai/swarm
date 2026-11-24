@@ -13,16 +13,27 @@ export const RECALL_API_BASE = "https://us-west-2.recall.ai";
 export const RECALL_STATUS_PATH = "/api/webhooks/recall";
 export const RECALL_REALTIME_PATH = "/api/webhooks/recall/realtime";
 
-export type MeetingPlatform = "zoom" | "google_meet" | "microsoft_teams" | "webex" | "goto_meeting";
+export type MeetingPlatform =
+  | "zoom"
+  | "google_meet"
+  | "microsoft_teams"
+  | "webex"
+  | "goto_meeting";
 
 // The links a bot can join, by host. A link we cannot name is refused before
 // a bot is paid for, with words that say which platforms work.
 const PLATFORM_HOSTS: Array<[MeetingPlatform, RegExp]> = [
   ["zoom", /(^|\.)zoom\.(us|com)$|(^|\.)zoomgov\.com$/],
   ["google_meet", /^meet\.google\.com$/],
-  ["microsoft_teams", /^teams\.(microsoft|live)\.com$|^teams\.cloud\.microsoft$/],
+  [
+    "microsoft_teams",
+    /^teams\.(microsoft|live)\.com$|^teams\.cloud\.microsoft$/,
+  ],
   ["webex", /(^|\.)webex\.com$/],
-  ["goto_meeting", /(^|\.)(gotomeeting|gotomeet)\.(com|me)$|^meet\.goto\.com$|^app\.goto\.com$/],
+  [
+    "goto_meeting",
+    /(^|\.)(gotomeeting|gotomeet)\.(com|me)$|^meet\.goto\.com$|^app\.goto\.com$/,
+  ],
 ];
 
 export const MEETING_PLATFORM_NAMES: Record<MeetingPlatform, string> = {
@@ -35,7 +46,11 @@ export const MEETING_PLATFORM_NAMES: Record<MeetingPlatform, string> = {
 
 /** The platform a meeting link belongs to, and the link cleaned up, or why
  *  no bot can join it. */
-export function parseMeetingUrl(raw: string): { ok: true; url: string; platform: MeetingPlatform } | { ok: false; reason: string } {
+export function parseMeetingUrl(
+  raw: string,
+):
+  | { ok: true; url: string; platform: MeetingPlatform }
+  | { ok: false; reason: string } {
   const text = (raw ?? "").trim();
   let u: URL;
   try {
@@ -43,13 +58,20 @@ export function parseMeetingUrl(raw: string): { ok: true; url: string; platform:
   } catch {
     return { ok: false, reason: "That is not a meeting link." };
   }
-  if (u.protocol !== "https:" && u.protocol !== "http:") return { ok: false, reason: "That is not a meeting link." };
+  if (u.protocol !== "https:" && u.protocol !== "http:")
+    return { ok: false, reason: "That is not a meeting link." };
   const host = u.hostname.toLowerCase();
   const hit = PLATFORM_HOSTS.find(([, re]) => re.test(host));
   if (!hit) {
-    return { ok: false, reason: `A bot can join ${Object.values(MEETING_PLATFORM_NAMES).join(", ")} meetings.` };
+    return {
+      ok: false,
+      reason: `A bot can join ${Object.values(MEETING_PLATFORM_NAMES).join(", ")} meetings.`,
+    };
   }
-  if (hit[0] === "google_meet" && !/^\/[a-z]{3}-[a-z]{4}-[a-z]{3}/i.test(u.pathname)) {
+  if (
+    hit[0] === "google_meet" &&
+    !/^\/[a-z]{3}-[a-z]{4}-[a-z]{3}/i.test(u.pathname)
+  ) {
     return { ok: false, reason: "That Google Meet link has no meeting code." };
   }
   u.protocol = "https:";
@@ -89,7 +111,10 @@ export function recallBotBody(args: {
           // The default mode (prioritize_accuracy) holds lines back by
           // minutes; low latency lands each finished line in seconds at the
           // same price. English only.
-          recallai_streaming: { language_code: "en", mode: "prioritize_low_latency" },
+          recallai_streaming: {
+            language_code: "en",
+            mode: "prioritize_low_latency",
+          },
         },
         // One audio stream per speaker where the platform offers it, so who
         // said what is the platform's fact rather than a guess.
@@ -99,7 +124,11 @@ export function recallBotBody(args: {
         {
           type: "webhook",
           url: `${args.siteUrl.replace(/\/$/, "")}${RECALL_REALTIME_PATH}`,
-          events: ["transcript.data", "participant_events.join", "participant_events.chat_message"],
+          events: [
+            "transcript.data",
+            "participant_events.join",
+            "participant_events.chat_message",
+          ],
         },
       ],
     },
@@ -119,7 +148,11 @@ export type MeetingBotStatus =
   | "cancelled";
 
 /** Statuses after which nothing more happens to a bot. */
-export const MEETING_BOT_FINAL: ReadonlySet<MeetingBotStatus> = new Set(["ended", "failed", "cancelled"]);
+export const MEETING_BOT_FINAL: ReadonlySet<MeetingBotStatus> = new Set([
+  "ended",
+  "failed",
+  "cancelled",
+]);
 
 /** A Recall status webhook event as our status, or null for events that do
  *  not change it (breakout rooms, permission granted). `bot.call_ended` is
@@ -147,20 +180,28 @@ export function statusFromRecallEvent(event: string): MeetingBotStatus | null {
 
 /** Recall's sub_code in words a person reads on the call row. Codes are not
  *  a closed set, so anything unknown is shown as Recall's own words. */
-export function recallSubCodeWords(subCode: string | null | undefined): string | undefined {
+export function recallSubCodeWords(
+  subCode: string | null | undefined,
+): string | undefined {
   if (!subCode) return undefined;
   const known: Record<string, string> = {
     call_ended_by_host: "The host ended the meeting.",
-    call_ended_by_platform_idle: "The meeting platform closed the idle meeting.",
-    call_ended_by_platform_max_length: "The meeting hit the platform's length limit.",
-    call_ended_by_platform_waiting_room_timeout: "Nobody let the bot in from the waiting room.",
-    timeout_exceeded_waiting_room: "Nobody let the bot in from the waiting room.",
+    call_ended_by_platform_idle:
+      "The meeting platform closed the idle meeting.",
+    call_ended_by_platform_max_length:
+      "The meeting hit the platform's length limit.",
+    call_ended_by_platform_waiting_room_timeout:
+      "Nobody let the bot in from the waiting room.",
+    timeout_exceeded_waiting_room:
+      "Nobody let the bot in from the waiting room.",
     timeout_exceeded_noone_joined: "Nobody joined the meeting.",
     timeout_exceeded_everyone_left: "Everyone left the meeting.",
     timeout_exceeded_silence_detected: "The meeting was silent for an hour.",
-    timeout_exceeded_only_bots_detected_using_participant_events: "Only bots were left in the meeting.",
+    timeout_exceeded_only_bots_detected_using_participant_events:
+      "Only bots were left in the meeting.",
     bot_kicked_from_call: "Someone removed the bot from the meeting.",
-    bot_kicked_from_waiting_room: "The bot was turned away from the waiting room.",
+    bot_kicked_from_waiting_room:
+      "The bot was turned away from the waiting room.",
     bot_received_leave_call: "The bot was told to leave.",
     meeting_not_found: "The meeting link did not lead to a meeting.",
     meeting_not_started: "The meeting had not started.",
@@ -170,8 +211,10 @@ export function recallSubCodeWords(subCode: string | null | undefined): string |
     meeting_password_incorrect: "The meeting password in the link was wrong.",
     meeting_locked: "The meeting was locked.",
     meeting_full: "The meeting was full.",
-    zoom_local_recording_request_denied_by_host: "The host refused to let the bot record.",
-    zoom_local_recording_disabled: "Recording is turned off for this Zoom account.",
+    zoom_local_recording_request_denied_by_host:
+      "The host refused to let the bot record.",
+    zoom_local_recording_disabled:
+      "Recording is turned off for this Zoom account.",
     recording_permission_denied: "The host refused to let the bot record.",
   };
   return known[subCode] ?? subCode.replace(/_/g, " ");
@@ -217,7 +260,10 @@ export type RecallParticipant = {
 /** The speaker id a Recall participant is filed under on the call record
  *  when no teammate matched them: stable per bot, so one person speaking
  *  twice is one entry in the roster. */
-export function recallSpeakerId(botId: string, participant: RecallParticipant): string {
+export function recallSpeakerId(
+  botId: string,
+  participant: RecallParticipant,
+): string {
   return `recall:${botId}:${participant.id}`;
 }
 
@@ -226,15 +272,25 @@ export function recallSpeakerId(botId: string, participant: RecallParticipant): 
  *  recording the transcript began, since Recall times words from the start of
  *  its own recording. Null when there are no words. */
 export function lineFromTranscriptData(
-  data: { words?: Array<{ text?: string; start_timestamp?: { relative?: number } | null; end_timestamp?: { relative?: number } | null }> },
+  data: {
+    words?: Array<{
+      text?: string;
+      start_timestamp?: { relative?: number } | null;
+      end_timestamp?: { relative?: number } | null;
+    }>;
+  },
   offsetMs: number,
 ): { text: string; t0: number; t1: number } | null {
   const words = (data.words ?? []).filter((w) => (w.text ?? "").trim());
   if (!words.length) return null;
-  const text = words.map((w) => w.text!.trim()).join(" ").replace(/\s+([,.!?;:])/g, "$1");
+  const text = words
+    .map((w) => w.text!.trim())
+    .join(" ")
+    .replace(/\s+([,.!?;:])/g, "$1");
   const start = words[0].start_timestamp?.relative ?? 0;
   const last = words[words.length - 1];
-  const end = last.end_timestamp?.relative ?? last.start_timestamp?.relative ?? start;
+  const end =
+    last.end_timestamp?.relative ?? last.start_timestamp?.relative ?? start;
   const t0 = Math.max(0, Math.round(start * 1000) - offsetMs);
   return { text, t0, t1: Math.max(t0, Math.round(end * 1000) - offsetMs) };
 }
@@ -274,15 +330,26 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export async function recallSignature(secret: string, id: string, timestamp: string, body: string): Promise<string> {
+export async function recallSignature(
+  secret: string,
+  id: string,
+  timestamp: string,
+  body: string,
+): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
-    base64ToBytes(secret.startsWith("whsec_") ? secret.slice("whsec_".length) : secret),
+    base64ToBytes(
+      secret.startsWith("whsec_") ? secret.slice("whsec_".length) : secret,
+    ),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
   );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${id}.${timestamp}.${body}`));
+  const sig = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(`${id}.${timestamp}.${body}`),
+  );
   return bytesToBase64(sig);
 }
 
@@ -295,14 +362,17 @@ export async function verifyRecallRequest(args: {
   body: string;
   nowMs?: number;
 }): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
-  if (!args.secret || !args.secret.startsWith("whsec_")) return { ok: false, reason: "no verification secret configured" };
+  if (!args.secret || !args.secret.startsWith("whsec_"))
+    return { ok: false, reason: "no verification secret configured" };
   const id = header(args.headers, "id");
   const timestamp = header(args.headers, "timestamp");
   const signatures = header(args.headers, "signature");
-  if (!id || !timestamp || !signatures) return { ok: false, reason: "unsigned request" };
+  if (!id || !timestamp || !signatures)
+    return { ok: false, reason: "unsigned request" };
   const ts = Number(timestamp);
   const now = (args.nowMs ?? Date.now()) / 1000;
-  if (!Number.isFinite(ts) || Math.abs(now - ts) > RECALL_SIGNATURE_TOLERANCE_S) return { ok: false, reason: "stale signature" };
+  if (!Number.isFinite(ts) || Math.abs(now - ts) > RECALL_SIGNATURE_TOLERANCE_S)
+    return { ok: false, reason: "stale signature" };
   const expected = await recallSignature(args.secret, id, timestamp, args.body);
   const match = signatures
     .split(" ")
@@ -328,11 +398,20 @@ export async function recallFetch<T>(
   try {
     res = await fetch(`${RECALL_API_BASE}${path}`, {
       method: init.method ?? "GET",
-      headers: { Authorization: `Token ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        Authorization: `Token ${apiKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
     });
   } catch (e) {
-    return { ok: false, status: 0, retry: true, error: e instanceof Error ? e.message : String(e) };
+    return {
+      ok: false,
+      status: 0,
+      retry: true,
+      error: e instanceof Error ? e.message : String(e),
+    };
   }
   const text = await res.text();
   if (res.ok) {
@@ -343,7 +422,12 @@ export async function recallFetch<T>(
     }
   }
   const retry = res.status === 507 || res.status === 429 || res.status >= 500;
-  return { ok: false, status: res.status, retry, error: text.slice(0, 500) || res.statusText };
+  return {
+    ok: false,
+    status: res.status,
+    retry,
+    error: text.slice(0, 500) || res.statusText,
+  };
 }
 
 // ── Calendar events ────────────────────────────────────────────────────────
@@ -357,10 +441,16 @@ export type GoogleCalendarEvent = {
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
   hangoutLink?: string;
-  conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
+  conferenceData?: {
+    entryPoints?: Array<{ entryPointType?: string; uri?: string }>;
+  };
   location?: string;
   description?: string;
-  attendees?: Array<{ email?: string; self?: boolean; responseStatus?: string }>;
+  attendees?: Array<{
+    email?: string;
+    self?: boolean;
+    responseStatus?: string;
+  }>;
 };
 
 /** The meeting a bot can join for a calendar event, or null: an all-day
@@ -368,15 +458,27 @@ export type GoogleCalendarEvent = {
  *  a platform a bot can join. The link is looked for where calendars put it:
  *  the Meet link, the conference entry points, then any URL in the location
  *  or description (Zoom, Teams and Webex invites paste theirs there). */
-export function meetingOfEvent(e: GoogleCalendarEvent): { url: string; platform: MeetingPlatform; starts_at: number; ends_at: number; title: string } | null {
-  if (e.status === "cancelled" || !e.start?.dateTime || !e.end?.dateTime) return null;
-  if (e.attendees?.some((a) => a.self && a.responseStatus === "declined")) return null;
+export function meetingOfEvent(e: GoogleCalendarEvent): {
+  url: string;
+  platform: MeetingPlatform;
+  starts_at: number;
+  ends_at: number;
+  title: string;
+} | null {
+  if (e.status === "cancelled" || !e.start?.dateTime || !e.end?.dateTime)
+    return null;
+  if (e.attendees?.some((a) => a.self && a.responseStatus === "declined"))
+    return null;
   const candidates = [
     e.hangoutLink,
-    ...(e.conferenceData?.entryPoints ?? []).filter((p) => p.entryPointType === "video").map((p) => p.uri),
+    ...(e.conferenceData?.entryPoints ?? [])
+      .filter((p) => p.entryPointType === "video")
+      .map((p) => p.uri),
     // The description is often HTML: the pattern stops at quotes and angle
     // brackets, so a link inside an href is found as it stands.
-    ...`${e.location ?? ""} ${e.description ?? ""}`.match(/https?:\/\/[^\s"'<>)]+/g) ?? [],
+    ...(`${e.location ?? ""} ${e.description ?? ""}`.match(
+      /https?:\/\/[^\s"'<>)]+/g,
+    ) ?? []),
   ];
   for (const c of candidates) {
     if (!c) continue;

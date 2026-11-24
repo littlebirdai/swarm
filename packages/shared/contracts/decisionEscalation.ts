@@ -6,11 +6,27 @@
 // for the server, which reads it from team_memberships, and for the clients,
 // which read it from the roster they hold so the row moves at once.
 
-export type EscalationMember = { user_id: string; role?: string; is_bot?: boolean };
+export type EscalationMember = {
+  user_id: string;
+  role?: string;
+  is_bot?: boolean;
+};
 
-export function escalationTargetIds(ownerId: string, managerId: string | null | undefined, members: ReadonlyArray<EscalationMember>, byId?: string): string[] {
-  const people = members.filter((m) => !m.is_bot && String(m.user_id) !== String(ownerId) && String(m.user_id) !== String(byId ?? ownerId));
-  const manager = managerId ? people.find((m) => String(m.user_id) === String(managerId)) : undefined;
+export function escalationTargetIds(
+  ownerId: string,
+  managerId: string | null | undefined,
+  members: ReadonlyArray<EscalationMember>,
+  byId?: string,
+): string[] {
+  const people = members.filter(
+    (m) =>
+      !m.is_bot &&
+      String(m.user_id) !== String(ownerId) &&
+      String(m.user_id) !== String(byId ?? ownerId),
+  );
+  const manager = managerId
+    ? people.find((m) => String(m.user_id) === String(managerId))
+    : undefined;
   if (manager) return [String(manager.user_id)];
   return people.filter((m) => m.role === "admin").map((m) => String(m.user_id));
 }

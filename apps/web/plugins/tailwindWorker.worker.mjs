@@ -20,12 +20,23 @@ parentPort.on("message", async ({ id, css, from }) => {
       css: result.css,
       messages: result.messages
         .filter((m) => FORWARDED.has(m.type))
-        .map(({ type, file, dir, glob, parent, plugin }) => ({ type, file, dir, glob, parent, plugin })),
+        .map(({ type, file, dir, glob, parent, plugin }) => ({
+          type,
+          file,
+          dir,
+          glob,
+          parent,
+          plugin,
+        })),
     });
   } catch (err) {
     parentPort.postMessage({
       id,
-      error: { message: err?.message ?? String(err), stack: err?.stack, name: err?.name },
+      error: {
+        message: err?.message ?? String(err),
+        stack: err?.stack,
+        name: err?.name,
+      },
     });
   }
 });

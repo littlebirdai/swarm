@@ -1,11 +1,21 @@
-import { useCallback, useLayoutEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type ReactNode,
+} from "react";
 import { lineCommentWords } from "@codecast/shared/contracts/lineWords";
 import Link from "next/link";
 import { useMutation } from "convex/react";
 import { ArrowUp, ImagePlus, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { useInboxStore, type TaskCommentExternal } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  type TaskCommentExternal,
+} from "../../store/inboxStore";
 import { compressImage } from "../../lib/compressImage";
 import { formatDateFull, formatRelative } from "../../lib/utils";
 import { useOpenLinkedSession } from "../../hooks/useOpenLinkedSession";
@@ -42,15 +52,43 @@ export function TimeAgo({ ts, className }: { ts: number; className?: string }) {
 
 /** The app's one round face (components/comments/CommentAvatar), at the two
  *  sizes the task surfaces use. "Claude" is the agent's own mark. */
-export function Avatar({ name, image, size = "sm" }: { name: string; image?: string; size?: "sm" | "md" }) {
-  return <CommentAvatar name={name} image={image} isAgent={name.toLowerCase() === "claude"} size={size === "md" ? 28 : 20} letters={2} />;
+export function Avatar({
+  name,
+  image,
+  size = "sm",
+}: {
+  name: string;
+  image?: string;
+  size?: "sm" | "md";
+}) {
+  return (
+    <CommentAvatar
+      name={name}
+      image={image}
+      isAgent={name.toLowerCase() === "claude"}
+      size={size === "md" ? 28 : 20}
+      letters={2}
+    />
+  );
 }
 
-export function UserBadge({ name, image, username }: { name: string; image?: string; username?: string }) {
+export function UserBadge({
+  name,
+  image,
+  username,
+}: {
+  name: string;
+  image?: string;
+  username?: string;
+}) {
   const content = (
-    <span className={`inline-flex items-center gap-1.5 flex-shrink-0 ${username ? "hover:opacity-80 cursor-pointer" : ""}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 flex-shrink-0 ${username ? "hover:opacity-80 cursor-pointer" : ""}`}
+    >
       <Avatar name={name} image={image} />
-      <span className="text-xs text-sol-text font-medium">{name.split(" ")[0]}</span>
+      <span className="text-xs text-sol-text font-medium">
+        {name.split(" ")[0]}
+      </span>
     </span>
   );
   if (username) {
@@ -71,10 +109,17 @@ export type TaskCommentRow = {
   text: string;
   comment_type?: string;
   created_at: number;
-  session_info?: { _id: string; agent_type?: string; title?: string } & Record<string, any>;
+  session_info?: { _id: string; agent_type?: string; title?: string } & Record<
+    string,
+    any
+  >;
   /** A person's comment that reached the task's owning session while it
    *  worked (convex tasks.ts deliverCommentToOwner). */
-  delivered_to_info?: { _id: string; agent_type?: string; title?: string } & Record<string, any>;
+  delivered_to_info?: {
+    _id: string;
+    agent_type?: string;
+    title?: string;
+  } & Record<string, any>;
   external?: TaskCommentExternal;
 };
 
@@ -87,18 +132,31 @@ function CommentProvenance({ external }: { external: TaskCommentExternal }) {
   const label = `from ${ISSUE_PROVIDER_NAME[external.provider]}`;
   const inner = (
     <>
-      <Icon className="w-2.5 h-2.5 flex-shrink-0" style={{ color: look.accent }} />
+      <Icon
+        className="w-2.5 h-2.5 flex-shrink-0"
+        style={{ color: look.accent }}
+      />
       {label}
     </>
   );
-  const cls = "inline-flex items-center gap-1 text-meta text-sol-text-dim flex-shrink-0";
+  const cls =
+    "inline-flex items-center gap-1 text-meta text-sol-text-dim flex-shrink-0";
   const title = external.author ? `${label}, by ${external.author}` : label;
   return external.url ? (
-    <a href={external.url} target="_blank" rel="noopener noreferrer" className={`${cls} hover:text-sol-text`} title={title} onClick={(e) => e.stopPropagation()}>
+    <a
+      href={external.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`${cls} hover:text-sol-text`}
+      title={title}
+      onClick={(e) => e.stopPropagation()}
+    >
       {inner}
     </a>
   ) : (
-    <span className={cls} title={title}>{inner}</span>
+    <span className={cls} title={title}>
+      {inner}
+    </span>
   );
 }
 
@@ -106,7 +164,13 @@ function CommentProvenance({ external }: { external: TaskCommentExternal }) {
  *  the rest. Measured, not guessed: a short block renders whole with no
  *  toggle. Agent comments run to hundreds of words; in a reader one of them
  *  must not be a screenful. */
-export function Clamp({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Clamp({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [overflows, setOverflows] = useState(false);
@@ -117,9 +181,15 @@ export function Clamp({ children, className = "" }: { children: ReactNode; class
   });
   return (
     <div className={className}>
-      <div ref={ref} className={open ? undefined : "th-clamp"}>{children}</div>
+      <div ref={ref} className={open ? undefined : "th-clamp"}>
+        {children}
+      </div>
       {(overflows || open) && (
-        <button type="button" className="th-task-desc-toggle" onClick={() => setOpen((v) => !v)}>
+        <button
+          type="button"
+          className="th-task-desc-toggle"
+          onClick={() => setOpen((v) => !v)}
+        >
           {open ? "Show less" : "Show more"}
         </button>
       )}
@@ -148,23 +218,49 @@ export function TaskCommentItem({
   // comment anywhere else: the face, the name and time, then the words.
   return (
     <div className="cc-cmt cc-task-cmt">
-      <CommentAvatar name={name} image={session ? undefined : comment.author_image} isAgent={!!session} agentType={session?.agent_type} />
+      <CommentAvatar
+        name={name}
+        image={session ? undefined : comment.author_image}
+        isAgent={!!session}
+        agentType={session?.agent_type}
+      />
       <div className="cc-cmt-main">
         <div className="cc-cmt-head">
           {session ? (
-            <button type="button" className="cc-cmt-name cc-cmt-name-link truncate" onClick={() => openLinkedSession(session)} title="Open this session">{name}</button>
+            <button
+              type="button"
+              className="cc-cmt-name cc-cmt-name-link truncate"
+              onClick={() => openLinkedSession(session)}
+              title="Open this session"
+            >
+              {name}
+            </button>
           ) : (
             <span className="cc-cmt-name">{name}</span>
           )}
           {comment.comment_type && comment.comment_type !== "note" && (
-            <Badge variant="outline" className={`text-meta px-1 py-0 leading-4 ${modernPill()}`}>{comment.comment_type}</Badge>
+            <Badge
+              variant="outline"
+              className={`text-meta px-1 py-0 leading-4 ${modernPill()}`}
+            >
+              {comment.comment_type}
+            </Badge>
           )}
-          {comment.external && <CommentProvenance external={comment.external} />}
-          {!noTime && <TimeAgo ts={comment.created_at} className="cc-cmt-time" />}
+          {comment.external && (
+            <CommentProvenance external={comment.external} />
+          )}
+          {!noTime && (
+            <TimeAgo ts={comment.created_at} className="cc-cmt-time" />
+          )}
         </div>
-        <div className="cc-cmt-body">{clamp ? <Clamp>{body}</Clamp> : body}</div>
+        <div className="cc-cmt-body">
+          {clamp ? <Clamp>{body}</Clamp> : body}
+        </div>
         {comment.delivered_to_info && (
-          <div className="mt-1 flex items-center gap-1.5 text-meta text-sol-text-dim" title="The session working on this task received this comment">
+          <div
+            className="mt-1 flex items-center gap-1.5 text-meta text-sol-text-dim"
+            title="The session working on this task received this comment"
+          >
             <span>Sent to</span>
             <SessionTag
               session={comment.delivered_to_info}
@@ -182,7 +278,12 @@ export function TaskCommentItem({
 
 // ── The composer ────────────────────────────────────────────────────────────
 
-type PendingImage = { file: File; previewUrl: string; storageId?: string; uploading: boolean };
+type PendingImage = {
+  file: File;
+  previewUrl: string;
+  storageId?: string;
+  uploading: boolean;
+};
 
 /** Posts a note on the task through the store's optimistic addTaskComment.
  *  Owns its draft and its image uploads. `dropFilesRef` lets a surrounding
@@ -213,23 +314,46 @@ export function TaskCommentComposer({
   const [commentOpen, setCommentOpen] = useState(!!autoOpen);
   const commentRef = useRef<HTMLTextAreaElement>(null);
 
-  const uploadCommentImage = useCallback(async (file: File) => {
-    const previewUrl = URL.createObjectURL(file);
-    setCommentImages(prev => [...prev, { file, previewUrl, uploading: true }]);
-    try {
-      const uploaded = await compressImage(file);
-      const uploadUrl = await generateUploadUrl({});
-      const result = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": uploaded.type }, body: uploaded });
-      if (!result.ok) throw new Error(`Upload failed: ${result.status} ${result.statusText}`);
-      const { storageId } = await result.json();
-      setCommentImages(prev => prev.map(img => img.previewUrl === previewUrl ? { ...img, storageId, uploading: false } : img));
-    } catch (err: any) {
-      console.error("[uploadCommentImage] failed:", err);
-      toast.error(`Failed to upload image: ${err?.message || "unknown error"}`);
-      URL.revokeObjectURL(previewUrl);
-      setCommentImages(prev => prev.filter(img => img.previewUrl !== previewUrl));
-    }
-  }, [generateUploadUrl]);
+  const uploadCommentImage = useCallback(
+    async (file: File) => {
+      const previewUrl = URL.createObjectURL(file);
+      setCommentImages((prev) => [
+        ...prev,
+        { file, previewUrl, uploading: true },
+      ]);
+      try {
+        const uploaded = await compressImage(file);
+        const uploadUrl = await generateUploadUrl({});
+        const result = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": uploaded.type },
+          body: uploaded,
+        });
+        if (!result.ok)
+          throw new Error(
+            `Upload failed: ${result.status} ${result.statusText}`,
+          );
+        const { storageId } = await result.json();
+        setCommentImages((prev) =>
+          prev.map((img) =>
+            img.previewUrl === previewUrl
+              ? { ...img, storageId, uploading: false }
+              : img,
+          ),
+        );
+      } catch (err: any) {
+        console.error("[uploadCommentImage] failed:", err);
+        toast.error(
+          `Failed to upload image: ${err?.message || "unknown error"}`,
+        );
+        URL.revokeObjectURL(previewUrl);
+        setCommentImages((prev) =>
+          prev.filter((img) => img.previewUrl !== previewUrl),
+        );
+      }
+    },
+    [generateUploadUrl],
+  );
 
   // Dropped files open the box: a drop onto a closed composer must land somewhere visible.
   useWatchEffect(() => {
@@ -238,7 +362,9 @@ export function TaskCommentComposer({
       setCommentOpen(true);
       files.forEach((f) => void uploadCommentImage(f));
     };
-    return () => { dropFilesRef.current = null; };
+    return () => {
+      dropFilesRef.current = null;
+    };
   }, [dropFilesRef, uploadCommentImage]);
 
   useWatchEffect(() => {
@@ -246,43 +372,57 @@ export function TaskCommentComposer({
   }, [autoFocus]);
 
   const clearCommentImage = useCallback((idx: number) => {
-    setCommentImages(prev => {
+    setCommentImages((prev) => {
       const img = prev[idx];
       if (img) URL.revokeObjectURL(img.previewUrl);
       return prev.filter((_, i) => i !== idx);
     });
   }, []);
 
-  const handleCommentPaste = useCallback((e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith("image/")) {
-        e.preventDefault();
-        const file = items[i].getAsFile();
-        if (file) void uploadCommentImage(file);
+  const handleCommentPaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          e.preventDefault();
+          const file = items[i].getAsFile();
+          if (file) void uploadCommentImage(file);
+        }
       }
-    }
-  }, [uploadCommentImage]);
+    },
+    [uploadCommentImage],
+  );
 
   const handleAddComment = useCallback(() => {
     const hasText = comment.trim().length > 0;
-    const hasImages = commentImages.some(i => i.storageId);
+    const hasImages = commentImages.some((i) => i.storageId);
     if ((!hasText && !hasImages) || !shortId) return;
-    const anyUploading = commentImages.some(i => i.uploading);
-    if (anyUploading) { toast.error("Wait for images to finish uploading"); return; }
+    const anyUploading = commentImages.some((i) => i.uploading);
+    if (anyUploading) {
+      toast.error("Wait for images to finish uploading");
+      return;
+    }
     const text = comment.trim() || "(image)";
-    const imageIds = commentImages.filter(i => i.storageId).map(i => i.storageId!);
+    const imageIds = commentImages
+      .filter((i) => i.storageId)
+      .map((i) => i.storageId!);
     setComment("");
     setCommentImages([]);
     // Local-first: the optimistic comment renders instantly and the dispatch
     // (which delegates to tasks.webAddComment for notifications + images)
     // retries on its own, so no submit spinner or error rollback is needed.
-    addTaskComment(shortId, text, "note", imageIds.length > 0 ? imageIds : undefined);
+    addTaskComment(
+      shortId,
+      text,
+      "note",
+      imageIds.length > 0 ? imageIds : undefined,
+    );
     if (!autoOpen) setCommentOpen(false);
   }, [comment, commentImages, shortId, addTaskComment, autoOpen]);
 
-  const canSend = comment.trim().length > 0 || commentImages.some(i => i.storageId);
+  const canSend =
+    comment.trim().length > 0 || commentImages.some((i) => i.storageId);
 
   if (!commentOpen) {
     return (
@@ -310,19 +450,52 @@ export function TaskCommentComposer({
             {commentImages.map((img, idx) => (
               <div key={idx} className="relative group cursor-pointer">
                 <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-sol-bg shrink-0">
-                  <img src={img.previewUrl} alt="Attached" className="h-full w-full object-cover" />
+                  <img
+                    src={img.previewUrl}
+                    alt="Attached"
+                    className="h-full w-full object-cover"
+                  />
                   {img.uploading && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <svg className="w-5 h-5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      <svg
+                        className="w-5 h-5 animate-spin text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
                       </svg>
                     </div>
                   )}
                 </div>
-                <button type="button" onClick={() => clearCommentImage(idx)} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-sol-bg-alt border border-sol-border flex items-center justify-center text-sol-text-dim hover:text-sol-text transition-colors opacity-0 group-hover:opacity-100">
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                <button
+                  type="button"
+                  onClick={() => clearCommentImage(idx)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-sol-bg-alt border border-sol-border flex items-center justify-center text-sol-text-dim hover:text-sol-text transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
@@ -332,7 +505,18 @@ export function TaskCommentComposer({
         <div className="flex items-end gap-2">
           <label className="shrink-0 cursor-pointer text-sol-text-dim hover:text-sol-text transition-colors py-1 flex items-center">
             <ImagePlus className="w-4 h-4" />
-            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { Array.from(e.target.files || []).forEach(f => void uploadCommentImage(f)); e.target.value = ""; }} />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                Array.from(e.target.files || []).forEach(
+                  (f) => void uploadCommentImage(f),
+                );
+                e.target.value = "";
+              }}
+            />
           </label>
           <textarea
             ref={commentRef}
@@ -367,13 +551,20 @@ export function TaskCommentComposer({
           </div>
         </div>
         {working && (
-          <div className="flex items-center gap-1.5 pt-1 pl-6 text-meta text-sol-text-dim" title="A comment reaches the session working on this task">
+          <div
+            className="flex items-center gap-1.5 pt-1 pl-6 text-meta text-sol-text-dim"
+            title="A comment reaches the session working on this task"
+          >
             {owner?.here ? (
               <span>Also sends to this session</span>
             ) : (
               <>
                 <span>Also sends to</span>
-                <SessionTag session={working as any} size="xs" className="min-w-0 max-w-[240px]" />
+                <SessionTag
+                  session={working as any}
+                  size="xs"
+                  className="min-w-0 max-w-[240px]"
+                />
               </>
             )}
           </div>
@@ -413,7 +604,9 @@ export function TaskCommentStream({
   // A cached row poisoned by a stale pending lock once carried a lone comment
   // OBJECT here and crashed the whole Threads page. Hydration heals such rows
   // now; this guard keeps one bad row from ever taking the page down again.
-  const sorted = (Array.isArray(comments) ? [...comments] : []).sort((a, b) => a.created_at - b.created_at);
+  const sorted = (Array.isArray(comments) ? [...comments] : []).sort(
+    (a, b) => a.created_at - b.created_at,
+  );
   const fold = useReaderFold(sorted, (c) => c.created_at, newSince);
   return (
     <div className="th-task-stream">
@@ -421,18 +614,33 @@ export function TaskCommentStream({
         <div className="th-card-note">No comments yet.</div>
       ) : (
         <div className="space-y-0">
-          <EarlierButton count={fold.hidden} noun="comment" onClick={fold.showAll} />
+          <EarlierButton
+            count={fold.hidden}
+            noun="comment"
+            onClick={fold.showAll}
+          />
           {fold.visible.map((c, i) => (
             <div key={c._id}>
               {/* The divider marks where the news starts, once there is
                   something read above it to divide from. */}
-              {fold.firstNew > 0 && fold.hidden + i === fold.firstNew && <ChatNewDivider />}
-              <TaskCommentItem comment={c} openLinkedSession={openLinkedSession} clamp={clampComments} />
+              {fold.firstNew > 0 && fold.hidden + i === fold.firstNew && (
+                <ChatNewDivider />
+              )}
+              <TaskCommentItem
+                comment={c}
+                openLinkedSession={openLinkedSession}
+                clamp={clampComments}
+              />
             </div>
           ))}
         </div>
       )}
-      <TaskCommentComposer shortId={shortId} autoOpen={composerAutoOpen} autoFocus={composerAutoFocus} owner={owner} />
+      <TaskCommentComposer
+        shortId={shortId}
+        autoOpen={composerAutoOpen}
+        autoFocus={composerAutoFocus}
+        owner={owner}
+      />
     </div>
   );
 }

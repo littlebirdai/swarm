@@ -25,7 +25,9 @@ export const ACME_ANSWERS: AcmeAnswers = {
   ...Object.assign({}, ...ACME_PARTS.map((p) => p.answers ?? {})),
 };
 
-export function createAcmeConvex(answers: AcmeAnswers = ACME_ANSWERS): ConvexReactClient {
+export function createAcmeConvex(
+  answers: AcmeAnswers = ACME_ANSWERS,
+): ConvexReactClient {
   // One value per query and arguments: a subscription reads its result on
   // every render and must get the same object back while nothing changed.
   const memo = new Map<string, unknown>();
@@ -63,17 +65,32 @@ export function createAcmeConvex(answers: AcmeAnswers = ACME_ANSWERS): ConvexRea
   const methods: Record<string, unknown> = {
     watchQuery: watch,
     watchPaginatedQuery: watch,
-    query: async (q: unknown, args?: unknown) => watch(q, args).localQueryResult() ?? null,
+    query: async (q: unknown, args?: unknown) =>
+      watch(q, args).localQueryResult() ?? null,
     // A write the world answers by name (a command id a screen then watches) gets
     // that answer, unmemoized; every other write resolves null.
-    mutation: async (m: unknown, args?: unknown) => answerOf(m)?.(args ?? {}) ?? null,
-    action: async (a: unknown, args?: unknown) => answerOf(a)?.(args ?? {}) ?? null,
+    mutation: async (m: unknown, args?: unknown) =>
+      answerOf(m)?.(args ?? {}) ?? null,
+    action: async (a: unknown, args?: unknown) =>
+      answerOf(a)?.(args ?? {}) ?? null,
     prewarmQuery: noop,
-    connectionState: () => ({ hasInflightRequests: false, isWebSocketConnected: true, timeOfOldestInflightRequest: null, hasEverConnected: true, connectionCount: 1, connectionRetries: 0, inflightMutations: 0, inflightActions: 0 }),
+    connectionState: () => ({
+      hasInflightRequests: false,
+      isWebSocketConnected: true,
+      timeOfOldestInflightRequest: null,
+      hasEverConnected: true,
+      connectionCount: 1,
+      connectionRetries: 0,
+      inflightMutations: 0,
+      inflightActions: 0,
+    }),
     subscribeToConnectionState: () => noop,
     // Reports the fixture viewer as signed in without ever asking for a token,
     // so the auth layer never tries to refresh one against a server.
-    setAuth: (_fetchToken: unknown, onChange?: (authenticated: boolean) => void) => onChange?.(true),
+    setAuth: (
+      _fetchToken: unknown,
+      onChange?: (authenticated: boolean) => void,
+    ) => onChange?.(true),
     clearAuth: noop,
     close: async () => {},
     url: ACME_CONVEX_ADDRESS,
@@ -82,6 +99,11 @@ export function createAcmeConvex(answers: AcmeAnswers = ACME_ANSWERS): ConvexRea
   };
   return new Proxy(methods, {
     // `then` stays undefined so the stub is never mistaken for a promise.
-    get: (target, key) => (typeof key !== "string" || key === "then" ? undefined : key in target ? target[key] : noop),
+    get: (target, key) =>
+      typeof key !== "string" || key === "then"
+        ? undefined
+        : key in target
+          ? target[key]
+          : noop,
   }) as unknown as ConvexReactClient;
 }

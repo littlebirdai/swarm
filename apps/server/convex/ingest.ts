@@ -14,13 +14,27 @@
 // rotate.
 import { v } from "convex/values";
 import { scheduleTriggerMatch } from "./lib/triggerMatch";
-import { internalAction, internalMutation, internalQuery, mutation, query } from "./functions";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireUserOrToken, notFound, invalidScope } from "./lib/auth";
 import { workspaceGrantsAccess } from "./lib/access";
-import { workspaceKey as makeWorkspaceKey, parseWorkspaceKey } from "./lib/accessKeys";
-import { normalizeBaseUrl, signedAppAccount, storeConnection, SIGNED_CONNECTION } from "./tokenConnectors";
+import {
+  workspaceKey as makeWorkspaceKey,
+  parseWorkspaceKey,
+} from "./lib/accessKeys";
+import {
+  normalizeBaseUrl,
+  signedAppAccount,
+  storeConnection,
+  SIGNED_CONNECTION,
+} from "./tokenConnectors";
 import { connectionRowFor } from "./oauthConnectors";
 import { sha256Hex } from "./lib/hash";
 import { nextShortId } from "./counters";
@@ -35,15 +49,50 @@ import { linkReplayToGroup, upsertReplayManifest } from "./lib/replayWrites";
 import { recordMomentEvents } from "./moments";
 import { takeFromWindow, windowSpent } from "./ipRateLimit";
 import { readableRowByRef, rowByRef } from "./lib/rowByRef";
-import { OVERFLOW_FP, SOURCE_CAPS, announceTransition, appendSamples, findGroup, GROUP_USERS_MAX, GROUP_USERS_PER_BATCH, mirrorGroups, tallyFields, tallyJson, tallyOf, upsertGroup, withTally, type EventLink, type GroupPlan, type MirroredGroup } from "./lib/groupWrite";
-import { countLanded, groupView, patchSourceStats, rollStats, sourceStats, sourceView, sourceViewOf } from "./lib/sourceStats";
+import {
+  OVERFLOW_FP,
+  SOURCE_CAPS,
+  announceTransition,
+  appendSamples,
+  findGroup,
+  GROUP_USERS_MAX,
+  GROUP_USERS_PER_BATCH,
+  mirrorGroups,
+  tallyFields,
+  tallyJson,
+  tallyOf,
+  upsertGroup,
+  withTally,
+  type EventLink,
+  type GroupPlan,
+  type MirroredGroup,
+} from "./lib/groupWrite";
+import {
+  countLanded,
+  groupView,
+  patchSourceStats,
+  rollStats,
+  sourceStats,
+  sourceView,
+  sourceViewOf,
+} from "./lib/sourceStats";
 import { scopeArgs } from "./lib/ingestScopeArgs";
 import { scopeOf, sourceByRef } from "./lib/ingestScope";
 import { deployMarkerOf, promotionSignal } from "./lib/ingestPayloads";
-import { PROMOTE_SPACING_MS, promotionStep, schedulePromotion } from "./ingestPromotions";
+import {
+  PROMOTE_SPACING_MS,
+  promotionStep,
+  schedulePromotion,
+} from "./ingestPromotions";
 import { commitBySha } from "./commits";
 import { requireTaskByRef } from "./lib/taskGraph";
-import { addableSourceProviderValidator, groupStatusValidator, groupKindValidator, sourceConfigValidator, transitionValidator } from "./ingestSchema";
+import {
+  addableSourceProviderValidator,
+  groupStatusValidator,
+  groupKindValidator,
+  sourceConfigValidator,
+  transitionValidator,
+} from "./ingestSchema";
 import {
   DEFAULT_PROMOTE,
   GITHUB_CI_SOURCE_NAME,
@@ -57,7 +106,11 @@ import {
   sourceConfigProblem,
   type IngestItem,
 } from "@codecast/shared/contracts/ingest";
-import { ciCheckFingerprint, groupFingerprint, isRecordNotIssue } from "@codecast/shared/contracts/signalFingerprint";
+import {
+  ciCheckFingerprint,
+  groupFingerprint,
+  isRecordNotIssue,
+} from "@codecast/shared/contracts/signalFingerprint";
 import { clusterPeople, mergeStoredPeople, userKeys } from "./lib/groupPeople";
 import type { ReplayIssue } from "@codecast/shared/replay";
 import {
@@ -86,16 +139,39 @@ export { scopeOf, sourceByRef } from "./lib/ingestScope";
  * every team workspace before its first run creates it (recordCiRun), so a
  * trigger can wait for CI on main from the start.
  */
-export async function triggerSourceName(ctx: any, userId: Id<"users">, workspaceKey: string, ref: string): Promise<string> {
-  const row = await sourceByRef(ctx, userId, workspaceKey, ref).catch(() => null);
+export async function triggerSourceName(
+  ctx: any,
+  userId: Id<"users">,
+  workspaceKey: string,
+  ref: string,
+): Promise<string> {
+  const row = await sourceByRef(ctx, userId, workspaceKey, ref).catch(
+    () => null,
+  );
   if (row && row.workspace === workspaceKey) return row.name;
-  if (!row && normalizeSourceName(ref) === GITHUB_CI_SOURCE_NAME && workspaceKey.startsWith("team:")) return GITHUB_CI_SOURCE_NAME;
-  const known = await ctx.db.query("event_sources").withIndex("by_workspace_name", (q: any) => q.eq("workspace", workspaceKey)).take(50);
-  const list = known.map((s: Doc<"event_sources">) => `${s.name} (${s.short_id})`).join(", ");
-  throw new Error(`No source "${ref.trim()}" in this trigger's workspace. ${list ? `Known: ${list}` : "It has none yet: cast sources add"}`);
+  if (
+    !row &&
+    normalizeSourceName(ref) === GITHUB_CI_SOURCE_NAME &&
+    workspaceKey.startsWith("team:")
+  )
+    return GITHUB_CI_SOURCE_NAME;
+  const known = await ctx.db
+    .query("event_sources")
+    .withIndex("by_workspace_name", (q: any) => q.eq("workspace", workspaceKey))
+    .take(50);
+  const list = known
+    .map((s: Doc<"event_sources">) => `${s.name} (${s.short_id})`)
+    .join(", ");
+  throw new Error(
+    `No source "${ref.trim()}" in this trigger's workspace. ${list ? `Known: ${list}` : "It has none yet: cast sources add"}`,
+  );
 }
 
-export async function groupByRef(ctx: any, userId: Id<"users">, ref: string): Promise<Doc<"event_groups">> {
+export async function groupByRef(
+  ctx: any,
+  userId: Id<"users">,
+  ref: string,
+): Promise<Doc<"event_groups">> {
   return await rowByRef(ctx, "event_groups", userId, ref, "Group");
 }
 
@@ -119,24 +195,45 @@ export const createSource = mutation({
   },
   handler: async (ctx, args) => {
     const { userId, db, workspaceKey } = await scopeOf(ctx, args);
-    if (args.base_url !== undefined && args.provider !== "app") invalidScope("A base url belongs to an app source");
+    if (args.base_url !== undefined && args.provider !== "app")
+      invalidScope("A base url belongs to an app source");
     const configProblem = sourceConfigProblem(args.provider, args.config);
     if (configProblem) invalidScope(configProblem);
     const name = normalizeSourceName(args.name);
-    if (!name || name.length > INGEST_LIMITS.name_chars) invalidScope("A source needs a name");
-    const taken = await ctx.db.query("event_sources").withIndex("by_workspace_name", (q) => q.eq("workspace", workspaceKey).eq("name", name)).first();
-    if (taken) invalidScope(`A source named ${name} already exists here (${taken.short_id})`);
-    if (name === GITHUB_CI_SOURCE_NAME) invalidScope(`${GITHUB_CI_SOURCE_NAME} is the name codecast gives CI on a repository's default branch; it creates that source itself`);
+    if (!name || name.length > INGEST_LIMITS.name_chars)
+      invalidScope("A source needs a name");
+    const taken = await ctx.db
+      .query("event_sources")
+      .withIndex("by_workspace_name", (q) =>
+        q.eq("workspace", workspaceKey).eq("name", name),
+      )
+      .first();
+    if (taken)
+      invalidScope(
+        `A source named ${name} already exists here (${taken.short_id})`,
+      );
+    if (name === GITHUB_CI_SOURCE_NAME)
+      invalidScope(
+        `${GITHUB_CI_SOURCE_NAME} is the name codecast gives CI on a repository's default branch; it creates that source itself`,
+      );
     if (args.provider === "app") {
       // The app connection (base url and secret) is the workspace's one row
       // (tokenConnectors.connectionIdForSource), so a second app source would
       // call the same app with the same secret, and connecting another app
       // would replace the first one's credential.
       const appSource = await appSourceIn(ctx, workspaceKey);
-      if (appSource) invalidScope(`This workspace already has an app connector (${appSource.name}, ${appSource.short_id}); it reads through the workspace's one app connection, so a second would call the same app`);
-      if (args.base_url !== undefined) await connectSignedApp(ctx, userId, workspaceKey, args.base_url);
+      if (appSource)
+        invalidScope(
+          `This workspace already has an app connector (${appSource.name}, ${appSource.short_id}); it reads through the workspace's one app connection, so a second would call the same app`,
+        );
+      if (args.base_url !== undefined)
+        await connectSignedApp(ctx, userId, workspaceKey, args.base_url);
     }
-    const project = await resolveWorkspaceProject(ctx, workspaceKey, args.project);
+    const project = await resolveWorkspaceProject(
+      ctx,
+      workspaceKey,
+      args.project,
+    );
     const keyed = KEYED_SOURCE_PROVIDERS.includes(args.provider);
     const key = keyed ? generateIngestKey() : undefined;
     const now = Date.now();
@@ -157,7 +254,8 @@ export const createSource = mutation({
       created_at: now,
       updated_at: now,
     });
-    if (args.provider === "app") await refreshAppManifestSoon(ctx, workspaceKey);
+    if (args.provider === "app")
+      await refreshAppManifestSoon(ctx, workspaceKey);
     const row = (await ctx.db.get(id))!;
     // The only time the key leaves the backend: it is stored as a hash.
     return { source: sourceView(row), ...(key ? { ingest_key: key } : {}) };
@@ -171,13 +269,30 @@ export const createSource = mutation({
  * not dropped. Runs before the source exists, so the source's own insert is
  * what schedules the manifest fetch.
  */
-async function connectSignedApp(ctx: any, userId: Id<"users">, workspaceKey: string, rawBaseUrl: string): Promise<void> {
+async function connectSignedApp(
+  ctx: any,
+  userId: Id<"users">,
+  workspaceKey: string,
+  rawBaseUrl: string,
+): Promise<void> {
   const baseUrl = normalizeBaseUrl(rawBaseUrl);
-  if (!baseUrl) invalidScope(`The base url must be a public https URL, got "${rawBaseUrl}"`);
+  if (!baseUrl)
+    invalidScope(
+      `The base url must be a public https URL, got "${rawBaseUrl}"`,
+    );
   const ws = parseWorkspaceKey(workspaceKey);
   if (!ws) invalidScope("No workspace to connect the app in");
-  const existing = await connectionRowFor(ctx, "app", ws.type === "team" ? { team_id: ws.teamId } : { user_id: ws.userId });
-  if (existing && !existing.pending_confirm_hash && existing.config?.base_url === baseUrl) return;
+  const existing = await connectionRowFor(
+    ctx,
+    "app",
+    ws.type === "team" ? { team_id: ws.teamId } : { user_id: ws.userId },
+  );
+  if (
+    existing &&
+    !existing.pending_confirm_hash &&
+    existing.config?.base_url === baseUrl
+  )
+    return;
   const account = signedAppAccount(baseUrl);
   const stored = await storeConnection(ctx, {
     provider: "app",
@@ -204,14 +319,41 @@ export const rotateKey = mutation({
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     const row = await sourceByRef(ctx, userId, workspaceKey, args.source);
-    if (!KEYED_SOURCE_PROVIDERS.includes(row.provider)) invalidScope(`${row.short_id} is a ${row.provider} source and has no ingest key`);
+    if (!KEYED_SOURCE_PROVIDERS.includes(row.provider))
+      invalidScope(
+        `${row.short_id} is a ${row.provider} source and has no ingest key`,
+      );
     const key = generateIngestKey();
     const now = Date.now();
-    const grace = row.ingest_key_hash && !args.end_old ? { old_key_hash: row.ingest_key_hash, old_key_prefix: row.key_prefix, old_key_until: now + OLD_KEY_GRACE_MS } : { old_key_hash: undefined, old_key_prefix: undefined, old_key_until: undefined };
-    await ctx.db.patch(row._id, { ingest_key_hash: await sha256Hex(key), key_prefix: ingestKeyPrefix(key), ...grace, updated_at: now });
+    const grace =
+      row.ingest_key_hash && !args.end_old
+        ? {
+            old_key_hash: row.ingest_key_hash,
+            old_key_prefix: row.key_prefix,
+            old_key_until: now + OLD_KEY_GRACE_MS,
+          }
+        : {
+            old_key_hash: undefined,
+            old_key_prefix: undefined,
+            old_key_until: undefined,
+          };
+    await ctx.db.patch(row._id, {
+      ingest_key_hash: await sha256Hex(key),
+      key_prefix: ingestKeyPrefix(key),
+      ...grace,
+      updated_at: now,
+    });
     // The old key's use is counted afresh from this rotation, so ending it early names what it still carries.
-    await patchSourceStats(ctx, row, () => ({ old_key_last_at: undefined, old_key_events: 0 }), now);
-    return { source: await sourceViewOf(ctx, (await ctx.db.get(row._id))!), ingest_key: key };
+    await patchSourceStats(
+      ctx,
+      row,
+      () => ({ old_key_last_at: undefined, old_key_events: 0 }),
+      now,
+    );
+    return {
+      source: await sourceViewOf(ctx, (await ctx.db.get(row._id))!),
+      ingest_key: key,
+    };
   },
 });
 
@@ -222,8 +364,16 @@ export const endOldKey = mutation({
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     const row = await sourceByRef(ctx, userId, workspaceKey, args.source);
     if (row.old_key_hash) {
-      await ctx.db.patch(row._id, { old_key_hash: undefined, old_key_prefix: undefined, old_key_until: undefined, updated_at: Date.now() });
-      await patchSourceStats(ctx, row, () => ({ old_key_last_at: undefined, old_key_events: 0 }));
+      await ctx.db.patch(row._id, {
+        old_key_hash: undefined,
+        old_key_prefix: undefined,
+        old_key_until: undefined,
+        updated_at: Date.now(),
+      });
+      await patchSourceStats(ctx, row, () => ({
+        old_key_last_at: undefined,
+        old_key_events: 0,
+      }));
     }
     return null;
   },
@@ -249,16 +399,25 @@ export const updateSource = mutation({
       if (args.status === "active") patch.last_error = undefined;
     }
     if (args.promote) patch.promote = args.promote;
-    if (args.project !== undefined) patch.project_id = (await resolveWorkspaceProject(ctx, row.workspace, args.project))?._id;
-    if (args.fingerprint_prefix !== undefined) patch.fingerprint_prefix = args.fingerprint_prefix.trim() || undefined;
+    if (args.project !== undefined)
+      patch.project_id = (
+        await resolveWorkspaceProject(ctx, row.workspace, args.project)
+      )?._id;
+    if (args.fingerprint_prefix !== undefined)
+      patch.fingerprint_prefix = args.fingerprint_prefix.trim() || undefined;
     if (args.config) {
       const configProblem = sourceConfigProblem(row.provider, args.config);
       if (configProblem) invalidScope(configProblem);
       // A setting not named stays as it was (`cast sources set` names one at a time).
       patch.config = { ...row.config, ...args.config };
       // Keep applies to the bodies the source already has, not only the next ones (moments.keepBodies).
-      if (args.config.moment_retention === "keep" && row.config?.moment_retention !== "keep") {
-        await ctx.scheduler.runAfter(0, internal.moments.keepBodies, { source_id: row._id });
+      if (
+        args.config.moment_retention === "keep" &&
+        row.config?.moment_retention !== "keep"
+      ) {
+        await ctx.scheduler.runAfter(0, internal.moments.keepBodies, {
+          source_id: row._id,
+        });
       }
     }
     await ctx.db.patch(row._id, patch);
@@ -277,7 +436,9 @@ export const removeSource = mutation({
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     const row = await sourceByRef(ctx, userId, workspaceKey, args.source);
     await ctx.db.delete(row._id);
-    await ctx.scheduler.runAfter(0, internal.ingest.purgeSourceRows, { source_id: row._id });
+    await ctx.scheduler.runAfter(0, internal.ingest.purgeSourceRows, {
+      source_id: row._id,
+    });
     return { removed: row.short_id };
   },
 });
@@ -296,13 +457,28 @@ export const removeSourcePreview = query({
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     const row = await sourceByRef(ctx, userId, workspaceKey, args.source);
     const cap = REMOVE_PREVIEW_CAP;
-    const count = (rows: unknown[]) => ({ n: Math.min(rows.length, cap), capped: rows.length > cap });
-    const groups = await ctx.db.query("event_groups").withIndex("by_source_last_seen", (q) => q.eq("source_id", row._id)).take(cap + 1);
+    const count = (rows: unknown[]) => ({
+      n: Math.min(rows.length, cap),
+      capped: rows.length > cap,
+    });
+    const groups = await ctx.db
+      .query("event_groups")
+      .withIndex("by_source_last_seen", (q) => q.eq("source_id", row._id))
+      .take(cap + 1);
     const open = groups.filter((g) => g.status === "open");
     const tasked = groups.filter((g) => g.signal_task_id);
-    const watches = await ctx.db.query("metric_watches").withIndex("by_source", (q) => q.eq("source_id", row._id)).take(cap + 1);
-    const replays = await ctx.db.query("replays").withIndex("by_source_started", (q) => q.eq("source_id", row._id)).take(cap + 1);
-    const calls = await ctx.db.query("app_calls").withIndex("by_source_created", (q) => q.eq("source_id", row._id)).take(cap + 1);
+    const watches = await ctx.db
+      .query("metric_watches")
+      .withIndex("by_source", (q) => q.eq("source_id", row._id))
+      .take(cap + 1);
+    const replays = await ctx.db
+      .query("replays")
+      .withIndex("by_source_started", (q) => q.eq("source_id", row._id))
+      .take(cap + 1);
+    const calls = await ctx.db
+      .query("app_calls")
+      .withIndex("by_source_created", (q) => q.eq("source_id", row._id))
+      .take(cap + 1);
     return {
       source: row.short_id,
       issues: count(groups),
@@ -337,30 +513,83 @@ export const purgeSourceRows = internalMutation({
       for (const r of rows) await ctx.db.delete(r._id);
       budget -= rows.length;
     };
-    const bySource = (table: "metric_watches" | "event_source_stats" | "app_manifests", n: number) =>
-      (ctx.db.query(table) as any).withIndex("by_source", (q: any) => q.eq("source_id", args.source_id)).take(n);
+    const bySource = (
+      table: "metric_watches" | "event_source_stats" | "app_manifests",
+      n: number,
+    ) =>
+      (ctx.db.query(table) as any)
+        .withIndex("by_source", (q: any) => q.eq("source_id", args.source_id))
+        .take(n);
 
-    for (const group of await ctx.db.query("event_groups").withIndex("by_source_last_seen", (q) => q.eq("source_id", args.source_id)).take(PURGE_ROWS)) {
+    for (const group of await ctx.db
+      .query("event_groups")
+      .withIndex("by_source_last_seen", (q) =>
+        q.eq("source_id", args.source_id),
+      )
+      .take(PURGE_ROWS)) {
       if (budget <= 0) break;
-      const samples = await ctx.db.query("event_samples").withIndex("by_group_at", (q) => q.eq("group_id", group._id)).take(budget);
+      const samples = await ctx.db
+        .query("event_samples")
+        .withIndex("by_group_at", (q) => q.eq("group_id", group._id))
+        .take(budget);
       await del(samples);
       if (budget <= 0) break;
-      await del(await ctx.db.query("event_group_tallies").withIndex("by_group", (q) => q.eq("group_id", group._id)).collect());
-      const people = await ctx.db.query("event_group_users").withIndex("by_group_user", (q) => q.eq("group_id", group._id)).take(budget);
+      await del(
+        await ctx.db
+          .query("event_group_tallies")
+          .withIndex("by_group", (q) => q.eq("group_id", group._id))
+          .collect(),
+      );
+      const people = await ctx.db
+        .query("event_group_users")
+        .withIndex("by_group_user", (q) => q.eq("group_id", group._id))
+        .take(budget);
       await del(people);
       if (budget <= 0) break;
       await del([group]);
     }
     if (budget > 0) await del(await bySource("metric_watches", budget));
     if (budget > 0) {
-      const replays = await ctx.db.query("replays").withIndex("by_source_started", (q) => q.eq("source_id", args.source_id)).take(Math.ceil(budget / 2));
-      for (const r of replays) await del(await ctx.db.query("replay_timelines").withIndex("by_replay", (q) => q.eq("replay_id", r._id)).collect());
+      const replays = await ctx.db
+        .query("replays")
+        .withIndex("by_source_started", (q) =>
+          q.eq("source_id", args.source_id),
+        )
+        .take(Math.ceil(budget / 2));
+      for (const r of replays)
+        await del(
+          await ctx.db
+            .query("replay_timelines")
+            .withIndex("by_replay", (q) => q.eq("replay_id", r._id))
+            .collect(),
+        );
       await del(replays);
     }
-    if (budget > 0) await del(await ctx.db.query("replay_tallies").withIndex("by_source_person", (q) => q.eq("source_id", args.source_id)).take(budget));
-    if (budget > 0) await del(await ctx.db.query("app_calls").withIndex("by_source_created", (q) => q.eq("source_id", args.source_id)).take(budget));
-    if (budget > 0) await del([...(await bySource("event_source_stats", 1)), ...(await bySource("app_manifests", 1))]);
-    if (budget <= 0) await ctx.scheduler.runAfter(0, internal.ingest.purgeSourceRows, args);
+    if (budget > 0)
+      await del(
+        await ctx.db
+          .query("replay_tallies")
+          .withIndex("by_source_person", (q) =>
+            q.eq("source_id", args.source_id),
+          )
+          .take(budget),
+      );
+    if (budget > 0)
+      await del(
+        await ctx.db
+          .query("app_calls")
+          .withIndex("by_source_created", (q) =>
+            q.eq("source_id", args.source_id),
+          )
+          .take(budget),
+      );
+    if (budget > 0)
+      await del([
+        ...(await bySource("event_source_stats", 1)),
+        ...(await bySource("app_manifests", 1)),
+      ]);
+    if (budget <= 0)
+      await ctx.scheduler.runAfter(0, internal.ingest.purgeSourceRows, args);
   },
 });
 
@@ -368,7 +597,10 @@ export const listSources = query({
   args: { ...scopeArgs },
   handler: async (ctx, args) => {
     const { workspaceKey } = await scopeOf(ctx, args);
-    const rows = await ctx.db.query("event_sources").withIndex("by_workspace_name", (q) => q.eq("workspace", workspaceKey)).take(500);
+    const rows = await ctx.db
+      .query("event_sources")
+      .withIndex("by_workspace_name", (q) => q.eq("workspace", workspaceKey))
+      .take(500);
     return await Promise.all(rows.map((row) => sourceViewOf(ctx, row)));
   },
 });
@@ -377,7 +609,10 @@ export const getSource = query({
   args: { ...scopeArgs, source: v.string() },
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
-    return await sourceViewOf(ctx, await sourceByRef(ctx, userId, workspaceKey, args.source));
+    return await sourceViewOf(
+      ctx,
+      await sourceByRef(ctx, userId, workspaceKey, args.source),
+    );
   },
 });
 
@@ -389,9 +624,17 @@ export const getSource = query({
 export const webGetSource = query({
   args: { ref: v.string(), api_token: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const userId = await requireUserOrToken(ctx, args.api_token).catch(() => null);
+    const userId = await requireUserOrToken(ctx, args.api_token).catch(
+      () => null,
+    );
     if (!userId) return null;
-    const row = await readableRowByRef(ctx, "event_sources", userId, args.ref, (name) => sourceByNameAnywhere(ctx, userId, name));
+    const row = await readableRowByRef(
+      ctx,
+      "event_sources",
+      userId,
+      args.ref,
+      (name) => sourceByNameAnywhere(ctx, userId, name),
+    );
     return row ? await sourceViewOf(ctx, row) : null;
   },
 });
@@ -401,11 +644,26 @@ export const webGetSource = query({
  * then each team's): an Ops link carries the name, and one opened from
  * another workspace says whose it is. The first match wins.
  */
-async function sourceByNameAnywhere(ctx: any, userId: Id<"users">, name: string): Promise<Doc<"event_sources"> | null> {
-  const memberships = await ctx.db.query("team_memberships").withIndex("by_user_team", (q: any) => q.eq("user_id", userId)).take(50);
-  const keys = [`user:${userId}`, ...memberships.map((m: Doc<"team_memberships">) => `team:${m.team_id}`)];
+async function sourceByNameAnywhere(
+  ctx: any,
+  userId: Id<"users">,
+  name: string,
+): Promise<Doc<"event_sources"> | null> {
+  const memberships = await ctx.db
+    .query("team_memberships")
+    .withIndex("by_user_team", (q: any) => q.eq("user_id", userId))
+    .take(50);
+  const keys = [
+    `user:${userId}`,
+    ...memberships.map((m: Doc<"team_memberships">) => `team:${m.team_id}`),
+  ];
   for (const key of keys) {
-    const row = await ctx.db.query("event_sources").withIndex("by_workspace_name", (q: any) => q.eq("workspace", key).eq("name", name)).first();
+    const row = await ctx.db
+      .query("event_sources")
+      .withIndex("by_workspace_name", (q: any) =>
+        q.eq("workspace", key).eq("name", name),
+      )
+      .first();
     if (row) return row;
   }
   return null;
@@ -431,20 +689,34 @@ export const listGroups = query({
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     const limit = Math.min(Math.max(args.limit ?? 50, 1), LIST_CAP);
     const before = args.before;
-    const source = args.source ? await sourceByRef(ctx, userId, workspaceKey, args.source) : null;
+    const source = args.source
+      ? await sourceByRef(ctx, userId, workspaceKey, args.source)
+      : null;
     const groups = ctx.db.query("event_groups");
     // The index that takes the most of the filter; a source and a status, or
     // a kind alone, are exact.
-    const upTo = <Q extends { lt: (f: "last_seen", v: number) => any }>(q: Q) => (before !== undefined ? q.lt("last_seen", before) : q);
+    const upTo = <Q extends { lt: (f: "last_seen", v: number) => any }>(
+      q: Q,
+    ) => (before !== undefined ? q.lt("last_seen", before) : q);
     const base = source
       ? args.status
-        ? groups.withIndex("by_source_status_last_seen", (q) => upTo(q.eq("source_id", source._id).eq("status", args.status!)))
-        : groups.withIndex("by_source_last_seen", (q) => upTo(q.eq("source_id", source._id)))
+        ? groups.withIndex("by_source_status_last_seen", (q) =>
+            upTo(q.eq("source_id", source._id).eq("status", args.status!)),
+          )
+        : groups.withIndex("by_source_last_seen", (q) =>
+            upTo(q.eq("source_id", source._id)),
+          )
       : args.status
-        ? groups.withIndex("by_workspace_status_last_seen", (q) => upTo(q.eq("workspace", workspaceKey).eq("status", args.status!)))
+        ? groups.withIndex("by_workspace_status_last_seen", (q) =>
+            upTo(q.eq("workspace", workspaceKey).eq("status", args.status!)),
+          )
         : args.kind
-          ? groups.withIndex("by_workspace_kind_last_seen", (q) => upTo(q.eq("workspace", workspaceKey).eq("kind", args.kind!)))
-          : groups.withIndex("by_workspace_last_seen", (q) => upTo(q.eq("workspace", workspaceKey)));
+          ? groups.withIndex("by_workspace_kind_last_seen", (q) =>
+              upTo(q.eq("workspace", workspaceKey).eq("kind", args.kind!)),
+            )
+          : groups.withIndex("by_workspace_last_seen", (q) =>
+              upTo(q.eq("workspace", workspaceKey)),
+            );
     const out: Doc<"event_groups">[] = [];
     // A filter the index could not take (a kind beside a source or status) is
     // applied while reading, over at most GROUP_SCAN_MAX rows: groups are
@@ -474,7 +746,12 @@ const SEARCH_CAP = 100;
  * sorts them its own way.
  */
 export const searchGroups = query({
-  args: { ...scopeArgs, q: v.string(), status: v.optional(groupStatusValidator), limit: v.optional(v.number()) },
+  args: {
+    ...scopeArgs,
+    q: v.string(),
+    status: v.optional(groupStatusValidator),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const { workspaceKey } = await scopeOf(ctx, args);
     const q = args.q.trim().slice(0, 200);
@@ -488,7 +765,9 @@ export const searchGroups = query({
       })
       .take(limit);
     const now = Date.now();
-    return rows.filter((row) => !isRecordNotIssue(row)).map((row) => groupView(row, now));
+    return rows
+      .filter((row) => !isRecordNotIssue(row))
+      .map((row) => groupView(row, now));
   },
 });
 
@@ -497,12 +776,23 @@ export const getGroup = query({
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const row = await withTally(ctx, await groupByRef(ctx, userId, args.group));
-    const samples = await ctx.db.query("event_samples").withIndex("by_group_at", (q) => q.eq("group_id", row._id)).order("desc").take(GROUP_RULES.samples_per_group);
+    const samples = await ctx.db
+      .query("event_samples")
+      .withIndex("by_group_at", (q) => q.eq("group_id", row._id))
+      .order("desc")
+      .take(GROUP_RULES.samples_per_group);
     const source = await ctx.db.get(row.source_id);
     return {
       group: groupView(row, Date.now()),
       samples,
-      source: source ? { _id: source._id, short_id: source.short_id, name: source.name, provider: source.provider } : null,
+      source: source
+        ? {
+            _id: source._id,
+            short_id: source.short_id,
+            name: source.name,
+            provider: source.provider,
+          }
+        : null,
       commit: await groupCommit(ctx, userId, row),
     };
   },
@@ -515,18 +805,30 @@ const HEX_SHA = /^[0-9a-f]{7,40}$/i;
  * wrote it, when the caller may read it (X3): the deploy's sha stamped on the
  * group, else a release that is itself a sha.
  */
-async function groupCommit(ctx: any, userId: Id<"users">, row: Pick<Doc<"event_groups">, "last_sha" | "last_release">) {
-  const sha = row.last_sha ?? (row.last_release && HEX_SHA.test(row.last_release) ? row.last_release : undefined);
+async function groupCommit(
+  ctx: any,
+  userId: Id<"users">,
+  row: Pick<Doc<"event_groups">, "last_sha" | "last_release">,
+) {
+  const sha =
+    row.last_sha ??
+    (row.last_release && HEX_SHA.test(row.last_release)
+      ? row.last_release
+      : undefined);
   const commit = sha ? await commitBySha(ctx, userId, sha) : null;
   if (!commit) return null;
-  const conversation = commit.conversation_id ? await ctx.db.get(commit.conversation_id) : null;
+  const conversation = commit.conversation_id
+    ? await ctx.db.get(commit.conversation_id)
+    : null;
   return {
     sha: commit.sha as string,
     message: String(commit.message ?? "").split("\n")[0],
     author_name: commit.author_name as string,
     timestamp: commit.timestamp as number,
     conversation_id: commit.conversation_id ?? null,
-    session: conversation ? conversation.short_id ?? String(conversation._id) : null,
+    session: conversation
+      ? (conversation.short_id ?? String(conversation._id))
+      : null,
   };
 }
 
@@ -542,24 +844,38 @@ export const setGroupStatus = mutation({
     group: v.string(),
     status: groupStatusValidator,
     resolved_in: v.optional(v.string()),
-    restore: v.optional(v.object({
-      resolved_at: v.union(v.number(), v.null()),
-      resolved_in: v.union(v.string(), v.null()),
-      resolved_via: v.optional(v.union(v.literal("person"), v.literal("recovered"), v.literal("vendor"), v.null())),
-      resolved_by: v.optional(v.union(v.id("users"), v.null())),
-    })),
+    restore: v.optional(
+      v.object({
+        resolved_at: v.union(v.number(), v.null()),
+        resolved_in: v.union(v.string(), v.null()),
+        resolved_via: v.optional(
+          v.union(
+            v.literal("person"),
+            v.literal("recovered"),
+            v.literal("vendor"),
+            v.null(),
+          ),
+        ),
+        resolved_by: v.optional(v.union(v.id("users"), v.null())),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const row = await groupByRef(ctx, userId, args.group);
     const now = Date.now();
-    const patch: Partial<Doc<"event_groups">> = { status: args.status, updated_at: now };
+    const patch: Partial<Doc<"event_groups">> = {
+      status: args.status,
+      updated_at: now,
+    };
     if (args.restore) {
       patch.resolved_at = args.restore.resolved_at ?? undefined;
       patch.resolved_in = args.restore.resolved_in ?? undefined;
       // An older client's undo names no resolver: the stamps it puts back are the time and release alone.
-      if (args.restore.resolved_via !== undefined) patch.resolved_via = args.restore.resolved_via ?? undefined;
-      if (args.restore.resolved_by !== undefined) patch.resolved_by = args.restore.resolved_by ?? undefined;
+      if (args.restore.resolved_via !== undefined)
+        patch.resolved_via = args.restore.resolved_via ?? undefined;
+      if (args.restore.resolved_by !== undefined)
+        patch.resolved_by = args.restore.resolved_by ?? undefined;
     } else if (args.status === "resolved") {
       patch.resolved_at = now;
       patch.resolved_in = args.resolved_in?.trim() || undefined;
@@ -568,9 +884,29 @@ export const setGroupStatus = mutation({
     }
     await ctx.db.patch(row._id, patch);
     const delta = openGroupsDelta(row.status, args.status);
-    const moved = row.status !== args.status ? await ctx.db.get(row.source_id) : null;
-    if (moved) await patchSourceStats(ctx, moved, (s) => ({ groups_open: Math.max(0, (s.groups_open ?? 0) + delta), ...(s.group_counts ? { group_counts: moveGroupCount(s.group_counts, row.status, args.status) } : {}) }), now);
-    return { group: groupView(await withTally(ctx, (await ctx.db.get(row._id))!), now) };
+    const moved =
+      row.status !== args.status ? await ctx.db.get(row.source_id) : null;
+    if (moved)
+      await patchSourceStats(
+        ctx,
+        moved,
+        (s) => ({
+          groups_open: Math.max(0, (s.groups_open ?? 0) + delta),
+          ...(s.group_counts
+            ? {
+                group_counts: moveGroupCount(
+                  s.group_counts,
+                  row.status,
+                  args.status,
+                ),
+              }
+            : {}),
+        }),
+        now,
+      );
+    return {
+      group: groupView(await withTally(ctx, (await ctx.db.get(row._id))!), now),
+    };
   },
 });
 
@@ -580,15 +916,26 @@ export const setGroupStatus = mutation({
  * starting another. Only the session's own owner can name it.
  */
 export const setGroupFix = mutation({
-  args: { ...scopeArgs, group: v.string(), conversation_id: v.id("conversations") },
+  args: {
+    ...scopeArgs,
+    group: v.string(),
+    conversation_id: v.id("conversations"),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const row = await groupByRef(ctx, userId, args.group);
     const conversation = await ctx.db.get(args.conversation_id);
-    if (!conversation || conversation.user_id !== userId) notFound("No such session");
+    if (!conversation || conversation.user_id !== userId)
+      notFound("No such session");
     const now = Date.now();
-    await ctx.db.patch(row._id, { fix_conversation_id: args.conversation_id, fix_started_at: now, updated_at: now });
-    return { group: groupView(await withTally(ctx, (await ctx.db.get(row._id))!), now) };
+    await ctx.db.patch(row._id, {
+      fix_conversation_id: args.conversation_id,
+      fix_started_at: now,
+      updated_at: now,
+    });
+    return {
+      group: groupView(await withTally(ctx, (await ctx.db.get(row._id))!), now),
+    };
   },
 });
 
@@ -599,14 +946,23 @@ export const setGroupFix = mutation({
  * with no task, so an unlink lets the next transition file it again.
  */
 export const setGroupTask = mutation({
-  args: { ...scopeArgs, group: v.string(), task: v.union(v.string(), v.null()) },
+  args: {
+    ...scopeArgs,
+    group: v.string(),
+    task: v.union(v.string(), v.null()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const row = await groupByRef(ctx, userId, args.group);
-    const task = args.task ? await requireTaskByRef(ctx, userId, args.task) : null;
+    const task = args.task
+      ? await requireTaskByRef(ctx, userId, args.task)
+      : null;
     const now = Date.now();
     await ctx.db.patch(row._id, { signal_task_id: task?._id, updated_at: now });
-    return { group: groupView(await withTally(ctx, (await ctx.db.get(row._id))!), now), task_id: task?._id ?? null };
+    return {
+      group: groupView(await withTally(ctx, (await ctx.db.get(row._id))!), now),
+      task_id: task?._id ?? null,
+    };
   },
 });
 
@@ -627,12 +983,23 @@ export const groupTransitions = query({
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const row = await groupByRef(ctx, userId, args.group);
-    const days = Math.min(Math.max(args.days ?? 30, 1), GROUP_TRANSITIONS_MAX_DAYS);
-    const since = Math.max(Date.now() - days * 86_400_000, row.first_seen - 3600_000);
+    const days = Math.min(
+      Math.max(args.days ?? 30, 1),
+      GROUP_TRANSITIONS_MAX_DAYS,
+    );
+    const since = Math.max(
+      Date.now() - days * 86_400_000,
+      row.first_seen - 3600_000,
+    );
     const out: Doc<"external_events">[] = [];
     let scanned = 0;
     let complete = true;
-    for await (const e of ctx.db.query("external_events").withIndex("by_source_created", (q) => q.eq("source_id", row.source_id).gte("created_at", since)).order("desc")) {
+    for await (const e of ctx.db
+      .query("external_events")
+      .withIndex("by_source_created", (q) =>
+        q.eq("source_id", row.source_id).gte("created_at", since),
+      )
+      .order("desc")) {
       if (++scanned > GROUP_TRANSITIONS_SCAN_MAX) {
         complete = false;
         break;
@@ -646,19 +1013,43 @@ export const groupTransitions = query({
 
 /** The transitions across a workspace's sources, newest first (the Ops timeline, `cast events ls`). */
 export const listEvents = query({
-  args: { ...scopeArgs, source: v.optional(v.string()), since: v.optional(v.number()), before: v.optional(v.number()), limit: v.optional(v.number()) },
+  args: {
+    ...scopeArgs,
+    source: v.optional(v.string()),
+    since: v.optional(v.number()),
+    before: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     const limit = Math.min(Math.max(args.limit ?? 50, 1), LIST_CAP);
     const since = args.since ?? 0;
     // `before` pages back: the rows strictly older than the oldest a reader holds.
     const before = args.before ?? Number.MAX_SAFE_INTEGER;
-    const source = args.source ? await sourceByRef(ctx, userId, workspaceKey, args.source) : null;
+    const source = args.source
+      ? await sourceByRef(ctx, userId, workspaceKey, args.source)
+      : null;
     // Ingestion rows are the only external_events rows that carry a
     // workspace key, so this index is the ingestion timeline and nothing else.
-    const rows = await (source
-      ? ctx.db.query("external_events").withIndex("by_source_created", (q) => q.eq("source_id", source._id).gte("created_at", since).lt("created_at", before))
-      : ctx.db.query("external_events").withIndex("by_workspace_created", (q) => q.eq("workspace", workspaceKey).gte("created_at", since).lt("created_at", before)))
+    const rows = await (
+      source
+        ? ctx.db
+            .query("external_events")
+            .withIndex("by_source_created", (q) =>
+              q
+                .eq("source_id", source._id)
+                .gte("created_at", since)
+                .lt("created_at", before),
+            )
+        : ctx.db
+            .query("external_events")
+            .withIndex("by_workspace_created", (q) =>
+              q
+                .eq("workspace", workspaceKey)
+                .gte("created_at", since)
+                .lt("created_at", before),
+            )
+    )
       .order("desc")
       .take(limit);
     return rows;
@@ -674,15 +1065,32 @@ export const SAMPLE_PAGE = 50;
  * message, stack, url, user, release and replay. `before` pages back.
  */
 export const listSamples = query({
-  args: { ...scopeArgs, source: v.optional(v.string()), before: v.optional(v.number()), limit: v.optional(v.number()) },
+  args: {
+    ...scopeArgs,
+    source: v.optional(v.string()),
+    before: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     const limit = Math.min(Math.max(args.limit ?? SAMPLE_PAGE, 1), 200);
     const before = args.before ?? Number.MAX_SAFE_INTEGER;
-    const source = args.source ? await sourceByRef(ctx, userId, workspaceKey, args.source) : null;
-    return await (source
-      ? ctx.db.query("event_samples").withIndex("by_source_at", (q) => q.eq("source_id", source._id).lt("at", before))
-      : ctx.db.query("event_samples").withIndex("by_workspace_at", (q) => q.eq("workspace", workspaceKey).lt("at", before)))
+    const source = args.source
+      ? await sourceByRef(ctx, userId, workspaceKey, args.source)
+      : null;
+    return await (
+      source
+        ? ctx.db
+            .query("event_samples")
+            .withIndex("by_source_at", (q) =>
+              q.eq("source_id", source._id).lt("at", before),
+            )
+        : ctx.db
+            .query("event_samples")
+            .withIndex("by_workspace_at", (q) =>
+              q.eq("workspace", workspaceKey).lt("at", before),
+            )
+    )
       .order("desc")
       .take(limit);
   },
@@ -699,30 +1107,66 @@ export const listSamples = query({
 export const sourceForKey = internalQuery({
   args: {
     key_hash: v.string(),
-    guess_guard: v.optional(v.object({ key: v.string(), max: v.number(), window_ms: v.number() })),
+    guess_guard: v.optional(
+      v.object({ key: v.string(), max: v.number(), window_ms: v.number() }),
+    ),
   },
   handler: async (ctx, args) => {
     if (args.guess_guard) {
-      const wait = await windowSpent(ctx.db, args.guess_guard.key, args.guess_guard.max, args.guess_guard.window_ms);
+      const wait = await windowSpent(
+        ctx.db,
+        args.guess_guard.key,
+        args.guess_guard.max,
+        args.guess_guard.window_ms,
+      );
       if (wait !== null) return { retry_after_ms: wait };
     }
     // The current key, or a rotated-out one still inside its grace window.
-    const row = (await ctx.db.query("event_sources").withIndex("by_ingest_key_hash", (q) => q.eq("ingest_key_hash", args.key_hash)).first())
-      ?? (await ctx.db.query("event_sources").withIndex("by_old_key_hash", (q) => q.eq("old_key_hash", args.key_hash)).filter((q) => q.gt(q.field("old_key_until"), Date.now())).first());
+    const row =
+      (await ctx.db
+        .query("event_sources")
+        .withIndex("by_ingest_key_hash", (q) =>
+          q.eq("ingest_key_hash", args.key_hash),
+        )
+        .first()) ??
+      (await ctx.db
+        .query("event_sources")
+        .withIndex("by_old_key_hash", (q) =>
+          q.eq("old_key_hash", args.key_hash),
+        )
+        .filter((q) => q.gt(q.field("old_key_until"), Date.now()))
+        .first());
     if (!row) return null;
-    return { _id: row._id, status: row.status, allowed_origins: row.config?.allowed_origins ?? null, ...(row.ingest_key_hash !== args.key_hash ? { old_key: true } : {}) };
+    return {
+      _id: row._id,
+      status: row.status,
+      allowed_origins: row.config?.allowed_origins ?? null,
+      ...(row.ingest_key_hash !== args.key_hash ? { old_key: true } : {}),
+    };
   },
 });
-
 
 // Held-back promotions filed per cron pass (promoteDue).
 export const PROMOTE_DUE_BATCH = 100;
 
-
 /** How many of `wanted` new groups the source may open now (SOURCE_CAPS); the rest fold into overflow. */
-async function grantNewGroups(ctx: any, source: Doc<"event_sources">, wanted: number): Promise<number> {
-  const room = Math.max(0, SOURCE_CAPS.open_groups_max - ((await sourceStats(ctx, source)).groups_open ?? 0));
-  const { granted } = await takeFromWindow(ctx.db, `ingest-new-groups:${source._id}`, SOURCE_CAPS.new_groups_per_hour, HOUR_MS, Math.min(wanted, room));
+async function grantNewGroups(
+  ctx: any,
+  source: Doc<"event_sources">,
+  wanted: number,
+): Promise<number> {
+  const room = Math.max(
+    0,
+    SOURCE_CAPS.open_groups_max -
+      ((await sourceStats(ctx, source)).groups_open ?? 0),
+  );
+  const { granted } = await takeFromWindow(
+    ctx.db,
+    `ingest-new-groups:${source._id}`,
+    SOURCE_CAPS.new_groups_per_hour,
+    HOUR_MS,
+    Math.min(wanted, room),
+  );
   return granted;
 }
 
@@ -736,18 +1180,20 @@ function overflowPlan(plan: GroupPlan): GroupPlan {
   };
 }
 
-
 /** A tally's fields onto its group row, and the tally gone. */
 export const flushGroupTally = internalMutation({
   args: { group_id: v.id("event_groups") },
   handler: async (ctx, args) => {
     const tally = await tallyOf(ctx, args.group_id);
     if (!tally) return;
-    if (await ctx.db.get(args.group_id)) await ctx.db.patch(args.group_id, { ...tallyFields(tally.fields_json), updated_at: Date.now() });
+    if (await ctx.db.get(args.group_id))
+      await ctx.db.patch(args.group_id, {
+        ...tallyFields(tally.fields_json),
+        updated_at: Date.now(),
+      });
     await ctx.db.delete(tally._id);
   },
 });
-
 
 /** Alias rows one recount reads for a group; a group holding more is left as counted. */
 const GROUP_USERS_READ = 1000;
@@ -765,25 +1211,57 @@ const GROUP_USERS_READ = 1000;
 export const recountGroupUsers = internalMutation({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("event_groups").paginate({ cursor: args.cursor ?? null, numItems: BACKFILL_USERS_PAGE });
+    const page = await ctx.db
+      .query("event_groups")
+      .paginate({ cursor: args.cursor ?? null, numItems: BACKFILL_USERS_PAGE });
     let fixed = 0;
     for (const g of page.page) {
       if (!g.users || g.users < 2) continue;
-      if (await ctx.db.query("event_group_tallies").withIndex("by_group", (q) => q.eq("group_id", g._id)).first()) continue;
-      const rows = await ctx.db.query("event_group_users").withIndex("by_group_user", (q) => q.eq("group_id", g._id)).take(GROUP_USERS_READ + 1);
+      if (
+        await ctx.db
+          .query("event_group_tallies")
+          .withIndex("by_group", (q) => q.eq("group_id", g._id))
+          .first()
+      )
+        continue;
+      const rows = await ctx.db
+        .query("event_group_users")
+        .withIndex("by_group_user", (q) => q.eq("group_id", g._id))
+        .take(GROUP_USERS_READ + 1);
       if (rows.length > GROUP_USERS_READ) continue;
-      const samples = await ctx.db.query("event_samples").withIndex("by_group_at", (q) => q.eq("group_id", g._id)).order("desc").take(BACKFILL_USERS_SAMPLES);
+      const samples = await ctx.db
+        .query("event_samples")
+        .withIndex("by_group_at", (q) => q.eq("group_id", g._id))
+        .order("desc")
+        .take(BACKFILL_USERS_SAMPLES);
       const clusters = clusterPeople(samples.map((s) => s.user));
-      const { over, add } = mergeStoredPeople(clusters, new Set(rows.map((r) => r.user_key)));
-      for (const key of add) await ctx.db.insert("event_group_users", { group_id: g._id, user_key: key, at: Date.now() });
+      const { over, add } = mergeStoredPeople(
+        clusters,
+        new Set(rows.map((r) => r.user_key)),
+      );
+      for (const key of add)
+        await ctx.db.insert("event_group_users", {
+          group_id: g._id,
+          user_key: key,
+          at: Date.now(),
+        });
       // Every occurrence kept: the samples name everyone it hit, so the count is exact and needs no "since".
-      const exact = samples.length >= g.count && clusters.length > 0 ? clusters.length : null;
+      const exact =
+        samples.length >= g.count && clusters.length > 0
+          ? clusters.length
+          : null;
       const users = exact ?? Math.max(1, g.users - over);
       if (users === g.users && !(exact !== null && g.users_since)) continue;
-      await ctx.db.patch(g._id, exact !== null ? { users, users_since: undefined } : { users });
+      await ctx.db.patch(
+        g._id,
+        exact !== null ? { users, users_since: undefined } : { users },
+      );
       fixed++;
     }
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.ingest.recountGroupUsers, { cursor: page.continueCursor });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.ingest.recountGroupUsers, {
+        cursor: page.continueCursor,
+      });
     return { fixed, done: page.isDone };
   },
 });
@@ -805,31 +1283,65 @@ const BACKFILL_USERS_SAMPLES = 100;
 export const backfillGroupUsers = internalMutation({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("event_groups").paginate({ cursor: args.cursor ?? null, numItems: BACKFILL_USERS_PAGE });
+    const page = await ctx.db
+      .query("event_groups")
+      .paginate({ cursor: args.cursor ?? null, numItems: BACKFILL_USERS_PAGE });
     let counted = 0;
     for (const g of page.page) {
       if ((g.users ?? 0) > 0) continue;
-      if (await ctx.db.query("event_group_tallies").withIndex("by_group", (q) => q.eq("group_id", g._id)).first()) continue;
-      const samples = await ctx.db.query("event_samples").withIndex("by_group_at", (q) => q.eq("group_id", g._id)).order("desc").take(BACKFILL_USERS_SAMPLES);
-      const since = samples.reduce((m, s) => (userKeys(s.user).length ? Math.min(m, s.at) : m), Infinity);
-      const held = new Set((await ctx.db.query("event_group_users").withIndex("by_group_user", (q) => q.eq("group_id", g._id)).take(GROUP_USERS_READ)).map((r) => r.user_key));
+      if (
+        await ctx.db
+          .query("event_group_tallies")
+          .withIndex("by_group", (q) => q.eq("group_id", g._id))
+          .first()
+      )
+        continue;
+      const samples = await ctx.db
+        .query("event_samples")
+        .withIndex("by_group_at", (q) => q.eq("group_id", g._id))
+        .order("desc")
+        .take(BACKFILL_USERS_SAMPLES);
+      const since = samples.reduce(
+        (m, s) => (userKeys(s.user).length ? Math.min(m, s.at) : m),
+        Infinity,
+      );
+      const held = new Set(
+        (
+          await ctx.db
+            .query("event_group_users")
+            .withIndex("by_group_user", (q) => q.eq("group_id", g._id))
+            .take(GROUP_USERS_READ)
+        ).map((r) => r.user_key),
+      );
       let added = 0;
-      for (const c of clusterPeople(samples.map((s) => s.user)).slice(0, GROUP_USERS_PER_BATCH)) {
+      for (const c of clusterPeople(samples.map((s) => s.user)).slice(
+        0,
+        GROUP_USERS_PER_BATCH,
+      )) {
         if (!c.some((k) => held.has(k))) added++;
-        for (const key of c) if (!held.has(key)) await ctx.db.insert("event_group_users", { group_id: g._id, user_key: key, at: Date.now() });
+        for (const key of c)
+          if (!held.has(key))
+            await ctx.db.insert("event_group_users", {
+              group_id: g._id,
+              user_key: key,
+              at: Date.now(),
+            });
       }
       if (!added) continue;
       await ctx.db.patch(g._id, {
         users: Math.min(GROUP_USERS_MAX, (g.users ?? 0) + added),
-        users_since: g.users_since ?? (since > g.first_seen ? since : undefined),
+        users_since:
+          g.users_since ?? (since > g.first_seen ? since : undefined),
       });
       counted++;
     }
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.ingest.backfillGroupUsers, { cursor: page.continueCursor });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.ingest.backfillGroupUsers, {
+        cursor: page.continueCursor,
+      });
     return { counted, done: page.isDone };
   },
 });
-
 
 /**
  * A page of vendor groups from an adapter's action. Groups cross as JSON for
@@ -838,10 +1350,18 @@ export const backfillGroupUsers = internalMutation({
  */
 export const applyMirrorBatch = internalMutation({
   args: { source_id: v.id("event_sources"), groups_json: v.string() },
-  handler: async (ctx, args): Promise<{ mirrored: number; transitions: number }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ mirrored: number; transitions: number }> => {
     const source = await ctx.db.get(args.source_id);
     if (!source) return { mirrored: 0, transitions: 0 };
-    return mirrorGroups(ctx, source, JSON.parse(args.groups_json) as MirroredGroup[], Date.now());
+    return mirrorGroups(
+      ctx,
+      source,
+      JSON.parse(args.groups_json) as MirroredGroup[],
+      Date.now(),
+    );
   },
 });
 
@@ -872,15 +1392,28 @@ export interface CiRun {
  * on with `cast sources update`. A person's own source already holding the
  * name keeps it, and CI then files nowhere.
  */
-async function githubCiSource(ctx: any, teamId: Id<"teams">, now: number): Promise<Doc<"event_sources"> | null> {
+async function githubCiSource(
+  ctx: any,
+  teamId: Id<"teams">,
+  now: number,
+): Promise<Doc<"event_sources"> | null> {
   const workspace = makeWorkspaceKey({ type: "team", teamId });
   const found: Doc<"event_sources"> | null = await ctx.db
     .query("event_sources")
-    .withIndex("by_workspace_name", (q: any) => q.eq("workspace", workspace).eq("name", GITHUB_CI_SOURCE_NAME))
+    .withIndex("by_workspace_name", (q: any) =>
+      q.eq("workspace", workspace).eq("name", GITHUB_CI_SOURCE_NAME),
+    )
     .first();
   if (found) return found.provider === "github" ? found : null;
-  const members: Doc<"team_memberships">[] = await ctx.db.query("team_memberships").withIndex("by_team_id", (q: any) => q.eq("team_id", teamId)).collect();
-  const owner = members.sort((a, b) => Number(b.role === "admin") - Number(a.role === "admin") || a.joined_at - b.joined_at)[0];
+  const members: Doc<"team_memberships">[] = await ctx.db
+    .query("team_memberships")
+    .withIndex("by_team_id", (q: any) => q.eq("team_id", teamId))
+    .collect();
+  const owner = members.sort(
+    (a, b) =>
+      Number(b.role === "admin") - Number(a.role === "admin") ||
+      a.joined_at - b.joined_at,
+  )[0];
   if (!owner) return null;
   const id = await ctx.db.insert("event_sources", {
     workspace,
@@ -895,7 +1428,9 @@ async function githubCiSource(ctx: any, teamId: Id<"teams">, now: number): Promi
     updated_at: now,
   });
   // CI history from before this run: the failure rate and run time series start full (ciBackfill.ts).
-  await ctx.scheduler.runAfter(0, internal.ciBackfill.forTeam, { team_id: teamId });
+  await ctx.scheduler.runAfter(0, internal.ciBackfill.forTeam, {
+    team_id: teamId,
+  });
   return await ctx.db.get(id);
 }
 
@@ -907,7 +1442,10 @@ async function githubCiSource(ctx: any, teamId: Id<"teams">, now: number): Promi
  * started no later than the last one judged (an older run finishing late, a
  * redelivery) no longer speaks for the branch and is skipped.
  */
-export async function recordCiRun(ctx: any, run: CiRun): Promise<{ transitions: number; skipped?: string }> {
+export async function recordCiRun(
+  ctx: any,
+  run: CiRun,
+): Promise<{ transitions: number; skipped?: string }> {
   const now = Date.now();
   const source = await githubCiSource(ctx, run.team_id, now);
   if (!source) return { transitions: 0, skipped: "no github-ci source" };
@@ -916,7 +1454,8 @@ export async function recordCiRun(ctx: any, run: CiRun): Promise<{ transitions: 
   const fingerprint = groupFingerprint(undefined, "check", fp);
   const stored = await findGroup(ctx, source._id, fingerprint);
   const current = stored ? await withTally(ctx, stored) : null;
-  if (current && run.at <= current.last_seen) return { transitions: 0, skipped: "stale" };
+  if (current && run.at <= current.last_seen)
+    return { transitions: 0, skipped: "stale" };
   const plan: GroupPlan = {
     type: "group",
     kind: "check",
@@ -928,19 +1467,48 @@ export async function recordCiRun(ctx: any, run: CiRun): Promise<{ transitions: 
       at: run.at,
       message: `${run.workflow} ${run.conclusion}${run.sha ? ` at ${run.sha.slice(0, 7)}` : ""}`,
       url: run.url,
-      context_json: JSON.stringify({ repository: run.repository, branch: run.branch, sha: run.sha, run_id: run.run_id }),
+      context_json: JSON.stringify({
+        repository: run.repository,
+        branch: run.branch,
+        sha: run.sha,
+        run_id: run.run_id,
+      }),
     },
     // Passing runs are not kept as samples; the last one stays on the group so a red streak names its last green commit.
-    ...(run.ok ? { meta: { last_ok_at: run.at, ...(run.sha ? { last_ok_sha: run.sha } : {}), ...(run.branch ? { last_ok_branch: run.branch } : {}) } } : {}),
+    ...(run.ok
+      ? {
+          meta: {
+            last_ok_at: run.at,
+            ...(run.sha ? { last_ok_sha: run.sha } : {}),
+            ...(run.branch ? { last_ok_branch: run.branch } : {}),
+          },
+        }
+      : {}),
   };
-  const link: EventLink = { repository: run.repository, url: run.url, sha: run.sha, branch: run.branch };
+  const link: EventLink = {
+    repository: run.repository,
+    url: run.url,
+    sha: run.sha,
+    branch: run.branch,
+  };
   const out = await upsertGroup(ctx, source, [plan], {}, now, stored, link);
-  await patchSourceStats(ctx, source, (s) => ({
-    events_today: (s.events_today ?? 0) + 1,
-    groups_open: Math.max(0, (s.groups_open ?? 0) + out.open_delta),
-    last_event_at: now,
-    ci_runs: withCiRun(s.ci_runs, { at: run.at, ok: run.ok, ...(run.duration_ms !== undefined ? { duration_ms: run.duration_ms } : {}) }),
-  }), now);
+  await patchSourceStats(
+    ctx,
+    source,
+    (s) => ({
+      events_today: (s.events_today ?? 0) + 1,
+      groups_open: Math.max(0, (s.groups_open ?? 0) + out.open_delta),
+      last_event_at: now,
+      ci_runs: withCiRun(s.ci_runs, {
+        at: run.at,
+        ok: run.ok,
+        ...(run.duration_ms !== undefined
+          ? { duration_ms: run.duration_ms }
+          : {}),
+      }),
+    }),
+    now,
+  );
   return { transitions: out.transitions };
 }
 
@@ -954,22 +1522,38 @@ export async function recordCiRun(ctx: any, run: CiRun): Promise<{ transitions: 
  * re-import or a regroup pass adds nothing twice. New groups spend the
  * source's caps like the door's do.
  */
-export async function recordReplayIssues(ctx: any, source: Doc<"event_sources">, replay: Doc<"replays">, issues: ReplayIssue[], now: number): Promise<{ groups: number; transitions: number }> {
-  if (source.status === "paused" || !issues.length) return { groups: 0, transitions: 0 };
+export async function recordReplayIssues(
+  ctx: any,
+  source: Doc<"event_sources">,
+  replay: Doc<"replays">,
+  issues: ReplayIssue[],
+  now: number,
+): Promise<{ groups: number; transitions: number }> {
+  if (source.status === "paused" || !issues.length)
+    return { groups: 0, transitions: 0 };
   const linked = new Set(replay.group_ids.map(String));
-  const ref = { external_id: replay.external_id, started_at: replay.started_at, ...(replay.user ? { user: replay.user } : {}) };
+  const ref = {
+    external_id: replay.external_id,
+    started_at: replay.started_at,
+    ...(replay.user ? { user: replay.user } : {}),
+  };
   const plans = issues.map((i) => planReplayIssue(i, ref));
   const stored = new Map<string, Doc<"event_groups"> | null>();
-  for (const p of plans) stored.set(p.fingerprint, await findGroup(ctx, source._id, p.fingerprint));
+  for (const p of plans)
+    stored.set(p.fingerprint, await findGroup(ctx, source._id, p.fingerprint));
   const fresh = plans.filter((p) => !stored.get(p.fingerprint));
-  const granted = fresh.length ? await grantNewGroups(ctx, source, fresh.length) : 0;
+  const granted = fresh.length
+    ? await grantNewGroups(ctx, source, fresh.length)
+    : 0;
   const folded = new Set(fresh.slice(granted).map((p) => p.fingerprint));
   let openDelta = 0;
   let transitions = 0;
   let groups = 0;
   for (const raw of plans) {
     const plan = folded.has(raw.fingerprint) ? overflowPlan(raw) : raw;
-    const found = stored.has(plan.fingerprint) ? stored.get(plan.fingerprint)! : await findGroup(ctx, source._id, plan.fingerprint);
+    const found = stored.has(plan.fingerprint)
+      ? stored.get(plan.fingerprint)!
+      : await findGroup(ctx, source._id, plan.fingerprint);
     if (found && linked.has(String(found._id))) continue;
     const out = await upsertGroup(ctx, source, [plan], {}, now, found);
     stored.set(plan.fingerprint, (await ctx.db.get(out.group_id)) ?? null);
@@ -981,7 +1565,15 @@ export async function recordReplayIssues(ctx: any, source: Doc<"event_sources">,
   }
   if (groups) {
     // Each wall a recording showed is an occurrence the source sent, on the day it was recorded.
-    await patchSourceStats(ctx, source, (s) => ({ ...countLanded(s, [{ at: replay.started_at, n: groups }], now), groups_open: Math.max(0, (s.groups_open ?? 0) + openDelta) }), now);
+    await patchSourceStats(
+      ctx,
+      source,
+      (s) => ({
+        ...countLanded(s, [{ at: replay.started_at, n: groups }], now),
+        groups_open: Math.max(0, (s.groups_open ?? 0) + openDelta),
+      }),
+      now,
+    );
   }
   return { groups, transitions };
 }
@@ -989,31 +1581,67 @@ export async function recordReplayIssues(ctx: any, source: Doc<"event_sources">,
 /** A recording's issues from the action that read it (replays.assemble, replays.importExternal, the regroup pass). */
 export const applyReplayIssues = internalMutation({
   args: { replay_id: v.id("replays"), issues_json: v.string() },
-  handler: async (ctx, args): Promise<{ groups: number; transitions: number }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ groups: number; transitions: number }> => {
     const replay = await ctx.db.get(args.replay_id);
     const source = replay ? await ctx.db.get(replay.source_id) : null;
     if (!replay || !source) return { groups: 0, transitions: 0 };
-    return recordReplayIssues(ctx, source, replay, JSON.parse(args.issues_json) as ReplayIssue[], Date.now());
+    return recordReplayIssues(
+      ctx,
+      source,
+      replay,
+      JSON.parse(args.issues_json) as ReplayIssue[],
+      Date.now(),
+    );
   },
 });
 
-function deployKey(sourceId: Id<"event_sources">, version: string, environment: string | undefined): string {
+function deployKey(
+  sourceId: Id<"event_sources">,
+  version: string,
+  environment: string | undefined,
+): string {
   return `ingest:${sourceId}:deploy:${version}:${environment ?? ""}`;
 }
 
-async function eventByDedupeKey(ctx: any, key: string): Promise<Doc<"external_events"> | null> {
-  return await ctx.db.query("external_events").withIndex("by_dedupe_key", (q: any) => q.eq("dedupe_key", key)).first();
+async function eventByDedupeKey(
+  ctx: any,
+  key: string,
+): Promise<Doc<"external_events"> | null> {
+  return await ctx.db
+    .query("external_events")
+    .withIndex("by_dedupe_key", (q: any) => q.eq("dedupe_key", key))
+    .first();
 }
 
 /**
  * The sha the envelope's release was deployed from: a deploy item in this
  * batch, else the deploy marker already recorded for that release.
  */
-async function releaseSha(ctx: any, sourceId: Id<"event_sources">, envelope: { release?: string; environment?: string }, deploys: Extract<ItemPlan, { type: "deploy" }>[]): Promise<string | undefined> {
+async function releaseSha(
+  ctx: any,
+  sourceId: Id<"event_sources">,
+  envelope: { release?: string; environment?: string },
+  deploys: Extract<ItemPlan, { type: "deploy" }>[],
+): Promise<string | undefined> {
   if (!envelope.release) return undefined;
-  const inBatch = deploys.find((d) => d.version === envelope.release && d.sha && (d.environment ?? "") === (envelope.environment ?? ""));
+  const inBatch = deploys.find(
+    (d) =>
+      d.version === envelope.release &&
+      d.sha &&
+      (d.environment ?? "") === (envelope.environment ?? ""),
+  );
   if (inBatch) return inBatch.sha;
-  return (await eventByDedupeKey(ctx, deployKey(sourceId, envelope.release, envelope.environment)))?.sha ?? undefined;
+  return (
+    (
+      await eventByDedupeKey(
+        ctx,
+        deployKey(sourceId, envelope.release, envelope.environment),
+      )
+    )?.sha ?? undefined
+  );
 }
 
 /**
@@ -1032,29 +1660,46 @@ export const applyBatch = internalMutation({
     /** The batch came on a rotated-out key inside its grace window: counted on the source's stats. */
     old_key: v.optional(v.boolean()),
   },
-  handler: async (ctx, args): Promise<{ accepted: number; dropped: number; transitions: number; folded: number }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    accepted: number;
+    dropped: number;
+    transitions: number;
+    folded: number;
+  }> => {
     const items = JSON.parse(args.items_json) as IngestItem[];
     const source = await ctx.db.get(args.source_id);
-    if (!source || source.status === "paused") return { accepted: 0, dropped: items.length, transitions: 0, folded: 0 };
+    if (!source || source.status === "paused")
+      return { accepted: 0, dropped: items.length, transitions: 0, folded: 0 };
     const now = Date.now();
     const envelope = { release: args.release, environment: args.environment };
 
     const groups = new Map<string, GroupPlan[]>();
-    const add = (plan: GroupPlan) => groups.set(plan.fingerprint, [...(groups.get(plan.fingerprint) ?? []), plan]);
+    const add = (plan: GroupPlan) =>
+      groups.set(plan.fingerprint, [
+        ...(groups.get(plan.fingerprint) ?? []),
+        plan,
+      ]);
     const deploys: Extract<ItemPlan, { type: "deploy" }>[] = [];
     for (const item of items) {
       const plan = planItem(item, envelope);
       if (plan.type === "group") add(plan);
       else if (plan.type === "deploy") deploys.push(plan);
       // A recording's manifest is the replays module's row (X5), not a group.
-      if (item.type === "replay") await upsertReplayManifest(ctx, source, item, now);
+      if (item.type === "replay")
+        await upsertReplayManifest(ctx, source, item, now);
     }
 
     // New fingerprints spend the source's group budget; the ones past it fold
     // into the overflow group of their kind, which is never refused.
     const stored = new Map<string, Doc<"event_groups"> | null>();
-    for (const fp of groups.keys()) stored.set(fp, await findGroup(ctx, source._id, fp));
-    const fresh = [...groups.keys()].filter((fp) => !stored.get(fp) && groups.get(fp)![0].fp !== OVERFLOW_FP);
+    for (const fp of groups.keys())
+      stored.set(fp, await findGroup(ctx, source._id, fp));
+    const fresh = [...groups.keys()].filter(
+      (fp) => !stored.get(fp) && groups.get(fp)![0].fp !== OVERFLOW_FP,
+    );
     let folded = 0;
     if (fresh.length) {
       const granted = await grantNewGroups(ctx, source, fresh.length);
@@ -1070,25 +1715,50 @@ export const applyBatch = internalMutation({
     let openDelta = 0;
     let transitions = 0;
     for (const [fp, plans] of groups) {
-      const upserted = await upsertGroup(ctx, source, plans, { ...envelope, sha }, now, stored.has(fp) ? stored.get(fp) : undefined);
+      const upserted = await upsertGroup(
+        ctx,
+        source,
+        plans,
+        { ...envelope, sha },
+        now,
+        stored.has(fp) ? stored.get(fp) : undefined,
+      );
       openDelta += upserted.open_delta;
       transitions += upserted.transitions;
     }
 
-    for (const deploy of deploys) if (await announceDeploy(ctx, source, deploy)) transitions++;
+    for (const deploy of deploys)
+      if (await announceDeploy(ctx, source, deploy)) transitions++;
 
     // Moment events are kept: each joins its (kind, subject) moment (moments.ts, learning-loop.md LL7).
-    const momentEvents = items.filter((i): i is Extract<IngestItem, { type: "moment" }> => i.type === "moment");
-    if (momentEvents.length) await recordMomentEvents(ctx, source, momentEvents, now);
+    const momentEvents = items.filter(
+      (i): i is Extract<IngestItem, { type: "moment" }> => i.type === "moment",
+    );
+    if (momentEvents.length)
+      await recordMomentEvents(ctx, source, momentEvents, now);
 
-    const named = items.flatMap((i) => (i.type === "event" ? [{ name: i.name, at: i.at }] : []));
-    await patchSourceStats(ctx, source, (s) => ({
-      events_today: (s.events_today ?? 0) + items.length,
-      ...(named.length ? { event_names: countEventNames(s.event_names, named, now) } : {}),
-      groups_open: Math.max(0, (s.groups_open ?? 0) + openDelta),
-      last_event_at: now,
-      ...(args.old_key ? { old_key_last_at: now, old_key_events: (s.old_key_events ?? 0) + items.length } : {}),
-    }), now);
+    const named = items.flatMap((i) =>
+      i.type === "event" ? [{ name: i.name, at: i.at }] : [],
+    );
+    await patchSourceStats(
+      ctx,
+      source,
+      (s) => ({
+        events_today: (s.events_today ?? 0) + items.length,
+        ...(named.length
+          ? { event_names: countEventNames(s.event_names, named, now) }
+          : {}),
+        groups_open: Math.max(0, (s.groups_open ?? 0) + openDelta),
+        last_event_at: now,
+        ...(args.old_key
+          ? {
+              old_key_last_at: now,
+              old_key_events: (s.old_key_events ?? 0) + items.length,
+            }
+          : {}),
+      }),
+      now,
+    );
     return { accepted: items.length, dropped: 0, transitions, folded };
   },
 });
@@ -1099,10 +1769,11 @@ export const countDropped = internalMutation({
   handler: async (ctx, args) => {
     const source = await ctx.db.get(args.source_id);
     if (!source || args.dropped <= 0) return;
-    await patchSourceStats(ctx, source, (s) => ({ dropped_today: (s.dropped_today ?? 0) + args.dropped }));
+    await patchSourceStats(ctx, source, (s) => ({
+      dropped_today: (s.dropped_today ?? 0) + args.dropped,
+    }));
   },
 });
-
 
 /**
  * Promotions the hourly cap held back, and runs that never settled
@@ -1113,7 +1784,10 @@ export const countDropped = internalMutation({
 export const promoteDue = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const due = await ctx.db.query("event_groups").withIndex("by_promotion_due", (q: any) => q.gt("promotion_due.at", 0)).take(PROMOTE_DUE_BATCH);
+    const due = await ctx.db
+      .query("event_groups")
+      .withIndex("by_promotion_due", (q: any) => q.gt("promotion_due.at", 0))
+      .take(PROMOTE_DUE_BATCH);
     let filed = 0;
     // A promotion this pass cannot file (its source is paused, or its hourly
     // window is full) goes to the back of the queue when the batch was full:
@@ -1121,20 +1795,39 @@ export const promoteDue = internalMutation({
     // ever reads, and every other source's promotions would wait behind it.
     const full = due.length >= PROMOTE_DUE_BATCH;
     const sendToBack = async (group: Doc<"event_groups">) => {
-      if (full) await ctx.db.patch(group._id, { promotion_due: { ...group.promotion_due!, at: Date.now() } });
+      if (full)
+        await ctx.db.patch(group._id, {
+          promotion_due: { ...group.promotion_due!, at: Date.now() },
+        });
     };
     for (const group of due) {
       const d = group.promotion_due!;
       const step = promotionStep(d, Date.now());
       if (step === "in_flight") continue;
       const source = await ctx.db.get(group.source_id);
-      if (!source || !source.promote.includes(d.transition) || step === "give_up") {
+      if (
+        !source ||
+        !source.promote.includes(d.transition) ||
+        step === "give_up"
+      ) {
         await ctx.db.patch(group._id, { promotion_due: undefined });
         continue;
       }
-      if (source.status !== "active") { await sendToBack(group); continue; }
-      const { granted } = await takeFromWindow(ctx.db, `ingest-promote:${source._id}`, SOURCE_CAPS.promotions_per_hour, HOUR_MS, 1);
-      if (!granted) { await sendToBack(group); continue; }
+      if (source.status !== "active") {
+        await sendToBack(group);
+        continue;
+      }
+      const { granted } = await takeFromWindow(
+        ctx.db,
+        `ingest-promote:${source._id}`,
+        SOURCE_CAPS.promotions_per_hour,
+        HOUR_MS,
+        1,
+      );
+      if (!granted) {
+        await sendToBack(group);
+        continue;
+      }
       await schedulePromotion(ctx, group._id, d, filed * PROMOTE_SPACING_MS);
       filed++;
     }
@@ -1149,8 +1842,12 @@ export const promoteDue = internalMutation({
  * name needs. The run reads the deploy itself through the fenced event view.
  */
 const DEPLOY_TRIGGER_FIELD_CHARS = 64;
-export function deployTriggerTitle(d: { version: string; environment?: string }): string {
-  const field = (value: string) => capForeignText(inlineForeignText(value), DEPLOY_TRIGGER_FIELD_CHARS);
+export function deployTriggerTitle(d: {
+  version: string;
+  environment?: string;
+}): string {
+  const field = (value: string) =>
+    capForeignText(inlineForeignText(value), DEPLOY_TRIGGER_FIELD_CHARS);
   return `Deployed ${field(d.version)}${d.environment ? ` to ${field(d.environment)}` : ""}`;
 }
 
@@ -1160,16 +1857,27 @@ export function deployTriggerTitle(d: { version: string; environment?: string })
  * fires nothing again. New markers past SOURCE_CAPS.deploys_per_hour are
  * skipped. Whether this call recorded one.
  */
-async function announceDeploy(ctx: any, source: Doc<"event_sources">, d: Extract<ItemPlan, { type: "deploy" }>): Promise<boolean> {
+async function announceDeploy(
+  ctx: any,
+  source: Doc<"event_sources">,
+  d: Extract<ItemPlan, { type: "deploy" }>,
+): Promise<boolean> {
   const key = deployKey(source._id, d.version, d.environment);
   const seen = await eventByDedupeKey(ctx, key);
   if (seen) {
     // A second report of the same version (the deploy path's own, after an
     // api's boot announced it) adds what it knows: the run, the commit range.
-    if (d.url || d.commits?.length || d.previous_sha) await recordDeployMarker(ctx, deployMarkerOf(source, d, seen._id));
+    if (d.url || d.commits?.length || d.previous_sha)
+      await recordDeployMarker(ctx, deployMarkerOf(source, d, seen._id));
     return false;
   }
-  const { granted } = await takeFromWindow(ctx.db, `ingest-deploys:${source._id}`, SOURCE_CAPS.deploys_per_hour, HOUR_MS, 1);
+  const { granted } = await takeFromWindow(
+    ctx.db,
+    `ingest-deploys:${source._id}`,
+    SOURCE_CAPS.deploys_per_hour,
+    HOUR_MS,
+    1,
+  );
   if (!granted) return false;
   const title = `Deployed ${d.version}${d.environment ? ` to ${d.environment}` : ""}`;
   const { id: eventId } = await recordExternalEventOnce(ctx, {
@@ -1180,7 +1888,13 @@ async function announceDeploy(ctx: any, source: Doc<"event_sources">, d: Extract
     title,
     sha: d.sha,
     source_id: source._id,
-    data: { transition: "deploy", source_name: source.name, provider: source.provider, release: d.version, environment: d.environment },
+    data: {
+      transition: "deploy",
+      source_name: source.name,
+      provider: source.provider,
+      release: d.version,
+      environment: d.environment,
+    },
     dedupe_key: key,
     created_at: d.at,
   });
@@ -1206,7 +1920,11 @@ export const promotionInputs = internalQuery({
     return {
       group,
       source,
-      filer_may_file: await workspaceGrantsAccess(ctx, source.owner_user_id, source.workspace),
+      filer_may_file: await workspaceGrantsAccess(
+        ctx,
+        source.owner_user_id,
+        source.workspace,
+      ),
     };
   },
 });
@@ -1216,7 +1934,11 @@ export const pauseSource = internalMutation({
   handler: async (ctx, args) => {
     const source = await ctx.db.get(args.source_id);
     if (!source) return;
-    await ctx.db.patch(source._id, { status: "paused", last_error: args.reason, updated_at: Date.now() });
+    await ctx.db.patch(source._id, {
+      status: "paused",
+      last_error: args.reason,
+      updated_at: Date.now(),
+    });
   },
 });
 
@@ -1235,10 +1957,17 @@ export const sourceConnectionLost = internalMutation({
  * gains it, so both show on the cause task's timeline (externalEvents.listForTask).
  */
 export const linkSignal = internalMutation({
-  args: { group_id: v.id("event_groups"), task_id: v.id("tasks"), external_event_id: v.optional(v.id("external_events")) },
+  args: {
+    group_id: v.id("event_groups"),
+    task_id: v.id("tasks"),
+    external_event_id: v.optional(v.id("external_events")),
+  },
   handler: async (ctx, args) => {
-    if (await ctx.db.get(args.group_id)) await ctx.db.patch(args.group_id, { signal_task_id: args.task_id });
-    const event = args.external_event_id ? await ctx.db.get(args.external_event_id) : null;
+    if (await ctx.db.get(args.group_id))
+      await ctx.db.patch(args.group_id, { signal_task_id: args.task_id });
+    const event = args.external_event_id
+      ? await ctx.db.get(args.external_event_id)
+      : null;
     if (!event || event.group_id !== args.group_id) return;
     const taskIds = event.task_ids ?? (event.task_id ? [event.task_id] : []);
     if (taskIds.includes(args.task_id)) return;
@@ -1255,8 +1984,13 @@ export const promote = internalAction({
     // The transition's timeline row, which gains the cause it files under.
     external_event_id: v.optional(v.id("external_events")),
   },
-  handler: async (ctx, args): Promise<{ task_id?: Id<"tasks">; skipped?: string }> => {
-    const inputs = await ctx.runQuery(internal.ingest.promotionInputs, { group_id: args.group_id });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ task_id?: Id<"tasks">; skipped?: string }> => {
+    const inputs = await ctx.runQuery(internal.ingest.promotionInputs, {
+      group_id: args.group_id,
+    });
     if (!inputs) return { skipped: "source gone or paused" };
     const { group, source } = inputs;
     if (!inputs.filer_may_file) {
@@ -1264,18 +1998,35 @@ export const promote = internalAction({
       // the source to someone still in the workspace.
       await ctx.runMutation(internal.ingest.pauseSource, {
         source_id: source._id,
-        reason: "The source's owner is no longer in this workspace, so its reports have nobody to file as. Resume it after giving it a new owner.",
+        reason:
+          "The source's owner is no longer in this workspace, so its reports have nobody to file as. Resume it after giving it a new owner.",
       });
       return { skipped: "filer left" };
     }
-    const signal = promotionSignal(source, group, args.transition, args.fingerprint);
-    const result = signal ? await ctx.runAction(internal.signals.ingestAs, { user_id: source.owner_user_id, ...signal }) : null;
+    const signal = promotionSignal(
+      source,
+      group,
+      args.transition,
+      args.fingerprint,
+    );
+    const result = signal
+      ? await ctx.runAction(internal.signals.ingestAs, {
+          user_id: source.owner_user_id,
+          ...signal,
+        })
+      : null;
     // Filed, held or not promotable: done either way. A throw leaves promotion_due for promoteDue to run again.
-    await ctx.runMutation(internal.ingestPromotions.settlePromotion, { group_id: group._id });
+    await ctx.runMutation(internal.ingestPromotions.settlePromotion, {
+      group_id: group._id,
+    });
     if (!result) return { skipped: "transition does not promote" };
     // A held signal (no finder converts this source, LE4) reached no cause yet.
     if (!result.task_id) return { skipped: "held as a finding" };
-    await ctx.runMutation(internal.ingest.linkSignal, { group_id: group._id, task_id: result.task_id, external_event_id: args.external_event_id });
+    await ctx.runMutation(internal.ingest.linkSignal, {
+      group_id: group._id,
+      task_id: result.task_id,
+      external_event_id: args.external_event_id,
+    });
     return { task_id: result.task_id };
   },
 });
@@ -1290,7 +2041,10 @@ export const pruneSamples = internalMutation({
   args: {},
   handler: async (ctx) => {
     const cutoff = Date.now() - SAMPLE_RETENTION_MS;
-    const old = await ctx.db.query("event_samples").withIndex("by_at", (q) => q.lt("at", cutoff)).take(UPKEEP_PAGE);
+    const old = await ctx.db
+      .query("event_samples")
+      .withIndex("by_at", (q) => q.lt("at", cutoff))
+      .take(UPKEEP_PAGE);
     const perGroup = new Map<Id<"event_groups">, number>();
     for (const s of old) {
       await ctx.db.delete(s._id);
@@ -1299,12 +2053,22 @@ export const pruneSamples = internalMutation({
     // Keep each group's sample_count true, so appendSamples trims by it correctly.
     for (const [groupId, n] of perGroup) {
       const group = await ctx.db.get(groupId);
-      if (group?.sample_count !== undefined) await ctx.db.patch(groupId, { sample_count: Math.max(0, group.sample_count - n) });
+      if (group?.sample_count !== undefined)
+        await ctx.db.patch(groupId, {
+          sample_count: Math.max(0, group.sample_count - n),
+        });
       const tally = await tallyOf(ctx, groupId);
       const held = tally ? tallyFields(tally.fields_json) : null;
-      if (tally && typeof held?.sample_count === "number") await ctx.db.patch(tally._id, { fields_json: tallyJson({ ...held, sample_count: Math.max(0, held.sample_count - n) }) });
+      if (tally && typeof held?.sample_count === "number")
+        await ctx.db.patch(tally._id, {
+          fields_json: tallyJson({
+            ...held,
+            sample_count: Math.max(0, held.sample_count - n),
+          }),
+        });
     }
-    if (old.length === UPKEEP_PAGE) await ctx.scheduler.runAfter(0, internal.ingest.pruneSamples, {});
+    if (old.length === UPKEEP_PAGE)
+      await ctx.scheduler.runAfter(0, internal.ingest.pruneSamples, {});
     return old.length;
   },
 });
@@ -1319,13 +2083,23 @@ const DELIVERY_RETENTION_MS = 7 * 24 * 3600_000;
  * calls this in the mutation that schedules its processor, so a retried
  * delivery schedules nothing.
  */
-export async function claimWebhookDelivery(ctx: any, provider: string, deliveryId: string): Promise<boolean> {
+export async function claimWebhookDelivery(
+  ctx: any,
+  provider: string,
+  deliveryId: string,
+): Promise<boolean> {
   const seen = await ctx.db
     .query("webhook_deliveries")
-    .withIndex("by_provider_delivery", (q: any) => q.eq("provider", provider).eq("delivery_id", deliveryId))
+    .withIndex("by_provider_delivery", (q: any) =>
+      q.eq("provider", provider).eq("delivery_id", deliveryId),
+    )
     .first();
   if (seen) return false;
-  await ctx.db.insert("webhook_deliveries", { provider, delivery_id: deliveryId, created_at: Date.now() });
+  await ctx.db.insert("webhook_deliveries", {
+    provider,
+    delivery_id: deliveryId,
+    created_at: Date.now(),
+  });
   return true;
 }
 
@@ -1333,9 +2107,17 @@ export const pruneWebhookDeliveries = internalMutation({
   args: {},
   handler: async (ctx) => {
     const cutoff = Date.now() - DELIVERY_RETENTION_MS;
-    const old = await ctx.db.query("webhook_deliveries").withIndex("by_created", (q) => q.lt("created_at", cutoff)).take(UPKEEP_PAGE);
+    const old = await ctx.db
+      .query("webhook_deliveries")
+      .withIndex("by_created", (q) => q.lt("created_at", cutoff))
+      .take(UPKEEP_PAGE);
     for (const row of old) await ctx.db.delete(row._id);
-    if (old.length === UPKEEP_PAGE) await ctx.scheduler.runAfter(0, internal.ingest.pruneWebhookDeliveries, {});
+    if (old.length === UPKEEP_PAGE)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.ingest.pruneWebhookDeliveries,
+        {},
+      );
     return old.length;
   },
 });
@@ -1349,19 +2131,32 @@ export const pruneWebhookDeliveries = internalMutation({
  * (rollStats). `table` is accepted for runs scheduled before that.
  */
 export const dailyUpkeep = internalMutation({
-  args: { table: v.optional(v.union(v.literal("event_sources"), v.literal("event_groups"))), cursor: v.optional(v.string()) },
+  args: {
+    table: v.optional(
+      v.union(v.literal("event_sources"), v.literal("event_groups")),
+    ),
+    cursor: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const now = Date.now();
     const since = now - (GROUP_RULES.bucket_hours + 48) * HOUR_MS;
     const page = await ctx.db
       .query("event_groups")
       .withIndex("by_last_seen", (q) => q.gte("last_seen", since))
-      .paginate({ cursor: args.table === "event_groups" ? args.cursor ?? null : null, numItems: UPKEEP_PAGE });
+      .paginate({
+        cursor: args.table === "event_groups" ? (args.cursor ?? null) : null,
+        numItems: UPKEEP_PAGE,
+      });
     for (const row of page.page) {
       const kept = pruneBuckets(row.buckets, now);
-      if (kept.length !== row.buckets.length) await ctx.db.patch(row._id, { buckets: kept });
+      if (kept.length !== row.buckets.length)
+        await ctx.db.patch(row._id, { buckets: kept });
     }
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.ingest.dailyUpkeep, { table: "event_groups", cursor: page.continueCursor });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.ingest.dailyUpkeep, {
+        table: "event_groups",
+        cursor: page.continueCursor,
+      });
   },
 });
 
@@ -1372,11 +2167,19 @@ type GroupStatusName = Doc<"event_groups">["status"];
 
 /** Which count a status lands in: muted is a kind of ignored. */
 function countKey(status: GroupStatusName): keyof GroupCounts {
-  return status === "resolved" ? "resolved" : status === "ignored" || status === "muted" ? "ignored" : "open";
+  return status === "resolved"
+    ? "resolved"
+    : status === "ignored" || status === "muted"
+      ? "ignored"
+      : "open";
 }
 
 /** A person's triage moved one group from one status to another: the counts follow at once, and the next recount confirms them. */
-export function moveGroupCount(counts: GroupCounts, from: GroupStatusName, to: GroupStatusName): GroupCounts {
+export function moveGroupCount(
+  counts: GroupCounts,
+  from: GroupStatusName,
+  to: GroupStatusName,
+): GroupCounts {
   const a = countKey(from);
   const b = countKey(to);
   if (a === b) return counts;
@@ -1399,24 +2202,38 @@ export const recountSourceGroups = internalMutation({
   args: {
     source_id: v.id("event_sources"),
     cursor: v.optional(v.union(v.string(), v.null())),
-    acc: v.optional(v.object({ open: v.number(), resolved: v.number(), ignored: v.number() })),
+    acc: v.optional(
+      v.object({ open: v.number(), resolved: v.number(), ignored: v.number() }),
+    ),
     started: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const source = await ctx.db.get(args.source_id);
     if (!source) return { done: true };
     const started = args.started ?? Date.now();
-    const acc: GroupCounts = { ...(args.acc ?? { open: 0, resolved: 0, ignored: 0 }) };
+    const acc: GroupCounts = {
+      ...(args.acc ?? { open: 0, resolved: 0, ignored: 0 }),
+    };
     const page = await ctx.db
       .query("event_groups")
       .withIndex("by_source_last_seen", (q) => q.eq("source_id", source._id))
       .paginate({ cursor: args.cursor ?? null, numItems: RECOUNT_PAGE });
-    for (const g of page.page) if (!isRecordNotIssue(g)) acc[countKey(g.status)]++;
+    for (const g of page.page)
+      if (!isRecordNotIssue(g)) acc[countKey(g.status)]++;
     if (!page.isDone) {
-      await ctx.scheduler.runAfter(0, internal.ingest.recountSourceGroups, { source_id: source._id, cursor: page.continueCursor, acc, started });
+      await ctx.scheduler.runAfter(0, internal.ingest.recountSourceGroups, {
+        source_id: source._id,
+        cursor: page.continueCursor,
+        acc,
+        started,
+      });
       return { done: false };
     }
-    await patchSourceStats(ctx, source, () => ({ group_counts: acc, groups_counted_at: started, groups_open: acc.open }));
+    await patchSourceStats(ctx, source, () => ({
+      group_counts: acc,
+      groups_counted_at: started,
+      groups_open: acc.open,
+    }));
     return { done: true, counts: acc };
   },
 });
@@ -1429,16 +2246,33 @@ export const recountSourceGroups = internalMutation({
 export const recountGroups = internalMutation({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("event_sources").paginate({ cursor: args.cursor ?? null, numItems: RECOUNT_SOURCES_PAGE });
+    const page = await ctx.db.query("event_sources").paginate({
+      cursor: args.cursor ?? null,
+      numItems: RECOUNT_SOURCES_PAGE,
+    });
     let queued = 0;
     for (const source of page.page) {
       const s = await sourceStats(ctx, source);
-      const moved = Math.max(s.last_event_at ?? 0, s.last_poll_at ?? 0, source.updated_at ?? 0);
-      if (s.group_counts && s.groups_counted_at !== undefined && moved <= s.groups_counted_at) continue;
-      await ctx.scheduler.runAfter(0, internal.ingest.recountSourceGroups, { source_id: source._id });
+      const moved = Math.max(
+        s.last_event_at ?? 0,
+        s.last_poll_at ?? 0,
+        source.updated_at ?? 0,
+      );
+      if (
+        s.group_counts &&
+        s.groups_counted_at !== undefined &&
+        moved <= s.groups_counted_at
+      )
+        continue;
+      await ctx.scheduler.runAfter(0, internal.ingest.recountSourceGroups, {
+        source_id: source._id,
+      });
       queued++;
     }
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.ingest.recountGroups, { cursor: page.continueCursor });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.ingest.recountGroups, {
+        cursor: page.continueCursor,
+      });
     return { queued, done: page.isDone };
   },
 });

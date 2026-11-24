@@ -63,7 +63,9 @@ export function DrivingHint() {
       className="absolute bottom-2 left-1/2 -translate-x-1/2 max-w-[calc(100%-16px)] inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-sol-bg/90 border border-sol-cyan/40 text-meta font-mono text-sol-text-muted whitespace-nowrap pointer-events-none"
     >
       <span className="text-sol-cyan">You have the wheel.</span>
-      <span className="truncate">The agent keeps its session; nothing you do here is sent to it.</span>
+      <span className="truncate">
+        The agent keeps its session; nothing you do here is sent to it.
+      </span>
       <KeyCap size="xs">Esc</KeyCap>
       <span>hands back</span>
     </span>

@@ -1,5 +1,5 @@
 import { useAttachCopy } from "../hooks/useAttachCopy";
-"use client";
+("use client");
 
 /**
  * Header pill for the session's tmux attach target. The target is stateful —
@@ -65,21 +65,34 @@ export function TmuxAttachPill({
 }) {
   // undefined = first render: never animate what was already there on mount.
   const prev = useRef<string | null | undefined>(undefined);
-  const [anim, setAnim] = useState<"tmux-pill-in" | "tmux-pill-change" | null>(null);
+  const [anim, setAnim] = useState<"tmux-pill-in" | "tmux-pill-change" | null>(
+    null,
+  );
 
-  const { machine, attach, copyAttach } = useAttachCopy(tmuxSession, conversationKey);
+  const { machine, attach, copyAttach } = useAttachCopy(
+    tmuxSession,
+    conversationKey,
+  );
   const { backend } = useClaudeBackend(conversationKey);
 
   useWatchEffect(() => {
     const p = prev.current;
     prev.current = tmuxSession ?? null;
     if (p === undefined) return;
-    if (!p && tmuxSession) setAnim("tmux-pill-in"); // pane came up
+    if (!p && tmuxSession)
+      setAnim("tmux-pill-in"); // pane came up
     else if (p && tmuxSession && p !== tmuxSession) setAnim("tmux-pill-change"); // restart moved it
   }, [tmuxSession]);
 
   // An Agent SDK session has no pane: its pill is a plug and offers the move to one.
-  if (backend === "sdk" && conversationKey) return <SdkBackendPill conversationId={conversationKey} isLive={isLive} canSwitch={canSwitchBackend} />;
+  if (backend === "sdk" && conversationKey)
+    return (
+      <SdkBackendPill
+        conversationId={conversationKey}
+        isLive={isLive}
+        canSwitch={canSwitchBackend}
+      />
+    );
   if (!tmuxSession && agentType !== "codex") return null;
 
   const machineName = machine ? deviceDisplayName(machine as any) : null;
@@ -104,7 +117,8 @@ export function TmuxAttachPill({
   // A teammate's pane has no transport at all, so don't offer the split for it
   // — clicking through to an explanation is worse than the tooltip saying it.
   const canSplit = !!conversationKey && !!tmuxSession && !foreign;
-  const splitOpen = !!conversationKey && isConversationTerminalOpen(conversationKey);
+  const splitOpen =
+    !!conversationKey && isConversationTerminalOpen(conversationKey);
 
   const paneLive = !!tmuxSession && isLive;
   const pillColors = paneLive
@@ -113,7 +127,11 @@ export function TmuxAttachPill({
   const borderColor = paneLive ? "border-sol-green/30" : "border-gray-500/25";
 
   return (
-    <span data-tmux-pill className={`inline-flex items-stretch rounded-full border overflow-hidden ${borderColor} ${anim ?? ""}`} onAnimationEnd={() => setAnim(null)}>
+    <span
+      data-tmux-pill
+      className={`inline-flex items-stretch rounded-full border overflow-hidden ${borderColor} ${anim ?? ""}`}
+      onAnimationEnd={() => setAnim(null)}
+    >
       <ShortcutTooltip
         label={
           !tmuxSession
@@ -132,13 +150,24 @@ export function TmuxAttachPill({
           aria-label={!tmuxSession ? "No tmux terminal attached" : undefined}
           onClick={() => {
             if (!tmuxSession) return;
-            if (canSplit) toggleConversationTerminal(conversationKey!, tmuxSession);
+            if (canSplit)
+              toggleConversationTerminal(conversationKey!, tmuxSession);
             else copyAttach();
           }}
           className={`inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 text-meta font-medium transition-colors border-0 ${pillColors} ${splitOpen ? "bg-sol-green/25" : ""} ${!tmuxSession ? "cursor-default" : ""}`}
         >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          <svg
+            className="w-3.5 h-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
           </svg>
           {/* Naming the machine is what makes the pill honest at a glance — a
               bare "tmux" reads as "here" no matter where the pane really is. */}

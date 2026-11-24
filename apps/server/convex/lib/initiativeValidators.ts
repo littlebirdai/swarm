@@ -14,7 +14,9 @@ import {
   type IntentSourceKind,
 } from "@codecast/shared/contracts/initiative";
 
-const [firstKind, secondKind, ...otherKinds] = INTENT_SOURCE_KINDS.map((k) => v.literal<IntentSourceKind>(k));
+const [firstKind, secondKind, ...otherKinds] = INTENT_SOURCE_KINDS.map((k) =>
+  v.literal<IntentSourceKind>(k),
+);
 
 /** Who said it and where (IntentSource). */
 export const intentSourceValidator = v.object({
@@ -52,7 +54,11 @@ export const decisionValidator = v.object({
 });
 
 /** A reported value: the template scoreboard's own shape. */
-export const scoreValidator = v.object({ value: v.string(), observed_at: v.number(), source: v.string() });
+export const scoreValidator = v.object({
+  value: v.string(),
+  observed_at: v.number(),
+  source: v.string(),
+});
 
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Assert<T extends true> = T;

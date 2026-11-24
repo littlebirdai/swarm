@@ -2,7 +2,12 @@
 // that, so "headphones when they are on, the display otherwise" holds after
 // the person picks the display while the headphones are off.
 import { describe, expect, test } from "bun:test";
-import { noteDevices, rankAfterPick, resolveDevice, trackOnDevice } from "../calls/deviceRank";
+import {
+  noteDevices,
+  rankAfterPick,
+  resolveDevice,
+  trackOnDevice,
+} from "../calls/deviceRank";
 
 const d = (deviceId: string, label: string) => ({ deviceId, label });
 const DEFAULT = d("default", "Default - MacBook Pro Microphone");
@@ -36,7 +41,9 @@ describe("device rank", () => {
   test("system default is its own entry and follows the OS", () => {
     const rank = rankAfterPick(["WH-1000XM6"], DEFAULT, [DEFAULT, MBP, XM6]);
     expect(rank).toEqual(["default", "WH-1000XM6"]);
-    expect(resolveDevice(rank, [d("default", "Default - WH-1000XM6"), MBP, XM6])).toBe("default");
+    expect(
+      resolveDevice(rank, [d("default", "Default - WH-1000XM6"), MBP, XM6]),
+    ).toBe("default");
   });
 
   test("an unranked fallback id is used only while plugged in", () => {
@@ -46,16 +53,44 @@ describe("device rank", () => {
 });
 
 describe("trackOnDevice", () => {
-  const track = (deviceId: string, label: string) => ({ getSettings: () => ({ deviceId }), label }) as unknown as MediaStreamTrack;
+  const track = (deviceId: string, label: string) =>
+    ({
+      getSettings: () => ({ deviceId }),
+      label,
+    }) as unknown as MediaStreamTrack;
 
   test("a capture is on a device by its id", () => {
-    expect(trackOnDevice(track("studio", "Studio Display Microphone"), "audioinput", "studio")).toBe(true);
-    expect(trackOnDevice(track("mbp", "MacBook Pro Microphone"), "audioinput", "studio")).toBe(false);
+    expect(
+      trackOnDevice(
+        track("studio", "Studio Display Microphone"),
+        "audioinput",
+        "studio",
+      ),
+    ).toBe(true);
+    expect(
+      trackOnDevice(
+        track("mbp", "MacBook Pro Microphone"),
+        "audioinput",
+        "studio",
+      ),
+    ).toBe(false);
   });
 
   test("or by the listed device's label, where the browser reports the id another way", () => {
     noteDevices("audioinput", [STUDIO, MBP]);
-    expect(trackOnDevice(track("", "Studio Display Microphone"), "audioinput", "studio")).toBe(true);
-    expect(trackOnDevice(track("", "MacBook Pro Microphone"), "audioinput", "studio")).toBe(false);
+    expect(
+      trackOnDevice(
+        track("", "Studio Display Microphone"),
+        "audioinput",
+        "studio",
+      ),
+    ).toBe(true);
+    expect(
+      trackOnDevice(
+        track("", "MacBook Pro Microphone"),
+        "audioinput",
+        "studio",
+      ),
+    ).toBe(false);
   });
 });

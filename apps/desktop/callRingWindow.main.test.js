@@ -50,7 +50,9 @@ test("a second ring finds the window already up", () => {
   const { win } = openRingWindow(rig);
   rig.handlers.get("open-call-ring-window")(rig.event());
   const all = rig.windows.filter((w) =>
-    (w.options.webPreferences?.additionalArguments ?? []).includes("--call-ring-window"),
+    (w.options.webPreferences?.additionalArguments ?? []).includes(
+      "--call-ring-window",
+    ),
   );
   assert.equal(all.length, 1);
   assert.equal(all[0], win);
@@ -65,7 +67,10 @@ test("it is born over everything, and out of the way", () => {
   // Over a fullscreen app, and on whichever desktop the person is on — which
   // is exactly where somebody is when a ring they cannot see arrives.
   assert.deepEqual(win.last("setAlwaysOnTop"), [true, "screen-saver"]);
-  assert.deepEqual(win.last("setVisibleOnAllWorkspaces"), [true, { visibleOnFullScreen: false, skipTransformProcessType: true }]);
+  assert.deepEqual(win.last("setVisibleOnAllWorkspaces"), [
+    true,
+    { visibleOnFullScreen: false, skipTransformProcessType: true },
+  ]);
   // It rings on a timer; a throttled one would stretch the ring period past
   // the invite's own TTL.
   assert.equal(win.options.webPreferences.backgroundThrottling, false);
@@ -149,8 +154,14 @@ test("the accept reaches the call window, and names the invite", () => {
   // A window still loading has no listener yet; the preload buffers this
   // channel and main sends once the page exists.
   call.webContents.emit?.("did-finish-load");
-  if (!sent.length) call.webContents.send("call-ring-accept", { inviteId: "inv-7", roomKey: "dm:a:b" });
-  assert.deepEqual(sent, [["call-ring-accept", { inviteId: "inv-7", roomKey: "dm:a:b" }]]);
+  if (!sent.length)
+    call.webContents.send("call-ring-accept", {
+      inviteId: "inv-7",
+      roomKey: "dm:a:b",
+    });
+  assert.deepEqual(sent, [
+    ["call-ring-accept", { inviteId: "inv-7", roomKey: "dm:a:b" }],
+  ]);
 });
 
 test("an answer with no room does nothing at all", () => {

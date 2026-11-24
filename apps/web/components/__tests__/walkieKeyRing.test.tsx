@@ -12,10 +12,14 @@ import { JSDOM } from "jsdom";
 import * as React from "react";
 import type { PushToTalk } from "../../hooks/useWalkie";
 
-const realWalkieHooks = { ...await import("../../hooks/useWalkie") };
-afterAll(() => { mock.module("../../hooks/useWalkie", () => realWalkieHooks); });
-const realCallManager = { ...await import("../../lib/calls/callManager") };
-afterAll(() => { mock.module("../../lib/calls/callManager", () => realCallManager); });
+const realWalkieHooks = { ...(await import("../../hooks/useWalkie")) };
+afterAll(() => {
+  mock.module("../../hooks/useWalkie", () => realWalkieHooks);
+});
+const realCallManager = { ...(await import("../../lib/calls/callManager")) };
+afterAll(() => {
+  mock.module("../../lib/calls/callManager", () => realCallManager);
+});
 
 const ptt: PushToTalk & { presses: number; releases: number } = {
   holding: false,
@@ -25,8 +29,12 @@ const ptt: PushToTalk & { presses: number; releases: number } = {
   reason: null,
   presses: 0,
   releases: 0,
-  press: () => { ptt.presses++; },
-  release: () => { ptt.releases++; },
+  press: () => {
+    ptt.presses++;
+  },
+  release: () => {
+    ptt.releases++;
+  },
 };
 const rung: { roomKey: string; toUserIds: string[] }[] = [];
 
@@ -46,30 +54,65 @@ mock.module("../../hooks/useWalkie", () => ({
 // here: the same children, the same select, no portal. What this file proves
 // is the key's own wiring — when the menu opens, what it offers, what
 // choosing it does, and that the gesture never leaks into a talk.
-const realContextMenu = { ...await import("../ui/context-menu") };
-afterAll(() => { mock.module("../ui/context-menu", () => realContextMenu); });
+const realContextMenu = { ...(await import("../ui/context-menu")) };
+afterAll(() => {
+  mock.module("../ui/context-menu", () => realContextMenu);
+});
 mock.module("../ui/context-menu", () => ({
   ...realContextMenu,
   ContextMenu: ({ state, children }: any) =>
-    state.menu ? React.createElement("div", { role: "menu" }, children(state.menu.payload)) : null,
+    state.menu
+      ? React.createElement(
+          "div",
+          { role: "menu" },
+          children(state.menu.payload),
+        )
+      : null,
   CtxItem: ({ children, onSelect, disabled, title }: any) =>
-    React.createElement("div", { role: "menuitem", "aria-disabled": disabled || undefined, title, onClick: disabled ? undefined : onSelect }, children),
+    React.createElement(
+      "div",
+      {
+        role: "menuitem",
+        "aria-disabled": disabled || undefined,
+        title,
+        onClick: disabled ? undefined : onSelect,
+      },
+      children,
+    ),
 }));
 mock.module("../../lib/calls/callManager", () => ({
   ...realCallManager,
-  startHuddle: async (opts: { roomKey: string; toUserIds: string[] }) => { rung.push(opts); },
+  startHuddle: async (opts: { roomKey: string; toUserIds: string[] }) => {
+    rung.push(opts);
+  },
 }));
 
 const DOM_KEYS = [
-  "window", "document", "navigator", "HTMLElement", "Element", "Node", "Event",
-  "MouseEvent", "PointerEvent", "CustomEvent", "KeyboardEvent", "FocusEvent", "ResizeObserver", "MutationObserver", "getComputedStyle", "requestAnimationFrame",
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "Event",
+  "MouseEvent",
+  "PointerEvent",
+  "CustomEvent",
+  "KeyboardEvent",
+  "FocusEvent",
+  "ResizeObserver",
+  "MutationObserver",
+  "getComputedStyle",
+  "requestAnimationFrame",
   "IS_REACT_ACT_ENVIRONMENT",
 ] as const;
 const hadGlobals = new Map<string, { had: boolean; was: unknown }>();
 let win: any;
 
 beforeAll(() => {
-  const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
+  const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+    pretendToBeVisual: true,
+  });
   const g = globalThis as any;
   win = dom.window;
   for (const k of DOM_KEYS) hadGlobals.set(k, { had: k in g, was: g[k] });
@@ -87,10 +130,17 @@ beforeAll(() => {
   g.CustomEvent = dom.window.CustomEvent;
   g.KeyboardEvent = dom.window.KeyboardEvent;
   g.FocusEvent = dom.window.FocusEvent;
-  g.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+  g.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
   g.MutationObserver = dom.window.MutationObserver;
   g.getComputedStyle = dom.window.getComputedStyle;
-  g.requestAnimationFrame = (cb: () => void) => { cb(); return 1; };
+  g.requestAnimationFrame = (cb: () => void) => {
+    cb();
+    return 1;
+  };
   g.IS_REACT_ACT_ENVIRONMENT = true;
 });
 
@@ -126,11 +176,22 @@ async function mountKey(ring?: { toUserIds: string[] }) {
   const key = host.querySelector("button.walkie-ptt") as HTMLElement;
   const fire = async (type: string, init: any = {}) => {
     await act(async () => {
-      key.dispatchEvent(new win.MouseEvent(type, { bubbles: true, cancelable: true, clientX: 10, clientY: 10, button: 0, ...init }));
+      key.dispatchEvent(
+        new win.MouseEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          clientX: 10,
+          clientY: 10,
+          button: 0,
+          ...init,
+        }),
+      );
     });
   };
   const menuItem = () =>
-    Array.from(document.body.querySelectorAll('[role="menuitem"]')).find((el) => /Ring/.test(el.textContent ?? "")) as HTMLElement | undefined;
+    Array.from(document.body.querySelectorAll('[role="menuitem"]')).find((el) =>
+      /Ring/.test(el.textContent ?? ""),
+    ) as HTMLElement | undefined;
   return {
     key,
     fire,
@@ -155,9 +216,13 @@ describe("walkie key: ring under the key", () => {
     expect(item?.textContent).toContain("Ring everyone and start a huddle");
 
     await k.act(async () => {
-      item!.dispatchEvent(new win.MouseEvent("click", { bubbles: true, button: 0 }));
+      item!.dispatchEvent(
+        new win.MouseEvent("click", { bubbles: true, button: 0 }),
+      );
     });
-    expect(rung).toEqual([{ roomKey: ROOM, toUserIds: ["u_ann", "u_bob"], anchorTitle: undefined }]);
+    expect(rung).toEqual([
+      { roomKey: ROOM, toUserIds: ["u_ann", "u_bob"], anchorTitle: undefined },
+    ]);
     // The right click never toggled the talk.
     expect(ptt.presses).toBe(0);
     await k.unmount();
@@ -187,18 +252,26 @@ describe("walkie key: ring under the key", () => {
 });
 
 describe("chat header: one voice control per room", () => {
-  const page = readFileSync(new URL("../../app/chat/page.tsx", import.meta.url), "utf8");
+  const page = readFileSync(
+    new URL("../../app/chat/page.tsx", import.meta.url),
+    "utf8",
+  );
   // The chat header, not the first </header> in the file: the page grew an
   // earlier header, and an unanchored end made this slice empty.
   const headStart = page.indexOf('className="ch-head"');
   const header = page.slice(headStart, page.indexOf("</header>", headStart));
 
   test("the DM key carries the ring, and the huddle button is a channel's alone", () => {
-    expect(header).toMatch(/<WalkiePttButton[\s\S]*?ring=\{\{ toUserIds: activeChannel\.dmMemberIds/);
+    expect(header).toMatch(
+      /<WalkiePttButton[\s\S]*?ring=\{\{ toUserIds: activeChannel\.dmMemberIds/,
+    );
     // The huddle control (HuddleWithGuest wraps HuddleButton) renders only where there is no key: never for a DM.
     const huddleAt = header.indexOf("<HuddleWithGuest");
     expect(huddleAt).toBeGreaterThan(-1);
-    const guard = header.slice(header.lastIndexOf("{activeChannel", huddleAt), huddleAt);
+    const guard = header.slice(
+      header.lastIndexOf("{activeChannel", huddleAt),
+      huddleAt,
+    );
     expect(guard).toContain('activeChannel.kind !== "dm"');
     expect(header).not.toMatch(/<HuddleWithGuest[\s\S]*?ring=/);
   });

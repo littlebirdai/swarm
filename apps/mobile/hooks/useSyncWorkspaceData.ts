@@ -37,7 +37,9 @@ export function useSyncWorkspaceData(): void {
  *  floor is in flight, or before the workspace is known. Screens pair it with
  *  an empty store (`loading && rows.length === 0`) so a spinner shows only for
  *  a genuinely cold cache. */
-export function useFeedLoading(scope: "tasks" | "plans" | "docs" | "projects"): boolean {
+export function useFeedLoading(
+  scope: "tasks" | "plans" | "docs" | "projects",
+): boolean {
   const wsSkip = useWorkspaceArgs() === "skip";
   const loading = useInboxStore((s) => !!s.liveLoading?.[scope]);
   return wsSkip || loading;

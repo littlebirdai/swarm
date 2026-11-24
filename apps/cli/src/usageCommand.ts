@@ -25,7 +25,14 @@ import {
   type CcUsage,
   type RecoveryMode,
 } from "@codecast/shared/contracts";
-import { accountTokenInfo, activeAccountSummary, launchProfileName, listProfiles, readActiveCredential, readUsageCache } from "./ccAccounts.js";
+import {
+  accountTokenInfo,
+  activeAccountSummary,
+  launchProfileName,
+  listProfiles,
+  readActiveCredential,
+  readUsageCache,
+} from "./ccAccounts.js";
 import type { UsageRetryState } from "./usageRetry.js";
 
 export interface UsageProfile {
@@ -94,7 +101,9 @@ export { USAGE_WARN_PERCENT };
 /** This machine's saved profiles joined with the daemon's usage cache. The
  * active login need not be a saved profile — it still has a cache entry, so
  * it is synthesized as one when no profile covers it. */
-export function loadLocalUsageProfiles(credential: string | null = readActiveCredential()): UsageProfile[] {
+export function loadLocalUsageProfiles(
+  credential: string | null = readActiveCredential(),
+): UsageProfile[] {
   const { accounts: cache, retries } = readUsageCache();
   // "active" here is the account sessions run on: the launch profile after a
   // token switch, else the keychain login (fallbacks exclude it, meters lead
@@ -134,7 +143,12 @@ export function buildUsageReport(
   const usage = active?.usage;
   const windows: UsageWindowLine[] = [];
   for (const w of usage ? labeledUsageWindows(usage) : []) {
-    windows.push({ label: w.label, percent: livePercent(w, now), resets_at: w.resets_at, rolled: isWindowRolled(w, now) });
+    windows.push({
+      label: w.label,
+      percent: livePercent(w, now),
+      resets_at: w.resets_at,
+      rolled: isWindowRolled(w, now),
+    });
   }
   const extra = usage?.extra;
   const extraNote =
@@ -152,7 +166,14 @@ export function buildUsageReport(
   return {
     now,
     active: active
-      ? { name: active.name, email: active.email, fetched_at: usage?.fetched_at, windows, extra: extraNote, retry: active.retry }
+      ? {
+          name: active.name,
+          email: active.email,
+          fetched_at: usage?.fetched_at,
+          windows,
+          extra: extraNote,
+          retry: active.retry,
+        }
       : null,
     worst,
     exhausted: isUsageExhausted(usage, now),
@@ -168,49 +189,93 @@ export function buildUsageReport(
 
 /** One sentence on what a limit hit means for sessions on this machine. The
  * words live in the shared contracts so the role page prints the same ones. */
-export const describeRecovery = (r: UsageReport): string => describeLimitRecovery(r);
+export const describeRecovery = (r: UsageReport): string =>
+  describeLimitRecovery(r);
 
-const pad = (s: string, n: number) => (s.length >= n ? s : s + " ".repeat(n - s.length));
+const pad = (s: string, n: number) =>
+  s.length >= n ? s : s + " ".repeat(n - s.length);
 
-export function renderUsageReport(r: UsageReport, c: Record<string, string>): string {
+export function renderUsageReport(
+  r: UsageReport,
+  c: Record<string, string>,
+): string {
   const lines: string[] = [];
   if (!r.active) {
-    lines.push(`${c.dim}No active Claude account with usage data yet — the daemon reports it within a few minutes.${c.reset}`);
+    lines.push(
+      `${c.dim}No active Claude account with usage data yet — the daemon reports it within a few minutes.${c.reset}`,
+    );
     lines.push(describeRecovery(r));
     return lines.join("\n");
   }
-  const age = r.active.fetched_at ? ` ${c.dim}as of ${formatAgo(r.now - r.active.fetched_at)}${c.reset}` : "";
-  lines.push(`${c.cyan}${r.active.name}${c.reset} ${r.active.email ?? ""}${age}`);
+  const age = r.active.fetched_at
+    ? ` ${c.dim}as of ${formatAgo(r.now - r.active.fetched_at)}${c.reset}`
+    : "";
+  lines.push(
+    `${c.cyan}${r.active.name}${c.reset} ${r.active.email ?? ""}${age}`,
+  );
   for (const w of r.active.windows) {
-    const tone = w.percent >= 100 ? c.red : w.percent >= USAGE_WARN_PERCENT ? c.yellow : w.percent >= 60 ? c.yellow : c.green;
-    const pct = w.rolled ? `${c.dim}reset${c.reset}` : `${tone}${pad(`${Math.round(w.percent)}%`, 4)}${c.reset}`;
-    const reset = w.resets_at && w.resets_at > r.now ? `${c.dim}resets in ${formatCountdown(w.resets_at - r.now)}${c.reset}` : "";
+    const tone =
+      w.percent >= 100
+        ? c.red
+        : w.percent >= USAGE_WARN_PERCENT
+          ? c.yellow
+          : w.percent >= 60
+            ? c.yellow
+            : c.green;
+    const pct = w.rolled
+      ? `${c.dim}reset${c.reset}`
+      : `${tone}${pad(`${Math.round(w.percent)}%`, 4)}${c.reset}`;
+    const reset =
+      w.resets_at && w.resets_at > r.now
+        ? `${c.dim}resets in ${formatCountdown(w.resets_at - r.now)}${c.reset}`
+        : "";
     lines.push(`  ${pad(w.label, 14)} ${pct} ${reset}`.trimEnd());
   }
-  if (r.active.windows.length === 0) lines.push(`  ${c.dim}no limit windows reported${c.reset}`);
+  if (r.active.windows.length === 0)
+    lines.push(`  ${c.dim}no limit windows reported${c.reset}`);
   const extra = r.active.extra;
   if (extra) {
     const money = (n: number) =>
-      n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+      n.toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      });
     const dollars =
-      extra.limit != null && extra.used != null ? `${money(extra.used)} / ${money(extra.limit)}` : null;
-    const tone = extra.spend_limit_reached || extra.percent >= 100 ? c.red : extra.enabled ? c.yellow : c.dim;
+      extra.limit != null && extra.used != null
+        ? `${money(extra.used)} / ${money(extra.limit)}`
+        : null;
+    const tone =
+      extra.spend_limit_reached || extra.percent >= 100
+        ? c.red
+        : extra.enabled
+          ? c.yellow
+          : c.dim;
     const status = extra.spend_limit_reached
       ? "cap reached"
       : extra.enabled
         ? `${Math.round(extra.percent)}% used`
         : "off";
-    lines.push(`  ${pad("Extra spend", 14)} ${tone}${dollars ?? status}${c.reset}${dollars ? ` ${c.dim}${status}${c.reset}` : ""}`.trimEnd());
+    lines.push(
+      `  ${pad("Extra spend", 14)} ${tone}${dollars ?? status}${c.reset}${dollars ? ` ${c.dim}${status}${c.reset}` : ""}`.trimEnd(),
+    );
   }
   const retry = r.active.retry;
   if (retry) {
     // The numbers above are the last GOOD reading. Without this line a stuck
     // poll is invisible: the meters simply stop moving and read as headroom.
     const when =
-      retry.retry_at > r.now ? `next try in ${formatCountdown(retry.retry_at - r.now)}` : "next try on the coming poll";
-    const streak = retry.failures > 1 ? ` ${c.dim}(${retry.failures} in a row)${c.reset}` : "";
+      retry.retry_at > r.now
+        ? `next try in ${formatCountdown(retry.retry_at - r.now)}`
+        : "next try on the coming poll";
+    const streak =
+      retry.failures > 1
+        ? ` ${c.dim}(${retry.failures} in a row)${c.reset}`
+        : "";
     const named = retry.retry_after ? " as the endpoint asked" : "";
-    lines.push(`  ${c.yellow}usage poll failing${c.reset}${streak} ${c.dim}${retry.reason} · ${when}${named}${c.reset}`);
+    lines.push(
+      `  ${c.yellow}usage poll failing${c.reset}${streak} ${c.dim}${retry.reason} · ${when}${named}${c.reset}`,
+    );
   }
   lines.push(describeRecovery(r));
   return lines.join("\n");
@@ -222,7 +287,14 @@ export interface AccountUsageRow {
   email?: string;
   active: boolean;
   /** What decides whether a session can land on it now, most binding first. */
-  status: "active" | "reserved" | "login expired" | "access refused" | "exhausted" | "no data" | "headroom";
+  status:
+    | "active"
+    | "reserved"
+    | "login expired"
+    | "access refused"
+    | "exhausted"
+    | "no data"
+    | "headroom";
   /** Whether auto-switch would pick it (fallbackProfiles), the same set `cast usage` counts. */
   switch_target: boolean;
   /** No window is pegged right now, so a parked session continued here can run. */
@@ -234,17 +306,28 @@ export interface AccountUsageRow {
 }
 
 /** Every saved account with its windows, from the daemon's cache: what `cast usage` says for the active one, for all of them. */
-export function buildAccountUsage(profiles: UsageProfile[], now: number): AccountUsageRow[] {
+export function buildAccountUsage(
+  profiles: UsageProfile[],
+  now: number,
+): AccountUsageRow[] {
   const activeEmail = profiles.find((p) => p.active)?.email;
-  const targets = new Set(fallbackProfiles(profiles, activeEmail, now).map((p) => p.name));
+  const targets = new Set(
+    fallbackProfiles(profiles, activeEmail, now).map((p) => p.name),
+  );
   return profiles.map((p) => {
     const tokenLive = !!p.setup_token && p.setup_token.expires_at > now;
-    const status: AccountUsageRow["status"] = p.active ? "active"
-      : p.reserved_for ? "reserved"
-        : p.access_refused_at ? "access refused"
-          : p.login_expired_at && !tokenLive ? "login expired"
-            : !p.usage ? "no data"
-              : isUsageExhausted(p.usage, now) ? "exhausted"
+    const status: AccountUsageRow["status"] = p.active
+      ? "active"
+      : p.reserved_for
+        ? "reserved"
+        : p.access_refused_at
+          ? "access refused"
+          : p.login_expired_at && !tokenLive
+            ? "login expired"
+            : !p.usage
+              ? "no data"
+              : isUsageExhausted(p.usage, now)
+                ? "exhausted"
                 : "headroom";
     return {
       name: p.name,
@@ -254,7 +337,12 @@ export function buildAccountUsage(profiles: UsageProfile[], now: number): Accoun
       switch_target: targets.has(p.name),
       has_room: !isUsageExhausted(p.usage, now),
       worst: worstUsagePercent(p.usage, now),
-      windows: (p.usage ? labeledUsageWindows(p.usage) : []).map((w) => ({ label: w.label, percent: livePercent(w, now), resets_at: w.resets_at, rolled: isWindowRolled(w, now) })),
+      windows: (p.usage ? labeledUsageWindows(p.usage) : []).map((w) => ({
+        label: w.label,
+        percent: livePercent(w, now),
+        resets_at: w.resets_at,
+        rolled: isWindowRolled(w, now),
+      })),
       fetched_at: p.usage?.fetched_at,
       ...(p.reserved_for ? { reserved_for: p.reserved_for } : {}),
     };
@@ -262,28 +350,67 @@ export function buildAccountUsage(profiles: UsageProfile[], now: number): Accoun
 }
 
 /** One line per account: name, each window's percent and reset, then its status. */
-export function renderAccountUsage(rows: AccountUsageRow[], now: number, c: Record<string, string>): string {
-  if (!rows.length) return `${c.dim}No saved profiles. Save the current login with:${c.reset} cast accounts save <name>`;
+export function renderAccountUsage(
+  rows: AccountUsageRow[],
+  now: number,
+  c: Record<string, string>,
+): string {
+  if (!rows.length)
+    return `${c.dim}No saved profiles. Save the current login with:${c.reset} cast accounts save <name>`;
   const width = Math.max(...rows.map((r) => r.name.length)) + 1;
   const lines = rows.map((r) => {
-    const windows = r.windows.map((w) => {
-      const tone = w.percent >= 100 ? c.red : w.percent >= USAGE_WARN_PERCENT ? c.yellow : c.green;
-      const pct = w.rolled ? `${c.dim}reset${c.reset}` : `${tone}${Math.round(w.percent)}%${c.reset}`;
-      const reset = !w.rolled && w.resets_at && w.resets_at > now ? ` ${c.dim}${formatCountdown(w.resets_at - now)}${c.reset}` : "";
-      return `${w.label} ${pct}${reset}`;
-    }).join(`${c.dim} · ${c.reset}`) || `${c.dim}no windows${c.reset}`;
-    const tone = r.status === "active" ? c.cyan : r.status === "headroom" ? c.green : r.status === "exhausted" || r.status === "login expired" || r.status === "access refused" ? c.red : c.dim;
-    const age = r.fetched_at ? ` ${c.dim}${formatAgo(now - r.fetched_at)}${c.reset}` : "";
+    const windows =
+      r.windows
+        .map((w) => {
+          const tone =
+            w.percent >= 100
+              ? c.red
+              : w.percent >= USAGE_WARN_PERCENT
+                ? c.yellow
+                : c.green;
+          const pct = w.rolled
+            ? `${c.dim}reset${c.reset}`
+            : `${tone}${Math.round(w.percent)}%${c.reset}`;
+          const reset =
+            !w.rolled && w.resets_at && w.resets_at > now
+              ? ` ${c.dim}${formatCountdown(w.resets_at - now)}${c.reset}`
+              : "";
+          return `${w.label} ${pct}${reset}`;
+        })
+        .join(`${c.dim} · ${c.reset}`) || `${c.dim}no windows${c.reset}`;
+    const tone =
+      r.status === "active"
+        ? c.cyan
+        : r.status === "headroom"
+          ? c.green
+          : r.status === "exhausted" ||
+              r.status === "login expired" ||
+              r.status === "access refused"
+            ? c.red
+            : c.dim;
+    const age = r.fetched_at
+      ? ` ${c.dim}${formatAgo(now - r.fetched_at)}${c.reset}`
+      : "";
     return `${r.active ? "●" : "○"} ${pad(r.name, width)} ${windows}  ${tone}${r.status}${c.reset}${age}`;
   });
   const targets = rows.filter((r) => r.switch_target);
-  lines.push(`${c.dim}${targets.length} of ${rows.length} accounts are auto-switch targets now (headroom, reachable, not reserved)${c.reset}`);
+  lines.push(
+    `${c.dim}${targets.length} of ${rows.length} accounts are auto-switch targets now (headroom, reachable, not reserved)${c.reset}`,
+  );
   // The account in use comes first: a person may have just chosen it, and a
   // continue restarts parked sessions onto it. Naming another account here
   // moves every machine off that choice.
   const active = rows.find((r) => r.active);
-  const best = [...targets].sort((a, b) => (a.worst ?? 100) - (b.worst ?? 100))[0];
-  if (active?.has_room) lines.push(`${c.dim}Sessions parked on a limit continue now on ${active.name}, the account in use, workers included:${c.reset} cast accounts continue --yes --include-subagents`);
-  else if (best) lines.push(`${c.dim}${active ? `${active.name} is spent; s` : "S"}essions parked on a limit continue now on ${best.name}, workers included:${c.reset} cast accounts use ${best.name} --continue --yes --include-subagents`);
+  const best = [...targets].sort(
+    (a, b) => (a.worst ?? 100) - (b.worst ?? 100),
+  )[0];
+  if (active?.has_room)
+    lines.push(
+      `${c.dim}Sessions parked on a limit continue now on ${active.name}, the account in use, workers included:${c.reset} cast accounts continue --yes --include-subagents`,
+    );
+  else if (best)
+    lines.push(
+      `${c.dim}${active ? `${active.name} is spent; s` : "S"}essions parked on a limit continue now on ${best.name}, workers included:${c.reset} cast accounts use ${best.name} --continue --yes --include-subagents`,
+    );
   return lines.join("\n");
 }

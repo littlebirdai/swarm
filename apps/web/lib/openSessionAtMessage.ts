@@ -17,7 +17,12 @@ export function openSessionAtMessage(
 }
 
 export function isOnThreadRoute(pathname?: string | null): boolean {
-  const raw = pathname ?? (typeof window !== "undefined" ? window.location.pathname : "");
+  const raw =
+    pathname ?? (typeof window !== "undefined" ? window.location.pathname : "");
   const path = raw.split("?")[0].split("#")[0];
-  return path === "/inbox" || path.startsWith("/inbox/") || path.startsWith("/conversation/");
+  return (
+    path === "/inbox" ||
+    path.startsWith("/inbox/") ||
+    path.startsWith("/conversation/")
+  );
 }

@@ -7,8 +7,14 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 test("ConversationView's virtualizer writes row positions as top, not translate3d", () => {
-  const src = readFileSync(new URL("../ConversationView.tsx", import.meta.url), "utf8");
-  const call = src.slice(src.indexOf("useVirtualizer({"), src.indexOf("useVirtualizer({") + 600);
+  const src = readFileSync(
+    new URL("../ConversationView.tsx", import.meta.url),
+    "utf8",
+  );
+  const call = src.slice(
+    src.indexOf("useVirtualizer({"),
+    src.indexOf("useVirtualizer({") + 600,
+  );
   expect(call).toContain("directDomUpdates: true");
   expect(call).toContain('directDomUpdatesMode: "position"');
 });

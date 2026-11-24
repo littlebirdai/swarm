@@ -67,7 +67,9 @@ test("native addons are unpacked from the asar", () => {
   assert.ok(natives.length > 0, "the notifications addon is packaged");
   for (const f of natives) {
     const unpacked = (pkg.build.asarUnpack ?? []).some((glob) =>
-      new RegExp(`^${glob.replace(/[.]/g, "\\.").replace(/\*/g, "[^/]*")}$`).test(f),
+      new RegExp(
+        `^${glob.replace(/[.]/g, "\\.").replace(/\*/g, "[^/]*")}$`,
+      ).test(f),
     );
     assert.ok(unpacked, `${f} is not matched by build.asarUnpack`);
   }
@@ -81,7 +83,11 @@ test("every tray image is packaged", () => {
   const { TRAY_ASSET_FILES } = require("./trayIcon");
   const allowed = new Set(pkg.build.files);
   const missing = TRAY_ASSET_FILES.filter((f) => !allowed.has(f));
-  assert.deepEqual(missing, [], `Add these to build.files in apps/desktop/package.json:\n  ${missing.join("\n  ")}`);
+  assert.deepEqual(
+    missing,
+    [],
+    `Add these to build.files in apps/desktop/package.json:\n  ${missing.join("\n  ")}`,
+  );
 });
 
 test("the entry points themselves are packaged", () => {
@@ -94,20 +100,43 @@ test("release verification preserves explicit module extensions", () => {
   const { execFileSync } = require("node:child_process");
   const script = readFileSync(join(HERE, "scripts/release.sh"), "utf8");
   const normalize = script.match(/case "\$mod" in .*? esac/)[0];
-  for (const mod of ["notificationRouter", "notificationRouter.js", "appWindows.mjs", "native/notifications.node"]) {
-    const actual = execFileSync("bash", ["-c", `${normalize}; printf '%s' "$f"`], { env: { ...process.env, mod }, encoding: "utf8" });
-    assert.equal(actual, `/${localRequires("main.js").find(f => f === mod || f === `${mod}.js`) ?? mod}`);
+  for (const mod of [
+    "notificationRouter",
+    "notificationRouter.js",
+    "appWindows.mjs",
+    "native/notifications.node",
+  ]) {
+    const actual = execFileSync(
+      "bash",
+      ["-c", `${normalize}; printf '%s' "$f"`],
+      { env: { ...process.env, mod }, encoding: "utf8" },
+    );
+    assert.equal(
+      actual,
+      `/${localRequires("main.js").find((f) => f === mod || f === `${mod}.js`) ?? mod}`,
+    );
   }
 });
 
 test("release updates a download pointer behind the package version", () => {
   const { execFileSync } = require("node:child_process");
   const script = readFileSync(join(HERE, "scripts/release.sh"), "utf8");
-  const edits = script.split("\n").filter(line => line.startsWith("sed -i") && line.includes('"$WEB_SERVER"'));
-  let text = 'const MAC_DMG_URL = "https://dl.codecast.sh/desktop/Codecast-1.1.111-arm64.dmg";\nconst MAC_DMG_VERSION = "1.1.111";\n';
+  const edits = script
+    .split("\n")
+    .filter(
+      (line) => line.startsWith("sed -i") && line.includes('"$WEB_SERVER"'),
+    );
+  let text =
+    'const MAC_DMG_URL = "https://dl.codecast.sh/desktop/Codecast-1.1.111-arm64.dmg";\nconst MAC_DMG_VERSION = "1.1.111";\n';
   for (const edit of edits) {
-    const command = edit.replace("sed -i ''", "sed").replace(' "$WEB_SERVER"', "");
-    text = execFileSync("bash", ["-c", command], { input: text, env: { ...process.env, OLD_VERSION: "1.1.112", NEW_VERSION: "1.1.113" }, encoding: "utf8" });
+    const command = edit
+      .replace("sed -i ''", "sed")
+      .replace(' "$WEB_SERVER"', "");
+    text = execFileSync("bash", ["-c", command], {
+      input: text,
+      env: { ...process.env, OLD_VERSION: "1.1.112", NEW_VERSION: "1.1.113" },
+      encoding: "utf8",
+    });
   }
   assert.ok(text.includes("Codecast-1.1.113-arm64.dmg"));
   assert.ok(text.includes('MAC_DMG_VERSION = "1.1.113"'));

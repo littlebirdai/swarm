@@ -1,5 +1,18 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { _resetUndoStacks, getUndoHistory, performRedo, performUndo, undoEntry } from "@platform/engine";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "bun:test";
+import {
+  _resetUndoStacks,
+  getUndoHistory,
+  performRedo,
+  performUndo,
+  undoEntry,
+} from "@platform/engine";
 import { targetDayStamp } from "@codecast/shared/time";
 import { useInboxStore } from "../inboxStore";
 
@@ -18,16 +31,24 @@ const owner = {};
 
 beforeAll(() => {
   // Receipt actions (editComment) expect their command acknowledged.
-  s()._setDispatch(async (action: string, args: unknown[], _patches: unknown, result: any) => {
-    calls.push([action, args]);
-    return result?.receiptActionVersion ? { commandId: result.commandId, status: "acknowledged", result: null } : null;
-  }, { owner });
+  s()._setDispatch(
+    async (action: string, args: unknown[], _patches: unknown, result: any) => {
+      calls.push([action, args]);
+      return result?.receiptActionVersion
+        ? { commandId: result.commandId, status: "acknowledged", result: null }
+        : null;
+    },
+    { owner },
+  );
 });
 afterAll(() => s()._clearDispatch(owner));
 beforeEach(() => {
   _resetUndoStacks();
   calls = [];
-  useInboxStore.setState({ pending: {}, currentUser: { _id: ME, name: "Me" } } as any);
+  useInboxStore.setState({
+    pending: {},
+    currentUser: { _id: ME, name: "Me" },
+  } as any);
 });
 
 /** Run the gesture, then its undo (by the toast's id, so confirm specs undo too); return what the undo dispatched. */
@@ -42,7 +63,9 @@ function undoOf(gesture: () => void): Array<[string, unknown[]]> {
 
 /** undoOf for an undo that writes back less than its forward sent (an inbox
  *  row with no meta): it waits for that send to settle before going out. */
-async function undoOfSettled(gesture: () => void): Promise<Array<[string, unknown[]]>> {
+async function undoOfSettled(
+  gesture: () => void,
+): Promise<Array<[string, unknown[]]>> {
   const sent = undoOf(gesture);
   for (let i = 0; i < 100 && sent.length === 0; i++) await Bun.sleep(2);
   return sent;
@@ -59,20 +82,39 @@ describe("conversation inverses", () => {
 
   it("switchProject goes back to the prior path", () => {
     seed({ project_path: "/src/a", git_root: "/src/a" });
-    expect(undoOf(() => s().switchProject(CONV, "/src/b"))).toEqual([["switchProject", [CONV, "/src/a"]]]);
+    expect(undoOf(() => s().switchProject(CONV, "/src/b"))).toEqual([
+      ["switchProject", [CONV, "/src/a"]],
+    ]);
     expect(s().conversations[CONV].project_path).toBe("/src/a");
   });
 
   it("switchProject undo writes git_root as the server will, so the echo of a subdirectory session retires every lock", () => {
     seed({ project_path: "/src/repo/sub", git_root: "/src/repo" });
-    expect(undoOf(() => s().switchProject(CONV, "/src/b"))).toEqual([["switchProject", [CONV, "/src/repo/sub"]]]);
+    expect(undoOf(() => s().switchProject(CONV, "/src/b"))).toEqual([
+      ["switchProject", [CONV, "/src/repo/sub"]],
+    ]);
     // The server's switchProject stores git_root = path.
-    expect(s().conversations[CONV]).toMatchObject({ project_path: "/src/repo/sub", git_root: "/src/repo/sub" });
+    expect(s().conversations[CONV]).toMatchObject({
+      project_path: "/src/repo/sub",
+      git_root: "/src/repo/sub",
+    });
     for (const store of ["conversations", "sessions"]) {
-      s().syncTable(store, [{ ...s()[store][CONV], project_path: "/src/repo/sub", git_root: "/src/repo/sub" }], { isDelta: true });
+      s().syncTable(
+        store,
+        [
+          {
+            ...s()[store][CONV],
+            project_path: "/src/repo/sub",
+            git_root: "/src/repo/sub",
+          },
+        ],
+        { isDelta: true },
+      );
       expect(s()[store][CONV].git_root).toBe("/src/repo/sub");
     }
-    expect(Object.keys(s().pending).filter((k) => k.includes(CONV))).toEqual([]);
+    expect(Object.keys(s().pending).filter((k) => k.includes(CONV))).toEqual(
+      [],
+    );
   });
 
   it("switchProject undo of a session with no git_root also stores the server's spelling", () => {
@@ -93,7 +135,10 @@ describe("conversation inverses", () => {
     calls = [];
     undoEntry(getUndoHistory().items[0]!.id);
     expect(calls).toEqual([["setTeamVisibility", [CONV, "summary"]]]);
-    expect(s().conversations[CONV]).toMatchObject({ is_private: false, team_visibility: "summary" });
+    expect(s().conversations[CONV]).toMatchObject({
+      is_private: false,
+      team_visibility: "summary",
+    });
   });
 
   it("an accidental share is taken back by blind undo, which makes the session private again", () => {
@@ -108,25 +153,47 @@ describe("conversation inverses", () => {
 
   it("setTeamVisibility goes back to the prior level, or to private", () => {
     seed({ is_private: false, team_visibility: "summary", team_id: TEAM });
-    expect(undoOf(() => s().setTeamVisibility(CONV, "full"))).toEqual([["setTeamVisibility", [CONV, "summary"]]]);
+    expect(undoOf(() => s().setTeamVisibility(CONV, "full"))).toEqual([
+      ["setTeamVisibility", [CONV, "summary"]],
+    ]);
     _resetUndoStacks();
     seed({ is_private: true, team_visibility: "private" });
-    expect(undoOf(() => s().setTeamVisibility(CONV, "full"))).toEqual([["setPrivacy", [CONV, true]]]);
+    expect(undoOf(() => s().setTeamVisibility(CONV, "full"))).toEqual([
+      ["setPrivacy", [CONV, true]],
+    ]);
   });
 
   it("unsharing a session born private leaves no lock its echo cannot retire", () => {
     // The server creates private sessions with no team_visibility; its
     // setPrivacy(true) then stores "private".
-    for (const share of [() => s().setTeamVisibility(CONV, "full"), () => s().setPrivacy(CONV, false)]) {
+    for (const share of [
+      () => s().setTeamVisibility(CONV, "full"),
+      () => s().setPrivacy(CONV, false),
+    ]) {
       _resetUndoStacks();
       useInboxStore.setState({ pending: {} } as any);
       seed({ is_private: true });
       expect(undoOf(share)).toEqual([["setPrivacy", [CONV, true]]]);
       for (const store of ["conversations", "sessions"]) {
-        s().syncTable(store, [{ ...s()[store][CONV], is_private: true, team_visibility: "private" }], { isDelta: true });
-        expect(s()[store][CONV]).toMatchObject({ is_private: true, team_visibility: "private" });
+        s().syncTable(
+          store,
+          [
+            {
+              ...s()[store][CONV],
+              is_private: true,
+              team_visibility: "private",
+            },
+          ],
+          { isDelta: true },
+        );
+        expect(s()[store][CONV]).toMatchObject({
+          is_private: true,
+          team_visibility: "private",
+        });
       }
-      expect(Object.keys(s().pending).filter((k) => k.includes(CONV))).toEqual([]);
+      expect(Object.keys(s().pending).filter((k) => k.includes(CONV))).toEqual(
+        [],
+      );
     }
   });
 
@@ -141,14 +208,29 @@ describe("conversation inverses", () => {
     };
     // Prior is_private unknown on both store copies.
     expect(recorded({}, () => s().setPrivacy(CONV, true))).toBe(0);
-    expect(recorded({ team_id: TEAM }, () => s().setTeamVisibility(CONV, "full"))).toBe(0);
+    expect(
+      recorded({ team_id: TEAM }, () => s().setTeamVisibility(CONV, "full")),
+    ).toBe(0);
     // Shared with no team: sharing again would pick one.
-    expect(recorded({ is_private: false }, () => s().setPrivacy(CONV, true))).toBe(0);
-    expect(recorded({ is_private: false }, () => s().setTeamVisibility(CONV, "summary"))).toBe(0);
+    expect(
+      recorded({ is_private: false }, () => s().setPrivacy(CONV, true)),
+    ).toBe(0);
+    expect(
+      recorded({ is_private: false }, () =>
+        s().setTeamVisibility(CONV, "summary"),
+      ),
+    ).toBe(0);
     // Known on one copy is known.
     _resetUndoStacks();
     useInboxStore.setState({
-      sessions: { [CONV]: { _id: CONV, title: "Auth fix", is_private: false, team_id: TEAM } },
+      sessions: {
+        [CONV]: {
+          _id: CONV,
+          title: "Auth fix",
+          is_private: false,
+          team_id: TEAM,
+        },
+      },
       conversations: {},
     } as any);
     s().setPrivacy(CONV, true);
@@ -156,18 +238,29 @@ describe("conversation inverses", () => {
   });
 
   it("setTeamVisibility confirms only an undo that would widen the audience", () => {
-    const confirmOf = (from: Record<string, unknown>, to: "summary" | "full" | null) => {
+    const confirmOf = (
+      from: Record<string, unknown>,
+      to: "summary" | "full" | null,
+    ) => {
       _resetUndoStacks();
       seed({ ...from, team_id: TEAM });
       s().setTeamVisibility(CONV, to);
       return getUndoHistory().items[0]?.confirm === true;
     };
-    expect(confirmOf({ is_private: false, team_visibility: "full" }, "summary")).toBe(true);
-    expect(confirmOf({ is_private: false, team_visibility: "summary" }, "full")).toBe(false);
-    expect(confirmOf({ is_private: true, team_visibility: "private" }, "summary")).toBe(false);
+    expect(
+      confirmOf({ is_private: false, team_visibility: "full" }, "summary"),
+    ).toBe(true);
+    expect(
+      confirmOf({ is_private: false, team_visibility: "summary" }, "full"),
+    ).toBe(false);
+    expect(
+      confirmOf({ is_private: true, team_visibility: "private" }, "summary"),
+    ).toBe(false);
     // The member default cannot be ordered against a level, so either way confirms.
     expect(confirmOf({ is_private: false }, "summary")).toBe(true);
-    expect(confirmOf({ is_private: false, team_visibility: "summary" }, null)).toBe(true);
+    expect(
+      confirmOf({ is_private: false, team_visibility: "summary" }, null),
+    ).toBe(true);
   });
 
   // An inbox row never opened in this window has no conversations row: the
@@ -176,18 +269,38 @@ describe("conversation inverses", () => {
   // row's prior value on the thin row, never an absent one.
   describe("on an inbox row with no conversations meta", () => {
     const inboxOnly = (fields: Record<string, unknown>) =>
-      useInboxStore.setState({ sessions: { [CONV]: { _id: CONV, title: "Auth fix", ...fields } }, conversations: {} } as any);
-    const convLocks = () => Object.keys(s().pending).filter((k) => k.startsWith(`conversations:${CONV}`));
+      useInboxStore.setState({
+        sessions: { [CONV]: { _id: CONV, title: "Auth fix", ...fields } },
+        conversations: {},
+      } as any);
+    const convLocks = () =>
+      Object.keys(s().pending).filter((k) =>
+        k.startsWith(`conversations:${CONV}`),
+      );
     const echo = (fields: Record<string, unknown>) => {
       // The lock layer retires a lock on the second sight of its value.
-      for (let i = 0; i < 2; i++) s().syncTable("conversations", [{ _id: CONV, title: "Auth fix", ...fields }], { isDelta: true });
+      for (let i = 0; i < 2; i++)
+        s().syncTable(
+          "conversations",
+          [{ _id: CONV, title: "Auth fix", ...fields }],
+          { isDelta: true },
+        );
     };
 
     it("setPrivacy undo restores the prior audience, and the meta's echo retires every lock", async () => {
-      const prior = { is_private: false, team_visibility: "full", team_id: TEAM };
+      const prior = {
+        is_private: false,
+        team_visibility: "full",
+        team_id: TEAM,
+      };
       inboxOnly(prior);
-      expect(await undoOfSettled(() => s().setPrivacy(CONV, true))).toEqual([["setTeamVisibility", [CONV, "full"]]]);
-      expect(s().conversations[CONV]).toMatchObject({ is_private: false, team_visibility: "full" });
+      expect(await undoOfSettled(() => s().setPrivacy(CONV, true))).toEqual([
+        ["setTeamVisibility", [CONV, "full"]],
+      ]);
+      expect(s().conversations[CONV]).toMatchObject({
+        is_private: false,
+        team_visibility: "full",
+      });
       echo(prior);
       expect(s().conversations[CONV]).toMatchObject(prior);
       expect(convLocks()).toEqual([]);
@@ -195,18 +308,31 @@ describe("conversation inverses", () => {
 
     it("setTeamVisibility undo back to private does the same", async () => {
       inboxOnly({ is_private: true });
-      expect(await undoOfSettled(() => s().setTeamVisibility(CONV, "full"))).toEqual([["setPrivacy", [CONV, true]]]);
+      expect(
+        await undoOfSettled(() => s().setTeamVisibility(CONV, "full")),
+      ).toEqual([["setPrivacy", [CONV, true]]]);
       echo({ is_private: true, team_visibility: "private" });
-      expect(s().conversations[CONV]).toMatchObject({ is_private: true, team_visibility: "private" });
+      expect(s().conversations[CONV]).toMatchObject({
+        is_private: true,
+        team_visibility: "private",
+      });
       expect(convLocks()).toEqual([]);
     });
 
     it("switchProject undo does the same for the path and its git_root", async () => {
       inboxOnly({ project_path: "/src/a", git_root: "/src/a" });
-      expect(await undoOfSettled(() => s().switchProject(CONV, "/src/b"))).toEqual([["switchProject", [CONV, "/src/a"]]]);
-      expect(s().conversations[CONV]).toMatchObject({ project_path: "/src/a", git_root: "/src/a" });
+      expect(
+        await undoOfSettled(() => s().switchProject(CONV, "/src/b")),
+      ).toEqual([["switchProject", [CONV, "/src/a"]]]);
+      expect(s().conversations[CONV]).toMatchObject({
+        project_path: "/src/a",
+        git_root: "/src/a",
+      });
       echo({ project_path: "/src/a", git_root: "/src/a" });
-      expect(s().conversations[CONV]).toMatchObject({ project_path: "/src/a", git_root: "/src/a" });
+      expect(s().conversations[CONV]).toMatchObject({
+        project_path: "/src/a",
+        git_root: "/src/a",
+      });
       expect(convLocks()).toEqual([]);
     });
 
@@ -215,7 +341,10 @@ describe("conversation inverses", () => {
       inboxOnly({ project_path: "/tmp/scratch" });
       undoOf(() => s().switchProject(CONV, "/src/b"));
       echo({ project_path: "/tmp/scratch", git_root: "/tmp/scratch" });
-      expect(s().conversations[CONV]).toMatchObject({ project_path: "/tmp/scratch", git_root: "/tmp/scratch" });
+      expect(s().conversations[CONV]).toMatchObject({
+        project_path: "/tmp/scratch",
+        git_root: "/tmp/scratch",
+      });
       expect(convLocks()).toEqual([]);
     });
 
@@ -223,7 +352,10 @@ describe("conversation inverses", () => {
       inboxOnly({ is_private: false, team_visibility: "full", team_id: TEAM });
       undoOf(() => s().setPrivacy(CONV, true));
       expect(performRedo()).toBe(true);
-      expect(s().conversations[CONV]).toMatchObject({ is_private: true, team_visibility: "private" });
+      expect(s().conversations[CONV]).toMatchObject({
+        is_private: true,
+        team_visibility: "private",
+      });
     });
   });
 
@@ -231,18 +363,33 @@ describe("conversation inverses", () => {
   // and no inbox row stands behind it. A field with no prior value was really
   // unset there, so the undo clears it, as the inverse does on the server.
   describe("on a loaded conversation with no inbox row", () => {
-    const loaded = (fields: Record<string, unknown>) => ({ _id: CONV, title: "Auth fix", message_count: 3, _creationTime: 5, ...fields });
+    const loaded = (fields: Record<string, unknown>) => ({
+      _id: CONV,
+      title: "Auth fix",
+      message_count: 3,
+      _creationTime: 5,
+      ...fields,
+    });
     const metaOnly = (fields: Record<string, unknown>) =>
-      useInboxStore.setState({ sessions: {}, conversations: { [CONV]: loaded(fields) } } as any);
-    const convLocks = () => Object.keys(s().pending).filter((k) => k.startsWith(`conversations:${CONV}`));
+      useInboxStore.setState({
+        sessions: {},
+        conversations: { [CONV]: loaded(fields) },
+      } as any);
+    const convLocks = () =>
+      Object.keys(s().pending).filter((k) =>
+        k.startsWith(`conversations:${CONV}`),
+      );
     const echo = (fields: Record<string, unknown>) => {
-      for (let i = 0; i < 2; i++) s().syncTable("conversations", [loaded(fields)], { isDelta: true });
+      for (let i = 0; i < 2; i++)
+        s().syncTable("conversations", [loaded(fields)], { isDelta: true });
     };
 
     it("setTeamVisibility from the member default is undone by clearing the level", () => {
       const prior = { is_private: false, team_id: TEAM };
       metaOnly(prior);
-      expect(undoOf(() => s().setTeamVisibility(CONV, "full"))).toEqual([["setTeamVisibility", [CONV, null]]]);
+      expect(undoOf(() => s().setTeamVisibility(CONV, "full"))).toEqual([
+        ["setTeamVisibility", [CONV, null]],
+      ]);
       expect(getUndoHistory().items[0]?.status).toBe("undone");
       expect(s().conversations[CONV].team_visibility ?? null).toBe(null);
       echo(prior);
@@ -254,7 +401,9 @@ describe("conversation inverses", () => {
     it("setPrivacy undo takes the stamped level off the row at once", () => {
       const prior = { is_private: false, team_id: TEAM };
       metaOnly(prior);
-      expect(undoOf(() => s().setPrivacy(CONV, true))).toEqual([["setTeamVisibility", [CONV, null]]]);
+      expect(undoOf(() => s().setPrivacy(CONV, true))).toEqual([
+        ["setTeamVisibility", [CONV, null]],
+      ]);
       expect(s().conversations[CONV].is_private).toBe(false);
       expect(s().conversations[CONV].team_visibility ?? null).toBe(null);
       echo(prior);
@@ -264,10 +413,18 @@ describe("conversation inverses", () => {
 
     it("switchProject undo of a row with no git_root writes the server's spelling at once", () => {
       metaOnly({ project_path: "/tmp/scratch" });
-      expect(undoOf(() => s().switchProject(CONV, "/src/b"))).toEqual([["switchProject", [CONV, "/tmp/scratch"]]]);
-      expect(s().conversations[CONV]).toMatchObject({ project_path: "/tmp/scratch", git_root: "/tmp/scratch" });
+      expect(undoOf(() => s().switchProject(CONV, "/src/b"))).toEqual([
+        ["switchProject", [CONV, "/tmp/scratch"]],
+      ]);
+      expect(s().conversations[CONV]).toMatchObject({
+        project_path: "/tmp/scratch",
+        git_root: "/tmp/scratch",
+      });
       echo({ project_path: "/tmp/scratch", git_root: "/tmp/scratch" });
-      expect(s().conversations[CONV]).toMatchObject({ project_path: "/tmp/scratch", git_root: "/tmp/scratch" });
+      expect(s().conversations[CONV]).toMatchObject({
+        project_path: "/tmp/scratch",
+        git_root: "/tmp/scratch",
+      });
       expect(convLocks()).toEqual([]);
     });
   });
@@ -276,10 +433,29 @@ describe("conversation inverses", () => {
 describe("initiatives owned by a role", () => {
   const INIT = "in_1";
   const ROLE = "role_1";
-  const role = (projectIds: string[]) => ({ _id: ROLE, name: "Growth lead", status: "active", scope: { project_ids: projectIds, plan_ids: [] }, scope_names: { projects: [], plans: [] } });
-  const seed = (initiative: Record<string, unknown>, tree: { roles: unknown[] } | null) =>
+  const role = (projectIds: string[]) => ({
+    _id: ROLE,
+    name: "Growth lead",
+    status: "active",
+    scope: { project_ids: projectIds, plan_ids: [] },
+    scope_names: { projects: [], plans: [] },
+  });
+  const seed = (
+    initiative: Record<string, unknown>,
+    tree: { roles: unknown[] } | null,
+  ) =>
     useInboxStore.setState({
-      initiatives: { [INIT]: { _id: INIT, short_id: "in-1", title: "Launch", status: "active", project_ids: [], updated_at: 1, ...initiative } },
+      initiatives: {
+        [INIT]: {
+          _id: INIT,
+          short_id: "in-1",
+          title: "Launch",
+          status: "active",
+          project_ids: [],
+          updated_at: 1,
+          ...initiative,
+        },
+      },
       orgTree: tree,
       orgIntents: [],
     } as any);
@@ -300,7 +476,10 @@ describe("initiatives owned by a role", () => {
   });
 
   it("adding or setting projects that widen the owner role's scope records nothing", () => {
-    for (const gesture of [() => s().addInitiativeProject(INIT, "proj_1"), () => s().setInitiativeProjects(INIT, ["proj_1"])]) {
+    for (const gesture of [
+      () => s().addInitiativeProject(INIT, "proj_1"),
+      () => s().setInitiativeProjects(INIT, ["proj_1"]),
+    ]) {
       seed({ owner }, { roles: [role(["proj_0"])] });
       gesture();
       expect(scope()).toEqual(["proj_0", "proj_1"]);
@@ -318,15 +497,28 @@ describe("initiatives owned by a role", () => {
 
   it("edits that leave the role's scope alone stay ordinary undos", () => {
     // The role already lists the project; a rename and a removal never widen.
-    seed({ owner, project_ids: ["proj_0"] }, { roles: [role(["proj_0", "proj_1"])] });
-    expect(undoOf(() => s().addInitiativeProject(INIT, "proj_1"))).toEqual([["setInitiativeProjects", [INIT, ["proj_0"]]]]);
-    expect(undoOf(() => s().removeInitiativeProject(INIT, "proj_0"))).toEqual([["setInitiativeProjects", [INIT, ["proj_0"]]]]);
-    expect(undoOf(() => s().updateInitiative(INIT, { title: "Relaunch" }))).toEqual([["updateInitiative", [INIT, { title: "Launch" }]]]);
+    seed(
+      { owner, project_ids: ["proj_0"] },
+      { roles: [role(["proj_0", "proj_1"])] },
+    );
+    expect(undoOf(() => s().addInitiativeProject(INIT, "proj_1"))).toEqual([
+      ["setInitiativeProjects", [INIT, ["proj_0"]]],
+    ]);
+    expect(undoOf(() => s().removeInitiativeProject(INIT, "proj_0"))).toEqual([
+      ["setInitiativeProjects", [INIT, ["proj_0"]]],
+    ]);
+    expect(
+      undoOf(() => s().updateInitiative(INIT, { title: "Relaunch" })),
+    ).toEqual([["updateInitiative", [INIT, { title: "Launch" }]]]);
     expect(scope()).toEqual(["proj_0", "proj_1"]);
     expect(s().orgIntents).toEqual([]);
     // A person as owner has no scope to widen.
     seed({ project_ids: ["proj_1"] }, null);
-    expect(undoOf(() => s().updateInitiative(INIT, { owner: { kind: "user", user_id: SAM } }))).toEqual([["updateInitiative", [INIT, { owner: null }]]]);
+    expect(
+      undoOf(() =>
+        s().updateInitiative(INIT, { owner: { kind: "user", user_id: SAM } }),
+      ),
+    ).toEqual([["updateInitiative", [INIT, { owner: null }]]]);
   });
 });
 
@@ -339,11 +531,22 @@ describe("an initiative's target date typed in", () => {
   it("coalesces the per-keystroke writes into one named entry", () => {
     const T0 = day("2027-01-01");
     useInboxStore.setState({
-      initiatives: { [INIT]: { _id: INIT, short_id: "in-1", title: "Win", status: "active", project_ids: [], updated_at: 1, target_date: T0 } },
+      initiatives: {
+        [INIT]: {
+          _id: INIT,
+          short_id: "in-1",
+          title: "Win",
+          status: "active",
+          project_ids: [],
+          updated_at: 1,
+          target_date: T0,
+        },
+      },
       orgTree: null,
       orgIntents: [],
     } as any);
-    for (const d of ["0002-01-01", "0020-01-01", "0202-01-01", "2028-01-01"]) s().updateInitiative(INIT, { target_date: day(d) });
+    for (const d of ["0002-01-01", "0020-01-01", "0202-01-01", "2028-01-01"])
+      s().updateInitiative(INIT, { target_date: day(d) });
     const items = getUndoHistory().items;
     expect(items).toHaveLength(1);
     expect(items[0]!.label).toBe("Set the target of “Win” to 2028-01-01");
@@ -358,14 +561,22 @@ describe("an initiative's target date typed in", () => {
 describe("bookmarks, saved views, comments", () => {
   it("toggleBookmark is undone by the same toggle", () => {
     useInboxStore.setState({ bookmarks: [] } as any);
-    expect(undoOf(() => s().toggleBookmark(CONV, "msg_1"))).toEqual([["toggleBookmark", [CONV, "msg_1"]]]);
+    expect(undoOf(() => s().toggleBookmark(CONV, "msg_1"))).toEqual([
+      ["toggleBookmark", [CONV, "msg_1"]],
+    ]);
     expect(s().bookmarks).toEqual([]);
   });
 
   it("updateSavedView sends the prior fields", () => {
     const V = "v".repeat(32);
-    useInboxStore.setState({ savedViews: { [V]: { _id: V, name: "Mine", icon: "star", updated_at: 1 } } } as any);
-    expect(undoOf(() => s().updateSavedView(V, { name: "Ours", icon: "bolt" }))).toEqual([["updateSavedView", [V, { name: "Mine", icon: "star" }]]]);
+    useInboxStore.setState({
+      savedViews: {
+        [V]: { _id: V, name: "Mine", icon: "star", updated_at: 1 },
+      },
+    } as any);
+    expect(
+      undoOf(() => s().updateSavedView(V, { name: "Ours", icon: "bolt" })),
+    ).toEqual([["updateSavedView", [V, { name: "Mine", icon: "star" }]]]);
     expect(s().savedViews[V]).toMatchObject({ name: "Mine", icon: "star" });
   });
 
@@ -373,11 +584,16 @@ describe("bookmarks, saved views, comments", () => {
   // gave the view a field it lacked would restore it here and send nothing.
   it("updateSavedView records nothing when a changed field had no prior value", () => {
     const V = "v".repeat(32);
-    useInboxStore.setState({ savedViews: { [V]: { _id: V, name: "Mine", updated_at: 1 } } } as any);
+    useInboxStore.setState({
+      savedViews: { [V]: { _id: V, name: "Mine", updated_at: 1 } },
+    } as any);
     s().updateSavedView(V, { icon: "bolt" });
     s().updateSavedView(V, { name: "Ours", team_id: TEAM });
     expect(getUndoHistory().items).toEqual([]);
-    expect(calls.map(([a]) => a)).toEqual(["updateSavedView", "updateSavedView"]);
+    expect(calls.map(([a]) => a)).toEqual([
+      "updateSavedView",
+      "updateSavedView",
+    ]);
     s().updateSavedView(V, { name: "Theirs" });
     expect(label()).toBe("Edited view “Ours”");
   });
@@ -386,7 +602,17 @@ describe("bookmarks, saved views, comments", () => {
   // the team again) asks first, like a privacy change that widens.
   it("updateSavedView names a share change and confirms an undo that re-shares", () => {
     const V = "v".repeat(32);
-    useInboxStore.setState({ savedViews: { [V]: { _id: V, name: "Mine", shared: true, team_id: TEAM, updated_at: 1 } } } as any);
+    useInboxStore.setState({
+      savedViews: {
+        [V]: {
+          _id: V,
+          name: "Mine",
+          shared: true,
+          team_id: TEAM,
+          updated_at: 1,
+        },
+      },
+    } as any);
     s().updateSavedView(V, { shared: false });
     expect(label()).toBe("Stopped sharing view “Mine”");
     expect(getUndoHistory().items[0]?.confirm).toBe(true);
@@ -400,16 +626,34 @@ describe("bookmarks, saved views, comments", () => {
     const C2 = "2".repeat(32);
     useInboxStore.setState({
       comments: {
-        [C1]: { _id: C1, conversation_id: CONV, message_id: "m1", content: "a", user_id: ME, created_at: 1 },
-        [C2]: { _id: C2, conversation_id: CONV, message_id: "m1", content: "b", user_id: ME, created_at: 2 },
+        [C1]: {
+          _id: C1,
+          conversation_id: CONV,
+          message_id: "m1",
+          content: "a",
+          user_id: ME,
+          created_at: 1,
+        },
+        [C2]: {
+          _id: C2,
+          conversation_id: CONV,
+          message_id: "m1",
+          content: "b",
+          user_id: ME,
+          created_at: 2,
+        },
       },
     } as any);
-    expect(undoOf(() => s().resolveCommentThread(CONV, { messageId: "m1" }, true))).toEqual([
-      ["resolveCommentThread", [CONV, { messageId: "m1" }, false]],
-    ]);
+    expect(
+      undoOf(() => s().resolveCommentThread(CONV, { messageId: "m1" }, true)),
+    ).toEqual([["resolveCommentThread", [CONV, { messageId: "m1" }, false]]]);
     expect(s().comments[C1].resolved_at).toBeUndefined();
     _resetUndoStacks();
-    useInboxStore.setState({ comments: { [C1]: { ...s().comments[C1], resolved_at: 5, resolved_by: ME } } } as any);
+    useInboxStore.setState({
+      comments: {
+        [C1]: { ...s().comments[C1], resolved_at: 5, resolved_by: ME },
+      },
+    } as any);
     s().resolveCommentThread(CONV, { messageId: "m1" }, false);
     expect(getUndoHistory().items).toHaveLength(0);
   });
@@ -421,8 +665,24 @@ describe("bookmarks, saved views, comments", () => {
     const C2 = "2".repeat(32);
     useInboxStore.setState({
       comments: {
-        [C1]: { _id: C1, conversation_id: CONV, message_id: "m1", content: "a", user_id: ME, created_at: 1, resolved_at: 5, resolved_by: ME },
-        [C2]: { _id: C2, conversation_id: CONV, message_id: "m1", content: "b", user_id: ME, created_at: 2 },
+        [C1]: {
+          _id: C1,
+          conversation_id: CONV,
+          message_id: "m1",
+          content: "a",
+          user_id: ME,
+          created_at: 1,
+          resolved_at: 5,
+          resolved_by: ME,
+        },
+        [C2]: {
+          _id: C2,
+          conversation_id: CONV,
+          message_id: "m1",
+          content: "b",
+          user_id: ME,
+          created_at: 2,
+        },
       },
     } as any);
     s().resolveCommentThread(CONV, { messageId: "m1" }, true);
@@ -435,33 +695,63 @@ describe("bookmarks, saved views, comments", () => {
     useInboxStore.setState({
       codeComments: {
         [R1]: { _id: R1, content: "a", resolved: false, created_at: 1 },
-        [R2]: { _id: R2, content: "b", resolved: false, parent_id: R1, created_at: 2 },
+        [R2]: {
+          _id: R2,
+          content: "b",
+          resolved: false,
+          parent_id: R1,
+          created_at: 2,
+        },
       },
     } as any);
-    expect(undoOf(() => s().resolveCodeCommentThread([R1, R2], true))).toEqual([["resolveCodeCommentThread", [[R1, R2], false]]]);
+    expect(undoOf(() => s().resolveCodeCommentThread([R1, R2], true))).toEqual([
+      ["resolveCodeCommentThread", [[R1, R2], false]],
+    ]);
     expect(s().codeComments[R1].resolved).toBe(false);
     _resetUndoStacks();
-    useInboxStore.setState({ codeComments: { [R1]: { ...s().codeComments[R1], resolved: true, resolved_at: 5 } } } as any);
-    expect(undoOf(() => s().resolveCodeCommentThread([R1], false))).toEqual([["resolveCodeCommentThread", [[R1], true]]]);
+    useInboxStore.setState({
+      codeComments: {
+        [R1]: { ...s().codeComments[R1], resolved: true, resolved_at: 5 },
+      },
+    } as any);
+    expect(undoOf(() => s().resolveCodeCommentThread([R1], false))).toEqual([
+      ["resolveCodeCommentThread", [[R1], true]],
+    ]);
     expect(label()).toBe("Reopened a review thread");
     expect(s().codeComments[R1].resolved).toBe(true);
   });
 
   it("editCodeComment sends the prior content", () => {
     const R1 = "1".repeat(32);
-    useInboxStore.setState({ codeComments: { [R1]: { _id: R1, content: "first", created_at: 1 } } } as any);
-    expect(undoOf(() => s().editCodeComment(R1, "second"))).toEqual([["editCodeComment", [R1, "first"]]]);
+    useInboxStore.setState({
+      codeComments: { [R1]: { _id: R1, content: "first", created_at: 1 } },
+    } as any);
+    expect(undoOf(() => s().editCodeComment(R1, "second"))).toEqual([
+      ["editCodeComment", [R1, "first"]],
+    ]);
     expect(s().codeComments[R1].content).toBe("first");
   });
 
   it("editComment sends the prior content", async () => {
     const C1 = "1".repeat(32);
-    useInboxStore.setState({ comments: { [C1]: { _id: C1, conversation_id: CONV, content: "first", user_id: ME, created_at: 1 } } } as any);
+    useInboxStore.setState({
+      comments: {
+        [C1]: {
+          _id: C1,
+          conversation_id: CONV,
+          content: "first",
+          user_id: ME,
+          created_at: 1,
+        },
+      },
+    } as any);
     const sent = undoOf(() => void s().editComment(C1, "second"));
     // editComment is a receipt action: its undo waits for the edit's own
     // send to settle, since a failed receipt replays from the outbox.
     await Bun.sleep(20);
-    expect(sent.map(([a, args]) => [a, args.slice(0, 2)])).toEqual([["editComment", [C1, "first"]]]);
+    expect(sent.map(([a, args]) => [a, args.slice(0, 2)])).toEqual([
+      ["editComment", [C1, "first"]],
+    ]);
     expect(s().comments[C1].content).toBe("first");
   });
 });
@@ -470,18 +760,37 @@ describe("decision stacks", () => {
   const STACK = "q".repeat(32);
   beforeEach(() => {
     useInboxStore.setState({
-      decisionStacks: { [STACK]: { _id: STACK, title: "Launch", decision_ids: ["d1", "d2", "d3"], policy: { due_at: 50 }, total: 3, pending: 3 } },
+      decisionStacks: {
+        [STACK]: {
+          _id: STACK,
+          title: "Launch",
+          decision_ids: ["d1", "d2", "d3"],
+          policy: { due_at: 50 },
+          total: 3,
+          pending: 3,
+        },
+      },
     } as any);
   });
 
   it("reorderStack goes back to the prior order", () => {
-    expect(undoOf(() => s().reorderStack(STACK, ["d3", "d1", "d2"]))).toEqual([["reorderStack", [STACK, ["d1", "d2", "d3"]]]]);
+    expect(undoOf(() => s().reorderStack(STACK, ["d3", "d1", "d2"]))).toEqual([
+      ["reorderStack", [STACK, ["d1", "d2", "d3"]]],
+    ]);
     expect(s().decisionStacks[STACK].decision_ids).toEqual(["d1", "d2", "d3"]);
   });
 
   it("setStackPolicy sends back each moved key, clearing the ones that were unset", () => {
-    const sent = undoOf(() => void s().setStackPolicy(STACK, { auto_default_after_ms: 60_000, clear_due: true }));
-    expect(sent).toEqual([["setStackPolicy", [STACK, { clear_auto_default: true, due_at: 50 }]]]);
+    const sent = undoOf(
+      () =>
+        void s().setStackPolicy(STACK, {
+          auto_default_after_ms: 60_000,
+          clear_due: true,
+        }),
+    );
+    expect(sent).toEqual([
+      ["setStackPolicy", [STACK, { clear_auto_default: true, due_at: 50 }]],
+    ]);
     expect(s().decisionStacks[STACK].policy).toEqual({ due_at: 50 });
   });
 });
@@ -490,17 +799,30 @@ describe("triggers", () => {
   const TR = "r".repeat(32);
   const seed = (status: string) =>
     useInboxStore.setState({
-      agentTasks: { [TR]: { _id: TR, title: "Nightly digest", status, schedule_type: "recurring", interval_ms: 3_600_000, run_at: 10 } },
+      agentTasks: {
+        [TR]: {
+          _id: TR,
+          title: "Nightly digest",
+          status,
+          schedule_type: "recurring",
+          interval_ms: 3_600_000,
+          run_at: 10,
+        },
+      },
       foreignTriggers: {},
     } as any);
 
   it("pause and resume go back through the opposite verb", () => {
     seed("scheduled");
-    expect(undoOf(() => s().triggerAction(TR, "pause"))).toEqual([["triggerAction", [TR, "resume"]]]);
+    expect(undoOf(() => s().triggerAction(TR, "pause"))).toEqual([
+      ["triggerAction", [TR, "resume"]],
+    ]);
     expect(s().agentTasks[TR].status).toBe("scheduled");
     _resetUndoStacks();
     seed("paused");
-    expect(undoOf(() => s().triggerAction(TR, "resume"))).toEqual([["triggerAction", [TR, "pause"]]]);
+    expect(undoOf(() => s().triggerAction(TR, "resume"))).toEqual([
+      ["triggerAction", [TR, "pause"]],
+    ]);
   });
 
   it("run now, cancel and reactivate record nothing", () => {
@@ -519,7 +841,9 @@ describe("triggers", () => {
   // undo follows that send rather than overtaking it.
   it("setTriggerInterval goes back to the prior interval", async () => {
     seed("scheduled");
-    expect(await undoOfSettled(() => s().setTriggerInterval(TR, 7_200_000))).toEqual([["setTriggerInterval", [TR, 3_600_000]]]);
+    expect(
+      await undoOfSettled(() => s().setTriggerInterval(TR, 7_200_000)),
+    ).toEqual([["setTriggerInterval", [TR, 3_600_000]]]);
     expect(label()).toBe("Set “Nightly digest” to every 2h");
     expect(s().agentTasks[TR].interval_ms).toBe(3_600_000);
   });
@@ -528,28 +852,100 @@ describe("triggers", () => {
   // schedule, undone by sending the prior values back through the same verb.
   it("editTrigger goes back to the prior prompt, title and cadence", async () => {
     useInboxStore.setState({
-      agentTasks: { [TR]: { _id: TR, title: "Nightly digest", prompt: "digest", mode: "propose", agent_type: "claude", status: "scheduled", schedule_type: "recurring", interval_ms: 3_600_000, run_at: 10 } },
+      agentTasks: {
+        [TR]: {
+          _id: TR,
+          title: "Nightly digest",
+          prompt: "digest",
+          mode: "propose",
+          agent_type: "claude",
+          status: "scheduled",
+          schedule_type: "recurring",
+          interval_ms: 3_600_000,
+          run_at: 10,
+        },
+      },
       foreignTriggers: {},
     } as any);
-    const undo = await undoOfSettled(() => s().editTrigger(TR, { prompt: "digest v2", title: "Digest", mode: "propose", agent_type: "claude", project_path: "", schedule_type: "recurring", interval_ms: 7_200_000, run_at: 99 }));
-    expect(undo).toEqual([["editTrigger", [TR, { prompt: "digest", title: "Nightly digest", mode: "propose", agent_type: "claude", project_path: "", schedule_type: "recurring", interval_ms: 3_600_000 }]]]);
+    const undo = await undoOfSettled(() =>
+      s().editTrigger(TR, {
+        prompt: "digest v2",
+        title: "Digest",
+        mode: "propose",
+        agent_type: "claude",
+        project_path: "",
+        schedule_type: "recurring",
+        interval_ms: 7_200_000,
+        run_at: 99,
+      }),
+    );
+    expect(undo).toEqual([
+      [
+        "editTrigger",
+        [
+          TR,
+          {
+            prompt: "digest",
+            title: "Nightly digest",
+            mode: "propose",
+            agent_type: "claude",
+            project_path: "",
+            schedule_type: "recurring",
+            interval_ms: 3_600_000,
+          },
+        ],
+      ],
+    ]);
     expect(label()).toBe("Edited “Nightly digest”");
-    expect(s().agentTasks[TR]).toMatchObject({ prompt: "digest", title: "Nightly digest", interval_ms: 3_600_000 });
+    expect(s().agentTasks[TR]).toMatchObject({
+      prompt: "digest",
+      title: "Nightly digest",
+      interval_ms: 3_600_000,
+    });
   });
 
   it("editTrigger from recurring to an event goes back to the cadence", async () => {
     useInboxStore.setState({
-      agentTasks: { [TR]: { _id: TR, title: "Watch", prompt: "p", status: "paused", schedule_type: "recurring", interval_ms: 3_600_000, run_at: 10 } },
+      agentTasks: {
+        [TR]: {
+          _id: TR,
+          title: "Watch",
+          prompt: "p",
+          status: "paused",
+          schedule_type: "recurring",
+          interval_ms: 3_600_000,
+          run_at: 10,
+        },
+      },
       foreignTriggers: {},
     } as any);
-    const undo = await undoOfSettled(() => s().editTrigger(TR, { schedule_type: "event", event_filter: { event: "push" } }));
-    expect(undo).toEqual([["editTrigger", [TR, { schedule_type: "recurring", interval_ms: 3_600_000 }]]]);
+    const undo = await undoOfSettled(() =>
+      s().editTrigger(TR, {
+        schedule_type: "event",
+        event_filter: { event: "push" },
+      }),
+    );
+    expect(undo).toEqual([
+      [
+        "editTrigger",
+        [TR, { schedule_type: "recurring", interval_ms: 3_600_000 }],
+      ],
+    ]);
     expect(s().agentTasks[TR].schedule_type).toBe("recurring");
   });
 
   it("editTrigger on a trigger that already ran is refused before any write", () => {
     useInboxStore.setState({
-      agentTasks: { [TR]: { _id: TR, title: "Once", prompt: "p", status: "completed", schedule_type: "once", run_at: 10 } },
+      agentTasks: {
+        [TR]: {
+          _id: TR,
+          title: "Once",
+          prompt: "p",
+          status: "completed",
+          schedule_type: "once",
+          run_at: 10,
+        },
+      },
       foreignTriggers: {},
     } as any);
     expect(s().editTrigger(TR, { prompt: "q" })).toBe(false);
@@ -563,36 +959,48 @@ describe("chat", () => {
   const MSG = "m".repeat(32);
   beforeEach(() => {
     useInboxStore.setState({
-      chatChannels: { [CH]: { _id: CH, name: "general", topic: "hi", updated_at: 1 } },
+      chatChannels: {
+        [CH]: { _id: CH, name: "general", topic: "hi", updated_at: 1 },
+      },
       chatRail: [{ channel_id: CH, member_ids: [ME, SAM] }],
       chatMessages: { [MSG]: { _id: MSG, channel_id: CH, content: "helo" } },
     } as any);
   });
 
   it("updateChatChannel sends the prior name", () => {
-    expect(undoOf(() => s().updateChatChannel(CH, { name: "random" }))).toEqual([["updateChatChannel", [CH, { name: "general" }]]]);
+    expect(undoOf(() => s().updateChatChannel(CH, { name: "random" }))).toEqual(
+      [["updateChatChannel", [CH, { name: "general" }]]],
+    );
     expect(s().chatChannels[CH].name).toBe("general");
   });
 
   it("archiveChatChannel is undone by unarchiving", () => {
-    expect(undoOf(() => s().archiveChatChannel(CH, true))).toEqual([["archiveChatChannel", [CH, false]]]);
+    expect(undoOf(() => s().archiveChatChannel(CH, true))).toEqual([
+      ["archiveChatChannel", [CH, false]],
+    ]);
     expect(label()).toBe("Archived #general");
     expect(s().chatChannels[CH].archived_at ?? null).toBeNull();
   });
 
   it("adding members is undone by removing each one added", () => {
-    expect(undoOf(() => s().addChatChannelMembers(CH, [SAM, KIM]))).toEqual([["removeChatChannelMember", [CH, KIM]]]);
+    expect(undoOf(() => s().addChatChannelMembers(CH, [SAM, KIM]))).toEqual([
+      ["removeChatChannelMember", [CH, KIM]],
+    ]);
   });
 
   it("removing someone is undone by adding them back; leaving yourself records nothing", () => {
-    expect(undoOf(() => s().removeChatChannelMember(CH, SAM))).toEqual([["addChatChannelMembers", [CH, [SAM]]]]);
+    expect(undoOf(() => s().removeChatChannelMember(CH, SAM))).toEqual([
+      ["addChatChannelMembers", [CH, [SAM]]],
+    ]);
     _resetUndoStacks();
     s().removeChatChannelMember(CH, ME);
     expect(getUndoHistory().items).toHaveLength(0);
   });
 
   it("dispatchChatEdit sends the prior content", () => {
-    expect(undoOf(() => s().dispatchChatEdit(MSG, "hello"))).toEqual([["dispatchChatEdit", [MSG, "helo"]]]);
+    expect(undoOf(() => s().dispatchChatEdit(MSG, "hello"))).toEqual([
+      ["dispatchChatEdit", [MSG, "helo"]],
+    ]);
     expect(s().chatMessages[MSG].content).toBe("helo");
   });
 });
@@ -601,7 +1009,11 @@ describe("org verbs", () => {
   it("record a display-only history item that undo steps past", () => {
     s().withdrawOrgProposal("prop_1");
     const [item] = getUndoHistory().items;
-    expect(item).toMatchObject({ status: "external", external: "org", label: "Withdrew an org proposal" });
+    expect(item).toMatchObject({
+      status: "external",
+      external: "org",
+      label: "Withdrew an org proposal",
+    });
     calls = [];
     expect(performUndo()).toBe(false);
     expect(calls).toEqual([]);

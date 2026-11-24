@@ -8,7 +8,10 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { extractCodexSessionMetadata, isCodexProgramLaunch } from "./codexSessionMeta.js";
+import {
+  extractCodexSessionMetadata,
+  isCodexProgramLaunch,
+} from "./codexSessionMeta.js";
 import { headlessAgentOfCommand } from "./sessionProcessMatcher.js";
 
 /** The conversation a headless run inherited, from its `ps eww -o command=`
@@ -19,9 +22,15 @@ import { headlessAgentOfCommand } from "./sessionProcessMatcher.js";
  *  daemon launched carries its OWN conversation in that variable. The last
  *  match wins, because the environment follows the arguments and a prompt in
  *  the arguments can quote the variable's name. */
-export function inheritedConversationOfHeadless(commandWithEnv: string): string | null {
+export function inheritedConversationOfHeadless(
+  commandWithEnv: string,
+): string | null {
   if (!headlessAgentOfCommand(commandWithEnv)) return null;
-  const matches = [...commandWithEnv.matchAll(/(?:^|\s)CODECAST_CONVERSATION_ID=([A-Za-z0-9]+)(?=\s|$)/g)];
+  const matches = [
+    ...commandWithEnv.matchAll(
+      /(?:^|\s)CODECAST_CONVERSATION_ID=([A-Za-z0-9]+)(?=\s|$)/g,
+    ),
+  ];
   return matches.length ? matches[matches.length - 1][1] : null;
 }
 
@@ -61,7 +70,12 @@ function* transcriptsUnder(dir: string, since: number): Generator<string> {
   }
 }
 
-type RepairMarker = { done?: boolean; starts?: number; marked?: number; ts?: number };
+type RepairMarker = {
+  done?: boolean;
+  starts?: number;
+  marked?: number;
+  ts?: number;
+};
 
 function readRepairMarker(file: string): RepairMarker {
   try {
@@ -90,7 +104,10 @@ export async function repairLeakedHeadlessCodexRuns(opts: {
   const now = opts.now ?? Date.now();
   let marked = 0;
   let failed = 0;
-  for (const file of transcriptsUnder(opts.sessionsDir, now - REPAIR_WINDOW_MS)) {
+  for (const file of transcriptsUnder(
+    opts.sessionsDir,
+    now - REPAIR_WINDOW_MS,
+  )) {
     // A yield per file: a boot-time walk must not starve the event loop.
     await new Promise((resolve) => setImmediate(resolve));
     let metadata;
@@ -99,7 +116,12 @@ export async function repairLeakedHeadlessCodexRuns(opts: {
     } catch {
       continue;
     }
-    if (!metadata?.id || !isCodexProgramLaunch(metadata) || !opts.conversations[metadata.id]) continue;
+    if (
+      !metadata?.id ||
+      !isCodexProgramLaunch(metadata) ||
+      !opts.conversations[metadata.id]
+    )
+      continue;
     try {
       await opts.mark(metadata.id);
       marked++;
@@ -110,7 +132,15 @@ export async function repairLeakedHeadlessCodexRuns(opts: {
   const starts = (before.starts ?? 0) + 1;
   try {
     fs.mkdirSync(path.dirname(opts.markerFile), { recursive: true });
-    fs.writeFileSync(opts.markerFile, JSON.stringify({ done: failed === 0 || starts >= REPAIR_MAX_STARTS, starts, marked, ts: now } satisfies RepairMarker));
+    fs.writeFileSync(
+      opts.markerFile,
+      JSON.stringify({
+        done: failed === 0 || starts >= REPAIR_MAX_STARTS,
+        starts,
+        marked,
+        ts: now,
+      } satisfies RepairMarker),
+    );
   } catch {}
   return marked;
 }

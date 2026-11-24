@@ -35,13 +35,19 @@ export function useGuestsWaiting(): GuestsWaitingRow[] {
       .map((g) => `${g.guest_id}:${g.name}:${g.room_key}:${g.title ?? ""}`)
       .join("|");
   const myRoom = useFaceRow().room;
-  const list = useInboxStore((st: any) => st.guestsWaiting ?? NO_GUESTS) as GuestWaiting[];
+  const list = useInboxStore(
+    (st: any) => st.guestsWaiting ?? NO_GUESTS,
+  ) as GuestWaiting[];
   const now = useNowWhen((t) => sigOf(list, myRoom, t), 5_000);
   const sig = sigOf(list, myRoom, now);
   return useMemo(() => {
     const rows = new Map<string, GuestsWaitingRow>();
     for (const g of guestsStillWaiting(list, now, myRoom)) {
-      const row = rows.get(g.room_key) ?? { roomKey: g.room_key, title: g.title, names: [] };
+      const row = rows.get(g.room_key) ?? {
+        roomKey: g.room_key,
+        title: g.title,
+        names: [],
+      };
       row.names.push(g.name);
       rows.set(g.room_key, row);
     }
@@ -60,7 +66,9 @@ export function useLiveRoomOfMember(userId: string | null): LiveRoomRow | null {
   return useMemo(
     () =>
       userId
-        ? rows.find((r) => r.members.some((m) => String(m.user_id) === String(userId))) ?? null
+        ? (rows.find((r) =>
+            r.members.some((m) => String(m.user_id) === String(userId)),
+          ) ?? null)
         : null,
     [rows, userId],
   );
@@ -71,7 +79,7 @@ export function useLiveRoomOfMember(userId: string | null): LiveRoomRow | null {
 export function useLiveRoom(roomKey: string | null): LiveRoomRow | null {
   const rows = useLiveRooms();
   return useMemo(
-    () => (roomKey ? rows.find((r) => r.roomKey === roomKey) ?? null : null),
+    () => (roomKey ? (rows.find((r) => r.roomKey === roomKey) ?? null) : null),
     [rows, roomKey],
   );
 }

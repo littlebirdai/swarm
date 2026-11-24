@@ -1,6 +1,19 @@
-import { cloneElement, isValidElement, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { X, Keyboard } from "lucide-react";
-import { formatShortcutParts, formatAcceleratorParts, getShortcutsForAction, getShortcutsByContext } from "../shortcuts";
+import {
+  formatShortcutParts,
+  formatAcceleratorParts,
+  getShortcutsForAction,
+  getShortcutsByContext,
+} from "../shortcuts";
 import type { ShortcutAction } from "../shortcuts";
 import { BOARD_SHORTCUT_SECTIONS } from "./boards/boardModel";
 import { visibleShortcutSections } from "../shortcuts/visibleSections";
@@ -10,9 +23,17 @@ import { SEND_CHORDS } from "../shortcuts/sendChords";
 import { useTrackedStore } from "../store/inboxStore";
 import { useEventListener } from "../hooks/useEventListener";
 import { DESKTOP_SHORTCUTS, getDesktopShortcutConfig } from "../lib/desktop";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./ui/tooltip";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "./ui/tooltip";
 import { HoverCardsOff } from "../lib/hoverCardsOff";
-import { isTriageBarCompact, toggleTriageBarCompact } from "./triage/graduation";
+import {
+  isTriageBarCompact,
+  toggleTriageBarCompact,
+} from "./triage/graduation";
 
 import { useMountEffect } from "../hooks/useMountEffect";
 import { useWatchEffect } from "../hooks/useWatchEffect";
@@ -23,10 +44,10 @@ export { KeyCap };
 
 export function KeyboardShortcutsPanel() {
   const s = useTrackedStore([
-    s => s.shortcutsPanelOpen,
-    s => s.clientState.ui?.triage_bar_compact,
-    s => s.clientState.ui?.inbox_shortcuts_hidden,
-    s => s.clientState.ui?.key_bindings,
+    (s) => s.shortcutsPanelOpen,
+    (s) => s.clientState.ui?.triage_bar_compact,
+    (s) => s.clientState.ui?.inbox_shortcuts_hidden,
+    (s) => s.clientState.ui?.key_bindings,
   ]);
   const triageBarHidden = isTriageBarCompact(s.clientState.ui);
   const everOpened = useRef(false);
@@ -42,15 +63,18 @@ export function KeyboardShortcutsPanel() {
   // OS-global desktop shortcuts (Electron only). Live values, not registry
   // constants — the user can rebind or remove them in Settings → Desktop, so
   // refetch each time the panel opens. Empty accelerator = removed, hidden.
-  const [systemRows, setSystemRows] = useState<{ description: string; parts: string[] }[]>([]);
+  const [systemRows, setSystemRows] = useState<
+    { description: string; parts: string[] }[]
+  >([]);
   useWatchEffect(() => {
     if (!s.shortcutsPanelOpen) return;
     getDesktopShortcutConfig().then((cfg) => {
       if (!cfg) return;
       setSystemRows(
-        DESKTOP_SHORTCUTS
-          .filter((d) => cfg.shortcuts[d.key])
-          .map((d) => ({ description: d.label, parts: formatAcceleratorParts(cfg.shortcuts[d.key]) }))
+        DESKTOP_SHORTCUTS.filter((d) => cfg.shortcuts[d.key]).map((d) => ({
+          description: d.label,
+          parts: formatAcceleratorParts(cfg.shortcuts[d.key]),
+        })),
       );
     });
   }, [s.shortcutsPanelOpen]);
@@ -58,13 +82,29 @@ export function KeyboardShortcutsPanel() {
   // Live bindings: a rebound action shows its own keys, an unbound one drops out.
   const flowsOn = useWorkspaceFeature("line");
   const bindingsVersion = useKeyBindingsVersion();
-  const changed = new Set((s.clientState.ui?.key_bindings ?? []).map((o) => o.action));
+  const changed = new Set(
+    (s.clientState.ui?.key_bindings ?? []).map((o) => o.action),
+  );
   const sections = useMemo(() => {
-    type Row = { key: string; description: string; parts: string[]; action?: ShortcutAction };
+    type Row = {
+      key: string;
+      description: string;
+      parts: string[];
+      action?: ShortcutAction;
+    };
     const result: { label: string; accent: string; rows: Row[] }[] = [];
     for (const sec of visibleShortcutSections(flowsOn, getShortcutsByContext)) {
       if (sec.actions.length > 0) {
-        result.push({ label: sec.label, accent: sec.accent, rows: sec.actions.map((a) => ({ key: a.action, action: a.def.fixed ? undefined : a.action, description: a.label, parts: formatShortcutParts(a.def) })) });
+        result.push({
+          label: sec.label,
+          accent: sec.accent,
+          rows: sec.actions.map((a) => ({
+            key: a.action,
+            action: a.def.fixed ? undefined : a.action,
+            description: a.label,
+            parts: formatShortcutParts(a.def),
+          })),
+        });
       }
       // The composer's send chords live in their own table (they run from a
       // focused textarea, outside the registry); they read as the
@@ -73,17 +113,31 @@ export function KeyboardShortcutsPanel() {
         result.push({
           label: "Composer",
           accent: "bg-sol-violet",
-          rows: SEND_CHORDS.map((c) => ({ key: c.accel, description: c.label, parts: formatAcceleratorParts(c.accel) })),
+          rows: SEND_CHORDS.map((c) => ({
+            key: c.accel,
+            description: c.label,
+            parts: formatAcceleratorParts(c.accel),
+          })),
         });
       }
     }
     // A board on screen answers to its own keys (they run inside the canvas, outside the registry): they lead the panel.
-    if (s.shortcutsPanelOpen && typeof document !== "undefined" && document.querySelector("[data-board]:not(.is-readonly)")) {
-      result.unshift(...BOARD_SHORTCUT_SECTIONS.map((g) => ({
-        label: `Board · ${g.title}`,
-        accent: "bg-sol-yellow",
-        rows: g.rows.map(([description, parts]) => ({ key: `board:${g.title}:${description}`, description, parts })),
-      })));
+    if (
+      s.shortcutsPanelOpen &&
+      typeof document !== "undefined" &&
+      document.querySelector("[data-board]:not(.is-readonly)")
+    ) {
+      result.unshift(
+        ...BOARD_SHORTCUT_SECTIONS.map((g) => ({
+          label: `Board · ${g.title}`,
+          accent: "bg-sol-yellow",
+          rows: g.rows.map(([description, parts]) => ({
+            key: `board:${g.title}:${description}`,
+            description,
+            parts,
+          })),
+        })),
+      );
     }
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,91 +148,132 @@ export function KeyboardShortcutsPanel() {
       className="h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-out"
       style={{ width: s.shortcutsPanelOpen ? 320 : 0 }}
     >
-      {everOpened.current && <div className="h-full w-[320px] bg-sol-bg border-l border-sol-border/60 flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-sol-border/40">
-          <div className="flex items-center gap-2">
-            <Keyboard className="w-4 h-4 text-sol-cyan" />
-            <span className="text-sm font-semibold text-sol-text tracking-tight">Shortcuts</span>
-          </div>
-          <button
-            onClick={s.toggleShortcutsPanel}
-            className="p-1 rounded text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt transition-colors"
-            aria-label="Close shortcuts"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-          {systemRows.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-sol-magenta" />
-                <h3 data-cc-help-heading className="text-mark font-semibold uppercase tracking-[0.12em] text-sol-text-dim">System-wide</h3>
-              </div>
-              <div className="space-y-0.5">
-                {systemRows.map((row) => (
-                  <ShortcutRow key={row.description} description={row.description} parts={row.parts} />
-                ))}
-              </div>
-              <p className="mt-1.5 text-meta text-sol-text-dim">
-                Work from any app. Customize or remove in Settings → Desktop.
-              </p>
-            </section>
-          )}
-          {sections.map(({ label, accent, rows }) => (
-            <section key={label}>
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`w-1.5 h-1.5 rounded-full ${accent}`} />
-                <h3 data-cc-help-heading className="text-mark font-semibold uppercase tracking-[0.12em] text-sol-text-dim">{label}</h3>
-              </div>
-              <div className="space-y-0.5">
-                {rows.map((row) => (
-                  <ShortcutRow key={row.key} description={row.description} parts={row.parts} changed={!!row.action && changed.has(row.action)} onRebind={row.action ? () => rebindShortcut(row.action) : undefined} />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-
-        <div className="px-4 py-2.5 border-t border-sol-border/30 text-meta text-sol-text-dim flex items-center gap-1.5 whitespace-nowrap">
-          <MenuKeyCaps action="ui.toggleShortcutsHelp" className="contents" /> toggles this panel
-          <span className="ml-auto flex items-center gap-3">
+      {everOpened.current && (
+        <div className="h-full w-[320px] bg-sol-bg border-l border-sol-border/60 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-sol-border/40">
+            <div className="flex items-center gap-2">
+              <Keyboard className="w-4 h-4 text-sol-cyan" />
+              <span className="text-sm font-semibold text-sol-text tracking-tight">
+                Shortcuts
+              </span>
+            </div>
             <button
-              onClick={() => rebindShortcut()}
-              className="text-sol-text-dim hover:text-sol-cyan transition-colors"
+              onClick={s.toggleShortcutsPanel}
+              className="p-1 rounded text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt transition-colors"
+              aria-label="Close shortcuts"
             >
-              Customize
+              <X className="w-3.5 h-3.5" />
             </button>
-            {triageBarHidden && (
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+            {systemRows.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-sol-magenta" />
+                  <h3
+                    data-cc-help-heading
+                    className="text-mark font-semibold uppercase tracking-[0.12em] text-sol-text-dim"
+                  >
+                    System-wide
+                  </h3>
+                </div>
+                <div className="space-y-0.5">
+                  {systemRows.map((row) => (
+                    <ShortcutRow
+                      key={row.description}
+                      description={row.description}
+                      parts={row.parts}
+                    />
+                  ))}
+                </div>
+                <p className="mt-1.5 text-meta text-sol-text-dim">
+                  Work from any app. Customize or remove in Settings → Desktop.
+                </p>
+              </section>
+            )}
+            {sections.map(({ label, accent, rows }) => (
+              <section key={label}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`w-1.5 h-1.5 rounded-full ${accent}`} />
+                  <h3
+                    data-cc-help-heading
+                    className="text-mark font-semibold uppercase tracking-[0.12em] text-sol-text-dim"
+                  >
+                    {label}
+                  </h3>
+                </div>
+                <div className="space-y-0.5">
+                  {rows.map((row) => (
+                    <ShortcutRow
+                      key={row.key}
+                      description={row.description}
+                      parts={row.parts}
+                      changed={!!row.action && changed.has(row.action)}
+                      onRebind={
+                        row.action
+                          ? () => rebindShortcut(row.action)
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+
+          <div className="px-4 py-2.5 border-t border-sol-border/30 text-meta text-sol-text-dim flex items-center gap-1.5 whitespace-nowrap">
+            <MenuKeyCaps action="ui.toggleShortcutsHelp" className="contents" />{" "}
+            toggles this panel
+            <span className="ml-auto flex items-center gap-3">
               <button
-                onClick={toggleTriageBarCompact}
+                onClick={() => rebindShortcut()}
                 className="text-sol-text-dim hover:text-sol-cyan transition-colors"
               >
-                Show triage bar
+                Customize
               </button>
-            )}
-            <button
-              onClick={() => s.setToursPanelOpen(true)}
-              className="text-sol-text-dim hover:text-sol-cyan transition-colors"
-            >
-              Tours
-            </button>
-          </span>
+              {triageBarHidden && (
+                <button
+                  onClick={toggleTriageBarCompact}
+                  className="text-sol-text-dim hover:text-sol-cyan transition-colors"
+                >
+                  Show triage bar
+                </button>
+              )}
+              <button
+                onClick={() => s.setToursPanelOpen(true)}
+                className="text-sol-text-dim hover:text-sol-cyan transition-colors"
+              >
+                Tours
+              </button>
+            </span>
+          </div>
         </div>
-      </div>}
+      )}
     </div>
   );
 }
 
 /** A row with `onRebind` is a button: pressing it opens the keyboard
  *  settings on that action, already listening for the new keys. */
-function ShortcutRow({ description, parts, changed, onRebind }: { description: string; parts: string[]; changed?: boolean; onRebind?: () => void }) {
+function ShortcutRow({
+  description,
+  parts,
+  changed,
+  onRebind,
+}: {
+  description: string;
+  parts: string[];
+  changed?: boolean;
+  onRebind?: () => void;
+}) {
   const body = (
     <>
       {/* A long name wraps rather than pushing its keys out of the panel. */}
       <span className="min-w-0 flex-1 text-xs text-sol-text-muted group-hover:text-sol-text transition-colors">
-        {changed && <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-sol-cyan align-middle" />}
+        {changed && (
+          <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-sol-cyan align-middle" />
+        )}
         {description}
       </span>
       <span className="shrink-0 flex items-center gap-[3px] rounded group-hover:ring-1 group-hover:ring-sol-cyan/40 group-hover:ring-offset-2 group-hover:ring-offset-sol-bg transition-shadow">
@@ -188,9 +283,18 @@ function ShortcutRow({ description, parts, changed, onRebind }: { description: s
       </span>
     </>
   );
-  if (!onRebind) return <div className="flex items-center justify-between gap-3 py-1 group">{body}</div>;
+  if (!onRebind)
+    return (
+      <div className="flex items-center justify-between gap-3 py-1 group">
+        {body}
+      </div>
+    );
   return (
-    <button onClick={onRebind} aria-label={`Change shortcut: ${description}`} className="flex w-full items-center justify-between gap-3 py-1 text-left group">
+    <button
+      onClick={onRebind}
+      aria-label={`Change shortcut: ${description}`}
+      className="flex w-full items-center justify-between gap-3 py-1 text-left group"
+    >
       {body}
     </button>
   );
@@ -211,7 +315,9 @@ export function MenuKeyCaps({
   return (
     <span className={className}>
       {parts.map((part, i) => (
-        <KeyCap key={i} size="xs">{part}</KeyCap>
+        <KeyCap key={i} size="xs">
+          {part}
+        </KeyCap>
       ))}
     </span>
   );
@@ -236,7 +342,16 @@ function isTooltipAnchored(el: HTMLElement): boolean {
 // A tooltip closes the moment the pointer leaves its trigger, so it holds
 // words only. A panel with something to read, select or press goes in
 // ui/HoverCard, which stays open while the pointer crosses onto it.
-export function ShortcutTooltip({ label, action, accel, hint, side = "bottom", align, eager = false, children }: {
+export function ShortcutTooltip({
+  label,
+  action,
+  accel,
+  hint,
+  side = "bottom",
+  align,
+  eager = false,
+  children,
+}: {
   label: ReactNode;
   action?: ShortcutAction;
   /** A chord with no registry action (the composer's SEND_CHORDS), in accelerator syntax. */
@@ -261,7 +376,9 @@ export function ShortcutTooltip({ label, action, accel, hint, side = "bottom", a
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
 
-  useMountEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); });
+  useMountEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  });
 
   // Stuck-open guard. Arming swaps the tree (bare child → Radix trigger), which
   // remounts the DOM node, so the pointerleave that should cancel/close can land
@@ -273,12 +390,26 @@ export function ShortcutTooltip({ label, action, accel, hint, side = "bottom", a
     if (!open) return;
     const closeIfAway = (e?: Event) => {
       const el = triggerRef.current;
-      if (!el || !el.isConnected) { setOpen(false); return; }
-      if (e instanceof PointerEvent && e.target instanceof Node && el.contains(e.target)) return;
+      if (!el || !el.isConnected) {
+        setOpen(false);
+        return;
+      }
+      if (
+        e instanceof PointerEvent &&
+        e.target instanceof Node &&
+        el.contains(e.target)
+      )
+        return;
       if (!isTooltipAnchored(el)) setOpen(false);
     };
-    window.addEventListener("scroll", closeIfAway, { capture: true, passive: true });
-    window.addEventListener("pointermove", closeIfAway, { capture: true, passive: true });
+    window.addEventListener("scroll", closeIfAway, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("pointermove", closeIfAway, {
+      capture: true,
+      passive: true,
+    });
     window.addEventListener("blur", closeIfAway);
     return () => {
       window.removeEventListener("scroll", closeIfAway, { capture: true });
@@ -306,20 +437,49 @@ export function ShortcutTooltip({ label, action, accel, hint, side = "bottom", a
     };
     const childProps = children.props as Record<string, any>;
     return cloneElement(children as React.ReactElement<any>, {
-      onPointerEnter: (e: any) => { childProps.onPointerEnter?.(e); arm(e); },
-      onFocus: (e: any) => { childProps.onFocus?.(e); arm(e); },
+      onPointerEnter: (e: any) => {
+        childProps.onPointerEnter?.(e);
+        arm(e);
+      },
+      onFocus: (e: any) => {
+        childProps.onFocus?.(e);
+        arm(e);
+      },
     });
   }
 
   const cancelFirstShow = () => {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
   };
   const defs = action ? getShortcutsForAction(action) : [];
-  const parts = defs.length > 0 ? formatShortcutParts(defs[0]) : accel ? formatAcceleratorParts(accel) : null;
+  const parts =
+    defs.length > 0
+      ? formatShortcutParts(defs[0])
+      : accel
+        ? formatAcceleratorParts(accel)
+        : null;
   return (
     <TooltipProvider delayDuration={300}>
-      <Tooltip open={open} onOpenChange={(v) => { cancelFirstShow(); setOpen(v); }}>
-        <TooltipTrigger asChild ref={(node) => { triggerRef.current = node; }} onPointerLeave={cancelFirstShow} onBlur={cancelFirstShow}>{children}</TooltipTrigger>
+      <Tooltip
+        open={open}
+        onOpenChange={(v) => {
+          cancelFirstShow();
+          setOpen(v);
+        }}
+      >
+        <TooltipTrigger
+          asChild
+          ref={(node) => {
+            triggerRef.current = node;
+          }}
+          onPointerLeave={cancelFirstShow}
+          onBlur={cancelFirstShow}
+        >
+          {children}
+        </TooltipTrigger>
         {/* Bounded width + wrap: a label that carries a sentence (a trigger's
             standing prompt, a long path) folds into lines instead of running
             one unbroken row across the viewport and clipping. */}
@@ -333,7 +493,9 @@ export function ShortcutTooltip({ label, action, accel, hint, side = "bottom", a
           {parts && (
             <span className="flex items-center gap-[2px]">
               {parts.map((part, i) => (
-                <KeyCap key={i} size="xs">{part}</KeyCap>
+                <KeyCap key={i} size="xs">
+                  {part}
+                </KeyCap>
               ))}
             </span>
           )}

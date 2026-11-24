@@ -1,13 +1,19 @@
 /* The app's address bar (AppAddressBar.tsx). The frame is the command
    palette's (paletteClass); this file holds only what an address needs. */
 
-.aab-scrim { animation: aab-fade 140ms ease-out; }
+.aab-scrim {
+  animation: aab-fade 140ms ease-out;
+}
 .aab-frame {
   transform-origin: top center;
   animation: aab-in 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
-.aab-frame[data-refused="odd"] { animation: aab-shake 280ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
-.aab-frame[data-refused="even"] { animation: aab-shake-again 280ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+.aab-frame[data-refused="odd"] {
+  animation: aab-shake 280ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+.aab-frame[data-refused="even"] {
+  animation: aab-shake-again 280ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
 
 /* Back, forward and copy: quiet until reached for, plainly off when there is
    nowhere to go. */
@@ -20,12 +26,25 @@
   height: 28px;
   border-radius: 7px;
   color: var(--sol-text-muted);
-  transition: color 120ms, background-color 120ms, opacity 120ms;
+  transition:
+    color 120ms,
+    background-color 120ms,
+    opacity 120ms;
 }
-.aab-nav:hover:not(:disabled) { color: var(--sol-text); background: color-mix(in srgb, var(--sol-text) 8%, transparent); }
-.aab-nav:active:not(:disabled) { transform: scale(0.94); }
-.aab-nav:disabled { opacity: 0.3; cursor: default; }
-.aab-nav[data-on] { color: var(--sol-green); }
+.aab-nav:hover:not(:disabled) {
+  color: var(--sol-text);
+  background: color-mix(in srgb, var(--sol-text) 8%, transparent);
+}
+.aab-nav:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.aab-nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.aab-nav[data-on] {
+  color: var(--sol-green);
+}
 
 .aab-mark {
   display: inline-flex;
@@ -46,8 +65,13 @@
   color: var(--sol-text);
   caret-color: var(--sol-cyan);
 }
-.aab-input::placeholder { color: var(--sol-text-dim); opacity: 0.7; }
-.aab-input::selection { background: color-mix(in srgb, var(--sol-cyan) 30%, transparent); }
+.aab-input::placeholder {
+  color: var(--sol-text-dim);
+  opacity: 0.7;
+}
+.aab-input::selection {
+  background: color-mix(in srgb, var(--sol-cyan) 30%, transparent);
+}
 
 .aab-refused {
   flex: 0 0 auto;
@@ -77,7 +101,10 @@
   cursor: pointer;
   color: var(--sol-text-muted);
 }
-.aab-row[data-on="true"] { background: color-mix(in srgb, var(--sol-cyan) 10%, transparent); color: var(--sol-text); }
+.aab-row[data-on="true"] {
+  background: color-mix(in srgb, var(--sol-cyan) 10%, transparent);
+  color: var(--sol-text);
+}
 .aab-glyph {
   display: inline-flex;
   flex: 0 0 auto;
@@ -113,29 +140,81 @@
   color: var(--sol-text-dim);
 }
 
-.aab-pop { animation: aab-pop 220ms cubic-bezier(0.23, 1, 0.32, 1); }
-
-@keyframes aab-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes aab-in {
-  from { opacity: 0; transform: translateY(-6px) scale(0.985); }
-  to { opacity: 1; transform: none; }
+.aab-pop {
+  animation: aab-pop 220ms cubic-bezier(0.23, 1, 0.32, 1);
 }
-@keyframes aab-pop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+@keyframes aab-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes aab-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes aab-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
 @keyframes aab-shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-4px); }
-  40% { transform: translateX(4px); }
-  60% { transform: translateX(-2px); }
-  80% { transform: translateX(1px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(1px);
+  }
 }
 @keyframes aab-shake-again {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-4px); }
-  40% { transform: translateX(4px); }
-  60% { transform: translateX(-2px); }
-  80% { transform: translateX(1px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(1px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .aab-scrim, .aab-frame, .aab-frame[data-refused], .aab-pop, .aab-refused { animation: none; }
+  .aab-scrim,
+  .aab-frame,
+  .aab-frame[data-refused],
+  .aab-pop,
+  .aab-refused {
+    animation: none;
+  }
 }

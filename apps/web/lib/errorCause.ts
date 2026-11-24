@@ -60,7 +60,10 @@ export function describeError(error: unknown): string {
   const chain = errorChain(error);
   if (chain.length === 0) return String(error);
   return chain
-    .map((link, i) => `${i === 0 ? "" : "caused by: "}${link.message}\n${link.stack || ""}`)
+    .map(
+      (link, i) =>
+        `${i === 0 ? "" : "caused by: "}${link.message}\n${link.stack || ""}`,
+    )
     .join("\n\n");
 }
 
@@ -86,7 +89,10 @@ export function serverErrorText(error: unknown): string {
     .trim();
 
   // Cut the server's own stack, which starts at the first frame marker.
-  text = text.split(/\s+at\s+\S+\s*\(/)[0].replace(/\s*Called by client\s*$/, "").trim();
+  text = text
+    .split(/\s+at\s+\S+\s*\(/)[0]
+    .replace(/\s*Called by client\s*$/, "")
+    .trim();
 
   // A GitHub or Convex body is JSON; its `message` is the part worth showing.
   const body = text.match(/\{[\s\S]*\}$/);

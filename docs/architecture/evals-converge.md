@@ -37,47 +37,49 @@ The goal is one evals package that analyses, serves and renders runs, so every p
 
 `~/src/platform/packages/evals/src` gets five new subpaths. A layer imports only the layers listed above it; `src/layers.test.ts` enforces that rule and the purity rules below.
 
-| Subpath | Purity | Contents |
-|---|---|---|
-| `./contract` | Pure, zero deps | Neutral types, `RunRowCore` plus its validator, the route table and `matchRoute`, the bridge protocol, `evalsBatchRef`, `unaskedSet`, `flipCounts`, `spendByDayOf` |
-| `./analysis` | Pure, isomorphic | rng, stats, verdict, flips, epochs walk, attribution, bisect math, evalResult |
-| `./query` | Pure | `createEvalsHandler(sources, policy)` and the row view builders |
-| `./client` | Framework-free | Transports, memory-only resource cache, polling, liveness, `evalsPaths(basePath)`, view models |
-| `./react` | `'use client'` | Provider, hooks, views, pages, `styles.css`, `tokens.css` |
+| Subpath      | Purity           | Contents                                                                                                                                                           |
+| ------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `./contract` | Pure, zero deps  | Neutral types, `RunRowCore` plus its validator, the route table and `matchRoute`, the bridge protocol, `evalsBatchRef`, `unaskedSet`, `flipCounts`, `spendByDayOf` |
+| `./analysis` | Pure, isomorphic | rng, stats, verdict, flips, epochs walk, attribution, bisect math, evalResult                                                                                      |
+| `./query`    | Pure             | `createEvalsHandler(sources, policy)` and the row view builders                                                                                                    |
+| `./client`   | Framework-free   | Transports, memory-only resource cache, polling, liveness, `evalsPaths(basePath)`, view models                                                                     |
+| `./react`    | `'use client'`   | Provider, hooks, views, pages, `styles.css`, `tokens.css`                                                                                                          |
 
 Purity rules:
+
 - `./contract`, `./analysis`, `./query` and `./client` import no `node:*`, `react`, `commander` or DOM.
 - `./react` imports nothing node-side.
 - The existing `.`, `./render`, `./html`, `./cli`, `./fs`, `./fixture` and `./snippet` are unchanged.
 
 ### File moves: codecast to platform
 
-| From (codecast) | To (`platform/packages/evals/src`) | Seam left behind in codecast |
-|---|---|---|
-| `packages/shared/random/index.ts` (makeRng, imported as `@codecast/shared/random`) | `analysis/rng.ts` | File deleted; its 5 importers repointed (`evals/src/stats.ts`, web `__fixtures__/world.ts` and `world/multiplayer.ts`, shared `contracts/__fixtures__/inboxProjectionGen.ts` and `changes/__fixtures__/littlebird.ts`) |
-| `packages/evals/src/stats.ts` + `stats.test.ts` | `analysis/stats.ts` + test | Deleted; importers repointed |
-| `packages/evals/src/evalResult.ts` + test | `analysis/evalResult.ts` + test | Deleted; `cli/src/lineProfileCommand.ts:12` and `cli/src/cardCommand.ts:25` repointed |
-| `packages/shared/contracts/evalResult.ts` | `contract/evalResult.ts` | Becomes a re-export |
-| `contracts/evalsApi/core.ts`, neutral part (primitives, `RunRowCore`, field validator, `evalsBatchRef`/`resolveEvalsBatchRef`, the RE constants, `SeparationResult`, `Footing`, `BatchStats`, `BatchVerdict`, `VerdictFlip`, `SkippedBatch`, `Epoch`, `FootingMarker`, `PromptFilePair`, `CommitRef`, `FlipsResult`, `RunDiffEntry`, `spendByDayOf`, `unaskedSet`, `flipCounts`) | `contract/core.ts` | `core.ts` keeps `GuardCounts`/`GUARD_STATUSES`, `StalenessWord`, `CodecastRunFields` (`sourceHash`, `guard`, `scoreVersions`), `RunRow = RunRowCore & CodecastRunFields`, and `runRowProblems` over the combined field map in today's field order (`guard` as a `{ name: 'guard', ok }` field spec, so its messages stay as they are) |
-| `contracts/evalsApi/bisect.ts` (whole) | `contract/bisect.ts` | Becomes a re-export |
-| `contracts/evalsApi/endpoints.ts`, neutral responses (Health, Overview, Surface, Freeze, Run core, Compare, Batches, Epoch, Attribution query, Commit, Changes, BisectList, Bisect), generic over `R extends RunRowCore` | `contract/views.ts` | Codecast keeps RunJson, CallDetail, AgentDetail, GuardEntry, RunFile, Patch, Search and Sim*. It adds its fields by interface extension: `RunResponse extends Core.RunResponse<RunRow> { run, calls, agents, guard, files, extra }`, `SurfaceInfo extends Core.SurfaceInfo { route: EvalRoute; model: string; criteria, freezes, sources, reps, maxUsdPerRep }`, `SurfaceOverview extends Core.SurfaceOverview { route, model, staleness: StalenessWord }`, `OverviewResponse extends Core.OverviewResponse<SimFailureMoved> { surfaces, sim }` and `ChangesResponse extends Core.ChangesResponse<RunRow> { jobs }`. Not an intersection: `Core.OverviewResponse & { surfaces: SurfaceOverview[] }` types `surfaces` as `Core.SurfaceOverview[] & SurfaceOverview[]`, whose `.map` takes the first array's signature, and codecast's own fixture (`__fixtures__/home.ts`) stopped typechecking. Extension is checked the same way: an override must be assignable to the neutral answer |
-| `contracts/evalsApi/routes.ts`: `matchEvalsRoute` logic and the bridge types | `contract/routes.ts` as `matchRoute(keys, method, path)`, `Route<P, Q, Res, B>`, `None`, `EvalsViewRoutes<R, M>`, `EVALS_VIEW_ROUTE_KEYS`, `EvalsBridgeRequest`/`Response` and `EvalsErrorBody` | Codecast `interface EvalsRoutes extends EvalsViewRoutes<RunRow, SimFailureMoved>`, which re-keys overview, surface, run and changes with codecast's wider answers (extension, for the reason in the row above; checked type for type against today's table) and add `/run/:id/file`, `/patch/:sha`, `/search`, POST bisect routes and `/sim/*`. `EVALS_ROUTE_KEYS` and `matchEvalsRoute` keep their names and their order (`matchEvalsRoute = (m, p) => matchRoute(EVALS_ROUTE_KEYS, m, p)`). Its bridge types add `id`, the `GET`/`POST` method and a required `query` by extension, and its error body narrows `reason` to `EvalsUnavailableReason` and its three words |
-| `packages/evals/src/core/verdict.ts` (created by C1 from `commands/verdict.ts`) | `analysis/verdict.ts` | `commands/verdict.ts` keeps `positiveNumber`, `verdictLinesOf`, `setVerdict`, and the policy-bound instance |
-| `core/flips.ts` (`flipsBetween`) | `analysis/flips.ts` | `history/flips.ts` keeps `flipExamples` |
-| `core/epochs.ts` (walk, `timeline`, `promptPairs`, `sortPromptFiles`, `footingMarkers`; texts are hashed by the reader's `hash`) | `analysis/epochs.ts` | `history/epochs.ts` keeps `folderPromptReader` (sha256 moves into it as `hash`), re-exports `sortPromptFiles`, and binds the reader and ruler defaults |
-| `core/attribution.ts` (`attribute`, `freezeFileChange`, `largestDrops`) | `analysis/attribution.ts` | `history/attribution.ts` keeps `repoGit`, `declaredPaths`, `ATTRIBUTION_EXTRA_PATHS` and `codecastAttributionMeta` |
-| `core/bisect.ts` (pure parts of `reading.ts`; `plan.ts`'s `planFrom`/`renderPlan` over `PlanDeps`; and from `probe.ts`: `ProbeEnv`, treeLabel, treeOf, candidateKey, renderBatch, renderKeys, renderClasses, mapToClass, probeSet, missingReps) | `analysis/bisect.ts` | `bisect/{runner,state,simProbe}.ts`, `probe.ts` `treeEnv`/`folderParams` and the `gitHead()` defaults, `plan.ts` `PlanWorld`, `planDeps` (cost/state reads, tool head) and `buildPlan` |
-| `history/analysis.test.ts`, pure cases of `bisect/bisect.test.ts` | `analysis/*.test.ts` | |
-| `core/query.ts` (created by C3 from `api/views.ts`: ledgerOf, compareView, epochView, onRows, overview strip, batches, plus route dispatch for the neutral routes) | `query/handler.ts`, `query/views.ts` | `api/handlers.ts` answers codecast's own routes and hands the rest to the neutral handler. `api/sources.ts` holds the index load, `/health` and the `EvalsSources` object. `api/views.ts` keeps codecast's own reads (freeze page, run folder, run pair, freeze counts, the staleness worker, the sim overview). `files.ts`, `git.ts`, `simHistory.ts`, `spawn.ts`, `staleWorker.ts` and `bisects.ts` stay |
-| `web/lib/evals/client.ts`, minus `loopbackTransport` | `client/transport.ts` | `loopbackTransport` stays (vault discovery) |
-| neutral part of `web/store/evalsStore.ts` (cache shape; `call`, `load`, `invalidate`; `evalsCacheKey`) | `client/cache.ts` (`EvalsResourceCache`, `memoryResourceCache`) and `client/resources.ts` (`createEvalsClient`) | evalsStore keeps discovery, unavailable reasons and zustand, and exports `evalsResourceCache` (its `resources` slice as an `EvalsResourceCache`) and `onEvalsFailure` (`classifyEvalsFailure` moving the connection). Since C10 the store has no client of its own: the area's provider makes the one client over that cache |
-| `web/lib/evals/hooks.ts` (`useEvalsResource`, `useEvalsChanges`) | `react/hooks.ts` | `useEvalsConnection` stays |
-| `components/evals/evalsPaths.ts` + test | `client/paths.ts` (`evalsPaths(basePath)`) | `components/evals/evalsPaths.ts` shrinks to codecast's binding, `codecastEvalsPaths = evalsPaths('/evals')` and `evalsHref`, which the host's `basePath`, `lib/tabSafePath.ts`, `lib/pathLabel.ts`, the Line page, the page and the views read |
-| `verdictModel`, `surfaceModel`, `seismographModel`, `freezeModel`, `runModel`(+test), `wallModel`(+test), neutral `bisectModel`, `charts/scale.ts`, `format.ts` | `client/models/*` (same file names; `charts/scale.ts` is `models/scale.ts`) | `isJobStalled` (sim jobs) and the sim-failure line of `movedLine` stay with the sim views |
-| Views: `charts/Well`, `charts/ScoreStrip`, `charts/BrushRect`, `charts/useDayBrush`, `parts.tsx`, `EvalsNav`, `EvalsShell`, `GateList`, `JudgeChecks`, `CostTrack`, `RunView`, `SurfaceView`, `SurfaceWallView`, `WhatMoved`, `Seismograph`, `FreezeView`, `FreezeLedger`, `CompareView`, `ComparePanel`, `EpochDiffSheet`, `AttributionView`, `CommitPanel`, `BisectRuler`, `BisectView`, `BisectListView`, `BisectPlanPanel`, pages `Home/Surface/Run/Freeze/Compare/Code/Bisect*` | `react/{shell,run,surface,freeze,bisect}/*` and `react/EvalsApp.tsx` | |
-| `evals.css`, `run.css`, `surface.css`, `wall.css`, `bisect.css` | `react/{shell,run,surface,freeze,bisect}/*.css`, composed by `react/styles.css` | |
+| From (codecast)                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | To (`platform/packages/evals/src`)                                                                                                                                                              | Seam left behind in codecast                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/shared/random/index.ts` (makeRng, imported as `@codecast/shared/random`)                                                                                                                                                                                                                                                                                                                                                                                                   | `analysis/rng.ts`                                                                                                                                                                               | File deleted; its 5 importers repointed (`evals/src/stats.ts`, web `__fixtures__/world.ts` and `world/multiplayer.ts`, shared `contracts/__fixtures__/inboxProjectionGen.ts` and `changes/__fixtures__/littlebird.ts`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `packages/evals/src/stats.ts` + `stats.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                      | `analysis/stats.ts` + test                                                                                                                                                                      | Deleted; importers repointed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `packages/evals/src/evalResult.ts` + test                                                                                                                                                                                                                                                                                                                                                                                                                                            | `analysis/evalResult.ts` + test                                                                                                                                                                 | Deleted; `cli/src/lineProfileCommand.ts:12` and `cli/src/cardCommand.ts:25` repointed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `packages/shared/contracts/evalResult.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                            | `contract/evalResult.ts`                                                                                                                                                                        | Becomes a re-export                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `contracts/evalsApi/core.ts`, neutral part (primitives, `RunRowCore`, field validator, `evalsBatchRef`/`resolveEvalsBatchRef`, the RE constants, `SeparationResult`, `Footing`, `BatchStats`, `BatchVerdict`, `VerdictFlip`, `SkippedBatch`, `Epoch`, `FootingMarker`, `PromptFilePair`, `CommitRef`, `FlipsResult`, `RunDiffEntry`, `spendByDayOf`, `unaskedSet`, `flipCounts`)                                                                                                     | `contract/core.ts`                                                                                                                                                                              | `core.ts` keeps `GuardCounts`/`GUARD_STATUSES`, `StalenessWord`, `CodecastRunFields` (`sourceHash`, `guard`, `scoreVersions`), `RunRow = RunRowCore & CodecastRunFields`, and `runRowProblems` over the combined field map in today's field order (`guard` as a `{ name: 'guard', ok }` field spec, so its messages stay as they are)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `contracts/evalsApi/bisect.ts` (whole)                                                                                                                                                                                                                                                                                                                                                                                                                                               | `contract/bisect.ts`                                                                                                                                                                            | Becomes a re-export                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `contracts/evalsApi/endpoints.ts`, neutral responses (Health, Overview, Surface, Freeze, Run core, Compare, Batches, Epoch, Attribution query, Commit, Changes, BisectList, Bisect), generic over `R extends RunRowCore`                                                                                                                                                                                                                                                             | `contract/views.ts`                                                                                                                                                                             | Codecast keeps RunJson, CallDetail, AgentDetail, GuardEntry, RunFile, Patch, Search and Sim*. It adds its fields by interface extension: `RunResponse extends Core.RunResponse<RunRow> { run, calls, agents, guard, files, extra }`, `SurfaceInfo extends Core.SurfaceInfo { route: EvalRoute; model: string; criteria, freezes, sources, reps, maxUsdPerRep }`, `SurfaceOverview extends Core.SurfaceOverview { route, model, staleness: StalenessWord }`, `OverviewResponse extends Core.OverviewResponse<SimFailureMoved> { surfaces, sim }` and `ChangesResponse extends Core.ChangesResponse<RunRow> { jobs }`. Not an intersection: `Core.OverviewResponse & { surfaces: SurfaceOverview[] }` types `surfaces` as `Core.SurfaceOverview[] & SurfaceOverview[]`, whose `.map` takes the first array's signature, and codecast's own fixture (`__fixtures__/home.ts`) stopped typechecking. Extension is checked the same way: an override must be assignable to the neutral answer |
+| `contracts/evalsApi/routes.ts`: `matchEvalsRoute` logic and the bridge types                                                                                                                                                                                                                                                                                                                                                                                                         | `contract/routes.ts` as `matchRoute(keys, method, path)`, `Route<P, Q, Res, B>`, `None`, `EvalsViewRoutes<R, M>`, `EVALS_VIEW_ROUTE_KEYS`, `EvalsBridgeRequest`/`Response` and `EvalsErrorBody` | Codecast `interface EvalsRoutes extends EvalsViewRoutes<RunRow, SimFailureMoved>`, which re-keys overview, surface, run and changes with codecast's wider answers (extension, for the reason in the row above; checked type for type against today's table) and add `/run/:id/file`, `/patch/:sha`, `/search`, POST bisect routes and `/sim/*`. `EVALS_ROUTE_KEYS` and `matchEvalsRoute` keep their names and their order (`matchEvalsRoute = (m, p) => matchRoute(EVALS_ROUTE_KEYS, m, p)`). Its bridge types add `id`, the `GET`/`POST` method and a required `query` by extension, and its error body narrows `reason` to `EvalsUnavailableReason` and its three words                                                                                                                                                                                                                                                                                                               |
+| `packages/evals/src/core/verdict.ts` (created by C1 from `commands/verdict.ts`)                                                                                                                                                                                                                                                                                                                                                                                                      | `analysis/verdict.ts`                                                                                                                                                                           | `commands/verdict.ts` keeps `positiveNumber`, `verdictLinesOf`, `setVerdict`, and the policy-bound instance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `core/flips.ts` (`flipsBetween`)                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `analysis/flips.ts`                                                                                                                                                                             | `history/flips.ts` keeps `flipExamples`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `core/epochs.ts` (walk, `timeline`, `promptPairs`, `sortPromptFiles`, `footingMarkers`; texts are hashed by the reader's `hash`)                                                                                                                                                                                                                                                                                                                                                     | `analysis/epochs.ts`                                                                                                                                                                            | `history/epochs.ts` keeps `folderPromptReader` (sha256 moves into it as `hash`), re-exports `sortPromptFiles`, and binds the reader and ruler defaults                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `core/attribution.ts` (`attribute`, `freezeFileChange`, `largestDrops`)                                                                                                                                                                                                                                                                                                                                                                                                              | `analysis/attribution.ts`                                                                                                                                                                       | `history/attribution.ts` keeps `repoGit`, `declaredPaths`, `ATTRIBUTION_EXTRA_PATHS` and `codecastAttributionMeta`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `core/bisect.ts` (pure parts of `reading.ts`; `plan.ts`'s `planFrom`/`renderPlan` over `PlanDeps`; and from `probe.ts`: `ProbeEnv`, treeLabel, treeOf, candidateKey, renderBatch, renderKeys, renderClasses, mapToClass, probeSet, missingReps)                                                                                                                                                                                                                                      | `analysis/bisect.ts`                                                                                                                                                                            | `bisect/{runner,state,simProbe}.ts`, `probe.ts` `treeEnv`/`folderParams` and the `gitHead()` defaults, `plan.ts` `PlanWorld`, `planDeps` (cost/state reads, tool head) and `buildPlan`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `history/analysis.test.ts`, pure cases of `bisect/bisect.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                    | `analysis/*.test.ts`                                                                                                                                                                            |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `core/query.ts` (created by C3 from `api/views.ts`: ledgerOf, compareView, epochView, onRows, overview strip, batches, plus route dispatch for the neutral routes)                                                                                                                                                                                                                                                                                                                   | `query/handler.ts`, `query/views.ts`                                                                                                                                                            | `api/handlers.ts` answers codecast's own routes and hands the rest to the neutral handler. `api/sources.ts` holds the index load, `/health` and the `EvalsSources` object. `api/views.ts` keeps codecast's own reads (freeze page, run folder, run pair, freeze counts, the staleness worker, the sim overview). `files.ts`, `git.ts`, `simHistory.ts`, `spawn.ts`, `staleWorker.ts` and `bisects.ts` stay                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `web/lib/evals/client.ts`, minus `loopbackTransport`                                                                                                                                                                                                                                                                                                                                                                                                                                 | `client/transport.ts`                                                                                                                                                                           | `loopbackTransport` stays (vault discovery)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| neutral part of `web/store/evalsStore.ts` (cache shape; `call`, `load`, `invalidate`; `evalsCacheKey`)                                                                                                                                                                                                                                                                                                                                                                               | `client/cache.ts` (`EvalsResourceCache`, `memoryResourceCache`) and `client/resources.ts` (`createEvalsClient`)                                                                                 | evalsStore keeps discovery, unavailable reasons and zustand, and exports `evalsResourceCache` (its `resources` slice as an `EvalsResourceCache`) and `onEvalsFailure` (`classifyEvalsFailure` moving the connection). Since C10 the store has no client of its own: the area's provider makes the one client over that cache                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `web/lib/evals/hooks.ts` (`useEvalsResource`, `useEvalsChanges`)                                                                                                                                                                                                                                                                                                                                                                                                                     | `react/hooks.ts`                                                                                                                                                                                | `useEvalsConnection` stays                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `components/evals/evalsPaths.ts` + test                                                                                                                                                                                                                                                                                                                                                                                                                                              | `client/paths.ts` (`evalsPaths(basePath)`)                                                                                                                                                      | `components/evals/evalsPaths.ts` shrinks to codecast's binding, `codecastEvalsPaths = evalsPaths('/evals')` and `evalsHref`, which the host's `basePath`, `lib/tabSafePath.ts`, `lib/pathLabel.ts`, the Line page, the page and the views read                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `verdictModel`, `surfaceModel`, `seismographModel`, `freezeModel`, `runModel`(+test), `wallModel`(+test), neutral `bisectModel`, `charts/scale.ts`, `format.ts`                                                                                                                                                                                                                                                                                                                      | `client/models/*` (same file names; `charts/scale.ts` is `models/scale.ts`)                                                                                                                     | `isJobStalled` (sim jobs) and the sim-failure line of `movedLine` stay with the sim views                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Views: `charts/Well`, `charts/ScoreStrip`, `charts/BrushRect`, `charts/useDayBrush`, `parts.tsx`, `EvalsNav`, `EvalsShell`, `GateList`, `JudgeChecks`, `CostTrack`, `RunView`, `SurfaceView`, `SurfaceWallView`, `WhatMoved`, `Seismograph`, `FreezeView`, `FreezeLedger`, `CompareView`, `ComparePanel`, `EpochDiffSheet`, `AttributionView`, `CommitPanel`, `BisectRuler`, `BisectView`, `BisectListView`, `BisectPlanPanel`, pages `Home/Surface/Run/Freeze/Compare/Code/Bisect*` | `react/{shell,run,surface,freeze,bisect}/*` and `react/EvalsApp.tsx`                                                                                                                            |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `evals.css`, `run.css`, `surface.css`, `wall.css`, `bisect.css`                                                                                                                                                                                                                                                                                                                                                                                                                      | `react/{shell,run,surface,freeze,bisect}/*.css`, composed by `react/styles.css`                                                                                                                 |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 Stays in codecast for good:
+
 - All of `apps/evals/src/adapters`, `surfaces`, `registry.ts`, `surface.ts`, `paths.ts`, `models.ts`, `state.ts`, `provenance.ts`, `layout.ts`, `served.ts`, `labels.ts`, `signals.ts`, `snippet.ts`, `main.ts`, `index.ts`, `git.ts`, `history/runIndex.ts` and `commands/*`.
 - The run-anatomy views `AgentTranscript`, `CallPane`, `GuardLog` and `RunFiles`, their helpers (`guardCounts`/`GUARD_WORDS` in GuardLog, `fileTree`/`fileLanguage` in RunFiles), `runPanels.tsx` and `runPanels.css`, which render through the `useRunPanels` slot.
 - All sim views: `SimCatalogView`, `SimRunView`, `DeliveryTimeline`, `OrderStrip`, `simLanes`, `simModel`, `simJobState`, `pages/Sim*` and `sim.css`.
@@ -87,102 +89,254 @@ Stays in codecast for good:
 
 ```ts
 // ── @platform/evals/contract ─────────────────────────────────────────
-export type RunRowStatus = 'pass' | 'fail' | 'crash' | 'dry' | 'unscored';
+export type RunRowStatus = "pass" | "fail" | "crash" | "dry" | "unscored";
 export interface RunRowCore {
-  id: string; surface: string; freezeId: string; freezeName: string;
-  seed: number; stamp: string; batch: string | null; batchAt: string | null; cadence: string | null;
-  status: RunRowStatus; score: number | null; passMark: number | null;
-  gatesFailed: string[]; checks: Record<string, number>; missedFloors: string[];
-  model: string | null; judgeModel: string | null; ruler: string | null;
-  gitHead: string | null; dirty: boolean; promptSha: string | null;
+  id: string;
+  surface: string;
+  freezeId: string;
+  freezeName: string;
+  seed: number;
+  stamp: string;
+  batch: string | null;
+  batchAt: string | null;
+  cadence: string | null;
+  status: RunRowStatus;
+  score: number | null;
+  passMark: number | null;
+  gatesFailed: string[];
+  checks: Record<string, number>;
+  missedFloors: string[];
+  model: string | null;
+  judgeModel: string | null;
+  ruler: string | null;
+  gitHead: string | null;
+  dirty: boolean;
+  promptSha: string | null;
   // Promoted by P1: attribution reads them (endpoints, freeze identity, live reads, what the rep ran).
-  visibility: EvalVisibility; mainSha: string | null; offBranch: boolean; treePatch: string | null;
-  sourceHashDisk: string | null; freezeSha: string | null; liveReads: number;
-  costUsd: number; judgeCostUsd: number; realMs: number;
+  visibility: EvalVisibility;
+  mainSha: string | null;
+  offBranch: boolean;
+  treePatch: string | null;
+  sourceHashDisk: string | null;
+  freezeSha: string | null;
+  liveReads: number;
+  costUsd: number;
+  judgeCostUsd: number;
+  realMs: number;
   /** Liveness only; never validated, never read by verdict math. */
   lastEventAt?: string | null;
 }
 // As built by P1: every moving module is typed against RunRowCore. A product
 // without git provenance fills the promoted fields with null, false, 0 and
 // 'private' (union's mapRows). CodecastRunFields is sourceHash, guard, scoreVersions.
-export type FieldKind = 'string'|'number'|'boolean'|'string?'|'number?'|'strings'|'numbers-record';
+export type FieldKind =
+  | "string"
+  | "number"
+  | "boolean"
+  | "string?"
+  | "number?"
+  | "strings"
+  | "numbers-record";
 /** A kind by name, or a product's own check with the name its message uses (codecast: guard). */
 export type FieldSpec = FieldKind | { name: string; ok(v: unknown): boolean };
-export const RUN_ROW_CORE_FIELDS: Record<Exclude<keyof RunRowCore,'lastEventAt'>, FieldKind>;
+export const RUN_ROW_CORE_FIELDS: Record<
+  Exclude<keyof RunRowCore, "lastEventAt">,
+  FieldKind
+>;
 /** Field lines in the map's order, then unknown status and visibility, then `extra`'s lines. */
-export function rowProblems(value: unknown, fields: Record<string, FieldSpec>, extra?: (row: Record<string, unknown>) => string[]): string[];
-export const runRowCoreProblems: (value: unknown) => string[];   // rowProblems over RUN_ROW_CORE_FIELDS
+export function rowProblems(
+  value: unknown,
+  fields: Record<string, FieldSpec>,
+  extra?: (row: Record<string, unknown>) => string[],
+): string[];
+export const runRowCoreProblems: (value: unknown) => string[]; // rowProblems over RUN_ROW_CORE_FIELDS
 
 export interface EvalsCapabilities {
-  trends: boolean; freezes: boolean; epochs: boolean; attribution: boolean;
-  commits: boolean; bisect: boolean; changes: boolean; liveness: boolean;
-  models: boolean;    // the rows name the model that answered and the judge that graded (U4)
-  compare: boolean;   // two reps can be weighed side by side: the product hands over `pair` (U4)
-  marks: boolean;     // the product records the pass mark its reps are held to; off, no view draws a mark (U4)
+  trends: boolean;
+  freezes: boolean;
+  epochs: boolean;
+  attribution: boolean;
+  commits: boolean;
+  bisect: boolean;
+  changes: boolean;
+  liveness: boolean;
+  models: boolean; // the rows name the model that answered and the judge that graded (U4)
+  compare: boolean; // two reps can be weighed side by side: the product hands over `pair` (U4)
+  marks: boolean; // the product records the pass mark its reps are held to; off, no view draws a mark (U4)
   promptFiles: boolean; // the product keeps the prompt files a rep sent; off, an epoch is known by its hash alone and no view offers a prompt diff (U6)
 }
 export interface SurfaceInfo {
-  id: string; title: string; model: string | null; route: string | null;
-  passMark?: number | null;   // the surface's own mark, when it names one (SurfaceOverview carries the same); codecast names none, and its wire shape stays as it is
+  id: string;
+  title: string;
+  model: string | null;
+  route: string | null;
+  passMark?: number | null; // the surface's own mark, when it names one (SurfaceOverview carries the same); codecast names none, and its wire shape stays as it is
   /** A product's own gate, shown as data (union: Jeffreys rule from its backend). */
-  gate?: { rule: string; status: 'green' | 'red' | 'unknown'; detail: string } | null;
+  gate?: {
+    rule: string;
+    status: "green" | "red" | "unknown";
+    detail: string;
+  } | null;
 }
-export interface HealthResponse { /* existing fields */ capabilities?: EvalsCapabilities }
-export interface Route<P, Q, Res, B = never> { params: P; query: Q; body: B; response: Res }
+export interface HealthResponse {
+  /* existing fields */ capabilities?: EvalsCapabilities;
+}
+export interface Route<P, Q, Res, B = never> {
+  params: P;
+  query: Q;
+  body: B;
+  response: Res;
+}
 /** M: a product's own "What moved" kinds. A list can only widen through a parameter: an intersection would narrow it. */
-export interface OverviewResponse<M = never> { cadence; surfaces: SurfaceOverview[]; moved: Array<MovedEvent | M>; spendByDay; bisects }
-export interface EvalsViewRoutes<R extends RunRowCore = RunRowCore, M = never> {
-  'GET /health': Route<None, None, HealthResponse>;
-  'GET /overview': Route<None, OverviewQuery, OverviewResponse<M>>;
-  'GET /surface/:id': Route<{ id: string }, SurfaceQuery, SurfaceResponse<R>>;
-  'GET /freeze/:id': Route<{ id: string }, None, FreezeResponse<R>>;
-  'GET /run/:id': Route<{ id: string }, None, RunResponse<R>>;
-  'GET /compare': Route<None, CompareQuery, CompareResponse<R>>;
-  'GET /batches': Route<None, BatchesQuery, BatchesResponse>;
-  'GET /epoch': Route<None, EpochQuery, EpochResponse>;
-  'GET /attribution': Route<None, AttributionQuery, Attribution>;
-  'GET /commit/:sha': Route<{ sha: string }, CommitQuery, CommitResponse>;
-  'GET /changes': Route<None, ChangesQuery, ChangesResponse<R>>;
-  'GET /bisects': Route<None, None, BisectListResponse>;
-  'GET /bisect/:id': Route<{ id: string }, BisectQuery, BisectResponse>;
+export interface OverviewResponse<M = never> {
+  cadence;
+  surfaces: SurfaceOverview[];
+  moved: Array<MovedEvent | M>;
+  spendByDay;
+  bisects;
 }
-export function matchRoute<K extends string>(keys: readonly K[], method: string, path: string): { key: K; params: Record<string, string> } | null;
-export interface EvalsBridgeRequest { method: string; path: string; query?: Record<string, string>; body?: unknown }
-export interface EvalsBridgeResponse { status: number; body: unknown }
-export interface EvalsErrorBody { error: string; reason?: string; stderr?: string[] }
+export interface EvalsViewRoutes<R extends RunRowCore = RunRowCore, M = never> {
+  "GET /health": Route<None, None, HealthResponse>;
+  "GET /overview": Route<None, OverviewQuery, OverviewResponse<M>>;
+  "GET /surface/:id": Route<{ id: string }, SurfaceQuery, SurfaceResponse<R>>;
+  "GET /freeze/:id": Route<{ id: string }, None, FreezeResponse<R>>;
+  "GET /run/:id": Route<{ id: string }, None, RunResponse<R>>;
+  "GET /compare": Route<None, CompareQuery, CompareResponse<R>>;
+  "GET /batches": Route<None, BatchesQuery, BatchesResponse>;
+  "GET /epoch": Route<None, EpochQuery, EpochResponse>;
+  "GET /attribution": Route<None, AttributionQuery, Attribution>;
+  "GET /commit/:sha": Route<{ sha: string }, CommitQuery, CommitResponse>;
+  "GET /changes": Route<None, ChangesQuery, ChangesResponse<R>>;
+  "GET /bisects": Route<None, None, BisectListResponse>;
+  "GET /bisect/:id": Route<{ id: string }, BisectQuery, BisectResponse>;
+}
+export function matchRoute<K extends string>(
+  keys: readonly K[],
+  method: string,
+  path: string,
+): { key: K; params: Record<string, string> } | null;
+export interface EvalsBridgeRequest {
+  method: string;
+  path: string;
+  query?: Record<string, string>;
+  body?: unknown;
+}
+export interface EvalsBridgeResponse {
+  status: number;
+  body: unknown;
+}
+export interface EvalsErrorBody {
+  error: string;
+  reason?: string;
+  stderr?: string[];
+}
 // The neutral RunResponse<R> is { row, result, score, scoreVersions, rubric, without?, sends, judge, logTail, siblings, adjacent }
 // (`without`, U4: what this kind of rep never has, `reply`, left out of its page rather than drawn empty):
 // what the Run views read. SurfaceOverview's route and model are string | null and its staleness an optional string.
 
 // ── @platform/evals/analysis ─────────────────────────────────────────
 // As P1 built it from C1's codecast core/, typed against RunRowCore.
-export type VerdictRun = Pick<RunRowCore, 'id'|'seed'|'score'|'gatesFailed'|'missedFloors'|'costUsd'|'batch'|'cadence'>
-  & { status: RunStatus /* model.ts, includes 'running' */; freezeId?: string | null; model?: string | null; liveReads?: number; createdAt?: string; visibility?: EvalVisibility }
-  & Partial<Pick<RunRowCore, 'freezeName'|'judgeCostUsd'|'judgeModel'|'dirty'|'gitHead'|'batchAt'|'stamp'|'ruler'>>;
-export type RulerOf<R extends VerdictRun = VerdictRun> = (r: R) => string | null;
+export type VerdictRun = Pick<
+  RunRowCore,
+  | "id"
+  | "seed"
+  | "score"
+  | "gatesFailed"
+  | "missedFloors"
+  | "costUsd"
+  | "batch"
+  | "cadence"
+> & {
+  status: RunStatus /* model.ts, includes 'running' */;
+  freezeId?: string | null;
+  model?: string | null;
+  liveReads?: number;
+  createdAt?: string;
+  visibility?: EvalVisibility;
+} & Partial<
+    Pick<
+      RunRowCore,
+      | "freezeName"
+      | "judgeCostUsd"
+      | "judgeModel"
+      | "dirty"
+      | "gitHead"
+      | "batchAt"
+      | "stamp"
+      | "ruler"
+    >
+  >;
+export type RulerOf<R extends VerdictRun = VerdictRun> = (
+  r: R,
+) => string | null;
 export interface VerdictPolicy<R extends VerdictRun = VerdictRun> {
-  passed(rep: R): boolean;          // codecast: repPassed = statusPassRule(PASS_AT)
-  ruler(rep: R): string | null;     // codecast: defaultRuler (index value, else folder read)
+  passed(rep: R): boolean; // codecast: repPassed = statusPassRule(PASS_AT)
+  ruler(rep: R): string | null; // codecast: defaultRuler (index value, else folder read)
 }
 /** The pass rule at a mark: every gate held, no check under its floor, score >= passAt. Codecast's passesAt. */
-export function passMarkRule(passAt: number): (score: number, gatesFailed: number, missedFloors: number) => boolean;
+export function passMarkRule(
+  passAt: number,
+): (score: number, gatesFailed: number, missedFloors: number) => boolean;
 /** Codecast's repPassed: status pass, or dry with passMarkRule holding. adapters/replay.ts now defines repPassed from it. */
-export function statusPassRule(passAt: number): (r: Pick<VerdictRun,'status'|'score'|'gatesFailed'|'missedFloors'>) => boolean;
+export function statusPassRule(
+  passAt: number,
+): (
+  r: Pick<VerdictRun, "status" | "score" | "gatesFailed" | "missedFloors">,
+) => boolean;
 /** Every function that reads whether a rep passed, or its ruler. Same signatures as before; a ruler left out is the policy's. */
-export function makeVerdict<P extends VerdictRun = VerdictRun>(policy: VerdictPolicy<P>): {
-  policy; passed; majority; footingOf; previousRuns; previousRunSet; pooledRuns; verdictFlips; batchStats; batchFlips; batchVerdict;
+export function makeVerdict<P extends VerdictRun = VerdictRun>(
+  policy: VerdictPolicy<P>,
+): {
+  policy;
+  passed;
+  majority;
+  footingOf;
+  previousRuns;
+  previousRunSet;
+  pooledRuns;
+  verdictFlips;
+  batchStats;
+  batchFlips;
+  batchVerdict;
 };
-export type VerdictKit<P extends VerdictRun = VerdictRun> = ReturnType<typeof makeVerdict<P>>;
+export type VerdictKit<P extends VerdictRun = VerdictRun> = ReturnType<
+  typeof makeVerdict<P>
+>;
 // Policy-free, exported directly:
-export { onePerSeed, batchSet, gradedSet, askedSet, majorityBy /* (runs, passed) */, footingWith /* (rep, ruler) */, footingChange,
-         nightStrata, batchStarts, upTo, scoreOrZero, BISECT_CADENCE, CADENCE_BASELINE_BATCHES };
+export {
+  onePerSeed,
+  batchSet,
+  gradedSet,
+  askedSet,
+  majorityBy /* (runs, passed) */,
+  footingWith /* (rep, ruler) */,
+  footingChange,
+  nightStrata,
+  batchStarts,
+  upTo,
+  scoreOrZero,
+  BISECT_CADENCE,
+  CADENCE_BASELINE_BATCHES,
+};
 // BatchVerdict gains `unfooted?: true` in P1: set only when every graded (pass or fail) rep on both sides has model and
 // judgeModel strictly null (unfootedReps). A run summary that leaves judgeModel out never counts, and no graded codecast
 // rep has a null model (checked on the 8,347-row index), so codecast's answers do not change.
 
 // A function outside verdict.ts that needs the policy takes the kit as its first argument:
-export function flipsBetween(v: VerdictKit, rows, a: string, b: string, ruler?: RulerOf): FlipsResult;
-export function readProbe(v: VerdictKit, set, focus, mode, goodControl): ProbeReading;
+export function flipsBetween(
+  v: VerdictKit,
+  rows,
+  a: string,
+  b: string,
+  ruler?: RulerOf,
+): FlipsResult;
+export function readProbe(
+  v: VerdictKit,
+  set,
+  focus,
+  mode,
+  goodControl,
+): ProbeReading;
 export function failedControls(v: VerdictKit, set, controls): string[];
 
 export interface PromptReader {
@@ -192,28 +346,64 @@ export interface PromptReader {
   /** A short identity for a text (codecast: sha256). Optional: without it the text is its own identity. No node:crypto in the walk. */
   hash?(text: string): string;
 }
-export function epochsOf(rows, surface: string, reader: PromptReader): Epoch[];           // reader is required here
-export function epochPromptDiffs(rows, surface: string, n: number, reader: PromptReader): PromptFilePair[];
-export function footingMarkers(rows, ruler: RulerOf): FootingMarker[];                    // ruler is required here
-export interface AttributionGit { /* unchanged, now core/attribution.ts */ }
-export interface AttributionHeads { heads: Record<string, { mainSha: string | null; reason?: string; near?: string }> }
+export function epochsOf(rows, surface: string, reader: PromptReader): Epoch[]; // reader is required here
+export function epochPromptDiffs(
+  rows,
+  surface: string,
+  n: number,
+  reader: PromptReader,
+): PromptFilePair[];
+export function footingMarkers(rows, ruler: RulerOf): FootingMarker[]; // ruler is required here
+export interface AttributionGit {
+  /* unchanged, now core/attribution.ts */
+}
+export interface AttributionHeads {
+  heads: Record<
+    string,
+    { mainSha: string | null; reason?: string; near?: string }
+  >;
+}
 export interface AttributionMeta {
   declaredPaths(surface: string, shas: string[], git: AttributionGit): string[];
-  surfaceInfo(surface: string): { model: string; route: string; sources: string[] } | null;
+  surfaceInfo(
+    surface: string,
+  ): { model: string; route: string; sources: string[] } | null;
   readHeads(): AttributionHeads | null;
   freezeSnapshotPath(freezeId: string): string | null;
 }
 /** input.git and input.reader are required; codecast's history/attribution.ts fills repoGit() and folderPromptReader(). */
-export function attribute(input: AttributionInput, meta: AttributionMeta, v: VerdictKit): Attribution;
+export function attribute(
+  input: AttributionInput,
+  meta: AttributionMeta,
+  v: VerdictKit,
+): Attribution;
 export interface PlanDeps<W extends { rows: RunRowCore[] }> {
-  verdict: VerdictKit; meta: Pick<AttributionMeta, 'surfaceInfo'>;
-  perRepUsd(surface: string, model: string, world: W): number;   // codecast: state.ts perRepUsd over EVALS_HOME's spend
-  toolHead(): string;                                            // codecast: gitHead(); keys Tier 1's render batches
+  verdict: VerdictKit;
+  meta: Pick<AttributionMeta, "surfaceInfo">;
+  perRepUsd(surface: string, model: string, world: W): number; // codecast: state.ts perRepUsd over EVALS_HOME's spend
+  toolHead(): string; // codecast: gitHead(); keys Tier 1's render batches
 }
 /** The attribution is a value or a thunk (read after the surface is known); the product computes it, so bisect never imports attribution. */
-export function planFrom<W>(args: PlanArgs, world: W, deps: PlanDeps<W>, attribution: Attribution | (() => Attribution), tier1?: Tier1 | null): BisectPlan;
-export function renderPlan<W>(plan: BisectPlan, args: PlanArgs, world: W, env: ProbeEnv, deps: PlanDeps<W>, o?): Promise<{ plan; legacy }>;
-export function liveness(lastEventAt: string | null | undefined, now: number, stallAfterMs: number): 'live' | 'stalled' | null;  // new in P1
+export function planFrom<W>(
+  args: PlanArgs,
+  world: W,
+  deps: PlanDeps<W>,
+  attribution: Attribution | (() => Attribution),
+  tier1?: Tier1 | null,
+): BisectPlan;
+export function renderPlan<W>(
+  plan: BisectPlan,
+  args: PlanArgs,
+  world: W,
+  env: ProbeEnv,
+  deps: PlanDeps<W>,
+  o?,
+): Promise<{ plan; legacy }>;
+export function liveness(
+  lastEventAt: string | null | undefined,
+  now: number,
+  stallAfterMs: number,
+): "live" | "stalled" | null; // new in P1
 // The barrel exports bisect's renderKeys under its name and epochs' as epochRenderKeys (the two key renders differently).
 // probeSet is generic (<R extends RunRowCore>(rows: R[], batch) => R[]) so a product gets its own rows back.
 
@@ -222,35 +412,82 @@ export function liveness(lastEventAt: string | null | undefined, now: number, st
 // Every source a product may lack is optional; leaving one out turns its capability off and its routes answer
 // 404 not-found (/epoch finds no epoch). rows() takes no filter: the same array until the rows change, which keys
 // the handler's answer memo (one memo per handler, so two policies never share an answer).
-export interface QuerySurface { id: string; title: string; route: string | null; model: string | null; passMark?: number | null; gate?: SurfaceInfo['gate'] }
-export type RunDetail<R> = Omit<RunResponse<R>, 'row' | 'siblings' | 'adjacent'>;
-export interface EvalsSources<R extends RunRowCore = RunRowCore, S extends QuerySurface = QuerySurface, M extends { at: string } = never> {
+export interface QuerySurface {
+  id: string;
+  title: string;
+  route: string | null;
+  model: string | null;
+  passMark?: number | null;
+  gate?: SurfaceInfo["gate"];
+}
+export type RunDetail<R> = Omit<
+  RunResponse<R>,
+  "row" | "siblings" | "adjacent"
+>;
+export interface EvalsSources<
+  R extends RunRowCore = RunRowCore,
+  S extends QuerySurface = QuerySurface,
+  M extends { at: string } = never,
+> {
   rows(): Promise<R[]>;
   surfaces(): readonly S[] | Promise<readonly S[]>;
-  health?(): Omit<HealthResponse, 'capabilities'>;   // left out, /health counts the rows
-  info?(surface: S): object;                         // the surface header's own fields (codecast: criteria, sources, reps, maxUsdPerRep)
-  prompts?: PromptReader;                            // epochs, footing diffs, prompt diffs
-  freezes?: { counts(): Promise<(surface: string) => { public: number; private: number }>;
-              get(id: string, rows: R[]): Promise<Omit<FreezeResponse<R>, 'epochs'> | null> };   // the query adds epochs
-  staleness?(): Promise<(surface: string) => string | null>;   // asked before the rows load
-  run?(row: R): Promise<RunDetail<R>>;               // left out, a run page is the row, its siblings and adjacent
-  pair?(a: string, b: string): Pick<CompareResponse<R>, 'diff' | 'replies'>;   // left out, `compare` is off and GET /compare answers 404
-  models?: boolean;                                  // false: the rows name no model or judge, so `models` is off (U4)
-  marks?: boolean;                                   // false: the product records no pass mark, so `marks` is off and none is drawn (U4)
-  promptFiles?: boolean;                             // false: `prompts` knows each rep's prompt by its promptSha and keeps no files; epochs draw, prompt diffs do not (U6)
-  flipExamples?(surface: string, freezeIds: string[], a: string, b: string): Promise<EvalFlip[]>;
-  git?: { verify(sha): void; touching(surface, from, to): CommitRef[]; between(surface, a, b): CommitRef[];
-          commit(sha, surface, whole): CommitResponse; readonly attribution: AttributionGit; meta: AttributionMeta };
-  bisects?: { summaries(): BisectSummary[]; settle?(): void; running(): string | null; get(id: string, since: number): BisectResponse | null };
-  changes?: { sig?(row: R): string; extra?(since: number): object };   // the /changes feed; the cursor lives in the handler
-  overview?(): { moved?: M[]; fields?: object };     // a product's own "What moved" lines and wall fields
+  health?(): Omit<HealthResponse, "capabilities">; // left out, /health counts the rows
+  info?(surface: S): object; // the surface header's own fields (codecast: criteria, sources, reps, maxUsdPerRep)
+  prompts?: PromptReader; // epochs, footing diffs, prompt diffs
+  freezes?: {
+    counts(): Promise<(surface: string) => { public: number; private: number }>;
+    get(
+      id: string,
+      rows: R[],
+    ): Promise<Omit<FreezeResponse<R>, "epochs"> | null>;
+  }; // the query adds epochs
+  staleness?(): Promise<(surface: string) => string | null>; // asked before the rows load
+  run?(row: R): Promise<RunDetail<R>>; // left out, a run page is the row, its siblings and adjacent
+  pair?(a: string, b: string): Pick<CompareResponse<R>, "diff" | "replies">; // left out, `compare` is off and GET /compare answers 404
+  models?: boolean; // false: the rows name no model or judge, so `models` is off (U4)
+  marks?: boolean; // false: the product records no pass mark, so `marks` is off and none is drawn (U4)
+  promptFiles?: boolean; // false: `prompts` knows each rep's prompt by its promptSha and keeps no files; epochs draw, prompt diffs do not (U6)
+  flipExamples?(
+    surface: string,
+    freezeIds: string[],
+    a: string,
+    b: string,
+  ): Promise<EvalFlip[]>;
+  git?: {
+    verify(sha): void;
+    touching(surface, from, to): CommitRef[];
+    between(surface, a, b): CommitRef[];
+    commit(sha, surface, whole): CommitResponse;
+    readonly attribution: AttributionGit;
+    meta: AttributionMeta;
+  };
+  bisects?: {
+    summaries(): BisectSummary[];
+    settle?(): void;
+    running(): string | null;
+    get(id: string, since: number): BisectResponse | null;
+  };
+  changes?: { sig?(row: R): string; extra?(since: number): object }; // the /changes feed; the cursor lives in the handler
+  overview?(): { moved?: M[]; fields?: object }; // a product's own "What moved" lines and wall fields
 }
-export interface HandlerPolicy<R extends VerdictRun = VerdictRun> extends VerdictPolicy<R> { stallAfterMs?: number }
+export interface HandlerPolicy<
+  R extends VerdictRun = VerdictRun,
+> extends VerdictPolicy<R> {
+  stallAfterMs?: number;
+}
 /** trends always; freezes, epochs (prompts), attribution (git and prompts), commits (git), bisect, changes from the sources; liveness from stallAfterMs. */
-export function capabilitiesOf(sources: EvalsSources<any, any, any>, policy?: Pick<HandlerPolicy, 'stallAfterMs'>): EvalsCapabilities;
+export function capabilitiesOf(
+  sources: EvalsSources<any, any, any>,
+  policy?: Pick<HandlerPolicy, "stallAfterMs">,
+): EvalsCapabilities;
 /** /health adds capabilities. A request carrying a line protocol id (codecast's bridge) gets it back (EvalsReply). */
-export function createEvalsHandler<R, S, M>(sources: EvalsSources<R, S, M>, policy: HandlerPolicy): EvalsHandler;
-export type EvalsHandler = <Req extends EvalsBridgeRequest>(req: Req) => Promise<EvalsReply<Req>>;
+export function createEvalsHandler<R, S, M>(
+  sources: EvalsSources<R, S, M>,
+  policy: HandlerPolicy,
+): EvalsHandler;
+export type EvalsHandler = <Req extends EvalsBridgeRequest>(
+  req: Req,
+) => Promise<EvalsReply<Req>>;
 // query/request.ts: NotFound, BadRequest, need, flag, posInt, posNum, rowById, endpointRef, ranFreezes, answer, noRoute,
 // and RouteHandler<T, K> over any route table T, so codecast's own routes in api/handlers.ts reuse them. isViewRoute
 // and rowsMemo come with the handler. The policy is typed on VerdictRun, not R: the kit's functions are
@@ -263,13 +500,23 @@ export type EvalsHandler = <Req extends EvalsBridgeRequest>(req: Req) => Promise
 
 // ── @platform/evals/client ───────────────────────────────────────────
 // As built by P3: client/{transport,cache,resources,polling,liveness,paths}.ts and client/models/*.
-export interface EvalsTransport { readonly kind: string; send(req: EvalsBridgeRequest): Promise<EvalsBridgeResponse> }
-export function localTransport(handler, kind = 'local'): EvalsTransport;   // answers with a structuredClone, as the wire would
-export function httpTransport(baseUrl: string, init?: { headers?: Record<string, string>; credentials?: 'omit' | 'same-origin' | 'include' }): EvalsTransport;
+export interface EvalsTransport {
+  readonly kind: string;
+  send(req: EvalsBridgeRequest): Promise<EvalsBridgeResponse>;
+}
+export function localTransport(handler, kind = "local"): EvalsTransport; // answers with a structuredClone, as the wire would
+export function httpTransport(
+  baseUrl: string,
+  init?: {
+    headers?: Record<string, string>;
+    credentials?: "omit" | "same-origin" | "include";
+  },
+): EvalsTransport;
 // evalsCalls<T>() types request, cacheKey and call by any route table (codecast: evalsCalls<EvalsRoutes>());
 // evalsRequest, evalsCacheKey and callEvals are the neutral table's. evalsUrlPath(req, basePath), evalsFetchInit and
 // evalsResponseOf are what httpTransport and codecast's loopbackTransport share.
-export interface EvalsResourceCache {           // memory-only by contract: no persistence method exists
+export interface EvalsResourceCache {
+  // memory-only by contract: no persistence method exists
   get(key: string): CachedResource | undefined;
   set(key: string, value: CachedResource): void;
   subscribe(key: string, fn: () => void): () => void;
@@ -277,14 +524,29 @@ export interface EvalsResourceCache {           // memory-only by contract: no p
 }
 export function memoryResourceCache(): EvalsResourceCache;
 /** call, load (a cached answer or a load in flight is kept unless forced; a failure keeps the last answer), invalidate: evalsStore's logic, which C9 delegates to. */
-export function createEvalsClient<T = EvalsViewRoutes>(o: { transport: () => EvalsTransport | null; cache: EvalsResourceCache; onFailure?(e: unknown): void }): EvalsClient<T>;
-export interface PollPolicy { intervalMs: number; pauseWhenHidden: boolean }  // EVALS_POLL = 3 s, paused while hidden
-export interface Visibility { visible(): boolean; subscribe(fn: () => void): () => void }   // the React layer reads the document and the pane
-export function poll(tick, policy, visibility?): () => void;           // now, every interval while visible, at once on return
-export function followChanges(fetchChanges, onChanges, policy?, visibility?): () => void;   // its own cursor; hands over answers with news
+export function createEvalsClient<T = EvalsViewRoutes>(o: {
+  transport: () => EvalsTransport | null;
+  cache: EvalsResourceCache;
+  onFailure?(e: unknown): void;
+}): EvalsClient<T>;
+export interface PollPolicy {
+  intervalMs: number;
+  pauseWhenHidden: boolean;
+} // EVALS_POLL = 3 s, paused while hidden
+export interface Visibility {
+  visible(): boolean;
+  subscribe(fn: () => void): () => void;
+} // the React layer reads the document and the pane
+export function poll(tick, policy, visibility?): () => void; // now, every interval while visible, at once on return
+export function followChanges(
+  fetchChanges,
+  onChanges,
+  policy?,
+  visibility?,
+): () => void; // its own cursor; hands over answers with news
 // Union's ideas: mergeById (merge by id, never by seq; the same array when nothing changed) and nextSeqCursor (a full
 // page steps back one). liveness.ts: EVALS_STALL_MS, quietTooLong, rowLiveness (only an unscored rep can be live).
-export function evalsPaths(basePath: string): EvalsPaths;   // today's grammar, base-parameterised:
+export function evalsPaths(basePath: string): EvalsPaths; // today's grammar, base-parameterised:
 // { basePath, href, hrefFor, parse, isPath, canonicalPath, senseHref, tabLabel, searchTargets }; evalsSection and freezeRef stand alone.
 // Models: a function that builds a link takes the area's hrefs first (flipFreezeHref, rowHref, attributeHref,
 // movedLine; movedLine draws a product's own kinds through a callback, codecast's sim failure, and hands back the
@@ -305,50 +567,87 @@ export function evalsPaths(basePath: string): EvalsPaths;   // today's grammar, 
 //   usePatch?(sha): { data: PatchView | null; loading; error }   GET /patch/:sha
 //   useBisectActions?(): { plan(req); start(req); stop(id) }     POST /bisect/plan, POST /bisect, POST /bisect/:id/stop
 // parseUnifiedDiff takes (patch, files) and returns DiffSection[] ({ filePath, hunks, oldContent, newContent }).
-export interface EvalsShortcut { keys: string; label: string; run(): boolean | void }  // false declines
+export interface EvalsShortcut {
+  keys: string;
+  label: string;
+  run(): boolean | void;
+} // false declines
 export interface EvalsHost {
   basePath: string;
   // A hook, not a function: codecast's router is bound to the pane a page renders in (tab context).
   // EvalsLink is a plain anchor whose unmodified click calls it, so there is no Link slot.
   useNavigate(): (href: string, opts?: { replace?: boolean }) => void;
   useSearchParams(): URLSearchParams;
-  useHash(): string;                                   // codecast: useRepoLocation (the pane's own hash)
-  useLandOn(target: string | null, getRoot: () => HTMLElement | null | undefined,
-    find: (root: HTMLElement, target: string) => HTMLElement | null | undefined, margin: number): void;  // codecast: landOn
-  useShortcuts(map: Record<string, EvalsShortcut>, enabled?: boolean): void;  // keyed by action id; codecast binds the registry id
-  keyParts(action: string, keys: string): string[];    // the caps to draw for an action
-  keysBusy(target: EventTarget | null): boolean;       // a field or a dialog owns the key
-  ui: { KeyCap; HoverTip; Sheet: { Root; Content; Title; Description; Close }; SegmentedToggle; ExamplePair;
-        EmptyState; DiffView; SessionPill };            // plain defaults in react/defaults.tsx; ExamplePair takes { ex, stack?: boolean }
-  format: { duration(startMs: number, endMs?: number): string; timeAgo(at: number, now?: number): string;
-            relativeTime(at: number, now?: number): string; fullTimestamp(at: number): string };
+  useHash(): string; // codecast: useRepoLocation (the pane's own hash)
+  useLandOn(
+    target: string | null,
+    getRoot: () => HTMLElement | null | undefined,
+    find: (root: HTMLElement, target: string) => HTMLElement | null | undefined,
+    margin: number,
+  ): void; // codecast: landOn
+  useShortcuts(map: Record<string, EvalsShortcut>, enabled?: boolean): void; // keyed by action id; codecast binds the registry id
+  keyParts(action: string, keys: string): string[]; // the caps to draw for an action
+  keysBusy(target: EventTarget | null): boolean; // a field or a dialog owns the key
+  ui: {
+    KeyCap;
+    HoverTip;
+    Sheet: { Root; Content; Title; Description; Close };
+    SegmentedToggle;
+    ExamplePair;
+    EmptyState;
+    DiffView;
+    SessionPill;
+  }; // plain defaults in react/defaults.tsx; ExamplePair takes { ex, stack?: boolean }
+  format: {
+    duration(startMs: number, endMs?: number): string;
+    timeAgo(at: number, now?: number): string;
+    relativeTime(at: number, now?: number): string;
+    fullTimestamp(at: number): string;
+  };
   useNow(granularityMs: number): number;
-  useVisible(): boolean;                               // the pane is on screen (polling)
-  useActive(): boolean;                                // the pane owns the keys
-  useContainerWidth(initial?: number): { ref: RefObject<HTMLDivElement>; width: number };
+  useVisible(): boolean; // the pane is on screen (polling)
+  useActive(): boolean; // the pane owns the keys
+  useContainerWidth(initial?: number): {
+    ref: RefObject<HTMLDivElement>;
+    width: number;
+  };
   copy(text: string, label?: string): Promise<void>;
   // What the area shows while its data is out of reach (codecast: no daemon, no checkout, a crashed child);
   // `state` is stamped on the shell as data-evals-connection. The default reads the provider's GET /health:
   // 'connecting' with a wait line, 'unreachable' with the error and a retry, then 'connected' and no screen.
   useConnection(): { state: string; screen: ReactNode | null };
-  parseUnifiedDiff?(patch: string): unknown;           // codecast: lib/unifiedDiffParser
+  parseUnifiedDiff?(patch: string): unknown; // codecast: lib/unifiedDiffParser
   // The session that wrote a commit, read from the raw trailer value git hands over (CommitRef.session).
   // Without it a commit names no session and its message shows whole. codecast: @codecast/shared/blame.
-  commitSession?: { id(trailer: string): string | null; strip(message: string): string };
+  commitSession?: {
+    id(trailer: string): string | null;
+    strip(message: string): string;
+  };
   // A host's own tabs under a run, after Verdict and Moment (codecast: calls, agent, guard, files; union: sim panels).
   // A hook, so a panel keeps its state (codecast's open file and its GET /run/:id/file) while the reader moves
   // between tabs. A tab's id is its address (`#guard`); a hash naming no tab the run has opens Verdict.
-  cadences?: readonly CadenceFilter[];   // the cadence filters beside "all" ({ key, label }); left out, codecast's nightly and by hand; empty draws no filter (U4)
+  cadences?: readonly CadenceFilter[]; // the cadence filters beside "all" ({ key, label }); left out, codecast's nightly and by hand; empty draws no filter (U4)
   useRunPanels?(run: RunResponse<any>, ctx: RunPanelContext): RunPanel[];
   // A host's own parts of the surface wall (codecast: the Multiplayer sim, components/evals/wallSim.tsx; C5).
   // Without it the wall draws only what every product shares. `moved` draws a What moved event of the host's
   // own kind (OverviewResponse's M) and is the `own` that movedLine takes; movedKinds names those kinds in the
   // line that says nothing moved; Foot adds blocks after Open bisects from the host's own overview fields.
-  wall?: { moved(e: MovedEvent | M): { href: string; text: string; mark: ReactNode }; movedKinds: string[];
-           Foot?: ComponentType<{ overview: OverviewResponse<M>; now: number }> };
+  wall?: {
+    moved(e: MovedEvent | M): { href: string; text: string; mark: ReactNode };
+    movedKinds: string[];
+    Foot?: ComponentType<{ overview: OverviewResponse<M>; now: number }>;
+  };
 }
-export interface RunPanel { id: string; label: string; count?: number; flag?: string | null /* the dot's title */; body: ReactNode }
-export interface RunPanelContext { previousEpoch: { id: string | null; why: string } }  // the run the prompt files diff against
+export interface RunPanel {
+  id: string;
+  label: string;
+  count?: number;
+  flag?: string | null /* the dot's title */;
+  body: ReactNode;
+}
+export interface RunPanelContext {
+  previousEpoch: { id: string | null; why: string };
+} // the run the prompt files diff against
 // usd is not a host slot: format.ts writes dollars itself (formatUsd's rule, pinned by the foundation test),
 // so the models that print money stay pure. The commit trailer parse is a slot (commitSession), not a
 // contract export: its URL scheme and its full-id rule are codecast's, and union's commits carry no trailer.
@@ -357,8 +656,14 @@ export interface RunPanelContext { previousEpoch: { id: string | null; why: stri
 // onFailure is handed to createEvalsClient (codecast: classifyEvalsFailure). The views load once the transport has
 // answered /health. Hooks: useEvalsResource, useEvalsClient and useEvalsChanges are the neutral table's, and
 // evalsHooks<T>() types the same implementation by a wider table (codecast: evalsHooks<EvalsRoutes>()).
-export function EvalsProvider(p: { transport: EvalsTransport | null; cache?: EvalsResourceCache; host?: EvalsHostInput;
-  poll?: PollPolicy; onFailure?(e: unknown): void; children: ReactNode }): JSX.Element;
+export function EvalsProvider(p: {
+  transport: EvalsTransport | null;
+  cache?: EvalsResourceCache;
+  host?: EvalsHostInput;
+  poll?: PollPolicy;
+  onFailure?(e: unknown): void;
+  children: ReactNode;
+}): JSX.Element;
 // Routes the evalsPaths grammar: each group barrel exports its pages (runPages, surfacePages, freezePages,
 // bisectPages), and `pages` adds the host's own (codecast: the sim pages). A view no page claims says so.
 export function EvalsApp(p: { path: string; pages?: EvalsPages }): JSX.Element;
@@ -442,6 +747,7 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
 ## 6. Vendoring and dependency steps
 
 **Platform**
+
 - Every unit commits in `~/src/platform`, and checks run from that repo.
 - New package.json entries:
   - exports for `./contract`, `./analysis`, `./query`, `./client`, `./react`, `./react/styles.css`, `./react/tokens.css`
@@ -450,12 +756,14 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
 - Every vendor run copies from a platform commit sha, never the live tree: `git -C ~/src/platform worktree add /tmp/pf-<sha> <sha>`, run with `PLATFORM_DIR=/tmp/pf-<sha>` (added by V1), then remove the worktree. This lets platform units and vendor units run in parallel safely.
 
 **Codecast**
+
 - Add `"@platform/evals": "file:../../platform/packages/evals"` to `packages/shared/package.json`, `apps/cli/package.json` and `apps/web/package.json`. `apps/evals` already has it.
 - Run `scripts/vendor-platform.sh` and commit `platform/packages/**`, `platform/vendor-manifest.txt` and `bun.lock` together. The vendor commit lands before any commit that imports a new subpath.
 - CI `test-platform` then installs inside the mirror and runs its React tests with no CI edit.
 - A running dev server needs `depsCacheGuard`, because vendoring purges `.vite`.
 
 **Union**
+
 - V1 makes the vendor script generic: the canonical copy lives in `~/src/platform/scripts/vendor-platform.sh`, and each mirror carries a copy beside its manifest (`landing/vendor/platform/vendor-platform.sh`) so `--check-manifest` works on a runner.
 - Union adds `outreach/scripts/vendor-platform.sh` as a thin wrapper, modeled on codecast's: `--mirror landing/vendor/platform --consumers 'landing/package.json'`, then `npm i --package-lock-only --workspaces=false` in landing. It refuses an npm other than 10. It also adds a CI step running `--check-manifest` (the `vendored-platform` job in `.github/workflows/ci.yml`).
 - Landing is a member of outreach's bun workspace, so a plain `npm i --package-lock-only` there writes `outreach/package-lock.json` instead; `--workspaces=false` keeps the lock in landing, the directory Railway builds.
@@ -464,11 +772,13 @@ No module in `./client` or `./react` may hold a singleton. Context and cache are
 - Run the wrapper (or `npm i --package-lock-only --workspaces=false` in landing, npm 10) after each package.json change. `outreach/bun.lock` is refreshed by the next `bun install` at `outreach/`.
 
 **Eaiden**
+
 - No vendoring. Run `cd ~/src/eaiden/tools/xrun && bun install` after each platform wave that adds directories.
 
 ## 7. Work units
 
 The rules for every unit:
+
 - Files are disjoint within a wave.
 - Each unit names its repo.
 - Codecast checks use `cast check` (all programs unless noted) and per-file `bun test`.
@@ -769,8 +1079,8 @@ C1 must merge before P1 copies from it. If needed, P1 starts once C1 lands.
       4. Push the landing half in two steps, so the shared views meet production data beside the old pages before anything is deleted (section 0, "Union mounts on a parallel route first"):
          - 4a. The mount at `/admin/evals/v2/[[...path]]` (U4's route over `UnionEvalsRoute`, the sims' surface under it), the refreshed mirror and the adapter. No deletions, no redirects, no nav change: the old run, diff, scenario and sim pages stay live. In a real admin session on production, open the wall, an eval surface, a failed result with its Reproduction tab, the sims' surface, a gated sim and a running sim, and check what only production data can show: rows the fixtures never had, a run long enough to page, and the old addresses the Slack digests and the Line still carry.
          - 4b. Once 4a reads right: U5's canonical mount, the deletions, the `legacyAddress` redirects and the nav change, with `v2` removed (it is then a dead address nobody linked). If 4a reads wrong, the old pages are still serving and the fix lands at `v2` first.
-         `build.sh` lays the whole U5 set today; 4a needs the set without U5's deletions, redirects and nav hunks, with U4's `v2` route restored.
-      Pushing landing before step 3 leaves `/admin/evals` on the connection screen. Each commit carries `Requested-by: Ashot`.
+           `build.sh` lays the whole U5 set today; 4a needs the set without U5's deletions, redirects and nav hunks, with U4's `v2` route restored.
+           Pushing landing before step 3 leaves `/admin/evals` on the connection screen. Each commit carries `Requested-by: Ashot`.
     - **Codecast's half of the ship.** Codecast's mirror was vendored from frozen copies of uncommitted platform (C9, C10, U4 and the fix passes), and `daemon.ts` loads `@platform/evals/client`, `contract` and `analysis` files on every cast start (risk 1), so codecast lands only after platform is committed, and through section 0's boot-path gate:
       1. Commit platform (the same commit union's step 1 vendors from).
       2. Re-vendor codecast's mirror from that commit: `PLATFORM_DIR=<worktree at the commit> scripts/vendor-platform.sh vendor evals keys cli-kit`, then `--check` against the same `PLATFORM_DIR`.
@@ -837,6 +1147,7 @@ The look itself is already decided: union admin uses codecast's look, and U2 rec
    - `simulations`: `git_sha`, `judge_model`
 
    Decided (sd-409, 2026-10-06): yes, after the union views land. Built as U6 (section 7): `prompt_sha` is filled by a batched script rather than in the migration, and `eval_runs.model` names the run's pinned model or `agent-default`, since each agent has its own.
+
 2. **Pass mark for union sims.** Sims have no pass mark today.
 
    Default: none. Sims show scores, separation and trends but no pass/fail majority. Set one if sims should get pass/fail verdicts.

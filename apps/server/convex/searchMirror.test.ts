@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { performMirrorAdvance, performBackfillScopes, dropMirroredMessage, MIRROR_WINDOW_MS, MIRROR_LIVE_SLACK_MS } from "./searchMirror";
+import {
+  performMirrorAdvance,
+  performBackfillScopes,
+  dropMirroredMessage,
+  MIRROR_WINDOW_MS,
+  MIRROR_LIVE_SLACK_MS,
+} from "./searchMirror";
 
 // ── In-memory Convex-ish ctx ─────────────────────────────────────────────────
 // Same pattern as notifications.needsInput.test.ts: a fake ctx.db faithful
@@ -18,20 +24,42 @@ function createCtx(seed: Record<string, Rec[]>) {
   const allRows = () => Object.values(tables).flat();
 
   function buildQuery(table: string) {
-    let constraints: Array<{ op: "eq" | "gt" | "lt"; field: string; value: any }> = [];
+    let constraints: Array<{
+      op: "eq" | "gt" | "lt";
+      field: string;
+      value: any;
+    }> = [];
     const matches = (r: Rec) =>
       constraints.every((c) =>
-        c.op === "eq" ? r[c.field] === c.value : c.op === "gt" ? r[c.field] > c.value : r[c.field] < c.value,
+        c.op === "eq"
+          ? r[c.field] === c.value
+          : c.op === "gt"
+            ? r[c.field] > c.value
+            : r[c.field] < c.value,
       );
     const rows = () =>
-      (tables[table] ?? []).filter(matches).sort((a, b) => (a._creationTime ?? 0) - (b._creationTime ?? 0));
+      (tables[table] ?? [])
+        .filter(matches)
+        .sort((a, b) => (a._creationTime ?? 0) - (b._creationTime ?? 0));
     const q = {
-      eq: (field: string, value: any) => (constraints.push({ op: "eq", field, value }), q),
-      gt: (field: string, value: any) => (constraints.push({ op: "gt", field, value }), q),
-      lt: (field: string, value: any) => (constraints.push({ op: "lt", field, value }), q),
+      eq: (field: string, value: any) => (
+        constraints.push({ op: "eq", field, value }),
+        q
+      ),
+      gt: (field: string, value: any) => (
+        constraints.push({ op: "gt", field, value }),
+        q
+      ),
+      lt: (field: string, value: any) => (
+        constraints.push({ op: "lt", field, value }),
+        q
+      ),
     };
     const chain = {
-      withIndex: (_name: string, cb?: (qq: typeof q) => unknown) => (cb?.(q), chain),
+      withIndex: (_name: string, cb?: (qq: typeof q) => unknown) => (
+        cb?.(q),
+        chain
+      ),
       order: (_dir: string) => chain,
       take: async (n: number) => rows().slice(0, n),
       first: async () => rows()[0] ?? null,
@@ -89,7 +117,9 @@ describe("performMirrorAdvance", () => {
   test("a message is searchable seconds after it lands, then re-copied once its text settles", async () => {
     const at = NOW - 60_000;
     const { ctx, tables } = createCtx({
-      search_mirror_state: [{ _id: "state_1", cursor: CEILING - 1, updated_at: NOW }],
+      search_mirror_state: [
+        { _id: "state_1", cursor: CEILING - 1, updated_at: NOW },
+      ],
       messages: [msg("m1", at, { content: "partial Jon Stew" })],
     });
     const first = await performMirrorAdvance(ctx, { now: NOW });
@@ -102,37 +132,58 @@ describe("performMirrorAdvance", () => {
     const later = at + LAG_MS + 1_000;
     await performMirrorAdvance(ctx, { now: later });
     expect(tables.message_search_recent).toHaveLength(1);
-    expect(tables.message_search_recent[0].content).toBe("partial Jon Stewart on Crossfire");
+    expect(tables.message_search_recent[0].content).toBe(
+      "partial Jon Stewart on Crossfire",
+    );
   });
 
   test("the settle walk writes nothing for rows the fresh walk already copied unchanged", async () => {
     const at = NOW - 60_000;
     const { ctx, tables } = createCtx({
-      search_mirror_state: [{ _id: "state_1", cursor: CEILING - 1, updated_at: NOW }],
+      search_mirror_state: [
+        { _id: "state_1", cursor: CEILING - 1, updated_at: NOW },
+      ],
       messages: [msg("m1", at)],
     });
     await performMirrorAdvance(ctx, { now: NOW });
     const row = tables.message_search_recent[0];
     let writes = 0;
     const patch = ctx.db.patch;
-    ctx.db.patch = async (id: string, p: Rec) => { if (id === row._id) writes++; return patch(id, p); };
+    ctx.db.patch = async (id: string, p: Rec) => {
+      if (id === row._id) writes++;
+      return patch(id, p);
+    };
     await performMirrorAdvance(ctx, { now: at + LAG_MS + 1_000 });
     expect(writes).toBe(0);
   });
 
   test("the fresh walk never starts below the settle ceiling after an outage", async () => {
     const { ctx, tables } = createCtx({
-      search_mirror_state: [{ _id: "state_1", cursor: NOW - MIRROR_WINDOW_MS, fresh_cursor: 0, updated_at: NOW }],
-      messages: [msg("old", NOW - MIRROR_WINDOW_MS + 5_000), msg("new", NOW - 30_000)],
+      search_mirror_state: [
+        {
+          _id: "state_1",
+          cursor: NOW - MIRROR_WINDOW_MS,
+          fresh_cursor: 0,
+          updated_at: NOW,
+        },
+      ],
+      messages: [
+        msg("old", NOW - MIRROR_WINDOW_MS + 5_000),
+        msg("new", NOW - 30_000),
+      ],
     });
     const res = await performMirrorAdvance(ctx, { now: NOW });
     expect(res.fresh_scanned).toBe(1);
-    expect(tables.message_search_recent.map((r) => r.message_id).sort()).toEqual(["new", "old"]);
+    expect(
+      tables.message_search_recent.map((r) => r.message_id).sort(),
+    ).toEqual(["new", "old"]);
   });
 
   test("a deleted message leaves the mirror", async () => {
     const { ctx, tables } = createCtx({
-      search_mirror_state: [{ _id: "state_1", cursor: CEILING - 1, updated_at: NOW }],
+      search_mirror_state: [
+        { _id: "state_1", cursor: CEILING - 1, updated_at: NOW },
+      ],
       messages: [msg("m1", NOW - 60_000)],
     });
     await performMirrorAdvance(ctx, { now: NOW });
@@ -188,7 +239,9 @@ describe("performMirrorAdvance", () => {
     const at = NOW - MIRROR_WINDOW_MS + 5_000;
     const capped = "x".repeat(32_000);
     const { ctx, tables } = createCtx({
-      messages: Array.from({ length: 126 }, (_, i) => msg(`m${i}`, at + i, { content: capped })),
+      messages: Array.from({ length: 126 }, (_, i) =>
+        msg(`m${i}`, at + i, { content: capped }),
+      ),
     });
     const res = await performMirrorAdvance(ctx, { now: NOW, batch: 200 });
     expect(res.copied).toBe(125);
@@ -233,7 +286,10 @@ describe("performMirrorAdvance", () => {
     const res = await performMirrorAdvance(ctx, { now: NOW });
     expect(res.copied).toBe(2);
     const rows = tables.message_search_recent;
-    expect(rows.find((r) => r.message_id === "m1")).toMatchObject({ user_id: "user_a", team_id: "team_x" });
+    expect(rows.find((r) => r.message_id === "m1")).toMatchObject({
+      user_id: "user_a",
+      team_id: "team_x",
+    });
     expect(rows.find((r) => r.message_id === "m2")!.user_id).toBeUndefined();
   });
 
@@ -261,7 +317,9 @@ describe("performMirrorAdvance", () => {
     });
     const res = await performMirrorAdvance(ctx, { now: NOW });
     expect(res.expired).toBe(1);
-    expect(tables.message_search_recent.map((r) => r.message_id)).toEqual(["m_new"]);
+    expect(tables.message_search_recent.map((r) => r.message_id)).toEqual([
+      "m_new",
+    ]);
   });
 
   test("backfillScopes stamps unstamped rows, advances past deleted-conv rows, and reports done", async () => {
@@ -286,14 +344,33 @@ describe("performMirrorAdvance", () => {
       ],
     });
     const res = await performBackfillScopes(ctx, { batch: 3 });
-    expect(res).toMatchObject({ scanned: 3, patched: 1, cursor: 300, done: false });
-    const res2 = await performBackfillScopes(ctx, { cursor: res.cursor, batch: 3 });
-    expect(res2).toMatchObject({ scanned: 1, patched: 1, cursor: 400, done: true });
+    expect(res).toMatchObject({
+      scanned: 3,
+      patched: 1,
+      cursor: 300,
+      done: false,
+    });
+    const res2 = await performBackfillScopes(ctx, {
+      cursor: res.cursor,
+      batch: 3,
+    });
+    expect(res2).toMatchObject({
+      scanned: 1,
+      patched: 1,
+      cursor: 400,
+      done: true,
+    });
     const rows = tables.message_search_recent;
-    expect(rows.find((r) => r._id === "r1")).toMatchObject({ user_id: "user_a", team_id: "team_x" });
+    expect(rows.find((r) => r._id === "r1")).toMatchObject({
+      user_id: "user_a",
+      team_id: "team_x",
+    });
     expect(rows.find((r) => r._id === "r2")!.user_id).toBe("user_b");
     expect(rows.find((r) => r._id === "r3")!.user_id).toBeUndefined();
-    expect(rows.find((r) => r._id === "r4")).toMatchObject({ user_id: "user_a", team_id: "team_x" });
+    expect(rows.find((r) => r._id === "r4")).toMatchObject({
+      user_id: "user_a",
+      team_id: "team_x",
+    });
   });
 
   test("liveness hysteresis: dead stays dead in the half-slack band, live survives it", async () => {
@@ -336,7 +413,10 @@ describe("performMirrorAdvance", () => {
       ],
       search_mirror_live: [{ live: true }],
     });
-    const resStale = await performMirrorAdvance(stale.ctx, { now: NOW, batch: 2 });
+    const resStale = await performMirrorAdvance(stale.ctx, {
+      now: NOW,
+      batch: 2,
+    });
     expect(resStale.caught_up).toBe(false);
     // Cursor = m2's creation time, beyond the slack → live flips false.
     expect(resStale.live).toBe(false);

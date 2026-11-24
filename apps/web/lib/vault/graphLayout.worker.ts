@@ -11,7 +11,11 @@
 // are still in flight when that happens; tagging them is what keeps a
 // cancelled layout from dragging nodes around under the new one.
 
-import { runGraphLayout, type LayoutInput, type LayoutTick } from "./graphLayout";
+import {
+  runGraphLayout,
+  type LayoutInput,
+  type LayoutTick,
+} from "./graphLayout";
 
 export type LayoutRequest =
   | ({ type: "layout"; runId: number } & LayoutInput)
@@ -32,11 +36,14 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
   // layout reshuffle from the circle instead of perturbing the on-screen
   // picture (review finding, R5).
   const { runId, nodes, edges, iterations, positions } = message;
-  cancelCurrent = runGraphLayout({ nodes, edges, iterations, positions }, (tick) => {
-    const response: LayoutResponse = { type: "tick", runId, ...tick };
-    // Transfer the buffer rather than structured-cloning it: at 300 iterations
-    // that's 20 posts per layout, and the renderer is the only reader.
-    self.postMessage(response, { transfer: [tick.positions.buffer] });
-    if (tick.done) cancelCurrent = null;
-  });
+  cancelCurrent = runGraphLayout(
+    { nodes, edges, iterations, positions },
+    (tick) => {
+      const response: LayoutResponse = { type: "tick", runId, ...tick };
+      // Transfer the buffer rather than structured-cloning it: at 300 iterations
+      // that's 20 posts per layout, and the renderer is the only reader.
+      self.postMessage(response, { transfer: [tick.positions.buffer] });
+      if (tick.done) cancelCurrent = null;
+    },
+  );
 };

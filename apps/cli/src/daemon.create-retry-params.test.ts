@@ -28,26 +28,57 @@ import { getSyncRecord } from "./syncLedger.js";
 const PARENT_SESSION = "a4c6f0c0-4251-42de-b3f3-732eb239908b";
 const PARENT_CONV = "convParentJx74th3";
 
-function makeWorkflowAgentTranscript(base: string, agentSessionId: string, cwd: string): string {
-  const wfDir = path.join(base, "proj", PARENT_SESSION, "subagents", "workflows", "wf_test-123");
+function makeWorkflowAgentTranscript(
+  base: string,
+  agentSessionId: string,
+  cwd: string,
+): string {
+  const wfDir = path.join(
+    base,
+    "proj",
+    PARENT_SESSION,
+    "subagents",
+    "workflows",
+    "wf_test-123",
+  );
   fs.mkdirSync(wfDir, { recursive: true });
   const filePath = path.join(wfDir, `${agentSessionId}.jsonl`);
   const lines = [
     JSON.stringify({
-      parentUuid: null, isSidechain: true, agentId: agentSessionId.replace(/^agent-/, ""),
-      type: "user", cwd, sessionId: agentSessionId,
-      message: { role: "user", content: "Deep research on TEST as an investment." },
-      uuid: "u1", timestamp: "2026-07-29T13:30:07.751Z",
+      parentUuid: null,
+      isSidechain: true,
+      agentId: agentSessionId.replace(/^agent-/, ""),
+      type: "user",
+      cwd,
+      sessionId: agentSessionId,
+      message: {
+        role: "user",
+        content: "Deep research on TEST as an investment.",
+      },
+      uuid: "u1",
+      timestamp: "2026-07-29T13:30:07.751Z",
     }),
     JSON.stringify({
-      parentUuid: "u1", isSidechain: true, type: "assistant", cwd, sessionId: agentSessionId,
-      message: { role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: "Working." }] },
-      uuid: "u2", timestamp: "2026-07-29T13:30:08.000Z",
+      parentUuid: "u1",
+      isSidechain: true,
+      type: "assistant",
+      cwd,
+      sessionId: agentSessionId,
+      message: {
+        role: "assistant",
+        stop_reason: "end_turn",
+        content: [{ type: "text", text: "Working." }],
+      },
+      uuid: "u2",
+      timestamp: "2026-07-29T13:30:08.000Z",
     }),
   ];
   fs.writeFileSync(filePath, lines.join("\n") + "\n");
   // Sidecar meta the daemon reads for the subagent description.
-  fs.writeFileSync(filePath.replace(/\.jsonl$/, ".meta.json"), JSON.stringify({ description: "TEST research" }));
+  fs.writeFileSync(
+    filePath.replace(/\.jsonl$/, ".meta.json"),
+    JSON.stringify({ description: "TEST research" }),
+  );
   return filePath;
 }
 
@@ -56,22 +87,34 @@ afterAll(() => isolatedCodecastDir.restore());
 
 describe("subagentParentSessionFromPath", () => {
   test("plain subagent layout", () => {
-    expect(subagentParentSessionFromPath(`/p/${PARENT_SESSION}/subagents/agent-abc.jsonl`)).toBe(PARENT_SESSION);
+    expect(
+      subagentParentSessionFromPath(
+        `/p/${PARENT_SESSION}/subagents/agent-abc.jsonl`,
+      ),
+    ).toBe(PARENT_SESSION);
   });
   test("workflow-run layout (the jx70pyh shape)", () => {
     expect(
-      subagentParentSessionFromPath(`/p/${PARENT_SESSION}/subagents/workflows/wf_7418a031-95f/agent-abc.jsonl`),
+      subagentParentSessionFromPath(
+        `/p/${PARENT_SESSION}/subagents/workflows/wf_7418a031-95f/agent-abc.jsonl`,
+      ),
     ).toBe(PARENT_SESSION);
   });
   test("non-subagent transcript has no parent", () => {
-    expect(subagentParentSessionFromPath("/p/proj/9f58ecc2-3abb.jsonl")).toBeUndefined();
-    expect(subagentParentSessionFromPath("subagents/agent-abc.jsonl")).toBeUndefined();
+    expect(
+      subagentParentSessionFromPath("/p/proj/9f58ecc2-3abb.jsonl"),
+    ).toBeUndefined();
+    expect(
+      subagentParentSessionFromPath("subagents/agent-abc.jsonl"),
+    ).toBeUndefined();
   });
 });
 
 describe("createConversation retry preserves subagent params", () => {
   test("failed create queues the exact direct-call params, parent linkage included", async () => {
-    const base = fs.mkdtempSync(path.join(os.tmpdir(), TEST_SCRATCH_DIRNAME + "-create-retry-"));
+    const base = fs.mkdtempSync(
+      path.join(os.tmpdir(), TEST_SCRATCH_DIRNAME + "-create-retry-"),
+    );
     const agentSessionId = "agent-atestretry0001";
     const projDir = path.join(base, "cwd-project");
     fs.mkdirSync(projDir, { recursive: true });
@@ -83,7 +126,9 @@ describe("createConversation retry preserves subagent params", () => {
     const syncService = strictStub<SyncService>("SyncService", {
       createConversation: async (params: CreateConversationParams) => {
         directCalls.push(params);
-        throw new Error("Unable to connect. Is the computer able to access the url?");
+        throw new Error(
+          "Unable to connect. Is the computer able to access the url?",
+        );
       },
     });
 
@@ -96,19 +141,21 @@ describe("createConversation retry preserves subagent params", () => {
       }) as RetryQueue["add"],
     });
 
-    await expect(processSessionFile(
-      filePath,
-      agentSessionId,
-      projDir,
-      syncService,
-      "user123",
-      undefined,
-      { [PARENT_SESSION]: PARENT_CONV },
-      retryQueue,
-      {},
-      {},
-      () => {},
-    )).rejects.toThrow("retains unread data");
+    await expect(
+      processSessionFile(
+        filePath,
+        agentSessionId,
+        projDir,
+        syncService,
+        "user123",
+        undefined,
+        { [PARENT_SESSION]: PARENT_CONV },
+        retryQueue,
+        {},
+        {},
+        () => {},
+      ),
+    ).rejects.toThrow("retains unread data");
 
     // The direct attempt carried the detected parent + subagent stamp…
     expect(directCalls.length).toBe(1);
@@ -119,7 +166,9 @@ describe("createConversation retry preserves subagent params", () => {
     // …and the queued retry op is those SAME params, not a reduced rebuild.
     expect(queued.length).toBe(1);
     expect(queued[0].type).toBe("createConversation");
-    expect(queued[0].params).toEqual(directCalls[0] as unknown as Record<string, unknown>);
+    expect(queued[0].params).toEqual(
+      directCalls[0] as unknown as Record<string, unknown>,
+    );
 
     fs.rmSync(base, { recursive: true, force: true });
     // processSessionFile does real work per call (git probes on the scratch
@@ -133,38 +182,96 @@ describe("createConversation retry preserves subagent params", () => {
 // own records say what it is: isSidechain, with the PARENT's sessionId.
 describe("a sidechain transcript outside subagents/ is still a subagent", () => {
   test("extractSidechain reads the flag and the parent session from the first message", () => {
-    const side = JSON.stringify({ type: "user", isSidechain: true, sessionId: PARENT_SESSION, message: { role: "user", content: "Warmup" } });
-    const plain = JSON.stringify({ type: "user", isSidechain: false, sessionId: "self", message: { role: "user", content: "Hi" } });
-    const snapshot = JSON.stringify({ type: "file-history-snapshot", messageId: "m" });
-    expect(extractSidechain(`${snapshot}\n${side}\n`)).toEqual({ parentSessionId: PARENT_SESSION });
+    const side = JSON.stringify({
+      type: "user",
+      isSidechain: true,
+      sessionId: PARENT_SESSION,
+      message: { role: "user", content: "Warmup" },
+    });
+    const plain = JSON.stringify({
+      type: "user",
+      isSidechain: false,
+      sessionId: "self",
+      message: { role: "user", content: "Hi" },
+    });
+    const snapshot = JSON.stringify({
+      type: "file-history-snapshot",
+      messageId: "m",
+    });
+    expect(extractSidechain(`${snapshot}\n${side}\n`)).toEqual({
+      parentSessionId: PARENT_SESSION,
+    });
     expect(extractSidechain(`${snapshot}\n${plain}\n`)).toBeUndefined();
   });
 
   test("create carries isSubagent and the parent named in its records", async () => {
-    const base = fs.mkdtempSync(path.join(os.tmpdir(), TEST_SCRATCH_DIRNAME + "-sidechain-"));
+    const base = fs.mkdtempSync(
+      path.join(os.tmpdir(), TEST_SCRATCH_DIRNAME + "-sidechain-"),
+    );
     const agentSessionId = "agent-a54937f";
     const projDir = path.join(base, "cwd-project");
     fs.mkdirSync(projDir, { recursive: true });
     const filePath = path.join(base, "proj", `${agentSessionId}.jsonl`);
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, [
-      JSON.stringify({ parentUuid: null, isSidechain: true, type: "user", cwd: projDir, sessionId: PARENT_SESSION, message: { role: "user", content: "Warmup" }, uuid: "w1", timestamp: "2026-10-07T05:57:49.000Z" }),
-      JSON.stringify({ parentUuid: "w1", isSidechain: true, type: "assistant", cwd: projDir, sessionId: PARENT_SESSION, message: { role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: "Ready." }] }, uuid: "w2", timestamp: "2026-10-07T05:57:50.000Z" }),
-    ].join("\n") + "\n");
+    fs.writeFileSync(
+      filePath,
+      [
+        JSON.stringify({
+          parentUuid: null,
+          isSidechain: true,
+          type: "user",
+          cwd: projDir,
+          sessionId: PARENT_SESSION,
+          message: { role: "user", content: "Warmup" },
+          uuid: "w1",
+          timestamp: "2026-10-07T05:57:49.000Z",
+        }),
+        JSON.stringify({
+          parentUuid: "w1",
+          isSidechain: true,
+          type: "assistant",
+          cwd: projDir,
+          sessionId: PARENT_SESSION,
+          message: {
+            role: "assistant",
+            stop_reason: "end_turn",
+            content: [{ type: "text", text: "Ready." }],
+          },
+          uuid: "w2",
+          timestamp: "2026-10-07T05:57:50.000Z",
+        }),
+      ].join("\n") + "\n",
+    );
 
     const directCalls: CreateConversationParams[] = [];
     const syncService = {
       createConversation: async (params: CreateConversationParams) => {
         directCalls.push(params);
-        throw new Error("Unable to connect. Is the computer able to access the url?");
+        throw new Error(
+          "Unable to connect. Is the computer able to access the url?",
+        );
       },
     } as unknown as SyncService;
-    const retryQueue = { getPendingOperations: () => [], add: () => "op-id" } as unknown as RetryQueue;
+    const retryQueue = {
+      getPendingOperations: () => [],
+      add: () => "op-id",
+    } as unknown as RetryQueue;
 
-    await expect(processSessionFile(
-      filePath, agentSessionId, projDir, syncService, "user123", undefined,
-      { [PARENT_SESSION]: PARENT_CONV }, retryQueue, {}, {}, () => {},
-    )).rejects.toThrow("retains unread data");
+    await expect(
+      processSessionFile(
+        filePath,
+        agentSessionId,
+        projDir,
+        syncService,
+        "user123",
+        undefined,
+        { [PARENT_SESSION]: PARENT_CONV },
+        retryQueue,
+        {},
+        {},
+        () => {},
+      ),
+    ).rejects.toThrow("retains unread data");
 
     expect(directCalls.length).toBe(1);
     expect(directCalls[0].isSubagent).toBe(true);
@@ -179,7 +286,9 @@ describe("a sidechain transcript outside subagents/ is still a subagent", () => 
 // subagent came back as a top-level inbox card.
 describe("a recreated subagent keeps its parent", () => {
   test("conversation-not-found recreate carries isSubagent and the parent", async () => {
-    const base = fs.mkdtempSync(path.join(os.tmpdir(), TEST_SCRATCH_DIRNAME + "-recreate-"));
+    const base = fs.mkdtempSync(
+      path.join(os.tmpdir(), TEST_SCRATCH_DIRNAME + "-recreate-"),
+    );
     const agentSessionId = "agent-atestrecreate01";
     const projDir = path.join(base, "cwd-project");
     fs.mkdirSync(projDir, { recursive: true });
@@ -187,20 +296,41 @@ describe("a recreated subagent keeps its parent", () => {
 
     const creates: CreateConversationParams[] = [];
     let adds = 0;
-    const syncService = new Proxy({
-      createConversation: async (params: CreateConversationParams) => { creates.push(params); return "convRecreated"; },
-      addMessages: async (p: any) => {
-        if (adds++ === 0) throw new Error("Conversation not found");
-        return { ids: p.messages.map((_: unknown, i: number) => String(i)) };
+    const syncService = new Proxy(
+      {
+        createConversation: async (params: CreateConversationParams) => {
+          creates.push(params);
+          return "convRecreated";
+        },
+        addMessages: async (p: any) => {
+          if (adds++ === 0) throw new Error("Conversation not found");
+          return { ids: p.messages.map((_: unknown, i: number) => String(i)) };
+        },
       },
-    }, { get: (target: any, key) => key in target ? target[key] : async () => true }) as unknown as SyncService;
-    const retryQueue = new Proxy({ getPendingOperations: () => [], add: () => "op-id" }, {
-      get: (target: any, key) => key in target ? target[key] : () => false,
-    }) as unknown as RetryQueue;
+      {
+        get: (target: any, key) =>
+          key in target ? target[key] : async () => true,
+      },
+    ) as unknown as SyncService;
+    const retryQueue = new Proxy(
+      { getPendingOperations: () => [], add: () => "op-id" },
+      {
+        get: (target: any, key) => (key in target ? target[key] : () => false),
+      },
+    ) as unknown as RetryQueue;
 
     await processSessionFile(
-      filePath, agentSessionId, projDir, syncService, "user123", undefined,
-      { [PARENT_SESSION]: PARENT_CONV, [agentSessionId]: "convGone" }, retryQueue, {}, {}, () => {},
+      filePath,
+      agentSessionId,
+      projDir,
+      syncService,
+      "user123",
+      undefined,
+      { [PARENT_SESSION]: PARENT_CONV, [agentSessionId]: "convGone" },
+      retryQueue,
+      {},
+      {},
+      () => {},
     ).catch(() => {});
 
     expect(creates.length).toBe(1);
@@ -217,32 +347,78 @@ describe("a recreated subagent keeps its parent", () => {
 // every pass (226 dropped ops). A refusal consumes the bytes instead.
 describe("a session the server refuses is consumed, not retried", () => {
   test("moved-away refusal queues nothing and leaves the transcript synced", async () => {
-    const base = fs.mkdtempSync(path.join(os.tmpdir(), TEST_SCRATCH_DIRNAME + "-refused-"));
+    const base = fs.mkdtempSync(
+      path.join(os.tmpdir(), TEST_SCRATCH_DIRNAME + "-refused-"),
+    );
     const sessionId = "cd5e5287-f749-450b-9912-47a6751d1100";
     const projDir = path.join(base, "cwd-project");
     fs.mkdirSync(projDir, { recursive: true });
     const filePath = path.join(base, "proj", `${sessionId}.jsonl`);
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, [
-      JSON.stringify({ parentUuid: null, type: "user", cwd: projDir, sessionId, message: { role: "user", content: "Hi" }, uuid: "r1", timestamp: "2026-10-23T16:00:00.000Z" }),
-      JSON.stringify({ parentUuid: "r1", type: "assistant", cwd: projDir, sessionId, message: { role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: "Hello." }] }, uuid: "r2", timestamp: "2026-10-23T16:00:01.000Z" }),
-    ].join("\n") + "\n");
+    fs.writeFileSync(
+      filePath,
+      [
+        JSON.stringify({
+          parentUuid: null,
+          type: "user",
+          cwd: projDir,
+          sessionId,
+          message: { role: "user", content: "Hi" },
+          uuid: "r1",
+          timestamp: "2026-10-23T16:00:00.000Z",
+        }),
+        JSON.stringify({
+          parentUuid: "r1",
+          type: "assistant",
+          cwd: projDir,
+          sessionId,
+          message: {
+            role: "assistant",
+            stop_reason: "end_turn",
+            content: [{ type: "text", text: "Hello." }],
+          },
+          uuid: "r2",
+          timestamp: "2026-10-23T16:00:01.000Z",
+        }),
+      ].join("\n") + "\n",
+    );
 
     let creates = 0;
     const syncService = strictStub<SyncService>("SyncService", {
       createConversation: async () => {
         creates++;
-        throw new Error("[Request ID: x] Server Error\nUncaught Error: Session moved to another account as jx74yqy; run `cast pull jx74yqy` to bring it back here");
+        throw new Error(
+          "[Request ID: x] Server Error\nUncaught Error: Session moved to another account as jx74yqy; run `cast pull jx74yqy` to bring it back here",
+        );
       },
     });
-    const retryQueue = strictStub<RetryQueue>("RetryQueue", { getPendingOperations: () => [] });
+    const retryQueue = strictStub<RetryQueue>("RetryQueue", {
+      getPendingOperations: () => [],
+    });
     const pending = {};
 
-    await processSessionFile(filePath, sessionId, projDir, syncService, "user123", undefined, {}, retryQueue, pending, {}, () => {});
+    await processSessionFile(
+      filePath,
+      sessionId,
+      projDir,
+      syncService,
+      "user123",
+      undefined,
+      {},
+      retryQueue,
+      pending,
+      {},
+      () => {},
+    );
 
     expect(creates).toBe(1);
     expect(pending).toEqual({});
-    expect(shouldTreatClaudeFileAsStale(fs.statSync(filePath), getSyncRecord(filePath))).toBe(false);
+    expect(
+      shouldTreatClaudeFileAsStale(
+        fs.statSync(filePath),
+        getSyncRecord(filePath),
+      ),
+    ).toBe(false);
 
     fs.rmSync(base, { recursive: true, force: true });
   }, 90_000);

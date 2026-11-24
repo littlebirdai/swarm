@@ -56,11 +56,16 @@ const MAX_UPSERTS_PER_RUN = 600;
 const MAX_BATCH_ROWS = 1200;
 const GC_BATCH = 200;
 
-type MirrorDb = Pick<import("./_generated/server").MutationCtx["db"], "query" | "insert" | "patch" | "delete" | "get">;
+type MirrorDb = Pick<
+  import("./_generated/server").MutationCtx["db"],
+  "query" | "insert" | "patch" | "delete" | "get"
+>;
 type MirrorBudget = { copied: number; content: number; broke: boolean };
 
-const sameMirrorRow = (existing: Record<string, unknown>, doc: Record<string, unknown>) =>
-  Object.keys(doc).every((k) => existing[k] === doc[k]);
+const sameMirrorRow = (
+  existing: Record<string, unknown>,
+  doc: Record<string, unknown>,
+) => Object.keys(doc).every((k) => existing[k] === doc[k]);
 
 // Copy messages created in (from, ceiling) into the mirror, oldest first.
 // Upserts by message_id and skips rows whose mirrored fields are unchanged, so
@@ -77,15 +82,22 @@ async function walkMessages(
 ): Promise<{ cursor: number; scanned: number }> {
   const rows = await db
     .query("messages")
-    .withIndex("by_creation_time", (q) => q.gt("_creationTime", from).lt("_creationTime", ceiling))
+    .withIndex("by_creation_time", (q) =>
+      q.gt("_creationTime", from).lt("_creationTime", ceiling),
+    )
     .order("asc")
     .take(limit);
   let cursor = from;
   for (const msg of rows) {
     cursor = msg._creationTime;
-    const content = msg.content?.trim() ? clipText(msg.content, MAX_CONTENT_CHARS) : null;
+    const content = msg.content?.trim()
+      ? clipText(msg.content, MAX_CONTENT_CHARS)
+      : null;
     if (!content) continue;
-    if (budget.content - content.length < 0 || budget.copied >= MAX_UPSERTS_PER_RUN) {
+    if (
+      budget.content - content.length < 0 ||
+      budget.copied >= MAX_UPSERTS_PER_RUN
+    ) {
       budget.broke = true;
       return { cursor: msg._creationTime - 0.0001, scanned: rows.length };
     }
@@ -154,7 +166,11 @@ export async function performMirrorAdvance(
     // ceiling well before the write-side content budget trips.
     const limit = Math.min(Math.max(args.batch ?? 400, 1), MAX_BATCH_ROWS);
     const ceiling = now - SWEEP_LAG_MS;
-    const budget: MirrorBudget = { copied: 0, content: MAX_BATCH_CONTENT_CHARS, broke: false };
+    const budget: MirrorBudget = {
+      copied: 0,
+      content: MAX_BATCH_CONTENT_CHARS,
+      broke: false,
+    };
     // Conversation owner/team stamps, cached per tick — a batch's messages
     // cluster into few conversations, so this is ~1 get per conversation,
     // not per row.
@@ -163,10 +179,24 @@ export async function performMirrorAdvance(
     // The settle walk covers everything below its ceiling, so the fresh walk
     // never starts below it, even after an outage.
     const freshFrom = Math.max(state.fresh_cursor ?? 0, ceiling - 1);
-    const fresh = await walkMessages(ctx.db, freshFrom, now - FRESH_LAG_MS, MAX_FRESH_ROWS, budget, convScope);
+    const fresh = await walkMessages(
+      ctx.db,
+      freshFrom,
+      now - FRESH_LAG_MS,
+      MAX_FRESH_ROWS,
+      budget,
+      convScope,
+    );
     const settle = budget.broke
       ? { cursor: state.cursor, scanned: 0 }
-      : await walkMessages(ctx.db, state.cursor, ceiling, limit, budget, convScope);
+      : await walkMessages(
+          ctx.db,
+          state.cursor,
+          ceiling,
+          limit,
+          budget,
+          convScope,
+        );
     const newCursor = settle.cursor;
     const caughtUp = settle.scanned < limit && !budget.broke;
 
@@ -182,7 +212,11 @@ export async function performMirrorAdvance(
       await ctx.db.delete(row._id);
     }
 
-    await ctx.db.patch(state._id, { cursor: newCursor, fresh_cursor: fresh.cursor, updated_at: now });
+    await ctx.db.patch(state._id, {
+      cursor: newCursor,
+      fresh_cursor: fresh.cursor,
+      updated_at: now,
+    });
 
     // Liveness flag lives in its OWN row and is written only on transitions —
     // searches subscribe to it, and a per-tick patch here would re-run every
@@ -241,14 +275,19 @@ export const advance = internalMutation({
 // tail walker stamps all new rows, so once this completes it is dead code.
 export async function performBackfillScopes(
   ctx: {
-    db: Pick<import("./_generated/server").MutationCtx["db"], "query" | "patch" | "get">;
+    db: Pick<
+      import("./_generated/server").MutationCtx["db"],
+      "query" | "patch" | "get"
+    >;
   },
   args: { cursor?: number; batch?: number },
 ) {
   const batch = Math.min(Math.max(args.batch ?? 400, 1), 800);
   const rows = await ctx.db
     .query("message_search_recent")
-    .withIndex("by_source_created_at", (q) => q.gt("source_created_at", args.cursor ?? 0))
+    .withIndex("by_source_created_at", (q) =>
+      q.gt("source_created_at", args.cursor ?? 0),
+    )
     .order("asc")
     .take(batch);
   const convScope = new Map<string, { user_id?: any; team_id?: any }>();
@@ -265,7 +304,10 @@ export async function performBackfillScopes(
       convScope.set(convKey, scope);
     }
     if (scope.user_id === undefined) continue;
-    await ctx.db.patch(row._id, { user_id: scope.user_id, team_id: scope.team_id });
+    await ctx.db.patch(row._id, {
+      user_id: scope.user_id,
+      team_id: scope.team_id,
+    });
     patched++;
   }
   return { scanned: rows.length, patched, cursor, done: rows.length < batch };
@@ -289,7 +331,10 @@ export const status = internalQuery({
       cursor: state.cursor,
       cursor_iso: new Date(state.cursor).toISOString(),
       behind_ms: Math.max(0, now - SWEEP_LAG_MS - state.cursor),
-      fresh_behind_ms: state.fresh_cursor === undefined ? null : Math.max(0, now - FRESH_LAG_MS - state.fresh_cursor),
+      fresh_behind_ms:
+        state.fresh_cursor === undefined
+          ? null
+          : Math.max(0, now - FRESH_LAG_MS - state.fresh_cursor),
       live: liveRow?.live ?? false,
       updated_at_iso: new Date(state.updated_at).toISOString(),
     };

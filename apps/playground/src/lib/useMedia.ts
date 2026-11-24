@@ -15,4 +15,5 @@ export function useMedia(query: string): boolean {
 export const useDesktop = () => useMedia("(min-width: 1024px)");
 
 /** The person asked for less motion: scroll and move instantly. */
-export const useReducedMotion = () => useMedia("(prefers-reduced-motion: reduce)");
+export const useReducedMotion = () =>
+  useMedia("(prefers-reduced-motion: reduce)");

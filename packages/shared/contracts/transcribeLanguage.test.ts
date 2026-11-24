@@ -50,11 +50,9 @@ describe("foldLanguageTag", () => {
 
 describe("normalizeTranscribeLanguages", () => {
   test("dedupes and caps", () => {
-    expect(normalizeTranscribeLanguages(["en-US", "en", "fr-FR", "ja"])).toEqual([
-      "en",
-      "fr",
-      "ja",
-    ]);
+    expect(
+      normalizeTranscribeLanguages(["en-US", "en", "fr-FR", "ja"]),
+    ).toEqual(["en", "fr", "ja"]);
   });
 
   test("drops what it cannot fold", () => {
@@ -64,7 +62,10 @@ describe("normalizeTranscribeLanguages", () => {
 
 describe("unionTranscribeLanguages", () => {
   test("a Japanese seat plus an English scribe keeps both", () => {
-    expect(unionTranscribeLanguages(["en-US"], ["ja-JP", "en"])).toEqual(["en", "ja"]);
+    expect(unionTranscribeLanguages(["en-US"], ["ja-JP", "en"])).toEqual([
+      "en",
+      "ja",
+    ]);
   });
 
   test("empty and missing lists do not pollute", () => {
@@ -89,21 +90,29 @@ describe("isUnexpectedTranscript", () => {
     expect(isUnexpectedTranscript("위위위", ["en"])).toBe(true);
     expect(isUnexpectedTranscript("เลอ", ["en"])).toBe(true);
     expect(
-      isUnexpectedTranscript("アショット, サムビット, エージェントレイヤー。", ["en"]),
+      isUnexpectedTranscript("アショット, サムビット, エージェントレイヤー。", [
+        "en",
+      ]),
     ).toBe(true);
   });
 
   test("a Japanese allowlist keeps Japanese and still keeps Latin names", () => {
     expect(
-      isUnexpectedTranscript("アショット, サムビット, エージェントレイヤー。", ["ja"]),
+      isUnexpectedTranscript("アショット, サムビット, エージェントレイヤー。", [
+        "ja",
+      ]),
     ).toBe(false);
-    expect(isUnexpectedTranscript("Ashot, Samvit, agent layer", ["ja"])).toBe(false);
+    expect(isUnexpectedTranscript("Ashot, Samvit, agent layer", ["ja"])).toBe(
+      false,
+    );
     expect(isUnexpectedTranscript("위위위", ["ja"])).toBe(true);
   });
 
   test("English plus Japanese keeps both and still drops Thai", () => {
     expect(isUnexpectedTranscript("the agent layer", ["en", "ja"])).toBe(false);
-    expect(isUnexpectedTranscript("エージェントレイヤー", ["en", "ja"])).toBe(false);
+    expect(isUnexpectedTranscript("エージェントレイヤー", ["en", "ja"])).toBe(
+      false,
+    );
     expect(isUnexpectedTranscript("เลอ", ["en", "ja"])).toBe(true);
   });
 
@@ -141,14 +150,17 @@ describe("LIVE_TRANSCRIBE_MODEL", () => {
 
 describe("asrTranscriptionSession", () => {
   test("omits languages when the caller did not name any", () => {
-    expect(asrTranscriptionSession(LIVE_TRANSCRIBE_MODEL).audio.input.transcription).toEqual({
+    expect(
+      asrTranscriptionSession(LIVE_TRANSCRIBE_MODEL).audio.input.transcription,
+    ).toEqual({
       model: LIVE_TRANSCRIBE_MODEL,
     });
   });
 
   test("sends the allowlist when named", () => {
     expect(
-      asrTranscriptionSession(LIVE_TRANSCRIBE_MODEL, ["en", "ja"]).audio.input.transcription,
+      asrTranscriptionSession(LIVE_TRANSCRIBE_MODEL, ["en", "ja"]).audio.input
+        .transcription,
     ).toEqual({
       model: LIVE_TRANSCRIBE_MODEL,
       languages: ["en", "ja"],
@@ -156,7 +168,9 @@ describe("asrTranscriptionSession", () => {
   });
 
   test("sends the full VAD object the live mint requires", () => {
-    expect(asrTranscriptionSession(LIVE_TRANSCRIBE_MODEL).audio.input.turn_detection).toEqual({
+    expect(
+      asrTranscriptionSession(LIVE_TRANSCRIBE_MODEL).audio.input.turn_detection,
+    ).toEqual({
       type: "server_vad",
       threshold: 0.5,
       prefix_padding_ms: 300,

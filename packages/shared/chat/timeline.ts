@@ -81,8 +81,14 @@ export function threadFaceKey(row: {
   origin_session_id?: string;
   author_kind?: string;
 }): string {
-  if (row.external_author) return `slack:${row.external?.user ?? row.external_author.name}`;
-  if (row.origin === "agent" && row.origin_session_id && row.author_kind !== "agent") return `session:${row.origin_session_id}`;
+  if (row.external_author)
+    return `slack:${row.external?.user ?? row.external_author.name}`;
+  if (
+    row.origin === "agent" &&
+    row.origin_session_id &&
+    row.author_kind !== "agent"
+  )
+    return `session:${row.origin_session_id}`;
   return String(row.user_id);
 }
 
@@ -158,7 +164,12 @@ export function buildChatTimeline<M extends TimelineMessage>(
     if (!withoutDays) {
       const day = startOfDay(m.createdAt);
       if (day !== lastDay) {
-        rows.push({ kind: "day", key: `day-${day}`, label: dayLabel(m.createdAt, now), at: day });
+        rows.push({
+          kind: "day",
+          key: `day-${day}`,
+          label: dayLabel(m.createdAt, now),
+          at: day,
+        });
         lastDay = day;
         breaksGroup = true;
       }
@@ -249,7 +260,8 @@ export function tallyUnread(
 ): UnreadTally {
   let ownAt = 0;
   for (const m of rows) {
-    if (m.user_id === viewerId && isPersonLine(m) && m.created_at > ownAt) ownAt = m.created_at;
+    if (m.user_id === viewerId && isPersonLine(m) && m.created_at > ownAt)
+      ownAt = m.created_at;
   }
   let unread = 0;
   let mentions = 0;
@@ -259,12 +271,18 @@ export function tallyUnread(
     if (m.created_at < ownAt) continue;
     if (!isUnreadNews(m)) continue;
     if (m.thread_root_id === undefined || m.broadcast === true) unread++;
-    if (opts.isDm || m.mention_scope === "here" || mentionUserIds(m.mentions).includes(viewerId)) mentions++;
+    if (
+      opts.isDm ||
+      m.mention_scope === "here" ||
+      mentionUserIds(m.mentions).includes(viewerId)
+    )
+      mentions++;
   }
   return { unread, mentions };
 }
 
-const isPersonLine = (m: UnreadRow) => !m.author_kind || m.author_kind === "user";
+const isPersonLine = (m: UnreadRow) =>
+  !m.author_kind || m.author_kind === "user";
 
 /** A line a person can see that told them something new. */
 function isUnreadNews(m: UnreadRow): boolean {
@@ -329,7 +347,10 @@ export type ToastDecisionInput = {
  *  seconds behind its stamp; anything a good while behind is the import.
  *  Web and mobile ask this the same way, so an old line toasts on neither. */
 export const HISTORY_LAG_MS = 5 * 60 * 1000;
-export function isHistoryLine(row: { created_at: number; external?: { synced_at?: number } | null }): boolean {
+export function isHistoryLine(row: {
+  created_at: number;
+  external?: { synced_at?: number } | null;
+}): boolean {
   const synced = row.external?.synced_at;
   return synced !== undefined && synced - row.created_at > HISTORY_LAG_MS;
 }
@@ -368,13 +389,18 @@ export function chatToastTier(input: ToastDecisionInput): ChatToastTier {
   // outranks even a mention — telling someone about a line they are looking at
   // is the fastest way to teach them to ignore toasts.
   if (windowFocused && channelId === activeChannelId) {
-    const sameContext = (threadRootId ?? undefined) === (activeThreadRootId ?? undefined);
+    const sameContext =
+      (threadRootId ?? undefined) === (activeThreadRootId ?? undefined);
     if (sameContext) return "silent";
   }
 
   // Addressed to you: named, answered, a reply on a thread you are part of —
   // or any line of a DM, which is addressed by construction.
-  const addressed = !!mentionsViewer || !!answersViewer || (!!threadRootId && !!viewerInThread) || !!isDm;
+  const addressed =
+    !!mentionsViewer ||
+    !!answersViewer ||
+    (!!threadRootId && !!viewerInThread) ||
+    !!isDm;
   // A muted channel still surfaces these — muting a room is not the same as
   // asking not to be spoken to. EXCEPT a muted DM: there is no "mentions only"
   // reading of a room where everything mentions you, so its mute must actually

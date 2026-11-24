@@ -24,7 +24,6 @@ export { CONVEX_URL };
 
 const localAuth = createLocalAuth(CONVEX_URL);
 
-
 // Mirrors @convex-dev/auth's useNamespacedStorage key layout:
 // `${key}_${namespace}` with non-alphanumerics stripped from the namespace,
 // which defaults to the deployment URL. Exported for the contract test —

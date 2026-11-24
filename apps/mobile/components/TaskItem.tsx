@@ -1,6 +1,6 @@
-import { StyleSheet, TouchableOpacity, View as RNView } from 'react-native';
-import { probeRender, PERF_PROBE } from '@/lib/perfProbe';
-import { Text as RNText } from '@/components/Themed';
+import { StyleSheet, TouchableOpacity, View as RNView } from "react-native";
+import { probeRender, PERF_PROBE } from "@/lib/perfProbe";
+import { Text as RNText } from "@/components/Themed";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import { codeFont } from "@/constants/fonts";
@@ -8,21 +8,37 @@ import type { TaskItem as TaskItemType } from "@codecast/web/store/inboxStore";
 import { formatRelativeTime } from "./SessionItem";
 import { showActionSheet } from "@/lib/popups";
 
-type TaskStatus = "backlog" | "open" | "in_progress" | "in_review" | "done" | "dropped";
+type TaskStatus =
+  | "backlog"
+  | "open"
+  | "in_progress"
+  | "in_review"
+  | "done"
+  | "dropped";
 type TaskPriority = "urgent" | "high" | "medium" | "low" | "none";
 
 type IconName = React.ComponentProps<typeof FontAwesome>["name"];
 
-export const STATUS_CONFIG: Record<TaskStatus, { icon: IconName; label: string; color: string }> = {
+export const STATUS_CONFIG: Record<
+  TaskStatus,
+  { icon: IconName; label: string; color: string }
+> = {
   backlog: { icon: "circle-thin", label: "Backlog", color: Theme.textMuted0 },
   open: { icon: "circle-o", label: "Open", color: Theme.blue },
-  in_progress: { icon: "dot-circle-o", label: "In Progress", color: Theme.accent },
+  in_progress: {
+    icon: "dot-circle-o",
+    label: "In Progress",
+    color: Theme.accent,
+  },
   in_review: { icon: "dot-circle-o", label: "In Review", color: Theme.violet },
   done: { icon: "check-circle", label: "Done", color: Theme.green },
   dropped: { icon: "times-circle", label: "Dropped", color: Theme.textMuted0 },
 };
 
-export const PRIORITY_CONFIG: Record<TaskPriority, { icon: IconName; label: string; color: string }> = {
+export const PRIORITY_CONFIG: Record<
+  TaskPriority,
+  { icon: IconName; label: string; color: string }
+> = {
   urgent: { icon: "exclamation-triangle", label: "Urgent", color: Theme.red },
   high: { icon: "arrow-up", label: "High", color: Theme.orange },
   medium: { icon: "minus", label: "Medium", color: Theme.textMuted },
@@ -30,8 +46,21 @@ export const PRIORITY_CONFIG: Record<TaskPriority, { icon: IconName; label: stri
   none: { icon: "minus", label: "None", color: Theme.textMuted0 },
 };
 
-export const STATUS_ORDER: TaskStatus[] = ["backlog", "open", "in_progress", "in_review", "done", "dropped"];
-export const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
+export const STATUS_ORDER: TaskStatus[] = [
+  "backlog",
+  "open",
+  "in_progress",
+  "in_review",
+  "done",
+  "dropped",
+];
+export const PRIORITY_ORDER: Record<string, number> = {
+  urgent: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+  none: 4,
+};
 
 const LABEL_COLORS: Record<string, string> = {
   bug: Theme.red,
@@ -67,10 +96,11 @@ export function TaskItemRow({
   /** Set on a floated subtask (parent filtered out) so the row names its parent. */
   parentChip?: { short_id: string } | null;
 }) {
-  if (PERF_PROBE) probeRender('TaskItemRow');
+  if (PERF_PROBE) probeRender("TaskItemRow");
   const Theme = useTheme();
   const status = STATUS_CONFIG[task.status as TaskStatus] ?? STATUS_CONFIG.open;
-  const priority = PRIORITY_CONFIG[task.priority as TaskPriority] ?? PRIORITY_CONFIG.medium;
+  const priority =
+    PRIORITY_CONFIG[task.priority as TaskPriority] ?? PRIORITY_CONFIG.medium;
   const labels = task.labels?.slice(0, 2) ?? [];
   const extraLabels = (task.labels?.length ?? 0) - 2;
 
@@ -93,7 +123,12 @@ export function TaskItemRow({
     >
       <RNView style={styles.topLine}>
         <RNView style={styles.leftGroup}>
-          <FontAwesome name={status.icon} size={14} color={status.color} style={styles.statusIcon} />
+          <FontAwesome
+            name={status.icon}
+            size={14}
+            color={status.color}
+            style={styles.statusIcon}
+          />
           <RNText style={styles.title} numberOfLines={1}>
             {task.title}
           </RNText>
@@ -102,22 +137,39 @@ export function TaskItemRow({
           {parentChip && (
             // Floated subtask: parent filtered out of this view, so name it.
             <RNView style={styles.parentChip}>
-              <FontAwesome name="level-up" size={8} color={Theme.textMuted0} style={{ marginRight: 3 }} />
-              <RNText style={[styles.subtaskCount, codeFont]}>{parentChip.short_id}</RNText>
+              <FontAwesome
+                name="level-up"
+                size={8}
+                color={Theme.textMuted0}
+                style={{ marginRight: 3 }}
+              />
+              <RNText style={[styles.subtaskCount, codeFont]}>
+                {parentChip.short_id}
+              </RNText>
             </RNView>
           )}
-          {progress && progress.total > 0 && (
-            // Direct-children progress — the same done/total number web shows.
-            // The robot marks that some subtasks are agent-internal, hidden here.
-            <RNView style={styles.subtaskChip}>
-              {hiddenDescendantCount > 0 && (
-                <FontAwesome name="android" size={8} color={Theme.cyan} style={{ marginRight: 3 }} />
-              )}
-              <RNText style={styles.subtaskCount}>{progress.done}/{progress.total}</RNText>
-            </RNView>
-          )}
+          {progress &&
+            progress.total > 0 && (
+              // Direct-children progress — the same done/total number web shows.
+              // The robot marks that some subtasks are agent-internal, hidden here.
+              <RNView style={styles.subtaskChip}>
+                {hiddenDescendantCount > 0 && (
+                  <FontAwesome
+                    name="android"
+                    size={8}
+                    color={Theme.cyan}
+                    style={{ marginRight: 3 }}
+                  />
+                )}
+                <RNText style={styles.subtaskCount}>
+                  {progress.done}/{progress.total}
+                </RNText>
+              </RNView>
+            )}
           <FontAwesome name={priority.icon} size={10} color={priority.color} />
-          <RNText style={styles.age}>{formatRelativeTime(task.updated_at)}</RNText>
+          <RNText style={styles.age}>
+            {formatRelativeTime(task.updated_at)}
+          </RNText>
         </RNView>
       </RNView>
 
@@ -127,8 +179,15 @@ export function TaskItemRow({
         {task.plan && !inPlan && (
           <>
             <RNText style={styles.sep}>·</RNText>
-            <FontAwesome name="map" size={9} color={Theme.cyan} style={{ marginRight: 3 }} />
-            <RNText style={styles.planRef} numberOfLines={1}>{task.plan.title}</RNText>
+            <FontAwesome
+              name="map"
+              size={9}
+              color={Theme.cyan}
+              style={{ marginRight: 3 }}
+            />
+            <RNText style={styles.planRef} numberOfLines={1}>
+              {task.plan.title}
+            </RNText>
           </>
         )}
 
@@ -138,9 +197,17 @@ export function TaskItemRow({
             {labels.map((l) => (
               <RNView
                 key={l}
-                style={[styles.label, { borderColor: LABEL_COLORS[l] ?? Theme.textMuted0 }]}
+                style={[
+                  styles.label,
+                  { borderColor: LABEL_COLORS[l] ?? Theme.textMuted0 },
+                ]}
               >
-                <RNText style={[styles.labelText, { color: LABEL_COLORS[l] ?? Theme.textMuted0 }]}>
+                <RNText
+                  style={[
+                    styles.labelText,
+                    { color: LABEL_COLORS[l] ?? Theme.textMuted0 },
+                  ]}
+                >
                   {l}
                 </RNText>
               </RNView>
@@ -166,126 +233,140 @@ export function showTaskActions(
   task: TaskItemType,
   onUpdate: (shortId: string, fields: Record<string, any>) => void,
 ) {
-  const priorities: TaskPriority[] = ["urgent", "high", "medium", "low", "none"];
+  const priorities: TaskPriority[] = [
+    "urgent",
+    "high",
+    "medium",
+    "low",
+    "none",
+  ];
   showActionSheet(task.title || task.short_id, [
-    ...STATUS_ORDER.filter((st) => st !== task.status)
-      .map((st) => ({ label: `Move to ${STATUS_CONFIG[st].label}`, onPress: () => onUpdate(task.short_id, { status: st }) })),
-    ...priorities.filter((p) => p !== task.priority)
-      .map((p) => ({ label: `Priority ${PRIORITY_CONFIG[p].label}`, onPress: () => onUpdate(task.short_id, { priority: p }) })),
+    ...STATUS_ORDER.filter((st) => st !== task.status).map((st) => ({
+      label: `Move to ${STATUS_CONFIG[st].label}`,
+      onPress: () => onUpdate(task.short_id, { status: st }),
+    })),
+    ...priorities
+      .filter((p) => p !== task.priority)
+      .map((p) => ({
+        label: `Priority ${PRIORITY_CONFIG[p].label}`,
+        onPress: () => onUpdate(task.short_id, { priority: p }),
+      })),
   ]);
 }
 
-const styles = themedStyles((Theme, look) => StyleSheet.create({
-  row: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.bgHighlight,
-  },
-  topLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  leftGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    marginRight: Spacing.sm,
-  },
-  statusIcon: {
-    marginRight: 8,
-    width: 16,
-    textAlign: "center",
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: Theme.text,
-    flex: 1,
-    letterSpacing: -0.2,
-  },
-  rightGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  age: {
-    fontSize: 11,
-    color: Theme.textMuted0,
-    fontVariant: ["tabular-nums"],
-  },
-  subtaskChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.bgHighlight,
-  },
-  parentChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.bgHighlight,
-  },
-  subtaskCount: {
-    fontSize: 10,
-    color: Theme.textMuted0,
-    fontVariant: ["tabular-nums"],
-  },
-  metaLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: 24,
-    // Under Modern labels sit at the 11pt floor for capitals, so a row of
-    // them can outrun the screen; it wraps rather than running off the edge.
-    ...(look === "modern" && { flexWrap: "wrap" as const, rowGap: 3 }),
-  },
-  shortId: {
-    fontSize: 11,
-    color: Theme.textMuted0,
-    fontWeight: "500",
-    fontVariant: ["tabular-nums"],
-  },
-  sep: {
-    color: Theme.textMuted0,
-    marginHorizontal: 4,
-    fontSize: 11,
-  },
-  planRef: {
-    fontSize: 11,
-    color: Theme.cyan,
-    fontWeight: "500",
-    maxWidth: 100,
-  },
-  label: {
-    borderWidth: 1,
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    marginRight: 4,
-  },
-  labelText: {
-    fontSize: 10,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  extraLabels: {
-    fontSize: 10,
-    color: Theme.textMuted0,
-    fontWeight: "500",
-  },
-  activeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Theme.greenBright,
-  },
-}));
+const styles = themedStyles((Theme, look) =>
+  StyleSheet.create({
+    row: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.bgHighlight,
+    },
+    topLine: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 4,
+    },
+    leftGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+      marginRight: Spacing.sm,
+    },
+    statusIcon: {
+      marginRight: 8,
+      width: 16,
+      textAlign: "center",
+    },
+    title: {
+      fontSize: 15,
+      fontWeight: "500",
+      color: Theme.text,
+      flex: 1,
+      letterSpacing: -0.2,
+    },
+    rightGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    age: {
+      fontSize: 11,
+      color: Theme.textMuted0,
+      fontVariant: ["tabular-nums"],
+    },
+    subtaskChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      borderRadius: 4,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.bgHighlight,
+    },
+    parentChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      borderRadius: 4,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.bgHighlight,
+    },
+    subtaskCount: {
+      fontSize: 10,
+      color: Theme.textMuted0,
+      fontVariant: ["tabular-nums"],
+    },
+    metaLine: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginLeft: 24,
+      // Under Modern labels sit at the 11pt floor for capitals, so a row of
+      // them can outrun the screen; it wraps rather than running off the edge.
+      ...(look === "modern" && { flexWrap: "wrap" as const, rowGap: 3 }),
+    },
+    shortId: {
+      fontSize: 11,
+      color: Theme.textMuted0,
+      fontWeight: "500",
+      fontVariant: ["tabular-nums"],
+    },
+    sep: {
+      color: Theme.textMuted0,
+      marginHorizontal: 4,
+      fontSize: 11,
+    },
+    planRef: {
+      fontSize: 11,
+      color: Theme.cyan,
+      fontWeight: "500",
+      maxWidth: 100,
+    },
+    label: {
+      borderWidth: 1,
+      borderRadius: 4,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      marginRight: 4,
+    },
+    labelText: {
+      fontSize: 10,
+      fontWeight: "600",
+      textTransform: "uppercase",
+      letterSpacing: 0.3,
+    },
+    extraLabels: {
+      fontSize: 10,
+      color: Theme.textMuted0,
+      fontWeight: "500",
+    },
+    activeDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: Theme.greenBright,
+    },
+  }),
+);

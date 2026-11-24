@@ -23,7 +23,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 export function defaultConfigDir(): string {
-  return process.env.CODECAST_DIR || path.join(process.env.HOME || os.homedir(), ".codecast");
+  return (
+    process.env.CODECAST_DIR ||
+    path.join(process.env.HOME || os.homedir(), ".codecast")
+  );
 }
 
 /**

@@ -8,9 +8,21 @@ import { isWriteConflict } from "../cliHttp.js";
 
 describe("sameOrigin", () => {
   test("protocol, user, .git and case do not matter", () => {
-    expect(sameOrigin("git@github.com:acme/repo.git", "https://github.com/acme/repo")).toBe(true);
-    expect(sameOrigin("ssh://git@github.com/acme/repo.git", "GitHub.com/Acme/Repo/")).toBe(true);
-    expect(sameOrigin("git@github.com:acme/repo.git", "git@github.com:acme/other.git")).toBe(false);
+    expect(
+      sameOrigin(
+        "git@github.com:acme/repo.git",
+        "https://github.com/acme/repo",
+      ),
+    ).toBe(true);
+    expect(
+      sameOrigin("ssh://git@github.com/acme/repo.git", "GitHub.com/Acme/Repo/"),
+    ).toBe(true);
+    expect(
+      sameOrigin(
+        "git@github.com:acme/repo.git",
+        "git@github.com:acme/other.git",
+      ),
+    ).toBe(false);
     expect(sameOrigin(null, "x")).toBe(false);
     expect(sameOrigin("x", undefined)).toBe(false);
   });
@@ -25,8 +37,12 @@ describe("resolveLocalDestination", () => {
 
   test("the path it left from wins when it still exists", () => {
     const r = resolveLocalDestination({
-      sessionId: "s", remoteCwd: "/home/ubuntu/work/a", remoteOrigin: null, worktreeName: null,
-      recordedLocalCwd: "/Users/me/src/repo/.codecast/worktrees/a", localRoots: roots,
+      sessionId: "s",
+      remoteCwd: "/home/ubuntu/work/a",
+      remoteOrigin: null,
+      worktreeName: null,
+      recordedLocalCwd: "/Users/me/src/repo/.codecast/worktrees/a",
+      localRoots: roots,
       exists: exists(["/Users/me/src/repo/.codecast/worktrees/a"]),
     });
     expect(r).toEqual({ localCwd: "/Users/me/src/repo/.codecast/worktrees/a" });
@@ -34,88 +50,175 @@ describe("resolveLocalDestination", () => {
 
   test("a cloud-born worktree lands under the local checkout of the same origin, created if missing", () => {
     const r = resolveLocalDestination({
-      sessionId: "s", remoteCwd: "/home/ubuntu/work/repo/.codecast/worktrees/cloud-1a2b3c", remoteOrigin: "https://github.com/acme/repo",
-      worktreeName: "cloud-1a2b3c", recordedLocalCwd: null, localRoots: roots, exists: exists([]),
+      sessionId: "s",
+      remoteCwd: "/home/ubuntu/work/repo/.codecast/worktrees/cloud-1a2b3c",
+      remoteOrigin: "https://github.com/acme/repo",
+      worktreeName: "cloud-1a2b3c",
+      recordedLocalCwd: null,
+      localRoots: roots,
+      exists: exists([]),
     });
-    expect(r).toEqual({ localCwd: "/Users/me/src/repo/.codecast/worktrees/cloud-1a2b3c", createIn: "/Users/me/src/repo" });
+    expect(r).toEqual({
+      localCwd: "/Users/me/src/repo/.codecast/worktrees/cloud-1a2b3c",
+      createIn: "/Users/me/src/repo",
+    });
   });
 
   test("an existing local worktree is reused, not recreated", () => {
     const r = resolveLocalDestination({
-      sessionId: "s", remoteCwd: "/home/ubuntu/work/repo/.codecast/worktrees/w", remoteOrigin: "git@github.com:acme/repo.git",
-      worktreeName: "w", recordedLocalCwd: null, localRoots: roots, exists: exists(["/Users/me/src/repo/.codecast/worktrees/w"]),
+      sessionId: "s",
+      remoteCwd: "/home/ubuntu/work/repo/.codecast/worktrees/w",
+      remoteOrigin: "git@github.com:acme/repo.git",
+      worktreeName: "w",
+      recordedLocalCwd: null,
+      localRoots: roots,
+      exists: exists(["/Users/me/src/repo/.codecast/worktrees/w"]),
     });
     expect(r).toEqual({ localCwd: "/Users/me/src/repo/.codecast/worktrees/w" });
   });
 
   test("without an origin match the directory name decides", () => {
     const r = resolveLocalDestination({
-      sessionId: "s", remoteCwd: "/home/ubuntu/work/repo/.codecast/worktrees/w", remoteOrigin: null,
-      worktreeName: null, recordedLocalCwd: null, localRoots: roots.map((x) => ({ ...x, origin: null })), exists: exists([]),
+      sessionId: "s",
+      remoteCwd: "/home/ubuntu/work/repo/.codecast/worktrees/w",
+      remoteOrigin: null,
+      worktreeName: null,
+      recordedLocalCwd: null,
+      localRoots: roots.map((x) => ({ ...x, origin: null })),
+      exists: exists([]),
     });
-    expect(r).toEqual({ localCwd: "/Users/me/src/repo/.codecast/worktrees/w", createIn: "/Users/me/src/repo" });
+    expect(r).toEqual({
+      localCwd: "/Users/me/src/repo/.codecast/worktrees/w",
+      createIn: "/Users/me/src/repo",
+    });
   });
 
   test("a session in a subfolder of the host's main checkout lands in that subfolder of the checkout named like the repo", () => {
-    const local = [{ root: "/Users/me/src/repo-wt-old", origin: "git@github.com:acme/repo.git" }, ...roots];
+    const local = [
+      {
+        root: "/Users/me/src/repo-wt-old",
+        origin: "git@github.com:acme/repo.git",
+      },
+      ...roots,
+    ];
     const r = resolveLocalDestination({
-      sessionId: "s", remoteCwd: "/home/ubuntu/src/repo/outreach", remoteRoot: "/home/ubuntu/src/repo", remoteOrigin: "git@github.com:acme/repo.git",
-      worktreeName: null, recordedLocalCwd: null, localRoots: local, exists: exists([]),
+      sessionId: "s",
+      remoteCwd: "/home/ubuntu/src/repo/outreach",
+      remoteRoot: "/home/ubuntu/src/repo",
+      remoteOrigin: "git@github.com:acme/repo.git",
+      worktreeName: null,
+      recordedLocalCwd: null,
+      localRoots: local,
+      exists: exists([]),
     });
     expect(r).toEqual({ localCwd: "/Users/me/src/repo/outreach" });
   });
 
   test("a subfolder of a host worktree lands in the same subfolder of the local worktree, created at its top", () => {
     const r = resolveLocalDestination({
-      sessionId: "s", remoteCwd: "/home/ubuntu/src/repo/.codecast/worktrees/w/outreach", remoteRoot: "/home/ubuntu/src/repo/.codecast/worktrees/w", remoteOrigin: "git@github.com:acme/repo.git",
-      worktreeName: "w", recordedLocalCwd: null, localRoots: roots, exists: exists([]),
+      sessionId: "s",
+      remoteCwd: "/home/ubuntu/src/repo/.codecast/worktrees/w/outreach",
+      remoteRoot: "/home/ubuntu/src/repo/.codecast/worktrees/w",
+      remoteOrigin: "git@github.com:acme/repo.git",
+      worktreeName: "w",
+      recordedLocalCwd: null,
+      localRoots: roots,
+      exists: exists([]),
     });
-    expect(r).toEqual({ localCwd: "/Users/me/src/repo/.codecast/worktrees/w/outreach", worktree: "/Users/me/src/repo/.codecast/worktrees/w", createIn: "/Users/me/src/repo" });
+    expect(r).toEqual({
+      localCwd: "/Users/me/src/repo/.codecast/worktrees/w/outreach",
+      worktree: "/Users/me/src/repo/.codecast/worktrees/w",
+      createIn: "/Users/me/src/repo",
+    });
   });
 
   test("a host folder in no repository lands at the same place under this home, even inside a differently named repo", () => {
     const r = resolveLocalDestination({
-      sessionId: "s", remoteCwd: "/home/ubuntu/src/repo/outreach", remoteOrigin: null, worktreeName: null,
-      recordedLocalCwd: null, localRoots: roots, exists: exists(["/Users/me/src/repo/outreach"]),
+      sessionId: "s",
+      remoteCwd: "/home/ubuntu/src/repo/outreach",
+      remoteOrigin: null,
+      worktreeName: null,
+      recordedLocalCwd: null,
+      localRoots: roots,
+      exists: exists(["/Users/me/src/repo/outreach"]),
       homes: { remote: "/home/ubuntu", local: "/Users/me" },
     });
     expect(r).toEqual({ localCwd: "/Users/me/src/repo/outreach" });
   });
 
   test("a host folder in no repository with no twin here still falls back to the name match", () => {
-    expect(() => resolveLocalDestination({
-      sessionId: "s", remoteCwd: "/home/ubuntu/src/repo/outreach", remoteOrigin: null, worktreeName: null,
-      recordedLocalCwd: null, localRoots: roots, exists: exists([]),
-      homes: { remote: "/home/ubuntu", local: "/Users/me" },
-    })).toThrow(/no local checkout of outreach/);
+    expect(() =>
+      resolveLocalDestination({
+        sessionId: "s",
+        remoteCwd: "/home/ubuntu/src/repo/outreach",
+        remoteOrigin: null,
+        worktreeName: null,
+        recordedLocalCwd: null,
+        localRoots: roots,
+        exists: exists([]),
+        homes: { remote: "/home/ubuntu", local: "/Users/me" },
+      }),
+    ).toThrow(/no local checkout of outreach/);
   });
 
   test("a session that ran in the host's main checkout comes back to the local root itself", () => {
     const r = resolveLocalDestination({
-      sessionId: "s", remoteCwd: "/home/ubuntu/work/repo", remoteOrigin: "git@github.com:acme/repo.git",
-      worktreeName: null, recordedLocalCwd: null, localRoots: roots, exists: exists(["/Users/me/src/repo"]),
+      sessionId: "s",
+      remoteCwd: "/home/ubuntu/work/repo",
+      remoteOrigin: "git@github.com:acme/repo.git",
+      worktreeName: null,
+      recordedLocalCwd: null,
+      localRoots: roots,
+      exists: exists(["/Users/me/src/repo"]),
     });
     expect(r).toEqual({ localCwd: "/Users/me/src/repo" });
   });
 
   test("a worktree pushed whole by cast remote move (basename under the base dir) becomes a local worktree of its repo", () => {
     const r = resolveLocalDestination({
-      sessionId: "s", remoteCwd: "/home/ubuntu/work/feature-x", remoteOrigin: "git@github.com:acme/repo.git",
-      worktreeName: null, recordedLocalCwd: null, localRoots: roots, exists: exists([]),
+      sessionId: "s",
+      remoteCwd: "/home/ubuntu/work/feature-x",
+      remoteOrigin: "git@github.com:acme/repo.git",
+      worktreeName: null,
+      recordedLocalCwd: null,
+      localRoots: roots,
+      exists: exists([]),
     });
-    expect(r).toEqual({ localCwd: "/Users/me/src/repo/.codecast/worktrees/feature-x", createIn: "/Users/me/src/repo" });
+    expect(r).toEqual({
+      localCwd: "/Users/me/src/repo/.codecast/worktrees/feature-x",
+      createIn: "/Users/me/src/repo",
+    });
   });
 
   test("no local checkout at all is a clear error", () => {
-    expect(() => resolveLocalDestination({
-      sessionId: "s", remoteCwd: "/home/ubuntu/work/unknown/.codecast/worktrees/w", remoteOrigin: "git@github.com:acme/unknown.git",
-      worktreeName: "w", recordedLocalCwd: null, localRoots: roots, exists: exists([]),
-    })).toThrow(/no local checkout of git@github.com:acme\/unknown.git/);
+    expect(() =>
+      resolveLocalDestination({
+        sessionId: "s",
+        remoteCwd: "/home/ubuntu/work/unknown/.codecast/worktrees/w",
+        remoteOrigin: "git@github.com:acme/unknown.git",
+        worktreeName: "w",
+        recordedLocalCwd: null,
+        localRoots: roots,
+        exists: exists([]),
+      }),
+    ).toThrow(/no local checkout of git@github.com:acme\/unknown.git/);
   });
 });
 
 test("a lost optimistic-concurrency race is a write conflict worth sending again; other failures are not", () => {
-  expect(isWriteConflict(new Error('{"code":"OptimisticConcurrencyControlFailure","message":"Documents read from or written to the \\"sync_heads\\" table changed"}'))).toBe(true);
-  expect(isWriteConflict(new Error('Documents read from or written to the "sync_heads" table changed while this mutation was being run and on every subsequent retry'))).toBe(true);
+  expect(
+    isWriteConflict(
+      new Error(
+        '{"code":"OptimisticConcurrencyControlFailure","message":"Documents read from or written to the \\"sync_heads\\" table changed"}',
+      ),
+    ),
+  ).toBe(true);
+  expect(
+    isWriteConflict(
+      new Error(
+        'Documents read from or written to the "sync_heads" table changed while this mutation was being run and on every subsequent retry',
+      ),
+    ),
+  ).toBe(true);
   expect(isWriteConflict(new Error("row is queued"))).toBe(false);
 });

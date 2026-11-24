@@ -31,7 +31,8 @@ export const DESTRUCTIVE_COMMANDS: readonly DestructiveCommand[] = [
     path: ["uninstall"],
     confirm: {
       mode: "prompt",
-      warning: "This will remove cast, its daemon, auto-start config, and all local data.",
+      warning:
+        "This will remove cast, its daemon, auto-start config, and all local data.",
     },
   },
   { path: ["workspace", "destroy"] },
@@ -49,7 +50,10 @@ export const DESTRUCTIVE_COMMANDS: readonly DestructiveCommand[] = [
   { path: ["plan", "kill"] },
   {
     path: ["doc", "delete"],
-    confirm: { mode: "require-flag", warning: "This permanently deletes the document." },
+    confirm: {
+      mode: "require-flag",
+      warning: "This permanently deletes the document.",
+    },
   },
   { path: ["hosts", "rm"] },
   { path: ["devices", "rm"] },
@@ -58,14 +62,16 @@ export const DESTRUCTIVE_COMMANDS: readonly DestructiveCommand[] = [
     path: ["devices", "share"],
     confirm: {
       mode: "prompt",
-      warning: "Teammates on that team can then start sessions on this machine. They run as you: your agent logins, git credentials and files.",
+      warning:
+        "Teammates on that team can then start sessions on this machine. They run as you: your agent logins, git credentials and files.",
     },
   },
   {
     path: ["accounts", "share"],
     confirm: {
       mode: "prompt",
-      warning: "Every teammate's machines get a sealed copy of this account's setup-token and can run on it. Anyone with a shell on those machines can copy the token for as long as it is valid; taking it back deletes codecast's copies, not one taken outside it.",
+      warning:
+        "Every teammate's machines get a sealed copy of this account's setup-token and can run on it. Anyone with a shell on those machines can copy the token for as long as it is valid; taking it back deletes codecast's copies, not one taken outside it.",
     },
   },
   { path: ["browser", "stop"] },
@@ -93,7 +99,9 @@ export const DESTRUCTIVE_COMMANDS: readonly DestructiveCommand[] = [
 
 const key = (path: readonly string[]): string => path.join(" ");
 
-const BY_PATH = new Map(DESTRUCTIVE_COMMANDS.map((cmd) => [key(cmd.path), cmd]));
+const BY_PATH = new Map(
+  DESTRUCTIVE_COMMANDS.map((cmd) => [key(cmd.path), cmd]),
+);
 
 /** Is this exact command path destructive? */
 export function isDestructivePath(path: readonly string[]): boolean {
@@ -119,7 +127,9 @@ export function destructiveGate(
 ): ConfirmGate {
   const cmd = BY_PATH.get(key(path));
   if (!cmd) {
-    throw new Error(`destructiveGate: '${key(path)}' is not in DESTRUCTIVE_COMMANDS`);
+    throw new Error(
+      `destructiveGate: '${key(path)}' is not in DESTRUCTIVE_COMMANDS`,
+    );
   }
   if (!cmd.confirm || opts.yes) return { kind: "pass" };
   if (cmd.confirm.mode === "prompt") {
@@ -128,7 +138,10 @@ export function destructiveGate(
   const rerun = ["cast", ...path, ...(opts.args ?? []), "--yes"].join(" ");
   return {
     kind: "refuse",
-    lines: [`${cmd.confirm.warning} Re-run with --yes to confirm:`, `  ${rerun}`],
+    lines: [
+      `${cmd.confirm.warning} Re-run with --yes to confirm:`,
+      `  ${rerun}`,
+    ],
   };
 }
 

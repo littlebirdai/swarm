@@ -17,12 +17,16 @@ const DISMISS_FOR_MS = 7 * 24 * 60 * 60 * 1000;
  */
 export function TeamDomainBanner() {
   const found = useQueryNoThrow(api.teamDiscovery.teamsForMyDomain, {}).data;
-  const dismissedAt = useInboxStore((s) => s.clientState.dismissed?.team_domain ?? 0);
+  const dismissedAt = useInboxStore(
+    (s) => s.clientState.dismissed?.team_domain ?? 0,
+  );
   const dismiss = useInboxStore((s) => s.updateClientDismissed);
   const sendCode = useMutation(api.teamDiscovery.sendWorkEmailCode);
   const confirmCode = useMutation(api.teamDiscovery.confirmWorkEmailCode);
   const requestToJoin = useMutation(api.teamDiscovery.requestToJoin);
-  const [phase, setPhase] = useState<"idle" | "sending" | "code" | "checking">("idle");
+  const [phase, setPhase] = useState<"idle" | "sending" | "code" | "checking">(
+    "idle",
+  );
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [asking, setAsking] = useState<string | null>(null);
@@ -35,7 +39,12 @@ export function TeamDomainBanner() {
   const startProof = () => {
     setError("");
     setPhase("sending");
-    sendCode({}).then(() => setPhase("code")).catch((err) => { fail(err); setPhase("idle"); });
+    sendCode({})
+      .then(() => setPhase("code"))
+      .catch((err) => {
+        fail(err);
+        setPhase("idle");
+      });
   };
   const checkCode = () => {
     setError("");
@@ -47,51 +56,84 @@ export function TeamDomainBanner() {
         setError(result.error);
         setPhase("code");
       })
-      .catch((err) => { fail(err); setPhase("code"); });
+      .catch((err) => {
+        fail(err);
+        setPhase("code");
+      });
   };
   const ask = (teamId: Id<"teams">) => {
     setError("");
     setAsking(teamId);
-    requestToJoin({ team_id: teamId }).catch(fail).finally(() => setAsking(null));
+    requestToJoin({ team_id: teamId })
+      .catch(fail)
+      .finally(() => setAsking(null));
   };
 
   let body: React.ReactNode;
   if (found.needs_proof) {
-    body = phase === "code" || phase === "checking" ? (
-      <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); checkCode(); }}>
-        <span className="text-sm text-sol-text">Enter the code we emailed you</span>
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-          inputMode="numeric"
-          autoFocus
-          className="w-24 rounded border border-sol-border bg-sol-bg px-2 py-0.5 font-mono text-sm text-sol-text"
-          aria-label="Code"
-        />
-        <button type="submit" disabled={code.length !== 6 || phase === "checking"} className="text-sm font-medium text-sol-violet disabled:opacity-50">
-          Confirm
-        </button>
-      </form>
-    ) : (
-      <>
-        <span className="text-sm text-sol-text">
-          Someone at <span className="font-mono">@{found.domain}</span> may already be on codecast. Confirm your email to see their team.
-        </span>
-        <button onClick={startProof} disabled={phase === "sending"} className="shrink-0 text-sm font-medium text-sol-violet disabled:opacity-50">
-          {phase === "sending" ? "Sending…" : "Email me a code"}
-        </button>
-      </>
-    );
+    body =
+      phase === "code" || phase === "checking" ? (
+        <form
+          className="flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            checkCode();
+          }}
+        >
+          <span className="text-sm text-sol-text">
+            Enter the code we emailed you
+          </span>
+          <input
+            value={code}
+            onChange={(e) =>
+              setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+            }
+            inputMode="numeric"
+            autoFocus
+            className="w-24 rounded border border-sol-border bg-sol-bg px-2 py-0.5 font-mono text-sm text-sol-text"
+            aria-label="Code"
+          />
+          <button
+            type="submit"
+            disabled={code.length !== 6 || phase === "checking"}
+            className="text-sm font-medium text-sol-violet disabled:opacity-50"
+          >
+            Confirm
+          </button>
+        </form>
+      ) : (
+        <>
+          <span className="text-sm text-sol-text">
+            Someone at <span className="font-mono">@{found.domain}</span> may
+            already be on codecast. Confirm your email to see their team.
+          </span>
+          <button
+            onClick={startProof}
+            disabled={phase === "sending"}
+            className="shrink-0 text-sm font-medium text-sol-violet disabled:opacity-50"
+          >
+            {phase === "sending" ? "Sending…" : "Email me a code"}
+          </button>
+        </>
+      );
   } else {
     body = open.map((t) => (
       <span key={t._id} className="flex items-center gap-3">
         <span className="text-sm text-sol-text">
-          <span className="font-medium">{t.name}</span> is on codecast ({t.member_count} {t.member_count === 1 ? "person" : "people"} from @{found.domain}).
+          <span className="font-medium">{t.name}</span> is on codecast (
+          {t.member_count} {t.member_count === 1 ? "person" : "people"} from @
+          {found.domain}).
         </span>
         {t.request === "pending" ? (
-          <span className="shrink-0 text-sm text-sol-text-muted">Asked. An admin will let you in.</span>
+          <span className="shrink-0 text-sm text-sol-text-muted">
+            Asked. An admin will let you in.
+          </span>
         ) : (
-          <button onClick={() => ask(t._id)} disabled={asking === t._id} className="shrink-0 text-sm font-medium text-sol-violet disabled:opacity-50">
+          <button
+            onClick={() => ask(t._id)}
+            disabled={asking === t._id}
+            className="shrink-0 text-sm font-medium text-sol-violet disabled:opacity-50"
+          >
             {asking === t._id ? "Asking…" : "Ask to join"}
           </button>
         )}
@@ -100,7 +142,11 @@ export function TeamDomainBanner() {
   }
 
   return (
-    <div data-cc-banner data-nudge className="border-b border-sol-violet/30 bg-sol-violet/10">
+    <div
+      data-cc-banner
+      data-nudge
+      className="border-b border-sol-violet/30 bg-sol-violet/10"
+    >
       <div className="flex items-center justify-between gap-4 px-4 py-2">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           <Users className="h-4 w-4 shrink-0 text-sol-violet" />

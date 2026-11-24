@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { attribute, buildRows, freshness, machineTotals } from "./resourceModel";
+import {
+  attribute,
+  buildRows,
+  freshness,
+  machineTotals,
+} from "./resourceModel";
 import { buildScenario } from "./fixtures";
 
 const now = 1_800_000_000_000;
@@ -10,7 +15,14 @@ describe("attribute", () => {
 
   test("rows add up to the machine's own totals: nothing counted twice or dropped", () => {
     const rows = attribute(laptop.deviceId, laptop.snapshot!);
-    const sum = rows.reduce((a, r) => ({ cpu: a.cpu + r.usage.cpu, rss: a.rss + r.usage.rss, count: a.count + r.usage.count }), { cpu: 0, rss: 0, count: 0 });
+    const sum = rows.reduce(
+      (a, r) => ({
+        cpu: a.cpu + r.usage.cpu,
+        rss: a.rss + r.usage.rss,
+        count: a.count + r.usage.count,
+      }),
+      { cpu: 0, rss: 0, count: 0 },
+    );
     const t = machineTotals(laptop.snapshot!);
     expect(sum.cpu).toBeCloseTo(t.cpu, 6);
     expect(sum.rss).toBeCloseTo(t.rss, 0);
@@ -21,7 +33,9 @@ describe("attribute", () => {
 
   test("a process several sessions share gets one row and is not added to any session", () => {
     const rows = attribute(laptop.deviceId, laptop.snapshot!);
-    const tsc = laptop.snapshot!.processes.find((p) => p.name === "tsc --watch")!;
+    const tsc = laptop.snapshot!.processes.find(
+      (p) => p.name === "tsc --watch",
+    )!;
     const holders = rows.filter((r) => r.processes.includes(tsc));
     expect(holders).toHaveLength(1);
     expect(holders[0].type).toBe("shared");
@@ -40,8 +54,18 @@ describe("attribute", () => {
 describe("freshness", () => {
   const now = 1_800_000_000_000;
   const machine = (online: boolean, ageMs: number) => {
-    const m = buildScenario("pressure", now).machines.find((x) => x.role === "local" && x.snapshot)!;
-    return { ...m, online, receivedAt: now - ageMs, snapshot: { ...m.snapshot!, sample: { ...m.snapshot!.sample, at: now - ageMs } } };
+    const m = buildScenario("pressure", now).machines.find(
+      (x) => x.role === "local" && x.snapshot,
+    )!;
+    return {
+      ...m,
+      online,
+      receivedAt: now - ageMs,
+      snapshot: {
+        ...m.snapshot!,
+        sample: { ...m.snapshot!.sample, at: now - ageMs },
+      },
+    };
   };
 
   test("a fresh report is live even when the device heartbeat has lapsed", () => {

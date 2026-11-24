@@ -51,16 +51,25 @@ export function ShareVideoSwitch({
 
   if (asking && !on) {
     return (
-      <div className="space-y-2 pt-1 text-xs leading-snug" role="group" aria-label="Share the video by the public link?">
-        <p className="font-medium text-sol-text-secondary">Share the video with anyone who has the link?</p>
+      <div
+        className="space-y-2 pt-1 text-xs leading-snug"
+        role="group"
+        aria-label="Share the video by the public link?"
+      >
+        <p className="font-medium text-sol-text-secondary">
+          Share the video with anyone who has the link?
+        </p>
         <p className="text-sol-text-muted">
           They can watch every face, voice and shared screen in it
           {guestWords ? (
             <>
-              , including <span className="text-sol-text-secondary">{guestWords}</span>, who joined as {guests.length === 1 ? "a guest" : "guests"}
+              , including{" "}
+              <span className="text-sol-text-secondary">{guestWords}</span>, who
+              joined as {guests.length === 1 ? "a guest" : "guests"}
             </>
           ) : null}
-          . Recordings made after this stay off the link until someone adds them.
+          . Recordings made after this stay off the link until someone adds
+          them.
         </p>
         <div className="flex items-center gap-2">
           <button
@@ -92,21 +101,32 @@ export function ShareVideoSwitch({
           checked={on}
           disabled={!linkOn || (!on && !canShare)}
           aria-label="Include the video recording"
-          onCheckedChange={(next) => (next ? setAsking(true) : setCallVideoShared(call, false))}
+          onCheckedChange={(next) =>
+            next ? setAsking(true) : setCallVideoShared(call, false)
+          }
           className="mt-px"
         />
         <span className="min-w-0 text-xs leading-snug">
-          <span className="block font-medium text-sol-text-secondary">Include the video recording</span>
+          <span className="block font-medium text-sol-text-secondary">
+            Include the video recording
+          </span>
           <span className="block text-sol-text-muted">{hint}</span>
         </span>
       </label>
       {on && later > 0 && (
         <p className="mt-1.5 flex flex-wrap items-center gap-x-2 pl-[46px] text-xs leading-snug text-sol-text-muted">
           <span>
-            {later === 1 ? "1 later recording is" : `${later} later recordings are`} not on the link.
+            {later === 1
+              ? "1 later recording is"
+              : `${later} later recordings are`}{" "}
+            not on the link.
           </span>
           {canShare && (
-            <button type="button" onClick={() => setCallVideoShared(call, true)} className="text-sol-cyan hover:underline">
+            <button
+              type="button"
+              onClick={() => setCallVideoShared(call, true)}
+              className="text-sol-cyan hover:underline"
+            >
               Add {later === 1 ? "it" : "them"}
             </button>
           )}
@@ -120,13 +140,23 @@ export function ShareVideoSwitch({
  *  out with everyone's, and they joined from a link without choosing that,
  *  so whoever opens the link to anyone reads their names first. Nothing for
  *  a call without guests, and nothing to a viewer who cannot open it. */
-export function CallLinkGuestNote({ linkOn, canShare = true, guests = [] }: { linkOn: boolean; canShare?: boolean; guests?: string[] }) {
+export function CallLinkGuestNote({
+  linkOn,
+  canShare = true,
+  guests = [],
+}: {
+  linkOn: boolean;
+  canShare?: boolean;
+  guests?: string[];
+}) {
   const words = guestList(guests);
   if (!words || (!linkOn && !canShare)) return null;
   const said = `what ${words} said as ${guests.length === 1 ? "a guest" : "guests"}`;
   return (
     <p className="text-xs leading-snug text-sol-text-muted">
-      {linkOn ? `Anyone with the link can read every word said, including ${said}.` : `Opened to anyone, the link shows every word said, including ${said}.`}
+      {linkOn
+        ? `Anyone with the link can read every word said, including ${said}.`
+        : `Opened to anyone, the link shows every word said, including ${said}.`}
     </p>
   );
 }
@@ -136,6 +166,7 @@ function guestList(names: readonly string[]): string {
   const firsts = [...new Set(names.map((n) => firstName(n)).filter(Boolean))];
   if (firsts.length === 0) return "";
   if (firsts.length === 1) return firsts[0];
-  if (firsts.length <= 3) return `${firsts.slice(0, -1).join(", ")} and ${firsts[firsts.length - 1]}`;
+  if (firsts.length <= 3)
+    return `${firsts.slice(0, -1).join(", ")} and ${firsts[firsts.length - 1]}`;
   return `${firsts.slice(0, 2).join(", ")} and ${firsts.length - 2} others`;
 }

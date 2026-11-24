@@ -1,9 +1,24 @@
-import { afterEach, beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  setDefaultTimeout,
+  test,
+} from "bun:test";
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearHostLeftovers, cloneInto, gitPullWorktree, gitPushWorktree, remoteRepoPath, verifyRemoteSync, type RemoteHost } from "./session-move.js";
+import {
+  clearHostLeftovers,
+  cloneInto,
+  gitPullWorktree,
+  gitPushWorktree,
+  remoteRepoPath,
+  verifyRemoteSync,
+  type RemoteHost,
+} from "./session-move.js";
 
 // A move lands in the host's checkout of the repository, which other sessions
 // share the way they share the laptop folder. These run the real git on both
@@ -16,21 +31,44 @@ let saved: NodeJS.ProcessEnv;
 
 // The env goes by name: under bun a child spawned without one does not see
 // the HOME and GIT_CONFIG_GLOBAL each test sets, and a CI runner has no git user.
-const git = (repo: string, ...args: string[]) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf-8", stdio: "pipe", env: process.env }).trim();
-const write = (repo: string, rel: string, text: string) => { fs.mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true }); fs.writeFileSync(path.join(repo, rel), text); };
-const read = (repo: string, rel: string) => fs.readFileSync(path.join(repo, rel), "utf-8");
-const commit = (repo: string, rel: string, text: string) => { write(repo, rel, text); git(repo, "add", rel); git(repo, "commit", "-qm", `edit ${rel}`); return git(repo, "rev-parse", "HEAD"); };
+const git = (repo: string, ...args: string[]) =>
+  execFileSync("git", ["-C", repo, ...args], {
+    encoding: "utf-8",
+    stdio: "pipe",
+    env: process.env,
+  }).trim();
+const write = (repo: string, rel: string, text: string) => {
+  fs.mkdirSync(path.dirname(path.join(repo, rel)), { recursive: true });
+  fs.writeFileSync(path.join(repo, rel), text);
+};
+const read = (repo: string, rel: string) =>
+  fs.readFileSync(path.join(repo, rel), "utf-8");
+const commit = (repo: string, rel: string, text: string) => {
+  write(repo, rel, text);
+  git(repo, "add", rel);
+  git(repo, "commit", "-qm", `edit ${rel}`);
+  return git(repo, "rev-parse", "HEAD");
+};
 const lines = (...l: string[]) => l.join("\n") + "\n";
 
 beforeEach(() => {
   saved = { ...process.env };
-  dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "move-landing-")));
+  dir = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "move-landing-")),
+  );
   process.env.HOME = path.join(dir, "home");
   process.env.GIT_CONFIG_GLOBAL = path.join(dir, "gitconfig");
-  fs.writeFileSync(process.env.GIT_CONFIG_GLOBAL, "[user]\n\tname = Test\n\temail = test@local\n[commit]\n\tgpgsign = false\n[init]\n\tdefaultBranch = main\n");
+  fs.writeFileSync(
+    process.env.GIT_CONFIG_GLOBAL,
+    "[user]\n\tname = Test\n\temail = test@local\n[commit]\n\tgpgsign = false\n[init]\n\tdefaultBranch = main\n",
+  );
   const bin = path.join(dir, "bin");
   fs.mkdirSync(bin);
-  fs.writeFileSync(path.join(bin, "ssh"), `#!/bin/sh\nfor a; do last=$a; done\nexec /bin/sh -c "$last"\n`, { mode: 0o755 });
+  fs.writeFileSync(
+    path.join(bin, "ssh"),
+    `#!/bin/sh\nfor a; do last=$a; done\nexec /bin/sh -c "$last"\n`,
+    { mode: 0o755 },
+  );
   process.env.PATH = `${bin}:${process.env.PATH}`;
   laptop = path.join(dir, "laptop");
   fs.mkdirSync(laptop);
@@ -44,7 +82,13 @@ beforeEach(() => {
   hostRepo = path.join(dir, "host", "src", "app");
   fs.mkdirSync(path.dirname(hostRepo), { recursive: true });
   execFileSync("git", ["clone", "-q", laptop, hostRepo], { env: process.env });
-  host = { address: "host.invalid", user: "u", keyPath: "/dev/null", remoteBaseDir: path.join(dir, "host", "work"), homeDir: path.join(dir, "host") };
+  host = {
+    address: "host.invalid",
+    user: "u",
+    keyPath: "/dev/null",
+    remoteBaseDir: path.join(dir, "host", "work"),
+    homeDir: path.join(dir, "host"),
+  };
 });
 
 afterEach(() => {
@@ -68,7 +112,12 @@ describe("a move merges into the host checkout", () => {
     expect(read(hostRepo, "notes.txt")).toBe("host notes\n");
     expect(read(hostRepo, "b.txt")).toBe(lines("b1", "laptop", "b3"));
     expect(read(hostRepo, "c.txt")).toBe("c\n");
-    expect(git(hostRepo, "status", "--porcelain").split("\n").map((l) => l.trim()).sort()).toEqual(["?? notes.txt", "M a.txt", "M b.txt"]);
+    expect(
+      git(hostRepo, "status", "--porcelain")
+        .split("\n")
+        .map((l) => l.trim())
+        .sort(),
+    ).toEqual(["?? notes.txt", "M a.txt", "M b.txt"]);
     const v = verifyRemoteSync(host, laptop, hostRepo, landed);
     expect(v).toMatchObject({ headsMatch: true, remoteDirty: 0 });
   });
@@ -91,7 +140,9 @@ describe("a move merges into the host checkout", () => {
     write(laptop, "a.txt", lines("a1", "laptop", "a3"));
     const before = git(hostRepo, "rev-parse", "HEAD");
 
-    await expect(gitPushWorktree(host, laptop, hostRepo)).rejects.toThrow(/both changed a\.txt; nothing was moved/);
+    await expect(gitPushWorktree(host, laptop, hostRepo)).rejects.toThrow(
+      /both changed a\.txt; nothing was moved/,
+    );
 
     expect(git(hostRepo, "rev-parse", "HEAD")).toBe(before);
     expect(read(hostRepo, "a.txt")).toBe(lines("a1", "host", "a3"));
@@ -111,10 +162,21 @@ describe("a move merges into the host checkout", () => {
 describe("host paths mirror this machine's", () => {
   test("a folder under the home keeps its place; the home itself and outside folders go under remoteBaseDir", () => {
     const home = process.env.HOME!;
-    expect(remoteRepoPath(host, path.join(home, "src", "app"))).toBe(path.join(dir, "host", "src", "app"));
-    expect(remoteRepoPath(host, path.join(home, "src", "app", ".codecast", "worktrees", "x"))).toBe(path.join(dir, "host", "src", "app", ".codecast", "worktrees", "x"));
-    expect(remoteRepoPath(host, home)).toBe(path.join(dir, "host", "work", path.basename(home)));
-    expect(remoteRepoPath(host, "/opt/app")).toBe(path.join(dir, "host", "work", "app"));
+    expect(remoteRepoPath(host, path.join(home, "src", "app"))).toBe(
+      path.join(dir, "host", "src", "app"),
+    );
+    expect(
+      remoteRepoPath(
+        host,
+        path.join(home, "src", "app", ".codecast", "worktrees", "x"),
+      ),
+    ).toBe(path.join(dir, "host", "src", "app", ".codecast", "worktrees", "x"));
+    expect(remoteRepoPath(host, home)).toBe(
+      path.join(dir, "host", "work", path.basename(home)),
+    );
+    expect(remoteRepoPath(host, "/opt/app")).toBe(
+      path.join(dir, "host", "work", "app"),
+    );
   });
 
   test("a clone into a folder already there keeps its other files and lays git's over the rest", () => {
@@ -150,7 +212,9 @@ describe("leaving the host checkout clean", () => {
   test("a host file that no longer matches this folder keeps the checkout as it is", async () => {
     await roundTrip();
     write(laptop, "b.txt", lines("b1", "edited here since", "b3"));
-    expect(clearHostLeftovers(host, laptop, hostRepo)).toMatch(/b\.txt on the host differs/);
+    expect(clearHostLeftovers(host, laptop, hostRepo)).toMatch(
+      /b\.txt on the host differs/,
+    );
     expect(read(hostRepo, "b.txt")).toBe(lines("b1", "host", "b3"));
   });
 
@@ -168,12 +232,18 @@ describe("sessions sharing a host checkout come home one by one", () => {
     // Two sessions leave in one move; the second shares the first's landing.
     const { head } = await gitPushWorktree(host, laptop, hostRepo);
     write(hostRepo, "decisions.ts", lines("v1"));
-    expect(await gitPullWorktree(host, laptop, hostRepo, head)).toMatchObject({ ff: true, conflicts: [] });
+    expect(await gitPullWorktree(host, laptop, hostRepo, head)).toMatchObject({
+      ff: true,
+      conflicts: [],
+    });
     expect(read(laptop, "decisions.ts")).toBe(lines("v1"));
     // Here the file lands on main and moves on; the host still holds its old copy.
     commit(laptop, "decisions.ts", lines("v1", "v2"));
 
-    expect(await gitPullWorktree(host, laptop, hostRepo, head)).toMatchObject({ ff: true, conflicts: [] });
+    expect(await gitPullWorktree(host, laptop, hostRepo, head)).toMatchObject({
+      ff: true,
+      conflicts: [],
+    });
     expect(read(laptop, "decisions.ts")).toBe(lines("v1", "v2"));
     expect(git(laptop, "status", "--porcelain")).toBe("");
   });
@@ -184,7 +254,10 @@ describe("sessions sharing a host checkout come home one by one", () => {
     await gitPullWorktree(host, laptop, hostRepo, head);
     write(hostRepo, "a.txt", lines("a1", "second", "a3"));
 
-    expect(await gitPullWorktree(host, laptop, hostRepo, head)).toMatchObject({ ff: true, conflicts: [] });
+    expect(await gitPullWorktree(host, laptop, hostRepo, head)).toMatchObject({
+      ff: true,
+      conflicts: [],
+    });
     expect(read(laptop, "a.txt")).toBe(lines("a1", "second", "a3"));
     expect(read(laptop, "b.txt")).toBe(lines("b1", "first", "b3"));
   });

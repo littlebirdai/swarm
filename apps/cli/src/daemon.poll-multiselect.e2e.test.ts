@@ -151,9 +151,10 @@ function killSessionQuiet(session: string): void {
   tmuxRun(["kill-session", "-t", session]);
 }
 function capture(target: string): string {
-  return tmuxRun(["capture-pane", "-p", "-J", "-t", target, "-S", "-80"]).stdout;
+  return tmuxRun(["capture-pane", "-p", "-J", "-t", target, "-S", "-80"])
+    .stdout;
 }
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function waitFor(fn: () => boolean, timeoutMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
@@ -164,51 +165,73 @@ async function waitFor(fn: () => boolean, timeoutMs: number): Promise<boolean> {
   return fn();
 }
 
-describe.skipIf(!CAN_RUN)("injectViaTmux poll: multiSelect and review-pane forms", () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-poll-multi-test-"));
-  const pyPath = path.join(tmpDir, "fakeform.py");
-  fs.writeFileSync(pyPath, FAKE_FORM);
+describe.skipIf(!CAN_RUN)(
+  "injectViaTmux poll: multiSelect and review-pane forms",
+  () => {
+    const tmpDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "cc-poll-multi-test-"),
+    );
+    const pyPath = path.join(tmpDir, "fakeform.py");
+    fs.writeFileSync(pyPath, FAKE_FORM);
 
-  async function run(mode: "multiselect" | "multiq", firstQuestion: string, payload: object): Promise<string> {
-    const session = `cc-poll-${mode}-${process.pid}`;
-    const target = `${session}:0.0`;
-    killSessionQuiet(session);
-    tmux(["new-session", "-d", "-s", session, "-x", "120", "-y", "40", `python3 ${pyPath} ${mode}; echo __DONE__; sleep 60`]);
-    try {
-      const menuUp = await waitFor(() => capture(target).includes(firstQuestion), 10_000);
-      expect(menuUp).toBe(true);
-      expect(capture(target)).not.toContain("RESULT=");
-
-      await injectViaTmux(target, JSON.stringify(payload));
-
-      const landed = await waitFor(() => capture(target).includes("RESULT="), 10_000);
-      expect(landed).toBe(true);
-      return capture(target);
-    } finally {
+    async function run(
+      mode: "multiselect" | "multiq",
+      firstQuestion: string,
+      payload: object,
+    ): Promise<string> {
+      const session = `cc-poll-${mode}-${process.pid}`;
+      const target = `${session}:0.0`;
       killSessionQuiet(session);
-    }
-  }
+      tmux([
+        "new-session",
+        "-d",
+        "-s",
+        session,
+        "-x",
+        "120",
+        "-y",
+        "40",
+        `python3 ${pyPath} ${mode}; echo __DONE__; sleep 60`,
+      ]);
+      try {
+        const menuUp = await waitFor(
+          () => capture(target).includes(firstQuestion),
+          10_000,
+        );
+        expect(menuUp).toBe(true);
+        expect(capture(target)).not.toContain("RESULT=");
 
-  test(
-    "multi poll: toggle digits are sent without confirm-Enter, Right+Enter submits the review pane",
-    async () => {
+        await injectViaTmux(target, JSON.stringify(payload));
+
+        const landed = await waitFor(
+          () => capture(target).includes("RESULT="),
+          10_000,
+        );
+        expect(landed).toBe(true);
+        return capture(target);
+      } finally {
+        killSessionQuiet(session);
+      }
+    }
+
+    test("multi poll: toggle digits are sent without confirm-Enter, Right+Enter submits the review pane", async () => {
       // Exactly what the web card sends for Ham + Onion on a multiSelect question.
       const out = await run("multiselect", "Pick toppings", {
-        __cc_poll: true, keys: ["1", "3", "Right", "Enter"], multi: true, display: "Ham, Onion",
+        __cc_poll: true,
+        keys: ["1", "3", "Right", "Enter"],
+        multi: true,
+        display: "Ham, Onion",
       });
       expect(out).toContain("RESULT=1,3");
-    },
-    30_000,
-  );
+    }, 30_000);
 
-  test(
-    "legacy multi-question poll (digits only): the review pane is detected and confirmed",
-    async () => {
+    test("legacy multi-question poll (digits only): the review pane is detected and confirmed", async () => {
       const out = await run("multiq", "First question?", {
-        __cc_poll: true, keys: ["1", "2"], display: "Alpha, Two",
+        __cc_poll: true,
+        keys: ["1", "2"],
+        display: "Alpha, Two",
       });
       expect(out).toContain("RESULT=1,2");
-    },
-    30_000,
-  );
-});
+    }, 30_000);
+  },
+);

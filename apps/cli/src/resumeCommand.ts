@@ -6,7 +6,13 @@ import {
   chooseClaudeTailMessagesForTokenBudget,
   type ExportResult,
 } from "./jsonlGenerator.js";
-import { AGENT_CLIENTS, LOCAL_AGENT_CLIENTS, findModelOption, type AgentClientId, localAgentClient } from "@codecast/shared/contracts";
+import {
+  AGENT_CLIENTS,
+  LOCAL_AGENT_CLIENTS,
+  findModelOption,
+  type AgentClientId,
+  localAgentClient,
+} from "@codecast/shared/contracts";
 import { appendModelEffortFlags } from "./launchCommand.js";
 
 import { CLAUDE_UUID_RE } from "./syncScope.js";
@@ -52,7 +58,10 @@ const SHELL_SAFE_SESSION_ID_RE = /^[A-Za-z0-9._-]+$/;
  *    shell-safe shape (covers UUIDs and claude's `agent-`/`forked-` ids,
  *    refuses every injection payload).
  */
-export function isValidResumeSessionId(agentType: AgentClientId, sessionId: string): boolean {
+export function isValidResumeSessionId(
+  agentType: AgentClientId,
+  sessionId: string,
+): boolean {
   if (typeof sessionId !== "string" || sessionId.length === 0) return false;
   if (agentType === "opencode") return OPENCODE_SESSION_ID_RE.test(sessionId);
   if (agentType === "grok") return CLAUDE_UUID_RE.test(sessionId);
@@ -94,7 +103,10 @@ export function copyJsonlAsSession(
   targetSessionId: string,
 ): string | null {
   if (!fs.existsSync(sourceJsonlPath)) return null;
-  const newPath = path.join(path.dirname(sourceJsonlPath), `${targetSessionId}.jsonl`);
+  const newPath = path.join(
+    path.dirname(sourceJsonlPath),
+    `${targetSessionId}.jsonl`,
+  );
   if (fs.existsSync(newPath)) return newPath;
   let raw = fs.readFileSync(sourceJsonlPath, "utf-8");
   // A live writer may have flushed a partial tail line. Drop it only if it
@@ -109,7 +121,10 @@ export function copyJsonlAsSession(
     }
   }
   const rewritten = raw.replace(
-    new RegExp(`"sessionId"\\s*:\\s*"${sourceSessionId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`, "g"),
+    new RegExp(
+      `"sessionId"\\s*:\\s*"${sourceSessionId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`,
+      "g",
+    ),
     `"sessionId":"${targetSessionId}"`,
   );
   fs.writeFileSync(newPath, rewritten);
@@ -126,7 +141,8 @@ export function rewriteSubagentJsonlToUuid(
   sessionId: string,
   sourceJsonlPath: string,
 ): RewriteSubagentJsonlResult {
-  if (CLAUDE_UUID_RE.test(sessionId)) return { resumeId: sessionId, rewrote: false };
+  if (CLAUDE_UUID_RE.test(sessionId))
+    return { resumeId: sessionId, rewrote: false };
   const newUuid = crypto.randomUUID();
   const newPath = copyJsonlAsSession(sourceJsonlPath, sessionId, newUuid);
   if (!newPath) return { resumeId: sessionId, rewrote: false };
@@ -150,7 +166,10 @@ export function isForkArtifactSessionId(sessionId: string): boolean {
  * frozen doppelgänger conversation that receives input but never output.
  * Subagent (`agent-*`) sources are real transcripts and are left alone.
  */
-export function removeForkArtifactJsonl(sessionId: string, sourceJsonlPath: string): boolean {
+export function removeForkArtifactJsonl(
+  sessionId: string,
+  sourceJsonlPath: string,
+): boolean {
   if (!isForkArtifactSessionId(sessionId)) return false;
   try {
     fs.unlinkSync(sourceJsonlPath);
@@ -181,9 +200,11 @@ export function isWorkflowAgentTranscriptPath(filePath: string): boolean {
  * avoid stacking conflicting permission settings.
  */
 export function hasClaudePermissionFlag(flags: string): boolean {
-  return flags.includes("--dangerously-skip-permissions")
-    || flags.includes("--permission-mode")
-    || flags.includes("--allow-dangerously-skip-permissions");
+  return (
+    flags.includes("--dangerously-skip-permissions") ||
+    flags.includes("--permission-mode") ||
+    flags.includes("--allow-dangerously-skip-permissions")
+  );
 }
 
 /**
@@ -204,7 +225,9 @@ export function combineClaudeResumeFlags(
 ): string {
   let flags = baseArgs || "";
   if (jsonlBypass && !flags.includes("--dangerously-skip-permissions")) {
-    flags = flags ? flags + " --dangerously-skip-permissions" : "--dangerously-skip-permissions";
+    flags = flags
+      ? flags + " --dangerously-skip-permissions"
+      : "--dangerously-skip-permissions";
   }
   if (permFlags && !hasClaudePermissionFlag(flags)) {
     flags = flags ? flags + " " + permFlags : permFlags;
@@ -233,7 +256,13 @@ export function combineClaudeResumeFlags(
  * (AGENT_CLIENTS[agentType].resumeCmd); this function only layers the
  * codex/grok/muse config flags on top and gates claude out.
  */
-const RESUME_CARRIES_LAUNCH_FLAGS: ReadonlySet<AgentClientId> = new Set(["codex", "grok", "muse", "cursor", "antigravity"]);
+const RESUME_CARRIES_LAUNCH_FLAGS: ReadonlySet<AgentClientId> = new Set([
+  "codex",
+  "grok",
+  "muse",
+  "cursor",
+  "antigravity",
+]);
 
 export function buildNonClaudeResumeCommand(
   agentType: AgentClientId,
@@ -258,7 +287,8 @@ export function buildNonClaudeResumeCommand(
   const client = localAgentClient(agentType);
   let base: string;
   if (opts.forkFromSessionId) {
-    if (!client.forkCmd) throw new Error(`${agentType} has no native fork command`);
+    if (!client.forkCmd)
+      throw new Error(`${agentType} has no native fork command`);
     base = client.forkCmd(opts.forkFromSessionId, sessionId);
   } else {
     base = client.resumeCmd(sessionId);
@@ -266,18 +296,28 @@ export function buildNonClaudeResumeCommand(
   const modelFlags: string[] = [];
   appendModelEffortFlags(modelFlags, {
     agentType,
-    modelAlias: opts.model ? findModelOption(agentType, opts.model)?.cliAlias : undefined,
+    modelAlias: opts.model
+      ? findModelOption(agentType, opts.model)?.cliAlias
+      : undefined,
     requestedEffort: opts.effort,
   });
-  const withFlags = (args?: string | null, permFlags?: string | null): string => {
+  const withFlags = (
+    args?: string | null,
+    permFlags?: string | null,
+  ): string => {
     let extra = args || "";
     if (permFlags) extra = extra ? extra + " " + permFlags : permFlags;
     return `${base}${extra ? " " + extra : ""}${modelFlags.length ? " " + modelFlags.join(" ") : ""}`;
   };
   // These clients keep their approval mode on the command line, never in the
   // session store, so a resume carries the same flags as launch.
-  if (agentType === "grok") return withFlags(opts.args, opts.permFlags) + grokStableRulesFragment(opts.stableRulesFile);
-  if (RESUME_CARRIES_LAUNCH_FLAGS.has(agentType)) return withFlags(opts.args, opts.permFlags);
+  if (agentType === "grok")
+    return (
+      withFlags(opts.args, opts.permFlags) +
+      grokStableRulesFragment(opts.stableRulesFile)
+    );
+  if (RESUME_CARRIES_LAUNCH_FLAGS.has(agentType))
+    return withFlags(opts.args, opts.permFlags);
   return withFlags();
 }
 
@@ -295,7 +335,8 @@ const STABLE_RULES_PATH_RE = /^[A-Za-z0-9_./-]+$/;
  */
 export function grokStableRulesFragment(file: string | undefined): string {
   if (!file) return "";
-  if (!STABLE_RULES_PATH_RE.test(file)) throw new Error(`stable rules path is not shell-safe: ${file}`);
+  if (!STABLE_RULES_PATH_RE.test(file))
+    throw new Error(`stable rules path is not shell-safe: ${file}`);
   return ` --rules "$(cat ${file})"`;
 }
 
@@ -314,7 +355,15 @@ export function resolveResumeAgentType(
   agentTypeHint: AgentClientId | undefined,
   sessionFileAgentType: AgentClientId | undefined,
 ): AgentClientId {
-  if (agentTypeHint === "cursor" || agentTypeHint === "opencode" || agentTypeHint === "pi" || agentTypeHint === "grok" || agentTypeHint === "muse" || agentTypeHint === "antigravity") return agentTypeHint;
+  if (
+    agentTypeHint === "cursor" ||
+    agentTypeHint === "opencode" ||
+    agentTypeHint === "pi" ||
+    agentTypeHint === "grok" ||
+    agentTypeHint === "muse" ||
+    agentTypeHint === "antigravity"
+  )
+    return agentTypeHint;
   return sessionFileAgentType ?? "claude";
 }
 
@@ -328,8 +377,15 @@ export function resolveResumeAgentType(
 export const RECONSTITUTION_TARGET_AGENTS = ["claude", "codex"] as const;
 
 /** True when an `--as <agent>` value names an agent local reconstitution supports. */
-export function isReconstitutionTarget(agent: string | undefined | null): boolean {
-  return !!agent && (RECONSTITUTION_TARGET_AGENTS as readonly string[]).includes(agent.toLowerCase());
+export function isReconstitutionTarget(
+  agent: string | undefined | null,
+): boolean {
+  return (
+    !!agent &&
+    (RECONSTITUTION_TARGET_AGENTS as readonly string[]).includes(
+      agent.toLowerCase(),
+    )
+  );
 }
 
 /**
@@ -352,17 +408,30 @@ export function resumeTmuxPrefix(agentType: AgentClientId): string {
  * compatible.
  */
 export function resumeShortId(sessionId: string): string {
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sessionId)) {
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      sessionId,
+    )
+  ) {
     return `${sessionId.slice(0, 8)}-${sessionId.replaceAll("-", "").slice(-16)}`;
   }
-  return CLAUDE_UUID_RE.test(sessionId) ? sessionId.slice(0, 8) : sessionId.slice(0, 16);
+  return CLAUDE_UUID_RE.test(sessionId)
+    ? sessionId.slice(0, 8)
+    : sessionId.slice(0, 16);
 }
 
-export function upgradedLegacyResumeTmuxName(tmuxName: string, sessionId: string): string | null {
+export function upgradedLegacyResumeTmuxName(
+  tmuxName: string,
+  sessionId: string,
+): string | null {
   if (!tmuxName.includes("-resume-")) return null;
   const legacyShortId = sessionId.slice(0, 8);
   const upgradedShortId = resumeShortId(sessionId);
-  if (legacyShortId === upgradedShortId || !tmuxName.endsWith(`-${legacyShortId}`)) return null;
+  if (
+    legacyShortId === upgradedShortId ||
+    !tmuxName.endsWith(`-${legacyShortId}`)
+  )
+    return null;
   return `${tmuxName.slice(0, -legacyShortId.length)}${upgradedShortId}`;
 }
 
@@ -376,10 +445,16 @@ export function upgradedLegacyResumeTmuxName(tmuxName: string, sessionId: string
  * the transcript, so a caller without one still names the same pane family.
  * That is why the id suffix, not the whole name, is the matchable part.
  */
-export function resumeTmuxName(agentType: AgentClientId, sessionId: string, titleSlug?: string): string {
+export function resumeTmuxName(
+  agentType: AgentClientId,
+  sessionId: string,
+  titleSlug?: string,
+): string {
   const prefix = resumeTmuxPrefix(agentType);
   const shortId = resumeShortId(sessionId);
-  return titleSlug ? `${prefix}-resume-${titleSlug}-${shortId}` : `${prefix}-resume-${shortId}`;
+  return titleSlug
+    ? `${prefix}-resume-${titleSlug}-${shortId}`
+    : `${prefix}-resume-${shortId}`;
 }
 
 /**
@@ -411,7 +486,11 @@ export function isManagedTmuxName(name: string): boolean {
  * tmux) — that agent's process tree is ours to stop, the session is not.
  */
 export function isCodecastCreatedTmuxName(name: string): boolean {
-  return isManagedTmuxName(name) || name.startsWith("wf-") || name.startsWith("codecast-");
+  return (
+    isManagedTmuxName(name) ||
+    name.startsWith("wf-") ||
+    name.startsWith("codecast-")
+  );
 }
 
 /**
@@ -422,7 +501,10 @@ export function isCodecastCreatedTmuxName(name: string): boolean {
 export function chooseClaudeAutoTrim(data: ExportResult): number | undefined {
   const estimatedTokens = estimateClaudeImportTokens(data);
   if (estimatedTokens <= CLAUDE_AUTO_TRIM_THRESHOLD_TOKENS) return undefined;
-  return chooseClaudeTailMessagesForTokenBudget(data, CLAUDE_AUTO_TRIM_TARGET_TOKENS);
+  return chooseClaudeTailMessagesForTokenBudget(
+    data,
+    CLAUDE_AUTO_TRIM_TARGET_TOKENS,
+  );
 }
 
 /**
@@ -430,12 +512,18 @@ export function chooseClaudeAutoTrim(data: ExportResult): number | undefined {
  * head. Used by the daemon's auto-resume to preserve bypass when the original
  * session was launched in bypass mode.
  */
-export function extractJsonlPermissionMode(jsonlContent: string): string | undefined {
-  const firstUserLine = jsonlContent.split("\n").find(l => l.includes('"type":"user"'));
+export function extractJsonlPermissionMode(
+  jsonlContent: string,
+): string | undefined {
+  const firstUserLine = jsonlContent
+    .split("\n")
+    .find((l) => l.includes('"type":"user"'));
   if (!firstUserLine) return undefined;
   try {
     const parsed = JSON.parse(firstUserLine);
-    return typeof parsed.permissionMode === "string" ? parsed.permissionMode : undefined;
+    return typeof parsed.permissionMode === "string"
+      ? parsed.permissionMode
+      : undefined;
   } catch {
     return undefined;
   }
@@ -445,7 +533,6 @@ export function extractJsonlPermissionMode(jsonlContent: string): string | undef
  * Resume flags read back from a Claude Code transcript: the `--model` and
  * `--effort` a resumed session should run with.
  */
-
 
 // A session's JSONL records the model it ran on — often a pinned snapshot like
 // claude-opus-4-6-20260205, which gets retired when a newer model ships. Return
@@ -473,7 +560,11 @@ const MODEL_ALIAS_RE =
 export function claudeModelAlias(jsonlContent: string): string | null {
   let last: string | null = null;
   MODEL_ALIAS_RE.lastIndex = 0;
-  for (let m = MODEL_ALIAS_RE.exec(jsonlContent); m; m = MODEL_ALIAS_RE.exec(jsonlContent)) {
+  for (
+    let m = MODEL_ALIAS_RE.exec(jsonlContent);
+    m;
+    m = MODEL_ALIAS_RE.exec(jsonlContent)
+  ) {
     const name = (m[1] ?? m[2]).toLowerCase();
     last = name === "default" ? null : name;
   }
@@ -484,7 +575,10 @@ export function claudeModelAlias(jsonlContent: string): string | null {
 // not just forks: the JSONL records whatever model the session last ran on,
 // which may be a now-retired pinned snapshot. An explicit --model in extraFlags
 // always wins.
-export function resumeModelFlag(jsonlContent: string, extraFlags: string): string {
+export function resumeModelFlag(
+  jsonlContent: string,
+  extraFlags: string,
+): string {
   if (/(^|\s)--model(\s|=)/.test(extraFlags)) return "";
   const alias = claudeModelAlias(jsonlContent);
   return alias ? ` --model ${alias}` : "";
@@ -502,14 +596,22 @@ function readWindow(fd: number, position: number, length: number): string {
   const bytesRead = fs.readSync(fd, buf, 0, length, position);
   return buf.toString("utf-8", 0, bytesRead);
 }
-export function resumeModelFlagFromFile(jsonlPath: string, extraFlags: string): string {
+export function resumeModelFlagFromFile(
+  jsonlPath: string,
+  extraFlags: string,
+): string {
   if (/(^|\s)--model(\s|=)/.test(extraFlags)) return "";
-  return lastFlagFromFileWindows(jsonlPath, (tail) => resumeModelFlag(tail, extraFlags));
+  return lastFlagFromFileWindows(jsonlPath, (tail) =>
+    resumeModelFlag(tail, extraFlags),
+  );
 }
 
 // Shared tail-then-head window scan for resume flag extraction (see
 // resumeModelFlagFromFile's rationale above).
-function lastFlagFromFileWindows(jsonlPath: string, scan: (content: string) => string): string {
+function lastFlagFromFileWindows(
+  jsonlPath: string,
+  scan: (content: string) => string,
+): string {
   try {
     const fd = fs.openSync(jsonlPath, "r");
     try {
@@ -538,20 +640,32 @@ const EFFORT_LEVEL_RE =
 export function claudeEffortLevel(jsonlContent: string): string | null {
   let last: string | null = null;
   EFFORT_LEVEL_RE.lastIndex = 0;
-  for (let m = EFFORT_LEVEL_RE.exec(jsonlContent); m; m = EFFORT_LEVEL_RE.exec(jsonlContent)) {
+  for (
+    let m = EFFORT_LEVEL_RE.exec(jsonlContent);
+    m;
+    m = EFFORT_LEVEL_RE.exec(jsonlContent)
+  ) {
     const level = (m[1] ?? m[2]).toLowerCase();
     last = level === "auto" ? null : level;
   }
   return last;
 }
 
-export function resumeEffortFlag(jsonlContent: string, extraFlags: string): string {
+export function resumeEffortFlag(
+  jsonlContent: string,
+  extraFlags: string,
+): string {
   if (/(^|\s)--effort(\s|=)/.test(extraFlags)) return "";
   const level = claudeEffortLevel(jsonlContent);
   return level ? ` --effort ${level}` : "";
 }
 
-export function resumeEffortFlagFromFile(jsonlPath: string, extraFlags: string): string {
+export function resumeEffortFlagFromFile(
+  jsonlPath: string,
+  extraFlags: string,
+): string {
   if (/(^|\s)--effort(\s|=)/.test(extraFlags)) return "";
-  return lastFlagFromFileWindows(jsonlPath, (tail) => resumeEffortFlag(tail, extraFlags));
+  return lastFlagFromFileWindows(jsonlPath, (tail) =>
+    resumeEffortFlag(tail, extraFlags),
+  );
 }

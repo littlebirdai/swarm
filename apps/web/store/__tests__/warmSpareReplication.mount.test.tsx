@@ -7,25 +7,37 @@ import { AUTH_JWT_STORAGE_KEY, issueFakeToken } from "./fixtures/fakeAuthToken";
 import { session } from "./bucketFixtures";
 
 test("claim starts hydration, replication, and badge reporting, and sign-out clears the badge", async () => {
-  const dom = new JSDOM("<div id='root'></div>", { url: "https://codecast.sh/inbox" });
+  const dom = new JSDOM("<div id='root'></div>", {
+    url: "https://codecast.sh/inbox",
+  });
   const { window } = dom;
   let pushRole!: (role: { spare?: boolean }) => void;
   const badgeCounts: number[] = [];
   Object.assign(window, {
     __CODECAST_ELECTRON__: {
       isWarmSpare: true,
-      onWindowRole: (cb: typeof pushRole) => { pushRole = cb; },
-      setBadgeCount: async (count: number) => { badgeCounts.push(count); },
+      onWindowRole: (cb: typeof pushRole) => {
+        pushRole = cb;
+      },
+      setBadgeCount: async (count: number) => {
+        badgeCounts.push(count);
+      },
     },
   });
   window.localStorage.setItem(AUTH_JWT_STORAGE_KEY, issueFakeToken("userA"));
   const channels: string[] = [];
   const locks: string[] = [];
   const restore = replaceGlobals({
-    window, document: window.document, navigator: {
+    window,
+    document: window.document,
+    navigator: {
       userAgent: window.navigator.userAgent,
       locks: {
-        request: (name: string, _options: unknown, grant: () => Promise<void>) => {
+        request: (
+          name: string,
+          _options: unknown,
+          grant: () => Promise<void>,
+        ) => {
           locks.push(name);
           return Promise.resolve().then(grant);
         },
@@ -36,7 +48,10 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
     IDBKeyRange,
     IS_REACT_ACT_ENVIRONMENT: true,
     BroadcastChannel: class extends EventTarget {
-      constructor(name: string) { super(); channels.push(name); }
+      constructor(name: string) {
+        super();
+        channels.push(name);
+      }
       postMessage() {}
       close() {}
     },
@@ -48,8 +63,10 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
   const hydration = await import("../persistence/hydration");
   const { installWindowRoleTracker } = await import("../../lib/desktop");
   const { useInboxStore, rebootPersistence } = await import("../inboxStore");
-  const { useIsSyncHost, useSyncReplication } = await import("../../hooks/useSyncRole");
-  const { replicationChannelName, replicationLockName } = await import("../syncReplication");
+  const { useIsSyncHost, useSyncReplication } =
+    await import("../../hooks/useSyncRole");
+  const { replicationChannelName, replicationLockName } =
+    await import("../syncReplication");
   const { DesktopBadge } = await import("../../components/DesktopBadge");
   const { installAuthPrincipalBoundary } = await import("../principalBoundary");
   const { durableAuthStorage } = await import("../../lib/durableAuthStorage");
@@ -64,13 +81,29 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
   const root = createRoot(container);
   try {
     await db.meta.put({ key: "currentUser", value: { _id: "userA" } });
-    await db.meta.put({ key: "cacheOwner", value: { principal: "userA", at: 1, reason: "seed" } });
+    await db.meta.put({
+      key: "cacheOwner",
+      value: { principal: "userA", at: 1, reason: "seed" },
+    });
     const id = "a".repeat(32);
-    await db.table("sessions").put(session(id, { session_id: "cached", user_id: "userA", awaiting_input: true }));
+    await db.table("sessions").put(
+      session(id, {
+        session_id: "cached",
+        user_id: "userA",
+        awaiting_input: true,
+      }),
+    );
     db.close({ disableAutoOpen: false });
 
     installWindowRoleTracker();
-    await act(async () => { root.render(<><Feeders /><DesktopBadge /></>); });
+    await act(async () => {
+      root.render(
+        <>
+          <Feeders />
+          <DesktopBadge />
+        </>,
+      );
+    });
     pushRole({ spare: true });
     pushRole({});
     rebootPersistence();
@@ -78,14 +111,17 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
     expect(useInboxStore.getState().clientStateInitialized).toBe(false);
     expect(useInboxStore.getState().sessions).toEqual({});
     expect(container.textContent).toBe("");
-    expect(channels.some((name) => name.startsWith(replicationChannelName("userA")))).toBe(false);
+    expect(
+      channels.some((name) => name.startsWith(replicationChannelName("userA"))),
+    ).toBe(false);
     expect(locks).toEqual([]);
     expect(badgeCounts).toEqual([]);
 
     await act(async () => {
       pushRole({ spare: false });
       const deadline = performance.now() + 2_000;
-      while (hydration._hydrating && performance.now() < deadline) await Bun.sleep(1);
+      while (hydration._hydrating && performance.now() < deadline)
+        await Bun.sleep(1);
     });
     expect(hydration._hydrating).toBe(false);
     expect(useInboxStore.getState().clientStateInitialized).toBe(true);
@@ -95,11 +131,15 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
     expect(container.textContent).toBe("Host feeders");
     expect(badgeCounts).toEqual([1]);
 
-    await act(async () => { durableAuthStorage.removeItem(AUTH_JWT_STORAGE_KEY); });
+    await act(async () => {
+      durableAuthStorage.removeItem(AUTH_JWT_STORAGE_KEY);
+    });
     expect(useInboxStore.getState().clientStateInitialized).toBe(false);
     expect(badgeCounts).toEqual([1, 0]);
   } finally {
-    await act(async () => { root.unmount(); });
+    await act(async () => {
+      root.unmount();
+    });
     stopAuthBoundary();
     db.close();
     closeDomWindow(dom);
