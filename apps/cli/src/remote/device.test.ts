@@ -1,10 +1,65 @@
 import { describe, test, expect } from "bun:test";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import {
   resolveDeviceIdentity,
   resolveDeviceLabel,
   resolveRemoteDevice,
   resolveStableHostname,
 } from "./device.js";
+
+test("uses the device binding published by a concurrent first run", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-device-"));
+  const bindingFile = path.join(dir, ".device_binding.json");
+  const binding = { hw: "test-hardware", id: "fedcba9876543210" };
+  const script = `
+    import { spyOn } from "bun:test";
+    import * as fs from "node:fs";
+    import * as machineKey from "./src/machine-key.ts";
+    import { deviceId } from "./src/remote/device.ts";
+
+    const [bindingFile, bindingJson] = process.argv.slice(1);
+    spyOn(machineKey, "hardwareId").mockReturnValue(JSON.parse(bindingJson).hw);
+    spyOn(machineKey, "getMachineKey").mockImplementation(() => {
+      throw new Error("Could not read machine key");
+    });
+    const read = fs.readFileSync;
+    const intercept = spyOn(fs, "readFileSync").mockImplementation((...args) => {
+      if (args[0] !== bindingFile) return read(...args);
+      try {
+        return read(...args);
+      } catch (err) {
+        if (err.code !== "ENOENT") throw err;
+        intercept.mockRestore();
+        fs.writeFileSync(bindingFile, bindingJson, { flag: "wx", mode: 0o600 });
+        throw err;
+      }
+    });
+    console.log(deviceId());
+    console.log(deviceId());
+  `;
+  try {
+    const child = Bun.spawnSync(
+      [process.execPath, "-e", script, bindingFile, JSON.stringify(binding)],
+      {
+        cwd: path.resolve(import.meta.dir, "../.."),
+        env: { ...process.env, CODECAST_DIR: dir },
+        timeout: 5_000,
+        stderr: "inherit",
+      },
+    );
+    expect(child.exitCode).toBe(0);
+    expect(child.stdout.toString().trim().split("\n")).toEqual([
+      binding.id,
+      binding.id,
+    ]);
+    expect(JSON.parse(fs.readFileSync(bindingFile, "utf8"))).toEqual(binding);
+    expect(fs.readdirSync(dir)).toEqual([".device_binding.json"]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 /**
  * Regression for the "Xiaomi-12-Lite" device-label bug: macOS overwrites the
