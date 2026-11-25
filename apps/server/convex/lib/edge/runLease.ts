@@ -12,7 +12,7 @@ type Binding = Pick<
   Doc<"execution_bindings">,
   "_id" | "claim_id" | "conversation_id" | "daemon_boot_id" | "state"
 >;
-type Address = { bearer: string; conversation_id: Id<"conversations"> };
+type Address = { bearer: string; conversation_id: string };
 type Fence = Address & { run: number; fencing_token: string };
 
 function loadClaim(
@@ -67,10 +67,15 @@ export async function assertActiveRunLease(
     });
 }
 
-async function ownedRun(ctx: MutationCtx, args: Address) {
+export async function ownedRun(ctx: MutationCtx, args: Address) {
   const auth = await verifyDeviceApiToken(ctx, args.bearer);
   if (!auth) return null;
-  const conversation = await ctx.db.get(args.conversation_id);
+  const conversationId = ctx.db.normalizeId(
+    "conversations",
+    args.conversation_id,
+  );
+  if (!conversationId) return null;
+  const conversation = await ctx.db.get(conversationId);
   if (
     conversation?.user_id !== auth.userId ||
     conversation.execution_protocol_state !== "fenced"
@@ -79,7 +84,7 @@ async function ownedRun(ctx: MutationCtx, args: Address) {
   const head = await ctx.db
     .query("conversation_execution_heads")
     .withIndex("by_conversation", (q) =>
-      q.eq("conversation_id", args.conversation_id),
+      q.eq("conversation_id", conversationId),
     )
     .unique();
   if (
@@ -92,7 +97,7 @@ async function ownedRun(ctx: MutationCtx, args: Address) {
   const binding = await ctx.db
     .query("execution_bindings")
     .withIndex("by_conversation_epoch", (q) =>
-      q.eq("conversation_id", args.conversation_id).eq("epoch", run),
+      q.eq("conversation_id", conversationId).eq("epoch", run),
     )
     .unique();
   if (
@@ -122,7 +127,11 @@ export async function claimRunLease(
 
   const { binding, head } = owned;
   const now = Date.now();
-  const requested = await loadClaim(ctx, args.conversation_id, args.claim_id);
+  const requested = await loadClaim(
+    ctx,
+    binding.conversation_id,
+    args.claim_id,
+  );
   let leaseMs = LEASE_MS;
   let fencingToken: string;
   if (binding.claim_id === args.claim_id) {
@@ -135,7 +144,7 @@ export async function claimRunLease(
     if (binding.claim_id !== undefined) {
       const active = await loadClaim(
         ctx,
-        args.conversation_id,
+        binding.conversation_id,
         binding.claim_id,
       );
       const retryAfter = remainingLease(binding, active, now);
@@ -148,7 +157,7 @@ export async function claimRunLease(
     }
     fencingToken = crypto.randomUUID();
     await ctx.db.insert("run_leases", {
-      conversation_id: args.conversation_id,
+      conversation_id: binding.conversation_id,
       owner_user_id: binding.owner_user_id,
       binding_id: binding._id,
       claim_id: args.claim_id,
@@ -180,7 +189,7 @@ async function currentClaim(ctx: MutationCtx, args: Fence, now: number) {
     return null;
   const lease = await loadClaim(
     ctx,
-    args.conversation_id,
+    owned.binding.conversation_id,
     owned.binding.claim_id,
   );
   return lease?.fencing_token === args.fencing_token &&

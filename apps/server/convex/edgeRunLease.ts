@@ -7,7 +7,7 @@ import {
   renewRunLease,
 } from "./lib/edge/runLease";
 
-const address = { bearer: v.string(), conversation_id: v.id("conversations") };
+const address = { bearer: v.string(), conversation_id: v.string() };
 const fence = { ...address, run: v.number(), fencing_token: v.string() };
 
 export const claim = internalMutation({

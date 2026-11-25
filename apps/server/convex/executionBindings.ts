@@ -1884,7 +1884,7 @@ export async function disposePreReadyBindingInDb(
   return { state: "stopped" };
 }
 
-async function assertReadyFence(
+export async function assertReadyFence(
   ctx: DbCtx,
   head: any,
   binding: any,
@@ -2134,7 +2134,7 @@ export async function rejectHeadDeliveryInDb(
   return { rejected: true };
 }
 
-async function verifyAttemptFence(
+export async function verifyAttemptFence(
   ctx: DbCtx,
   userId: Id<"users">,
   fence: PermitFence & { now: number },
@@ -2267,34 +2267,50 @@ export async function releaseClaimBeforeEffectInDb(
   return { retryable: true, deliveryId: message.delivery_id };
 }
 
-async function finishTerminalDelivery(
+export async function finishTerminalDelivery(
   ctx: DbCtx,
   head: any,
   message: any,
   attempt: any,
   args: {
-    attemptState: "delivered" | "correlated-delivered" | "abandoned-ambiguous";
-    messageState: "delivered" | "correlated-delivered" | "abandoned-ambiguous";
+    attemptState:
+      | "delivered"
+      | "correlated-delivered"
+      | "abandoned-ambiguous"
+      | "failed-before-effect";
+    messageState:
+      | "delivered"
+      | "correlated-delivered"
+      | "abandoned-ambiguous"
+      | "rejected";
     externalDeliveryId?: string;
     resolutionEvidence?: string;
+    rejection?: { code: string; reason: string };
     now: number;
   },
 ): Promise<void> {
+  const cancelled =
+    args.messageState === "abandoned-ambiguous" || args.rejection !== undefined;
   await ctx.db.patch(attempt._id, {
     state: args.attemptState,
     external_delivery_id: args.externalDeliveryId,
     resolution_evidence: args.resolutionEvidence,
     completed_at: args.now,
+    ...(args.rejection && {
+      failure_code: args.rejection.code,
+      failure_message: args.rejection.reason,
+    }),
   });
   await ctx.db.patch(message._id, {
     delivery_status: args.messageState,
     active_delivery_attempt_id: undefined,
     // Legacy status is projection-only for fenced rows. Keeping terminal rows
     // out of legacy indexes prevents healer/backlog amplification.
-    status:
-      args.messageState === "abandoned-ambiguous" ? "cancelled" : "delivered",
-    delivered_at:
-      args.messageState === "abandoned-ambiguous" ? undefined : args.now,
+    status: cancelled ? "cancelled" : "delivered",
+    delivered_at: cancelled ? undefined : args.now,
+    ...(args.rejection && {
+      delivery_disposition_reason: args.rejection.reason,
+    }),
   });
   await ctx.db.patch(head._id, {
     active_delivery_attempt_id: undefined,
@@ -2444,15 +2460,20 @@ export async function resolveAmbiguousDeliveryInDb(
   },
 ): Promise<{ state: string }> {
   requireNonEmpty(fence.resolutionEvidence, "resolutionEvidence");
+  const states =
+    fence.fencingToken !== undefined &&
+    fence.resolution !== "abandoned-ambiguous"
+      ? ["ambiguous", "delivery-started"]
+      : ["ambiguous"];
   const { head, message, attempt } = await verifyAttemptFence(
     ctx,
     userId,
     fence,
-    ["ambiguous"],
+    states,
   );
   if (
-    head.active_delivery_state !== "ambiguous" ||
-    message.delivery_status !== "ambiguous"
+    head.active_delivery_state !== attempt.state ||
+    message.delivery_status !== attempt.state
   ) {
     fail(
       "DELIVERY_ATTEMPT_STATE_MISMATCH",
