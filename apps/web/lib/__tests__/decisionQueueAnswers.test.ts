@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { APPROVAL_ANSWERS } from "@codecast/shared/contracts/assistant";
+import { APPROVAL_ANSWERS } from "@codecast/hosted-assistant/assistant";
 import {
   DECLINE_HINT_MS,
   answeredLabel,

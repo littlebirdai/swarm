@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { PENDING_HOSTED_GRACE_MS } from "./pendingSend";
 import { RotateCcw, ArrowRight, Mail, Repeat } from "lucide-react";
-import type { NoticeKind } from "@codecast/shared/contracts/assistant";
+import type { NoticeKind } from "@codecast/hosted-assistant/assistant";
 import { NOTICE_DOT, noticeMove, noticeWords } from "../../lib/hostedNotice";
 import { TopUpLink } from "../plan/TopUpLink";
 export {

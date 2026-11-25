@@ -61,7 +61,7 @@ import {
 } from "./ccKeychain.js";
 import { isRemoteDevice } from "./remote/device.js";
 import { submitAdoptJob } from "./ccAdoptLogin.js";
-import { fallbackProfiles } from "@codecast/shared/contracts";
+import { fallbackProfiles } from "@codecast/usage/usageLimits";
 import type { UsageRetryState } from "./usageRetry.js";
 
 const PROFILE_KEYCHAIN_PREFIX = "codecast-cc-account-";

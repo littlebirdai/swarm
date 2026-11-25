@@ -8,6 +8,9 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import {
   blockedKindsForAgent,
+  UNREVIVABLE_BANNER_KINDS,
+} from "@codecast/shared/contracts";
+import {
   fallbackProfiles,
   isUsageExhausted,
   isWindowRolled,
@@ -23,8 +26,7 @@ import {
   type UsageStanding,
   type RecoveryMode,
   type CcUsage,
-  UNREVIVABLE_BANNER_KINDS,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 
 // The usage snapshot type and its predicates live in @codecast/shared/contracts

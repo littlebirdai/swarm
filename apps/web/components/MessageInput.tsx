@@ -35,19 +35,17 @@ import { compressImage } from "../lib/compressImage";
 import { captureError } from "../lib/analytics";
 import { uploadBlobToStorage } from "../lib/uploadBlob";
 import { textareaCaretRect } from "../lib/textareaCaret";
-import {
-  classifyApiErrorBanner,
-  isHostedAgentType,
-} from "@codecast/shared/contracts";
+import { classifyApiErrorBanner } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   ACTIVE_AGENT_STATUSES,
   type AgentStatus,
 } from "@codecast/sessions/agentStatus";
 import { useRunnerSilence } from "../hooks/useRunnerSilence";
-import { HOSTED_IMAGE_REFUSAL } from "@codecast/shared/contracts/assistant";
+import { HOSTED_IMAGE_REFUSAL } from "@codecast/hosted-assistant/assistant";
 import { useLimitRecovery } from "../hooks/useLimitRecovery";
 import { useCoarseNow, useNowWhen } from "../hooks/useCoarseNow";
-import { formatCountdown } from "@codecast/shared/contracts";
+import { formatCountdown } from "@codecast/usage/usageLimits";
 import { HIBERNATED_COPY } from "@codecast/sessions/hibernation";
 import { parseLimitResetAt } from "../lib/limitReset";
 import {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { BILLING_RETURN } from "@codecast/shared/contracts/assistant";
+import { BILLING_RETURN } from "@codecast/hosted-assistant/assistant";
 import { LANE_PATHS, conversationPath } from "../components/simple/lanePaths";
 import {
   PAGE_ALIAS_SEGMENTS,

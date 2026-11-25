@@ -1,6 +1,6 @@
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { ConvexReactClient } from "convex/react";
-import { findModelOption } from "@codecast/shared/contracts";
+import { findModelOption } from "@codecast/agent-clients/agentClients";
 
 // Web caller for the session handoff action (`handoff.start`, the same action
 // `cast handoff --to <agent>` runs). The action summarizes the source session

@@ -259,11 +259,8 @@ import {
   renderAccountUsage,
   renderUsageReport,
 } from "./usageCommand.js";
-import {
-  recoveryModeOf,
-  titleLine,
-  type RecoveryMode,
-} from "@codecast/shared/contracts";
+import { recoveryModeOf, type RecoveryMode } from "@codecast/usage/usageLimits";
+import { titleLine } from "@codecast/shared/contracts";
 import {
   TRIGGER_PRECHECK_MODES,
   triggerPrecheckMode,

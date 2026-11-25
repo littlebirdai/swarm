@@ -28,7 +28,7 @@ import {
 } from "../pendingMessages";
 import { finalizeAnswer } from "../sessionDecisions";
 import { decisionAnswerClientId } from "@codecast/shared/contracts";
-import { ROUTINE_SHOWS_UP } from "@codecast/shared/contracts/assistant";
+import { ROUTINE_SHOWS_UP } from "@codecast/hosted-assistant/assistant";
 import { ensureWallet, LEAK_GRACE_MS, reserve } from "../lib/wallet";
 import { allModules as modules, loadPiAi } from "../testModules.testkit";
 import { toolsFor } from "./tools";

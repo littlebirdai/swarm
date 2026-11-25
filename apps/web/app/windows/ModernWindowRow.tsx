@@ -3,7 +3,7 @@ import { railRowPlacement, type InboxSession } from "../../store/inboxStore";
 import { sessionStatusOf } from "../../lib/sessionStatus";
 import { cleanTitle } from "../../lib/conversationProcessor";
 import { formatRowTime } from "../../lib/sessionCard";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   SessionStatusMark,
   SessionStatusWord,

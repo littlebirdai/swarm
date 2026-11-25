@@ -4,7 +4,8 @@ import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { toast } from "sonner";
-import { withSafetyBlock, isHostedAgentType } from "@codecast/shared/contracts";
+import { withSafetyBlock } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { hostedStopOf } from "../../lib/hostedNotice";
 import { imageBytes } from "../../lib/imageByteCache";
 import { compressImage } from "../../lib/compressImage";
@@ -36,7 +37,7 @@ import {
   type InboxSession,
   type SessionRoleSnapshot,
 } from "../../store/inboxStore";
-import { promptTitle } from "@codecast/shared/contracts/assistant";
+import { promptTitle } from "@codecast/hosted-assistant/assistant";
 import { useNowWhen } from "../../hooks/useCoarseNow";
 import { latestRestartRow, restartPending } from "../../lib/sessionCommands";
 import { useAckAssignment } from "../../hooks/useAckAssignment";

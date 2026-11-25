@@ -6,7 +6,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import {
   WEEK_CARD_INSTALL,
   WEEK_CARD_SITE_URL,
-} from "@codecast/shared/contracts/weeklyCard";
+} from "@codecast/usage/weeklyCard";
 import { WeekCardFrame } from "../../../../components/weeklyCard/WeekCardFrame";
 import { SharedObjectPage } from "../../SharedObjectPage";
 

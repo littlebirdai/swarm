@@ -3,7 +3,7 @@
 // work state that lags the answer (permission_blocked left on the row) never
 // brings it back as a terminal "permission prompt".
 import { describe, expect, it } from "bun:test";
-import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
+import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 import { awaitingOkIds, sessionHasOpenQuestion } from "../../lib/decisionQueue";
 import { buildDecisionQueue } from "../../hooks/useDecisionQueue";
 import { type InboxSession, type SessionDecisionItem } from "../inboxStore";

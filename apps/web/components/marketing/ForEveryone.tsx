@@ -22,7 +22,7 @@ import {
   APPROVAL_ANSWERS,
   approvalButtonLabel,
   routineYesWords,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { stepAsk } from "@platform/assistant/steps";
 import { AssistantMark } from "../simple/AssistantMark";
 

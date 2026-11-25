@@ -7,9 +7,9 @@ import {
   cloudAgentLaunchKey,
   cloudAgentProviderForLaunch,
   cloudAgentProvidersFor,
-  modelOptionKey,
   type CloudAgentProviderSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
+import { modelOptionKey } from "@codecast/agent-clients/agentClients";
 import { toast } from "sonner";
 import { heldSendsOf } from "../../lib/pendingBanner";
 import { spawnSessionWithPrompt } from "../../lib/spawnSession";

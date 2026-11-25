@@ -28546,6 +28546,9 @@
   "packages/agent-clients/test/modelOptions.test.ts": {
     "swarm/no-comments": 28
   },
+  "packages/agents/src/agentDefinitions.ts": {
+    "swarm/no-comments": 48
+  },
   "packages/agents/src/index.ts": {
     "swarm/no-comments": 41
   },
@@ -29092,6 +29095,12 @@
   "packages/flows/test/flowPool.test.ts": {
     "swarm/no-comments": 7
   },
+  "packages/hosted-assistant/src/assistant.ts": {
+    "swarm/no-comments": 50
+  },
+  "packages/hosted-assistant/test/assistant.replyAsks.test.ts": {
+    "swarm/no-comments": 2
+  },
   "packages/keyboard/src/keyBindings.ts": {
     "swarm/no-comments": 44
   },
@@ -29377,9 +29386,6 @@
   "packages/shared/contracts/__fixtures__/teamWorldGen.ts": {
     "swarm/no-comments": 21
   },
-  "packages/shared/contracts/agentDefinitions.ts": {
-    "swarm/no-comments": 48
-  },
   "packages/shared/contracts/agentJudges.ts": {
     "swarm/no-comments": 34
   },
@@ -29415,12 +29421,6 @@
   },
   "packages/shared/contracts/appSurfaces.ts": {
     "swarm/no-comments": 11
-  },
-  "packages/shared/contracts/assistant.replyAsks.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/assistant.ts": {
-    "swarm/no-comments": 50
   },
   "packages/shared/contracts/callLinks.test.ts": {
     "swarm/no-comments": 1
@@ -29950,12 +29950,6 @@
   "packages/shared/contracts/unattended.ts": {
     "swarm/no-comments": 9
   },
-  "packages/shared/contracts/usageLimits.test.ts": {
-    "swarm/no-comments": 13
-  },
-  "packages/shared/contracts/usageLimits.ts": {
-    "swarm/no-comments": 94
-  },
   "packages/shared/contracts/vaultMessages.ts": {
     "swarm/no-comments": 6
   },
@@ -29973,12 +29967,6 @@
   },
   "packages/shared/contracts/volumeWatch.ts": {
     "swarm/no-comments": 31
-  },
-  "packages/shared/contracts/weeklyCard.test.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/contracts/weeklyCard.ts": {
-    "swarm/no-comments": 35
   },
   "packages/shared/contracts/worktrees.ts": {
     "swarm/no-comments": 13
@@ -30204,6 +30192,18 @@
   },
   "packages/triggers/test/triggerPrecheck.test.ts": {
     "swarm/no-comments": 7
+  },
+  "packages/usage/src/usageLimits.ts": {
+    "swarm/no-comments": 94
+  },
+  "packages/usage/src/weeklyCard.ts": {
+    "swarm/no-comments": 35
+  },
+  "packages/usage/test/usageLimits.test.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/usage/test/weeklyCard.test.ts": {
+    "swarm/no-comments": 5
   },
   "packages/vault/src/entityRef.ts": {
     "swarm/no-comments": 79

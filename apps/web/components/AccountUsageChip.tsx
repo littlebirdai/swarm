@@ -39,7 +39,7 @@ import {
   describeDecision,
   planTypeLabel,
   profileLabel,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import { planAgentType, resolveAccountChip } from "../lib/accountUsageChip";
 import {
   machineSwitchBlock,

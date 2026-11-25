@@ -50,7 +50,7 @@ import {
   publicWeekCard,
   weeklyCardAllowed,
   type WeekCardStats,
-} from "@codecast/shared/contracts/weeklyCard";
+} from "@codecast/usage/weeklyCard";
 import { runWorkflowOf } from "./lib/runGraph";
 
 export { SHARE_TOKEN_SHAPE, type ShareTable };

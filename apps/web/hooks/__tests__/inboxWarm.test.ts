@@ -12,7 +12,7 @@ import {
   type WarmRow,
 } from "../inboxWarm";
 import { useInboxStore } from "../../store/inboxStore";
-import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
+import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 
 function row(id: string, over: Partial<WarmRow> = {}): WarmRow {
   return {

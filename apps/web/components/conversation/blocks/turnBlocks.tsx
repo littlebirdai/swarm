@@ -65,8 +65,8 @@ import {
   extractAgentSetup,
   hasAgentSetupMarker,
 } from "@codecast/capabilities/agentToolSetup";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
-  isHostedAgentType,
   stripMentionContext,
   stripPastedContent,
 } from "@codecast/shared/contracts";

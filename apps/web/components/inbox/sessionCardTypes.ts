@@ -1,6 +1,6 @@
 import type React from "react";
 import type { ThreadStateStatus } from "@codecast/shared/contracts";
-import type { NoticeKind } from "@codecast/shared/contracts/assistant";
+import type { NoticeKind } from "@codecast/hosted-assistant/assistant";
 import type { AvatarKey } from "@codecast/org/orgAvatars";
 import type { InboxSession, SessionRoleSnapshot } from "../../store/inboxStore";
 import type { Device } from "../DeviceBadge";

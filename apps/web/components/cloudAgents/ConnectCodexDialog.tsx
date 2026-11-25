@@ -10,7 +10,7 @@
 // a refresh would sign out the Codex the person runs themselves.
 
 import { RefreshCw } from "lucide-react";
-import { CLOUD_AGENT_PROVIDERS } from "@codecast/shared/contracts";
+import { CLOUD_AGENT_PROVIDERS } from "@codecast/agent-clients/cloudAgents";
 import { useCloudAgentLogin } from "../../lib/useProviderKeyCommand";
 import { Spinner, Step } from "../MintTokenDialog";
 import { Button } from "../ui/button";

@@ -8,7 +8,7 @@ import {
   type InboxSession,
   type Message,
 } from "../store/inboxStore";
-import { isCloudAgentBranch } from "@codecast/shared/contracts";
+import { isCloudAgentBranch } from "@codecast/agent-clients/cloudAgents";
 
 // The fork family of a conversation, built LOCAL-FIRST: the inbox store already
 // carries forked_from links for every cached session, and the conversation

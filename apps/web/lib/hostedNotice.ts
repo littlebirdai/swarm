@@ -7,8 +7,8 @@ import {
   NOTICE_KINDS,
   noticeKindOf,
   type NoticeKind,
-} from "@codecast/shared/contracts/assistant";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+} from "@codecast/hosted-assistant/assistant";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 
 /** The notice kind of a transcript row, or null for any other row. A notice
  *  the engine wrote before notices were typed is known by its key

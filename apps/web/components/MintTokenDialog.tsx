@@ -20,7 +20,7 @@ import {
   profileHasSetupToken,
 } from "@codecast/convex/convex/ccAccountsShared";
 import { useCoarseNow } from "../hooks/useCoarseNow";
-import { profileLabel } from "@codecast/shared/contracts";
+import { profileLabel } from "@codecast/usage/usageLimits";
 import { Button } from "./ui/button";
 import {
   Dialog,

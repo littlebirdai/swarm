@@ -8,7 +8,7 @@
 // Every word this file returns is shown to someone who has never used a
 // developer tool: no agent, session, model, token, repo or device.
 
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { ASKS } from "./assistantPromise";
 export { ASKS };
@@ -20,7 +20,7 @@ import {
   type BillingReturnOutcome,
   type PlanId,
   type PlanSpec,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import type { InboxSession, SessionDecisionItem } from "../../store/inboxStore";
 import {
   isTriggerFailing,

@@ -13,7 +13,7 @@ import {
   ListTree,
   Plus,
 } from "lucide-react";
-import { PLANS } from "@codecast/shared/contracts/assistant";
+import { PLANS } from "@codecast/hosted-assistant/assistant";
 import {
   SettingsBadge,
   SettingsCallout,

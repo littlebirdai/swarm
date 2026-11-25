@@ -7,7 +7,7 @@ import {
   isFleetProfile,
   type CcUsage,
 } from "@codecast/convex/convex/ccAccountsShared";
-import { cloudAgentProviderOfConversation } from "@codecast/shared/contracts";
+import { cloudAgentProviderOfConversation } from "@codecast/agent-clients/cloudAgents";
 import { profileIsCurrentLogin } from "./machineAccountSwitch";
 
 export type AccountChipProfile = {

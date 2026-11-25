@@ -5,7 +5,7 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { SessionModeToggles } from "./SessionModeToggles";
 import type { SessionMachine } from "../lib/sessionMachines";
-import { CLOUD_AGENT_PROVIDERS } from "@codecast/shared/contracts";
+import { CLOUD_AGENT_PROVIDERS } from "@codecast/agent-clients/cloudAgents";
 
 import { closeDomWindow } from "../test-helpers/domGlobals";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {

@@ -3,7 +3,7 @@
 // the same errand as a routine after a first finished answer that repeats.
 // Pure, so the web's chips (conversation/HostedNotice) and the phone's
 // session screen read one rule.
-import { replyAsksPerson } from "@codecast/shared/contracts/assistant";
+import { replyAsksPerson } from "@codecast/hosted-assistant/assistant";
 
 /** Whether a reply offers to connect mail and calendar (the tool set's note
  *  asks the assistant to, when they are not connected). */

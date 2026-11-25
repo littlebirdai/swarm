@@ -18,7 +18,7 @@ import {
   formatRowTime,
   sessionCardTitle,
 } from "../../lib/sessionCard";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { AvatarImg } from "../../lib/avatarCache";
 import { ImageLightbox } from "../ImageGallery";
 import { FormattedSummary } from "../FormattedSummary";

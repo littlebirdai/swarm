@@ -68,7 +68,7 @@ import {
   topupCredit,
   type BillingReturnOutcome,
   type PlanId,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { httpAction } from "./_generated/server";
 import type { ActionCtx, MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";

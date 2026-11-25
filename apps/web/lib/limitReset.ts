@@ -1,4 +1,4 @@
-import { formatCountdown } from "@codecast/shared/contracts";
+import { formatCountdown } from "@codecast/usage/usageLimits";
 
 // The parts of a usage-limit banner the parked-session card renders. Claude
 // Code prints one line ("You've hit your weekly limit · resets 7am (UTC)") and

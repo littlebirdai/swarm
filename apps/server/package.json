@@ -12,6 +12,7 @@
   "dependencies": {
     "@auth/core": "^0.37.2",
     "@codecast/agent-clients": "workspace:*",
+    "@codecast/agents": "workspace:*",
     "@codecast/analytics": "workspace:*",
     "@codecast/artifacts": "workspace:*",
     "@codecast/blame": "workspace:*",
@@ -31,6 +32,7 @@
     "@codecast/fence": "workspace:*",
     "@codecast/flows": "workspace:*",
     "@codecast/hash": "workspace:*",
+    "@codecast/hosted-assistant": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/org": "workspace:*",
@@ -48,6 +50,7 @@
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "@codecast/triggers": "workspace:*",
+    "@codecast/usage": "workspace:*",
     "@convex-dev/auth": "0.0.79",
     "@convex-dev/prosemirror-sync": "^0.2.3",
     "@platform/agent": "file:../../platform/packages/agent",

@@ -5,7 +5,7 @@ import {
   type CloudAgentProviderId,
   type CloudAgentProviderSpec,
   type CloudAgentSetupBlock,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import type { Device } from "../DeviceBadge";
 import { useSettingsData } from "../../hooks/useSyncSettings";
 import { useCoarseNow } from "../../hooks/useCoarseNow";

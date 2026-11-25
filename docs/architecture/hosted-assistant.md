@@ -283,7 +283,7 @@ routes) are edited only by the stage named here.
 | Piece                          | Files                                                                                                                                                                                                 | Notes                                                                                                                                                                                                                                                                            |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Harness `@platform/agent`      | `~/src/platform/packages/agent/**`, vendored by `scripts/vendor-platform.sh`                                                                                                                          | Runtime-neutral. pi-agent-core loop, tool definitions with a risk level, the gate, the meter, the model router, history conversion. Tested on pi-ai's faux provider.                                                                                                             |
-| Foundation                     | `convex/schema.ts`, `packages/agent-clients/src/agentClients.ts`, `packages/shared/contracts/assistant.ts` (new)                                                                                      | All new tables, the `codecast` agent client entry, shared types (plans, risk levels, tool names). Lands first; nothing else edits these files.                                                                                                                                   |
+| Foundation                     | `convex/schema.ts`, `packages/agent-clients/src/agentClients.ts`, `packages/hosted-assistant/src/assistant.ts` (new)                                                                                  | All new tables, the `codecast` agent client entry, shared types (plans, risk levels, tool names). Lands first; nothing else edits these files.                                                                                                                                   |
 | Turn engine                    | `convex/assistant/turns.ts`, `convex/assistant/history.ts`, `convex/assistant/entry.ts`                                                                                                               | Lease, run, stream, persist, continue, hooks from the composer, triggers and decisions.                                                                                                                                                                                          |
 | Assistant tools                | `convex/assistant/tools/*.ts`                                                                                                                                                                         | Mail and calendar (through Whisk), codecast verbs (tasks, docs, routines, approvals), web fetch and search.                                                                                                                                                                      |
 | Wallet                         | `convex/wallet.ts`, `convex/lib/wallet.ts`                                                                                                                                                            | Period budget, reservation in the same mutation that checks the cap, true-up, ledger, queries for the UI.                                                                                                                                                                        |
@@ -626,8 +626,8 @@ memory) declare a `source`, so the harness fences them as untrusted.
 
 ## Plans
 
-One catalog, `PLANS` in `packages/shared/contracts/assistant.ts`
-(`@codecast/shared/contracts/assistant`, read through `planOf`), holds every
+One catalog, `PLANS` in `packages/hosted-assistant/src/assistant.ts`
+(`@codecast/hosted-assistant/assistant`, read through `planOf`), holds every
 number so pricing is a one-line change. The prices are codecast's product,
 not the shared platform's, so `@platform/billing` carries only the Stripe
 mechanics and receives a plan's price and id from its caller. The routine
@@ -783,7 +783,7 @@ the main app:
   or `{ topup_usd }`. It gets back a `BillingRedirect` (`{ ok: true, url,
 via }` or `{ ok: false, code, error }`) and opens `url`; Stripe returns
   the person to `/settings/plan?billing=done|topup|canceled` (`BILLING_RETURN`
-  in `@codecast/shared/contracts/assistant`, which the server's return URLs,
+  in `@codecast/hosted-assistant/assistant`, which the server's return URLs,
   the plan page and the return note all read). `useBillingReturn` (web
   only: it uses the web's router, and `billing.ts` is shared with the phone)
   reads the parameter once, takes it off the URL, and says the payment is on

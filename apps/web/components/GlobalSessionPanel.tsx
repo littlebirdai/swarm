@@ -117,17 +117,13 @@ import {
   restartReloadsContext,
 } from "@codecast/convex/convex/wakeCost";
 import { isClosedSession, withSafetyBlock } from "@codecast/shared/contracts";
+import { contextWindowTokens } from "@codecast/agent-clients/agentClients";
 import {
-  contextWindowTokens,
   restartShareOfRemaining,
   formatCountdown,
-} from "@codecast/shared/contracts";
-import {
-  USER_RESTS,
-  describeDecision,
-  pendingProposal,
-  type UserRest,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
+import { USER_RESTS, type UserRest } from "@codecast/shared/contracts";
+import { describeDecision, pendingProposal } from "@codecast/usage/usageLimits";
 import { sessionLiveAt } from "../lib/liveness";
 import { TooltipProvider } from "./ui/tooltip";
 import { cleanTitle } from "../lib/conversationProcessor";
@@ -237,7 +233,7 @@ import {
 import { actionFor } from "./conversation/HostedNotice";
 import { useThinkingAvailable } from "./simple/assistantPromise";
 import { useUpgradesOpen } from "./simple/billing";
-import type { NoticeKind } from "@codecast/shared/contracts/assistant";
+import type { NoticeKind } from "@codecast/hosted-assistant/assistant";
 import { LabelChipsRow } from "./LabelChipsRow";
 import {
   DeviceIcon,

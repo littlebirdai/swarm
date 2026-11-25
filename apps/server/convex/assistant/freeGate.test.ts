@@ -18,7 +18,7 @@ import schema from "../schema";
 import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { enqueuePendingMessage } from "../pendingMessages";
-import { FREE_DAILY_CEILING_USD } from "@codecast/shared/contracts/assistant";
+import { FREE_DAILY_CEILING_USD } from "@codecast/hosted-assistant/assistant";
 import { setPlan } from "../lib/wallet";
 import { allModules as modules, loadPiAi } from "../testModules.testkit";
 import { leaseTurn, turnDeps } from "./turns";

@@ -30,7 +30,7 @@ import {
   HOSTED_IMAGE_REFUSAL,
   HOSTED_INPUT_MAX_CHARS,
   type WakeCause,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import {
   findConversationByAnyRef,
   findConversationByAnyRefWhere,

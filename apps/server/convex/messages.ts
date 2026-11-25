@@ -25,7 +25,7 @@ import {
 } from "./functions";
 import { addRoleTokens } from "./lib/orgCaps";
 import { calibrationSlot } from "./usageCalibration";
-import { weightedTokens } from "@codecast/shared/contracts";
+import { weightedTokens } from "@codecast/usage/usageLimits";
 import { linkLocalCommitToConversation } from "./gitActivity";
 import {
   deleteFileChange,

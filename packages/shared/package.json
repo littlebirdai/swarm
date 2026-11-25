@@ -29,8 +29,6 @@
     "./contracts/evalResult": "./contracts/evalResult.ts",
     "./contracts/lineProfile": "./contracts/lineProfile.ts",
     "./contracts/lineChat": "./contracts/lineChat.ts",
-    "./contracts/assistant": "./contracts/assistant.ts",
-    "./contracts/modelOptions": "./contracts/modelOptions.ts",
     "./contracts/ingest": "./contracts/ingest.ts",
     "./contracts/metricMonitor": "./contracts/metricMonitor.ts",
     "./contracts/volumeWatch": "./contracts/volumeWatch.ts",
@@ -38,7 +36,6 @@
     "./contracts/judges": "./contracts/judges.ts",
     "./contracts/peerTransport": "./contracts/peerTransport.ts",
     "./contracts/dataSync": "./contracts/dataSync.ts",
-    "./contracts/weeklyCard": "./contracts/weeklyCard.ts",
     "./contracts/agentJudges": "./contracts/agentJudges.ts",
     "./contracts/judgeReview": "./contracts/judgeReview.ts",
     "./contracts/judgeFix": "./contracts/judgeFix.ts",
@@ -87,7 +84,6 @@
     "./contracts/climb": "./contracts/climb.ts",
     "./contracts/metricStanding": "./contracts/metricStanding.ts",
     "./contracts/openPlans": "./contracts/openPlans.ts",
-    "./contracts/cloudAgents": "./contracts/cloudAgents.ts",
     "./contracts/follow": "./contracts/follow.ts",
     "./contracts/predictedEffect": "./contracts/predictedEffect.ts",
     "./contracts/rolePlaybook": "./contracts/rolePlaybook.ts",
@@ -122,6 +118,7 @@
     "@codecast/fence": "workspace:*",
     "@codecast/flows": "workspace:*",
     "@codecast/hash": "workspace:*",
+    "@codecast/hosted-assistant": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/org": "workspace:*",
     "@codecast/policy": "workspace:*",
@@ -135,6 +132,7 @@
     "@codecast/triggers": "workspace:*",
     "@platform/agent": "file:../../platform/packages/agent",
     "@platform/assistant": "file:../../platform/packages/assistant",
-    "@platform/evals": "file:../../platform/packages/evals"
+    "@platform/evals": "file:../../platform/packages/evals",
+    "@platform/fence": "file:../../platform/packages/fence"
   }
 }

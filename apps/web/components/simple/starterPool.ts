@@ -4,7 +4,7 @@
 // conversation already began with, so the sheet and the home never drift and
 // day two does not look like day one. Someone new gets starters that ask them
 // for the details; someone back gets whole asks, a routine among them.
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { useInboxStore } from "../../store/inboxStore";
 import { LANE_COPY, firstAsks, type MailAbilities } from "./lane";
 import { ASKS } from "./assistantPromise";

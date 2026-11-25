@@ -28,12 +28,14 @@ import {
   AGENT_MODEL_CONFIG,
   listedModels,
   modelAgentKey,
+  type AgentClientId,
+} from "@codecast/agent-clients/agentClients";
+import {
   validateAgentChain,
   validateAgentDefinition,
   type AgentChainSpec,
-  type AgentClientId,
   type AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import {
   isAgentChainFile,
   parseAgentChainFile,

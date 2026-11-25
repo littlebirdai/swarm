@@ -7,7 +7,7 @@ import {
   cloudAgentProviderForKey,
   type CloudAgentProviderId,
   type CloudAgentProviderSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { ConnectCodexDialog } from "./ConnectCodexDialog";
 import { ConnectKeyDialog, type KeyProviderId } from "./ConnectKeyDialog";
 

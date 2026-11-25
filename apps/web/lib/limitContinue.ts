@@ -8,14 +8,14 @@ import {
   fleetAccount,
   type CcUsage,
 } from "@codecast/convex/convex/ccAccountsShared";
+import { classifyApiErrorBanner } from "@codecast/shared/contracts";
 import {
-  classifyApiErrorBanner,
   fallbackProfiles,
   labeledUsageWindows,
   livePercent,
   modelLimitFamily,
   pendingProposal,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import { commitModelChange } from "./modelSwitch";
 import { useInboxStore } from "../store/inboxStore";
 import { isParkedDispatchError } from "../store/mutativeMiddleware";

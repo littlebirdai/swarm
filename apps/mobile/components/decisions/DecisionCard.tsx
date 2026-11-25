@@ -11,7 +11,7 @@ import {
   approvesPersonsAct,
   fallbackLine,
 } from "@codecast/shared/contracts/commandRun";
-import { approvalButtonLabel } from "@codecast/shared/contracts/assistant";
+import { approvalButtonLabel } from "@codecast/hosted-assistant/assistant";
 import { useCallback, useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";

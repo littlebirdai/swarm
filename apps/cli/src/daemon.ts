@@ -60,8 +60,8 @@ import {
   type AgentPaneReadiness,
   type PaneTerminalModes,
 } from "@codecast/agent-clients/agentClients";
+import { RESUME_BURST_SPACING_MS } from "@codecast/usage/usageLimits";
 import {
-  RESUME_BURST_SPACING_MS,
   SNIPPET_CATALOG,
   STABLE_ENV_CONVERSATION_ID,
   STABLE_ENV_EXCLUDE,
@@ -77,9 +77,12 @@ import {
   type StableLaunchPrefs,
   isMachineDeliveredMessage,
   snippetBySlug,
-  type AgentDefinitionSpec,
   worktreeOfPath,
+  isHomeDirectoryPath,
+  stampDeliveryId,
+  withoutDeliveryId,
 } from "@codecast/shared/contracts";
+import { type AgentDefinitionSpec } from "@codecast/agents/agentDefinitions";
 import { CODEX_EFFORT_LEVELS } from "@codecast/agent-clients/modelOptions";
 import { isCloudAgentActionName } from "@codecast/agent-clients/cloudAgents";
 import {
@@ -105,11 +108,6 @@ import {
   confineToOwningDevice,
   verdictFromProbe,
 } from "@codecast/sessions/liveness";
-import {
-  isHomeDirectoryPath,
-  stampDeliveryId,
-  withoutDeliveryId,
-} from "@codecast/shared/contracts";
 import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
 import { CLOUD_START_RUN_MS } from "@codecast/cloud-hosts/cloudPlacement";
 import {
@@ -8804,7 +8802,8 @@ async function sdkDefinitionFlags(
   // Loaded inside the one command that launches from a definition (boot graph guard).
   const { definitionLaunchFlags, describeDropped } =
     await import("./agentLaunch.js");
-  const { resolveAgentLaunch } = await import("@codecast/shared/contracts");
+  const { resolveAgentLaunch } =
+    await import("@codecast/agents/agentDefinitions");
   const flags = definitionLaunchFlags(
     resolveAgentLaunch(def, { agent: "claude" }, "claude"),
     "claude",

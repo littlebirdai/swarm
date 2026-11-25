@@ -10,7 +10,7 @@
 // real id when the mutation lands, and useConversationMessages freezes the
 // server message sync while fork_status === "copying" so the half-copied
 // server window can never clobber the seeded one.
-import { agentSupportsFork } from "@codecast/shared/contracts";
+import { agentSupportsFork } from "@codecast/agent-clients/agentClients";
 import {
   useInboxStore,
   convBucketMap,

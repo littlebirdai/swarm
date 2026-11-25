@@ -41,7 +41,7 @@ import {
 import {
   APPROVAL_ANSWERS,
   approvalButtonLabel,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import {
   AnswerControls,
   type AnswerLook,

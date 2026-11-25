@@ -2,9 +2,9 @@ import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import {
   AGENT_MODEL_CONFIG,
-  cloudAgentProviderForLaunch,
   modelAgentKey,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import { cloudAgentProviderForLaunch } from "@codecast/agent-clients/cloudAgents";
 import { useInboxStore } from "../store/inboxStore";
 import { withoutUndo } from "../store/undoStack";
 import { liveSessionMetaOf } from "../hooks/useLiveSessionMeta";

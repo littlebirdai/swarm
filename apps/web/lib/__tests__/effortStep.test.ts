@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   CLAUDE_EFFORT_LEVELS,
   PI_EFFORT_LEVELS,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/modelOptions";
 import {
   effortLevelsFor,
   effortPosition,

@@ -17,7 +17,7 @@ import {
   remainingWindowTokens,
   restartShareOfRemaining,
   weightedTokens,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 
 const NOW = 1_800_000_000_000;
 

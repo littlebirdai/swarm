@@ -1,7 +1,7 @@
 // A hosted conversation's composer at rest, said from where its last exchange
 // stands: the web's MessageInput and the phone's session screen read this one
 // rule, so the two say the same thing after the same turn.
-import { replyAsksPerson } from "@codecast/shared/contracts/assistant";
+import { replyAsksPerson } from "@codecast/hosted-assistant/assistant";
 import type { SessionDecisionItem } from "../store/inboxStore";
 import { hostedDeclinedSince } from "./decisionQueue";
 import { hostedNoticeKind } from "./hostedNotice";

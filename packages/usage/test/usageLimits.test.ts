@@ -19,7 +19,7 @@ import {
   planTypeLabel,
   exhaustedLabel,
   type CcUsage,
-} from "./usageLimits";
+} from "../src/usageLimits";
 
 const now = 1_000_000_000_000;
 

@@ -24,7 +24,7 @@ import {
   worstUsagePercent,
   type CcUsage,
   type RecoveryMode,
-} from "@codecast/shared/contracts";
+} from "@codecast/usage/usageLimits";
 import {
   accountTokenInfo,
   activeAccountSummary,

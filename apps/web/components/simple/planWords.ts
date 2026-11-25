@@ -7,7 +7,7 @@ import {
   TYPICAL_REQUEST_USD,
   routineFloor,
   type PlanSpec,
-} from "@codecast/shared/contracts/assistant";
+} from "@codecast/hosted-assistant/assistant";
 import { cadenceLabel } from "../../lib/cadence";
 
 export function plural(n: number, one: string, many = `${one}s`): string {

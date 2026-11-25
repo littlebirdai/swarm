@@ -18,7 +18,7 @@ import {
   weeklyCardAllowed,
   type WeekCardStats,
   type WeekWhich,
-} from "@codecast/shared/contracts/weeklyCard";
+} from "@codecast/usage/weeklyCard";
 import { useSearchParams } from "next/navigation";
 import { useInboxStore } from "../../store/inboxStore";
 import { useCurrentUser } from "../../hooks/useCurrentUser";

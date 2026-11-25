@@ -52,11 +52,11 @@ import {
   AGENT_LAUNCH_OPTIONS,
   AGENT_MODEL_CONFIG,
   modelAgentKey,
-  dynamicModelOption,
   canSessionBecomeAgent,
   listedModels,
   type ConvexAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import { dynamicModelOption } from "@codecast/agent-clients/modelOptions";
 import { useDynamicModels } from "../hooks/useDynamicModels";
 import {
   useOnlyHostedAgent,
@@ -178,7 +178,7 @@ import {
 import { popOutPeople } from "./people/popOutPeople";
 import { AskHeldLine, useHostedAskGate } from "./simple/useHostedAskGate";
 import { AgentTypeIcon } from "./AgentTypeIcon";
-import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
+import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 import { startHostedConversation } from "../lib/startHostedConversation";
 import { openForwardToChat } from "../lib/forwardToChat";
 import { settleComposerAttachments } from "../lib/draftImages";

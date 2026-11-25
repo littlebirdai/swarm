@@ -20,7 +20,7 @@ import {
   validateAgentDefinition,
   type AgentChainSpec,
   type AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 
 type Table = "agent_definitions" | "agent_chains";
 

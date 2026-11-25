@@ -1,5 +1,5 @@
 import type { AppTab } from "../store/inboxStore";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { conversationTitle, pendingAsk } from "./conversationTitle";
 import { untitledSessionName } from "./sessionCard";
 import { pathLabel, inboxTabSessionId } from "./pathLabel";

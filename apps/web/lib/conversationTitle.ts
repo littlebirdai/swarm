@@ -1,7 +1,7 @@
 // What a hosted conversation is called, for every surface that names one (an
 // inbox row, a tab, the plan's "Where it went"). A leaf: it imports nothing
 // from the store or the views, so the tab strip and the lane read one rule.
-import { promptTitle } from "@codecast/shared/contracts/assistant";
+import { promptTitle } from "@codecast/hosted-assistant/assistant";
 
 const PLACEHOLDER_TITLES = new Set([
   "new session",

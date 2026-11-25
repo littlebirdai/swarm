@@ -5,8 +5,8 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { isHostedAgentType } from "@codecast/shared/contracts";
-import type { NoticeKind } from "@codecast/shared/contracts/assistant";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
+import type { NoticeKind } from "@codecast/hosted-assistant/assistant";
 import type { InboxSession, PlacedInbox } from "../../store/inboxStore";
 import { getProjectName } from "../../store/inboxStore";
 import { splitStatusBands, type StatusBandOpts } from "../../lib/statusBands";

@@ -28,8 +28,8 @@ import {
   typeColors,
   typeLabels,
 } from "../../lib/notificationTypes";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
-  isHostedAgentType,
   summarizeIdleDigest,
   type IdleGrouped,
 } from "@codecast/shared/contracts";

@@ -15,7 +15,7 @@ import {
   sessionGoalOf,
 } from "@codecast/shared/contracts/sessionGoal";
 import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
-import { pinnableAgentIds } from "@codecast/shared/contracts";
+import { pinnableAgentIds } from "@codecast/agent-clients/agentPins";
 import { cleanReservationPurpose } from "@codecast/cloud-hosts/cloudPlacement";
 import { parseStagePinRef, stagePinRowId } from "@codecast/calls/stagePins";
 import type { InitiativeMetric } from "@codecast/shared/contracts/initiative";
@@ -235,13 +235,11 @@ import {
   cascadeTakesDownRow,
   isClosedSession,
   CONVERSATION_FIELD_TWINS,
-  cloudAgentProviderOfConversation,
   childAskingAt,
   deriveLiveAt,
   rowLiveDeadlines,
   type LiveFacts,
   type UserRest,
-  modelOptionKey,
   formatDecisionAnswer,
   parseDecisionAnswer,
   decisionAnswerLabel,
@@ -250,6 +248,8 @@ import {
   answeredThreadStateFields,
   isInboxRowField,
 } from "@codecast/shared/contracts";
+import { cloudAgentProviderOfConversation } from "@codecast/agent-clients/cloudAgents";
+import { modelOptionKey } from "@codecast/agent-clients/agentClients";
 import {
   settingsAfterSnippet,
   type DeviceSnippetChange,
@@ -470,13 +470,13 @@ import {
 } from "./workProjects";
 import { pendingJoinRow } from "../lib/teamMachines";
 import { projectRootOf } from "../lib/recentProjectPaths";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   CLOUD_SESSION_SOURCES,
   type CloudSessionSource,
 } from "@codecast/agent-clients/cloudSessionSync";
 import { cloudPlacementFor } from "@codecast/cloud-hosts/cloudPlacement";
-import { promptTitle } from "@codecast/shared/contracts/assistant";
+import { promptTitle } from "@codecast/hosted-assistant/assistant";
 
 /** What a conversation being started is called until its row syncs: a
  *  hosted one by the person's first words (the server stores the same
@@ -585,7 +585,7 @@ import { activeWorkspaceKey } from "../lib/workspaceScope";
 import type {
   AgentChainSpec,
   AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import type { PendingComment } from "../lib/quoteFormat";
 import {
   isRecordedQuote,

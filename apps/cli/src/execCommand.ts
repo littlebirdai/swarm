@@ -35,7 +35,7 @@ import {
   resolveAgentLaunch,
   type AgentChainSpec,
   type AgentDefinitionSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agents/agentDefinitions";
 import { readSharedConfig } from "./config/sharedConfig.js";
 import { expandStdinArgs, readStdinBody } from "./sendBody.js";
 import {

@@ -24,11 +24,8 @@ import { AvatarImg } from "../../lib/avatarCache";
 import { SlackLogo } from "../SlackLogo";
 import { visitTimeAgo } from "../../lib/recentVisits";
 import { statusesForTeam, taskStatusOf } from "../../lib/taskStatuses";
-import {
-  agentDisplayName,
-  deriveLiveAt,
-  modelDisplayLabel,
-} from "@codecast/shared/contracts";
+import { agentDisplayName } from "@codecast/agent-clients/agentClients";
+import { deriveLiveAt, modelDisplayLabel } from "@codecast/shared/contracts";
 import { liveFactsOf } from "../../lib/liveness";
 import { SessionFace } from "../identity";
 import {

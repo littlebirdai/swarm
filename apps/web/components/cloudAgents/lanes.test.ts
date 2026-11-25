@@ -3,7 +3,7 @@ import {
   CLOUD_AGENT_PROVIDERS,
   cloudAgentLaunchKey,
   type CloudAgentProviderSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { useInboxStore } from "../../store/inboxStore";
 import { lastCloudLaunch } from "./lanes";
 

@@ -18,7 +18,7 @@ import {
   type CloudAgentActionName,
   type CloudAgentLaunch,
   type CloudAgentProviderSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { useLiveSessionMeta } from "../../hooks/useLiveSessionMeta";
 import { useCloudAgentAction } from "../../lib/useProviderKeyCommand";
 import { machineName, useCloudAgentStatus } from "./machine";

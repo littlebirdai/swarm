@@ -3,8 +3,8 @@ import {
   fromConvexAgentType,
   isHostedAgentType,
   toConvexAgentType,
-  parseAgentSwitchNotice,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import { parseAgentSwitchNotice } from "@codecast/shared/contracts";
 
 type Message = {
   _id: string;

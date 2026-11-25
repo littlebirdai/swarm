@@ -9,11 +9,11 @@
  * becomes the workspace pick (own worktree vs the host's shared checkout).
  */
 
+import { deviceDisplayName } from "@codecast/shared/contracts";
 import {
-  deviceDisplayName,
   type CloudAgentLaunch,
   type CloudAgentProviderSpec,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import type { SessionMachine } from "../lib/sessionMachines";
 import { CloudAgentProblemNote, ConnectCloudAgentButton } from "./cloudAgents";
 import { cloudAgentUi } from "./cloudAgents/providerUi";
