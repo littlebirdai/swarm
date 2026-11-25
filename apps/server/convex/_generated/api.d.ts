@@ -8,6 +8,11 @@
  * @module
  */
 
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
 import type * as accessLog from "../accessLog.js";
 import type * as accessLogSchema from "../accessLogSchema.js";
 import type * as accountDelete from "../accountDelete.js";
@@ -174,6 +179,7 @@ import type * as docSync from "../docSync.js";
 import type * as docs from "../docs.js";
 import type * as dormancy from "../dormancy.js";
 import type * as edgeLink from "../edgeLink.js";
+import type * as edgeRunLease from "../edgeRunLease.js";
 import type * as emails_digest from "../emails/digest.js";
 import type * as emails_render from "../emails/render.js";
 import type * as emails_send from "../emails/send.js";
@@ -250,6 +256,7 @@ import type * as lib_accessLog from "../lib/accessLog.js";
 import type * as lib_activityDaily from "../lib/activityDaily.js";
 import type * as lib_activityPunchcard from "../lib/activityPunchcard.js";
 import type * as lib_actor from "../lib/actor.js";
+import type * as lib_agentTaskRevisionValidator from "../lib/agentTaskRevisionValidator.js";
 import type * as lib_agentTaskRows from "../lib/agentTaskRows.js";
 import type * as lib_anchorBootstrap from "../lib/anchorBootstrap.js";
 import type * as lib_anchorRoster from "../lib/anchorRoster.js";
@@ -284,9 +291,11 @@ import type * as lib_chatRows from "../lib/chatRows.js";
 import type * as lib_chatWakeIds from "../lib/chatWakeIds.js";
 import type * as lib_ciRunRead from "../lib/ciRunRead.js";
 import type * as lib_claimFrontier from "../lib/claimFrontier.js";
+import type * as lib_claims from "../lib/claims.js";
 import type * as lib_claudeSubagentSession from "../lib/claudeSubagentSession.js";
 import type * as lib_cliErrorStatus from "../lib/cliErrorStatus.js";
 import type * as lib_cliRoute from "../lib/cliRoute.js";
+import type * as lib_closeAside from "../lib/closeAside.js";
 import type * as lib_cloudHostValidators from "../lib/cloudHostValidators.js";
 import type * as lib_codeAnchorValidator from "../lib/codeAnchorValidator.js";
 import type * as lib_codecastSigning from "../lib/codecastSigning.js";
@@ -300,25 +309,32 @@ import type * as lib_conversationRows from "../lib/conversationRows.js";
 import type * as lib_conversationVisibility from "../lib/conversationVisibility.js";
 import type * as lib_convexFieldNames from "../lib/convexFieldNames.js";
 import type * as lib_daemonCommandClaim from "../lib/daemonCommandClaim.js";
+import type * as lib_daemonDelivery from "../lib/daemonDelivery.js";
 import type * as lib_daemonLiveness from "../lib/daemonLiveness.js";
 import type * as lib_decisionAccess from "../lib/decisionAccess.js";
 import type * as lib_decisionAudience from "../lib/decisionAudience.js";
 import type * as lib_decisionCategory from "../lib/decisionCategory.js";
 import type * as lib_decisionInbox from "../lib/decisionInbox.js";
 import type * as lib_decisionMatch from "../lib/decisionMatch.js";
+import type * as lib_decisionPush from "../lib/decisionPush.js";
+import type * as lib_decisionRing from "../lib/decisionRing.js";
 import type * as lib_decisionRowFacts from "../lib/decisionRowFacts.js";
 import type * as lib_decisionTeam from "../lib/decisionTeam.js";
 import type * as lib_decisionVerdict from "../lib/decisionVerdict.js";
 import type * as lib_deletedSessions from "../lib/deletedSessions.js";
 import type * as lib_deletionPlans from "../lib/deletionPlans.js";
 import type * as lib_deployAllowance from "../lib/deployAllowance.js";
+import type * as lib_deployRows from "../lib/deployRows.js";
+import type * as lib_devPushes from "../lib/devPushes.js";
 import type * as lib_deviceUpdate from "../lib/deviceUpdate.js";
 import type * as lib_displayNames from "../lib/displayNames.js";
 import type * as lib_docBody from "../lib/docBody.js";
 import type * as lib_docSnapshot from "../lib/docSnapshot.js";
 import type * as lib_drainMarker from "../lib/drainMarker.js";
+import type * as lib_droppedWork from "../lib/droppedWork.js";
 import type * as lib_echoMatch from "../lib/echoMatch.js";
 import type * as lib_edge_routes from "../lib/edge/routes.js";
+import type * as lib_edge_runLease from "../lib/edge/runLease.js";
 import type * as lib_emailProof from "../lib/emailProof.js";
 import type * as lib_embeddings from "../lib/embeddings.js";
 import type * as lib_enrollHttp from "../lib/enrollHttp.js";
@@ -339,6 +355,7 @@ import type * as lib_groupPeople from "../lib/groupPeople.js";
 import type * as lib_groupWrite from "../lib/groupWrite.js";
 import type * as lib_guardedFetch from "../lib/guardedFetch.js";
 import type * as lib_hash from "../lib/hash.js";
+import type * as lib_heartbeatPatch from "../lib/heartbeatPatch.js";
 import type * as lib_heartbeatTailnet from "../lib/heartbeatTailnet.js";
 import type * as lib_hmac from "../lib/hmac.js";
 import type * as lib_hogqlNow from "../lib/hogqlNow.js";
@@ -381,6 +398,8 @@ import type * as lib_messageReads from "../lib/messageReads.js";
 import type * as lib_messagingPolicyValidator from "../lib/messagingPolicyValidator.js";
 import type * as lib_metricPoints from "../lib/metricPoints.js";
 import type * as lib_metricSeries from "../lib/metricSeries.js";
+import type * as lib_modelLimitPins from "../lib/modelLimitPins.js";
+import type * as lib_modelRoom from "../lib/modelRoom.js";
 import type * as lib_modelSpend from "../lib/modelSpend.js";
 import type * as lib_momentBody from "../lib/momentBody.js";
 import type * as lib_momentJudging from "../lib/momentJudging.js";
@@ -461,6 +480,7 @@ import type * as lib_roleInitiatives from "../lib/roleInitiatives.js";
 import type * as lib_rowByRef from "../lib/rowByRef.js";
 import type * as lib_runAgentSessions from "../lib/runAgentSessions.js";
 import type * as lib_runDevicePlace from "../lib/runDevicePlace.js";
+import type * as lib_runGraph from "../lib/runGraph.js";
 import type * as lib_runLog from "../lib/runLog.js";
 import type * as lib_runnerDevice from "../lib/runnerDevice.js";
 import type * as lib_sanitize from "../lib/sanitize.js";
@@ -477,6 +497,7 @@ import type * as lib_sessionAskCitations from "../lib/sessionAskCitations.js";
 import type * as lib_sessionCard from "../lib/sessionCard.js";
 import type * as lib_sessionCost from "../lib/sessionCost.js";
 import type * as lib_sessionGoalTrigger from "../lib/sessionGoalTrigger.js";
+import type * as lib_sessionHeartbeat from "../lib/sessionHeartbeat.js";
 import type * as lib_sessionIdentityFields from "../lib/sessionIdentityFields.js";
 import type * as lib_sessionMedia from "../lib/sessionMedia.js";
 import type * as lib_sessionMigrationPlan from "../lib/sessionMigrationPlan.js";
@@ -514,6 +535,7 @@ import type * as lib_taskHistory from "../lib/taskHistory.js";
 import type * as lib_taskLanded from "../lib/taskLanded.js";
 import type * as lib_taskLaunch from "../lib/taskLaunch.js";
 import type * as lib_taskOwner from "../lib/taskOwner.js";
+import type * as lib_taskVerdicts from "../lib/taskVerdicts.js";
 import type * as lib_taskWaitValidator from "../lib/taskWaitValidator.js";
 import type * as lib_taskWrite from "../lib/taskWrite.js";
 import type * as lib_teamBudget from "../lib/teamBudget.js";
@@ -834,12 +856,14 @@ import type * as workerSettle from "../workerSettle.js";
 import type * as workflow_runs from "../workflow_runs.js";
 import type * as workflows from "../workflows.js";
 
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
-
+/**
+ * A utility for referencing Convex functions in your app's API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
 declare const fullApi: ApiFromModules<{
   accessLog: typeof accessLog;
   accessLogSchema: typeof accessLogSchema;
@@ -1007,6 +1031,7 @@ declare const fullApi: ApiFromModules<{
   docs: typeof docs;
   dormancy: typeof dormancy;
   edgeLink: typeof edgeLink;
+  edgeRunLease: typeof edgeRunLease;
   "emails/digest": typeof emails_digest;
   "emails/render": typeof emails_render;
   "emails/send": typeof emails_send;
@@ -1083,6 +1108,7 @@ declare const fullApi: ApiFromModules<{
   "lib/activityDaily": typeof lib_activityDaily;
   "lib/activityPunchcard": typeof lib_activityPunchcard;
   "lib/actor": typeof lib_actor;
+  "lib/agentTaskRevisionValidator": typeof lib_agentTaskRevisionValidator;
   "lib/agentTaskRows": typeof lib_agentTaskRows;
   "lib/anchorBootstrap": typeof lib_anchorBootstrap;
   "lib/anchorRoster": typeof lib_anchorRoster;
@@ -1117,9 +1143,11 @@ declare const fullApi: ApiFromModules<{
   "lib/chatWakeIds": typeof lib_chatWakeIds;
   "lib/ciRunRead": typeof lib_ciRunRead;
   "lib/claimFrontier": typeof lib_claimFrontier;
+  "lib/claims": typeof lib_claims;
   "lib/claudeSubagentSession": typeof lib_claudeSubagentSession;
   "lib/cliErrorStatus": typeof lib_cliErrorStatus;
   "lib/cliRoute": typeof lib_cliRoute;
+  "lib/closeAside": typeof lib_closeAside;
   "lib/cloudHostValidators": typeof lib_cloudHostValidators;
   "lib/codeAnchorValidator": typeof lib_codeAnchorValidator;
   "lib/codecastSigning": typeof lib_codecastSigning;
@@ -1133,25 +1161,32 @@ declare const fullApi: ApiFromModules<{
   "lib/conversationVisibility": typeof lib_conversationVisibility;
   "lib/convexFieldNames": typeof lib_convexFieldNames;
   "lib/daemonCommandClaim": typeof lib_daemonCommandClaim;
+  "lib/daemonDelivery": typeof lib_daemonDelivery;
   "lib/daemonLiveness": typeof lib_daemonLiveness;
   "lib/decisionAccess": typeof lib_decisionAccess;
   "lib/decisionAudience": typeof lib_decisionAudience;
   "lib/decisionCategory": typeof lib_decisionCategory;
   "lib/decisionInbox": typeof lib_decisionInbox;
   "lib/decisionMatch": typeof lib_decisionMatch;
+  "lib/decisionPush": typeof lib_decisionPush;
+  "lib/decisionRing": typeof lib_decisionRing;
   "lib/decisionRowFacts": typeof lib_decisionRowFacts;
   "lib/decisionTeam": typeof lib_decisionTeam;
   "lib/decisionVerdict": typeof lib_decisionVerdict;
   "lib/deletedSessions": typeof lib_deletedSessions;
   "lib/deletionPlans": typeof lib_deletionPlans;
   "lib/deployAllowance": typeof lib_deployAllowance;
+  "lib/deployRows": typeof lib_deployRows;
+  "lib/devPushes": typeof lib_devPushes;
   "lib/deviceUpdate": typeof lib_deviceUpdate;
   "lib/displayNames": typeof lib_displayNames;
   "lib/docBody": typeof lib_docBody;
   "lib/docSnapshot": typeof lib_docSnapshot;
   "lib/drainMarker": typeof lib_drainMarker;
+  "lib/droppedWork": typeof lib_droppedWork;
   "lib/echoMatch": typeof lib_echoMatch;
   "lib/edge/routes": typeof lib_edge_routes;
+  "lib/edge/runLease": typeof lib_edge_runLease;
   "lib/emailProof": typeof lib_emailProof;
   "lib/embeddings": typeof lib_embeddings;
   "lib/enrollHttp": typeof lib_enrollHttp;
@@ -1172,6 +1207,7 @@ declare const fullApi: ApiFromModules<{
   "lib/groupWrite": typeof lib_groupWrite;
   "lib/guardedFetch": typeof lib_guardedFetch;
   "lib/hash": typeof lib_hash;
+  "lib/heartbeatPatch": typeof lib_heartbeatPatch;
   "lib/heartbeatTailnet": typeof lib_heartbeatTailnet;
   "lib/hmac": typeof lib_hmac;
   "lib/hogqlNow": typeof lib_hogqlNow;
@@ -1214,6 +1250,8 @@ declare const fullApi: ApiFromModules<{
   "lib/messagingPolicyValidator": typeof lib_messagingPolicyValidator;
   "lib/metricPoints": typeof lib_metricPoints;
   "lib/metricSeries": typeof lib_metricSeries;
+  "lib/modelLimitPins": typeof lib_modelLimitPins;
+  "lib/modelRoom": typeof lib_modelRoom;
   "lib/modelSpend": typeof lib_modelSpend;
   "lib/momentBody": typeof lib_momentBody;
   "lib/momentJudging": typeof lib_momentJudging;
@@ -1294,6 +1332,7 @@ declare const fullApi: ApiFromModules<{
   "lib/rowByRef": typeof lib_rowByRef;
   "lib/runAgentSessions": typeof lib_runAgentSessions;
   "lib/runDevicePlace": typeof lib_runDevicePlace;
+  "lib/runGraph": typeof lib_runGraph;
   "lib/runLog": typeof lib_runLog;
   "lib/runnerDevice": typeof lib_runnerDevice;
   "lib/sanitize": typeof lib_sanitize;
@@ -1310,6 +1349,7 @@ declare const fullApi: ApiFromModules<{
   "lib/sessionCard": typeof lib_sessionCard;
   "lib/sessionCost": typeof lib_sessionCost;
   "lib/sessionGoalTrigger": typeof lib_sessionGoalTrigger;
+  "lib/sessionHeartbeat": typeof lib_sessionHeartbeat;
   "lib/sessionIdentityFields": typeof lib_sessionIdentityFields;
   "lib/sessionMedia": typeof lib_sessionMedia;
   "lib/sessionMigrationPlan": typeof lib_sessionMigrationPlan;
@@ -1347,6 +1387,7 @@ declare const fullApi: ApiFromModules<{
   "lib/taskLanded": typeof lib_taskLanded;
   "lib/taskLaunch": typeof lib_taskLaunch;
   "lib/taskOwner": typeof lib_taskOwner;
+  "lib/taskVerdicts": typeof lib_taskVerdicts;
   "lib/taskWaitValidator": typeof lib_taskWaitValidator;
   "lib/taskWrite": typeof lib_taskWrite;
   "lib/teamBudget": typeof lib_teamBudget;
@@ -1667,31 +1708,11 @@ declare const fullApi: ApiFromModules<{
   workflow_runs: typeof workflow_runs;
   workflows: typeof workflows;
 }>;
-
-/**
- * A utility for referencing Convex functions in your app's public API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = api.myModule.myFunction;
- * ```
- */
 export declare const api: FilterApi<
   typeof fullApi,
   FunctionReference<any, "public">
 >;
-
-/**
- * A utility for referencing Convex functions in your app's internal API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = internal.myModule.myFunction;
- * ```
- */
 export declare const internal: FilterApi<
   typeof fullApi,
   FunctionReference<any, "internal">
 >;
-
-export declare const components: {};
