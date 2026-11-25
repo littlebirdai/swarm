@@ -3,102 +3,75 @@
 // actor is refused; a person on the board moves past it and a note comment
 // names the decision; answering the decision releases the hold.
 import { describe, expect, test } from "bun:test";
-import { makeFakeDb } from "./testDb";
-import { update, webUpdate, holdingDecisionFor } from "./tasks";
-import { hashToken } from "./apiTokens";
+import type { FunctionArgs } from "convex/server";
+import { serverTest, asUser } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
+import { api } from "./_generated/api";
+import { holdingDecisionFor } from "./tasks";
 
-const OWNER = "users_owner";
 const TOKEN = "hold-token";
 
-const decision = (extra: Record<string, any> = {}) => ({
-  _id: "session_decisions_1",
-  short_id: "sd-211",
-  conversation_id: "conversations_hand",
-  session_id: "hand",
-  user_id: OWNER,
-  question: "Ship it?",
-  options: [{ label: "Yes" }, { label: "No" }],
-  blocking: true,
-  status: "pending",
-  task_id: "tasks_1",
-  station: "in_review",
-  created_at: 1,
-  ...extra,
-});
-
-async function makeCtx(
-  task: Record<string, any> = {},
-  decisions: any[] = [decision()],
+async function setup(
+  taskFields: Partial<NewRow<"tasks">> = {},
+  decisionFields: Partial<NewRow<"session_decisions">> = {},
 ) {
-  const tables: Record<string, any[]> = {
-    users: [{ _id: OWNER, name: "Owner", github_username: "owner" }],
-    api_tokens: [
-      { _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) },
-    ],
-    tasks: [
-      {
-        _id: "tasks_1",
+  const t = serverTest();
+  const ids = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "task station hold");
+    const owner = await rows.user();
+    await rows.token(owner, TOKEN);
+    const taskId = await rows.task(owner, {
+      short_id: "ct-1",
+      status: "in_review",
+      source: "agent",
+      ...taskFields,
+    });
+    const hand = await rows.conversation(owner, { session_id: "hand" });
+    const decisionId = await db.insert("session_decisions", {
+      short_id: "sd-211",
+      conversation_id: hand,
+      session_id: "hand",
+      user_id: owner,
+      question: "Ship it?",
+      options: [{ label: "Yes" }, { label: "No" }],
+      blocking: true,
+      status: "pending",
+      task_id: taskId,
+      station: "in_review",
+      created_at: 1,
+      ...decisionFields,
+    });
+    return { owner, taskId, decisionId };
+  });
+  return {
+    ...ids,
+    t,
+    cliMove: (
+      session?: string,
+      fields: Partial<FunctionArgs<typeof api.tasks.update>> = {},
+    ) =>
+      t.mutation(api.tasks.update, {
+        api_token: TOKEN,
         short_id: "ct-1",
-        title: "ct-1",
-        user_id: OWNER,
-        status: "in_review",
-        source: "agent",
-        ...task,
-      },
-    ],
-    task_history: [],
-    task_comments: [],
-    thread_reads: [],
-    entity_subscriptions: [],
-    session_decisions: decisions,
-    conversations: [
-      {
-        _id: "conversations_hand",
-        session_id: "hand",
-        user_id: OWNER,
-        status: "active",
-      },
-    ],
+        status: "in_progress",
+        conversation_id: session,
+        ...fields,
+      }),
+    boardMove: () =>
+      asUser(t, ids.owner).mutation(api.tasks.webUpdate, {
+        short_id: "ct-1",
+        status: "in_progress",
+      }),
+    task: () => t.run(async ({ db }) => (await db.get(ids.taskId))!),
+    decision: () => t.run(async ({ db }) => (await db.get(ids.decisionId))!),
+    comments: () => t.run(({ db }) => db.query("task_comments").collect()),
   };
-  const db = makeFakeDb(tables);
-  const ctx = {
-    auth: {
-      async getUserIdentity() {
-        return { subject: `${OWNER}|session` };
-      },
-    },
-    db,
-    scheduler: { runAfter: async () => null },
-    async runMutation() {
-      return null;
-    },
-  } as any;
-  return { ctx, tables };
 }
-
-const cliMove = (
-  ctx: any,
-  session: string | undefined,
-  extra: Record<string, any> = {},
-) =>
-  (update as any)._handler(ctx, {
-    api_token: TOKEN,
-    short_id: "ct-1",
-    status: "in_progress",
-    ...(session ? { conversation_id: session } : {}),
-    ...extra,
-  });
-const boardMove = (ctx: any, extra: Record<string, any> = {}) =>
-  (webUpdate as any)._handler(ctx, {
-    short_id: "ct-1",
-    status: "in_progress",
-    ...extra,
-  });
 
 describe("the hold (the-line.md L5)", () => {
   test("a hand cannot move a held task; the error names the decision and the release path", async () => {
-    const { ctx, tables } = await makeCtx();
-    const refused = await cliMove(ctx, "hand").then(
+    const { task, decision, comments, cliMove } = await setup();
+    const refused = await cliMove("hand").then(
       () => "",
       (err: Error) => err.message,
     );
@@ -108,93 +81,94 @@ describe("the hold (the-line.md L5)", () => {
     // The session is never told to answer the person's decision itself.
     expect(refused).not.toContain("decide answer");
     expect(refused).toContain("cast task dep ct-1 --blocked-by sd-211");
-    expect(tables.tasks[0].status).toBe("in_review");
-    expect(tables.task_comments).toHaveLength(0);
+    expect((await task()).status).toBe("in_review");
+    expect(await comments()).toHaveLength(0);
   });
 
   test("a hand's handoff on a held task keeps the evidence and leaves the task at its station", async () => {
-    const { ctx, tables } = await makeCtx({ status: "in_progress" }, [
-      decision({ station: "in_progress" }),
-    ]);
-    const result = await cliMove(ctx, "hand", {
+    const { task, decision, cliMove } = await setup(
+      { status: "in_progress" },
+      { station: "in_progress" },
+    );
+    const result = await cliMove("hand", {
       status: "in_review",
       execution_status: "blocked",
       verification_evidence: "stopped: waiting on the call",
     });
     expect(result.held).toEqual({ decision: "sd-211", station: "in_progress" });
-    expect(tables.tasks[0].status).toBe("in_progress");
-    expect(tables.tasks[0].verification_evidence).toBe(
+    expect((await task()).status).toBe("in_progress");
+    expect((await task()).verification_evidence).toBe(
       "stopped: waiting on the call",
     );
-    expect(tables.session_decisions[0].status).toBe("pending");
+    expect((await decision()).status).toBe("pending");
   });
 
   test("a person on the board moves past the hold; the decision stays open and a note names it", async () => {
-    const { ctx, tables } = await makeCtx();
-    await boardMove(ctx);
-    expect(tables.tasks[0].status).toBe("in_progress");
-    expect(tables.session_decisions[0].status).toBe("pending");
-    const note = tables.task_comments.find(
-      (c: any) => c.comment_type === "note",
-    );
+    const { owner, task, decision, comments, boardMove } = await setup();
+    await boardMove();
+    expect((await task()).status).toBe("in_progress");
+    expect((await decision()).status).toBe("pending");
+    const note = (await comments()).find((c) => c.comment_type === "note");
     expect(note?.text).toContain("sd-211");
     expect(note?.text).toContain("in_review");
-    expect(note?.author_user_id).toBe(OWNER);
+    expect(note?.author_user_id).toBe(owner);
   });
 
   test("a person at the CLI with no session is a person too: allowed, with the note", async () => {
-    const { ctx, tables } = await makeCtx();
-    await cliMove(ctx, undefined);
-    expect(tables.tasks[0].status).toBe("in_progress");
+    const { task, comments, cliMove } = await setup();
+    await cliMove(undefined);
+    expect((await task()).status).toBe("in_progress");
     expect(
-      tables.task_comments.some(
-        (c: any) => c.comment_type === "note" && c.text.includes("sd-211"),
+      (await comments()).some(
+        (c) => c.comment_type === "note" && c.text.includes("sd-211"),
       ),
     ).toBe(true);
   });
 
   test("answering releases the hold", async () => {
-    const { ctx, tables } = await makeCtx({}, [
-      decision({ status: "answered", answer_index: 0 }),
-    ]);
-    await cliMove(ctx, "hand");
-    expect(tables.tasks[0].status).toBe("in_progress");
-    expect(tables.task_comments).toHaveLength(0);
+    const { task, comments, cliMove } = await setup(
+      {},
+      { status: "answered", answer_index: 0 },
+    );
+    await cliMove("hand");
+    expect((await task()).status).toBe("in_progress");
+    expect(await comments()).toHaveLength(0);
   });
 
   test("a non blocking decision does not hold", async () => {
-    const { ctx, tables } = await makeCtx({}, [
-      decision({ blocking: false, default_option: 0 }),
-    ]);
-    await cliMove(ctx, "hand");
-    expect(tables.tasks[0].status).toBe("in_progress");
+    const { task, cliMove } = await setup(
+      {},
+      { blocking: false, default_option: 0 },
+    );
+    await cliMove("hand");
+    expect((await task()).status).toBe("in_progress");
   });
 
   test("a decision at another station does not hold", async () => {
-    const { ctx, tables } = await makeCtx({}, [
-      decision({ station: "in_progress" }),
-    ]);
-    await cliMove(ctx, "hand");
-    expect(tables.tasks[0].status).toBe("in_progress");
+    const { task, cliMove } = await setup({}, { station: "in_progress" });
+    await cliMove("hand");
+    expect((await task()).status).toBe("in_progress");
   });
 
   test("the station is the team status id when the task carries one", async () => {
-    const { ctx, tables } = await makeCtx({ status_id: "qa" }, [
-      decision({ station: "qa" }),
-    ]);
-    await expect(cliMove(ctx, "hand")).rejects.toThrow(/Held at qa by sd-211/);
-    expect(tables.tasks[0].status).toBe("in_review");
+    const { task, cliMove } = await setup(
+      { status_id: "qa" },
+      { station: "qa" },
+    );
+    await expect(cliMove("hand")).rejects.toThrow(/Held at qa by sd-211/);
+    expect((await task()).status).toBe("in_review");
   });
 
   test("a write that does not move the status is not held", async () => {
-    const { ctx, tables } = await makeCtx();
-    await cliMove(ctx, "hand", { status: undefined, title: "renamed" });
-    expect(tables.tasks[0].title).toBe("renamed");
+    const { t, task, cliMove } = await setup();
+    await cliMove("hand", { status: undefined, title: "renamed" });
+    const saved = await task();
+    expect(saved.title).toBe("renamed");
     expect(
-      await holdingDecisionFor(ctx, tables.tasks[0], "in_review"),
+      await t.run((ctx) => holdingDecisionFor(ctx, saved, "in_review")),
     ).toBeNull();
     expect(
-      await holdingDecisionFor(ctx, tables.tasks[0], undefined),
+      await t.run((ctx) => holdingDecisionFor(ctx, saved, undefined)),
     ).toBeNull();
   });
 });

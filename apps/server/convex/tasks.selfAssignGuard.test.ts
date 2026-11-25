@@ -3,115 +3,82 @@
 // before this guard every agent claim notified the owner that they assigned
 // themselves and enrolled them as assignee. webUpdate already had the guard;
 // update mirrors it.
-import { describe, expect, test } from "bun:test";
-import { makeFakeDb } from "./testDb";
-import { update } from "./tasks";
-import { hashToken } from "./apiTokens";
+import { describe, expect, spyOn, test } from "bun:test";
+import { taskTest } from "../test-helpers/tasks.testkit";
+import { api } from "./_generated/api";
+import { emit, type emitNotification } from "./notificationRouter";
 
-const OWNER = "users_owner";
-const BOB = "users_bob";
 const TOKEN = "self-assign-token";
 
-async function makeCtx(tasks: any[]) {
-  const tables: Record<string, any[]> = {
-    users: [
-      { _id: OWNER, name: "Owner", github_username: "owner" },
-      { _id: BOB, name: "Bob", github_username: "bob" },
-    ],
-    api_tokens: [
-      { _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) },
-    ],
-    tasks,
-    task_history: [],
-    entity_subscriptions: [],
-    conversations: [
-      {
-        _id: "conversations_1",
-        session_id: "sess-1",
-        user_id: OWNER,
-        status: "active",
-      },
-    ],
+async function setup() {
+  const world = await taskTest("self assignment", TOKEN, [
+    { short_id: "ct-1", source: "agent" },
+  ]);
+  const [task] = world.taskIds;
+  return {
+    ...world,
+    readTask: () => world.t.run(async ({ db }) => (await db.get(task))!),
+    assignments: async () =>
+      (
+        await world.t.run(({ db }) => db.query("notifications").collect())
+      ).filter((n) => n.type === "task_assigned"),
   };
-  const emitted: any[] = [];
-  const subscribed: any[] = [];
-  const db = makeFakeDb(tables);
-  // Snapshot semantics: replace the row on patch so pre-patch reads stay stale.
-  const patchInPlace = db.patch;
-  db.patch = async (id: any, patch: any) => {
-    for (const rows of Object.values(tables)) {
-      const i = rows.findIndex((r: any) => String(r._id) === String(id));
-      if (i >= 0) rows[i] = { ...rows[i] };
-    }
-    return patchInPlace(id, patch);
-  };
-  const ctx = {
-    auth: {
-      async getUserIdentity() {
-        return null;
-      },
-    },
-    db,
-    scheduler: { runAfter: async () => null },
-    async runMutation(_ref: unknown, args: any) {
-      if (args && typeof args === "object") {
-        if ("event_type" in args) emitted.push(args);
-        if ("reason" in args) subscribed.push(args);
-      }
-      return null;
-    },
-  } as any;
-  return { ctx, tables, emitted, subscribed };
 }
-
-const task = () => ({
-  _id: "tasks_1",
-  short_id: "ct-1",
-  title: "ct-1",
-  user_id: OWNER,
-  status: "open",
-  source: "agent",
-});
-const assigned = (emitted: any[]) =>
-  emitted.filter((e) => e.event_type === "task_assigned");
 
 describe("tasks.update self-assign guard", () => {
   test("assignee 'me' resolves to the actor: no task_assigned, no assignee enrollment", async () => {
-    const { ctx, tables, emitted, subscribed } = await makeCtx([task()]);
-    await (update as any)._handler(ctx, {
-      api_token: TOKEN,
-      short_id: "ct-1",
-      status: "in_progress",
-      assignee: "me",
-    });
-    expect(tables.tasks[0].assignee).toBe(OWNER);
-    expect(assigned(emitted)).toEqual([]);
-    expect(subscribed.filter((s) => s.reason === "assignee")).toEqual([]);
+    const { t, owner, readTask, assignments, subscriptions } = await setup();
+    const route = emit as typeof emit & { _handler: typeof emitNotification };
+    const routed = spyOn(route, "_handler");
+    try {
+      await t.mutation(api.tasks.update, {
+        api_token: TOKEN,
+        short_id: "ct-1",
+        status: "in_progress",
+        assignee: "me",
+      });
+      expect(
+        routed.mock.calls.filter(
+          ([, args]) => args.event_type === "task_assigned",
+        ),
+      ).toEqual([]);
+    } finally {
+      routed.mockRestore();
+    }
+    expect((await readTask()).assignee).toBe(owner);
+    expect(await assignments()).toEqual([]);
+    expect(
+      (await subscriptions()).filter((s) => s.reason === "assignee"),
+    ).toEqual([]);
   });
 
   test("assigning someone else still notifies and enrolls them", async () => {
-    const { ctx, emitted, subscribed } = await makeCtx([task()]);
-    await (update as any)._handler(ctx, {
+    const { t, bob, assignments, subscriptions } = await setup();
+    await t.mutation(api.tasks.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       assignee: "bob",
     });
-    expect(assigned(emitted).map((e) => e.direct_recipient_id)).toEqual([BOB]);
+    expect((await assignments()).map((e) => e.recipient_user_id)).toEqual([
+      bob,
+    ]);
     expect(
-      subscribed.filter((s) => s.reason === "assignee").map((s) => s.user_id),
-    ).toEqual([BOB]);
+      (await subscriptions())
+        .filter((s) => s.reason === "assignee")
+        .map((s) => s.user_id),
+    ).toEqual([bob]);
   });
 
   test("an agent claim (session binding, no assignee) leaves assignee unset", async () => {
-    const { ctx, tables, emitted } = await makeCtx([task()]);
-    await (update as any)._handler(ctx, {
+    const { t, readTask, assignments } = await setup();
+    await t.mutation(api.tasks.update, {
       api_token: TOKEN,
       short_id: "ct-1",
       status: "in_progress",
       conversation_id: "sess-1",
     });
-    expect(tables.tasks[0].status).toBe("in_progress");
-    expect(tables.tasks[0].assignee).toBeUndefined();
-    expect(assigned(emitted)).toEqual([]);
+    expect((await readTask()).status).toBe("in_progress");
+    expect((await readTask()).assignee).toBeUndefined();
+    expect(await assignments()).toEqual([]);
   });
 });

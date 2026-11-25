@@ -13,12 +13,14 @@
 // judged on its own without letting a machine hovering at the bar re-alert
 // every other tick.
 import { describe, expect, test } from "bun:test";
+import { serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
+import { internal } from "./_generated/api";
 import {
   shouldNotifyDeviceFreeze,
   FREEZE_NOTIFY_COOLDOWN_MS,
   FREEZE_RENOTIFY_MS,
   LOOP_FREEZE_ALERT_MS,
-  checkDeviceLoopFreeze,
 } from "./daemonLogs";
 
 const NOW = 1_700_000_000_000;
@@ -109,199 +111,134 @@ describe("shouldNotifyDeviceFreeze", () => {
   });
 });
 
-// Hand-rolled ctx in the style of artifacts.test.ts: enough db surface for the
-// handler, recording the sub-mutation calls and the order of writes.
-function makeCtx(
-  rows: Array<Record<string, any>>,
-  emitResult: { notified: number } = { notified: 1 },
-) {
-  const calls: Array<{ fn: any; args: Record<string, any> }> = [];
-  const writes: string[] = [];
-  const query = (table: string) => {
-    let filtered = rows.filter((r) => r._table === table);
-    return {
-      withIndex(_name: string, cb: (q: any) => any) {
-        const eqs: Record<string, any> = {};
-        const gtes: Record<string, any> = {};
-        const q = {
-          eq(field: string, value: any) {
-            eqs[field] = value;
-            return q;
-          },
-          gte(field: string, value: any) {
-            gtes[field] = value;
-            return q;
-          },
-        };
-        cb(q);
-        filtered = filtered.filter(
-          (r) =>
-            Object.entries(eqs).every(([k, v]) => r[k] === v) &&
-            Object.entries(gtes).every(
-              ([k, v]) => (r[k] ?? 0) >= (v as number),
-            ),
-        );
-        return {
-          collect: async () => filtered,
-          unique: async () => filtered[0] ?? null,
-        };
-      },
-    };
-  };
+async function setup(fields: Partial<NewRow<"devices">> = {}, muted = false) {
+  const t = serverTest();
+  const ids = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "daemon loop freeze");
+    const user = await rows.user({
+      last_heartbeat: Date.now(),
+      notification_preferences: muted
+        ? {
+            team_session_start: true,
+            mention: true,
+            permission_request: true,
+            machine_alerts: false,
+          }
+        : undefined,
+    });
+    const device = await rows.device(user, {
+      label: "Ashots MacBook",
+      last_seen: Date.now(),
+      loop_freeze_1h_ms: 215_000,
+      loop_freeze_max_ms: 42_000,
+      loop_freeze_top: "walk@recursiveWatcher.ts:138 60%",
+      ...fields,
+    });
+    return { user, device };
+  });
   return {
-    ctx: {
-      db: {
-        query,
-        get: async (id: string) => rows.find((r) => r._id === id) ?? null,
-        patch: async (id: string, patch: Record<string, any>) => {
-          writes.push(`patch:${id}`);
-          Object.assign(
-            rows.find((r) => r._id === id)!,
-            patch,
-          );
-        },
-        insert: async () => "x",
-      },
-      runMutation: async (fn: any, args: Record<string, any>) => {
-        writes.push("emit");
-        calls.push({ fn, args });
-        return emitResult;
-      },
-    } as any,
-    calls,
-    writes,
+    user: ids.user,
+    check: () => t.mutation(internal.daemonLogs.checkDeviceLoopFreeze, {}),
+    device: () => t.run(async ({ db }) => (await db.get(ids.device))!),
+    patch: (fields: Partial<NewRow<"devices">>) =>
+      t.run(({ db }) => db.patch(ids.device, fields)),
+    notes: () => t.run(({ db }) => db.query("notifications").collect()),
   };
 }
 
 describe("checkDeviceLoopFreeze", () => {
-  const handler =
-    (checkDeviceLoopFreeze as any)._handler ??
-    (checkDeviceLoopFreeze as any).handler;
-
-  function fixture(): Array<Record<string, any>> {
-    return [
-      { _table: "users", _id: "u1", last_heartbeat: Date.now() },
-      {
-        _table: "devices",
-        _id: "d1",
-        user_id: "u1",
-        label: "Ashots MacBook",
-        platform: "darwin",
-        last_seen: Date.now(),
-        loop_freeze_1h_ms: 215_000,
-        loop_freeze_max_ms: 42_000,
-        loop_freeze_top: "walk@recursiveWatcher.ts:138 60%",
-      },
-    ];
-  }
-
-  test("alerts once across two consecutive ticks, stamping before it delivers", async () => {
-    const rows = fixture();
-    const { ctx, calls, writes } = makeCtx(rows);
-    const first = await handler(ctx, {});
-    expect(first.notified).toBe(1);
-    // The stamp lands BEFORE the emit, so a racing tick cannot double-push.
-    expect(writes).toEqual(["patch:d1", "emit"]);
-    expect(rows[1].freeze_notify_state.last_hour_ms).toBe(215_000);
-
-    const second = await handler(ctx, {});
-    expect(second.notified).toBe(0);
-    expect(calls).toHaveLength(1);
+  test("alerts once when called twice and persists the stamp", async () => {
+    const { check, device, notes } = await setup();
+    const results = await Promise.all([check(), check()]);
+    expect(results.map((r) => r.notified).sort()).toEqual([0, 1]);
+    expect((await device()).freeze_notify_state?.last_hour_ms).toBe(215_000);
+    expect(await notes()).toHaveLength(1);
   });
 
   test("the notification names the machine, the hour, the worst freeze and the cause", async () => {
-    const { ctx, calls } = makeCtx(fixture());
-    await handler(ctx, {});
-    const args = calls[0].args;
-    expect(args.event_type).toBe("daemon_overloaded");
-    expect(args.entity_type).toBe("device");
-    expect(args.direct_recipient_id).toBe("u1");
-    expect(args.actor_name).toBe("Ashots MacBook");
-    // No `link`: the bell opens that field in a new tab, and a device routes
-    // in-app through its entity type instead.
-    expect(args.link).toBeUndefined();
-    expect(args.message).toContain("215s in the last hour");
-    expect(args.message).toContain("42s");
-    expect(args.message).toContain("walk@recursiveWatcher.ts:138");
+    const { check, notes, user } = await setup();
+    await check();
+    const [note] = await notes();
+    expect(note.type).toBe("daemon_overloaded");
+    expect(note.entity_type).toBe("device");
+    expect(note.recipient_user_id).toBe(user);
+    expect(note.actor_name).toBe("Ashots MacBook");
+    expect(note.link).toBeUndefined();
+    expect(note.message).toContain("215s in the last hour");
+    expect(note.message).toContain("42s");
+    expect(note.message).toContain("walk@recursiveWatcher.ts:138");
   });
 
   test("a machine that recovers alerts again on its next, smaller incident", async () => {
-    const rows = fixture();
-    const { ctx, calls } = makeCtx(rows);
-    expect((await handler(ctx, {})).notified).toBe(1);
+    const { check, device, notes, patch } = await setup();
+    expect((await check()).notified).toBe(1);
 
-    // The incident ends: the freezes roll out of the trailing hour. Inside the
-    // cooldown the stamp holds, so the dip alone cannot reset the debounce.
-    rows[1].loop_freeze_1h_ms = 60_000;
-    expect((await handler(ctx, {})).notified).toBe(0);
-    expect(rows[1].freeze_notify_state).toBeDefined();
+    await patch({ loop_freeze_1h_ms: 60_000 });
+    expect((await check()).notified).toBe(0);
+    const stamp = (await device()).freeze_notify_state;
+    expect(stamp).toBeDefined();
 
-    // Quiet past the cooldown: now the stamp is dropped and the next incident
-    // is judged on its own.
-    rows[1].freeze_notify_state.last_notified_at =
-      Date.now() - FREEZE_NOTIFY_COOLDOWN_MS - 1;
-    expect((await handler(ctx, {})).notified).toBe(0);
-    expect(rows[1].freeze_notify_state).toBeUndefined();
+    await patch({
+      freeze_notify_state: {
+        ...stamp!,
+        last_notified_at: Date.now() - FREEZE_NOTIFY_COOLDOWN_MS - 1,
+      },
+    });
+    expect((await check()).notified).toBe(0);
+    expect((await device()).freeze_notify_state).toBeUndefined();
 
-    // A new incident, smaller than the first but still past the bar.
-    rows[1].loop_freeze_1h_ms = 150_000;
-    expect((await handler(ctx, {})).notified).toBe(1);
-    expect(calls).toHaveLength(2);
-    expect(calls[1].args.message).toContain("150s in the last hour");
+    await patch({ loop_freeze_1h_ms: 150_000 });
+    expect((await check()).notified).toBe(1);
+    const delivered = await notes();
+    expect(delivered).toHaveLength(2);
+    expect(delivered[1].message).toContain("150s in the last hour");
   });
 
   test("a machine hovering at the bar is announced once, not every other tick", async () => {
-    const rows = fixture();
-    const { ctx, calls } = makeCtx(rows);
-    expect((await handler(ctx, {})).notified).toBe(1);
+    const { check, notes, patch } = await setup();
+    expect((await check()).notified).toBe(1);
 
-    // Five minutes of crossing the bar and falling back under it. Every one of
-    // these ticks is inside the cooldown, so none of them may announce again.
     for (const hour of [60_000, 215_000, 90_000, 230_000, 100_000, 215_000]) {
-      rows[1].loop_freeze_1h_ms = hour;
-      expect((await handler(ctx, {})).notified).toBe(0);
+      await patch({ loop_freeze_1h_ms: hour });
+      expect((await check()).notified).toBe(0);
     }
-    expect(calls).toHaveLength(1);
+    expect(await notes()).toHaveLength(1);
   });
 
-  // The founder's laptop again, at the handler level: past the bar on every
-  // tick, never beating its own peak. The count is what the cron returns, so a
-  // machine going silent here is a machine the SLO stopped watching.
   test("a machine that stays over the bar for days keeps being reported", async () => {
-    const rows = fixture();
-    rows[1].loop_freeze_1h_ms = 400_000;
-    const { ctx, calls } = makeCtx(rows);
-    expect((await handler(ctx, {})).notified).toBe(1);
+    const { check, device, notes, patch } = await setup({
+      loop_freeze_1h_ms: 400_000,
+    });
+    expect((await check()).notified).toBe(1);
 
-    // Every later hour is over the bar and under that first peak.
-    rows[1].loop_freeze_1h_ms = 300_000;
-    expect((await handler(ctx, {})).notified).toBe(0);
+    await patch({ loop_freeze_1h_ms: 300_000 });
+    expect((await check()).notified).toBe(0);
 
-    // A few hours later the same breach is news again, and the stamp follows
-    // the number down so the next comparison is against what we just said.
-    rows[1].freeze_notify_state.last_notified_at =
-      Date.now() - FREEZE_RENOTIFY_MS - 1;
-    expect((await handler(ctx, {})).notified).toBe(1);
-    expect(rows[1].freeze_notify_state.last_hour_ms).toBe(300_000);
-    expect(calls).toHaveLength(2);
-    expect(calls[1].args.message).toContain("300s in the last hour");
+    const stamp = (await device()).freeze_notify_state!;
+    await patch({
+      freeze_notify_state: {
+        ...stamp,
+        last_notified_at: Date.now() - FREEZE_RENOTIFY_MS - 1,
+      },
+    });
+    expect((await check()).notified).toBe(1);
+    expect((await device()).freeze_notify_state?.last_hour_ms).toBe(300_000);
+    const delivered = await notes();
+    expect(delivered).toHaveLength(2);
+    expect(delivered[1].message).toContain("300s in the last hour");
   });
 
-  // notificationRouter.emit drops the row when the recipient muted the
-  // preference this event maps to. The cron reports deliveries, so it must
-  // count what the router wrote, not what it tried to write.
   test("a muted recipient is not counted as notified", async () => {
-    const { ctx } = makeCtx(fixture(), { notified: 0 });
-    expect((await handler(ctx, {})).notified).toBe(0);
+    const { check, notes } = await setup({}, true);
+    expect((await check()).notified).toBe(0);
+    expect(await notes()).toEqual([]);
   });
 
   test("a machine that is offline or under the bar is never alerted on", async () => {
-    const quiet = fixture();
-    quiet[1].loop_freeze_1h_ms = 30_000;
-    expect((await handler(makeCtx(quiet).ctx, {})).notified).toBe(0);
+    const quiet = await setup({ loop_freeze_1h_ms: 30_000 });
+    expect((await quiet.check()).notified).toBe(0);
 
-    const gone = fixture();
-    gone[1].last_seen = Date.now() - 10 * 60_000;
-    expect((await handler(makeCtx(gone).ctx, {})).notified).toBe(0);
+    const gone = await setup({ last_seen: Date.now() - 10 * 60_000 });
+    expect((await gone.check()).notified).toBe(0);
   });
 });

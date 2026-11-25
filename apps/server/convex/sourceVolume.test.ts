@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
+import type { Doc } from "./_generated/dataModel";
 import {
   countLanded,
   patchSourceStats,
@@ -80,33 +83,62 @@ describe("mergeVolume", () => {
 });
 
 describe("patchSourceStats keeps today's day equal to today's hours", () => {
-  // A stats table of one row, as patchSourceStats reads and writes it.
-  function fakeCtx(row: Record<string, unknown> | null) {
-    const state = { row };
-    const db = {
-      query: () => ({ withIndex: () => ({ first: async () => state.row }) }),
-      patch: async (_id: unknown, next: Record<string, unknown>) =>
-        void (state.row = { ...state.row, ...next }),
-      insert: async (_t: string, doc: Record<string, unknown>) =>
-        void (state.row = { _id: "stats", ...doc }),
+  async function setup(fields?: Partial<NewRow<"event_source_stats">>) {
+    const t = serverTest();
+    const sourceId = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "source volume");
+      const user = await rows.user();
+      const workspace = `user:${user}`;
+      const source_id = await db.insert("event_sources", {
+        workspace,
+        owner_user_id: user,
+        short_id: "src-1",
+        provider: "sdk",
+        promote: [],
+        status: "active",
+        name: "Events",
+        created_at: NOW,
+        updated_at: NOW,
+      });
+      if (fields)
+        await db.insert("event_source_stats", {
+          source_id,
+          workspace,
+          ...fields,
+        });
+      return source_id;
+    });
+
+    return {
+      patch: (update: Parameters<typeof patchSourceStats>[2], at: number) =>
+        t.run(async (ctx) =>
+          patchSourceStats(ctx, (await ctx.db.get(sourceId))!, update, at),
+        ),
+      read: () =>
+        t.run(
+          async ({ db }) =>
+            (await db
+              .query("event_source_stats")
+              .withIndex("by_source", (q) => q.eq("source_id", sourceId))
+              .unique())!,
+        ),
     };
-    return { ctx: { db }, state };
   }
-  const source = { _id: "src", workspace: "team:t" } as any;
-  const todayOf = (row: any, now: number) => {
+
+  const todayOf = (row: Doc<"event_source_stats">, now: number) => {
     const day = new Date(now).toISOString().slice(0, 10);
     const start = Date.parse(`${day}T00:00:00Z`);
     return {
-      day: (row.days ?? []).find((d: any) => d.day === day)?.events ?? 0,
+      day: (row.days ?? []).find((d) => d.day === day)?.events ?? 0,
       hours: (row.hours ?? []).reduce(
-        (n: number, h: any) => (h.hour >= start ? n + h.events : n),
+        (n, h) => (h.hour >= start ? n + h.events : n),
         0,
       ),
     };
   };
 
   test("batches across a day boundary", async () => {
-    const { ctx, state } = fakeCtx(null);
+    const { patch, read } = await setup();
     const t0 = Date.parse("2026-11-03T22:10:00Z");
     for (const [at, n] of [
       [t0, 3],
@@ -115,34 +147,23 @@ describe("patchSourceStats keeps today's day equal to today's hours", () => {
       [t0 + 3 * H, 6],
       [t0 + 3 * H + 60_000, 2],
     ] as const) {
-      await patchSourceStats(
-        ctx,
-        source,
-        (s) => ({ events_today: (s.events_today ?? 0) + n }),
-        at,
-      );
-      const t = todayOf(state.row, at);
+      await patch((s) => ({ events_today: (s.events_today ?? 0) + n }), at);
+      const t = todayOf(await read(), at);
       expect(t.day).toBe(t.hours);
     }
     // Nov 4 holds 5 + 6 + 2, not only the last batch.
-    expect(todayOf(state.row, t0 + 3 * H).day).toBe(13);
-    expect((state.row as any).counters_day).toBe("2026-11-04");
+    expect(todayOf(await read(), t0 + 3 * H).day).toBe(13);
+    expect((await read()).counters_day).toBe("2026-11-04");
   });
 
   test("a poll that moves no count still writes the roll", async () => {
-    const { ctx, state } = fakeCtx({
-      _id: "stats",
+    const { patch, read } = await setup({
       counters_day: "2026-11-03",
       events_today: 40,
     });
-    await patchSourceStats(
-      ctx,
-      source,
-      () => ({ last_poll_at: NOW + D }),
-      NOW + D,
-    );
-    expect((state.row as any).counters_day).toBe("2026-11-04");
-    expect((state.row as any).events_today).toBe(0);
+    await patch(() => ({ last_poll_at: NOW + D }), NOW + D);
+    expect((await read()).counters_day).toBe("2026-11-04");
+    expect((await read()).events_today).toBe(0);
   });
 
   test("a row whose roll was never written heals from its hours", async () => {
@@ -152,19 +173,13 @@ describe("patchSourceStats keeps today's day equal to today's hours", () => {
       { hour: Date.parse("2026-11-04T01:00:00Z"), events: 114 },
       { hour: Date.parse("2026-11-04T02:00:00Z"), events: 172 },
     ];
-    const { ctx, state } = fakeCtx({
-      _id: "stats",
+    const { patch, read } = await setup({
       counters_day: "2026-10-04",
       events_today: 2,
       days: [{ day: "2026-11-04", events: 2, dropped: 0 }],
       hours,
     });
-    await patchSourceStats(
-      ctx,
-      source,
-      (s) => ({ events_today: (s.events_today ?? 0) + 4 }),
-      at,
-    );
-    expect(todayOf(state.row, at)).toEqual({ day: 290, hours: 290 });
+    await patch((s) => ({ events_today: (s.events_today ?? 0) + 4 }), at);
+    expect(todayOf(await read(), at)).toEqual({ day: 290, hours: 290 });
   });
 });

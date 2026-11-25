@@ -3,134 +3,124 @@
 // that has one or that an active initiative carries. Other workspaces, closed
 // initiatives and charterless side projects stay out.
 import { describe, expect, test } from "bun:test";
-import { makeFakeDb } from "./testDb";
-import { brief } from "./goals";
-import { hashToken } from "./apiTokens";
+import { serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
+import { api } from "./_generated/api";
 
-const OWNER = "users_owner";
 const TOKEN = "goals-token";
-const WS = `user:${OWNER}`;
 
-async function makeCtx() {
-  const tables: Record<string, any[]> = {
-    users: [
-      { _id: OWNER, name: "Owner" },
-      { _id: "users_other", name: "Other" },
-    ],
-    api_tokens: [
-      { _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) },
-    ],
-    org_roles: [{ _id: "org_roles_1", handle: "growth" }],
-    projects: [
-      {
-        _id: "projects_a",
-        short_id: "pj-a",
-        user_id: OWNER,
-        workspace: WS,
-        title: "Onboarding",
+async function setup() {
+  const t = serverTest();
+  const workspace = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "goals brief");
+    const owner = await rows.user();
+    const other = await rows.user();
+    const workspace = `user:${owner}`;
+    await rows.token(owner, TOKEN);
+    const role = await rows.role(owner, { handle: "growth" });
+
+    const addProject = (
+      fields: Pick<NewRow<"projects">, "short_id" | "title"> &
+        Partial<NewRow<"projects">>,
+    ) =>
+      db.insert("projects", {
+        user_id: owner,
+        workspace,
         status: "active",
-        goal: "Day one agent run",
-        priority: "p1",
-        owner_role_id: "org_roles_1",
-      },
-      {
-        _id: "projects_b",
-        short_id: "pj-b",
-        user_id: OWNER,
-        workspace: WS,
-        title: "Carried",
-        status: "planning",
-      },
-      {
-        _id: "projects_c",
-        short_id: "pj-c",
-        user_id: OWNER,
-        workspace: WS,
-        title: "Side",
-        status: "active",
-      },
-      {
-        _id: "projects_d",
-        short_id: "pj-d",
-        user_id: OWNER,
-        workspace: WS,
-        title: "Shipped",
-        status: "done",
-        goal: "Old",
-      },
-      {
-        _id: "projects_x",
-        short_id: "pj-x",
-        user_id: "users_other",
-        workspace: "user:users_other",
-        title: "Theirs",
-        status: "active",
-        goal: "Hidden",
-      },
-    ],
-    initiatives: [
-      {
-        _id: "initiatives_1",
-        short_id: "in-1",
-        user_id: OWNER,
-        workspace: WS,
-        title: "Retention",
-        status: "active",
-        health: "at_risk",
-        priority: "p0",
-        owner: { kind: "role", role_id: "org_roles_1" },
-        project_ids: ["projects_a", "projects_b"],
-        metrics: [{ key: "w4", name: "Week 4", target: "40%" }],
-        scoreboard: { w4: { value: "31%", observed_at: 1, source: "posthog" } },
-      },
-      {
-        _id: "initiatives_2",
-        short_id: "in-2",
-        user_id: OWNER,
-        workspace: WS,
-        title: "Done",
-        status: "completed",
-        health: "none",
-        project_ids: [],
-      },
-      {
-        _id: "initiatives_3",
-        short_id: "in-3",
-        user_id: "users_other",
-        workspace: "user:users_other",
-        title: "Theirs",
+        created_at: 1,
+        updated_at: 1,
+        ...fields,
+      });
+    const onboarding = await addProject({
+      short_id: "pj-a",
+      title: "Onboarding",
+      goal: "Day one agent run",
+      priority: "p1",
+      owner_role_id: role,
+    });
+    const carried = await addProject({
+      short_id: "pj-b",
+      title: "Carried",
+      status: "planning",
+    });
+    await addProject({ short_id: "pj-c", title: "Side" });
+    await addProject({
+      short_id: "pj-d",
+      title: "Shipped",
+      status: "done",
+      goal: "Old",
+    });
+    await addProject({
+      short_id: "pj-x",
+      title: "Theirs",
+      goal: "Hidden",
+      user_id: other,
+      workspace: `user:${other}`,
+    });
+
+    const addInitiative = (
+      fields: Pick<NewRow<"initiatives">, "short_id" | "title"> &
+        Partial<NewRow<"initiatives">>,
+    ) =>
+      db.insert("initiatives", {
+        user_id: owner,
+        workspace,
         status: "active",
         health: "none",
         project_ids: [],
-      },
-    ],
-  };
+        created_at: 1,
+        updated_at: 1,
+        ...fields,
+      });
+    await addInitiative({
+      short_id: "in-1",
+      title: "Retention",
+      health: "at_risk",
+      priority: "p0",
+      owner: { kind: "role", role_id: role },
+      project_ids: [onboarding, carried],
+      metrics: [{ key: "w4", name: "Week 4", target: "40%" }],
+      scoreboard: { w4: { value: "31%", observed_at: 1, source: "posthog" } },
+    });
+    await addInitiative({
+      short_id: "in-2",
+      title: "Done",
+      status: "completed",
+    });
+    await addInitiative({
+      short_id: "in-3",
+      title: "Theirs",
+      user_id: other,
+      workspace: `user:${other}`,
+    });
+    return workspace;
+  });
+
   return {
-    auth: {
-      async getUserIdentity() {
-        return null;
-      },
-    },
-    db: makeFakeDb(tables),
-  } as any;
+    workspace,
+    brief: (project?: string) =>
+      t.query(api.goals.brief, {
+        api_token: TOKEN,
+        workspace: "personal",
+        project,
+      }),
+  };
 }
 
 describe("goals.brief", () => {
   test("the caller's workspace: active initiatives and live charters", async () => {
-    const out = await (brief as any)._handler(await makeCtx(), {
-      api_token: TOKEN,
-      workspace: "personal",
-    });
-    expect(out.workspace).toBe(WS);
+    const { brief, workspace } = await setup();
+    const out = await brief();
+    expect(out.workspace).toBe(workspace);
+    expect(out.initiatives[0].target_date).toBeUndefined();
+    expect(out.initiatives[0].description).toBeUndefined();
     expect(out.initiatives).toEqual([
       {
         short_id: "in-1",
         title: "Retention",
         priority: "p0",
         owner: "@growth",
-        target_date: undefined,
         health: "at_risk",
-        description: undefined,
         metrics: [{ key: "w4", name: "Week 4", target: "40%" }],
         scoreboard: { w4: { value: "31%", observed_at: 1, source: "posthog" } },
         project_short_ids: ["pj-a", "pj-b"],
@@ -138,11 +128,11 @@ describe("goals.brief", () => {
         read_at: [{ ref: "in-1:w4", name: "Week 4", detects: null }],
       },
     ]);
-    expect(out.projects.map((p: any) => p.short_id).sort()).toEqual([
+    expect(out.projects.map((p) => p.short_id).sort()).toEqual([
       "pj-a",
       "pj-b",
     ]);
-    expect(out.projects.find((p: any) => p.short_id === "pj-a")).toMatchObject({
+    expect(out.projects.find((p) => p.short_id === "pj-a")).toMatchObject({
       goal: "Day one agent run",
       priority: "p1",
       owner_role: "@growth",
@@ -150,27 +140,14 @@ describe("goals.brief", () => {
   });
 
   test("one project (LP1): its charter and the initiatives that carry it, nothing else", async () => {
-    const out = await (brief as any)._handler(await makeCtx(), {
-      api_token: TOKEN,
-      workspace: "personal",
-      project: "Carried",
-    });
+    const { brief } = await setup();
+    const out = await brief("Carried");
     expect(out.project_title).toBe("Carried");
-    expect(out.projects.map((p: any) => p.short_id)).toEqual(["pj-b"]);
-    expect(out.initiatives.map((i: any) => i.short_id)).toEqual(["in-1"]);
-    const side = await (brief as any)._handler(await makeCtx(), {
-      api_token: TOKEN,
-      workspace: "personal",
-      project: "pj-c",
-    });
-    expect(side.projects.map((p: any) => p.short_id)).toEqual(["pj-c"]);
+    expect(out.projects.map((p) => p.short_id)).toEqual(["pj-b"]);
+    expect(out.initiatives.map((i) => i.short_id)).toEqual(["in-1"]);
+    const side = await brief("pj-c");
+    expect(side.projects.map((p) => p.short_id)).toEqual(["pj-c"]);
     expect(side.initiatives).toEqual([]);
-    await expect(
-      (brief as any)._handler(await makeCtx(), {
-        api_token: TOKEN,
-        workspace: "personal",
-        project: "Theirs",
-      }),
-    ).rejects.toThrow(/No project matching/);
+    await expect(brief("Theirs")).rejects.toThrow(/No project matching/);
   });
 });

@@ -1,55 +1,74 @@
 import { describe, expect, test } from "bun:test";
+import {
+  countDatabaseReads,
+  serverTest,
+} from "../test-helpers/database.testkit";
+import { fixtureRows } from "../test-helpers/rows.testkit";
 import { resolveSpawnParentId } from "./conversations";
-
-// A fake db that records whether the message-uuid lookup ran and answers it.
-function fakeCtx(parentMsg: { conversation_id: string } | null) {
-  const calls: string[] = [];
-  const ctx = {
-    db: {
-      query: (table: string) => {
-        calls.push(table);
-        return { withIndex: () => ({ first: async () => parentMsg }) };
-      },
-    },
-  } as any;
-  return { ctx, calls };
-}
 
 describe("resolveSpawnParentId", () => {
   test("stored parent wins without a lookup", async () => {
-    const { ctx, calls } = fakeCtx({ conversation_id: "other" });
-    expect(
-      await resolveSpawnParentId(ctx, {
-        parent_conversation_id: "stored" as any,
-      }),
-    ).toBe("stored");
-    expect(calls).toEqual([]);
+    await serverTest().run(async (ctx) => {
+      const rows = fixtureRows(ctx.db, "stored spawn parent");
+      const user = await rows.user();
+      const stored = await rows.conversation(user);
+      const other = await rows.conversation(user);
+      await rows.message(other, { message_uuid: "spawn-message" });
+      const { db, reads } = countDatabaseReads(ctx.db);
+      expect(
+        await resolveSpawnParentId(
+          { db },
+          {
+            parent_conversation_id: stored,
+            parent_message_uuid: "spawn-message",
+          },
+        ),
+      ).toBe(stored);
+      expect(reads).toEqual([]);
+    });
   });
 
   test("a subagent that only knows its spawning message resolves through it", async () => {
-    const { ctx, calls } = fakeCtx({ conversation_id: "spawner" });
-    expect(await resolveSpawnParentId(ctx, { parent_message_uuid: "u1" })).toBe(
-      "spawner",
-    );
-    expect(calls).toEqual(["messages"]);
+    await serverTest().run(async (ctx) => {
+      const rows = fixtureRows(ctx.db, "spawn message");
+      const user = await rows.user();
+      const other = await rows.conversation(user);
+      const spawner = await rows.conversation(user);
+      await rows.message(other);
+      await rows.message(spawner, { message_uuid: "spawn-message" });
+      const { db, reads } = countDatabaseReads(ctx.db);
+      expect(
+        await resolveSpawnParentId(
+          { db },
+          { parent_message_uuid: "spawn-message" },
+        ),
+      ).toBe(spawner);
+      expect(reads).toEqual(["messages"]);
+    });
   });
 
   test("a fork is not a spawned session: its fork point never resolves to a parent", async () => {
-    // Regression: forks carry parent_message_uuid (the fork point), and the
-    // lookup used to dress them as subagents — a "Spawned from parent session"
-    // banner and the fork point rendered as a message FROM the parent.
-    const { ctx, calls } = fakeCtx({ conversation_id: "origin" });
-    expect(
-      await resolveSpawnParentId(ctx, {
-        parent_message_uuid: "fork-point",
-        forked_from: "origin" as any,
-      }),
-    ).toBeNull();
-    expect(calls).toEqual([]);
+    await serverTest().run(async (ctx) => {
+      const rows = fixtureRows(ctx.db, "fork point");
+      const origin = await rows.conversation(await rows.user());
+      await rows.message(origin, { message_uuid: "fork-point" });
+      const { db, reads } = countDatabaseReads(ctx.db);
+      expect(
+        await resolveSpawnParentId(
+          { db },
+          {
+            parent_message_uuid: "fork-point",
+            forked_from: origin,
+          },
+        ),
+      ).toBeNull();
+      expect(reads).toEqual([]);
+    });
   });
 
   test("nothing to go on resolves to null", async () => {
-    const { ctx } = fakeCtx(null);
-    expect(await resolveSpawnParentId(ctx, {})).toBeNull();
+    await serverTest().run(async (ctx) => {
+      expect(await resolveSpawnParentId(ctx, {})).toBeNull();
+    });
   });
 });

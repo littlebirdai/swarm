@@ -8339,11 +8339,8 @@
   "apps/server/convex/artifacts.discussionForApp.test.ts": {
     "swarm/no-comments": 4
   },
-  "apps/server/convex/artifacts.listForWeb.test.ts": {
-    "swarm/no-comments": 6
-  },
   "apps/server/convex/artifacts.ownerUnlock.test.ts": {
-    "swarm/no-comments": 7
+    "swarm/no-comments": 5
   },
   "apps/server/convex/artifacts.teamGate.test.ts": {
     "swarm/no-comments": 22
@@ -9033,7 +9030,7 @@
     "swarm/no-comments": 49
   },
   "apps/server/convex/daemonLogs.loopFreeze.test.ts": {
-    "swarm/no-comments": 44
+    "swarm/no-comments": 23
   },
   "apps/server/convex/daemonLogs.ts": {
     "swarm/no-comments": 111
@@ -11327,9 +11324,6 @@
   "apps/server/convex/orgRoles.restart.test.ts": {
     "swarm/no-comments": 21
   },
-  "apps/server/convex/orgRoles.roleDocs.test.ts": {
-    "swarm/no-comments": 5
-  },
   "apps/server/convex/orgRoles.staff.test.ts": {
     "swarm/no-comments": 54
   },
@@ -11807,9 +11801,6 @@
   "apps/server/convex/reservedDevices.test.ts": {
     "swarm/no-comments": 3
   },
-  "apps/server/convex/resolveSpawnParentId.test.ts": {
-    "swarm/no-comments": 4
-  },
   "apps/server/convex/resolverParity.test.ts": {
     "swarm/no-comments": 4
   },
@@ -12150,7 +12141,7 @@
     "swarm/no-comments": 4
   },
   "apps/server/convex/sourceVolume.test.ts": {
-    "swarm/no-comments": 3
+    "swarm/no-comments": 2
   },
   "apps/server/convex/sourceVolume.ts": {
     "swarm/no-comments": 17
@@ -12306,7 +12297,7 @@
     "swarm/no-comments": 40
   },
   "apps/server/convex/taskFrontier.test.ts": {
-    "swarm/no-comments": 17
+    "swarm/no-comments": 11
   },
   "apps/server/convex/taskFrontier.ts": {
     "swarm/no-comments": 33
@@ -12342,7 +12333,7 @@
     "swarm/no-comments": 26
   },
   "apps/server/convex/tasks.assignHandoff.test.ts": {
-    "swarm/no-comments": 7
+    "swarm/no-comments": 6
   },
   "apps/server/convex/tasks.assignee.test.ts": {
     "swarm/no-comments": 10
@@ -12384,7 +12375,7 @@
     "swarm/no-comments": 12
   },
   "apps/server/convex/tasks.notificationNoise.test.ts": {
-    "swarm/no-comments": 5
+    "swarm/no-comments": 4
   },
   "apps/server/convex/tasks.predict.test.ts": {
     "swarm/no-comments": 4
@@ -12393,7 +12384,7 @@
     "swarm/no-comments": 3
   },
   "apps/server/convex/tasks.removeDep.test.ts": {
-    "swarm/no-comments": 7
+    "swarm/no-comments": 6
   },
   "apps/server/convex/tasks.roleAssignee.test.ts": {
     "swarm/no-comments": 48
@@ -12402,13 +12393,13 @@
     "swarm/no-comments": 3
   },
   "apps/server/convex/tasks.selfAssignGuard.test.ts": {
-    "swarm/no-comments": 6
+    "swarm/no-comments": 5
   },
   "apps/server/convex/tasks.sessionBackLink.test.ts": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 8
   },
   "apps/server/convex/tasks.subscriptionVia.test.ts": {
-    "swarm/no-comments": 9
+    "swarm/no-comments": 4
   },
   "apps/server/convex/tasks.subtasks.test.ts": {
     "swarm/no-comments": 20
@@ -12558,7 +12549,7 @@
     "swarm/no-comments": 7
   },
   "apps/server/convex/titleGeneration.test.ts": {
-    "swarm/no-comments": 39
+    "swarm/no-comments": 34
   },
   "apps/server/convex/titleGeneration.ts": {
     "swarm/no-comments": 128
@@ -12639,7 +12630,7 @@
     "swarm/no-comments": 3
   },
   "apps/server/convex/users.pathScan.test.ts": {
-    "swarm/no-comments": 16
+    "swarm/no-comments": 8
   },
   "apps/server/convex/users.profileActivity.access.test.ts": {
     "swarm/no-comments": 14

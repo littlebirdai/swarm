@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { convexTest } from "convex-test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { scheduledJobs, serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
 import { internal } from "./_generated/api";
-import schema from "./schema";
 import {
   captureFetch,
   goldenBody,
@@ -306,87 +306,63 @@ describe("subtitle-value refusal guard", () => {
 // it must schedule immediately for a fresh conversation but never twice within
 // the interval for the same one.
 describe("maybeScheduleTitleGeneration", () => {
-  const makeCtx = () => {
-    const calls: { patches: any[]; scheduled: any[] } = {
-      patches: [],
-      scheduled: [],
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+  });
+
+  async function setup(fields: Partial<NewRow<"conversations">> = {}) {
+    const t = serverTest();
+    const id = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "title scheduling");
+      return rows.conversation(await rows.user(), fields);
+    });
+    return {
+      run: (previous: number, next: number) =>
+        t.run(async (ctx) =>
+          maybeScheduleTitleGeneration(
+            ctx,
+            (await ctx.db.get(id))!,
+            previous,
+            next,
+          ),
+        ),
+      jobs: () => scheduledJobs(t, internal.titleGeneration.generateTitle),
+      read: () => t.run(({ db }) => db.get(id)),
+      update: (fields: Partial<NewRow<"conversations">>) =>
+        t.run(({ db }) => db.patch(id, fields)),
     };
-    const ctx = {
-      db: {
-        patch: async (id: any, p: any) => {
-          calls.patches.push({ id, ...p });
-        },
-      },
-      scheduler: {
-        runAfter: async (_d: any, _f: any, a: any) => {
-          calls.scheduled.push(a);
-        },
-      },
-    } as any;
-    return { ctx, calls };
-  };
-  const conv = (over: Record<string, unknown> = {}) =>
-    ({ _id: "c1", message_count: 0, ...over }) as any;
+  }
 
   test("first milestone on a fresh conversation schedules immediately", async () => {
-    const { ctx, calls } = makeCtx();
-    await maybeScheduleTitleGeneration(ctx, conv(), 1, 2);
-    expect(calls.scheduled.length).toBe(1);
-    expect(calls.patches[0].title_gen_scheduled_at).toBeGreaterThan(0);
+    const { run, jobs, read } = await setup();
+    await run(1, 2);
+    expect(await jobs()).toHaveLength(1);
+    expect((await read())?.title_gen_scheduled_at).toBeGreaterThan(0);
   });
 
   test("no-subtitle fallback fires without a milestone but respects the throttle", async () => {
-    const { ctx, calls } = makeCtx();
-    // 3 -> 4 crosses no milestone; subtitle missing => self-heal fires
-    await maybeScheduleTitleGeneration(ctx, conv(), 3, 4);
-    expect(calls.scheduled.length).toBe(1);
-    // same conversation, stamped moments ago => suppressed
-    const { ctx: ctx2, calls: calls2 } = makeCtx();
-    await maybeScheduleTitleGeneration(
-      ctx2,
-      conv({ title_gen_scheduled_at: Date.now() - 1000 }),
-      3,
-      4,
-    );
-    expect(calls2.scheduled.length).toBe(0);
-    // stamp older than the interval => fires again
-    const { ctx: ctx3, calls: calls3 } = makeCtx();
-    await maybeScheduleTitleGeneration(
-      ctx3,
-      conv({ title_gen_scheduled_at: Date.now() - 6 * 60 * 1000 }),
-      3,
-      4,
-    );
-    expect(calls3.scheduled.length).toBe(1);
+    const { run, jobs, update } = await setup();
+    await run(3, 4);
+    expect(await jobs()).toHaveLength(1);
+    await run(3, 4);
+    expect(await jobs()).toHaveLength(1);
+    await update({ title_gen_scheduled_at: Date.now() - 6 * 60 * 1000 });
+    await run(3, 4);
+    expect(await jobs()).toHaveLength(2);
   });
 
   test("batch spanning a milestone schedules; skip flag and subtitle-present quiet batches do not", async () => {
-    const { ctx, calls } = makeCtx();
-    // 21 -> 33 crosses the 30 milestone
-    await maybeScheduleTitleGeneration(
-      ctx,
-      conv({ subtitle: "- has one" }),
-      21,
-      33,
-    );
-    expect(calls.scheduled.length).toBe(1);
-    const { ctx: ctx2, calls: calls2 } = makeCtx();
-    await maybeScheduleTitleGeneration(
-      ctx2,
-      conv({ skip_title_generation: true }),
-      1,
-      2,
-    );
-    expect(calls2.scheduled.length).toBe(0);
-    // no milestone in (31, 33], subtitle exists => nothing to do
-    const { ctx: ctx3, calls: calls3 } = makeCtx();
-    await maybeScheduleTitleGeneration(
-      ctx3,
-      conv({ subtitle: "- has one" }),
-      31,
-      33,
-    );
-    expect(calls3.scheduled.length).toBe(0);
+    const milestone = await setup({ subtitle: "- has one" });
+    await milestone.run(21, 33);
+    expect(await milestone.jobs()).toHaveLength(1);
+    const skipped = await setup({ skip_title_generation: true });
+    await skipped.run(1, 2);
+    expect(await skipped.jobs()).toHaveLength(0);
+    const quiet = await setup({ subtitle: "- has one" });
+    await quiet.run(31, 33);
+    expect(await quiet.jobs()).toHaveLength(0);
   });
 });
 
@@ -403,7 +379,7 @@ type FixtureMessage = {
 };
 type TitleFixture = {
   name: string;
-  conversation: Record<string, unknown>;
+  conversation: Partial<NewRow<"conversations">>;
   messages: FixtureMessage[];
 };
 
@@ -556,19 +532,12 @@ function titleFixtures(): TitleFixture[] {
   return [fresh, titled, custom];
 }
 
-const titleModules = {
-  "./_generated/server.ts": () => import("./_generated/server"),
-  "./vendorCoverage.ts": () => import("./vendorCoverage"),
-  "./syncOutbox.ts": () => import("./syncOutbox"),
-  "./titleGeneration.ts": () => import("./titleGeneration"),
-};
-
 async function seedTitleFixture(fx: TitleFixture) {
-  const t = convexTest(schema, titleModules);
+  const t = serverTest();
   const ids = await t.run(async (ctx) => {
-    const user_id = await ctx.db.insert("users", { name: "Fixture" } as any);
-    const conversation_id = await ctx.db.insert("conversations", {
-      user_id,
+    const rows = fixtureRows(ctx.db, "title fixture");
+    const user_id = await rows.user({ name: "Fixture" });
+    const conversation_id = await rows.conversation(user_id, {
       agent_type: "claude_code",
       session_id: `s-${fx.name}`,
       started_at: T0,
@@ -576,11 +545,10 @@ async function seedTitleFixture(fx: TitleFixture) {
       is_private: true,
       status: "active",
       ...fx.conversation,
-    } as any);
+    });
     for (const m of fx.messages)
-      await ctx.db.insert("messages", { conversation_id, ...m } as any);
-    const task = await ctx.db.insert("tasks", {
-      user_id,
+      await rows.message(conversation_id, { content: undefined, ...m });
+    const task = await rows.task(user_id, {
       short_id: "ct-1",
       title: "Replace chokidar with fs.watch",
       task_type: "task",
@@ -589,9 +557,8 @@ async function seedTitleFixture(fx: TitleFixture) {
       created_at: T0,
       updated_at: T0,
       description: `Cut file descriptor use. ${"The watcher holds one FD per directory. ".repeat(12)}`,
-    } as any);
-    const plan = await ctx.db.insert("plans", {
-      user_id,
+    });
+    const plan = await rows.plan(user_id, {
       short_id: "pl-1",
       title: "Unify the AI's context around the broker",
       status: "active",
@@ -599,7 +566,7 @@ async function seedTitleFixture(fx: TitleFixture) {
       created_at: T0,
       updated_at: T0,
       goal: "One render path for every channel.",
-    } as any);
+    });
     return { conversation_id, task, plan };
   });
   return { t, ...ids };
@@ -713,11 +680,11 @@ describe("firstPromptOf", () => {
 
 describe("a replaced title stays findable", () => {
   test("setTitleAndSubtitle keeps the generated title it replaces, and the sweep stamps the opening prompt", async () => {
-    const t = convexTest(schema, titleModules);
+    const t = serverTest();
     const conversation_id = await t.run(async (ctx) => {
-      const user_id = await ctx.db.insert("users", { name: "Fixture" } as any);
-      const id = await ctx.db.insert("conversations", {
-        user_id,
+      const rows = fixtureRows(ctx.db, "title fixture");
+      const user_id = await rows.user({ name: "Fixture" });
+      const id = await rows.conversation(user_id, {
         agent_type: "claude_code",
         session_id: "s-drift",
         started_at: 1,
@@ -726,19 +693,17 @@ describe("a replaced title stays findable", () => {
         status: "active",
         message_count: 2,
         title: "build e2e a music vid",
-      } as any);
-      await ctx.db.insert("messages", {
-        conversation_id: id,
+      });
+      await rows.message(id, {
         role: "user",
         content: "build e2e a music video with a k pop song",
         timestamp: 1,
-      } as any);
-      await ctx.db.insert("messages", {
-        conversation_id: id,
+      });
+      await rows.message(id, {
         role: "assistant",
         content: "on it",
         timestamp: 2,
-      } as any);
+      });
       return id;
     });
     const set = (title: string) =>
@@ -748,7 +713,7 @@ describe("a replaced title stays findable", () => {
         subtitle: `about ${title}`,
       });
     const read = () =>
-      t.run((ctx) => ctx.db.get(conversation_id)) as Promise<any>;
+      t.run(async ({ db }) => (await db.get(conversation_id))!);
 
     // The daemon's placeholder is the prompt cut short: not a title worth keeping.
     await set("Union K-pop music video");
@@ -816,9 +781,9 @@ describe("fillShortTitles while the scheduler is behind", () => {
     const { t } = await seedTitleFixture(titleFixtures()[2]);
     await t.run(async (ctx) => {
       const user_id = (await ctx.db.query("users").first())!._id;
+      const rows = fixtureRows(ctx.db, "short title backlog");
       for (let i = 0; i < 10; i++) {
-        await ctx.db.insert("tasks", {
-          user_id,
+        await rows.task(user_id, {
           short_id: `ct-${i + 2}`,
           title: `Task ${i}`,
           task_type: "task",
@@ -826,7 +791,7 @@ describe("fillShortTitles while the scheduler is behind", () => {
           source: "human",
           created_at: T0,
           updated_at: T0,
-        } as any);
+        });
       }
     });
     for (let tick = 0; tick < 5; tick++)
