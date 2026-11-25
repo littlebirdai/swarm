@@ -27596,7 +27596,7 @@
   "apps/web/store/__tests__/sessionCommands.test.ts": {
     "swarm/no-comments": 6
   },
-  "apps/web/store/__tests__/sessionControls.test.ts": {
+  "apps/web/store/__tests__/session-controls.test.ts": {
     "swarm/no-comments": 9
   },
   "apps/web/store/__tests__/sessionGoalActions.test.ts": {
