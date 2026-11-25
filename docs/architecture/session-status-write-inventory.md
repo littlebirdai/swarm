@@ -38,9 +38,9 @@ The table gives the closest `@codecast/session-contract` fact for each writer. A
 | `pendingMessageWrites.ts` | `reviveConversationOnDelivery`                                                            | Conversation status                                 | Legacy and fenced delivery callers reopen the recipient.                                                                     | `run.successorAuthorized` with proof of predecessor disposition. Gap when delivery alone reopens the session.               |
 | `executionBindings.ts`    | `abandonAmbiguousAndResendInDb`                                                           | Conversation status                                 | A person abandons an ambiguous delivery and sends it again.                                                                  | `inbox.abandoned` records the resend. Gap when the resend alone reopens the session.                                        |
 
-The guard names each legacy write site. Dispatch can also send the thread pin through `favoriteViewWrites.ts` and `patchConversationThroughFavoriteView`. The guard checks both dispatch paths against the fields that dispatch can edit.
+Dispatch can also send the thread pin through `favoriteViewWrites.ts` and `patchConversationThroughFavoriteView`.
 
-The file-level source guard checks literal keys and direct assignments for distinctive fields and can miss indirect or computed writes.
+The guard is file level. It finds literal keys and direct assignments of the distinctive fields only, and not `conversations.status` or the thread state. It can miss an indirect or computed write. It also matches a type or a read projection that has one of the field names. Put such a file in the list, with the reason.
 
 The heartbeat handlers use `lib/sessionStatusWriter.ts` for the registry patch and side-row writes. Authorization, registry lookups, and scheduled checks remain in `managedSessions.ts`.
 

@@ -55,7 +55,7 @@ test("distinctive session status fields stay in known files", () => {
     )
       continue;
     const source = readFileSync(join(import.meta.dir, file), "utf8");
-    const code = source.replace(/\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm, "");
+    const code = source.replace(/\/\*[\s\S]*?\*\/|(?:^|\s)\/\/.*$/gm, "");
     if (keyOrAssignment.test(code)) unexpected.push(file);
   }
   expect(unexpected.sort()).toEqual([]);
