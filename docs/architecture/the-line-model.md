@@ -150,7 +150,11 @@ is the CLI; `/cli/expectations/brief` is what a judge reads (the active lines
 with ids under the version to cite). The line template's
 `expectations-daily` routine is the proposer; its cursor is the newest window
 a proposal recorded, and a proposal an operator retracts (one that should never
-have run) records none. Shapes and the parser: `packages/line/src/expectations.ts`.
+have run) records none. The web and CLI read the refusal reason for an open
+proposal from its operations against the latest document version. A direct
+Apply that fails throws and rolls back the transaction, including any linked
+card answer. The optional database field `refused` keeps older rows valid.
+Shapes and the parser: `packages/line/src/expectations.ts`.
 
 ## LM6. Changing the line
 

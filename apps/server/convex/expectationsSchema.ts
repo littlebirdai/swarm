@@ -114,7 +114,6 @@ export const expectationTables = {
     applied_version: v.optional(v.number()),
     resolved_by: v.optional(v.id("users")),
     resolved_at: v.optional(v.number()),
-    // Why an applied answer could not land (the document moved under it).
     refused: v.optional(v.string()),
     created_at: v.number(),
     updated_at: v.number(),
