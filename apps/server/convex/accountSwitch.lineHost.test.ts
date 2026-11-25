@@ -191,7 +191,7 @@ describe("a line host on its own fleet store", () => {
   });
 
   test("ranking skips an account Cloudflare refuses from the line hosts, and can still leave it", async () => {
-    const cam = "r.cameron.musgrave@gmail.com";
+    const cam = "line-host-refused@example.com";
     const meter = (pct: number) => ({
       fetched_at: Date.now() - 1_000,
       session: { percent: pct, resets_at: Date.now() + HOUR },

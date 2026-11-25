@@ -443,7 +443,7 @@ describe("a switch on the fleet store restarts every blocked session onto the st
 
   test("routes each switch to the hosts that can use it", async () => {
     const userId = "user_1" as any;
-    const cam = "r.cameron.musgrave@gmail.com";
+    const cam = "line-host-refused@example.com";
     const saved = {
       fleet_store: true,
       profiles: [
