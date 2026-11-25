@@ -1,9 +1,10 @@
+import { setTimeout as delay } from "node:timers/promises";
 import { parseArgs } from "node:util";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { getFunctionName, type FunctionReference } from "convex/server";
 import { asUser, serverTest } from "../../server/test-helpers/database.testkit";
 import { fixtureRows } from "../../server/test-helpers/rows.testkit";
-import { catchUpScope, scopeMetaKey } from "../hooks/use-sync-change-feed";
+import { catchUp, scopeMetaKey } from "../hooks/use-sync-change-feed";
 import { useInboxStore } from "../store/inboxStore";
 import { flushSyncPublishes } from "../store/syncTransaction";
 import { summarizeSyncProbe, timeSyncProbe } from "./sync-probe-timing";
@@ -34,27 +35,19 @@ async function runLocalProbe(samples: number, timeoutMs: number) {
         )
         .unique(),
     );
-  const readHead = async () => {
-    const { heads } = await owner.query(api.syncLog.getHeads, {});
-    const head = heads.find((head) => head.scope_key === scopeKey);
-    if (!head) throw new Error("Probe owner has no personal sync head");
-    return head;
-  };
-  const waitForDelivery = async (revision: number) => {
-    const deadline = performance.now() + timeoutMs;
-    do {
+  const waitForDelivery = async (revision: number, signal: AbortSignal) => {
+    while (!signal.aborted) {
       const slot = await readSlot();
+      signal.throwIfAborted();
       if (slot && slot.delivered_revision >= revision && !slot.pending)
         return slot.position;
-      await Bun.sleep(1);
-    } while (performance.now() < deadline);
-    throw new Error("Sync probe stalled at drainAndHeadBump");
+      await delay(1, undefined, { signal });
+    }
+    throw signal.reason;
   };
 
   const cleanup = async () => {
     await owner.mutation(api.docs.remove, { id, api_token: token });
-    const slot = await readSlot();
-    if (slot) await waitForDelivery(slot.revision);
     const deleted = await backend.run(({ db }) => db.get(id));
     if (deleted) throw new Error("Probe document survived cleanup");
   };
@@ -65,7 +58,15 @@ async function runLocalProbe(samples: number, timeoutMs: number) {
       throw new Error(
         "Probe document is outside its owner's personal workspace",
       );
-    await waitForDelivery(1);
+    const setupTimeout = AbortSignal.timeout(timeoutMs);
+    const initialPosition = await waitForDelivery(1, setupTimeout).catch(
+      (error: unknown) => {
+        if (!setupTimeout.aborted) throw error;
+        throw new Error(
+          `Sync probe stalled at drainAndHeadBump during setup after ${timeoutMs} ms`,
+        );
+      },
+    );
     const rangeArgs = { scope_key: scopeKey, from: 0, cargo: true };
     const hidden = await other.query(api.syncLog.getRange, rangeArgs);
     const hiddenDoc = await other.query(api.docs.webGetByIds, {
@@ -78,53 +79,64 @@ async function runLocalProbe(samples: number, timeoutMs: number) {
     )
       throw new Error("Probe document is visible to another viewer");
 
-    let cursor = (await readHead()).position;
+    let cursor = initialPosition;
     const store = useInboxStore.getState();
     store.syncTable("docs", [row], { isDelta: true });
     store.recordSyncMeta(scopeMetaKey(scopeKey), { cursor });
     flushSyncPublishes();
 
     const results = [];
-    for (let sample = 0; sample < samples; sample++) {
+    for (let sample = 0; sample <= samples; sample++) {
       const title = `Sync probe ${sample + 1}`;
-      results.push(
-        await timeSyncProbe(async (start) => {
-          start("save");
-          await owner.mutation(api.docs.webUpdate, { id, title });
-          start("drainAndHeadBump");
-          const position = await waitForDelivery(sample + 2);
-          start("getHeads");
-          const head = await readHead();
-          if (head.position !== position || position <= cursor)
-            throw new Error("Probe delivery did not advance the personal head");
-          start("getRange");
-          await catchUpScope(
-            {
-              query: async (
-                reference: FunctionReference<"query">,
-                args: Record<string, unknown>,
-              ) => {
-                const result = await owner.query(reference, args);
-                if (getFunctionName(reference) === "syncLog:getRange")
-                  start("apply");
-                return result;
-              },
-            },
-            head,
-            new Set(),
-          );
-          flushSyncPublishes();
-          const state = useInboxStore.getState();
-          if (
-            state.docs[String(id)]?.title !== title ||
-            state.syncMeta[scopeMetaKey(scopeKey)]?.cursor !== position
-          )
-            throw new Error("Probe edit did not reach the client store");
-          cursor = position;
-        }, timeoutMs),
-      );
+      const result = await timeSyncProbe(async (start, signal) => {
+        start("save");
+        await owner.mutation(api.docs.webUpdate, { id, title });
+        start("drainAndHeadBump");
+        const position = await waitForDelivery(sample + 2, signal);
+        start("getHeads");
+        let rangeStarted = false;
+        await catchUp({
+          query: async (
+            reference: FunctionReference<"query">,
+            args: Record<string, unknown>,
+          ) => {
+            signal.throwIfAborted();
+            const name = getFunctionName(reference);
+            if (name === "syncLog:getHeads") {
+              const heads = await owner.query(api.syncLog.getHeads, {});
+              signal.throwIfAborted();
+              const head = heads.heads.find(
+                (entry) => entry.scope_key === scopeKey,
+              );
+              if (head?.position !== position || position <= cursor)
+                throw new Error(
+                  "Probe delivery did not advance the personal head",
+                );
+              return heads;
+            }
+            if (name === "syncLog:getRange" && !rangeStarted) {
+              start("getRange");
+              rangeStarted = true;
+            }
+            const page = await owner.query(reference, args);
+            signal.throwIfAborted();
+            if (name === "syncLog:getRange") start("apply");
+            return page;
+          },
+        });
+        signal.throwIfAborted();
+        flushSyncPublishes();
+        const state = useInboxStore.getState();
+        if (
+          state.docs[String(id)]?.title !== title ||
+          state.syncMeta[scopeMetaKey(scopeKey)]?.cursor !== position
+        )
+          throw new Error("Probe edit did not reach the client store");
+        cursor = position;
+      }, timeoutMs);
+      if (sample > 0) results.push(result);
     }
-    return summarizeSyncProbe(results);
+    return { samples: results.length, durations: summarizeSyncProbe(results) };
   } catch (error) {
     failed = true;
     throw error;
@@ -153,13 +165,9 @@ if (import.meta.main) {
   )
     throw new Error("Use positive integers for --samples and --timeout-ms");
   try {
-    const durations = await runLocalProbe(samples, timeoutMs);
+    const result = await runLocalProbe(samples, timeoutMs);
     console.log(
-      JSON.stringify(
-        { mode: "in-process", samples, unit: "ms", durations },
-        null,
-        2,
-      ),
+      JSON.stringify({ mode: "in-process", unit: "ms", ...result }, null, 2),
     );
     process.exit(0);
   } catch (error) {

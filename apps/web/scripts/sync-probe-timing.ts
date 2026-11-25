@@ -18,29 +18,31 @@ const clock = {
 };
 
 export async function timeSyncProbe(
-  run: (start: (step: Step) => void) => Promise<void>,
+  run: (start: (step: Step) => void, signal: AbortSignal) => Promise<void>,
   timeoutMs: number,
   timer = clock,
 ): Promise<Sample> {
   const marks: number[] = [];
   let cancelTimeout: (() => void) | undefined;
-  let stalled: Error | undefined;
+  const controller = new AbortController();
   try {
     await new Promise<void>((resolve, reject) => {
       const start = (step: Step) => {
-        if (stalled) throw stalled;
+        controller.signal.throwIfAborted();
+        if (step === "apply" && marks.length === steps.length) return;
         if (steps[marks.length] !== step)
           throw new Error(`Unexpected probe step: ${step}`);
         cancelTimeout?.();
         marks.push(timer.now());
         cancelTimeout = timer.after(timeoutMs, () => {
-          stalled = new Error(
+          const stalled = new Error(
             `Sync probe stalled at ${step} after ${timeoutMs} ms`,
           );
           reject(stalled);
+          controller.abort(stalled);
         });
       };
-      run(start).then(() => {
+      run(start, controller.signal).then(() => {
         if (marks.length === steps.length) resolve();
         else
           reject(new Error(`Sync probe stopped before ${steps[marks.length]}`));
