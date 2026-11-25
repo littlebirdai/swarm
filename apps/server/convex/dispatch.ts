@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import { internalMutation, mutation } from "./functions";
 import { requestDeployCore } from "./deploys";
 import { requestTargetDeployCore } from "./deployTargetRequest";
@@ -903,9 +904,13 @@ export async function applyPatches(
           // and matches `cast undismiss`. `status` is left alone: restore brings
           // the CARD back, Restart brings the agent back.
           if (wasKilled) {
-            await ctx.db.patch(doc._id as Id<"conversations">, {
-              inbox_killed_at: undefined,
-            });
+            await patchConversationLifecycle(
+              ctx,
+              doc._id as Id<"conversations">,
+              {
+                inbox_killed_at: undefined,
+              },
+            );
           }
           await reactivateTasksCanceledOnKill(
             ctx,

@@ -1,3 +1,4 @@
+import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
 import { heartbeatsFor } from "./lib/sessionHeartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { noteWriteCause } from "./lifecycleEvents";
@@ -348,7 +349,6 @@ export function noteGestureRows(ctx: { db: any }, ids: Iterable<string>): void {
   const decided = hideTxnState(ctx).decided;
   for (const id of ids) decided.add(String(id));
 }
-
 export async function applyHideTransition(
   ctx: { db: any },
   doc: any,
@@ -457,7 +457,7 @@ export async function applyHideTransition(
       if (!doc?.persistent) killPatch.status = "completed";
     }
     if (Object.keys(killPatch).length > 0)
-      await ctx.db.patch(doc._id, killPatch);
+      await patchConversationLifecycle(ctx, doc._id, killPatch);
     // A killed worker frees its fleet slot and keeps its worktree. A closed one
     // only frees its slot: it has not ended, so its lead hears nothing (a
     // settle note would revive the lead the person just closed).
@@ -577,7 +577,6 @@ export async function cascadeHideToNestedChildren(
 // lead could not be hidden at all (2026-10-08). The first batch goes now; the
 // rest follow in scheduled batches, which stop if the lead was un-hidden since.
 const CASCADE_BATCH = 20;
-
 async function hideNestedChildren(
   ctx: { db: any; scheduler?: any },
   leadId: any,
@@ -602,7 +601,8 @@ async function hideNestedChildren(
     const alreadyHidden = !!child[field];
     if (alreadyHidden && !opts?.forceKill) continue;
     const childPatch = { [field]: alreadyHidden ? child[field] : stamp };
-    if (!alreadyHidden) await ctx.db.patch(child._id, childPatch);
+    if (!alreadyHidden)
+      await patchConversationLifecycle(ctx, child._id, childPatch);
     await applyHideTransition(ctx, child, childPatch, {
       cascade: false,
       forceKill: opts?.forceKill,

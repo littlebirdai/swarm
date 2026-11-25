@@ -66,7 +66,11 @@ import {
 import { applyHideTransition, cascadeHideToNestedChildren } from "./cleanup";
 import { paginationOptsValidator } from "convex/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { writeThreadState } from "./lib/sessionStatusWriter";
+import {
+  insertConversationWithStatus,
+  patchConversationLifecycle,
+  writeThreadState,
+} from "./lib/sessionStatusWriter";
 import type { ThreadStateStatus } from "@codecast/sessions/threadState";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import { PATCHABLE_CONVERSATION_FIELDS } from "@codecast/sessions/conversationFields";
@@ -14514,7 +14518,7 @@ export const markSessionCompleted = mutation({
       if (pendingMsg) {
         return;
       }
-      await ctx.db.patch(convId, { status: "completed" });
+      await patchConversationLifecycle(ctx, convId, { status: "completed" });
     }
   },
 });
@@ -14533,7 +14537,7 @@ export const markSessionActive = mutation({
     const conv = await ctx.db.get(convId);
     if (!conv || conv.user_id !== userId) return;
     if (conv.status === "completed") {
-      await ctx.db.patch(convId, { status: "active" });
+      await patchConversationLifecycle(ctx, convId, { status: "active" });
     }
   },
 });
@@ -14657,7 +14661,7 @@ async function resurfaceHiddenSession(
   );
   if (!wasHidden) return { wasHidden: false, rearmed: 0 };
 
-  await ctx.db.patch(conv._id, {
+  await patchConversationLifecycle(ctx, conv._id, {
     inbox_dismissed_at: undefined,
     inbox_stashed_at: undefined,
     inbox_killed_at: undefined,
@@ -14794,7 +14798,7 @@ export const cliSetSessionVisibility = mutation({
             inbox_stashed_at: Date.now(),
             inbox_stash_hidden: args.hidden ? true : undefined,
           };
-    await ctx.db.patch(conv._id, patch);
+    await patchConversationLifecycle(ctx, conv._id, patch);
     // `conv` is the pre-patch row — applyHideTransition gates on the transition.
     // The nested group (Task subagents + agent-team teammates) comes down with
     // the card via its built-in cascade — see cascadeHideToNestedChildren.
@@ -14955,7 +14959,7 @@ export const cliRetireSession = mutation({
     );
     if (reason) return { retired: false as const, short_id: shortId, reason };
     const patch = { inbox_dismissed_at: Date.now() };
-    await ctx.db.patch(conv._id, patch);
+    await patchConversationLifecycle(ctx, conv._id, patch);
     await applyHideTransition(ctx, conv, patch, {
       forceKill: true,
       cause: "cli:retire",
@@ -15250,7 +15254,7 @@ export async function performSetThreadState(
     (conv.inbox_stashed_at || conv.inbox_dismissed_at) &&
     !conv.inbox_killed_at
   ) {
-    await ctx.db.patch(conv._id, {
+    await patchConversationLifecycle(ctx, conv._id, {
       inbox_stashed_at: undefined,
       inbox_dismissed_at: undefined,
     });
@@ -16995,7 +16999,7 @@ export async function resolveRestartTarget(
     if (conv.inbox_dismissed_at) revive.inbox_dismissed_at = undefined;
     if (conv.inbox_stashed_at) revive.inbox_stashed_at = undefined;
     if (Object.keys(revive).length > 0) {
-      await ctx.db.patch(conv._id, revive);
+      await patchConversationLifecycle(ctx, conv._id, revive);
       // A revival is a revival: undismiss re-arms the schedules the kill
       // canceled (reactivateTasksCanceledOnKill), so Restart must too — without
       // this, `cast undismiss X` brings a session's standing loops back but
@@ -17069,7 +17073,7 @@ export async function resolveRestartTarget(
     );
     // Restarting is an explicit "bring this back" — resurface it in the inbox,
     // and tombstone the dead id so stale links resolve here from now on.
-    await ctx.db.patch(twin._id, {
+    await patchConversationLifecycle(ctx, twin._id, {
       status: "active",
       inbox_dismissed_at: undefined,
       inbox_killed_at: undefined,
@@ -17091,7 +17095,7 @@ export async function resolveRestartTarget(
     undefined,
   );
   const agentType = toConvexAgentType(fromConvexAgentType(ghost.agent_type));
-  const newId = await ctx.db.insert("conversations", {
+  const newId = await insertConversationWithStatus(ctx, {
     user_id: userId,
     team_id: teamId,
     agent_type: agentType,
@@ -17316,7 +17320,7 @@ export async function killConversation(
     if (args.mark_completed && !conv.persistent) {
       patch.status = "completed";
     }
-    await ctx.db.patch(args.conversation_id, patch);
+    await patchConversationLifecycle(ctx, args.conversation_id, patch);
     // A retired row leaves the Lock Screen strip with the next push. The org
     // cores that retire a seat run without a scheduler in their pure form.
     if (ctx.scheduler)

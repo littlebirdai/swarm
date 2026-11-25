@@ -241,3 +241,20 @@ export async function writeThreadState(
   });
   return at;
 }
+
+type ConversationFields = Omit<Doc<"conversations">, "_id" | "_creationTime">;
+
+export function patchConversationLifecycle(
+  ctx: Pick<MutationCtx, "db">,
+  id: Id<"conversations">,
+  fields: Partial<ConversationFields>,
+) {
+  return ctx.db.patch(id, fields);
+}
+
+export function insertConversationWithStatus(
+  ctx: Pick<MutationCtx, "db">,
+  fields: ConversationFields,
+) {
+  return ctx.db.insert("conversations", fields);
+}
