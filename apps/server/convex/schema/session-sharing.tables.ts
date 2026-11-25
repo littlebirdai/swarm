@@ -18,7 +18,7 @@ export const sessionSharingTables = {
       v.object({
         kind: v.literal("terminal"),
         resource_id: v.id("conversations"),
-        pane_instance: v.string(),
+        pane_instance: v.number(),
         purpose: v.literal("typing_lease"),
         holder: v.optional(v.id("users")),
         token: v.number(),

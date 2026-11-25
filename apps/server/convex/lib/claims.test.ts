@@ -33,7 +33,7 @@ async function setup() {
   const pane = {
     kind: "terminal",
     id: conversation,
-    paneInstance: "pane-1",
+    paneInstance: 1,
   } as const;
 
   return {
@@ -42,8 +42,15 @@ async function setup() {
     ben,
     baton,
     pane,
-    claimPane: (holder = ana, requestId = "first", expectedToken = 0) =>
-      t.run((ctx) => claim(ctx, { ...pane, holder, requestId, expectedToken })),
+    claimPane: (
+      holder = ana,
+      requestId = "first",
+      expectedToken = 0,
+      paneInstance = pane.paneInstance,
+    ) =>
+      t.run((ctx) =>
+        claim(ctx, { ...pane, holder, requestId, expectedToken, paneInstance }),
+      ),
     rows: () => t.run(({ db }) => db.query("claims").collect()),
     guardedWrite: (input: CallerAuthorizedClaimUse) =>
       t.run((ctx) =>
@@ -139,7 +146,7 @@ test("pane changes keep one terminal row and fence the replaced pane", async () 
     token: 1,
     remainingMs: 20_000,
   });
-  const replacement = { ...f.pane, paneInstance: "pane-2" };
+  const replacement = { ...f.pane, paneInstance: 2 };
   const newPaneRequest = {
     ...replacement,
     holder: f.ana,
@@ -196,35 +203,90 @@ test("pane changes keep one terminal row and fence the replaced pane", async () 
     expect.objectContaining({
       kind: "terminal",
       resource_id: f.pane.id,
-      pane_instance: "pane-2",
+      pane_instance: 2,
       holder: f.ana,
       token: 2,
     }),
   ]);
 });
 
-test("claims refuse empty request IDs and pane instances", async () => {
+test("a delayed pane 1 claim leaves the newly switched pane 2 unchanged", async () => {
+  const f = await setup();
+  await f.claimPane();
+  const delayed = () => f.claimPane(f.ana, "delayed-pane-1", 1);
+  expect(await f.claimPane(f.ben, "switch-pane-2", 1, 2)).toEqual({
+    status: "pane_changed",
+    currentToken: 1,
+  });
+  const rows = await f.rows();
+  const result = await delayed();
+  expect(await f.rows()).toEqual(rows);
+  expect(result).toEqual({ status: "wrong_pane" });
+});
+
+test("a stale pane 1 claim preserves the live holder on pane 2", async () => {
+  const f = await setup();
+  await f.claimPane();
+  await f.claimPane(f.ben, "switch-pane-2", 1, 2);
+  expect(await f.claimPane(f.ben, "claim-pane-2", 1, 2)).toEqual({
+    status: "held",
+    token: 2,
+    remainingMs: 20_000,
+  });
+  const rows = await f.rows();
+  const result = await f.claimPane(f.ana, "stale-pane-1", 2);
+  expect(await f.rows()).toEqual(rows);
+  expect(result).toEqual({ status: "wrong_pane" });
+});
+
+test("a retry of the pane 2 request leaves pane 3 unchanged", async () => {
+  const f = await setup();
+  await f.claimPane();
+  const switchToSecond = () => f.claimPane(f.ben, "switch-pane-2", 1, 2);
+  expect(await switchToSecond()).toEqual({
+    status: "pane_changed",
+    currentToken: 1,
+  });
+  expect(await f.claimPane(f.ana, "switch-pane-3", 1, 3)).toEqual({
+    status: "pane_changed",
+    currentToken: 1,
+  });
+  const rows = await f.rows();
+  const result = await switchToSecond();
+  expect(await f.rows()).toEqual(rows);
+  expect(result).toEqual({ status: "wrong_pane" });
+});
+
+test("claims refuse empty request IDs and non-positive or unsafe pane instances", async () => {
   const f = await setup();
   expect(await f.claimPane(f.ana, "")).toEqual({ status: "invalid_request" });
-  expect(
-    await f.t.run((ctx) =>
-      claim(ctx, {
-        ...f.pane,
-        paneInstance: "",
+  for (const paneInstance of [
+    0,
+    -1,
+    1.5,
+    NaN,
+    Infinity,
+    Number.MAX_SAFE_INTEGER + 1,
+  ]) {
+    expect(await f.claimPane(f.ana, "invalid-pane", 0, paneInstance)).toEqual({
+      status: "invalid_pane",
+    });
+    expect(
+      await f.guardedWrite({
+        resource: { ...f.pane, paneInstance },
         holder: f.ana,
-        requestId: "empty-pane",
-        expectedToken: 0,
+        token: 1,
       }),
-    ),
-  ).toEqual({ status: "invalid_pane" });
-  expect(
-    await f.guardedWrite({
-      resource: { ...f.pane, paneInstance: "" },
-      holder: f.ana,
-      token: 1,
-    }),
-  ).toEqual({ status: "wrong_pane" });
+    ).toEqual({ status: "wrong_pane" });
+  }
   expect(await f.rows()).toEqual([]);
+  expect(
+    await f.claimPane(f.ana, "largest-pane", 0, Number.MAX_SAFE_INTEGER),
+  ).toEqual({
+    status: "held",
+    token: 1,
+    remainingMs: 20_000,
+  });
 });
 
 test("lone and self requests respect live batons and a second sender reuses a released row", async () => {

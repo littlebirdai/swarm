@@ -6,7 +6,7 @@ type SteerResource = { kind: "steer"; id: Id<"conversations"> };
 type TerminalResource = {
   kind: "terminal";
   id: Id<"conversations">;
-  paneInstance: string;
+  paneInstance: number;
 };
 
 export type ClaimResource = SteerResource | TerminalResource;
@@ -51,7 +51,8 @@ type ClaimResult =
         | "inactive_request"
         | "token_exhausted"
         | "invalid_request"
-        | "invalid_pane";
+        | "invalid_pane"
+        | "wrong_pane";
     }
   | { status: "stale_request" | "pane_changed"; currentToken: number }
   | { status: "busy"; remainingMs: number };
@@ -63,6 +64,10 @@ function findClaim(db: DatabaseReader, resource: ClaimKey) {
       q.eq("kind", resource.kind).eq("resource_id", resource.id),
     )
     .unique();
+}
+
+function isValidPaneInstance(instance: number): boolean {
+  return Number.isSafeInteger(instance) && instance > 0;
 }
 
 export async function readClaimToken(
@@ -91,13 +96,13 @@ export async function claim(
         : busy;
   if (!("requestId" in input)) return turnRight;
   if (!input.requestId) return { status: "invalid_request" };
-  if (input.kind === "terminal" && !input.paneInstance)
+  if (input.kind === "terminal" && !isValidPaneInstance(input.paneInstance))
     return { status: "invalid_pane" };
 
-  const newPane =
-    row?.kind === "terminal" &&
-    input.kind === "terminal" &&
-    row.pane_instance !== input.paneInstance;
+  const matchesTerminal = row?.kind === "terminal" && input.kind === "terminal";
+  if (matchesTerminal && input.paneInstance < row.pane_instance)
+    return { status: "wrong_pane" };
+  const newPane = matchesTerminal && input.paneInstance > row.pane_instance;
   const stale = { status: "stale_request", currentToken } as const;
   if (row?.request_id === input.requestId) {
     if (row.request_holder !== input.holder) return stale;
@@ -161,7 +166,7 @@ function checkHeldClaim(
 ): Lease | Refusal {
   if (
     resource.kind === "terminal" &&
-    (!resource.paneInstance ||
+    (!isValidPaneInstance(resource.paneInstance) ||
       (row?.kind === "terminal" && row.pane_instance !== resource.paneInstance))
   ) {
     return { status: "wrong_pane" };
