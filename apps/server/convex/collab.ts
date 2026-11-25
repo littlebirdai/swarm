@@ -4,6 +4,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { checkConversationAccess } from "./privacy";
+import { sessionRunnerOf } from "./lib/sessionStarts";
 
 // ── Collaboration grants ──
 // A shared link lets anyone read a conversation, and any signed-in viewer co-write
@@ -218,9 +219,8 @@ export const collabRequests = query({
     );
     if (!conversationId) return [];
 
-    const conversation = await ctx.db.get(conversationId);
-    if (!conversation || conversation.user_id.toString() !== userId.toString())
-      return [];
+    const runner = await sessionRunnerOf(ctx.db, conversationId);
+    if (runner?.toString() !== userId.toString()) return [];
 
     const grants = await ctx.db
       .query("collab_grants")

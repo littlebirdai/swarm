@@ -55,6 +55,14 @@ export function sessionStartOf(
     .first();
 }
 
+export async function sessionRunnerOf(
+  db: QueryCtx["db"],
+  conversationId: Id<"conversations">,
+): Promise<Id<"users"> | undefined> {
+  const start = await sessionStartOf(db, conversationId);
+  return start?.user_id ?? (await db.get(conversationId))?.user_id;
+}
+
 export function sessionStartFields(conv: Doc<"conversations">) {
   const visible = teamVisibleConvTeam(conv);
   return {

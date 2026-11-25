@@ -25,6 +25,7 @@ import {
 } from "./lib/access";
 import { isTeamMember, teamVisibleConvTeam } from "./privacy";
 import { withDecisionFacts } from "./lib/decisionRowFacts";
+import { sessionStartOf } from "./lib/sessionStarts";
 import { decisionTeamOf } from "./lib/decisionTeam";
 import {
   pickAnsweredDecision,
@@ -3921,14 +3922,22 @@ export async function withLiveSession<
     session_title?: string;
     project_path?: string;
   },
->(ctx: Ctx, rows: T[]): Promise<T[]> {
+>(
+  ctx: Ctx,
+  rows: T[],
+  source: "card" | "conversation" = "conversation",
+): Promise<T[]> {
   const seen = new Map<string, { title?: string; project_path?: string }>();
   const out: T[] = [];
   for (const r of rows) {
     const key = String(r.conversation_id);
     let live = seen.get(key);
     if (!live) {
-      const conversation = await ctx.db.get(r.conversation_id);
+      const card =
+        source === "card"
+          ? (await sessionStartOf(ctx.db, r.conversation_id))?.card
+          : undefined;
+      const conversation = card ?? (await ctx.db.get(r.conversation_id));
       live = {
         title: conversation?.title,
         project_path: conversation?.project_path,
@@ -4018,7 +4027,7 @@ export async function listForUserCore(
   const rows = Array.from(out.values()).sort(
     (a, b) => Number(escalatedHere(b)) - Number(escalatedHere(a)),
   );
-  return withLiveSession(ctx, await currentDecisions(ctx, rows));
+  return withLiveSession(ctx, await currentDecisions(ctx, rows), "card");
 }
 
 export const listForUser = query({
@@ -4232,6 +4241,7 @@ export const listOpenForLines = query({
       const standing = await withLiveSession(
         ctx,
         await currentDecisions(ctx, rows),
+        "card",
       );
       out.push(
         ...(await decisionRowsForViewer(
