@@ -64,7 +64,9 @@ Run `bun run format` to format the repo with oxfmt. CI checks formatting, and `.
 
 Each package's test guidance is in its own `AGENTS.md` (`apps/web`, `apps/cli`, `apps/server`, `apps/mobile`). A flaky test is fixed or deleted within 14 days of being quarantined; the policy and the list are in `QUARANTINE.md`.
 
-CI runs the repository guards in `packages/ratchet/test`. Their baselines are `packages/ratchet/max-lines-baseline.txt` and `packages/ratchet/doc-refs-baseline.txt`. Move a baseline entry when its source file moves.
+CI runs the repository guards in `packages/ratchet/test`. Their baselines are `packages/ratchet/max-lines-baseline.txt`, `packages/ratchet/doc-refs-baseline.txt` and `packages/ratchet/module-mocks-baseline.txt`. Move a baseline entry when its source file moves.
+
+Do not add a `mock.module` call. Use the mount harness of `apps/web` (see `apps/web/AGENTS.md`), the database helpers of `apps/server`, or a shared fake at a real boundary. The module mock baseline can only decrease. After you remove a call, run `RATCHET_PRUNE=1 bun test packages/ratchet/test/moduleMocks.ratchet.test.ts`.
 
 ## Git history
 
