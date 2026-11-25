@@ -100,6 +100,33 @@ describe("project task counters", () => {
     });
   });
 
+  test("project counts follow moves and deletes without reading task rows", async () => {
+    const { raw, db, task, backfill } = setup();
+    const id = await task({});
+    await backfill();
+    const query = raw.query.bind(raw);
+    const counts = async () => {
+      raw.query = ((table: string) => {
+        if (table === "tasks") throw new Error("Count read task rows");
+        return query(table);
+      }) as typeof raw.query;
+      try {
+        const result = await projectCountsFor({ db: raw }, "u2" as any, [
+          "p1" as any,
+          "p2" as any,
+        ]);
+        return ["p1", "p2"].map((p) => result.get(p)?.total);
+      } finally {
+        raw.query = query;
+      }
+    };
+    expect(await counts()).toEqual([1, 0]);
+    await db.patch(id, { project_id: "p2" });
+    expect(await counts()).toEqual([0, 1]);
+    await db.delete(id);
+    expect(await counts()).toEqual([0, 0]);
+  });
+
   test("writes during a backfill are counted exactly once", async () => {
     const { raw, db, task, recount, counters } = setup();
     const ids = [];

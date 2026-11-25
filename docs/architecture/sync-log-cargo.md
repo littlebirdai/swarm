@@ -231,20 +231,14 @@ That is the pl-484 gated follow up (ct-47800), and this number is why it is next
   or the recut floor's rows would be dropped by the delta merge.
 - A failed fetch is forgotten, so the next mount retries.
 
-**Joined counts on projects.** A project row carries `task_counts`, `plan_count`,
-`active_plan_count` and `doc_count`, joined by the server from other rows, so no patch on
-the project ever moves them. The applier therefore refetches a HELD project whenever a
-member change can change a count (a task or plan status change, a create, a delete, a
-project move; `projectCountTouched`), unconditionally: a project's own patch on the same
-page applies directly and never carries the counts, so it cannot stand in for the refetch
-(`planFeedApply` collapses the duplicate). The projects collection compares `task_counts`
-by content (`deepFields`) — the engine's identity reuse skips object fields, so without
-that the refetched row would land as a no op. Member cargo always carries `project_id`
-(`STICKY_CARGO_FIELDS`, read from the post write document the access stamp already
-memoizes), so a replica that does not hold the member row still learns which held project
-to re count. Two residual holes stay client invisible: the delete of an unheld member (the
-tombstone carries no cargo) and the SOURCE side of an unheld member's project move. Both
-heal on the next change to a held member of that project or on reload.
+**Project task counts.** Authoritative count queries sum the buckets in
+`project_task_counts` for the viewer's workspaces. The task write interceptor
+updates the buckets in the same transaction as the task. A delete decrements
+the old bucket. A move decrements the old bucket and increments the new bucket.
+The count query works even if the viewer's device never held the task.
+
+The sync log applies task changes without refetching a project. Web and mobile
+board summaries count the tasks in their local task collection.
 
 ### E9 — Rollout and compat
 
