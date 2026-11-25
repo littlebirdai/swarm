@@ -83,6 +83,15 @@ async function setup(seed: (ids: SweepContext) => SweepSeed) {
   return {
     ...ids,
     page,
+    sweepStoredSubscriptions: () =>
+      t.mutation(async (ctx) => {
+        const result = await ctx.runMutation(
+          internal.threadMembershipSweep.sweepPage,
+          { step: "subscriptions", dryRun: false },
+        );
+        const { documentsWritten } = await ctx.meta.getTransactionMetrics();
+        return { result, writes: documentsWritten.used };
+      }),
     subscribeAssignee: (shortId: string, via: "human" | "agent") =>
       t.run(async ({ db }) => {
         const task = await db
@@ -231,9 +240,11 @@ describe("stored via and via-independent reasons are untouched", () => {
       // Human task: the creator heuristic would say human, but the row says agent.
       entity_subscriptions: [sub(ids.owner, ids.human, "creator", "agent")],
     }));
-    const res = await subs(c);
-    expect(res.keptStored).toBe(1);
-    expect((await c.subscriptions())[0].via).toBe("agent");
+    const before = await c.subscriptions();
+    const { result, writes } = await c.sweepStoredSubscriptions();
+    expect(result.keptStored).toBe(1);
+    expect(await c.subscriptions()).toEqual(before);
+    expect(writes).toBe(0);
   });
 
   test("mentioned rows keep no via — membership never reads it", async () => {
@@ -416,25 +427,23 @@ describe("assignee sweep: self-claims leave the human board, real assignments st
         task("ct-17", {}),
       ],
     }));
+    const before = await c.tasks();
     const res = await c.page({
       step: "assignees",
       dryRun: false,
     });
     expect(res).toMatchObject({ scanned: 3, selfAssigned: 0, cleared: 0 });
-    expect((await c.tasks()).map((task) => task.assignee)).toEqual([
-      c.bob,
-      "agent:claude",
-      undefined,
-    ]);
+    expect(await c.tasks()).toEqual(before);
   });
 
   test("dry run counts but writes nothing (and is the default)", async () => {
     const c = await setup((ids) => ({
       tasks: [task("ct-10", { assignee: ids.owner })],
     }));
+    const before = await c.tasks();
     const res = await c.page({ step: "assignees" });
     expect(res).toMatchObject({ cleared: 1 });
-    expect((await c.tasks())[0].assignee).toBe(c.owner);
+    expect(await c.tasks()).toEqual(before);
   });
 
   test("the driver pages through and a second live run finds nothing", async () => {

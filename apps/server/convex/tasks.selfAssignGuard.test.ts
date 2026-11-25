@@ -3,9 +3,10 @@
 // before this guard every agent claim notified the owner that they assigned
 // themselves and enrolled them as assignee. webUpdate already had the guard;
 // update mirrors it.
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { taskTest } from "../test-helpers/tasks.testkit";
 import { api } from "./_generated/api";
+import { emit, type emitNotification } from "./notificationRouter";
 
 const TOKEN = "self-assign-token";
 
@@ -27,12 +28,23 @@ async function setup() {
 describe("tasks.update self-assign guard", () => {
   test("assignee 'me' resolves to the actor: no task_assigned, no assignee enrollment", async () => {
     const { t, owner, readTask, assignments, subscriptions } = await setup();
-    await t.mutation(api.tasks.update, {
-      api_token: TOKEN,
-      short_id: "ct-1",
-      status: "in_progress",
-      assignee: "me",
-    });
+    const route = emit as typeof emit & { _handler: typeof emitNotification };
+    const routed = spyOn(route, "_handler");
+    try {
+      await t.mutation(api.tasks.update, {
+        api_token: TOKEN,
+        short_id: "ct-1",
+        status: "in_progress",
+        assignee: "me",
+      });
+      expect(
+        routed.mock.calls.filter(
+          ([, args]) => args.event_type === "task_assigned",
+        ),
+      ).toEqual([]);
+    } finally {
+      routed.mockRestore();
+    }
     expect((await readTask()).assignee).toBe(owner);
     expect(await assignments()).toEqual([]);
     expect(

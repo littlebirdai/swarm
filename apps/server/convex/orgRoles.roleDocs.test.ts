@@ -53,6 +53,8 @@ async function setup() {
         roles: await db.query("org_roles").collect(),
         anchors: await db.query("anchors").collect(),
         conversations: await db.query("conversations").collect(),
+        docs: await db.query("docs").collect(),
+        notifications: await db.query("notifications").collect(),
         pending: await db.query("pending_messages").collect(),
       })),
     jobs: () => scheduledJobs(t),

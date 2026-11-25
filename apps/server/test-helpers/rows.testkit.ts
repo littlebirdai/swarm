@@ -2,6 +2,7 @@ import { testFaker } from "@codecast/test-helpers/faker";
 import type { Doc, Id, TableNames } from "../convex/_generated/dataModel";
 import type { DatabaseWriter } from "../convex/_generated/server";
 import { hashToken } from "../convex/apiTokens";
+import { claimFixtureSeed } from "./database.testkit";
 
 export type NewRow<Table extends TableNames> = Omit<
   Doc<Table>,
@@ -9,6 +10,7 @@ export type NewRow<Table extends TableNames> = Omit<
 >;
 
 export function fixtureRows(db: DatabaseWriter, seed: string) {
+  claimFixtureSeed(seed);
   const faker = testFaker(seed);
   const date = 1_735_689_600_000;
   const timestamps = { created_at: date, updated_at: date };
@@ -107,24 +109,6 @@ export function fixtureRows(db: DatabaseWriter, seed: string) {
         content: faker.lorem.paragraph(),
         doc_type: "note",
         source: "human",
-        ...timestamps,
-        ...fields,
-      });
-    },
-    pullRequest(
-      team: Id<"teams">,
-      fields: Partial<NewRow<"pull_requests">> = {},
-    ) {
-      return db.insert("pull_requests", {
-        team_id: team,
-        github_pr_id: faker.number.int({ min: 1, max: 999_999_999 }),
-        repository: `${faker.string.alpha({ length: 8, casing: "lower" })}/${faker.string.alpha({ length: 8, casing: "lower" })}`,
-        number: faker.number.int({ min: 1, max: 999_999 }),
-        title: faker.lorem.sentence(),
-        body: faker.lorem.paragraph(),
-        state: "open",
-        author_github_username: faker.internet.username(),
-        linked_session_ids: [],
         ...timestamps,
         ...fields,
       });

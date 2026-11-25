@@ -147,7 +147,7 @@ async function setup(fields: Partial<NewRow<"devices">> = {}, muted = false) {
 }
 
 describe("checkDeviceLoopFreeze", () => {
-  test("alerts once across concurrent ticks and persists the stamp", async () => {
+  test("alerts once when called twice and persists the stamp", async () => {
     const { check, device, notes } = await setup();
     const results = await Promise.all([check(), check()]);
     expect(results.map((r) => r.notified).sort()).toEqual([0, 1]);

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { convexTest } from "convex-test";
 import {
   defineSchema,
@@ -13,12 +14,27 @@ type TransactionLimits = Parameters<typeof convexTest>[0]["transactionLimits"];
 
 const testSchema = defineSchema(schema.tables);
 
+const fixtureSeeds = new AsyncLocalStorage<Set<string>>();
+
+export function claimFixtureSeed(seed: string) {
+  const seeds = fixtureSeeds.getStore();
+  if (!seeds) throw new Error("Create fixtures inside serverTest.run");
+  if (seeds.has(seed)) throw new Error(`Fixture seed already used: ${seed}`);
+  seeds.add(seed);
+}
+
 export function serverTest(transactionLimits?: TransactionLimits) {
-  return convexTest({
+  const t = convexTest({
     schema: testSchema,
     modules: allModules,
     transactionLimits,
   });
+  const seeds = new Set<string>();
+  return {
+    ...t,
+    run: ((handler) =>
+      fixtureSeeds.run(seeds, () => t.run(handler))) satisfies typeof t.run,
+  };
 }
 
 export type ServerTest = ReturnType<typeof serverTest>;

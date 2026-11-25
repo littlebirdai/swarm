@@ -33,7 +33,10 @@ const byShortId = (t: ServerTest, shortId: string) =>
 
 describe("create dependency mirror", () => {
   test("blocked_by populates each referenced task's blocks", async () => {
-    const t = await setup([{ short_id: "ct-12" }, { short_id: "ct-13" }]);
+    const t = await setup([
+      { short_id: "ct-12" },
+      { short_id: "ct-13", workspace: undefined },
+    ]);
     const { short_id } = await t.mutation(api.tasks.create, {
       api_token: TOKEN,
       title: "New task",

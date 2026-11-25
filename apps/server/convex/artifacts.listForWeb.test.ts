@@ -122,9 +122,9 @@ describe("teamEditAuth scope", () => {
       const sharedTeam = await rows.team();
       const otherTeam = await rows.team();
       await rows.membership(owner, sharedTeam, { visibility: "full" });
-      await rows.membership(mate, sharedTeam, { visibility: "full" });
+      await rows.membership(mate, sharedTeam);
       await rows.membership(owner, otherTeam, { visibility: "full" });
-      await rows.membership(other, otherTeam, { visibility: "full" });
+      await rows.membership(other, otherTeam);
       const conversation = await rows.conversation(owner, {
         team_id: sharedTeam,
         team_visibility: "full",

@@ -8,7 +8,7 @@ Deploys go through `deploy.sh` only; the root `CLAUDE.md` explains why, and cove
 
 **Use the server test helpers.** Start function tests with `serverTest()` from `test-helpers/database.testkit.ts`. It enables schema validation and loads all Convex function modules. Call functions through `api` or `internal`. Use `asUser` for account calls.
 
-**Insert fixtures with `fixtureRows(db, seed)`.** Set the fields the test checks or uses to select rows. The seeded faker supplies the other values. Keep fixtures in `test-helpers/*.testkit.ts` outside the Convex module tree.
+**Insert fixtures with `fixtureRows(db, seed)`.** Set the fields the test checks or uses to select rows. The seeded faker supplies the other values. Use a distinct seed for each fixture builder in a database. Keep fixtures in `test-helpers/*.testkit.ts` outside the Convex module tree. A name with two dots keeps the Convex bundler from deploying a testkit, which matters because testkits use Bun APIs the Convex runtime lacks.
 
 **Check persisted results.** Read the rows or scheduled jobs that the function writes. Use transaction limits for function read budgets. Use `countDatabaseReads` for a helper that receives a database reader.
 
