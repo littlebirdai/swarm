@@ -74,7 +74,7 @@ Things that come with it:
 
 1. Page: `web/app/settings/agent-library/page.tsx:375` calls `useInboxStore((s) => s.upsertAgentDefinition)`.
 2. Store action: `web/store/inboxStore.ts:13116-13124` defines `upsertAgentDefinition: asyncAction(function (this: Draft, fields) { return upsertAgentLibraryRow(this, "agentDefinitions", "ad", fields); })`. It writes an optimistic stub keyed by `client_key`. `removeAgentDefinition` is a plain `action()` that deletes the draft row. Undo policy: `web/store/undo/policies/never.ts:153`.
-3. Transport: the middleware sends `{action, args, patches, result}` to `api.dispatch.dispatch` (`web/hooks/useEnsureDispatch.ts:41`, `web/lib/dispatchBinding.ts`).
+3. Transport: the middleware sends `{action, args, patches, result}` to `api.dispatch.dispatch` (`web/hooks/useEnsureDispatch.ts:41`, `web/lib/dispatch-binding.ts`).
 4. Dispatch mutation: `convex/convex/dispatch.ts:166-210`. It authenticates with `getAuthUserId`, applies patches, then runs `SIDE_EFFECTS[action](ctx, userId, args, result)`. `isDispatchAction` is at :162-164 and the `SIDE_EFFECTS` table starts at :701.
 5. Side effect: `dispatch.ts:1905-1917`. `upsertAgentDefinition` calls `runMutation(api.agentDefinitions.upsert, {...rest, id?, client_key: r.client_key})`. `removeAgentDefinition` uses `isServerId()` to skip unsaved stubs.
 

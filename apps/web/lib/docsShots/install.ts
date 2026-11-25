@@ -1,7 +1,7 @@
 // Docs shots mode (./flag): runs before the app boots. Signs the window in as
 // the Acme world's Alex Rivera with a token no server ever sees, hands the app
 // the offline Convex client, picks the theme from the address, and seeds the
-// store. Persistence is off in this mode (store/idbCache.ts), so nothing is
+// store. Persistence is off in this mode (store/idb-cache.ts), so nothing is
 // read from or written to IndexedDB, and every write the app dispatches lands
 // on the stub, which resolves it without a network.
 //

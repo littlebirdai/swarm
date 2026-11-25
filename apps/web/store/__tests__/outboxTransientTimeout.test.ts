@@ -6,7 +6,7 @@ import {
   loadOutbox,
   removeDispatch,
   _reopenForTests,
-} from "../idbCache";
+} from "../idb-cache";
 import { action, mutativeMiddleware } from "../mutativeMiddleware";
 
 await _reopenForTests({ indexedDB, IDBKeyRange });

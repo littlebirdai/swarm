@@ -327,7 +327,7 @@ A hosted conversation is an ordinary `conversations` row with
    calls one function, `assistant/entry.ts: wake(conversationId, cause)`.
    `wake` is scheduled, so it waits behind Convex's scheduler, which on prod
    ran 1 to 4 minutes late (2026-10-07). So the person's client, once a write
-   that gives a hosted conversation input lands (`lib/hostedKick.ts`, wrapped
+   that gives a hosted conversation input lands (`lib/hosted-kick.ts`, wrapped
    around the store's dispatch: a send, a hosted create, a release, a retry),
    calls the public action `entry.kick`, which takes the same lease and runs
    the turn in that action (`turns.ts runTurn`), then the conversation's next

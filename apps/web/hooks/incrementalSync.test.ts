@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { useInboxStore } from "../store/inboxStore";
-import { isPersistedStoreKey } from "../store/idbCache";
+import { isPersistedStoreKey } from "../store/idb-cache";
 import { runReconcileCrawl, syncMetaKey } from "./reconcileCrawl";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));

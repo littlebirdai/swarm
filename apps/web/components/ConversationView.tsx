@@ -150,7 +150,7 @@ import {
   toggleSessionsLikeFirst,
 } from "../store/undoActions";
 import { toast } from "sonner";
-import { toastWriteError } from "../lib/dispatchBinding";
+import { toastWriteError } from "../lib/dispatch-binding";
 import {
   goalCanPause,
   goalCanResume,

@@ -869,7 +869,7 @@ describe("org intents", () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const src = readFileSync(
-      join(import.meta.dir, "..", "..", "lib", "dispatchBinding.ts"),
+      join(import.meta.dir, "..", "..", "lib", "dispatch-binding.ts"),
       "utf8",
     );
     const permanent = src.indexOf("if (isPermanentDispatchError(error)");

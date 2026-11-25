@@ -4,7 +4,7 @@
 // refusal ends the row failed through the standard dispatch-failure path.
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { useInboxStore } from "../inboxStore";
-import { applyDispatchFailure } from "../../lib/dispatchBinding";
+import { applyDispatchFailure } from "../../lib/dispatch-binding";
 import {
   DISPATCH_REFUSED,
   INTERRUPT_ACK_MS,

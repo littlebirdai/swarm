@@ -27,7 +27,7 @@ const { useEntityResolution } = await import("../../../lib/entityDisplay");
 const { usePRLookup } = await import("../../usePRLookup");
 const { PullRequestFiles } =
   await import("../../../components/pr/PullRequestFiles");
-const cache = await import("../../../store/idbCache");
+const cache = await import("../../../store/idb-cache");
 for (
   let i = 0;
   i < 1000 && !useInboxStore.getState().clientStateInitialized;

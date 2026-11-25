@@ -175,7 +175,7 @@ import { standingRoleIdOf } from "../lib/sessionIdentity";
 import { isUnderRole } from "@codecast/inbox/inboxProjection";
 import { AuthErrorBadge } from "./AuthErrorBadge";
 import { toast } from "sonner";
-import { toastWriteError } from "../lib/dispatchBinding";
+import { toastWriteError } from "../lib/dispatch-binding";
 import {
   animatedCloseSessions,
   animatedHideSessions,

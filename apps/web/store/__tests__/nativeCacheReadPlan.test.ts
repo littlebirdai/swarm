@@ -16,7 +16,7 @@ import { describe, expect, it } from "bun:test";
   getAllKeysSync: () => [],
   removeItemSync: () => {},
 };
-const { readPlan, readPlanSql } = await import("../idbCache.native");
+const { readPlan, readPlanSql } = await import("../idb-cache.native");
 
 const KEYS = [
   "col:sessions", // a legacy blob

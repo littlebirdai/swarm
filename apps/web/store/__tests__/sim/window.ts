@@ -65,7 +65,7 @@ import {
   makeDispatchBinding,
   newDispatchAckState,
   type DispatchAckState,
-} from "../../../lib/dispatchBinding";
+} from "../../../lib/dispatch-binding";
 import { ingestChatPage, CHAT_PAGE_SIZE } from "../../../lib/ingestChatPage";
 import {
   applyInboxListPayload,

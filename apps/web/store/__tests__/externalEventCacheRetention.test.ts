@@ -10,7 +10,7 @@ import {
   prThreads,
 } from "../../components/activity/activityModel";
 import { PR_STATE_OF_KIND } from "../../lib/externalEventOutcomes";
-import { deleteInBatches, RETENTION_DELETE_BATCH } from "../idbCache";
+import { deleteInBatches, RETENTION_DELETE_BATCH } from "../idb-cache";
 
 // Hydration-time retention for the persisted externalEvents collection. The
 // team feeder shows the newest 200 events and the key is a delta overlay, so

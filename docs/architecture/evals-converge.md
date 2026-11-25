@@ -928,7 +928,7 @@ C1 must merge before P1 copies from it. If needed, P1 starts once C1 lands.
 - **C9 (codecast): adopt query and client.**
   - Vendor at P3's sha. Then: `api/handlers.ts` and `api/sources.ts` use `createEvalsHandler`, and `core/query.ts` is deleted; `lib/evals/client.ts` keeps only `loopbackTransport`; `lib/evals/hooks.ts` and `fixtureTransport.ts` are repointed; `store/evalsStore.ts` implements `EvalsResourceCache`; the models and `evalsPaths` are deleted and repointed (`lib/tabSafePath.ts`).
   - Files: those named above plus the mirror, manifest and lockfile.
-  - Accept: parity identical apart from `capabilities`; mount tests; `store/__tests__/evalsStore.guard.test.ts`; `cast check`; screenshot spot check of Home and Run.
+  - Accept: parity identical apart from `capabilities`; mount tests; `store/__tests__/evals-store.guard.test.ts`; `cast check`; screenshot spot check of Home and Run.
   - As built (in the working tree, 2026-10-06):
     - P3 had no platform commit and P4a was already writing `react/`, so the vendor ran from a frozen copy of the platform tree (`/tmp/pf-c9`, taken while `react/` still held P0's barrels) through `PLATFORM_DIR`, for `evals` and `cli-kit` only.
     - Three platform models handed back `RunRowCore` (or the core `SurfaceOverview`) where they return the rows they were given, which lost codecast's row type in FreezeView, RunView and the wall: `batchColumns`, `seedNeighbours` and `wallOrder` are now generic over the row (`<R extends RunRowCore>`, `<S extends SurfaceOverview>`), in `~/src/platform` and the vendored copy alike. Platform typecheck and its client and query tests stay green.

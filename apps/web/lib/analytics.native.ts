@@ -1,4 +1,4 @@
-// Hermes-safe twin of analytics.ts (same pattern as idbCache.native.ts /
+// Hermes-safe twin of analytics.ts (same pattern as idb-cache.native.ts /
 // featureFlags): Metro resolves `.native.ts` first, so the mobile bundle never
 // parses the web file's `import.meta` (a Hermes parse error) or pulls in
 // posthog-js/@sentry/react. Shared hooks' track() calls (the inbox drift

@@ -31,6 +31,7 @@ export type AuthTokenState = "absent" | "named" | "unparsable" | "unreadable";
 export type AuthPrincipalTracker = {
   /** The principal this window acts for right now. Pure: never notifies. */
   current: () => string | null;
+  snapshot: () => string | null;
   tokenState: () => AuthTokenState;
   /** Increments on every principal change; a React key for the auth tree. */
   epoch: () => number;
@@ -149,6 +150,7 @@ export function createAuthPrincipalTracker(opts: {
       if (token === null) return durableAdopted ? principal : null;
       return principalFor(token);
     },
+    snapshot: () => principal,
     tokenState: () => stateOf(readLocal()),
     epoch: () => epoch,
     resolve: async () => {

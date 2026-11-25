@@ -99,7 +99,7 @@ describe("native dependency convention", () => {
   const HAND_WRITTEN_PROBES = new Set([
     "lib/asrCapture.ts",
     "lib/clipboard.ts", // falls back to the React Native clipboard, not to null
-    "lib/dispatchOutbox.ts", // must reject, not return null: the send journal fails honestly
+    "lib/dispatch-outbox.ts", // must reject, not return null: the send journal fails honestly
     "hooks/useNotificationCatchUp.ts", // falls back to a storage shim under test
   ]);
 

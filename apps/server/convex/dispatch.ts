@@ -1,13 +1,7 @@
-import {
-  internalMutation,
-  mutation,
-  syncAckPositions,
-  syncAckReceipts,
-} from "./functions";
+import { internalMutation, mutation } from "./functions";
 import { requestDeployCore } from "./deploys";
 import { requestTargetDeployCore } from "./deployTargetRequest";
 import { noteWriteCause } from "./lifecycleEvents";
-import { heldKeysFor } from "./lib/accessKeys";
 import { addWaitCore, removeWaitCore, type AddWaitInput } from "./taskWaits";
 import { relateCore } from "./taskLinks";
 import { normalizeCharacterFields } from "@codecast/org/sessionCharacter";
@@ -202,6 +196,8 @@ import {
 import {
   RECEIPT_OWNS_SERVER_WRITE,
   hasReceiptCommandId,
+  dispatchWithOutboxReceipt,
+  outboxValidator,
   receiptCommandId,
   receiptLocalResult,
   receiptOrLegacyCommandId,
@@ -482,11 +478,12 @@ export const dispatch = mutation({
     // the sync-log positions this transaction appended. Only new clients send
     // it, so the unwrapped shape old bundles rely on never changes.
     ack_positions: v.optional(v.boolean()),
+    outbox: v.optional(outboxValidator),
   },
   handler: async (
     ctx,
-    { action, args: actionArgs, patches, result, ack_positions },
-  ) => {
+    { action, args: actionArgs, patches, result, ack_positions, outbox },
+  ): Promise<any> => {
     noteWriteCause(ctx, `web:${action}`);
     const userId = await getAuthUserId(ctx);
     // Signed out is a state, not a verdict on the write: retryable keeps it in
@@ -506,37 +503,35 @@ export const dispatch = mutation({
       : undefined;
     if (!isDispatchAction(action)) throw new Error("Unknown dispatch action");
 
-    // In final mode the receipt envelope is the one durable-write rail. Do not
-    // also apply its compatibility patches as an independent server writer;
-    // rollback builds omit the envelope and resume the legacy patch path.
-    if (
-      patches &&
-      typeof patches === "object" &&
-      !(hasReceiptCommandId(result) && RECEIPT_OWNS_SERVER_WRITE.has(action))
-    ) {
-      const close = EXPLICIT_CLOSE_ACTIONS.has(action);
-      await applyPatches(ctx, userId, patches, {
-        forceKill: close || EXPLICIT_KILL_ACTIONS.has(action),
-        close,
-        cause: `web:${action}`,
-        presence: answerPresence(action, actionArgs),
-      });
-    }
+    return dispatchWithOutboxReceipt(
+      ctx,
+      userId,
+      action,
+      ack_positions,
+      outbox,
+      async () => {
+        // In final mode the receipt envelope is the one durable-write rail. Do not
+        // also apply its compatibility patches as an independent server writer;
+        // rollback builds omit the envelope and resume the legacy patch path.
+        if (
+          patches &&
+          typeof patches === "object" &&
+          !(
+            hasReceiptCommandId(result) && RECEIPT_OWNS_SERVER_WRITE.has(action)
+          )
+        ) {
+          const close = EXPLICIT_CLOSE_ACTIONS.has(action);
+          await applyPatches(ctx, userId, patches, {
+            forceKill: close || EXPLICIT_KILL_ACTIONS.has(action),
+            close,
+            cause: `web:${action}`,
+            presence: answerPresence(action, actionArgs),
+          });
+        }
 
-    const out = sideEffect
-      ? await sideEffect(ctx, userId, actionArgs, result)
-      : undefined;
-    if (ack_positions) {
-      const held = new Set(await heldKeysFor(ctx, userId));
-      return {
-        __syncAckV1: syncAckPositions(ctx),
-        __syncAckV2: syncAckReceipts(ctx).filter((r: any) =>
-          held.has(r.scope_key),
-        ),
-        result: out,
-      };
-    }
-    return out;
+        return sideEffect?.(ctx, userId, actionArgs, result);
+      },
+    );
   },
 });
 

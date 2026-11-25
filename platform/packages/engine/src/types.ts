@@ -105,6 +105,8 @@ export type OutboxEntry = {
   // The window that enqueued the row (outboxOwner.ts). While that window is
   // alive, only it delivers the row; absent on rows from older builds.
   owner?: string;
+  accountId?: string;
+  queuedAt?: number;
   operationSchemaVersion?: number;
   // Present on repeated-write actions (see outboxCoalesceKeys): the outbox
   // keeps at most one row per key, newest wins.
@@ -468,6 +470,7 @@ export type PlatformConfig = {
   mustDeliverExtra?: (entry: OutboxEntry) => boolean;
   // Repeated writes that rewrite the same logical value each time. Only
   // register actions whose args carry the COMPLETE new value for the key.
+  outboxAccountId?: () => string | null;
   outboxCoalesceKeys?: Record<string, (args: any[]) => string | null>;
   // Rewrite a replayed patch payload (drop values that are stale by definition
   // once they survive a reload, e.g. a "where the user is right now" pointer).
@@ -523,7 +526,10 @@ export type DispatchFn = (
    * through its own acknowledgements stamps the acknowledgement on exactly
    * these: a value match alone also takes in a newer write of the same value.
    */
-  meta?: { locks: ReadonlyArray<{ key: string; lock: string }> },
+  meta?: {
+    locks: ReadonlyArray<{ key: string; lock: string }>;
+    outbox?: { id: string; accountId: string; queuedAt: number; ageMs: number };
+  },
 ) => Promise<any>;
 export type MaybePromise<T> = T | Promise<T>;
 export type IDBWriteFn = (patches: any[], state: any) => MaybePromise<void>;

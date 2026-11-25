@@ -44,7 +44,7 @@ import {
   type ElementState,
 } from "@codecast/artifacts";
 import { useInboxStore } from "../../store/inboxStore";
-import { loadOutbox } from "../../store/idbCache";
+import { loadOutbox } from "../../store/idb-cache";
 import { isStubDoc } from "./liveStub";
 import { isRefusedDispatchError } from "../../store/mutativeMiddleware";
 export {

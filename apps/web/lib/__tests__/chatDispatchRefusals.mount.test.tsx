@@ -96,7 +96,7 @@ mock.module("../../components/chat/ChatMessageList", () => ({
   ChatMessageList: () => null,
 }));
 
-const { applyDispatchFailure } = await import("../dispatchBinding");
+const { applyDispatchFailure } = await import("../dispatch-binding");
 const { useInboxStore } = await import("../../store/inboxStore");
 const { ConversationChat } =
   await import("../../components/conversation/ConversationChat");

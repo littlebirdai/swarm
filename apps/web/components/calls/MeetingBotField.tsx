@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Bot, X } from "lucide-react";
-import { toastWriteError } from "../../lib/dispatchBinding";
+import { toastWriteError } from "../../lib/dispatch-binding";
 import { useInboxStore } from "../../store/inboxStore";
 import { useMeetingBots } from "../../hooks/useMeetingBots";
 import {

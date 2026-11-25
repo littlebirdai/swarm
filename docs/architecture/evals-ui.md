@@ -196,7 +196,7 @@ All paths are relative to `/evals`.
 - **`lib/evals/hooks.ts`.** `useEvalsConnection` (connect on first mount), `useEvalsResource(key, args)` (a cached answer by request, painted at once when cached) and `useEvalsChanges(live, onChanges)` (the `/changes` poller below). Pages read data only through these.
 - **`store/evalsStore.ts`.** A zustand store that lives in memory only, beside `memoryStore`, with states `idle | discovering | connected | no-daemon | no-checkout | child-crashed`.
   - It is not in inboxStore, the client sync registry or IndexedDB. This is local disk data, not Convex data.
-  - A guard test fails if any `evalsApi` type is imported from `store/inboxStore.ts`, `store/clientSyncRegistry.ts` or `store/idbCache.ts`.
+  - A guard test fails if any `evalsApi` type is imported from `store/inboxStore.ts`, `store/clientSyncRegistry.ts` or `store/idb-cache.ts`.
   - Failures are classified once (`classifyEvalsFailure`): a 502 or `child-crashed` moves the area to `child-crashed` with stderr; a checkout reason or `no-bun` to `no-checkout` with the reason in words; a 404 with no reason (a daemon without `/evals`) or a 401/403 to `no-daemon`; a 404 the child wrote (`reason: not-found`) stays that page's problem.
 - **Live updates.** While a view shows live work (a running batch, a bisect, a shrink or a sweep), it polls `GET /changes?since=` every 3 s. Polling pauses when the tab is hidden. A job with no new step for 5 minutes shows "stalled?" (`quietTooLong` in `bisectModel.ts`, one rule and one `StallChip` for bisects, shrinks and sweeps).
 - **Routing.** Register one area, `/evals` and `/evals/*`, rather than eight route families. This keeps edits to shared files to one pass.
@@ -686,7 +686,7 @@ All paths are under `/Users/ashot/src/codecast` unless they start with `~/src/pl
 - **Daemon:** `apps/cli/src/evals/evalsServer.ts`, `evalsBridge.ts`, `evalsServer.test.ts`
 - **Web, foundation:**
   - `apps/web/lib/evals/client.ts`, `lib/evals/fixtureTransport.ts`
-  - `apps/web/store/evalsStore.ts`, `store/__tests__/evalsStore.guard.test.ts`
+  - `apps/web/store/evalsStore.ts`, `store/__tests__/evals-store.guard.test.ts`
   - `apps/web/app/evals/page.tsx`
 - **Web, `apps/web/components/evals/`:**
   - Foundation:

@@ -560,6 +560,11 @@ function withoutCells(grouped: Record<string, Record<string, any>> | undefined, 
   return out ?? grouped;
 }
 
+const outboxTimeOrigin = globalThis.performance?.timeOrigin || Date.now() - (globalThis.performance?.now() ?? 0);
+const outboxNow = () => outboxTimeOrigin + (globalThis.performance?.now() ?? 0);
+const outboxAge = (entry: Pick<OutboxEntry, "queuedAt" | "ts">) =>
+  Math.max(0, entry.queuedAt === undefined ? Date.now() - entry.ts : outboxNow() - entry.queuedAt);
+
 async function dispatchWithRetry(
   fn: DispatchFn,
   action: string,
@@ -574,12 +579,10 @@ async function dispatchWithRetry(
   // Asked before every attempt: the row patches to send now (a later send may
   // own some of them by then), or NOTHING_LEFT when no cell is left to send.
   patchesNow?: () => any,
-  // The locks the send planted, handed to the dispatch function (DispatchFn meta).
-  locks?: readonly ActionFieldLock[],
+  entry?: Pick<OutboxEntry, "id" | "accountId" | "ts" | "queuedAt" | "locks">,
 ): Promise<any> {
-  const meta = locks?.length
-    ? { locks: locks.filter((l) => l.lock !== undefined).map((l) => ({ key: l.key, lock: l.lock! })) }
-    : undefined;
+  const locks = entry?.locks ?? [];
+  const lockIds = locks.filter((l) => l.lock !== undefined).map((l) => ({ key: l.key, lock: l.lock! }));
   const safeArgs = sanitizeForTransport(args);
   let safeGrouped = grouped !== undefined ? sanitizeForTransport(grouped) : undefined;
   const safeResult = result === undefined ? null : sanitizeForTransport(result);
@@ -596,6 +599,10 @@ async function dispatchWithRetry(
       safeGrouped = now !== undefined ? sanitizeForTransport(now) : undefined;
     }
     try {
+      const outbox = entry?.accountId
+        ? { id: entry.id, accountId: entry.accountId, queuedAt: entry.ts, ageMs: outboxAge(entry) }
+        : undefined;
+      const meta = lockIds.length || outbox ? { locks: lockIds, outbox } : undefined;
       const response = await fn(action, safeArgs, safeGrouped, safeResult, commandId, meta);
       assertCurrent();
       return response;
@@ -1358,8 +1365,13 @@ export function mutativeMiddleware(
     };
 
     function newOutboxId(): string {
-      if (typeof crypto !== "undefined" && (crypto as any).randomUUID) return (crypto as any).randomUUID();
-      return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const expo = (globalThis as typeof globalThis & { expo?: { uuidv4?: () => string } }).expo;
+      if (expo?.uuidv4) return expo.uuidv4();
+      if (typeof globalThis.crypto?.getRandomValues === "function") {
+        return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      }
+      if (globalThis.navigator?.product !== "ReactNative" && typeof globalThis.crypto?.randomUUID === "function") return crypto.randomUUID();
+      throw new Error("Secure randomness is unavailable for dispatch");
     }
 
     function nextOutboxTimestamp(): number {
@@ -1531,7 +1543,7 @@ export function mutativeMiddleware(
             void retireOutboxEntry(entry.id, null);
             return false;
           }
-          if (typeof entry.ts === "number" && Date.now() - entry.ts > OUTBOX_MAX_REPLAY_AGE_MS) {
+          if (typeof entry.ts === "number" && outboxAge(entry) > OUTBOX_MAX_REPLAY_AGE_MS) {
             console.error(
               `[store] dropping ${Math.round((Date.now() - entry.ts) / 86_400_000)}d-old parked "${entry.action}" — too stale to replay`,
               entry.args,
@@ -1578,7 +1590,7 @@ export function mutativeMiddleware(
                 const now = patchesNow();
                 return now === NOTHING_LEFT ? now : transformReplayPatches(now);
               },
-              entry.locks,
+              entry,
             );
             assertDispatchCurrent(captured);
             if (isReceiptActionEnvelope(entry.result)) {
@@ -1710,6 +1722,7 @@ export function mutativeMiddleware(
       returnValue: any,
       fieldLocks: ActionFieldLock[],
       outboxId: string,
+      accountId: string | null | undefined,
       after?: readonly string[],
       reverses?: readonly string[],
     ): any => {
@@ -1742,6 +1755,7 @@ export function mutativeMiddleware(
       const coalesceKey = outboxCoalesceKeyFor(key, actionArgs, coalesceKeys);
       const entry = {
         id: outboxId,
+        ...(accountId ? { accountId } : {}),
         action: key,
         args: actionArgs,
         patches: grouped,
@@ -1751,6 +1765,7 @@ export function mutativeMiddleware(
         // causal call order even when several dependent actions (create →
         // delete, fork → send) are queued in the same millisecond.
         ts: nextOutboxTimestamp(),
+        queuedAt: outboxNow(),
         owner: outboxOwner,
         ...(coalesceKey ? { coalesceKey } : {}),
         ...(fieldLocks.length > 0 ? { locks: fieldLocks } : {}),
@@ -1790,7 +1805,7 @@ export function mutativeMiddleware(
             return true;
           },
           patchesNowFor(key, outboxId, entry.ts, grouped, fieldLocks),
-          fieldLocks,
+          entry,
         );
         // Live sends are not ordered by themselves: a write retrying after a
         // transient error can land after a later call's send. A call that
@@ -2048,6 +2063,7 @@ export function mutativeMiddleware(
       const isAsyncAct = flags.asyncAct;
       {
         const state = get();
+        const accountId = isAct || isAsyncAct ? platformConfig.outboxAccountId?.() : undefined;
         let returnValue: any;
         const effects: Array<() => void> = [];
         commitEffectFrames.push(effects);
@@ -2125,7 +2141,7 @@ export function mutativeMiddleware(
 
         if (isAct || isAsyncAct) {
           const outboxId = newOutboxId();
-          const result = enqueueDispatch(key, flags, actionArgs, patches, finalState, returnValue, fieldLocks, outboxId, opts?.after, opts?.reverses);
+          const result = enqueueDispatch(key, flags, actionArgs, patches, finalState, returnValue, fieldLocks, outboxId, accountId, opts?.after, opts?.reverses);
           // After the dispatch is on its way, and never able to stop it: the
           // undo capture runs app code (a spec's label, inverse, confirm,
           // spell), and a bug there must cost the history its entry, never

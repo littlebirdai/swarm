@@ -180,7 +180,7 @@ export async function mountWeb(node: ReactNode, options: Options = {}) {
     if (options.dispatch) {
       const { api } = await import("@codecast/convex/convex/_generated/api");
       const { applyDispatchFailure, makeDispatchBinding } =
-        await import("../lib/dispatchBinding");
+        await import("../lib/dispatch-binding");
       store._setDispatchError(applyDispatchFailure);
       store._setDispatch(
         makeDispatchBinding((args) =>

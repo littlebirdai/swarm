@@ -1,7 +1,7 @@
 import { useCallback, type RefObject } from "react";
 import { agentSupportsFork } from "@codecast/agent-clients/agentClients";
 import { toast } from "sonner";
-import { toastWriteError } from "../lib/dispatchBinding";
+import { toastWriteError } from "../lib/dispatch-binding";
 import {
   useInboxStore,
   type ForkChild,

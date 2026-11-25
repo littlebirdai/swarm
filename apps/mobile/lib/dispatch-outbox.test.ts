@@ -3,7 +3,7 @@ import {
   createPrincipalDispatchOutbox,
   type MobileDispatchDatabase,
   type MobileDispatchOutboxEntry,
-} from "./dispatchOutbox";
+} from "./dispatch-outbox";
 import {
   asyncAction,
   DispatchNotWiredError,
@@ -104,12 +104,17 @@ describe("principal-scoped mobile dispatch outbox", () => {
 
   test("round-trips replay metadata in stable creation order", async () => {
     const outbox = createPrincipalDispatchOutbox(memoryDatabase(), "user-a");
-    await outbox.enqueue({ ...entry("later", 20), attempts: 4 });
+    await outbox.enqueue({
+      ...entry("later", 20),
+      attempts: 4,
+      accountId: "user-a",
+      queuedAt: 19,
+    });
     await outbox.enqueue(entry("earlier", 10));
 
     expect(await outbox.load()).toEqual([
-      entry("earlier", 10),
-      { ...entry("later", 20), attempts: 4 },
+      { ...entry("earlier", 10), accountId: "user-a" },
+      { ...entry("later", 20), attempts: 4, accountId: "user-a", queuedAt: 19 },
     ]);
   });
 
@@ -160,4 +165,41 @@ describe("principal-scoped mobile dispatch outbox", () => {
 
     expect(() => store.createThing("intent-a")).toThrow("disk unavailable");
   });
+});
+
+test("a mobile drain forwards the SQLite owner and skips conflicting rows", async () => {
+  const database = memoryDatabase();
+  const outbox = createPrincipalDispatchOutbox(database, "user-a");
+  const valid = entry(crypto.randomUUID(), Date.now());
+  outbox.enqueue(valid);
+  const foreign = {
+    ...entry(crypto.randomUUID(), valid.ts + 1),
+    accountId: "user-b",
+  };
+  database.runSync(
+    "INSERT INTO mobile_dispatch_outbox",
+    "user-a",
+    foreign.id,
+    JSON.stringify(foreign),
+    foreign.ts,
+  );
+  expect((await outbox.load()).map((row) => row.id)).toEqual([valid.id]);
+  const delivered = Promise.withResolvers<unknown>();
+  const state = middlewareHarness(outbox);
+  state._setDispatch(
+    async (
+      _action: string,
+      _args: unknown,
+      _patches: unknown,
+      _result: unknown,
+      _commandId: unknown,
+      meta: unknown,
+    ) => {
+      delivered.resolve(meta);
+    },
+  );
+  expect(await delivered.promise).toMatchObject({
+    outbox: { id: valid.id, accountId: "user-a", queuedAt: valid.ts },
+  });
+  expect((await outbox.load()).map((row) => row.id)).not.toContain(foreign.id);
 });

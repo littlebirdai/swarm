@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 // jsdom/node has no native expo-sqlite, so back the kv-store with an in-memory
 // AsyncStorage-compatible shim that mirrors the methods idbCache.native uses.
 // NOT via mock.module: the module acquires the store through a guarded
-// require() (deliberate — see the OTA-skew comment in idbCache.native.ts), and
+// require() (deliberate — see the OTA-skew comment in idb-cache.native.ts), and
 // bun's mock.module intercepts only the ESM import path, so the mock never
 // attached — the require threw, the guard nulled Storage, and every test read
 // empty. The module's catch-path instead picks up this global, set BEFORE the
@@ -74,7 +74,7 @@ const {
   writeConversationMessages,
   purgeLocalCache,
   setCachePrincipalSource,
-} = await import("../idbCache.native");
+} = await import("../idb-cache.native");
 
 const { noteSnapshotSync, _resetSnapshotLedger } =
   await import("../idbCollectionDiff");

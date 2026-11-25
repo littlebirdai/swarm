@@ -16,7 +16,7 @@ import { optionalNative } from "./optionalNative";
 // gesture-handler is required: probe the native module without throwing, and
 // export null / a plain-View fallback when it is missing so the app renders and
 // is usable (gestures degrade) until a native build bundles it. Mirrors the
-// guarded requires in lib/analytics.ts, lib/clipboard.ts, store/idbCache.native.ts.
+// guarded requires in lib/analytics.ts, lib/clipboard.ts, store/idb-cache.native.ts.
 // The whole module namespace, or null when the native module is missing.
 // Consumers must handle null with a degraded (or PanResponder) path.
 // eslint-disable-next-line @typescript-eslint/no-var-requires

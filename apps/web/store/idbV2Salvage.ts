@@ -1,4 +1,4 @@
-// IndexedDB helpers for salvageLocalFirstV2Data (idbCache.ts): read the
+// IndexedDB helpers for salvageLocalFirstV2Data (idb-cache.ts): read the
 // retired v2 databases' parked outbox rows, then delete those databases.
 
 export function readV2LegacyOutbox(name: string): Promise<unknown[]> {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { useInboxStore } from "../../store/inboxStore";
-import { withHostedKick } from "../hostedKick";
+import { withHostedKick } from "../hosted-kick";
 
 const HOSTED = "a".repeat(32);
 const LOCAL = "b".repeat(32);

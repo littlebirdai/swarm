@@ -102,6 +102,7 @@ try {
 }
 
 export type OutboxEntry = {
+  accountId?: string;
   id: string;
   action: string;
   args: any;
@@ -962,6 +963,11 @@ function mutateOutbox(transform: (entries: OutboxEntry[]) => OutboxEntry[]) {
 }
 
 export function enqueueDispatch(entry: OutboxEntry) {
+  if (
+    principalSource &&
+    (!entry.accountId || entry.accountId !== outboxAccountId())
+  )
+    return;
   mutateOutbox((entries) => [
     ...entries.filter((e) => e.id !== entry.id),
     entry,
@@ -976,7 +982,15 @@ export async function loadOutbox(): Promise<OutboxEntry[]> {
   try {
     // Drain queued writes first so the read reflects every prior enqueue/remove.
     await _outboxQueue;
-    return (await readOutbox()).sort((a, b) => a.ts - b.ts);
+    const rows = await readOutbox();
+    if (!principalSource) return rows.sort((a, b) => a.ts - b.ts);
+    const accountId = outboxAccountId();
+    if (!accountId) return [];
+    const diskOwner = diskOwnerSync();
+    return rows
+      .filter((row) => (row.accountId ?? diskOwner) === accountId)
+      .map((row) => ({ ...row, accountId }))
+      .sort((a, b) => a.ts - b.ts);
   } catch {
     return [];
   }
@@ -1019,6 +1033,10 @@ function readCachePrincipal(): CachePrincipal {
   } catch {
     return { principal: null, tokenState: "unreadable" };
   }
+}
+
+export function outboxAccountId(): string | null {
+  return principalSource ? readCachePrincipal().principal : null;
 }
 
 function diskOwnerSync(): string | null {

@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback } from "react";
 import { useMountEffect } from "./useMountEffect";
-import { toastWriteError } from "../lib/dispatchBinding";
+import { toastWriteError } from "../lib/dispatch-binding";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useInboxStore } from "../store/inboxStore";
 import { isParkedDispatchError } from "../store/mutativeMiddleware";

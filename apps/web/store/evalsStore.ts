@@ -2,7 +2,7 @@
 // history read off this machine's disk through the daemon's /evals bridge.
 // Private eval data, so it lives in memory only: not in inboxStore, not in the
 // client sync registry, not in IndexedDB, not in localStorage
-// (store/__tests__/evalsStore.guard.test.ts holds that line). A reload reads
+// (store/__tests__/evals-store.guard.test.ts holds that line). A reload reads
 // the disk again; the api child keeps its own index warm, so that is cheap.
 //
 // The store is the resource cache (@platform/evals/client's

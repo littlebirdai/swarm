@@ -47,6 +47,7 @@ export {
 } from "./persistence/message-cache";
 export {
   enqueueDispatch,
+  outboxAccountId,
   loadOutbox,
   removeDispatch,
   salvageLocalFirstV2Data,

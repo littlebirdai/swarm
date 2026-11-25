@@ -17,7 +17,7 @@ const read = (file: string) => readFileSync(join(storeDir, file), "utf8");
 const GUARDED = [
   "inboxStore.ts",
   "clientSyncRegistry.ts",
-  "idbCache.ts",
+  "idb-cache.ts",
   ...readdirSync(join(storeDir, "persistence"))
     .filter((file) => file.endsWith(".ts"))
     .map((file) => `persistence/${file}`),
@@ -77,7 +77,7 @@ describe("evals data stays out of the persisted store layer", () => {
     const src = read("evalsStore.ts");
     expect(src).not.toMatch(/\bpersist\s*\(/);
     expect(src).not.toMatch(
-      /from\s+["'][^"']*(idbCache|dexie|zustand\/middleware)["']/,
+      /from\s+["'][^"']*(idb-cache|dexie|zustand\/middleware)["']/,
     );
     expect(src).not.toMatch(
       /localStorage\.setItem|sessionStorage\.setItem|indexedDB/,

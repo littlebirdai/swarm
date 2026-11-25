@@ -9,7 +9,7 @@ import {
   flushLivenessWrites,
   setHydrating,
   writePatchesToIDB,
-} from "../idbCache";
+} from "../idb-cache";
 import { noteSnapshotSync } from "../idbCollectionDiff";
 
 await _reopenForTests({ indexedDB, IDBKeyRange });

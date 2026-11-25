@@ -23,7 +23,7 @@ import {
   CACHE_SCHEMA_SIGNATURE,
   MISSING_COLLECTION_TABLES,
   cacheSchemaSignature,
-} from "../idbCache";
+} from "../idb-cache";
 import { useInboxStore } from "../inboxStore";
 
 describe("client sync registry", () => {

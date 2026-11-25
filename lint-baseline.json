@@ -7344,7 +7344,7 @@
   "apps/mobile/lib/diffRows.ts": {
     "swarm/no-comments": 7
   },
-  "apps/mobile/lib/dispatchOutbox.ts": {
+  "apps/mobile/lib/dispatch-outbox.ts": {
     "swarm/no-comments": 11
   },
   "apps/mobile/lib/durableCreatePolicy.test.ts": {
@@ -23110,7 +23110,7 @@
   "apps/web/lib/__tests__/diffSeenMarks.test.ts": {
     "swarm/no-comments": 4
   },
-  "apps/web/lib/__tests__/dispatchBinding.test.ts": {
+  "apps/web/lib/__tests__/dispatch-binding.test.ts": {
     "swarm/no-comments": 6
   },
   "apps/web/lib/__tests__/docFilters.test.ts": {
@@ -24415,8 +24415,8 @@
   "apps/web/lib/diffSeenMarks.ts": {
     "swarm/no-comments": 15
   },
-  "apps/web/lib/dispatchBinding.ts": {
-    "swarm/no-comments": 96
+  "apps/web/lib/dispatch-binding.ts": {
+    "swarm/no-comments": 86
   },
   "apps/web/lib/dispatchRefusal.ts": {
     "swarm/no-comments": 1
@@ -24641,6 +24641,9 @@
   "apps/web/lib/hostWake.ts": {
     "swarm/no-comments": 40
   },
+  "apps/web/lib/hosted-kick.ts": {
+    "swarm/no-comments": 9
+  },
   "apps/web/lib/hostedApproval.test.ts": {
     "swarm/no-comments": 2
   },
@@ -24649,9 +24652,6 @@
   },
   "apps/web/lib/hostedComposer.ts": {
     "swarm/no-comments": 7
-  },
-  "apps/web/lib/hostedKick.ts": {
-    "swarm/no-comments": 9
   },
   "apps/web/lib/hostedNotice.test.ts": {
     "swarm/no-comments": 7
@@ -27122,7 +27122,7 @@
   "apps/web/store/__tests__/durableWriters.test.ts": {
     "swarm/no-comments": 4
   },
-  "apps/web/store/__tests__/evalsStore.guard.test.ts": {
+  "apps/web/store/__tests__/evals-store.guard.test.ts": {
     "swarm/no-comments": 10
   },
   "apps/web/store/__tests__/expectationsSlice.test.ts": {
@@ -27852,10 +27852,10 @@
   "apps/web/store/hiddenBucketTree.ts": {
     "swarm/no-comments": 10
   },
-  "apps/web/store/idbCache.native.ts": {
+  "apps/web/store/idb-cache.native.ts": {
     "swarm/no-comments": 132
   },
-  "apps/web/store/idbCache.ts": {
+  "apps/web/store/idb-cache.ts": {
     "swarm/no-comments": 1
   },
   "apps/web/store/idbCacheKeys.native.ts": {
@@ -27956,7 +27956,7 @@
     "swarm/no-comments": 4
   },
   "apps/web/store/persistence/outbox.ts": {
-    "swarm/no-comments": 18
+    "swarm/no-comments": 14
   },
   "apps/web/store/persistence/purge.ts": {
     "swarm/no-comments": 12

@@ -2,13 +2,13 @@ import { describe, it, expect } from "bun:test";
 import {
   partitionSessionRetention,
   expireExcludeTombstones,
-} from "../idbCache";
+} from "../idb-cache";
 import { admitUnheldSessions, MAX_CACHED_SESSIONS } from "../cacheRetention";
 
 // Hydration-time retention for the persisted sessions collection. The
 // in-memory map is never-prune by design, so boot is the only moment the
 // months-long on-disk accumulation can be shed — these tests pin down exactly
-// what survives it (see partitionSessionRetention in idbCache.ts).
+// what survives it (see partitionSessionRetention in idb-cache.ts).
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = 1_800_000_000_000;

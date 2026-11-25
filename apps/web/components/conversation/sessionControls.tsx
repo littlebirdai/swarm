@@ -46,7 +46,7 @@ import { StableContextPicker } from "../StableContextCards";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import { toast } from "sonner";
-import { toastWriteError } from "../../lib/dispatchBinding";
+import { toastWriteError } from "../../lib/dispatch-binding";
 import { ComposeRolePicker } from "../ComposeRolePicker";
 import type { RoleRecipient } from "../../lib/roleRecipients";
 import { AgentTypeIcon } from "../AgentTypeIcon";

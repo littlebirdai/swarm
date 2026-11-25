@@ -2,7 +2,7 @@ import { useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../store/inboxStore";
 import { queryWithSignal } from "../lib/queryWithSignal";
-import { loadOutbox } from "../store/idbCache";
+import { loadOutbox } from "../store/idb-cache";
 import { useRecoveryPoll } from "./useRecoveryPoll";
 import { reconcilePendingMessageCoverage } from "./pendingMessageCoverage";
 

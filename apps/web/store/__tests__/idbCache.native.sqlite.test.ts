@@ -82,8 +82,8 @@ const {
   setHydrating,
   _resetPersistedShadow,
 } = (await import(
-  "../idbCache.native?sqlite" as string
-)) as typeof import("../idbCache.native");
+  "../idb-cache.native?sqlite" as string
+)) as typeof import("../idb-cache.native");
 
 const sessions = (n: number, title = "row"): Record<string, any> =>
   Object.fromEntries(

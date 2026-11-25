@@ -15,7 +15,7 @@ import { OpenInDesktopHandoff } from "@/components/OpenInDesktopHandoff";
 import { ShortcutProvider, setKeyBindings, isMac } from "@/shortcuts";
 import { shortcutCatalog } from "@/shortcuts/registry";
 import { desktopMenuKeys } from "@codecast/keyboard/keyBindings";
-import { dispatchRefusalReason } from "@/lib/dispatchBinding";
+import { dispatchRefusalReason } from "@/lib/dispatch-binding";
 import { bridge } from "@/lib/desktop";
 import { TipProvider } from "@/tips/TipProvider";
 import { useMountEffect } from "@/hooks/useMountEffect";

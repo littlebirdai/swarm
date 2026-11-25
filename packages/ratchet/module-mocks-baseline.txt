@@ -146,7 +146,7 @@ apps/web/lib/remarkEntityCards.test.tsx 3
 apps/web/lib/remarkEntityIds.test.tsx 2
 apps/web/lib/useCloudAgentLogin.test.tsx 1
 apps/web/store/__tests__/liveArtifactUndo.test.ts 2
-apps/web/store/idbCache.native.ts 1
+apps/web/store/idb-cache.native.ts 1
 apps/web/test-helpers/LiveKitRoomStandIn.ts 2
 apps/web/test-helpers/missingBackend.tsx 4
 apps/web/test-helpers/preload.ts 5

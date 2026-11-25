@@ -277,7 +277,7 @@ describe("applyInboxLivenessPayload — the one applier for { liveness, projecti
   });
 
   it("the buffer is ephemeral: not registered for persistence", async () => {
-    const { isPersistedStoreKey } = await import("../idbCache");
+    const { isPersistedStoreKey } = await import("../idb-cache");
     expect(isPersistedStoreKey("sessionsProjection")).toBe(false);
   });
 });

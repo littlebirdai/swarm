@@ -10,7 +10,7 @@ import {
   loadConversationMessages,
   setHydrating,
   writeConversationMessages,
-} from "../idbCache";
+} from "../idb-cache";
 
 await _reopenForTests({ indexedDB, IDBKeyRange });
 Dexie.dependencies.indexedDB = indexedDB;

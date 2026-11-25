@@ -463,7 +463,7 @@ Every read uses a team-scoped index window, never the global `by_timestamp` inde
 | `changeWorks`    | collection, deferred           | snapshot        | `_id, team_id, kind`                    | `changes.inTheWorks`   | shared      |
 
 - Add `changes.storyEvidence` to the existing `commits` entry's `feeds`.
-- Bump `CACHE_SCHEMA_VERSION` in `store/idbCache.ts`.
+- Bump `CACHE_SCHEMA_VERSION` in `store/idb-cache.ts`.
 - Feeders: `packages/web/hooks/useSyncChanges.ts` beside `useSyncTimeline.ts`, using `useSyncCollection`, feeding a 7-day window around the viewed date. Per-view queries, so no `HostFeeders` gating.
 - Readers: `useCollectionRows` with signatures of rendered fields only (story: `story_key|headline|dek|importance|prose_status|why_source|generated_at`; edition: `headline|status|inputs_hash`). Liveness churn never re-renders the page.
 - Session pills and author faces: `EntityIdPill` (uses `useQueryNoThrow`) and the live roster through `lib/liveEntities`. No stored name blobs for people beyond commit author strings.
@@ -557,7 +557,7 @@ Work: `listStories`, `listEditions` with stale flag, `liveStatus`, `storyEvidenc
 Accept: a non-member gets nothing; a member of team A never sees team B rows; `inTheWorks` excludes a `hidden`-level member's blocked insight; every query reads under 1 MiB on the Littlebird fixture.
 
 **T10. Store registrations and feeders.** Depends on T9.
-Files: `packages/web/store/clientSyncRegistry.ts`, `packages/web/store/idbCache.ts`, `packages/web/hooks/useSyncChanges.ts`.
+Files: `packages/web/store/clientSyncRegistry.ts`, `packages/web/store/idb-cache.ts`, `packages/web/hooks/useSyncChanges.ts`.
 Work: four registrations, the extra `commits` feed, replication classification, cache version bump, feeder hook.
 Accept: registry signature test and `registeredFeeds.guard.test.ts` pass; `cast check web` green.
 

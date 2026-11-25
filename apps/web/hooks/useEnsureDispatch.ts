@@ -10,8 +10,8 @@ import {
   applyDispatchFailure,
   makeDispatchBinding,
   newDispatchAckState,
-} from "../lib/dispatchBinding";
-import { withHostedKick } from "../lib/hostedKick";
+} from "../lib/dispatch-binding";
+import { withHostedKick } from "../lib/hosted-kick";
 import { useServerAuthenticated } from "./useServerAuthSettled";
 
 // Sync-log ack opt-in latch, shared by every mount for the page session: it
