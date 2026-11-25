@@ -40,7 +40,7 @@ afterAll(() => {
 
 function manifest(
   services: Record<string, ServiceSpec>,
-  base = 47310,
+  base = 17310,
 ): WorkspaceManifest {
   return {
     setup: { copy: [], share: [], install: [], generate: [], migrate: [] },
@@ -73,7 +73,7 @@ describe("cast dev engine", () => {
     });
     expect(first.state).toBe("started");
     if (first.state !== "started") return;
-    expect(first.record.port).toBeGreaterThanOrEqual(47310);
+    expect(first.record.port).toBeGreaterThanOrEqual(17310);
     expect(await (await fetch(first.record.url)).text()).toBe("ok");
 
     const again = await ensureService(svc, {
@@ -103,14 +103,14 @@ describe("cast dev engine", () => {
     });
     expect(status.state).toBe("failed");
     if (status.state === "failed")
-      expect(status.logTail).toContain("boom on 473");
+      expect(status.logTail).toContain("boom on 173");
   }, 30_000);
 
   test("the [vault] env reaches the server; a refusal fails the start before anything runs", async () => {
     const checkout = fs.mkdtempSync(path.join(tmp, "repo-"));
     const m = manifest(
       { web: { mode: "isolated", start: "echo key=$STRIPE_KEY; exit 3" } },
-      47320,
+      17320,
     );
     let asked = 0;
     const status = await ensureService(devServices(m)[0], {
