@@ -43,7 +43,7 @@ function words(command: string): string[] {
 }
 
 const BUN_FLAG =
-  /^--(?:isolate|parallel(?:=\d+)?|(?:timeout|bail)=\d+|timings=[\w./-]+|shard=\d+\/\d+|path-ignore-patterns=[^\n]*)$/;
+  /^--(?:isolate|parallel(?:=\d+)?|(?:timeout|bail|retry)=\d+|timings=[\w./-]+|shard=\d+\/\d+|path-ignore-patterns=[^\n]*)$/;
 
 export function parseTestCommands(
   run: string,

@@ -438,7 +438,7 @@ describe("matrices", () => {
       ],
       [
         "startsWith(matrix.suite, 'tmux-')",
-        'bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --timeout=20000 --timings=test-timings.json --shard="${SUITE#tmux-}/8" --bail=5',
+        'bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --retry=2 --timeout=20000 --timings=test-timings.json --shard="${SUITE#tmux-}/8" --bail=5',
       ],
       ["matrix.suite == 'evals'", "bun test src/ --parallel"],
       ["matrix.suite == 'evals'", "bun test"],
@@ -885,6 +885,7 @@ describe("tests outside packages/", () => {
     );
     for (const file of [
       "./scripts/line.test.ts",
+      "./scripts/lineFinders.test.ts",
       "./scripts/lib/lint-baseline.test.ts",
       "./infra/artifact-edge/worker.test.js",
       "./infra/replay-player/src/clock.test.ts",

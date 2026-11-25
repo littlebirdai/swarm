@@ -4,6 +4,7 @@
 // exactly once (a held note never does), a routine on it fires from the
 // server and never reaches a daemon, and the engine's internal writers keep
 // the public writers' behaviour without a token.
+import { scheduledJobProblems } from "./assistantJobs.testkit";
 import {
   afterEach,
   beforeEach,
@@ -77,12 +78,7 @@ afterEach(async () => {
   try {
     for (const t of testInstances.splice(0)) {
       await t.finishAllScheduledFunctions(() => jest.runAllTimers());
-      const unfinished = await t.run(async (ctx) =>
-        (await ctx.db.system.query("_scheduled_functions").collect())
-          .filter((job) => !["success", "canceled"].includes(job.state.kind))
-          .map((job) => ({ name: job.name, state: job.state.kind })),
-      );
-      expect(unfinished).toEqual([]);
+      expect(await scheduledJobProblems(t)).toEqual([]);
     }
   } finally {
     jest.useRealTimers();

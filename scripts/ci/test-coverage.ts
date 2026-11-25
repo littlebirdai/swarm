@@ -15,16 +15,18 @@ import { matrixEntries, selectedEntries } from "./test-job-matrix";
 type Step = {
   if?: boolean | string;
   run?: string;
+  shell?: string;
   "working-directory"?: string;
   "continue-on-error"?: boolean;
 };
 type Job = {
+  defaults?: unknown;
   if?: boolean | string;
   steps?: Step[];
   strategy?: { matrix: Record<string, Array<string | number | boolean>> };
   "continue-on-error"?: boolean;
 };
-type Workflow = { jobs: Record<string, Job> };
+type Workflow = { defaults?: unknown; jobs: Record<string, Job> };
 
 function gitTestFiles(): string[] {
   const git = Bun.spawnSync(
@@ -59,11 +61,17 @@ export function testCoverage(
   const jobs = new Map<string, Set<string>>();
   const required = new Set<string>();
   const covered = new Set<string>();
+  if (workflow.defaults) throw new Error("Workflow defaults are not supported");
   for (const [job, config] of Object.entries(workflow.jobs)) {
+    if (config.defaults) throw new Error(`${job}: defaults are not supported`);
     const selected = new Set<string>();
     for (const step of config.steps ?? []) {
       if (!step.run || !namesTestRunner(step.run.replace(/\\\r?\n/g, " ")))
         continue;
+      if (step.shell)
+        throw new Error(`${job}: a test step must use the default shell`);
+      if (/--shard[= ]\d+\/\d+/.test(step.run))
+        throw new Error(`${job}: a shard must come from the matrix`);
       const dir = step["working-directory"] ?? ".";
       const entries = selectedEntries(config.strategy?.matrix, [
         config.if,

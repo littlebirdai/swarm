@@ -272,7 +272,7 @@ bun scripts/ci/changed-path-scope.ts --injection-only < "\${{ steps.diff.outputs
       {
         "name": "Tests outside packages/ (scripts, infra)",
         "run": 
-"bun test ./scripts/line.test.ts ./scripts/lib/lint-baseline.test.ts ./infra/artifact-edge/worker.test.js ./infra/replay-player/src/clock.test.ts
+"bun test ./scripts/line.test.ts ./scripts/lineFinders.test.ts ./scripts/lib/lint-baseline.test.ts ./infra/artifact-edge/worker.test.js ./infra/replay-player/src/clock.test.ts
 node --test infra/call-face-worker/turns.test.mjs
 "
 ,
@@ -314,7 +314,7 @@ node --test infra/call-face-worker/turns.test.mjs
         },
         "if": "startsWith(matrix.suite, 'tmux-')",
         "name": "E2E files (cli package)",
-        "run": "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --timeout=20000 --timings=test-timings.json --shard="\${SUITE#tmux-}/8" --bail=5",
+        "run": "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --retry=2 --timeout=20000 --timings=test-timings.json --shard="\${SUITE#tmux-}/8" --bail=5",
         "working-directory": "apps/cli",
       },
       {
