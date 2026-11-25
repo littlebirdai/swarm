@@ -1,88 +1,84 @@
-import { afterAll, test, expect, describe, mock } from "bun:test";
-
-/**
- * The reported crash, end to end: on 2026-08-11 the web bundle shipped ahead of
- * the convex deploy, so devices.getConversationMachine answered "Could not find
- * public function", the pill's useQuery re-threw during render, and the whole
- * conversation header went to its ErrorBoundary.
- *
- * The pill's job is the pane name, and it already holds that as a prop. So the
- * machine lookup failing may cost the machine's NAME and nothing else.
- */
+import { describe, expect, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { act, type ReactElement } from "react";
+import { expectAbsent, expectPresent } from "../test-helpers/domExpect";
+import { expectEmptyMount } from "../test-helpers/expectEmptyMount";
+import { expectToast } from "../test-helpers/expectToast";
+import { mountWeb } from "../test-helpers/mountWeb";
+import { pending } from "../test-helpers/testConvex";
+import { waitForDom } from "../test-helpers/waitForDom";
+import { TmuxAttachPill } from "./TmuxAttachPill";
 
 const missingFunction = new Error(
   "[Request ID: e460f7bdf61343dc] Server Error\nCould not find public function for 'devices:getConversationMachine'.",
 );
-
-const FOREIGN_MACHINE = {
+const foreignMachine = {
   device_id: "965fa002dd353cd5",
   label: "macOS - Mac-mini",
   platform: "darwin",
   is_remote: false,
   is_mine: false,
+  via_bot: false,
+  last_seen: Date.now(),
   ssh_host: null,
+  wsl_distro: null,
 };
+const conversationKey = "jx7fata";
+const copySelector = '[aria-label="Copy tmux attach command"]';
+const pane = (
+  <TmuxAttachPill
+    tmuxSession="cc-resume-7ea05201"
+    isLive
+    conversationKey={conversationKey}
+  />
+);
 
-// What the machine lookup answers. Swapped per test so the same render path
-// covers both the failure and the ordinary resolved case.
-let lookup: () => { data?: unknown; error?: Error } = () => ({
-  data: undefined,
-  error: missingFunction,
-});
-const noThrow = { ...(await import("../hooks/useQueryNoThrow")) };
-afterAll(() => mock.module("../hooks/useQueryNoThrow", () => noThrow));
-mock.module("../hooks/useQueryNoThrow", () => ({
-  ...noThrow,
-  useQueryNoThrow: () => lookup(),
-}));
-
-// The pill only needs to know whether the split is open. Keep every other
-// export real: mock.module replaces the module process-wide, and a partial stub
-// breaks any later test file that imports a name this one left out.
-const terminal = { ...(await import("./terminal/ConversationTerminal")) };
-afterAll(() => mock.module("./terminal/ConversationTerminal", () => terminal));
-mock.module("./terminal/ConversationTerminal", () => ({
-  ...terminal,
-  isConversationTerminalOpen: () => false,
-  toggleConversationTerminal: () => {},
-}));
-
-const { renderToStaticMarkup } = await import("react-dom/server");
-const { TmuxAttachPill } = await import("./TmuxAttachPill");
-
-const render = () =>
-  renderToStaticMarkup(
-    <TmuxAttachPill
-      tmuxSession="cc-resume-7ea05201"
-      isLive
-      conversationKey="jx7fata"
-    />,
-  );
+async function mount(
+  node: ReactElement,
+  answer: typeof pending | Error | typeof foreignMachine = pending,
+) {
+  const copied: string[] = [];
+  const web = await mountWeb(node, {
+    setup(backend) {
+      backend.set(api.devices.getConversationMachine, answer);
+      Object.defineProperty(navigator, "clipboard", {
+        value: {
+          async writeText(text: string) {
+            copied.push(text);
+          },
+        },
+      });
+    },
+  });
+  return { ...web, copied };
+}
 
 describe("TmuxAttachPill under a backend that lacks the query", () => {
-  test("Codex without a pane has a focusable gray explanation and no attach action", () => {
-    lookup = () => ({ data: undefined, error: undefined });
-    const html = renderToStaticMarkup(
+  test("Codex without a pane has a focusable gray explanation and no attach action", async () => {
+    const web = await mount(
       <TmuxAttachPill agentType="codex" isLive conversationKey="cx-server" />,
     );
-    expect(html).toContain('aria-label="No tmux terminal attached"');
-    expect(html).toContain('aria-disabled="true"');
-    expect(html).toContain("text-gray-400");
-    expect(html).not.toContain("text-sol-green");
-    expect(html).not.toContain(' disabled=""');
-    expect(html).not.toContain('aria-label="Copy tmux attach command"');
+    const help = web.container.querySelector<HTMLButtonElement>(
+      '[aria-label="No tmux terminal attached"]',
+    );
+    expectPresent(help);
+    expect(help.getAttribute("aria-disabled")).toBe("true");
+    expect(help.disabled).toBe(false);
+    expect(help.className).toContain("text-gray-400");
+    expectAbsent(web.container.querySelector('[class*="text-sol-green"]'));
+    expectAbsent(web.container.querySelector(copySelector));
+    expect(web.backend.queryRequests).toEqual([]);
+    await web.close();
   });
 
-  test("other agents without a pane still omit the pill", () => {
-    lookup = () => ({ data: undefined, error: undefined });
-    expect(
-      renderToStaticMarkup(<TmuxAttachPill agentType="claude" isLive />),
-    ).toBe("");
+  test("other agents without a pane still omit the pill", async () => {
+    const web = await mount(<TmuxAttachPill agentType="claude" isLive />);
+    expectEmptyMount(web.container);
+    await web.close();
   });
 
-  test("Codex with a pane retains the terminal and copy actions", () => {
-    lookup = () => ({ data: undefined, error: undefined });
-    const html = renderToStaticMarkup(
+  test("Codex with a pane retains the terminal and copy actions", async () => {
+    const web = await mount(
       <TmuxAttachPill
         agentType="codex"
         tmuxSession="cx-resume"
@@ -90,56 +86,58 @@ describe("TmuxAttachPill under a backend that lacks the query", () => {
         conversationKey="cx-tmux"
       />,
     );
-    expect(html).toContain("text-sol-green");
-    expect(html).toContain('aria-label="Copy tmux attach command"');
-    expect(html).not.toContain('aria-label="No tmux terminal attached"');
+    const copy = web.container.querySelector(copySelector);
+    expectPresent(copy);
+    expect(copy.className).toContain("text-sol-green");
+    expectAbsent(
+      web.container.querySelector('[aria-label="No tmux terminal attached"]'),
+    );
+    expect(web.backend.queryRequests).toEqual([
+      {
+        name: "devices:getConversationMachine",
+        args: { conversation_id: "cx-tmux" },
+      },
+    ]);
+    await web.close();
   });
 
-  // Rendering at all IS the assertion — this threw before the fix.
-  test("still renders the pane pill", () => {
-    lookup = () => ({ data: undefined, error: missingFunction });
-    const html = render();
-    expect(html).toContain("tmux");
+  test("keeps a local pane and its copy action when the machine query fails", async () => {
+    const web = await mount(pane, missingFunction);
+    expect(web.backend.queryRequests).toEqual([
+      {
+        name: "devices:getConversationMachine",
+        args: { conversation_id: conversationKey },
+      },
+    ]);
+    const primary = web.container.querySelector("button");
+    expectPresent(primary);
+    expect(primary.textContent).toBe("tmux");
+    expect(primary.getAttribute("aria-disabled")).toBe("false");
+    expectAbsent(web.container.querySelector('[aria-disabled="true"]'));
+    const copy = web.container.querySelector<HTMLButtonElement>(copySelector);
+    expectPresent(copy);
+    expect(copy.getAttribute("aria-disabled")).toBe("false");
+    expectAbsent(web.container.querySelector("[data-simple-hide]"));
+    await act(async () => copy.click());
+    await expectToast("success", "tmux attach copied");
+    expect(web.copied).toEqual([
+      "tmux -L 'cast-cc-resume-7ea05201' attach -t 'cc-resume-7ea05201' 2>/dev/null || tmux attach -t 'cc-resume-7ea05201'",
+    ]);
+    await web.close();
   });
 
-  // Unknown machine is a state the pill already had a truthful answer for: the
-  // plain local command, exactly what it offered before the lookup existed.
-  // The command itself sits in the tooltip, which Radix renders only on hover,
-  // so the observable signal here is that copy stays live. attachCommand's own
-  // fallback is covered directly in tmuxAttachPill.test.ts.
-  test("still offers a command to copy", () => {
-    lookup = () => ({ data: undefined, error: missingFunction });
-    expect(render()).toContain('aria-disabled="false"');
-  });
-
-  // Simple view hides anything marked data-simple-hide. The copy button is a
-  // one-click gesture the pill owns in both views, so it must not carry the
-  // marker: in simple view it is the only copy affordance left in the header.
-  test("keeps the copy button visible in simple view", () => {
-    lookup = () => ({ data: undefined, error: missingFunction });
-    const html = render();
-    expect(html).toContain('aria-label="Copy tmux attach command"');
-    expect(html).not.toContain("data-simple-hide");
-  });
-
-  // The failure must not be mistaken for "this pane is on someone else's box",
-  // which is the one case where the pill withholds a command entirely and
-  // labels itself with the machine's name instead of "tmux".
-  test("does not degrade into the state for a pane on another machine", () => {
-    lookup = () => ({ data: undefined, error: missingFunction });
-    const html = render();
-    expect(html).toContain(">tmux<");
-    expect(html).not.toContain('aria-disabled="true"');
-  });
-
-  // The other half of the swap: when the lookup DOES resolve, the wrapper must
-  // pass the machine through untouched. Same render path, so this is what
-  // proves the change is invisible on the ordinary path: a teammate's pane is
-  // named after its machine and offers no copy button at all.
-  test("a resolved machine still names it and withholds the command", () => {
-    lookup = () => ({ data: FOREIGN_MACHINE, error: undefined });
-    const html = render();
-    expect(html).toContain("Mac-mini");
-    expect(html).not.toContain('aria-label="Copy tmux attach command"');
+  test("a resolved machine still names it and withholds the command", async () => {
+    const web = await mount(pane, foreignMachine);
+    await act(() =>
+      waitForDom(
+        web.container,
+        () => web.container.textContent?.includes("Mac-mini") === true,
+      ),
+    );
+    expect(web.container.querySelector("button")?.textContent).toContain(
+      "Mac-mini",
+    );
+    expectAbsent(web.container.querySelector(copySelector));
+    await web.close();
   });
 });

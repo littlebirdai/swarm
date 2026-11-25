@@ -1,114 +1,40 @@
-// Mounts /flows/settings in jsdom on a project whose line profile the store
-// holds (plan pl-838): the sections read in order with each value's source,
-// an unset command says what its station does, the finders show their health
-// from the same Sense derivation the line page uses, the Stations slot gets
-// the project, an edit paints at once and a daemon refusal puts it back with
-// the loader's message, a quiet machine still takes edits with a warning, and a
-// teammate's machine makes the page read only.
-import { afterAll, beforeEach, expect, mock, test } from "bun:test";
-import React, { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../../../../test-helpers/globals";
-import { closeDomWindow } from "../../../../test-helpers/domGlobals";
+import { afterAll, expect, mock, test } from "bun:test";
+import { act } from "react";
+import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { useInboxStore } from "../../../../store/inboxStore";
+import { webBuilders } from "../../../../test-helpers/builders";
+import {
+  expectAbsent,
+  expectPresent,
+} from "../../../../test-helpers/domExpect";
+import { mountWeb } from "../../../../test-helpers/mountWeb";
+import { pending } from "../../../../test-helpers/testConvex";
+import { waitForDom } from "../../../../test-helpers/waitForDom";
 
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  {
-    url: "https://local.codecast.sh/flows/settings?project=pr-1",
-    pretendToBeVisual: true,
-  },
-);
-const matchMedia = (q: string) => ({
-  matches: false,
-  media: q,
-  addEventListener() {},
-  removeEventListener() {},
-});
-const restoreGlobals = replaceGlobals({
-  window: Object.assign(dom.window, { innerWidth: 1400, matchMedia }),
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  matchMedia,
-  requestAnimationFrame: (cb: () => void) => setTimeout(cb, 0),
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-dom.window.HTMLElement.prototype.scrollTo = () => {};
-dom.window.HTMLElement.prototype.scrollIntoView = () => {};
-const { createRoot } = await import("react-dom/client");
-
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
-});
-
-mock.module("../../../../hooks/useSyncCollection", () => ({
-  useSyncCollection: () => ({ ready: true }),
-  useFeederError: () => {},
-  entityIdArgs: () => "skip",
-  applyCollectionFeed: () => {},
-  keyRowsBy: (rows: any[]) => rows ?? [],
-}));
-// Nothing on this page queries the server directly; the hook stays for the sections that might.
-// A live query pushes its answer; this one pushes when the test sets it.
-let answer: unknown = undefined;
-// What the link in asked for (lineSettingsHref); each test sets its own.
-let search = "project=pr-1";
-const listeners = new Set<() => void>();
-const setAnswer = (v: unknown) => {
-  answer = v;
-  for (const l of listeners) l();
-};
-const subscribe = (l: () => void) => {
-  listeners.add(l);
-  return () => listeners.delete(l);
-};
-mock.module("../../../../hooks/useQueryNoThrow", () => ({
-  useQueryNoThrow: (_q: unknown, args: any) => {
-    const data = React.useSyncExternalStore(subscribe, () => answer);
-    return {
-      data: args && args !== "skip" && args.command_id ? data : undefined,
-      error: undefined,
-      retry() {},
-    };
-  },
-}));
-mock.module("next/link", () => ({
-  default: ({ href, children, ...rest }: any) =>
-    React.createElement("a", { href, ...rest }, children),
-}));
-mock.module("next/navigation", () => ({
-  useRouter: () => ({ push() {}, replace() {} }),
-  usePathname: () => "/flows/settings",
-  useSearchParams: () => new URLSearchParams(search),
-}));
-// The Stations section is its own worker's (ct-56913); the slot is what this page owns.
+const realStations = { ...(await import("../LineStations")) };
 mock.module("../LineStations", () => ({
+  ...realStations,
   LineStations: ({
     projectId,
     focusStation,
-  }: {
-    projectId: string;
-    focusStation?: string | null;
-  }) =>
-    React.createElement("div", {
-      "data-stations-slot": projectId,
-      "data-focus-station": focusStation ?? "",
-    }),
-  // useLineWorkspace (useLineProjectId) reaches it through useLineGraph.
-  useProjectStations: () => ({ nodes: [], edges: [] }),
+  }: Parameters<typeof realStations.LineStations>[0]) => (
+    <div
+      data-stations-slot={projectId}
+      data-focus-station={focusStation ?? ""}
+    />
+  ),
 }));
+afterAll(() => {
+  mock.module("../LineStations", () => realStations);
+});
 
-const { useInboxStore } = await import("../../../../store/inboxStore");
 const { LineSettingsPage } = await import("../LineSettingsPage");
-
-const ME = "u1";
-const WS = `user:${ME}`;
+const builders = webBuilders("line settings");
+const ME = builders.teamMember.build({ name: "Me" });
+const WS = `user:${ME._id}`;
 const now = Date.now();
-const lineProfile = () => ({
+const lineProfile = {
   finders: [
     {
       id: "sentry-web",
@@ -157,112 +83,93 @@ const lineProfile = () => ({
   file: ".codecast/line.toml",
   device_id: "mac-1",
   published_at: now - 1000,
+};
+
+const project = builders.project.build({
+  short_id: "pr-1",
+  title: "Codecast",
+  workspace: WS,
 });
+const task = builders.task.build({
+  short_id: "ct-1",
+  title: "cause",
+  status: "open",
+  workspace: WS,
+  project_id: project._id,
+  created_at: now - 9e6,
+  updated_at: now,
+});
+const cause = { signal_count: 1, first_seen: now - 9e6, last_seen: now };
+const signal = {
+  _id: "s1",
+  short_id: "sg-1",
+  source: "sentry",
+  kind: "bug" as const,
+  title: "TypeError in header",
+  subject: "web",
+  observed_at: now - 3_600_000,
+  created_at: now - 3_600_000,
+  task_id: task._id,
+  project_id: project._id,
+  workspace: WS,
+};
 
-let sent: Array<{ projectId: string; edits: unknown[] }> = [];
-
-function seed(online: boolean) {
-  sent = [];
-  setAnswer(undefined);
-  useInboxStore.setState({
-    currentUser: { _id: ME, name: "Me" },
-    clientStateInitialized: true,
-    clientState: { ...(useInboxStore.getState() as any).clientState, ui: {} },
-    teams: [],
-    teamMembers: [],
-    machineRoster: [
-      {
-        device_id: "mac-1",
-        label: "Studio",
+function mount({
+  online = true,
+  owned = true,
+  search = "",
+  acknowledgement = Promise.resolve({ command_id: "cmd-1" }),
+} = {}) {
+  const scrolled: string[] = [];
+  const web = mountWeb(<LineSettingsPage />, {
+    path: "/flows/settings?project=pr-1" + search,
+    dispatch: true,
+    setup(backend, store) {
+      store.syncTable("currentUser", ME);
+      store.syncTable("clientState", { ui: {} });
+      store.syncTable("projects", [{ ...project, line_profile: lineProfile }]);
+      store.syncTable("tasks", [{ ...task, cause }]);
+      store.syncTable("signals", [signal]);
+      const machine = {
+        device_id: owned ? "mac-1" : "someone-else",
+        label: owned ? "Studio" : "Their Mac",
         platform: "darwin",
         online,
         last_seen: now,
         is_remote: false,
-      },
-    ],
-    machineRosterLive: true,
-    sessionCommands: {},
-    projects: {
-      p1: {
-        _id: "p1",
-        short_id: "pr-1",
-        title: "Codecast",
-        workspace: WS,
-        line_profile: lineProfile(),
-      },
-    },
-    tasks: {
-      t1: {
-        _id: "t1",
-        short_id: "ct-1",
-        title: "cause",
-        status: "open",
-        workspace: WS,
-        project_id: "p1",
-        created_at: now - 9e6,
-        updated_at: now,
-        cause: { signal_count: 1, first_seen: now - 9e6, last_seen: now },
-      },
-    },
-    signals: {
-      s1: {
-        _id: "s1",
-        short_id: "sg-1",
-        source: "sentry",
-        kind: "bug",
-        title: "TypeError in header",
-        subject: "web",
-        observed_at: now - 3_600_000,
-        created_at: now - 3_600_000,
-        task_id: "t1",
-        project_id: "p1",
-        workspace: WS,
-      },
-    },
-    // The real action dispatches to the server; here it paints the same row and answers a command id.
-    editLineProfile: (requestId: string, projectId: string, edits: any[]) => {
-      sent.push({ projectId, edits });
-      useInboxStore.setState((s: any) => ({
-        sessionCommands: {
-          ...s.sessionCommands,
-          [requestId]: {
-            _id: requestId,
-            command_id: "cmd-1",
-            command: "line_profile_edit",
-            kind: "line_edit",
-            project_id: projectId,
-            edits,
-            keys: edits.map(
-              (e: any) => e.key ?? `finders.${e.finder?.id ?? e.id}`,
-            ),
-            requested_at: Date.now(),
-            executed_at: null,
-            result: null,
-            error: null,
-          },
-        },
-      }));
-      return Promise.resolve({ command_id: "cmd-1" });
-    },
-  } as any);
-}
-
-async function mount() {
-  const host = document.createElement("div");
-  document.body.appendChild(host);
-  const root = createRoot(host);
-  await act(async () => {
-    root.render(React.createElement(LineSettingsPage));
-  });
-  return {
-    host,
-    unmount: async () => {
-      await act(async () => {
-        root.unmount();
+      };
+      useInboxStore.setState({
+        machineRoster: [machine],
+        machineRosterLive: true,
       });
-      host.remove();
+      backend.set(api.org.roles, pending);
+      backend.set(api.devices.listDevices, pending);
+      backend.set(api.projects.webList, pending);
+      backend.set(api.tasks.webList, pending);
+      backend.set(api.signals.webList, [
+        {
+          ...signal,
+          _id: signal._id as Id<"signals">,
+          task_id: task._id as Id<"tasks">,
+          project_id: project._id as Id<"projects">,
+          fingerprint: "sentry:header",
+          detail_md: undefined,
+          evidence_url: undefined,
+          goal_hint: undefined,
+          filed_for_project_id: undefined,
+          attach: "fingerprint",
+          reopened: false,
+          user_id: ME._id,
+        },
+      ]);
+      backend.set(api.workflow_runs.listRuns, []);
+      backend.mutation(api.dispatch.dispatch, () => acknowledgement);
+      HTMLElement.prototype.scrollIntoView = function (this: HTMLElement) {
+        scrolled.push(this.getAttribute("data-lset-section") ?? this.tagName);
+      };
     },
-  };
+  });
+  return web.then((mounted) => ({ ...mounted, scrolled }));
 }
 
 const row = (host: HTMLElement, label: string) =>
@@ -270,14 +177,8 @@ const row = (host: HTMLElement, label: string) =>
     (r) => r.querySelector(".lset-label")?.textContent === label,
   )!;
 
-beforeEach(() => {
-  document.body.innerHTML = "";
-  search = "project=pr-1";
-});
-
 test("the sections read in order, each value says where it came from, and the Stations slot gets the project", async () => {
-  seed(true);
-  const { host, unmount } = await mount();
+  const { container: host, close } = await mount();
   expect(
     [...host.querySelectorAll("[data-lset-section]")].map((s) =>
       s.getAttribute("data-lset-section"),
@@ -296,7 +197,6 @@ test("the sections read in order, each value says where it came from, and the St
     row(host, "Reproduce").querySelector("[data-lset-note]")!.textContent,
   ).toBe("the prove station passes with a note");
   expect(row(host, "Check").querySelector("[data-lset-note]")).toBeNull();
-  // Finder health from the Sense derivation: sentry filed an hour ago, evals never.
   const finders = [...host.querySelectorAll<HTMLElement>("[data-lset-finder]")];
   expect(finders.map((f) => f.getAttribute("data-lset-finder"))).toEqual([
     "sentry-web",
@@ -313,19 +213,23 @@ test("the sections read in order, each value says where it came from, and the St
     host
       .querySelector("[data-stations-slot]")!
       .getAttribute("data-stations-slot"),
-  ).toBe("p1");
+  ).toBe(project._id);
   expect(
     host.querySelector("[data-lset-gate]")!.getAttribute("data-lset-gate"),
   ).toBe("writable");
   expect(host.querySelector("[data-lset-plate]")!.textContent).toMatch(
     /Studio/,
   );
-  await unmount();
+  await close();
 });
 
 test("an edit shows at once and waits on the machine; a daemon refusal stops showing it, with the loader's message", async () => {
-  seed(true);
-  const { host, unmount } = await mount();
+  const ack = Promise.withResolvers<{ command_id: string }>();
+  const {
+    container: host,
+    close,
+    backend,
+  } = await mount({ acknowledgement: ack.promise });
   const button = row(host, "Size budget").querySelector<HTMLButtonElement>(
     ".lset-value",
   )!;
@@ -336,41 +240,74 @@ test("an edit shows at once and waits on the machine; a daemon refusal stops sho
     "input",
   )!;
   const setValue = Object.getOwnPropertyDescriptor(
-    dom.window.HTMLInputElement.prototype,
+    window.HTMLInputElement.prototype,
     "value",
   )!.set!;
   await act(async () => {
     setValue.call(input, "120");
-    input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    input.dispatchEvent(new window.Event("input", { bubbles: true }));
   });
   await act(async () => {
     input.dispatchEvent(
-      new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
   });
-  expect(sent).toEqual([
-    { projectId: "p1", edits: [{ op: "set", key: "size_budget", value: 120 }] },
-  ]);
-  expect(
-    row(host, "Size budget").querySelector(".lset-value")!.textContent,
-  ).toBe("120");
-  expect(
+  const value = () =>
+    row(host, "Size budget").querySelector(".lset-value")?.textContent;
+  const state = () =>
     row(host, "Size budget")
-      .querySelector(".lset-status")!
-      .getAttribute("data-state"),
-  ).toBe("waiting");
-
-  // The daemon's refusal reaches the edit's row (the sessionCommands feed), wherever the page is.
+      .querySelector(".lset-status")
+      ?.getAttribute("data-state");
+  expect(value()).toBe("120");
+  expect(state()).toBe("sending");
+  const [entry] = Object.values(useInboxStore.getState().sessionCommands);
+  expectPresent(entry);
+  expect(backend.mutations).toEqual([
+    {
+      name: "dispatch:dispatch",
+      args: {
+        ack_positions: true,
+        patches: {},
+        result: null,
+        action: "editLineProfile",
+        args: [
+          entry._id,
+          project._id,
+          [{ op: "set", key: "size_budget", value: 120 }],
+        ],
+      },
+    },
+  ]);
+  await act(async () => ack.resolve({ command_id: "cmd-1" }));
   await act(async () => {
-    const [id, r] = Object.entries(
-      (useInboxStore.getState() as any).sessionCommands,
-    )[0] as [string, any];
     useInboxStore.getState().syncTable(
       "sessionCommands",
       [
         {
-          ...r,
-          _id: id,
+          ...entry,
+          command_id: "cmd-1",
+        },
+      ],
+      { isDelta: true },
+    );
+    await waitForDom(
+      host,
+      () =>
+        row(host, "Size budget")
+          .querySelector(".lset-status")
+          ?.getAttribute("data-state") === "waiting",
+    );
+  });
+  expect(value()).toBe("120");
+  expect(state()).toBe("waiting");
+
+  await act(async () => {
+    useInboxStore.getState().syncTable(
+      "sessionCommands",
+      [
+        {
+          ...entry,
+          command_id: "cmd-1",
           executed_at: Date.now(),
           error:
             "/src/codecast/.codecast/line.toml: [line] size_budget must be at most 2000",
@@ -378,18 +315,13 @@ test("an edit shows at once and waits on the machine; a daemon refusal stops sho
       ],
       { isDelta: true },
     );
-    // The store tells its subscribers on a later tick, which a loaded machine
-    // can stretch well past a fixed wait: wait for the row instead.
-    for (
-      let i = 0;
-      i < 100 &&
-      row(host, "Size budget")
-        .querySelector(".lset-status")
-        ?.getAttribute("data-state") !== "refused";
-      i++
-    ) {
-      await new Promise((r) => setTimeout(r, 20));
-    }
+    await waitForDom(
+      host,
+      () =>
+        row(host, "Size budget")
+          .querySelector(".lset-status")
+          ?.getAttribute("data-state") === "refused",
+    );
   });
   const status = row(host, "Size budget").querySelector(".lset-status")!;
   expect(status.getAttribute("data-state")).toBe("refused");
@@ -397,12 +329,11 @@ test("an edit shows at once and waits on the machine; a daemon refusal stops sho
   expect(
     row(host, "Size budget").querySelector(".lset-value")!.textContent,
   ).toBe("300");
-  await unmount();
+  await close();
 });
 
 test("a quiet machine still takes edits, and says how long one waits for it", async () => {
-  seed(false);
-  const { host, unmount } = await mount();
+  const { container: host, close } = await mount({ online: false });
   expect(
     host.querySelector("[data-lset-gate]")!.getAttribute("data-lset-gate"),
   ).toBe("writable");
@@ -412,31 +343,17 @@ test("a quiet machine still takes edits, and says how long one waits for it", as
   expect(host.querySelector("[data-lset-plate]")!.textContent).toMatch(
     /Studio has not checked in.*up to 5 minutes/,
   );
-  await unmount();
+  await close();
 });
 
 test("a teammate's machine makes the page read only and says why", async () => {
-  seed(true);
-  useInboxStore.setState({
-    machineRoster: [
-      {
-        device_id: "someone-else",
-        label: "Their Mac",
-        platform: "darwin",
-        online: true,
-        last_seen: Date.now(),
-        is_remote: false,
-      },
-    ],
-  } as any);
-  const { host, unmount } = await mount();
+  const { container: host, close } = await mount({ owned: false });
   expect(
     host.querySelector("[data-lset-gate]")!.getAttribute("data-lset-gate"),
   ).toBe("read-only");
   expect(host.querySelector("[data-lset-plate]")!.textContent).toMatch(
     /teammate's machine/,
   );
-  // Read only stays focusable for the arrow walk, and nothing opens.
   const value = row(host, "Check").querySelector<HTMLButtonElement>(
     ".lset-value",
   )!;
@@ -447,42 +364,24 @@ test("a teammate's machine makes the page read only and says why", async () => {
   });
   expect(row(host, "Check").querySelector("[data-lset-input]")).toBeNull();
   expect(host.querySelector(".lset-add")).toBeNull();
-  await unmount();
+  await close();
 });
 
 test("a link in lands on its section or station: scrolled to, and marked to flash once", async () => {
-  seed(true);
-  const scrolled: string[] = [];
-  const prior = dom.window.HTMLElement.prototype.scrollIntoView;
-  dom.window.HTMLElement.prototype.scrollIntoView = function (
-    this: HTMLElement,
-  ) {
-    scrolled.push(this.getAttribute("data-lset-section") ?? this.tagName);
-  };
-  try {
-    search = "project=pr-1&section=limits";
-    let m = await mount();
-    expect(
-      [...m.host.querySelectorAll("[data-lset-target]")].map((s) =>
-        s.getAttribute("data-lset-section"),
-      ),
-    ).toEqual(["limits"]);
-    expect(scrolled).toEqual(["limits"]);
-    await m.unmount();
+  const limits = await mount({ search: "&section=limits" });
+  expect(
+    [...limits.container.querySelectorAll("[data-lset-target]")].map((node) =>
+      node.getAttribute("data-lset-section"),
+    ),
+  ).toEqual(["limits"]);
+  expect(limits.scrolled).toEqual(["limits"]);
+  await limits.close();
 
-    // A station goes to LineStations, which opens and scrolls its own panel.
-    scrolled.length = 0;
-    search = "project=pr-1&section=stations&station=verify";
-    m = await mount();
-    expect(
-      m.host
-        .querySelector("[data-stations-slot]")!
-        .getAttribute("data-focus-station"),
-    ).toBe("verify");
-    expect(m.host.querySelectorAll("[data-lset-target]").length).toBe(0);
-    expect(scrolled).toEqual([]);
-    await m.unmount();
-  } finally {
-    dom.window.HTMLElement.prototype.scrollIntoView = prior;
-  }
+  const station = await mount({ search: "&section=stations&station=verify" });
+  const slot = station.container.querySelector("[data-stations-slot]");
+  expectPresent(slot);
+  expect(slot.getAttribute("data-focus-station")).toBe("verify");
+  expectAbsent(station.container.querySelector("[data-lset-target]"));
+  expect(station.scrolled).toEqual([]);
+  await station.close();
 });

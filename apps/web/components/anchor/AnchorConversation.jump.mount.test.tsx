@@ -1,264 +1,319 @@
-// The embed's scroll-to request (org-staffing.md S41): a `jump` with a
-// message id reaches useConversationMessages and the layout as the target;
-// one with a timestamp alone calls jumpToTimestamp once per nonce, and its
-// `find` is resolved to the card's row in the window the hook returns, for
-// the layout only; a message sent from the embed ends the request and jumps
-// to the live tail; `since` is gone from the props.
-// Run: bun test --timeout 240000 components/anchor/AnchorConversation.jump.mount.test.tsx
-import { test, expect, afterAll, mock } from "bun:test";
-import { closeDomWindow } from "../../test-helpers/domGlobals";
+import { afterAll, expect, mock, test } from "bun:test";
+import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import type { Message } from "../../store/inboxStore";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { act, type ComponentProps } from "react";
+import { WARM_DEEP_ROWS } from "../../hooks/inboxWarm";
+import { webBuilders } from "../../test-helpers/builders";
+import { ConversationLayoutStandIn } from "../../test-helpers/ConversationLayoutStandIn";
+import { expectPresent } from "../../test-helpers/domExpect";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import type { ConversationDiffLayout } from "../ConversationDiffLayout";
 
-const { JSDOM } = await import("jsdom");
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  { url: "https://local.codecast.sh", pretendToBeVisual: true },
-);
-for (const key of [
-  "window",
-  "document",
-  "navigator",
-  "HTMLElement",
-  "Element",
-  "Node",
-  "Event",
-  "MouseEvent",
-  "getComputedStyle",
-  "requestAnimationFrame",
-  "cancelAnimationFrame",
-  "localStorage",
-]) {
-  const v = (dom.window as any)[key];
-  if (v !== undefined)
-    Object.defineProperty(globalThis, key, {
-      value: v,
-      configurable: true,
-      writable: true,
-    });
-}
-(globalThis as any).ResizeObserver ??= class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-afterAll(() => closeDomWindow(dom));
-
-const React = await import("react");
-const h = React.createElement;
-
-const hookCalls: unknown[][] = [];
-const jumps: number[] = [];
-const ends: number[] = [];
-const noop = () => {};
-// The window the hook holds; a test swaps it for one with the card's message.
-let windowMessages: { _id: string; role: string; content: string }[] = [];
-// Whether the hook holds a window around a target or the live tail.
-let targetMode = false;
-mock.module("../../hooks/useConversationMessages", () => ({
-  useConversationMessages: (...args: unknown[]) => {
-    hookCalls.push(args);
-    return {
-      conversation: { _id: args[0], messages: windowMessages },
-      hasMoreAbove: false,
-      hasMoreBelow: false,
-      isLoadingOlder: false,
-      isLoadingNewer: false,
-      loadOlder: noop,
-      loadNewer: noop,
-      jumpToStart: noop,
-      jumpToEnd: () => {
-        ends.push(1);
-      },
-      jumpToTimestamp: (ts: number) => {
-        jumps.push(ts);
-      },
-      targetMode,
-    };
-  },
-}));
-// The layout keeps its latest props, so a test can settle the target the way the view does.
-let layoutProps: any = null;
+type LayoutProps = ComponentProps<typeof ConversationDiffLayout>;
+let rendered: LayoutProps | undefined;
+const layout = { ...(await import("../ConversationDiffLayout")) };
 mock.module("../ConversationDiffLayout", () => ({
-  ConversationDiffLayout: (props: any) => {
-    layoutProps = props;
-    return h("div", {
-      "data-layout": true,
-      "data-target": props.targetMessageId ?? "",
-      "data-nonce": props.targetNonce ?? "",
-    });
+  ...layout,
+  ConversationDiffLayout: (props: LayoutProps) => {
+    rendered = props;
+    return (
+      <div
+        data-target={props.targetMessageId ?? ""}
+        data-nonce={props.targetNonce ?? ""}
+      >
+        <ConversationLayoutStandIn {...props} />
+      </div>
+    );
   },
 }));
-mock.module("../../hooks/useSeedOwnership", () => ({ useSeedOwnership: noop }));
-mock.module("../../hooks/useSyncOrgTree", () => ({
-  useSyncOrgTree: () => ({
-    tree: null,
-    ready: true,
-    missing: false,
-    refused: false,
-    retry: noop,
-  }),
-}));
-mock.module("../ProjectPathPicker", () => ({ ProjectPathPicker: () => null }));
-mock.module("sonner", () => ({ toast: { success: noop, error: noop } }));
-
-const { act } = React;
-const { createRoot } = await import("react-dom/client");
-const { useInboxStore } = await import("../../store/inboxStore");
+afterAll(() => mock.module("../ConversationDiffLayout", () => layout));
 const { AnchorConversation } = await import("./AnchorConversation");
 
-// The `since` cut has no successor: the props type must not carry it.
-type Props = React.ComponentProps<typeof AnchorConversation>;
+type Props = ComponentProps<typeof AnchorConversation>;
 const noSince: "since" extends keyof Props ? never : true = true;
 void noSince;
-
-const root = createRoot(document.getElementById("root")!);
-const render = async (jump: Props["jump"]) => {
-  await act(async () => {
-    root.render(
-      h(AnchorConversation, {
-        conversationId: "conv-1",
-        hideHeader: true,
-        jump,
-      }),
-    );
-  });
+const { session: sessions, message } = webBuilders(
+  "AnchorConversation.jump.mount.test.tsx",
+);
+const session = sessions.build({ message_count: 3 });
+const target = message.build({
+  content: "op-7",
+  role: "assistant",
+  timestamp: 50,
+});
+const setupRow = message.build({
+  content: "Here is the review.",
+  role: "assistant",
+  timestamp: 49,
+});
+const earlier = message.build({
+  content: "An earlier note",
+  role: "assistant",
+  timestamp: 48,
+});
+const decoy = message.build({
+  content: "op-7 looks fine",
+  role: "user",
+  timestamp: 51,
+});
+const live = {
+  ...message.build({ content: "Latest reply", timestamp: 60 }),
+  role: "assistant" as const,
 };
-const layout = () => document.querySelector<HTMLElement>("[data-layout]")!;
-const rootMode = () =>
-  layout().parentElement!.getAttribute("data-conv-target-mode");
+function messageWindow(messages: Message[], hasMoreBelow = false) {
+  return {
+    messages,
+    oldest_timestamp: messages[0]?.timestamp ?? null,
+    last_timestamp: messages.at(-1)?.timestamp ?? null,
+    has_more_above: false,
+    has_more_below: hasMoreBelow,
+  };
+}
+
+const around = api.conversations.getMessagesAroundTimestamp;
+
+const view = (jump: Props["jump"]) => (
+  <AnchorConversation conversationId={session._id} hideHeader jump={jump} />
+);
+const mount = (jump?: Props["jump"], finding = false) =>
+  mountWeb(view(jump), {
+    setup(backend, store) {
+      store.syncTable("sessions", [session]);
+      store.setMessages(session._id, [live], {
+        initialized: true,
+        hasMoreAbove: false,
+      });
+      backend.set(api.conversations.listMessages, {
+        page: [
+          {
+            ...live,
+            _id: live._id as Id<"messages">,
+            _creationTime: live.timestamp,
+            conversation_id: session._id as Id<"conversations">,
+          },
+        ],
+        isDone: true,
+        continueCursor: "",
+      });
+      backend.set(api.conversations.listMessagesTail, pending);
+      backend.set(api.conversations.getConversationWithMeta, pending);
+      backend.set(api.conversations.getTranscriptWatermark, pending);
+      backend.set(api.conversations.getUserMessages, pending);
+      backend.set(
+        api.messages.getMessageTimestamp,
+        ({ conversation_id, message_id }) =>
+          conversation_id === session._id
+            ? message_id === target._id
+              ? { timestamp: target.timestamp }
+              : message_id === live._id
+                ? { timestamp: live.timestamp }
+                : null
+            : null,
+      );
+      backend.set(
+        around,
+        ({ conversation_id, center_timestamp, limit_before }) => {
+          if (conversation_id !== session._id) return null;
+          if (finding && limit_before === 0) return pending;
+          if (finding) return messageWindow([earlier, setupRow], true);
+          if (center_timestamp === target.timestamp)
+            return messageWindow([setupRow, target, decoy]);
+          return messageWindow([setupRow]);
+        },
+      );
+    },
+  });
+type Mount = Awaited<ReturnType<typeof mount>>;
+const calls = (web: Mount, name: string) =>
+  web.backend.queryRequests
+    .filter((call) => call.name === name)
+    .map((call) => call.args);
+const windows = (web: Mount) =>
+  calls(web, "conversations:getMessagesAroundTimestamp");
+function checkTarget(web: Mount, id?: string, nonce?: number) {
+  const node = web.container.querySelector("[data-target]");
+  expectPresent(node);
+  expect(node.getAttribute("data-target")).toBe(id ?? "");
+  expect(node.getAttribute("data-nonce")).toBe(
+    nonce === undefined ? "" : String(nonce),
+  );
+}
+const mode = (web: Mount) =>
+  web.container
+    .querySelector("[data-conv-target-mode]")
+    ?.getAttribute("data-conv-target-mode");
 
 test("a jump to a message reaches the hook as the target and nonce, and the layout", async () => {
-  await render({ messageId: "m2", nonce: 1 });
-  expect(hookCalls.at(-1)).toEqual(["conv-1", "m2", undefined, undefined, 1]);
-  expect(layout().dataset.target).toBe("m2");
-  expect(layout().dataset.nonce).toBe("1");
-  expect(jumps).toEqual([]);
+  const web = await mount({ messageId: target._id, nonce: 1 });
+  expect(calls(web, "messages:getMessageTimestamp")).toEqual([
+    { conversation_id: session._id, message_id: target._id },
+  ]);
+  expect(windows(web)).toEqual([
+    {
+      conversation_id: session._id,
+      center_timestamp: 50,
+      limit_before: 50,
+      limit_after: 50,
+    },
+  ]);
+  checkTarget(web, target._id, 1);
 });
 
 test("a jump to a time calls jumpToTimestamp once, and again only on a new nonce", async () => {
-  await render({ timestamp: 5, nonce: 2 });
-  expect(jumps).toEqual([5]);
-  expect(hookCalls.at(-1)).toEqual([
-    "conv-1",
-    undefined,
-    undefined,
-    undefined,
-    2,
-  ]);
-  expect(layout().dataset.target).toBe("");
-  await render({ timestamp: 5, nonce: 2 });
-  expect(jumps).toEqual([5]);
-  await render({ timestamp: 7, nonce: 3 });
-  expect(jumps).toEqual([5, 7]);
-  await render(null);
-  expect(jumps).toEqual([5, 7]);
-  expect(hookCalls.at(-1)).toEqual([
-    "conv-1",
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-  ]);
+  const web = await mount({ timestamp: 5, nonce: 2 });
+  const first = {
+    conversation_id: session._id,
+    center_timestamp: 5,
+    limit_before: 50,
+    limit_after: 50,
+  };
+  expect(windows(web)).toEqual([first]);
+  expect(calls(web, "messages:getMessageTimestamp")).toEqual([]);
+  checkTarget(web, undefined, 2);
+  await web.rerender(view({ timestamp: 6, nonce: 2 }));
+  expect(windows(web)).toEqual([first]);
+  await web.rerender(view({ timestamp: 7, nonce: 3 }));
+  expect(windows(web)).toEqual([first, { ...first, center_timestamp: 7 }]);
+  await web.rerender(view(null));
+  checkTarget(web);
+  expect(windows(web)).toHaveLength(2);
+  expect(calls(web, "messages:getMessageTimestamp")).toEqual([]);
 });
 
-test("a timestamp jump's `find` lands the layout on the card's row once the window holds it, under the same nonce, without re-arming the hook", async () => {
-  windowMessages = [
-    { _id: "m1", role: "assistant", content: "Here is the review." },
-  ];
-  await render({ timestamp: 9, find: "op-7", nonce: 4 });
-  expect(jumps).toEqual([5, 7, 9]);
-  expect(layout().dataset.target).toBe("");
-  windowMessages = [
-    ...windowMessages,
-    { _id: "m2", role: "assistant", content: "op-7" },
-    { _id: "m3", role: "user", content: "op-7 looks fine" },
-  ];
-  await render({ timestamp: 9, find: "op-7", nonce: 4 });
-  expect(layout().dataset.target).toBe("m2");
-  expect(layout().dataset.nonce).toBe("4");
-  expect(hookCalls.at(-1)).toEqual([
-    "conv-1",
-    undefined,
-    undefined,
-    undefined,
-    4,
+test("a timestamp jump finds the card on the next page, under the same nonce, without re-arming the hook", async () => {
+  const web = await mount({ timestamp: 9, find: "op-7", nonce: 4 }, true);
+  checkTarget(web, undefined, 4);
+  expect(windows(web)).toEqual([
+    {
+      conversation_id: session._id,
+      center_timestamp: 9,
+      limit_before: 50,
+      limit_after: 50,
+    },
+    {
+      conversation_id: session._id,
+      center_timestamp: setupRow.timestamp,
+      limit_before: 0,
+      limit_after: WARM_DEEP_ROWS,
+    },
   ]);
-  expect(jumps).toEqual([5, 7, 9]);
+  await act(async () => {
+    web.backend.set(around, ({ limit_before }) =>
+      limit_before === 0
+        ? messageWindow([target, decoy])
+        : messageWindow([earlier, setupRow], true),
+    );
+  });
+  checkTarget(web, target._id, 4);
+  expect(calls(web, "messages:getMessageTimestamp")).toEqual([]);
+  expect(windows(web)).toHaveLength(2);
 });
 
 test("a message sent from the embed ends the request and jumps to the live tail; the next nonce arms again", async () => {
-  windowMessages = [];
-  await render({ messageId: "m2", nonce: 5 });
-  expect(layout().dataset.target).toBe("m2");
-  // The send: a pending row of this conversation appears in the store.
+  const jump = { messageId: target._id, nonce: 5 };
+  const web = await mount(jump);
+  checkTarget(web, target._id, 5);
   await act(async () => {
-    useInboxStore.setState({
-      pendingMessages: {
-        "conv-1": [
-          {
-            _id: "pending-1",
-            role: "user",
-            content: "Approve it",
-            timestamp: 1,
-          },
-        ],
-      },
-    } as any);
+    web.store.getState().addOptimisticMessage(session._id, "Approve it");
   });
-  expect(ends).toEqual([1]);
-  expect(layout().dataset.target).toBe("");
-  expect(hookCalls.at(-1)).toEqual([
-    "conv-1",
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-  ]);
-  // The same request stays ended across re-renders; a new one arms.
-  await render({ messageId: "m2", nonce: 5 });
-  expect(layout().dataset.target).toBe("");
-  await render({ messageId: "m2", nonce: 6 });
-  expect(layout().dataset.target).toBe("m2");
-  expect(ends).toEqual([1]);
+  checkTarget(web);
+  expect(mode(web)).toBe("live");
+  expect(
+    rendered?.conversation.messages.some((row) => row._id === live._id),
+  ).toBe(true);
+  await web.rerender(view(jump));
+  checkTarget(web);
+  await web.rerender(view({ ...jump, nonce: 6 }));
+  checkTarget(web, target._id, 6);
+  expect(mode(web)).toBe("target");
+});
+
+test("a send from a timestamp window returns to the live row only while a jump request is active", async () => {
+  const web = await mount({ timestamp: 5, nonce: 9 });
+  const send = (content: string) =>
+    act(async () => {
+      web.store.getState().addOptimisticMessage(session._id, content);
+    });
+  const rows = () => rendered?.conversation.messages.map(({ _id }) => _id);
+  expect(mode(web)).toBe("target");
+  expect(rows()).toContain(setupRow._id);
+  expect(rows()).not.toContain(live._id);
+
+  await send("Approve it");
+  checkTarget(web);
+  expect(mode(web)).toBe("live");
+  expect(rows()).toContain(live._id);
+  expect(rows()).not.toContain(setupRow._id);
+
+  const jumpToTimestamp = rendered?.onJumpToTimestamp;
+  if (!jumpToTimestamp) throw new Error("The layout has no timestamp jump");
+  await act(async () => jumpToTimestamp(6));
+  expect(mode(web)).toBe("target");
+  expect(rows()).toContain(setupRow._id);
+  await send("One more note");
+  expect(mode(web)).toBe("target");
+  expect(rows()).toContain(setupRow._id);
+  expect(rows()).not.toContain(live._id);
+});
+
+test("consecutive nonces reopen the same message after the reader jumps to the end", async () => {
+  const jump = { messageId: target._id, nonce: 20 };
+  const web = await mount(jump);
+  expect(mode(web)).toBe("target");
+  const jumpToEnd = rendered?.onJumpToEnd;
+  if (!jumpToEnd) throw new Error("The layout has no end jump");
+  await act(async () => jumpToEnd());
+  expect(mode(web)).toBe("live");
+  checkTarget(web, target._id, 20);
+
+  await web.rerender(view({ ...jump, nonce: 21 }));
+  checkTarget(web, target._id, 21);
+  expect(mode(web)).toBe("target");
+  expect(rendered?.conversation.messages.map(({ _id }) => _id)).toContain(
+    target._id,
+  );
 });
 
 test("the request's onSettled runs once when the view settles its nonce, never for another nonce or a replaced request", async () => {
-  windowMessages = [];
   const settled: number[] = [];
-  await render({ messageId: "m2", nonce: 7, onSettled: () => settled.push(7) });
-  expect(typeof layoutProps.onTargetSettled).toBe("function");
-  // A settle of an older request, still finishing on the previous row: nothing.
-  await act(async () => {
-    layoutProps.onTargetSettled("m1", 6);
-  });
+  const jump = {
+    messageId: target._id,
+    nonce: 7,
+    onSettled: () => settled.push(7),
+  };
+  const web = await mount(jump);
+  expect(typeof rendered?.onTargetSettled).toBe("function");
+  const settle = (id: string, nonce: number) =>
+    act(async () => rendered?.onTargetSettled?.(id, nonce));
+  await settle(setupRow._id, 6);
   expect(settled).toEqual([]);
-  await act(async () => {
-    layoutProps.onTargetSettled("m2", 7);
-  });
+  await settle(target._id, 7);
   expect(settled).toEqual([7]);
-  // The layout can settle the same target again (its window re-rendered): once per nonce.
-  await act(async () => {
-    layoutProps.onTargetSettled("m2", 7);
-  });
+  await settle(target._id, 7);
   expect(settled).toEqual([7]);
-  // The next request has its own.
-  await render({ messageId: "m2", nonce: 8, onSettled: () => settled.push(8) });
-  await act(async () => {
-    layoutProps.onTargetSettled("m2", 7);
-  });
+  await web.rerender(
+    view({ ...jump, nonce: 8, onSettled: () => settled.push(8) }),
+  );
+  await settle(target._id, 7);
   expect(settled).toEqual([7]);
-  await act(async () => {
-    layoutProps.onTargetSettled("m2", 8);
-  });
+  await settle(target._id, 8);
   expect(settled).toEqual([7, 8]);
 });
 
 test("the root says whether the thread is live or a window around a target", async () => {
-  targetMode = false;
-  await render({ messageId: "m2", nonce: 9 });
-  expect(rootMode()).toBe("live");
-  targetMode = true;
-  await render({ messageId: "m2", nonce: 10 });
-  expect(rootMode()).toBe("target");
-  targetMode = false;
+  const web = await mount();
+  expect(mode(web)).toBe("live");
+  await web.rerender(view({ messageId: target._id, nonce: 10 }));
+  expect(mode(web)).toBe("target");
+  expect(rendered?.conversation.messages.map(({ _id }) => _id)).toContain(
+    target._id,
+  );
+  await web.rerender(view({ messageId: live._id, nonce: 11 }));
+  checkTarget(web, live._id, 11);
+  expect(mode(web)).toBe("live");
+  expect(rendered?.conversation.messages.map(({ _id }) => _id)).toEqual([
+    live._id,
+  ]);
 });

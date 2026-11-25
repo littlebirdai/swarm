@@ -1,78 +1,33 @@
 import { test } from "bun:test";
 import assert from "node:assert/strict";
+import { act } from "react";
+import { api } from "@codecast/convex/convex/_generated/api";
+import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import type { FunctionArgs, FunctionReturnType } from "convex/server";
+import { webBuilders } from "../../test-helpers/builders";
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import { HireRoleDialog } from "./HireRoleDialog";
+import { ORG_FIXTURE } from "./orgFixture";
 
-import { closeDomWindow } from "../../test-helpers/domGlobals";
 async function verifyHireFlow() {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLInputElement",
-    "HTMLTextAreaElement",
-    "Element",
-    "Node",
-    "NodeFilter",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "getComputedStyle",
-  ]) {
-    Object.defineProperty(globalThis, key, {
-      value: (dom.window as any)[key],
-      configurable: true,
-      writable: true,
-    });
-  }
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   const copied: string[] = [];
-  Object.defineProperty(navigator, "clipboard", {
-    value: {
-      writeText: async (text: string) => {
-        copied.push(text);
-      },
-    },
+  const builders = webBuilders("org template hire");
+  const viewer = builders.teamMember.build({
+    _id: "fixture-user-me" as Id<"users">,
   });
-  const { mock } = await import("bun:test");
-  const project = {
+  const project = builders.project.build({
     _id: "project-1",
     title: "Product",
     workspace: "team:fixture-team",
-    status: "active",
-    task_counts: { total: 0, done: 0, in_progress: 0 },
-    plan_count: 0,
-    doc_count: 0,
-    active_plan_count: 0,
-    created_at: 1,
-    updated_at: 1,
-  };
-  // The hook module's other exports stay real: a mock that names one export drops the rest for every importer in the graph.
-  const realWorkspace = {
-    ...(await import("../../hooks/useWorkspaceCollection")),
-  };
-  mock.module("../../hooks/useWorkspaceCollection", () => ({
-    ...realWorkspace,
-    useWorkspaceCollection: (key: string) =>
-      key === "projects" ? [project] : [],
-  }));
-  mock.module("../../hooks/useScopeQueries", () => ({
-    useScopeSummary: () => ({ data: undefined }),
-  }));
-  // The form's other server read: what the new role would take over (R1).
-  mock.module("../../hooks/useTakeoverPreviews", () => ({
-    useTakeoverPreviews: () => ({ byKey: {}, ready: true }),
-  }));
-  // The template reads and writes (org-hire.md H3): one catalog entry, and a post that records the spec.
-  const proposed: any[] = [];
-  const learningSet: boolean[] = [];
-  let learningOn = false;
-  const lessonRows: any[] = [];
-  const manifest = {
+  });
+  const foreignProject = builders.project.build({
+    title: "Other product",
+    workspace: "team:other",
+  });
+  type Catalog = FunctionReturnType<typeof api.orgTemplates.catalog>;
+  const manifest: Catalog[number]["manifest"] = {
     schemaVersion: 2,
     id: "growth",
     version: "2.0.0",
@@ -104,7 +59,7 @@ async function verifyHireFlow() {
       name: "Engineering Lead",
       description: "Leads one project",
       latest: { version: "1.0.0", digest: "e".repeat(64) },
-      latest_status: "stable",
+      latest_status: "stable" as const,
       installable: true,
       asks: { inputs: 0, secrets: 0, authority: 0, setup: 0, routines: 1 },
       manifest: {
@@ -123,19 +78,18 @@ async function verifyHireFlow() {
       name: "CMO",
       description: "One project CMO",
       latest: { version: "2.0.0", digest: "a".repeat(64) },
-      latest_status: "stable",
+      latest_status: "stable" as const,
       installable: true,
       asks: { inputs: 2, secrets: 1, authority: 1, setup: 1, routines: 1 },
       manifest,
     },
-    // Published without its snapshot: readable, not hireable; the card says so and offers nothing.
     {
       template_id: "draft",
       workspace: "team:fixture-team",
       name: "Draft role",
       description: "A release with no files",
       latest: { version: "0.1.0", digest: "b".repeat(64) },
-      latest_status: "draft",
+      latest_status: "draft" as const,
       installable: false,
       asks: { inputs: 0, secrets: 0, authority: 0, setup: 0, routines: 1 },
       manifest: {
@@ -146,55 +100,75 @@ async function verifyHireFlow() {
         setup: [],
       },
     },
-  ];
-  // A lead's own template hire, by role id: what instanceForRole answers for it.
-  const leadInstances: Record<string, any> = {};
-  mock.module("../../hooks/useTemplateHire", () => ({
-    useTemplateCatalog: () => ({ templates: catalog, ready: true }),
-    useTemplateInstance: (roleId?: string) => ({
-      instance: (roleId && leadInstances[roleId]) ?? null,
-      ready: true,
-    }),
-    useTemplateActions: () => ({
-      propose: async (spec: any) => {
-        proposed.push(spec);
-        return { short_id: "op-9", link: "/org?proposal=op-9" };
-      },
-      markSetup: async () => {},
-      activate: async () => {},
-      requestBind: async () => ({}),
-      setLearning: async (_team: string | undefined, enabled: boolean) => {
-        learningSet.push(enabled);
-        learningOn = enabled;
-      },
-    }),
-    useTemplateLearning: () => ({
-      learning: { enabled: learningOn, can_change: true, changed_by: null },
-      ready: true,
-    }),
-    useInstanceLessons: () => ({ lessons: lessonRows, ready: true }),
-    sealSecret: async () => ({}),
+  ].map((entry): Catalog[number] => ({
+    ...entry,
+    avatar: null,
+    latest_class: null,
+    changelog: null,
+    releases: [],
   }));
-  const React = await import("react");
-  const { act } = React;
-  const { createRoot } = await import("react-dom/client");
-  const { HireRoleDialog } = await import("./HireRoleDialog");
-  const { ORG_FIXTURE } = await import("./orgFixture");
-  const created: any[] = [];
-  const root = createRoot(document.getElementById("root")!);
-  await act(async () =>
-    root.render(
+  type HireProps = Parameters<typeof HireRoleDialog>[0];
+  const created: Parameters<HireProps["onCreate"]>[0][] = [];
+  function mount(props: Partial<HireProps> = {}, leadProject?: string) {
+    return mountWeb(
       <HireRoleDialog
         open
         onClose={() => {}}
         tree={ORG_FIXTURE}
-        meId="fixture-user-me"
+        meId={viewer._id}
         initialProjects={[project]}
         projectPath="/src/product"
         onCreate={(input) => created.push(input)}
+        {...props}
       />,
-    ),
-  );
+      {
+        path: "/org",
+        dispatch: true,
+        setup(backend, store) {
+          store.syncTable("currentUser", viewer);
+          store.syncTable("clientState", {
+            ui: { active_team_id: "fixture-team" },
+          });
+          store.syncTable("teams", [
+            { _id: "fixture-team", name: "Product team" },
+          ]);
+          store.syncTable("projects", [project, foreignProject]);
+          backend.set(api.org.scopeSummary, pending);
+          backend.set(api.orgInit.takeoverPreview, pending);
+          backend.set(api.orgTemplates.catalog, catalog);
+          backend.set(api.orgTemplateLearning.learning, {
+            enabled: false,
+            can_change: true,
+            changed_by: null,
+          });
+          backend.set(api.orgTemplates.instanceForRole, ({ role_id }) =>
+            leadProject && String(role_id) === "lead-1"
+              ? {
+                  _id: "instance-1",
+                  role_id,
+                  template_id: "growth",
+                  version: "2.0.0",
+                  project_id: leadProject,
+                }
+              : null,
+          );
+          backend.mutation(api.dispatch.dispatch, null);
+          backend.mutation(api.orgProposals.create, {
+            short_id: "op-9",
+            link: "/org?proposal=op-9",
+          });
+          Object.defineProperty(navigator, "clipboard", {
+            value: {
+              async writeText(text: string) {
+                copied.push(text);
+              },
+            },
+          });
+        },
+      },
+    );
+  }
+  const web = await mount();
   const button = (text: string) => {
     const el = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
       (candidate) => candidate.textContent === text,
@@ -224,7 +198,6 @@ async function verifyHireFlow() {
   await change('input[placeholder="Head of Growth"]', "Growth lead");
   await change("textarea", "Keep my custom charter exactly.");
   await act(async () => button("From a template").click());
-  // The folder path for authors stays behind its fold: a command, copied, never run.
   assert.equal(button("Copy command").disabled, true);
   await change(
     'input[placeholder="/path/to/templates/growth"]',
@@ -244,9 +217,6 @@ async function verifyHireFlow() {
   assert.equal(copied.length, 1);
   assert.match(copied[0], /--project 'project-1'.*--team 'fixture-team'/);
   assert.equal(created.length, 0);
-  // The gallery (H3): the built-in Head of People and Executive Assistant lead
-  // (org-staffing.md S6, S30: the fixture org has neither), then one card per
-  // template, the hire offered only where the workspace can take it.
   assert.equal(
     document
       .querySelector("[data-hire-stage]")!
@@ -278,7 +248,6 @@ async function verifyHireFlow() {
   const growth = document.querySelector<HTMLElement>(
     '[data-template-card="growth"]',
   )!;
-  // What a hire costs, in counts on one line; what every card shares (the publisher, the lead rule) is not repeated on each.
   assert.equal(
     growth.querySelector("[data-template-asks]")!.textContent,
     "Asks 1 answer · 1 secret · 1 permission · 1 setup step",
@@ -298,7 +267,6 @@ async function verifyHireFlow() {
     null,
     "no form before a card is picked",
   );
-  // The learning switch (H12) is a workspace's choice: it meets the person once, under the gallery, off, with its one sentence; a flip is one write.
   assert.equal(
     document
       .querySelector("[data-template-learning]")!
@@ -314,7 +282,22 @@ async function verifyHireFlow() {
       .querySelector<HTMLElement>('[data-template-learning] [role="switch"]')!
       .click(),
   );
-  assert.deepEqual(learningSet, [true]);
+  assert.deepEqual(
+    web.backend.mutations.map(({ name, args }) => {
+      const { action, args: payload } = args as {
+        action: string;
+        args: unknown[];
+      };
+      return { name, action, payload };
+    }),
+    [
+      {
+        name: "dispatch:dispatch",
+        action: "setOrgTemplateLearning",
+        payload: ["fixture-team", true],
+      },
+    ],
+  );
   await act(async () =>
     growth
       .querySelector<HTMLButtonElement>("[data-template-card-hire]")!
@@ -326,10 +309,10 @@ async function verifyHireFlow() {
       .getAttribute("data-hire-stage"),
     "form",
   );
-  assert.ok(document.querySelector('[data-template-chosen="growth"]'));
+  expectPresent(document.querySelector('[data-template-chosen="growth"]'));
+  expectAbsent(document.querySelector(`option[value="${foreignProject._id}"]`));
   assert.equal(button("Propose the hire").disabled, true);
 
-  // Back to the gallery and forward again keeps nothing half typed.
   await act(async () =>
     document.querySelector<HTMLButtonElement>("[data-template-back]")!.click(),
   );
@@ -350,7 +333,6 @@ async function verifyHireFlow() {
     null,
     "the workspace's learning switch stays on the gallery",
   );
-  // No lead on the project yet: the form says this role would lead it and offers the Engineering Lead first.
   assert.match(
     document.body.textContent!,
     /Product has no lead yet, so this role would lead it/,
@@ -401,10 +383,33 @@ async function verifyHireFlow() {
     0,
     "a template hire never calls the manual create",
   );
+  const proposed = web.backend.mutations
+    .filter(({ name }) => name === "orgProposals:create")
+    .map(({ args }) => args as FunctionArgs<typeof api.orgProposals.create>);
   assert.equal(proposed.length, 1);
   assert.deepEqual(
-    proposed[0].changes.map((c: any) => c.kind),
+    proposed[0].changes.map((change: { kind: string }) => change.kind),
     ["role", "authority", "hire"],
+  );
+  assert.deepEqual(
+    proposed[0].changes
+      .filter((change: { kind: string }) => change.kind === "hire")
+      .map(({ handle, template, version, project: projectRef, config }) => ({
+        handle,
+        template,
+        version,
+        projectRef,
+        config,
+      })),
+    [
+      {
+        handle: "product-growth-cmo",
+        template: "growth",
+        version: "2.0.0",
+        projectRef: project.short_id ?? project._id,
+        config: { "product.domain": "product.example" },
+      },
+    ],
   );
   assert.equal(proposed[0].team_id, "fixture-team");
   assert.match(
@@ -436,62 +441,44 @@ async function verifyHireFlow() {
   assert.equal(created[0].handle, "growth-lead");
   assert.equal(created[0].project_path, "/src/product");
   assert.equal(created[0].provision, true);
-  assert.equal(created[0].trust_stage, undefined);
+  assert.equal(
+    "trust_stage" in created[0] ? created[0].trust_stage : undefined,
+    undefined,
+  );
   assert.deepEqual(created[0].scope, {
     project_ids: ["project-1"],
     plan_ids: [],
   });
   await act(async () => button("From a template").click());
-  // Back on the template tab, the posted state stands: the hire was proposed once and is not offered again.
   assert.ok(document.querySelector("[data-template-posted='op-9']"));
   assert.equal(document.querySelector("[data-template-form]"), null);
-  await act(async () => root.unmount());
+  await web.close();
 
-  // A project whose lead was hired from the same template: the form gives the
-  // work to the lead rather than hiring a second one under it, and offers
-  // nothing when the lead already runs it on this project.
   const lead = {
     ...ORG_FIXTURE.roles[0],
     _id: "lead-1",
     handle: "product-cmo",
     name: "CMO",
-    status: "active",
+    status: "active" as const,
     scope: { project_ids: ["project-1"], plan_ids: [] },
   };
   const withLead = {
     ...ORG_FIXTURE,
     roles: [...ORG_FIXTURE.roles, lead],
-  } as typeof ORG_FIXTURE;
-  const pickGrowth = async () => {
-    const again = createRoot(document.getElementById("root")!);
-    await act(async () =>
-      again.render(
-        <HireRoleDialog
-          open
-          onClose={() => {}}
-          tree={withLead}
-          meId="fixture-user-me"
-          initialProjects={[project]}
-          initialMode="template"
-          onCreate={() => {}}
-        />,
-      ),
+  } satisfies typeof ORG_FIXTURE;
+  const pickGrowth = async (leadProject: string) => {
+    const again = await mount(
+      { tree: withLead, initialMode: "template", onCreate: () => {} },
+      leadProject,
     );
-    await act(async () =>
-      document
-        .querySelector<HTMLButtonElement>(
-          '[data-template-card="growth"] [data-template-card-hire]',
-        )!
-        .click(),
+    const hire = document.querySelector<HTMLButtonElement>(
+      '[data-template-card="growth"] [data-template-card-hire]',
     );
+    expectPresent(hire);
+    await act(async () => hire.click());
     return again;
   };
-  leadInstances["lead-1"] = {
-    template_id: "growth",
-    version: "2.0.0",
-    project_id: "another-project",
-  };
-  let again = await pickGrowth();
+  const elsewhere = await pickGrowth("another-project");
   assert.equal(
     document
       .querySelector("[data-template-lead]")!
@@ -505,13 +492,8 @@ async function verifyHireFlow() {
     true,
     "the lead that runs this template is the default seat",
   );
-  await act(async () => again.unmount());
-  leadInstances["lead-1"] = {
-    template_id: "growth",
-    version: "2.0.0",
-    project_id: "project-1",
-  };
-  again = await pickGrowth();
+  await elsewhere.close();
+  const here = await pickGrowth(project._id);
   assert.equal(
     document
       .querySelector("[data-template-lead]")!
@@ -539,8 +521,7 @@ async function verifyHireFlow() {
     false,
     "no hire button when there is nothing to hire",
   );
-  await act(async () => again.unmount());
-  closeDomWindow(dom);
+  await here.close();
 }
 
 test(

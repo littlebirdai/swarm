@@ -1,172 +1,102 @@
-// Mounts the composer's role picker in jsdom against mocked store hooks: ⌥R
-// opens it inside the compose dialog, the viewer's own roles come first and
-// other people's read quieter, typing filters, ↵ picks a reachable seat and
-// hands the caret back, Esc backs out, and × returns to a fresh session.
-// Run: bun test apps/web/components/ComposeRolePicker.mount.test.tsx
 import { test } from "bun:test";
 import assert from "node:assert/strict";
-import {
-  realInboxStore,
-  restoreInboxStoreAfterAll,
-} from "./__tests__/mockInboxStore";
-import { closeDomWindow } from "../test-helpers/domGlobals";
-restoreInboxStoreAfterAll();
+import { api } from "@codecast/convex/convex/_generated/api";
+import { act } from "react";
+import type { RoleRecipient } from "../lib/roleRecipients";
+import { webBuilders } from "../test-helpers/builders";
+import { expectAbsent, expectPresent } from "../test-helpers/domExpect";
+import { mountWeb } from "../test-helpers/mountWeb";
+import { pending } from "../test-helpers/testConvex";
+import { ComposeRolePicker } from "./ComposeRolePicker";
+import { ORG_FIXTURE } from "./org/orgFixture";
+import type { OrgRole } from "./org/orgTypes";
 
-async function verifyPicker() {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
+test("the role picker filters, selects, and respects composer focus", async () => {
+  const { role, conversation, teamMember } = webBuilders(
+    "ComposeRolePicker.mount.test.tsx",
   );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLInputElement",
-    "HTMLButtonElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "KeyboardEvent",
-    "getComputedStyle",
-  ]) {
-    Object.defineProperty(globalThis, key, {
-      value: (dom.window as any)[key],
-      configurable: true,
-      writable: true,
-    });
-  }
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  const { mock } = await import("bun:test");
-  const React = await import("react");
-  const ME = "user-me";
-  const SAM = "user-sam";
+  const viewer = teamMember.build();
+  const sam = teamMember.build();
+  const team = teamMember.build()._id;
   const base = {
     scope_type: "team",
-    team_id: "t1",
-    host_user_id: ME,
-    status: "active",
-    scope: { project_ids: [], plan_ids: [] },
-    scope_names: { projects: [], plans: [] },
+    team_id: team,
+    host_user_id: viewer._id,
+  } satisfies Partial<OrgRole>;
+  const standing = () => {
+    const row = conversation.build();
+    return { conversation_id: row._id, short_id: row.short_id ?? "jx7stand" };
   };
-  const roles: any[] = [
-    {
-      ...base,
-      _id: "r-plat",
-      short_id: "or-3",
-      handle: "platform",
-      name: "Platform lead",
-      given_name: "Sol",
-      reports_to: { kind: "user", user_id: SAM },
-      status: "paused",
-      standing: { conversation_id: "conv-plat" },
+  const platform = role.build({
+    ...base,
+    handle: "platform",
+    name: "Platform lead",
+    given_name: "Sol",
+    reports_to: { kind: "user", user_id: sam._id },
+    status: "paused",
+    standing: standing(),
+  });
+  const growth = role.build({
+    ...base,
+    handle: "growth",
+    name: "Head of Growth",
+    given_name: "Ember",
+    reports_to: { kind: "user", user_id: viewer._id },
+    standing: standing(),
+    scope_names: {
+      projects: [{ id: "p1", title: "Growth", short_id: "pr-1" }],
+      plans: [{ id: "l1", title: "SEO", short_id: "pl-1" }],
     },
-    {
-      ...base,
-      _id: "r-growth",
-      short_id: "or-1",
-      handle: "growth",
-      name: "Head of Growth",
-      given_name: "Ember",
-      reports_to: { kind: "user", user_id: ME },
-      standing: { conversation_id: "conv-growth" },
-      scope_names: {
-        projects: [{ id: "p1", title: "Growth", short_id: "pr-1" }],
-        plans: [{ id: "l1", title: "SEO", short_id: "pl-1" }],
-      },
-    },
-    {
-      ...base,
-      _id: "r-docs",
-      short_id: "or-4",
-      handle: "docs",
-      name: "Docs lead",
-      given_name: "Ada",
-      reports_to: { kind: "role", role_id: "r-plat" },
-      standing: null,
-    },
-    {
-      ...base,
-      _id: "r-people",
-      short_id: "or-2",
-      handle: "head-of-people",
-      name: "Head of People",
-      given_name: "Rowan",
-      reports_to: { kind: "user", user_id: ME },
-      standing: { conversation_id: "conv-people" },
-    },
-  ];
-  // Characters default off (lib/uiPrefDefaults.ts); the picker is checked with them on.
-  const storeState = {
-    currentUser: { _id: ME },
-    clientState: { ui: { show_characters: true } },
-  };
-  mock.module("../store/inboxStore", () => ({
-    ...realInboxStore,
-    useInboxStore: Object.assign((sel: any) => sel(storeState), {
-      getState: () => storeState,
-      getInitialState: () => storeState,
-      subscribe: () => () => {},
-    }),
-  }));
-  mock.module("../hooks/useOrgRoles", () => ({
-    useOrgRoles: () => ({
-      roles,
-      workspace: { kind: "team", id: "t1", name: "Fernhill" },
-      roleBotUserIds: new Set(),
-    }),
-  }));
-  mock.module("../hooks/useSyncOrgTree", () => ({
-    useSyncOrgTreeFeeder: () => ({
-      ready: true,
-      missing: false,
-      refused: false,
-      retry() {},
-    }),
-  }));
-  mock.module("../hooks/useCurrentUser", () => ({
-    useCurrentUser: () => ({
-      user: { _id: ME },
-      isLoading: false,
-      isAuthenticated: true,
-    }),
-  }));
-  const realAvatars = { ...(await import("./org/avatars")) };
-  mock.module("./org/avatars", () => ({
-    ...realAvatars,
-    RoleAvatar: ({ avatar }: { avatar: string }) =>
-      React.createElement("i", { "data-avatar": avatar }),
-  }));
-  const { act } = React;
-  const { createRoot } = await import("react-dom/client");
-  const { ComposeRolePicker } = await import("./ComposeRolePicker");
-  const root = createRoot(document.getElementById("root")!);
-  const picks: unknown[] = [];
+  });
+  const docs = role.build({
+    ...base,
+    handle: "docs",
+    name: "Docs lead",
+    given_name: "Ada",
+    reports_to: { kind: "role", role_id: platform._id },
+    standing: null,
+  });
+  const people = role.build({
+    ...base,
+    handle: "head-of-people",
+    name: "Head of People",
+    given_name: "Rowan",
+    reports_to: { kind: "user", user_id: viewer._id },
+    standing: standing(),
+  });
+  const picks: Array<string | null> = [];
   let done = 0;
-  let picked: any = null;
-  const render = () =>
-    act(async () =>
-      root.render(
-        React.createElement(
-          "div",
-          { role: "dialog", "aria-modal": "true" },
-          React.createElement(ComposeRolePicker, {
-            picked,
-            onPick: (r: any) => {
-              picks.push(r?.handle ?? null);
-              picked = r;
-            },
-            onDone: () => {
-              done += 1;
-            },
-          }),
-          React.createElement("textarea", { id: "msg" }),
-        ),
-      ),
-    );
+  let picked: RoleRecipient | null = null;
+  const pane = () => (
+    <div role="dialog" aria-modal="true">
+      <ComposeRolePicker
+        picked={picked}
+        onPick={(recipient) => {
+          picks.push(recipient?.standingId ?? null);
+          picked = recipient;
+        }}
+        onDone={() => {
+          done += 1;
+        }}
+      />
+      <textarea id="msg" />
+    </div>
+  );
+  const web = await mountWeb(pane(), {
+    setup(backend, store) {
+      store.syncTable("currentUser", viewer);
+      store.syncTable("clientState", {
+        ui: { active_team_id: team, show_characters: true },
+      });
+      store.syncTable("orgTree", {
+        ...ORG_FIXTURE,
+        workspace: { kind: "team", id: team, name: "Fernhill" },
+        roles: [platform, growth, docs, people],
+      });
+      backend.set(api.org.roles, pending);
+    },
+  });
+  const render = () => web.rerender(pane());
   const q = <T extends Element = HTMLElement>(sel: string) =>
     document.querySelector<T>(sel);
   const qa = (sel: string) =>
@@ -175,7 +105,7 @@ async function verifyPicker() {
   const key = (target: EventTarget, init: KeyboardEventInit) =>
     act(async () => {
       target.dispatchEvent(
-        new (dom.window as any).KeyboardEvent("keydown", {
+        new KeyboardEvent("keydown", {
           bubbles: true,
           cancelable: true,
           ...init,
@@ -185,26 +115,20 @@ async function verifyPicker() {
   const typeInto = (input: HTMLInputElement, value: string) =>
     act(async () => {
       Object.getOwnPropertyDescriptor(
-        (dom.window as any).HTMLInputElement.prototype,
+        HTMLInputElement.prototype,
         "value",
       )!.set!.call(input, value);
-      input.dispatchEvent(
-        new (dom.window as any).Event("input", { bubbles: true }),
-      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-  // Closed and unpicked: nothing on screen, the composer is a plain new session.
   await render();
   assert.equal(qa("button").length, 0);
-  assert.equal(q("input"), null);
+  expectAbsent(q("input"));
 
-  // ⌥R opens it (capture phase on window), the caret lands in the filter.
-  await key(dom.window, { altKey: true, code: "KeyR", key: "®" });
+  await key(window, { altKey: true, code: "KeyR", key: "®" });
   const input = q<HTMLInputElement>("input")!;
-  assert.ok(input, "the filter input mounted");
+  expectPresent(input, "the filter input mounted");
   assert.equal(document.activeElement, input);
-  // Mine first, by name; then the divider and other people's, quieter; a seat
-  // with no standing session is listed but cannot be picked.
   const rows = qa("[role=option] button");
   assert.deepEqual(rows.map(handleOf), [
     "@growth",
@@ -229,7 +153,6 @@ async function verifyPicker() {
   assert.match(rows[3].textContent!, /paused/);
   assert.match(q("[role=listbox]")!.textContent!, /Other people’s roles/);
 
-  // The first reachable row is highlighted; ↓ steps over the dead seat.
   assert.equal(qa("[role=option][aria-selected=true]").length, 1);
   assert.equal(
     qa("[role=option][aria-selected=true] button")[0].getAttribute(
@@ -246,86 +169,67 @@ async function verifyPicker() {
     "platform",
   );
 
-  // Typing filters by any word in the line; ↵ picks and hands the caret back.
   await typeInto(input, "gro");
   assert.deepEqual(qa("[role=option] button").map(handleOf), ["@growth"]);
   await key(input, { key: "Enter" });
-  assert.deepEqual(picks, ["growth"]);
+  assert.deepEqual(picks, [growth.standing!.conversation_id]);
   assert.equal(done, 1);
   await render();
-  assert.equal(q("input"), null);
+  expectAbsent(q("input"));
   assert.match(
     q("[aria-label^='Sending to Ember']")!.textContent!,
     /EmberHead of Growth· Growth, SEO@growth/,
   );
-  // Asking by handle shows the handles on the rows.
-  await key(dom.window, { altKey: true, code: "KeyR" });
+  await key(window, { altKey: true, code: "KeyR" });
   await typeInto(q("input")!, "@head");
+  assert.deepEqual(qa("[role=option] button").map(handleOf), [
+    "@head-of-people",
+    "@growth",
+  ]);
   assert.match(qa("[role=option] button")[0].textContent!, /@head-of-people$/);
   await key(q("input")!, { key: "Escape" });
   await render();
 
-  // ⌥R again reopens; Esc backs out, the pick stands.
-  await key(dom.window, { altKey: true, code: "KeyR" });
+  await key(window, { altKey: true, code: "KeyR" });
   assert.ok(q("input"));
   await key(q("input")!, { key: "Escape" });
   assert.equal(done, 3);
   await render();
-  assert.equal(q("input"), null);
+  expectAbsent(q("input"));
   assert.ok(q("[aria-label^='Sending to Ember']"));
 
-  // A modal stacked above the composer owns the keyboard.
   const confirm = document.createElement("div");
   confirm.setAttribute("aria-modal", "true");
   document.body.appendChild(confirm);
-  await key(dom.window, { altKey: true, code: "KeyR" });
-  assert.equal(q("input"), null);
+  await key(window, { altKey: true, code: "KeyR" });
+  expectAbsent(q("input"));
   confirm.remove();
 
-  // × returns to a fresh session.
   await act(async () =>
     q<HTMLButtonElement>(
       "[aria-label='Start a fresh session instead']",
     )!.click(),
   );
-  assert.deepEqual(picks, ["growth", null]);
+  assert.deepEqual(picks, [growth.standing!.conversation_id, null]);
   await render();
   assert.equal(qa("button").length, 0);
 
-  // The new-session page hosts the picker with no dialog around it: ⌥R opens it there too.
-  const host = (wrap: Record<string, string> | null) =>
-    act(async () =>
-      root.render(
-        React.createElement(
-          "div",
-          wrap,
-          React.createElement(ComposeRolePicker, {
-            picked: null,
-            onPick: () => {},
-            onDone: () => {},
-          }),
-          React.createElement("textarea", { id: "msg" }),
-        ),
-      ),
+  const host = (wrap: { role?: string }) =>
+    web.rerender(
+      <div {...wrap}>
+        <ComposeRolePicker picked={null} onPick={() => {}} onDone={() => {}} />
+        <textarea id="msg" />
+      </div>,
     );
-  await host(null);
-  await key(dom.window, { altKey: true, code: "KeyR" });
+  await host({});
+  await key(window, { altKey: true, code: "KeyR" });
   assert.ok(q("input"), "⌥R opens the picker on the new-session page");
   await key(q("input")!, { key: "Escape" });
-  // A docked composer answers only while it holds focus.
   await host({ role: "dialog" });
   (document.activeElement as HTMLElement | null)?.blur();
-  await key(dom.window, { altKey: true, code: "KeyR" });
+  await key(window, { altKey: true, code: "KeyR" });
   assert.equal(q("input"), null, "an unfocused dock ignores ⌥R");
   await act(async () => q<HTMLTextAreaElement>("#msg")!.focus());
-  await key(dom.window, { altKey: true, code: "KeyR" });
+  await key(window, { altKey: true, code: "KeyR" });
   assert.ok(q("input"), "a focused dock opens on ⌥R");
-
-  await act(async () => root.unmount());
-  closeDomWindow(dom);
-}
-
-test(
-  "the role picker filters, selects, and respects composer focus",
-  verifyPicker,
-);
+});

@@ -1,115 +1,32 @@
-// Mounts ObjectCardFrame in jsdom and checks what expanding changes: the
-// surface keeps its colour and shape (only the border raise says open), and
-// the corner controls collapse to the chevron because the footer carries
-// Open and the full-page toggle once the card is open.
-// Run: bun test --timeout 120000 components/EntityObjectCard.expand.test.tsx
-import { test, expect, beforeAll, mock } from "bun:test";
+import { expect, test } from "bun:test";
+import { act, createElement as h } from "react";
+import { ACCENT } from "../lib/entityCardAccent";
+import { webBuilders } from "../test-helpers/builders";
+import { expectPresent } from "../test-helpers/domExpect";
+import { mountWeb } from "../test-helpers/mountWeb";
+import { ObjectCardFrame } from "./EntityObjectCard";
 
-let React: typeof import("react");
-let createRoot: typeof import("react-dom/client").createRoot;
-let mod: typeof import("./EntityObjectCard");
-let ACCENT: typeof import("../lib/entityCardAccent").ACCENT;
-
-beforeAll(async () => {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLButtonElement",
-    "HTMLAnchorElement",
-    "Element",
-    "Node",
-    "Event",
-    "MouseEvent",
-    "KeyboardEvent",
-    "getComputedStyle",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-    "localStorage",
-  ]) {
-    const v = (dom.window as any)[key];
-    if (v !== undefined)
-      Object.defineProperty(globalThis, key, {
-        value: v,
-        configurable: true,
-        writable: true,
-      });
-  }
-  (globalThis as any).ResizeObserver ??= class {
-    observe() {}
-    disconnect() {}
-  };
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  React = await import("react");
-  const h = React.createElement;
-  mock.module("./RoutePane", () => ({
-    RoutePane: () => h("div", null, "page"),
-  }));
-  mock.module("./stage/SessionPane", () => ({
-    SessionPane: () => h("div", null, "session"),
-  }));
-  const realShortcuts = { ...(await import("../shortcuts")) };
-  mock.module("../shortcuts", () => ({
-    ...realShortcuts,
-    hasOpenModal: () => false,
-    isEditableTarget: () => false,
-  }));
-  mock.module("../hooks/useOpenLinkedSession", () => ({
-    useOpenLinkedSession: () => () => {},
-  }));
-  const realStage = { ...(await import("../lib/stage")) };
-  mock.module("../lib/stage", () => ({
-    ...realStage,
-    canOpenBeside: () => true,
-  }));
-  const realOpenIntent = { ...(await import("../lib/openIntent")) };
-  mock.module("../lib/openIntent", () => ({ ...realOpenIntent, openIn() {} }));
-  mock.module("next/link", () => ({
-    default: ({ href, children, ...rest }: any) =>
-      h("a", { href, ...rest }, children),
-  }));
-  mock.module("next/navigation", () => ({
-    useRouter: () => ({ push() {}, replace() {} }),
-  }));
-  ({ createRoot } = await import("react-dom/client"));
-  mod = await import("./EntityObjectCard");
-  ({ ACCENT } = await import("../lib/entityCardAccent"));
-}, 120_000);
-
-function mount(ui: React.ReactNode) {
-  const root = createRoot(document.getElementById("root")!);
-  React.act(() => root.render(ui));
-  return root;
-}
+const { session: sessions } = webBuilders("EntityObjectCard.expand.test.tsx");
+const session = sessions.build({ title: "Read-only incident investigation" });
+const href = "/conversation/" + session._id;
 
 const card = () => document.querySelector<HTMLElement>(".entity-card")!;
 const openLinks = (scope: Element) =>
   scope.querySelectorAll(".object-reveal-open-compact").length;
 const expand = () =>
-  React.act(() =>
-    card().dispatchEvent(new MouseEvent("click", { bubbles: true })),
-  );
+  act(() => card().dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
 function frame(flat: boolean) {
-  const h = React.createElement;
-  return h(mod.ObjectCardFrame, {
+  return h(ObjectCardFrame, {
     accent: ACCENT.session,
     count: 1,
-    ariaLabel: "Read-only incident investigation",
-    href: "/conversation/jx7cwtb",
+    ariaLabel: session.title!,
+    href: href,
     openLabel: "Open session",
-    footerId: "jx7cwtb",
+    footerId: session._id,
     resolved: true,
     served: true,
-    header: flat
-      ? undefined
-      : { icon: h("i"), title: "Read-only incident investigation" },
+    header: flat ? undefined : { icon: h("i"), title: session.title! },
     flatBody: flat ? () => h("div", null, "body") : undefined,
     snippet: h("div", null, "snippet"),
     detail: h("div", null, "detail"),
@@ -117,8 +34,11 @@ function frame(flat: boolean) {
 }
 
 for (const flat of [true, false]) {
-  test(`${flat ? "a flat" : "a header"} card keeps its surface when it opens; the corner drops to the chevron and the footer carries Open`, () => {
-    const root = mount(frame(flat));
+  test(`${flat ? "a flat" : "a header"} card keeps its surface when it opens; the corner drops to the chevron and the footer carries Open`, async () => {
+    const { container } = await mountWeb(frame(flat));
+    expect(
+      container.querySelector(".entity-card")?.getAttribute("aria-label"),
+    ).toBe(session.title);
     const closed = card().className;
     expect(closed).toContain("bg-sol-card");
     expect(closed).toContain("rounded-md");
@@ -136,8 +56,11 @@ for (const flat of [true, false]) {
 
     const cornerOpen = card().firstElementChild!;
     expect(openLinks(cornerOpen)).toBe(0);
-    expect(cornerOpen.querySelector("svg")).not.toBeNull(); // the chevron stays
-    expect(openLinks(card().querySelector(".entity-card-expand")!)).toBe(1);
-    React.act(() => root.unmount());
+    expectPresent(cornerOpen.querySelector("svg"));
+    const detail = card().querySelector(".entity-card-expand");
+    expectPresent(detail);
+    expect(openLinks(detail)).toBe(1);
+    expect(detail.querySelector("a")?.getAttribute("href")).toBe(href);
+    expect(detail.textContent).toContain(session._id);
   });
 }

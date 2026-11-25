@@ -13665,9 +13665,6 @@
   "apps/web/app/artifacts/page.tsx": {
     "swarm/no-comments": 1
   },
-  "apps/web/app/auth/cli/page.mount.test.tsx": {
-    "swarm/no-comments": 6
-  },
   "apps/web/app/auth/cli/page.tsx": {
     "react-hooks/exhaustive-deps": 1,
     "react/purity": 1,
@@ -14079,9 +14076,6 @@
     "swarm/no-comments": 5,
     "swarm/no-native-title-with-aria-label": 1
   },
-  "apps/web/app/settings/sync/page.mount.test.tsx": {
-    "swarm/no-comments": 26
-  },
   "apps/web/app/settings/sync/page.tsx": {
     "react/purity": 2,
     "swarm/ime-safe-key-handlers": 1,
@@ -14392,9 +14386,6 @@
   "apps/web/components/ComposeHost.tsx": {
     "swarm/no-comments": 6
   },
-  "apps/web/components/ComposeRolePicker.mount.test.tsx": {
-    "swarm/no-comments": 18
-  },
   "apps/web/components/ComposeRolePicker.tsx": {
     "react/refs": 1,
     "swarm/ime-safe-key-handlers": 2,
@@ -14569,9 +14560,6 @@
     "react/purity": 3,
     "swarm/no-comments": 226,
     "swarm/no-native-title-with-aria-label": 2
-  },
-  "apps/web/components/EntityObjectCard.expand.test.tsx": {
-    "swarm/no-comments": 6
   },
   "apps/web/components/EntityObjectCard.tsx": {
     "react/purity": 1,
@@ -15205,9 +15193,6 @@
     "swarm/no-comments": 53,
     "swarm/no-native-title-with-aria-label": 1
   },
-  "apps/web/components/TmuxAttachPill.degrade.test.tsx": {
-    "swarm/no-comments": 22
-  },
   "apps/web/components/TmuxAttachPill.tsx": {
     "swarm/no-comments": 20
   },
@@ -15509,9 +15494,6 @@
   "apps/web/components/__tests__/hostedSessionChrome.test.tsx": {
     "swarm/no-comments": 2
   },
-  "apps/web/components/__tests__/huddleButton.test.tsx": {
-    "swarm/no-comments": 13
-  },
   "apps/web/components/__tests__/imageGallery.mount.test.tsx": {
     "swarm/no-comments": 19
   },
@@ -15541,9 +15523,6 @@
   },
   "apps/web/components/__tests__/listenerBudget.test.tsx": {
     "swarm/no-comments": 10
-  },
-  "apps/web/components/__tests__/liveNowRail.test.tsx": {
-    "swarm/no-comments": 6
   },
   "apps/web/components/__tests__/liveRoomAction.test.tsx": {
     "swarm/no-comments": 11
@@ -15622,9 +15601,6 @@
   },
   "apps/web/components/__tests__/sessionCardFirstClass.test.tsx": {
     "swarm/no-comments": 17
-  },
-  "apps/web/components/__tests__/sessionControlMenu.mount.test.tsx": {
-    "swarm/no-comments": 23
   },
   "apps/web/components/__tests__/settings.degrade.test.tsx": {
     "swarm/no-comments": 17
@@ -15783,9 +15759,6 @@
   },
   "apps/web/components/agentFeatures/useFeatureOffer.ts": {
     "swarm/no-comments": 15
-  },
-  "apps/web/components/anchor/AnchorConversation.jump.mount.test.tsx": {
-    "swarm/no-comments": 16
   },
   "apps/web/components/anchor/AnchorConversation.tsx": {
     "react-hooks/exhaustive-deps": 3,
@@ -16797,9 +16770,6 @@
   "apps/web/components/consequential/__tests__/lineStartLedger.test.ts": {
     "swarm/no-comments": 3
   },
-  "apps/web/components/consequential/__tests__/sites.mount.test.tsx": {
-    "swarm/no-comments": 3
-  },
   "apps/web/components/consequential/accountLedgers.ts": {
     "swarm/no-comments": 1
   },
@@ -17694,9 +17664,6 @@
     "react-hooks/exhaustive-deps": 1,
     "swarm/no-comments": 11
   },
-  "apps/web/components/expectations/__tests__/ExpectationsTab.mount.test.tsx": {
-    "swarm/no-comments": 17
-  },
   "apps/web/components/expectations/draftExpectations.ts": {
     "swarm/no-comments": 11
   },
@@ -17937,9 +17904,6 @@
   "apps/web/components/initiatives/GoalEnvLevels.tsx": {
     "swarm/no-comments": 9
   },
-  "apps/web/components/initiatives/GoalHoverContent.mount.test.tsx": {
-    "swarm/no-comments": 11
-  },
   "apps/web/components/initiatives/GoalHoverContent.tsx": {
     "swarm/no-comments": 5
   },
@@ -17956,9 +17920,6 @@
   "apps/web/components/initiatives/InitiativePanel.tsx": {
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 36
-  },
-  "apps/web/components/initiatives/InitiativeRecord.mount.test.tsx": {
-    "swarm/no-comments": 48
   },
   "apps/web/components/initiatives/InitiativeRecord.tsx": {
     "swarm/ime-safe-key-handlers": 2,
@@ -18122,9 +18083,6 @@
   },
   "apps/web/components/line/settings/ProfileFieldRow.tsx": {
     "swarm/no-comments": 4
-  },
-  "apps/web/components/line/settings/__tests__/LineSettingsPage.mount.test.tsx": {
-    "swarm/no-comments": 19
   },
   "apps/web/components/line/settings/__tests__/LineStations.mount.test.tsx": {
     "swarm/no-comments": 21
@@ -19406,9 +19364,6 @@
   "apps/web/components/org/OrgCards.mount.test.tsx": {
     "swarm/no-comments": 6
   },
-  "apps/web/components/org/OrgChart.closeProposal.mount.test.tsx": {
-    "swarm/no-comments": 12
-  },
   "apps/web/components/org/OrgChart.mount.test.tsx": {
     "swarm/no-comments": 26
   },
@@ -19442,9 +19397,6 @@
   "apps/web/components/org/OrgIntroAnywhere.tsx": {
     "swarm/no-comments": 11,
     "swarm/no-direct-use-effect": 2
-  },
-  "apps/web/components/org/OrgIntroCard.mount.test.tsx": {
-    "swarm/no-comments": 30
   },
   "apps/web/components/org/OrgIntroCard.tsx": {
     "swarm/no-comments": 20
@@ -19495,9 +19447,6 @@
     "react/refs": 8,
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 98
-  },
-  "apps/web/components/org/RecordGroupRow.mount.test.tsx": {
-    "swarm/no-comments": 27
   },
   "apps/web/components/org/RecordGroupRow.tsx": {
     "swarm/no-comments": 16
@@ -19780,9 +19729,6 @@
   "apps/web/components/org/orgStaffingTypes.ts": {
     "swarm/no-comments": 36
   },
-  "apps/web/components/org/orgTemplateHire.mount.test.tsx": {
-    "swarm/no-comments": 17
-  },
   "apps/web/components/org/orgTemplateHire.tsx": {
     "react/preserve-manual-memoization": 1,
     "swarm/no-comments": 22
@@ -19900,9 +19846,6 @@
   },
   "apps/web/components/org/scope/__tests__/ConversationWithPanel.test.tsx": {
     "swarm/no-comments": 6
-  },
-  "apps/web/components/org/scope/__tests__/ScopeLineTab.mount.test.tsx": {
-    "swarm/no-comments": 17
   },
   "apps/web/components/org/scope/__tests__/lineBoard.test.ts": {
     "swarm/no-comments": 5
@@ -21576,9 +21519,6 @@
   },
   "apps/web/hooks/__tests__/useConversationMessages.test.ts": {
     "swarm/no-comments": 7
-  },
-  "apps/web/hooks/__tests__/useConvexSync.identityLost.mount.test.tsx": {
-    "swarm/no-comments": 15
   },
   "apps/web/hooks/__tests__/useConvexSync.typingDefer.mount.test.tsx": {
     "swarm/no-comments": 4

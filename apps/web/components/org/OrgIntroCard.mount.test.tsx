@@ -1,167 +1,39 @@
-// The introduction anywhere (org-staffing.md S20), mounted in jsdom.
-//
-// The card: its two actions, the pure gate (phone, a call, a composer with
-// text, the prefs, hydration), the DOM read for a composer with text, and
-// the mount that raises it on the app's toast once the page settles and
-// writes the pref whichever way it is answered.
-//
-// Run: bun test --timeout 120000 components/org/OrgIntroCard.mount.test.tsx
-import { test, expect, beforeAll, afterAll, mock } from "bun:test";
+import { expect, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { act } from "react";
+import { toast } from "sonner";
+import { ORG_INTRO_HEAD_OF_PEOPLE } from "../../lib/orgIntro";
+import {
+  composerHasText,
+  composerLift,
+  orgIntroCardMayRise,
+  ORG_MEET_COMPOSER_GAP,
+  ORG_MEET_LINES,
+  ORG_MEET_SETTLE_MS,
+  ORG_MEET_TITLE,
+  ORG_MEET_TOAST_ID,
+  type OrgIntroCardFacts,
+} from "../../lib/orgIntroCard";
+import { useInboxStore } from "../../store/inboxStore";
+import { webBuilders } from "../../test-helpers/builders";
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { waitForDom } from "../../test-helpers/waitForDom";
+import { OrgIntroAnywhere } from "./OrgIntroAnywhere";
 
-// The real store module, snapshotted before anything substitutes it, and put
-// back when this file ends: `mock.module` is process-global and permanent.
-const realInboxStore = { ...(await import("../../store/inboxStore")) };
-afterAll(() => {
-  mock.module("../../store/inboxStore", () => realInboxStore);
-});
+const { teamMember } = webBuilders("OrgIntroCard.mount.test.tsx");
+const viewer = teamMember.build();
+const team = teamMember.build()._id;
 
-let React: typeof import("react");
-let act: typeof import("react").act;
-let createRoot: typeof import("react-dom/client").createRoot;
-let intro: typeof import("../../lib/orgIntro");
-let card: typeof import("./OrgIntroCard") &
-  typeof import("./OrgIntroAnywhere") &
-  typeof import("../../lib/orgIntroCard");
+const q = <T extends Element = HTMLElement>(selector: string) =>
+  document.querySelector<T>(selector);
+const qa = (selector: string) => [
+  ...document.querySelectorAll<HTMLElement>(selector),
+];
 
-// The fakes the card's mount reads through: the store, the router, the toast.
-// Characters (off by default) is on: the card meets the Head of People by its face.
-type Ui = {
-  org_intro_seen?: boolean;
-  org_upsell_seen?: boolean;
-  show_characters?: boolean;
-};
-const fake = {
-  state: {
-    clientStateInitialized: true,
-    teams: [{ _id: "t1", features: { org: true } }],
-    currentUser: { _id: "u1" } as { _id: string } | null,
-    clientState: { ui: { show_characters: true } as Ui },
-    call: { phase: "idle" },
-    updateClientUI(p: Ui) {
-      Object.assign(fake.state.clientState.ui, p);
-      fake.writes.push({ ...p });
-    },
-  },
-  writes: [] as Ui[],
-  pathname: "/inbox",
-  pushes: [] as string[],
-  phone: false,
-  toasts: [] as Array<{
-    id: string;
-    render: (id: string) => React.ReactElement;
-    onDismiss?: () => void;
-  }>,
-  dismissed: [] as string[],
-  reset() {
-    fake.state.clientStateInitialized = true;
-    fake.state.currentUser = { _id: "u1" };
-    fake.state.clientState.ui = { show_characters: true };
-    fake.state.call = { phase: "idle" };
-    fake.writes = [];
-    fake.pathname = "/inbox";
-    fake.pushes = [];
-    fake.phone = false;
-    fake.toasts = [];
-    fake.dismissed = [];
-  },
-};
-
-beforeAll(async () => {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div><div id='toast'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLButtonElement",
-    "HTMLTextAreaElement",
-    "HTMLInputElement",
-    "Element",
-    "Node",
-    "Event",
-    "MouseEvent",
-    "KeyboardEvent",
-    "getComputedStyle",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-  ]) {
-    const v = (dom.window as any)[key];
-    if (v !== undefined)
-      Object.defineProperty(globalThis, key, {
-        value: v,
-        configurable: true,
-        writable: true,
-      });
-  }
-  if (!(globalThis as any).ResizeObserver)
-    (globalThis as any).ResizeObserver = class {
-      observe() {}
-      disconnect() {}
-    };
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  React = await import("react");
-  act = React.act;
-  ({ createRoot } = await import("react-dom/client"));
-  // Link the component graph BEFORE substituting the store: replacing a
-  // module that a dynamic import is still resolving deadlocks that import,
-  // and the substitution mutates the live module object, so modules already
-  // linked still read the stub.
-  intro = await import("../../lib/orgIntro");
-  card = {
-    ...(await import("./OrgIntroCard")),
-    ...(await import("./OrgIntroAnywhere")),
-    ...(await import("../../lib/orgIntroCard")),
-  };
-  mock.module("../../store/inboxStore", () => ({
-    ...realInboxStore,
-    // Keep the hook's own methods (subscribe, setState, getInitialState): a
-    // bare { getState } stub leaves the module graph waiting on a store that
-    // can never answer, and the import never settles.
-    useInboxStore: Object.assign(
-      (selector: (state: unknown) => unknown) => selector(fake.state),
-      realInboxStore.useInboxStore,
-      { getState: () => fake.state },
-    ),
-    useTrackedStore: () => fake.state,
-  }));
-  mock.module("next/navigation", () => ({
-    usePathname: () => fake.pathname,
-    useRouter: () => ({
-      push: (p: string) => fake.pushes.push(p),
-      replace: () => {},
-    }),
-  }));
-  mock.module("../../hooks/useIsPhone", () => ({
-    useIsPhone: () => fake.phone,
-    useMinWidth: () => true,
-  }));
-  mock.module("sonner", () => ({
-    toast: {
-      custom: (
-        render: (id: string) => React.ReactElement,
-        opts: { id: string; onDismiss?: () => void },
-      ) => {
-        fake.toasts.push({ id: opts.id, render, onDismiss: opts.onDismiss });
-        return opts.id;
-      },
-      dismiss: (id: string) => fake.dismissed.push(id),
-    },
-  }));
-}, 120_000);
-
-const q = <T extends Element = HTMLElement>(sel: string) =>
-  document.querySelector<T>(sel);
-const qa = (sel: string) => [...document.querySelectorAll<HTMLElement>(sel)];
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-// ---------------------------------------------------------------- the card's gate
-
-test("the card's gate: settled store, a person, not the org page, not a phone, no call, no draft, unsold", () => {
-  const ok: card.OrgIntroCardFacts = {
+test("the card's gate: settled store, a person, not the org page, not a phone, no call, no draft, unsold", async () => {
+  await mountWeb(null);
+  const ok: OrgIntroCardFacts = {
     initialized: true,
     signedIn: true,
     onOrgPage: false,
@@ -171,8 +43,8 @@ test("the card's gate: settled store, a person, not the org page, not a phone, n
     introSeen: false,
     upsellSeen: false,
   };
-  expect(card.orgIntroCardMayRise(ok)).toBe(true);
-  const closed: Array<Partial<card.OrgIntroCardFacts>> = [
+  expect(orgIntroCardMayRise(ok)).toBe(true);
+  const closed: Array<Partial<OrgIntroCardFacts>> = [
     { initialized: false },
     { signedIn: false },
     { onOrgPage: true },
@@ -185,26 +57,22 @@ test("the card's gate: settled store, a person, not the org page, not a phone, n
     { upsellSeen: true },
   ];
   for (const c of closed)
-    expect(card.orgIntroCardMayRise({ ...ok, ...c })).toBe(false);
+    expect(orgIntroCardMayRise({ ...ok, ...c })).toBe(false);
 
-  // A composer with text, read from the page: a textarea, a text input, a rich editor.
   document.body.insertAdjacentHTML(
     "beforeend",
     "<div id='c'><textarea></textarea><div contenteditable='true'></div></div>",
   );
-  expect(card.composerHasText(document)).toBe(false);
+  expect(composerHasText(document)).toBe(false);
   document.querySelector("textarea")!.value = "  half a thought";
-  expect(card.composerHasText(document)).toBe(true);
+  expect(composerHasText(document)).toBe(true);
   document.querySelector("textarea")!.value = "";
   document.querySelector<HTMLElement>("[contenteditable]")!.textContent =
     "typing";
-  expect(card.composerHasText(document)).toBe(true);
+  expect(composerHasText(document)).toBe(true);
   document.getElementById("c")!.remove();
 
-  // The card clears a composer on screen so a person can send under it: a
-  // composer whose top sits 90px above the window's foot lifts the card
-  // above it by that much plus the gap, less the toast's own offset.
-  expect(card.composerLift(document, 800)).toBe(0);
+  expect(composerLift(document, 800)).toBe(0);
   document.body.insertAdjacentHTML(
     "beforeend",
     "<div id='composer' data-sv-composer></div>",
@@ -222,8 +90,8 @@ test("the card's gate: settled store, a person, not the org page, not a phone, n
       y: 710,
       toJSON() {},
     }) as DOMRect;
-  expect(card.composerLift(document, 800)).toBe(
-    800 - 32 - (710 - card.ORG_MEET_COMPOSER_GAP),
+  expect(composerLift(document, 800)).toBe(
+    800 - 32 - (710 - ORG_MEET_COMPOSER_GAP),
   );
   composer.getBoundingClientRect = () =>
     ({
@@ -237,120 +105,167 @@ test("the card's gate: settled store, a person, not the org page, not a phone, n
       y: 0,
       toJSON() {},
     }) as DOMRect;
-  expect(card.composerLift(document, 800)).toBe(0);
+  expect(composerLift(document, 800)).toBe(0);
   composer.remove();
 });
 
-// ---------------------------------------------------------------- the card, mounted
+type Fixture = {
+  initialized?: boolean;
+  path?: string;
+  phone?: boolean;
+  call?: boolean;
+  draft?: boolean;
+  introSeen?: boolean;
+  upsellSeen?: boolean;
+};
 
-async function mountAnywhere() {
-  const root = createRoot(document.getElementById("root")!);
-  // The corner reads the router's own location (the setup flow keeps it quiet).
-  const { MemoryRouter } = await import("react-router");
-  const render = () =>
-    act(async () =>
-      root.render(
-        React.createElement(
-          MemoryRouter,
-          null,
-          React.createElement(card.OrgIntroAnywhere),
-        ),
-      ),
+async function mountAnywhere(facts: Fixture = {}) {
+  const callbacks: Array<() => void> = [];
+  const web = await mountWeb(
+    <>
+      <OrgIntroAnywhere />
+      {facts.draft && <textarea defaultValue="a reply in progress" />}
+    </>,
+    {
+      path: facts.path ?? "/inbox",
+      dispatch: true,
+      setup(backend, store) {
+        backend.mutation(api.dispatch.dispatch, null);
+        store.syncTable("currentUser", viewer);
+        store.syncTable("teams", [{ _id: team, features: { org: true } }]);
+        store.syncTable("clientState", {
+          ui: {
+            active_team_id: team,
+            show_characters: true,
+            org_intro_seen: facts.introSeen,
+            org_upsell_seen: facts.upsellSeen,
+          },
+        });
+        if (facts.initialized === false)
+          useInboxStore.setState({ clientStateInitialized: false });
+        if (facts.call) store.setCallState({ phase: "connected" });
+        if (facts.phone) {
+          const match = window.matchMedia;
+          window.matchMedia = (query) => ({
+            ...match(query),
+            matches: query === "(max-width: 767px)",
+          });
+        }
+        const schedule = window.setTimeout.bind(window);
+        Object.defineProperty(window, "setTimeout", {
+          configurable: true,
+          value(callback: TimerHandler, delay?: number, ...args: unknown[]) {
+            if (
+              delay !== ORG_MEET_SETTLE_MS ||
+              typeof callback !== "function"
+            ) {
+              return schedule(callback, delay, ...args);
+            }
+            callbacks.push(() => callback(...args));
+            return schedule(() => {}, delay);
+          },
+        });
+      },
+    },
+  );
+  const writes = () =>
+    web.backend.mutations.filter(
+      ({ args }) =>
+        typeof args === "object" &&
+        args !== null &&
+        "action" in args &&
+        args.action === "updateClientUI",
     );
-  await render();
-  return { root, render };
+  const settle = async (raises: boolean) => {
+    await act(async () => {
+      callbacks.splice(0).forEach((callback) => callback());
+    });
+    if (raises) {
+      await act(() =>
+        waitForDom(document.body, () => q("[data-org-meet]") !== null),
+      );
+      expect(
+        toast.getToasts().filter(({ id }) => id === ORG_MEET_TOAST_ID),
+      ).toHaveLength(1);
+    } else {
+      expect(
+        toast.getToasts().filter(({ id }) => id === ORG_MEET_TOAST_ID),
+      ).toEqual([]);
+      expectAbsent(q("[data-org-meet]"));
+    }
+  };
+  return { ...web, settle, writes };
 }
 
-/** Paint the raised toast's card into the page so its buttons can be pressed. */
-async function paintToast(toastRoot: ReturnType<typeof createRoot>) {
-  const t = fake.toasts[fake.toasts.length - 1];
-  await act(async () => toastRoot.render(t.render(t.id)));
-  return t;
+async function answer(selector: string) {
+  const control = q<HTMLButtonElement>(selector);
+  expectPresent(control);
+  await act(async () => control.click());
+  await act(
+    () =>
+      new Promise<void>((painted) => requestAnimationFrame(() => painted())),
+  );
+  expect(
+    toast.getToasts().filter(({ id }) => id === ORG_MEET_TOAST_ID),
+  ).toEqual([]);
 }
 
 test("the card rises once the page settles and Not now sells it", async () => {
-  fake.reset();
-  const { root } = await mountAnywhere();
-  expect(fake.toasts.length).toBe(0);
-  await sleep(card.ORG_MEET_SETTLE_MS + 150);
-  expect(fake.toasts.map((t) => t.id)).toEqual([card.ORG_MEET_TOAST_ID]);
-  const toastRoot = createRoot(document.getElementById("toast")!);
-  await paintToast(toastRoot);
-  expect(q("[data-org-meet] .rise-card-title")!.textContent).toBe(
-    card.ORG_MEET_TITLE,
+  const web = await mountAnywhere();
+  expectAbsent(q("[data-org-meet]"));
+  await web.settle(true);
+  expect(q("[data-org-meet] .rise-card-title")?.textContent).toBe(
+    ORG_MEET_TITLE,
   );
   expect(
     qa("[data-org-meet] .rise-card-copy").map((p) => p.textContent),
-  ).toEqual([...card.ORG_MEET_LINES]);
-  expect(q("[data-org-meet] img")!.getAttribute("data-avatar")).toBe(
-    intro.ORG_INTRO_HEAD_OF_PEOPLE,
+  ).toEqual([...ORG_MEET_LINES]);
+  expect(q("[data-org-meet] img")?.getAttribute("data-avatar")).toBe(
+    ORG_INTRO_HEAD_OF_PEOPLE,
   );
-  await act(async () =>
-    q<HTMLButtonElement>("[data-org-meet] [data-rise-later]")!.click(),
-  );
-  expect(fake.writes).toEqual([{ org_upsell_seen: true }]);
-  expect(fake.dismissed).toEqual([card.ORG_MEET_TOAST_ID]);
-  expect(fake.pushes).toEqual([]);
-  // A swipe away answers the same way, once.
-  fake.toasts[0].onDismiss?.();
-  expect(fake.writes.length).toBe(1);
-  await act(async () => {
-    toastRoot.unmount();
-    root.unmount();
+  await answer("[data-org-meet] [data-rise-later]");
+  expect(web.writes()).toHaveLength(1);
+  expect(web.writes()[0]).toMatchObject({
+    args: { args: [{ org_upsell_seen: true }] },
   });
-}, 120_000);
+  expect(web.navigationLog).toEqual([{ path: "/inbox", action: "pop" }]);
+  const latest = toast
+    .getHistory()
+    .findLast(
+      (entry) => entry.id === ORG_MEET_TOAST_ID && "onDismiss" in entry,
+    );
+  if (!latest || !("onDismiss" in latest))
+    throw new Error("The intro toast has no swipe handler");
+  await act(async () => latest.onDismiss?.(latest));
+  expect(web.writes()).toHaveLength(1);
+});
 
-test("See it opens the org page and sells it; the gates hold it back", async () => {
-  fake.reset();
-  const { root } = await mountAnywhere();
-  await sleep(card.ORG_MEET_SETTLE_MS + 150);
-  const toastRoot = createRoot(document.getElementById("toast")!);
-  await paintToast(toastRoot);
-  await act(async () =>
-    q<HTMLButtonElement>("[data-org-meet] [data-rise-primary]")!.click(),
-  );
-  expect(fake.pushes).toEqual(["/org?panel=open"]);
-  expect(fake.writes).toEqual([{ org_upsell_seen: true }]);
-  await act(async () => {
-    toastRoot.unmount();
-    root.unmount();
+test("See it opens the org page and sells it", async () => {
+  const web = await mountAnywhere();
+  await web.settle(true);
+  await answer("[data-org-meet] [data-rise-primary]");
+  expect(web.navigationLog.slice(1)).toEqual([
+    { path: "/org?panel=open", action: "push" },
+  ]);
+  expect(web.writes()).toHaveLength(1);
+  expect(web.writes()[0]).toMatchObject({
+    args: { args: [{ org_upsell_seen: true }] },
   });
+});
 
-  // Each gate alone keeps it down: a phone, a call, a draft on the page, the
-  // org page itself, a person who has seen or been sold it, an unhydrated store.
-  const holds: Array<() => void> = [
-    () => {
-      fake.phone = true;
-    },
-    () => {
-      fake.state.call = { phase: "connected" };
-    },
-    () => {
-      document.body.insertAdjacentHTML(
-        "beforeend",
-        "<textarea id='draft'>a reply in progress</textarea>",
-      );
-    },
-    () => {
-      fake.pathname = "/org";
-    },
-    () => {
-      fake.state.clientState.ui = { org_intro_seen: true };
-    },
-    () => {
-      fake.state.clientState.ui = { org_upsell_seen: true };
-    },
-    () => {
-      fake.state.clientStateInitialized = false;
-    },
-  ];
-  for (const hold of holds) {
-    fake.reset();
-    hold();
-    const m = await mountAnywhere();
-    await sleep(card.ORG_MEET_SETTLE_MS + 150);
-    expect(fake.toasts.length).toBe(0);
-    await act(async () => m.root.unmount());
-    document.getElementById("draft")?.remove();
-  }
-}, 120_000);
+const blocked: Array<[string, Fixture]> = [
+  ["phone", { phone: true }],
+  ["call", { call: true }],
+  ["draft", { draft: true }],
+  ["Org page", { path: "/org" }],
+  ["intro seen", { introSeen: true }],
+  ["upgrade seen", { upsellSeen: true }],
+  ["cold store", { initialized: false }],
+];
+for (const [reason, facts] of blocked) {
+  test("the introduction stays hidden with " + reason, async () => {
+    const web = await mountAnywhere(facts);
+    await web.settle(false);
+    expect(web.writes()).toEqual([]);
+  });
+}
