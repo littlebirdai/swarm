@@ -100,6 +100,18 @@ describe("callWindowLeaveGesture", () => {
 });
 
 describe("callWindowReport", () => {
+  it("reports no room when neither the call nor its address names one", () => {
+    expect(
+      callWindowReport({
+        roomKey: null,
+        windowRoom: null,
+        muted: false,
+        camera: false,
+        scribe: false,
+      }).room,
+    ).toBeNull();
+  });
+
   it("reports the room from the URL before the join has anything to say", () => {
     // The first report fires at phase idle, before the join. A null room there
     // would wipe the room the shell opened the window with, and a close in that
