@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { useSyncCollection } from "../hooks/useSyncCollection";
 import { mountWeb } from "./mountWeb";
+import { waitForDom } from "./waitForDom";
 
 const getLabel = makeFunctionReference<"query", { id: string }, string>(
   "test:label",
@@ -119,23 +120,12 @@ test("records writes, shows a toast, and follows the real Link shim", async () =
   expect(backend.actions).toEqual([
     { name: "test:export", args: { id: "Draft saved" } },
   ]);
-  await act(async () => {
-    await new Promise<void>((resolve, reject) => {
-      const observer = new MutationObserver(check);
-      const deadline = setTimeout(() => {
-        observer.disconnect();
-        reject(new Error("The toast did not render"));
-      }, 1000);
-      function check() {
-        if (!container.querySelector("[data-sonner-toast]")) return;
-        clearTimeout(deadline);
-        observer.disconnect();
-        resolve();
-      }
-      observer.observe(container, { childList: true, subtree: true });
-      check();
-    });
-  });
+  await act(async () =>
+    waitForDom(
+      container,
+      () => !!container.querySelector("[data-sonner-toast]"),
+    ),
+  );
   expect(container.querySelector("[data-sonner-toast]")?.textContent).toBe(
     "Draft saved and exported",
   );

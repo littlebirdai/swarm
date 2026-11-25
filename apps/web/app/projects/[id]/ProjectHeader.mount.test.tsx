@@ -1,579 +1,297 @@
-// A project's work board (cohesive build spec §5.3, D10, D17), mounted in
-// jsdom over a fake store row. Proves: it opens on its Session view under one
-// dense row (back, the name, status, lead, the views menu, Share); the other
-// views (Tasks, Timeline, About, ...) are kept in the URL and bring back the
-// id, the deadline and the goals it serves, with a one-press way back to the
-// session and no charter, folder or progress bar in the header; an older link by Convex id moves to the `pj-` address;
-// an old ?tab=updates link opens the Timeline; the header paints the STORE
-// row, so a rename, a status pick and a deadline show in the same tick while
-// the per view query still answers with the old row; the deadline is written
-// on blur or Enter and never from a half typed year; and the phone header
-// holds the title to two lines with the whole title as its tooltip.
-// Run: bun test "app/projects/[id]/ProjectHeader.mount.test.tsx"
-import { test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import { afterAll, afterEach, mock, spyOn, test } from "bun:test";
+import { getFunctionName } from "convex/server";
 import assert from "node:assert/strict";
+import { act, type ReactNode } from "react";
 import {
-  realInboxStore,
-  restoreInboxStoreAfterAll,
-} from "../../../components/__tests__/mockInboxStore";
+  useLocation,
+  useNavigate,
+  useNavigationType,
+  type NavigateFunction,
+} from "react-router";
+import { ORG_FIXTURE } from "../../../components/org/orgFixture";
+import { AUTH_JWT_STORAGE_KEY } from "../../../lib/localAuth";
+import type { DispatchCallArgs } from "../../../lib/dispatchBinding";
+import { useInboxStore } from "../../../store/inboxStore";
+import { webBuilders } from "../../../test-helpers/builders";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { waitForDom } from "../../../test-helpers/waitForDom";
 
-restoreInboxStoreAfterAll();
+const realShell = { ...(await import("../../../components/DashboardLayout")) };
+mock.module("../../../components/DashboardLayout", () => ({
+  ...realShell,
+  DashboardLayout: ({ children }: { children: ReactNode }) => children,
+}));
+afterAll(() =>
+  mock.module("../../../components/DashboardLayout", () => realShell),
+);
 
-async function verifyProjectHeader() {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLButtonElement",
-    "HTMLInputElement",
-    "HTMLTextAreaElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "KeyboardEvent",
-    "getComputedStyle",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-  ]) {
-    Object.defineProperty(globalThis, key, {
-      value: (dom.window as any)[key],
-      configurable: true,
-      writable: true,
-    });
+const { default: ProjectDetailPage } = await import("./page");
+
+const TEAM = "p".repeat(32);
+const fixtures = webBuilders("ProjectHeader.mount.test.tsx");
+const endOfLocalDay = (y: number, m: number, d: number) =>
+  new Date(y, m - 1, d, 23, 59, 59).getTime();
+const project = fixtures.project.build({
+  short_id: "pj-agentorg",
+  title: "Agent org",
+  status: "active",
+  color: "violet",
+  workspace: "team:" + TEAM,
+  team_id: TEAM,
+  description: "The org chart, roles and scopes.",
+  project_path: "~/src/codecast",
+  target_date: endOfLocalDay(2026, 11, 1),
+});
+const PID = project._id;
+const task = fixtures.task.build({
+  title: "Review the rollout",
+  workspace: `team:${TEAM}`,
+  project_id: PID,
+  promoted: true,
+});
+
+let restoreTime: (() => void) | undefined;
+afterEach(() => {
+  restoreTime?.();
+  restoreTime = undefined;
+});
+
+async function setup(
+  id = project.short_id!,
+  search = "",
+  row = project,
+  phone = false,
+) {
+  const now = spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 8, 18, 12));
+  restoreTime = () => now.mockRestore();
+  let navigate: NavigateFunction;
+  function View() {
+    navigate = useNavigate();
+    const location = useLocation();
+    return (
+      <>
+        <output hidden data-project-location>
+          {location.pathname + location.search}
+        </output>
+        <output hidden data-navigation-type>
+          {useNavigationType()}
+        </output>
+        <ProjectDetailPage />
+      </>
+    );
   }
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  const { mock } = await import("bun:test");
-  const React = await import("react");
-  const { act } = React;
-  const { projectTaskCounts } = await import("@codecast/tasks");
-
-  // ── the world the page reads ──
-  const NOW = Date.UTC(2026, 8, 18, 12);
-  const WS = "team:fixture-team";
-  const PID = "p7".repeat(16); // a Convex id, so the per view query is asked
-  const endOfLocalDay = (y: number, m: number, d: number) =>
-    new Date(y, m - 1, d, 23, 59, 59).getTime();
-  const serverRow = {
-    _id: PID,
-    short_id: "pj-agentorg",
-    title: "Agent org",
-    status: "active",
-    color: "violet",
-    workspace: WS,
-    description: "The org chart, roles and scopes.",
-    project_path: "~/src/codecast",
-    target_date: endOfLocalDay(2026, 11, 1),
-    // The server's enrichment counts every readable task, dropped and agent filed ones too.
-    task_counts: { total: 87, done: 12, in_progress: 0 },
-    plan_count: 1,
-    doc_count: 1,
-    created_at: 0,
-    updated_at: 0,
-  };
-  const liveStore = realInboxStore.useInboxStore;
-  const initialProjects = liveStore.getState().projects;
-  liveStore.setState({ projects: { [PID]: { ...serverRow } } });
-  const task = (
-    id: string,
-    status: string,
-    over: Record<string, unknown> = {},
-  ) => ({
-    _id: id,
-    short_id: `ct-${id}`,
-    title: `Task ${id}`,
-    status,
-    project_id: PID,
-    source: "human",
-    workspace: WS,
-    created_at: 0,
-    updated_at: 0,
-    ...over,
-  });
-  const collections: Record<string, any[]> = {
-    tasks: [
-      task("1", "done"),
-      task("2", "done"),
-      task("3", "done"),
-      task("4", "in_progress"),
-      task("5", "open"),
-      task("6", "backlog"),
-      task("7", "dropped"),
-      task("8", "open", { source: "agent" }),
-      task("9", "open", { project_id: "another-project" }),
-    ],
-    plans: [
-      {
-        _id: "plan-1",
-        short_id: "pl-715",
-        title: "Role page",
-        status: "active",
-        project_id: PID,
-        workspace: WS,
-        created_at: 0,
-        updated_at: 0,
-      },
-    ],
-    docs: [
-      {
-        _id: "doc-1",
-        title: "Role page spec",
-        doc_type: "spec",
-        project_id: PID,
-        workspace: WS,
-        created_at: 0,
-        updated_at: 0,
-      },
-    ],
-    initiatives: [
-      {
-        _id: "init-org",
-        short_id: "in-1",
-        title: "Agents run the company's routine work",
-        status: "active",
-        project_ids: [PID],
-        health: "at_risk",
-        workspace: WS,
-        team_id: "fixture-team",
-        user_id: "fixture-user-me",
-        created_at: 0,
-        updated_at: 0,
-        metrics: [
-          {
-            key: "weekly_active_teams",
-            name: "Weekly active teams",
-            target: "1,000",
-          },
-        ],
-        scoreboard: {
-          weekly_active_teams: {
-            value: "412",
-            observed_at: NOW - 2 * 86_400_000,
-            source: "https://example.com/board",
-          },
-        },
-      },
-    ],
-  };
-  assert.deepEqual(
-    projectTaskCounts(collections.tasks, [PID]),
-    { total: 6, done: 3, in_progress: 1, open: 2 },
-    "the fixture: six rows on the project's board, three done",
-  );
-
-  const env = {
-    id: PID,
-    phone: false,
-    search: "",
-    server: serverRow as Record<string, unknown> | undefined,
-  };
-  const calls: string[] = [];
-  const asked: unknown[] = [];
-  const state: any = {
-    // The Flows tab shows in a workspace with the Flows feature on (surfaceRules FEATURE_SURFACES).
-    currentUser: { _id: "fixture-user-me", name: "Ashot" },
-    clientState: { ui: { active_team_id: "fixture-team" } },
-    teams: [
-      { _id: "fixture-team", name: "Fixture", features: { line: true } },
-      { _id: "home-team", name: "Codecast" },
-    ],
-    projects: { [PID]: { ...serverRow } } as Record<string, any>,
-    sessions: {} as Record<string, any>,
-    syncMeta: {
-      'tasks:v2:{"workspace":"team","team_id":"fixture-team"}': {
-        backfilledAt: 1,
-      },
-    },
-    updateProject: (id: string, fields: Record<string, unknown>) => {
-      calls.push(`updateProject:${id}:${JSON.stringify(fields)}`);
-      liveStore.getState().updateProject(id, fields);
-      state.projects = liveStore.getState().projects;
-    },
-    // The page scopes the inbox beside it to the project (useProjectInboxScope).
-    activeProjectFilter: null,
-    setActiveProjectFilter: (key: string | null) => {
-      state.activeProjectFilter = key;
-    },
-    setActiveBucketFilter: () => {},
-  };
-  const useProjectState = () => {
-    liveStore((s: { projects: unknown }) => s.projects);
-    return state;
-  };
-  const useInboxStore = Object.assign((sel: any) => sel(useProjectState()), {
-    getState: () => state,
-    setState: () => {},
-  });
-  mock.module("../../../store/inboxStore", () => ({
-    ...realInboxStore,
-    useInboxStore,
-    useTrackedStore: useProjectState,
-  }));
-
-  const noop = () => {};
-  for (const h of [
-    "useSyncProjects",
-    "useSyncTasks",
-    "useSyncPlans",
-    "useSyncDocs",
-  ]) {
-    const real = { ...(await import(`../../../hooks/${h}`)) };
-    mock.module(`../../../hooks/${h}`, () => ({ ...real, [h]: noop }));
-  }
-  const realOrgTree = { ...(await import("../../../hooks/useSyncOrgTree")) };
-  mock.module("../../../hooks/useSyncOrgTree", () => ({
-    ...realOrgTree,
-    useSyncOrgTreeFeeder: () => ({
-      ready: true,
-      missing: false,
-      refused: false,
-      retry: noop,
-    }),
-  }));
-  mock.module("../../../hooks/useSyncCollection", () => ({
-    useSyncCollection: () => ({ ready: true, refused: false, retry: noop }),
-  }));
-  mock.module("../../../hooks/useWorkspaceCollection", () => ({
-    useWorkspaceCollection: (key: string) => collections[key] ?? [],
-  }));
-  mock.module("../../../hooks/useCollectionRows", () => ({
-    useCollectionRows: (key: string, opts: any = {}) =>
-      (collections[key] ?? [])
-        .filter(opts.where ?? (() => true))
-        .sort(opts.sort ?? (() => 0)),
-  }));
-  mock.module("../../../hooks/useWorkspaceArgs", () => ({
-    useWorkspaceArgs: () => ({ workspace: "team", team_id: "fixture-team" }),
-    workspaceStamp: (a: any) => ({
-      workspace: a.workspace,
-      team_id: a.team_id,
-    }),
-  }));
-  mock.module("../../../hooks/useIsPhone", () => ({
-    useIsPhone: () => env.phone,
-    useMinWidth: () => !env.phone,
-    PHONE_MAX_WIDTH: 768,
-  }));
-  const realNow = { ...(await import("../../../hooks/useCoarseNow")) };
-  mock.module("../../../hooks/useCoarseNow", () => ({
-    ...realNow,
-    useCoarseNow: () => NOW,
-    useNowWhen: () => NOW,
-  }));
-  // The per view query: asked only with a real id, and answering with whatever the server last said.
-  mock.module("../../../hooks/useQueryNoThrow", () => ({
-    useQueryNoThrow: (_fn: unknown, args: unknown) => {
-      if (args !== "skip") asked.push(args);
-      return {
-        data: args === "skip" ? undefined : env.server,
-        error: undefined,
-        retry: noop,
-      };
-    },
-  }));
-  mock.module("../../../hooks/useProjectLead", () => ({
-    useProjectLead: () => ({
-      project: null,
-      roles: [],
-      lead: null,
-      otherWorkspace: false,
-    }),
-  }));
-  const realNav = { ...(await import("next/navigation")) };
-  mock.module("next/navigation", () => ({
-    ...realNav,
-    useParams: () => ({ id: env.id }),
-    useRouter: () => ({
-      replace: (u: string) => {
-        calls.push(`replace:${u}`);
-        env.search = u.split("?")[1] ?? "";
-      },
-      push: (u: string) => calls.push(`push:${u}`),
-    }),
-    useSearchParams: () => new URLSearchParams(env.search),
-    usePathname: () => `/projects/${env.id}`,
-  }));
-  mock.module("next/link", () => ({
-    default: ({ href, children, ...rest }: any) =>
-      React.createElement("a", { href, ...rest }, children),
-  }));
-  mock.module("sonner", () => ({
-    toast: Object.assign((m: string) => calls.push(`toast:${m}`), {
-      success: (m: string) => calls.push(`toast:${m}`),
-      error: (m: string) => calls.push(`toast-error:${m}`),
-    }),
-  }));
-
-  // Other surfaces' drawing: each says only that it is there.
-  const mark = (name: string) =>
-    function Mark(props: any) {
-      return React.createElement("div", {
-        [`data-${name}`]: props?.projectId ?? "",
+  const web = await mountWeb(<View />, {
+    path: "/projects/" + id + search,
+    route: "/projects/:id/:taskId?",
+    authenticated: true,
+    dispatch: true,
+    setup: (backend, store) => {
+      localStorage.setItem(AUTH_JWT_STORAGE_KEY, "fixture-jwt");
+      if (phone) {
+        const wideMedia = window.matchMedia;
+        window.matchMedia = (query) => ({
+          ...wideMedia(query),
+          matches: /max-width: (?:767|639)px/.test(query),
+        });
+      }
+      store.syncTable("currentUser", { _id: "fixture-user-me", name: "Ashot" });
+      store.syncTable("clientState", { ui: { active_team_id: TEAM } });
+      useInboxStore.setState({ clientStateInitialized: true });
+      store.syncTable("teams", [
+        { _id: TEAM, name: "Fixture", features: { line: true } },
+        { _id: "home-team", name: "Codecast" },
+      ]);
+      store.syncTable("projects", [row]);
+      store.syncTable("tasks", [task]);
+      store.syncTable("orgTree", {
+        ...ORG_FIXTURE,
+        workspace: { ...ORG_FIXTURE.workspace, id: TEAM },
       });
-    };
-  const through = ({ children }: any) => children;
-  mock.module("../../tasks/page", () => ({
-    TaskListContent: mark("task-list"),
-  }));
-  // The Session view is a whole conversation with its composer: stubbed like the other views.
-  mock.module("../../../components/projects/ProjectSession", () => ({
-    ProjectSession: ({ project }: any) =>
-      React.createElement("div", { "data-project-session": project._id }),
-  }));
-  mock.module("../../tasks/[id]/page", () => ({
-    TaskDetailContent: () => null,
-  }));
-  mock.module("../../../components/DetailSplitLayout", () => ({
-    DetailSplitLayout: ({ list }: any) => list,
-  }));
-  mock.module("../../../components/AuthGuard", () => ({ AuthGuard: through }));
-  mock.module("../../../components/DashboardLayout", () => ({
-    DashboardLayout: through,
-  }));
-  mock.module("../../../components/repo/RepositoryLinks", () => ({
-    RepositoryLinks: mark("repository-links"),
-  }));
-  mock.module("../../../components/ShareControl", () => ({
-    ShareControl: (props: any) =>
-      React.createElement("span", {
-        "data-share": props.path,
-        "data-share-token": props.publicShare?.token ?? "",
-      }),
-  }));
-  mock.module("../../../components/ProjectUpdates", () => ({
-    ProjectUpdates: mark("project-updates"),
-  }));
-  mock.module("../../../components/ProjectTimeline", () => ({
-    ProjectTimeline: (props: any) =>
-      React.createElement("div", { "data-project-timeline": props.projectId }),
-  }));
-  mock.module("../../../components/DocDates", () => ({ DocDates: () => null }));
-  mock.module("../../../components/line/ProjectLineTab", () => ({
-    ProjectLineTab: mark("project-line"),
-  }));
-  mock.module("../../../components/charter/CharterBlock", () => ({
-    CharterBlock: (props: any) =>
-      React.createElement("div", {
-        "data-charter": props.title,
-        "data-charter-goal": props.charter?.goal ?? "",
-      }),
-  }));
-  mock.module("../../../components/charter/ProjectLeadChip", () => ({
-    ProjectLeadChip: ({ projectId }: any) =>
-      React.createElement("span", { "data-project-lead-chip": projectId }),
-    ProjectLeadMark: () => null,
-    HireLeadDialog: () => null,
-  }));
-  const realScopeEditors = {
-    ...(await import("../../../components/org/scope/ScopeEditors")),
-  };
-  mock.module("../../../components/org/scope/ScopeEditors", () => ({
-    ...realScopeEditors,
-    InlineEdit: ({ value, placeholder, ariaLabel }: any) =>
-      React.createElement(
-        "span",
-        { "data-inline-edit": ariaLabel },
-        value || placeholder,
-      ),
-  }));
-  mock.module("../../../components/EntityIdPill", () => ({
-    EntityIdPill: ({ id, type }: any) =>
-      React.createElement("span", { "data-pill": `${type}:${id}` }, id),
-  }));
-  // A popover that is simply open: the list inside is what the test reads.
-  mock.module("../../../components/ui/popover", () => ({
-    Popover: through,
-    PopoverTrigger: through,
-    PopoverAnchor: through,
-    PopoverContent: ({ children }: any) =>
-      React.createElement("div", { "data-popover": true }, children),
-  }));
+      store.syncTable("initiatives", [
+        {
+          _id: "init-org",
+          short_id: "in-1",
+          title: "Agents run the company's routine work",
+          status: "active",
+          project_ids: [PID],
+          health: "at_risk",
+          workspace: "team:" + TEAM,
+          team_id: TEAM,
+          user_id: "fixture-user-me",
+          created_at: 0,
+          updated_at: 0,
+        },
+      ]);
+      backend.set(api.projects.webGet, {
+        title: project.title,
+        status: "active",
+        description: project.description,
+        target_date: project.target_date,
+        workspace: project.workspace,
+        short_id: project.short_id,
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+        _id: PID as Id<"projects">,
+        _creationTime: 0,
+        team_id: TEAM as Id<"teams">,
+        user_id: "fixture-user-me" as Id<"users">,
+      });
+      backend.set(api.projects.webList, undefined);
+      backend.set(api.org.roles, undefined);
+      backend.set(api.tasks.webList, undefined);
+      backend.set(api.tasks.webActiveSessions, undefined);
+      backend.set(api.devices.listDevices, undefined);
 
-  const { createRoot } = await import("react-dom/client");
-  const { default: ProjectDetailPage } = await import("./page");
-  let root = createRoot(document.getElementById("root")!);
+      backend.set(api.tasks.webListPaginated, {
+        page: [],
+        isDone: true,
+        continueCursor: "",
+      });
+      backend.set(api.assistant.incidents.thinkingAvailable, undefined);
+      backend.set(api.initiatives.webGet, undefined);
+      backend.set(api.projectUpdates.webTimeline, []);
+      backend.set(api.projectUpdates.webList, undefined);
+      backend.set(api.externalEvents.listForProject, undefined);
+      backend.set(api.projectSources.teammateSources, undefined);
+
+      backend.set(api.signals.webList, undefined);
+      backend.set(api.workflow_runs.listRuns, undefined);
+      backend.set(api.workflows.webGetBySlug, undefined);
+      backend.set(api.org.tree, undefined);
+      backend.set(api.lineWorkspace.labels, undefined);
+      backend.set(api.lineWorkspace.occurrences, undefined);
+      backend.set(api.lineWorkspace.deploys, undefined);
+      backend.set(api.lineWorkspace.cards, undefined);
+      backend.set(api.lineTrial.cards, undefined);
+      backend.set(api.lineTrial.projects, undefined);
+      backend.set(api.lineTrial.runs, undefined);
+    },
+  });
+  const asked = () =>
+    web.backend.queryRequests
+      .filter(({ name }) => name === getFunctionName(api.projects.webGet))
+      .map(({ args }) => args);
   const q = <T extends Element = HTMLElement>(sel: string) =>
     document.querySelector<T>(sel);
   const qa = (sel: string) => [...document.querySelectorAll<HTMLElement>(sel)];
-  const click = async (el: Element | null) => {
-    assert.ok(el, "missing element");
-    await act(async () => {
-      (el as HTMLElement).click();
+  const location = () => q("[data-project-location]")!.textContent;
+  const go = (tab: string) =>
+    act(async () => navigate("/projects/pj-agentorg?tab=" + tab));
+  const updates = (field: string) =>
+    web.backend.mutations.flatMap(({ args }) => {
+      const { action, args: params } = args as DispatchCallArgs;
+      return action === "updateProject" && field in params[1]
+        ? [{ id: params[0], fields: params[1] }]
+        : [];
     });
+  const click = async (el: Element | null | undefined) => {
+    assert.ok(el, "missing element");
+    await act(async () => (el as HTMLElement).click());
   };
   const type = async (el: Element | null, value: string) => {
     assert.ok(el, "missing field");
     await act(async () => {
       Object.getOwnPropertyDescriptor(
-        (dom.window as any).HTMLInputElement.prototype,
+        window.HTMLInputElement.prototype,
         "value",
       )!.set!.call(el, value);
-      el.dispatchEvent(
-        new (dom.window as any).Event("input", { bubbles: true }),
-      );
+      el.dispatchEvent(new window.Event("input", { bubbles: true }));
     });
   };
   const key = (el: Element | null, k: string) =>
-    act(async () => {
+    act(async () =>
       el!.dispatchEvent(
-        new (dom.window as any).KeyboardEvent("keydown", {
-          key: k,
-          bubbles: true,
-        }),
-      );
-    });
-  const blur = (el: Element | null) =>
-    act(async () => {
-      el!.dispatchEvent(
-        new (dom.window as any).FocusEvent("focusout", { bubbles: true }),
-      );
-    });
-  const page = () => React.createElement(ProjectDetailPage);
-  const mount = async () => {
-    await act(async () => root.unmount());
-    root = createRoot(document.getElementById("root")!);
-    await act(async () => root.render(page()));
-  };
-  // The fake store does not notify: a render reads what the action wrote.
-  const repaint = () => act(async () => root.render(page()));
-  const updates = (field: string) =>
-    calls.filter(
-      (c) => c.startsWith("updateProject:") && c.includes(`"${field}"`),
+        new window.KeyboardEvent("keydown", { key: k, bubbles: true }),
+      ),
     );
+  const blur = (el: Element | null) =>
+    act(async () =>
+      el!.dispatchEvent(new window.FocusEvent("focusout", { bubbles: true })),
+    );
+  return { q, qa, asked, location, go, click, type, key, blur, updates, web };
+}
 
-  // ── an older link by Convex id moves to the project's one address ──
-  await mount();
+test("an older project link moves to the canonical address and queries by Convex id", async () => {
+  const { q, asked, location } = await setup(PID);
   assert.equal(
-    q("[data-project-page]")!.getAttribute("data-project-page"),
+    q("[data-project-page]")?.getAttribute("data-project-page"),
     PID,
   );
-  assert.equal(
-    calls.filter((c) => c.startsWith("replace:")).at(-1),
-    "replace:/projects/pj-agentorg",
-    "the `pj-` form, the one a person copies",
-  );
-  env.id = "pj-agentorg";
-  calls.length = 0;
-  await mount();
-  assert.deepEqual(
-    calls.filter((c) => c.startsWith("replace:")),
-    [],
-    "the `pj-` address stays",
-  );
+  assert.equal(location(), "/projects/pj-agentorg");
+  assert.equal(q("[data-navigation-type]")?.textContent, "REPLACE");
+  assert.ok(asked().length > 0);
+  assert.deepEqual(asked(), [{ id: PID }]);
+});
 
-  // ── it opens on its Session: one dense row, the name, status and lead, the views menu and Share ──
+test("the canonical address keeps the session view and its compact header", async () => {
+  const { q, qa, click, location, web } = await setup();
+  assert.equal(location(), "/projects/pj-agentorg");
+  assert.equal(q("[data-navigation-type]")?.textContent, "POP");
   assert.equal(
-    q("[data-project-page]")!.getAttribute("data-scope-tab-active"),
+    q("[data-project-page]")?.getAttribute("data-scope-tab-active"),
     "sessions",
   );
-  assert.ok(
-    q(`[data-project-session='${PID}']`),
-    "it opens on the project's default session",
-  );
-  let header = q("[data-intent-header]")!;
-  assert.ok(header, "the board's header");
+  assert.ok(q("[data-project-conversation]"));
+  const header = q("[data-intent-header]")!;
+  assert.ok(header);
+  assert.equal(header.querySelectorAll("[data-intent-row]").length, 1);
+  assert.equal(q("[data-intent-stripe]"), null);
+  assert.equal(q("[data-intent-back]")?.getAttribute("href"), "/projects");
+  const title = q("[data-project-title]")!;
+  assert.equal(title.textContent, "Agent org");
+  assert.equal(title.tagName, "H1");
+  assert.equal(title.getAttribute("title"), "Agent org");
+  assert.equal(q("[data-intent-id]"), null);
+  assert.equal(q("[data-project-pick='target']"), null);
+  assert.equal(q("[data-project-back-to-session]"), null);
+  assert.ok(q("[data-project-view='sessions']"));
+  assert.equal(web.store.getState().activeProjectFilter, "pj:" + PID);
+  assert.equal(q("[data-project-inbox-filter]"), null);
   assert.equal(
-    q("[data-intent-stripe]"),
-    null,
-    "no stripe: the row is the header",
+    q("[data-share-trigger]")?.getAttribute("aria-label"),
+    "Share project",
   );
-  assert.equal(
-    header.querySelectorAll("[data-intent-row]").length,
-    1,
-    "one row",
+  await click(q("[data-share-trigger]"));
+  const copy = qa("button").find(
+    (button) => button.textContent === "Copy link",
   );
-  assert.equal(
-    q("[data-intent-back]")!.getAttribute("href"),
-    "/projects",
-    "back goes up to the Projects page",
-  );
-  assert.equal(q("[data-project-title]")!.textContent, "Agent org");
-  assert.equal(q("[data-project-title]")!.tagName, "H1");
-  assert.equal(
-    q("[data-project-title]")!.getAttribute("title"),
-    "Agent org",
-    "one line, its whole name the tooltip",
-  );
-  assert.equal(
-    q("[data-intent-id]"),
-    null,
-    "the session view leaves the id to the views menu",
-  );
-  assert.equal(
-    q("[data-project-pick='target']"),
-    null,
-    "and the deadline to the other views",
-  );
-  assert.equal(
-    q("[data-project-back-to-session]"),
-    null,
-    "already on the session",
-  );
-  assert.ok(q("[data-project-view='sessions']"), "the views menu");
-  assert.equal(
-    state.activeProjectFilter,
-    `pj:${PID}`,
-    "the inbox beside the page lists the project's sessions",
-  );
-  assert.equal(
-    q("[data-project-inbox-filter]"),
-    null,
-    "so the page needs no inbox toggle",
-  );
-  assert.equal(
-    q("[data-share]")!.getAttribute("data-share"),
-    "/projects/pj-agentorg",
-  );
+  assert.ok(copy?.title);
+  assert.equal(new URL(copy.title).pathname, "/projects/pj-agentorg");
+});
 
-  // ── another view, kept in the URL: the facts come back, and one press returns to the session ──
-  env.search = "tab=tasks";
-  await repaint();
-  header = q("[data-intent-header]")!;
+test("the header shows additional facts outside the Session view", async () => {
+  const { q, go, click, location } = await setup(
+    project.short_id,
+    "?tab=tasks",
+  );
   assert.equal(
-    q("[data-project-page]")!.getAttribute("data-scope-tab-active"),
+    q("[data-project-page]")?.getAttribute("data-scope-tab-active"),
     "tasks",
   );
-  assert.ok(q(`[data-task-list='${PID}']`), "the project's tasks");
-  assert.equal(q("[data-project-session]"), null);
-  assert.ok(
-    q("[data-project-view='tasks']"),
-    "the menu names the view on screen",
-  );
-  assert.equal(q("[data-intent-id]")!.textContent, "pj-agentorg");
+  assert.match(document.body.textContent!, /Review the rollout/);
+  assert.equal(q("[data-project-conversation]"), null);
+  assert.ok(q("[data-project-view='tasks']"));
+  assert.equal(q("[data-intent-id]")?.textContent, "pj-agentorg");
   const chips = q("[data-intent-chips]")!;
   assert.match(
     chips.querySelector("[data-project-pick='status']")!.textContent!,
     /Active/,
   );
-  assert.ok(
-    chips.querySelector(`[data-project-lead-chip='${PID}']`),
-    "who leads it",
-  );
-  const deadline = () => q<HTMLElement>("button[data-project-pick='target']");
+  assert.ok(chips.querySelector("[data-project-lead]"));
+  const deadline = q("[data-project-pick='target']")!;
+  assert.equal(deadline.getAttribute("data-intent-target"), "2026-11-01");
   assert.equal(
-    deadline()!.getAttribute("data-intent-target"),
-    "2026-11-01",
-    "the deadline, as the day the viewer's calendar says",
-  );
-  assert.equal(
-    deadline()!
-      .querySelector("[data-initiative-target]")!
-      .getAttribute("data-initiative-target"),
+    deadline
+      .querySelector("[data-initiative-target]")
+      ?.getAttribute("data-initiative-target"),
     "ahead",
   );
-  const partOf = chips.querySelector(`[data-project-initiatives='${PID}']`)!;
+  const partOf = chips.querySelector("[data-project-initiatives]")!;
   assert.match(partOf.textContent!, /^Serves/);
-  assert.ok(
-    partOf.querySelector("[data-pill='initiative:in-1']"),
-    "the goal it serves",
-  );
+  assert.match(partOf.textContent!, /Agents run the company's routine work/);
+  const header = q("[data-intent-header]")!;
   for (const selector of [
     "[data-charter]",
     "[data-inline-edit='Project folder']",
@@ -582,182 +300,135 @@ async function verifyProjectHeader() {
     assert.equal(header.querySelector(selector), null, selector);
   }
   assert.doesNotMatch(header.textContent!, /The org chart, roles and scopes\./);
-  env.search = "tab=timeline";
-  await repaint();
+  await go("timeline");
   assert.equal(
-    q("[data-project-page]")!.getAttribute("data-scope-tab-active"),
+    q("[data-project-page]")?.getAttribute("data-scope-tab-active"),
     "timeline",
   );
-  assert.ok(q(`[data-project-timeline='${PID}']`));
-  assert.equal(q("[data-task-list]"), null);
-  env.search = "tab=about";
-  await repaint();
-  assert.ok(
-    q("[data-project-about-tab]"),
-    "About: what it is for, its charter, its repositories",
+  assert.equal(
+    q("[data-project-timeline]")?.getAttribute("data-project-timeline"),
+    PID,
   );
-  assert.ok(
-    q("[data-charter]"),
-    "the charter edits in place on the About view",
-  );
+  assert.doesNotMatch(document.body.textContent!, /Review the rollout/);
+  await go("about");
+  assert.ok(q("[data-project-about-tab]"));
+  assert.ok(q("[data-charter]"));
   await click(q("[data-project-back-to-session]"));
+  assert.equal(location(), "/projects/pj-agentorg");
+  assert.ok(q("[data-project-conversation]"));
+  await go("updates");
   assert.equal(
-    calls.at(-1),
-    "replace:/projects/pj-agentorg",
-    "the session is the bare address",
-  );
-  await repaint();
-  assert.ok(q(`[data-project-session='${PID}']`));
-  // A link to the Updates tab the board no longer has opens the Timeline, where updates live.
-  env.search = "tab=updates";
-  await repaint();
-  assert.equal(
-    q("[data-project-page]")!.getAttribute("data-scope-tab-active"),
+    q("[data-project-page]")?.getAttribute("data-scope-tab-active"),
     "timeline",
   );
-  // The rest reads the Tasks view, where the deadline shows.
-  env.search = "tab=tasks";
-  await repaint();
+});
 
-  // ── local first: the header paints the store row, while the query still answers the old one ──
+test("title and status display store writes while the server still holds the old data", async () => {
+  const { q, qa, click, type, key, updates, web } = await setup(
+    project.short_id,
+    "?tab=tasks",
+  );
   await click(q("[data-project-title]"));
   await type(q("input[aria-label='Project title']"), "Agent organisation");
   await key(q("input[aria-label='Project title']"), "Enter");
   assert.deepEqual(updates("title"), [
-    `updateProject:${PID}:${JSON.stringify({ title: "Agent organisation" })}`,
+    { id: PID, fields: { title: "Agent organisation" } },
   ]);
-  assert.equal(
-    env.server!.title,
-    "Agent org",
-    "the server has not answered yet",
-  );
-  assert.equal(
-    q("[data-project-title]")!.textContent,
-    "Agent organisation",
-    "the rename shows in the same tick",
-  );
+  assert.equal(q("[data-project-title]")!.textContent, "Agent organisation");
+  await click(q("[data-project-pick='status']"));
   await click(
-    qa("[data-popover] button").find((b) => b.textContent?.trim() === "Done") ??
-      null,
+    qa("[role=dialog] button").find(
+      (button) => button.textContent?.trim() === "Done",
+    ),
   );
   assert.deepEqual(updates("status"), [
-    `updateProject:${PID}:${JSON.stringify({ status: "done" })}`,
+    { id: PID, fields: { status: "done" } },
   ]);
-  assert.ok(calls.includes("toast:Project marked as done"));
-  await repaint();
-  assert.equal(env.server!.status, "active");
-  assert.match(
-    q("[data-project-pick='status']")!.textContent!,
-    /Done/,
-    "the status pick shows before the toast fades",
+  await act(async () =>
+    waitForDom(
+      web.container,
+      () =>
+        !!q("[data-sonner-toast]")?.textContent?.includes(
+          "Project marked as done",
+        ),
+    ),
   );
+  assert.match(q("[data-project-pick='status']")!.textContent!, /Done/);
+  const server = await web.backend.client.query(api.projects.webGet, {
+    id: PID as Id<"projects">,
+  });
+  assert.equal(server?.title, "Agent org");
+  assert.equal(server?.status, "active");
+});
 
-  // ── the deadline: the header's one target day control ──
+test("the deadline validates and saves the selected local day, or clears it", async () => {
+  const { click, q, type, blur, updates } = await setup(
+    project.short_id,
+    "?tab=tasks",
+  );
+  const deadline = () => q<HTMLElement>("button[data-project-pick='target']");
   const field = () =>
     q<HTMLInputElement>("[data-project-pick='target'] input[type='date']");
   await click(deadline());
-  assert.equal(
-    field()!.value,
-    "2026-11-01",
-    "the field opens on the day it holds",
-  );
+  assert.equal(field()!.value, "2026-11-01");
   await type(field(), "0002-11-01");
-  assert.deepEqual(updates("target_date"), [], "a keystroke writes nothing");
+  assert.deepEqual(updates("target_date"), []);
   await blur(field());
-  assert.deepEqual(
-    updates("target_date"),
-    [],
-    "and a half typed year is not a day to store",
-  );
-  assert.equal(field(), null);
+  assert.deepEqual(updates("target_date"), []);
   await click(deadline());
   await type(field(), "2026-12-24");
+  assert.deepEqual(updates("target_date"), []);
   await blur(field());
-  assert.deepEqual(
-    updates("target_date"),
-    [
-      `updateProject:${PID}:${JSON.stringify({ target_date: endOfLocalDay(2026, 12, 24) })}`,
-    ],
-    "blur writes the day, as the end of the viewer's own day",
-  );
-  await repaint();
-  assert.equal(
-    deadline()!.getAttribute("data-intent-target"),
-    "2026-12-24",
-    "and the chip shows it while the query still says Nov 1",
-  );
+  assert.deepEqual(updates("target_date"), [
+    { id: PID, fields: { target_date: endOfLocalDay(2026, 12, 24) } },
+  ]);
+  assert.equal(deadline()!.getAttribute("data-intent-target"), "2026-12-24");
   await click(deadline());
   await click(q("[data-project-pick='target'] [data-intent-target-clear]"));
-  assert.equal(
-    updates("target_date").at(-1),
-    `updateProject:${PID}:${JSON.stringify({ target_date: null })}`,
-    "Clear is the one way to remove it",
-  );
-  await repaint();
-  assert.equal(
-    deadline()!.getAttribute("data-intent-target"),
-    "",
-    "cleared in the store wins over the day the query still holds",
-  );
+  assert.deepEqual(updates("target_date").at(-1), {
+    id: PID,
+    fields: { target_date: null },
+  });
+  assert.equal(deadline()!.getAttribute("data-intent-target"), "");
   assert.match(deadline()!.textContent!, /No deadline/);
+});
 
-  // The query was only ever asked with the project's real id, never the short one.
-  assert.ok(asked.length > 0);
-  assert.deepEqual(
-    [...new Set(asked.map((a) => JSON.stringify(a)))],
-    [JSON.stringify({ id: PID })],
-  );
-  // A short id the store does not hold yet asks the server nothing and waits for the feeder.
-  asked.length = 0;
-  env.id = "pj-unknown";
-  await mount();
+test("an uncached short id waits without asking the server for a Convex id", async () => {
+  const { asked } = await setup("pj-unknown");
   assert.match(document.body.textContent!, /Loading project/);
-  assert.deepEqual(asked, []);
-  env.id = "pj-agentorg";
+  assert.deepEqual(asked(), []);
+});
 
-  // ── the phone header: two lines at most, the whole title as its tooltip ──
-  env.phone = true;
-  await mount();
+test("the phone title uses two lines and keeps the full title as its tooltip", async () => {
+  const { q } = await setup(
+    project.short_id,
+    "",
+    { ...project, title: "Agent organisation" },
+    true,
+  );
   assert.match(q("[data-project-title]")!.className, /line-clamp-2/);
   assert.equal(
     q("[data-project-title]")!.getAttribute("title"),
     "Agent organisation",
   );
-  env.phone = false;
+});
 
-  // ── a project from another workspace says where it lives, never an empty list that is not true ──
-  const home = "team:home-team";
-  state.projects = {
-    ...state.projects,
-    [PID]: { ...state.projects[PID], workspace: home },
-  };
-  env.search = "";
-  await mount();
+test("a project from another workspace lets the person read Flow only", async () => {
+  const { go, q } = await setup(project.short_id, "", {
+    ...project,
+    workspace: "team:home-team",
+  });
   assert.match(
     q("[data-foreign-workspace]")!.textContent!,
     /This project lives in Codecast\. Switch to see its tasks\./,
   );
-  assert.equal(q("[data-task-list]"), null);
-  assert.equal(q("[data-project-line]"), null);
-  // Its Flow tab reads where the project lives, so it shows from here, under a note naming that workspace; a
-  // link from before names it `tab=line`.
-  env.search = "tab=line";
-  await mount();
+  assert.doesNotMatch(document.body.textContent!, /Review the rollout/);
+  assert.equal(q("[data-project-line-tab]"), null);
+  await go("line");
   assert.match(
     q("[data-foreign-workspace]")!.textContent!,
     /This project lives in Codecast\. You are reading its flow from here; switch to work in it\./,
   );
-  assert.ok(
-    q("[data-project-line]"),
-    "the Flow tab renders from another workspace",
-  );
-  assert.equal(q("[data-task-list]"), null);
-  env.search = "";
-
-  await act(async () => root.unmount());
-  liveStore.setState({ projects: initialProjects });
-}
-
-test("project board: one header row over Tasks, Timeline and Line, painted from the store row, at its `pj-` address", async () => {
-  await verifyProjectHeader();
-}, 600_000);
+  assert.ok(q("[data-project-line-tab]"));
+  assert.doesNotMatch(document.body.textContent!, /Review the rollout/);
+});

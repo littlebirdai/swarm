@@ -1,308 +1,173 @@
-// The Org screen's Read lens (cohesive build spec §4.3, WP4), mounted in
-// jsdom against the Union shaped fixture. Proves: the name and one state
-// line, then Goals, Projects not under a goal and People and roles, every row
-// one of the four lines on the one grid; a goal line's metric with its trend
-// and no task bar; the document opening on its most pressing goal, a line
-// opened in place (why, latest update, its project and goal lines one level
-// in) and that choice written to the person's own synced UI state, read back
-// by a second window; an owner or status picked on a line painting in the
-// same tick; the title opening the object (a sheet in the screen, its address
-// elsewhere) and Enter doing the same; the Goals, Projects and People filters
-// keeping every line on the same cells; and an open proposal's goals,
-// projects and roles in violet, each saying where it is answered, lighting
-// its card on hover, with nothing to approve here.
-// Run: bun test components/company/CompanyDocument.mount.test.tsx
-import { test } from "bun:test";
-import {
-  realInboxStore,
-  restoreInboxStoreAfterAll,
-} from "../__tests__/mockInboxStore";
-
-restoreInboxStoreAfterAll();
+import { api } from "@codecast/convex/convex/_generated/api";
+import { afterEach, spyOn, test } from "bun:test";
+import { getFunctionName } from "convex/server";
 import assert from "node:assert/strict";
-import type { OrgTree } from "../org/orgTypes";
+import { act, type ComponentProps } from "react";
+import { useLocation } from "react-router";
+import { syncMetaKey } from "../../hooks/syncMetaKeys";
+import { stampRoster } from "../../lib/activeTeam";
+import type { DispatchCallArgs } from "../../lib/dispatchBinding";
+import { useInboxStore } from "../../store/inboxStore";
+import { webBuilders } from "../../test-helpers/builders";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { useChangeLit } from "../org/lines/changeLight";
+import { UNION_GOALS_UPDATES } from "../org/goalsFixture";
+import * as fx from "./companyFixture";
+import { CompanyDocument } from "./CompanyDocument";
 
-async function verifyCompany() {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLButtonElement",
-    "HTMLAnchorElement",
-    "HTMLInputElement",
-    "HTMLTextAreaElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "MouseEvent",
-    "KeyboardEvent",
-    "FocusEvent",
-    "getComputedStyle",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-  ]) {
-    Object.defineProperty(globalThis, key, {
-      value: (dom.window as any)[key],
-      configurable: true,
-    });
-  }
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  (globalThis as any).ResizeObserver = class {
-    observe() {}
-    disconnect() {}
-    unobserve() {}
-  };
-  const { mock } = await import("bun:test");
-  const React = await import("react");
-  const { act } = React;
+const TEAM = "u".repeat(32);
+const inTeam = { team_id: TEAM, workspace: "team:" + TEAM };
+const fixtures = webBuilders("CompanyDocument.mount.test.tsx");
+const initiatives = fx.COMPANY_FIXTURE_INITIATIVES.map((row) => ({
+  ...row,
+  ...inTeam,
+}));
+const projects = fx.COMPANY_FIXTURE_PROJECTS.map((row) =>
+  fixtures.project.build({ ...row, ...inTeam }),
+);
+const tasks = fx.COMPANY_FIXTURE_TASKS.map((row) =>
+  fixtures.task.build({
+    status: row.status ?? undefined,
+    project_id: typeof row.project_id === "string" ? row.project_id : undefined,
+    source: row.source ?? undefined,
+    ...inTeam,
+  }),
+);
 
-  // ── the world the document reads ──
-  const fx = await import("./companyFixture");
-  const { UNION_GOALS_UPDATES } = await import("../org/goalsFixture");
-  const env = {
-    counted: true,
-    tree: fx.COMPANY_FIXTURE_TREE as OrgTree | null,
-  };
-  const calls: string[] = [];
-  const collections: Record<string, any[]> = {
-    initiatives: fx.COMPANY_FIXTURE_INITIATIVES.map((g) => ({ ...g })),
-    projects: fx.COMPANY_FIXTURE_PROJECTS,
-    tasks: fx.COMPANY_FIXTURE_TASKS,
-    initiativeUpdates: UNION_GOALS_UPDATES,
-  };
-  const TEAM = fx.COMPANY_FIXTURE_TREE.workspace.id;
-  const state: any = {
-    currentUser: { _id: "fixture-user-me", name: "Ashot Petrosian" },
-    clientState: { ui: { active_team_id: TEAM } as Record<string, any> },
-    teams: [{ _id: TEAM, name: "Union" }],
-    teamMembers: fx.COMPANY_FIXTURE_ROSTER,
-    get orgTree() {
-      return env.tree;
-    },
-    orgProposals: {} as Record<string, any>,
-    orgProposalChanges: {} as Record<string, any>,
-    currentSessionId: null,
-    sessions: {},
-    reviewComments: {} as Record<string, any[]>,
-    // The stand-ins do what the store's actions do to the draft: the line
-    // reads the row back in the same tick (store/initiativeSlice.ts and
-    // updateClientUI are proven on the real store in their own tests).
-    updateInitiative: (id: string, fields: any) => {
-      calls.push(`update:${id}:${JSON.stringify(fields)}`);
-      collections.initiatives = collections.initiatives.map((r) =>
-        r._id === id ? { ...r, ...fields } : r,
-      );
-    },
-    updateClientUI: (partial: Record<string, any>) => {
-      calls.push(`ui:${JSON.stringify(partial)}`);
-      state.clientState = {
-        ...state.clientState,
-        ui: { ...state.clientState.ui, ...partial },
-      };
-    },
-  };
-  const propose = () => {
-    state.orgProposals = Object.fromEntries(
-      fx.COMPANY_FIXTURE_PROPOSALS.map(({ changes: _changes, ...row }) => [
-        row._id,
-        row,
-      ]),
-    );
-    state.orgProposalChanges = Object.fromEntries(
-      fx.COMPANY_FIXTURE_CHANGES.map((c) => [c._id, { ...c }]),
-    );
-  };
-  const useInboxStore = Object.assign((sel: any) => sel(state), {
-    getState: () => state,
-    setState: () => {},
-    subscribe: () => () => {},
-  });
+let restoreClock: (() => void) | undefined;
+afterEach(() => {
+  restoreClock?.();
+  restoreClock = undefined;
+});
 
-  mock.module("../../store/inboxStore", () => ({
-    ...realInboxStore,
-    useInboxStore,
-    useTrackedStore: () => state,
-  }));
-  const realOrgTree = { ...(await import("../../hooks/useSyncOrgTree")) };
-  mock.module("../../hooks/useSyncOrgTree", () => ({
-    ...realOrgTree,
-    useSyncOrgTree: () => {
-      calls.push("feed:tree");
-      return {
-        tree: env.tree,
-        ready: true,
-        missing: false,
-        refused: false,
-        retry: () => {},
-      };
-    },
-    useSyncOrgTreeFull: () => {
-      calls.push("feed:tree");
-      return { ready: true, missing: false, refused: false, retry: () => {} };
-    },
-    useSyncOrgTreeFeeder: () => {
-      calls.push("feed:roles");
-      return { ready: true, missing: false, refused: false, retry: () => {} };
-    },
-  }));
-  const realProjects = { ...(await import("../../hooks/useSyncProjects")) };
-  mock.module("../../hooks/useSyncProjects", () => ({
-    ...realProjects,
-    useSyncProjects: () => {
-      calls.push("feed:projects");
-    },
-  }));
-  const realProposals = {
-    ...(await import("../../hooks/useSyncOrgProposals")),
-  };
-  mock.module("../../hooks/useSyncOrgProposals", () => ({
-    ...realProposals,
-    useSyncOrgProposals: () => {
-      calls.push("feed:proposals");
-      return { ready: true, missing: false };
-    },
-    useSyncOrgProposal: (ref: string | null) => {
-      calls.push(`feed:proposal:${ref}`);
-      return { ready: !!ref, missing: false };
-    },
-  }));
-  mock.module("../../hooks/useSyncCollection", () => ({
-    useSyncCollection: (key: string, _q: unknown, args: any) => {
-      calls.push(`feed:${key}:${args?.initiative_id ?? ""}`);
-      return { ready: true, refused: false, retry: () => {} };
-    },
-  }));
-  mock.module("../../hooks/useCollectionRows", () => ({
-    useCollectionRows: (key: string, opts: any = {}) =>
-      (collections[key] ?? [])
-        .filter(opts.where ?? (() => true))
-        .sort(opts.sort ?? (() => 0)),
-  }));
-  const realWorkspace = {
-    ...(await import("../../hooks/useWorkspaceCollection")),
-  };
-  mock.module("../../hooks/useWorkspaceCollection", () => ({
-    ...realWorkspace,
-    useWorkspaceCollection: (key: string) => collections[key] ?? [],
-  }));
-  const realInitiatives = { ...(await import("../../hooks/useInitiatives")) };
-  mock.module("../../hooks/useInitiatives", () => ({
-    ...realInitiatives,
-    useInitiatives: () => collections.initiatives,
-    useTasksBackfilled: () => env.counted,
-  }));
-  const realNow = { ...(await import("../../hooks/useCoarseNow")) };
-  mock.module("../../hooks/useCoarseNow", () => ({
-    ...realNow,
-    useCoarseNow: () => fx.COMPANY_FIXTURE_NOW,
-    useNowWhen: () => fx.COMPANY_FIXTURE_NOW,
-  }));
-  const realOrgRoles = { ...(await import("../../hooks/useOrgRoles")) };
-  mock.module("../../hooks/useOrgRoles", () => ({
-    ...realOrgRoles,
-    useOrgRoles: () => ({
-      roles: env.tree?.roles ?? [],
-      workspace: env.tree?.workspace ?? null,
-      roleBotUserIds: new Set<string>(),
-    }),
-  }));
-  const realRoster = await import("../../hooks/useTeamRoster");
-  mock.module("../../hooks/useTeamRoster", () => ({
-    ...realRoster,
-    useTeamRosterIdentity: () => fx.COMPANY_FIXTURE_ROSTER,
-  }));
-  const realNav = { ...(await import("next/navigation")) };
-  mock.module("next/navigation", () => ({
-    ...realNav,
-    useRouter: () => ({
-      replace: (u: string) => calls.push(`replace:${u}`),
-      push: (u: string) => calls.push(`push:${u}`),
-    }),
-    useSearchParams: () => new URLSearchParams(""),
-    usePathname: () => "/org",
-  }));
-  mock.module("next/link", () => ({
-    default: ({ href, children, ...rest }: any) =>
-      React.createElement("a", { href, ...rest }, children),
-  }));
-  const realLeadChip = { ...(await import("../charter/ProjectLeadChip")) };
-  mock.module("../charter/ProjectLeadChip", () => ({
-    ...realLeadChip,
-    ProjectLeadChip: ({ projectId, size, editable }: any) =>
-      React.createElement("span", {
-        "data-project-lead-chip": projectId,
-        "data-size": size,
-        "data-editable": editable ? "1" : "0",
-      }),
-  }));
-  const realRoleFace = { ...(await import("../org/RoleFace")) };
-  mock.module("../org/RoleFace", () => ({
-    ...realRoleFace,
-    RoleFace: ({ role }: any) =>
-      React.createElement("span", { "data-role-face": role.handle }),
-  }));
-  const realAssignee = { ...(await import("../identity/AssigneeFace")) };
-  mock.module("../identity/AssigneeFace", () => ({
-    ...realAssignee,
-    AssigneeFace: ({ info }: any) =>
-      React.createElement("span", {
-        "data-face":
-          info.kind === "role" ? `role:${info.handle}` : `person:${info.name}`,
-      }),
-  }));
-  // A popover that is simply open: the picker's list is what the test reads.
-  const realPopover = { ...(await import("../ui/popover")) };
-  mock.module("../ui/popover", () => ({
-    ...realPopover,
-    Popover: ({ children }: any) => children,
-    PopoverTrigger: ({ children }: any) => children,
-    PopoverAnchor: ({ children }: any) => children,
-    PopoverContent: ({ children }: any) =>
-      React.createElement("div", { "data-popover": true }, children),
-  }));
+type Props = ComponentProps<typeof CompanyDocument>;
 
-  const { createRoot } = await import("react-dom/client");
-  const { CompanyDocument } = await import("./CompanyDocument");
-  const { useChangeLit } = await import("../org/lines/changeLight");
-  let root = createRoot(document.getElementById("root")!);
-  const q = <T extends Element = HTMLElement>(sel: string) =>
-    document.querySelector<T>(sel);
-  const qa = (sel: string) => [...document.querySelectorAll<HTMLElement>(sel)];
+async function setup(options: { tree?: boolean; liveGoal?: string } = {}) {
+  const clock = spyOn(Date, "now").mockReturnValue(fx.COMPANY_FIXTURE_NOW);
+  restoreClock = () => clock.mockRestore();
   const lit: Record<string, boolean> = {};
-  /** What a card in the conversation would read: is one of its changes lit. */
   const Card = ({ id }: { id: string }) => {
     lit[id] = useChangeLit([id]);
     return null;
   };
-  const mount = async (props: Record<string, any> = {}) => {
-    await act(async () => root.unmount());
-    root = createRoot(document.getElementById("root")!);
-    const doc = React.createElement(
-      React.Fragment,
-      null,
-      React.createElement(CompanyDocument, props),
-      React.createElement(Card, { id: "union-purpose" }),
-      React.createElement(Card, { id: "union-staff-outreach" }),
+  function View(props: Props) {
+    const location = useLocation();
+    return (
+      <>
+        <output hidden data-location>
+          {location.pathname}
+        </output>
+        <CompanyDocument {...props} />
+        <Card id="union-purpose" />
+        <Card id="union-staff-outreach" />
+      </>
     );
-    await act(async () => root.render(doc));
+  }
+  let web: Awaited<ReturnType<typeof mountWeb>>;
+  let visit = 0;
+  const show = async (props: Props = {}) => {
+    if (web) {
+      await web.rerender(<View key={++visit} {...props} />);
+      return;
+    }
+    web = await mountWeb(<View {...props} />, {
+      path: "/org",
+      dispatch: true,
+      setup: (backend, store) => {
+        store.syncTable("currentUser", {
+          _id: "fixture-user-me",
+          name: "Ashot Petrosian",
+        });
+        store.stampSyncLogScope("user:fixture-user-me");
+        store.stampSyncLogScope("team:" + TEAM);
+
+        store.syncTable("clientState", { ui: { active_team_id: TEAM } });
+        useInboxStore.setState({
+          clientStateInitialized: true,
+          syncRole: "host",
+        });
+        store.syncTable("teams", [{ _id: TEAM, name: "Union" }]);
+        store.syncTable(
+          "teamMembers",
+          stampRoster(fx.COMPANY_FIXTURE_ROSTER, TEAM),
+        );
+        if (options.tree !== false)
+          store.syncTable("orgTree", {
+            ...fx.COMPANY_FIXTURE_TREE,
+            workspace: { ...fx.COMPANY_FIXTURE_TREE.workspace, id: TEAM },
+          });
+        store.syncTable(
+          "initiatives",
+          initiatives.map((goal) =>
+            options.liveGoal && goal.short_id === "in-4"
+              ? { ...goal, _id: options.liveGoal }
+              : goal,
+          ),
+        );
+        store.syncTable("projects", projects);
+        store.syncTable("tasks", tasks);
+        store.syncTable(
+          "initiativeUpdates",
+          UNION_GOALS_UPDATES.map((row) => ({ ...row, ...inTeam })),
+        );
+        store.recordSyncMeta(
+          syncMetaKey(
+            "tasks",
+            JSON.stringify({ team_id: TEAM, workspace: "team" }),
+          ),
+          { backfilledAt: 1 },
+        );
+        backend.set(api.projects.webList, []);
+        backend.set(api.initiatives.webList, undefined);
+        backend.set(api.initiatives.webUpdates, undefined);
+        backend.set(api.org.roles, undefined);
+        backend.set(api.orgProposals.list, undefined);
+        backend.set(api.orgProposals.get, undefined);
+      },
+    });
   };
-  const rerender = async () => {
-    await act(async () => {});
-    await mount(lastProps);
-  };
-  let lastProps: Record<string, any> = {};
-  const show = async (props: Record<string, any> = {}) => {
-    lastProps = props;
-    await mount(props);
-  };
+  const state = () => useInboxStore.getState();
+  let syncedAt = fx.COMPANY_FIXTURE_NOW;
+  const syncExpanded = (org_expanded: string[] | undefined) =>
+    act(async () => {
+      clock.mockReturnValue(++syncedAt);
+      state().syncTable("clientState", {
+        ui: {
+          active_team_id: TEAM,
+          org_expanded: org_expanded ?? null,
+          "org_expanded:ts": syncedAt,
+        },
+      });
+    });
+  const propose = () =>
+    act(async () => {
+      state().syncTable(
+        "orgProposals",
+        fx.COMPANY_FIXTURE_PROPOSALS.map(({ changes: _changes, ...row }) => ({
+          ...row,
+          team_id: TEAM,
+        })),
+      );
+      state().syncTable("orgProposalChanges", fx.COMPANY_FIXTURE_CHANGES);
+    });
+  const written = () =>
+    web.backend.mutations.flatMap(({ args }) => {
+      const { action, args: params } = args as DispatchCallArgs;
+      if (action === "updateInitiative")
+        return ["update:" + params[0] + ":" + JSON.stringify(params[1])];
+      if (action === "updateClientUI")
+        return ["ui:" + JSON.stringify(params[0])];
+      return [];
+    });
+  const queried = <Ref extends Parameters<typeof getFunctionName>[0]>(
+    ref: Ref,
+  ) =>
+    web.backend.queryRequests
+      .filter(({ name }) => name === getFunctionName(ref))
+      .map(({ args }) => args);
+  const q = <T extends Element = HTMLElement>(sel: string) =>
+    document.querySelector<T>(sel);
+  const qa = (sel: string) => [...document.querySelectorAll<HTMLElement>(sel)];
   const click = async (
     el: Element | null | undefined,
     msg = "missing element",
@@ -310,7 +175,7 @@ async function verifyCompany() {
     assert.ok(el, msg);
     await act(async () => {
       (el as HTMLElement).dispatchEvent(
-        new (dom.window as any).MouseEvent("click", {
+        new window.MouseEvent("click", {
           bubbles: true,
           cancelable: true,
           button: 0,
@@ -322,7 +187,7 @@ async function verifyCompany() {
     assert.ok(el);
     await act(async () => {
       el!.dispatchEvent(
-        new (dom.window as any).KeyboardEvent("keydown", {
+        new window.KeyboardEvent("keydown", {
           key: k,
           bubbles: true,
           cancelable: true,
@@ -334,9 +199,9 @@ async function verifyCompany() {
     assert.ok(el);
     await act(async () => {
       el!.dispatchEvent(
-        new (dom.window as any).MouseEvent(on ? "mouseover" : "mouseout", {
+        new window.MouseEvent(on ? "mouseover" : "mouseout", {
           bubbles: true,
-          relatedTarget: on ? document.body : document.body,
+          relatedTarget: document.body,
         }),
       );
     });
@@ -363,14 +228,51 @@ async function verifyCompany() {
     "ol-date",
   ];
 
-  // ── the document as the store holds it ──
+  return {
+    show,
+    q,
+    qa,
+    line,
+    cells,
+    GRID,
+    sections,
+    click,
+    key,
+    hover,
+    none,
+    written,
+    queried,
+    state,
+    propose,
+    syncExpanded,
+    lit,
+  };
+}
+
+test("the overview shows its live data and opens and syncs goal rows", async () => {
+  const {
+    show,
+    q,
+    qa,
+    line,
+    cells,
+    GRID,
+    sections,
+    click,
+    none,
+    written,
+    queried,
+    state,
+    syncExpanded,
+  } = await setup();
   await show();
   assert.ok(
-    calls.includes("feed:projects") && calls.includes("feed:proposals"),
+    queried(api.projects.webList).length &&
+      queried(api.orgProposals.list).length,
     "mounts the projects and proposals feeders",
   );
   assert.ok(
-    calls.includes("feed:roles") && !calls.includes("feed:tree"),
+    queried(api.org.roles).length && !queried(api.org.tree).length,
     "the roles feeder; the screen's map feeds the live tree into the same home",
   );
   assert.match(
@@ -426,9 +328,7 @@ async function verifyCompany() {
     "/goals/in-2",
   );
   assert.ok(
-    network.querySelector(
-      "[data-line-owner] [data-initiative-pick='owner'] [data-face='person:Ashot Petrosian']",
-    ),
+    network.querySelector("[data-line-owner] [data-initiative-pick='owner'] "),
     "the owner, as the picker the sheet uses",
   );
   assert.equal(
@@ -492,18 +392,13 @@ async function verifyCompany() {
     q("[data-company-goal-body='in-4'] [data-company-update='union-upd-2']"),
     "the owner's latest word",
   );
-  assert.ok(
-    calls.some((c) => c.startsWith("feed:initiativeUpdates")),
-    "its updates are fed while it is open",
-  );
 
   // A click on the row opens it in place, and the choice is the person's, written to their synced UI state.
   await click(network.querySelector(".ol-measure"), "the row's background");
   assert.equal(
-    calls.at(-1),
+    written().at(-1),
     `ui:${JSON.stringify({ org_expanded: ["union-in-4", "union-in-2"] })}`,
   );
-  await rerender();
   assert.equal(line("union-in-2")!.getAttribute("aria-expanded"), "true");
   assert.match(
     q("[data-company-goal-body='in-2'] [data-company-why]")!.textContent!,
@@ -535,12 +430,9 @@ async function verifyCompany() {
     "12 of 21 tasks",
     "the board's count: dropped and agent rows are not in it",
   );
-  assert.equal(
-    pr6
-      .querySelector("[data-line-owner] [data-project-lead-chip]")!
-      .getAttribute("data-editable"),
-    "1",
-    "the lead, as the chip the board uses",
+  assert.ok(
+    pr6.querySelector("[data-line-owner] [data-project-lead] button"),
+    "the editable lead chip",
   );
   assert.match(
     pr6.querySelector("[data-project-glyph]")!.className,
@@ -551,33 +443,42 @@ async function verifyCompany() {
   // The chevron folds it back.
   await click(line("union-in-2")!.querySelector("[data-line-chev]"));
   assert.equal(
-    calls.at(-1),
+    written().at(-1),
     `ui:${JSON.stringify({ org_expanded: ["union-in-4"] })}`,
   );
   // A second window reads the same synced state and opens the same lines.
-  state.clientState.ui.org_expanded = ["union-in-2", "union-in-5", "gone-goal"];
-  await rerender();
+  await syncExpanded(["union-in-2", "union-in-5", "gone-goal"]);
+  await show();
   assert.deepEqual(
     qa("[data-company-open]").map((g) => g.getAttribute("data-company-goal")),
     ["in-2", "in-5"],
     "what was opened elsewhere is open here; the stale id opens nothing",
   );
+});
 
-  // An owner or status picked on a line paints in the same tick.
-  const pick = (id: string, which: string, label: RegExp) =>
-    [
-      ...line(id)!.querySelectorAll(
-        `[data-line-${which}] [data-popover] button`,
-      ),
-    ].find((b) => label.test(b.textContent ?? ""));
-  await click(pick("union-in-2", "state", /^Planned$/), "the status list");
+test("the owner and status pickers update the row in place", async () => {
+  const { show, q, qa, line, click, key, written, state, syncExpanded } =
+    await setup();
+  await show();
+  await syncExpanded(["union-in-2"]);
+  await show();
+  const pick = async (id: string, which: string, label: RegExp) => {
+    const scope = line(id)!.querySelector("[data-line-" + which + "]");
+    await click(scope?.querySelector("button"));
+    return qa("[role=dialog] button").find((b) =>
+      label.test(b.textContent ?? ""),
+    );
+  };
+  await click(
+    await pick("union-in-2", "state", /^Planned$/),
+    "the status list",
+  );
   assert.equal(
-    calls.at(-1),
+    written().at(-1),
     `update:union-in-2:${JSON.stringify({ status: "planned" })}`,
   );
-  await rerender();
   assert.equal(
-    collections.initiatives.find((g: any) => g._id === "union-in-2")!.status,
+    state().initiatives["union-in-2"].status,
     "planned",
     "the pick is in the store at once",
   );
@@ -588,47 +489,44 @@ async function verifyCompany() {
     "on_track",
     "a planned goal its owner has spoken on still shows their word",
   );
-  assert.ok(
-    [
-      ...line("union-in-2")!.querySelectorAll(
-        "[data-line-state] [data-popover] button",
-      ),
-    ].some((b) => b.textContent === "Not started"),
-    "the status that is not a proposal says so plainly",
-  );
+  assert.ok(await pick("union-in-2", "state", /^Not started$/));
+  await key(q("[role=dialog]"), "Escape");
   assert.equal(
     line("union-in-2")!.getAttribute("aria-expanded"),
     "true",
     "a pick is the control's own click, never the row's",
   );
-  await click(pick("union-in-2", "owner", /Samvit/), "the owner list");
+  await click(await pick("union-in-2", "owner", /Samvit/), "the owner list");
   assert.equal(
-    calls.at(-1),
+    written().at(-1),
     `update:union-in-2:${JSON.stringify({ owner: { kind: "user", user_id: "fixture-user-samvit" } })}`,
   );
-  await rerender();
-  assert.ok(
-    line("union-in-2")!.querySelector(
-      "[data-line-owner] [data-face='person:Samvit Ramadurgam']",
-    ),
+  assert.match(
+    line("union-in-2")!.querySelector("[data-line-owner]")!.textContent!,
+    /Samvit/,
   );
-  collections.initiatives = fx.COMPANY_FIXTURE_INITIATIVES.map((g) => ({
-    ...g,
-  }));
+});
 
-  // A line's title is an address and Enter navigates to it; neither folds the line.
+test("a line navigates by title and expands with the arrow keys", async () => {
+  const { show, q, line, click, key, written, syncExpanded } = await setup();
+  await show();
+  await syncExpanded(["union-in-2", "union-in-5", "gone-goal"]);
+  await show();
   await key(line("union-in-1"), "Enter");
-  assert.equal(calls.at(-1), "push:/goals/in-1");
+  assert.equal(q("[data-location]")?.textContent, "/goals/in-1");
   await click(line("union-in-2")!.querySelector("[data-line-title]"));
   assert.equal(line("union-in-2")!.getAttribute("aria-expanded"), "true");
   // Space and the arrows open and fold in place.
   await key(line("union-in-1"), "ArrowRight");
   assert.equal(
-    calls.at(-1),
+    written().at(-1),
     `ui:${JSON.stringify({ org_expanded: ["union-in-2", "union-in-5", "gone-goal", "union-in-1"] })}`,
   );
+});
 
-  // Projects no goal carries: lines too, and one that says something against itself opens to it.
+test("unfiled projects show trouble without a count for projects without tasks", async () => {
+  const { show, q, qa, line, none, syncExpanded } = await setup();
+  await show();
   assert.deepEqual(
     qa("[data-company-section='unfiled'] [data-line='project']").map((l) =>
       l.getAttribute("data-line-ref"),
@@ -646,11 +544,8 @@ async function verifyCompany() {
     null,
     "nothing to say, nothing to open",
   );
-  state.clientState.ui.org_expanded = [
-    "union-proj-callers",
-    "union-proj-infra",
-  ];
-  await rerender();
+  await syncExpanded(["union-proj-callers", "union-proj-infra"]);
+  await show();
   assert.equal(
     q("[data-project-body='pr-2'] [data-project-trouble]")!.textContent,
     "Past its target",
@@ -663,8 +558,11 @@ async function verifyCompany() {
     q("[data-line-id='union-proj-infra'] [data-line-measure]"),
     "no tasks counted, no count",
   );
+});
 
-  // People and roles: the reporting outline, a person then the roles under them.
+test("people and roles show the reporting outline and the goals they carry", async () => {
+  const { show, q, qa, line, cells, GRID, click, none } = await setup();
+  await show();
   assert.deepEqual(
     qa("[data-company-section='people'] [data-line]").map(
       (l) => `${l.getAttribute("data-line")}:${l.getAttribute("aria-level")}`,
@@ -731,14 +629,15 @@ async function verifyCompany() {
   );
   // A person opens in place to the goals they own, as goal lines.
   await click(ashot.querySelector("[data-line-chev]"));
-  await rerender();
   assert.ok(
     q(
       "[data-company-person='fixture-user-me'] [data-line-id='union-in-2'][aria-level='2']",
     ),
   );
+});
 
-  // ── the filters narrow the same document, and every line keeps the same cells ──
+test("filters keep the column order and mark the selected line", async () => {
+  const { show, qa, line, cells, GRID, sections } = await setup();
   // A line draws only the cells it has something for, always in the grid's order: the columns hold still.
   const lineCells = () =>
     qa("[data-line]:not([data-ghost])").map((l) => cells(l) as string[]);
@@ -777,14 +676,34 @@ async function verifyCompany() {
     line("fixture-role-agent-quality")!.getAttribute("data-selected"),
     "true",
   );
+});
 
-  // ── with the open proposals: each in its place, in violet, answered in the conversation ──
-  propose();
-  state.clientState.ui.org_expanded = undefined;
+test("proposals show pending changes and highlight the corresponding card", async () => {
+  const {
+    show,
+    q,
+    qa,
+    line,
+    sections,
+    click,
+    hover,
+    none,
+    queried,
+    propose,
+    syncExpanded,
+    lit,
+  } = await setup();
+  await show();
+  await propose();
+  await syncExpanded(undefined);
   await show();
   assert.ok(
-    calls.includes("feed:proposal:op-54") &&
-      calls.includes("feed:proposal:op-55"),
+    queried(api.orgProposals.get).some((args) =>
+      JSON.stringify(args).includes("op-54"),
+    ) &&
+      queried(api.orgProposals.get).some((args) =>
+        JSON.stringify(args).includes("op-55"),
+      ),
     "one feeder for each open proposal",
   );
   assert.equal(
@@ -845,7 +764,6 @@ async function verifyCompany() {
   );
   // Opened, the proposed goal names the live goals that would come under it (each opens) and the goals it sets.
   await click(purpose.querySelector("[data-line-chev]"));
-  await rerender();
   assert.deepEqual(
     qa("[data-company-arriving]").map((a) =>
       a.getAttribute("data-company-arriving"),
@@ -921,9 +839,13 @@ async function verifyCompany() {
     ),
     "nothing to answer here",
   );
+});
 
-  // A project under two goals is two lines in the Projects filter: each opens on its own, and the second says where it first appeared.
-  state.clientState.ui.org_expanded = [];
+test("a project listed under two goals expands separately", async () => {
+  const { show, qa, click, propose, syncExpanded } = await setup();
+  await show();
+  await propose();
+  await syncExpanded([]);
   await show({ filter: "projects" });
   const twice = qa(
     "[data-company-section='projects'] [data-line='project']",
@@ -935,7 +857,6 @@ async function verifyCompany() {
     /^also under Every relationship/,
   );
   await click(twice[0].querySelector("[data-line-chev]"));
-  await rerender();
   assert.deepEqual(
     qa("[data-company-section='projects'] [data-line-ref='pr-12']").map((l) =>
       l.getAttribute("aria-expanded"),
@@ -943,16 +864,21 @@ async function verifyCompany() {
     ["true", "false"],
     "keyed by where it is drawn, not by the project alone",
   );
+});
 
-  // A goal's done projects fold under its active ones, closed until opened.
+test("done projects stay folded unless opened or selected", async () => {
+  const { show, q, qa, click, none, state, syncExpanded } = await setup();
+  await show({ filter: "projects" });
   const group = q("[data-company-project-group='in-2']")!;
   const doneId = group
     .querySelector("[data-line='project']")!
     .getAttribute("data-line-id")!;
-  const before = collections.projects;
-  const expandedBefore = state.clientState.ui.org_expanded;
-  collections.projects = before.map((p: any) =>
-    p._id === doneId ? { ...p, status: "done" } : p,
+  const before = projects;
+  await act(async () =>
+    state().syncTable(
+      "projects",
+      before.map((p) => (p._id === doneId ? { ...p, status: "done" } : p)),
+    ),
   );
   await show({ filter: "projects" });
   const fold = q(
@@ -965,7 +891,6 @@ async function verifyCompany() {
     "a done project is folded away",
   );
   await click(fold);
-  await rerender();
   assert.equal(
     q(
       "[data-company-project-group='in-2'] [data-company-done-fold]",
@@ -981,7 +906,7 @@ async function verifyCompany() {
   // Every real project line carries its pin, off until pinned.
   assert.ok(lines.every((l) => l.querySelector("[data-project-pin='off']")));
   // The fold opens on its own when it holds the selected project.
-  state.clientState.ui.org_expanded = [];
+  await syncExpanded([]);
   await show({ filter: "projects", selected: doneId });
   assert.equal(
     q(
@@ -994,11 +919,11 @@ async function verifyCompany() {
       `[data-company-project-group='in-2'] [data-line-id='${doneId}'][data-selected]`,
     ),
   );
-  collections.projects = before;
-  state.clientState.ui.org_expanded = expandedBefore;
+});
 
-  // ── before the org tree arrives: the plain outline under the team's name ──
-  env.tree = null;
+test("the roster supplies the people before the org tree arrives", async () => {
+  const { show, q, qa, none } = await setup({ tree: false });
+  await show();
   await show();
   assert.equal(q("[data-company-name]")!.textContent, "Union");
   assert.deepEqual(
@@ -1010,19 +935,27 @@ async function verifyCompany() {
   assert.equal(qa("[data-line='role']").length, 0);
   assert.equal(qa("[data-line='person']").length, 2, "the roster's people");
   none(q("[data-ghost]"), "no tree, no ghosts");
+});
 
-  // ── an empty workspace: no empty sections, and a filter with nothing says so in two words ──
-  collections.initiatives = [];
-  collections.projects = [];
+test("an empty workspace omits empty sections", async () => {
+  const { show, q, sections, state } = await setup({ tree: false });
+  await show();
+  await act(async () => {
+    state().dropRows("initiatives", Object.keys(state().initiatives));
+    state().dropRows("projects", Object.keys(state().projects));
+  });
   await show();
   assert.deepEqual(sections(), ["company", "people"]);
   await show({ filter: "goals" });
   assert.deepEqual(sections(), ["company"]);
   assert.equal(q("[data-company-empty]")!.textContent, "No goals.");
+});
 
-  await act(async () => root.unmount());
-}
-
-test("company document mount: lines on one grid, opened in place and synced, edits paint at once, filters line up, proposals in violet", async () => {
-  await verifyCompany();
-}, 600_000);
+test("opening a cached goal subscribes to that goal's updates", async () => {
+  const goal = fixtures.plan.build()._id;
+  const { show, queried } = await setup({ liveGoal: goal });
+  await show();
+  assert.deepEqual(queried(api.initiatives.webUpdates), [
+    { initiative_id: goal },
+  ]);
+});

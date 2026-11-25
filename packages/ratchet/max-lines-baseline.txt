@@ -536,7 +536,7 @@ apps/web/components/castCommand.ts 1200
 apps/web/components/changes/ChangesPage.tsx 950
 apps/web/components/chat/ChatMessage.tsx 1000
 apps/web/components/chat/SlackSyncDialog.tsx 1100
-apps/web/components/company/CompanyDocument.mount.test.tsx 1050
+apps/web/components/company/CompanyDocument.mount.test.tsx 1000
 apps/web/components/company/CompanyDocument.tsx 1150
 apps/web/components/company/companyModel.ts 950
 apps/web/components/consequential/ledgers.ts 1400
@@ -630,7 +630,6 @@ apps/web/components/org/ProposalSubjectCard.mount.test.tsx 1650
 apps/web/components/org/ProposalSubjectCard.tsx 1850
 apps/web/components/org/TemplateSections.mount.test.tsx 850
 apps/web/components/org/TemplateSections.tsx 1200
-apps/web/components/org/company/sheets/GoalSheet.mount.test.tsx 850
 apps/web/components/org/goalsLayout.ts 1150
 apps/web/components/org/orgLayout.ts 1550
 apps/web/components/org/orgStaffingFixture.ts 850
@@ -638,7 +637,7 @@ apps/web/components/org/orgTemplateHire.tsx 900
 apps/web/components/org/proposalSubjects.test.ts 2550
 apps/web/components/org/proposalSubjects.ts 1350
 apps/web/components/org/scope/RoleHandoffSections.tsx 1050
-apps/web/components/org/scope/ScopePage.mount.test.tsx 1400
+apps/web/components/org/scope/ScopePage.mount.test.tsx 1250
 apps/web/components/org/scope/ScopePage.tsx 1150
 apps/web/components/org/scope/ScopeSettings.tsx 1100
 apps/web/components/org/scope/ScopeTabs.tsx 1250

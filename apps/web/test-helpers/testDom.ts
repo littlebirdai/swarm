@@ -48,6 +48,8 @@ export function createTestDom(url: string) {
     SVGElement: w.SVGElement,
     Element: w.Element,
     Node: w.Node,
+    NodeFilter: w.NodeFilter,
+
     Text: w.Text,
     DocumentFragment: w.DocumentFragment,
     Event: w.Event,
@@ -97,9 +99,6 @@ export function createTestDom(url: string) {
   w.matchMedia = matchMedia;
   w.ResizeObserver = InertObserver;
   w.IntersectionObserver = InertObserver;
-  // jsdom lays nothing out, and a virtualized list over a zero-height
-  // viewport renders no rows at all. A fixed box per element is enough for
-  // every list to render its first rows.
   for (const [prop, value] of [
     ["offsetHeight", 600],
     ["clientHeight", 600],

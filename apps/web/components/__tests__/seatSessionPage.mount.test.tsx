@@ -20,142 +20,70 @@ import { topLevelSelectors } from "../../lib/__tests__/sourceWalk";
 //                 their own end controls stay in both views
 // Each test stands alone: every open is the card's whole gesture.
 // Run: bun test components/__tests__/seatSessionPage.mount.test.tsx
-import { replaceGlobals } from "../../test-helpers/globals";
+import { api } from "@codecast/convex/convex/_generated/api";
 import { afterAll, expect, mock, test } from "bun:test";
-import { JSDOM } from "jsdom";
-import { closeDomWindow } from "../../test-helpers/domGlobals";
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  { url: "https://app.test/inbox", pretendToBeVisual: true },
-);
-const restoreGlobals = replaceGlobals({
-  window: dom.window,
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  location: dom.window.location,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  MutationObserver: dom.window.MutationObserver,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
-});
-
-const React = await import("react");
-const act: <T>(cb: () => T | Promise<T>) => Promise<T> = (React as any).act;
+import * as React from "react";
+import { act } from "react";
+import { webBuilders } from "../../test-helpers/builders";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import {
+  useInboxStore,
+  type InboxSession,
+  type SessionRoleSnapshot,
+} from "../../store/inboxStore";
+import { ORG_FIXTURE } from "../org/orgFixture";
 
 const SEAT = "seat0000000000000000000000000000";
 const HAND = "hand0000000000000000000000000000";
 const STRAY = "stray000000000000000000000000000";
 const ROLE = "role-head";
-const env = { qs: "" };
-
-// Only the transports and the heavy leaves are faked; the inbox page, the
-// pane, the switch and the store are real.
-const convexReact = { ...(await import("convex/react")) };
-mock.module("convex/react", () => ({
-  ...convexReact,
-  useMutation: () => async () => "token",
-  useQuery: () => undefined,
-  useQueries: () => ({}),
-}));
-mock.module("next/navigation", () => ({
-  useRouter: () => ({ replace: () => {}, push: () => {} }),
-  useSearchParams: () => new URLSearchParams(env.qs),
-  usePathname: () => "/inbox",
-}));
-mock.module("sonner", () => ({
-  toast: Object.assign(() => {}, {
-    success: () => {},
-    error: () => {},
-    warning: () => {},
-  }),
-}));
+const realDashboard = { ...(await import("../DashboardLayout")) };
 mock.module("../DashboardLayout", () => ({
-  DashboardLayout: ({ children }: any) => <div data-shell>{children}</div>,
+  ...realDashboard,
+  DashboardLayout: ({ children }: { children: React.ReactNode }) => (
+    <div data-shell>{children}</div>
+  ),
 }));
+afterAll(() => mock.module("../DashboardLayout", () => realDashboard));
+const realFleet = { ...(await import("../FleetBoard")) };
 mock.module("../FleetBoard", () => ({
+  ...realFleet,
   FleetBoard: () => <div data-fleet />,
   InboxHomeToggle: () => null,
 }));
+afterAll(() => mock.module("../FleetBoard", () => realFleet));
+const realActivity = { ...(await import("../ActivityFeed")) };
 mock.module("../ActivityFeed", () => ({
+  ...realActivity,
   ActivityFeed: () => <div data-feed />,
 }));
-mock.module("../EmptyState", () => ({ EmptyState: () => null }));
-mock.module("../SharePopover", () => ({
-  SharePopover: () => <button data-share>Share</button>,
-}));
-mock.module("../SessionErrorBanner", () => ({
-  SessionErrorBanner: () => <div data-error-banner />,
-  SessionResumeBanner: () => null,
-}));
-mock.module("../PlanContextPanel", () => ({ PlanContextPanel: () => null }));
-mock.module("../WorkflowContextPanel", () => ({
-  WorkflowContextPanel: () => null,
-}));
+afterAll(() => mock.module("../ActivityFeed", () => realActivity));
+
+const realTrigger = { ...(await import("../TriggerContextPanel")) };
 mock.module("../TriggerContextPanel", () => ({
+  ...realTrigger,
   TriggerContextPanel: () => <div data-trigger-panel />,
 }));
+afterAll(() => mock.module("../TriggerContextPanel", () => realTrigger));
+const realPlaceholder = { ...(await import("../ConversationPlaceholder")) };
 mock.module("../ConversationPlaceholder", () => ({
-  ConversationPlaceholder: ({ id }: any) => <div data-placeholder={id} />,
+  ...realPlaceholder,
+  ConversationPlaceholder: ({ id }: { id?: string }) => (
+    <div data-placeholder={id} />
+  ),
 }));
-const realShortcutsHelp = { ...(await import("../KeyboardShortcutsHelp")) };
-mock.module("../KeyboardShortcutsHelp", () => ({
-  ...realShortcutsHelp,
-  ShortcutTooltip: ({ children }: any) => children,
-  KeyCap: ({ children }: any) => <kbd>{children}</kbd>,
-}));
-mock.module("../../hooks/useSeedOwnership", () => ({
-  useSeedOwnership: () => {},
-}));
-// Spread the real module: a substitution is process-global, so a stub that
-// drops its other exports breaks every file that loads it afterwards.
-const realOrgTree = { ...(await import("../../hooks/useSyncOrgTree")) };
-mock.module("../../hooks/useSyncOrgTree", () => ({
-  ...realOrgTree,
-  useSyncOrgTreeFeeder: () => ({
-    ready: true,
-    missing: false,
-    refused: false,
-    retry: () => {},
-  }),
-}));
-mock.module("../../hooks/useMissingSessionRow", () => ({
-  useMissingSessionRow: () => undefined,
-  useMissingSessionLookup: () => ({ row: undefined, failed: false }),
-}));
-mock.module("../../hooks/useTitlebarHead", () => ({
-  useTitlebarHead: () => ({ current: null }),
-}));
-mock.module("../../hooks/useConversationMessages", () => ({
-  useConversationMessages: (id: string) => ({
-    conversation: {
-      _id: id,
-      messages: [],
-      is_own: true,
-      updated_at: Date.now(),
-    },
-    hasMoreAbove: false,
-    hasMoreBelow: false,
-    isLoadingOlder: false,
-    isLoadingNewer: false,
-    loadOlder: () => {},
-    loadNewer: () => {},
-    jumpToStart: () => {},
-    jumpToEnd: () => {},
-    jumpToTimestamp: () => {},
-    effectiveTargetMessageId: undefined,
-    isJumpingToTarget: false,
-  }),
-}));
+afterAll(() =>
+  mock.module("../ConversationPlaceholder", () => realPlaceholder),
+);
+
 // The session header lives in ConversationView; what the pane hands it is the
 // contract here. Its slots render, so a control the pane forgot would be absent.
+const realConversation = { ...(await import("../ConversationDiffLayout")) };
 mock.module("../ConversationDiffLayout", () => ({
-  ConversationDiffLayout: (p: any) => (
+  ...realConversation,
+  ConversationDiffLayout: (
+    p: React.ComponentProps<typeof realConversation.ConversationDiffLayout>,
+  ) => (
     <div
       data-layout={p.conversation._id}
       data-hide-header={p.hideHeader ? "1" : "0"}
@@ -172,6 +100,9 @@ mock.module("../ConversationDiffLayout", () => ({
     </div>
   ),
 }));
+afterAll(() =>
+  mock.module("../ConversationDiffLayout", () => realConversation),
+);
 
 const queuePage = await import("../../app/inbox/QueuePageClient");
 const { SeatHeadControls } = await import("../org/scope/SeatHead");
@@ -179,8 +110,12 @@ const { SeatHeadControls } = await import("../org/scope/SeatHead");
 // here it is the frame plus the conversation it really mounts: the pane, with
 // the seat's options and the pane's props handed through, and the role
 // header's Session view and expander, which own the session header's fold.
-function ScopeFrame({ id, session }: any) {
+function ScopeFrame(
+  props: React.ComponentProps<typeof realScope.ScopePageInner>,
+) {
+  const { id, session } = props;
   const [open, setOpen] = React.useState(false);
+  if (!session) throw new Error("The seat frame requires a session");
   const { onSessionView, ...pane } = session;
   const head = { open, onToggle: () => setOpen((v) => !v) };
   return (
@@ -209,63 +144,80 @@ function ScopeFrame({ id, session }: any) {
     </div>
   );
 }
-mock.module("../org/scope/ScopePage", () => ({ ScopePageInner: ScopeFrame }));
+const realScope = { ...(await import("../org/scope/ScopePage")) };
+mock.module("../org/scope/ScopePage", () => ({
+  ...realScope,
+  ScopePageInner: ScopeFrame,
+}));
+afterAll(() => mock.module("../org/scope/ScopePage", () => realScope));
 
-const { useInboxStore } = await import("../../store/inboxStore");
-const { createRoot } = await import("react-dom/client");
-
-const roleSnapshot = {
+const fixtures = webBuilders("seatSessionPage.mount.test.tsx");
+const standingRole = fixtures.role.build({
   _id: ROLE,
+  short_id: "or-10",
   name: "Head of People",
   handle: "head-of-people",
-  avatar: null,
-};
-const row = (id: string, extra: Record<string, unknown>) => ({
-  _id: id,
-  title: id,
-  started_at: 1,
-  updated_at: Date.now(),
-  message_count: 3,
-  is_idle: true,
-  agent_type: "claude_code",
-  ...extra,
 });
-const seed = (rows: Record<string, Record<string, unknown>> = {}) =>
-  useInboxStore.setState({
-    clientStateInitialized: true,
-    showMySessions: false,
-    orgTree: {
-      roles: [
-        {
-          _id: ROLE,
-          short_id: "or-10",
-          name: "Head of People",
-          handle: "head-of-people",
-          status: "active",
-        },
-      ],
-    } as any,
-    sessions: {
-      [SEAT]: row(SEAT, { standing_role_id: ROLE, role: roleSnapshot }),
-      [HAND]: row(HAND, { org_role_id: ROLE, role: roleSnapshot }),
-      [STRAY]: row(STRAY, {
-        standing_role_id: "role-elsewhere",
-        role: { ...roleSnapshot, _id: "role-elsewhere" },
-      }),
-      ...rows,
-    } as any,
+const roleSnapshot: SessionRoleSnapshot = {
+  _id: standingRole._id,
+  name: standingRole.name,
+  handle: standingRole.handle,
+  avatar: "owl",
+  short_id: standingRole.short_id,
+  status: standingRole.status,
+  tenure_kind: "standing",
+};
+const row = (id: string, extra: Partial<InboxSession>) =>
+  fixtures.session.build({
+    _id: id,
+    title: id,
+    updated_at: Date.now(),
+    message_count: 3,
+    ...extra,
   });
 
-let root = createRoot(document.getElementById("root")!);
-const mount = async (
-  qs = "",
-  rows: Record<string, Record<string, unknown>> = {},
-) => {
-  await act(async () => root.unmount());
-  env.qs = qs;
-  seed(rows);
-  root = createRoot(document.getElementById("root")!);
-  await act(async () => root.render(<queuePage.QueuePageClient />));
+let web: Awaited<ReturnType<typeof mountWeb>> | undefined;
+const mount = async (qs = "", rows: Record<string, InboxSession> = {}) => {
+  await web?.close();
+  web = await mountWeb(<queuePage.QueuePageClient />, {
+    path: qs ? `/inbox?${qs}` : "/inbox",
+    setup: (backend, store) => {
+      store.syncTable("orgTree", { ...ORG_FIXTURE, roles: [standingRole] });
+      store.syncTable(
+        "sessions",
+        Object.values({
+          [SEAT]: row(SEAT, { standing_role_id: ROLE, role: roleSnapshot }),
+          [HAND]: row(HAND, { org_role_id: ROLE, role: roleSnapshot }),
+          [STRAY]: row(STRAY, {
+            standing_role_id: "role-elsewhere",
+            role: { ...roleSnapshot, _id: "role-elsewhere" },
+          }),
+          ...rows,
+        }),
+      );
+      for (const id of [SEAT, HAND, STRAY, ...Object.keys(rows)]) {
+        store.syncRecord("conversations", id, {
+          _id: id,
+          is_own: true,
+          updated_at: Date.now(),
+        });
+        store.setMessages(id, [fixtures.message.build()]);
+      }
+      useInboxStore.setState({
+        clientStateInitialized: true,
+        showMySessions: false,
+      });
+      backend.set(api.org.roles, undefined);
+      backend.set(api.devices.listDevices, undefined);
+
+      backend.set(api.conversations.getConversation, undefined);
+      backend.set(api.conversations.getConversationWithMeta, undefined);
+      backend.set(api.conversations.getTranscriptWatermark, undefined);
+      backend.set(api.conversations.getUserMessages, undefined);
+      backend.set(api.conversations.listMessagesTail, undefined);
+      backend.set(api.conversations.getAllMessages, undefined);
+    },
+  });
 };
 // The role page arrives through React.lazy: wait out its placeholder.
 const settle = async () => {
@@ -403,15 +355,14 @@ test("an ask lands while the pane already shows the seat", async () => {
 test("a surface's own end controls ride along in both views", async () => {
   await mount();
   await open(SEAT);
-  await act(async () => root.unmount());
-  root = createRoot(document.getElementById("root")!);
+
   const props = {
     sessionId: SEAT,
     isIdle: true,
     onSendAndAdvance: () => {},
     headerEnd: <button data-pane-close>close</button>,
   };
-  await act(async () => root.render(<queuePage.SessionPage {...props} />));
+  await web!.rerender(<queuePage.SessionPage {...props} />);
   await settle();
   expectRolePage();
   expect(q("[data-sv-convhead] [data-pane-close]")).not.toBeNull();
@@ -428,7 +379,7 @@ test("the seat keeps the session header and every slot, folded behind the role h
   const layout = q("[data-layout]")!;
   expect(layout.getAttribute("data-hide-header")).toBe("0");
   expect(layout.getAttribute("data-density")).toBe("condensed");
-  expect(q("[data-sv-convhead] [data-share]")).not.toBeNull();
+  expect(q("[data-sv-convhead] [data-share-trigger]")).not.toBeNull();
   expect(q("[data-seat-label]")).not.toBeNull();
   expect(q("[data-lead]")).not.toBeNull();
   // At rest the routine line waits behind the expander, not above the first message.
@@ -462,11 +413,11 @@ test("a stall replaces the state word at rest; the banner waits behind the expan
   expect(q("[data-seat-head]")?.hasAttribute("data-seat-stall")).toBe(true);
   expect(q("[data-seat-stall]")?.textContent).toContain("Session error");
   expect(q("[data-seat-stall-action]")?.textContent).toBe("Resume");
-  expect(q("[data-error-banner]")).toBeNull();
+  expect(document.body.textContent).not.toContain("the agent died");
 
   await click("[data-seat-head-toggle]");
   expect(q("[data-seat-head]")?.hasAttribute("data-seat-stall")).toBe(false);
-  expect(q("[data-error-banner]")).not.toBeNull();
+  expect(document.body.textContent).toContain("the agent died");
 }, 600_000);
 
 // The fold is CSS over the real header, so no action is rebuilt and none can
@@ -507,11 +458,13 @@ test("the fold only hides at rest", async () => {
 
 test("a seat of another workspace than the active one holds the org to its own and opens as the role page", async () => {
   const FOREIGN = "foreign00000000000000000000000000";
-  const other = {
+  const other: SessionRoleSnapshot = {
+    ...roleSnapshot,
+    short_id: "or-20",
     _id: "role-other",
     name: "Market Growth lead",
     handle: "market-growth",
-    avatar: null,
+    avatar: "owl",
   };
   await mount("", {
     [FOREIGN]: row(FOREIGN, {
@@ -520,30 +473,16 @@ test("a seat of another workspace than the active one holds the org to its own a
       team_id: "team-b",
     }),
   });
-  await act(async () =>
-    useInboxStore.setState(
-      (s: any) =>
-        ({
-          currentUser: { _id: "me" },
-          clientState: {
-            ...s.clientState,
-            ui: { ...s.clientState.ui, active_team_id: "team-a" },
-          },
-          orgTree: {
-            workspace: { kind: "team", id: "team-a" },
-            roles: [
-              {
-                _id: ROLE,
-                short_id: "or-10",
-                name: "Head of People",
-                handle: "head-of-people",
-                status: "active",
-              },
-            ],
-          },
-        }) as any,
-    ),
-  );
+  await act(async () => {
+    const state = useInboxStore.getState();
+    state.syncTable("currentUser", { _id: "me" });
+    state.syncTable("clientState", { ui: { active_team_id: "team-a" } });
+    state.syncTable("orgTree", {
+      ...ORG_FIXTURE,
+      workspace: { ...ORG_FIXTURE.workspace, id: "team-a" },
+      roles: [standingRole],
+    });
+  });
   await act(async () => {
     const s = useInboxStore.getState();
     s.navigateToSession(FOREIGN);
@@ -556,13 +495,19 @@ test("a seat of another workspace than the active one holds the org to its own a
   );
   expect(q("[data-layout]")).toBeNull();
 
-  await go(() =>
-    useInboxStore.setState({
-      orgTree: {
-        workspace: { kind: "team", id: "team-b" },
-        roles: [{ ...other, short_id: "or-20", status: "active" }],
-      },
-    } as any),
+  await go((state) =>
+    state.syncTable("orgTree", {
+      ...ORG_FIXTURE,
+      workspace: { ...ORG_FIXTURE.workspace, id: "team-b" },
+      roles: [
+        fixtures.role.build({
+          _id: other._id,
+          short_id: other.short_id,
+          name: other.name,
+          handle: other.handle,
+        }),
+      ],
+    }),
   );
   expect(q("[data-scope-page]")?.getAttribute("data-scope-page")).toBe(
     other._id,
