@@ -10076,7 +10076,7 @@
     "swarm/no-comments": 1
   },
   "apps/server/convex/lib/heartbeatPatch.ts": {
-    "swarm/no-comments": 30
+    "swarm/no-comments": 2
   },
   "apps/server/convex/lib/heartbeatTailnet.ts": {
     "swarm/no-comments": 2
@@ -10591,6 +10591,9 @@
   "apps/server/convex/lib/sessionStarts.ts": {
     "swarm/no-comments": 15
   },
+  "apps/server/convex/lib/sessionStatusWriter.ts": {
+    "swarm/no-comments": 30
+  },
   "apps/server/convex/lib/sessionTell.ts": {
     "swarm/no-comments": 39
   },
@@ -10997,7 +11000,7 @@
     "swarm/no-comments": 22
   },
   "apps/server/convex/managedSessions.ts": {
-    "swarm/no-comments": 217
+    "swarm/no-comments": 215
   },
   "apps/server/convex/managedSessionsList.ts": {
     "swarm/no-comments": 33

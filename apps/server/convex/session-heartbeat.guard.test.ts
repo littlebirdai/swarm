@@ -7,6 +7,7 @@ const schemaAndStorage = new Set([
   "schema/managed-sessions.tables.ts",
   "schema/tasks.tables.ts",
   "lib/sessionHeartbeat.ts",
+  "lib/sessionStatusWriter.ts",
 ]);
 const otherHeartbeats = new Set(["daemonLogs.ts", "users.ts"]);
 const wireFields: Record<string, string[]> = {
@@ -25,14 +26,8 @@ const wireFields: Record<string, string[]> = {
   "managedSessions.ts": [
     "last_heartbeat: now,",
     "last_heartbeat: 0,",
-    "await writeSessionHeartbeat(ctx, session._id, session.user_id, patch?.last_heartbeat ?? session.last_heartbeat);",
     "patch.last_heartbeat = at;",
     "last_heartbeat: lastHeartbeat,",
-  ],
-  "lib/heartbeatPatch.ts": [
-    "session: StatusStamps & { last_heartbeat?: number },",
-    "const heartbeatStale = !session.last_heartbeat || now - session.last_heartbeat > HEARTBEAT_REFRESH_MS;",
-    "patch.last_heartbeat = now;",
   ],
   "managedSessionsList.ts": [
     "last_heartbeat: await heartbeatOf(ctx, session),",
@@ -48,7 +43,7 @@ const wireFields: Record<string, string[]> = {
   "tasks.ts": ["const updates: any = { last_heartbeat: Date.now() };"],
 };
 
-test("managed-session heartbeat storage is accessed through sessionHeartbeat", () => {
+test("managed-session heartbeat storage is accessed through the heartbeat modules", () => {
   const violations: string[] = [];
   for (const file of new Bun.Glob("**/*.ts").scanSync(import.meta.dir)) {
     if (file.startsWith("_generated/") || /\.(test|testkit|d)\.ts$/.test(file))
