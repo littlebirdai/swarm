@@ -1,0 +1,371 @@
+{
+  "complete": {
+    "initial": {
+      "done": 0,
+      "item": "ready",
+      "live": false,
+      "mine": {
+        "w1": 0,
+        "w2": 0
+      },
+      "token": 0
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 0,
+            "w2": 1
+          },
+          "token": 1
+        }
+      },
+      {
+        "action": "Complete",
+        "state": {
+          "done": 1,
+          "item": "done",
+          "live": false,
+          "mine": {
+            "w1": 0,
+            "w2": 0
+          },
+          "token": 1
+        }
+      },
+      {
+        "action": "Finished",
+        "state": {
+          "done": 1,
+          "item": "done",
+          "live": false,
+          "mine": {
+            "w1": 0,
+            "w2": 0
+          },
+          "token": 1
+        }
+      }
+    ]
+  },
+  "give-back": {
+    "initial": {
+      "done": 0,
+      "item": "ready",
+      "live": false,
+      "mine": {
+        "w1": 0,
+        "w2": 0
+      },
+      "token": 0
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 0,
+            "w2": 1
+          },
+          "token": 1
+        }
+      },
+      {
+        "action": "GiveBack",
+        "state": {
+          "done": 0,
+          "item": "ready",
+          "live": false,
+          "mine": {
+            "w1": 0,
+            "w2": 0
+          },
+          "token": 1
+        }
+      },
+      {
+        "action": "Claim",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 0,
+            "w2": 2
+          },
+          "token": 2
+        }
+      },
+      {
+        "action": "GiveBack",
+        "state": {
+          "done": 0,
+          "item": "ready",
+          "live": false,
+          "mine": {
+            "w1": 0,
+            "w2": 0
+          },
+          "token": 2
+        }
+      },
+      {
+        "action": "Claim",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 0,
+            "w2": 3
+          },
+          "token": 3
+        }
+      },
+      {
+        "action": "GiveBack",
+        "state": {
+          "done": 0,
+          "item": "ready",
+          "live": false,
+          "mine": {
+            "w1": 0,
+            "w2": 0
+          },
+          "token": 3
+        }
+      },
+      {
+        "action": "OutOfTokens",
+        "state": {
+          "done": 0,
+          "item": "ready",
+          "live": false,
+          "mine": {
+            "w1": 0,
+            "w2": 0
+          },
+          "token": 3
+        }
+      }
+    ]
+  },
+  "silent-holder": {
+    "initial": {
+      "done": 0,
+      "item": "ready",
+      "live": false,
+      "mine": {
+        "w1": 0,
+        "w2": 0
+      },
+      "token": 0
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 0,
+            "w2": 1
+          },
+          "token": 1
+        }
+      },
+      {
+        "action": "LeaseRunsOut",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": false,
+          "mine": {
+            "w1": 0,
+            "w2": 1
+          },
+          "token": 1
+        }
+      },
+      {
+        "action": "Claim",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 2,
+            "w2": 1
+          },
+          "token": 2
+        }
+      },
+      {
+        "action": "Complete",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 2,
+            "w2": 0
+          },
+          "token": 2
+        }
+      }
+    ]
+  },
+  "late-renew": {
+    "initial": {
+      "done": 0,
+      "item": "ready",
+      "live": false,
+      "mine": {
+        "w1": 0,
+        "w2": 0
+      },
+      "token": 0
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 0,
+            "w2": 1
+          },
+          "token": 1
+        }
+      },
+      {
+        "action": "LeaseRunsOut",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": false,
+          "mine": {
+            "w1": 0,
+            "w2": 1
+          },
+          "token": 1
+        }
+      },
+      {
+        "action": "Renew",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 0,
+            "w2": 1
+          },
+          "token": 1
+        }
+      }
+    ]
+  },
+  "stale-completion": {
+    "initial": {
+      "done": 0,
+      "item": "ready",
+      "live": false,
+      "mine": {
+        "w1": 0,
+        "w2": 0
+      },
+      "token": 0
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 0,
+            "w2": 1
+          },
+          "token": 1
+        }
+      },
+      {
+        "action": "LeaseRunsOut",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": false,
+          "mine": {
+            "w1": 0,
+            "w2": 1
+          },
+          "token": 1
+        }
+      },
+      {
+        "action": "Claim",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 2,
+            "w2": 1
+          },
+          "token": 2
+        }
+      },
+      {
+        "action": "Complete",
+        "state": {
+          "done": 0,
+          "item": "held",
+          "live": true,
+          "mine": {
+            "w1": 2,
+            "w2": 0
+          },
+          "token": 2
+        }
+      },
+      {
+        "action": "Complete",
+        "state": {
+          "done": 1,
+          "item": "done",
+          "live": false,
+          "mine": {
+            "w1": 0,
+            "w2": 0
+          },
+          "token": 2
+        }
+      },
+      {
+        "action": "Finished",
+        "state": {
+          "done": 1,
+          "item": "done",
+          "live": false,
+          "mine": {
+            "w1": 0,
+            "w2": 0
+          },
+          "token": 2
+        }
+      }
+    ]
+  }
+}

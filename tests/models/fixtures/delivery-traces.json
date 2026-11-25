@@ -1,0 +1,718 @@
+{
+  "own-retry": {
+    "initial": {
+      "d": "none",
+      "epoch": 1,
+      "got": 0,
+      "host": 1,
+      "pEpoch": 0,
+      "rc": false,
+      "st": "waiting"
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "Start",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Apply",
+        "state": {
+          "d": "sent",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "DaemonRestarts",
+        "state": {
+          "d": "unknown",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Apply",
+        "state": {
+          "d": "sent",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Ack",
+        "state": {
+          "d": "none",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 0,
+          "rc": true,
+          "st": "delivered"
+        }
+      },
+      {
+        "action": "Done",
+        "state": {
+          "d": "none",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 0,
+          "rc": true,
+          "st": "delivered"
+        }
+      }
+    ]
+  },
+  "return-unstarted": {
+    "initial": {
+      "d": "none",
+      "epoch": 1,
+      "got": 0,
+      "host": 1,
+      "pEpoch": 0,
+      "rc": false,
+      "st": "waiting"
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "DaemonRestarts",
+        "state": {
+          "d": "unknown",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "Requeue",
+        "state": {
+          "d": "none",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 0,
+          "rc": false,
+          "st": "waiting"
+        }
+      }
+    ]
+  },
+  "successor-unstarted": {
+    "initial": {
+      "d": "none",
+      "epoch": 1,
+      "got": 0,
+      "host": 1,
+      "pEpoch": 0,
+      "rc": false,
+      "st": "waiting"
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "HostDies",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 0,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "Reopen",
+        "state": {
+          "d": "fresh",
+          "epoch": 2,
+          "got": 0,
+          "host": 2,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "Supersede",
+        "state": {
+          "d": "none",
+          "epoch": 2,
+          "got": 0,
+          "host": 2,
+          "pEpoch": 0,
+          "rc": false,
+          "st": "waiting"
+        }
+      }
+    ]
+  },
+  "successor-with-receipt": {
+    "initial": {
+      "d": "none",
+      "epoch": 1,
+      "got": 0,
+      "host": 1,
+      "pEpoch": 0,
+      "rc": false,
+      "st": "waiting"
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "Start",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Apply",
+        "state": {
+          "d": "sent",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "HostDies",
+        "state": {
+          "d": "sent",
+          "epoch": 1,
+          "got": 1,
+          "host": 0,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Reopen",
+        "state": {
+          "d": "sent",
+          "epoch": 2,
+          "got": 1,
+          "host": 2,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Supersede",
+        "state": {
+          "d": "none",
+          "epoch": 2,
+          "got": 1,
+          "host": 2,
+          "pEpoch": 0,
+          "rc": true,
+          "st": "delivered"
+        }
+      },
+      {
+        "action": "Done",
+        "state": {
+          "d": "none",
+          "epoch": 2,
+          "got": 1,
+          "host": 2,
+          "pEpoch": 0,
+          "rc": true,
+          "st": "delivered"
+        }
+      }
+    ]
+  },
+  "successor-without-receipt": {
+    "initial": {
+      "d": "none",
+      "epoch": 1,
+      "got": 0,
+      "host": 1,
+      "pEpoch": 0,
+      "rc": false,
+      "st": "waiting"
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "Start",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "started"
+        }
+      },
+      {
+        "action": "HostDies",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 0,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Reopen",
+        "state": {
+          "d": "fresh",
+          "epoch": 2,
+          "got": 0,
+          "host": 2,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Supersede",
+        "state": {
+          "d": "none",
+          "epoch": 2,
+          "got": 0,
+          "host": 2,
+          "pEpoch": 0,
+          "rc": false,
+          "st": "waiting"
+        }
+      }
+    ]
+  },
+  "paste-correlate": {
+    "initial": {
+      "d": "none",
+      "epoch": 1,
+      "got": 0,
+      "host": 1,
+      "pEpoch": 0,
+      "rc": false,
+      "st": "waiting"
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "Start",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Apply",
+        "state": {
+          "d": "sent",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "DaemonRestarts",
+        "state": {
+          "d": "unknown",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "ReportAmbiguous",
+        "state": {
+          "d": "none",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 0,
+          "rc": true,
+          "st": "ambiguous"
+        }
+      },
+      {
+        "action": "Correlate",
+        "state": {
+          "d": "none",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 0,
+          "rc": true,
+          "st": "delivered"
+        }
+      },
+      {
+        "action": "Done",
+        "state": {
+          "d": "none",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 0,
+          "rc": true,
+          "st": "delivered"
+        }
+      }
+    ]
+  },
+  "paste-resend": {
+    "initial": {
+      "d": "none",
+      "epoch": 1,
+      "got": 0,
+      "host": 1,
+      "pEpoch": 0,
+      "rc": false,
+      "st": "waiting"
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "Start",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Apply",
+        "state": {
+          "d": "sent",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "DaemonRestarts",
+        "state": {
+          "d": "unknown",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "ReportAmbiguous",
+        "state": {
+          "d": "none",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 0,
+          "rc": true,
+          "st": "ambiguous"
+        }
+      },
+      {
+        "action": "SendAgain",
+        "state": {
+          "d": "none",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 0,
+          "rc": true,
+          "st": "waiting"
+        }
+      },
+      {
+        "action": "Claim",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "Start",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 1,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Apply",
+        "state": {
+          "d": "sent",
+          "epoch": 1,
+          "got": 2,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": true,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Ack",
+        "state": {
+          "d": "none",
+          "epoch": 1,
+          "got": 2,
+          "host": 1,
+          "pEpoch": 0,
+          "rc": true,
+          "st": "delivered"
+        }
+      },
+      {
+        "action": "Done",
+        "state": {
+          "d": "none",
+          "epoch": 1,
+          "got": 2,
+          "host": 1,
+          "pEpoch": 0,
+          "rc": true,
+          "st": "delivered"
+        }
+      }
+    ]
+  },
+  "paste-successor": {
+    "initial": {
+      "d": "none",
+      "epoch": 1,
+      "got": 0,
+      "host": 1,
+      "pEpoch": 0,
+      "rc": false,
+      "st": "waiting"
+    },
+    "steps": [
+      {
+        "action": "Claim",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "claimed"
+        }
+      },
+      {
+        "action": "Start",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 1,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "started"
+        }
+      },
+      {
+        "action": "HostDies",
+        "state": {
+          "d": "fresh",
+          "epoch": 1,
+          "got": 0,
+          "host": 0,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Reopen",
+        "state": {
+          "d": "fresh",
+          "epoch": 2,
+          "got": 0,
+          "host": 2,
+          "pEpoch": 1,
+          "rc": false,
+          "st": "started"
+        }
+      },
+      {
+        "action": "Supersede",
+        "state": {
+          "d": "none",
+          "epoch": 2,
+          "got": 0,
+          "host": 2,
+          "pEpoch": 0,
+          "rc": false,
+          "st": "ambiguous"
+        }
+      },
+      {
+        "action": "HostDies",
+        "state": {
+          "d": "none",
+          "epoch": 2,
+          "got": 0,
+          "host": 0,
+          "pEpoch": 0,
+          "rc": false,
+          "st": "ambiguous"
+        }
+      },
+      {
+        "action": "Parked",
+        "state": {
+          "d": "none",
+          "epoch": 2,
+          "got": 0,
+          "host": 0,
+          "pEpoch": 0,
+          "rc": false,
+          "st": "ambiguous"
+        }
+      }
+    ]
+  }
+}
