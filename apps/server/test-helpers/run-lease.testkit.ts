@@ -43,6 +43,7 @@ export async function setupRunLease() {
       const conversation = await rows.conversation(owner, {
         agent_type: "codex",
         execution_protocol_state: "fenced",
+        owner_device_id: machine,
       });
       const head = await db.insert("conversation_execution_heads", {
         conversation_id: conversation,

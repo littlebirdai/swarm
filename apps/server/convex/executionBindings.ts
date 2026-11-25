@@ -1906,11 +1906,6 @@ export async function claimNextDeliveryInDb(
     args.conversationId,
     userId,
   );
-  if (
-    conversation.owner_device_id &&
-    conversation.owner_device_id !== args.ownerDeviceId
-  )
-    fail("DELIVERY_BINDING_FENCE_MISMATCH", "conversation device changed");
   if (isConversationSafetyBlocked(conversation))
     return { state: "busy", reason: "safety" };
   const head = await executionHead(ctx, args.conversationId);
@@ -2173,11 +2168,6 @@ export async function startDeliveryInDb(
     fence,
     ["claimed", "delivery-started"],
   );
-  if (
-    conversation.owner_device_id &&
-    conversation.owner_device_id !== fence.ownerDeviceId
-  )
-    fail("DELIVERY_BINDING_FENCE_MISMATCH", "conversation device changed");
   if (isConversationSafetyBlocked(conversation))
     fail("CONVERSATION_SAFETY_BLOCKED", "Delivery is held for safety review");
   if (

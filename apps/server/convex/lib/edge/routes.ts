@@ -111,7 +111,9 @@ function workAction<T>(
     bearer: string,
     body: T,
   ) => Promise<
-    Response | { status: string; retry_after_ms?: number } | EventsAppendResponse
+    | Response
+    | { status: string; retry_after_ms?: number }
+    | EventsAppendResponse
   >,
   options?: { operation?: "renew" | "blob"; batches?: (body: T) => number },
 ) {

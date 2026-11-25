@@ -33,7 +33,8 @@ boot. The mutation checks the fence before it reads the cursor.
 
 If the conversation moves to a different device, the old device loses
 access to new work. It can still settle an attempt that it started if
-the account, run, lease, and attempt fences still match.
+the account, run, lease, and attempt fences still match. It can also
+release its own lease. The server requires an assigned device.
 
 The cursor row holds the last accepted sequence. The server sets the base
 when the epoch becomes active. The first epoch starts at zero. A successor
@@ -62,7 +63,8 @@ The turn row stores no authors. Use the server delivery record to identify
 the sender who started the turn. If there is no such record, the sender
 is unknown. A new boot or a replacement lease for a dead process clears
 the open turn, its prompts, and the recent turn IDs. Adapters can reuse
-turn IDs after a restart.
+turn IDs after a restart. A boot change clears the turn row
+even while the upload flag is off.
 
 A fresh projection requires a ready `execution_bindings` row and an active lease.
 It also requires the same run, the current version, and active status.

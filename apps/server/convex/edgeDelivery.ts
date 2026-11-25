@@ -28,7 +28,10 @@ import {
   type PermitFence,
 } from "./lib/delivery-slot.state";
 import { ownedRun, runForDeliverySettlement } from "./lib/edge/runLease";
-import { inspectPermitImage, permitImageIds } from "./lib/edge/blob-policy.rules";
+import {
+  inspectPermitImage,
+  permitImageIds,
+} from "./lib/edge/blob-policy.rules";
 
 const runFence = {
   v: v.literal(v1),

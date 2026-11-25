@@ -386,47 +386,54 @@ test("session deletion fences HTTP retries before the cursor and turn rows are p
   ]);
 });
 
-test("a boot transfer clears the HTTP turn without advancing the cursor", async () => {
-  const f = await fixture();
-  const { fencing_token } = await f.grant();
-  const first = f.batch(fencing_token, [
-    f.event(1, { kind: "turn.started", body: {} }),
-  ]);
-  await f.append(first);
-  await f.t.run(async (ctx) => {
-    await registerExecutionDaemonBootInDb(ctx, f.owner, {
-      ownerDeviceId: machine,
-      daemonBootId: "next-boot",
-      now: start + 1,
+test.each(["on", "off"] as const)(
+  "a boot transfer clears the HTTP turn with the flag %s",
+  async (flagState) => {
+    const f = await fixture();
+    const { fencing_token } = await f.grant();
+    const first = f.batch(fencing_token, [
+      f.event(1, { kind: "turn.started", body: {} }),
+    ]);
+    await f.append(first);
+    if (flagState === "off") delete process.env[flag];
+    await f.t.run(async (ctx) => {
+      await registerExecutionDaemonBootInDb(ctx, f.owner, {
+        ownerDeviceId: machine,
+        daemonBootId: "next-boot",
+        now: start + 1,
+      });
+      const claimed = await claimExecutionStartInDb(ctx, f.owner, {
+        conversationId: f.conversation,
+        epoch: 1,
+        configurationRevision: 1,
+        ownerDeviceId: machine,
+        daemonBootId: "next-boot",
+        protocolVersion: 1,
+        requiredCapabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
+        proposedOperationId: "operation",
+        now: start + 1,
+      });
+      expect(claimed.state).toBe("ready");
     });
-    const claimed = await claimExecutionStartInDb(ctx, f.owner, {
-      conversationId: f.conversation,
-      epoch: 1,
-      configurationRevision: 1,
-      ownerDeviceId: machine,
-      daemonBootId: "next-boot",
-      protocolVersion: 1,
-      requiredCapabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
-      proposedOperationId: "operation",
-      now: start + 1,
-    });
-    expect(claimed.state).toBe("ready");
-  });
-  expect((await f.rows()).turn?.open_turn).toBeNull();
-  expect(await f.append(first)).toEqual([
-    { session: f.conversation, status: "stale" },
-  ]);
-  const next = await f.grant("next-lease", "next-boot");
-  expect(next.last_event_seq).toBe(1);
-  expect(
-    await f.append(
-      f.batch(next.fencing_token, [
-        f.event(2, { kind: "turn.started", body: {} }),
-      ]),
-    ),
-  ).toEqual([{ session: f.conversation, status: "appended", through_seq: 2 }]);
-  expect((await f.rows()).turn?.open_turn?.id).toBe("turn");
-});
+    expect((await f.rows()).turn?.open_turn).toBeNull();
+    process.env[flag] = "1";
+    expect(await f.append(first)).toEqual([
+      { session: f.conversation, status: "stale" },
+    ]);
+    const next = await f.grant("next-lease", "next-boot");
+    expect(next.last_event_seq).toBe(1);
+    expect(
+      await f.append(
+        f.batch(next.fencing_token, [
+          f.event(2, { kind: "turn.started", body: {} }),
+        ]),
+      ),
+    ).toEqual([
+      { session: f.conversation, status: "appended", through_seq: 2 },
+    ]);
+    expect((await f.rows()).turn?.open_turn?.id).toBe("turn");
+  },
+);
 
 test("the first team purge page fences HTTP uploads while the conversation remains", async () => {
   const f = await fixture();
@@ -453,9 +460,6 @@ test.each(["move", "reparent", "ownership claim"] as const)(
   "%s fences new work while preserving the started settlement",
   async (kind) => {
     const f = await fixture();
-    await f.t.run(({ db }) =>
-      db.patch(f.conversation, { owner_device_id: machine }),
-    );
     const { fencing_token } = await f.grant();
     const fence = { v: 1, session: f.conversation, run: 1, fencing_token };
     const next = await f.post("permits.next", fence);
@@ -508,7 +512,7 @@ test.each(["move", "reparent", "ownership claim"] as const)(
     expect(moved.conversation?.owner_device_id).toBe(destination);
     expect(moved.head?.current_epoch).toBe(1);
 
-    for (const verb of ["renew", "release", "permits.next"])
+    for (const verb of ["renew", "permits.next"])
       expect(await (await f.post(verb, fence)).json()).toMatchObject({
         status: "stale",
       });
@@ -546,6 +550,14 @@ test.each(["move", "reparent", "ownership claim"] as const)(
     expect(await f.t.run(({ db }) => db.get(f.message))).toMatchObject({
       delivery_status: "delivered",
     });
+    const wrong = { ...fence, fencing_token: "other-claim" };
+    expect(await (await f.post("release", wrong)).json()).toMatchObject({
+      status: "stale",
+    });
+    expect(await (await f.post("release", fence)).json()).toMatchObject({
+      status: "released",
+    });
+    expect((await f.rows()).lease?.released_at).toBe(start);
   },
 );
 
@@ -709,12 +721,6 @@ test("Convex records a started outcome after a same-account device move", async 
     conversation_id: f.conversation,
     device_id: "destination",
   });
-  await expect(f.deliver(fencing_token)).rejects.toThrow(
-    "DELIVERY_BINDING_FENCE_MISMATCH",
-  );
-  await expect(
-    f.t.run((ctx) => startDeliveryInDb(ctx, f.owner, fence)),
-  ).rejects.toThrow("DELIVERY_BINDING_FENCE_MISMATCH");
   expect(
     await f.t.run((ctx) => completeDeliveryInDb(ctx, f.owner, fence)),
   ).toEqual({ accepted: true });

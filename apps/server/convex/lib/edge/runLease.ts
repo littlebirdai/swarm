@@ -107,7 +107,8 @@ export async function runForDeliverySettlement(
   const conversation = await ctx.db.get(conversationId);
   if (
     conversation?.user_id !== auth.userId ||
-    conversation.execution_protocol_state !== "fenced"
+    conversation.execution_protocol_state !== "fenced" ||
+    !conversation.owner_device_id
   )
     return null;
   const head = await ctx.db
@@ -140,12 +141,9 @@ export async function runForDeliverySettlement(
 
 export async function ownedRun(ctx: Pick<QueryCtx, "db">, args: Address) {
   const owned = await runForDeliverySettlement(ctx, args);
-  if (
-    owned?.conversationDeviceId &&
-    owned.conversationDeviceId !== owned.binding.owner_device_id
-  )
-    return null;
-  return owned;
+  return owned && owned.conversationDeviceId === owned.binding.owner_device_id
+    ? owned
+    : null;
 }
 
 const stale = { v: RUN_LEASE_VERSION, status: "stale" } as const;
@@ -220,8 +218,13 @@ export async function claimRunLease(
   } as const;
 }
 
-async function currentClaim(ctx: MutationCtx, args: Fence, now: number) {
-  const owned = await ownedRun(ctx, args);
+async function currentClaim(
+  ctx: MutationCtx,
+  args: Fence,
+  now: number,
+  loadRun = ownedRun,
+) {
+  const owned = await loadRun(ctx, args);
   if (
     !owned ||
     owned.binding.epoch !== args.run ||
@@ -258,7 +261,7 @@ export async function renewRunLease(ctx: MutationCtx, args: Fence) {
 
 export async function releaseRunLease(ctx: MutationCtx, args: Fence) {
   const now = Date.now();
-  const current = await currentClaim(ctx, args, now);
+  const current = await currentClaim(ctx, args, now, runForDeliverySettlement);
   if (!current) return stale;
   const { lease } = current;
   await ctx.db.patch(lease._id, { released_at: now });
