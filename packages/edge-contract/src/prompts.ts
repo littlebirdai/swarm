@@ -5,15 +5,13 @@ import {
   EdgeParseError,
   nonEmptyString,
   object,
+  oneOf,
   optional,
   type Reader,
 } from "./parse";
 
-function boundedPatterns(
-  maxItems: number,
-  maxLength: number,
-): Reader<string[]> {
-  const read = array(boundedText(maxLength, true));
+function boundedList<T>(readItem: Reader<T>, maxItems: number): Reader<T[]> {
+  const read = array(readItem);
   return (value, path) => {
     if (Array.isArray(value) && value.length > maxItems) {
       throw new EdgeParseError(
@@ -28,10 +26,25 @@ function boundedPatterns(
 
 const readRuleRequest = object({
   permission: boundedText(80),
-  patterns: boundedPatterns(32, 32_000),
-  always: boundedPatterns(8, 1_000),
+  patterns: boundedList(boundedText(32_000, true), 32),
+  always: boundedList(boundedText(1_000, true), 8),
   opaque: optional(boolean),
 });
+
+const boundedOptionText = boundedText(128, true);
+const readOptionText: Reader<string> = (value, path) =>
+  boundedOptionText(nonEmptyString(value, path), path);
+
+const readOptions = boundedList(
+  object({
+    id: readOptionText,
+    label: readOptionText,
+    kind: optional(
+      oneOf("allow_once", "allow_always", "reject_once", "reject_always"),
+    ),
+  }),
+  16,
+);
 
 const readSummary: Reader<string> = (value, path) => {
   const summary = boundedText(500)(value, path);
@@ -65,6 +78,21 @@ export const readPromptOpened = object({
     return request;
   }),
   summary: optional(readSummary),
+  options: optional((value, path) => {
+    const options = readOptions(value, path);
+    const ids = new Set<string>();
+    for (const [index, { id }] of options.entries()) {
+      if (ids.has(id)) {
+        throw new EdgeParseError(
+          "invalid_value",
+          `${path}[${index}].id`,
+          "expected a unique option ID",
+        );
+      }
+      ids.add(id);
+    }
+    return options;
+  }),
 });
 
 export type PromptOpened = ReturnType<typeof readPromptOpened>;

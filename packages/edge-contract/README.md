@@ -134,7 +134,7 @@ when the server advertises support.
 
 ### Prompt details
 
-The body of `prompt.opened` can carry four optional fields. Text limits use
+The body of `prompt.opened` can carry these optional fields. Text limits use
 UTF-16 code units.
 
 - `tool_call_id` has a limit of 256.
@@ -146,10 +146,21 @@ UTF-16 code units.
   `patterns` and 8 `always` entries, each up to 1,000 code units.
   An opaque request with one pattern and no `always` entries can carry up to
   32,000 code units in its pattern.
+- `options` holds up to 16 entries. Each entry has an `id` and a `label` of
+  1 to 128 code units. IDs must be unique within the prompt. The optional
+  `kind` is `allow_once`, `allow_always`, `reject_once`, or `reject_always`.
 
-The machine must redact the summary before it sends the event. The server
-decides whether the prompt is routine. It can verify a read inside the
-workspace or a question that runs no code. Pass that verification to
+The machine must apply the same redaction to agent-supplied option labels
+and to the summary before it sends the event.
+
+For an ACP permission prompt, send the selected ID as the JSON string in
+the command's `args.answer` and in `prompt.settled.body.answer`. The handler
+must check that the open prompt accepts an option selection and offered that
+ID before applying the answer.
+
+The server decides whether the prompt is routine independently of its
+options. It can verify a read inside the workspace or a question that runs
+no code. Pass that verification to
 `classifyPrompt`. A verified question needs a prompt of kind `question` and a
 non-blank summary. A verified workspace read needs a prompt of kind
 `permission`, a non-blank summary, a tool call ID, a tool name, and a `read` rule request with
