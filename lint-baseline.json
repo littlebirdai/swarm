@@ -27932,7 +27932,7 @@
   "apps/web/store/cacheEvents.ts": {
     "swarm/no-comments": 24
   },
-  "apps/web/store/cacheOwnership.ts": {
+  "apps/web/store/cache-ownership.ts": {
     "swarm/no-comments": 49
   },
   "apps/web/store/cacheOwnershipRule.ts": {
