@@ -1,0 +1,30 @@
+name: Deploy Swarm backend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swarm-production-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'littlebirdai/swarm' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: swarm-production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Check production inventory and deploy
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.SWARM_CONVEX_DEPLOY_KEY }}
+        run: scripts/deploy-backend.sh

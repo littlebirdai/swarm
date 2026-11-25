@@ -1,6 +1,6 @@
 # apps/server
 
-Deploys go through `deploy.sh` only; the root `CLAUDE.md` explains why, and covers workspace access rules. This file covers tests and the typecheck failures specific to Convex code.
+Swarm production deploys are paused. The manual GitHub Actions workflow and the dev watcher are described in the root `CLAUDE.md`, which also covers workspace access rules. This file covers tests and the typecheck failures specific to Convex code.
 
 ## Tests
 

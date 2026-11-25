@@ -29,6 +29,12 @@
 // (only that key and CONVEX_SELF_HOSTED_URL are read from it), and is never printed.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
+import {
+  changedInventory,
+  functionFingerprint,
+  swarmSchemaInventory,
+  type Inventory,
+} from "./swarm-inventory";
 
 export const EXIT_UNREADABLE = 3;
 const PROD_TIMEOUT_MS = 30_000;
@@ -84,6 +90,7 @@ export type ApiSpecEntry = {
   identifier?: string | null;
   method?: string;
   path?: string;
+  visibility?: { kind: string } | null;
 };
 
 /** Function and HTTP route names from prod's `_system/cli/modules:apiSpec`.
@@ -137,21 +144,56 @@ type RouterLike = {
 export function namesFromModule(
   mod: string,
   exports: Record<string, unknown>,
+  publicOnly = false,
 ): string[] {
-  const names: string[] = [];
+  return moduleInventory(mod, exports, publicOnly ? "public" : "legacy").map(
+    ([name]) => name,
+  );
+}
+
+type InventoryMode = "legacy" | "swarm" | "public";
+
+function moduleInventory(
+  mod: string,
+  exports: Record<string, unknown>,
+  mode: InventoryMode,
+): Inventory {
+  const names: Inventory = [];
   for (const [name, value] of Object.entries(exports)) {
     const v = value as {
       isQuery?: boolean;
       isMutation?: boolean;
       isAction?: boolean;
+      isPublic?: boolean;
     } | null;
-    if (v && (v.isQuery || v.isMutation || v.isAction))
-      names.push(`fn:${mod}:${name}`);
+    if (
+      v &&
+      (v.isQuery || v.isMutation || v.isAction) &&
+      (mode !== "public" || v.isPublic)
+    )
+      names.push([
+        `fn:${mod}:${name}`,
+        mode === "swarm"
+          ? functionFingerprint(
+              v.isQuery ? "query" : v.isMutation ? "mutation" : "action",
+              v.isPublic ? "public" : "internal",
+            )
+          : "",
+      ]);
   }
   const router = exports.default as RouterLike | undefined;
   if (mod === "http" && router?.isRouter) {
     for (const [path, method] of router.getRoutes())
-      names.push(`http:${method} ${path}`);
+      names.push([`http:${method} ${path}`, ""]);
+  }
+  if (mode === "swarm" && mod === "crons") {
+    const crons = exports.default as
+      | { isCrons?: boolean; crons?: Record<string, unknown> }
+      | undefined;
+    if (!crons?.isCrons || !crons.crons)
+      throw new Error("invalid root cron inventory");
+    for (const name of Object.keys(crons.crons))
+      names.push([`cron:${name}`, ""]);
   }
   return names;
 }
@@ -223,18 +265,28 @@ function listModules(dir: string): string[] {
 
 /** Loads the schema and every entry module. Throws naming any module that
  *  failed to load: its functions would otherwise read as drops. */
-export async function treeNames(dir = FUNCTIONS_DIR): Promise<string[]> {
+async function treeInventory(
+  dir: string,
+  mode: InventoryMode,
+): Promise<Inventory> {
   const schema = (await import(join(dir, "schema.ts"))).default as {
     export: () => string;
   };
-  const names = namesFromSchema(JSON.parse(schema.export()) as SchemaJson);
+  const exported = JSON.parse(schema.export());
+  const names: Inventory =
+    mode === "swarm"
+      ? swarmSchemaInventory(exported)
+      : mode === "public"
+        ? []
+        : namesFromSchema(exported as SchemaJson).map((name) => [name, ""]);
   const failed: string[] = [];
   const loaded = await Promise.all(
     listModules(dir).map(async (rel) => {
       try {
-        return namesFromModule(
+        return moduleInventory(
           moduleName(rel),
           (await import(join(dir, rel))) as Record<string, unknown>,
+          mode,
         );
       } catch (e) {
         failed.push(`${rel}: ${(e as Error)?.message ?? e}`);
@@ -249,11 +301,37 @@ export async function treeNames(dir = FUNCTIONS_DIR): Promise<string[]> {
   return names.concat(loaded.flat());
 }
 
-async function runTreeChild(): Promise<string[]> {
-  const child = Bun.spawn([process.execPath, import.meta.path, "--tree-only"], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+export async function treeNames(
+  dir = FUNCTIONS_DIR,
+  publicOnly = false,
+): Promise<string[]> {
+  const inventory = await treeInventory(dir, publicOnly ? "public" : "legacy");
+  return inventory.map(([name]) => name);
+}
+
+export function runTreeChild(mode: "swarm"): Promise<Inventory>;
+export function runTreeChild(mode?: "legacy" | "public"): Promise<string[]>;
+export async function runTreeChild(
+  mode: InventoryMode = "legacy",
+): Promise<string[] | Inventory> {
+  const { CONVEX_DEPLOY_KEY: _, ...env } = process.env;
+  const child = Bun.spawn(
+    [
+      process.execPath,
+      ...(mode === "legacy" ? [] : ["--no-env-file"]),
+      import.meta.path,
+      mode === "swarm"
+        ? "--swarm-tree"
+        : mode === "public"
+          ? "--public-tree"
+          : "--tree-only",
+    ],
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: mode === "legacy" ? process.env : env,
+    },
+  );
   const timer = setTimeout(() => child.kill(), TREE_TIMEOUT_MS);
   const [out, err, code] = await Promise.all([
     new Response(child.stdout).text(),
@@ -268,7 +346,7 @@ async function runTreeChild(): Promise<string[]> {
       `tree read failed (exit ${code}${child.signalCode ? `, ${child.signalCode}` : ""}):\n${tail}`,
     );
   }
-  return JSON.parse(out) as string[];
+  return JSON.parse(out) as string[] | Inventory;
 }
 
 // ---------------------------------------------------------------- prod side
@@ -298,6 +376,7 @@ async function systemQuery(
   url: string,
   key: string,
   path: string,
+  args: object = {},
 ): Promise<unknown> {
   const res = await fetch(`${url}/api/query`, {
     method: "POST",
@@ -305,7 +384,7 @@ async function systemQuery(
       "Content-Type": "application/json",
       Authorization: `Convex ${key}`,
     },
-    body: JSON.stringify({ path, args: {}, format: "json" }),
+    body: JSON.stringify({ path, args, format: "json" }),
     signal: AbortSignal.timeout(PROD_TIMEOUT_MS),
   });
   const body = (await res.json().catch(() => null)) as {
@@ -321,7 +400,7 @@ async function systemQuery(
   return body.value;
 }
 
-export async function prodNames(url: string, key: string): Promise<string[]> {
+async function readProduction(url: string, key: string) {
   const [schemas, spec] = await Promise.all([
     systemQuery(url, key, "_system/frontend/getSchemas") as Promise<{
       active?: string | null;
@@ -331,7 +410,74 @@ export async function prodNames(url: string, key: string): Promise<string[]> {
     >,
   ]);
   if (!Array.isArray(spec)) throw new Error("apiSpec did not return an array");
-  return namesFromActiveSchema(schemas?.active).concat(namesFromApiSpec(spec));
+  return { active: schemas?.active, spec };
+}
+
+export async function prodNames(url: string, key: string): Promise<string[]> {
+  const { active, spec } = await readProduction(url, key);
+  return namesFromActiveSchema(active).concat(namesFromApiSpec(spec));
+}
+
+async function swarmProductionInventory(
+  url: string,
+  key: string,
+): Promise<Inventory> {
+  const { active, spec } = await readProduction(url, key);
+  if (active !== null && (typeof active !== "string" || !active))
+    throw new Error("getSchemas did not return an active schema or null");
+  const inventory = active ? swarmSchemaInventory(JSON.parse(active)) : [];
+  for (const entry of spec) {
+    if (
+      entry?.functionType === "HttpAction" &&
+      typeof entry.method === "string" &&
+      entry.method &&
+      typeof entry.path === "string" &&
+      entry.path.startsWith("/")
+    ) {
+      inventory.push([`http:${entry.method} ${entry.path}`, ""]);
+    } else if (
+      entry &&
+      ["Query", "Mutation", "Action"].includes(entry.functionType) &&
+      typeof entry.identifier === "string" &&
+      /^.+\.[cm]?[jt]sx?:[^:]+$/.test(entry.identifier) &&
+      (entry.visibility?.kind === "public" ||
+        entry.visibility?.kind === "internal")
+    ) {
+      inventory.push([
+        namesFromApiSpec([entry])[0]!,
+        functionFingerprint(entry.functionType, entry.visibility.kind),
+      ]);
+    } else {
+      throw new Error("apiSpec contains an unrecognized function or route");
+    }
+  }
+
+  let cursor: string | null = null;
+  const seen = new Set<string>();
+  for (;;) {
+    const result = (await systemQuery(url, key, "_system/cli/tableData", {
+      table: "_cron_jobs",
+      order: "asc",
+      paginationOpts: { cursor, numItems: 100 },
+    })) as {
+      page?: Array<{ name?: string }>;
+      isDone?: boolean;
+      continueCursor?: string;
+    } | null;
+    if (!Array.isArray(result?.page) || typeof result.isDone !== "boolean")
+      throw new Error("invalid production cron inventory page");
+    for (const job of result.page) {
+      if (typeof job?.name !== "string" || !job.name)
+        throw new Error("invalid production cron name");
+      inventory.push([`cron:${job.name}`, ""]);
+    }
+    if (result.isDone) return inventory;
+    const next = result.continueCursor;
+    if (typeof next !== "string" || !next || seen.has(next))
+      throw new Error("invalid production cron cursor");
+    seen.add(next);
+    cursor = next;
+  }
 }
 
 // ---------------------------------------------------------------- main
@@ -345,12 +491,76 @@ async function timed<T>(
 }
 
 async function main(argv: string[]): Promise<number> {
-  if (argv.includes("--tree-only")) {
+  if (
+    argv.includes("--tree-only") ||
+    argv.includes("--public-tree") ||
+    argv.includes("--swarm-tree")
+  ) {
     // Modules log on load (an analytics warning); keep stdout for the JSON.
     console.log = console.info = console.debug = console.warn = console.error;
     try {
-      await Bun.write(Bun.stdout, JSON.stringify(await treeNames()));
+      const inventory = argv.includes("--swarm-tree")
+        ? await treeInventory(FUNCTIONS_DIR, "swarm")
+        : await treeNames(FUNCTIONS_DIR, argv.includes("--public-tree"));
+      await Bun.write(Bun.stdout, JSON.stringify(inventory));
       return 0;
+    } catch (e) {
+      console.error(`prod-diff: ${(e as Error)?.message ?? e}`);
+      return EXIT_UNREADABLE;
+    }
+  }
+
+  if (argv[0] === "--swarm-gate") {
+    const deployment = argv[1];
+    const key = process.env.CONVEX_DEPLOY_KEY;
+    if (
+      !deployment ||
+      !/^[a-z0-9-]+$/.test(deployment) ||
+      !key?.startsWith(`prod:${deployment}|`)
+    ) {
+      console.error(
+        "prod-diff: Swarm production deployment and key must match.",
+      );
+      return EXIT_UNREADABLE;
+    }
+    try {
+      const allowlist: unknown = JSON.parse(await Bun.stdin.text());
+      if (
+        !allowlist ||
+        typeof allowlist !== "object" ||
+        Array.isArray(allowlist) ||
+        Object.entries(allowlist).some(
+          ([name, reason]) =>
+            !/^(?:fn:[^:\s]+:[^:\s]+|http:[A-Z]+ \/\S*|(?:index|table):\S+|cron:\S(?:.*\S)?)$/.test(
+              name,
+            ) ||
+            typeof reason !== "string" ||
+            !reason.trim(),
+        )
+      ) {
+        throw new Error(
+          "expected an object mapping exact inventory names to review reasons",
+        );
+      }
+      const [tree, prod] = await Promise.all([
+        runTreeChild("swarm"),
+        swarmProductionInventory(`https://${deployment}.convex.cloud`, key),
+      ]);
+      const diff = diffNames(
+        tree.map(([name]) => name),
+        prod.map(([name]) => name),
+      );
+      console.error(formatSummary(diff));
+      const changed = changedInventory(tree, prod);
+      for (const name of changed) console.error(`  CHANGED ${name}`);
+      const affected = new Set([...diff.drops, ...changed]);
+      for (const name of Object.keys(allowlist))
+        if (!affected.has(name)) console.error(`  UNUSED ALLOWLIST ${name}`);
+      const blocked = [...affected].filter(
+        (name) => !Object.hasOwn(allowlist, name),
+      );
+      for (const name of blocked) console.error(`  UNAPPROVED ${name}`);
+      return blocked.length ? 1 : 0;
     } catch (e) {
       console.error(`prod-diff: ${(e as Error)?.message ?? e}`);
       return EXIT_UNREADABLE;

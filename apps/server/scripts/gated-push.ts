@@ -23,7 +23,13 @@
 // The state machine is `Gate`, with every side effect injected, so the test
 // beside this file drives it with fakes; `main` below wires the real ones.
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync, statSync, watch } from "node:fs";
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  watch,
+} from "node:fs";
 import { join, relative, sep } from "node:path";
 
 export const QUIET_MS = 3_000;
@@ -317,7 +323,8 @@ export function devEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     env.CONVEX_DEPLOY_KEY ||
     env.CONVEX_SELF_HOSTED_URL ||
     env.CONVEX_SELF_HOSTED_ADMIN_KEY ||
-    env.CONVEX_PROVISION_HOST
+    env.CONVEX_PROVISION_HOST ||
+    env.CONVEX_OVERRIDE_ACCESS_TOKEN
   ) {
     throw new Error(
       "The Swarm watcher accepts only Convex dev deployments. Remove deploy keys and server overrides from the dev environment.",
@@ -326,9 +333,14 @@ export function devEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   // Older local setups use "anonymous" without a deployment name.
   const deployment =
     env.CONVEX_DEPLOYMENT === "anonymous" ? "" : (env.CONVEX_DEPLOYMENT ?? "");
+  const production = readFileSync(
+    join(ROOT, "scripts", "swarm-production-deployment.txt"),
+    "utf8",
+  ).trim();
   if (
-    deployment &&
-    !/^(?:(?:dev|local):[\w-]+|anonymous-[\w-]+)$/.test(deployment)
+    deployment.split(":").at(-1)?.toLowerCase() === production.toLowerCase() ||
+    (deployment &&
+      !/^(?:(?:dev|local):[\w-]+|anonymous-[\w-]+)$/.test(deployment))
   ) {
     throw new Error(
       "Set CONVEX_DEPLOYMENT to a Convex dev or local deployment.",
@@ -343,6 +355,7 @@ export function devEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     CONVEX_SELF_HOSTED_URL: "",
     CONVEX_SELF_HOSTED_ADMIN_KEY: "",
     CONVEX_PROVISION_HOST: "",
+    CONVEX_OVERRIDE_ACCESS_TOKEN: "",
   };
 }
 

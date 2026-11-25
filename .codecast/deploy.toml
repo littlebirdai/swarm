@@ -27,8 +27,8 @@
 # These live apart from workspace.toml because every released CLI validates that
 # file strictly and refuses keys it does not know.
 
-# Swarm's backend deploys separately (scripts/deploy-backend.sh) and no ship sends
-# it; Codecast's deploy.sh named here refuses in Swarm and says so.
+# Swarm production deploys are paused. The manual GitHub workflow is the
+# production path. Codecast's deploy.sh named here refuses in Swarm.
 [[target]]
 name = "backend"
 when = ["apps/server/**", "packages/**", "platform/**"]

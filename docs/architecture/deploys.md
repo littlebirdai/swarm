@@ -6,6 +6,36 @@ several fixes. This document makes that last step part of the line, and makes
 each deploy an object people can open, cite and read charts by. Sections are
 DP1 onward so code can cite them.
 
+## Swarm production backend
+
+Production deploys are paused. **Deploy Swarm backend** is a manual GitHub
+Actions workflow for `littlebirdai/swarm` on `main`. Pushes, pull requests,
+`cast ship`, the Line, and the dev watcher do not start it. Keep the
+`SWARM_CONVEX_DEPLOY_KEY` environment secret unset while deploys are paused.
+
+Before enabling deploys, configure the GitHub environment `swarm-production`
+to accept only `main`, require a reviewer, prevent self-review, and disallow
+protection bypass. Reserve the secret name for that environment. Store the
+production key there. GitHub enforces the environment settings. Someone who
+holds a copy of the key can use it with a standalone Convex CLI.
+
+The workflow verifies that its clean checkout still matches the tip of
+`main` before and after the inventory check. It reads the production
+function, HTTP route, cron, index, and schema table inventories and compares
+them with the checkout. It blocks unreadable inventories and unapproved
+removals. It also blocks function kind changes or public functions that become internal, index definition
+changes, and active indexes that become staged. Convex component inventories
+are outside this check. For an intentional removal, add the exact printed inventory name and
+a review reason to `scripts/swarm-production-drops.json` in the reviewed
+change. For example, `"index:sessions.by_legacy_id": "Migration verified"`
+allows that index removal. Include the migration or client compatibility
+evidence in the review. The gate warns when an allowlist entry has no matching
+change. Remove the entry after the deploy that uses it.
+
+The Swarm watcher accepts only dev and local deployments. It also rejects
+the production deployment's name when it appears with a dev label. The
+inherited Codecast deploy and production-runner paths refuse in Swarm.
+
 ## DP1. A deploy is an object
 
 `deploys` (convex), one row per version that went live, or was asked to, on

@@ -18,6 +18,30 @@ policy settings. This lets the server add optional response fields and policy
 settings in v1. A new request field, a change to an existing field, or a new
 response variant requires v2.
 
+### Release compatibility checks
+
+After the first release, the CI contract job reads the latest daemon requests
+frozen in the base commit with the
+current package and reads current responses with the parser from the
+frozen source commit. It checks additive response and policy fields and
+unfamiliar error codes. The backend inventory check reports missing public
+functions and HTTP routes named in the frozen daemon, web and mobile source
+references. It detects literal references and generated API member access.
+The source scan can miss dynamically constructed references. The tests
+run locally with source and fixtures.
+
+From the clean source commit used to cut a release, run
+`bun --no-env-file scripts/ci/freeze-edge-contract.ts <release-version>`.
+Commit the generated version directory under `test/releases/`. It contains the
+wire fixtures, source commit, client inventory, and fixture digests. Keep the
+source commit in the repository's history. CI compares existing directories
+with the PR base or previous main commit and rejects edits, additions, and
+deletions in frozen directories. Make future fixture changes under
+`test/fixtures/` and add a version directory at the next release.
+
+Freeze the first released version when its client and server ship. Until
+then, CI runs the current wire tests and the freeze guard tests.
+
 ## Backpressure and limits
 
 Any verb can return an error with `v`, `status: "error"`, `code`, `retryable`,

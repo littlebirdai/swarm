@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT="$(git rev-parse --show-toplevel)"
-bash "$ROOT/scripts/lib/fork-guard.sh" "Use scripts/deploy-backend.sh to deploy the Swarm backend."
+bash "$ROOT/scripts/lib/fork-guard.sh" "Swarm production deploys are paused. The manual Deploy Swarm backend workflow is the production path."
 
 # Run as an Interactive launchd job on macOS. Started from an agent shell, a
 # deploy inherits the utility QoS clamp and spends most of an hour in its
