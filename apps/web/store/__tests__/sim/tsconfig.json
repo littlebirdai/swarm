@@ -15,7 +15,8 @@
     "../inboxSimHarness.ts",
     "../inboxConvergenceSim.test.ts",
     "../inboxMultiWindowSim.test.ts",
-    "../../../scripts/sim.ts"
+    "../../../scripts/sim.ts",
+    "../../../scripts/sync-probe*.ts"
   ],
   "exclude": []
 }
