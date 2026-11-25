@@ -21,8 +21,8 @@ type Connection = {
 type Link = {
   connection: Connection;
   client: EdgeClient | undefined;
-  policy?: { revision: number; intervalMs: number };
-  nextAt: number;
+  policy?: { revision: number; intervalMs: number; nextAt: number };
+  holdUntil: number;
   failures: number;
   inFlight: boolean;
 };
@@ -30,6 +30,7 @@ type Link = {
 const HELLO_BACKOFF_MS = 30_000;
 const MAX_HELLO_BACKOFF_MS = 300_000;
 const CLOSE_BOUND_MS = 250;
+const MAX_EARLY_MS = 2_000;
 
 async function closeClient(client: EdgeClient | undefined): Promise<void> {
   if (!client) return;
@@ -73,18 +74,23 @@ export function createDaemonEdgeLink() {
               Authorization: `Bearer ${bearer}`,
             }),
           }),
-          nextAt: 0,
+          holdUntil: 0,
           failures: 0,
           inFlight: false,
         };
       }
       const link = active;
       const now = performance.now();
-      if (!link?.client || link.inFlight || now < link.nextAt) return;
+      if (!link?.client || link.inFlight || now < link.holdUntil) return;
+      const { policy } = link;
+      const early = policy
+        ? Math.min(MAX_EARLY_MS, Math.floor(policy.intervalMs / 10))
+        : 0;
+      if (policy && now + early < policy.nextAt) return;
       link.inFlight = true;
       try {
         let failure: EdgeFailure;
-        if (!link.policy) {
+        if (!policy) {
           const hello = await link.client.hello({
             machine,
             boot,
@@ -96,16 +102,19 @@ export function createDaemonEdgeLink() {
           });
           if (hello.ok) {
             const intervalMs = hello.value.policy.heartbeat_interval_ms;
-            link.policy = { revision: hello.value.policy.revision, intervalMs };
-            link.nextAt = now + intervalMs;
+            link.policy = {
+              revision: hello.value.policy.revision,
+              intervalMs,
+              nextAt: now + intervalMs,
+            };
             link.failures = 0;
             return;
           }
           failure = hello.error;
         } else {
-          const { revision, intervalMs } = link.policy;
-          const steps = Math.floor((now - link.nextAt) / intervalMs) + 1;
-          link.nextAt += steps * intervalMs;
+          const late = now + early - policy.nextAt;
+          policy.nextAt +=
+            (Math.floor(late / policy.intervalMs) + 1) * policy.intervalMs;
           const heartbeat = await link.client.heartbeat({
             v: EDGE_PROTOCOL_VERSION,
             machine,
@@ -113,10 +122,8 @@ export function createDaemonEdgeLink() {
             capacity,
           });
           if (heartbeat.ok) {
-            if (heartbeat.value.policy_revision !== revision) {
+            if (heartbeat.value.policy_revision !== policy.revision)
               link.policy = undefined;
-              link.nextAt = now;
-            }
             return;
           }
           failure = heartbeat.error;
@@ -135,21 +142,21 @@ export function createDaemonEdgeLink() {
             MAX_HELLO_BACKOFF_MS,
             HELLO_BACKOFF_MS * 2 ** link.failures++,
           );
-          link.nextAt = performance.now() + delay;
+          link.holdUntil = performance.now() + delay;
         }
         if (
           failure.kind === "unavailable" &&
           failure.retry_after_ms !== undefined
         )
-          link.nextAt = Math.max(
-            link.nextAt,
+          link.holdUntil = Math.max(
+            link.holdUntil,
             performance.now() + failure.retry_after_ms,
           );
         log(`[EDGE] ${failure.operation}: ${failure.kind}`);
       } catch {
         if (active === link && !shutdown) {
           if (!link.policy)
-            link.nextAt = performance.now() + MAX_HELLO_BACKOFF_MS;
+            link.holdUntil = performance.now() + MAX_HELLO_BACKOFF_MS;
           log("[EDGE] Link failed");
         }
       } finally {

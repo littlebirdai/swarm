@@ -53,13 +53,18 @@ const tick = (target = connection) =>
 const paths = () =>
   fetchMock.mock.calls.map(([input]) => new URL(String(input)).pathname);
 
-test("jitter does not accumulate across heartbeat targets", async () => {
+test.each([
+  ["late", [30_201, 60_005, 90_200, 120_003]],
+  ["alternating", [29_995, 60_005, 89_995, 120_005]],
+  ["after a slow hello", [29_900, 60_050, 89_900, 120_050]],
+])("%s ticks each send one heartbeat", async (_name, offsets) => {
   fetchMock.mockImplementation(async (input) =>
     String(input).endsWith("/hello") ? hello() : heartbeat(),
   );
   await tick();
-  for (const offset of [30_201, 60_005, 90_200, 120_003]) {
+  for (const offset of offsets) {
     now = 45_000 + offset;
+    await tick();
     await tick();
   }
   expect(paths()).toEqual([
@@ -67,6 +72,29 @@ test("jitter does not accumulate across heartbeat targets", async () => {
     ...Array<string>(4).fill("/edge/v1/heartbeat"),
   ]);
 });
+
+test("a tick far before the target sends nothing", async () => {
+  fetchMock.mockImplementation(async (input) =>
+    String(input).endsWith("/hello") ? hello() : heartbeat(),
+  );
+  await tick();
+  now += 27_999;
+  await tick();
+  expect(paths()).toEqual(["/edge/v1/hello"]);
+});
+
+test.each(["siteUrl", "bearer", "machine", "boot"] as const)(
+  "a new %s starts a new link",
+  async (field) => {
+    fetchMock.mockImplementation(async () => hello());
+    await tick();
+    await tick({
+      ...connection,
+      [field]: field === "siteUrl" ? "https://other.invalid" : "next",
+    });
+    expect(paths()).toEqual(["/edge/v1/hello", "/edge/v1/hello"]);
+  },
+);
 
 test("policy revision changes trigger hello on the next tick", async () => {
   fetchMock.mockImplementation(async (input) =>
@@ -192,8 +220,8 @@ for (const action of ["change connection", "shutdown"]) {
       await tick({ ...connection, boot: "next" });
       expect(paths()).toEqual(["/edge/v1/hello", "/edge/v1/hello"]);
     }
-    await pending;
     expect(signal.aborted).toBe(true);
+    await pending;
     expect(logs).toEqual([]);
   });
 }
