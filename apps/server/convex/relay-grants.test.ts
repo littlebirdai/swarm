@@ -434,6 +434,12 @@ test("fractional auth deadlines are rounded down and non-finite deadlines fail c
     expect(await caller.mutation(mint, { hubs: [hub] })).toEqual({
       status: "unauthenticated",
     });
+    for (const exp of [Number.NaN, Infinity])
+      expect(
+        await t
+          .withIdentity({ subject: `${owner}`, exp })
+          .mutation(mint, { hubs: [hub] }),
+      ).toEqual({ status: "unauthenticated" });
     expect(await counter()).toEqual(before);
   } finally {
     clock.mockRestore();

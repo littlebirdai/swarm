@@ -17,7 +17,7 @@ test("merging accounts collapses duplicate limiter rows and preserves both high-
       window_start: now - 5000,
       request_count: 20,
       last_request_at: now,
-      sequence: now + 1,
+      sequence: now + 10,
     });
     await db.insert("rate_limits", {
       user_id: to,
@@ -25,7 +25,7 @@ test("merging accounts collapses duplicate limiter rows and preserves both high-
       window_start: now - 2000,
       request_count: 25,
       last_request_at: now - 1,
-      sequence: now + 10,
+      sequence: now + 1,
     });
     await db.insert("rate_limits", {
       user_id: to,
