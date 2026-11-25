@@ -38,6 +38,7 @@ jobs:
       playground: ${{ steps.scope.outputs.playground }}
       infra: ${{ steps.scope.outputs.infra }}
       docs: ${{ steps.scope.outputs.docs }}
+      models: ${{ steps.scope.outputs.models }}
       run_build: ${{ steps.scope.outputs.run_build }}
       run_typecheck: ${{ steps.scope.outputs.run_typecheck }}
       run_lint: ${{ steps.scope.outputs.run_lint }}
@@ -49,6 +50,7 @@ jobs:
       run_test_shared: ${{ steps.scope.outputs.run_test_shared }}
       run_test_mobile: ${{ steps.scope.outputs.run_test_mobile }}
       run_test_electron: ${{ steps.scope.outputs.run_test_electron }}
+      run_test_models: ${{ steps.scope.outputs.run_test_models }}
       run_test_injection: ${{ steps.injection_scope.outputs.run_test_injection }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -608,6 +610,28 @@ jobs:
         working-directory: apps/desktop
         run: xvfb-run -a bun run test
 
+  test-models:
+    name: protocol models
+    needs: [code_paths]
+    if: needs.code_paths.outputs.run_test_models == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - uses: ./.github/actions/setup-bun
+        with:
+          deps: none
+
+      - name: Unit tests (TLC output)
+        working-directory: tests/models
+        run: bun test
+
+      - name: Check protocol models
+        run: JAVA_HOME="$JAVA_HOME_17_X64" bun tests/models/run-models.ts
+
   # `cast computer` needs a Mac, a Swift toolchain and a real signed bundle, so
   # none of it can run on the ubuntu lanes above. ADVISORY on purpose: it is
   # outside `verify`, and `continue-on-error` keeps a red here from failing the
@@ -746,6 +770,7 @@ jobs:
       - test-shared
       - test-mobile
       - test-electron
+      - test-models
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -774,6 +799,8 @@ jobs:
           TEST_MOBILE_SHOULD_RUN: ${{ needs.code_paths.outputs.run_test_mobile }}
           TEST_ELECTRON: ${{ needs.test-electron.result }}
           TEST_ELECTRON_SHOULD_RUN: ${{ needs.code_paths.outputs.run_test_electron }}
+          TEST_MODELS: ${{ needs.test-models.result }}
+          TEST_MODELS_SHOULD_RUN: ${{ needs.code_paths.outputs.run_test_models }}
         run: |
           failed=0
           # The ungated jobs. If code_paths or ci-contract did not succeed, the
@@ -821,4 +848,5 @@ jobs:
           check_job test-shared "$TEST_SHARED" "$TEST_SHARED_SHOULD_RUN"
           check_job test-mobile "$TEST_MOBILE" "$TEST_MOBILE_SHOULD_RUN"
           check_job test-electron "$TEST_ELECTRON" "$TEST_ELECTRON_SHOULD_RUN"
+          check_job test-models "$TEST_MODELS" "$TEST_MODELS_SHOULD_RUN"
           exit "$failed"

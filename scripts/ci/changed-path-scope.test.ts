@@ -176,12 +176,12 @@ describe("classifyChangedPaths", () => {
   // The vendored mirror is a dependency of every package, so a change to it
   // reaches every job that reads it, and the job that tests the mirror itself
   // (ct-49675).
-  test("a vendored platform change runs every gated job", () => {
+  test("a vendored platform change runs every job that uses the mirror", () => {
     const result = flags(["platform/packages/engine/src/store.ts"]);
     expect(result.platform).toBe(true);
     expect(result.packages).toBe(false);
     expect(ran(["platform/packages/engine/src/store.ts"])).toEqual(
-      [...GATED_JOBS].sort(),
+      GATED_JOBS.filter((job) => job !== "test-models").sort(),
     );
   });
 
@@ -271,6 +271,33 @@ describe("classifyChangedPaths", () => {
     ).toBe(false);
   });
 
+  test("a model, its expectations, or its runner starts the model job", () => {
+    expect(ran(["tests/models/SwarmFlow.tla"])).toEqual(["test-models"]);
+    expect(ran(["tests/models/expectations.json"])).toEqual(["test-models"]);
+    expect(ran(["tests/models/run-models.ts"])).toEqual([
+      "lint",
+      "test-models",
+    ]);
+    expect(ran(["docs/architecture/sync-host.md"])).not.toContain(
+      "test-models",
+    );
+  });
+
+  test("model flags agree for changes to models, the workflow, and Bun setup", () => {
+    for (const file of [
+      "tests/models/expectations.json",
+      ".github/workflows/ci.yml",
+      ".github/actions/setup-bun/action.yml",
+    ]) {
+      expect(flags([file]).models, file).toBe(true);
+      expect(flags([file]).run_test_models, file).toBe(true);
+    }
+    for (const file of ["apps/web/components/DiffView.tsx", "bun.lock"]) {
+      expect(flags([file]).models, file).toBe(false);
+      expect(flags([file]).run_test_models, file).toBe(false);
+    }
+  });
+
   test("an empty diff runs everything", () => {
     const result = flags([]);
     for (const area of AREAS) expect(result[area]).toBe(true);
@@ -282,9 +309,11 @@ describe("classifyChangedPaths", () => {
     expect(flags(["", "  ", "\n"]).run_test_cli).toBe(true);
   });
 
-  test("an unrecognised path runs everything and names itself", () => {
+  test("an unrecognised path runs the dependency jobs and names itself", () => {
     const scope = classifyChangedPaths(["tools/railway/web.toml"]);
-    for (const job of GATED_JOBS) expect(scope.flags[jobFlag(job)]).toBe(true);
+    for (const job of GATED_JOBS.filter((job) => job !== "test-models"))
+      expect(scope.flags[jobFlag(job)]).toBe(true);
+    expect(scope.flags.run_test_models).toBe(false);
     expect(scope.forcedBy).toEqual(["tools/railway/web.toml"]);
   });
 

@@ -1,0 +1,4 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Model checking completed. No error has been found.
+371716 states generated, 70596 distinct states found, 0 states left on queue.
+Finished in 00s at (2026-11-24 10:23:58)

@@ -1,0 +1,7 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Progress(12) at 2026-11-24 19:55:20: 1,355 states generated, 420 distinct states found, 0 states left on queue.
+Checking temporal properties for the complete state space with 420 total distinct states at (2026-11-24 19:55:20)
+Error: Temporal properties were violated.
+Error: The following behavior constitutes a counter-example:
+1355 states generated, 420 distinct states found, 0 states left on queue.
+Finished in 00s at (2026-11-24 19:55:20)

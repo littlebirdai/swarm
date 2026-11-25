@@ -40,6 +40,7 @@ export const JOB_TEST_ROOTS: Record<string, string[]> = {
   "test-shared": workspaceDirectories(ROOT, "packages"),
   "test-mobile": ["apps/mobile"],
   "test-electron": ["apps/desktop"],
+  "test-models": ["tests/models"],
 };
 
 /**

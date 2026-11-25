@@ -1,0 +1,5 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Error: Invariant ActsOnlyOnTheTurnSeen is violated.
+Error: The behavior up to this point is:
+57 states generated, 41 distinct states found, 17 states left on queue.
+Finished in 00s at (2026-11-24 10:23:53)

@@ -594,6 +594,10 @@ describe("pinned content", () => {
   });
 });
 
+test("the protocol models job can only read repository contents", () => {
+  expect(jobs["test-models"].permissions).toEqual({ contents: "read" });
+});
+
 describe("gates", () => {
   test("each gated job waits for code_paths and reads its own flag", () => {
     for (const job of GATED_JOBS) {
