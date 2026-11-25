@@ -27353,7 +27353,7 @@
     "swarm/no-comments": 7
   },
   "apps/web/store/__tests__/idb-incremental-persist.test.ts": {
-    "swarm/no-comments": 28
+    "swarm/no-comments": 25
   },
   "apps/web/store/__tests__/inbox-hydration.test.ts": {
     "swarm/no-comments": 7

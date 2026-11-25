@@ -158,7 +158,10 @@ export function replicationPersistence(getState: () => object) {
     state: object,
     pending?: PendingOutboxWrite,
   ) => {
-    for (const patch of patches) skippedBeforeRole?.add(String(patch.path[0]));
+    for (const patch of patches) {
+      const key = String(patch.path[0]);
+      if (key !== "pending") skippedBeforeRole?.add(key);
+    }
     return followerWrite(patches, state, pending);
   };
   // Host from here on: persist what was skipped while the role was open. Each

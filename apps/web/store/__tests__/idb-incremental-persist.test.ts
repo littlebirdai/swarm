@@ -6,10 +6,14 @@ import Dexie from "dexie";
 import {
   _reopenForTests,
   _resetPersistedShadow,
+  enqueueDispatch,
   flushLivenessWrites,
+  loadOutbox,
+  removeDispatch,
   setHydrating,
   writePatchesToIDB,
 } from "../idb-cache";
+import { action, mutativeMiddleware } from "../mutativeMiddleware";
 import { noteSnapshotSync } from "../idbCollectionDiff";
 
 await _reopenForTests({ indexedDB, IDBKeyRange });
@@ -81,17 +85,54 @@ describe("incremental persistence", () => {
     expect(await db().liveElements.count()).toBe(1999);
   });
 
-  it("writes the pending blob with every action, so a page killed right after a write keeps its lock", async () => {
-    // The outbox row reaches disk at once; a lock that waited for the 250 ms
-    // quiet spell was lost with a page killed in between (no flush), and the
-    // reloaded page showed a stale push over its own parked write.
-    writePatchesToIDB(
-      [{ op: "replace", path: ["pending"], value: {} } as any],
-      { pending: { "liveElements:k:v": { type: "field", value: 1 } } },
+  it("persists an action lock with its outbox row before any flush", async () => {
+    const id = ID(27);
+    const key = `conversations:${id}:title`;
+    let state: any;
+    state = mutativeMiddleware(
+      () => ({
+        conversations: { [id]: { _id: id, title: "Before" } },
+        pending: {},
+        renameSession: action(function (this: any) {
+          this.conversations[id].title = "After";
+        }),
+      }),
+      { lockManager: null },
+    )(
+      (next: any) => {
+        state = next;
+      },
+      () => state,
+      {},
     );
-    await settle();
-    expect((await db().meta.get("pending"))?.value).toEqual({
-      "liveElements:k:v": { type: "field", value: 1 },
+    state._setIDBWrite(writePatchesToIDB);
+    state._setOutbox(enqueueDispatch, removeDispatch, loadOutbox);
+
+    state.renameSession();
+    const cache = db();
+    const [pending, rows] = await cache.transaction(
+      "r",
+      cache.meta,
+      cache.dispatchOutbox,
+      () =>
+        Promise.all([
+          cache.meta.get("pending"),
+          cache.dispatchOutbox.toArray(),
+        ]),
+    );
+    const row = rows.find((item: { locks?: Array<{ key: string }> }) =>
+      item.locks?.some((lock) => lock.key === key),
+    );
+    expect(row?.locks).toContainEqual(
+      expect.objectContaining({
+        key,
+        lock: expect.any(String),
+        value: "After",
+      }),
+    );
+    expect(pending?.value[key]).toMatchObject({
+      lock: row.locks.find((lock: { key: string }) => lock.key === key).lock,
+      value: "After",
     });
   });
 
