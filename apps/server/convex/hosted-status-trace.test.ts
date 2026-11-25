@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, expect, jest, spyOn, test } from "bun:test";
 import { sessionMachine, type SessionFact } from "@codecast/session-contract";
 import { api, internal } from "./_generated/api";
 import {
@@ -8,8 +8,13 @@ import {
 } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 
-beforeEach(() => jest.useFakeTimers());
+let limiterShard: ReturnType<typeof spyOn>;
+beforeEach(() => {
+  jest.useFakeTimers();
+  limiterShard = spyOn(Math, "random").mockReturnValue(0.5);
+});
 afterEach(() => {
+  limiterShard.mockRestore();
   jest.clearAllTimers();
   jest.useRealTimers();
 });
