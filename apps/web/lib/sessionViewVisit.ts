@@ -38,11 +38,6 @@ export function sessionViewAskFor(conversationId: string): number | null {
 /** The pane showing `conversationId` holds the answer in its own state now. */
 export function settleSessionViewAsk(conversationId: string): void {
   if (asked?.conversationId !== conversationId) return;
-  clearSessionViewAsk();
-}
-
-export function clearSessionViewAsk(): void {
-  if (!asked) return;
   asked = null;
   emit();
 }

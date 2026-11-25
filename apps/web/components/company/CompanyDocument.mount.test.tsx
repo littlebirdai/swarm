@@ -1,3 +1,4 @@
+import { waitForDom } from "../../test-helpers/waitForDom";
 import { expectAbsent } from "../../test-helpers/domExpect";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { afterEach, spyOn, test } from "bun:test";
@@ -463,10 +464,11 @@ test("the owner and status pickers update the row in place", async () => {
   await show();
   const pick = async (id: string, which: string, label: RegExp) => {
     const scope = line(id)!.querySelector("[data-line-" + which + "]");
+    const option = () =>
+      qa("[role=dialog] button").find((b) => label.test(b.textContent ?? ""));
     await click(scope?.querySelector("button"));
-    return qa("[role=dialog] button").find((b) =>
-      label.test(b.textContent ?? ""),
-    );
+    await act(() => waitForDom(document.body, () => !!option()));
+    return option();
   };
   await click(
     await pick("union-in-2", "state", /^Planned$/),

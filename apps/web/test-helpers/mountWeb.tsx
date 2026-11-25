@@ -133,6 +133,8 @@ export async function mountWeb(node: ReactNode, options: Options = {}) {
     const { closeCallStage, takeCallThreadRequest } =
       await import("../lib/calls/callStage");
     const { closeReveal } = await import("../lib/revealHost");
+    const { askSessionView, settleSessionViewAsk } =
+      await import("../lib/sessionViewVisit");
     resetStore = () => {
       const initial = useInboxStore.getInitialState();
       const state = useInboxStore.getState();
@@ -150,6 +152,8 @@ export async function mountWeb(node: ReactNode, options: Options = {}) {
       closeCallStage();
       takeCallThreadRequest();
       closeReveal();
+      askSessionView("reset");
+      settleSessionViewAsk("reset");
       clearProtectedInboxMemory();
       _resetRememberedResults();
     };
