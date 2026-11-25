@@ -28,6 +28,23 @@ function literal(node) {
   }
 }
 
+function unwrap(node) {
+  while (
+    [
+      "ChainExpression",
+      "ParenthesizedExpression",
+      "TSAsExpression",
+      "TSNonNullExpression",
+      "TSTypeAssertion",
+      "TSSatisfiesExpression",
+      "TSInstantiationExpression",
+    ].includes(node.type)
+  ) {
+    node = node.expression;
+  }
+  return node;
+}
+
 function member(node) {
   if (node.type !== "MemberExpression") return;
   return node.computed ? literal(node.property) : node.property.name;
@@ -74,7 +91,7 @@ export const effectImports = {
         !inZone &&
         (isEffectModule(name) ||
           isEffectEntry(name) ||
-          name === "@codecast/effect-kit" ||
+          /^@codecast\/effect-kit(?:\/|$)/.test(name) ||
           relativeEffectImport(file, name))
       ) {
         context.report({
@@ -90,26 +107,29 @@ export const effectImports = {
       }
     }
 
-    function isRequire(node, aliases) {
+    function isRequire(expression, aliases) {
+      const node = unwrap(expression);
       if (node.type === "Identifier") return aliases.has(node.name);
-      if (
-        node.type === "ChainExpression" ||
-        node.type === "ParenthesizedExpression"
-      ) {
-        return isRequire(node.expression, aliases);
-      }
       if (node.type === "CallExpression") {
-        return node.callee.type === "Identifier"
-          ? requireFactories.has(node.callee.name)
-          : member(node.callee) === "createRequire";
+        const callee = unwrap(node.callee);
+        return callee.type === "Identifier"
+          ? requireFactories.has(callee.name)
+          : member(callee) === "createRequire";
       }
       if (node.type !== "MemberExpression") return false;
       const name = member(node);
-      if (name === "resolve") return isRequire(node.object, aliases);
+      const object = unwrap(node.object);
+      if (name === "resolve") {
+        return (
+          (object.type === "MetaProperty" && object.meta.name === "import") ||
+          isRequire(object, aliases)
+        );
+      }
+      if (object.type !== "Identifier") return false;
       return (
-        name === "require" &&
-        node.object.type === "Identifier" &&
-        ["module", "globalThis", "global"].includes(node.object.name)
+        (object.name === "Bun" && name === "resolveSync") ||
+        (name === "require" &&
+          ["module", "globalThis", "global"].includes(object.name))
       );
     }
 
@@ -126,7 +146,7 @@ export const effectImports = {
       ExportAllDeclaration: (node) => check(node.source),
       ImportExpression: (node) => check(node.source),
       TSImportType: (node) => check(node.source ?? node.argument?.literal),
-      TSExternalModuleReference: (node) => check(node.expression),
+      TSExternalModuleReference: (node) => check(node.expression, true),
       VariableDeclarator(node) {
         if (node.id.type === "Identifier" && node.init) bindings.push(node);
       },

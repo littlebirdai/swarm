@@ -18,33 +18,46 @@ const daemonLevels = {
 export function logLayer(
   log: (message: string, level: "debug" | "info" | "warn" | "error") => void,
 ) {
+  let logging = false;
   return layer([
-    make((event) => {
-      const { cause, date, fiber, message } = event;
-      const annotations = fiber.getRef(CurrentLogAnnotations);
-      const spans = Object.fromEntries(
-        fiber
-          .getRef(CurrentLogSpans)
-          .map(([label, started]) => [label, date.getTime() - started]),
-      );
-      const parts = Array.isArray(message) ? message : [message];
-      const text = parts
-        .map((part) => (typeof part === "string" ? part : inspect(part)))
-        .join(" ");
-      const context = [
-        Object.keys(annotations).length
-          ? `annotations=${inspect(annotations)}`
-          : "",
-        Object.keys(spans).length ? `spans=${inspect(spans)}` : "",
-      ].filter(Boolean);
-      const line = [text, ...context].filter(Boolean).join(" ");
-      log(
-        [line, cause.reasons.length ? pretty(cause) : ""]
-          .filter(Boolean)
-          .join("\n"),
-        daemonLevels[event.logLevel],
-      );
-    }),
     tracerLogger,
+    make((event) => {
+      if (logging) return;
+      logging = true;
+      try {
+        const { cause, date, fiber, message } = event;
+        const annotations = fiber.getRef(CurrentLogAnnotations);
+        const spans = Object.fromEntries(
+          fiber
+            .getRef(CurrentLogSpans)
+            .map(([label, started]) => [label, date.getTime() - started]),
+        );
+        const parts = Array.isArray(message) ? message : [message];
+        const text = parts
+          .map((part) => (typeof part === "string" ? part : inspect(part)))
+          .join(" ");
+        const context = [
+          Object.keys(annotations).length
+            ? `annotations=${inspect(annotations)}`
+            : "",
+          Object.keys(spans).length ? `spans=${inspect(spans)}` : "",
+        ].filter(Boolean);
+        const line = [text, ...context].filter(Boolean).join(" ");
+        log(
+          [line, cause.reasons.length ? pretty(cause) : ""]
+            .filter(Boolean)
+            .join("\n"),
+          daemonLevels[event.logLevel],
+        );
+      } catch (error) {
+        try {
+          process.stderr.write(
+            `Effect log callback failed: ${inspect(error, { customInspect: false })}\n`,
+          );
+        } catch {}
+      } finally {
+        logging = false;
+      }
+    }),
   ]);
 }

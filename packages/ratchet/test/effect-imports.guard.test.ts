@@ -19,8 +19,6 @@ function modulePath(node: ts.Node): ts.StringLiteralLike | undefined {
     argument = node.moduleSpecifier;
   } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) {
     argument = node.argument.literal;
-  } else if (ts.isExternalModuleReference(node)) {
-    argument = node.expression;
   } else if (
     ts.isCallExpression(node) &&
     node.expression.kind === ts.SyntaxKind.ImportKeyword

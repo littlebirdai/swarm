@@ -28,12 +28,15 @@ function targets(value: unknown): string[] {
 
 function rootTargets(manifest: Manifest): string[] {
   const { exports, types, typings, main } = manifest;
-  if (exports === undefined)
-    return targets([types ?? typings, main ?? "index"]);
+  if (exports === undefined) return targets([types ?? typings, main]);
   if (exports && typeof exports === "object" && !Array.isArray(exports)) {
     const entries = exports as Manifest;
     if (Object.keys(entries).some((key) => key.startsWith("."))) {
-      return targets(entries["."]);
+      return Object.entries(entries)
+        .filter(
+          ([name]) => name.startsWith(".") && !/^\.\/effect(?:\/|$)/.test(name),
+        )
+        .flatMap(([, entry]) => targets(entry));
     }
   }
   return targets(exports);
@@ -48,8 +51,24 @@ function manifestRootEntries(dir: string, manifest: Manifest): string[] {
       ),
     );
   }
-  return listed.flatMap((target) => {
-    const file = Bun.resolveSync(resolve(dir, target), root);
+  const sources = listed.flatMap((target) => {
+    const absolute = resolve(dir, target);
+    if (!target.includes("*")) return [Bun.resolveSync(absolute, root)];
+    const base = dirname(absolute.split("*", 1)[0]! + "_");
+    if (!existsSync(base)) return [];
+    const pattern = new RegExp(
+      "^" +
+        absolute
+          .split("*")
+          .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+          .join(".*") +
+        "$",
+    );
+    return Array.from(
+      new Bun.Glob("**/*").scanSync({ cwd: base, absolute: true }),
+    ).filter((file) => pattern.test(file));
+  });
+  return [...new Set(sources)].flatMap((file) => {
     const declaration = file.replace(/\.([cm]?)jsx?$/, ".d.$1ts");
     return declaration !== file && existsSync(declaration)
       ? [file, declaration]
@@ -99,6 +118,7 @@ function rootExposure(entries: string[]): string[] {
     declaration: true,
     emitDeclarationOnly: true,
     module: ts.ModuleKind.ESNext,
+    target: ts.ScriptTarget.ESNext,
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     skipLibCheck: true,
     strict: true,
@@ -314,6 +334,58 @@ test("root declarations reject direct and inferred Effect exposure but allow a P
           `${join(dir, "src/types.d.ts")} exports FromDeclaration with an Effect declaration`,
         )
         .sort(),
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}, 15_000);
+
+test("a zone application without a package entry has no declarations to check", () => {
+  const dir = mkdtempSync(join(tmpdir(), "effect-app-"));
+  try {
+    expect(
+      manifestRootEntries(dir, { name: "@codecast/relay", private: true }),
+    ).toEqual([]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("public subpaths cannot hide Effect inside inferred Promise, Map, or Set types", () => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "effect-public-")));
+  try {
+    const entry = join(dir, "public.ts");
+    const wildcard = join(dir, "collections/nested/values.ts");
+    mkdirSync(dirname(wildcard), { recursive: true });
+    writeFileSync(
+      entry,
+      `
+      import { sleep } from "effect/Effect";
+      export const pending = () => Promise.resolve(sleep(0));
+    `,
+    );
+    writeFileSync(
+      wildcard,
+      `
+      import { sleep } from "effect/Effect";
+      export const map = () => new Map([["wait", sleep(0)]]);
+      export const set = () => new Set([sleep(0)]);
+    `,
+    );
+    const entries = manifestRootEntries(dir, {
+      exports: {
+        "./public": "./public.ts",
+        "./collections/*": "./collections/*.ts",
+        "./effect/debug": "./does-not-need-checking.ts",
+      },
+    });
+    expect(entries).toEqual([entry, wildcard]);
+    expect(rootExposure(entries).sort()).toEqual(
+      [
+        `${entry} exports pending with an Effect declaration`,
+        `${wildcard} exports map with an Effect declaration`,
+        `${wildcard} exports set with an Effect declaration`,
+      ].sort(),
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });

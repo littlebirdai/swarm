@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { fail } from "effect/Cause";
 import {
   annotateLogs,
@@ -10,6 +10,7 @@ import {
   provide,
   provideService,
   runPromise,
+  runSync,
   withLogSpan,
   withSpan,
 } from "effect/Effect";
@@ -84,3 +85,43 @@ it.effect(
       });
     }),
 );
+
+test("a throwing and re-entrant callback preserves trace events and reports once", async () => {
+  const report = spyOn(process.stderr, "write").mockReturnValue(true);
+  const callbacks: Array<[string, number]> = [];
+  let span: NativeSpan | undefined;
+  let nestedSpan: NativeSpan | undefined;
+  const logger = logLayer((message) => {
+    callbacks.push([message, span?.events.length ?? 0]);
+    if (message === "outer") {
+      nestedSpan = runSync(
+        gen(function* () {
+          yield* logInfo("re-entrant");
+          return (yield* currentSpan) as NativeSpan;
+        }).pipe(withSpan("delivery.log.nested"), provide(logger)),
+      );
+      throw new Error("log sink unavailable");
+    }
+  });
+  try {
+    await runPromise(
+      gen(function* () {
+        const active = yield* currentSpan;
+        expect(active).toBeInstanceOf(NativeSpan);
+        span = active as NativeSpan;
+        yield* logInfo("outer");
+        yield* logInfo("later");
+      }).pipe(withSpan("delivery.log"), provide(logger)),
+    );
+    expect(callbacks).toEqual([
+      ["outer", 1],
+      ["later", 2],
+    ]);
+    expect(span?.events.map(([name]) => name)).toEqual(["outer", "later"]);
+    expect(nestedSpan?.events.map(([name]) => name)).toEqual(["re-entrant"]);
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report.mock.calls[0]?.[0]).toContain("log sink unavailable");
+  } finally {
+    report.mockRestore();
+  }
+});

@@ -1,10 +1,12 @@
 import { expect, test } from "bun:test";
 import { Service } from "effect/Context";
+import { TaggedError } from "effect/Data";
 import {
   acquireRelease,
   andThen,
   die,
   fail,
+  fn,
   onInterrupt,
   promise,
   sync,
@@ -213,6 +215,82 @@ test("a rejected facade call retains the application stack frame", async () => {
     expect(outcome).toBeInstanceOf(Error);
     expect((outcome as Error).stack).toContain("submitDelivery");
     expect((outcome as Error).stack).toContain("facade.test.ts:");
+  } finally {
+    await facade.dispose();
+  }
+});
+
+test.each(["tagged failure", "defect"] as const)(
+  "an async Effect function chain keeps both span names on the original %s",
+  async (kind) => {
+    class DeliveryFailure extends TaggedError("DeliveryFailure")<{
+      readonly message: string;
+    }> {}
+    const error =
+      kind === "tagged failure"
+        ? new DeliveryFailure({ message: "delivery failed" })
+        : new TypeError("unexpected delivery value");
+    const facade = makeFacade(empty);
+    const send = fn("Delivery.send")(function* () {
+      yield* promise(() => Promise.resolve());
+      return yield* kind === "tagged failure" ? fail(error) : die(error);
+    });
+    const submit = fn("Dispatch.submit")(function* () {
+      return yield* send();
+    });
+    try {
+      await expect(facade.run(submit())).rejects.toBe(error);
+      expect(error).toBeInstanceOf(
+        kind === "tagged failure" ? DeliveryFailure : TypeError,
+      );
+      expect(error.stack).toContain("Delivery.send");
+      expect(error.stack).toContain("Dispatch.submit");
+    } finally {
+      await facade.dispose();
+    }
+  },
+);
+
+test("a read-only error stack preserves the rejected defect", async () => {
+  const error = new TypeError("read-only stack");
+  const stack = error.stack;
+  Object.defineProperty(error, "stack", { value: stack, writable: false });
+  const facade = makeFacade(empty);
+  try {
+    await expect(facade.run(die(error))).rejects.toBe(error);
+    expect(error.stack).toBe(stack);
+  } finally {
+    await facade.dispose();
+  }
+});
+
+test("an abort inside cold layer acquisition prevents the operation from starting", async () => {
+  const controller = new AbortController();
+  const Resource = Service<string>("effect-kit/test/ColdAbort");
+  const events: string[] = [];
+  const facade = makeFacade(
+    effect(
+      Resource,
+      sync(() => {
+        events.push("acquired");
+        controller.abort();
+        return "ready";
+      }),
+    ),
+  );
+  try {
+    await expect(
+      facade.run(
+        andThen(
+          Resource,
+          sync(() => {
+            events.push("started");
+          }),
+        ),
+        controller.signal,
+      ),
+    ).rejects.toEqual(new Error("All fibers interrupted without error"));
+    expect(events).toEqual(["acquired"]);
   } finally {
     await facade.dispose();
   }

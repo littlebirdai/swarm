@@ -67,7 +67,9 @@ Use only exports marked `@stability stable` in the pinned release. Name the
 exports in imports or access them by their literal names on a namespace import.
 Oxlint checks the package boundary and the barrel ban. The guards under
 `packages/ratchet/test` check dependency manifests, export stability, and the
-declarations of the root entry point.
+declarations of public entry points. The import rule catches accidental
+imports. Deliberately obscured calls can bypass it. Dependency manifest and
+bundle checks enforce separate boundaries.
 
 Define services with `Context.Service` and implement them with `Layer.effect`.
 Use `Effect.fn("name")` for service functions. Use `Effect.catch` for recoverable
