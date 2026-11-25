@@ -1,4 +1,7 @@
-import { desktopWindowKeys } from "../store/desktop-window-keys";
+import {
+  desktopWindowKeys,
+  isDesktopPanel,
+} from "../store/desktop-window-keys";
 import { inHuddle } from "../lib/calls/huddlePresence";
 import { withInboxView } from "../lib/inboxViewHistory";
 import { useRef, useState } from "react";
@@ -159,6 +162,7 @@ export function DesktopProvider() {
   const storeReady = useDesktopStoreReady();
   const canReportWindowState = storeReady || !isDesktop();
   const scope = desktopWindowKeys();
+  const panel = isDesktopPanel();
   const receivesBanners =
     !isPaletteWindow() && scope?.includes("chatMessages") !== false;
   const canDeliverNotifications = receivesBanners && (hydrated || !isDesktop());
@@ -483,7 +487,7 @@ export function DesktopProvider() {
   // one already on screen (ct-49551).
   const location = useLocation();
   const surfaceSig = useInboxStore((st) => {
-    if (scope) return `${st.currentSessionId ?? ""}#${st.call?.phase ?? ""}`;
+    if (panel) return `${st.currentSessionId ?? ""}#${st.call?.phase ?? ""}`;
     const tabs = st.tabs.map((t) => `${t.id}=${t.path}`).join("|");
     return `${tabs}#${st.activeTabId ?? ""}#${st.currentSessionId ?? ""}#${st.call?.phase ?? ""}`;
   });
@@ -503,7 +507,7 @@ export function DesktopProvider() {
     // reporting them told the shell the float was showing the main window's
     // channel, so a banner for that channel landed in the float.
     if (
-      scope ||
+      panel ||
       isDetachedTabWindow() ||
       isSatelliteWindow() ||
       st.tabs.length === 0 ||
@@ -531,7 +535,7 @@ export function DesktopProvider() {
     surfaceSig,
     location.pathname,
     location.search,
-    scope,
+    panel,
   ]);
 
   // Desktop update detection: compare the running app version against the latest

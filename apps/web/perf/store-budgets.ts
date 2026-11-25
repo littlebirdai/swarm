@@ -5,7 +5,10 @@ import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { TEST_PRINCIPAL } from "../store/__tests__/fixtures/signedInPrincipal";
 import { COLLECTION_RETENTION } from "../store/cacheRetention";
 import { REGISTERED_COLLECTION_KEYS } from "../store/clientSyncRegistry";
-import { DESKTOP_WINDOW_KEYS } from "../store/desktop-window-keys";
+import {
+  DESKTOP_WINDOW_KEYS,
+  FULL_STORE_DESKTOP_PANELS,
+} from "../store/desktop-window-keys";
 import {
   clearProtectedInboxMemory,
   useInboxStore,
@@ -206,10 +209,21 @@ async function measureFollower(heldKeys?: readonly string[], rowsPerKey = 1) {
   );
   const listeners = new Set<Parameters<ReplicationChannel["onMessage"]>[0]>();
   let bytes = 0;
+  const bytesByCollection = process.argv.includes("--by-collection")
+    ? new Map<string, number>()
+    : undefined;
   const channel: ReplicationChannel = {
     post(message) {
-      if (message.type === "snapshotChunk")
+      if (message.type === "snapshotChunk") {
         bytes += Buffer.byteLength(JSON.stringify(message));
+        if (bytesByCollection)
+          for (const update of message.updates)
+            bytesByCollection.set(
+              update.key,
+              (bytesByCollection.get(update.key) ?? 0) +
+                Buffer.byteLength(JSON.stringify(update)),
+            );
+      }
       for (const listener of listeners) listener(structuredClone(message));
     },
     onMessage(listener) {
@@ -250,6 +264,9 @@ async function measureFollower(heldKeys?: readonly string[], rowsPerKey = 1) {
       collections: held.length,
       bytes,
       heapBytes: heapStats().heapSize - initialHeap,
+      ...(bytesByCollection && {
+        bytesByCollection: Object.fromEntries(bytesByCollection),
+      }),
     };
   } finally {
     follower.stop();
@@ -293,15 +310,22 @@ async function measureDesktopCache(keys?: readonly string[]) {
   }
 }
 
+const closedWindows = Object.keys(DESKTOP_WINDOW_KEYS);
+const fullWindows = ["full", ...FULL_STORE_DESKTOP_PANELS];
 if (process.argv.includes("--desktop-windows")) {
-  for (const kind of ["full", ...Object.keys(DESKTOP_WINDOW_KEYS)]) {
-    for (const mode of ["call-ring", "meeting-offer", "share-cursors"].includes(
-      kind,
-    )
+  for (const kind of [...fullWindows, ...closedWindows]) {
+    for (const mode of closedWindows.includes(kind)
       ? ["cache"]
       : ["join", "cache"]) {
       const child = Bun.spawn(
-        [process.execPath, import.meta.path, "--desktop-window", kind, mode],
+        [
+          process.execPath,
+          import.meta.path,
+          "--desktop-window",
+          kind,
+          mode,
+          ...process.argv.filter((arg) => arg === "--by-collection"),
+        ],
         { stdout: "inherit", stderr: "inherit" },
       );
       assert.equal(await child.exited, 0);
@@ -312,11 +336,10 @@ if (process.argv.includes("--desktop-windows")) {
 
 const windowArg = process.argv.indexOf("--desktop-window");
 if (windowArg !== -1) {
-  const kind = process.argv[windowArg + 1] as
-    | keyof typeof DESKTOP_WINDOW_KEYS
-    | "full";
+  const kind = process.argv[windowArg + 1];
   const mode = process.argv[windowArg + 2];
-  const keys = kind === "full" ? undefined : DESKTOP_WINDOW_KEYS[kind];
+  assert(fullWindows.includes(kind) || closedWindows.includes(kind));
+  const keys = DESKTOP_WINDOW_KEYS[kind as keyof typeof DESKTOP_WINDOW_KEYS];
   console.log(
     kind,
     mode,
@@ -329,20 +352,6 @@ if (windowArg !== -1) {
 
 const fullFollower = await measureFollower();
 checkStoreBudget("Follower populated collections", fullFollower.collections);
-const paletteFollower = await measureFollower(DESKTOP_WINDOW_KEYS.palette);
-checkStoreBudget(
-  "Palette follower populated collections",
-  paletteFollower.collections,
-);
-checkStoreBudget("Palette follower join bytes", paletteFollower.bytes);
-const callPanelFollower = await measureFollower(
-  DESKTOP_WINDOW_KEYS["call-panel"],
-);
-checkStoreBudget(
-  "Call panel follower populated collections",
-  callPanelFollower.collections,
-);
-checkStoreBudget("Call panel follower join bytes", callPanelFollower.bytes);
 
 useInboxStore.setState({ syncRole: "host" });
 const bytes = measureDetailRows();

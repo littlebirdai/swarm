@@ -1,10 +1,9 @@
 import { expect, test } from "bun:test";
-import { ConvexAuthProvider } from "@convex-dev/auth/react";
-import { useConvex } from "convex/react";
 import { makeFunctionReference } from "convex/server";
-import { act, type ReactNode } from "react";
+import { act } from "react";
 import { AgentDock } from "../../components/agentDock/AgentDock";
 import { Providers } from "../../src/providers";
+import { readJoinPrefs } from "../../lib/calls/joinPrefs";
 import { requestCallThread } from "../../lib/calls/callStage";
 import {
   getDesktopWindowRole,
@@ -16,14 +15,14 @@ import { AUTH_JWT_STORAGE_KEY } from "../../lib/localAuth";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { pending } from "../../test-helpers/testConvex";
 import { waitForDom } from "../../test-helpers/waitForDom";
-import { DESKTOP_WINDOW_KEYS, desktopWindowKeys } from "../desktop-window-keys";
+import { desktopWindowKeys } from "../desktop-window-keys";
 import {
   CLIENT_SYNC_REGISTRY,
   REPLICATED_STORE_KEYS,
 } from "../clientSyncRegistry";
 import { useInboxStore } from "../inboxStore";
 import { observeDesktopStoreReads } from "../observe-desktop-store";
-import { flushSyncPublishes } from "../syncTransaction";
+import { flushSyncPublishes, syncTransaction } from "../syncTransaction";
 
 const windows = {
   palette: () => import("../../app/palette/page"),
@@ -35,17 +34,9 @@ const windows = {
   "share-cursors": () => import("../../app/share-cursors/page"),
 } as const;
 
-function PaletteAuth({ children }: { children: ReactNode }) {
-  const client = useConvex();
-  return (
-    <ConvexAuthProvider client={client} storageNamespace="palette">
-      {children}
-    </ConvexAuthProvider>
-  );
-}
-
 const roomKey = "room:test";
 const docId = "d".repeat(32);
+const taskId = "t".repeat(32);
 const pinRef = `doc:${docId}`;
 const notifications = makeFunctionReference<"query">("notifications:list");
 const queries = [
@@ -58,10 +49,10 @@ const queries = [
   "callGuests:listGuestLinks",
   "callStage:listPins",
   "org:roles",
-  "org:tree",
-  "orgProposals:get",
   "replays:browse",
-  "repos:listRepositories",
+  "liveArtifacts:elementsSince",
+  "liveArtifacts:versions",
+  "livePresence:presence",
   "users:getMySkills",
   "devices:listDevices",
   "users:getRecentProjectPaths",
@@ -99,16 +90,13 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
     let stop: (() => void) | undefined;
     let web: Awaited<ReturnType<typeof mountWeb>> | undefined;
     try {
-      const content = (
+      web = await mountWeb(
         <Providers>
           <Page />
           {kind === "agent-dock" && <AgentDock />}
-        </Providers>
-      );
-      web = await mountWeb(
-        kind === "palette" ? <PaletteAuth>{content}</PaletteAuth> : content,
+        </Providers>,
         {
-          authenticated: kind !== "palette",
+          authenticated: true,
           dispatch: true,
           path:
             kind === "call-panel"
@@ -129,6 +117,14 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
               ),
               undefined,
             );
+            for (const mutation of [
+              "livePresence:setPresence",
+              "livePresence:leave",
+            ])
+              backend.mutation(
+                makeFunctionReference<"mutation">(mutation),
+                undefined,
+              );
             for (const query of queries)
               backend.set(makeFunctionReference<"query">(query), pending);
             backend.set(notifications, []);
@@ -153,34 +149,63 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
                 },
               },
             });
-            expect(desktopWindowKeys()).toBe(DESKTOP_WINDOW_KEYS[windowKind]);
+            const scope = desktopWindowKeys();
+            expect(scope !== undefined).toBe(
+              ["call-ring", "meeting-offer", "share-cursors"].includes(
+                windowKind,
+              ),
+            );
             localStorage.setItem(AUTH_JWT_STORAGE_KEY, "fixture-jwt");
             useInboxStore.setState({
               clientStateInitialized: true,
               syncRole: "follower",
             });
-            if (kind === "palette") {
-              const claims = Buffer.from(
-                JSON.stringify({
-                  sub: "palette-viewer|test",
-                  iat: 1,
-                  exp: 3601,
-                }),
-              ).toString("base64url");
-              localStorage.setItem(
-                "__convexAuthJWT_palette",
-                `eyJhbGciOiJIUzI1NiJ9.${claims}.test`,
-              );
-              useInboxStore.setState({
-                currentUser: { _id: "palette-viewer" },
-              });
-            }
             const state = useInboxStore.getState();
             if (windowKind === "call-panel")
               useInboxStore.setState({
                 call: { ...state.call, phase: "connected", roomKey },
               });
+            if (kind === "palette") {
+              state.syncTable("docs", [
+                { _id: docId, title: "Recent fixture doc" },
+              ]);
+              state.syncTable("pullRequests", [
+                {
+                  _id: "pr-fixture",
+                  number: 123,
+                  repository: "fixture/project",
+                  title: "Fixture PR",
+                },
+              ]);
+              state.syncTable("commits", [
+                {
+                  _id: "commit-fixture",
+                  sha: "abcdef1234567",
+                  message: "Fixture commit",
+                },
+              ]);
+              const path = `/docs/${docId}`;
+              useInboxStore.setState({
+                recentVisits: [
+                  { kind: "page", key: `page:${path}`, path, ts: Date.now() },
+                ],
+              });
+            }
             if (kind === "call-panel") {
+              backend.set(makeFunctionReference<"query">("callChat:list"), [
+                {
+                  _id: "room-message",
+                  user_id: "user",
+                  user_name: "Test user",
+                  at: Date.now(),
+                  text: "Fixture room message",
+                  mine: false,
+                  agent: null,
+                },
+              ]);
+              state.syncTable("tasks", [
+                { _id: taskId, title: "Task from the store" },
+              ]);
               state.syncTable("callStagePins", [
                 {
                   _id: "pin",
@@ -214,31 +239,26 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
                 session("dock-session", {
                   title: "Fixture dock card",
                   is_idle: false,
+                  idle_summary: "Read ct-42",
+                  standing_role_id: "role",
                 }),
               ]);
-            stop = observeDesktopStoreReads(keys, (key, caller) =>
-              reads.set(key, caller),
-            );
+            if (kind === "agent-dock")
+              state.syncTable("tasks", [
+                {
+                  _id: taskId,
+                  short_id: "ct-42",
+                  title: "Dock task from the store",
+                },
+              ]);
+            if (scope)
+              stop = observeDesktopStoreReads(keys, (key, caller) =>
+                reads.set(key, caller),
+              );
           },
         },
       );
-      const checkReads = async (declared: readonly string[]) => {
-        await act(async () => {
-          flushSyncPublishes();
-          useInboxStore.setState({});
-        });
-        expect(reads.has("clientState")).toBe(true);
-        expect(
-          [...reads]
-            .filter(([key]) => !declared.includes(key))
-            .map(([key, caller]) => `${key} via ${caller}`)
-            .sort(),
-        ).toEqual([]);
-      };
-      const declared = DESKTOP_WINDOW_KEYS[windowKind];
-      await checkReads(declared);
       if (windowKind === "palette") {
-        reads.clear();
         const window = web.dom.window;
         const input =
           window.document.querySelector<HTMLInputElement>("[cmdk-input]")!;
@@ -247,29 +267,43 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
           window.HTMLInputElement.prototype,
           "value",
         )?.set;
-        await act(async () => {
-          setInputValue?.call(input, "replays");
-          input.dispatchEvent(new window.Event("input", { bubbles: true }));
-        });
-        expect(window.document.body.textContent).toContain("Ops: Replays");
-        await checkReads(declared);
-        expect(reads.has("opsReplayTallies")).toBe(true);
-        expect(reads.has("repoBrowse")).toBe(true);
-        reads.clear();
+        expect(window.document.body.textContent).toContain(
+          "Recent fixture doc",
+        );
+        for (const [query, result] of [
+          ["replays", "Ops: Replays"],
+          ["pr:", "fixture/project#123"],
+          ["commit:", "abcdef1"],
+        ]) {
+          await act(async () => {
+            setInputValue?.call(input, query);
+            input.dispatchEvent(new window.Event("input", { bubbles: true }));
+          });
+          expect(window.document.body.textContent).toContain(result);
+        }
         await act(async () => {
           window.dispatchEvent(
             new window.CustomEvent("codecast-compose", { detail: "" }),
           );
         });
-        expect(web.container.querySelector("textarea")).not.toBeNull();
-        await checkReads(declared);
-        for (const key of [
-          "machineResources",
-          "pendingMessageStatus",
-          "reviewComments",
-          "sessionCommands",
-        ])
-          expect(reads.has(key)).toBe(true);
+        const composer = web.container.querySelector("textarea")!;
+        expect(composer).not.toBeNull();
+        await act(async () => {
+          Object.getOwnPropertyDescriptor(
+            window.HTMLTextAreaElement.prototype,
+            "value",
+          )?.set?.call(composer, "@");
+          composer.setSelectionRange(1, 1);
+          composer.dispatchEvent(new window.Event("input", { bubbles: true }));
+        });
+        const mention = `[data-mention-id="${docId}"]`;
+        await waitForDom(
+          window.document.body,
+          () => !!window.document.body.querySelector(mention),
+        );
+        expect(
+          window.document.body.querySelector(mention)?.textContent,
+        ).toContain("Recent fixture doc");
       }
       if (kind === "call-panel") {
         const body = web.dom.window.document.body;
@@ -284,7 +318,6 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
         expect(
           body.querySelector(`[data-stage-pin="${pinRef}"]`),
         ).not.toBeNull();
-        const objectId = "t".repeat(32);
         await act(async () => {
           if (!web) return;
           web.store.getState().dropRows("callStagePins", ["pin"]);
@@ -292,7 +325,7 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
             {
               _id: "object-pin",
               room_key: roomKey,
-              ref: objectId,
+              ref: taskId,
               kind: "object",
               title: "Pinned task",
               readable: true,
@@ -306,40 +339,38 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
           () => !!body.querySelector('[aria-label="Command menu"]'),
         );
         expect(
-          body.querySelector(`[data-stage-pin="${objectId}"]`),
+          body.querySelector(`[data-stage-pin="${taskId}"]`),
         ).not.toBeNull();
         expect(
           body.querySelector('[aria-label="Close the thread"]'),
         ).not.toBeNull();
-        await checkReads(declared);
-        await act(async () => {
-          const store = useInboxStore.getState();
-          store.syncTable("orgProposals", [
-            {
-              _id: "proposal",
-              short_id: "op-42",
-              title: "Pinned proposal",
-              author: { kind: "user", id: "u1", name: "Sam" },
-            },
-          ]);
-          store.dropRows("callStagePins", ["object-pin"]);
-          store.syncTable("callStagePins", [
-            {
-              _id: "proposal-pin",
-              room_key: roomKey,
-              ref: "op-42",
-              kind: "object",
-              title: "Pinned proposal",
-              readable: true,
-              at: 3,
-            },
-          ]);
-        });
-        expect(
-          body.querySelector('[data-proposal-card="op-42"]'),
-        ).not.toBeNull();
-        await checkReads(declared);
-        expect(reads.has("orgProposalChanges")).toBe(true);
+        expect(body.textContent).toContain("Fixture room message");
+        expect(body.textContent).toContain("Task from the store");
+        for (const [previous, type] of [
+          ["object-pin", "board"],
+          ["board", "dashboard"],
+        ]) {
+          await act(async () => {
+            const store = useInboxStore.getState();
+            store.dropRows("callStagePins", [previous]);
+            store.syncTable("callStagePins", [
+              {
+                _id: type,
+                room_key: roomKey,
+                ref: pinRef,
+                kind: "doc",
+                doc_id: docId,
+                doc_type: type,
+                title: `Pinned ${type}`,
+                readable: true,
+                at: 4,
+              },
+            ]);
+          });
+          expect(
+            body.querySelector(`[data-live-embed="${type}"]`),
+          ).not.toBeNull();
+        }
       }
       if (kind === "voice-host")
         expect(
@@ -367,8 +398,17 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
         );
         expect(banners.length).toBe(1);
       }
-      if (kind === "call-ring")
+      if (kind === "call-ring") {
         expect(web.container.textContent).toContain("Fixture caller");
+        syncTransaction(() => {
+          useInboxStore.setState({
+            clientState: { ui: { call_device_check: false } },
+          });
+          reads.delete("clientState");
+          expect(readJoinPrefs().deviceCheck).toBe(false);
+          expect(reads.get("clientState")).toContain("calls/joinPrefs.ts");
+        });
+      }
       if (kind === "meeting-offer") {
         await act(async () =>
           offer?.({
@@ -386,12 +426,23 @@ for (const kind of [...Object.keys(windows), "voice-host"] as (
         );
         expect(card).not.toBeNull();
         await act(async () => card?.click());
-        expect(web.container.querySelector(".dock-card")).not.toBeNull();
+        const dock = web.container.querySelector(".dock-card");
+        expect(dock?.textContent).toContain("Dock task from the store");
       }
-      await checkReads(declared);
-      expect(badges.length > 0).toBe(
-        declared.some((key) => key === "sessions"),
-      );
+      const declared = desktopWindowKeys();
+      if (declared) {
+        await act(async () => flushSyncPublishes());
+        expect(reads.has("clientState")).toBe(true);
+        expect(
+          [...reads]
+            .filter(
+              ([key]) => !declared.includes(key as (typeof declared)[number]),
+            )
+            .map(([key, caller]) => `${key} via ${caller}`)
+            .sort(),
+        ).toEqual([]);
+      }
+      expect(badges.length > 0).toBe(declared === undefined);
       expect(web.navigationLog[0]?.path.split("?")[0]).toBe(`/${windowKind}`);
     } finally {
       stop?.();

@@ -43,7 +43,7 @@ import {
   scopedHostChannel,
   transportAvailable,
 } from "./storage-transport";
-import { desktopWindowKeys } from "./desktop-window-keys";
+import { desktopWindowKeys, isDesktopPanel } from "./desktop-window-keys";
 import { syncTransaction } from "./syncTransaction";
 import type { GestureMessage } from "./gestureBridge";
 import {
@@ -601,8 +601,11 @@ export function startSyncReplication(opts: {
   const name = replicationChannelName(opts.principalId);
   const keys = opts.keys?.filter(isReplicated);
   const legacy = () => replicationTransport(name, selfId);
-  const scoped = keys && scopedFollowerChannel(name, selfId, keys, legacy);
-  const transport = scoped ?? legacy();
+  const followsLease =
+    keys !== undefined || (!opts.eligible && isDesktopPanel());
+  const transport = followsLease
+    ? scopedFollowerChannel(name, selfId, keys ?? REPLICATED_STORE_KEYS, legacy)
+    : legacy();
   const channel = transport.channel;
 
   let stopped = false;
@@ -676,7 +679,7 @@ export function startSyncReplication(opts: {
     persistence.persistSkipped();
   };
 
-  if (keys) setActionTee(followerActionTee(channel, selfId));
+  if (followsLease) setActionTee(followerActionTee(channel, selfId));
   startFollower();
 
   if (opts.eligible && !keys) lock.request(() => stopped, becomeElectedHost);

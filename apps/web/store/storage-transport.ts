@@ -215,6 +215,19 @@ export function scopedFollowerChannel(
       origin: hostId,
       updates: [],
     });
+  const receive = (message: ReplicationMessage) => {
+    const pending = hello;
+    receiver?.(message);
+    if (
+      pending &&
+      pending === hello &&
+      ((message.type === "snapshot" && message.to === selfId) ||
+        (message.type === "snapshotChunk" &&
+          message.request === pending.snapshotRequest &&
+          message.done))
+    )
+      hello = undefined;
+  };
   const refresh = (delay: number) => {
     clearTimeout(fallback);
     fallback = setTimeout(() => {
@@ -222,10 +235,13 @@ export function scopedFollowerChannel(
       modernHost = undefined;
       if (!legacy) {
         legacy = legacyTransport();
-        legacy.channel.onMessage((message) => receiver?.(message));
+        legacy.channel.onMessage((message) => {
+          if (!modernHost) receive(message);
+        });
       }
+      const pending = hello;
       if (wasScoped) resetHost("");
-      else if (hello) legacy.channel.post(hello);
+      if (pending && pending === hello) legacy.channel.post(pending);
     }, delay);
   };
   const onControl = ({ data }: MessageEvent<ScopeSignal>) => {
@@ -237,14 +253,21 @@ export function scopedFollowerChannel(
     const changed = modernHost !== data.hostId;
     modernHost = data.hostId;
     refresh(SCOPE_LEASE_MS);
-    postScope(control, { type: "presence", from: selfId, hostId: data.hostId });
     if (changed) {
-      if (hello) postScope(control, hello);
+      const pending = hello;
       resetHost(data.hostId);
+      if (pending && pending === hello) postScope(control, pending);
+    } else {
+      postScope(control, {
+        type: "presence",
+        from: selfId,
+        hostId: data.hostId,
+      });
     }
   };
   const onAddressed = ({ data }: MessageEvent<ReplicationMessage>) => {
     if (data.type !== "update" && data.type !== "snapshotChunk") return;
+    if (modernHost && data.hostId !== modernHost) return;
     if (
       data.type === "snapshotChunk" &&
       data.request !== hello?.snapshotRequest
@@ -256,7 +279,7 @@ export function scopedFollowerChannel(
       legacy?.close();
       legacy = undefined;
     }
-    receiver?.(data);
+    receive(data);
   };
   control.addEventListener("message", onControl);
   addressed.addEventListener("message", onAddressed);
@@ -267,8 +290,8 @@ export function scopedFollowerChannel(
       post(message) {
         if (message.type === "hello") {
           hello = { ...message, keys };
-          postScope(control, hello);
-          if (!modernHost) legacy?.channel.post(hello);
+          if (!modernHost && legacy) legacy.channel.post(hello);
+          else postScope(control, hello);
         } else {
           if (message.type === "mut" && modernHost) {
             postScope(control, message);

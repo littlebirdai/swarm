@@ -197,10 +197,17 @@ test("call-ring boot reads only its declared cached keys", async () => {
   }
 });
 
-test("a scoped palette still journals offline writes in the outbox", async () => {
+test("a standalone palette still journals offline writes in the outbox", async () => {
   const row = cachedSessions()[0];
   await sessions.put(row);
   await conversations.put(row);
+  const commit = {
+    _id: "commit-1",
+    sha: "abcdef1234567",
+    message: "Cached commit",
+  };
+  await db.table("commits").put(commit);
+  await db.meta.put({ key: "lastFocusedConversationId", value: row._id });
 
   const previousUrl = dom.window.location.href;
   dom.reconfigure({ url: "https://example.test/palette" });
@@ -210,6 +217,8 @@ test("a scoped palette still journals offline writes in the outbox", async () =>
   });
   try {
     await bootCache();
+    expect(state().commits[commit._id]).toEqual(commit);
+    expect(state().currentSessionId).toBeNull();
     state().renameSession(row._id, "Edited offline");
     const outbox = await db.dispatchOutbox.toArray();
     expect(outbox.map(({ action }) => action)).toEqual(["renameSession"]);

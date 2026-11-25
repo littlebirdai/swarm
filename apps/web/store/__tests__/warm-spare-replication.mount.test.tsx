@@ -6,7 +6,7 @@ import { replaceGlobals } from "../../test-helpers/globals";
 import { AUTH_JWT_STORAGE_KEY, issueFakeToken } from "./fixtures/fakeAuthToken";
 import { session } from "./bucketFixtures";
 
-test("warm spare claim and scoped hydration gate replication, then sign-out clears the badge", async () => {
+test("warm spare claim and palette hydration gate replication, then sign-out clears the badge", async () => {
   const dom = new JSDOM("<div id='root'></div>", {
     url: "https://codecast.sh/inbox",
   });
@@ -72,8 +72,8 @@ test("warm spare claim and scoped hydration gate replication, then sign-out clea
   const { durableAuthStorage } = await import("../../lib/durableAuthStorage");
   const stopAuthBoundary = installAuthPrincipalBoundary();
 
-  function Feeders() {
-    useSyncReplication(true);
+  function Feeders({ eligible = true }: { eligible?: boolean }) {
+    useSyncReplication(eligible);
     return useIsSyncHost() ? <span>Host feeders</span> : null;
   }
 
@@ -133,22 +133,25 @@ test("warm spare claim and scoped hydration gate replication, then sign-out clea
 
     await act(async () => root.render(null));
     dom.reconfigure({ url: "https://codecast.sh/palette" });
-    const scoped = `${replicationChannelName("userA")}:scope`;
+    const address = `${replicationChannelName("userA")}:scope:`;
+    const countJoins = () =>
+      channels.filter((name) => name.startsWith(address)).length;
+    const joins = countJoins();
     await act(async () => {
       useInboxStore.setState({ clientStateInitialized: false });
-      root.render(<Feeders />);
+      root.render(<Feeders eligible={false} />);
     });
-    expect(channels.some((name) => name.startsWith(`${scoped}:`))).toBe(false);
+    expect(countJoins()).toBe(joins);
     await act(async () => {
       useInboxStore.setState({ clientStateInitialized: true });
       root.render(
         <>
-          <Feeders />
+          <Feeders eligible={false} />
           <DesktopBadge />
         </>,
       );
     });
-    expect(channels.some((name) => name.startsWith(`${scoped}:`))).toBe(true);
+    expect(countJoins()).toBe(joins + 1);
     expect(locks).toEqual([replicationLockName("userA")]);
     expect(badgeCounts.splice(0)).toEqual([1, 1]);
 

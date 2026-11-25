@@ -152,103 +152,63 @@ builds until each reloads, and a host from an older build never feeds a
 collection added since, so windows whose stores differ elect separate hosts.
 A window with no account (signed out, a guest share page) runs no transport.
 
-## Desktop window scopes
+## Desktop windows
 
-The renderer selects its scope from its desktop route before it reads IndexedDB.
-The declaration in `desktop-window-keys.ts` covers shared and local store keys.
-The boot loader reads the declared persisted keys and reads the last focus as
-retention input for session caches. It skips focused transcript preload in
-scoped windows. Per-view queries and the outbox retain their normal paths.
+The palette and Quick Capture, people window, call panel and voice host, and
+agent dock load all registered store keys. These surfaces can render rows,
+markdown, pins or a composer with readers shared with the main window. A new
+registered key is available without a window declaration. Excluding a collection
+requires proof its reader cannot mount there and a measured join saving of at
+least 20%. The import walk reached detail readers from each of these routes.
+The fixtures did not establish a set of heavy collections safe to exclude.
 
-| Desktop window                  | Mounted surface and store reads                                                                                                           |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Main, detached tabs, Chat, Work | Dashboard and route content. Any registered key can be read.                                                                              |
-| Warm spare                      | Dashboard bundle in standby. Store boot and replication start when the shell assigns the window a tab.                                    |
-| Palette and quick capture       | Command palette and new-session composer. Sessions, search collections, machines, workspace preferences, drafts, favorites and bookmarks. |
-| People                          | Roster, huddle controls, calls and walkie. Sessions, team and chat rows, and call state.                                                  |
-| Call panel and voice host       | Stage, voice controls and room chat. The fixed scope covers the roster, room thread, stage pins and feed picker.                          |
-| Agent dock                      | The current build disables the surface. The enabled surface uses attention buckets, sessions and the current card.                        |
-| Ring                            | Incoming-call card and device preview. Teams, chat channels, call state and preferences.                                                  |
-| Meeting offer                   | Recorder offer and controls. The route uses shell events and recorder state.                                                              |
-| Cursor overlay                  | Cursor markers. The route uses shell events.                                                                                              |
-| Tray and menu bar               | Native Electron menu. Quick capture opens the palette and the badge uses the renderer's reported count.                                   |
-| Recovery and browser panes      | Recovery uses a shell page. Browser panes load external content. Neither runs the workspace store.                                        |
+The ring, meeting offer and cursor overlay have fixed cache lists in
+`desktop-window-keys.ts`. They use shell events or their own feeds and send no
+replication requests. The ring draws an invite and device preview. The other
+overlays draw the recorder offer and cursors. The development read check and
+mount tests guard those lists. Auxiliary windows finish hydration before they
+join replication and skip restoring the main window's focused transcript.
 
-Scoped windows never request the host lock. If only scoped windows are open,
-each runs its own route feeders. On a cold start, feeders can run as soon as the
-route is ready. After 8 seconds without a snapshot, the solo timer enables
-per-window writes. The outbox stays available. Shared collection writes go to
-disk through a full host. Windows with sessions publish the desktop badge.
+Only a full shell may take the host lock. A standalone window runs its own route
+feeds when it has no host. It keeps its outbox. Windows that load sessions can
+report badge counts. The tab standby starts the store when the shell assigns it
+a tab. Native menus, recovery pages and external browser panes do not run the
+workspace store.
 
-After a modern host disappears, a scoped follower can take 14 seconds to resume
-its route feeders: up to 6 seconds for the host lease to expire, then 8 seconds
-for the solo timer. A full window can acquire the Web Lock as soon as it is
-released and serve all scopes. A scoped window therefore takes longer to resume
-feeding than a full window that can acquire the lock.
+Full-data panels use the host lease. They ask for all shared keys. A modern
+host also honors a scoped join from an older renderer. The scope channel
+carries the request. The addressed channel carries the snapshot and updates. Empty updates preserve sequence continuity. The host ignores a
+duplicate legacy hello from a registered peer. An older host sends the full
+snapshot, which a scoped follower filters on receipt.
 
-A scoped follower asks for its declared shared keys on a separate control
-channel. The host projects its snapshot before it builds chunks. It sends
-each scoped follower updates on an addressed channel. Empty updates preserve
-the global sequence when a write touches none of the follower's keys.
-A host heartbeat renews the subscription and detects a change of host. A
-follower whose subscription expires requests a fresh snapshot.
-
-The same declared keys apply from the first snapshot to the last update.
-Opening a picker, thread or stage item uses the scope already loaded.
-
-Legacy hosts and followers use the existing channel. A scoped follower waits
-for a modern host before opening the legacy channel. With a legacy host, it
-filters received rows before apply. The legacy host still sends a full copy.
-A modern host ignores a duplicate legacy hello from a registered scoped
-follower. Scoped writes use the ordinary mutation and pending-lock paths.
+When a replacement host answers, the follower sends one hello and
+accepts one snapshot. The lease expires 6 seconds after the last modern heartbeat or snapshot chunk. If no host answers, the follower resumes its own route feeds after
+another 8 seconds. A full shell can take the Web Lock as soon as it is released.
 
 ### Fixture measurements
 
-Run `bun perf/store-budgets.ts --desktop-windows` from `apps/web`. The
-fixture supplies 80 synthetic rows per collection. Join bytes count UTF-8 JSON
-for snapshot frames. Heap is the change in Bun's managed heap after a full GC
-in a fresh process. These values measure the replica store, without the Electron
-renderer, IndexedDB or React.
+From `apps/web`, run `bun perf/store-budgets.ts --desktop-windows --by-collection`.
+This fixture uses 80 synthetic rows per collection. Join bytes count UTF-8 JSON
+snapshot frames, and the per-collection totals count update payloads inside
+those frames. Heap figures are changes in Bun's managed heap after a full GC.
+These figures exclude the live Electron renderer and do not measure a live
+account. The repository's separate task and PR fixture uses sizes recorded in
+one account. Those collections have readers in the desktop panels.
 
-| Desktop window                               | Join bytes before → after | Populated collections before → after | Heap before → after (MB) |
-| -------------------------------------------- | ------------------------: | -----------------------------------: | -----------------------: |
-| Full follower, detached tab or claimed spare |     5,677,182 → 5,677,182 |                            138 → 138 |              9.84 → 9.84 |
-| Palette or quick capture                     |     5,677,182 → 1,480,444 |                             138 → 36 |              9.84 → 3.08 |
-| People                                       |       5,677,182 → 657,858 |                             138 → 16 |              9.84 → 1.91 |
-| Call panel or voice host                     |     5,677,182 → 1,850,400 |                             138 → 45 |              9.84 → 3.93 |
-| Agent dock, if enabled                       |       5,677,182 → 452,408 |                             138 → 11 |              9.84 → 1.37 |
-| Ring, meeting offer, cursor overlay          |                     0 → 0 |                                0 → 0 |                    0 → 0 |
+| Desktop window                                             | Join bytes before → after | Collections at join | Cache collections after | Join heap after (MB) |
+| ---------------------------------------------------------- | ------------------------: | ------------------: | ----------------------: | -------------------: |
+| Full follower, detached tab, Chat, Work or claimed spare   |     5,677,182 → 5,677,182 |                 138 |                     141 |                 9.86 |
+| Palette and Quick Capture                                  |     1,480,444 → 5,677,182 |                 138 |                     141 |                 9.73 |
+| People                                                     |       657,858 → 5,677,182 |                 138 |                     141 |                 9.74 |
+| Call panel and voice host                                  |     1,850,400 → 5,677,182 |                 138 |                     141 |                 9.73 |
+| Agent dock when enabled                                    |       452,408 → 5,677,182 |                 138 |                     141 |                 9.72 |
+| Ring                                                       |                     0 → 0 |                   0 |                       3 |                    0 |
+| Meeting offer                                              |                     0 → 0 |                   0 |                       2 |                    0 |
+| Cursor overlay                                             |                     0 → 0 |                   0 |                       2 |                    0 |
+| Unclaimed spare, native menus, recovery and external panes |                     0 → 0 |                   0 |                       0 |                    0 |
 
-The disk cache fixture uses the same row count in fake IndexedDB. Its full
-baseline holds 141 populated collections and adds 7.55 MB of managed heap.
-The cache and join measurements run independently, so their values do not add.
-
-| Desktop window                                          | Populated disk collections before → after | Disk-load heap after (MB) |
-| ------------------------------------------------------- | ----------------------------------------: | ------------------------: |
-| Full window or claimed spare                            |                                 141 → 141 |                      7.55 |
-| Palette or quick capture                                |                                  141 → 36 |                      2.96 |
-| People                                                  |                                  141 → 15 |                      2.06 |
-| Call panel or voice host                                |                                  141 → 46 |                      3.40 |
-| Agent dock                                              |                                  141 → 10 |                      1.88 |
-| Ring                                                    |                                   141 → 3 |                      1.31 |
-| Meeting offer                                           |                                   141 → 2 |                      1.32 |
-| Cursor overlay                                          |                                   141 → 2 |                      1.29 |
-| Unclaimed spare, native menus, recovery, external panes |                                     0 → 0 |                         0 |
-
-The ring uses direct feeders. The ring, unclaimed spare, meeting offer and
-cursor overlay send no replication requests.
-The mount guard runs the real desktop providers and records reads after
-typing a palette query, opening quick capture, entering a room and its thread,
-opening the stage pin picker, rendering pinned items, mounting the voice host,
-and showing a ring, recorder offer, dock card and native chat notification.
-It flushes pending store notifications before checking each surface. It mounts
-the dock directly to cover the release flag. The hydration test checks the
-ring against an IndexedDB fixture. Development renderers log an undeclared
-store read once per key with its caller.
-
-The join budgets use one row per collection. They allow 36 populated collections
-and 7,777 snapshot bytes for the palette, and 45 collections and 9,690 bytes for
-the call panel.
+“Before” is the previous fixed-list implementation. The full join fixture held
+138 populated collections before that implementation as well.
 
 ## Account boundary
 

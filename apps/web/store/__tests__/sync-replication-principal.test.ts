@@ -18,6 +18,8 @@ import {
   stopSyncReplication,
 } from "../sync-replication";
 import { session } from "./bucketFixtures";
+import { replaceGlobals } from "../../test-helpers/globals";
+import { startTestClock } from "../../test-helpers/testTimers";
 import { useInboxStore } from "../inboxStore";
 
 // Replication is scoped to the account a window acts for: channel and lock
@@ -338,6 +340,111 @@ describe("startSyncReplication", () => {
       heartbeat.mockRestore();
     }
   });
+
+  it.each(["modern", "legacy", "absent"] as const)(
+    "the palette recovers when its replacement is %s",
+    async (replacement) => {
+      const clock = startTestClock();
+      const restore = replaceGlobals({
+        window: {
+          location: { pathname: "/palette" },
+          __CODECAST_ELECTRON__: {},
+        },
+      });
+      const name = replicationChannelName("userA");
+      const serve = (id: string, modern: boolean) => {
+        const transport = replicationTransport(name, id);
+        const scoped = modern && scopedHostChannel(name, id, transport.channel);
+        const row = session("held", { title: id });
+        const host = replicationHostFor(
+          id,
+          scoped ? scoped.channel : transport.channel,
+          () => ({
+            sessions: { held: row },
+            commits: { commit: { _id: "commit", message: id } },
+          }),
+        );
+        return () => {
+          host.stop();
+          if (scoped) scoped.close();
+          transport.close();
+        };
+      };
+      const original = serve("original host", true);
+      const stop = startSyncReplication({
+        eligible: false,
+        principalId: "userA",
+      });
+      let closeReplacement: (() => void) | undefined;
+      try {
+        await clock.advance(0);
+        expect(useInboxStore.getState().sessions.held?.title).toBe(
+          "original host",
+        );
+        expect(useInboxStore.getState().commits.commit?.message).toBe(
+          "original host",
+        );
+        expect(useInboxStore.getState().syncRole).toBe("follower");
+        original();
+        hub.posted.length = 0;
+        if (replacement !== "absent")
+          closeReplacement = serve(
+            "replacement host",
+            replacement === "modern",
+          );
+
+        if (replacement === "modern") {
+          await clock.advance(0);
+          expect(
+            hub.posted.some(
+              ({ data }) => (data as { type: string }).type === "rejoin",
+            ),
+          ).toBe(false);
+        } else {
+          await clock.advance(5_999);
+          expect(hub.posted).toEqual([]);
+          expect(useInboxStore.getState().syncRole).toBe("follower");
+          await clock.advance(1);
+        }
+
+        const hellos = hub.posted.filter(
+          ({ data }) => (data as ReplicationMessage).type === "hello",
+        );
+        const snapshots = hub.posted.filter(({ data }) => {
+          const message = data as ReplicationMessage;
+          return (
+            message.type === "snapshot" ||
+            (message.type === "snapshotChunk" && message.done)
+          );
+        });
+        const role = () => useInboxStore.getState().syncRole;
+        expect(role()).toBe("follower");
+        if (replacement === "absent") {
+          expect(snapshots).toHaveLength(0);
+          await clock.advance(7_999);
+          expect(role()).toBe("follower");
+          await clock.advance(1);
+          expect(role()).toBe("host");
+        } else {
+          expect(snapshots).toHaveLength(1);
+          expect(useInboxStore.getState().sessions.held?.title).toBe(
+            "replacement host",
+          );
+          expect(useInboxStore.getState().commits.commit?.message).toBe(
+            "replacement host",
+          );
+        }
+        expect(hellos).toHaveLength(1);
+      } finally {
+        stop();
+        original();
+        closeReplacement?.();
+        useInboxStore.setState({ sessions: {}, commits: {} });
+        restore();
+        clock.close();
+      }
+    },
+  );
 
   it("reads from a legacy host and sends local field writes on the legacy channel", async () => {
     const name = replicationChannelName("userA");

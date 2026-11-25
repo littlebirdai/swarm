@@ -1,4 +1,4 @@
-import { desktopWindowKeys } from "./desktop-window-keys";
+import { desktopWindowKeys, isDesktopPanel } from "./desktop-window-keys";
 import type { StoreApi } from "zustand";
 import type { InboxStoreState, Message } from "./inboxStore";
 import { queuedMessagesFromPending } from "./pendingMessageJournal";
@@ -377,6 +377,7 @@ async function hydrateInboxCacheFromIDB(
     }
   }
 
+  const panel = isDesktopPanel();
   const windowKeys = desktopWindowKeys();
   const scopedKeys = windowKeys && new Set<string>(windowKeys);
   const criticalKeys = scopedKeys
@@ -465,13 +466,13 @@ async function hydrateInboxCacheFromIDB(
   // stamped the live URL unchecked) heals to the inbox before first paint.
   const healedTabs = healTabPaths(st.tabs);
   if (healedTabs !== st.tabs) useInboxStore.setState({ tabs: healedTabs });
-  const ownId = (
-    scopedKeys ? null : (cached?.lastFocusedConversationId ?? null)
-  ) as string | null;
+  const ownId = (panel ? null : (cached?.lastFocusedConversationId ?? null)) as
+    | string
+    | null;
   if (ownId && !st.lastFocusedConversationId) {
     useInboxStore.setState({ lastFocusedConversationId: ownId });
   }
-  if (!scopedKeys && !st.currentSessionId) {
+  if (!panel && !st.currentSessionId) {
     // A fresh open onto the feed home goes to the new-session page
     // (DashboardLayout opens it) rather than back to the last conversation.
     // Decided from the address the window opened on: by now the tab shell
@@ -506,10 +507,10 @@ async function hydrateInboxCacheFromIDB(
   // message JSON on the JS thread right after first paint, and load hundreds
   // of conversations into memory for the eviction cap to fight back out.
   const focusId = useInboxStore.getState().currentSessionId;
-  if (!scopedKeys && focusId) await ensureHydrated(focusId);
+  if (!panel && focusId) await ensureHydrated(focusId);
   if (superseded()) return false;
 
-  if (!scopedKeys && !useInboxStore.getState().clientStateInitialized) {
+  if (!panel && !useInboxStore.getState().clientStateInitialized) {
     useInboxStore.setState({ clientStateInitialized: true });
   }
 
@@ -526,7 +527,7 @@ async function hydrateInboxCacheFromIDB(
   });
   if (superseded()) return false;
   apply(deferred, deferredKeys);
-  if (scopedKeys && !useInboxStore.getState().clientStateInitialized)
+  if (panel && !useInboxStore.getState().clientStateInitialized)
     useInboxStore.setState({ clientStateInitialized: true });
   // Re-enable IDB write-through only AFTER the deferred collections land.
   // If a live delta arrives while write-through is open but the store still

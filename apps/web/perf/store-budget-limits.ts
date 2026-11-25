@@ -25,10 +25,6 @@ const limits = {
   "Streamed batch row writes": { measured: 4, margin: 0 },
   "Rename action row writes": { measured: 4, margin: 0 },
   "Follower populated collections": { measured: 138, margin: 0 },
-  "Palette follower populated collections": { measured: 36, margin: 0 },
-  "Palette follower join bytes": { measured: 7_777, margin: 0 },
-  "Call panel follower populated collections": { measured: 45, margin: 0 },
-  "Call panel follower join bytes": { measured: 9_690, margin: 0 },
 } as const;
 
 export function checkStoreBudget(name: keyof typeof limits, actual: number) {

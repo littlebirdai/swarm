@@ -4,7 +4,10 @@ import {
   isWindowStoreActive,
   subscribeWindowStoreStart,
 } from "../lib/windowRole";
-import { desktopWindowKeys } from "../store/desktop-window-keys";
+import {
+  desktopWindowKeys,
+  isDesktopPanel,
+} from "../store/desktop-window-keys";
 import { useInboxStore } from "../store/inboxStore";
 import { startSyncReplication } from "../store/sync-replication";
 
@@ -30,8 +33,9 @@ export function useSyncReplication(eligible: boolean): void {
     () => true,
   );
   const keys = desktopWindowKeys();
+  const panel = isDesktopPanel();
   const hydrated = useInboxStore(
-    (state) => !keys || state.clientStateInitialized,
+    (state) => !panel || state.clientStateInitialized,
   );
   const ready = active && hydrated;
   useWatchEffect(() => {

@@ -44,9 +44,16 @@ export function observeDesktopStoreReads(
     }
     restore = () => Object.defineProperties(state, properties);
   };
-  observe(useInboxStore.getState());
+  const getState = useInboxStore.getState;
+  useInboxStore.getState = () => {
+    const state = getState();
+    observe(state);
+    return state;
+  };
+  observe(getState());
   const unsubscribe = useInboxStore.subscribe(observe);
   return () => {
+    useInboxStore.getState = getState;
     unsubscribe();
     restore?.();
   };
