@@ -4,7 +4,7 @@ import type {
   SimBackend,
   SimClient,
 } from "@codecast/convex/convex/simBackend.testing";
-import { catchUpScope } from "../../../../hooks/useSyncChangeFeed";
+import { catchUpScope } from "../../../../hooks/use-sync-change-feed";
 import { createWindowStore, runInWindow } from "../realm";
 import type { Person } from "./model";
 import { fixtureId } from "./workload";
