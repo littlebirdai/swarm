@@ -272,7 +272,7 @@ bun scripts/ci/changed-path-scope.ts --injection-only < "\${{ steps.diff.outputs
       {
         "name": "Tests outside packages/ (scripts, infra)",
         "run": 
-"bun test ./scripts/line.test.ts ./scripts/lineFinders.test.ts ./scripts/lib/lint-baseline.test.ts ./scripts/perf/sync-alarms.test.ts ./scripts/perf/ws-bytes-report.test.mjs ./infra/artifact-edge/worker.test.js ./infra/replay-player/src/clock.test.ts
+"bun test ./scripts/line.test.ts ./scripts/lineFinders.test.ts ./scripts/lib/lint-baseline.test.ts ./scripts/perf/sync-alarms.test.ts ./scripts/perf/ws-bytes-report.test.mjs ./scripts/perf/ws-frame-meter.test.mjs ./infra/artifact-edge/worker.test.js ./infra/replay-player/src/clock.test.ts
 node --test infra/call-face-worker/turns.test.mjs
 "
 ,

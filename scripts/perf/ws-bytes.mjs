@@ -10,12 +10,13 @@
 //
 //   node scripts/perf/ws-bytes.mjs --port 62066 --url local.codecast.sh --seconds 60 --reconnect 1
 //
-// Queries subscribed before the meter attached show as query#<id> unless the
+// Queries subscribed before the meter attached show as query#<socket>:<id> unless the
 // client re-sends its query set: --reconnect 1 drops the socket for two
 // seconds (the client re-adds every query on reconnect; the page and its
 // sync-host role are untouched); --reload 1 reloads the page instead, which
 // releases the sync-host lock — use it only to measure a cold boot.
 import { readFile } from "node:fs/promises";
+import { createSocketMeter } from "./ws-frame-meter.mjs";
 import { socketQueryReport } from "./ws-bytes-report.mjs";
 
 const args = Object.fromEntries(
@@ -84,83 +85,15 @@ const send = (method, params) =>
     ws.addEventListener("message", on);
     ws.send(JSON.stringify({ id: my, method, params }));
   });
-const queryNames = new Map(); // requestId -> (queryId -> udfPath)
-const convexSockets = new Set();
-const receivedSockets = new Set();
-let measuring = false;
-const byQuery = new Map(); // udfPath -> { bytes, frames }
-let total = 0,
-  frames = 0;
 // A Transition above the socket's frame size ships as TransitionChunk parts
 // (transitionId, partNumber, totalParts, chunk); the query attribution below
 // needs the reassembled message, so buffer the parts and account the whole
 // once the last one lands. The raw bytes still count per frame.
-const chunks = new Map(); // transitionId -> { parts: string[], seen: number }
-function attribute(requestId, m) {
-  if (m.type !== "Transition") return;
-  for (const mod of m.modifications ?? []) {
-    const name =
-      queryNames.get(requestId)?.get(mod.queryId) ?? `query#${mod.queryId}`;
-    const size = Buffer.byteLength(JSON.stringify(mod));
-    const e = byQuery.get(name) ?? { bytes: 0, frames: 0 };
-    e.bytes += size;
-    e.frames += 1;
-    byQuery.set(name, e);
-  }
-}
-ws.addEventListener("message", (ev) => {
-  const d = JSON.parse(ev.data);
-  if (d.method === "Network.webSocketCreated") {
-    const { requestId, url } = d.params;
-    if (/\/api\/[^/]+\/sync$/.test(new URL(url).pathname))
-      convexSockets.add(requestId);
-    return;
-  }
-  const sent = d.method === "Network.webSocketFrameSent";
-  if (!sent && d.method !== "Network.webSocketFrameReceived") return;
-  const { requestId, response } = d.params;
-  const raw = response.payloadData;
-  let message;
-  try {
-    message = JSON.parse(raw);
-  } catch {
-    return;
-  }
-  if (message?.type === "ModifyQuerySet" && sent) {
-    convexSockets.add(requestId);
-    const names = queryNames.get(requestId) ?? new Map();
-    for (const mod of message.modifications ?? []) {
-      if (mod.type === "Add") names.set(mod.queryId, mod.udfPath);
-    }
-    queryNames.set(requestId, names);
-  }
-  if (sent) return;
-  if (message?.type === "Transition" || message?.type === "TransitionChunk")
-    convexSockets.add(requestId);
-  if (!convexSockets.has(requestId) || !measuring) return;
-
-  receivedSockets.add(requestId);
-  total += Buffer.byteLength(raw);
-  frames++;
-  if (message?.type === "TransitionChunk") {
-    const key = `${requestId}:${message.transitionId}`;
-    const chunk = chunks.get(key) ?? {
-      parts: new Array(message.totalParts).fill(null),
-      seen: 0,
-    };
-    if (chunk.parts[message.partNumber] === null) chunk.seen++;
-    chunk.parts[message.partNumber] = message.chunk;
-    chunks.set(key, chunk);
-    if (chunk.seen === message.totalParts) {
-      chunks.delete(key);
-      try {
-        attribute(requestId, JSON.parse(chunk.parts.join("")));
-      } catch {}
-    }
-    return;
-  }
-  if (message) attribute(requestId, message);
-});
+const meter = createSocketMeter();
+let measuring = false;
+ws.addEventListener("message", (event) =>
+  meter.record(JSON.parse(event.data), measuring),
+);
 await send("Network.enable", {});
 if (args.reload === "1") {
   await send("Page.enable", {});
@@ -188,28 +121,35 @@ console.error(
 measuring = true;
 await new Promise((r) => setTimeout(r, SECONDS * 1000));
 measuring = false;
+const { byQuery, totalBytes: total, frames } = meter.snapshot();
 // Names for queries subscribed before the meter attached: ask the page's
 // client (dev builds expose window.__convexClient) which function each id
 // maps to, and fold the unnamed buckets into the named ones.
-const unnamed = [...byQuery.keys()].filter((n) => n.startsWith("query#"));
-if (unnamed.length && receivedSockets.size === 1 && convexSockets.size === 1) {
-  const ids = unnamed.map((n) => Number(n.slice(6)));
-  const r = await send("Runtime.evaluate", {
-    expression: `(() => { const c = window.__convexClient; if (!c) return null; const st = c.sync?.state; return JSON.stringify(${JSON.stringify(ids)}.map((id) => { try { return st?.queryPath?.(id) ?? null; } catch { return null; } })); })()`,
-    returnByValue: true,
-  });
-  const paths = r?.result?.value ? JSON.parse(r.result.value) : null;
-  if (paths) {
-    ids.forEach((id, i) => {
-      const path = paths[i];
-      if (!path) return;
-      const from = byQuery.get(`query#${id}`);
-      byQuery.delete(`query#${id}`);
-      const e = byQuery.get(path) ?? { bytes: 0, frames: 0 };
-      e.bytes += from.bytes;
-      e.frames += from.frames;
-      byQuery.set(path, e);
+const openSocket = meter.openSocket();
+if (openSocket !== undefined) {
+  const prefix = `query#${openSocket}:`;
+  const unnamed = [...byQuery.keys()].filter((name) => name.startsWith(prefix));
+  if (unnamed.length) {
+    const ids = unnamed.map((name) => Number(name.slice(prefix.length)));
+    const result = await send("Runtime.evaluate", {
+      expression: `(() => { const c = window.__convexClient; if (!c) return null; const st = c.sync?.state; return JSON.stringify(${JSON.stringify(ids)}.map((id) => { try { return st?.queryPath?.(id) ?? null; } catch { return null; } })); })()`,
+      returnByValue: true,
     });
+    const paths = result?.result?.value
+      ? JSON.parse(result.result.value)
+      : null;
+    if (paths) {
+      unnamed.forEach((name, index) => {
+        const path = paths[index];
+        if (!path) return;
+        const from = byQuery.get(name);
+        byQuery.delete(name);
+        const prior = byQuery.get(path) ?? { bytes: 0, frames: 0 };
+        prior.bytes += from.bytes;
+        prior.frames += from.frames;
+        byQuery.set(path, prior);
+      });
+    }
   }
 }
 if (args.json === "1") {
