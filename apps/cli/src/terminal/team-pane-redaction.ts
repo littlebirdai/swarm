@@ -80,15 +80,15 @@ export function redactTeamScreen(screen: string): string {
   const shared = redactSecrets(redactKnownValues(screen.replace(ESCAPES, "")));
   return redactJwk(shared)
     .replace(KEY_BLOCK, mask)
+    .replace(
+      /(?<![\w-])(client-key-data[ \t]*:[ \t]*)([|>][-+]?[ \t]*\n(?:[ \t]+[A-Za-z0-9+/=]+[ \t]*(?:\n|$))+|"[^"\n]*"|'[^'\n]*'|[^ \t\n]+)/gi,
+      (_match, label, value) => label + mask(value),
+    )
     .replace(KEY_ROWS, (value) =>
       value.startsWith("-----BEGIN CERTIFICATE-----") ||
       !/^[ \t]*[A-Za-z0-9+/]*[G-Zg-z+/][A-Za-z0-9+/]*[ \t]*$/m.test(value)
         ? value
         : mask(value),
-    )
-    .replace(
-      /(?<![\w-])(client-key-data[ \t]*:[ \t]*)([|>][-+]?[ \t]*\n(?:[ \t]+[A-Za-z0-9+/=]+[ \t]*(?:\n|$))+|"[^"\n]*"|'[^'\n]*'|[^ \t\n]+)/gi,
-      (_match, label, value) => label + mask(value),
     )
     .replace(
       MULTILINE_ASSIGNMENT,

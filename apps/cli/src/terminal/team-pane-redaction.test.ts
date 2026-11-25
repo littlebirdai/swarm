@@ -60,6 +60,15 @@ test.each([
     ],
     encoded.slice(12),
   ],
+  [
+    "wrapped client-key-data block with an unpadded end",
+    [
+      "client-key-data: |",
+      ...Array.from({ length: 4 }, () => "  " + "kZ9+".repeat(16)),
+      "  q7/Wunpaddedlastline0123",
+    ],
+    "q7/Wunpaddedlastline0123",
+  ],
   ["encoded PEM", [encoded], encoded],
   [
     "bare multiline assignment",
