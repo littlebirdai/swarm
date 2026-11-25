@@ -85,6 +85,11 @@ function reader(events: ProviderEventIterator, scope: SessionScope) {
   };
 }
 
+async function drain(session: Session): Promise<void> {
+  const events = session.events[Symbol.asyncIterator]();
+  while (!(await events.next()).done);
+}
+
 function stale<Position extends ObservedPosition>(observed: Position) {
   return { status: "stale", observed } as const;
 }
@@ -225,6 +230,7 @@ export function providerConformanceCases(create: () => ProviderFixture) {
     async "stale actions reach neither the agent nor the pane or leak a fence"() {
       const fixture = create();
       const session = await open(fixture);
+      const draining = drain(session);
       const { capabilities } = fixture.adapter.provider;
       try {
         if (supportsSteer(fixture)) {
@@ -303,12 +309,14 @@ export function providerConformanceCases(create: () => ProviderFixture) {
         expect(fixture.effects()).toEqual([]);
       } finally {
         await session.close();
+        await draining;
       }
     },
 
     async "advertised controls apply in the active turn"() {
       const fixture = create();
       const session = await open(fixture);
+      const draining = drain(session);
       const { capabilities } = fixture.adapter.provider;
       const applied: ProviderEffect[] = [];
       try {
@@ -356,15 +364,18 @@ export function providerConformanceCases(create: () => ProviderFixture) {
         }
       } finally {
         await session.close();
+        await draining;
       }
     },
 
     async "resume opens the current checkpoint and recovers durable receipts when offered"() {
       const fixture = create();
       const session = await open(fixture);
+      const draining = drain(session);
       const { capabilities } = fixture.adapter.provider;
       if (session.mode !== "own" || !capabilities.includes("resume")) {
         await session.close();
+        await draining;
         return;
       }
       const receipt = { delivery_id: fixture.steer.delivery_id };
@@ -385,6 +396,7 @@ export function providerConformanceCases(create: () => ProviderFixture) {
         spec = fixture.resumeSpec(session.getCheckpoint());
       } finally {
         await session.close();
+        await draining;
       }
       const resumed = await fixture.adapter.resume(spec);
       expect(resumed.status).toBe("opened");
@@ -426,6 +438,7 @@ export function providerConformanceCases(create: () => ProviderFixture) {
     async "unsupported operations have no effect"() {
       const fixture = create();
       const session = await open(fixture);
+      const draining = drain(session);
       try {
         const { capabilities } = fixture.adapter.provider;
         const spec = fixture.resumeSpec("checkpoint");
@@ -468,6 +481,7 @@ export function providerConformanceCases(create: () => ProviderFixture) {
         expect(fixture.effects()).toEqual([]);
       } finally {
         await session.close();
+        await draining;
       }
     },
 

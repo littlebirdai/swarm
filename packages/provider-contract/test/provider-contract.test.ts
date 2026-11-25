@@ -186,3 +186,19 @@ providerConformance("event-driven turn", () =>
     { eventDrivenTurn: true },
   ),
 );
+
+providerConformance("event-driven turn with receipts", () =>
+  fakeProvider(
+    {
+      ...dialects.sdk,
+      capabilities: [
+        "own",
+        "receipts",
+        "steer-mid-turn",
+        "interrupt",
+        "prompts",
+      ],
+    },
+    { eventDrivenTurn: true },
+  ),
+);
