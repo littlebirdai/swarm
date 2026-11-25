@@ -36,24 +36,92 @@ export function heartbeatsFor(
   return Promise.all(sessions.map((session) => heartbeatOf(ctx, session)));
 }
 
-// A whole-user projection already reads the user's full registry. Fetch its
-// matching side rows in one indexed read to stay within the inbox call budget.
-export async function heartbeatsForUser(
+export function heartbeatsForUser(
   ctx: Reader,
   userId: Id<"users">,
   sessions: ManagedHeartbeat[],
 ): Promise<number[]> {
-  if (sessions.length === 0) return [];
-  const rows = await ctx.db
+  return Promise.all(
+    sessions.map(async (session) => {
+      const rows = await ctx.db
+        .query("session_heartbeats")
+        .withIndex("by_managed_session", (q) =>
+          q.eq("managed_session_id", session._id),
+        )
+        .collect();
+      return rows.reduce(
+        (beat, row) =>
+          row.user_id === userId ? Math.max(beat, row.heartbeat_at) : beat,
+        resolveHeartbeat(session, undefined),
+      );
+    }),
+  );
+}
+
+export async function readConversationSessionHeartbeats(
+  ctx: Reader,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+) {
+  const rows = (
+    await ctx.db
+      .query("managed_sessions")
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", conversationId),
+      )
+      .collect()
+  ).filter((row) => row.user_id === userId);
+  return { rows, beats: await heartbeatsForUser(ctx, userId, rows) };
+}
+
+export async function newestDaemonSessionHeartbeat(
+  ctx: Reader,
+  userId: Id<"users">,
+): Promise<number | undefined> {
+  const legacy = await ctx.db
+    .query("managed_sessions")
+    .withIndex("by_daemon_beat", (q) =>
+      q.eq("user_id", userId).eq("hosted", undefined),
+    )
+    .order("desc")
+    .first();
+  if (!legacy) return undefined;
+  const legacyBeat = resolveHeartbeat(legacy, undefined);
+  const newerSide = ctx.db
     .query("session_heartbeats")
-    .withIndex("by_user_heartbeat", (q) => q.eq("user_id", userId))
-    .collect();
-  const beats = new Map(
-    rows.map((row) => [row.managed_session_id, row.heartbeat_at]),
+    .withIndex("by_user_heartbeat", (q) =>
+      q.eq("user_id", userId).gt("heartbeat_at", legacyBeat),
+    )
+    .order("desc");
+  for await (const side of newerSide) {
+    const session = await ctx.db.get(side.managed_session_id);
+    if (session?.user_id === userId && session.hosted === undefined)
+      return resolveHeartbeat(session, side.heartbeat_at);
+  }
+  return legacyBeat;
+}
+
+export async function readLiveSessionConversationIds(
+  ctx: Reader,
+  userId: Id<"users">,
+  since: number,
+): Promise<Id<"conversations">[]> {
+  const sessions =
+    since < 0
+      ? await ctx.db
+          .query("managed_sessions")
+          .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+          .collect()
+      : await managedSessionsBeatingSince(ctx, since, userId);
+  sessions.sort(
+    (a, b) =>
+      a._creationTime - b._creationTime ||
+      (a._id < b._id ? -1 : Number(a._id > b._id)),
   );
-  return sessions.map((session) =>
-    resolveHeartbeat(session, beats.get(session._id)),
-  );
+  const ids = new Set<Id<"conversations">>();
+  for (const row of sessions)
+    if (row.conversation_id) ids.add(row.conversation_id);
+  return [...ids];
 }
 
 export async function writeSessionHeartbeat(

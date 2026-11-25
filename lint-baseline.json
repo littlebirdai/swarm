@@ -10490,6 +10490,9 @@
   "apps/server/convex/lib/sentryHttp.ts": {
     "swarm/no-comments": 8
   },
+  "apps/server/convex/lib/session-heartbeat.ts": {
+    "swarm/no-comments": 7
+  },
   "apps/server/convex/lib/sessionAccount.ts": {
     "swarm/no-comments": 6
   },
@@ -10513,9 +10516,6 @@
   },
   "apps/server/convex/lib/sessionHeartbeat.test.ts": {
     "swarm/no-comments": 1
-  },
-  "apps/server/convex/lib/session-heartbeat.ts": {
-    "swarm/no-comments": 9
   },
   "apps/server/convex/lib/sessionIdentityFields.ts": {
     "swarm/no-comments": 1

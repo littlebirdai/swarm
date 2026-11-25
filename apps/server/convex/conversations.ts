@@ -1,7 +1,9 @@
 import {
   heartbeatOf,
   heartbeatsFor,
-  heartbeatsForUser,
+  newestDaemonSessionHeartbeat,
+  readConversationSessionHeartbeats,
+  readLiveSessionConversationIds,
 } from "./lib/session-heartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { hasDeliverableMessage } from "./lib/closeAside";
@@ -8481,7 +8483,12 @@ export const listFavoriteSessions = query({
       .take(500);
 
     const maps = includeLiveness
-      ? await buildUserSessionMaps(ctx, userId, now)
+      ? await buildUserSessionMaps(
+          ctx,
+          userId,
+          now,
+          favorites.filter(shouldShowInInbox),
+        )
       : EMPTY_INBOX_MAPS;
 
     const getDoc = makeMemoGet(ctx);
@@ -10094,6 +10101,9 @@ type InboxSessionMaps = {
   // read: newest heartbeat per conversation, and newest across the user's rows.
   lastHeartbeatMap: Map<string, number>;
   latestHeartbeat: number | undefined;
+  loadConversations?: (
+    convs: readonly { _id: Id<"conversations"> }[],
+  ) => Promise<void>;
 };
 
 // A daemon whose newest heartbeat is inside this window is "alive" for the
@@ -10153,19 +10163,38 @@ function verifiedWaitingFor(
 
 // Build the per-user managed-session maps once, then look up by conversation id.
 async function buildUserSessionMaps(
-  ctx: any,
+  ctx: QueryCtx,
   userId: Id<"users">,
   now: number,
+  conversations: readonly { _id: Id<"conversations"> }[],
+  discoverLive = false,
 ): Promise<InboxSessionMaps> {
-  const managedSessions = await ctx.db
-    .query("managed_sessions")
-    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
-    .collect();
-  return sessionMapsFromManagedRows(
-    managedSessions,
-    await heartbeatsForUser(ctx, userId, managedSessions),
-    now,
-  );
+  const [latest, liveIds] = await Promise.all([
+    newestDaemonSessionHeartbeat(ctx, userId),
+    discoverLive
+      ? readLiveSessionConversationIds(ctx, userId, now - HEARTBEAT_ALIVE_MS)
+      : [],
+  ]);
+  const maps = sessionMapsFromManagedRows([], [], now, latest);
+  for (const id of liveIds) maps.liveConvIds.add(id);
+  const loaded = new Map<Id<"conversations">, Promise<unknown>>();
+  maps.loadConversations = async (convs) => {
+    await Promise.all(
+      convs.map(({ _id }) => {
+        if (!loaded.has(_id))
+          loaded.set(
+            _id,
+            readConversationSessionHeartbeats(ctx, userId, _id).then(
+              ({ rows, beats }) =>
+                applyManagedSessionRows(maps, rows, beats, now),
+            ),
+          );
+        return loaded.get(_id);
+      }),
+    );
+  };
+  await maps.loadConversations(conversations);
+  return maps;
 }
 
 // Liveness maps for a NAMED set of conversations, for a caller that asked for
@@ -10257,69 +10286,27 @@ export function sessionMapsFromManagedRows(
   now: number,
   userLatestHeartbeat?: number,
 ): InboxSessionMaps {
-  const liveConvIds = new Set<string>();
-  const lastHeartbeatMap = new Map<string, number>();
-  let latestHeartbeat: number | undefined;
-  for (const [i, s] of managedSessions.entries()) {
-    const beat = beats[i];
-    // Only a daemon's heartbeat vouches for the user's other sessions; a
-    // hosted row's heartbeat is a running turn and stays on its own row.
-    if (
-      isDaemonManagedRow(s) &&
-      (latestHeartbeat === undefined || beat > latestHeartbeat)
-    ) {
-      latestHeartbeat = beat;
-    }
-    if (s.conversation_id)
-      noteHeartbeat(
-        { lastHeartbeatMap, liveConvIds },
-        s.conversation_id.toString(),
-        beat,
-        now,
-      );
-  }
-
-  const agentStatusMap = new Map<string, any>();
-  const agentStatusUpdatedAtMap = new Map<string, number>();
-  const settleFactsMap = new Map<
-    string,
-    { boundary: boolean; turnCompletedAt?: number }
-  >();
-  const hibernatedAtMap = new Map<string, number>();
-  const tmuxSessionMap = new Map<string, string>();
-  const sdkBackendConvIds = new Set<string>();
-  const permissionModeMap = new Map<string, string>();
-  const agentStartedAtMap = new Map<string, number>();
-  const openTasksMap = new Map<string, { tasks: any[]; at: number }>();
-  for (const s of managedSessions) {
-    if (!s.conversation_id) continue;
-    const cid = s.conversation_id.toString();
-    if (s.tmux_session) tmuxSessionMap.set(cid, s.tmux_session);
-    if (s.backend === "sdk") sdkBackendConvIds.add(cid);
-    if (s.permission_mode) permissionModeMap.set(cid, s.permission_mode);
-    // Above the agent_status guard on purpose: a session whose status hasn't
-    // been reported yet still has a process generation, and that is exactly
-    // what decides whether its standing watches are real.
-    if (s.agent_started_at !== undefined)
-      agentStartedAtMap.set(cid, s.agent_started_at);
-    if (s.open_tasks !== undefined && s.open_tasks_at !== undefined)
-      openTasksMap.set(cid, { tasks: s.open_tasks, at: s.open_tasks_at });
-    if (!s.agent_status) continue;
-    if (s.agent_status_updated_at !== undefined)
-      agentStatusUpdatedAtMap.set(cid, s.agent_status_updated_at);
-    settleFactsMap.set(cid, {
-      boundary: s.agent_status_boundary === true,
-      turnCompletedAt: s.turn_completed_at,
-    });
-    if (s.hibernated_at !== undefined)
-      hibernatedAtMap.set(cid, s.hibernated_at);
-    // Raw status. The heartbeat-staleness coercion lives in trustedAgentStatus
-    // (consumers pass liveConvIds membership as heartbeatAlive) so it can weigh
-    // the conversation's own activity — a lapsed heartbeat on a session that is
-    // actively syncing messages must not read as dead.
-    agentStatusMap.set(cid, s.agent_status);
-  }
-
+  const maps: InboxSessionMaps = {
+    agentStatusMap: new Map(),
+    agentStatusUpdatedAtMap: new Map(),
+    settleFactsMap: new Map(),
+    hibernatedAtMap: new Map(),
+    tmuxSessionMap: new Map(),
+    sdkBackendConvIds: new Set(),
+    permissionModeMap: new Map(),
+    agentStartedAtMap: new Map(),
+    openTasksMap: new Map(),
+    liveConvIds: new Set(),
+    lastHeartbeatMap: new Map(),
+    userDaemonAlive: false,
+    latestHeartbeat: undefined,
+  };
+  let latestHeartbeat = applyManagedSessionRows(
+    maps,
+    managedSessions,
+    beats,
+    now,
+  );
   if (
     typeof userLatestHeartbeat === "number" &&
     (latestHeartbeat === undefined || userLatestHeartbeat > latestHeartbeat)
@@ -10334,23 +10321,58 @@ export function sessionMapsFromManagedRows(
   // Flooring keeps the deadline honest: at most a minute early.
   if (latestHeartbeat !== undefined)
     latestHeartbeat = Math.floor(latestHeartbeat / 60_000) * 60_000;
-  const userDaemonAlive = userDaemonAliveAt({ latestHeartbeat }, now);
+  maps.latestHeartbeat = latestHeartbeat;
+  maps.userDaemonAlive = userDaemonAliveAt(maps, now);
+  return maps;
+}
 
-  return {
-    agentStatusMap,
-    agentStatusUpdatedAtMap,
-    settleFactsMap,
-    hibernatedAtMap,
-    tmuxSessionMap,
-    sdkBackendConvIds,
-    permissionModeMap,
-    agentStartedAtMap,
-    openTasksMap,
-    liveConvIds,
-    userDaemonAlive,
-    lastHeartbeatMap,
-    latestHeartbeat,
-  };
+function applyManagedSessionRows(
+  maps: InboxSessionMaps,
+  managedSessions: any[],
+  beats: number[],
+  now: number,
+): number | undefined {
+  let latestHeartbeat: number | undefined;
+  for (const [i, s] of managedSessions.entries()) {
+    const beat = beats[i];
+    // Only a daemon's heartbeat vouches for the user's other sessions; a
+    // hosted row's heartbeat is a running turn and stays on its own row.
+    if (
+      isDaemonManagedRow(s) &&
+      (latestHeartbeat === undefined || beat > latestHeartbeat)
+    ) {
+      latestHeartbeat = beat;
+    }
+    if (!s.conversation_id) continue;
+    const cid = s.conversation_id.toString();
+    noteHeartbeat(maps, cid, beat, now);
+    if (s.tmux_session) maps.tmuxSessionMap.set(cid, s.tmux_session);
+    if (s.backend === "sdk") maps.sdkBackendConvIds.add(cid);
+    if (s.permission_mode) maps.permissionModeMap.set(cid, s.permission_mode);
+    // Above the agent_status guard on purpose: a session whose status hasn't
+    // been reported yet still has a process generation, and that is exactly
+    // what decides whether its standing watches are real.
+    if (s.agent_started_at !== undefined)
+      maps.agentStartedAtMap.set(cid, s.agent_started_at);
+    if (s.open_tasks !== undefined && s.open_tasks_at !== undefined)
+      maps.openTasksMap.set(cid, { tasks: s.open_tasks, at: s.open_tasks_at });
+    if (!s.agent_status) continue;
+    if (s.agent_status_updated_at !== undefined)
+      maps.agentStatusUpdatedAtMap.set(cid, s.agent_status_updated_at);
+    maps.settleFactsMap.set(cid, {
+      boundary: s.agent_status_boundary === true,
+      turnCompletedAt: s.turn_completed_at,
+    });
+    if (s.hibernated_at !== undefined)
+      maps.hibernatedAtMap.set(cid, s.hibernated_at);
+    // Raw status. The heartbeat-staleness coercion lives in trustedAgentStatus
+    // (consumers pass liveConvIds membership as heartbeatAlive) so it can weigh
+    // the conversation's own activity — a lapsed heartbeat on a session that is
+    // actively syncing messages must not read as dead.
+    maps.agentStatusMap.set(cid, s.agent_status);
+  }
+
+  return latestHeartbeat;
 }
 
 // Empty maps for the liveness-excluded path: computeInboxSessions({includeLiveness:false})
@@ -10681,6 +10703,7 @@ async function enrichInboxSessionRow(
       )
       .order("desc")
       .take(20);
+    await maps.loadConversations?.(children);
     const implChild = children.find(
       (c: any) => c.parent_message_uuid === "plan-handoff" && !c.is_subagent,
     );
@@ -11233,6 +11256,7 @@ export async function scanInboxConversations(
     // child rows carry the fields. Off for team scope, whose list never
     // strips them.
     subagentWindow?: boolean;
+    discoverLive?: boolean;
     // The caller named its sessions (extraConvIds) and wants only those: skip
     // every window and the owner window, admit the named rows by the same
     // rule, and read their liveness per conversation (buildNamedSessionMaps).
@@ -11773,7 +11797,13 @@ export async function scanInboxConversations(
         !byId.has(c._id.toString()) && pooledByWindows(c, userId, now),
     );
   } else {
-    maps = await buildUserSessionMaps(ctx, userId, now);
+    maps = await buildUserSessionMaps(
+      ctx,
+      userId,
+      now,
+      [...conversations, ...recentSubagents],
+      opts.discoverLive,
+    );
   }
 
   // buildUserSessionMaps only covers managed_sessions belonging to THIS user;
@@ -13106,7 +13136,10 @@ export async function classifyWorkStates(
   childrenByParent: Map<string, any[]>,
   now: number,
 ): Promise<Map<string, WorkState>> {
-  const maps = await buildUserSessionMaps(ctx, userId, now);
+  const maps = await buildUserSessionMaps(ctx, userId, now, [
+    ...conversations,
+    ...[...childrenByParent.values()].flat(),
+  ]);
   const uid = userId.toString();
   const foreign = conversations.filter((c) => c.user_id.toString() !== uid);
   if (foreign.length > 0)
@@ -13283,6 +13316,7 @@ export async function computeSessionsLiveness(
     includeLiveness: true,
     teamScope,
     subagentWindow: true,
+    discoverLive: true,
   });
   const { conversations, maps, truncated } = scan;
   // Decisions FIRST: a parent already asking through a pending `cast decide`
@@ -13295,6 +13329,7 @@ export async function computeSessionsLiveness(
     maps,
     pendingDecisionIds,
   );
+  await maps.loadConversations?.(pool);
   const childrenByParent = groupPoolChildren(pool);
   const scannedIds = new Set(conversations.map((c: any) => c._id.toString()));
   const pooledAt = (cid: string, t: number) =>
@@ -13357,6 +13392,7 @@ export async function computeSessionsLiveness(
         .take(20),
     ),
   );
+  await maps.loadConversations?.(scannedChildren.flat());
   scanTargets.forEach(({ conv }, k) => {
     const cid = conv._id.toString();
     const known = new Set(

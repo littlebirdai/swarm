@@ -4334,6 +4334,7 @@ export default defineSchema(
       .index("by_conversation_id", ["conversation_id"])
       .index("by_user_id", ["user_id"])
       .index("by_user_heartbeat", ["user_id", "last_heartbeat"])
+      .index("by_daemon_beat", ["user_id", "hosted", "last_heartbeat"])
       .index("by_user_status", ["user_id", "agent_status"])
       // addMessages asks whether its session is idle or blocked here: while the
       // session works the range is empty, so heartbeats never conflict with it.
