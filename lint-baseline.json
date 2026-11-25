@@ -2296,7 +2296,7 @@
   "apps/cli/src/daemon.login-flow.test.ts": {
     "swarm/no-comments": 26
   },
-  "apps/cli/src/daemon.loopBudget.guard.test.ts": {
+  "apps/cli/src/daemon.loop-budget.guard.test.ts": {
     "swarm/no-comments": 57
   },
   "apps/cli/src/daemon.machine-prompt-safety.test.ts": {
@@ -2516,7 +2516,7 @@
   "apps/cli/src/daemonMarkers.ts": {
     "swarm/no-comments": 46
   },
-  "apps/cli/src/daemonRestartGating.test.ts": {
+  "apps/cli/src/daemon-restart-gating.test.ts": {
     "swarm/no-comments": 72
   },
   "apps/cli/src/dataSync/command.ts": {
@@ -4330,7 +4330,7 @@
   "apps/cli/src/sessionTrailerHook.ts": {
     "swarm/no-comments": 9
   },
-  "apps/cli/src/sessionTransfer.test.ts": {
+  "apps/cli/src/session-transfer.test.ts": {
     "swarm/no-comments": 2
   },
   "apps/cli/src/sessionTransfer.ts": {
@@ -5821,7 +5821,7 @@
   "apps/cli/src/worktreeEnv.ts": {
     "swarm/no-comments": 8
   },
-  "apps/cli/src/worktreeGc.test.ts": {
+  "apps/cli/src/worktree-gc.test.ts": {
     "swarm/no-comments": 34
   },
   "apps/cli/src/worktreeGc.ts": {

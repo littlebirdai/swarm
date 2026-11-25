@@ -111,7 +111,7 @@ function fixture(writeSucceeded = true) {
   const hook = `function receiveHook(data) { const prev = undefined; const sessionId = "sid"; ${hookState} classifyBypassBlock(awaitingAskUserQuestion, sessionId, data.status, data.permission_mode, data.message); sendAgentStatus(syncServiceRef, "conv", sessionId, data.status); }`;
 
   const terminalSource = fs.readFileSync(
-    new URL("./terminal/daemonBridge.ts", import.meta.url),
+    new URL("./terminal/daemon-bridge.ts", import.meta.url),
     "utf8",
   );
   const streamAt = terminalSource.indexOf("startPaneStream(target, {");

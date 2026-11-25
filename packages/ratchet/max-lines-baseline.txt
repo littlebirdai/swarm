@@ -82,7 +82,7 @@ apps/cli/src/computer/client.ts 850
 apps/cli/src/computer/run.ts 1150
 apps/cli/src/daemon.inject-retry-journal.e2e.test.ts 850
 apps/cli/src/daemon.interactive-prompt-parse.test.ts 1000
-apps/cli/src/daemon.loopBudget.guard.test.ts 1100
+apps/cli/src/daemon.loop-budget.guard.test.ts 1100
 apps/cli/src/daemon.machine-prompt-safety.test.ts 2350
 apps/cli/src/daemon.session-teardown.test.ts 1300
 apps/cli/src/daemon.status-reconcile.test.ts 1150
@@ -188,7 +188,7 @@ apps/cli/src/workspace/cli.ts 850
 apps/cli/src/workspace/lifecycle.test.ts 1350
 apps/cli/src/workspace/lifecycle.ts 1250
 apps/cli/src/workspace/manifest.ts 950
-apps/cli/src/worktreeGc.test.ts 1000
+apps/cli/src/worktree-gc.test.ts 1000
 apps/evals/fixtures/org-review/fernhill.ts 850
 apps/evals/src/adapters/replay.test.ts 1050
 apps/evals/src/adapters/replay.ts 850

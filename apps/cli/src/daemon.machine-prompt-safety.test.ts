@@ -107,7 +107,7 @@ const source = [
   "./daemon.ts",
   "./tmuxPaneState.ts",
   "./pollMessage.ts",
-  "./terminal/daemonBridge.ts",
+  "./terminal/daemon-bridge.ts",
 ]
   .map((file) => fs.readFileSync(new URL(file, import.meta.url), "utf8"))
   .join("\n");

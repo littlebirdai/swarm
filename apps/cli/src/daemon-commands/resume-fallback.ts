@@ -8,7 +8,7 @@ import { markClaudeSessionLive } from "../ccLiveGate.js";
 import { setPosition } from "../positionTracker.js";
 import { AGENT_ENV_SCRUB, launchTokenEnv } from "../agentEnv.js";
 import { launchTokenLedger } from "../launchToken.js";
-import { TMUX_SIZE_ARGS } from "../terminal/daemonBridge.js";
+import { TMUX_SIZE_ARGS } from "../terminal/daemon-bridge.js";
 import {
   fetchExport,
   generateCodexJsonl,

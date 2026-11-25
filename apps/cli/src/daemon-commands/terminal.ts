@@ -3,7 +3,7 @@ import { deviceId } from "../remote/device.js";
 import {
   getTerminalEndpoint,
   streamTerminalPane,
-} from "../terminal/daemonBridge.js";
+} from "../terminal/daemon-bridge.js";
 import { runWatchSession, defaultWatchDeps } from "../browser/watchServer.js";
 import { startWatchRelay, type RelayAnswer } from "../browser/watchRelay.js";
 import { type Config } from "../config/types.js";

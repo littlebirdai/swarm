@@ -983,7 +983,7 @@ import {
   TMUX_SIZE_ARGS,
   TMUX_WINDOW_HEIGHT,
   TMUX_WINDOW_WIDTH,
-} from "./terminal/daemonBridge.js";
+} from "./terminal/daemon-bridge.js";
 import { attachWatchServer } from "./browser/watchServer.js";
 
 import { handleBrowserFocusHttp } from "./browser/focusHttp.js";

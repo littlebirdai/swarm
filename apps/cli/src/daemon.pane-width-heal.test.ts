@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { planLeadPaneHeal } from "./terminal/daemonBridge.js";
+import { planLeadPaneHeal } from "./terminal/daemon-bridge.js";
 
 // Regression: Claude Code's teammate panes split the daemon's 220-column
 // window and squeeze the lead pane (observed: lead 66, two 153-wide teammate

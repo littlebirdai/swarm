@@ -7,7 +7,7 @@ import * as path from "path";
 import { markClaudeSessionLive } from "../ccLiveGate.js";
 import { type WorktreeResult } from "../worktreeLegacy.js";
 import { hasTmux } from "../tmux.js";
-import { TMUX_SIZE_ARGS } from "../terminal/daemonBridge.js";
+import { TMUX_SIZE_ARGS } from "../terminal/daemon-bridge.js";
 import { recordStableContext } from "../stableContext.js";
 import { claudeProjectDirName } from "../projectPathResolver.js";
 import { codexPermissionsFromArgs } from "../launchCommand.js";
