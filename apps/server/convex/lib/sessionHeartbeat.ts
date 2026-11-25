@@ -42,11 +42,15 @@ export async function heartbeatsForUser(
   ctx: Reader,
   userId: Id<"users">,
   sessions: ManagedHeartbeat[],
+  since?: number,
 ): Promise<number[]> {
   if (sessions.length === 0) return [];
   const rows = await ctx.db
     .query("session_heartbeats")
-    .withIndex("by_user_heartbeat", (q) => q.eq("user_id", userId))
+    .withIndex("by_user_heartbeat", (q) => {
+      const range = q.eq("user_id", userId);
+      return since === undefined ? range : range.gt("heartbeat_at", since);
+    })
     .collect();
   const beats = new Map(
     rows.map((row) => [row.managed_session_id, row.heartbeat_at]),
