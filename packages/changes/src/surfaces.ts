@@ -86,6 +86,7 @@ export const SURFACE_PATHS: Record<string, readonly string[]> = {
   mobile: ["apps/mobile/"],
 };
 
+/** The catch-all surface for a team whose releases name no mapped surface; it covers every area. */
 export const RELEASE_SURFACE = "release";
 
 const SURFACE_AREAS: Record<string, ReadonlySet<string>> = Object.fromEntries(
@@ -95,8 +96,12 @@ const SURFACE_AREAS: Record<string, ReadonlySet<string>> = Object.fromEntries(
   ]),
 );
 
+/**
+ * Whether a surface ships changes in this area. Only the catch-all `release`
+ * covers everything; any other unmapped surface (a release scope such as
+ * `api`) covers just the area its name points at.
+ */
 export function surfaceCoversArea(surface: string, area: string): boolean {
-  if (area === "test-helpers") return false;
   if (surface === RELEASE_SURFACE) return true;
   const areas = SURFACE_AREAS[surface];
   return areas ? areas.has(area) : scopeNamesArea(surface, area);

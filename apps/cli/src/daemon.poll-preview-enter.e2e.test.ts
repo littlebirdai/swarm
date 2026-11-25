@@ -93,7 +93,6 @@ function capture(target: string): string {
   return tmuxRun(["capture-pane", "-p", "-J", "-t", target, "-S", "-80"])
     .stdout;
 }
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 describe.skipIf(!CAN_RUN)(
   "injectViaTmux poll: digit then Enter confirms a preview menu",

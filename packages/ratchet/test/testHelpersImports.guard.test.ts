@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { relative, resolve } from "node:path";
-import ts from "typescript";
+import { existsSync, readFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
+import { workspaceDirectories } from "../../../scripts/workspace-packages";
 import { walkFiles } from "../src/index";
 
 const ROOT = resolve(import.meta.dir, "../../..");
@@ -16,30 +16,33 @@ const EXTENSIONS = [
   ".mts",
   ".cts",
 ];
-const IGNORE = new Set([
-  "node_modules",
-  "_generated",
-  "build",
-  "coverage",
-  "dist",
-  "out",
-]);
+const IGNORE = new Set(["node_modules", "_generated"]);
 const TEST_PATH =
-  /(?:^|\/)(?:test|tests|__tests__|test-helpers|testkits?)(?:\/)|(?:^|[./_-])(?:test|spec|testkit|test-preload)\.[cm]?[jt]sx?$/;
+  /(?:^|\/)(?:test|tests|__tests__|test-helpers|testkits?)\/|\.(?:test|spec|testkit)\.[cm]?[jt]sx?$/;
+const MENTION = /@codecast\/test-helpers|packages\/test-helpers/;
 
-test("only test code imports the test helpers", () => {
-  const offenders: string[] = [];
-  for (const file of walkFiles(ROOT, EXTENSIONS, IGNORE)) {
-    const path = relative(ROOT, file);
-    if (TEST_PATH.test(path)) continue;
-    const source = readFileSync(file, "utf8");
-    if (!source.includes(PACKAGE)) continue;
-    for (const { fileName } of ts.preProcessFile(source, true, true)
-      .importedFiles) {
-      if (fileName === PACKAGE || fileName.startsWith(`${PACKAGE}/`)) {
-        offenders.push(`${path} imports ${fileName}`);
-      }
-    }
-  }
+test("production source never names the test helpers", () => {
+  const offenders = walkFiles(ROOT, EXTENSIONS, IGNORE)
+    .map((file) => [relative(ROOT, file), file] as const)
+    .filter(
+      ([path, file]) =>
+        !TEST_PATH.test(path) && MENTION.test(readFileSync(file, "utf8")),
+    )
+    .map(([path]) => path);
+  expect(offenders).toEqual([]);
+});
+
+test("workspaces list the test helpers only as a development dependency", () => {
+  const offenders = workspaceDirectories(ROOT, "apps")
+    .concat(workspaceDirectories(ROOT, "packages"))
+    .filter((dir) => existsSync(join(ROOT, dir, "package.json")))
+    .filter((dir) => {
+      const manifest = JSON.parse(
+        readFileSync(join(ROOT, dir, "package.json"), "utf8"),
+      );
+      return ["dependencies", "peerDependencies", "optionalDependencies"].some(
+        (group) => manifest[group]?.[PACKAGE],
+      );
+    });
   expect(offenders).toEqual([]);
 });
