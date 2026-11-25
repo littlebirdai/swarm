@@ -1,4 +1,7 @@
-import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
+import {
+  insertConversationWithStatus,
+  patchConversationLifecycle,
+} from "./lib/sessionStatusWriter";
 import { internalMutation, mutation } from "./functions";
 import { requestDeployCore } from "./deploys";
 import { requestTargetDeployCore } from "./deployTargetRequest";
@@ -2139,7 +2142,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
       String(resolvedTeamId ?? "") !== String(handChannel.team_id)
     )
       opts = { ...opts, private: true };
-    const conversationId = await ctx.db.insert("conversations", {
+    const conversationId = await insertConversationWithStatus(ctx, {
       user_id: runnerUserId,
       ...(runnerUserId !== userId ? { author_user_id: userId } : {}),
       team_id: resolvedTeamId,

@@ -1,3 +1,4 @@
+import { insertConversationWithStatus } from "./lib/sessionStatusWriter";
 import { mutation } from "./functions";
 import { v } from "convex/values";
 import { boundSessionsOf } from "./lib/taskOwner";
@@ -340,7 +341,7 @@ export async function spawnSessionCore(
       );
   }
 
-  const conversationId = await ctx.db.insert("conversations", {
+  const conversationId = await insertConversationWithStatus(ctx, {
     user_id: runnerUserId,
     ...(runnerUserId !== userId ? { author_user_id: userId } : {}),
     agent_type: agentType,

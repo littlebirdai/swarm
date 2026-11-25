@@ -2275,7 +2275,7 @@ export async function insertStartedConversation(
     userId,
     fields.git_root || fields.project_path,
   );
-  const conversationId = await ctx.db.insert("conversations", {
+  const conversationId = await insertConversationWithStatus(ctx, {
     user_id: userId,
     agent_type: fields.agent_type,
     session_id: fields.session_id,
@@ -7476,7 +7476,7 @@ export const forkConversation = mutation({
     // driven by advanceForkCopy walking the source by timestamp cursor and
     // does not need an exact precomputed total.
     const now = Date.now();
-    const newConversationId = await ctx.db.insert("conversations", {
+    const newConversationId = await insertConversationWithStatus(ctx, {
       user_id: authUserId,
       team_id: forkTeamId,
       agent_type: original.agent_type,
@@ -7853,7 +7853,7 @@ export const forkFromMessage = mutation({
       forkMessageId: opencodeForkMessageId,
     });
 
-    const newConversationId = await ctx.db.insert("conversations", {
+    const newConversationId = await insertConversationWithStatus(ctx, {
       user_id: userId,
       team_id: isAgentSwitch ? original.team_id : forkTeamId,
       agent_type: agentType,
