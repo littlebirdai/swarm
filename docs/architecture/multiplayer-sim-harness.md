@@ -956,25 +956,20 @@ Then run `cd apps/server && bun test convex/`. Time `bun run sim` and the legacy
 
 ### Collaboration contracts
 
-Run `bun run sim multiplayer --sweep 256` from `apps/web`. Use `--trace` to see when each delivery occurs. The four files named `multiplayer-*.scenario.ts` use the same seeded scheduler, replay, and reports as the other scenarios.
+Run `bun run sim multiplayer --sweep 256 --trace` from `apps/web`. The trace shows the delivery order. The four `multiplayer-*.scenario.ts` files use the existing scheduler, replay, and reports.
 
-| Scenario                   | What the person sees                                                                                                                                                             |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `multiplayerTwoSenders`    | The first sender drives. The second message waits for the next turn. Each message reaches the agent once, even if a delivery retries.                                            |
-| `multiplayerOwnerTakeover` | The current driver stays in control until the handed steer settles. The fence stops an old steer if the machine has yet to hand it to the agent.                                 |
-| `multiplayerRelayStops`    | Presence disappears. The driver, queue, and deliveries continue. A stale steer stays in the composer's draft, with the option to queue it.                                       |
-| `multiplayerLateJoin`      | The second person sees their last read point, changed files, decisions, the driver, and the prompt. Their first attempt to steer queues and creates the existing driver's claim. |
+| Scenario                   | What the person sees                                                                                                                                                                   |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `multiplayerTwoSenders`    | The first sender drives. The queue waits for the next turn. Retries deliver each message once, and each client sees the transcript when it receives the update.                        |
+| `multiplayerOwnerTakeover` | The old driver stays until the handed steer settles. The restart can recover its receipt. A new send waits if the machine is offline.                                                  |
+| `multiplayerRelayStops`    | Presence disappears. The driver, queue, and prompt remain available. A stale steer stays in the composer. A stale interrupt leaves the next turn running.                              |
+| `multiplayerLateJoin`      | The second person sees their last read point, changed files, decisions, driver, and prompt. Their first attempt to steer queues. The owner can answer after the holder's lease lapses. |
 
-The `MultiplayerSession` interface in `sim/multiplayer-contract.ts` supplies these scenarios with a fake session. The fake follows CoSteer, StaleSteer, LoneJoin, FencedTakeover, and PromptAnswer. It uses `matchesExpected` from the edge contract at both the server and the machine. The write budget counts the fake's claim writes. The relay uses ephemeral state. A solo start, steer, and renewal attempt use zero extra writes.
+The scenarios receive an async `MultiplayerSession` from the test fixture. Its fake keeps separate server, machine, agent, relay, and client state. The scheduler can vary the order of those deliveries. Each client receives durable state and relay presence separately. Permits and settlements identify the delivery attempt and fence.
 
-Replace the fake when these seams exist in the simulation:
+The fake uses `matchesExpected` at the server and the machine. It uses `classifyPrompt` when it publishes the prompt. The storage boundary counts claim and presence writes. One sender uses zero extra writes, including with a read-only viewer and after a shared turn and its claim expire.
 
-- The server starts a steer in the same transaction that checks the baton and the expected turn. A turn event identifies the sender who started a solo turn.
-- The daemon checks the expected turn and the fence before hand-over. The server receives a settlement or fence acknowledgement.
-- A relay connection supplies presence. The session view can still read the driver, queue, and prompts if that connection stops.
-- The late-join view reads a turn snapshot, a per-person read point, and the current prompt. The server checks who can answer. The daemon checks the prompt ID and run epoch.
-
-The fake supplies these four cases with claim and receipt state, relay events, composer state, and snapshot data. The cases measure the contract outcomes in memory. The Convex handlers, daemon journal, network recovery, and browser rendering need their own integration checks.
+The integration adapter needs the claims store, daemon journal and fence acknowledgments, relay connection, and client readers for the queue and prompts. Late join also needs the turn snapshot and the person's read point. The current scenarios exercise the in-memory implementation of these contracts.
 
 ## 7. Risks and mitigations
 
