@@ -21,7 +21,10 @@ export function TeamTerminal({
   conversationId: Id<"conversations">;
 }) {
   const args = { conversation_id: conversationId };
-  const { data: status } = useQueryNoThrow(api.terminalWatch.status, args);
+  const { data: status, error } = useQueryNoThrow(
+    api.terminalWatch.status,
+    args,
+  );
   if (status?.role === "owner" && (status.available || status.enabled)) {
     return (
       <TeamTerminalOwner
@@ -39,7 +42,13 @@ export function TeamTerminal({
       />
     );
   }
-  return null;
+  return (
+    <div role="status" className="px-3 py-1 text-meta text-sol-text-muted">
+      {status === undefined && !error
+        ? "Loading terminal…"
+        : "Terminal unavailable"}
+    </div>
+  );
 }
 
 function TeamTerminalOwner({

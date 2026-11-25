@@ -400,3 +400,16 @@ test("the daemon HTTP route returns only a stop flag and a silent stream expires
     clock.mockRestore();
   }
 });
+
+test("ordinary session purge deletes the share, screen, and viewer rows", async () => {
+  const { t, args, start } = await terminalWatchFixture();
+  await start();
+  expect(
+    await t.mutation(internal.sessionDelete.purgeConversationRows, args),
+  ).toMatchObject({ done: true });
+  await t.run(async ({ db }) => {
+    expect(await db.query("terminal_watch_shares").collect()).toEqual([]);
+    expect(await db.query("terminal_watch_screens").collect()).toEqual([]);
+    expect(await db.query("terminal_watch_viewers").collect()).toEqual([]);
+  });
+});

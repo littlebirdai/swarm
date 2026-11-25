@@ -16,7 +16,7 @@ const ownerStatus = { role: "owner", available: true, enabled: false } as const;
 
 test("the owner confirms sharing, can stop a named viewer and can turn sharing off in one press", async () => {
   const { container, dom, backend } = await mountWeb(
-    <ConversationTerminalSplit convKey={conversationId} />,
+    <ConversationTerminalSplit convKey={conversationId} teamTerminal />,
     {
       setup: (backend) => {
         backend.set(apiWatch.status, ownerStatus);
@@ -28,6 +28,8 @@ test("the owner confirms sharing, can stop a named viewer and can turn sharing o
       },
     },
   );
+  expect(backend.queryRequests).toEqual([]);
+  await act(async () => button(container, "Team terminal").click());
   await act(async () => button(container, "Share terminal…").click());
   expect(backend.mutations).toHaveLength(0);
   const dialog =
@@ -64,7 +66,7 @@ test("the owner confirms sharing, can stop a named viewer and can turn sharing o
 
 test("a teammate opens a screen-only pane and revocation clears it", async () => {
   const { container, dom, backend } = await mountWeb(
-    <ConversationTerminalSplit convKey={conversationId} />,
+    <ConversationTerminalSplit convKey={conversationId} teamTerminal />,
     {
       setup: (backend) => {
         backend.set(apiWatch.status, { role: "viewer", share });
@@ -78,6 +80,7 @@ test("a teammate opens a screen-only pane and revocation clears it", async () =>
     },
   );
   expect(container.textContent).not.toContain("redacted screen");
+  await act(async () => button(container, "Team terminal").click());
   await act(async () => button(container, "Watch terminal").click());
   const screen = container.querySelector(
     'pre[aria-label="Read-only terminal screen"]',
@@ -98,19 +101,23 @@ test("a teammate opens a screen-only pane and revocation clears it", async () =>
   expect(container.textContent).not.toContain("redacted screen");
   expect(container.textContent).toContain("Watch terminal");
   await act(async () => backend.set(apiWatch.status, null));
-  expect(container.textContent).toBe("");
+  expect(container.textContent).toContain("Terminal unavailable");
+  await act(async () => button(container, "Hide team terminal").click());
+  expect(container.textContent).toBe("Team terminal");
 });
 
 test("a failed terminal status query leaves the session surface in place", async () => {
   const { container } = await mountWeb(
     <>
       <span>Session transcript</span>
-      <ConversationTerminalSplit convKey={conversationId} />
+      <ConversationTerminalSplit convKey={conversationId} teamTerminal />
     </>,
     {
       setup: (backend) =>
         backend.set(apiWatch.status, new Error("Unavailable")),
     },
   );
-  expect(container.textContent).toBe("Session transcript");
+  await act(async () => button(container, "Team terminal").click());
+  expect(container.textContent).toContain("Session transcript");
+  expect(container.textContent).toContain("Terminal unavailable");
 });

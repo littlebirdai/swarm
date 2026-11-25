@@ -38,6 +38,21 @@ function under(
   return { table, index, field, value: idOf, ...more };
 }
 
+export const terminalWatchRows = under(
+  "terminal_watch_shares",
+  "by_conversation",
+  "conversation_id",
+  {
+    children: [
+      under("terminal_watch_viewers", "by_share_user", "share"),
+      under("terminal_watch_screens", "by_share", "share", {
+        page: 1,
+        weight: 10,
+      }),
+    ],
+  },
+);
+
 // Rows big enough (message text, tool input, diff bodies, transcripts) that a
 // page of them is read small and each costs more of a pass's budget.
 const HEAVY = { page: 25, weight: 10 } as const;
@@ -130,6 +145,7 @@ function plans() {
         },
       }),
     ),
+    terminalWatchRows,
     // Beyond the ordinary session purge: the content a regulated delete
     // must also reach.
     under("tree_snapshots", "by_conversation_taken", "conversation_id", HEAVY),

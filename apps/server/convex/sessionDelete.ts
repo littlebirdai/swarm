@@ -9,6 +9,8 @@ import {
   conversationRowEffects,
 } from "./lib/conversationRows";
 import { isRegulatedTeam } from "./lib/accessLog";
+import { terminalWatchRows } from "./lib/deletionPlans";
+import { purgeRange, type PurgeCounts } from "./lib/purgeTree";
 import { mayDeleteRegulated, startDeletion } from "./regulatedDeletion";
 
 // Deleting a session removes it for everyone: the agent is torn down like a
@@ -37,6 +39,19 @@ export const purgeConversationRows = internalMutation({
       }
       budget -= rows.length;
     }
+    let deleted = PURGE_BUDGET - budget;
+    if (budget > 0) {
+      const counts: PurgeCounts = {};
+      const outcome = await purgeRange(
+        ctx,
+        terminalWatchRows,
+        { _id: args.conversation_id },
+        { left: budget },
+        counts,
+      );
+      deleted += Object.values(counts).reduce((sum, count) => sum + count, 0);
+      if (outcome !== "done") budget = 0;
+    }
     if (budget <= 0) {
       await ctx.scheduler.runAfter(
         0,
@@ -44,7 +59,7 @@ export const purgeConversationRows = internalMutation({
         args,
       );
     }
-    return { deleted: PURGE_BUDGET - budget, done: budget > 0 };
+    return { deleted, done: budget > 0 };
   },
 });
 
