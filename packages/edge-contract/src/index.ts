@@ -45,12 +45,14 @@ export { classifyPrompt, type PromptOpened } from "./prompts";
 export * from "./events";
 export * from "./commands";
 export {
+  parseBlobsGetRequest,
   parsePermitsNextRequest,
   parsePermitsNextResponse,
   parseDeliveryStartRequest,
   parseDeliveryStartResponse,
   parseDeliverySettleRequest,
   parseDeliverySettleResponse,
+  type BlobsGetRequest,
   type PermitsNextRequest,
   type PermitsNextResponse,
   type DeliveryStartRequest,

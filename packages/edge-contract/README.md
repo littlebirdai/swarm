@@ -1,8 +1,8 @@
 # codecast edge/v1
 
-This is the JSON contract between the codecast daemon and server. Import it from
-`@codecast/edge-contract`. Each verb has request and response parsers.
-They return the parsed value or an `EdgeParseError` with a field path and code.
+This is the wire contract between the codecast daemon and server. Import the
+JSON request and response parsers from `@codecast/edge-contract`. They return
+the parsed value or an `EdgeParseError` with a field path and code.
 
 ## Versions and compatibility
 
@@ -217,6 +217,29 @@ A tool result wraps inline JSON in `{ "inline": … }` or uses
 `blob_id` field. User events can include references in `attachments`.
 A delivery permit can carry text and blob parts in order. Each blob part
 supplies the content type.
+
+### Read a delivery blob
+
+Send `POST /edge/v1/blobs.get` with the device-bound bearer token in the
+`Authorization` header. Send `v`, `session`, `run`, `fencing_token`,
+`attempt_id`, and `blob_id` in the JSON body. Use the claim and attempt from
+the permit and the ID from its blob part. The server checks the active lease
+and verifies that the blob belongs to that permit.
+
+HTTP 200 returns the raw bytes with the part's `Content-Type`. The server
+serves the bytes directly. The permit has no download URL, and the route
+never redirects. Repeating a read does not change the lease, permit, or blob.
+The server checks authority on each read.
+
+The server enforces policy `limits.max_blob_bytes` (8 MiB, or 8,388,608 bytes,
+in the advertised policy) and returns HTTP 413 with `too_large` above that
+limit. The daemon counts the bytes it receives and rejects a response above
+the policy limit, even if the response supplies a smaller `Content-Length`.
+
+HTTP 404 with the typed `not_found` error means the blob is unavailable for
+this permit. An old server returns its unknown-route response. Treat that
+response as “blobs not supported.” The daemon must establish blob-read support
+before it claims a run that needs blobs.
 
 ## Delivery policy
 
