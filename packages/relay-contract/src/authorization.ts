@@ -37,8 +37,11 @@ const userSignals = [
 const sessionLiveness = "session_liveness";
 export const machineSignal = "machine_liveness";
 
+const readVersion = responseObject({ v: positive });
+const issuance = { issued_at_ms: positive, grant_seq: positive };
 const claims = object({
-  v: oneOf(1),
+  v: oneOf(RELAY_GRANT_VERSION),
+  ...issuance,
   audience: id,
   subject: tagged("kind", { user: object(user), machine: machineHub }),
   expires_at_ms: positive,
@@ -63,12 +66,26 @@ const claims = object({
 });
 
 export type RelayGrantClaims = ReturnType<typeof claims>;
-export type RelayHubGrant = RelayGrantClaims["grants"][number] & {
-  expires_at_ms: number;
+type RelayGrantIssue = Pick<RelayGrantClaims, "issued_at_ms" | "grant_seq">;
+export type RelayHub = ReturnType<typeof hub>;
+export type RelayHubGrant = RelayGrantClaims["grants"][number] &
+  RelayGrantIssue & {
+    expires_at_ms: number;
+  };
+
+export type RelayGrantState = {
+  readonly grants: readonly RelayHubGrant[];
+  readonly high_water: RelayGrantIssue | null;
 };
 
 export const parseRelayGrantClaims = parser((value, path) => {
+  const { v } = readVersion(value, path);
+  if (v !== RELAY_GRANT_VERSION)
+    throw new RelayParseError("unsupported_version", `${path}.v`);
   const parsed = claims(value, path);
+  if (parsed.issued_at_ms >= parsed.expires_at_ms) {
+    throw new RelayParseError("invalid_field", `${path}.expires_at_ms`);
+  }
   const { subject } = parsed;
   const hubs = new Set<string>();
   for (const [index, grant] of parsed.grants.entries()) {
@@ -94,11 +111,17 @@ export const parseRelayGrantClaims = parser((value, path) => {
   return parsed;
 });
 
-function hubKey(hub: { kind: "session" | "machine"; id: string }): string {
+function hubKey(hub: RelayHub): string {
   return `${hub.kind}:${hub.id}`;
 }
 
-const grantRefusals = ["expired", "subject_mismatch", "hub_limit"] as const;
+const grantRefusals = [
+  "expired",
+  "subject_mismatch",
+  "hub_limit",
+  "stale_token",
+  "invalid_clock",
+] as const;
 type GrantRefusal = (typeof grantRefusals)[number];
 export const grantRefusal = oneOf(
   ...grantRefusals,
@@ -107,15 +130,17 @@ export const grantRefusal = oneOf(
 );
 
 export type RelayGrantUpdate =
-  | { status: "applied"; grants: RelayHubGrant[] }
+  | { status: "applied"; state: RelayGrantState }
   | { status: "refused"; code: GrantRefusal };
 
 export function applyRelayGrantClaims(
   subject: RelayGrantClaims["subject"],
-  current: readonly RelayHubGrant[],
+  current: RelayGrantState,
   verifiedClaims: RelayGrantClaims,
   nowMs: number,
 ): RelayGrantUpdate {
+  if (!Number.isFinite(nowMs))
+    return { status: "refused", code: "invalid_clock" };
   if (
     verifiedClaims.subject.kind !== subject.kind ||
     verifiedClaims.subject.id !== subject.id
@@ -125,17 +150,51 @@ export function applyRelayGrantClaims(
   if (verifiedClaims.expires_at_ms <= nowMs)
     return { status: "refused", code: "expired" };
 
-  const grants = new Map<string, RelayHubGrant>();
-  for (const grant of current) {
-    if (grant.expires_at_ms > nowMs) grants.set(hubKey(grant), grant);
+  const { issued_at_ms, grant_seq } = verifiedClaims;
+  const { high_water } = current;
+  const isReplay =
+    high_water?.grant_seq === grant_seq &&
+    high_water.issued_at_ms === issued_at_ms;
+  if (
+    high_water &&
+    !isReplay &&
+    (issued_at_ms < high_water.issued_at_ms ||
+      grant_seq <= high_water.grant_seq)
+  ) {
+    return { status: "refused", code: "stale_token" };
   }
+
+  const live = current.grants.filter((grant) => grant.expires_at_ms > nowMs);
+  if (isReplay)
+    return { status: "applied", state: { grants: live, high_water } };
+
+  const grants = new Map(live.map((grant) => [hubKey(grant), grant]));
   for (const grant of verifiedClaims.grants) {
     grants.set(hubKey(grant), {
       ...grant,
+      issued_at_ms,
+      grant_seq,
       expires_at_ms: verifiedClaims.expires_at_ms,
     });
   }
   if (grants.size > RELAY_MAX_HUBS_PER_CONNECTION)
     return { status: "refused", code: "hub_limit" };
-  return { status: "applied", grants: [...grants.values()] };
+  return {
+    status: "applied",
+    state: {
+      grants: [...grants.values()],
+      high_water: { issued_at_ms, grant_seq },
+    },
+  };
+}
+
+export function releaseRelayGrants(
+  current: RelayGrantState,
+  hubs: readonly RelayHub[],
+): RelayGrantState {
+  const released = new Set(hubs.map(hubKey));
+  return {
+    ...current,
+    grants: current.grants.filter((grant) => !released.has(hubKey(grant))),
+  };
 }

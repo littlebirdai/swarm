@@ -5,6 +5,7 @@ import {
   machineHub,
   machineHubResponse,
   machineSignal,
+  RELAY_MAX_GRANTS_PER_TOKEN,
   sessionHub,
   sessionHubResponse,
 } from "./authorization";
@@ -19,6 +20,8 @@ import {
   oneOf,
   parser,
   positive,
+  type Reader,
+  RelayParseError,
   responseObject,
   string,
   tagged,
@@ -45,6 +48,11 @@ const clientFrame = tagged("type", {
     token,
   }),
   grant_update: object({ ...grantRequest, type: oneOf("grant_update"), token }),
+  grant_release: object({
+    ...grantRequest,
+    type: oneOf("grant_release"),
+    hubs: array(hub, 1, RELAY_MAX_GRANTS_PER_TOKEN),
+  }),
   subscribe: object({ ...v1, type: oneOf("subscribe"), hub }),
   unsubscribe: object({ ...v1, type: oneOf("unsubscribe"), hub }),
   presence: tagged("state", {
@@ -80,6 +88,26 @@ const presenceResponse = {
 const timedSignal = { ...ordering, ttl_ms: positive };
 const userSignal = { ...timedSignal, hub: sessionHubResponse, user_id: id };
 const grantResponse = { ...grantRequest, type: oneOf("grant_result") };
+const subscription = { ...v1, type: oneOf("subscription"), hub: hubResponse };
+
+function cursorResponse<const Kind extends string, T>(
+  type: Kind,
+  cursor: Reader<T>,
+) {
+  const read = responseObject({
+    ...userSignal,
+    type: oneOf(type),
+    cursor: nullable(cursor),
+    ttl_ms: count,
+  });
+  return (value: unknown, path: string) => {
+    const parsed = read(value, path);
+    if ((parsed.cursor === null) !== (parsed.ttl_ms === 0)) {
+      throw new RelayParseError("invalid_field", `${path}.ttl_ms`);
+    }
+    return parsed;
+  };
+}
 
 const relayFrame = tagged("type", {
   hello: tagged("status", {
@@ -112,17 +140,24 @@ const relayFrame = tagged("type", {
       status: oneOf("applied"),
       ttl_ms: positive,
     }),
+    released: responseObject({ ...grantResponse, status: oneOf("released") }),
     refused: responseObject({
       ...grantResponse,
       status: oneOf("refused"),
       code: grantRefusal,
     }),
   }),
-  subscription: responseObject({
-    ...v1,
-    type: oneOf("subscription"),
-    hub: hubResponse,
-    status: oneOf("subscribed", "unsubscribed", "denied"),
+  subscription: tagged("status", {
+    subscribed: responseObject({
+      ...subscription,
+      status: oneOf("subscribed"),
+    }),
+    denied: responseObject({ ...subscription, status: oneOf("denied") }),
+    unsubscribed: responseObject({
+      ...subscription,
+      status: oneOf("unsubscribed"),
+      reason: oneOf("requested", "released", "expired"),
+    }),
   }),
   presence: tagged("state", {
     active: responseObject({
@@ -132,16 +167,11 @@ const relayFrame = tagged("type", {
     }),
     left: responseObject({ ...presenceResponse, ...left, ttl_ms: oneOf(0) }),
   }),
-  draft_cursor: responseObject({
-    ...userSignal,
-    type: oneOf("draft_cursor"),
-    cursor: nullable(responseObject(draftCursor)),
-  }),
-  reading_cursor: responseObject({
-    ...userSignal,
-    type: oneOf("reading_cursor"),
-    cursor: nullable(responseObject(readingCursor)),
-  }),
+  draft_cursor: cursorResponse("draft_cursor", responseObject(draftCursor)),
+  reading_cursor: cursorResponse(
+    "reading_cursor",
+    responseObject(readingCursor),
+  ),
   baton_heartbeat: responseObject({
     ...userSignal,
     type: oneOf("baton_heartbeat"),

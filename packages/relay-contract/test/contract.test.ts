@@ -74,13 +74,19 @@ test("relay frames carry the negotiated connection, signal expiry, and ordering 
     { type: "hello", status: "unauthorized" },
     { v: 1, type: "subscription", hub: session, status: "subscribed" },
     { v: 1, type: "subscription", hub: session, status: "denied" },
-    { v: 1, type: "subscription", hub: machine, status: "unsubscribed" },
+    {
+      v: 1,
+      type: "subscription",
+      hub: machine,
+      status: "unsubscribed",
+      reason: "requested",
+    },
     { ...user, type: "presence", ...active },
     { ...user, type: "presence", ...left, ttl_ms: 0 },
     { ...user, type: "draft_cursor", cursor: draft },
     { ...user, type: "reading_cursor", cursor: reading },
-    { ...user, type: "draft_cursor", cursor: null },
-    { ...user, type: "reading_cursor", cursor: null },
+    { ...user, type: "draft_cursor", cursor: null, ttl_ms: 0 },
+    { ...user, type: "reading_cursor", cursor: null, ttl_ms: 0 },
     { ...user, type: "baton_heartbeat" },
     {
       ...timed,
@@ -145,6 +151,9 @@ test("parsers reject malformed fields and wrong hub or protocol versions", () =>
     [{ ...connect, versions: [] }, "$.versions"],
     [{ ...connect, capabilities: [1337] }, "$.capabilities[0]"],
     [{ ...connect, capabilities: ["Presence"] }, "$.capabilities[0]"],
+    [{ ...connect, capabilities: ["1bad"] }, "$.capabilities[0]"],
+    [{ ...connect, capabilities: ["a-b"] }, "$.capabilities[0]"],
+    [{ ...connect, capabilities: ["a".repeat(33)] }, "$.capabilities[0]"],
     [{ ...connect, token: "signed.token\n" }, "$.token"],
     [{ type: "subscribe", v: 2, hub: session }, "$.v"],
     [{ type: "presence", v: 1, hub: machine, ...active }, "$.hub.kind"],
@@ -301,6 +310,12 @@ test("grant updates correlate a credential with an acknowledgement or a typed re
     ok: true,
     value: grantUpdate,
   });
+  expect(
+    parseRelayClientFrame(JSON.stringify({ ...grantUpdate, extra: true })),
+  ).toEqual({
+    ok: false,
+    error: { code: "unknown_field", path: "$.extra" },
+  });
   const { request_id } = grantUpdate;
   const result = { v: 1, type: "grant_result", request_id } as const;
   const responses = [
@@ -308,9 +323,21 @@ test("grant updates correlate a credential with an acknowledgement or a typed re
     { ...result, status: "refused", code: "subject_mismatch" },
     { ...result, status: "refused", code: "expired" },
     { ...result, status: "refused", code: "hub_limit" },
+    { ...result, status: "refused", code: "stale_token" },
+    { ...result, status: "refused", code: "invalid_clock" },
     { ...result, status: "refused", code: "invalid_token" },
     { ...result, status: "refused", code: "unsupported_grant_version" },
   ] satisfies RelayServerFrame[];
+  for (const ttl_ms of [undefined, 0]) {
+    expect(
+      parseRelayServerFrame(
+        JSON.stringify({ ...result, status: "applied", ttl_ms }),
+      ),
+    ).toEqual({
+      ok: false,
+      error: { code: "invalid_field", path: "$.ttl_ms" },
+    });
+  }
   for (const value of responses) {
     expect(
       parseRelayServerFrame(JSON.stringify({ ...value, token: connect.token })),
@@ -348,6 +375,17 @@ test("grant updates correlate a credential with an acknowledgement or a typed re
 });
 
 test("presence departures carry no draft state or positive lifetime", () => {
+  const invalid = {
+    type: "presence",
+    v: 1,
+    hub: session,
+    state: "left",
+    in_draft: true,
+  };
+  expect(parseRelayClientFrame(JSON.stringify(invalid))).toEqual({
+    ok: false,
+    error: { code: "invalid_field", path: "$.in_draft" },
+  });
   const departure = { ...user, type: "presence", ...left, ttl_ms: 0 };
   for (const [frame, path] of [
     [{ ...departure, in_draft: true }, "$.in_draft"],
@@ -391,7 +429,7 @@ test("unavailable hello carries a non-negative retry delay", () => {
   const unavailable = {
     type: "hello",
     status: "unavailable",
-    retry_after_ms: 2500,
+    retry_after_ms: 0,
   } as const;
   expect(parseRelayServerFrame(JSON.stringify(unavailable))).toEqual({
     ok: true,
@@ -426,4 +464,105 @@ test("non-text parser input returns a typed failure without coercion", () => {
       });
     }
   }
+});
+
+test("grant release carries a bounded hub list and receives a correlated acknowledgement", () => {
+  const release = {
+    v: 1,
+    type: "grant_release",
+    request_id: "req-release",
+    hubs: [session, machine],
+  } satisfies RelayClientFrame;
+  const acknowledgement = {
+    v: 1,
+    type: "grant_result",
+    request_id: release.request_id,
+    status: "released",
+  } satisfies RelayServerFrame;
+  expect(parseRelayClientFrame(JSON.stringify(release))).toEqual({
+    ok: true,
+    value: release,
+  });
+  expect(parseRelayServerFrame(JSON.stringify(acknowledgement))).toEqual({
+    ok: true,
+    value: acknowledgement,
+  });
+  for (const hubs of [
+    [],
+    Array.from({ length: 17 }, (_, i) => ({ ...session, id: `session-${i}` })),
+  ]) {
+    expect(parseRelayClientFrame(JSON.stringify({ ...release, hubs }))).toEqual(
+      {
+        ok: false,
+        error: { code: "invalid_field", path: "$.hubs" },
+      },
+    );
+  }
+});
+
+test("relay reports when a subscription ends by expiry or grant release", () => {
+  const unsubscribed = {
+    v: 1,
+    type: "subscription",
+    hub: session,
+    status: "unsubscribed",
+  } as const;
+  for (const reason of ["expired", "released"] as const) {
+    const value = { ...unsubscribed, reason };
+    expect(parseRelayServerFrame(JSON.stringify(value))).toEqual({
+      ok: true,
+      value,
+    });
+  }
+  expect(parseRelayServerFrame(JSON.stringify(unsubscribed))).toEqual({
+    ok: false,
+    error: { code: "invalid_field", path: "$.reason" },
+  });
+});
+
+test("cursor clears have zero TTL and cursor observations have a positive TTL", () => {
+  for (const frame of [
+    { ...user, type: "draft_cursor", cursor: draft },
+    { ...user, type: "reading_cursor", cursor: reading },
+  ]) {
+    for (const invalid of [
+      { ...frame, cursor: null },
+      { ...frame, ttl_ms: 0 },
+    ]) {
+      expect(parseRelayServerFrame(JSON.stringify(invalid))).toEqual({
+        ok: false,
+        error: { code: "invalid_field", path: "$.ttl_ms" },
+      });
+    }
+  }
+});
+
+test("unavailable hello, active presence and reading cursor tolerate added response fields", () => {
+  const unavailable = {
+    type: "hello",
+    status: "unavailable",
+    retry_after_ms: 15,
+  } as const;
+  const presence = { ...user, type: "presence", ...active } as const;
+  const readingFrame = {
+    ...user,
+    type: "reading_cursor",
+    cursor: reading,
+  } as const;
+  for (const value of [unavailable, presence, readingFrame]) {
+    expect(
+      parseRelayServerFrame(JSON.stringify({ ...value, future: true })),
+    ).toEqual({
+      ok: true,
+      value,
+    });
+  }
+  expect(
+    parseRelayServerFrame(
+      JSON.stringify({ ...readingFrame, cursor: { ...reading, future: true } }),
+    ),
+  ).toEqual({
+    ok: true,
+    value: readingFrame,
+  });
 });

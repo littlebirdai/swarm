@@ -7,7 +7,8 @@ export type RelayParseErrorCode =
   | "too_large"
   | "invalid_field"
   | "unknown_field"
-  | "unknown_kind";
+  | "unknown_kind"
+  | "unsupported_version";
 
 export class RelayParseError extends Error {
   constructor(
@@ -22,7 +23,7 @@ export type RelayParseResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: { code: RelayParseErrorCode; path: string } };
 
-type Reader<T> = (value: unknown, path: string) => T;
+export type Reader<T> = (value: unknown, path: string) => T;
 type Shape = Record<string, Reader<unknown>>;
 type Fields<S extends Shape> = { [K in keyof S]: ReturnType<S[K]> };
 
