@@ -27590,14 +27590,14 @@
   "apps/web/store/__tests__/sectionHeaderCount.test.ts": {
     "swarm/no-comments": 6
   },
+  "apps/web/store/__tests__/session-controls.test.ts": {
+    "swarm/no-comments": 9
+  },
   "apps/web/store/__tests__/sessionCacheRetention.test.ts": {
     "swarm/no-comments": 10
   },
   "apps/web/store/__tests__/sessionCommands.test.ts": {
     "swarm/no-comments": 6
-  },
-  "apps/web/store/__tests__/session-controls.test.ts": {
-    "swarm/no-comments": 9
   },
   "apps/web/store/__tests__/sessionGoalActions.test.ts": {
     "swarm/no-comments": 3
