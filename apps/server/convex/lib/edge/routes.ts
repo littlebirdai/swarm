@@ -2,6 +2,7 @@ import {
   EDGE_ERROR_CODES,
   EDGE_PROTOCOL_VERSION,
   negotiateEdgeVersion,
+  parseBlobsGetRequest,
   parseClaimRequest,
   parseDeliverySettleRequest,
   parseDeliveryStartRequest,
@@ -20,6 +21,7 @@ import { ConvexError } from "convex/values";
 import { internal } from "../../_generated/api";
 import { httpAction, type ActionCtx } from "../../_generated/server";
 import { readBodyCapped } from "../tokenHttp";
+import { MAX_EDGE_BLOB_BYTES } from "./blobPolicy";
 
 const policy = {
   revision: 1,
@@ -28,7 +30,7 @@ const policy = {
   limits: {
     max_batch_events: 100,
     max_batch_bytes: 1_048_576,
-    max_blob_bytes: 8_388_608,
+    max_blob_bytes: MAX_EDGE_BLOB_BYTES,
   },
   capabilities: ["heartbeat"],
 };
@@ -104,11 +106,14 @@ function workAction<T>(
     ctx: ActionCtx,
     bearer: string,
     body: T,
-  ) => Promise<{
-    status: string;
-    retry_after_ms?: number;
-  }>,
-  renewal?: true,
+  ) => Promise<
+    | Response
+    | {
+        status: string;
+        retry_after_ms?: number;
+      }
+  >,
+  operation?: "renew" | "blob",
 ) {
   return httpAction(async (ctx, request) => {
     if (process.env.CODECAST_EDGE_DELIVERY_V1 !== "1") {
@@ -140,7 +145,7 @@ function workAction<T>(
         return edgeError(401, EDGE_ERROR_CODES.UNAUTHORIZED);
       const admission = await ctx.runMutation(internal.edgeLink.admit, {
         bearer,
-        renewal,
+        operation,
       });
       if (admission.status === "unauthorized")
         return edgeError(401, EDGE_ERROR_CODES.UNAUTHORIZED);
@@ -153,6 +158,7 @@ function workAction<T>(
         );
 
       const response = await run(ctx, bearer, parsed.value);
+      if (response instanceof Response) return response;
       const retryAfter = response.retry_after_ms;
       return Response.json(response, {
         headers:
@@ -162,8 +168,12 @@ function workAction<T>(
       });
     } catch (error) {
       if (error instanceof ConvexError) {
-        if (error.data === "edge-delivery-unsupported")
+        if (error.data === EDGE_ERROR_CODES.INVALID)
           return edgeError(422, EDGE_ERROR_CODES.INVALID);
+        if (error.data === EDGE_ERROR_CODES.NOT_FOUND)
+          return edgeError(404, EDGE_ERROR_CODES.NOT_FOUND);
+        if (error.data === EDGE_ERROR_CODES.TOO_LARGE)
+          return edgeError(413, EDGE_ERROR_CODES.TOO_LARGE);
         if (error.data === "resolution_evidence_required")
           return edgeError(422, error.data);
       }
@@ -225,7 +235,7 @@ export function registerEdgeRoutes(http: HttpRouter) {
           run,
           fencing_token,
         }),
-      true,
+      "renew",
     ),
   });
   http.route({
@@ -257,11 +267,43 @@ export function registerEdgeRoutes(http: HttpRouter) {
     ),
   });
   http.route({
+    path: "/edge/v1/blobs.get",
+    method: "POST",
+    handler: workAction(
+      parseBlobsGetRequest,
+      async (ctx, bearer, body) => {
+        const image = await ctx.runQuery(internal.edgeDelivery.getBlob, {
+          ...body,
+          bearer,
+        });
+        if (!image) return edgeError(404, EDGE_ERROR_CODES.NOT_FOUND);
+        const blob = await ctx.storage.get(image.storageId);
+        if (!blob) return edgeError(404, EDGE_ERROR_CODES.NOT_FOUND);
+        if (blob.size > MAX_EDGE_BLOB_BYTES)
+          return edgeError(413, EDGE_ERROR_CODES.TOO_LARGE);
+        const bytes = await readBodyCapped(
+          new Response(blob.stream()),
+          MAX_EDGE_BLOB_BYTES,
+        );
+        if (!bytes) return edgeError(413, EDGE_ERROR_CODES.TOO_LARGE);
+        return new Response(bytes.buffer as ArrayBuffer, {
+          headers: {
+            "Content-Type": image.contentType,
+            "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": "attachment",
+            "Cache-Control": "private, no-store",
+          },
+        });
+      },
+      "blob",
+    ),
+  });
+  http.route({
     path: "/edge/v1/delivery.settle",
     method: "POST",
     handler: workAction(parseDeliverySettleRequest, (ctx, bearer, body) => {
       if (body.outcome === "stale")
-        throw new ConvexError("edge-delivery-unsupported");
+        throw new ConvexError(EDGE_ERROR_CODES.INVALID);
       return ctx.runMutation(internal.edgeDelivery.settle, {
         ...body,
         outcome: body.outcome,

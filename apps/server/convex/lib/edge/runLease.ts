@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import { verifyDeviceApiToken } from "@platform/auth/convex";
 import type { Doc, Id } from "../../_generated/dataModel";
-import type { MutationCtx } from "../../_generated/server";
+import type { MutationCtx, QueryCtx } from "../../_generated/server";
 
 const LEASE_MS = 30_000;
 const RECEIPT_MS = 7 * 24 * 60 * 60_000;
@@ -67,7 +67,7 @@ export async function assertActiveRunLease(
     });
 }
 
-export async function ownedRun(ctx: MutationCtx, args: Address) {
+export async function ownedRun(ctx: Pick<QueryCtx, "db">, args: Address) {
   const auth = await verifyDeviceApiToken(ctx, args.bearer);
   if (!auth) return null;
   const conversationId = ctx.db.normalizeId(

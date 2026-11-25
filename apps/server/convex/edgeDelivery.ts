@@ -5,8 +5,8 @@ import {
   type PermitsNextResponse,
 } from "@codecast/edge-contract";
 import { ConvexError, v } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
-import type { MutationCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
   assertReadyFence,
   claimNextDeliveryInDb,
@@ -19,12 +19,13 @@ import {
   startDeliveryInDb,
   verifyAttemptFence,
 } from "./executionBindings";
-import { internalMutation } from "./functions";
+import { internalMutation, internalQuery } from "./functions";
 import {
   attemptMatchesFence,
   type PermitFence,
 } from "./lib/delivery-slot.state";
 import { ownedRun } from "./lib/edge/runLease";
+import { permitImageContentType, permitImageIds } from "./lib/edge/blobPolicy";
 
 const runFence = {
   v: v.literal(v1),
@@ -79,7 +80,7 @@ async function withFence<T>(
   }
 }
 
-async function runContext(ctx: MutationCtx, args: RunFence) {
+async function runContext(ctx: Pick<QueryCtx, "db">, args: RunFence) {
   const owned = await ownedRun(ctx, {
     bearer: args.bearer,
     conversation_id: args.session,
@@ -116,9 +117,18 @@ function deliveryFields(
   };
 }
 
-function requireTextDelivery(message: Doc<"pending_messages">) {
-  if (message.image_storage_id || message.image_storage_ids?.length)
-    throw new ConvexError("edge-delivery-unsupported");
+async function deliveryInput(
+  ctx: MutationCtx,
+  message: Doc<"pending_messages">,
+) {
+  const images = await Promise.all(
+    Array.from(permitImageIds(message), async (blob_id) => ({
+      type: "blob" as const,
+      blob_id,
+      content_type: await permitImageContentType(ctx, blob_id),
+    })),
+  );
+  return [{ type: "text" as const, text: message.content }, ...images];
 }
 
 async function deliveryContext(
@@ -199,7 +209,6 @@ export const next = internalMutation({
       if (!message) throw new Error("Delivery message is missing");
       if (message.delivery_status !== attempt.state)
         throw new Error("Delivery message and attempt state differ");
-      requireTextDelivery(message);
       return {
         v: v1,
         status: "permit",
@@ -208,7 +217,7 @@ export const next = internalMutation({
         fencing_token: args.fencing_token,
         ...deliveryFields(attempt, message),
         state: attempt.state === "claimed" ? "new" : "started",
-        input: [{ type: "text", text: message.content }],
+        input: await deliveryInput(ctx, message),
       };
     }),
 });
@@ -221,7 +230,7 @@ export const start = internalMutation({
       if (!delivery) return rejected;
       const { owner, fence, attempt, fields, message } = delivery;
       await startDeliveryInDb(ctx, owner, fence);
-      requireTextDelivery(message);
+      const input = await deliveryInput(ctx, message);
       return {
         ...fields,
         v: v1,
@@ -229,6 +238,45 @@ export const start = internalMutation({
         session: fence.conversationId,
         run: fence.executionEpoch,
         fencing_token: args.fencing_token,
+        ...(input.length > 1 ? { input } : {}),
+      };
+    }),
+});
+
+type PermitImage = { storageId: Id<"_storage">; contentType: string };
+
+export const getBlob = internalQuery({
+  args: { ...runFence, attempt_id: v.string(), blob_id: v.string() },
+  handler: (ctx, args): Promise<PermitImage | null> =>
+    withFence<PermitImage | null>(null, async () => {
+      const run = await runContext(ctx, args);
+      if (!run || run.head.active_delivery_attempt_id !== args.attempt_id)
+        return null;
+      const attempt = await ctx.db.get(run.head.active_delivery_attempt_id);
+      if (!attempt) return null;
+      const { message, head } = await verifyAttemptFence(
+        ctx,
+        run.owner,
+        {
+          ...run.fence,
+          attemptId: attempt._id,
+          messageId: attempt.message_id,
+          deliveryId: attempt.delivery_id,
+          conversationSequence: attempt.conversation_sequence,
+        },
+        ["claimed", "delivery-started", "ambiguous"],
+      );
+      const storageId = ctx.db.system.normalizeId("_storage", args.blob_id);
+      if (
+        !storageId ||
+        !permitImageIds(message).has(storageId) ||
+        head.active_delivery_state !== attempt.state ||
+        message.delivery_status !== attempt.state
+      )
+        return null;
+      return {
+        storageId,
+        contentType: await permitImageContentType(ctx, storageId),
       };
     }),
 });
@@ -285,7 +333,6 @@ export const settle = internalMutation({
     withFence<DeliverySettleResponse>(stale, async () => {
       const delivery = await deliveryContext(ctx, args);
       if (!delivery) return stale;
-      requireTextDelivery(delivery.message);
       const { owner, fence, attempt } = delivery;
       const { outcome, resolution_evidence: evidence } = args;
       const applied = outcome === "applied" || outcome === "duplicate";

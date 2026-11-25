@@ -334,6 +334,7 @@ import type * as lib_docSnapshot from "../lib/docSnapshot.js";
 import type * as lib_drainMarker from "../lib/drainMarker.js";
 import type * as lib_droppedWork from "../lib/droppedWork.js";
 import type * as lib_echoMatch from "../lib/echoMatch.js";
+import type * as lib_edge_blobPolicy from "../lib/edge/blobPolicy.js";
 import type * as lib_edge_routes from "../lib/edge/routes.js";
 import type * as lib_edge_runLease from "../lib/edge/runLease.js";
 import type * as lib_emailProof from "../lib/emailProof.js";
@@ -1191,6 +1192,7 @@ declare const fullApi: ApiFromModules<{
   "lib/drainMarker": typeof lib_drainMarker;
   "lib/droppedWork": typeof lib_droppedWork;
   "lib/echoMatch": typeof lib_echoMatch;
+  "lib/edge/blobPolicy": typeof lib_edge_blobPolicy;
   "lib/edge/routes": typeof lib_edge_routes;
   "lib/edge/runLease": typeof lib_edge_runLease;
   "lib/emailProof": typeof lib_emailProof;
