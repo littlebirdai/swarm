@@ -10,6 +10,7 @@
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "skipLibCheck": true,
+    "types": ["bun"],
     "allowSyntheticDefaultImports": true,
 
     /* These compiler options are required by Convex */

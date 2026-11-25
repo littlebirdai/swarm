@@ -30245,7 +30245,7 @@
     "swarm/no-comments": 79
   },
   "scripts/ci/ci-workflow.contract.test.ts": {
-    "swarm/no-comments": 43
+    "swarm/no-comments": 40
   },
   "scripts/ci/cut-cli-release.contract.test.ts": {
     "swarm/no-comments": 22

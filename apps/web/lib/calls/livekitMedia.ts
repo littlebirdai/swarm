@@ -18,6 +18,7 @@
 // room from these same options without either.
 import type { JoinPrefs } from "./joinPrefs";
 import type {
+  AudioCaptureOptions,
   RoomOptions,
   ScreenShareCaptureOptions,
   TrackPublishOptions,
@@ -54,7 +55,7 @@ export const SCREEN_SHARE_PUBLISH: TrackPublishOptions = {
  * themselves a beat late. It is on by default in Chromium for `audio: true`,
  * and stating it is the difference between relying on a default and meaning it.
  */
-export function micConstraints(deviceId?: string): MediaTrackConstraints {
+export function micConstraints(deviceId?: string): AudioCaptureOptions {
   return {
     echoCancellation: true,
     noiseSuppression: true,

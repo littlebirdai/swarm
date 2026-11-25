@@ -189,30 +189,21 @@ jobs:
     needs: [code_paths]
     if: needs.code_paths.outputs.run_typecheck == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        programs: [web playground packages, sim cli, convex evals]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-bun
 
-      # Each package's own `typecheck` script, which runs the programs
-      # .codecast/check.toml points `cast check` at, except mobile:
-      # the job filter excludes apps/mobile. Its program runs locally via
-      # `cast check mobile`. The CLI program widens rootDir to the
-      # repo root because it imports the convex generated api. web's also runs
-      # the sim program (its app tsconfig excludes tests), and evals is its own
-      # program over its code plus the convex and cli files it imports, and
-      # playground is its shell plus its own Convex deployment's functions.
-      - name: Typecheck (cli + web + sim + convex + evals + playground)
-        # web's program outgrew V8's default ~4 GB heap: on 2026-11-08 its tsc
-        # died in GC at 4029 MB (exit 134). 6 GB leaves room on the 16 GB
-        # runner for the other programs turbo runs beside it.
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
-        run: bun run typecheck --filter=@codecast/cli --filter=@codecast/web --filter=@codecast/convex --filter=@codecast/evals --filter=@codecast/playground
-
-      - name: Typecheck (packages)
-        run: bun run typecheck:packages
+      # The programs .codecast/check.toml points `cast check` at, except
+      # mobile, with the native TypeScript compiler. The programs run one after
+      # another: each one uses every CPU and several GB.
+      - name: Typecheck
+        run: bun scripts/ci/typecheck.ts ${{ matrix.programs }}
 
   lint:
     needs: [code_paths]

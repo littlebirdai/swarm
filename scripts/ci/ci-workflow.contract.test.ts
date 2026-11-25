@@ -21,6 +21,7 @@ import {
   GATED_JOBS,
   jobFlag,
 } from "./changed-path-scope";
+import { LOCAL_ONLY_PROGRAMS } from "./typecheck";
 
 const WORKFLOW_PATH = new URL(
   "../../.github/workflows/ci.yml",
@@ -329,59 +330,35 @@ describe("code_paths", () => {
 });
 
 // Every program `cast check` verifies locally has to be typechecked in CI too,
-// or it drifts red unnoticed (bun test strips types). A program counts when one
-// of the packages the typecheck job filters to runs it from its own script.
+// or it drifts red unnoticed (bun test strips types).
 describe("typecheck", () => {
-  // The CI job filter excludes apps/mobile. Its program runs locally via
-  // `cast check mobile`. Drop it from this list when the job includes it.
-  const NOT_IN_TYPECHECK_JOB = ["mobile"];
-  const checkToml = Bun.TOML.parse(
-    readFileSync(
-      new URL("../../.codecast/check.toml", import.meta.url),
-      "utf8",
-    ),
-  ) as { projects: Record<string, string> };
-  const typecheckRun: string = jobs.typecheck.steps.find((step: any) =>
-    String(step.run ?? "").startsWith("bun run typecheck "),
-  ).run;
-
-  test("covers every program in .codecast/check.toml", () => {
-    const packages = new Set<string>();
-    for (const [name, tsconfig] of Object.entries(checkToml.projects)) {
-      if (NOT_IN_TYPECHECK_JOB.includes(name)) continue;
-      if (name === "packages") {
-        const rootPackage = JSON.parse(
-          readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
-        );
-        expect(
-          jobs.typecheck.steps.map((step: { run?: string }) => step.run),
-        ).toContain("bun run typecheck:packages");
-        expect(rootPackage.scripts["typecheck:packages"]).toBe(
-          `tsc -p ${tsconfig}`,
-        );
-        continue;
-      }
-      const pkgDir = tsconfig.split("/").slice(0, 2).join("/");
-      const pkg = JSON.parse(
-        readFileSync(
-          new URL(`../../${pkgDir}/package.json`, import.meta.url),
-          "utf8",
-        ),
-      );
-      packages.add(pkg.name);
-      const rel = tsconfig.slice(pkgDir.length + 1);
-      const script: string = pkg.scripts?.typecheck ?? "";
-      const runsIt =
-        script.includes(`-p ${rel}`) ||
-        (rel === "tsconfig.json" && /tsc --noEmit(?! -p)/.test(script));
-      expect(runsIt, `${name}: ${pkg.name} typecheck script runs ${rel}`).toBe(
-        true,
-      );
-    }
-    const filters = [...typecheckRun.matchAll(/--filter=(\S+)/g)].map(
-      ([, pkg]) => pkg,
+  test("runs every program in .codecast/check.toml except the local-only ones", async () => {
+    const { projects } = Bun.TOML.parse(
+      readFileSync(
+        new URL("../../.codecast/check.toml", import.meta.url),
+        "utf8",
+      ),
+    ) as { projects: Record<string, string> };
+    const groups: string[] = jobs.typecheck.strategy.matrix.programs;
+    const programs = groups.flatMap((group) => group.split(" "));
+    expect(LOCAL_ONLY_PROGRAMS).toEqual(["mobile"]);
+    expect(programs.toSorted()).toEqual(
+      Object.keys(projects)
+        .filter((name) => !LOCAL_ONLY_PROGRAMS.includes(name))
+        .toSorted(),
     );
-    expect(new Set(filters)).toEqual(packages);
+    expect(
+      jobs.typecheck.steps.map((step: { run?: string }) => step.run),
+    ).toContain("bun scripts/ci/typecheck.ts ${{ matrix.programs }}");
+  });
+
+  test("rejects an unknown program", () => {
+    const proc = Bun.spawnSync(
+      [process.execPath, `${import.meta.dir}/typecheck.ts`, "missing"],
+      { stdout: "pipe", stderr: "pipe" },
+    );
+    expect(proc.exitCode).toBe(1);
+    expect(proc.stderr.toString()).toContain("missing");
   });
 });
 

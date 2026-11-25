@@ -163,7 +163,7 @@ async function serveInstallScript(
 
 app.get("/install", (c) => serveInstallScript(c, "install.sh"));
 app.get("/install.ps1", (c) => serveInstallScript(c, "install.ps1"));
-app.get("/i/:source", (c) => {
+app.get("/i/:source", async (c) => {
   const source = c.req.param("source").toLowerCase();
   if (!INSTALL_SOURCE.test(source)) return c.text("Unknown install link", 404);
   return serveInstallScript(c, "install.sh", source);
