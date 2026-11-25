@@ -104,13 +104,13 @@ mock.module("../../app/inbox/QueuePageClient", () => ({
 const React = await import("react");
 const { act } = React;
 const { createRoot } = await import("react-dom/client");
-const cache = await import("../../store/idb-cache");
+const { cacheStorage } = await import("../../store/idb-cache");
 let hydrated!: () => void;
 const hydration = new Promise<void>((resolve) => {
   hydrated = resolve;
 });
-const setHydrating = cache.setHydrating;
-const hydrationSpy = spyOn(cache, "setHydrating").mockImplementation(
+const setHydrating = cacheStorage.setHydrating.bind(cacheStorage);
+const hydrationSpy = spyOn(cacheStorage, "setHydrating").mockImplementation(
   (value) => {
     setHydrating(value);
     if (!value) hydrated();

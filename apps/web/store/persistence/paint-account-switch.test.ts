@@ -166,3 +166,45 @@ test("callbacks registered during boot use the current storage methods", async (
     Object.assign(cacheStorage, original);
   }
 });
+
+test("a critical cache rejection from the old account leaves the new account alone", async () => {
+  const readStarted = Promise.withResolvers<void>();
+  const read = Promise.withResolvers<null>();
+  const paint = spyOn(cacheStorage, "loadPaintCache").mockResolvedValue(null);
+  const critical = spyOn(cacheStorage, "loadCache").mockImplementation(() => {
+    readStarted.resolve();
+    return read.promise;
+  });
+  const hydrating = spyOn(cacheStorage, "setHydrating").mockImplementation(
+    () => {},
+  );
+  const setState = mock(() => {});
+  let accountEpoch = 1;
+  const state = {
+    _setIDBWrite() {},
+    _setOutbox() {},
+  };
+  try {
+    bootInboxPersistence(
+      { getState: () => state, setState } as unknown as Parameters<
+        typeof bootInboxPersistence
+      >[0],
+      () => accountEpoch,
+      () => null,
+      () => "feed",
+      async () => false,
+    );
+    await readStarted.promise;
+    accountEpoch++;
+    read.reject(new Error("The old account disconnected during critical boot"));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(critical).toHaveBeenCalledWith(HYDRATION_CRITICAL_READ_KEYS);
+    expect(setState).not.toHaveBeenCalled();
+    expect(hydrating.mock.calls).toEqual([[true]]);
+  } finally {
+    paint.mockRestore();
+    critical.mockRestore();
+    hydrating.mockRestore();
+  }
+});
