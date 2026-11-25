@@ -284,6 +284,16 @@ test("claimDeviceAccount transfers a legacy session after 500 fenced rows", asyn
     await rows.membership(f.user, team);
     await rows.membership(to, team);
     await rows.device(to, { device_id: source, last_seen: Date.now() });
+    await db.insert("conversation_execution_heads", {
+      conversation_id: f.conversation,
+      owner_user_id: f.user,
+      protocol_state: "fenced",
+      protocol_version: 1,
+      next_conversation_sequence: 1,
+      next_nonterminal_sequence: 1,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    });
     await db.patch(f.conversation, { team_id: team });
     for (let i = 1; i < 500; i++) {
       await rows.conversation(f.user, {

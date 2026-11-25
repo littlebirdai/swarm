@@ -1294,6 +1294,7 @@ export const reparentSessionToDevice = mutation({
 const CLAIM_ACCOUNT_PAGE = 100;
 // The scan is wider than the page because private rows stay put.
 const CLAIM_ACCOUNT_SCAN = 500;
+const CLAIM_ACCOUNT_FENCED_SCAN = 1500;
 
 export type ClaimDeviceAccountResult = {
   moved: number;
@@ -1363,15 +1364,21 @@ export async function performClaimDeviceAccount(
     return { moved: 0, more: false, pending: true };
   }
   const { previousUserId, deviceId } = args;
-  const ownedRows = () =>
-    ctx.db
-      .query("conversations")
-      .withIndex("by_owner_device", (q: any) =>
-        q.eq("user_id", previousUserId).eq("owner_device_id", deviceId),
-      );
-  const rows = await ownedRows()
-    .filter((q: any) => q.eq(q.field("execution_protocol_state"), undefined))
-    .take(CLAIM_ACCOUNT_SCAN);
+  const fencedHead = await ctx.db
+    .query("conversation_execution_heads")
+    .withIndex("by_owner_state", (q: any) =>
+      q.eq("owner_user_id", previousUserId),
+    )
+    .first();
+  const scanned = await ctx.db
+    .query("conversations")
+    .withIndex("by_owner_device", (q: any) =>
+      q.eq("user_id", previousUserId).eq("owner_device_id", deviceId),
+    )
+    .take(fencedHead ? CLAIM_ACCOUNT_FENCED_SCAN : CLAIM_ACCOUNT_SCAN);
+  const rows = scanned
+    .filter((conv: any) => !fencedMoveRefusal(conv))
+    .slice(0, CLAIM_ACCOUNT_SCAN);
   const caller = await ctx.db.get(callerId);
   const movable: any[] = [];
   for (const conv of rows) {
@@ -1399,13 +1406,10 @@ export async function performClaimDeviceAccount(
     }
   }
   const more = movable.length > CLAIM_ACCOUNT_PAGE;
-  const fenced =
-    !more &&
-    (await ownedRows()
-      .filter((q: any) => q.neq(q.field("execution_protocol_state"), undefined))
-      .first());
-  const refusal = fenced && fencedMoveRefusal(fenced);
-  const skipped = rows.length - movable.length + Number(!!fenced);
+  const refusal = more
+    ? null
+    : scanned.map((conv: any) => fencedMoveRefusal(conv)).find(Boolean);
+  const skipped = rows.length - movable.length + Number(!!refusal);
   return {
     moved: page.length,
     more,
