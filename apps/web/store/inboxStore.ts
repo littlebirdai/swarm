@@ -13446,14 +13446,14 @@ const inboxStoreConfig = (set: any, get: any) => ({
     })),
   threadsCursor: { id: null },
   setThreadsCursor: (cursor: ThreadsCursor) => set({ threadsCursor: cursor }),
-  setCommentRailWidth: (conversationId: string, w: number) =>
-    set((s: any) => {
-      if ((s.commentRailWidth[conversationId] ?? 0) === w) return {};
-      const next = { ...s.commentRailWidth };
-      if (w) next[conversationId] = w;
-      else delete next[conversationId];
-      return { commentRailWidth: next };
-    }),
+  setCommentRailWidth: (conversationId: string, w: number) => {
+    const { commentRailWidth } = get();
+    if ((commentRailWidth[conversationId] ?? 0) === w) return;
+    const next = { ...commentRailWidth };
+    if (w) next[conversationId] = w;
+    else delete next[conversationId];
+    set({ commentRailWidth: next });
+  },
 
   setReviewTarget: (messageId: string | null, blockIndex = 0) =>
     set({

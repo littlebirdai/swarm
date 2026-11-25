@@ -102,8 +102,7 @@ await test(
         asked: [],
         // The destination's live queries (tail, meta, watermark, pane chrome).
         convexSubscribes: 15,
-        // Two writes that change no key: each wakes every subscriber for nothing.
-        storeWrites: 2,
+        storeWrites: 0,
         // The pane swaps its subtrees; nothing else on the page moves. Six rows
         // of overscan each side (ConversationView) set how many it mounts.
         domMutations: 21,
