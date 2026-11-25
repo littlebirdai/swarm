@@ -32,7 +32,7 @@ export function claudeTurns(
     | { id: string; error?: { class: string; message: string } }
     | undefined;
   let reset = false;
-  let resultEnded = false;
+  let sendsAtResult: string[] | undefined;
   const event = (payload: DurablePayload) =>
     durable(payload, active?.id ?? null);
 
@@ -48,7 +48,7 @@ export function claudeTurns(
 
   function begin(work: Projection) {
     if (active) return;
-    resultEnded = false;
+    sendsAtResult = undefined;
     active = { id: `claude-sdk:${run}:${++turnIndex}` };
     work.push(event({ kind: "turn.started", body: {} }));
   }
@@ -127,12 +127,11 @@ export function claudeTurns(
       ) {
         begin(work);
       } else {
-        if (!resultEnded) {
-          for (const id of sends.keys()) remember(`finished:${id}`);
-          sends.clear();
-          finish("no-result", work);
+        for (const id of sendsAtResult ?? sends.keys()) {
+          if (sends.delete(id)) remember(`finished:${id}`);
         }
-        resultEnded = false;
+        sendsAtResult = undefined;
+        finish("no-result", work);
         reset = false;
       }
     } else if (frame.type === "conversation_reset") {
@@ -142,7 +141,6 @@ export function claudeTurns(
       const id = frame.command_uuid;
       const send = sends.get(id);
       if (!send || send.terminal) return false;
-      if (frame.state === "queued") resultEnded = false;
       if (frame.state === "started") {
         begin(work);
         observedSend(id, work);
@@ -182,7 +180,7 @@ export function claudeTurns(
         work,
       );
       reset = false;
-      resultEnded = true;
+      sendsAtResult = [...sends.keys()];
     } else if (active) {
       const content = frame.message.content;
       const blocks =

@@ -189,6 +189,75 @@ claudeCase(
   },
 );
 
+for (const hasConsumedId of [false, true]) {
+  claudeCase(
+    hasConsumedId
+      ? "idle after a result releases an unconsumed mid-turn steer"
+      : "idle after a result without IDs releases pending input",
+    async (session, fake) => {
+      const next = readEvent(session);
+      expect(await session.steer(steer)).toEqual(noReceipt);
+      await fake.wrote(1);
+      fake.frames(runningFrame);
+      expect(await next()).toMatchObject({ kind: "turn.started" });
+      if (hasConsumedId) {
+        expect(
+          await session.steer({
+            ...steer,
+            expected: interrupt.expected,
+            delivery_id: "mid-turn",
+          }),
+        ).toEqual(noReceipt);
+        await fake.wrote(2);
+        const consumed = fake.observed()[0]!.uuid!;
+        fake.frames(result("first-result", { user_message_uuids: [consumed] }));
+        expect(await next()).toMatchObject({ kind: "message.user" });
+      } else fake.frames(result("first-result"));
+      expect(await next()).toMatchObject({ kind: "turn.ended" });
+      fake.frames(idle);
+      await fake.retained(idle.uuid);
+      expect(await session.steer({ ...steer, delivery_id: "next" })).toEqual(
+        noReceipt,
+      );
+    },
+  );
+}
+
+claudeCase(
+  "a queued successor survives the previous result's trailing idle",
+  async (session, fake) => {
+    const next = readEvent(session);
+    fake.frames(runningFrame, result("first-result"));
+    const first = await next();
+    expect(first).toMatchObject({ kind: "turn.started" });
+    expect(await next()).toMatchObject({ kind: "turn.ended" });
+    expect(await session.steer(steer)).toEqual(noReceipt);
+    await fake.wrote(1);
+    const uuid = fake.observed()[0]!.uuid!;
+    fake.frames(
+      lifecycle("queued", uuid),
+      idle,
+      lifecycle("started", uuid),
+      result("second-result", { user_message_uuids: [uuid] }),
+      fake.eventFrame(0),
+    );
+    const second = await next();
+    expect(second).toMatchObject({ kind: "turn.started" });
+    expect(second?.turn).not.toBe(first?.turn);
+    expect(await next()).toMatchObject({
+      kind: "message.user",
+      turn: second?.turn,
+      body: { delivery_id: steer.delivery_id },
+    });
+    expect(await next()).toMatchObject({
+      kind: "turn.ended",
+      turn: second?.turn,
+      body: { reason: "completed" },
+    });
+    expect(await next()).toMatchObject({ kind: "context", turn: null });
+  },
+);
+
 claudeCase(
   "a cancelled command keeps its result and earlier errors do not override interrupt",
   async (session, fake) => {
