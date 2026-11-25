@@ -268,7 +268,7 @@
     "swarm/no-comments": 76
   },
   "apps/cli/src/agentLaunch.ts": {
-    "swarm/no-comments": 36
+    "swarm/no-comments": 35
   },
   "apps/cli/src/agentPreflight.ts": {
     "swarm/no-comments": 19
@@ -376,7 +376,7 @@
     "swarm/no-comments": 19
   },
   "apps/cli/src/bench/bootGraph.guard.test.ts": {
-    "swarm/no-comments": 692
+    "swarm/no-comments": 691
   },
   "apps/cli/src/bench/bootGraph.ts": {
     "swarm/no-comments": 42
@@ -1033,7 +1033,7 @@
     "swarm/no-comments": 4
   },
   "apps/cli/src/capabilities/fleetDiff.ts": {
-    "swarm/no-comments": 19
+    "swarm/no-comments": 16
   },
   "apps/cli/src/capabilities/format.ts": {
     "swarm/no-comments": 13
@@ -1146,7 +1146,7 @@
     "swarm/no-comments": 17
   },
   "apps/cli/src/capabilities/registries.ts": {
-    "swarm/no-comments": 26
+    "swarm/no-comments": 25
   },
   "apps/cli/src/capabilities/resolverParity.test.ts": {
     "swarm/no-comments": 4
@@ -3933,7 +3933,7 @@
     "swarm/no-comments": 11
   },
   "apps/cli/src/providerKeyCrypto.ts": {
-    "swarm/no-comments": 19
+    "swarm/no-comments": 18
   },
   "apps/cli/src/providerKeyLaunch.test.ts": {
     "swarm/no-comments": 5
@@ -4658,7 +4658,7 @@
     "swarm/no-comments": 8
   },
   "apps/cli/src/taskGraphCommands.ts": {
-    "swarm/no-comments": 56
+    "swarm/no-comments": 54
   },
   "apps/cli/src/taskPages.test.ts": {
     "swarm/no-comments": 1
@@ -10317,7 +10317,7 @@
     "swarm/no-comments": 1
   },
   "apps/server/convex/lib/permissionRules.ts": {
-    "swarm/no-comments": 15
+    "swarm/no-comments": 14
   },
   "apps/server/convex/lib/personLabel.ts": {
     "swarm/no-comments": 11
@@ -27078,9 +27078,6 @@
   "apps/web/server/shareMeta.test.ts": {
     "swarm/no-comments": 1
   },
-  "apps/web/server/sharedExports.guard.test.ts": {
-    "swarm/no-comments": 5
-  },
   "apps/web/server/staticAssets.test.ts": {
     "swarm/no-comments": 14
   },
@@ -27985,7 +27982,7 @@
     "swarm/no-comments": 19
   },
   "apps/web/store/capabilities.ts": {
-    "swarm/no-comments": 226
+    "swarm/no-comments": 221
   },
   "apps/web/store/categorizeStale.test.ts": {
     "swarm/no-comments": 9
@@ -28094,7 +28091,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5267
+    "swarm/no-comments": 5266
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
@@ -29372,7 +29369,7 @@
     "swarm/no-comments": 40
   },
   "packages/line/src/evalResult.ts": {
-    "swarm/no-comments": 8
+    "swarm/no-comments": 7
   },
   "packages/line/src/expectations.ts": {
     "swarm/no-comments": 61
@@ -30027,9 +30024,6 @@
   },
   "packages/sessions/test/threadState.test.ts": {
     "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/index.ts": {
-    "swarm/no-comments": 19
   },
   "packages/ship/src/changeGuide.ts": {
     "swarm/no-comments": 40

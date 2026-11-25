@@ -38,12 +38,12 @@ The table records how the extraction reached completion.
 | Root barrel documentation                                                  | Merged, PR #62 |
 | `agent-clients` (first part), `changes`, `signals`                         | Merged, PR #63 |
 | `sessions` (first part)                                                    | Merged, PR #64 |
-| `fence`, `org` (first part)                                                | Open, PR #74   |
-| `machines`, `mods`, `search`, `sessions` (second part)                     | Open, PR #75   |
-| `org` (second part), `projects`, `deploys`                                 | Open, PR #76   |
-| `agent-clients` (second part)                                              | Open, PR #77   |
-| `agent-clients` (third part), `agents`, `hosted-assistant`, `usage`        | Open, PR #78   |
-| `replay`, `calls` (second part), `entities`, `ingest`                      | Open, PR #79   |
+| `fence`, `org` (first part)                                                | Merged, PR #74 |
+| `machines`, `mods`, `search`, `sessions` (second part)                     | Merged, PR #75 |
+| `org` (second part), `projects`, `deploys`                                 | Merged, PR #76 |
+| `agent-clients` (second part)                                              | Merged, PR #77 |
+| `agent-clients` (third part), `agents`, `hosted-assistant`, `usage`        | Merged, PR #78 |
+| `replay`, `calls` (second part), `entities`, `ingest`                      | Merged, PR #79 |
 | `connectors`, `goals`                                                      | Branch         |
 | `org` (third part), `org-templates`                                        | Branch         |
 | `messages`, `snippets`                                                     | Branch         |
