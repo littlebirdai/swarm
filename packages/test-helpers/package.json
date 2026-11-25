@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit"
   },
   "exports": {
-    "./faker": "./src/faker.ts",
     "./codeLines": "./src/codeLines.ts",
     "./waitFor": "./src/waitFor.ts",
     "./patchEnv": "./src/patchEnv.ts",
