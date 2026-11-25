@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import {
   performMirrorAdvance,
   performBackfillScopes,
@@ -63,6 +63,9 @@ function createCtx(seed: Record<string, Rec[]>) {
       order: (_dir: string) => chain,
       take: async (n: number) => rows().slice(0, n),
       first: async () => rows()[0] ?? null,
+      async *[Symbol.asyncIterator]() {
+        yield* rows();
+      },
     };
     return chain;
   }
@@ -233,7 +236,7 @@ describe("performMirrorAdvance", () => {
     expect(tables.message_search_recent[0].content).toBe("patched content");
   });
 
-  test("content budget break rewinds the cursor and never bumps to the ceiling", async () => {
+  test("content budget break keeps the cursor on the last processed row", async () => {
     // Per-row content is capped at 32k BEFORE budgeting, so the 4M batch
     // budget trips on row volume: 125 capped rows fit, the 126th breaks.
     const at = NOW - MIRROR_WINDOW_MS + 5_000;
@@ -245,10 +248,7 @@ describe("performMirrorAdvance", () => {
     });
     const res = await performMirrorAdvance(ctx, { now: NOW, batch: 200 });
     expect(res.copied).toBe(125);
-    // Cursor parked just before row 126 — NOT at the ceiling — so it is
-    // re-read next run even though the scan drained below the batch limit.
-    expect(res.cursor).toBeLessThan(at + 125);
-    expect(res.cursor).toBeGreaterThan(at + 124);
+    expect(res.cursor).toBe(at + 124);
     const res2 = await performMirrorAdvance(ctx, { now: NOW, batch: 200 });
     expect(res2.copied).toBe(1);
     expect(tables.message_search_recent).toHaveLength(126);
@@ -267,11 +267,78 @@ describe("performMirrorAdvance", () => {
     expect(res.copied).toBe(600);
     expect(res.caught_up).toBe(false); // budget break must not read as drained
     // Cursor parked before row 601, not bumped to the ceiling.
-    expect(res.cursor).toBeLessThan(at + 600);
-    expect(res.cursor).toBeGreaterThan(at + 599);
+    expect(res.cursor).toBe(at + 599);
     const res2 = await performMirrorAdvance(ctx, { now: NOW, batch: 1200 });
     expect(res2.copied).toBe(50);
     expect(tables.message_search_recent).toHaveLength(650);
+  });
+
+  test.each([
+    { limit: "batch", batch: 2, prefixCount: 1, contentBytes: 15 },
+    { limit: "upsert", batch: 1000, prefixCount: 599, contentBytes: 15 },
+    { limit: "content", batch: 1000, prefixCount: 124, contentBytes: 32_000 },
+    { limit: "read byte", batch: 1000, prefixCount: 5, contentBytes: 800_000 },
+  ])(
+    "replays the full timestamp when the $limit limit splits it",
+    async ({ batch, prefixCount, contentBytes }) => {
+      const time = CEILING - 2_000;
+      const content = "x".repeat(contentBytes);
+      const messages = Array.from({ length: prefixCount }, (_, i) =>
+        msg(`prefix_${i}`, time + i, { content }),
+      );
+      const tieTime = time + prefixCount;
+      messages.push(
+        msg("tie_1", tieTime, { content }),
+        msg("tie_2", tieTime, { content }),
+      );
+      const { ctx, tables } = createCtx({ messages });
+      const first = await performMirrorAdvance(ctx, { now: NOW, batch });
+      expect(first).toMatchObject({
+        caught_up: false,
+        copied: prefixCount + 1,
+        cursor: tieTime - 1,
+      });
+      expect(tables.message_search_recent.map((row) => row.message_id)).toEqual(
+        messages.slice(0, -1).map((row) => row._id),
+      );
+
+      const second = await performMirrorAdvance(ctx, {
+        now: NOW + 15_000,
+        batch,
+      });
+      expect(second.cursor).toBeGreaterThanOrEqual(tieTime);
+      expect(tables.message_search_recent.map((row) => row.message_id)).toEqual(
+        messages.map((row) => row._id),
+      );
+    },
+  );
+
+  test("an oversized timestamp group logs the block and keeps the cursor before the group", async () => {
+    const time = CEILING - 2_000;
+    const { ctx, tables } = createCtx({
+      messages: [msg("first", time), msg("second", time)],
+    });
+    const diagnostic = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const first = await performMirrorAdvance(ctx, { now: NOW, batch: 1 });
+      const second = await performMirrorAdvance(ctx, {
+        now: NOW + 15_000,
+        batch: 1,
+      });
+      expect(first.caught_up).toBe(false);
+      expect(second.caught_up).toBe(false);
+      expect(first.cursor).toBeLessThan(time);
+      expect(second.cursor).toBe(first.cursor);
+      expect(tables.message_search_recent.map((row) => row.message_id)).toEqual(
+        ["first"],
+      );
+      expect(diagnostic).toHaveBeenCalledWith(
+        expect.stringContaining("cursor held"),
+        expect.objectContaining({ creationTime: time, cursor: first.cursor }),
+      );
+    } finally {
+      diagnostic.mockRestore();
+    }
   });
 
   test("stamps user_id/team_id from the conversation doc; deleted conv stamps nothing", async () => {

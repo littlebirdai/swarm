@@ -1,5 +1,5 @@
 import { internalMutation, internalQuery } from "./_generated/server";
-import { v } from "convex/values";
+import { getDocumentSize, v } from "convex/values";
 import { clipText } from "./lib/wellFormed";
 
 // Recent-window mirror for message content search (ct-37627).
@@ -38,29 +38,32 @@ const FRESH_LAG_MS = 5_000;
 // The fresh walk spans at most SWEEP_LAG_MS of messages; this caps its share
 // of a tick's read budget so the settle walk keeps room to backfill.
 const MAX_FRESH_ROWS = 300;
+const IDLE_MAINTENANCE_MS = 60_000;
 export const MIRROR_LIVE_SLACK_MS = 30 * 60_000;
 // Search relevance only needs the text, and giant tool dumps drown BM25
 // anyway — cap what we mirror per message.
 const MAX_CONTENT_CHARS = 32_000;
 // Stay well under the per-mutation write budget even if every row is at cap.
 const MAX_BATCH_CONTENT_CHARS = 4_000_000;
+const FRESH_READ_BYTES = 3 * 1024 ** 2;
+const SETTLE_READ_BYTES = 6 * 1024 ** 2;
+const GC_READ_BYTES = 1.5 * 1024 ** 2;
+const LOOKAHEAD_READ_BYTES = 1024 ** 2;
 // Each mirrored row costs ~2 system ops (dedup .first() + insert/patch) plus
 // at most one conversation get (cached per batch — messages cluster by
 // conversation) on top of the scan reads, against a ~4096 ops/transaction
 // ceiling. Unbounded, a dense-content backlog aborts the mutation atomically —
 // the cursor never advances and the cron hot-loops the same batch every 15s
-// (found during the 2026-07-13 outage postmortem). Worst case with these
-// caps: 1200 + 300 scan reads + 600×3 upsert ops (shared by both walks) +
-// ~400 GC ≈ 3700, still margin.
+// (found during the 2026-07-13 outage postmortem).
 const MAX_UPSERTS_PER_RUN = 600;
-const MAX_BATCH_ROWS = 1200;
+const MAX_BATCH_ROWS = 1000;
 const GC_BATCH = 200;
 
 type MirrorDb = Pick<
   import("./_generated/server").MutationCtx["db"],
   "query" | "insert" | "patch" | "delete" | "get"
 >;
-type MirrorBudget = { copied: number; content: number; broke: boolean };
+type MirrorBudget = { copied: number; content: number };
 
 const sameMirrorRow = (
   existing: Record<string, unknown>,
@@ -70,71 +73,106 @@ const sameMirrorRow = (
 // Copy messages created in (from, ceiling) into the mirror, oldest first.
 // Upserts by message_id and skips rows whose mirrored fields are unchanged, so
 // a second walk over the same span writes only what changed since the first.
-// Returns where the walk stopped: the ceiling once drained, or just before the
-// first row a spent budget skipped (the next run re-reads it).
 async function walkMessages(
   db: MirrorDb,
   from: number,
   ceiling: number,
   limit: number,
   budget: MirrorBudget,
+  readBytes: number,
   convScope: Map<string, { user_id?: any; team_id?: any }>,
-): Promise<{ cursor: number; scanned: number }> {
-  const rows = await db
+): Promise<{ cursor: number; scanned: number; drained: boolean }> {
+  const rows = db
     .query("messages")
     .withIndex("by_creation_time", (q) =>
       q.gt("_creationTime", from).lt("_creationTime", ceiling),
     )
-    .order("asc")
-    .take(limit);
-  let cursor = from;
-  for (const msg of rows) {
-    cursor = msg._creationTime;
+    .order("asc");
+  readBytes -= LOOKAHEAD_READ_BYTES;
+  let processedThrough = from;
+  let completeThrough = from;
+  let stoppedAt: number | undefined;
+  let scanned = 0;
+  for await (const msg of rows) {
+    stoppedAt = msg._creationTime;
+    if (stoppedAt !== processedThrough) completeThrough = processedThrough;
+    if (scanned === limit) break;
+    scanned++;
+    readBytes -= getDocumentSize(msg);
+    if (readBytes <= 0) break;
     const content = msg.content?.trim()
       ? clipText(msg.content, MAX_CONTENT_CHARS)
       : null;
-    if (!content) continue;
-    if (
-      budget.content - content.length < 0 ||
-      budget.copied >= MAX_UPSERTS_PER_RUN
-    ) {
-      budget.broke = true;
-      return { cursor: msg._creationTime - 0.0001, scanned: rows.length };
+    if (content) {
+      if (
+        budget.content < content.length ||
+        budget.copied >= MAX_UPSERTS_PER_RUN
+      ) {
+        break;
+      }
+      const existing = await db
+        .query("message_search_recent")
+        .withIndex("by_message_id", (q) => q.eq("message_id", msg._id))
+        .first();
+      const existingBytes = existing ? getDocumentSize(existing) : 0;
+      readBytes -= existingBytes;
+      if (readBytes <= 0) break;
+      const convKey = msg.conversation_id.toString();
+      let scope = convScope.get(convKey);
+      if (!scope) {
+        const conv = await db.get(msg.conversation_id);
+        if (conv) readBytes -= getDocumentSize(conv);
+        scope = { user_id: conv?.user_id, team_id: conv?.team_id };
+        convScope.set(convKey, scope);
+      }
+      const doc = {
+        message_id: msg._id,
+        conversation_id: msg.conversation_id,
+        role: msg.role,
+        content,
+        timestamp: msg.timestamp,
+        tool_calls_count: msg.tool_calls?.length,
+        tool_results_count: msg.tool_results?.length,
+        source_created_at: msg._creationTime,
+        user_id: scope.user_id,
+        team_id: scope.team_id,
+      };
+      const changed = existing && !sameMirrorRow(existing, doc);
+      if (changed) readBytes -= existingBytes;
+      if (readBytes <= 0) break;
+      if (!existing) await db.insert("message_search_recent", doc);
+      else if (changed) await db.patch(existing._id, doc);
+      budget.content -= content.length;
+      budget.copied++;
     }
-    budget.content -= content.length;
-    budget.copied++;
-    const existing = await db
-      .query("message_search_recent")
-      .withIndex("by_message_id", (q) => q.eq("message_id", msg._id))
-      .first();
-    const convKey = msg.conversation_id.toString();
-    let scope = convScope.get(convKey);
-    if (!scope) {
-      const conv = await db.get(msg.conversation_id);
-      scope = { user_id: conv?.user_id, team_id: conv?.team_id };
-      convScope.set(convKey, scope);
+    processedThrough = stoppedAt;
+    stoppedAt = undefined;
+  }
+  if (stoppedAt !== undefined) {
+    if (completeThrough === from && stoppedAt === processedThrough) {
+      console.error(
+        "Search mirror could not finish a creation-time group; cursor held",
+        {
+          creationTime: stoppedAt,
+          cursor: from,
+          scanned,
+        },
+      );
     }
-    const doc = {
-      message_id: msg._id,
-      conversation_id: msg.conversation_id,
-      role: msg.role,
-      content,
-      timestamp: msg.timestamp,
-      tool_calls_count: msg.tool_calls?.length,
-      tool_results_count: msg.tool_results?.length,
-      source_created_at: msg._creationTime,
-      user_id: scope.user_id,
-      team_id: scope.team_id,
-    };
-    if (!existing) await db.insert("message_search_recent", doc);
-    else if (!sameMirrorRow(existing, doc)) await db.patch(existing._id, doc);
+    return { cursor: completeThrough, scanned, drained: false };
+  }
+  if (scanned === limit) {
+    return { cursor: processedThrough, scanned, drained: false };
   }
   // Drained below the limit = nothing else exists before the ceiling, so the
   // ceiling IS the watermark. Without this, a quiet fleet leaves the cursor
   // pinned to the last message and "lag" grows while fully caught up.
   // (-1ms so a row landing exactly at the ceiling gets re-scanned, not skipped.)
-  if (rows.length < limit) cursor = Math.max(cursor, ceiling - 1);
-  return { cursor, scanned: rows.length };
+  return {
+    cursor: Math.max(processedThrough, ceiling - 1),
+    scanned,
+    drained: true,
+  };
 }
 
 // Handler body as a plain exported function so bun tests can drive it with a
@@ -164,12 +202,14 @@ export async function performMirrorAdvance(
     // Read budget bounds the batch: message docs are read whole (tool_results
     // and all), so thousands of maximal docs approach the transaction read
     // ceiling well before the write-side content budget trips.
-    const limit = Math.min(Math.max(args.batch ?? 400, 1), MAX_BATCH_ROWS);
+    const limit = Math.min(
+      Math.max(Math.trunc(args.batch ?? 400) || 1, 1),
+      MAX_BATCH_ROWS,
+    );
     const ceiling = now - SWEEP_LAG_MS;
     const budget: MirrorBudget = {
       copied: 0,
       content: MAX_BATCH_CONTENT_CHARS,
-      broke: false,
     };
     // Conversation owner/team stamps, cached per tick — a batch's messages
     // cluster into few conversations, so this is ~1 get per conversation,
@@ -185,31 +225,54 @@ export async function performMirrorAdvance(
       now - FRESH_LAG_MS,
       MAX_FRESH_ROWS,
       budget,
+      FRESH_READ_BYTES,
       convScope,
     );
-    const settle = budget.broke
-      ? { cursor: state.cursor, scanned: 0 }
-      : await walkMessages(
-          ctx.db,
-          state.cursor,
-          ceiling,
-          limit,
-          budget,
-          convScope,
-        );
+    const settle = await walkMessages(
+      ctx.db,
+      state.cursor,
+      ceiling,
+      limit,
+      budget,
+      SETTLE_READ_BYTES,
+      convScope,
+    );
     const newCursor = settle.cursor;
-    const caughtUp = settle.scanned < limit && !budget.broke;
+    const caughtUp = settle.drained && fresh.drained;
+    if (
+      fresh.scanned === 0 &&
+      settle.scanned === 0 &&
+      state.fresh_cursor !== undefined &&
+      state.cursor >= state.updated_at - SWEEP_LAG_MS - 1 &&
+      now - state.updated_at < IDLE_MAINTENANCE_MS
+    ) {
+      return {
+        scanned: 0,
+        fresh_scanned: 0,
+        copied: 0,
+        expired: 0,
+        cursor: state.cursor,
+        fresh_cursor: state.fresh_cursor,
+        lag_ms: Math.max(0, now - state.cursor),
+        live: true,
+        caught_up: true,
+      };
+    }
 
     // Age out rows that left the window. During backfill the mirror is young
     // and this finds nothing.
-    const expired = await ctx.db
+    const expired = ctx.db
       .query("message_search_recent")
       .withIndex("by_source_created_at", (q) =>
         q.lt("source_created_at", now - MIRROR_WINDOW_MS),
-      )
-      .take(GC_BATCH);
-    for (const row of expired) {
+      );
+    let expiredCount = 0;
+    let gcBytes = GC_READ_BYTES;
+    for await (const row of expired) {
       await ctx.db.delete(row._id);
+      expiredCount++;
+      gcBytes -= 2 * getDocumentSize(row);
+      if (expiredCount === GC_BATCH || gcBytes <= 0) break;
     }
 
     await ctx.db.patch(state._id, {
@@ -238,7 +301,7 @@ export async function performMirrorAdvance(
       scanned: settle.scanned,
       fresh_scanned: fresh.scanned,
       copied: budget.copied,
-      expired: expired.length,
+      expired: expiredCount,
       cursor: newCursor,
       fresh_cursor: fresh.cursor,
       lag_ms: lagMs,

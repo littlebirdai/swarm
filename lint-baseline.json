@@ -8997,7 +8997,7 @@
     "swarm/no-comments": 15
   },
   "apps/server/convex/crons.ts": {
-    "swarm/no-comments": 193
+    "swarm/no-comments": 188
   },
   "apps/server/convex/daemonCommandClaim.test.ts": {
     "swarm/no-comments": 13
@@ -11840,17 +11840,17 @@
   "apps/server/convex/screenRecordings.ts": {
     "swarm/no-comments": 58
   },
+  "apps/server/convex/search-mirror.test.ts": {
+    "swarm/no-comments": 36
+  },
   "apps/server/convex/searchCore.test.ts": {
     "swarm/no-comments": 17
   },
   "apps/server/convex/searchCore.ts": {
     "swarm/no-comments": 30
   },
-  "apps/server/convex/searchMirror.test.ts": {
-    "swarm/no-comments": 38
-  },
   "apps/server/convex/searchMirror.ts": {
-    "swarm/no-comments": 84
+    "swarm/no-comments": 80
   },
   "apps/server/convex/searchScope.workspace.test.ts": {
     "swarm/no-comments": 10

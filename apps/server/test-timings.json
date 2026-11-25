@@ -625,7 +625,7 @@
     "convex/runLogLists.test.ts": 94,
     "convex/screenRecordings.test.ts": 68,
     "convex/searchCore.test.ts": 33,
-    "convex/searchMirror.test.ts": 47,
+    "convex/search-mirror.test.ts": 47,
     "convex/searchScope.workspace.test.ts": 65,
     "convex/searchSelfAndFacts.test.ts": 189,
     "convex/secrets.payload.test.ts": 87,
