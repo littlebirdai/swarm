@@ -182,6 +182,11 @@ describe("REACH_REMOTE_SCRIPT", () => {
       `#!/bin/bash\nprintf '%s\\n' "$@" > ${JSON.stringify(log)}\nexit 0\n`,
       { mode: 0o755 },
     );
+    fs.writeFileSync(
+      path.join(bin, "sleep"),
+      "#!/bin/bash\nexec /bin/sleep 0.005\n",
+      { mode: 0o755 },
+    );
   }, 60_000);
   const run = (mp: string, withSshfs = true) =>
     spawnSync(

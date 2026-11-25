@@ -188,11 +188,13 @@ jobs:
         if: matrix.target == 'web'
         # The web bundle outgrew V8's default heap on the runner: on 2026-10-24
         # vite died with "JavaScript heap out of memory" (exit 134).
-        # A CI build ships nowhere, so it compresses at the fastest level.
+        # The rest of the web build script prepares the files to serve
+        # (compression, prerender). CI serves nothing, and the prerender step
+        # exits 0 on every failure, so it cannot find one.
+        working-directory: apps/web
         env:
           NODE_OPTIONS: --max-old-space-size=8192
-          PRECOMPRESS_LEVEL: fastest
-        run: bun run build --filter=@codecast/web
+        run: bun run build:bundle
 
       - name: Build everything else
         if: matrix.target == 'other'
@@ -206,7 +208,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        programs: [web playground packages, sim cli, convex evals]
+        programs: [web, sim, cli, convex, evals playground packages]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -313,7 +315,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [1, 2, 3, 4, 5, evals, e2e]
+        suite: [1, 2, 3, 4, 5, 6, evals, e2e]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -342,14 +344,14 @@ jobs:
         # the job spending the rest of its timeout with nothing said.
         env:
           DAEMON_BUILD_ID_CHECK: "1"
-        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --shard=${{ matrix.suite }}/5 --bail=5
+        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --shard=${{ matrix.suite }}/6 --bail=5
 
       # The eval home (apps/evals). Its tests make no network or model
       # calls; real replays run only from ./evals on a laptop.
       - name: Unit tests (evals package)
         if: matrix.suite == 'evals'
         working-directory: apps/evals
-        run: bun test src/
+        run: bun test src/ --parallel
 
       - name: E2E messaging pipeline (real tmux + fake-claude shim)
         if: matrix.suite == 'e2e'
