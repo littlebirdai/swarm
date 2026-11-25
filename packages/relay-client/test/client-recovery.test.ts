@@ -237,6 +237,28 @@ test("flushes a queued publication after an in-place grant renewal", async () =>
   client.close();
 });
 
+test("holds a publication of a hub that subscribes again during its renewal", async () => {
+  const waiting = Promise.withResolvers<typeof fakeGrant>();
+  let calls = 0;
+  const { client, open, advance } = harness(async () =>
+    calls++ ? waiting.promise : fakeGrant,
+  );
+  const leave = client.subscribe(session, () => {});
+  const socket = await open(2000);
+  subscribed(socket);
+  await advance(2000);
+  waiting.resolve(fakeGrant);
+  await advance(0);
+  leave();
+  client.subscribe(session, () => {});
+  client.publish(presence, 5000);
+  apply(socket);
+  expect(socket.frames).not.toContainEqual(presence);
+  subscribed(socket);
+  expect(socket.frames).toContainEqual(presence);
+  client.close();
+});
+
 test("uses one timer and ignores backwards clock readings", async () => {
   const { client, open, advance, rewind, clock } = harness();
   const events: RelayEvent[] = [];

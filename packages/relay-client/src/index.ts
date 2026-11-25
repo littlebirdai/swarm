@@ -261,7 +261,7 @@ export function createRelayClient(options: RelayClientOptions) {
     for (const sub of request.granted ?? []) {
       const key = hubKey(sub.hub);
       grants.set(key, { hub: sub.hub, expires, renew });
-      if (sub.status === "ready") {
+      if (subscriptions.get(key) === sub && sub.status === "ready") {
         sub.failures = 0;
         sub.retryAt = -Infinity;
         flush(key);
