@@ -453,7 +453,7 @@ All paths under `apps/server/convex` unless noted. Mapped 2026-10-04.
   leaves `owner_device_id` unset, never enqueues a daemon command, and inserts
   the `managed_sessions` row the inbox reads status from. Factor the shared
   insert into one helper both call; do not copy it.
-- **`agent_type`** is a closed union on `conversations` in `schema/conversationFields.tables.ts`, and the
+- **`agent_type`** is a closed union on `conversations` in `schema/conversation-fields.tables.ts`, and the
   registry (`packages/agent-clients/src/agentClients.ts`) needs the `codecast`
   id widened through `AgentClientId`, `ConvexAgentType`, `CONVEX_BY_ID` and
   `fromConvexAgentType`. Its descriptor declares a hosted transport so

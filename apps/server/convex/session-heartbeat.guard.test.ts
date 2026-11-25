@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 const schemaAndStorage = new Set([
   "schema/accounts.tables.ts",
-  "schema/managedSessions.tables.ts",
+  "schema/managed-sessions.tables.ts",
   "schema/tasks.tables.ts",
   "lib/sessionHeartbeat.ts",
 ]);

@@ -6,7 +6,7 @@ import {
 } from "@codecast/policy/teamFeatures";
 import { TASK_STATUS_COLORS } from "@codecast/tasks/statuses";
 import { teamPolicyValidator } from "../managedDevicesSchema";
-import { taskStatusCategoryValidator } from "./taskStatus.tables";
+import { taskStatusCategoryValidator } from "./task-status.tables";
 
 // A team's editable task statuses (Linear-style): named statuses within the
 // six fixed categories, in display order. Absent = the shared defaults, one

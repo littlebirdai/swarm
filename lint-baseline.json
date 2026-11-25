@@ -11707,7 +11707,7 @@
   "apps/server/convex/publicFunctionSecretLeak.guard.ts": {
     "swarm/no-comments": 28
   },
-  "apps/server/convex/publicFunctionSecretLeak.test.ts": {
+  "apps/server/convex/public-function-secret-leak.test.ts": {
     "swarm/no-comments": 31
   },
   "apps/server/convex/publicShare.test.ts": {
@@ -12283,7 +12283,7 @@
   "apps/server/convex/supersededProbe.ts": {
     "swarm/no-comments": 5
   },
-  "apps/server/convex/syncLog.test.ts": {
+  "apps/server/convex/sync-log.test.ts": {
     "swarm/no-comments": 16
   },
   "apps/server/convex/syncLog.ts": {
@@ -12724,7 +12724,7 @@
   "apps/server/convex/whisk.ts": {
     "swarm/no-comments": 63
   },
-  "apps/server/convex/workItemListing.guard.test.ts": {
+  "apps/server/convex/work-item-listing.guard.test.ts": {
     "swarm/no-comments": 20
   },
   "apps/server/convex/workTimeline.test.ts": {

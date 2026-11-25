@@ -52,7 +52,7 @@ type AccessCtx = { db: any; scheduler?: Scheduler };
 
 // Ctx-bound evaluator with the same rule as authorizedFor, short-circuiting on
 // owner/grant before touching memberships. A property test pins the two
-// evaluators to each other (syncLog.test.ts).
+// evaluators to each other (sync-log.test.ts).
 async function authorizedForCtx(
   ctx: AccessCtx,
   stamp: AccessStamp | null,

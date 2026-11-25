@@ -13,7 +13,7 @@ import {
   taskExternalValidator,
   taskCommentExternalValidator,
 } from "../issueSyncSchema";
-import { taskStatusCategoryValidator } from "./taskStatus.tables";
+import { taskStatusCategoryValidator } from "./task-status.tables";
 
 export const taskTables = {
   tasks: defineTable({

@@ -10,7 +10,7 @@
 // `module.function: table.field` that can carry a secret. A row with its
 // secrets destructured out (getCurrentUserRow in users.ts) passes; the raw
 // row does not. A return typed `any` is invisible here, which is why the
-// runtime tests in publicFunctionSecretLeak.test.ts still pin the functions
+// runtime tests in public-function-secret-leak.test.ts still pin the functions
 // that serve user profiles.
 //
 // Two dots in the name keep the Convex bundler from deploying this file;

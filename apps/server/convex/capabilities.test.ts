@@ -1099,7 +1099,7 @@ describe("ingestObservation", () => {
 describe("capabilityTables", () => {
   test("every index on a tenant-carrying table leads with user_id", () => {
     // A tenantless index is a cross-tenant read waiting for a caller who
-    // forgets the filter (publicFunctionSecretLeak.test.ts is the scar).
+    // forgets the filter (public-function-secret-leak.test.ts is the scar).
     const tenantless: string[] = [];
     for (const [name, table] of Object.entries(capabilityTables)) {
       const exported = (table as any).export();

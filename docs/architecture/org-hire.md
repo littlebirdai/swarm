@@ -710,7 +710,7 @@ proposal) and, once accepted, the button that runs it on the machine. Manual:
   server and read the ads trigger's live 3 day cadence as an override.
 - **The server half that changes no existing behaviour** (2026-09-19, with the
   org program's go): `convex/orgTemplates.ts` with the three tables appended to
-  `apps/server/convex/schema/orgTemplates.tables.ts` and twelve `/cli/org/template/*` routes. Publish
+  `apps/server/convex/schema/org-templates.tables.ts` and twelve `/cli/org/template/*` routes. Publish
   and catalog, the instance row upserted by the receipt's key, evidence,
   scoreboard and setup through the shared rules, instance status with readiness,
   lessons filed under the publisher's key with the writer seeing only status.

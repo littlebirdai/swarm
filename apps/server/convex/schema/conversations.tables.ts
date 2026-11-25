@@ -5,7 +5,7 @@ import {
   localMirrorValidator,
 } from "../lib/cloudHostValidators";
 import { roleIconValidator } from "../lib/roleIconValidator";
-import { conversationFields } from "./conversationFields.tables";
+import { conversationFields } from "./conversation-fields.tables";
 
 export const conversationTables = {
   conversations: defineTable({

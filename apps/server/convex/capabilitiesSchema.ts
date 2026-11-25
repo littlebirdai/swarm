@@ -181,7 +181,7 @@ export const capabilityTables = {
     // There is deliberately no index starting at `device_id` — an index with no
     // tenant column first is a cross-tenant read waiting for a caller who forgets
     // the filter, and this repo has already shipped that bug class
-    // (publicFunctionSecretLeak.test.ts).
+    // (public-function-secret-leak.test.ts).
     .index("by_user_device_client_scope", [
       "user_id",
       "device_id",

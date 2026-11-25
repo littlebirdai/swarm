@@ -56,13 +56,13 @@ import {
   sessionPathStatTables,
   sessionOwnershipTables,
   inboxTables,
-} from "./schema/sessionInbox.tables";
+} from "./schema/session-inbox.tables";
 import { conversationTables } from "./schema/conversations.tables";
-import { sessionMigrationTables } from "./schema/sessionMigration.tables";
+import { sessionMigrationTables } from "./schema/session-migration.tables";
 import { anchorTables } from "./schema/anchors.tables";
-import { orgRoleTables } from "./schema/orgRoles.tables";
-import { orgChangeTables } from "./schema/orgChanges.tables";
-import { orgTemplateTables } from "./schema/orgTemplates.tables";
+import { orgRoleTables } from "./schema/org-roles.tables";
+import { orgChangeTables } from "./schema/org-changes.tables";
+import { orgTemplateTables } from "./schema/org-templates.tables";
 import {
   transcriptTables,
   messageCommentTables,
@@ -74,7 +74,7 @@ import {
   sessionPatternTables,
   sessionInsightTables,
   projectMemoryTables,
-} from "./schema/sessionInsights.tables";
+} from "./schema/session-insights.tables";
 import {
   fileTouchTables,
   repositoryHistoryTables,
@@ -89,15 +89,15 @@ import {
 import {
   sessionDeliveryTables,
   conversationEventTables,
-} from "./schema/sessionDelivery.tables";
+} from "./schema/session-delivery.tables";
 import {
   managedSessionTables,
   sessionStartTables,
-} from "./schema/managedSessions.tables";
+} from "./schema/managed-sessions.tables";
 import {
   pullRequestTables,
   githubEventTables,
-} from "./schema/pullRequests.tables";
+} from "./schema/pull-requests.tables";
 import { externalEventTables } from "./schema/events.tables";
 import {
   deploymentTables,
@@ -112,13 +112,13 @@ import {
 import {
   pendingPermissionTables,
   sessionDecisionTables,
-} from "./schema/sessionDecisions.tables";
+} from "./schema/session-decisions.tables";
 import {
   sessionSharingTables,
   messageShareTables,
   sessionFrameTables,
   viewFollowTables,
-} from "./schema/sessionSharing.tables";
+} from "./schema/session-sharing.tables";
 import { scheduleTables } from "./schema/schedules.tables";
 import { projectTables } from "./schema/projects.tables";
 import { modTables } from "./schema/mods.tables";
