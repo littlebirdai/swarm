@@ -2,13 +2,14 @@ import { expect } from "bun:test";
 import { it } from "@codecast/effect-kit/effect/testing";
 import {
   parseRelayServerFrame,
+  RELAY_MAX_FRAME_BYTES,
   type RelayGrantClaims,
 } from "@codecast/relay-contract";
 import { TokenVerifier } from "@codecast/relay/effect";
 import * as Effect from "effect/Effect";
 import { readConfig } from "./config";
 import { startRelayServer } from "./server";
-import { mintTestToken } from "../test/mint-token";
+import { mintTestToken, signTestPayload } from "../test/mint-token";
 import { hmacVerifier } from "./token-verifier";
 
 const key = Buffer.alloc(32, 57);
@@ -45,6 +46,36 @@ it.effect("verifies HMAC signatures before decoding claims", () =>
   }).pipe(Effect.provide(hmacVerifier(key))),
 );
 
+it.effect(
+  "accepts both rotation keys and refuses noncanonical or oversized signed data",
+  () => {
+    const previousKey = Buffer.alloc(32, 58);
+    return Effect.gen(function* () {
+      const verifier = yield* TokenVerifier;
+      const current = mintTestToken(key, claims);
+      expect(verifier.verify(current)).toBe(JSON.stringify(claims));
+      expect(verifier.verify(mintTestToken(previousKey, claims))).toBe(
+        JSON.stringify(claims),
+      );
+      expect(
+        verifier.verify(mintTestToken(Buffer.alloc(32, 59), claims)),
+      ).toBeNull();
+
+      const alphabet =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+      const last = alphabet.indexOf(current.slice(-1));
+      expect(
+        verifier.verify(current.slice(0, -1) + alphabet[last + 1]),
+      ).toBeNull();
+      expect(verifier.verify(signTestPayload(key, "eB"))).toBeNull();
+      const tooLarge = Buffer.alloc(RELAY_MAX_FRAME_BYTES + 1, 120).toString(
+        "base64url",
+      );
+      expect(verifier.verify(signTestPayload(key, tooLarge))).toBeNull();
+    }).pipe(Effect.provide(hmacVerifier(key, previousKey)));
+  },
+);
+
 it.effect("validates environment settings before binding a socket", () =>
   Effect.sync(() => {
     expect(readConfig(env)).toMatchObject({
@@ -58,6 +89,16 @@ it.effect("validates environment settings before binding a socket", () =>
         RELAY_HMAC_KEY: Buffer.alloc(31).toString("base64url"),
       }),
     ).toThrow("RELAY_HMAC_KEY");
+    expect(() => readConfig({ ...env, RELAY_HOST: "" })).toThrow("RELAY_HOST");
+    expect(() => readConfig({ ...env, RELAY_HMAC_PREVIOUS_KEY: "x" })).toThrow(
+      "RELAY_HMAC_PREVIOUS_KEY",
+    );
+    for (const field of [
+      "RELAY_MAX_PRE_AUTH_CONNECTIONS",
+      "RELAY_MAX_CONNECTIONS_PER_SUBJECT",
+    ]) {
+      expect(() => readConfig({ ...env, [field]: "0" })).toThrow(field);
+    }
     expect(() => readConfig({ ...env, RELAY_PORT: "65536" })).toThrow(
       "RELAY_PORT",
     );
@@ -75,8 +116,10 @@ it.effect(
   () =>
     Effect.gen(function* () {
       const started = performance.now();
+      const previousKey = Buffer.alloc(32, 59);
       const config = readConfig({
         ...env,
+        RELAY_HMAC_PREVIOUS_KEY: previousKey.toString("base64url"),
         RELAY_RETRY_AFTER_MS: "876",
         RELAY_DRAIN_MS: "200",
       });
@@ -103,7 +146,7 @@ it.effect(
       );
       ws.addEventListener("open", () => {
         const now = Date.now();
-        const token = mintTestToken(key, {
+        const token = mintTestToken(previousKey, {
           ...claims,
           issued_at_ms: now,
           expires_at_ms: now + 30_000,
@@ -140,14 +183,21 @@ it.effect(
         value: { type: "hello", status: "ok", version: 1, capabilities: [] },
       });
 
-      const stopping = relay.stop();
+      relay.drain();
+      const draining = yield* Effect.promise(() =>
+        fetch(new URL("/health", relay.url)),
+      );
+      expect(draining.status).toBe(503);
+      expect(yield* Effect.promise(() => draining.json())).toEqual({
+        status: "draining",
+      });
       expect(yield* Effect.promise(() => unavailable.promise)).toEqual({
         type: "hello",
         status: "unavailable",
         retry_after_ms: 876,
       });
       expect(yield* Effect.promise(() => closed.promise)).toBe(1012);
-      yield* Effect.promise(() => stopping);
+      yield* Effect.promise(relay.stop);
       expect(performance.now() - started).toBeLessThan(1_000);
     }),
   900,

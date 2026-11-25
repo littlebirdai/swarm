@@ -59,6 +59,8 @@ export function harness<A, E, R>(
         retryAfterMs: 1234,
         queueCapacity: 8,
         maxConnections: 2048,
+        maxPreAuthConnections: 128,
+        maxConnectionsPerSubject: 8,
         maxHubs: 2048,
         maxSubscribersPerHub: 256,
         ...options,
@@ -83,7 +85,7 @@ export function harness<A, E, R>(
   );
 }
 
-export function token(value: RelayGrantClaims): string {
+export function token(value: unknown): string {
   return `test.${Buffer.from(JSON.stringify(value)).toString("base64url")}`;
 }
 
@@ -91,8 +93,13 @@ export class FakeSocket implements RelaySocket {
   readonly events: Array<RelayServerFrame | { type: "closed"; code: number }> =
     [];
   pauseOnNextSend = false;
+  failOnNextSend = false;
 
   send = (text: string) => {
+    if (this.failOnNextSend) {
+      this.failOnNextSend = false;
+      return "closed" as const;
+    }
     const parsed = parseRelayServerFrame(text);
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error));
     this.events.push(parsed.value);

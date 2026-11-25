@@ -1,17 +1,10 @@
-import type { RelayHub, RelayServerFrame } from "@codecast/relay-contract";
+import type { RelayHub } from "@codecast/relay-contract";
 import { Service } from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
-import * as PubSub from "effect/PubSub";
 import * as Scope from "effect/Scope";
-
-export type Signal = Extract<RelayServerFrame, { seq: number }>;
-
-export type Publication = {
-  frame: Signal;
-  sourceTtl: (now: number, elapsed: bigint) => number;
-};
+import type { Publication } from "./signals";
 
 type Receive = (publication: Publication) => Effect.Effect<void>;
 
@@ -29,6 +22,7 @@ export class HubRegistry extends Service<
   {
     subscribe: (
       hub: RelayHub,
+      subjectKey: string,
       receive: Receive,
       connectionScope: Scope.Scope,
     ) => Effect.Effect<HubSubscription | null>;
@@ -37,59 +31,45 @@ export class HubRegistry extends Service<
   static layer(maxHubs: number, maxSubscribers: number) {
     return Layer.effect(
       HubRegistry,
-      Effect.gen(function* () {
-        const hubs = new Map<
-          string,
-          {
-            bus: PubSub.PubSub<Publication>;
-            subscribers: Map<PubSub.Subscription<Publication>, Receive>;
-          }
-        >();
+      Effect.sync(() => {
+        const hubs = new Map<string, Map<Receive, string>>();
+        const maxPerSubject = Math.max(1, Math.floor(maxSubscribers / 2));
 
         const subscribe = Effect.fn("HubRegistry.subscribe")(function* (
           hub: RelayHub,
+          subjectKey: string,
           receive: Receive,
           connectionScope: Scope.Scope,
         ) {
           const key = hubKey(hub);
-          let entry = hubs.get(key);
-          if (!entry) {
+          let subscribers = hubs.get(key);
+          if (!subscribers) {
             if (hubs.size >= maxHubs) return null;
-            entry = {
-              bus: yield* PubSub.bounded<Publication>(1),
-              subscribers: new Map(),
-            };
-            hubs.set(key, entry);
+            subscribers = new Map();
+            hubs.set(key, subscribers);
           }
-          const { bus, subscribers } = entry;
           if (subscribers.size >= maxSubscribers) return null;
+          let subjectCount = 0;
+          for (const subject of subscribers.values()) {
+            if (subject === subjectKey) subjectCount++;
+          }
+          if (subjectCount >= maxPerSubject) return null;
 
           const scope = yield* Scope.fork(connectionScope);
-          const subscription = yield* Scope.provide(
-            PubSub.subscribe(bus),
-            scope,
-          );
-          subscribers.set(subscription, receive);
+          subscribers.set(receive, subjectKey);
           yield* Scope.addFinalizer(
             scope,
-            Effect.gen(function* () {
-              subscribers.delete(subscription);
-              if (subscribers.size === 0) {
-                hubs.delete(key);
-                yield* PubSub.shutdown(bus);
-              }
+            Effect.sync(() => {
+              subscribers.delete(receive);
+              if (subscribers.size === 0) hubs.delete(key);
             }),
           );
 
           const publish = Effect.fn("HubSubscription.publish")(function* (
             publication: Publication,
           ) {
-            yield* PubSub.publish(bus, publication);
-            const deliveries = [];
-            for (const [subscriber, deliver] of subscribers) {
-              deliveries.push(deliver(yield* PubSub.take(subscriber)));
-            }
-            for (const deliver of deliveries) yield* deliver;
+            for (const deliver of subscribers.keys())
+              yield* deliver(publication);
           });
           return {
             publish,

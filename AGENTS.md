@@ -54,7 +54,7 @@ A watcher built while other sessions were editing several packages keeps checkin
 
 Use Effect in the owned-process packages `effect-kit`, `edge-client`,
 `provider-adapter`, `delivery`, `edge-supervisor`, `relay`, `ext-host`, and
-`ext-runner` under `packages/`, and in the planned `relay` app under `apps/`.
+`ext-runner` under `packages/`, and in the `relay` app under `apps/`.
 This applies to their tests too. Use plain TypeScript everywhere else, including
 Convex, web, mobile, desktop, the CLI, and shared contracts and reducers.
 

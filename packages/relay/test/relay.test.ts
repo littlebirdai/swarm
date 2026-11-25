@@ -172,7 +172,17 @@ it.effect(
         yield* b.subscribe();
         yield* a.subscribe();
         yield* a.send(active);
+        const beforeDetach = a.events.length;
         yield* a.send({ type: "unsubscribe", v: 1, hub: session });
+        expect(a.events.slice(beforeDetach)).toEqual([
+          {
+            type: "subscription",
+            v: 1,
+            hub: session,
+            status: "unsubscribed",
+            reason: "requested",
+          },
+        ]);
         yield* a.subscribe();
         yield* a.send(active);
         yield* a.refresh(
@@ -538,8 +548,10 @@ it.effect(
           yield* b.subscribe(hub);
           expect(b.events.at(-1)).toMatchObject({ status: "denied", hub });
         }
-        const excess = new FakeSocket();
-        expect(yield* relay.open(excess)).toBeNull();
+        const excess = yield* peer(
+          relay,
+          claims({ subject: { kind: "user", id: "excess" } }),
+        );
         expect(excess.events).toEqual([
           { type: "hello", status: "unavailable", retry_after_ms: 1234 },
           { type: "closed", code: 1013 },
@@ -590,7 +602,7 @@ it.effect("coalesces latest signals by ordering key and caps TTL at send", () =>
         }),
       ]);
     }),
-    { queueCapacity: 3 },
+    { queueCapacity: 8 },
   ),
 );
 

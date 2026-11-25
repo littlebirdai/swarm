@@ -1,10 +1,12 @@
 import type { RelayServerFrame } from "@codecast/relay-contract";
-import { hubKey, type Publication } from "./hubs";
+import type { Effect } from "effect/Effect";
+import { hubKey } from "./hubs";
+import type { Publication } from "./signals";
 
-type Control = Exclude<RelayServerFrame, { seq: number }>;
+export type Control = Exclude<RelayServerFrame, { seq: number }>;
 
 type Pending =
-  | { control: Control; expiresAt?: number }
+  | { control: Control | Effect<Control> }
   | { publication: Publication; recipientTtl: (now: number) => number };
 
 export class Outbox {
@@ -27,9 +29,9 @@ export class Outbox {
     return false;
   }
 
-  control(control: Control, expiresAt?: number): boolean {
+  control(control: Control | Effect<Control>): boolean {
     if (!this.#makeRoom()) return false;
-    this.#pending.set(this.#nextControl++, { control, expiresAt });
+    this.#pending.set(this.#nextControl++, { control });
     return true;
   }
 

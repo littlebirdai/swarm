@@ -3,13 +3,18 @@ import { Relay, type RelayConnection } from "@codecast/relay/effect";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
+import { BunRelaySocket } from "./bun-relay-socket";
 import type { ServerConfig } from "./config";
 import { hmacVerifier } from "./token-verifier";
 
 export function startRelayServer(config: ServerConfig) {
   const runtime = ManagedRuntime.make(
-    Relay.layer(config).pipe(Layer.provide(hmacVerifier(config.key))),
+    Relay.layer(config).pipe(
+      Layer.provide(hmacVerifier(config.key, config.previousKey)),
+    ),
   );
+  let sockets = 0;
+  let allClosed: (() => void) | undefined;
   const server = Bun.serve<{ connection: RelayConnection | null }>({
     hostname: config.hostname,
     port: config.port,
@@ -34,18 +39,9 @@ export function startRelayServer(config: ServerConfig) {
       closeOnBackpressureLimit: true,
       perMessageDeflate: false,
       open(ws) {
+        sockets++;
         ws.data.connection = runtime.runSync(
-          Effect.flatMap(Relay, (relay) =>
-            relay.open({
-              send(text) {
-                const size = ws.sendText(text);
-                if (size === 0) return "closed";
-                return size < 0 ? "paused" : "sent";
-              },
-              close: (code) => ws.close(code),
-              terminate: () => ws.terminate(),
-            }),
-          ),
+          Effect.flatMap(Relay, (relay) => relay.open(new BunRelaySocket(ws))),
         );
       },
       message(ws, message) {
@@ -54,35 +50,39 @@ export function startRelayServer(config: ServerConfig) {
       },
       drain(ws) {
         const connection = ws.data.connection;
-        if (connection) runtime.runSync(connection.writable);
+        if (connection && BunRelaySocket.isWritable(ws))
+          runtime.runSync(connection.writable);
       },
       close(ws) {
         const connection = ws.data.connection;
         ws.data.connection = null;
         if (connection) runtime.runSync(connection.disconnected);
+        sockets--;
+        if (sockets === 0) allClosed?.();
       },
     },
   });
 
+  function drain() {
+    runtime.runSync(Effect.flatMap(Relay, (relay) => relay.drain));
+  }
+
   let stopping: Promise<void> | undefined;
   function stop() {
-    stopping ??= runtime
-      .runPromise(
-        Effect.gen(function* () {
-          const relay = yield* Relay;
-          yield* relay.drain;
-          const graceful = Effect.promise(() => server.stop()).pipe(
-            Effect.as(true),
-          );
-          const timeout = Effect.sleep(config.drainMs).pipe(Effect.as(false));
-          if (!(yield* Effect.raceFirst(graceful, timeout))) {
-            yield* Effect.promise(() => server.stop(true));
-          }
-        }),
-      )
+    if (stopping) return stopping;
+    drain();
+    const graceful = Effect.promise(() => {
+      if (sockets === 0) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        allClosed = resolve;
+      });
+    });
+    stopping = runtime
+      .runPromise(Effect.raceFirst(graceful, Effect.sleep(config.drainMs)))
+      .then(() => server.stop(true))
       .finally(() => runtime.dispose());
     return stopping;
   }
 
-  return { url: server.url, stop };
+  return { url: server.url, drain, stop };
 }
