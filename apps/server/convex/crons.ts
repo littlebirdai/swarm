@@ -247,15 +247,10 @@ crons.interval(
   // messages forward by _creationTime — backfill, tail sync, and window GC in
   // one step. Content search cuts over to the mirror automatically once the
   // cursor is fresh (see fetchMessageSearchPool).
-  // batch 1200 = the max per tick, not the steady load: caught up, a tick
-  // scans only the new tail (usually <100 rows). The headroom exists so the
-  // cron re-drives its own backfill after any outage without a client loop.
-  // 1200 (not more) keeps a full batch under the ~4096 ops/transaction
-  // ceiling together with searchMirror's MAX_UPSERTS_PER_RUN break.
   "advance search mirror",
   { seconds: 15 },
   internal.searchMirror.advance,
-  { batch: 1200 },
+  { batch: 1000 },
 );
 
 crons.interval(

@@ -63,6 +63,9 @@ function createCtx(seed: Record<string, Rec[]>) {
       order: (_dir: string) => chain,
       take: async (n: number) => rows().slice(0, n),
       first: async () => rows()[0] ?? null,
+      async *[Symbol.asyncIterator]() {
+        yield* rows();
+      },
     };
     return chain;
   }
@@ -233,7 +236,7 @@ describe("performMirrorAdvance", () => {
     expect(tables.message_search_recent[0].content).toBe("patched content");
   });
 
-  test("content budget break rewinds the cursor and never bumps to the ceiling", async () => {
+  test("content budget break keeps the cursor on the last processed row", async () => {
     // Per-row content is capped at 32k BEFORE budgeting, so the 4M batch
     // budget trips on row volume: 125 capped rows fit, the 126th breaks.
     const at = NOW - MIRROR_WINDOW_MS + 5_000;
@@ -245,10 +248,7 @@ describe("performMirrorAdvance", () => {
     });
     const res = await performMirrorAdvance(ctx, { now: NOW, batch: 200 });
     expect(res.copied).toBe(125);
-    // Cursor parked just before row 126 — NOT at the ceiling — so it is
-    // re-read next run even though the scan drained below the batch limit.
-    expect(res.cursor).toBeLessThan(at + 125);
-    expect(res.cursor).toBeGreaterThan(at + 124);
+    expect(res.cursor).toBe(at + 124);
     const res2 = await performMirrorAdvance(ctx, { now: NOW, batch: 200 });
     expect(res2.copied).toBe(1);
     expect(tables.message_search_recent).toHaveLength(126);
@@ -267,8 +267,7 @@ describe("performMirrorAdvance", () => {
     expect(res.copied).toBe(600);
     expect(res.caught_up).toBe(false); // budget break must not read as drained
     // Cursor parked before row 601, not bumped to the ceiling.
-    expect(res.cursor).toBeLessThan(at + 600);
-    expect(res.cursor).toBeGreaterThan(at + 599);
+    expect(res.cursor).toBe(at + 599);
     const res2 = await performMirrorAdvance(ctx, { now: NOW, batch: 1200 });
     expect(res2.copied).toBe(50);
     expect(tables.message_search_recent).toHaveLength(650);
