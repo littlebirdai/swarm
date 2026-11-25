@@ -1,17 +1,21 @@
 import { expect, test } from "bun:test";
 import { createServer } from "node:http";
+import { ConvexHttpClient } from "convex/browser";
+import { makeFunctionReference } from "convex/server";
 import { writeSync } from "node:fs";
 import { MessagesSdkResponse } from "./messagesSdkResponse.js";
 import { MessagesSdkCursors } from "./messagesSdkCursors.js";
-import { MessagesSdkBatch } from "./messagesSdkClient.js";
-import { PayloadBudget } from "./payloadBudget.js";
-import type { WorkerHost } from "./host.js";
-import { bytePage, describeBytes, PAYLOAD_PAGE_BYTES } from "./payloadBytes.js";
+import {
+  ByteReceiver,
+  bytePage,
+  describeBytes,
+  PAYLOAD_PAGE_BYTES,
+} from "./payloadBytes.js";
 import { ingestTokenPages } from "./ingestTransport.js";
 import { PayloadValueAssembler } from "./payloadValues.js";
 import {
+  validMessagesSdkPage,
   validMessagesSdkPayload,
-  type MessagesSdkPayload,
 } from "./messagesSdkTypes.js";
 
 const emit = (row: unknown) => writeSync(1, JSON.stringify(row) + "\n");
@@ -235,98 +239,147 @@ test("bodyless statuses allow stream presence but refuse nonzero bytes at verifi
   ).toBe(false);
 });
 
-test("an invalid local SDK command leaves the next valid cursor sequence available", async () => {
+const conversationId = "synthetic";
+const apiToken = "synthetic-only";
+const receipt = {
+  plan: "response-plan",
+  attempt: "response-attempt",
+  workerGeneration: 1,
+  messageCount: 0,
+};
+
+async function openMessagesCursor() {
   const cursors = new MessagesSdkCursors();
-  const forwarded: MessagesSdkPayload[] = [];
-  const host = {
-    state: { pid: 1, generation: 1, closed: false },
-    request: async (operation: string, payload: MessagesSdkPayload) => {
-      expect(operation).toBe("messagesSdk");
-      expect(validMessagesSdkPayload(payload)).toBe(true);
-      forwarded.push(payload);
-      return cursors.request(payload, "local-sequence");
-    },
-  } as unknown as WorkerHost;
-  const batch = await MessagesSdkBatch.open(
-    { messages: [], bytes: [] },
-    "synthetic",
-    { host, budget: new PayloadBudget(5000) },
-  );
-  const request = (
-    batch as unknown as {
-      request: (
-        command: Record<string, unknown>,
-      ) => Promise<{ stage: string; sequence: number }>;
-    }
-  ).request.bind(batch);
+  const cursor = "response-cursor";
+  const generation = "response-generation";
+  let sequence = 0;
+  const send = (command: Record<string, unknown>) => {
+    const payload =
+      command.action === "open"
+        ? { ...command, generation }
+        : { ...command, cursor, generation, sequence };
+    if (!validMessagesSdkPayload(payload))
+      throw new Error("invalid messages SDK request");
+    sequence++;
+    return cursors.request(payload, cursor);
+  };
+  await send({
+    action: "open",
+    conversationId,
+    messageCount: 0,
+    budgetMs: 5000,
+  });
+  for await (const tokens of ingestTokenPages({ messages: [], bytes: [] }))
+    await send({ action: "push", tokens });
+  const sealed = await send({ action: "seal" });
+  return { cursors, send, sealed };
+}
+
+test("the SDK wire validator refuses an invalid command before cursor dispatch", async () => {
+  const { cursors, send, sealed } = await openMessagesCursor();
   try {
-    const count = forwarded.length;
-    await expect(
-      request({ action: "responseStart", status: 200, body: "invalid" }),
-    ).rejects.toThrow("invalid messages SDK request");
-    expect(forwarded).toHaveLength(count);
-    const page = await request({
-      action: "begin",
-      apiToken: "synthetic-only",
-      receipt: {
-        plan: "response-plan",
-        attempt: "response-attempt",
-        workerGeneration: 1,
-        messageCount: 0,
-      },
-    });
+    expect(() =>
+      send({ action: "responseStart", status: 200, body: "invalid" }),
+    ).toThrow("invalid messages SDK request");
+    const page = await send({ action: "begin", apiToken, receipt });
     expect(page.stage).toBe("capture");
-    expect(page.sequence).toBe(count);
-    expect(forwarded).toHaveLength(count + 1);
+    expect(page.sequence).toBe(sealed.sequence + 1);
   } finally {
-    await batch.close();
-    const owner = cursors as unknown as {
-      cursors: Map<string, unknown>;
-      close: (key: string) => void;
-    };
-    for (const key of owner.cursors.keys()) owner.close(key);
+    await send({ action: "close" });
+    expect(cursors.size).toBe(0);
+  }
+});
+
+test("the SDK cursor returns the receipt before the paged result and logs", async () => {
+  const value = { inserted: 0, ids: [] };
+  const logLines = Array.from(
+    { length: 40 },
+    (_, index) => `[INFO] ${index} ${"x".repeat(8192)}`,
+  );
+  const response = JSON.stringify({ status: "success", value, logLines });
+  const logs: unknown[] = [];
+  let expectedRequest = "";
+  const sdk = new ConvexHttpClient("http://127.0.0.1:0", {
+    skipConvexDeploymentUrlCheck: true,
+    fetch: (async (_url, init) => {
+      if (typeof init?.body !== "string")
+        throw new Error("missing SDK request body");
+      expectedRequest = init.body;
+      return new Response(response);
+    }) as typeof fetch,
+    logger: {
+      log: (...args: unknown[]) => logs.push({ method: "log", args }),
+      warn: () => {},
+      error: () => {},
+      logVerbose: () => {},
+    },
+  });
+  const directResult = await sdk.mutation(
+    makeFunctionReference<"mutation">("messages:addMessages"),
+    { conversation_id: conversationId, messages: [], api_token: apiToken },
+    { skipQueue: true },
+  );
+  const { cursors, send } = await openMessagesCursor();
+  try {
+    const capture = await send({ action: "begin", apiToken, receipt });
+    if (capture.stage !== "capture") throw new Error("missing SDK capture");
+    const requestBytes = new ByteReceiver(capture.capture);
+    const request: Buffer[] = [];
+    for (;;) {
+      const page = await send({ action: "requestNext" });
+      if (page.stage !== "bytes") throw new Error("missing SDK request bytes");
+      request.push(requestBytes.push(page.page));
+      if (page.done) break;
+    }
+    requestBytes.finish();
+    expect(Buffer.concat(request).toString()).toBe(expectedRequest);
+
+    const outcome = send({ action: "waitOutcome" });
+    const responseBytes = Buffer.from(response);
+    await send({ action: "responseStart", status: 200, body: true });
+    for (
+      let offset = 0;
+      offset < responseBytes.length;
+      offset += PAYLOAD_PAGE_BYTES
+    )
+      await send({
+        action: "responsePush",
+        page: bytePage(responseBytes, offset),
+      });
+    await send({
+      action: "responseEnd",
+      descriptor: describeBytes(responseBytes),
+    });
+    const accepted = await outcome;
+    expect(validMessagesSdkPage(accepted)).toBe(true);
+    expect(accepted).toMatchObject({ stage: "outcome", receipt });
+
+    const assembler = new PayloadValueAssembler();
+    let valuePages = 0;
+    for (;;) {
+      const page = await send({ action: "outcomeNext" });
+      if (page.stage !== "values") throw new Error("missing SDK outcome value");
+      assembler.push(page.tokens);
+      if (page.done) break;
+      valuePages++;
+    }
+    expect(valuePages).toBeGreaterThan(1);
+    expect(assembler.finish()).toEqual({
+      kind: "success",
+      value: directResult,
+      logs,
+    });
+  } finally {
+    if (cursors.size) await send({ action: "close" });
     expect(cursors.size).toBe(0);
   }
 });
 
 for (const failure of ["missing-eof", "bad-digest", "network-abort"] as const)
   test(`actual SDK remains unsettled before verified EOF: ${failure}`, async () => {
-    const cursors = new MessagesSdkCursors();
-    let sequence = 0;
-    const send = (command: Record<string, unknown>) => {
-      const payload =
-        command.action === "open"
-          ? { ...command, generation: "response-test" }
-          : {
-              ...command,
-              cursor: "response-test",
-              generation: "response-test",
-              sequence,
-            };
-      sequence++;
-      expect(validMessagesSdkPayload(payload)).toBe(true);
-      return cursors.request(payload as MessagesSdkPayload, "response-test");
-    };
-    await send({
-      action: "open",
-      conversationId: "synthetic",
-      messageCount: 0,
-      budgetMs: 5000,
-    });
+    const { cursors, send } = await openMessagesCursor();
     try {
-      for await (const tokens of ingestTokenPages({ messages: [], bytes: [] }))
-        await send({ action: "push", tokens });
-      await send({ action: "seal" });
-      await send({
-        action: "begin",
-        apiToken: "synthetic-only",
-        receipt: {
-          plan: "response-plan",
-          attempt: "response-attempt",
-          workerGeneration: 1,
-          messageCount: 0,
-        },
-      });
+      await send({ action: "begin", apiToken, receipt });
       let settled = false;
       const waiter = send({ action: "waitOutcome" }).then(
         (value) => {
