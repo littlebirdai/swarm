@@ -29,7 +29,10 @@ import * as path from "node:path";
 import { atomicWriteFile } from "../atomicWrite.js";
 import { getMachineKey, hardwareId } from "../machine-key.js";
 import { defaultConfigDir } from "../config/configDir.js";
-import { publishPrivateFile } from "../publish-private-file.js";
+import {
+  publishPrivateFile,
+  readPublishedFile,
+} from "../publish-private-file.js";
 
 const DEVICE_BINDING_FILE = path.join(
   defaultConfigDir(),
@@ -115,7 +118,11 @@ export function deviceId(): string {
           JSON.stringify(identity.persist),
         )
       ) {
-        binding = readDeviceBinding();
+        binding = readPublishedFile(readDeviceBinding);
+        if (!binding) {
+          writeDeviceBinding(identity.persist);
+          binding = readDeviceBinding();
+        }
         identity = resolveDeviceIdentity({ ...inputs, binding });
       }
     } catch {}

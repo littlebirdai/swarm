@@ -9,7 +9,12 @@ import {
   resolveStableHostname,
 } from "./device.js";
 
-test("uses the device binding published by a concurrent first run", () => {
+test.each([
+  ["uses the binding from a concurrent first run", "link-race"],
+  ["creates the binding if hard links are unavailable", "exclusive-create"],
+  ["waits for a partial binding from a concurrent first run", "exclusive-race"],
+  ["recovers a binding left incomplete by a failed write", "incomplete"],
+])("%s", (_name, scenario) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-device-"));
   const bindingFile = path.join(dir, ".device_binding.json");
   const binding = { hw: "test-hardware", id: "fedcba9876543210" };
@@ -19,29 +24,48 @@ test("uses the device binding published by a concurrent first run", () => {
     import * as machineKey from "./src/machine-key.ts";
     import { deviceId } from "./src/remote/device.ts";
 
-    const [bindingFile, bindingJson] = process.argv.slice(1);
+    const [bindingFile, bindingJson, scenario] = process.argv.slice(1);
     spyOn(machineKey, "hardwareId").mockReturnValue(JSON.parse(bindingJson).hw);
     spyOn(machineKey, "getMachineKey").mockImplementation(() => {
       throw new Error("Could not read machine key");
     });
-    const read = fs.readFileSync;
-    const intercept = spyOn(fs, "readFileSync").mockImplementation((...args) => {
-      if (args[0] !== bindingFile) return read(...args);
-      try {
-        return read(...args);
-      } catch (err) {
-        if (err.code !== "ENOENT") throw err;
-        intercept.mockRestore();
-        fs.writeFileSync(bindingFile, bindingJson, { flag: "wx", mode: 0o600 });
-        throw err;
-      }
-    });
+    if (scenario !== "link-race") {
+      spyOn(fs, "linkSync").mockImplementation(() => {
+        throw Object.assign(new Error("Hard links unavailable"), { code: "ENOTSUP" });
+      });
+    }
+    if (scenario === "incomplete") fs.writeFileSync(bindingFile, "{", { mode: 0o600 });
+    if (scenario.endsWith("-race")) {
+      const partial = scenario === "exclusive-race";
+      const read = fs.readFileSync;
+      const intercept = spyOn(fs, "readFileSync").mockImplementation((...args) => {
+        if (args[0] !== bindingFile) return read(...args);
+        try {
+          const contents = read(...args);
+          intercept.mockRestore();
+          fs.writeFileSync(bindingFile, bindingJson);
+          return contents;
+        } catch (err) {
+          if (err.code !== "ENOENT") throw err;
+          if (!partial) intercept.mockRestore();
+          fs.writeFileSync(bindingFile, partial ? "{" : bindingJson, { flag: "wx", mode: 0o600 });
+          throw err;
+        }
+      });
+    }
     console.log(deviceId());
     console.log(deviceId());
   `;
   try {
     const child = Bun.spawnSync(
-      [process.execPath, "-e", script, bindingFile, JSON.stringify(binding)],
+      [
+        process.execPath,
+        "-e",
+        script,
+        bindingFile,
+        JSON.stringify(binding),
+        scenario,
+      ],
       {
         cwd: path.resolve(import.meta.dir, "../.."),
         env: { ...process.env, CODECAST_DIR: dir },
@@ -50,11 +74,14 @@ test("uses the device binding published by a concurrent first run", () => {
       },
     );
     expect(child.exitCode).toBe(0);
-    expect(child.stdout.toString().trim().split("\n")).toEqual([
-      binding.id,
-      binding.id,
-    ]);
-    expect(JSON.parse(fs.readFileSync(bindingFile, "utf8"))).toEqual(binding);
+    const [id, cachedId] = child.stdout.toString().trim().split("\n");
+    expect(id).toMatch(/^[0-9a-f]{16}$/);
+    expect(cachedId).toBe(id);
+    if (scenario.endsWith("-race")) expect(id).toBe(binding.id);
+    expect(JSON.parse(fs.readFileSync(bindingFile, "utf8"))).toEqual({
+      hw: binding.hw,
+      id,
+    });
     expect(fs.readdirSync(dir)).toEqual([".device_binding.json"]);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
