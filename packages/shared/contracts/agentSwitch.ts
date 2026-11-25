@@ -10,7 +10,7 @@ import {
   agentDisplayName,
   findModelOption,
   modelOptionKey,
-} from "./agentClients";
+} from "@codecast/agent-clients/agentClients";
 
 /** First line of every in-place switch notice. Historical rows match this too. */
 export const AGENT_SWITCH_NOTICE_PREFIX = "[codecast] Now using";

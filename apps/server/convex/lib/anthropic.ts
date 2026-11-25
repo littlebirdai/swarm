@@ -8,7 +8,7 @@ import { replyText, type MessagesRequest } from "@platform/assistant/messages";
 import {
   CHEAP_MODEL,
   sendsThinkingOff,
-} from "@codecast/shared/contracts/modelOptions";
+} from "@codecast/agent-clients/modelOptions";
 import { vendorRefusalFor, type VendorGate } from "./vendorGuard";
 
 // sendsThinkingOff: whether prod posts this model with thinking off; the evals

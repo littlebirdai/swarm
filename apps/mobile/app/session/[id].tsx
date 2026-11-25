@@ -270,10 +270,11 @@ import {
   agentSupportsFork,
   contextWindowTokens,
   isHostedAgentType,
+} from "@codecast/agent-clients/agentClients";
+import {
   parseDecisionAnswer,
   DECISION_ANSWER_TAG_RE,
   SAFETY_BLOCK_HINT,
-  CLOUD_AGENT_ACTION_SUBTYPE,
   parseScheduledTask,
   sessionEscalationCaption,
   stripPastedContent,
@@ -281,6 +282,7 @@ import {
   isPollResponsePayload,
   type VaultReadyMessage,
 } from "@codecast/shared/contracts";
+import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { policyTeamOf } from "@codecast/policy/managedPolicy";
 import {

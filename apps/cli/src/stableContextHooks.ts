@@ -14,10 +14,10 @@ import {
   STABLE_ENV_EXCLUDE,
   STABLE_ENV_GLOBAL,
   STABLE_ENV_MODE,
-  type AgentClientId,
   type StableLaunchPrefs,
   type StableMode,
 } from "@codecast/shared/contracts";
+import { type AgentClientId } from "@codecast/agent-clients/agentClients";
 import { STABLE_FEED_HOOK_FILE } from "./codecastOwned.js";
 import { defaultConfigDir, HOOK_STATE_DIR } from "./config/configDir.js";
 import { STABLE_CONTEXT_SERVED_VERB } from "./fastPath.js";

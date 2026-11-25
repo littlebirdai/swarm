@@ -4,7 +4,7 @@ import {
   findModelOption,
   listedModels,
   modelOptionKey,
-} from "./agentClients";
+} from "@codecast/agent-clients/agentClients";
 import {
   CLOUD_AGENT_PROVIDERS,
   cloudAgentCardText,
@@ -18,7 +18,7 @@ import {
   cloudAgentChangedProblem,
   cloudAgentLimitProblem,
   cloudAgentProblemInfo,
-} from "./cloudAgents";
+} from "@codecast/agent-clients/cloudAgents";
 import {
   CLIENT_ERROR_BANNER_PREFIX,
   classifyApiErrorBanner,

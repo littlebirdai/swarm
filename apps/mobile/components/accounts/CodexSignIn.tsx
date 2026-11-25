@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { CLOUD_AGENT_PROVIDERS } from "@codecast/shared/contracts";
+import { CLOUD_AGENT_PROVIDERS } from "@codecast/agent-clients/cloudAgents";
 import { useCloudAgentLogin } from "@codecast/web/lib/useProviderKeyCommand";
 import { Text as RNText } from "@/components/Themed";
 import { Spacing, themedStyles, useTheme } from "@/constants/Theme";

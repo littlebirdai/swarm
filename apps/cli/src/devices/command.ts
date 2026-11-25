@@ -4,11 +4,12 @@
  * from the shell. Each verb calls the same server function the web's control
  * does (devices.ts), so the two cannot disagree about what a change means.
  */
-
 import type { Command } from "commander";
 import {
   CLOUD_AGENT_PROVIDERS,
   cloudAgentSetupSentence,
+} from "@codecast/agent-clients/cloudAgents";
+import {
   deviceDisplayName,
   distinctDeviceNames,
   snippetBySlug,
@@ -35,7 +36,6 @@ import { encryptProviderKey } from "../providerKeyCrypto.js";
 import { deviceLine, pickDevice } from "./resolve.js";
 
 export type Team = { _id: string; name: string; role?: string };
-
 export type Backend = { client: any; token: string; api: any };
 
 export function die(message: string): never {

@@ -3,7 +3,7 @@
 // agentTasks and projectSources both read it without importing each other.
 import type { Doc, Id } from "../_generated/dataModel";
 import { projectDefaultSessionId } from "../sessionProjects";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 
 export async function mainSessionFor(
   ctx: { db: any },

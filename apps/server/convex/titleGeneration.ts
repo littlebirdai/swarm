@@ -15,8 +15,8 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { isRefusalProse } from "./idleSummary";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
-  isHostedAgentType,
   isToolResultCarrier,
   parseWorkflowHarnessFrame,
 } from "@codecast/shared/contracts";

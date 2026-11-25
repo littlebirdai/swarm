@@ -24,7 +24,7 @@ import {
   type CloudAgentProviderSpec,
   type CloudAgentSetupKind,
   type CloudAgentSetupRules,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { githubRepo } from "../cloud/gitOrigin.js";
 import { deviceLabel } from "../remote/device.js";
 import type { ProviderKeyVerdict } from "../providerKeyCrypto.js";

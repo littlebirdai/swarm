@@ -3,12 +3,12 @@ import {
   modelOptionKey,
   findModelOption,
   modelFitsAgent,
-} from "./agentClients";
+} from "../src/agentClients";
 import {
   isDynamicModelKey,
   dynamicModelOption,
   featuredModelOptions,
-} from "./modelOptions";
+} from "../src/modelOptions";
 
 // modelOptionKey is the inverse of the launch flag: the conversation row stores
 // the full model id, but the pickers, the Cmd+K menu, and — critically — the

@@ -28,7 +28,7 @@ import {
 import { effectiveMembershipVisibility } from "./teamVisibility";
 import { derivePresenceState, PRESENCE_FRESH_MS } from "./presenceState";
 import { performSessionSend } from "./pendingMessages";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { parseJointMessage } from "@codecast/shared/contracts/jointMessage";
 
 type Ctx = { db: any };

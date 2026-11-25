@@ -34,7 +34,7 @@ import {
   AGENT_CLIENTS,
   capabilitySupport,
   type AgentClientId,
-} from "./agentClients.js";
+} from "@codecast/agent-clients/agentClients";
 
 /**
  * Where you are standing. Every field is the identity of a scope instance, and

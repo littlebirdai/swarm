@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test";
 import {
   FENCED_RUNTIME_CAPABILITIES,
   parseStartedDeliveryPermit,
-  type AgentClientId,
   type ReadyBinding,
   type RuntimeTransport,
 } from "@codecast/shared/contracts";
+import { type AgentClientId } from "@codecast/agent-clients/agentClients";
 import {
   DormantExecutionControlPlane,
   type ClaimStartRequest,

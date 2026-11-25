@@ -25,7 +25,7 @@ import { DEVICE_ONLINE_MS } from "./deviceRouting";
 import { enqueueStartSession } from "./devices";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { releasePreviousOwner } from "./sessionRelease";
-import { fromConvexAgentType } from "@codecast/shared/contracts";
+import { fromConvexAgentType } from "@codecast/agent-clients/agentClients";
 import { parseOwnerRepo } from "@codecast/pull-requests/prRefs";
 import {
   checkoutInUseMessage,

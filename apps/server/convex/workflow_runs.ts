@@ -65,10 +65,8 @@ import { libraryOfRun, runFlowVersions } from "./flowVersions";
 import { ingestSnapshotArgs } from "./lib/workflowGraphValidators";
 import { admitRoleRun, requeueForSweep } from "./orgLine";
 import { flowAgents, missingAgentOn } from "./lib/linePlacement";
-import {
-  agentDisplayName,
-  deviceDisplayName,
-} from "@codecast/shared/contracts";
+import { agentDisplayName } from "@codecast/agent-clients/agentClients";
+import { deviceDisplayName } from "@codecast/shared/contracts";
 import { placeName, placeRunOnDevice } from "./lib/runDevicePlace";
 import { navPromptField } from "./userMessagesFilter";
 import { retainSessionCreator } from "./sessionLaunch";

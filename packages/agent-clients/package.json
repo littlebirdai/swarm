@@ -9,12 +9,20 @@
     "typecheck": "tsc --noEmit"
   },
   "exports": {
+    "./agentClients": "./src/agentClients.ts",
+    "./agentPins": "./src/agentPins.ts",
+    "./antigravityClient": "./src/antigravityClient.ts",
     "./claudeBackend": "./src/claudeBackend.ts",
+    "./cloudAgents": "./src/cloudAgents.ts",
     "./cloudSessionSync": "./src/cloudSessionSync.ts",
     "./harnessHooks": "./src/harnessHooks.ts",
+    "./modelOptions": "./src/modelOptions.ts",
     "./slashCommand": "./src/slashCommand.ts",
     "./subagentFleet": "./src/subagentFleet.ts",
     "./testArtifacts": "./src/testArtifacts.ts"
+  },
+  "dependencies": {
+    "@codecast/capabilities": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.3"

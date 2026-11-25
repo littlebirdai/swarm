@@ -34,15 +34,17 @@ import {
 import {
   AGENT_MODEL_CONFIG,
   AGENT_PICKER_OPTIONS,
-  compareMachineChips,
-  featuredModelOptions,
   fromConvexAgentType,
   isHostedAgentType,
   launchRailOptions,
   toConvexAgentType,
   type AgentClientId,
+} from "@codecast/agent-clients/agentClients";
+import { compareMachineChips } from "@codecast/shared/contracts";
+import {
+  featuredModelOptions,
   type DeviceModelInventory,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/modelOptions";
 import {
   defaultMachineId,
   intendedMachineId,

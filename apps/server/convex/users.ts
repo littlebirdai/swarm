@@ -43,9 +43,9 @@ import {
   fromConvexAgentType,
   LOCAL_AGENT_CLIENTS,
   isPinnableAgentId,
-  pinnableAgentIds,
   findModelOption,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
+import { pinnableAgentIds } from "@codecast/agent-clients/agentPins";
 import {
   CLOUD_SESSION_SOURCES,
   cloudSessionSyncSettings,

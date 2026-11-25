@@ -6,7 +6,7 @@ import {
   CLOUD_AGENT_PROVIDERS,
   cloudAgentCardOf,
   cloudAgentOtherLanes,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/cloudAgents";
 import { parseMirrorTranscriptFile } from "../parser.js";
 import { CloudApiError } from "./http.js";
 import {

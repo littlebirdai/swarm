@@ -8,7 +8,7 @@ import {
   LOCAL_AGENT_CLIENTS,
   type AgentClientId,
   type LocalAgentClientId,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import {
   parseTranscriptFor,
   parseSessionFile,

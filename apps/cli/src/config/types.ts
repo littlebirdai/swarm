@@ -15,7 +15,8 @@
  * present on disk at a given moment.
  */
 
-import type { AgentClientId, VaultInfo } from "@codecast/shared/contracts";
+import type { AgentClientId } from "@codecast/agent-clients/agentClients";
+import type { VaultInfo } from "@codecast/shared/contracts";
 import type { CloudSessionSyncField } from "@codecast/agent-clients/cloudSessionSync";
 import type { HeartbeatTeamPolicy } from "@codecast/policy/managedPolicy";
 import { policyRefusal } from "./managedPolicy.js";

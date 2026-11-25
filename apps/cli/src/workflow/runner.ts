@@ -1,11 +1,13 @@
 import { foreignTaskSource } from "@codecast/shared/tasks";
 import {
   CONTINUE_BANNER_KINDS,
-  fromConvexAgentType,
-  toConvexAgentType,
   resolveAgentLaunch,
   type AgentDefinitionSpec,
 } from "@codecast/shared/contracts";
+import {
+  fromConvexAgentType,
+  toConvexAgentType,
+} from "@codecast/agent-clients/agentClients";
 import {
   FOREIGN_TEXT_CAPS,
   capForeignText,
@@ -14,7 +16,7 @@ import {
 } from "@codecast/fence/fence";
 import { splitReviewNote } from "./reviewNote";
 import { definitionLaunchFlags } from "../agentLaunch.js";
-import { CHEAP_MODEL } from "@codecast/shared/contracts/modelOptions";
+import { CHEAP_MODEL } from "@codecast/agent-clients/modelOptions";
 import { NO_CAUSE_HISTORY } from "@codecast/shared/contracts/causeHistory";
 import { gateDoc } from "@codecast/shared/contracts/changeCard";
 import { ParkedClock, taskWaiting } from "./parkedClock.js";

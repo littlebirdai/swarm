@@ -13,10 +13,10 @@
 import { promptFileShellWord } from "./launchPrompt.js";
 import {
   resolveAgentLaunch,
-  type AgentClientId,
   type AgentDefinitionSpec,
   type ResolvedAgentLaunch,
 } from "@codecast/shared/contracts";
+import { type AgentClientId } from "@codecast/agent-clients/agentClients";
 
 // Schedules run permissive by default (`mode: "apply"`); safe mode
 // (`cast trigger add --safe`, stored as mode: "propose", or a definition with

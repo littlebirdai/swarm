@@ -12,6 +12,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@codecast/agent-clients": "workspace:*",
     "@codecast/docs": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@codecast/vault": "workspace:*"

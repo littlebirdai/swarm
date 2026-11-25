@@ -337,7 +337,7 @@ codecast/
 ### Supported Agents
 
 codecast integrates eleven agent clients, local and cloud. Support is not all-or-nothing: each client
-is a registry descriptor (`packages/shared/contracts/agentClients.ts`) that
+is a registry descriptor (`packages/agent-clients/src/agentClients.ts`) that
 declares only the capabilities it actually has. A capability a client lacks is
 simply absent, and the session never breaks. The matrix below states the real
 per-client reality as merged; ✓ = supported, ✗ = not available.

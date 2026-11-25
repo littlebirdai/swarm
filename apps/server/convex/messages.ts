@@ -1,4 +1,4 @@
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   DELIVERED_ECHO_ADOPTION_WINDOW_MS,
   findEchoedPendingMessage,

@@ -155,10 +155,8 @@ function ensureLink(
  * Frontmatter emission (ct-42864)
  * ========================================================================== */
 
-import {
-  sanitizeForeignText,
-  type AgentClientId,
-} from "@codecast/shared/contracts";
+import { sanitizeForeignText } from "@codecast/shared/contracts";
+import { type AgentClientId } from "@codecast/agent-clients/agentClients";
 import {
   PORTABLE_SKILL_FIELDS,
   CLAUDE_ONLY_SKILL_FIELDS,

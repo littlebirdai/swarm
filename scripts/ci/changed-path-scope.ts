@@ -226,7 +226,7 @@ export function computerScope(files: string[]): boolean {
 const INJECTION_PATHS = new Set([
   "apps/cli/src/daemon.ts",
   "apps/cli/src/tmuxPaste.ts",
-  "packages/shared/contracts/agentClients.ts",
+  "packages/agent-clients/src/agentClients.ts",
 ]);
 
 export function touchesInjection(file: string): boolean {

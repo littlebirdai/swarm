@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { AGENT_CLIENTS } from "@codecast/shared/contracts";
+import { AGENT_CLIENTS } from "@codecast/agent-clients/agentClients";
 import {
   classifyStartedPane,
   heldFatal,

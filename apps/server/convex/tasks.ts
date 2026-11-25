@@ -30,11 +30,11 @@ import { resolveSpawnDefinition, resolveTaskSpawnDevice } from "./spawn";
 import { resolveDefinitionFor } from "./agentDefinitions";
 import { resolveCallRef } from "./transcripts";
 import { outcomeOfDeclaration, subagentEnded } from "./subagentFleet";
+import { formatTaskCommentMessage } from "@codecast/shared/contracts";
 import {
-  formatTaskCommentMessage,
   fromConvexAgentType,
   toConvexAgentType,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/agentClients";
 import { inlineForeignText } from "@codecast/fence/fence";
 import {
   blockersHoldingBack,

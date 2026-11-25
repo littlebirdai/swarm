@@ -8,7 +8,7 @@ import {
   HOSTED_TITLE_MAX_CHARS,
   promptTitle,
 } from "@codecast/shared/contracts/assistant";
-import { isHostedAgentType } from "@codecast/shared/contracts";
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import type { MutationCtx } from "../functions";
 import type { Doc, Id } from "../_generated/dataModel";
 import { insertStartedConversation } from "../conversations";

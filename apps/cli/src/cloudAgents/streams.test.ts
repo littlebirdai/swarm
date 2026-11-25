@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CLOUD_AGENT_PROVIDERS } from "@codecast/shared/contracts";
+import { CLOUD_AGENT_PROVIDERS } from "@codecast/agent-clients/cloudAgents";
 import { CloudAgentStreams, type CloudStreamSpec } from "./streams.js";
 import type { CloudAgentHandle } from "./types.js";
 

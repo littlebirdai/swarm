@@ -1,4 +1,7 @@
-import type { AgentClientId, AgentExecutionTransport } from "./agentClients";
+import type {
+  AgentClientId,
+  AgentExecutionTransport,
+} from "@codecast/agent-clients/agentClients";
 
 /** The first protocol version whose delivery side effects require a server permit. */
 export const FENCED_EXECUTION_PROTOCOL_VERSION = 1 as const;

@@ -10,10 +10,8 @@
 // account's machine runs and bills as that account, the way any session placed
 // on a teammate's machine does, and the seat's person stays its owner, so its
 // cards reach who they reach on the seat's own machine (orgLine.startRoleRun).
-import {
-  fromConvexAgentType,
-  signedOutAgents,
-} from "@codecast/shared/contracts";
+import { fromConvexAgentType } from "@codecast/agent-clients/agentClients";
+import { signedOutAgents } from "@codecast/agent-clients/cloudAgents";
 import { pathUnderRoot } from "@codecast/cloud-hosts/cloudPlacement";
 import { normalizeGitOrigin } from "@codecast/capabilities/capabilityScopes";
 import { isDeviceOnline } from "../ccAccountsShared";

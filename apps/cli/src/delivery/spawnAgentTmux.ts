@@ -35,7 +35,7 @@ import { isLaunchToken, LAUNCH_TOKEN_VAR } from "../agentEnv.js";
 import { tmuxRunAsync } from "../tmux.js";
 import { tmuxLiteralArg } from "../tmuxPaste.js";
 import type { Config } from "../config/types.js";
-import type { AgentClientId } from "@codecast/shared/contracts";
+import type { AgentClientId } from "@codecast/agent-clients/agentClients";
 
 /** Arg-array tmux runner: execFile, never a shell; throws on a failed call. */
 export type TmuxRunner = (

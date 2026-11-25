@@ -379,7 +379,7 @@ describe("command groups stay off the boot graph", () => {
       // antigravityClient.ts, its registry descriptor (out of agentClients.ts for
       // its max-lines pin), and antigravityTranscript.ts, its parser (out of
       // parser.ts the way museTranscript.ts is).
-      // 373 the same day: contracts/agentPins.ts, the pinned-agents helpers (out
+      // 373 the same day: agent-clients/src/agentPins.ts, the pinned-agents helpers (out
       // of agentClients.ts for its max-lines pin), carried by the contracts barrel.
       // 374 (2026-11-23): contracts/closedSession.ts, the shared Close verdict
       // (isClosedSession, closeInFlightReason), carried by the contracts barrel.
@@ -556,14 +556,14 @@ describe("command groups stay off the boot graph", () => {
       // clones a missing checkout (resumePlacement.ts +2),
       // syncService.getSyncSettings +1, reconciliation.ts and projectRoots.ts +1.
       // 4840 on 2026-11-22, measured on main at 07e47c2f8 plus the change: the
-      // Antigravity CLI client adds 17 KB, contracts/antigravityClient.ts +4 and
+      // Antigravity CLI client adds 17 KB, agent-clients/src/antigravityClient.ts +4 and
       // antigravityTranscript.ts +8 (the parser parser.ts dispatches to, as it
       // does museTranscript.ts), its model options +2, and its launch, resume,
       // process and scan branches +3; main had shrunk by 16 since the last pin.
       // 4841 the same day: `cast typed`'s command-group line (+1); its body
       // loads on demand (typedCommand.ts).
       // 4845 the same day: antigravityTranscript.ts maps agy's tool calls onto
-      // Bash/Read/Edit/Write/WebSearch/Agent (+3), and contracts/agentPins.ts,
+      // Bash/Read/Edit/Write/WebSearch/Agent (+3), and agent-clients/src/agentPins.ts,
       // pin lists that let a newer client through (+1).
       // 4851 (2026-11-23): contracts/closedSession.ts, the shared Close verdict,
       // and the daemon's close-aware lifecycle reads (+6).
@@ -807,7 +807,7 @@ describe("command groups stay off the boot graph", () => {
       // trust and the conversation's cwd from agy's own files).
       // 623 the same day: antigravityLocal.ts loads only when an agy pane
       // launches or resumes.
-      // 624 the same day: contracts/agentPins.ts, as on index.ts's graph above.
+      // 624 the same day: agent-clients/src/agentPins.ts, as on index.ts's graph above.
       // 625 (2026-11-23): contracts/closedSession.ts, as on index.ts's graph above.
       expect(
         graph.nodes.size,
