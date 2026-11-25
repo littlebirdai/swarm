@@ -34,7 +34,7 @@ import {
   disarmJointSend,
   jointSendReady,
   takeJointSend,
-} from "../lib/jointSend";
+} from "../lib/joint-send";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { createPortal } from "react-dom";
 import { compressImage } from "../lib/compressImage";

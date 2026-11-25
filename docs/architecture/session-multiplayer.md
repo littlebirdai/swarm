@@ -19,7 +19,7 @@ Surfaces reading presence: `CollabPresenceBar` (one-line strip, "Send together" 
 
 A turn written by several people is consecutive `<user-message from="Name">` parts, the same wrapper a single direct send uses, so the agent reads one instruction that names every author. `classify.ts` turns it into one `direct_user` bubble naming all authors and `JointParts` draws each part under its name.
 
-- **Send together** (`lib/jointSend.ts`): the presence strip publishes others' drafts as candidates; the button or ⌘⌥↵ arms the composer, and `MessageInput`'s own submit folds them in (`takeJointSend`), so images, quotes and the pending row behave as for any send. The sender then writes claims (`how: "joint"`).
+- **Send together** (`lib/joint-send.ts`): the presence strip publishes others' drafts as candidates; the button or ⌘⌥↵ arms the composer, and `MessageInput`'s own submit folds them in (`takeJointSend`), so images, quotes and the pending row behave as for any send. The sender then writes claims (`how: "joint"`).
 - A link collaborator's joint send goes through `sendSessionMessage` with `direct`; the server sends it as written only when each part naming someone else matches that person's live draft (`jointTurnVouched`), else wraps the whole body in the sender's name.
 
 ## The shared queue: `pending_messages`

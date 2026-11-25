@@ -13,7 +13,7 @@ import {
   jointCandidatesOf,
   setJointCandidates,
   type JointCandidate,
-} from "../lib/jointSend";
+} from "../lib/joint-send";
 
 /**
  * Both halves of "send together" for one composer in a session.

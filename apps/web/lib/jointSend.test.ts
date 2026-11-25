@@ -8,7 +8,7 @@ import {
   jointSendReady,
   setJointCandidates,
   takeJointSend,
-} from "./jointSend";
+} from "./joint-send";
 
 describe("send together", () => {
   test("only an armed submit folds others' drafts in, mine first", () => {

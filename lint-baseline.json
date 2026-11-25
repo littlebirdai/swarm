@@ -24779,7 +24779,7 @@
   "apps/web/lib/issueEventStyles.ts": {
     "swarm/no-comments": 4
   },
-  "apps/web/lib/jointSend.ts": {
+  "apps/web/lib/joint-send.ts": {
     "swarm/no-comments": 18
   },
   "apps/web/lib/keepOffCard.ts": {
