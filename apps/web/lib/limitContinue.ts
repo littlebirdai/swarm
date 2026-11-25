@@ -8,7 +8,7 @@ import {
   fleetAccount,
   type CcUsage,
 } from "@codecast/convex/convex/ccAccountsShared";
-import { classifyApiErrorBanner } from "@codecast/shared/contracts";
+import { classifyApiErrorBanner } from "@codecast/agent-clients/apiErrorBanner";
 import {
   fallbackProfiles,
   labeledUsageWindows,

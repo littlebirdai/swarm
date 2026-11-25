@@ -26,7 +26,7 @@ import { visitTimeAgo } from "../../lib/recentVisits";
 import { statusesForTeam, taskStatusOf } from "../../lib/taskStatuses";
 import { agentDisplayName } from "@codecast/agent-clients/agentClients";
 import { deriveLiveAt } from "@codecast/inbox/inboxProjection";
-import { modelDisplayLabel } from "@codecast/shared/contracts";
+import { modelDisplayLabel } from "@codecast/agent-clients/agentSwitch";
 import { liveFactsOf } from "../../lib/liveness";
 import { SessionFace } from "../identity";
 import {

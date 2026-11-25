@@ -44,7 +44,7 @@ import {
   THROTTLE_CONTINUE_BATCH,
   THROTTLE_CONTINUE_BACKOFF_CAP_MS,
 } from "./ccAccountsShared";
-import { codexErrorKind } from "@codecast/shared/contracts";
+import { codexErrorKind } from "@codecast/agent-clients/apiErrorBanner";
 
 describe("isBlockedConversation", () => {
   const base = {

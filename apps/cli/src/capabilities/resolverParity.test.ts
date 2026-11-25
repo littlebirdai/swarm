@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
-import { resolveCapabilities } from "@codecast/shared/contracts";
+import { resolveCapabilities } from "@codecast/agent-clients/capabilityResolver";
 
 // The daemon's leg of the resolver parity triangle. Same fixtures as
-// packages/shared and apps/server; see capabilityResolver.golden.test.ts
+// packages/agent-clients and apps/server; see capabilityResolver.golden.test.ts
 // for the argument. This suite runs under the CLI's runtime and module
 // resolution — the point is that THIS environment agrees byte for byte.
 
@@ -15,8 +15,8 @@ const DIR = path.join(
   "..",
   "..",
   "packages",
-  "shared",
-  "contracts",
+  "agent-clients",
+  "test",
   "__fixtures__",
   "resolver",
 );

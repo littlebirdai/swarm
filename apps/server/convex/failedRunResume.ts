@@ -3,7 +3,7 @@
 // own machine has a free run slot (a queued resume, which the line's sweep
 // carries out ahead of new starts: orgLine.planSweep).
 import { ConvexError, v } from "convex/values";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import {
   endedFailing,
   endedUnmerged,

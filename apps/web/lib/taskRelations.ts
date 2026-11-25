@@ -4,9 +4,7 @@
 // addBlocker/addWait/relateTasks, whose side effects make the real write.
 import {
   dependencyLoopChecker,
-  isActiveTask,
   isCleared,
-  isTerminalTaskStatus,
   isPrWaitTarget,
   newWaitId,
   parseBlockerRef,
@@ -21,7 +19,9 @@ import {
   type StatusOf,
   type TaskWait,
   type WaitTarget,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
+import { isActiveTask } from "@codecast/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { localTimeZone } from "@codecast/time";
 import { toast } from "sonner";
 import { useInboxStore, type TaskItem } from "../store/inboxStore";

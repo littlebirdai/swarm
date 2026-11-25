@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
-import { resolveCapabilities } from "@codecast/shared/contracts";
+import { resolveCapabilities } from "@codecast/agent-clients/capabilityResolver";
 
 // Convex's leg of the resolver parity triangle — the desired-set computation
 // the server will run reads the same shared module, so this suite pins that
 // the module resolved FROM THIS PACKAGE answers identically to the fixtures.
-// See shared/contracts/capabilityResolver.golden.test.ts for the argument.
+// See packages/agent-clients/test/capabilityResolver.golden.test.ts for the argument.
 
 const DIR = path.join(
   __dirname,
@@ -14,8 +14,8 @@ const DIR = path.join(
   "..",
   "..",
   "packages",
-  "shared",
-  "contracts",
+  "agent-clients",
+  "test",
   "__fixtures__",
   "resolver",
 );

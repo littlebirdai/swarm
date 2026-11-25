@@ -1229,7 +1229,7 @@ describe("orgProposals.decide plan close cascade and reopen (S9)", () => {
     expect(t.status).toBe("open");
     expect(t.closed_at).toBeUndefined();
     expect(t.review_verdict).toBeUndefined();
-    // Backlog is a status category of every board (shared/tasks/statuses), so
+    // Backlog is a status category of every board (@codecast/tasks/statuses), so
     // it is always a valid write; a team's own status names refine it.
     expect(
       await performDecideChange(ctx, ME as any, {

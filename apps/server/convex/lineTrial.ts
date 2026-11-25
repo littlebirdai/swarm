@@ -114,7 +114,7 @@ import {
   problemEvidence,
   type FindingFate,
 } from "./lib/problemEvidence";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { failedAtStation } from "@codecast/shared/contracts/causeHistory";
 import { insertTaskComment, moveTaskStatus } from "./tasks";
 import {

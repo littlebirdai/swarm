@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { openBlockerLabels } from "@codecast/shared/tasks";
+import { openBlockerLabels } from "@codecast/tasks/planVerdicts";
 import {
   parkedNote,
   planReadiness,

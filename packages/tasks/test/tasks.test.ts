@@ -14,7 +14,7 @@ import {
   taskFamilyIndex,
   taskOrigin,
   wouldCreateTaskCycle,
-} from "./index";
+} from "../src/index";
 
 // Minimal row shape: the tree builder only reads _id and parent_id, so tests
 // carry a `title` purely to make failures readable.

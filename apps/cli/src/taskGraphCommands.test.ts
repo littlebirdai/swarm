@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { PrWaitTarget, TaskWait } from "@codecast/shared/tasks";
+import type { PrWaitTarget, TaskWait } from "@codecast/tasks/graph";
 import {
   createPlanSteps,
   depAddedLine,

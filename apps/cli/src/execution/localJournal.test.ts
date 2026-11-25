@@ -5,7 +5,7 @@ import * as path from "node:path";
 import {
   FENCED_RUNTIME_CAPABILITIES,
   type ReadyBinding,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import {
   EXECUTION_JOURNAL_SCHEMA_VERSION,
   ExecutionJournalCorruptError,

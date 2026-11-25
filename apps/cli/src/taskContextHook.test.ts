@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { TaskResumeContext } from "@codecast/shared/tasks";
+import type { TaskResumeContext } from "@codecast/tasks/resume";
 import {
   TASK_CONTEXT_HOOK,
   TASK_CONTEXT_HOOK_CODEX,

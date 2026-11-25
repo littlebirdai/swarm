@@ -23,7 +23,7 @@ import { makeFakeDb } from "./testDb";
 import {
   huddleVoiceAskHeader,
   ownRoomChunkHeader,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/transcriptChunk";
 
 // An agent fed live into a huddle gets a face in the room when its team has
 // agent_faces on, and a live model behind it with agent_realtime too: the

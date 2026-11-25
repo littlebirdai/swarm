@@ -7,7 +7,7 @@ import type {
   RuntimeCapability,
   RuntimeConfiguration,
   StructuredFailure,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import {
   agentSupportsExecutionTransport,
   parseExecutionAgentClientId,

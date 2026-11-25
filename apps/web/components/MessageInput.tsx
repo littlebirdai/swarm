@@ -35,7 +35,7 @@ import { compressImage } from "../lib/compressImage";
 import { captureError } from "../lib/analytics";
 import { uploadBlobToStorage } from "../lib/uploadBlob";
 import { textareaCaretRect } from "../lib/textareaCaret";
-import { classifyApiErrorBanner } from "@codecast/shared/contracts";
+import { classifyApiErrorBanner } from "@codecast/agent-clients/apiErrorBanner";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   ACTIVE_AGENT_STATUSES,

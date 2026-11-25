@@ -234,7 +234,7 @@ default board hides a task an agent filed for itself, because that is one
 session's bookkeeping. A task a role holds is not that: whatever created it,
 it shows on the default board, under the role on the Assignee and Chain axes,
 with no change of Source. This is the existing board rule and not a new one:
-`isOnHumanBoard` (`@codecast/shared/tasks`, read by web and mobile) puts any
+`isOnHumanBoard` (`@codecast/tasks`, read by web and mobile) puts any
 task with an assignee on the board, and a role is an assignee. An agent filed
 task with no assignee stays hidden as today. Ledger tasks (W8, type `ledger`)
 stay off the board whoever holds them; that exclusion is W8's to write, in

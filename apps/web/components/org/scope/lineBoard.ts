@@ -4,7 +4,7 @@
 // the hand's state are the task page's rules (lib/taskLine.ts); the board
 // imports them so the two surfaces can never disagree. Kept out of the
 // component so it tests without React.
-import type { TeamTaskStatus } from "@codecast/shared/tasks";
+import type { TeamTaskStatus } from "@codecast/tasks/statuses";
 import { stationOrder } from "../../../lib/taskLine";
 import { taskStatusKey } from "../../../lib/taskStatuses";
 import {

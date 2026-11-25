@@ -24,10 +24,8 @@ import type {
 import {
   DEFAULT_TASK_STATUS_NAMES,
   teamTaskStatuses,
-  waitClause,
-  waitTargetOf,
-  type TaskWait,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
+import { waitClause, waitTargetOf, type TaskWait } from "@codecast/tasks/graph";
 import { targetDayOf } from "@codecast/time";
 import {
   INITIATIVE_RECORD_NOUN,

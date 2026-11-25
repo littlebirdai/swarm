@@ -3,14 +3,14 @@ import {
   blockerWaitingLabel,
   isFailedWait,
   isReady,
-  isTerminalTaskStatus,
   parentStatusLookup,
   type Blocker,
   type GraphRefStatus,
   type GraphTask,
   type StatusOf,
   type WaitTone,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { truncateEntityLabel } from "@codecast/entities";
 import { lookup } from "./liveEntities";
 import { workspaceKeyOfRow } from "./workspaceScope";

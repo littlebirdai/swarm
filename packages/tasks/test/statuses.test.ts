@@ -5,7 +5,7 @@ import {
   normalizeTeamTaskStatuses,
   resolveTaskStatus,
   teamTaskStatuses,
-} from "./statuses";
+} from "../src/statuses";
 
 const custom = [
   { id: "backlog", name: "Backlog", category: "backlog" as const },

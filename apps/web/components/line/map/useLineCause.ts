@@ -8,7 +8,7 @@ import { useInboxStore } from "../../../store/inboxStore";
 import { isRefusedDispatchError } from "../../../store/mutativeMiddleware";
 import { useWorkspaceCollection } from "../../../hooks/useWorkspaceCollection";
 import { isTaskStubId, taskStubId } from "../../../store/taskStub";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import type { LineCauseFields } from "../../../lib/line/lineCause";
 
 export type LineCauseRow = {

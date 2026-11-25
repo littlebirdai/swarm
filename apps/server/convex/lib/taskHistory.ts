@@ -5,7 +5,7 @@
 
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { storeList } from "@codecast/shared/tasks";
+import { storeList } from "@codecast/tasks/graphHistory";
 
 /** Who made a change: a person, an agent (a role's session) or the system,
  *  and the session it came from. */

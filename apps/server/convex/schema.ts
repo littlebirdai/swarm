@@ -35,7 +35,7 @@ import {
   TASK_PRIORITIES,
   TASK_STATUS_CATEGORIES,
   TASK_STATUS_COLORS,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
 import { taskWaitValidator } from "./lib/taskWaitValidator";
 import { messagingPolicyValidator } from "./lib/messagingPolicyValidator";
 import { DOC_TYPES } from "@codecast/docs";
@@ -143,7 +143,7 @@ const taskStatusCategoryValidator = v.union(
 );
 // A team's editable task statuses (Linear-style): named statuses within the
 // six fixed categories, in display order. Absent = the shared defaults, one
-// per category. See @codecast/shared/tasks/statuses.ts for the contract.
+// per category. See @codecast/tasks/statuses.ts for the contract.
 const teamTaskStatusesValidator = v.array(
   v.object({
     id: v.string(),

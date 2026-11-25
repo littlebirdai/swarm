@@ -71,7 +71,7 @@ import {
   taskStatusOf,
   useTeamTaskStatusList,
 } from "../../lib/taskStatuses";
-import type { TeamTaskStatus } from "@codecast/shared/tasks";
+import type { TeamTaskStatus } from "@codecast/tasks/statuses";
 import { IssueLink } from "../../components/tasks/IssueLink";
 import { useSyncRuns } from "../../hooks/useSyncRuns";
 import { toast } from "sonner";
@@ -83,7 +83,7 @@ import {
   prefsForSaving,
   VIEW_ID_KEY,
 } from "../../lib/savedViews";
-import { buildTaskTree, taskFamilyIndex } from "@codecast/shared/tasks";
+import { buildTaskTree, taskFamilyIndex } from "@codecast/tasks";
 import {
   applyTaskDrop,
   closeTaskWithGuard,

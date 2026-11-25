@@ -114,10 +114,8 @@ import {
   agentForksFromAnyMessage,
   isHostedAgentType,
 } from "@codecast/agent-clients/agentClients";
-import {
-  isModelSwitchStdout,
-  isRecoveryContinueClientId,
-} from "@codecast/shared/contracts";
+import { isModelSwitchStdout } from "@codecast/agent-clients/agentSwitch";
+import { isRecoveryContinueClientId } from "@codecast/agent-clients/apiErrorBanner";
 import {
   isMidWorkReviveNotice,
   isMoveInterruptNotice,

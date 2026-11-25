@@ -28,11 +28,11 @@ import {
   BLOCKER_NOT_FOUND_WORDS,
   BLOCKER_UNKNOWN_WORDS,
   formatWaitTime,
-  isTerminalTaskStatus,
   waitStateWord,
   waitWordFails,
   type TaskWait,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { EntityIdPill } from "../EntityIdPill";
 import { useInboxStore, type TaskItem } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";

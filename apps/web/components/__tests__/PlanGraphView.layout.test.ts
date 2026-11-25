@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { TaskWait } from "@codecast/shared/tasks";
+import type { TaskWait } from "@codecast/tasks/graph";
 import { NODE_W, planGraphLayout, wrapTitle } from "../PlanGraphView";
 
 const task = (n: number, extra: Record<string, unknown> = {}) => ({

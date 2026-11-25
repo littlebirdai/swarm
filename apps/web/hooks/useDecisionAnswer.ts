@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { isUsageLimitDialog } from "@codecast/shared/contracts";
+import { isUsageLimitDialog } from "@codecast/agent-clients/apiErrorBanner";
 import { useInboxStore } from "../store/inboxStore";
 import { usePendingPermissions } from "./useSyncPendingPermissions";
 import {

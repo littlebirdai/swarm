@@ -1,7 +1,7 @@
 "use client";
 /**
  * Client side of per-team task statuses (Linear-style; contract in
- * @codecast/shared/tasks/statuses.ts). The store's `teams` list carries each
+ * @codecast/tasks/statuses.ts). The store's `teams` list carries each
  * team's `task_statuses`; everything here resolves a task's canonical category
  * plus optional `status_id` into the team's named status, and shapes that list
  * for the surfaces that render or pick statuses (board columns, group headers,
@@ -18,7 +18,7 @@ import {
   teamTaskStatuses,
   type TaskStatusCategory,
   type TeamTaskStatus,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
 
 // Accent classes spelled out literally so Tailwind's scanner keeps them.
 export const STATUS_COLOR_CLASSES: Record<

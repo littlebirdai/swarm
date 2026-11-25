@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
 import { hashToken } from "./apiTokens";
-import { reviveClientId } from "@codecast/shared/contracts";
+import { reviveClientId } from "@codecast/agent-clients/apiErrorBanner";
 
 setDefaultTimeout(60_000);
 

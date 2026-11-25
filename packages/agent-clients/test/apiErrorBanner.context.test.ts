@@ -8,7 +8,7 @@ import {
   classifyApiErrorBanner,
   codexErrorKind,
   contextBannerContent,
-} from "./apiErrorBanner";
+} from "../src/apiErrorBanner";
 
 // What Claude Code writes when a request is rejected for size: an assistant
 // row flagged isApiErrorMessage, error "invalid_request", no HTTP status, and

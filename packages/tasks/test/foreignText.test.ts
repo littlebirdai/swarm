@@ -5,7 +5,7 @@ import {
   foreignTaskSource,
   renderFencedTaskRecord,
   renderForeignTaskBody,
-} from "./foreignText";
+} from "../src/foreignText";
 
 /**
  * The nonce differs per call by design; pin everything else. Only the REAL

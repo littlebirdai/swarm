@@ -11,14 +11,14 @@ import { parseMuseSessionFile } from "./museTranscript.js";
 export { parseMuseSessionFile, extractMuseCwd } from "./museTranscript.js";
 import { parseAntigravityTranscript } from "./antigravityTranscript.js";
 export { parseAntigravityTranscript } from "./antigravityTranscript.js";
-import type { CodexTurnError } from "@codecast/shared/contracts";
+import type { CodexTurnError } from "@codecast/agent-clients/apiErrorBanner";
 import {
   CLIENT_ERROR_BANNER_PREFIX,
   claudeAutoContinueBanner,
   isModelSwitchLimitBanner,
   isTransientRateLimit429,
   throttleBannerContent,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/apiErrorBanner";
 import { isAgentContextMessage } from "@codecast/messages/machineMessages";
 
 type ContentBlock =

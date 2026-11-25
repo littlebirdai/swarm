@@ -1,7 +1,10 @@
 // The task page as the line (docs/architecture/the-line.md L3, L5, L10):
 // pure derivations the strip, the list chip and the run panel share. No
 // store, no React, so a test feeds rows and reads answers.
-import { resolveTaskStatus, type TeamTaskStatus } from "@codecast/shared/tasks";
+import {
+  resolveTaskStatus,
+  type TeamTaskStatus,
+} from "@codecast/tasks/statuses";
 import type { WorkState } from "@codecast/sessions/workState";
 import { boardOrderedStatuses } from "./taskStatuses";
 

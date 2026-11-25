@@ -19,7 +19,7 @@
 // billing actions and a day-long wait; delivery dismisses it and types the
 // message at the composer instead.
 
-import { isUsageLimitDialog } from "@codecast/shared/contracts";
+import { isUsageLimitDialog } from "@codecast/agent-clients/apiErrorBanner";
 import { isAskUserQuestionMenu } from "./interactivePrompt.js";
 
 type TypedPrompt = {

@@ -1,8 +1,6 @@
 import { SYSTEM_MESSAGE_PREFIXES } from "./sessionFilters";
-import {
-  classifyApiErrorBanner,
-  isAgentSwitchNotice,
-} from "@codecast/shared/contracts";
+import { classifyApiErrorBanner } from "@codecast/agent-clients/apiErrorBanner";
+import { isAgentSwitchNotice } from "@codecast/agent-clients/agentSwitch";
 import {
   isAgentContextMessage,
   isCompactionSummaryMessage,

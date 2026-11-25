@@ -79,7 +79,7 @@ import {
   isLocalCommandLine,
   isRecoveryContinueClientId,
   type ApiErrorBannerKind,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/apiErrorBanner";
 import {
   isMachineDeliveredMessage,
   stampDeliveryId,

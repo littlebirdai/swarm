@@ -18,14 +18,12 @@ import {
   HOSTED_AGENT_TYPE,
   ROUTINE_SHOWS_UP,
 } from "@codecast/hosted-assistant/assistant";
+import { isActiveTask, isAssistantTask, isOnHumanBoard } from "@codecast/tasks";
 import {
-  isActiveTask,
-  isAssistantTask,
-  isOnHumanBoard,
   isTerminalTaskStatus,
   TASK_PRIORITIES,
   TASK_STATUS_CATEGORIES,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
 import { internalMutation, internalQuery } from "../../functions";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { scopedFetch } from "../../data";

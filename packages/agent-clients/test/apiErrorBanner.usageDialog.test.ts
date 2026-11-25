@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isUsageLimitDialog } from "./apiErrorBanner";
+import { isUsageLimitDialog } from "../src/apiErrorBanner";
 
 // Real option rows captured from Claude Code's usage/billing interstitials.
 // These reach the web as ordinary AskUserQuestion polls, so the decision queue

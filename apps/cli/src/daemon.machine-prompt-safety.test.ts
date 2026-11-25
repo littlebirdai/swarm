@@ -14,7 +14,7 @@ import {
   isClaudeAutoContinueLine,
   isRecoveryContinueClientId,
   isUsageLimitDialog,
-} from "../../../packages/shared/contracts/apiErrorBanner";
+} from "@codecast/agent-clients/apiErrorBanner";
 import {
   PendingDeliveryHeldError,
   createDeliveryAdmission,

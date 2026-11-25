@@ -77,7 +77,7 @@ import {
   linearDeliveryServesSource,
   resolveLinearLabelIds,
 } from "./lib/issueSyncAccess";
-import { teamTaskStatuses } from "@codecast/shared/tasks";
+import { teamTaskStatuses } from "@codecast/tasks/statuses";
 import { mintProjectShortId } from "./lib/projectShortId";
 import {
   fireTriggers,

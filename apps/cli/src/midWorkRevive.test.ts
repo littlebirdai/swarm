@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { isRecoveryContinueClientId } from "@codecast/shared/contracts";
+import { isRecoveryContinueClientId } from "@codecast/agent-clients/apiErrorBanner";
 import {
   REVIVE_BUDGET,
   REVIVE_BUDGET_WINDOW_MS,

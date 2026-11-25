@@ -37,7 +37,7 @@ import {
 } from "./presenceState";
 import { authorizeRoom, liveMembers } from "./callRooms";
 import { roomSeatClass, type SeatClass } from "./lib/callSeats";
-import { normalizeTeamTaskStatuses } from "@codecast/shared/tasks";
+import { normalizeTeamTaskStatuses } from "@codecast/tasks/statuses";
 import {
   DEFAULT_TEAM_FEATURES,
   teamFeatureEnabled,

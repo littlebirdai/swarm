@@ -8,7 +8,7 @@ import type {
   RuntimeTransport,
   StartedDeliveryPermit,
   StructuredFailure,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 
 export interface EnsureBindingRequest {
   target: ExecutionTargetSpec;

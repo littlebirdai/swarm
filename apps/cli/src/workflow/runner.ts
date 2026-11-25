@@ -1,5 +1,5 @@
-import { foreignTaskSource } from "@codecast/shared/tasks";
-import { CONTINUE_BANNER_KINDS } from "@codecast/shared/contracts";
+import { foreignTaskSource } from "@codecast/tasks/foreignText";
+import { CONTINUE_BANNER_KINDS } from "@codecast/agent-clients/apiErrorBanner";
 import {
   resolveAgentLaunch,
   type AgentDefinitionSpec,

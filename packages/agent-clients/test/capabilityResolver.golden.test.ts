@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { resolveCapabilities } from "./capabilityResolver";
+import { resolveCapabilities } from "../src/capabilityResolver";
 
 // The entire argument for a pure resolver in packages/shared is that three
 // runtimes produce byte-identical answers. These fixtures are that argument

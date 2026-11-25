@@ -9,7 +9,7 @@ import {
   blockerLabel,
   type Blocker,
   type WaitLabelOptions,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/graph";
 
 type ListedTask = {
   status?: string;

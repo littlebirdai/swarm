@@ -18,13 +18,13 @@ import {
 import { findConversationBySessionReference } from "./conversationSessionLookup";
 import { orderFrontier, readyTasks, taskLookups } from "./lib/taskGraph";
 import { boundSessionsOf } from "./lib/taskOwner";
+import { blockersHoldingBack } from "@codecast/tasks/graph";
+import { isActiveTask } from "@codecast/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import {
-  blockersHoldingBack,
-  isActiveTask,
-  isTerminalTaskStatus,
   RESUME_SUBTASKS_SHOWN,
   type TaskResumeContext,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/resume";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 

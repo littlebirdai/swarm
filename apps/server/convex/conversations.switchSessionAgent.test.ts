@@ -5,7 +5,7 @@ import {
   switchSessionAgent,
 } from "./conversations";
 import { makeFakeDb } from "./testDb";
-import { AGENT_SWITCH_NOTICE_PREFIX } from "@codecast/shared/contracts";
+import { AGENT_SWITCH_NOTICE_PREFIX } from "@codecast/agent-clients/agentSwitch";
 
 const USER = "users_owner";
 const CONV = "conversations_switch";

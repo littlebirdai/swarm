@@ -6,7 +6,7 @@ import {
   usageLimitMenuBanner,
   jsonlTailEndsWithLimitBanner,
 } from "./daemon.js";
-import { classifyApiErrorBanner } from "@codecast/shared/contracts";
+import { classifyApiErrorBanner } from "@codecast/agent-clients/apiErrorBanner";
 
 // Regression coverage for dropped Q&A descriptions: Claude Code's AskUserQuestion
 // menu renders each option's description on indented continuation lines BELOW the

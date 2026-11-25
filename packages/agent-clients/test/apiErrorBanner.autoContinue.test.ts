@@ -3,7 +3,7 @@ import {
   classifyApiErrorBanner,
   claudeAutoContinueBanner,
   isClaudeAutoContinueLine,
-} from "./apiErrorBanner";
+} from "../src/apiErrorBanner";
 
 // Claude Code 2.1.283+ records a spent window only as this system line (no
 // API-error entry), captured from the JSONL and the pane on 2026-09-30.

@@ -55,7 +55,7 @@ import {
   type InitiativeRow,
   type InitiativeUpdateHealth,
 } from "@codecast/goals/initiative";
-import { isOnProjectBoard, projectTaskCounts } from "@codecast/shared/tasks";
+import { isOnProjectBoard, projectTaskCounts } from "@codecast/tasks";
 import { TaskItemRow, showTaskActions } from "@/components/TaskItem";
 import { PlanItemRow } from "@/components/PlanItem";
 import { MarkdownContent } from "@/components/MarkdownRenderer";

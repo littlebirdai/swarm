@@ -4,7 +4,8 @@ import {
   type AssigneeInfo,
 } from "@codecast/org/orgAssignee";
 import type { ChangeGuide } from "@codecast/ship/changeGuide";
-import { STALE_TASK_WORDS, TASK_EFFORTS } from "@codecast/shared/tasks";
+import { STALE_TASK_WORDS } from "@codecast/tasks/frontier";
+import { TASK_EFFORTS } from "@codecast/tasks/statuses";
 
 // `cast task start` claims a task. Who the claim belongs to depends on who ran
 // it. A person at a terminal is the assignee. An agent inside a session runs

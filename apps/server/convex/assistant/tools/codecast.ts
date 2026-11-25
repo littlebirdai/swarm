@@ -23,7 +23,7 @@ import { ROUTINE_MIN_INTERVAL_MS } from "@codecast/hosted-assistant/assistant";
 import {
   TASK_PRIORITIES,
   TASK_STATUS_CATEGORIES,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/statuses";
 import { internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import { MEMORY_DOC_TITLE, TASK_LIST_FILTERS } from "./workspace";

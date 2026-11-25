@@ -25,7 +25,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { insertTaskComment, moveTaskStatus } from "./tasks";
 import { refreshCauseDescription } from "./signals";
 import { latestExpectations } from "./lib/expectationsApply";
-import { isTerminalTaskStatus } from "@codecast/shared/tasks";
+import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
 import { judgeInputs } from "./momentsSchema";
 import { fold, findingStanding, type StandingRun } from "./lib/findingStanding";
 export {

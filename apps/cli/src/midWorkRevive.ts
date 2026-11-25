@@ -18,7 +18,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { MID_WORK_REVIVE_MESSAGE } from "@codecast/messages/machineMessages";
-import { reviveClientId } from "@codecast/shared/contracts";
+import { reviveClientId } from "@codecast/agent-clients/apiErrorBanner";
 import { workflowRunLastActivity } from "./workflowRunLive.js";
 import { writeFileAtomic } from "./fsAtomic.js";
 

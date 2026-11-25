@@ -7,7 +7,7 @@ import {
   huddleFeedBriefing,
   HUDDLE_FEED_DISREGARD,
   transcriptChunkHeader,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/transcriptChunk";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { isRecRoomKey } from "@codecast/calls/callRoomKeys";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";

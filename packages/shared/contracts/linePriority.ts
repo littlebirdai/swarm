@@ -14,7 +14,7 @@
 //             cause needs 128 signals to tie a single-signal p0 at the
 //             same severity.
 import type { GoalPriority } from "@codecast/goals/goalsBrief";
-import type { TaskPriority } from "../tasks";
+import type { TaskPriority } from "@codecast/tasks/statuses";
 
 export type Severity = TaskPriority;
 

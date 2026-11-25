@@ -8,8 +8,8 @@ import {
 import {
   foreignProse,
   referenceGuidance,
-  renderFencedTaskRecord,
-} from "@codecast/shared/tasks";
+} from "@codecast/tasks/planForeignText";
+import { renderFencedTaskRecord } from "@codecast/tasks/foreignText";
 import { blockAt } from "./test-helpers/sourceRegion";
 import { checkoutWords } from "./checkoutWords";
 import {

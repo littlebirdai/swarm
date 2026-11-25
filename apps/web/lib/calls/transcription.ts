@@ -23,7 +23,10 @@ import {
   TrackEvent,
   type LocalTrack,
 } from "livekit-client";
-import { addressesAgent, agentSpokenNames } from "@codecast/shared/contracts";
+import {
+  addressesAgent,
+  agentSpokenNames,
+} from "@codecast/calls/transcriptChunk";
 import { callSpeakerName } from "@codecast/calls/callGuests";
 import { isAgentFaceIdentity } from "@codecast/calls/callRoomKeys";
 import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";

@@ -5,7 +5,7 @@ import {
   SAFETY_BANNER_PREFIX,
   classifyApiErrorBanner,
   codexErrorKind,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/apiErrorBanner";
 import { codexTurnErrorMessage } from "./codexTurnError";
 
 const message =

@@ -14,7 +14,7 @@ import {
   HUDDLE_FEED_DISREGARD,
   huddleFeedBriefing,
   transcriptChunkHeader,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/transcriptChunk";
 import { formatDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import {
   formatScheduledTask,

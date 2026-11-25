@@ -7,7 +7,7 @@ import { isClosedSession } from "@codecast/inbox/closedSession";
 // account's in-memory token). This module owns the SELECTION: which
 // conversations are parked on an API-error banner (pending_api_error, stamped
 // by messages.ts from the shared classifier in
-// @codecast/shared/contracts/apiErrorBanner), which device executes, and the
+// @codecast/agent-clients/apiErrorBanner), which device executes, and the
 // "continue" enqueue for the no-swap case (limit window reset).
 
 import { mutation, query, internalMutation } from "./functions";
@@ -85,7 +85,7 @@ import { poolUsageOverlay } from "./accountPool";
 import { deliverSessionNotificationToParties } from "./lib/sessionNotify";
 import { canOwnerOrTeamAccess } from "./privacy";
 import { recoveryFleet } from "./lib/hostRecovery";
-import { withSafetyBlock } from "@codecast/shared/contracts";
+import { withSafetyBlock } from "@codecast/agent-clients/apiErrorBanner";
 import { CONTEXT_RECOVERY_DELAY_MS } from "@codecast/messages/handoffPrompt";
 import {
   describeDecision,

@@ -1,4 +1,4 @@
-import { classifyApiErrorBanner } from "@codecast/shared/contracts";
+import { classifyApiErrorBanner } from "@codecast/agent-clients/apiErrorBanner";
 
 export type ConversationSafetyState = {
   pending_api_error_kind?: string | null;

@@ -10,7 +10,8 @@ import {
   taskGroupDropUpdates,
   TASK_AXES,
 } from "../taskGrouping";
-import { DEFAULT_TASK_STATUSES, isOnHumanBoard } from "@codecast/shared/tasks";
+import { DEFAULT_TASK_STATUSES } from "@codecast/tasks/statuses";
+import { isOnHumanBoard } from "@codecast/tasks";
 import { orderedStatuses, statusFill } from "../taskStatuses";
 import { IdentityPrefsOverride } from "../../hooks/useIdentityPrefs";
 import { DEFAULT_IDENTITY_PREFS } from "../sessionIdentity";

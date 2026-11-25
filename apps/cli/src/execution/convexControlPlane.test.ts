@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   FENCED_RUNTIME_CAPABILITIES,
   type ReadyBinding,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import { SyncService } from "../syncService.js";
 import {
   ConvexExecutionControlPlane,

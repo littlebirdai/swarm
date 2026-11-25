@@ -12,10 +12,10 @@
 // progress, the tasks a role owns), never read off a stored twin, so an
 // optimistic edit moves the numbers in the same tick (CLAUDE.md, derived
 // fields). A project's counts follow the ONE rule every surface uses
-// (shared/tasks isOnProjectBoard, projectTaskCounts): the rows its board
+// (@codecast/tasks isOnProjectBoard, projectTaskCounts): the rows its board
 // would show, under the project the task itself names. Pure: no React, no store.
 import type { WorkState } from "@codecast/sessions/workState";
-import { isOnProjectBoard } from "@codecast/shared/tasks";
+import { isOnProjectBoard } from "@codecast/tasks";
 import {
   isWholeWorkspaceRole,
   projectLeadOf,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { RELATED_DOC_WINDOW_MS, docRelatesToTask } from "./relatedDocs";
+import { RELATED_DOC_WINDOW_MS, docRelatesToTask } from "../src/relatedDocs";
 
 const HOUR = 60 * 60 * 1000;
 const task = { short_id: "ct-49328", created_at: 100 * HOUR };

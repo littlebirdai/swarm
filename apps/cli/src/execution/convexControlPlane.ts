@@ -4,7 +4,7 @@ import {
   type ReadyBinding,
   type StartedDeliveryPermit,
   type StructuredFailure,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/executionBinding";
 import type {
   ExecutionControlMutationName,
   ExecutionControlQueryName,

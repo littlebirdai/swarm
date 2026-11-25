@@ -9,7 +9,7 @@ import type { Doc } from "./_generated/dataModel";
 import {
   blockedKindsForAgent,
   UNREVIVABLE_BANNER_KINDS,
-} from "@codecast/shared/contracts";
+} from "@codecast/agent-clients/apiErrorBanner";
 import {
   fallbackProfiles,
   isUsageExhausted,

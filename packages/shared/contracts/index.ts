@@ -2,18 +2,9 @@
 // the single source of truth shared by the Convex backend, the Node daemon, and
 // the browser. PURE isomorphic data only — no Node or DOM APIs — so the Convex
 // runtime can import them.
-export * from "./executionBinding";
-export * from "./apiErrorBanner";
-export * from "./agentSwitch";
 // Which vendors hold a BAA, so a regulated team's data reaches only those.
 export * from "./vaultProtocol";
 export * from "./vaultMirror";
-export * from "./transcriptChunk";
-// Without these two lines every consumer reinvents the capability vocabulary:
-// convex copied the constants, the web store reached in by relative path, and
-// the web UI and the CLI each declared their own scope and kind unions. Four
-// workarounds for one missing export.
-export * from "./capabilityResolver";
 // The fleet comparison — one row per capability, one cell per machine. Here for
 // the same reason: the CLI, the browser and Convex all render this grid, and
 // while it lived in the CLI the other two could only reimplement it.

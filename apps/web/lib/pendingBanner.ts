@@ -9,7 +9,7 @@
 // (or gone) and STILL hasn't taken the message is a restart the right escalation.
 
 import { UNCONFIRMED_DELIVERY_REASON } from "@codecast/sessions/pendingStatus";
-import { isRecoveryContinueClientId } from "@codecast/shared/contracts";
+import { isRecoveryContinueClientId } from "@codecast/agent-clients/apiErrorBanner";
 import { isSessionMessage } from "@codecast/messages/machineMessages";
 import { MID_TURN_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 

@@ -1,7 +1,7 @@
 // A project's progress as the board shows it (initiatives-projects-role-page.md I1).
-// Run: bun test packages/shared/tasks/projectTaskCounts.test.ts
+// Run: bun test packages/tasks/test/projectTaskCounts.test.ts
 import { expect, test } from "bun:test";
-import { isOnProjectBoard, projectTaskCounts } from "./index";
+import { isOnProjectBoard, projectTaskCounts } from "../src/index";
 
 const t = (
   project_id: string | null,

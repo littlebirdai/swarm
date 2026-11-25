@@ -5,7 +5,7 @@ import { AGENT_SETUP_CONTINUE_MESSAGE } from "@codecast/capabilities/agentToolSe
 import {
   huddleExcerptNote,
   isHuddleFeedNotice,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/transcriptChunk";
 import { parseDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import {
   isMachineDeliveredMessage,

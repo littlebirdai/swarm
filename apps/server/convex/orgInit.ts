@@ -70,7 +70,7 @@ import {
   withUnplaced,
 } from "./lib/orgCoverage";
 import { planDriverRefs, readUnplaced } from "./orgUnplaced";
-import { isActiveTask } from "@codecast/shared/tasks";
+import { isActiveTask } from "@codecast/tasks";
 import { DAILY_CAP_KEYS, type LandedCommit } from "@codecast/org/orgCapacity";
 import {
   overlapsAmong,

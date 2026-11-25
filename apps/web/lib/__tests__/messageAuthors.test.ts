@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatAgentSwitchNotice } from "@codecast/shared/contracts";
+import { formatAgentSwitchNotice } from "@codecast/agent-clients/agentSwitch";
 import { messageAgentTypes, sameMessageAuthor } from "../messageAuthors";
 
 const reply = (id: string, timestamp: number, model?: string) => ({

@@ -127,7 +127,7 @@ the core part runs.
 Health and the analyzer inputs read tasks through one reader
 (`orgHealth.readWorkTasks`): every OPEN row of the workspace, one status index
 read each (`scopedFetch` with `status`), plus the rows updated inside the
-window (`updatedSince`), and real work only (`shared/tasks` `isActiveTask`: a
+window (`updatedSince`), and real work only (`@codecast/tasks` `isActiveTask`: a
 mined suggestion awaiting triage or a dismissed one is not a claim anyone
 filed, so it is neither ledger, nor load, nor unfiled, nor a record to bring
 in line). A workspace-wide "newest N" read is the wrong shape for this: on

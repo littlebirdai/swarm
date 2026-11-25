@@ -1,4 +1,4 @@
-import { isRecoveryContinueClientId } from "@codecast/shared/contracts";
+import { isRecoveryContinueClientId } from "@codecast/agent-clients/apiErrorBanner";
 import { isTaggedDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import { isInterruptControlMessage } from "./inboxOverlays";
 

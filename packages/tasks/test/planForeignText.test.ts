@@ -9,7 +9,7 @@ import {
   renderFencedPlanRecord,
   renderFencedPlanTasks,
   renderForeignPlanBody,
-} from "./planForeignText";
+} from "../src/planForeignText";
 
 /** Written as escapes so this source file carries no raw control byte. */
 const ESC = "\u001B";

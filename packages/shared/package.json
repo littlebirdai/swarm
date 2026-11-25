@@ -33,9 +33,7 @@
     "./contracts/regretRates": "./contracts/regretRates.ts",
     "./contracts/linePriority": "./contracts/linePriority.ts",
     "./contracts/expectations": "./contracts/expectations.ts",
-    "./render/changeCardHtml": "./render/changeCardHtml.ts",
-    "./tasks": "./tasks/index.ts",
-    "./tasks/resumeSources": "./tasks/resumeSources.ts"
+    "./render/changeCardHtml": "./render/changeCardHtml.ts"
   },
   "dependencies": {
     "@codecast/agent-clients": "workspace:*",
@@ -59,6 +57,7 @@
     "@codecast/replay": "workspace:*",
     "@codecast/sessions": "workspace:*",
     "@codecast/signals": "workspace:*",
+    "@codecast/tasks": "workspace:*",
     "@codecast/team": "workspace:*",
     "@codecast/time": "workspace:*",
     "@codecast/triggers": "workspace:*",
