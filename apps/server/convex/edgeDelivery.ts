@@ -22,6 +22,7 @@ import {
 import { internalMutation } from "./functions";
 import {
   attemptMatchesFence,
+  deliveryRejectionCodes,
   type PermitFence,
 } from "./lib/delivery-slot.state";
 import { ownedRun } from "./lib/edge/runLease";
@@ -59,8 +60,8 @@ const refusedFences = new Set([
   "DELIVERY_PERMIT_FENCE_MISMATCH",
   "DELIVERY_ATTEMPT_STATE_MISMATCH",
 ]);
-const rejectedCode = "EDGE_DELIVERY_REJECTED";
-const finalFailureCode = "EDGE_DELIVERY_FAILED_FINAL";
+const { rejected: rejectedCode, finalFailure: finalFailureCode } =
+  deliveryRejectionCodes;
 
 async function withFence<T>(
   refusal: T,
