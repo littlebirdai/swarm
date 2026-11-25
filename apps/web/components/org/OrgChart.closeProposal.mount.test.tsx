@@ -1,285 +1,165 @@
-// ct-97072: a proposal opened from the Head of People's thread (the org drawer
-// at home) closes back to that thread. Closing it must not save the drawer as
-// "closed" for the person, and the next visit to /org shows the thread again.
-// React Flow and the feeders are mocked as in OrgChart.mount.test.tsx; the
-// store's UI write is a recorder, so nothing reaches a server.
-import { test, expect, afterAll, mock } from "bun:test";
-import { closeDomWindow } from "../../test-helpers/domGlobals";
+import { afterAll, afterEach, expect, mock, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
+import { act, type ComponentProps } from "react";
+import { _resetTrailForTests, recordTrail } from "../../lib/navTrail";
+import { parseTabLocation, TabParamsCtx } from "../../lib/tabParams";
+import { webBuilders } from "../../test-helpers/builders";
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import type { AnchorConversation } from "../anchor/AnchorConversation";
+import { ORG_FIXTURE_WITH_HEAD } from "./orgFixture";
 
-const { JSDOM } = await import("jsdom");
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  { url: "https://local.codecast.sh/org", pretendToBeVisual: true },
-);
-for (const key of [
-  "window",
-  "document",
-  "navigator",
-  "HTMLElement",
-  "HTMLButtonElement",
-  "HTMLAnchorElement",
-  "HTMLInputElement",
-  "HTMLTextAreaElement",
-  "HTMLSelectElement",
-  "SVGElement",
-  "Element",
-  "Node",
-  "NodeFilter",
-  "MutationObserver",
-  "CustomEvent",
-  "Event",
-  "MouseEvent",
-  "KeyboardEvent",
-  "getComputedStyle",
-  "requestAnimationFrame",
-  "cancelAnimationFrame",
-  "localStorage",
-  "DOMMatrixReadOnly",
-]) {
-  const v = (dom.window as any)[key];
-  if (v !== undefined)
-    Object.defineProperty(globalThis, key, {
-      value: v,
-      configurable: true,
-      writable: true,
-    });
-}
-(globalThis as any).ResizeObserver ??= class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-afterAll(() => closeDomWindow(dom));
-
-const React = await import("react");
-const h = React.createElement;
-const { act } = React;
-
-const { ORG_FIXTURE_WITH_HEAD } = await import("./orgFixture");
-const tree: any = ORG_FIXTURE_WITH_HEAD;
-
-let search = "";
-const nav: string[] = [];
-const convexReact = { ...(await import("convex/react")) };
-mock.module("convex/react", () => ({
-  ...convexReact,
-  useQuery: () => undefined,
-  useQueries: () => ({}),
-}));
-const realNav = { ...(await import("next/navigation")) };
-mock.module("next/navigation", () => ({
-  ...realNav,
-  useRouter: () => ({
-    push: (p: string) => nav.push(`push ${p}`),
-    replace: (p: string) => nav.push(`replace ${p}`),
-    back: () => nav.push("back"),
-  }),
-  useSearchParams: () => new URLSearchParams(search),
-}));
-const realTree = { ...(await import("../../hooks/useSyncOrgTree")) };
-mock.module("../../hooks/useSyncOrgTree", () => ({
-  ...realTree,
-  useSyncOrgTree: () => ({
-    tree,
-    ready: true,
-    missing: false,
-    refused: false,
-    retry() {},
-  }),
-}));
-const realProjects = { ...(await import("../../hooks/useSyncProjects")) };
-mock.module("../../hooks/useSyncProjects", () => ({
-  ...realProjects,
-  useSyncProjects: () => {},
-}));
-const realProposals = { ...(await import("../../hooks/useSyncOrgProposals")) };
-mock.module("../../hooks/useSyncOrgProposals", () => ({
-  ...realProposals,
-  useSyncOrgProposal: () => ({ ready: true, missing: false }),
-}));
-const realHealth = { ...(await import("../../hooks/useSyncOrgHealth")) };
-mock.module("../../hooks/useSyncOrgHealth", () => ({
-  ...realHealth,
-  useSyncOrgHealth: () => ({
-    health: null,
-    ready: true,
-    missing: false,
-    refresh: async () => {},
-  }),
-}));
-const realUnder = { ...(await import("../../hooks/useOrgSessionsUnder")) };
-mock.module("../../hooks/useOrgSessionsUnder", () => ({
-  ...realUnder,
-  useOrgSessionsUnder: () => ({ data: undefined }),
-}));
-mock.module("./OrgGraph", () => ({
-  OrgGraph: (props: any) => h("div", { "data-graph-lens": props.lens }),
-}));
-// The Head of People's thread itself is the real conversation view, which needs a Convex client; the drawer around it is what this test reads.
-const realAnchor = { ...(await import("../anchor/AnchorConversation")) };
+const anchor = { ...(await import("../anchor/AnchorConversation")) };
 mock.module("../anchor/AnchorConversation", () => ({
-  ...realAnchor,
-  AnchorConversation: (props: any) =>
-    h("div", { "data-thread": props.conversationId }),
+  ...anchor,
+  AnchorConversation: ({
+    conversationId,
+  }: ComponentProps<typeof AnchorConversation>) => (
+    <div data-thread={conversationId} />
+  ),
 }));
-
-const { createRoot } = await import("react-dom/client");
-const { useInboxStore } = await import("../../store/inboxStore");
+afterAll(() => mock.module("../anchor/AnchorConversation", () => anchor));
 const { OrgChart } = await import("./OrgChart");
-const { MemoryRouter } = await import("react-router");
-const { TabParamsCtx, parseTabLocation } = await import("../../lib/tabParams");
-const { recordTrail, _resetTrailForTests } = await import("../../lib/navTrail");
 
-const q = (sel: string, root: ParentNode = document) =>
-  root.querySelector(sel) as HTMLElement | null;
-const uiWrites: any[] = [];
-function seedStore() {
-  const st = useInboxStore.getState() as any;
-  useInboxStore.setState({
-    currentUser: { ...(st.currentUser ?? {}), _id: "fixture-user-me" },
-    orgTree: tree,
-    clientState: {
-      ...st.clientState,
-      ui: {
-        ...(st.clientState?.ui ?? {}),
-        org_view: "people",
-        org_panel: undefined,
-        active_team_id: "fixture-team",
-      },
-    },
-    updateClientUI: (partial: any) => {
-      uiWrites.push(partial);
-      const s2 = useInboxStore.getState() as any;
-      useInboxStore.setState({
-        clientState: {
-          ...s2.clientState,
-          ui: { ...s2.clientState.ui, ...partial },
-        },
-      } as any);
-    },
-  } as any);
-}
-/** Mount the chart, as app tab t1's own page showing `tabPath` when given (so Close can read the tab's trail). */
-async function mount(tabPath?: string) {
-  const el = document.createElement("div");
-  document.body.appendChild(el);
-  const root = createRoot(el);
-  let page: any = h(OrgChart);
-  if (tabPath) {
-    useInboxStore.setState({
-      tabs: [{ id: "t1", path: tabPath, title: "", createdAt: 0 }],
-      activeTabId: "t1",
-    } as any);
-    page = h(
-      TabParamsCtx.Provider,
-      {
-        value: {
-          tabId: "t1",
-          ...parseTabLocation(tabPath),
+const builders = webBuilders("OrgChart.closeProposal.mount.test.tsx");
+const viewer = builders.teamMember.build();
+const session = builders.session.build();
+const tree = {
+  ...ORG_FIXTURE_WITH_HEAD,
+  roles: ORG_FIXTURE_WITH_HEAD.roles.map((role) =>
+    isHeadOfPeopleRole(role) && role.standing
+      ? {
+          ...role,
+          standing: { ...role.standing, conversation_id: session._id },
+        }
+      : role,
+  ),
+};
+const proposalPath = "/org?proposal=op-7";
+const draft = "Thanks, one question before I approve";
+
+afterEach(_resetTrailForTests);
+
+function mount(path: string, opts: { tab?: boolean; trail?: boolean } = {}) {
+  const page = <OrgChart />;
+  return mountWeb(
+    opts.tab ? (
+      <TabParamsCtx.Provider
+        value={{
+          tabId: "test-tab",
+          ...parseTabLocation(path),
           params: {},
           isActive: true,
           isVisible: true,
-        } as any,
+        }}
+      >
+        {page}
+      </TabParamsCtx.Provider>
+    ) : (
+      page
+    ),
+    {
+      path,
+      dispatch: true,
+      setup(backend, store) {
+        store.syncTable("currentUser", viewer);
+        store.syncTable("clientState", {
+          ui: { org_view: "people", active_team_id: tree.workspace.id },
+        });
+        store.syncTable("orgTree", tree);
+        backend.set(api.org.tree, pending);
+        backend.set(api.org.roles, pending);
+        backend.set(api.org.sessionsUnder, pending);
+        backend.set(api.orgProposals.get, pending);
+        backend.set(api.orgProposals.list, pending);
+        backend.set(api.projects.webList, pending);
+        backend.action(api.orgHealth.healthReport, undefined);
+        backend.mutation(api.dispatch.dispatch, null);
+        if (opts.tab) {
+          store.syncTable("clientState", {
+            tabs: [{ id: "test-tab", path, title: "", createdAt: 0 }],
+            activeTabId: "test-tab",
+          });
+        }
+        if (opts.trail) {
+          store.syncTable("sessions", [session]);
+          store.setDraft(session._id, { draft_message: draft });
+          recordTrail("test-tab", "/conversation/" + session._id, "push");
+          recordTrail("test-tab", path, "push");
+        }
       },
-      page,
-    );
-  }
-  await act(async () => {
-    root.render(h(MemoryRouter, null, page));
-  });
-  return {
-    el,
-    done: async () => {
-      await act(async () => {
-        root.unmount();
-      });
-      el.remove();
     },
-  };
+  );
 }
 
-test("closing a proposal opened from the Head of People's thread returns to that thread and keeps the drawer open on later visits", async () => {
-  seedStore();
-  // At /org the drawer holds the Head of People's thread, where the person is writing.
-  search = "";
-  let m = await mount();
-  expect(q("[data-org-panel='home']", m.el)).not.toBeNull();
-  await m.done();
-
-  // The thread's proposal chip opens /org?proposal=op-7 in the drawer; the person presses Close.
-  search = "proposal=op-7";
-  m = await mount();
-  expect(q("[data-org-panel='proposal']", m.el)).not.toBeNull();
-  await act(async () => {
-    q("[data-line-drawer-close]", m.el)!.click();
+type Mount = Awaited<ReturnType<typeof mount>>;
+const close = (web: Mount) =>
+  act(async () => {
+    const button = web.container.querySelector<HTMLButtonElement>(
+      "[data-line-drawer-close]",
+    );
+    expectPresent(button);
+    button.click();
   });
-  await m.done();
+const expectOpenDrawer = (web: Mount) => {
+  expectPresent(web.container.querySelector("[data-org-panel=home]"));
+  expect(
+    web.container.querySelector("[data-thread]")?.getAttribute("data-thread"),
+  ).toBe(session._id);
+  expectAbsent(web.container.querySelector("[data-org-panel-open]"));
+};
+const expectNoCloseWrite = (web: Mount) => {
+  expect(
+    web.backend.mutations.filter(
+      ({ args }) =>
+        typeof args === "object" &&
+        args !== null &&
+        "action" in args &&
+        args.action === "updateClientUI",
+    ),
+  ).toEqual([]);
+  expect(web.store.getState().clientState.ui?.org_panel).not.toBe("closed");
+};
 
-  // Closing the proposal is not closing the drawer: nothing saves it closed.
-  expect(uiWrites.filter((w) => w.org_panel === "closed")).toEqual([]);
-  expect((useInboxStore.getState() as any).clientState.ui?.org_panel).not.toBe(
-    "closed",
-  );
+test("closing a proposal opened from the Head of People's thread returns to that thread and keeps the drawer open on later visits", async () => {
+  const home = await mount("/org");
+  expectOpenDrawer(home);
+  await home.close();
 
-  // Back at /org (wherever Close lands), the Head of People's thread is in the drawer again.
-  search = "";
-  m = await mount();
-  expect(q("[data-org-panel='home']", m.el)).not.toBeNull();
-  expect(q("[data-org-panel-open]", m.el)).toBeNull();
-  await m.done();
+  const web = await mount(proposalPath);
+  expectPresent(web.container.querySelector("[data-org-panel=proposal]"));
+  await close(web);
+  expect(web.navigationLog.slice(1)).toEqual([
+    { action: "push", path: "/org" },
+  ]);
+  expectNoCloseWrite(web);
+  expectOpenDrawer(web);
 });
 
-const SESSION = "jx7head0fpeople000000000000000s1";
-
 test("Close on a proposal opened from the Head of People's conversation goes back to that conversation in one press, draft intact, never via bare /org", async () => {
-  seedStore();
-  _resetTrailForTests();
-  const opened: string[] = [];
-  useInboxStore.setState({
-    drafts: {
-      [SESSION]: { draft_message: "Thanks, one question before I approve" },
-    },
-    navigateToSession: (id: string) => {
-      opened.push(id);
-    },
-  } as any);
-  // The tab showed the conversation, then its proposal chip opened /org?proposal=op-7 in the same tab.
-  recordTrail("t1", `/conversation/${SESSION}`, "push");
-  recordTrail("t1", "/org?proposal=op-7", "push");
-  search = "proposal=op-7";
-  nav.length = 0;
-  const m = await mount("/org?proposal=op-7");
-  await act(async () => {
-    q("[data-line-drawer-close]", m.el)!.click();
-  });
-  await m.done();
-
-  expect(opened).toEqual([SESSION]);
-  expect(nav).toEqual([`push /inbox?s=${SESSION}`]);
-  expect(nav).not.toContain("push /org");
-  expect((useInboxStore.getState() as any).drafts[SESSION]?.draft_message).toBe(
-    "Thanks, one question before I approve",
+  const web = await mount(proposalPath, { tab: true, trail: true });
+  const historyLength = window.history.length;
+  await close(web);
+  expect(web.store.getState().currentSessionId).toBe(session._id);
+  expect(window.history.length).toBe(historyLength + 1);
+  expect(window.location.pathname + window.location.search).toBe(
+    "/inbox?s=" + session._id,
   );
-  expect(uiWrites.filter((w) => w.org_panel === "closed")).toEqual([]);
+  expect(web.store.getState().getDraft(session._id)?.draft_message).toBe(draft);
+  expectNoCloseWrite(web);
 });
 
 test("Close on a proposal reached by a pasted link, with nothing to go back to, lands on /org with the drawer open", async () => {
-  seedStore();
-  _resetTrailForTests();
-  uiWrites.length = 0;
-  search = "proposal=op-7";
-  nav.length = 0;
-  let m = await mount("/org?proposal=op-7");
-  await act(async () => {
-    q("[data-line-drawer-close]", m.el)!.click();
-  });
-  await m.done();
+  const web = await mount(proposalPath, { tab: true });
+  const historyLength = window.history.length;
+  await close(web);
+  expect(window.history.length).toBe(historyLength + 1);
+  expect(window.location.pathname + window.location.search).toBe("/org");
+  expectNoCloseWrite(web);
+  await web.close();
 
-  expect(nav).toEqual(["push /org"]);
-  expect(uiWrites.filter((w) => w.org_panel === "closed")).toEqual([]);
-  search = "";
-  m = await mount("/org");
-  expect(q("[data-org-panel='home']", m.el)).not.toBeNull();
-  await m.done();
+  const home = await mount("/org", { tab: true });
+  expectOpenDrawer(home);
 });

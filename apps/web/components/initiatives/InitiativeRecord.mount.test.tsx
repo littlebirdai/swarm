@@ -1,149 +1,35 @@
-// The intent record on a goal's page
-// (docs/architecture/initiatives-projects-role-page.md I5), mounted in jsdom
-// against the typed fixture. Proves: the sections stand in the order of the
-// test a goal must pass; milestones read in day order with the reached, the
-// next and the late ones marked, and reaching one moves the mark; an answer
-// closes a question and folds it away; decisions read newest first with who
-// and where; a source typed as "ct-12 said so" lands as a task source with
-// its words; why saves on Cmd+Enter and Escape cancels; every entry is edited
-// in its own row (a milestone's day moves and keeps its key and source); a
-// source says who said it with a face and a note shows its words; a draft or
-// an open form never follows the sheet to another goal; and a goal with no
-// record draws none of its parts, only the row that starts one, with no
-// sentence saying a part is empty. Why is mounted above the record the way a
-// goal's sheet draws it, and capped, it shows Read all only where it is cut.
-// Run: bun test components/initiatives/InitiativeRecord.mount.test.tsx
-import { test } from "bun:test";
-import {
-  realInboxStore,
-  restoreInboxStoreAfterAll,
-} from "../__tests__/mockInboxStore";
-
-restoreInboxStoreAfterAll();
+import { afterEach, spyOn, test } from "bun:test";
 import assert from "node:assert/strict";
+import { api } from "@codecast/convex/convex/_generated/api";
 import type { InitiativeRow } from "@codecast/goals/initiative";
-import type { InitiativeRecordOp } from "../../store/initiativeRecord";
-import type { OrgTree } from "../org/orgTypes";
+import { act, Fragment, useState } from "react";
+import { useInboxStore } from "../../store/inboxStore";
+import { webBuilders } from "../../test-helpers/builders";
+import { expectPresent } from "../../test-helpers/domExpect";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import { ORG_FIXTURE } from "../org/orgFixture";
+import * as fx from "./initiativeFixture";
+import { InitiativeRecord, Written } from "./InitiativeRecord";
 
-async function verifyRecord() {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLButtonElement",
-    "HTMLInputElement",
-    "HTMLTextAreaElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "KeyboardEvent",
-    "getComputedStyle",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-  ]) {
-    Object.defineProperty(globalThis, key, {
-      value: (dom.window as any)[key],
-      configurable: true,
-    });
-  }
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  const { mock } = await import("bun:test");
-  const React = await import("react");
-  const { act } = React;
+const { teamMember } = webBuilders("InitiativeRecord.mount.test.tsx");
+const viewer = teamMember.build({
+  _id: "fixture-user-me" as ReturnType<typeof teamMember.build>["_id"],
+  name: "Ashot",
+});
+const sam = teamMember.build({
+  _id: "fixture-user-sam" as ReturnType<typeof teamMember.build>["_id"],
+  name: "Sam",
+});
+const row = (id: string): InitiativeRow =>
+  useInboxStore.getState().initiatives[id];
+let restoreClock: (() => void) | undefined;
+afterEach(() => {
+  restoreClock?.();
+  restoreClock = undefined;
+});
 
-  // ── the world the record reads ──
-  const { ORG_FIXTURE } = await import("../org/orgFixture");
-  const fx = await import("./initiativeFixture");
-  const { settleRecordOp } = await import("../../store/initiativeRecord");
-  const tree = ORG_FIXTURE as OrgTree;
-  const calls: string[] = [];
-  let rows: InitiativeRow[] = fx.FIXTURE_INITIATIVES.map((r) => ({ ...r }));
-  const patch = (id: string, fields: Partial<InitiativeRow>) => {
-    rows = rows.map((r) => (r._id === id ? { ...r, ...fields } : r));
-  };
-  const state: any = {
-    currentUser: { _id: "fixture-user-me", name: "Ashot" },
-    orgTree: tree,
-    // The mount's stand-ins do what the slice's actions do to the draft
-    // (store/initiativeSlice.ts, proven on the real store in initiativeRecord.test.ts).
-    updateInitiative: (id: string, fields: any) => {
-      calls.push(`update:${id}:${JSON.stringify(fields)}`);
-      patch(
-        id,
-        Object.fromEntries(
-          Object.entries(fields).map(([k, v]) => [k, v ?? undefined]),
-        ),
-      );
-    },
-    recordInitiativeEntry: (id: string, op: InitiativeRecordOp) => {
-      calls.push(`record:${id}:${JSON.stringify(op)}`);
-      const row = rows.find((r) => r._id === id)!;
-      const settled = settleRecordOp(row[op.list] ?? [], op, {
-        by: "Ashot",
-        now: fx.FIXTURE_NOW,
-      });
-      if (settled)
-        patch(id, {
-          [op.list]: settled.next.length ? settled.next : undefined,
-        });
-    },
-  };
-  const useInboxStore = Object.assign((sel: any) => sel(state), {
-    getState: () => state,
-    setState: () => {},
-  });
-
-  mock.module("../../store/inboxStore", () => ({
-    ...realInboxStore,
-    useInboxStore,
-    useTrackedStore: () => state,
-  }));
-  const realOrgRoles = { ...(await import("../../hooks/useOrgRoles")) };
-  mock.module("../../hooks/useOrgRoles", () => ({
-    ...realOrgRoles,
-    useOrgRoles: () => ({
-      roles: tree.roles,
-      workspace: tree.workspace,
-      roleBotUserIds: new Set<string>(),
-    }),
-  }));
-  const realRoster = await import("../../hooks/useTeamRoster");
-  mock.module("../../hooks/useTeamRoster", () => ({
-    ...realRoster,
-    useTeamRosterIdentity: () => [
-      { _id: "fixture-user-me", name: "Ashot" },
-      { _id: "fixture-user-sam", name: "Sam" },
-    ],
-  }));
-  mock.module("next/link", () => ({
-    default: ({ href, children, ...rest }: any) =>
-      React.createElement("a", { href, ...rest }, children),
-  }));
-  const realAssignee = { ...(await import("../identity/AssigneeFace")) };
-  mock.module("../identity/AssigneeFace", () => ({
-    ...realAssignee,
-    AssigneeFace: ({ info }: any) =>
-      React.createElement("span", {
-        "data-face":
-          info.kind === "role" ? `role:${info.handle}` : `person:${info.name}`,
-      }),
-  }));
-  mock.module("../tools/MarkdownRenderer", () => ({
-    MarkdownRenderer: ({ content }: any) =>
-      React.createElement("div", { "data-markdown": true }, content),
-  }));
-
-  const { createRoot } = await import("react-dom/client");
-  const { InitiativeRecord, Written } = await import("./InitiativeRecord");
-  let root = createRoot(document.getElementById("root")!);
+test("the goal record mounts: parts in order, milestones marked, a question answered, a source read, why saved, nothing empty drawn", async () => {
   const q = <T extends Element = HTMLElement>(sel: string) =>
     document.querySelector<T>(sel);
   const qa = (sel: string) => [...document.querySelectorAll<HTMLElement>(sel)];
@@ -158,14 +44,12 @@ async function verifyRecord() {
   const type = async (el: Element | null, value: string) => {
     assert.ok(el, "missing field");
     const proto =
-      el instanceof (dom.window as any).HTMLTextAreaElement
-        ? (dom.window as any).HTMLTextAreaElement.prototype
-        : (dom.window as any).HTMLInputElement.prototype;
+      el instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype;
     await act(async () => {
       Object.getOwnPropertyDescriptor(proto, "value")!.set!.call(el, value);
-      el.dispatchEvent(
-        new (dom.window as any).Event("input", { bubbles: true }),
-      );
+      el.dispatchEvent(new Event("input", { bubbles: true }));
     });
   };
   const press = async (
@@ -176,7 +60,7 @@ async function verifyRecord() {
     assert.ok(el, "missing field");
     await act(async () => {
       el.dispatchEvent(
-        new (dom.window as any).KeyboardEvent("keydown", {
+        new KeyboardEvent("keydown", {
           key,
           bubbles: true,
           cancelable: true,
@@ -185,49 +69,68 @@ async function verifyRecord() {
       );
     });
   };
-  let shown = "init-org";
-  // The page paints from the store: after a write, the row it is handed is the store's.
-  // As a goal's sheet draws it: Why, then the record, the two keyed by the goal.
-  const paint = async () => {
-    const goal = rows.find((r) => r._id === shown)!;
-    await act(async () =>
-      root.render(
-        React.createElement(
-          React.Fragment,
-          { key: goal._id },
-          React.createElement(Written, {
-            initiative: goal,
-            field: "why",
-            label: "Why",
-            rows: 4,
-            markdown: true,
-            fallback: goal.description,
-            placeholder: "",
-          }),
-          React.createElement(InitiativeRecord, {
-            initiative: goal,
-            now: fx.FIXTURE_NOW,
-          }),
-        ),
-      ),
-    );
-  };
-  const mount = async (id: string) => {
-    shown = id;
-    await act(async () => root.unmount());
-    root = createRoot(document.getElementById("root")!);
-    await paint();
-  };
-  const last = () => calls[calls.length - 1];
 
-  // ── the order of the test a goal must pass ──
+  function Sheet({ id }: { id: string }) {
+    const initiative = useInboxStore((store) => store.initiatives[id]);
+    return (
+      <Fragment key={id}>
+        <Written
+          initiative={initiative}
+          field="why"
+          label="Why"
+          rows={4}
+          markdown
+          fallback={initiative.description}
+          placeholder=""
+        />
+        <InitiativeRecord initiative={initiative} now={fx.FIXTURE_NOW} />
+      </Fragment>
+    );
+  }
+  const clock = spyOn(Date, "now").mockReturnValue(fx.FIXTURE_NOW);
+  restoreClock = () => clock.mockRestore();
+  const web = await mountWeb(<Sheet id="init-org" />, {
+    dispatch: true,
+    setup(backend, store) {
+      store.syncTable("currentUser", viewer);
+      store.syncTable("clientState", {
+        ui: { active_team_id: "fixture-team" },
+      });
+      store.syncTable("orgTree", ORG_FIXTURE);
+      store.syncTable("teamMembers", [
+        { ...viewer, roster_team: "fixture-team" },
+        { ...sam, roster_team: "fixture-team" },
+      ]);
+      store.syncTable("initiatives", fx.FIXTURE_INITIATIVES);
+      backend.mutation(api.dispatch.dispatch, null);
+      backend.set(api.org.roles, pending);
+    },
+  });
+  let shown = "init-org";
+  const paint = () => web.rerender(<Sheet id={shown} />);
+  const mount = (id: string) => {
+    shown = id;
+    return paint();
+  };
+  const calls = () =>
+    web.backend.mutations.flatMap(({ name, args }) => {
+      if (name !== "dispatch:dispatch") return [];
+      const {
+        action,
+        args: [id, payload],
+      } = args as { action: string; args: [string, unknown] };
+      if (action === "recordInitiativeEntry") return [{ action, id, payload }];
+      if (action === "updateInitiative") return [{ action, id, payload }];
+      return [];
+    });
+  const last = () => calls().at(-1)!;
   await mount("init-org");
   assert.deepEqual(
     attrs("[data-initiative-section]", "data-initiative-section"),
     ["why", "done_when", "milestones", "questions", "decisions", "sources"],
   );
   assert.match(
-    q("[data-initiative-section='why'] [data-markdown]")!.textContent!,
+    q("[data-initiative-section='why'] div.prose")!.textContent!,
     /routing work that an agent could route/,
   );
   assert.match(
@@ -235,7 +138,6 @@ async function verifyRecord() {
     /Every project has a lead that is an agent/,
   );
 
-  // ── milestones: day order, the reached ones kept, the late one red and next ──
   assert.deepEqual(
     attrs("[data-initiative-milestone-row]", "data-initiative-milestone-row"),
     [
@@ -276,16 +178,16 @@ async function verifyRecord() {
     "2 of 5 reached",
   );
 
-  // Reaching it marks it done and hands the mark to the one after.
   await click(
     q(
       "[data-initiative-milestone-row='scope_view_ships'] [data-initiative-milestone-reach]",
     ),
   );
-  assert.equal(
-    last(),
-    `record:init-org:${JSON.stringify({ list: "milestones", action: "close", key: "scope_view_ships" })}`,
-  );
+  assert.deepEqual(last(), {
+    action: "recordInitiativeEntry",
+    id: "init-org",
+    payload: { list: "milestones", action: "close", key: "scope_view_ships" },
+  });
   await paint();
   assert.deepEqual(
     attrs("[data-initiative-milestone-row]", "data-milestone-state"),
@@ -300,7 +202,6 @@ async function verifyRecord() {
     "3 of 5 reached",
   );
 
-  // Add: a title and an optional day, keyed by its words.
   await click(q("[data-initiative-add='milestones']"));
   await type(
     q("[data-initiative-form='milestones'] [data-field='title']"),
@@ -314,10 +215,18 @@ async function verifyRecord() {
     q("[data-initiative-form='milestones'] [data-field='title']"),
     "Enter",
   );
-  assert.equal(
-    last(),
-    `record:init-org:${JSON.stringify({ list: "milestones", action: "add", entry: { title: "Weekly review reads itself", date: Date.UTC(2026, 9, 30, 23, 59, 59, 999) } })}`,
-  );
+  assert.deepEqual(last(), {
+    action: "recordInitiativeEntry",
+    id: "init-org",
+    payload: {
+      list: "milestones",
+      action: "add",
+      entry: {
+        title: "Weekly review reads itself",
+        date: Date.UTC(2026, 9, 30, 23, 59, 59, 999),
+      },
+    },
+  });
   await paint();
   assert.equal(
     q("[data-initiative-form='milestones']"),
@@ -325,7 +234,6 @@ async function verifyRecord() {
     "the form closes",
   );
   assert.ok(q("[data-initiative-milestone-row='weekly_review_reads_itself']"));
-  // Remove takes it off by key.
   await click(
     q(
       "[data-initiative-milestone-row='weekly_review_reads_itself'] [data-initiative-remove]",
@@ -337,20 +245,19 @@ async function verifyRecord() {
     null,
   );
 
-  // ── questions: open first, each with who asked; answered ones folded away ──
   assert.deepEqual(
     attrs("[data-question-state='open']", "data-initiative-question"),
     ["who_leads_the_inbox_project", "does_the_review_run_weekly_or_daily"],
   );
   assert.ok(
     q(
-      "[data-initiative-question='who_leads_the_inbox_project'] [data-face='person:Ashot']",
+      "[data-initiative-question='who_leads_the_inbox_project'] [title='Ashot']",
     ),
     "a name the roster knows wears its face",
   );
   assert.ok(
     q(
-      "[data-initiative-question='does_the_review_run_weekly_or_daily'] [data-face='role:growth']",
+      "[data-initiative-question='does_the_review_run_weekly_or_daily'] [data-assignee-role='or-1']",
     ),
     "an @handle that is a role wears the role's",
   );
@@ -372,7 +279,6 @@ async function verifyRecord() {
     /Billing has its own/,
   );
 
-  // An answer closes the question, in place.
   await click(
     q(
       "[data-initiative-question='who_leads_the_inbox_project'] [data-initiative-answer-open]",
@@ -385,10 +291,16 @@ async function verifyRecord() {
   await click(
     q("[data-initiative-form='answer'] [data-initiative-form-submit]"),
   );
-  assert.equal(
-    last(),
-    `record:init-org:${JSON.stringify({ list: "questions", action: "close", key: "who_leads_the_inbox_project", answer: "The growth lead, from Monday" })}`,
-  );
+  assert.deepEqual(last(), {
+    action: "recordInitiativeEntry",
+    id: "init-org",
+    payload: {
+      list: "questions",
+      action: "close",
+      key: "who_leads_the_inbox_project",
+      answer: "The growth lead, from Monday",
+    },
+  });
   await paint();
   assert.deepEqual(
     attrs("[data-question-state='open']", "data-initiative-question"),
@@ -411,7 +323,6 @@ async function verifyRecord() {
     /2 answered/,
   );
 
-  // ── decisions: newest first, who decided, when and where ──
   assert.deepEqual(
     attrs("[data-initiative-decision]", "data-initiative-decision"),
     ["the_head_of_people_is_the_root_seat", "roles_are_colleagues"],
@@ -419,7 +330,7 @@ async function verifyRecord() {
   const newest = q(
     "[data-initiative-decision='the_head_of_people_is_the_root_seat']",
   )!;
-  assert.ok(newest.querySelector("[data-face='person:Ashot']"));
+  assert.ok(newest.querySelector("[title='Ashot']"));
   assert.match(newest.textContent!, /Sep 4/);
   assert.equal(
     newest
@@ -429,7 +340,6 @@ async function verifyRecord() {
   );
   assert.match(newest.querySelector("a")!.getAttribute("href")!, /cl-42/);
 
-  // ── sources: who said it and where, the words under it ──
   assert.deepEqual(
     attrs("[data-initiative-source]", "data-initiative-source"),
     [
@@ -443,28 +353,23 @@ async function verifyRecord() {
     )!.textContent!,
     /I read one page/,
   );
-  // Who said it wears the roster's face, the way a question's asker does; the address is the link alone.
   const callSource = q("[data-initiative-source='call:cl-42:15']")!;
   assert.ok(
-    callSource.querySelector(
-      "[data-initiative-by='face'] [data-face='person:Ashot']",
-    ),
+    callSource.querySelector("[data-initiative-by='face'] [title='Ashot']"),
   );
   assert.equal(
     callSource.querySelector("[data-intent-source]")!.textContent,
     "Call cl-42, line 15",
   );
   assert.match(callSource.textContent!, /Aug 21/);
-  // A note has no address: who said it, then its words, never the bare word "Note".
   const noteSource = q("[data-initiative-source^='note:']")!;
-  assert.ok(noteSource.querySelector("[data-face='person:Sam']"));
+  assert.ok(noteSource.querySelector("[title='Sam']"));
   assert.equal(noteSource.querySelector("[data-intent-source]"), null);
   assert.doesNotMatch(noteSource.textContent!, /Note/);
   assert.match(
     noteSource.querySelector("[data-initiative-source-quote]")!.textContent!,
     /Agents should run the routine work/,
   );
-  // One field takes an address or words; "ct-12 said so" is a task source with its words.
   await click(q("[data-initiative-add='sources']"));
   await type(
     q("[data-initiative-form='sources'] [data-field='text']"),
@@ -474,10 +379,15 @@ async function verifyRecord() {
   await click(
     q("[data-initiative-form='sources'] [data-initiative-form-submit]"),
   );
-  assert.equal(
-    last(),
-    `record:init-org:${JSON.stringify({ list: "sources", action: "add", entry: { text: "ct-12 said so", by: "Sam" } })}`,
-  );
+  assert.deepEqual(last(), {
+    action: "recordInitiativeEntry",
+    id: "init-org",
+    payload: {
+      list: "sources",
+      action: "add",
+      entry: { text: "ct-12 said so", by: "Sam" },
+    },
+  });
   await paint();
   const added = q("[data-initiative-source='task:ct-12']")!;
   assert.ok(added, "read as a task");
@@ -491,19 +401,15 @@ async function verifyRecord() {
     added.querySelector("[data-initiative-source-quote]")!.textContent,
     "said so",
   );
-  assert.deepEqual(rows.find((r) => r._id === "init-org")!.sources![2], {
+  assert.deepEqual(row("init-org").sources![2], {
     by: "Sam",
     kind: "task",
     quote: "said so",
     ref: "ct-12",
   });
 
-  // ── every entry is edited in its own row: Enter saves what changed, Escape cancels ──
-  // A milestone slips: its day moves, and it keeps its key, its title and where it was stated.
   const withSource = () =>
-    rows
-      .find((r) => r._id === "init-org")!
-      .milestones!.find((m) => m.key === "org_chart_live")!;
+    row("init-org").milestones!.find((m) => m.key === "org_chart_live")!;
   await click(
     q(
       "[data-initiative-milestone-row='org_chart_live'] [data-initiative-edit-entry]",
@@ -529,9 +435,18 @@ async function verifyRecord() {
     "2026-11-15",
   );
   await press(editTitle, "Enter");
-  assert.equal(
+  assert.deepEqual(
     last(),
-    `record:init-org:${JSON.stringify({ list: "milestones", action: "edit", key: "org_chart_live", entry: { date: Date.UTC(2026, 10, 15, 23, 59, 59, 999) } })}`,
+    {
+      action: "recordInitiativeEntry",
+      id: "init-org",
+      payload: {
+        list: "milestones",
+        action: "edit",
+        key: "org_chart_live",
+        entry: { date: Date.UTC(2026, 10, 15, 23, 59, 59, 999) },
+      },
+    },
     "only what changed is sent",
   );
   await paint();
@@ -550,8 +465,7 @@ async function verifyRecord() {
       title: "Org chart live",
     },
   );
-  // Escape leaves it as it was; an emptied day clears it; a save that changed nothing writes nothing.
-  let writes = calls.length;
+  let writes = calls().length;
   await click(
     q(
       "[data-initiative-milestone-row='org_chart_live'] [data-initiative-edit-entry]",
@@ -576,7 +490,7 @@ async function verifyRecord() {
     "Enter",
   );
   assert.equal(
-    calls.length,
+    calls().length,
     writes,
     "neither Escape nor an unchanged save writes",
   );
@@ -596,17 +510,22 @@ async function verifyRecord() {
   await click(
     q("[data-initiative-form='edit-milestones'] [data-initiative-form-submit]"),
   );
-  assert.equal(
-    last(),
-    `record:init-org:${JSON.stringify({ list: "milestones", action: "edit", key: "org_chart_live", entry: { title: "The org chart is live", date: null } })}`,
-  );
+  assert.deepEqual(last(), {
+    action: "recordInitiativeEntry",
+    id: "init-org",
+    payload: {
+      list: "milestones",
+      action: "edit",
+      key: "org_chart_live",
+      entry: { title: "The org chart is live", date: null },
+    },
+  });
   await paint();
   assert.equal(withSource().date, undefined);
   assert.match(
     q("[data-initiative-milestone-row='org_chart_live']")!.textContent!,
     /The org chart is live/,
   );
-  // A question's words, open or answered, and a decision's.
   await click(
     q(
       "[data-initiative-question='does_the_review_run_weekly_or_daily'] [data-initiative-edit-entry]",
@@ -626,17 +545,23 @@ async function verifyRecord() {
     q("[data-initiative-form='edit-questions'] [data-field='text']"),
     "Enter",
   );
-  assert.equal(
-    last(),
-    `record:init-org:${JSON.stringify({ list: "questions", action: "edit", key: "does_the_review_run_weekly_or_daily", entry: { text: "Does the review run weekly?" } })}`,
-  );
+  assert.deepEqual(last(), {
+    action: "recordInitiativeEntry",
+    id: "init-org",
+    payload: {
+      list: "questions",
+      action: "edit",
+      key: "does_the_review_run_weekly_or_daily",
+      entry: { text: "Does the review run weekly?" },
+    },
+  });
   await paint();
   const reworded = q(
     "[data-initiative-question='does_the_review_run_weekly_or_daily']",
   )!;
   assert.match(reworded.textContent!, /Does the review run weekly\?/);
   assert.ok(
-    reworded.querySelector("[data-face='role:growth']"),
+    reworded.querySelector("[data-assignee-role='or-1']"),
     "who asked it stays",
   );
   assert.equal(
@@ -665,10 +590,16 @@ async function verifyRecord() {
     q("[data-initiative-form='edit-questions'] [data-field='answer']"),
     "Enter",
   );
-  assert.equal(
-    last(),
-    `record:init-org:${JSON.stringify({ list: "questions", action: "edit", key: "do_agent_seats_bill_separately", entry: { answer: "Billing has its own goal." } })}`,
-  );
+  assert.deepEqual(last(), {
+    action: "recordInitiativeEntry",
+    id: "init-org",
+    payload: {
+      list: "questions",
+      action: "edit",
+      key: "do_agent_seats_bill_separately",
+      entry: { answer: "Billing has its own goal." },
+    },
+  });
   await paint();
   assert.equal(
     q(
@@ -689,16 +620,24 @@ async function verifyRecord() {
     q("[data-initiative-form='edit-decisions'] [data-field='text']"),
     "Enter",
   );
-  assert.equal(
-    last(),
-    `record:init-org:${JSON.stringify({ list: "decisions", action: "edit", key: "roles_are_colleagues", entry: { text: "Roles are colleagues." } })}`,
-  );
+  assert.deepEqual(last(), {
+    action: "recordInitiativeEntry",
+    id: "init-org",
+    payload: {
+      list: "decisions",
+      action: "edit",
+      key: "roles_are_colleagues",
+      entry: { text: "Roles are colleagues." },
+    },
+  });
   await paint();
+  const editedDecision = q("[data-initiative-decision='roles_are_colleagues']");
+  expectPresent(editedDecision);
+  assert.match(editedDecision.textContent!, /Roles are colleagues\./);
   assert.match(
-    q("[data-initiative-decision='roles_are_colleagues']")!.textContent!,
-    /Roles are colleagues\.Head of Growth/,
+    editedDecision.querySelector("[data-initiative-by=face]")!.textContent!,
+    /Head of Growth/,
   );
-  // A source is read whole from its text: the form opens on its address and words, and who said it can be put right.
   await click(
     q("[data-initiative-source='call:cl-42:15'] [data-initiative-edit-entry]"),
   );
@@ -717,7 +656,7 @@ async function verifyRecord() {
     "Enter",
   );
   await paint();
-  assert.deepEqual(rows.find((r) => r._id === "init-org")!.sources![0], {
+  assert.deepEqual(row("init-org").sources![0], {
     at: fx.FIXTURE_NOW - 28 * 86_400_000,
     by: "Sam",
     kind: "call",
@@ -725,10 +664,7 @@ async function verifyRecord() {
       "Every area should have a lead that is an agent, and I read one page.",
     ref: "cl-42:15",
   });
-  assert.ok(
-    q("[data-initiative-source='call:cl-42:15'] [data-face='person:Sam']"),
-  );
-  // A decision whose "where" is plain words keeps them on the page.
+  assert.ok(q("[data-initiative-source='call:cl-42:15'] [title='Sam']"));
   await click(q("[data-initiative-add='decisions']"));
   await type(
     q("[data-initiative-form='decisions'] [data-field='text']"),
@@ -749,8 +685,6 @@ async function verifyRecord() {
     "on the Monday standup",
   );
 
-  // ── the record belongs to its goal: nothing typed follows the page to another ──
-  // The page keeps one element across goals (the route is /initiatives/:id), so this paints the next goal over the first.
   await click(q("[data-initiative-edit='why']"));
   await type(
     q("[data-initiative-field='why']"),
@@ -763,7 +697,7 @@ async function verifyRecord() {
   );
   await click(q("[data-initiative-add='questions']"));
   await click(q("[data-initiative-add='sources']"));
-  writes = calls.length;
+  writes = calls().length;
   shown = "init-org-sub";
   await paint();
   assert.equal(
@@ -784,61 +718,60 @@ async function verifyRecord() {
     document.body.textContent!.includes("A draft about the first goal"),
     false,
   );
-  // Writing on the second goal starts from the second goal's own words and lands on it.
   await click(q("[data-initiative-edit='why']"));
   assert.equal(
     q<HTMLTextAreaElement>("[data-initiative-field='why']")!.value,
-    rows.find((r) => r._id === "init-org-sub")!.why ?? "",
+    row("init-org-sub").why ?? "",
   );
   await type(q("[data-initiative-field='why']"), "Why the second goal matters");
   await press(q("[data-initiative-field='why']"), "Enter", { metaKey: true });
+  assert.deepEqual(last(), {
+    action: "updateInitiative",
+    id: "init-org-sub",
+    payload: { why: "Why the second goal matters" },
+  });
   assert.equal(
-    last(),
-    `update:init-org-sub:${JSON.stringify({ why: "Why the second goal matters" })}`,
-  );
-  assert.equal(
-    calls.length,
+    calls().length,
     writes + 1,
     "and nothing was written to the first",
   );
   shown = "init-org";
   await paint();
 
-  // ── why: edited in place; Cmd+Enter saves, Escape cancels ──
   await click(q("[data-initiative-edit='why']"));
   await type(
     q("[data-initiative-field='why']"),
     "  Because a person should read one page.  ",
   );
   await press(q("[data-initiative-field='why']"), "Enter", { metaKey: true });
-  assert.equal(
-    last(),
-    `update:init-org:${JSON.stringify({ why: "Because a person should read one page." })}`,
-  );
+  assert.deepEqual(last(), {
+    action: "updateInitiative",
+    id: "init-org",
+    payload: { why: "Because a person should read one page." },
+  });
   await paint();
   assert.equal(q("[data-initiative-field='why']"), null, "the editor closes");
   assert.equal(
-    q("[data-initiative-section='why'] [data-markdown]")!.textContent,
+    q("[data-initiative-section='why'] div.prose")!.textContent,
     "Because a person should read one page.",
   );
-  const before = calls.length;
+  const before = calls().length;
   await click(q("[data-initiative-edit='done_when']"));
   await type(q("[data-initiative-field='done_when']"), "Something else");
   await press(q("[data-initiative-field='done_when']"), "Escape");
   assert.equal(q("[data-initiative-field='done_when']"), null);
-  assert.equal(calls.length, before, "Escape writes nothing");
-  // Emptying it clears the field.
+  assert.equal(calls().length, before, "Escape writes nothing");
   await click(q("[data-initiative-edit='done_when']"));
   await type(q("[data-initiative-field='done_when']"), "   ");
   await press(q("[data-initiative-field='done_when']"), "Enter", {
     ctrlKey: true,
   });
-  assert.equal(
-    last(),
-    `update:init-org:${JSON.stringify({ done_when: null })}`,
-  );
+  assert.deepEqual(last(), {
+    action: "updateInitiative",
+    id: "init-org",
+    payload: { done_when: null },
+  });
 
-  // ── a goal with no record: no part drawn, no sentence about an empty one ──
   await mount("init-orphan");
   assert.deepEqual(
     attrs("[data-initiative-section]", "data-initiative-section"),
@@ -864,7 +797,6 @@ async function verifyRecord() {
   );
   assert.equal(q("[data-initiative-answered]"), null);
   assert.equal(q("[data-initiative-milestone-counts]"), null);
-  // Starting a part opens it with its form ready, and the row stops offering it.
   await click(q("[data-initiative-add-part='milestones']"));
   assert.deepEqual(
     attrs("[data-initiative-section]", "data-initiative-section"),
@@ -875,15 +807,15 @@ async function verifyRecord() {
     attrs("[data-initiative-add-part]", "data-initiative-add-part"),
     ["done_when", "questions", "decisions", "sources"],
   );
-  // A description stands in for an unwritten why, and the editor still writes why.
-  rows = rows.map((r) =>
-    r._id === "init-orphan"
-      ? { ...r, description: "Phones do what the desktop does." }
-      : r,
+  await act(async () =>
+    web.store.getState().syncRecord("initiatives", "init-orphan", {
+      ...row("init-orphan"),
+      description: "Phones do what the desktop does.",
+    }),
   );
   await paint();
   assert.equal(
-    q("[data-initiative-section='why'] [data-markdown]")!.textContent,
+    q("[data-initiative-section='why'] div.prose")!.textContent,
     "Phones do what the desktop does.",
   );
   await click(q("[data-initiative-edit='why']"));
@@ -892,38 +824,36 @@ async function verifyRecord() {
     "Half the team reads on a phone.",
   );
   await press(q("[data-initiative-field='why']"), "Enter", { metaKey: true });
-  assert.equal(
-    last(),
-    `update:init-orphan:${JSON.stringify({ why: "Half the team reads on a phone." })}`,
-  );
+  assert.deepEqual(last(), {
+    action: "updateInitiative",
+    id: "init-orphan",
+    payload: { why: "Half the team reads on a phone." },
+  });
 
-  // ── a capped Why: held to a glance with Read all, only where the words are cut ──
-  // jsdom lays nothing out, so the clamp box reports how tall its words run.
-  let runs = 400;
-  const proto = (dom.window as any).HTMLElement.prototype;
+  let runs = 800;
+  function Capped() {
+    const initiative = useInboxStore((store) => store.initiatives["init-org"]);
+    return (
+      <Written
+        initiative={initiative}
+        field="why"
+        label="Why"
+        rows={4}
+        markdown
+        clamp
+        placeholder=""
+      />
+    );
+  }
+  const proto = window.HTMLElement.prototype;
   Object.defineProperty(proto, "scrollHeight", {
     configurable: true,
     get(this: HTMLElement) {
       return this.parentElement?.hasAttribute("data-clamped") ? runs : 0;
     },
   });
-  const capped = async () => {
-    await act(async () => root.unmount());
-    root = createRoot(document.getElementById("root")!);
-    await act(async () =>
-      root.render(
-        React.createElement(Written, {
-          initiative: rows.find((r) => r._id === "init-org")!,
-          field: "why",
-          label: "Why",
-          rows: 4,
-          markdown: true,
-          clamp: true,
-          placeholder: "",
-        }),
-      ),
-    );
-  };
+  let version = 0;
+  const capped = () => web.rerender(<Capped key={++version} />);
   await capped();
   assert.equal(q("[data-clamped]")!.getAttribute("data-clamped"), "cut");
   assert.equal(q("[data-clamp-toggle]")!.textContent, "Read all");
@@ -942,11 +872,5 @@ async function verifyRecord() {
   await capped();
   assert.equal(q("[data-clamped]")!.getAttribute("data-clamped"), "whole");
   assert.equal(q("[data-clamp-toggle]"), null, "words that fit get no toggle");
-  delete proto.scrollHeight;
-
-  await act(async () => root.unmount());
-}
-
-test("the goal record mounts: parts in order, milestones marked, a question answered, a source read, why saved, nothing empty drawn", async () => {
-  await verifyRecord();
-}, 600_000);
+  Reflect.deleteProperty(proto, "scrollHeight");
+});

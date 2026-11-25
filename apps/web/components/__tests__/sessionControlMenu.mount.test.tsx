@@ -1,269 +1,162 @@
-// The unified session control panel (SessionControlMenu) mounted in jsdom
-// inside a forced-open Radix menu: the model rows for the session's agent,
-// the three verb rows sliding to an agent list that honors canSessionBecomeAgent
-// (current agent ringed and inert, an agent that cannot rebuild history inert
-// with its reason inline), a fork pick that forks and navigates, and the
-// hand-off step showing the chosen agent's models, taking a direction, and
-// calling handoff.start.
-//
-// Run: bun test --timeout 120000 components/__tests__/sessionControlMenu.mount.test.tsx
-import { test, expect, beforeAll, beforeEach, mock } from "bun:test";
-import { realInboxStore, restoreInboxStoreAfterAll } from "./mockInboxStore";
+import { expect, spyOn, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { act, useState } from "react";
+import type { InboxSession } from "../../store/inboxStore";
+import { webBuilders } from "../../test-helpers/builders";
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { waitForDom } from "../../test-helpers/waitForDom";
+import { waitForPopupClose } from "../../test-helpers/waitForPopupClose";
+import {
+  SessionControlPanel,
+  type SessionControlPanelProps,
+} from "../SessionControlMenu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
-restoreInboxStoreAfterAll();
-
-let React: typeof import("react");
-let createRoot: typeof import("react-dom/client").createRoot;
-let mod: typeof import("../SessionControlMenu");
-let menu: typeof import("../ui/dropdown-menu");
-
-const calls = {
-  switches: [] as Array<[string, string]>,
-  forks: [] as Array<[string, string]>,
-  actions: [] as Array<[unknown, Record<string, unknown>]>,
-  navigates: [] as string[],
-  toasts: [] as Array<[string, string]>,
-  backendSwitches: [] as Array<[string, string, boolean]>,
-  reset() {
-    this.switches = [];
-    this.forks = [];
-    this.actions = [];
-    this.navigates = [];
-    this.toasts = [];
-    this.backendSwitches = [];
-  },
-};
-// The live session meta the panel reads (its session id gates the backend rows).
-let liveMeta: Record<string, unknown> | undefined;
-
-const storeState = {
-  sessions: {
-    conv1: {
-      _id: "conv1",
-      title: "Fix the auth race",
-      agent_type: "claude_code",
-      project_path: "/p",
-      git_root: "/p",
-    },
-  } as Record<string, any>,
-  conversations: {} as Record<string, any>,
-  currentUser: { _id: "u1", default_models: {} },
-  clientState: { ui: {} } as Record<string, any>,
-  machineRoster: [],
-  getConvexId: (id: string) => id,
-  requestNavigate: (id: string) => {
-    calls.navigates.push(id);
-  },
-  syncTable() {},
-  setConversationModel() {},
-  addOptimisticMessage: () => "c1",
-  sendMessage() {},
-  sessionCommands: {} as Record<string, any>,
-  switchClaudeBackend: (
-    _requestId: string,
-    convId: string,
-    backend: string,
-    interrupt?: boolean,
-  ) => {
-    calls.backendSwitches.push([convId, backend, !!interrupt]);
-    return Promise.resolve();
-  },
-};
-
-beforeAll(async () => {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLButtonElement",
-    "HTMLTextAreaElement",
-    "HTMLInputElement",
-    "HTMLAnchorElement",
-    "Element",
-    "Node",
-    "Event",
-    "PointerEvent",
-    "MouseEvent",
-    "KeyboardEvent",
-    "FocusEvent",
-    "CustomEvent",
-    "getComputedStyle",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-    "ResizeObserver",
-    "DOMRect",
-    "MutationObserver",
-  ]) {
-    const v = (dom.window as any)[key];
-    if (v !== undefined)
-      Object.defineProperty(globalThis, key, {
-        value: v,
-        configurable: true,
-        writable: true,
-      });
-  }
-  if (!(globalThis as any).ResizeObserver)
-    (globalThis as any).ResizeObserver = class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    };
-  if (!(globalThis as any).PointerEvent)
-    (globalThis as any).PointerEvent = (globalThis as any).MouseEvent;
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  React = await import("react");
-  const h = React.createElement;
-
-  const useInboxStore = Object.assign(
-    (selector?: (s: typeof storeState) => unknown) =>
-      selector ? selector(storeState) : storeState,
-    {
-      getState: () => storeState,
-      setState() {},
-      subscribe: () => () => {},
-    },
-  );
-  mock.module("../../store/inboxStore", () => ({
-    ...realInboxStore,
-    useInboxStore,
-    isConvexId: (id: string) => /^[a-z0-9]{32}$/.test(id),
-  }));
-  mock.module("../../store/mutativeMiddleware", () => ({
-    DispatchNotWiredError: class extends Error {
-      parked = false;
-    },
-    isParkedDispatchError: () => false,
-  }));
-  mock.module("convex/react", () => ({
-    useMutation: () => () => Promise.resolve(),
-    useConvex: () => ({
-      action: (ref: unknown, args: Record<string, unknown>) => {
-        calls.actions.push([ref, args]);
-        return Promise.resolve({
-          session: {
-            conversation_id: "newconv",
-            short_id: "jx7new1",
-            agent_type: args.agent_type,
-          },
-        });
-      },
-    }),
-  }));
-  mock.module("../../hooks/useDynamicModels", () => ({
-    useDynamicModels: () => ({ dynamic: false, featured: [], all: [] }),
-  }));
-  mock.module("../../hooks/useLiveSessionMeta", () => ({
-    useLiveSessionMeta: () => liveMeta,
-    liveSessionMetaOf: () => liveMeta,
-  }));
-  mock.module("../../hooks/useSyncAgentDefinitions", () => ({
-    useAgentDefinitions: () => [],
-  }));
-  mock.module("../../lib/conversationProcessor", () => ({
-    formatModel: (m: string) => m,
-  }));
-  const realAgentActions = await import("../../lib/sessionAgentActions");
-  mock.module("../../lib/sessionAgentActions", () => ({
-    ...realAgentActions,
-    switchSessionAgent: (row: { _id: string }, t: string) => {
-      calls.switches.push([row._id, t]);
-      return Promise.resolve();
-    },
-    forkSessionAsAgent: (row: { _id: string }, t: string) => {
-      calls.forks.push([row._id, t]);
-      return { sessionId: "fork-stub", ready: Promise.resolve("fork-real") };
-    },
-  }));
-  mock.module("sonner", () => ({
-    toast: {
-      success: (m: string) => calls.toasts.push(["success", m]),
-      error: (m: string) => calls.toasts.push(["error", m]),
-    },
-  }));
-  // The chip tooltip is Radix plumbing the assertions never hover; render the chip bare.
-  const realShortcutsHelp = await import("../KeyboardShortcutsHelp");
-  mock.module("../KeyboardShortcutsHelp", () => ({
-    ...realShortcutsHelp,
-    ShortcutTooltip: ({ children }: { children: React.ReactNode }) =>
-      h(React.Fragment, null, children),
-    KeyCap: ({ children }: any) => h("kbd", null, children),
-  }));
-
-  ({ createRoot } = await import("react-dom/client"));
-  menu = await import("../ui/dropdown-menu");
-  mod = await import("../SessionControlMenu");
-}, 120_000);
-
-beforeEach(() => {
-  calls.reset();
-  if (root) {
-    React.act(() => root!.unmount());
-    root = null;
-  }
+const builders = webBuilders("sessionControlMenu.mount.test.tsx");
+const session = builders.session.build({
+  model: "claude-opus-4-8",
+  effort: "high",
+  message_count: 12,
 });
+const handoffConversation = builders.conversation.build({
+  short_id: "jx7new1",
+  agent_type: "codex",
+});
+const forkedConversation = builders.conversation.build({ agent_type: "codex" });
+const forkSessionId = builders.session.build().session_id as ReturnType<
+  typeof crypto.randomUUID
+>;
+const viewer = builders.teamMember.build();
 
-const q = <T extends Element = HTMLElement>(sel: string) =>
-  document.querySelector<T>(sel);
-const qa = (sel: string) => [...document.querySelectorAll<HTMLElement>(sel)];
+const q = <T extends Element = HTMLElement>(selector: string) =>
+  document.querySelector<T>(selector);
+const qa = (selector: string) => [
+  ...document.querySelectorAll<HTMLElement>(selector),
+];
 const click = (el: Element) =>
-  React.act(() => {
+  act(() => {
     el.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0 }));
   });
-const flush = () =>
-  React.act(async () => {
-    await new Promise((r) => setTimeout(r, 0));
-  });
 
-let root: ReturnType<typeof createRoot> | null = null;
-function mount(
-  props: Partial<import("../SessionControlMenu").SessionControlPanelProps> = {},
+async function mount(
+  props: Partial<SessionControlPanelProps> = {},
+  options: {
+    fields?: Partial<InboxSession>;
+    pinnedAgents?: string[];
+    refused?: boolean;
+  } = {},
 ) {
-  const h = React.createElement;
   const closes: number[] = [];
-  const modelPicks: Array<{ model?: string; effort?: string }> = [];
-  // A fresh root each time: the panel's step state must not leak between mounts.
-  if (root) React.act(() => root!.unmount());
-  root = createRoot(document.getElementById("root")!);
-  React.act(() =>
-    root!.render(
-      h(
-        menu.DropdownMenu,
-        { open: true, modal: false },
-        h(
-          menu.DropdownMenuTrigger,
-          { asChild: true },
-          h("button", null, "badge"),
-        ),
-        h(
-          menu.DropdownMenuContent,
-          null,
-          h(mod.SessionControlPanel, {
-            conversationId: "conv1",
-            agentType: "claude_code",
-            model: "claude-opus-4-8",
-            effort: "high",
-            messageCount: 12,
-            onModelSelect: (sel) => modelPicks.push(sel),
-            onClose: () => closes.push(1),
-            ...props,
-          }),
-        ),
-      ),
-    ),
-  );
-  // Radix positions and focuses the content in passive effects; let them settle.
-  React.act(() => {});
-  return { closes, modelPicks };
+  function OpenMenu() {
+    const [open, setOpen] = useState(true);
+    return (
+      <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
+        <DropdownMenuTrigger>badge</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <SessionControlPanel
+            conversationId={session._id}
+            agentType="claude_code"
+            model="claude-opus-4-8"
+            effort="high"
+            messageCount={12}
+            onModelSelect={() => {}}
+            onClose={() => {
+              closes.push(1);
+              setOpen(false);
+            }}
+            {...props}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+  const web = await mountWeb(<OpenMenu />, {
+    dispatch: true,
+    setup(backend, store) {
+      const now = Date.now();
+      store.syncTable("currentUser", {
+        ...viewer,
+        default_models: {},
+        pinned_agents: options.pinnedAgents,
+      });
+      store.syncTable("sessions", [
+        {
+          ...session,
+          started_at: now,
+          updated_at: now,
+          last_heartbeat: now,
+          agent_status_updated_at: now,
+          is_connected: true,
+          ...options.fields,
+        },
+      ]);
+      if (options.refused)
+        store.syncTable("sessionCommands", [
+          {
+            _id: "refused-sdk",
+            conversation_id: session._id,
+            kind: "backend",
+            backend: "sdk",
+            command: "switch_claude_backend",
+            requested_at: now - 2000,
+            executed_at: now - 1000,
+            result: null,
+            error:
+              "Stays in the terminal: Claude Code 2.0.1 is older than 2.1.248",
+          },
+        ]);
+      backend.set(api.devices.listDevices, []);
+      backend.mutation(api.dispatch.dispatch, ({ action, args }) => {
+        if (action === "convCommand" && args[1] === "forkFromMessage") {
+          return { conversation_id: forkedConversation._id };
+        }
+        return null;
+      });
+      backend.action(api.handoff.start, {
+        source: {
+          conversation_id: session._id as typeof handoffConversation._id,
+          title: session.title ?? null,
+          short_id: "jx7source",
+          agent_type: session.agent_type,
+          model: session.model ?? null,
+          message_count: 12,
+          task_short_id: null,
+          project_path: null,
+          plan_short_id: null,
+        },
+        prompt: "",
+        brief: "",
+        brief_source: "fallback",
+        session: {
+          conversation_id: handoffConversation._id,
+          short_id: "jx7new1",
+          agent_type: "codex",
+          model: "gpt-5.5",
+          effort: null,
+          project_path: null,
+        },
+      });
+    },
+  });
+  return { ...web, closes };
 }
 
-test("a live claude session: identity line, model rows, effort chips", () => {
-  mount();
+function commands(web: Awaited<ReturnType<typeof mount>>, command: string) {
+  return web.backend.mutations.flatMap(({ name, args }) => {
+    const body = args as { action?: string; args?: unknown };
+    return name === "dispatch:dispatch" && body.action === command
+      ? [body.args]
+      : [];
+  });
+}
+
+test("a live claude session: identity line, model rows, effort chips", async () => {
+  await mount();
   const panel = q("[data-session-control-panel]")!;
   expect(panel).toBeTruthy();
   expect(q("[data-session-state]")!.textContent).toContain("Live session");
@@ -287,8 +180,7 @@ test("a live claude session: identity line, model rows, effort chips", () => {
 
 const openVerb = (verb: string) => {
   const row = q(`[data-move-row="${verb}"]`)!;
-  // Radix items select on pointerup after a pointermove, or on Enter/Space.
-  React.act(() => {
+  act(() => {
     row.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
@@ -297,19 +189,18 @@ const openVerb = (verb: string) => {
 const agentRow = (agent: string) =>
   q(`[data-pick-step] [data-agent-row="${agent}"]`)!;
 const pickAgent = (agent: string) =>
-  React.act(() => {
+  act(() => {
     agentRow(agent).dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
   });
 
-test("the switch list honors canSessionBecomeAgent: current ringed and inert, cursor inert with its reason, codex switches", () => {
-  mount();
-  // The main panel is three calm rows, not a grid of agents.
+test("the switch list honors canSessionBecomeAgent: current ringed and inert, cursor inert with its reason, codex switches", async () => {
+  const web = await mount();
   expect(
     qa("[data-move-row]").map((r) => r.getAttribute("data-move-row")),
   ).toEqual(["switch", "fork", "handoff"]);
-  expect(q("[data-agent-row]")).toBeNull();
+  expectAbsent(q("[data-agent-row]"));
 
   openVerb("switch");
   expect(q("[data-pick-step]")!.getAttribute("data-pick-step")).toBe("switch");
@@ -324,23 +215,42 @@ test("the switch list honors canSessionBecomeAgent: current ringed and inert, cu
   expect(codex.getAttribute("data-disabled")).toBeNull();
 
   pickAgent("cursor");
-  expect(calls.switches).toEqual([]);
-  pickAgent("codex");
-  expect(calls.switches).toEqual([["conv1", "codex"]]);
+  expect(commands(web, "convCommand")).toEqual([]);
+  await act(async () => pickAgent("codex"));
+  expect(commands(web, "convCommand")).toEqual([
+    [session._id, "switchSessionAgent", { agent_type: "codex" }],
+  ]);
 
-  // The fork list omits the current agent and forks + navigates to the stub.
-  mount();
+  await waitForPopupClose();
+  await web.close();
+  const fork = await mount();
   openVerb("fork");
-  expect(q('[data-pick-step] [data-agent-row="claude_code"]')).toBeNull();
-  pickAgent("codex");
-  expect(calls.forks).toEqual([["conv1", "codex"]]);
-  expect(calls.navigates).toEqual(["fork-stub"]);
+  expectAbsent(q('[data-pick-step] [data-agent-row="claude_code"]'));
+  const random = spyOn(crypto, "randomUUID").mockReturnValueOnce(forkSessionId);
+  try {
+    await act(async () => pickAgent("codex"));
+  } finally {
+    random.mockRestore();
+  }
+  const forked = commands(fork, "convCommand");
+  const target = fork.store.getState().pendingNavigateId;
+  expect(target).toBe(forkSessionId);
+  expect(forked).toEqual([
+    [
+      session._id,
+      "forkFromMessage",
+      { target_agent_type: "codex", session_id: forkSessionId },
+    ],
+  ]);
+  expect(
+    fork.store.getState().sessions[forkedConversation._id]
+      ?.parent_conversation_id,
+  ).toBe(session._id);
 });
 
 test("the hand-off step shows the chosen agent's models, takes a direction, and calls handoff.start", async () => {
-  const { closes } = mount();
+  const web = await mount();
   openVerb("handoff");
-  // Every agent is a hand-off destination, the current one included.
   expect(agentRow("claude_code").getAttribute("data-disabled")).toBeNull();
   pickAgent("codex");
   const step = q("[data-handoff-step]")!;
@@ -352,18 +262,17 @@ test("the hand-off step shows the chosen agent's models, takes a direction, and 
   expect(text).not.toContain("Sonnet");
   expect(text).toContain("Haiku brief");
 
-  // Pick a model: the menu stays open (keepOpen) and the submit names it.
   const row = qa("[data-handoff-step] [role=menuitem]").find(
     (el) =>
       el.textContent?.includes("GPT-5.5") && !el.textContent?.includes("Sol"),
   )!;
   click(row);
-  expect(q("[data-handoff-step]")).toBeTruthy();
+  expectPresent(q("[data-handoff-step]"));
   expect(q("[data-handoff-submit]")!.textContent).toContain("GPT-5.5");
 
   const ta = q<HTMLTextAreaElement>("[data-handoff-step] textarea")!;
   expect(ta.placeholder).toContain("do first");
-  React.act(() => {
+  act(() => {
     const setter = Object.getOwnPropertyDescriptor(
       HTMLTextAreaElement.prototype,
       "value",
@@ -371,27 +280,31 @@ test("the hand-off step shows the chosen agent's models, takes a direction, and 
     setter.call(ta, "Finish the migration test");
     ta.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  click(q("[data-handoff-submit]")!);
-  await flush();
-  expect(calls.actions.length).toBe(1);
-  expect(calls.actions[0][1]).toEqual({
-    conversation_id: "conv1",
-    agent_type: "codex",
-    model: "gpt-5.5",
-    effort: undefined,
-    direction: "Finish the migration test",
-  });
-  expect(calls.toasts).toEqual([["success", "Handed off to jx7new1 on Codex"]]);
-  expect(calls.navigates).toEqual(["newconv"]);
-  expect(closes.length).toBe(1);
-
-  // Back from the configuration returns to the agent list, and from there to the panel.
-  // Gemini has no model rail; it is offered once pinned (it is not a default pin).
-  storeState.currentUser = {
-    ...storeState.currentUser,
-    pinned_agents: ["claude_code", "codex", "gemini"],
-  } as typeof storeState.currentUser;
-  mount();
+  await act(async () => click(q("[data-handoff-submit]")!));
+  expect(web.backend.actions).toEqual([
+    {
+      name: "handoff:start",
+      args: {
+        conversation_id: session._id,
+        agent_type: "codex",
+        model: "gpt-5.5",
+        direction: "Finish the migration test",
+      },
+    },
+  ]);
+  await act(() =>
+    waitForDom(
+      document.body,
+      () =>
+        document.querySelector("[data-sonner-toast] [data-title]")
+          ?.textContent === "Handed off to jx7new1 on Codex",
+    ),
+  );
+  expect(web.store.getState().pendingNavigateId).toBe(handoffConversation._id);
+  expect(web.closes).toHaveLength(1);
+  await waitForPopupClose();
+  await web.close();
+  await mount({}, { pinnedAgents: ["claude_code", "codex", "gemini"] });
   openVerb("handoff");
   pickAgent("gemini");
   expect(q("[data-handoff-step]")!.textContent).toContain(
@@ -408,21 +321,23 @@ test("the hand-off step shows the chosen agent's models, takes a direction, and 
       (b) => b.textContent?.trim() === "Back",
     )!,
   );
-  expect(q("[data-pick-step]")).toBeNull();
-  expect(q("[data-session-control-panel]")).toBeTruthy();
-  storeState.currentUser = { _id: "u1", default_models: {} };
+  expectAbsent(q("[data-pick-step]"));
+  expectPresent(q("[data-session-control-panel]"));
 });
 
-test("a blank session and an agent with no model rail read their state on the identity line", () => {
-  mount({ messageCount: 0, model: undefined, effort: undefined });
+test("a blank session and an agent with no model rail read their state on the identity line", async () => {
+  const blank = await mount({
+    messageCount: 0,
+    model: undefined,
+    effort: undefined,
+  });
   expect(q("[data-session-state]")!.textContent).toContain("Blank session");
-  // Blank: every switch target is open (nothing to rebuild), the launch rail shows "default" effort.
   expect(q("[data-session-control-panel]")!.textContent).toContain("default");
   openVerb("switch");
   expect(agentRow("cursor").getAttribute("data-disabled")).toBeNull();
 
-  // Gemini has no modelConfig in the agent registry, so it has no model rail.
-  mount({ agentType: "gemini", model: undefined, effort: undefined });
+  await blank.close();
+  await mount({ agentType: "gemini", model: undefined, effort: undefined });
   expect(q("[data-session-state]")!.textContent).toContain(
     "keeps the model it launched with",
   );
@@ -431,107 +346,69 @@ test("a blank session and an agent with no model rail read their state on the id
   );
 });
 
-// ── Runs in (tmux / Agent SDK) ───────────────────────────────────────────────
-
 const pressBackend = (b: string) => {
   const row = q(`[data-backend-row="${b}"]`)!;
-  React.act(() => {
+  act(() => {
     row.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
   });
 };
 
-function liveClaude(fields: Record<string, unknown>) {
-  liveMeta = {
-    sessionId: "11111111-2222-4333-8444-555555555555",
-    agentType: "claude_code",
-    model: "claude-opus-4-8",
-    effort: "high",
-  };
-  const now = Date.now();
-  storeState.sessions.conv1 = {
-    ...storeState.sessions.conv1,
-    session_id: liveMeta.sessionId,
-    last_heartbeat: now,
-    updated_at: now,
-    agent_status_updated_at: now,
-    is_connected: true,
-    ...fields,
-  };
-}
-
 test("a live tmux Claude session offers the Agent SDK as a plain switch", async () => {
-  liveClaude({ agent_status: "idle", claude_backend: null });
-  try {
-    mount();
-    const rows = qa("[data-backend-row]");
-    expect(rows.map((r) => r.getAttribute("data-backend-row"))).toEqual([
-      "tmux",
-      "sdk",
-    ]);
-    expect(q('[data-backend-row="tmux"]')!.getAttribute("data-current")).toBe(
-      "true",
-    );
-    expect(q('[data-backend-row="sdk"]')!.textContent).toContain(
-      "Never parked",
-    );
-    pressBackend("sdk");
-    await flush();
-    expect(calls.backendSwitches).toEqual([["conv1", "sdk", false]]);
-    expect(q('[data-move-row="fork"]')!.textContent).toContain(
-      "on another agent",
-    );
-  } finally {
-    liveMeta = undefined;
-  }
+  const web = await mount(
+    {},
+    { fields: { agent_status: "idle", claude_backend: null } },
+  );
+  const rows = qa("[data-backend-row]");
+  expect(rows.map((r) => r.getAttribute("data-backend-row"))).toEqual([
+    "tmux",
+    "sdk",
+  ]);
+  expect(q('[data-backend-row="tmux"]')!.getAttribute("data-current")).toBe(
+    "true",
+  );
+  expect(q('[data-backend-row="sdk"]')!.textContent).toContain("Never parked");
+  await act(async () => pressBackend("sdk"));
+  expect(commands(web, "switchClaudeBackend")).toEqual([
+    [expect.any(String), session._id, "sdk", false],
+  ]);
+  expect(q('[data-move-row="fork"]')!.textContent).toContain(
+    "on another agent",
+  );
 });
 
 test("an SDK session mid-turn names the interrupt on the terminal row, and its fork row says the copy opens in a terminal", async () => {
-  liveClaude({ agent_status: "working", claude_backend: "sdk" });
-  try {
-    mount();
-    expect(q('[data-backend-row="sdk"]')!.getAttribute("data-current")).toBe(
-      "true",
-    );
-    expect(q('[data-backend-row="tmux"]')!.textContent).toContain(
-      "Stop the turn, run in a terminal",
-    );
-    pressBackend("tmux");
-    await flush();
-    expect(calls.backendSwitches).toEqual([["conv1", "tmux", true]]);
-    expect(q('[data-move-row="fork"]')!.textContent).toContain("in a terminal");
-  } finally {
-    liveMeta = undefined;
-  }
+  const web = await mount(
+    {},
+    { fields: { agent_status: "working", claude_backend: "sdk" } },
+  );
+  expect(q('[data-backend-row="sdk"]')!.getAttribute("data-current")).toBe(
+    "true",
+  );
+  expect(q('[data-backend-row="tmux"]')!.textContent).toContain(
+    "Stop the turn, run in a terminal",
+  );
+  await act(async () => pressBackend("tmux"));
+  expect(commands(web, "switchClaudeBackend")).toEqual([
+    [expect.any(String), session._id, "tmux", true],
+  ]);
+  expect(q('[data-move-row="fork"]')!.textContent).toContain("in a terminal");
 });
 
-test("a refused switch says why under the rows; a blank or non-Claude session shows no backend rows", () => {
-  liveClaude({ agent_status: "idle", claude_backend: null });
-  storeState.sessionCommands = {
-    r1: {
-      _id: "r1",
-      conversation_id: "conv1",
-      kind: "backend",
-      backend: "sdk",
-      command: "switch_claude_backend",
-      requested_at: Date.now() - 2000,
-      executed_at: Date.now() - 1000,
-      result: null,
-      error: "Stays in the terminal: Claude Code 2.0.1 is older than 2.1.248",
-    },
-  };
-  try {
-    mount();
-    expect(q("[data-backend-failed]")!.textContent).toContain(
-      "older than 2.1.248",
-    );
-    mount({ messageCount: 0 });
-    expect(q("[data-backend-rows]")).toBeNull();
-    mount({ agentType: "codex" });
-    expect(q("[data-backend-rows]")).toBeNull();
-  } finally {
-    liveMeta = undefined;
-    storeState.sessionCommands = {};
-  }
+test("a refused switch says why under the rows; a blank or non-Claude session shows no backend rows", async () => {
+  const fields = {
+    agent_status: "idle",
+    claude_backend: null,
+  } satisfies Partial<InboxSession>;
+  const refused = await mount({}, { fields, refused: true });
+  expect(q("[data-backend-failed]")!.textContent).toContain(
+    "older than 2.1.248",
+  );
+  await refused.close();
+  const blank = await mount({ messageCount: 0 }, { fields });
+  expectAbsent(q("[data-backend-rows]"));
+  await blank.close();
+  await mount({ agentType: "codex" }, { fields });
+  expectAbsent(q("[data-backend-rows]"));
 });
