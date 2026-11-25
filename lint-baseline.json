@@ -888,8 +888,8 @@
   "apps/cli/src/browser/snapshot.ts": {
     "swarm/no-comments": 77
   },
-  "apps/cli/src/browser/snapshotClickables.chrome.test.ts": {
-    "swarm/no-comments": 15
+  "apps/cli/src/browser/snapshot-clickables.chrome.test.ts": {
+    "swarm/no-comments": 13
   },
   "apps/cli/src/browser/snapshotOrdinals.chrome.test.ts": {
     "swarm/no-comments": 6
@@ -1684,7 +1684,7 @@
     "swarm/no-comments": 13
   },
   "apps/cli/src/cloud/transfer.test.ts": {
-    "swarm/no-comments": 45
+    "swarm/no-comments": 40
   },
   "apps/cli/src/cloud/transfer.ts": {
     "swarm/no-blocking-child-process-call": 7,
@@ -5576,8 +5576,8 @@
   "apps/cli/src/workflow/runResume.ts": {
     "swarm/no-comments": 69
   },
-  "apps/cli/src/workflow/runWorktree.test.ts": {
-    "swarm/no-comments": 12
+  "apps/cli/src/workflow/run-worktree.test.ts": {
+    "swarm/no-comments": 11
   },
   "apps/cli/src/workflow/runWorktree.ts": {
     "swarm/no-blocking-child-process-call": 3,
@@ -5717,10 +5717,10 @@
     "swarm/no-comments": 16
   },
   "apps/cli/src/workspace/chrome.e2e.test.ts": {
-    "swarm/no-comments": 23
+    "swarm/no-comments": 22
   },
   "apps/cli/src/workspace/chrome.ts": {
-    "swarm/no-comments": 45
+    "swarm/no-comments": 43
   },
   "apps/cli/src/workspace/cli.ts": {
     "swarm/no-blocking-child-process-call": 2,

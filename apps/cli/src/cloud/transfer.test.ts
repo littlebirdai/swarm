@@ -140,6 +140,7 @@ beforeEach(() => {
   process.env.HOME = home;
   process.env.XDG_CONFIG_HOME = path.join(home, ".config");
   process.env.GIT_CONFIG_GLOBAL = path.join(home, ".gitconfig");
+  process.env.GIT_CONFIG_NOSYSTEM = "1";
   process.env.CODEX_HOME = path.join(home, ".codex");
   host = {
     address: "cloud-test.invalid",
@@ -597,15 +598,12 @@ await program.parseAsync(process.argv);
   }, 30_000);
 
   describe("host git setup inside prepareCloudHost", () => {
-    // A registered non-AWS host (ensureUp is a no-op for it) whose `user`
-    // walks the host's /home/<user>/work back under the temp dir, so the
-    // "host" checkout lands there and never in the real ~/work.
     const hostId = "i-test";
-    // The host already runs this laptop's cast, so prepare installs nothing (castForPrepare
-    // reads the version over execFileSync ssh, which the PATH-shimmed fake ssh never sees).
     const currentCast = () => "cast current on the host";
     let work: string;
     beforeEach(() => {
+      process.env.GIT_ALLOW_PROTOCOL = "file";
+      process.env.SHELL = "/usr/bin/true";
       work = path.join(dir, "work");
       writeHosts([
         {
@@ -650,6 +648,10 @@ await program.parseAsync(process.argv);
       expect(git(prepared.repoPath, "rev-parse", "HEAD")).toBe(
         git(publisher, "rev-parse", "HEAD"),
       );
+      expect(git(prepared.repoPath, "remote", "get-url", "origin")).toBe(
+        origin,
+      );
+      expect(fs.existsSync(process.env.CLOUD_TEST_BUNDLE!)).toBe(false);
       const entry = readHosts().find((h) => h.id === hostId)!;
       expect(entry.deviceId).toBe("0123456789abcdef");
       expect(entry.gitPubkey).toBe(prepared.git!.pubkey!);

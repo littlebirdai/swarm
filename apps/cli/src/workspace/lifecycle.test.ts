@@ -3,6 +3,7 @@ import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { installFakeChrome } from "../test-helpers/fake-chrome.js";
 import {
   acquireRootCheckout,
   acquireWorkspace,
@@ -931,17 +932,7 @@ describe("workspace browser: on demand only", () => {
 
   beforeEach(() => {
     savedChromium = process.env.CODECAST_CHROMIUM;
-    const fake = path.join(repoRoot, "fake-chrome");
-    fs.writeFileSync(
-      fake,
-      `#!${process.execPath}
-const port = Number(process.argv.find((a) => a.startsWith("--remote-debugging-port="))!.split("=")[1]);
-Bun.listen({ hostname: "127.0.0.1", port, socket: { data() {} } });
-setInterval(() => {}, 1 << 30);
-`,
-      { mode: 0o755 },
-    );
-    process.env.CODECAST_CHROMIUM = fake;
+    process.env.CODECAST_CHROMIUM = installFakeChrome(repoRoot);
   });
   afterEach(() => {
     if (savedChromium === undefined) delete process.env.CODECAST_CHROMIUM;

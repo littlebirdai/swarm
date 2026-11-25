@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { installFakeChrome } from "../test-helpers/fake-chrome.js";
 import { parseWorkflowSource } from "./parser.js";
 import { lineRunDir, runWorkflow } from "./runner.js";
 import {
@@ -187,13 +188,7 @@ describe("a resumed run's worktree", () => {
       skipHooks: true,
       skipPool: true,
     });
-    // A stand-in Chrome: binds its CDP port and sleeps.
-    const fake = path.join(repoRoot, "fake-chrome");
-    fs.writeFileSync(
-      fake,
-      `#!${process.execPath}\nconst port = Number(process.argv.find((a) => a.startsWith("--remote-debugging-port="))!.split("=")[1]);\nBun.listen({ hostname: "127.0.0.1", port, socket: { data() {} } });\nsetInterval(() => {}, 1 << 30);\n`,
-      { mode: 0o755 },
-    );
+    const fake = installFakeChrome(repoRoot);
     // What `cast ws browser <name>` does, run by the station itself.
     const starter = path.join(repoRoot, "start-browser.ts");
     fs.writeFileSync(
