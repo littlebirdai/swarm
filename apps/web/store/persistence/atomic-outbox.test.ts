@@ -2,7 +2,7 @@ import {
   installSignedInPrincipal,
   TEST_PRINCIPAL,
 } from "../__tests__/fixtures/signedInPrincipal";
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { authPrincipal } from "../../lib/authPrincipal";
 import { makeRng } from "@codecast/inbox/__fixtures__/inboxProjectionGen";
@@ -450,9 +450,9 @@ test("two windows agree on durable pending locks after interrupted writes, echoe
   }
 }, 120_000);
 
-test.each([true, false])(
-  "a refusal restores an older lock only when its outbox row committed (%s)",
-  async (committed) => {
+test.each(["committed", "uncommitted", "account switched"] as const)(
+  "a refusal restores only a committed lock for the current account (%s)",
+  async (scenario) => {
     const older = {
       type: "field",
       ts: 1,
@@ -465,7 +465,7 @@ test.each([true, false])(
       value: "refused",
       lock: "refused",
     } as const;
-    if (committed) {
+    if (scenario !== "uncommitted") {
       await db.dispatchOutbox.put({
         ...bareEntry(),
         locks: [
@@ -484,13 +484,29 @@ test.each([true, false])(
       });
     }
     await db.meta.put({ key: "pending", value: { [lockKey]: refused } });
-    await writePatchesToIDB(
-      [{ op: "replace", path: ["pending"], value: {} }],
-      { pending: {} },
-      [{ key: lockKey, before: refused, after: older, restore: true }],
-    );
-    expect((await db.meta.get("pending"))?.value[lockKey]).toEqual(
-      committed ? older : undefined,
-    );
+    const current = authPrincipal.current;
+    let reads = 0;
+    const principal = spyOn(authPrincipal, "current").mockImplementation(() => {
+      const account = current();
+      if (scenario === "account switched" && ++reads === 2)
+        installSignedInPrincipal("successor");
+      return account;
+    });
+    try {
+      await writePatchesToIDB(
+        [{ op: "replace", path: ["pending"], value: {} }],
+        { pending: {} },
+        [{ key: lockKey, before: refused, after: older, restore: true }],
+      );
+      expect((await db.meta.get("pending"))?.value[lockKey]).toEqual(
+        scenario === "committed"
+          ? older
+          : scenario === "account switched"
+            ? refused
+            : undefined,
+      );
+    } finally {
+      principal.mockRestore();
+    }
   },
 );

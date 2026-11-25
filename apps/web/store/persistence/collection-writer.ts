@@ -19,7 +19,7 @@ import {
   resetLivenessLane,
 } from "../idbLivenessLane";
 import { COLLECTION_TABLES, db, purgeInProgress } from "./db";
-import { invalidateOutboxWrites } from "./outbox";
+import { invalidateOutboxWrites, outboxAccountId } from "./outbox";
 import { writePendingChanges } from "./pending-locks";
 import { persistenceOwned } from "./ownership";
 import { deleteInBatches } from "./retention";
@@ -74,22 +74,24 @@ export function writePatchesToIDB(
   pending?: PendingOutboxWrite,
 ) {
   if (purgeInProgress || !persistenceOwned()) return;
-  const pendingWrite = pending?.length
-    ? db
-        .transaction(
-          "rw",
-          pending.some((change) => change.restore)
-            ? [db.meta, db.dispatchOutbox]
-            : [db.meta],
-          () =>
-            writePendingChanges(
-              pending,
-              "sync",
-              () => !purgeInProgress && persistenceOwned(),
-            ),
-        )
-        .then(() => {})
-    : undefined;
+  const accountId = pending?.length ? outboxAccountId() : null;
+  const pendingWrite =
+    accountId && pending?.length
+      ? db
+          .transaction(
+            "rw",
+            pending.some((change) => change.restore)
+              ? [db.meta, db.dispatchOutbox]
+              : [db.meta],
+            () =>
+              writePendingChanges(
+                pending,
+                "sync",
+                () => !purgeInProgress && persistenceOwned(accountId),
+              ),
+          )
+          .then(() => {})
+      : undefined;
   if (_hydrating) return pendingWrite;
 
   const affectedKeys = new Set<string>();

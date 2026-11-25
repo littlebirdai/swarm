@@ -28,6 +28,7 @@ export async function writePendingChanges(
             ) ?? false,
         )
         .first();
+      if (!writable()) return null;
       if (committed) {
         value[key] = after;
         changed = true;
