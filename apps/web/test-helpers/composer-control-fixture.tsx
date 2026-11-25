@@ -116,7 +116,7 @@ export function createComposerMount(mount: typeof mountWeb) {
     const ui = await mount(node, {
       authenticated: true,
       dispatch: true,
-      clock: options.clock,
+      clock: options.clock ?? true,
       setup(backend, store) {
         backend.set(api.pendingMessages.getConversationPendingMessage, pending);
         backend.set(api.docSync.getPresence, []);
