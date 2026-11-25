@@ -33,6 +33,11 @@ serializable slot updates preserve the order of its state changes. Different
 entities may deliver in a different order; queries and enrichment read current
 state, and the snapshot plus pending slots plus log preserve convergence.
 
+A task's `project_id` is its board membership. A project move within a workspace
+changes this field in one task write and delivers one upsert in that scope.
+The source and destination boards read the same task row. Project interest
+scopes will need a joint leave and join operation when they exist.
+
 Scheduling is atomic with the save. A worker crash rolls back log allocation and
 completion together; it cannot roll back the already committed application save.
 A minute recovery sweep reschedules pending slots even if a scheduled invocation
