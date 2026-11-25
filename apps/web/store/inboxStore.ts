@@ -85,6 +85,8 @@ import {
   messageRowBytes,
   omitRedundantInlineImages,
   rekeyCachedMessages,
+  syncedMessageCounts,
+  warmMessageCounts,
 } from "./store-eviction";
 import {
   carryReleasedQueueRows,
@@ -22242,16 +22244,16 @@ const INITIAL_INBOX_DATA = Object.fromEntries(
 function freshInboxData(): Record<string, any> {
   return cloneInitialValue(INITIAL_INBOX_DATA);
 }
-
 // Every clear opens a new hydration epoch: a disk read that started for the
 // account before it (boot hydration, a conversation's tail) finds the epoch
 // moved when it resolves and lands nothing.
 let hydrationEpoch = 0;
 const currentHydrationEpoch = () => hydrationEpoch;
-
 /** Synchronous gate used before an old principal store is closed or purged. */
 export function clearProtectedInboxMemory(): void {
   hydrationEpoch++;
+  syncedMessageCounts.clear();
+  warmMessageCounts.clear();
   const state = useInboxStore.getState() as any;
   state._clearRuntimeBindings?.();
   const reset = freshInboxData();

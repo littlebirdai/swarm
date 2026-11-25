@@ -3,7 +3,7 @@ import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import {
   useInboxStore,
   isConvexId,
-  type Message,
+  ensureHydrated,
   visualOrderViewSig,
   inboxMemberRows,
   placeInboxRows,
@@ -11,12 +11,11 @@ import {
   sessionStructuralSig,
   type InboxSession,
 } from "../store/inboxStore";
-import { loadConversationMessages } from "../store/idb-cache";
 import {
-  MESSAGE_CACHE_LOW_WATER_BYTES,
-  MESSAGE_CACHE_PAGE_OVERHEAD,
-  messageRowBytes,
-  omitRedundantInlineImages,
+  MESSAGE_CACHE_BUDGET_BYTES,
+  rememberWarmMessageCount,
+  syncedMessageCounts as syncedCount,
+  warmMessageCounts,
 } from "../store/store-eviction";
 import { makeCollectionSig } from "../store/wakeSig";
 import { whenInputQuiet } from "../lib/inputQuiet";
@@ -86,6 +85,7 @@ export type WarmRow = {
   rereadFrom?: number | null;
   /** Last message_count we synced up to, if any. */
   syncedCount: number | undefined;
+  warmedCount?: number;
   inFlight: boolean;
 };
 
@@ -94,28 +94,27 @@ export function warmDepthForRank(rank: number): number {
   return rank < WARM_DEEP_RANKS ? WARM_DEEP_ROWS : WARM_TAIL_ROWS;
 }
 
-const WARM_PAGE_ESTIMATE_BYTES = 1024 * 1024 + MESSAGE_CACHE_PAGE_OVERHEAD;
-
 /** The pure planner: rows in on-screen order → the bounded fetch list. */
 export function planWarm(
   rows: WarmRow[],
-  bytesAvailable = Infinity,
+  limitWarmPages = false,
 ): WarmAction[] {
   const actions: WarmAction[] = [];
   let cold = 0;
   let deepens = 0;
-  for (const [rank, row] of rows.entries()) {
-    if (bytesAvailable < WARM_PAGE_ESTIMATE_BYTES) break;
-    if (row.inFlight || row.serverCount === 0) continue;
+  rows.forEach((row, rank) => {
+    if (row.inFlight || row.serverCount === 0) return;
     const depth = warmDepthForRank(rank);
     // No usable store row: fetch the row (a click would wait on it before
     // painting anything); the pass after it lands warms the messages.
     if (row.serverCount === null) {
       actions.push({ kind: "row", id: row.id });
-      continue;
+      return;
     }
+    const skipPage =
+      limitWarmPages && (rank >= 10 || row.warmedCount === row.serverCount);
     if (row.storedCount === 0) {
-      if (cold >= MAX_COLD_WARM_PER_PASS) continue;
+      if (skipPage || cold >= MAX_COLD_WARM_PER_PASS) return;
       cold++;
       actions.push({
         kind: "cold",
@@ -123,26 +122,27 @@ export function planWarm(
         rows: depth,
         serverCount: row.serverCount,
       });
-    } else if (row.storedCount < depth && row.hasMoreAbove) {
-      if (deepens >= MAX_DEEPEN_PER_PASS) continue;
+      return;
+    }
+    if (!skipPage && row.storedCount < depth && row.hasMoreAbove) {
+      if (deepens >= MAX_DEEPEN_PER_PASS) return;
       deepens++;
       actions.push({
         kind: "deepen",
         id: row.id,
         rows: depth - row.storedCount,
       });
-    } else {
-      if (row.serverCount <= (row.syncedCount ?? 0) || row.newestTs === null)
-        continue;
-      actions.push({
-        kind: "delta",
-        id: row.id,
-        after: row.rereadFrom ?? row.newestTs - 1,
-        serverCount: row.serverCount,
-      });
+      return;
     }
-    bytesAvailable -= WARM_PAGE_ESTIMATE_BYTES;
-  }
+    if (row.serverCount <= (row.syncedCount ?? 0) || row.newestTs === null)
+      return;
+    actions.push({
+      kind: "delta",
+      id: row.id,
+      after: row.rereadFrom ?? row.newestTs - 1,
+      serverCount: row.serverCount,
+    });
+  });
   return actions;
 }
 
@@ -175,7 +175,6 @@ export async function readForward(
   conversationId: string,
   after: number,
   maxPages = 40,
-  canCache?: (messages: Message[]) => boolean,
 ): Promise<number | null> {
   let cursor = after;
   let fetched = 0;
@@ -186,7 +185,6 @@ export async function readForward(
     });
     if (result === null) return fetched > 0 ? fetched : null;
     if (!result.messages?.length) break;
-    if (canCache && !canCache(result.messages)) return null;
     useInboxStore
       .getState()
       .mergeMessages(conversationId, result.messages, "append", {
@@ -204,11 +202,6 @@ export async function readForward(
 // in-flight set — two callers warming the same row is the duplicate fetch this
 // set exists to prevent.
 const inFlight = new Set<string>();
-// message_count we'd hold if caught up, per conversation. We warm the TAIL, so
-// we always hold the newest message — nothing newer exists until message_count
-// grows past this. Without it the delta branch re-fires an empty getNewMessages
-// every pass for any conversation holding a partial window.
-const syncedCount = new WeakMap<Message[], { count: number; epoch: number }>();
 // Row fetches tried this page life (runRow), whatever came back: a row the
 // server withholds, or sends without is_anchor, is not asked for every pass.
 const rowTried = new Set<string>();
@@ -258,7 +251,6 @@ export async function fetchOlderPage(
   convex: ConvexClient,
   conversationId: string,
   limit: number,
-  canCache?: (messages: Message[]) => boolean,
 ): Promise<boolean> {
   const oldest =
     useInboxStore.getState().messages[conversationId]?.[0]?.timestamp;
@@ -269,7 +261,7 @@ export async function fetchOlderPage(
     oldest,
     limit,
   );
-  if (!res?.messages || (canCache && !canCache(res.messages))) return false;
+  if (!res?.messages) return false;
   useInboxStore
     .getState()
     .mergeMessages(conversationId, res.messages, "prepend", {
@@ -303,42 +295,95 @@ export function deepenConversation(
     .finally(() => inFlight.delete(conversationId));
 }
 
-async function runCold(
+function runCold(
   convex: ConvexClient,
   action: Extract<WarmAction, { kind: "cold" }>,
-  canCache: (...pages: Message[][]) => boolean,
-): Promise<boolean> {
-  const { id, rows } = action;
-  const cached = await loadConversationMessages(id);
-  if (!canCache() || useInboxStore.getState().messages[id]?.length)
-    return false;
+) {
+  const { id, rows, serverCount } = action;
+  inFlight.add(id);
+  ensureHydrated(id)
+    .then((restored) => {
+      if (restored) {
+        rememberWarmMessageCount(id, serverCount);
+        rememberWarmMessageCount(id, serverCount, syncedCount);
+        return null;
+      }
+      return convex.query(api.conversations.listMessages, {
+        conversation_id: id as Id<"conversations">,
+        paginationOpts: { numItems: rows, cursor: null },
+      });
+    })
+    .then((res: any) => {
+      if (!res) return;
+      const page = res?.page;
+      if (
+        Array.isArray(page) &&
+        page.length > 0 &&
+        (useInboxStore.getState().messages[id]?.length ?? 0) === 0
+      ) {
+        useInboxStore.getState().setMessages(id, [...page].reverse(), {
+          hasMoreAbove: !res.isDone,
+          initialized: true,
+        });
+        rememberWarmMessageCount(id, serverCount);
+        rememberWarmMessageCount(id, serverCount, syncedCount);
+      }
+    })
+    .catch((err: unknown) => {
+      console.warn("[inboxWarm] cold warm failed", { id, err });
+    })
+    .finally(() => inFlight.delete(id));
+}
 
-  const navigator = cached?.userMessages ?? [];
-  if (cached?.messages.length) {
-    if (!canCache(cached.messages, navigator)) return false;
-    const state = useInboxStore.getState();
-    state.setMessages(id, cached.messages, cached.pagination, "cache");
-    if (navigator.length && !state.userMessages[id] && canCache(navigator))
-      state.setUserMessages(id, navigator, "cache");
-    return false;
-  }
+function runRow(convex: ConvexClient, id: string) {
+  inFlight.add(id);
+  rowTried.add(id);
+  convex
+    .query(api.conversations.getConversation, {
+      conversation_id: id as Id<"conversations">,
+      limit: 1,
+    })
+    .then((data: any) => {
+      if (data)
+        useInboxStore
+          .getState()
+          .seedSession(sessionRowFromConversation(id, data));
+    })
+    .catch((err: unknown) => {
+      console.warn("[inboxWarm] row warm failed", { id, err });
+    })
+    .finally(() => inFlight.delete(id));
+}
 
-  const result = await convex.query(api.conversations.listMessages, {
-    conversation_id: id as Id<"conversations">,
-    paginationOpts: { numItems: rows, cursor: null },
-  });
-  const state = useInboxStore.getState();
-  if (state.messages[id]?.length) return false;
-  const page = Array.isArray(result?.page) ? result.page : [];
-  if (!canCache(page, navigator)) return false;
-  if (page.length)
-    state.setMessages(id, [...page].reverse(), {
-      hasMoreAbove: !result.isDone,
-      initialized: true,
-    });
-  if (navigator.length && !state.userMessages[id] && canCache(navigator))
-    state.setUserMessages(id, navigator, "cache");
-  return page.length > 0;
+function runDelta(
+  convex: ConvexClient,
+  action: Extract<WarmAction, { kind: "delta" }>,
+) {
+  const { id, serverCount } = action;
+  inFlight.add(id);
+  readForward(convex, id, action.after)
+    .then(() => rememberWarmMessageCount(id, serverCount, syncedCount))
+    .catch((err: unknown) => {
+      console.warn("[inboxWarm] delta warm failed", { id, err });
+    })
+    .finally(() => inFlight.delete(id));
+}
+
+function runDeepen(
+  convex: ConvexClient,
+  action: Extract<WarmAction, { kind: "deepen" }>,
+) {
+  inFlight.add(action.id);
+  const count = useInboxStore.getState().sessions[action.id]?.message_count;
+  fetchOlderPage(convex, action.id, action.rows)
+    .then((applied) => {
+      if (applied && count !== undefined)
+        rememberWarmMessageCount(action.id, count);
+    })
+    .catch((err: unknown) => {
+      console.warn("[inboxWarm] deepen failed", { id: action.id, err });
+    })
+    .finally(() => inFlight.delete(action.id));
 }
 
 /**
@@ -435,7 +480,6 @@ export function warmRowsFromState(
     if (!isConvexId(id)) continue;
     const msgs = st.messages[id];
     const storedCount = msgs?.length ?? 0;
-    const watermark = msgs && syncedCount.get(msgs);
     rows.push({
       id,
       // The base list omits message_count (fast_fields_in_overlay); the store
@@ -453,106 +497,35 @@ export function warmRowsFromState(
         msgs,
         st.sessions[id]?.agent_type ?? (session as any)?.agent_type,
       ),
-      syncedCount:
-        watermark?.epoch === st.syncLogFloorEpoch ? watermark.count : undefined,
+      syncedCount: syncedCount.get(id),
+      warmedCount: warmMessageCounts.get(id),
       inFlight: inFlight.has(id),
     });
   }
   return rows;
 }
 
-let warmPass: Promise<void> | undefined;
-
 /** One warm pass over what is on screen. Idempotent and cheap when caught up:
  *  visualOrder is memoized on the placement inputs, and every row already at
  *  its tier depth plans to nothing. */
-export function warmVisibleSessions(convex: ConvexClient): Promise<void> {
-  if (warmPass) return warmPass;
-
-  const state = useInboxStore.getState();
-  const epoch = state.syncLogFloorEpoch;
+export function warmVisibleSessions(convex: ConvexClient): void {
+  const st = useInboxStore.getState();
+  const rows = warmRowsFromState(st);
   const plan = planWarm(
-    warmRowsFromState(state),
-    MESSAGE_CACHE_LOW_WATER_BYTES - state.messageCacheBytes,
+    rows,
+    st.messageCacheBytes >= MESSAGE_CACHE_BUDGET_BYTES / 2,
   );
   lastPass = {
     at: Date.now(),
     planned: plan.length,
-    kinds: plan.map((action) => action.kind),
+    kinds: plan.map((a) => a.kind),
   };
-  warmPass = Promise.resolve()
-    .then(async () => {
-      for (const action of plan) {
-        const { id, kind } = action;
-        const current = useInboxStore.getState();
-        if (
-          current.syncLogFloorEpoch !== epoch ||
-          current.messageCacheBytes + WARM_PAGE_ESTIMATE_BYTES >
-            MESSAGE_CACHE_LOW_WATER_BYTES
-        )
-          break;
-        if (inFlight.has(id)) continue;
-        inFlight.add(id);
-        let fits = true;
-        const canCache = (...pages: Message[][]) => {
-          const latest = useInboxStore.getState();
-          if (latest.syncLogFloorEpoch !== epoch) return (fits = false);
-          let bytes = latest.messageCacheBytes;
-          for (const page of pages) {
-            if (!page.length) continue;
-            bytes += MESSAGE_CACHE_PAGE_OVERHEAD;
-            for (const row of omitRedundantInlineImages(page))
-              bytes += messageRowBytes(row);
-          }
-          fits = bytes <= MESSAGE_CACHE_LOW_WATER_BYTES;
-          return fits;
-        };
-
-        try {
-          if (kind === "row") {
-            rowTried.add(id);
-            const data = await convex.query(api.conversations.getConversation, {
-              conversation_id: id as Id<"conversations">,
-              limit: 1,
-            });
-            if (data && canCache())
-              useInboxStore
-                .getState()
-                .seedSession(sessionRowFromConversation(id, data));
-          } else if (kind === "deepen") {
-            const before = current.messages[id];
-            await fetchOlderPage(convex, id, action.rows, canCache);
-            const after = useInboxStore.getState().messages[id];
-            const watermark = before && syncedCount.get(before);
-            if (after && watermark && canCache())
-              syncedCount.set(after, watermark);
-          } else {
-            const caughtUp =
-              kind === "cold"
-                ? await runCold(convex, action, canCache)
-                : (await readForward(
-                    convex,
-                    id,
-                    action.after,
-                    40,
-                    canCache,
-                  )) !== null;
-            const after = useInboxStore.getState().messages[id];
-            if (caughtUp && after && canCache())
-              syncedCount.set(after, { count: action.serverCount, epoch });
-          }
-        } catch (err) {
-          console.warn("[inboxWarm] warm failed", { id, kind, err });
-        } finally {
-          inFlight.delete(id);
-        }
-        if (!fits) break;
-      }
-    })
-    .finally(() => {
-      warmPass = undefined;
-    });
-  return warmPass;
+  for (const action of plan) {
+    if (action.kind === "row") runRow(convex, action.id);
+    else if (action.kind === "cold") runCold(convex, action);
+    else if (action.kind === "deepen") runDeepen(convex, action);
+    else runDelta(convex, action);
+  }
 }
 
 /** Store changes coalesce into one warm pass at most this often. */
@@ -581,16 +554,11 @@ type WarmInputs = Pick<
   | "sessions"
   | "messages"
   | "pagination"
-  | "messageCacheBytes"
   | "liveInboxIds"
   | "teamInboxIds"
   | "orgTree"
 >;
 const warmInputsChanged = (a: WarmInputs, b: WarmInputs) =>
-  a.messageCacheBytes + WARM_PAGE_ESTIMATE_BYTES <=
-    MESSAGE_CACHE_LOW_WATER_BYTES !==
-    b.messageCacheBytes + WARM_PAGE_ESTIMATE_BYTES <=
-      MESSAGE_CACHE_LOW_WATER_BYTES ||
   (a.sessions !== b.sessions &&
     warmSessionsSig(a.sessions) !== warmSessionsSig(b.sessions)) ||
   (a.messages !== b.messages &&
@@ -703,5 +671,6 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
       return lastPass;
     },
     inFlight,
+    syncedCount,
   };
 }
