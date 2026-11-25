@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { Database } from "bun:sqlite";
-import { readTranscriptIngest, ingestRecord } from "../ingestClient.js";
+import { readTranscriptIngest, ingestRecord } from "../ingest-client.js";
 
 export async function emissionReview(f: any) {
   const { d, home, getPosition, setPosition } = f,

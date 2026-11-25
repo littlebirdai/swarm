@@ -180,7 +180,7 @@ import {
   sameIngestFile,
   serializeTranscript,
   validateTranscriptIngest,
-} from "./workers/ingestClient.js";
+} from "./workers/ingest-client.js";
 import {
   checkTranscriptDeadline,
   outsideTranscriptDeadline,

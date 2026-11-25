@@ -7,7 +7,7 @@ import {
   currentTranscriptDeadline,
   withTranscriptDeadline,
 } from "../ingestDeadline.js";
-import { readTranscriptIngest } from "../ingestClient.js";
+import { readTranscriptIngest } from "../ingest-client.js";
 
 export async function coreReview(f: any) {
   const { d, home, getPosition } = f,

@@ -5203,7 +5203,7 @@
   "apps/cli/src/workers/ingestClient.bounds.test.ts": {
     "swarm/no-comments": 6
   },
-  "apps/cli/src/workers/ingestClient.ts": {
+  "apps/cli/src/workers/ingest-client.ts": {
     "swarm/no-comments": 25
   },
   "apps/cli/src/workers/ingestDatabase.ts": {

@@ -10,7 +10,7 @@ import {
   CLOUD_AGENT_ACTION_SUBTYPE,
   CLOUD_AGENT_PROVIDERS,
 } from "@codecast/agent-clients/cloudAgents";
-import { readTranscriptIngest } from "../workers/ingestClient.js";
+import { readTranscriptIngest } from "../workers/ingest-client.js";
 import {
   buildCodexCloudTranscript,
   CodexCloudAdapter,

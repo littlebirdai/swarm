@@ -122,7 +122,7 @@ mock.module(parserPath, () => ({
 }));
 const { configureDaemonWorkers, closeDaemonWorkers, ingestWorkerHost } =
   await import("../bridge.js");
-const { readTranscriptIngest } = await import("../ingestClient.js");
+const { readTranscriptIngest } = await import("../ingest-client.js");
 const children: ChildProcess[] = [];
 let stderrBytes = 0;
 const digest = createHash("sha256");
