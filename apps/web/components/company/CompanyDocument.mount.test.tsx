@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { act, type ComponentProps } from "react";
 import { syncMetaKey } from "../../hooks/syncMetaKeys";
 import { stampRoster } from "../../lib/activeTeam";
-import type { DispatchCallArgs } from "../../lib/dispatchBinding";
+import type { DispatchCallArgs } from "../../lib/dispatch-binding";
 import { useInboxStore } from "../../store/inboxStore";
 import { webBuilders } from "../../test-helpers/builders";
 import { mountWeb } from "../../test-helpers/mountWeb";

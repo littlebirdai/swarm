@@ -26,7 +26,7 @@ import {
   flushPersistence,
   loadSplitRows,
   persistSplitRows,
-} from "@codecast/web/store/idbCache";
+} from "@codecast/web/store/idb-cache";
 import { setSplitPersistence } from "@codecast/web/hooks/useSplitQuery";
 import { bootMark } from "@/lib/bootProfile";
 

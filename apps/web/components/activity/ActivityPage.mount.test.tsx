@@ -89,7 +89,7 @@ const React = await import("react");
 const { act, Profiler } = React;
 const { createRoot } = await import("react-dom/client");
 const { MemoryRouter, useLocation } = await import("react-router");
-const cache = await import("../../store/idbCache");
+const cache = await import("../../store/idb-cache");
 let hydrated!: () => void;
 const hydration = new Promise<void>((resolve) => {
   hydrated = resolve;

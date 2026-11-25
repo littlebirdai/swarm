@@ -1,4 +1,4 @@
-// Web persistence entry. Metro resolves ./idbCache.native.ts on mobile.
+// Web persistence entry. Metro resolves ./idb-cache.native.ts on mobile.
 export { flushLivenessWrites, LIVENESS_FLUSH_MS } from "./idbLivenessLane";
 export {
   partitionSessionRetention,

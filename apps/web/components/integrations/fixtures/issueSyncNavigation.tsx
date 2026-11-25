@@ -25,7 +25,7 @@ const restore = replaceGlobals({
   sessionStorage: dom.window.sessionStorage,
   IS_REACT_ACT_ENVIRONMENT: true,
 });
-const cache = await import("../../../store/idbCache");
+const cache = await import("../../../store/idb-cache");
 const setHydrating = cache.setHydrating;
 let finishHydration!: () => void;
 const hydrated = new Promise<void>((resolve) => {

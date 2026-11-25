@@ -34,7 +34,7 @@ import {
   SESSIONS_PRESERVE_FIELDS,
 } from "./inboxStore";
 import { INBOX_FACT_FIELDS } from "@codecast/inbox/inboxFields";
-import { CACHE_SCHEMA_VERSION, writePatchesToIDB } from "./idbCache";
+import { CACHE_SCHEMA_VERSION, writePatchesToIDB } from "./idb-cache";
 import { followerPersistencePatches } from "./followerPersistence";
 import { syncTransaction } from "./syncTransaction";
 import type { GestureMessage } from "./gestureBridge";

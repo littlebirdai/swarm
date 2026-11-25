@@ -9,7 +9,7 @@ import {
   toastWriteError,
   wasDispatchFailureReported,
   type DispatchCallArgs,
-} from "../dispatchBinding";
+} from "../dispatch-binding";
 
 const ID = "a".repeat(32);
 const store = () => useInboxStore.getState();

@@ -24415,7 +24415,7 @@
   "apps/web/lib/diffSeenMarks.ts": {
     "swarm/no-comments": 15
   },
-  "apps/web/lib/dispatchBinding.ts": {
+  "apps/web/lib/dispatch-binding.ts": {
     "swarm/no-comments": 96
   },
   "apps/web/lib/dispatchRefusal.ts": {
@@ -24650,7 +24650,7 @@
   "apps/web/lib/hostedComposer.ts": {
     "swarm/no-comments": 7
   },
-  "apps/web/lib/hostedKick.ts": {
+  "apps/web/lib/hosted-kick.ts": {
     "swarm/no-comments": 9
   },
   "apps/web/lib/hostedNotice.test.ts": {
@@ -27852,10 +27852,10 @@
   "apps/web/store/hiddenBucketTree.ts": {
     "swarm/no-comments": 10
   },
-  "apps/web/store/idbCache.native.ts": {
+  "apps/web/store/idb-cache.native.ts": {
     "swarm/no-comments": 132
   },
-  "apps/web/store/idbCache.ts": {
+  "apps/web/store/idb-cache.ts": {
     "swarm/no-comments": 1
   },
   "apps/web/store/idbCacheKeys.native.ts": {

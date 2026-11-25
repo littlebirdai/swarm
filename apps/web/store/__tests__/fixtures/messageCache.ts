@@ -5,7 +5,7 @@ import { indexedDB, IDBKeyRange, IDBObjectStore } from "fake-indexeddb";
 Dexie.dependencies.indexedDB = indexedDB;
 Dexie.dependencies.IDBKeyRange = IDBKeyRange;
 const { stampCacheOwner } = await import("./signedInPrincipal");
-const cache = await import("../../idbCache");
+const cache = await import("../../idb-cache");
 const { ensureHydrated, useInboxStore } = await import("../../inboxStore");
 const now = Date.now();
 const message = (id: string) => ({

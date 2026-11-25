@@ -1,6 +1,6 @@
 // The audit trail of server writes this window sent, the write-side twin of
 // __navLog (store/viewNav.ts). Every dispatch passes through one binding
-// (lib/dispatchBinding.ts), which records the action, the rows it names, what
+// (lib/dispatch-binding.ts), which records the action, the rows it names, what
 // set it off and how it ended. A session that was killed with no click on
 // record (jx7970z, 2026-10-06) took a prod dump and analytics forensics to
 // trace to a keyboard chord; `__writeLog()` in the acting window answers that

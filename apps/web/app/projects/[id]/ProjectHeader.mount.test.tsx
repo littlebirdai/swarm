@@ -8,7 +8,7 @@ import { act } from "react";
 import { useLocation, useNavigate, type NavigateFunction } from "react-router";
 import { ORG_FIXTURE } from "../../../components/org/orgFixture";
 import { AUTH_JWT_STORAGE_KEY } from "../../../lib/localAuth";
-import type { DispatchCallArgs } from "../../../lib/dispatchBinding";
+import type { DispatchCallArgs } from "../../../lib/dispatch-binding";
 import { useInboxStore } from "../../../store/inboxStore";
 import { webBuilders } from "../../../test-helpers/builders";
 import { DashboardLayoutStandIn } from "../../../test-helpers/DashboardLayoutStandIn";

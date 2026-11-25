@@ -6,7 +6,7 @@ import { afterAll, afterEach, mock, spyOn, test } from "bun:test";
 import assert from "node:assert/strict";
 import * as React from "react";
 import { act } from "react";
-import type { DispatchCallArgs } from "../../../lib/dispatchBinding";
+import type { DispatchCallArgs } from "../../../lib/dispatch-binding";
 import {
   useInboxStore,
   type InboxSession,

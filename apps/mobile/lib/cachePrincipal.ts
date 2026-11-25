@@ -3,7 +3,7 @@
 // provider exists, so this reader is installed from the app entry (index.ts)
 // and reads the stored Convex Auth token straight from the keychain.
 import * as SecureStore from "expo-secure-store";
-import { setCachePrincipalSource } from "@codecast/web/store/idbCache";
+import { setCachePrincipalSource } from "@codecast/web/store/idb-cache";
 import { CONVEX_URL } from "./convex";
 
 export type AccessIdentity = { principalId: string; subject: string };

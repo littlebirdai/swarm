@@ -17,7 +17,7 @@ Dexie.dependencies.IDBKeyRange = IDBKeyRange;
 const { installSignedInPrincipal, stampCacheOwner } =
   await import("./signedInPrincipal");
 installSignedInPrincipal("test-owner");
-const cache = await import("../../idbCache");
+const cache = await import("../../idb-cache");
 const { useInboxStore, hydrateMergeValue } = await import("../../inboxStore");
 const { readPendingMessageJournal } =
   await import("../../pendingMessageJournal");

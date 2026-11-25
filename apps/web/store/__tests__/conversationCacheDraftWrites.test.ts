@@ -7,7 +7,7 @@ import {
   _reopenForTests,
   flushConversationMessages,
   setHydrating,
-} from "../idbCache";
+} from "../idb-cache";
 
 await _reopenForTests({ indexedDB, IDBKeyRange });
 setHydrating(false);

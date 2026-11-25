@@ -726,7 +726,7 @@ apps/web/store/__tests__/undoWriters.contract.test.ts 900
 apps/web/store/capabilities.ts 1400
 apps/web/store/chatSlice.ts 2050
 apps/web/store/clientSyncRegistry.ts 2900
-apps/web/store/idbCache.native.ts 1200
+apps/web/store/idb-cache.native.ts 1200
 apps/web/store/inboxDigestCompare.ts 850
 apps/web/store/inboxStore.ts 23150
 apps/web/store/orgSlice.ts 2550

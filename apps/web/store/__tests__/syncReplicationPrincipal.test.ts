@@ -5,7 +5,7 @@ import {
   type ReplicationChannel,
   type ReplicationMessage,
 } from "@platform/engine";
-import { CACHE_SCHEMA_VERSION } from "../idbCache";
+import { CACHE_SCHEMA_VERSION } from "../idb-cache";
 import {
   replicationChannelName,
   replicationLockName,

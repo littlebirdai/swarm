@@ -21,7 +21,7 @@ const disk = new Map<string, string>();
   },
 };
 const { persistPendingMessageChanges, loadCache } =
-  await import("../../idbCache.native");
+  await import("../../idb-cache.native");
 const input = {
   c: [
     {

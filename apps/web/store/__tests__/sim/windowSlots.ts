@@ -467,8 +467,8 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "lib/desktop.ts:paneWatchers": DESKTOP,
   "lib/desktopApps.ts:placedByShell": DESKTOP,
   "lib/desktopHandoff.ts:IN_SHELL_ROOT_SEGMENTS": CONSTANT,
-  "lib/dispatchBinding.ts:CALLER_REPORTED_ACTIONS": CONSTANT,
-  "lib/dispatchBinding.ts:QUIET_ACTIONS": CONSTANT,
+  "lib/dispatch-binding.ts:CALLER_REPORTED_ACTIONS": CONSTANT,
+  "lib/dispatch-binding.ts:QUIET_ACTIONS": CONSTANT,
   "lib/imageByteCache.ts:opaqueOrigins": IMAGE_URLS,
   "lib/inboxViewHistory.ts:applying": {
     shared:

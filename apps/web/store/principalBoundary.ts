@@ -9,7 +9,7 @@ import {
 import { authPrincipal } from "../lib/authPrincipal";
 import { readDurableAuthValue } from "../lib/durableAuthStorage";
 import { AUTH_JWT_STORAGE_KEY } from "../lib/localAuth";
-import { purgeLocalCache } from "./idbCache";
+import { purgeLocalCache } from "./idb-cache";
 import { clearProtectedInboxMemory, rebootPersistence } from "./inboxStore";
 import { stopSyncReplication } from "./syncReplication";
 

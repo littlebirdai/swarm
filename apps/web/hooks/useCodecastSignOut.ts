@@ -1,7 +1,7 @@
 import { useDurableSignOut } from "@platform/auth/web";
 import { AUTH_STORAGE_KEYS } from "@/lib/localAuth";
 import { purgeDurableAuthValues } from "@/lib/durableAuthStorage";
-import { purgeLocalCache } from "@/store/idbCache";
+import { purgeLocalCache } from "@/store/idb-cache";
 import { clearProtectedInboxMemory } from "@/store/inboxStore";
 
 /**

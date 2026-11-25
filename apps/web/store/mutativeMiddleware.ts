@@ -1,5 +1,5 @@
 import { captureException } from "./pendingInputError";
-import { persistPendingMessageChanges } from "./idbCache";
+import { persistPendingMessageChanges } from "./idb-cache";
 // Codecast's binding of the @platform/engine middleware. The engine owns the
 // mechanics (mutative drafts, auto-pending, the durable dispatch outbox, the
 // storage watchdog, receipt envelopes); everything codecast-shaped — the sync

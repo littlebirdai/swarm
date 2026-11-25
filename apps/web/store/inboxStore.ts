@@ -190,7 +190,7 @@ import {
   salvageLocalFirstV2Data,
   setUpgradeBlockedListener,
   PERSISTENCE_AVAILABLE,
-} from "./idbCache";
+} from "./idb-cache";
 import {
   DISPATCH_TABLE_MAP,
   HYDRATION_CRITICAL_READ_KEYS,

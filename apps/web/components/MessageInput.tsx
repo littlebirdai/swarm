@@ -64,7 +64,7 @@ import type { SkillItem } from "../lib/conversationProcessor";
 import { KeyCap, ShortcutTooltip } from "./KeyboardShortcutsHelp";
 import { QUEUE_CHORD } from "../shortcuts/sendChords";
 import { toast } from "sonner";
-import { toastWriteError } from "../lib/dispatchBinding";
+import { toastWriteError } from "../lib/dispatch-binding";
 import { appendToDraft } from "../lib/quoteFormat";
 import {
   imagePlaceholderToken,

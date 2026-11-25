@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { useInboxStore } from "../inboxStore";
-import { applyDispatchFailure } from "../../lib/dispatchBinding";
+import { applyDispatchFailure } from "../../lib/dispatch-binding";
 import { applyRelationPick } from "../../lib/taskRelations";
 import { isRefusedDispatchError } from "../mutativeMiddleware";
 import { UNDO_SPECS } from "../undo/policy";

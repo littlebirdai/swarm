@@ -34,7 +34,7 @@ import {
 } from "../inboxStore";
 import { convHasPendingSend, pendingRowsUnsettled } from "../inboxOverlays";
 import { _resetSnapshotLedger } from "../idbCollectionDiff";
-import { isPersistedStoreKey } from "../idbCache";
+import { isPersistedStoreKey } from "../idb-cache";
 import { ingestPlanDetail } from "../../hooks/useSyncPlans";
 import { placeSections } from "./placeTestHarness";
 import { hiddenBucketTree } from "../hiddenBucketTree";

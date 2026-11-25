@@ -374,7 +374,7 @@ export const CAPABILITY_CLIENT_SYNC_REGISTRY = {
 } as const;
 
 /**
- * The Dexie object stores this slice needs, for the next `store/idbCache.ts`
+ * The Dexie object stores this slice needs, for the next `store/idb-cache.ts`
  * version block. A registered collection with no table is not a partial
  * failure — `MISSING_COLLECTION_TABLES` catches it, and until someone reads that
  * log the whole cache degrades for the key.

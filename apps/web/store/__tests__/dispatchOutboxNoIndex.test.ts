@@ -6,7 +6,7 @@ import {
   removeDispatch,
   loadOutbox,
   _reopenForTests,
-} from "../idbCache";
+} from "../idb-cache";
 
 // bun has no IndexedDB, and the Dexie singleton may already have failed to
 // open in another test file: bind it to fake-indexeddb and reopen.

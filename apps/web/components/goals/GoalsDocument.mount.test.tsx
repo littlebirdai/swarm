@@ -4,7 +4,7 @@ import { getUndoHistory } from "@platform/engine";
 import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { act } from "react";
-import type { DispatchCallArgs } from "../../lib/dispatchBinding";
+import type { DispatchCallArgs } from "../../lib/dispatch-binding";
 import { webBuilders } from "../../test-helpers/builders";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { pending } from "../../test-helpers/testConvex";

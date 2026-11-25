@@ -8,7 +8,7 @@ import {
   loadCache,
   RETIRED_META_KEYS,
   setHydrating,
-} from "../idbCache";
+} from "../idb-cache";
 import { META_KEYS } from "../persistence/schema";
 
 await _reopenForTests({ indexedDB, IDBKeyRange });

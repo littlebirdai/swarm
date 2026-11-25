@@ -44,7 +44,7 @@ if (scenario === "durable-read-fails") {
     return version === undefined ? open(name) : open(name, version);
   };
 }
-const cache = await import("../../idbCache");
+const cache = await import("../../idb-cache");
 const {
   CACHE_SCHEMA_VERSION,
   loadCache,

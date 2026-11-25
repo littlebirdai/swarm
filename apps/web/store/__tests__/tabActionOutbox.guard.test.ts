@@ -6,9 +6,9 @@ import {
   loadOutbox,
   removeDispatch,
   _reopenForTests,
-} from "../idbCache";
+} from "../idb-cache";
 import { useInboxStore } from "../inboxStore";
-import { makeDispatchBinding } from "../../lib/dispatchBinding";
+import { makeDispatchBinding } from "../../lib/dispatch-binding";
 import { storableActionArgs } from "../../lib/tabSafePath";
 
 // The engine keeps an action's args as the caller passed them: the outbox row

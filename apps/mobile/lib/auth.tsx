@@ -28,7 +28,7 @@ import {
   clearProtectedInboxMemory,
   useInboxStore,
 } from "@codecast/web/store/inboxStore";
-import { purgeLocalCache } from "@codecast/web/store/idbCache";
+import { purgeLocalCache } from "@codecast/web/store/idb-cache";
 import { parseAccessIdentity } from "./cachePrincipal";
 import { openPrincipalDispatchOutbox } from "./dispatchOutbox";
 import * as SplashScreen from "expo-splash-screen";

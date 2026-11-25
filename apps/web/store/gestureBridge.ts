@@ -3,7 +3,7 @@
 // The desktop app runs several SAME-ORIGIN windows (main, compose palette, …)
 // against ONE IndexedDB principal store, and each window persists rows with
 // per-row WHOLE-ROW puts diffed against its own in-memory shadow
-// (idbCache.ts → writePatchesToIDB → diffCollection). That makes stale memory
+// (idb-cache.ts → writePatchesToIDB → diffCollection). That makes stale memory
 // destructive, not merely stale: a window that never learned about a gesture
 // made in a sibling window still holds the pre-gesture row, and the next time
 // anything about that row changes it writes the whole row back — clobbering

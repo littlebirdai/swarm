@@ -17,7 +17,7 @@ const read = (file: string) => readFileSync(join(storeDir, file), "utf8");
 const GUARDED = [
   "inboxStore.ts",
   "clientSyncRegistry.ts",
-  "idbCache.ts",
+  "idb-cache.ts",
   ...readdirSync(join(storeDir, "persistence"))
     .filter((file) => file.endsWith(".ts"))
     .map((file) => `persistence/${file}`),

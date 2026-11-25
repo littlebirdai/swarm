@@ -5,7 +5,7 @@ import { afterEach, spyOn, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import assert from "node:assert/strict";
 import { act } from "react";
-import type { DispatchCallArgs } from "../../../../lib/dispatchBinding";
+import type { DispatchCallArgs } from "../../../../lib/dispatch-binding";
 import { stampRoster } from "../../../../lib/activeTeam";
 import { useInboxStore, type ProjectItem } from "../../../../store/inboxStore";
 import { webBuilders } from "../../../../test-helpers/builders";
