@@ -1,7 +1,6 @@
 # Provider adapter cutover
 
-The owned dialects cover Grok over ACP, Codex over app-server, and
-Claude Code over stream-json. The Codex pilot uses version 0.153.4.
+Main supports owned Grok over ACP and Codex 0.153.4 over app-server.
 [Provider adapter](../../packages/provider-adapter/README.md)
 
 ## Contract for all dialects
@@ -105,46 +104,47 @@ under `CODECAST_FENCED_EXECUTION_V1`. Persist the driver choice in the pilot
 binding across resume. Reuse auth, checkout, sandbox, and approval inputs.
 [Registration](../../apps/cli/src/daemon.ts#L43857-L44040), [driver](../../apps/cli/src/execution/drivers/codexAppServer.ts#L62-L232), [runtime](../../apps/cli/src/execution/runtimeRail.ts#L275-L327)
 
-Keep the split command handlers. Route start, resume, and stop through the
-runtime. Route inbox steer through its coordinator and journal. Route interrupt
-and prompt answers to the bound handle with the expected IDs. Keep terminal
-I/O on its bridge. Record `in-doubt` as ambiguous, and require a durable
-receipt for delivery success. The legacy driver uses the turn-start reply.
-[Dispatch](../../apps/cli/src/daemon-commands/dispatch.ts#L49), [start](../../apps/cli/src/daemon-commands/start-session.ts#L61), [resume](../../apps/cli/src/daemon-commands/resume-session.ts#L31), [stop](../../apps/cli/src/daemon-commands/session-lifecycle.ts#L12), [coordinator](../../apps/cli/src/execution/coordinator.ts#L896-L1100), [journal](../../apps/cli/src/execution/localJournal.ts#L326), [terminal bridge](../../apps/cli/src/terminal/daemon-bridge.ts#L14-L85)
+Keep the split handlers and terminal I/O bridge. Emit `session.started` once.
+Use one event writer. Save the checkpoint and last durable sequence. Renew
+the lease and prove cleanup before release or rollback.
+[Dispatch](../../apps/cli/src/daemon-commands/dispatch.ts#L49), [journal](../../apps/cli/src/execution/localJournal.ts#L326), [terminal bridge](../../apps/cli/src/terminal/daemon-bridge.ts#L14-L85), [edge link](../../apps/cli/src/daemon-edge-link.ts#L48)
 
-Emit `session.started` once. Add one canonical event sink for the pilot binding.
-Persist the checkpoint with the last durable sequence and suppress legacy
-event writers for that binding. Keep lease renewal in the runtime. At stop,
-close the handle and prove cleanup before release or rollback. Leave uncertain
-opens and deliveries in the journal for reconciliation.
-[Legacy event hooks](../../apps/cli/src/daemon.ts#L43678-L43846), [edge link](../../apps/cli/src/daemon-edge-link.ts#L48)
+### Pilot bridges
+
+- **Delivery.** Map `in-doubt/best-effort` to ambiguity. The coordinator keeps the `activeDeliveries` slot and the runtime stops draining. Reconcile or release the slot with control-plane authority before the next send. Require a durable receipt for success. [Coordinator](../../apps/cli/src/execution/coordinator.ts#L1039-L1112), [drain](../../apps/cli/src/execution/runtimeRail.ts#L484-L529)
+- **Restart and controls.** Add runtime routes for checkpoint resume, interrupt, and answer. `RuntimeDriver` has none. Codex `adopt` checks a live in-memory registration and cannot restore a thread after restart on its own. Prove the previous boot ended, resume from the journal, and use the active-turn event with the journal or transcript for history. The adapter returns no historical turns. [Driver](../../apps/cli/src/execution/driver.ts#L21-L37), [boot fence](../../apps/cli/src/execution/coordinator.ts#L506-L547), [Codex inspection](../../apps/cli/src/daemon.ts#L43999-L44007), [adapter resume](../../packages/provider-adapter/src/app-server-session.ts#L199-L211)
+- **Prompts.** Route permission decisions and question choices to the fenced prompt ID with the actor. Send structured answers by question ID. The old client grants permissions for the session, and the adapter grants them for one turn. [Legacy replies](../../apps/cli/src/codexAppServer.ts#L438-L465), [adapter replies](../../packages/provider-adapter/src/app-server-prompts.ts#L65-L110)
+- **Events and display.** Map status and name context to `statusChanged` and `threadNameUpdated` effects. Restore `itemStarted` spawn tracking from tool starts. Map canonical errors to banners. Preserve inline image extraction, MCP tool names, and formatted file diffs. [Daemon hooks](../../apps/cli/src/daemon.ts#L43678-L43834), [spawn tracking](../../apps/cli/src/tmuxSpawns.ts#L122), [error banners](../../apps/cli/src/codexAppServer.ts#L1270-L1292), [tool display](../../apps/cli/src/codexAppServer.ts#L1435-L1560)
+- **Launch and policy.** Apply `withWorktreeConfig` and pass stable developer instructions. Set `STABLE_ENV_MODE` to off and use the agent spawn path. Preserve auth refresh, policy invalidation, and sandbox state across resume. [Worktree](../../apps/cli/src/worktreeEnv.ts#L144), [instructions](../../apps/cli/src/daemon.ts#L34348), [spawn](../../apps/cli/src/codexAppServer.ts#L976-L997), [auth and policy](../../apps/cli/src/codexAppServer.ts#L584-L648), [invalidation](../../apps/cli/src/codexAppServer.ts#L850-L867)
+- **Fork and Escape.** Keep fork on its existing route. Route Escape to the exact active turn and keep the press-time guard and queued-message release rules. [Fork](../../apps/cli/src/daemon-commands/resume-forks.ts#L181-L195), [Escape](../../apps/cli/src/daemon-commands/session-input.ts#L77-L186)
 
 ## Compare both paths offline
 
-Run `bun run --filter @codecast/test-codex-driver-parity test` on the test branch.
-Two fake app-servers replay the same checked-in Codex item frames. The suite
-scripts replies and controls, normalizes IDs, and checks a snapshot of the
-differences. Both paths preserve tool output and turn results in the recorded
-turn. The adapter settles interrupt while its reader is paused. Both paths
-deliver all 36 buffered frames in order.
+Run `bun run --filter @codecast/test-codex-driver-parity test`. Two fake
+app-servers replay the same recorded items. The suite normalizes IDs and
+checks the known differences. The adapter buffers the 36-frame burst while
+the reader is paused and settles interrupt. The legacy client delivers the
+frames in order without backpressure.
 [Recorded items](../../apps/cli/src/__fixtures__/codexCloud/turns.ask.json)
 
 ## Differences found
 
-The comparison uses the driver/client and adapter interfaces. Daemon recovery
-and display require a separate pilot check.
+| Case                       | Legacy driver and client                                                                         | Owned adapter                                                                                             | Verdict                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Start and resume handshake | Sends `initialize` only.                                                                         | Also sends `initialized`.                                                                                 | Intended                     |
+| Idle send and late reply   | Marks delivery complete when the RPC returns.                                                    | Returns `in-doubt/best-effort` even when the RPC succeeds.                                                | Must be bridged by the pilot |
+| Mid-turn send              | Calls `turn/start`. The fake rejects the busy request and the driver reports ambiguity.          | Calls `turn/steer` for the expected turn.                                                                 | Must be bridged by the pilot |
+| User echoes                | Omits echoed input from the final messages.                                                      | Emits the user message. Links a matching input to its actor and delivery ID.                              | Must be bridged by the pilot |
+| Command approval           | Sends accept or decline. There is no client settlement event.                                    | Sends the same decision and records the actor in a settlement. The reply has no provider acknowledgement. | Must be bridged by the pilot |
+| Question                   | Exposes the choices in the request. Sends empty answers through the boolean approval API.        | Emits choice context and sends the selected answer.                                                       | Must be bridged by the pilot |
+| Assistant delta            | Emits item ID and text.                                                                          | Also emits the text offset.                                                                               | Intended                     |
+| Reasoning                  | Groups reasoning with assistant text. Uses the summary when reasoning text is empty.             | Emits ordered context events.                                                                             | Must be bridged by the pilot |
+| Duplicate late reply       | Emits no second turn.                                                                            | Emits no second turn and retains the duplicate as an unknown raw frame.                                   | Intended                     |
+| Process exit               | Emits process exit. The shared client owns restart.                                              | Ends the turn and the owned session. The machine owns recovery.                                           | Must be bridged by the pilot |
+| Resume state               | Returns historical and active turns to the caller.                                               | Returns the checkpoint and emits the resumed active turn start.                                           | Must be bridged by the pilot |
+| Completion after resume    | `turnCompleted` has no final messages. `itemStarted` is suppressed. `itemCompleted` still fires. | Emits the resumed messages and tools before the result.                                                   | Legacy defect                |
 
-| Case                       | Legacy driver and client                                                                  | Owned adapter                                                                                  | Verdict                      |
-| -------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------- |
-| Start and resume handshake | Sends `initialize` only.                                                                  | Also sends `initialized`.                                                                      | Intended                     |
-| Idle send and late reply   | Marks delivery complete when the RPC returns.                                             | Returns `in-doubt/best-effort` even when the RPC succeeds.                                     | Legacy defect                |
-| Mid-turn send              | Calls `turn/start`. The fake rejects the busy request and the driver reports ambiguity.   | Calls `turn/steer` for the expected turn.                                                      | Must be bridged by the pilot |
-| User echoes                | Omits echoed input from the final messages.                                               | Emits the user message. Links a matching input to its actor and delivery ID.                   | Must be bridged by the pilot |
-| Command approval           | Sends accept or decline. There is no client settlement event.                             | Sends the same decision and records the actor in a settlement. RPC application stays in doubt. | Intended                     |
-| Question                   | Exposes the choices in the request. Sends empty answers through the boolean approval API. | Emits choice context and sends the selected answer.                                            | Legacy defect                |
-| Assistant delta            | Emits item ID and text.                                                                   | Also emits the text offset.                                                                    | Intended                     |
-| Reasoning                  | Groups it with the assistant text in the final message.                                   | Emits ordered context events.                                                                  | Must be bridged by the pilot |
-| Duplicate late reply       | Emits no second turn.                                                                     | Emits no second turn and retains the duplicate as an unknown raw frame.                        | Intended                     |
-| Process exit               | Emits process exit. The shared client owns restart.                                       | Ends the turn and the owned session. The machine owns recovery.                                | Must be bridged by the pilot |
-| Resume state               | Returns historical and active turns to the caller.                                        | Returns the checkpoint and emits the resumed active turn start.                                | Intended                     |
-| Completion after resume    | Emits a turn result with no final messages without a new start notice.                    | Emits the resumed messages and tools before the result.                                        | Legacy defect                |
+On legacy recovery, a queued follow-up skips seeding the turn's progress.
+The live item handler drops those completions, and the final callback has no
+messages for the turn.
+[Recovery](../../apps/cli/src/daemon.ts#L26013-L26049), [item handler](../../apps/cli/src/daemon.ts#L43730-L43753), [client accumulator](../../apps/cli/src/codexAppServer.ts#L1261-L1323)
