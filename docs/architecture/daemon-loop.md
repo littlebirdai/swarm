@@ -269,6 +269,9 @@ event-loop meter.
 
 ## Measurement and acceptance
 
+The [offline worker load benchmark](daemon-worker-load.md) compares worker
+modes with synthetic transcripts and checks the default rollout criteria.
+
 A read-only observation of the running daemon:
 
 ```sh
