@@ -110,6 +110,7 @@ async function mount(el: React.ReactElement, extra?: Seed) {
       backend.set(api.appConnections.listConnections, pending);
       backend.set(api.ingest.listSources, pending);
       backend.set(api.lineStages.flow, pending);
+      backend.set(api.lineStages.dispatch, pending);
     },
   });
   return { ...web, host: web.container };

@@ -159,9 +159,9 @@ test("the card draws the thread: the pass, the comment, the session's answer and
   const line = thread.querySelector("[data-comment-new-line]")!;
   expect(line).not.toBeNull();
   expect(thread.querySelectorAll("[data-comment-fresh]").length).toBe(2);
-  expect(
-    container.querySelector("[data-decision-thread-unread-chip]")!.textContent,
-  ).toContain("2 new");
+  const unread = container.querySelector("[data-decision-thread-unread-chip]");
+  expectPresent(unread);
+  expect(unread.textContent).toContain("2 new");
   // Asking the session is a plain button, not an icon.
   expect(thread.querySelector("[data-decision-ask]")!.textContent).toContain(
     "Discuss with",

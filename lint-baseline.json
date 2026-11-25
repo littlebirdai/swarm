@@ -14931,9 +14931,6 @@
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 21
   },
-  "apps/web/components/ProjectTimeline.mount.test.tsx": {
-    "swarm/no-comments": 5
-  },
   "apps/web/components/ProjectTimeline.tsx": {
     "react/purity": 1,
     "swarm/no-comments": 22
@@ -15476,9 +15473,6 @@
   "apps/web/components/__tests__/frameBackend.mount.test.tsx": {
     "swarm/no-comments": 17
   },
-  "apps/web/components/__tests__/framePaneMessages.test.tsx": {
-    "swarm/no-comments": 15
-  },
   "apps/web/components/__tests__/genericListCollapse.test.tsx": {
     "swarm/no-comments": 2
   },
@@ -15967,9 +15961,6 @@
   },
   "apps/web/components/browser/__tests__/ghostCursor.mount.test.ts": {
     "swarm/no-comments": 2
-  },
-  "apps/web/components/browser/__tests__/nativeBackendGuard.test.tsx": {
-    "swarm/no-comments": 50
   },
   "apps/web/components/browser/__tests__/watchControls.test.tsx": {
     "swarm/no-comments": 3
@@ -17334,14 +17325,11 @@
   "apps/web/components/decisions/__tests__/decisionAreas.mount.test.tsx": {
     "swarm/no-comments": 8
   },
-  "apps/web/components/decisions/__tests__/decisionList.mount.test.tsx": {
-    "swarm/no-comments": 10
-  },
   "apps/web/components/decisions/__tests__/decisionParties.mount.test.tsx": {
     "swarm/no-comments": 9
   },
   "apps/web/components/decisions/__tests__/decisionThread.mount.test.tsx": {
-    "swarm/no-comments": 8
+    "swarm/no-comments": 3
   },
   "apps/web/components/decisions/__tests__/inboxDecisionQueue.test.tsx": {
     "swarm/no-comments": 5
@@ -18013,7 +18001,7 @@
     "swarm/no-comments": 18
   },
   "apps/web/components/line/__tests__/ProjectLineTab.versions.mount.test.tsx": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 2
   },
   "apps/web/components/line/map/LineStartSwitch.tsx": {
     "swarm/no-comments": 20
@@ -18297,7 +18285,7 @@
     "swarm/no-comments": 5
   },
   "apps/web/components/line/workspace/__tests__/LineWorkspace.mount.test.tsx": {
-    "swarm/no-comments": 18
+    "swarm/no-comments": 6
   },
   "apps/web/components/line/workspace/stages/AgentReviews.tsx": {
     "react-hooks/exhaustive-deps": 1,
@@ -19482,9 +19470,6 @@
     "react-hooks/exhaustive-deps": 1,
     "swarm/no-comments": 9
   },
-  "apps/web/components/org/TakeoverGate.mount.test.tsx": {
-    "swarm/no-comments": 9
-  },
   "apps/web/components/org/TemplateGallery.mount.test.tsx": {
     "swarm/no-comments": 7
   },
@@ -19785,7 +19770,7 @@
     "swarm/no-comments": 7
   },
   "apps/web/components/org/scope/RoleHandoffSections.mount.test.tsx": {
-    "swarm/no-comments": 15
+    "swarm/no-comments": 9
   },
   "apps/web/components/org/scope/RoleHandoffSections.tsx": {
     "swarm/no-comments": 14
