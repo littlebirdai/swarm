@@ -1,3 +1,4 @@
+import { agentTaskRevisionValidator } from "./lib/agentTaskRevisionValidator";
 import { permissionRemovalValidator } from "./lib/permissionRemoval";
 import { ruleRequestValidator } from "./lib/permissionRuleRequest";
 import {
@@ -7225,31 +7226,7 @@ export default defineSchema(
       // Field names the edit actually changed — the log line, without diffing.
       changed_fields: v.array(v.string()),
       // Complete pre-edit snapshot of the editable surface.
-      before: v.object({
-        title: v.string(),
-        prompt: v.string(),
-        // The status as it stood: a verb (pause, resume, run now, cancel) changes only this.
-        status: v.optional(v.string()),
-        schedule_type: v.union(
-          v.literal("once"),
-          v.literal("recurring"),
-          v.literal("event"),
-        ),
-        run_at: v.optional(v.number()),
-        interval_ms: v.optional(v.number()),
-        event_filter: v.optional(eventFilterValidator),
-        mode: v.union(v.literal("propose"), v.literal("apply")),
-        agent_type: v.optional(v.string()),
-        model: v.optional(v.string()),
-        project_path: v.optional(v.string()),
-        max_runtime_ms: v.optional(v.number()),
-        precheck: v.optional(v.string()),
-        precheck_mode: v.optional(
-          v.union(v.literal("changes"), v.literal("state")),
-        ),
-        role_focus: v.optional(v.string()),
-        tune_why: v.optional(v.string()),
-      }),
+      before: agentTaskRevisionValidator,
       created_at: v.number(),
     }).index("by_task", ["task_id", "revision"]),
 

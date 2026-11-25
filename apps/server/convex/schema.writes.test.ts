@@ -79,3 +79,55 @@ test("routing a request stores the route source on the task", async () => {
   );
   expect(task).toMatchObject({ source: "route", assignee: user });
 });
+
+test("editing a trigger stores its previous agent and routing settings", async () => {
+  const { t, user } = await setup();
+  const { task, settings } = await t.run(async ({ db }) => {
+    const conversation = await db.insert("conversations", {
+      user_id: user,
+      session_id: "incident-response",
+      agent_type: "claude_code",
+      started_at: 1,
+      updated_at: 1,
+      message_count: 0,
+      is_private: true,
+      status: "active",
+    });
+    const settings = {
+      agent_definition: "incident-triage",
+      originating_conversation_id: conversation,
+      target_conversation_id: conversation,
+      created_by_conversation_id: conversation,
+      wake_creator: true,
+    };
+    const task = await db.insert("agent_tasks", {
+      user_id: user,
+      title: "Check incidents",
+      prompt: "Find active incidents",
+      schedule_type: "once",
+      mode: "apply",
+      status: "paused",
+      run_count: 0,
+      retry_count: 0,
+      created_at: 1,
+      ...settings,
+    });
+    return { task, settings };
+  });
+  await t.mutation(api.agentTasks.updateTask, {
+    api_token: apiToken,
+    task_id: task,
+    prompt: "Summarize active incidents",
+  });
+  const revisions = await t.run(({ db }) =>
+    db
+      .query("agent_task_revisions")
+      .withIndex("by_task", (q) => q.eq("task_id", task))
+      .collect(),
+  );
+  expect(revisions).toHaveLength(1);
+  expect(revisions[0]?.before).toMatchObject({
+    prompt: "Find active incidents",
+    ...settings,
+  });
+});
