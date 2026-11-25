@@ -251,13 +251,13 @@ describe("stable-context at session start", () => {
       preview: [],
     },
   ];
-  const serve = (fail: string[] = []) =>
+  const serve = (fail: string[] = [], org: unknown = where) =>
     (async (input: unknown) => {
       const url = String(input);
       if (fail.some((f) => url.endsWith(f)))
         return new Response("{}", { status: 500 });
       if (url.endsWith("/cli/org/where"))
-        return new Response(JSON.stringify(where), { status: 200 });
+        return new Response(JSON.stringify(org), { status: 200 });
       if (url.endsWith("/cli/mods/guide"))
         return new Response("{}", { status: 200 });
       if (url.endsWith("/cli/teams/projects"))
@@ -496,10 +496,7 @@ describe("stable-context at session start", () => {
     const home = scratch();
     const ccDir = path.join(home, ".codecast");
     const cacheDir = path.join(ccDir, "stable-cache");
-    globalThis.fetch = (async (input: unknown, init?: RequestInit) =>
-      String(input).endsWith("/cli/org/where")
-        ? new Response(JSON.stringify(roleless), { status: 200 })
-        : serve()(input as any, init)) as typeof fetch;
+    globalThis.fetch = serve([], roleless);
     await prepareLaunchStableContext(config, {
       mode: "team",
       global: false,
@@ -528,10 +525,7 @@ describe("stable-context at session start", () => {
 
   test("after compaction the project block is left to the task context hook", async () => {
     const cacheDir = scratch();
-    globalThis.fetch = (async (input: unknown, init?: RequestInit) =>
-      String(input).endsWith("/cli/org/where")
-        ? new Response(JSON.stringify(roleless), { status: 200 })
-        : serve()(input as any, init)) as typeof fetch;
+    globalThis.fetch = serve([], roleless);
     const built = await buildStableContext(config, {
       mode: "team",
       global: false,
@@ -543,8 +537,29 @@ describe("stable-context at session start", () => {
     expect(built!.text).not.toContain("<project-context");
   });
 
-  test("long instructions beside a big org still fit the hook budget", async () => {
-    const cacheDir = scratch();
+  test.each([
+    [
+      "long instructions beside a big org",
+      { instructions: "Rule. ".repeat(3000) },
+    ],
+    [
+      "multibyte instructions",
+      { instructions: "Правило проекта. ".repeat(3000) },
+    ],
+    [
+      "long memory titles and metrics",
+      {
+        instructions: "Rule. ".repeat(3000),
+        goal: "g".repeat(150),
+        success_metrics: Array.from({ length: 3 }, () => "m".repeat(100)),
+        memory: Array.from({ length: 12 }, () => ({
+          id: "k17" + "a".repeat(29),
+          title: "t".repeat(80),
+          gist: "j".repeat(140),
+        })),
+      },
+    ],
+  ] as const)("%s fit the hook budget", async (_case, projectFields) => {
     const big = {
       ...where,
       roles: Array.from({ length: 20 }, (_, i) => ({
@@ -553,21 +568,15 @@ describe("stable-context at session start", () => {
         name: `A long role name number ${i}`,
         scope: ["Area one", "Area two", "Area three"],
       })),
-      project_context: {
-        ...projectContext,
-        instructions: "Rule. ".repeat(3000),
-      },
+      project_context: { ...projectContext, ...projectFields },
     };
-    globalThis.fetch = (async (input: unknown, init?: RequestInit) =>
-      String(input).endsWith("/cli/org/where")
-        ? new Response(JSON.stringify(big), { status: 200 })
-        : serve()(input as any, init)) as typeof fetch;
+    globalThis.fetch = serve([], big);
     const built = await buildStableContext(config, {
       mode: "team",
       global: false,
       cwd: "/repo",
       session: "jx7eeeeeeeeeeeeeeee",
-      cacheDir,
+      cacheDir: scratch(),
       start: { budgetMs: 1500, source: "startup" },
     });
     expect(Buffer.byteLength(built!.text)).toBeLessThanOrEqual(

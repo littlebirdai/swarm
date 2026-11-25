@@ -374,18 +374,33 @@ describe("SessionWatcher", () => {
   });
 
   test("does not start twice", async () => {
-    const root = tmpDir("sw-double-start");
-    fs.mkdirSync(root, { recursive: true });
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "sw-double-start-"));
+    const project = path.join(root, "project");
+    fs.mkdirSync(project);
+    const transcript = path.join(project, "session.jsonl");
+    fs.writeFileSync(transcript, "{}\n");
 
+    const events: SessionEvent[] = [];
     const watcher = new SessionWatcher(root);
     cleanups.push(() => {
       watcher.stop();
       fs.rmSync(root, { recursive: true, force: true });
     });
-
+    watcher.on("session", (event) => events.push(event));
     await watcher.start();
-    await watcher.start(); // should be no-op
-    watcher.stop();
+    await watcher.start();
+    expect(events.map((event) => event.filePath)).toEqual([transcript]);
+
+    const changed = waitForSessionEvent(
+      watcher,
+      (event) => event.filePath === transcript,
+    );
+    fs.appendFileSync(transcript, "{}\n");
+    await changed;
+    expect(events.map((event) => event.filePath)).toEqual([
+      transcript,
+      transcript,
+    ]);
   });
 
   const UUID = "6f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b";

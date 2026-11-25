@@ -147,12 +147,20 @@ describe("acquireStartLock", () => {
   test("a lock whose holder is gone is reclaimed rather than waited out", async () => {
     isolatedHome();
     fs.mkdirSync(computerHome(), { recursive: true });
+    const lockFile = path.join(computerHome(), "start.lock");
     fs.writeFileSync(
-      path.join(computerHome(), "start.lock"),
+      lockFile,
       JSON.stringify({ pid: 0x7ffffff0, at: Date.now() }),
     );
     const release = await acquireStartLock(2_000);
-    release();
+    try {
+      expect(JSON.parse(fs.readFileSync(lockFile, "utf8")).pid).toBe(
+        process.pid,
+      );
+    } finally {
+      release();
+    }
+    expect(fs.existsSync(lockFile)).toBe(false);
   });
 });
 

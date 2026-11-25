@@ -290,21 +290,29 @@ describe("RetryQueue", () => {
       "Internal server error",
     ];
 
+    const maxAttempts = 2;
     for (const errMsg of nonNetworkErrors) {
+      let attempts = 0;
       const q = new RetryQueue({
         initialDelayMs: 20,
         maxDelayMs: 50,
-        maxAttempts: 2,
+        maxAttempts,
         onLog: (msg) => logs.push(msg),
       });
 
       q.setExecutor(async () => {
+        attempts++;
         throw new Error(errMsg);
       });
 
       q.add("addMessage", { content: "test" });
-      await until(() => q.getQueueSize() === 0);
-      q.stop();
+      try {
+        await until(() => q.getQueueSize() === 0);
+        expect(attempts).toBe(maxAttempts);
+        expect(q.getQueueSize()).toBe(0);
+      } finally {
+        q.stop();
+      }
     }
   });
 

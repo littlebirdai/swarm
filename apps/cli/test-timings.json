@@ -1062,7 +1062,6 @@
     "src/worktreeGc.test.ts": 2712,
     "src/worktreeHookJob.test.ts": 466,
     "src/worktreeMirror.test.ts": 257,
-    "src/writeBudgetBackoff.test.ts": 1252,
-    "src/zz_rv.test.ts": 688
+    "src/writeBudgetBackoff.test.ts": 1252
   }
 }
