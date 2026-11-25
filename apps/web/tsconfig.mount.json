@@ -1,11 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": [
-      "vite/client",
-      "node",
-      "bun"
-    ]
+    "types": ["vite/client", "node", "bun"]
   },
   "include": [
     "vite-env.d.ts",
@@ -67,7 +63,5 @@
     "hooks/__tests__/useConvexSync.identityLost.mount.test.tsx",
     "lib/__tests__/callSeams.test.ts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }
