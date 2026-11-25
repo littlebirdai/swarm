@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import net from "node:net";
 import { makeFunctionReference } from "convex/server";
 import { SyncService } from "../syncService.js";
-import { serializeTranscript } from "../workers/ingestClient.js";
+import { serializeTranscript } from "../workers/ingest-client.js";
 
 for (const operation of ["mutation", "upload"] as const) {
   for (const mode of ["headers", "body"] as const) {

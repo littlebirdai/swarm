@@ -3,7 +3,7 @@ import {
   InvalidateSync,
   type InvalidateSyncOptions,
 } from "../invalidateSync.js";
-import { retryOnIngestCapacity } from "./ingestClient.js";
+import { retryOnIngestCapacity } from "./ingest-client.js";
 import { isIngestSchemaRejection } from "./ingestValidation.js";
 export type TranscriptRetrySource = {
   client: string;

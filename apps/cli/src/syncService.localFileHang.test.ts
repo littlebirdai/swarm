@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { SyncService } from "./syncService.js";
-import { serializeTranscript } from "./workers/ingestClient.js";
+import { serializeTranscript } from "./workers/ingest-client.js";
 
 // 2026-11-05: a Claude session sent a file from ~/Desktop with SendUserFile.
 // The daemon's read of it did not return for 2h56m (macOS holds such a read

@@ -10,7 +10,7 @@ import {
 import {
   serializeTranscript,
   IngestCapacityError,
-} from "./workers/ingestClient.js";
+} from "./workers/ingest-client.js";
 
 it("durable retries get a fresh transaction after the enqueueing ingest expires", async () => {
   const queue = new RetryQueue({

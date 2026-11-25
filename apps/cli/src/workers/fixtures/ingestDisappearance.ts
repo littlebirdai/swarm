@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { Database } from "bun:sqlite";
-import { readTranscriptIngest } from "../ingestClient.js";
+import { readTranscriptIngest } from "../ingest-client.js";
 import { pollUntil } from "../../test-helpers/pollUntil.js";
 const until = (check: () => boolean) =>
   pollUntil(check, "disappearance cleanup");

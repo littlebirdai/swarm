@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { InvalidateSync } from "../../invalidateSync.js";
 import { RetryQueue } from "../../retryQueue.js";
-import { readTranscriptIngest } from "../ingestClient.js";
+import { readTranscriptIngest } from "../ingest-client.js";
 const deferred = () => {
   let resolve!: () => void;
   const promise = new Promise<void>((r) => {

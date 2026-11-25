@@ -17,7 +17,7 @@ import {
   retryOnIngestCapacity,
   awaitDeliveryEcho,
   ORDINARY_RESERVATIONS,
-} from "./ingestClient.js";
+} from "./ingest-client.js";
 import { ingestTokens } from "./ingestTransport.js";
 import { checkTranscriptDeadline } from "./ingestDeadline.js";
 import { IngestCursors } from "./ingestCursors.js";

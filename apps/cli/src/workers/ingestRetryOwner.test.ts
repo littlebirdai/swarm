@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { TranscriptRetryOwner } from "./ingestRetryOwner.js";
-import { ORDINARY_RESERVATIONS, serializeTranscript } from "./ingestClient.js";
+import { ORDINARY_RESERVATIONS, serializeTranscript } from "./ingest-client.js";
 const turn = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 test("normal-return retained work arms a due wake from cold and survives pause and stop", async () => {

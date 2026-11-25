@@ -225,7 +225,7 @@ if (process.env.F3_FIXTURE_CORE_VALIDATOR)
   await import("./ingestCoreValidationControl.js");
 const d = await import(daemonFile);
 const { getPosition, setPosition } = await import("../../positionTracker.js");
-const { readTranscriptIngest } = await import("../ingestClient.js");
+const { readTranscriptIngest } = await import("../ingest-client.js");
 const main = path.resolve(import.meta.dir, "../../main.ts");
 const worker = path.resolve(import.meta.dir, "ingestWorker.ts");
 const options = {

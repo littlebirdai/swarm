@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { performance } from "node:perf_hooks";
 import { WorkerUnavailable } from "../host.js";
-import { ingestIdentity, readTranscriptIngest } from "../ingestClient.js";
+import { ingestIdentity, readTranscriptIngest } from "../ingest-client.js";
 import { ingestWorkerHost, closeDaemonWorkers } from "../bridge.js";
 import { INGEST_PAGE_BYTES, INGEST_PAGE_TOKENS } from "../ingestTypes.js";
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

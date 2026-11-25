@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { readTranscriptIngest } from "../ingestClient.js";
+import { readTranscriptIngest } from "../ingest-client.js";
 import { ingestRetainedWeight } from "../ingestTransport.js";
 import { pollUntil } from "../../test-helpers/pollUntil.js";
 const until = (check: () => boolean) =>

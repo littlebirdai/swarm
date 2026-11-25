@@ -8,7 +8,7 @@ import {
   provenSyncedPrefix,
   samePersistedFile,
   transcriptSignatureWatermark,
-} from "./ingestClient.js";
+} from "./ingest-client.js";
 import {
   withMirrorSynced,
   writeMirrorSynced,
