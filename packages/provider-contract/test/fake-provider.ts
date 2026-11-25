@@ -152,6 +152,7 @@ export function fakeProvider(
         if (paste && request.expected.pane_instance !== paste.pane_instance)
           return stale({
             kind: "terminal",
+            run,
             pane_instance: paste.pane_instance,
           });
         if (

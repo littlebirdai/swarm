@@ -262,6 +262,7 @@ export function providerConformanceCases(create: () => ProviderFixture) {
             ).toEqual(
               stale({
                 kind: "terminal",
+                run: expected.run,
                 pane_instance: expected.pane_instance,
               }),
             );

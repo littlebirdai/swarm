@@ -46,8 +46,8 @@ active turn. An answer requires the run, fencing token and pending prompt ID.
 Compare the guard with the current position immediately before the effect.
 A null turn means confirmed idle. Refuse before effect if you cannot verify the
 position. Stale results identify the observed turn, prompt or pane. A prompt
-observation can report a null run or prompt ID. The terminal observation omits
-the fencing token. The machine can map it to the edge terminal observation
+observation can report a null run or prompt ID. The terminal observation names
+the run and omits the fencing token. The machine can map it to the edge terminal observation
 with a null token. `unsupported`, `refused`, `stale` and `closed` have no agent
 or pane effect.
 
