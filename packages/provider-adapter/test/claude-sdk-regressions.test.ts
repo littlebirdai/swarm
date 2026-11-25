@@ -258,6 +258,95 @@ claudeCase(
   },
 );
 
+for (const retiredBy of ["idle", "completed", "cancelled"] as const) {
+  claudeCase(
+    `later result survives an unstarted send retired by ${retiredBy}`,
+    async (session, fake) => {
+      const next = readEvent(session);
+      expect(await session.steer(steer)).toEqual(noReceipt);
+      await fake.wrote(1);
+      const first = fake.observed()[0]!.uuid!;
+      if (retiredBy === "idle") {
+        fake.frames(runningFrame);
+        expect(await next()).toMatchObject({ kind: "turn.started" });
+        expect(
+          await session.steer({
+            ...steer,
+            expected: interrupt.expected,
+            delivery_id: "mid-turn",
+          }),
+        ).toEqual(noReceipt);
+        await fake.wrote(2);
+        fake.frames(
+          result("first-result", { user_message_uuids: [first] }),
+          idle,
+        );
+        expect(await next()).toMatchObject({ kind: "message.user" });
+        expect(await next()).toMatchObject({ kind: "turn.ended" });
+      }
+      const deferred = fake.observed().at(-1)!.uuid!;
+      fake.frames(
+        ...(retiredBy === "idle" ? [] : [lifecycle(retiredBy, deferred)]),
+        { ...runningFrame, uuid: "deferred-turn" },
+        lifecycle("started", deferred),
+        result("deferred-result", {
+          user_message_uuids: [deferred],
+          is_error: true,
+        }),
+        fake.eventFrame(0),
+      );
+      const turn = (await next())?.turn;
+      expect(await next()).toMatchObject({ kind: "error", turn });
+      expect(await next()).toMatchObject({
+        kind: "turn.ended",
+        turn,
+        body: { reason: "failed" },
+      });
+      expect(await next()).toMatchObject({ kind: "context", turn: null });
+    },
+  );
+}
+
+for (const nextBoundary of [
+  "completed",
+  "cancelled",
+  "idle",
+  "running",
+] as const) {
+  claudeCase(
+    `${nextBoundary} clears the previous result snapshot`,
+    async (session, fake) => {
+      const next = readEvent(session);
+      fake.frames(runningFrame, result("first-result"));
+      expect(await next()).toMatchObject({ kind: "turn.started" });
+      expect(await next()).toMatchObject({ kind: "turn.ended" });
+
+      if (nextBoundary === "idle") {
+        fake.frames(idle);
+        await fake.retained(idle.uuid);
+      }
+      expect(await session.steer(steer)).toEqual(noReceipt);
+      if (nextBoundary === "completed" || nextBoundary === "cancelled") {
+        await fake.wrote(1);
+        const frame = lifecycle(nextBoundary, fake.observed()[0]!.uuid!);
+        fake.frames(frame);
+        await fake.retained(frame.uuid);
+        expect(
+          await session.steer({ ...steer, delivery_id: "second" }),
+        ).toEqual(noReceipt);
+      } else if (nextBoundary === "running") {
+        fake.frames({ ...runningFrame, uuid: "next-turn" });
+        expect(await next()).toMatchObject({ kind: "turn.started" });
+      }
+      fake.frames({ ...idle, uuid: "final-idle" });
+      await fake.retained("final-idle");
+      expect(await session.steer({ ...steer, delivery_id: "next" })).toEqual(
+        noReceipt,
+      );
+    },
+  );
+}
+
 claudeCase(
   "a cancelled command keeps its result and earlier errors do not override interrupt",
   async (session, fake) => {

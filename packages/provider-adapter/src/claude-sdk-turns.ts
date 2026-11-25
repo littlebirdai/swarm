@@ -69,6 +69,11 @@ export function claudeTurns(
     );
   }
 
+  function retireSend(id: string) {
+    const send = sends.get(id);
+    if (sends.delete(id) && send?.emitted) remember(`finished:${id}`);
+  }
+
   function finish(reason: string, work: Projection) {
     if (!active) return;
     if (active.error) {
@@ -127,9 +132,7 @@ export function claudeTurns(
       ) {
         begin(work);
       } else {
-        for (const id of sendsAtResult ?? sends.keys()) {
-          if (sends.delete(id)) remember(`finished:${id}`);
-        }
+        for (const id of sendsAtResult ?? sends.keys()) retireSend(id);
         sendsAtResult = undefined;
         finish("no-result", work);
         reset = false;
@@ -147,8 +150,8 @@ export function claudeTurns(
       } else if (frame.state === "completed" || frame.state === "cancelled") {
         if (active) send.terminal = true;
         else {
-          sends.delete(id);
-          remember(`finished:${id}`);
+          if (!sendsAtResult?.includes(id)) sendsAtResult = undefined;
+          retireSend(id);
         }
       }
     } else if (frame.type === "result") {
@@ -160,10 +163,7 @@ export function claudeTurns(
         return false;
       for (const id of ids) observedSend(id, work);
       for (const [id, send] of sends) {
-        if (ids.includes(id) || send.terminal) {
-          sends.delete(id);
-          remember(`finished:${id}`);
-        }
+        if (ids.includes(id) || send.terminal) retireSend(id);
       }
       const interrupted = frame.terminal_reason === "aborted_streaming";
       if (interrupted || !frame.is_error) active.error = undefined;
