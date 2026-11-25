@@ -1,3 +1,4 @@
+import type { ComposerControlFlag } from "./composer-control-model";
 import type { GoalFrame } from "@codecast/messages/sessionGoal";
 import type { ThreadStateFields } from "@codecast/sessions/threadState";
 import type { DecisionAnswerMessage } from "@codecast/decisions/decisionAnswers";
@@ -248,6 +249,7 @@ export type ConversationViewProps = {
   onClearHighlight?: () => void;
   embedded?: boolean;
   showMessageInput?: boolean;
+  composerControl?: ComposerControlFlag;
   targetMessageId?: string;
   /** Distinguishes a NEW jump request to the same message: the reset below
    *  compares ids, so without this a second "jump to the ask" click on the

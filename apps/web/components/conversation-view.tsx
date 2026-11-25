@@ -426,6 +426,8 @@ import {
 } from "../hooks/useSessionRestart";
 import { devRenderCount, devCountElements } from "../lib/devRenderCount";
 import { MessageInput } from "./MessageInput";
+import { SessionControlComposer } from "./conversation/session-control-composer";
+import { selectComposerControl } from "./conversation/composer-control-model";
 import { PlanBlock } from "./conversation/blocks/planBlock";
 import {
   CastBrowserRowContext,
@@ -713,6 +715,7 @@ const ConversationViewInner = function ConversationView(
     onClearHighlight: propClearHighlight,
     embedded,
     showMessageInput = true,
+    composerControl,
     targetMessageId,
     targetNonce,
     isJumpingToTarget,
@@ -6818,7 +6821,16 @@ const ConversationViewInner = function ConversationView(
     },
     [roleSend.wakeRole, roleSend.setRecipient],
   );
+  const controlComposer =
+    conversation &&
+    !guest &&
+    !newSessionPage &&
+    !onSendOverride &&
+    !onSubmitWithIntent
+      ? selectComposerControl(composerControl, conversation._id)
+      : null;
   const ownerComposerMounted = !!(
+    !controlComposer &&
     showMessageInput &&
     conversation &&
     !runLogEnded &&
@@ -9549,7 +9561,13 @@ const ConversationViewInner = function ConversationView(
               than a floating overlay. treePopoverOpen is owner-only, so only the
               owner branch needs it; the no-composer case is the fixed fallback
               above. */}
-                                            {!effectiveIsOwner ? (
+                                            {controlComposer ? (
+                                              <SessionControlComposer
+                                                key={conversation._id}
+                                                {...controlComposer}
+                                                autoFocusInput={autoFocusInput}
+                                              />
+                                            ) : !effectiveIsOwner ? (
                                               <NonOwnerMessageInput
                                                 conversation={conversation}
                                                 onForkReply={handleForkReply}
