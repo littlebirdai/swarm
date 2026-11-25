@@ -10,7 +10,7 @@ import { applyBridgedGesture } from "../store/sync-replication";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
-import { DesktopProvider } from "@/components/DesktopProvider";
+import { DesktopProvider } from "@/components/desktop-provider";
 import { DesktopBadge } from "@/components/DesktopBadge";
 import { OpenInDesktopHandoff } from "@/components/OpenInDesktopHandoff";
 import { ShortcutProvider, setKeyBindings, isMac } from "@/shortcuts";

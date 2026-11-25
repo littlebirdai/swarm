@@ -491,7 +491,7 @@ apps/web/components/ConfigEditor.tsx 900
 apps/web/components/ConversationDiffLayout.tsx 1000
 apps/web/components/conversation-view.tsx 10400
 apps/web/components/DashboardLayout.tsx 2100
-apps/web/components/DesktopProvider.tsx 850
+apps/web/components/desktop-provider.tsx 850
 apps/web/components/EntityIdPill.references.test.tsx 1000
 apps/web/components/EntityIdPill.tsx 2100
 apps/web/components/EntityObjectCard.tsx 1450

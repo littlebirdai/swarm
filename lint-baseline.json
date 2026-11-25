@@ -14638,7 +14638,7 @@
   "apps/web/components/DesktopBadge.tsx": {
     "swarm/no-comments": 1
   },
-  "apps/web/components/DesktopProvider.tsx": {
+  "apps/web/components/desktop-provider.tsx": {
     "react-hooks/exhaustive-deps": 2,
     "react/purity": 1,
     "react/refs": 4,
