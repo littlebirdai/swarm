@@ -7,7 +7,7 @@
  * permit transitions below can authorize an external runtime side effect.
  */
 import { mutation, query } from "./functions";
-import { activateEventRun, clearEventTurn } from "./lib/edge/runEvents";
+import { seedEventRun, clearEventTurn } from "./lib/edge/runEvents";
 import {
   isTerminalDeliveryState,
   orderedNonterminalMessages,
@@ -629,12 +629,7 @@ export async function initializeFencedExecutionInDb(
     args.target,
     args.now,
   );
-  await activateEventRun(ctx, {
-    _id: binding,
-    conversation_id: args.conversationId,
-    owner_user_id: userId,
-    epoch: 1,
-  });
+  await seedEventRun(ctx, binding, conversation, 1, args.now);
   await ctx.db.patch(args.conversationId, {
     owner_device_id: args.target.ownerDeviceId,
     execution_protocol_state: "fenced" as const,
@@ -775,12 +770,7 @@ export async function activateAfterLegacyQuiescenceInDb(
     args.target,
     args.now,
   );
-  await activateEventRun(ctx, {
-    _id: binding,
-    conversation_id: args.conversationId,
-    owner_user_id: userId,
-    epoch: 1,
-  });
+  await seedEventRun(ctx, binding, conversation, 1, args.now);
   await ctx.db.patch(head._id, {
     protocol_state: "fenced" as const,
     current_epoch: 1,
@@ -1475,7 +1465,7 @@ export async function claimExecutionStartInDb(
           });
         }
       }
-      await clearEventTurn(ctx, binding);
+      await clearEventTurn(ctx, binding, args.now, true);
       await ctx.db.patch(binding._id, {
         daemon_boot_id: args.daemonBootId,
         updated_at: args.now,
@@ -1916,6 +1906,11 @@ export async function claimNextDeliveryInDb(
     args.conversationId,
     userId,
   );
+  if (
+    conversation.owner_device_id &&
+    conversation.owner_device_id !== args.ownerDeviceId
+  )
+    fail("DELIVERY_BINDING_FENCE_MISMATCH", "conversation device changed");
   if (isConversationSafetyBlocked(conversation))
     return { state: "busy", reason: "safety" };
   const head = await executionHead(ctx, args.conversationId);
@@ -2178,6 +2173,11 @@ export async function startDeliveryInDb(
     fence,
     ["claimed", "delivery-started"],
   );
+  if (
+    conversation.owner_device_id &&
+    conversation.owner_device_id !== fence.ownerDeviceId
+  )
+    fail("DELIVERY_BINDING_FENCE_MISMATCH", "conversation device changed");
   if (isConversationSafetyBlocked(conversation))
     fail("CONVERSATION_SAFETY_BLOCKED", "Delivery is held for safety review");
   if (
@@ -3081,7 +3081,13 @@ export async function activateExecutionSuccessorInDb(
     );
   }
 
-  await activateEventRun(ctx, successor);
+  await seedEventRun(
+    ctx,
+    successor._id,
+    conversation,
+    successor.epoch,
+    args.now,
+  );
   await ctx.db.patch(head._id, {
     current_epoch: args.successorEpoch,
     admission_epoch: args.successorEpoch,

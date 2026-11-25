@@ -2,7 +2,10 @@ import type {
   CanonicalEvent,
   EventsAppendResponse,
 } from "@codecast/edge-contract";
-import { projectTurn } from "@codecast/session-contract/turn-projection";
+import {
+  projectTurn,
+  TURN_PROJECTION_VERSION,
+} from "@codecast/session-contract/turn-projection";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 
@@ -25,6 +28,17 @@ function eventCursor(ctx: Db, conversation: Id<"conversations">, run: number) {
     .unique();
 }
 
+async function previousEventSeq(ctx: Db, binding: Epoch) {
+  const prior = await ctx.db
+    .query("run_event_cursors")
+    .withIndex("by_conversation_run", (q) =>
+      q.eq("conversation_id", binding.conversation_id).lt("run", binding.epoch),
+    )
+    .order("desc")
+    .first();
+  return prior?.last_event_seq ?? 0;
+}
+
 function turnProjection(ctx: Db, binding: Epoch) {
   return ctx.db
     .query("run_turn_projections")
@@ -43,34 +57,61 @@ function runFields(binding: Epoch) {
   };
 }
 
-export async function activateEventRun(ctx: Db, binding: Epoch) {
+export async function seedEventRun(
+  ctx: Db,
+  binding: Id<"execution_bindings">,
+  conversation: Pick<Doc<"conversations">, "_id" | "user_id">,
+  epoch: number,
+  now: number,
+) {
+  if (process.env.CODECAST_EDGE_DELIVERY_V1 === "1")
+    await activateEventRun(
+      ctx,
+      {
+        _id: binding,
+        conversation_id: conversation._id,
+        owner_user_id: conversation.user_id,
+        epoch,
+      },
+      now,
+    );
+}
+
+export async function activateEventRun(ctx: Db, binding: Epoch, now: number) {
   const cursor = await eventCursor(ctx, binding.conversation_id, binding.epoch);
   if (cursor) return cursor.last_event_seq;
 
-  const prior =
-    binding.epoch > 1
-      ? await eventCursor(ctx, binding.conversation_id, binding.epoch - 1)
-      : null;
-  const base = prior?.last_event_seq ?? 0;
+  const base = await previousEventSeq(ctx, binding);
   const fields = runFields(binding);
   await ctx.db.insert("run_event_cursors", { ...fields, last_event_seq: base });
   await ctx.db.insert("run_turn_projections", {
     ...fields,
     status: "active",
+    projection_version: TURN_PROJECTION_VERSION,
     turn_ids: [],
     open_turn: null,
-    received_at: Date.now(),
+    received_at: now,
   });
   return base;
 }
 
-export async function clearEventTurn(ctx: Db, binding: Epoch) {
+export async function clearEventTurn(
+  ctx: Db,
+  binding: Epoch,
+  now: number,
+  bootReset = false,
+) {
   const row = await turnProjection(ctx, binding);
-  if (row && row.turn_ids.length > 0)
+  if (
+    row &&
+    (row.turn_ids.length > 0 ||
+      (bootReset && row.projection_version !== TURN_PROJECTION_VERSION))
+  )
     await ctx.db.patch(row._id, {
       open_turn: null,
       turn_ids: [],
-      received_at: Date.now(),
+      received_at: now,
+      ...(bootReset ? { projection_version: TURN_PROJECTION_VERSION } : {}),
     });
 }
 
@@ -82,12 +123,7 @@ export async function appendRunEvents(
 ): Promise<AppendResult> {
   const session = String(binding.conversation_id);
   const cursor = await eventCursor(ctx, binding.conversation_id, binding.epoch);
-  const base =
-    cursor?.last_event_seq ??
-    (binding.epoch > 1
-      ? ((await eventCursor(ctx, binding.conversation_id, binding.epoch - 1))
-          ?.last_event_seq ?? 0)
-      : 0);
+  const base = cursor?.last_event_seq ?? (await previousEventSeq(ctx, binding));
   const suffix = events.filter(({ seq }) => seq > base);
   const first = suffix[0];
   if (!first) return { session, status: "appended", through_seq: base };
@@ -95,41 +131,44 @@ export async function appendRunEvents(
     return { session, status: "gap", expected_seq: base + 1 };
 
   const row = await turnProjection(ctx, binding);
-  const before = {
-    status: row?.status ?? "active",
-    turn_ids: row?.turn_ids ?? [],
-    open_turn: row?.open_turn ?? null,
-  } as const;
-  const state = projectTurn(
-    {
-      session,
-      run: binding.epoch,
-      status: before.status,
-      eventSeq: base,
-      turnIds: before.turn_ids,
-      openTurn: before.open_turn && {
-        id: before.open_turn.id,
-        promptIds: before.open_turn.prompt_ids,
+  if (!row || row.projection_version === TURN_PROJECTION_VERSION) {
+    const before = {
+      status: row?.status ?? "active",
+      turn_ids: row?.turn_ids ?? [],
+      open_turn: row?.open_turn ?? null,
+    } as const;
+    const state = projectTurn(
+      {
+        session,
+        run: binding.epoch,
+        status: before.status,
+        eventSeq: base,
+        turnIds: before.turn_ids,
+        openTurn: before.open_turn && {
+          id: before.open_turn.id,
+          promptIds: before.open_turn.prompt_ids,
+        },
       },
-    },
-    suffix,
-  );
-  const after = {
-    status: state.status,
-    turn_ids: [...state.turnIds],
-    open_turn: state.openTurn && {
-      id: state.openTurn.id,
-      prompt_ids: [...state.openTurn.promptIds],
-    },
-  };
-  if (!row) {
-    await ctx.db.insert("run_turn_projections", {
-      ...runFields(binding),
-      ...after,
-      received_at: now,
-    });
-  } else if (JSON.stringify(before) !== JSON.stringify(after)) {
-    await ctx.db.patch(row._id, { ...after, received_at: now });
+      suffix,
+    );
+    const after = {
+      status: state.status,
+      turn_ids: [...state.turnIds],
+      open_turn: state.openTurn && {
+        id: state.openTurn.id,
+        prompt_ids: [...state.openTurn.promptIds],
+      },
+    };
+    if (!row) {
+      await ctx.db.insert("run_turn_projections", {
+        ...runFields(binding),
+        ...after,
+        projection_version: TURN_PROJECTION_VERSION,
+        received_at: now,
+      });
+    } else if (JSON.stringify(before) !== JSON.stringify(after)) {
+      await ctx.db.patch(row._id, { ...after, received_at: now });
+    }
   }
 
   const through_seq = suffix.at(-1)!.seq;

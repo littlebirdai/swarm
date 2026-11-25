@@ -442,6 +442,7 @@ export const sessionDeliveryTables = {
     binding_id: v.id("execution_bindings"),
     run: v.number(),
     status: v.union(v.literal("active"), v.literal("completed")),
+    projection_version: v.optional(v.number()),
     turn_ids: v.array(v.string()),
     open_turn: v.union(
       v.null(),

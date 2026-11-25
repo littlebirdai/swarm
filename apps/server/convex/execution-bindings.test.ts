@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Id } from "./_generated/dataModel";
 import { makeFakeDb } from "./testDb";
 import {
@@ -36,6 +36,16 @@ const USER = "users_1" as Id<"users">;
 const OTHER_USER = "users_2" as Id<"users">;
 const CONVERSATION = "conversations_1" as Id<"conversations">;
 const OTHER_CONVERSATION = "conversations_2" as Id<"conversations">;
+
+const edgeFlag = "CODECAST_EDGE_DELIVERY_V1";
+const initialEdgeFlag = process.env[edgeFlag];
+beforeEach(() => {
+  process.env[edgeFlag] = "1";
+});
+afterEach(() => {
+  if (initialEdgeFlag === undefined) delete process.env[edgeFlag];
+  else process.env[edgeFlag] = initialEdgeFlag;
+});
 
 function tables(options?: { legacyMessages?: any[] }) {
   return {
@@ -1296,7 +1306,7 @@ describe("conversation-global ordered delivery", () => {
     ]);
     expect(db._tables.run_turn_projections).toMatchObject([
       { run: 1 },
-      { run: 2, status: "active", open_turn: null },
+      { run: 2, status: "active", open_turn: null, received_at: 40 },
     ]);
     expect(
       (db._tables.conversation_execution_heads[0] as any)

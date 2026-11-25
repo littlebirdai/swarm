@@ -1,3 +1,4 @@
+import { TURN_PROJECTION_VERSION } from "@codecast/session-contract/turn-projection";
 import type { CanonicalEvent } from "@codecast/edge-contract";
 import {
   activateEventRun,
@@ -63,6 +64,7 @@ export function isFreshTurnProjection(
     remainingLease(binding, lease, now) > 0 &&
     projection?.binding_id === binding._id &&
     projection.run === binding.epoch &&
+    projection.projection_version === TURN_PROJECTION_VERSION &&
     projection.status === "active"
   );
 }
@@ -91,7 +93,10 @@ export async function assertActiveRunLease(
     });
 }
 
-export async function ownedRun(ctx: Pick<QueryCtx, "db">, args: Address) {
+export async function runForDeliverySettlement(
+  ctx: Pick<QueryCtx, "db">,
+  args: Address,
+) {
   const auth = await verifyDeviceApiToken(ctx, args.bearer);
   if (!auth) return null;
   const conversationId = ctx.db.normalizeId(
@@ -130,7 +135,17 @@ export async function ownedRun(ctx: Pick<QueryCtx, "db">, args: Address) {
     binding.owner_device_id !== auth.deviceId
   )
     return null;
-  return { head, binding };
+  return { head, binding, conversationDeviceId: conversation.owner_device_id };
+}
+
+export async function ownedRun(ctx: Pick<QueryCtx, "db">, args: Address) {
+  const owned = await runForDeliverySettlement(ctx, args);
+  if (
+    owned?.conversationDeviceId &&
+    owned.conversationDeviceId !== owned.binding.owner_device_id
+  )
+    return null;
+  return owned;
 }
 
 const stale = { v: RUN_LEASE_VERSION, status: "stale" } as const;
@@ -190,7 +205,7 @@ export async function claimRunLease(
       expires_at: now + LEASE_MS,
       retain_until: now + LEASE_MS + RECEIPT_MS,
     });
-    if (binding.claim_id !== undefined) await clearEventTurn(ctx, binding);
+    if (binding.claim_id !== undefined) await clearEventTurn(ctx, binding, now);
     await ctx.db.patch(binding._id, { claim_id: args.claim_id });
   }
   return {
@@ -201,7 +216,7 @@ export async function claimRunLease(
     fencing_token: fencingToken,
     lease_ms: leaseMs,
     last_pane_instance: head.last_pane_instance ?? 0,
-    last_event_seq: await activateEventRun(ctx, binding),
+    last_event_seq: await activateEventRun(ctx, binding, now),
   } as const;
 }
 

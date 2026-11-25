@@ -28,7 +28,7 @@ import { MAX_EDGE_BLOB_BYTES } from "./blob-policy.rules";
 import type { AppendResult } from "./runEvents";
 
 const policy = {
-  revision: 1,
+  revision: 2,
   heartbeat_interval_ms: 30_000,
   uplink_interval_ms: 250,
   limits: {

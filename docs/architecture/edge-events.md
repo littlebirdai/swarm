@@ -21,7 +21,7 @@ Each result names the session.
 ## Acceptance
 
 The route accepts a body of up to 512 KiB and 100 events. Its device
-budget is 240 batches per minute. The parser applies the text limits in
+budget is 240 batches per minute. A refusal leaves the budget count unchanged. The parser applies the text limits in
 the contract in UTF-16 code units. The route also limits turn and prompt
 IDs to 256 UTF-16 code units. The route runs one mutation for each batch, in request
 order.
@@ -31,9 +31,16 @@ and active lease. It checks the lease token and the boot on the lease
 against that row. The request carries neither the machine nor the
 boot. The mutation checks the fence before it reads the cursor.
 
+If the conversation moves to a different device, the old device loses
+access to new work. It can still settle an attempt that it started if
+the account, run, lease, and attempt fences still match.
+
 The cursor row holds the last accepted sequence. The server sets the base
 when the epoch becomes active. The first epoch starts at zero. A successor
-starts at the predecessor's cursor. A granted claim can return the cursor
+starts at the last cursor from an earlier epoch. When the flag is off,
+epoch activation skips both rows. The first claim after enablement seeds them.
+
+A granted claim can return the cursor
 as `last_event_seq`. A daemon that restarts continues after that value
 with or without a spool.
 
@@ -57,12 +64,16 @@ is unknown. A new boot or a replacement lease for a dead process clears
 the open turn, its prompts, and the recent turn IDs. Adapters can reuse
 turn IDs after a restart.
 
-A projection is fresh if the `execution_bindings` row is ready, the lease is active,
-the projection is for that run, and its status is active. Permit and
-command mutations read the turn row when they issue or start an action.
+A fresh projection requires a ready `execution_bindings` row and an active lease.
+It also requires the same run, the current version, and active status.
+
+Permit and command mutations read the turn row when they issue or start an action.
 Guarded actions require a fresh projection and the provider's own guard.
 The turn ID sets `expected` for a steer. An answer names its prompt ID.
 The baton can hold for the open turn.
+
+For an older version, a batch advances the cursor and leaves the turn row
+as it is. A new run or boot resets the turn row to the current version.
 
 A batch writes only the cursor row and, if its value changes, the turn
 row. A cursor write does not cause a new read of the turn row.

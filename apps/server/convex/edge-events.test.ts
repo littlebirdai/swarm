@@ -1,3 +1,5 @@
+import { TURN_PROJECTION_VERSION } from "@codecast/session-contract/turn-projection";
+import { purgeAccountPass } from "./accountDelete";
 import { afterEach, beforeEach, expect, setSystemTime, test } from "bun:test";
 import {
   parseClaimResponse,
@@ -15,11 +17,15 @@ import {
 import { api, internal } from "./_generated/api";
 import {
   claimExecutionStartInDb,
+  completeDeliveryInDb,
+  initializeFencedExecutionInDb,
   EXECUTION_PROTOCOL_CAPABILITIES,
   registerExecutionDaemonBootInDb,
+  startDeliveryInDb,
 } from "./executionBindings";
 import { teamDeletionSteps } from "./lib/deletionPlans";
 import { purgeRow } from "./lib/purgeTree";
+import { seedEventRun } from "./lib/edge/runEvents";
 import { isFreshTurnProjection } from "./lib/edge/runLease";
 
 const flag = "CODECAST_EDGE_DELIVERY_V1";
@@ -210,6 +216,15 @@ test("HTTP transcript facts advance only the cursor and retain prompt state", as
       start + 1,
     ),
   ).toBe(false);
+  if (!after.lease) throw Error("Expected the lease");
+  for (const lease of [
+    { ...after.lease, claim_id: "old-claim" },
+    { ...after.lease, released_at: start + 1 },
+    { ...after.lease, boot: "old-boot" },
+  ])
+    expect(
+      isFreshTurnProjection(after.binding, lease, after.turn, start + 1),
+    ).toBe(false);
 });
 
 test("HTTP checks owner, device, boot, token and expiry before acknowledging a replay", async () => {
@@ -289,6 +304,18 @@ test("HTTP uses its own body, event, UTF-16 and per-batch limits", async () => {
       })
     ).status,
   ).toBe(413);
+  const oversizedPrompt = f.event(1, {
+    kind: "prompt.opened",
+    body: { prompt_id: "🔵".repeat(129), kind: "permission" },
+  });
+  expect(
+    (
+      await f.post("events.append", {
+        v: 1,
+        batches: [f.batch(fencing_token, [oversizedPrompt])],
+      })
+    ).status,
+  ).toBe(413);
   const gap = f.batch(fencing_token, [{ ...startTurn, seq: 2 }]);
   expect(await f.append(gap, gap)).toMatchObject([
     { status: "gap" },
@@ -312,7 +339,24 @@ test("HTTP uses its own body, event, UTF-16 and per-batch limits", async () => {
   expect(blocked.status).toBe(429);
   expect(blocked.headers.get("Retry-After")).toBe("60");
   expect((await f.rows()).cursor?.last_event_seq).toBe(0);
-  expect((await f.grant()).last_event_seq).toBe(0);
+
+  expect(
+    await f.t.run(
+      async ({ db }) =>
+        (
+          await db
+            .query("ip_rate_limits")
+            .withIndex("by_key", (q) =>
+              q.eq("key", `edge/v1/events:${f.owner}:${machine}`),
+            )
+            .unique()
+        )?.count,
+    ),
+  ).toBe(239);
+  const allowed = await f.post("events.append", request);
+  expect(allowed.status).toBe(200);
+  expect((await f.rows()).cursor?.last_event_seq).toBe(1);
+  expect((await f.grant()).last_event_seq).toBe(1);
 });
 
 test("session deletion fences HTTP retries before the cursor and turn rows are purged", async () => {
@@ -403,4 +447,314 @@ test("the first team purge page fences HTTP uploads while the conversation remai
   expect(await f.append(batch)).toEqual([
     { session: f.conversation, status: "stale" },
   ]);
+});
+
+test.each(["move", "reparent", "ownership claim"] as const)(
+  "%s fences new work while preserving the started settlement",
+  async (kind) => {
+    const f = await fixture();
+    await f.t.run(({ db }) =>
+      db.patch(f.conversation, { owner_device_id: machine }),
+    );
+    const { fencing_token } = await f.grant();
+    const fence = { v: 1, session: f.conversation, run: 1, fencing_token };
+    const next = await f.post("permits.next", fence);
+    const {
+      status,
+      state: _state,
+      input: _input,
+      ...permit
+    } = await next.json();
+    expect(status).toBe("permit");
+    expect(await (await f.post("delivery.start", permit)).json()).toMatchObject(
+      { status: "started" },
+    );
+
+    const destination = "destination";
+    await f.t.run(({ db }) =>
+      db.insert("devices", {
+        user_id: f.owner,
+        device_id: destination,
+        label: "Destination",
+        platform: "linux",
+        last_seen: start,
+      }),
+    );
+    const owner = asUser(f.t, f.owner);
+    if (kind === "move")
+      await owner.mutation(api.devices.moveSessionToDevice, {
+        conversation_id: f.conversation,
+        owner_device_id: destination,
+        project_path: "/fixture",
+        resume: false,
+      });
+    else if (kind === "reparent")
+      await owner.mutation(api.devices.reparentSessionToDevice, {
+        session_id: f.conversation,
+        device_id: destination,
+        remote_url: "https://example.com/repo.git",
+      });
+    else
+      expect(
+        await owner.mutation(api.devices.claimConversationForStart, {
+          conversation_id: f.conversation,
+          device_id: destination,
+        }),
+      ).toMatchObject({ won: true });
+    const moved = await f.t.run(async ({ db }) => ({
+      conversation: await db.get(f.conversation),
+      head: await db.get(f.head),
+    }));
+    expect(moved.conversation?.owner_device_id).toBe(destination);
+    expect(moved.head?.current_epoch).toBe(1);
+
+    for (const verb of ["renew", "release", "permits.next"])
+      expect(await (await f.post(verb, fence)).json()).toMatchObject({
+        status: "stale",
+      });
+    expect(
+      await (
+        await f.post("claim", {
+          v: 1,
+          session: f.conversation,
+          machine,
+          boot,
+          claim_id: "events",
+        })
+      ).json(),
+    ).toMatchObject({ status: "stale" });
+    expect(await (await f.post("delivery.start", permit)).json()).toMatchObject(
+      { status: "rejected", reason: "stale" },
+    );
+    expect(
+      await f.append(
+        f.batch(fencing_token, [
+          f.event(1, { kind: "turn.started", body: {} }),
+        ]),
+      ),
+    ).toMatchObject([{ status: "stale" }]);
+    expect(
+      await (
+        await f.post("delivery.settle", { ...permit, outcome: "applied" })
+      ).json(),
+    ).toMatchObject({ status: "recorded" });
+    expect(
+      await (
+        await f.post("delivery.settle", { ...permit, outcome: "applied" })
+      ).json(),
+    ).toMatchObject({ status: "duplicate" });
+    expect(await f.t.run(({ db }) => db.get(f.message))).toMatchObject({
+      delivery_status: "delivered",
+    });
+  },
+);
+
+test("a device move cannot authorize settlement of an unstarted permit", async () => {
+  const f = await fixture();
+  const { fencing_token } = await f.grant();
+  const {
+    status,
+    input: _input,
+    state: _state,
+    ...permit
+  } = await (
+    await f.post("permits.next", {
+      v: 1,
+      session: f.conversation,
+      run: 1,
+      fencing_token,
+    })
+  ).json();
+  expect(status).toBe("permit");
+  await asUser(f.t, f.owner).mutation(api.devices.claimConversation, {
+    conversation_id: f.conversation,
+    device_id: "destination",
+  });
+  expect(
+    await (
+      await f.post("delivery.settle", { ...permit, outcome: "rejected" })
+    ).json(),
+  ).toMatchObject({ status: "stale" });
+  expect(await f.t.run(({ db }) => db.get(f.message))).toMatchObject({
+    delivery_status: "claimed",
+  });
+});
+
+test("a version mismatch stays stale across appends and clears on a boot reset", async () => {
+  const f = await fixture();
+  const { fencing_token } = await f.grant();
+  const initial = await f.rows();
+  if (!initial.turn || !initial.binding)
+    throw Error("Expected a ready event run");
+  const older = TURN_PROJECTION_VERSION - 1;
+  const rowId = initial.turn._id;
+  await f.t.run(({ db }) => db.patch(rowId, { projection_version: older }));
+  expect(
+    await f.append(
+      f.batch(fencing_token, [f.event(1, { kind: "turn.started", body: {} })]),
+    ),
+  ).toMatchObject([{ status: "appended", through_seq: 1 }]);
+  const appended = await f.rows();
+  expect(appended.turn).toEqual({ ...initial.turn, projection_version: older });
+  expect(
+    isFreshTurnProjection(
+      initial.binding,
+      appended.lease,
+      appended.turn,
+      start,
+    ),
+  ).toBe(false);
+
+  await f.t.run(async (ctx) => {
+    await registerExecutionDaemonBootInDb(ctx, f.owner, {
+      ownerDeviceId: machine,
+      daemonBootId: "next-boot",
+      now: start + 1,
+    });
+    expect(
+      await claimExecutionStartInDb(ctx, f.owner, {
+        conversationId: f.conversation,
+        epoch: 1,
+        configurationRevision: 1,
+        ownerDeviceId: machine,
+        daemonBootId: "next-boot",
+        protocolVersion: 1,
+        requiredCapabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
+        proposedOperationId: "operation",
+        now: start + 1,
+      }),
+    ).toMatchObject({ state: "ready" });
+  });
+  const next = await f.grant("next-lease", "next-boot");
+  expect(next.last_event_seq).toBe(1);
+  expect((await f.rows()).turn).toMatchObject({
+    projection_version: TURN_PROJECTION_VERSION,
+    open_turn: null,
+    received_at: start + 1,
+  });
+});
+
+test("account deletion purges orphan cursor and turn rows", async () => {
+  const f = await fixture();
+  await f.grant();
+  await f.t.run(async (ctx) => {
+    await ctx.db.delete(f.conversation);
+    while (await purgeAccountPass(ctx, f.owner));
+  });
+  const rows = await f.rows();
+  expect(rows.cursor).toBeNull();
+  expect(rows.turn).toBeNull();
+});
+
+test("the first claim after flag enablement seeds an existing run", async () => {
+  const f = await fixture();
+  delete process.env[flag];
+  await f.t.run(async (ctx) => {
+    const old = await ctx.db.get(f.binding);
+    if (!old) throw Error("Expected the binding fixture");
+    await ctx.db.delete(f.message);
+    await ctx.db.delete(f.head);
+    await ctx.db.delete(f.binding);
+    await ctx.db.patch(f.conversation, { execution_protocol_state: undefined });
+    await initializeFencedExecutionInDb(ctx, f.owner, {
+      conversationId: f.conversation,
+      target: {
+        requestedAgent: "codex",
+        transport: "app-server",
+        projectPath: "/fixture",
+        configurationRevision: 1,
+        ownerDeviceId: machine,
+        daemonBootId: boot,
+        requiredCapabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
+        protocolVersion: 1,
+      },
+      now: start - 10,
+    });
+    const binding = await ctx.db.query("execution_bindings").unique();
+    if (!binding) throw Error("Expected the activation binding");
+    await ctx.db.patch(binding._id, {
+      state: "ready",
+      runtime_id: "runtime",
+      actual_agent: "codex",
+      applied_configuration_revision: 1,
+    });
+  });
+  expect((await f.rows()).cursor).toBeNull();
+  expect((await f.rows()).turn).toBeNull();
+  process.env[flag] = "1";
+  const granted = await f.grant();
+  expect(granted.last_event_seq).toBe(0);
+  expect(
+    await f.append(
+      f.batch(granted.fencing_token, [
+        f.event(1, { kind: "turn.started", body: {} }),
+      ]),
+    ),
+  ).toMatchObject([{ status: "appended", through_seq: 1 }]);
+});
+
+test("Convex records a started outcome after a same-account device move", async () => {
+  const f = await fixture();
+  const { fencing_token } = await f.grant();
+  const { permit } = await f.deliver(fencing_token);
+  const fence = {
+    ...permit,
+    conversationId: f.conversation,
+    conversationSequence: Number(permit.conversationSequence),
+    fencingToken: fencing_token,
+    now: start,
+  };
+  await f.t.run((ctx) => startDeliveryInDb(ctx, f.owner, fence));
+  await asUser(f.t, f.owner).mutation(api.devices.claimConversation, {
+    conversation_id: f.conversation,
+    device_id: "destination",
+  });
+  await expect(f.deliver(fencing_token)).rejects.toThrow(
+    "DELIVERY_BINDING_FENCE_MISMATCH",
+  );
+  await expect(
+    f.t.run((ctx) => startDeliveryInDb(ctx, f.owner, fence)),
+  ).rejects.toThrow("DELIVERY_BINDING_FENCE_MISMATCH");
+  expect(
+    await f.t.run((ctx) => completeDeliveryInDb(ctx, f.owner, fence)),
+  ).toEqual({ accepted: true });
+  expect(await f.t.run(({ db }) => db.get(f.message))).toMatchObject({
+    delivery_status: "delivered",
+  });
+});
+
+test("flag-off epochs preserve the last cursor when a later run first claims", async () => {
+  const f = await fixture();
+  const { fencing_token } = await f.grant();
+  await f.append(
+    f.batch(fencing_token, [f.event(1, { kind: "turn.started", body: {} })]),
+  );
+  delete process.env[flag];
+  await f.t.run(async (ctx) => {
+    const { db } = ctx;
+    const old = await db.get(f.binding);
+    const conversation = await db.get(f.conversation);
+    if (!old || !conversation) throw Error("Expected an active run");
+    const { _id, _creationTime, claim_id, ...fields } = old;
+    for (const epoch of [2, 3]) {
+      const binding = await db.insert("execution_bindings", {
+        ...fields,
+        epoch,
+      });
+      await seedEventRun(ctx, binding, conversation, epoch, start);
+      await db.patch(f.head, { current_epoch: epoch });
+    }
+    expect(await db.query("run_event_cursors").collect()).toHaveLength(1);
+    expect(await db.query("run_turn_projections").collect()).toHaveLength(1);
+  });
+  process.env[flag] = "1";
+  const claimed = await f.grant("resumed");
+  expect(claimed).toMatchObject({ run: 3, last_event_seq: 1 });
+  expect(
+    await f.append(
+      f.batch(claimed.fencing_token, [
+        { ...f.event(2, { kind: "turn.started", body: {} }), run: 3 },
+      ]),
+    ),
+  ).toMatchObject([{ status: "appended", through_seq: 2 }]);
 });

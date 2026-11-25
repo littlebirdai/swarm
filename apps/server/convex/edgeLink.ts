@@ -56,6 +56,7 @@ export const admitEvents = internalMutation({
       240,
       windowMs,
       batches,
+      true,
     );
     return budget.granted === batches
       ? ({ status: "ok" } as const)

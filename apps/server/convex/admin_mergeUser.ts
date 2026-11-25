@@ -31,6 +31,12 @@ const USER_REFS: Array<{ table: string; field: string; index: string | null }> =
     { table: "sync_cursors", field: "user_id", index: "by_user_id" },
     { table: "rate_limits", field: "user_id", index: "by_user_endpoint" },
     { table: "api_tokens", field: "user_id", index: "by_user_id" },
+    { table: "run_event_cursors", field: "owner_user_id", index: "by_owner" },
+    {
+      table: "run_turn_projections",
+      field: "owner_user_id",
+      index: "by_owner",
+    },
     // The same transfer moves the dependent heartbeat row.
     { table: "managed_sessions", field: "user_id", index: "by_user_id" },
     { table: "session_metrics", field: "user_id", index: "by_user_collected" },
