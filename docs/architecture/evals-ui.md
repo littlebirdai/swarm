@@ -686,7 +686,7 @@ All paths are under `/Users/ashot/src/codecast` unless they start with `~/src/pl
 - **Daemon:** `apps/cli/src/evals/evalsServer.ts`, `evalsBridge.ts`, `evalsServer.test.ts`
 - **Web, foundation:**
   - `apps/web/lib/evals/client.ts`, `lib/evals/fixtureTransport.ts`
-  - `apps/web/store/evalsStore.ts`, `store/__tests__/evalsStore.guard.test.ts`
+  - `apps/web/store/evalsStore.ts`, `store/__tests__/evals-store.guard.test.ts`
   - `apps/web/app/evals/page.tsx`
 - **Web, `apps/web/components/evals/`:**
   - Foundation:

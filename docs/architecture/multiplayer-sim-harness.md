@@ -630,7 +630,7 @@ Candidates are memoized. The caps are 400 attempts and 10 minutes (`SHRINK_MAX_*
 | apps/server/convex/simBackend.test.ts                         | U1                                                                                                     |
 | packages/search/src/levenshtein.ts                            | U1 (edit distance moved out of cli/src/commandSuggestion.ts so the sim backend's suggestions reuse it) |
 | apps/web/lib/dispatch-binding.ts                              | U3                                                                                                     |
-| apps/web/lib/**tests**/dispatchBinding.test.ts                | U3                                                                                                     |
+| apps/web/lib/**tests**/dispatch-binding.test.ts               | U3                                                                                                     |
 | packages/inbox/src/**fixtures**/teamWorldGen.ts               | U4                                                                                                     |
 | packages/inbox/test/teamWorldGen.test.ts                      | U4                                                                                                     |
 | apps/web/store/**tests**/sim/tsconfig.json                    | U5                                                                                                     |
@@ -768,7 +768,7 @@ Acceptance:
 
 **U3 Hook extractions.** `lib/dispatch-binding.ts` and its test, plus `useEnsureDispatch.ts`, `useSyncInboxSessions.ts`, `useSyncTeamInboxSessions.ts`, `useSyncCollection.ts`, `useBootstrapCollection.ts`, `use-sync-change-feed.ts`, `reconcileCrawl.ts`.
 
-What it builds: each extraction is called by its own hook with identical arguments, so exactly one copy exists. `dispatchBinding.test.ts` covers:
+What it builds: each extraction is called by its own hook with identical arguments, so exactly one copy exists. `dispatch-binding.test.ts` covers:
 
 - unwrapping `__syncAckV1` calls `stampSyncAck` with patches and `sentAt`;
 - an `ArgumentValidationError` naming `ack_positions` latches off and re-issues the call unflagged;
@@ -777,7 +777,7 @@ What it builds: each extraction is called by its own hook with identical argumen
 Acceptance:
 
 - `cast check web` is green.
-- `bun test hooks/ lib/__tests__/dispatchBinding.test.ts` passes, with the same count as before plus the new tests.
+- `bun test hooks/ lib/__tests__/dispatch-binding.test.ts` passes, with the same count as before plus the new tests.
 - `grep -n "__syncAckV1" apps/web/hooks apps/web/lib -r` hits only `lib/dispatch-binding.ts` and its test.
 
 **U4 Team world generator.** `teamWorldGen.ts` and its test.

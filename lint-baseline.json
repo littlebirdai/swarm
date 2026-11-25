@@ -7344,7 +7344,7 @@
   "apps/mobile/lib/diffRows.ts": {
     "swarm/no-comments": 7
   },
-  "apps/mobile/lib/dispatchOutbox.ts": {
+  "apps/mobile/lib/dispatch-outbox.ts": {
     "swarm/no-comments": 11
   },
   "apps/mobile/lib/durableCreatePolicy.test.ts": {
@@ -23110,7 +23110,7 @@
   "apps/web/lib/__tests__/diffSeenMarks.test.ts": {
     "swarm/no-comments": 4
   },
-  "apps/web/lib/__tests__/dispatchBinding.test.ts": {
+  "apps/web/lib/__tests__/dispatch-binding.test.ts": {
     "swarm/no-comments": 6
   },
   "apps/web/lib/__tests__/docFilters.test.ts": {
@@ -27122,7 +27122,7 @@
   "apps/web/store/__tests__/durableWriters.test.ts": {
     "swarm/no-comments": 4
   },
-  "apps/web/store/__tests__/evalsStore.guard.test.ts": {
+  "apps/web/store/__tests__/evals-store.guard.test.ts": {
     "swarm/no-comments": 10
   },
   "apps/web/store/__tests__/expectationsSlice.test.ts": {

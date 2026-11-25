@@ -3,7 +3,7 @@ import {
   createPrincipalDispatchOutbox,
   type MobileDispatchDatabase,
   type MobileDispatchOutboxEntry,
-} from "./dispatchOutbox";
+} from "./dispatch-outbox";
 import {
   asyncAction,
   DispatchNotWiredError,
