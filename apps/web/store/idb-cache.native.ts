@@ -1,3 +1,6 @@
+import { forwardCacheStorage } from "./persistence/storage-bindings";
+import type { OutboxEntry } from "@platform/engine";
+import type { CachedConversation, CacheStorage } from "./persistence/storage";
 import { captureException } from "./pendingInputError";
 import {
   readPendingMessageJournal,
@@ -62,6 +65,7 @@ import {
   createWriteBehind,
 } from "./idbCacheWriteBehind.native";
 export { readPlan, readPlanSql };
+export type { CachedConversation, OutboxEntry };
 import { diffCollection, durableDeletes } from "./idbCollectionDiff";
 import {
   partitionSessionRetention,
@@ -100,16 +104,6 @@ try {
   testCacheDb = Storage?.cacheDb ?? null;
   sqliteBacked = testCacheDb != null;
 }
-
-export type OutboxEntry = {
-  accountId?: string;
-  id: string;
-  action: string;
-  args: any;
-  patches: any;
-  result: any;
-  ts: number;
-};
 
 let _hydrating = false;
 
@@ -153,7 +147,7 @@ export function _resetPersistedShadow() {
   writes.clearScheduled();
 }
 
-export function flushPersistence(): Promise<void> {
+function flushNativePersistence(): Promise<void> {
   return writes.flush();
 }
 
@@ -192,7 +186,7 @@ async function flushPendingInputJournal(): Promise<void> {
   }
 }
 
-export function persistPendingMessageChanges(
+function persistNativePendingMessages(
   before: PendingMessages,
   after: PendingMessages,
   ownerId?: string,
@@ -288,7 +282,7 @@ function persistKeyedRows(
   }
 }
 
-export function writePatchesToIDB(patches: Patch[], state: any) {
+function writeNativePatches(patches: Patch[], state: any) {
   if (!Storage || _hydrating) return;
 
   const affectedKeys = new Set<string>();
@@ -631,7 +625,7 @@ export function loadCacheSync(
   }
 }
 
-export function loadPaintCacheSync(): Record<string, any> | null {
+function readPaintCacheSync(): Record<string, any> | null {
   if (!Storage || typeof Storage.getItemSync !== "function") return null;
   if (!cacheAccess().serve) return null;
   const t0 =
@@ -718,7 +712,7 @@ export function loadPaintCacheSync(): Record<string, any> | null {
   }
 }
 
-export async function loadCache(
+async function loadNativeCache(
   keys?: readonly string[],
   context: Record<string, any> = {},
 ): Promise<Record<string, any> | null> {
@@ -790,7 +784,7 @@ export async function loadCache(
   }
 }
 
-export function setHydrating(v: boolean) {
+function setNativeHydrating(v: boolean) {
   _hydrating = v;
 }
 
@@ -858,13 +852,6 @@ export function persistSplitRows(
 
 // -- Per-conversation message cache --
 
-export type CachedConversation = {
-  messages: any[];
-  pagination: any;
-  latestTimestamp: number;
-  userMessages?: any[];
-};
-
 async function loadUserMessages(convId: string): Promise<any[] | undefined> {
   try {
     const raw =
@@ -876,7 +863,7 @@ async function loadUserMessages(convId: string): Promise<any[] | undefined> {
   }
 }
 
-export async function loadConversationMessages(
+async function loadNativeConversationMessages(
   convId: string,
 ): Promise<CachedConversation | null> {
   if (!Storage || !cacheAccess().serve) return null;
@@ -906,7 +893,7 @@ export async function loadConversationMessages(
   }
 }
 
-export function writeConversationUserMessages(
+function writeNativeConversationUserMessages(
   convId: string,
   userMessages: any[],
 ) {
@@ -916,7 +903,7 @@ export function writeConversationUserMessages(
   );
 }
 
-export function writeConversationMessages(
+function writeNativeConversationMessages(
   convId: string,
   messages: any[],
   pagination: any,
@@ -962,7 +949,7 @@ function mutateOutbox(transform: (entries: OutboxEntry[]) => OutboxEntry[]) {
     .catch(() => {});
 }
 
-export function enqueueDispatch(entry: OutboxEntry) {
+function enqueueNativeDispatch(entry: OutboxEntry) {
   if (
     principalSource &&
     (!entry.accountId || entry.accountId !== outboxAccountId())
@@ -974,11 +961,11 @@ export function enqueueDispatch(entry: OutboxEntry) {
   ]);
 }
 
-export function removeDispatch(id: string) {
+function removeNativeDispatch(id: string) {
   mutateOutbox((entries) => entries.filter((e) => e.id !== id));
 }
 
-export async function loadOutbox(): Promise<OutboxEntry[]> {
+async function loadNativeOutbox(): Promise<OutboxEntry[]> {
   try {
     // Drain queued writes first so the read reflects every prior enqueue/remove.
     await _outboxQueue;
@@ -1035,7 +1022,7 @@ function readCachePrincipal(): CachePrincipal {
   }
 }
 
-export function outboxAccountId(): string | null {
+function nativeOutboxAccountId(): string | null {
   return principalSource ? readCachePrincipal().principal : null;
 }
 
@@ -1110,7 +1097,7 @@ let purging: Promise<void> | null = null;
 /** Delete everything this module persisted. `keepPendingInputFor` keeps that
  *  principal's own typed-but-unsent messages (a purge from under a signed-in
  *  account); sign-out passes nothing and keeps nothing. */
-export function purgeLocalCache(opts?: {
+function purgeNativeLocalCache(opts?: {
   keepPendingInputFor?: string | null;
   reason?: string;
   detail?: Record<string, unknown>;
@@ -1168,3 +1155,41 @@ export function setUpgradeBlockedListener(
 // Mobile has one process and no other window to elect against, so any value
 // does; the real one lives in persistence/schema.ts beside the Dexie schema.
 export const CACHE_SCHEMA_VERSION = 0;
+
+export const cacheStorage: CacheStorage = {
+  loadCache: loadNativeCache,
+  loadPaintCache: async () => cacheStorage.loadPaintCacheSync?.() ?? null,
+  loadPaintCacheSync: readPaintCacheSync,
+  setHydrating: setNativeHydrating,
+  writePatches: writeNativePatches,
+  flushPersistence: flushNativePersistence,
+  loadConversationMessages: loadNativeConversationMessages,
+  writeConversationMessages: writeNativeConversationMessages,
+  writeConversationUserMessages: writeNativeConversationUserMessages,
+  enqueueDispatch: enqueueNativeDispatch,
+  removeDispatch: removeNativeDispatch,
+  loadOutbox: loadNativeOutbox,
+  outboxAccountId: nativeOutboxAccountId,
+  persistPendingMessageChanges: persistNativePendingMessages,
+  purgeLocalCache: purgeNativeLocalCache,
+};
+
+export const {
+  enqueueDispatch,
+  flushPersistence,
+  loadCache,
+  loadConversationMessages,
+  loadOutbox,
+  outboxAccountId,
+  persistPendingMessageChanges,
+  purgeLocalCache,
+  removeDispatch,
+  setHydrating,
+  writeConversationMessages,
+  writeConversationUserMessages,
+  writePatches: writePatchesToIDB,
+} = forwardCacheStorage(() => cacheStorage);
+
+export function loadPaintCacheSync(): Record<string, any> | null {
+  return cacheStorage.loadPaintCacheSync?.() ?? null;
+}

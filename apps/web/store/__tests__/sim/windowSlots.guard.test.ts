@@ -5,18 +5,18 @@
 // Set that production keeps per window would silently leak between simulated
 // windows. This walks the import graph from every sim file, collects the
 // top-level `let`/`var` and `const X = new Map|Set` bindings of
-// apps/web/{store,hooks,lib} and of the engine, and fails on any binding sim/windowSlots.ts
+// apps/web/{store,hooks,lib} and of the engine, and fails on any binding sim/window-slots.ts
 // does not classify, printing the line to add. It also fails on a classified
 // binding that no longer exists, so the table never lies.
 //
-// Static: it reads source text and imports no store (windowSlots.ts reaches
+// Static: it reads source text and imports no store (window-slots.ts reaches
 // the store only lazily, inside the functions this test never calls).
 
 import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { buildBootGraph } from "../../../../../apps/cli/src/bench/bootGraph";
-import { WINDOW_SLOTS } from "./windowSlots";
+import { WINDOW_SLOTS } from "./window-slots";
 
 const SIM = import.meta.dir;
 const WEB = join(SIM, "../../..");
@@ -89,7 +89,7 @@ describe("sim window slots", () => {
       }
       expect(
         missing.join("\n"),
-        `unclassified module bindings reachable from the sim. Add each to WINDOW_SLOTS in sim/windowSlots.ts as ${HOW_TO_CLASSIFY}\n${missing.join("\n")}\n`,
+        `unclassified module bindings reachable from the sim. Add each to WINDOW_SLOTS in sim/window-slots.ts as ${HOW_TO_CLASSIFY}\n${missing.join("\n")}\n`,
       ).toBe("");
     },
     WALK_TIMEOUT,

@@ -16,7 +16,7 @@ import {
   holdLivenessRows,
   holdLivenessSyncMeta,
   resetLivenessLane,
-} from "../idbLivenessLane";
+} from "./idb-liveness-lane";
 import { COLLECTION_TABLES, db } from "./db";
 import { persistenceOwned } from "./ownership";
 import { deleteInBatches } from "./retention";

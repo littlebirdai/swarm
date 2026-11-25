@@ -32,7 +32,7 @@ apps/web/components/__tests__/SessionErrorBanner.mount.test.tsx 1
 apps/web/components/__tests__/SignInEmail.mount.test.tsx 2
 apps/web/components/__tests__/TeamDomainBanner.mount.test.tsx 2
 apps/web/components/__tests__/TeamShareNudge.mount.test.tsx 3
-apps/web/components/__tests__/activityFeedMembership.mount.test.tsx 2
+apps/web/components/__tests__/activity-feed-membership.mount.test.tsx 2
 apps/web/components/__tests__/closedBucketTriggers.mount.test.tsx 3
 apps/web/components/__tests__/composeDraftNeverLost.mount.test.tsx 2
 apps/web/components/__tests__/composeModalStable.mount.test.tsx 2
@@ -53,7 +53,7 @@ apps/web/components/__tests__/fixtures/listenerBudget.tsx 3
 apps/web/components/__tests__/fixtures/prHeaderShepherd.tsx 7
 apps/web/components/__tests__/fixtures/sessionPaneMissingRow.tsx 4
 apps/web/components/__tests__/fixtures/taskEvidenceGallery.tsx 6
-apps/web/components/__tests__/fleetDrillIn.mount.test.tsx 2
+apps/web/components/__tests__/fleet-drill-in.mount.test.tsx 2
 apps/web/components/__tests__/inboxRoleTriage.mount.test.tsx 3
 apps/web/components/__tests__/mockInboxStore.ts 3
 apps/web/components/__tests__/modernSessionsControls.mount.test.tsx 1
@@ -67,7 +67,7 @@ apps/web/components/__tests__/tabContentEntryStale.test.tsx 3
 apps/web/components/__tests__/tabContentRemount.test.tsx 3
 apps/web/components/__tests__/teamBarFace.test.tsx 2
 apps/web/components/__tests__/teamMembersPump.degrade.test.tsx 2
-apps/web/components/activity/ActivityPage.mount.test.tsx 2
+apps/web/components/activity/activity-page.mount.test.tsx 2
 apps/web/components/anchor/AnchorConversation.jump.mount.test.tsx 2
 apps/web/components/browser/__tests__/fixtures/ghostCursor.tsx 2
 apps/web/components/calls/__tests__/callDock.stage.test.tsx 3

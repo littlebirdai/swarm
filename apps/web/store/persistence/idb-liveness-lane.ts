@@ -1,6 +1,9 @@
 import type Dexie from "dexie";
-import { sameValue } from "./sameValue";
-import { COLLECTION_LIVE_FIELDS, META_LIVE_FIELDS } from "./clientSyncRegistry";
+import { sameValue } from "../sameValue";
+import {
+  COLLECTION_LIVE_FIELDS,
+  META_LIVE_FIELDS,
+} from "../clientSyncRegistry";
 
 // The liveness lane. A row whose change since it last reached disk touches
 // only its collection's liveFields waits here, and so does syncMeta. With

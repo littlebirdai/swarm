@@ -1,6 +1,6 @@
 import type Dexie from "dexie";
-import { authPrincipal } from "../lib/authPrincipal";
-import { recordCacheEvent } from "./cacheEvents";
+import { authPrincipal } from "../../lib/authPrincipal";
+import { recordCacheEvent } from "../cacheEvents";
 
 // -- Cache ownership --
 //

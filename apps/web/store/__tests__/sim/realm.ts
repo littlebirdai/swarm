@@ -23,7 +23,7 @@
 // STORE FACADE. useInboxStore's getState/setState/subscribe/getInitialState
 // point at the active window's store instance while it runs, so every caller
 // (including the `store` proxy) reaches that window. runInWindow also swaps
-// the module bindings that belong to a window (sim/windowSlots.ts).
+// the module bindings that belong to a window (sim/window-slots.ts).
 
 import { drainMicrotasks } from "bun:jsc";
 import { fnv1a32 } from "@codecast/hash/fnv1a32";
@@ -39,7 +39,7 @@ import {
   saveSlots,
   settleTransients,
   type SlotSnapshot,
-} from "./windowSlots";
+} from "./window-slots";
 
 // -- The virtual clock --
 
@@ -379,7 +379,7 @@ export function installRealm(seed: number, opts: RealmOptions = {}): void {
   realm = r;
   slotOwner = null;
   // Undo histories need no reset here: each window keeps its own in its slot
-  // (the engine's seam in windowSlots.ts), and a new window starts fresh.
+  // (the engine's seam in window-slots.ts), and a new window starts fresh.
   const g = globalThis as any;
   r.restores.push(
     swap(Date, "now", () => vnow),

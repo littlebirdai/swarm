@@ -15573,7 +15573,7 @@
   "apps/web/components/__tests__/fixtures/taskEvidenceGallery.tsx": {
     "swarm/no-comments": 3
   },
-  "apps/web/components/__tests__/fleetDrillIn.mount.test.tsx": {
+  "apps/web/components/__tests__/fleet-drill-in.mount.test.tsx": {
     "swarm/no-comments": 12
   },
   "apps/web/components/__tests__/followPill.test.tsx": {
@@ -15789,7 +15789,7 @@
   "apps/web/components/activity/ActivityNow.tsx": {
     "swarm/no-comments": 4
   },
-  "apps/web/components/activity/ActivityPage.mount.test.tsx": {
+  "apps/web/components/activity/activity-page.mount.test.tsx": {
     "react/immutability": 1,
     "swarm/no-comments": 31
   },
@@ -23494,7 +23494,7 @@
   "apps/web/lib/__tests__/productViewRefs.test.ts": {
     "swarm/no-comments": 2
   },
-  "apps/web/lib/__tests__/pwaConfig.test.ts": {
+  "apps/web/lib/__tests__/pwa-config.test.ts": {
     "swarm/no-comments": 4
   },
   "apps/web/lib/__tests__/railFocus.test.ts": {
@@ -27734,7 +27734,7 @@
   "apps/web/store/__tests__/sim/windowSlots.guard.test.ts": {
     "swarm/no-comments": 22
   },
-  "apps/web/store/__tests__/sim/windowSlots.ts": {
+  "apps/web/store/__tests__/sim/window-slots.ts": {
     "swarm/no-comments": 63
   },
   "apps/web/store/__tests__/sim/world.ts": {
@@ -27932,7 +27932,7 @@
   "apps/web/store/cacheEvents.ts": {
     "swarm/no-comments": 24
   },
-  "apps/web/store/cacheOwnership.ts": {
+  "apps/web/store/persistence/cache-ownership.ts": {
     "swarm/no-comments": 49
   },
   "apps/web/store/cacheOwnershipRule.ts": {
@@ -28040,14 +28040,14 @@
   "apps/web/store/idbCollectionDiff.ts": {
     "swarm/no-comments": 40
   },
-  "apps/web/store/idbLivenessLane.ts": {
+  "apps/web/store/persistence/idb-liveness-lane.ts": {
     "swarm/no-comments": 24
   },
   "apps/web/store/idbV2Salvage.ts": {
     "swarm/no-comments": 7
   },
   "apps/web/store/inbox-hydration.ts": {
-    "swarm/no-comments": 141
+    "swarm/no-comments": 140
   },
   "apps/web/store/inboxDigestCompare.ts": {
     "swarm/no-comments": 130
@@ -28114,7 +28114,7 @@
     "swarm/no-comments": 24
   },
   "apps/web/store/persistence/boot-loader.ts": {
-    "swarm/no-comments": 24
+    "swarm/no-comments": 20
   },
   "apps/web/store/persistence/collection-writer.ts": {
     "swarm/no-comments": 26
@@ -28126,7 +28126,7 @@
     "swarm/no-comments": 2
   },
   "apps/web/store/persistence/message-cache.ts": {
-    "swarm/no-comments": 28
+    "swarm/no-comments": 27
   },
   "apps/web/store/persistence/messageTailDiff.ts": {
     "swarm/no-comments": 4
@@ -28142,6 +28142,9 @@
   },
   "apps/web/store/persistence/schema.ts": {
     "swarm/no-comments": 28
+  },
+  "apps/web/store/persistence/storage.ts": {
+    "swarm/no-comments": 1
   },
   "apps/web/store/principalBoundary.ts": {
     "swarm/no-comments": 19

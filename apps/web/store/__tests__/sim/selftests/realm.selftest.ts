@@ -27,7 +27,7 @@ import {
   saveSlots,
   WINDOW_SLOTS,
   type SlotSnapshot,
-} from "../windowSlots";
+} from "../window-slots";
 
 const win = (name: string): RealmWindow => ({
   name,

@@ -513,7 +513,7 @@ apps/web/components/SessionDecisionCard.tsx 1350
 apps/web/components/Sidebar.tsx 1200
 apps/web/components/TriggerContextPanel.tsx 1100
 apps/web/components/TriggerRow.tsx 1000
-apps/web/components/activity/ActivityPage.mount.test.tsx 850
+apps/web/components/activity/activity-page.mount.test.tsx 850
 apps/web/components/agentDock/AgentDock.tsx 950
 apps/web/components/anchor/AnchorPanel.tsx 1000
 apps/web/components/boards/BoardView.tsx 1600

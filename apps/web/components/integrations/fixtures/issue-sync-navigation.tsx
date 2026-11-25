@@ -25,13 +25,13 @@ const restore = replaceGlobals({
   sessionStorage: dom.window.sessionStorage,
   IS_REACT_ACT_ENVIRONMENT: true,
 });
-const cache = await import("../../../store/idb-cache");
-const setHydrating = cache.setHydrating;
+const { cacheStorage } = await import("../../../store/idb-cache");
+const setHydrating = cacheStorage.setHydrating.bind(cacheStorage);
 let finishHydration!: () => void;
 const hydrated = new Promise<void>((resolve) => {
   finishHydration = resolve;
 });
-const hydrationSpy = spyOn(cache, "setHydrating").mockImplementation(
+const hydrationSpy = spyOn(cacheStorage, "setHydrating").mockImplementation(
   (value: boolean) => {
     setHydrating(value);
     if (!value) finishHydration();

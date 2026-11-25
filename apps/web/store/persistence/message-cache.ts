@@ -1,3 +1,4 @@
+import type { CachedConversation } from "./storage";
 import { captureException } from "@sentry/react";
 import Dexie from "dexie";
 import { MESSAGE_PAGE_SIZE, persistedMessageTail } from "../cacheRetention";
@@ -238,14 +239,6 @@ if (typeof window !== "undefined") {
     if (document.visibilityState === "hidden") flushConversationMessages();
   });
 }
-
-export type CachedConversation = {
-  messages: any[];
-  pagination: any;
-  latestTimestamp: number;
-  // Present when the navigator list was persisted for this conversation.
-  userMessages?: any[];
-};
 
 async function _loadUserMessages(
   convId: string,

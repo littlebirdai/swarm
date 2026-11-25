@@ -210,13 +210,13 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/persistence/message-cache.ts:_touchedAt": IDB,
   "store/persistence/schema.ts:META_KEYS": CONSTANT,
   "store/persistence/boot-loader.ts:retiredMetaSwept": IDB,
-  "store/idbLivenessLane.ts:livenessRows": IDB,
-  "store/idbLivenessLane.ts:livenessSyncMeta": IDB,
-  "store/idbLivenessLane.ts:livenessState": IDB,
-  "store/idbLivenessLane.ts:livenessTimer": IDB,
-  "store/idbLivenessLane.ts:lastPersistedMeta": IDB,
-  "store/idbLivenessLane.ts:livenessMeta": IDB,
-  "store/idbLivenessLane.ts:lane": IDB,
+  "store/persistence/idb-liveness-lane.ts:livenessRows": IDB,
+  "store/persistence/idb-liveness-lane.ts:livenessSyncMeta": IDB,
+  "store/persistence/idb-liveness-lane.ts:livenessState": IDB,
+  "store/persistence/idb-liveness-lane.ts:livenessTimer": IDB,
+  "store/persistence/idb-liveness-lane.ts:lastPersistedMeta": IDB,
+  "store/persistence/idb-liveness-lane.ts:livenessMeta": IDB,
+  "store/persistence/idb-liveness-lane.ts:lane": IDB,
   "store/cacheEvents.ts:REPORTED": CONSTANT,
   "store/idbCollectionDiff.ts:snapshotDrops": DISK_LEDGER,
   "store/idbCollectionDiff.ts:landedSnapshots": DISK_LEDGER,
@@ -690,7 +690,7 @@ function windowSeams(): Map<string, SlotSeam> {
     const make = SEAMS[file];
     if (!make)
       throw new Error(
-        `sim slots: ${file} has window bindings but no seam in SEAMS (sim/windowSlots.ts)`,
+        `sim slots: ${file} has window bindings but no seam in SEAMS (sim/window-slots.ts)`,
       );
     const seam = make();
     const want = keysOfClass("window")
@@ -714,7 +714,7 @@ function windowSeams(): Map<string, SlotSeam> {
   for (const file of filesOfClass("memo")) {
     if (!MEMO_RESETS[file])
       throw new Error(
-        `sim slots: ${file} has memo bindings but no reset in MEMO_RESETS (sim/windowSlots.ts)`,
+        `sim slots: ${file} has memo bindings but no reset in MEMO_RESETS (sim/window-slots.ts)`,
       );
   }
   memoResets = filesOfClass("memo").map((file) => MEMO_RESETS[file]());
