@@ -724,7 +724,7 @@ jobs:
           src/sim/sim.test.ts
           src/supervision.recovery.e2e.test.ts
           src/tmuxSessionServer.e2e.test.ts
-          src/workers/scanWatcher.test.ts
+          src/workers/scan-watcher.test.ts
 
   # The one check to require on main. It runs whatever the gates did, so a
   # skipped job can never read as a pass: each result must be exactly `success`

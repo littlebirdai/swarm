@@ -946,7 +946,7 @@
     "src/workers/scanOwnership.e2e.test.ts": 1823,
     "src/workers/scanPackaging.test.ts": 250,
     "src/workers/scanSafety.e2e.test.ts": 1526,
-    "src/workers/scanWatcher.test.ts": 3283,
+    "src/workers/scan-watcher.test.ts": 3283,
     "src/workers/snapshot.test.ts": 250,
     "src/workers/subprocess.test.ts": 2639,
     "src/workers/terminalSnapshot.test.ts": 278,
