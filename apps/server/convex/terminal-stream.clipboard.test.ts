@@ -1,4 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import {
+  DEVICE_BOUND_TOKEN_PREFIX,
+  presentToken,
+} from "@platform/auth/tokenFormat";
+import { hashToken } from "./apiTokens";
 import { makeFakeDb } from "./testDb";
 import {
   cliPushClipboard,
@@ -19,6 +24,25 @@ import {
 const ME = "u".repeat(31) + "m";
 const OTHER = "u".repeat(31) + "o";
 
+const secret = DEVICE_BOUND_TOKEN_PREFIX + "synthetic-clipboard-owner";
+const otherSecret = DEVICE_BOUND_TOKEN_PREFIX + "synthetic-clipboard-other";
+const token = presentToken(secret, "mydev");
+const otherToken = presentToken(otherSecret, "mydev");
+const tokenRows = [
+  {
+    _id: "token-owner",
+    user_id: ME,
+    token_hash: await hashToken(secret),
+    device_id: "mydev",
+  },
+  {
+    _id: "token-other",
+    user_id: OTHER,
+    token_hash: await hashToken(otherSecret),
+    device_id: "mydev",
+  },
+];
+
 function fixtures() {
   return makeFakeDb({
     users: [
@@ -35,6 +59,7 @@ function fixtures() {
         last_seen: 0,
       },
     ],
+    api_tokens: tokenRows,
     terminal_frames: [],
     terminal_clipboards: [],
     daemon_commands: [],
@@ -63,7 +88,7 @@ describe("clipboard offers", () => {
     expect(
       await run(cliPushClipboard, as(db, ME), {
         ...pane,
-        api_token: "",
+        api_token: token,
         text: "copied line",
       }),
     ).toEqual({ ok: true });
@@ -77,7 +102,7 @@ describe("clipboard offers", () => {
     expect(
       await run(cliPushClipboard, as(db, ME), {
         ...pane,
-        api_token: "",
+        api_token: token,
         text: "x",
       }),
     ).toEqual({ ok: false });
@@ -93,7 +118,7 @@ describe("clipboard offers", () => {
     expect(
       await run(cliPushClipboard, as(db, ME), {
         ...pane,
-        api_token: "",
+        api_token: token,
         text: "x",
       }),
     ).toEqual({ ok: false });
@@ -105,7 +130,7 @@ describe("clipboard offers", () => {
     expect(
       await run(cliPushClipboard, as(db, OTHER), {
         ...pane,
-        api_token: "",
+        api_token: otherToken,
         text: "spoof",
       }),
     ).toEqual({ ok: false });
@@ -117,7 +142,7 @@ describe("clipboard offers", () => {
     await run(watchPane, as(db, ME), pane);
     await run(cliPushClipboard, as(db, ME), {
       ...pane,
-      api_token: "",
+      api_token: token,
       text: "a".repeat(PANE_MAX_CLIPBOARD_CHARS + 10),
     });
     expect(
@@ -130,12 +155,12 @@ describe("clipboard offers", () => {
     await run(watchPane, as(db, ME), pane);
     await run(cliPushClipboard, as(db, ME), {
       ...pane,
-      api_token: "",
+      api_token: token,
       text: "copied",
     });
     await run(cliPushFrame, as(db, ME), {
       ...pane,
-      api_token: "",
+      api_token: token,
       frame: "screen",
     });
     expect((await run(getPaneClipboard, as(db, ME), pane)).clipboard).toBe(
@@ -151,7 +176,7 @@ describe("clipboard offers", () => {
     await run(watchPane, as(db, ME), pane);
     await run(cliPushClipboard, as(db, ME), {
       ...pane,
-      api_token: "",
+      api_token: token,
       text: "yesterday",
     });
     const row =
@@ -167,7 +192,7 @@ describe("clipboard offers", () => {
     await run(watchPane, as(db, ME), pane);
     await run(cliPushClipboard, as(db, ME), {
       ...pane,
-      api_token: "",
+      api_token: token,
       text: "mine",
     });
     expect(await run(getPaneClipboard, as(db, OTHER), pane)).toBeNull();
@@ -178,7 +203,7 @@ describe("clipboard offers", () => {
     await run(watchPane, as(db, ME), pane);
     await run(cliPushClipboard, as(db, ME), {
       ...pane,
-      api_token: "",
+      api_token: token,
       text: "old",
     });
     clipRow(db).at = Date.now() - PANE_CLIPBOARD_TTL_MS - 1;
@@ -190,7 +215,7 @@ describe("clipboard offers", () => {
     await run(watchPane, as(db, ME), pane);
     await run(cliPushFrame, as(db, ME), {
       ...pane,
-      api_token: "",
+      api_token: token,
       error: "pane is gone",
     });
     expect((await run(getPane, as(db, ME), pane)).error).toBe("pane is gone");

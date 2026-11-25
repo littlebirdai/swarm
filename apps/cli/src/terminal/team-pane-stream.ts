@@ -4,20 +4,22 @@ import {
   PANE_HEARTBEAT_MS,
   PANE_MAX_FRAME_BYTES,
 } from "@codecast/daemon/terminalStream";
-import { refreshKnownVault } from "../known-value-redaction.js";
+import {
+  refreshKnownVault,
+  terminalRedactionReady,
+} from "../known-value-redaction.js";
 import { deviceId } from "../remote/device.js";
-import { tmuxRun } from "../tmux.js";
+import { tmuxRunAsync } from "../tmux.js";
 import { redactFrame } from "./pane-stream.js";
 
 const PANE_IDENTITY =
   "#{session_name}|#{session_created}|#{pid}|#{pane_id}|#{pane_pid}|#{pane_dead}";
 const MAX_PUSH_FAILURES = 6;
 
-export function captureTeamPane(target: string) {
-  if (!isValidPaneTarget(target)) return null;
-  const pane =
-    target.includes(":") || target.startsWith("%") ? target : `${target}:0.0`;
-  const result = tmuxRun([
+export async function captureTeamPane(target: string) {
+  if (!isValidPaneTarget(target) || target.startsWith("%")) return null;
+  const pane = target.includes(":") ? target : `${target}:0.0`;
+  const result = await tmuxRunAsync([
     "display-message",
     "-p",
     "-t",
@@ -27,6 +29,7 @@ export function captureTeamPane(target: string) {
     ";",
     "capture-pane",
     "-p",
+    "-N",
     "-t",
     pane,
     ";",
@@ -52,7 +55,7 @@ export function captureTeamPane(target: string) {
     !paneId?.startsWith("%") ||
     !Number(panePid) ||
     dead !== "0" ||
-    (!target.startsWith("%") && name !== target.split(":")[0])
+    name !== target.split(":")[0]
   )
     return null;
   return { identity, cols, text: output.slice(first + 1, last) };
@@ -60,7 +63,12 @@ export function captureTeamPane(target: string) {
 
 type Frame = { pane_instance?: string; frame?: string };
 type StreamDeps = {
-  capture: typeof captureTeamPane;
+  capture: (
+    target: string,
+  ) =>
+    | ReturnType<typeof captureTeamPane>
+    | Awaited<ReturnType<typeof captureTeamPane>>;
+  redactionReady?: () => boolean;
   push: (frame: Frame) => Promise<boolean | null>;
   now: () => number;
   sleep: (ms: number) => Promise<void>;
@@ -75,7 +83,9 @@ export async function streamTeamPane(
   let lastPushAt = 0;
   let failures = 0;
   for (;;) {
-    const pane = deps.capture(target);
+    if (deps.redactionReady?.() === false) return;
+    const pane = await deps.capture(target);
+    if (deps.redactionReady?.() === false) return;
     if (!pane || (paneInstance && pane.identity !== paneInstance)) {
       await deps.push({});
       return;
@@ -120,51 +130,68 @@ export async function startTeamPaneStream(
     !isValidPaneTarget(args.target) ||
     !("share" in args) ||
     typeof args.share !== "string" ||
-    !("stream_id" in args) ||
-    typeof args.stream_id !== "string" ||
-    ("pane_instance" in args && typeof args.pane_instance !== "string")
+    !(
+      "bind" in args ||
+      ("stream_id" in args &&
+        typeof args.stream_id === "string" &&
+        "pane_instance" in args &&
+        typeof args.pane_instance === "string")
+    )
   )
     return false;
-  const { target, share, stream_id, pane_instance } = args as {
-    target: string;
-    share: string;
+
+  const { target, share } = args;
+  const post = async (
+    path: string,
+    payload: Frame & { stream_id?: string },
+  ): Promise<unknown> => {
+    try {
+      const response = await fetch(`${siteUrl}/cli/terminal/${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_token: token,
+          device_id: deviceId(),
+          share,
+          ...payload,
+        }),
+        signal: AbortSignal.timeout(PANE_HEARTBEAT_MS),
+      });
+      return response.ok ? await response.json() : null;
+    } catch {
+      return null;
+    }
+  };
+  if ("bind" in args) {
+    if (args.bind !== true) return false;
+    const pane = await captureTeamPane(target);
+    return (
+      (await post("team-bind", { pane_instance: pane?.identity })) === true
+    );
+  }
+
+  const { stream_id, pane_instance } = args as {
     stream_id: string;
-    pane_instance?: string;
+    pane_instance: string;
   };
   if (active.has(stream_id)) return true;
   active.add(stream_id);
   void (async () => {
     try {
-      await refreshKnownVault();
+      if (!(await refreshKnownVault())) return;
       await streamTeamPane(
         target,
         {
           capture: captureTeamPane,
+          redactionReady: terminalRedactionReady,
           now: Date.now,
           sleep: Bun.sleep,
           push: async (frame) => {
-            try {
-              const response = await fetch(
-                `${siteUrl}/cli/terminal/team-frame`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    api_token: token,
-                    device_id: deviceId(),
-                    share,
-                    stream_id,
-                    ...frame,
-                  }),
-                  signal: AbortSignal.timeout(PANE_HEARTBEAT_MS),
-                },
-              );
-              if (!response.ok) return null;
-              const result = (await response.json()) as { stop?: unknown };
-              return typeof result.stop === "boolean" ? result.stop : null;
-            } catch {
-              return null;
-            }
+            const result = (await post("team-frame", {
+              stream_id,
+              ...frame,
+            })) as { stop?: unknown } | null;
+            return typeof result?.stop === "boolean" ? result.stop : null;
           },
         },
         pane_instance,

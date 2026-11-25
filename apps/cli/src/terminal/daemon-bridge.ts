@@ -1,5 +1,8 @@
 import { isValidPaneTarget } from "@codecast/daemon/terminalStream";
-import { refreshKnownVault } from "../known-value-redaction.js";
+import {
+  refreshKnownVault,
+  terminalRedactionReady,
+} from "../known-value-redaction.js";
 import { deviceId } from "../remote/device.js";
 import { isManagedTmuxName } from "../resumeCommand.js";
 import { hasTmux } from "../tmux.js";
@@ -90,9 +93,13 @@ export async function streamTerminalPane(
   const alreadyRunning = isPaneStreaming(target);
   // Frames go out through redactSecrets: take the Vault's current values
   // first, as a `cast vault` read does, so one stored a moment ago is in.
-  if (!alreadyRunning) await refreshKnownVault();
+  if (!alreadyRunning && !(await refreshKnownVault())) {
+    recordOutcome(undefined, "Terminal redaction unavailable");
+    return;
+  }
   startPaneStream(target, {
     log,
+    redactionReady: terminalRedactionReady,
     write: (pane, bytes) => {
       if (writePane(pane, bytes)) observePaneInput(pane, bytes);
     },

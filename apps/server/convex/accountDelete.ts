@@ -4,6 +4,10 @@ import { internalMutation } from "./functions";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import {
+  deleteTerminalShare,
+  deleteTerminalViewer,
+} from "./lib/terminalWatchRows";
 import { deleteBookmarkWithRevision } from "./bookmarkViewWrites";
 
 // Deleting an account runs in budgeted background passes: an account with a
@@ -18,6 +22,7 @@ const FIRST: ReadonlyArray<readonly [string, string, string]> = [
   ["api_tokens", "by_user_id", "user_id"],
 ];
 const AFTER_CONVERSATIONS: ReadonlyArray<readonly [string, string, string]> = [
+  ["terminal_watch_blocks", "by_user_team", "user_id"],
   ["decisions", "by_user_id", "user_id"],
   ["patterns", "by_user_id", "user_id"],
   ["sync_cursors", "by_user_id", "user_id"],
@@ -94,6 +99,18 @@ export async function purgeAccountPass(
   }
   budget -= receipts.length;
   if (budget <= 0) return true;
+  const shares = await ctx.db
+    .query("terminal_watch_shares")
+    .withIndex("by_owner_team", (q) => q.eq("owner_id", userId))
+    .take(20);
+  for (const share of shares) await deleteTerminalShare(ctx.db, share);
+  if (shares.length === 20) return true;
+  const views = await ctx.db
+    .query("terminal_watch_viewers")
+    .withIndex("by_user", (q) => q.eq("user_id", userId))
+    .take(20);
+  for (const view of views) await deleteTerminalViewer(ctx.db, view);
+  if (views.length === 20) return true;
 
   // Each conversation's own rows are purged by its own scheduled job.
   const conversations = await ctx.db

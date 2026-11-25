@@ -56,6 +56,7 @@ export type VaultRedactionDeps = {
 
 export type VaultRedactionSource = {
   values: () => KnownValue[];
+  ready: () => boolean;
   /**
    * Resolves true when the held set changed, after a poll that started no
    * earlier than this call. A call made while a poll runs waits for one more
@@ -73,6 +74,7 @@ export function vaultRedactionSource(
   const doFetch = deps.fetch ?? fetch;
   let held: KnownValue[] = [];
   let version: string | null = null;
+  let ready = false;
   let token: string | null = null;
   let inflight: Promise<boolean> | null = null;
   let queued: Promise<boolean> | null = null;
@@ -97,6 +99,7 @@ export function vaultRedactionSource(
   };
 
   const clear = (why: string): boolean => {
+    ready = false;
     const had = held.length > 0;
     held = [];
     version = null;
@@ -109,6 +112,7 @@ export function vaultRedactionSource(
     if (!ep) return clear("not signed in");
     // Another account's version string says nothing about this one's values.
     if (ep.apiToken !== token) {
+      ready = false;
       token = ep.apiToken;
       version = null;
     }
@@ -118,24 +122,34 @@ export function vaultRedactionSource(
         ep.apiToken,
         "/cli/vault/redaction-version",
       );
-      if (version !== null && current === version) return false;
+      if (typeof current !== "string")
+        throw new Error("Invalid Vault redaction version");
+      if (version !== null && current === version) {
+        ready = true;
+        return false;
+      }
       const got = await post(
         ep.siteUrl,
         ep.apiToken,
         "/cli/vault/redaction-values",
       );
+      if (!Array.isArray(got.values))
+        throw new Error("Invalid Vault redaction values");
       const next: KnownValue[] = [];
-      for (const v of got.values ?? []) {
-        if (typeof v?.value === "string" && typeof v?.name === "string")
-          next.push({ value: v.value, name: v.name });
+      for (const v of got.values) {
+        if (typeof v?.value !== "string" || typeof v?.name !== "string")
+          throw new Error("Invalid Vault redaction value");
+        next.push({ value: v.value, name: v.name });
       }
       held = next;
+      ready = true;
       version = String(got.version ?? current);
       deps.log?.(
         `[VAULT-REDACTION] ${next.length} values from ${new Set(next.map((v) => v.name)).size} secrets`,
       );
       return true;
     } catch (e) {
+      ready = false;
       if (e instanceof Refused) return clear("token refused");
       deps.log?.(
         `[VAULT-REDACTION] poll failed, keeping ${held.length} values: ${(e as Error)?.message ?? e}`,
@@ -151,6 +165,7 @@ export function vaultRedactionSource(
 
   return {
     values: () => held,
+    ready: () => ready,
     refresh: () => {
       if (!inflight) return start();
       return (queued ??= inflight.then(async (changed) => {

@@ -11,9 +11,16 @@ import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { ConsequentialSwitch } from "../consequential/ConsequentialSwitch";
 
 const RENEW_MS = 20_000;
-const STALE_MS = 12_000;
 const actionClass =
   "rounded border border-sol-border px-2 py-0.5 hover:text-sol-text";
+
+function useReceiptTime<T>(value: T): number | undefined {
+  const [receipt, setReceipt] = useState<{ value: T; at: number }>();
+  useWatchEffect(() => {
+    setReceipt({ value, at: Date.now() });
+  }, [value]);
+  return receipt?.value === value ? receipt?.at : undefined;
+}
 
 export function TeamTerminal({
   conversationId,
@@ -30,6 +37,7 @@ export function TeamTerminal({
       <TeamTerminalOwner
         conversationId={conversationId}
         enabled={status.enabled}
+        binding={status.binding === true}
       />
     );
   }
@@ -54,19 +62,31 @@ export function TeamTerminal({
 function TeamTerminalOwner({
   conversationId,
   enabled,
+  binding,
 }: {
   conversationId: Id<"conversations">;
   enabled: boolean;
+  binding: boolean;
 }) {
   const args = { conversation_id: conversationId };
   const setSharing = useMutation(api.terminalWatch.setSharing);
   const stopViewer = useMutation(api.terminalWatch.stopViewer);
+  const unblock = useMutation(api.terminalWatch.unblockViewer);
+  const { data: blocked } = useQueryNoThrow(
+    api.terminalWatch.blockedViewers,
+    args,
+  );
   const { data: watchers } = useQueryNoThrow(
     api.terminalWatch.watchers,
     enabled ? args : "skip",
   );
+  const receivedAt = useReceiptTime(watchers);
   const liveWatchers = (now: number) =>
-    watchers?.filter((watcher) => watcher.expires_at > now) ?? [];
+    receivedAt === undefined
+      ? []
+      : (watchers?.filter(
+          (watcher) => receivedAt + watcher.remaining_ms > now,
+        ) ?? []);
   const now = useNowWhen(
     (time) =>
       liveWatchers(time)
@@ -112,6 +132,7 @@ function TeamTerminalOwner({
           </button>
         )}
       />
+      {binding && <span role="status">Checking terminal…</span>}
       {enabled && (
         <ul aria-label="Terminal viewers" className="flex flex-wrap gap-2">
           {liveWatchers(now).map((watcher) => (
@@ -139,6 +160,33 @@ function TeamTerminalOwner({
           ))}
         </ul>
       )}
+      {!!blocked?.length && (
+        <ul
+          aria-label="Blocked terminal viewers"
+          className="flex flex-wrap gap-2"
+        >
+          {blocked.map((viewer) => (
+            <li key={viewer.user_id} className="inline-flex items-center gap-1">
+              <span>{viewer.name}</span>
+              <button
+                type="button"
+                className={actionClass}
+                aria-label={`Unblock ${viewer.name}`}
+                onClick={() => {
+                  void unblock({ ...args, viewer: viewer.user_id }).then(
+                    (ok) => {
+                      if (!ok) toast.error("Could not unblock viewer");
+                    },
+                    () => toast.error("Could not unblock viewer"),
+                  );
+                }}
+              >
+                Unblock
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -152,7 +200,14 @@ function TeamTerminalViewer({ conversationId, share }: ViewerProps) {
   const [watching, setWatching] = useState(false);
   const [joining, setJoining] = useState(false);
   const watch = useMutation(api.terminalWatch.watch);
+  const leave = useMutation(api.terminalWatch.leave);
   const args = { conversation_id: conversationId, share };
+  useWatchEffect(() => {
+    if (!watching) return;
+    return () => {
+      void leave({ conversation_id: conversationId, share }).catch(() => {});
+    };
+  }, [watching, leave, conversationId, share]);
 
   return (
     <div className="border-b border-sol-border/30 text-meta text-sol-text-muted">
@@ -203,11 +258,14 @@ function TeamTerminalScreen({
     conversation_id: conversationId,
     share,
   });
+  const receivedAt = useReceiptTime(screen);
   const status = (time: number) => {
-    if (error || screen === null || (screen && screen.expires_at <= time))
-      return "ended";
-    if (!screen?.seen_at) return "connecting";
-    return screen.seen_at + STALE_MS <= time ? "paused" : "live";
+    if (error || screen === null) return "ended";
+    if (screen === undefined || receivedAt === undefined) return "connecting";
+    if (receivedAt + screen.expires_in_ms <= time) return "ended";
+    return screen.text === null || receivedAt + screen.stale_in_ms <= time
+      ? "paused"
+      : "live";
   };
   const now = useNowWhen(status, 1_000);
   const state = status(now);

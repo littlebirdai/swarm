@@ -29,7 +29,7 @@
 // a value wider than the pane is caught too.
 
 import { redactSecrets } from "../redact.js";
-import { tmuxRun } from "../tmux.js";
+import { tmuxRun, tmuxRunAsync } from "../tmux.js";
 import {
   hasSessionServer,
   sessionServerSockets,
@@ -73,7 +73,9 @@ export interface PaneFramePush {
 
 export interface PaneStreamDeps {
   /** Read the pane now. null = the pane is gone (or tmux is). */
-  capture: (target: string) => PaneSnapshot | null;
+  capture: (
+    target: string,
+  ) => PaneSnapshot | null | Promise<PaneSnapshot | null>;
   /** Publish to the relay. Returns the relay's answer, or null if the push
    *  itself failed (network, server down). `input` is whatever the viewer typed
    *  since the previous push, as hex. */
@@ -87,6 +89,7 @@ export interface PaneStreamDeps {
   log?: (msg: string) => void;
   /** The clipboard bridge (see watchClipboard). Absent = no bridge. */
   clipboard?: PaneClipboardDeps;
+  redactionReady?: () => boolean;
 }
 
 /**
@@ -150,7 +153,9 @@ export async function runPaneStream(
       return;
     }
 
-    const snap = deps.capture(target);
+    if (deps.redactionReady?.() === false) return;
+    const snap = await deps.capture(target);
+    if (deps.redactionReady?.() === false) return;
     if (!snap) {
       // Report it once so the viewer says "pane is gone" instead of spinning
       // on "connecting", then stop: a dead pane does not come back under the
@@ -522,12 +527,14 @@ export function redactFrame(frame: string, cols: number): string {
  * a 400ms loop spawns one process per tick instead of two. Separators must be
  * printable: tmux rewrites control characters in format output to "_".
  */
-export function capturePane(target: string): PaneSnapshot | null {
+export async function capturePane(
+  target: string,
+): Promise<PaneSnapshot | null> {
   if (!isValidPaneTarget(target)) return null;
   // Managed sessions are addressed as session:window.pane everywhere else in
   // the daemon; accept a bare session name and resolve it the same way.
   const pane = target.includes(":") ? target : `${target}:0.0`;
-  const r = tmuxRun([
+  const r = await tmuxRunAsync([
     "display-message",
     "-p",
     "-t",
@@ -538,6 +545,7 @@ export function capturePane(target: string): PaneSnapshot | null {
     "capture-pane",
     "-p",
     "-e",
+    "-N",
     "-t",
     pane,
   ]);
@@ -620,6 +628,7 @@ export function startPaneStream(
     sleep: deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
     log: deps.log,
     clipboard: deps.clipboard,
+    redactionReady: deps.redactionReady,
   };
   const run = runPaneStream(target, full)
     .catch((err) => {

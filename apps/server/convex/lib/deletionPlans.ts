@@ -21,6 +21,7 @@ import {
   deleteCallFrameShares,
 } from "./callRecordingRuns";
 import { purgeThread } from "../threadReads";
+import { terminalWatchRows, terminalWatchBlocks } from "./terminalWatchRows";
 import { killConversation } from "../conversations";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
@@ -37,21 +38,6 @@ function under(
 ): PurgeNode {
   return { table, index, field, value: idOf, ...more };
 }
-
-export const terminalWatchRows = under(
-  "terminal_watch_shares",
-  "by_conversation",
-  "conversation_id",
-  {
-    children: [
-      under("terminal_watch_viewers", "by_share_user", "share"),
-      under("terminal_watch_screens", "by_share", "share", {
-        page: 1,
-        weight: 10,
-      }),
-    ],
-  },
-);
 
 // Rows big enough (message text, tool input, diff bodies, transcripts) that a
 // page of them is read small and each costs more of a pass's budget.
@@ -146,6 +132,7 @@ function plans() {
       }),
     ),
     terminalWatchRows,
+    terminalWatchBlocks,
     // Beyond the ordinary session purge: the content a regulated delete
     // must also reach.
     under("tree_snapshots", "by_conversation_taken", "conversation_id", HEAVY),
@@ -352,6 +339,10 @@ function plans() {
       ],
     }),
     byWorkspace("workflow_runs", "by_workspace_updated"),
+    byTeam("terminal_watch_shares", "by_team", {
+      children: terminalWatchRows.children,
+    }),
+    byTeam("terminal_watch_blocks", "by_team"),
     byTeam("decisions", "by_team_id"),
     byWorkspace("decisions", "by_workspace"),
     byTeam("patterns", "by_team_id"),

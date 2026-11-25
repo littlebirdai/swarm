@@ -365,7 +365,7 @@ describe("isValidPaneTarget", () => {
 });
 
 describe("capturePane", () => {
-  test("refuses an invalid target before ever spawning tmux", () => {
-    expect(capturePane("#{pane_id}")).toBeNull();
+  test("refuses an invalid target before ever spawning tmux", async () => {
+    expect(await capturePane("#{pane_id}")).toBeNull();
   });
 });

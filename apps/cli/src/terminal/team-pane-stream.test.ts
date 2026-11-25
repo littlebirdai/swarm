@@ -1,5 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { setKnownValuesForTest } from "../known-value-redaction.js";
+import { pollUntil } from "../test-helpers/pollUntil.js";
+import { capturePane, redactFrame } from "./pane-stream.js";
 import { tmuxRun } from "../tmux.js";
 import { captureTeamPane, streamTeamPane } from "./team-pane-stream.js";
 
@@ -67,23 +69,97 @@ test("a re-dispatched stream checks the original physical pane before sending a 
   expect(captured).toEqual([{}]);
 });
 
-test("capture binds the physical pane and refuses a partial tmux session name", () => {
-  const name = "cc-watch-exact";
+test("capture binds the physical pane and refuses a partial tmux session name", async () => {
+  const name = "watch-exact";
+  const second = "watch-other";
   expect(tmuxRun(["new-session", "-d", "-s", name, "sleep", "60"]).status).toBe(
     0,
   );
   try {
-    const first = captureTeamPane(name);
+    expect(
+      tmuxRun(["new-session", "-d", "-s", second, "sleep", "60"]).status,
+    ).toBe(0);
+    expect(
+      tmuxRun([
+        "display-message",
+        "-p",
+        "-t",
+        "watch-exac:0.0",
+        "#{session_name}",
+      ]).stdout.trim(),
+    ).toBe(name);
+    expect(await captureTeamPane(second)).not.toBeNull();
+    const first = await captureTeamPane(name);
     expect(first?.identity).toStartWith(`${name}|`);
-    expect(captureTeamPane("cc-watch-exac")).toBeNull();
+    expect(await captureTeamPane("watch-exac:0.0")).toBeNull();
     expect(
       tmuxRun(["respawn-pane", "-k", "-t", `${name}:0.0`, "sleep", "60"])
         .status,
     ).toBe(0);
-    const replacement = captureTeamPane(name);
+    const replacement = await captureTeamPane(name);
     expect(replacement?.identity).toStartWith(`${name}|`);
     expect(replacement?.identity).not.toBe(first?.identity);
   } finally {
     tmuxRun(["kill-session", "-t", name]);
+    tmuxRun(["kill-session", "-t", second]);
   }
+});
+
+test("isolated tmux redacts a value that wraps after a space at the pane width", async () => {
+  const name = "watch-space";
+  const first = "ABCDEFGHIJKLMNOPQRS";
+  const second = "synthetic-tail";
+  setKnownValuesForTest([
+    { name: "fixture", value: first + " " + second, vault: true },
+  ]);
+  const create = tmuxRun([
+    "new-session",
+    "-d",
+    "-s",
+    name,
+    "-x",
+    "20",
+    "-y",
+    "8",
+    `printf '%s\\n' '${first} ${second}'; sleep 60`,
+  ]);
+  expect(create.status).toBe(0);
+  try {
+    await pollUntil(
+      async () => (await captureTeamPane(name))?.text.includes(second) ?? false,
+      "synthetic value on the isolated pane",
+    );
+    const team = (await captureTeamPane(name))!;
+    const owner = (await capturePane(name))!;
+    for (const screen of [
+      redactFrame(team.text, team.cols),
+      redactFrame(owner.frame, owner.cols),
+    ]) {
+      expect(screen).not.toContain(first);
+      expect(screen).not.toContain(second);
+      expect(screen).toContain("[redacted:");
+    }
+  } finally {
+    tmuxRun(["kill-session", "-t", name]);
+  }
+});
+
+test("team frames stop before capture when the known-value matcher is unavailable", async () => {
+  let published = 0;
+  await streamTeamPane(
+    "fixture",
+    {
+      redactionReady: () => published === 0,
+      capture: () => ({
+        identity: "original",
+        cols: 80,
+        text: `sample ${published}`,
+      }),
+      push: async () => ++published > 1,
+      now: () => 1,
+      sleep: async () => {},
+    },
+    "original",
+  );
+  expect(published).toBe(1);
 });

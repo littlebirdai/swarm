@@ -1,3 +1,7 @@
+import {
+  DEVICE_BOUND_TOKEN_PREFIX,
+  presentToken,
+} from "@platform/auth/tokenFormat";
 import { expect } from "bun:test";
 import { api } from "../convex/_generated/api";
 import { asUser, serverTest } from "./database.testkit";
@@ -6,7 +10,8 @@ import { fixtureRows } from "./rows.testkit";
 export const target = "cc-team-watch";
 export const deviceId = "terminal-device";
 export const frame = "redacted screen";
-const token = "terminal-daemon-token";
+const secret = DEVICE_BOUND_TOKEN_PREFIX + "terminal-daemon-token";
+const token = presentToken(secret, deviceId);
 
 export async function terminalWatchFixture() {
   const t = serverTest();
@@ -18,13 +23,17 @@ export async function terminalWatchFixture() {
     const viewer = await rows.user({ name: "Viewer" });
     const secondViewer = await rows.user({ name: "Second viewer" });
     const outsider = await rows.user({ name: "Outsider" });
-    await rows.membership(owner, team, { visibility: "full" });
+    const ownerMembership = await rows.membership(owner, team, {
+      visibility: "full",
+      role: "admin",
+    });
     const membership = await rows.membership(viewer, team);
     await rows.membership(secondViewer, team);
     await rows.membership(owner, otherTeam, { visibility: "full" });
     await rows.membership(viewer, otherTeam);
     await rows.membership(outsider, otherTeam);
-    await rows.token(owner, token);
+    const ownerToken = await rows.token(owner, secret);
+    await db.patch(ownerToken, { device_id: deviceId });
     const device = await rows.device(owner, { device_id: deviceId });
     const otherDevice = await rows.device(owner, { device_id: "other-device" });
     const conversation_id = await rows.conversation(owner, {
@@ -51,6 +60,8 @@ export async function terminalWatchFixture() {
       device,
       otherDevice,
       membership,
+      ownerMembership,
+      team,
       otherTeam,
       owner,
       session,
@@ -68,10 +79,24 @@ export async function terminalWatchFixture() {
     expect(
       await owner.mutation(apiWatch.setSharing, { ...args, enabled: true }),
     ).toBe(true);
-    const status = await viewer.query(apiWatch.status, args);
-    if (status?.role !== "viewer")
-      throw new Error("Could not enable terminal sharing");
-    return { ...args, share: status.share };
+    const command = await t.run(({ db }) =>
+      db.query("daemon_commands").order("desc").first(),
+    );
+    const bind = JSON.parse(command!.args!).team_watch;
+    expect(bind).toMatchObject({ target, bind: true });
+    expect(
+      await t.mutation(apiWatch.cliBind, {
+        api_token: token,
+        device_id: deviceId,
+        share: bind.share,
+        pane_instance: "pane-generation",
+      }),
+    ).toBe(true);
+    return {
+      ...args,
+      share:
+        bind.share as import("../convex/_generated/dataModel").Id<"terminal_watch_shares">,
+    };
   }
 
   async function start() {
@@ -80,7 +105,7 @@ export async function terminalWatchFixture() {
       await viewer.mutation(apiWatch.watch, { ...lease, renew: false }),
     ).toBe(true);
     const command = await t.run(({ db }) =>
-      db.query("daemon_commands").first(),
+      db.query("daemon_commands").order("desc").first(),
     );
     expect(command?.user_id).toBe(ids.owner);
     expect(command?.target_device_id).toBe(deviceId);
@@ -103,5 +128,5 @@ export async function terminalWatchFixture() {
     return { lease, push };
   }
 
-  return { t, args, ids, owner, viewer, enable, start };
+  return { t, args, ids, owner, viewer, enable, start, token };
 }

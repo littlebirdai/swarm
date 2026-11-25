@@ -542,6 +542,8 @@ import type * as lib_teamBudget from "../lib/teamBudget.js";
 import type * as lib_teamDay from "../lib/teamDay.js";
 import type * as lib_teamFeatureGuard from "../lib/teamFeatureGuard.js";
 import type * as lib_teamInvites from "../lib/teamInvites.js";
+import type * as lib_terminalPublisher from "../lib/terminalPublisher.js";
+import type * as lib_terminalWatchRows from "../lib/terminalWatchRows.js";
 import type * as lib_teamMembershipEnd from "../lib/teamMembershipEnd.js";
 import type * as lib_teamPolicyGuard from "../lib/teamPolicyGuard.js";
 import type * as lib_teamReadKey from "../lib/teamReadKey.js";
@@ -1397,6 +1399,8 @@ declare const fullApi: ApiFromModules<{
   "lib/teamFeatureGuard": typeof lib_teamFeatureGuard;
   "lib/teamInvites": typeof lib_teamInvites;
   "lib/teamMembershipEnd": typeof lib_teamMembershipEnd;
+  "lib/terminalPublisher": typeof lib_terminalPublisher;
+  "lib/terminalWatchRows": typeof lib_terminalWatchRows;
   "lib/teamPolicyGuard": typeof lib_teamPolicyGuard;
   "lib/teamReadKey": typeof lib_teamReadKey;
   "lib/teamReadKeyHttp": typeof lib_teamReadKeyHttp;

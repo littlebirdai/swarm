@@ -140,7 +140,22 @@ export const sessionFrameTables = {
     target: v.string(),
     agent_started_at: v.optional(v.number()),
     pane_instance: v.optional(v.string()),
-  }).index("by_conversation", ["conversation_id"]),
+    bind_expires_at: v.optional(v.number()),
+    bound_at: v.optional(v.number()),
+  })
+    .index("by_conversation", ["conversation_id"])
+    .index("by_owner_team", ["owner_id", "team_id"])
+    .index("by_team", ["team_id"])
+    .index("by_bind_expiry", ["bind_expires_at"]),
+
+  terminal_watch_blocks: defineTable({
+    conversation_id: v.id("conversations"),
+    team_id: v.id("teams"),
+    user_id: v.id("users"),
+  })
+    .index("by_conversation_user", ["conversation_id", "user_id"])
+    .index("by_user_team", ["user_id", "team_id"])
+    .index("by_team", ["team_id"]),
 
   terminal_watch_screens: defineTable({
     share: v.id("terminal_watch_shares"),
@@ -160,6 +175,7 @@ export const sessionFrameTables = {
     revoked: v.boolean(),
   })
     .index("by_share_user", ["share", "user_id"])
+    .index("by_user", ["user_id"])
     .index("by_expiry", ["revoked", "expires_at"]),
 
   // Live screen of one tmux pane on one machine — the transport that lets the
