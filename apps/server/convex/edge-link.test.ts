@@ -219,7 +219,10 @@ test("the daemon facade negotiates and sends heartbeats through the real routes"
       return t.fetch(path, init);
     },
   );
-  const time = spyOn(performance, "now");
+  const helloAt = 45_000;
+  const heartbeatIntervalMs = 30_000;
+  let monotonicNow = helloAt;
+  const time = spyOn(performance, "now").mockImplementation(() => monotonicNow);
   try {
     const connection = {
       siteUrl: "https://edge.invalid",
@@ -230,11 +233,12 @@ test("the daemon facade negotiates and sends heartbeats through the real routes"
     expect(
       await sendDaemonEdgeHeartbeat(connection, capacity, hello.runtimes),
     ).toBeUndefined();
+    monotonicNow = helloAt + heartbeatIntervalMs - 1;
     expect(
       await sendDaemonEdgeHeartbeat(connection, capacity, hello.runtimes),
     ).toBeUndefined();
     expect(paths).toEqual(["/edge/v1/hello"]);
-    time.mockImplementation(() => 60_000);
+    monotonicNow = helloAt + heartbeatIntervalMs;
     expect(
       await sendDaemonEdgeHeartbeat(connection, capacity, hello.runtimes),
     ).toBeUndefined();
