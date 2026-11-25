@@ -30,8 +30,8 @@ checks with `bun perf/budgets.ts store` and the first paint checks with
 | --------------------------------- | ---------: | ---------: | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | Task list bytes                   | 14,661,183 | 14,807,795 | 7,919 tasks with synthetic comment threads from `detail-rows-size.ts`                                                 | Keep comment threads on task rows → 32,019,997 |
 | Pull request list bytes           |    897,150 |    906,122 | 253 pull requests with synthetic patches, commits and checks from the same fixture                                    | Keep details on pull request rows → 34,354,946 |
-| Cached conversation message rows  |     80,000 |     80,000 | Visit 420 conversations with 200 messages each and retain 400                                                         | Raise the conversation cap to 401 → 80,200     |
-| Cached conversation message bytes | 14,884,801 | 15,033,650 | Same visits, with one inline image per conversation                                                                   | Store each message body twice → 22,584,801     |
+| Cached conversation message rows  |     27,000 |     27,000 | Load 400 conversations with 250 messages each                                                                         | Skip eviction → 100,000                        |
+| Cached conversation message bytes | 33,094,880 | 33,554,432 | Load the same messages with one 128 KiB inline image per conversation                                                 | Skip eviction → more than 33,554,432           |
 | Retained sessions                 |      1,200 |      1,200 | 1,300 recent rows                                                                                                     | Skip session retention → 1,300                 |
 | Retained conversations            |      1,200 |      1,200 | 1,300 recent rows                                                                                                     | Skip conversation retention → 1,300            |
 | Retained docDetails               |        200 |        200 | 220 recent rows                                                                                                       | Raise the cap by one → 201                     |
@@ -50,12 +50,19 @@ checks with `bun perf/budgets.ts store` and the first paint checks with
 | Rename action row writes          |          4 |          4 | Rename one of 500 sessions with matching conversation rows. Save both rows, the pending lock map and the outbox entry | Rewrite all 500 conversation rows → 503        |
 | Follower populated collections    |        138 |        138 | Receive a host snapshot with a synthetic row in every registered collection and in conversations                      | Share the local repoBrowse map → 139           |
 
-The byte limits add 1% rounded up for small changes to the stored row shape.
-The count limits add zero rows or tables. The retention fixture omits
-exceptions such as pinned sessions that can exceed a cap. The 200 rows per
-conversation model a warm tail. A user can load more history in memory.
+The byte limits for task and pull request rows add 1% for small changes to the
+row shape. The count limits add zero rows or tables. The retention fixture
+omits exceptions such as pinned sessions that can exceed a cap.
 
-Byte counts measure UTF-8 JSON for the named store maps. IndexedDB counts
+The message cache uses 32 MiB per desktop window to leave room for other
+windows. The phone uses 16 MiB to leave room for the native app and decoded
+images. The estimate includes strings, row objects, and navigator pages.
+Open transcripts, active streams, and conversations with unsent messages can
+exceed the limit. The fixture has no protected conversations. Three quarters
+of its images also have a storage ID. The store keeps inline-only images for
+offline use and includes their bytes in the estimate.
+
+Byte counts for task and pull request rows measure UTF-8 JSON. IndexedDB counts
 come from fake IndexedDB through Dexie. Boot counts row values that reach
 Dexie before the store marks client state ready. The logical names come from
 the critical storage timing sample. Pending input and metadata use separate

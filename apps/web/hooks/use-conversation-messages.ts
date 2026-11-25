@@ -1,4 +1,11 @@
-import { useCallback, useState, useRef, useMemo, useEffect } from "react";
+import {
+  useCallback,
+  useState,
+  useRef,
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+} from "react";
 import { useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
@@ -9,6 +16,10 @@ import {
   ensureHydrated,
 } from "../store/inboxStore";
 import { MESSAGE_PAGE_SIZE } from "../store/cacheRetention";
+import {
+  MESSAGE_CACHE_BUDGET_BYTES,
+  retainOpenMessageView,
+} from "../store/store-eviction";
 import { useConvexSync } from "./useConvexSync";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { prefetchStorageImageUrls } from "./useStorageImageUrl";
@@ -147,6 +158,7 @@ export function useConversationMessages(
   // Open on the conversation's first page instead of the live tail (share-link
   // guests read from the beginning). An explicit target or highlight wins.
   openAtStart?: boolean,
+  prewarm = false,
 ) {
   // Follow the optimistic-create rekey. When a stub conversation resolves to
   // its real Convex id, rekeyId deletes the stub rows in the same store
@@ -157,6 +169,17 @@ export function useConversationMessages(
   const conversationId = useInboxStore((s) =>
     s.resolveLiveSessionId(requestedConversationId),
   );
+  useLayoutEffect(() => {
+    if (prewarm || !conversationId) return;
+    const release = retainOpenMessageView(conversationId);
+    return () => {
+      release();
+      if (
+        useInboxStore.getState().messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES
+      )
+        queueMicrotask(() => useInboxStore.getState().trimMessageCache());
+    };
+  }, [conversationId, prewarm]);
   const canQuery = isConvexId(conversationId);
   const convId = conversationId as Id<"conversations">;
   // Share-link viewers must PRESENT the token on every read — the server no

@@ -39,7 +39,7 @@ import { checkStoreBudget } from "./store-budget-limits";
 const state = useInboxStore.getState;
 
 function measureMessages() {
-  for (let conversation = 0; conversation < 420; conversation++) {
+  for (let conversation = 0; conversation < 400; conversation++) {
     state().setMessages(
       id(conversation),
       budgetMessages(conversation),
@@ -48,14 +48,16 @@ function measureMessages() {
     );
   }
   const messages = state().messages;
-  assert.equal(messages[id(419)]?.length, 200);
+  assert.equal(messages[id(399)]?.length, 250);
+  assert.equal(messages[id(0)], undefined);
+  assert.equal(messages[id(399)][100].images?.[0].data, undefined);
   checkStoreBudget(
     "Cached conversation message rows",
     Object.values(messages).reduce((n, rows) => n + rows.length, 0),
   );
   checkStoreBudget(
     "Cached conversation message bytes",
-    Buffer.byteLength(JSON.stringify(messages)),
+    state().messageCacheBytes,
   );
 }
 

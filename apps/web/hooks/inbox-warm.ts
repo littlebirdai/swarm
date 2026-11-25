@@ -88,7 +88,7 @@ export function warmDepthForRank(rank: number): number {
 }
 
 /** The pure planner: rows in on-screen order → the bounded fetch list. */
-export function planWarm(rows: WarmRow[]): WarmAction[] {
+export function planWarm(rows: WarmRow[], underPressure = false): WarmAction[] {
   const actions: WarmAction[] = [];
   let cold = 0;
   let deepens = 0;
@@ -102,7 +102,7 @@ export function planWarm(rows: WarmRow[]): WarmAction[] {
       return;
     }
     if (row.storedCount === 0) {
-      if (cold >= MAX_COLD_WARM_PER_PASS) return;
+      if (underPressure || cold >= MAX_COLD_WARM_PER_PASS) return;
       cold++;
       actions.push({
         kind: "cold",
@@ -112,7 +112,7 @@ export function planWarm(rows: WarmRow[]): WarmAction[] {
       });
       return;
     }
-    if (row.storedCount < depth && row.hasMoreAbove) {
+    if (!underPressure && row.storedCount < depth && row.hasMoreAbove) {
       if (deepens >= MAX_DEEPEN_PER_PASS) return;
       deepens++;
       actions.push({
@@ -497,26 +497,13 @@ export function warmRowsFromState(
   return rows;
 }
 
-// The on-screen set is what message eviction protects (evictInactiveMessages).
-// Change-guarded so an identical pass allocates nothing and wakes no subscriber;
-// ephemeral state, so a raw set is the right write.
-function publishProtectedIds(
-  st: ReturnType<typeof useInboxStore.getState>,
-  rows: WarmRow[],
-) {
-  const prev = st.warmProtectedIds;
-  if (prev.size === rows.length && rows.every((r) => prev.has(r.id))) return;
-  useInboxStore.setState({ warmProtectedIds: new Set(rows.map((r) => r.id)) });
-}
-
 /** One warm pass over what is on screen. Idempotent and cheap when caught up:
  *  visualOrder is memoized on the placement inputs, and every row already at
  *  its tier depth plans to nothing. */
 export function warmVisibleSessions(convex: ConvexClient): void {
   const st = useInboxStore.getState();
   const rows = warmRowsFromState(st);
-  publishProtectedIds(st, rows);
-  const plan = planWarm(rows);
+  const plan = planWarm(rows, st.messageCacheUnderPressure);
   lastPass = {
     at: Date.now(),
     planned: plan.length,
@@ -556,11 +543,13 @@ type WarmInputs = Pick<
   | "sessions"
   | "messages"
   | "pagination"
+  | "messageCacheUnderPressure"
   | "liveInboxIds"
   | "teamInboxIds"
   | "orgTree"
 >;
 const warmInputsChanged = (a: WarmInputs, b: WarmInputs) =>
+  a.messageCacheUnderPressure !== b.messageCacheUnderPressure ||
   (a.sessions !== b.sessions &&
     warmSessionsSig(a.sessions) !== warmSessionsSig(b.sessions)) ||
   (a.messages !== b.messages &&

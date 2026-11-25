@@ -21694,7 +21694,7 @@
     "swarm/no-comments": 35
   },
   "apps/web/hooks/inbox-warm.ts": {
-    "swarm/no-comments": 100
+    "swarm/no-comments": 97
   },
   "apps/web/hooks/incrementalSync.test.ts": {
     "swarm/no-comments": 24
@@ -21734,6 +21734,10 @@
   },
   "apps/web/hooks/toolCallMemo.ts": {
     "swarm/no-comments": 13
+  },
+  "apps/web/hooks/use-conversation-messages.ts": {
+    "swarm/no-comments": 292,
+    "swarm/no-direct-use-effect": 13
   },
   "apps/web/hooks/use-sync-change-feed.ts": {
     "swarm/no-comments": 209,
@@ -21892,10 +21896,6 @@
   },
   "apps/web/hooks/useConversationFileDrop.ts": {
     "swarm/no-comments": 1
-  },
-  "apps/web/hooks/use-conversation-messages.ts": {
-    "swarm/no-comments": 292,
-    "swarm/no-direct-use-effect": 13
   },
   "apps/web/hooks/useConversationOwnerDevice.ts": {
     "swarm/no-comments": 1
@@ -27455,9 +27455,6 @@
   "apps/web/store/__tests__/mergeMessagesRefresh.test.ts": {
     "swarm/no-comments": 5
   },
-  "apps/web/store/__tests__/message-eviction.test.ts": {
-    "swarm/no-comments": 17
-  },
   "apps/web/store/__tests__/messageRetention.test.ts": {
     "swarm/no-comments": 5
   },
@@ -28054,7 +28051,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5097
+    "swarm/no-comments": 5091
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
@@ -28174,7 +28171,7 @@
     "swarm/no-comments": 34
   },
   "apps/web/store/store-eviction.ts": {
-    "swarm/no-comments": 28
+    "swarm/no-comments": 4
   },
   "apps/web/store/storeListenerCensus.ts": {
     "swarm/no-comments": 20

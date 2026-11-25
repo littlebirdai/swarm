@@ -1,110 +1,267 @@
-import { describe, expect, it } from "bun:test";
+import { expect, test } from "bun:test";
+import fc from "fast-check";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
+import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
+import { planWarm, type WarmRow } from "../../hooks/inbox-warm";
 import {
-  evictInactiveMessages,
-  MAX_IN_MEMORY_CONVERSATIONS,
+  __createInboxStoreForTests,
+  ensureHydrated,
+  useInboxStore,
+  type InboxStoreState,
+} from "../inboxStore";
+import { flushConversationMessages, _reopenForTests } from "../idb-cache";
+import { db } from "../persistence/db";
+import { writeOwnerStamp } from "../persistence/ownership";
+import {
+  MESSAGE_CACHE_BUDGET_BYTES,
+  MESSAGE_CACHE_PAGE_OVERHEAD,
+  messageRowBytes,
+  retainOpenMessageView,
 } from "../store-eviction";
 
-// A minimal stand-in for the mutative draft evictInactiveMessages operates on.
-// Every loaded conversation ALSO gets a session row — that's the never-prune
-// condition that used to defeat the LRU. _lastViewedAt[i] = i, so higher index
-// == more recently viewed.
-function makeDraft(loadedCount: number, opts: Record<string, any> = {}) {
-  const messages: Record<string, any[]> = {};
-  const pagination: Record<string, any> = {};
-  const userMessages: Record<string, any[]> = {};
-  const sessions: Record<string, any> = {};
-  const _lastViewedAt: Record<string, number> = {};
-  for (let i = 0; i < loadedCount; i++) {
-    const id = `conv-${i}`;
-    messages[id] = [
-      { _id: `m-${i}`, role: "user", content: "hi", timestamp: i },
-    ];
-    pagination[id] = {};
-    userMessages[id] = [];
-    sessions[id] = { _id: id };
-    _lastViewedAt[id] = i;
-  }
-  return {
-    messages,
-    pagination,
-    userMessages,
-    sessions,
-    _lastViewedAt,
-    pendingMessages: {} as Record<string, any[]>,
-    currentSessionId: null,
-    sidePanelSessionId: null,
-    viewingDismissedId: null,
-    currentConversation: null,
-    liveInboxIds: new Set<string>(),
-    warmProtectedIds: new Set<string>(),
-    ...opts,
-  };
+const row = (timestamp: number, content = "hi") => ({
+  _id: `m-${timestamp}`,
+  role: "user" as const,
+  content,
+  timestamp,
+});
+const large = "x".repeat(MESSAGE_CACHE_BUDGET_BYTES / 8);
+
+function recount(store: InboxStoreState) {
+  const pages = [store.messages, store.userMessages];
+  const ids = new Set(pages.flatMap(Object.keys));
+  return Object.fromEntries(
+    [...ids].map((id) => [
+      id,
+      pages.reduce((bytes, page) => {
+        const rows = page[id];
+        if (!rows) return bytes;
+        return (
+          bytes +
+          MESSAGE_CACHE_PAGE_OVERHEAD +
+          rows.reduce((sum, message) => sum + messageRowBytes(message), 0)
+        );
+      }, 0),
+    ]),
+  );
 }
 
-describe("evictInactiveMessages", () => {
-  it("does nothing at or below the cap", () => {
-    const d = makeDraft(MAX_IN_MEMORY_CONVERSATIONS);
-    evictInactiveMessages(d, "conv-0");
-    expect(Object.keys(d.messages).length).toBe(MAX_IN_MEMORY_CONVERSATIONS);
-  });
+test("keeps more than 400 small conversations and evicts whole conversations by bytes and last view", () => {
+  const store = __createInboxStoreForTests();
+  for (let i = 0; i < 405; i++) {
+    store.getState().setMessages(`small-${i}`, [row(i)], {}, "cache");
+  }
+  expect(Object.keys(store.getState().messages)).toHaveLength(405);
 
-  it("caps memory even when every conversation also has a session row (the regression)", () => {
-    // Pre-fix, the keep-set absorbed all of draft.sessions, so nothing was ever
-    // evicted and the store grew without bound. The cap must hold regardless.
-    const d = makeDraft(MAX_IN_MEMORY_CONVERSATIONS + 50);
-    evictInactiveMessages(d, "conv-0");
-    expect(Object.keys(d.messages).length).toBe(MAX_IN_MEMORY_CONVERSATIONS);
+  store.setState({
+    _lastViewedAt: { first: 4, second: 1, third: 3, fourth: 2 },
   });
+  for (const id of ["first", "second", "third", "fourth"]) {
+    store.getState().setUserMessages(id, [row(1)], "cache");
+    store.getState().setMessages(id, [row(1, large)], {}, "cache");
+  }
 
-  it("evicts least-recently-viewed first, dropping pagination and userMessages in lockstep", () => {
-    const d = makeDraft(MAX_IN_MEMORY_CONVERSATIONS + 10);
-    evictInactiveMessages(d, "zzz-not-loaded");
-    // conv-0..conv-9 are the oldest-viewed → evicted; the newest stay.
-    for (let i = 0; i < 10; i++) {
-      expect(d.messages[`conv-${i}`]).toBeUndefined();
-      expect(d.pagination[`conv-${i}`]).toBeUndefined();
-      expect(d.userMessages[`conv-${i}`]).toBeUndefined();
+  const state = store.getState();
+  expect(Object.keys(state.messages).sort()).toEqual([
+    "first",
+    "fourth",
+    "third",
+  ]);
+  expect(state.userMessages.second).toBeUndefined();
+  expect(state.pagination.second).toBeUndefined();
+  expect(state.messageCacheBytes).toBeLessThanOrEqual(
+    MESSAGE_CACHE_BUDGET_BYTES,
+  );
+});
+
+test("protects open panes, pending sends, queued sends and streaming conversations", () => {
+  const store = __createInboxStoreForTests();
+  const releasePane = retainOpenMessageView("pane");
+  const releaseOtherPane = retainOpenMessageView("pane");
+  const now = Date.now();
+  store.setState({
+    _lastViewedAt: { pane: 1, pending: 2, queued: 3, stream: 4, recent: 5 },
+    sessions: {
+      stream: {
+        _id: "stream",
+        agent_status: "working",
+        message_count: 1,
+        updated_at: now,
+        last_heartbeat: now,
+        is_idle: false,
+      },
+    } as InboxStoreState["sessions"],
+  });
+  try {
+    store.getState().addOptimisticMessage("pending", "unsent");
+    store.getState().setQueuedMessagesFor("queued", ["queued"]);
+    for (const id of ["pane", "pending", "queued", "stream"]) {
+      store.getState().setMessages(id, [row(1, large)], {}, "cache");
     }
-    expect(d.messages[`conv-${MAX_IN_MEMORY_CONVERSATIONS + 9}`]).toBeDefined();
-    expect(Object.keys(d.messages).length).toBe(MAX_IN_MEMORY_CONVERSATIONS);
-  });
-
-  it("never evicts the on-screen, live, or pending-send conversations", () => {
-    const d = makeDraft(MAX_IN_MEMORY_CONVERSATIONS + 5, {
-      currentSessionId: "conv-0", // oldest-viewed but on screen
-      liveInboxIds: new Set(["conv-1"]), // oldest-viewed but a live agent
-    });
-    d.pendingMessages["conv-2"] = [
-      { _id: "p", role: "user", content: "x", timestamp: 0 },
-    ];
-    evictInactiveMessages(d, "conv-3"); // activeConvId
-
-    expect(d.messages["conv-0"]).toBeDefined(); // protected: current session
-    expect(d.messages["conv-1"]).toBeDefined(); // protected: live inbox
-    expect(d.messages["conv-2"]).toBeDefined(); // protected: pending send
-    expect(d.messages["conv-3"]).toBeDefined(); // protected: active conv
-    expect(Object.keys(d.messages).length).toBe(MAX_IN_MEMORY_CONVERSATIONS);
-  });
-
-  it("keeps every row on screen, and lets the live set stand in only until that set exists", () => {
-    // conv-0 is the oldest-viewed row, so it is first in line for eviction; a
-    // published on-screen set holds it, and once that set exists the live set no
-    // longer protects anything (it outgrew the cap and left no slack).
-    const shown = makeDraft(MAX_IN_MEMORY_CONVERSATIONS + 10, {
-      warmProtectedIds: new Set(["conv-0"]),
-      liveInboxIds: new Set(["conv-1"]),
-    });
-    evictInactiveMessages(shown, "zzz-not-loaded");
-    expect(shown.messages["conv-0"]).toBeDefined();
-    expect(shown.messages["conv-1"]).toBeUndefined();
-    expect(Object.keys(shown.messages).length).toBe(
-      MAX_IN_MEMORY_CONVERSATIONS,
+    releasePane();
+    store.getState().setMessages("recent", [row(1, large)], {}, "cache");
+    expect(Object.keys(store.getState().messages).sort()).toEqual([
+      "pane",
+      "pending",
+      "queued",
+      "stream",
+    ]);
+    expect(store.getState().pendingMessages.pending[0].content).toBe("unsent");
+    releaseOtherPane();
+    store.getState().trimMessageCache();
+    expect(store.getState().messages.pane).toBeUndefined();
+    expect(store.getState().messageCacheBytes).toBeLessThanOrEqual(
+      MESSAGE_CACHE_BUDGET_BYTES,
     );
+  } finally {
+    releasePane();
+    releaseOtherPane();
+  }
+});
 
-    const boot = makeDraft(MAX_IN_MEMORY_CONVERSATIONS + 10, {
-      liveInboxIds: new Set(["conv-1"]),
-    });
-    evictInactiveMessages(boot, "zzz-not-loaded");
-    expect(boot.messages["conv-1"]).toBeDefined();
+test("keeps inline-only images and strips redundant bytes from stored attachment references", () => {
+  const store = __createInboxStoreForTests();
+  const inline = { media_type: "image/png", data: "aW1hZ2U=" };
+  const backed = {
+    media_type: "image/png",
+    storage_id: "image",
+    tool_use_id: "tool",
+  };
+  const message = {
+    ...row(1),
+    images: [inline, { ...backed, data: "aW1hZ2U=" }],
+  };
+  store.getState().setMessages("image-chat", [message], {}, "cache");
+  store.getState().setUserMessages("image-chat", [message], "cache");
+  expect(store.getState().messages["image-chat"][0].images).toEqual([
+    inline,
+    backed,
+  ]);
+  expect(store.getState().userMessages["image-chat"][0].images).toEqual([
+    inline,
+    backed,
+  ]);
+  expect(message.images[1].data).toBe("aW1hZ2U=");
+});
+
+test("incremental byte counts match a full recount after edits, deletions and rekeys", () => {
+  const action = fc.record({
+    kind: fc.constantFrom(
+      "snapshot",
+      "tail",
+      "append",
+      "prepend",
+      "navigator",
+      "delete",
+      "rekey",
+    ),
+    id: fc.constantFrom("a", "b", "c"),
+    content: fc.string({ maxLength: 100 }),
+    timestamp: fc.integer({ min: 1, max: 8 }),
   });
+  fc.assert(
+    fc.property(
+      fc.array(action, { minLength: 20, maxLength: 60 }),
+      (actions) => {
+        const store = __createInboxStoreForTests();
+        for (const { kind, id, timestamp, content } of actions) {
+          const state = store.getState();
+          const msg = row(timestamp, content);
+          if (kind === "snapshot") state.setMessages(id, [msg], {}, "cache");
+          else if (kind === "tail") state.applyTailMessages(id, 0, [msg], 8);
+          else if (kind === "append" || kind === "prepend")
+            state.mergeMessages(id, [msg], kind);
+          else if (kind === "navigator")
+            state.setUserMessages(id, [msg], "cache");
+          else if (kind === "delete") state.discardForkStub(id);
+          else state.resolveForkSessionId(id, id === "a" ? "b" : "a");
+
+          const actual = store.getState();
+          const totals = recount(actual);
+          expect(actual.messageCacheBytesByConversation).toEqual(totals);
+          expect(actual.messageCacheBytes).toBe(
+            Object.values(totals).reduce((sum, bytes) => sum + bytes, 0),
+          );
+        }
+      },
+    ),
+    { seed: 16 },
+  );
+});
+
+test("rehydrates an evicted transcript and navigator from disk without resetting its read markers", async () => {
+  await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
+  await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
+  await writeOwnerStamp(TEST_PRINCIPAL, "test-fixture");
+  const id = "restorable";
+  const message = {
+    ...row(Date.now(), "An image sent offline"),
+    images: [{ media_type: "image/png", data: "aW1hZ2U=" }],
+  };
+  const original = useInboxStore.getState();
+  useInboxStore.setState({
+    _lastViewedAt: { [id]: 1 },
+    _seenUpToAt: { [id]: 123 },
+    _seenMessageCount: { [id]: 7 },
+  });
+  try {
+    useInboxStore.getState().setMessages(id, [message], { initialized: true });
+    useInboxStore.getState().setUserMessages(id, [message]);
+    flushConversationMessages();
+    await db.transaction(
+      "r",
+      db.conversationMessageRows,
+      db.conversationUserMessages,
+      () => db.conversationMessageRows.count(),
+    );
+    useInboxStore.setState({
+      _lastViewedAt: { [id]: 1, a: 2, b: 3, c: 4, d: 5 },
+    });
+    for (const other of ["a", "b", "c", "d"]) {
+      useInboxStore.getState().setMessages(other, [row(1, large)], {}, "cache");
+    }
+    expect(useInboxStore.getState().messages[id]).toBeUndefined();
+    const release = retainOpenMessageView(id);
+    try {
+      expect(await ensureHydrated(id)).toBe(true);
+      const restored = useInboxStore.getState();
+      expect(restored.messages[id]).toEqual([message]);
+      expect(restored.userMessages[id]).toEqual([message]);
+      expect(restored.pagination[id].initialized).toBe(true);
+      expect(restored._seenUpToAt[id]).toBe(123);
+      expect(restored._seenMessageCount[id]).toBe(7);
+    } finally {
+      release();
+    }
+  } finally {
+    useInboxStore.setState(original);
+    db.close();
+  }
+});
+
+test("cache pressure suppresses cold warms and deepens while allowing deltas", () => {
+  const cold: WarmRow = {
+    id: "evicted",
+    serverCount: 101,
+    storedCount: 0,
+    hasMoreAbove: false,
+    newestTs: null,
+    syncedCount: undefined,
+    inFlight: false,
+  };
+  const shallow: WarmRow = {
+    ...cold,
+    id: "shallow",
+    storedCount: 60,
+    newestTs: 2,
+    hasMoreAbove: true,
+    syncedCount: 100,
+  };
+  expect(planWarm([cold, shallow]).map(({ kind }) => kind)).toEqual([
+    "cold",
+    "deepen",
+  ]);
+  expect(planWarm([cold, shallow], true)).toEqual([
+    { kind: "delta", id: "shallow", after: 1, serverCount: 101 },
+  ]);
 });

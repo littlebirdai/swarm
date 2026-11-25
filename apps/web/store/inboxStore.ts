@@ -74,9 +74,16 @@ import {
 } from "@codecast/convex/convex/teamVisibility";
 import { bootInboxPersistence, hydrateConversation } from "./inbox-hydration";
 import {
+  MESSAGE_CACHE_BUDGET_BYTES,
+  MESSAGE_CACHE_PAGE_OVERHEAD,
+  adjustMessageCacheBytes,
+  dropCachedMessages,
   evictDetailRows,
   evictInactiveMessages,
   holdsUnsentComment,
+  messageRowBytes,
+  omitRedundantInlineImages,
+  rekeyCachedMessages,
 } from "./store-eviction";
 import {
   carryReleasedQueueRows,
@@ -7988,17 +7995,10 @@ export interface InboxStoreState
   setShowFavorites: (show: boolean) => void;
   // Ids the LIVE listInboxSessions subscription (show_all:false) currently
   // returns. NOT a counting gate anymore (sync-convergence C4 deleted that
-  // role — membership is computeInboxMembership over the replica's rows). Two
-  // jobs remain: leaving this set is when this client asks byIds whether a
-  // foreign row it owns was disowned (settleDisownClaims), and until the warm loop publishes the
-  // on-screen set it is the boot fallback for message-eviction protection
-  // (evictInactiveMessages).
+  // role — membership is computeInboxMembership over the replica's rows).
+  // Leaving this set is when this client asks byIds whether a
+  // foreign row it owns was disowned (settleDisownClaims).
   liveInboxIds: Set<string>;
-  // Ids of the rows ON SCREEN in the rendered order, published by the warm loop
-  // (hooks/inbox-warm.ts) each pass. What message eviction protects: the rows
-  // the user can click must keep their cached tail so the click is instant,
-  // whatever view, scope or filter produced them. EPHEMERAL — never persisted.
-  warmProtectedIds: Set<string>;
   // ── The projection stamp buffer (sync-convergence C1/C6) ──
   // Per-scope checking data from the liveness overlay: the server's run of the
   // shared module over canonical state. Keyed "mine" | `team:<teamId>` so the
@@ -8116,6 +8116,10 @@ export interface InboxStoreState
   pagination: Record<string, PaginationState>;
   conversations: Record<string, ConversationMeta>;
   userMessages: Record<string, UserMessage[]>;
+  messageCacheBytes: number;
+  messageCacheBytesByConversation: Record<string, number>;
+  messageCacheUnderPressure: boolean;
+  trimMessageCache: () => void;
 
   clientState: ClientState;
   clientStateInitialized: boolean;
@@ -11625,10 +11629,7 @@ function rekeyId(draft: any, oldId: string, newId: string) {
     draft.sessions[newId] = { ...draft.sessions[oldId], _id: newId };
     delete draft.sessions[oldId];
   }
-  if (draft.messages[oldId]) {
-    draft.messages[newId] = draft.messages[oldId];
-    delete draft.messages[oldId];
-  }
+  rekeyCachedMessages(draft, oldId, newId);
   if (draft.pendingMessages[oldId]) {
     const combined: Message[] = [
       ...(draft.pendingMessages[newId] ?? []),
@@ -12127,7 +12128,7 @@ function hideSessionInDraft(
     if (!isConvexId(sid) || isForeign) {
       delete draft.sessions[sid];
       delete draft.conversations[sid];
-      delete draft.messages[sid];
+      dropCachedMessages(draft, sid);
       forgotten.push(sid);
       continue;
     }
@@ -12817,9 +12818,8 @@ function applyGestureInDraft(draft: any, msg: GestureMessage) {
       // blind this window to it on every later crawl.
       if (scope === "session-row") continue;
       delete draft.conversations[fid];
-      delete draft.messages[fid];
+      dropCachedMessages(draft, fid);
       delete draft.pendingMessages[fid];
-      delete draft.pagination[fid];
       draft.pending[`conversations:${fid}`] = { type: "exclude", ts };
     }
   };
@@ -13076,9 +13076,8 @@ function dropSessionInDraft(
   deferredDeletedSessions.delete(id);
   delete draft.sessions[id];
   delete draft.conversations[id];
-  delete draft.messages[id];
+  dropCachedMessages(draft, id);
   delete draft.pendingMessages[id];
-  delete draft.pagination[id];
   dropRowFieldLocks(draft, id);
   draft.pending[`sessions:${id}`] = { type: "exclude", ts: now };
   draft.pending[`conversations:${id}`] = { type: "exclude", ts: now };
@@ -13118,7 +13117,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
   setShowFavorites: (show: boolean) =>
     set({ showFavorites: show, ...(show ? { showMySessions: false } : {}) }),
   liveInboxIds: new Set<string>(),
-  warmProtectedIds: new Set<string>(),
   teamInboxIds: new Set<string>(),
   liveInboxIdList: [],
   teamInboxIdSnapshot: null,
@@ -13403,6 +13401,12 @@ const inboxStoreConfig = (set: any, get: any) => ({
   conversations: {},
   peerTransferCancels: {},
   userMessages: {},
+  messageCacheBytes: 0,
+  messageCacheBytesByConversation: {},
+  messageCacheUnderPressure: false,
+  trimMessageCache: sync(function (this: Draft) {
+    evictInactiveMessages(this);
+  }),
   feedConversations: {},
   feedHasMore: {},
   feedCursors: {},
@@ -14999,9 +15003,8 @@ const inboxStoreConfig = (set: any, get: any) => ({
     advanceSelection(this, sessionPastRemoved(this, [id]));
     delete this.sessions[id];
     delete this.conversations[id];
-    delete this.messages[id];
+    dropCachedMessages(this, id);
     delete this.pendingMessages[id];
-    delete this.pagination[id];
     broadcastGesture(
       { kind: "forget", ids: [id], ts: Date.now() },
       bridgeUserId(this),
@@ -18302,7 +18305,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     meta?: Partial<PaginationState>,
     source?: "cache",
   ) {
-    msgs = dedupeReplayedMessages(msgs);
+    msgs = dedupeReplayedMessages(omitRedundantInlineImages(msgs));
     prunePendingEchoes(this, convId, msgs);
     // Server data only — pending messages are merged at read time.
     //
@@ -18317,16 +18320,22 @@ const inboxStoreConfig = (set: any, get: any) => ({
     const incomingNewestTs =
       msgs.length > 0 ? msgs[msgs.length - 1].timestamp : -Infinity;
     const incomingIds = new Set(msgs.map((m: Message) => m._id));
-    const newerLocal = existing.filter(
-      (m: Message) => m.timestamp > incomingNewestTs && !incomingIds.has(m._id),
-    );
+    let delta = this.messages[convId] ? 0 : MESSAGE_CACHE_PAGE_OVERHEAD;
+    const newerLocal = existing.filter((m: Message) => {
+      if (m.timestamp > incomingNewestTs && !incomingIds.has(m._id))
+        return true;
+      delta -= messageRowBytes(m);
+      return false;
+    });
+    for (const row of msgs) delta += messageRowBytes(row);
     const merged = newerLocal.length > 0 ? [...msgs, ...newerLocal] : msgs;
     this.messages[convId] = merged;
+    adjustMessageCacheBytes(this, convId, delta);
     const pag = { ...(this.pagination[convId] || DEFAULT_PAGINATION), ...meta };
     this.pagination[convId] = pag;
     if (source !== "cache")
       writeConversationMessages(convId, plainMessages(merged), plain(pag));
-    evictInactiveMessages(this, convId);
+    evictInactiveMessages(this);
   }),
 
   // The live-tail apply. listMessagesTail's result is AUTHORITATIVE for the
@@ -18345,30 +18354,35 @@ const inboxStoreConfig = (set: any, get: any) => ({
     msgs: Message[],
     lastTimestamp: number | null,
   ) {
-    msgs = dedupeReplayedMessages(msgs);
+    msgs = dedupeReplayedMessages(omitRedundantInlineImages(msgs));
     if (msgs.length === 0) return;
     prunePendingEchoes(this, convId, msgs);
     const existing = this.messages[convId] || [];
     const tailLast = lastTimestamp ?? msgs[msgs.length - 1].timestamp;
     const incomingIds = new Set(msgs.map((m: Message) => m._id));
-    const keep = existing.filter(
-      (m: Message) => m.timestamp <= anchorTs && !incomingIds.has(m._id),
-    );
-    const newerLocal = existing.filter(
-      (m: Message) => m.timestamp > tailLast && !incomingIds.has(m._id),
-    );
+    let delta = this.messages[convId] ? 0 : MESSAGE_CACHE_PAGE_OVERHEAD;
+    const keep: Message[] = [];
+    const newerLocal: Message[] = [];
+    for (const row of msgs) delta += messageRowBytes(row);
+    for (const row of existing) {
+      if (incomingIds.has(row._id)) delta -= messageRowBytes(row);
+      else if (row.timestamp <= anchorTs) keep.push(row);
+      else if (row.timestamp > tailLast) newerLocal.push(row);
+      else delta -= messageRowBytes(row);
+    }
     const merged = [...keep, ...msgs, ...newerLocal];
     // A stale in-flight result from a just-replaced anchor can interleave with
     // kept rows; the feed assumes ascending order, so sort unconditionally.
     merged.sort((a: Message, b: Message) => a.timestamp - b.timestamp);
     this.messages[convId] = merged;
+    adjustMessageCacheBytes(this, convId, delta);
     const pag = {
       ...(this.pagination[convId] || DEFAULT_PAGINATION),
       initialized: true,
     };
     this.pagination[convId] = pag;
     writeConversationMessages(convId, plainMessages(merged), plain(pag));
-    evictInactiveMessages(this, convId);
+    evictInactiveMessages(this);
   }),
 
   mergeMessages: sync(function (
@@ -18378,7 +18392,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     direction: "prepend" | "append",
     meta?: Partial<PaginationState>,
   ) {
-    msgs = dedupeReplayedMessages(msgs);
+    msgs = dedupeReplayedMessages(omitRedundantInlineImages(msgs));
     prunePendingEchoes(this, convId, msgs);
     // A row the server sends again is the server's newer copy: a row fetched
     // mid-stream (a hosted turn's first words) is patched in place with its
@@ -18386,10 +18400,12 @@ const inboxStoreConfig = (set: any, get: any) => ({
     // row to pick that up. Replaced only when it changed, so refs stay stable.
     const incomingById = new Map(msgs.map((m: Message) => [m._id, m]));
     let refreshed = false;
+    let delta = this.messages[convId] ? 0 : MESSAGE_CACHE_PAGE_OVERHEAD;
     const existing = (this.messages[convId] || []).map((m: Message) => {
       const next = incomingById.get(m._id);
       if (!next || !serverRowChanged(m, next)) return m;
       refreshed = true;
+      delta += messageRowBytes(next) - messageRowBytes(m);
       return next;
     });
     const existingIds = new Set(existing.map((m: Message) => m._id));
@@ -18402,6 +18418,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
       return !key || !existingReplayKeys.has(key);
     });
     if (unique.length === 0 && !meta && !refreshed) return;
+    for (const row of unique) delta += messageRowBytes(row);
 
     const merged =
       direction === "prepend"
@@ -18410,12 +18427,13 @@ const inboxStoreConfig = (set: any, get: any) => ({
     merged.sort((a: Message, b: Message) => a.timestamp - b.timestamp);
     // Server data only — pending messages are merged at read time
     this.messages[convId] = merged;
+    adjustMessageCacheBytes(this, convId, delta);
     const pag = meta
       ? { ...(this.pagination[convId] || DEFAULT_PAGINATION), ...meta }
       : this.pagination[convId];
     if (meta) this.pagination[convId] = pag;
     writeConversationMessages(convId, plainMessages(merged), plain(pag));
-    evictInactiveMessages(this, convId);
+    evictInactiveMessages(this);
   }),
 
   setUserMessages: sync(function (
@@ -18424,6 +18442,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     msgs: UserMessage[],
     source?: "cache",
   ) {
+    msgs = omitRedundantInlineImages(msgs);
     const prev = this.userMessages[convId];
     if (
       prev &&
@@ -18441,11 +18460,16 @@ const inboxStoreConfig = (set: any, get: any) => ({
       })
     )
       return;
+    let delta = prev ? 0 : MESSAGE_CACHE_PAGE_OVERHEAD;
+    for (const row of msgs) delta += messageRowBytes(row);
+    for (const row of prev ?? []) delta -= messageRowBytes(row);
     this.userMessages[convId] = msgs;
+    adjustMessageCacheBytes(this, convId, delta);
     // Persisted beside the message pages so a reopen (or a reload) paints the
     // message navigator from disk instead of a skeleton while getUserMessages
     // is in flight; ensureHydrated restores it.
     if (source !== "cache") writeConversationUserMessages(convId, msgs);
+    evictInactiveMessages(this);
   }),
 
   addOptimisticMessage: sync(function (
@@ -19136,9 +19160,8 @@ const inboxStoreConfig = (set: any, get: any) => ({
   ) {
     delete this.sessions[stubId];
     delete this.conversations[stubId];
-    delete this.messages[stubId];
+    dropCachedMessages(this, stubId);
     delete this.pendingMessages[stubId];
-    delete this.pagination[stubId];
     delete this.drafts[stubId];
     for (const [key, row] of Object.entries(this.bucketAssignments) as Array<
       [string, BucketAssignmentItem]
@@ -22457,6 +22480,18 @@ if (!survivingInboxStore) {
 // as the view moves off it (dropSessionInDraft deferred it).
 if (!survivingInboxStore)
   useInboxStore.subscribe((state, prev) => {
+    if (
+      state.messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES &&
+      (state.sessions !== prev.sessions ||
+        state.pendingMessages !== prev.pendingMessages ||
+        state.queuedMessages !== prev.queuedMessages ||
+        state.pendingSessionCreates !== prev.pendingSessionCreates ||
+        state.currentSessionId !== prev.currentSessionId ||
+        state.currentConversation !== prev.currentConversation ||
+        state.sidePanelSessionId !== prev.sidePanelSessionId ||
+        state.viewingDismissedId !== prev.viewingDismissedId)
+    )
+      queueMicrotask(() => useInboxStore.getState().trimMessageCache());
     if (
       state.currentSessionId === prev.currentSessionId ||
       deferredDeletedSessions.size === 0
