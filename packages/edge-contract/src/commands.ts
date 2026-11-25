@@ -4,6 +4,7 @@ import {
   object,
   oneOf,
   optional,
+  owns,
   parser,
   responseObject,
   tagged,
@@ -13,22 +14,34 @@ import { response } from "./response";
 import { fence } from "./claims";
 import { daemon } from "./link";
 import { readExpected, readObserved } from "./expected";
+import { validatePromptAnswer } from "./prompts";
 
-const command = {
+const readCommand = responseObject({
+  v: readV1,
+  status: oneOf("command"),
   command_id: nonEmptyString,
   name: nonEmptyString,
   args: json,
-};
+  claim: optional(responseObject(fence)),
+  expected: optional(readExpected),
+});
 const commandsNextRequest = object({ v: readV1, ...daemon });
 const commandsNextResponse = response(
   tagged("status", {
-    command: responseObject({
-      v: readV1,
-      status: oneOf("command"),
-      ...command,
-      claim: optional(responseObject(fence)),
-      expected: optional(readExpected),
-    }),
+    command: (value, path) => {
+      const command = readCommand(value, path);
+      const { args } = command;
+      if (
+        command.name === "prompt_answer" &&
+        args !== null &&
+        typeof args === "object" &&
+        !Array.isArray(args) &&
+        owns(args, "answer")
+      ) {
+        validatePromptAnswer(args.answer, `${path}.args.answer`);
+      }
+      return command;
+    },
     empty: responseObject({ v: readV1, status: oneOf("empty") }),
   }),
 );

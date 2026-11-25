@@ -146,17 +146,19 @@ UTF-16 code units.
   `patterns` and 8 `always` entries, each up to 1,000 code units.
   An opaque request with one pattern and no `always` entries can carry up to
   32,000 code units in its pattern.
-- `options` holds up to 16 entries. Each entry has an `id` and a `label` of
-  1 to 128 code units. IDs must be unique within the prompt. The optional
-  `kind` is `allow_once`, `allow_always`, `reject_once`, or `reject_always`.
+- `options` holds 1 to 16 entries. Omit it when the prompt has no options.
+  Each entry has a non-blank `id` and a non-blank, single-line `label`.
+  Both have a limit of 128 code units. IDs must be unique within the prompt.
+  The optional `kind` is `allow_once`, `allow_always`, `reject_once`, or
+  `reject_always`.
 
 The machine must apply the same redaction to agent-supplied option labels
 and to the summary before it sends the event.
 
-For an ACP permission prompt, send the selected ID as the JSON string in
-the command's `args.answer` and in `prompt.settled.body.answer`. The handler
-must check that the open prompt accepts an option selection and offered that
-ID before applying the answer.
+An option selection is an object such as `{ "option_id": "allow-once" }`.
+Use this object in the `prompt_answer` command's `args.answer` and in
+`prompt.settled.body.answer`. A string answer is free text. The handler
+applies an option only when the open prompt offered that ID.
 
 The server decides whether the prompt is routine independently of its
 options. It can verify a read inside the workspace or a question that runs

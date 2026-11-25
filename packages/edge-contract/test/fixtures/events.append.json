@@ -216,7 +216,7 @@
                 "kind": "person",
                 "id": "person-1"
               },
-              "answer": "allow-once"
+              "answer": { "option_id": "allow-once" }
             }
           },
           {
