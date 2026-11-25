@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 
 import { closeDomWindow } from "../../test-helpers/domGlobals";
@@ -806,7 +807,6 @@ async function verifyTemplateSections() {
   assert.match(proposed.at(-1).title, /^Roll back acme-growth to CMO 1\.9\.0/);
   await act(async () => root2.unmount());
   closeDomWindow(dom);
-  console.log("template sections mount: passed");
 }
 
-if (import.meta.main) await verifyTemplateSections();
+test("shows template sections and proposes a rollback", verifyTemplateSections);

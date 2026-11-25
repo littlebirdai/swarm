@@ -25582,9 +25582,6 @@
   "apps/web/lib/messageNavigator.ts": {
     "swarm/no-comments": 108
   },
-  "apps/web/lib/messageReducer.test.ts": {
-    "swarm/no-comments": 9
-  },
   "apps/web/lib/messageReducer.ts": {
     "swarm/no-comments": 27
   },

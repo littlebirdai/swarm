@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 
 import { closeDomWindow } from "../../test-helpers/domGlobals";
@@ -142,4 +143,4 @@ async function verifyGallery() {
   closeDomWindow(dom.window);
 }
 
-await verifyGallery();
+test("filters templates by name and description", verifyGallery);
