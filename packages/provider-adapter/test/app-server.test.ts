@@ -11,6 +11,7 @@ import { waitFor } from "@codecast/test-helpers/waitFor";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
+import { createProviderAdapter } from "../src";
 import { ProviderAdapter, providerAdapterLayer } from "../src/effect";
 import {
   answer,
@@ -596,4 +597,60 @@ it.effect(
         await session.close();
       }
     }),
+);
+
+it.effect(
+  "a completed turn in a start reply leaves the next start usable",
+  () =>
+    Effect.promise(async () => {
+      const fake = fixture({ FIXTURE_COMPLETED_REPLY: "1" });
+      const { session } = requireOpened(await fake.client.start(fake.spec));
+      try {
+        expect(await session.steer(steer)).toEqual(bestEffort);
+        expect(await session.steer(steer)).toEqual(bestEffort);
+        expect(
+          (await session.events[Symbol.asyncIterator]().next()).value,
+        ).toMatchObject({
+          kind: "turn.started",
+          turn: "actual-turn-2",
+        });
+      } finally {
+        await session.close();
+      }
+    }),
+);
+
+it.effect("failed open waits for asynchronous handshake retention", () =>
+  Effect.promise(async () => {
+    const fake = fixture({ FIXTURE_WRONG_CHECKPOINT: "1" });
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const client = createProviderAdapter({
+      ...fake.options,
+      async retainRaw(frame, signal) {
+        if (frame.line.includes("wrong-thread")) {
+          entered.resolve();
+          await release.promise;
+          signal.throwIfAborted();
+        }
+        fake.options.retainRaw(frame);
+      },
+    });
+    try {
+      const opened = client.resume({ ...fake.spec, checkpoint: threadId });
+      await entered.promise;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      release.resolve();
+      expect(await opened).toMatchObject({
+        status: "in-doubt",
+        code: "checkpoint-mismatch",
+      });
+      expect(fake.raw.some(({ line }) => line.includes("wrong-thread"))).toBe(
+        true,
+      );
+    } finally {
+      release.resolve();
+      await client.dispose();
+    }
+  }),
 );
