@@ -58,7 +58,7 @@ enforces these limits. The wire parsers validate the policy without applying it.
 
 Each event carries a session ID, a run epoch, and a sequence number for that
 session. Sequence numbers are positive safe integers and continue across run
-epochs. Timestamps and expirations use Unix time in milliseconds. A null
+epochs. Timestamps use Unix time in milliseconds. A null
 `turn` means the event has no associated turn.
 
 One append can carry several event groups. Each group has one session, epoch,
@@ -77,6 +77,15 @@ the token with event groups, inbox writes, claim renewals and releases, and
 results for commands that carry a claim. The server checks the current claim
 and its expiry before it accepts a claimed write. The daemon reuses its
 `claim_id` when it retries the same acquisition request.
+
+A granted `claim` and a renewed `renew` carry `lease_ms`, the time that remains
+on the lease when the server makes the response. The value is a duration
+because the clocks of the server and the machine can differ. The server
+calculates it again for each response, and a repeated `claim_id` does not get
+the initial value. The daemon counts `lease_ms` from the moment before it sent
+the request, on a monotonic clock. Thus, the daemon stops before the lease ends
+on the server. A lease with no time left is not a grant: the server returns
+`stale`.
 
 ### Terminal lifecycle
 

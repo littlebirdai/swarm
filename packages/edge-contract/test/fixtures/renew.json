@@ -8,6 +8,6 @@
   "response": {
     "v": 1,
     "status": "renewed",
-    "expires_at": 1795453260000
+    "lease_ms": 30000
   }
 }

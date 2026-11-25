@@ -12,7 +12,7 @@
     "session": "session-1",
     "run": 3,
     "fencing_token": "claim-token-1",
-    "expires_at": 1795453230000,
+    "lease_ms": 30000,
     "last_pane_instance": 4
   }
 }
