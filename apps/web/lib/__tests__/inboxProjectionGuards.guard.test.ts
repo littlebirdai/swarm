@@ -86,7 +86,11 @@ describe("the chokepoint is the only counting reader of the synced view keys", (
     const allowed = new Map<string, string>([
       [
         "store/inboxStore.ts",
-        "the chokepoint (computeInboxVisible/filterInboxScope), LWW registry, boot seed",
+        "the chokepoint (computeInboxVisible/filterInboxScope), LWW registry",
+      ],
+      [
+        "store/inboxHydration.ts",
+        "boot seed: gates the cached team inbox, counts nothing",
       ],
       [
         "hooks/useSyncTeamInboxSessions.ts",

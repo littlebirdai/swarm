@@ -228,6 +228,10 @@ const SLOT_ALLOWED = new Map<string, string>([
     "the store: slot types, initial values, sync opts, teamInboxIdsOf itself, and writes",
   ],
   [
+    "store/inboxHydration.ts",
+    "seeds the cached team inbox at boot; renders nothing",
+  ],
+  [
     "store/initiativeSlice.ts",
     "paints an owner's scope gain as an intent on the held tree; renders nothing",
   ],
