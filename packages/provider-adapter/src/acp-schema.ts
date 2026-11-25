@@ -104,20 +104,19 @@ export const SessionUpdate = Schema.Union([
 
 export const Permission = Schema.Struct({
   sessionId: identifier,
-  toolCall: Schema.Struct({
-    toolCallId: Schema.optionalKey(identifier),
-    title: Schema.optionalKey(Schema.NullOr(identifier)),
-  }),
+  toolCall: Schema.optionalKey(
+    Schema.NullOr(
+      Schema.Struct({
+        toolCallId: Schema.optionalKey(Schema.String),
+        title: Schema.optionalKey(Schema.NullOr(Schema.String)),
+      }),
+    ),
+  ),
   options: Schema.Array(
     Schema.Struct({
       optionId: identifier,
       name: Schema.optionalKey(Schema.String),
-      kind: Schema.Literals([
-        "allow_once",
-        "allow_always",
-        "reject_once",
-        "reject_always",
-      ]),
+      kind: Schema.optionalKey(Schema.String),
     }),
   ),
 });

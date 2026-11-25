@@ -46,6 +46,13 @@ rpc.on("line", (line) => {
       writeFileSync(join(directory, "new-seen"), "");
       if (process.env.ACP_HOLD_NEW) break;
       if (process.env.ACP_EXIT_ON_NEW) process.exit(17);
+      if (process.env.ACP_NEW_ERROR) {
+        send({
+          id,
+          error: { code: -32000, message: process.env.ACP_NEW_ERROR },
+        });
+        break;
+      }
       if (process.env.ACP_CHILD) {
         const descendant = spawn(
           process.execPath,
@@ -55,6 +62,10 @@ rpc.on("line", (line) => {
         writeFileSync(join(directory, "descendant"), String(descendant.pid));
       }
       reply(id, { sessionId });
+      if (process.env.ACP_PAUSE_STDIN) {
+        rpc.pause();
+        process.stdin.pause();
+      }
       if (process.env.ACP_CLOSE_STDIN) {
         rpc.close();
         closeSync(0);
@@ -119,6 +130,7 @@ watch(directory, () => {
     const command = JSON.parse(readFileSync(path, "utf8"));
     unlinkSync(path);
     if (command.exit) process.exit(0);
+    for (const frame of command.frames ?? []) send(frame);
     if (command.complete && promptId !== undefined)
       reply(
         promptId,
@@ -134,6 +146,7 @@ watch(directory, () => {
     if (command.raw) process.stdout.write(command.raw + "\n");
     if (command.barrier)
       send({ id: command.barrier, method: "fixture/barrier" });
+    if (command.exitAfter) process.stdout.write("", () => process.exit(0));
   }
 });
 writeFileSync(join(directory, "pid"), String(process.pid));

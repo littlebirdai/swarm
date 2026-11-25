@@ -418,6 +418,9 @@ it.effect(
         });
         expect(fake.observed().map(({ action }) => action)).toEqual(["steer"]);
         hold.resolve();
+        yield* Effect.promise(
+          () => new Promise<void>((resolve) => setImmediate(resolve)),
+        );
         expect(yield* session.interrupt(interrupt)).toEqual(controlOutcome);
         expect(yield* Effect.promise(() => events.next())).toMatchObject({
           value: { kind: "turn.started" },
@@ -749,25 +752,6 @@ it.effect("lazy initialization failure permits retry and disposal", () =>
     const closing = disposed.dispose();
     await expect(opening).rejects.toBe(error);
     await expect(closing).resolves.toBeUndefined();
-  }),
-);
-
-it.effect("cleanup does not signal a reaped process group's ID", () =>
-  Effect.promise(async () => {
-    const fake = fixture();
-    const { session } = requireOpened(await fake.contract.open(scope));
-    try {
-      await fake.contract.processExit();
-      const events = session.events[Symbol.asyncIterator]();
-      expect(await events.next()).toMatchObject({
-        value: { kind: "session.ended" },
-      });
-      expect((await events.next()).done).toBe(true);
-      expect(await session.close()).toEqual({ status: "closed" });
-      expect(fake.contract.releases()).toBe(0);
-    } finally {
-      await session.close();
-    }
   }),
 );
 

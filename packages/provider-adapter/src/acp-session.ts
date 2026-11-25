@@ -14,6 +14,7 @@ import * as Clock from "effect/Clock";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
@@ -88,6 +89,18 @@ export const openAcp = Effect.fn("acp.open")(function* (
   ).pipe(Scope.provide(scope));
 
   const events = yield* makeAcpEvents();
+  const replies = yield* Queue.dropping<object>(32);
+  yield* Effect.forkIn(
+    Effect.forever(
+      Queue.take(replies).pipe(
+        Effect.flatMap((reply) =>
+          transport.write(() => Result.succeed([reply])),
+        ),
+        Effect.ignore,
+      ),
+    ),
+    scope,
+  );
   const clock = yield* Clock.Clock;
   const emit = events.emit;
   let checkpoint = "checkpoint" in spec ? spec.checkpoint : undefined;
@@ -130,14 +143,18 @@ export const openAcp = Effect.fn("acp.open")(function* (
     const expectedText = input
       .flatMap((part) => (part.type === "text" ? [part.text] : []))
       .join("");
-    durable(emit, {
-      kind: "message.user",
-      body: {
-        text: active.userText,
-        authors: [...authors],
-        ...(active.userText === expectedText ? { delivery_id } : {}),
+    durable(
+      emit,
+      {
+        kind: "message.user",
+        body: {
+          text: active.userText,
+          authors: [...authors],
+          ...(active.userText === expectedText ? { delivery_id } : {}),
+        },
       },
-    });
+      active.id,
+    );
     active.userText = "";
   }
 
@@ -147,10 +164,14 @@ export const openAcp = Effect.fn("acp.open")(function* (
 
   function flushAssistant(emit: Emit, active: Turn) {
     if (!active.assistantText) return;
-    durable(emit, {
-      kind: "message.assistant",
-      body: { message_id: messageId(active), text: active.assistantText },
-    });
+    durable(
+      emit,
+      {
+        kind: "message.assistant",
+        body: { message_id: messageId(active), text: active.assistantText },
+      },
+      active.id,
+    );
     active.assistantIndex++;
     active.assistantText = "";
   }
@@ -185,26 +206,34 @@ export const openAcp = Effect.fn("acp.open")(function* (
     prompts.clear();
   }
 
-  function project(emit: Emit, update: typeof SessionUpdate.Type) {
+  function project(
+    emit: Emit,
+    update: typeof SessionUpdate.Type,
+    active: Turn | undefined,
+  ) {
+    const publish = (payload: DurablePayload) =>
+      durable(emit, payload, active?.id ?? null);
     switch (update.sessionUpdate) {
       case "available_commands_update":
-        durable(emit, {
+        publish({
           kind: "context",
-          body: { data: { availableCommands: [...update.availableCommands] } },
+          body: {
+            data: { availableCommands: [...update.availableCommands] },
+          },
         });
         return;
       case "model_changed":
-        durable(emit, {
+        publish({
           kind: "context",
           body: { data: { model: update.model_id } },
         });
         return;
       case "tool_call":
-        if (turn) {
-          flushUser(emit, turn);
-          flushAssistant(emit, turn);
+        if (active) {
+          flushUser(emit, active);
+          flushAssistant(emit, active);
         }
-        durable(emit, {
+        publish({
           kind: "tool.call",
           body: {
             call_id: update.toolCallId,
@@ -215,7 +244,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
         return;
       case "tool_call_update":
         if (update.status === "completed" || update.status === "failed")
-          durable(emit, {
+          publish({
             kind: "tool.result",
             body: {
               call_id: update.toolCallId,
@@ -231,25 +260,25 @@ export const openAcp = Effect.fn("acp.open")(function* (
         return;
       case "user_message_chunk":
         if (
-          !turn ||
-          turn.userEmitted ||
-          turn.userText.length + update.content.text.length > maxMessageLength
+          !active ||
+          active.userEmitted ||
+          active.userText.length + update.content.text.length > maxMessageLength
         )
           return;
-        turn.userText += update.content.text;
+        active.userText += update.content.text;
         return;
       case "agent_message_chunk":
-        if (!turn) return;
-        assistantChunk(emit, turn, update.content.text);
+        if (!active) return;
+        assistantChunk(emit, active, update.content.text);
         return;
       case "turn_completed":
         if (
-          turn &&
-          turn.assistantIndex === 0 &&
-          !turn.assistantText &&
+          active &&
+          active.assistantIndex === 0 &&
+          !active.assistantText &&
           update.agent_result
         )
-          assistantChunk(emit, turn, update.agent_result);
+          assistantChunk(emit, active, update.agent_result);
         return;
     }
   }
@@ -282,6 +311,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
     line,
     base64Fragment,
   }: Pick<RawProviderFrame, "line" | "base64Fragment">) {
+    const active = turn;
     if (base64Fragment) {
       yield* retain(line, "unknown", base64Fragment);
       return;
@@ -312,7 +342,6 @@ export const openAcp = Effect.fn("acp.open")(function* (
           error || decoded._tag === "Success" ? "decoded" : "unknown",
         );
         yield* events.awaitSpace();
-        const active = turn;
         if (active?.rpcId === id) {
           if (error || decoded._tag === "Failure")
             durable(emit, {
@@ -367,50 +396,46 @@ export const openAcp = Effect.fn("acp.open")(function* (
         yield* events.awaitSpace();
         if (prompts.has(prompt_id)) return;
         if (prompts.size >= pendingPromptLimit) {
-          yield* transport.write(() =>
-            Result.succeed([
-              { id, result: { outcome: { outcome: "cancelled" } } },
-            ]),
-          );
+          Queue.offerUnsafe(replies, {
+            id,
+            result: { outcome: { outcome: "cancelled" } },
+          });
           return;
         }
         prompts.set(prompt_id, {
           id,
           choices: options,
-          turnId: turn?.id ?? null,
+          turnId: active?.id ?? null,
         });
-        durable(emit, {
-          kind: "prompt.opened",
-          body: {
-            prompt_id,
-            kind: "permission",
-            tool_call_id:
-              toolCall.toolCallId &&
-              toolCall.toolCallId.length <= 256 &&
-              toolCall.toolCallId.trim()
-                ? toolCall.toolCallId
-                : undefined,
-            tool_name:
-              toolCall.title &&
-              toolCall.title.length <= 128 &&
-              toolCall.title.trim()
-                ? toolCall.title
-                : undefined,
+        durable(
+          emit,
+          {
+            kind: "prompt.opened",
+            body: {
+              prompt_id,
+              kind: "permission",
+              tool_call_id:
+                toolCall?.toolCallId &&
+                toolCall.toolCallId.length <= 256 &&
+                toolCall.toolCallId.trim()
+                  ? toolCall.toolCallId
+                  : undefined,
+              tool_name:
+                toolCall?.title &&
+                toolCall.title.length <= 128 &&
+                toolCall.title.trim()
+                  ? toolCall.title
+                  : undefined,
+            },
           },
-        });
+          active?.id ?? null,
+        );
       } else {
         yield* retain(line, "unknown");
-        yield* transport.write(() =>
-          Result.succeed([
-            {
-              id,
-              error: {
-                code: -32601,
-                message: "Unsupported ACP client request",
-              },
-            },
-          ]),
-        );
+        Queue.offerUnsafe(replies, {
+          id,
+          error: { code: -32601, message: "Unsupported ACP client request" },
+        });
       }
     } else if (
       method === "session/update" ||
@@ -434,14 +459,14 @@ export const openAcp = Effect.fn("acp.open")(function* (
         if (decoded._tag === "Success") {
           const payload = decoded.success;
           const outOfTurn =
-            !turn &&
+            !active &&
             (payload.sessionUpdate === "user_message_chunk" ||
               payload.sessionUpdate === "agent_message_chunk");
           const oversizedUser =
-            turn &&
+            active &&
             payload.sessionUpdate === "user_message_chunk" &&
-            (turn.userEmitted ||
-              turn.userText.length + payload.content.text.length >
+            (active.userEmitted ||
+              active.userText.length + payload.content.text.length >
                 maxMessageLength);
           yield* retain(
             line,
@@ -449,7 +474,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
           );
           if (!outOfTurn && !oversizedUser) {
             yield* events.awaitSpace();
-            project(emit, payload);
+            project(emit, payload, active);
           }
           return;
         }
@@ -664,9 +689,8 @@ export const openAcp = Effect.fn("acp.open")(function* (
 
   function writeControl<Failure>(
     plan: () => Result.Result<readonly object[], Failure>,
-    onFlush?: () => void,
   ) {
-    return Effect.result(transport.write(plan, onFlush)).pipe(
+    return Effect.result(transport.write(plan)).pipe(
       Effect.map((result) => {
         if (result._tag === "Success")
           return inDoubt(
@@ -705,54 +729,47 @@ export const openAcp = Effect.fn("acp.open")(function* (
     request: AnswerRequest,
   ): Effect.fn.Return<ControlOutcome<"prompt">> {
     const { prompt_id } = request.expected;
-    let turnId: string | null = null;
-    return yield* writeControl<ControlOutcome<"prompt">>(
-      () => {
-        if (sessionClosed || runtimeEnded) return Result.fail(closed);
-        const prompt = prompts.get(prompt_id);
-        if (!validFence(request.expected) || !prompt)
-          return Result.fail({
-            status: "stale",
-            observed: {
-              kind: "prompt",
-              run: spec.run,
-              prompt_id: [...prompts.keys()].at(-1) ?? null,
-            },
-          });
-        const choice = permissionChoice(request.answer, prompt.choices);
-        if (choice === undefined)
-          return Result.fail(
-            refused(
-              "invalid-option",
-              "Answer must select an available ACP permission option",
-            ),
-          );
-        prompts.delete(prompt_id);
-        turnId = prompt.turnId;
-        return Result.succeed([
-          {
-            id: prompt.id,
-            result: {
-              outcome:
-                choice === null
-                  ? { outcome: "cancelled" }
-                  : { outcome: "selected", optionId: choice },
-            },
+    return yield* writeControl<ControlOutcome<"prompt">>(() => {
+      if (sessionClosed || runtimeEnded) return Result.fail(closed);
+      const prompt = prompts.get(prompt_id);
+      if (!validFence(request.expected) || !prompt)
+        return Result.fail({
+          status: "stale",
+          observed: {
+            kind: "prompt",
+            run: spec.run,
+            prompt_id: [...prompts.keys()].at(-1) ?? null,
           },
-        ]);
-      },
-      () => {
-        if (!sessionClosed && !runtimeEnded)
-          durable(
-            emit,
-            {
-              kind: "prompt.settled",
-              body: { prompt_id, by: request.by, answer: request.answer },
-            },
-            turnId,
-          );
-      },
-    );
+        });
+      const choice = permissionChoice(request.answer, prompt.choices);
+      if (choice === undefined)
+        return Result.fail(
+          refused(
+            "invalid-option",
+            "Answer must select an available ACP permission option",
+          ),
+        );
+      prompts.delete(prompt_id);
+      durable(
+        emit,
+        {
+          kind: "prompt.settled",
+          body: { prompt_id, by: request.by, answer: request.answer },
+        },
+        prompt.turnId,
+      );
+      return Result.succeed([
+        {
+          id: prompt.id,
+          result: {
+            outcome:
+              choice === null
+                ? { outcome: "cancelled" }
+                : { outcome: "selected", optionId: choice },
+          },
+        },
+      ]);
+    });
   });
 
   const close = yield* Effect.cached(

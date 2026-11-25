@@ -31,33 +31,12 @@ export function spawnAcp(
   cwd: string,
   scope: Scope.Scope,
 ) {
-  const child = Bun.spawn({
-    cmd: [...(options.command ?? ["grok", "agent", "stdio"])],
-    cwd,
-    env: options.env ?? process.env,
-    detached: true,
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const stdout = child.stdout.getReader();
-  const stderr = child.stderr.getReader();
-  let closing = false;
-  const writer = Semaphore.makeUnsafe(1);
-  const isClosed = () => closing || scope.state._tag === "Closed";
-  let nextId = 0;
-  let stderrError: AdapterError | undefined;
-  const pending = new Map<
-    number,
-    { method: string; response: Deferred.Deferred<unknown, AdapterError> }
-  >();
   let groupResult: CloseOutcome | undefined;
-  function stopGroup(): CloseOutcome {
+  function stopGroup(pid: number): CloseOutcome {
     if (groupResult) return groupResult;
-    if (child.pid <= 0 || child.exitCode !== null || child.signalCode !== null)
-      return (groupResult = closed);
+    if (pid <= 0) return (groupResult = closed);
     try {
-      process.kill(-child.pid, "SIGKILL");
+      process.kill(-pid, "SIGKILL");
     } catch (error) {
       if (
         !(error instanceof Error && "code" in error && error.code === "ESRCH")
@@ -72,6 +51,38 @@ export function spawnAcp(
     return (groupResult = closed);
   }
 
+  const child = Bun.spawn({
+    cmd: [...(options.command ?? ["grok", "agent", "stdio"])],
+    cwd,
+    env: options.env ?? process.env,
+    detached: true,
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+    onExit: (process) => {
+      stopGroup(process.pid);
+    },
+  });
+  const stdout = child.stdout.getReader();
+  const stderr = child.stderr.getReader();
+  let closing = false;
+  const writer = Semaphore.makeUnsafe(1);
+  const writeQueueError = processError(
+    "write-queue-timeout",
+    "ACP input did not drain",
+  );
+  const newWriteWindow = () => ({
+    expired: false,
+    signal: Deferred.makeUnsafe<void>(),
+  });
+  let writeWindow = newWriteWindow();
+  const isClosed = () => closing || scope.state._tag === "Closed";
+  let nextId = 0;
+  let stderrError: AdapterError | undefined;
+  const pending = new Map<
+    number,
+    { method: string; response: Deferred.Deferred<unknown, AdapterError> }
+  >();
   const exit = child.exited.then(
     (code) => child.signalCode ?? (code === 0 ? "exited" : `exit-${code}`),
   );
@@ -117,9 +128,11 @@ export function spawnAcp(
 
   const write = Effect.fn("acp.write")(function* <E>(
     prepare: () => Result.Result<readonly object[], E>,
-    onFlush?: () => void,
   ) {
+    const window = writeWindow;
+    if (window.expired) return yield* writeQueueError;
     let started = false;
+    let finished = false;
     const worker = yield* Effect.forkIn(
       Semaphore.withPermit(
         writer,
@@ -134,6 +147,10 @@ export function spawnAcp(
                 processError("channel-closed", "ACP input is closed"),
               ),
             );
+            return;
+          }
+          if (window.expired) {
+            resume(Effect.fail(writeQueueError));
             return;
           }
           const planned = prepare();
@@ -153,10 +170,15 @@ export function spawnAcp(
             );
             await child.stdin.flush();
           };
+          const finish = (result: Effect.Effect<void, AdapterError>) => {
+            finished = true;
+            if (window.expired) writeWindow = newWriteWindow();
+            resume(result);
+          };
           void send().then(
-            () => resume(onFlush ? Effect.sync(onFlush) : Effect.void),
+            () => finish(Effect.void),
             (cause) =>
-              resume(
+              finish(
                 Effect.fail(
                   processError(
                     "write-failed",
@@ -182,15 +204,26 @@ export function spawnAcp(
             )
           : Effect.failCause(cause),
       ),
+      Effect.raceFirst(
+        Deferred.await(window.signal).pipe(
+          Effect.flatMap(() =>
+            started ? Effect.never : Effect.fail(writeQueueError),
+          ),
+        ),
+      ),
       Effect.timeoutOrElse({
         duration: "30 seconds",
         orElse: () =>
-          Effect.fail(
-            processError(
-              started ? "write-timeout" : "write-queue-timeout",
-              "ACP input did not drain",
-            ),
-          ),
+          Effect.suspend(() => {
+            if (!started) return Effect.fail(writeQueueError);
+            if (!finished) {
+              window.expired = true;
+              Deferred.doneUnsafe(window.signal, Effect.void);
+            }
+            return Effect.fail(
+              processError("write-timeout", "ACP input did not drain"),
+            );
+          }),
       }),
       Effect.ensuring(
         Effect.suspend(() => (started ? Effect.void : Fiber.interrupt(worker))),
@@ -248,15 +281,16 @@ export function spawnAcp(
   function release(): Promise<CloseOutcome> {
     closing = true;
     return (released ??= (async () => {
-      const outcome = stopGroup();
+      const outcome = stopGroup(child.pid);
       await Promise.allSettled([stdout.cancel(), stderr.cancel()]);
-      const endInput = Promise.resolve().then(() => child.stdin.end());
+      const endInput = Promise.resolve()
+        .then(() => child.stdin.end())
+        .catch(() => {});
       if (outcome.status === "failed") {
         child.unref();
-        void endInput.catch(() => {});
       } else {
         await child.exited;
-        await endInput.catch(() => {});
+        await endInput;
       }
       return outcome;
     })());
