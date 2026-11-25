@@ -345,52 +345,51 @@ export function useConversationMessages(
 
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const snapshotInFlightRef = useRef<string | null>(null);
+  const failedSnapshotRef = useRef<string | null>(null);
 
   // One-shot page-1 fetch: cold opens, and the recovery path for deletes /
   // backfill edits (transcript_revision jumps). Replaces the window and
   // re-anchors the tail at the fresh newest row.
-  const fetchSnapshot = useCallback(
-    async (background = false) => {
-      if (snapshotInFlightRef.current === conversationId) return;
-      snapshotInFlightRef.current = conversationId;
-      const hadConversation = hasConversation(conversationId);
-      if (!background) setSnapshotLoading(true);
-      try {
-        const res: any = await convex.query(api.conversations.listMessages, {
-          conversation_id: convId,
-          paginationOpts: { numItems: MESSAGE_PAGE_SIZE, cursor: null },
-          ...shareTokenArg(conversationId),
-        });
-        if (hadConversation && !hasConversation(conversationId)) return;
-        const state = useInboxStore.getState();
-        const meta: any =
-          state.conversations[conversationId] ?? state.sessions[conversationId];
-        if (
-          meta?.fork_status === "copying" &&
-          (state.messages[conversationId]?.length ?? 0) > 0
-        )
-          return;
-        const page: Message[] = [...(res?.page ?? [])].reverse();
-        state.setMessages(conversationId, page, {
-          hasMoreAbove: res ? !res.isDone : false,
-          initialized: true,
-        });
-        setTailState({
-          id: conversationId,
-          anchor: page.length ? page[page.length - 1].timestamp - 1 : 0,
-        });
-      } catch (err) {
-        console.warn("[useConversationMessages] snapshot fetch failed", {
-          conversationId,
-          err,
-        });
-      } finally {
-        snapshotInFlightRef.current = null;
-        setSnapshotLoading(false);
-      }
-    },
-    [convex, convId, conversationId],
-  );
+  const fetchSnapshot = useCallback(async () => {
+    if (snapshotInFlightRef.current === conversationId) return;
+    snapshotInFlightRef.current = conversationId;
+    const hadConversation = hasConversation(conversationId);
+    setSnapshotLoading(failedSnapshotRef.current !== conversationId);
+    try {
+      const res: any = await convex.query(api.conversations.listMessages, {
+        conversation_id: convId,
+        paginationOpts: { numItems: MESSAGE_PAGE_SIZE, cursor: null },
+        ...shareTokenArg(conversationId),
+      });
+      if (hadConversation && !hasConversation(conversationId)) return;
+      const state = useInboxStore.getState();
+      const meta: any =
+        state.conversations[conversationId] ?? state.sessions[conversationId];
+      if (
+        meta?.fork_status === "copying" &&
+        (state.messages[conversationId]?.length ?? 0) > 0
+      )
+        return;
+      const page: Message[] = [...(res?.page ?? [])].reverse();
+      state.setMessages(conversationId, page, {
+        hasMoreAbove: res ? !res.isDone : false,
+        initialized: true,
+      });
+      setTailState({
+        id: conversationId,
+        anchor: page.length ? page[page.length - 1].timestamp - 1 : 0,
+      });
+    } catch (err) {
+      failedSnapshotRef.current = conversationId;
+      console.warn("[useConversationMessages] snapshot fetch failed", {
+        conversationId,
+        err,
+      });
+    } finally {
+      snapshotInFlightRef.current = null;
+      setSnapshotLoading(false);
+    }
+  }, [convex, convId, conversationId]);
 
   // Cold open: wait for the IDB hydration verdict, then either anchor on the
   // cached tail (zero network) or pay the one snapshot round trip.
@@ -680,8 +679,7 @@ export function useConversationMessages(
       countMismatchRef.current.ticks = 0;
       if (local.length >= serverCount) return;
       if (local.length === 0) {
-        if (retryEmpty && tailAnchorRef.current === null)
-          await fetchSnapshot(true);
+        if (retryEmpty && tailAnchorRef.current === null) await fetchSnapshot();
         return;
       }
       // A read forward that found nothing past the newest local row settles
