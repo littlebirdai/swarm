@@ -238,13 +238,14 @@ test("a wall clock change after queueing does not age a new dispatch", async () 
   }
 });
 
-test("queueing uses the tracked account with no localStorage read", async () => {
+test("queueing reads the live account once at the transaction boundary", async () => {
   const first = makeStore();
   const getItem = spyOn(localStorage, "getItem");
   try {
     first.state.stageExpandLeaf("one");
-    await first.persisted;
     expect(getItem).not.toHaveBeenCalled();
+    await first.persisted;
+    expect(getItem).toHaveBeenCalledTimes(1);
   } finally {
     getItem.mockRestore();
   }

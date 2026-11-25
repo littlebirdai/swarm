@@ -219,10 +219,12 @@ export function createCacheOwnership(deps: CacheOwnershipDeps) {
 
   /** Writes land only for the account the stored JWT names, and, once hydration
    *  resolved the cache's owner, only while that is still the same account. */
-  function persistenceOwned(): boolean {
+  function persistenceOwned(expectedPrincipal?: string): boolean {
     const principal = authPrincipal.current();
     return (
-      principal !== null && (boundOwner === null || boundOwner === principal)
+      principal !== null &&
+      (expectedPrincipal === undefined || expectedPrincipal === principal) &&
+      (boundOwner === null || boundOwner === principal)
     );
   }
 

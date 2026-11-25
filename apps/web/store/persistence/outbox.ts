@@ -63,8 +63,7 @@ function putDispatch(
       if (
         epoch !== outboxWriteEpoch ||
         purgeInProgress ||
-        accountId !== authPrincipal.current() ||
-        !persistenceOwned()
+        !persistenceOwned(accountId)
       )
         return;
       if (pending) {
