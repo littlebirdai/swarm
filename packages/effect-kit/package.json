@@ -1,0 +1,18 @@
+{
+  "name": "@codecast/effect-kit",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./effect": "./src/index.ts",
+    "./effect/testing": "./src/testing.ts"
+  },
+  "dependencies": {
+    "effect": "catalog:"
+  }
+}
