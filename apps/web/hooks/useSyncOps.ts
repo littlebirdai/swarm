@@ -5,7 +5,7 @@
 // these queries directly.
 import { useMemo, useState } from "react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { GROUP_RULES } from "@codecast/shared/contracts/ingest";
+import { GROUP_RULES } from "@codecast/ingest/ingest";
 import { isConvexId, useInboxStore } from "../store/inboxStore";
 import type { SyncOpts } from "../store/inboxStore";
 import {
@@ -28,7 +28,7 @@ import type {
   OpsSource,
   OpsWatch,
 } from "../components/ops/opsTypes";
-import { type ReplayMatch, type ReplaySort } from "@codecast/shared/replay";
+import { type ReplayMatch, type ReplaySort } from "@codecast/replay/list";
 import { useWatchEffect } from "./useWatchEffect";
 
 const api = _api as any;
@@ -796,7 +796,7 @@ const browseRows = { select: (d: any) => d?.rows ?? null };
  * One page of the replay list (replays.browse): its rows into opsReplays, and
  * what it counted (the total, the people) into opsReplayTallies under
  * replayBrowseKey. The page paints from the store with the same filter
- * (shared/replay/list.ts), so a cached page shows at once.
+ * (packages/replay/src/list.ts), so a cached page shows at once.
  */
 export function useSyncOpsReplayBrowse(b: ReplayBrowse | null): {
   key: string | null;

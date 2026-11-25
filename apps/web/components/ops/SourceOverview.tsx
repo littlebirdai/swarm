@@ -9,7 +9,7 @@
 // here too, and a silent keyed source opens its test-event check in place.
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { entityRoute, formatCallTime } from "@codecast/shared/entities";
+import { entityRoute, formatCallTime } from "@codecast/entities";
 import {
   BellRing,
   ChevronDown,
@@ -81,7 +81,7 @@ import {
   issueLane,
 } from "./issuesModel";
 import { replayTitle } from "./opsModel";
-import { isAnonymous, personKey, personLabel } from "@codecast/shared/replay";
+import { isAnonymous, personKey, personLabel } from "@codecast/replay/list";
 import { PersonMark } from "./replayParts";
 import { opsHref } from "./opsPaths";
 import { KindGlyph, ProviderIcon, SOURCE_PROVIDER_LABEL } from "./parts";

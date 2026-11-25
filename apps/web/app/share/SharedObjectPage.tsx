@@ -8,7 +8,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import type { FunctionReference } from "convex/server";
 import { useParams } from "react-router";
 import { Check, Link2, Unlink } from "lucide-react";
-import type { SharedObjectKind } from "@codecast/shared/entities";
+import type { SharedObjectKind } from "@codecast/entities";
 import { formatDateFull, formatDateSmart } from "@codecast/time";
 import { AppLoader } from "../../components/AppLoader";
 import { MarkdownRenderer } from "../../components/tools/MarkdownRenderer";

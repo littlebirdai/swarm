@@ -54,7 +54,7 @@ import { displayName } from "./lib/displayNames";
 import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
 import { isConversationOwner } from "./privacy";
 import { pickOnlineLocalDevice } from "./cloud";
-import { isConvexId } from "@codecast/shared/entities";
+import { isConvexId } from "@codecast/entities";
 import {
   bareSite,
   cleanSecretEdit,

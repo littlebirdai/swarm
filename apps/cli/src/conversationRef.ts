@@ -8,7 +8,7 @@ import {
   buildEntityUrl,
   CODECAST_BASE_URL,
   isEntityId,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 
 export interface ConversationRef {
   conversationId: string;

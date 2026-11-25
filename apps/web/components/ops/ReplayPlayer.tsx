@@ -15,8 +15,8 @@ import { useInboxStore } from "../../store/inboxStore";
 import {
   type ReplayPlayerMessage,
   replayWindowHolds,
-} from "@codecast/shared/contracts/replayPlayer";
-import type { ReplayEvent } from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replayPlayer";
+import type { ReplayEvent } from "@codecast/replay/replay";
 import {
   ExternalLink,
   FastForward,
@@ -32,12 +32,11 @@ import {
 } from "lucide-react";
 import {
   formatReplayTime,
-  idleRanges,
   isFailure,
   primaryFailure,
-  rageBursts,
-  routeOf,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/events";
+import { idleRanges, rageBursts } from "@codecast/replay/list";
+import { routeOf } from "@codecast/replay/issues";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { hasOpenModal, isEditableTarget } from "../../shortcuts";
 import { KeyCap } from "../KeyboardShortcutsHelp";

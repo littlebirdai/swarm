@@ -11,7 +11,7 @@
 // judge saw then); the app leaves out what came after it.
 //
 // The frame talks to the page embedding it the way the replay player does
-// (contracts/replayPlayer.ts): every message is tagged with a source, it
+// (packages/replay/src/replayPlayer.ts): every message is tagged with a source, it
 // posts only to the host's origin (location.ancestorOrigins where the
 // browser has it, else the origin of the host's first `hello`), and until it
 // knows that origin it posts nothing but a bare `hello`.

@@ -5,12 +5,8 @@
 // finds. Each hit carries the object's own row, so a list draws it with the
 // same marks and facts its card does (components/search/ObjectHit).
 import { useMemo } from "react";
-import type { EntityType } from "@codecast/shared/entities";
-import {
-  entityRoute,
-  objectHref,
-  personRefOf,
-} from "@codecast/shared/entities";
+import type { EntityType } from "@codecast/entities";
+import { entityRoute, objectHref, personRefOf } from "@codecast/entities";
 import { isPerson } from "@codecast/team/memberKind";
 import { useInboxStore } from "../store/inboxStore";
 import { useCollectionRows } from "./useCollectionRows";

@@ -40,14 +40,14 @@ import { isRecRoomKey } from "@codecast/calls/callRoomKeys";
 import {
   parseCallAnchor,
   parseCallMomentParam,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callLinks";
 import { segmentAt } from "@codecast/calls/callRecordings";
 import {
   buildEntityUrl,
   callRefId,
   formatCallTime,
   isConvexId,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import { openWebPage } from "@/lib/links";
 import { Text as RNText } from "@/components/Themed";
 import {

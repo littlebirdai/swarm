@@ -12,7 +12,7 @@ import {
   sweepWants,
   tallyPage,
 } from "./replayRest";
-import { REPLAY_REST_NO_MORE } from "@codecast/shared/contracts/replay";
+import { REPLAY_REST_NO_MORE } from "@codecast/replay/replay";
 import schema from "../schema";
 import { makeFakeDb, schemaIndexes } from "../testDb";
 

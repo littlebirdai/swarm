@@ -25,7 +25,7 @@ import {
   APP_SURFACES,
   findAppSurface,
   type AppSurface,
-} from "@codecast/shared/contracts";
+} from "@codecast/entities/appSurfaces";
 import { didYouMean, nearMatches } from "../commandSuggestion.js";
 import {
   CdpConnection,

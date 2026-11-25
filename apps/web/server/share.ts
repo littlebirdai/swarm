@@ -2,10 +2,7 @@ import type { Context, Hono, Next } from "hono";
 import { stream } from "hono/streaming";
 import { readFile } from "fs/promises";
 import { join } from "path";
-import {
-  SHARED_OBJECT_KINDS,
-  type SharedObjectKind,
-} from "@codecast/shared/entities";
+import { SHARED_OBJECT_KINDS, type SharedObjectKind } from "@codecast/entities";
 import { fetchShared } from "./shareData";
 
 /**

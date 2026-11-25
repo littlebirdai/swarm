@@ -10,7 +10,7 @@ import {
   REPLAY_DEFAULT_MATCH,
   replayMatches,
   resolveReplayFilter,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
 import {
   useOpsReplays,
   useOpsReplayTally,

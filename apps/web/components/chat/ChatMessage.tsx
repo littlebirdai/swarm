@@ -16,7 +16,7 @@ import {
   Bot,
 } from "lucide-react";
 import { SlackLogo } from "../SlackLogo";
-import { parseHuddleDigestContent } from "@codecast/shared/contracts";
+import { parseHuddleDigestContent } from "@codecast/calls/huddleDigest";
 import {
   mentionRoles,
   mentionSessions,

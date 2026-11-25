@@ -7,7 +7,7 @@ import {
   isStashHidden,
 } from "@codecast/shared/contracts";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {
   drawsNested,

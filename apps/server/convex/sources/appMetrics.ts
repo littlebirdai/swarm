@@ -3,10 +3,7 @@
 // manifest and signature every other call to the product takes (sources/app).
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import {
-  parseReaderQuery,
-  readMetricAnswer,
-} from "@codecast/shared/contracts/ingest";
+import { parseReaderQuery, readMetricAnswer } from "@codecast/ingest/ingest";
 import {
   buildAppRequest,
   formatActorHeader,
@@ -23,7 +20,7 @@ import {
 import { appHttp, signerOf } from "../lib/appHttp";
 
 /**
- * One metric reader's answer for a watch (contracts/ingest readMetricAnswer):
+ * One metric reader's answer for a watch (packages/ingest/src/ingest readMetricAnswer):
  * its number now, its unit, and the dated points it holds. `days` asks the
  * reader for that much history when its input declares a `days` field. `lost`
  * says the connection itself is gone or refused, so the source stops polling.

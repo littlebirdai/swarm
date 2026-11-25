@@ -22,7 +22,7 @@
 import { Fragment, useMemo, type ReactNode } from "react";
 import { ChevronRight, CornerDownRight } from "lucide-react";
 import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
-import { objectHref } from "@codecast/shared/entities";
+import { objectHref } from "@codecast/entities";
 import { useInboxStore } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import {

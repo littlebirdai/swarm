@@ -74,7 +74,7 @@ import { AgentToolSetupCard } from "./AgentToolSetupCard";
 import { SentFileBlock, type SentFileData } from "../../tools/SentFileBlock";
 import { useImageGallery, useGalleryMessageId } from "../../ImageGallery";
 import { ScreenRecordingCard } from "../../calls/ScreenRecordingCard";
-import type { ParsedScreenRecording } from "@codecast/shared/contracts";
+import type { ParsedScreenRecording } from "@codecast/calls/screenRecording";
 import { EntityIdPill, TextWithMentions } from "../../EntityIdPill";
 import { entityRemarkPlugins } from "../../../lib/remarkEntityIds";
 import {

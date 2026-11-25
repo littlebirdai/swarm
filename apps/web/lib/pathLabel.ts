@@ -5,7 +5,7 @@
 // tabRouting → TabBar) that made vite full-reload every window instead of hot
 // updating whenever anything in that loop changed.
 import { browserPathLabel, isBrowserRoutePath } from "./browserPane";
-import { isConvexId, orgObjectOfRef } from "@codecast/shared/entities";
+import { isConvexId, orgObjectOfRef } from "@codecast/entities";
 import { orgRefOfPath } from "../components/org/company/sheetStack";
 import {
   conversationIdFromPath,

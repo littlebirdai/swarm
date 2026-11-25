@@ -15,10 +15,10 @@ import { hasAgentSetupMarker } from "@codecast/capabilities/agentToolSetup";
 import {
   isBootstrapPrompt,
   isPollResponsePayload,
-  parseScreenRecordingMessage,
   parseWorkflowHarnessFrame,
   sessionMessageIntentOf,
 } from "@codecast/shared/contracts";
+import { parseScreenRecordingMessage } from "@codecast/calls/screenRecording";
 import {
   classifyApiErrorBanner,
   isNoResponseStub,
@@ -584,7 +584,7 @@ export function classifyUserMessage(
     const escalation = parseSessionEscalation(tNoReminders);
     if (escalation) return { kind: "session_escalation", escalation };
   }
-  // A screen recording the person sent (shared/contracts/screenRecording):
+  // A screen recording the person sent (packages/calls/src/screenRecording):
   // their message as they wrote it, or the agent's copy with its lines.
   const screen = parseScreenRecordingMessage(tNoReminders);
   if (screen) return { kind: "screen_recording", recording: screen };

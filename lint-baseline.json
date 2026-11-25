@@ -11517,7 +11517,7 @@
     "swarm/no-comments": 86
   },
   "apps/server/convex/pendingMessages.ts": {
-    "swarm/no-comments": 623
+    "swarm/no-comments": 621
   },
   "apps/server/convex/permissionRules.test.ts": {
     "swarm/no-comments": 6
@@ -28732,6 +28732,9 @@
   "packages/calls/src/callGuests.ts": {
     "swarm/no-comments": 124
   },
+  "packages/calls/src/callLinks.ts": {
+    "swarm/no-comments": 18
+  },
   "packages/calls/src/callPush.ts": {
     "swarm/no-comments": 13
   },
@@ -28741,8 +28744,14 @@
   "packages/calls/src/callRoomKeys.ts": {
     "swarm/no-comments": 85
   },
+  "packages/calls/src/huddleDigest.ts": {
+    "swarm/no-comments": 44
+  },
   "packages/calls/src/recordingAudio.ts": {
     "swarm/no-comments": 29
+  },
+  "packages/calls/src/screenRecording.ts": {
+    "swarm/no-comments": 28
   },
   "packages/calls/src/stagePins.ts": {
     "swarm/no-comments": 15
@@ -28753,11 +28762,17 @@
   "packages/calls/test/callGuests.test.ts": {
     "swarm/no-comments": 9
   },
+  "packages/calls/test/callLinks.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/calls/test/callRecordings.test.ts": {
     "swarm/no-comments": 35
   },
   "packages/calls/test/callRoomKeys.test.ts": {
     "swarm/no-comments": 2
+  },
+  "packages/calls/test/huddleDigest.test.ts": {
+    "swarm/no-comments": 6
   },
   "packages/calls/test/recordingAudio.test.ts": {
     "swarm/no-comments": 20
@@ -29041,6 +29056,21 @@
   "packages/docs/test/drafting.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/entities/src/appSurfaces.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/entities/src/index.ts": {
+    "swarm/no-comments": 296
+  },
+  "packages/entities/test/bareIds.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/entities/test/callMoments.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/entities/test/orgObjects.test.ts": {
+    "swarm/no-comments": 2
+  },
   "packages/evals-api/src/evalsApi.ts": {
     "swarm/no-comments": 21
   },
@@ -29100,6 +29130,24 @@
   },
   "packages/hosted-assistant/test/assistant.replyAsks.test.ts": {
     "swarm/no-comments": 2
+  },
+  "packages/ingest/src/ingest.ts": {
+    "swarm/no-comments": 80
+  },
+  "packages/ingest/src/metricMonitor.ts": {
+    "swarm/no-comments": 23
+  },
+  "packages/ingest/src/moments.ts": {
+    "swarm/no-comments": 55
+  },
+  "packages/ingest/src/sanitizeText.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/ingest/src/volumeWatch.ts": {
+    "swarm/no-comments": 31
+  },
+  "packages/ingest/test/volumeWatch.test.ts": {
+    "swarm/no-comments": 3
   },
   "packages/keyboard/src/keyBindings.ts": {
     "swarm/no-comments": 44
@@ -29386,6 +29434,75 @@
   "packages/render/test/typeScale.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/replay/src/capture.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/replay/src/dom.ts": {
+    "swarm/no-comments": 28
+  },
+  "packages/replay/src/events.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/replay/src/index.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/replay/src/issues.ts": {
+    "swarm/no-comments": 56
+  },
+  "packages/replay/src/list.ts": {
+    "swarm/no-comments": 73
+  },
+  "packages/replay/src/mobile.fixture.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/replay/src/mobile.ts": {
+    "swarm/no-comments": 79
+  },
+  "packages/replay/src/moment.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/replay/src/replay.ts": {
+    "swarm/no-comments": 63
+  },
+  "packages/replay/src/replayPlayer.ts": {
+    "swarm/no-comments": 109
+  },
+  "packages/replay/src/repro.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/replay/src/rrweb.ts": {
+    "swarm/no-comments": 63
+  },
+  "packages/replay/src/timeline.ts": {
+    "swarm/no-comments": 18
+  },
+  "packages/replay/test/capture.test.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/replay/test/dom.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/replay/test/issues.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/replay/test/list.test.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/replay/test/mobile.test.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/replay/test/moment.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/replay/test/navs.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/replay/test/replay.test.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/replay/test/replayPlayer.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/search/src/index.ts": {
     "swarm/no-comments": 5
   },
@@ -29527,15 +29644,6 @@
   "packages/shared/contracts/appDescriptors.ts": {
     "swarm/no-comments": 56
   },
-  "packages/shared/contracts/appSurfaces.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/contracts/callLinks.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/callLinks.ts": {
-    "swarm/no-comments": 18
-  },
   "packages/shared/contracts/capabilityResolver.golden.test.ts": {
     "swarm/no-comments": 10
   },
@@ -29647,12 +29755,6 @@
   "packages/shared/contracts/headOfPeoplePrompt.ts": {
     "swarm/no-comments": 16
   },
-  "packages/shared/contracts/huddleDigest.test.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/contracts/huddleDigest.ts": {
-    "swarm/no-comments": 44
-  },
   "packages/shared/contracts/idleDigest.test.ts": {
     "swarm/no-comments": 2
   },
@@ -29690,10 +29792,7 @@
     "swarm/no-comments": 27
   },
   "packages/shared/contracts/index.ts": {
-    "swarm/no-comments": 35
-  },
-  "packages/shared/contracts/ingest.ts": {
-    "swarm/no-comments": 80
+    "swarm/no-comments": 29
   },
   "packages/shared/contracts/initiative.test.ts": {
     "swarm/no-comments": 2
@@ -29785,9 +29884,6 @@
   "packages/shared/contracts/messagingPolicy.ts": {
     "swarm/no-comments": 13
   },
-  "packages/shared/contracts/metricMonitor.ts": {
-    "swarm/no-comments": 23
-  },
   "packages/shared/contracts/metricSeries.test.ts": {
     "swarm/no-comments": 1
   },
@@ -29799,9 +29895,6 @@
   },
   "packages/shared/contracts/modelCall.ts": {
     "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/moments.ts": {
-    "swarm/no-comments": 55
   },
   "packages/shared/contracts/openPlans.ts": {
     "swarm/no-comments": 7
@@ -29899,15 +29992,6 @@
   "packages/shared/contracts/regretRates.ts": {
     "swarm/no-comments": 19
   },
-  "packages/shared/contracts/replay.ts": {
-    "swarm/no-comments": 63
-  },
-  "packages/shared/contracts/replayPlayer.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/replayPlayer.ts": {
-    "swarm/no-comments": 109
-  },
   "packages/shared/contracts/rolePlaybook.test.ts": {
     "swarm/no-comments": 2
   },
@@ -29916,12 +30000,6 @@
   },
   "packages/shared/contracts/runEnd.test.ts": {
     "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/sanitizeText.ts": {
-    "swarm/no-comments": 13
-  },
-  "packages/shared/contracts/screenRecording.ts": {
-    "swarm/no-comments": 28
   },
   "packages/shared/contracts/secretRules.ts": {
     "swarm/no-comments": 24
@@ -29983,86 +30061,8 @@
   "packages/shared/contracts/vaultProtocol.ts": {
     "swarm/no-comments": 58
   },
-  "packages/shared/contracts/volumeWatch.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/volumeWatch.ts": {
-    "swarm/no-comments": 31
-  },
-  "packages/shared/entities/bareIds.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/entities/callMoments.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/entities/index.ts": {
-    "swarm/no-comments": 296
-  },
-  "packages/shared/entities/orgObjects.test.ts": {
-    "swarm/no-comments": 2
-  },
   "packages/shared/render/changeCardHtml.ts": {
     "swarm/no-comments": 9
-  },
-  "packages/shared/replay/capture.test.ts": {
-    "swarm/no-comments": 10
-  },
-  "packages/shared/replay/capture.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/replay/dom.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/replay/dom.ts": {
-    "swarm/no-comments": 28
-  },
-  "packages/shared/replay/events.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/replay/index.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/replay/issues.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/replay/issues.ts": {
-    "swarm/no-comments": 56
-  },
-  "packages/shared/replay/list.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/replay/list.ts": {
-    "swarm/no-comments": 73
-  },
-  "packages/shared/replay/mobile.fixture.ts": {
-    "swarm/no-comments": 11
-  },
-  "packages/shared/replay/mobile.test.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/replay/mobile.ts": {
-    "swarm/no-comments": 79
-  },
-  "packages/shared/replay/moment.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/replay/moment.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/replay/navs.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/replay/replay.test.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/replay/repro.ts": {
-    "swarm/no-comments": 18
-  },
-  "packages/shared/replay/rrweb.ts": {
-    "swarm/no-comments": 63
-  },
-  "packages/shared/replay/timeline.ts": {
-    "swarm/no-comments": 18
   },
   "packages/shared/tasks/foreignText.test.ts": {
     "swarm/no-comments": 10

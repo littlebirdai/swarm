@@ -137,7 +137,7 @@ export function replayDomChunkKey(opts: {
   return `${REPLAYS_ROOT}${opts.sourceId}/${opts.replay}/dom/${String(opts.seq).padStart(4, "0")}-${opts.sha256}.json.gz`;
 }
 
-/** One stylesheet a DOM capture names (contracts/replayPlayer REPLAY_STYLE_LIMITS): content addressed
+/** One stylesheet a DOM capture names (packages/replay/src/replayPlayer REPLAY_STYLE_LIMITS): content addressed
  *  under its source and the UTC day it was stored, so recordings made that day share one copy and
  *  none outlives the bucket's 30 day rule while a recording that names it is still kept. The
  *  `~styles` segment can never be a recording's (safeReplayPathSegment puts "~" only after a

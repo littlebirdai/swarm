@@ -6,7 +6,7 @@
 // triage replaces it.
 import { createElement } from "react";
 import { toast } from "sonner";
-import type { GroupStatus } from "@codecast/shared/contracts/ingest";
+import type { GroupStatus } from "@codecast/ingest/ingest";
 import { useInboxStore } from "../../store/inboxStore";
 import { UndoLabel } from "./issueParts";
 import type { OpsGroupResolveStamps } from "../../store/opsSlice";

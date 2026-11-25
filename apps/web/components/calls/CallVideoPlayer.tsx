@@ -19,7 +19,7 @@ import {
   recordingFailureWords,
   recordingSubject,
 } from "@codecast/calls/callRecordings";
-import { type CallView } from "@codecast/shared/contracts";
+import { type CallView } from "@codecast/calls/callLinks";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { usePressOutside } from "../../hooks/usePressOutside";
 import { useStableMediaSrcs } from "../../hooks/useStableMediaSrcs";
@@ -41,7 +41,7 @@ import { RecordingMark } from "./RecordingMark";
 import { ParticipantTag } from "./GuestTag";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import { CallVideoControls } from "./CallVideoControls";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import "./callVideoPlayer.css";
 import { modernButton } from "../ui/modernLook";
 

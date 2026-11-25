@@ -47,7 +47,7 @@ import {
 } from "../../../../../lib/line/timeline";
 import { useDerivedSize } from "../../../../../hooks/useDerivedSize";
 import { navigateHere } from "../../../../../lib/openIntent";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 
 /** What a click on the chart picks: a bucket of occurrences, what came back after a close (a fix or a close without one), an attempt. */
 export type TimelinePick =

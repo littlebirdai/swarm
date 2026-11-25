@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { GROUP_RULES } from "@codecast/shared/contracts/ingest";
+import { GROUP_RULES } from "@codecast/ingest/ingest";
 import {
   HOUR_MS,
   addToDays,

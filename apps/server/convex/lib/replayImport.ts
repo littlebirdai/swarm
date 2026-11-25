@@ -21,15 +21,15 @@ import {
   VENDOR_CONVERTER_VERSION,
   type ReplayEvent,
   type ReplayProvider,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 import {
   parseReplayEvents,
-  renderTimeline,
   replayCounts,
-  replayIssues,
-  replayShape,
   sortReplayEvents,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/events";
+import { renderTimeline } from "@codecast/replay/timeline";
+import { replayIssues } from "@codecast/replay/issues";
+import { replayShape } from "@codecast/replay/list";
 import { chunkReplayEvents, putChunk } from "./replayChunks";
 
 /** What an import carries about the DOM capture it stored (storeReplayDom). */
@@ -75,7 +75,7 @@ export function summarize(events: ReplayEvent[], shortId: string) {
 }
 
 /**
- * The walls a stream shows (shared/replay/issues.ts) folded into the source's
+ * The walls a stream shows (packages/replay/src/issues.ts) folded into the source's
  * replay_issue groups (ingest.recordReplayIssues). Run after the stream is
  * saved, by every action that reads one: assembly, a vendor import, a regroup.
  */

@@ -17,11 +17,6 @@ export * from "./stableContext";
 export * from "./vaultProtocol";
 export * from "./vaultMirror";
 export * from "./transcriptChunk";
-export * from "./callLinks";
-// The row a finished huddle leaves in its chat room or session: one formatter
-// for the digest markdown and the <huddle-summary> wire tag, one parser back.
-export * from "./huddleDigest";
-export * from "./screenRecording";
 // Without these two lines every consumer reinvents the capability vocabulary:
 // convex copied the constants, the web store reached in by relative path, and
 // the web UI and the CLI each declared their own scope and kind unions. Four
@@ -30,7 +25,6 @@ export * from "./capabilityResolver";
 // The fleet comparison — one row per capability, one cell per machine. Here for
 // the same reason: the CLI, the browser and Convex all render this grid, and
 // while it lived in the CLI the other two could only reimplement it.
-export * from "./sanitizeText";
 // Machine-delivered message detection: web/mobile previews and the convex
 // send classifier must agree on what a human-typed message is.
 export * from "./machineMessages";
@@ -48,7 +42,6 @@ export * from "./githubAppInstallState";
 // Convex overlay and the CLI inbox both call, the time-flip stamps and the
 // order-independent digest every client compares against (sync-convergence C3, C8).
 export * from "./inboxProjection";
-export * from "./appSurfaces";
 export * from "./triggerLifecycle";
 // Not re-exported here, imported by path: orgProposal (the fenced block
 // `cast org init` decisions carry). It sits off the CLI boot graph on purpose

@@ -1,6 +1,6 @@
 // replay.codecast.sh: the replay player and the frame renderer
 // (docs/architecture/external-data.md X5, "Playing a replay";
-// packages/shared/contracts/replayPlayer.ts).
+// packages/replay/src/replayPlayer.ts).
 //
 //   GET  /p/<cap>[?t=&mode=frame&controls=0&autoplay=1]   the player page
 //   GET  /player.js, /player.css                           its static assets (public/, built by `bun run build`)
@@ -48,7 +48,7 @@ import {
   replayPlayerUrl,
   type ReplayFrame,
   type ReplayFrameRequest,
-} from "../../../packages/shared/contracts/replayPlayer";
+} from "../../../packages/replay/src/replayPlayer";
 
 export interface Env {
   /** Browser Rendering. */

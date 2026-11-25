@@ -1,5 +1,5 @@
 // A source with no watches that sends errors, logs or CI runs: the series
-// codecast already counts for it (contracts/volumeWatch), each with its value
+// codecast already counts for it (packages/ingest/src/volumeWatch), each with its value
 // now and a spark of the past its counters hold, one press from being
 // watched. A new one starts as a plain series polled hourly and opens on its
 // page, where a line can be set.

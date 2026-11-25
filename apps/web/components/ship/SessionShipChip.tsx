@@ -3,7 +3,7 @@
 // production (lib/ship/sessionShip): in review, your call, fixing, waiting to
 // deploy, live in dp-N, deploy failed. A deploy's state opens that deploy.
 import Link from "next/link";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 import type { SessionShip } from "../../lib/ship/sessionShip";
 import "./ship.css";
 

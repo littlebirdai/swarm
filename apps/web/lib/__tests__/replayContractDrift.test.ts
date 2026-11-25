@@ -5,8 +5,8 @@ import {
   isReportedLogLevel,
   type CodecastIngestItem,
 } from "@platform/analytics/codecast";
-import * as shared from "@codecast/shared/contracts/replay";
-import * as player from "@codecast/shared/contracts/replayPlayer";
+import * as shared from "@codecast/replay/replay";
+import * as player from "@codecast/replay/replayPlayer";
 import {
   parseCodecastJson,
   REPLAY_DOM_MODES as PLATFORM_DOM_MODES,
@@ -21,7 +21,7 @@ import {
   isGroupedLogLevel,
   LOG_LEVELS,
   type IngestItem,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 
 // @platform/analytics may not import codecast, so its recorder and sink spell
 // the replay event types, the ingest item types, the batch caps and the

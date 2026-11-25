@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useAction } from "convex/react";
 import { Check, Link2, RefreshCw, X } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { sharePath } from "@codecast/shared/entities";
+import { sharePath } from "@codecast/entities";
 import { localTimeZone } from "@codecast/time";
 import {
   weekBounds,

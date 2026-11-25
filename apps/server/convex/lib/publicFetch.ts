@@ -5,7 +5,7 @@
 // body is read only up to a byte cap, so a hostile URL can neither reach
 // inside the network nor hand back an unbounded body.
 import type { PublicPage } from "@platform/assistant/web";
-import { parseLinkPreviewUrl } from "@codecast/shared/entities";
+import { parseLinkPreviewUrl } from "@codecast/entities";
 
 export interface PublicFetchOptions {
   maxBytes: number;

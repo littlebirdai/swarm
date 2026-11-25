@@ -24,7 +24,7 @@ import {
   VideoOff,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { callShareHref } from "@codecast/shared/contracts";
+import { callShareHref } from "@codecast/calls/callLinks";
 import {
   describeClockSpans,
   recordingFailureWords,
@@ -48,7 +48,7 @@ import { TranscriptTurnList, type ClickedLine } from "./TranscriptTurns";
 import { CallLinkButton } from "./CallLinkButton";
 import { turnsAnchor } from "./transcriptTurnModel";
 import { firstName, speakerColor } from "./speakers";
-import { formatCallTime, parseCallRef } from "@codecast/shared/entities";
+import { formatCallTime, parseCallRef } from "@codecast/entities";
 import { GuestTag, ParticipantTag } from "./GuestTag";
 import {
   HEARS,

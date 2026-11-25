@@ -20,7 +20,7 @@ import {
   type AppWatch,
   type JsonSchema,
 } from "./appConnector";
-import { validateIngestBatch } from "./ingest";
+import { validateIngestBatch } from "@codecast/ingest/ingest";
 
 const manifest = {
   name: "Union",

@@ -9,7 +9,7 @@ import type { LineIssue } from "./lineModel";
 import { attemptEndWords, problemState, type ProblemState } from "./timeline";
 import { sourceLabel } from "./loopSteps";
 import { clauseHeading } from "../lineFlow";
-import { errorTitle } from "@codecast/shared/contracts/ingest";
+import { errorTitle } from "@codecast/ingest/ingest";
 import type { ProblemSource } from "./stepRuns";
 import type { Overlap } from "./overlap";
 import { countIn, stripSig, type OverviewWindow } from "./problemsOverview";

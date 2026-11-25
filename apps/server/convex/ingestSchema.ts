@@ -24,13 +24,13 @@ import {
   TRANSITIONS,
   WATCH_DIRECTIONS,
   WATCH_KINDS,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   REPLAY_BACKFILL_STATUSES,
   REPLAY_BACKFILL_WINDOWS,
   REPLAY_PROVIDERS,
   VENDOR_REFRESH_WHYS,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 
 // The literal lists derive from the shared contract, the way openTaskValidator does, so the two cannot drift.
 const literals = <T extends string>(values: readonly T[]) =>
@@ -47,14 +47,14 @@ export const groupStatusValidator = literals(GROUP_STATUSES);
 export const transitionValidator = literals(TRANSITIONS);
 export const watchKindValidator = literals(WATCH_KINDS);
 export const watchDirectionValidator = literals(WATCH_DIRECTIONS);
-/** shared/replay/list.ts ReplayShape. */
+/** packages/replay/src/list.ts ReplayShape. */
 /** A long vendor recording's import still reading its later parts (replays.import_rest, sources/replayRest.ts). */
 export const replayImportRestValidator = v.object({
   /** The chain's id: a new import starts a new one, and a step of an older chain stops. */
   gen: v.number(),
   next_blob: v.number(),
   blobs: v.number(),
-  /** The R2 object holding the converter's state where the last part ended (shared/replay/capture.ts CaptureCarry). */
+  /** The R2 object holding the converter's state where the last part ended (packages/replay/src/capture.ts CaptureCarry). */
   carry_key: v.string(),
   /** The vendor asked to wait (a rate limit): the next part is read at this time. */
   retry_at: v.optional(v.number()),
@@ -74,7 +74,7 @@ export const replayReadToValidator = v.object({
   at: v.number(),
 });
 
-/** shared/contracts/replayPlayer.ts ReplayDomChunkMeta. */
+/** packages/replay/src/replayPlayer.ts ReplayDomChunkMeta. */
 export const replayDomChunkMetaValidator = v.object({
   first: v.number(),
   last: v.number(),
@@ -96,7 +96,7 @@ export const replayShapeValidator = v.object({
 export const replayProviderValidator = literals(REPLAY_PROVIDERS);
 
 /**
- * shared/replay/list.ts ReplayFacts: what the vendor itself says of a
+ * packages/replay/src/list.ts ReplayFacts: what the vendor itself says of a
  * recording (sources/replayFacts.ts). `at` alone means the vendor was asked
  * and knew nothing.
  */
@@ -114,7 +114,7 @@ export const replayFactsValidator = v.object({
   referrer: v.optional(v.string()),
 });
 
-/** A source's bulk import of its vendor's recordings (X5; contracts/replay.ts ReplayBackfill). */
+/** A source's bulk import of its vendor's recordings (X5; packages/replay/src/replay.ts ReplayBackfill). */
 export const replayBackfillValidator = v.object({
   status: literals(REPLAY_BACKFILL_STATUSES),
   window: literals(REPLAY_BACKFILL_WINDOWS),
@@ -156,7 +156,7 @@ export const ingestUserValidator = v.object({
  * Non-secret settings of a source: what it reads inside its connection.
  * Secrets, and where the connection points (host, base url), live on the
  * app_installations row named by connection_id, never here. Values are
- * checked per provider by sourceConfigProblem (shared/contracts/ingest).
+ * checked per provider by sourceConfigProblem (packages/ingest/src/ingest).
  */
 export const sourceConfigValidator = v.object({
   /** Sentry organization slug; must be the connection's. */
@@ -351,7 +351,7 @@ export const ingestTables = {
       v.object({ open: v.number(), resolved: v.number(), ignored: v.number() }),
     ),
     groups_counted_at: v.optional(v.number()),
-    /** A CI source's finished runs, oldest first (contracts/volumeWatch withCiRun): its failure rate and run time series. */
+    /** A CI source's finished runs, oldest first (packages/ingest/src/volumeWatch withCiRun): its failure rate and run time series. */
     ci_runs: v.optional(
       v.array(
         v.object({
@@ -644,7 +644,7 @@ export const ingestTables = {
     dom_t0: v.optional(v.number()),
     /** How far an imported copy reaches on the replay clock (its stream or capture, whichever runs longer). Shorter than the vendor's length when the read stopped at a size cap. */
     captured_ms: v.optional(v.number()),
-    /** What a list row draws (shared/replay/list.ts replayShape): written with the summary, absent until the stream is read. */
+    /** What a list row draws (packages/replay/src/list.ts replayShape): written with the summary, absent until the stream is read. */
     shape: v.optional(replayShapeValidator),
     /** The vendor's own facts (length, activity, browser, OS, device, country, referrer); absent until asked. */
     facts: v.optional(replayFactsValidator),
@@ -749,14 +749,14 @@ export const ingestTables = {
         reading: v.optional(v.boolean()),
       }),
     ),
-    /** The monitor (contracts/metricMonitor.ts): reads in a row that flip the state (absent: 1), a warning level short of the line, failed reads in a row that count as missing data (absent: ignored), a mute. */
+    /** The monitor (packages/ingest/src/metricMonitor.ts): reads in a row that flip the state (absent: 1), a warning level short of the line, failed reads in a row that count as missing data (absent: ignored), a mute. */
     eval_reads: v.optional(v.number()),
     warn: v.optional(v.number()),
     no_data_after: v.optional(v.number()),
     muted_until: v.optional(v.number()),
-    /** What its alert does (contracts/metricMonitor alertRoute): files a problem task, or the timeline and triggers only. Absent: the source's rule. */
+    /** What its alert does (packages/ingest/src/metricMonitor alertRoute): files a problem task, or the timeline and triggers only. Absent: the source's rule. */
     on_alert: v.optional(v.union(v.literal("task"), v.literal("timeline"))),
-    /** Who else the alert reaches and what more it does (contracts/metricMonitor AlertNotify, metricAlerts.ts). */
+    /** Who else the alert reaches and what more it does (packages/ingest/src/metricMonitor AlertNotify, metricAlerts.ts). */
     notify: v.optional(
       v.object({
         users: v.optional(v.array(v.id("users"))),
@@ -776,7 +776,7 @@ export const ingestTables = {
         thread_root: v.optional(v.id("chat_messages")),
       }),
     ),
-    /** What each alert did, newest last (contracts/metricMonitor DELIVERIES_KEPT). */
+    /** What each alert did, newest last (packages/ingest/src/metricMonitor DELIVERIES_KEPT). */
     deliveries: v.optional(
       v.array(
         v.object({

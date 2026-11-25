@@ -14,7 +14,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 import { Mono } from "@/constants/fonts";
-import { parseSharePath } from "@codecast/shared/entities";
+import { parseSharePath } from "@codecast/entities";
 import { setShareTokenScope } from "@codecast/web/lib/shareTokenScope";
 import { useAuth } from "@/lib/auth";
 

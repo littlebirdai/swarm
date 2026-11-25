@@ -8,8 +8,8 @@
 import { memo } from "react";
 import Link from "next/link";
 import { Search, X } from "lucide-react";
-import { callAnchorHref, callPathRef } from "@codecast/shared/contracts";
-import { formatCallTime } from "@codecast/shared/entities";
+import { callAnchorHref, callPathRef } from "@codecast/calls/callLinks";
+import { formatCallTime } from "@codecast/entities";
 import type { CallSearchResult } from "../../hooks/useCallSearch";
 import { firstName, speakerColor } from "./speakers";
 import "./callSearch.css";

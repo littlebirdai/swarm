@@ -1,21 +1,21 @@
 // The agent's copy of a screen recording a person sent it.
 //
 // The message arrives holding only the recording's tag and the person's own
-// words (shared/contracts/screenRecording). The daemon delivering it calls
+// words (packages/calls/src/screenRecording). The daemon delivering it calls
 // this: the call's transcript from the server, a keyframe cut on this machine
 // at each line that matters (the same `cast call snap` code, so the frame the
 // agent reads is the frame `cl-N@m:ss` names), and the tag rewritten as timed
 // lines with their pictures. While the server is still reading the words the
 // delivery waits; a recording that is never transcribed still goes, with what
 // it has.
-import { CODECAST_BASE_URL } from "@codecast/shared/entities";
+import { CODECAST_BASE_URL } from "@codecast/entities";
 import {
   framedLines,
   lineMomentMs,
   parseScreenRecordingMessage,
   screenRecordingBrief,
   type BriefSegment,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/screenRecording";
 
 /** How long a delivery waits on the server's transcription before sending
  *  what it has. Whisper reads a few minutes of speech in well under this. */

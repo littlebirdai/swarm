@@ -605,7 +605,7 @@ apps/web/components/ops/ReplaysTab.tsx 1700
 apps/web/components/ops/SourceOverview.tsx 1350
 apps/web/components/ops/SourcesSection.tsx 1000
 apps/web/components/ops/TimelineTab.tsx 1700
-apps/web/components/ops/WatchEditor.tsx 1300
+apps/web/components/ops/WatchEditor.tsx 1250
 apps/web/components/ops/__tests__/opsHome.mount.test.tsx 900
 apps/web/components/ops/__tests__/replayPlayer.mount.test.tsx 1150
 apps/web/components/ops/appsModel.ts 900
@@ -764,12 +764,17 @@ packages/capabilities/src/capabilities.ts 950
 packages/capabilities/src/fleetDiff.ts 900
 packages/capabilities/test/fleetDiff.test.ts 1200
 packages/docs/src/drafting.ts 950
+packages/entities/src/index.ts 1650
+packages/ingest/src/ingest.ts 1100
 packages/keyboard/src/shortcutCatalog.ts 1550
 packages/mods/src/authoring.d.ts 900
 packages/mods/src/mods.ts 900
 packages/policy/src/permissionRules.ts 900
 packages/render/src/toolCall.ts 1350
 packages/render/test/render.test.ts 850
+packages/replay/src/mobile.ts 900
+packages/replay/src/rrweb.ts 850
+packages/replay/test/replay.test.ts 1350
 packages/shared/contracts/appConnector.ts 1000
 packages/shared/contracts/capabilityResolver.test.ts 1100
 packages/shared/contracts/causeHistory.ts 1400
@@ -779,7 +784,6 @@ packages/shared/contracts/expectations.test.ts 850
 packages/shared/contracts/expectations.ts 900
 packages/shared/contracts/inboxProjection.test.ts 1700
 packages/shared/contracts/inboxProjection.ts 1900
-packages/shared/contracts/ingest.ts 1100
 packages/shared/contracts/initiative.ts 1450
 packages/shared/contracts/initiativeRecord.test.ts 900
 packages/shared/contracts/judges.test.ts 1050
@@ -795,10 +799,6 @@ packages/shared/contracts/orgProposal.ts 3750
 packages/shared/contracts/secrets.test.ts 850
 packages/shared/contracts/secrets.ts 1300
 packages/shared/contracts/snippets.ts 2050
-packages/shared/entities/index.ts 1650
-packages/shared/replay/mobile.ts 900
-packages/shared/replay/replay.test.ts 1350
-packages/shared/replay/rrweb.ts 850
 packages/shared/tasks/graph.test.ts 1300
 packages/shared/tasks/graph.ts 1300
 packages/usage/src/usageLimits.ts 850

@@ -16,18 +16,18 @@ import {
   normalizeSourceName,
   type GroupStatus,
   type SourceProvider,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   normalizeNotify,
   type AlertNotifyInput,
-} from "@codecast/shared/contracts/metricMonitor";
+} from "@codecast/ingest/metricMonitor";
 import {
   DEFAULT_REPLAY_BACKFILL_WINDOW,
   replayBackfillResumes,
   replayBackfillSince,
   type ReplayBackfill,
   type ReplayBackfillWindow,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 
 /** A group's resolve stamps as an undo puts them back; null is "had none". */
 export type OpsGroupResolveStamps = {
@@ -62,14 +62,14 @@ export type OpsWatchPatch = {
   unit?: string | null;
   interval_ms?: number;
   status?: "active" | "paused";
-  /** The monitor (shared/contracts/metricMonitor.ts); null takes a setting off. */
+  /** The monitor (packages/ingest/src/metricMonitor.ts); null takes a setting off. */
   eval_reads?: number | null;
   warn?: number | null;
   no_data_after?: number | null;
   muted_until?: number | null;
   /** What its alert does; null goes back to the source's rule. */
   on_alert?: "task" | "timeline" | null;
-  /** Who else the alert reaches (contracts/metricMonitor AlertNotify); null clears it. The server stores the caller as its `by`. */
+  /** Who else the alert reaches (packages/ingest/src/metricMonitor AlertNotify); null clears it. The server stores the caller as its `by`. */
   notify?: AlertNotifyInput | null;
 };
 

@@ -46,7 +46,7 @@ import { decisionAnswerLabel } from "@codecast/shared/contracts";
 
 import { DecisionThread } from "@/components/decisions/DecisionThread";
 import { useDecisionAnswer } from "@/components/decisions/DecisionCard";
-import { pageShareUrl } from "@codecast/shared/entities";
+import { pageShareUrl } from "@codecast/entities";
 import { teamMembersOf } from "@codecast/web/lib/activeTeam";
 
 // One `cast decide` at a time. The queue (useDecisionQueue) is the same model

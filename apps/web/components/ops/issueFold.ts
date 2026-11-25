@@ -1,11 +1,11 @@
 // A job's failures split by what they said, and one row per root cause.
 // No React, no store.
-import { bucketSeries } from "@codecast/shared/contracts/ingest";
+import { bucketSeries } from "@codecast/ingest/ingest";
 import {
   dropRequestIds,
   failureMessageKey,
 } from "@codecast/signals/signalFingerprint";
-import { routeOf } from "@codecast/shared/replay";
+import { routeOf } from "@codecast/replay/issues";
 import type { OpsGroup, OpsSample } from "./opsTypes";
 import { DAY, HOUR } from "./issueState";
 

@@ -9,6 +9,7 @@
   "dependencies": {
     "@codecast/async": "workspace:*",
     "@codecast/changes": "workspace:*",
+    "@codecast/entities": "workspace:*",
     "@codecast/evals-api": "workspace:*",
     "@codecast/fence": "workspace:*",
     "@codecast/org": "workspace:*",

@@ -9,7 +9,7 @@
 // event in a side panel without leaving the stream. Filter and range live in
 // the URL (`q`, `win`), so a view is a link.
 import Link from "next/link";
-import { entityRoute } from "@codecast/shared/entities";
+import { entityRoute } from "@codecast/entities";
 import {
   type CSSProperties,
   type ReactNode,

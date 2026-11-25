@@ -21,7 +21,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { MONITOR_LIMITS } from "@codecast/shared/contracts/metricMonitor";
+import { MONITOR_LIMITS } from "@codecast/ingest/metricMonitor";
 import { Text as RNText } from "@/components/Themed";
 import {
   CHROME_FONT_CAP,

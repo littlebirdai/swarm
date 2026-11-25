@@ -4,7 +4,7 @@ import {
   framedLines,
   lineMomentMs,
   parseScreenRecordingMessage,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/screenRecording";
 import {
   expandScreenRecording,
   screenRecordingForDelivery,

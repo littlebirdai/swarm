@@ -15,7 +15,7 @@ import {
   type CardOverturns,
   type RiskClass,
 } from "./changeCard";
-import { receivedWords } from "./moments";
+import { receivedWords } from "@codecast/ingest/moments";
 
 export interface ProposalCase {
   /** The finding (sg-N) the case comes from. */

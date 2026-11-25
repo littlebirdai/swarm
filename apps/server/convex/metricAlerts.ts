@@ -1,4 +1,4 @@
-// Who else a metric watch's alert reaches (contracts/metricMonitor
+// Who else a metric watch's alert reaches (packages/ingest/src/metricMonitor
 // AlertNotify), beside its route (a problem task or the timeline, which the
 // group upsert decides). The poll (metrics.recordPoint) calls this on a
 // crossing, on a still-running alert whose renotify interval has passed, and
@@ -27,7 +27,7 @@ import {
   appendDeliveries,
   type AlertDelivery,
   type AlertDeliveryKind,
-} from "@codecast/shared/contracts/metricMonitor";
+} from "@codecast/ingest/metricMonitor";
 
 const HOUR_MS = 3600_000;
 /** Fix sessions an alert may start on its own, per workspace per hour. */

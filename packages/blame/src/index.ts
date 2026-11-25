@@ -3,7 +3,7 @@ import {
   CODECAST_BASE_URL,
   isConvexId,
   parseEntityUrl,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 
 // The pure half of session blame, shared by the CLI (`cast blame`), the
 // server resolver (convex/blame.ts) and the web viewer.

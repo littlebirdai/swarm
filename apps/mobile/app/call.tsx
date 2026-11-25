@@ -45,7 +45,7 @@ import {
   useRoomWordsPublic,
 } from "@codecast/web/hooks/useRoomTranscribeOff";
 import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import { getLivekit } from "@/lib/calls/livekitNative";
 import { guestIdFromIdentity, markedName } from "@codecast/calls/callGuests";
 import { isRecordingFilming } from "@codecast/calls/callRecordings";

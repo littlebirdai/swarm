@@ -16,7 +16,7 @@ import type {
   QueueCommit,
 } from "@codecast/deploys/deployTargets";
 import type { DeployReach } from "@codecast/deploys/deployReach";
-import { parseRepoObjectId } from "@codecast/shared/entities";
+import { parseRepoObjectId } from "@codecast/entities";
 import { commitPageHref, prPageHref, repoCompareHref } from "../repoView";
 import { deploysFocusHref } from "../deploys/focus";
 import type { ChangeFacts, ChangeWriter } from "./lifecycle";

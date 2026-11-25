@@ -36,7 +36,7 @@ import {
   GROUP_KINDS,
   GROUP_STATUSES,
   bucketSeries,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import { fenceProductText } from "@codecast/shared/contracts";
 import { parseDuration } from "@codecast/time";
 

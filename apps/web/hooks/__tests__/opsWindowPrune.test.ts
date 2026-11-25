@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { useInboxStore } from "../../store/inboxStore";
 import { applyCollectionFeed } from "../useSyncCollection";
-import { GROUP_RULES } from "@codecast/shared/contracts/ingest";
+import { GROUP_RULES } from "@codecast/ingest/ingest";
 import {
   detailGone,
   groupSamplesPrune,

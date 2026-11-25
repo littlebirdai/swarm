@@ -30,7 +30,7 @@ import {
 import {
   PENDING_EVENTS_CAP,
   sourceFilterAdmits,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   canAccessConversation,
   canAccessProject,

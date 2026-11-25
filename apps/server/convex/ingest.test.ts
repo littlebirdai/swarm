@@ -1,7 +1,7 @@
 import { describe, expect, setSystemTime, test } from "bun:test";
 import { sha256Hex } from "./lib/hash";
 import { HOUR_MS, hourStart } from "./lib/ingestGroups";
-import { isIngestKey } from "@codecast/shared/contracts/ingest";
+import { isIngestKey } from "@codecast/ingest/ingest";
 import {
   applyBatch,
   backfillGroupUsers,

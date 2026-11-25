@@ -16,6 +16,7 @@
     "./sheets": "./src/sheets/index.ts"
   },
   "dependencies": {
+    "@codecast/entities": "workspace:*",
     "@codecast/shared": "workspace:*"
   },
   "devDependencies": {

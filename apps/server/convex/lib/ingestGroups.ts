@@ -16,7 +16,7 @@ import {
   type IngestUser,
   type Transition,
   errorTitle,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   checkFingerprint,
   errorCulprit,
@@ -26,7 +26,7 @@ import {
   metricFingerprint,
   sdkErrorFingerprint,
 } from "@codecast/signals/signalFingerprint";
-import type { ReplayIssue } from "@codecast/shared/replay";
+import type { ReplayIssue } from "@codecast/replay/issues";
 import { utcDayKey } from "@codecast/shared/contracts/flowMap";
 
 export const HOUR_MS = 3600_000;
@@ -960,7 +960,7 @@ export interface ReplayRef {
 }
 
 /**
- * One wall a recording shows (shared/replay/issues.ts) as an occurrence of its
+ * One wall a recording shows (packages/replay/src/issues.ts) as an occurrence of its
  * replay_issue group. Its fingerprint is route plus failure, so every
  * recording of the same failure on the same page counts on one group, which
  * opens, regresses and promotes by the same rules an error does.
@@ -1030,7 +1030,7 @@ export function planMetric(
   },
   value: number,
   at: number,
-  /** The monitor's verdict (contracts/metricMonitor nextMonitorState) when it is more than this one value, and the sample's words when there is no value (missing data). */
+  /** The monitor's verdict (packages/ingest/src/metricMonitor nextMonitorState) when it is more than this one value, and the sample's words when there is no value (missing data). */
   opts: { ok?: boolean; message?: string } = {},
 ): Extract<ItemPlan, { type: "group" }> {
   const crossed =

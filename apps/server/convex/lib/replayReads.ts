@@ -7,7 +7,6 @@ import { sourceByRef } from "./ingestScope";
 import { readTallies, scopeTallies, tallyAnswers } from "./replayTallies";
 import {
   compareReplays,
-  currentTimelineText,
   envLine,
   whereOf,
   exactReplayId,
@@ -23,7 +22,8 @@ import {
   REPLAY_SORTS,
   type ReplayMatch,
   type ReplayPeopleSort,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
+import { currentTimelineText } from "@codecast/replay/timeline";
 
 type Db = { db: any };
 
@@ -81,9 +81,9 @@ export function replayView(row: Doc<"replays">, sourceName: string | null) {
     counts: row.counts,
     /** Why the SDK kept it (shared REPLAY_KEEP_REASONS, or an app's own token); empty for vendor imports and older SDKs. */
     kept_for: row.kept_for ?? [],
-    /** Activity, failures, rage clicks and active time (shared/replay/list.ts); null until the stream is read. */
+    /** Activity, failures, rage clicks and active time (packages/replay/src/list.ts); null until the stream is read. */
     shape: row.shape ?? null,
-    /** What the vendor says of it: length, activity, browser, OS, device, country, referrer (shared/replay/list.ts ReplayFacts). */
+    /** What the vendor says of it: length, activity, browser, OS, device, country, referrer (packages/replay/src/list.ts ReplayFacts). */
     facts: row.facts ?? null,
     group_ids: row.group_ids,
     chunks: row.chunk_keys.length,
@@ -204,7 +204,7 @@ const BROWSE_PEOPLE_LIMIT_MAX = 2000;
 
 /**
  * The replay list as a person browses it: the recordings that match a filter
- * (shared/replay/list.ts replayMatches), in the sort they asked for, the first
+ * (packages/replay/src/list.ts replayMatches), in the sort they asked for, the first
  * `limit` of them, and how many match in all. The filter runs over the
  * newest REPLAY_BROWSE_SCAN_MAX recordings of the scope (a date filter
  * narrows the scan by the index first), so search, toggles and sorts reach

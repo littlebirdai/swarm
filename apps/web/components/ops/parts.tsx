@@ -29,7 +29,7 @@ import type {
   GroupStatus,
   SourceProvider,
   SourceStatus,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   accentSoft,
   accentVar,

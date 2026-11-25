@@ -83,7 +83,7 @@ import {
   threadFaceKey,
   withThreadMuted,
 } from "@codecast/chat";
-import { HUDDLE_DIGEST_CLIENT_ID_PREFIX } from "@codecast/shared/contracts";
+import { HUDDLE_DIGEST_CLIENT_ID_PREFIX } from "@codecast/calls/huddleDigest";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { parseRoomKey } from "@codecast/calls/callRoomKeys";
 import { RateLimitError, checkRateLimit } from "./rateLimit";

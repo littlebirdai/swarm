@@ -314,7 +314,7 @@ alert line is a plain series: it keeps points and never opens a group.
 - **Where series come from.** A PostHog HogQL query or insight, or an app
   connector's metric reader (`query_kind: "reader"`, query
   `<reader> [json args]`). The reader answers `{ value, unit?, points? }`
-  (contracts/ingest MetricReaderAnswer); a reader that answers its own dated
+  (packages/ingest/src/ingest MetricReaderAnswer); a reader that answers its own dated
   history has that series kept as answered (lib/ingestGroups
   mergeReaderSeries), so a daily number polled hourly is not 60 repeats of one
   day. Union serves its admin home's numbers as `metrics.list` and
@@ -381,7 +381,7 @@ is when. One parser reads a source the way people and the review write one
 quote), and one function says where it opens (`intentSourceHref`, web lib/intentSources, since routes are the web's). A
 codecast link or path to a session, a task, a plan, a doc or a call
 (`https://codecast.sh/tasks/ct-12`, `/conversation/jx7abcd`) reads as that
-object, by the one url reader (`parseEntityUrl`, shared/entities), so a pasted
+object, by the one url reader (`parseEntityUrl`, packages/entities/src), so a pasted
 link and the short id name the same source; any other URL is a `link`. A
 source sent in its stored shape is held to the same address rules: a link is
 an http or https URL and stays a link, a call line takes the shared form, a

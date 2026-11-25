@@ -14,8 +14,8 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
-import { replayRefId } from "@codecast/shared/contracts/replayPlayer";
-import { formatCallTime } from "@codecast/shared/entities";
+import { replayRefId } from "@codecast/replay/replayPlayer";
+import { formatCallTime } from "@codecast/entities";
 import { useOpsReplay, useSyncOpsReplay } from "../../hooks/useSyncOps";
 import { replayOffset } from "./issuesModel";
 import { ReplayMomentEmbed } from "./ReplayMomentEmbed";

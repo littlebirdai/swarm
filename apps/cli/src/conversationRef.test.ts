@@ -3,7 +3,7 @@ import {
   parseConversationRef,
   buildConversationUrl,
 } from "./conversationRef.js";
-import { buildEntityUrl, entityTypeFromId } from "@codecast/shared/entities";
+import { buildEntityUrl, entityTypeFromId } from "@codecast/entities";
 
 const CONV = "jx7e3hbj5n0a5xkcnz1s5bmrmd88ecjs";
 const MSG = "k179h3pn6qjgwwzwa927r94kah88ev1e";

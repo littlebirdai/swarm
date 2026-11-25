@@ -20,7 +20,7 @@ import {
   useRecorderStatus,
 } from "../../hooks/useRecorder";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import "./recorder.css";
 
 export function RecordingPill() {

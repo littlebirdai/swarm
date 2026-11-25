@@ -74,14 +74,14 @@ import {
   callFrameHref,
   parseCallViewParam,
   type CallView,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callLinks";
 import {
   callRefId,
   formatCallTime,
   parseCallRef,
   parseCallTime,
   parseEntityUrl,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import {
   spawn,
   whichBin,

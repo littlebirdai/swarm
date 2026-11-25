@@ -14,7 +14,7 @@ import { isUnderRoot } from "../components/simple/laneBoot";
 import {
   APP_SURFACES,
   APP_SURFACE_EXCLUDED_PATHS,
-} from "@codecast/shared/contracts";
+} from "@codecast/entities/appSurfaces";
 
 /**
  * Completeness / parity guard for the routing manifest (Wave 1 seed).
@@ -448,7 +448,7 @@ describe("non-tab routes (tabRouting.ts) are NOT tagged tab-routable in the mani
 // Re-export for any future Wave 2 consumer that wants the parsed live-source views.
 export type { RouteEntry };
 
-// (e) The CLI's surface list (@codecast/shared/contracts/appSurfaces) is what
+// (e) The CLI's surface list (@codecast/entities/appSurfaces) is what
 // `cast app goto` resolves and `cast app sweep` walks. It must name every
 // signed-in page a URL alone can reach, and nothing the router no longer serves.
 // A splat (`*`) is a parameter too: it names no one page.

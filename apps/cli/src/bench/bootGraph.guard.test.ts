@@ -144,7 +144,7 @@ describe("command groups stay off the boot graph", () => {
       // githubAppInstallState.ts arrived and sessionUpdates.ts left with the
       // batching it belonged to, so nothing reached anywhere new. The 9 KB is
       // modules already on the graph getting longer where ct-49854 added code —
-      // shared/entities/index.ts (+3.5 KB), cloud/mirror/transform.ts (+2.4 KB)
+      // packages/entities/src/index.ts (+3.5 KB), cloud/mirror/transform.ts (+2.4 KB)
       // and discovery.ts (+1.9 KB), appDescriptors.ts, workspace/chrome.ts,
       // syncScope.ts, syncService.ts — plus triggerPrecheck.ts from c1463717a.
       // Every import path was traced and each one predates the landing. A guard
@@ -309,7 +309,7 @@ describe("command groups stay off the boot graph", () => {
       // the barrels' contracts/slashCommand.ts and render/structuredMessage.ts.
       // 338 the same day, three leaves: contracts/vaultMessages.ts (the vault's
       // message tags, split out of the barrel's secrets contract), and
-      // replay/events.ts with the contracts/replay.ts it reads, which
+      // replay/events.ts with the packages/replay/src/replay.ts it reads, which
       // entities/index.ts now loads for the replay link's ?t (parseReplayT,
       // replayTParam). None imports a command group.
       // 346 on 2026-11-08, eight leaves: the contracts barrel's claudeBackend,
@@ -360,7 +360,7 @@ describe("command groups stay off the boot graph", () => {
       // (out of contracts/machineMessages.ts), both for max-lines, no new code.
       // 366 on 2026-11-16: ccFleetState.ts, the fleet state record split out of
       // ccAccounts.ts for its max-lines pin, no new code. 367 the same day:
-      // contracts/screenRecording.ts, which the daemon reads to expand a screen
+      // packages/calls/src/screenRecording.ts, which the daemon reads to expand a screen
       // recording into its brief. 368 on 2026-11-17: contracts/metricStanding.ts,
       // a goal metric read over a window with a noise band, which initiative.ts
       // reads for every standing (and pure: no imports). 369 on 2026-11-18:
@@ -445,7 +445,7 @@ describe("command groups stay off the boot graph", () => {
       // claudeConfigDirs.ts +3.2, slashCommand.ts +1.7, shared/async +0.9,
       // structuredMessage.ts +0.5), replayPlayer.ts (+3.3), formatter.ts and
       // knownValueRedaction.ts (+2 each), then the three leaves of 338:
-      // contracts/replay.ts (+15.7) and replay/events.ts (+10.2), carried for
+      // packages/replay/src/replay.ts (+15.7) and replay/events.ts (+10.2), carried for
       // the two ?t helpers entities/index.ts reads, and vaultMessages.ts (+2.1,
       // moved out of machineMessages.ts, which fell by as much).
       // 4519 on 2026-11-08, after orgProposal.ts (~80) and permissionRules.ts
@@ -514,7 +514,7 @@ describe("command groups stay off the boot graph", () => {
       // and outputs, the check watcher listing, chat and trigger flags; no new
       // module on the graph. 4738 (2026-11-16): the fleet store's keychain-copy
       // fix in ccAccounts.ts and ccFleetState.ts split out of it for max-lines.
-      // 4750 (2026-11-16): the deploy of 458b815d8: contracts/screenRecording.ts
+      // 4750 (2026-11-16): the deploy of 458b815d8: packages/calls/src/screenRecording.ts
       // +8 for the daemon's screen recording brief, page-data trigger events and
       // their filter +2, the snippets text the guidance budget trimmed +2.
       // 4755 (2026-11-17): the decisions command's --touching, --files and
@@ -782,7 +782,7 @@ describe("command groups stay off the boot graph", () => {
       // graph's 12 files off this graph). 603 the same day: museTranscript.ts and
       // contracts/sendArrival.ts, max-lines splits, no new code. 604 on
       // 2026-11-16: ccFleetState.ts, out of ccAccounts.ts, the same split. 605
-      // the same day: contracts/screenRecording.ts, for the screen recording brief.
+      // the same day: packages/calls/src/screenRecording.ts, for the screen recording brief.
       // 608 on 2026-11-17: hosts/providers/registry.ts, aws.ts and scalewayMac.ts, the HostProvider registry and the per-provider describe/inspect/stop modules (GitHub #93).
       // 609 the same day: hosts/providers/namespace.ts, the Namespace provider's describe/inspect/stop module (GitHub #93).
       // 610 on 2026-11-18: packages/org/src/roleCard.ts, out of contracts/machineMessages.ts

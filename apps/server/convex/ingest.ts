@@ -39,7 +39,7 @@ import { connectionRowFor } from "./oauthConnectors";
 import { sha256Hex } from "./lib/hash";
 import { nextShortId } from "./counters";
 import { resolveWorkspaceProject } from "./lib/projectRef";
-import { withCiRun } from "@codecast/shared/contracts/volumeWatch";
+import { withCiRun } from "@codecast/ingest/volumeWatch";
 import { capForeignText, inlineForeignText } from "@codecast/fence/fence";
 import { recordExternalEventOnce } from "./externalEvents";
 import { recordDeployMarker } from "./deploys";
@@ -105,14 +105,14 @@ import {
   normalizeSourceName,
   sourceConfigProblem,
   type IngestItem,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   ciCheckFingerprint,
   groupFingerprint,
   isRecordNotIssue,
 } from "@codecast/signals/signalFingerprint";
 import { clusterPeople, mergeStoredPeople, userKeys } from "./lib/groupPeople";
-import type { ReplayIssue } from "@codecast/shared/replay";
+import type { ReplayIssue } from "@codecast/replay/issues";
 import {
   HOUR_MS,
   countEventNames,
@@ -1515,7 +1515,7 @@ export async function recordCiRun(
 // ── Replay issues (X5) ──
 
 /**
- * The walls one recording shows (shared/replay/issues.ts, computed by the
+ * The walls one recording shows (packages/replay/src/issues.ts, computed by the
  * action that read its stream) folded into replay_issue groups through the
  * one upsert, and the recording linked to each. A recording counts once per
  * group: one it already links to is skipped, so assembling it again, a

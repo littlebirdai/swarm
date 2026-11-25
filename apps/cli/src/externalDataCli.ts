@@ -147,8 +147,7 @@ async function sourceElsewhere(
     apiPost(deps, "/cli/teams", {}, { read: true, exitOnError: false }),
   ).catch(() => null);
   if (!roster) return null;
-  const { normalizeSourceName } =
-    await import("@codecast/shared/contracts/ingest");
+  const { normalizeSourceName } = await import("@codecast/ingest/ingest");
   const current: Workspace =
     scope?.workspace === "personal"
       ? { kind: "personal" }

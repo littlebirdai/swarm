@@ -7,7 +7,7 @@
 // objects and keep their click to themselves.
 import { useContext, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { objectHref, type OrgObjectKind } from "@codecast/shared/entities";
+import { objectHref, type OrgObjectKind } from "@codecast/entities";
 import { HoverCardClose } from "../../lib/hoverCardsOff";
 
 export function ObjectCardBody({

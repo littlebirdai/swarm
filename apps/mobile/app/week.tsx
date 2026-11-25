@@ -25,7 +25,7 @@ import { Stack, useLocalSearchParams } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useAction } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { CODECAST_BASE_URL, sharePath } from "@codecast/shared/entities";
+import { CODECAST_BASE_URL, sharePath } from "@codecast/entities";
 import { localTimeZone } from "@codecast/time";
 import {
   WEEK_DAY_NAMES,

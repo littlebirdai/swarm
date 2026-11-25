@@ -1,4 +1,4 @@
-import { bareEntityIdRegex, entityTypeFromId } from "@codecast/shared/entities";
+import { bareEntityIdRegex, entityTypeFromId } from "@codecast/entities";
 
 /** The decisions a message names (`sd-N`, bare or inside an `@[Title sd-N]`
  *  mention), in the order it first names them, each once. */

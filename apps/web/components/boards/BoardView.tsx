@@ -70,7 +70,7 @@ import {
   placeImage,
   serializeSelection,
 } from "./boardActions";
-import { parsePublishedPageUrl } from "@codecast/shared/entities";
+import { parsePublishedPageUrl } from "@codecast/entities";
 import type { BoardEl, BoardTool } from "./boardTypes";
 import { drawOrder, fitBox } from "./boardFrame";
 import { BoardMinimap } from "./BoardMinimap";

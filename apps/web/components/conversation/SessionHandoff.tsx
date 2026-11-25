@@ -7,7 +7,7 @@ import {
   ArrowUpRight,
   ChevronRight,
 } from "lucide-react";
-import { entityShortLabel } from "@codecast/shared/entities";
+import { entityShortLabel } from "@codecast/entities";
 import { useInboxStore } from "../../store/inboxStore";
 import { abbrevModel } from "../../lib/entityDisplay";
 import { formatAgentType } from "../AgentTypeIcon";

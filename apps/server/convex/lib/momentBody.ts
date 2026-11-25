@@ -3,7 +3,7 @@
 // Convex functions, so either module imports it without pulling the other in.
 import { gunzipSync, strFromU8 } from "fflate";
 import type { Doc } from "../_generated/dataModel";
-import type { MomentRecord } from "@codecast/shared/contracts/moments";
+import type { MomentRecord } from "@codecast/ingest/moments";
 import type { JudgeFinding } from "@codecast/shared/contracts/judges";
 import { replaysBucketFromEnv, r2Presign } from "./r2";
 

@@ -11,21 +11,18 @@ import type {
   MetricWatchHistory,
   WatchDirection,
   WatchKind,
-} from "@codecast/shared/contracts/ingest";
-import type {
-  ReplayBackfill,
-  ReplayProvider,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/ingest/ingest";
+import type { ReplayBackfill, ReplayProvider } from "@codecast/replay/replay";
 import type {
   AlertDelivery,
   AlertNotify,
-} from "@codecast/shared/contracts/metricMonitor";
+} from "@codecast/ingest/metricMonitor";
 import type {
   ReplayEnvKey,
   ReplayFacts,
   ReplayPerson,
   ReplayShape,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
 
 export type OpsSource = {
   _id: string;
@@ -71,7 +68,7 @@ export type OpsSource = {
   days?: { day: string; events: number; dropped: number }[];
   /** The last 48 hours of the same count, hour starts in epoch ms, oldest first (convex ingest.ts withHourCount). */
   hours?: { hour: number; events: number }[];
-  /** A CI source's finished runs, oldest first (contracts/volumeWatch CiRunFact): its failure rate and run time series. */
+  /** A CI source's finished runs, oldest first (packages/ingest/src/volumeWatch CiRunFact): its failure rate and run time series. */
   ci_runs?: { at: number; ok: boolean; duration_ms?: number }[];
   /** A PostHog or Sentry source's bulk import of its recordings (convex sources/replayBackfill.ts). */
   replay_backfill?: ReplayBackfill;
@@ -221,7 +218,7 @@ export type OpsReplay = {
   counts: { clicks: number; errors: number; failed_requests: number };
   /** Why the SDK kept it (shared REPLAY_KEEP_REASONS, or the app's own token). Absent from an older backend. */
   kept_for?: string[];
-  /** Activity strip, failure marks, rage clicks, active time (shared/replay/list.ts); null until the stream is read. */
+  /** Activity strip, failure marks, rage clicks, active time (packages/replay/src/list.ts); null until the stream is read. */
   shape?: ReplayShape | null;
   /** What the vendor says of it (length, activity, browser, OS, device, country, referrer); absent from an older backend. */
   facts?: ReplayFacts | null;
@@ -246,7 +243,7 @@ export type OpsReplay = {
   vendor_refresh_after?: number | null;
   /** Why the vendor is waited out until vendor_refresh_after (shared VENDOR_REFRESH_WHYS). Absent from an older backend. */
   vendor_refresh_why?:
-    | import("@codecast/shared/contracts/replay").VendorRefreshWhy
+    | import("@codecast/replay/replay").VendorRefreshWhy
     | null;
   updated_at: number;
 };
@@ -307,14 +304,14 @@ export type OpsWatch = {
   group_id?: string;
   last_error?: string;
   history?: MetricWatchHistory;
-  /** The monitor (shared/contracts/metricMonitor.ts): reads in a row that flip the state, a warning level, failed reads that count as missing data, a mute. */
+  /** The monitor (packages/ingest/src/metricMonitor.ts): reads in a row that flip the state, a warning level, failed reads that count as missing data, a mute. */
   eval_reads?: number;
   warn?: number;
   no_data_after?: number;
   muted_until?: number;
-  /** What its alert does (contracts/metricMonitor alertRoute); absent: the source's rule. */
+  /** What its alert does (packages/ingest/src/metricMonitor alertRoute); absent: the source's rule. */
   on_alert?: "task" | "timeline";
-  /** Who else the alert reaches and what more it does (contracts/metricMonitor AlertNotify). */
+  /** Who else the alert reaches and what more it does (packages/ingest/src/metricMonitor AlertNotify). */
   notify?: AlertNotify;
   /** The running alert's delivery state (convex metricAlerts.ts). */
   alert_episode?: { at: number; notified_at: number; thread_root?: string };

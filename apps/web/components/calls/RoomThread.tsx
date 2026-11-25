@@ -23,7 +23,7 @@ import {
   callAnchorKey,
   callPathRef,
   type CallAnchor,
-} from "@codecast/shared/contracts";
+} from "@codecast/calls/callLinks";
 import {
   isMeetRoomKey,
   isRecRoomKey,

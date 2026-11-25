@@ -41,10 +41,7 @@ import {
 } from "./oauthConnectors";
 import { parseWorkspaceKey, workspaceKey } from "./lib/accessKeys";
 import { resumeSourcesOnConnect } from "./lib/sourceHealth";
-import {
-  POSTHOG_PROJECT_ID,
-  SENTRY_SLUG,
-} from "@codecast/shared/contracts/ingest";
+import { POSTHOG_PROJECT_ID, SENTRY_SLUG } from "@codecast/ingest/ingest";
 import {
   internalHostRefusal,
   jsonOf,

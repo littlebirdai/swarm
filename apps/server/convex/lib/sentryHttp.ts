@@ -5,7 +5,7 @@
 // import cycle (ct-92432).
 import { httpAction } from "../_generated/server";
 import { api, internal } from "../_generated/api";
-import type { GroupStatus } from "@codecast/shared/contracts/ingest";
+import type { GroupStatus } from "@codecast/ingest/ingest";
 import { verifyHmacHex } from "./hmac";
 import {
   parseSentryWebhook,

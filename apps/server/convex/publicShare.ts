@@ -3,7 +3,7 @@
 // conversations.writeShareLink). One write rule and one token claim, so the
 // kinds cannot drift apart; the public views of every kind born here live
 // beside it (docs and plans keep theirs in their own modules). The URL grammar is
-// @codecast/shared/entities sharePath.
+// @codecast/entities sharePath.
 //
 // The web mints the token (a v4 UUID) so its optimistic draft and the stored
 // value are the same string (dispatch setObjectShareLink). Turning the link

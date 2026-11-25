@@ -5,7 +5,7 @@
 // from TranscriptTurns.tsx: macOS resolves imports case-insensitively, so a
 // module differing only in case imports ITSELF.
 
-import type { CallAnchor } from "@codecast/shared/contracts";
+import type { CallAnchor } from "@codecast/calls/callLinks";
 
 /** The anchor for a run of turns: first segment of the first to last of the last. */
 export function turnsAnchor(

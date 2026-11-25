@@ -2,7 +2,7 @@ import type { useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { guestIdentity } from "@codecast/calls/callGuests";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
-import { publicUrl } from "@codecast/shared/entities";
+import { publicUrl } from "@codecast/entities";
 import { useInboxStore } from "../../store/inboxStore";
 import { isRefusedDispatchError } from "../../store/mutativeMiddleware";
 

@@ -2,19 +2,18 @@
 // linked issues with their fixes, and the person's other recordings.
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { ReplayEvent } from "@codecast/shared/contracts/replay";
+import type { ReplayEvent } from "@codecast/replay/replay";
 import { Copy, ExternalLink, Play, RotateCcw, Wand2 } from "lucide-react";
 import {
   REPLAY_ACTIVE_DEFAULT,
-  formatReplayTime,
   isAnonymous,
   personKey,
   personLabel,
-  primaryFailure,
   resolveReplayFilter,
-  routeOf,
-  toRepro,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
+import { formatReplayTime, primaryFailure } from "@codecast/replay/events";
+import { routeOf } from "@codecast/replay/issues";
+import { toRepro } from "@codecast/replay/repro";
 import {
   useOpsReplays,
   useOpsReplayTally,

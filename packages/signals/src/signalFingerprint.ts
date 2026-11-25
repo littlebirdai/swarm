@@ -253,7 +253,7 @@ export function isRecordNotIssue(g: {
 }
 
 /**
- * A wall a recording shows (shared/replay/issues.ts): its kind and what
+ * A wall a recording shows (packages/replay/src/issues.ts): its kind and what
  * failed, so the same failure in many recordings is one replay_issue group.
  */
 export function replayIssueFingerprint(kind: string, failure: string): string {

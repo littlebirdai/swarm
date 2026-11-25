@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ReplayEvent } from "@codecast/shared/contracts/replay";
+import type { ReplayEvent } from "@codecast/replay/replay";
 import {
   bucketSeries,
   foldRuns,

@@ -10,7 +10,7 @@ import {
   namedPullRequests,
   parseEntityUrl,
   repoObjectId,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import { pullRequestRepository } from "./entityLinks";
 
 export type GitToolOutcome =

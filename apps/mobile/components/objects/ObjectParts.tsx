@@ -40,7 +40,7 @@ import {
 import { showActionSheet, type SheetItem } from "@/lib/popups";
 import { copyToClipboard } from "@/lib/clipboard";
 import { shareLink } from "@/lib/shareLink";
-import { buildEntityUrl, type EntityType } from "@codecast/shared/entities";
+import { buildEntityUrl, type EntityType } from "@codecast/entities";
 import type { ProjectProgress } from "@codecast/shared/tasks";
 
 type IconName = React.ComponentProps<typeof FontAwesome>["name"];

@@ -3,10 +3,7 @@
 // ingest.ts stays the writes and the tests read these directly.
 import type { Doc, Id } from "../_generated/dataModel";
 import type { DeployMarker } from "../deploys";
-import {
-  transitionSignalKind,
-  type Transition,
-} from "@codecast/shared/contracts/ingest";
+import { transitionSignalKind, type Transition } from "@codecast/ingest/ingest";
 import type { ItemPlan } from "./ingestGroups";
 import { sourceFilingScope } from "./ingestScope";
 

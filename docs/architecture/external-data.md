@@ -291,7 +291,7 @@ A replay is a semantic stream, not pixels. An agent reads it as text and turns
 it into a repro.
 
 ```
-ReplayEvent (packages/shared/contracts/replay.ts)
+ReplayEvent (packages/replay/src/replay.ts)
   nav      { url, title }
   click    { label, role, selector, text? }
   input    { label, selector, length, redacted: true }       values are never recorded
@@ -336,7 +336,7 @@ The bucket credentials are `REPLAYS_R2_ACCESS_KEY_ID` and
 `REPLAYS_R2_SECRET_ACCESS_KEY` (a token scoped to the bucket alone), with
 `R2_ENDPOINT` shared and `REPLAYS_R2_BUCKET` defaulting to `codecast-replays`.
 
-Four things read the stream (`packages/shared/replay/`); the fourth, `replayMoment` (`moment.ts`), is one moment as text (below, "Playing a replay"):
+Four things read the stream (`packages/replay/src/`); the fourth, `replayMoment` (`moment.ts`), is one moment as text (below, "Playing a replay"):
 
 - `renderTimeline(events)`: the text timeline `cast replay show` prints and the summary stores.
 - `toRepro(events, baseUrl)`: a Playwright test that replays navigation, clicks, typed placeholders and submits up to the error, then asserts the error does not happen.
@@ -350,7 +350,7 @@ rectangle, div, input, radio_group, web_view, placeholder, status_bar,
 navigation_bar), a small style object and base64 images, and later screens
 arrive as mutations whose `adds` and `updates` hold wireframes. Read as rrweb,
 that is a page with no document, and the player drew it white.
-`shared/replay/mobile.ts` (`fromMobileWireframes`; ported from PostHog's MIT
+`packages/replay/src/mobile.ts` (`fromMobileWireframes`; ported from PostHog's MIT
 transformer in `common/replay-shared/src/mobile`, outside its `ee/`) turns it
 at import into a capture of a plain page: html, head and body, each box a
 `position:fixed` element, text as text, images as data URIs, inputs as
@@ -432,7 +432,7 @@ until a person starts it again.
 
 **Replay issues.** A recording that shows a person hitting a wall feeds
 `replay_issue` groups, so replays reach the line the way errors do.
-`replayIssues(events)` (`shared/replay/issues.ts`) reads the stream once and
+`replayIssues(events)` (`packages/replay/src/issues.ts`) reads the stream once and
 names each wall by what failed, one per fingerprint per recording:
 
 - `error`: a page error or console error, keyed by its first line with the
@@ -570,7 +570,7 @@ stylesheets a snapshot of the inbox is about 16 ms.
 The semantic stream is what an agent reads. Beside it a recording may keep
 its page capture, the raw rrweb events, so people can watch it and agents can
 see frames of it. The contract every piece below shares is
-`packages/shared/contracts/replayPlayer.ts`.
+`packages/replay/src/replayPlayer.ts`.
 
 **Storage.** A vendor import keeps the capture (VENDOR_CONVERTER_VERSION 3 and later,
 so older copies re-import on their next read or backfill pass). An older
@@ -579,7 +579,7 @@ holds the vendor off (`VENDOR_REFRESH_RETRY`: an hour, or the vendor's
 Retry-After, after a failure; a month once the vendor says the recording is
 gone), so reads in between do not each spend PostHog's ~60 snapshot reads an
 hour. It is masked
-first by the semantic stream's own rule (`shared/replay/dom.ts`
+first by the semantic stream's own rule (`packages/replay/src/dom.ts`
 `prepareDomCapture`): an input event's text, a field's value attribute, a
 textarea's text and every text node under `[data-private]`, an editable
 region or rrweb's and the vendors' block classes become stars of the same
@@ -745,7 +745,7 @@ state and nowhere else: it is a short bearer, not a store row.
   player that posts `error` (a lapsed link, a capture with nothing to draw)
   says why in one line and the page goes on with its own clock. A replay
   with no capture never asks for a player.
-- References: `rp` is a registered short-id prefix (shared/entities, type
+- References: `rp` is a registered short-id prefix (packages/entities/src, type
   `replay`, digits only), so `rp-N` is a pill everywhere markdown renders
   (transcripts, chat, task and doc bodies, mobile), named by the page it
   recorded (`replayTitle`) and opening `/ops/replays/rp-N`. Mobile has no

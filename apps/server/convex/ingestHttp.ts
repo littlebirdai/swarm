@@ -21,7 +21,7 @@ import {
   INGEST_LIMITS,
   isIngestKey,
   validateIngestBatch,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import { sha256Hex } from "./lib/hash";
 import { clientIp, ipRateLimited, keyRateLimited } from "./lib/httpRateLimit";
 import { CLI_ERROR_STATUS } from "./lib/cliErrorStatus";

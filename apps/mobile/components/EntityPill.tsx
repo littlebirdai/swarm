@@ -24,7 +24,7 @@ import {
   parseReplayRef,
   replayRefLabelSuffix,
   type EntityType,
-} from "@codecast/shared/entities";
+} from "@codecast/entities";
 import { mobileEntityRoute } from "@/lib/linkRoutes";
 import { openLink } from "@/lib/links";
 import { replayTitle } from "@codecast/web/components/ops/opsModel";
@@ -49,7 +49,7 @@ import { useNowWhen } from "@codecast/web/hooks/useCoarseNow";
 import type { ReachState } from "@codecast/deploys/deployReach";
 
 // Detection comes from the shared mention vocabulary, the same tables web reads
-// (packages/shared/entities). Mobile used to keep its own copy of the id regex
+// (packages/entities/src). Mobile used to keep its own copy of the id regex
 // and prefix table; they drifted — triggers ("tr-…") were added to the
 // vocabulary and mobile silently kept rendering them as plain text.
 export { isEntityId };

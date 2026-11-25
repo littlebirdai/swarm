@@ -14,7 +14,7 @@ import {
   stripMomentMarkup,
   type MomentBlock,
   type MomentRecord,
-} from "./moments";
+} from "@codecast/ingest/moments";
 import {
   MODEL_CALL_LIMITS,
   parseJsonBlock,

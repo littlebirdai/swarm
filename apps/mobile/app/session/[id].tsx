@@ -79,7 +79,7 @@ import {
   isConvexId,
   retryPendingSend,
 } from "@codecast/web/store/inboxStore";
-import { CODECAST_BASE_URL, sharePath } from "@codecast/shared/entities";
+import { CODECAST_BASE_URL, sharePath } from "@codecast/entities";
 import { sessionIdentity } from "@codecast/web/lib/sessionIdentity";
 import {
   extractSessionImages,
@@ -3486,7 +3486,7 @@ function InterruptStatusLine({
   );
 }
 
-// A session's public link, in the one /share grammar (shared/entities).
+// A session's public link, in the one /share grammar (packages/entities/src).
 const conversationShareLink = (token: string) =>
   `${CODECAST_BASE_URL}${sharePath("conversation", token)}`;
 

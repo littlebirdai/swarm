@@ -1,7 +1,7 @@
 // The Replays surface's pure rules (the list's address and the player's event
 // rail), kept apart from the components so they are tested without a
 // browser. Which recordings match a filter and how they sort is shared with
-// the server (shared/replay/list.ts); this file only adds what the web shows.
+// the server (packages/replay/src/list.ts); this file only adds what the web shows.
 import {
   REPLAY_ACTIVE,
   REPLAY_ACTIVE_DEFAULT,
@@ -11,9 +11,7 @@ import {
   REPLAY_HAS,
   REPLAY_PEOPLE_SORTS,
   REPLAY_SORTS,
-  formatReplayTime,
   rageClicksOf,
-  urlPath,
   type ReplayActive,
   type ReplayDate,
   type ReplayDuration,
@@ -22,7 +20,8 @@ import {
   type ReplayListFilter,
   type ReplayPeopleSort,
   type ReplaySort,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/list";
+import { formatReplayTime, urlPath } from "@codecast/replay/events";
 import {
   REPLAY_REST,
   REPLAY_REST_NO_MORE,
@@ -31,12 +30,12 @@ import {
   replayCutAt,
   type ReplayEvent,
   type VendorRefreshWhy,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 import {
   parseReplayPlayerUrl,
   replayPlayerUrl,
-} from "@codecast/shared/contracts/replayPlayer";
-import { formatCallTime } from "@codecast/shared/entities";
+} from "@codecast/replay/replayPlayer";
+import { formatCallTime } from "@codecast/entities";
 import type { OpsReplay, OpsSource } from "./opsTypes";
 import { relTimeShort } from "../../lib/utils";
 import type { SwitchLedger } from "../consequential/ConsequentialSwitch";

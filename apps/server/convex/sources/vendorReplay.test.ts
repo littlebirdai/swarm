@@ -18,7 +18,7 @@ import {
   VENDOR_CONVERTER_VERSION,
   VENDOR_REFRESH_RETRY,
   needsVendorImport,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 
 const h = (fn: any) => fn._handler;
 

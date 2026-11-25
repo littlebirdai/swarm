@@ -38,7 +38,7 @@ import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { useTriggers } from "@codecast/web/hooks/useSyncTriggers";
 import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { entityTypeFromId } from "@codecast/shared/entities";
+import { entityTypeFromId } from "@codecast/entities";
 import { mobileEntityRoute } from "@/lib/linkRoutes";
 import { useHostedTheme } from "./hostedTheme";
 

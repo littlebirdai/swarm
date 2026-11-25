@@ -3,7 +3,7 @@ import { query, internalAction } from "./_generated/server";
 import { mutation, internalMutation } from "./functions";
 import { internal } from "./_generated/api";
 import { requireUser } from "./lib/auth";
-import { parseLinkPreviewUrl } from "@codecast/shared/entities";
+import { parseLinkPreviewUrl } from "@codecast/entities";
 import {
   linkPreviewStale,
   parseLinkPreviewMeta,

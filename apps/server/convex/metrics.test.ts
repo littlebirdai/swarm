@@ -2,10 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import schema from "./schema";
 import { makeFakeDb, schemaIndexes } from "./testDb";
-import {
-  GROUP_RULES,
-  METRIC_WATCH_LIMITS,
-} from "@codecast/shared/contracts/ingest";
+import { GROUP_RULES, METRIC_WATCH_LIMITS } from "@codecast/ingest/ingest";
 import { createSource, sourceConnectionLost } from "./ingest";
 import {
   createWatch,

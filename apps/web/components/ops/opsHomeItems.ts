@@ -2,7 +2,7 @@
 // and title, the facts its second line carries, its Events and Users cells,
 // and the acts a row or a selection takes (snooze, resolve, assign).
 import { toast } from "sonner";
-import { formatCallTime } from "@codecast/shared/entities";
+import { formatCallTime } from "@codecast/entities";
 import { useInboxStore } from "../../store/inboxStore";
 import { formatRelative, relTimeShort } from "../../lib/utils";
 import { opsHref } from "./opsPaths";

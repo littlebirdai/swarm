@@ -24,7 +24,7 @@
 // command starts it and follows the progress the source row carries.
 //
 // `snap` is what the page looked like at a moment, for an agent to Read, the
-// way `cast call snap` is for a call (contracts/replayPlayer.ts). The frame
+// way `cast call snap` is for a call (packages/replay/src/replayPlayer.ts). The frame
 // is rendered server side: Convex mints a capability for the replay
 // (/cli/replays/player-link) and the replay player worker draws the page in
 // Cloudflare's browser (POST <frame_url>), so a cloud host sees exactly what
@@ -33,7 +33,7 @@
 // as `Frame of the replay: rp-N@m:ss`, never as the picture. Beside it the
 // command prints the moment as text: the page's address, its visible text,
 // what the person did just before, and the console and network around it
-// (shared/replay/moment.ts). A replay with no page capture prints that text
+// (packages/replay/src/moment.ts). A replay with no page capture prints that text
 // alone. `show --at` prints the same text with no frame.
 import fs from "node:fs";
 import path from "node:path";
@@ -54,7 +54,7 @@ import {
   shortRef,
 } from "./externalDataCli.js";
 import { fenceProductText } from "@codecast/shared/contracts";
-import { INGEST_SHORT_ID_PREFIX } from "@codecast/shared/contracts/ingest";
+import { INGEST_SHORT_ID_PREFIX } from "@codecast/ingest/ingest";
 import {
   REPLAY_BACKFILL_WINDOWS,
   isReplayBackfillWindow,
@@ -64,19 +64,17 @@ import {
   replayBackfillState,
   type ReplayBackfill,
   type ReplayEvent,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 import {
   formatReplayMoment,
-  parseReplayEvents,
-  renderTimeline,
   replayClockDuration,
   replayClockStart,
   replayMoment,
-  replayUrlMatches,
-  replayUserMatches,
-  sortReplayEvents,
-  toRepro,
-} from "@codecast/shared/replay";
+} from "@codecast/replay/moment";
+import { parseReplayEvents, sortReplayEvents } from "@codecast/replay/events";
+import { renderTimeline } from "@codecast/replay/timeline";
+import { replayUrlMatches, replayUserMatches } from "@codecast/replay/list";
+import { toRepro } from "@codecast/replay/repro";
 import { parseCallTime } from "@codecast/calls/callRecordings";
 import { parseDuration } from "@codecast/time";
 import {
@@ -87,7 +85,7 @@ import {
   type ReplayFrame,
   type ReplayFrameResponse,
   type ReplayPlayerLink,
-} from "@codecast/shared/contracts/replayPlayer";
+} from "@codecast/replay/replayPlayer";
 import { agentTempPath, secureTempFile } from "./tempFiles.js";
 import { rememberCallFrames } from "./callFrameRefs.js";
 import { scopeFor } from "./lineScope.js";

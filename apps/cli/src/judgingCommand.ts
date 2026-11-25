@@ -32,7 +32,7 @@ import {
   parseExtractorOutput,
   type JudgeBackend,
   type MomentRecord,
-} from "@codecast/shared/contracts/moments";
+} from "@codecast/ingest/moments";
 import { subscriptionModelCall } from "./subscriptionCall.js";
 import type {
   ModelCallResult,

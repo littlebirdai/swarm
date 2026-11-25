@@ -12,7 +12,7 @@ import fs from "node:fs";
 import type { Command } from "commander";
 import { fmt } from "./colors.js";
 import { apiPost, type PublishDeps } from "./castApi.js";
-import { durationWords } from "@codecast/shared/contracts/moments";
+import { durationWords } from "@codecast/ingest/moments";
 import type { ReviewTranscript } from "@codecast/shared/contracts/agentJudges";
 import {
   REVIEWS_DEFAULTS,

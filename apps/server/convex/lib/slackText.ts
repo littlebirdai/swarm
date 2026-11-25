@@ -10,7 +10,7 @@ import {
   replaceShortcodes,
   shortcodeToEmoji,
 } from "@codecast/chat";
-import { parseLinkPreviewUrl } from "@codecast/shared/entities";
+import { parseLinkPreviewUrl } from "@codecast/entities";
 
 export { emojiToShortcode, replaceShortcodes, shortcodeToEmoji };
 

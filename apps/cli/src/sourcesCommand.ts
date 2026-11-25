@@ -47,11 +47,11 @@ import {
   eventNameRows,
   type EventNameCounts,
   type SourceProvider,
-} from "@codecast/shared/contracts/ingest";
+} from "@codecast/ingest/ingest";
 import {
   replayBackfillLine,
   type ReplayBackfill,
-} from "@codecast/shared/contracts/replay";
+} from "@codecast/replay/replay";
 
 export interface SourceRow {
   _id: string;

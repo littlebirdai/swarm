@@ -2,7 +2,7 @@
 // the hover card and the shared-object card all read. They live here rather
 // than beside the components so the component modules stay Fast Refresh
 // boundaries (lib/__tests__/fastRefreshBoundaries.guard.test.ts).
-import { repoObjectId, type EntityType } from "@codecast/shared/entities";
+import { repoObjectId, type EntityType } from "@codecast/entities";
 
 /**
  * The `owner/repo#482` / `owner/repo@sha` reference for a resolved pull

@@ -10,10 +10,7 @@
 // this git activity mean" is here, so the processors stay thin.
 
 import { Doc, Id } from "../_generated/dataModel";
-import {
-  inferEntityTypeFromShortId,
-  shortIdSource,
-} from "@codecast/shared/entities";
+import { inferEntityTypeFromShortId, shortIdSource } from "@codecast/entities";
 import { extractSessionTrailer } from "@codecast/blame";
 import { isConversationOwner, isConversationTeamVisible } from "../privacy";
 import { normalizeRepository } from "@codecast/pull-requests/prRefs";
