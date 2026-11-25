@@ -9530,6 +9530,11 @@ export const deleteByProjectHash = mutation({
 
     if (!hasMoreMsgs) {
       await ctx.db.delete(convId);
+      await ctx.scheduler.runAfter(
+        0,
+        internal.sessionDelete.purgeConversationRows,
+        { conversation_id: String(convId) },
+      );
       return { deleted: 1, hasMore: false, conv_id: null };
     }
     return { deleted: 0, hasMore: true, conv_id: convId };

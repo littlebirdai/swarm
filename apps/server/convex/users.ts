@@ -3693,6 +3693,13 @@ async function deleteConversationsForPathInternal(
   }
 
   await ctx.db.delete(conv._id);
+  await ctx.scheduler.runAfter(
+    0,
+    internal.sessionDelete.purgeConversationRows,
+    {
+      conversation_id: String(conv._id),
+    },
+  );
   const nextConv = await findNextConversationForPath(ctx, userId, pathPrefix);
   return {
     conversationsDeleted: 1,
