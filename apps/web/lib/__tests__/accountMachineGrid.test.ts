@@ -27,7 +27,7 @@ const accounts = [
       { name: "claude", email: "claude@x.com" },
       { name: "claude3", email: "claude3@x.com" },
       { name: "solo", email: "solo@x.com" },
-      { name: "cam", email: "r.cameron.musgrave@gmail.com" },
+      { name: "cam", email: "line-host-refused@example.com" },
     ],
   },
   {
@@ -69,7 +69,7 @@ const pool: GridPoolRow[] = [
   {
     mine: true,
     team_id: null,
-    email: "r.cameron.musgrave@gmail.com",
+    email: "line-host-refused@example.com",
     device_ids: null,
     usage: usageAt(5),
   },
@@ -130,19 +130,19 @@ test("each cell says why: own login, opened, kept off, line pool, refused, no to
   // A line pool account reaches the hosts through the team share, not the personal list.
   expect(states("claude3@x.com")).toEqual(["on", "own", "line"]);
   // The line hosts refuse this one whatever the pool says.
-  expect(states("r.cameron.musgrave@gmail.com")).toEqual([
+  expect(states("line-host-refused@example.com")).toEqual([
     "arriving",
     "own",
     "refused",
   ]);
-  expect(row("r.cameron.musgrave@gmail.com").cells[2].toggle).toBeNull();
+  expect(row("line-host-refused@example.com").cells[2].toggle).toBeNull();
   // No setup-token, no personal row: it stays where it logged in.
   expect(row("solo@x.com").shareable).toBe(false);
   expect(states("solo@x.com")).toEqual(["local", "own", "local"]);
 });
 
 test("rows rank by room left", () => {
-  expect(grid.rows[0].email).toBe("r.cameron.musgrave@gmail.com");
+  expect(grid.rows[0].email).toBe("line-host-refused@example.com");
 });
 
 test("toggling writes the personal machine list, null once it reaches every machine", () => {

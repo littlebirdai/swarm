@@ -67,7 +67,7 @@ const pool: LanePoolRow[] = [
   {
     mine: true,
     team_id: null,
-    email: "r.cameron.musgrave@gmail.com",
+    email: "line-host-refused@example.com",
     device_ids: ["mac"],
     usage: room(5),
   },

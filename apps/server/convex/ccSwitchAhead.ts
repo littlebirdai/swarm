@@ -166,7 +166,7 @@ export function decideSwitchAhead(input: {
 // each host passed and another account on those hosts kept working). The
 // account stays usable everywhere else. A line host already on it can still
 // leave; it is only kept out of the next choice.
-const LINE_HOST_EDGE_REFUSED = new Set(["r.cameron.musgrave@gmail.com"]);
+const LINE_HOST_EDGE_REFUSED = new Set(["line-host-refused@example.com"]);
 
 function emailKey(email: string | undefined | null): string {
   return (email ?? "").trim().toLowerCase();
