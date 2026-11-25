@@ -11846,7 +11846,7 @@
   "apps/server/convex/searchCore.ts": {
     "swarm/no-comments": 30
   },
-  "apps/server/convex/searchMirror.test.ts": {
+  "apps/server/convex/search-mirror.test.ts": {
     "swarm/no-comments": 38
   },
   "apps/server/convex/searchMirror.ts": {
