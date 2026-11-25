@@ -1,73 +1,12 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { JSDOM } from "jsdom";
-import * as React from "react";
-import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
-
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  { url: "https://codecast.test", pretendToBeVisual: true },
-);
-for (const key of [
-  "window",
-  "document",
-  "navigator",
-  "HTMLElement",
-  "Element",
-  "Node",
-  "MutationObserver",
-  "Event",
-  "KeyboardEvent",
-  "MouseEvent",
-  "PointerEvent",
-  "getComputedStyle",
-  "sessionStorage",
-  "localStorage",
-]) {
-  Object.defineProperty(globalThis, key, {
-    value: (dom.window as any)[key],
-    configurable: true,
-    writable: true,
-  });
-}
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-(globalThis as any).ResizeObserver ??= class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-
-// Each server call by name; a test sets what a name answers.
-const calls: Array<{ name: string; args: any }> = [];
-let answers: Record<string, (args: any) => any> = {};
-const call = (name: string) => async (args: any) => {
-  calls.push({ name, args });
-  return await answers[name]?.(args);
-};
-const { getFunctionName } = await import("convex/server");
-const convex = await import("convex/react");
-mock.module("convex/react", () => ({
-  ...convex,
-  useMutation: (ref: any) => call(getFunctionName(ref)),
-  useAction: (ref: any) => call(getFunctionName(ref)),
-}));
-const toasts: Array<{ kind: string; text: string }> = [];
-const sonner = await import("sonner");
-mock.module("sonner", () => ({
-  ...sonner,
-  toast: Object.assign((text: string) => toasts.push({ kind: "plain", text }), {
-    success: (text: string) => toasts.push({ kind: "success", text }),
-    error: (text: string) => toasts.push({ kind: "error", text }),
-    warning: (text: string) => toasts.push({ kind: "warning", text }),
-  }),
-}));
-// The popover's own behaviour is Radix's; render its content in place.
-mock.module("../ui/popover", () => ({
-  Popover: ({ children }: any) => <div>{children}</div>,
-  PopoverTrigger: ({ children }: any) => <div>{children}</div>,
-  PopoverContent: ({ children }: any) => <div>{children}</div>,
-}));
-const { ReviewMenu } = await import("./PRActions");
+import { describe, expect, test } from "bun:test";
+import { act, useState } from "react";
+import { makeFunctionReference, type FunctionArgs } from "convex/server";
+import { api } from "@codecast/convex/convex/_generated/api";
+import type { SendOutcome } from "@codecast/comments";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { testToasts } from "../../test-helpers/testToasts";
+import { waitForPopupClose } from "../../test-helpers/waitForPopupClose";
+import { ReviewMenu } from "./PRActions";
 
 const pr = {
   _id: "pr_1",
@@ -92,64 +31,84 @@ const notes = [
     content: "test this",
     created_at: 2,
   },
-] as any[];
+];
 
-let root: Root;
-const render = () =>
-  act(async () =>
-    root.render(
-      <ReviewMenu
-        pr={pr}
-        notes={notes}
-        authorLogin="ashot"
-        onNavigate={() => {}}
-        open
-        onOpenChange={() => {}}
-      />,
-    ),
+type HandReply = {
+  sent: number;
+  conversation_id: string;
+  short_id?: string;
+  outcome?: SendOutcome;
+};
+
+const hand = makeFunctionReference<
+  "mutation",
+  FunctionArgs<typeof api.reviews.handPendingToSession>,
+  HandReply
+>("reviews:handPendingToSession");
+
+function Menu() {
+  const [open, setOpen] = useState(true);
+  return (
+    <ReviewMenu
+      pr={pr}
+      notes={notes}
+      authorLogin="ashot"
+      onNavigate={() => {}}
+      open={open}
+      onOpenChange={setOpen}
+    />
   );
+}
+
+async function mount(reply: HandReply | Error) {
+  const web = await mountWeb(<Menu />, {
+    dispatch: true,
+    expectedConsoleErrors:
+      reply instanceof Error
+        ? [/reviews:handPendingToSession.*No session matches conv_1/]
+        : [],
+    setup: (backend, store) => {
+      store.syncTable("codeComments", notes);
+      backend.mutation(hand, reply);
+      backend.mutation(api.dispatch.dispatch, null);
+    },
+  });
+  const notices = testToasts();
+  return {
+    ...web,
+    toasts: () =>
+      notices.read().map(({ type, title }) => ({ kind: type, text: title })),
+    handCalls: () =>
+      web.backend.mutations.filter(
+        ({ name }) => name === "reviews:handPendingToSession",
+      ),
+  };
+}
+
 const button = (text: string) =>
   [...document.querySelectorAll("button")].find((b) =>
     b.textContent?.trim().startsWith(text),
-  ) as HTMLButtonElement;
-const press = (el: Element) =>
-  act(async () => {
-    (el as HTMLButtonElement).click();
-    await new Promise((r) => setTimeout(r, 0));
-  });
-const handCalls = () =>
-  calls.filter((c) => c.name === "reviews:handPendingToSession");
-
-beforeEach(async () => {
-  document.body.innerHTML = "<div id='root'></div>";
-  root = createRoot(document.getElementById("root")!);
-  calls.length = 0;
-  toasts.length = 0;
-  answers = {};
-  await render();
-});
-afterEach(async () => {
-  await act(async () => root.unmount());
-});
+  )!;
+const press = (element: Element) => act(() => (element as HTMLElement).click());
 
 describe("Review popover: send to session", () => {
   test("a plain send carries no resolve flag and an old backend's answer still reads as sent", async () => {
-    // A backend from before outcomes answers only the old fields.
-    answers["reviews:handPendingToSession"] = () => ({
+    const { handCalls, toasts } = await mount({
       sent: 2,
       conversation_id: "conv_1",
       short_id: "jx7abcd",
     });
     await press(button("Send to session"));
+    await waitForPopupClose();
     expect(handCalls()).toHaveLength(1);
-    expect("resolve" in handCalls()[0].args).toBe(false);
-    expect(toasts).toEqual([
+    expect(handCalls()[0]?.args).toEqual({ pull_request_id: pr._id });
+    expect(toasts()).toEqual([
       { kind: "success", text: "2 notes sent to jx7abcd" },
     ]);
   });
 
   test("and resolve: the choice rides the send and the outcome is shown", async () => {
-    answers["reviews:handPendingToSession"] = () => ({
+    const { handCalls, toasts } = await mount({
       sent: 2,
       conversation_id: "conv_1",
       short_id: "jx7abcd",
@@ -164,11 +123,12 @@ describe("Review popover: send to session", () => {
     await press(toggle);
     expect(toggle.getAttribute("aria-checked")).toBe("true");
     await press(button("Send to session"));
+    await waitForPopupClose();
     expect(handCalls()[0].args).toMatchObject({
       pull_request_id: "pr_1",
       resolve: true,
     });
-    expect(toasts).toEqual([
+    expect(toasts()).toEqual([
       {
         kind: "success",
         text: "2 notes sent to jx7abcd, queued until its turn ends and resolved",
@@ -177,28 +137,30 @@ describe("Review popover: send to session", () => {
   });
 
   test("a failed send stays on screen with a retry, never a clipboard fallback", async () => {
-    answers["reviews:handPendingToSession"] = () => {
-      throw new Error("No session matches conv_1");
-    };
+    const { backend, handCalls, toasts } = await mount(
+      new Error("No session matches conv_1"),
+    );
     await press(button("Send to session"));
     const row = document.querySelector("[data-pr-hand-outcome]")!;
     expect(row.getAttribute("data-pr-hand-outcome")).toBe("failed");
-    expect(row.textContent).toContain("Not sent: No session matches conv_1");
-    expect(toasts).toEqual([]);
+    expect(row.textContent).toContain("Not sent:");
+    expect(row.textContent).toContain("No session matches conv_1");
+    expect(toasts()).toEqual([]);
 
-    answers["reviews:handPendingToSession"] = () => ({
+    backend.mutation(hand, {
       sent: 2,
       conversation_id: "conv_1",
       outcome: { kind: "sent", sent_ids: ["n1", "n2"] },
     });
     await press(document.querySelector("[data-pr-hand-retry]")!);
+    await waitForPopupClose();
     expect(handCalls()).toHaveLength(2);
     expect(document.querySelector("[data-pr-hand-outcome]")).toBeNull();
-    expect(toasts[0].kind).toBe("success");
+    expect(toasts()[0]?.kind).toBe("success");
   });
 
   test("a resolve that left notes open resolves just those on retry", async () => {
-    answers["reviews:handPendingToSession"] = () => ({
+    const { backend, handCalls, toasts } = await mount({
       sent: 2,
       conversation_id: "conv_1",
       outcome: {
@@ -213,24 +175,17 @@ describe("Review popover: send to session", () => {
     expect(
       document.querySelector("[data-pr-hand-outcome]")!.textContent,
     ).toContain("1 note still open: write conflict");
-    const { useInboxStore } = await import("../../store/inboxStore");
-    const resolved: Array<[string[], boolean]> = [];
-    const real = useInboxStore.getState().resolveCodeCommentThread;
-    useInboxStore.setState({
-      resolveCodeCommentThread: (ids: string[], on: boolean) => {
-        resolved.push([ids, on]);
-      },
-    } as any);
-    try {
-      await press(button("Resolve again"));
-    } finally {
-      useInboxStore.setState({ resolveCodeCommentThread: real } as any);
-    }
-    // Through the store action that owns code comment resolves, open ids only.
-    expect(resolved).toEqual([[["n2"], true]]);
-    // The send is not repeated.
+    await press(button("Resolve again"));
+    await waitForPopupClose();
+    expect(backend.mutations).toContainEqual({
+      name: "dispatch:dispatch",
+      args: expect.objectContaining({
+        action: "resolveCodeCommentThread",
+        args: [["n2"], true],
+      }),
+    });
     expect(handCalls()).toHaveLength(1);
-    expect(toasts).toEqual([
+    expect(toasts()).toEqual([
       { kind: "success", text: "2 notes sent to the session and resolved" },
     ]);
   });

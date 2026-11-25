@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { act } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import { waitForDom } from "../../test-helpers/waitForDom";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { TeamFindableNudge } from "../team/TeamFindableNudge";
 
@@ -42,6 +43,17 @@ test("an admin sees how many coworkers are outside and opens the team in one cli
     },
   ]);
   expect(container.querySelector(".tf-accent-card")).toBeNull();
+  await act(() =>
+    waitForDom(
+      container,
+      () =>
+        container
+          .querySelector("[data-sonner-toast]")
+          ?.textContent?.includes(
+            "@littlebird.ai coworkers can now find Littlebird",
+          ) === true,
+    ),
+  );
 });
 
 test("Not now snoozes it", async () => {

@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
+import { useLayoutEffect } from "react";
 import { makeFunctionReference } from "convex/server";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { pending } from "../../test-helpers/testConvex";
@@ -58,6 +59,42 @@ describe("useQueryNoThrow", () => {
     expect(container.querySelector("span")?.dataset.error).toContain(
       missingFunction.message,
     );
+  });
+
+  test("the hook returns the error from the Convex client", async () => {
+    let clientError: unknown;
+    let hookError: Error | undefined;
+    function ErrorReader() {
+      const { error } = useQueryNoThrow(machineQuery, args);
+      useLayoutEffect(() => {
+        hookError = error;
+      }, [error]);
+      return null;
+    }
+    await mountWeb(<ErrorReader />, {
+      setup: (backend) => {
+        backend.set(machineQuery, missingFunction);
+        const watchQuery = backend.client.watchQuery.bind(backend.client);
+        spyOn(backend.client, "watchQuery").mockImplementation(
+          (query, args, options) => {
+            const watch = watchQuery(query, args, options);
+            return {
+              ...watch,
+              localQueryResult: () => {
+                try {
+                  return watch.localQueryResult();
+                } catch (error) {
+                  clientError = error;
+                  throw error;
+                }
+              },
+            };
+          },
+        );
+      },
+    });
+    expect(clientError).toBeInstanceOf(Error);
+    expect(clientError).toBe(hookError);
   });
 
   test("a resolved value passes straight through", async () => {
