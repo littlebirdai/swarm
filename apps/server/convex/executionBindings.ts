@@ -21,6 +21,15 @@ import {
   reviveConversationOnDelivery,
 } from "./pendingMessageWrites";
 import { isConversationSafetyBlocked } from "./conversationSafety";
+import {
+  attemptMatchesFence,
+  blockDeliveryAsAmbiguous,
+  claimedPermitWire,
+  requeueDeliveryBeforeEffect,
+  startedPermitWire,
+  type PermitFence,
+  type ReadyBindingFence,
+} from "./lib/delivery-slot.state";
 import { assertActiveRunLease } from "./lib/edge/runLease";
 
 export const EXECUTION_PROTOCOL_VERSION = 1 as const;
@@ -65,23 +74,6 @@ type TargetInput = {
   daemonBootId: string;
   requiredCapabilities: RuntimeCapability[];
   protocolVersion: number;
-};
-
-type ReadyBindingFence = {
-  executionEpoch: number;
-  configurationRevision: number;
-  ownerDeviceId: string;
-  daemonBootId: string;
-  runtimeId: string;
-  fencingToken?: string;
-};
-
-type PermitFence = ReadyBindingFence & {
-  messageId: any;
-  deliveryId: string;
-  conversationSequence: number;
-  attemptId: any;
-  conversationId: Id<"conversations">;
 };
 
 type SuccessorIntentRequest = {
@@ -1436,6 +1428,67 @@ export async function claimExecutionStartInDb(
     : { state: "fresh" as const };
   if (binding.state === "ready") {
     if (bootTransfer) {
+      if (
+        head.current_epoch === args.epoch &&
+        head.active_delivery_attempt_id
+      ) {
+        const attempt = await ctx.db.get(head.active_delivery_attempt_id);
+        const message = attempt && (await ctx.db.get(attempt.message_id));
+        if (
+          !attempt ||
+          !message ||
+          attempt.conversation_id !== args.conversationId ||
+          attempt.owner_user_id !== userId ||
+          attempt.owner_device_id !== binding.owner_device_id ||
+          attempt.execution_epoch !== binding.epoch ||
+          attempt.configuration_revision !== binding.configuration_revision ||
+          attempt.runtime_id !== binding.runtime_id ||
+          attempt.conversation_sequence !== head.next_nonterminal_sequence ||
+          attempt.state !== head.active_delivery_state ||
+          message.active_delivery_attempt_id !== attempt._id ||
+          message.conversation_id !== attempt.conversation_id ||
+          message.delivery_id !== attempt.delivery_id ||
+          message.client_id !== attempt.delivery_id ||
+          message.conversation_sequence !== attempt.conversation_sequence ||
+          message.execution_epoch !== attempt.execution_epoch ||
+          message.delivery_status !== attempt.state
+        ) {
+          fail(
+            "DELIVERY_SLOT_INVARIANT",
+            "active permit does not match the ready binding and queue head",
+          );
+        }
+        if (attempt.state === "claimed") {
+          await requeueDeliveryBeforeEffect(
+            ctx,
+            head._id,
+            message,
+            attempt._id,
+            {
+              failure_code: "CLAIM_RELEASED_BEFORE_EFFECT",
+              failure_message: "daemon boot changed before delivery started",
+              completed_at: args.now,
+            },
+          );
+        } else if (attempt.state === "delivery-started") {
+          await blockDeliveryAsAmbiguous(
+            ctx,
+            head._id,
+            message._id,
+            attempt._id,
+            args.now,
+            {
+              daemon_boot_id: args.daemonBootId,
+              failure_code: "DELIVERY_BOOT_CHANGED",
+              failure_message: "daemon boot changed after delivery started",
+            },
+          );
+        } else {
+          await ctx.db.patch(attempt._id, {
+            daemon_boot_id: args.daemonBootId,
+          });
+        }
+      }
       await ctx.db.patch(binding._id, {
         daemon_boot_id: args.daemonBootId,
         updated_at: args.now,
@@ -1862,48 +1915,6 @@ async function assertReadyFence(
   await assertActiveRunLease(ctx, binding, fence.fencingToken, fence.now);
 }
 
-function claimedPermitWire(attempt: any): any {
-  return {
-    state: "claimed" as const,
-    messageId: String(attempt.message_id),
-    deliveryId: attempt.delivery_id,
-    conversationSequence: String(attempt.conversation_sequence),
-    attemptId: String(attempt._id),
-    conversationId: String(attempt.conversation_id),
-    executionEpoch: attempt.execution_epoch,
-    configurationRevision: attempt.configuration_revision,
-    ownerDeviceId: attempt.owner_device_id,
-    daemonBootId: attempt.daemon_boot_id,
-    runtimeId: attempt.runtime_id,
-  };
-}
-
-function startedPermitWire(attempt: any): any {
-  return { ...claimedPermitWire(attempt), state: "delivery-started" as const };
-}
-
-function attemptMatchesFence(
-  attempt: any,
-  fence: PermitFence,
-  userId?: Id<"users">,
-): boolean {
-  return (
-    !!attempt &&
-    String(attempt._id) === String(fence.attemptId) &&
-    String(attempt.message_id) === String(fence.messageId) &&
-    String(attempt.conversation_id) === String(fence.conversationId) &&
-    (userId === undefined ||
-      String(attempt.owner_user_id) === String(userId)) &&
-    attempt.delivery_id === fence.deliveryId &&
-    attempt.conversation_sequence === fence.conversationSequence &&
-    attempt.execution_epoch === fence.executionEpoch &&
-    attempt.configuration_revision === fence.configurationRevision &&
-    attempt.owner_device_id === fence.ownerDeviceId &&
-    attempt.daemon_boot_id === fence.daemonBootId &&
-    attempt.runtime_id === fence.runtimeId
-  );
-}
-
 export async function claimNextDeliveryInDb(
   ctx: DbCtx,
   userId: Id<"users">,
@@ -2247,22 +2258,11 @@ export async function releaseClaimBeforeEffectInDb(
       "only a claim that never crossed delivery-started can be safely released",
     );
   }
-  await ctx.db.patch(attempt._id, {
-    state: "failed-before-effect" as const,
+  await requeueDeliveryBeforeEffect(ctx, head._id, message, attempt._id, {
     failure_code: "CLAIM_RELEASED_BEFORE_EFFECT",
     failure_message: fence.reason,
     resolution_evidence: fence.evidence,
     completed_at: fence.now,
-  });
-  await ctx.db.patch(message._id, {
-    delivery_status: "pending" as const,
-    active_delivery_attempt_id: undefined,
-    retry_count: (message.retry_count ?? 0) + 1,
-  });
-  await ctx.db.patch(head._id, {
-    active_delivery_attempt_id: undefined,
-    active_delivery_state: undefined,
-    updated_at: fence.now,
   });
   return { retryable: true, deliveryId: message.delivery_id };
 }
@@ -2377,21 +2377,10 @@ export async function failDeliveryBeforeEffectInDb(
   ) {
     fail("DELIVERY_ATTEMPT_STATE_MISMATCH", "delivery was not durably started");
   }
-  await ctx.db.patch(attempt._id, {
-    state: "failed-before-effect" as const,
+  await requeueDeliveryBeforeEffect(ctx, head._id, message, attempt._id, {
     failure_code: fence.failureCode,
     failure_message: fence.failureMessage,
     completed_at: fence.now,
-  });
-  await ctx.db.patch(message._id, {
-    delivery_status: "pending" as const,
-    active_delivery_attempt_id: undefined,
-    retry_count: (message.retry_count ?? 0) + 1,
-  });
-  await ctx.db.patch(head._id, {
-    active_delivery_attempt_id: undefined,
-    active_delivery_state: undefined,
-    updated_at: fence.now,
   });
   // Deliberately do not advance next_nonterminal_sequence: the same deliveryId
   // and sequence are retryable only because the driver proved no effect.
@@ -2426,16 +2415,17 @@ export async function markDeliveryAmbiguousInDb(
   ) {
     fail("DELIVERY_ATTEMPT_STATE_MISMATCH", "delivery was not durably started");
   }
-  await ctx.db.patch(attempt._id, {
-    state: "ambiguous" as const,
-    failure_code: fence.failureCode,
-    failure_message: fence.failureMessage,
-  });
-  await ctx.db.patch(message._id, { delivery_status: "ambiguous" as const });
-  await ctx.db.patch(head._id, {
-    active_delivery_state: "ambiguous" as const,
-    updated_at: fence.now,
-  });
+  await blockDeliveryAsAmbiguous(
+    ctx,
+    head._id,
+    message._id,
+    attempt._id,
+    fence.now,
+    {
+      failure_code: fence.failureCode,
+      failure_message: fence.failureMessage,
+    },
+  );
   // The slot remains owned. A timeout can never be silently reclassified as a
   // pre-effect failure or allow a successor/later message to pass.
   return { blocked: true, deliveryId: message.delivery_id };
@@ -2470,20 +2460,9 @@ export async function resolveAmbiguousDeliveryInDb(
     );
   }
   if (fence.resolution === "proven-no-effect") {
-    await ctx.db.patch(attempt._id, {
-      state: "failed-before-effect" as const,
+    await requeueDeliveryBeforeEffect(ctx, head._id, message, attempt._id, {
       resolution_evidence: fence.resolutionEvidence,
       completed_at: fence.now,
-    });
-    await ctx.db.patch(message._id, {
-      delivery_status: "pending" as const,
-      active_delivery_attempt_id: undefined,
-      retry_count: (message.retry_count ?? 0) + 1,
-    });
-    await ctx.db.patch(head._id, {
-      active_delivery_attempt_id: undefined,
-      active_delivery_state: undefined,
-      updated_at: fence.now,
     });
     return { state: "pending" };
   }
