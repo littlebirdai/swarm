@@ -1,4 +1,6 @@
-import { formatStructured, layer, make } from "effect/Logger";
+import { pretty } from "effect/Cause";
+import { layer, make, tracerLogger } from "effect/Logger";
+import { CurrentLogAnnotations, CurrentLogSpans } from "effect/References";
 import type { LogLevel } from "effect/LogLevel";
 import { inspect } from "node:util";
 
@@ -18,15 +20,31 @@ export function logLayer(
 ) {
   return layer([
     make((event) => {
-      const { message, cause } = formatStructured.log(event);
+      const { cause, date, fiber, message } = event;
+      const annotations = fiber.getRef(CurrentLogAnnotations);
+      const spans = Object.fromEntries(
+        fiber
+          .getRef(CurrentLogSpans)
+          .map(([label, started]) => [label, date.getTime() - started]),
+      );
       const parts = Array.isArray(message) ? message : [message];
       const text = parts
         .map((part) => (typeof part === "string" ? part : inspect(part)))
         .join(" ");
+      const context = [
+        Object.keys(annotations).length
+          ? `annotations=${inspect(annotations)}`
+          : "",
+        Object.keys(spans).length ? `spans=${inspect(spans)}` : "",
+      ].filter(Boolean);
+      const line = [text, ...context].filter(Boolean).join(" ");
       log(
-        cause ? [text, cause].filter(Boolean).join("\n") : text,
+        [line, cause.reasons.length ? pretty(cause) : ""]
+          .filter(Boolean)
+          .join("\n"),
         daemonLevels[event.logLevel],
       );
     }),
+    tracerLogger,
   ]);
 }

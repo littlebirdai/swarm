@@ -1,4 +1,5 @@
 /* @license MIT. See oxlint-plugin.LICENSE. */
+import { effectImports } from "./lib/effect-import-rule.mjs";
 import { isSemanticComment } from "./lib/semantic-comment.mjs";
 
 const blockingChildProcessCalls = new Set([
@@ -292,6 +293,7 @@ export const rules = {
   "no-native-title-on-button": noNativeTitleOnButton,
   "no-native-title-with-aria-label": noNativeTitleWithAriaLabel,
   "no-raw-child-process": noRawChildProcess,
+  "effect-imports": effectImports,
   "no-raw-resize-observer": noRawResizeObserver,
 };
 

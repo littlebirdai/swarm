@@ -1,15 +1,13 @@
 import { expect, test } from "bun:test";
 import { join, resolve } from "node:path";
 import ts from "typescript";
+import {
+  effectZone,
+  isEffectModule,
+} from "../../../scripts/lib/effect-zone.mjs";
 
 const root = resolve(import.meta.dir, "../../..");
 const effectKit = join(root, "packages/effect-kit/package.json");
-const effectZone =
-  /^(?:apps\/relay|packages\/(?:effect-kit|edge-client|provider-adapter|delivery|edge-supervisor|relay|ext-host|ext-runner))\//;
-const codecastEffect = /^@codecast\/[^/]+\/effect(?:\/|$)/;
-const isEffect = (name: string) =>
-  name === "effect" || name.startsWith("effect/");
-
 function visit(node: ts.Node, callback: (node: ts.Node) => void): void {
   callback(node);
   ts.forEachChild(node, (child) => visit(child, callback));
@@ -19,22 +17,15 @@ function modulePath(node: ts.Node): ts.StringLiteralLike | undefined {
   let argument: ts.Node | undefined;
   if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
     argument = node.moduleSpecifier;
-  } else if (ts.isExternalModuleReference(node)) {
-    argument = node.expression;
   } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) {
     argument = node.argument.literal;
-  } else if (ts.isCallExpression(node)) {
-    const callee = node.expression;
-    if (
-      callee.kind === ts.SyntaxKind.ImportKeyword ||
-      (ts.isIdentifier(callee) && callee.text === "require") ||
-      (ts.isPropertyAccessExpression(callee) &&
-        callee.name.text === "require" &&
-        ts.isIdentifier(callee.expression) &&
-        callee.expression.text === "module")
-    ) {
-      argument = node.arguments[0];
-    }
+  } else if (ts.isExternalModuleReference(node)) {
+    argument = node.expression;
+  } else if (
+    ts.isCallExpression(node) &&
+    node.expression.kind === ts.SyntaxKind.ImportKeyword
+  ) {
+    argument = node.arguments[0];
   }
   return argument && ts.isStringLiteralLike(argument) ? argument : undefined;
 }
@@ -56,7 +47,7 @@ function violations(sources: Map<string, ts.SourceFile>): string[] {
       if (!sources.has(file)) {
         return ts.resolveModuleName(name, file, options, host).resolvedModule;
       }
-      return isEffect(name)
+      return isEffectModule(name)
         ? ts.resolveModuleName(name, effectKit, options, host).resolvedModule
         : undefined;
     });
@@ -111,16 +102,7 @@ function violations(sources: Map<string, ts.SourceFile>): string[] {
       const module = modulePath(node);
       if (!module) return;
       const name = module.text;
-      if (name === "effect") {
-        report(node, "the effect barrel is forbidden");
-        return;
-      }
-      if (!isEffect(name) && !codecastEffect.test(name)) return;
-      if (!effectZone.test(path)) {
-        report(node, `${name} is restricted to Effect-zone packages`);
-        return;
-      }
-      if (!isEffect(name)) return;
+      if (!isEffectModule(name)) return;
 
       if (ts.isImportDeclaration(node) && node.importClause) {
         const { name: defaultImport, namedBindings } = node.importClause;
@@ -204,7 +186,7 @@ function parse(path: string, source: string): ts.SourceFile {
   );
 }
 
-test("the tree imports Effect only in the package map and only uses stable exports", async () => {
+test("Effect-zone source uses only stable Effect exports", async () => {
   const git = Bun.spawn(
     ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
     { cwd: root, stdout: "pipe" },
@@ -213,7 +195,7 @@ test("the tree imports Effect only in the package map and only uses stable expor
   expect(await git.exited).toBe(0);
   const sources = new Map<string, ts.SourceFile>();
   for (const path of files) {
-    if (!/\.[cm]?[jt]sx?$/.test(path)) continue;
+    if (!effectZone.test(path) || !/\.[cm]?[jt]sx?$/.test(path)) continue;
     const file = Bun.file(join(root, path));
     if (!(await file.exists())) continue;
     const text = await file.text();
@@ -221,7 +203,7 @@ test("the tree imports Effect only in the package map and only uses stable expor
     const source = parse(path, text);
     visit(source, (node) => {
       const module = modulePath(node)?.text;
-      if (module && (isEffect(module) || codecastEffect.test(module))) {
+      if (module && isEffectModule(module)) {
         sources.set(source.fileName, source);
       }
     });
@@ -231,22 +213,6 @@ test("the tree imports Effect only in the package map and only uses stable expor
 
 test("Effect import rules reject banned source and accept stable exports", () => {
   const samples = [
-    ["apps/server/convex/handler.ts", 'import { sleep } from "effect/Effect";'],
-    [
-      "apps/web/screen.tsx",
-      'export { same } from "@codecast/edge-client/effect";',
-    ],
-    ["apps/mobile/screen.tsx", 'void import("effect/Effect");'],
-    ["apps/desktop/main.cjs", 'require("effect/Effect");'],
-    ["apps/cli/src/index.ts", 'type T = import("effect/Effect").Effect<void>;'],
-    ["packages/time/src/index.ts", 'import { sleep } from "effect/Effect";'],
-    [
-      "packages/edge-contract/src/index.ts",
-      'import "@codecast/effect-kit/effect/testing";',
-    ],
-    ["packages/session-contract/src/index.ts", 'import "effect/Effect";'],
-    ["scripts/example.mts", 'import Clock = require("effect/Clock");'],
-    ["packages/delivery/src/barrel.ts", 'import { Effect } from "effect";'],
     [
       "packages/delivery/src/named.ts",
       'import { toFile as save } from "effect/Logger";',
@@ -280,16 +246,6 @@ test("Effect import rules reject banned source and accept stable exports", () =>
   expect(
     violations(new Map(samples.map((source) => [source.fileName, source]))),
   ).toEqual([
-    "apps/server/convex/handler.ts:1 effect/Effect is restricted to Effect-zone packages",
-    "apps/web/screen.tsx:1 @codecast/edge-client/effect is restricted to Effect-zone packages",
-    "apps/mobile/screen.tsx:1 effect/Effect is restricted to Effect-zone packages",
-    "apps/desktop/main.cjs:1 effect/Effect is restricted to Effect-zone packages",
-    "apps/cli/src/index.ts:1 effect/Effect is restricted to Effect-zone packages",
-    "packages/time/src/index.ts:1 effect/Effect is restricted to Effect-zone packages",
-    "packages/edge-contract/src/index.ts:1 @codecast/effect-kit/effect/testing is restricted to Effect-zone packages",
-    "packages/session-contract/src/index.ts:1 effect/Effect is restricted to Effect-zone packages",
-    "scripts/example.mts:1 effect/Clock is restricted to Effect-zone packages",
-    "packages/delivery/src/barrel.ts:1 the effect barrel is forbidden",
     "packages/delivery/src/named.ts:1 effect/Logger export toFile lacks @stability stable",
     "packages/delivery/src/namespace.ts:1 effect/Effect export withExecutionPlan lacks @stability stable",
     "packages/delivery/src/reexport.ts:1 name the exports used from effect/Effect so their stability can be checked",

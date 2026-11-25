@@ -1,6 +1,6 @@
-import { expect } from "bun:test";
+import { afterEach, describe, expect } from "bun:test";
 import { currentTimeMillis } from "effect/Clock";
-import { forkChild, gen, sleep } from "effect/Effect";
+import { addFinalizer, forkChild, gen, sleep, sync } from "effect/Effect";
 import { join } from "effect/Fiber";
 import { adjust } from "effect/testing/TestClock";
 import { it } from "@codecast/effect-kit/effect/testing";
@@ -18,3 +18,23 @@ it.effect(
     }),
   1_000,
 );
+
+describe("Effect test scope", () => {
+  const events: string[] = [];
+
+  afterEach(() => {
+    expect(events).toEqual(["body", "finalized"]);
+  });
+
+  it.effect("runs scoped finalizers before the Bun test ends", () =>
+    gen(function* () {
+      yield* addFinalizer(() =>
+        sync(() => {
+          events.push("finalized");
+        }),
+      );
+      events.push("body");
+      expect(events).toEqual(["body"]);
+    }),
+  );
+});

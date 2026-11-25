@@ -65,8 +65,9 @@ Skip prereleases. Read the installed Effect guide at
 in its `dist/` directory. Import from module subpaths such as `effect/Effect`.
 Use only exports marked `@stability stable` in the pinned release. Name the
 exports in imports or access them by their literal names on a namespace import.
-The Effect import guard under `packages/ratchet/test` checks the package
-boundary, the barrel ban, and export stability.
+Oxlint checks the package boundary and the barrel ban. The guards under
+`packages/ratchet/test` check dependency manifests, export stability, and the
+declarations of the root entry point.
 
 Define services with `Context.Service` and implement them with `Layer.effect`.
 Use `Effect.fn("name")` for service functions. Use `Effect.catch` for recoverable

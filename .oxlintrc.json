@@ -11,7 +11,8 @@
     "builtin": true
   },
   "rules": {
-    "swarm/no-comments": "error"
+    "swarm/no-comments": "error",
+    "swarm/effect-imports": "error"
   },
   "ignorePatterns": [
     "**/node_modules/**",
