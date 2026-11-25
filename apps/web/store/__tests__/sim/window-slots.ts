@@ -79,6 +79,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/inboxStore.ts:recentThawTimer": "window",
   "store/inboxStore.ts:_userMsgsProbed": "window",
   "store/inboxStore.ts:_idbHydrating": "window",
+  "store/store-eviction.ts:openViews": NO_REACT,
   "store/inboxStore.ts:hydrationEpoch": "window",
   // A server-deleted session the prune skipped while it was open: per-store hide state.
   "store/inboxStore.ts:deferredDeletedSessions": "window",
