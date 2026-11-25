@@ -1,8 +1,18 @@
 import { describe, expect, test } from "bun:test";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 
 import {
   AREAS,
   GATED_JOBS,
+  WEB_FFMPEG_INPUTS,
   areaOf,
   classifyChangedPaths,
   formatScope,
@@ -13,6 +23,7 @@ import {
   touchesInjection,
   injectionScope,
 } from "./changed-path-scope";
+import { webFfmpegInputs } from "./web-ffmpeg-inputs";
 
 const flags = (files: string[]) => classifyChangedPaths(files).flags;
 
@@ -432,4 +443,62 @@ test("changes to web ffmpeg fixtures select the CLI evals entry", () => {
   ]) {
     expect(classifyChangedPaths([file]).flags.run_test_cli).toBe(true);
   }
+});
+
+describe("the classifier in the sparse checkout of CI", () => {
+  const ROOT = join(import.meta.dir, "../..");
+  const workflow = Bun.YAML.parse(
+    readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8"),
+  ) as { jobs: Record<string, any> };
+  const folders: string[] = workflow.jobs.code_paths.steps
+    .find((step: any) => step.with?.["sparse-checkout"])
+    .with["sparse-checkout"].trim()
+    .split("\n");
+
+  test("decides every job for a path of each area", () => {
+    const tree = mkdtempSync(join(tmpdir(), "sparse-"));
+    try {
+      const tracked = Bun.spawnSync(["git", "ls-files", ...folders], {
+        cwd: ROOT,
+      })
+        .stdout.toString()
+        .trim()
+        .split("\n");
+      for (const file of tracked) {
+        mkdirSync(dirname(join(tree, file)), { recursive: true });
+        copyFileSync(join(ROOT, file), join(tree, file));
+      }
+      for (const path of [
+        "apps/web/lib/foo.ts",
+        "apps/mobile/x.ts",
+        "apps/desktop/a.ts",
+        "apps/server/convex/a.ts",
+        "apps/cli/src/a.ts",
+        "packages/time/src/a.ts",
+        "infra/a.ts",
+        "docs/a.md",
+        ...WEB_FFMPEG_INPUTS,
+      ]) {
+        const run = Bun.spawnSync(
+          [process.execPath, "scripts/ci/changed-path-scope.ts"],
+          { cwd: tree, stdin: Buffer.from(`${path}\n`) },
+        );
+        expect(run.exitCode, `${path}: ${run.stderr}`).toBe(0);
+        const lines = run.stdout.toString().trim().split("\n");
+        for (const job of GATED_JOBS)
+          expect(
+            lines.some((line) => line.startsWith(`${jobFlag(job)}=`)),
+            `${path} ${job}`,
+          ).toBe(true);
+      }
+    } finally {
+      rmSync(tree, { recursive: true, force: true });
+    }
+  });
+
+  test("the web ffmpeg inputs are the ones the tests import", () => {
+    expect([...WEB_FFMPEG_INPUTS].toSorted()).toEqual(
+      [...webFfmpegInputs()].toSorted(),
+    );
+  });
 });

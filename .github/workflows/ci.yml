@@ -110,18 +110,24 @@ jobs:
       # No `bun install`: the classifier has no dependencies.
       - name: Classify changed paths
         id: scope
-        run: bun scripts/ci/changed-path-scope.ts < "${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"
+        run: |
+          set -o pipefail
+          bun scripts/ci/changed-path-scope.ts < "${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"
 
       # An empty list runs the helper lane, the same fail-closed rule as above.
       - name: Classify computer changes
         id: computer_scope
-        run: bun scripts/ci/changed-path-scope.ts --computer-only < "${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"
+        run: |
+          set -o pipefail
+          bun scripts/ci/changed-path-scope.ts --computer-only < "${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"
 
       # The same list, so every commit of a multi-commit push counts, and the
       # same fail-closed rule on an empty one.
       - name: Classify injection-path changes
         id: injection_scope
-        run: bun scripts/ci/changed-path-scope.ts --injection-only < "${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"
+        run: |
+          set -o pipefail
+          bun scripts/ci/changed-path-scope.ts --injection-only < "${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"
 
   # Pins ci.yml against its classifier: the job list, the gates, and the
   # verify assertions. Ungated — it is the check that proves the gates.
@@ -786,6 +792,14 @@ jobs:
           fi
           check_job() {
             name="$1" result="$2" should="$3"
+            case "$should" in
+              true | false) ;;
+              *)
+                echo "$name: the classifier gave no decision"
+                failed=1
+                return
+                ;;
+            esac
             if [ "$should" = "true" ]; then
               if [ "$result" != "success" ]; then
                 echo "$name: expected success, got $result"
