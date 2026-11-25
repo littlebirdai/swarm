@@ -315,6 +315,8 @@ export const accountAuthTables = {
     endpoint: v.string(),
     window_start: v.number(),
     request_count: v.number(),
+    last_request_at: v.optional(v.number()),
+    sequence: v.optional(v.number()),
   }).index("by_user_endpoint", ["user_id", "endpoint"]),
 
   api_tokens: defineTable({

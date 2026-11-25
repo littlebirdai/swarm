@@ -54,6 +54,7 @@
     "@codecast/provider-keys": "workspace:*",
     "@codecast/pull-requests": "workspace:*",
     "@codecast/ratchet": "workspace:*",
+    "@codecast/relay-contract": "workspace:*",
     "@codecast/render": "workspace:*",
     "@codecast/replay": "workspace:*",
     "@codecast/search": "workspace:*",

@@ -36,10 +36,11 @@ export async function checkRateLimit(
   endpoint: string,
   limit: number = WRITE_LIMIT,
   count: number = 1,
-): Promise<void> {
+  mode?: "sequenced",
+): Promise<{ issuedAtMs: number; sequence: number }> {
   const now = Date.now();
   const windowStart = now - WINDOW_MS;
-  const shards = rateLimitShards(limit);
+  const shards = mode === "sequenced" ? 1 : rateLimitShards(limit);
   const shard = shards === 1 ? 0 : Math.floor(Math.random() * shards);
   const key = rateLimitShardKey(endpoint, shard);
   const shardLimit = Math.ceil(limit / shards);
@@ -51,25 +52,8 @@ export async function checkRateLimit(
     )
     .first();
 
-  if (!existing) {
-    await ctx.db.insert("rate_limits", {
-      user_id: userId,
-      endpoint: key,
-      window_start: now,
-      request_count: count,
-    });
-    return;
-  }
-
-  if (existing.window_start < windowStart) {
-    await ctx.db.patch(existing._id, {
-      window_start: now,
-      request_count: count,
-    });
-    return;
-  }
-
-  if (existing.request_count + count - 1 >= shardLimit) {
+  const activeWindow = existing && existing.window_start >= windowStart;
+  if (activeWindow && existing.request_count + count > shardLimit) {
     const secondsRemaining = Math.ceil(
       (existing.window_start + WINDOW_MS - now) / 1000,
     );
@@ -78,7 +62,20 @@ export async function checkRateLimit(
     );
   }
 
-  await ctx.db.patch(existing._id, {
-    request_count: existing.request_count + count,
-  });
+  const issuedAtMs = Math.max(now, existing?.last_request_at ?? 0);
+  const requestCount = activeWindow ? existing.request_count + count : count;
+  const sequence = Math.max(now, (existing?.sequence ?? 0) + 1);
+  const fields = {
+    window_start: activeWindow ? existing.window_start : now,
+    request_count: requestCount,
+    ...(mode === "sequenced" ? { last_request_at: issuedAtMs, sequence } : {}),
+  };
+  if (existing) await ctx.db.patch(existing._id, fields);
+  else
+    await ctx.db.insert("rate_limits", {
+      user_id: userId,
+      endpoint: key,
+      ...fields,
+    });
+  return { issuedAtMs, sequence };
 }
