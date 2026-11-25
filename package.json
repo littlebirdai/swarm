@@ -11,14 +11,14 @@
   "scripts": {
     "start": "cd apps/web && bun run start",
     "dev": "./dev.sh",
-    "build": "turbo run build --filter='!@codecast/electron' --filter='!mobile'",
+    "build": "TURBO_TELEMETRY_DISABLED=1 turbo run build --filter='!@codecast/electron' --filter='!mobile'",
     "format": "oxfmt .",
     "format:check": "oxfmt . --check",
     "lint": "bun scripts/lint.ts",
     "lint:prune": "bun scripts/lint.ts --prune",
-    "typecheck": "turbo run typecheck",
+    "typecheck": "TURBO_TELEMETRY_DISABLED=1 turbo run typecheck",
     "typecheck:packages": "tsc -p packages/tsconfig.json",
-    "test": "turbo run test",
+    "test": "TURBO_TELEMETRY_DISABLED=1 turbo run test",
     "postinstall": "bash patches/convex-auth-iss-fix.sh"
   },
   "devDependencies": {
@@ -26,7 +26,7 @@
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.91.0",
-    "turbo": "^2.3.0",
+    "turbo": "2.11.13",
     "typescript": "^5.7.2"
   },
   "dependencies": {

@@ -9,6 +9,7 @@
     "build": "NODE_OPTIONS=--max-old-space-size=8192 vite build && node ../../scripts/ci/verify-telemetry-key.mjs --target web && node scripts/precompress.mjs && node scripts/carry-assets.mjs && node scripts/prerender.mjs && node scripts/indexnow.mjs",
     "start": "bun run server/index.ts",
     "preview": "vite preview",
+    "build:check": "vite build --sourcemap false",
     "typecheck": "tsc --noEmit && tsc --noEmit -p store/__tests__/sim/tsconfig.json",
     "test": "bun test",
     "sim": "bun scripts/sim.ts"
