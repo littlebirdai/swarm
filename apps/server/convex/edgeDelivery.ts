@@ -143,10 +143,7 @@ async function deliveryInput(
       });
   }
   const hasText =
-    message.content
-      .replace(/\[Image[:\s][^\]]*\]/gi, "")
-      .replace(/\[image\]/gi, "")
-      .trim().length > 0;
+    message.content.replace(/\[image(?:\s+\d+)?\]/gi, "").trim().length > 0;
   if (requireValidAttachments && ids.size && !images.length && !hasText)
     return {
       reason: "The attached images are missing and the message has no text.",

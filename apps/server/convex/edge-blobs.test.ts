@@ -420,6 +420,23 @@ test("a recovery permit keeps text and valid images after other images become in
   ).toEqual({ v: 1, status: "recorded" });
 });
 
+test("bracketed words about an image are text with or without the image", async () => {
+  const f = await fixture();
+  const { blob, fence } = await f.authorize();
+  const content = "[Image is broken]";
+  await f.t.run(({ db }) => db.patch(f.message, { content }));
+  expect(await (await f.post("permits.next", fence)).json()).toMatchObject({
+    input: [
+      { type: "text", text: content },
+      { type: "blob", blob_id: blob },
+    ],
+  });
+  await f.t.run(({ storage }) => storage.delete(blob));
+  expect(await (await f.post("permits.next", fence)).json()).toMatchObject({
+    input: [{ type: "text", text: content }],
+  });
+});
+
 test("an invalid started image requeues on proven no effect and rejects only its new claim", async () => {
   const f = await fixture();
   const { blob, fence, request } = await f.authorize();
