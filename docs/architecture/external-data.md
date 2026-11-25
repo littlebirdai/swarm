@@ -263,7 +263,7 @@ New derived names in `triggerEvents.ts`: `error_new`, `error_regressed`,
 `error_spike`, `job_failed`, `check_failed`, `check_recovered`,
 `metric_alert`, `metric_recovered`, `deploy`. Every transition a group kind
 can make, apart from `resolved`, has a name a trigger can be armed on. `event_filter` gains `source` (a source name),
-hoisted into one shared validator that schema.ts and agentTasks.ts import. The
+hoisted into one shared validator that `schema/schedules.tables.ts` and `agentTasks.ts` import. The
 CLI gets `--source <name|src-N>` for these names, and the web trigger form
 keeps it on save. Create and edit resolve it against the sources of the
 workspace the trigger fires in and store the canonical name
@@ -1123,7 +1123,7 @@ inline in transcripts and timelines through `registerExternalEventStyles`.
 ## X11. Limits and safety
 
 - Payloads are attacker-controlled text. Runs woken by ingestion get the event as quoted data in the frame, under a line saying so.
-- Every public function authenticates itself and never returns `access_token_enc`, config secrets or key hashes (`publicFunctionSecretLeak.test.ts`).
+- Every public function authenticates itself and never returns `access_token_enc`, config secrets or key hashes (`public-function-secret-leak.test.ts`).
 - Codecast's signing key never leaves the deployment env; the key set route publishes only the public halves (`publicJwks`). A signed connection stores no secret at all (`access_token_enc` is empty, `tokenConnectors.SIGNED_CONNECTION`).
 - Batch caps: 500 items or 1 MB per request, 20 samples per group, 72 hourly buckets, 60 metric points.
 - Convex is deployed with `apps/server/deploy.sh` before any web or CLI push that calls new functions.

@@ -54,7 +54,7 @@ indexes
 
 The row has since grown the standing agent's fields (`trust`, `caps`,
 `counters`, `authority`, `charter_doc_id`, `brief_doc_id`, `checked_at`,
-`reports_user_ids`, the line's fields and more); `schema.ts` is the source.
+`reports_user_ids`, the line's fields and more); `apps/server/convex/schema/org-roles.tables.ts` is the source.
 
 No `workspace` key. Access is the anchor rule: a personal role is visible to
 its owner; a team role is visible to every member of the team; reshaping (rename,

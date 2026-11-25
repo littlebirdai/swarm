@@ -639,11 +639,15 @@ import { join } from "node:path";
 describe("source guards", () => {
   const DIR = import.meta.dir;
   const sources = () =>
-    readdirSync(DIR).filter(
-      (f) => f.endsWith(".ts") && !f.endsWith(".test.ts"),
-    );
+    readdirSync(DIR)
+      .concat(readdirSync(join(DIR, "schema")).map((f) => `schema/${f}`))
+      .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
   test("access_key is read only by the stamp builder, the projection, the interceptor and the schema", () => {
-    const allowed = new Set(["syncLog.ts", "schema.ts", "changeLog.ts"]);
+    const allowed = new Set([
+      "syncLog.ts",
+      "schema/sync.tables.ts",
+      "changeLog.ts",
+    ]);
     const offenders = sources().filter(
       (f) =>
         !allowed.has(f) &&

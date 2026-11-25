@@ -394,7 +394,6 @@ apps/server/convex/replays.test.ts 1550
 apps/server/convex/replays.ts 1250
 apps/server/convex/repos.ts 2000
 apps/server/convex/reviews.batch.test.ts 850
-apps/server/convex/schema.ts 11400
 apps/server/convex/searchSelfAndFacts.test.ts 850
 apps/server/convex/secrets.test.ts 2850
 apps/server/convex/secrets.ts 2450

@@ -162,7 +162,7 @@ decryptRefreshToken(enc: string, secret: string, info: string = REFRESH_TOKEN_HK
   - `web/lib/useProviderKeyCommand.ts:46-59`: `setKey` seals, then calls store `setProviderKey`.
   - `web/hooks/useTemplateHire.ts:75-78`: `sealSecret` for template secret inputs.
   - `web/components/MintTokenDialog.tsx:235`.
-- The pubkey comes from the device row: `deviceManagedKeys()` at `useProviderKeyCommand.ts:35`. It reaches the web via `devices.ts:1218` (listDevices) and `schema.ts:3025`.
+- The pubkey comes from the device row: `deviceManagedKeys()` at `useProviderKeyCommand.ts:35`. It reaches the web via `devices.ts:1218` (listDevices) and `apps/server/convex/schema/machines.tables.ts`.
 
 **Device sealing, daemon side**
 

@@ -13,6 +13,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import type { GenericValidator } from "convex/values";
 import { makeFakeDb } from "./testDb";
 import { SECRET_FIELDS as GUARDED } from "./publicFunctionSecretLeak.guard";
 import { getUserByUsername } from "./users";
@@ -24,6 +25,7 @@ import { listConnections } from "./appConnections";
 import { cliConnectToken } from "./integrations";
 import * as tokenConnectors from "./tokenConnectors";
 import * as appConnector from "./sources/app";
+import schema from "./schema";
 
 // What a public profile lookup must withhold: the users row's credentials
 // (one list, shared with the compile-time guard) plus the owner's addresses.
@@ -122,17 +124,17 @@ describe("the compile-time guard covers every public function", () => {
   });
 
   test("every table it guards still has the fields it names", () => {
-    const schema = readFileSync(join(import.meta.dir, "schema.ts"), "utf8");
+    const tables: Readonly<Record<string, { validator: GenericValidator }>> =
+      schema.tables;
     for (const [table, fields] of Object.entries(GUARDED)) {
-      const start = schema.indexOf(`  ${table}: defineTable(`);
-      expect(`${table} in schema: ${start >= 0}`).toBe(
+      const validator = tables[table]?.validator;
+      expect(`${table} in schema: ${validator?.kind === "object"}`).toBe(
         `${table} in schema: true`,
       );
-      const body = schema.slice(start, schema.indexOf("\n  }", start));
       for (const field of fields)
-        expect(`${table}.${field}: ${body.includes(`${field}:`)}`).toBe(
-          `${table}.${field}: true`,
-        );
+        expect(
+          `${table}.${field}: ${validator?.kind === "object" && Object.hasOwn(validator.fields, field)}`,
+        ).toBe(`${table}.${field}: true`);
     }
   });
 });

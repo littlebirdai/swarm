@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import schema from "./schema";
 
 // Work items list only through the workspace key.
 //
@@ -55,16 +56,6 @@ const ALLOWED: Record<string, string> = {
     "name-collision check while syncing a channel's Slack name; returns no row",
 };
 
-function workspaceKeyedTables(schema: string): Set<string> {
-  const starts = [...schema.matchAll(/^    (\w+): defineTable\(/gm)];
-  const out = new Set<string>();
-  starts.forEach((m, i) => {
-    const body = schema.slice(m.index!, starts[i + 1]?.index ?? schema.length);
-    if (/^      workspace: /m.test(body)) out.add(m[1]);
-  });
-  return out;
-}
-
 const DECL = /^(?:export |async function |function |const )[^\n]*/gm;
 
 function declName(line: string): string {
@@ -116,8 +107,14 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
-const TABLES = workspaceKeyedTables(
-  readFileSync(join(DIR, "schema.ts"), "utf8"),
+const TABLES = new Set(
+  Object.entries(schema.tables)
+    .filter(
+      ([, { validator }]) =>
+        validator.kind === "object" &&
+        Object.hasOwn(validator.fields, "workspace"),
+    )
+    .map(([table]) => table),
 );
 const READS = sourceFiles(DIR)
   .map((path) => relative(DIR, path))
