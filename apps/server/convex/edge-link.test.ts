@@ -1,16 +1,8 @@
-import {
-  afterEach,
-  beforeEach,
-  expect,
-  setSystemTime,
-  spyOn,
-  test,
-} from "bun:test";
+import { afterEach, beforeEach, expect, setSystemTime, test } from "bun:test";
 import { presentToken } from "@platform/auth/tokenFormat";
 import { hashToken } from "./apiTokens";
 import { serverTest } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
-import { sendDaemonEdgeHeartbeat } from "../../cli/src/daemon-edge-link";
 
 const machine = "edge-test-machine";
 const secret = "edge-test-secret";
@@ -48,12 +40,12 @@ afterEach(() => {
 async function provision(
   deviceId: string | undefined = machine,
   expiresAt?: number,
+  t = serverTest(),
 ) {
-  const t = serverTest();
   const tokenHash = await hashToken(secret);
-  await t.run(async ({ db }) => {
+  const { user, token } = await t.run(async ({ db }) => {
     const user = await fixtureRows(db, "edge link account").user();
-    await db.insert("api_tokens", {
+    const token = await db.insert("api_tokens", {
       user_id: user,
       name: "edge test",
       token_hash: tokenHash,
@@ -62,6 +54,7 @@ async function provision(
       device_id: deviceId || undefined,
       expires_at: expiresAt,
     });
+    return { user, token };
   });
 
   const post = (
@@ -74,7 +67,7 @@ async function provision(
       headers: { authorization, "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-  return { t, post };
+  return { t, post, user, token };
 }
 
 test("the edge flag defaults off and the legacy heartbeat has the same result", async () => {
@@ -209,49 +202,68 @@ test("hello and heartbeat share a rate budget that opens at the window boundary"
   expect((await post("heartbeat", heartbeat)).status).toBe(200);
 });
 
-test("the daemon facade negotiates and sends heartbeats through the real routes", async () => {
-  const { t } = await provision();
-  const paths: string[] = [];
-  const fetch = spyOn(globalThis, "fetch").mockImplementation(
-    async (input, init) => {
-      const path = new URL(String(input)).pathname;
-      paths.push(path);
-      return t.fetch(path, init);
-    },
+test("a deleted token cannot heartbeat", async () => {
+  const { t, post, token } = await provision();
+  expect((await post("hello", hello)).status).toBe(200);
+  await t.run(({ db }) => db.delete(token));
+  expect((await post("heartbeat", heartbeat)).status).toBe(401);
+  expect(
+    await t.run(({ db }) => db.query("ip_rate_limits").collect()),
+  ).toMatchObject([{ count: 1 }]);
+});
+
+test("another account has its own budget on the same machine", async () => {
+  const { t, post, user } = await provision();
+  const otherSecret = "other-edge-account";
+  const tokenHash = await hashToken(otherSecret);
+  const other = await t.run(async ({ db }) => {
+    const user = await fixtureRows(db, "other edge link account").user();
+    await db.insert("api_tokens", {
+      user_id: user,
+      name: "other edge token",
+      token_hash: tokenHash,
+      created_at: start,
+      last_used_at: start,
+      device_id: machine,
+    });
+    return user;
+  });
+  for (let i = 0; i < 12; i++)
+    expect((await post("hello", hello)).status).toBe(200);
+  expect((await post("hello", hello)).status).toBe(429);
+  expect(
+    (
+      await post(
+        "heartbeat",
+        heartbeat,
+        `Bearer ${presentToken(otherSecret, machine)}`,
+      )
+    ).status,
+  ).toBe(200);
+  const rows = await t.run(({ db }) => db.query("ip_rate_limits").collect());
+  expect(
+    Object.fromEntries(rows.map(({ key, count }) => [key, count])),
+  ).toEqual({
+    [`edge/v1:${user}:${machine}`]: 12,
+    [`edge/v1:${other}:${machine}`]: 1,
+  });
+});
+
+test("admission errors return only the public unavailable response", async () => {
+  const { t, post } = await provision(
+    machine,
+    undefined,
+    serverTest({ bytesRead: 1 }),
   );
-  const helloAt = 45_000;
-  const heartbeatIntervalMs = 30_000;
-  let monotonicNow = helloAt;
-  const time = spyOn(performance, "now").mockImplementation(() => monotonicNow);
-  try {
-    const connection = {
-      siteUrl: "https://edge.invalid",
-      bearer,
-      machine,
-      boot: "e2e",
-    };
-    expect(
-      await sendDaemonEdgeHeartbeat(connection, capacity, hello.runtimes),
-    ).toBeUndefined();
-    monotonicNow = helloAt + heartbeatIntervalMs - 1;
-    expect(
-      await sendDaemonEdgeHeartbeat(connection, capacity, hello.runtimes),
-    ).toBeUndefined();
-    expect(paths).toEqual(["/edge/v1/hello"]);
-    monotonicNow = helloAt + heartbeatIntervalMs;
-    expect(
-      await sendDaemonEdgeHeartbeat(connection, capacity, hello.runtimes),
-    ).toBeUndefined();
-    expect(
-      await sendDaemonEdgeHeartbeat(connection, capacity, hello.runtimes),
-    ).toBeUndefined();
-    expect(paths).toEqual(["/edge/v1/hello", "/edge/v1/heartbeat"]);
-    expect(
-      await t.run(({ db }) => db.query("ip_rate_limits").collect()),
-    ).toMatchObject([{ count: 2 }]);
-    expect(await t.run(({ db }) => db.query("devices").collect())).toEqual([]);
-  } finally {
-    time.mockRestore();
-    fetch.mockRestore();
-  }
+  const response = await post("hello", hello);
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({
+    v: 1,
+    status: "error",
+    code: "unavailable",
+    retryable: true,
+  });
+  expect(await t.run(({ db }) => db.query("ip_rate_limits").collect())).toEqual(
+    [],
+  );
 });
