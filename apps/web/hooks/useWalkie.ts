@@ -314,8 +314,7 @@ export function walkieKeySig(
 
 /** Wake this component when THIS key's answer changes, and at no other time.
  *  A string snapshot, so identity is value: the cache every other signature
- *  hook needs is what `String` already gives us.
- */
+ *  hook needs is what `String` already gives us. */
 function useWalkieKeySig(roomKey: string | undefined): string {
   // From a voice host the call facts ride the same wire as the status, so the
   // key has to wake for them here — a mute the host applied is a different

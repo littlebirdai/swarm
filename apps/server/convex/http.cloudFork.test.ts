@@ -109,3 +109,15 @@ test("a cloud fork has its own isolated worktree stamped with the seed and fork 
     cloud_seed: { ...cloudSeed, at: row!.started_at },
   });
 });
+
+test("a local fork has no cloud workspace and no cloud seed", async () => {
+  const { t, args } = await fixture();
+  const result = await t.mutation(api.conversations.forkFromMessage, {
+    api_token: args.api_token,
+    conversation_id: args.conversation_id,
+  });
+  const row = await t.run(({ db }) => db.get(result.conversation_id));
+  expect(row).not.toBeNull();
+  expect(row).not.toHaveProperty("cloud_workspace");
+  expect(row).not.toHaveProperty("cloud_seed");
+});

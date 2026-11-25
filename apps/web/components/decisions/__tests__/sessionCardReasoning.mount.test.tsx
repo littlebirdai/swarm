@@ -165,7 +165,7 @@ test("a blocking card owns the pane and reads the reasoning whole, in the docume
   unmount();
 });
 
-test("the decision queue and document show each option's meaning and a way to answer", async () => {
+test("the decision queue, opened as a sheet in its place, and the document show each option's meaning and a way to answer", async () => {
   const { ConvexProvider } = await import("convex/react");
   const { offlineConvexClient } =
     await import("../../../test-helpers/offlineConvex");
