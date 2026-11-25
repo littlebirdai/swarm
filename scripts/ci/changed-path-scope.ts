@@ -11,8 +11,6 @@
 // is a claim that nothing the job covers changed, and only the mappings below
 // can make that claim.
 
-import { webFfmpegInputs } from "./web-ffmpeg-inputs";
-
 export const AREAS = [
   "cli",
   // apps/evals, the eval home. Its own area rather than part of "cli":
@@ -124,6 +122,13 @@ export const JOB_AREAS: Record<string, Area[]> = {
   // The shell requires @platform/desktop and nothing else in the repo.
   "test-electron": ["electron", "platform"],
 };
+
+export const WEB_FFMPEG_INPUTS = new Set([
+  "apps/web/scripts/call-e2e/frames.mjs",
+  "apps/web/scripts/call-e2e/frames.test.mjs",
+  "apps/web/scripts/rig/imagediff.mjs",
+  "apps/web/scripts/rig/imagediff.test.ts",
+]);
 
 export const GATED_JOBS = Object.keys(JOB_AREAS);
 
@@ -282,7 +287,7 @@ export function classifyChangedPaths(files: string[]): Scope {
   for (const [job, jobAreas] of Object.entries(JOB_AREAS)) {
     flags[jobFlag(job)] = forced || jobAreas.some((area) => areas.has(area));
   }
-  flags.run_test_cli ||= paths.some((file) => webFfmpegInputs().has(file));
+  flags.run_test_cli ||= paths.some((file) => WEB_FFMPEG_INPUTS.has(file));
   flags.run_lint ||= paths.some((file) =>
     /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(file),
   );

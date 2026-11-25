@@ -124,17 +124,29 @@ cat "$list"
       {
         "id": "scope",
         "name": "Classify changed paths",
-        "run": "bun scripts/ci/changed-path-scope.ts < "\${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"",
+        "run": 
+"set -o pipefail
+bun scripts/ci/changed-path-scope.ts < "\${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"
+"
+,
       },
       {
         "id": "computer_scope",
         "name": "Classify computer changes",
-        "run": "bun scripts/ci/changed-path-scope.ts --computer-only < "\${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"",
+        "run": 
+"set -o pipefail
+bun scripts/ci/changed-path-scope.ts --computer-only < "\${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"
+"
+,
       },
       {
         "id": "injection_scope",
         "name": "Classify injection-path changes",
-        "run": "bun scripts/ci/changed-path-scope.ts --injection-only < "\${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"",
+        "run": 
+"set -o pipefail
+bun scripts/ci/changed-path-scope.ts --injection-only < "\${{ steps.diff.outputs.list }}" | tee -a "$GITHUB_OUTPUT"
+"
+,
       },
     ],
   },
@@ -618,6 +630,14 @@ if [ "$TEST_ALWAYS" != "success" ]; then
 fi
 check_job() {
   name="$1" result="$2" should="$3"
+  case "$should" in
+    true | false) ;;
+    *)
+      echo "$name: the classifier gave no decision"
+      failed=1
+      return
+      ;;
+  esac
   if [ "$should" = "true" ]; then
     if [ "$result" != "success" ]; then
       echo "$name: expected success, got $result"

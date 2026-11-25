@@ -210,6 +210,7 @@ describe("code_paths", () => {
       );
       expect(classify.run, id).toContain('< "${{ steps.diff.outputs.list }}"');
       expect(classify.run, id).toContain('tee -a "$GITHUB_OUTPUT"');
+      expect(classify.run, id).toStartWith("set -o pipefail\n");
     }
   });
 
@@ -776,6 +777,13 @@ describe("verify", () => {
       expect(run.code, `build ${result}`).toBe(1);
       expect(run.stdout).toContain(`build: expected success, got ${result}`);
     }
+  });
+
+  test("fails every job when the classifier gave no decision", async () => {
+    const run = await runVerify({}, { BUILD: "", TEST_WEB: "maybe" });
+    expect(run.code).toBe(1);
+    expect(run.stdout).toContain("build: the classifier gave no decision");
+    expect(run.stdout).toContain("test-web: the classifier gave no decision");
   });
 
   test("fails a gated-out job that ran anyway", async () => {
