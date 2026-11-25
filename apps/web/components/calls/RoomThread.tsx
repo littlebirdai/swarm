@@ -43,7 +43,7 @@ import { scrollIntoContainer } from "../../lib/scrollWithin";
 import { useRoomTranscribeOff } from "../../hooks/useRoomTranscribeOff";
 import { useConversationFileDrop } from "../../hooks/useConversationFileDrop";
 import { AgentTypeIcon } from "../AgentTypeIcon";
-import { MessageInput } from "../MessageInput";
+import { MessageInput } from "../message-input";
 import { ComposerAttachButton } from "../chat/ComposerAttachButton";
 import type { ChatAttachment } from "../../store/chatSlice";
 import { LivePulseDot } from "../SessionActivityLine";

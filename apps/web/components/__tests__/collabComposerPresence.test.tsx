@@ -54,7 +54,7 @@ describe("composer presence rules", () => {
 });
 
 import { renderToStaticMarkup } from "react-dom/server";
-import { CollabPresenceBar } from "../CollabComposer";
+import { CollabPresenceBar } from "../collab-composer";
 
 describe("composer presence line", () => {
   test("a teammate typing: the typing strip, their name, and their words", () => {

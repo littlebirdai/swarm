@@ -13,8 +13,11 @@ import {
   newProjectHref,
 } from "../store/inboxStore";
 import { savedDefaultProject } from "../lib/machinePicker";
-import { NewSessionFoot, NewSessionView } from "./conversation/sessionControls";
-import { MessageInput } from "./MessageInput";
+import {
+  NewSessionFoot,
+  NewSessionView,
+} from "./conversation/session-controls";
+import { MessageInput } from "./message-input";
 import type { ConversationData } from "./conversation/types";
 import { KeyCap } from "./KeyboardShortcutsHelp";
 import { formatShortcutParts } from "../shortcuts";

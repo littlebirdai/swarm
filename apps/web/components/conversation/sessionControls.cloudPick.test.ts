@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 // there), the placement decision goes through the shared predicate, and the
 // store flag is never read back as truth.
 const source = readFileSync(
-  new URL("./sessionControls.tsx", import.meta.url),
+  new URL("./session-controls.tsx", import.meta.url),
   "utf8",
 );
 const start = source.indexOf("function ProjectSwitcher(");

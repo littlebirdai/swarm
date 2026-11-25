@@ -81,7 +81,7 @@ async function submitGated(
   gated = true,
 ): Promise<string[]> {
   const sent: string[] = [];
-  const { MessageInput } = await import("../MessageInput");
+  const { MessageInput } = await import("../message-input");
   const container = w.document.createElement("div");
   w.document.body.appendChild(container);
   const root = createRoot(container);
@@ -204,7 +204,7 @@ let limitedRun = 0;
 async function submitLimited(text: string, maxLength: number) {
   const draftKey = `chat-draft:limit-${++limitedRun}`;
   const sent: string[] = [];
-  const { MessageInput } = await import("../MessageInput");
+  const { MessageInput } = await import("../message-input");
   const container = w.document.createElement("div");
   w.document.body.appendChild(container);
   const root = createRoot(container);

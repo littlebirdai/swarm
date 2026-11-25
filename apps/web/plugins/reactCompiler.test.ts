@@ -50,7 +50,7 @@ describe("the compiler's allowlist", () => {
       inReactCompilerSources(abs("components/conversationScroll.ts"), LIST),
     ).toBe(false);
     expect(
-      inReactCompilerSources(abs("components/MessageInput.tsx"), LIST),
+      inReactCompilerSources(abs("components/message-input.tsx"), LIST),
     ).toBe(false);
   });
 
@@ -148,7 +148,7 @@ describe("the switch", () => {
       REACT_COMPILER_PLUGIN,
     ]);
     expect(
-      reactCompilerBabelOptions(abs("components/MessageInput.tsx"), on),
+      reactCompilerBabelOptions(abs("components/message-input.tsx"), on),
     ).toEqual({});
   });
 
@@ -158,7 +158,7 @@ describe("the switch", () => {
       filter.test(abs("components/conversation/blocks/toolBlocks.tsx")),
     ).toBe(true);
     expect(filter.test(abs("components/AssignmentBadge.tsx"))).toBe(true);
-    expect(filter.test(abs("components/MessageInput.tsx"))).toBe(false);
+    expect(filter.test(abs("components/message-input.tsx"))).toBe(false);
     expect(filter.test(path.join(WEB, "node_modules/react/index.js"))).toBe(
       false,
     );

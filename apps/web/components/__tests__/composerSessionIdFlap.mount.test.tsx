@@ -5,7 +5,7 @@ import "../chat/ChatMessage";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { pending } from "../../test-helpers/testConvex";
 import { testToasts } from "../../test-helpers/testToasts";
-import { MessageInput } from "../MessageInput";
+import { MessageInput } from "../message-input";
 
 test("words typed while the session id was unset survive its return", async () => {
   const conversationId = "jx70000000000000000000000flap01".padEnd(32, "x");

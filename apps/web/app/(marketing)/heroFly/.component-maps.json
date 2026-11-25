@@ -244,7 +244,7 @@
       },
       {
         "name": "MessageInput (composer)",
-        "file": "packages/web/components/MessageInput.tsx",
+        "file": "packages/web/components/message-input.tsx",
         "role": "The session composer (187): textarea or TipTap ComposeEditor (lazy, 56 and 2547), ghost suggestion, image strip, queued messages, send, send-and-stash, handoff, fork, meta line (2177), mention and slash autocomplete, working and limit status.",
         "props": "About 50 props; conversationId: string is required.",
         "deps": "useQuery (restart progress at ~318, resolved image URLs at ~653), useQueryNoThrow (message status), usePendingMessageStatus, useMentionServerSearch (server search as you type @), useConvex, useCurrentUser, useOwnersFromStore, useLimitRecovery, and many useInboxStore reads. Writes: typing schedules a draft write through scheduleDraftWrite (1067) into the persisted store and IDB, which syncs draft_message to the server; send goes through sendMessage (689) and addOptimisticMessage into dispatch and the outbox; composerPrefill is consumed. It also reads shortcuts (isMac, altChordDirection) and reacts to RevealInBandCtx (1260).",
@@ -755,7 +755,7 @@
       },
       {
         "name": "MessageInput (composer) / ComposeEditor",
-        "file": "packages/web/components/MessageInput.tsx; components/editor/ComposeEditor.tsx",
+        "file": "packages/web/components/message-input.tsx; components/editor/ComposeEditor.tsx",
         "role": "[Conversation / steering] Composer used to send to a live session, with slash, model and effort controls. FILM: MEDIUM (typing a message).",
         "props": "MessageInput: conversation-bound props. ComposeEditor: editor props",
         "deps": "MessageInput: 58 store reads, 3 useQuery, portals, draft persistence (drafts write to the store and IDB). ComposeEditor: tiptap only (dep scan: no store or Convex).",
@@ -1232,7 +1232,7 @@
         "file": "packages/web/components/chat/ChatComposer.tsx",
         "role": "The chat composer (wraps the app's MessageInput) with typing indicator, broadcast checkbox, Slack local-only toggle, walkie mic.",
         "props": "{channelId, threadRootId?, teamId?, placeholder, channelName?, onSend, autoFocus?, compact?, dropFilesRef?, walkieRoomKey?, walkieRing?} :49",
-        "deps": "useTypingReporter/useTypingMembers (hooks/useChatTyping.ts:35,:88) both skip non-Convex ids (:55,:92), good; useChannelSlackLink, useSlackConnect (Convex actions), useTrackedStore currentUser (:105). MessageInput (2759 lines) persists drafts through store setDraft (components/MessageInput.tsx:1077), which is a sync() that writes drafts[id] AND clientState.drafts[id] (store/inboxStore.ts:10899-10903) into the real IDB/clientState; also mention popups query team tasks/docs.",
+        "deps": "useTypingReporter/useTypingMembers (hooks/useChatTyping.ts:35,:88) both skip non-Convex ids (:55,:92), good; useChannelSlackLink, useSlackConnect (Convex actions), useTrackedStore currentUser (:105). MessageInput (2759 lines) persists drafts through store setDraft (components/message-input.tsx:1077), which is a sync() that writes drafts[id] AND clientState.drafts[id] (store/inboxStore.ts:10899-10903) into the real IDB/clientState; also mention popups query team tasks/docs.",
         "presentational": "no",
         "howToRender": "Do not mount for a typing beat. Fake the composer: a static replica of its chrome with typed text driven by the timeline (textContent), or render a sent line with ChatMessage. If the real composer is a must, it needs a store-isolation seam first (fixture drafts would land in the signed-in user's clientState)."
       },

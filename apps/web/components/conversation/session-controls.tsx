@@ -70,7 +70,7 @@ import {
   type ProjectPathOption,
 } from "../../lib/utils";
 import { createProjectFolder, useDirListing } from "../../lib/fsBrowse";
-import { CollabComposer } from "../CollabComposer";
+import { CollabComposer } from "../collab-composer";
 import { ComposerAttachButton } from "../chat/ComposerAttachButton";
 import {
   useInboxStore,

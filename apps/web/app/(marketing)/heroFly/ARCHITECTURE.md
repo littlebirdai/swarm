@@ -206,7 +206,7 @@ Order: poster first, then by leak severity.
    - `PermissionStack` keeps the mutation (:121), `resolveSessionQuestion` (:122) and the y/n listener (:185).
 4. **Entity, personify and ThemeContext seams** (section 1, items 2 to 4). Also route castBlocks' queries through `useEntityResolution`.
 5. **`ConversationHeaderBar` + `AgentStatusPill`** from conversation-view.tsx:3632-3990. This also collapses the status ternary that is repeated four times (~3693-3735).
-6. **`ComposerShell`** from MessageInput.tsx (~2620-2700 plus the meta line at 2177): `{value, onChange, placeholder, canSubmit, onSubmit, meta, actions}`. MessageInput keeps the drafts and send.
+6. **`ComposerShell`** from message-input.tsx (~2620-2700 plus the meta line at 2177): `{value, onChange, placeholder, canSubmit, onSubmit, meta, actions}`. MessageInput keeps the drafts and send.
 7. **Sidebar primitives**
    - Move `RailHeading`, `SectionRow`, `NavCount` and `NavSection` (Sidebar.tsx:99-376) to `components/sidebar/navPrimitives.tsx`.
    - The rail's three groups are `SidebarNavView` (`components/sidebar/SidebarNav.tsx`), with the rows that read live counts as views beside it (`ThreadsNavRowView`, `FeedNavRowView`, `QuestionsNavRowView`, `ChatNavSectionView`); Sidebar feeds it from the store, the hero from fixtures.

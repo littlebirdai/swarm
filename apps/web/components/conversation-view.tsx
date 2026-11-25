@@ -331,7 +331,7 @@ import {
   type NudgeRow,
   type ChatWakePrompt,
 } from "./sessionMessage";
-import { CollabRequestBanner, OwnerComposerPresence } from "./CollabComposer";
+import { CollabRequestBanner, OwnerComposerPresence } from "./collab-composer";
 import { GhostDrafts } from "./conversation/GhostDrafts";
 import { SharedQueue } from "./conversation/SharedQueue";
 import { ReaderFaces, ReadingMarks } from "./conversation/ReadingMarks";
@@ -425,7 +425,7 @@ import {
   ghostRestartContextFor,
 } from "../hooks/useSessionRestart";
 import { devRenderCount, devCountElements } from "../lib/devRenderCount";
-import { MessageInput } from "./MessageInput";
+import { MessageInput } from "./message-input";
 import { SessionControlComposer } from "./conversation/session-control-composer";
 import { selectComposerControl } from "./conversation/composer-control-model";
 import { PlanBlock } from "./conversation/blocks/planBlock";
@@ -532,7 +532,7 @@ import {
   NewSessionFoot,
   NewSessionView,
   NonOwnerMessageInput,
-} from "./conversation/sessionControls";
+} from "./conversation/session-controls";
 import { useRoleRecipient } from "./ComposeRolePicker";
 import { focusComposer } from "../lib/composerControl";
 import type {

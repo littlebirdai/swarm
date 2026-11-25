@@ -21,7 +21,7 @@ import type { Message as ConvMessage, UserMessageKind } from "./types";
 import { AssistantBlock, UserPrompt } from "./blocks/turnBlocks";
 import { SessionMessageBlock } from "./blocks/systemBlocks";
 import { openConversationBeside } from "../../hooks/useOpenLinkedSession";
-import { MessageInput } from "../MessageInput";
+import { MessageInput } from "../message-input";
 import {
   composerAgentStatus,
   useManagedSessionFields,

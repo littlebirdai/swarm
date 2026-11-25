@@ -210,7 +210,7 @@ import { formatDateSmart } from "@codecast/time";
 // Loaded only on the confirm step so the search palette does not pull the
 // composer module (and the HMR cycle that comes with an eager import).
 const PaletteMessageInput = lazyNamed(
-  () => import("./MessageInput"),
+  () => import("./message-input"),
   "MessageInput",
 );
 import {

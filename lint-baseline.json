@@ -14406,7 +14406,7 @@
     "swarm/no-comments": 5,
     "swarm/no-native-title-with-aria-label": 3
   },
-  "apps/web/components/CollabComposer.tsx": {
+  "apps/web/components/collab-composer.tsx": {
     "react/immutability": 2,
     "react/refs": 1,
     "swarm/ime-safe-key-handlers": 5,
@@ -14812,7 +14812,7 @@
     "swarm/ime-safe-key-handlers": 1,
     "swarm/no-comments": 45
   },
-  "apps/web/components/MessageInput.tsx": {
+  "apps/web/components/message-input.tsx": {
     "react-hooks/exhaustive-deps": 12,
     "swarm/ime-safe-key-handlers": 17,
     "swarm/no-comments": 641,
@@ -17061,7 +17061,7 @@
   "apps/web/components/conversation/sessionControls.cloudPick.test.ts": {
     "swarm/no-comments": 20
   },
-  "apps/web/components/conversation/sessionControls.tsx": {
+  "apps/web/components/conversation/session-controls.tsx": {
     "react-hooks/exhaustive-deps": 1,
     "react/refs": 6,
     "swarm/ime-safe-key-handlers": 4,

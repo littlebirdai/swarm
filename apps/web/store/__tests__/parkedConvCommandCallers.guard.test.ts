@@ -29,7 +29,7 @@ describe("parked convCommand caller policy", () => {
 
   test("project switch and kill callers suppress only parked:true failures", async () => {
     const [conversationView, sessionsPage, globalPanel] = await Promise.all([
-      source("../../components/conversation/sessionControls.tsx"),
+      source("../../components/conversation/session-controls.tsx"),
       source("../../app/sessions/page.tsx"),
       source("../../components/GlobalSessionPanel.tsx"),
     ]);

@@ -5,7 +5,7 @@ import { act } from "react";
 import "../chat/ChatMessage";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { testToasts } from "../../test-helpers/testToasts";
-import { MessageInput } from "../MessageInput";
+import { MessageInput } from "../message-input";
 
 const conversationId = "jx70000000000000000000000escstop";
 
