@@ -86,21 +86,13 @@ export function resolveMachineKey(
     } catch {}
   }
 
-  let key: Buffer | null = null;
-  try {
-    key = fs.readFileSync(keyFile);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-  }
-  if (!key || key.length < MACHINE_KEY_LEN) {
+  let key = readMachineKey(keyFile);
+  if (!key) {
     const candidate = crypto.randomBytes(MACHINE_KEY_LEN);
     if (publishPrivateFile(keyFile, candidate)) {
       key = candidate;
     } else {
-      key = readPublishedFile(() => {
-        const published = fs.readFileSync(keyFile);
-        return published.length >= MACHINE_KEY_LEN ? published : null;
-      });
+      key = readPublishedFile(() => readMachineKey(keyFile)) ?? null;
       if (!key) {
         writeSecretFile(keyFile, candidate);
         key = fs.readFileSync(keyFile);
@@ -141,6 +133,16 @@ export function resolveMachineKey(
   writeSecretFile(keyFile, rotated);
   writeSecretFile(hostidFile, hostid + "\n");
   return { secret: rotated, previousSecret: key, rotated: true };
+}
+
+function readMachineKey(file: string): Buffer | null {
+  try {
+    const key = fs.readFileSync(file);
+    return key.length >= MACHINE_KEY_LEN ? key : null;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    return null;
+  }
 }
 
 function rotateKey(key: Buffer, hostid: string): Buffer {

@@ -251,6 +251,204 @@ describe("machineKey hardware binding", () => {
     }
   });
 
+  it("publishes beside the final target of a dangling symlink chain", () => {
+    const dir = tmpDir();
+    const keyFile = path.join(dir, ".machine_key");
+    const targetDir = path.join(dir, "identity");
+    const target = path.join(targetDir, "key");
+    const link = fs.linkSync;
+    const intercept = spyOn(fs, "linkSync").mockImplementation((from, to) => {
+      expect(path.dirname(String(from))).toBe(targetDir);
+      expect(path.basename(String(from))).toMatch(
+        /^\.key\.\d+\.[0-9a-f-]{36}\.tmp$/,
+      );
+      expect(to).toBe(target);
+      link(from, to);
+    });
+    try {
+      fs.symlinkSync("jump", keyFile, "file");
+      fs.symlinkSync("identity/key", path.join(dir, "jump"), "file");
+      expect(resolveMachineKey(dir, HW_NONE).secret).toEqual(
+        fs.readFileSync(target),
+      );
+      expect(fs.readlinkSync(keyFile)).toBe("jump");
+      expect(fs.readlinkSync(path.join(dir, "jump"))).toBe("identity/key");
+    } finally {
+      intercept.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("sweeps stale temps for the key and leaves recent or unrelated files", () => {
+    const dir = tmpDir();
+    const stale = "..machine_key.123.11111111-1111-1111-1111-111111111111.tmp";
+    const fresh = "..machine_key.123.22222222-2222-2222-2222-222222222222.tmp";
+    const unrelated =
+      "..unrelated.123.33333333-3333-3333-3333-333333333333.tmp";
+    try {
+      for (const name of [stale, fresh, unrelated]) {
+        const file = path.join(dir, name);
+        fs.writeFileSync(file, "temp");
+        if (name !== fresh) fs.utimesSync(file, 1, 1);
+      }
+      resolveMachineKey(dir, HW_NONE);
+      expect(fs.readdirSync(dir).sort()).toEqual(
+        [fresh, unrelated, ".machine_key"].sort(),
+      );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("syncs the parent directory after publishing the key", () => {
+    const dir = tmpDir();
+    const sync = fs.fsyncSync;
+    let syncedDirectory = false;
+    const intercept = spyOn(fs, "fsyncSync").mockImplementation((fd) => {
+      if (fs.fstatSync(fd).isDirectory()) {
+        expect(fs.readFileSync(path.join(dir, ".machine_key")).length).toBe(
+          MACHINE_KEY_LEN,
+        );
+        syncedDirectory = true;
+      }
+      sync(fd);
+    });
+    try {
+      resolveMachineKey(dir, HW_NONE);
+      if (process.platform !== "win32") expect(syncedDirectory).toBe(true);
+    } finally {
+      intercept.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("retries an ENOENT while rereading the publication winner", () => {
+    const dir = tmpDir();
+    const keyFile = path.join(dir, ".machine_key");
+    const winner = Buffer.alloc(MACHINE_KEY_LEN, 63);
+    const read = fs.readFileSync;
+    let reads = 0;
+    const link = spyOn(fs, "linkSync").mockImplementation(() => {
+      throw Object.assign(new Error("Path just existed"), { code: "EEXIST" });
+    });
+    const intercept = spyOn(fs, "readFileSync").mockImplementation(
+      new Proxy(read, {
+        apply(target, receiver, args: Parameters<typeof read>) {
+          try {
+            return Reflect.apply(target, receiver, args);
+          } catch (err) {
+            if (args[0] === keyFile && ++reads === 2)
+              fs.writeFileSync(keyFile, winner);
+            throw err;
+          }
+        },
+      }),
+    );
+    try {
+      expect(resolveMachineKey(dir, HW_NONE).secret).toEqual(winner);
+    } finally {
+      intercept.mockRestore();
+      link.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it.each(["write", "fsync", "fsync after replacement"])(
+    "cleans up only the fallback writer's file when %s fails",
+    (failure) => {
+      const dir = tmpDir();
+      const keyFile = path.join(dir, ".machine_key");
+      const competing = path.join(dir, "competing-key");
+      const winner = Buffer.alloc(MACHINE_KEY_LEN, 7);
+      const error = new Error("fallback write failed");
+      const link = spyOn(fs, "linkSync").mockImplementation(() => {
+        throw Object.assign(new Error("Hard links unavailable"), {
+          code: "ENOTSUP",
+        });
+      });
+      const sync = fs.fsyncSync;
+      const syncIntercept = spyOn(fs, "fsyncSync").mockImplementation((fd) => {
+        if (failure !== "write" && fs.existsSync(keyFile)) {
+          if (failure === "fsync after replacement")
+            fs.renameSync(competing, keyFile);
+          throw error;
+        }
+        sync(fd);
+      });
+      const write = fs.writeFileSync;
+      const writeIntercept = spyOn(fs, "writeFileSync").mockImplementation(
+        (file, data, options) => {
+          if (
+            failure === "write" &&
+            typeof file === "number" &&
+            fs.existsSync(keyFile)
+          )
+            throw error;
+          write(file, data, options);
+        },
+      );
+      try {
+        if (failure === "fsync after replacement")
+          fs.writeFileSync(competing, winner);
+        expect(() => resolveMachineKey(dir, HW_NONE)).toThrow(error);
+        if (failure === "fsync after replacement") {
+          expect(fs.readFileSync(keyFile)).toEqual(winner);
+          expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
+        } else expect(fs.readdirSync(dir)).toEqual([]);
+      } finally {
+        writeIntercept.mockRestore();
+        syncIntercept.mockRestore();
+        link.mockRestore();
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("adopts the current host when a missing key has a foreign hostid", () => {
+    const dir = tmpDir();
+    const keyFile = path.join(dir, ".machine_key");
+    try {
+      resolveMachineKey(dir, HW_A);
+      fs.unlinkSync(keyFile);
+      const first = resolveMachineKey(dir, HW_B);
+      expect(first.rotated).toBe(false);
+      expect(first.previousSecret).toBeNull();
+      expect(resolveMachineKey(dir, HW_B).secret).toEqual(first.secret);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it.each(["EACCES", "EISDIR"])(
+    "preserves the key path when its read returns %s",
+    (code) => {
+      const dir = tmpDir();
+      const keyFile = path.join(dir, ".machine_key");
+      const read = fs.readFileSync;
+      const error = Object.assign(new Error("Key read failed"), { code });
+      const intercept = spyOn(fs, "readFileSync").mockImplementation(
+        new Proxy(read, {
+          apply(target, receiver, args: Parameters<typeof read>) {
+            if (args[0] === keyFile) throw error;
+            return Reflect.apply(target, receiver, args);
+          },
+        }),
+      );
+      try {
+        if (code === "EISDIR") fs.mkdirSync(keyFile);
+        else fs.writeFileSync(keyFile, "existing");
+        expect(() => resolveMachineKey(dir, HW_NONE)).toThrow(error);
+        if (code === "EISDIR")
+          expect(fs.statSync(keyFile).isDirectory()).toBe(true);
+        else expect(read(keyFile, "utf8")).toBe("existing");
+        expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
+      } finally {
+        intercept.mockRestore();
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+
   it("leaves the key unpublished if its sync fails", () => {
     const dir = tmpDir();
     const sync = spyOn(fs, "fsyncSync").mockImplementation(() => {

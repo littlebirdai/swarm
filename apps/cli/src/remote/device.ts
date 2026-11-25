@@ -109,7 +109,7 @@ export function deviceId(): string {
       deriveDeviceId(seed, "codecast-device-id-v2", hw),
   };
   let binding = readDeviceBinding();
-  let identity = resolveDeviceIdentity({ ...inputs, binding });
+  let identity = resolveDeviceIdentity({ ...inputs, binding: binding ?? null });
   if (identity.persist && !binding) {
     try {
       if (
@@ -119,11 +119,14 @@ export function deviceId(): string {
         )
       ) {
         binding = readPublishedFile(readDeviceBinding);
-        if (!binding) {
+        if (binding === null) {
           writeDeviceBinding(identity.persist);
           binding = readDeviceBinding();
         }
-        identity = resolveDeviceIdentity({ ...inputs, binding });
+        identity = resolveDeviceIdentity({
+          ...inputs,
+          binding: binding ?? null,
+        });
       }
     } catch {}
   }
@@ -161,9 +164,16 @@ export function previousDeviceId(): string | undefined {
   }
 }
 
-function readDeviceBinding(): DeviceBinding | null {
+function readDeviceBinding(): DeviceBinding | null | undefined {
+  let contents: string;
   try {
-    const b = JSON.parse(fs.readFileSync(DEVICE_BINDING_FILE, "utf8"));
+    if (!fs.statSync(DEVICE_BINDING_FILE).isFile()) return undefined;
+    contents = fs.readFileSync(DEVICE_BINDING_FILE, "utf8");
+  } catch {
+    return undefined;
+  }
+  try {
+    const b = JSON.parse(contents);
     if (
       typeof b?.hw === "string" &&
       typeof b?.id === "string" &&
