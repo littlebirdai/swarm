@@ -83,7 +83,13 @@ export const PALETTE_KEYS = [
 ] as const satisfies readonly StoreKey[];
 
 export const DESKTOP_WINDOW_KEYS = {
-  palette: PALETTE_KEYS,
+  palette: [
+    ...PALETTE_KEYS,
+    "machineResources",
+    "pendingMessageStatus",
+    "reviewComments",
+    "sessionCommands",
+  ],
   people: [...appearance, ...inbox, ...people, "bookmarks", "favorites"],
   "call-panel": [
     ...appearance,

@@ -209,7 +209,7 @@ renderer, IndexedDB or React.
 | Desktop window                                    | Join bytes before → after | Populated collections before → after | Heap before → after (MB) |
 | ------------------------------------------------- | ------------------------: | -----------------------------------: | -----------------------: |
 | Full follower, detached tab or claimed spare      |     5,677,182 → 5,677,182 |                            138 → 138 |              9.84 → 9.84 |
-| Palette or quick capture                          |     5,677,182 → 1,356,877 |                             138 → 33 |              9.84 → 3.03 |
+| Palette or quick capture                          |     5,677,182 → 1,439,199 |                             138 → 35 |              9.84 → 3.19 |
 | People                                            |       5,677,182 → 657,858 |                             138 → 16 |              9.84 → 1.91 |
 | Call panel or voice host, before the picker opens |       5,677,182 → 657,858 |                             138 → 16 |              9.84 → 1.91 |
 | Agent dock, if enabled                            |       5,677,182 → 452,408 |                             138 → 11 |              9.84 → 1.38 |
@@ -222,7 +222,7 @@ The cache and join measurements run independently, so their values do not add.
 | Desktop window                                          | Populated disk collections before → after | Disk-load heap after (MB) |
 | ------------------------------------------------------- | ----------------------------------------: | ------------------------: |
 | Full window or claimed spare                            |                                 141 → 141 |                      7.53 |
-| Palette or quick capture                                |                                  141 → 32 |                      2.83 |
+| Palette or quick capture                                |                                  141 → 34 |                      2.88 |
 | People                                                  |                                  141 → 15 |                      2.00 |
 | Call panel or voice host                                |                                  141 → 15 |                      2.08 |
 | Agent dock                                              |                                  141 → 10 |                      1.87 |
@@ -234,10 +234,13 @@ The cache and join measurements run independently, so their values do not add.
 The ring uses direct feeders. The ring, unclaimed spare, meeting offer and
 cursor overlay send no replication requests.
 The mount guard records reads from the desktop pages, both palette faces,
-the call-panel picker, theme and badge. It mounts the dock component directly
+the call-panel picker, theme and badge. Quick capture reads machine load,
+pending message status, review drafts and session commands after its composer
+opens. The guard flushes pending store notifications before it checks each
+surface. It mounts the dock component directly
 to cover the surface behind the release flag. The hydration test checks the
 ring against an IndexedDB fixture. The palette join budget uses one row per
-collection and permits 33 populated collections and 7,159 snapshot bytes.
+collection and permits 35 populated collections and 7,573 snapshot bytes.
 
 ## Account boundary
 

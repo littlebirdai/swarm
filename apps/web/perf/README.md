@@ -49,8 +49,8 @@ checks with `bun perf/budgets.ts store` and the first paint checks with
 | Streamed batch row writes              |          4 |          4 | Edit the newest message and append one to a full 200-row tail, with one eviction and one metadata write               | Rewrite all 200 messages → 202                 |
 | Rename action row writes               |          4 |          4 | Rename one of 500 sessions with matching conversation rows. Save both rows, the pending lock map and the outbox entry | Rewrite all 500 conversation rows → 503        |
 | Follower populated collections         |        138 |        138 | Receive a host snapshot with a synthetic row in every registered collection and in conversations                      | Share the local repoBrowse map → 139           |
-| Palette follower populated collections |         33 |         33 | Join with the palette's scope using the same fixture                                                                  | Add a collection to the palette scope → 34     |
-| Palette follower join bytes            |      7,159 |      7,159 | Count UTF-8 JSON bytes in the palette's snapshot frames                                                               | Send the full snapshot → 29,870                |
+| Palette follower populated collections |         35 |         35 | Join with the palette's scope using the same fixture                                                                  | Add a collection to the palette scope → 36     |
+| Palette follower join bytes            |      7,573 |      7,573 | Count UTF-8 JSON bytes in the palette's snapshot frames                                                               | Send the full snapshot → 29,870                |
 
 The stored row byte limits add 1% rounded up for small changes to the row shape.
 The palette join limit uses the exact size of the fixture snapshot.

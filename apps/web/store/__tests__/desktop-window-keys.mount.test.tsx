@@ -7,6 +7,7 @@ import { ThemeProvider } from "../../components/ThemeProvider";
 import { AUTH_JWT_STORAGE_KEY } from "../../lib/localAuth";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { pending } from "../../test-helpers/testConvex";
+import { waitForDom } from "../../test-helpers/waitForDom";
 import {
   DESKTOP_WINDOW_KEYS,
   PALETTE_KEYS,
@@ -17,6 +18,7 @@ import {
   REPLICATED_STORE_KEYS,
 } from "../clientSyncRegistry";
 import { useInboxStore } from "../inboxStore";
+import { flushSyncPublishes } from "../syncTransaction";
 
 const windows = {
   palette: () => import("../../app/palette/page"),
@@ -51,31 +53,43 @@ const queries = [
 for (const windowKind of Object.keys(windows) as (keyof typeof windows)[]) {
   test(`${windowKind} store reads`, async () => {
     const Page = (await windows[windowKind]()).default;
-    const reads = new Set<string>();
+    const reads = new Map<string, string>();
+    const observed = new Map<object, PropertyDescriptorMap>();
+    let renderer: Window | undefined;
     const keys = new Set<string>([
       ...Object.keys(CLIENT_SYNC_REGISTRY),
       ...REPLICATED_STORE_KEYS,
     ]);
     const observe = (state: ReturnType<typeof useInboxStore.getState>) => {
+      if (observed.has(state)) return;
+      const properties: PropertyDescriptorMap = {};
+      observed.set(state, properties);
       for (const key of keys) {
         const property = Object.getOwnPropertyDescriptor(state, key);
         if (!property || !("value" in property) || !property.configurable)
           continue;
+        properties[key] = property;
         Object.defineProperty(state, key, {
           configurable: true,
           enumerable: property.enumerable,
           get() {
             const caller = new Error().stack?.split("\n")[2] ?? "";
-            if (caller.includes("/apps/web/") && !caller.includes("/store/"))
-              reads.add(key);
+            const relative = caller.split("/apps/web/")[1];
+            if (
+              globalThis.window === renderer &&
+              relative &&
+              !relative.startsWith("store/")
+            )
+              reads.set(key, relative.replace(/\)$/, ""));
             return property.value;
           },
         });
       }
     };
     let stop: (() => void) | undefined;
+    let web: Awaited<ReturnType<typeof mountWeb>> | undefined;
     try {
-      const web = await mountWeb(
+      web = await mountWeb(
         <ThemeProvider>
           <Page />
           {windowKind === "agent-dock" && <AgentDock />}
@@ -87,6 +101,7 @@ for (const windowKind of Object.keys(windows) as (keyof typeof windows)[]) {
           authenticated: true,
           path: `/${windowKind}`,
           setup(backend) {
+            renderer = window;
             backend.mutation(
               makeFunctionReference<"mutation">("dispatch:dispatch"),
               undefined,
@@ -107,27 +122,54 @@ for (const windowKind of Object.keys(windows) as (keyof typeof windows)[]) {
           },
         },
       );
-      if (windowKind === "palette")
-        await act(async () =>
+      const checkReads = async (declared: readonly string[]) => {
+        await act(async () => {
+          flushSyncPublishes();
+          useInboxStore.setState({});
+        });
+        expect(reads.has("clientState")).toBe(true);
+        expect(
+          [...reads]
+            .filter(([key]) => !declared.includes(key))
+            .map(([key, caller]) => `${key} via ${caller}`)
+            .sort(),
+        ).toEqual([]);
+      };
+      const declared = DESKTOP_WINDOW_KEYS[windowKind];
+      await checkReads(declared);
+      if (windowKind === "palette") {
+        reads.clear();
+        const window = web.dom.window;
+        await act(async () => {
           window.dispatchEvent(
-            new CustomEvent("codecast-compose", { detail: "" }),
-          ),
-        );
-      expect(reads.has("clientState")).toBe(true);
-      const declared = new Set<string>(DESKTOP_WINDOW_KEYS[windowKind]);
-      expect([...reads].filter((key) => !declared.has(key)).sort()).toEqual([]);
-      if (windowKind === "call-panel") {
-        await act(async () => web.store.getState().openPalette());
-        const expanded = new Set<string>([...declared, ...PALETTE_KEYS]);
-        expect([...reads].filter((key) => !expanded.has(key)).sort()).toEqual(
-          [],
-        );
+            new window.CustomEvent("codecast-compose", { detail: "" }),
+          );
+        });
+        expect(web.container.querySelector("textarea")).not.toBeNull();
+        await checkReads(declared);
+        for (const key of [
+          "machineResources",
+          "pendingMessageStatus",
+          "reviewComments",
+          "sessionCommands",
+        ])
+          expect(reads.has(key)).toBe(true);
       }
-      stop?.();
-      await web.close();
+      if (windowKind === "call-panel") {
+        await act(async () => web?.store.getState().openPalette());
+        const container = web.container;
+        await waitForDom(
+          container,
+          () => !!container.querySelector('[aria-label="Command menu"]'),
+        );
+        await checkReads([...declared, ...PALETTE_KEYS]);
+      }
       expect(web.navigationLog[0]?.path).toBe(`/${windowKind}`);
     } finally {
       stop?.();
+      for (const [state, properties] of observed)
+        Object.defineProperties(state, properties);
+      await web?.close();
     }
   });
 }
