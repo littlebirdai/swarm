@@ -465,12 +465,41 @@ export function redactFrame(frame: string, cols: number): string {
     while (end < rows.length && cellWidth(plain[end - 1]!) >= cols) end++;
     lines.push({ start, end, text: plain.slice(start, end).join("") });
   }
-  // Most ticks hold no secret: one pass over every line at once says so.
-  const all = lines.map((l) => l.text).join("\n");
-  if (redactSecrets(all) === all) return redactSecrets(frame);
+  const joined = lines.map((line) => line.text).join("\n");
+  const keyBoundary = /-----(BEGIN|END) [A-Z0-9 ]{0,40}PRIVATE KEY-----/g;
+  const keyRows = new Set<number>();
+  let keyStart: number | undefined;
+  for (const [lineIndex, line] of lines.entries()) {
+    for (const match of line.text.matchAll(keyBoundary)) {
+      if (match[1] === "BEGIN") {
+        keyStart ??= lineIndex;
+      } else {
+        for (let i = keyStart ?? 0; i <= lineIndex; i++) keyRows.add(i);
+        keyStart = undefined;
+      }
+    }
+  }
+  if (keyStart !== undefined) {
+    for (let i = keyStart; i < lines.length; i++) keyRows.add(i);
+  }
+  const redactedScreen = redactSecrets(
+    keyRows.size
+      ? lines
+          .map((line, index) =>
+            keyRows.has(index) ? "[redacted:pem]" : line.text,
+          )
+          .join("\n")
+      : joined,
+  );
+  if (redactedScreen === joined) return redactSecrets(frame);
+  const redactedLines = redactedScreen.split("\n");
+  if (redactedLines.length !== lines.length)
+    return rows
+      .map((_, index) => (index === 0 ? "[redacted:screen]" : ""))
+      .join("\n");
   const out: string[] = [];
-  for (const { start, end, text } of lines) {
-    const redacted = redactSecrets(text);
+  for (const [index, { start, end, text }] of lines.entries()) {
+    const redacted = redactedLines[index]!;
     if (redacted === text) {
       for (let i = start; i < end; i++) out.push(redactSecrets(rows[i]!));
       continue;
