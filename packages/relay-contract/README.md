@@ -1,122 +1,168 @@
 # Relay wire contract v1
 
 `@codecast/relay-contract` defines JSON text frames for the WebSocket relay.
-The package uses standard JavaScript and has zero dependencies.
+It uses standard JavaScript and has zero dependencies.
 
-The relay carries transient display data and stores no durable data. The kernel
-record decides who can act. Presence, cursor position, and heartbeat expiry
-cannot grant, renew, release, or transfer a claim. Draft text stays in the
-document step log. Messages, prompts, queues, leases, fencing tokens, and
-commands stay on the kernel path. V1 has no frame variants for token deltas,
-terminal traffic, or machine pushes.
+The relay carries transient display data and stores no durable data. The
+kernel record decides who can act. Presence, cursors, and heartbeats cannot
+grant, renew, release, or transfer a claim. Draft text stays in the document
+step log. Messages, prompts, queues, leases, fencing tokens, and commands
+stay on the kernel path. Token deltas, terminal traffic, and machine pushes
+are outside v1.
 
-## Connection and access
+## Connection and authorization
 
-The kernel checks access and supplies the relay address and a short-lived signed
-bearer token. The client sends the token once, in `connect`, over TLS.
-The relay verifies the token signature, audience, and expiry before it accepts
-the connection. The relay drops the token after verification. It never forwards
-or logs the token. Later frames use the authenticated socket.
+The kernel checks access and supplies the relay address and a short-lived,
+signed bearer token. The client sends the initial token in `connect` over TLS.
+The client sends subsequent tokens in `grant_update` on the authenticated
+socket. The relay verifies each token signature, audience, and expiry before
+it grants access. It discards the token after verification. It never logs
+or forwards a token.
 
-The signed token payload has these claims:
+The verified token payload has these claims:
 
-| Claim           | Value                                                                                                   |
-| --------------- | ------------------------------------------------------------------------------------------------------- |
-| `audience`      | ID of the relay or relay cell that can accept this token.                                               |
-| `subject`       | `{ kind, id }` with kind `user` or `machine`.                                                           |
-| `expires_at_ms` | Deadline for authorization on this socket, in Unix milliseconds.                                        |
-| `grants`        | Named hubs `{ kind, id, publish }`. Each grant permits a subscription, even with an empty publish list. |
+| Claim           | Value                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `v`             | Version of the signed claims. V1 uses `1`.                                                                                |
+| `audience`      | ID of the relay or relay cell that can accept the token.                                                                  |
+| `subject`       | `{ kind, id }` with kind `user` or `machine`.                                                                             |
+| `expires_at_ms` | Authorization deadline in Unix milliseconds. Only the relay uses this clock.                                              |
+| `grants`        | Named hubs `{ kind, id, publish }`. Each grant permits a subscription. An empty publish list permits only a subscription. |
 
-A hub is `{ kind: "session" | "machine", id }`. A session grant can list
-`presence`, `cursor`, `baton_heartbeat`, and `session_liveness` in `publish`.
-A machine grant can list `machine_liveness`. The kernel issues user subjects
-for presence, cursors, and baton display heartbeats. It issues machine subjects
-for liveness on their own machine hub and on session hubs for runs they own.
-The relay checks the subject kind, hub grant, negotiated capability, and
-publish rights for each signal. The relay gets the sender ID from the verified
-subject. A subscription conveys no publish rights.
+A hub is `{ kind: "session" | "machine", id }`. A user can publish `presence`,
+`draft_cursor`, `reading_cursor`, and `baton_heartbeat` to granted session hubs.
+A machine can publish `session_liveness` to session hubs for runs it owns.
+It can publish `machine_liveness` to its own machine hub. The kernel is
+responsible for the scope of read access and the ownership of runs. The
+parser refuses duplicate hub keys and duplicate publish rights.
 
-`parseRelayGrantClaims` checks the shape of the verified JSON payload. The
-signing format and signature verification belong to the kernel and relay.
-The relay closes the socket at authorization expiry. The client obtains a new
-token, connects, and subscribes again. Each token limits the time that access
-can continue after a kernel grant changes.
+`parseRelayGrantClaims` checks the verified payload shape and rights. The
+kernel and relay implement signing and verification. The relay checks the
+hub grant, its expiry, the negotiated capability, and the publish right
+for each signal. It gets the sender ID from the verified subject.
 
-## Versions and parsing
+### Token refresh
+
+The relay processes grant updates in socket order and echoes `request_id`
+in one `grant_result`. The client uses a distinct ID for each outstanding
+update. Every token must name the same subject kind and ID as the initial
+token. The relay accepts each token as a unit.
+
+`applyRelayGrantClaims` applies parsed claims after signature and audience
+verification. It replaces the full grant and deadline for each named hub,
+including any reduction in publish rights. It retains other live grants
+and removes expired grants. A refusal leaves the current grants intact.
+The relay retains verified grant data only and applies the same expiry
+rules even when no update arrives.
+
+A socket can hold up to 256 live hub grants across multiple tokens. This
+supports 200 session hubs with room for machine hubs. Each token has its
+own deadline. When a grant expires, the relay removes its subscription and
+stops its traffic. The relay closes the socket when the last grant expires.
+The client can refresh before expiry or reconnect with a new token.
+
+## Versions and parsers
 
 `connect` and `hello` use a version-independent envelope. The relay selects the
-highest common version and reports the capabilities both sides can use. V1
-capability names match the five signal types. Unknown offered names grant no
-capability. The client checks that `hello` selects an offered version and only
-offered capabilities before it sends versioned frames.
+highest shared version and returns the enabled capabilities that the client
+offered. V1 signal capability names match the six signal types. An unknown
+offered name grants no capability. The client checks the selected version
+and capabilities before it sends a versioned frame.
 
-A relay serves the newest released version and its predecessor when both
-exist. Today only v1 exists. `negotiateRelayVersion` returns the highest common
-positive safe integer or `null` if there is none. All frames after `hello`
-carry `v` and must match the negotiated version. A new client field, a new
-frame type, or a change to an existing field's meaning requires a new version.
+Relays support wire versions N and N−1 when both exist. Today only v1 exists.
+`negotiateRelayVersion` returns the highest shared positive safe integer,
+or `null` if there is none. Each versioned frame carries the selected `v`.
+A new client field, frame variant, or field meaning requires a new version.
 
-`parseRelayClientFrame` rejects unknown fields, including fields in nested
-objects. `parseRelayServerFrame` validates known fields and drops added fields
-at every level. Both reject an unknown frame type or nested variant. On a failed
-parse, the result contains a code and field path. Treat the path as untrusted
-input. Forward only a parsed and authorized signal, with relay-stamped metadata.
+Signed claims have their own N and N−1 rule. Today the relay only accepts
+claims v1. The kernel must issue a claims version that the destination relay
+supports. When v2 exists, the relay will use the specified schema for each
+accepted version. An older relay refuses an entire token if it encounters
+an unknown claims version, field, or publish name. It grants no rights from
+that token. On an open connection, an unsupported version returns
+`unsupported_grant_version`. An invalid payload returns `invalid_token`.
+
+All parsers accept JSON text and return a typed `invalid_input` error for
+non-text input. Client frames and signed claims reject unknown fields.
+The response parser validates known fields and drops added fields at every
+level. Both frame parsers reject an unknown frame type or nested variant.
+A failed parse returns a code and a field path. Treat the path as untrusted
+input. Forward only a parsed and authorized signal.
 
 ## Frames
 
 The table lists fields in addition to `type` and the post-handshake `v`.
 A client can subscribe to any granted hub after `hello`. A publisher must
-also subscribe to that hub before it sends a signal.
+subscribe to the hub before it sends a signal.
 
-| Frame              | Sender            | Fields and meaning                                                                                                                                                | Expiry or failure                                                                                                                                |
-| ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `connect`          | Client            | `versions`, `capabilities`, `token`. First frame on the socket.                                                                                                   | The relay refuses a second connect or an invalid token.                                                                                          |
-| `hello`            | Relay             | `status: "ok"` carries `version`, `capabilities`, `connection_id`, and `expires_at_ms`.                                                                           | The relay closes at expiry. `incompatible_version` carries `supported_versions`. `unauthorized` carries only its status. Both end the handshake. |
-| `subscribe`        | Client            | `hub`. Adds this socket to one hub.                                                                                                                               | The relay checks the grant and returns `subscription`. A repeat is safe.                                                                         |
-| `unsubscribe`      | Client            | `hub`. Removes this socket from one hub.                                                                                                                          | The relay returns `subscription`. A repeat is safe. Disconnect also removes the subscription.                                                    |
-| `subscription`     | Relay             | `hub` and `status` with value `subscribed`, `unsubscribed`, or `denied`.                                                                                          | Success applies to this socket only. A denied request adds no subscription.                                                                      |
-| `presence`         | User via relay    | `hub` (session). Shows a person present.                                                                                                                          | Remove the display at signal expiry.                                                                                                             |
-| `cursor`           | User via relay    | `hub` (session), `cursor`. A draft cursor carries `revision`, `anchor`, and `head`. A reading cursor carries `message_id` and `offset`. `null` clears the cursor. | Remove at signal expiry. Use a cursor only with its matching draft revision or message.                                                          |
-| `baton_heartbeat`  | User via relay    | `hub` (session). Shows a heartbeat for a user. Match the user to the holder in the kernel record before use.                                                      | Remove the heartbeat display at signal expiry. The claim's lease time comes from the record.                                                     |
-| `session_liveness` | Machine via relay | `hub` (session), `run`. Shows contact from the machine for that run epoch.                                                                                        | Drop a signal for any other run. Use the kernel status when the signal expires.                                                                  |
-| `machine_liveness` | Machine via relay | `hub` (machine). Shows contact from the machine named by the hub.                                                                                                 | Use the kernel status when the signal expires.                                                                                                   |
+| Frame              | Sender            | Fields                                                                           | Expiry or failure                                                                                                                                         |
+| ------------------ | ----------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connect`          | Client            | `versions`, `capabilities`, and `token`. First frame on the socket.              | The relay refuses a second connect or an invalid token.                                                                                                   |
+| `hello`            | Relay             | `status: "ok"` carries `version`, `capabilities`, `connection_id`, and `ttl_ms`. | `incompatible_version` carries `supported_versions`. `unauthorized` gives no access. `unavailable` carries `retry_after_ms`. All three end the handshake. |
+| `grant_update`     | Client            | `request_id` and `token`. Attaches or refreshes grants.                          | The relay returns `grant_result` with the same ID.                                                                                                        |
+| `grant_result`     | Relay             | `request_id` and `status`. `applied` carries `ttl_ms`. `refused` carries `code`. | Refusal codes are `invalid_token`, `unsupported_grant_version`, `expired`, `subject_mismatch`, and `hub_limit`.                                           |
+| `subscribe`        | Client            | `hub`. Adds the socket to one hub.                                               | The relay checks the grant and returns `subscription`. A repeat is safe.                                                                                  |
+| `unsubscribe`      | Client            | `hub`. Removes the socket from one hub.                                          | The relay returns `subscription`. A repeat is safe. Disconnect also removes the subscription.                                                             |
+| `subscription`     | Relay             | `hub` and `status` of `subscribed`, `unsubscribed`, or `denied`.                 | Success applies to this socket only. A denied request adds no subscription.                                                                               |
+| `presence`         | User via relay    | Session `hub`, `state` of `active` or `left`, and Boolean `in_draft`.            | Clear the observation on `left` or at TTL expiry.                                                                                                         |
+| `draft_cursor`     | User via relay    | Session `hub` and `cursor` with `revision`, `anchor`, and `head`.                | Clear only the draft cursor on `null` or expiry. Use positions only with the matching draft revision.                                                     |
+| `reading_cursor`   | User via relay    | Session `hub` and `cursor` with `message_id` and `offset`.                       | Clear only the reading cursor on `null` or expiry. Use the offset only with the matching message.                                                         |
+| `baton_heartbeat`  | User via relay    | Session `hub`. Match the user to the holder in the kernel record before display. | Clear the observation at expiry. The claim's lease time comes from the record.                                                                            |
+| `session_liveness` | Machine via relay | Session `hub` and `run`. Reports contact from the machine for that run epoch.    | Drop a signal for any other run. Use the kernel status when the observation expires.                                                                      |
+| `machine_liveness` | Machine via relay | Machine `hub`. Reports contact from the machine that the hub names.              | Use the kernel status when the observation expires.                                                                                                       |
 
-A draft cursor uses `kind: "draft"`. A reading cursor uses `kind: "reading"`.
 Draft positions count UTF-16 code units in the shared draft at `revision`.
-A reading offset gives the fraction of the message above the top of the viewport.
+A reading offset gives the fraction of the message above the viewport.
 
-The relay adds `connection_id`, `seq`, and `expires_at_ms` to every signal.
-It also adds `user_id` to user signals and `machine_id` to session liveness.
-A new connection gets a fresh ID. A signal sequence increases within its source
-connection, hub, and type. Discard duplicate and older sequences for that key.
-A gap needs no replay. Each signal describes a current observation.
+### Signal order and expiry
 
-The relay sets each signal deadline from its TTL, capped at authorization
-expiry. A receiver ignores a signal at or after that deadline. A new subscriber
-waits for fresh signals. The relay does not keep a replay buffer. After a
-disconnect, subscribe again and publish fresh signals. Clear the display for
-an old source connection by expiry.
+The relay stamps each signal with `connection_id`, `seq`, and `ttl_ms`.
+It stamps `user_id` on user signals and `machine_id` on session liveness.
+A new connection gets a fresh ID. A signal sequence increases for its
+source connection, hub, and type. Draft and reading cursors have separate
+sequences. Discard a duplicate or older sequence for the same key. A gap
+needs no replay. The relay keeps no replay buffer.
+
+The relay accounts for time in its queue before it sends a timed signal.
+At send, it caps the signal's remaining TTL at the time left on the
+source authorization and the recipient's authorization for that hub.
+The receiver starts the TTL at receipt on a monotonic clock. The
+`hello.ok` and `grant_result.applied` TTLs measure the time left before
+the last live grant expires on that socket. They do not grant rights.
+The relay enforces the actual deadlines independently of client clocks.
+
+A `presence` signal with `state: "left"` always carries `in_draft: false`.
+The relay emits it for an active publisher after unsubscribe, disconnect,
+or loss of permission to publish presence. The relay stamps it with the
+departing connection ID, the next presence sequence, and `ttl_ms: 0`.
+Apply an ordered departure immediately. It clears the observation for
+that source and has no display lifetime. If a departure is lost, the
+previous active observation still expires by its TTL. A client can publish
+a departure directly while it retains access.
 
 ## Limits and failure
 
-The transport must enforce an 8,192-byte UTF-8 limit before it accepts a full
-frame. The parsers also enforce the limit before JSON decode. The limit applies
-to the decoded token payload as well. JSON duplicate keys follow JSON parser
-semantics. Each parser returns a fresh object with recognized fields only.
+The transport must enforce an 8,192-byte UTF-8 limit before it accepts a
+full frame. The parsers also enforce this limit before JSON decode. The
+limit also applies to the decoded token payload. JSON duplicate keys follow
+JSON parser semantics. Each parser returns a fresh object.
 
-| Field                        | Limit                                                                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| IDs                          | 1–128 ASCII letters, digits, underscores, colons, or hyphens.                                                                   |
-| Token                        | 1–6,144 ASCII letters, digits, underscores, periods, or hyphens.                                                                |
-| Versions                     | 1–8 entries. Each entry is a positive safe integer.                                                                             |
-| Capabilities                 | 0–16 names. Each name starts with a lowercase ASCII letter and has up to 32 lowercase letters, digits, or underscores in total. |
-| Hub grants                   | 1–32 grants. Each grant lists up to four session signals or one machine signal. The kernel supplies one grant per hub.          |
-| Sequence, epoch, and expiry  | Positive safe integers. Expiry uses Unix milliseconds.                                                                          |
-| Draft positions and revision | Non-negative safe integers.                                                                                                     |
-| Reading offset               | A finite number from 0 to 1 inclusive.                                                                                          |
+| Field                              | Limit                                                                                                                                                 |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| IDs                                | 1–128 ASCII letters, digits, underscores, colons, or hyphens.                                                                                         |
+| Token                              | 1–6,144 ASCII letters, digits, underscores, periods, or hyphens.                                                                                      |
+| Versions                           | 1–8 entries. Each entry is a positive safe integer.                                                                                                   |
+| Capabilities                       | 0–16 names. Each name starts with a lowercase ASCII letter and has up to 32 lowercase letters, digits, or underscores in total.                       |
+| Token grants                       | 1–16 distinct hubs. The 16-hub limit leaves room for a compact signature envelope within the token byte cap, even with maximal IDs and publish lists. |
+| Socket grants                      | 256 distinct unexpired hubs across all tokens.                                                                                                        |
+| Sequence, epoch, deadline, and TTL | Positive safe integers. TTL uses milliseconds. A presence departure uses a TTL of zero.                                                               |
+| Draft positions and revision       | Non-negative safe integers.                                                                                                                           |
+| Reading offset                     | A finite number from 0 to 1 inclusive.                                                                                                                |
+| Retry delay                        | Non-negative safe integer in milliseconds.                                                                                                            |
 
 The relay rejects malformed or oversized client frames and drops unauthorized
-signals. A client with a bad handshake response closes the socket. A client
-drops a malformed or unknown signal. On relay failure, clients reconnect with
-random backoff. The kernel remains the source for sends, queue state, baton
-ownership, prompts, and durable status.
+signals. A client closes the socket after a bad handshake and drops a malformed
+or unknown signal. On failure, a client reconnects with random backoff.
+After `unavailable`, it waits at least `retry_after_ms`. After reconnect, the
+client subscribes again and publishes fresh signals. The kernel remains the
+source for sends, queues, baton ownership, prompts, and durable status.

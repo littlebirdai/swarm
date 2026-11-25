@@ -1,13 +1,15 @@
 export const RELAY_MAX_FRAME_BYTES = 8192;
+export const RELAY_MAX_TOKEN_BYTES = 6144;
 
 export type RelayParseErrorCode =
+  | "invalid_input"
   | "invalid_json"
   | "too_large"
   | "invalid_field"
   | "unknown_field"
   | "unknown_kind";
 
-class RelayParseError extends Error {
+export class RelayParseError extends Error {
   constructor(
     readonly code: RelayParseErrorCode,
     readonly path: string,
@@ -26,8 +28,11 @@ type Fields<S extends Shape> = { [K in keyof S]: ReturnType<S[K]> };
 
 export function parser<T>(
   read: Reader<T>,
-): (wire: string) => RelayParseResult<T> {
+): (wire: unknown) => RelayParseResult<T> {
   return (wire) => {
+    if (typeof wire !== "string") {
+      return { ok: false, error: { code: "invalid_input", path: "$" } };
+    }
     if (
       wire.length > RELAY_MAX_FRAME_BYTES ||
       utf8Bytes(wire) > RELAY_MAX_FRAME_BYTES
@@ -115,7 +120,7 @@ export function tagged<S extends Shape>(
   };
 }
 
-export function oneOf<const T extends readonly (string | number)[]>(
+export function oneOf<const T extends readonly (string | number | boolean)[]>(
   ...values: T
 ): Reader<T[number]> {
   return (value, path) => {
@@ -169,6 +174,15 @@ export function nullable<T>(read: Reader<T>): Reader<T | null> {
   return (value, path) => (value === null ? null : read(value, path));
 }
 
+export const boolean: Reader<boolean> = (value, path) => {
+  if (typeof value !== "boolean")
+    throw new RelayParseError("invalid_field", path);
+  return value;
+};
+
+export const token = string(
+  new RegExp(`^[a-zA-Z0-9_.-]{1,${RELAY_MAX_TOKEN_BYTES}}$`),
+);
 export const id = string(/^[a-zA-Z0-9_:-]{1,128}$/);
 export const fraction: Reader<number> = (value, path) => {
   if (

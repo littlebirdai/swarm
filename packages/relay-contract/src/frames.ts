@@ -1,4 +1,5 @@
 import {
+  grantRefusal,
   hub,
   hubResponse,
   machineHub,
@@ -9,6 +10,7 @@ import {
 } from "./authorization";
 import {
   array,
+  boolean,
   count,
   fraction,
   id,
@@ -20,6 +22,7 @@ import {
   responseObject,
   string,
   tagged,
+  token,
 } from "./read";
 
 const versions = array(positive, 1, 8);
@@ -27,41 +30,37 @@ const capabilities = array(string(/^[a-z][a-z0-9_]{0,31}$/), 0, 16);
 const v1 = { v: oneOf(1) };
 const session = { ...v1, hub: sessionHub };
 const machine = { ...v1, hub: machineHub };
-const draftCursor = {
-  kind: oneOf("draft"),
-  revision: count,
-  anchor: count,
-  head: count,
-};
-const readingCursor = {
-  kind: oneOf("reading"),
-  message_id: id,
-  offset: fraction,
-};
-const cursor = nullable(
-  tagged("kind", {
-    draft: object(draftCursor),
-    reading: object(readingCursor),
-  }),
-);
-const cursorResponse = nullable(
-  tagged("kind", {
-    draft: responseObject(draftCursor),
-    reading: responseObject(readingCursor),
-  }),
-);
+const draftCursor = { revision: count, anchor: count, head: count };
+const readingCursor = { message_id: id, offset: fraction };
+const presence = { ...session, type: oneOf("presence") };
+const active = { state: oneOf("active"), in_draft: boolean };
+const left = { state: oneOf("left"), in_draft: oneOf(false) };
+const grantRequest = { ...v1, request_id: id };
 
 const clientFrame = tagged("type", {
   connect: object({
     type: oneOf("connect"),
     versions,
     capabilities,
-    token: string(/^[a-zA-Z0-9_.-]{1,6144}$/),
+    token,
   }),
+  grant_update: object({ ...grantRequest, type: oneOf("grant_update"), token }),
   subscribe: object({ ...v1, type: oneOf("subscribe"), hub }),
   unsubscribe: object({ ...v1, type: oneOf("unsubscribe"), hub }),
-  presence: object({ ...session, type: oneOf("presence") }),
-  cursor: object({ ...session, type: oneOf("cursor"), cursor }),
+  presence: tagged("state", {
+    active: object({ ...presence, ...active }),
+    left: object({ ...presence, ...left }),
+  }),
+  draft_cursor: object({
+    ...session,
+    type: oneOf("draft_cursor"),
+    cursor: nullable(object(draftCursor)),
+  }),
+  reading_cursor: object({
+    ...session,
+    type: oneOf("reading_cursor"),
+    cursor: nullable(object(readingCursor)),
+  }),
   baton_heartbeat: object({ ...session, type: oneOf("baton_heartbeat") }),
   session_liveness: object({
     ...session,
@@ -71,13 +70,17 @@ const clientFrame = tagged("type", {
   machine_liveness: object({ ...machine, type: oneOf(machineSignal) }),
 });
 
-const timedSignal = {
-  ...v1,
-  connection_id: id,
-  seq: positive,
-  expires_at_ms: positive,
+const ordering = { ...v1, connection_id: id, seq: positive };
+const presenceResponse = {
+  ...ordering,
+  hub: sessionHubResponse,
+  user_id: id,
+  type: oneOf("presence"),
 };
+const timedSignal = { ...ordering, ttl_ms: positive };
 const userSignal = { ...timedSignal, hub: sessionHubResponse, user_id: id };
+const grantResponse = { ...grantRequest, type: oneOf("grant_result") };
+
 const relayFrame = tagged("type", {
   hello: tagged("status", {
     ok: responseObject({
@@ -86,7 +89,7 @@ const relayFrame = tagged("type", {
       version: positive,
       capabilities,
       connection_id: id,
-      expires_at_ms: positive,
+      ttl_ms: positive,
     }),
     incompatible_version: responseObject({
       type: oneOf("hello"),
@@ -97,6 +100,23 @@ const relayFrame = tagged("type", {
       type: oneOf("hello"),
       status: oneOf("unauthorized"),
     }),
+    unavailable: responseObject({
+      type: oneOf("hello"),
+      status: oneOf("unavailable"),
+      retry_after_ms: count,
+    }),
+  }),
+  grant_result: tagged("status", {
+    applied: responseObject({
+      ...grantResponse,
+      status: oneOf("applied"),
+      ttl_ms: positive,
+    }),
+    refused: responseObject({
+      ...grantResponse,
+      status: oneOf("refused"),
+      code: grantRefusal,
+    }),
   }),
   subscription: responseObject({
     ...v1,
@@ -104,11 +124,23 @@ const relayFrame = tagged("type", {
     hub: hubResponse,
     status: oneOf("subscribed", "unsubscribed", "denied"),
   }),
-  presence: responseObject({ ...userSignal, type: oneOf("presence") }),
-  cursor: responseObject({
+  presence: tagged("state", {
+    active: responseObject({
+      ...presenceResponse,
+      ...active,
+      ttl_ms: positive,
+    }),
+    left: responseObject({ ...presenceResponse, ...left, ttl_ms: oneOf(0) }),
+  }),
+  draft_cursor: responseObject({
     ...userSignal,
-    type: oneOf("cursor"),
-    cursor: cursorResponse,
+    type: oneOf("draft_cursor"),
+    cursor: nullable(responseObject(draftCursor)),
+  }),
+  reading_cursor: responseObject({
+    ...userSignal,
+    type: oneOf("reading_cursor"),
+    cursor: nullable(responseObject(readingCursor)),
   }),
   baton_heartbeat: responseObject({
     ...userSignal,
