@@ -13,7 +13,6 @@ import {
   scopedHostChannel,
 } from "../storage-transport";
 import {
-  expandWindowReplication,
   replicationHostFor,
   startSyncReplication,
   stopSyncReplication,
@@ -139,23 +138,18 @@ describe("startSyncReplication", () => {
     expect(hub.locks).toEqual([]);
   });
 
-  it("scopes join and updates, and grows without a gap or stale overwrite", async () => {
+  it("scopes joins, filters live rows, and retains updates during a snapshot", async () => {
     const name = replicationChannelName("userA");
     const transport = replicationTransport(name, "host");
     const scoped = scopedHostChannel(name, "host", transport.channel);
-    const row = session("held", { title: "Initial session" });
-    const unrelated = { _id: "unrelated", title: "Unrelated task" };
-    const docRows = Object.fromEntries(
+    const docs = Object.fromEntries(
       Array.from({ length: 260 }, (_, i) => {
         const doc = { _id: `doc-${i}`, title: "Initial doc" };
         return [doc._id, doc];
       }),
     );
-    let state = {
-      sessions: { held: row },
-      tasks: { unrelated },
-      docs: docRows,
-    };
+    const task = { _id: "unrelated", title: "Unrelated task" };
+    let state = { docs, tasks: { unrelated: task } };
     const host = replicationHostFor("host", scoped.channel, () => state);
     const joined = Promise.withResolvers<void>();
     const unsubscribe = useInboxStore.subscribe((next) => {
@@ -164,96 +158,143 @@ describe("startSyncReplication", () => {
     const stop = startSyncReplication({
       eligible: false,
       principalId: "userA",
-      keys: ["sessions"],
+      keys: ["docs"],
     });
-    const scopedFrames = () =>
+    const addressedFrames = () =>
       hub.posted
-        .filter((item) => item.name.startsWith(`${name}:scope:`))
-        .map((item) => item.data as ReplicationMessage);
-    const scopedKeys = () =>
-      scopedFrames().flatMap((frame) =>
-        frame.type === "snapshotChunk" || frame.type === "update"
-          ? frame.updates.map(({ key }) => key)
-          : [],
-      );
+        .filter(({ name: address }) => address.startsWith(`${name}:scope:`))
+        .map(({ data }) => data as ReplicationMessage);
     try {
-      await joined.promise;
-      expect(useInboxStore.getState().sessions.held?.title).toBe(
-        "Initial session",
-      );
-      expect(scopedKeys()).toEqual(["sessions"]);
-      expect(hub.opened.filter((channel) => channel === name)).toHaveLength(1);
-      const growth = expandWindowReplication(["sessions", "docs"]);
       await new Promise<void>((resolve) => queueMicrotask(resolve));
       expect(
-        scopedFrames().some(
-          (frame) =>
-            frame.type === "snapshotChunk" &&
-            !frame.done &&
-            frame.updates.some(({ key }) => key === "docs"),
+        addressedFrames().some(
+          (frame) => frame.type === "snapshotChunk" && !frame.done,
         ),
       ).toBe(true);
-      const changed = { ...row, title: "Changed during join" };
-      const newerDoc = { ...docRows["doc-259"], title: "Newer doc" };
+      const current = { ...docs["doc-259"], title: "Newer doc" };
       state = {
-        sessions: { held: changed },
-        docs: { ...docRows, "doc-259": newerDoc },
-        tasks: { unrelated: { ...unrelated, title: "Unrelated update" } },
+        docs: { ...docs, "doc-259": current },
+        tasks: { unrelated: { ...task, title: "Changed" } },
       };
       host.tee(
         [
-          { op: "replace", path: ["sessions"], value: state.sessions },
           { op: "replace", path: ["docs"], value: state.docs },
           { op: "replace", path: ["tasks"], value: state.tasks },
         ],
         state,
       );
-      expect(await growth).toBe(true);
+      await joined.promise;
       expect(useInboxStore.getState().docs["doc-259"]?.title).toBe("Newer doc");
-      expect(useInboxStore.getState().sessions.held?.title).toBe(
-        "Changed during join",
-      );
       expect(useInboxStore.getState().tasks.unrelated).toBeUndefined();
-      expect(
-        scopedKeys().filter((key) => key !== "sessions" && key !== "docs"),
-      ).toEqual([]);
-      const growthSnapshots = scopedFrames().filter(
-        (frame) =>
-          frame.type === "snapshotChunk" && frame.to.includes(":growth:"),
+      const keys = addressedFrames().flatMap((frame) =>
+        frame.type === "snapshotChunk" || frame.type === "update"
+          ? frame.updates.map(({ key }) => key)
+          : [],
       );
-      expect(
-        growthSnapshots.flatMap((frame) => frame.updates.map(({ key }) => key)),
-      ).toEqual(["docs", "docs"]);
-      const settled = Promise.withResolvers<void>();
-      const off = useInboxStore.subscribe((next) => {
-        if (next.docs["doc-259"]?.title === "After growth") settled.resolve();
-      });
-      const current = { ...newerDoc, title: "After growth" };
-      state = { ...state, docs: { ...state.docs, "doc-259": current } };
-      try {
-        host.tee(
-          [{ op: "replace", path: ["docs", "doc-259"], value: current }],
-          state,
-        );
-        await settled.promise;
-        const deliveries = hub.posted.filter(
-          ({ name: address, data }) =>
-            address.startsWith(`${name}:scope:`) &&
-            (data as ReplicationMessage).type === "update" &&
-            (data as { seq: number }).seq === host.seq(),
-        );
-        expect(deliveries).toHaveLength(1);
-        expect(deliveries[0]?.name).not.toContain(":growth:");
-      } finally {
-        off();
-      }
+      expect(keys).toEqual(["docs", "docs", "docs"]);
     } finally {
       unsubscribe();
       stop();
       host.stop();
       scoped.close();
       transport.close();
-      useInboxStore.setState({ sessions: {}, docs: {}, tasks: {} });
+      useInboxStore.setState({ docs: {}, tasks: {} });
+    }
+  });
+
+  it("a duplicate legacy hello cannot widen a registered scoped snapshot", async () => {
+    const name = replicationChannelName("userA");
+    const transport = replicationTransport(name, "host");
+    const scoped = scopedHostChannel(name, "host", transport.channel);
+    const host = replicationHostFor("host", scoped.channel, () => ({
+      sessions: { held: session("held") },
+      tasks: { unrelated: { _id: "unrelated" } },
+    }));
+    const control = new hub.FakeBroadcastChannel(`${name}:scope`);
+    const legacy = replicationTransport(name, "follower");
+    try {
+      control.postMessage({
+        type: "hello",
+        from: "follower",
+        keys: ["sessions"],
+        snapshotRequest: "join",
+      });
+      legacy.channel.post({
+        type: "hello",
+        from: "follower",
+        snapshotRequest: "join",
+      });
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+      const frames = hub.posted.filter(
+        ({ name: address }) => address === `${name}:scope:follower`,
+      );
+      expect(
+        frames.map(({ data }) =>
+          (data as { updates: { key: string }[] }).updates.map(
+            ({ key }) => key,
+          ),
+        ),
+      ).toEqual([["sessions"]]);
+    } finally {
+      control.close();
+      legacy.close();
+      host.stop();
+      scoped.close();
+      transport.close();
+    }
+  });
+
+  it("a scoped optimistic edit reaches the modern host", async () => {
+    const name = replicationChannelName("userA");
+    const transport = replicationTransport(name, "host");
+    const scoped = scopedHostChannel(name, "host", transport.channel);
+    const received = Promise.withResolvers<unknown>();
+    const held = session("held", { title: "Before edit" });
+    const host = createReplicationHost({
+      hostId: "host",
+      channel: scoped.channel,
+      getState: () => ({ sessions: { held } }),
+      replicatedKeys: ["sessions"],
+      isCollectionKey: () => true,
+      applyUpdates: (updates) => received.resolve(updates),
+    });
+    const joined = Promise.withResolvers<void>();
+    const off = useInboxStore.subscribe((next) => {
+      if (next.syncRole === "follower") joined.resolve();
+    });
+    const stop = startSyncReplication({
+      eligible: false,
+      principalId: "userA",
+      keys: ["sessions"],
+    });
+    useInboxStore.getState()._setDispatch(async () => null);
+    try {
+      await joined.promise;
+      useInboxStore.getState().renameSession("held", "After edit");
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+      expect(
+        hub.posted.some(
+          ({ name: address, data }) =>
+            address === `${name}:scope` &&
+            (data as ReplicationMessage).type === "mut",
+        ),
+      ).toBe(true);
+      expect(await received.promise).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            key: "sessions",
+            fields: { held: { title: "After edit" } },
+          }),
+        ]),
+      );
+    } finally {
+      off();
+      stop();
+      host.stop();
+      scoped.close();
+      transport.close();
+      useInboxStore.getState()._setDispatch(null);
+      useInboxStore.setState({ sessions: {}, pending: {} });
     }
   });
 
@@ -335,6 +376,26 @@ describe("startSyncReplication", () => {
       await joined.promise;
       expect(useInboxStore.getState().sessions.held?.title).toBe(
         "Legacy session",
+      );
+      expect(useInboxStore.getState().tasks.unrelated).toBeUndefined();
+      const changed = { ...held, title: "Live from legacy" };
+      host.tee(
+        [
+          { op: "replace", path: ["sessions", "held"], value: changed },
+          {
+            op: "replace",
+            path: ["tasks", "unrelated"],
+            value: { _id: "unrelated", title: "Changed" },
+          },
+        ],
+        {
+          sessions: { held: changed },
+          tasks: { unrelated: { _id: "unrelated", title: "Changed" } },
+        },
+      );
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+      expect(useInboxStore.getState().sessions.held?.title).toBe(
+        "Live from legacy",
       );
       expect(useInboxStore.getState().tasks.unrelated).toBeUndefined();
       useInboxStore.getState().renameSession("held", "Renamed by follower");

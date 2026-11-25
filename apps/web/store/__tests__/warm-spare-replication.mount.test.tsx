@@ -6,7 +6,7 @@ import { replaceGlobals } from "../../test-helpers/globals";
 import { AUTH_JWT_STORAGE_KEY, issueFakeToken } from "./fixtures/fakeAuthToken";
 import { session } from "./bucketFixtures";
 
-test("claim starts hydration, replication, and badge reporting, and sign-out clears the badge", async () => {
+test("warm spare claim and scoped hydration gate replication, then sign-out clears the badge", async () => {
   const dom = new JSDOM("<div id='root'></div>", {
     url: "https://codecast.sh/inbox",
   });
@@ -131,11 +131,32 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
     expect(container.textContent).toBe("Host feeders");
     expect(badgeCounts).toEqual([1]);
 
+    await act(async () => root.render(null));
+    dom.reconfigure({ url: "https://codecast.sh/palette" });
+    const scoped = `${replicationChannelName("userA")}:scope`;
+    await act(async () => {
+      useInboxStore.setState({ clientStateInitialized: false });
+      root.render(<Feeders />);
+    });
+    expect(channels.some((name) => name.startsWith(`${scoped}:`))).toBe(false);
+    await act(async () => {
+      useInboxStore.setState({ clientStateInitialized: true });
+      root.render(
+        <>
+          <Feeders />
+          <DesktopBadge />
+        </>,
+      );
+    });
+    expect(channels.some((name) => name.startsWith(`${scoped}:`))).toBe(true);
+    expect(locks).toEqual([replicationLockName("userA")]);
+    expect(badgeCounts.splice(0)).toEqual([1, 1]);
+
     await act(async () => {
       durableAuthStorage.removeItem(AUTH_JWT_STORAGE_KEY);
     });
     expect(useInboxStore.getState().clientStateInitialized).toBe(false);
-    expect(badgeCounts).toEqual([1, 0]);
+    expect(badgeCounts).toEqual([0]);
   } finally {
     await act(async () => {
       root.unmount();

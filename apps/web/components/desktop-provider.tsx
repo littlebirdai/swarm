@@ -1,3 +1,4 @@
+import { desktopWindowKeys } from "../store/desktop-window-keys";
 import { inHuddle } from "../lib/calls/huddlePresence";
 import { withInboxView } from "../lib/inboxViewHistory";
 import { useRef, useState } from "react";
@@ -157,13 +158,19 @@ export function DesktopProvider() {
   const hydrated = useInboxStore((s) => s.clientStateInitialized);
   const storeReady = useDesktopStoreReady();
   const canReportWindowState = storeReady || !isDesktop();
-  const canDeliverNotifications = hydrated || !isDesktop();
+  const scope = desktopWindowKeys();
+  const receivesBanners =
+    !isPaletteWindow() && scope?.includes("chatMessages") !== false;
+  const canDeliverNotifications = receivesBanners && (hydrated || !isDesktop());
 
   // Report "a human is at this desktop" so the server holds mobile pushes
   // while you're here (pushRouter.ts). Runs on web and Electron alike.
   usePresenceReporter();
 
-  const notifications = useQueryNoThrow(api.notifications.list, {}).data;
+  const notifications = useQueryNoThrow(
+    api.notifications.list,
+    receivesBanners ? {} : "skip",
+  ).data;
   useNotificationDelivery(
     canDeliverNotifications && isAuthenticated && notifications !== undefined,
   );
@@ -197,7 +204,6 @@ export function DesktopProvider() {
 
   useWatchEffect(() => {
     if (!canDeliverNotifications || !notifications) return;
-    if (isPaletteWindow()) return;
     const canNotify = isDesktop() || hasBrowserNotificationPermission();
 
     if (!initializedRef.current) {
@@ -477,6 +483,7 @@ export function DesktopProvider() {
   // one already on screen (ct-49551).
   const location = useLocation();
   const surfaceSig = useInboxStore((st) => {
+    if (scope) return `${st.currentSessionId ?? ""}#${st.call?.phase ?? ""}`;
     const tabs = st.tabs.map((t) => `${t.id}=${t.path}`).join("|");
     return `${tabs}#${st.activeTabId ?? ""}#${st.currentSessionId ?? ""}#${st.call?.phase ?? ""}`;
   });
@@ -496,6 +503,7 @@ export function DesktopProvider() {
     // reporting them told the shell the float was showing the main window's
     // channel, so a banner for that channel landed in the float.
     if (
+      scope ||
       isDetachedTabWindow() ||
       isSatelliteWindow() ||
       st.tabs.length === 0 ||
@@ -518,7 +526,13 @@ export function DesktopProvider() {
       open,
       inCall: inHuddle(st, walkie),
     });
-  }, [canReportWindowState, surfaceSig, location.pathname, location.search]);
+  }, [
+    canReportWindowState,
+    surfaceSig,
+    location.pathname,
+    location.search,
+    scope,
+  ]);
 
   // Desktop update detection: compare the running app version against the latest
   // published version (same-origin /api/desktop/latest). Poll on mount, on window

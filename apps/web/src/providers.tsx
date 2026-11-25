@@ -4,6 +4,11 @@ import { ReactNode, useRef } from "react";
 import { toast } from "sonner";
 import { captureException } from "@sentry/react";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
+import {
+  CLIENT_SYNC_REGISTRY,
+  REPLICATED_STORE_KEYS,
+} from "../store/clientSyncRegistry";
+import { observeDesktopStoreReads } from "../store/observe-desktop-store";
 import { desktopWindowKeys } from "../store/desktop-window-keys";
 import { subscribeGestures } from "../store/gestureBridge";
 import { applyBridgedGesture } from "../store/sync-replication";
@@ -160,41 +165,66 @@ if (import.meta.hot) {
 // Dev-only introspection, next to `window.__inboxStore`: the perf harness
 // (scripts/perf/ws-bytes.mjs) names socket traffic by asking the client which
 // query id maps to which function, instead of waiting for Add frames.
-if (import.meta.env.DEV && typeof window !== "undefined") {
+if (import.meta.env?.DEV && typeof window !== "undefined") {
   (window as any).__convexClient = convex;
   // Fire any toast from the console to check its face: __toast.success("Saved").
   (window as any).__toast = toast;
 }
 
-export function Providers({ children }: { children: ReactNode }) {
+if (import.meta.env?.DEV) {
+  const scope = desktopWindowKeys();
+  if (scope) {
+    const declared = new Set<string>(scope);
+    const missing = new Set(
+      [...Object.keys(CLIENT_SYNC_REGISTRY), ...REPLICATED_STORE_KEYS].filter(
+        (key) => !declared.has(key),
+      ),
+    );
+    const stop = observeDesktopStoreReads(missing, (key, caller) => {
+      if (missing.delete(key))
+        console.error(
+          `Desktop window read undeclared store key ${key} in ${caller}`,
+        );
+    });
+    import.meta.hot?.dispose(stop);
+  }
+}
+
+export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <CodecastAuthRoot client={convex}>
-      <ThemeProvider>
-        <ShortcutProvider>
-          <TipProvider>
-            {/* Docs shots capture what a person sees from an agent's tab, on an
-            origin holding only the fixture world; elsewhere no override. */}
-            <AgentTabOverride.Provider value={DOCS_SHOTS ? false : undefined}>
-              {children}
-            </AgentTabOverride.Provider>
-            <ErrorBoundary name="DesktopProvider" level="inline">
-              <DesktopProvider />
-              {desktopWindowKeys()?.includes("sessions") !== false && (
-                <DesktopBadge />
-              )}
-            </ErrorBoundary>
-            <ErrorBoundary name="OpenInDesktopHandoff" level="inline">
-              <OpenInDesktopHandoff />
-            </ErrorBoundary>
-            <KeyBindingsSync />
-            <GestureBridge />
-            <AnalyticsIdentify />
-            <ClientResourceTelemetry />
-            <DispatchFailureToast />
-            <Toaster position="bottom-right" />
-          </TipProvider>
-        </ShortcutProvider>
-      </ThemeProvider>
+      <Providers>{children}</Providers>
     </CodecastAuthRoot>
+  );
+}
+
+export function Providers({ children }: { children: ReactNode }) {
+  return (
+    <ThemeProvider>
+      <ShortcutProvider>
+        <TipProvider>
+          {/* Docs shots capture what a person sees from an agent's tab, on an
+            origin holding only the fixture world; elsewhere no override. */}
+          <AgentTabOverride.Provider value={DOCS_SHOTS ? false : undefined}>
+            {children}
+          </AgentTabOverride.Provider>
+          <ErrorBoundary name="DesktopProvider" level="inline">
+            <DesktopProvider />
+            {desktopWindowKeys()?.includes("sessions") !== false && (
+              <DesktopBadge />
+            )}
+          </ErrorBoundary>
+          <ErrorBoundary name="OpenInDesktopHandoff" level="inline">
+            <OpenInDesktopHandoff />
+          </ErrorBoundary>
+          <KeyBindingsSync />
+          <GestureBridge />
+          <AnalyticsIdentify />
+          <ClientResourceTelemetry />
+          <DispatchFailureToast />
+          <Toaster position="bottom-right" />
+        </TipProvider>
+      </ShortcutProvider>
+    </ThemeProvider>
   );
 }

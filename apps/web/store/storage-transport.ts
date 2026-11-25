@@ -82,18 +82,9 @@ export function replicationTransport(
 type Hello = Extract<ReplicationMessage, { type: "hello" }>;
 type Mut = Extract<ReplicationMessage, { type: "mut" }>;
 type ScopedHello = Hello & { keys: readonly string[] };
-type ScopeExtension = {
-  type: "extend";
-  from: string;
-  keys: readonly string[];
-  request: number;
-};
-type ScopeExtended = { type: "extended"; hostId: string; request: number };
-
 type ScopeSignal =
   | ScopedHello
   | Mut
-  | ScopeExtension
   | { type: "presence"; from: string; hostId: string }
   | { type: "rejoin"; to: string; hostId: string }
   | { type: "leave"; from: string }
@@ -104,7 +95,7 @@ const SCOPE_LEASE_MS = SCOPE_PULSE_MS * 3;
 
 function postScope(
   channel: BroadcastChannel,
-  message: ScopeSignal | ScopeExtended | ReplicationMessage,
+  message: ScopeSignal | ReplicationMessage,
 ) {
   try {
     channel.postMessage(message);
@@ -140,7 +131,10 @@ export function scopedHostChannel(
   return {
     channel: {
       onMessage(callback) {
-        const stop = legacy.onMessage(callback);
+        const stop = legacy.onMessage((message) => {
+          if (message.type === "hello" && peers.has(message.from)) return;
+          callback(message);
+        });
         const receive = ({ data }: MessageEvent<ScopeSignal>) => {
           if (data.type === "host" || data.type === "rejoin") return;
           if (data.type === "mut") {
@@ -156,17 +150,6 @@ export function scopedHostChannel(
           if (data.type === "presence") {
             if (!peer && data.hostId === hostId)
               postScope(control, { type: "rejoin", to: data.from, hostId });
-            return;
-          }
-          if (data.type === "extend") {
-            if (peer) {
-              for (const key of data.keys) peer.keys.add(key);
-              postScope(peer.channel, {
-                type: "extended",
-                hostId,
-                request: data.request,
-              });
-            }
             return;
           }
           if (data.type !== "hello" || !Array.isArray(data.keys)) return;
@@ -214,45 +197,16 @@ export function scopedHostChannel(
 export function scopedFollowerChannel(
   name: string,
   selfId: string,
-  keys: string[],
+  keys: readonly string[],
   legacyTransport: () => ReturnType<typeof replicationTransport>,
 ) {
   const control = new BroadcastChannel(`${name}:scope`);
   const addressed = new BroadcastChannel(`${name}:scope:${selfId}`);
   let legacy: ReturnType<typeof replicationTransport> | undefined;
   let fallback: ReturnType<typeof setTimeout> | undefined;
-  let hello: Hello | undefined;
+  let hello: ScopedHello | undefined;
   let modernHost: string | undefined;
   let receiver: ((message: ReplicationMessage) => void) | undefined;
-  let extensionNumber = 0;
-  const extensions = new Map<
-    number,
-    {
-      keys: readonly string[];
-      source: () => string | undefined;
-      done: () => void;
-    }
-  >();
-
-  const finishExtension = (request: number) => {
-    const extension = extensions.get(request);
-    if (!extension) return;
-    extensions.delete(request);
-    for (const key of extension.keys) if (!keys.includes(key)) keys.push(key);
-    extension.done();
-  };
-  const sendExtensions = () => {
-    for (const [request, extension] of extensions) {
-      if (extension.source() !== modernHost) continue;
-      postScope(control, {
-        type: "extend",
-        from: selfId,
-        keys: extension.keys,
-        request,
-      });
-    }
-  };
-
   const resetHost = (hostId: string) =>
     receiver?.({
       type: "update",
@@ -270,7 +224,6 @@ export function scopedFollowerChannel(
         legacy = legacyTransport();
         legacy.channel.onMessage((message) => receiver?.(message));
       }
-      for (const request of extensions.keys()) finishExtension(request);
       if (wasScoped) resetHost("");
       else if (hello) legacy.channel.post(hello);
     }, delay);
@@ -286,18 +239,11 @@ export function scopedFollowerChannel(
     refresh(SCOPE_LEASE_MS);
     postScope(control, { type: "presence", from: selfId, hostId: data.hostId });
     if (changed) {
-      if (hello) postScope(control, { ...hello, keys });
+      if (hello) postScope(control, hello);
       resetHost(data.hostId);
     }
-    sendExtensions();
   };
-  const onAddressed = ({
-    data,
-  }: MessageEvent<ReplicationMessage | ScopeExtended>) => {
-    if (data.type === "extended") {
-      if (data.hostId === modernHost) finishExtension(data.request);
-      return;
-    }
+  const onAddressed = ({ data }: MessageEvent<ReplicationMessage>) => {
     if (data.type !== "update" && data.type !== "snapshotChunk") return;
     if (
       data.type === "snapshotChunk" &&
@@ -311,7 +257,6 @@ export function scopedFollowerChannel(
       legacy = undefined;
     }
     receiver?.(data);
-    if (data.type === "snapshotChunk" && data.done) sendExtensions();
   };
   control.addEventListener("message", onControl);
   addressed.addEventListener("message", onAddressed);
@@ -321,9 +266,9 @@ export function scopedFollowerChannel(
     channel: {
       post(message) {
         if (message.type === "hello") {
-          hello = message;
-          postScope(control, { ...message, keys });
-          if (!modernHost) legacy?.channel.post(message);
+          hello = { ...message, keys };
+          postScope(control, hello);
+          if (!modernHost) legacy?.channel.post(hello);
         } else {
           if (message.type === "mut" && modernHost) {
             postScope(control, message);
@@ -341,17 +286,6 @@ export function scopedFollowerChannel(
         };
       },
     } satisfies ReplicationChannel,
-    hostId: () => modernHost,
-    extend(
-      additional: readonly string[],
-      source: () => string | undefined,
-      done: () => void,
-    ) {
-      const request = ++extensionNumber;
-      extensions.set(request, { keys: additional, source, done });
-      if (modernHost) sendExtensions();
-      else finishExtension(request);
-    },
     close() {
       clearTimeout(fallback);
       postScope(control, { type: "leave", from: selfId });

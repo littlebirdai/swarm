@@ -329,12 +329,21 @@ if (windowArg !== -1) {
 
 const fullFollower = await measureFollower();
 checkStoreBudget("Follower populated collections", fullFollower.collections);
-const smallFollower = await measureFollower(DESKTOP_WINDOW_KEYS.palette);
+const paletteFollower = await measureFollower(DESKTOP_WINDOW_KEYS.palette);
 checkStoreBudget(
   "Palette follower populated collections",
-  smallFollower.collections,
+  paletteFollower.collections,
 );
-checkStoreBudget("Palette follower join bytes", smallFollower.bytes);
+checkStoreBudget("Palette follower join bytes", paletteFollower.bytes);
+const callPanelFollower = await measureFollower(
+  DESKTOP_WINDOW_KEYS["call-panel"],
+);
+checkStoreBudget(
+  "Call panel follower populated collections",
+  callPanelFollower.collections,
+);
+checkStoreBudget("Call panel follower join bytes", callPanelFollower.bytes);
+
 useInboxStore.setState({ syncRole: "host" });
 const bytes = measureDetailRows();
 checkStoreBudget("Task list bytes", bytes.tasks);

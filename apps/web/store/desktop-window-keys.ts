@@ -4,8 +4,11 @@ import type { InboxStoreState } from "./inboxStore";
 type StoreKey = Extract<keyof InboxStoreState, string>;
 
 const appearance = [
+  "activeTabId",
+  "tabs",
   "clientState",
   "currentUser",
+  "pendingMessages",
   "mods",
   "settingsData",
 ] as const;
@@ -22,7 +25,6 @@ const inbox = [
   "sessionDecisions",
   "sessionReads",
   "pending",
-  "pendingMessages",
   "queuedMessages",
   "blockedReviveRequestedAt",
   "syncMeta",
@@ -47,7 +49,7 @@ const people = [
   "orgTree",
 ] as const;
 
-export const PALETTE_KEYS = [
+const PALETTE_KEYS = [
   ...appearance,
   ...inbox,
   ...people,
@@ -67,15 +69,16 @@ export const PALETTE_KEYS = [
   "opsEvents",
   "opsGroups",
   "opsReplays",
+  "opsReplayTallies",
   "opsSources",
   "opsWatches",
   "projects",
   "recentProjects",
   "recentProjectsByDevice",
   "recentVisits",
+  "repoBrowse",
   "savedViews",
   "sessionIndex",
-  "tabs",
   "tasks",
   "teamMachines",
   "userSkills",
@@ -92,12 +95,22 @@ export const DESKTOP_WINDOW_KEYS = {
   ],
   people: [...appearance, ...inbox, ...people, "bookmarks", "favorites"],
   "call-panel": [
-    ...appearance,
-    ...inbox,
-    ...people,
-    "bookmarks",
-    "favorites",
-    "mentionIndex",
+    ...PALETTE_KEYS,
+    "_lastViewedAt",
+    "anchors",
+    "commits",
+    "decisionStacks",
+    "docDetails",
+    "lineDeploys",
+    "orgProposals",
+    "orgProposalChanges",
+    "pendingMessageStatus",
+    "pullRequests",
+    "pullRequestDetails",
+    "reviewComments",
+    "sessionCommands",
+    "teamDeploys",
+    "workflows",
   ],
   "agent-dock": [
     ...appearance,

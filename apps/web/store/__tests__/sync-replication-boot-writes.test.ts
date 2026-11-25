@@ -1,7 +1,7 @@
 // Run with `bun test --isolate`: this file installs its own JSDOM window, and a store
 // module loaded earlier in the same process keeps its pagehide flush on another window.
 import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
-import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import { createReplicationHost } from "@platform/engine";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { JSDOM } from "jsdom";
@@ -77,7 +77,7 @@ await openCache();
 const { rebootPersistence, useInboxStore } = await import("../inboxStore");
 const { replicationChannelName, replicationLockName, replicationTransport } =
   await import("../storage-transport");
-const { startSyncReplication, stopSyncReplication } =
+const { applyBridgedGesture, startSyncReplication, stopSyncReplication } =
   await import("../sync-replication");
 await waitFor(() => !hydration._hydrating);
 
@@ -214,6 +214,53 @@ test("a scoped palette still journals offline writes in the outbox", async () =>
     const outbox = await db.dispatchOutbox.toArray();
     expect(outbox.map(({ action }) => action)).toEqual(["renameSession"]);
     expect(state().sessions[row._id]?.title).toBe("Edited offline");
+  } finally {
+    Reflect.deleteProperty(dom.window, "__CODECAST_ELECTRON__");
+    dom.reconfigure({ url: previousUrl });
+  }
+});
+
+test("a scoped window leaves shared disk rows alone in solo mode", async () => {
+  holdHostLock();
+  const cached = { _id: "cached-doc", title: "Full window's cached document" };
+  await docs.put(cached);
+  const timers = spyOn(globalThis, "setTimeout");
+  try {
+    await bootCache();
+    startSyncReplication({
+      eligible: false,
+      principalId: TEST_PRINCIPAL,
+      keys: ["sessions"],
+    });
+    const fallback = timers.mock.calls.find(([, delay]) => delay === 8000)?.[0];
+    expect(fallback).toBeDefined();
+    if (typeof fallback === "function") fallback();
+    state().syncTable("docs", [
+      { _id: "local-doc", title: "A route feeder result" },
+    ]);
+    await drainWrites();
+    expect(await docs.toArray()).toEqual([cached]);
+  } finally {
+    timers.mockRestore();
+  }
+});
+
+test("a window without sessions ignores session undo gestures", () => {
+  const previousUrl = dom.window.location.href;
+  dom.reconfigure({ url: "https://example.test/meeting-offer" });
+  Object.defineProperty(dom.window, "__CODECAST_ELECTRON__", {
+    configurable: true,
+    value: {},
+  });
+  const row = cachedSessions()[0];
+  try {
+    applyBridgedGesture({
+      kind: "unforget",
+      rows: [{ id: row._id, sessions: row, conversations: row }],
+      ts: Date.now(),
+    });
+    expect(state().sessions[row._id]).toBeUndefined();
+    expect(state().conversations[row._id]).toBeUndefined();
   } finally {
     Reflect.deleteProperty(dom.window, "__CODECAST_ELECTRON__");
     dom.reconfigure({ url: previousUrl });

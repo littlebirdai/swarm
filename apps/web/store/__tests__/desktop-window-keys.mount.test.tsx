@@ -1,23 +1,28 @@
 import { expect, test } from "bun:test";
+import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { useConvex } from "convex/react";
 import { makeFunctionReference } from "convex/server";
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { AgentDock } from "../../components/agentDock/AgentDock";
-import { DesktopBadge } from "../../components/DesktopBadge";
-import { ThemeProvider } from "../../components/ThemeProvider";
+import { Providers } from "../../src/providers";
+import { requestCallThread } from "../../lib/calls/callStage";
+import {
+  getDesktopWindowRole,
+  type DesktopWindowRole,
+} from "../../lib/desktop";
+import type { MeetingOffer } from "../../lib/desktopMeetings";
+import { session } from "./bucketFixtures";
 import { AUTH_JWT_STORAGE_KEY } from "../../lib/localAuth";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { pending } from "../../test-helpers/testConvex";
 import { waitForDom } from "../../test-helpers/waitForDom";
-import {
-  DESKTOP_WINDOW_KEYS,
-  PALETTE_KEYS,
-  desktopWindowKeys,
-} from "../desktop-window-keys";
+import { DESKTOP_WINDOW_KEYS, desktopWindowKeys } from "../desktop-window-keys";
 import {
   CLIENT_SYNC_REGISTRY,
   REPLICATED_STORE_KEYS,
 } from "../clientSyncRegistry";
 import { useInboxStore } from "../inboxStore";
+import { observeDesktopStoreReads } from "../observe-desktop-store";
 import { flushSyncPublishes } from "../syncTransaction";
 
 const windows = {
@@ -30,8 +35,33 @@ const windows = {
   "share-cursors": () => import("../../app/share-cursors/page"),
 } as const;
 
+function PaletteAuth({ children }: { children: ReactNode }) {
+  const client = useConvex();
+  return (
+    <ConvexAuthProvider client={client} storageNamespace="palette">
+      {children}
+    </ConvexAuthProvider>
+  );
+}
+
+const roomKey = "room:test";
+const docId = "d".repeat(32);
+const pinRef = `doc:${docId}`;
+const notifications = makeFunctionReference<"query">("notifications:list");
 const queries = [
+  "callRecordings:getRoomRecordingEnd",
+  "entities:resolveIdType",
+  "tasks:webGet",
+  "taskMining:webGetDocDetail",
+  "transcripts:getLive",
+  "callChat:list",
+  "callGuests:listGuestLinks",
+  "callStage:listPins",
   "org:roles",
+  "org:tree",
+  "orgProposals:get",
+  "replays:browse",
+  "repos:listRepositories",
   "users:getMySkills",
   "devices:listDevices",
   "users:getRecentProjectPaths",
@@ -50,66 +80,78 @@ const queries = [
   "users:getCurrentUser",
 ];
 
-for (const windowKind of Object.keys(windows) as (keyof typeof windows)[]) {
-  test(`${windowKind} store reads`, async () => {
+for (const kind of [...Object.keys(windows), "voice-host"] as (
+  | keyof typeof windows
+  | "voice-host"
+)[]) {
+  const windowKind = kind === "voice-host" ? "call-panel" : kind;
+  test(`${kind} store reads`, async () => {
     const Page = (await windows[windowKind]()).default;
     const reads = new Map<string, string>();
-    const observed = new Map<object, PropertyDescriptorMap>();
-    let renderer: Window | undefined;
+    let offer: ((meeting: MeetingOffer) => void) | undefined;
+    let restoreWindowRole: (() => void) | undefined;
+    const badges: number[] = [];
+    const banners: string[] = [];
     const keys = new Set<string>([
       ...Object.keys(CLIENT_SYNC_REGISTRY),
       ...REPLICATED_STORE_KEYS,
     ]);
-    const observe = (state: ReturnType<typeof useInboxStore.getState>) => {
-      if (observed.has(state)) return;
-      const properties: PropertyDescriptorMap = {};
-      observed.set(state, properties);
-      for (const key of keys) {
-        const property = Object.getOwnPropertyDescriptor(state, key);
-        if (!property || !("value" in property) || !property.configurable)
-          continue;
-        properties[key] = property;
-        Object.defineProperty(state, key, {
-          configurable: true,
-          enumerable: property.enumerable,
-          get() {
-            const caller = new Error().stack?.split("\n")[2] ?? "";
-            const relative = caller.split("/apps/web/")[1];
-            if (
-              globalThis.window === renderer &&
-              relative &&
-              !relative.startsWith("store/")
-            )
-              reads.set(key, relative.replace(/\)$/, ""));
-            return property.value;
-          },
-        });
-      }
-    };
     let stop: (() => void) | undefined;
     let web: Awaited<ReturnType<typeof mountWeb>> | undefined;
     try {
-      web = await mountWeb(
-        <ThemeProvider>
+      const content = (
+        <Providers>
           <Page />
-          {windowKind === "agent-dock" && <AgentDock />}
-          {DESKTOP_WINDOW_KEYS[windowKind].some(
-            (key) => key === "sessions",
-          ) && <DesktopBadge />}
-        </ThemeProvider>,
+          {kind === "agent-dock" && <AgentDock />}
+        </Providers>
+      );
+      web = await mountWeb(
+        kind === "palette" ? <PaletteAuth>{content}</PaletteAuth> : content,
         {
-          authenticated: true,
-          path: `/${windowKind}`,
+          authenticated: kind !== "palette",
+          dispatch: true,
+          path:
+            kind === "call-panel"
+              ? `/call-panel?room=${roomKey}&ring=1`
+              : `/${windowKind}`,
           setup(backend) {
-            renderer = window;
             backend.mutation(
               makeFunctionReference<"mutation">("dispatch:dispatch"),
               undefined,
             );
+            backend.mutation(
+              makeFunctionReference<"mutation">("pushRouter:reportPresence"),
+              undefined,
+            );
+            backend.mutation(
+              makeFunctionReference<"mutation">(
+                "users:requestTerminalEndpoints",
+              ),
+              undefined,
+            );
             for (const query of queries)
               backend.set(makeFunctionReference<"query">(query), pending);
+            backend.set(notifications, []);
             Object.defineProperty(window, "__CODECAST_ELECTRON__", {
-              value: {},
+              value: {
+                isCallPanelWindow: windowKind === "call-panel",
+                onWindowRole: (
+                  callback: (role: Partial<DesktopWindowRole>) => void,
+                ) => {
+                  const previousRole = getDesktopWindowRole();
+                  restoreWindowRole = () => callback(previousRole);
+                  callback({ facesOverlay: kind === "voice-host" });
+                },
+                ...(kind === "voice-host" ? { voiceHostReady() {} } : {}),
+                onMeetingDetected: (callback: typeof offer) => {
+                  offer = callback;
+                },
+                setBadgeCount: (count: number) => badges.push(count),
+                showNotification: (title: string) => {
+                  banners.push(title);
+                  return { shown: true };
+                },
+              },
             });
             expect(desktopWindowKeys()).toBe(DESKTOP_WINDOW_KEYS[windowKind]);
             localStorage.setItem(AUTH_JWT_STORAGE_KEY, "fixture-jwt");
@@ -117,8 +159,66 @@ for (const windowKind of Object.keys(windows) as (keyof typeof windows)[]) {
               clientStateInitialized: true,
               syncRole: "follower",
             });
-            observe(useInboxStore.getState());
-            stop = useInboxStore.subscribe(observe);
+            if (kind === "palette") {
+              const claims = Buffer.from(
+                JSON.stringify({
+                  sub: "palette-viewer|test",
+                  iat: 1,
+                  exp: 3601,
+                }),
+              ).toString("base64url");
+              localStorage.setItem(
+                "__convexAuthJWT_palette",
+                `eyJhbGciOiJIUzI1NiJ9.${claims}.test`,
+              );
+              useInboxStore.setState({
+                currentUser: { _id: "palette-viewer" },
+              });
+            }
+            const state = useInboxStore.getState();
+            if (windowKind === "call-panel")
+              useInboxStore.setState({
+                call: { ...state.call, phase: "connected", roomKey },
+              });
+            if (kind === "call-panel") {
+              state.syncTable("callStagePins", [
+                {
+                  _id: "pin",
+                  room_key: roomKey,
+                  ref: pinRef,
+                  kind: "doc",
+                  doc_id: docId,
+                  title: "Pinned fixture",
+                  readable: true,
+                  at: 1,
+                },
+              ]);
+              requestCallThread();
+            }
+            if (kind === "call-ring")
+              useInboxStore.setState({
+                myCalls: {
+                  incoming: [
+                    {
+                      _id: "ring",
+                      room_key: roomKey,
+                      from_name: "Fixture caller",
+                    },
+                  ],
+                  outgoing: [],
+                  membership: null,
+                },
+              });
+            if (kind === "agent-dock")
+              state.syncTable("sessions", [
+                session("dock-session", {
+                  title: "Fixture dock card",
+                  is_idle: false,
+                }),
+              ]);
+            stop = observeDesktopStoreReads(keys, (key, caller) =>
+              reads.set(key, caller),
+            );
           },
         },
       );
@@ -140,6 +240,22 @@ for (const windowKind of Object.keys(windows) as (keyof typeof windows)[]) {
       if (windowKind === "palette") {
         reads.clear();
         const window = web.dom.window;
+        const input =
+          window.document.querySelector<HTMLInputElement>("[cmdk-input]")!;
+        expect(input).not.toBeNull();
+        const setInputValue = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          "value",
+        )?.set;
+        await act(async () => {
+          setInputValue?.call(input, "replays");
+          input.dispatchEvent(new window.Event("input", { bubbles: true }));
+        });
+        expect(window.document.body.textContent).toContain("Ops: Replays");
+        await checkReads(declared);
+        expect(reads.has("opsReplayTallies")).toBe(true);
+        expect(reads.has("repoBrowse")).toBe(true);
+        reads.clear();
         await act(async () => {
           window.dispatchEvent(
             new window.CustomEvent("codecast-compose", { detail: "" }),
@@ -155,21 +271,132 @@ for (const windowKind of Object.keys(windows) as (keyof typeof windows)[]) {
         ])
           expect(reads.has(key)).toBe(true);
       }
-      if (windowKind === "call-panel") {
-        await act(async () => web?.store.getState().openPalette());
-        const container = web.container;
-        await waitForDom(
-          container,
-          () => !!container.querySelector('[aria-label="Command menu"]'),
+      if (kind === "call-panel") {
+        const body = web.dom.window.document.body;
+        const pin = body.querySelector<HTMLButtonElement>(
+          'button[aria-label="Pin to the stage"]',
         );
-        await checkReads([...declared, ...PALETTE_KEYS]);
+        expect(pin).not.toBeNull();
+        await act(async () => pin?.click());
+        expect(
+          body.querySelector('[role="dialog"][aria-label="Pin to the stage"]'),
+        ).not.toBeNull();
+        expect(
+          body.querySelector(`[data-stage-pin="${pinRef}"]`),
+        ).not.toBeNull();
+        const objectId = "t".repeat(32);
+        await act(async () => {
+          if (!web) return;
+          web.store.getState().dropRows("callStagePins", ["pin"]);
+          web.store.getState().syncTable("callStagePins", [
+            {
+              _id: "object-pin",
+              room_key: roomKey,
+              ref: objectId,
+              kind: "object",
+              title: "Pinned task",
+              readable: true,
+              at: 2,
+            },
+          ]);
+          web.store.getState().openPalette();
+        });
+        await waitForDom(
+          body,
+          () => !!body.querySelector('[aria-label="Command menu"]'),
+        );
+        expect(
+          body.querySelector(`[data-stage-pin="${objectId}"]`),
+        ).not.toBeNull();
+        expect(
+          body.querySelector('[aria-label="Close the thread"]'),
+        ).not.toBeNull();
+        await checkReads(declared);
+        await act(async () => {
+          const store = useInboxStore.getState();
+          store.syncTable("orgProposals", [
+            {
+              _id: "proposal",
+              short_id: "op-42",
+              title: "Pinned proposal",
+              author: { kind: "user", id: "u1", name: "Sam" },
+            },
+          ]);
+          store.dropRows("callStagePins", ["object-pin"]);
+          store.syncTable("callStagePins", [
+            {
+              _id: "proposal-pin",
+              room_key: roomKey,
+              ref: "op-42",
+              kind: "object",
+              title: "Pinned proposal",
+              readable: true,
+              at: 3,
+            },
+          ]);
+        });
+        expect(
+          body.querySelector('[data-proposal-card="op-42"]'),
+        ).not.toBeNull();
+        await checkReads(declared);
+        expect(reads.has("orgProposalChanges")).toBe(true);
       }
-      expect(web.navigationLog[0]?.path).toBe(`/${windowKind}`);
+      if (kind === "voice-host")
+        expect(
+          web.dom.window.document.querySelector(".voice-float-window"),
+        ).not.toBeNull();
+      if (kind === "people") {
+        const msgId = "m".repeat(32);
+        const channelId = "c".repeat(32);
+        useInboxStore
+          .getState()
+          .syncTable("chatMessages", [{ _id: msgId, channel_id: channelId }]);
+        await act(async () =>
+          web?.backend.set(notifications, [
+            {
+              _id: "notification",
+              created_at: Date.now(),
+              type: "chat_mention",
+              entity_type: "chat_channel",
+              entity_id: channelId,
+              chat_message_id: msgId,
+              message: "Fixture chat banner",
+              read: false,
+            },
+          ]),
+        );
+        expect(banners.length).toBe(1);
+      }
+      if (kind === "call-ring")
+        expect(web.container.textContent).toContain("Fixture caller");
+      if (kind === "meeting-offer") {
+        await act(async () =>
+          offer?.({
+            app: "zoom",
+            name: "Fixture meeting",
+            decision: "ask",
+            at: Date.now(),
+          }),
+        );
+        expect(web.container.textContent).toContain("Fixture meeting");
+      }
+      if (kind === "agent-dock") {
+        const card = web.container.querySelector<HTMLButtonElement>(
+          '[title="Fixture dock card"]',
+        );
+        expect(card).not.toBeNull();
+        await act(async () => card?.click());
+        expect(web.container.querySelector(".dock-card")).not.toBeNull();
+      }
+      await checkReads(declared);
+      expect(badges.length > 0).toBe(
+        declared.some((key) => key === "sessions"),
+      );
+      expect(web.navigationLog[0]?.path.split("?")[0]).toBe(`/${windowKind}`);
     } finally {
       stop?.();
-      for (const [state, properties] of observed)
-        Object.defineProperties(state, properties);
       await web?.close();
+      restoreWindowRole?.();
     }
   });
 }

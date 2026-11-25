@@ -70,14 +70,7 @@ export type SyncReplicationStatus = {
 let running: {
   stop: () => void;
   status: () => SyncReplicationStatus;
-  expand: (keys: readonly string[]) => Promise<boolean>;
 } | null = null;
-
-export function expandWindowReplication(
-  keys: readonly string[],
-): Promise<boolean> {
-  return running?.expand(keys) ?? Promise.resolve(true);
-}
 
 /** Stop this window's replication now, whatever role it held: channel closed,
  *  lock released, write-through restored. The account boundary calls this
@@ -345,7 +338,6 @@ export function replicationFollowerFor(
   channel: ReplicationChannel,
   onSynced: (synced: boolean) => void,
   keys: readonly string[] = REPLICATED_STORE_KEYS,
-  ownOrigin = selfId,
 ): ReplicationFollower {
   const filteredChannel: ReplicationChannel = {
     post: channel.post,
@@ -357,7 +349,6 @@ export function replicationFollowerFor(
         }
         handler({
           ...message,
-          origin: message.origin === ownOrigin ? selfId : message.origin,
           updates: message.updates.filter(({ key }) => keys.includes(key)),
         });
       }),
@@ -690,61 +681,6 @@ export function startSyncReplication(opts: {
 
   if (opts.eligible && !keys) lock.request(() => stopped, becomeElectedHost);
 
-  const expanded = new Map<string, Promise<boolean>>();
-  const expansions: Array<() => void> = [];
-  const expand = (requested: readonly string[]) => {
-    if (!keys || !scoped) return Promise.resolve(true);
-    const missing = requested.filter(
-      (key) => isReplicated(key) && !keys.includes(key),
-    );
-    const newKeys = [...new Set(missing.filter((key) => !expanded.has(key)))];
-    if (newKeys.length) {
-      const id = `${selfId}:growth:${expansions.length}`;
-      const scope = scopedFollowerChannel(name, id, newKeys, () =>
-        replicationTransport(name, id),
-      );
-      const ready = Promise.withResolvers<boolean>();
-      const fallback = setTimeout(() => {
-        if (!scoped.hostId() && !follower?.synced()) ready.resolve(true);
-      }, SOLO_FALLBACK_MS);
-      let extending = false;
-      let closed = false;
-      const close = () => {
-        if (closed) return;
-        closed = true;
-        clearTimeout(fallback);
-        extra.stop();
-        scope.close();
-      };
-      const extra = replicationFollowerFor(
-        id,
-        scope.channel,
-        (synced) => {
-          if (!synced || extending) return;
-          extending = true;
-          scoped.extend(
-            newKeys,
-            () => (extra.synced() ? scope.hostId() : undefined),
-            () => {
-              close();
-              ready.resolve(true);
-            },
-          );
-        },
-        newKeys,
-        selfId,
-      );
-      for (const key of newKeys) expanded.set(key, ready.promise);
-      expansions.push(() => {
-        close();
-        ready.resolve(false);
-      });
-    }
-    return Promise.all(missing.map((key) => expanded.get(key))).then(
-      (results) => results.every(Boolean),
-    );
-  };
-
   const stop = () => {
     if (stopped) return;
     stopped = true;
@@ -752,7 +688,6 @@ export function startSyncReplication(opts: {
     follower?.stop();
     host?.stop();
     closeScopeHost?.();
-    for (const close of expansions) close();
     lock.release();
     transport.close();
     const internals = useInboxStore.getState() as any;
@@ -766,7 +701,6 @@ export function startSyncReplication(opts: {
 
   running = {
     stop,
-    expand,
     status: () => ({
       principalId: opts.principalId,
       role: useInboxStore.getState().syncRole,

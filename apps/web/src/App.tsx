@@ -8,7 +8,7 @@ import {
   loadFlowSettingsPage,
   loadFlowsPage,
 } from "./earlyRoutes";
-import { Providers } from "./providers";
+import { AppProviders as Providers } from "./providers";
 import { TransparentWindowLayout } from "./layouts/TransparentWindowLayout";
 import { SettingsLayout } from "./layouts/SettingsLayout";
 import DashboardShell from "./layouts/DashboardShell";
