@@ -9,7 +9,7 @@ export type CountChange = {
 
 export type DiagnosticSpans = Map<
   string,
-  { source: string; rules: Map<string, string[]> }
+  { source: string; rules: Map<string, DiagnosticLines[]> }
 >;
 
 type FlowNode = FlowEdge[];
@@ -54,23 +54,42 @@ function fillTransfers(source: FlowNode, sink: FlowNode) {
   }
 }
 
-function countSpans(texts: string[], subtract: string[] = []) {
-  const counts = new Map<string, number>();
-  for (const text of texts) counts.set(text, (counts.get(text) ?? 0) + 1);
-  for (const text of subtract) counts.set(text, (counts.get(text) ?? 0) - 1);
+function countSpans(
+  spans: DiagnosticLines[],
+  subtract: DiagnosticLines[] = [],
+) {
+  const counts = new Map<string, { lines: DiagnosticLines; count: number }>();
+  for (const [entries, delta] of [
+    [spans, 1],
+    [subtract, -1],
+  ] as const) {
+    for (const lines of entries) {
+      const key = JSON.stringify([lines.text, lines.previous, lines.next]);
+      const entry = counts.get(key) ?? { lines, count: 0 };
+      entry.count += delta;
+      counts.set(key, entry);
+    }
+  }
   return counts;
 }
 
 function countSourceOccurrences(source: string, text: string): number {
+  const target = `\n${text}\n`;
   let count = 0;
-  for (let offset = source.indexOf(text); offset !== -1;) {
-    const end = offset + text.length;
-    const complete =
-      !text.startsWith("//") || end === source.length || source[end] === "\n";
-    if (complete) count++;
-    offset = source.indexOf(text, complete ? end : offset + 1);
-  }
+  for (
+    let offset = source.indexOf(target);
+    offset !== -1;
+    offset = source.indexOf(target, offset + 1)
+  )
+    count++;
   return count;
+}
+
+function spanKeys(rule: string, { text, previous, next }: DiagnosticLines) {
+  return [
+    ...(previous ? [JSON.stringify([rule, text, "previous", previous])] : []),
+    ...(next ? [JSON.stringify([rule, text, "next", next])] : []),
+  ];
 }
 
 export function matchLintTransfers(
@@ -86,13 +105,16 @@ export function matchLintTransfers(
   const destinations = requests.map((request) => {
     const { file, rule, before, after } = request;
     const destination: FlowNode = [];
-    for (const [text, count] of countSpans(
+    for (const { lines, count } of countSpans(
       afterSpans.get(file)?.rules.get(rule) ?? [],
-    )) {
-      const signature = JSON.stringify([rule, text]);
-      let node = signatures.get(signature);
-      if (!node) signatures.set(signature, (node = []));
-      connect(node, destination, count);
+    ).values()) {
+      const occurrence: FlowNode = [];
+      connect(occurrence, destination, count);
+      for (const signature of spanKeys(rule, lines)) {
+        let node = signatures.get(signature);
+        if (!node) signatures.set(signature, (node = []));
+        connect(node, occurrence, count);
+      }
     }
     return { request, edge: connect(destination, sink, after - before) };
   });
@@ -107,13 +129,25 @@ export function matchLintTransfers(
       previous.rules.get(rule) ?? [],
       current?.rules.get(rule) ?? [],
     );
-    for (const [text, count] of dropped) {
-      const signature = signatures.get(JSON.stringify([rule, text]));
-      if (count <= 0 || !signature) continue;
-      const removed =
-        countSourceOccurrences(previous.source, text) -
-        countSourceOccurrences(current?.source ?? "", text);
-      if (removed > 0) connect(donor, signature, Math.min(count, removed));
+    const removedLines = new Map<string, FlowNode>();
+    for (const { lines, count } of dropped.values()) {
+      if (count <= 0) continue;
+      const matches = spanKeys(rule, lines).flatMap((key) =>
+        signatures.has(key) ? [signatures.get(key)!] : [],
+      );
+      if (!matches.length) continue;
+      let line = removedLines.get(lines.text);
+      if (!line) {
+        line = [];
+        removedLines.set(lines.text, line);
+        const removed =
+          countSourceOccurrences(previous.source, lines.text) -
+          countSourceOccurrences(current?.source ?? "", lines.text);
+        connect(donor, line, removed);
+      }
+      const occurrence: FlowNode = [];
+      connect(line, occurrence, count);
+      for (const signature of matches) connect(occurrence, signature, count);
     }
   }
 
@@ -191,3 +225,4 @@ export function staleFiles(
     .filter((file) => !exists(file))
     .sort();
 }
+import type { DiagnosticLines } from "./oxlint";

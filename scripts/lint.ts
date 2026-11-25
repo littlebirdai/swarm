@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -14,7 +14,7 @@ import {
 } from "./lib/lint-baseline";
 import {
   LINT_ROOT,
-  diagnosticSpanText,
+  diagnosticLines,
   lintLocation,
   lintSourceText,
   oxlintCommand,
@@ -24,6 +24,29 @@ import {
 
 const baselineName = "lint-baseline.json";
 const baselinePath = path.join(LINT_ROOT, baselineName);
+
+function exactFileLookup(root: string) {
+  const directories = new Map<string, Set<string>>();
+  return (file: string): boolean => {
+    let dir = root;
+    for (const name of file.split("/")) {
+      let entries = directories.get(dir);
+      if (!entries) {
+        try {
+          entries = new Set(readdirSync(dir));
+        } catch (error) {
+          const code = (error as NodeJS.ErrnoException).code;
+          if (code !== "ENOENT" && code !== "ENOTDIR") throw error;
+          entries = new Set();
+        }
+        directories.set(dir, entries);
+      }
+      if (!entries.has(name)) return false;
+      dir = path.join(dir, name);
+    }
+    return true;
+  };
+}
 
 function readBaseline(contents: string): LintCounts {
   const value: unknown = JSON.parse(contents);
@@ -124,22 +147,27 @@ async function readSpans(
 ): Promise<DiagnosticSpans> {
   const spans: DiagnosticSpans = new Map();
   const sources = new Map<string, Buffer>();
+  const exists = exactFileLookup(cwd);
   for (const file of files) {
-    const input = Bun.file(path.join(cwd, file));
-    if (!(await input.exists())) continue;
-    const source = Buffer.from(await input.arrayBuffer());
+    if (!exists(file)) continue;
+    const source = Buffer.from(
+      await Bun.file(path.join(cwd, file)).arrayBuffer(),
+    );
     sources.set(file, source);
-    spans.set(file, { source: lintSourceText(source), rules: new Map() });
+    spans.set(file, {
+      source: `\n${lintSourceText(source)}\n`,
+      rules: new Map(),
+    });
   }
   for (const diagnostic of diagnostics) {
     const { file, rule } = locateDiagnostic(diagnostic, cwd);
     const source = sources.get(file);
     if (!source) continue;
-    const text = diagnosticSpanText(diagnostic, source);
-    if (text === undefined) continue;
+    const lines = diagnosticLines(diagnostic, source);
+    if (lines === undefined) continue;
     const { rules } = spans.get(file)!;
     const texts = rules.get(rule) ?? [];
-    texts.push(text);
+    texts.push(lines);
     rules.set(rule, texts);
   }
   return spans;
@@ -183,7 +211,7 @@ async function checkBase(
   current: LintCounts,
   diagnostics: OxlintDiagnostic[],
   renames: Array<[string, string]>,
-  pruneLocalTransfers: boolean,
+  prune: boolean,
 ) {
   const actual = compareLintCounts(base, current);
   const saved = compareLintCounts(base, baseline);
@@ -197,15 +225,23 @@ async function checkBase(
     const basePaths = new Set(
       git(["ls-tree", "-r", "--name-only", "-z", sha]).toString().split("\0"),
     );
+    const changed = new Set(
+      git(["diff", "--no-renames", "--name-only", "-z", sha])
+        .toString()
+        .split("\0"),
+    );
     const oldPaths = new Map(renames.map(([from, to]) => [to, from]));
     for (const { file } of candidates) {
       if (!basePaths.has(file) && !oldPaths.has(file)) eligible.add(file);
     }
     const requests = actual.grew.filter(({ file }) => eligible.has(file));
+    matched = requests;
     const rules = new Set(requests.map(({ rule }) => rule));
     const donations = actual.shrank.filter(
       ({ file, rule }) =>
-        rules.has(rule) && basePaths.has(oldPaths.get(file) ?? file),
+        rules.has(rule) &&
+        basePaths.has(oldPaths.get(file) ?? file) &&
+        changed.has(oldPaths.get(file) ?? file),
     );
     if (donations.length) {
       const files = new Map(
@@ -219,31 +255,58 @@ async function checkBase(
       );
       matched = matchLintTransfers(donations, requests, before, after);
 
-      const savedDonations = donations
-        .map((change) => ({
-          ...change,
-          after: Math.max(
-            change.after,
-            baseline[change.file]?.[change.rule] ?? 0,
-          ),
-        }))
-        .filter(({ before, after }) => before > after);
-      const savedRequests = saved.grew.filter(({ file }) => eligible.has(file));
-      savedGrowth = [
-        ...saved.grew.filter(({ file }) => !eligible.has(file)),
-        ...matchLintTransfers(savedDonations, savedRequests, before, after),
-      ];
+      if (!prune && matched.every(({ before, after }) => before === after)) {
+        const savedDonations = donations
+          .map((change) => ({
+            ...change,
+            after: Math.max(
+              change.after,
+              baseline[change.file]?.[change.rule] ?? 0,
+            ),
+          }))
+          .filter(({ before, after }) => before > after);
+        const savedRequests = saved.grew.filter(({ file }) =>
+          eligible.has(file),
+        );
+        savedGrowth = [
+          ...saved.grew.filter(({ file }) => !eligible.has(file)),
+          ...matchLintTransfers(savedDonations, savedRequests, before, after),
+        ];
+      }
     }
   }
 
   const rejected = savedGrowth.filter(
-    ({ file, before, after }) =>
-      before < after && !(pruneLocalTransfers && eligible.has(file)),
+    ({ file, before, after }) => before < after && !eligible.has(file),
   );
   for (const { file, rule, before, after } of rejected) {
     console.error(`Baseline grew for ${file} [${rule}]: ${before} → ${after}.`);
   }
   if (rejected.length) throw new Error("The lint baseline can only shrink.");
+
+  const runtimeFailures = matched.some(({ before, after }) => before < after);
+  if (!prune && !runtimeFailures) {
+    const mismatch = compareLintCounts(baseline, current);
+    const unsaved = new Set(
+      [
+        ...savedGrowth.filter(
+          ({ file, before, after }) => eligible.has(file) && before < after,
+        ),
+        ...[...mismatch.grew, ...mismatch.shrank].filter(({ file }) =>
+          eligible.has(file),
+        ),
+      ].map(({ file, rule }) => `${file} [${rule}]`),
+    );
+    if (unsaved.size) {
+      for (const location of unsaved)
+        console.error(
+          `Baseline counts do not match the transfer for ${location}.`,
+        );
+      throw new Error(
+        "Run bun run lint:prune to record the lint baseline transfers.",
+      );
+    }
+  }
 
   const allowed: LintCounts = Object.assign(Object.create(null), baseline);
   for (const file of eligible) delete allowed[file];
@@ -259,9 +322,7 @@ async function main(prune: boolean) {
     git(["diff", "--find-renames", "--name-status", "-z", sha]).toString(),
   );
   const onDisk = readBaseline(await Bun.file(baselinePath).text());
-  const stale = staleFiles(onDisk, (file) =>
-    existsSync(path.join(LINT_ROOT, file)),
-  );
+  const stale = staleFiles(onDisk, exactFileLookup(LINT_ROOT));
   const baseline = carryRenames(onDisk, renames);
   const baseCounts = baseBaseline(sha);
 
@@ -281,7 +342,7 @@ async function main(prune: boolean) {
         current,
         diagnostics,
         renames,
-        prune && !process.env.LINT_BASE_SHA,
+        prune,
       )
     : baseline;
   const { grew, pruned } = compareLintCounts(allowed, current);

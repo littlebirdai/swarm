@@ -7,7 +7,7 @@ import {
   staleFiles,
   type DiagnosticSpans,
 } from "./lint-baseline";
-import { diagnosticSpanText } from "./oxlint";
+import { diagnosticLines } from "./oxlint";
 
 test("reports a count that grew", () => {
   const { grew } = compareLintCounts(
@@ -127,8 +127,13 @@ function spans(
     Object.entries(entries).map(([file, rules]) => [
       file,
       {
-        source: Object.values(rules).flat().join("\n"),
-        rules: new Map(Object.entries(rules)),
+        source: "\n" + Object.values(rules).flat().join("\n") + "\n",
+        rules: new Map(
+          Object.entries(rules).map(([rule, texts]) => [
+            rule,
+            texts.map((text) => ({ text, next: "context" })),
+          ]),
+        ),
       },
     ]),
   );
@@ -197,12 +202,13 @@ test("shares each donor budget across files and reassigns overlapping matches", 
   ).toBe(1);
 });
 
-test("extracts UTF-8 byte spans and trims each line", () => {
+test("extracts whole trimmed lines and nonblank neighbors from UTF-8 spans", () => {
   const prefix = 'const name = "é🙂"; ';
   const span = "/* héllo\r\n    * world  \r\n    */";
-  const source = Buffer.from(prefix + span + "\n");
+  const header = "  before  \r\n\r\n";
+  const source = Buffer.from(header + prefix + span + "\n\n  after  \n");
   expect(
-    diagnosticSpanText(
+    diagnosticLines(
       {
         severity: "error",
         message: "Code comments are forbidden.",
@@ -210,7 +216,7 @@ test("extracts UTF-8 byte spans and trims each line", () => {
           {
             span: {
               line: 1,
-              offset: Buffer.byteLength(prefix),
+              offset: Buffer.byteLength(header + prefix),
               length: Buffer.byteLength(span),
             },
           },
@@ -218,5 +224,9 @@ test("extracts UTF-8 byte spans and trims each line", () => {
       },
       source,
     ),
-  ).toBe("/* héllo\n* world\n*/");
+  ).toEqual({
+    text: prefix + "/* héllo\n* world\n*/",
+    previous: "before",
+    next: "after",
+  });
 });

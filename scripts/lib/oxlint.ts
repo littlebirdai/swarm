@@ -10,10 +10,33 @@ export type OxlintDiagnostic = {
   labels?: { span: { line: number; offset: number; length: number } }[];
 };
 
-export function diagnosticSpanText(
+export type DiagnosticLines = {
+  text: string;
+  previous?: string;
+  next?: string;
+};
+
+function adjacentLine(source: Buffer, boundary: number, direction: -1 | 1) {
+  while (boundary >= 0 && boundary < source.length) {
+    const found =
+      direction === -1
+        ? boundary > 0
+          ? source.lastIndexOf(10, boundary - 1)
+          : -1
+        : source.indexOf(10, boundary + 1);
+    const edge = found === -1 ? (direction === -1 ? -1 : source.length) : found;
+    const start = Math.min(boundary, edge) + 1;
+    const end = Math.max(boundary, edge);
+    const line = source.toString("utf8", start, end).trim();
+    if (line) return line;
+    boundary = edge;
+  }
+}
+
+export function diagnosticLines(
   diagnostic: OxlintDiagnostic,
   source: Buffer,
-): string | undefined {
+): DiagnosticLines | undefined {
   const span = diagnostic.labels?.[0]?.span;
   if (!span) return;
   const { offset, length } = span;
@@ -26,7 +49,16 @@ export function diagnosticSpanText(
   ) {
     return;
   }
-  return lintSourceText(source.subarray(offset, offset + length)) || undefined;
+  const start = offset ? source.lastIndexOf(10, offset - 1) + 1 : 0;
+  const newline = source.indexOf(10, offset + length - 1);
+  const end = newline === -1 ? source.length : newline;
+  const text = lintSourceText(source.subarray(start, end));
+  if (!text.trim()) return;
+  return {
+    text,
+    previous: adjacentLine(source, start - 1, -1),
+    next: adjacentLine(source, end, 1),
+  };
 }
 
 export function lintSourceText(source: Buffer): string {
