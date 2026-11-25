@@ -62,14 +62,15 @@ started the pane. Actor and tool call IDs are non-blank and have a limit of
 256 UTF-16 code units each. Use only IDs in these fields.
 Screen content, keystrokes, commands, and environment data stay outside these events.
 
-`terminal.ended` records only `pane_instance` and `outcome` in its body.
+`terminal.ended` records only `pane_instance`, `started_run` and `outcome` in its body.
+`started_run` is the run of the start event.
 
-| Outcome                                     | Meaning                                                                                    |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `{ "kind": "exit", "code": 0 }`             | The process exited. `code` is a non-negative safe integer.                                 |
-| `{ "kind": "signal", "signal": "SIGTERM" }` | A signal ended the process. `signal` is a POSIX signal name from the contract's fixed set. |
-| `{ "kind": "replaced" }`                    | A new pane replaced this pane.                                                             |
-| `{ "kind": "lost" }`                        | The daemon lost the pane and has no exit status.                                           |
+| Outcome                                     | Meaning                                                                                                              |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `{ "kind": "exit", "code": 0 }`             | The process exited. `code` is a non-negative safe integer.                                                           |
+| `{ "kind": "signal", "signal": "SIGTERM" }` | A signal ended the process. `signal` is the name that the machine's system gives, such as `SIGTERM` or `SIGRTMIN+1`. |
+| `{ "kind": "replaced" }`                    | A new pane replaced this pane.                                                                                       |
+| `{ "kind": "lost" }`                        | The daemon lost the pane and has no exit status.                                                                     |
 
 Each granted `claim` supplies `last_pane_instance`, the server's highest
 accepted pane number for the session, or zero if none. After each grant, the
@@ -86,8 +87,8 @@ unreported number. The run in each terminal guard distinguishes the two.
 If a pane survives a run change, the daemon reports `replaced` for the old
 instance and starts a new instance for the same pane under the new claim.
 The replacement ends the old typing lease. The envelope's `run` identifies
-the claim that reports the event. The server uses the session and pane number
-to match an end to its start across claims.
+the claim that reports the event. The server uses the session, `started_run` and the
+pane number to match an end to its start across claims.
 
 The server records an end even if the start is missing. The first end
 determines the outcome. A late start supplies metadata for the ended

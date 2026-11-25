@@ -14,6 +14,8 @@ import {
   positiveInteger,
   string,
   tagged,
+  EdgeParseError,
+  type Reader,
 } from "./parse";
 import { readV1 } from "./version";
 import { claimScope } from "./claims";
@@ -35,43 +37,18 @@ const eventScope = {
   source: oneOf("provider", "observed"),
 };
 
+const readSignal: Reader<string> = (value, path) => {
+  const signal = boundedText(32)(value, path);
+  if (!/^SIG[A-Z0-9]+(?:[+-][1-9][0-9]?)?$/.test(signal))
+    throw new EdgeParseError("invalid_value", path, "expected a signal name");
+  return signal;
+};
+
 const terminalOutcome = tagged("kind", {
   exit: object({ kind: oneOf("exit"), code: count }),
   signal: object({
     kind: oneOf("signal"),
-    signal: oneOf(
-      "SIGABRT",
-      "SIGALRM",
-      "SIGBUS",
-      "SIGCHLD",
-      "SIGCONT",
-      "SIGFPE",
-      "SIGHUP",
-      "SIGILL",
-      "SIGINT",
-      "SIGKILL",
-      "SIGPIPE",
-      "SIGPOLL",
-      "SIGPROF",
-      "SIGQUIT",
-      "SIGRTMAX",
-      "SIGRTMIN",
-      "SIGSEGV",
-      "SIGSTOP",
-      "SIGSYS",
-      "SIGTERM",
-      "SIGTRAP",
-      "SIGTSTP",
-      "SIGTTIN",
-      "SIGTTOU",
-      "SIGURG",
-      "SIGUSR1",
-      "SIGUSR2",
-      "SIGVTALRM",
-      "SIGWINCH",
-      "SIGXCPU",
-      "SIGXFSZ",
-    ),
+    signal: readSignal,
   }),
   replaced: object({ kind: oneOf("replaced") }),
   lost: object({ kind: oneOf("lost") }),
@@ -138,7 +115,11 @@ export const readCanonicalEvent = tagged("kind", {
   ),
   "terminal.ended": event(
     "terminal.ended",
-    object({ pane_instance: paneInstance, outcome: terminalOutcome }),
+    object({
+      pane_instance: paneInstance,
+      started_run: positiveInteger,
+      outcome: terminalOutcome,
+    }),
   ),
   receipt: event("receipt", object({ delivery_id: nonEmptyString })),
   context: event("context", object({ data: json })),

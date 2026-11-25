@@ -143,6 +143,7 @@
             "kind": "terminal.ended",
             "body": {
               "pane_instance": 4,
+              "started_run": 3,
               "outcome": { "kind": "exit", "code": 0 }
             }
           },

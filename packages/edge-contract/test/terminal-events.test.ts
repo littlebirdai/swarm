@@ -9,9 +9,9 @@ const started = batch.events.find(
 )!;
 const ended = batch.events.find((event) => event.kind === "terminal.ended")!;
 const maxId = "😀".repeat(128);
-const lastPane = { pane_instance: Number.MAX_SAFE_INTEGER };
+const lastPane = { pane_instance: Number.MAX_SAFE_INTEGER, started_run: 3 };
 const manualPane = {
-  ...lastPane,
+  pane_instance: lastPane.pane_instance,
   actor: { kind: "person", id: maxId },
 };
 
@@ -26,6 +26,13 @@ test.each([
     {
       ...ended,
       body: { ...lastPane, outcome: { kind: "signal", signal: "SIGTERM" } },
+    },
+  ],
+  [
+    "a system signal name with an offset",
+    {
+      ...ended,
+      body: { ...lastPane, outcome: { kind: "signal", signal: "SIGRTMIN+1" } },
     },
   ],
   [
@@ -109,6 +116,20 @@ test.each([
     "unknown_field",
     "outcome",
   ],
+  [
+    "an end without the run of its start",
+    ended,
+    { pane_instance: 4, outcome: { kind: "lost" } },
+    "missing_field",
+    "started_run",
+  ],
+  [
+    "a zero run of the start",
+    ended,
+    { ...lastPane, started_run: 0, outcome: { kind: "lost" } },
+    "invalid_value",
+    "started_run",
+  ],
   ["a missing end outcome", ended, lastPane, "missing_field", "outcome"],
   [
     "an unknown end outcome",
@@ -135,20 +156,23 @@ test.each([
     "a signal number",
     ended,
     { ...lastPane, outcome: { kind: "signal", signal: 15 } },
-    "invalid_value",
+    "invalid_type",
     "outcome.signal",
   ],
   [
     "an unknown signal name",
     ended,
-    { ...lastPane, outcome: { kind: "signal", signal: "SIGOTHER" } },
+    { ...lastPane, outcome: { kind: "signal", signal: "TERM; rm" } },
     "invalid_value",
     "outcome.signal",
   ],
   [
     "an oversized signal name",
     ended,
-    { ...lastPane, outcome: { kind: "signal", signal: `SIG${maxId}` } },
+    {
+      ...lastPane,
+      outcome: { kind: "signal", signal: "SIG" + "A".repeat(30) },
+    },
     "invalid_value",
     "outcome.signal",
   ],
