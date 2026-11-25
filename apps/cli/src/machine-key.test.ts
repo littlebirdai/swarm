@@ -3,7 +3,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resolveMachineKey, MACHINE_KEY_LEN } from "./machineKey.js";
+import { resolveMachineKey, MACHINE_KEY_LEN } from "./machine-key.js";
 import {
   encryptTokenWithSecret,
   decryptTokenWithSecrets,

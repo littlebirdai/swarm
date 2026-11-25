@@ -52,7 +52,7 @@ import {
 } from "./snippets.js";
 import { c, fmt } from "./colors.js";
 import type { Config } from "./config/types.js";
-import { getMachineKey, hardwareId } from "./machineKey.js";
+import { getMachineKey, hardwareId } from "./machine-key.js";
 import { deviceId } from "./remote/device.js";
 import { probeAllClients, hasBin } from "./doctorClients.js";
 import { defaultCursorPath } from "./cursorWatcher.js";

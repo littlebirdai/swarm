@@ -3498,7 +3498,7 @@
   "apps/cli/src/machineCaps.ts": {
     "swarm/no-comments": 2
   },
-  "apps/cli/src/machineKey.ts": {
+  "apps/cli/src/machine-key.ts": {
     "swarm/no-blocking-child-process-call": 2,
     "swarm/no-comments": 16
   },
