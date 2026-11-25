@@ -53,10 +53,16 @@ import { authorizesReap } from "./browser/engineReap.js";
 import type { InstanceState } from "./browser/instance.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOTS = {
+const PACKAGES = path.resolve(HERE, "../../../packages");
+const ROOTS: Record<string, string> = {
   "": HERE,
   contracts: path.resolve(HERE, "../../../packages/shared/contracts"),
-  sessions: path.resolve(HERE, "../../../packages/sessions/src"),
+  ...Object.fromEntries(
+    fs
+      .readdirSync(PACKAGES)
+      .map((name) => [name, path.join(PACKAGES, name, "src")])
+      .filter(([, dir]) => fs.existsSync(dir)),
+  ),
 };
 
 /** Functions whose result IS a LivenessVerdict. */

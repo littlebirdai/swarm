@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { codeLines, walkSources, WEB_ROOT, MOBILE_ROOT } from "./sourceWalk";
 
@@ -11,6 +11,9 @@ import { codeLines, walkSources, WEB_ROOT, MOBILE_ROOT } from "./sourceWalk";
 // never identifiers, never comments.
 
 const REPO = join(WEB_ROOT, "..", "..");
+const PACKAGE_SOURCES = readdirSync(join(REPO, "packages"))
+  .map((name) => join(REPO, "packages", name, "src"))
+  .filter((dir) => existsSync(dir));
 const ROOTS = [
   join(WEB_ROOT, "app"),
   join(WEB_ROOT, "components"),
@@ -21,6 +24,7 @@ const ROOTS = [
   join(MOBILE_ROOT, "lib"),
   join(REPO, "apps", "cli", "src"),
   join(REPO, "packages", "shared", "contracts"),
+  ...PACKAGE_SOURCES,
   join(REPO, "apps", "server", "convex"),
 ];
 
