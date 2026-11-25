@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readdir, rename, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
+import { checkTraces } from "./check-traces";
 import { parseRuleSections } from "./config-rules";
 import expectations from "./expectations.json";
 import { parseTlcResult } from "./tlc-result";
@@ -201,6 +202,18 @@ if (
   );
 }
 const jar = await tlcJar();
+const traceMode = process.argv.slice(2);
+if (traceMode.length > 0) {
+  if (
+    traceMode.join(" ") !== "--traces" &&
+    traceMode.join(" ") !== "--traces --update"
+  ) {
+    throw new Error("Use --traces or --traces --update.");
+  }
+  await checkTraces(java, jar, traceMode.includes("--update"));
+  process.exit(0);
+}
+await checkTraces(java, jar, false);
 let failed = false;
 for (const [model, configs] of Object.entries(entries)) {
   for (const [name, expected] of Object.entries(configs)) {
