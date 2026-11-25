@@ -10,7 +10,7 @@ import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import { ProviderAdapter, providerAdapterLayer } from "../src/effect";
-import { spawnAcp } from "../src/acp-process";
+import { spawnProvider } from "../src/provider-process";
 import {
   answer,
   bestEffort,
@@ -204,10 +204,11 @@ it.effect(
   () =>
     Effect.gen(function* () {
       const fake = fixture({ ACP_PAUSE_STDIN: "1" });
-      const transport = spawnAcp(
+      const transport = spawnProvider(
         fake.options,
         fake.spec.cwd,
         yield* Effect.scope,
+        { name: "ACP", command: ["grok", "agent", "stdio"] },
       );
       yield* Effect.addFinalizer(() => Effect.promise(transport.release));
       yield* transport.write(() =>

@@ -12,7 +12,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import type { AcpOwnedSession, ProviderAdapterClient } from "./index";
+import type { ProviderOwnedSession, ProviderAdapterClient } from "./index";
 import { ProviderAdapter, providerAdapterLayer } from "./effect";
 import {
   closed as closedOutcome,
@@ -38,7 +38,7 @@ export function createEffectAdapter(
   async function open(
     spec: StartSpec | ResumeSpec,
     signal?: AbortSignal,
-  ): Promise<OpenOutcome<AcpOwnedSession>> {
+  ): Promise<OpenOutcome<ProviderOwnedSession>> {
     if (disposing) throw new Error("Provider adapter is disposed");
     return facade.run(
       Effect.gen(function* () {

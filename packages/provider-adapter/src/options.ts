@@ -30,11 +30,13 @@ export function providerOffer(provider: ProviderIdentity): ProviderOffer {
   return {
     ...provider,
     capabilities:
-      process.platform !== "win32" &&
-      provider.agent === "grok" &&
-      provider.version === "1.0.13"
-        ? ["own", "interrupt", "prompts", "resume"]
-        : [],
+      process.platform === "win32"
+        ? []
+        : provider.agent === "grok" && provider.version === "1.0.13"
+          ? ["own", "interrupt", "prompts", "resume"]
+          : provider.agent === "codex" && provider.version === "0.153.4"
+            ? ["own", "steer-mid-turn", "interrupt", "prompts", "resume"]
+            : [],
   };
 }
 

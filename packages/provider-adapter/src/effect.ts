@@ -8,6 +8,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Scope from "effect/Scope";
 import { openAcp } from "./acp-session";
+import { openAppServer } from "./app-server-session";
 import {
   inDoubt,
   providerOffer,
@@ -16,9 +17,12 @@ import {
   type ProviderAdapterOptions,
 } from "./options";
 
-export { AdapterError } from "./acp-process";
+export { AdapterError } from "./provider-process";
 
-const acpLayer = (options: ProviderAdapterOptions) =>
+const ownedLayer = (
+  options: ProviderAdapterOptions,
+  open: typeof openAcp | typeof openAppServer,
+) =>
   Layer.effect(
     ProviderAdapter,
     Effect.sync(() => {
@@ -34,7 +38,7 @@ const acpLayer = (options: ProviderAdapterOptions) =>
           Effect.gen(function* () {
             const scope = yield* Scope.fork(parent);
             const result = yield* Effect.result(
-              restore(openAcp(options, spec, scope)).pipe(
+              restore(open(options, spec, scope)).pipe(
                 Effect.onExit((exit) =>
                   exit._tag === "Failure"
                     ? Scope.close(scope, exit)
@@ -50,6 +54,7 @@ const acpLayer = (options: ProviderAdapterOptions) =>
                 "spawn-failed",
                 "binary-missing",
                 "initialize-failed",
+                "invalid-options",
                 "protocol-version",
                 "agent-version",
                 "rpc-rejected",
@@ -65,7 +70,10 @@ const acpLayer = (options: ProviderAdapterOptions) =>
         provider,
         observe: Effect.fn("provider.observe")(function* (_spec: ObserveSpec) {
           return yield* Effect.succeed(
-            refused("observe-unavailable", "ACP opens owned sessions only"),
+            refused(
+              "observe-unavailable",
+              "Provider adapter opens owned sessions only",
+            ),
           );
         }),
         own,
@@ -100,14 +108,21 @@ export function providerAdapterLayer(
   options: ProviderAdapterOptions,
 ): Layer.Layer<ProviderAdapter> {
   const offer = providerOffer(options.provider);
-  if (offer.capabilities.includes("own")) return acpLayer(options);
+  if (offer.capabilities.includes("own"))
+    return ownedLayer(
+      options,
+      offer.agent === "codex" ? openAppServer : openAcp,
+    );
   return Layer.effect(
     ProviderAdapter,
     Effect.succeed({
       provider: offer,
       observe: Effect.fn("provider.observe.unsupported")((_spec: ObserveSpec) =>
         Effect.succeed(
-          refused("observe-unavailable", "ACP opens owned sessions only"),
+          refused(
+            "observe-unavailable",
+            "Provider adapter opens owned sessions only",
+          ),
         ),
       ),
       own: Effect.fn("provider.own.unsupported")(

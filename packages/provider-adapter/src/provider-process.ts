@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { withoutSecrets } from "@codecast/secrets/secretShapes";
 import { hasInterruptsOnly } from "effect/Cause";
 import * as Data from "effect/Data";
@@ -5,10 +6,11 @@ import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Result from "effect/Result";
+import * as Queue from "effect/Queue";
 import * as Semaphore from "effect/Semaphore";
-import type * as Scope from "effect/Scope";
+import * as Scope from "effect/Scope";
 import type { CloseOutcome } from "@codecast/provider-contract";
-import type { RpcId } from "./acp-schema";
+
 import {
   closed,
   type ProviderAdapterOptions,
@@ -26,10 +28,69 @@ const maxFrameBytes = 8 * 1024 * 1024;
 export const processError = (code: string, message: string, cause?: unknown) =>
   new AdapterError({ code, message, cause });
 
-export function spawnAcp(
+export type RpcId = number | string;
+
+interface DialectProcess {
+  name: string;
+  command: readonly [string, ...string[]];
+}
+
+export const ownProviderProcess = Effect.fn("provider.own-process")(function* (
   options: ProviderAdapterOptions,
   cwd: string,
   scope: Scope.Scope,
+  dialect: DialectProcess,
+) {
+  return yield* Effect.acquireRelease(
+    Effect.try({
+      try: () => spawnProvider(options, cwd, scope, dialect),
+      catch: (cause) =>
+        cause instanceof Error &&
+        "code" in cause &&
+        cause.code === "ENOENT" &&
+        existsSync(cwd)
+          ? processError(
+              "binary-missing",
+              `${dialect.name} executable was not found`,
+            )
+          : processError(
+              "spawn-failed",
+              `Could not start ${dialect.name} process`,
+              cause,
+            ),
+    }),
+    (transport) =>
+      Effect.flatMap(Effect.promise(transport.release), (result) =>
+        result.status === "failed"
+          ? Effect.die(processError(result.code, result.message))
+          : Effect.void,
+      ),
+  ).pipe(Scope.provide(scope));
+});
+
+export const bestEffortReplies = Effect.fn("provider.best-effort-replies")(
+  function* (transport: ReturnType<typeof spawnProvider>, scope: Scope.Scope) {
+    const replies = yield* Queue.dropping<object>(32);
+    yield* Effect.forkIn(
+      Effect.forever(
+        Queue.take(replies).pipe(
+          Effect.flatMap((reply) =>
+            transport.write(() => Result.succeed([reply])),
+          ),
+          Effect.ignore,
+        ),
+      ),
+      scope,
+    );
+    return replies;
+  },
+);
+
+export function spawnProvider(
+  options: ProviderAdapterOptions,
+  cwd: string,
+  scope: Scope.Scope,
+  dialect: DialectProcess,
 ) {
   let groupResult: CloseOutcome | undefined;
   function stopGroup(pid: number): CloseOutcome {
@@ -52,7 +113,7 @@ export function spawnAcp(
   }
 
   const child = Bun.spawn({
-    cmd: [...(options.command ?? ["grok", "agent", "stdio"])],
+    cmd: [...(options.command ?? dialect.command)],
     cwd,
     env: options.env ?? process.env,
     detached: true,
@@ -69,7 +130,7 @@ export function spawnAcp(
   const writer = Semaphore.makeUnsafe(1);
   const writeQueueError = processError(
     "write-queue-timeout",
-    "ACP input did not drain",
+    `${dialect.name} input did not drain`,
   );
   const newWriteWindow = () => ({
     expired: false,
@@ -114,7 +175,7 @@ export function spawnAcp(
       if (!closing) {
         stderrError = processError(
           "stderr-handler",
-          "ACP stderr reader failed",
+          `${dialect.name} stderr reader failed`,
           cause,
         );
         await stdout.cancel().catch(() => {});
@@ -128,11 +189,14 @@ export function spawnAcp(
     if (stderrError) throw stderrError;
   }
 
-  const write = Effect.fn("acp.write")(function* <E>(
+  const write = Effect.fn("provider.write")(function* <E>(
     prepare: () => Result.Result<readonly object[], E>,
   ) {
     if (inputClosed())
-      return yield* processError("channel-closed", "ACP input is closed");
+      return yield* processError(
+        "channel-closed",
+        `${dialect.name} input is closed`,
+      );
     const window = writeWindow;
     if (window.expired) return yield* writeQueueError;
     let started = false;
@@ -144,7 +208,10 @@ export function spawnAcp(
           if (inputClosed()) {
             resume(
               Effect.fail(
-                processError("channel-closed", "ACP input is closed"),
+                processError(
+                  "channel-closed",
+                  `${dialect.name} input is closed`,
+                ),
               ),
             );
             return;
@@ -182,7 +249,7 @@ export function spawnAcp(
                 Effect.fail(
                   processError(
                     "write-failed",
-                    "Could not write ACP input",
+                    `Could not write ${dialect.name} input`,
                     cause,
                   ),
                 ),
@@ -199,7 +266,7 @@ export function spawnAcp(
           ? Effect.fail(
               processError(
                 started ? "write-interrupted" : "channel-closed",
-                "ACP input is closed",
+                `${dialect.name} input is closed`,
               ),
             )
           : Effect.failCause(cause),
@@ -221,7 +288,10 @@ export function spawnAcp(
               Deferred.doneUnsafe(window.signal, Effect.void);
             }
             return Effect.fail(
-              processError("write-timeout", "ACP input did not drain"),
+              processError(
+                "write-timeout",
+                `${dialect.name} input did not drain`,
+              ),
             );
           }),
       }),
@@ -231,7 +301,7 @@ export function spawnAcp(
     );
   });
 
-  const request = Effect.fn("acp.request")(function* (
+  const request = Effect.fn("provider.request")(function* (
     method: string,
     params: object,
   ) {
@@ -248,10 +318,13 @@ export function spawnAcp(
         });
       },
       awaitResponse: Deferred.await(response),
+      forget: Effect.sync(() => {
+        pending.delete(id);
+      }),
     };
   });
 
-  const settle = Effect.fn("acp.settle")(function* (
+  const settle = Effect.fn("provider.settle")(function* (
     id: RpcId,
     result: unknown,
     error?: { code: number; message: string },
@@ -269,7 +342,7 @@ export function spawnAcp(
     return true;
   });
 
-  const failPending = Effect.fn("acp.failPending")(function* (
+  const failPending = Effect.fn("provider.failPending")(function* (
     error: AdapterError,
   ) {
     for (const { response } of pending.values())
@@ -367,4 +440,37 @@ async function* readFrames(
   if (fragment > 0)
     yield { line: "", base64Fragment: { index: fragment, last: true } };
   else if (length > 0) yield decode(Buffer.concat(parts, length));
+}
+
+export function rawFrames(
+  options: ProviderAdapterOptions,
+  scope: Pick<RawProviderFrame, "session" | "run">,
+) {
+  let unknownCount = 0;
+  return {
+    getUnknownPayloadCount: () => unknownCount,
+    retain: Effect.fn("provider.retain")(function* (
+      line: string,
+      disposition: RawProviderFrame["disposition"],
+      base64Fragment?: RawProviderFrame["base64Fragment"],
+    ) {
+      if (
+        disposition === "unknown" &&
+        (!base64Fragment || base64Fragment.index === 0)
+      )
+        unknownCount++;
+      yield* Effect.promise(async (signal) =>
+        options.retainRaw(
+          {
+            session: scope.session,
+            run: scope.run,
+            line,
+            disposition,
+            ...(base64Fragment ? { base64Fragment } : {}),
+          },
+          signal,
+        ),
+      );
+    }),
+  };
 }

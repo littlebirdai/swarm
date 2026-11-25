@@ -1,9 +1,9 @@
-import type { EdgeJson } from "@codecast/edge-contract";
 import type { ResumeSpec, StartSpec } from "@codecast/provider-contract";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
-import { AdapterError, processError } from "./acp-process";
+import { AdapterError, processError } from "./provider-process";
 import type { ProviderAdapterOptions } from "./options";
+import { json } from "./provider-json";
 
 const identifier = Schema.String.check(Schema.isMinLength(1));
 const rpcId = Schema.Union([Schema.Number, Schema.String]);
@@ -20,8 +20,6 @@ export const Rpc = Schema.Struct({
 });
 
 export const RpcLine = Schema.fromJsonString(Rpc);
-
-export type RpcId = typeof rpcId.Type;
 
 export const Initialize = Schema.Struct({
   protocolVersion: Schema.Literal(1),
@@ -48,16 +46,6 @@ export const Update = Schema.Struct({
   update: Schema.Unknown,
 });
 
-const json: Schema.Codec<EdgeJson> = Schema.suspend(() =>
-  Schema.Union([
-    Schema.Null,
-    Schema.Boolean,
-    Schema.Finite,
-    Schema.String,
-    Schema.mutable(Schema.Array(json)),
-    Schema.Record(Schema.String, json),
-  ]),
-);
 const chunk = Schema.Struct({
   type: Schema.Literal("text"),
   text: Schema.String,

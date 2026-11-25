@@ -4,17 +4,18 @@ import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
-import { processError, type AdapterError } from "./acp-process";
+import { processError, type AdapterError } from "./provider-process";
 
 export type Emit = (event: ProviderEvent) => void;
 
 export const pendingPromptLimit = 32;
 const bufferCapacity = 32;
-const overflow = fail(
-  processError("event-overflow", "ACP event buffer is full"),
-);
-
-export const makeAcpEvents = Effect.fn("acp.events")(function* () {
+export const makeProviderEvents = Effect.fn("provider.events")(function* (
+  name: string,
+) {
+  const overflow = fail(
+    processError("event-overflow", `${name} event buffer is full`),
+  );
   const queue = yield* Queue.dropping<ProviderEvent, AdapterError | Done>(
     bufferCapacity + pendingPromptLimit + 8,
   );
@@ -28,7 +29,7 @@ export const makeAcpEvents = Effect.fn("acp.events")(function* () {
     if (space) Deferred.doneUnsafe(space, Effect.void);
   }
 
-  const awaitSpace = Effect.fn("acp.awaitEventSpace")(function* () {
+  const awaitSpace = Effect.fn("provider.awaitEventSpace")(function* () {
     while (opened && !ended && Queue.sizeUnsafe(queue) >= bufferCapacity) {
       space = Deferred.makeUnsafe();
       yield* Deferred.await(space);
