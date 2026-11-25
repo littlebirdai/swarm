@@ -590,6 +590,21 @@ describe("permits and claims", () => {
     }
   });
 
+  test.each([
+    ["claim", claim.response, edge.parseClaimResponse],
+    ["renew", renew.response, edge.parseRenewResponse],
+  ] as const)("a %s lease has time left", (_verb, response, parse) => {
+    const { lease_ms: _lease, ...rest } = response;
+    expectParseError(parse(rest), "missing_field", "$.lease_ms");
+    for (const lease_ms of [0, -1, 0.5]) {
+      expectParseError(
+        parse({ ...response, lease_ms }),
+        "invalid_value",
+        "$.lease_ms",
+      );
+    }
+  });
+
   test("accepts a machine command result without a claim", () => {
     const { claim: _claim, ...result } = commandsResult.request;
     expectParsed(edge.parseCommandsResultRequest(result), result);

@@ -28,7 +28,7 @@ const claimResponse = response(
       v: readV1,
       status: oneOf("granted"),
       ...fence,
-      expires_at: count,
+      lease_ms: positiveInteger,
       last_pane_instance: count,
     }),
     busy: responseObject({
@@ -45,7 +45,7 @@ const renewResponse = response(
     renewed: responseObject({
       v: readV1,
       status: oneOf("renewed"),
-      expires_at: count,
+      lease_ms: positiveInteger,
     }),
     stale: responseObject({ v: readV1, status: oneOf("stale") }),
   }),

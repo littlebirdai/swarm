@@ -1,6 +1,5 @@
 import type {
   CanonicalEvent,
-  ClaimResponse,
   DeliveryResolutionRequest,
   DeliverySettleRequest,
   DeliveryStartRequest,
@@ -21,8 +20,7 @@ export type Input = Pick<
 > & { expectedTurn: TurnId | null };
 
 export type RunFact =
-  | ({ kind: "run.claimed"; claimNumber: number } & Fence &
-      Pick<Extract<ClaimResponse, { status: "granted" }>, "expires_at">)
+  | ({ kind: "run.claimed"; claimNumber: number; expires_at: number } & Fence)
   | ({ kind: "run.renewed"; expires_at: number } & Fence)
   | ({ kind: "run.leaseExpired"; expires_at: number } & Fence)
   | ({ kind: "run.runtimeReady" } & Fence)
