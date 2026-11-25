@@ -91,9 +91,10 @@ describe("task writes survive a stranded session_id", () => {
       text: "linked",
       conversation_id: LIVE_UUID,
     });
-    expect((await t.run(({ db }) => db.get(id)))?.conversation_id).toBe(
-      conversation,
+    const linked = await t.run(async ({ db }) =>
+      db.get("task_comments", db.normalizeId("task_comments", id)!),
     );
+    expect(linked?.conversation_id).toBe(conversation);
   });
 
   test("update applies the status change without the link", async () => {

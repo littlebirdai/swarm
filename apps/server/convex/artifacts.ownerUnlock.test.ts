@@ -129,7 +129,7 @@ describe("embedInfo", () => {
       title: "The fix",
       version: 2,
     });
-    expect(gated.k).toBeTruthy();
+    expect(gated && "k" in gated ? gated.k : undefined).toBeTruthy();
     expect(missing).toEqual({ slug: "nopage", missing: true });
   });
 
@@ -151,7 +151,7 @@ describe("embedInfo", () => {
     const [row] = await info("asked", [
       { slug: "trialpage", decision: "sd-1" },
     ]);
-    expect(row.k).toBeTruthy();
+    expect(row && "k" in row ? row.k : undefined).toBeTruthy();
     const [other] = await info("asked", [
       { slug: "trialpage", decision: "sd-2" },
     ]);
