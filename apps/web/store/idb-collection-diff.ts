@@ -120,8 +120,12 @@ export function durableDeletes(
   }
   // One write settles the collection: the shadow mirrors disk, so a noted id
   // this diff did not name was never on disk. Spent or moot, the drops go.
-  snapshotDrops.delete(key);
+  clearSnapshotDrops(key);
   return deletes;
+}
+
+export function clearSnapshotDrops(key: string): void {
+  snapshotDrops.delete(key);
 }
 
 /** One row gone from the store may leave disk: an exclude, a client stub, or a snapshot prune (the rule above). */

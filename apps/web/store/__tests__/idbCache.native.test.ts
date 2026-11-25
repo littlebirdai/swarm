@@ -77,7 +77,7 @@ const {
 } = await import("../idb-cache.native");
 
 const { noteSnapshotSync, _resetSnapshotLedger } =
-  await import("../idbCollectionDiff");
+  await import("../idb-collection-diff");
 
 describe("idbCache.native", () => {
   beforeEach(() => {

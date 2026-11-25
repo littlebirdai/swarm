@@ -53,7 +53,7 @@ const {
   enqueueDispatch,
   writePatchesToIDB,
 } = cache;
-const { readCacheEvents } = await import("../../cacheEvents");
+const { readCacheEvents } = await import("../../cache-events");
 const ROW = {
   _id: "a".repeat(32),
   session_id: "sess",

@@ -24,7 +24,7 @@ import {
   thinTaskRow,
   withTaskComments,
 } from "../../lib/detailRows";
-import { _resetSnapshotLedger, deleteAllowed } from "../idbCollectionDiff";
+import { _resetSnapshotLedger, deleteAllowed } from "../idb-collection-diff";
 
 // The list rows every window holds carry none of the fields only an opened
 // object draws (lib/detailRows): a task's comments, a pull request's files,

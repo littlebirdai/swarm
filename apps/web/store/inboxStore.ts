@@ -174,7 +174,7 @@ import {
 import { current, isDraft, original } from "mutative";
 import { soundDismiss, soundKill } from "../lib/sounds";
 import type { AppPermissionKind } from "../lib/osPermissions";
-import { noteSnapshotSync } from "./idbCollectionDiff";
+import { noteSnapshotSync } from "./idb-collection-diff";
 import {
   writeConversationMessages,
   writeConversationUserMessages,

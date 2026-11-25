@@ -10,7 +10,7 @@ import {
 import {
   cacheFloorUnderSnapshot,
   keysWithSnapshotDrops,
-} from "./idbCollectionDiff";
+} from "./idb-collection-diff";
 import {
   cacheStorage,
   enqueueDispatch,

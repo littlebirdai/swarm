@@ -8,7 +8,7 @@ import {
   pinDetailRows,
   resetDetailPins,
 } from "../../lib/detailRows";
-import { _resetSnapshotLedger, deleteAllowed } from "../idbCollectionDiff";
+import { _resetSnapshotLedger, deleteAllowed } from "../idb-collection-diff";
 
 // deployReach rows say how far a merged change has gone (hooks/useDeployReach).
 // A row the server stopped answering for kept saying "not live yet" forever,

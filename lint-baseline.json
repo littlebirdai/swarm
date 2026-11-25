@@ -27932,9 +27932,6 @@
   "apps/web/store/blockedRevive.test.ts": {
     "swarm/no-comments": 10
   },
-  "apps/web/store/cacheEvents.ts": {
-    "swarm/no-comments": 24
-  },
   "apps/web/store/persistence/cache-ownership.ts": {
     "swarm/no-comments": 49
   },
@@ -28039,9 +28036,6 @@
   },
   "apps/web/store/idbCacheWriteBehind.native.ts": {
     "swarm/no-comments": 35
-  },
-  "apps/web/store/idbCollectionDiff.ts": {
-    "swarm/no-comments": 40
   },
   "apps/web/store/persistence/idb-liveness-lane.ts": {
     "swarm/no-comments": 24
@@ -30290,5 +30284,11 @@
   },
   "tests/jsonl-fidelity/roundtrip.ts": {
     "swarm/no-comments": 27
+  },
+  "apps/web/store/cache-events.ts": {
+    "swarm/no-comments": 24
+  },
+  "apps/web/store/idb-collection-diff.ts": {
+    "swarm/no-comments": 40
   }
 }

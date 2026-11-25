@@ -66,7 +66,7 @@ import {
 } from "./idbCacheWriteBehind.native";
 export { readPlan, readPlanSql };
 export type { CachedConversation, OutboxEntry };
-import { diffCollection, durableDeletes } from "./idbCollectionDiff";
+import { diffCollection, durableDeletes } from "./idb-collection-diff";
 import {
   partitionSessionRetention,
   COLLECTION_RETENTION,

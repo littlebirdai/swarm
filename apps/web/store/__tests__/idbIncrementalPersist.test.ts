@@ -10,7 +10,7 @@ import {
   setHydrating,
   writePatchesToIDB,
 } from "../idb-cache";
-import { noteSnapshotSync } from "../idbCollectionDiff";
+import { noteSnapshotSync } from "../idb-collection-diff";
 
 await _reopenForTests({ indexedDB, IDBKeyRange });
 Dexie.dependencies.indexedDB = indexedDB;

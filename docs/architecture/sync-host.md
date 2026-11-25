@@ -178,7 +178,7 @@ serves it only to a window whose stored JWT names that principal and where
 nothing names anyone else; a cache someone else owns, residue after a
 sign-out, or rows naming nobody are purged before any reader sees it. A disk
 that cannot be read serves nothing and purges nothing. Every purge is
-recorded with its reason (`store/cacheEvents.ts`, `__cacheEvents()`).
+recorded with its reason (`store/cache-events.ts`, `__cacheEvents()`).
 Write-through and outbox writes refuse the moment the stored JWT names someone
 else, which covers the gap between a sibling's sign-out and this window's
 storage event.

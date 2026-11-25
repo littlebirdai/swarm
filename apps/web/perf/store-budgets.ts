@@ -4,7 +4,7 @@ import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { TEST_PRINCIPAL } from "../store/__tests__/fixtures/signedInPrincipal";
 import { COLLECTION_RETENTION } from "../store/cacheRetention";
 import { REGISTERED_COLLECTION_KEYS } from "../store/clientSyncRegistry";
-import { useInboxStore, type Message } from "../store/inboxStore";
+import { useInboxStore } from "../store/inboxStore";
 import { loadCache } from "../store/persistence/boot-loader";
 import { writePatchesToIDB } from "../store/persistence/collection-writer";
 import {
@@ -25,30 +25,27 @@ import {
 } from "../store/sync-replication";
 import { measureDetailRows } from "./detail-rows-size";
 import { measureIndexedDB } from "./measure-indexeddb";
+import {
+  budgetMessages,
+  budgetTail,
+  fixtureSizes,
+  id,
+  now,
+  retainedRows,
+  session,
+} from "./store-budget-fixture";
 import { checkStoreBudget } from "./store-budget-limits";
 
 const state = useInboxStore.getState;
-const id = (index: number) => `j${String(index).padStart(31, "0")}`;
-const now = Date.now();
-const session = (index: number) => ({
-  _id: id(index),
-  session_id: `session-${index}`,
-  title: "Budget session",
-  updated_at: now - index,
-});
 
 function measureMessages() {
   for (let conversation = 0; conversation < 420; conversation++) {
-    const messages: Message[] = Array.from({ length: 200 }, (_, index) => ({
-      _id: `message-${index}`,
-      timestamp: index + 1,
-      role: "assistant",
-      content: `Résumé ${conversation} ${index} ${"word ".repeat(16)}`,
-      ...(index === 100
-        ? { images: [{ data: "a".repeat(4096), mediaType: "image/png" }] }
-        : {}),
-    }));
-    state().setMessages(id(conversation), messages, undefined, "cache");
+    state().setMessages(
+      id(conversation),
+      budgetMessages(conversation),
+      undefined,
+      "cache",
+    );
   }
   const messages = state().messages;
   assert.equal(messages[id(419)]?.length, 200);
@@ -63,34 +60,12 @@ function measureMessages() {
 }
 
 async function measureRetention() {
-  const fixtureSizes = {
-    sessions: 1300,
-    conversations: 1300,
-    docDetails: 220,
-    taskComments: 1600,
-    pullRequestDetails: 24,
-    deployReach: 320,
-    runGraphs: 60,
-    deployDetails: 70,
-    externalEvents: 2100,
-    settingsData: 2,
-    mySends: 10100,
-  } as const;
   assert.deepEqual(
     Object.keys(fixtureSizes).sort(),
     [...Object.keys(COLLECTION_RETENTION), "sessions", "conversations"].sort(),
   );
   for (const [key, size] of Object.entries(fixtureSizes)) {
-    const rows = Array.from({ length: size }, (_, index) => ({
-      ...session(index),
-      _cachedAt: now - index,
-      timestamp: now - index,
-      ...(key === "taskComments" ? { comments: [] } : {}),
-      ...(key === "settingsData"
-        ? { _id: index === 0 ? "team:preferences" : "team:teamMembers" }
-        : {}),
-    }));
-    await COLLECTION_TABLES[key].bulkPut(rows);
+    await COLLECTION_TABLES[key].bulkPut(retainedRows(key, size));
   }
   const retained = await loadCache(Object.keys(fixtureSizes));
   assert(retained);
@@ -106,12 +81,7 @@ async function measureRetention() {
 
 async function measureWrites(writes: Map<string, number>) {
   const convId = id(0);
-  const tail: Message[] = Array.from({ length: 200 }, (_, index) => ({
-    _id: `message-${index}`,
-    timestamp: index + 1,
-    role: "assistant",
-    content: `Message ${index}`,
-  }));
+  const tail = budgetTail();
   const messageRows = db.conversationMessageRows;
   state().setMessages(convId, tail, { initialized: true, hasMoreAbove: false });
   flushConversationMessages();

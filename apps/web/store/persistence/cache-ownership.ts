@@ -1,6 +1,6 @@
 import type Dexie from "dexie";
 import { authPrincipal } from "../../lib/authPrincipal";
-import { recordCacheEvent } from "../cacheEvents";
+import { recordCacheEvent } from "../cache-events";
 
 // -- Cache ownership --
 //
@@ -26,7 +26,7 @@ import { recordCacheEvent } from "../cacheEvents";
 // where little is left to lose. A disk that cannot be READ is never a reason:
 // it serves nothing and purges nothing (a transient read error once could
 // wipe a healthy cache). Every purge and every refusal is recorded
-// (store/cacheEvents.ts).
+// (store/cache-events.ts).
 
 const OWNER_STAMP_KEY = "cacheOwner";
 type OwnerStamp = { principal: string | null; at: number; reason: string };

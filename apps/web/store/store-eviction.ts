@@ -1,6 +1,6 @@
 import { detailRowsToEvict, type DetailKey } from "../lib/detailRows";
 import { REPLICATION_CLASSIFICATION } from "./clientSyncRegistry";
-import { noteEvictedRows } from "./idbCollectionDiff";
+import { noteEvictedRows } from "./idb-collection-diff";
 import type { InboxStoreState } from "./inboxStore";
 
 type MessageEvictionDraft = {
