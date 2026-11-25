@@ -11704,11 +11704,11 @@
   "apps/server/convex/projects.webListArgs.test.ts": {
     "swarm/no-comments": 4
   },
-  "apps/server/convex/publicFunctionSecretLeak.guard.ts": {
-    "swarm/no-comments": 28
-  },
   "apps/server/convex/public-function-secret-leak.test.ts": {
     "swarm/no-comments": 31
+  },
+  "apps/server/convex/publicFunctionSecretLeak.guard.ts": {
+    "swarm/no-comments": 28
   },
   "apps/server/convex/publicShare.test.ts": {
     "swarm/no-comments": 6
@@ -11888,7 +11888,118 @@
     "swarm/no-comments": 16
   },
   "apps/server/convex/schema.ts": {
-    "swarm/no-comments": 3897
+    "swarm/no-comments": 11
+  },
+  "apps/server/convex/schema/accounts.tables.ts": {
+    "swarm/no-comments": 153
+  },
+  "apps/server/convex/schema/activity.tables.ts": {
+    "swarm/no-comments": 58
+  },
+  "apps/server/convex/schema/anchors.tables.ts": {
+    "swarm/no-comments": 34
+  },
+  "apps/server/convex/schema/artifacts.tables.ts": {
+    "swarm/no-comments": 87
+  },
+  "apps/server/convex/schema/billing.tables.ts": {
+    "swarm/no-comments": 24
+  },
+  "apps/server/convex/schema/calls.tables.ts": {
+    "swarm/no-comments": 172
+  },
+  "apps/server/convex/schema/changes.tables.ts": {
+    "swarm/no-comments": 34
+  },
+  "apps/server/convex/schema/chat.tables.ts": {
+    "swarm/no-comments": 271
+  },
+  "apps/server/convex/schema/conversation-fields.tables.ts": {
+    "swarm/no-comments": 209
+  },
+  "apps/server/convex/schema/conversations.tables.ts": {
+    "swarm/no-comments": 297
+  },
+  "apps/server/convex/schema/deployments.tables.ts": {
+    "swarm/no-comments": 60
+  },
+  "apps/server/convex/schema/documents.tables.ts": {
+    "swarm/no-comments": 72
+  },
+  "apps/server/convex/schema/events.tables.ts": {
+    "swarm/no-comments": 28
+  },
+  "apps/server/convex/schema/machines.tables.ts": {
+    "swarm/no-comments": 158
+  },
+  "apps/server/convex/schema/managed-sessions.tables.ts": {
+    "swarm/no-comments": 55
+  },
+  "apps/server/convex/schema/messages.tables.ts": {
+    "swarm/no-comments": 119
+  },
+  "apps/server/convex/schema/mods.tables.ts": {
+    "swarm/no-comments": 105
+  },
+  "apps/server/convex/schema/notifications.tables.ts": {
+    "swarm/no-comments": 138
+  },
+  "apps/server/convex/schema/org-changes.tables.ts": {
+    "swarm/no-comments": 73
+  },
+  "apps/server/convex/schema/org-roles.tables.ts": {
+    "swarm/no-comments": 145
+  },
+  "apps/server/convex/schema/org-templates.tables.ts": {
+    "swarm/no-comments": 46
+  },
+  "apps/server/convex/schema/plans.tables.ts": {
+    "swarm/no-comments": 27
+  },
+  "apps/server/convex/schema/projects.tables.ts": {
+    "swarm/no-comments": 108
+  },
+  "apps/server/convex/schema/pull-requests.tables.ts": {
+    "swarm/no-comments": 169
+  },
+  "apps/server/convex/schema/repositories.tables.ts": {
+    "swarm/no-comments": 73
+  },
+  "apps/server/convex/schema/schedules.tables.ts": {
+    "swarm/no-comments": 136
+  },
+  "apps/server/convex/schema/session-decisions.tables.ts": {
+    "swarm/no-comments": 169
+  },
+  "apps/server/convex/schema/session-delivery.tables.ts": {
+    "swarm/no-comments": 105
+  },
+  "apps/server/convex/schema/session-inbox.tables.ts": {
+    "swarm/no-comments": 68
+  },
+  "apps/server/convex/schema/session-insights.tables.ts": {
+    "swarm/no-comments": 63
+  },
+  "apps/server/convex/schema/session-migration.tables.ts": {
+    "swarm/no-comments": 32
+  },
+  "apps/server/convex/schema/session-sharing.tables.ts": {
+    "swarm/no-comments": 112
+  },
+  "apps/server/convex/schema/signals.tables.ts": {
+    "swarm/no-comments": 65
+  },
+  "apps/server/convex/schema/sync.tables.ts": {
+    "swarm/no-comments": 58
+  },
+  "apps/server/convex/schema/tasks.tables.ts": {
+    "swarm/no-comments": 151
+  },
+  "apps/server/convex/schema/teams.tables.ts": {
+    "swarm/no-comments": 74
+  },
+  "apps/server/convex/schema/workflows.tables.ts": {
+    "swarm/no-comments": 138
   },
   "apps/server/convex/screenRecordings.test.ts": {
     "swarm/no-comments": 10
