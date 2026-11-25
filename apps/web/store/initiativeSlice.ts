@@ -14,7 +14,7 @@ import { action } from "./mutativeMiddleware";
 import { writeAsServerShape } from "./serverShape";
 import { pushRoleFieldsIntent, type OrgSliceData } from "./orgSlice";
 import { settleRecordOp, type InitiativeRecordOp } from "./initiativeRecord";
-import { leadScopeChange } from "@codecast/shared/contracts/orgLead";
+import { leadScopeChange } from "@codecast/org/orgLead";
 import {
   carryMetricScores,
   initiativeSignature,

@@ -27,7 +27,7 @@ import {
   escapeForeignControlChars,
   fenceForeignText,
   inlineForeignText,
-} from "../contracts/fence";
+} from "@codecast/fence/fence";
 import {
   notReadyLabel,
   prWords,

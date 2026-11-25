@@ -16,7 +16,7 @@ import {
   performUpdateRole,
 } from "./orgRoles";
 import { lineCandidates } from "./orgLine";
-import { projectLeadOf } from "@codecast/shared/contracts/orgLead";
+import { projectLeadOf } from "@codecast/org/orgLead";
 import {
   candidates as takeoverCandidatesQuery,
   move as takeoverMove,

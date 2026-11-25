@@ -1,4 +1,4 @@
-// The role icon generator's pipeline (shared/contracts/roleIcon, S13): three
+// The role icon generator's pipeline (@codecast/org/roleIcon, S13): three
 // drawers in parallel, each candidate parsed, validated and checked against
 // the boundary's other icons, a contact sheet of the survivors, and a vision
 // judge that picks one or sends a critique back for one more round.
@@ -16,7 +16,7 @@ import {
   roleIconSvg,
   type RoleIcon,
   type RoleIconAccent,
-} from "@codecast/shared/contracts/roleIcon";
+} from "@codecast/org/roleIcon";
 import { parseJsonBlock } from "@codecast/shared/contracts/modelCall";
 import {
   Canvas,

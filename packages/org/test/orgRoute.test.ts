@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { HEAD_OF_PEOPLE_HANDLE, type LeadRole } from "./orgLead";
-import { landingLine, routeWork } from "./orgRoute";
+import { HEAD_OF_PEOPLE_HANDLE, type LeadRole } from "../src/orgLead";
+import { landingLine, routeWork } from "../src/orgRoute";
 
 // Where new work lands (org-staffing.md S35): four lines, the first that
 // applies decides, and every landing says which.

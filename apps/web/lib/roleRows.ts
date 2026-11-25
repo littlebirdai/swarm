@@ -6,7 +6,7 @@
 // tree is the org page's structure; its roles stand in only while viewerRoles
 // is empty (a cold cache). Pure over the state, so the store, a replica and a
 // test build the same rows.
-import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
+import type { RoleIcon } from "@codecast/org/roleIcon";
 import { roleIconSig, type RoleRows } from "./sessionIdentity";
 
 type ViewerRoleRow = RoleRows["roles"][number];

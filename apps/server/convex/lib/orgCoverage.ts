@@ -6,7 +6,7 @@
 //
 // It lists facts and judges nothing. A project with work planned or in
 // progress (health's rule: an open task or an open plan, on an active project)
-// names its lead by the one rule every surface reads (contracts/orgLead). Work
+// names its lead by the one rule every surface reads (@codecast/org/orgLead). Work
 // outside any project is what the rows already say: an open plan with no
 // project, open tasks with neither, and an area of commits and sessions that
 // resolved to no project. A task is open work only when the project's board
@@ -16,10 +16,7 @@
 // counts a person sees when they click through. Whether to wrap, share or
 // split a lead is the Head of People's reading.
 
-import {
-  projectLeadOf,
-  type LeadRole,
-} from "@codecast/shared/contracts/orgLead";
+import { projectLeadOf, type LeadRole } from "@codecast/org/orgLead";
 import {
   initiativeChain,
   initiativeStanding,

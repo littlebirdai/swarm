@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { roleIdentity, roleIdentityLine } from "./orgIdentity";
-import { characterNameFor } from "./sessionCharacter";
-import { avatarOf } from "./orgAvatars";
+import { roleIdentity, roleIdentityLine } from "../src/orgIdentity";
+import { characterNameFor } from "../src/sessionCharacter";
+import { avatarOf } from "../src/orgAvatars";
 
 // A role is named like a person, with its role as the subtitle (org-staffing.md S30).
 describe("roleIdentity", () => {

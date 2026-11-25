@@ -7,7 +7,7 @@
 // so moving a role on the chart moves its tasks on the board in the same tick.
 //
 // Who heads a chain and which roles sit in it is the shared contract's
-// (@codecast/shared/contracts/orgAssignee, which the server and the CLI read
+// (@codecast/org/orgAssignee, which the server and the CLI read
 // too): the same parent step (`chainParentOf`) walks the chain here, so the
 // axis and the "My reporting chain" filter can never show two different
 // lists. This file adds only the DRAW order: parents directly above their own
@@ -17,7 +17,7 @@ import {
   chainIndex,
   chainParentOf,
   type ChainRole,
-} from "@codecast/shared/contracts/orgAssignee";
+} from "@codecast/org/orgAssignee";
 
 /** One group in chain order. `depth` 0 is the top of a chain. */
 export type ChainNode = { key: string; depth: number };

@@ -9,7 +9,7 @@ import {
   inlineForeignText,
   capForeignText,
   fenceNonce,
-} from "./fence";
+} from "@codecast/fence/fence";
 
 export type ProjectMemoryItem = { id: string; title: string; gist: string };
 

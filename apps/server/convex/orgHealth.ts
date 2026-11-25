@@ -4,7 +4,7 @@ import {
   type UnplacedUnread,
 } from "./lib/orgCoverage";
 import { action, query } from "./functions";
-import { isWholeWorkspaceRole } from "@codecast/shared/contracts/orgLead";
+import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
 import { api } from "./_generated/api";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
@@ -51,7 +51,7 @@ import { scopeIds } from "./lib/orgScope";
 import {
   ownsWork,
   projectsWithoutAnOwnerAmongWatchers,
-} from "@codecast/shared/contracts/orgLead";
+} from "@codecast/org/orgLead";
 import {
   atCap,
   capacity,
@@ -844,7 +844,7 @@ export async function computeOrgHealth(
   // (readWorkTasks) rather than by a second index read per role, which is
   // the same rows at a fraction of the read budget. A whole workspace role
   // holds the remainder: the work it owns by the one ownership rule
-  // (contracts/orgLead ownerOf, org-staffing.md S26), which is what no
+  // (@codecast/org/orgLead ownerOf, org-staffing.md S26), which is what no
   // narrower role covers. `counted` says which rule a row used.
   const tasksTruncated = work.any_truncated;
   const planProject = (planId: any) =>

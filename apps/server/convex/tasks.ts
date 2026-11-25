@@ -18,13 +18,13 @@ import {
   roleByHandleForRead,
 } from "./lib/orgAccess";
 import { taskWork } from "./lib/orgOwnership";
-import { ownerOf } from "@codecast/shared/contracts/orgLead";
+import { ownerOf } from "@codecast/org/orgLead";
 import { matchHandle, teamRoster } from "./lib/mentionResolve";
 import {
   chainAssignees,
   roleAssigneeInfo,
   type AssigneeInfo,
-} from "@codecast/shared/contracts/orgAssignee";
+} from "@codecast/org/orgAssignee";
 import { enqueueStartSession } from "./devices";
 import { resolveSpawnDefinition, resolveTaskSpawnDevice } from "./spawn";
 import { resolveDefinitionFor } from "./agentDefinitions";
@@ -33,9 +33,9 @@ import { outcomeOfDeclaration, subagentEnded } from "./subagentFleet";
 import {
   formatTaskCommentMessage,
   fromConvexAgentType,
-  inlineForeignText,
   toConvexAgentType,
 } from "@codecast/shared/contracts";
+import { inlineForeignText } from "@codecast/fence/fence";
 import {
   blockersHoldingBack,
   docRelatesToTask,
@@ -910,7 +910,7 @@ async function foldMachineAssignment(
  * (org-roles-run-work.md R5): the work is still the company's, and whoever
  * takes it answers for it now, told the way any assignment is. Closed tasks
  * keep the retired role's name; the chain still reads them under the same
- * person (contracts/orgAssignee). Called by orgRoles.performRetireRole.
+ * person (@codecast/org/orgAssignee). Called by orgRoles.performRetireRole.
  */
 export async function handOpenTasksUpChain(
   ctx: any,
@@ -2205,7 +2205,7 @@ export const snippet = query({
 });
 
 // Who a set of assignee values names, in the contract's shape
-// (@codecast/shared/contracts/orgAssignee): a role with its face and handle,
+// (@codecast/org/orgAssignee): a role with its face and handle,
 // a person with their name and login. `agent:*` assignees are already names.
 // Unknown values are left out so callers can print the raw value rather than
 // nothing.

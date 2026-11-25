@@ -1,4 +1,4 @@
-// Role icons (org-staffing.md S13, shared/contracts/roleIcon): the drawn face
+// Role icons (org-staffing.md S13, @codecast/org/roleIcon): the drawn face
 // that says what a role looks after. Set by hand (`cast role icon --svg`, an
 // agent drawing to ROLE_ICON_LANGUAGE) or drawn by the generator
 // (lib/roleIconGenerator) when a role is hired, on a Redraw, or by the
@@ -23,7 +23,7 @@ import {
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { getAuthenticatedUserId } from "./pendingMessages";
-import { avatarOf } from "@codecast/shared/contracts/orgAvatars";
+import { avatarOf } from "@codecast/org/orgAvatars";
 import {
   requireRole,
   resolveRoleRef,
@@ -49,8 +49,8 @@ import {
   roleIconSvg,
   type RoleIcon,
   type RoleIconAccent,
-} from "@codecast/shared/contracts/roleIcon";
-import { ROLE_ICON_EXAMPLES } from "@codecast/shared/contracts/roleIconExamples";
+} from "@codecast/org/roleIcon";
+import { ROLE_ICON_EXAMPLES } from "@codecast/org/roleIconExamples";
 import { roleCharterOf } from "./lib/roleCharter";
 
 type Ctx = { db: any; storage?: any };

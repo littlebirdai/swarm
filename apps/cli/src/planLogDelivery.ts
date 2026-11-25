@@ -13,7 +13,7 @@ import {
   FOREIGN_TEXT_CAPS,
   fenceForeignText,
   inlineForeignText,
-} from "@codecast/shared/contracts";
+} from "@codecast/fence/fence";
 import { foreignProse } from "@codecast/shared/tasks";
 import { apiPost, type PublishDeps } from "./castApi.js";
 import { fmt } from "./colors.js";

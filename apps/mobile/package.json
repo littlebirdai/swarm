@@ -29,6 +29,7 @@
     "@codecast/flows": "workspace:*",
     "@codecast/hash": "workspace:*",
     "@codecast/network": "workspace:*",
+    "@codecast/org": "workspace:*",
     "@codecast/pages": "workspace:*",
     "@codecast/policy": "workspace:*",
     "@codecast/provider-keys": "workspace:*",

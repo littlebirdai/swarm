@@ -1,4 +1,4 @@
-import type { AvatarKey } from "@codecast/shared/contracts/orgAvatars";
+import type { AvatarKey } from "@codecast/org/orgAvatars";
 
 /** The face the introduction card wears: the head of people. */
 export const ORG_INTRO_HEAD_OF_PEOPLE: AvatarKey = "owl";

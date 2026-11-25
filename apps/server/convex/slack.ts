@@ -34,7 +34,7 @@ import {
   escapeForeignControlChars,
   fenceForeignText,
   inlineForeignText,
-} from "@codecast/shared/contracts";
+} from "@codecast/fence/fence";
 
 // The Slack adapter. Workspaces connect via the "Add to Slack" OAuth flow, which
 // stores a per-workspace bot token in `slack_installations` (replacing the single

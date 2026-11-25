@@ -4,8 +4,8 @@
 // its icon tile for a viewer with characters off.
 import type { StyleProp, ViewStyle } from "react-native";
 import { MobileSessionFace } from "@/components/identity";
-import { avatarOf } from "@codecast/shared/contracts/orgAvatars";
-import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
+import { avatarOf } from "@codecast/org/orgAvatars";
+import type { RoleIcon } from "@codecast/org/roleIcon";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { roleRowsOf } from "@codecast/web/lib/roleRows";
 

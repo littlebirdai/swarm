@@ -4,7 +4,7 @@ import {
   SESSION_ICON_RETRY_MS,
   performRequestSessionIcon,
 } from "./sessionIcons";
-import { ROLE_ICON_EXAMPLES } from "@codecast/shared/contracts/roleIconExamples";
+import { ROLE_ICON_EXAMPLES } from "@codecast/org/roleIconExamples";
 
 const wrench = ROLE_ICON_EXAMPLES.find(
   (e) => e.icon.concept === "wrench",

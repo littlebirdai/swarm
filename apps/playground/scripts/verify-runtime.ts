@@ -9,7 +9,7 @@
 //                                          its SDK, for a check in a real browser
 import { join } from "node:path";
 import { ConvexHttpClient } from "convex/browser";
-import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
+import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { MAX_DATA_DOC_BYTES } from "../convex/lib/limits";

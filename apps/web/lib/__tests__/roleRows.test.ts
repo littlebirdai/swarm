@@ -1,7 +1,7 @@
 // lib/roleRows: a face reads a role from viewerRoles whichever workspace is
 // active, and finds a bot's role through the seats of every workspace.
 import { describe, expect, test } from "bun:test";
-import { ROLE_ICON_EXAMPLES } from "@codecast/shared/contracts/roleIconExamples";
+import { ROLE_ICON_EXAMPLES } from "@codecast/org/roleIconExamples";
 import { roleRowsOf, roleRowsSig } from "../roleRows";
 import {
   NO_CHARACTER_PREFS,

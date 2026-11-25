@@ -15,7 +15,7 @@ import {
 } from "./taskClaim.js";
 import { readTaskPulseFor, recordTaskStart } from "./taskPulse.js";
 import { resolveTaskModelFull } from "./agents/prompts.js";
-import { ASSIGNEE_MEANS } from "@codecast/shared/contracts/orgAssignee";
+import { ASSIGNEE_MEANS } from "@codecast/org/orgAssignee";
 
 describe("buildTaskStartBody", () => {
   test("a human shell claims by assignee, with no session binding", () => {

@@ -26,10 +26,7 @@ import { useSyncTasks } from "../../hooks/useSyncTasks";
 import { TaskDetailContent } from "./[id]/page";
 import { DetailSplitLayout } from "../../components/DetailSplitLayout";
 import { dragCarriesPane } from "../../lib/stage";
-import {
-  chainAssignees,
-  sameAssigneeInfo,
-} from "@codecast/shared/contracts/orgAssignee";
+import { chainAssignees, sameAssigneeInfo } from "@codecast/org/orgAssignee";
 import { useOrgRoles } from "../../hooks/useOrgRoles";
 import { useRolesAndPeopleOptions } from "../../hooks/useRolesAndPeopleOptions";
 import { useInitiatives } from "../../hooks/useInitiatives";

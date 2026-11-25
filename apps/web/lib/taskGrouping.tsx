@@ -34,10 +34,7 @@ import {
   OwnerChip,
 } from "../components/initiatives/InitiativeAtoms";
 import { INITIATIVE_ACCENT } from "./initiativeColors";
-import {
-  isRoleAssignee,
-  type AssigneeInfo,
-} from "@codecast/shared/contracts/orgAssignee";
+import { isRoleAssignee, type AssigneeInfo } from "@codecast/org/orgAssignee";
 import type { TaskItem, ProjectItem } from "../store/inboxStore";
 import type { ListGroup } from "../components/GenericListView";
 import type { OrgRole } from "../components/org/orgTypes";

@@ -26,7 +26,7 @@ import { workspaceKeyOf } from "./orgPlacement";
 import { ORG_STATE_META } from "./orgMeta";
 import { useRouter, useSearchParams } from "next/navigation";
 import { objectHref } from "@codecast/shared/entities";
-import { isHeadOfPeopleRole } from "@codecast/shared/contracts/orgLead";
+import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useSyncOrgProposal } from "../../hooks/useSyncOrgProposals";
 import { useSwitchWorkspace } from "../../hooks/useSwitchWorkspace";

@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@codecast/blame": "workspace:*",
-    "@codecast/shared": "workspace:*"
+    "@codecast/fence": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.3"

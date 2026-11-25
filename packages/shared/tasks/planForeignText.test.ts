@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   FOREIGN_TEXT_CAPS,
   FOREIGN_TEXT_TRUNCATION_MARKER,
-} from "../contracts/fence";
+} from "@codecast/fence/fence";
 import {
   FOREIGN_PLAN_CAPS,
   foreignPlanSource,

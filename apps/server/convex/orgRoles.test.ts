@@ -135,7 +135,7 @@ describe("orgRoles.create", () => {
     });
     // Every role gets a face; the default is stable per handle.
     const { defaultAvatarFor, isAvatarKey } =
-      await import("@codecast/shared/contracts/orgAvatars");
+      await import("@codecast/org/orgAvatars");
     expect(program.avatar).toBe(defaultAvatarFor("push"));
     // A chosen avatar sticks; a standing tenure passes through; a bad key is refused.
     const chosen = await performCreateRole(ctx, ME as any, {

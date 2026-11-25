@@ -11,12 +11,12 @@ import {
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { isRecRoomKey } from "@codecast/calls/callRoomKeys";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
-import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
+import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
 import {
   characterNameFor,
   defaultCharacterFor,
   type Character,
-} from "@codecast/shared/contracts/sessionCharacter";
+} from "@codecast/org/sessionCharacter";
 import {
   SessionCreatePendingError,
   defaultNewSessionPath,

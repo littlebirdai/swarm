@@ -1,9 +1,9 @@
-// The stored role icon (shared/contracts/roleIcon RoleIcon) as a Convex
+// The stored role icon (@codecast/org/roleIcon RoleIcon) as a Convex
 // validator: the schema's `org_roles.icon` and the setIcon mutation's
 // argument. It checks the shape; roleIconProblems checks the geometry, and
 // every write runs both.
 import { v } from "convex/values";
-import { ROLE_ICON_ACCENTS } from "@codecast/shared/contracts/roleIcon";
+import { ROLE_ICON_ACCENTS } from "@codecast/org/roleIcon";
 
 const points = v.array(v.number());
 

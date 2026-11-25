@@ -12,6 +12,7 @@
     "deploy": "bun scripts/deploy.ts"
   },
   "dependencies": {
+    "@codecast/org": "workspace:*",
     "@codecast/shared": "workspace:*",
     "@mariozechner/pi-ai": "0.73.1",
     "@platform/agent": "file:../../platform/packages/agent",

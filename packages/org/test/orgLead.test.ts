@@ -12,7 +12,7 @@ import {
   scopeListsProject,
   watchersLabel,
   type LeadRole,
-} from "./orgLead";
+} from "../src/orgLead";
 
 type Role = LeadRole & { _id: string; handle: string };
 

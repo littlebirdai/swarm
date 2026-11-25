@@ -14,7 +14,7 @@ import {
   goalCanResume,
   sessionGoalOf,
 } from "@codecast/shared/contracts/sessionGoal";
-import { isHeadOfPeopleRole } from "@codecast/shared/contracts/orgLead";
+import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
 import { pinnableAgentIds } from "@codecast/shared/contracts";
 import { cleanReservationPurpose } from "@codecast/cloud-hosts/cloudPlacement";
 import { parseStagePinRef, stagePinRowId } from "@codecast/calls/stagePins";
@@ -26,7 +26,7 @@ import type {
   RewindFilesOp,
   RewindStagedMark,
 } from "@codecast/daemon/rewindFiles";
-import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
+import type { RoleIcon } from "@codecast/org/roleIcon";
 import {
   cleanSecretEdit,
   type SecretMeta,

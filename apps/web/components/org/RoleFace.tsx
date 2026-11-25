@@ -6,10 +6,7 @@
 // chose, else the stable default for its handle) or its drawn icon tile. The
 // art lives in avatars/RoleAvatar and identity/RoleIconTile.
 import { useMemo } from "react";
-import {
-  avatarOf,
-  type AvatarKey,
-} from "@codecast/shared/contracts/orgAvatars";
+import { avatarOf, type AvatarKey } from "@codecast/org/orgAvatars";
 import { RoleAvatar } from "./avatars";
 import { RoleIconTile } from "../identity/RoleIconTile";
 import { useInboxStore } from "../../store/inboxStore";
@@ -22,7 +19,7 @@ import {
   type RoleTile,
 } from "../../lib/sessionIdentity";
 import { roleRowsOf } from "../../lib/roleRows";
-import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
+import type { RoleIcon } from "@codecast/org/roleIcon";
 
 export type RoleLike = {
   _id?: string;

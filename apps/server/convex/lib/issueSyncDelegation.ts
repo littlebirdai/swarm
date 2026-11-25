@@ -1,5 +1,5 @@
 import { internal } from "../_generated/api";
-import { inlineForeignText } from "@codecast/shared/contracts";
+import { inlineForeignText } from "@codecast/fence/fence";
 import { scheduleTriggerMatch } from "./triggerMatch";
 import { delegatedToSourceApp } from "./issueSyncAccess";
 import type { NormalizedIssue } from "./issueMapping";

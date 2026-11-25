@@ -9,7 +9,7 @@ import {
   ROLE_ICON_TILE,
   type RoleIconShape,
   type RoleIconSegment,
-} from "@codecast/shared/contracts/roleIcon";
+} from "@codecast/org/roleIcon";
 import { ROLES, SOL } from "./model";
 import type { IconKey } from "./icons";
 import { accentHex, glow, iconOf } from "./facesData";

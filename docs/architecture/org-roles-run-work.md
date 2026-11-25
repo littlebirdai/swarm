@@ -254,7 +254,7 @@ and a guard test pins both. A read (`--assignee`, `--chain`) names what a
 task holds, so a retired role's tasks can still be listed by its id or
 handle. Retiring a role hands its open tasks to whoever it reported to
 (`tasks.handOpenTasksUpChain`, told as any assignment is); a retired role
-stays in the chain it reported to (`contracts/orgAssignee` `chainParentOf`,
+stays in the chain it reported to (`@codecast/org/orgAssignee` `chainParentOf`,
 the one parent step the server, the board's Chain axis and its filter walk),
 so whatever it still holds is read under the same person. A hand's second
 `task start` reaches the role whether or not the session is still bound to
@@ -340,7 +340,7 @@ the CLI prints (`cast task context`, `cast task start`, the bound task line
 in the system text) says so in one sentence, so no model guesses the
 stricter reading. This matters more once roles hold tasks (R5).
 
-**As built.** `ASSIGNEE_MEANS` (`contracts/orgAssignee.ts`) is the sentence,
+**As built.** `ASSIGNEE_MEANS` (`packages/org/src/orgAssignee.ts`) is the sentence,
 printed by `cast task start`, by `cast task context` beside the assignee, and
 in the tasks snippet. The role page's Settings tab says where the seat runs:
 the host, the machine of the standing session (`devices.getConversationMachine`)

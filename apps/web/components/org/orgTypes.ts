@@ -4,7 +4,7 @@
 // store slice all agree on one definition.
 import type { WorkState } from "@codecast/sessions/workState";
 import type { OrgTenureSpec } from "@codecast/shared/contracts/orgProposal";
-import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
+import type { RoleIcon } from "@codecast/org/roleIcon";
 import type { RoleFailover } from "@codecast/shared/contracts/roleFailover";
 
 export type StateCounts = Record<WorkState, number>;

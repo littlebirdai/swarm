@@ -1,4 +1,4 @@
-// Rasterizes role icons (shared/contracts/roleIcon) without a renderer
+// Rasterizes role icons (@codecast/org/roleIcon) without a renderer
 // dependency: the generator's similarity check and the contact sheet the
 // judge reads both draw through here, in Convex's default runtime and in tests.
 //
@@ -16,7 +16,7 @@ import {
   flattenRoleIconPath,
   roleIconStroke,
   ROLE_ICON_TILE,
-} from "@codecast/shared/contracts/roleIcon";
+} from "@codecast/org/roleIcon";
 
 type Seg = [number, number, number, number];
 type Geometry = {
@@ -26,7 +26,7 @@ type Geometry = {
 
 const RING_STEPS = 48;
 
-// ── Flattening (paths flatten in shared/contracts/roleIcon, which validates by the same code) ──
+// ── Flattening (paths flatten in @codecast/org/roleIcon, which validates by the same code) ──
 
 function ring(cx: number, cy: number, rx: number, ry: number, out: Seg[]) {
   for (let k = 0; k < RING_STEPS; k++) {

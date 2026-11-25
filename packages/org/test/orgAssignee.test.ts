@@ -8,8 +8,8 @@ import {
   roleAssigneeInfo,
   rolesInChainOf,
   sameAssigneeInfo,
-} from "./orgAssignee";
-import { defaultAvatarFor } from "./orgAvatars";
+} from "../src/orgAssignee";
+import { defaultAvatarFor } from "../src/orgAvatars";
 
 const user = (id: string) => ({ kind: "user" as const, user_id: id });
 const under = (id: string) => ({ kind: "role" as const, role_id: id });

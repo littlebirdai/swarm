@@ -4,7 +4,7 @@
 // role verb. This maps a verb to the role route it forwards to, so the CLI
 // says so once and does the role thing.
 
-import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/shared/contracts/orgLead";
+import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/org/orgLead";
 export { HEAD_OF_PEOPLE_HANDLE };
 
 export type AnchorVerb = "create" | "ls" | "wake" | "brief" | "rm";

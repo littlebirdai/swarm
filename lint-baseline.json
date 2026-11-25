@@ -29008,6 +29008,12 @@
   "packages/evals-api/test/evalsApi.test.ts": {
     "swarm/no-comments": 2
   },
+  "packages/fence/src/fence.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/fence/test/fence.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/files/src/index.ts": {
     "swarm/no-comments": 19
   },
@@ -29064,6 +29070,51 @@
   },
   "packages/network/src/internalHost.ts": {
     "swarm/no-comments": 22
+  },
+  "packages/org/src/executiveAssistantPrompt.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/org/src/orgAssignee.ts": {
+    "swarm/no-comments": 39
+  },
+  "packages/org/src/orgAvatars.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/org/src/orgIdentity.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/org/src/orgLead.ts": {
+    "swarm/no-comments": 50
+  },
+  "packages/org/src/orgRoute.ts": {
+    "swarm/no-comments": 19
+  },
+  "packages/org/src/roleIcon.ts": {
+    "swarm/no-comments": 35
+  },
+  "packages/org/src/roleIconExamples.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/org/src/sessionCharacter.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/org/test/executiveAssistantPrompt.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/org/test/orgAssignee.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/org/test/orgIdentity.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/org/test/orgLead.test.ts": {
+    "swarm/no-comments": 2
+  },
+  "packages/org/test/orgRoute.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/org/test/roleIcon.test.ts": {
+    "swarm/no-comments": 6
   },
   "packages/pages/src/castMotion.ts": {
     "swarm/no-comments": 10
@@ -29431,12 +29482,6 @@
   "packages/shared/contracts/executionBinding.ts": {
     "swarm/no-comments": 6
   },
-  "packages/shared/contracts/executiveAssistantPrompt.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/executiveAssistantPrompt.ts": {
-    "swarm/no-comments": 8
-  },
   "packages/shared/contracts/expectations.test.ts": {
     "swarm/no-comments": 11
   },
@@ -29445,12 +29490,6 @@
   },
   "packages/shared/contracts/featureExplainers.ts": {
     "swarm/no-comments": 12
-  },
-  "packages/shared/contracts/fence.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/fence.ts": {
-    "swarm/no-comments": 8
   },
   "packages/shared/contracts/flowMap.ts": {
     "swarm/no-comments": 49
@@ -29668,15 +29707,6 @@
   "packages/shared/contracts/orgAreas.ts": {
     "swarm/no-comments": 62
   },
-  "packages/shared/contracts/orgAssignee.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/orgAssignee.ts": {
-    "swarm/no-comments": 39
-  },
-  "packages/shared/contracts/orgAvatars.ts": {
-    "swarm/no-comments": 12
-  },
   "packages/shared/contracts/orgCapacity.test.ts": {
     "swarm/no-comments": 5
   },
@@ -29695,18 +29725,6 @@
   "packages/shared/contracts/orgChangeWords.ts": {
     "swarm/no-comments": 52
   },
-  "packages/shared/contracts/orgIdentity.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/orgIdentity.ts": {
-    "swarm/no-comments": 20
-  },
-  "packages/shared/contracts/orgLead.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/orgLead.ts": {
-    "swarm/no-comments": 50
-  },
   "packages/shared/contracts/orgLog.ts": {
     "swarm/no-comments": 15
   },
@@ -29721,12 +29739,6 @@
   },
   "packages/shared/contracts/orgReview.ts": {
     "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/orgRoute.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/orgRoute.ts": {
-    "swarm/no-comments": 19
   },
   "packages/shared/contracts/orgSessionFiling.test.ts": {
     "swarm/no-comments": 4
@@ -29839,15 +29851,6 @@
   "packages/shared/contracts/roleGoals.ts": {
     "swarm/no-comments": 26
   },
-  "packages/shared/contracts/roleIcon.test.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/contracts/roleIcon.ts": {
-    "swarm/no-comments": 35
-  },
-  "packages/shared/contracts/roleIconExamples.ts": {
-    "swarm/no-comments": 4
-  },
   "packages/shared/contracts/roleLevel.ts": {
     "swarm/no-comments": 5
   },
@@ -29889,9 +29892,6 @@
   },
   "packages/shared/contracts/sessionAsk.ts": {
     "swarm/no-comments": 12
-  },
-  "packages/shared/contracts/sessionCharacter.ts": {
-    "swarm/no-comments": 17
   },
   "packages/shared/contracts/sessionEscalation.ts": {
     "swarm/no-comments": 31

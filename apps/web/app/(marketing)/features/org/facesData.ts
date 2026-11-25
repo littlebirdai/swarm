@@ -1,4 +1,4 @@
-import type { RoleIcon } from "@codecast/shared/contracts/roleIcon";
+import type { RoleIcon } from "@codecast/org/roleIcon";
 import { ACCENT, SOL } from "./model";
 import { ICONS, type IconKey } from "./icons";
 

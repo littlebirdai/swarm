@@ -9,7 +9,7 @@ import {
   HEAD_OF_PEOPLE_HANDLE,
   HEAD_OF_PEOPLE_NAME,
   isHeadOfPeopleRole,
-} from "@codecast/shared/contracts/orgLead";
+} from "@codecast/org/orgLead";
 
 /** A role codecast itself offers at the top of the gallery (org-staffing.md
  *  S6, S30): hired through its own path, never a template, and offered only

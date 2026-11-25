@@ -1,15 +1,17 @@
 import { foreignTaskSource } from "@codecast/shared/tasks";
 import {
   CONTINUE_BANNER_KINDS,
-  FOREIGN_TEXT_CAPS,
-  capForeignText,
-  escapeForeignControlChars,
-  inlineForeignText,
   fromConvexAgentType,
   toConvexAgentType,
   resolveAgentLaunch,
   type AgentDefinitionSpec,
 } from "@codecast/shared/contracts";
+import {
+  FOREIGN_TEXT_CAPS,
+  capForeignText,
+  escapeForeignControlChars,
+  inlineForeignText,
+} from "@codecast/fence/fence";
 import { splitReviewNote } from "./reviewNote";
 import { definitionLaunchFlags } from "../agentLaunch.js";
 import { CHEAP_MODEL } from "@codecast/shared/contracts/modelOptions";

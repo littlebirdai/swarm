@@ -1,5 +1,5 @@
-import type { AvatarKey } from "@codecast/shared/contracts/orgAvatars";
-import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
+import type { AvatarKey } from "@codecast/org/orgAvatars";
+import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
 import bear from "../components/org/avatars/bear.webp";
 import crane from "../components/org/avatars/crane.webp";
 import elephant from "../components/org/avatars/elephant.webp";

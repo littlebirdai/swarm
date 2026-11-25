@@ -17,7 +17,7 @@ Large: several projects. The root anchor's scope is the workspace.
   that would leave one outside applies. A person turns it on per role
   ("Reports stay inside its area" in the role's settings, stored as
   `keeps_reports_inside`, read only through `keepsReportsInside` in
-  shared/contracts/orgLead.ts). On, every report's scope must sit inside that
+  packages/org/src/orgLead.ts). On, every report's scope must sit inside that
   role's, unless the role names no area, and a template hire beside a project's
   lead that has it on is refused. Sibling overlap is allowed and shown as a
   warning on the org page and the scope page (two roles watch the same project).

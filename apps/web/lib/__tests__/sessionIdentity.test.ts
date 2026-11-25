@@ -5,7 +5,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { defaultCharacterFor } from "@codecast/shared/contracts/sessionCharacter";
+import { defaultCharacterFor } from "@codecast/org/sessionCharacter";
 import {
   NO_CHARACTER_PREFS,
   PERSONIFY_ALL_PREFS,
@@ -22,8 +22,8 @@ import {
   withLiveRole,
   type RoleRows,
 } from "../sessionIdentity";
-import { characterNameFor } from "@codecast/shared/contracts/sessionCharacter";
-import { ROLE_ICON_EXAMPLES } from "@codecast/shared/contracts/roleIconExamples";
+import { characterNameFor } from "@codecast/org/sessionCharacter";
+import { ROLE_ICON_EXAMPLES } from "@codecast/org/roleIconExamples";
 
 const ID = "k97xcyp74gaa0q43my0mpnvnsd8ekyj4";
 const ROLE = {

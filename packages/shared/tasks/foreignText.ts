@@ -11,7 +11,7 @@
  * and the CLI prints `cast task context` — so the rendering lives here.
  *
  * The defense is provenance plus bounds, never phrase filtering: fence the
- * text in delimiters that name its source (contracts/fence.ts), escape the
+ * text in delimiters that name its source (packages/fence/src/fence.ts), escape the
  * control characters that could repaint a terminal or hide text, and cap every
  * field so a huge issue body cannot push the real instructions out of the
  * model's attention.
@@ -23,7 +23,7 @@ import {
   escapeForeignControlChars,
   fenceForeignText,
   inlineForeignText,
-} from "../contracts/fence";
+} from "@codecast/fence/fence";
 
 export type ForeignTaskComment = {
   author?: string | null;

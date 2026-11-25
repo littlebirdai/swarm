@@ -7,7 +7,7 @@ import {
   roleIconSvg,
   roleMonogram,
   type RoleIcon,
-} from "./roleIcon";
+} from "../src/roleIcon";
 
 const database: RoleIcon = {
   v: 1,
@@ -98,7 +98,7 @@ test("accents spread and monograms skip filler", () => {
 // Paths validate by being drawn (flattenRoleIconPath): what passes always
 // renders, and every point it reaches sits on the grid.
 test("a path that cannot be drawn, or that leaves the grid, is a problem", async () => {
-  const { flattenRoleIconPath } = await import("./roleIcon");
+  const { flattenRoleIconPath } = await import("../src/roleIcon");
   const withPath = (d: string): RoleIcon => ({
     v: 1,
     concept: "mark",

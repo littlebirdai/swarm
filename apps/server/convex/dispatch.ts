@@ -10,7 +10,7 @@ import { noteWriteCause } from "./lifecycleEvents";
 import { heldKeysFor } from "./lib/accessKeys";
 import { addWaitCore, removeWaitCore, type AddWaitInput } from "./taskWaits";
 import { relateCore } from "./taskLinks";
-import { normalizeCharacterFields } from "@codecast/shared/contracts/sessionCharacter";
+import { normalizeCharacterFields } from "@codecast/org/sessionCharacter";
 import type { CodeAnchorText } from "@codecast/comments";
 import {
   answerRefusal,

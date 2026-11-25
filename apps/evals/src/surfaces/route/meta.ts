@@ -10,7 +10,7 @@ export const meta: SurfaceMeta = {
     "route",
     "apps/server/convex/lib/orgRouter.ts",
     "apps/server/convex/orgRoute.ts",
-    "packages/shared/contracts/orgRoute.ts",
+    "packages/org/src/orgRoute.ts",
     "apps/server/convex/lib/anthropic.ts",
   ),
   reps: { check: 5 },

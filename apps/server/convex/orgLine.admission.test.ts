@@ -10,7 +10,7 @@ import {
   startPlanned,
   sweepCore,
 } from "./orgLine";
-import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/shared/contracts/orgLead";
+import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/org/orgLead";
 import { normalizeGitOrigin } from "@codecast/capabilities/capabilityScopes";
 import {
   HOST,

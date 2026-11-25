@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 // The fence itself is tested in @platform/fence; this covers what codecast adds.
-import { fenceUnlessBuiltin } from "./fence";
+import { fenceUnlessBuiltin } from "../src/fence";
 
 describe("fenceUnlessBuiltin", () => {
   test("builtin text passes through unfenced", () => {
