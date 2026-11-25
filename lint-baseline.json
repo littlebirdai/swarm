@@ -15820,7 +15820,7 @@
   "apps/web/components/activity/useActivityView.ts": {
     "swarm/no-comments": 9
   },
-  "apps/web/components/agentDock/AgentDock.tsx": {
+  "apps/web/components/agentDock/agent-dock.tsx": {
     "react/refs": 1,
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 46,
