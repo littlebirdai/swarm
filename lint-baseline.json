@@ -4301,7 +4301,7 @@
     "swarm/no-comments": 15
   },
   "apps/cli/src/secrets/redaction-source.ts": {
-    "swarm/no-comments": 19
+    "swarm/no-comments": 18
   },
   "apps/cli/src/secrets/redactionSource.test.ts": {
     "swarm/no-comments": 4

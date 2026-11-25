@@ -525,7 +525,6 @@ export class KnownValueStore {
   private relisting: Promise<void> | null = null;
   private relistAgain: Promise<void> | null = null;
   private syncReadsBlockedUntil = 0;
-  private refreshedAt: number | null = null;
   private matcherReady = false;
 
   constructor(private readonly src: KnownValueSources) {}
@@ -714,14 +713,8 @@ export class KnownValueStore {
     try {
       const changed = await this.src.vault?.refresh();
       if (!this.stopped && (changed || !this.matcherReady)) this.rebuild();
-      this.refreshedAt =
-        !this.stopped &&
-        this.matcherReady &&
-        (this.src.vault?.ready?.() ?? false)
-          ? Date.now()
-          : null;
     } catch (e) {
-      this.refreshedAt = null;
+      this.matcherReady = false;
       this.src.log?.(
         `[KNOWN-VALUES] vault refresh failed: ${(e as Error)?.message ?? e}`,
       );
@@ -733,9 +726,7 @@ export class KnownValueStore {
     return (
       !this.stopped &&
       this.matcherReady &&
-      this.refreshedAt !== null &&
-      Date.now() - this.refreshedAt < 75_000 &&
-      (this.src.vault?.ready?.() ?? false)
+      (!this.src.vault || this.src.vault.ready?.() === true)
     );
   }
 

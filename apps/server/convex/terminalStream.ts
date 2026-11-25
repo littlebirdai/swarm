@@ -283,7 +283,12 @@ export const cliPushClipboard = mutation({
     text: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await terminalPublisher(ctx, args.api_token, args.device_id);
+    const userId = await terminalPublisher(
+      ctx,
+      args.api_token,
+      args.device_id,
+      true,
+    );
     if (!userId) return { ok: false as const };
     if (!isValidPaneTarget(args.target)) throw new Error("Invalid pane target");
     const row = await findRow(ctx, userId, args.device_id, args.target);
@@ -331,7 +336,12 @@ export const cliPushFrame = mutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await terminalPublisher(ctx, args.api_token, args.device_id);
+    const userId = await terminalPublisher(
+      ctx,
+      args.api_token,
+      args.device_id,
+      true,
+    );
     if (!userId) return { watch_until: 0, stop: true, fast: false };
     if (!isValidPaneTarget(args.target)) throw new Error("Invalid pane target");
 

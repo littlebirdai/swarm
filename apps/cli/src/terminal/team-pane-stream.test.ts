@@ -163,3 +163,47 @@ test("team frames stop before capture when the known-value matcher is unavailabl
   );
   expect(published).toBe(1);
 });
+
+test("isolated tmux redacts a value wrapped before a two-cell character", async () => {
+  const name = "watch-wide";
+  const first = "ABCDEFGHIJKLMNOPQRS";
+  const second = "界synthetic-tail";
+  setKnownValuesForTest([
+    { name: "fixture", value: first + second, vault: true },
+  ]);
+  expect(
+    tmuxRun([
+      "new-session",
+      "-d",
+      "-s",
+      name,
+      "-x",
+      "20",
+      "-y",
+      "8",
+      `printf '%s\\n' '${first}${second}'; sleep 60`,
+    ]).status,
+  ).toBe(0);
+  try {
+    await pollUntil(
+      async () => (await captureTeamPane(name))?.text.includes(second) ?? false,
+      "wide fixture on the isolated pane",
+    );
+    const pushes: string[] = [];
+    await streamTeamPane(name, {
+      capture: captureTeamPane,
+      now: Date.now,
+      sleep: async () => {},
+      push: async ({ frame }) => {
+        if (frame) pushes.push(frame);
+        return true;
+      },
+    });
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]).toContain("[redacted:");
+    expect(pushes[0]).not.toContain(first);
+    expect(pushes[0]).not.toContain(second);
+  } finally {
+    tmuxRun(["kill-session", "-t", name]);
+  }
+});

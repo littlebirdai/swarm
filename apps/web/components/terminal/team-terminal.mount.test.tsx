@@ -37,6 +37,8 @@ test("the owner confirms sharing, can stop a named viewer and can turn sharing o
   const dialog =
     dom.window.document.querySelector<HTMLElement>('[role="dialog"]');
   expect(dialog?.textContent).toContain("Read-only");
+  expect(dialog?.textContent).toContain("Your terminal screen");
+  expect(dialog?.textContent).toContain("Automatic hiding can miss secrets");
   await act(async () =>
     dialog!
       .querySelector<HTMLButtonElement>('[title="Share terminal"]')!

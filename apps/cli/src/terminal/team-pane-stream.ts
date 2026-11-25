@@ -29,7 +29,7 @@ export async function captureTeamPane(target: string) {
     ";",
     "capture-pane",
     "-p",
-    "-N",
+    "-J",
     "-t",
     pane,
     ";",
@@ -91,10 +91,7 @@ export async function streamTeamPane(
       return;
     }
     paneInstance = pane.identity;
-    const frame = redactFrame(pane.text, pane.cols).slice(
-      0,
-      PANE_MAX_FRAME_BYTES,
-    );
+    const frame = redactFrame(pane.text).slice(0, PANE_MAX_FRAME_BYTES);
     const changed = frame !== lastFrame;
     if (changed || deps.now() - lastPushAt >= PANE_HEARTBEAT_MS) {
       const stop = await deps.push({

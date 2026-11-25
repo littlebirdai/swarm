@@ -41,7 +41,7 @@ function shareFor(ctx: ReadCtx, conversationId: Id<"conversations">) {
     .unique();
 }
 
-function blockFor(
+function viewerBlocks(
   ctx: ReadCtx,
   conversation: Id<"conversations">,
   user: Id<"users">,
@@ -50,8 +50,7 @@ function blockFor(
     .query("terminal_watch_blocks")
     .withIndex("by_conversation_user", (q) =>
       q.eq("conversation_id", conversation).eq("user_id", user),
-    )
-    .unique();
+    );
 }
 
 async function currentPane(ctx: ReadCtx, conversation: Doc<"conversations">) {
@@ -138,7 +137,7 @@ async function viewerLease(
     !conversation ||
     !(await canWatch(ctx, viewer, conversation)) ||
     !(await currentShare(ctx, conversation, share)) ||
-    (await blockFor(ctx, conversation._id, viewer))
+    (await viewerBlocks(ctx, conversation._id, viewer).first())
   )
     return null;
   const presence = await ctx.db
@@ -161,15 +160,24 @@ export const status = query({
     if (user === conversation.user_id) {
       const pane = await currentPane(ctx, conversation);
       if (!pane && !share) return null;
+      const available =
+        !!pane &&
+        conversation.team_visibility !== "private" &&
+        (await isTeamMember(ctx, user, conversation.team_id)) &&
+        (await teamReadLevel(ctx, conversation)) === "content";
+      const current =
+        available && share && (await currentShare(ctx, conversation, share))
+          ? share
+          : null;
+      const binding =
+        !!current &&
+        !current.bound_at &&
+        (current.bind_expires_at ?? 0) > Date.now();
       return {
         role: "owner" as const,
-        enabled: !!share,
-        ...(share && !share.bound_at ? { binding: true } : {}),
-        available:
-          !!pane &&
-          conversation.team_visibility !== "private" &&
-          (await isTeamMember(ctx, user, conversation.team_id)) &&
-          (await teamReadLevel(ctx, conversation)) === "content",
+        enabled: !!(current?.bound_at && current.pane_instance) || binding,
+        ...(binding ? { binding: true } : {}),
+        available,
       };
     }
     if (
@@ -179,7 +187,7 @@ export const status = query({
       !(await currentShare(ctx, conversation, share))
     )
       return null;
-    return (await blockFor(ctx, conversation._id, user))
+    return (await viewerBlocks(ctx, conversation._id, user).first())
       ? null
       : { role: "viewer" as const, share: share._id };
   },
@@ -208,7 +216,8 @@ export const setSharing = mutation({
       return false;
     if (
       existing &&
-      (existing.bound_at || (existing.bind_expires_at ?? 0) > Date.now()) &&
+      ((existing.bound_at && existing.pane_instance) ||
+        (existing.bind_expires_at ?? 0) > Date.now()) &&
       (await currentShare(ctx, conversation, existing))
     )
       return true;
@@ -278,7 +287,7 @@ export const stopViewer = mutation({
       )
       .unique();
     if (!viewer) return false;
-    if (!(await blockFor(ctx, conversation._id, args.viewer))) {
+    if (!(await viewerBlocks(ctx, conversation._id, args.viewer).first())) {
       await ctx.db.insert("terminal_watch_blocks", {
         conversation_id: conversation._id,
         team_id: share.team_id,
@@ -308,10 +317,11 @@ export const blockedViewers = query({
         q.eq("conversation_id", conversation._id),
       )
       .collect();
+    const users = new Set(blocks.map((block) => block.user_id));
     return await Promise.all(
-      blocks.map(async (block) => ({
-        user_id: block.user_id,
-        name: (await ctx.db.get(block.user_id))?.name ?? "Teammate",
+      [...users].map(async (user_id) => ({
+        user_id,
+        name: (await ctx.db.get(user_id))?.name ?? "Teammate",
       })),
     );
   },
@@ -323,8 +333,12 @@ export const unblockViewer = mutation({
     const user = await requireUser(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation || conversation.user_id !== user) return false;
-    const block = await blockFor(ctx, conversation._id, args.viewer);
-    if (block) await ctx.db.delete(block._id);
+    for (const block of await viewerBlocks(
+      ctx,
+      conversation._id,
+      args.viewer,
+    ).collect())
+      await ctx.db.delete(block._id);
     return true;
   },
 });
@@ -335,10 +349,13 @@ export const leave = mutation({
     const viewer = await requireUser(ctx);
     const share = await ctx.db.get(args.share);
     if (!share || share.conversation_id !== args.conversation_id) return false;
-    const presence = await terminalWatchViewers(ctx.db, share._id)
-      .filter((q) => q.eq(q.field("user_id"), viewer))
-      .unique();
-    if (presence) await deleteTerminalViewer(ctx.db, presence);
+    const presence = await ctx.db
+      .query("terminal_watch_viewers")
+      .withIndex("by_share_user", (q) =>
+        q.eq("share", share._id).eq("user_id", viewer),
+      )
+      .collect();
+    for (const row of presence) await deleteTerminalViewer(ctx.db, row);
     return true;
   },
 });
@@ -587,7 +604,17 @@ export const purgeTeamRows = internalMutation({
       .query("terminal_watch_blocks")
       .withIndex("by_team", (q) => q.eq("team_id", args.team_id))
       .take(100);
-    for (const block of blocks) await ctx.db.delete(block._id);
+    for (const block of blocks) {
+      const conversation = await ctx.db.get(block.conversation_id);
+      const nextTeam =
+        conversation?.team_id !== args.team_id
+          ? conversation?.team_id
+          : undefined;
+      const movedTo = nextTeam && (await ctx.db.get(nextTeam));
+      if (movedTo && !movedTo.deleted_at)
+        await ctx.db.patch(block._id, { team_id: movedTo._id });
+      else await ctx.db.delete(block._id);
+    }
     if (shares.length === 20 || blocks.length === 100)
       await ctx.scheduler.runAfter(
         0,

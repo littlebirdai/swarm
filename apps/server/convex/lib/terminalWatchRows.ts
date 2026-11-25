@@ -1,6 +1,6 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { DatabaseReader, DatabaseWriter } from "../_generated/server";
-import { purgeRow, type PurgeNode } from "./purgeTree";
+import type { PurgeNode } from "./purgeTree";
 
 const underShare = (share: Doc<"terminal_watch_shares">) => share._id;
 
@@ -57,7 +57,14 @@ export async function deleteTerminalShare(
   db: DatabaseWriter,
   share: Doc<"terminal_watch_shares">,
 ) {
-  await purgeRow({ db }, terminalWatchRows, share, { left: 100 }, {});
+  for (const viewer of await terminalWatchViewers(db, share._id).collect())
+    await db.delete(viewer._id);
+  const screens = await db
+    .query("terminal_watch_screens")
+    .withIndex("by_share", (q) => q.eq("share", share._id))
+    .collect();
+  for (const screen of screens) await db.delete(screen._id);
+  await db.delete(share._id);
 }
 
 export async function deleteTerminalViewer(

@@ -442,12 +442,13 @@ export function restoreStrandedClipboardBridges(): number {
 
 /** Colors (SGR) and the other escapes capture-pane -e emits, OSC 8 links included. */
 const ESCAPE_RE =
-  /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-_])/g;
+  /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-_])|\x9b[0-?]*[ -/]*[@-~]/g;
 
 /** Cells a row's text takes, counting anything past U+1100 as wide: an overcount only joins a row that did not wrap, never misses one that did. */
 function cellWidth(text: string): number {
   let n = 0;
-  for (const ch of text) n += ch.codePointAt(0)! >= 0x1100 ? 2 : 1;
+  for (const ch of text)
+    n += ch === "\t" ? 8 - (n % 8) : ch.codePointAt(0)! >= 0x1100 ? 2 : 1;
   return n;
 }
 
@@ -461,7 +462,10 @@ function cellWidth(text: string): number {
  * colors; every other row keeps its colors and still goes through
  * redactSecrets, which also covers a value inside an escape (a link's URL).
  */
-export function redactFrame(frame: string, cols: number): string {
+export function redactFrame(
+  frame: string,
+  cols = Number.MAX_SAFE_INTEGER,
+): string {
   const rows = frame.split("\n");
   const plain = rows.map((r) => r.replace(ESCAPE_RE, ""));
   const lines: Array<{ start: number; end: number; text: string }> = [];
@@ -471,7 +475,8 @@ export function redactFrame(frame: string, cols: number): string {
     lines.push({ start, end, text: plain.slice(start, end).join("") });
   }
   const joined = lines.map((line) => line.text).join("\n");
-  const keyBoundary = /-----(BEGIN|END) [A-Z0-9 ]{0,40}PRIVATE KEY-----/g;
+  const keyBoundary =
+    /-----(BEGIN|END) (?:[A-Z0-9 ]{0,40}PRIVATE KEY|PGP PRIVATE KEY BLOCK)-----/g;
   const keyRows = new Set<number>();
   let keyStart: number | undefined;
   for (const [lineIndex, line] of lines.entries()) {
@@ -487,15 +492,46 @@ export function redactFrame(frame: string, cols: number): string {
   if (keyStart !== undefined) {
     for (let i = keyStart; i < lines.length; i++) keyRows.add(i);
   }
-  const redactedScreen = redactSecrets(
-    keyRows.size
-      ? lines
-          .map((line, index) =>
-            keyRows.has(index) ? "[redacted:pem]" : line.text,
-          )
-          .join("\n")
-      : joined,
-  );
+  const withoutKeyBlocks = keyRows.size
+    ? lines
+        .map((line, index) =>
+          keyRows.has(index) ? "[redacted:key]" : line.text,
+        )
+        .join("\n")
+    : joined;
+  const mask = (value: string) =>
+    "[redacted:terminal-secret]" + "\n".repeat(value.split("\n").length - 1);
+  let hints = withoutKeyBlocks
+    .replace(
+      /(?:^[ \t]*(?:[A-Za-z0-9+/]{64}|[A-Za-z0-9+/]{76})[ \t]*(?:\n|$)){4,}/gm,
+      (match) => mask(match),
+    )
+    .replace(
+      /^([ \t]*client-key-data[ \t]*:[ \t]*)([|>][-+]?[ \t]*\n(?:[ \t]+[A-Za-z0-9+/=]+[ \t]*(?:\n|$))+)/gim,
+      (_match, label, value) => label + mask(value),
+    )
+    .replace(
+      /(?<![\w-])(client-key-data[ \t]*:[ \t]*)(?:"[^"\n]*"|'[^'\n]*'|[^ \t\n]+)/gi,
+      (match, label) => label + mask(match.slice(label.length)),
+    )
+    .replace(
+      /(?<![\w-])((?:[A-Z_][A-Z0-9_]{0,63})?(?:SECRET|PASSWORD|TOKEN|CREDENTIAL|PRIVATE_KEY)[A-Z0-9_]{0,32}[ \t]*[:=][ \t]*)("(?:[^"\\]|\\[\s\S])*"|'(?:[^'\\]|\\[\s\S])*')/gi,
+      (_match, label, value) => label + mask(value),
+    )
+    .replace(/(?<![A-Za-z0-9+/])LS0tLS1CRUdJTi[A-Za-z0-9+/=]*/g, (value) =>
+      /^-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----/.test(
+        Buffer.from(value.slice(0, 120), "base64").toString(),
+      )
+        ? mask(value)
+        : value,
+    );
+  if (/"kty"\s*:\s*"(?:RSA|EC|OKP|oct)"/.test(hints)) {
+    hints = hints.replace(
+      /("(?:d|p|q|dp|dq|qi|k|oth)"\s*:\s*)("(?:[^"\\]|\\[\s\S])*"|\[[^\]]{0,4096}\])/g,
+      (_match, label, value) => label + mask(value),
+    );
+  }
+  const redactedScreen = redactSecrets(hints);
   if (redactedScreen === joined) return redactSecrets(frame);
   const redactedLines = redactedScreen.split("\n");
   if (redactedLines.length !== lines.length)

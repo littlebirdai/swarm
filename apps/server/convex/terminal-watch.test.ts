@@ -484,6 +484,22 @@ test("a publisher needs a token bound to the exact runner device", async () => {
       api_token: unbound,
       frame,
     }),
+  ).toMatchObject({ stop: false });
+  expect(
+    await t.mutation(api.terminalStream.cliPushClipboard, {
+      device_id: deviceId,
+      target,
+      api_token: unbound,
+      text: "sample clipboard",
+    }),
+  ).toEqual({ ok: true });
+  expect(
+    await t.mutation(api.terminalStream.cliPushFrame, {
+      device_id: deviceId,
+      target,
+      api_token: presentToken(otherSecret, wrongDevice),
+      frame,
+    }),
   ).toMatchObject({ stop: true });
 });
 

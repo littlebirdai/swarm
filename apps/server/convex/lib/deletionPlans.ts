@@ -342,7 +342,6 @@ function plans() {
     byTeam("terminal_watch_shares", "by_team", {
       children: terminalWatchRows.children,
     }),
-    byTeam("terminal_watch_blocks", "by_team"),
     byTeam("decisions", "by_team_id"),
     byWorkspace("decisions", "by_workspace"),
     byTeam("patterns", "by_team_id"),

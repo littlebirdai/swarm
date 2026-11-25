@@ -113,7 +113,12 @@ function TeamTerminalOwner({
           rows: [
             { k: "Viewers", v: "Teammates who can read this session" },
             { k: "Access", v: "Read-only" },
-            { k: "Screen", v: "Redacted" },
+            { k: "Visible to viewers", v: "Your terminal screen" },
+            {
+              k: "Secrets",
+              v: "Automatic hiding can miss secrets",
+              tone: "warn",
+            },
           ],
           stop: "Stop sharing",
           confirm: "Share terminal",
