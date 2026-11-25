@@ -152,7 +152,6 @@ scenario(
     );
 
     const promote = async () => {
-      await session.join("ana");
       const permit = permitOf(
         await session.retryQueuedSteer("late-steer", "ben", {
           kind: "turn",
@@ -160,20 +159,21 @@ scenario(
         }),
       );
       const result = await complete(session, permit);
-      return [result, await refresh(session, "ana")] as const;
+      return [result, await refresh(session, "ben")] as const;
     };
     const [[steer, guestDrives]] = await observe(
       world,
-      Promise.all([promote(), refresh(session, "ben")]),
+      Promise.all([promote(), refresh(session, "ana")]),
     );
     check(
       world,
-      "joinerDrives",
-      "Ben steers the same turn and can answer the routine prompt",
+      "joinerDrivesWhileOwnerAway",
+      "Ben steers the running turn and can answer while Ana is away",
       [steer, guestDrives.driver, guestDrives.prompt?.canAnswer],
       ["delivered", "ben", "ben"],
     );
 
+    await observe(world, session.join("ana"));
     const samePrompt = guestDrives.prompt!.expected;
     const serverRejectsOldAnswer = session.prepareAnswer("ben", {
       ...samePrompt,
@@ -217,6 +217,18 @@ scenario(
       "The holder cannot submit a second answer to the same prompt",
       answeredTwice,
       "refused",
+    );
+
+    const republished = await observe(
+      world,
+      session.publishPrompt().then(() => refresh(session, "ben")),
+    );
+    check(
+      world,
+      "republishedPromptKeepsAnswer",
+      "A repeated open event keeps the accepted answer",
+      [republished.prompt?.state, republished.prompt?.answeredBy],
+      ["answered", "ben"],
     );
 
     const replacePrompt = async () => {
@@ -281,11 +293,19 @@ scenario(
     const recover = async () => {
       await session.machineTurn(null);
       await session.publishTurn();
+      const command = await session.prepareAnswer(
+        "ana",
+        fallback.prompt!.expected,
+      );
       await session.closePrompt();
+      const result =
+        typeof command === "string"
+          ? command
+          : await session.deliverAnswer(command);
       await session.publishPrompt();
-      return refresh(session, "ana");
+      return [await refresh(session, "ana"), result] as const;
     };
-    const [closed] = await observe(
+    const [[closed, lateAnswer]] = await observe(
       world,
       Promise.all([recover(), session.join("ben")]),
     );
@@ -295,6 +315,14 @@ scenario(
       "The agent closes the prompt and the old implied driver clears",
       [closed.prompt?.state, closed.prompt?.canAnswer, closed.driver],
       ["closed", null, null],
+    );
+
+    check(
+      world,
+      "closedAgentPromptDropsAnswer",
+      "An answer cannot reach a prompt the agent has closed",
+      lateAnswer,
+      "stale",
     );
 
     const escalation = {
@@ -315,38 +343,45 @@ scenario(
       ),
     );
     const escalationKey = flagged.prompt!.expected;
-    const [holder, owner] = await observe(
+    const holder = await observe(
       world,
-      Promise.all([
-        session.prepareAnswer("ben", escalationKey),
-        session.prepareAnswer("ana", escalationKey),
-      ]),
+      session.prepareAnswer("ben", escalationKey),
     );
     check(
       world,
       "escalationWaitsForOwner",
-      "An escalation waits for the owner while the owner is offline",
+      "Only the owner can answer an escalation even when Ben holds the baton",
       [
         flagged.driver,
         flagged.prompt?.class,
         flagged.prompt?.canAnswer,
         flagged.prompt?.answererOnline,
         holder,
-        owner,
       ],
-      ["ben", "escalation", "ana", false, "refused", "refused"],
+      ["ben", "escalation", "ana", false, "refused"],
     );
 
-    const resume = async () => {
-      await session.join("ana");
-      const command = await session.prepareAnswer("ana", escalationKey);
-      return typeof command === "string"
-        ? command
-        : session.deliverAnswer(command);
+    const command = await observe(
+      world,
+      session.prepareAnswer("ana", escalationKey),
+    );
+    check(
+      world,
+      "ownerCanAnswerWithoutPresence",
+      "The server accepts the owner's answer without a presence entry",
+      command,
+      escalationKey,
+    );
+    if (typeof command === "string") throw new Error("Expected Ana's answer");
+
+    const deliverAndClose = async () => {
+      const result = await session.deliverAnswer(command);
+      await session.publishPrompt();
+      return result;
     };
     const [answered] = await observe(
       world,
-      Promise.all([resume(), refresh(session, "ben")]),
+      Promise.all([deliverAndClose(), session.join("ana")]),
     );
     const [ana, ben] = await observe(
       world,
@@ -358,6 +393,13 @@ scenario(
       "Both cards name Ana as the person who answered",
       [answered, ana.prompt?.answeredBy, ben.prompt?.answeredBy],
       ["delivered", "ana", "ana"],
+    );
+    check(
+      world,
+      "answeredPromptClosesOnAgentEvent",
+      "Both cards close when the agent no longer has the answered prompt",
+      [ana.prompt?.state, ben.prompt?.state],
+      ["closed", "closed"],
     );
 
     const revoke = async () => {
@@ -380,12 +422,17 @@ scenario(
         turn: "ben-escalation",
       });
       const answered = await session.prepareAnswer("ben", key);
+      const retry = await session.retryQueuedSteer("ben-queued", "ben", {
+        kind: "turn",
+        turn: "ben-escalation",
+      });
       return {
         queued,
         waiting,
         refused,
         stopped,
         answered,
+        retry,
         view: await refresh(session, "ben"),
       };
     };
@@ -403,6 +450,7 @@ scenario(
         revoked.refused,
         revoked.stopped.outcome,
         revoked.answered,
+        revoked.retry,
         revoked.view.action,
         revoked.view.driver,
         revoked.view.prompt?.canAnswer,
@@ -413,6 +461,7 @@ scenario(
       [
         "queued",
         "queued",
+        "refused",
         "refused",
         "refused",
         "refused",

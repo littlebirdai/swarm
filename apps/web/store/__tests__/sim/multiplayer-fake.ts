@@ -149,7 +149,8 @@ export function fakeMultiplayerSession(
       return "queued";
     }
     if (!server.machineOnline) return "queued";
-    if (intent === "steer" && !holder && anotherSender(from)) claim(from);
+    if (intent === "steer" && !holder && (server.turn || anotherSender(from)))
+      claim(from);
     const permit = {
       ...send,
       attemptId: ++server.nextAttempt,
@@ -343,7 +344,7 @@ export function fakeMultiplayerSession(
       wire("machine:handoff", `hand ${permit.id}`, () => {
         if (machine.journal.has(permit.attemptId)) return "in_doubt";
         const received = machine.inbox.get(permit.attemptId);
-        if (!machine.online || !received) return "in_doubt";
+        if (!received) return "in_doubt";
         if (received.fenceId < machine.fenceId) return "queued";
         if (!matchesExpected(received.expected, observeTurn(agent.turn)))
           return "stale";
@@ -449,9 +450,8 @@ export function fakeMultiplayerSession(
       ),
     reconcile: (permit) =>
       wire("machine:handoff", `reconcile ${permit.id} from the journal`, () => {
-        if (!machine.journal.has(permit.attemptId) || !hasReceipt(permit.id))
-          return "in_doubt";
-        return "delivered";
+        if (!machine.journal.has(permit.attemptId)) return "queued";
+        return hasReceipt(permit.id) ? "delivered" : "in_doubt";
       }).then((outcome) => settle(permit, outcome)),
     announcePresence: (person) =>
       wire("server:presence", `announce presence for ${person}`, () => {
@@ -488,7 +488,7 @@ export function fakeMultiplayerSession(
       const { prompt } = agent;
       return wire("server:prompt", "publish the prompt event", () => {
         if (!prompt) {
-          if (server.prompt?.state === "open") server.prompt.state = "closed";
+          if (server.prompt) server.prompt.state = "closed";
           return;
         }
         const key = promptKey(prompt);
@@ -509,8 +509,7 @@ export function fakeMultiplayerSession(
           !prompt ||
           prompt.state !== "open" ||
           !server.senders.has(person) ||
-          person !== answerer(prompt) ||
-          !server.present.has(person)
+          person !== answerer(prompt)
         )
           return "refused";
         if (!matchesExpected(expected, prompt.expected)) return "stale";
@@ -521,10 +520,11 @@ export function fakeMultiplayerSession(
     deliverAnswer: (expected) =>
       wire("machine:answer", "deliver the prompt answer", () => {
         if (!machine.online) return "in_doubt";
-        const observed = agent.prompt
-          ? promptKey(agent.prompt)
-          : ({ kind: "prompt", run: null, prompt_id: null } as const);
-        if (!matchesExpected(expected, observed)) return "stale";
+        if (
+          !agent.prompt ||
+          !matchesExpected(expected, promptKey(agent.prompt))
+        )
+          return "stale";
         agent.prompt = null;
         return "delivered";
       }).then((outcome) =>

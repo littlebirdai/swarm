@@ -6,7 +6,6 @@ import { scenario } from "../dsl";
 import {
   check,
   complete,
-  handToAgent,
   observe,
   permitOf,
   refresh,
@@ -28,7 +27,10 @@ scenario(
       const permit = permitOf(
         await session.submit(send("in-flight", "ben", "opening")),
       );
-      const hand = await handToAgent(session, permit);
+      await session.receivePermit(permit);
+      await session.disconnect();
+      const hand = await session.hand(permit);
+      await session.restart();
       return { permit, hand };
     };
     const [{ permit, hand }] = await observe(
@@ -41,8 +43,8 @@ scenario(
     );
     check(
       world,
-      "steerHanded",
-      "Ben's steer is open on the agent",
+      "offlineMachineHandsReceivedPermit",
+      "The machine can hand a permit it received before disconnecting",
       hand,
       "handed",
     );
@@ -120,7 +122,8 @@ scenario(
       await session.restart();
       await session.receiveFence(fence);
       const ack = await session.acknowledgeFence(fence);
-      return [ack, (await refresh(session, "ana")).driver] as const;
+      const pending = await session.reconcile(permit);
+      return [ack, pending, (await refresh(session, "ana")).driver] as const;
     };
     const [ackWhileOpen] = await observe(
       world,
@@ -131,7 +134,7 @@ scenario(
       "ackWaitsAfterRestart",
       "The machine withholds the ack while its journal has an unlanded steer",
       ackWhileOpen,
-      [false, "ben"],
+      [false, "in_doubt", "ben"],
     );
 
     const recover = async () => {
@@ -185,11 +188,12 @@ scenario(
 
     const waitForMachine = async () => {
       await session.disconnect();
-      const outcome = await session.submit(
-        send("waiting-for-machine", "ana", "opening"),
-      );
+      const message = send("waiting-for-machine", "ana", "opening");
+      const outcome = await session.submit(message);
+      const repeat = await session.submit(message);
       return [
         outcome,
+        repeat,
         (await refresh(session, "ana")).messages.at(-1)?.state,
       ] as const;
     };
@@ -202,7 +206,7 @@ scenario(
       "offlineSendSaved",
       "A new send waits for the machine and remains visible",
       saved,
-      ["queued", "waiting_for_machine"],
+      ["queued", "queued", "waiting_for_machine"],
     );
     const resume = async () => {
       await session.restart();
@@ -241,9 +245,25 @@ scenario(
       const ackBeforeFence = await session.acknowledgeFence(secondFence);
       await session.receiveFence(secondFence);
       const ack = await session.acknowledgeFence(secondFence);
-      if (hand === "queued") await session.settle(next, hand);
-      const driver = (await refresh(session, "ana")).driver;
-      return { hand, ack, driver, unhanded, ackBeforeFence };
+      const requeued = await session.reconcile(next);
+      const sendAfterAck = await session.submit(
+        send("after-ack", "ana", "ben-again"),
+      );
+      const delivered =
+        typeof sendAfterAck === "string"
+          ? sendAfterAck
+          : await complete(session, sendAfterAck.permit);
+      const view = await refresh(session, "ana");
+      return {
+        hand,
+        ack,
+        driver: view.driver,
+        unhanded,
+        ackBeforeFence,
+        requeued,
+        delivered,
+        view,
+      };
     };
     const [fenced] = await observe(
       world,
@@ -262,6 +282,18 @@ scenario(
       "The machine fence prevents an old permit from reaching the agent",
       [fenced.hand, fenced.unhanded, fenced.ack, fenced.driver],
       ["queued", "refused", true, "ana"],
+    );
+    check(
+      world,
+      "lostPermitRequeuesAndUnblocksOwner",
+      "A permit lost before handoff requeues and the owner can send after the ack",
+      [
+        fenced.requeued,
+        fenced.delivered,
+        fenced.view.messages.find(({ id }) => id === "fenced")?.state,
+        fenced.view.transcript.at(-1)?.id,
+      ],
+      ["queued", "delivered", "queued", "after-ack"],
     );
   }),
 );
