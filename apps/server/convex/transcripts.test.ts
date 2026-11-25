@@ -2986,7 +2986,7 @@ describe("call summary request goldens", () => {
       expect(verdicts.map((v) => v.summary_status)).toEqual(["done"]);
       actual.push({ case: fixture.case, body: bodies[0]! });
     }
-    expect(actual).toEqual(recordGolden("call-summary", actual));
+    expect(actual).toEqual(recordGolden("callSummary", actual));
   });
 
   test("a call under forty words is skipped without a model call", async () => {
@@ -3016,7 +3016,7 @@ describe("call summary request goldens", () => {
       expect(req.temperature).toBeUndefined();
       actual.push({ case: fixture.case, body: goldenBody(req) });
     }
-    expect(actual).toEqual(recordGolden("call-summary", actual));
+    expect(actual).toEqual(recordGolden("callSummary", actual));
   });
 
   test("a long call keeps the tail, and a recording names no speaker", () => {

@@ -566,7 +566,7 @@ Files:
 - `storyMode.ts`
 - `titleGeneration.test.ts`
 - `idleSummary.test.ts`
-- new golden files under `apps/server/convex/__golden__/`, one per surface (`title.json`, `short-title.json`, `settle.json`)
+- new golden files under `apps/server/convex/__golden__/`, one per surface (`title.json`, `shortTitle.json`, `settle.json`)
 - new `apps/server/convex/__golden__/golden.testkit.ts`, shared by U6 and U7. Its name has two dots so the Convex bundler skips it, since it imports `node:fs`. It holds:
   - `goldenBody(req)`, the body prod posts for a request, with the fence nonce pinned
   - `captureFetch(reply)`, a fetch stub that records each posted body and answers in the Messages API shape (`type: "text"` blocks), so a reply reaches `callModel`
@@ -608,7 +608,7 @@ Changes:
 - Extract `selectInsightContext(rows)` (from 119: first 8 + last 10, plus the tool names the query derives from the same rows) and `insightRequest(ctx, source)` (from 486-546; `source` is the run reason the prompt prints), with `toLocaleTimeString(…, {timeZone: 'UTC'})` at 466 and `temperature` left undefined so the API default of 1 is preserved. The query now returns the sampled turns instead of up to 80; the action was their only reader.
 - Extract `callSummarySource(lines, kind)` (the 40-word skip at 918 and the 60,000-character tail at 921; null means skip) and `callSummaryRequest(source, {kind, started_at, ended_at?, rolling?})` (1116-1142), with temperature undefined. The second argument carries more than the kind because the prompt prints the duration and whether the call is still going. `callSummaryKind(room_key)` names the kind.
 - Both handlers post `anthropicBody(req)` with `CHEAP_MODEL`.
-- Goldens are generated under `TZ=UTC` before the refactor: `__golden__/insight.json` and `__golden__/call-summary.json`, through the shared `__golden__/golden.testkit.ts`. The insight goldens and builder tests live in `sessionInsights.request.test.ts`, the call-summary ones in `transcripts.test.ts`.
+- Goldens are generated under `TZ=UTC` before the refactor: `__golden__/insight.json` and `__golden__/callSummary.json`, through the shared `__golden__/golden.testkit.ts`. The insight goldens and builder tests live in `sessionInsights.request.test.ts`, the call-summary ones in `transcripts.test.ts`.
 - Record, but do not fix, that the insight parser reads `key_changes`, `timeline`, `goal`, `what_changed`, `blockers` and `next_action`, none of which the prompt asks for. File it as a finding on ct-55702.
 
 Acceptance: goldens are equal, `cast check convex`, and both test files are green.
