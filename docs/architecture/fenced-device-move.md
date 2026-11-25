@@ -1,94 +1,80 @@
 # Move a fenced conversation
 
-## Current behavior
+## First change
 
-For execution authority, a same-account move changes only
-`conversations.owner_device_id`. It also updates session metadata and can
-queue a resume. A reparent can also change the runner account. Neither
-path advances the execution epoch or replaces the `execution_bindings` row. The release
-command asks the source daemon to stop. An offline daemon can miss it.
+Refuse device and runner transfers while `execution_protocol_state` has
+a value. This includes legacy quiescence. A refusal occurs before a
+conversation write, a source release, a cloud claim, or a resume command.
 
-[Device moves](../../apps/server/convex/devices.ts) · [Source release](../../apps/server/convex/sessionRelease.ts)
+Today a same-account move changes the conversation device and leaves
+the execution epoch and ready row in place. The destination cannot claim
+that row. The old lease can survive the move and work again after a move
+back. An unstarted permit can stay at the queue head.
+[Device writers](../../apps/server/convex/devices.ts) · [Run leases](../../apps/server/convex/lib/edge/runLease.ts)
 
-The destination cannot claim the old run. The edge claim compares its
-device with the device on the ready `execution_bindings` row.
-The start claim checks that device too. The execution head and
-`execution_bindings` row can keep the former runner after a cross-account move.
+On main, `claimExecutionStart`, `rejectHeadDelivery`,
+`releaseClaimBeforeEffect`, and `abandonAmbiguousAndResend` do not compare
+the caller's device with the conversation device. They check the current
+execution row or the attempt fence. The first change leaves these
+mutations to the fenced execution protocol.
+[Execution authority](../../apps/server/convex/executionBindings.ts)
 
-[Run leases](../../apps/server/convex/lib/edge/runLease.ts) · [Execution authority](../../apps/server/convex/executionBindings.ts)
+| Writer                                                                   | Behavior for a conversation under the execution protocol                                                                                                                                                        |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `moveSessionToDevice`, `reparentSessionToDevice`, `reassignToDevice`     | Refuse with a reason before the ownership or command writes.                                                                                                                                                    |
+| `claimConversation`, `claimConversationForStart`, `setConversationOwner` | Refuse the legacy claim or set. The pre-start claim returns `won: false` and the reason.                                                                                                                        |
+| `claimDeviceAccount`                                                     | Skip eligible fenced rows and count them as skipped. Move eligible legacy rows. Return the refusal reason when the scan finishes. Leave runner, managed sessions, and delivery rows alone for each skipped row. |
+| `registerManagedSession`                                                 | Return `notOwner` and the reason for a different device. Other registrations can refresh the managed row and heartbeat. They do not write the conversation owner.                                               |
+| Cloud `placeConversation`, `claimSharedCheckout`, and `parkOnCloudHost`  | Refuse with a reason before placement, checkout, or spawn writes.                                                                                                                                               |
+| Cloud un-park in `reconfigureSession`                                    | Return a refusal reason. Keep the owner, park token, and pending cloud spawn. Queue no start.                                                                                                                   |
+| Transcript ingest                                                        | Skip the device backfill. Keep the other ingest updates.                                                                                                                                                        |
+| `mergeDuplicateUser`                                                     | Refuse the account merge if it would change a fenced runner. A dry run can still show the proposed changes.                                                                                                     |
 
-The move does not revoke the source lease. A move back can make the
-same token usable again if its epoch, boot, claim, and expiry still match.
-On main, the edge lease lookup checks the device on the `execution_bindings` row and does not
-check the conversation device. A device equality check stops source work
-while the conversation is away. It cannot prevent reuse on return.
+The legacy start and pending-message guards already refuse fenced work.
+Migration completion delegates to the device move. Conversation creation
+sets the owner on a new row. Only execution initialization, legacy
+quiescence, and successor activation set ownership in the fenced protocol.
+[Ingest and un-park](../../apps/server/convex/conversations.ts) · [Registration](../../apps/server/convex/managedSessions.ts) · [Cloud placement](../../apps/server/convex/cloudPlacement.ts) · [Account merge](../../apps/server/convex/admin_mergeUser.ts)
 
-[Lease lookup](../../apps/server/convex/lib/edge/runLease.ts)
+## Later epoch move
 
-| Mutation                    | Check on main                                          |
-| --------------------------- | ------------------------------------------------------ |
-| `claimExecutionStart`       | Checks the runner, epoch, and device on the binding.   |
-| `rejectHeadDelivery`        | Checks the runner, epoch, lease, and queue head.       |
-| `releaseClaimBeforeEffect`  | Checks the runner, attempt fence, and claimed state.   |
-| `abandonAmbiguousAndResend` | Checks the runner, attempt fence, and ambiguous state. |
+Ship these changes in order. Keep the refusal in the move entry points
+until the first two steps pass together.
 
-These mutations do not compare the caller's device with the conversation
-device. An unstarted permit can stay on the head after a move. The move
-does not call `requeueDeliveryBeforeEffect`, which clears that slot and
-keeps the message at its original sequence.
+1. **Record and fences.** Store the source epoch, source lease, attempt,
+   destination device and runner, and next epoch. Block source work and
+   blob reads at once. Clear an unstarted claim and preserve its delivery
+   ID and sequence.
 
-[Execution mutations](../../apps/server/convex/executionBindings.ts) · [Delivery slot](../../apps/server/convex/lib/delivery-slot.state.ts)
+   Let the source settle only its exact started attempt. End the settlement window at the earlier of its deadline and the
+   lease's `expires_at`. Do not renew the old lease. On expiry, mark the
+   attempt ambiguous. Require evidence before delivery continues.
 
-## Recommended move
+2. **Prepare and activate.** Authorize successor creation from the move
+   record and the destination credentials. The source lease token stays
+   with the source. Set `owner_user_id` on the destination's `execution_bindings` row.
+   Use the destination runner. Authorize `publishReadyBinding`, `publishStartOutcome`,
+   and `disposePreReadyBinding` against that row and move record.
 
-Use one durable move record on the execution head. It names the source
-epoch, destination device and runner, and next epoch. The move request
-blocks new source work in the same transaction. It returns an unstarted
-claim to `pending` at the same queue sequence. The source lease loses
-authority for new work, even if the user selects that device again.
+   For an offline source, require server proof that the host stopped or
+   that the runtime cannot act. Lease expiry alone gives no such proof.
+   If the server cannot prove quarantine, keep the move on hold.
 
-Give the source a short window to settle an attempt that it already
-started. Require the exact attempt and source fence. This window grants
-only the authority to report the outcome. If the window expires without
-an outcome, mark the attempt ambiguous and require reconciliation.
-Never retry an ambiguous attempt as part of the move.
+   Set `admission_epoch` to the successor for new messages during the move.
+   Retarget the old `pending` rows in indexed batches of at most 100.
+   Keep message IDs and sequence numbers. Pause admissions on abort.
+   Retarget staged rows to the source before the server restores its
+   admission epoch. Require a new source lease after an abort.
 
-Prepare an `execution_bindings` row for the destination. Require
-proof that the source stopped or that the server quarantined it. Activate
-the new epoch only after the destination is ready and the old attempt has
-a terminal disposition. Update the conversation owner, runner, and head together.
+   Activate only after the destination is ready and the old attempt has
+   a terminal outcome. Transfer the head owner, conversation `user_id`,
+   undelivered messages, triggers, and event-run owner together. Preserve
+   `author_user_id` or set it to the former runner if it is empty.
+   Queue `resume_session` and any continue message only after activation.
+   An ambiguous attempt blocks both.
 
-Retarget queued messages to the new epoch. Keep each delivery ID and sequence.
-Require a new lease. A move back consumes another epoch.
-
-[Successor activation](../../apps/server/convex/executionBindings.ts)
-
-The alternative is to refuse fenced moves until these changes ship.
-Apply the refusal before a device or runner change or a resume command.
-A request for the current device can remain a no-op.
-
-## Implementation slices
-
-1. Route `moveSessionToDevice`, `reparentSessionToDevice`, and
-   `reassignToDevice` through one move transition. Route `claimConversation`,
-   `claimConversationForStart`, and `setConversationOwner` through the same
-   authority check. Extend the move and reparent tests for aborts, retries,
-   cross-account moves, and moves back.
-
-2. Update `requestExecutionSuccessor`, `claimExecutionStart`, and
-   `activateExecutionSuccessor` to check the recorded destination.
-   Keep authorization for a destination in the move record distinct from authority
-   for the current epoch. Add tests for concurrent moves, stale tokens,
-   and rejection before source stop or quarantine proof.
-
-3. Update `claimNextDelivery`, `startDelivery`, `rejectHeadDelivery`,
-   `releaseClaimBeforeEffect`, and `abandonAmbiguousAndResend` to check move
-   state before any new effect. Test slot release, queue order, started
-   settlement, duplicate settlement, and expired settlement windows.
-
-4. Check the move record in `ownedRun` and `renewRunLease`. Use one window check in `completeDelivery`, `markDeliveryAmbiguous`,
-   `resolveAmbiguousDelivery`, and edge settlement. Test the full move
-   through edge and Convex. Check that the source cannot read blobs.
-   Confirm that the destination gets a new lease on a move and on a move back.
-
-[Move tests](../../apps/server/convex/devices.move.test.ts) · [Reparent tests](../../apps/server/convex/devices.reparent.test.ts) · [Execution tests](../../apps/server/convex/executionBindings.test.ts) · [Edge tests](../../apps/server/convex/edge-delivery.test.ts) · [Lease tests](../../apps/server/convex/run-lease.test.ts)
+3. **Enable move entry points.** Use the same transition for a move, a
+   reparent, and a move back. Test that no old token works after a move back.
+   Also test a live or offline source, expiry, abort, partial retarget,
+   cross-account readiness and cleanup, and a claim before or after start.
+   Test each legacy writer with and without the execution protocol.
