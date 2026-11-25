@@ -26,7 +26,18 @@ export type EdgeTransport = <K extends EdgeOperation>(
   operation: K,
   request: EdgeRequests[K],
   signal: AbortSignal,
-) => Promise<{ status: number; body: unknown }>;
+) => Promise<{
+  status: number;
+  body: unknown;
+  retryAfterHeader?: string | null;
+}>;
+
+export class EdgeTransportError extends Error {
+  constructor(cause: unknown) {
+    super("Edge transport failed", { cause });
+    this.name = "EdgeTransportError";
+  }
+}
 
 export interface EdgeClientOptions {
   transport: EdgeTransport;
@@ -34,10 +45,11 @@ export interface EdgeClientOptions {
   callTimeoutMs?: number;
 }
 
-export interface ClaimTiming {
-  maxServerClockLeadMs: number;
-}
-
+export type ClaimResult = Exclude<
+  ClaimResponse,
+  EdgeErrorResponse | { status: "busy" }
+>;
+export type Renewed = Extract<RenewResponse, { status: "renewed" }>;
 export type ClaimGrant = Extract<ClaimResponse, { status: "granted" }>;
 export type ClaimLoss = "stale" | "expired" | "unconfirmed" | "already_held";
 
@@ -56,37 +68,28 @@ type FailureDetails =
 export type EdgeFailure = FailureDetails & {
   operation: EdgeOperation;
   stack: string;
+  cause?: unknown;
 };
 export type EdgeResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: EdgeFailure };
 
+type Call<Request, Value> = (
+  request: Request,
+  signal?: AbortSignal,
+) => Promise<EdgeResult<Value>>;
+
 export interface EdgeClient {
-  hello(
-    request: HelloRequest,
-    signal?: AbortSignal,
-  ): Promise<EdgeResult<Extract<HelloResponse, { status: "ok" }>>>;
-  heartbeat(
-    request: HeartbeatRequest,
-    signal?: AbortSignal,
-  ): Promise<EdgeResult<Exclude<HeartbeatResponse, EdgeErrorResponse>>>;
-  claim(
-    request: ClaimRequest,
-    signal?: AbortSignal,
-  ): Promise<
-    EdgeResult<Exclude<ClaimResponse, EdgeErrorResponse | { status: "busy" }>>
+  hello: Call<HelloRequest, Extract<HelloResponse, { status: "ok" }>>;
+  heartbeat: Call<
+    HeartbeatRequest,
+    Exclude<HeartbeatResponse, EdgeErrorResponse>
   >;
-  renew(
-    request: RenewRequest,
-    signal?: AbortSignal,
-  ): Promise<EdgeResult<Extract<RenewResponse, { status: "renewed" }>>>;
-  release(
-    request: ReleaseRequest,
-    signal?: AbortSignal,
-  ): Promise<EdgeResult<Exclude<ReleaseResponse, EdgeErrorResponse>>>;
+  claim: Call<ClaimRequest, ClaimResult>;
+  renew: Call<RenewRequest, Renewed>;
+  release: Call<ReleaseRequest, Exclude<ReleaseResponse, EdgeErrorResponse>>;
   withClaim<T>(
     request: ClaimRequest,
-    timing: ClaimTiming,
     work: (grant: ClaimGrant, signal: AbortSignal) => Promise<T>,
     signal?: AbortSignal,
   ): Promise<EdgeResult<T>>;

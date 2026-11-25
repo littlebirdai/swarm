@@ -2,7 +2,7 @@ import * as Cause from "effect/Cause";
 import { makeFacade } from "@codecast/effect-kit/effect";
 import * as Effect from "effect/Effect";
 import { EdgeClient as EdgeClientService } from "./effect";
-import { interrupted, plainFailure, type EdgeError } from "./failures";
+import { plainFailure, type EdgeError } from "./failures";
 import type {
   EdgeClient,
   EdgeClientOptions,
@@ -10,10 +10,11 @@ import type {
   EdgeResult,
 } from "./types";
 
+export { EdgeTransportError } from "./types";
 export { createHttpEdgeTransport } from "./http-transport";
 export type {
   ClaimGrant,
-  ClaimTiming,
+  ClaimLoss,
   EdgeClient,
   EdgeClientOptions,
   EdgeFailure,
@@ -26,6 +27,7 @@ export type {
 export function createEdgeClient(options: EdgeClientOptions): EdgeClient {
   const facade = makeFacade(EdgeClientService.layer(options));
   const lifetime = new AbortController();
+  const closed = Symbol("edge client closed");
   const active = new Set<Promise<unknown>>();
   let closing: Promise<void> | undefined;
 
@@ -34,12 +36,19 @@ export function createEdgeClient(options: EdgeClientOptions): EdgeClient {
     call: (client: EdgeClientService["Service"]) => Effect.Effect<A, EdgeError>,
     signal?: AbortSignal,
   ): Promise<EdgeResult<A>> {
-    const stopped = () =>
-      interrupted(operation, lifetime.signal.aborted ? "closed" : "aborted");
+    const caller = new Error().stack ?? "";
     const callSignal = signal
       ? AbortSignal.any([lifetime.signal, signal])
       : lifetime.signal;
-    if (callSignal.aborted) return { ok: false, error: stopped() };
+    const stopped = (): EdgeResult<A> => ({
+      ok: false,
+      error: {
+        kind: callSignal.reason === closed ? "closed" : "aborted",
+        operation,
+        stack: caller,
+      },
+    });
+    if (callSignal.aborted) return stopped();
 
     const result = Effect.flatMap(EdgeClientService, call).pipe(
       Effect.matchCauseEffect({
@@ -56,21 +65,22 @@ export function createEdgeClient(options: EdgeClientOptions): EdgeClient {
           }
           return Effect.succeed({
             ok: false,
-            error: plainFailure(found.value, Cause.pretty(cause)),
+            error: plainFailure(
+              found.value,
+              `${Cause.pretty(cause)}
+${caller}`,
+            ),
           });
         },
       }),
     );
-    const pending = facade.run(
-      Effect.andThen(Effect.yieldNow, result),
-      callSignal,
-    );
+    const pending = facade.run(result, callSignal);
     active.add(pending);
     try {
       return await pending;
     } catch (error) {
       if (callSignal.aborted) {
-        return { ok: false, error: stopped() };
+        return stopped();
       }
       throw error;
     } finally {
@@ -89,12 +99,25 @@ export function createEdgeClient(options: EdgeClientOptions): EdgeClient {
       run("renew", (client) => client.renew(request), signal),
     release: (request, signal) =>
       run("release", (client) => client.release(request), signal),
-    withClaim: (request, timing, work, signal) =>
+    withClaim: (request, work, signal) =>
       run(
         "claim",
         (client) =>
-          client.withClaim(request, timing, (grant) =>
-            Effect.promise((workSignal) => work(grant, workSignal)),
+          client.withClaim(request, (grant) =>
+            Effect.suspend(() => {
+              const controller = new AbortController();
+              const pending = Promise.resolve().then(() =>
+                work(grant, controller.signal),
+              );
+              return Effect.promise(() => pending).pipe(
+                Effect.onInterrupt(() =>
+                  Effect.promise(async () => {
+                    controller.abort();
+                    await Promise.allSettled([pending]);
+                  }),
+                ),
+              );
+            }),
           ),
         signal,
       ),
@@ -104,7 +127,7 @@ export function createEdgeClient(options: EdgeClientOptions): EdgeClient {
         await Promise.allSettled(active);
         await facade.dispose();
       });
-      lifetime.abort();
+      lifetime.abort(closed);
       return closing;
     },
   };

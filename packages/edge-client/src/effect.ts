@@ -37,70 +37,79 @@ export class EdgeClient extends Service<
 
 function makeService(options: EdgeClientOptions) {
   const send = makeRequest(options);
-
   const hello = Effect.fn("edgeClient.hello")(function* (
     request: EdgeRequests["hello"],
   ) {
     const versions = [...request.versions];
-    const result = yield* send(
+    const { value } = yield* send(
       "hello",
       { ...request, versions },
       parseHelloResponse,
     );
-    if (result.status !== "ok") {
+    if (value.status !== "ok") {
       return yield* new EdgeVersionRejected({
         operation: "hello",
-        reason: result.status,
-        supportedVersions: result.supported_versions,
+        reason: value.status,
+        supportedVersions: value.supported_versions,
       });
     }
     if (
-      result.version !== EDGE_PROTOCOL_VERSION ||
-      !versions.includes(result.version)
+      value.version !== EDGE_PROTOCOL_VERSION ||
+      !versions.includes(value.version)
     ) {
       return yield* new EdgeVersionRejected({
         operation: "hello",
         reason: "unexpected_version",
-        supportedVersions: [result.version],
+        supportedVersions: [value.version],
       });
     }
-    return result;
+    return value;
   });
-
-  const heartbeat = Effect.fn("edgeClient.heartbeat")(function* (
-    request: EdgeRequests["heartbeat"],
-  ) {
-    return yield* send("heartbeat", request, parseHeartbeatResponse);
-  });
-
-  const claim = Effect.fn("edgeClient.claim")(function* (
-    request: EdgeRequests["claim"],
-  ) {
-    return yield* send("claim", { ...request }, parseClaimResponse);
-  });
-
+  const heartbeat = Effect.fn("edgeClient.heartbeat")(
+    (request: EdgeRequests["heartbeat"]) =>
+      Effect.map(
+        send("heartbeat", request, parseHeartbeatResponse),
+        ({ value }) => value,
+      ),
+  );
+  const claim = Effect.fn("edgeClient.claim")(
+    (request: EdgeRequests["claim"]) =>
+      send("claim", { ...request }, parseClaimResponse),
+  );
   const renew = Effect.fn("edgeClient.renew")(function* (
     request: EdgeRequests["renew"],
+    budget?: Effect.Effect<number>,
   ) {
-    const result = yield* send("renew", request, parseRenewResponse);
-    if (result.status === "stale") {
+    const { value, started } = yield* send(
+      "renew",
+      request,
+      parseRenewResponse,
+      budget,
+    );
+    if (value.status === "stale") {
       return yield* new ClaimLost({ operation: "renew", reason: "stale" });
     }
-    return result;
+    return { value, started };
   });
-
-  const release = Effect.fn("edgeClient.release")(function* (
-    request: EdgeRequests["release"],
-  ) {
-    return yield* send("release", request, parseReleaseResponse);
-  });
-
+  const release = Effect.fn("edgeClient.release")(
+    (request: EdgeRequests["release"], cleanup?: "cleanup") =>
+      Effect.map(
+        send("release", request, parseReleaseResponse, cleanup),
+        ({ value }) => value,
+      ),
+  );
   return {
     hello,
     heartbeat,
-    claim,
-    renew,
-    release,
-    withClaim: makeClaimHolder({ claim, renew, release }),
+    claim: (request: EdgeRequests["claim"]) =>
+      Effect.map(claim(request), ({ value }) => value),
+    renew: (request: EdgeRequests["renew"]) =>
+      Effect.map(renew(request), ({ value }) => value),
+    release: (request: EdgeRequests["release"]) => release(request),
+    withClaim: makeClaimHolder({
+      claim,
+      renew,
+      release: (request) => release(request, "cleanup"),
+    }),
   };
 }

@@ -2,29 +2,30 @@
 
 `createEdgeClient({ transport })` runs hello, heartbeat, claim, renew, and
 release. Each method accepts an optional abort signal. Expected failures
-return a plain result with the operation name and stack. Unexpected failures
-reject the Promise. Use `@codecast/edge-client/effect` to compose the service
-and its layer in an Effect program.
+return a plain result with a stack that includes the caller. Unexpected
+failures reject the Promise. Use `@codecast/edge-client/effect` to compose
+the service and its layer in an Effect program.
 
-Pass the versioned endpoint base to `createHttpEdgeTransport`, for example
-`https://example.com/edge/v1/`. The transport sends each request as JSON to
-the operation path below that base. The client uses the edge contract to
-parse the response.
+Pass the versioned endpoint base to `createHttpEdgeTransport`. The transport
+sends a JSON request to the operation path below that base. The edge contract
+parses the response. Custom transports can throw `EdgeTransportError` with
+the original network error as its cause.
 
-The client allows three retries after the first attempt. It starts with a
-100 ms delay, doubles that delay after each retry, and waits longer if the
-kernel supplies `retry_after_ms`. The default attempt timeout is 2 seconds.
-The default call timeout is 10 seconds and includes retry delays. Use one
-`claim_id` for retries of the same claim. The kernel must deduplicate that ID.
+Heartbeat sends one attempt. Other calls allow up to three retries with
+exponential backoff and jitter. The delay respects the server's retry hint.
+The default attempt timeout is 2 seconds. The default call timeout is 10
+seconds and includes retry delays. The kernel must deduplicate retries with
+the same `claim_id`.
 
-Use `withClaim` to run work under an automatically renewed claim. Set
-`maxServerClockLeadMs` to an upper bound on how far the kernel clock can lead
-the local clock. The client subtracts this allowance from the confirmed lease
-time and uses monotonic elapsed time so a backward clock change cannot extend
-the lease. A refused or unconfirmed renewal stops the work. The Promise
-callback must stop its work when its signal aborts.
+Use `withClaim` to run work under an automatically renewed claim. The client
+counts `lease_ms` from the start of each successful attempt. It uses wall time
+when that clock shows more elapsed time than the monotonic clock, as can
+happen during machine sleep. The client stops work before the lease expires
+and retries transient renewal failures while the lease still permits them.
 
-The client attempts a fenced release when the work stops. If the release
-fails or the claim answer never arrives, the kernel lease will expire.
-`close()` interrupts active calls and waits for known claims to finish their
-release attempts.
+When work loses its claim or the call is interrupted, the client aborts the
+callback's signal and waits for its Promise to settle before releasing the
+claim. A callback that never settles keeps the session reserved and prevents
+`withClaim()` and, if called, `close()` from finishing. Release uses a single
+bounded attempt. A stale renewal means the server already rejected the token,
+so the client skips release.

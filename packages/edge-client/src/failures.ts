@@ -1,5 +1,5 @@
 import { TaggedError } from "effect/Data";
-import type { EdgeFailure, EdgeOperation } from "./types";
+import type { EdgeFailure } from "./types";
 
 type Details<K extends EdgeFailure["kind"]> = Omit<
   Extract<EdgeFailure, { kind: K }>,
@@ -19,53 +19,46 @@ export class EdgeVersionRejected extends TaggedError("EdgeVersionRejected")<
   Details<"version_rejected">
 > {}
 export class ClaimLost extends TaggedError("ClaimLost")<
-  Details<"claim_lost">
+  Details<"claim_lost"> & {
+    cause?: EdgeUnavailable | EdgeRejected | EdgeParseError;
+  }
 > {}
 
-export type EdgeError =
-  | EdgeUnavailable
-  | EdgeRejected
-  | EdgeParseError
-  | EdgeVersionRejected
-  | ClaimLost;
+export type RequestFailure = EdgeUnavailable | EdgeRejected | EdgeParseError;
+export type EdgeError = RequestFailure | EdgeVersionRejected | ClaimLost;
 
 export function plainFailure(error: EdgeError, stack: string): EdgeFailure {
-  const { operation } = error;
+  const common = { operation: error.operation, stack, cause: error.cause };
   switch (error._tag) {
     case "EdgeUnavailable":
       return {
         kind: "unavailable",
-        operation,
-        stack,
+        ...common,
         code: error.code,
         retry_after_ms: error.retry_after_ms,
       };
     case "EdgeRejected":
-      return { kind: "rejected", operation, stack, code: error.code };
+      return { kind: "rejected", ...common, code: error.code };
     case "EdgeParseError":
       return {
         kind: "parse",
-        operation,
-        stack,
+        ...common,
         code: error.code,
         path: error.path,
       };
     case "EdgeVersionRejected":
       return {
         kind: "version_rejected",
-        operation,
-        stack,
+        ...common,
         reason: error.reason,
         supportedVersions: error.supportedVersions,
       };
     case "ClaimLost":
-      return { kind: "claim_lost", operation, stack, reason: error.reason };
+      return {
+        kind: "claim_lost",
+        ...common,
+        reason: error.reason,
+        cause: error.cause && plainFailure(error.cause, stack),
+      };
   }
-}
-
-export function interrupted(
-  operation: EdgeOperation,
-  kind: "aborted" | "closed",
-): EdgeFailure {
-  return { operation, kind, stack: `edgeClient.${operation}` };
 }

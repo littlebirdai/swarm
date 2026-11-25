@@ -9,8 +9,8 @@ type Exchange = {
 export type Step = (exchange: Exchange) => ReturnType<EdgeTransport>;
 
 export const reply =
-  (body: unknown, status = 200): Step =>
-  async () => ({ status, body });
+  (body: unknown, status = 200, retryAfterHeader?: string): Step =>
+  async () => ({ status, body, retryAfterHeader });
 
 export function scriptedTransport(...steps: Step[]) {
   const calls: Exchange[] = [];
