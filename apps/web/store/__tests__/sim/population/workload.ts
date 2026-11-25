@@ -27,26 +27,42 @@ export function populationTables(
       _creationTime: at,
       name: `Team ${id}`,
     })),
-    team_memberships: model.people.map(({ id, team }) => ({
-      _id: fixtureId("team_memberships", id),
-      _creationTime: at,
-      user_id: fixtureId("users", id),
-      team_id: fixtureId("teams", team),
-      role: "member",
-      joined_at: at,
-      visibility: "full",
-    })),
-    projects: model.projects.map(({ team }, id): Doc<"projects"> => ({
-      _id: fixtureId("projects", id),
-      _creationTime: at,
-      user_id: fixtureId("users", model.teams[team].members[0]),
-      team_id: fixtureId("teams", team),
-      workspace: `team:${fixtureId("teams", team)}`,
-      title: `Project ${id}`,
-      status: "active",
-      created_at: at,
-      updated_at: at,
-    })),
+    team_memberships: model.people.flatMap(({ id, team }) =>
+      team === null
+        ? []
+        : [
+            {
+              _id: fixtureId("team_memberships", id),
+              _creationTime: at,
+              user_id: fixtureId("users", id),
+              team_id: fixtureId("teams", team),
+              role: "member",
+              joined_at: at,
+              visibility: "full",
+            },
+          ],
+    ),
+    projects: model.projects.map(({ team }, id): Doc<"projects"> => {
+      const owner = fixtureId(
+        "users",
+        team === null ? 0 : model.teams[team].members[0],
+      );
+      return {
+        _id: fixtureId("projects", id),
+        _creationTime: at,
+        user_id: owner,
+        ...(team === null
+          ? { workspace: `user:${owner}` }
+          : {
+              team_id: fixtureId("teams", team),
+              workspace: `team:${fixtureId("teams", team)}`,
+            }),
+        title: `Project ${id}`,
+        status: "active",
+        created_at: at,
+        updated_at: at,
+      };
+    }),
   };
 }
 
@@ -54,7 +70,7 @@ export const saveTask = internalMutation({
   args: {
     task: v.optional(v.id("tasks")),
     user: v.id("users"),
-    team: v.id("teams"),
+    team: v.optional(v.id("teams")),
     project: v.id("projects"),
     agent: v.number(),
     privateTask: v.boolean(),
@@ -70,8 +86,9 @@ export const saveTask = internalMutation({
     }
     return ctx.db.insert("tasks", {
       user_id: user,
-      team_id: team,
-      workspace: privateTask ? `user:${user}` : `team:${team}`,
+      ...(team === undefined ? {} : { team_id: team }),
+      workspace:
+        team === undefined || privateTask ? `user:${user}` : `team:${team}`,
       project_id: project,
       short_id: `ct-${agent + 1}`,
       title: `Review the project changes from agent ${agent}`,

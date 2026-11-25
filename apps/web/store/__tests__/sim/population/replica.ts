@@ -30,6 +30,7 @@ export function populationReplica(backend: SimBackend, person: Person) {
     teamEvents: 0,
     bytes: 0,
     rangeBytes: 0,
+    taskIdsRefetched: 0,
   };
   const meter = {
     async query(
@@ -39,7 +40,10 @@ export function populationReplica(backend: SimBackend, person: Person) {
       const result = await client.query(ref, args);
       const bytes = encoder.encode(JSON.stringify(result)).byteLength;
       totals.bytes += bytes;
-      if (getFunctionName(ref) === "syncLog:getRange") {
+      const name = getFunctionName(ref);
+      if (name === "tasks:webGetByIds" && Array.isArray(args.ids))
+        totals.taskIdsRefetched += args.ids.length;
+      if (name === "syncLog:getRange") {
         totals.rangeBytes += bytes;
         totals.events += result.actions.length;
         if (String(args.scope_key).startsWith("team:"))
@@ -60,10 +64,14 @@ export function populationReplica(backend: SimBackend, person: Person) {
         for (const head of heads) await catchUpScope(meter, head, purgedTeams);
       });
     },
-    result() {
+    result(expectedTitles: ReadonlyMap<string, string>) {
+      const tasks = Object.values(window.store.getState().tasks);
       return {
         ...totals,
-        rows: Object.keys(window.store.getState().tasks).length,
+        rows: tasks.length,
+        staleTaskTitles: tasks.filter(
+          ({ _id, title }) => expectedTitles.get(String(_id)) !== title,
+        ).length,
       };
     },
   };

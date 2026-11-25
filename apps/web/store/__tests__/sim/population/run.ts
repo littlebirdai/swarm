@@ -62,6 +62,7 @@ export async function runPopulation(config: {
       onSchedule: (job: ScheduledJob) => {
         if (job.name !== "syncOutbox:drain")
           throw new Error(`Unexpected job ${job.name}`);
+        const isContinuation = job.due === now();
         const { id } = job.args as { id: string };
         net.enqueue("sched", {
           due: job.due,
@@ -71,14 +72,21 @@ export async function runPopulation(config: {
             const slot: OutboxSlot | null = await backend.db.get(id);
             if (!slot) throw new Error(`Missing outbox slot ${id}`);
             const { scope_key: scope } = slot;
-            const previous = slot.pending
-              ? lastHeadWrite.get(scope)
-              : lastSlotDelivery.get(id);
-            if (
-              previous !== undefined &&
-              now() - previous < CONTENTION_WINDOW_MS
-            )
-              modeledRetries++;
+            if (!isContinuation) {
+              const scheduled: { state: { kind: string } } | null =
+                await backend.db.system.get(job.id);
+              const previous =
+                scheduled?.state.kind === "canceled"
+                  ? lastSlotDelivery.get(id)
+                  : scheduled?.state.kind === "pending" && slot.pending
+                    ? lastHeadWrite.get(scope)
+                    : undefined;
+              if (
+                previous !== undefined &&
+                now() - previous < CONTENTION_WINDOW_MS
+              )
+                modeledRetries++;
+            }
             const callCount = backend.calls.length;
             const patchCount: number = backend.db._patched.length;
             const insertCount: number = backend.db._inserted.length;
@@ -139,7 +147,9 @@ export async function runPopulation(config: {
                 ? { task: tasks.get(event.agent) }
                 : {}),
               user: fixtureId("users", event.person.id),
-              team: fixtureId("teams", event.person.team),
+              ...(event.person.team === null
+                ? {}
+                : { team: fixtureId("teams", event.person.team) }),
               project: fixtureId("projects", event.project),
               agent: event.agent,
               privateTask: event.privateTask,
@@ -165,7 +175,13 @@ export async function runPopulation(config: {
       backend.db._tables.sync_outbox?.some((slot: OutboxSlot) => slot.pending)
     )
       throw new Error("Population simulation left undelivered work");
-    const measurements = devices.map((device) => device.result());
+    const taskRows: { _id: string; title: string }[] = await backend.db
+      .query("tasks")
+      .collect();
+    const expectedTitles = new Map(
+      taskRows.map(({ _id, title }) => [_id, title]),
+    );
+    const measurements = devices.map((device) => device.result(expectedTitles));
     const baselineSaves = model.activity.filter(
       ({ at }) => at < PEAK_START_MS,
     ).length;

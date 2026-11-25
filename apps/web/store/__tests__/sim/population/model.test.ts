@@ -38,7 +38,7 @@ test("projects cluster by team and most work uses a home project", () => {
   const small = population(42, 10);
   for (const person of small.people) {
     expect(new Set(person.follows)).toEqual(
-      new Set(small.teams[person.team].projects),
+      new Set(small.teams.find(({ id }) => id === person.team)?.projects),
     );
   }
 });

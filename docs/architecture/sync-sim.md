@@ -43,6 +43,8 @@ A filtered run takes about 15 seconds on a loaded laptop, most of it importing t
 
 Typecheck the harness with `cast check sim` (its tsconfig adds bun types and covers the legacy sims and `apps/web/scripts/sim.ts`). The convex half is in `cast check convex`.
 
+The [population simulation](../../apps/web/store/__tests__/sim/population/README.md) measures team fan-out at 1, 50, and 500 people. Its guide has the baseline, the limits of the retry estimate, and the commands for table and JSON output.
+
 ## Layers
 
 ```
