@@ -22,7 +22,7 @@ export const admit = internalMutation({
 
     const windowMs = 60_000;
     const budget = renewal
-      ? { scope: "edge/v1/renew", limit: 300 }
+      ? { scope: "edge/v1/renew", limit: 360 }
       : machine === undefined
         ? { scope: "edge/v1/work", limit: 120 }
         : { scope: "edge/v1", limit: 12 };

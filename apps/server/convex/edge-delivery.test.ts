@@ -575,6 +575,8 @@ test("delivery bursts do not spend the budget for 60 renewing sessions", async (
     for (let index = 0; index < 60; index++)
       expect(await f.call("renew", fence)).toMatchObject({ status: "renewed" });
   }
+  for (let retry = 0; retry < 60; retry++)
+    expect(await f.call("renew", fence)).toMatchObject({ status: "renewed" });
   expect((await f.post("renew", fence)).status).toBe(429);
   setSystemTime(new Date(start + 90_001));
   expect(await f.call("renew", fence)).toEqual(stale);
@@ -686,6 +688,15 @@ for (const scenario of ["rejected", "failed", "recovered failure"] as const) {
     });
     const fence = await f.grant();
     const permit = await f.permit(fence);
+    if (scenario === "recovered failure")
+      expect(
+        await f.call("delivery.settle", {
+          ...permit,
+          outcome: "failed",
+          retryable: false,
+          resolution_evidence: "Proved there was no effect",
+        }),
+      ).toEqual(stale);
     if (scenario !== "rejected") await f.call("delivery.start", permit);
     if (scenario === "recovered failure")
       await f.call("delivery.settle", { ...permit, outcome: "in_doubt" });
