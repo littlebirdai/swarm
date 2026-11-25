@@ -25,6 +25,7 @@ import {
 } from "./lib/access";
 import { isTeamMember, teamVisibleConvTeam } from "./privacy";
 import { withDecisionFacts } from "./lib/decisionRowFacts";
+import { sessionStartOf } from "./lib/sessionStarts";
 import { decisionTeamOf } from "./lib/decisionTeam";
 import {
   pickAnsweredDecision,
@@ -3928,7 +3929,8 @@ export async function withLiveSession<
     const key = String(r.conversation_id);
     let live = seen.get(key);
     if (!live) {
-      const conversation = await ctx.db.get(r.conversation_id);
+      const card = (await sessionStartOf(ctx.db, r.conversation_id))?.card;
+      const conversation = card ?? (await ctx.db.get(r.conversation_id));
       live = {
         title: conversation?.title,
         project_path: conversation?.project_path,

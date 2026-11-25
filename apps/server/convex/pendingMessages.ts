@@ -90,7 +90,7 @@ import {
   daemonDeliveryStateOf,
   legacyConversationAcceptsDaemonWork,
 } from "./lib/daemonDelivery";
-import { sessionStartOf } from "./lib/sessionStarts";
+import { sessionRunnerOf, sessionStartOf } from "./lib/sessionStarts";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";
 import { countersFor } from "./lib/orgCaps";
 import { liveRolesByHandle } from "./lib/orgAccess";
@@ -297,9 +297,9 @@ export async function patchPendingMessageStatus(
 // conversation's user_id so an un-backfilled row still routes correctly.
 export function pendingMessageOwnerId(
   message: { owner_user_id?: Id<"users"> },
-  conversation: { user_id: Id<"users"> },
-): string {
-  return (message.owner_user_id ?? conversation.user_id).toString();
+  runner: Id<"users">,
+): Id<"users"> {
+  return message.owner_user_id ?? runner;
 }
 
 // When a conversation changes runner (a cross-account move or device claim), every row still
@@ -364,7 +364,7 @@ function canDaemonDeliver(
   deviceId: string,
 ): boolean {
   if (delivery.blocked || isFencedPendingMessage(message)) return false;
-  if (pendingMessageOwnerId(message, conversation) !== userId.toString())
+  if (pendingMessageOwnerId(message, conversation.user_id) !== userId)
     return false;
   if (message.status !== "pending") return false;
   // DPM-02: the owning device is the ONLY device that delivers, however long it
@@ -439,7 +439,7 @@ async function daemonCanMutatePendingMessage(
   if (isFencedPendingMessage(message)) return false;
   if (
     !conversation ||
-    pendingMessageOwnerId(message, conversation) !== userId.toString()
+    pendingMessageOwnerId(message, conversation.user_id) !== userId
   )
     return false;
   if (!legacyConversationAcceptsDaemonWork(conversation)) return false;
@@ -491,7 +491,7 @@ export async function senderOrOwnerCanAct(
   const conversation = await ctx.db.get(message.conversation_id);
   return (
     !!conversation &&
-    pendingMessageOwnerId(message, conversation) === authUserId.toString()
+    pendingMessageOwnerId(message, conversation.user_id) === authUserId
   );
 }
 
@@ -2697,14 +2697,14 @@ export const getMessageStatus = query({
     }
 
     const message = await ctx.db.get(args.message_id);
-    if (!message) {
-      throw new Error("Message not found");
-    }
+    if (!message) throw new Error("Message not found");
 
-    if (!(await senderOrOwnerCanAct(ctx, message, authUserId))) {
-      throw new Error(
-        "Unauthorized: can only check status of messages you sent or own",
-      );
+    if (message.from_user_id !== authUserId) {
+      const runner = await sessionRunnerOf(ctx.db, message.conversation_id);
+      if (!runner || pendingMessageOwnerId(message, runner) !== authUserId)
+        throw new Error(
+          "Unauthorized: can only check status of messages you sent or own",
+        );
     }
 
     return {
