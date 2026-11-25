@@ -36,6 +36,8 @@ export {
   samePersistedFile,
   sameIngestSnapshot,
 };
+let activeIngestCursors = 0;
+const ingestCursorWaiters = new Set<() => void>();
 const ingestSources = new WeakMap<object, IngestJob>();
 export const ingestSource = (result: object): Readonly<IngestJob> | undefined =>
   ingestSources.get(result);
@@ -190,6 +192,8 @@ export async function readTranscriptIngest(
     closeSequence = 0,
     hostGeneration: number | undefined;
   let job: IngestJob | undefined;
+  let releaseCursor: (() => void) | undefined;
+  let grantCursor: (() => void) | undefined;
   try {
     current();
     job = {
@@ -227,6 +231,28 @@ export async function readTranscriptIngest(
       return result;
     };
     if (!host) return await finish(await readIngestJob(job, current));
+    const reserveCursor = () => {
+      activeIngestCursors++;
+      releaseCursor = () => {
+        activeIngestCursors--;
+        ingestCursorWaiters.values().next().value?.();
+      };
+    };
+    if (activeIngestCursors < MAX_INFLIGHT) reserveCursor();
+    else {
+      if (ingestCursorWaiters.size >= MAX_QUEUE)
+        throw new IngestCapacityError();
+      const turn = new Promise<void>((resolve) => {
+        grantCursor = () => {
+          ingestCursorWaiters.delete(grantCursor!);
+          reserveCursor();
+          resolve();
+        };
+        ingestCursorWaiters.add(grantCursor);
+      });
+      await waitForTranscriptReservation(turn, budget);
+    }
+    current();
     const assembler = new IngestAssembler();
     try {
       for (;;) {
@@ -303,6 +329,8 @@ export async function readTranscriptIngest(
           .catch(() => {});
       }
     } finally {
+      if (grantCursor) ingestCursorWaiters.delete(grantCursor);
+      releaseCursor?.();
       budget.dispose();
     }
   }
