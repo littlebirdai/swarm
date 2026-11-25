@@ -2,81 +2,97 @@
 // plan's live steps and edges become a template whose blockers all point
 // back, saving a name again replaces it, and only its author removes it.
 import { describe, expect, test } from "bun:test";
-import { makeFakeDb } from "./testDb";
-import { list, remove, save } from "./planTemplates";
-import { hashToken } from "./apiTokens";
+import type { FunctionArgs } from "convex/server";
+import { serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
+import { api } from "./_generated/api";
 
-const USER = "u_user";
-const OTHER = "u_other";
 const TOKEN = "plan-templates-test-token";
 const OTHER_TOKEN = "plan-templates-other-token";
 
-const task = (shortId: string, over: any = {}) => ({
-  _id: `task_${shortId}`,
-  short_id: shortId,
-  user_id: USER,
-  title: `Title ${shortId}`,
-  status: "open",
-  priority: "medium",
-  task_type: "task",
-  created_at: 1,
-  updated_at: 1,
-  ...over,
-});
+async function setup(
+  tasks: (Partial<NewRow<"tasks">> & Pick<NewRow<"tasks">, "short_id">)[],
+) {
+  const t = serverTest();
+  const ids = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "plan templates");
+    const user = await rows.user();
+    const other = await rows.user();
+    await rows.token(user, TOKEN);
+    await rows.token(other, OTHER_TOKEN);
+    const tasksByShortId = Object.fromEntries(
+      await Promise.all(
+        tasks.map(
+          async (fields) =>
+            [
+              fields.short_id,
+              await rows.task(user, {
+                title: `Title ${fields.short_id}`,
+                ...fields,
+              }),
+            ] as const,
+        ),
+      ),
+    );
+    await rows.plan(user, {
+      short_id: "pl-1",
+      title: "Ship the thing",
+      goal: "Shipped",
+      task_ids: Object.values(tasksByShortId),
+    });
+    return { user, tasksByShortId };
+  });
 
-async function makeCtx(tasks: any[]) {
-  const tables: Record<string, any[]> = {
-    users: [
-      { _id: USER, name: "User" },
-      { _id: OTHER, name: "Other" },
-    ],
-    api_tokens: [
-      { _id: "token_1", user_id: USER, token_hash: await hashToken(TOKEN) },
-      {
-        _id: "token_2",
-        user_id: OTHER,
-        token_hash: await hashToken(OTHER_TOKEN),
-      },
-    ],
-    plans: [
-      {
-        _id: "plan_1",
-        short_id: "pl-1",
-        user_id: USER,
-        title: "Ship the thing",
-        goal: "Shipped",
-        task_ids: tasks.map((t) => t._id),
-      },
-    ],
-    tasks,
-    team_memberships: [],
-    plan_templates: [],
+  return {
+    t,
+    ...ids,
+    save: (
+      fields: Partial<FunctionArgs<typeof api.planTemplates.save>> = {},
+      token = TOKEN,
+    ) =>
+      t.mutation(api.planTemplates.save, {
+        api_token: token,
+        plan: "pl-1",
+        ...fields,
+      }),
+    remove: (
+      fields: Omit<FunctionArgs<typeof api.planTemplates.remove>, "api_token">,
+      token = TOKEN,
+    ) => t.mutation(api.planTemplates.remove, { api_token: token, ...fields }),
+    list: (token = TOKEN) =>
+      t.query(api.planTemplates.list, { api_token: token }),
+    templates: () => t.run(({ db }) => db.query("plan_templates").collect()),
   };
-  return { ctx: { db: makeFakeDb(tables) } as any, tables };
 }
-
-const call = (fn: any, ctx: any, args: any, token = TOKEN) =>
-  fn._handler(ctx, { api_token: token, ...args });
 
 describe("plan templates (TG6)", () => {
   test("save orders steps so every blocker points back, and leaves dropped steps out", async () => {
-    const { ctx, tables } = await makeCtx([
-      task("ct-3", { blocked_by: ["ct-1", "ct-2"], description: "Review it" }),
-      task("ct-1"),
-      task("ct-2", { blocked_by: ["task_ct-1", "ct-40"] }),
-      task("ct-4", { status: "dropped", blocked_by: ["ct-3"] }),
+    const { t, tasksByShortId, save, templates } = await setup([
+      {
+        short_id: "ct-3",
+        blocked_by: ["ct-1", "ct-2"],
+        description: "Review it",
+      },
+      { short_id: "ct-1" },
+      { short_id: "ct-2" },
+      { short_id: "ct-4", status: "dropped", blocked_by: ["ct-3"] },
     ]);
-    const result = await call(save, ctx, { plan: "pl-1" });
+    await t.run(({ db }) =>
+      db.patch(tasksByShortId["ct-2"], {
+        blocked_by: [tasksByShortId["ct-1"], "ct-40"],
+      }),
+    );
+    const result = await save();
     expect(result).toMatchObject({
       name: "Ship the thing",
       steps: 3,
       edges: 3,
       replaced: false,
     });
-    const [tpl] = tables.plan_templates;
+    const [tpl] = await templates();
     expect(tpl.goal_template).toBe("Shipped");
     expect(
-      tpl.task_templates.map((t: any) => [t.title, t.blocked_by_indices ?? []]),
+      tpl.task_templates.map((t) => [t.title, t.blocked_by_indices ?? []]),
     ).toEqual([
       ["Title ct-1", []],
       ["Title ct-2", [0]],
@@ -87,50 +103,50 @@ describe("plan templates (TG6)", () => {
   });
 
   test("saving the same name replaces it; list and remove see it, only for its author", async () => {
-    const { ctx, tables } = await makeCtx([task("ct-1")]);
-    await call(save, ctx, { plan: "pl-1", name: "Release" });
-    const again = await call(save, ctx, {
+    const { save, list, remove, templates } = await setup([
+      { short_id: "ct-1" },
+    ]);
+    await save({ plan: "pl-1", name: "Release" });
+    const again = await save({
       plan: "pl-1",
       name: "Release",
       description: "Weekly",
     });
     expect(again.replaced).toBe(true);
-    expect(tables.plan_templates).toHaveLength(1);
-    expect(
-      (await call(list, ctx, {})).map((t: any) => [t.name, t.description]),
-    ).toEqual([["Release", "Weekly"]]);
-    expect(await call(list, ctx, {}, OTHER_TOKEN)).toEqual([]);
-    await expect(
-      call(remove, ctx, { name: "release" }, OTHER_TOKEN),
-    ).rejects.toThrow(/No template of yours/);
-    expect(await call(remove, ctx, { name: "release" })).toEqual({
+    expect(await templates()).toHaveLength(1);
+    expect((await list()).map((t) => [t.name, t.description])).toEqual([
+      ["Release", "Weekly"],
+    ]);
+    expect(await list(OTHER_TOKEN)).toEqual([]);
+    await expect(remove({ name: "release" }, OTHER_TOKEN)).rejects.toThrow(
+      /No template of yours/,
+    );
+    expect(await remove({ name: "release" })).toEqual({
       removed: 1,
     });
-    expect(tables.plan_templates).toHaveLength(0);
+    expect(await templates()).toHaveLength(0);
   });
 
   test("a plan the caller cannot read, or one with no live steps, saves nothing", async () => {
-    const { ctx, tables } = await makeCtx([
-      task("ct-1", { status: "dropped" }),
+    const { save, templates } = await setup([
+      { short_id: "ct-1", status: "dropped" },
     ]);
-    await expect(
-      call(save, ctx, { plan: "pl-1" }, OTHER_TOKEN),
-    ).rejects.toThrow(/Plan not found/);
-    await expect(call(save, ctx, { plan: "pl-1" })).rejects.toThrow(
-      /no steps to save/,
+    await expect(save({ plan: "pl-1" }, OTHER_TOKEN)).rejects.toThrow(
+      /Plan not found/,
     );
-    expect(tables.plan_templates).toHaveLength(0);
+    await expect(save({ plan: "pl-1" })).rejects.toThrow(/no steps to save/);
+    expect(await templates()).toHaveLength(0);
   });
 
   test("a dropped step passes its blockers through, so its dependents keep their order", async () => {
-    const { ctx, tables } = await makeCtx([
-      task("ct-1"),
-      task("ct-2", { status: "dropped", blocked_by: ["ct-1"] }),
-      task("ct-3", { blocked_by: ["ct-2"] }),
+    const { save, templates } = await setup([
+      { short_id: "ct-1" },
+      { short_id: "ct-2", status: "dropped", blocked_by: ["ct-1"] },
+      { short_id: "ct-3", blocked_by: ["ct-2"] },
     ]);
-    await call(save, ctx, { plan: "pl-1" });
+    await save({ plan: "pl-1" });
     expect(
-      tables.plan_templates[0].task_templates.map((t: any) => [
+      (await templates())[0].task_templates.map((t) => [
         t.title,
         t.blocked_by_indices ?? [],
       ]),
@@ -141,31 +157,43 @@ describe("plan templates (TG6)", () => {
   });
 
   test("names match in any case; a name in two workspaces is removed from the one --team names", async () => {
-    const { ctx, tables } = await makeCtx([task("ct-1")]);
-    await call(save, ctx, { plan: "pl-1", name: "Release" });
-    expect(
-      (await call(save, ctx, { plan: "pl-1", name: "RELEASE" })).replaced,
-    ).toBe(true);
-    expect(tables.plan_templates).toHaveLength(1);
-    tables.plan_templates.push({
-      ...tables.plan_templates[0],
-      _id: "tpl_team",
-      team_id: "team_1",
+    const { t, user, save, remove, templates } = await setup([
+      { short_id: "ct-1" },
+    ]);
+    await save({ plan: "pl-1", name: "Release" });
+    expect((await save({ plan: "pl-1", name: "RELEASE" })).replaced).toBe(true);
+    expect(await templates()).toHaveLength(1);
+    const team = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "same template in team");
+      const team = await rows.team();
+      await rows.membership(user, team);
+      const plan = await rows.plan(user, {
+        short_id: "pl-2",
+        title: "Release",
+        team_id: team,
+        workspace: `team:${team}`,
+      });
+      const task = await rows.task(user, {
+        team_id: team,
+        workspace: `team:${team}`,
+        plan_id: plan,
+      });
+      await db.patch(plan, { task_ids: [task] });
+      return team;
     });
-    await expect(call(remove, ctx, { name: "release" })).rejects.toThrow(
+    await save({ plan: "pl-2" });
+    await expect(remove({ name: "release" })).rejects.toThrow(
       /in 2 workspaces; pass --team/,
     );
     expect(
-      await call(remove, ctx, {
+      await remove({
         name: "release",
         workspace: "team",
-        team_id: "team_1",
+        team_id: team,
       }),
     ).toEqual({ removed: 1 });
-    expect(tables.plan_templates.map((t: any) => t.team_id)).toEqual([
-      undefined,
-    ]);
-    expect(await call(remove, ctx, { name: "release" })).toEqual({
+    expect((await templates()).map((t) => t.team_id)).toEqual([undefined]);
+    expect(await remove({ name: "release" })).toEqual({
       removed: 1,
     });
   });
