@@ -181,7 +181,11 @@ for (const state of ["claimed", "delivery-started", "ambiguous"] as const) {
                     failure_code: "uncertain",
                     failure_message: "unknown outcome",
                   }
-                : {}),
+                : {
+                    failure_code: "DELIVERY_BOOT_CHANGED",
+                    failure_message:
+                      "daemon boot changed after delivery started",
+                  }),
             },
             message: {
               delivery_status: "ambiguous",

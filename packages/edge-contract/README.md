@@ -112,7 +112,9 @@ the server updates the binding and its active delivery in one transaction.
 | `delivery-started`    | The attempt becomes ambiguous and keeps its queue slot. The server transfers resolution authority to the replacement boot.               |
 | `ambiguous`           | The attempt keeps its queue slot and failure details. The server transfers resolution authority to the replacement boot.                 |
 
-The server rejects late writes that use the old boot's delivery fence.
+The server rejects late writes that use the old boot's delivery fence. There is
+one exception: a release or a failure before effect of an attempt that the
+transfer already released answers as a replay and writes nothing.
 Resolution requires evidence. A leased binding requires a new active token
 for delivery writes after adoption. A binding without a claim accepts delivery
 writes without a token. The next boot transfer also repairs a slot that still
