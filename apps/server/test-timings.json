@@ -755,7 +755,7 @@
     "convex/teams.roster.guard.test.ts": 30,
     "convex/teams.viewing.test.ts": 32,
     "convex/terminalStream.agentBox.test.ts": 32,
-    "convex/terminalStream.clipboard.test.ts": 35,
+    "convex/terminal-stream.clipboard.test.ts": 35,
     "convex/testDb.test.ts": 31,
     "convex/threadMembershipSweep.test.ts": 60,
     "convex/threads.test.ts": 102,

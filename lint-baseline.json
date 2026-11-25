@@ -12637,7 +12637,7 @@
   "apps/server/convex/terminalStream.agentBox.test.ts": {
     "swarm/no-comments": 10
   },
-  "apps/server/convex/terminalStream.clipboard.test.ts": {
+  "apps/server/convex/terminal-stream.clipboard.test.ts": {
     "swarm/no-comments": 3
   },
   "apps/server/convex/terminalStream.ts": {
