@@ -72,6 +72,8 @@ export function harness<A, E, R>(
               TokenVerifier.of({
                 verify: (token) => {
                   if (!token.startsWith("test.")) return null;
+                  if (token === "test.defect")
+                    throw new Error("verifier defect");
                   return Buffer.from(token.slice(5), "base64url").toString(
                     "utf8",
                   );

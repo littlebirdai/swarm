@@ -170,7 +170,7 @@ it.effect(
 );
 
 it.effect(
-  "refuses an expired queued refresh without changing grants or the high-water mark",
+  "refuses a refresh expired at receipt without advancing the high-water mark",
   () =>
     harness(
       Effect.gen(function* () {
@@ -184,15 +184,15 @@ it.effect(
         const other = { kind: "session", id: "other" } as const;
         yield* a.refresh(
           claims({
-            issued_at_ms: 1000,
+            issued_at_ms: 990,
             grant_seq: 3,
-            expires_at_ms: 1010,
+            expires_at_ms: 1000,
             grants: [
               { ...session, publish: [] },
               { ...other, publish: [] },
             ],
           }),
-          "expires-in-queue",
+          "expired-at-receipt",
         );
         yield* a.send(active);
         yield* a.subscribe(other);
@@ -200,7 +200,7 @@ it.effect(
           claims({ issued_at_ms: 1000, grant_seq: 2 }),
           "still-new",
         );
-        expect(b.events).toHaveLength(2);
+        expect(b.events.at(-1)).toMatchObject(active);
         yield* TestClock.adjust(10);
         yield* a.connection.writable;
         expect(
@@ -209,7 +209,7 @@ it.effect(
           {
             type: "grant_result",
             v: 1,
-            request_id: "expires-in-queue",
+            request_id: "expired-at-receipt",
             status: "refused",
             code: "expired",
           },
@@ -277,7 +277,7 @@ it.effect("retires the deadline as soon as a connection closes", () =>
         maxHubs: 2,
         maxSubscribersPerHub: 2,
       },
-      () => null,
+      () => "invalid_token",
       {
         admit: () => true,
         isDraining: () => false,

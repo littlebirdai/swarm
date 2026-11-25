@@ -1,3 +1,4 @@
+import { parseRelayGrantClaims } from "@codecast/relay-contract";
 import { Clock } from "effect/Clock";
 import { Service } from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -5,7 +6,7 @@ import * as Layer from "effect/Layer";
 import * as Queue from "effect/Queue";
 import { PreventSchedulerYield } from "effect/References";
 import * as Scope from "effect/Scope";
-import { openConnection } from "./connection";
+import { isolateConnection, openConnection } from "./connection";
 import { HubRegistry } from "./hubs";
 
 export interface RelaySocket {
@@ -80,10 +81,27 @@ function makeRelay(options: RelayOptions) {
 
     const inSocketOrder = Effect.provideService(PreventSchedulerYield, true);
 
+    function verify(token: string) {
+      const parsed = parseRelayGrantClaims(verifier.verify(token));
+      if (!parsed.ok) {
+        return parsed.error.code === "unsupported_version"
+          ? "unsupported_grant_version"
+          : "invalid_token";
+      }
+      return parsed.value.audience === options.audience
+        ? parsed.value
+        : "invalid_token";
+    }
+
     const open = Effect.fn("Relay.open")(function* (socket: RelaySocket) {
       if (draining || unauthenticated >= options.maxPreAuthConnections) {
-        socket.send(JSON.stringify(unavailable));
-        socket.close(1013);
+        yield* isolateConnection(
+          Effect.sync(() => {
+            socket.send(JSON.stringify(unavailable));
+            socket.close(1013);
+          }),
+          Effect.sync(() => socket.terminate()),
+        );
         return null;
       }
       const connectionScope = yield* Scope.fork(scope);
@@ -108,7 +126,7 @@ function makeRelay(options: RelayOptions) {
         clock,
         registry,
         options,
-        verifier.verify,
+        verify,
         { admit, isDraining, deadlineChanged },
         unavailable,
       );

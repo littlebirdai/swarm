@@ -41,8 +41,10 @@ When the queue fills, an incoming frame can evict the oldest queued signal.
 A queue full of control frames drops new signals and closes the connection
 if another control frame arrives. At send, the relay drops expired signals
 and caps the remaining TTL at the source and recipient grant deadlines.
-A grant refresh takes effect when its reply is sent. An expired refresh
-leaves the prior grants and sequence intact.
+The relay applies a valid refresh when it receives it and queues the reply
+before traffic that depends on the new grant. It refuses tokens that have
+already expired. If an accepted token expires while its success reply
+waits in the queue, the relay closes the socket so the client can reconnect.
 
 On shutdown, the relay queues `hello.unavailable` with the retry delay and
 allows existing sockets to close. At the drain deadline, it terminates the

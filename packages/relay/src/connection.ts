@@ -2,7 +2,6 @@ import {
   applyRelayGrantClaims,
   negotiateRelayVersion,
   parseRelayClientFrame,
-  parseRelayGrantClaims,
   releaseRelayGrants,
   RELAY_PROTOCOL_VERSION,
   RELAY_SUPPORTED_VERSIONS,
@@ -67,13 +66,26 @@ function updateMembership(
   }
 }
 
+export function isolateConnection(
+  operation: Effect.Effect<void>,
+  cleanup: Effect.Effect<void>,
+) {
+  return operation.pipe(
+    Effect.catchDefect(() =>
+      cleanup.pipe(Effect.catchDefect(() => Effect.void)),
+    ),
+  );
+}
+
 export function openConnection(
   socket: RelaySocket,
   connectionScope: Scope.Closeable,
   clock: Clock,
   registry: HubRegistry["Service"],
   options: RelayOptions,
-  verifyToken: (token: string) => string | null,
+  verify: (
+    token: string,
+  ) => RelayGrantClaims | "invalid_token" | "unsupported_grant_version",
   admission: {
     admit: (key: string) => boolean;
     isDraining: () => boolean;
@@ -87,19 +99,6 @@ export function openConnection(
   const { admit, isDraining, deadlineChanged } = admission;
   const connectionId = crypto.randomUUID();
 
-  function verify(token: string) {
-    const payload = verifyToken(token);
-    const parsed = parseRelayGrantClaims(payload);
-    if (!parsed.ok) {
-      return parsed.error.code === "unsupported_version"
-        ? "unsupported_grant_version"
-        : "invalid_token";
-    }
-    return parsed.value.audience === options.audience
-      ? parsed.value
-      : "invalid_token";
-  }
-
   const outbox = new Outbox(options.queueCapacity);
   const memberships = new Map<string, Membership>();
   const enabled = new Set<string>();
@@ -108,9 +107,6 @@ export function openConnection(
   let expiresAt = clock.currentTimeMillisUnsafe() + options.handshakeMs;
   let closeCode: number | undefined;
   let paused = false;
-  let flushing = false;
-  let awaitingRefresh = false;
-  const deferredFrames: RelayClientFrame[] = [];
   let transportFailed = false;
   let closed = false;
   let seq = 0;
@@ -155,21 +151,23 @@ export function openConnection(
   const detach = Effect.fn("Relay.detach")(function* (member: Membership) {
     memberships.delete(hubKey(member.hub));
     yield* member.subscription.close;
-    yield* depart(member);
     updateMembership(member, null);
+    yield* depart(member);
   });
 
   const end = Effect.fn("Relay.end")(function* (code?: number) {
     if (closed) return;
     closed = true;
     outbox.clear();
-    deferredFrames.length = 0;
-    for (const member of memberships.values()) yield* detach(member);
-    yield* Scope.close(connectionScope, Exit.succeed(undefined));
+    yield* Effect.gen(function* () {
+      for (const member of memberships.values()) yield* detach(member);
+    }).pipe(
+      Effect.ensuring(Scope.close(connectionScope, Exit.succeed(undefined))),
+    );
     if (code !== undefined) socket.close(code);
   });
 
-  const sendPending = Effect.fn("Relay.sendPending")(function* () {
+  const flush = Effect.fn("Relay.flush")(function* () {
     while (!closed && !paused) {
       const pending = outbox.take();
       if (!pending) {
@@ -188,8 +186,19 @@ export function openConnection(
         );
         if (!frame) continue;
       } else {
-        frame =
-          "type" in pending.control ? pending.control : yield* pending.control;
+        frame = pending.control;
+        if (pending.expiresAt !== undefined) {
+          const ttl = Math.floor(
+            pending.expiresAt - clock.currentTimeMillisUnsafe(),
+          );
+          if (ttl <= 0) {
+            yield* end(1008);
+            return;
+          }
+          if (frame.type === "grant_result" && frame.status === "applied") {
+            frame = { ...frame, ttl_ms: ttl };
+          }
+        }
       }
       const sent = socket.send(JSON.stringify(frame));
       if (sent === "closed") {
@@ -202,23 +211,12 @@ export function openConnection(
     }
   });
 
-  const flush = Effect.fn("Relay.flush")(function* () {
-    if (flushing) return;
-    flushing = true;
-    yield* sendPending().pipe(
-      Effect.ensuring(
-        Effect.sync(() => {
-          flushing = false;
-        }),
-      ),
-    );
-  });
-
   const control = Effect.fn("Relay.control")(function* (
-    frame: Control | Effect.Effect<Control>,
+    frame: Control,
+    expiresAt?: number,
   ) {
     if (closed) return;
-    if (!outbox.control(frame)) {
+    if (!outbox.control(frame, expiresAt)) {
       yield* end(1013);
       return;
     }
@@ -340,33 +338,36 @@ export function openConnection(
       return;
     }
 
-    awaitingRefresh = true;
-    yield* control(
-      Effect.gen(function* (): Effect.fn.Return<Control> {
-        awaitingRefresh = false;
-        const now = clock.currentTimeMillisUnsafe();
-        const applied = applyRelayGrantClaims(owner, state, claims, now);
-        if (applied.status === "refused") {
-          return { ...response, status: "refused", code: applied.code };
-        }
-        const ttl = Math.floor(claims.expires_at_ms - now);
-        if (ttl <= 0)
-          return { ...response, status: "refused", code: "expired" };
-        state = applied.state;
-        if (closeCode === undefined) setDeadline(nextGrantDeadline());
-        for (const grant of state.grants) {
-          const member = memberships.get(hubKey(grant));
-          if (!member || member.grant === grant) continue;
-          updateMembership(member, grant);
-          if (!member.permissions.has("presence")) yield* depart(member);
-        }
-        return {
-          ...response,
-          status: "applied",
-          ttl_ms: ttl,
-        };
-      }),
-    );
+    const now = clock.currentTimeMillisUnsafe();
+    const applied = applyRelayGrantClaims(owner, state, claims, now);
+    if (applied.status === "refused") {
+      yield* control({ ...response, status: "refused", code: applied.code });
+      return;
+    }
+    const ttl = Math.floor(claims.expires_at_ms - now);
+    if (ttl <= 0) {
+      yield* control({ ...response, status: "refused", code: "expired" });
+      return;
+    }
+
+    state = applied.state;
+    setDeadline(nextGrantDeadline());
+    if (
+      !outbox.control(
+        { ...response, status: "applied", ttl_ms: ttl },
+        claims.expires_at_ms,
+      )
+    ) {
+      yield* end(1013);
+      return;
+    }
+    for (const grant of state.grants) {
+      const member = memberships.get(hubKey(grant));
+      if (!member || member.grant === grant) continue;
+      updateMembership(member, grant);
+      if (!member.permissions.has("presence")) yield* depart(member);
+    }
+    yield* flush();
   });
 
   const release = Effect.fn("Relay.release")(function* (
@@ -409,21 +410,23 @@ export function openConnection(
       hub,
       subjectKey(owner),
       (publication) =>
-        Effect.suspend(() => {
-          const recipient = member;
-          if (
-            !recipient ||
-            closed ||
-            closeCode !== undefined ||
-            !enabled.has(publication.frame.type)
-          )
-            return Effect.void;
-          outbox.signal(
-            publication,
-            (now) => (recipient.grant?.expires_at_ms ?? 0) - now,
-          );
-          return flush();
-        }),
+        guard(
+          Effect.suspend(() => {
+            const recipient = member;
+            if (
+              !recipient ||
+              closed ||
+              closeCode !== undefined ||
+              !enabled.has(publication.frame.type)
+            )
+              return Effect.void;
+            outbox.signal(
+              publication,
+              (now) => (recipient.grant?.expires_at_ms ?? 0) - now,
+            );
+            return flush();
+          }),
+        ),
       connectionScope,
     );
     if (!subscription) {
@@ -469,9 +472,18 @@ export function openConnection(
     );
   });
 
-  const handleFrame = Effect.fn("Relay.handleFrame")(function* (
-    frame: RelayClientFrame,
-  ) {
+  const receive = Effect.fn("Relay.receive")(function* (message: unknown) {
+    yield* expire(clock.currentTimeMillisUnsafe());
+    if (closed || closeCode !== undefined) return;
+    const parsed = parseRelayClientFrame(message);
+    if (!parsed.ok) {
+      const { code } = parsed.error;
+      if (code === "too_large") yield* end(1009);
+      else if (code === "invalid_input") yield* end(1003);
+      else yield* end(1002);
+      return;
+    }
+    const frame = parsed.value;
     if (!subject) {
       if (frame.type === "connect") yield* handshake(frame);
       else yield* end(1002);
@@ -501,59 +513,44 @@ export function openConnection(
     }
   });
 
-  const receive = Effect.fn("Relay.receive")(function* (message: unknown) {
-    yield* expire(clock.currentTimeMillisUnsafe());
-    if (closed || closeCode !== undefined) return;
-    const parsed = parseRelayClientFrame(message);
-    if (!parsed.ok) {
-      const { code } = parsed.error;
-      if (code === "too_large") yield* end(1009);
-      else if (code === "invalid_input") yield* end(1003);
-      else yield* end(1002);
-      return;
-    }
-    if (awaitingRefresh) {
-      if (deferredFrames.length >= options.queueCapacity) yield* end(1013);
-      else deferredFrames.push(parsed.value);
-      return;
-    }
-    yield* handleFrame(parsed.value);
-  });
+  const terminate = Effect.sync(() => socket.terminate());
+  const recover = end().pipe(Effect.ensuring(terminate));
+  const guard = (operation: Effect.Effect<void>) =>
+    isolateConnection(operation, recover);
 
   const connection: RelayConnection = {
-    receive,
-    writable: Effect.gen(function* () {
-      paused = false;
-      yield* expire(clock.currentTimeMillisUnsafe());
-      yield* flush();
-      while (
-        !closed &&
-        closeCode === undefined &&
-        !transportFailed &&
-        !awaitingRefresh
-      ) {
-        const deferred = deferredFrames.shift();
-        if (!deferred) break;
-        yield* handleFrame(deferred);
-      }
-    }),
-    disconnected: end(),
+    receive: (message) => guard(receive(message)),
+    writable: guard(
+      Effect.gen(function* () {
+        paused = false;
+        yield* expire(clock.currentTimeMillisUnsafe());
+        yield* flush();
+      }),
+    ),
+    disconnected: guard(end()),
   };
   return {
     connection,
     deadline: () => (closed ? Infinity : expiresAt),
-    expire,
-    drain: Effect.suspend(() =>
-      closed || closeCode !== undefined || transportFailed
-        ? Effect.void
-        : finish(1012, unavailable),
+    expire: (now: number) => guard(expire(now)),
+    drain: guard(
+      Effect.suspend(() =>
+        closed || closeCode !== undefined || transportFailed
+          ? Effect.void
+          : finish(1012, unavailable),
+      ),
     ),
-    dispose: Effect.sync(() => {
-      const shouldTerminate = !closed;
-      closed = true;
-      outbox.clear();
-      deferredFrames.length = 0;
-      if (shouldTerminate) socket.terminate();
-    }),
+    dispose: isolateConnection(
+      Effect.suspend(() => {
+        const shouldTerminate = !closed;
+        closed = true;
+        outbox.clear();
+        for (const member of memberships.values())
+          updateMembership(member, null);
+        memberships.clear();
+        return shouldTerminate ? terminate : Effect.void;
+      }),
+      Effect.void,
+    ),
   };
 }
