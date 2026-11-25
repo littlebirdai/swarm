@@ -1684,7 +1684,7 @@
     "swarm/no-comments": 13
   },
   "apps/cli/src/cloud/transfer.test.ts": {
-    "swarm/no-comments": 45
+    "swarm/no-comments": 40
   },
   "apps/cli/src/cloud/transfer.ts": {
     "swarm/no-blocking-child-process-call": 7,
