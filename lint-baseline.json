@@ -23186,11 +23186,11 @@
   "apps/web/lib/__tests__/imageByteCache.test.ts": {
     "swarm/no-comments": 9
   },
-  "apps/web/lib/__tests__/inboxPlacementGuards.guard.test.ts": {
-    "swarm/no-comments": 22
-  },
   "apps/web/lib/__tests__/inbox-projection-guards.guard.test.ts": {
     "swarm/no-comments": 41
+  },
+  "apps/web/lib/__tests__/inboxPlacementGuards.guard.test.ts": {
+    "swarm/no-comments": 22
   },
   "apps/web/lib/__tests__/inboxRouting.test.ts": {
     "swarm/no-comments": 15
@@ -27185,6 +27185,12 @@
   "apps/web/store/__tests__/idbIncrementalPersist.test.ts": {
     "swarm/no-comments": 28
   },
+  "apps/web/store/__tests__/inbox-hydration.test.ts": {
+    "swarm/no-comments": 7
+  },
+  "apps/web/store/__tests__/inbox-store.test.ts": {
+    "swarm/no-comments": 613
+  },
   "apps/web/store/__tests__/inboxConvergenceSim.test.ts": {
     "swarm/no-comments": 66
   },
@@ -27223,9 +27229,6 @@
   },
   "apps/web/store/__tests__/inboxSplitSim.test.ts": {
     "swarm/no-comments": 6
-  },
-  "apps/web/store/__tests__/inbox-store.test.ts": {
-    "swarm/no-comments": 620
   },
   "apps/web/store/__tests__/initiativeRecord.test.ts": {
     "swarm/no-comments": 18
@@ -27600,6 +27603,12 @@
   "apps/web/store/__tests__/subagentNesting.test.ts": {
     "swarm/no-comments": 5
   },
+  "apps/web/store/__tests__/sync-replication-boot-writes.test.ts": {
+    "swarm/no-comments": 12
+  },
+  "apps/web/store/__tests__/sync-replication-principal.test.ts": {
+    "swarm/no-comments": 17
+  },
   "apps/web/store/__tests__/syncActivity.test.ts": {
     "swarm/no-comments": 12
   },
@@ -27614,12 +27623,6 @@
   },
   "apps/web/store/__tests__/syncReplication.test.ts": {
     "swarm/no-comments": 39
-  },
-  "apps/web/store/__tests__/sync-replication-boot-writes.test.ts": {
-    "swarm/no-comments": 12
-  },
-  "apps/web/store/__tests__/sync-replication-principal.test.ts": {
-    "swarm/no-comments": 17
   },
   "apps/web/store/__tests__/syncTableNonArray.test.ts": {
     "swarm/no-comments": 6
@@ -27873,6 +27876,9 @@
   "apps/web/store/idbV2Salvage.ts": {
     "swarm/no-comments": 7
   },
+  "apps/web/store/inbox-hydration.ts": {
+    "swarm/no-comments": 141
+  },
   "apps/web/store/inboxDigestCompare.ts": {
     "swarm/no-comments": 130
   },
@@ -27881,7 +27887,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5266
+    "swarm/no-comments": 5097
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
@@ -27994,20 +28000,26 @@
   "apps/web/store/stageSplit.wide.test.ts": {
     "swarm/no-comments": 5
   },
+  "apps/web/store/storage-transport.ts": {
+    "swarm/no-comments": 34
+  },
+  "apps/web/store/store-eviction.ts": {
+    "swarm/no-comments": 28
+  },
   "apps/web/store/storeListenerCensus.ts": {
     "swarm/no-comments": 20
   },
   "apps/web/store/strandedStub.test.ts": {
     "swarm/no-comments": 57
   },
+  "apps/web/store/sync-replication.ts": {
+    "swarm/no-comments": 102
+  },
   "apps/web/store/syncActivity.ts": {
     "swarm/no-comments": 26
   },
   "apps/web/store/syncProtocol.ts": {
     "swarm/no-comments": 30
-  },
-  "apps/web/store/sync-replication.ts": {
-    "swarm/no-comments": 136
   },
   "apps/web/store/syncTransaction.ts": {
     "swarm/no-comments": 32
