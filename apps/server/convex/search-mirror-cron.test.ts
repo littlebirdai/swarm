@@ -44,6 +44,7 @@ test("quiet ticks read one document and leave maintenance to the fourth tick", a
 test("the next eligible tick exposes a new message to search after a quiet period", async () => {
   expect(JOB.schedule).toEqual({ type: "interval", seconds: 15 });
   expect(JOB.name).toBe(getFunctionName(internal.searchMirror.advance));
+  expect(BATCH.batch).toBe(1000);
 
   const t = serverTest(true);
   await t.mutation(internal.searchMirror.advance, BATCH);
@@ -86,6 +87,56 @@ test("the next eligible tick exposes a new message to search after a quiet perio
       query: "delphinium",
     }),
   ).toMatchObject({ results: [{ matches: [{ messageId: id }] }] });
+});
+
+test.each([
+  {
+    state: "behind",
+    cursorLag: WINDOW_MS,
+    fresh_cursor: NOW - TICK_MS - 5_001,
+  },
+  { state: "legacy", cursorLag: SETTLE_MS + 1, fresh_cursor: undefined },
+])(
+  "an empty $state mirror still advances and becomes live",
+  async ({ cursorLag, fresh_cursor }) => {
+    const t = serverTest(true);
+    await t.run(async ({ db }) => {
+      await db.insert("search_mirror_state", {
+        cursor: NOW - TICK_MS - cursorLag,
+        updated_at: NOW - TICK_MS,
+        fresh_cursor,
+      });
+      await db.insert("search_mirror_live", { live: false });
+    });
+    await t.mutation(internal.searchMirror.advance, BATCH);
+    const state = await t.query(internal.searchMirror.status);
+    expect(state).toMatchObject({
+      cursor: NOW - SETTLE_MS - 1,
+      fresh_behind_ms: 1,
+      updated_at_iso: new Date(NOW).toISOString(),
+      live: true,
+    });
+  },
+);
+
+test("an oversized batch request stops after 1,000 source rows", async () => {
+  const t = serverTest(true);
+  const last = await t.run(async ({ db }) => {
+    const fixture = fixtureRows(db, "mirror-batch-cap");
+    const conversation = await fixture.conversation(await fixture.user());
+    for (let i = 0; i < 1000; i++) {
+      await fixture.message(conversation, { content: "" });
+    }
+    return fixture.message(conversation);
+  });
+  const readMirror = () =>
+    t.run(({ db }) => db.query("message_search_recent").first());
+  jest.setSystemTime(NOW + SETTLE_MS + TICK_MS);
+  await t.mutation(internal.searchMirror.advance, { batch: 1200 });
+  expect(await readMirror()).toBeNull();
+  jest.setSystemTime(NOW + SETTLE_MS + 2 * TICK_MS);
+  await t.mutation(internal.searchMirror.advance, { batch: 1200 });
+  expect(await readMirror()).toMatchObject({ message_id: last });
 });
 
 test("a clipped batch keeps its first uncopied row and drains in order", async () => {
@@ -220,6 +271,34 @@ test("maintenance still removes rows that expire during quiet ticks", async () =
   expect(await t.mutation(internal.searchMirror.advance, BATCH)).toMatchObject({
     expired: 1,
   });
+  expect(
+    await t.run(({ db }) => db.query("message_search_recent").first()),
+  ).toBeNull();
+});
+
+test("maintenance drains a large expiry backlog within its read budget", async () => {
+  const t = serverTest({ bytesRead: 1.7 * 1024 ** 2 });
+  await t.run(async ({ db }) => {
+    const fixture = fixtureRows(db, "mirror-gc-budget");
+    const conversation = await fixture.conversation(await fixture.user());
+    for (let i = 0; i < 30; i++) {
+      const message = await fixture.message(conversation, { content: "" });
+      await db.insert("message_search_recent", {
+        message_id: message,
+        conversation_id: conversation,
+        role: "user",
+        content: "x".repeat(32_000),
+        timestamp: NOW,
+        source_created_at: NOW - WINDOW_MS - 1,
+      });
+    }
+  });
+  const first = await t.mutation(internal.searchMirror.advance, BATCH);
+  expect(first.expired).toBeGreaterThan(0);
+  expect(first.expired).toBeLessThan(30);
+  jest.setSystemTime(NOW + 4 * TICK_MS);
+  const second = await t.mutation(internal.searchMirror.advance, BATCH);
+  expect(second.expired).toBe(30 - first.expired);
   expect(
     await t.run(({ db }) => db.query("message_search_recent").first()),
   ).toBeNull();
