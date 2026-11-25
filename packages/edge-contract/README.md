@@ -87,6 +87,10 @@ the request, on a monotonic clock. Thus, the daemon stops before the lease ends
 on the server. A lease with no time left is not a grant: the server returns
 `stale`.
 
+A granted `claim` can include `last_event_seq`. This is the run
+cursor. It can hold the start sequence of a new run or the last sequence
+that the server accepted for that run. The daemon continues after this value.
+
 ### Run lease checks for execution writes
 
 Each operation also checks the caller's authority and the required epoch.
