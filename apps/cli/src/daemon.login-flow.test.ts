@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import {
   buildLoginFlowCommand,
   buildMintFlowCommand,
@@ -7,10 +7,15 @@ import {
   summarizeLoginPaneTail,
 } from "./daemon.js";
 
-const daemonSource = readFileSync(
-  new URL("./daemon.ts", import.meta.url),
-  "utf8",
-);
+const readSource = (file: string) =>
+  readFileSync(new URL(file, import.meta.url), "utf8");
+const commandFiles = readdirSync(
+  new URL("./daemon-commands/", import.meta.url),
+).filter((file) => file.endsWith(".ts"));
+const daemonSource = ["./daemon.ts"]
+  .concat(commandFiles.map((file) => `./daemon-commands/${file}`))
+  .map(readSource)
+  .join("\n");
 
 // The login-flow watcher reports the dying pane's last meaningful line as the
 // rejection reason — the CLI's own words are the most honest "why" available.
@@ -106,13 +111,8 @@ describe("per-profile credential stores", () => {
     const openers = daemonSource.match(/openInDefaultBrowser\(/g) ?? [];
     expect(openers).toHaveLength(2); // the definition and the mint watcher's call
     // Each flow is started from its command handler and nowhere else.
-    const account = readFileSync(
-      new URL("./daemon-commands/account.ts", import.meta.url),
-      "utf8",
-    );
-    expect(
-      (daemonSource + account).match(/startLoginFlow\(/g) ?? [],
-    ).toHaveLength(2);
+    const account = readSource("./daemon-commands/account.ts");
+    expect(daemonSource.match(/startLoginFlow\(/g) ?? []).toHaveLength(2);
     expect(account).toMatch(/case "start_login"[\s\S]{0,1500}startLoginFlow\(/);
   });
 });
@@ -145,11 +145,8 @@ describe("buildMintFlowCommand", () => {
 describe("minting is never automatic", () => {
   test("no heartbeat or timer starts a mint; only the switch_account command does", () => {
     expect(daemonSource).not.toMatch(/autoMint/i);
-    const account = readFileSync(
-      new URL("./daemon-commands/account.ts", import.meta.url),
-      "utf8",
-    );
-    const calls = (daemonSource + account).match(/startMintFlow\(/g) ?? [];
+    const account = readSource("./daemon-commands/account.ts");
+    const calls = daemonSource.match(/startMintFlow\(/g) ?? [];
     // The definition and the one call in the command handler.
     expect(calls).toHaveLength(2);
     expect(account).toMatch(

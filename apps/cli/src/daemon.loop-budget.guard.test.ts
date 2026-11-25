@@ -804,6 +804,13 @@ const ROWS: Row[] = [
   },
   // Timers outside daemon.ts.
   {
+    file: "terminal/daemon-bridge.ts",
+    name: "startTerminalMaintenance",
+    kind: "function",
+    minLines: 15,
+    mustContain: "reapStaleTerminalSessions",
+  },
+  {
     file: "browser/focusSentinel.ts",
     name: "startFocusSentinel",
     kind: "function",

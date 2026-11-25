@@ -33,7 +33,13 @@ describe("an isolated start never falls back to the main checkout", () => {
       "setSessionError(conversationId, commandOutcome.error)",
     );
     expect(failure).toMatch(/\n\s*break;\n/);
-    expect(daemon + startSession).not.toContain("falling back to repo root");
+    const launchSession = fs.readFileSync(
+      new URL("./daemon-commands/launch-session.ts", import.meta.url),
+      "utf8",
+    );
+    expect(daemon + startSession + launchSession).not.toContain(
+      "falling back to repo root",
+    );
   });
 
   test("createWorktree reports why it failed instead of null", () => {

@@ -278,9 +278,6 @@ describe("startedSessionGuard", () => {
     );
   });
 
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  const source = fs.readFileSync(path.join(here, "daemon.ts"), "utf-8");
-
   test("resume_session tears a stale pane down instead of returning early", () => {
     const source = fs.readFileSync(
       new URL("./daemon-commands/resume-session.ts", import.meta.url),
