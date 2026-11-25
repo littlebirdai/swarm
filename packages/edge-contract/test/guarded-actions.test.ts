@@ -317,6 +317,49 @@ test("a verified question needs a summary and escalates an opaque request", () =
   ).toBe("escalation");
 });
 
+test("a verification for another kind of prompt escalates", () => {
+  const question = { prompt_id: "p1", kind: "question", summary: "Choose" };
+  for (const kind of ["permission", "plan"])
+    expect(edge.classifyPrompt({ ...question, kind }, "question")).toBe(
+      "escalation",
+    );
+  expect(edge.classifyPrompt({ ...question, summary: " " }, "question")).toBe(
+    "escalation",
+  );
+  for (const kind of ["question", "plan"])
+    expect(
+      edge.classifyPrompt({ ...promptOpened.body, kind }, "workspace_read"),
+    ).toBe("escalation");
+});
+
+test("a verified workspace read needs its tool call and tool name", () => {
+  for (const field of ["tool_call_id", "tool_name"])
+    expect(
+      edge.classifyPrompt(
+        { ...promptOpened.body, [field]: undefined },
+        "workspace_read",
+      ),
+    ).toBe("escalation");
+});
+
+test("only an opaque request with one pattern carries a long pattern", () => {
+  const long = "x".repeat(1_001);
+  const rule = {
+    permission: "bash",
+    patterns: [long],
+    always: [],
+    opaque: true,
+  };
+  const parse = (rule_request: object) =>
+    edge.parseCanonicalEvent({
+      ...promptOpened,
+      body: { ...promptOpened.body, rule_request },
+    }).ok;
+  expect(parse(rule)).toBe(true);
+  expect(parse({ ...rule, patterns: [long, "a"] })).toBe(false);
+  expect(parse({ ...rule, always: ["a"] })).toBe(false);
+});
+
 test("a verified workspace read needs a nonempty list of non-blank patterns", () => {
   const { rule_request, ...body } = promptOpened.body;
   for (const patterns of [[], ["notes.txt", ""], ["notes.txt", " \t"]]) {

@@ -72,8 +72,9 @@ UTF-16 code units.
 The machine must redact the summary before it sends the event. The server
 decides whether the prompt is routine. It can verify a read inside the
 workspace or a question that runs no code. Pass that verification to
-`classifyPrompt`. A verified question needs a summary. A verified workspace
-read also needs a tool call ID, a tool name, and a `read` rule request with
+`classifyPrompt`. A verified question needs a prompt of kind `question` and a
+non-blank summary. A verified workspace read needs a prompt of kind
+`permission`, a non-blank summary, a tool call ID, a tool name, and a `read` rule request with
 at least one pattern. Each pattern must be non-blank. The default is
 escalation. An opaque rule request always gives an escalation.
 

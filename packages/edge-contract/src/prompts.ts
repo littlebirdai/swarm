@@ -87,11 +87,12 @@ export function classifyPrompt(
   prompt: PromptOpened,
   verifiedKind?: "workspace_read" | "question",
 ): "routine" | "escalation" {
-  const { summary, rule_request, tool_call_id, tool_name } = prompt;
-  if (!summary || rule_request?.opaque) return "escalation";
-  if (verifiedKind === "question") return "routine";
+  const { kind, summary, rule_request, tool_call_id, tool_name } = prompt;
+  if (!summary?.trim() || rule_request?.opaque) return "escalation";
+  if (verifiedKind === "question" && kind === "question") return "routine";
   if (
     verifiedKind === "workspace_read" &&
+    kind === "permission" &&
     tool_call_id &&
     tool_name &&
     rule_request?.permission === "read" &&
