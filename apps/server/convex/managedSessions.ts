@@ -2,6 +2,8 @@ import {
   heartbeatOf,
   managedHeartbeatPage,
   writeSessionHeartbeat,
+  markManagedSessionHosted,
+  writePatchedSessionHeartbeat,
 } from "./lib/session-heartbeat";
 import { buildHeartbeatPatch, statusWriteIsStale } from "./lib/heartbeatPatch";
 import {
@@ -239,7 +241,13 @@ export async function performRegisterManagedSession(
           ? { conversation_id: effectiveConversationId }
           : {}),
       });
-      await writeSessionHeartbeat(ctx, existing._id, authUserId, now);
+      await writeSessionHeartbeat(
+        ctx,
+        existing._id,
+        authUserId,
+        now,
+        existing.hosted,
+      );
       if (stampDeviceId && effectiveConversationId) {
         // Registering a live local process for this conversation disproves any
         // "couldn't start / no local checkout - clone it first" banner stamped
@@ -292,7 +300,7 @@ export async function performRegisterManagedSession(
     last_heartbeat: now,
   });
 
-  await writeSessionHeartbeat(ctx, id, authUserId, now);
+  await writeSessionHeartbeat(ctx, id, authUserId, now, undefined);
 
   // Claim ownership: stamp this device as the conversation's owner. Also clear
   // any stale "no local checkout" banner — a fresh local process disproves it
@@ -495,8 +503,7 @@ async function applyHeartbeat(
   const patch = buildHeartbeatPatch(session, agentStatus, clientTs, now);
   // Expand keeps the original throttle and counts. Seed a missing side row
   // even when this beat falls within the legacy timestamp's refresh interval.
-  // oxfmt-ignore
-  await writeSessionHeartbeat(ctx, session._id, session.user_id, patch?.last_heartbeat ?? session.last_heartbeat);
+  await writePatchedSessionHeartbeat(ctx, session, patch);
   if (patch) await ctx.db.patch(session._id, patch);
   return patch;
 }
@@ -1066,7 +1073,7 @@ export async function ensureHostedManagedSession(
     .first();
   if (existing) {
     if (existing.hosted) return existing;
-    await ctx.db.patch(existing._id, { hosted: true });
+    await markManagedSessionHosted(ctx, existing._id);
     return { ...existing, hosted: true };
   }
   const now = Date.now();
@@ -1081,7 +1088,7 @@ export async function ensureHostedManagedSession(
     agent_status_updated_at: now,
     hosted: true,
   });
-  await writeSessionHeartbeat(ctx, id, conversation.user_id, 0);
+  await writeSessionHeartbeat(ctx, id, conversation.user_id, 0, true);
   return (await ctx.db.get(id))!;
 }
 
@@ -1136,7 +1143,7 @@ async function applyAgentStatus(
   if (ACTIVE_AGENT_STATUSES.has(args.agent_status)) {
     const at = Date.now();
     patch.last_heartbeat = at;
-    await writeSessionHeartbeat(ctx, session._id, session.user_id, at);
+    await writePatchedSessionHeartbeat(ctx, session, patch);
   }
 
   if (Object.keys(patch).length > 0) {

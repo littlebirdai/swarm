@@ -1,4 +1,5 @@
 import { expect, spyOn, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { getDocumentSize, type Value } from "convex/values";
 import { api } from "./_generated/api";
 import type { Id, TableNames } from "./_generated/dataModel";
@@ -8,6 +9,7 @@ import {
   classifyWorkStates,
   computeInboxSessions,
   computeSessionsLiveness,
+  listFavoriteSessions,
 } from "./conversations";
 import {
   asUser,
@@ -15,6 +17,10 @@ import {
   serverTest,
 } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
+import { writeSessionHeartbeat } from "./lib/session-heartbeat";
+import { ensureHostedManagedSession } from "./managedSessions";
+import { takeOverSessions } from "./orgInit";
+import { performCreateRole } from "./orgRoles";
 
 const minute = 60_000;
 const day = 86_400_000;
@@ -235,21 +241,59 @@ function measureReads(db: DatabaseReader) {
 }
 
 test.each([
-  { kind: "daemon", hosted: undefined },
-  { kind: "hosted", hosted: true },
+  { kind: "daemon", hosted: undefined, mixed: false, indexed: false },
+  { kind: "hosted", hosted: true, mixed: false, indexed: false },
+  {
+    kind: "mixed legacy daemon and hosted",
+    hosted: true,
+    mixed: true,
+    indexed: false,
+  },
+  {
+    kind: "mixed indexed daemon and hosted",
+    hosted: true,
+    mixed: true,
+    indexed: true,
+  },
 ])(
   "unrelated dead $kind sessions leave overlay reads unchanged",
-  async ({ hosted }) => {
+  async ({ hosted, mixed, indexed }) => {
     const t = serverTest();
     const clock = spyOn(Date, "now").mockReturnValue(epoch + 23_000);
     try {
-      const user = await t.run(async ({ db }) => {
+      const { user, role, ids, statusless } = await t.run(async (ctx) => {
+        const { db } = ctx;
         const rows = fixtureRows(db, "liveness-cost-live");
         const user = await rows.user();
+        const project = await db.insert("projects", {
+          user_id: user,
+          workspace: `user:${user}`,
+          title: "Growth",
+          status: "active",
+          project_path: "/repo/growth",
+          created_at: epoch,
+          updated_at: epoch,
+        });
+        const plan = await rows.plan(user, {
+          workspace: `user:${user}`,
+          project_id: project,
+        });
+        const role = await performCreateRole(ctx, user, {
+          name: "Growth",
+          handle: "growth",
+          scope: { project_ids: [project], plan_ids: [] },
+        });
+        const ids = [];
         for (let i = 0; i < 20; i++) {
           const conversation = await rows.conversation(user, {
             updated_at: epoch,
+            is_favorite: true,
+            project_path: "/repo/growth",
+            active_plan_id: plan,
+            message_count: 1,
+            last_message_role: "assistant",
           });
+          ids.push(conversation);
           const session = await rows.session(user, {
             conversation_id: conversation,
             last_heartbeat: epoch,
@@ -261,9 +305,26 @@ test.each([
             managed_session_id: session,
             user_id: user,
             heartbeat_at: epoch,
+            daemon: indexed ? false : undefined,
           });
         }
-        return user;
+        let statusless = null;
+        if (mixed) {
+          statusless = await rows.conversation(user, {
+            updated_at: epoch,
+            is_favorite: true,
+          });
+          const daemon = await rows.session(user, {
+            last_heartbeat: epoch - 20 * minute,
+          });
+          await db.insert("session_heartbeats", {
+            user_id: user,
+            managed_session_id: daemon,
+            heartbeat_at: epoch - 8 * minute,
+            daemon: indexed ? true : undefined,
+          });
+        }
+        return { user, role: role._id, ids, statusless };
       });
       const addDead = (count: number) =>
         t.run(async ({ db }) => {
@@ -283,21 +344,47 @@ test.each([
             await db.insert("session_heartbeats", {
               managed_session_id: session,
               user_id: user,
-              heartbeat_at: at,
+              heartbeat_at: mixed ? epoch - 5 * minute : at,
+              daemon: indexed ? false : undefined,
             });
           }
         });
       const measure = () =>
-        t.run(async (ctx) => {
-          const measured = measureReads(ctx.db);
-          const overlay = await computeSessionsLiveness(
-            { ...ctx, db: measured.db },
-            user,
+        asUser(t, user).run(async (ctx) => {
+          const conversations = await Promise.all(
+            ids.map((id) => ctx.db.get(id)),
           );
+          const read = async (
+            invoke: (db: typeof ctx.db) => Promise<unknown>,
+          ) => {
+            const measured = measureReads(ctx.db);
+            const result = await invoke({ ...ctx.db, ...measured.db });
+            return {
+              result,
+              ...measured.documents,
+              ranges: measured.calls.filter((call) => call !== "get").length,
+            };
+          };
           return {
-            overlay,
-            ...measured.documents,
-            calls: measured.calls.length,
+            overlay: await read((db) => computeSessionsLiveness({ db }, user)),
+            inbox: await read((db) =>
+              computeInboxSessions({ db }, user, { projection: true }),
+            ),
+            favorites: await read((db) =>
+              (listFavoriteSessions as any)._handler({ ...ctx, db }, {}),
+            ),
+            org: await read(async (db) => [
+              ...(await classifyWorkStates(
+                { db },
+                user,
+                conversations,
+                new Map(),
+                epoch,
+              )),
+            ]),
+            takeover: await read((db) =>
+              takeOverSessions({ ...ctx, db }, user, role, { dry: true }),
+            ),
           };
         });
       await addDead(200);
@@ -306,7 +393,20 @@ test.each([
       const total2000 = await measure();
       await addDead(20);
       const large = await measure();
-      expect(Object.keys(small.overlay.liveness)).toHaveLength(20);
+      const overlay = small.overlay.result as {
+        liveness: Record<string, { daemon_alive_until: number | null }>;
+      };
+      expect(Object.keys(overlay.liveness)).toHaveLength(mixed ? 21 : 20);
+      expect(
+        (small.favorites.result as { sessions: object[] }).sessions,
+      ).toHaveLength(mixed ? 21 : 20);
+      expect(
+        (small.takeover.result as { sessions: object[] }).sessions,
+      ).toHaveLength(20);
+      if (statusless)
+        expect(overlay.liveness[statusless]?.daemon_alive_until).toBe(
+          epoch - 2 * minute,
+        );
       expect(total2000).toEqual(small);
       expect(large).toEqual(small);
     } finally {
@@ -314,3 +414,94 @@ test.each([
     }
   },
 );
+
+test("liveness at a negative cutoff uses the resolved beat for out-of-window children", async () => {
+  const t = serverTest();
+  const clock = spyOn(Date, "now").mockReturnValue(23_000);
+  try {
+    const { user, live, expired } = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "liveness-negative-cutoff");
+      const user = await rows.user();
+      const parent = await rows.conversation(user, { updated_at: -1 });
+      const live = [];
+      const expired = [];
+      for (let i = 0; i < 40; i++) {
+        const child = await rows.conversation(user, {
+          updated_at: -40 * day,
+          is_subagent: true,
+          parent_conversation_id: parent,
+          message_count: 1,
+          last_message_role: "assistant",
+        });
+        const session = await rows.session(user, {
+          conversation_id: child,
+          last_heartbeat: -HEARTBEAT_ALIVE_MS - 2,
+          agent_status: "done",
+        });
+        if (i % 2 === 0) {
+          await db.insert("session_heartbeats", {
+            user_id: user,
+            managed_session_id: session,
+            heartbeat_at: -HEARTBEAT_ALIVE_MS - 1,
+          });
+          expired.push(child);
+        } else {
+          live.push(child);
+        }
+      }
+      return { user, live, expired };
+    });
+    const { liveness } = await t.run((ctx) =>
+      computeSessionsLiveness(ctx, user),
+    );
+    for (const child of live) expect(liveness[child]?.last_heartbeat).toBe(0);
+    for (const child of expired) expect(liveness[child]).toBeUndefined();
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+test("liveness keeps the daemon index and avoids the managed-session user scan", () => {
+  const conversations = readFileSync(
+    new URL("./conversations.ts", import.meta.url),
+    "utf8",
+  );
+  const heartbeat = readFileSync(
+    new URL("./lib/session-heartbeat.ts", import.meta.url),
+    "utf8",
+  );
+  expect(heartbeat).toContain('.withIndex("by_daemon_beat"');
+  expect(conversations).not.toMatch(
+    /\.query\("managed_sessions"\)\s*\.withIndex\("by_user_id"/,
+  );
+});
+
+test("a legacy side row learns its daemon flag on a write and clears it when hosted", async () => {
+  const t = serverTest();
+  await t.run(async (ctx) => {
+    const rows = fixtureRows(ctx.db, "liveness-daemon-flag");
+    const user = await rows.user();
+    const conversation = await rows.conversation(user, {
+      agent_type: "codecast",
+    });
+    const managed = await rows.session(user, {
+      conversation_id: conversation,
+      last_heartbeat: epoch,
+    });
+    const side = await ctx.db.insert("session_heartbeats", {
+      user_id: user,
+      managed_session_id: managed,
+      heartbeat_at: epoch,
+    });
+    await writeSessionHeartbeat(ctx, managed, user, epoch, undefined);
+    expect(await ctx.db.get(side)).toMatchObject({
+      daemon: true,
+      heartbeat_at: epoch,
+    });
+    await ensureHostedManagedSession(ctx, (await ctx.db.get(conversation))!);
+    expect(await ctx.db.get(side)).toMatchObject({
+      daemon: false,
+      heartbeat_at: epoch,
+    });
+  });
+});

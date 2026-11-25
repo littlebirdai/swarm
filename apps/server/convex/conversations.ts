@@ -1,9 +1,7 @@
 import {
   heartbeatOf,
   heartbeatsFor,
-  newestDaemonSessionHeartbeat,
-  readConversationSessionHeartbeats,
-  readLiveSessionConversationIds,
+  readUserSessionFacts,
 } from "./lib/session-heartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { hasDeliverableMessage } from "./lib/closeAside";
@@ -10167,32 +10165,22 @@ async function buildUserSessionMaps(
   userId: Id<"users">,
   now: number,
   conversations: readonly { _id: Id<"conversations"> }[],
-  discoverLive = false,
 ): Promise<InboxSessionMaps> {
-  const [latest, liveIds] = await Promise.all([
-    newestDaemonSessionHeartbeat(ctx, userId),
-    discoverLive
-      ? readLiveSessionConversationIds(ctx, userId, now - HEARTBEAT_ALIVE_MS)
-      : [],
-  ]);
-  const maps = sessionMapsFromManagedRows([], [], now, latest);
-  for (const id of liveIds) maps.liveConvIds.add(id);
-  const loaded = new Map<Id<"conversations">, Promise<unknown>>();
-  maps.loadConversations = async (convs) => {
-    await Promise.all(
-      convs.map(({ _id }) => {
-        if (!loaded.has(_id))
-          loaded.set(
-            _id,
-            readConversationSessionHeartbeats(ctx, userId, _id).then(
-              ({ rows, beats }) =>
-                applyManagedSessionRows(maps, rows, beats, now),
-            ),
-          );
-        return loaded.get(_id);
-      }),
-    );
-  };
+  const facts = await readUserSessionFacts(
+    ctx,
+    userId,
+    now - HEARTBEAT_ALIVE_MS,
+  );
+  const maps = sessionMapsFromManagedRows(
+    facts.rows,
+    facts.beats,
+    now,
+    facts.newest,
+  );
+  maps.loadConversations = (convs) =>
+    facts.loadConversations(convs, (rows, beats) => {
+      applyManagedSessionRows(maps, rows, beats, now);
+    });
   await maps.loadConversations(conversations);
   return maps;
 }
@@ -11256,7 +11244,6 @@ export async function scanInboxConversations(
     // child rows carry the fields. Off for team scope, whose list never
     // strips them.
     subagentWindow?: boolean;
-    discoverLive?: boolean;
     // The caller named its sessions (extraConvIds) and wants only those: skip
     // every window and the owner window, admit the named rows by the same
     // rule, and read their liveness per conversation (buildNamedSessionMaps).
@@ -11797,13 +11784,10 @@ export async function scanInboxConversations(
         !byId.has(c._id.toString()) && pooledByWindows(c, userId, now),
     );
   } else {
-    maps = await buildUserSessionMaps(
-      ctx,
-      userId,
-      now,
-      [...conversations, ...recentSubagents],
-      opts.discoverLive,
-    );
+    maps = await buildUserSessionMaps(ctx, userId, now, [
+      ...conversations,
+      ...recentSubagents,
+    ]);
   }
 
   // buildUserSessionMaps only covers managed_sessions belonging to THIS user;
@@ -13316,7 +13300,6 @@ export async function computeSessionsLiveness(
     includeLiveness: true,
     teamScope,
     subagentWindow: true,
-    discoverLive: true,
   });
   const { conversations, maps, truncated } = scan;
   // Decisions FIRST: a parent already asking through a pending `cast decide`

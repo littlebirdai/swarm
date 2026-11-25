@@ -4347,8 +4347,10 @@ export default defineSchema(
       managed_session_id: v.id("managed_sessions"),
       user_id: v.id("users"),
       heartbeat_at: v.number(),
+      daemon: v.optional(v.boolean()),
     })
       .index("by_managed_session", ["managed_session_id"])
+      .index("by_user_daemon_heartbeat", ["user_id", "daemon", "heartbeat_at"])
       .index("by_user_heartbeat", ["user_id", "heartbeat_at"])
       .index("by_heartbeat", ["heartbeat_at"]),
 

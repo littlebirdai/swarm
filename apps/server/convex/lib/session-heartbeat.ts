@@ -1,4 +1,4 @@
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
 type Reader = Pick<QueryCtx, "db">;
@@ -49,79 +49,263 @@ export function heartbeatsForUser(
           q.eq("managed_session_id", session._id),
         )
         .collect();
-      return rows.reduce(
-        (beat, row) =>
-          row.user_id === userId ? Math.max(beat, row.heartbeat_at) : beat,
-        resolveHeartbeat(session, undefined),
-      );
+      let latest: number | undefined;
+      for (const row of rows) {
+        if (row.user_id === userId)
+          latest = Math.max(latest ?? -Infinity, row.heartbeat_at);
+      }
+      return resolveHeartbeat(session, latest);
     }),
   );
 }
 
-export async function readConversationSessionHeartbeats(
-  ctx: Reader,
-  userId: Id<"users">,
-  conversationId: Id<"conversations">,
+const HISTORY_PROBE = 32;
+
+async function readSessionWindow<Row>(
+  newest: () => Promise<Row[]>,
+  live: () => Promise<Row[]>,
+  stale: () => Promise<Row[]>,
+  stamp: (row: Row) => number,
+  since: number,
 ) {
-  const rows = (
-    await ctx.db
-      .query("managed_sessions")
-      .withIndex("by_conversation_id", (q) =>
-        q.eq("conversation_id", conversationId),
-      )
-      .collect()
-  ).filter((row) => row.user_id === userId);
-  return { rows, beats: await heartbeatsForUser(ctx, userId, rows) };
+  if (since < 0) return { rows: await live(), unseen: -Infinity };
+  const prefix = await newest();
+  if (prefix.length <= HISTORY_PROBE)
+    return { rows: prefix, unseen: -Infinity };
+  if (stamp(prefix[prefix.length - 1]) <= since)
+    return { rows: prefix, unseen: stamp(prefix[prefix.length - 1]) };
+  const [current, history] = await Promise.all([live(), stale()]);
+  return {
+    rows: [...current, ...history],
+    unseen:
+      history.length <= HISTORY_PROBE
+        ? -Infinity
+        : stamp(history[history.length - 1]),
+  };
 }
 
-export async function newestDaemonSessionHeartbeat(
+async function newestDaemonSessionHeartbeat(
   ctx: Reader,
   userId: Id<"users">,
+  known: number | undefined,
+  unknownSide: number,
+  unknownLegacy: number,
 ): Promise<number | undefined> {
-  const legacy = await ctx.db
-    .query("managed_sessions")
-    .withIndex("by_daemon_beat", (q) =>
-      q.eq("user_id", userId).eq("hosted", undefined),
+  if (Math.max(unknownSide, unknownLegacy) <= (known ?? -Infinity))
+    return known;
+  const daemonRows = () =>
+    ctx.db
+      .query("managed_sessions")
+      .withIndex("by_daemon_beat", (q) =>
+        q.eq("user_id", userId).eq("hosted", undefined),
+      )
+      .order("desc");
+  const legacy = await daemonRows().first();
+  if (!legacy) return known;
+  const indexed = await ctx.db
+    .query("session_heartbeats")
+    .withIndex("by_user_daemon_heartbeat", (q) =>
+      q.eq("user_id", userId).eq("daemon", true),
     )
     .order("desc")
     .first();
-  if (!legacy) return undefined;
-  const legacyBeat = resolveHeartbeat(legacy, undefined);
-  const newerSide = ctx.db
-    .query("session_heartbeats")
-    .withIndex("by_user_heartbeat", (q) =>
-      q.eq("user_id", userId).gt("heartbeat_at", legacyBeat),
-    )
-    .order("desc");
-  for await (const side of newerSide) {
-    const session = await ctx.db.get(side.managed_session_id);
-    if (session?.user_id === userId && session.hosted === undefined)
-      return resolveHeartbeat(session, side.heartbeat_at);
+  let latest = Math.max(
+    known ?? -Infinity,
+    legacy.last_heartbeat ?? 0,
+    indexed?.heartbeat_at ?? -Infinity,
+  );
+  if (latest >= 0) {
+    if (latest >= unknownSide) return latest;
+    const unknown = await ctx.db
+      .query("session_heartbeats")
+      .withIndex("by_user_daemon_heartbeat", (q) =>
+        q
+          .eq("user_id", userId)
+          .eq("daemon", undefined)
+          .gt("heartbeat_at", latest)
+          .lte("heartbeat_at", unknownSide),
+      )
+      .order("desc")
+      .take(HISTORY_PROBE + 1);
+    if (unknown.length <= HISTORY_PROBE) {
+      for (const row of unknown) {
+        const session = await ctx.db.get(row.managed_session_id);
+        if (session?.user_id === userId && session.hosted === undefined)
+          return Math.max(latest, row.heartbeat_at);
+      }
+      return latest;
+    }
   }
-  return legacyBeat;
+  for await (const session of daemonRows()) {
+    latest = Math.max(
+      latest,
+      ...(await heartbeatsForUser(ctx, userId, [session])),
+    );
+    if (latest >= Math.max(0, unknownSide)) break;
+  }
+  return latest;
 }
 
-export async function readLiveSessionConversationIds(
+export async function readUserSessionFacts(
   ctx: Reader,
   userId: Id<"users">,
   since: number,
-): Promise<Id<"conversations">[]> {
-  const sessions =
-    since < 0
-      ? await ctx.db
-          .query("managed_sessions")
-          .withIndex("by_user_id", (q) => q.eq("user_id", userId))
-          .collect()
-      : await managedSessionsBeatingSince(ctx, since, userId);
-  sessions.sort(
-    (a, b) =>
-      a._creationTime - b._creationTime ||
-      (a._id < b._id ? -1 : Number(a._id > b._id)),
+) {
+  const legacy = () => ctx.db.query("managed_sessions");
+  const side = () => ctx.db.query("session_heartbeats");
+  const [managed, sideRows] = await Promise.all([
+    readSessionWindow(
+      () =>
+        legacy()
+          .withIndex("by_user_heartbeat", (q) => q.eq("user_id", userId))
+          .order("desc")
+          .take(HISTORY_PROBE + 1),
+      () =>
+        legacy()
+          .withIndex("by_user_heartbeat", (q) => {
+            const user = q.eq("user_id", userId);
+            return since < 0 ? user : user.gt("last_heartbeat", since);
+          })
+          .collect(),
+      () =>
+        legacy()
+          .withIndex("by_user_heartbeat", (q) =>
+            q.eq("user_id", userId).lte("last_heartbeat", since),
+          )
+          .order("desc")
+          .take(HISTORY_PROBE + 1),
+      (row) =>
+        since < 0 ? Math.max(0, row.last_heartbeat) : (row.last_heartbeat ?? 0),
+      since,
+    ),
+    readSessionWindow(
+      () =>
+        side()
+          .withIndex("by_user_heartbeat", (q) => q.eq("user_id", userId))
+          .order("desc")
+          .take(HISTORY_PROBE + 1),
+      () =>
+        side()
+          .withIndex("by_user_heartbeat", (q) => {
+            const user = q.eq("user_id", userId);
+            return since < 0 ? user : user.gt("heartbeat_at", since);
+          })
+          .collect(),
+      () =>
+        side()
+          .withIndex("by_user_heartbeat", (q) =>
+            q.eq("user_id", userId).lte("heartbeat_at", since),
+          )
+          .order("desc")
+          .take(HISTORY_PROBE + 1),
+      (row) => row.heartbeat_at,
+      since,
+    ),
+  ]);
+  const byId = new Map(managed.rows.map((row) => [row._id, row]));
+  const beatsById = new Map<Id<"managed_sessions">, number>();
+  const sideOnly = new Set<Id<"managed_sessions">>();
+  for (const row of sideRows.rows) {
+    beatsById.set(
+      row.managed_session_id,
+      Math.max(
+        beatsById.get(row.managed_session_id) ?? -Infinity,
+        row.heartbeat_at,
+      ),
+    );
+    if (managed.unseen !== -Infinity && !byId.has(row.managed_session_id))
+      sideOnly.add(row.managed_session_id);
+  }
+  for (const row of await Promise.all(
+    [...sideOnly].map((id) => ctx.db.get(id)),
+  ))
+    if (row?.user_id === userId) byId.set(row._id, row);
+
+  const order = (a: Doc<"managed_sessions">, b: Doc<"managed_sessions">) =>
+    a._creationTime - b._creationTime ||
+    (a._id < b._id ? -1 : Number(a._id > b._id));
+  const mayBeMissingNegativeBeat = (row: ManagedHeartbeat) =>
+    row.last_heartbeat < 0 &&
+    sideRows.unseen !== -Infinity &&
+    !beatsById.has(row._id);
+  const beatOf = (row: ManagedHeartbeat) =>
+    mayBeMissingNegativeBeat(row)
+      ? row.last_heartbeat
+      : resolveHeartbeat(row, beatsById.get(row._id));
+  const rows = [...byId.values()].sort(order);
+  const byConversation = new Map<
+    Id<"conversations">,
+    Doc<"managed_sessions">[]
+  >();
+  let latest: number | undefined;
+  for (const row of rows) {
+    const beat = beatOf(row);
+    if (row.hosted === undefined) latest = Math.max(latest ?? -Infinity, beat);
+    if (!row.conversation_id) continue;
+    const current = byConversation.get(row.conversation_id);
+    if (current) current.push(row);
+    else byConversation.set(row.conversation_id, [row]);
+  }
+
+  const maximumUnseenLegacy =
+    managed.unseen === -Infinity ? -Infinity : Math.max(0, managed.unseen);
+  const maximumUnseenSide = rows.some(mayBeMissingNegativeBeat)
+    ? Math.max(0, sideRows.unseen)
+    : sideRows.unseen;
+  const newest = await newestDaemonSessionHeartbeat(
+    ctx,
+    userId,
+    latest,
+    maximumUnseenSide,
+    maximumUnseenLegacy,
   );
-  const ids = new Set<Id<"conversations">>();
-  for (const row of sessions)
-    if (row.conversation_id) ids.add(row.conversation_id);
-  return [...ids];
+  const pending = new Map<Id<"conversations">, Promise<void>>();
+  const load = async (
+    id: Id<"conversations">,
+    apply: (rows: Doc<"managed_sessions">[], beats: number[]) => void,
+  ) => {
+    const current = byConversation.get(id) ?? [];
+    const history =
+      managed.unseen === -Infinity
+        ? []
+        : (
+            await ctx.db
+              .query("managed_sessions")
+              .withIndex("by_conversation_heartbeat", (q) =>
+                q
+                  .eq("conversation_id", id)
+                  .lte("last_heartbeat", managed.unseen),
+              )
+              .collect()
+          ).filter((row) => row.user_id === userId && !byId.has(row._id));
+    const candidates = [...current, ...history].sort(order);
+    const beats = await Promise.all(
+      candidates.map(async (row) => {
+        const known = beatOf(row);
+        if (known >= sideRows.unseen && !mayBeMissingNegativeBeat(row))
+          return known;
+        return (await heartbeatsForUser(ctx, userId, [row]))[0];
+      }),
+    );
+    apply(candidates, beats);
+  };
+  return {
+    rows,
+    beats: rows.map(beatOf),
+    newest,
+    async loadConversations(
+      convs: readonly { _id: Id<"conversations"> }[],
+      apply: (rows: Doc<"managed_sessions">[], beats: number[]) => void,
+    ) {
+      if (managed.unseen === -Infinity && sideRows.unseen === -Infinity) return;
+      await Promise.all(
+        convs.map(({ _id }) => {
+          if (!pending.has(_id)) pending.set(_id, load(_id, apply));
+          return pending.get(_id);
+        }),
+      );
+    },
+  };
 }
 
 export async function writeSessionHeartbeat(
@@ -129,17 +313,43 @@ export async function writeSessionHeartbeat(
   id: Id<"managed_sessions">,
   userId: Id<"users">,
   at: number,
+  hosted: boolean | undefined,
 ) {
+  const daemon = hosted === undefined;
   const row = await heartbeatRow(ctx, id);
   if (!row) {
     await ctx.db.insert("session_heartbeats", {
       managed_session_id: id,
       user_id: userId,
       heartbeat_at: at,
+      daemon,
     });
-  } else if (row.heartbeat_at !== at) {
-    await ctx.db.patch(row._id, { heartbeat_at: at });
+  } else if (row.heartbeat_at !== at || row.daemon !== daemon) {
+    await ctx.db.patch(row._id, { heartbeat_at: at, daemon });
   }
+}
+
+export function writePatchedSessionHeartbeat(
+  ctx: Writer,
+  session: Doc<"managed_sessions">,
+  patch: { last_heartbeat?: number } | null,
+) {
+  return writeSessionHeartbeat(
+    ctx,
+    session._id,
+    session.user_id,
+    patch?.last_heartbeat ?? session.last_heartbeat,
+    session.hosted,
+  );
+}
+
+export async function markManagedSessionHosted(
+  ctx: Writer,
+  id: Id<"managed_sessions">,
+) {
+  const row = await heartbeatRow(ctx, id);
+  if (row) await ctx.db.patch(row._id, { daemon: false });
+  await ctx.db.patch(id, { hosted: true });
 }
 
 export async function transferManagedSession(
