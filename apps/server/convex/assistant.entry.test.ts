@@ -50,7 +50,10 @@ const modules = {
     ...(await import("./assistant/turns")),
     run: internalAction({
       args: { turn_id: v.id("assistant_turns") },
-      handler: async () => null,
+      handler: async (ctx, args) => {
+        await ctx.runMutation(internal.assistant.turns.begin, args);
+        return null;
+      },
     }),
   }),
 };
@@ -73,13 +76,13 @@ beforeEach(() => {
 afterEach(async () => {
   try {
     for (const t of testInstances.splice(0)) {
-      await t.finishAllScheduledFunctions(() => jest.advanceTimersByTime(1));
-      const failed = await t.run(async (ctx) =>
+      await t.finishAllScheduledFunctions(() => jest.runAllTimers());
+      const unfinished = await t.run(async (ctx) =>
         (await ctx.db.system.query("_scheduled_functions").collect())
-          .filter((job) => job.state.kind === "failed")
-          .map((job) => job.name),
+          .filter((job) => !["success", "canceled"].includes(job.state.kind))
+          .map((job) => ({ name: job.name, state: job.state.kind })),
       );
-      expect(failed).toEqual([]);
+      expect(unfinished).toEqual([]);
     }
   } finally {
     jest.useRealTimers();

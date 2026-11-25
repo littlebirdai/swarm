@@ -216,13 +216,13 @@ describe("classifyChangedPaths", () => {
     ]);
   });
 
-  // Nothing imports the playground; the root build and typecheck cover it.
-  test("a playground change runs build, lint and typecheck", () => {
+  test("a playground change runs build, lint, typecheck and the CLI evals entry", () => {
     const scope = classifyChangedPaths(["apps/playground/src/main.tsx"]);
     expect(scope.forcedBy).toEqual([]);
     expect(ran(["apps/playground/src/main.tsx"])).toEqual([
       "build",
       "lint",
+      "test-cli",
       "typecheck",
     ]);
   });
@@ -428,7 +428,7 @@ describe("injection suite scope", () => {
 test("changes to web ffmpeg fixtures select the CLI evals entry", () => {
   for (const file of [
     "apps/web/scripts/call-e2e/frames.mjs",
-    "apps/web/scripts/rig/imagediff.ts",
+    "apps/web/scripts/rig/imagediff.mjs",
   ]) {
     expect(classifyChangedPaths([file]).flags.run_test_cli).toBe(true);
   }

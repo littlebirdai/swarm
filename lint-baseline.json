@@ -15678,7 +15678,7 @@
     "swarm/no-comments": 12
   },
   "apps/web/components/__tests__/stageSoloCell.mount.test.tsx": {
-    "swarm/no-comments": 14
+    "swarm/no-comments": 10
   },
   "apps/web/components/__tests__/stationStrip.mount.test.tsx": {
     "swarm/no-comments": 19
@@ -30236,7 +30236,7 @@
     "swarm/no-comments": 46
   },
   "scripts/ci/changed-path-scope.test.ts": {
-    "swarm/no-comments": 23
+    "swarm/no-comments": 22
   },
   "scripts/ci/changed-path-scope.ts": {
     "swarm/no-comments": 79
@@ -30285,9 +30285,6 @@
   },
   "scripts/line.ts": {
     "swarm/no-comments": 34
-  },
-  "scripts/lineFinders.test.ts": {
-    "swarm/no-comments": 9
   },
   "scripts/perf/ws-bytes.mjs": {
     "swarm/no-comments": 30

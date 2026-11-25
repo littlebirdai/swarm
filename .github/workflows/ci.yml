@@ -133,8 +133,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: ./.github/actions/setup-bun
-        with:
-          deps: none
 
       - name: Unit tests (ci scripts + workflow contract)
         run: bun test scripts/ci/
@@ -165,14 +163,14 @@ jobs:
       - name: Always-run tests (every package)
         run: bun scripts/ci/always-run-tests.ts
 
-      # scripts/lineFinders.test.ts is left out: it is red against the finders
-      # .codecast/line.toml declares today. infra/replay-player/src/worker.test.ts
-      # and infra/call-face-worker/vision.test.mjs are left out too: the first
-      # needs that directory's own install, the second a local LiveKit server.
       - name: Tests outside packages/ (scripts, infra)
         run: |
           bun test ./scripts/line.test.ts ./scripts/lib/lint-baseline.test.ts ./infra/artifact-edge/worker.test.js ./infra/replay-player/src/clock.test.ts
           node --test infra/call-face-worker/turns.test.mjs
+
+      - name: VS Code extension tests
+        working-directory: apps/vscode-extension
+        run: bun test ./src/wsl.test.ts
 
   build:
     needs: [code_paths]
@@ -400,6 +398,16 @@ jobs:
         working-directory: apps/evals
         run: bun test src/ --parallel
 
+      - name: Playground tests
+        if: matrix.suite == 'evals'
+        working-directory: apps/playground
+        run: bun test
+
+      - name: CLI learning tests
+        if: matrix.suite == 'evals'
+        working-directory: apps/cli
+        run: bun test ./learning/
+
       - name: Portable CLI script tests
         if: matrix.suite == 'evals'
         working-directory: apps/cli
@@ -436,22 +444,7 @@ jobs:
         # Real regressions fail all 3 attempts; transient flake is filtered.
         # If you see this retry step gating frequently, treat that as a
         # signal to harden the test isolation, not as the desired norm.
-        run: |
-          set -e
-          for attempt in 1 2 3; do
-            echo "::group::E2E attempt $attempt"
-            if bun test src/messaging.e2e.test.ts --timeout=60000; then
-              echo "::endgroup::"
-              echo "E2E passed on attempt $attempt"
-              exit 0
-            fi
-            echo "::endgroup::"
-            echo "::warning::E2E attempt $attempt failed; retrying"
-            tmux kill-server 2>/dev/null || true
-            sleep 2
-          done
-          echo "::error::E2E failed all 3 attempts — likely a real regression"
-          exit 1
+        run: bash ../../scripts/ci/retry-tests.sh bun test src/messaging.e2e.test.ts --timeout=60000
       # The injection path is the most fragile code in the daemon, so a change
       # to it runs the injection suites (ct-49536). What runs HERE is the half
       # that needs no agent binary: the Enter gate and submit verification
@@ -470,19 +463,10 @@ jobs:
       # ran in the step above.
       # code_paths decides whether this runs, from the same changed-path list
       # that gates the jobs (touchesInjection in scripts/ci/changed-path-scope.ts).
-      - name: Injection suites (captured frames; real-client cells skip without agent binaries)
+      - name: Report available injection clients
         if: matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'
         working-directory: apps/cli
-        # Same three-attempt shape as the E2E step above, and for the same
-        # reason: spawning agent TUIs back-to-back on a contended runner is
-        # resource flake, a real injection regression fails all three.
-        # The log line asks the harness itself (matrixClientAvailable, the
-        # probe every real-client cell skips on), so it cannot disagree with
-        # what the tests decide. The explicit exit is needed because the
-        # harness imports the daemon, which leaves handles open.
         run: |
-          set -e
-          # shellcheck disable=SC2016 # the ${...} below is a JS template, not bash
           bun -e '
             const { MATRIX_CLIENTS, matrixClientAvailable } = await import("./src/test-helpers/messagingHarness.ts");
             const found = MATRIX_CLIENTS.filter(matrixClientAvailable);
@@ -491,20 +475,11 @@ jobs:
             if (found.length === 0) console.log("::notice::Injection suites: no agent binary on this runner, so every real-client cell skipped. Only the captured-frame suites ran.");
             process.exit(0);
           '
-          for attempt in 1 2 3; do
-            echo "::group::Injection suites attempt $attempt"
-            if bun test src/daemon.inject-clear.test.ts src/daemon.inject-enter-gate.test.ts src/daemon.inject-scrolled-composer.test.ts src/daemon.inject-submit-verify.test.ts src/daemon.inject-deaf-pane.test.ts src/daemon.inject-double-paste.test.ts --timeout=240000; then
-              echo "::endgroup::"
-              echo "Injection suites passed on attempt $attempt"
-              exit 0
-            fi
-            echo "::endgroup::"
-            echo "::warning::Injection suites attempt $attempt failed; retrying"
-            tmux kill-server 2>/dev/null || true
-            sleep 2
-          done
-          echo "::error::Injection suites failed all 3 attempts — likely a real regression"
-          exit 1
+
+      - name: Injection suites (captured frames; real-client cells skip without agent binaries)
+        if: matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'
+        working-directory: apps/cli
+        run: bash ../../scripts/ci/retry-tests.sh bun test src/daemon.inject-clear.test.ts src/daemon.inject-enter-gate.test.ts src/daemon.inject-scrolled-composer.test.ts src/daemon.inject-submit-verify.test.ts src/daemon.inject-deaf-pane.test.ts src/daemon.inject-double-paste.test.ts --timeout=240000
 
   # platform/packages is the vendored mirror of the shared @platform/* packages,
   # and it is what Railway, the CLI release workflow and the desktop build ship

@@ -15,6 +15,7 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   pretendToBeVisual: true,
+  url: "http://localhost/tasks/nowhere/deep",
 });
 const restoreGlobals = replaceGlobals({
   window: Object.assign(dom.window, { innerWidth: 1400 }),
@@ -52,11 +53,7 @@ function Stage() {
   );
 }
 
-// In flight (release sweep 2026-09-14): the pane opens beside the seed cell, but
-// the seed cell is still a new element after the split, so the "nothing
-// remounted" promise below is not kept yet. Un-skip when the solo stage and
-// the first split render the seed leaf into the same cell.
-test.skip("the first split keeps the origin cell and the page inside it", async () => {
+test("the first split keeps the origin cell and the page inside it", async () => {
   const container = document.createElement("div");
   const root = createRoot(container);
   try {
@@ -70,7 +67,7 @@ test.skip("the first split keeps the origin cell and the page inside it", async 
     // Solo: no strip, no focus ring, the whole stage.
     expect(origin.className).toBe("stage-cell");
     expect(origin.style.width).toBe("100%");
-    const pageSlot = origin.querySelector(".flex-1") as HTMLElement;
+    const pageSlot = origin.querySelector(".flex-1.min-h-0") as HTMLElement;
     expect(pageSlot).not.toBeNull();
     expect(origin.querySelector("[draggable]")).toBeNull();
 
@@ -84,7 +81,7 @@ test.skip("the first split keeps the origin cell and the page inside it", async 
     ]);
     // Same element, same page wrapper: nothing remounted.
     expect(cells()[0]).toBe(origin);
-    expect(origin.querySelector(".flex-1")).toBe(pageSlot);
+    expect(origin.querySelector(".flex-1.min-h-0")).toBe(pageSlot);
     // The cell became a split pane: it got its strip, it kept focus.
     expect(origin.querySelector("[draggable]")).not.toBeNull();
     expect(origin.className).toBe("stage-cell stage-cell--focused");
@@ -96,7 +93,7 @@ test.skip("the first split keeps the origin cell and the page inside it", async 
     });
     expect(cells().length).toBe(2);
     expect(cells()[0]).toBe(origin);
-    expect(origin.querySelector(".flex-1")).toBe(pageSlot);
+    expect(origin.querySelector(".flex-1.min-h-0")).toBe(pageSlot);
     expect(
       activeTab().layout && (activeTab().layout as any).children[1].path,
     ).toBe("/plans/third/deep");

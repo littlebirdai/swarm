@@ -1,92 +1,62 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { testCoverage } from "./test-coverage";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { bunFiles, parseTestCommands } from "./test-commands";
+import { ADVISORY_REASON, testCoverage } from "./test-coverage";
+import { registersTest } from "./test-registration";
 
-const ALLOWED_UNREACHED: Record<string, string> = {
-  "apps/cli/learning/bunToMatchObject.learning.test.ts":
-    "Records a Bun matcher behavior for local investigation after a Bun update.",
-  "apps/cli/learning/tmuxSendKeys.learning.test.ts":
-    "Records tmux input behavior for local investigation across tmux versions.",
-  "apps/playground/convex/builder/agent.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/builder/draft.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/builder/queue.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/builder/rules.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/home.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/lib/appData.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/lib/bootCatcher.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/lib/entryPage.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/lib/identity.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/lib/presence.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/lib/room.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/lib/runPaths.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/lib/slugs.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/lib/transpile.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/lib/unfurl.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/lib/versions.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/prompts.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/runtime.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/safety.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/convex/timeline.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/runtime/picker.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/runtime/sdk.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/runtime/sharedUpdate.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/src/lib/format.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/src/lib/router.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/src/lib/streamOrder.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/src/lib/versionCopy.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/playground/src/styles/keyframes.test.ts":
-    "The Playground has a local test command and no CI test job.",
-  "apps/vscode-extension/src/wsl.test.ts":
-    "The VS Code extension has no test job or test step.",
+const ALLOWED_UNREACHED = {
   "infra/call-face-worker/vision.test.mjs": "Requires a local LiveKit server.",
   "infra/replay-player/src/worker.test.ts":
     "Requires an install in the replay player directory.",
-  "scripts/lineFinders.test.ts":
-    "Fails against the finders declared in the current line configuration.",
-  "tests/fork/fork.test.ts": "Contacts a live server.",
 };
+const MACOS_ADVISORY_FILES = [
+  "apps/cli/scripts/prompt-dry-run.broker.guard.test.ts",
+  "apps/cli/scripts/prompt-dry-run.fake.guard.test.ts",
+  "apps/cli/scripts/prompt-dry-run.replay.guard.test.ts",
+  "apps/cli/scripts/prompt-dry-run.sandbox.guard.test.ts",
+  "apps/cli/src/computer/batch.test.ts",
+  "apps/cli/src/computer/capabilities.guard.test.ts",
+  "apps/cli/src/computer/cli.e2e.test.ts",
+  "apps/cli/src/computer/cli.test.ts",
+  "apps/cli/src/computer/client.test.ts",
+  "apps/cli/src/computer/computer.e2e.test.ts",
+  "apps/cli/src/computer/concurrency.e2e.test.ts",
+  "apps/cli/src/computer/entry.test.ts",
+  "apps/cli/src/computer/focusRaise.guard.test.ts",
+  "apps/cli/src/computer/granted.e2e.test.ts",
+  "apps/cli/src/computer/guidance.test.ts",
+  "apps/cli/src/computer/helper.e2e.test.ts",
+  "apps/cli/src/computer/helperApp.test.ts",
+  "apps/cli/src/computer/helperPayload.compile.test.ts",
+  "apps/cli/src/computer/instance.test.ts",
+  "apps/cli/src/computer/launchObserver.test.ts",
+  "apps/cli/src/computer/linux/helper.test.ts",
+  "apps/cli/src/computer/permissions.test.ts",
+  "apps/cli/src/computer/pixels.test.ts",
+  "apps/cli/src/computer/remote.test.ts",
+  "apps/cli/src/computer/remoteGrant.test.ts",
+  "apps/cli/src/computer/setup.test.ts",
+  "apps/cli/src/computer/tree.test.ts",
+  "apps/cli/src/computer/ungranted.e2e.test.ts",
+  "apps/cli/src/computer/verdict.test.ts",
+];
 
 const coverage = testCoverage();
 
-test("every test file has a CI job or a reason for running manually", () => {
-  const { jobs, unreached } = coverage;
-  expect(unreached.filter((file) => !ALLOWED_UNREACHED[file])).toEqual([]);
-  expect(
-    Object.keys(ALLOWED_UNREACHED).filter((file) => !unreached.includes(file)),
-  ).toEqual([]);
-  expect([...jobs.get("computer-macos")!]).toContain(
+test("every test file has a CI job or a reason for manual use", () => {
+  expect(coverage.unreached).toEqual(Object.keys(ALLOWED_UNREACHED));
+  expect(coverage.jobs.get("computer-macos")).toContain(
     "apps/cli/src/computer/cli.test.ts",
   );
-  expect([...jobs.get("test-cli")!]).not.toContain(
+  expect(coverage.jobs.get("test-cli")).not.toContain(
     "apps/cli/src/computer/cli.test.ts",
   );
+});
+
+test("the coverage report lists advisory-only files separately", () => {
+  expect(coverage.advisoryOnly, ADVISORY_REASON).toEqual(MACOS_ADVISORY_FILES);
 });
 
 test("CI test files register a test case", () => {
@@ -94,17 +64,120 @@ test("CI test files register a test case", () => {
     const source = readFileSync(
       new URL(`../../${file}`, import.meta.url),
       "utf8",
-    ).replace(/\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm, "");
-    const call = /\b(test|it|specify)\s*(?:\.\w+\s*)*(?:\)\s*)?\(/;
-    const aliases = [
-      ...source.matchAll(/\bconst (\w+) = [^;]*\? test : test\.skip;/g),
-    ];
-    return (
-      !call.test(source) &&
-      !aliases.some(([, alias]) =>
-        new RegExp(`\\b${alias}\\s*\\(`).test(source),
-      )
     );
+    return !registersTest(file, source);
   });
   expect(empty.sort()).toEqual([]);
+});
+
+test.each(["# bun test ./case.test.ts", "echo 'bun test ./case.test.ts'"])(
+  "does not count shell text %s",
+  (run) => {
+    const file = "case.test.ts";
+    expect(
+      testCoverage({ jobs: { test: { steps: [{ run }] } } }, [file]).unreached,
+    ).toEqual([file]);
+  },
+);
+
+test.each([
+  "bun test -t case",
+  "bun test --test-name-pattern=case",
+  "bun test --test-name-pattern case",
+  "bun test || true",
+  "if false; then\n  bun test\nfi",
+  "exit 0\nbun test",
+  "bunx vitest run",
+  "echo ignored; bun test",
+])("rejects the unsupported shell command %s", (run) => {
+  expect(() => parseTestCommands(run, ".")).toThrow(
+    "Unsupported CI test command",
+  );
+});
+
+test("a matrix step needs at least one eligible entry", () => {
+  const matrix = { suite: [1, "evals", "tmux-1"] };
+  const files = ["alive.test.ts", "dead.test.ts"];
+  const result = testCoverage(
+    {
+      jobs: {
+        test: {
+          if: "needs.code_paths.outputs.run_test_cli == 'true'",
+          strategy: { matrix },
+          steps: [
+            {
+              if: "matrix.suite != 'evals' && !startsWith(matrix.suite, 'tmux-') && matrix.suite == 1",
+              run: "bun test ./alive.test.ts",
+            },
+            {
+              if: "${{ matrix.suite == 'other' && needs.code_paths.outputs.run_test_cli == 'true' }}",
+              run: "bun test ./dead.test.ts",
+            },
+            {
+              if: "startsWith(matrix.suite, 'tmux-') && needs.code_paths.outputs.run_test_cli != 'true'",
+              run: "bun test ./dead.test.ts",
+            },
+          ],
+        },
+      },
+    },
+    files,
+  );
+  expect(result.unreached).toEqual(["dead.test.ts"]);
+});
+
+test("Bun discovery uses the config root, ignore patterns and visible directories", () => {
+  const root = mkdtempSync(join(tmpdir(), "ci-test-discovery-"));
+  try {
+    writeFileSync(
+      join(root, "bunfig.toml"),
+      '[test]\nroot = "selected"\npathIgnorePatterns = ["**/ignored/**"]\n',
+    );
+    const files = [
+      "outside.test.ts",
+      "selected/case.test.ts",
+      "selected/ignored/case.test.ts",
+      "selected/.hidden/case.test.ts",
+    ];
+    expect(bunFiles(".", [], files, root)).toEqual(["selected/case.test.ts"]);
+    expect(bunFiles(".", ["--path-ignore-patterns="], files, root)).toEqual([
+      "selected/case.test.ts",
+      "selected/ignored/case.test.ts",
+    ]);
+    expect(bunFiles(".", ["./outside.test.ts"], files, root)).toEqual([
+      "outside.test.ts",
+    ]);
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test.each([
+  '/test/.test("case")',
+  "\"test('case', () => {})\"",
+  '// test("case", () => {})',
+  'test.skip("case", () => {})',
+  'it.todo("case")',
+  'describe.skip("suite", () => { test("case", () => {}); });',
+  'if (false) test("case", () => {});',
+  'test.if(false)("case", () => {})',
+  'test.skipIf(true)("case", () => {})',
+  "test.each([1])",
+  'function unused() { test("case", () => {}); }',
+  'unlistedHelper("case", () => {})',
+])("does not find a registered test in %s", (text) => {
+  expect(registersTest("case.test.ts", text)).toBe(false);
+});
+
+test.each([
+  'test("case", () => {})',
+  'it("case", () => {})',
+  'test.each([1])("case", () => {})',
+  'test.if(guard)("case", () => {})',
+  'test.skipIf(guard)("case", () => {})',
+  'const conditional = guard ? test : test.skip; conditional("case", () => {});',
+  'const cliTest = (name, body) => test(name, body); cliTest("case", () => {});',
+  'import { granted as check } from "./test-helper"; check("case", () => {});',
+])("finds a registered test in %s", (text) => {
+  expect(registersTest("case.test.ts", text)).toBe(true);
 });

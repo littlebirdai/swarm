@@ -440,6 +440,8 @@ describe("matrices", () => {
         'bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --timeout=20000 --timings=test-timings.json --shard="${SUITE#tmux-}/8" --bail=5',
       ],
       ["matrix.suite == 'evals'", "bun test src/ --parallel"],
+      ["matrix.suite == 'evals'", "bun test"],
+      ["matrix.suite == 'evals'", "bun test ./learning/"],
       [
         "matrix.suite == 'evals'",
         "bun test --isolate ./scripts/line-present-replay.test.ts ./scripts/prompt-dry-run.cut.test.ts ./scripts/prompt-dry-run.guard.test.ts ./scripts/prompt-dry-run.harness.guard.test.ts",
@@ -463,10 +465,17 @@ describe("matrices", () => {
         "matrix.suite == 'evals'",
         "bun test --isolate ./scripts/call-e2e/frames.test.mjs ./scripts/rig/imagediff.test.ts",
       ],
-      ["matrix.suite == 'e2e'", "bun test src/messaging.e2e.test.ts"],
+      [
+        "matrix.suite == 'e2e'",
+        "bash ../../scripts/ci/retry-tests.sh bun test src/messaging.e2e.test.ts --timeout=60000",
+      ],
       [
         "matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'",
-        "bun test src/daemon.inject-clear.test.ts",
+        "bun -e",
+      ],
+      [
+        "matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'",
+        "bash ../../scripts/ci/retry-tests.sh bun test src/daemon.inject-clear.test.ts src/daemon.inject-enter-gate.test.ts src/daemon.inject-scrolled-composer.test.ts src/daemon.inject-submit-verify.test.ts src/daemon.inject-deaf-pane.test.ts src/daemon.inject-double-paste.test.ts --timeout=240000",
       ],
     ],
   };
@@ -500,8 +509,7 @@ describe("matrices", () => {
     for (const [job, expected] of Object.entries(STEPS)) {
       const steps = (jobs[job].steps as any[]).filter((step) => step.run);
       expected.forEach(([, command], i) => {
-        if (!/messaging\.e2e|inject-clear/.test(command))
-          expect(steps[i].run, job).toBe(command);
+        if (command !== "bun -e") expect(steps[i].run, job).toBe(command);
       });
     }
   });
@@ -791,12 +799,12 @@ describe("verify", () => {
 // list is written by hand in ci.yml; this finds the files by their skip so a
 // new one cannot be left off it.
 describe("darwin-only cli tests", () => {
-  const CLI_SRC = new URL("../../apps/cli/src/", import.meta.url);
+  const CLI = new URL("../../apps/cli/", import.meta.url);
   const NOT_DARWIN = String.raw`process\.platform\s*!==?\s*["']darwin["']`;
   const IS_DARWIN = String.raw`process\.platform\s*===?\s*["']darwin["']`;
   const SKIPS_OFF_DARWIN = [
     new RegExp(String.raw`\.skipIf\((?:(?!\)\s*\()[\s\S])*?${NOT_DARWIN}`),
-    new RegExp(String.raw`\.(if|runIf)\(\s*${IS_DARWIN}\s*\)`),
+    new RegExp(String.raw`\.(if|runIf)\(\s*${IS_DARWIN}(?:\s*\)|\s*&&)`),
     new RegExp(String.raw`\bif\s*\(\s*${NOT_DARWIN}\s*\)\s*return\b`),
   ];
   const step = (jobs["computer-macos"].steps as any[]).find((s) =>
@@ -808,17 +816,31 @@ describe("darwin-only cli tests", () => {
     .split(/\s+/)
     .filter((t) => t.startsWith("src/"));
 
+  const scriptStep = jobs["computer-macos"].steps.find(
+    (s: any) => s.name === "CLI script tests that need the macOS sandbox",
+  );
+  const scripts: string[] = String(scriptStep?.run ?? "")
+    .split(/\s+/)
+    .filter((arg) => arg.startsWith("./scripts/"))
+    .map((arg) => arg.slice(2));
+
   test("every cli file with a darwin-only case runs on the macOS lane", () => {
-    const darwinOnly = (readdirSync(CLI_SRC, { recursive: true }) as string[])
-      .filter((f) => /\.test\.tsx?$/.test(f) && !f.startsWith("computer/"))
-      .filter((f) =>
-        SKIPS_OFF_DARWIN.some((re) =>
-          re.test(readFileSync(new URL(f, CLI_SRC), "utf8")),
-        ),
+    const darwinOnly = ["src", "scripts"]
+      .flatMap((dir) =>
+        (readdirSync(new URL(`${dir}/`, CLI), { recursive: true }) as string[])
+          .filter(
+            (file) =>
+              /\.test\.tsx?$/.test(file) && !file.startsWith("computer/"),
+          )
+          .map((file) => `${dir}/${file}`)
+          .filter((file) =>
+            SKIPS_OFF_DARWIN.some((pattern) =>
+              pattern.test(readFileSync(new URL(file, CLI), "utf8")),
+            ),
+          ),
       )
-      .map((f) => `src/${f}`)
       .sort();
-    expect(listed).toEqual(darwinOnly);
+    expect([...listed, ...scripts].sort()).toEqual(darwinOnly);
   });
 });
 
