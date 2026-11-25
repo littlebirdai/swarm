@@ -18,6 +18,7 @@ import {
   resetLivenessLane,
 } from "../idbLivenessLane";
 import { COLLECTION_TABLES, db } from "./db";
+import { invalidateOutboxWrites } from "./outbox";
 import { persistenceOwned } from "./ownership";
 import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
@@ -191,6 +192,7 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
 export async function flushPersistence(): Promise<void> {}
 
 export function resetCollectionWrites() {
+  invalidateOutboxWrites();
   // A meta value still waiting to be written belongs to the cache being purged.
   metaWriter.drop();
   resetLivenessLane();

@@ -2,12 +2,17 @@ import { DOCS_SHOTS } from "../../lib/docsShots/flag";
 import { storableActionArgs } from "../../lib/tabSafePath";
 import { deleteDatabaseWithTimeout, readV2LegacyOutbox } from "../idbV2Salvage";
 import { retryOutboxPut } from "../outboxPutRetry";
-import { db } from "./db";
+import { db, purgeInProgress } from "./db";
 import { takeBootReadPhase } from "./hydration";
 import { persistenceOwned } from "./ownership";
 import { timeBootRead } from "./storage-timings";
 
-import type { OutboxEntry } from "@platform/engine";
+import {
+  sameLock,
+  type OutboxEntry,
+  type PendingEntry,
+  type PendingOutboxWrite,
+} from "@platform/engine";
 import { authPrincipal } from "../../lib/authPrincipal";
 
 export type { OutboxEntry };
@@ -16,27 +21,78 @@ export const outboxAccountId = authPrincipal.snapshot;
 // Return the real promises: the middleware's storage watchdog and outbox
 // retirement need to observe commit/failure. Swallowing errors here would
 // report a wedged IndexedDB as healthy.
-export function enqueueDispatch(entry: OutboxEntry): Promise<void> {
+export const enqueueDispatch = Object.assign(
+  (entry: OutboxEntry) => putDispatch(entry),
+  {
+    withPending: (entry: OutboxEntry, pending: PendingOutboxWrite) =>
+      putDispatch(entry, pending),
+  },
+);
+
+let outboxWriteEpoch = 0;
+
+export function invalidateOutboxWrites() {
+  outboxWriteEpoch++;
+}
+
+function putDispatch(
+  entry: OutboxEntry,
+  pending?: PendingOutboxWrite,
+): Promise<void> {
   // A write for an account this window no longer acts for parks nowhere: the
   // clear that follows the boundary unbinds the outbox, and this covers the
   // gap before that clear. Resolved, not rejected: it is not a storage fault.
   // Docs shots keep nothing, their outbox included.
   if (DOCS_SHOTS) return Promise.resolve();
   // The engine hands over the args as the caller passed them; a tab address in them is stored in its safe form (lib/tabSafePath).
-  const accountId = outboxAccountId();
-  if (
-    !accountId ||
-    (entry.accountId === undefined
-      ? !persistenceOwned()
-      : entry.accountId !== accountId)
-  )
-    return Promise.resolve();
+  const accountId = entry.accountId ?? outboxAccountId();
+  if (!accountId || purgeInProgress) return Promise.resolve();
+  const epoch = outboxWriteEpoch;
   const row = {
     ...entry,
     accountId,
     args: storableActionArgs(entry.action, entry.args),
   };
-  return retryOutboxPut(() => db.dispatchOutbox.put(row));
+  const tables = pending ? [db.meta, db.dispatchOutbox] : [db.dispatchOutbox];
+  let retry = false;
+  return retryOutboxPut(() => {
+    const isRetry = retry;
+    retry = true;
+    return db.transaction("rw", tables, async () => {
+      const existing = pending ? await db.meta.get("pending") : undefined;
+      if (
+        epoch !== outboxWriteEpoch ||
+        purgeInProgress ||
+        accountId !== authPrincipal.current() ||
+        !persistenceOwned()
+      )
+        return;
+      if (pending) {
+        const value: Record<string, PendingEntry> = existing?.value ?? {};
+        let changed = false;
+        for (const { key, before, after } of pending) {
+          const current = value[key];
+          if (after) {
+            if (
+              current &&
+              !(before && sameLock(current, before)) &&
+              (isRetry
+                ? (current.ts ?? 0) >= (after.ts ?? 0)
+                : (current.ts ?? 0) > (after.ts ?? 0))
+            )
+              continue;
+            value[key] = after;
+            changed = true;
+          } else if (before && sameLock(current, before)) {
+            delete value[key];
+            changed = true;
+          }
+        }
+        if (changed) await db.meta.put({ key: "pending", value });
+      }
+      await db.dispatchOutbox.put(row);
+    });
+  });
 }
 
 export function removeDispatch(id: string): Promise<void> {

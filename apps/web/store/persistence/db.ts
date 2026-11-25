@@ -94,7 +94,7 @@ let upgradeBlockedListener: ((blocked: boolean) => void) | null = null;
 // it has read a populated cache, and whether its own purge is running.
 let closeExpected: "purge" | "versionchange" | null = null;
 let cacheServed = false;
-let purgeInProgress = false;
+export let purgeInProgress = false;
 export function setUpgradeBlockedListener(
   fn: ((blocked: boolean) => void) | null,
 ) {

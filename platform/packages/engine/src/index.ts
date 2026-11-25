@@ -47,7 +47,7 @@ export {
   type ActionCommit,
 } from "./middleware";
 
-export { applySyncTable, applySyncRecord, applySyncPatch, applyShapeLocks, sameShape } from "./syncProtocol";
+export { applySyncTable, applySyncRecord, applySyncPatch, applyShapeLocks, sameLock, sameShape } from "./syncProtocol";
 export { createSyncEngine, applyMerge, rekeyPending, type SyncEngine } from "./syncEngine";
 
 export { deriveRegistryMaps, type RegistryMaps } from "./registry";
@@ -164,6 +164,7 @@ export type {
   DispatchFn,
   IDBWriteFn,
   OutboxEnqueueFn,
+  PendingOutboxWrite,
   OutboxRemoveFn,
   OutboxLoadFn,
   MaybePromise,

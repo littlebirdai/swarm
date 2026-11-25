@@ -203,6 +203,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/persistence/message-cache.ts:_messageShadows": IDB,
   "store/persistence/message-cache.ts:_msgWriteTimer": IDB,
   "store/persistence/message-cache.ts:_lastPruneAt": IDB,
+  "store/persistence/outbox.ts:outboxWriteEpoch": IDB,
   "store/persistence/purge.ts:purging": IDB,
   "store/persistence/collection-writer.ts:lastPersisted": IDB,
   "store/persistence/message-cache.ts:_pendingMsgWrites": IDB,

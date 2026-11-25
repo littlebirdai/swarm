@@ -15,6 +15,7 @@ import type {
   OutboxLoadFn,
   OutboxRemoveFn,
   PendingEntry,
+  PendingOutboxWrite,
   PlatformConfig,
 } from "./types";
 
@@ -1723,6 +1724,7 @@ export function mutativeMiddleware(
       fieldLocks: ActionFieldLock[],
       outboxId: string,
       accountId: string | null | undefined,
+      pendingWrite: PendingOutboxWrite | undefined,
       after?: readonly string[],
       reverses?: readonly string[],
     ): any => {
@@ -1780,8 +1782,12 @@ export function mutativeMiddleware(
       // switch) can clear the binding while the page stays interactive,
       // and an un-parked action fired in that window would vanish with
       // zero trace.
-      const enqueued = outboxEnqueueFn
-        ? enqueueOutbox(outboxEnqueueFn, entry).then(() => {
+      const withPending = outboxEnqueueFn?.withPending;
+      const enqueue = withPending && pendingWrite
+        ? (row: OutboxEntry) => withPending(row, pendingWrite)
+        : outboxEnqueueFn;
+      const enqueued = enqueue
+        ? enqueueOutbox(enqueue, entry).then(() => {
             enqueueCompleted = true;
           })
         : null;
@@ -2122,11 +2128,25 @@ export function mutativeMiddleware(
         set(finalState, true);
         runCommitEffects(key, effects);
 
-        if (idbWriteFn && finalPatches.length > 0) {
+        let pendingWrite: PendingOutboxWrite | undefined;
+        if ((isAct || isAsyncAct) && outboxEnqueueFn?.withPending && finalState.pending !== state.pending) {
+          const before: Record<string, PendingEntry> = state.pending ?? {};
+          const after: Record<string, PendingEntry> = finalState.pending ?? {};
+          const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+          pendingWrite = [...keys]
+            .filter((key) => before[key] !== after[key])
+            .map((key) => ({ key, before: before[key], after: after[key] }));
+          if (pendingWrite.length === 0) pendingWrite = undefined;
+        }
+
+        const persistencePatches = pendingWrite
+          ? finalPatches.filter((patch) => patch.path[0] !== "pending")
+          : finalPatches;
+        if (idbWriteFn && persistencePatches.length > 0) {
           // Synchronous: the storage engine's bulk writes don't block the main
           // thread, and deferring via requestIdleCallback can lose writes if the
           // user reloads before idle (e.g. gesture → reload race).
-          void Promise.resolve(idbWriteFn(finalPatches, finalState)).catch((error) => {
+          void Promise.resolve(idbWriteFn(persistencePatches, finalState)).catch((error) => {
             console.error(`[local-first] failed to persist state (action=${key})`, error);
           });
         }
@@ -2141,7 +2161,7 @@ export function mutativeMiddleware(
 
         if (isAct || isAsyncAct) {
           const outboxId = newOutboxId();
-          const result = enqueueDispatch(key, flags, actionArgs, patches, finalState, returnValue, fieldLocks, outboxId, accountId, opts?.after, opts?.reverses);
+          const result = enqueueDispatch(key, flags, actionArgs, patches, finalState, returnValue, fieldLocks, outboxId, accountId, pendingWrite, opts?.after, opts?.reverses);
           // After the dispatch is on its way, and never able to stop it: the
           // undo capture runs app code (a spec's label, inverse, confirm,
           // spell), and a bug there must cost the history its entry, never

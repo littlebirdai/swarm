@@ -533,7 +533,14 @@ export type DispatchFn = (
 ) => Promise<any>;
 export type MaybePromise<T> = T | Promise<T>;
 export type IDBWriteFn = (patches: any[], state: any) => MaybePromise<void>;
-export type OutboxEnqueueFn = (entry: OutboxEntry) => MaybePromise<void>;
+export type PendingOutboxWrite = ReadonlyArray<{
+  key: string;
+  before: PendingEntry | undefined;
+  after: PendingEntry | undefined;
+}>;
+export type OutboxEnqueueFn = ((entry: OutboxEntry) => MaybePromise<void>) & {
+  withPending?: (entry: OutboxEntry, pending: PendingOutboxWrite) => MaybePromise<void>;
+};
 export type OutboxRemoveFn = (id: string) => MaybePromise<void>;
 export type OutboxLoadFn = () => Promise<OutboxEntry[]>;
 

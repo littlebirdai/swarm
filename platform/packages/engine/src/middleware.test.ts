@@ -15,7 +15,7 @@ import {
   defaultIsServerId,
 } from "./middleware";
 import { deriveRegistryMaps } from "./registry";
-import type { OutboxEntry, PlatformConfig } from "./types";
+import type { OutboxEntry, PendingOutboxWrite, PlatformConfig } from "./types";
 import { OUTBOX_OWNER_LOCK_PREFIX, type LockManagerLike } from "./outboxOwner";
 
 const SERVER_ID = "a".repeat(32);
@@ -156,8 +156,9 @@ function makeHarness(opts?: {
         this.items[id] = { _id: id };
         return { stubId: id };
       }),
-      localOnly: sync(function (this: any, id: string) {
+      localOnly: sync(function (this: any, id: string, protect = false) {
         this.items[id] = { _id: id, local: true };
+        if (protect) this.pending[`items:${id}`] = { type: "include" };
       }),
       _handleReceiptRejection: sync(function (this: any, _action: string, localResult: any) {
         this.rolledBack.push(localResult?.stubId);
@@ -914,5 +915,67 @@ describe("outbox rows across windows", () => {
     const b = makeHarness({ outbox, lockManager: null });
     b.wireDispatch(async () => ({}));
     await waitFor(() => b.dispatched.some((d) => d.action === "poke"));
+  });
+});
+
+describe("pending outbox hook", () => {
+  it.each(["poke", "sendNote"] as const)("%s paints immediately and pairs its lock without a pending cache writer", async (actionName) => {
+    const h = makeHarness();
+    const gate = Promise.withResolvers<void>();
+    const paired: Array<{ entry: OutboxEntry; pending: PendingOutboxWrite }> = [];
+    const writes: string[] = [];
+    const enqueue = Object.assign(
+      () => { throw new Error("Expected paired enqueue"); },
+      { withPending: (entry: OutboxEntry, pending: PendingOutboxWrite) => {
+        paired.push({ entry, pending });
+        return gate.promise;
+      } },
+    );
+    h.wrapped._setIDBWrite((patches) => {
+      writes.push(...patches.map((patch) => String(patch.path[0])));
+    });
+    h.wrapped._setOutbox(enqueue, null, null);
+    const result = h.wrapped[actionName](SERVER_ID);
+    const lockKey = `items:${SERVER_ID}`;
+    try {
+      expect(h.state.items[SERVER_ID]._id).toBe(SERVER_ID);
+      expect(paired).toHaveLength(1);
+      expect(paired[0].entry.action).toBe(actionName);
+      expect(paired[0].entry.locks?.[0].key).toBe(lockKey);
+      expect(paired[0].pending).toEqual([
+        { key: lockKey, before: undefined, after: h.state.pending[lockKey] },
+      ]);
+      expect(writes).toContain("items");
+      expect(writes).not.toContain("pending");
+    } finally {
+      gate.resolve();
+      if (actionName === "sendNote") await expect(result).rejects.toMatchObject({ parked: true });
+    }
+  });
+
+  it("writes pending changes from sync through the cache without enqueueing", () => {
+    const h = makeHarness();
+    const calls: string[] = [];
+    h.wrapped._setOutbox(Object.assign(
+      () => { calls.push("enqueue"); },
+      { withPending: () => { calls.push("pair"); } },
+    ), null, null);
+    h.wrapped._setIDBWrite((patches) => {
+      calls.push(...patches.map((patch) => String(patch.path[0])));
+    });
+    h.wrapped.localOnly(SERVER_ID, true);
+    expect(h.state.items[SERVER_ID].local).toBe(true);
+    expect(calls.sort()).toEqual(["items", "pending"]);
+  });
+
+  it("keeps the separate pending write for an adapter without the hook", () => {
+    const h = makeHarness();
+    const writes: string[] = [];
+    h.wrapped._setIDBWrite((patches) => {
+      writes.push(...patches.map((patch) => String(patch.path[0])));
+    });
+    h.wrapped.poke(SERVER_ID);
+    expect(writes).toContain("pending");
+    expect([...h.outbox.values()][0].action).toBe("poke");
   });
 });
