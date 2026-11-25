@@ -1,7 +1,7 @@
 # Provider adapter cutover
 
-Main supports owned Grok 1.0.13 over ACP and Codex 0.153.4 over app-server.
-Claude Code stream-json is in PR #181.
+The owned dialects cover Grok over ACP, Codex over app-server, and
+Claude Code over stream-json. The Codex pilot uses version 0.153.4.
 [Provider adapter](../../packages/provider-adapter/README.md)
 
 ## Contract for all dialects
@@ -29,11 +29,7 @@ The daemon registers transcript watches. The watcher selects roots by agent,
 and the parser selects the record format. Gemini, OpenCode, Cursor, pi, Muse,
 and Antigravity use transcript paths today. Claude, Codex, and Grok also have
 terminal sessions to observe.
-[Daemon](../../apps/cli/src/daemon.ts#L37798),
-[watcher](../../apps/cli/src/transcriptDirWatcher.ts#L86-L255),
-[parser](../../apps/cli/src/parser.ts#L2547),
-[Muse](../../apps/cli/src/museTranscript.ts),
-[Antigravity](../../apps/cli/src/antigravityTranscript.ts)
+[Daemon](../../apps/cli/src/daemon.ts#L37798), [watcher](../../apps/cli/src/transcriptDirWatcher.ts#L86-L255), [parser](../../apps/cli/src/parser.ts#L2547), [Muse](../../apps/cli/src/museTranscript.ts), [Antigravity](../../apps/cli/src/antigravityTranscript.ts)
 
 Use one observed adapter with an injected transcript reader. Reuse the CLI
 parsers at that boundary. Track file position, deduplicate by stable record ID,
@@ -43,9 +39,7 @@ instance and fence at the write. A paste or a matching transcript line cannot
 prove which inbox delivery the agent consumed. A terminal key cannot confirm
 an interrupt for a named turn. Leave prompt answers and process lifecycle with
 the existing paths. Closing observation releases its watch.
-[Daemon paste](../../apps/cli/src/daemon.ts#L21642),
-[tmux paste](../../apps/cli/src/tmuxPaste.ts#L263-L296),
-[managed tmux](../../apps/cli/src/execution/drivers/managedTmux.ts#L282-L365)
+[Daemon paste](../../apps/cli/src/daemon.ts#L21642), [tmux paste](../../apps/cli/src/tmuxPaste.ts#L263-L296), [managed tmux](../../apps/cli/src/execution/drivers/managedTmux.ts#L282-L365)
 
 Estimate 250–400 shared production lines plus 30–80 per transcript format.
 
@@ -54,9 +48,7 @@ Estimate 250–400 shared production lines plus 30–80 per transcript format.
 The CLI's ACP implementation is Grok. It initializes the peer, loads sessions,
 and routes requests and updates through the SDK host. The other candidates
 currently use terminal transcripts.
-[Grok client](../../apps/cli/src/grokAcp.ts#L108-L269),
-[Grok session](../../apps/cli/src/claudeSdk/grokSession.ts#L121),
-[SDK host](../../apps/cli/src/claudeSdk/host.ts#L102)
+[Grok client](../../apps/cli/src/grokAcp.ts#L108-L269), [Grok session](../../apps/cli/src/claudeSdk/grokSession.ts#L121), [SDK host](../../apps/cli/src/claudeSdk/host.ts#L102)
 
 Reuse ACP framing, process ownership, and projection. Add a launch profile
 with an exact version and tested capabilities for each agent. Start with
@@ -80,10 +72,7 @@ without stopping remote work. Keep login, repo setup, and remote task creation
 in the daemon. Today create takes the first prompt, while `StartSpec` has no
 prompt. Keep cloud delivery on the existing path until the provider can open
 an empty session or the contract defines how to pass initial input.
-[Registry](../../apps/cli/src/cloudAgents/registry.ts#L137),
-[delivery](../../apps/cli/src/cloudAgents/sessions.ts#L172),
-[watcher](../../apps/cli/src/cloudAgents/watcher.ts#L161),
-[streams](../../apps/cli/src/cloudAgents/streams.ts#L50)
+[Registry](../../apps/cli/src/cloudAgents/registry.ts#L137), [delivery](../../apps/cli/src/cloudAgents/sessions.ts#L172), [watcher](../../apps/cli/src/cloudAgents/watcher.ts#L161), [streams](../../apps/cli/src/cloudAgents/streams.ts#L50)
 
 1. Cursor Cloud has stream captures and run IDs. Start with one run's mirror.
    A run ID does not identify the inbox delivery. Use the exact expected run
@@ -114,37 +103,48 @@ Start with one fresh managed Codex app-server session at the pinned version.
 Its fenced driver and journal already exist. Add a default-off pilot flag
 under `CODECAST_FENCED_EXECUTION_V1`. Persist the driver choice in the pilot
 binding across resume. Reuse auth, checkout, sandbox, and approval inputs.
-[Registration](../../apps/cli/src/daemon.ts#L43857-L44040),
-[driver](../../apps/cli/src/execution/drivers/codexAppServer.ts#L62-L232),
-[runtime](../../apps/cli/src/execution/runtimeRail.ts#L275-L327)
+[Registration](../../apps/cli/src/daemon.ts#L43857-L44040), [driver](../../apps/cli/src/execution/drivers/codexAppServer.ts#L62-L232), [runtime](../../apps/cli/src/execution/runtimeRail.ts#L275-L327)
 
 Keep the split command handlers. Route start, resume, and stop through the
 runtime. Route inbox steer through its coordinator and journal. Route interrupt
 and prompt answers to the bound handle with the expected IDs. Keep terminal
 I/O on its bridge. Record `in-doubt` as ambiguous, and require a durable
 receipt for delivery success. The legacy driver uses the turn-start reply.
-[Dispatch](../../apps/cli/src/daemon-commands/dispatch.ts#L49),
-[start](../../apps/cli/src/daemon-commands/start-session.ts#L61), [resume](../../apps/cli/src/daemon-commands/resume-session.ts#L31), [stop](../../apps/cli/src/daemon-commands/session-lifecycle.ts#L12),
-[coordinator](../../apps/cli/src/execution/coordinator.ts#L896-L1100),
-[journal](../../apps/cli/src/execution/localJournal.ts#L326),
-[terminal bridge](../../apps/cli/src/terminal/daemon-bridge.ts#L14-L85)
+[Dispatch](../../apps/cli/src/daemon-commands/dispatch.ts#L49), [start](../../apps/cli/src/daemon-commands/start-session.ts#L61), [resume](../../apps/cli/src/daemon-commands/resume-session.ts#L31), [stop](../../apps/cli/src/daemon-commands/session-lifecycle.ts#L12), [coordinator](../../apps/cli/src/execution/coordinator.ts#L896-L1100), [journal](../../apps/cli/src/execution/localJournal.ts#L326), [terminal bridge](../../apps/cli/src/terminal/daemon-bridge.ts#L14-L85)
 
 Emit `session.started` once. Add one canonical event sink for the pilot binding.
 Persist the checkpoint with the last durable sequence and suppress legacy
 event writers for that binding. Keep lease renewal in the runtime. At stop,
 close the handle and prove cleanup before release or rollback. Leave uncertain
 opens and deliveries in the journal for reconciliation.
-[Legacy event hooks](../../apps/cli/src/daemon.ts#L43678-L43846),
-[edge link](../../apps/cli/src/daemon-edge-link.ts#L48)
+[Legacy event hooks](../../apps/cli/src/daemon.ts#L43678-L43846), [edge link](../../apps/cli/src/daemon-edge-link.ts#L48)
 
 ## Compare both paths offline
 
-Run the legacy driver and pilot on separate fake processes with the same
-recorded RPC frames and command schedule. Normalize generated IDs. Compare
-ordered turns, messages, tools, prompts, results, and resume state. Check raw
-frame retention, one event writer, and the receipt difference separately.
-Replay mid-turn input, interrupt, approvals, exit, and late replies under
-backpressure. Use fake tmux, ACP stdio, or HTTP/SSE for the other dialects.
-[Legacy client tests](../../apps/cli/src/codexAppServer.test.ts#L980),
-[fake app-server](../../packages/provider-adapter/test/fake-app-server.ts),
-[recorded Codex items](../../apps/cli/src/__fixtures__/codexCloud/turns.ask.json)
+Run `bun run --filter @codecast/test-codex-driver-parity test` on the test branch.
+Two fake app-servers replay the same checked-in Codex item frames. The suite
+scripts replies and controls, normalizes IDs, and checks a snapshot of the
+differences. Both paths preserve tool output and turn results in the recorded
+turn. The adapter settles interrupt while its reader is paused. Both paths
+deliver all 36 buffered frames in order.
+[Recorded items](../../apps/cli/src/__fixtures__/codexCloud/turns.ask.json)
+
+## Differences found
+
+The comparison uses the driver/client and adapter interfaces. Daemon recovery
+and display require a separate pilot check.
+
+| Case                       | Legacy driver and client                                                                  | Owned adapter                                                                                  | Verdict                      |
+| -------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------- |
+| Start and resume handshake | Sends `initialize` only.                                                                  | Also sends `initialized`.                                                                      | Intended                     |
+| Idle send and late reply   | Marks delivery complete when the RPC returns.                                             | Returns `in-doubt/best-effort` even when the RPC succeeds.                                     | Legacy defect                |
+| Mid-turn send              | Calls `turn/start`. The fake rejects the busy request and the driver reports ambiguity.   | Calls `turn/steer` for the expected turn.                                                      | Must be bridged by the pilot |
+| User echoes                | Omits echoed input from the final messages.                                               | Emits the user message. Links a matching input to its actor and delivery ID.                   | Must be bridged by the pilot |
+| Command approval           | Sends accept or decline. There is no client settlement event.                             | Sends the same decision and records the actor in a settlement. RPC application stays in doubt. | Intended                     |
+| Question                   | Exposes the choices in the request. Sends empty answers through the boolean approval API. | Emits choice context and sends the selected answer.                                            | Legacy defect                |
+| Assistant delta            | Emits item ID and text.                                                                   | Also emits the text offset.                                                                    | Intended                     |
+| Reasoning                  | Groups it with the assistant text in the final message.                                   | Emits ordered context events.                                                                  | Must be bridged by the pilot |
+| Duplicate late reply       | Emits no second turn.                                                                     | Emits no second turn and retains the duplicate as an unknown raw frame.                        | Intended                     |
+| Process exit               | Emits process exit. The shared client owns restart.                                       | Ends the turn and the owned session. The machine owns recovery.                                | Must be bridged by the pilot |
+| Resume state               | Returns historical and active turns to the caller.                                        | Returns the checkpoint and emits the resumed active turn start.                                | Intended                     |
+| Completion after resume    | Emits a turn result with no final messages without a new start notice.                    | Emits the resumed messages and tools before the result.                                        | Legacy defect                |
