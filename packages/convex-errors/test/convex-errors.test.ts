@@ -14,6 +14,17 @@ describe("humanizeConvexError", () => {
     ).toBe("Channel not found");
   });
 
+  test("a wrapped ConvexError reads its plain string data", () => {
+    const data = 'The checkout "main" is already in use';
+    const err = Object.assign(
+      new Error(
+        `[CONVEX M(dispatch:dispatch)] [Request ID: abc] Server Error\nUncaught ConvexError: ${JSON.stringify(data)}\n    at handler (../convex/dispatch.ts:1:1)`,
+      ),
+      { name: "ConvexError", data },
+    );
+    expect(humanizeConvexError(err)).toBe(data);
+  });
+
   test("strips the client wrapper and the stack tail", () => {
     const err = new Error(
       "[CONVEX M(chat:sendMessage)] [Request ID: abc] Server Error\nUncaught Error: This channel is archived\n    at handler (../convex/chat.ts:1:1)",

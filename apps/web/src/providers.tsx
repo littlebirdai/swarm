@@ -2,7 +2,6 @@ import { ConvexReactClient } from "convex/react";
 import { recoveringWebSocket } from "@codecast/network";
 import { ReactNode, useRef } from "react";
 import { toast } from "sonner";
-import { captureException } from "@sentry/react";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
 import { subscribeGestures } from "../store/gestureBridge";
 import { applyBridgedGesture } from "../store/sync-replication";
@@ -15,7 +14,7 @@ import { OpenInDesktopHandoff } from "@/components/OpenInDesktopHandoff";
 import { ShortcutProvider, setKeyBindings, isMac } from "@/shortcuts";
 import { shortcutCatalog } from "@/shortcuts/registry";
 import { desktopMenuKeys } from "@codecast/keyboard/keyBindings";
-import { dispatchRefusalReason } from "@/lib/dispatch-binding";
+import { DispatchFailureToast } from "@/components/dispatch-failure-toast";
 import { bridge } from "@/lib/desktop";
 import { TipProvider } from "@/tips/TipProvider";
 import { useMountEffect } from "@/hooks/useMountEffect";
@@ -74,47 +73,6 @@ function GestureBridge() {
       stop();
     };
   });
-  return null;
-}
-
-// "Set session model didn't go through — not authorized". The command name
-// rides convCommand's args; the reason is the last server refusal in the
-// (possibly nested) error message, minus stack-frame and client-suffix noise.
-function describeDispatchFailure(f: {
-  action: string;
-  args: unknown;
-  message: string;
-}): string {
-  const command =
-    f.action === "convCommand" && Array.isArray(f.args)
-      ? String(f.args[1])
-      : f.action;
-  const label = command
-    .replace(/([A-Z])/g, " $1")
-    .toLowerCase()
-    .trim()
-    .replace(/^./, (c) => c.toUpperCase());
-  const friendly = dispatchRefusalReason(f.message);
-  return `${label} didn't go through — ${friendly}`;
-}
-
-// Turns a permanent dispatch rejection (recorded by useEnsureDispatch) into a
-// visible toast. Lives here rather than in the shared hook because sonner is
-// DOM-only and the hook is also bundled by the mobile app.
-function DispatchFailureToast() {
-  const failure = useInboxStore((s) => s.lastDispatchFailure);
-  const lastShownAt = useRef(0);
-  useWatchEffect(() => {
-    if (!failure || failure.at === lastShownAt.current) return;
-    lastShownAt.current = failure.at;
-    const text = describeDispatchFailure(failure);
-    toast.error(text);
-    // The server's reason reaches no log it can be read back from later, so
-    // record it. The action name only: args can carry what the person typed.
-    captureException(new Error(text), {
-      tags: { source: "dispatch-failure", dispatch_action: failure.action },
-    });
-  }, [failure]);
   return null;
 }
 

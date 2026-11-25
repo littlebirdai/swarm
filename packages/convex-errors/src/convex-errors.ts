@@ -33,6 +33,7 @@ export function humanizeConvexError(
   const data = (err as any)?.data;
   if (data && typeof data === "object" && typeof data.message === "string")
     return data.message;
+  if (typeof data === "string" && data.trim()) return data;
   const refused = argumentValidationProblem(err);
   if (refused !== null) return refused || fallback;
   let msg = String((err as any)?.message ?? err ?? "");
