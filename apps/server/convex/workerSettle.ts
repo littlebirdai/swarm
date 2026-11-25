@@ -7,9 +7,11 @@ import {
   formatScheduledTask,
   isToolResultCarrier,
   parseUserMessage,
+} from "@codecast/shared/contracts";
+import {
   threadStateFreshness,
   threadStateHeadline,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { isUserMessageNoise, stripMessageTags } from "./lib/userSend";
 import { enqueuePendingMessage } from "./pendingMessages";

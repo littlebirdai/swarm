@@ -78,7 +78,7 @@ import {
   WORKTREES_KIND,
   mergeWorktreesPayload,
   type WorktreesPayload,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/worktrees";
 import { localCommitFiles } from "./lib/localCommitFiles";
 import { markCommitDirty } from "./lib/changesDirty";
 import { teamRepositories } from "./lib/teamRepositories";

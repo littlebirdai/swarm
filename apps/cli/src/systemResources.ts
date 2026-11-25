@@ -13,7 +13,7 @@ import {
   type ResourceGroup,
   type ResourceKind,
   type ResourceProcess,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
 
 export function resourceKind(command: string): ResourceKind {
   const name = command.toLowerCase();

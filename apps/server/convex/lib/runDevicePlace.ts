@@ -6,7 +6,7 @@
 // on the laptop (/Users/me/code/repo) becomes the box's (/home/me/code/repo).
 // Only the caller's own machines, and only while online: an offline one is
 // refused with why, never swapped for another.
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 import { normalizeGitOrigin } from "@codecast/capabilities/capabilityScopes";
 import { compareVersions } from "@codecast/shared/contracts/orgTemplateManifest";
 import { isDeviceOnline } from "../ccAccountsShared";

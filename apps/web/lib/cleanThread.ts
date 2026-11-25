@@ -2,7 +2,7 @@ import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents"
 import {
   DELIVERY_FAILED_SUBTYPE,
   parseDeliveryFailedNotice,
-} from "@codecast/shared/contracts/deliveryFailed";
+} from "@codecast/sessions/deliveryFailed";
 import { sayTextOf } from "../components/castCommand";
 import {
   FOLD_KEPT_USER_KINDS,

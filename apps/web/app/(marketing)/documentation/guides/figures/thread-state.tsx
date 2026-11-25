@@ -6,7 +6,7 @@ import { Box, Hatch, Label, Sheet, type Ink } from "../figureParts";
 
 /**
  * Figures for the thread state guide. Thresholds and colors are the ones in
- * shared/contracts/threadState.ts and web/lib/threadState.ts.
+ * packages/sessions/src/threadState.ts and web/lib/threadState.ts.
  */
 
 // ─── Freshness: how far the thread has run past the line ───────────────────

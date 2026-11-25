@@ -243,7 +243,7 @@ describe("command groups stay off the boot graph", () => {
       // and `cast sharing` read too.
       // 262 after the 2026-09-30 cloud agents landing, which had pushed it to 280.
       // Its new leaves stay: the `cast sync` verb registrar cloud/syncCli.ts
-      // (bodies load inside each action), shared/search for the operator help
+      // (bodies load inside each action), packages/search/src for the operator help
       // text, cloudAgents/transcript.ts under parser.ts, cloud/gitOrigin.ts under
       // gitPlane.ts, cloud/mirror/bundle.ts and seven contracts through the
       // barrel. What left: ccAccounts.ts read the Claude login through
@@ -255,7 +255,7 @@ describe("command groups stay off the boot graph", () => {
       // harness ledger share, so the worker runtime no longer loads the updater.
       // Plus cloudAgents/apiError.ts, the provider error reader transcript.ts
       // uses; it is a leaf so the HTTP client stays off this graph.
-      // Plus shared/contracts/levenshtein.ts, the edit distance commandSuggestion.ts
+      // Plus packages/search/src/levenshtein.ts, the edit distance commandSuggestion.ts
       // shares with the convex sim backend. It is a subpath import, not part of
       // the contracts barrel, so the daemon graph does not carry it.
       // Plus the `cast doc` drafting verbs: docDraftingCommand.ts, a registrar
@@ -279,7 +279,7 @@ describe("command groups stay off the boot graph", () => {
       // workspace manifest and transcript redaction took the Vault contract
       // (secrets.ts with productView.ts) for a name check and two size limits, so
       // those pure rules moved to the leaf contracts/secretRules.ts, and the new
-      // contracts/teamHosts.ts left the barrel for a subpath import. What stays is
+      // packages/machines/src/teamHosts.ts left the barrel for a subpath import. What stays is
       // directoryTeam.ts (stableContext), loginShellPath.ts, shellQuote.ts
       // (launchCommand), secretShapes.ts (redaction) and render/structuredResult.ts.
       // 326 on 2026-10-26: ccAdoptLogin.ts, the cloud Mac's keychain adopt job,
@@ -372,7 +372,7 @@ describe("command groups stay off the boot graph", () => {
       // 372 the same day: ccRateLimitHeaders.ts, the rate-limit header parsers
       // split out of ccAccounts.ts for its max-lines pin, no new code. 369 the
       // same day: `plan verify` loads workspace/detect.ts on demand, which took
-      // detect.ts, share.ts, manifest.ts and contracts/dataSync.ts off the graph.
+      // detect.ts, share.ts, manifest.ts and packages/machines/src/dataSync.ts off the graph.
       // 370 the same day: contracts/fileAttachment.ts, the [File <path>] tag a
       // web attachment becomes (no imports), carried by the contracts barrel.
       // 372 on 2026-11-22: Antigravity CLI (agy) as a client: contracts/
@@ -400,10 +400,10 @@ describe("command groups stay off the boot graph", () => {
       // 4340 on 2026-10-16: the snippets workflow split (see the file count)
       // adds its header, import and re-export.
       // 4343 with the pinned state rows: threadStateRows, the ask split and the
-      // new card line in contracts/threadState.ts (+2.6 KB), and the longer
+      // new card line in packages/sessions/src/threadState.ts (+2.6 KB), and the longer
       // Thread state section in snippets.ts (+0.6 KB). No new file.
       // 4360 on 2026-10-24: that day's ship added 68.7 KB here after the Vault
-      // contract and contracts/teamHosts.ts were taken off (see the count above).
+      // contract and packages/machines/src/teamHosts.ts were taken off (see the count above).
       // The Vault's redaction leads it (secretShapes.ts +10.8, secretRules.ts +7,
       // knownValueRedaction.ts +4.4), then installed guidance in snippets.ts
       // (+8.3), render/structuredResult.ts (+7.8) and handoffPrompt.ts (+4.8).
@@ -436,7 +436,7 @@ describe("command groups stay off the boot graph", () => {
       // lead whose only live work is a nested subagent (child_live).
       // 4405 on 2026-10-31: that day's ship grew files already here: castApi.ts
       // (+1.1, publish limits), index.ts and parser.ts (+0.6 each),
-      // contracts/threadState.ts (+0.5), contracts/lineProfile.ts,
+      // packages/sessions/src/threadState.ts (+0.5), contracts/lineProfile.ts,
       // analytics/events.ts and contracts/transcriptChunk.ts (+0.4 each).
       // +1 on 2026-11-01: the `herd take` subcommand registration in index.ts
       // (its module, herdCommand.ts, loads lazily).
@@ -687,7 +687,7 @@ describe("command groups stay off the boot graph", () => {
       // 510 on 2026-10-24, the daemon's own work from that day's ship: the Vault's
       // redaction source (secrets/redactionSource.ts with the secrets contract,
       // productView.ts, secretShapes.ts and the secretRules.ts leaf), the team
-      // host marker (hosts/teamMarker.ts, contracts/teamHosts.ts), the agent
+      // host marker (hosts/teamMarker.ts, packages/machines/src/teamHosts.ts), the agent
       // preflight's loginShellPath.ts and shellQuote.ts, permissionHookWait.ts,
       // loadGovernor.ts, directoryTeam.ts and render/structuredResult.ts.
       // 511 on 2026-10-26: cursorDbPath.ts, the leaf every Cursor database open
@@ -695,7 +695,7 @@ describe("command groups stay off the boot graph", () => {
       // 512 on 2026-10-26: ccAdoptLogin.ts, split out of ccAccounts.ts (above).
       // 514 on 2026-10-26: managed policy, the same two files as index.ts's (above).
       // 515 on 2026-10-26: managedInstall.ts (above).
-      // 516 on 2026-10-26: contracts/deliveryFailed.ts, the row the daemon writes
+      // 516 on 2026-10-26: packages/sessions/src/deliveryFailed.ts, the row the daemon writes
       // when it stops delivering a message (a subpath import, off the barrel).
       // 518 on 2026-10-26, two splits for max-lines pins: tmuxPaneState.ts (the
       // pane classifiers, out of daemon.ts) and contracts/decisionAnswers.ts (above).
@@ -724,7 +724,7 @@ describe("command groups stay off the boot graph", () => {
       // 537 on 2026-11-05: handHostGrace.ts, whether a message to a session the
       // boot took waits for the terminal that last ran it (a pure leaf).
       // 540 the same day: ghostty.ts (delivery into Ghostty through its
-      // AppleScript dictionary), terminalHold.ts and contracts/deliveryHold.ts
+      // AppleScript dictionary), terminalHold.ts and packages/sessions/src/deliveryHold.ts
       // (the held-send reason the daemon writes). All three are leaves the
       // delivery path calls directly; none is a command group.
       // 576 on 2026-11-08 (minus three that left: tmuxDeliveryTranscript.ts,

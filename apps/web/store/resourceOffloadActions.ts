@@ -1,7 +1,7 @@
 import type {
   ResourceOffloadIntent,
   ResourceOffloadBatchId,
-} from "@codecast/shared/contracts/resourceOffloadIntent";
+} from "@codecast/machines/resourceOffloadIntent";
 import type { MigrationBatch } from "../lib/migrationPlan";
 
 export function resourceOffloadStubs(

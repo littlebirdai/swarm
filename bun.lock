@@ -47,6 +47,7 @@
         "@codecast/files": "workspace:*",
         "@codecast/flows": "workspace:*",
         "@codecast/keyboard": "workspace:*",
+        "@codecast/machines": "workspace:*",
         "@codecast/memory": "workspace:*",
         "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
@@ -58,6 +59,7 @@
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
         "@codecast/render": "workspace:*",
+        "@codecast/search": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
@@ -142,6 +144,8 @@
         "@codecast/flows": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/hosted-assistant": "workspace:*",
+        "@codecast/machines": "workspace:*",
+        "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/org": "workspace:*",
         "@codecast/pages": "workspace:*",
@@ -149,6 +153,7 @@
         "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/render": "workspace:*",
+        "@codecast/search": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/signals": "workspace:*",
@@ -279,6 +284,8 @@
         "@codecast/hash": "workspace:*",
         "@codecast/hosted-assistant": "workspace:*",
         "@codecast/keyboard": "workspace:*",
+        "@codecast/machines": "workspace:*",
+        "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/org": "workspace:*",
         "@codecast/pages": "workspace:*",
@@ -288,6 +295,7 @@
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
         "@codecast/render": "workspace:*",
+        "@codecast/search": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
@@ -362,7 +370,9 @@
         "@codecast/hash": "workspace:*",
         "@codecast/hosted-assistant": "workspace:*",
         "@codecast/keyboard": "workspace:*",
+        "@codecast/machines": "workspace:*",
         "@codecast/memory": "workspace:*",
+        "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/org": "workspace:*",
         "@codecast/pages": "workspace:*",
@@ -372,6 +382,7 @@
         "@codecast/pull-requests": "workspace:*",
         "@codecast/ratchet": "workspace:*",
         "@codecast/render": "workspace:*",
+        "@codecast/search": "workspace:*",
         "@codecast/sessions": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
@@ -751,6 +762,16 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/machines": {
+      "name": "@codecast/machines",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/cloud-hosts": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/memory": {
       "name": "@codecast/memory",
       "version": "0.0.1",
@@ -765,7 +786,7 @@
       "name": "@codecast/mods",
       "version": "0.0.1",
       "dependencies": {
-        "@codecast/shared": "workspace:*",
+        "@codecast/network": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "^1.3.3",
@@ -839,6 +860,17 @@
       "devDependencies": {
         "@types/bun": "^1.3.3",
         "@types/css-tree": "^2.3.11",
+      },
+    },
+    "packages/search": {
+      "name": "@codecast/search",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/pull-requests": "workspace:*",
+        "@codecast/time": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
       },
     },
     "packages/sessions": {
@@ -940,6 +972,7 @@
       "name": "@codecast/vault",
       "version": "0.0.1",
       "dependencies": {
+        "@codecast/search": "workspace:*",
         "@codecast/shared": "workspace:*",
       },
       "devDependencies": {
@@ -1361,6 +1394,8 @@
 
     "@codecast/keyboard": ["@codecast/keyboard@workspace:packages/keyboard"],
 
+    "@codecast/machines": ["@codecast/machines@workspace:packages/machines"],
+
     "@codecast/memory": ["@codecast/memory@workspace:packages/memory"],
 
     "@codecast/mods": ["@codecast/mods@workspace:packages/mods"],
@@ -1384,6 +1419,8 @@
     "@codecast/ratchet": ["@codecast/ratchet@workspace:packages/ratchet"],
 
     "@codecast/render": ["@codecast/render@workspace:packages/render"],
+
+    "@codecast/search": ["@codecast/search@workspace:packages/search"],
 
     "@codecast/sessions": ["@codecast/sessions@workspace:packages/sessions"],
 

@@ -14,11 +14,9 @@ import {
   startSpawnedSession,
   type QueuedStart,
 } from "./subagentFleet";
-import { deviceDisplayName } from "@codecast/shared/contracts";
-import {
-  resolveAgentLaunch,
-  type AgentDefinitionSpec,
-} from "@codecast/agents/agentDefinitions";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
+import { resolveAgentLaunch } from "@codecast/agents/agentDefinitions";
+import type { AgentDefinitionSpec } from "@codecast/agents/agentDefinitions";
 import {
   fromConvexAgentType,
   isHostedAgentType,

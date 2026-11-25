@@ -1,7 +1,7 @@
 // `cast mod`: make, run and share codecast mods (plan pl-839). A mod is a
 // folder with codecast-mod.json and a hooks module; `cast mod dev` bundles it
 // with the SDK on every save and pushes it, and the web app picks the new
-// bundle up live. Contract: shared/contracts/mods.ts. Build: mods/build.ts.
+// bundle up live. Contract: packages/mods/src/mods.ts. Build: mods/build.ts.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -19,7 +19,7 @@ import {
 import { scaffoldFiles } from "./mods/scaffold.js";
 import { formatModGuide } from "./mods/guide.js";
 import { tscInTree } from "./check.js";
-import { MOD_NAME_RE } from "@codecast/shared/contracts/mods";
+import { MOD_NAME_RE } from "@codecast/mods/mods";
 import { webBaseUrl } from "./config/readLocalConfig.js";
 import { localDeviceName, localHash } from "./mods/localRunner.js";
 import { notFoundLine } from "./argChecks.js";

@@ -2,7 +2,7 @@
 // directly and so the send path can never grow a second, looser copy of the
 // mention grammar or the preview sanitizer.
 
-import { parseQueryTerms } from "@codecast/shared/search";
+import { parseQueryTerms } from "@codecast/search/terms";
 import { INVISIBLE_RE, oneLine, plainPreview } from "@codecast/chat";
 import { titleLine } from "@codecast/shared/contracts";
 

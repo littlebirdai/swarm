@@ -7,7 +7,7 @@ import {
   reassignToDevice,
 } from "./devices";
 import { forConversation, results } from "./sessionCommands";
-import { MACHINE_SWITCH_NOTICE_PREFIX } from "@codecast/shared/contracts";
+import { MACHINE_SWITCH_NOTICE_PREFIX } from "@codecast/machines/machineSwitch";
 
 // The CLI transfer flip (`cast remote move` / `back`). The files are already on
 // the destination; this re-homes ownership, resumes there, and — the part that

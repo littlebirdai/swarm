@@ -15,7 +15,7 @@ import {
   parseQueryTerms,
   snippetAround,
   termSpans,
-} from "@codecast/shared/search";
+} from "@codecast/search/terms";
 import { memberAvatarUrl } from "../../lib/liveEntities";
 import type { ObjectHit as Hit } from "../../hooks/useObjectSearch";
 

@@ -2,7 +2,7 @@
 // heading and whatever the mod draws under it, sized for the narrow column.
 
 import { useMemo } from "react";
-import type { ModSurface } from "@codecast/shared/contracts/mods";
+import type { ModSurface } from "@codecast/mods/mods";
 import { RailHeading } from "../sidebar/navPrimitives";
 import { ModSurfaceView } from "./ModSurface";
 import { modHost, type ModRuntime } from "../../lib/mods/host";

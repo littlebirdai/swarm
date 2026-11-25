@@ -5,7 +5,7 @@
 // destructiveCommands.ts) is offered only when the typed token is a near-miss
 // of that very command. ct-49545.
 
-import { levenshtein } from "@codecast/shared/contracts/levenshtein";
+import { levenshtein } from "@codecast/search/levenshtein";
 import { isDestructivePath } from "./destructiveCommands.js";
 
 /** How far a typo may sit from a command before it stops being a typo of it. */

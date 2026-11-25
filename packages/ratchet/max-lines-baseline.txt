@@ -766,6 +766,7 @@ packages/capabilities/test/fleetDiff.test.ts 1200
 packages/docs/src/drafting.ts 950
 packages/keyboard/src/shortcutCatalog.ts 1550
 packages/mods/src/authoring.d.ts 900
+packages/mods/src/mods.ts 900
 packages/policy/src/permissionRules.ts 900
 packages/render/src/toolCall.ts 1350
 packages/render/test/render.test.ts 850
@@ -785,7 +786,6 @@ packages/shared/contracts/judges.test.ts 1050
 packages/shared/contracts/machineMessages.ts 1200
 packages/shared/contracts/metricStanding.test.ts 1100
 packages/shared/contracts/metricStanding.ts 1300
-packages/shared/contracts/mods.ts 900
 packages/shared/contracts/orgChange.test.ts 1300
 packages/shared/contracts/orgChange.ts 1450
 packages/shared/contracts/orgChangeWords.test.ts 1300

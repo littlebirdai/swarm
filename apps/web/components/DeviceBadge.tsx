@@ -16,7 +16,7 @@ import {
   deviceDisplayName,
   deviceKindLabel,
   distinctDeviceNames,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/deviceName";
 import { useInboxStore } from "../store/inboxStore";
 import { localDeviceIdOf } from "../hooks/useLocalDeviceId";
 import { wakesOnUse } from "../lib/machinePicker";

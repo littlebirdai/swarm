@@ -15,7 +15,8 @@ import {
   getSnippet,
   parseSearchTerms,
 } from "../lib/searchHighlight";
-import { parseSessionQuery, searchedTermsText } from "@codecast/shared/search";
+import { parseSessionQuery } from "@codecast/search/sessionQuery";
+import { searchedTermsText } from "@codecast/search/terms";
 import {
   useInstantSessionRows,
   mergeSearchRows,

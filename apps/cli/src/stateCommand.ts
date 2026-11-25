@@ -22,7 +22,7 @@ import {
   THREAD_STATE_MAX_CHARS,
   THREAD_STATE_STATUS_LABEL,
   type ThreadStateStatus,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 import {
   clearThreadStatePulse,
   writeThreadStatePulse,

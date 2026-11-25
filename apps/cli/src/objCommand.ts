@@ -1,5 +1,5 @@
 // `cast obj`: objects of the kinds mods declare (bug-14, inc-3), for agents.
-// A kind is a mod's manifest entry (shared/contracts/mods.ts ModObjectKind);
+// A kind is a mod's manifest entry (packages/mods/src/mods.ts ModObjectKind);
 // these verbs work every kind the same way, so a new kind needs no CLI code.
 
 import { Option, type Command } from "commander";
@@ -9,7 +9,7 @@ import {
   OBJECT_SHORT_ID_RE,
   objectStatusIsDone,
   type ModObjectKind,
-} from "@codecast/shared/contracts/mods";
+} from "@codecast/mods/mods";
 import { webBaseUrl } from "./config/readLocalConfig.js";
 
 function fail(message: string): never {

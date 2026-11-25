@@ -4,7 +4,7 @@ import { anyApi } from "convex/server";
 import { hashToken } from "@platform/auth/convex";
 import schema from "./schema";
 import { SESSION_TRAILER_KEY, sessionTrailerValue } from "@codecast/blame";
-import { parseSessionQuery } from "@codecast/shared/search";
+import { parseSessionQuery } from "@codecast/search/sessionQuery";
 import { narrowByOperators, OPERATOR_LIMITS } from "./sessionQuerySearch";
 import {
   fileQueryPrefixes,

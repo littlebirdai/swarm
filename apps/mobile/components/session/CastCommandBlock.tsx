@@ -38,7 +38,7 @@ import {
 } from "./FlowCard";
 import { stripAnsiCodes } from "@codecast/web/lib/ansi";
 import { THREAD_STATE_STATUS_META } from "@codecast/web/lib/threadState";
-import { parseThreadStateStatus } from "@codecast/shared/contracts";
+import { parseThreadStateStatus } from "@codecast/sessions/threadState";
 
 type FeatherName = React.ComponentProps<typeof Feather>["name"];
 type Tone =

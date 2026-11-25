@@ -8,10 +8,10 @@ import {
   SENDABLE_CONVERSATION_FIELDS,
   TRIAGE_CONVERSATION_FIELDS,
   VISIBILITY_CONVERSATION_FIELDS,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/conversationFields";
 import { PLACEMENT_LIVENESS_FIELDS } from "./conversations";
 
-// The manifest (contracts/conversationFields) is the single declaration of what
+// The manifest (packages/sessions/src/conversationFields) is the single declaration of what
 // a conversation field is for. Two things have to stay true for it to be worth
 // anything, and neither is expressible in the type system.
 //

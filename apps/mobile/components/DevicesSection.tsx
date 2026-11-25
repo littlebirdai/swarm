@@ -4,7 +4,7 @@ import { Text as RNText } from "@/components/Themed";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 
 /**
  * Device awareness for the phone. A session runs on exactly one device; these

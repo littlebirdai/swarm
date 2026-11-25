@@ -48,9 +48,9 @@ import {
   isContextRecoveryPrompt,
   CONTEXT_RECOVERY_COOLDOWN_MS,
   describeAgentRun,
-  normalizeThreadState,
   type RecoveryMessage,
 } from "@codecast/shared/contracts";
+import { normalizeThreadState } from "@codecast/sessions/threadState";
 import { fromConvexAgentType } from "@codecast/agent-clients/agentClients";
 
 export const HANDOFF_MODEL = CHEAP_MODEL;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { levenshtein } from "@codecast/shared/contracts/levenshtein";
+import { levenshtein } from "@codecast/search/levenshtein";
 import {
   commandTree,
   suggestCommands,

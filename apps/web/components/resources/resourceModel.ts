@@ -11,7 +11,7 @@ import {
   type ResourceKind,
   type ResourcePoint,
   type ResourceProcess,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
 import type { ResourceMachine, ResourceSession } from "./types";
 
 export { fmtBytes, fmtCpu };

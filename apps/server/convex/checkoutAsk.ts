@@ -14,11 +14,11 @@ import {
   levelWriters,
   type CheckoutPageAsk,
   type CheckoutReport,
-} from "@codecast/shared/contracts/checkouts";
+} from "@codecast/machines/checkouts";
 
 /**
  * A person's ask on a stuck checkout from the pipeline page (dispatch askCheckout): `who` is a session that last wrote
- * some of the conflicting files, told of those files only in the words the daemon uses (contracts/checkouts
+ * some of the conflicting files, told of those files only in the words the daemon uses (packages/machines/src/checkouts
  * levelAskWords), or "finding", which files the files no session wrote as the daemon would (same fingerprint, so a
  * daemon's later finding is the same one). The row keeps the ask, so the page reads it as told.
  */

@@ -94,13 +94,13 @@ export type Device = {
   cloud_autoscale?: import("@codecast/cloud-hosts/cloudHostReport").CloudAutoscale;
   /** What keeps this machine from reading a cloud agent provider (its heartbeat): it is not connected to that one. */
   cloud_agent_blocks?: import("@codecast/agent-clients/cloudAgents").CloudAgentSetupBlock[];
-  tailnet?: import("@codecast/shared/contracts/peerTransport").PeerTailnet;
+  tailnet?: import("@codecast/machines/peerTransport").PeerTailnet;
   direct_links_off?: boolean;
   /** The one job this machine is kept for; automatic placement skips it (devices.reserved_for). */
   reserved_for?: string;
   /** Outcomes with this machine as the source. */
   peer_links?: Array<
-    import("@codecast/shared/contracts/peerTransport").PeerLinkOutcome & {
+    import("@codecast/machines/peerTransport").PeerLinkOutcome & {
       to_device_id: string;
       last_relay_ok_at?: number;
     }

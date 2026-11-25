@@ -3,16 +3,13 @@ import { action, internalMutation, internalQuery, query } from "./functions";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import {
-  MOD_SECRET_NAME_RE,
-  type ModManifest,
-} from "@codecast/shared/contracts/mods";
+import { MOD_SECRET_NAME_RE, type ModManifest } from "@codecast/mods/mods";
 import { decryptRefreshToken, encryptRefreshToken } from "./googleOAuth";
 import { connectionKey } from "./tokenConnectors";
 import { tokenUser } from "./modLocal";
 
 /**
- * A mod's secrets (manifest `secrets`, shared/contracts/mods.ts ModSecret):
+ * A mod's secrets (manifest `secrets`, packages/mods/src/mods.ts ModSecret):
  * keys its requests need, set by the author and never sent to a browser. The
  * value is stored encrypted under the deployment's connection key with its own
  * derivation, so a ciphertext from here never decrypts as anything else's.

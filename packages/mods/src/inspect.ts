@@ -4,12 +4,7 @@
 // mod build` refuses a bundle whose calls the manifest does not grant, and the
 // web shows it on the mods page.
 
-import {
-  MOD_METHODS,
-  canRead,
-  canWrite,
-  type ModManifest,
-} from "@codecast/shared/contracts/mods";
+import { MOD_METHODS, canRead, canWrite, type ModManifest } from "./mods";
 
 export type ModInspection = {
   hooks: string[];

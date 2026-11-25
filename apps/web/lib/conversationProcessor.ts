@@ -4,9 +4,9 @@ import {
   isAgentContextMessage,
   isCompactionSummaryMessage,
   isAgentSwitchNotice,
-  isMachineSwitchNotice,
   stripMentionContext,
 } from "@codecast/shared/contracts";
+import { isMachineSwitchNotice } from "@codecast/machines/machineSwitch";
 import { parseSlashCommand } from "@codecast/agent-clients/slashCommand";
 import {
   stripTeammateFraming,

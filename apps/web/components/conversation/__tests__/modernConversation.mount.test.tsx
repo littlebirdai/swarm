@@ -55,7 +55,7 @@ const { ApiErrorCard } = await import("../sessionChrome");
 const { PermissionStackView } = await import("../../PermissionCard");
 const { ModernDecisionDock } = await import("../ModernDecisionDock");
 const { DELIVERY_FAILED_SUBTYPE, formatDeliveryFailedNotice } =
-  await import("@codecast/shared/contracts/deliveryFailed");
+  await import("@codecast/sessions/deliveryFailed");
 const { imageBoxStyle, knownImageDims, rememberImageDims } =
   await import("../../../lib/imageDims");
 

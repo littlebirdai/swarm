@@ -7,13 +7,13 @@ import {
   resolveTeamForPath,
   type DirectoryMapping,
 } from "./privacy";
-import { validateManifest } from "@codecast/shared/contracts/mods";
+import { validateManifest } from "@codecast/mods/mods";
 import type { Id } from "./_generated/dataModel";
 import { LOG_CAP } from "./modLogs";
 import { teamSharedMods, withDevice } from "./modLocal";
 
 /**
- * Codecast mods (plan pl-839, shared/contracts/mods.ts). The CLI pushes a
+ * Codecast mods (plan pl-839, packages/mods/src/mods.ts). The CLI pushes a
  * bundled mod here; the web reads every mod the viewer may see into the store
  * and runs the enabled ones in a sandbox. Access is one rule, the saved_views
  * rule: you own the mod, or it is shared with a team you belong to. Only the

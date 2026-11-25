@@ -70,7 +70,7 @@ import {
   hasThreadState,
   answeredThreadStateFields,
   type ThreadStateFields,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/threadState";
 import { isConvexId } from "../lib/entityLinks";
 import { activeWorkspaceKeyOf } from "../lib/workspaceScope";
 import { leadScopeChange, type LeadScopeChange } from "@codecast/org/orgLead";

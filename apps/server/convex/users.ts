@@ -71,7 +71,7 @@ import {
   matchDirectoryMapping,
   type DirectoryMapping,
 } from "./privacy";
-import { isUnattendedConversation } from "@codecast/shared/contracts";
+import { isUnattendedConversation } from "@codecast/sessions/unattended";
 import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 import { isTestArtifactPath } from "@codecast/agent-clients/testArtifacts";
 import { repositoryKeyOfRemote } from "@codecast/capabilities/capabilityScopes";

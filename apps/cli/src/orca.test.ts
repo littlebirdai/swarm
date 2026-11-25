@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { unreachableTerminalOf } from "@codecast/shared/contracts/deliveryHold";
+import { unreachableTerminalOf } from "@codecast/sessions/deliveryHold";
 import {
   findOrcaCli,
   orcaKeyBytes,

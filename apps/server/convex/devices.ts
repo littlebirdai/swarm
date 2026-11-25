@@ -62,9 +62,9 @@ import {
 } from "@codecast/agent-clients/agentClients";
 import {
   deviceDisplayName,
-  formatMachineSwitchNotice,
   type DeviceNameSource,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/deviceName";
+import { formatMachineSwitchNotice } from "@codecast/machines/machineSwitch";
 import {
   checkoutInUseMessage,
   posixRepoBasename,

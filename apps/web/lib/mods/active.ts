@@ -1,4 +1,4 @@
-import { permissionsSig } from "@codecast/shared/contracts/mods";
+import { permissionsSig } from "@codecast/mods/mods";
 import type { ModRow } from "./host";
 
 /**

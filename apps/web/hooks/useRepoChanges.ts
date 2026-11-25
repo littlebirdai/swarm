@@ -8,7 +8,7 @@
 // nobody draws costs no subscription.
 import type { RepoChangeRows } from "../lib/changes/assemble";
 import { useMemo } from "react";
-import type { CheckoutRow } from "@codecast/shared/contracts/checkouts";
+import type { CheckoutRow } from "@codecast/machines/checkouts";
 import { useInboxStore, isConvexId } from "../store/inboxStore";
 import { activeTeamIdOf } from "../lib/activeTeam";
 import {

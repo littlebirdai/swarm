@@ -9,7 +9,7 @@ import {
   LEVEL_STUCK_FILE_MS,
   type CheckoutLevel,
   type CheckoutTold,
-} from "@codecast/shared/contracts/checkouts";
+} from "@codecast/machines/checkouts";
 import {
   conflictGroups,
   dirtyPaths,

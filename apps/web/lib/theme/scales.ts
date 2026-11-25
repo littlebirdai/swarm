@@ -5,7 +5,7 @@
 // theme (themeVars.ts) rewrites the variables from its few tokens, which is
 // how a theme reaches the thousand-odd palette classes without touching them.
 
-import type { ThemeColorToken } from "@codecast/shared/contracts/theme";
+import type { ThemeColorToken } from "@codecast/mods/theme";
 
 /** The neutral scales, drawn between the theme's paper and ink. */
 export const NEUTRAL_SCALES = [

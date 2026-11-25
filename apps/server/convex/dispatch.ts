@@ -275,7 +275,7 @@ import {
   handThreadToSession,
   handableThread,
 } from "./chatHandoff";
-import { DISPATCHABLE_CONVERSATION_FIELDS } from "@codecast/shared/contracts";
+import { DISPATCHABLE_CONVERSATION_FIELDS } from "@codecast/sessions/conversationFields";
 import {
   CLOUD_SESSION_SOURCES,
   type CloudSessionSource,

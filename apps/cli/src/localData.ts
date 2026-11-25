@@ -11,7 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileAsync } from "./proc.js";
 import { resourceProbe } from "./resourceProbe.js";
-import type { ResourceProcess } from "@codecast/shared/contracts";
+import type { ResourceProcess } from "@codecast/machines/systemResources";
 import { sameStartedAt } from "./resourceMonitor.js";
 
 export type LocalData = NonNullable<ResourceProcess["localData"]>;

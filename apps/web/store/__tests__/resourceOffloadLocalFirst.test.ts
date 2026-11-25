@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { useInboxStore } from "../inboxStore";
-import type { ResourceOffloadIntent } from "@codecast/shared/contracts/resourceOffloadIntent";
+import type { ResourceOffloadIntent } from "@codecast/machines/resourceOffloadIntent";
 
 const owner = {};
 const intent: ResourceOffloadIntent = {

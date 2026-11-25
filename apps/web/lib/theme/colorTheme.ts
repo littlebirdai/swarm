@@ -6,11 +6,7 @@
 // flashes another palette; with nothing cached it paints the default theme
 // (plugins/colorThemeBoot.ts).
 
-import {
-  themeKey,
-  type ModTheme,
-  type ThemeMode,
-} from "@codecast/shared/contracts/theme";
+import { themeKey, type ModTheme, type ThemeMode } from "@codecast/mods/theme";
 import type { ModRow } from "../mods/host";
 import { modIsActive } from "../mods/active";
 export { themeVarsByMode } from "./themeVars";

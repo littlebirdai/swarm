@@ -3,7 +3,7 @@ import {
   mergeWorktreesPayload,
   worktreeOfPath,
   type WorktreesPayload,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/worktrees";
 import { beforeEach } from "bun:test";
 import {
   buildWorktreeMirror,

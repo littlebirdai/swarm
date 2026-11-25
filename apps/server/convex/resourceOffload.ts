@@ -1,17 +1,15 @@
 import type {
   ResourceOffloadIntent,
   ResourceOffloadBatchId,
-} from "@codecast/shared/contracts/resourceOffloadIntent";
+} from "@codecast/machines/resourceOffloadIntent";
 import { resourceOffloadSelection } from "./resourceOffloadSchema";
 import { v, type Infer } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./functions";
 import type { QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import {
-  RESOURCE_STALE_MS,
-  evaluateOffloadRequirements,
-} from "@codecast/shared/contracts";
+import { RESOURCE_STALE_MS } from "@codecast/machines/systemResources";
+import { evaluateOffloadRequirements } from "@codecast/machines/resourceOffloadPolicy";
 import {
   heldReason,
   movabilityFacts,
@@ -22,7 +20,7 @@ import { latestRehearsal } from "./moveRehearsals";
 import {
   invalidBringPaths,
   rehearsalPending,
-} from "@codecast/shared/contracts/moveRehearsal";
+} from "@codecast/machines/moveRehearsal";
 
 type Selection = Infer<typeof resourceOffloadSelection>;
 type CheckArgs = {

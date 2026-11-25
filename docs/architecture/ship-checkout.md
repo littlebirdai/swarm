@@ -165,7 +165,7 @@ upstream's change into each file by hand, from its merge file or `git show
 restore, reset and commit in the shared checkout, where other sessions'
 uncommitted work lives. Once the files carry upstream's change, the next
 sweep levels by itself and clears the merge files. The words are
-`levelAskWords` (`contracts/checkouts.ts`), which the pipeline page's ask
+`levelAskWords` (`packages/machines/src/checkouts.ts`), which the pipeline page's ask
 shares: sent from the page, with no list or merge files, it names every file
 and the `git show` of upstream's version of each.
 

@@ -6,7 +6,7 @@
 import {
   cpuBusy,
   type MachineResourceSnapshot,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
 
 /** A report older than this says nothing about the machine now. */
 export const HOST_LOAD_STALE_MS = 5 * 60_000;

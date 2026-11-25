@@ -1,7 +1,7 @@
 // Pure text-search logic shared by the message search surfaces (web searchMessages,
 // CLI searchForCLI, CLI feedForCLI). No ctx/db access — unit-testable with bun:test.
 //
-// What a query means and how a text answers it live in @codecast/shared/search
+// What a query means and how a text answers it live in @codecast/search
 // (terms.ts), shared with the CLI and the web marks. This file applies that
 // model to a pool of messages: which conversations qualify, and in what order.
 
@@ -16,7 +16,7 @@ import {
   snippetAround,
   type ParsedTerms,
   type Evidence,
-} from "@codecast/shared/search";
+} from "@codecast/search/terms";
 
 export {
   contentMatchesSearch,

@@ -9,7 +9,7 @@
 // Only its owner reads or removes it: an approval governs commands on the
 // owner's own machines, and nobody else's answer may widen that.
 import type { Doc } from "../_generated/dataModel";
-import { isUnattendedConversation } from "@codecast/shared/contracts";
+import { isUnattendedConversation } from "@codecast/sessions/unattended";
 import {
   evaluatePermission,
   permissionRuleLabel,

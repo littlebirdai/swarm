@@ -13,11 +13,11 @@
 import {
   sessionProjectId,
   type SessionProjectRow,
-} from "@codecast/shared/contracts/sessionProject";
+} from "@codecast/sessions/sessionProject";
 import {
   deviceDisplayName,
   type DeviceNameSource,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/deviceName";
 import { makeCollectionSig } from "./wakeSig";
 
 export const WORK_PROJECT_CHIP_PREFIX = "pj:";

@@ -29107,6 +29107,42 @@
   "packages/keyboard/src/shortcutCatalog.ts": {
     "swarm/no-comments": 196
   },
+  "packages/machines/src/checkouts.ts": {
+    "swarm/no-comments": 42
+  },
+  "packages/machines/src/dataSync.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/machines/src/deviceName.ts": {
+    "swarm/no-comments": 21
+  },
+  "packages/machines/src/machineSwitch.ts": {
+    "swarm/no-comments": 17
+  },
+  "packages/machines/src/moveRehearsal.ts": {
+    "swarm/no-comments": 15
+  },
+  "packages/machines/src/peerTransport.ts": {
+    "swarm/no-comments": 16
+  },
+  "packages/machines/src/resourceOffloadIntent.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/machines/src/resourceOffloadPolicy.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/machines/src/systemResources.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/machines/src/teamHosts.ts": {
+    "swarm/no-comments": 8
+  },
+  "packages/machines/src/worktrees.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/machines/test/checkouts.test.ts": {
+    "swarm/no-comments": 1
+  },
   "packages/memory/src/index.ts": {
     "swarm/no-comments": 36
   },
@@ -29119,8 +29155,14 @@
   "packages/mods/src/localSdk.ts": {
     "swarm/no-comments": 14
   },
+  "packages/mods/src/mods.ts": {
+    "swarm/no-comments": 60
+  },
   "packages/mods/src/sdk.ts": {
     "swarm/no-comments": 24
+  },
+  "packages/mods/src/theme.ts": {
+    "swarm/no-comments": 16
   },
   "packages/mods/test/contract.test.ts": {
     "swarm/no-comments": 1
@@ -29344,8 +29386,44 @@
   "packages/render/test/typeScale.test.ts": {
     "swarm/no-comments": 1
   },
+  "packages/search/src/index.ts": {
+    "swarm/no-comments": 5
+  },
+  "packages/search/src/levenshtein.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/search/src/sessionQuery.ts": {
+    "swarm/no-comments": 40
+  },
+  "packages/search/src/terms.ts": {
+    "swarm/no-comments": 54
+  },
+  "packages/search/src/tokenize.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/search/test/sessionQuery.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/search/test/terms.test.ts": {
+    "swarm/no-comments": 4
+  },
   "packages/sessions/src/agentStatus.ts": {
     "swarm/no-comments": 231
+  },
+  "packages/sessions/src/conversationFields.ts": {
+    "swarm/no-comments": 62
+  },
+  "packages/sessions/src/deliveryFailed.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/sessions/src/deliveryHold.ts": {
+    "swarm/no-comments": 11
+  },
+  "packages/sessions/src/follow.ts": {
+    "swarm/no-comments": 14
+  },
+  "packages/sessions/src/forkSeed.ts": {
+    "swarm/no-comments": 9
   },
   "packages/sessions/src/liveActivity.ts": {
     "swarm/no-comments": 58
@@ -29356,14 +29434,32 @@
   "packages/sessions/src/loopState.ts": {
     "swarm/no-comments": 22
   },
+  "packages/sessions/src/newSessionDefaults.ts": {
+    "swarm/no-comments": 12
+  },
   "packages/sessions/src/openTasks.ts": {
     "swarm/no-comments": 27
   },
   "packages/sessions/src/pendingStatus.ts": {
     "swarm/no-comments": 10
   },
+  "packages/sessions/src/sessionAsk.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/sessions/src/sessionProject.ts": {
+    "swarm/no-comments": 27
+  },
   "packages/sessions/src/sessionRead.ts": {
     "swarm/no-comments": 43
+  },
+  "packages/sessions/src/taskStats.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/sessions/src/threadState.ts": {
+    "swarm/no-comments": 39
+  },
+  "packages/sessions/src/unattended.ts": {
+    "swarm/no-comments": 9
   },
   "packages/sessions/src/workState.ts": {
     "swarm/no-comments": 29
@@ -29371,8 +29467,20 @@
   "packages/sessions/test/agentStatus.test.ts": {
     "swarm/no-comments": 22
   },
+  "packages/sessions/test/deliveryFailed.test.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/sessions/test/sessionAsk.test.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/sessions/test/sessionProject.test.ts": {
+    "swarm/no-comments": 2
+  },
   "packages/sessions/test/sessionRead.test.ts": {
     "swarm/no-comments": 27
+  },
+  "packages/sessions/test/threadState.test.ts": {
+    "swarm/no-comments": 2
   },
   "packages/shared/contracts/__fixtures__/capabilityResolverGolden.ts": {
     "swarm/no-comments": 17
@@ -29449,12 +29557,6 @@
   "packages/shared/contracts/changeCard.ts": {
     "swarm/no-comments": 122
   },
-  "packages/shared/contracts/checkouts.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/checkouts.ts": {
-    "swarm/no-comments": 42
-  },
   "packages/shared/contracts/ciFailures.ts": {
     "swarm/no-comments": 15
   },
@@ -29491,32 +29593,14 @@
   "packages/shared/contracts/connectorReasons.ts": {
     "swarm/no-comments": 22
   },
-  "packages/shared/contracts/conversationFields.ts": {
-    "swarm/no-comments": 62
-  },
-  "packages/shared/contracts/dataSync.ts": {
-    "swarm/no-comments": 12
-  },
   "packages/shared/contracts/decisionAnswerLabel.test.ts": {
     "swarm/no-comments": 3
   },
   "packages/shared/contracts/decisionAnswers.ts": {
     "swarm/no-comments": 36
   },
-  "packages/shared/contracts/deliveryFailed.test.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/deliveryFailed.ts": {
-    "swarm/no-comments": 13
-  },
-  "packages/shared/contracts/deliveryHold.ts": {
-    "swarm/no-comments": 11
-  },
   "packages/shared/contracts/deploys.ts": {
     "swarm/no-comments": 40
-  },
-  "packages/shared/contracts/deviceName.ts": {
-    "swarm/no-comments": 21
   },
   "packages/shared/contracts/envCases.ts": {
     "swarm/no-comments": 33
@@ -29544,12 +29628,6 @@
   },
   "packages/shared/contracts/flowMap.ts": {
     "swarm/no-comments": 49
-  },
-  "packages/shared/contracts/follow.ts": {
-    "swarm/no-comments": 14
-  },
-  "packages/shared/contracts/forkSeed.ts": {
-    "swarm/no-comments": 9
   },
   "packages/shared/contracts/githubAppInstallState.ts": {
     "swarm/no-comments": 18
@@ -29644,9 +29722,6 @@
   "packages/shared/contracts/judges.ts": {
     "swarm/no-comments": 59
   },
-  "packages/shared/contracts/levenshtein.ts": {
-    "swarm/no-comments": 4
-  },
   "packages/shared/contracts/lineChat.ts": {
     "swarm/no-comments": 19
   },
@@ -29701,9 +29776,6 @@
   "packages/shared/contracts/machineMessages.userMessage.test.ts": {
     "swarm/no-comments": 3
   },
-  "packages/shared/contracts/machineSwitch.ts": {
-    "swarm/no-comments": 17
-  },
   "packages/shared/contracts/mainRed.test.ts": {
     "swarm/no-comments": 2
   },
@@ -29728,17 +29800,8 @@
   "packages/shared/contracts/modelCall.ts": {
     "swarm/no-comments": 19
   },
-  "packages/shared/contracts/mods.ts": {
-    "swarm/no-comments": 60
-  },
   "packages/shared/contracts/moments.ts": {
     "swarm/no-comments": 55
-  },
-  "packages/shared/contracts/moveRehearsal.ts": {
-    "swarm/no-comments": 15
-  },
-  "packages/shared/contracts/newSessionDefaults.ts": {
-    "swarm/no-comments": 12
   },
   "packages/shared/contracts/openPlans.ts": {
     "swarm/no-comments": 7
@@ -29806,9 +29869,6 @@
   "packages/shared/contracts/orgWhere.ts": {
     "swarm/no-comments": 12
   },
-  "packages/shared/contracts/peerTransport.ts": {
-    "swarm/no-comments": 16
-  },
   "packages/shared/contracts/plainText.ts": {
     "swarm/no-comments": 9
   },
@@ -29848,12 +29908,6 @@
   "packages/shared/contracts/replayPlayer.ts": {
     "swarm/no-comments": 109
   },
-  "packages/shared/contracts/resourceOffloadIntent.ts": {
-    "swarm/no-comments": 1
-  },
-  "packages/shared/contracts/resourceOffloadPolicy.ts": {
-    "swarm/no-comments": 4
-  },
   "packages/shared/contracts/rolePlaybook.test.ts": {
     "swarm/no-comments": 2
   },
@@ -29887,23 +29941,11 @@
   "packages/shared/contracts/sendArrival.ts": {
     "swarm/no-comments": 26
   },
-  "packages/shared/contracts/sessionAsk.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/contracts/sessionAsk.ts": {
-    "swarm/no-comments": 12
-  },
   "packages/shared/contracts/sessionEscalation.ts": {
     "swarm/no-comments": 31
   },
   "packages/shared/contracts/sessionGoal.ts": {
     "swarm/no-comments": 53
-  },
-  "packages/shared/contracts/sessionProject.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/sessionProject.ts": {
-    "swarm/no-comments": 27
   },
   "packages/shared/contracts/snippets.test.ts": {
     "swarm/no-comments": 16
@@ -29920,24 +29962,6 @@
   "packages/shared/contracts/superseded.ts": {
     "swarm/no-comments": 44
   },
-  "packages/shared/contracts/systemResources.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/contracts/taskStats.ts": {
-    "swarm/no-comments": 7
-  },
-  "packages/shared/contracts/teamHosts.ts": {
-    "swarm/no-comments": 8
-  },
-  "packages/shared/contracts/theme.ts": {
-    "swarm/no-comments": 16
-  },
-  "packages/shared/contracts/threadState.test.ts": {
-    "swarm/no-comments": 2
-  },
-  "packages/shared/contracts/threadState.ts": {
-    "swarm/no-comments": 39
-  },
   "packages/shared/contracts/transcriptChunk.ts": {
     "swarm/no-comments": 80
   },
@@ -29946,9 +29970,6 @@
   },
   "packages/shared/contracts/triggerLifecycle.ts": {
     "swarm/no-comments": 68
-  },
-  "packages/shared/contracts/unattended.ts": {
-    "swarm/no-comments": 9
   },
   "packages/shared/contracts/vaultMessages.ts": {
     "swarm/no-comments": 6
@@ -29967,9 +29988,6 @@
   },
   "packages/shared/contracts/volumeWatch.ts": {
     "swarm/no-comments": 31
-  },
-  "packages/shared/contracts/worktrees.ts": {
-    "swarm/no-comments": 13
   },
   "packages/shared/entities/bareIds.test.ts": {
     "swarm/no-comments": 3
@@ -30045,24 +30063,6 @@
   },
   "packages/shared/replay/timeline.ts": {
     "swarm/no-comments": 18
-  },
-  "packages/shared/search/index.ts": {
-    "swarm/no-comments": 5
-  },
-  "packages/shared/search/sessionQuery.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/search/sessionQuery.ts": {
-    "swarm/no-comments": 40
-  },
-  "packages/shared/search/terms.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/search/terms.ts": {
-    "swarm/no-comments": 54
-  },
-  "packages/shared/search/tokenize.ts": {
-    "swarm/no-comments": 10
   },
   "packages/shared/tasks/foreignText.test.ts": {
     "swarm/no-comments": 10

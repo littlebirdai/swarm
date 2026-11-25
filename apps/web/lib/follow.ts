@@ -7,10 +7,7 @@
 // push, the app's one session path, a scroll to a message. Any move the
 // follower makes on their own ends the follow, as in Figma.
 
-import {
-  clampFollowView,
-  type FollowView,
-} from "@codecast/shared/contracts/follow";
+import { clampFollowView, type FollowView } from "@codecast/sessions/follow";
 export type { FollowView };
 
 export type FollowerRow = { user_id: string; name: string; image?: string };

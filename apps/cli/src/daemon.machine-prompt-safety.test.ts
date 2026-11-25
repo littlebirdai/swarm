@@ -57,7 +57,7 @@ import {
   DELIVERY_FAILED_SUBTYPE,
   formatDeliveryFailedNotice,
   parseDeliveryFailedNotice,
-} from "@codecast/shared/contracts/deliveryFailed";
+} from "@codecast/sessions/deliveryFailed";
 import { typedMenuReply, typedPollAnswer } from "./typedPollAnswer";
 import {
   closeOwnCommandPanel,
@@ -82,7 +82,7 @@ import { ForeignWriterHoldError } from "./foreignSessionWriter";
 import { BackendSwitchHoldError } from "./claudeSdk/switchBackend";
 import { ghosttyPane } from "./ghostty";
 import { orcaPane } from "./orca";
-import { unreachableTerminalOf } from "../../../packages/shared/contracts/deliveryHold";
+import { unreachableTerminalOf } from "@codecast/sessions/deliveryHold";
 import {
   CLAUDE_COMPOSER_SCROLLED_ABOVE,
   CLAUDE_COMPOSER_SCROLLED_BELOW,

@@ -5,7 +5,7 @@
 import { query } from "./functions";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { THIS_DEVICE } from "@codecast/shared/contracts";
+import { THIS_DEVICE } from "@codecast/sessions/newSessionDefaults";
 import {
   deviceServesPath,
   isReservedDevice,

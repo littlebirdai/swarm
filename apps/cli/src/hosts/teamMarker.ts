@@ -8,7 +8,7 @@ import * as os from "node:os";
 import {
   parseTeamHostMarker,
   type TeamHostMarker,
-} from "@codecast/shared/contracts/teamHosts";
+} from "@codecast/machines/teamHosts";
 import { SHARED_HOST_MARKER } from "../remote/sharedHostGuard.js";
 
 let markerCache: { mtimeMs: number; value: TeamHostMarker } | null = null;

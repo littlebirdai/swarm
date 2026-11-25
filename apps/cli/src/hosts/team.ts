@@ -19,7 +19,7 @@ import {
   formatTeamHostMarker,
   isLinuxUserName,
   type TeamHostJoinStep,
-} from "@codecast/shared/contracts/teamHosts";
+} from "@codecast/machines/teamHosts";
 import { readTeamHostMarker } from "./teamMarker.js";
 import { fmt, icons } from "../colors.js";
 import { convexClient } from "../remote/convexClient.js";

@@ -14,7 +14,7 @@ import {
   THREAD_STATE_AGING_MSGS,
   THREAD_STATE_STALE_MSGS,
   THREAD_STATE_STALE_MS,
-} from "./threadState";
+} from "../src/threadState";
 
 describe("threadStateProseCut", () => {
   test("a long json report past the cap cuts nothing a reader sees", () => {

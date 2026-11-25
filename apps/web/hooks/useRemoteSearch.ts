@@ -13,7 +13,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import {
   parseSessionQuery,
   sessionQuerySearches,
-} from "@codecast/shared/search";
+} from "@codecast/search/sessionQuery";
 import { rememberedResult, useQueryNoThrow } from "./useQueryNoThrow";
 import { useWatchEffect } from "./useWatchEffect";
 import { mergeSearchRows } from "../lib/instantSessionSearch";

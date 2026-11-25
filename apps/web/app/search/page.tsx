@@ -26,9 +26,9 @@ import {
 } from "../../components/ui/context-menu";
 import { SessionMenuItems } from "../../components/menus/ObjectContextMenus";
 import { useInboxStore, type InboxSession } from "../../store/inboxStore";
-import { searchedTermsText } from "@codecast/shared/search";
+import { searchedTermsText } from "@codecast/search/terms";
 import { copyToClipboard, shareOrigin } from "../../lib/utils";
-import { SESSION_QUERY_OPERATORS } from "@codecast/shared/search";
+import { SESSION_QUERY_OPERATORS } from "@codecast/search/sessionQuery";
 import { useSessionQueryAutocomplete } from "../../hooks/useSessionQuerySuggestions";
 import { SessionQuerySuggestList } from "../../components/SessionQuerySuggestList";
 import { FeatureUpsell } from "../../components/agentFeatures/FeatureUpsell";

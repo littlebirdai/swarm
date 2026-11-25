@@ -40,7 +40,7 @@ import {
   toConvexAgentType,
   type AgentClientId,
 } from "@codecast/agent-clients/agentClients";
-import { compareMachineChips } from "@codecast/shared/contracts";
+import { compareMachineChips } from "@codecast/machines/deviceName";
 import {
   featuredModelOptions,
   type DeviceModelInventory,

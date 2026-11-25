@@ -7,7 +7,7 @@ import {
   type GhosttyIo,
 } from "./ghostty.js";
 import { TerminalHoldError } from "./terminalHold.js";
-import { unreachableTerminalOf } from "@codecast/shared/contracts/deliveryHold";
+import { unreachableTerminalOf } from "@codecast/sessions/deliveryHold";
 
 describe("ghostty", () => {
   // Ghostty's `send key` takes W3C key codes in lower camel case and refuses

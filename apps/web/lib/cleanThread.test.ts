@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildCleanThread, cleanKeepsSystemRow } from "./cleanThread";
-import { formatDeliveryFailedNotice } from "@codecast/shared/contracts/deliveryFailed";
+import { formatDeliveryFailedNotice } from "@codecast/sessions/deliveryFailed";
 import type {
   Message,
   TimelineItem,

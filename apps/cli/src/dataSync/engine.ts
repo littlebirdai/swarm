@@ -19,7 +19,7 @@ import {
   DATA_SYNC_MAX_FILE_BYTES,
   DATA_SYNC_PAGE,
   dataRelProblem,
-} from "@codecast/shared/contracts/dataSync";
+} from "@codecast/machines/dataSync";
 
 export interface RemoteRow {
   folder: string;

@@ -126,7 +126,7 @@ refs from a peer, a confirm for folders over 2 GB.
 
 ## Code map
 
-- `packages/shared/contracts/peerTransport.ts` — pure: `PeerTailnet` type,
+- `packages/machines/src/peerTransport.ts` — pure: `PeerTailnet` type,
   `samePeerTailnet`, `peerLinkState(self, peer, now)` for the UI.
 - `apps/cli/src/peer/grant.ts` — the grant listener (source side).
 - `apps/cli/src/peer/pull.ts` — validate + dial + stream (requester side).

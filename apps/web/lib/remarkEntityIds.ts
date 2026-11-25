@@ -28,7 +28,7 @@ import {
 import { mdastText } from "./remarkEntityCards";
 import { filesHref } from "./vault/vaultHref";
 import { isObjectRef, objectRefScanRegex } from "./mods/objects";
-import { OBJECT_REF_PREFIX } from "@codecast/shared/contracts/mods";
+import { OBJECT_REF_PREFIX } from "@codecast/mods/mods";
 import { VIEW_REF_PREFIX, viewRefScanRegex } from "./productViewRefs";
 
 // Both shapes come from the shared mention vocabulary (@codecast/shared/

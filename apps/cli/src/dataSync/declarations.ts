@@ -6,7 +6,7 @@
 import { execFileSync } from "../proc.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { dataFolderFromManifest } from "@codecast/shared/contracts/dataSync";
+import { dataFolderFromManifest } from "@codecast/machines/dataSync";
 import { parseManifest } from "../workspace/manifest.js";
 
 export interface Declaration {

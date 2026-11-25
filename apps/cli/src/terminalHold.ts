@@ -1,4 +1,4 @@
-import { unreachableTerminalHoldReason } from "@codecast/shared/contracts/deliveryHold";
+import { unreachableTerminalHoldReason } from "@codecast/sessions/deliveryHold";
 import { formatDuration } from "@codecast/time";
 
 // A live agent whose terminal has no way for the daemon to type into it (any

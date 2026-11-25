@@ -9,7 +9,7 @@ import {
   sustainedResourcePressure,
   type ResourcePoint,
   type ResourcePressure,
-} from "@codecast/shared/contracts";
+} from "@codecast/machines/systemResources";
 import { cn } from "../../lib/utils";
 import {
   fmtAgo,

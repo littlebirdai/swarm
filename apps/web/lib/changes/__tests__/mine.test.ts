@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test";
 import type {
   CheckoutRow,
   CheckoutSession,
-} from "@codecast/shared/contracts/checkouts";
+} from "@codecast/machines/checkouts";
 import type { QueueCommit } from "@codecast/deploys/deployTargets";
 import { assemble, type ChangePullRequest } from "../assemble";
 import { changeLifecycle, type ChangeTone, type Lifecycle } from "../lifecycle";

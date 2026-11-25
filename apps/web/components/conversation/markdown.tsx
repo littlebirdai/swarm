@@ -8,7 +8,7 @@ import {
 } from "react";
 import ReactMarkdownBase from "react-markdown";
 import { rehypeSearchHighlight } from "../../lib/rehypeSearchHighlight";
-import { parseSearchTerms } from "@codecast/shared/search";
+import { parseSearchTerms } from "@codecast/search";
 import { splitMarkdownBlocks } from "../../lib/markdownBlocks";
 import { RevealHost } from "../ObjectReveal";
 import { tryRenderHtmlMessage } from "../HtmlSnippet";

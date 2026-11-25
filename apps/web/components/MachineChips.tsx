@@ -9,7 +9,7 @@
  */
 
 import { ChevronDown, Users } from "lucide-react";
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 import { DeviceDot, DeviceIcon, deviceAccentClasses } from "./DeviceBadge";
 import {
   machineChipNote,

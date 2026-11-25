@@ -14,7 +14,7 @@ import {
   Play,
   Share2,
 } from "lucide-react";
-import type { ResourceProcess } from "@codecast/shared/contracts";
+import type { ResourceProcess } from "@codecast/machines/systemResources";
 import { cn } from "../../lib/utils";
 import type { MigrationRowStatus } from "../../lib/migrationPlan";
 import { MigrationStatusPill } from "../MigrationStatusPill";

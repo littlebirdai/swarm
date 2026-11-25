@@ -5,7 +5,7 @@ import type { ActivityInterval } from "./activityPunchcard";
 import {
   isUnattendedConversation,
   type Attendance,
-} from "@codecast/shared/contracts";
+} from "@codecast/sessions/unattended";
 
 // Per-day session-activity counters: the profile contribution graph, the hour
 // punchcard and the team charts all read these rows.

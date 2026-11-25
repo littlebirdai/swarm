@@ -1,4 +1,4 @@
-// The object kinds mods declare (shared/contracts/mods.ts ModObjectKind), as
+// The object kinds mods declare (packages/mods/src/mods.ts ModObjectKind), as
 // the web reads them: which prefixes are kinds, the kind behind a short id,
 // and the object row a short id names. Kinds come from every mod row the
 // viewer can see, enabled or not, so `bug-14` stays a pill even while the mod
@@ -11,7 +11,7 @@ import {
   OBJECT_REF_SCAN_SOURCE,
   OBJECT_SHORT_ID_RE,
   type ModObjectKind,
-} from "@codecast/shared/contracts/mods";
+} from "@codecast/mods/mods";
 import { activeWorkspaceKeyOf } from "../workspaceScope";
 
 export type KindEntry = ModObjectKind & { mod: string; modTitle?: string };

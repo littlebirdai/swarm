@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { WorktreeEntry } from "@codecast/shared/contracts";
+import type { WorktreeEntry } from "@codecast/machines/worktrees";
 import type { RepoCheckout } from "../../hooks/useRepoBrowse";
 import {
   findWorktree,

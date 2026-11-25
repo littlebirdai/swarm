@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isHomeDirectoryPath } from "./machineSwitch";
+import { isHomeDirectoryPath } from "../src/machineSwitch";
 
 describe("isHomeDirectoryPath", () => {
   test("a user's home directory itself", () => {

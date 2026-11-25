@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { makeFunctionReference } from "convex/server";
 import schema from "./schema";
 import { storeResourceSnapshot } from "./machineResources";
-import type { MachineResourceSnapshot } from "@codecast/shared/contracts";
+import type { MachineResourceSnapshot } from "@codecast/machines/systemResources";
 
 setDefaultTimeout(60_000);
 

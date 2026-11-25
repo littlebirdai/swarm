@@ -6,7 +6,7 @@ import {
   reportedPeerTailnet,
   samePeerTailnet,
   type PeerTailnet,
-} from "./peerTransport";
+} from "../src/peerTransport";
 
 const self: PeerTailnet = {
   ip: "100.64.0.1",

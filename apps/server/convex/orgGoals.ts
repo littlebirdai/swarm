@@ -19,7 +19,7 @@ import {
 } from "@codecast/org/roleGoals";
 import { capacity } from "@codecast/org/orgCapacity";
 import { utcDay } from "./lib/orgCaps";
-import { threadStateHeadline } from "@codecast/shared/contracts";
+import { threadStateHeadline } from "@codecast/sessions/threadState";
 import {
   canAccessConversation,
   canAccessPlan,

@@ -3,7 +3,7 @@
 // (scanConversationLines, readConversationLines). Pure over the steps it is
 // handed, so the HTTP route can run it without importing conversations.ts,
 // which sits in the big import cycle (ct-92432).
-import { countMatches } from "@codecast/shared/search";
+import { countMatches } from "@codecast/search";
 
 /** Messages one readConversationLines call returns at most. */
 export const READ_PAGE_SIZE = 50;

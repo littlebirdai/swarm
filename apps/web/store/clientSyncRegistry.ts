@@ -1,4 +1,4 @@
-import { DISPATCHABLE_CONVERSATION_FIELDS } from "@codecast/shared/contracts";
+import { DISPATCHABLE_CONVERSATION_FIELDS } from "@codecast/sessions/conversationFields";
 import { CHAT_SYNC_COLLECTIONS } from "./clientSyncRegistry.chat";
 import { FLOW_SYNC_COLLECTIONS } from "./clientSyncRegistry.flows";
 import { OPS_SYNC_COLLECTIONS } from "./clientSyncRegistry.ops";
@@ -216,7 +216,7 @@ export const CLIENT_SYNC_REGISTRY = {
       table: "conversations",
       kind: "collection",
       // The manifest is the single source shared with the server's patch gate
-      // (contracts/conversationFields), so the two allowlists cannot disagree.
+      // (packages/sessions/src/conversationFields), so the two allowlists cannot disagree.
       fields: [...DISPATCHABLE_CONVERSATION_FIELDS],
     },
   },
@@ -1201,7 +1201,7 @@ export const CLIENT_SYNC_REGISTRY = {
     feeds: ["pipelines.forTeam"],
   },
   // Every device's checkouts of a team's repositories (ct-98780,
-  // contracts/checkouts.ts): ahead/behind, uncommitted work by session, the
+  // packages/machines/src/checkouts.ts): ahead/behind, uncommitted work by session, the
   // level sweep's state. One row per device and path; the feed returns a
   // team's whole set.
   checkouts: {

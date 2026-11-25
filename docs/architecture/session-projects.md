@@ -12,7 +12,7 @@ itself decided it: the composer's pick, a move (`cast project join`, the
 web's move), a project's default session. Nothing copies it onto another row.
 
 Every reader derives a session's project with one rule,
-`sessionProjectId` in `packages/shared/contracts/sessionProject.ts`:
+`sessionProjectId` in `packages/sessions/src/sessionProject.ts`:
 
 1. the session's own `project_id`;
 2. the project of the task it is bound to (`active_task_id`): the task's

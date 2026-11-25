@@ -896,7 +896,7 @@ export default defineSchema(
       // The named project this session works in, set only where a person or the
       // project decided it (the composer's pick, a move, a project's default
       // session). Workers, spawns and task-bound sessions derive theirs at read
-      // time (shared/contracts/sessionProject); never copy it onto a child.
+      // time (packages/sessions/src/sessionProject); never copy it onto a child.
       project_id: v.optional(v.id("projects")),
       model: v.optional(v.string()),
       // Last-known effort level (low|medium|high|max), same lifecycle as `model`:
@@ -7618,7 +7618,7 @@ export default defineSchema(
     // `shared` is the whole access rule: private rows are owner-only, shared rows
     // are readable by any member of the row's team. A shared row without a
     // team_id is a contradiction (nobody to share with), so writes require one.
-    // Codecast mods (plan pl-839, shared/contracts/mods.ts). One row per mod an
+    // Codecast mods (plan pl-839, packages/mods/src/mods.ts). One row per mod an
     // author owns, carrying the bundle that runs now: `cast mod dev` rewrites it
     // on every save (rev), `cast mod publish` also snapshots it into
     // mod_versions so a version can be read back, diffed and rolled back to.
@@ -7683,7 +7683,7 @@ export default defineSchema(
       created_at: v.number(),
     }).index("by_mod_version", ["mod_id", "version"]),
 
-    // Objects of the kinds mods declare (shared/contracts/mods.ts ModObjectKind):
+    // Objects of the kinds mods declare (packages/mods/src/mods.ts ModObjectKind):
     // `bug-14`, `inc-3`. One table for every kind; `prefix` names the kind and
     // `number` counts per workspace and prefix. `workspace` is the access key,
     // written by computeWorkspaceKey like tasks; `fields` holds the kind's own

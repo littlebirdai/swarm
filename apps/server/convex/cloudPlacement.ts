@@ -25,7 +25,7 @@ import {
   policyWorkspaceOf,
   requireTeamPolicyAllows,
 } from "./lib/teamPolicyGuard";
-import { deviceDisplayName } from "@codecast/shared/contracts";
+import { deviceDisplayName } from "@codecast/machines/deviceName";
 import {
   CLOUD_START_RUN_MS,
   cloudHostManaged,

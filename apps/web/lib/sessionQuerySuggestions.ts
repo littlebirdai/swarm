@@ -1,6 +1,6 @@
 // Autocomplete for the session query language, shared by the /search input and
 // the command palette. The grammar (operator names, their hints, how a value is
-// quoted, where the token being typed starts) lives in @codecast/shared/search;
+// quoted, where the token being typed starts) lives in @codecast/search;
 // this file only picks candidates for a value from what the client already
 // holds: the viewer's labels, teammates, the repositories and pull requests in
 // the store, and the files the viewer's recent sessions edited.
@@ -11,7 +11,7 @@ import {
   sessionFilter,
   type SessionQueryCompletion,
   type SessionQueryOperator,
-} from "@codecast/shared/search";
+} from "@codecast/search/sessionQuery";
 import { matchScore } from "./mentionRanking";
 
 export type QuerySuggestion = {

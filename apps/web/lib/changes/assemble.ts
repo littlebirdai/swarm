@@ -1,6 +1,6 @@
 // Every change on one repository, in flight or recently finished
 // (docs/architecture/changes.md), assembled from the rows the web store already
-// holds: the checkouts every device reports (contracts/checkouts.ts), the pull
+// holds: the checkouts every device reports (packages/machines/src/checkouts.ts), the pull
 // requests, the deploy targets' queues of commits on main not yet live, and,
 // when the branches page asks, GitHub's branch list. Each change comes out as
 // the facts lifecycle.ts reads, plus the links and writers a chip draws.
@@ -10,7 +10,7 @@
 import type {
   CheckoutRow,
   CheckoutSession,
-} from "@codecast/shared/contracts/checkouts";
+} from "@codecast/machines/checkouts";
 import type {
   CommitCiState,
   QueueCommit,

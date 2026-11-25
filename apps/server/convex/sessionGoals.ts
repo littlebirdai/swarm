@@ -39,7 +39,7 @@ import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
 import { performSetThreadState } from "./conversations";
 import { runModelCall, type CallScope } from "./modelCalls";
 import { callModelMetered, parseJsonBlock } from "./lib/anthropic";
-import { clearedThreadStateFields } from "@codecast/shared/contracts";
+import { clearedThreadStateFields } from "@codecast/sessions/threadState";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import {
   GOAL_IDLE_LIMIT_MS,

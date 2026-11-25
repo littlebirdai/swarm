@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { THEME_COLOR_TOKENS, THEME_FONT_TOKENS, themeErrors } from "./theme";
-import { validateManifest } from "./mods";
+import {
+  THEME_COLOR_TOKENS,
+  THEME_FONT_TOKENS,
+  themeErrors,
+} from "../src/theme";
+import { validateManifest } from "../src/mods";
 
 describe("color themes in a mod manifest", () => {
   test("a good theme passes, in one mode or both", () => {

@@ -3,7 +3,10 @@
 // session query module (sessionSearchHref), so a link and a typed search are
 // the same query.
 
-import { fileQueryPathFor, sessionSearchHref } from "@codecast/shared/search";
+import {
+  fileQueryPathFor,
+  sessionSearchHref,
+} from "@codecast/search/sessionQuery";
 
 export type SessionsLink = { href: string; label: string };
 

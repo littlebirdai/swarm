@@ -9,10 +9,7 @@ import { useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { DynamicIcon } from "./ModIcon";
-import {
-  objectStatusIsDone,
-  type ModObjectKind,
-} from "@codecast/shared/contracts/mods";
+import { objectStatusIsDone, type ModObjectKind } from "@codecast/mods/mods";
 import { objectHref, objectKind, statusTone } from "../../lib/mods/objects";
 import { useObjectRow } from "../../lib/mods/useMods";
 import { useHoverCard } from "../../hooks/useHoverCard";
