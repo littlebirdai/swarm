@@ -4,6 +4,7 @@
 // exactly once (a held note never does), a routine on it fires from the
 // server and never reaches a daemon, and the engine's internal writers keep
 // the public writers' behaviour without a token.
+import { scheduledJobProblems } from "./assistantJobs.testkit";
 import {
   afterEach,
   beforeEach,
@@ -60,20 +61,6 @@ const modules = {
 
 const testInstances: Array<ReturnType<typeof convexTest<typeof schema>>> = [];
 
-const EXPECTED_JOBS = new Set([
-  "agentTasks:generateDisplaySummary",
-  "assistant/entry:wake",
-  "assistant/turns:expire",
-  "assistant/turns:run",
-  "idleSummary:classifySettle",
-  "idleSummary:generateIdleSummary",
-  "messages:projectAgentStatusOnAddMessages",
-  "notifications:checkNeedsInput",
-  "syncOutbox:drain",
-  "titleGeneration:generateTitle",
-  "userSends:record",
-]);
-
 const TOKEN = "hosted-assistant-test-token";
 let previousHosts: string | undefined;
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
@@ -91,18 +78,7 @@ afterEach(async () => {
   try {
     for (const t of testInstances.splice(0)) {
       await t.finishAllScheduledFunctions(() => jest.runAllTimers());
-      const unfinished = await t.run(async (ctx) =>
-        (await ctx.db.system.query("_scheduled_functions").collect())
-          .filter((job) => !["success", "canceled"].includes(job.state.kind))
-          .map((job) => ({ name: job.name, state: job.state.kind })),
-      );
-      expect(unfinished).toEqual([]);
-      const unexpected = await t.run(async (ctx) =>
-        (await ctx.db.system.query("_scheduled_functions").collect())
-          .map((job) => job.name)
-          .filter((name) => !EXPECTED_JOBS.has(name)),
-      );
-      expect(unexpected).toEqual([]);
+      expect(await scheduledJobProblems(t)).toEqual([]);
     }
   } finally {
     jest.useRealTimers();
