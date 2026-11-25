@@ -81,6 +81,7 @@ export const BATON_LEASE_MS = 30_000;
 export interface MultiplayerSession {
   join(person: Person): Promise<void>;
   leave(person: Person): Promise<void>;
+  release(person: Person): Promise<void>;
   renew(person: Person): Promise<void>;
   revoke(person: Person): Promise<void>;
   submit(send: Send): Promise<Started | Outcome>;
@@ -90,7 +91,7 @@ export interface MultiplayerSession {
     expected: TurnExpected,
   ): Promise<Started | Outcome>;
   releaseQueue(): Promise<Started | Outcome>;
-  receivePermit(permit: Permit): Promise<boolean>;
+  receivePermit(permit: Permit): Promise<void>;
   hand(permit: Permit): Promise<Outcome | "handed">;
   land(permit: Permit): Promise<Outcome>;
   settle(permit: Permit, outcome: Outcome): Promise<Outcome>;
@@ -100,7 +101,10 @@ export interface MultiplayerSession {
   acknowledgeFence(fence: Fence): Promise<boolean>;
   machineTurn(turn: Turn | null): Promise<void>;
   publishTurn(): Promise<void>;
-  interrupt(from: Person, expected?: TurnExpected): Promise<Outcome>;
+  interrupt(
+    from: Person,
+    expected?: TurnExpected,
+  ): Promise<{ outcome: Outcome; stage: "server" | "machine" }>;
   elapse(ms: number): Promise<void>;
   disconnect(): Promise<void>;
   restart(): Promise<void>;

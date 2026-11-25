@@ -81,18 +81,22 @@ scenario(
       ],
     );
 
+    const competingSteer = async () => {
+      await session.leave("ben");
+      const status = await session.submit(send("late-steer", "ben", "opening"));
+      await session.join("ben");
+      await session.announcePresence("ana");
+      return status;
+    };
     const [status] = await observe(
       world,
-      Promise.all([
-        session.submit(send("late-steer", "ben", "opening")),
-        session.announcePresence("ana"),
-      ]),
+      Promise.all([competingSteer(), refresh(session, "visitor")]),
     );
     const shared = await observe(world, refresh(session, "ben"));
     check(
       world,
       "joinPreservesDriver",
-      "Ben's first steer queues and creates one claim for Ana",
+      "Ben's first steer queues and creates one claim for Ana even without Ben's presence",
       [
         status,
         shared.driver,
@@ -102,14 +106,13 @@ scenario(
       ["queued", "ana", "queued", { claim: 1, presence: 1 }],
     );
 
-    const renewAndLeave = async () => {
+    const renewSharedClaim = async () => {
       await session.elapse(BATON_LEASE_MS / 2);
       await session.renew("ana");
-      await session.leave("ana");
     };
     await observe(
       world,
-      Promise.all([renewAndLeave(), refresh(session, "ben")]),
+      Promise.all([renewSharedClaim(), refresh(session, "ben")]),
     );
     check(
       world,
@@ -119,6 +122,23 @@ scenario(
       2,
     );
 
+    const renewAlone = async () => {
+      await session.leave("ben");
+      await session.renew("ana");
+      return refresh(session, "ana");
+    };
+    const aloneWithClaim = await observe(world, renewAlone());
+    check(
+      world,
+      "soloRenewDoesNotWrite",
+      "A live claim does not renew after the second sender leaves",
+      [aloneWithClaim.driver, session.extraWrites().claim],
+      ["ana", 2],
+    );
+    await observe(
+      world,
+      Promise.all([session.join("ben"), session.leave("ana")]),
+    );
     const lapsed = await observe(
       world,
       session.elapse(BATON_LEASE_MS).then(() => refresh(session, "ben")),
@@ -186,6 +206,18 @@ scenario(
       [samePrompt, "refused"],
     );
     if (typeof accepted === "string") throw new Error("Expected Ben's answer");
+
+    const answeredTwice = await observe(
+      world,
+      session.prepareAnswer("ben", samePrompt),
+    );
+    check(
+      world,
+      "answeredPromptRejectsEligibleRetry",
+      "The holder cannot submit a second answer to the same prompt",
+      answeredTwice,
+      "refused",
+    );
 
     const replacePrompt = async () => {
       await session.openPrompt(question(2, "1"));
@@ -269,9 +301,12 @@ scenario(
       run: 2,
       opened: { prompt_id: "2", kind: "permission", summary: "Edit a file" },
     };
-    const ownerDeparts = session.leave("ana");
-    const openEscalation = session
-      .openPrompt(escalation)
+    const ownerDeparts = sendToAgent(
+      session,
+      send("ben-escalation", "ben", null),
+    ).then(() => session.leave("ana"));
+    const openEscalation = ownerDeparts
+      .then(() => session.openPrompt(escalation))
       .then(() => session.publishPrompt());
     const flagged = await observe(
       world,
@@ -292,13 +327,14 @@ scenario(
       "escalationWaitsForOwner",
       "An escalation waits for the owner while the owner is offline",
       [
+        flagged.driver,
         flagged.prompt?.class,
         flagged.prompt?.canAnswer,
         flagged.prompt?.answererOnline,
         holder,
         owner,
       ],
-      ["escalation", "ana", false, "refused", "refused"],
+      ["ben", "escalation", "ana", false, "refused", "refused"],
     );
 
     const resume = async () => {
@@ -325,31 +361,69 @@ scenario(
     );
 
     const revoke = async () => {
-      await sendToAgent(session, send("owner-turn", "ana", null));
+      await session.openPrompt(question(2, "before-revoke"));
+      await session.publishPrompt();
+      const key = (await refresh(session, "ben")).prompt!.expected;
       const queued = await session.submit(
-        send("ben-queued", "ben", "owner-turn", "queue"),
+        send("ben-queued", "ben", "ben-escalation", "queue"),
+      );
+      await session.disconnect();
+      const waiting = await session.submit(
+        send("ben-saved", "ben", "ben-escalation"),
       );
       await session.revoke("ben");
       const refused = await session.submit(
-        send("revoked", "ben", "owner-turn"),
+        send("revoked", "ben", "ben-escalation"),
       );
-      return [queued, refused, await refresh(session, "ben")] as const;
+      const stopped = await session.interrupt("ben", {
+        kind: "turn",
+        turn: "ben-escalation",
+      });
+      const answered = await session.prepareAnswer("ben", key);
+      return {
+        queued,
+        waiting,
+        refused,
+        stopped,
+        answered,
+        view: await refresh(session, "ben"),
+      };
     };
-    const [[queued, refused, revoked]] = await observe(
+    const [revoked] = await observe(
       world,
       Promise.all([revoke(), refresh(session, "ana")]),
     );
     check(
       world,
       "revokedSender",
-      "A revoked sender can read but cannot send and their queue entry becomes a suggestion",
+      "Revocation removes Ben's baton and actions and turns both sends into suggestions",
       [
-        queued,
-        refused,
-        revoked.action,
-        revoked.messages.find(({ id }) => id === "ben-queued")?.state,
+        revoked.queued,
+        revoked.waiting,
+        revoked.refused,
+        revoked.stopped.outcome,
+        revoked.answered,
+        revoked.view.action,
+        revoked.view.driver,
+        revoked.view.prompt?.canAnswer,
+        revoked.view.messages.filter(
+          ({ id }) => id === "ben-queued" || id === "ben-saved",
+        ),
       ],
-      ["queued", "refused", "Read", "suggestion"],
+      [
+        "queued",
+        "queued",
+        "refused",
+        "refused",
+        "refused",
+        "Read",
+        null,
+        "ana",
+        [
+          { id: "ben-queued", state: "suggestion" },
+          { id: "ben-saved", state: "suggestion" },
+        ],
+      ],
     );
   }),
 );

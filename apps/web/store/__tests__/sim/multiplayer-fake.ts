@@ -47,9 +47,7 @@ export function fakeMultiplayerSession(
     claim: null as {
       holder: Person;
       expiresAt: number;
-      fenceId: number;
     } | null,
-    presence: new Map<Person, boolean>(),
     writes: { claim: 0, presence: 0 },
   };
   const server = {
@@ -64,7 +62,7 @@ export function fakeMultiplayerSession(
     takeover: null as Fence | null,
     fenceId: 0,
     nextAttempt: 0,
-    prompt: null as PromptCard | null,
+    prompt: null as Omit<PromptCard, "canAnswer" | "answererOnline"> | null,
     snapshot: null as Snapshot | null,
     lastRead: new Map<Person, string>(),
   };
@@ -82,8 +80,11 @@ export function fakeMultiplayerSession(
   const relay = { online: true, presence: null as Person | null };
   const clients = new Map(PEOPLE.map((person) => [person, emptyView()]));
 
-  function write(kind: "claim" | "presence", change: () => void) {
-    change();
+  function write(
+    kind: "claim" | "presence",
+    claim: typeof storage.claim = null,
+  ) {
+    if (kind === "claim") storage.claim = claim;
     storage.writes[kind]++;
   }
 
@@ -104,20 +105,19 @@ export function fakeMultiplayerSession(
   }
 
   function claim(holder: Person) {
-    const fenceId =
-      activeClaim()?.holder === holder
-        ? activeClaim()!.fenceId
-        : ++server.fenceId;
-    write("claim", () => {
-      storage.claim = { holder, fenceId, expiresAt: now() + BATON_LEASE_MS };
-    });
+    if (activeClaim()?.holder !== holder) server.fenceId++;
+    write("claim", { holder, expiresAt: now() + BATON_LEASE_MS });
     server.impliedDriver = null;
   }
 
-  function finishTakeover() {
-    if (!server.takeover || server.active) return;
-    if (anotherSender(OWNER)) claim(OWNER);
-    else server.impliedDriver = server.turn && OWNER;
+  function release(person: Person) {
+    if (storage.claim?.holder === person) write("claim");
+    if (server.impliedDriver === person) server.impliedDriver = null;
+  }
+
+  function finishTakeover(acknowledged = false) {
+    if (!server.takeover || (server.active && !acknowledged)) return;
+    claim(OWNER);
     server.takeover = null;
   }
 
@@ -133,14 +133,8 @@ export function fakeMultiplayerSession(
     };
   }
 
-  function activeAnswerer(card: PromptCard): Person | null {
-    if (card.state !== "open") return null;
+  function answerer(card: Pick<PromptCard, "class">): Person {
     return card.class === "escalation" ? OWNER : (driver() ?? OWNER);
-  }
-
-  function disposition(id: string, state: MessageState) {
-    const message = server.messages.get(id);
-    if (message) message.state = state;
   }
 
   function start(send: Send): Started | Outcome {
@@ -151,7 +145,7 @@ export function fakeMultiplayerSession(
     if (intent === "queue" && server.turn) return "queued";
     const holder = driver();
     if (intent === "steer" && holder && holder !== from) {
-      if (server.impliedDriver && anotherSender(holder)) claim(holder);
+      if (server.impliedDriver) claim(holder);
       return "queued";
     }
     if (!server.machineOnline) return "queued";
@@ -198,7 +192,8 @@ export function fakeMultiplayerSession(
     const staleDrafts = [...server.messages.values()]
       .filter(({ input, state }) => input.from === person && state === "stale")
       .map(({ input }) => ({ id: input.id, text: input.text }));
-    const canAnswer = server.prompt && activeAnswerer(server.prompt);
+    const canAnswer =
+      server.prompt?.state === "open" ? answerer(server.prompt) : null;
     return {
       staleDrafts,
       view: {
@@ -237,7 +232,7 @@ export function fakeMultiplayerSession(
       )
         return "refused";
       if (outcome === "delivered" && deliveries.length === 0) return "refused";
-      disposition(permit.id, outcome);
+      server.messages.get(permit.id)!.state = outcome;
       if (outcome === "in_doubt") return outcome;
       if (outcome === "delivered") {
         server.transcript.push(...deliveries);
@@ -249,13 +244,21 @@ export function fakeMultiplayerSession(
 
   return {
     join: (person) =>
-      wire("server:presence", `${person} joins`, () => {
-        server.present.add(person);
-      }),
+      wire(
+        "server:presence",
+        `${person} joins`,
+        () => void server.present.add(person),
+      ),
     leave: (person) =>
-      wire("server:presence", `${person} leaves`, () => {
-        server.present.delete(person);
-      }),
+      wire(
+        "server:presence",
+        `${person} leaves`,
+        () => void server.present.delete(person),
+      ),
+    release: (person) =>
+      wire("server:control", `${person} releases the baton`, () =>
+        release(person),
+      ),
     renew: (person) =>
       wire("server:presence", `${person} renews`, () => {
         if (
@@ -269,8 +272,13 @@ export function fakeMultiplayerSession(
     revoke: (person) =>
       wire("server:control", `revoke ${person}`, () => {
         server.senders.delete(person);
+        release(person);
         for (const message of server.messages.values()) {
-          if (message.input.from === person && message.state === "queued")
+          if (
+            message.input.from === person &&
+            (message.state === "queued" ||
+              message.state === "waiting_for_machine")
+          )
             message.state = "suggestion";
         }
       }),
@@ -281,13 +289,13 @@ export function fakeMultiplayerSession(
         `start ${send.id} from ${send.from}`,
         () => {
           const previous = server.messages.get(send.id);
-          if (previous)
-            return previous.state === "waiting" ||
-              previous.state === "suggestion"
-              ? "refused"
-              : previous.state === "waiting_for_machine"
-                ? "queued"
-                : previous.state;
+          if (previous) {
+            const { state } = previous;
+            if (state === "suggestion") return "refused";
+            return state === "waiting" || state === "waiting_for_machine"
+              ? "queued"
+              : state;
+          }
           const result = start(send);
           server.messages.set(send.id, {
             input: send,
@@ -315,33 +323,27 @@ export function fakeMultiplayerSession(
     releaseQueue: () =>
       wire("server:start", "release the queue", () => {
         if (server.turn || server.active || server.takeover) return "queued";
-        for (const { input, state } of server.messages.values()) {
-          if (state !== "queued") continue;
-          const result = start({
-            ...input,
-            intent: "queue",
-            expected: { kind: "turn", turn: null },
-          });
-          disposition(
-            input.id,
-            typeof result === "string" ? result : "waiting",
-          );
-          return result;
-        }
-        return "refused";
+        const entry = [...server.messages.values()].find(
+          ({ state }) => state === "queued",
+        );
+        if (!entry) return "refused";
+        const result = start({
+          ...entry.input,
+          intent: "queue",
+          expected: { kind: "turn", turn: null },
+        });
+        entry.state = messageState(result);
+        return result;
       }),
     receivePermit: (permit) =>
       wire("machine:permit", `receive ${permit.id}`, () => {
-        if (!machine.online) return false;
-        machine.inbox.set(permit.attemptId, permit);
-        return true;
+        if (machine.online) machine.inbox.set(permit.attemptId, permit);
       }),
     hand: (permit) =>
       wire("machine:handoff", `hand ${permit.id}`, () => {
         if (machine.journal.has(permit.attemptId)) return "in_doubt";
         const received = machine.inbox.get(permit.attemptId);
         if (!machine.online || !received) return "in_doubt";
-        if (received.fenceId !== permit.fenceId) return "refused";
         if (received.fenceId < machine.fenceId) return "queued";
         if (!matchesExpected(received.expected, observeTurn(agent.turn)))
           return "stale";
@@ -351,7 +353,7 @@ export function fakeMultiplayerSession(
     land: (permit) =>
       wire("agent", `land ${permit.id}`, () => {
         const handed = machine.journal.get(permit.attemptId);
-        if (!handed || handed.fenceId !== permit.fenceId) return "refused";
+        if (!handed) return "refused";
         if (hasReceipt(handed.id)) return "delivered";
         agent.turn ??= { id: handed.id, starter: handed.from };
         agent.deliveries.push({
@@ -382,30 +384,21 @@ export function fakeMultiplayerSession(
         if (machine.online)
           machine.fenceId = Math.max(machine.fenceId, fence.fenceId);
       }),
-    acknowledgeFence: (fence) =>
-      wire("machine:fence", `acknowledge fence ${fence.fenceId}`, () => {
-        if (!machine.online || machine.fenceId !== fence.fenceId) return null;
-        const handed = [...machine.journal.values()].filter(
-          (permit) => permit.fenceId < fence.fenceId,
+    async acknowledgeFence(fence) {
+      const ack = await wire("machine:fence", "check fence ack", () => {
+        if (!machine.online || machine.fenceId !== fence.fenceId) return false;
+        const unlanded = [...machine.journal.values()].some(
+          ({ fenceId, id }) => fenceId < fence.fenceId && !hasReceipt(id),
         );
-        if (handed.some((permit) => !hasReceipt(permit.id))) return null;
-        return new Set(handed.map((permit) => permit.attemptId));
-      }).then((ack) =>
-        wire(
-          "server:control",
-          `record acknowledgement ${fence.fenceId}`,
-          () => {
-            if (!ack || server.takeover?.fenceId !== fence.fenceId)
-              return false;
-            if (server.active && !ack.has(server.active.attemptId)) {
-              disposition(server.active.id, "queued");
-              server.active = null;
-            }
-            finishTakeover();
-            return !server.takeover;
-          },
-        ),
-      ),
+        return !unlanded;
+      });
+      if (!ack) return false;
+      return wire("server:control", "record fence ack", () => {
+        if (server.takeover?.fenceId !== fence.fenceId) return false;
+        finishTakeover(true);
+        return true;
+      });
+    },
     machineTurn: (turn) =>
       wire("agent", `turn ${turn?.id ?? "ends"}`, () => {
         agent.turn = turn;
@@ -416,22 +409,23 @@ export function fakeMultiplayerSession(
         publishAgentTurn(turn),
       );
     },
-    interrupt: (from, expected) =>
-      wire("server:start", `check interrupt from ${from}`, () => {
-        if (from !== OWNER && from !== driver()) return "refused";
+    async interrupt(from, expected) {
+      const status = await wire("server:start", `stop from ${from}`, () => {
+        if (!server.senders.has(from) || (from !== OWNER && from !== driver()))
+          return "refused";
         return matchesExpected(expected, observeTurn(server.turn))
           ? "started"
           : "stale";
-      }).then((status) => {
-        if (status !== "started") return status;
-        return wire("machine:interrupt", "apply the interrupt", () => {
-          if (!machine.online) return "in_doubt";
-          if (!matchesExpected(expected, observeTurn(agent.turn)))
-            return "stale";
-          agent.turn = null;
-          return "delivered";
-        });
-      }),
+      });
+      if (status !== "started") return { outcome: status, stage: "server" };
+      const outcome = await wire("machine:interrupt", "interrupt turn", () => {
+        if (!machine.online) return "in_doubt";
+        if (!matchesExpected(expected, observeTurn(agent.turn))) return "stale";
+        agent.turn = null;
+        return "delivered";
+      });
+      return { outcome, stage: "machine" };
+    },
     elapse: (ms) => wire("clock", `advance ${ms}ms`, () => advance(ms)),
     disconnect: () =>
       wire("machine:connection", "machine disconnects", () => {
@@ -439,12 +433,14 @@ export function fakeMultiplayerSession(
       }).then(() =>
         wire("server:control", "server learns the machine is offline", () => {
           server.machineOnline = false;
-          if (server.active) disposition(server.active.id, "in_doubt");
+          if (server.active)
+            server.messages.get(server.active.id)!.state = "in_doubt";
         }),
       ),
     restart: () =>
       wire("machine:connection", "machine restarts with an empty inbox", () => {
         machine.inbox.clear();
+        machine.fenceId = 0;
         machine.online = true;
       }).then(() =>
         wire("server:control", "server learns the machine is online", () => {
@@ -460,7 +456,7 @@ export function fakeMultiplayerSession(
     announcePresence: (person) =>
       wire("server:presence", `announce presence for ${person}`, () => {
         if (anotherSender(person) && server.senders.has(person))
-          write("presence", () => storage.presence.set(person, true));
+          write("presence");
       }),
     relayHeartbeat: (person) =>
       wire("relay", `heartbeat from ${person}`, () => {
@@ -481,13 +477,9 @@ export function fakeMultiplayerSession(
         server.lastRead.set(person, event);
       }),
     openPrompt: (prompt) =>
-      wire(
-        "agent",
-        `open prompt ${prompt.opened.prompt_id} in run ${prompt.run}`,
-        () => {
-          agent.prompt = prompt;
-        },
-      ),
+      wire("agent", "open prompt", () => {
+        agent.prompt = prompt;
+      }),
     closePrompt: () =>
       wire("agent", "agent closes the prompt", () => {
         agent.prompt = null;
@@ -507,8 +499,6 @@ export function fakeMultiplayerSession(
           class: classifyPrompt(prompt.opened, prompt.verifiedKind),
           state: "open",
           answeredBy: null,
-          canAnswer: null,
-          answererOnline: false,
         };
       });
     },
@@ -517,7 +507,9 @@ export function fakeMultiplayerSession(
         const { prompt } = server;
         if (
           !prompt ||
-          person !== activeAnswerer(prompt) ||
+          prompt.state !== "open" ||
+          !server.senders.has(person) ||
+          person !== answerer(prompt) ||
           !server.present.has(person)
         )
           return "refused";
@@ -570,20 +562,16 @@ export function fakeMultiplayerSession(
           },
         ),
       ),
-    receiveRelay: (person) =>
-      wire(
+    async receiveRelay(person) {
+      const presence = await wire(
         "relay",
-        `read relay presence for ${person}`,
+        "read presence",
         () => relay.presence,
-      ).then((presence) =>
-        wire(
-          `client:${person}:relay`,
-          `${person} receives relay presence`,
-          () => {
-            clients.get(person)!.presence = presence;
-          },
-        ),
-      ),
+      );
+      await wire(`client:${person}:relay`, "receive presence", () => {
+        clients.get(person)!.presence = presence;
+      });
+    },
     view: (person) => ({ ...clients.get(person)! }),
     extraWrites: () => ({ ...storage.writes }),
   };

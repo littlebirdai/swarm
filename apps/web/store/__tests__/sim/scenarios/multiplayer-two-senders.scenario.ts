@@ -6,6 +6,7 @@ import {
   permitOf,
   refresh,
   send,
+  sendToAgent,
   withMultiplayerSession,
 } from "../multiplayer-steps";
 
@@ -66,6 +67,17 @@ scenario(
       "One client receives the transcript before the other client",
       [firstView.transcript.length > 0, secondUnsynced, session.view(second)],
       [true, oldView, oldView],
+    );
+    const retried = await observe(
+      world,
+      session.submit(send(first, first, null)),
+    );
+    check(
+      world,
+      "repeatSendKeepsReceipt",
+      "A retry with the same send ID returns the existing receipt",
+      retried,
+      "delivered",
     );
     const secondView = await observe(world, refresh(session, second));
     const firstDelivery = { id: first, from: first, turn: first, text: first };
@@ -170,6 +182,46 @@ scenario(
       "A sender without expected still reaches the agent",
       legacy,
       "delivered",
+    );
+    const passBaton = async () => {
+      await session.release(first);
+      const result = await session.submit(
+        send("after-release", second, second),
+      );
+      const delivered =
+        typeof result === "string"
+          ? result
+          : await complete(session, result.permit);
+      return [delivered, (await refresh(session, first)).driver] as const;
+    };
+    const [released] = await observe(
+      world,
+      Promise.all([passBaton(), refresh(session, second)]),
+    );
+    check(
+      world,
+      "releaseLetsOtherDrive",
+      "The other sender drives immediately after the holder releases",
+      released,
+      ["delivered", second],
+    );
+    const releaseImplied = async () => {
+      await session.release(second);
+      await session.leave(first);
+      await session.machineTurn(null);
+      await session.publishTurn();
+      await sendToAgent(session, send("solo", second, null));
+      const before = session.extraWrites();
+      await session.release(second);
+      return [before, (await refresh(session, second)).driver] as const;
+    };
+    const [soloWrites, soloDriver] = await observe(world, releaseImplied());
+    check(
+      world,
+      "releaseClearsImpliedDriver",
+      "The solo sender releases the implied baton without a write",
+      [soloDriver, session.extraWrites()],
+      [null, soloWrites],
     );
   }),
 );

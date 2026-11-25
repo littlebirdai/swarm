@@ -127,7 +127,7 @@ scenario(
       "interruptNoOp",
       "The machine refuses an interrupt for the previous turn",
       interrupt,
-      "stale",
+      { outcome: "stale", stage: "machine" },
     );
 
     const serverRefuses = async () => {
@@ -156,9 +156,74 @@ scenario(
       { text: "Use the current draft", offerQueue: true },
     );
 
-    const release = async () => {
-      await session.machineTurn(null);
+    const checkInterrupts = async () => {
+      await session.requestTakeover();
+      return Promise.all([
+        session.interrupt("ana", { kind: "turn", turn: "opening" }),
+        session.interrupt("ben", { kind: "turn", turn: "next-turn" }),
+      ]);
+    };
+    const [[oldStop, nonHolderStop]] = await observe(
+      world,
+      Promise.all([checkInterrupts(), refresh(session, "ben")]),
+    );
+    check(
+      world,
+      "serverRefusesStaleInterrupt",
+      "The server refuses an old interrupt before the machine sees it",
+      oldStop,
+      { outcome: "stale", stage: "server" },
+    );
+    check(
+      world,
+      "serverRefusesNonHolderInterrupt",
+      "The server refuses an interrupt from a sender without the baton",
+      nonHolderStop,
+      { outcome: "refused", stage: "server" },
+    );
+
+    const stopBeforeHandoff = async () => {
+      const result = await session.submit(
+        send(
+          "stale-at-idle",
+          "ana",
+          "next-turn",
+          "steer",
+          "Keep the stopped draft",
+        ),
+      );
+      const permit = permitOf(result);
+      await session.receivePermit(permit);
+      const appliedStop = await session.interrupt("ana", {
+        kind: "turn",
+        turn: "next-turn",
+      });
+      const hand = await session.hand(permit);
+      const outcome = hand === "handed" ? await session.land(permit) : hand;
+      await session.settle(permit, outcome);
       await session.publishTurn();
+      return [appliedStop, outcome, await refresh(session, "ana")] as const;
+    };
+    const [[appliedStop, idleSteer, idle]] = await observe(
+      world,
+      Promise.all([stopBeforeHandoff(), refresh(session, "ben")]),
+    );
+    check(
+      world,
+      "idleSteerIsStale",
+      "A steer for a stopped turn cannot start a new turn",
+      [idleSteer, idle.composer],
+      ["stale", { text: "Keep the stopped draft", offerQueue: true }],
+    );
+    check(
+      world,
+      "validInterruptStopsTurn",
+      "A valid interrupt stops the machine's current turn",
+      [appliedStop, idle.turn],
+      [{ outcome: "delivered", stage: "machine" }, null],
+    );
+
+    const release = async () => {
       const result = await complete(
         session,
         permitOf(await session.releaseQueue()),

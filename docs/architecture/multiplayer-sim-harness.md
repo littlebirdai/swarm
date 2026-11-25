@@ -958,12 +958,12 @@ Then run `cd apps/server && bun test convex/`. Time `bun run sim` and the legacy
 
 Run `bun run sim multiplayer --sweep 256 --trace` from `apps/web`. The trace shows the delivery order. The four `multiplayer-*.scenario.ts` files use the existing scheduler, replay, and reports.
 
-| Scenario                   | What the person sees                                                                                                                                                                   |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `multiplayerTwoSenders`    | The first sender drives. The queue waits for the next turn. Retries deliver each message once, and each client sees the transcript when it receives the update.                        |
-| `multiplayerOwnerTakeover` | The old driver stays until the handed steer settles. The restart can recover its receipt. A new send waits if the machine is offline.                                                  |
-| `multiplayerRelayStops`    | Presence disappears. The driver, queue, and prompt remain available. A stale steer stays in the composer. A stale interrupt leaves the next turn running.                              |
-| `multiplayerLateJoin`      | The second person sees their last read point, changed files, decisions, driver, and prompt. Their first attempt to steer queues. The owner can answer after the holder's lease lapses. |
+| Scenario                   | What the person sees                                                                                                                                                                                                                |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `multiplayerTwoSenders`    | The first sender drives. The other sender can take over after release. The queue waits for the next turn, and retries deliver each message once.                                                                                    |
+| `multiplayerOwnerTakeover` | The old driver stays while a handed steer has no receipt, even after a restart. A new send waits if the machine is offline.                                                                                                         |
+| `multiplayerRelayStops`    | Presence disappears. The driver, queue, and prompt remain available. A stale steer stays in the composer. A stale interrupt leaves the next turn running.                                                                           |
+| `multiplayerLateJoin`      | The second person sees their last read point, changed files, decisions, driver, and prompt. Their first attempt to steer queues. Only the owner can answer an escalation. Revocation returns queued and saved sends as suggestions. |
 
 The scenarios receive an async `MultiplayerSession` from the test fixture. Its fake keeps separate server, machine, agent, relay, and client state. The scheduler can vary the order of those deliveries. Each client receives durable state and relay presence separately. Permits and settlements identify the delivery attempt and fence.
 

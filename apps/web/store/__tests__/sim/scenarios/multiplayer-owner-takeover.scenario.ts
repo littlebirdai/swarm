@@ -47,13 +47,24 @@ scenario(
       "handed",
     );
 
+    const forgedReceipt = await observe(
+      world,
+      session.settle(permit, "delivered"),
+    );
+    check(
+      world,
+      "deliveryRequiresReceipt",
+      "A delivery without an agent receipt cannot settle",
+      forgedReceipt,
+      "refused",
+    );
+
     const take = async () => {
       const fence = await session.requestTakeover();
       await session.receiveFence(fence);
-      const acknowledged = await session.acknowledgeFence(fence);
-      return { fence, acknowledged, view: await refresh(session, "ana") };
+      return { fence, view: await refresh(session, "ana") };
     };
-    const [{ fence, acknowledged, view }] = await observe(
+    const [{ fence, view }] = await observe(
       world,
       Promise.all([
         take(),
@@ -65,8 +76,8 @@ scenario(
       world,
       "takeoverWaits",
       "Ana sees Taking over while Ben still drives",
-      [view.driver, view.action, acknowledged],
-      ["ben", "Taking over", false],
+      [view.driver, view.action],
+      ["ben", "Taking over"],
     );
 
     const [anaQueued, benQueued, oldAttempt, oldFence] = await observe(
@@ -93,25 +104,38 @@ scenario(
       await session.disconnect();
       return refresh(session, "ana");
     };
-    const [down, landed] = await observe(
+    const [down] = await observe(
       world,
-      Promise.all([offline(), session.land(permit)]),
+      Promise.all([offline(), refresh(session, "ben")]),
     );
     check(
       world,
       "offlineDeliveryInDoubt",
       "The driver stays while the machine is offline and the handed steer is in doubt",
-      [
-        down.driver,
-        down.messages.find(({ id }) => id === permit.id)?.state,
-        landed,
-      ],
-      ["ben", "in_doubt", "delivered"],
+      [down.driver, down.messages.find(({ id }) => id === permit.id)?.state],
+      ["ben", "in_doubt"],
+    );
+
+    const restart = async () => {
+      await session.restart();
+      await session.receiveFence(fence);
+      const ack = await session.acknowledgeFence(fence);
+      return [ack, (await refresh(session, "ana")).driver] as const;
+    };
+    const [ackWhileOpen] = await observe(
+      world,
+      Promise.all([restart(), refresh(session, "ben")]),
+    );
+    check(
+      world,
+      "ackWaitsAfterRestart",
+      "The machine withholds the ack while its journal has an unlanded steer",
+      ackWhileOpen,
+      [false, "ben"],
     );
 
     const recover = async () => {
-      await session.restart();
-      await session.receiveFence(fence);
+      await session.land(permit);
       await session.receivePermit(permit);
       const retry = await session.hand(permit);
       const result = await session.reconcile(permit);
@@ -207,11 +231,19 @@ scenario(
         await session.submit(send("fenced", "ben", "ben-again")),
       );
       await session.receivePermit(next);
+
       const secondFence = await session.requestTakeover();
       await session.receiveFence(secondFence);
       const hand = await session.hand(next);
+      const unhanded = await session.land(next);
+      await session.disconnect();
+      await session.restart();
+      const ackBeforeFence = await session.acknowledgeFence(secondFence);
+      await session.receiveFence(secondFence);
       const ack = await session.acknowledgeFence(secondFence);
-      return [hand, ack] as const;
+      if (hand === "queued") await session.settle(next, hand);
+      const driver = (await refresh(session, "ana")).driver;
+      return { hand, ack, driver, unhanded, ackBeforeFence };
     };
     const [fenced] = await observe(
       world,
@@ -219,10 +251,17 @@ scenario(
     );
     check(
       world,
+      "restartClearsFence",
+      "Restart requires the fence to arrive again before the machine acknowledges it",
+      fenced.ackBeforeFence,
+      false,
+    );
+    check(
+      world,
       "fenceBlocksHand",
       "The machine fence prevents an old permit from reaching the agent",
-      fenced,
-      ["queued", true],
+      [fenced.hand, fenced.unhanded, fenced.ack, fenced.driver],
+      ["queued", "refused", true, "ana"],
     );
   }),
 );
