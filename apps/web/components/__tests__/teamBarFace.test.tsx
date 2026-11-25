@@ -406,6 +406,10 @@ describe("the one card under a face", () => {
     // The profile door.
     await h.fire(card.querySelector("[data-door]")!, "click");
     expect(h.q("[data-route]")?.textContent).toBe("/org/@ann");
+    expect(h.navigationLog.at(-1)).toEqual({
+      path: "/org/@ann",
+      action: "push",
+    });
     expectAbsent(h.q("[data-member-card]"));
   });
 

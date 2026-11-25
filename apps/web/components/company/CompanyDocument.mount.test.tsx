@@ -1,3 +1,4 @@
+import { waitForPopupClose } from "../../test-helpers/waitForPopupClose";
 import { waitForDom } from "../../test-helpers/waitForDom";
 import { expectAbsent } from "../../test-helpers/domExpect";
 import { api } from "@codecast/convex/convex/_generated/api";
@@ -466,8 +467,7 @@ test("the owner and status pickers update the row in place", async () => {
     const scope = line(id)!.querySelector("[data-line-" + which + "]");
     const option = () =>
       qa("[role=dialog] button").find((b) => label.test(b.textContent ?? ""));
-    await act(() => waitForDom(document.body, () => !q("[role=dialog]")));
-    await act(() => new Promise<void>((focused) => setTimeout(focused, 0)));
+    await waitForPopupClose();
     await click(scope?.querySelector("button"));
     await act(() => waitForDom(document.body, () => !!option()));
     return option();

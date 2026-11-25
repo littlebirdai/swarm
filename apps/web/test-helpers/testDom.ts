@@ -124,6 +124,9 @@ export function createTestDom(url: string) {
   w.HTMLElement.prototype.scrollIntoView ??= noop;
   w.HTMLElement.prototype.scrollTo ??= noop;
   w.scrollTo = noop;
+  w.open = () => null;
+  w.HTMLFormElement.prototype.submit = noop;
+  w.HTMLCanvasElement.prototype.getContext = () => null;
   return {
     dom,
     close() {

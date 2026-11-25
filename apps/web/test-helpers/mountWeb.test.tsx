@@ -293,3 +293,16 @@ test("reports timers that survive unmount", async () => {
   });
   expect(pendingTimers.some(({ delay }) => delay === 10_000)).toBe(false);
 });
+
+test("restores store actions and accepts browser calls that jsdom lacks", async () => {
+  const { useInboxStore } = await import("../store/inboxStore");
+  const original = useInboxStore.getInitialState().touchMru;
+  const first = await mountWeb(null);
+  useInboxStore.setState({ touchMru: () => {} });
+  window.open("/docs");
+  document.createElement("canvas").getContext("2d");
+  await first.close();
+  const second = await mountWeb(null);
+  expect(useInboxStore.getState().touchMru).toBe(original);
+  await second.close();
+});

@@ -149,6 +149,13 @@ export async function mountWeb(node: ReactNode, options: Options = {}) {
           true,
         );
       }
+      useInboxStore.setState(
+        Object.fromEntries(
+          Object.entries(initial).filter(
+            ([, value]) => typeof value === "function",
+          ),
+        ) as Partial<StoreState>,
+      );
       closeCallStage();
       takeCallThreadRequest();
       closeReveal();
