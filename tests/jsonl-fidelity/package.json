@@ -1,0 +1,10 @@
+{
+  "name": "@codecast/test-jsonl-fidelity",
+  "private": true,
+  "scripts": {
+    "test:live": "bun ./roundtrip.ts"
+  },
+  "dependencies": {
+    "@codecast/cli": "workspace:*"
+  }
+}

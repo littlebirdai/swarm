@@ -26,7 +26,10 @@ To add a library, use the steps below.
 
 CI and the source walkers find the new library automatically.
 
-`tests/` contains test suites that cross packages. A suite with its own `package.json` is a workspace member.
+`tests/` contains test suites that use more than one package. Each suite with a `package.json` is a workspace member.
+
+The suites in `tests/fork/` and `tests/jsonl-fidelity/` use live data. Both require `CODECAST_RUN_LIVE_TESTS=1` and use the `test:live` script. The fork suite uses the deployment in the local Codecast config. The JSONL fidelity suite reads local session transcripts.
+
 `platform/` is a generated mirror. Do not change its structure by hand.
 
 ## Vendored platform packages

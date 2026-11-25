@@ -12,6 +12,11 @@ interface Config {
 let _config: Config | null = null;
 
 export function getConfig(): Config {
+  if (process.env.CODECAST_RUN_LIVE_TESTS !== "1") {
+    throw new Error(
+      "Set CODECAST_RUN_LIVE_TESTS=1 to use the configured deployment.",
+    );
+  }
   if (_config) return _config;
   const configPath = path.join(
     process.env.HOME || "",

@@ -1,0 +1,7 @@
+{
+  "name": "@codecast/test-fork",
+  "private": true,
+  "scripts": {
+    "test:live": "bun test ./fork.live.ts"
+  }
+}
