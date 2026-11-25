@@ -163,6 +163,23 @@ test("a person who creates a plan from a template stores a human source", async 
   });
 });
 
+test("a person who forks a plan stores a human source", async () => {
+  const { t } = await setup();
+  const { short_id } = await t.mutation(api.plans.create, {
+    api_token: apiToken,
+    title: "Restore service",
+  });
+  await t.mutation(api.plans.fork, {
+    api_token: apiToken,
+    source_short_id: short_id,
+  });
+  const plans = await t.run(({ db }) => db.query("plans").collect());
+  expect(plans.map(({ title, source }) => [title, source])).toEqual([
+    ["Restore service", "human"],
+    ["Restore service (fork)", "human"],
+  ]);
+});
+
 test("a task cannot assign a role ID outside its workspace", async () => {
   const fixture = await setup();
   const team = await enableOrg(fixture);

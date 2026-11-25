@@ -220,7 +220,7 @@ export type FaceMember = {
   walkie_pref?: string;
   walkie_snoozed_until?: number;
   is_bot?: boolean;
-  bot_kind?: "anchor" | "slack";
+  bot_kind?: "anchor" | "slack" | "role";
 };
 
 /** A seat (calls.getRoomOccupancy / getLiveRooms members). */
