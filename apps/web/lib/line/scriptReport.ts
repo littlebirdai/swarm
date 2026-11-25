@@ -6,7 +6,7 @@
 // the file paths a script prints for the next step left out, since a path
 // says nothing at a glance. Pure.
 
-import { checksPassWords } from "@codecast/shared/contracts/changeCard";
+import { checksPassWords } from "@codecast/line/changeCard";
 
 export type CheckRow = { name: string; ok: boolean; detail: string | null };
 export type ScriptChecks = {

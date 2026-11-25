@@ -5,7 +5,7 @@ import {
   isLineRun,
   lineRunOutcome,
   type LineRunStations,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 
 /**
  * The status a cause should hold, given the completed line run bound to it,

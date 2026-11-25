@@ -4,8 +4,7 @@
 // flipped. The change card (LE10) reads its eval check and its examples here.
 //
 // The shapes live in @platform/evals/contract, beside the code that builds
-// them (@platform/evals/analysis buildEvalResult). This path stays so the
-// change card and convex keep reading them from shared.
+// them (@platform/evals/analysis buildEvalResult).
 
 export type {
   EvalFlip,

@@ -2,7 +2,7 @@
 // knows one, and stays what was written otherwise (web: remarkEntityIds and
 // EntityAwareLink). Most runs are CI, so the fallback is the common case.
 import React from "react";
-import { actionsRunKey } from "@codecast/shared/contracts/deploys";
+import { actionsRunKey } from "@codecast/line/deploys";
 import { deployRunRefRegex, splitDeployRunRef } from "@codecast/entities";
 import { EntityPill } from "./EntityPill";
 

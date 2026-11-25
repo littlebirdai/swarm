@@ -7,8 +7,8 @@
 //   lapsed     asked, nobody answered in time, and the run went on without it
 //   withdrawn  taken back, dismissed, or its run ended before anyone answered
 // Only `answered` is an answer. Pure.
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
-import { choiceWords } from "@codecast/shared/contracts/causeHistory";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
+import { choiceWords } from "@codecast/line/causeHistory";
 import { wouldLabel } from "./fixDecision";
 import { landWithoutYesWords } from "./runReport";
 

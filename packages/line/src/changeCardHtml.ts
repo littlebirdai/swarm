@@ -12,7 +12,7 @@ import {
   verdictLabel,
   type CardCheck,
   type ChangeCard,
-} from "../contracts/changeCard";
+} from "./changeCard";
 
 const esc = (s: string) =>
   s

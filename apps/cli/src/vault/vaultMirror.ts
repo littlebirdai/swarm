@@ -35,13 +35,15 @@ import { registeredVaults } from "./vaultRegistry.js";
 import {
   VAULT_MIRROR_MAX_BODY_BYTES,
   VAULT_MIRROR_MAX_STAMP_BATCH,
-  isVaultMarkdownPath,
-  type VaultFileEntry,
-  type VaultInfo,
   type VaultMirrorNote,
   type VaultMirrorUpsertRequest,
   type VaultMirrorUpsertResponse,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultMirror";
+import {
+  isVaultMarkdownPath,
+  type VaultFileEntry,
+  type VaultInfo,
+} from "@codecast/vault/vaultProtocol";
 import {
   isVaultDocumentPath,
   resolveVaultPath,

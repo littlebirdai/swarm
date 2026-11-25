@@ -49,7 +49,7 @@
 // Station words: a visit's received/decided/why come from its station
 // session's pinned report (runReport stationReport, fed by withAgentSessions);
 // the full brief a station was handed is read on demand (useStationInput).
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
 import { causeAsks, causeName, type LineCauseTask } from "../lineFlow";
 import {
   CODECAST_LINE,
@@ -126,7 +126,7 @@ import {
   type CloseArgument,
   type CloseKind,
   type RunSaid,
-} from "@codecast/shared/contracts/causeHistory";
+} from "@codecast/line/causeHistory";
 import { halfOfPhase } from "@codecast/flows/linePhases";
 import type { LabelVerdict } from "./lineLabels";
 import { isEmptyFinding, repeatedFindings } from "./findingEvidence";

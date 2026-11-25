@@ -28,7 +28,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import {
   expectationIdPrefix,
   isExpectationId,
-} from "@codecast/shared/contracts/expectations";
+} from "@codecast/line/expectations";
 import { resolveWorkspaceProject } from "./projectRef";
 import type { Placed } from "./signalPlacedValidator";
 

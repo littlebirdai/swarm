@@ -21,7 +21,7 @@ export const judgeInputs = v.object({
   facts: v.string(),
 });
 
-/** An agent judge's session (contracts/agentJudges AgentJudgeSpec), with the files its header names read in at publish. */
+/** An agent judge's session (packages/judges/src/agentJudges.ts AgentJudgeSpec), with the files its header names read in at publish. */
 export const agentJudgeFields = v.object({
   tools: v.array(v.string()),
   cwd: v.string(),

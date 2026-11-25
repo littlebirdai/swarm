@@ -3,10 +3,7 @@
 // Events come from the lineTimeline collection (convex lineTimeline.page) and,
 // for decisions, from their one home, the decision collection: a line card and
 // a card any other session asked read the same way, each naming who asked.
-import type {
-  TimelineEvent,
-  TimelineKind,
-} from "@codecast/shared/contracts/lineTimeline";
+import type { TimelineEvent, TimelineKind } from "@codecast/line/lineTimeline";
 import { sourceName } from "./sourceNames";
 
 export type { TimelineEvent, TimelineKind };

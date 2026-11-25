@@ -17,7 +17,7 @@ import { runModelCall, type CallScope } from "./modelCalls";
 import { mergeProblemInto, unfoldProblem } from "./signals";
 import { vectorScope } from "./findingGroups";
 import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
-import { parseJsonBlock } from "@codecast/shared/contracts/modelCall";
+import { parseJsonBlock } from "@codecast/judges/modelCall";
 
 /** The judge's model. On a labelled sample (2026-10-20) it found the three pairs of one cause the cheap model missed two of, and kept eight different pairs apart as the cheap model did. */
 export const MERGE_MODEL = "claude-sonnet-5-5";

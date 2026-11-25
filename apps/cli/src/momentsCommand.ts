@@ -28,16 +28,13 @@ import {
   parseExtractorHeader,
   publishedFor,
 } from "@codecast/ingest/moments";
-import { parseJudgeSpec } from "@codecast/shared/contracts/judges";
+import { parseJudgeSpec } from "@codecast/judges/judges";
 import {
   AGENT_LIMITS,
   type AgentJudgeSpec,
-} from "@codecast/shared/contracts/agentJudges";
+} from "@codecast/judges/agentJudges";
 import { createHash } from "node:crypto";
-import {
-  budgetWords,
-  type BudgetSummary,
-} from "@codecast/shared/contracts/modelCall";
+import { budgetWords, type BudgetSummary } from "@codecast/judges/modelCall";
 import { execFileAsync } from "./proc.js";
 
 function fail(message: string, code = 2): never {

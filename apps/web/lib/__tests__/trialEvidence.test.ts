@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ChangeCard } from "@codecast/shared/contracts/changeCard";
+import type { ChangeCard } from "@codecast/line/changeCard";
 import {
   cardAsRead,
   emptyWords,
@@ -27,7 +27,7 @@ const card: ChangeCard = {
     readFileSync(
       join(
         import.meta.dir,
-        "../../../../packages/shared/contracts/__fixtures__/changeCard/card.json",
+        "../../../../packages/line/test/__fixtures__/changeCard/card.json",
       ),
       "utf-8",
     ),

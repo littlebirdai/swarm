@@ -1,6 +1,6 @@
 "use client";
 
-import { gateDoc } from "@codecast/shared/contracts/changeCard";
+import { gateDoc } from "@codecast/line/changeCard";
 import { useTaskHref } from "../../lib/taskHrefContext";
 import type { ReactNode } from "react";
 import Link from "next/link";

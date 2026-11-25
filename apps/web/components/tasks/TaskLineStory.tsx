@@ -21,11 +21,8 @@ import {
 } from "../../lib/line/loopSteps";
 import { lineLabelKey } from "../../lib/line/lineLabels";
 import { StationStrip } from "./StationStrip";
-import {
-  isLineRun,
-  lineRunOutcome,
-} from "@codecast/shared/contracts/changeCard";
-import { isExpectationId } from "@codecast/shared/contracts/expectations";
+import { isLineRun, lineRunOutcome } from "@codecast/line/changeCard";
+import { isExpectationId } from "@codecast/line/expectations";
 import { needsWords } from "@codecast/goals/goalsBrief";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";

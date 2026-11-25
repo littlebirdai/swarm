@@ -36,7 +36,7 @@ import {
   DIAGNOSIS_ANSWERS,
   judgeReviewLine,
   type JudgeReviewView,
-} from "@codecast/shared/contracts/judgeReview";
+} from "@codecast/judges/judgeReview";
 
 export { judgeReviewLine };
 

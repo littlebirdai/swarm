@@ -10,7 +10,7 @@ import schema from "./schema";
 import { api, internal } from "./_generated/api";
 import { hashToken } from "./apiTokens";
 import { allModules } from "./testModules.testkit";
-import { AGENT_FINDINGS_TURN } from "@codecast/shared/contracts/agentJudges";
+import { AGENT_FINDINGS_TURN } from "@codecast/judges/agentJudges";
 
 const TOKEN = "r".repeat(64);
 const T0 = Date.now();

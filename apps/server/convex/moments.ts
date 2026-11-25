@@ -52,12 +52,12 @@ import {
   readKeptBody,
 } from "./lib/momentBody";
 import { putChunk } from "./lib/replayChunks";
-import type { ModelCallResult } from "@codecast/shared/contracts/modelCall";
+import type { ModelCallResult } from "@codecast/judges/modelCall";
 import {
   linesSince,
   renderExpectations,
   type ExpectationsVersion,
-} from "@codecast/shared/contracts/expectations";
+} from "@codecast/line/expectations";
 import {
   DEFAULT_QUIET_MS,
   MOMENT_LIMITS,
@@ -74,7 +74,7 @@ import {
   narrowBrief,
   type ExpectationsBrief,
   type JudgeHandoff,
-} from "@codecast/shared/contracts/judges";
+} from "@codecast/judges/judges";
 import {
   judgeMoment,
   prepareJudge,

@@ -27,7 +27,7 @@ import {
   type Expectation,
   type ExpectationOp,
   type PersonEdit,
-} from "@codecast/shared/contracts/expectations";
+} from "@codecast/line/expectations";
 import type { ProjectExpectationsRow } from "../hooks/useSyncProjectExpectations";
 
 /** The card answer the queue gives (inboxStore answerDecisionDraft), handed in so the slice answers on the same rail. */

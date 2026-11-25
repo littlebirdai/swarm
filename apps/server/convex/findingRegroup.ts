@@ -19,7 +19,7 @@ import {
   type SignalInput,
 } from "./signals";
 import { parseWorkspaceKey } from "./lib/accessKeys";
-import { agentSimilarTextOf } from "@codecast/shared/contracts/agentJudges";
+import { agentSimilarTextOf } from "@codecast/judges/agentJudges";
 
 const BATCH = 20;
 // Folding writes a problem's rows; the deployment takes 4 MiB of writes a second in all, and the pass shares it with

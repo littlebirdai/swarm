@@ -9,7 +9,7 @@ import {
   type DeployAfterError,
   type DeployAfterProblem,
   type DeployView,
-} from "@codecast/shared/contracts/deploys";
+} from "@codecast/line/deploys";
 
 const DAY = 24 * 60 * 60 * 1000;
 /** The after window of a deploy with no later one on its target is capped here. */

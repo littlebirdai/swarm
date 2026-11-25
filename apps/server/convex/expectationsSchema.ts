@@ -1,5 +1,5 @@
 // A project's expectations (docs/architecture/the-line-model.md LM5) and the
-// proposals that change them. Shapes: @codecast/shared/contracts/expectations.
+// proposals that change them. Shapes: @codecast/line/expectations.
 //
 // Access is the project's: `workspace` is copied from the project row at
 // write time and every read checks the project itself (canAccessProject), so
@@ -7,7 +7,7 @@
 // team_id is routing only.
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
-import { CITATION_KINDS } from "@codecast/shared/contracts/expectations";
+import { CITATION_KINDS } from "@codecast/line/expectations";
 
 const citation = v.object({
   kind: v.union(...CITATION_KINDS.map((k) => v.literal(k))),

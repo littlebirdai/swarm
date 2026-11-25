@@ -47,7 +47,7 @@ import {
 } from "./signals";
 import { runModelCall } from "./modelCalls";
 import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
-import { isExpectationId } from "@codecast/shared/contracts/expectations";
+import { isExpectationId } from "@codecast/line/expectations";
 import { latestExpectations } from "./lib/expectationsApply";
 import { leadRoleOf } from "./lineCause";
 import {
@@ -69,7 +69,7 @@ import {
   JUDGE_REVIEW_ATTEMPTS,
   JUDGE_REVIEW_GRAPH,
   type DiagnosisAnswer,
-} from "@codecast/shared/contracts/judgeReview";
+} from "@codecast/judges/judgeReview";
 
 type Review = NonNullable<Doc<"signals">["judge_review"]>;
 type Trigger = Review["trigger"];

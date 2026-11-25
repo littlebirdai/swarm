@@ -3,10 +3,7 @@
 // hover card leads with, and the word a merged pull request or main commit
 // carries for how far it has gone toward production. Web and phone draw the
 // same words in the same tones. Pure: no store, no React.
-import {
-  actionsRunKey,
-  type DeployStatus,
-} from "@codecast/shared/contracts/deploys";
+import { actionsRunKey, type DeployStatus } from "@codecast/line/deploys";
 import type { ReachState } from "@codecast/deploys/deployReach";
 import { LINE_DEPLOY_STEP_LABELS } from "@codecast/deploys/lineDeploy";
 

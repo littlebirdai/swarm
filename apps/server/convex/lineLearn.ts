@@ -15,7 +15,7 @@ import {
   CARD_GATE_NODE_ID,
   verdictLabel,
   verdictOfOption,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import { fnv1a32 } from "@codecast/hash/fnv1a32";
 
 type Answer = { status: string; answer_index?: number; answer_text?: string };

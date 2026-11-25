@@ -24,7 +24,7 @@ import type {
   EvalRepsFreeze,
   EvalRepsSide,
   EvalRepsSurface,
-} from "@codecast/shared/contracts/evalResult";
+} from "@codecast/line/evalResult";
 import { buildEvalResult, evalResultLines } from "@platform/evals/analysis";
 
 import { describeFreeze, hasSnapshot } from "../adapters/resolver";

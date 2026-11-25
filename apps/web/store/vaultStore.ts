@@ -13,11 +13,11 @@ import type {
   VaultFileEntry,
   VaultInfo,
   VaultWsEvent,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 import {
   isVaultMarkdownPath,
   VAULT_MAX_PREVIEW_BYTES,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 import {
   lastDiscoveryFailure,
   loopbackFailureReason,

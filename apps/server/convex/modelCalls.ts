@@ -40,7 +40,7 @@ import {
   type BudgetSummary,
   type ModelCallResult,
   type ModelCallSpec,
-} from "@codecast/shared/contracts/modelCall";
+} from "@codecast/judges/modelCall";
 import { vendorRefusalFor } from "./lib/vendorGuard";
 
 const purposeValidator = v.union(

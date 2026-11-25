@@ -2,7 +2,7 @@
 // it came from, and how the list's tabs, filters, groups and sorts read those
 // facts. The Decisions page and Flows' For you both arrange their rows here,
 // so the two lists agree on every row's owner, group and order. Pure.
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
 import {
   decisionOwnerOf,
   type DecisionOwnerRef,

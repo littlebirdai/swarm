@@ -174,13 +174,12 @@ describe("DecisionCompactCardView", () => {
 test("a change card draws as one row with its answer chips", async () => {
   const { readFileSync } = await import("node:fs");
   const { join } = await import("node:path");
-  const { CARD_DECISION_OPTIONS } =
-    await import("@codecast/shared/contracts/changeCard");
+  const { CARD_DECISION_OPTIONS } = await import("@codecast/line/changeCard");
   const card = JSON.parse(
     readFileSync(
       join(
         import.meta.dir,
-        "../../../../packages/shared/contracts/__fixtures__/changeCard/card.json",
+        "../../../../packages/line/test/__fixtures__/changeCard/card.json",
       ),
       "utf-8",
     ),
@@ -248,13 +247,12 @@ test("a change card draws as one row with its answer chips", async () => {
 test("a line card draws the queue's head, then its example and proof", async () => {
   const { readFileSync } = await import("node:fs");
   const { join } = await import("node:path");
-  const { CARD_DECISION_OPTIONS } =
-    await import("@codecast/shared/contracts/changeCard");
+  const { CARD_DECISION_OPTIONS } = await import("@codecast/line/changeCard");
   const card = JSON.parse(
     readFileSync(
       join(
         import.meta.dir,
-        "../../../../packages/shared/contracts/__fixtures__/changeCard/card.json",
+        "../../../../packages/line/test/__fixtures__/changeCard/card.json",
       ),
       "utf-8",
     ),
@@ -291,13 +289,12 @@ test("a line card draws the queue's head, then its example and proof", async () 
 test("a folded line card is its change and its proof, with no cause and no answers", async () => {
   const { readFileSync } = await import("node:fs");
   const { join } = await import("node:path");
-  const { CARD_DECISION_OPTIONS } =
-    await import("@codecast/shared/contracts/changeCard");
+  const { CARD_DECISION_OPTIONS } = await import("@codecast/line/changeCard");
   const card = JSON.parse(
     readFileSync(
       join(
         import.meta.dir,
-        "../../../../packages/shared/contracts/__fixtures__/changeCard/card.json",
+        "../../../../packages/line/test/__fixtures__/changeCard/card.json",
       ),
       "utf-8",
     ),

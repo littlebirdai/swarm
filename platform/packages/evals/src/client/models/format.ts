@@ -44,7 +44,7 @@ export function splitBatchNames(text: string): Array<string | { batch: string }>
 export const shortSha = (sha: string | null | undefined, n = 8) => (sha ? sha.slice(0, n) : "none");
 /**
  * Dollars as codecast's change cards write them (formatUsd in
- * shared/render/changeCardHtml: cents under $10, whole dollars above), with
+ * packages/line/src/changeCardHtml.ts: cents under $10, whole dollars above), with
  * the sub-dime precision a single rep needs. The foundation test holds the
  * two rules together.
  */

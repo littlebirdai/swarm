@@ -15,7 +15,7 @@ import { FileQuestion, FileWarning } from "lucide-react";
 import {
   VAULT_MAX_PREVIEW_BYTES,
   vaultFileKind,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 import { highlightCode, languageForPath } from "../../lib/codeLanguage";
 import { vaultAssetUrl } from "../../lib/vault/client";
 import { useVaultStore } from "../../store/vaultStore";

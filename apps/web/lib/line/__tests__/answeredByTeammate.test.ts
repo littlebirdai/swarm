@@ -9,7 +9,7 @@ import {
   CARD_GATE_NODE_ID,
   lineRunOutcome,
   passedUnansweredCard,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import { unapprovedShips } from "../../lineFlow";
 import { causeHistory } from "../causeHistory";
 import type { MapDecision, MapRun } from "../lineMap";

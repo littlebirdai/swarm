@@ -38,8 +38,8 @@ import {
   rulingsShown,
   type ExpectationsBrief,
   type JudgeSpec,
-} from "@codecast/shared/contracts/judges";
-import type { ModelCallSpec } from "@codecast/shared/contracts/modelCall";
+} from "@codecast/judges/judges";
+import type { ModelCallSpec } from "@codecast/judges/modelCall";
 
 const argv = process.argv.slice(2);
 const opt = (name: string) => {

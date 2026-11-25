@@ -8,7 +8,7 @@ import { closeDomWindow } from "../../../test-helpers/domGlobals";
 import {
   CARD_DECISION_OPTIONS,
   type ChangeCard,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 
 // ct-97331: Ship on a real line-run card never ships on one press, but the
 // first press must not be lost in silence when the person moves on to another
@@ -88,7 +88,7 @@ const card: ChangeCard = JSON.parse(
   readFileSync(
     join(
       import.meta.dir,
-      "../../../../../packages/shared/contracts/__fixtures__/changeCard/card.json",
+      "../../../../../packages/line/test/__fixtures__/changeCard/card.json",
     ),
     "utf-8",
   ),

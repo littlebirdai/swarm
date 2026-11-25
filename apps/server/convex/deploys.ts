@@ -29,7 +29,7 @@ import { nextShortId } from "./counters";
 import { enqueueConfigCommand } from "./users";
 import { normalizeRepository } from "./lib/gitRefs";
 import { resolveWorkspaceProject } from "./lib/projectRef";
-import { deployIsLive } from "@codecast/shared/contracts/causeHistory";
+import { deployIsLive } from "@codecast/line/causeHistory";
 import { normalizeRoleHandle } from "@codecast/deploys/lineDeploy";
 import {
   deployAllowance,
@@ -82,7 +82,7 @@ import {
   normalizeDeployTarget,
   waitingMerges,
   type DeployMerge,
-} from "@codecast/shared/contracts/deploys";
+} from "@codecast/line/deploys";
 
 /** A line deploy older than this, still waiting for its marker, no longer takes one. */
 const OPEN_DEPLOY_MAX_AGE_MS = DAY;

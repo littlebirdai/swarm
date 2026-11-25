@@ -2,7 +2,7 @@
 // (no pushRouter import), so the push flush can re-check a staged card push
 // without closing a cycle through lib/decisionPush.ts.
 import type { Id } from "../_generated/dataModel";
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
 
 type Ctx = { db: any };
 

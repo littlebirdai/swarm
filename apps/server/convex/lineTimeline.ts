@@ -15,7 +15,7 @@ import { v } from "convex/values";
 import { query } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
 import { scopeOf, scopeArgs } from "./lib/ingestScope";
-import type { TimelineEvent } from "@codecast/shared/contracts/lineTimeline";
+import type { TimelineEvent } from "@codecast/line/lineTimeline";
 
 /** Rows read per source per page. */
 const PAGE_ROWS = 60;

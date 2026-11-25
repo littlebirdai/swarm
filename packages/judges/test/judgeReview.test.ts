@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { caseDetail, caseGist, caseRoute } from "./judgeReview";
+import { caseDetail, caseGist, caseRoute } from "../src/judgeReview";
 
 describe("caseRoute (learning-loop.md LL11)", () => {
   const product = { judge: "comms", source: "AgentWatch" };

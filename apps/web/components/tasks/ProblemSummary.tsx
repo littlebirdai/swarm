@@ -9,8 +9,8 @@ import { createContext, useContext, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, ChevronRight } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { isExpectationId } from "@codecast/shared/contracts/expectations";
-import { findingConversation } from "@codecast/shared/contracts/judges";
+import { isExpectationId } from "@codecast/line/expectations";
+import { findingConversation } from "@codecast/judges/judges";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";
 import {
   useSyncSignals,
@@ -45,7 +45,7 @@ import {
 } from "../../lib/trialEvidence";
 import { scopeArgsOf } from "../../lib/workspaceScope";
 import { holdReasons } from "../decisions/ChangeCardView";
-import { evalsOwed } from "@codecast/shared/contracts/changeCard";
+import { evalsOwed } from "@codecast/line/changeCard";
 import type { TrialWithdrawn } from "../../hooks/useSyncTrial";
 import { modernChip } from "../ui/modernLook";
 

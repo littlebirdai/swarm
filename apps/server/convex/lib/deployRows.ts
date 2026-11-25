@@ -11,7 +11,7 @@ import {
   liveDeployOf,
   normalizeDeployTarget,
   type DeployStatus,
-} from "@codecast/shared/contracts/deploys";
+} from "@codecast/line/deploys";
 
 /** A marker reads this many of the workspace's deploys; the live deploy is looked for among this many of the target's. */
 export const MARKER_SCAN = 100;

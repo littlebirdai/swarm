@@ -15,7 +15,7 @@ import {
   costParts,
   costUsd,
   honestChecks,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import {
   overlapNote,
   reachSince,

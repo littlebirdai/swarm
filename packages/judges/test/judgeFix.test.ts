@@ -6,8 +6,8 @@ import {
   judgeFixGroup,
   judgeFixVerdict,
   validateJudgeFixCard,
-} from "./judgeFix";
-import { isJudgeCaseKey, isJudgeProblem } from "./judgeReview";
+} from "../src/judgeFix";
+import { isJudgeCaseKey, isJudgeProblem } from "../src/judgeReview";
 
 describe("a problem of cases against a judge takes the judge route", () => {
   test("every key it gathers is a case key: by part, by expectation, or a split of one", () => {

@@ -23,7 +23,7 @@ import {
 } from "./problemPage";
 import type { UnderBar } from "./flowBar";
 import { neverShipped } from "./timeline";
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
 import { handoffOutcome, plainOutcome } from "./stepWork";
 
 export type StatusKey =

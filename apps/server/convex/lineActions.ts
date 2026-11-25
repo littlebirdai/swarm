@@ -23,10 +23,7 @@ import {
   causeHistoryForTask,
   stationBrief,
 } from "./lineWorkspace";
-import {
-  NO_CAUSE_HISTORY,
-  historyBrief,
-} from "@codecast/shared/contracts/causeHistory";
+import { NO_CAUSE_HISTORY, historyBrief } from "@codecast/line/causeHistory";
 import {
   fileLineCauseCore,
   startLineCauseCore,

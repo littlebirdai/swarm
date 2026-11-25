@@ -20,7 +20,7 @@
 // before it asked waits behind one button. It reuses the decision
 // page's pieces (DecisionAnswering, DecisionDiscussion, ChangeCardView), so
 // an answer reads and lands the same as on /decisions.
-import { gateDoc } from "@codecast/shared/contracts/changeCard";
+import { gateDoc } from "@codecast/line/changeCard";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { MessageSquare, PanelRight, X } from "lucide-react";

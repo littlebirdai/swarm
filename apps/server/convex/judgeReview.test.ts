@@ -15,7 +15,7 @@ import {
 import {
   JUDGE_REVIEW_ATTEMPTS,
   JUDGE_REVIEW_GRAPH,
-} from "@codecast/shared/contracts/judgeReview";
+} from "@codecast/judges/judgeReview";
 import { LINE_RUNS_PER_RUNNER, type LineLoads } from "./orgLine";
 
 const TOKEN = "cast_judge_review_token";

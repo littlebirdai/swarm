@@ -11,10 +11,8 @@ import { enqueuePendingMessage } from "../pendingMessages";
 import { createTaskAs } from "../tasks";
 import { commitBySha } from "../deployTargetsState";
 import { formatSessionMessage } from "@codecast/messages/machineMessages";
-import {
-  mainRedBrief,
-  type MainRedPayload,
-} from "@codecast/shared/contracts/mainRed";
+import { mainRedBrief } from "@codecast/line/mainRed";
+import type { MainRedPayload } from "@codecast/line/mainRed";
 
 const DAY = 86_400_000;
 

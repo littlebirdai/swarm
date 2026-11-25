@@ -1987,7 +1987,7 @@ describe("workflow/runner (a station whose edges route on the handoff)", () => {
 describe("gatePayload card", () => {
   const fixture = path.join(
     __dirname,
-    "../../../../packages/shared/contracts/__fixtures__/changeCard/card.json",
+    "../../../../packages/line/test/__fixtures__/changeCard/card.json",
   );
   const gate = (attr: string) => {
     const g = parseWorkflowSource(

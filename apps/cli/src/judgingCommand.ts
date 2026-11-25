@@ -26,7 +26,7 @@ import {
   type ExpectationsBrief,
   type JudgeFinding,
   type JudgeSpec,
-} from "@codecast/shared/contracts/judges";
+} from "@codecast/judges/judges";
 import {
   JUDGE_BACKENDS,
   parseExtractorOutput,
@@ -37,7 +37,7 @@ import { subscriptionModelCall } from "./subscriptionCall.js";
 import type {
   ModelCallResult,
   ModelCallSpec,
-} from "@codecast/shared/contracts/modelCall";
+} from "@codecast/judges/modelCall";
 import setupPass from "./judgingSetup.md" with { type: "text" };
 import {
   momentOn,
@@ -51,7 +51,7 @@ import {
   agentJudgePrompt,
   parseAgentFindings,
   type AgentFinding,
-} from "@codecast/shared/contracts/agentJudges";
+} from "@codecast/judges/agentJudges";
 
 function fail(message: string, code = 2): never {
   console.error(fmt.error(message));

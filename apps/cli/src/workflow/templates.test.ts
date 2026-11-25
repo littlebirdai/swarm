@@ -15,7 +15,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { spawnSync } from "child_process";
-import { proofSummary } from "@codecast/shared/contracts/changeCard";
+import { proofSummary } from "@codecast/line/changeCard";
 import { conditionError, evalCondition, extractJsonOutput } from "./condition";
 import {
   graphHash,
@@ -44,7 +44,7 @@ import {
   resolveWorkflowSource,
   withTemplateIncludes,
 } from "./templates";
-import { JUDGE_REVIEW_GRAPH } from "@codecast/shared/contracts/judgeReview";
+import { JUDGE_REVIEW_GRAPH } from "@codecast/judges/judgeReview";
 import type { WorkflowGraph } from "./types";
 import { isolateCodecastDirEachTest } from "../test-helpers/codecastDir.js";
 import { UNION_PROFILE } from "../test-helpers/unionLineProfile";

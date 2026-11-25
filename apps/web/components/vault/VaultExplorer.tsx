@@ -33,7 +33,7 @@ import {
 import {
   isVaultMarkdownPath,
   isVaultAssetPath,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 import {
   canRevealLocally,
   fileManagerName,

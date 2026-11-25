@@ -1,6 +1,6 @@
 # Red main
 
-When CI on a repository's default branch goes red, codecast names the commit that broke it, raises one event for that culprit, and briefs the session that wrote it. When the branch is green again it raises a second event. Code: `apps/server/convex/mainRed.ts` (the judging), `packages/shared/contracts/mainRed.ts` (the pure rules, the payload, the brief).
+When CI on a repository's default branch goes red, codecast names the commit that broke it, raises one event for that culprit, and briefs the session that wrote it. When the branch is green again it raises a second event. Code: `apps/server/convex/mainRed.ts` (the judging), `packages/line/src/mainRed.ts` (the pure rules, the payload, the brief).
 
 ## What is judged
 
@@ -15,7 +15,7 @@ The workflow_run webhook claims the run (`main_ci_runs`, one row per run). A fai
 
 ## Identity: a culprit is the jobs it broke
 
-A culprit is keyed by the jobs that failed, as GitHub's jobs API names them, which is complete. It is never keyed by the tests a log prints: a crash names no test, a log can be unreadable, and only some failures are kept, so a test list blames a partial fix for the failures its culprit left. Parsed failures (`shared/contracts/ciFailures.ts`, the CI station's parser, so the same `{job, test, assertion, file, line, excerpt}` shape as `ci.json`) are only the brief's content.
+A culprit is keyed by the jobs that failed, as GitHub's jobs API names them, which is complete. It is never keyed by the tests a log prints: a crash names no test, a log can be unreadable, and only some failures are kept, so a test list blames a partial fix for the failures its culprit left. Parsed failures (`packages/line/src/ciFailures.ts`, the CI station's parser, so the same `{job, test, assertion, file, line, excerpt}` shape as `ci.json`) are only the brief's content.
 
 A failed job that needs another job that failed in the same run is an aggregate (codecast's `verify` needs every test job): it fails whenever they do, so it never joins, holds or names a culprit. Its `needs:` come from the workflow file at the run's commit. A run's job name is matched to its workflow job with its run-time suffixes taken off (a reusable workflow's `caller / callee` is `caller`, a matrix job's `name (a, b)` is `name`), or by the literal part of a `name:` template; a name that matches nothing is a job of its own, never an aggregate. When the file cannot be read, or a failed job matches no declared job, timing decides: a failed job that started only once every other job of the run had finished, passing or failing, is the aggregate.
 

@@ -8,7 +8,7 @@ import {
   isVaultIgnoredPath,
   isVaultMarkdownPath,
   type VaultFileEntry,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 
 export type VaultSortMode =
   | "name-asc"

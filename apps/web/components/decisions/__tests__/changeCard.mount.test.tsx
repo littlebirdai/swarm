@@ -10,7 +10,7 @@ import {
   suiteGateCheck,
   SUITE_GATE_CHECK,
   type ChangeCard,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 
 // A decision about a change card (LE11) draws the card natively and answers
 // Ship, Revise or Drop with the keys; Revise carries a note.
@@ -65,7 +65,7 @@ const card: ChangeCard = JSON.parse(
   readFileSync(
     join(
       import.meta.dir,
-      "../../../../../packages/shared/contracts/__fixtures__/changeCard/card.json",
+      "../../../../../packages/line/test/__fixtures__/changeCard/card.json",
     ),
     "utf-8",
   ),

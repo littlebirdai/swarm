@@ -15,8 +15,8 @@ import {
   isLineRun,
   lineRunOutcome,
   type AnsweredGate,
-} from "@codecast/shared/contracts/changeCard";
-import { isExpectationId } from "@codecast/shared/contracts/expectations";
+} from "@codecast/line/changeCard";
+import { isExpectationId } from "@codecast/line/expectations";
 import {
   DAY,
   quietWatchEnd,

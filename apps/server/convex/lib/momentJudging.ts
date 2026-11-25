@@ -11,7 +11,7 @@ import { runModelCall, type CallScope } from "../modelCalls";
 import type {
   ModelCallResult,
   ModelCallSpec,
-} from "@codecast/shared/contracts/modelCall";
+} from "@codecast/judges/modelCall";
 import { momentEvidence, reembedFinding } from "../findingGroups";
 import { newOnResample, type Ruling } from "../judgeRetire";
 import type { MomentRecord, MomentWindow } from "@codecast/ingest/moments";
@@ -33,7 +33,7 @@ import {
   type JudgeHandoff,
   type JudgeRuling,
   type JudgeSpec,
-} from "@codecast/shared/contracts/judges";
+} from "@codecast/judges/judges";
 
 /** A moment being judged: its row, its source, the judges of its kind. */
 export type Finishing = {

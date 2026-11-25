@@ -29,7 +29,7 @@ import {
 import {
   isVaultMarkdownPath,
   VAULT_MAX_SERVE_BYTES,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 import type {
   VaultFileEntry,
   VaultInfo,
@@ -39,7 +39,7 @@ import type {
   VaultWriteResponse,
   VaultWsEvent,
   VaultWsHello,
-} from "@codecast/shared/contracts";
+} from "@codecast/vault/vaultProtocol";
 import { moveToTrash, writeVaultFile } from "./vaultFs.js";
 import {
   findVault,

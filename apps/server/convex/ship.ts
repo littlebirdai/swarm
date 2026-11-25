@@ -28,7 +28,7 @@ import { roleOfRun } from "./lib/actor";
 import { roleMergeAllowance } from "./lib/regretRead";
 import { repositoryFromRemote } from "@codecast/capabilities/capabilityScopes";
 import { normalizeSubagentCaps } from "@codecast/agent-clients/subagentFleet";
-import { cardVerdictIndexes } from "@codecast/shared/contracts/changeCard";
+import { cardVerdictIndexes } from "@codecast/line/changeCard";
 import {
   SHIP_DEFAULT_MERGE,
   resolveShipPlan,

@@ -1,24 +1,21 @@
 // A built card read back and held to its contract, for every reader: `cast
 // decide --card` and a gate node's card attribute. A change card
-// (shared/contracts/changeCard.ts) is what a decision rules on; a proposal
-// card (shared/contracts/proposalCard.ts) is the proposal gate's. Never
+// (packages/line/src/changeCard.ts) is what a decision rules on; a proposal
+// card (packages/line/src/proposalCard.ts) is the proposal gate's. Never
 // exits, so a runner can carry on without the card.
 import * as fs from "fs";
 import * as path from "path";
-import {
-  validateChangeCard,
-  type ChangeCard,
-} from "@codecast/shared/contracts/changeCard";
+import { validateChangeCard, type ChangeCard } from "@codecast/line/changeCard";
 import {
   isProposalCard,
   validateProposalCard,
   type ProposalCard,
-} from "@codecast/shared/contracts/proposalCard";
+} from "@codecast/line/proposalCard";
 import {
   isJudgeFixCard,
   validateJudgeFixCard,
   type JudgeFixCard,
-} from "@codecast/shared/contracts/judgeFix";
+} from "@codecast/judges/judgeFix";
 
 function readJsonFile(file: string): { raw: unknown } | { error: string } {
   try {

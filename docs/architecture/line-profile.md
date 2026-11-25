@@ -140,7 +140,7 @@ a declaration.
 - **eval** writes `$run_dir/reps.json`: per surface, per freeze, per side
   (base, branch), the reps with `passed`, `score`, `reply`, `judge_note` and
   `cost_usd`, plus `gates_failed`. It does no statistics. The shape is
-  `EvalRepsFile` in `packages/shared/contracts/evalResult.ts`; a crashed rep
+  `EvalRepsFile` in `packages/line/src/evalResult.ts`; a crashed rep
   carries `error` and counts as no verdict.
 - `cast line eval-result --reps $run_dir/reps.json --out eval-result.json`
   turns reps into the `EvalResult` the card reads: separation by the one

@@ -3,7 +3,7 @@
 // (24h, 7d, 30d) shared by the figures, the chart and the table's Findings
 // column; findings per bucket, each bar a day (or hour) a person picks to list
 // its problems; and a mark where a fix was merged or reached production. Pure.
-import { shortDay } from "@codecast/shared/contracts/causeHistory";
+import { shortDay } from "@codecast/line/causeHistory";
 import {
   alignDown,
   bucketCounts,

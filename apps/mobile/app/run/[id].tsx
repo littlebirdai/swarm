@@ -18,11 +18,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { flowName } from "@codecast/flows/flowPool";
-import {
-  costParts,
-  costUsd,
-  isLineRun,
-} from "@codecast/shared/contracts/changeCard";
+import { costParts, costUsd, isLineRun } from "@codecast/line/changeCard";
 import { publicUrl } from "@codecast/entities";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";

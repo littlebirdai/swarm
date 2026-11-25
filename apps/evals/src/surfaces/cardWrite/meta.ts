@@ -15,7 +15,7 @@ export const meta: SurfaceMeta = {
     "apps/cli/src/workflow/templates/line.cast",
     "apps/cli/src/workflow/runner.ts",
     "packages/sessions/src/unattended.ts",
-    "packages/shared/contracts/changeCard.ts",
+    "packages/line/src/changeCard.ts",
     "apps/cli/src/decisionKit.ts",
     "apps/cli/scripts/lib/linePresent.ts",
     "apps/cli/scripts/line-present-replay-bin/cast",

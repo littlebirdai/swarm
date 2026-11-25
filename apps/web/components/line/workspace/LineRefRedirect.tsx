@@ -10,7 +10,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
+import { CARD_GATE_NODE_ID } from "@codecast/line/changeCard";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useSyncSignals } from "../../../hooks/useSyncSignals";
 import { useWorkflowRun } from "../../../hooks/useSyncWorkflows";

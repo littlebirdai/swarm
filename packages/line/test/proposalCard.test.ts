@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { proposalOptions, validateProposalCard } from "./proposalCard";
+import { proposalOptions, validateProposalCard } from "../src/proposalCard";
 
 const good = {
   kind: "proposal",

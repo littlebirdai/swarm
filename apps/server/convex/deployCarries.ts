@@ -4,14 +4,14 @@
 
 import type { Doc, Id } from "./_generated/dataModel";
 import { extractTaskShortIds } from "./lib/gitRefs";
-import type { DeployRow } from "@codecast/shared/contracts/causeHistory";
+import type { DeployRow } from "@codecast/line/causeHistory";
 import { mainAtOf } from "./deployTargetsState";
 import {
   DAY,
   carriedBy,
   normalizeDeployTarget,
   type DeployMerge,
-} from "@codecast/shared/contracts/deploys";
+} from "@codecast/line/deploys";
 
 /** How far back merges are read for the waiting set and a marker's carries. */
 const MERGE_WINDOW_MS = 90 * DAY;

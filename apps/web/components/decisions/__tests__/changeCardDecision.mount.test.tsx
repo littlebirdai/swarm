@@ -9,7 +9,7 @@ import {
   CARD_DECISION_OPTIONS,
   UNSCORED_DETAIL,
   type ChangeCard,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 
 // The card laid out for deciding (ChangeCardDecision): the change and what it
 // fixes, four tiles, answers that say what they do, real cases, and only the
@@ -47,7 +47,7 @@ const base: ChangeCard = JSON.parse(
   readFileSync(
     join(
       import.meta.dir,
-      "../../../../../packages/shared/contracts/__fixtures__/changeCard/card.json",
+      "../../../../../packages/line/test/__fixtures__/changeCard/card.json",
     ),
     "utf-8",
   ),

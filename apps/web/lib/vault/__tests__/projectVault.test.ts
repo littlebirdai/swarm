@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import type { VaultInfo } from "@codecast/shared/contracts";
+import type { VaultInfo } from "@codecast/vault/vaultProtocol";
 import {
   groupVaultChoices,
   isProjectVault,

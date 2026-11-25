@@ -6,7 +6,7 @@
 
 import { createContext, memo, useContext, useMemo } from "react";
 import { FileText } from "lucide-react";
-import { isVaultMarkdownPath } from "@codecast/shared/contracts";
+import { isVaultMarkdownPath } from "@codecast/vault/vaultProtocol";
 import { noteDisplayName } from "./VaultExplorer";
 import {
   TaskEditContext,

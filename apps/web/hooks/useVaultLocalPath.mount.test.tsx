@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../test-helpers/globals";
 import { closeDomWindow } from "../test-helpers/domGlobals";
-import type { VaultInfo } from "@codecast/shared/contracts";
+import type { VaultInfo } from "@codecast/vault/vaultProtocol";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "http://localhost",

@@ -31,7 +31,7 @@ import {
   lineRunOutcome,
   mergeLeft,
   type ChangeCard,
-} from "@codecast/shared/contracts/changeCard";
+} from "@codecast/line/changeCard";
 import { tookPastStart } from "@codecast/flows/runStart";
 import { sourceTakesSessionChange } from "@codecast/flows/flowPool";
 import { isTerminalTaskStatus } from "@codecast/tasks/statuses";
@@ -2318,9 +2318,9 @@ export const pauseAtGate = mutation({
     category: v.optional(v.string()),
     stack: v.optional(v.string()),
     card: v.optional(v.any()),
-    /** The proposal gate's card (shared/contracts/proposalCard): a trial card carries it; the decision rail does not read it yet. */
+    /** The proposal gate's card (packages/line/src/proposalCard.ts): a trial card carries it; the decision rail does not read it yet. */
     proposal: v.optional(v.any()),
-    /** The judge route's card (shared/contracts/judgeFix) for the project's reviewer: a trial card carries it; the decision rail does not read it yet. */
+    /** The judge route's card (packages/judges/src/judgeFix.ts) for the project's reviewer: a trial card carries it; the decision rail does not read it yet. */
     judge_fix: v.optional(v.any()),
     /** The session of the station the gate names (`asker=`): the gate takes the card it posted, and asks nothing of its own. */
     asker_session_id: v.optional(v.string()),

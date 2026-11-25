@@ -15,7 +15,7 @@ import {
   lineSubject,
   type LineCauseFields,
 } from "./lineCause";
-import { argumentOf, backTimes } from "@codecast/shared/contracts/causeHistory";
+import { argumentOf, backTimes } from "@codecast/line/causeHistory";
 
 // ── tries ───────────────────────────────────────────────────────────────────
 

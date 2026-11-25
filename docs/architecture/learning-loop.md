@@ -223,7 +223,7 @@ A codecast judge is a model call step: one prompt, one answer, no tools.
   lines, then the prompt. `moment` names the kind it reads, `projects` the
   projects whose expectations it grades against; `model` (the cheap model),
   `max_tokens` (2000) and `mode` (`shadow`) have defaults. Parser:
-  `shared/contracts/judges.ts`.
+  `packages/judges/src/judges.ts`.
 - **One run.** For each moment of its kind, the judge reads the clock and
   how stale the moment's facts may be (an extractor that read as of an
   earlier time says so in its `at`, and the clock is then that time), each project's active expectations at
@@ -340,7 +340,7 @@ takes (`momentJudging.settleJudge`), with `backend: "subscription"` on the run.
 ## LL11. Improving a judge
 
 LL4's "improve a judge", as built (`convex/judgeReview.ts`,
-`shared/contracts/judgeReview.ts`, the shipped `judge-review` graph).
+`packages/judges/src/judgeReview.ts`, the shipped `judge-review` graph).
 
 - **A finding is marked wrong** in one of two ways. A person presses "Mark
   wrong" on it, on the problem page or on its judge's card in the Find band;
@@ -390,7 +390,7 @@ LL4's "improve a judge", as built (`convex/judgeReview.ts`,
   joins 7/8, and five pairs that need different fixes stay apart 8/8.
 - **That problem runs the judge route, never the product's change line.**
   A problem is a judge problem when every key it gathers is a case key
-  (`isJudgeProblem`, shared/contracts/judgeReview.ts). Its fix is a judge's
+  (`isJudgeProblem`, packages/judges/src/judgeReview.ts). Its fix is a judge's
   prompt, the extractor of its moment, or the expectation it grades against;
   nothing in the product changes, no repro test enters the product's suite,
   and it is never closed as "the judge was wrong", which is what it is about
@@ -624,7 +624,7 @@ the real order. A scoring pass reads every open problem once and writes
   Batch API on the deployment's key (`problemScores.submit` / `collect`),
   reading the title, the description and up to five findings (most severe
   first, one per distinct opening) with the counts of findings and distinct
-  conversations. The prompt lives in `shared/contracts/problemScore.ts`.
+  conversations. The prompt lives in `packages/line/src/problemScore.ts`.
 - **root_cause**: a few words naming the mechanism, worded so two problems
   with one cause get one label.
 - **cluster_key** and **cluster_name**: the family the label belongs to. One

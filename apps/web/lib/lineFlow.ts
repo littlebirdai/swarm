@@ -32,11 +32,8 @@ import {
   lineRunOutcome,
   type AnsweredGate,
   type LineRunEnd,
-} from "@codecast/shared/contracts/changeCard";
-import {
-  runEnd,
-  shippedUnanswered,
-} from "@codecast/shared/contracts/causeHistory";
+} from "@codecast/line/changeCard";
+import { runEnd, shippedUnanswered } from "@codecast/line/causeHistory";
 import { quietWatchEnd } from "@codecast/shared/contracts/flowMap";
 import {
   isLiveRun,
@@ -56,7 +53,7 @@ import type { ProjectGraph } from "./line/lineGraphs";
 import {
   judgeReviewLine,
   type JudgeReviewView,
-} from "@codecast/shared/contracts/judgeReview";
+} from "@codecast/judges/judgeReview";
 
 export const HOUR = 60 * 60 * 1000;
 export const DAY = 24 * HOUR;

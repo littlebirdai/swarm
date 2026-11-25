@@ -20,7 +20,7 @@ import {
   jobFailures,
   type CiFailure,
   type NamedFailure,
-} from "@codecast/shared/contracts/ciFailures";
+} from "@codecast/line/ciFailures";
 
 export type Gh = (args: string[]) => { code: number; out: string };
 

@@ -14,7 +14,7 @@ import {
   findingKey,
   findingSignal,
   type JudgeFinding,
-} from "@codecast/shared/contracts/judges";
+} from "@codecast/judges/judges";
 import {
   BEFORE_LINE,
   CLOSED_WITH,

@@ -12,7 +12,7 @@
 
 import * as fs from "fs";
 import { RecursiveWatcher } from "../recursiveWatcher.js";
-import type { VaultInfo, VaultWsEvent } from "@codecast/shared/contracts";
+import type { VaultInfo, VaultWsEvent } from "@codecast/vault/vaultProtocol";
 import {
   isVaultPathIgnored,
   normalizeVaultPath,

@@ -139,7 +139,7 @@ import {
   type SnippetSection,
   allSnippetSlugs,
 } from "@codecast/snippets/snippets";
-import { type VaultInfo } from "@codecast/shared/contracts";
+import { type VaultInfo } from "@codecast/vault/vaultProtocol";
 import {
   callLinkHow,
   callAnchorHref,

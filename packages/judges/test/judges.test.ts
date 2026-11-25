@@ -15,7 +15,7 @@ import {
   quotesShareMessage,
   readsNoLines,
   rulingsShown,
-} from "./judges";
+} from "../src/judges";
 import { momentWindow, renderMoment } from "@codecast/ingest/moments";
 import { CHEAP_MODEL } from "@codecast/agent-clients/modelOptions";
 import type { MomentRecord } from "@codecast/ingest/moments";
