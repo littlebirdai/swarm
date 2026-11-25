@@ -276,6 +276,9 @@ it.effect(
             readFileSync(join(fake.directory, "unsupported-seen"), "utf8"),
           ),
         ).toMatchObject({ code: -32601 });
+        expect(await waitFor(() => fake.observed().length > 1, 2500, 5)).toBe(
+          true,
+        );
         expect(fake.observed().map(({ message }) => message.id)).toEqual([
           "permission",
           "second",
@@ -319,6 +322,9 @@ it.effect(
           status: "stale",
           observed: { kind: "turn", turn: "1:1" },
         });
+        expect(await waitFor(() => fake.observed().length > 0, 2500, 5)).toBe(
+          true,
+        );
         await fake.contract.processExit();
         const events = session.events[Symbol.asyncIterator]();
         const kinds = [];
