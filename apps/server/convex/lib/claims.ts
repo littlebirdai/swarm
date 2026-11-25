@@ -1,24 +1,28 @@
 import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
+import type { DatabaseReader, MutationCtx } from "../_generated/server";
 
-export type ClaimResource =
-  | { kind: "steer"; id: Id<"conversations"> }
-  | { kind: "terminal"; id: string };
+type ClaimKey = { kind: "steer" | "terminal"; id: Id<"conversations"> };
+type SteerResource = { kind: "steer"; id: Id<"conversations"> };
+type TerminalResource = {
+  kind: "terminal";
+  id: Id<"conversations">;
+  paneInstance: string;
+};
 
-type SteerAuthorization =
-  | { mode: "lone" }
-  | { mode: "second_request"; requester: Id<"users"> }
-  | { mode: "contested" };
+export type ClaimResource = SteerResource | TerminalResource;
 
-export type CallerAuthorizedClaim = {
-  holder: Id<"users">;
-  requestId: string;
-  expectedToken: number;
-} & (
-  | (Extract<ClaimResource, { kind: "steer" }> & {
-      steering: SteerAuthorization;
-    })
-  | Extract<ClaimResource, { kind: "terminal" }>
+type ClaimRequest = { requestId: string; expectedToken: number };
+type SteerRequest =
+  | { steering: { mode: "lone" } }
+  | (ClaimRequest & {
+      steering:
+        | { mode: "second_request"; requester: Id<"users"> }
+        | { mode: "contested" };
+    });
+
+export type CallerAuthorizedClaim = { holder: Id<"users"> } & (
+  | (SteerResource & SteerRequest)
+  | (TerminalResource & ClaimRequest)
 );
 
 export type CallerAuthorizedClaimUse = {
@@ -37,16 +41,23 @@ const LEASE_MS = { steer: 30_000, terminal: 20_000 } as const;
 
 type Lease = { status: "held"; token: number; remainingMs: number };
 type Refusal = {
-  status: "free" | "stale_token" | "wrong_holder" | "expired";
+  status: "free" | "stale_token" | "wrong_holder" | "expired" | "wrong_pane";
 };
 type ClaimResult =
   | Lease
-  | { status: "lone" | "inactive_request" | "token_exhausted" }
-  | { status: "stale_request"; currentToken: number }
+  | {
+      status:
+        | "lone"
+        | "inactive_request"
+        | "token_exhausted"
+        | "invalid_request"
+        | "invalid_pane";
+    }
+  | { status: "stale_request" | "pane_changed"; currentToken: number }
   | { status: "busy"; remainingMs: number };
 
-function findClaim(ctx: MutationCtx, resource: ClaimResource) {
-  return ctx.db
+function findClaim(db: DatabaseReader, resource: ClaimKey) {
+  return db
     .query("claims")
     .withIndex("by_kind_resource", (q) =>
       q.eq("kind", resource.kind).eq("resource_id", resource.id),
@@ -55,55 +66,72 @@ function findClaim(ctx: MutationCtx, resource: ClaimResource) {
 }
 
 export async function readClaimToken(
-  ctx: MutationCtx,
-  resource: ClaimResource,
+  db: DatabaseReader,
+  resource: ClaimKey,
 ): Promise<number> {
-  return (await findClaim(ctx, resource))?.token ?? 0;
+  return (await findClaim(db, resource))?.token ?? 0;
 }
 
 export async function claim(
   ctx: MutationCtx,
   input: CallerAuthorizedClaim,
 ): Promise<ClaimResult> {
-  if (
-    input.kind === "steer" &&
-    (input.steering.mode === "lone" ||
-      (input.steering.mode === "second_request" &&
-        input.steering.requester === input.holder))
-  ) {
-    return { status: "lone" };
-  }
-
-  const row = await findClaim(ctx, input);
+  const row = await findClaim(ctx.db, input);
   const now = Date.now();
   const currentToken = row?.token ?? 0;
-  if (
-    row &&
-    input.expectedToken === currentToken - 1 &&
-    input.requestId === row.request_id
-  ) {
-    if (row.holder === undefined || row.lease_until <= now)
-      return { status: "inactive_request" };
-    if (row.holder === input.holder)
-      return {
-        status: "held",
-        token: row.token,
-        remainingMs: row.lease_until - now,
-      };
+  const remainingMs = row?.holder === undefined ? 0 : row.lease_until - now;
+  const held = { status: "held", token: currentToken, remainingMs } as const;
+  const busy = { status: "busy", remainingMs } as const;
+
+  const turnRight =
+    remainingMs <= 0
+      ? ({ status: "lone" } as const)
+      : row?.holder === input.holder
+        ? held
+        : busy;
+  if (!("requestId" in input)) return turnRight;
+  if (!input.requestId) return { status: "invalid_request" };
+  if (input.kind === "terminal" && !input.paneInstance)
+    return { status: "invalid_pane" };
+
+  const newPane =
+    row?.kind === "terminal" &&
+    input.kind === "terminal" &&
+    row.pane_instance !== input.paneInstance;
+  const stale = { status: "stale_request", currentToken } as const;
+  if (row?.request_id === input.requestId) {
+    if (row.request_holder !== input.holder) return stale;
+    return remainingMs > 0 && !newPane ? held : { status: "inactive_request" };
   }
-  if (input.expectedToken !== currentToken)
-    return { status: "stale_request", currentToken };
-  if (row?.holder !== undefined && row.lease_until > now)
-    return { status: "busy", remainingMs: row.lease_until - now };
+  if (
+    input.kind === "steer" &&
+    input.steering.mode === "second_request" &&
+    input.steering.requester === input.holder
+  )
+    return turnRight;
+  if (input.expectedToken !== currentToken) return stale;
+
+  if (newPane) {
+    await ctx.db.patch("claims", row._id, {
+      pane_instance: input.paneInstance,
+      holder: undefined,
+      lease_until: 0,
+      request_id: input.requestId,
+      request_holder: input.holder,
+    });
+    return { status: "pane_changed", currentToken };
+  }
+  if (remainingMs > 0) return busy;
   if (currentToken === Number.MAX_SAFE_INTEGER)
     return { status: "token_exhausted" };
 
-  const remainingMs = LEASE_MS[input.kind];
+  const duration = LEASE_MS[input.kind];
   const lease = {
     holder: input.holder,
     token: currentToken + 1,
-    lease_until: now + remainingMs,
+    lease_until: now + duration,
     request_id: input.requestId,
+    request_holder: input.holder,
   };
   if (row) {
     await ctx.db.patch("claims", row._id, lease);
@@ -119,17 +147,25 @@ export async function claim(
       ...lease,
       kind: input.kind,
       resource_id: input.id,
+      pane_instance: input.paneInstance,
       purpose: "typing_lease",
     });
   }
-  return { status: "held", token: lease.token, remainingMs };
+  return { status: "held", token: lease.token, remainingMs: duration };
 }
 
 function checkHeldClaim(
   row: Doc<"claims"> | null,
-  { holder, token }: CallerAuthorizedClaimUse,
+  { resource, holder, token }: CallerAuthorizedClaimUse,
   now: number,
 ): Lease | Refusal {
+  if (
+    resource.kind === "terminal" &&
+    (!resource.paneInstance ||
+      (row?.kind === "terminal" && row.pane_instance !== resource.paneInstance))
+  ) {
+    return { status: "wrong_pane" };
+  }
   if (!row || row.holder === undefined) return { status: "free" };
   if (row.token !== token) return { status: "stale_token" };
   if (row.holder !== holder) return { status: "wrong_holder" };
@@ -137,22 +173,22 @@ function checkHeldClaim(
   return { status: "held", token, remainingMs: row.lease_until - now };
 }
 
-export async function checkClaim(
+export async function withHeldClaim<T>(
   ctx: MutationCtx,
   input: CallerAuthorizedClaimUse,
-): Promise<Lease | Refusal> {
-  return checkHeldClaim(
-    await findClaim(ctx, input.resource),
-    input,
-    Date.now(),
-  );
+  write: (ctx: MutationCtx) => T | Promise<T>,
+): Promise<(Lease & { value: T }) | Refusal> {
+  const row = await findClaim(ctx.db, input.resource);
+  const result = checkHeldClaim(row, input, Date.now());
+  if (result.status !== "held") return result;
+  return { ...result, value: await write(ctx) };
 }
 
 export async function renew(
   ctx: MutationCtx,
   input: CallerAuthorizedClaimUse,
 ): Promise<Lease | Refusal> {
-  const row = await findClaim(ctx, input.resource);
+  const row = await findClaim(ctx.db, input.resource);
   const now = Date.now();
   const result = checkHeldClaim(row, input, now);
   if (!row || result.status !== "held") return result;
@@ -169,10 +205,10 @@ async function clearHeldClaim(
   ctx: MutationCtx,
   input: CallerAuthorizedClaimUse,
 ): Promise<{ status: "cleared"; token: number } | Refusal> {
-  const row = await findClaim(ctx, input.resource);
-  if (!row) return { status: "free" };
+  const row = await findClaim(ctx.db, input.resource);
   const result = checkHeldClaim(row, input, Date.now());
   if (result.status !== "held") return result;
+  if (!row) return { status: "free" };
 
   await ctx.db.patch("claims", row._id, { holder: undefined, lease_until: 0 });
   return { status: "cleared", token: row.token };

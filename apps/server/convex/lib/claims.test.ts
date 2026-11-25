@@ -2,12 +2,12 @@ import { afterEach, beforeEach, expect, setSystemTime, test } from "bun:test";
 import { serverTest } from "../../test-helpers/database.testkit";
 import { fixtureRows } from "../../test-helpers/rows.testkit";
 import {
-  checkClaim,
   claim,
   readClaimToken,
   release,
   renew,
   revoke,
+  withHeldClaim,
   type CallerAuthorizedClaimUse,
 } from "./claims";
 
@@ -30,7 +30,11 @@ async function setup() {
     return { ana, ben, conversation };
   });
   const baton = { kind: "steer", id: conversation } as const;
-  const pane = { kind: "terminal", id: conversation } as const;
+  const pane = {
+    kind: "terminal",
+    id: conversation,
+    paneInstance: "pane-1",
+  } as const;
 
   return {
     t,
@@ -42,17 +46,16 @@ async function setup() {
       t.run((ctx) => claim(ctx, { ...pane, holder, requestId, expectedToken })),
     rows: () => t.run(({ db }) => db.query("claims").collect()),
     guardedWrite: (input: CallerAuthorizedClaimUse) =>
-      t.run(async (ctx) => {
-        const result = await checkClaim(ctx, input);
-        if (result.status === "held") {
-          const row = await ctx.db.get("conversations", conversation);
+      t.run((ctx) =>
+        withHeldClaim(ctx, input, async ({ db }) => {
+          const row = await db.get("conversations", conversation);
           if (!row) throw new Error("Missing test conversation");
-          await ctx.db.patch("conversations", conversation, {
+          await db.patch("conversations", conversation, {
             message_count: row.message_count + 1,
           });
-        }
-        return result;
-      }),
+          return row.message_count + 1;
+        }),
+      ),
     writes: async () =>
       (await t.run(({ db }) => db.get("conversations", conversation)))
         ?.message_count,
@@ -69,7 +72,7 @@ test("only a second sender materializes the lone turn starter's baton", async ()
   };
   expect(
     await f.t.run((ctx) =>
-      claim(ctx, { ...starter, steering: { mode: "lone" } }),
+      claim(ctx, { ...f.baton, holder: f.ana, steering: { mode: "lone" } }),
     ),
   ).toEqual({ status: "lone" });
   expect(
@@ -120,7 +123,7 @@ test("only a second sender materializes the lone turn starter's baton", async ()
   });
 });
 
-test("the baton and each pane instance have independent claims", async () => {
+test("pane changes keep one terminal row and fence the replaced pane", async () => {
   const f = await setup();
   await f.t.run((ctx) =>
     claim(ctx, {
@@ -136,30 +139,152 @@ test("the baton and each pane instance have independent claims", async () => {
     token: 1,
     remainingMs: 20_000,
   });
-  const replacement = { kind: "terminal", id: "replacement-instance" } as const;
-  expect(
-    await f.guardedWrite({ resource: replacement, holder: f.ana, token: 1 }),
-  ).toEqual({ status: "free" });
+  const replacement = { ...f.pane, paneInstance: "pane-2" };
+  const newPaneRequest = {
+    ...replacement,
+    holder: f.ana,
+    requestId: "pane-changed",
+    expectedToken: 1,
+  };
+  const old = { resource: f.pane, holder: f.ana, token: 1 };
+  const newPaneUse = { ...old, resource: replacement };
+  expect(await f.guardedWrite(newPaneUse)).toEqual({ status: "wrong_pane" });
   expect(await f.writes()).toBe(0);
   expect(
+    await f.t.run((ctx) => claim(ctx, { ...newPaneRequest, expectedToken: 0 })),
+  ).toEqual({ status: "stale_request", currentToken: 1 });
+  expect(
     await f.t.run((ctx) =>
-      claim(ctx, {
-        ...replacement,
-        holder: f.ben,
-        requestId: "replacement",
-        expectedToken: 0,
-      }),
+      claim(ctx, { ...newPaneRequest, requestId: "first" }),
     ),
-  ).toEqual({ status: "held", token: 1, remainingMs: 20_000 });
-  expect(await f.rows()).toHaveLength(3);
-  expect(await f.rows()).toContainEqual(
+  ).toEqual({ status: "inactive_request" });
+  expect(await f.t.run((ctx) => claim(ctx, newPaneRequest))).toEqual({
+    status: "pane_changed",
+    currentToken: 1,
+  });
+  expect(await f.t.run((ctx) => claim(ctx, newPaneRequest))).toEqual({
+    status: "inactive_request",
+  });
+  expect(await f.t.query(({ db }) => readClaimToken(db, replacement))).toBe(1);
+  expect(await f.guardedWrite(old)).toEqual({ status: "wrong_pane" });
+  expect(await f.guardedWrite(newPaneUse)).toEqual({ status: "free" });
+  expect(await f.t.run((ctx) => renew(ctx, old))).toEqual({
+    status: "wrong_pane",
+  });
+  expect(await f.t.run((ctx) => release(ctx, old))).toEqual({
+    status: "wrong_pane",
+  });
+  expect(
+    await f.t.run((ctx) =>
+      revoke(ctx, { resource: f.pane, targetHolder: f.ana, token: 1 }),
+    ),
+  ).toEqual({ status: "wrong_pane" });
+  expect(
+    await f.t.run((ctx) =>
+      claim(ctx, { ...newPaneRequest, requestId: "new-lease" }),
+    ),
+  ).toEqual({ status: "held", token: 2, remainingMs: 20_000 });
+  expect(await f.guardedWrite(newPaneUse)).toEqual({ status: "stale_token" });
+  expect(await f.writes()).toBe(0);
+  expect(await f.rows()).toEqual([
+    expect.objectContaining({
+      kind: "steer",
+      resource_id: f.baton.id,
+      holder: f.ben,
+      token: 1,
+    }),
     expect.objectContaining({
       kind: "terminal",
       resource_id: f.pane.id,
-      purpose: "typing_lease",
+      pane_instance: "pane-2",
       holder: f.ana,
+      token: 2,
     }),
+  ]);
+});
+
+test("claims refuse empty request IDs and pane instances", async () => {
+  const f = await setup();
+  expect(await f.claimPane(f.ana, "")).toEqual({ status: "invalid_request" });
+  expect(
+    await f.t.run((ctx) =>
+      claim(ctx, {
+        ...f.pane,
+        paneInstance: "",
+        holder: f.ana,
+        requestId: "empty-pane",
+        expectedToken: 0,
+      }),
+    ),
+  ).toEqual({ status: "invalid_pane" });
+  expect(
+    await f.guardedWrite({
+      resource: { ...f.pane, paneInstance: "" },
+      holder: f.ana,
+      token: 1,
+    }),
+  ).toEqual({ status: "wrong_pane" });
+  expect(await f.rows()).toEqual([]);
+});
+
+test("lone and self requests respect live batons and a second sender reuses a released row", async () => {
+  const f = await setup();
+  const lone = {
+    ...f.baton,
+    holder: f.ana,
+    steering: { mode: "lone" },
+  } as const;
+  const second = {
+    ...f.baton,
+    holder: f.ana,
+    steering: { mode: "second_request", requester: f.ben },
+    requestId: "first-turn",
+    expectedToken: 0,
+  } as const;
+  expect(await f.t.run((ctx) => claim(ctx, second))).toEqual({
+    status: "held",
+    token: 1,
+    remainingMs: 30_000,
+  });
+  const granted = await f.rows();
+  advance(1_000);
+  for (const [holder, result] of [
+    [f.ana, { status: "held", token: 1, remainingMs: 29_000 }],
+    [f.ben, { status: "busy", remainingMs: 29_000 }],
+  ] as const) {
+    expect(await f.t.run((ctx) => claim(ctx, { ...lone, holder }))).toEqual(
+      result,
+    );
+    expect(
+      await f.t.run((ctx) =>
+        claim(ctx, {
+          ...second,
+          holder,
+          requestId: "self",
+          steering: { mode: "second_request", requester: holder },
+        }),
+      ),
+    ).toEqual(result);
+  }
+  expect(await f.rows()).toEqual(granted);
+  await f.t.run((ctx) =>
+    release(ctx, { resource: f.baton, holder: f.ana, token: 1 }),
   );
+  const released = await f.rows();
+  expect(await f.t.run((ctx) => claim(ctx, lone))).toEqual({ status: "lone" });
+  expect(await f.rows()).toEqual(released);
+  expect(
+    await f.t.run((ctx) =>
+      claim(ctx, { ...second, requestId: "second-turn", expectedToken: 1 }),
+    ),
+  ).toEqual({
+    status: "held",
+    token: 2,
+    remainingMs: 30_000,
+  });
+  expect(await f.rows()).toEqual([
+    expect.objectContaining({ _id: released[0]?._id, token: 2 }),
+  ]);
 });
 
 test("concurrent claims grant one holder and create one row", async () => {
@@ -196,7 +321,8 @@ test("a lost reply returns the same token and current remaining time", async () 
     currentToken: 1,
   });
   expect(await f.claimPane(f.ana, "first", 1)).toEqual({
-    status: "busy",
+    status: "held",
+    token: 1,
     remainingMs: 16_000,
   });
   expect(await f.claimPane(f.ben)).toEqual({
@@ -207,7 +333,13 @@ test("a lost reply returns the same token and current remaining time", async () 
     expect.objectContaining({ token: 1, lease_until: start + 20_000 }),
   ]);
   advance(20_000);
-  expect(await f.claimPane()).toEqual({ status: "inactive_request" });
+  expect(await f.claimPane(f.ana, "first", 1)).toEqual({
+    status: "inactive_request",
+  });
+  expect(await f.claimPane(f.ben, "first", 1)).toEqual({
+    status: "stale_request",
+    currentToken: 1,
+  });
 });
 
 test("renewal extends only the current holder's live lease", async () => {
@@ -236,6 +368,7 @@ test("renewal extends only the current holder's live lease", async () => {
     status: "held",
     token: 1,
     remainingMs: 10_000,
+    value: 1,
   });
   expect(await f.writes()).toBe(1);
   advance(30_000);
@@ -253,6 +386,7 @@ test("expiry denies writes at the exact boundary and takeover fences the old tok
     status: "held",
     token: 1,
     remainingMs: 1,
+    value: 1,
   });
   advance(20_000);
   expect(await f.guardedWrite(old)).toEqual({ status: "expired" });
@@ -289,9 +423,15 @@ test("only the holder can write or release, and release retains the token", asyn
     status: "cleared",
     token: 1,
   });
-  expect(await f.t.run((ctx) => readClaimToken(ctx, f.pane))).toBe(1);
+  expect(await f.t.query(({ db }) => readClaimToken(db, f.pane))).toBe(1);
   expect(await f.guardedWrite(use)).toEqual({ status: "free" });
-  expect(await f.claimPane()).toEqual({ status: "inactive_request" });
+  expect(await f.claimPane(f.ana, "first", 1)).toEqual({
+    status: "inactive_request",
+  });
+  expect(await f.claimPane(f.ben, "first", 1)).toEqual({
+    status: "stale_request",
+    currentToken: 1,
+  });
   expect(await f.claimPane(f.ben, "next", 1)).toEqual({
     status: "held",
     token: 2,
@@ -306,22 +446,49 @@ test("revocation stops writes in its transaction and a delayed revoke leaves the
   const stop = { resource: f.pane, targetHolder: f.ana, token: 1 };
   expect((await f.guardedWrite(use)).status).toBe("held");
   await f.t.run(async (ctx) => {
+    expect(await revoke(ctx, { ...stop, targetHolder: f.ben })).toEqual({
+      status: "wrong_holder",
+    });
     expect(await revoke(ctx, stop)).toEqual({ status: "cleared", token: 1 });
-    expect(await checkClaim(ctx, use)).toEqual({ status: "free" });
+    expect(
+      await withHeldClaim(ctx, use, () => {
+        throw new Error("revoked callback ran");
+      }),
+    ).toEqual({ status: "free" });
   });
   expect(await f.guardedWrite(use)).toEqual({ status: "free" });
   expect(await f.writes()).toBe(1);
+  expect(await f.claimPane(f.ana, "first", 1)).toEqual({
+    status: "inactive_request",
+  });
+  expect(await f.claimPane(f.ben, "first", 1)).toEqual({
+    status: "stale_request",
+    currentToken: 1,
+  });
   expect(await f.claimPane(f.ben, "after-revoke", 1)).toEqual({
     status: "held",
     token: 2,
     remainingMs: 20_000,
   });
+  expect(await f.claimPane()).toEqual({
+    status: "stale_request",
+    currentToken: 2,
+  });
   expect(await f.t.run((ctx) => revoke(ctx, stop))).toEqual({
     status: "stale_token",
   });
-  expect(
-    await f.guardedWrite({ resource: f.pane, holder: f.ben, token: 2 }),
-  ).toEqual({ status: "held", token: 2, remainingMs: 20_000 });
+  const successor = { resource: f.pane, holder: f.ben, token: 2 };
+  expect(await f.guardedWrite(successor)).toEqual({
+    status: "held",
+    token: 2,
+    remainingMs: 20_000,
+    value: 2,
+  });
+  await f.t.run((ctx) => release(ctx, successor));
+  expect(await f.claimPane()).toEqual({
+    status: "stale_request",
+    currentToken: 2,
+  });
 });
 
 test("the final safe token cannot roll over", async () => {
@@ -330,10 +497,12 @@ test("the final safe token cannot roll over", async () => {
     db.insert("claims", {
       kind: "terminal",
       resource_id: f.pane.id,
+      pane_instance: f.pane.paneInstance,
       purpose: "typing_lease",
       token: Number.MAX_SAFE_INTEGER,
       lease_until: 0,
       request_id: "last",
+      request_holder: f.ana,
     }),
   );
   expect(await f.claimPane(f.ana, "overflow", Number.MAX_SAFE_INTEGER)).toEqual(
@@ -341,7 +510,7 @@ test("the final safe token cannot roll over", async () => {
       status: "token_exhausted",
     },
   );
-  expect(await f.t.run((ctx) => readClaimToken(ctx, f.pane))).toBe(
+  expect(await f.t.query(({ db }) => readClaimToken(db, f.pane))).toBe(
     Number.MAX_SAFE_INTEGER,
   );
 });
