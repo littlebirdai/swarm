@@ -813,7 +813,7 @@ const parseRow = (row: string): Partial<Record<SurfaceId, Passage>>[] =>
 /**
  * Every move's passages at each anchor (solvePassages), so a page load and a
  * resize solve nothing: solving one anchor costs a few hundred ms of CPU,
- * several times that on a phone. timeline.test.ts keeps this table equal to
+ * several times that on a phone. passageTable.*.test.ts keep this table equal to
  * the solver and prints the rows to paste when the world or the camera moves.
  */
 export const PASSAGE_TABLE: Record<string, string> = {

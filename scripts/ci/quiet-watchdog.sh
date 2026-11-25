@@ -45,7 +45,10 @@ in_flight() {
 size=-1
 still=0
 while kill -0 "$pid" 2>/dev/null; do
-  sleep 15
+  for _ in {1..15}; do
+    kill -0 "$pid" 2>/dev/null || break 2
+    sleep 1
+  done
   now=$(wc -c < "$log")
   if [ "$now" != "$size" ]; then size=$now; still=0; continue; fi
   still=$((still + 15))

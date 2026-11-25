@@ -53,10 +53,15 @@ export const SUITES: Array<{
   // test-cli runs --parallel, a fresh global per file: the boot graph guards
   // count the module registry, which earlier files in one process have filled.
   { job: "test-cli", dir: "apps/cli", roots: ["src"], flags: ["--parallel"] },
-  { job: "test-cli", dir: "apps/evals", roots: ["src"], flags: [] },
+  {
+    job: "test-cli",
+    dir: "apps/evals",
+    roots: ["src"],
+    flags: ["--parallel"],
+  },
   // test-web and test-mobile run with --isolate: their mount tests replace
   // modules with mock.module, which is permanent within one process.
-  { job: "test-web", dir: "apps/web", roots: ["."], flags: ["--isolate"] },
+  { job: "test-web", dir: "apps/web", roots: ["."], flags: ["--parallel=2"] },
   {
     job: "test-mobile",
     dir: "apps/mobile",
@@ -90,30 +95,47 @@ export function alwaysRunFiles(suite: (typeof SUITES)[number]): string[] {
     .sort();
 }
 
+async function runSuite(suite: (typeof SUITES)[number]): Promise<boolean> {
+  const files = alwaysRunFiles(suite);
+  if (files.length === 0) return true;
+  const started = performance.now();
+  console.log(`${suite.dir}: started`);
+  const proc = Bun.spawn(["bun", "test", ...suite.flags, ...files], {
+    cwd: join(ROOT, suite.dir),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  const seconds = Math.round((performance.now() - started) / 1000);
+  console.log(`::group::${suite.dir}: ${files.length} files`);
+  console.log(stdout + stderr);
+  console.log("::endgroup::");
+  console.log(`${suite.dir}: exit ${code} in ${seconds}s`);
+  return code === 0;
+}
+
 if (import.meta.main) {
-  const list = process.argv.includes("--list");
-  const failed: string[] = [];
-  for (const suite of SUITES) {
-    const files = alwaysRunFiles(suite);
-    if (list) {
+  if (process.argv.includes("--list")) {
+    for (const suite of SUITES) {
+      const files = alwaysRunFiles(suite);
       console.log(`${suite.dir} (${files.length})`);
       for (const file of files) console.log(`  ${file}`);
-      continue;
     }
-    if (files.length === 0) continue;
-    console.log(`::group::${suite.dir}: ${files.length} files`);
-    const started = performance.now();
-    const proc = Bun.spawn(["bun", "test", ...suite.flags, ...files], {
-      cwd: join(ROOT, suite.dir),
-      stdio: ["inherit", "inherit", "inherit"],
-    });
-    const code = await proc.exited;
-    console.log("::endgroup::");
-    console.log(
-      `${suite.dir}: exit ${code} in ${Math.round((performance.now() - started) / 1000)}s`,
-    );
-    if (code !== 0) failed.push(suite.dir);
+    process.exit(0);
   }
+  const queue = [...SUITES];
+  const failed: string[] = [];
+  const worker = async () => {
+    for (let suite = queue.pop(); suite; suite = queue.pop())
+      if (!(await runSuite(suite))) failed.push(suite.dir);
+  };
+  await Promise.all(
+    Array.from({ length: navigator.hardwareConcurrency }, worker),
+  );
   if (failed.length > 0) {
     console.log(`::error::Always-run tests failed in ${failed.join(", ")}`);
     process.exit(1);

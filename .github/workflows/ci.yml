@@ -55,6 +55,9 @@ jobs:
           # server.
           fetch-depth: 0
           filter: blob:none
+          sparse-checkout: |
+            .github
+            scripts
 
       - uses: ./.github/actions/setup-bun
         with:
@@ -173,17 +176,35 @@ jobs:
     if: needs.code_paths.outputs.run_build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [web, other]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Build
+      - name: Build the web app
+        if: matrix.target == 'web'
         # The web bundle outgrew V8's default heap on the runner: on 2026-10-24
         # vite died with "JavaScript heap out of memory" (exit 134).
+        # The rest of the web build script prepares the files to serve
+        # (compression, prerender). CI serves nothing, so it only proves below
+        # that those scripts load.
+        working-directory: apps/web
         env:
           NODE_OPTIONS: --max-old-space-size=8192
-        run: bun run build
+        run: bunx vite build --sourcemap false
+
+      - name: Load the scripts that follow the web bundle
+        if: matrix.target == 'other'
+        working-directory: apps/web
+        run: bun build scripts/precompress.mjs scripts/carry-assets.mjs scripts/prerender.mjs scripts/indexnow.mjs ../../scripts/ci/verify-telemetry-key.mjs --target=node --packages=external --outdir="$RUNNER_TEMP/web-build-scripts"
+
+      - name: Build everything else
+        if: matrix.target == 'other'
+        run: bun run build --filter='!@codecast/web'
 
   typecheck:
     needs: [code_paths]
@@ -193,15 +214,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        programs: [web playground packages, sim cli, convex evals]
+        programs: [web sim, cli convex, evals playground packages]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-bun
 
       # The programs .codecast/check.toml points `cast check` at, except
-      # mobile, with the native TypeScript compiler. The programs run one after
-      # another: each one uses every CPU and several GB.
+      # mobile, with the native TypeScript compiler. The programs of one runner
+      # run at the same time, each with one checker: more checkers repeat most
+      # of each other's work.
       - name: Typecheck
         run: bun scripts/ci/typecheck.ts ${{ matrix.programs }}
 
@@ -232,6 +254,10 @@ jobs:
     if: needs.code_paths.outputs.run_test_convex == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -239,47 +265,46 @@ jobs:
 
       - name: Unit tests (convex package)
         working-directory: apps/server
-        run: bun test convex/ scripts/
+        run: bun test convex/ scripts/ --timings=test-timings.json --shard=${{ matrix.shard }}/3
 
   test-web:
     needs: [code_paths]
     if: needs.code_paths.outputs.run_test_web == 'true'
     runs-on: ubuntu-latest
-    # The four shards below run one after another: 19.5 minutes together on
-    # 2026-10-25, when the old 20 minute cap cancelled a run whose shards all passed.
-    timeout-minutes: 35
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, budgets]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-bun
 
       - name: Unit tests (web package)
+        if: matrix.shard != 'budgets'
         working-directory: apps/web
         # --isolate: a fresh global per file. bun otherwise runs the whole suite
         # in one process, where `mock.module` substitutions are permanent and a
         # jsdom window installed on globalThis outlives the file that made it.
         # One mount test then decides what hundreds of later files see, so a
         # test passes alone and fails in the suite depending on file order.
-        # Four shards, one process each, run one after another: bun keeps every
-        # isolated file's global alive until its process exits (a file that
-        # imports the store holds ~8 MB after a full GC), so the whole suite in
-        # one process climbed past 11 GB, stalled in memory pressure and was
-        # terminated (exit 143) mid-file. A shard ends its process and frees it.
+        # --parallel: one worker process per CPU. bun keeps every isolated
+        # file's global alive until its process exits (a file that imports the
+        # store holds ~8 MB after a full GC), so the whole suite in one process
+        # climbed past 11 GB. Eight shards of four workers keep each process small.
+        # --timeout: the workers share the CPUs, which stretches a test that
+        # takes 3 of its default 5 seconds alone.
         # SIM_OUT: where the multiplayer sim writes each run's report and
         # events (docs/architecture/sync-sim.md), uploaded below on failure.
         env:
           SIM_OUT: ${{ runner.temp }}/sim
-        run: |
-          status=0
-          for shard in 1 2 3 4; do
-            echo "test-web shard $shard/4"
-            bun test --isolate --shard=$shard/4 || status=1
-          done
-          exit $status
+        run: bun test --parallel --timeout=20000 --timings=test-timings.json --shard=${{ matrix.shard }}/8
 
       # The exact counts behind the perf benches (apps/web/perf/README.md).
       # Plain bun, not bun test: the test preload stands in for the diff viewer.
       - name: Perf budgets (web)
+        if: matrix.shard == 'budgets'
         working-directory: apps/web
         run: scripts/perf-budgets.sh
 
@@ -287,7 +312,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: sim-artifacts
+          name: sim-artifacts-${{ matrix.shard }}
           path: ${{ runner.temp }}/sim
           if-no-files-found: ignore
           retention-days: 14
@@ -297,6 +322,10 @@ jobs:
     if: needs.code_paths.outputs.run_test_cli == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [1, 2, 3, 4, 5, 6, tmux-1, tmux-2, tmux-3, tmux-4, evals, e2e]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -306,6 +335,7 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       - name: Unit tests (cli package)
+        if: matrix.suite != 'evals' && matrix.suite != 'e2e' && !startsWith(matrix.suite, 'tmux-')
         working-directory: apps/cli
         # Exclude the e2e suite — it has its own step with --rerun-each for
         # resilience against tmux-resource flake under CI runner load.
@@ -324,15 +354,26 @@ jobs:
         # the job spending the rest of its timeout with nothing said.
         env:
           DAEMON_BUILD_ID_CHECK: "1"
-        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --bail=5
+        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=${{ matrix.suite }}/6 --bail=5
+
+      # The e2e files drive real tmux panes against wall-clock bounds, so they
+      # run two at a time and away from the unit tests, which use every CPU.
+      - name: E2E files (cli package)
+        if: startsWith(matrix.suite, 'tmux-')
+        working-directory: apps/cli
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=2 --timings=test-timings.json --shard="${SUITE#tmux-}/4" --bail=5
 
       # The eval home (apps/evals). Its tests make no network or model
       # calls; real replays run only from ./evals on a laptop.
       - name: Unit tests (evals package)
+        if: matrix.suite == 'evals'
         working-directory: apps/evals
-        run: bun test src/
+        run: bun test src/ --parallel
 
       - name: E2E messaging pipeline (real tmux + fake-claude shim)
+        if: matrix.suite == 'e2e'
         working-directory: apps/cli
         # Up to 3 full-suite attempts to absorb tmux-resource flake from
         # running 10 fresh sessions back-to-back on a contended runner.
@@ -374,7 +415,7 @@ jobs:
       # code_paths decides whether this runs, from the same changed-path list
       # that gates the jobs (touchesInjection in scripts/ci/changed-path-scope.ts).
       - name: Injection suites (captured frames; real-client cells skip without agent binaries)
-        if: needs.code_paths.outputs.run_test_injection == 'true'
+        if: matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'
         working-directory: apps/cli
         # Same three-attempt shape as the E2E step above, and for the same
         # reason: spawning agent TUIs back-to-back on a contended runner is
@@ -423,7 +464,7 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
         with:
-          deps: cache
+          deps: none
 
       # Before the installs below, which write a bun.lock into each mirrored
       # package. `--check` diffs against ~/src/platform, which no runner has;
@@ -550,18 +591,22 @@ jobs:
     continue-on-error: true
     runs-on: macos-15
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-bun
 
       - name: Swift unit tests (helper core)
-        if: needs.code_paths.outputs.run_test_computer == 'true'
+        if: matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'
         working-directory: apps/cli/native/computer-use-macos
         run: swift test
 
       - name: Build and sign the computer helper
-        if: needs.code_paths.outputs.run_test_computer == 'true'
+        if: matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'
         working-directory: apps/cli
         # No Developer ID certificate on a runner, so the helper signs ad hoc.
         # That is the from-source case the design already describes: it runs,
@@ -580,7 +625,7 @@ jobs:
         run: bun scripts/computer-verify.ts build --out "$RUNNER_TEMP/helper.tar"
 
       - name: Unit and e2e tests (cast computer, ungranted half)
-        if: needs.code_paths.outputs.run_test_computer == 'true'
+        if: matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'
         working-directory: apps/cli
         # Both variables point at the same build: the e2e suites take a bundle,
         # the materialization tests take the payload it came from.
@@ -605,7 +650,7 @@ jobs:
         # default on a loaded machine. --isolate for the same reason test-cli
         # uses it.
         run: >-
-          bun test --isolate --timeout=60000
+          bun test --isolate --timeout=60000 --shard=${{ matrix.shard }}/3
           src/antigravityLocal.test.ts
           src/browser/appIdentity.native.test.ts
           src/browser/bridge/host.test.ts

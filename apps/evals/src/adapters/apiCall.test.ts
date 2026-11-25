@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,8 +10,14 @@ import { postCall } from "./apiCall";
 import { readCallRun } from "./dryRun";
 
 const realFetch = globalThis.fetch;
+const realSetTimeout = globalThis.setTimeout;
+beforeEach(() => {
+  globalThis.setTimeout = ((done: () => void) =>
+    realSetTimeout(done, 0)) as typeof setTimeout;
+});
 afterEach(() => {
   globalThis.fetch = realFetch;
+  globalThis.setTimeout = realSetTimeout;
 });
 
 /** A fake Messages API: answers each post with the next reply, recording what it was sent. */

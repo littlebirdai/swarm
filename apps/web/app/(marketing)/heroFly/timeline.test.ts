@@ -11,19 +11,15 @@ import { project, rotateXYZ, STAGE_SIZE } from "./project";
 import {
   DROP,
   PAGE_SIDE,
-  PASSAGE_TABLE,
   SETTLE,
-  SLIDE_ANCHORS,
   SNAP,
   cameraAt,
   coverOpacity,
   frame,
   ghostOpacity,
   isLive,
-  passageRow,
   presence,
   SEAM_GHOST,
-  solvePassages,
   typed,
   warm,
 } from "./timeline";
@@ -592,27 +588,6 @@ describe("hero fly-through timeline", () => {
       expect(bad.slice(0, 20)).toEqual([]);
     }, 120_000);
   }
-
-  // Each move's passages are solved (solvePassages) and kept in a table, so neither a page load nor a resize solves anything:
-  // the table is the solver's answer. On a change to the world or the camera, paste the printed rows into PASSAGE_TABLE.
-  test("the passage table is the solver's", () => {
-    const rows: string[] = [];
-    let same = true;
-    for (const mobile of [false, true]) {
-      for (const anchor of SLIDE_ANCHORS[mobile ? "mobile" : "desktop"]) {
-        const key = `${mobile ? "m" : "d"}:${anchor}`;
-        const row = passageRow(solvePassages(mobile, anchor));
-        rows.push(`  "${key}": "${row}",`);
-        if (PASSAGE_TABLE[key] !== row) same = false;
-      }
-    }
-    if (!same)
-      console.log(
-        `PASSAGE_TABLE is stale; the solver's rows:\n${rows.join("\n")}`,
-      );
-    expect(same).toBe(true);
-    // Solving every anchor is the slowest check here: a few minutes of CPU, far more on a loaded machine.
-  }, 1_800_000);
 
   // The driver's per-frame cost: a hold needs nothing built, and once a page's moves are warmed (in idle time, HeroFlythrough)
   // any frame is a few ms of CPU at most, at any page reach, so neither the first paint nor a resize stalls the main thread.
