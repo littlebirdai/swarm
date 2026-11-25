@@ -92,7 +92,7 @@ each caller's abort signal, and release layer resources on disposal. Use
 
 Run `bun run lint` from the root of the repository. Oxlint examines the full repository, except `platform/` (the vendored mirror), generated files and build output. The list is `ignorePatterns` in `.oxlintrc.json`.
 
-The baseline file `lint-baseline.json` records the current violations by file and rule. A renamed file keeps its counts. The counts in the baseline can only decrease. Lint fails while the baseline names a file that does not exist. Thus, after you remove violations, or move or delete a file that the baseline names, run `bun run lint:prune`. Then commit the changed baseline.
+The baseline file `lint-baseline.json` records the current violations by file and rule. A renamed file keeps its counts. A file that is new since the Git base can use an allowance only when the same rule and trimmed source lines disappear from a file at the base and an adjacent nonblank line matches. Run `bun run lint:prune` to record each transfer in the baseline before `bun run lint` can pass. Lint fails while the baseline names a file that does not exist. Thus, after you remove violations, or move or delete a file that the baseline names, run `bun run lint:prune`. Then commit the changed baseline.
 
 Code comments are not permitted, except semantic tool directives. The baseline includes the code comments that exist today. Do not add explanatory comments to new code. Use clear names, or write the reason in the applicable documentation. A lint disable comment (`oxlint-disable`, `eslint-disable`) is not a way around a rule. Do not add one in new code.
 
