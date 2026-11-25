@@ -1,5 +1,6 @@
 import { expect, spyOn, test } from "bun:test";
 import { patchEnv } from "@codecast/test-helpers/patchEnv";
+import { CI_FLAG_VARS, CI_PRESENCE_VARS } from "@platform/analytics";
 import { internal } from "./_generated/api";
 import { serverTest } from "../test-helpers/database.testkit";
 
@@ -9,7 +10,9 @@ const env = {
   VITE_POSTHOG_KEY: undefined,
   CODECAST_TELEMETRY_DISABLED: undefined,
   DO_NOT_TRACK: undefined,
-  CI: undefined,
+  ...Object.fromEntries(
+    [...CI_FLAG_VARS, ...CI_PRESENCE_VARS].map((name) => [name, undefined]),
+  ),
 };
 
 test("samples the oldest pending age as a personless event and reports an empty queue", async () => {
