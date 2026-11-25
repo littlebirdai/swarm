@@ -226,6 +226,8 @@ test("production Claude, Codex, Pi, Grok and vault policies prime actual watcher
 test.skipIf(process.platform !== "darwin")(
   "native idle cadence stays serial; rejected events cannot accelerate it; stop removes all work",
   async () => {
+    const rescanIntervalMs = 180;
+    const minimumRescanGapMs = rescanIntervalMs - 15;
     for (const enabled of [false, true]) {
       const base = root();
       write(base, "hash/chats/a.json");
@@ -240,7 +242,7 @@ test.skipIf(process.platform !== "darwin")(
         scanPolicy: cfg.scanPolicy,
         maxDepth: cfg.maxDepth,
         callback: () => {},
-        rescanIntervalMs: 180,
+        rescanIntervalMs,
         debounceMs: 10,
       });
       watchers.push(w);
@@ -251,7 +253,7 @@ test.skipIf(process.platform !== "darwin")(
       const starts: number[] = [],
         ends: number[] = [];
       internals.walkTree = async (...args: any[]) => {
-        starts.push(Date.now());
+        starts.push(performance.now());
         active++;
         maxActive = Math.max(active, maxActive);
         try {
@@ -259,7 +261,7 @@ test.skipIf(process.platform !== "darwin")(
           await walk(...args);
         } finally {
           active--;
-          ends.push(Date.now());
+          ends.push(performance.now());
         }
       };
       w.start();
@@ -270,11 +272,22 @@ test.skipIf(process.platform !== "darwin")(
         await pause(20);
       }
       expect(starts.length).toBeGreaterThanOrEqual(3);
-      expect(starts.length).toBeLessThanOrEqual(5);
       expect(maxActive).toBe(1);
       expect(internals.probeTimers.size).toBe(0);
+      const completedRescanMs = ends
+        .slice(1, starts.length - 1)
+        .reduce((total, end, i) => total + (end - starts[i + 1]), 0);
+      const elapsedFromPrimeMs = performance.now() - ends[0];
+      expect(starts.length).toBeLessThanOrEqual(
+        1 +
+          Math.floor(
+            (elapsedFromPrimeMs - completedRescanMs) / minimumRescanGapMs,
+          ),
+      );
       for (let i = 1; i < starts.length; i++)
-        expect(starts[i] - ends[i - 1]).toBeGreaterThanOrEqual(165);
+        expect(starts[i] - ends[i - 1]).toBeGreaterThanOrEqual(
+          minimumRescanGapMs,
+        );
       w.stop();
       const count = starts.length;
       await pause(280);
