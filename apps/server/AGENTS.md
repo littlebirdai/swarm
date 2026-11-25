@@ -6,7 +6,7 @@ Deploys go through `deploy.sh` only; the root `CLAUDE.md` explains why, and cove
 
 **Run tests from this directory.** `bun test convex/<file>.test.ts`, or `bun run test` for what CI runs (`bun test convex/ scripts/`).
 
-**Use the server test helpers.** Start function tests with `serverTest()` from `test-helpers/database.testkit.ts`. It loads the schema and all Convex function modules. Call functions through `api` or `internal`. Use `asUser` for account calls.
+**Use the server test helpers.** Start function tests with `serverTest()` from `test-helpers/database.testkit.ts`. It enables schema validation and loads all Convex function modules. Call functions through `api` or `internal`. Use `asUser` for account calls.
 
 **Insert fixtures with `fixtureRows(db, seed)`.** Set the fields the test checks or uses to select rows. The seeded faker supplies the other values. Keep fixtures in `test-helpers/*.testkit.ts` outside the Convex module tree.
 

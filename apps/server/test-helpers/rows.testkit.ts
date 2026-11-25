@@ -152,6 +152,22 @@ export function fixtureRows(db: DatabaseWriter, seed: string) {
         ...fields,
       });
     },
+    role(user: Id<"users">, fields: Partial<NewRow<"org_roles">> = {}) {
+      return db.insert("org_roles", {
+        short_id: shortId("or"),
+        scope_type: "user",
+        scope_user_id: user,
+        host_user_id: user,
+        name: faker.person.jobTitle(),
+        handle: faker.string.alpha({ length: 12, casing: "lower" }),
+        scope: { project_ids: [], plan_ids: [] },
+        reports_to: { kind: "user", user_id: user },
+        status: "active",
+        created_by: user,
+        ...timestamps,
+        ...fields,
+      });
+    },
     artifact(
       user: Id<"users">,
       storage: Id<"_storage">,

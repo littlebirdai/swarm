@@ -1,107 +1,91 @@
 import { describe, expect, test } from "bun:test";
+import { scheduledJobs, serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows } from "../test-helpers/rows.testkit";
 import { afterRoleDocWrite } from "./orgRoles";
 
-// One after-write hook for a role's documents, whichever path saved them
-// (docs.update, the collab editor's snapshot, cast brief edit): a brief
-// mirrors its first line into the standing session's state, a charter wakes
-// the role. The fake db holds one role with both docs, its anchor and the
-// standing conversation, and records every write.
-
-function fakeCtx() {
-  const role = {
-    _id: "role1",
-    team_id: "team1",
-    status: "active",
-    anchor_id: "anchor1",
-    brief_doc_id: "brief1",
-    charter_doc_id: "charter1",
-    name: "Infra lead",
-    handle: "infra",
-  };
-  const anchor = { _id: "anchor1", conversation_id: "conv1" };
-  const conv = {
-    _id: "conv1",
-    user_id: "u1",
-    standing_role_id: "role1",
-    thread_state: null,
-  };
-  const rows: Record<string, any> = {
-    role1: role,
-    anchor1: anchor,
-    conv1: conv,
-    team1: { _id: "team1", features: { org: true } },
-  };
-  const patches: Array<{ id: string; patch: any }> = [];
-  const inserts: Array<{ table: string; row: any }> = [];
-  const scheduled: any[] = [];
-  const query = (table: string) => ({
-    withIndex: () => ({
-      collect: async () => (table === "org_roles" ? [role] : []),
-      order: () => ({ first: async () => null, take: async () => [] }),
-      first: async () => null,
-      take: async () => [],
-    }),
+async function setup() {
+  const t = serverTest();
+  const ids = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "role documents");
+    const owner = await rows.user();
+    const bot = await rows.user({ is_bot: true });
+    const team = await rows.team({ features: { org: true } });
+    const brief = await rows.doc(owner, { doc_type: "brief", team_id: team });
+    const charter = await rows.doc(owner, {
+      doc_type: "charter",
+      team_id: team,
+    });
+    const note = await rows.doc(owner, { doc_type: "note", team_id: team });
+    const role = await rows.role(owner, {
+      scope_type: "team",
+      scope_user_id: undefined,
+      team_id: team,
+      brief_doc_id: brief,
+      charter_doc_id: charter,
+    });
+    const conversation = await rows.conversation(owner, {
+      standing_role_id: role,
+    });
+    const anchor = await db.insert("anchors", {
+      scope_type: "team",
+      team_id: team,
+      bot_user_id: bot,
+      host_user_id: owner,
+      conversation_id: conversation,
+      org_role_id: role,
+      name: "Infra lead",
+      status: "active",
+      created_at: 1,
+    });
+    await db.patch(role, { anchor_id: anchor });
+    return { brief, charter, note, conversation, role, anchor };
   });
-  const ctx = {
-    db: {
-      get: async (id: string) => rows[id] ?? null,
-      patch: async (id: string, patch: any) => {
-        patches.push({ id, patch });
-        Object.assign(rows[id], patch);
-      },
-      insert: async (table: string, row: any) => {
-        inserts.push({ table, row });
-        return `${table}-${inserts.length}`;
-      },
-      query,
-    },
-    scheduler: {
-      runAfter: async (...args: any[]) => {
-        scheduled.push(args);
-      },
-      runAt: async (...args: any[]) => {
-        scheduled.push(args);
-      },
-    },
+
+  return {
+    write: (type: "brief" | "charter" | "note", content: string) =>
+      t.run(async (ctx) =>
+        afterRoleDocWrite(ctx, await ctx.db.get(ids[type]), content),
+      ),
+    readConversation: () =>
+      t.run(async ({ db }) => (await db.get(ids.conversation))!),
+    snapshot: () =>
+      t.run(async ({ db }) => ({
+        roles: await db.query("org_roles").collect(),
+        anchors: await db.query("anchors").collect(),
+        conversations: await db.query("conversations").collect(),
+        pending: await db.query("pending_messages").collect(),
+      })),
+    jobs: () => scheduledJobs(t),
   };
-  return { ctx, patches, inserts, scheduled, conv };
 }
 
 describe("afterRoleDocWrite", () => {
   test("a brief's first line lands on the standing session's state", async () => {
-    const { ctx, patches } = fakeCtx();
-    await afterRoleDocWrite(
-      ctx,
-      { _id: "brief1", doc_type: "brief", team_id: "team1" },
+    const { write, readConversation } = await setup();
+    await write(
+      "brief",
       "Infra lead standing by\nStatus: dormant waiting on CI\nNext: read the frame\n\nMore prose.",
     );
-    const conv = patches.find((p) => p.id === "conv1");
-    expect(conv).toBeDefined();
-    expect(String(conv!.patch.thread_state)).toMatch(/^Infra lead standing by/);
-    expect(String(conv!.patch.thread_state)).toContain("Next: read the frame");
-    expect(String(conv!.patch.thread_state)).not.toContain("More prose");
-    expect(conv!.patch.thread_state_status).toBe("dormant");
+    const conv = await readConversation();
+    expect(conv.thread_state).toMatch(/^Infra lead standing by/);
+    expect(conv.thread_state).toContain("Next: read the frame");
+    expect(conv.thread_state).not.toContain("More prose");
+    expect(conv.thread_state_status).toBe("dormant");
   });
 
   test("a charter edit touches nothing: the role reads it at its next run", async () => {
-    const { ctx, inserts, patches } = fakeCtx();
-    await afterRoleDocWrite(
-      ctx,
-      { _id: "charter1", doc_type: "charter", team_id: "team1" },
-      "# Charter\nnew rules",
-    );
-    expect(inserts).toHaveLength(0);
-    expect(patches).toHaveLength(0);
+    const { write, snapshot, jobs } = await setup();
+    const before = await snapshot();
+    await write("charter", "# Charter\nnew rules");
+    expect(await snapshot()).toEqual(before);
+    expect(await jobs()).toEqual([]);
   });
 
   test("any other document is left alone", async () => {
-    const { ctx, inserts, patches } = fakeCtx();
-    await afterRoleDocWrite(
-      ctx,
-      { _id: "note1", doc_type: "note", team_id: "team1" },
-      "hello",
-    );
-    expect(inserts).toHaveLength(0);
-    expect(patches).toHaveLength(0);
+    const { write, snapshot, jobs } = await setup();
+    const before = await snapshot();
+    await write("note", "hello");
+    expect(await snapshot()).toEqual(before);
+    expect(await jobs()).toEqual([]);
   });
 });
