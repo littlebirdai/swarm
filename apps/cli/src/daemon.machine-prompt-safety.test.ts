@@ -103,7 +103,12 @@ import { createHibernationHarness } from "./test-helpers/hibernationHarness";
 
 // The fixture lifts delivery code out of daemon.ts by name; the pane classifiers
 // it calls live in tmuxPaneState.ts, so both files are read as one source.
-const source = ["./daemon.ts", "./tmuxPaneState.ts", "./pollMessage.ts"]
+const source = [
+  "./daemon.ts",
+  "./tmuxPaneState.ts",
+  "./pollMessage.ts",
+  "./terminal/daemonBridge.ts",
+]
   .map((file) => fs.readFileSync(new URL(file, import.meta.url), "utf8"))
   .join("\n");
 const scratch: string[] = [];

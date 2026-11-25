@@ -123,15 +123,15 @@ test("a cancelled transcript transfer is neither repaired nor rebuilt; any other
 
 test("resume_session and delivery stop on a cancelled transfer before any repair, rebuild or failure count", () => {
   const src = fs.readFileSync(path.join(import.meta.dir, "daemon.ts"), "utf-8");
-  const handler = src.slice(
-    src.indexOf('case "resume_session"'),
-    src.indexOf('case "config_list"'),
+  const handler = fs.readFileSync(
+    new URL("./daemon-commands/resume-fallback.ts", import.meta.url),
+    "utf8",
   );
   const stop = handler.indexOf('if (outcome === "cancelled")');
   expect(stop).toBeGreaterThan(handler.indexOf("resumeOrRepair("));
   expect(
     handler.slice(stop, handler.indexOf("resumed = outcome !== null")),
-  ).toContain("break;");
+  ).toContain("return;");
   expect(handler.slice(stop)).toContain('reason: "transfer_cancelled"');
   expect(handler).not.toMatch(/resumed = await autoResumeSession\(sessionId,/);
   const delivery = src.slice(

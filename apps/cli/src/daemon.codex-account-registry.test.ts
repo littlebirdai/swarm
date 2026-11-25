@@ -15,17 +15,25 @@ describe("codex panes record the account they launched on", () => {
   it("stamps at every path that starts a codex process", () => {
     // Each new-session lands one stamp: start_session, the blank/fresh start,
     // and the auto-resume (a resume is a new process reading auth.json afresh).
-    const calls = codeLines(src).filter(({ line }) =>
-      line.includes("stampCodexPaneAccount("),
+    const start = readFileSync(
+      new URL("./daemon-commands/launch-session.ts", import.meta.url),
+      "utf8",
+    );
+    const fallback = readFileSync(
+      new URL("./daemon-commands/resume-fallback.ts", import.meta.url),
+      "utf8",
+    );
+    const calls = codeLines([src, start, fallback].join("\n")).filter(
+      ({ line }) => line.includes("stampCodexPaneAccount("),
     );
     // Three call sites plus the declaration.
     expect(calls.length).toBe(4);
-    for (const anchor of [
-      "await stampCodexPaneAccount(agentType, tmuxSession, conversationId);",
-      "await stampCodexPaneAccount(\n                blankAgentType,\n                tmuxSession,\n                conversationId,\n              );",
-    ]) {
-      expect(src).toContain(anchor);
-    }
+    expect(start).toMatch(
+      /await stampCodexPaneAccount\(\s*agentType,\s*tmuxSession,\s*conversationId,?\s*\);/,
+    );
+    expect(fallback).toMatch(
+      /await stampCodexPaneAccount\(\s*blankAgentType,\s*tmuxSession,\s*conversationId,?\s*\);/,
+    );
   });
 
   it("writes all three copies of the fact, and only for codex", () => {

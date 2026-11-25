@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
-const source = readFileSync(new URL("./daemon.ts", import.meta.url), "utf8");
+const source = readFileSync(
+  new URL("./daemon-commands/resume-forks.ts", import.meta.url),
+  "utf8",
+);
 const start = source.search(
   /if \(\s*resumeAgentType === "codex" &&\s*\(parsed\.fork === true \|\| forceReconstitute\) &&\s*conversationId\s*\)/,
 );

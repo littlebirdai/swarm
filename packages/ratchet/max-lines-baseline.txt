@@ -87,7 +87,7 @@ apps/cli/src/daemon.machine-prompt-safety.test.ts 2350
 apps/cli/src/daemon.session-teardown.test.ts 1300
 apps/cli/src/daemon.status-reconcile.test.ts 1150
 apps/cli/src/daemon.tmux-classify.test.ts 1750
-apps/cli/src/daemon.ts 51250
+apps/cli/src/daemon.ts 46000
 apps/cli/src/daemon.waiting-tasks.test.ts 1650
 apps/cli/src/decideCommand.test.ts 850
 apps/cli/src/decideCommand.ts 2050

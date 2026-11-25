@@ -149,6 +149,10 @@ describe("double-start fix invariants", () => {
   });
 
   test("the resume fallback tags its tmux with @codecast_conversation_id", () => {
+    const daemonSource = fs.readFileSync(
+      new URL("./daemon-commands/resume-fallback.ts", import.meta.url),
+      "utf8",
+    );
     // The blank-session-after-resume-failure path must tag the conversation so
     // findLiveTmuxForConversation can later see it (the orphaned-oqssy1 fix).
     const anchor = daemonSource.indexOf(
@@ -278,6 +282,10 @@ describe("startedSessionGuard", () => {
   const source = fs.readFileSync(path.join(here, "daemon.ts"), "utf-8");
 
   test("resume_session tears a stale pane down instead of returning early", () => {
+    const source = fs.readFileSync(
+      new URL("./daemon-commands/resume-session.ts", import.meta.url),
+      "utf8",
+    );
     const start = source.indexOf("// Fresh-session guard.");
     expect(start).toBeGreaterThan(-1);
     const body = source.slice(start, start + 3000);
@@ -289,6 +297,10 @@ describe("startedSessionGuard", () => {
   });
 
   test("the blank restart shares the boot window and reschedules delivery", () => {
+    const source = fs.readFileSync(
+      new URL("./daemon-commands/resume-fallback.ts", import.meta.url),
+      "utf8",
+    );
     const anchor = source.indexOf(
       "[REMOTE] Started fresh session ${tmuxSession} for conversation",
     );

@@ -72,16 +72,20 @@ describe("backend switch hold in the daemon", () => {
   });
 
   test("a kill cancels a switch in progress and waits for it to let go; a park is refused during one", () => {
-    const kill = src.slice(
-      src.indexOf('case "kill_session": {'),
-      src.indexOf('case "hibernate_session": {'),
+    const lifecycle = fs.readFileSync(
+      new URL("./daemon-commands/session-lifecycle.ts", import.meta.url),
+      "utf8",
+    );
+    const kill = lifecycle.slice(
+      lifecycle.indexOf('case "kill_session": {'),
+      lifecycle.indexOf('case "hibernate_session": {'),
     );
     expect(kill).toContain(
       "await cancelBackendSwitch(conversationId, sessionIdHint)",
     );
-    const park = src.slice(
-      src.indexOf('case "hibernate_session": {'),
-      src.indexOf("hibernateSessionNow(sessionId, conversationId)"),
+    const park = lifecycle.slice(
+      lifecycle.indexOf('case "hibernate_session": {'),
+      lifecycle.indexOf("hibernateSessionNow(sessionId, conversationId)"),
     );
     expect(park).toContain(
       "if (backendSwitchHeld(sessionId, conversationId)) {",
@@ -90,7 +94,11 @@ describe("backend switch hold in the daemon", () => {
   });
 
   test("a Restart or agent switch is refused while a switch holds the session, and the switch runs off the command queue", () => {
-    const resume = src.slice(src.indexOf('case "resume_session": {'));
+    const commands = fs.readFileSync(
+      new URL("./daemon-commands/resume-session.ts", import.meta.url),
+      "utf8",
+    );
+    const resume = commands.slice(commands.indexOf('case "resume_session": {'));
     const hold = resume.indexOf(
       "if (backendSwitchHeld(sessionId, conversationId)) {",
     );

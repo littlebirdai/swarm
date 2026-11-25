@@ -106,10 +106,14 @@ describe("per-profile credential stores", () => {
     const openers = daemonSource.match(/openInDefaultBrowser\(/g) ?? [];
     expect(openers).toHaveLength(2); // the definition and the mint watcher's call
     // Each flow is started from its command handler and nowhere else.
-    expect(daemonSource.match(/startLoginFlow\(/g) ?? []).toHaveLength(2);
-    expect(daemonSource).toMatch(
-      /case "start_login"[\s\S]{0,1500}startLoginFlow\(/,
+    const account = readFileSync(
+      new URL("./daemon-commands/account.ts", import.meta.url),
+      "utf8",
     );
+    expect(
+      (daemonSource + account).match(/startLoginFlow\(/g) ?? [],
+    ).toHaveLength(2);
+    expect(account).toMatch(/case "start_login"[\s\S]{0,1500}startLoginFlow\(/);
   });
 });
 
@@ -141,11 +145,15 @@ describe("buildMintFlowCommand", () => {
 describe("minting is never automatic", () => {
   test("no heartbeat or timer starts a mint; only the switch_account command does", () => {
     expect(daemonSource).not.toMatch(/autoMint/i);
-    const calls = daemonSource.match(/startMintFlow\(/g) ?? [];
+    const account = readFileSync(
+      new URL("./daemon-commands/account.ts", import.meta.url),
+      "utf8",
+    );
+    const calls = (daemonSource + account).match(/startMintFlow\(/g) ?? [];
     // The definition and the one call in the command handler.
     expect(calls).toHaveLength(2);
-    expect(daemonSource).toMatch(
-      /if \(typeof parsed\.mint === "string" && parsed\.mint\) \{\s*try \{\s*result = await startMintFlow\(\s*parsed\.mint,/,
+    expect(account).toMatch(
+      /if \(typeof parsed\.mint === "string" && parsed\.mint\) \{\s*try \{\s*commandOutcome\.result = await startMintFlow\(\s*parsed\.mint,/,
     );
   });
 });

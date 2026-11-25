@@ -755,10 +755,13 @@ describe("daemon wiring", () => {
     expect(src).toMatch(
       /DETACHED_COMMANDS: ReadonlySet<string> = new Set\(\[[^\]]*"export_session"/,
     );
-    const handler = src.slice(
-      src.indexOf('case "export_session"'),
-      src.indexOf('case "cap_publish"'),
+    const exports = fs.readFileSync(
+      new URL("./daemon-commands/exports.ts", import.meta.url),
+      "utf8",
     );
+    const at = exports.indexOf('case "export_session"');
+    expect(at).toBeGreaterThan(0);
+    const handler = exports.slice(at);
     expect(handler).not.toContain("readConversationCache");
   });
 
