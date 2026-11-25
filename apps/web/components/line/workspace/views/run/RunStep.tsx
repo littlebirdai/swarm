@@ -41,7 +41,7 @@ import {
 import { jsonObject } from "../../../../../lib/line/visitOutput";
 import { wouldLabel } from "../../../../../lib/line/fixDecision";
 import { useStationInput } from "../../../../../hooks/useLineWorkspace";
-import { useConversationMessages } from "../../../../../hooks/useConversationMessages";
+import { useConversationMessages } from "../../../../../hooks/use-conversation-messages";
 import type { TrialCardRow } from "../../../../../hooks/useSyncTrial";
 import { MarkdownRenderer } from "../../../../tools/MarkdownRenderer";
 import { LineDecision } from "../../../widgets/LineDecision";

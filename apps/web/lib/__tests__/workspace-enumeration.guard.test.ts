@@ -263,7 +263,7 @@ const SLOT_ALLOWED = new Map<string, string>([
     "the feeder: writes the set and clears it on a team switch",
   ],
   [
-    "hooks/inboxWarm.ts",
+    "hooks/inbox-warm.ts",
     "change detection on the slot's identity; the roles it warms are read through windowOrgTree",
   ],
   [

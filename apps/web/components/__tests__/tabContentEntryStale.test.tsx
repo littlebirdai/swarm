@@ -69,7 +69,7 @@ const readState = mockInboxStore(() => state, {
   },
 });
 
-mock.module("../../hooks/useConversationMessages", () => ({
+mock.module("../../hooks/use-conversation-messages", () => ({
   useConversationMessages: () => {},
 }));
 mock.module("@/app/inbox/page", () => ({

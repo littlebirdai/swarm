@@ -33,7 +33,7 @@ mock.module("@/lib/socketStats", () => ({ socketStats: { lastConnectAt: 0 } }));
 mock.module("@/modules/codecast-push-prefetch", () => ({
   pushPrefetchNative: null,
 }));
-mock.module("@codecast/web/hooks/inboxWarm", () => ({
+mock.module("@codecast/web/hooks/inbox-warm", () => ({
   readForward: async (_http: unknown, convId: string, after: number) => {
     reads.push({ convId, after });
     return 1;

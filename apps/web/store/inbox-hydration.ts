@@ -488,7 +488,7 @@ async function hydrateInboxCacheFromIDB(
   }
 
   // Preload messages for the restored focus target only. The rows on screen
-  // are hydrated by the inbox warm loop (hooks/inboxWarm.ts) in rendered
+  // are hydrated by the inbox warm loop (hooks/inbox-warm.ts) in rendered
   // order, and anything else hydrates on open. Preloading the whole live
   // inbox set here made a phone with 594 live sessions parse 78 MB of cached
   // message JSON on the JS thread right after first paint, and load hundreds

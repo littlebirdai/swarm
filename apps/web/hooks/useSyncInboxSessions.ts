@@ -12,7 +12,7 @@ import {
 } from "../store/inboxStore";
 import { agentStatusAt } from "../lib/liveness";
 import { WORKING_SET_RECENCY_MS } from "@codecast/inbox/inboxProjection";
-import { startWarmLoop } from "./inboxWarm";
+import { startWarmLoop } from "./inbox-warm";
 import { toast } from "sonner";
 import { soundIdle } from "../lib/sounds";
 import { useConvexSync } from "./useConvexSync";
@@ -403,7 +403,7 @@ export function useSyncInboxSessions() {
   const lastUserSyncRef = useRef(Date.now());
 
   // Message warming: one store-driven loop per window over the RENDERED order
-  // (startWarmLoop in inboxWarm.ts). It runs in followers too, which hold their
+  // (startWarmLoop in inbox-warm.ts). It runs in followers too, which hold their
   // own message cache and have no feeders to drive it.
   useWatchEffect(() => startWarmLoop(convex), [convex]);
 

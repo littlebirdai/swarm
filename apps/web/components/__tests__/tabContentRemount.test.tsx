@@ -92,7 +92,7 @@ const readState = mockInboxStore(() => state, {
 // Nothing was gained by any of the three: /inbox and /tasks are both genuinely
 // full-width, the prewarm set is empty in a fresh process, and neither tab
 // carries a session id. The real modules answer exactly what the stubs did.
-mock.module("../../hooks/useConversationMessages", () => ({
+mock.module("../../hooks/use-conversation-messages", () => ({
   useConversationMessages: () => {},
 }));
 // The two routes this test renders; every other lazyPage loader stays cold.

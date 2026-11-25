@@ -13,7 +13,7 @@ import { useBoundedDeferredValue } from "../../hooks/useBoundedDeferredValue";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useEventListener } from "../../hooks/useEventListener";
 import { useMissingSessionLookup } from "../../hooks/useMissingSessionRow";
-import { SessionPrewarm } from "../../components/SessionPrewarm";
+import { SessionPrewarm } from "../../components/session-prewarm";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTabActive } from "../../hooks/usePagePresence";
 import { urlSessionId } from "../../lib/pathLabel";
@@ -27,7 +27,7 @@ import {
   type ConversationDiffLayoutProps,
 } from "../../components/ConversationDiffLayout";
 import type { ConversationData } from "../../components/conversation/types";
-import { useConversationMessages } from "../../hooks/useConversationMessages";
+import { useConversationMessages } from "../../hooks/use-conversation-messages";
 import {
   useInboxStore,
   useTrackedStore,

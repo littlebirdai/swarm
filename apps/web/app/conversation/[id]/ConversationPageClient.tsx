@@ -13,7 +13,7 @@ import { ConversationDiffLayout } from "../../../components/ConversationDiffLayo
 import type { ConversationData } from "../../../components/conversation/types";
 import { ErrorBoundary } from "../../../components/ErrorBoundary";
 import { LogoMark } from "../../../components/Logo";
-import { useConversationMessages } from "../../../hooks/useConversationMessages";
+import { useConversationMessages } from "../../../hooks/use-conversation-messages";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { useInboxStore, isConvexId } from "../../../store/inboxStore";
 import { isForeignSession } from "../../../lib/liveEntities";

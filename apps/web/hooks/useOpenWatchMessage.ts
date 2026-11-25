@@ -13,7 +13,7 @@ import {
   resolveWorkflowMessage,
 } from "../lib/resolveWatchMessage";
 import { useInboxStore } from "../store/inboxStore";
-import { fetchMessagesAround } from "./inboxWarm";
+import { fetchMessagesAround } from "./inbox-warm";
 
 // Jump from a card's child row (a monitor, a background command, a workflow
 // run) to the spot in the conversation where it started. `openingKey` names

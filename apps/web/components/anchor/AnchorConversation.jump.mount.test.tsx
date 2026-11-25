@@ -3,7 +3,7 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { Message } from "../../store/inboxStore";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { act, type ComponentProps } from "react";
-import { WARM_DEEP_ROWS } from "../../hooks/inboxWarm";
+import { WARM_DEEP_ROWS } from "../../hooks/inbox-warm";
 import { webBuilders } from "../../test-helpers/builders";
 import { ConversationLayoutStandIn } from "../../test-helpers/ConversationLayoutStandIn";
 import { expectPresent } from "../../test-helpers/domExpect";

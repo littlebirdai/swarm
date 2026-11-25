@@ -88,8 +88,8 @@ mock.module("../useQueryNoThrow", () => ({
 }));
 mock.module("../useConvexSync", () => ({ useConvexSync: () => {} }));
 let timestampFetch: { resolve: (v: unknown) => void } | null = null;
-const realInboxWarm = { ...(await import("../inboxWarm")) };
-mock.module("../inboxWarm", () => ({
+const realInboxWarm = { ...(await import("../inbox-warm")) };
+mock.module("../inbox-warm", () => ({
   ...realInboxWarm,
   WARM_DEEP_ROWS: 50,
   deepenConversation: async () => {},
@@ -102,7 +102,8 @@ mock.module("../inboxWarm", () => ({
     }),
 }));
 
-const { useConversationMessages } = await import("../useConversationMessages");
+const { useConversationMessages } =
+  await import("../use-conversation-messages");
 const { useInboxStore } = await import("../../store/inboxStore");
 // The hook renders from the store: a row for the conversation, or it answers null.
 useInboxStore.setState((s: any) => ({

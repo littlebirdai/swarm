@@ -661,7 +661,7 @@ apps/web/components/triggerTasks.test.ts 1000
 apps/web/components/vault/VaultEditor.tsx 900
 apps/web/hooks/useBottomAnchoredList.ts 900
 apps/web/hooks/useChatSync.ts 1000
-apps/web/hooks/useConversationMessages.ts 1450
+apps/web/hooks/use-conversation-messages.ts 1450
 apps/web/hooks/useLineWorkspace.ts 1650
 apps/web/hooks/useRepoBrowse.ts 950
 apps/web/hooks/use-sync-change-feed.ts 900

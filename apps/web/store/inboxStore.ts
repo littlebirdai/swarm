@@ -7525,7 +7525,7 @@ export function computeManualSortKey(
 // Ctrl+J/K would step over the "New Session" cards on screen.
 // The view inputs that decide WHICH rows the rendered order holds (not their
 // churn): view mode, the show-old fold, scope, the chip filters. A change here
-// is what re-plans the inbox warm loop (hooks/inboxWarm.ts). Lives beside the
+// is what re-plans the inbox warm loop (hooks/inbox-warm.ts). Lives beside the
 // chokepoint so the synced view keys are read inside the store, nowhere else.
 export function visualOrderViewSig(state: {
   clientState: {
@@ -7995,7 +7995,7 @@ export interface InboxStoreState
   // (evictInactiveMessages).
   liveInboxIds: Set<string>;
   // Ids of the rows ON SCREEN in the rendered order, published by the warm loop
-  // (hooks/inboxWarm.ts) each pass. What message eviction protects: the rows
+  // (hooks/inbox-warm.ts) each pass. What message eviction protects: the rows
   // the user can click must keep their cached tail so the click is instant,
   // whatever view, scope or filter produced them. EPHEMERAL — never persisted.
   warmProtectedIds: Set<string>;
@@ -10193,7 +10193,7 @@ function stripImageRef(s: string): string {
 
 // The newest message the view would render: the conversation view puts every
 // unconfirmed pending line after the server tail (mergeUnconfirmedMessages in
-// hooks/useConversationMessages), so the last thing on screen is the pending
+// hooks/use-conversation-messages), so the last thing on screen is the pending
 // tail when there is one, else the server tail.
 function lastTimelineMessage(
   draft: Draft,

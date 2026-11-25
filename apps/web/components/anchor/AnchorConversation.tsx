@@ -11,7 +11,7 @@ import {
 import { Button } from "../ui/button";
 import type { ConversationData } from "../conversation/types";
 import { ProjectPathPicker } from "../ProjectPathPicker";
-import { useConversationMessages } from "../../hooks/useConversationMessages";
+import { useConversationMessages } from "../../hooks/use-conversation-messages";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { toast } from "sonner";

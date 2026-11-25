@@ -262,7 +262,7 @@ describe("every session-replica feeder is in the useSyncCore profile (derived)",
 // dark inbox. Everything reachable from useSyncCore through relative imports
 // under hooks/ and store/ is in that bundle unless a `.native.ts` twin
 // shadows it, so none of it may read `import.meta` (use NODE_ENV, which both
-// Vite and Metro replace — see inboxWarm.ts / inboxStore.ts).
+// Vite and Metro replace — see inbox-warm.ts / inboxStore.ts).
 describe("the useSyncCore import closure is Hermes-safe", () => {
   function closure(rootRel: string): Set<string> {
     const seen = new Set<string>();
@@ -308,7 +308,7 @@ describe("the useSyncCore import closure is Hermes-safe", () => {
     // Sanity: the walk reaches the store and the warm loop (the module that
     // carried the last import.meta), so a pass is not vacuous.
     for (const must of [
-      "hooks/inboxWarm.ts",
+      "hooks/inbox-warm.ts",
       "store/inboxStore.ts",
       "hooks/useInboxDigestCompare.ts",
     ]) {

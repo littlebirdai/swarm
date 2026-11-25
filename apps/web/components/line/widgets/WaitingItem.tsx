@@ -24,7 +24,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useCollectionRows } from "../../../hooks/useCollectionRows";
-import { useConversationMessages } from "../../../hooks/useConversationMessages";
+import { useConversationMessages } from "../../../hooks/use-conversation-messages";
 import { useSyncTaskSignals } from "../../../hooks/useSyncSignals";
 import { useTrialCards } from "../../../hooks/useSyncTrial";
 import { openConversationBeside } from "../../../hooks/useOpenLinkedSession";

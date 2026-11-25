@@ -4,7 +4,7 @@ import { join } from "node:path";
 import {
   mergeUnconfirmedMessages,
   messagePageSyncKey,
-} from "../useConversationMessages";
+} from "../use-conversation-messages";
 
 const message = (content: string) => ({
   _id: "message-1",
@@ -40,7 +40,7 @@ describe("messagePageSyncKey", () => {
 
 describe("history jumps are one-shot fetches", () => {
   const src = readFileSync(
-    join(import.meta.dir, "../useConversationMessages.ts"),
+    join(import.meta.dir, "../use-conversation-messages.ts"),
     "utf8",
   );
 
@@ -203,7 +203,7 @@ describe("mergeUnconfirmedMessages", () => {
 
 describe("share-link guests open at the beginning", () => {
   const hook = readFileSync(
-    join(import.meta.dir, "../useConversationMessages.ts"),
+    join(import.meta.dir, "../use-conversation-messages.ts"),
     "utf8",
   );
   const page = readFileSync(

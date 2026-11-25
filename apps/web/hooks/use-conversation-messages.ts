@@ -27,7 +27,7 @@ import {
   readForward,
   rereadAnchor,
   WARM_DEEP_ROWS,
-} from "./inboxWarm";
+} from "./inbox-warm";
 
 const EMPTY_MESSAGES: Message[] = [];
 const EMPTY_PENDING: Message[] = [];

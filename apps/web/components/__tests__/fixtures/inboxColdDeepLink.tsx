@@ -53,7 +53,7 @@ mock.module("convex/react", () => ({
   useQuery: () => undefined,
   useQueries: () => ({}),
 }));
-mock.module("../../../hooks/useConversationMessages", () => ({
+mock.module("../../../hooks/use-conversation-messages", () => ({
   useConversationMessages: (id: string) => {
     messageSubscriptions.add(id);
     return { conversation: { _id: id, messages: [], is_own: false } };

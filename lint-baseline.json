@@ -21693,7 +21693,7 @@
   "apps/web/hooks/ghostSweep.ts": {
     "swarm/no-comments": 35
   },
-  "apps/web/hooks/inboxWarm.ts": {
+  "apps/web/hooks/inbox-warm.ts": {
     "swarm/no-comments": 100
   },
   "apps/web/hooks/incrementalSync.test.ts": {
@@ -21893,7 +21893,7 @@
   "apps/web/hooks/useConversationFileDrop.ts": {
     "swarm/no-comments": 1
   },
-  "apps/web/hooks/useConversationMessages.ts": {
+  "apps/web/hooks/use-conversation-messages.ts": {
     "swarm/no-comments": 292,
     "swarm/no-direct-use-effect": 13
   },

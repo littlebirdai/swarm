@@ -845,7 +845,7 @@ SessionScreen`), the same one every conversation opens in, so it keeps
   transcript (`convex/assistant/input.ts`), so the bubble the store paints
   for it has no echo. Both halves of that live in the shared store path, for
   the web and the phone alike: `mergeUnconfirmedMessages(…, hosted)`
-  (`hooks/useConversationMessages.ts`) places it where the card was, in the
+  (`hooks/use-conversation-messages.ts`) places it where the card was, in the
   order answers were given, instead of trailing everything said later, and
   `reconcilePendingSendForSession` settles it the moment the row moves past
   the stamp it was sent at, so the inbox row stops reading as working. The

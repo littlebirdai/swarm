@@ -71,7 +71,7 @@ import {
   type AgentDockEdge,
 } from "../../lib/desktopAgentDock";
 import { PermissionStack } from "../PermissionCard";
-import { SessionPrewarm } from "../SessionPrewarm";
+import { SessionPrewarm } from "../session-prewarm";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import {
