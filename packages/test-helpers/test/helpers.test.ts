@@ -21,18 +21,19 @@ test("patchEnv restores a changed, an added and a removed variable", () => {
   process.env.TH_CHANGED = "old";
   process.env.TH_REMOVED = "old";
   delete process.env.TH_ADDED;
+  const read = (key: string) => process.env[key];
   const restore = patchEnv({
     TH_CHANGED: "new",
     TH_ADDED: "new",
     TH_REMOVED: undefined,
   });
-  expect(process.env.TH_CHANGED).toBe("new");
-  expect(process.env.TH_ADDED).toBe("new");
+  expect(read("TH_CHANGED")).toBe("new");
+  expect(read("TH_ADDED")).toBe("new");
   expect("TH_REMOVED" in process.env).toBe(false);
   restore();
-  expect(process.env.TH_CHANGED).toBe("old");
+  expect(read("TH_CHANGED")).toBe("old");
   expect("TH_ADDED" in process.env).toBe(false);
-  expect(process.env.TH_REMOVED).toBe("old");
+  expect(read("TH_REMOVED")).toBe("old");
   delete process.env.TH_CHANGED;
   delete process.env.TH_REMOVED;
 });
