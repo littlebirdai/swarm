@@ -570,6 +570,26 @@ describe("permits and claims", () => {
     );
   });
 
+  test("a granted claim requires a non-negative safe pane high-water mark", () => {
+    const { last_pane_instance: _lastPane, ...grant } = claim.response;
+    expectParseError(
+      edge.parseClaimResponse(grant),
+      "missing_field",
+      "$.last_pane_instance",
+    );
+    for (const value of [0, Number.MAX_SAFE_INTEGER]) {
+      const response = { ...grant, last_pane_instance: value };
+      expectParsed(edge.parseClaimResponse(response), response);
+    }
+    for (const value of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expectParseError(
+        edge.parseClaimResponse({ ...grant, last_pane_instance: value }),
+        "invalid_value",
+        "$.last_pane_instance",
+      );
+    }
+  });
+
   test("accepts a machine command result without a claim", () => {
     const { claim: _claim, ...result } = commandsResult.request;
     expectParsed(edge.parseCommandsResultRequest(result), result);

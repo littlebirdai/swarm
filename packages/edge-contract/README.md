@@ -15,8 +15,8 @@ The v1 requests and the meaning of its responses freeze on release. The server
 rejects unknown request fields, including nested fields in fixed wire objects.
 The daemon validates known response fields and ignores added fields, including
 policy settings. This lets the server add optional response fields and policy
-settings in v1. A changed request, a changed response field, or a new response
-variant requires v2.
+settings in v1. A new request field, a change to an existing field, or a new
+response variant requires v2.
 
 ## Backpressure and limits
 
@@ -56,31 +56,47 @@ and its expiry before it accepts a claimed write. The daemon reuses its
 
 ### Terminal lifecycle
 
-`terminal.started` and `terminal.ended` identify one pane lifetime. Both carry
-`pane_instance` and the `actor` who started the pane. The actor has an `id`
-and a `kind` of `person` or `agent`.
-The envelope's `run` gives the run epoch. Include `tool_call_id` on both events
-if a tool call started the pane. Actor and tool call IDs are non-blank and
-have a limit of 256 UTF-16 code units each. Use only IDs in these fields.
+`terminal.started` records the pane instance and its starter. The `actor` has
+an `id` and a `kind` of `person` or `agent`. Include `tool_call_id` if a tool call
+started the pane. Actor and tool call IDs are non-blank and have a limit of
+256 UTF-16 code units each. Use only IDs in these fields.
 Screen content, keystrokes, commands, and environment data stay outside these events.
 
-`terminal.ended` requires an `outcome` object.
+`terminal.ended` records only `pane_instance` and `outcome` in its body.
 
-| Outcome                              | Meaning                                                          |
-| ------------------------------------ | ---------------------------------------------------------------- |
-| `{ "kind": "exit", "code": 0 }`      | The process exited. `code` is a non-negative safe integer.       |
-| `{ "kind": "signal", "signal": 15 }` | A signal ended the process. `signal` is a positive safe integer. |
-| `{ "kind": "replaced" }`             | A new pane replaced this pane.                                   |
-| `{ "kind": "lost" }`                 | The daemon lost the pane and has no exit status.                 |
+| Outcome                                     | Meaning                                                                                    |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `{ "kind": "exit", "code": 0 }`             | The process exited. `code` is a non-negative safe integer.                                 |
+| `{ "kind": "signal", "signal": "SIGTERM" }` | A signal ended the process. `signal` is a POSIX signal name from the contract's fixed set. |
+| `{ "kind": "replaced" }`                    | A new pane replaced this pane.                                                             |
+| `{ "kind": "lost" }`                        | The daemon lost the pane and has no exit status.                                           |
 
-The daemon mints each pane instance by atomically reserving the next integer
-in a durable counter for the session. The counter follows the session across
-run epochs and machines. After a restart, the daemon resumes above the last
-reserved value, even if its start event never reached the server. If the
-counter is unavailable or reaches `Number.MAX_SAFE_INTEGER`, the daemon
-cannot mint a new pane instance. A replacement ends the old typing lease.
+Each granted `claim` supplies `last_pane_instance`, the server's highest
+accepted pane number for the session, or zero if none. After each grant, the
+daemon seeds its next number with `max(local_reserved, last_pane_instance) + 1`.
+The daemon records each reservation in durable local storage for that session
+before it uses the number. If the local journal is absent, use zero for
+`local_reserved`. Stop if the last number is `Number.MAX_SAFE_INTEGER`.
 
-`events.append` carries both kinds in v1.
+The server grants a typing lease only after it accepts the pane's start for
+the current run. If a different daemon never reported a local reservation,
+its pane could not have received a lease. A later run can reuse that
+unreported number. The run in each terminal guard distinguishes the two.
+
+If a pane survives a run change, the daemon reports `replaced` for the old
+instance and starts a new instance for the same pane under the new claim.
+The replacement ends the old typing lease. The envelope's `run` identifies
+the claim that reports the event. The server uses the session and pane number
+to match an end to its start across claims.
+
+The server records an end even if the start is missing. The first end
+determines the outcome. A late start supplies metadata for the ended
+instance. A repeated start with the same run, turn, and body is
+idempotent. The server refuses a repeated start with different fields.
+
+Both kinds are part of v1 because v1 is still unreleased. After release, a
+new event kind requires a negotiated capability. The daemon sends it only
+when the server advertises support.
 
 ### Prompt details
 
@@ -146,17 +162,17 @@ does not advertise it.
 `permits.next` can include a turn guard. `commands.next` can include any
 of these guards.
 
-| Action             | `expected`                                                          |
-| ------------------ | ------------------------------------------------------------------- |
-| Steer or interrupt | `{ "kind": "turn", "turn": "turn-1" }`                              |
-| Prompt answer      | `{ "kind": "prompt", "prompt_id": "prompt-1", "run": 3 }`           |
-| Terminal input     | `{ "kind": "terminal", "pane_instance": 4, "fencing_token": "17" }` |
+| Action             | `expected`                                                                    |
+| ------------------ | ----------------------------------------------------------------------------- |
+| Steer or interrupt | `{ "kind": "turn", "turn": "turn-1" }`                                        |
+| Prompt answer      | `{ "kind": "prompt", "prompt_id": "prompt-1", "run": 3 }`                     |
+| Terminal input     | `{ "kind": "terminal", "run": 3, "pane_instance": 4, "fencing_token": "17" }` |
 
 A null `turn` names the state with no current turn. The pane instance is a
-positive safe integer that identifies one pane lifetime within a session.
-Use a new instance when the pane restarts. The terminal `fencing_token`
-is the typing lease token encoded as text. The daemon compares it for
-equality. The server alone orders the tokens.
+positive safe integer. Use a new instance when the pane restarts. The
+terminal `fencing_token` is the typing lease token encoded as text. The daemon
+compares the run, pane instance, and token for equality. The server alone
+orders the tokens.
 
 The server checks the guard when it starts the action. The daemon checks
 it again immediately before the effect. Both can use `matchesExpected`.
@@ -166,9 +182,9 @@ effect.
 The daemon reports a mismatch with `outcome: "stale"` and a required
 `observed` field in `delivery.settle` or `commands.result`. Use the same
 kind as the guard and report the current values. Use null for an absent
-turn, prompt ID, pane instance, or typing lease token. A prompt observation
-uses null for `run` when there is no active run. Only a stale outcome carries
-`observed`. A stale command result has no `output`.
+turn, prompt ID, pane instance, or typing lease token. Prompt and terminal
+observations use null for `run` when there is no active run. Only a stale
+outcome carries `observed`. A stale command result has no `output`.
 
 ### Resolving an in-doubt attempt
 

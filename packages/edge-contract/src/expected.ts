@@ -23,6 +23,7 @@ export const readExpected = tagged("kind", {
   }),
   terminal: responseObject({
     ...terminal,
+    run: positiveInteger,
     pane_instance: paneInstance,
     fencing_token: nonEmptyString,
   }),
@@ -38,6 +39,7 @@ export const readObserved = tagged("kind", {
   }),
   terminal: object({
     ...terminal,
+    run: nullable(positiveInteger),
     pane_instance: nullable(paneInstance),
     fencing_token: nullable(nonEmptyString),
   }),
@@ -64,6 +66,7 @@ export function matchesExpected(
     case "terminal":
       return (
         observed.kind === "terminal" &&
+        expected.run === observed.run &&
         expected.pane_instance === observed.pane_instance &&
         expected.fencing_token === observed.fencing_token
       );

@@ -9,8 +9,9 @@ const started = batch.events.find(
 )!;
 const ended = batch.events.find((event) => event.kind === "terminal.ended")!;
 const maxId = "😀".repeat(128);
+const lastPane = { pane_instance: Number.MAX_SAFE_INTEGER };
 const manualPane = {
-  pane_instance: Number.MAX_SAFE_INTEGER,
+  ...lastPane,
   actor: { kind: "person", id: maxId },
 };
 
@@ -24,19 +25,22 @@ test.each([
     "a signal",
     {
       ...ended,
-      body: { ...manualPane, outcome: { kind: "signal", signal: 15 } },
+      body: { ...lastPane, outcome: { kind: "signal", signal: "SIGTERM" } },
     },
   ],
   [
-    "a replacement",
-    { ...ended, body: { ...manualPane, outcome: { kind: "replaced" } } },
+    "a replacement reported under a new run claim",
+    { ...ended, run: 4, body: { ...lastPane, outcome: { kind: "replaced" } } },
   ],
   [
-    "a lost pane",
-    { ...ended, body: { ...manualPane, outcome: { kind: "lost" } } },
+    "a lost pane without a start in the batch",
+    { ...ended, body: { ...lastPane, outcome: { kind: "lost" } } },
   ],
 ])("events.append accepts %s", (_name, event) => {
-  const request = { v: 1, batches: [{ ...batch, events: [event] }] };
+  const request = {
+    v: 1,
+    batches: [{ ...batch, run: event.run, events: [event] }],
+  };
   expectParsed(parseEventsAppendRequest(request), request);
 });
 
@@ -71,6 +75,13 @@ test.each([
     "actor.kind",
   ],
   [
+    "a blank actor ID",
+    started,
+    { ...manualPane, actor: { ...manualPane.actor, id: "  " } },
+    "invalid_value",
+    "actor.id",
+  ],
+  [
     "an oversized actor ID",
     started,
     { ...manualPane, actor: { ...manualPane.actor, id: `${maxId}1` } },
@@ -86,8 +97,8 @@ test.each([
   ],
   [
     "an oversized tool call ID",
-    ended,
-    { ...ended.body, tool_call_id: `${maxId}1` },
+    started,
+    { ...manualPane, tool_call_id: `${maxId}1` },
     "invalid_value",
     "tool_call_id",
   ],
@@ -98,46 +109,53 @@ test.each([
     "unknown_field",
     "outcome",
   ],
-  ["a missing end outcome", ended, manualPane, "missing_field", "outcome"],
+  ["a missing end outcome", ended, lastPane, "missing_field", "outcome"],
   [
     "an unknown end outcome",
     ended,
-    { ...manualPane, outcome: { kind: "failed" } },
+    { ...lastPane, outcome: { kind: "failed" } },
     "invalid_value",
     "outcome.kind",
   ],
   [
     "a missing exit code",
     ended,
-    { ...manualPane, outcome: { kind: "exit" } },
+    { ...lastPane, outcome: { kind: "exit" } },
     "missing_field",
     "outcome.code",
   ],
   [
     "a negative exit code",
     ended,
-    { ...manualPane, outcome: { kind: "exit", code: -1 } },
+    { ...lastPane, outcome: { kind: "exit", code: -1 } },
     "invalid_value",
     "outcome.code",
   ],
   [
-    "a string signal",
+    "a signal number",
     ended,
-    { ...manualPane, outcome: { kind: "signal", signal: "SIGTERM" } },
-    "invalid_type",
+    { ...lastPane, outcome: { kind: "signal", signal: 15 } },
+    "invalid_value",
     "outcome.signal",
   ],
   [
-    "a zero signal",
+    "an unknown signal name",
     ended,
-    { ...manualPane, outcome: { kind: "signal", signal: 0 } },
+    { ...lastPane, outcome: { kind: "signal", signal: "SIGOTHER" } },
+    "invalid_value",
+    "outcome.signal",
+  ],
+  [
+    "an oversized signal name",
+    ended,
+    { ...lastPane, outcome: { kind: "signal", signal: `SIG${maxId}` } },
     "invalid_value",
     "outcome.signal",
   ],
   [
     "a signal on an exit outcome",
     ended,
-    { ...manualPane, outcome: { kind: "exit", code: 0, signal: 15 } },
+    { ...lastPane, outcome: { kind: "exit", code: 0, signal: "SIGTERM" } },
     "unknown_field",
     "outcome.signal",
   ],
@@ -156,9 +174,23 @@ test.each([
     "env",
   ],
   [
+    "a starter actor on an end",
+    ended,
+    { ...ended.body, actor: manualPane.actor },
+    "unknown_field",
+    "actor",
+  ],
+  [
+    "a tool call ID on an end",
+    ended,
+    { ...ended.body, tool_call_id: "call-1" },
+    "unknown_field",
+    "tool_call_id",
+  ],
+  [
     "screen text in an end outcome",
     ended,
-    { ...manualPane, outcome: { kind: "lost", screen: "pane output" } },
+    { ...lastPane, outcome: { kind: "lost", screen: "pane output" } },
     "unknown_field",
     "outcome.screen",
   ],

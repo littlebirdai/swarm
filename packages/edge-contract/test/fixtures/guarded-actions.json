@@ -21,6 +21,7 @@
       "name": "terminal_input",
       "expected": {
         "kind": "terminal",
+        "run": 3,
         "pane_instance": 4,
         "fencing_token": "17"
       }
@@ -44,6 +45,7 @@
       "outcome": "stale",
       "observed": {
         "kind": "terminal",
+        "run": 4,
         "pane_instance": 4,
         "fencing_token": null
       }
@@ -52,6 +54,7 @@
       "outcome": "stale",
       "observed": {
         "kind": "terminal",
+        "run": null,
         "pane_instance": null,
         "fencing_token": null
       }

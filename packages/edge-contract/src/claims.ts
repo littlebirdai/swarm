@@ -29,6 +29,7 @@ const claimResponse = response(
       status: oneOf("granted"),
       ...fence,
       expires_at: count,
+      last_pane_instance: count,
     }),
     busy: responseObject({
       v: readV1,

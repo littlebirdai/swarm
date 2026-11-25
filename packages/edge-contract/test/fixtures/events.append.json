@@ -143,8 +143,6 @@
             "kind": "terminal.ended",
             "body": {
               "pane_instance": 4,
-              "actor": { "kind": "agent", "id": "session-1" },
-              "tool_call_id": "call-1",
               "outcome": { "kind": "exit", "code": 0 }
             }
           },
