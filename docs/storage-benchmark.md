@@ -33,7 +33,7 @@ The 35 MiB limit applies to the live maximum after forced garbage collection. Th
 
 ## Differences between the engines
 
-- Dexie paint includes all 1,200 sessions and the focused transcript. SQLite paint includes 134 live sessions and the same transcript. SQLite full boot reads the remaining rows in 1,000-row keyset batches. This removes the earlier full-result allocation and still delivers 150,000 rows to the page.
+- Dexie paint includes all 1,200 sessions and the focused transcript. SQLite paint includes 134 live sessions and the same transcript. SQLite full boot reads the remaining rows in 1,000-row keyset batches. This removes the earlier full-result allocation and still delivers 150,000 rows to the page. Dexie full boot also runs the product's retention pass, which keeps all rows here.
 - Dexie uses the product's patch and persistence path. SQLite submits the same 20 rows through a worker message and commits with FULL synchronous mode. The latency includes each engine's own transaction path.
 - Dexie retention deletes known IDs. SQLite retention finds the same 2,000 rows by index. The SQLite handoff includes creation of a fresh worker and pool, while Dexie reopens its database directly.
 - The Dexie interruption closes a window with an open IndexedDB transaction. The SQLite interruption terminates a worker after the pager confirms dirty-page spills. The SQLite test enlarges its ten staged rows to force the spill.

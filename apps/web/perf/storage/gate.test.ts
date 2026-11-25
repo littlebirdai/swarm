@@ -60,13 +60,15 @@ describe("bench statistics", () => {
       100,
       ...Array.from({ length: 19 }, (_, index) => 19 - index),
     ];
+    const order = [...values];
     expect(stats(values)).toEqual({
       count: 20,
       p50: 10,
       p95: 19,
       max: 100,
-      samples: values,
+      samples: order,
     });
+    expect(values).toEqual(order);
   });
 
   test("rejects empty, negative and nonfinite samples", () => {
@@ -117,6 +119,7 @@ describe("storage gate", () => {
 
   test("requires data integrity, a rollback journal and complete samples", () => {
     const measured: Extract<BrowserResult, { status: "measured" }> = result();
+    measured.dexie.crashIntact = false;
     measured.sqlite.handoffIntact = false;
     measured.sqlite.crashIntact = false;
     measured.sqlite.journal = "wal";
@@ -127,6 +130,7 @@ describe("storage gate", () => {
       targets: {
         fixtureRows: { pass: false },
         samples: { pass: false },
+        baselineIntegrity: { pass: false },
         handoffIntact: { pass: false },
         crashIntact: { pass: false },
         crashSpilledPages: { pass: false },
