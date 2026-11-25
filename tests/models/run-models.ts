@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readdir, rename, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
+import { parseRuleSections } from "./config-rules";
 import expectations from "./expectations.json";
 import { parseTlcResult } from "./tlc-result";
 
@@ -10,6 +11,8 @@ const sha256 =
 const modelDir = import.meta.dir;
 
 type Expected = {
+  invariants: string[];
+  properties: string[];
   violations: string[];
   distinctStates?: number;
   stopAfterCounterexamples?: boolean;
@@ -69,6 +72,24 @@ async function check(
   const configPath = join(dir, configName);
   try {
     let config = await Bun.file(join(modelDir, configName)).text();
+    let sections = parseRuleSections(config);
+    const invariants = sections.flatMap((section) =>
+      section.kind === "invariants" ? section.names : [],
+    );
+    const properties = sections.flatMap((section) =>
+      section.kind === "properties" ? section.names : [],
+    );
+    if (
+      invariants.length + properties.length === 0 ||
+      JSON.stringify(invariants.toSorted()) !==
+        JSON.stringify(expected.invariants.toSorted()) ||
+      JSON.stringify(properties.toSorted()) !==
+        JSON.stringify(expected.properties.toSorted())
+    ) {
+      throw new Error(
+        `Rules differ from expectations. Found invariants [${invariants.join(", ")}] and properties [${properties.join(", ")}].`,
+      );
+    }
     let seen = 0;
     while (true) {
       await Bun.write(configPath, config);
@@ -99,7 +120,7 @@ async function check(
         new Response(tlc.stdout).text(),
         new Response(tlc.stderr).text(),
       ]);
-      const result = parseTlcResult(exitCode, stdout + stderr, config);
+      const result = parseTlcResult(exitCode, stdout + stderr, properties);
       const nextRule = expected.violations[seen];
       const actualRule =
         result.outcome === "violated" ? result.rule : undefined;
@@ -124,18 +145,31 @@ async function check(
         }
         const rules = expected.violations.join(", ") || "holds";
         console.log(
-          `${configName}: ${rules} (${result.distinctStates} distinct states)`,
+          `${configName}: ${rules} (${result.distinctStates === undefined ? "initial state" : `${result.distinctStates} distinct states`})`,
         );
         return;
       }
 
-      const declaration = `INVARIANT ${actualRule}\n`;
-      if (!config.includes(declaration)) {
+      const section = sections.find(
+        ({ kind, names }) =>
+          kind === "invariants" &&
+          actualRule !== undefined &&
+          names.includes(actualRule),
+      );
+      if (!section) {
         throw new Error(
           `Cannot remove checked invariant ${actualRule} from ${configName}.`,
         );
       }
-      config = config.replace(declaration, "");
+      const remaining = section.names.filter((name) => name !== actualRule);
+      const replacement = remaining.length
+        ? `INVARIANTS ${remaining.join(" ")}`
+        : "";
+      config =
+        config.slice(0, section.start) +
+        replacement +
+        config.slice(section.end);
+      sections = parseRuleSections(config);
     }
   } finally {
     await rm(dir, { recursive: true, force: true });

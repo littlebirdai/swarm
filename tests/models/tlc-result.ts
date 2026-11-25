@@ -2,7 +2,13 @@ type TlcResult =
   | { outcome: "holds"; distinctStates: number }
   | {
       outcome: "violated";
-      kind: "invariant" | "property";
+      kind: "invariant";
+      rule: string;
+      distinctStates?: number;
+    }
+  | {
+      outcome: "violated";
+      kind: "property";
       rule: string;
       distinctStates: number;
     };
@@ -10,7 +16,7 @@ type TlcResult =
 export function parseTlcResult(
   exitCode: number,
   output: string,
-  config: string,
+  properties: readonly string[],
 ): TlcResult {
   const stats = output.match(
     /^[\d,]+ states generated, ([\d,]+) distinct states found, ([\d,]+) states left on queue\.$/m,
@@ -20,24 +26,39 @@ export function parseTlcResult(
     output,
   );
   const invariant = output.match(
-    /^Error: Invariant (\w+) (?:is violated\.|is violated by the initial state:?)$/m,
+    /^Error: Invariant (\w+) (is violated\.|is violated by the initial state:)$/m,
   );
   const temporal = /^Error: Temporal properties were violated\.$/m.test(output);
-  const properties = [...config.matchAll(/^PROPERTY (\w+)$/gm)];
+  const temporalFinished = /^Finished checking temporal properties\b/m.test(
+    output,
+  );
+  const distinctStates = stats
+    ? Number(stats[1].replaceAll(",", ""))
+    : undefined;
+  const queueEmpty = stats && Number(stats[2].replaceAll(",", "")) === 0;
 
-  if (stats && finished) {
-    const distinctStates = Number(stats[1].replaceAll(",", ""));
-    const queueEmpty = Number(stats[2].replaceAll(",", "")) === 0;
-    if (exitCode === 0 && holds && queueEmpty && !invariant && !temporal) {
+  if (finished) {
+    if (
+      exitCode === 0 &&
+      holds &&
+      distinctStates !== undefined &&
+      queueEmpty &&
+      !invariant &&
+      !temporal &&
+      (properties.length === 0 || temporalFinished)
+    ) {
       return { outcome: "holds", distinctStates };
     }
     if (exitCode === 12 && invariant && !holds && !temporal) {
-      return {
-        outcome: "violated",
-        kind: "invariant",
-        rule: invariant[1],
-        distinctStates,
-      };
+      const initial = invariant[2] === "is violated by the initial state:";
+      if (initial || distinctStates !== undefined) {
+        return {
+          outcome: "violated",
+          kind: "invariant",
+          rule: invariant[1],
+          distinctStates,
+        };
+      }
     }
     if (
       exitCode === 13 &&
@@ -45,12 +66,13 @@ export function parseTlcResult(
       !holds &&
       !invariant &&
       properties.length === 1 &&
+      distinctStates !== undefined &&
       queueEmpty
     ) {
       return {
         outcome: "violated",
         kind: "property",
-        rule: properties[0][1],
+        rule: properties[0],
         distinctStates,
       };
     }

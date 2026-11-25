@@ -283,6 +283,21 @@ describe("classifyChangedPaths", () => {
     );
   });
 
+  test("model flags agree for changes to models, the workflow, and Bun setup", () => {
+    for (const file of [
+      "tests/models/expectations.json",
+      ".github/workflows/ci.yml",
+      ".github/actions/setup-bun/action.yml",
+    ]) {
+      expect(flags([file]).models, file).toBe(true);
+      expect(flags([file]).run_test_models, file).toBe(true);
+    }
+    for (const file of ["apps/web/components/DiffView.tsx", "bun.lock"]) {
+      expect(flags([file]).models, file).toBe(false);
+      expect(flags([file]).run_test_models, file).toBe(false);
+    }
+  });
+
   test("an empty diff runs everything", () => {
     const result = flags([]);
     for (const area of AREAS) expect(result[area]).toBe(true);

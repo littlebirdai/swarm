@@ -16,10 +16,12 @@ The runner downloads TLC 1.7.4 on first use and checks its SHA-256 before each
 use. It stores the JAR under `$XDG_CACHE_HOME/swarm/tlc` or
 `~/.cache/swarm/tlc`. CI uses Java 17 from the Ubuntu runner image.
 
-An empty `violations` list requires a successful run. A named violation requires
+The `invariants` and `properties` lists pin every rule in each configuration.
+Every configuration must check at least one rule. An empty `violations` list
+requires a successful run. A named violation requires
 a TLC counterexample for that rule. To check the next rule, the runner removes
 the failed invariant from a temporary copy of the configuration and runs TLC
-again. Keep each rule on its own `INVARIANT` or `PROPERTY` line.
+again. A temporal counterexample must come from a configuration with one property.
 
 `distinctStates` is TLC's count after a complete search. For configurations with
 `stopAfterCounterexamples`, it is the count at the last expected counterexample,

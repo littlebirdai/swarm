@@ -2,156 +2,281 @@
   "CacheHost": {
     "cache-host": {
       "violations": [],
-      "distinctStates": 15102
+      "distinctStates": 15102,
+      "invariants": [
+        "NoSkippedRows",
+        "NoForeignRows",
+        "HostCanReturn",
+        "HolderCanServe"
+      ],
+      "properties": []
     },
     "cache-host-no-check": {
       "violations": [],
-      "distinctStates": 14211
+      "distinctStates": 14211,
+      "invariants": [
+        "NoSkippedRows",
+        "NoForeignRows",
+        "HostCanReturn",
+        "HolderCanServe"
+      ],
+      "properties": []
     },
     "cache-host-no-one-txn": {
       "violations": ["NoSkippedRows"],
       "distinctStates": 56,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": [
+        "NoSkippedRows",
+        "NoForeignRows",
+        "HostCanReturn",
+        "HolderCanServe"
+      ],
+      "properties": []
     },
     "cache-host-no-per-epoch": {
       "violations": ["HolderCanServe"],
       "distinctStates": 24,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": [
+        "NoSkippedRows",
+        "NoForeignRows",
+        "HostCanReturn",
+        "HolderCanServe"
+      ],
+      "properties": []
     },
     "cache-host-no-per-epoch-check": {
       "violations": ["NoForeignRows"],
       "distinctStates": 200,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": ["NoSkippedRows", "NoForeignRows"],
+      "properties": []
     },
     "cache-host-no-steal": {
       "violations": ["HostCanReturn"],
       "distinctStates": 6,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": [
+        "NoSkippedRows",
+        "NoForeignRows",
+        "HostCanReturn",
+        "HolderCanServe"
+      ],
+      "properties": []
     },
     "cache-host-no-stop-on-fail": {
       "violations": ["NoSkippedRows"],
       "distinctStates": 275,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": [
+        "NoSkippedRows",
+        "NoForeignRows",
+        "HostCanReturn",
+        "HolderCanServe"
+      ],
+      "properties": []
     },
     "cache-host-reach": {
       "violations": ["StealNeverHappens"],
       "distinctStates": 24,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": ["StealNeverHappens"],
+      "properties": []
     }
   },
   "CoSteer": {
     "co-steer": {
       "violations": [],
-      "distinctStates": 375
+      "distinctStates": 375,
+      "invariants": [
+        "OneSteerer",
+        "NoIntrusion",
+        "QueueWaitsForTurnEnd",
+        "AnswerByHolderOrOwner",
+        "OneInFlight"
+      ],
+      "properties": []
     },
     "co-steer-no-guard": {
       "violations": ["NoIntrusion"],
-      "distinctStates": 432
+      "distinctStates": 432,
+      "invariants": [
+        "OneSteerer",
+        "NoIntrusion",
+        "QueueWaitsForTurnEnd",
+        "AnswerByHolderOrOwner",
+        "OneInFlight"
+      ],
+      "properties": []
     }
   },
   "Delivery": {
     "delivery-own": {
       "violations": [],
-      "distinctStates": 44
+      "distinctStates": 44,
+      "invariants": [
+        "NeverDeliveredTwice",
+        "DeliveredMeansGot",
+        "WaitingMeansNotGot",
+        "OnePermit"
+      ],
+      "properties": []
     },
     "delivery-paste": {
       "violations": ["WaitingMeansNotGot", "NeverDeliveredTwice"],
-      "distinctStates": 116
+      "distinctStates": 116,
+      "invariants": [
+        "NeverDeliveredTwice",
+        "DeliveredMeansGot",
+        "WaitingMeansNotGot",
+        "OnePermit"
+      ],
+      "properties": []
     }
   },
   "FencedTakeover": {
     "fenced-takeover": {
       "violations": [],
-      "distinctStates": 336
+      "distinctStates": 336,
+      "invariants": ["NoLateSteer", "RequestAccepted"],
+      "properties": ["TakeoverResolves"]
     },
     "fenced-takeover-ack-early": {
       "violations": ["NoLateSteer"],
       "distinctStates": 293,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": ["NoLateSteer", "RequestAccepted"],
+      "properties": []
     },
     "fenced-takeover-early": {
       "violations": ["NoLateSteer"],
       "distinctStates": 96,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": ["NoLateSteer", "RequestAccepted"],
+      "properties": []
     },
     "fenced-takeover-no-fence-persist": {
       "violations": [],
-      "distinctStates": 362
+      "distinctStates": 362,
+      "invariants": ["NoLateSteer", "RequestAccepted"],
+      "properties": ["TakeoverResolves"]
     },
     "fenced-takeover-no-machine-check": {
       "violations": ["NoLateSteer"],
       "distinctStates": 287,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": ["NoLateSteer", "RequestAccepted"],
+      "properties": []
     },
     "fenced-takeover-no-server-check": {
       "violations": ["NoLateSteer"],
       "distinctStates": 159,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": ["NoLateSteer", "RequestAccepted"],
+      "properties": []
     },
     "fenced-takeover-no-start-log": {
       "violations": ["NoLateSteer"],
       "distinctStates": 321,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": ["NoLateSteer", "RequestAccepted"],
+      "properties": []
     }
   },
   "Lease": {
     "lease": {
       "violations": ["OneSessionWorking"],
-      "distinctStates": 43
+      "distinctStates": 43,
+      "invariants": [
+        "OneValidHolder",
+        "CompletedOnce",
+        "ExpiredLeaseFreesWork",
+        "OneSessionWorking"
+      ],
+      "properties": []
     }
   },
   "LoneJoin": {
     "lone-join": {
       "violations": [],
-      "distinctStates": 1420
+      "distinctStates": 1420,
+      "invariants": ["OneHolder", "NoIntrusion", "ZeroWritesAlone"],
+      "properties": ["GoneHolderFreesBaton"]
     },
     "lone-join-eager-row": {
       "violations": ["ZeroWritesAlone"],
       "distinctStates": 4,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": ["OneHolder", "NoIntrusion", "ZeroWritesAlone"],
+      "properties": []
     },
     "lone-join-no-implied": {
       "violations": ["NoIntrusion"],
       "distinctStates": 36,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": ["OneHolder", "NoIntrusion", "ZeroWritesAlone"],
+      "properties": []
     },
     "lone-join-no-lapse": {
       "violations": ["GoneHolderFreesBaton"],
-      "distinctStates": 420
+      "distinctStates": 420,
+      "invariants": ["OneHolder", "NoIntrusion", "ZeroWritesAlone"],
+      "properties": ["GoneHolderFreesBaton"]
     }
   },
   "OutboxMove": {
     "outbox-move": {
       "violations": [],
-      "distinctStates": 5571
+      "distinctStates": 5571,
+      "invariants": ["SentOnce", "RightAccount"],
+      "properties": ["Arrives"]
     },
     "outbox-move-no-both-read": {
       "violations": ["Arrives"],
-      "distinctStates": 5571
+      "distinctStates": 5571,
+      "invariants": ["SentOnce", "RightAccount"],
+      "properties": ["Arrives"]
     },
     "outbox-move-no-dedup": {
       "violations": ["SentOnce"],
       "distinctStates": 281,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": ["SentOnce", "RightAccount"],
+      "properties": ["Arrives"]
     },
     "outbox-move-no-owner": {
       "violations": ["RightAccount"],
       "distinctStates": 118,
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": ["SentOnce", "RightAccount"],
+      "properties": ["Arrives"]
     },
     "outbox-move-no-rescan": {
       "violations": ["Arrives"],
-      "distinctStates": 5524
+      "distinctStates": 5524,
+      "invariants": ["SentOnce", "RightAccount"],
+      "properties": ["Arrives"]
     },
     "outbox-move-no-safe-delete": {
       "violations": ["Arrives"],
-      "distinctStates": 5880
+      "distinctStates": 5880,
+      "invariants": ["SentOnce", "RightAccount"],
+      "properties": ["Arrives"]
     }
   },
   "PromptAnswer": {
     "prompt-answer": {
       "violations": [],
-      "distinctStates": 70596
+      "distinctStates": 70596,
+      "invariants": [
+        "OneAnswerSettles",
+        "NeverALaterPrompt",
+        "EscalationOnlyByOwner",
+        "OnlyAllowedPersonAnswers",
+        "SomeoneCanAnswer"
+      ],
+      "properties": []
     },
     "prompt-answer-no-epoch": {
       "violations": [
@@ -159,103 +284,272 @@
         "EscalationOnlyByOwner",
         "OneAnswerSettles"
       ],
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": [
+        "OneAnswerSettles",
+        "NeverALaterPrompt",
+        "EscalationOnlyByOwner",
+        "OnlyAllowedPersonAnswers",
+        "SomeoneCanAnswer"
+      ],
+      "properties": []
     },
     "prompt-answer-no-fallback": {
       "violations": ["SomeoneCanAnswer"],
-      "distinctStates": 70596
+      "distinctStates": 70596,
+      "invariants": [
+        "OneAnswerSettles",
+        "NeverALaterPrompt",
+        "EscalationOnlyByOwner",
+        "OnlyAllowedPersonAnswers",
+        "SomeoneCanAnswer"
+      ],
+      "properties": []
     },
     "prompt-answer-no-machine-guard": {
       "violations": ["NeverALaterPrompt", "EscalationOnlyByOwner"],
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": [
+        "OneAnswerSettles",
+        "NeverALaterPrompt",
+        "EscalationOnlyByOwner",
+        "OnlyAllowedPersonAnswers",
+        "SomeoneCanAnswer"
+      ],
+      "properties": []
     },
     "prompt-answer-no-role-check": {
       "violations": ["OnlyAllowedPersonAnswers", "EscalationOnlyByOwner"],
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": [
+        "OneAnswerSettles",
+        "NeverALaterPrompt",
+        "EscalationOnlyByOwner",
+        "OnlyAllowedPersonAnswers",
+        "SomeoneCanAnswer"
+      ],
+      "properties": []
     },
     "prompt-answer-no-server-guard": {
       "violations": ["OneAnswerSettles"],
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": [
+        "OneAnswerSettles",
+        "NeverALaterPrompt",
+        "EscalationOnlyByOwner",
+        "OnlyAllowedPersonAnswers",
+        "SomeoneCanAnswer"
+      ],
+      "properties": []
     },
     "prompt-answer-small": {
       "violations": [],
-      "distinctStates": 171
+      "distinctStates": 171,
+      "invariants": [
+        "OneAnswerSettles",
+        "NeverALaterPrompt",
+        "EscalationOnlyByOwner",
+        "OnlyAllowedPersonAnswers",
+        "SomeoneCanAnswer"
+      ],
+      "properties": []
     }
   },
   "StaleSteer": {
     "stale-steer": {
       "violations": [],
-      "distinctStates": 101
+      "distinctStates": 101,
+      "invariants": ["ActsOnlyOnTheTurnSeen", "RefusedOnlyWhenStale"],
+      "properties": []
     },
     "stale-steer-machine-only": {
       "violations": [],
-      "distinctStates": 101
+      "distinctStates": 101,
+      "invariants": ["ActsOnlyOnTheTurnSeen", "RefusedOnlyWhenStale"],
+      "properties": []
     },
     "stale-steer-no-guard": {
       "violations": ["ActsOnlyOnTheTurnSeen"],
-      "distinctStates": 104
+      "distinctStates": 104,
+      "invariants": ["ActsOnlyOnTheTurnSeen", "RefusedOnlyWhenStale"],
+      "properties": []
     },
     "stale-steer-server-only": {
       "violations": ["ActsOnlyOnTheTurnSeen"],
-      "distinctStates": 116
+      "distinctStates": 116,
+      "invariants": ["ActsOnlyOnTheTurnSeen", "RefusedOnlyWhenStale"],
+      "properties": []
     }
   },
   "SwarmFlow": {
     "swarm-flow-interest": {
       "violations": [],
-      "distinctStates": 100
+      "distinctStates": 100,
+      "invariants": [
+        "NeverDeliveredTwice",
+        "OneCopyOnServer",
+        "SavedMeansStored",
+        "StatusNeverAhead",
+        "TeammateNeverAhead",
+        "OutsiderStaysAsleep"
+      ],
+      "properties": []
     },
     "swarm-flow-no-dedup": {
       "violations": ["OneCopyOnServer", "SavedMeansStored"],
-      "distinctStates": 124
+      "distinctStates": 124,
+      "invariants": [
+        "NeverDeliveredTwice",
+        "OneCopyOnServer",
+        "SavedMeansStored",
+        "StatusNeverAhead",
+        "TeammateNeverAhead",
+        "OutsiderStaysAsleep"
+      ],
+      "properties": []
     },
     "swarm-flow-no-receipts": {
       "violations": ["NeverDeliveredTwice", "StatusNeverAhead"],
-      "distinctStates": 180
+      "distinctStates": 180,
+      "invariants": [
+        "NeverDeliveredTwice",
+        "OneCopyOnServer",
+        "SavedMeansStored",
+        "StatusNeverAhead",
+        "TeammateNeverAhead",
+        "OutsiderStaysAsleep"
+      ],
+      "properties": []
     },
     "swarm-flow-team": {
       "violations": ["OutsiderStaysAsleep"],
-      "distinctStates": 180
+      "distinctStates": 180,
+      "invariants": [
+        "NeverDeliveredTwice",
+        "OneCopyOnServer",
+        "SavedMeansStored",
+        "StatusNeverAhead",
+        "TeammateNeverAhead",
+        "OutsiderStaysAsleep"
+      ],
+      "properties": []
     }
   },
   "TerminalControl": {
     "terminal-control": {
       "violations": [],
-      "distinctStates": 31979
+      "distinctStates": 31979,
+      "invariants": [
+        "OneTypist",
+        "OnlyCurrentTokenTypes",
+        "NoInputToReplacedPane",
+        "NoInputAfterRevokeAck",
+        "StoppedTokenStaysStopped",
+        "HolderInputNotDropped"
+      ],
+      "properties": []
     },
     "terminal-control-no-ack": {
       "violations": ["HolderInputNotDropped"],
-      "stopAfterCounterexamples": true
+      "stopAfterCounterexamples": true,
+      "invariants": [
+        "OneTypist",
+        "OnlyCurrentTokenTypes",
+        "NoInputToReplacedPane",
+        "NoInputAfterRevokeAck",
+        "StoppedTokenStaysStopped",
+        "HolderInputNotDropped"
+      ],
+      "properties": []
     },
     "terminal-control-no-machine-check": {
       "violations": ["OnlyCurrentTokenTypes", "NoInputAfterRevokeAck"],
-      "distinctStates": 46811
+      "distinctStates": 46811,
+      "invariants": [
+        "OneTypist",
+        "OnlyCurrentTokenTypes",
+        "NoInputToReplacedPane",
+        "NoInputAfterRevokeAck",
+        "StoppedTokenStaysStopped",
+        "HolderInputNotDropped"
+      ],
+      "properties": []
     },
     "terminal-control-no-order": {
       "violations": ["StoppedTokenStaysStopped", "HolderInputNotDropped"],
-      "distinctStates": 52325
+      "distinctStates": 52325,
+      "invariants": [
+        "OneTypist",
+        "OnlyCurrentTokenTypes",
+        "NoInputToReplacedPane",
+        "NoInputAfterRevokeAck",
+        "StoppedTokenStaysStopped",
+        "HolderInputNotDropped"
+      ],
+      "properties": []
     },
     "terminal-control-no-pane-check": {
       "violations": ["NoInputToReplacedPane"],
-      "distinctStates": 33642
+      "distinctStates": 33642,
+      "invariants": [
+        "OneTypist",
+        "OnlyCurrentTokenTypes",
+        "NoInputToReplacedPane",
+        "NoInputAfterRevokeAck",
+        "StoppedTokenStaysStopped",
+        "HolderInputNotDropped"
+      ],
+      "properties": []
     },
     "terminal-control-relay-path": {
       "violations": [],
-      "distinctStates": 31467
+      "distinctStates": 31467,
+      "invariants": [
+        "OneTypist",
+        "OnlyCurrentTokenTypes",
+        "NoInputToReplacedPane",
+        "NoInputAfterRevokeAck",
+        "StoppedTokenStaysStopped",
+        "HolderInputNotDropped"
+      ],
+      "properties": []
     },
     "terminal-control-small": {
       "violations": [],
-      "distinctStates": 130
+      "distinctStates": 130,
+      "invariants": [
+        "OneTypist",
+        "OnlyCurrentTokenTypes",
+        "NoInputToReplacedPane",
+        "NoInputAfterRevokeAck",
+        "StoppedTokenStaysStopped",
+        "HolderInputNotDropped"
+      ],
+      "properties": []
     }
   },
   "TurnBaton": {
     "turn-baton": {
       "violations": [],
-      "distinctStates": 26
+      "distinctStates": 26,
+      "invariants": [
+        "NoIntrusion",
+        "OneSteerAtATime",
+        "NeverDeliveredTwice",
+        "OnlyHolderSends"
+      ],
+      "properties": []
     },
     "turn-baton-no-guard": {
       "violations": ["OnlyHolderSends", "OneSteerAtATime", "NoIntrusion"],
-      "distinctStates": 39
+      "distinctStates": 39,
+      "invariants": [
+        "NoIntrusion",
+        "OneSteerAtATime",
+        "NeverDeliveredTwice",
+        "OnlyHolderSends"
+      ],
+      "properties": []
     }
   }
 }

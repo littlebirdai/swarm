@@ -7,7 +7,7 @@
 // typecheck, lint and three test jobs (ct-49562).
 //
 // An unclassified path runs the dependency jobs until the classifier maps it.
-// The model job reads files from its own directory and uses its own path gate.
+// The model job runs for changes to its files, workflow, or setup action.
 // An empty diff runs every job because the classifier cannot tell which files
 // changed.
 
@@ -288,10 +288,16 @@ export function classifyChangedPaths(files: string[]): Scope {
   const flags: Record<string, boolean> = {};
   for (const area of AREAS) flags[area] = forced || areas.has(area);
   for (const [job, jobAreas] of Object.entries(JOB_AREAS)) {
-    const runUnclassified = job === "test-models" ? paths.length === 0 : forced;
-    flags[jobFlag(job)] =
-      runUnclassified || jobAreas.some((area) => areas.has(area));
+    flags[jobFlag(job)] = forced || jobAreas.some((area) => areas.has(area));
   }
+  flags.models = flags.run_test_models =
+    paths.length === 0 ||
+    areas.has("models") ||
+    paths.some(
+      (file) =>
+        file === ".github/workflows/ci.yml" ||
+        file.startsWith(".github/actions/setup-bun/"),
+    );
   flags.run_test_cli ||= paths.some((file) => WEB_FFMPEG_INPUTS.has(file));
   flags.run_lint ||= paths.some((file) =>
     /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(file),
