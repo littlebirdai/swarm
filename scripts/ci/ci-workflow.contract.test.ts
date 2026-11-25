@@ -35,7 +35,7 @@ const workflow = Bun.YAML.parse(await Bun.file(WORKFLOW_PATH).text()) as {
 const jobs = workflow.jobs;
 
 const SETUP_BUN = "./.github/actions/setup-bun";
-const SETUP_DEPS = ["install", "cache", "none"];
+const SETUP_DEPS = ["install", "none"];
 const setupBun = Bun.YAML.parse(
   await Bun.file(
     new URL("../../.github/actions/setup-bun/action.yml", import.meta.url),
@@ -148,50 +148,18 @@ describe("ci.yml job graph", () => {
     }
   });
 
-  test("the composite action caches the bun store and installs only after", () => {
+  test("the composite action installs unless the job asks for bun alone", () => {
     const steps: any[] = setupBun.runs.steps;
     expect(setupBun.runs.using).toBe("composite");
-    expect(Object.keys(setupBun.inputs)).toEqual([
-      "deps",
-      "save-cache",
-      "bun-version",
-    ]);
+    expect(Object.keys(setupBun.inputs)).toEqual(["deps", "bun-version"]);
     expect(setupBun.inputs.deps.default).toBe("install");
     expect(String(setupBun.inputs["bun-version"].default)).toMatch(
       /^\d+\.\d+\.\d+$/,
     );
-    const bun = steps.findIndex((step) =>
-      String(step.uses ?? "").startsWith("oven-sh/setup-bun@"),
-    );
-    const cache = steps.findIndex((step) =>
-      String(step.uses ?? "").startsWith("actions/cache/restore@"),
-    );
-    const save = steps.findIndex((step) =>
-      String(step.uses ?? "").startsWith("actions/cache/save@"),
-    );
-    const install = steps.findIndex((step) => step.run === "bun install");
-    expect(bun).toBe(0);
-    expect(steps[bun].with["bun-version"]).toBe("${{ inputs.bun-version }}");
-    expect(cache).toBeGreaterThan(bun);
-    expect(steps[cache].if).toBe("inputs.deps != 'none'");
-    expect(steps[cache].with.path).toBe("~/.bun/install/cache");
-    expect(steps[cache].with.key).toBe(
-      "bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}",
-    );
-    expect(install).toBeGreaterThan(cache);
-    expect(save).toBeGreaterThan(install);
-    expect(steps[save].with).toEqual({
-      path: steps[cache].with.path,
-      key: steps[cache].with.key,
-    });
-    expect(steps[save].if).toBe(
-      "inputs.save-cache == 'true' && steps.cache.outputs.cache-hit != 'true'",
-    );
-    const savers = Object.keys(jobs).filter((name) =>
-      jobs[name].steps.some((step: any) => step.with?.["save-cache"]),
-    );
-    expect(savers).toEqual(["test-always", "computer-macos"]);
-    expect(steps[install].if).toBe("inputs.deps == 'install'");
+    expect(String(steps[0].uses)).toStartWith("oven-sh/setup-bun@");
+    expect(steps[0].with["bun-version"]).toBe("${{ inputs.bun-version }}");
+    const install = steps.find((step) => step.run === "bun install");
+    expect(install.if).toBe("inputs.deps == 'install'");
   });
 });
 
@@ -381,49 +349,105 @@ describe("typecheck", () => {
   });
 });
 
-describe("shards", () => {
-  const SHARDED = ["test-web", "test-cli", "test-convex", "computer-macos"];
-  const runs = (job: string) =>
-    (jobs[job].steps as any[]).map((step) => String(step.run ?? ""));
+describe("matrices", () => {
+  const MATRICES: Record<string, Record<string, unknown[]>> = {
+    build: { target: ["web", "other"] },
+    typecheck: {
+      programs: ["web sim", "cli convex", "evals playground packages"],
+    },
+    "test-convex": { shard: [1, 2, 3] },
+    "test-web": { shard: [1, 2, 3, 4, 5, 6, 7, 8, "budgets"] },
+    "test-cli": { suite: [1, 2, 3, 4, 5, 6, 7, 8, "evals", "e2e"] },
+    "computer-macos": { shard: [1, 2, 3] },
+  };
+  const STEPS: Record<string, Array<[string | undefined, string]>> = {
+    build: [
+      ["matrix.target == 'web'", "bunx vite build --sourcemap false"],
+      [
+        "matrix.target == 'other'",
+        'bun build scripts/precompress.mjs scripts/carry-assets.mjs scripts/prerender.mjs scripts/indexnow.mjs ../../scripts/ci/verify-telemetry-key.mjs --target=node --packages=external --outdir="$RUNNER_TEMP/web-build-scripts"',
+      ],
+      ["matrix.target == 'other'", "bun run build --filter='!@codecast/web'"],
+    ],
+    typecheck: [
+      [undefined, "bun scripts/ci/typecheck.ts ${{ matrix.programs }}"],
+    ],
+    "test-convex": [
+      [
+        undefined,
+        "bun test convex/ scripts/ --timings=test-timings.json --shard=${{ matrix.shard }}/3",
+      ],
+    ],
+    "test-web": [
+      [
+        "matrix.shard != 'budgets'",
+        "bun test --parallel --timeout=20000 --timings=test-timings.json --shard=${{ matrix.shard }}/8",
+      ],
+      ["matrix.shard == 'budgets'", "scripts/perf-budgets.sh"],
+    ],
+    "test-cli": [
+      [undefined, "sudo apt-get update && sudo apt-get install -y tmux"],
+      [
+        "matrix.suite != 'evals' && matrix.suite != 'e2e'",
+        "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --timings=test-timings.json --shard=${{ matrix.suite }}/8 --bail=5",
+      ],
+      ["matrix.suite == 'evals'", "bun test src/ --parallel"],
+      ["matrix.suite == 'e2e'", "bun test src/messaging.e2e.test.ts"],
+      [
+        "matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'",
+        "bun test src/daemon.inject-clear.test.ts",
+      ],
+    ],
+  };
+  const withMatrix = Object.keys(jobs).filter((job) => jobs[job].strategy);
 
-  test("only the listed jobs split their tests", () => {
-    const sharded = Object.keys(jobs).filter((job) =>
-      runs(job).some((run) => run.includes("--shard=")),
-    );
-    expect(sharded.toSorted()).toEqual(SHARDED.toSorted());
+  test("are the pinned ones, with no included or excluded entry", () => {
+    expect(
+      Object.fromEntries(
+        withMatrix.map((job) => [job, jobs[job].strategy.matrix]),
+      ),
+    ).toEqual(MATRICES);
   });
 
-  test("each split job runs every shard of its count", () => {
-    for (const job of SHARDED) {
-      const { matrix } = jobs[job].strategy;
-      const [key] = Object.keys(matrix);
-      const numbers = matrix[key].filter((n: unknown) => typeof n === "number");
-      expect(numbers, job).toEqual(
-        Array.from({ length: numbers.length }, (_, i) => i + 1),
+  test("select the pinned steps", () => {
+    for (const [job, expected] of Object.entries(STEPS)) {
+      const steps = (jobs[job].steps as any[]).filter((step) => step.run);
+      expect(
+        steps.map((step) => step.if),
+        job,
+      ).toEqual(expected.map(([condition]) => condition));
+      expected.forEach(([, command], i) =>
+        expect(steps[i].run, job).toContain(command),
       );
-      const run = runs(job).find((text) => text.includes("--shard="))!;
-      expect(run, job).toContain(
-        `--shard=\${{ matrix.${key} }}/${numbers.length}`,
-      );
+    }
+    for (const step of jobs["computer-macos"].steps)
+      if (String(step.run ?? "").includes("--shard="))
+        expect(step.if).toBe("${{ !cancelled() }}");
+  });
+
+  test("keep one command where a step has one", () => {
+    for (const [job, expected] of Object.entries(STEPS)) {
+      const steps = (jobs[job].steps as any[]).filter((step) => step.run);
+      expected.forEach(([, command], i) => {
+        if (!/messaging\.e2e|inject-clear/.test(command))
+          expect(steps[i].run, job).toBe(command);
+      });
     }
   });
 
-  test("each named cli suite selects a step, and the numbered ones the unit tests", () => {
-    const suites: unknown[] = jobs["test-cli"].strategy.matrix.suite;
-    const conditions = (jobs["test-cli"].steps as any[]).map((step) =>
-      String(step.if ?? ""),
-    );
-    for (const suite of suites.filter((name) => typeof name === "string"))
-      expect(conditions.some((c) => c.includes(`== '${suite}'`))).toBe(true);
-  });
-
-  test("each build target selects one step", () => {
-    const steps = (jobs.build.steps as any[]).filter((step) => step.run);
-    expect(steps.map((step) => step.if)).toEqual(
-      jobs.build.strategy.matrix.target.map(
-        (target: string) => `matrix.target == '${target}'`,
-      ),
-    );
+  test("every split run names its whole count", () => {
+    for (const job of Object.keys(jobs)) {
+      for (const step of jobs[job].steps ?? []) {
+        const shard = String(step.run ?? "").match(
+          /--shard=\$\{\{ matrix\.(\w+) \}\}\/(\d+)/,
+        );
+        if (!shard) continue;
+        const numbers = jobs[job].strategy.matrix[shard[1]].filter(
+          (n: unknown) => typeof n === "number",
+        );
+        expect(numbers, job).toHaveLength(Number(shard[2]));
+      }
+    }
   });
 });
 

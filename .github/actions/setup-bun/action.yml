@@ -9,11 +9,6 @@ inputs:
       "cache" restores the cache for a job that installs on its own; "none"
       sets up bun alone, for a job with no dependencies.
     default: install
-  save-cache:
-    description: >
-      "true" also saves the cache when the lockfile changed. One job per run does:
-      every other job would compress the same store and then lose the race.
-    default: "false"
   bun-version:
     description: >
       The bun a job runs on: the version the repo pins, unless the job names its own.
@@ -27,21 +22,7 @@ runs:
       with:
         bun-version: ${{ inputs.bun-version }}
 
-    - if: inputs.deps != 'none'
-      id: cache
-      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-      with:
-        path: ~/.bun/install/cache
-        key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-        restore-keys: bun-${{ runner.os }}-
-
     - if: inputs.deps == 'install'
       name: Install dependencies
       shell: bash
       run: bun install
-
-    - if: inputs.save-cache == 'true' && steps.cache.outputs.cache-hit != 'true'
-      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-      with:
-        path: ~/.bun/install/cache
-        key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}

@@ -55,6 +55,9 @@ jobs:
           # server.
           fetch-depth: 0
           filter: blob:none
+          sparse-checkout: |
+            .github
+            scripts
 
       - uses: ./.github/actions/setup-bun
         with:
@@ -152,8 +155,6 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y tmux
 
       - uses: ./.github/actions/setup-bun
-        with:
-          save-cache: "true"
 
       - name: Check formatting
         run: bun run format:check
@@ -189,12 +190,17 @@ jobs:
         # The web bundle outgrew V8's default heap on the runner: on 2026-10-24
         # vite died with "JavaScript heap out of memory" (exit 134).
         # The rest of the web build script prepares the files to serve
-        # (compression, prerender). CI serves nothing, and the prerender step
-        # exits 0 on every failure, so it cannot find one.
+        # (compression, prerender). CI serves nothing, so it only proves below
+        # that those scripts load.
         working-directory: apps/web
         env:
           NODE_OPTIONS: --max-old-space-size=8192
-        run: bun run build:bundle
+        run: bunx vite build --sourcemap false
+
+      - name: Load the scripts that follow the web bundle
+        if: matrix.target == 'other'
+        working-directory: apps/web
+        run: bun build scripts/precompress.mjs scripts/carry-assets.mjs scripts/prerender.mjs scripts/indexnow.mjs ../../scripts/ci/verify-telemetry-key.mjs --target=node --packages=external --outdir="$RUNNER_TEMP/web-build-scripts"
 
       - name: Build everything else
         if: matrix.target == 'other'
@@ -208,15 +214,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        programs: [web, sim, cli, convex, evals playground packages]
+        programs: [web sim, cli convex, evals playground packages]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-bun
 
       # The programs .codecast/check.toml points `cast check` at, except
-      # mobile, with the native TypeScript compiler. The programs run one after
-      # another: each one uses every CPU and several GB.
+      # mobile, with the native TypeScript compiler. The programs of one runner
+      # run at the same time, each with one checker: more checkers repeat most
+      # of each other's work.
       - name: Typecheck
         run: bun scripts/ci/typecheck.ts ${{ matrix.programs }}
 
@@ -250,7 +257,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -258,7 +265,7 @@ jobs:
 
       - name: Unit tests (convex package)
         working-directory: apps/server
-        run: bun test convex/ scripts/ --shard=${{ matrix.shard }}/2
+        run: bun test convex/ scripts/ --timings=test-timings.json --shard=${{ matrix.shard }}/3
 
   test-web:
     needs: [code_paths]
@@ -268,13 +275,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, budgets]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-bun
 
       - name: Unit tests (web package)
+        if: matrix.shard != 'budgets'
         working-directory: apps/web
         # --isolate: a fresh global per file. bun otherwise runs the whole suite
         # in one process, where `mock.module` substitutions are permanent and a
@@ -284,17 +292,19 @@ jobs:
         # --parallel: one worker process per CPU. bun keeps every isolated
         # file's global alive until its process exits (a file that imports the
         # store holds ~8 MB after a full GC), so the whole suite in one process
-        # climbed past 11 GB. Six shards of four workers keep each process small.
+        # climbed past 11 GB. Eight shards of four workers keep each process small.
+        # --timeout: the workers share the CPUs, which stretches a test that
+        # takes 3 of its default 5 seconds alone.
         # SIM_OUT: where the multiplayer sim writes each run's report and
         # events (docs/architecture/sync-sim.md), uploaded below on failure.
         env:
           SIM_OUT: ${{ runner.temp }}/sim
-        run: bun test --parallel --shard=${{ matrix.shard }}/6
+        run: bun test --parallel --timeout=20000 --timings=test-timings.json --shard=${{ matrix.shard }}/8
 
       # The exact counts behind the perf benches (apps/web/perf/README.md).
       # Plain bun, not bun test: the test preload stands in for the diff viewer.
       - name: Perf budgets (web)
-        if: matrix.shard == 1
+        if: matrix.shard == 'budgets'
         working-directory: apps/web
         run: scripts/perf-budgets.sh
 
@@ -315,7 +325,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [1, 2, 3, 4, 5, 6, evals, e2e]
+        suite: [1, 2, 3, 4, 5, 6, 7, 8, evals, e2e]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -344,7 +354,7 @@ jobs:
         # the job spending the rest of its timeout with nothing said.
         env:
           DAEMON_BUILD_ID_CHECK: "1"
-        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --shard=${{ matrix.suite }}/6 --bail=5
+        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --timings=test-timings.json --shard=${{ matrix.suite }}/8 --bail=5
 
       # The eval home (apps/evals). Its tests make no network or model
       # calls; real replays run only from ./evals on a laptop.
@@ -445,7 +455,7 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
         with:
-          deps: cache
+          deps: none
 
       # Before the installs below, which write a bun.lock into each mirrored
       # package. `--check` diffs against ~/src/platform, which no runner has;
@@ -580,8 +590,6 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-bun
-        with:
-          save-cache: ${{ matrix.shard == 1 }}
 
       - name: Swift unit tests (helper core)
         if: matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'

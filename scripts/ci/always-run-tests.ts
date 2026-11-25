@@ -53,7 +53,12 @@ export const SUITES: Array<{
   // test-cli runs --parallel, a fresh global per file: the boot graph guards
   // count the module registry, which earlier files in one process have filled.
   { job: "test-cli", dir: "apps/cli", roots: ["src"], flags: ["--parallel"] },
-  { job: "test-cli", dir: "apps/evals", roots: ["src"], flags: [] },
+  {
+    job: "test-cli",
+    dir: "apps/evals",
+    roots: ["src"],
+    flags: ["--parallel"],
+  },
   // test-web and test-mobile run with --isolate: their mount tests replace
   // modules with mock.module, which is permanent within one process.
   { job: "test-web", dir: "apps/web", roots: ["."], flags: ["--parallel=2"] },
@@ -94,6 +99,7 @@ async function runSuite(suite: (typeof SUITES)[number]): Promise<boolean> {
   const files = alwaysRunFiles(suite);
   if (files.length === 0) return true;
   const started = performance.now();
+  console.log(`${suite.dir}: started`);
   const proc = Bun.spawn(["bun", "test", ...suite.flags, ...files], {
     cwd: join(ROOT, suite.dir),
     stdout: "pipe",
