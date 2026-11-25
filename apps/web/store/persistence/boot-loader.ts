@@ -14,14 +14,14 @@ import { queuedMessagesFromPending } from "../pendingMessageJournal";
 import {
   lastPersisted,
   noteConversationRetentionDrops,
-} from "./collectionWriter";
+} from "./collection-writer";
 import { COLLECTION_TABLES, db } from "./db";
 import { ensureCacheOwnership as resolveOwnership } from "./ownership";
 import { loadPendingInput } from "./pendingInputJournal";
 import { purgeLocalCache } from "./purge";
 import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
-import { timeBootRead } from "./storageTimings";
+import { timeBootRead } from "./storage-timings";
 
 // Old bundles can still write these values to the web meta table.
 export const RETIRED_META_KEYS = [

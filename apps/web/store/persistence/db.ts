@@ -8,7 +8,7 @@ import {
   SYSTEM_TABLES,
   WEB_COLLECTION_INDEXES,
 } from "./schema";
-import { storageTimings } from "./storageTimings";
+import { storageTimings } from "./storage-timings";
 
 // Docs shots (lib/docsShots) render a fixture world and keep nothing.
 export const PERSISTENCE_AVAILABLE =

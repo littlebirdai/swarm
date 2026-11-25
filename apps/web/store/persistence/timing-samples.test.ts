@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { StorageTimingSamples } from "./timingSamples";
+import { StorageTimingSamples } from "./timing-samples";
 
 test("reports nearest-rank bucket percentiles and counts per write kind", () => {
   const samples = new StorageTimingSamples([]);

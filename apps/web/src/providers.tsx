@@ -22,7 +22,7 @@ import { useMountEffect } from "@/hooks/useMountEffect";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useDesktopStoreReady } from "@/hooks/useDesktopStoreReady";
 import { identifyUser, keepReplay, resetUser } from "@/lib/analytics";
-import { ClientResourceTelemetry } from "@/lib/telemetry/clientResourceTelemetry";
+import { ClientResourceTelemetry } from "@/lib/telemetry/client-resource-telemetry";
 import { CodecastAuthRoot } from "@/lib/authRoot";
 import { CONVEX_URL } from "@/lib/localAuth";
 import { DOCS_SHOTS, docsShotsConvex } from "@/lib/docsShots/flag";

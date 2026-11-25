@@ -7,7 +7,7 @@ import { _hydrating } from "./hydration";
 import { diffMessageTail } from "./messageTailDiff";
 import { persistenceOwned } from "./ownership";
 import { deleteInBatches, RETENTION_DELETE_BATCH } from "./retention";
-import { storageTimings } from "./storageTimings";
+import { storageTimings } from "./storage-timings";
 
 // A continuous stream flushes at most once per interval. Keep the latest
 // snapshot readable until its row edits and metadata commit together.

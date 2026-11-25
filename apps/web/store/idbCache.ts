@@ -25,7 +25,7 @@ export {
   _resetPersistedShadow,
   flushPersistence,
   writePatchesToIDB,
-} from "./persistence/collectionWriter";
+} from "./persistence/collection-writer";
 export { setHydrating } from "./persistence/hydration";
 export {
   ensureCacheOwnership,
@@ -33,7 +33,7 @@ export {
   loadCacheSync,
   loadPaintCacheSync,
   RETIRED_META_KEYS,
-} from "./persistence/bootLoader";
+} from "./persistence/boot-loader";
 export {
   deleteInBatches,
   RETENTION_DELETE_BATCH,
@@ -44,7 +44,7 @@ export {
   writeConversationMessages,
   writeConversationUserMessages,
   type CachedConversation,
-} from "./persistence/messageCache";
+} from "./persistence/message-cache";
 export {
   enqueueDispatch,
   loadOutbox,

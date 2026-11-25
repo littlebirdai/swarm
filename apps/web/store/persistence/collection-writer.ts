@@ -22,7 +22,7 @@ import { persistenceOwned } from "./ownership";
 import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
 import { _hydrating } from "./hydration";
-import { storageTimings } from "./storageTimings";
+import { storageTimings } from "./storage-timings";
 
 // What each collection table currently holds on disk, by id → row reference.
 // Lets writePatchesToIDB persist only the rows that actually changed (and delete

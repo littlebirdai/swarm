@@ -1,5 +1,5 @@
 import type { CodecastEventProps } from "@codecast/analytics";
-import type { StorageTimingSample } from "../../store/persistence/timingSamples";
+import type { StorageTimingSample } from "../../store/persistence/timing-samples";
 
 type Report = CodecastEventProps<"client_resource_report">;
 

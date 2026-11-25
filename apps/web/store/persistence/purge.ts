@@ -1,12 +1,12 @@
 import { recordCacheEvent } from "../cacheEvents";
-import { resetCollectionWrites } from "./collectionWriter";
+import { resetCollectionWrites } from "./collection-writer";
 import {
   db,
   deleteCacheDatabase,
   reopenAfterPurge,
   setPurgeInProgress,
 } from "./db";
-import { dropPendingMessageWrites } from "./messageCache";
+import { dropPendingMessageWrites } from "./message-cache";
 import { writeOwnerStamp } from "./ownership";
 import { clearPendingInputJournal } from "./pendingInputJournal";
 import { PENDING_INPUT_PREFIX } from "./schema";

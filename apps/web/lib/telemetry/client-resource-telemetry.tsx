@@ -2,7 +2,7 @@ import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useConvexAuth } from "convex/react";
 import { REGISTERED_COLLECTION_KEYS } from "../../store/clientSyncRegistry";
 import { useInboxStore } from "../../store/inboxStore";
-import { storageTimings } from "../../store/persistence/storageTimings";
+import { storageTimings } from "../../store/persistence/storage-timings";
 import { getPlatform, isRegulatedData, track } from "../analytics";
 import { watchLongFrameStats } from "../freezeAttribution";
 import { msUntilInputQuiet, TYPING_QUIET_MS } from "../inputQuiet";
@@ -13,7 +13,7 @@ import {
   isClientResourceReportWindow,
   shouldReportClientResources,
   type CollectionSample,
-} from "./clientResourceReport";
+} from "./client-resource-report";
 
 const FIRST_REPORT_MS = 60_000;
 const REPORT_INTERVAL_MS = 10 * 60_000;

@@ -26168,10 +26168,10 @@
   "apps/web/lib/teamVisibility.ts": {
     "swarm/no-comments": 9
   },
-  "apps/web/lib/telemetry/clientResourceReport.ts": {
+  "apps/web/lib/telemetry/client-resource-report.ts": {
     "swarm/no-comments": 2
   },
-  "apps/web/lib/telemetry/clientResourceTelemetry.tsx": {
+  "apps/web/lib/telemetry/client-resource-telemetry.tsx": {
     "swarm/no-comments": 2
   },
   "apps/web/lib/terminal/conversationTerminalState.ts": {
@@ -27937,10 +27937,10 @@
   "apps/web/store/pendingMessageJournal.ts": {
     "swarm/no-comments": 24
   },
-  "apps/web/store/persistence/bootLoader.ts": {
+  "apps/web/store/persistence/boot-loader.ts": {
     "swarm/no-comments": 24
   },
-  "apps/web/store/persistence/collectionWriter.ts": {
+  "apps/web/store/persistence/collection-writer.ts": {
     "swarm/no-comments": 26
   },
   "apps/web/store/persistence/db.ts": {
@@ -27949,7 +27949,7 @@
   "apps/web/store/persistence/hydration.ts": {
     "swarm/no-comments": 2
   },
-  "apps/web/store/persistence/messageCache.ts": {
+  "apps/web/store/persistence/message-cache.ts": {
     "swarm/no-comments": 28
   },
   "apps/web/store/persistence/messageTailDiff.ts": {

@@ -4,21 +4,21 @@ import {
 } from "../__tests__/fixtures/signedInPrincipal";
 import { expect, spyOn, test } from "bun:test";
 import { IDBFactory, IDBKeyRange, IDBObjectStore } from "fake-indexeddb";
-import { buildClientResourceReport } from "../../lib/telemetry/clientResourceReport";
+import { buildClientResourceReport } from "../../lib/telemetry/client-resource-report";
 import {
   HYDRATION_CRITICAL_READ_KEYS,
   HYDRATION_DEFERRED_KEYS,
 } from "../clientSyncRegistry";
-import { loadCache } from "./bootLoader";
-import { writePatchesToIDB } from "./collectionWriter";
+import { loadCache } from "./boot-loader";
+import { writePatchesToIDB } from "./collection-writer";
 import { _reopenForTests, COLLECTION_TABLES, db } from "./db";
 import {
   dropPendingMessageWrites,
   flushConversationMessages,
   writeConversationMessages,
-} from "./messageCache";
+} from "./message-cache";
 import { writeOwnerStamp } from "./ownership";
-import { storageTimings } from "./storageTimings";
+import { storageTimings } from "./storage-timings";
 
 test("reports slow critical and deferred reads and a slow synchronous write", async () => {
   installSignedInPrincipal();

@@ -1,5 +1,5 @@
 import { SYSTEM_TABLES, WEB_COLLECTION_INDEXES } from "./schema";
-import { StorageTimingSamples, type BootPhase } from "./timingSamples";
+import { StorageTimingSamples, type BootPhase } from "./timing-samples";
 
 export const storageTimings = new StorageTimingSamples([
   ...Object.keys(SYSTEM_TABLES),

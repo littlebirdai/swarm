@@ -3,7 +3,7 @@ import {
   buildClientResourceReport,
   estimateCollectionBytes,
   shouldReportClientResources,
-} from "./clientResourceReport";
+} from "./client-resource-report";
 
 const window = {
   platform: "desktop",
