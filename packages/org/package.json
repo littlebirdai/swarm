@@ -25,9 +25,23 @@
     "./roleFailover": "./src/roleFailover.ts",
     "./roleGoals": "./src/roleGoals.ts",
     "./roleLevel": "./src/roleLevel.ts",
-    "./briefStanding": "./src/briefStanding.ts"
+    "./briefStanding": "./src/briefStanding.ts",
+    "./orgAreas": "./src/orgAreas.ts",
+    "./orgChange": "./src/orgChange.ts",
+    "./orgChangeWords": "./src/orgChangeWords.ts",
+    "./orgLog": "./src/orgLog.ts",
+    "./orgProposal": "./src/orgProposal.ts",
+    "./orgProposalReply": "./src/orgProposalReply.ts",
+    "./orgSessionFiling": "./src/orgSessionFiling.ts",
+    "./rolePlaybook": "./src/rolePlaybook.ts",
+    "./headOfPeoplePrompt": "./src/headOfPeoplePrompt.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.3"
+  },
+  "dependencies": {
+    "@codecast/entities": "workspace:*",
+    "@codecast/flows": "workspace:*",
+    "@codecast/goals": "workspace:*"
   }
 }

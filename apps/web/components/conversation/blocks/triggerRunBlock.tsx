@@ -12,7 +12,7 @@ import {
   type WaitingSession,
 } from "@codecast/shared/contracts";
 import { roleCardInitiativeLine } from "@codecast/org/roleCard";
-import { AREA_STATUS_WORDS } from "@codecast/shared/contracts/orgAreas";
+import { AREA_STATUS_WORDS } from "@codecast/org/orgAreas";
 import { ShortcutTooltip } from "../../KeyboardShortcutsHelp";
 import { fmtDuration } from "../../triggerCadence";
 import { CollapsibleBody } from "../../CollapsibleBody";

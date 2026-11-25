@@ -22,7 +22,7 @@ import { requireRole, userCanAdminRole } from "./lib/orgAccess";
 import { holdChangeFor, type HoldChange } from "./lib/orgOwnership";
 import { resolveActor } from "./lib/actor";
 import { reroutePendingDecisionsForConversation } from "./sessionDecisions";
-import { movedFields } from "@codecast/shared/contracts/orgChange";
+import { movedFields } from "@codecast/org/orgChange";
 import {
   findOwnableConversation,
   personName,

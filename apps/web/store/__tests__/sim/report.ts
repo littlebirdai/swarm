@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PAYLOAD_DENYLIST } from "@codecast/convex/convex/syncLog";
-import { canonical } from "@codecast/shared/contracts/orgChange";
+import { canonical } from "@codecast/org/orgChange";
 import type { Channel, Delivery } from "./net";
 import { formatOrder, replayCommands } from "./replay";
 import type { SimLabels } from "./labels";

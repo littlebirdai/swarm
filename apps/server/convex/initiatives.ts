@@ -18,7 +18,7 @@ import {
   whereOfRecord,
   withOrgChange,
 } from "./lib/orgChangeLog";
-import { movedFields } from "@codecast/shared/contracts/orgChange";
+import { movedFields } from "@codecast/org/orgChange";
 import { v, type Validator } from "convex/values";
 import {
   INITIATIVE_METRICS_MAX,
@@ -40,7 +40,7 @@ import {
   type InitiativeUpdateHealth,
   type RecordOpResult,
 } from "@codecast/goals/initiative";
-import { recordScores } from "@codecast/shared/contracts/orgTemplateState";
+import { recordScores } from "@codecast/org-templates/orgTemplateState";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./functions";
 import { getAuthenticatedUserId } from "./pendingMessages";

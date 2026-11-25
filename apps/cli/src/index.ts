@@ -290,7 +290,7 @@ import {
   roleLine,
   standingSessionLine,
 } from "./briefLines.js";
-import { wakeWords } from "@codecast/shared/contracts/rolePlaybook";
+import { wakeWords } from "@codecast/org/rolePlaybook";
 import {
   parkedNote,
   planReadiness,
@@ -20345,7 +20345,7 @@ roleGroup
     const raw = options.grant === "-" ? readStdinBody() : options.grant;
     const authority = raw ? JSON.parse(raw) : [];
     const { orgAuthorityGrantsError } =
-      await import("@codecast/shared/contracts/orgProposal");
+      await import("@codecast/org/orgProposal");
     const invalid = orgAuthorityGrantsError(authority);
     if (invalid) {
       console.error(`--grant: ${invalid}`);
@@ -20651,7 +20651,7 @@ briefCmd
       role_id = self.role_id;
     }
     const { briefBudget, briefBudgetWords, briefOverBudgetMessage } =
-      await import("@codecast/shared/contracts/rolePlaybook");
+      await import("@codecast/org/rolePlaybook");
     let content = text ?? "";
     let replaced = 0;
     // The revision the new narrative was computed from: the read just below

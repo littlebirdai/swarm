@@ -7,7 +7,7 @@ import {
   changeLine,
   editedOrgChange,
   isOrgQuietChange,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import {
   ghostsFor,
   withScopeNames,

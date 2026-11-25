@@ -12,7 +12,7 @@
 // resolver then picks between them by extension.
 import React, { useMemo, useState } from "react";
 import { Check } from "lucide-react";
-import { ORG_REPLY_WORDS } from "@codecast/shared/contracts/orgProposal";
+import { ORG_REPLY_WORDS } from "@codecast/org/orgProposal";
 import { cn } from "../../lib/utils";
 import { useInboxStore } from "../../store/inboxStore";
 import { useReviewComposer } from "../reviewContext";

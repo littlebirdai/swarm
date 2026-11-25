@@ -18,7 +18,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { headOfPeopleOpening } from "@codecast/shared/contracts/headOfPeoplePrompt";
+import { headOfPeopleOpening } from "@codecast/org/headOfPeoplePrompt";
 
 import { looseLines } from "../../../../apps/cli/src/orgLooseRun";
 import { homePaths } from "../../src/paths";

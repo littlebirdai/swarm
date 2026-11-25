@@ -7,7 +7,7 @@ import {
   type OrgAskNames,
   type OrgChange,
   type OrgRecordTotal,
-} from "./orgProposal";
+} from "../src/orgProposal";
 import {
   changeWords,
   chipLine,
@@ -17,7 +17,7 @@ import {
   recordTotalsWords,
   subjectWords,
   type ChangeField,
-} from "./orgChangeWords";
+} from "../src/orgChangeWords";
 
 const pick =
   (table: Record<string, string>) =>

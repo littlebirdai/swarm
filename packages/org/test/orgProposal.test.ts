@@ -9,7 +9,7 @@ import {
   orgProposalVerdict,
   recordChangeParts,
   changeLine,
-} from "./orgProposal";
+} from "../src/orgProposal";
 
 describe("org proposal block", () => {
   test("round trips through a decision context", () => {
@@ -83,9 +83,9 @@ import {
   parseOrgProposalSpec,
   recordGroupTotalsLine,
   type OrgChange,
-} from "./orgProposal";
+} from "../src/orgProposal";
 
-const GOOD: Record<OrgChange["kind"], OrgChange> = {
+const GOOD = {
   role: {
     kind: "role",
     name: "Head of Growth",
@@ -236,7 +236,7 @@ const GOOD: Record<OrgChange["kind"], OrgChange> = {
     parent: "Reach 1k teams",
     metrics: [{ name: "Brokers live", target: "40" }],
   },
-};
+} satisfies Record<OrgChange["kind"], OrgChange>;
 
 describe("org change validation", () => {
   test("every kind has a valid example and the list is complete", () => {
@@ -905,7 +905,7 @@ describe("status changes, tenure and horizon", () => {
 describe("file change", () => {
   test("validates, describes and sorts after projects", async () => {
     const { orgChangeError, describeOrgChange, orderOrgChanges } =
-      await import("./orgProposal");
+      await import("../src/orgProposal");
     expect(
       orgChangeError({ kind: "file", plan: "pl-1", project: "Platform" }),
     ).toBeNull();
@@ -1045,7 +1045,7 @@ describe("goal changes", () => {
   // when, milestones, sources, questions and decisions. The sentence stays
   // short and the words are the effect's.
   test("a goal change carries its record: validated, counted in the sentence, written out in the effect", async () => {
-    const { deriveAsks } = await import("./orgProposal");
+    const { deriveAsks } = await import("../src/orgProposal");
     const record = {
       why: "Brokers bring the sellers",
       done_when: "Three brokers trade through us.",
@@ -1076,7 +1076,7 @@ describe("goal changes", () => {
       ...record,
       questions: ["Do we price per seat?"],
       decisions: ["Ship to brokers first", "Quiet goes first."],
-    } as const;
+    } satisfies OrgChange;
     expect(orgChangeError(shape)).toBeNull();
     expect(changeLine(shape)).toBe(
       "Record on the goal Win the private network: why it matters, what done looks like, 2 milestones, an open question, 2 decisions and 2 places it was stated",
@@ -1157,7 +1157,7 @@ describe("goal changes", () => {
       }),
     ).toContain("decisions is a list of at most 40 strings");
     // Two shape rows about one goal fold into one, and their lists join: each adds, so they cannot disagree. The words still can.
-    const { foldRepeatedSubjects } = await import("./orgProposal");
+    const { foldRepeatedSubjects } = await import("../src/orgProposal");
     const two = foldRepeatedSubjects([
       {
         change: {
@@ -1223,7 +1223,8 @@ describe("goal changes", () => {
     ).toContain("initiative questions is a list of at most 20 strings");
   });
   test("one subject per proposal, and the owner handle counts as a role the change names", async () => {
-    const { orgChangeKey, orgChangeHandles } = await import("./orgProposal");
+    const { orgChangeKey, orgChangeHandles } =
+      await import("../src/orgProposal");
     expect(orgChangeKey(GOOD.initiative)).toBe(
       "initiative:win the private network",
     );
@@ -1235,7 +1236,7 @@ describe("goal changes", () => {
     expect(orgChangeHandles(GOOD.initiative_owner)).toEqual(["calling"]);
   });
   test("goals land after the projects and roles they name and before moves; every goal change is one ask", async () => {
-    const { deriveAsks } = await import("./orgProposal");
+    const { deriveAsks } = await import("../src/orgProposal");
     expect(ORG_CHANGE_APPLY_RANK.initiative).toBeGreaterThan(
       ORG_CHANGE_APPLY_RANK.role,
     );
@@ -1563,7 +1564,7 @@ describe("asks partition a proposal's changes", () => {
     expect(plain.spec!.asks!.map((a) => a.seqs)).toEqual([[2], [1]]);
   });
   test("deriveAsks: each record group is one ask, each role, retire, move, scope and charter edit its own with its riders, the rest one ask; removed rows are in none", async () => {
-    const { deriveAsks, resolveOrgAsks } = await import("./orgProposal");
+    const { deriveAsks, resolveOrgAsks } = await import("../src/orgProposal");
     const rows = [
       {
         seq: 1,
@@ -1790,7 +1791,7 @@ describe("asks partition a proposal's changes", () => {
 
 describe("what one change needs from another (orgChangeDependencies)", () => {
   test("a role, its adopt and its routine name each other by seq; unrelated rows say nothing", async () => {
-    const { orgChangeDependencies } = await import("./orgProposal");
+    const { orgChangeDependencies } = await import("../src/orgProposal");
     const rows = [
       {
         seq: 1,
@@ -1855,7 +1856,7 @@ describe("a role that names an existing session (seat)", () => {
   } as OrgChange;
 
   test("the sentence says what it is and what naming changes, from what the author read; missing facts shorten it", async () => {
-    const { seatSentence } = await import("./orgProposal");
+    const { seatSentence } = await import("../src/orgProposal");
     expect(seatSentence(seat, NOW)).toBe(
       "This is Market growth mandate, which has run for 34 days with 391 helper sessions. Naming it changes nothing about how it works and gives it a place on the chart.",
     );
@@ -1868,7 +1869,8 @@ describe("a role that names an existing session (seat)", () => {
   });
 
   test("validates, and describes as naming a session, never as creating a role", async () => {
-    const { orgChangeError, describeOrgChange } = await import("./orgProposal");
+    const { orgChangeError, describeOrgChange } =
+      await import("../src/orgProposal");
     expect(orgChangeError(role)).toBeNull();
     expect(orgChangeError({ ...role, seat: {} })).toContain(
       "seat is { existing",
@@ -1887,7 +1889,8 @@ describe("a role that names an existing session (seat)", () => {
   });
 
   test("its derived ask carries the sentence, and a routine on it runs on the session it names", async () => {
-    const { deriveAsks, orgChangeDependencies } = await import("./orgProposal");
+    const { deriveAsks, orgChangeDependencies } =
+      await import("../src/orgProposal");
     const [ask] = deriveAsks([{ seq: 1, change: role }]);
     expect(ask.title).toBe("Name Market growth mandate as a role");
     expect(ask.effect).toContain(
@@ -1931,7 +1934,7 @@ describe("a role that names an existing session (seat)", () => {
   });
 
   test("one session is one role, and a role that names its session carries no adopt", async () => {
-    const { parseOrgProposalSpec } = await import("./orgProposal");
+    const { parseOrgProposalSpec } = await import("../src/orgProposal");
     const spec = (changes: OrgChange[]) =>
       parseOrgProposalSpec({
         title: "t",
@@ -2013,7 +2016,7 @@ describe("orgChangeTakeover and takeoverPhrase", () => {
     orgChangeTakeover,
     orgChangeTakesOver,
     takeoverPhrase,
-  } = require("./orgProposal");
+  } = require("../src/orgProposal");
 
   test("a change takes over only when a scope gains something, and says what in typed refs", () => {
     expect(
@@ -2173,9 +2176,9 @@ describe("a role proposal with a line", () => {
       scope: { projects: ["Codecast"] },
       caps: { hands_per_day: 6, cards: 5 },
       line: "line",
-    } as const;
+    } satisfies OrgChange;
     expect(orgChangeError(change)).toBeNull();
-    const [ask] = deriveAsks([{ seq: 1, change: change as OrgChange }]);
+    const [ask] = deriveAsks([{ seq: 1, change }]);
     expect(ask!.effect).toContain(
       "runs the project's flow on the line steps, starting new work only while fewer than 5 change cards wait on a person",
     );
@@ -2204,7 +2207,7 @@ import {
   type OrgGoalChange,
   type OrgPriority,
   type OrgProjectMetaChange,
-} from "./orgProposal";
+} from "../src/orgProposal";
 
 describe("the words of a change", () => {
   const pick =
@@ -2865,7 +2868,7 @@ import {
   proposalReplyText,
   type OrgProposalReply,
   type OrgReplyItem,
-} from "./orgProposal";
+} from "../src/orgProposal";
 import { parseProposalChangeRef } from "@codecast/entities";
 
 describe("a person's answers as the message the agent reads (proposalReplyText)", () => {
@@ -3534,7 +3537,7 @@ describe("a role's charter edited in place", () => {
     ]);
   });
   test("applyCharterEdits substitutes exact, unique passages and keeps the result under the cap", () => {
-    expect(applyCharterEdits(charter, GOOD.charter_edit.edits as any)).toEqual({
+    expect(applyCharterEdits(charter, GOOD.charter_edit.edits)).toEqual({
       charter:
         "Keeps paid acquisition under budget and pointed at the funnel.\n\nReads the ads account every morning.\n\nReports spend every Monday.",
     });

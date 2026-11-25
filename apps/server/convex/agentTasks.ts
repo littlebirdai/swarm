@@ -66,7 +66,7 @@ import {
   isPageTriggerEvent,
   projectChannelRefusal,
 } from "@codecast/triggers/triggerEvents";
-import type { AreaChange } from "@codecast/shared/contracts/orgAreas";
+import type { AreaChange } from "@codecast/org/orgAreas";
 import {
   isOrgReviewFocusKey,
   type OrgReviewFocusKey,

@@ -16,7 +16,7 @@ import { gateRoleCaps } from "./spawn";
 import { roleMayStartHands } from "./orgLine";
 import { performReparentSession } from "./sessionOwnership";
 import { openOrgBatch } from "./lib/orgChangeLog";
-import { invertRow, orgLogLine } from "@codecast/shared/contracts/orgChange";
+import { invertRow, orgLogLine } from "@codecast/org/orgChange";
 
 const ME = "u".repeat(31) + "m";
 const MATE = "u".repeat(31) + "t";
@@ -1656,8 +1656,7 @@ const CASES: Case[] = [
 
 describe("S21: every change kind round trips through apply, undo and redo", () => {
   test("the table covers every kind the proposal contract names", async () => {
-    const { ORG_CHANGE_KINDS } =
-      await import("@codecast/shared/contracts/orgProposal");
+    const { ORG_CHANGE_KINDS } = await import("@codecast/org/orgProposal");
     expect([...CASES.map((c) => c.kind)].sort()).toEqual(
       [...ORG_CHANGE_KINDS].sort(),
     );

@@ -56,6 +56,7 @@
         "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/org": "workspace:*",
+        "@codecast/org-templates": "workspace:*",
         "@codecast/pages": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/projects": "workspace:*",
@@ -118,6 +119,7 @@
         "@codecast/fence": "workspace:*",
         "@codecast/goals": "workspace:*",
         "@codecast/org": "workspace:*",
+        "@codecast/org-templates": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/shared": "workspace:*",
         "@codecast/ship": "workspace:*",
@@ -303,6 +305,7 @@
         "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/org": "workspace:*",
+        "@codecast/org-templates": "workspace:*",
         "@codecast/pages": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/projects": "workspace:*",
@@ -395,6 +398,7 @@
         "@codecast/mods": "workspace:*",
         "@codecast/network": "workspace:*",
         "@codecast/org": "workspace:*",
+        "@codecast/org-templates": "workspace:*",
         "@codecast/pages": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/projects": "workspace:*",
@@ -871,6 +875,23 @@
     "packages/org": {
       "name": "@codecast/org",
       "version": "0.0.1",
+      "dependencies": {
+        "@codecast/entities": "workspace:*",
+        "@codecast/flows": "workspace:*",
+        "@codecast/goals": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
+    "packages/org-templates": {
+      "name": "@codecast/org-templates",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/flows": "workspace:*",
+        "@codecast/org": "workspace:*",
+        "@codecast/provider-keys": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "^1.3.3",
       },
@@ -976,7 +997,6 @@
         "@codecast/decisions": "workspace:*",
         "@codecast/deploys": "workspace:*",
         "@codecast/docs": "workspace:*",
-        "@codecast/entities": "workspace:*",
         "@codecast/fence": "workspace:*",
         "@codecast/flows": "workspace:*",
         "@codecast/goals": "workspace:*",
@@ -987,7 +1007,6 @@
         "@codecast/org": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/projects": "workspace:*",
-        "@codecast/provider-keys": "workspace:*",
         "@codecast/pull-requests": "workspace:*",
         "@codecast/replay": "workspace:*",
         "@codecast/sessions": "workspace:*",
@@ -1497,6 +1516,8 @@
     "@codecast/network": ["@codecast/network@workspace:packages/network"],
 
     "@codecast/org": ["@codecast/org@workspace:packages/org"],
+
+    "@codecast/org-templates": ["@codecast/org-templates@workspace:packages/org-templates"],
 
     "@codecast/pages": ["@codecast/pages@workspace:packages/pages"],
 

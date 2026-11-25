@@ -18,7 +18,7 @@ import {
 } from "./orgInit";
 import { readGoalCandidates, readStatedGoals } from "./orgSaid";
 import type { AskModel } from "./lib/statedGoals";
-import { orgProposalBlock } from "@codecast/shared/contracts/orgProposal";
+import { orgProposalBlock } from "@codecast/org/orgProposal";
 import { charterText, giveCharter } from "./roleCharter.testkit";
 
 // Org init (docs/architecture/org-init.md O1, O2): the analyzer's inputs are

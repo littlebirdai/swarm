@@ -39,7 +39,7 @@ import {
   type AreaStandingLine,
   type AreaWaitingSession,
   type RoleArea,
-} from "@codecast/shared/contracts/orgAreas";
+} from "@codecast/org/orgAreas";
 import {
   readWorkspaceInitiatives,
   servedInitiatives,

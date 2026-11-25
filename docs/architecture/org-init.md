@@ -1,6 +1,6 @@
 # Org init and update (W5)
 
-> Superseded in part: the analyzer no longer writes a design doc and a decision stack. It is the Head of People prompt (`shared/contracts/headOfPeoplePrompt.ts`) and posts staffing proposals (`op-N`, `cast org propose`) that a person accepts, edits or skips on the org page; see org-staffing.md S4, S8 and S24. The decision stack path in O2 survives only for org templates. Trust stages and caps in O3 are gone (org-staffing.md S23).
+> Superseded in part: the analyzer no longer writes a design doc and a decision stack. It is the Head of People prompt (`packages/org/src/headOfPeoplePrompt.ts`) and posts staffing proposals (`op-N`, `cast org propose`) that a person accepts, edits or skips on the org page; see org-staffing.md S4, S8 and S24. The decision stack path in O2 survives only for org templates. Trust stages and caps in O3 are gone (org-staffing.md S23).
 
 `cast org init` proposes an organization from what exists; `cast org update`
 proposes changes when the workspace drifts. Both end in a decision stack the

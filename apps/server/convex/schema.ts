@@ -2436,7 +2436,7 @@ export default defineSchema(
     // accepted ask, one Settings save, one drag on the chart) and is the entry
     // History shows; an accept all runs over several transactions, so the batch
     // is a row of its own that outlives a mutation. The shapes are
-    // @codecast/shared/contracts/orgChange.
+    // @codecast/org/orgChange.
     // `workspace` is the ACCESS key (lib/access): the boundary of the roles the
     // change touched, `team:<id>` or `user:<id>`, written once. `team_id` is
     // ROUTING only. `user_id` is the person who made the change.
@@ -2642,7 +2642,7 @@ export default defineSchema(
     org_proposal_changes: defineTable({
       proposal_id: v.id("org_proposals"),
       seq: v.number(),
-      // An OrgChange (@codecast/shared/contracts/orgProposal): validated at
+      // An OrgChange (@codecast/org/orgProposal): validated at
       // create, stored as it was written so an edit is a diff against it.
       change: v.any(),
       rationale: v.string(),

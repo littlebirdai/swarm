@@ -5,7 +5,7 @@ import {
   type OrgBatchHead,
 } from "./lib/orgChangeLog";
 import { releaseOf, visibleTemplate } from "./orgTemplates";
-import { missingRequired } from "@codecast/shared/contracts/orgTemplateManifest";
+import { missingRequired } from "@codecast/org-templates/orgTemplateManifest";
 import { recordAuthorityEvent } from "./lib/authorityEvents";
 import { mutation, query, internalMutation } from "./functions";
 import { internalAction, internalQuery } from "./_generated/server";
@@ -71,8 +71,8 @@ import {
   orgRecordRedundancyErrors,
   ORG_SESSION_KINDS,
   roleActedOn,
-} from "@codecast/shared/contracts/orgProposal";
-import { orgAppliedDiff } from "@codecast/shared/contracts/orgChange";
+} from "@codecast/org/orgProposal";
+import { orgAppliedDiff } from "@codecast/org/orgChange";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { roleCharterOf } from "./lib/roleCharter";
 

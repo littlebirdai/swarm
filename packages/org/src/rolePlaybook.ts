@@ -30,12 +30,7 @@
 // One parser for `cast brief`, the role page, the eval gates and the template
 // learning pass, so every reader sees the same entries.
 
-import {
-  TRAILING_DATE,
-  dayAt,
-  listItem,
-  sectionRows,
-} from "@codecast/org/briefStanding";
+import { TRAILING_DATE, dayAt, listItem, sectionRows } from "./briefStanding";
 
 const DAY = "\\d{4}-\\d{2}-\\d{2}";
 

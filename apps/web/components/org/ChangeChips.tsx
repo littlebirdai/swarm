@@ -1,7 +1,7 @@
 "use client";
 // The proposal ledger's change chips: a status that moves and a list that
 // gains entries, each on the wash of what goes and what comes.
-import type { ChangeField } from "@codecast/shared/contracts/orgChangeWords";
+import type { ChangeField } from "@codecast/org/orgChangeWords";
 import { cn } from "../../lib/utils";
 import {
   CHIP,

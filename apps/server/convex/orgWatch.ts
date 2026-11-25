@@ -22,7 +22,7 @@ import {
   areaChangeLine,
   type AreaChange,
   type AreaStatus,
-} from "@codecast/shared/contracts/orgAreas";
+} from "@codecast/org/orgAreas";
 import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
 import {
   computeOrgHealth,

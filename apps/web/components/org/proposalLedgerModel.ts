@@ -5,14 +5,14 @@
 // An answer fires nothing: it waits in the conversation's batch
 // (`reviewComments[key]`) and the send applies it (lib/reviewActions).
 import { useMemo, useState } from "react";
-import { proposalTotals } from "@codecast/shared/contracts/orgChangeWords";
+import { proposalTotals } from "@codecast/org/orgChangeWords";
 import {
   isOrgChangeApprovable,
   isOrgChangeDecidable,
   orgProposalWork,
   type OrgAskNames,
   type OrgReplyVerdict,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import type {
   PendingComment,
   PendingProposalAnswer,

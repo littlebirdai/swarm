@@ -35,7 +35,7 @@ import {
   MENTION_WAKES_PER_SENDER_HOUR,
   MENTION_WAKES_PER_TARGET_HOUR,
 } from "@codecast/convex/convex/chat";
-import { canonical } from "@codecast/shared/contracts/orgChange";
+import { canonical } from "@codecast/org/orgChange";
 import { INBOX_FACT_FIELDS, isInboxRowField } from "@codecast/shared/contracts";
 import { snapshotEntries } from "@platform/engine";
 import {

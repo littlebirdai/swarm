@@ -42,7 +42,7 @@ import { isScopeless, type Scope } from "./lib/orgScope";
 import { capsFor, countersNow, trustOf } from "./lib/orgCaps";
 import type { RoleDailyCaps } from "@codecast/org/orgCapacity";
 import { findRoleRoutine } from "./lib/orgRoutine";
-import { roleWakeOf } from "@codecast/shared/contracts/rolePlaybook";
+import { roleWakeOf } from "@codecast/org/rolePlaybook";
 import { extractPlanTitleForWeb } from "./docs";
 import { computeReportingPeople, type BriefPerson } from "./orgGoals";
 import {

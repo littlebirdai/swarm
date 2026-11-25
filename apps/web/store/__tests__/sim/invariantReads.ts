@@ -15,7 +15,7 @@ import {
   PAYLOAD_DENYLIST,
 } from "@codecast/convex/convex/syncLog";
 import type { SimBackend } from "@codecast/convex/convex/simBackend.testing";
-import { canonical } from "@codecast/shared/contracts/orgChange";
+import { canonical } from "@codecast/org/orgChange";
 import { syncLogScopeMetaKey } from "../../inboxStore";
 import {
   REGISTERED_FEEDS,

@@ -29,7 +29,7 @@ import {
   seatSentence,
   type OrgRoleSeat,
   type OrgTenureSpec,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import { RoleFace } from "./RoleFace";
 import { useIdentityPrefs } from "../../hooks/useIdentityPrefs";
 import { TakeoverEdit } from "./TakeoverEdit";

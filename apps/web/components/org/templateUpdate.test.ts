@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ReleaseChanges } from "@codecast/shared/contracts/orgTemplateRelease";
+import type { ReleaseChanges } from "@codecast/org-templates/orgTemplateRelease";
 import { releasesBehindLabel, updateCard } from "./templateUpdate";
 import { buildUpgradeSpec } from "./orgTemplateSpec";
 

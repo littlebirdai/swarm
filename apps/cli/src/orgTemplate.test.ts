@@ -6,8 +6,8 @@ import * as path from "node:path";
 import {
   applyProposalChanges,
   extractOrgProposal,
-} from "@codecast/shared/contracts/orgProposal";
-import { withTemplateLoader } from "@codecast/shared/contracts/orgTemplateManifest";
+} from "@codecast/org/orgProposal";
+import { withTemplateLoader } from "@codecast/org-templates/orgTemplateManifest";
 import {
   atomicJson,
   canonicalDirectory,

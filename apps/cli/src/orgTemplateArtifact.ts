@@ -11,11 +11,11 @@ import {
   validateTokens,
   type OrgTemplate,
   type TemplateTool,
-} from "@codecast/shared/contracts/orgTemplateManifest";
+} from "@codecast/org-templates/orgTemplateManifest";
 
 // The manifest's types, validator and tokens live in shared, read by the CLI,
 // the server and the web alike; this module is the release folder on disk.
-export * from "@codecast/shared/contracts/orgTemplateManifest";
+export * from "@codecast/org-templates/orgTemplateManifest";
 export type TemplateArtifact = {
   manifest: OrgTemplate;
   hash: string;

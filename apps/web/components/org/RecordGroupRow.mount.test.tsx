@@ -135,8 +135,7 @@ const {
   ORG_RECORDS_FIXTURE_PROPOSAL_SENT,
   ORG_RECORDS_FIXTURE_TREE,
 } = await import("./orgRecordsFixture");
-const { changeWords } =
-  await import("@codecast/shared/contracts/orgChangeWords");
+const { changeWords } = await import("@codecast/org/orgChangeWords");
 const { askNames } = await import("./staffingAsks");
 const { EntityObjectCard } = await import("../EntityObjectCard");
 const { ReviewComposerContext } = await import("../reviewContext");
@@ -673,8 +672,7 @@ test("the store's focus on a record opens the group holding it and marks the row
 });
 
 // A group part way landed: 15 of Callers' 18 applied, 3 still waiting.
-const { orgRecordGroups } =
-  await import("@codecast/shared/contracts/orgProposal");
+const { orgRecordGroups } = await import("@codecast/org/orgProposal");
 const { batchSendWords } = await import("../../lib/reviewActions");
 const groupSeqs = (key: string) =>
   orgRecordGroups(ORG_RECORDS_FIXTURE_PROPOSAL.changes).find(

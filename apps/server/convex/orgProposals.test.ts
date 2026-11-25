@@ -2864,9 +2864,7 @@ describe("orgProposals asks (S19)", () => {
 // every later one up a place, so a stale Accept on "Trust growth" retired
 // growth. The review's own test asserted that retirement; this is it, inverted.
 describe("a verdict the author revised under the reader is refused (S18)", () => {
-  const {
-    latestOrgRevisionAt,
-  } = require("@codecast/shared/contracts/orgProposal");
+  const { latestOrgRevisionAt } = require("@codecast/org/orgProposal");
   const threeAsks = () =>
     spec(
       [
@@ -3734,7 +3732,7 @@ describe("orgProposals.reply (S39)", () => {
   const {
     proposalReplyText,
     changeSentence,
-  } = require("@codecast/shared/contracts/orgProposal");
+  } = require("@codecast/org/orgProposal");
   const post = async (
     db: any,
     changes: any[],
@@ -3925,9 +3923,7 @@ describe("orgProposals.reply (S39)", () => {
   });
 
   test("a revised proposal refuses the whole reply and writes nothing; an agent caller, a bad change, a change answered twice and a verdict with no changes are refused", async () => {
-    const {
-      latestOrgRevisionAt,
-    } = require("@codecast/shared/contracts/orgProposal");
+    const { latestOrgRevisionAt } = require("@codecast/org/orgProposal");
     const db = fixtures();
     const p = await post(db, [
       change({ kind: "budget", handle: "growth", caps: { wakes_per_day: 12 } }),

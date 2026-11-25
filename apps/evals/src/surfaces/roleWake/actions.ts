@@ -3,13 +3,13 @@ import { join } from "node:path";
 
 import type { GateResult } from "@platform/evals";
 
-import { orgEveryToMs } from "@codecast/shared/contracts/orgProposal";
+import { orgEveryToMs } from "@codecast/org/orgProposal";
 import {
   briefBudget,
   briefBudgetWords,
   parsePlaybook,
   wakeTuneRefusal,
-} from "@codecast/shared/contracts/rolePlaybook";
+} from "@codecast/org/rolePlaybook";
 
 import { gate, type AgentResult } from "../../surface";
 import { gradeFilings } from "../orgReview/grade";

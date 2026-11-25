@@ -17,7 +17,7 @@ import {
   andList,
   ORG_REPLY_WORDS,
   type OrgReplyVerdict,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import {
   isProposalAnswer,
   sortPendingComments,

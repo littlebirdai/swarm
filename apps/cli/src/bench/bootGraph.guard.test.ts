@@ -317,7 +317,7 @@ describe("command groups stay off the boot graph", () => {
       // contracts/permissionRules.ts (syncService.ts) and contracts/shellWords.ts
       // (shellQuote.ts); config/storedConfig.ts (writeConfig's write, split out
       // of index.ts) and tmuxFleetInventory.ts (split out of tmux.ts). The
-      // 1,961-line contracts/orgProposal.ts and its three leaves arrived with
+      // 1,961-line packages/org/src/orgProposal.ts and its three leaves arrived with
       // them for one `cast role authority` validator and went back behind an
       // import() in that action.
       // 347 the same day: commandGroupActivation.ts, the placeholder and
@@ -426,7 +426,7 @@ describe("command groups stay off the boot graph", () => {
       // driver shares, and project instruction targets (ct-42887, ct-74443).
       // 4397 on 2026-10-28: goals and projects read live numbers from metric
       // series. packages/goals/src/initiative.ts (+6.4: series readings, pace, the
-      // metric spec, the value formatter) and contracts/rolePlaybook.ts (+5:
+      // metric spec, the value formatter) and packages/org/src/rolePlaybook.ts (+5:
       // the Experiments section and the climbing guidance `cast brief` prints),
       // folded into files already here rather than two new leaves.
       // 4400 on 2026-10-28: managed devices (MDM). contracts/managedPolicy.ts

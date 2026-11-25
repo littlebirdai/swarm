@@ -15,7 +15,7 @@ import {
   refreshArmedTriggerKind,
 } from "./agentTasks";
 import { handRoleTriggersToRunner } from "./lib/agentTaskRows";
-import { HEAD_OF_PEOPLE_JOB } from "@codecast/shared/contracts/headOfPeoplePrompt";
+import { HEAD_OF_PEOPLE_JOB } from "@codecast/org/headOfPeoplePrompt";
 import { defaultAvatarFor, isAvatarKey } from "@codecast/org/orgAvatars";
 import {
   andList,
@@ -24,7 +24,7 @@ import {
   orgEveryToMs,
   orgTenureError,
   type OrgAuthorityGrant,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import {
   DEFAULT_LINE_SLUG,
   LINE_SLUG_RE,
@@ -38,8 +38,8 @@ import {
   roleWakeOf,
   wakeTuneRefusal,
   type RoleWake,
-} from "@codecast/shared/contracts/rolePlaybook";
-import { intervalMs } from "@codecast/shared/contracts/orgTemplateManifest";
+} from "@codecast/org/rolePlaybook";
+import { intervalMs } from "@codecast/org-templates/orgTemplateManifest";
 import {
   EXECUTIVE_ASSISTANT_HANDLE,
   EXECUTIVE_ASSISTANT_NAME,
@@ -163,10 +163,7 @@ import {
 } from "@codecast/sessions/threadState";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/sessions/agentStatus";
 import { siteUrl } from "./lib/siteUrl";
-import {
-  movedFields,
-  type OrgLogFields,
-} from "@codecast/shared/contracts/orgChange";
+import { movedFields, type OrgLogFields } from "@codecast/org/orgChange";
 import {
   labelsOf,
   noteOrgChange,

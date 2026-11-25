@@ -3,7 +3,7 @@
 // blockquote (`> ...`), which both renders as a quote in the thread and reads as
 // a quote to the agent. A comment is that blockquote followed by the user's reply.
 
-import type { OrgReplyVerdict } from "@codecast/shared/contracts/orgProposal";
+import type { OrgReplyVerdict } from "@codecast/org/orgProposal";
 import type { CodeAnchorText } from "@codecast/comments";
 
 // A person's answer to one card of an org proposal (org-staffing.md S39),

@@ -3,7 +3,7 @@
 import {
   routineState,
   type RoutineReadiness,
-} from "@codecast/shared/contracts/orgTemplateReadiness";
+} from "@codecast/org-templates/orgTemplateReadiness";
 
 export type RoutineRow = {
   id: string;

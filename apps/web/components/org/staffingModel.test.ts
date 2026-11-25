@@ -35,7 +35,7 @@ import {
 } from "./staffingModel";
 import type { OrgTree } from "./orgTypes";
 import { AVATAR_KEYS } from "@codecast/org/orgAvatars";
-import { ORG_CHANGE_APPLY_RANK } from "@codecast/shared/contracts/orgProposal";
+import { ORG_CHANGE_APPLY_RANK } from "@codecast/org/orgProposal";
 
 const P = ORG_STAFFING_FIXTURE_PROPOSAL;
 const H = ORG_STAFFING_FIXTURE_HEALTH;

@@ -7,7 +7,7 @@
 // (the live record while a change waits, the stamp once applied, nothing for
 // another workspace) and the faces drawn beside a value.
 import type { InitiativeRow } from "@codecast/goals/initiative";
-import type { OrgAppliedDiffRow } from "@codecast/shared/contracts/orgChange";
+import type { OrgAppliedDiffRow } from "@codecast/org/orgChange";
 import {
   changeWords,
   fieldMoves,
@@ -18,7 +18,7 @@ import {
   type ChangeWordsCtx,
   type FieldRef,
   type FieldText,
-} from "@codecast/shared/contracts/orgChangeWords";
+} from "@codecast/org/orgChangeWords";
 import {
   andList,
   editedOrgChange,
@@ -35,7 +35,7 @@ import {
   type OrgEvidenceLink,
   type OrgPriority,
   type OrgRecordGroup,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import { refMatches, refResolves, type OrgGhostOptions } from "./orgGhostsFor";
 import type { OrgProposalChange } from "./orgStaffingTypes";
 import type { OrgParentRef, OrgRole, OrgTree } from "./orgTypes";

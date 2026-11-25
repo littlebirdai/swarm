@@ -8,7 +8,7 @@ import {
   orgProposalBlock,
   ORG_PROPOSAL_OPTIONS,
   type OrgRoleProposal,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import {
   autonomyOn,
   autonomySentence,

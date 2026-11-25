@@ -18,8 +18,8 @@ export const meta: SurfaceMeta = {
   // orgInitRun.ts only wraps headOfPeoplePrompt.ts, which holds the analyzer's text; orgProposal.ts is the spec spec-parses grades against.
   sources: surfaceSources(
     "org-review",
-    "packages/shared/contracts/headOfPeoplePrompt.ts",
-    "packages/shared/contracts/orgProposal.ts",
+    "packages/org/src/headOfPeoplePrompt.ts",
+    "packages/org/src/orgProposal.ts",
     "apps/cli/src/orgInitRun.ts",
     "apps/cli/src/orgInit.ts",
     "apps/cli/scripts/prompt-dry-run-bin/cast",

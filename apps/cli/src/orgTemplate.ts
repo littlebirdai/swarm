@@ -4,7 +4,7 @@ import { readStdinBody } from "./sendBody.js";
 import {
   LEARNING_OPT_IN_LABEL,
   LEARNING_OPT_IN_SENTENCE,
-} from "@codecast/shared/contracts/orgTemplateLearningOptIn";
+} from "@codecast/org-templates/orgTemplateLearningOptIn";
 
 export function registerOrgTemplateCommands(
   program: Command,

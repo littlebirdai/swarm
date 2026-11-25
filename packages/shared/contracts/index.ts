@@ -8,7 +8,6 @@ export * from "./executionBinding";
 export * from "./idleDigest";
 export * from "./closedSession";
 export * from "./apiErrorBanner";
-export * from "./orgTemplateBind";
 export * from "./snippets";
 export * from "./featureExplainers";
 export * from "./agentSwitch";

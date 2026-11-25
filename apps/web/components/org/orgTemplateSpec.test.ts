@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  orgChangeError,
-  orgAsksErrors,
-} from "@codecast/shared/contracts/orgProposal";
+import { orgChangeError, orgAsksErrors } from "@codecast/org/orgProposal";
 import {
   buildHireSpec,
   grantsToAsk,

@@ -11,7 +11,7 @@ import {
   type OrgPlanStatusChange,
   type OrgRoleProposal,
   type OrgTaskStatusChange,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 import { ORG_FIXTURE } from "./orgFixture";
 import { EMPTY_COUNTS, type OrgRole, type OrgTree } from "./orgTypes";
 import type { OrgProposalChange, OrgProposalRow } from "./orgStaffingTypes";

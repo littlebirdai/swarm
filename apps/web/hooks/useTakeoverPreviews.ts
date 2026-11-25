@@ -6,7 +6,7 @@
 // workspace's sessions once for all of them (orgInit.previewTakeovers).
 import { useMemo } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { takeoverPhrase } from "@codecast/shared/contracts/orgProposal";
+import { takeoverPhrase } from "@codecast/org/orgProposal";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 
 /** `seat`: the session the role will be seated on, which therefore never

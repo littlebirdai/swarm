@@ -14,7 +14,7 @@ import {
   type PlaybookEntry,
   type RolePlaybook as Playbook,
   type RoleWake,
-} from "@codecast/shared/contracts/rolePlaybook";
+} from "@codecast/org/rolePlaybook";
 
 const DIM = { color: "var(--sol-text-dim)" } as const;
 const BODY = { color: "var(--sol-text-secondary)" } as const;

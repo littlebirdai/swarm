@@ -1,5 +1,5 @@
 import { isContextRecoveryPrompt } from "./handoffPrompt";
-import type { AreaChange } from "./orgAreas";
+import type { AreaChange } from "@codecast/org/orgAreas";
 import {
   parseRoleCardInitiativeLine,
   roleCardLines,

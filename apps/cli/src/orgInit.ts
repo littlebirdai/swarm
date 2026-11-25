@@ -1,7 +1,7 @@
 // `cast org init`, `update`, `review`, `inputs`, `propose`, `proposals`,
 // `apply`, `staff`, `health` (docs/architecture/org-init.md O1, O2;
 // org-staffing.md S3, S4, S6, S8, S24). The analyzer is an agent session
-// briefed by the Head of People prompt (shared/contracts/headOfPeoplePrompt.ts): it reads how work flows through
+// briefed by the Head of People prompt (packages/org/src/headOfPeoplePrompt.ts): it reads how work flows through
 // the company, then talks it through with the person and posts small
 // proposals (op-N) whose changes a person accepts, edits or skips one by one.
 // Nothing is applied by the analyzer.

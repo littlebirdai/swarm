@@ -3,8 +3,8 @@
 // shapes; the pane, the fixture, the model helpers and the store slots agree
 // on one definition here.
 import type { HealthFlag } from "@codecast/org/orgCapacity";
-import type { RoleArea } from "@codecast/shared/contracts/orgAreas";
-import type { OrgAppliedDiffRow } from "@codecast/shared/contracts/orgChange";
+import type { RoleArea } from "@codecast/org/orgAreas";
+import type { OrgAppliedDiffRow } from "@codecast/org/orgChange";
 import type {
   OrgAsk,
   OrgChange,
@@ -16,7 +16,7 @@ import type {
   OrgEvidenceLink,
   OrgProposalMode,
   OrgProposalThread,
-} from "@codecast/shared/contracts/orgProposal";
+} from "@codecast/org/orgProposal";
 
 export type {
   HealthFlag,

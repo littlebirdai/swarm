@@ -2,7 +2,7 @@
 // so the gallery's honesty rules are tested without a DOM: whether a card may
 // offer the hire, a routine's title before any answer exists, and its cadence
 // in words.
-import type { OrgTemplate } from "@codecast/shared/contracts/orgTemplateManifest";
+import type { OrgTemplate } from "@codecast/org-templates/orgTemplateManifest";
 import {
   EXECUTIVE_ASSISTANT_HANDLE,
   EXECUTIVE_ASSISTANT_NAME,
