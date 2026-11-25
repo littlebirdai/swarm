@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "dom.asynciterable", "esnext"],
+    "types": ["vite/client", "node", "bun"],
+    "incremental": false
+  },
+  "include": ["*.ts"]
+}
