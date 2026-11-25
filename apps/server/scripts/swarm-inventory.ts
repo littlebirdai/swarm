@@ -71,28 +71,32 @@ export function swarmSchemaInventory(schema: unknown): Inventory {
   return inventory;
 }
 
-export function changedInventory(tree: Inventory, prod: Inventory): string[] {
-  const entries = new Map(tree);
-  return prod.flatMap(([name, before]) => {
-    const after = entries.get(name);
-    if (after === undefined || after === before) return [];
-    if (
-      name.startsWith("fn:") &&
+function compatible(name: string, before: string, after: string): boolean {
+  if (after === before) return true;
+  if (name.startsWith("fn:"))
+    return (
       before.endsWith(" internal") &&
       after === before.replace(/ internal$/, " public")
-    )
-      return [];
-    if (name.startsWith("index:")) {
-      const [oldKind, oldActive, oldFields] = JSON.parse(before);
-      const [newKind, newActive, newFields] = JSON.parse(after);
-      if (
-        !oldActive &&
-        newActive &&
-        oldKind === newKind &&
-        JSON.stringify(oldFields) === JSON.stringify(newFields)
-      )
-        return [];
-    }
-    return [name];
+    );
+  if (!name.startsWith("index:")) return false;
+  const [oldKind, oldActive, oldFields] = JSON.parse(before);
+  const [newKind, newActive, newFields] = JSON.parse(after);
+  return (
+    !oldActive &&
+    newActive &&
+    oldKind === newKind &&
+    JSON.stringify(oldFields) === JSON.stringify(newFields)
+  );
+}
+
+export function changedInventory(tree: Inventory, prod: Inventory): string[] {
+  const entries = new Map<string, string[]>();
+  for (const [name, fingerprint] of tree)
+    entries.set(name, [...(entries.get(name) ?? []), fingerprint]);
+  return prod.flatMap(([name, before]) => {
+    const after = entries.get(name);
+    return !after || after.some((entry) => compatible(name, before, entry))
+      ? []
+      : [name];
   });
 }

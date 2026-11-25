@@ -3,11 +3,13 @@ import {
   copyFileSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { changedInventory, type Inventory } from "./swarm-inventory";
 
 const dir = mkdtempSync(join(tmpdir(), "swarm-inventory-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -310,4 +312,65 @@ test("blocks a removed cron on a later inventory page and warns about unused exc
       crons,
     ).code,
   ).toBe(0);
+});
+
+test.each([
+  ["a cron without a name", [{ page: [{ identifier: "x" }], isDone: true }]],
+  ["a missing cron page", [null]],
+  ["a cron page without an end flag", [{ page: [] }]],
+  ["an empty cron cursor", [{ page: [], isDone: false, continueCursor: "" }]],
+  [
+    "a repeated cron cursor",
+    [
+      { page: [], isDone: false, continueCursor: "second" },
+      { page: [], isDone: false, continueCursor: "second" },
+    ],
+  ],
+])("fails closed on %s", (_case, crons) => {
+  expect(gate([], [sessions], {}, undefined, crons).code).toBe(3);
+});
+
+test.each([
+  ["database", { indexes: [{ indexDescriptor: "bad" }] }],
+  [
+    "vector",
+    {
+      vectorIndexes: [
+        {
+          indexDescriptor: "bad",
+          vectorField: "embedding",
+          dimensions: 0,
+          filterFields: [],
+        },
+      ],
+    },
+  ],
+])("fails closed on a malformed %s index", (_kind, indexes) => {
+  const result = gate([], [{ ...sessions, ...indexes }]);
+  expect(result.code).toBe(3);
+  expect(result.err).toContain("invalid definition for index:sessions.bad");
+});
+
+test("fails closed when the tree has no valid cron inventory", () => {
+  const path = join(dir, "convex/crons.ts");
+  const valid = readFileSync(path);
+  writeFileSync(path, "export default {};");
+  try {
+    expect(gate([], [sessions]).code).toBe(3);
+  } finally {
+    writeFileSync(path, valid);
+  }
+});
+
+test("compares index kinds that share a name", () => {
+  const database = JSON.stringify(["database", true, ["owner"]]);
+  const search = JSON.stringify(["search", true, ["body", []]]);
+  const name = "index:sessions.same";
+  const prod: Inventory = [
+    [name, database],
+    [name, search],
+  ];
+  expect(changedInventory(prod, prod)).toEqual([]);
+  expect(changedInventory([[name, search]], prod)).toEqual([name]);
+  expect(changedInventory([[name, database]], prod)).toEqual([name]);
 });
