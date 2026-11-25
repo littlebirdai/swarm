@@ -560,6 +560,11 @@ function withoutCells(grouped: Record<string, Record<string, any>> | undefined, 
   return out ?? grouped;
 }
 
+const outboxTimeOrigin = globalThis.performance?.timeOrigin || Date.now() - (globalThis.performance?.now() ?? 0);
+const outboxNow = () => outboxTimeOrigin + (globalThis.performance?.now() ?? 0);
+const outboxAge = (entry: Pick<OutboxEntry, "queuedAt" | "ts">) =>
+  Math.max(0, entry.queuedAt === undefined ? Date.now() - entry.ts : outboxNow() - entry.queuedAt);
+
 async function dispatchWithRetry(
   fn: DispatchFn,
   action: string,
@@ -574,15 +579,10 @@ async function dispatchWithRetry(
   // Asked before every attempt: the row patches to send now (a later send may
   // own some of them by then), or NOTHING_LEFT when no cell is left to send.
   patchesNow?: () => any,
-  entry?: Pick<OutboxEntry, "id" | "accountId" | "ts" | "locks">,
+  entry?: Pick<OutboxEntry, "id" | "accountId" | "ts" | "queuedAt" | "locks">,
 ): Promise<any> {
   const locks = entry?.locks ?? [];
-  const outbox = entry?.accountId
-    ? { id: entry.id, accountId: entry.accountId, queuedAt: entry.ts }
-    : undefined;
-  const meta = locks.length || outbox
-    ? { locks: locks.filter((l) => l.lock !== undefined).map((l) => ({ key: l.key, lock: l.lock! })), outbox }
-    : undefined;
+  const lockIds = locks.filter((l) => l.lock !== undefined).map((l) => ({ key: l.key, lock: l.lock! }));
   const safeArgs = sanitizeForTransport(args);
   let safeGrouped = grouped !== undefined ? sanitizeForTransport(grouped) : undefined;
   const safeResult = result === undefined ? null : sanitizeForTransport(result);
@@ -599,6 +599,10 @@ async function dispatchWithRetry(
       safeGrouped = now !== undefined ? sanitizeForTransport(now) : undefined;
     }
     try {
+      const outbox = entry?.accountId
+        ? { id: entry.id, accountId: entry.accountId, queuedAt: entry.ts, ageMs: outboxAge(entry) }
+        : undefined;
+      const meta = lockIds.length || outbox ? { locks: lockIds, outbox } : undefined;
       const response = await fn(action, safeArgs, safeGrouped, safeResult, commandId, meta);
       assertCurrent();
       return response;
@@ -1361,11 +1365,13 @@ export function mutativeMiddleware(
     };
 
     function newOutboxId(): string {
-      if (typeof crypto !== "undefined" && (crypto as any).randomUUID) return (crypto as any).randomUUID();
-      if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+      const expo = (globalThis as typeof globalThis & { expo?: { uuidv4?: () => string } }).expo;
+      if (expo?.uuidv4) return expo.uuidv4();
+      if (typeof globalThis.crypto?.getRandomValues === "function") {
         return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
       }
-      return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      if (globalThis.navigator?.product !== "ReactNative" && typeof globalThis.crypto?.randomUUID === "function") return crypto.randomUUID();
+      throw new Error("Secure randomness is unavailable for dispatch");
     }
 
     function nextOutboxTimestamp(): number {
@@ -1537,7 +1543,7 @@ export function mutativeMiddleware(
             void retireOutboxEntry(entry.id, null);
             return false;
           }
-          if (typeof entry.ts === "number" && Date.now() - entry.ts > OUTBOX_MAX_REPLAY_AGE_MS) {
+          if (typeof entry.ts === "number" && outboxAge(entry) > OUTBOX_MAX_REPLAY_AGE_MS) {
             console.error(
               `[store] dropping ${Math.round((Date.now() - entry.ts) / 86_400_000)}d-old parked "${entry.action}" — too stale to replay`,
               entry.args,
@@ -1759,6 +1765,7 @@ export function mutativeMiddleware(
         // causal call order even when several dependent actions (create →
         // delete, fork → send) are queued in the same millisecond.
         ts: nextOutboxTimestamp(),
+        queuedAt: outboxNow(),
         owner: outboxOwner,
         ...(coalesceKey ? { coalesceKey } : {}),
         ...(fieldLocks.length > 0 ? { locks: fieldLocks } : {}),

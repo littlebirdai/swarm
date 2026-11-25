@@ -6129,6 +6129,8 @@ export default defineSchema(
       id_hash: v.string(),
       action: v.string(),
       response: v.string(),
+      response_parts: v.optional(v.array(v.id("dispatch_outbox_receipts"))),
+      deployment_key: v.optional(v.boolean()),
       expires_at: v.number(),
     })
       .index("by_owner_and_id", ["owner", "id_hash"])

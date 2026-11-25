@@ -106,6 +106,7 @@ export type OutboxEntry = {
   // alive, only it delivers the row; absent on rows from older builds.
   owner?: string;
   accountId?: string;
+  queuedAt?: number;
   operationSchemaVersion?: number;
   // Present on repeated-write actions (see outboxCoalesceKeys): the outbox
   // keeps at most one row per key, newest wins.
@@ -527,7 +528,7 @@ export type DispatchFn = (
    */
   meta?: {
     locks: ReadonlyArray<{ key: string; lock: string }>;
-    outbox?: { id: string; accountId: string; queuedAt: number };
+    outbox?: { id: string; accountId: string; queuedAt: number; ageMs: number };
   },
 ) => Promise<any>;
 export type MaybePromise<T> = T | Promise<T>;

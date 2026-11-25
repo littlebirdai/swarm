@@ -77,7 +77,7 @@ describe("evals data stays out of the persisted store layer", () => {
     const src = read("evalsStore.ts");
     expect(src).not.toMatch(/\bpersist\s*\(/);
     expect(src).not.toMatch(
-      /from\s+["'][^"']*(idbCache|dexie|zustand\/middleware)["']/,
+      /from\s+["'][^"']*(idb-cache|dexie|zustand\/middleware)["']/,
     );
     expect(src).not.toMatch(
       /localStorage\.setItem|sessionStorage\.setItem|indexedDB/,

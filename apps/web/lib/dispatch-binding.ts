@@ -31,7 +31,7 @@ export type DispatchCallArgs = {
   patches?: any;
   result?: any;
   ack_positions?: true;
-  outbox?: { id: string; owner: string };
+  outbox?: { id: string; owner: string; age_ms: number };
 };
 
 /**
@@ -41,11 +41,11 @@ export type DispatchCallArgs = {
  */
 export type DispatchAckState = {
   ackFlagSupported: boolean;
-  outboxSupported: boolean;
+  retryOutboxAfter: number;
 };
 
 export function newDispatchAckState(): DispatchAckState {
-  return { ackFlagSupported: true, outboxSupported: true };
+  return { ackFlagSupported: true, retryOutboxAfter: 0 };
 }
 
 /**
@@ -125,10 +125,11 @@ export function makeDispatchBinding(
         throw new StaleDispatchBindingError();
       const request: DispatchCallArgs = { action, args, patches, result };
       if (state.ackFlagSupported) request.ack_positions = true;
-      if (outbox && state.outboxSupported) {
+      if (outbox && performance.now() >= state.retryOutboxAfter) {
         request.outbox = {
           id: `${outbox.queuedAt}:${outbox.id}`,
           owner: outbox.accountId,
+          age_ms: outbox.ageMs,
         };
       }
       try {
@@ -138,13 +139,14 @@ export function makeDispatchBinding(
         return unwrap(response);
       } catch (error) {
         const message = String((error as Error)?.message ?? error);
-        if (!/ArgumentValidationError/i.test(message)) throw error;
-        if (request.outbox && /extra field [`"']outbox[`"']/.test(message)) {
-          state.outboxSupported = false;
-        } else if (
-          request.ack_positions &&
-          /extra field [`"']ack_positions[`"']/.test(message)
-        ) {
+        const extraField =
+          /(?:^|\n)(?:Uncaught )?ArgumentValidationError: Object contains extra field `(outbox|ack_positions)` that is not in the validator\.(?=\r?$|\r?\n)/m.exec(
+            message,
+          )?.[1];
+        if (/^Path:/m.test(message)) throw error;
+        if (request.outbox && extraField === "outbox") {
+          state.retryOutboxAfter = performance.now() + 60_000;
+        } else if (request.ack_positions && extraField === "ack_positions") {
           state.ackFlagSupported = false;
           console.warn(
             "[sync] server lacks ack_positions; falling back to unflagged dispatch",

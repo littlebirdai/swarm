@@ -1,3 +1,4 @@
+import { connectionSecretsKey } from "./tokenConnectors";
 // The durable command receipt a dispatch action can carry: the envelope the
 // web wraps a local result in, the actions whose server write the receipt
 // owns, the continuation a receipt-backed create may run, and the create
@@ -175,12 +176,14 @@ export async function runReceiptBackedCreate(
 }
 
 const OUTBOX_LIFETIME_MS = 8 * 24 * 60 * 60 * 1000;
-const OUTBOX_CLOCK_LEAD_MS = 24 * 60 * 60 * 1000;
 const OUTBOX_RECEIPT_HKDF_INFO = "swarm-dispatch-outbox-v1";
+const RECEIPT_CHUNK_SIZE = 512 * 1024;
+const PRUNE_BATCH_SIZE = 16;
 
 export const outboxValidator = v.object({
   id: v.string(),
   owner: v.string(),
+  age_ms: v.number(),
 });
 
 export async function dispatchWithOutboxReceipt(
@@ -191,36 +194,56 @@ export async function dispatchWithOutboxReceipt(
   outbox: Infer<typeof outboxValidator> | undefined,
   execute: () => Promise<Value | undefined>,
 ): Promise<Value | undefined> {
-  const respond = async () => {
+  const collect = async () => {
     const result = await execute();
-    if (!acknowledge) return result;
-    const held = new Set(await heldKeysFor(ctx, owner));
     return {
       __syncAckV1: syncAckPositions(ctx),
-      __syncAckV2: syncAckReceipts(ctx).filter(
-        (receipt: { scope_key: string }) => held.has(receipt.scope_key),
-      ),
+      __syncAckV2: syncAckReceipts(ctx) as { scope_key: string }[],
       result,
     };
   };
+  const respond = async (saved: Awaited<ReturnType<typeof collect>>) => {
+    if (!acknowledge) return saved.result;
+    const held = new Set(await heldKeysFor(ctx, owner));
+    return {
+      __syncAckV1: saved.__syncAckV1.filter((position) =>
+        held.has(position.scope_key),
+      ),
+      __syncAckV2: saved.__syncAckV2.filter((receipt) =>
+        held.has(receipt.scope_key),
+      ),
+      result: saved.result,
+    };
+  };
 
-  if (!outbox) return respond();
+  if (!outbox) return acknowledge ? respond(await collect()) : execute();
   if (outbox.owner !== owner)
     throw new ConvexError({
       code: "OUTBOX_OWNER_MISMATCH",
       message: "Dispatch belongs to a different account",
     });
-
-  const match = /^(\d{13}):[a-zA-Z0-9-]{1,80}$/.exec(outbox.id);
-  const queuedAt = Number(match?.[1]);
-  const expiresAt = queuedAt + OUTBOX_LIFETIME_MS;
-  const now = Date.now();
-  if (!match || queuedAt > now + OUTBOX_CLOCK_LEAD_MS || expiresAt <= now)
+  if (
+    !/^-?\d{1,16}:(?:[a-f0-9]{32}|[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12})$/.test(
+      outbox.id,
+    )
+  )
     throw new ConvexError({
+      code: "OUTBOX_INVALID_ID",
+      message: "Dispatch ID must contain a random suffix",
+    });
+  const expired = () =>
+    new ConvexError({
       code: "OUTBOX_EXPIRED",
       message: "Dispatch is outside its delivery window",
     });
+  if (
+    !Number.isFinite(outbox.age_ms) ||
+    outbox.age_ms < 0 ||
+    outbox.age_ms > OUTBOX_LIFETIME_MS
+  )
+    throw expired();
 
+  const now = Date.now();
   const idHash = await commandArgumentsFingerprint(outbox.id);
   const first = await ctx.db
     .query("dispatch_outbox_receipts")
@@ -228,51 +251,69 @@ export async function dispatchWithOutboxReceipt(
       q.eq("owner", owner).eq("id_hash", idHash),
     )
     .unique();
+  const deploymentKey = connectionSecretsKey();
+  const receiptKey = deploymentKey
+    ? `${outbox.id}:${deploymentKey}`
+    : outbox.id;
   if (first) {
+    if (first.expires_at <= now) throw expired();
     if (first.action !== action)
       throw new ConvexError({
         code: "OUTBOX_ID_REUSED",
         message: "Dispatch id belongs to a different action",
       });
+    const chunks = await Promise.all(
+      (first.response_parts ?? []).map((id) => ctx.db.get(id)),
+    );
+    if (chunks.some((chunk) => !chunk))
+      throw new Error("Dispatch receipt is incomplete");
+    const ciphertext =
+      first.response + chunks.map((chunk) => chunk!.response).join("");
     const plaintext = await decryptRefreshToken(
-      first.response,
-      outbox.id,
+      ciphertext,
+      first.deployment_key ? receiptKey : outbox.id,
       OUTBOX_RECEIPT_HKDF_INFO,
     );
     if (plaintext === null) throw new Error("Could not read dispatch receipt");
-    const saved = jsonToConvex(JSON.parse(plaintext));
-    if (saved && typeof saved === "object" && "__syncAckV1" in saved) {
-      const original = saved as unknown as {
-        __syncAckV1: ReturnType<typeof syncAckPositions>;
-        __syncAckV2: { scope_key: string }[];
-        result?: Value;
-      };
-      const held = new Set(await heldKeysFor(ctx, owner));
-      return {
-        ...original,
-        __syncAckV1: original.__syncAckV1.filter((position) =>
-          held.has(position.scope_key),
-        ),
-        __syncAckV2: original.__syncAckV2.filter((item) =>
-          held.has(item.scope_key),
-        ),
-      };
-    }
-    return saved;
+    const saved = jsonToConvex(JSON.parse(plaintext)) as unknown as Awaited<
+      ReturnType<typeof collect>
+    >;
+    return respond(saved);
   }
-  const response = (await respond()) ?? null;
+
+  const saved = await collect();
+  const ciphertext = await encryptRefreshToken(
+    JSON.stringify(convexToJson(saved)),
+    receiptKey,
+    OUTBOX_RECEIPT_HKDF_INFO,
+  );
+  const expiresAt = now + OUTBOX_LIFETIME_MS;
+  const parts: Id<"dispatch_outbox_receipts">[] = [];
+  for (
+    let offset = RECEIPT_CHUNK_SIZE;
+    offset < ciphertext.length;
+    offset += RECEIPT_CHUNK_SIZE
+  ) {
+    parts.push(
+      await ctx.db.insert("dispatch_outbox_receipts", {
+        owner,
+        id_hash: `${idHash}:${offset}`,
+        action,
+        response: ciphertext.slice(offset, offset + RECEIPT_CHUNK_SIZE),
+        expires_at: expiresAt,
+      }),
+    );
+  }
   await ctx.db.insert("dispatch_outbox_receipts", {
     owner,
     id_hash: idHash,
     action,
-    response: await encryptRefreshToken(
-      JSON.stringify(convexToJson(response)),
-      outbox.id,
-      OUTBOX_RECEIPT_HKDF_INFO,
-    ),
+    response: ciphertext.slice(0, RECEIPT_CHUNK_SIZE),
+    ...(parts.length ? { response_parts: parts } : {}),
+    ...(deploymentKey ? { deployment_key: true } : {}),
     expires_at: expiresAt,
   });
-  return response;
+  return respond(saved);
 }
 
 export const pruneOutboxReceipts = internalMutation({
@@ -281,9 +322,9 @@ export const pruneOutboxReceipts = internalMutation({
     const expired = await ctx.db
       .query("dispatch_outbox_receipts")
       .withIndex("by_expiry", (q) => q.lte("expires_at", Date.now()))
-      .take(200);
+      .take(PRUNE_BATCH_SIZE);
     for (const row of expired) await ctx.db.delete(row._id);
-    if (expired.length === 200)
+    if (expired.length === PRUNE_BATCH_SIZE)
       await ctx.scheduler.runAfter(
         1000,
         internal.dispatchReceipts.pruneOutboxReceipts,

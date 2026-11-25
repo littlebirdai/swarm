@@ -2,7 +2,7 @@ import {
   installSignedInPrincipal,
   TEST_PRINCIPAL,
 } from "./fixtures/signedInPrincipal";
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 import {
   makeDispatchBinding,
@@ -17,18 +17,24 @@ import {
 } from "../idb-cache";
 import { action, mutativeMiddleware } from "../mutativeMiddleware";
 import { db } from "../persistence/db";
+import { authPrincipal } from "../../lib/authPrincipal";
+
+function switchAccount(accountId: string) {
+  installSignedInPrincipal(accountId);
+  authPrincipal.check();
+}
 
 const other = "userB";
 
 beforeEach(async () => {
-  installSignedInPrincipal(TEST_PRINCIPAL);
+  switchAccount(TEST_PRINCIPAL);
   await _reopenForTests({ indexedDB, IDBKeyRange });
   await db.dispatchOutbox.clear();
   await db.meta.bulkDelete(["cacheOwner", "currentUser"]);
 });
 
 afterEach(async () => {
-  installSignedInPrincipal(TEST_PRINCIPAL);
+  switchAccount(TEST_PRINCIPAL);
   await db.dispatchOutbox.clear();
   await db.meta.bulkDelete(["cacheOwner", "currentUser"]);
 });
@@ -96,6 +102,7 @@ test("a journaled write keeps its owner and ID across transport retries and a fr
     Array.from({ length: 3 }, () => ({
       id: `${parked.ts}:${parked.id}`,
       owner: TEST_PRINCIPAL,
+      age_ms: expect.any(Number),
     })),
   );
   expect(await loadOutbox()).toEqual([]);
@@ -113,7 +120,7 @@ test("a drain sends only rows belonging to the active account", async () => {
     { ...base, id: "bob", args: ["bob"], accountId: other },
     { ...base, id: "unknown", args: ["unknown"] },
   ]);
-  installSignedInPrincipal(other);
+  switchAccount(other);
   expect((await loadOutbox()).map((entry) => entry.id)).toEqual(["bob"]);
   const drain = makeStore();
   const writes: DispatchCallArgs[] = [];
@@ -143,7 +150,7 @@ test("a legacy row keeps its ID and is attributed only to its recorded cache own
   await db.dispatchOutbox.put(legacy);
   await db.meta.put({ key: "cacheOwner", value: { principal: other } });
   expect(await loadOutbox()).toEqual([]);
-  installSignedInPrincipal(other);
+  switchAccount(other);
   expect(await loadOutbox()).toEqual([{ ...legacy, accountId: other }]);
   expect(await db.dispatchOutbox.get(legacy.id)).toEqual({
     ...legacy,
@@ -158,6 +165,7 @@ test("an older validator triggers one fallback and an account change stops that 
       id: "legacy-validator",
       queuedAt: Date.now(),
       accountId: TEST_PRINCIPAL,
+      ageMs: 0,
     },
   };
   const writes: DispatchCallArgs[] = [];
@@ -165,7 +173,7 @@ test("an older validator triggers one fallback and an account change stops that 
     writes.push(request);
     if (request.outbox)
       throw new Error(
-        "ArgumentValidationError: Object contains extra field `outbox`",
+        "ArgumentValidationError: Object contains extra field `outbox` that is not in the validator.",
       );
     return "accepted";
   });
@@ -184,9 +192,9 @@ test("an older validator triggers one fallback and an account change stops that 
   const crossingAccounts = makeDispatchBinding(async (request) => {
     writes.push(request);
     if (request.outbox) {
-      installSignedInPrincipal(other);
+      switchAccount(other);
       throw new Error(
-        "ArgumentValidationError: Object contains extra field `outbox`",
+        "ArgumentValidationError: Object contains extra field `outbox` that is not in the validator.",
       );
     }
     return "wrong account";
@@ -203,6 +211,86 @@ test("an older validator triggers one fallback and an account change stops that 
   ).rejects.toThrow("Dispatch binding changed");
   expect(writes.map((request) => !!request.outbox)).toEqual([
     true,
+    false,
+    true,
+  ]);
+});
+
+test("a wall clock change after queueing does not age a new dispatch", async () => {
+  const first = makeStore();
+  first.state.stageExpandLeaf("one");
+  await first.persisted;
+  const original = Date.now();
+  const clock = spyOn(Date, "now").mockReturnValue(original + 9 * 86_400_000);
+  const requests: DispatchCallArgs[] = [];
+  try {
+    first.state._setDispatch(
+      makeDispatchBinding(async (request) => {
+        requests.push(request);
+        return null;
+      }),
+    );
+    await first.retired;
+    expect(requests).toHaveLength(1);
+    expect(requests[0].outbox!.age_ms).toBeLessThan(10_000);
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+test("queueing uses the tracked account with no localStorage read", async () => {
+  const first = makeStore();
+  const getItem = spyOn(localStorage, "getItem");
+  try {
+    first.state.stageExpandLeaf("one");
+    await first.persisted;
+    expect(getItem).not.toHaveBeenCalled();
+  } finally {
+    getItem.mockRestore();
+  }
+});
+
+test("old-server detection ignores nested validation errors and re-probes", async () => {
+  const meta = {
+    locks: [],
+    outbox: {
+      id: "validator",
+      queuedAt: Date.now(),
+      accountId: TEST_PRINCIPAL,
+      ageMs: 0,
+    },
+  };
+  const error =
+    "ArgumentValidationError: Object contains extra field `outbox` that is not in the validator.";
+  const writes: DispatchCallArgs[] = [];
+  let phase = "nested";
+  const dispatch = makeDispatchBinding(async (request) => {
+    writes.push(request);
+    if (request.outbox && phase === "nested")
+      throw new Error(error + "\n\nPath: .args[0]\nObject: {}");
+    if (request.outbox && phase === "old")
+      throw new Error(error + "\n\nObject: {}");
+    return "accepted";
+  });
+  const send = () =>
+    dispatch("stageExpandLeaf", [], undefined, undefined, undefined, meta);
+  await expect(send()).rejects.toThrow("Path: .args[0]");
+  phase = "old";
+  await send();
+  phase = "new";
+  await send();
+  const clock = spyOn(performance, "now").mockReturnValue(
+    performance.now() + 61_000,
+  );
+  try {
+    await send();
+  } finally {
+    clock.mockRestore();
+  }
+  expect(writes.map((request) => !!request.outbox)).toEqual([
+    true,
+    true,
+    false,
     false,
     true,
   ]);

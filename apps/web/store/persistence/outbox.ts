@@ -11,7 +11,7 @@ import type { OutboxEntry } from "@platform/engine";
 import { authPrincipal } from "../../lib/authPrincipal";
 
 export type { OutboxEntry };
-export const outboxAccountId = authPrincipal.current;
+export const outboxAccountId = authPrincipal.snapshot;
 
 // Return the real promises: the middleware's storage watchdog and outbox
 // retirement need to observe commit/failure. Swallowing errors here would
@@ -21,10 +21,15 @@ export function enqueueDispatch(entry: OutboxEntry): Promise<void> {
   // clear that follows the boundary unbinds the outbox, and this covers the
   // gap before that clear. Resolved, not rejected: it is not a storage fault.
   // Docs shots keep nothing, their outbox included.
-  if (!persistenceOwned() || DOCS_SHOTS) return Promise.resolve();
+  if (DOCS_SHOTS) return Promise.resolve();
   // The engine hands over the args as the caller passed them; a tab address in them is stored in its safe form (lib/tabSafePath).
   const accountId = outboxAccountId();
-  if (!accountId || (entry.accountId && entry.accountId !== accountId))
+  if (
+    !accountId ||
+    (entry.accountId === undefined
+      ? !persistenceOwned()
+      : entry.accountId !== accountId)
+  )
     return Promise.resolve();
   const row = {
     ...entry,
@@ -40,7 +45,7 @@ export function removeDispatch(id: string): Promise<void> {
 
 export async function loadOutbox(): Promise<OutboxEntry[]> {
   try {
-    const accountId = await authPrincipal.resolve();
+    const accountId = outboxAccountId();
     if (!accountId || accountId !== outboxAccountId()) return [];
     const rows = await db.transaction(
       "rw",
@@ -92,7 +97,7 @@ export async function salvageLocalFirstV2Data(): Promise<number> {
     typeof indexedDB.databases !== "function"
   )
     return 0;
-  const accountId = await authPrincipal.resolve();
+  const accountId = outboxAccountId();
   if (!accountId) return 0;
   const ownedDatabase = `codecast-store-v2:${globalThis.location?.origin}:${accountId}`;
   let salvaged = 0;

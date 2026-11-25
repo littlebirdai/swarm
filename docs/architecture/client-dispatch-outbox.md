@@ -95,26 +95,31 @@ or conflicting evidence stay out of the drain. The send path also checks the
 live account before each request, and the server compares it with its own
 authenticated account before writing.
 
-A server with the new validator checks for an existing receipt before any
-patch, handler or scheduling call. It inserts the first successful response
-in the same mutation transaction as the writes. A retried mutation reads the
-receipt, with sync acknowledgement scopes checked against current access.
-Receipts index a hash of the wire ID. The response is encrypted using the wire
-ID as key input, so an at-rest copy of the receipt table also contains no
-plaintext ingest keys or key input.
+A server with the new validator checks for a receipt before any patch or
+handler. It records the first result and acknowledgement data in the same
+transaction as the writes. The replay uses the current request's
+acknowledgement flag and the same scope filter as the first send.
 
-The journal retries for up to seven days from queue time. Convex can also
-resend an in-flight socket request after that, so the server refuses any
-tagged dispatch eight days after the timestamp encoded in its ID. The extra
-day allows clock skew and retry time. Cleanup deletes expired receipts from
-an index in batches, with an hourly cron to resume a stopped sweep.
+The receipt lookup uses a hash of the wire ID. The server encrypts the
+response with the wire ID and includes the connection secret when the
+deployment already has one. If that secret changes, existing receipts still
+block execution, but their results can no longer be decrypted. Large
+ciphertext spans rows of at most 512 KiB.
+This keeps a valid document response below the per-row limit even after
+encryption expands it. The server accepts UUID v4 and 128-bit hex suffixes.
 
-Older clients omit `outbox` and use the existing dispatch path. The previous
-server rejects unknown top-level fields during argument validation, before
-running the handler. On that exact error a new client retries without
-`outbox` and uses the legacy behavior for that page session. The server-side
-owner and dedup checks require the new server. A write accepted during that
-fallback has no receipt if it is later replayed against the new server.
+The journal retries for seven days. New rows measure age with the client's
+monotonic clock while a runtime stays open. The server accepts the reported
+age and sets the receipt expiry to eight days after first acceptance on its
+own clock. This permits a live write even if the client's wall clock is off
+by days. A clock adjustment between runtimes can affect age after reload.
+A transport that resends an unchanged request after receipt cleanup can
+still carry its original age. The age limit protects fresh journal retries,
+which recalculate age for each send. Cleanup removes expired rows in indexed
+batches of 16. An hourly cron resumes a stopped sweep.
 
-An older bundle that reads the shared journal still uses its original replay
-logic. Account and ID checks apply when the new bundle sends the row.
+Older clients omit `outbox` and use the existing dispatch path. A client
+falls back only if the server reports that exact extra field at the top
+level of argument validation. It probes again after one minute. A write
+accepted during fallback has no dedup receipt. An older bundle that reads
+the shared journal still uses its original replay logic.

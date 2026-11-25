@@ -6,6 +6,8 @@ export type MobileDispatchOutboxEntry = {
   result: unknown;
   ts: number;
   attempts?: number;
+  accountId?: string;
+  queuedAt?: number;
 };
 
 export type MobileDispatchDatabase = {
@@ -67,6 +69,8 @@ function parseEntry(value: string): MobileDispatchOutboxEntry | null {
     if (
       typeof parsed.id !== "string" ||
       typeof parsed.action !== "string" ||
+      (parsed.accountId !== undefined &&
+        typeof parsed.accountId !== "string") ||
       typeof parsed.ts !== "number" ||
       !Number.isFinite(parsed.ts)
     ) {
@@ -85,6 +89,13 @@ function parseEntry(value: string): MobileDispatchOutboxEntry | null {
       patches: parsed.patches,
       result: parsed.result,
       ts: parsed.ts,
+      ...(typeof parsed.accountId === "string"
+        ? { accountId: parsed.accountId }
+        : {}),
+      ...(typeof parsed.queuedAt === "number" &&
+      Number.isFinite(parsed.queuedAt)
+        ? { queuedAt: parsed.queuedAt }
+        : {}),
       ...(parsed.attempts !== undefined ? { attempts: parsed.attempts } : {}),
     };
   } catch {
@@ -108,6 +119,8 @@ export function createPrincipalDispatchOutbox(
 
   return {
     enqueue(entry) {
+      if (entry.accountId !== undefined && entry.accountId !== principalId)
+        return;
       const encoded = JSON.stringify(entry);
       if (encoded === undefined)
         throw new Error("Dispatch entry could not be serialized");
@@ -129,8 +142,12 @@ export function createPrincipalDispatchOutbox(
       const entries: MobileDispatchOutboxEntry[] = [];
       for (const row of rows) {
         const entry = parseEntry(row.entry_json);
-        if (entry && entry.id === row.id) {
-          entries.push(entry);
+        if (
+          entry &&
+          entry.id === row.id &&
+          (entry.accountId === undefined || entry.accountId === principalId)
+        ) {
+          entries.push({ ...entry, accountId: principalId });
           continue;
         }
         // A corrupt row can never be dispatched safely. Quarantine it from the

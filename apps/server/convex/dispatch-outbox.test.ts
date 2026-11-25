@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import {
   asUser,
   scheduledJobs,
@@ -11,8 +11,14 @@ import { encryptRefreshToken } from "./googleOAuth";
 import { commandArgumentsFingerprint } from "./localFirstCommands";
 import schema from "./schema";
 
-function outboxFor(owner: Id<"users">) {
-  return { id: `${Date.now()}:${crypto.randomUUID()}`, owner };
+beforeEach(() => jest.useFakeTimers());
+afterEach(() => {
+  jest.clearAllTimers();
+  jest.useRealTimers();
+});
+
+function outboxFor(owner: Id<"users">, timestamp = Date.now()) {
+  return { id: `${timestamp}:${crypto.randomUUID()}`, owner, age_ms: 0 };
 }
 
 async function setup() {
@@ -26,10 +32,7 @@ async function setup() {
     return { owner, other, conversation, message };
   });
   const actor = asUser(t, rows.owner);
-  const outbox = {
-    id: `${Date.now()}:${crypto.randomUUID()}`,
-    owner: rows.owner,
-  };
+  const outbox = outboxFor(rows.owner);
   return { t, actor, outbox, ...rows };
 }
 
@@ -63,7 +66,7 @@ test("every journaled action returns its stored result before any write or job",
           action,
           id_hash: await commandArgumentsFingerprint(outbox.id),
           response: await encryptRefreshToken(
-            JSON.stringify(result),
+            JSON.stringify({ result, __syncAckV1: [], __syncAckV2: [] }),
             outbox.id,
             "swarm-dispatch-outbox-v1",
           ),
@@ -324,7 +327,7 @@ test("source creation and key rotation return the original results without persi
   const rotate = {
     action: "rotateOpsSourceKey",
     args: [source.source_id],
-    outbox: { owner, id: `${Date.now()}:${crypto.randomUUID()}` },
+    outbox: outboxFor(owner),
   };
   expect(await actor.mutation(api.dispatch.dispatch, create)).toEqual(source);
   const rotated = await actor.mutation(api.dispatch.dispatch, rotate);
@@ -402,6 +405,7 @@ test("pruning an expired receipt cannot make an old dispatch runnable again", as
   const expired = {
     owner,
     id: `${Date.now() - 9 * 86_400_000}:${crypto.randomUUID()}`,
+    age_ms: 9 * 86_400_000,
   };
   const request = { action: "patchConversation", args: [], outbox: expired };
   await t.run(({ db }) =>
@@ -413,6 +417,11 @@ test("pruning an expired receipt cannot make an old dispatch runnable again", as
       expires_at: Date.now() - 1,
     }),
   );
+  await actor.mutation(api.dispatch.dispatch, {
+    ...request,
+    outbox: { ...expired, age_ms: 0 },
+  });
+  jest.setSystemTime(Date.now() + 8 * 86_400_000);
   await actor.mutation(api.dispatch.dispatch, { ...request, outbox });
   await t.mutation(internal.dispatchReceipts.pruneOutboxReceipts, {});
   const receipts = await t.run(({ db }) =>
@@ -423,4 +432,111 @@ test("pruning an expired receipt cannot make an old dispatch runnable again", as
   await expect(actor.mutation(api.dispatch.dispatch, request)).rejects.toThrow(
     "outside its delivery window",
   );
+});
+
+test.each([25 * 3_600_000, -9 * 86_400_000])(
+  "a live client with clock offset %i gets a receipt anchored on server time",
+  async (offset) => {
+    const { t, actor, owner } = await setup();
+    const request = {
+      action: "patchConversation",
+      args: [],
+      outbox: outboxFor(owner, Date.now() + offset),
+    };
+    await actor.mutation(api.dispatch.dispatch, request);
+    const receipt = await t.run(({ db }) =>
+      db.query("dispatch_outbox_receipts").unique(),
+    );
+    expect(receipt?.expires_at).toBe(Date.now() + 8 * 86_400_000);
+  },
+);
+
+test("an outbox ID requires a cryptographically sized suffix", async () => {
+  const { actor, owner } = await setup();
+  await expect(
+    actor.mutation(api.dispatch.dispatch, {
+      action: "patchConversation",
+      args: [],
+      outbox: { owner, id: `${Date.now()}:short`, age_ms: 0 },
+    }),
+  ).rejects.toThrow("must contain a random suffix");
+});
+
+test("a replay uses the current acknowledgement flag and the original result", async () => {
+  const { actor, outbox, conversation, message } = await setup();
+  const request = {
+    action: "toggleBookmark",
+    args: [conversation, message],
+    outbox,
+    patches: { conversations: { [conversation]: { title: "Bookmark" } } },
+  };
+  expect(await actor.mutation(api.dispatch.dispatch, request)).toBe(true);
+  const flagged = await actor.mutation(api.dispatch.dispatch, {
+    ...request,
+    ack_positions: true,
+  });
+  expect(flagged).toEqual({
+    result: true,
+    __syncAckV1: expect.any(Array),
+    __syncAckV2: expect.any(Array),
+  });
+  expect(await actor.mutation(api.dispatch.dispatch, request)).toBe(true);
+});
+
+test("a large document create and its replay both return the full original document", async () => {
+  const { t, actor, outbox } = await setup();
+  const content = "large body ".repeat(73_000);
+  const request = {
+    action: "createDoc",
+    args: [{ title: "Large note", content }],
+    result: { receiptActionVersion: 1, commandId: crypto.randomUUID() },
+    outbox,
+  };
+  const first = await actor.mutation(api.dispatch.dispatch, request);
+  expect(first.result.row.content).toContain(content.trim());
+  expect(await actor.mutation(api.dispatch.dispatch, request)).toEqual(first);
+  const chunks = await t.run(({ db }) =>
+    db.query("dispatch_outbox_receipts").collect(),
+  );
+  expect(chunks.length).toBeGreaterThan(1);
+  expect(
+    Math.max(...chunks.map((row) => row.response.length)),
+  ).toBeLessThanOrEqual(512 * 1024);
+  expect(await t.run(({ db }) => db.query("docs").collect())).toHaveLength(1);
+});
+
+test("a repeated capture-length read schedules its read only once", async () => {
+  const { t, actor, outbox, owner } = await setup();
+  const source = await actor.mutation(api.dispatch.dispatch, {
+    action: "createOpsSource",
+    args: [{ name: "Replay source", provider: "sdk", workspace: "personal" }],
+  });
+  const replay = await t.run(({ db }) =>
+    db.insert("replays", {
+      workspace: `user:${owner}`,
+      source_id: source.source_id,
+      short_id: "rp-1",
+      external_id: "capture",
+      provider: "sdk",
+      started_at: Date.now(),
+      created_at: Date.now(),
+      updated_at: Date.now(),
+      counts: { clicks: 0, errors: 0, failed_requests: 0 },
+      group_ids: [],
+      chunk_keys: [],
+      dom_t0: 1,
+      dom_chunk_keys: ["fixture.json.gz"],
+    }),
+  );
+  const request = {
+    action: "checkReplayCaptureLength",
+    args: [replay],
+    outbox,
+  };
+  const first = await actor.mutation(api.dispatch.dispatch, request);
+  const jobs = () => scheduledJobs(t, internal.replays.captureLengthOne);
+  const scheduled = await jobs();
+  expect(scheduled).toHaveLength(1);
+  expect(await actor.mutation(api.dispatch.dispatch, request)).toEqual(first);
+  expect(await jobs()).toEqual(scheduled);
 });

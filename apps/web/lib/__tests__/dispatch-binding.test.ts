@@ -108,7 +108,7 @@ describe("dispatch binding", () => {
       calls.push(args);
       if (args.ack_positions)
         throw new Error(
-          "ArgumentValidationError: Object contains extra field `ack_positions`",
+          "ArgumentValidationError: Object contains extra field `ack_positions` that is not in the validator.",
         );
       return "done";
     }, state);
