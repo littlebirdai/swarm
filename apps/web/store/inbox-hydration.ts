@@ -13,6 +13,10 @@ import {
 } from "./idbCollectionDiff";
 import {
   cacheStorage,
+  enqueueDispatch,
+  loadOutbox,
+  removeDispatch,
+  writePatchesToIDB,
   salvageLocalFirstV2Data,
   setUpgradeBlockedListener,
   PERSISTENCE_AVAILABLE,
@@ -206,6 +210,7 @@ export function seedTeamInboxIdsFromCache(
 async function hydrateInboxCacheFromIDB(
   useInboxStore: HydrationStore,
   currentHydrationEpoch: () => number,
+  epoch: number,
   bootLinkTarget: (
     sessions: InboxStoreState["sessions"],
   ) => string | null | undefined,
@@ -217,14 +222,13 @@ async function hydrateInboxCacheFromIDB(
   if (!PERSISTENCE_AVAILABLE) return false;
   // A clear during this hydration (an account boundary) moves the epoch; from
   // then on every step here is a no-op and the store stays as the clear left it.
-  const epoch = currentHydrationEpoch();
   const superseded = () => epoch !== currentHydrationEpoch();
 
-  (useInboxStore.getState() as any)._setIDBWrite(cacheStorage.writePatches);
+  (useInboxStore.getState() as any)._setIDBWrite(writePatchesToIDB);
   (useInboxStore.getState() as any)._setOutbox(
-    cacheStorage.enqueueDispatch,
-    cacheStorage.removeDispatch,
-    cacheStorage.loadOutbox,
+    enqueueDispatch,
+    removeDispatch,
+    loadOutbox,
   );
   const setStorageDegraded = (next: InboxStoreState["storageDegraded"]) => {
     if (useInboxStore.getState().storageDegraded === next) return;
@@ -253,9 +257,15 @@ async function hydrateInboxCacheFromIDB(
   // whole SQLite cache, no conversations twin). That runs before the first
   // await so bootPersistence() at module eval already has sessions in the
   // store. The full critical set still loads below, after splash can hide.
-  const paintCached = cacheStorage.loadPaintCacheSync
-    ? cacheStorage.loadPaintCacheSync()
-    : await cacheStorage.loadPaintCache();
+  let paintCached: Awaited<ReturnType<typeof cacheStorage.loadPaintCache>>;
+  try {
+    paintCached = cacheStorage.loadPaintCacheSync
+      ? cacheStorage.loadPaintCacheSync()
+      : await cacheStorage.loadPaintCache();
+  } catch {
+    paintCached = null;
+  }
+  if (superseded()) return false;
 
   const apply = (source: Record<string, any> | null, pick: string[]) => {
     if (!source || superseded()) return;
@@ -547,13 +557,16 @@ export function bootInboxPersistence(
   ensureHydrated: (convId: string) => Promise<boolean>,
 ): void {
   if (PERSISTENCE_AVAILABLE) {
+    const epoch = currentHydrationEpoch();
     void hydrateInboxCacheFromIDB(
       useInboxStore,
       currentHydrationEpoch,
+      epoch,
       bootLinkTarget,
       resolveInboxHome,
       ensureHydrated,
     ).catch((error) => {
+      if (epoch !== currentHydrationEpoch()) return;
       console.error(
         "[store] IDB hydration failed; continuing with live-only state",
         error,

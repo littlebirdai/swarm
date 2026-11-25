@@ -1,4 +1,5 @@
 import * as dexieStorage from "./persistence/dexie-storage";
+import { forwardCacheStorage } from "./persistence/storage-bindings";
 import type { CacheStorage } from "./persistence/storage";
 
 // Web persistence entry. Metro resolves ./idbCache.native.ts on mobile.
@@ -35,7 +36,13 @@ export {
   salvageLocalFirstV2Data,
   type OutboxEntry,
 } from "./persistence/outbox";
-export {
+export type { CachedConversation } from "./persistence/storage";
+
+export const cacheStorage: CacheStorage = forwardCacheStorage(
+  () => dexieStorage,
+);
+
+export const {
   enqueueDispatch,
   flushPersistence,
   loadCache,
@@ -48,8 +55,5 @@ export {
   setHydrating,
   writeConversationMessages,
   writeConversationUserMessages,
-  writePatches as writePatchesToIDB,
-} from "./persistence/dexie-storage";
-export type { CachedConversation } from "./persistence/storage";
-
-export const cacheStorage: CacheStorage = dexieStorage;
+  writePatches: writePatchesToIDB,
+} = forwardCacheStorage(() => cacheStorage);
