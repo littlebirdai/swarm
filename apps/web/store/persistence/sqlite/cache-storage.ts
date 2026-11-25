@@ -40,15 +40,29 @@ export function createSqliteCache(
   let blockedOwner: string | null = null;
   let purging: Promise<void> | undefined;
   function ownerEvidence() {
-    const stamp = collections.getMeta("cacheOwner")?.principal;
+    const owner = collections.getMeta("cacheOwner");
+    const stamp = owner?.principal;
     const user = collections.getMeta("currentUser")?._id;
     const named = [stamp, user].filter(
       (id): id is string => typeof id === "string",
     );
-    return { stamp, named };
+    return { stamp, named, blocked: owner?.blocked === true };
   }
-  function stamp(principal: string | null, reason: string) {
-    collections.setMeta("cacheOwner", { principal, at: Date.now(), reason });
+  function stamp(principal: string | null, reason: string, blocked = false) {
+    collections.setMeta("cacheOwner", {
+      principal,
+      at: Date.now(),
+      reason,
+      blocked,
+    });
+  }
+  function acceptsWrite(
+    { named }: ReturnType<typeof ownerEvidence>,
+    principal: string,
+  ) {
+    return (
+      (named.length && named.every((id) => id === principal)) || !residue.get()
+    );
   }
   function clear(principal: string | null) {
     db.exec(`
@@ -129,7 +143,7 @@ export function createSqliteCache(
   }
   function write(
     scope: "collections" | "transcript" | "navigator",
-    change: (afterCommit: AfterCommit, principal: string) => boolean | void,
+    change: (afterCommit: AfterCommit, blocked: boolean) => boolean | void,
     stateOwner?: unknown,
   ) {
     if (readOnly || hydrating || purging) return;
@@ -141,26 +155,33 @@ export function createSqliteCache(
     )
       return;
     try {
-      const complete = transact((afterCommit) => {
+      transact((afterCommit) => {
         const evidence = ownerEvidence();
-        if (
-          evidence.named.some((id) => id !== principal) ||
-          (!evidence.named.length && residue.get())
-        )
-          return;
-        if (evidence.stamp !== principal) stamp(principal, "write");
-        const complete = change(afterCommit, principal);
+        if (!acceptsWrite(evidence, principal)) return;
+        const diskBlocked = evidence.stamp === principal && evidence.blocked;
+        const blocked = diskBlocked || blockedOwner === principal;
+        if (evidence.stamp !== principal || blocked !== diskBlocked)
+          stamp(principal, "write", blocked);
+        if (change(afterCommit, blocked) === false && !blocked)
+          stamp(principal, "write-failed", true);
         if (scope !== "collections") messages.retain(afterCommit);
         afterCommit(() => {
           boundOwner = principal;
+          blockedOwner = null;
         });
-        return complete;
       });
-      if (complete === false) blockedOwner = principal;
-      else if (boundOwner === principal && blockedOwner !== principal)
-        blockedOwner = null;
     } catch (error) {
-      if (scope === "collections") blockedOwner = principal;
+      if (scope === "collections") {
+        blockedOwner = principal;
+        try {
+          const saved = db.transaction(() => {
+            if (!acceptsWrite(ownerEvidence(), principal)) return false;
+            stamp(principal, "write-failed", true);
+            return true;
+          })();
+          if (saved) blockedOwner = null;
+        } catch {}
+      }
       recordCacheEvent("write-failed", {
         engine: "sqlite",
         scope,
@@ -185,13 +206,8 @@ export function createSqliteCache(
         .currentUser?._id;
       write(
         "collections",
-        (afterCommit, principal) =>
-          collections.write(
-            patches,
-            state,
-            blockedOwner === principal,
-            afterCommit,
-          ),
+        (afterCommit, blocked) =>
+          collections.write(patches, state, blocked, afterCommit),
         stateOwner,
       );
     },
