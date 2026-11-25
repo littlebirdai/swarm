@@ -3,7 +3,7 @@ import { runHibernationChild } from "../../hooks/__tests__/fixtures/runHibernati
 
 test("integration project links navigate the active tab and preserve modified clicks", async () => {
   const { code, signalCode, stdout, stderr } = await runHibernationChild(
-    [`${import.meta.dir}/fixtures/issueSyncNavigation.tsx`],
+    [`${import.meta.dir}/fixtures/issue-sync-navigation.tsx`],
     120_000,
   );
   expect({ code, signalCode, stderr }).toEqual({

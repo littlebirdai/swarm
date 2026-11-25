@@ -4,7 +4,7 @@
 // (app/inbox/QueuePageClient SessionPage), with the overlay's own expand and
 // close in its header. The overlay stays non-modal, so the triage chords keep
 // reaching the drilled-in session, and Esc or ✕ returns to the board.
-// Run: cd apps/web && bun test --isolate components/__tests__/fleetDrillIn.mount.test.tsx
+// Run: cd apps/web && bun test --isolate components/__tests__/fleet-drill-in.mount.test.tsx
 import { afterAll, expect, mock, spyOn, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";

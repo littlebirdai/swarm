@@ -15573,7 +15573,7 @@
   "apps/web/components/__tests__/fixtures/taskEvidenceGallery.tsx": {
     "swarm/no-comments": 3
   },
-  "apps/web/components/__tests__/fleetDrillIn.mount.test.tsx": {
+  "apps/web/components/__tests__/fleet-drill-in.mount.test.tsx": {
     "swarm/no-comments": 12
   },
   "apps/web/components/__tests__/followPill.test.tsx": {
@@ -15789,7 +15789,7 @@
   "apps/web/components/activity/ActivityNow.tsx": {
     "swarm/no-comments": 4
   },
-  "apps/web/components/activity/ActivityPage.mount.test.tsx": {
+  "apps/web/components/activity/activity-page.mount.test.tsx": {
     "react/immutability": 1,
     "swarm/no-comments": 31
   },
