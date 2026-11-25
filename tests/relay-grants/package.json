@@ -1,0 +1,7 @@
+{
+  "name": "@codecast/test-relay-grants",
+  "private": true,
+  "scripts": {
+    "test": "bun test ./kernel-grant.test.ts"
+  }
+}

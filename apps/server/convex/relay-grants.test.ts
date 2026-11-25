@@ -38,7 +38,7 @@ function claims(result: FunctionReturnType<typeof mint>) {
   return parsed.value;
 }
 
-test("session grants follow content visibility and the current presence writer", async () => {
+test("session grants require owner or full team access", async () => {
   const t = serverTest();
   const {
     owner,
@@ -47,6 +47,7 @@ test("session grants follow content visibility and the current presence writer",
     full,
     summary,
     privateConversation,
+    defaultPrivate,
     deleted,
     inherited,
     ownerMembership,
@@ -76,6 +77,7 @@ test("session grants follow content visibility and the current presence writer",
       team_visibility: "private",
       share_token: "share-proof",
     });
+    const defaultPrivate = await rows.conversation(owner, { team_id: team });
     const deleted = await rows.conversation(owner, { team_id: team });
     await db.delete(deleted);
     const inherited = await rows.conversation(owner, {
@@ -89,6 +91,7 @@ test("session grants follow content visibility and the current presence writer",
       full,
       summary,
       privateConversation,
+      defaultPrivate,
       deleted,
       inherited,
       ownerMembership,
@@ -115,6 +118,12 @@ test("session grants follow content visibility and the current presence writer",
     { ...session(full), publish: ["presence"] },
   ]);
   const member = asUser(t, teammate);
+  expect(
+    await member.mutation(mint, { hubs: [session(defaultPrivate)] }),
+  ).toEqual({
+    status: "denied",
+    omitted: [refused(defaultPrivate)],
+  });
   const inheritedArgs = { hubs: [session(inherited)] };
   expect(claims(await member.mutation(mint, inheritedArgs)).grants).toEqual([
     { ...session(inherited), publish: ["presence"] },
@@ -132,44 +141,24 @@ test("session grants follow content visibility and the current presence writer",
     status: "denied",
     omitted: [full, summary, privateConversation, deleted].map(refused),
   });
-  const presented = await stranger.mutation(mint, {
-    hubs: [
-      session(privateConversation),
-      {
-        ...session(privateConversation),
-        share_token: "share-proof",
-      },
-    ],
-  });
-  expect(presented).toMatchObject({ omitted: [] });
-  expect(claims(presented).grants).toEqual([
-    { ...session(privateConversation), publish: [] },
-  ]);
-
   await stranger.mutation(api.conversations.redeemShareToken, {
     share_token: "share-proof",
   });
-  const redeemed = await stranger.mutation(mint, {
-    hubs: [session(privateConversation)],
+  const sharedHubs = [session(privateConversation)];
+  expect(await stranger.mutation(mint, { hubs: sharedHubs })).toEqual({
+    status: "denied",
+    omitted: [refused(privateConversation)],
   });
-  expect(claims(redeemed).grants).toEqual([
-    { ...session(privateConversation), publish: ["presence"] },
-  ]);
-  await t.run(async ({ db }) => {
-    await db.delete(teammateMembership);
-    await db.patch(privateConversation, { share_token: undefined });
-  });
-  expect(
-    await asUser(t, teammate).mutation(mint, { hubs: [session(full)] }),
-  ).toEqual({
+  await expect(
+    stranger.mutation(mint, {
+      hubs: [{ ...session(privateConversation), share_token: "share-proof" }],
+    }),
+  ).rejects.toThrow();
+  await t.run(({ db }) => db.delete(teammateMembership));
+  expect(await member.mutation(mint, { hubs: [session(full)] })).toEqual({
     status: "denied",
     omitted: [refused(full)],
   });
-  expect(
-    await stranger.mutation(mint, {
-      hubs: [{ ...session(privateConversation), share_token: "share-proof" }],
-    }),
-  ).toEqual({ status: "denied", omitted: [refused(privateConversation)] });
 });
 
 test("bounds batches and leaves only the caller's limiter row when enabled", async () => {
@@ -267,7 +256,9 @@ test("same-millisecond mints are ordered and expiry respects both auth deadlines
     expect(second.grant_seq).toBeGreaterThan(first.grant_seq);
     expect(second.expires_at_ms).toBe(now + 5000);
     clock.mockReturnValue(now - 1);
-    const afterClockStep = claims(await caller.mutation(mint, { hubs }));
+    const afterClockStepResult = await caller.mutation(mint, { hubs });
+    expect(afterClockStepResult).toMatchObject({ ttl_ms: 5000 });
+    const afterClockStep = claims(afterClockStepResult);
     expect(afterClockStep.issued_at_ms).toBe(now);
     expect(afterClockStep.grant_seq).toBeGreaterThan(second.grant_seq);
     clock.mockReturnValue(now);
@@ -285,4 +276,199 @@ test("same-millisecond mints are ordered and expiry respects both auth deadlines
   } finally {
     clock.mockRestore();
   }
+});
+
+test("every well-formed batch spends one request and a spent caller does not read hubs", async () => {
+  const t = serverTest({ bytesRead: 4000 });
+  const { owner, readable, inaccessible, missing, large } = await t.run(
+    async ({ db }) => {
+      const rows = fixtureRows(db, "grant-probe-budget");
+      const owner = await rows.user();
+      const other = await rows.user();
+      const readable = await rows.conversation(owner);
+      const inaccessible = await rows.conversation(other);
+      const missing = await rows.conversation(other);
+      await db.delete(missing);
+      const large = await rows.conversation(other, { title: "x".repeat(8000) });
+      return { owner, readable, inaccessible, missing, large };
+    },
+  );
+  const caller = asUser(t, owner);
+  const counter = () => t.run(({ db }) => db.query("rate_limits").unique());
+  const calls = [
+    { hubs: [session(missing)], status: "denied" },
+    { hubs: [session(inaccessible)], status: "denied" },
+    { hubs: [session(inaccessible), session(readable)], status: "ok" },
+  ];
+  for (const [index, { hubs, status }] of calls.entries()) {
+    expect(await caller.mutation(mint, { hubs })).toMatchObject({ status });
+    expect((await counter())?.request_count).toBe(index + 1);
+  }
+  const enabled = await counter();
+  if (!enabled) throw new Error("Missing limiter row");
+  await t.run(({ db }) => db.patch(enabled._id, { request_count: 120 }));
+  expect(await caller.mutation(mint, { hubs: [session(large)] })).toEqual({
+    status: "rate_limited",
+  });
+  expect(await counter()).toEqual({ ...enabled, request_count: 120 });
+});
+
+test("invalid key or audience cannot issue a token or spend a request", async () => {
+  const t = serverTest();
+  const { owner, hub } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "grant-invalid-config");
+    const owner = await rows.user();
+    return { owner, hub: session(await rows.conversation(owner)) };
+  });
+  const caller = asUser(t, owner);
+  const alphabet =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  const noncanonical =
+    key.slice(0, -1) + alphabet[alphabet.indexOf(key.at(-1)!) + 1];
+  for (const [secret, cell] of [
+    [Buffer.alloc(31, 51).toString("base64url"), audience],
+    [noncanonical, audience],
+    [key, "invalid cell"],
+  ]) {
+    process.env.RELAY_HMAC_KEY = secret;
+    process.env.RELAY_AUDIENCE = cell;
+    expect(await caller.mutation(mint, { hubs: [hub] })).toEqual({
+      status: "unavailable",
+    });
+  }
+  expect(await t.run(({ db }) => db.query("rate_limits").collect())).toEqual(
+    [],
+  );
+});
+
+test("deleted users and revoked or mismatched sessions cannot spend a request", async () => {
+  const t = serverTest();
+  const { deleted, owner, otherSession, revoked, hub } = await t.run(
+    async ({ db }) => {
+      const rows = fixtureRows(db, "grant-revoked-auth");
+      const deleted = await rows.user();
+      const owner = await rows.user();
+      const other = await rows.user();
+      const otherSession = await db.insert("authSessions", {
+        userId: other,
+        expirationTime: Date.now() + 60000,
+      });
+      const revoked = await db.insert("authSessions", {
+        userId: owner,
+        expirationTime: Date.now() + 60000,
+      });
+      const hub = session(await rows.conversation(deleted));
+      await db.delete(deleted);
+      await db.delete(revoked);
+      return { deleted, owner, otherSession, revoked, hub };
+    },
+  );
+  for (const subject of [
+    `${deleted}|test-session`,
+    `${owner}|${otherSession}`,
+    `${owner}|${revoked}`,
+  ]) {
+    expect(
+      await t.withIdentity({ subject }).mutation(mint, { hubs: [hub] }),
+    ).toEqual({ status: "unauthenticated" });
+  }
+  expect(await t.run(({ db }) => db.query("rate_limits").collect())).toEqual(
+    [],
+  );
+});
+
+test("a one-minute clock step refuses an empty lifetime without charging and recovers on the next tick", async () => {
+  const t = serverTest();
+  const now = 1_800_000_000_000;
+  const clock = spyOn(Date, "now").mockReturnValue(now);
+  try {
+    const { owner, hub } = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "grant-clock-step");
+      const owner = await rows.user();
+      return { owner, hub: session(await rows.conversation(owner)) };
+    });
+    const caller = asUser(t, owner);
+    expect(await caller.mutation(mint, { hubs: [hub] })).toMatchObject({
+      status: "ok",
+      ttl_ms: 60_000,
+    });
+    const counter = () => t.run(({ db }) => db.query("rate_limits").unique());
+    const before = await counter();
+    clock.mockReturnValue(now - 60_000);
+    expect(await caller.mutation(mint, { hubs: [hub] })).toEqual({
+      status: "unavailable",
+    });
+    expect(await counter()).toEqual(before);
+    clock.mockReturnValue(now - 59_999);
+    const next = await caller.mutation(mint, { hubs: [hub] });
+    expect(next).toMatchObject({ status: "ok", ttl_ms: 1 });
+    expect(claims(next).issued_at_ms).toBe(now);
+    expect((await counter())?.request_count).toBe(2);
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+test("fractional auth deadlines are rounded down and non-finite deadlines fail closed", async () => {
+  const t = serverTest();
+  const now = 1_800_000_000_000;
+  const clock = spyOn(Date, "now").mockReturnValue(now);
+  try {
+    const { owner, auth, hub } = await t.run(async ({ db }) => {
+      const rows = fixtureRows(db, "grant-deadline");
+      const owner = await rows.user();
+      const auth = await db.insert("authSessions", {
+        userId: owner,
+        expirationTime: now + 500.75,
+      });
+      return { owner, auth, hub: session(await rows.conversation(owner)) };
+    });
+    const caller = t.withIdentity({ subject: `${owner}|${auth}` });
+    expect(await caller.mutation(mint, { hubs: [hub] })).toMatchObject({
+      status: "ok",
+      ttl_ms: 500,
+    });
+    const counter = () => t.run(({ db }) => db.query("rate_limits").unique());
+    const before = await counter();
+    await t.run(({ db }) => db.patch(auth, { expirationTime: Infinity }));
+    expect(await caller.mutation(mint, { hubs: [hub] })).toEqual({
+      status: "unauthenticated",
+    });
+    expect(await counter()).toEqual(before);
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+test("a signing failure exposes only unavailable and rolls back the charge", async () => {
+  const t = serverTest();
+  const { owner, hub } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "grant-signing-error");
+    const owner = await rows.user();
+    return { owner, hub: session(await rows.conversation(owner)) };
+  });
+  const sign = spyOn(crypto.subtle, "sign").mockRejectedValueOnce(
+    new Error("private signing details"),
+  );
+  try {
+    await expect(
+      asUser(t, owner).mutation(mint, { hubs: [hub] }),
+    ).rejects.toMatchObject({ data: "unavailable" });
+    expect(await t.run(({ db }) => db.query("rate_limits").collect())).toEqual(
+      [],
+    );
+  } finally {
+    sign.mockRestore();
+  }
+});
+
+test("repeated hub IDs resolve once and produce one grant", async () => {
+  const t = serverTest({ documentsRead: 2 });
+  const { owner, hub } = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "grant-dedup");
+    const owner = await rows.user();
+    return { owner, hub: session(await rows.conversation(owner)) };
+  });
+  const result = await asUser(t, owner).mutation(mint, { hubs: [hub, hub] });
+  expect(claims(result).grants).toEqual([{ ...hub, publish: ["presence"] }]);
 });

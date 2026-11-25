@@ -9,8 +9,8 @@ import {
 } from "@codecast/relay-contract";
 import { getAuthSessionId, getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
-import { mutation } from "./_generated/server";
-import { checkConversationAccess } from "./privacy";
+import { mutation } from "./functions";
+import { canOwnerOrTeamAccess } from "./privacy";
 import { checkRateLimit, RateLimitError } from "./rateLimit";
 
 const TTL_MS = 60_000;
@@ -28,7 +28,6 @@ export const mint = mutation({
       v.object({
         kind: v.literal("session"),
         id: v.string(),
-        share_token: v.optional(v.string()),
       }),
     ),
   },
@@ -71,61 +70,55 @@ export const mint = mutation({
       : null;
     const session = sessionId ? await ctx.db.get(sessionId) : null;
     const now = Date.now();
-    const expiresAtMs = Math.min(
-      now + TTL_MS,
-      session?.expirationTime ?? Infinity,
-      typeof identity?.exp === "number"
-        ? Math.floor(identity.exp * 1000)
-        : Infinity,
-    );
-    if ((sessionId && session?.userId !== userId) || expiresAtMs <= now)
+    const jwtDeadlineMs =
+      typeof identity?.exp === "number" ? identity.exp * 1000 : undefined;
+    if (
+      (sessionId && session?.userId !== userId) ||
+      (session && !Number.isFinite(session.expirationTime)) ||
+      (jwtDeadlineMs !== undefined && !Number.isFinite(jwtDeadlineMs))
+    )
       return { status: "unauthenticated" } as const;
-
-    const grants = new Map<string, RelayGrantClaims["grants"][number]>();
-    const inaccessible = new Set<string>();
-    for (const hub of hubs) {
-      const id = relayId.test(hub.id)
-        ? ctx.db.normalizeId("conversations", hub.id)
-        : null;
-      const conversation = id ? await ctx.db.get(id) : null;
-      const access = conversation
-        ? await checkConversationAccess(ctx, userId, conversation)
-        : "denied";
-      if (
-        !conversation ||
-        (access === "denied" &&
-          (!hub.share_token ||
-            (await checkConversationAccess(
-              ctx,
-              userId,
-              conversation,
-              hub.share_token,
-            )) === "denied"))
-      ) {
-        inaccessible.add(hub.id);
-        continue;
-      }
-      grants.set(hub.id, {
-        kind: "session",
-        id: conversation._id,
-        publish: access === "denied" ? [] : ["presence"],
-      });
-    }
-    const omitted = Array.from(inaccessible)
-      .filter((id) => !grants.has(id))
-      .map((id) => ({ id, reason: "inaccessible" as const }));
-    if (!grants.size) return { status: "denied", omitted } as const;
+    const expiresAtMs = Math.floor(
+      Math.min(
+        now + TTL_MS,
+        session?.expirationTime ?? Infinity,
+        jwtDeadlineMs ?? Infinity,
+      ),
+    );
+    if (expiresAtMs <= now) return { status: "unauthenticated" } as const;
 
     try {
-      const { issuedAtMs, sequence } = await checkRateLimit(
+      const issuance = await checkRateLimit(
         ctx,
         userId,
         "relayGrants.mint",
         REQUESTS_PER_MINUTE,
         1,
-        "sequenced",
+        expiresAtMs,
       );
-      if (issuedAtMs >= expiresAtMs) throw new ConvexError("unavailable");
+      if (!issuance) return { status: "unavailable" } as const;
+      const { issuedAtMs, sequence } = issuance;
+      const grants: RelayGrantClaims["grants"] = [];
+      const omitted: { id: string; reason: "inaccessible" }[] = [];
+      for (const rawId of new Set(hubs.map((hub) => hub.id))) {
+        const id = relayId.test(rawId)
+          ? ctx.db.normalizeId("conversations", rawId)
+          : null;
+        const conversation = id ? await ctx.db.get(id) : null;
+        if (
+          conversation &&
+          (await canOwnerOrTeamAccess(ctx, userId, conversation))
+        ) {
+          grants.push({
+            kind: "session",
+            id: conversation._id,
+            publish: ["presence"],
+          });
+        } else {
+          omitted.push({ id: rawId, reason: "inaccessible" });
+        }
+      }
+      if (!grants.length) return { status: "denied", omitted } as const;
       const claims: RelayGrantClaims = {
         v: RELAY_GRANT_VERSION,
         audience,
@@ -133,7 +126,7 @@ export const mint = mutation({
         issued_at_ms: issuedAtMs,
         grant_seq: sequence,
         expires_at_ms: expiresAtMs,
-        grants: Array.from(grants.values()),
+        grants,
       };
       const signingInput = `v1.${base64urlEncode(encoder.encode(JSON.stringify(claims)))}`;
       const signingKey = await crypto.subtle.importKey(
@@ -153,7 +146,7 @@ export const mint = mutation({
       return {
         status: "ok",
         token: `${signingInput}.${base64urlEncode(signature)}`,
-        ttl_ms: expiresAtMs - now,
+        ttl_ms: expiresAtMs - issuedAtMs,
         omitted,
       } as const;
     } catch (error) {

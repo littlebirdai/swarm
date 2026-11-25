@@ -1,7 +1,3 @@
 {
-  "extends": "../../packages/tsconfig/library.json",
-  "compilerOptions": {
-    "declaration": false,
-    "declarationMap": false
-  }
+  "extends": "../../packages/tsconfig/library.json"
 }

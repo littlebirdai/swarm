@@ -1284,6 +1284,9 @@
         "@codecast/cli": "workspace:*",
       },
     },
+    "tests/relay-grants": {
+      "name": "@codecast/test-relay-grants",
+    },
   },
   "overrides": {
     "@radix-ui/react-slot": "1.2.4",
@@ -1785,6 +1788,8 @@
     "@codecast/test-helpers": ["@codecast/test-helpers@workspace:packages/test-helpers"],
 
     "@codecast/test-jsonl-fidelity": ["@codecast/test-jsonl-fidelity@workspace:tests/jsonl-fidelity"],
+
+    "@codecast/test-relay-grants": ["@codecast/test-relay-grants@workspace:tests/relay-grants"],
 
     "@codecast/time": ["@codecast/time@workspace:packages/time"],
 

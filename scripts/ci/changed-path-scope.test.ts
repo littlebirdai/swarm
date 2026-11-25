@@ -160,13 +160,11 @@ describe("classifyChangedPaths", () => {
     ]);
   });
 
-  test("a relay app change runs its build, typecheck and smoke test", () => {
-    expect(ran(["apps/relay/src/server.ts"])).toEqual([
-      "build",
-      "lint",
-      "test-shared",
-      "typecheck",
-    ]);
+  test.each([
+    "apps/relay/src/server.ts",
+    "tests/relay-grants/kernel-grant.test.ts",
+  ])("a relay change runs its build, typecheck and smoke test (%s)", (path) => {
+    expect(ran([path])).toEqual(["build", "lint", "test-shared", "typecheck"]);
   });
 
   test("a library change runs every job that reads packages", () => {

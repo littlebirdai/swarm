@@ -1,6 +1,7 @@
 import { internalMutation } from "./functions";
 import { v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
+import { RATE_LIMIT_WINDOW_MS } from "./rateLimit";
 import { transferManagedSession } from "./lib/sessionHeartbeat";
 import { patchCommentWithRevision } from "./commentViewWrites";
 import { getComment } from "./commentStore";
@@ -251,6 +252,41 @@ export const mergeDuplicateUser = internalMutation({
             );
           } else if (table === "local_view_heads") {
             await mergeLocalViewHead(ctx, row as any, args.to_user_id);
+          } else if (table === "rate_limits") {
+            const matches = await ctx.db
+              .query("rate_limits")
+              .withIndex("by_user_endpoint", (q) =>
+                q.eq("user_id", args.to_user_id).eq("endpoint", row.endpoint),
+              )
+              .collect();
+            const counters: Doc<"rate_limits">[] = [...matches, row];
+            const [survivor, ...duplicates] = counters;
+            const cutoff = Date.now() - RATE_LIMIT_WINDOW_MS;
+            let windowStart = survivor.window_start;
+            let count = 0;
+            let lastRequestAt = survivor.last_request_at;
+            let sequence = survivor.sequence;
+            for (const counter of counters) {
+              windowStart = Math.max(windowStart, counter.window_start);
+              if (counter.window_start >= cutoff)
+                count += counter.request_count;
+              if (counter.last_request_at !== undefined)
+                lastRequestAt = Math.max(
+                  lastRequestAt ?? 0,
+                  counter.last_request_at,
+                );
+              if (counter.sequence !== undefined)
+                sequence = Math.max(sequence ?? 0, counter.sequence);
+            }
+            await ctx.db.patch(survivor._id, {
+              user_id: args.to_user_id,
+              window_start: windowStart,
+              request_count: count,
+              last_request_at: lastRequestAt,
+              sequence,
+            });
+            for (const duplicate of duplicates)
+              await ctx.db.delete(duplicate._id);
           } else {
             await ctx.db.patch(row._id, { [field]: args.to_user_id } as any);
           }
