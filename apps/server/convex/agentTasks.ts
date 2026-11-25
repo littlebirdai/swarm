@@ -3477,7 +3477,7 @@ function snapshotEditable(task: Doc<"agent_tasks">) {
     target_conversation_id: task.target_conversation_id,
     created_by_conversation_id: task.created_by_conversation_id,
     wake_creator: task.wake_creator,
-  };
+  } satisfies Doc<"agent_task_revisions">["before"];
 }
 
 // Edit a schedule in place — the ONLY writer for trigger edits, shared by

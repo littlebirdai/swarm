@@ -245,6 +245,7 @@ export const createFromTemplate = mutation({
       title,
       goal: template.goal_template,
       status: "active",
+      source: "human",
       progress: {
         total: template.task_templates.length,
         done: 0,
@@ -262,7 +263,7 @@ export const createFromTemplate = mutation({
       ],
       created_at: now,
       updated_at: now,
-    } as any);
+    });
 
     const taskIds: Id<"tasks">[] = [];
     const taskShortIds: string[] = [];
@@ -349,6 +350,7 @@ export const fork = mutation({
       short_id,
       title: args.title || `${source.title} (fork)`,
       goal: source.goal,
+      source: "human",
       status: "active",
       acceptance_criteria: source.acceptance_criteria,
       progress: {
@@ -368,7 +370,7 @@ export const fork = mutation({
       ],
       created_at: now,
       updated_at: now,
-    } as any);
+    });
 
     const oldToNew = new Map<string, string>();
     const taskIds: Id<"tasks">[] = [];
