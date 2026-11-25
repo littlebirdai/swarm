@@ -14,7 +14,7 @@ import {
   applyMineLivenessPayload,
   inboxCrawlWsKey,
 } from "./useSyncInboxSessions";
-import { batchGet } from "./useSyncChangeFeed";
+import { batchGet } from "./use-sync-change-feed";
 import { subscribeCoarseTick } from "./useCoarseNow";
 import { getPlatform, track } from "../lib/analytics";
 

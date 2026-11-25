@@ -347,10 +347,10 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   },
   "hooks/reconcileCrawl.ts:states": "window",
   "hooks/useBootstrapCollection.ts:done": "window",
-  "hooks/useSyncChangeFeed.ts:cargoSupported": "window",
-  "hooks/useSyncChangeFeed.ts:applyTally": "window",
-  "hooks/useSyncChangeFeed.ts:flushTimer": "window",
-  "hooks/useSyncChangeFeed.ts:shadowApplied": "window",
+  "hooks/use-sync-change-feed.ts:cargoSupported": "window",
+  "hooks/use-sync-change-feed.ts:applyTally": "window",
+  "hooks/use-sync-change-feed.ts:flushTimer": "window",
+  "hooks/use-sync-change-feed.ts:shadowApplied": "window",
   "hooks/syncWake.ts:listeners": NO_REACT,
   "hooks/useCoarseNow.ts:_clocks": {
     shared:
@@ -643,9 +643,9 @@ const SEAMS: Record<string, () => SlotSeam> = {
     load<typeof import("../../../hooks/useBootstrapCollection")>(
       "../../../hooks/useBootstrapCollection",
     ).__bootstrapSimSlots() as SlotSeam,
-  "hooks/useSyncChangeFeed.ts": () =>
-    load<typeof import("../../../hooks/useSyncChangeFeed")>(
-      "../../../hooks/useSyncChangeFeed",
+  "hooks/use-sync-change-feed.ts": () =>
+    load<typeof import("../../../hooks/use-sync-change-feed")>(
+      "../../../hooks/use-sync-change-feed",
     ).__changeFeedSimSlots() as SlotSeam,
   "hooks/reconcileCrawl.ts": () =>
     load<typeof import("../../../hooks/reconcileCrawl")>(

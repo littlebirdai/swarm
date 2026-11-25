@@ -665,7 +665,7 @@ apps/web/hooks/useChatSync.ts 1000
 apps/web/hooks/useConversationMessages.ts 1450
 apps/web/hooks/useLineWorkspace.ts 1650
 apps/web/hooks/useRepoBrowse.ts 950
-apps/web/hooks/useSyncChangeFeed.ts 900
+apps/web/hooks/use-sync-change-feed.ts 900
 apps/web/hooks/useSyncOps.ts 1150
 apps/web/hooks/useWalkie.ts 1100
 apps/web/lib/__tests__/callSeams.test.ts 900

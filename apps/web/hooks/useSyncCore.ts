@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useSyncInboxSessions } from "./useSyncInboxSessions";
 import { useSyncTeamInboxSessions } from "./useSyncTeamInboxSessions";
-import { useSyncChangeFeed } from "./useSyncChangeFeed";
+import { useSyncChangeFeed } from "./use-sync-change-feed";
 import { useSyncSessionDecisions } from "./useSyncSessionDecisions";
 import { useSyncBuckets } from "./useSyncBuckets";
 import { useSyncSessionReads } from "./useSyncSessionReads";

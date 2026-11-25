@@ -72,7 +72,7 @@ import {
   applyEntityIds,
   emptyIdsByCollection,
   scopeMetaKey,
-} from "../../hooks/useSyncChangeFeed";
+} from "../../hooks/use-sync-change-feed";
 import { startInboxDigestCompare } from "../../hooks/useInboxDigestCompare";
 import { LIST_INBOX_SESSIONS_ARGS } from "../../hooks/useLiveInboxSessions";
 import * as realm from "./sim/realm";

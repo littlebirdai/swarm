@@ -4,7 +4,7 @@ import {
   chunkIds,
   planFeedApply,
   type FeedChange,
-} from "./useSyncChangeFeed";
+} from "./use-sync-change-feed";
 
 const c = (entity_type: string, entity_id: string): FeedChange => ({
   entity_type,

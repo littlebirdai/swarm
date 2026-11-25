@@ -82,7 +82,7 @@ import {
   teamInboxArgs,
 } from "../../../hooks/useSyncTeamInboxSessions";
 import { applyCollectionFeed } from "../../../hooks/useSyncCollection";
-import { createCatchUpRunner } from "../../../hooks/useSyncChangeFeed";
+import { createCatchUpRunner } from "../../../hooks/use-sync-change-feed";
 import {
   bootstrapFloorFor,
   bootstrapFloorKey,

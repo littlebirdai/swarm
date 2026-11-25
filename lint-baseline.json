@@ -22583,7 +22583,7 @@
   "apps/web/hooks/useSyncChangeFeed.test.ts": {
     "swarm/no-comments": 3
   },
-  "apps/web/hooks/useSyncChangeFeed.ts": {
+  "apps/web/hooks/use-sync-change-feed.ts": {
     "swarm/no-comments": 209,
     "swarm/no-direct-use-effect": 2
   },

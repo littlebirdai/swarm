@@ -35,7 +35,7 @@ const MATRIX_KEYS = ["tasks", "docs", "plans", "projects"] as const;
 
 // Keys whose rows reach the store through a bespoke useSync* hook rather than
 // a registry `feeds` entry: the list queries those hooks mount, plus the byIds
-// reads the sync log's applier falls back to (hooks/useSyncChangeFeed.ts).
+// reads the sync log's applier falls back to (hooks/use-sync-change-feed.ts).
 const HOOK_FEEDS: Record<(typeof MATRIX_KEYS)[number], string[]> = {
   tasks: ["tasks.webList", "tasks.webListPaginated", "tasks.webGetByIds"],
   docs: ["docs.webListPaginated", "docs.webGetByIds"],
