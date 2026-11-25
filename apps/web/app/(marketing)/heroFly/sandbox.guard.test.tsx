@@ -105,6 +105,7 @@ afterAll(() => {
 const React = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { ConvexReactClient } = await import("convex/react");
+await import("../../../store/writeLog");
 const { useInboxStore } = await import("../../../store/inboxStore");
 const { HeroSandbox } = await import("./sandbox");
 const { World } = await import("./surfaces");
