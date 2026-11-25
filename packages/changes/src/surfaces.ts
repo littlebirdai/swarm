@@ -52,6 +52,7 @@ const PACKAGE_AREAS = [
   "pages",
   "policy",
   "projects",
+  "provider-contract",
   "provider-keys",
   "pull-requests",
   "relay-contract",

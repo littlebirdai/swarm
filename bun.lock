@@ -1022,6 +1022,13 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/provider-contract": {
+      "name": "@codecast/provider-contract",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@codecast/edge-contract": "workspace:*",
+      },
+    },
     "packages/provider-keys": {
       "name": "@codecast/provider-keys",
       "version": "0.0.1",
@@ -1679,6 +1686,8 @@
     "@codecast/policy": ["@codecast/policy@workspace:packages/policy"],
 
     "@codecast/projects": ["@codecast/projects@workspace:packages/projects"],
+
+    "@codecast/provider-contract": ["@codecast/provider-contract@workspace:packages/provider-contract"],
 
     "@codecast/provider-keys": ["@codecast/provider-keys@workspace:packages/provider-keys"],
 

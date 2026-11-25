@@ -1,0 +1,18 @@
+{
+  "name": "@codecast/provider-contract",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./test": "./test/conformance.ts"
+  },
+  "devDependencies": {
+    "@codecast/edge-contract": "workspace:*"
+  }
+}
