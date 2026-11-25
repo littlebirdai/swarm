@@ -15,6 +15,8 @@ export const messageWarmState = {
   full: false,
   coldIds: new Set<string>(),
   inFlight: new Set<string>(),
+  rowTried: new Set<string>(),
+  syncedCount: new Map<string, number>(),
 };
 
 export function messageRowBytes(value: unknown): number {
@@ -138,6 +140,7 @@ function canEvictMessages(
 ): boolean {
   if (
     openViews.has(id) ||
+    messageWarmState.inFlight.has(id) ||
     id === state.currentConversation?.conversationId ||
     id === state.currentSessionId ||
     id === state.sidePanelSessionId ||

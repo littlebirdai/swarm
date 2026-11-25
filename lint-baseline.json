@@ -21694,7 +21694,7 @@
     "swarm/no-comments": 35
   },
   "apps/web/hooks/inbox-warm.ts": {
-    "swarm/no-comments": 80
+    "swarm/no-comments": 78
   },
   "apps/web/hooks/incrementalSync.test.ts": {
     "swarm/no-comments": 24
@@ -28051,7 +28051,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5091
+    "swarm/no-comments": 5089
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4

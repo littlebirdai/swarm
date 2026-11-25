@@ -11,7 +11,11 @@ import {
   sessionStructuralSig,
   type InboxSession,
 } from "../store/inboxStore";
-import { messageWarmState } from "../store/store-eviction";
+import {
+  hasEvictableMessagesOverBudget,
+  MESSAGE_CACHE_BUDGET_BYTES,
+  messageWarmState,
+} from "../store/store-eviction";
 import { makeCollectionSig } from "../store/wakeSig";
 import { whenInputQuiet } from "../lib/inputQuiet";
 import { windowDrawsTranscripts } from "../lib/windowRole";
@@ -160,8 +164,7 @@ export function rereadAnchor(
 /**
  * Every row after `after`, paged forward and merged into the store. The one
  * forward read the warm delta, the open path's recovery and the hosted heal
- * share. Returns how many rows arrived, or null when the server refused
- * (no access yet, auth still loading).
+ * share.
  */
 export async function readForward(
   convex: ConvexClient,
@@ -177,14 +180,17 @@ export async function readForward(
       conversation_id: conversationId as Id<"conversations">,
       after_timestamp: cursor,
     });
-    if (inFlight !== messageWarmState.inFlight || result === null)
-      return fetched > 0 ? fetched : null;
+    const state = useInboxStore.getState();
+    if (
+      inFlight !== messageWarmState.inFlight ||
+      !state.messages[conversationId]?.length
+    )
+      return null;
+    if (result === null) return fetched > 0 ? fetched : null;
     if (!result.messages?.length) break;
-    useInboxStore
-      .getState()
-      .mergeMessages(conversationId, result.messages, "append", {
-        initialized: true,
-      });
+    state.mergeMessages(conversationId, result.messages, "append", {
+      initialized: true,
+    });
     fetched += result.messages.length;
     if (!result.has_more || result.last_timestamp == null) break;
     cursor = result.last_timestamp;
@@ -192,10 +198,22 @@ export async function readForward(
   return fetched;
 }
 
-const syncedCount = new Map<string, number>();
-// Row fetches tried this page life (runRow), whatever came back: a row the
-// server withholds, or sends without is_anchor, is not asked for every pass.
-const rowTried = new Set<string>();
+function finishWarm(inFlight: Set<string>, id: string): void {
+  inFlight.delete(id);
+  if (
+    inFlight !== messageWarmState.inFlight ||
+    useInboxStore.getState().messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES
+  )
+    return;
+  queueMicrotask(() => {
+    const state = useInboxStore.getState();
+    if (
+      inFlight === messageWarmState.inFlight &&
+      hasEvictableMessagesOverBudget(state)
+    )
+      state.trimMessageCache();
+  });
+}
 
 /** One-shot older page. History walks must not subscribe: a live query on a
  *  long session re-runs on every conversation heartbeat and OCC-retries
@@ -253,13 +271,17 @@ export async function fetchOlderPage(
     oldest,
     limit,
   );
-  if (inFlight !== messageWarmState.inFlight || !res?.messages) return false;
-  useInboxStore
-    .getState()
-    .mergeMessages(conversationId, res.messages, "prepend", {
-      hasMoreAbove: res.has_more_above ?? false,
-      initialized: true,
-    });
+  const state = useInboxStore.getState();
+  if (
+    inFlight !== messageWarmState.inFlight ||
+    !res?.messages ||
+    !state.messages[conversationId]?.length
+  )
+    return false;
+  state.mergeMessages(conversationId, res.messages, "prepend", {
+    hasMoreAbove: res.has_more_above ?? false,
+    initialized: true,
+  });
   return true;
 }
 
@@ -285,7 +307,7 @@ export function deepenConversation(
   return fetchOlderPage(convex, conversationId, rows - stored)
     .then(() => undefined)
     .catch(() => undefined)
-    .finally(() => inFlight.delete(conversationId));
+    .finally(() => finishWarm(inFlight, conversationId));
 }
 
 function runCold(
@@ -300,7 +322,7 @@ function runCold(
     .then((restored) => {
       if (inFlight !== messageWarmState.inFlight) return null;
       if (restored) {
-        syncedCount.set(id, serverCount);
+        messageWarmState.syncedCount.set(id, serverCount);
         return null;
       }
       return convex.query(api.conversations.listMessages, {
@@ -320,19 +342,19 @@ function runCold(
           hasMoreAbove: !res.isDone,
           initialized: true,
         });
-        syncedCount.set(id, serverCount);
+        messageWarmState.syncedCount.set(id, serverCount);
       }
     })
     .catch((err: unknown) => {
       console.warn("[inboxWarm] cold warm failed", { id, err });
     })
-    .finally(() => inFlight.delete(id));
+    .finally(() => finishWarm(inFlight, id));
 }
 
 function runRow(convex: ConvexClient, id: string) {
   const inFlight = messageWarmState.inFlight;
   inFlight.add(id);
-  rowTried.add(id);
+  messageWarmState.rowTried.add(id);
   convex
     .query(api.conversations.getConversation, {
       conversation_id: id as Id<"conversations">,
@@ -347,7 +369,7 @@ function runRow(convex: ConvexClient, id: string) {
     .catch((err: unknown) => {
       console.warn("[inboxWarm] row warm failed", { id, err });
     })
-    .finally(() => inFlight.delete(id));
+    .finally(() => finishWarm(inFlight, id));
 }
 
 function runDelta(
@@ -358,14 +380,14 @@ function runDelta(
   const inFlight = messageWarmState.inFlight;
   inFlight.add(id);
   readForward(convex, id, action.after)
-    .then(() => {
-      if (inFlight === messageWarmState.inFlight)
-        syncedCount.set(id, serverCount);
+    .then((fetched) => {
+      if (fetched !== null && inFlight === messageWarmState.inFlight)
+        messageWarmState.syncedCount.set(id, serverCount);
     })
     .catch((err: unknown) => {
       console.warn("[inboxWarm] delta warm failed", { id, err });
     })
-    .finally(() => inFlight.delete(id));
+    .finally(() => finishWarm(inFlight, id));
 }
 
 function runDeepen(
@@ -378,7 +400,7 @@ function runDeepen(
     .catch((err: unknown) => {
       console.warn("[inboxWarm] deepen failed", { id: action.id, err });
     })
-    .finally(() => inFlight.delete(action.id));
+    .finally(() => finishWarm(inFlight, action.id));
 }
 
 /**
@@ -482,7 +504,7 @@ export function warmRowsFromState(
       // A row fetch is tried once (rowTried), then the row's own count rules,
       // whatever came back.
       serverCount:
-        needsRow && !rowTried.has(id)
+        needsRow && !messageWarmState.rowTried.has(id)
           ? null
           : (st.sessions[id]?.message_count ?? session?.message_count ?? 0),
       storedCount,
@@ -492,7 +514,7 @@ export function warmRowsFromState(
         msgs,
         st.sessions[id]?.agent_type ?? (session as any)?.agent_type,
       ),
-      syncedCount: syncedCount.get(id),
+      syncedCount: messageWarmState.syncedCount.get(id),
       inFlight: messageWarmState.inFlight.has(id),
     });
   }
@@ -667,6 +689,6 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
     get inFlight() {
       return messageWarmState.inFlight;
     },
-    syncedCount,
+    syncedCount: messageWarmState.syncedCount,
   };
 }

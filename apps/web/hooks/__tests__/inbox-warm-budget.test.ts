@@ -1,10 +1,11 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import {
   clearProtectedInboxMemory,
   ensureHydrated,
   useInboxStore,
 } from "../../store/inboxStore";
+import { cacheStorage, type CachedConversation } from "../../store/idb-cache";
 import { MESSAGE_CACHE_BUDGET_BYTES } from "../../store/store-eviction";
 import { mapStorage } from "../../store/__tests__/fixtures/fakeAuthToken";
 import { webBuilders } from "../../test-helpers/builders";
@@ -423,6 +424,198 @@ test.each([
     } finally {
       response.resolve(null);
       await new Promise<void>((resolve) => setImmediate(resolve));
+      restore();
+    }
+  },
+);
+
+test.each([
+  ["conversations:getNewMessages", false],
+  ["conversations:getAllMessages", true],
+] as const)(
+  "byte pressure keeps the transcript held by %s",
+  async (query, hasMoreAbove) => {
+    const restore = resetFixture();
+    const response = Promise.withResolvers<unknown>();
+    const calls: string[] = [];
+    try {
+      seed([1]);
+      useInboxStore
+        .getState()
+        .setMessages(
+          id(1),
+          [message(1024, 2), message(1024, 3)],
+          { hasMoreAbove },
+          "cache",
+        );
+      await warm({
+        query: (fn) => {
+          calls.push(getFunctionName(fn));
+          return response.promise;
+        },
+      });
+      expect(calls).toEqual([query]);
+      ballast(MESSAGE_CACHE_BUDGET_BYTES + 1024);
+      expect(
+        useInboxStore.getState().messages[id(1)]?.map((row) => row.timestamp),
+      ).toEqual([2, 3]);
+      useInboxStore.getState().discardForkStub("ballast");
+      response.resolve({
+        messages: [message(1024, hasMoreAbove ? 1 : 4)],
+        has_more_above: hasMoreAbove,
+      });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(
+        useInboxStore.getState().messages[id(1)]?.map((row) => row.timestamp),
+      ).toEqual(hasMoreAbove ? [1, 2, 3] : [2, 3, 4]);
+    } finally {
+      response.resolve(null);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      restore();
+    }
+  },
+);
+
+test.each([
+  ["conversations:getNewMessages", false],
+  ["conversations:getAllMessages", true],
+] as const)(
+  "%s drops a late page when its transcript disappeared",
+  async (query, hasMoreAbove) => {
+    const restore = resetFixture();
+    const response = Promise.withResolvers<unknown>();
+    const write = spyOn(
+      cacheStorage,
+      "writeConversationMessages",
+    ).mockImplementation(() => {});
+    const calls: string[] = [];
+    const convex = {
+      query: (fn: Parameters<typeof getFunctionName>[0]) => {
+        calls.push(getFunctionName(fn));
+        return response.promise;
+      },
+    };
+    try {
+      seed([1]);
+      useInboxStore
+        .getState()
+        .setMessages(id(1), [message(1024, 2)], { hasMoreAbove }, "cache");
+      await warm(convex);
+      expect(calls).toEqual([query]);
+      evict(1);
+      response.resolve({
+        messages: [message(1024, hasMoreAbove ? 1 : 3)],
+        has_more_above: false,
+      });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(useInboxStore.getState().messages[id(1)]).toBeUndefined();
+      expect(useInboxStore.getState().pagination[id(1)]).toBeUndefined();
+      expect(write).not.toHaveBeenCalled();
+      useInboxStore
+        .getState()
+        .setMessages(id(1), [message(1024, 2)], { hasMoreAbove }, "cache");
+      await warm(convex);
+      expect(calls).toEqual([query, query]);
+    } finally {
+      response.resolve(null);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      write.mockRestore();
+      restore();
+    }
+  },
+);
+
+test("an account reset retries a previously attempted standing session row", async () => {
+  const restore = resetFixture();
+  const calls: string[] = [];
+  const convex = {
+    query: async (fn: Parameters<typeof getFunctionName>[0]) => {
+      calls.push(getFunctionName(fn));
+      return null;
+    },
+  };
+  try {
+    for (let pass = 0; pass < 2; pass++) {
+      seed([1]);
+      useInboxStore.setState((state) => ({
+        sessions: {
+          ...state.sessions,
+          [id(1)]: { ...state.sessions[id(1)], standing_role_id: "test-role" },
+        },
+      }));
+      await warm(convex);
+      clearProtectedInboxMemory();
+    }
+    expect(calls).toEqual([
+      "conversations:getConversation",
+      "conversations:getConversation",
+    ]);
+  } finally {
+    restore();
+  }
+});
+
+test("an account reset retries a delta for the same server count", async () => {
+  const restore = resetFixture();
+  const calls: string[] = [];
+  const convex = {
+    query: async (fn: Parameters<typeof getFunctionName>[0]) => {
+      calls.push(getFunctionName(fn));
+      return { messages: [message(1024, 2)], has_more: false };
+    },
+  };
+  try {
+    seed([1]);
+    await warm(fixture(1024).convex);
+    clearProtectedInboxMemory();
+    seed([1]);
+    useInboxStore.getState().setMessages(id(1), [message(1024)], {}, "cache");
+    await warm(convex);
+    expect(calls).toEqual(["conversations:getNewMessages"]);
+  } finally {
+    restore();
+  }
+});
+
+test.each(["hit", "miss"] as const)(
+  "a pending disk %s after account reset does not warm the old transcript",
+  async (result) => {
+    const restore = resetFixture();
+    const response = Promise.withResolvers<CachedConversation | null>();
+    const load = spyOn(
+      cacheStorage,
+      "loadConversationMessages",
+    ).mockImplementation(() => response.promise);
+    const write = spyOn(cacheStorage, "writeConversationMessages");
+    const query = {
+      query: async () => ({ page: [message(1024, 3)], isDone: true }),
+    };
+    const queried = spyOn(query, "query");
+    try {
+      seed([1]);
+      warmVisibleSessions(query);
+      expect(load).toHaveBeenCalledWith(id(1));
+      const hydration = ensureHydrated(id(1));
+      clearProtectedInboxMemory();
+      response.resolve(
+        result === "miss"
+          ? null
+          : {
+              messages: [message(1024, 2)],
+              pagination: { initialized: true, hasMoreAbove: false },
+              latestTimestamp: 2,
+            },
+      );
+      await hydration;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(queried).not.toHaveBeenCalled();
+      expect(write).not.toHaveBeenCalled();
+      expect(useInboxStore.getState().messages[id(1)]).toBeUndefined();
+    } finally {
+      response.resolve(null);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      write.mockRestore();
+      load.mockRestore();
       restore();
     }
   },

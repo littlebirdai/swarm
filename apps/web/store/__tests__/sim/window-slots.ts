@@ -358,8 +358,6 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
       "shared coarse-tick subscribers; sim windows tick their digest comparer by hand and subscribe none",
   },
   "hooks/inbox-warm.ts:lastPass": NO_WARM,
-  "hooks/inbox-warm.ts:syncedCount": NO_WARM,
-  "hooks/inbox-warm.ts:rowTried": NO_WARM,
   "hooks/inbox-warm.ts:loopRefs": NO_WARM,
   "hooks/inbox-warm.ts:stopLoop": NO_WARM,
   "hooks/useStorageImageUrl.ts:urlCache": IMAGE_URLS,
