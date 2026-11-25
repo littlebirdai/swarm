@@ -67,6 +67,41 @@ const save = (
   }) as any
 )._handler;
 
+test("a project move delivers one task update within its workspace", async () => {
+  const { ctx, db } = fixture();
+  const write = (
+    mutation({
+      args: {},
+      handler: async (ctx: any, args: any) =>
+        args.id
+          ? ctx.db.patch(args.id, { project_id: "p2" })
+          : ctx.db.insert("tasks", {
+              user_id: "owner",
+              workspace: "user:owner",
+              project_id: "p1",
+              status: "open",
+              title: "Task",
+            }),
+    }) as any
+  )._handler;
+  const id = await write(ctx, {});
+  await deliverAll(ctx);
+  await write(ctx, { id });
+  expect(db._tables.sync_outbox).toHaveLength(1);
+  await deliverAll(ctx);
+  const page = await readRangePage(db, "user:owner", 1, 1, undefined, {
+    cargo: true,
+  });
+  expect(page.actions).toHaveLength(1);
+  expect(page.actions[0]).toMatchObject({
+    entity_type: "tasks",
+    entity_id: id,
+    op: "upsert",
+    patch: { project_id: "p2" },
+  });
+  expect(page.hasMore).toBe(false);
+});
+
 async function deliverAll(ctx: any) {
   for (let i = 0; i < 20; i++) {
     const pending = (ctx.db._tables.sync_outbox ?? []).find(
