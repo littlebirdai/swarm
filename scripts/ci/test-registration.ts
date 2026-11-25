@@ -14,6 +14,7 @@ export function registersTest(file: string, text: string): boolean {
   const bindings = new Map<ts.Node, Map<string, ts.Expression>>();
   const runners = new Set<string>();
   const namespaces = new Set<string>();
+  const effectRunners = new Set<string>();
   const helpers = new Set<string>();
 
   function collect(node: ts.Node) {
@@ -35,6 +36,14 @@ export function registersTest(file: string, text: string): boolean {
           if (TEST_MODULES.has(module) && TEST_NAMES.has(name))
             runners.add(spec.name.text);
           if (REGISTRATION_HELPERS.has(name)) helpers.add(spec.name.text);
+          if (
+            module === "@codecast/effect-kit/effect/testing" &&
+            name === "it" &&
+            !clause?.isTypeOnly &&
+            !spec.isTypeOnly
+          ) {
+            effectRunners.add(spec.name.text);
+          }
         }
       }
     }
@@ -101,6 +110,9 @@ export function registersTest(file: string, text: string): boolean {
         (ts.isIdentifier(node.expression) &&
           namespaces.has(node.expression.text) &&
           TEST_NAMES.has(member)) ||
+        (member === "effect" &&
+          ts.isIdentifier(node.expression) &&
+          effectRunners.has(node.expression.text)) ||
         (TEST_MODIFIERS.has(member) && isRunner(node.expression, aliases))
       );
     }

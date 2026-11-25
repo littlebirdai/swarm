@@ -50,6 +50,44 @@ Typecheck with `cast check`; never run `tsc --noEmit` yourself. This tree's prog
 
 A watcher built while other sessions were editing several packages keeps checking the half-written tree it first saw: it reports "has no exported member 'X'" for exports present on disk (once 9 errors in `cli` and 25 in `mobile` while `convex` was clean on the same files). When a check is red with errors nobody wrote, confirm the code on disk, then run `cast check <project> --fresh` before changing anything.
 
+## Effect 4
+
+Use Effect in the owned-process packages `effect-kit`, `edge-client`,
+`provider-adapter`, `delivery`, `edge-supervisor`, `relay`, `ext-host`, and
+`ext-runner` under `packages/`, and in the planned `relay` app under `apps/`.
+This applies to their tests too. Use plain TypeScript everywhere else, including
+Convex, web, mobile, desktop, the CLI, and shared contracts and reducers.
+
+Use the root Bun catalog's exact `effect` pin. When starting a new Effect
+package, check npm and update the pin and lockfile to the newest stable 4.x.
+Skip prereleases. Read the installed Effect guide at
+`packages/effect-kit/node_modules/effect/AGENTS.md` and check the declarations
+in its `dist/` directory. Import from module subpaths such as `effect/Effect`.
+Use only exports marked `@stability stable` in the pinned release. Name the
+exports in imports or access them by their literal names on a namespace import.
+Oxlint checks the package boundary and the barrel ban. The guards under
+`packages/ratchet/test` check dependency manifests, export stability, and the
+declarations of public entry points. The import rule catches accidental
+imports. Deliberately obscured calls can bypass it. Dependency manifest and
+bundle checks enforce separate boundaries.
+
+Define services with `Context.Service` and implement them with `Layer.effect`.
+Use `Effect.fn("name")` for service functions. Use `Effect.catch` for recoverable
+errors, `Effect.result` to return a typed outcome, and `forkChild`, `forkScoped`,
+`forkIn`, or `forkDetach` for the intended fiber lifetime. Use
+`Schema.decodeUnknownEffect` to decode an Effect schema, `Schema.TaggedError` for
+schema-backed errors, and `Data.TaggedError` for internal errors. Use
+`Schedule.upTo`, `Schedule.max`, `Schedule.min`, and `Schedule.modifyDelay` to set
+retry limits and delays.
+
+Expose services and layers on the package's `/effect` subpath for use inside the
+Effect zone. When plain callers need the package, expose a Promise facade at
+the package root with plain TypeScript inputs and outputs. Use `makeFacade`
+from `@codecast/effect-kit/effect` to run calls on one `ManagedRuntime`, forward
+each caller's abort signal, and release layer resources on disposal. Use
+`it.effect` from `@codecast/effect-kit/effect/testing` for scoped Bun tests with
+`TestClock`.
+
 ## Lint
 
 Run `bun run lint` from the root of the repository. Oxlint examines the full repository, except `platform/` (the vendored mirror), generated files and build output. The list is `ignorePatterns` in `.oxlintrc.json`.

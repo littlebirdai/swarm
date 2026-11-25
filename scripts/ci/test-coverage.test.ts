@@ -165,6 +165,8 @@ test.each([
   "test.each([1])",
   'function unused() { test("case", () => {}); }',
   'unlistedHelper("case", () => {})',
+  'import { it } from "./other"; it.effect("case", () => {});',
+  'import type { it } from "@codecast/effect-kit/effect/testing"; it.effect("case", () => {});',
 ])("does not find a registered test in %s", (text) => {
   expect(registersTest("case.test.ts", text)).toBe(false);
 });
@@ -177,6 +179,7 @@ test.each([
   'test.skipIf(guard)("case", () => {})',
   'const conditional = guard ? test : test.skip; conditional("case", () => {});',
   'const cliTest = (name, body) => test(name, body); cliTest("case", () => {});',
+  'import { it as check } from "@codecast/effect-kit/effect/testing"; check.effect("case", () => {});',
   'import { granted as check } from "./test-helper"; check("case", () => {});',
 ])("finds a registered test in %s", (text) => {
   expect(registersTest("case.test.ts", text)).toBe(true);
