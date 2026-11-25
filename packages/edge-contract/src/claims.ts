@@ -1,6 +1,7 @@
 import {
   count,
   nonEmptyString,
+  optional,
   object,
   oneOf,
   parser,
@@ -30,6 +31,7 @@ const claimResponse = response(
       ...fence,
       lease_ms: positiveInteger,
       last_pane_instance: count,
+      last_event_seq: optional(count),
     }),
     busy: responseObject({
       v: readV1,

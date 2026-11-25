@@ -590,6 +590,26 @@ describe("permits and claims", () => {
     }
   });
 
+  test("a granted claim can carry a non-negative safe event cursor", () => {
+    expectParsed(edge.parseClaimResponse(claim.response), claim.response);
+    for (const last_event_seq of [0, 17, Number.MAX_SAFE_INTEGER]) {
+      const response = { ...claim.response, last_event_seq };
+      expectParsed(edge.parseClaimResponse(response), response);
+    }
+    for (const last_event_seq of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expectParseError(
+        edge.parseClaimResponse({ ...claim.response, last_event_seq }),
+        "invalid_value",
+        "$.last_event_seq",
+      );
+    }
+    expectParseError(
+      edge.parseClaimResponse({ ...claim.response, last_event_seq: "17" }),
+      "invalid_type",
+      "$.last_event_seq",
+    );
+  });
+
   test.each([
     ["claim", claim.response, edge.parseClaimResponse],
     ["renew", renew.response, edge.parseRenewResponse],
