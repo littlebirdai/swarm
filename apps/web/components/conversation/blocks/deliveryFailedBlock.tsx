@@ -4,7 +4,7 @@
 // sent again as a new message.
 import { useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, Zap } from "lucide-react";
-import { parseScheduledTask } from "@codecast/shared/contracts";
+import { parseScheduledTask } from "@codecast/messages/machineMessages";
 import type { DeliveryFailedNotice } from "@codecast/sessions/deliveryFailed";
 import { useInboxStore } from "../../../store/inboxStore";
 import { EntityIdPill } from "../../EntityIdPill";

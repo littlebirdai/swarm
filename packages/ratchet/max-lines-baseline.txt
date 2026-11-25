@@ -773,6 +773,7 @@ packages/goals/test/initiativeRecord.test.ts 900
 packages/goals/test/metricStanding.test.ts 1100
 packages/ingest/src/ingest.ts 1100
 packages/keyboard/src/shortcutCatalog.ts 1550
+packages/messages/src/machineMessages.ts 1200
 packages/mods/src/authoring.d.ts 900
 packages/mods/src/mods.ts 900
 packages/org/src/orgChange.ts 1450
@@ -795,10 +796,9 @@ packages/shared/contracts/expectations.ts 900
 packages/shared/contracts/inboxProjection.test.ts 1700
 packages/shared/contracts/inboxProjection.ts 1900
 packages/shared/contracts/judges.test.ts 1050
-packages/shared/contracts/machineMessages.ts 1200
 packages/shared/contracts/secrets.test.ts 850
 packages/shared/contracts/secrets.ts 1300
-packages/shared/contracts/snippets.ts 2050
 packages/shared/tasks/graph.test.ts 1300
 packages/shared/tasks/graph.ts 1300
+packages/snippets/src/snippets.ts 2050
 packages/usage/src/usageLimits.ts 850

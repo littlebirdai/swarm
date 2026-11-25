@@ -7,8 +7,8 @@ import { internalQuery, mutation } from "./functions";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { vendorRefusalFromDb } from "./lib/vendorGuard";
-import { stripInjectionNoise } from "@codecast/shared/contracts";
-import { parseJointMessage } from "@codecast/shared/contracts/jointMessage";
+import { stripInjectionNoise } from "@codecast/messages/machineMessages";
+import { parseJointMessage } from "@codecast/messages/jointMessage";
 import {
   isMachineCarrierText,
   type SuggestionOutcome,

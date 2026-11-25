@@ -19,7 +19,7 @@ import { markRead } from "./threads";
 import {
   formatDecisionDiscussion,
   parseDecisionDiscussion,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 
 // A decision's team thread (decisionThread.ts): comments are review_comments
 // rows anchored by decision_id alone; people write them, and a session

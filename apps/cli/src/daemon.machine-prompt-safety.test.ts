@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import ts from "typescript";
-import { isMachineDeliveredMessage } from "../../../packages/shared/contracts/machineMessages";
+import { isMachineDeliveredMessage } from "@codecast/messages/machineMessages";
 import {
   AGENT_CLIENTS,
   localAgentClient,
@@ -51,7 +51,10 @@ import {
 } from "./tmuxDeliveryJournal";
 import { DeliveryEchoLedger } from "./deliveryEchoLedger";
 import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
-import { stampDeliveryId, withoutDeliveryId } from "@codecast/shared/contracts";
+import {
+  stampDeliveryId,
+  withoutDeliveryId,
+} from "@codecast/messages/machineMessages";
 import { parseTranscriptFor } from "./parser";
 import {
   DELIVERY_FAILED_SUBTYPE,

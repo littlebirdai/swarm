@@ -7,7 +7,7 @@ import { useInboxStore } from "../store/inboxStore";
 import { useWatchEffect } from "./useWatchEffect";
 import type { PresenceRow } from "./useDocPresence";
 import { composeDocId } from "../lib/composerPresence";
-import { formatJointMessage } from "@codecast/shared/contracts/jointMessage";
+import { formatJointMessage } from "@codecast/messages/jointMessage";
 import {
   draftAfterClaim,
   jointCandidatesOf,

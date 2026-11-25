@@ -18,7 +18,7 @@ import {
   guideText,
   guideTopics,
   snippetBySlug,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import { didYouMean, nearMatches } from "./commandSuggestion.js";
 import { DAEMON_BUILD_ID } from "./daemonBuildId.js";
 import { getVersion } from "./update.js";

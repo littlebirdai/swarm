@@ -21,7 +21,7 @@ import { describe, expect, test } from "bun:test";
 import { Command } from "commander";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { renderSectionBody, snippetBySlug } from "@codecast/shared/contracts";
+import { renderSectionBody, snippetBySlug } from "@codecast/snippets/snippets";
 import { registerComputerCommand } from "./cli.js";
 import { isComputerErrorCode } from "./errors.js";
 import { guidanceSectionStatus } from "../snippets.js";

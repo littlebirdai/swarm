@@ -14,7 +14,7 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
-import { formatUserMessage } from "@codecast/shared/contracts";
+import { formatUserMessage } from "@codecast/messages/machineMessages";
 import { guestDisplayName } from "@codecast/calls/callGuests";
 import { checkConversationAccess } from "./privacy";
 import {

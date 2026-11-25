@@ -7,7 +7,7 @@ import {
   STABLE_ENV_EXCLUDE,
   STABLE_ENV_GLOBAL,
   STABLE_ENV_MODE,
-} from "./stableContext";
+} from "../src/stableContext";
 
 describe("resolveStableLaunch", () => {
   test("session environment overrides machine defaults", () => {

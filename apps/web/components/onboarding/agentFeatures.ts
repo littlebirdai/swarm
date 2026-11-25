@@ -1,6 +1,6 @@
 // Turning agent features on from the web: once for the machines online now,
 // or kept for the first machine to connect (usePendingAgentFeatures).
-import type { SnippetDescriptor } from "@codecast/shared/contracts";
+import type { SnippetDescriptor } from "@codecast/snippets/snippets";
 import { useInboxStore } from "../../store/inboxStore";
 import { snippetEnabledOn } from "../../lib/newSnippets";
 import type { Device } from "../DeviceBadge";

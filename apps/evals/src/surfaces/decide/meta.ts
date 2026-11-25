@@ -9,7 +9,7 @@ export const meta: SurfaceMeta = {
   model: PROD_DEFAULT_MODEL,
   sources: surfaceSources(
     "decide",
-    "packages/shared/contracts/snippets.ts",
+    "packages/snippets/src/snippets.ts",
     "apps/cli/src/decideCommand.ts",
   ),
   reps: { check: 5 },

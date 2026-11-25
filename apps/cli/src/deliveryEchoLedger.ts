@@ -28,7 +28,7 @@ import {
   deliveryIdsOf,
   stripPastedContent,
   withoutDeliveryFrames,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { defaultConfigDir } from "./config/configDir.js";
 import { redactSecrets } from "./redact.js";
 

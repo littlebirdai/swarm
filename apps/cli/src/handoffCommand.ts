@@ -12,7 +12,7 @@ import {
   toConvexAgentType,
   type ConvexAgentType,
 } from "@codecast/agent-clients/agentClients";
-import { describeAgentRun } from "@codecast/shared/contracts";
+import { describeAgentRun } from "@codecast/messages/handoffPrompt";
 
 export interface HandoffFlags {
   to?: string;

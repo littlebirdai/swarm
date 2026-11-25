@@ -33,7 +33,7 @@ import type {
 } from "@codecast/triggers/triggerPrecheck";
 import type { OpenTaskReport } from "@codecast/sessions/openTasks";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";
-import { withoutDeliveryId } from "@codecast/shared/contracts";
+import { withoutDeliveryId } from "@codecast/messages/machineMessages";
 import { argumentValidationProblem } from "@codecast/convex-errors/convexErrors";
 import type { DeliveryEchoLedger } from "./deliveryEchoLedger.js";
 import {

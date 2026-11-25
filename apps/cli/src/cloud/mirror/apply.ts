@@ -26,7 +26,7 @@ import {
   type ParsedBundle,
   type ParsedFile,
 } from "./bundle.js";
-import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
+import { SNIPPET_CATALOG } from "@codecast/snippets/snippets";
 import { isAgentRuntimePath, isDefaultExcluded } from "./discovery.js";
 import {
   dropCodecastHooks,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseJointMessage } from "@codecast/shared/contracts/jointMessage";
+import { parseJointMessage } from "@codecast/messages/jointMessage";
 import {
   armJointSend,
   composeJointTurn,

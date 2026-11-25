@@ -156,7 +156,7 @@ import {
   resolveRestartTarget,
 } from "./conversations";
 import { performReparentSessionToDevice } from "./devices";
-import { isBootstrapPrompt } from "@codecast/shared/contracts";
+import { isBootstrapPrompt } from "@codecast/messages/machineMessages";
 import {
   normalizeThreadState,
   parseThreadStateStatus,

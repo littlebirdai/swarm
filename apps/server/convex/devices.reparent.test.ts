@@ -6,7 +6,7 @@ import {
   reassignToDevice,
 } from "./devices";
 import { MACHINE_SWITCH_NOTICE_PREFIX } from "@codecast/machines/machineSwitch";
-import { MOVE_INTERRUPT_MESSAGE } from "@codecast/shared/contracts";
+import { MOVE_INTERRUPT_MESSAGE } from "@codecast/messages/machineMessages";
 
 // Cross-user device reparent: an OWNER pulls a session run by a TEAMMATE onto
 // their OWN machine. Account follows device (user_id -> caller), the immutable

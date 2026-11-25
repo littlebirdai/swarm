@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { FEATURE_EXPLAINERS } from "@codecast/shared/contracts";
+import { FEATURE_EXPLAINERS } from "@codecast/snippets/featureExplainers";
 import { VIGNETTE_SLUGS } from "./FeatureVignette";
 
 test("every explained agent feature has a picture", () => {

@@ -10,7 +10,7 @@ import * as path from "node:path";
 import {
   REFERENCES_SNIPPET,
   SNIPPET_CATALOG,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import { findOwnedSections } from "@platform/snippets";
 import { applyMirrorBundle, readStamp } from "./apply";
 import {

@@ -7,7 +7,7 @@
 import { afterEach, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { MID_WORK_REVIVE_MESSAGE } from "@codecast/shared/contracts";
+import { MID_WORK_REVIVE_MESSAGE } from "@codecast/messages/machineMessages";
 import { ClaudeSdkBackend, type ClaudeSdkBackendDeps } from "./backend.js";
 import { readHostState } from "./client.js";
 import { fakeWorld, until, type FakeWorld } from "./testing/harness.js";

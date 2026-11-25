@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { createHash } from "node:crypto";
-import { withoutDeliveryId } from "@codecast/shared/contracts";
+import { withoutDeliveryId } from "@codecast/messages/machineMessages";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { defaultConfigDir } from "./config/configDir.js";

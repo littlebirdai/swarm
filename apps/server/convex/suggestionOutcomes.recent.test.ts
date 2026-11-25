@@ -8,7 +8,7 @@ import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api, internal } from "./_generated/api";
 import { typedPart } from "./suggestionOutcomes";
-import { formatJointMessage } from "@codecast/shared/contracts/jointMessage";
+import { formatJointMessage } from "@codecast/messages/jointMessage";
 import type { Id } from "./_generated/dataModel";
 import { allModules } from "./testModules.testkit";
 

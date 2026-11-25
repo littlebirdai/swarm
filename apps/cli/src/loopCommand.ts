@@ -1,4 +1,4 @@
-// `cast loop`: a session's goal loop (convex sessionGoals.ts, shared/contracts/sessionGoal).
+// `cast loop`: a session's goal loop (convex sessionGoals.ts, packages/messages/src/sessionGoal.ts).
 // `cast goal` is the company's goals (initiatives), so the session's own goal
 // lives under the loop it drives. The composer's /goal and the goal bar above
 // it write the same row.
@@ -14,7 +14,7 @@ import {
   GOAL_MAX_STALLS,
   goalObjectiveProblem,
   type SessionGoal,
-} from "@codecast/shared/contracts/sessionGoal";
+} from "@codecast/messages/sessionGoal";
 
 const STATE_WORD: Record<SessionGoal["status"], string> = {
   active: "running",

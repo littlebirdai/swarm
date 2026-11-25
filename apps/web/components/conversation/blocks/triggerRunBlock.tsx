@@ -7,10 +7,10 @@ import { ChevronDown, ChevronRight, CornerDownLeft, Zap } from "lucide-react";
 import {
   WORKER_SETTLE_WORDS,
   parseScheduledTask,
-  withoutStashedRunNote,
   type ScheduledTaskFrame,
   type WaitingSession,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
+import { withoutStashedRunNote } from "@codecast/shared/contracts";
 import { roleCardInitiativeLine } from "@codecast/org/roleCard";
 import { AREA_STATUS_WORDS } from "@codecast/org/orgAreas";
 import { ShortcutTooltip } from "../../KeyboardShortcutsHelp";

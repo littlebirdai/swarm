@@ -19,7 +19,7 @@ import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   isToolResultCarrier,
   parseWorkflowHarnessFrame,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { callModel, CHEAP_MODEL, type SurfaceRequest } from "./lib/anthropic";
 import { earlierTitlesAfter } from "./searchCore";
 import { redactSecrets } from "./redact";

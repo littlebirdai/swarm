@@ -4,7 +4,7 @@ import {
   parseAnyCapabilitySlug,
   parseCapabilitySlug,
 } from "@codecast/capabilities/capabilities";
-import { SNIPPET_CATALOG } from "./snippets";
+import { SNIPPET_CATALOG } from "../src/snippets";
 
 // The namespace's one structural promise: a third party can never render a slug
 // in `builtin/`, so nothing a marketplace publishes can claim a builtin's

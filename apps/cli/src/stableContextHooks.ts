@@ -15,8 +15,8 @@ import {
   STABLE_ENV_GLOBAL,
   STABLE_ENV_MODE,
   type StableLaunchPrefs,
-  type StableMode,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/stableContext";
+import { type StableMode } from "@codecast/snippets/snippets";
 import { type AgentClientId } from "@codecast/agent-clients/agentClients";
 import { STABLE_FEED_HOOK_FILE } from "./codecastOwned.js";
 import { defaultConfigDir, HOOK_STATE_DIR } from "./config/configDir.js";

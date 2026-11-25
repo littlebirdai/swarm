@@ -32,7 +32,7 @@ import { trustOf } from "./lib/orgCaps";
 import {
   isToolResultCarrier,
   parseUserMessage,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import {
   compareVersions,
   type OrgTemplate,

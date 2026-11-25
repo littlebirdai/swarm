@@ -50,10 +50,12 @@ import {
   runParentOf,
   runResultThreadOf,
   triggerRunFrame,
-  formatScheduledTask,
   type RunOutcome,
-  type WaitingSession,
 } from "@codecast/shared/contracts";
+import {
+  formatScheduledTask,
+  type WaitingSession,
+} from "@codecast/messages/machineMessages";
 import { normalizeThreadState } from "@codecast/sessions/threadState";
 import { type RoleCard } from "@codecast/org/roleCard";
 import {
@@ -138,11 +140,9 @@ export {
   cancelTasksOriginatingFrom,
   reactivateTasksCanceledOnKill,
 };
-
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_MAX_RUNTIME_MS = 10 * 60 * 1000; // 10 min
 const LEASE_DURATION_MS = 5 * 60 * 1000; // 5 min
-
 function offCadence(
   task: Doc<"agent_tasks">,
   runAt: number,

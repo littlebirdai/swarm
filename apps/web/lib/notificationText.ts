@@ -3,12 +3,12 @@ import {
   ANSI_RE,
   stripMachineText,
   stripMarkdown,
-} from "@codecast/shared/contracts/plainText";
+} from "@codecast/messages/plainText";
 
 export {
   cleanNotificationBody,
   stripMarkdown,
-} from "@codecast/shared/contracts/plainText";
+} from "@codecast/messages/plainText";
 
 /**
  * A session's last_message_preview is a raw transcript slice, so it can carry

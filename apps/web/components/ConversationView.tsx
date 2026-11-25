@@ -117,9 +117,11 @@ import {
 import {
   isModelSwitchStdout,
   isRecoveryContinueClientId,
+} from "@codecast/shared/contracts";
+import {
   isMidWorkReviveNotice,
   isMoveInterruptNotice,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { isForkSeedClientId } from "@codecast/sessions/forkSeed";
 import {
   hostedApprovalAnswer,
@@ -159,7 +161,7 @@ import {
   goalMessageBody,
   parseGoalCommand,
   sessionGoalOf,
-} from "@codecast/shared/contracts/sessionGoal";
+} from "@codecast/messages/sessionGoal";
 import { SessionGoalPill } from "./SessionGoalPill";
 import {
   ConsequentialSwitch,
@@ -1980,7 +1982,7 @@ const ConversationViewInner = function ConversationView(
   const populateInputRef = useRef<
     ((text: string, opts?: { append?: boolean }) => void) | null
   >(null);
-  // `/goal` in the composer (shared/contracts/sessionGoal parseGoalCommand):
+  // `/goal` in the composer (packages/messages/src/sessionGoal.ts parseGoalCommand):
   // setting or resuming opens the consequential review, and the typed text
   // stays in the composer until the person confirms; pause, clear and show
   // act at once.

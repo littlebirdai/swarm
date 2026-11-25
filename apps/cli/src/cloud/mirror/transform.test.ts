@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   REFERENCES_SNIPPET,
   SNIPPET_CATALOG,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import { findOwnedSections } from "@platform/snippets";
 import {
   credentialContentReason,

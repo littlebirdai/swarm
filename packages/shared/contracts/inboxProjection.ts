@@ -14,7 +14,7 @@ import {
   STATUS_TRUST_TTL_MS,
   trustedAgentStatus,
 } from "@codecast/sessions/agentStatus";
-import { isMachineDeliveredMessage } from "./machineMessages";
+import { isMachineDeliveredMessage } from "@codecast/messages/machineMessages";
 import {
   isLoopFresh,
   LOOP_OVERDUE_GRACE_MS,

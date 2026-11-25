@@ -7,7 +7,7 @@ import {
   formatScheduledTask,
   isToolResultCarrier,
   parseUserMessage,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import {
   threadStateFreshness,
   threadStateHeadline,

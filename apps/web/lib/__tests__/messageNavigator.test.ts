@@ -25,7 +25,7 @@ import {
 import { stickyCommand } from "../../components/conversation/classify";
 import { NAV_ROW_SNIPPET_CHARS } from "@codecast/convex/convex/userMessagesFilter";
 import { formatSessionMessage } from "../../components/sessionMessage";
-import { MID_WORK_REVIVE_MESSAGE } from "@codecast/shared/contracts";
+import { MID_WORK_REVIVE_MESSAGE } from "@codecast/messages/machineMessages";
 
 const msg = (id: string, content: string, timestamp = 0) => ({
   _id: id,

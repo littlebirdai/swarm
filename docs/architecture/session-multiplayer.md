@@ -15,7 +15,7 @@ One row per person, written by `docSync.updatePresence` only while someone else 
 
 Surfaces reading presence: `CollabPresenceBar` (one-line strip, "Send together" button), `GhostDrafts` (each other person's full draft at the transcript tail, with accept buttons on suggestions), `ReadingMarks`. Only `useComposerPresence` broadcasts; the others use the read-only `usePresenceRows`.
 
-## Joint turns: `shared/contracts/jointMessage.ts`
+## Joint turns: `messages/src/jointMessage.ts`
 
 A turn written by several people is consecutive `<user-message from="Name">` parts, the same wrapper a single direct send uses, so the agent reads one instruction that names every author. `classify.ts` turns it into one `direct_user` bubble naming all authors and `JointParts` draws each part under its name.
 
@@ -32,4 +32,4 @@ A turn written by several people is consecutive `<user-message from="Name">` par
 
 ## Testing with two people
 
-`cast app as-user` only re-signs the desktop app. Two people in one Chrome: run a second origin (`127.0.0.1` beside `localhost`, separate storage), mint a session with `apps/server/run.sh verification:mintSession '{"email":…}'`, set the two `__convexAuth*` localStorage keys, and join by share link. Background tabs stall timers and animation frames, so presence heartbeats and reading anchors lag there; a Web Worker clock calling `updatePresence` stands in during a test. Unit tests: `shared/contracts/jointMessage.test.ts`, `web/lib/jointSend.test.ts`, `web/lib/sharedQueue.test.ts`, `web/store/__tests__/sharedQueueSync.test.ts`, `convex/pendingMessages.sharedQueue.test.ts`.
+`cast app as-user` only re-signs the desktop app. Two people in one Chrome: run a second origin (`127.0.0.1` beside `localhost`, separate storage), mint a session with `apps/server/run.sh verification:mintSession '{"email":…}'`, set the two `__convexAuth*` localStorage keys, and join by share link. Background tabs stall timers and animation frames, so presence heartbeats and reading anchors lag there; a Web Worker clock calling `updatePresence` stands in during a test. Unit tests: `messages/test/jointMessage.test.ts`, `web/lib/jointSend.test.ts`, `web/lib/sharedQueue.test.ts`, `web/store/__tests__/sharedQueueSync.test.ts`, `convex/pendingMessages.sharedQueue.test.ts`.

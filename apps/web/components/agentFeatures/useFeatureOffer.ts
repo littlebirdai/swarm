@@ -12,7 +12,7 @@ import { snippetAvailableForTeams } from "@codecast/policy/teamFeatures";
 import {
   snippetBySlug,
   type SnippetDescriptor,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import { useInboxStore } from "../../store/inboxStore";
 import { deviceDisplayName, useDevices, type Device } from "../DeviceBadge";
 import { snippetEnabledOn, snippetIntroKey } from "../../lib/newSnippets";

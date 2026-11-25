@@ -7,7 +7,7 @@ import {
 } from "./agentPromptOrigin";
 import { parseCodexSessionFile } from "./parser";
 import { parseInboundSessionMessage } from "../../../apps/web/components/sessionMessage";
-import { isMachineDeliveredMessage } from "@codecast/shared/contracts";
+import { isMachineDeliveredMessage } from "@codecast/messages/machineMessages";
 
 const parent = "jx7297y2rfkpskb14mgbsjm5e58dv709";
 const knownParents = new Set([parent]);

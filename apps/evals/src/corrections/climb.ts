@@ -30,8 +30,8 @@ import { actionsOf } from "../surfaces/guidance";
 
 /** The source files the guidance renders from: an edit's text must sit in exactly one place across them. */
 export const GUIDANCE_SOURCES = [
-  "packages/shared/contracts/snippets.ts",
-  "packages/shared/contracts/snippetsWorkflow.ts",
+  "packages/snippets/src/snippets.ts",
+  "packages/snippets/src/snippetsWorkflow.ts",
 ];
 
 /** Rendered text as it is written inside a template literal. */
@@ -228,7 +228,7 @@ export interface Rendered {
   sectionsOver: string[];
 }
 
-const RENDER = `import { renderGuidanceFile, guideTopics, GUIDANCE_MAX_CHARS, GUIDANCE_SECTION_MAX_CHARS } from './packages/shared/contracts/snippets';
+const RENDER = `import { renderGuidanceFile, guideTopics, GUIDANCE_MAX_CHARS, GUIDANCE_SECTION_MAX_CHARS } from './packages/snippets/src/snippets';
 process.stdout.write(JSON.stringify({ text: renderGuidanceFile('full', 'eval'), size: renderGuidanceFile('full', '0.0.0').length, max: GUIDANCE_MAX_CHARS, sectionsOver: guideTopics().filter((t) => t.section.body.length >= GUIDANCE_SECTION_MAX_CHARS).map((t) => t.slug) }));`;
 
 /** The guidance as the tree renders it now, and its size against the budget, from a fresh process (this one imported the sources before any edit). */

@@ -11,7 +11,7 @@ export const meta: SurfaceMeta = {
     "apps/server/convex/handoff.ts",
     "apps/server/convex/idleSummary.ts",
     "apps/server/convex/titleGeneration.ts",
-    "packages/shared/contracts/handoffPrompt.ts",
+    "packages/messages/src/handoffPrompt.ts",
     "apps/server/convex/lib/anthropic.ts",
   ),
   reps: { check: 5 },

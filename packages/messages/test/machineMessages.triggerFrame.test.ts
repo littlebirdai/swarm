@@ -3,7 +3,7 @@ import {
   formatScheduledTask,
   parseScheduledTask,
   type ScheduledTaskFrame,
-} from "./machineMessages";
+} from "../src/machineMessages";
 
 describe("the trigger run frame", () => {
   test("a role's run carries its card and the waiting session, and reads back whole", () => {

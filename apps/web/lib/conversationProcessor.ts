@@ -1,11 +1,13 @@
 import { SYSTEM_MESSAGE_PREFIXES } from "./sessionFilters";
 import {
   classifyApiErrorBanner,
+  isAgentSwitchNotice,
+} from "@codecast/shared/contracts";
+import {
   isAgentContextMessage,
   isCompactionSummaryMessage,
-  isAgentSwitchNotice,
   stripMentionContext,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { isMachineSwitchNotice } from "@codecast/machines/machineSwitch";
 import { parseSlashCommand } from "@codecast/agent-clients/slashCommand";
 import {

@@ -5,12 +5,14 @@ import { AGENT_SETUP_CONTINUE_MESSAGE } from "@codecast/capabilities/agentToolSe
 import {
   huddleExcerptNote,
   isHuddleFeedNotice,
+  parseDecisionAnswer,
+} from "@codecast/shared/contracts";
+import {
   isMachineDeliveredMessage,
   parseTaskCommentMessage,
-  parseDecisionAnswer,
   parseUserMessage,
   stripMentionContext,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { isTestArtifactPath } from "@codecast/agent-clients/testArtifacts";
 import {
   isStickyEligible,

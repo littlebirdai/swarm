@@ -1,4 +1,4 @@
-// Synthetic turn fixtures for the session goal judge (shared/contracts/sessionGoal.ts),
+// Synthetic turn fixtures for the session goal judge (messages/src/sessionGoal.ts),
 // shaped like the messages table rows a Claude Code session syncs: assistant
 // rows with text and tool_calls, tool results on user rows. Each names the
 // verdict a careful reviewer gives. Run by scripts/goal-judge-eval.ts.
@@ -6,7 +6,7 @@ import {
   formatGoalMessage,
   type GoalEvidenceMessage,
   type GoalVerdictKind,
-} from "@codecast/shared/contracts/sessionGoal";
+} from "@codecast/messages/sessionGoal";
 
 export interface GoalJudgeFixture {
   name: string;

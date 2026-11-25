@@ -29269,6 +29269,51 @@
   "packages/memory/src/index.ts": {
     "swarm/no-comments": 36
   },
+  "packages/messages/src/handoffPrompt.ts": {
+    "swarm/no-comments": 34
+  },
+  "packages/messages/src/jointMessage.ts": {
+    "swarm/no-comments": 10
+  },
+  "packages/messages/src/machineMessages.ts": {
+    "swarm/no-comments": 247
+  },
+  "packages/messages/src/messagingPolicy.ts": {
+    "swarm/no-comments": 13
+  },
+  "packages/messages/src/orgWhere.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/messages/src/plainText.ts": {
+    "swarm/no-comments": 9
+  },
+  "packages/messages/src/redirectWords.ts": {
+    "swarm/no-comments": 1
+  },
+  "packages/messages/src/sendArrival.ts": {
+    "swarm/no-comments": 26
+  },
+  "packages/messages/src/sessionEscalation.ts": {
+    "swarm/no-comments": 31
+  },
+  "packages/messages/src/sessionGoal.ts": {
+    "swarm/no-comments": 53
+  },
+  "packages/messages/test/machineMessages.bootstrap.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/messages/test/machineMessages.compactionSummary.test.ts": {
+    "swarm/no-comments": 3
+  },
+  "packages/messages/test/machineMessages.escalation.test.ts": {
+    "swarm/no-comments": 4
+  },
+  "packages/messages/test/machineMessages.stripFastPath.test.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/messages/test/machineMessages.userMessage.test.ts": {
+    "swarm/no-comments": 3
+  },
   "packages/mods/src/authoring.d.ts": {
     "swarm/no-comments": 86
   },
@@ -29791,9 +29836,6 @@
   "packages/shared/contracts/capabilityResolver.ts": {
     "swarm/no-comments": 100
   },
-  "packages/shared/contracts/capabilitySlug.test.ts": {
-    "swarm/no-comments": 7
-  },
   "packages/shared/contracts/causeHistory.ts": {
     "swarm/no-comments": 146
   },
@@ -29839,14 +29881,8 @@
   "packages/shared/contracts/expectations.ts": {
     "swarm/no-comments": 61
   },
-  "packages/shared/contracts/featureExplainers.ts": {
-    "swarm/no-comments": 12
-  },
   "packages/shared/contracts/flowMap.ts": {
     "swarm/no-comments": 49
-  },
-  "packages/shared/contracts/handoffPrompt.ts": {
-    "swarm/no-comments": 34
   },
   "packages/shared/contracts/idleDigest.test.ts": {
     "swarm/no-comments": 2
@@ -29885,10 +29921,7 @@
     "swarm/no-comments": 27
   },
   "packages/shared/contracts/index.ts": {
-    "swarm/no-comments": 26
-  },
-  "packages/shared/contracts/jointMessage.ts": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 24
   },
   "packages/shared/contracts/judgeFix.ts": {
     "swarm/no-comments": 45
@@ -29938,26 +29971,8 @@
   "packages/shared/contracts/lineWords.ts": {
     "swarm/no-comments": 15
   },
-  "packages/shared/contracts/machineMessages.bootstrap.test.ts": {
-    "swarm/no-comments": 3
-  },
-  "packages/shared/contracts/machineMessages.compactionSummary.test.ts": {
-    "swarm/no-comments": 3
-  },
   "packages/shared/contracts/machineMessages.decisionAnswer.test.ts": {
     "swarm/no-comments": 11
-  },
-  "packages/shared/contracts/machineMessages.escalation.test.ts": {
-    "swarm/no-comments": 4
-  },
-  "packages/shared/contracts/machineMessages.stripFastPath.test.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/contracts/machineMessages.ts": {
-    "swarm/no-comments": 247
-  },
-  "packages/shared/contracts/machineMessages.userMessage.test.ts": {
-    "swarm/no-comments": 3
   },
   "packages/shared/contracts/mainRed.test.ts": {
     "swarm/no-comments": 2
@@ -29965,20 +29980,11 @@
   "packages/shared/contracts/mainRed.ts": {
     "swarm/no-comments": 39
   },
-  "packages/shared/contracts/messagingPolicy.ts": {
-    "swarm/no-comments": 13
-  },
   "packages/shared/contracts/metricSeries.test.ts": {
     "swarm/no-comments": 1
   },
   "packages/shared/contracts/modelCall.ts": {
     "swarm/no-comments": 19
-  },
-  "packages/shared/contracts/orgWhere.ts": {
-    "swarm/no-comments": 12
-  },
-  "packages/shared/contracts/plainText.ts": {
-    "swarm/no-comments": 9
   },
   "packages/shared/contracts/problemScore.ts": {
     "swarm/no-comments": 36
@@ -29988,9 +29994,6 @@
   },
   "packages/shared/contracts/proposalCard.ts": {
     "swarm/no-comments": 49
-  },
-  "packages/shared/contracts/redirectWords.ts": {
-    "swarm/no-comments": 1
   },
   "packages/shared/contracts/regretRates.test.ts": {
     "swarm/no-comments": 2
@@ -30015,27 +30018,6 @@
   },
   "packages/shared/contracts/secrets.ts": {
     "swarm/no-comments": 103
-  },
-  "packages/shared/contracts/sendArrival.ts": {
-    "swarm/no-comments": 26
-  },
-  "packages/shared/contracts/sessionEscalation.ts": {
-    "swarm/no-comments": 31
-  },
-  "packages/shared/contracts/sessionGoal.ts": {
-    "swarm/no-comments": 53
-  },
-  "packages/shared/contracts/snippets.test.ts": {
-    "swarm/no-comments": 16
-  },
-  "packages/shared/contracts/snippets.ts": {
-    "swarm/no-comments": 116
-  },
-  "packages/shared/contracts/snippetsWorkflow.ts": {
-    "swarm/no-comments": 6
-  },
-  "packages/shared/contracts/stableContext.ts": {
-    "swarm/no-comments": 20
   },
   "packages/shared/contracts/superseded.ts": {
     "swarm/no-comments": 44
@@ -30153,6 +30135,24 @@
   },
   "packages/signals/test/signalFingerprint.test.ts": {
     "swarm/no-comments": 5
+  },
+  "packages/snippets/src/featureExplainers.ts": {
+    "swarm/no-comments": 12
+  },
+  "packages/snippets/src/snippets.ts": {
+    "swarm/no-comments": 116
+  },
+  "packages/snippets/src/snippetsWorkflow.ts": {
+    "swarm/no-comments": 6
+  },
+  "packages/snippets/src/stableContext.ts": {
+    "swarm/no-comments": 20
+  },
+  "packages/snippets/test/capabilitySlug.test.ts": {
+    "swarm/no-comments": 7
+  },
+  "packages/snippets/test/snippets.test.ts": {
+    "swarm/no-comments": 16
   },
   "packages/team/src/directoryRules.ts": {
     "swarm/no-comments": 4

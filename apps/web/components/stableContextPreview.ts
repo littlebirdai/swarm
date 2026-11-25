@@ -1,8 +1,8 @@
 import {
   isExcludedStableItem,
-  type StableMode,
   type StableContextItem,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/stableContext";
+import { type StableMode } from "@codecast/snippets/snippets";
 
 function stableContextLimit(mode: Exclude<StableMode, "off">): number {
   return mode === "team" ? 15 : 10;

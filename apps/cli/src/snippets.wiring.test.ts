@@ -1,7 +1,7 @@
 /**
  * Every snippet in the catalog must be fully wired in the CLI.
  *
- * The catalog (packages/shared/contracts/snippets.ts) is shared by the CLI, the
+ * The catalog (packages/snippets/src/snippets.ts) is shared by the CLI, the
  * daemon heartbeat, and the web Settings page — but the CLI holds two lookup
  * tables that a new entry has to be added to by hand, and neither failure is
  * loud:
@@ -23,7 +23,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
+import { SNIPPET_CATALOG } from "@codecast/snippets/snippets";
 
 const indexSource = fs.readFileSync(
   path.join(import.meta.dir, "index.ts"),

@@ -771,7 +771,7 @@ the route it took, red only where it stopped.
 and its passing path (`Check → Review → Decide → Ship`, side routes counted).
 `cast flow show <slug>` prints each step, who does it, and where it sends the
 work, a fan-out's branches under it. The Workflows section of the agent
-instructions (`shared/contracts/snippetsWorkflow.ts`, also `cast guide
+instructions (`snippets/src/snippetsWorkflow.ts`, also `cast guide
 workflows`) carries the commands and the segment syntax. Session start adds
 one `<flows>` line naming the flows a session's own edits can run through,
 the default first: this checkout's and its mapped team's (`flowsLine` in `stableContext.ts`,

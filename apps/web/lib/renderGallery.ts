@@ -15,23 +15,25 @@ import {
   RUN_OPTION,
   runResultText,
 } from "@codecast/shared/contracts/commandRun";
-import { formatGoalMessage } from "@codecast/shared/contracts/sessionGoal";
+import { formatGoalMessage } from "@codecast/messages/sessionGoal";
+import { composeContextRecoveryPrompt } from "@codecast/messages/handoffPrompt";
 import {
-  composeContextRecoveryPrompt,
   formatAgentSwitchNotice,
   formatDecisionAnswer,
   formatVaultReady,
-  formatScheduledTask,
-  formatSessionMessage,
-  formatUserMessage,
   LIMIT_BANNER_PREFIX,
   SAFETY_BANNER_PREFIX,
   THROTTLE_BANNER_PREFIX,
   CLIENT_ERROR_BANNER_PREFIX,
+} from "@codecast/shared/contracts";
+import {
+  formatScheduledTask,
+  formatSessionMessage,
+  formatUserMessage,
   MID_WORK_REVIVE_MESSAGE,
   MOVE_INTERRUPT_MESSAGE,
   wrapMentionContext,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents";
 import { formatHuddleSummaryTag } from "@codecast/calls/huddleDigest";
 import {
@@ -43,7 +45,7 @@ import {
   DELIVERY_FAILED_SUBTYPE,
   formatDeliveryFailedNotice,
 } from "@codecast/sessions/deliveryFailed";
-import { formatJointMessage } from "@codecast/shared/contracts/jointMessage";
+import { formatJointMessage } from "@codecast/messages/jointMessage";
 import { LINE_FENCE_LANG } from "@codecast/shared/contracts/lineChat";
 import { FLOW_FENCE_LANG } from "./line/flowFence";
 import {

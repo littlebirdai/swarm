@@ -13,7 +13,7 @@ import { Check, Laptop } from "lucide-react";
 import {
   SNIPPET_CATEGORIES,
   type SnippetDescriptor,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
 import { useDevices, type Device } from "../DeviceBadge";
 import { SetupThisMachine } from "../EmptyState";
 import { snippetEnabledOn } from "../../lib/newSnippets";

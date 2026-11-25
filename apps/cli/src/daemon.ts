@@ -63,22 +63,28 @@ import {
 import { RESUME_BURST_SPACING_MS } from "@codecast/usage/usageLimits";
 import {
   SNIPPET_CATALOG,
+  type DeviceSnippetSettings,
+  snippetBySlug,
+} from "@codecast/snippets/snippets";
+import {
   STABLE_ENV_CONVERSATION_ID,
   STABLE_ENV_EXCLUDE,
   STABLE_ENV_MODE,
+  type StableLaunchPrefs,
+} from "@codecast/snippets/stableContext";
+import {
   classifyApiErrorBanner,
   isClaudeAutoContinueLine,
   isCodexSafetyError,
   isLocalCommandLine,
   isRecoveryContinueClientId,
   type ApiErrorBannerKind,
-  type DeviceSnippetSettings,
-  type StableLaunchPrefs,
+} from "@codecast/shared/contracts";
+import {
   isMachineDeliveredMessage,
-  snippetBySlug,
   stampDeliveryId,
   withoutDeliveryId,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { type ResourceProcess } from "@codecast/machines/systemResources";
 import { worktreeOfPath } from "@codecast/machines/worktrees";
 import { isHomeDirectoryPath } from "@codecast/machines/machineSwitch";
@@ -1243,7 +1249,6 @@ import {
 // history like any codecast write, so the history covers every change made
 // through codecast, not only the automatic ones.
 const EDITED_IN_CODECAST = { why: "edited in codecast", automatic: false };
-
 // Written when a person's Update button (force_update) replaced the binary;
 // read once by the next boot, so its refresh is attributed to that request.
 // A function, not a constant: this sits above CONFIG_DIR's declaration.
@@ -1257,7 +1262,6 @@ function consumeUpdateRequested(): boolean {
     return false;
   }
 }
-
 const ENRICHED_PATH = [
   process.env.PATH,
   "/opt/homebrew/bin",
@@ -1291,16 +1295,13 @@ const execAsync = (
     _activeChildren.add(child);
   });
 };
-
 // Drop inherited Claude session markers before SAFE_ENV is captured (see agentEnv.ts).
 scrubAgentEnv(process.env);
-
 const SAFE_ENV = { ...process.env, PATH: ENRICHED_PATH };
 // Sessions the daemon creates are its own, never the work of the agent whose
 // shell happened to start the daemon: tmux copies session ids from the
 // creating client (ensureTmuxCarriesSessionIds), so the daemon sends none.
 const TMUX_ENV = withoutSessionIds(SAFE_ENV);
-
 // tmux clients can wedge in a busy loop when their server dies mid-protocol,
 // and a wedged client ignores SIGTERM — leaving 100%-CPU zombies that survive
 // Node's exec timeout. Default to SIGKILL so a timeout actually reaps the process.

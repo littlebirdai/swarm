@@ -8,10 +8,8 @@
 
 import { ArrowUpRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  FEATURE_EXPLAINERS,
-  type SnippetDescriptor,
-} from "@codecast/shared/contracts";
+import { FEATURE_EXPLAINERS } from "@codecast/snippets/featureExplainers";
+import { type SnippetDescriptor } from "@codecast/snippets/snippets";
 import {
   Dialog,
   DialogContent,

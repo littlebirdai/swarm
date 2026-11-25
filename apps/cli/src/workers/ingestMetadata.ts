@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { stripPastedContent } from "@codecast/shared/contracts";
+import { stripPastedContent } from "@codecast/messages/machineMessages";
 import { INGEST_MAX_BYTES } from "./ingestTypes.js";
 import { parseSessionFile, type ParsedMessage } from "../parser.js";
 import { classifyMirrorTranscriptTail } from "../cloudAgents/transcript.js";

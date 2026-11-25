@@ -13,7 +13,7 @@
 // installed the chat snippet before the flag existed into line on its first
 // beat after the upgrade. A slug this binary's catalog does not know is
 // recorded but never acted on: the server may report features it does not ship.
-import { snippetBySlug } from "@codecast/shared/contracts";
+import { snippetBySlug } from "@codecast/snippets/snippets";
 import { planGatedSnippets as planGatedSnippetsWith } from "@platform/snippets";
 
 export type { GatedSnippetPlan } from "@platform/snippets";

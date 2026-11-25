@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { REDIRECT_PATTERN } from "./redirectWords";
+import { REDIRECT_PATTERN } from "../src/redirectWords";
 
 describe("REDIRECT_PATTERN", () => {
   test("matches the cast-lessons words, case insensitively", () => {

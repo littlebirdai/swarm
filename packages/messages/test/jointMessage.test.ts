@@ -4,8 +4,8 @@ import {
   jointAuthors,
   jointPartsOf,
   parseJointMessage,
-} from "./jointMessage";
-import { formatUserMessage } from "./machineMessages";
+} from "../src/jointMessage";
+import { formatUserMessage } from "../src/machineMessages";
 
 describe("joint messages", () => {
   test("round trips two authors in order", () => {

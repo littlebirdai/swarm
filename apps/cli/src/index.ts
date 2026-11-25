@@ -120,7 +120,7 @@ import { metricWindowNoiseError } from "@codecast/goals/metricStanding";
 import {
   ORG_CONTEXT_GUIDANCE,
   orgWhereLines,
-} from "@codecast/shared/contracts/orgWhere";
+} from "@codecast/messages/orgWhere";
 import {
   parseEntityUrl,
   buildEntityUrl,
@@ -138,8 +138,8 @@ import {
   snippetSection,
   type SnippetSection,
   allSnippetSlugs,
-  type VaultInfo,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/snippets";
+import { type VaultInfo } from "@codecast/shared/contracts";
 import {
   callLinkHow,
   callAnchorHref,
@@ -262,7 +262,7 @@ import {
   renderUsageReport,
 } from "./usageCommand.js";
 import { recoveryModeOf, type RecoveryMode } from "@codecast/usage/usageLimits";
-import { titleLine } from "@codecast/shared/contracts";
+import { titleLine } from "@codecast/messages/machineMessages";
 import {
   TRIGGER_PRECHECK_MODES,
   triggerPrecheckMode,
@@ -3015,7 +3015,7 @@ async function shareProjectWithTeam(
 }
 
 // Every codecast-owned section in an agent instruction file is described by
-// the shared catalog (@codecast/shared/contracts/snippets.ts — one table with
+// the shared catalog (@codecast/snippets/snippets.ts — one table with
 // the slugs, config keys, specs and bodies) and installed by ONE algorithm
 // (`installSectionToTargets`, ./snippets.ts).
 //

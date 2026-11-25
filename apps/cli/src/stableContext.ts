@@ -15,15 +15,12 @@ import {
   type StableContextData,
   type StableContextItem,
   type StableFeedMode,
-  type StableMode,
-} from "@codecast/shared/contracts";
+} from "@codecast/snippets/stableContext";
+import { type StableMode } from "@codecast/snippets/snippets";
 import { formatFeedResults } from "./formatter.js";
 import type { PushedPoolRow } from "./workflow/flowPool.js";
 import { fetchMappedProjects, teamForDirectory } from "./directoryTeam.js";
-import {
-  orgContextBlock,
-  type OrgWhere,
-} from "@codecast/shared/contracts/orgWhere";
+import { orgContextBlock, type OrgWhere } from "@codecast/messages/orgWhere";
 import { fitProjectContextBlock } from "@codecast/projects/projectContext";
 import { restoresTaskContext } from "@codecast/shared/tasks/resumeSources";
 import { formatModGuide } from "./mods/guide.js";
@@ -652,7 +649,7 @@ export async function buildStableContext(
   }
 }
 
-/** Where the session sits in the org (shared/contracts/orgWhere), or null when the read fails. */
+/** Where the session sits in the org (packages/messages/src/orgWhere.ts), or null when the read fails. */
 async function fetchOrgWhere(
   siteUrl: string,
   apiToken: string,

@@ -6,7 +6,7 @@ import {
   parseDecisionAnswer,
   pickAnsweredDecision,
 } from "./decisionAnswers";
-import { isMachineDeliveredMessage } from "./machineMessages";
+import { isMachineDeliveredMessage } from "@codecast/messages/machineMessages";
 
 // The answer to a `cast decide` question is one user message that both the
 // agent and every rendering surface read. The first line stays the plain

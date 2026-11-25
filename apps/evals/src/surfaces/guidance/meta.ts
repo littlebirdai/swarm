@@ -7,7 +7,7 @@ export const meta: SurfaceMeta = {
   route: "agent",
   // People's sessions run on their Claude Code default, which is what reads this file.
   model: PROD_DEFAULT_MODEL,
-  sources: surfaceSources("guidance", "packages/shared/contracts/snippets.ts"),
+  sources: surfaceSources("guidance", "packages/snippets/src/snippets.ts"),
   reps: { check: 8, smoke: 3 },
   maxUsdPerRep: 1.5,
   // No judge: the checks read the agent's first decisive tool call, and that is the whole signal.

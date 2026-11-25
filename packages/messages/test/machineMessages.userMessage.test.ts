@@ -6,8 +6,8 @@ import {
   isMachineDeliveredMessage,
   isSessionMessage,
   isScheduledTaskMessage,
-} from "./machineMessages";
-import { formatJointMessage, parseJointMessage } from "./jointMessage";
+} from "../src/machineMessages";
+import { formatJointMessage, parseJointMessage } from "../src/jointMessage";
 
 describe("user-message wire format (a person typing into a session)", () => {
   test("round-trips name and body", () => {

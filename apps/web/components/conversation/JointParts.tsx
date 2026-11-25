@@ -1,4 +1,4 @@
-import type { JointPart } from "@codecast/shared/contracts/jointMessage";
+import type { JointPart } from "@codecast/messages/jointMessage";
 import { MessageMarkdown } from "./markdown";
 
 // A joint turn's body: each person's words under their own name, in the

@@ -1,6 +1,6 @@
 // The flows the agent guidance and `cast flow --help` show must run as written against the shipped library.
 import { describe, expect, test } from "bun:test";
-import { WORKFLOW_REFERENCE } from "@codecast/shared/contracts";
+import { WORKFLOW_REFERENCE } from "@codecast/snippets/snippetsWorkflow";
 import { FLOW_HELP } from "../flowCommand";
 import { emptySlots, parseWorkflowSource, validateWorkflow } from "./parser";
 

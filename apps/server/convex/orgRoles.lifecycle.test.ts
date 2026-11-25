@@ -32,7 +32,7 @@ import { applyHideTransition } from "./cleanup";
 import {
   isBootstrapPrompt,
   isSessionMessage,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 import { charterText } from "./roleCharter.testkit";
 
 // A role's lifecycle a person can trust (docs/architecture/org-staffing.md

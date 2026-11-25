@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { createPendingDeliveryBatches } from "./pendingDeliveryBatches";
-import { isMachineDeliveredMessage } from "@codecast/shared/contracts";
+import { isMachineDeliveredMessage } from "@codecast/messages/machineMessages";
 
 test("production message content prioritizes direct requests without a human field", async () => {
   let release!: () => void;

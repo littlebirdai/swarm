@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { GUIDES, GUIDE_CATEGORIES, guideHref } from "./guides";
 import { getGuideContent } from "./guideContent";
 import { RELEASES } from "../../changelog/changelogData";
-import { allSnippetSlugs } from "@codecast/shared/contracts";
+import { allSnippetSlugs } from "@codecast/snippets/snippets";
 
 // Every guide that documents a feature people switch on in Agent features
 // names its slug, and the guide links there. The invariant is NOT "the slug is

@@ -1,4 +1,4 @@
-import { formatSessionMessage } from "@codecast/shared/contracts";
+import { formatSessionMessage } from "@codecast/messages/machineMessages";
 const maxSubagentPromptLength = 256_000;
 const conversationId = /^jx[a-z0-9]{30}$/;
 

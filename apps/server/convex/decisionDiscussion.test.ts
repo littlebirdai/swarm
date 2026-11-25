@@ -4,7 +4,7 @@ import { decisionOwner, discussionTurns } from "./decisionDiscussion";
 import {
   formatDecisionDiscussion,
   parseDecisionDiscussion,
-} from "@codecast/shared/contracts";
+} from "@codecast/messages/machineMessages";
 
 // Every decision has a session to discuss it with (ct-58330): the session
 // that presents it, falling to the run's starter, the project lead's standing

@@ -14,7 +14,7 @@ import {
   harnessHookWanted,
   type HarnessHook,
 } from "@codecast/agent-clients/harnessHooks";
-import { snippetBySlug } from "@codecast/shared/contracts";
+import { snippetBySlug } from "@codecast/snippets/snippets";
 import {
   installOwnedHook,
   removeOwnedHook,

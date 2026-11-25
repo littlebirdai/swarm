@@ -105,7 +105,7 @@ boundary scan.
 ## Codecast adoption
 
 Codecast's catalog (bodies, slugs, config keys) stays in
-`packages/shared/contracts/snippets.ts`; its `SnippetDescriptor` satisfies
+`packages/snippets/src/snippets.ts`; its `SnippetDescriptor` satisfies
 `SnippetDefinition` structurally. Two CLI files become imports:
 
 - `packages/cli/src/snippets.ts` — `findOwnedSections`, `cutOwnedSections`,

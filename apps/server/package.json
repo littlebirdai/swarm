@@ -39,6 +39,7 @@
     "@codecast/ingest": "workspace:*",
     "@codecast/keyboard": "workspace:*",
     "@codecast/machines": "workspace:*",
+    "@codecast/messages": "workspace:*",
     "@codecast/mods": "workspace:*",
     "@codecast/network": "workspace:*",
     "@codecast/org": "workspace:*",

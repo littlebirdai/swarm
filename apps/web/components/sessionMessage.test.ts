@@ -21,7 +21,7 @@ import {
   chatWakeAction,
 } from "./sessionMessage";
 import { formatHuddleSummaryTag } from "@codecast/calls/huddleDigest";
-import { formatUserMessage } from "@codecast/shared/contracts";
+import { formatUserMessage } from "@codecast/messages/machineMessages";
 
 // A real inter-agent broadcast as the multi-agent harness delivers it: a lead-in line, one
 // or more <teammate-message> blocks (the second a JSON status event), and the trailing

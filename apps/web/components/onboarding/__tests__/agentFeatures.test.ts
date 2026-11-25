@@ -2,7 +2,7 @@
 // online and have reported their setup are sent anything, and only the
 // features they lack. The setup-flow path rule keeps intros off those pages.
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
-import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
+import { SNIPPET_CATALOG } from "@codecast/snippets/snippets";
 import { useInboxStore } from "../../../store/inboxStore";
 import { applyAgentFeatures, setPendingAgentFeatures } from "../agentFeatures";
 import { isSetupFlowPath } from "../../../lib/setupFlow";

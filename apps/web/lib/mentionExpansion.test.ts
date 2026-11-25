@@ -6,7 +6,7 @@ import {
   type RunExpandQuery,
 } from "./mentionExpansion";
 import { stripSystemTags } from "../components/conversation/classify";
-import { stripInjectionNoise } from "@codecast/shared/contracts";
+import { stripInjectionNoise } from "@codecast/messages/machineMessages";
 
 const SESSION_MENTION =
   "Now, work with @[Cmd+K palette jx7eqak](codecast) to update the doc.";

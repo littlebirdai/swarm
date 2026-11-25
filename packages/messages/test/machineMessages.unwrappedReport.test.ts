@@ -3,7 +3,7 @@ import {
   parseUnwrappedSessionReport,
   isUnwrappedSessionReport,
   isMachineDeliveredMessage,
-} from "./machineMessages";
+} from "../src/machineMessages";
 
 describe("parseUnwrappedSessionReport", () => {
   test("a --raw worker report with a task id is attributed, not a human prompt", () => {

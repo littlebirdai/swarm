@@ -12,7 +12,7 @@ REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 
 
 def live_messaging():
     """The messaging guidance every agent reads, from the snippet catalog itself."""
-    src = open(os.path.join(REPO, "packages/shared/contracts/snippets.ts")).read()
+    src = open(os.path.join(REPO, "packages/snippets/src/snippets.ts")).read()
     body = re.search(r"export const MESSAGING_SNIPPET = `(.*?)`;", src, re.S).group(1)
     return body.replace("\\`", "`").strip()
 HARNESS = os.path.join(REPO, "apps/cli/scripts/prompt-dry-run.ts")

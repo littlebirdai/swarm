@@ -10,8 +10,8 @@ import {
   GUIDANCE_SECTION_MAX_CHARS,
   renderGuidanceFile,
   stubSectionBody,
-} from "./snippets";
-import { MESSAGING_POLICIES } from "./messagingPolicy";
+} from "../src/snippets";
+import { MESSAGING_POLICIES } from "@codecast/messages/messagingPolicy";
 
 describe("snippet catalog", () => {
   it("has unique slugs", () => {

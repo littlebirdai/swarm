@@ -29,7 +29,7 @@ import {
 } from "../src/deliveryEchoLedger.ts";
 import { tmuxDeliveryJournal } from "../src/tmuxDeliveryJournal.ts";
 import { parseSessionFile } from "../src/parser.ts";
-import { formatSessionMessage } from "@codecast/shared/contracts";
+import { formatSessionMessage } from "@codecast/messages/machineMessages";
 
 if (
   !process.env.TMUX_TMPDIR?.includes("proto-confirm") ||
