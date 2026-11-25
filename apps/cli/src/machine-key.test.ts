@@ -61,15 +61,22 @@ describe("machineKey hardware binding", () => {
     }
   });
 
-  it("decrypts tokens from both processes after concurrent first runs", async () => {
-    const dir = tmpDir();
-    const keyFile = path.join(dir, ".machine_key");
-    const script = `
+  it.each(["hard-link publish", "exclusive-create fallback"])(
+    "decrypts tokens from both processes after concurrent first runs with %s",
+    async (publication) => {
+      const dir = tmpDir();
+      const keyFile = path.join(dir, ".machine_key");
+      const script = `
       import { spyOn } from "bun:test";
       import * as fs from "node:fs";
       import { resolveMachineKey } from "./src/machine-key.ts";
       import { encryptTokenWithSecret } from "./src/tokenEncryption.ts";
 
+      if (process.env.TEST_NO_HARD_LINKS === "1") {
+        spyOn(fs, "linkSync").mockImplementation(() => {
+          throw Object.assign(new Error("Hard links unavailable"), { code: "ENOTSUP" });
+        });
+      }
       const read = fs.readFileSync;
       const intercept = spyOn(fs, "readFileSync").mockImplementation((...args) => {
         if (args[0] !== process.env.TEST_KEY_FILE) return read(...args);
@@ -86,81 +93,157 @@ describe("machineKey hardware binding", () => {
       const { secret } = resolveMachineKey(process.env.TEST_KEY_DIR, () => ${JSON.stringify(HW_A())});
       console.log(encryptTokenWithSecret("first run token", secret));
     `;
-    const children = Array.from({ length: 2 }, () =>
-      Bun.spawn([process.execPath, "-e", script], {
-        cwd: path.resolve(import.meta.dir, ".."),
-        env: { ...process.env, TEST_KEY_DIR: dir, TEST_KEY_FILE: keyFile },
-        stdin: "pipe",
-        stdout: "pipe",
-        stderr: "inherit",
-        signal: AbortSignal.timeout(5_000),
-      }),
-    );
-    const readers = children.map((child) => child.stdout.getReader());
-    try {
-      await Promise.all(
-        readers.map(async (reader) => {
-          const { value } = await reader.read();
-          expect(new TextDecoder().decode(value)).toBe("R");
+      const children = Array.from({ length: 2 }, () =>
+        Bun.spawn([process.execPath, "-e", script], {
+          cwd: path.resolve(import.meta.dir, ".."),
+          env: {
+            ...process.env,
+            TEST_KEY_DIR: dir,
+            TEST_KEY_FILE: keyFile,
+            TEST_NO_HARD_LINKS:
+              publication === "exclusive-create fallback" ? "1" : "0",
+          },
+          stdin: "pipe",
+          stdout: "pipe",
+          stderr: "inherit",
+          signal: AbortSignal.timeout(5_000),
         }),
       );
-      for (const child of children) {
-        child.stdin.write("x");
-        child.stdin.end();
-      }
-      const ciphertexts = await Promise.all(
-        readers.map(async (reader) => {
-          const chunks: Uint8Array[] = [];
-          for (
-            let next = await reader.read();
-            !next.done;
-            next = await reader.read()
-          ) {
-            chunks.push(next.value);
-          }
-          return Buffer.concat(chunks).toString().trim();
-        }),
-      );
-      expect(await Promise.all(children.map((child) => child.exited))).toEqual([
-        0, 0,
-      ]);
-      const { secret } = resolveMachineKey(dir, HW_A);
-      for (const encrypted of ciphertexts) {
-        expect(decryptTokenWithSecrets(encrypted, [secret])).toBe(
-          "first run token",
+      const readers = children.map((child) => child.stdout.getReader());
+      try {
+        await Promise.all(
+          readers.map(async (reader) => {
+            const { value } = await reader.read();
+            expect(new TextDecoder().decode(value)).toBe("R");
+          }),
         );
+        for (const child of children) {
+          child.stdin.write("x");
+          child.stdin.end();
+        }
+        const ciphertexts = await Promise.all(
+          readers.map(async (reader) => {
+            const chunks: Uint8Array[] = [];
+            for (
+              let next = await reader.read();
+              !next.done;
+              next = await reader.read()
+            ) {
+              chunks.push(next.value);
+            }
+            return Buffer.concat(chunks).toString().trim();
+          }),
+        );
+        expect(
+          await Promise.all(children.map((child) => child.exited)),
+        ).toEqual([0, 0]);
+        const { secret } = resolveMachineKey(dir, HW_A);
+        for (const encrypted of ciphertexts) {
+          expect(decryptTokenWithSecrets(encrypted, [secret])).toBe(
+            "first run token",
+          );
+        }
+      } finally {
+        for (const child of children) child.kill();
+        await Promise.all(children.map((child) => child.exited));
+        for (const reader of readers) reader.releaseLock();
+        fs.rmSync(dir, { recursive: true, force: true });
       }
-    } finally {
-      for (const child of children) child.kill();
-      await Promise.all(children.map((child) => child.exited));
-      for (const reader of readers) reader.releaseLock();
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  }, 10_000);
+    },
+    10_000,
+  );
 
-  it("rejects a short existing key and preserves its bytes", () => {
+  it("replaces a short key atomically and reads a concurrent repair", () => {
     const dir = tmpDir();
     const keyFile = path.join(dir, ".machine_key");
+    const competingFile = path.join(dir, "other-writer");
+    const winner = Buffer.alloc(MACHINE_KEY_LEN, 42);
+    const rename = fs.renameSync;
+    const intercept = spyOn(fs, "renameSync").mockImplementation((from, to) => {
+      if (to !== keyFile) return rename(from, to);
+      expect(fs.readFileSync(keyFile, "utf8")).toBe("short");
+      rename(from, to);
+      expect(fs.readFileSync(keyFile).length).toBe(MACHINE_KEY_LEN);
+      rename(competingFile, keyFile);
+    });
     try {
       fs.writeFileSync(keyFile, "short");
-      expect(() => resolveMachineKey(dir, HW_A)).toThrow("fewer than 32 bytes");
-      expect(fs.readFileSync(keyFile, "utf8")).toBe("short");
+      fs.writeFileSync(competingFile, winner, { mode: 0o600 });
+      expect(resolveMachineKey(dir, HW_NONE).secret).toEqual(winner);
+      expect(fs.readFileSync(keyFile)).toEqual(winner);
       expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
     } finally {
+      intercept.mockRestore();
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it("fails first creation if hard links are unavailable and removes its temp file", () => {
+  it.each(["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK"])(
+    "creates a private key if hard links return %s",
+    (code) => {
+      const dir = tmpDir();
+      const keyFile = path.join(dir, ".machine_key");
+      const link = spyOn(fs, "linkSync").mockImplementation(() => {
+        throw Object.assign(new Error("Hard links unavailable"), { code });
+      });
+      try {
+        const result = resolveMachineKey(dir, HW_NONE);
+        expect(result.secret.length).toBe(MACHINE_KEY_LEN);
+        expect(result.secret).toEqual(fs.readFileSync(keyFile));
+        if (process.platform !== "win32") {
+          expect(fs.statSync(keyFile).mode & 0o777).toBe(0o600);
+        }
+        expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
+      } finally {
+        link.mockRestore();
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("waits for an exclusive-create winner to finish a short key", () => {
     const dir = tmpDir();
-    const unsupported = Object.assign(new Error("Hard links unavailable"), {
-      code: "ENOTSUP",
+    const keyFile = path.join(dir, ".machine_key");
+    const winner = Buffer.alloc(MACHINE_KEY_LEN, 42);
+    const read = fs.readFileSync;
+    let shortReads = 0;
+    const link = spyOn(fs, "linkSync").mockImplementation(() => {
+      throw Object.assign(new Error("Hard links unavailable"), {
+        code: "ENOTSUP",
+      });
+    });
+    const intercept = spyOn(fs, "readFileSync").mockImplementation(
+      new Proxy(read, {
+        apply(target, receiver, args: Parameters<typeof read>) {
+          const bytes = Reflect.apply(target, receiver, args);
+          if (args[0] === keyFile && ++shortReads === 2) {
+            fs.writeFileSync(keyFile, winner);
+          }
+          return bytes;
+        },
+      }),
+    );
+    try {
+      fs.writeFileSync(keyFile, "", { flag: "wx", mode: 0o600 });
+      expect(resolveMachineKey(dir, HW_NONE).secret).toEqual(winner);
+      expect(read(keyFile)).toEqual(winner);
+    } finally {
+      intercept.mockRestore();
+      link.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("propagates unrelated link errors and removes the temp file", () => {
+    const dir = tmpDir();
+    const failure = Object.assign(new Error("Link I/O failed"), {
+      code: "EIO",
     });
     const link = spyOn(fs, "linkSync").mockImplementation(() => {
-      throw unsupported;
+      throw failure;
     });
     try {
-      expect(() => resolveMachineKey(dir, HW_A)).toThrow(unsupported);
+      expect(() => resolveMachineKey(dir, HW_A)).toThrow(failure);
       expect(fs.readdirSync(dir)).toEqual([]);
     } finally {
       link.mockRestore();
