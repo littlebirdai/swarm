@@ -358,7 +358,7 @@ describe("one visibility rule, one selection (sync-convergence C4)", () => {
     const src = readFileSync(join(import.meta.dir, "inboxFilters.ts"), "utf8");
     expect(src).not.toContain("export function shouldShowInInbox");
     expect(src).toMatch(
-      /export \{[^}]*shouldShowInInbox[^}]*\} from "@codecast\/shared\/contracts"/,
+      /export \{[^}]*shouldShowInInbox[^}]*\} from "@codecast\/inbox\/inboxProjection"/,
     );
     const conversations = readFileSync(
       join(import.meta.dir, "conversations.ts"),
