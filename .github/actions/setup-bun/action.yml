@@ -1,13 +1,11 @@
 name: Set up bun
 description: >
-  Bun at the version CI pins, the bun install cache, and the workspace
-  install. The one place a bun bump lands for every CI job.
+  Bun at the version CI pins and the workspace install. The one place a bun bump lands for every CI job.
 inputs:
   deps:
     description: >
-      "install" restores the cache and runs `bun install` at the repo root;
-      "cache" restores the cache for a job that installs on its own; "none"
-      sets up bun alone, for a job with no dependencies.
+      "install" runs `bun install` at the repo root; "none" sets up bun alone,
+      for a job with no dependencies or an install of its own.
     default: install
   bun-version:
     description: >

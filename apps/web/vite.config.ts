@@ -311,6 +311,7 @@ export default defineConfig(({ mode, command }) => ({
   },
   build: {
     sourcemap: true,
+    reportCompressedSize: false,
     target: "es2022",
     // dist/.vite/manifest.json: the web server reads the share entry's chunk
     // graph from it to emit modulepreload hints (server/share.ts).
