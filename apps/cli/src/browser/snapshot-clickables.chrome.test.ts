@@ -48,6 +48,55 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
       )
     ).result?.value;
 
+  const launchChrome = async (profile: string): Promise<string> => {
+    const proc = spawn(
+      chrome!,
+      [
+        "--headless=new",
+        "--remote-debugging-port=0",
+        `--user-data-dir=${path.join(userDataDir, profile)}`,
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--use-mock-keychain",
+        "about:blank",
+      ],
+      { stdio: ["ignore", "ignore", "pipe"] },
+    );
+    const ready = Promise.withResolvers<string>();
+    const exited = Promise.withResolvers<void>();
+    let stderr = "";
+    proc.once("error", (error) => {
+      ready.reject(error);
+      exited.resolve();
+    });
+    proc.once("exit", (code, signal) => {
+      ready.reject(new Error(`Chrome exited (${signal ?? code}): ${stderr}`));
+      exited.resolve();
+    });
+    stopChrome = async () => {
+      proc.kill("SIGKILL");
+      await exited.promise;
+      proc.stderr.destroy();
+    };
+    proc.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+      stderr = (stderr + chunk).slice(-4096);
+      const endpoint = /DevTools listening on (ws:\/\/[^\s]+)\r?\n/.exec(
+        stderr,
+      );
+      if (endpoint) ready.resolve(endpoint[1]!);
+    });
+    const deadline = setTimeout(() => {
+      ready.reject(new Error(`Chrome did not announce CDP: ${stderr}`));
+    }, 20_000);
+    try {
+      return await ready.promise;
+    } finally {
+      clearTimeout(deadline);
+    }
+  };
+
   beforeAll(async () => {
     const html = fs.readFileSync(FIXTURE, "utf-8");
     server = Bun.serve({
@@ -61,50 +110,12 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
     pageUrl = server.url.href;
 
     userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-clickable-"));
-    const proc = spawn(
-      chrome!,
-      [
-        "--headless=new",
-        "--remote-debugging-port=0",
-        `--user-data-dir=${userDataDir}`,
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-        "--use-mock-keychain",
-        "about:blank",
-      ],
-      { stdio: ["ignore", "ignore", "pipe"] },
-    );
-
-    const ready = Promise.withResolvers<string>();
-    const closed = new Promise<void>((resolve) => {
-      proc.once("close", (code, signal) => {
-        ready.reject(new Error(`Chrome exited (${signal ?? code}): ${stderr}`));
-        resolve();
-      });
+    const endpoint = await launchChrome("first").catch(async (error) => {
+      await stopChrome?.();
+      console.warn(`Chrome launch failed, trying once more: ${error}`);
+      return launchChrome("second");
     });
-    stopChrome = async () => {
-      proc.kill();
-      await closed;
-    };
-    let stderr = "";
-    proc.once("error", ready.reject);
-    proc.stderr.setEncoding("utf8").on("data", (chunk: string) => {
-      stderr = (stderr + chunk).slice(-4096);
-      const endpoint = /DevTools listening on (ws:\/\/[^\s]+)\r?\n/.exec(
-        stderr,
-      );
-      if (endpoint) ready.resolve(endpoint[1]!);
-    });
-    const deadline = setTimeout(() => {
-      ready.reject(new Error(`Chrome did not announce CDP: ${stderr}`));
-    }, 20_000);
-    try {
-      conn = await CdpConnection.connect(await ready.promise);
-    } finally {
-      clearTimeout(deadline);
-    }
+    conn = await CdpConnection.connect(endpoint);
 
     const { targetId } = await conn.send<{ targetId: string }>(
       "Target.createTarget",
@@ -128,7 +139,12 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
       await stopChrome?.();
     } finally {
       await server?.stop(true);
-      if (userDataDir) fs.rmSync(userDataDir, { recursive: true, force: true });
+      if (userDataDir)
+        fs.rmSync(userDataDir, {
+          recursive: true,
+          force: true,
+          maxRetries: 5,
+        });
     }
   });
 
