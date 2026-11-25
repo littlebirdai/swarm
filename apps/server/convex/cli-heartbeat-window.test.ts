@@ -1,6 +1,7 @@
 import { afterEach, expect, spyOn, test } from "bun:test";
 import {
   inboxForCLI,
+  listInboxSessions,
   sessionsLiveness,
   _resetChildAuqProbeCacheForTests,
 } from "./conversations";
@@ -111,11 +112,12 @@ async function run(
   tables: ReturnType<typeof account>,
   unbounded: boolean,
   queryFunction: unknown = inboxForCLI,
+  at = now,
 ) {
   _resetChildAuqProbeCacheForTests();
   const db = makeFakeDb(tables, { indexes: schemaIndexes(schema) });
   let heartbeatReads = 0;
-  const clock = spyOn(Date, "now").mockReturnValue(now);
+  const clock = spyOn(Date, "now").mockReturnValue(at);
   try {
     const result = await (queryFunction as any)._handler(
       {
@@ -241,4 +243,31 @@ test("the liveness overlay retains exact old heartbeat stamps", async () => {
   expect(result.liveness["conversations_working"].last_heartbeat).toBe(
     now - 6 * minute - 1,
   );
+});
+
+test("the web inbox retains exact old heartbeat stamps", async () => {
+  const tables = account(6 * minute + 1, "side");
+  const { result, heartbeatReads } = await run(
+    tables,
+    false,
+    listInboxSessions,
+  );
+  expect(heartbeatReads).toBe(tables.session_heartbeats.length);
+  expect(result.sessions).toContainEqual(
+    expect.objectContaining({
+      _id: "conversations_working",
+      last_heartbeat: now - 6 * minute - 1,
+    }),
+  );
+});
+
+test("full CLI response matches inside a minute and for future heartbeats", async () => {
+  for (const at of [now + 1, now + minute - 1])
+    for (const age of [-5 * minute, 2 * minute, 5 * minute, 6 * minute]) {
+      const tables = account(age, "side");
+      const bounded = await run(tables, false, inboxForCLI, at);
+      expect(bounded.result).toEqual(
+        (await run(tables, true, inboxForCLI, at)).result,
+      );
+    }
 });
