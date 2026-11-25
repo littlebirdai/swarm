@@ -46,7 +46,7 @@ A new copy from the canonical repository will overwrite the changes that Swarm m
 
 ## Typechecking
 
-Typecheck with `cast check`; never run `tsc --noEmit` yourself. This tree's programs are listed in `.codecast/check.toml`: `cli`, `web`, `web-mount`, `convex`, `mobile`, `sim`, `evals`, `playground` and `packages`. `cast check` runs all 9, and `cast check web` runs one. A fresh `tsc` for each session builds the same program again every time: thirty of them across two repos on 2026-09-17 put this machine into swap and stalled everything on it, Chrome's extension included. Run test files directly (`bun test <file>`), and keep whole suite runs rare, because they are the other load the machine cannot absorb in parallel. `cast install check` adds the full command reference to your global instructions.
+Typecheck with `cast check`; never run `tsc --noEmit` yourself. This tree's programs are listed in `.codecast/check.toml`: `cli`, `web`, `web-mount`, `convex`, `mobile`, `sim`, `evals`, `playground`, `packages` and `relay`. `cast check` runs all 10, and `cast check web` runs one. A fresh `tsc` for each session builds the same program again every time: thirty of them across two repos on 2026-09-17 put this machine into swap and stalled everything on it, Chrome's extension included. Run test files directly (`bun test <file>`), and keep whole suite runs rare, because they are the other load the machine cannot absorb in parallel. `cast install check` adds the full command reference to your global instructions.
 
 A watcher built while other sessions were editing several packages keeps checking the half-written tree it first saw: it reports "has no exported member 'X'" for exports present on disk (once 9 errors in `cli` and 25 in `mobile` while `convex` was clean on the same files). When a check is red with errors nobody wrote, confirm the code on disk, then run `cast check <project> --fresh` before changing anything.
 
@@ -54,7 +54,7 @@ A watcher built while other sessions were editing several packages keeps checkin
 
 Use Effect in the owned-process packages `effect-kit`, `edge-client`,
 `provider-adapter`, `delivery`, `edge-supervisor`, `relay`, `ext-host`, and
-`ext-runner` under `packages/`, and in the planned `relay` app under `apps/`.
+`ext-runner` under `packages/`, and in the `relay` app under `apps/`.
 This applies to their tests too. Use plain TypeScript everywhere else, including
 Convex, web, mobile, desktop, the CLI, and shared contracts and reducers.
 

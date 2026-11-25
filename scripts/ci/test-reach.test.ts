@@ -97,17 +97,21 @@ describe("job test roots", () => {
   // describes some other suite.
   test("each job's roots are in the packages its steps test", () => {
     for (const [job, roots] of Object.entries(JOB_TEST_ROOTS)) {
+      const libraryRoots =
+        job === "test-shared" ? workspaceDirectories(ROOT, "packages") : [];
       if (job === "test-shared") {
         expect(workflow.jobs[job].steps.map((step) => step.run)).toContain(
           "bun scripts/ci/package-tests.ts",
         );
-        expect(roots).toEqual(workspaceDirectories(ROOT, "packages"));
-        continue;
+        expect(roots.filter((root) => root.startsWith("packages/"))).toEqual(
+          libraryRoots,
+        );
       }
       const dirs = workflow.jobs[job].steps
         .filter((step) => /\b(bun test|bun run test)\b/.test(step.run ?? ""))
         .map((step) => step["working-directory"]);
       for (const root of roots) {
+        if (libraryRoots.includes(root)) continue;
         const pkg = root.split("/").slice(0, 2).join("/");
         expect(dirs, `${job} runs tests in ${pkg}`).toContain(pkg);
       }

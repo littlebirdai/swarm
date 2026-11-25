@@ -37,7 +37,7 @@ export const JOB_TEST_ROOTS: Record<string, string[]> = {
   "test-convex": ["apps/server/convex", "apps/server/scripts"],
   "test-web": ["apps/web"],
   "test-cli": ["apps/cli/src", "apps/evals/src"],
-  "test-shared": workspaceDirectories(ROOT, "packages"),
+  "test-shared": [...workspaceDirectories(ROOT, "packages"), "apps/relay"],
   "test-mobile": ["apps/mobile"],
   "test-electron": ["apps/desktop"],
   "test-models": ["tests/models"],

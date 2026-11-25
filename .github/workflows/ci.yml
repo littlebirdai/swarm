@@ -31,6 +31,7 @@ jobs:
       web: ${{ steps.scope.outputs.web }}
       convex: ${{ steps.scope.outputs.convex }}
       packages: ${{ steps.scope.outputs.packages }}
+      relay: ${{ steps.scope.outputs.relay }}
       platform: ${{ steps.scope.outputs.platform }}
       electron: ${{ steps.scope.outputs.electron }}
       mobile: ${{ steps.scope.outputs.mobile }}
@@ -237,7 +238,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        programs: [web sim, cli convex, evals playground packages, web-mount]
+        programs:
+          [web sim, cli convex, evals playground packages, web-mount relay]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -562,6 +564,10 @@ jobs:
 
       - name: Workspace library tests, including packages/ratchet
         run: bun scripts/ci/package-tests.ts
+
+      - name: Relay WebSocket tests
+        working-directory: apps/relay
+        run: bun test
 
   # The mobile app's guard tests are what stand between an OTA update and a
   # binary that cannot run it: nativeDeps.guard (no static import of a native

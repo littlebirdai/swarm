@@ -1,0 +1,22 @@
+{
+  "name": "@codecast/relay-app",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "bun build src/main.ts --target=bun --outdir=dist",
+    "start": "bun src/main.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@codecast/relay": "workspace:*",
+    "@codecast/relay-contract": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@codecast/effect-kit": "workspace:*",
+    "@types/ws": "^8.18.1",
+    "ws": "8.21.3"
+  }
+}
