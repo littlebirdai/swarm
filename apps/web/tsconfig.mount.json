@@ -10,6 +10,7 @@
     "test-helpers/**/*.tsx"
   ],
   "files": [
+    "components/terminal/team-terminal.mount.test.tsx",
     "components/conversation/session-control-composer.mount.test.tsx",
     "components/conversation/session-control-regressions.mount.test.tsx",
     "app/auth/cli/page.mount.test.tsx",

@@ -823,6 +823,7 @@ import type * as teamSuggestions from "../teamSuggestions.js";
 import type * as teamVisibility from "../teamVisibility.js";
 import type * as teams from "../teams.js";
 import type * as terminalStream from "../terminalStream.js";
+import type * as terminalWatch from "../terminalWatch.js";
 import type * as testComments from "../testComments.js";
 import type * as testDb from "../testDb.js";
 import type * as testDecisions from "../testDecisions.js";
@@ -1676,6 +1677,7 @@ declare const fullApi: ApiFromModules<{
   teamVisibility: typeof teamVisibility;
   teams: typeof teams;
   terminalStream: typeof terminalStream;
+  terminalWatch: typeof terminalWatch;
   testComments: typeof testComments;
   testDb: typeof testDb;
   testDecisions: typeof testDecisions;

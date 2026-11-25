@@ -607,7 +607,7 @@ const CommentDock = lazyNamed(
   "CommentDock",
 );
 const ConversationTerminalSplit = lazyNamed(
-  () => import("./terminal/ConversationTerminal"),
+  () => import("./terminal/session-terminal"),
   "ConversationTerminalSplit",
 );
 const SessionHuddleButton = lazyNamed(

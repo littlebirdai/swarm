@@ -130,6 +130,38 @@ export const messageShareTables = {
 };
 
 export const sessionFrameTables = {
+  terminal_watch_shares: defineTable({
+    conversation_id: v.id("conversations"),
+    team_id: v.id("teams"),
+    owner_id: v.id("users"),
+    device: v.id("devices"),
+    session: v.id("managed_sessions"),
+    session_id: v.string(),
+    target: v.string(),
+    agent_started_at: v.optional(v.number()),
+    pane_instance: v.optional(v.string()),
+  }).index("by_conversation", ["conversation_id"]),
+
+  terminal_watch_screens: defineTable({
+    share: v.id("terminal_watch_shares"),
+    stream_id: v.string(),
+    requested_at: v.number(),
+    expires_at: v.number(),
+    seen_at: v.optional(v.number()),
+    frame: v.optional(v.string()),
+  })
+    .index("by_share", ["share"])
+    .index("by_expiry", ["expires_at"]),
+
+  terminal_watch_viewers: defineTable({
+    share: v.id("terminal_watch_shares"),
+    user_id: v.id("users"),
+    expires_at: v.number(),
+    revoked: v.boolean(),
+  })
+    .index("by_share_user", ["share", "user_id"])
+    .index("by_expiry", ["revoked", "expires_at"]),
+
   // Live screen of one tmux pane on one machine — the transport that lets the
   // terminal split watch a pane the browser cannot reach on loopback (an agent
   // running on your Mac mini while you sit at a laptop). See

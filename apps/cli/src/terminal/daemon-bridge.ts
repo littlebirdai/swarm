@@ -4,6 +4,7 @@ import { deviceId } from "../remote/device.js";
 import { isManagedTmuxName } from "../resumeCommand.js";
 import { hasTmux } from "../tmux.js";
 import { isPaneStreaming, startPaneStream, writePane } from "./paneStream.js";
+import { startTeamPaneStream } from "./team-pane-stream.js";
 import { reapStaleTerminalSessions } from "./terminalServer.js";
 
 type Log = (message: string) => void;
@@ -61,6 +62,16 @@ export async function streamTerminalPane(
   // its own when the viewer's lease lapses; the lease is also what
   // authorizes input (apps/cli/src/terminal/paneStream.ts).
   const parsed = commandArgs ? JSON.parse(commandArgs) : {};
+  if (parsed && typeof parsed === "object" && "team_watch" in parsed) {
+    const started = await startTeamPaneStream(
+      siteUrl,
+      config.auth_token,
+      parsed.team_watch,
+    );
+    if (started) recordOutcome(JSON.stringify({ streaming: true }));
+    else recordOutcome(undefined, "Invalid team terminal stream command");
+    return;
+  }
   const target = typeof parsed.target === "string" ? parsed.target : "";
   if (!isValidPaneTarget(target)) {
     recordOutcome(

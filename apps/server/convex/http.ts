@@ -6297,6 +6297,11 @@ cliRoute(
   { forwardDeviceId: true },
 );
 cliRoute(
+  "/cli/terminal/team-frame",
+  async (ctx, body) => ctx.runMutation(api.terminalWatch.cliPush, body),
+  { forwardDeviceId: true },
+);
+cliRoute(
   "/cli/terminal/clipboard",
   async (ctx, body) =>
     ctx.runMutation(api.terminalStream.cliPushClipboard, body),

@@ -234,6 +234,11 @@ crons.interval(
   { hours: 6 },
   internal.terminalStream.pruneStaleFrames,
 );
+crons.interval(
+  "prune expired team terminal viewers",
+  { minutes: 5 },
+  internal.terminalWatch.pruneExpired,
+);
 
 crons.interval(
   "prune stale remote browser frames",
