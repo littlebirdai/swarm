@@ -1164,7 +1164,7 @@ export function setUpgradeBlockedListener(
   _fn: ((blocked: boolean) => void) | null,
 ) {}
 
-// Names the web's cross-window sync lock and channel (syncReplication.ts).
+// Names the web's cross-window sync lock and channel (sync-replication.ts).
 // Mobile has one process and no other window to elect against, so any value
 // does; the real one lives in persistence/schema.ts beside the Dexie schema.
 export const CACHE_SCHEMA_VERSION = 0;

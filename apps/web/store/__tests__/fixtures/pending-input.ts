@@ -18,7 +18,8 @@ const { installSignedInPrincipal, stampCacheOwner } =
   await import("./signedInPrincipal");
 installSignedInPrincipal("test-owner");
 const cache = await import("../../idb-cache");
-const { useInboxStore, hydrateMergeValue } = await import("../../inboxStore");
+const { useInboxStore } = await import("../../inboxStore");
+const { hydrateMergeValue } = await import("../../inbox-hydration");
 const { readPendingMessageJournal } =
   await import("../../pendingMessageJournal");
 const { followerPersistencePatches } =

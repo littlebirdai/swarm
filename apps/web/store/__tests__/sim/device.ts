@@ -37,7 +37,7 @@ import {
   replicationFollowerFor,
   replicationHostFor,
   setFollowerTee,
-} from "../../syncReplication";
+} from "../../sync-replication";
 import { activeWindow, type RealmWindow } from "./realm";
 import {
   SimWindow,

@@ -66,7 +66,7 @@ test("claim starts hydration, replication, and badge reporting, and sign-out cle
   const { useIsSyncHost, useSyncReplication } =
     await import("../../hooks/useSyncRole");
   const { replicationChannelName, replicationLockName } =
-    await import("../syncReplication");
+    await import("../storage-transport");
   const { DesktopBadge } = await import("../../components/DesktopBadge");
   const { installAuthPrincipalBoundary } = await import("../principalBoundary");
   const { durableAuthStorage } = await import("../../lib/durableAuthStorage");

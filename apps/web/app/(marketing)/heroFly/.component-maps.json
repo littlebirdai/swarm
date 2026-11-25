@@ -1617,7 +1617,7 @@
       {
         "name": "useEnsureDispatch / DashboardLayout host feeders",
         "file": "packages/web/hooks/useEnsureDispatch.ts",
-        "role": "Binds _setDispatch to Convex mutations (L125-206) and drains the outbox. Only mounted by DashboardLayout (components/DashboardLayout.tsx:315), the palette/people/call pages and useSyncInboxSessions. Sync-host election and replication (useSyncReplication, useIsSyncHost, store/syncReplication.ts:315-428, which swaps _setIDBWrite and _setActionTee) mount only in DashboardLayout (L317-326).",
+        "role": "Binds _setDispatch to Convex mutations (L125-206) and drains the outbox. Only mounted by DashboardLayout (components/DashboardLayout.tsx:315), the palette/people/call pages and useSyncInboxSessions. Sync-host election and replication (useSyncReplication, useIsSyncHost, store/sync-replication.ts:315-428, which swaps _setIDBWrite and _setActionTee) mount only in DashboardLayout (L317-326).",
         "deps": "Convex, Web Locks, BroadcastChannel",
         "presentational": "no",
         "howToRender": "None of these run on the marketing route, so a marketing tab is neither host nor follower and nothing is sent live. BUT the outbox is persisted, so anything enqueued there ships the next time the user opens the app."

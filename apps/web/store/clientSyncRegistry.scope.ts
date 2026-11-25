@@ -14,7 +14,7 @@ import type { ClientSyncStoreKey } from "./clientSyncRegistry";
 //   "entity": rows filed under one object (a task, a PR, a doc), read by that
 //     object's id; the object's own scope already admitted the reader.
 // Every key MUST be classified: `satisfies` makes a missing one a compile
-// error. lib/__tests__/workspaceEnumeration.guard.test.ts fails a raw read of
+// error. lib/__tests__/workspace-enumeration.guard.test.ts fails a raw read of
 // a "workspace"/"team" key outside its selectors, and
 // store/__tests__/workspaceScopeReaders.test.ts seeds two workspaces and
 // fails when a selector returns the inactive one's rows.

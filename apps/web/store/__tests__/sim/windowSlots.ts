@@ -159,7 +159,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   "store/syncTransaction.ts:deferred": "transient",
   "store/syncTransaction.ts:deferredFanOut": "transient",
   "store/syncTransaction.ts:timer": "transient",
-  "store/syncReplication.ts:running": {
+  "store/sync-replication.ts:running": {
     shared:
       "the sim never calls startSyncReplication; devices wire the runtime directly",
   },

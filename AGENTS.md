@@ -232,7 +232,7 @@ All store mutations go through `mutativeMiddleware`. Default to `action()` for n
 
 ### One window syncs, the rest replicate (sync host)
 
-Exactly one window per origin is the elected sync host (Web Locks; `store/syncReplication.ts`). It mounts the global feeders and owns IDB write-through; every other window is a follower — global feeders skipped (gated on `syncRole`), shared slice applied from the host's BroadcastChannel stream, its own optimistic writes offered back as muts. Full design: `docs/architecture/sync-host.md`.
+Exactly one window per origin is the elected sync host (Web Locks; `store/sync-replication.ts`). It mounts the global feeders and owns IDB write-through; every other window is a follower — global feeders skipped (gated on `syncRole`), shared slice applied from the host's BroadcastChannel stream, its own optimistic writes offered back as muts. Full design: `docs/architecture/sync-host.md`.
 
 - **Every registry key is classified** in `REPLICATION_CLASSIFICATION` (`store/clientSyncRegistry.ts`) — adding a registry key without classifying it is a compile error. `pending` never replicates; per-window paging/arrangement keys stay `local`.
 - **A global feeder must gate on the role**: mount it inside `HostFeeders` (DashboardLayout) or skip its query via `useIsSyncHost()`. Per-view queries (a conversation's messages, a doc body) never gate.

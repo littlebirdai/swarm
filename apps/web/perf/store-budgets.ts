@@ -22,7 +22,7 @@ import { writeOwnerStamp } from "../store/persistence/ownership";
 import {
   replicationFollowerFor,
   replicationHostFor,
-} from "../store/syncReplication";
+} from "../store/sync-replication";
 import { measureDetailRows } from "./detail-rows-size";
 import { measureIndexedDB } from "./measure-indexeddb";
 import { checkStoreBudget } from "./store-budget-limits";

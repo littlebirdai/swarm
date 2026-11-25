@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { captureException } from "@sentry/react";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
 import { subscribeGestures } from "../store/gestureBridge";
-import { applyBridgedGesture } from "../store/syncReplication";
+import { applyBridgedGesture } from "../store/sync-replication";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";

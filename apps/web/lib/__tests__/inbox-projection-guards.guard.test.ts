@@ -59,7 +59,7 @@ describe("sessionsProjection is read only by its owner and the compare", () => {
         "REPLICATED_EPHEMERAL_KEYS names the slot",
       ],
       [
-        "store/syncReplication.ts",
+        "store/sync-replication.ts",
         "routes the replicated slot to the owner's applier",
       ],
     ]);
@@ -86,7 +86,11 @@ describe("the chokepoint is the only counting reader of the synced view keys", (
     const allowed = new Map<string, string>([
       [
         "store/inboxStore.ts",
-        "the chokepoint (computeInboxVisible/filterInboxScope), LWW registry, boot seed",
+        "the chokepoint (computeInboxVisible/filterInboxScope), LWW registry",
+      ],
+      [
+        "store/inbox-hydration.ts",
+        "boot seed: gates the cached team inbox, counts nothing",
       ],
       [
         "hooks/useSyncTeamInboxSessions.ts",

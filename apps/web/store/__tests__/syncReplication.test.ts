@@ -5,7 +5,7 @@ import {
   followerActionTee,
   forgetSeenBeforeOwnEcho,
   replicationHostFor,
-} from "../syncReplication";
+} from "../sync-replication";
 import {
   CLIENT_SYNC_REGISTRY,
   REPLICATION_CLASSIFICATION,
