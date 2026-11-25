@@ -79,12 +79,17 @@ test("the number of module mocks in each file only goes down", () => {
   expect(problems(found, allowed)).toEqual([]);
 });
 
-test.each([
-  [new Map([["new.test.ts", 1]]), new Map(), 1],
-  [new Map([["a.test.ts", 3]]), new Map([["a.test.ts", 2]]), 1],
-  [new Map([["a.test.ts", 1]]), new Map([["a.test.ts", 2]]), 1],
-  [new Map(), new Map([["gone.test.ts", 2]]), 1],
-  [new Map([["a.test.ts", 2]]), new Map([["a.test.ts", 2]]), 0],
-])("reports a rise, a new file and a stale entry", (found, allowed, total) => {
-  expect(problems(found, allowed)).toHaveLength(total);
-});
+const cases: Array<[Array<[string, number]>, Array<[string, number]>, number]> =
+  [
+    [[["new.test.ts", 1]], [], 1],
+    [[["a.test.ts", 3]], [["a.test.ts", 2]], 1],
+    [[["a.test.ts", 1]], [["a.test.ts", 2]], 1],
+    [[], [["gone.test.ts", 2]], 1],
+    [[["a.test.ts", 2]], [["a.test.ts", 2]], 0],
+  ];
+test.each(cases)(
+  "reports a rise, a new file and a stale entry",
+  (found, allowed, total) => {
+    expect(problems(new Map(found), new Map(allowed))).toHaveLength(total);
+  },
+);
