@@ -2092,6 +2092,62 @@
   "apps/cli/src/cursorWatcher.ts": {
     "swarm/no-comments": 11
   },
+  "apps/cli/src/daemon-commands/account.ts": {
+    "swarm/no-comments": 59
+  },
+  "apps/cli/src/daemon-commands/cloud.ts": {
+    "swarm/no-comments": 65
+  },
+  "apps/cli/src/daemon-commands/config-files.ts": {
+    "swarm/no-comments": 14
+  },
+  "apps/cli/src/daemon-commands/dependencies.ts": {
+    "swarm/no-comments": 25
+  },
+  "apps/cli/src/daemon-commands/dispatch.ts": {
+    "swarm/no-comments": 61
+  },
+  "apps/cli/src/daemon-commands/launch-session.ts": {
+    "swarm/no-comments": 32
+  },
+  "apps/cli/src/daemon-commands/line.ts": {
+    "swarm/no-comments": 31
+  },
+  "apps/cli/src/daemon-commands/machine.ts": {
+    "swarm/no-blocking-child-process-call": 1,
+    "swarm/no-comments": 10
+  },
+  "apps/cli/src/daemon-commands/resume-fallback.ts": {
+    "swarm/no-comments": 61
+  },
+  "apps/cli/src/daemon-commands/resume-forks.ts": {
+    "swarm/no-comments": 12
+  },
+  "apps/cli/src/daemon-commands/resume-session.ts": {
+    "swarm/no-comments": 83
+  },
+  "apps/cli/src/daemon-commands/session-input.ts": {
+    "swarm/no-comments": 32
+  },
+  "apps/cli/src/daemon-commands/session-lifecycle.ts": {
+    "swarm/no-comments": 32
+  },
+  "apps/cli/src/daemon-commands/start-session.ts": {
+    "swarm/no-blocking-child-process-call": 1,
+    "swarm/no-comments": 148
+  },
+  "apps/cli/src/daemon-commands/switch-account.ts": {
+    "swarm/no-comments": 27
+  },
+  "apps/cli/src/daemon-commands/terminal.ts": {
+    "swarm/no-comments": 4
+  },
+  "apps/cli/src/daemon-commands/workflows.ts": {
+    "swarm/no-comments": 27
+  },
+  "apps/cli/src/daemon-restart-gating.test.ts": {
+    "swarm/no-comments": 72
+  },
   "apps/cli/src/daemon.agent-starved.test.ts": {
     "swarm/no-comments": 1
   },
@@ -2099,7 +2155,7 @@
     "swarm/no-comments": 2
   },
   "apps/cli/src/daemon.appserver-registration.test.ts": {
-    "swarm/no-comments": 17
+    "swarm/no-comments": 13
   },
   "apps/cli/src/daemon.auq-prose.test.ts": {
     "swarm/no-comments": 18
@@ -2462,8 +2518,8 @@
     "swarm/no-comments": 1
   },
   "apps/cli/src/daemon.ts": {
-    "swarm/no-blocking-child-process-call": 4,
-    "swarm/no-comments": 7526
+    "swarm/no-blocking-child-process-call": 2,
+    "swarm/no-comments": 6751
   },
   "apps/cli/src/daemon.turn-claims-wiring.test.ts": {
     "swarm/no-comments": 23
@@ -2515,9 +2571,6 @@
   },
   "apps/cli/src/daemonMarkers.ts": {
     "swarm/no-comments": 46
-  },
-  "apps/cli/src/daemon-restart-gating.test.ts": {
-    "swarm/no-comments": 72
   },
   "apps/cli/src/dataSync/command.ts": {
     "swarm/no-comments": 4
@@ -4286,6 +4339,9 @@
   "apps/cli/src/serverError.ts": {
     "swarm/no-comments": 1
   },
+  "apps/cli/src/session-transfer.test.ts": {
+    "swarm/no-comments": 2
+  },
   "apps/cli/src/sessionIdentity.ts": {
     "swarm/no-comments": 7
   },
@@ -4329,9 +4385,6 @@
   },
   "apps/cli/src/sessionTrailerHook.ts": {
     "swarm/no-comments": 9
-  },
-  "apps/cli/src/session-transfer.test.ts": {
-    "swarm/no-comments": 2
   },
   "apps/cli/src/sessionTransfer.ts": {
     "swarm/no-comments": 2
@@ -4701,6 +4754,9 @@
   },
   "apps/cli/src/terminal/controlProtocol.ts": {
     "swarm/no-comments": 18
+  },
+  "apps/cli/src/terminal/daemon-bridge.ts": {
+    "swarm/no-comments": 51
   },
   "apps/cli/src/terminal/paneStream.clipboard.test.ts": {
     "swarm/no-comments": 2
@@ -5818,11 +5874,11 @@
     "swarm/no-blocking-child-process-call": 1,
     "swarm/no-comments": 1
   },
-  "apps/cli/src/worktreeEnv.ts": {
-    "swarm/no-comments": 8
-  },
   "apps/cli/src/worktree-gc.test.ts": {
     "swarm/no-comments": 34
+  },
+  "apps/cli/src/worktreeEnv.ts": {
+    "swarm/no-comments": 8
   },
   "apps/cli/src/worktreeGc.ts": {
     "swarm/no-comments": 45
