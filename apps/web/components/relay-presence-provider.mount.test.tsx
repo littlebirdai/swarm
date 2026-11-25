@@ -1,10 +1,28 @@
-import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  expect,
+  spyOn,
+  test,
+} from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { act, useContext, useState } from "react";
+import { ConvexProviderWithAuth, useConvex } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
+import {
+  act,
+  useContext,
+  useLayoutEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { mountWeb } from "../test-helpers/mountWeb";
 import { useDocPresence } from "../hooks/useDocPresence";
 import { useWatchEffect } from "../hooks/useWatchEffect";
-import { RelayPresenceContext } from "../lib/relay-presence-context";
+import {
+  RelayPresenceContext,
+  type RelayPresenceClient,
+} from "../lib/relay-presence-context";
 import { RelayPresenceProvider } from "./relay-presence-provider";
 
 const relayUrl = "wss://relay.test/relay";
@@ -14,7 +32,7 @@ const ok = {
   token: "v1.claims.signature",
   ttl_ms: 60_000,
   omitted: [],
-} as const;
+} satisfies FunctionReturnType<typeof api.relayGrants.mint>;
 const sockets: RelaySocket[] = [];
 
 class RelaySocket {
@@ -79,6 +97,10 @@ class RelaySocket {
 const keys = ["VITE_RELAY_PRESENCE", "VITE_RELAY_URL"] as const;
 let env: (string | undefined)[];
 
+beforeAll(async () => {
+  await import("@codecast/relay-client");
+});
+
 beforeEach(() => {
   env = keys.map((key) => process.env[key]);
   process.env.VITE_RELAY_PRESENCE = "1";
@@ -122,12 +144,19 @@ function view(paired: boolean) {
 }
 
 function mountRelay(
-  paired = true,
-  reply: typeof ok | Error = ok,
-  visibility = { hidden: false, online: true },
+  node = view(true),
+  {
+    reply = ok,
+    visibility = { hidden: false, online: true },
+    authenticated = true,
+  }: {
+    reply?: typeof ok | Error | (() => Promise<typeof ok>);
+    visibility?: { hidden: boolean; online: boolean };
+    authenticated?: boolean;
+  } = {},
 ) {
-  return mountWeb(view(paired), {
-    authenticated: true,
+  return mountWeb(node, {
+    authenticated,
     clock: true,
     expectedConsoleErrors:
       reply instanceof Error ? [/relayGrants:mint.*relay unavailable/] : [],
@@ -140,31 +169,42 @@ function mountRelay(
       Object.defineProperty(navigator, "onLine", {
         get: () => visibility.online,
       });
-      backend.mutation(
-        api.relayGrants.mint,
-        reply instanceof Error
-          ? reply
-          : {
-              ...reply,
-              omitted: [],
-            },
-      );
+      backend.mutation(api.relayGrants.mint, reply);
     },
   });
 }
 
-test.each(["off", "no URL", "insecure URL"])(
+test.each([
+  ["off", relayUrl],
+  ["no URL", undefined],
+  ["insecure URL", "ws://relay.test/relay"],
+  ["username", "wss://viewer@relay.test/relay"],
+  ["password", "wss://:secret@relay.test/relay"],
+  ["hash", "wss://relay.test/relay#state"],
+  ["empty hash", "wss://relay.test/relay#"],
+  ["query", "wss://relay.test/relay?token=secret"],
+  ["empty query", "wss://relay.test/relay?"],
+] as const)(
   "%s leaves both readers silent with zero Convex queries or writes",
-  async (config) => {
+  async (config, url) => {
     if (config === "off") delete process.env.VITE_RELAY_PRESENCE;
-    if (config === "no URL") delete process.env.VITE_RELAY_URL;
-    if (config === "insecure URL")
-      process.env.VITE_RELAY_URL = "ws://relay.test";
+    if (url === undefined) delete process.env.VITE_RELAY_URL;
+    else process.env.VITE_RELAY_URL = url;
     const ui = await mountRelay();
     expect(ui.container.textContent).toBe("AloneAlone");
     expect(ui.backend.queryRequests).toEqual([]);
     expect(ui.backend.writeRequests).toEqual([]);
-    expect(sockets).toEqual([]);
+    expect(sockets).toHaveLength(0);
+  },
+);
+
+test.each(["localhost", "127.0.0.1", "[::1]"])(
+  "allows ws on loopback %s",
+  async (host) => {
+    const url = `ws://${host}:3001/relay`;
+    process.env.VITE_RELAY_URL = url;
+    await mountRelay();
+    expect(sockets.map((socket) => socket.url)).toEqual([url]);
   },
 );
 
@@ -231,7 +271,7 @@ test("the default flag preserves the legacy presence query and heartbeat writes"
 test("two readers share one grant and socket, and both see arrival, departure, and expiry", async () => {
   const clock = spyOn(performance, "now").mockReturnValue(0);
   try {
-    const ui = await mountRelay(false);
+    const ui = await mountRelay(view(false));
     expect(ui.backend.writeRequests).toEqual([]);
     await ui.rerender(view(true));
     expect(ui.backend.queryRequests).toEqual([]);
@@ -262,7 +302,7 @@ test("two readers share one grant and socket, and both see arrival, departure, a
 
 test("the window stays disconnected while hidden or offline and resumes when both clear", async () => {
   const visibility = { hidden: true, online: true };
-  const ui = await mountRelay(true, ok, visibility);
+  const ui = await mountRelay(view(true), { visibility });
   expect(ui.backend.mutations).toEqual([]);
   visibility.hidden = false;
   await act(() => document.dispatchEvent(new window.Event("visibilitychange")));
@@ -295,7 +335,9 @@ test("a lost socket clears both readers", async () => {
 });
 
 test("a failed mint leaves both readers silent", async () => {
-  const ui = await mountRelay(true, new Error("relay unavailable"));
+  const ui = await mountRelay(view(true), {
+    reply: new Error("relay unavailable"),
+  });
   expect(ui.backend.mutations).toHaveLength(1);
   expect(sockets).toHaveLength(0);
   expect(ui.container.textContent).toBe("AloneAlone");
@@ -312,4 +354,122 @@ test("an account switch closes the old socket and discards its signals", async (
   expect(sockets).toHaveLength(2);
   await act(() => socket.peer(2, "active", 200));
   expect(ui.container.textContent).toBe("AloneAlone");
+});
+
+const fetchAccessToken = async () => {
+  const claims = Buffer.from(JSON.stringify({ iat: 1, exp: 3601 })).toString(
+    "base64url",
+  );
+  return `eyJhbGciOiJIUzI1NiJ9.${claims}.test`;
+};
+
+function TestAuth({
+  signedIn,
+  children,
+}: {
+  signedIn: boolean;
+  children: ReactNode;
+}) {
+  const client = useConvex();
+  return (
+    <ConvexProviderWithAuth
+      client={client}
+      useAuth={() => ({
+        isLoading: false,
+        isAuthenticated: signedIn,
+        fetchAccessToken,
+      })}
+    >
+      {children}
+    </ConvexProviderWithAuth>
+  );
+}
+
+test("sign-out closes a socket even if its consumer does not unsubscribe", async () => {
+  function Reader() {
+    const client = useContext(RelayPresenceContext);
+    useWatchEffect(() => {
+      client?.subscribe(hub.id, () => {});
+    }, [client]);
+    return null;
+  }
+  const render = (signedIn: boolean) => (
+    <TestAuth signedIn={signedIn}>
+      <RelayPresenceProvider>
+        <Reader />
+      </RelayPresenceProvider>
+    </TestAuth>
+  );
+  const ui = await mountRelay(render(true), { authenticated: false });
+  expect(sockets).toHaveLength(1);
+  const [socket] = sockets;
+  await act(() => socket.join());
+  await ui.rerender(render(false));
+  expect(socket.closed).toBe(true);
+});
+
+test("the same account never receives its closed client after an auth flicker", async () => {
+  const committed: (RelayPresenceClient | null)[] = [];
+  function Reader() {
+    const client = useContext(RelayPresenceContext);
+    useLayoutEffect(() => {
+      committed.push(client);
+    });
+    useWatchEffect(() => client?.subscribe(hub.id, () => {}), [client]);
+    return null;
+  }
+  const render = (signedIn: boolean) => (
+    <TestAuth signedIn={signedIn}>
+      <RelayPresenceProvider>
+        <Reader />
+      </RelayPresenceProvider>
+    </TestAuth>
+  );
+  const ui = await mountRelay(render(true), { authenticated: false });
+  const oldClient = committed.at(-1);
+  expect(oldClient).toBeTruthy();
+  await ui.rerender(render(false));
+  expect(sockets[0]?.closed).toBe(true);
+  expect(committed.at(-1)).toBeNull();
+  committed.length = 0;
+  await ui.rerender(render(true));
+  expect(committed.includes(oldClient ?? null)).toBe(false);
+  expect(committed.at(-1)).toBeTruthy();
+  expect(sockets).toHaveLength(2);
+});
+
+test("a pending mint cannot open a socket after the account changes", async () => {
+  const mint = Promise.withResolvers<typeof ok>();
+  const ui = await mountRelay(view(true), { reply: () => mint.promise });
+  expect(ui.backend.mutations).toHaveLength(1);
+  const state = ui.store.getState();
+  const readState = spyOn(ui.store, "getState").mockReturnValue({
+    ...state,
+    currentUser: null,
+  });
+  try {
+    await act(async () => mint.resolve(ok));
+    expect(sockets).toHaveLength(0);
+  } finally {
+    readState.mockRestore();
+  }
+});
+
+test("an invalid session ID leaves the consumer mounted and sends no grant", async () => {
+  function Reader() {
+    const client = useContext(RelayPresenceContext);
+    useWatchEffect(
+      () => client?.subscribe("invalid session", () => {}),
+      [client],
+    );
+    return <output>{client ? "Ready" : "Alone"}</output>;
+  }
+  const ui = await mountRelay(
+    <RelayPresenceProvider>
+      <Reader />
+    </RelayPresenceProvider>,
+  );
+  expect(ui.container.textContent).toBe("Ready");
+  expect(ui.backend.mutations).toHaveLength(0);
+  expect(sockets).toHaveLength(0);
 });
