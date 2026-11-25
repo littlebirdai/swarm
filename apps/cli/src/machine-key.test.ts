@@ -28,10 +28,193 @@ function cloneDir(src: string): string {
 }
 
 describe("machineKey hardware binding", () => {
+  it("uses the key published by a concurrent first run", () => {
+    const dir = tmpDir();
+    const keyFile = path.join(dir, ".machine_key");
+    const read = fs.readFileSync;
+    let winner: ReturnType<typeof resolveMachineKey> | undefined;
+    const intercept = spyOn(fs, "readFileSync").mockImplementation(
+      new Proxy(read, {
+        apply(target, receiver, args: Parameters<typeof read>) {
+          if (args[0] !== keyFile) return Reflect.apply(target, receiver, args);
+          try {
+            return Reflect.apply(target, receiver, args);
+          } catch (err) {
+            intercept.mockRestore();
+            winner = resolveMachineKey(dir, HW_A);
+            throw err;
+          }
+        },
+      }),
+    );
+    try {
+      const result = resolveMachineKey(dir, HW_A);
+      expect(winner?.secret).toEqual(result.secret);
+      expect(result.secret).toEqual(read(keyFile));
+      expect(fs.readdirSync(dir).sort()).toEqual([
+        ".machine_key",
+        ".machine_key.hostid",
+      ]);
+    } finally {
+      intercept.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("decrypts tokens from both processes after concurrent first runs", async () => {
+    const dir = tmpDir();
+    const keyFile = path.join(dir, ".machine_key");
+    const script = `
+      import { spyOn } from "bun:test";
+      import * as fs from "node:fs";
+      import { resolveMachineKey } from "./src/machine-key.ts";
+      import { encryptTokenWithSecret } from "./src/tokenEncryption.ts";
+
+      const read = fs.readFileSync;
+      const intercept = spyOn(fs, "readFileSync").mockImplementation((...args) => {
+        if (args[0] !== process.env.TEST_KEY_FILE) return read(...args);
+        try {
+          return read(...args);
+        } catch (err) {
+          if (err.code !== "ENOENT") throw err;
+          intercept.mockRestore();
+          fs.writeSync(1, "R");
+          if (fs.readSync(0, Buffer.alloc(1)) !== 1) throw new Error("Missing start signal");
+          throw err;
+        }
+      });
+      const { secret } = resolveMachineKey(process.env.TEST_KEY_DIR, () => ${JSON.stringify(HW_A())});
+      console.log(encryptTokenWithSecret("first run token", secret));
+    `;
+    const children = Array.from({ length: 2 }, () =>
+      Bun.spawn([process.execPath, "-e", script], {
+        cwd: path.resolve(import.meta.dir, ".."),
+        env: { ...process.env, TEST_KEY_DIR: dir, TEST_KEY_FILE: keyFile },
+        stdin: "pipe",
+        stdout: "pipe",
+        stderr: "inherit",
+        signal: AbortSignal.timeout(5_000),
+      }),
+    );
+    const readers = children.map((child) => child.stdout.getReader());
+    try {
+      await Promise.all(
+        readers.map(async (reader) => {
+          const { value } = await reader.read();
+          expect(new TextDecoder().decode(value)).toBe("R");
+        }),
+      );
+      for (const child of children) {
+        child.stdin.write("x");
+        child.stdin.end();
+      }
+      const ciphertexts = await Promise.all(
+        readers.map(async (reader) => {
+          const chunks: Uint8Array[] = [];
+          for (
+            let next = await reader.read();
+            !next.done;
+            next = await reader.read()
+          ) {
+            chunks.push(next.value);
+          }
+          return Buffer.concat(chunks).toString().trim();
+        }),
+      );
+      expect(await Promise.all(children.map((child) => child.exited))).toEqual([
+        0, 0,
+      ]);
+      const { secret } = resolveMachineKey(dir, HW_A);
+      for (const encrypted of ciphertexts) {
+        expect(decryptTokenWithSecrets(encrypted, [secret])).toBe(
+          "first run token",
+        );
+      }
+    } finally {
+      for (const child of children) child.kill();
+      await Promise.all(children.map((child) => child.exited));
+      for (const reader of readers) reader.releaseLock();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 10_000);
+
+  it("rejects a short existing key and preserves its bytes", () => {
+    const dir = tmpDir();
+    const keyFile = path.join(dir, ".machine_key");
+    try {
+      fs.writeFileSync(keyFile, "short");
+      expect(() => resolveMachineKey(dir, HW_A)).toThrow("fewer than 32 bytes");
+      expect(fs.readFileSync(keyFile, "utf8")).toBe("short");
+      expect(fs.readdirSync(dir)).toEqual([".machine_key"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails first creation if hard links are unavailable and removes its temp file", () => {
+    const dir = tmpDir();
+    const unsupported = Object.assign(new Error("Hard links unavailable"), {
+      code: "ENOTSUP",
+    });
+    const link = spyOn(fs, "linkSync").mockImplementation(() => {
+      throw unsupported;
+    });
+    try {
+      expect(() => resolveMachineKey(dir, HW_A)).toThrow(unsupported);
+      expect(fs.readdirSync(dir)).toEqual([]);
+    } finally {
+      link.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves the key unpublished if its sync fails", () => {
+    const dir = tmpDir();
+    const sync = spyOn(fs, "fsyncSync").mockImplementation(() => {
+      throw new Error("key sync failed");
+    });
+    try {
+      expect(() => resolveMachineKey(dir, HW_A)).toThrow("key sync failed");
+      expect(fs.readdirSync(dir)).toEqual([]);
+    } finally {
+      sync.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps the published key when the first hostid write fails", () => {
+    const dir = tmpDir();
+    const keyFile = path.join(dir, ".machine_key");
+    const rename = fs.renameSync;
+    const intercept = spyOn(fs, "renameSync").mockImplementation((from, to) => {
+      if (to === path.join(dir, ".machine_key.hostid"))
+        throw new Error("hostid write failed");
+      rename(from, to);
+    });
+    try {
+      expect(() => resolveMachineKey(dir, HW_A)).toThrow("hostid write failed");
+      const published = fs.readFileSync(keyFile);
+      intercept.mockRestore();
+      expect(resolveMachineKey(dir, HW_A).secret).toEqual(published);
+      expect(fs.readdirSync(dir).sort()).toEqual([
+        ".machine_key",
+        ".machine_key.hostid",
+      ]);
+    } finally {
+      intercept.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("creates a key and hostid sidecar on first run, stable afterwards", () => {
     const dir = tmpDir();
     const first = resolveMachineKey(dir, HW_A);
     expect(first.secret.length).toBe(MACHINE_KEY_LEN);
+    if (process.platform !== "win32") {
+      expect(fs.statSync(path.join(dir, ".machine_key")).mode & 0o777).toBe(
+        0o600,
+      );
+    }
     expect(first.rotated).toBe(false);
     expect(fs.existsSync(path.join(dir, ".machine_key.hostid"))).toBe(true);
 

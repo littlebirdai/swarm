@@ -30,6 +30,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { atomicWriteFile } from "./atomicWrite.js";
 import { defaultConfigDir } from "./config/configDir.js";
+import { publishPrivateFile } from "./publish-private-file.js";
 
 export const MACHINE_KEY_LEN = 32;
 
@@ -82,17 +83,21 @@ export function resolveMachineKey(
     } catch {}
   }
 
-  let key: Buffer | null = null;
+  let key: Buffer;
   try {
-    const existing = fs.readFileSync(keyFile);
-    if (existing.length >= MACHINE_KEY_LEN) key = existing;
-  } catch {}
-
-  if (!key) {
-    key = crypto.randomBytes(MACHINE_KEY_LEN);
-    writeSecretFile(keyFile, key);
-    if (hostid) writeSecretFile(hostidFile, hostid + "\n");
-    return { secret: key, previousSecret: readPrev(prevFile), rotated: false };
+    key = fs.readFileSync(keyFile);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    const candidate = crypto.randomBytes(MACHINE_KEY_LEN);
+    key = publishPrivateFile(keyFile, candidate)
+      ? candidate
+      : fs.readFileSync(keyFile);
+    recorded = "";
+  }
+  if (key.length < MACHINE_KEY_LEN) {
+    throw new Error(
+      `Machine key at ${keyFile} has fewer than ${MACHINE_KEY_LEN} bytes.`,
+    );
   }
 
   // No hardware id on this platform/environment → binding disabled, key as-is.
