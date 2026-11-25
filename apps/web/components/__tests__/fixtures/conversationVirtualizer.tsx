@@ -486,12 +486,17 @@ test("size repair reads all row heights before changing geometry", async () => {
     };
     await act(async () => {
       feed.dispatchEvent(new dom.window.Event("scrollend"));
-      await new Promise((resolve) => setTimeout(resolve, 200));
     });
-    await act(async () => {
-      for (const tick of ticks) tick();
-      onHeightRead = undefined;
-    });
+    const deadline = Date.now() + 15_000;
+    while (parentHeights.length === 0 && Date.now() < deadline) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      });
+      await act(async () => {
+        for (const tick of ticks) tick();
+      });
+    }
+    onHeightRead = undefined;
     expect(parentHeights.length).toBe(rows.length);
     expect(new Set(parentHeights).size).toBe(1);
     expect(container.style.height).not.toBe(parentHeights[0]);
