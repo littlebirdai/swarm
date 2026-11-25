@@ -1,6 +1,10 @@
 {
   "$schema": "https://turborepo.com/schema.json",
-  "globalDependencies": ["tsconfig.json", "patches/**"],
+  "globalDependencies": [
+    "tsconfig.json",
+    "packages/tsconfig/*.json",
+    "patches/**"
+  ],
   "tasks": {
     "build": {
       "cache": false,
