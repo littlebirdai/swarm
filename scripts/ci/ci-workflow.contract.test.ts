@@ -86,8 +86,8 @@ describe("ci.yml job graph", () => {
         ).toBe(false);
         expect(
           uses.startsWith("actions/cache@") &&
-            !String(step.with.path).startsWith(".turbo/"),
-          `${name} caches something other than a Turborepo or typecheck state`,
+            step.with.path !== ".turbo/cache",
+          `${name} caches something other than the Turborepo cache`,
         ).toBe(false);
         expect(
           /^bun install( --frozen-lockfile)?$/.test(String(step.run ?? "")),
@@ -396,7 +396,7 @@ describe("matrices", () => {
     build: [
       [
         "matrix.target == 'web'",
-        "bunx turbo run build:check --filter=@codecast/web",
+        'BUILD_NODE_VERSION="$(node --version)" bunx turbo run build:check --filter=@codecast/web',
       ],
       [
         "matrix.target == 'other'",
@@ -514,6 +514,39 @@ describe("matrices", () => {
         expect(numbers, job).toHaveLength(Number(shard[2]));
       }
     }
+  });
+});
+
+describe("pinned content", () => {
+  test("every job's steps are the reviewed ones", () => {
+    expect((workflow as any).defaults).toBeUndefined();
+    expect(Object.keys(workflow).toSorted()).toEqual([
+      "concurrency",
+      "env",
+      "jobs",
+      "name",
+      "on",
+    ]);
+    expect(workflow.env).toEqual({ TURBO_TELEMETRY_DISABLED: "1" });
+    const pinned = Object.fromEntries(
+      Object.entries(jobs).map(([name, job]) => [
+        name,
+        {
+          env: job.env,
+          defaults: job.defaults,
+          services: job.services,
+          steps: job.steps,
+        },
+      ]),
+    );
+    expect(pinned).toMatchSnapshot();
+  });
+
+  test("turbo.json and the typecheck command are the reviewed ones", () => {
+    const read = (file: string) =>
+      readFileSync(new URL(`../../${file}`, import.meta.url), "utf8");
+    expect(JSON.parse(read("turbo.json"))).toMatchSnapshot();
+    expect(read("scripts/ci/typecheck.ts")).toMatchSnapshot();
   });
 });
 

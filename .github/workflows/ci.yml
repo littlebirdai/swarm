@@ -206,7 +206,8 @@ jobs:
         # that those scripts load.
         env:
           NODE_OPTIONS: --max-old-space-size=8192
-        run: bunx turbo run build:check --filter=@codecast/web
+        # lts/* moves on its own, so the Node.js version is part of the cache key.
+        run: BUILD_NODE_VERSION="$(node --version)" bunx turbo run build:check --filter=@codecast/web
 
       - name: Load the scripts that follow the web bundle
         if: matrix.target == 'other'
@@ -235,15 +236,6 @@ jobs:
       # mobile, with the native TypeScript compiler. The programs of one runner
       # run at the same time, each with one checker: more checkers repeat most
       # of each other's work.
-      # The compiler's incremental state: it checks again only the files that
-      # changed, by content, and the files that depend on them.
-      - name: Incremental typecheck state
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .turbo/typecheck
-          key: typecheck-${{ runner.os }}-${{ matrix.programs }}-${{ github.sha }}-${{ github.run_attempt }}
-          restore-keys: typecheck-${{ runner.os }}-${{ matrix.programs }}-
-
       - name: Typecheck
         run: bun scripts/ci/typecheck.ts ${{ matrix.programs }}
 

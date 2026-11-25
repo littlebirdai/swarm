@@ -27,7 +27,7 @@
         "!$TURBO_ROOT$/apps/**/*.test.tsx",
         "!$TURBO_ROOT$/packages/*/test/**"
       ],
-      "env": ["VITE_*", "NODE_ENV"],
+      "env": ["VITE_*", "NODE_ENV", "BUILD_NODE_VERSION"],
       "passThroughEnv": ["NODE_OPTIONS"],
       "outputs": []
     },
