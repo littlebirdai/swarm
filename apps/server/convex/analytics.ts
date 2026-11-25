@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { createServerAnalytics } from "@platform/analytics/server";
 import { CODECAST_EVENTS, TELEMETRY_DISABLED_VAR } from "@codecast/analytics";
+import { internal } from "./_generated/api";
 import { internalAction } from "./_generated/server";
 
 // Server-side PostHog capture for funnel steps that happen off-browser (CLI
@@ -21,8 +22,8 @@ import { internalAction } from "./_generated/server";
 const POSTHOG_KEY = process.env.POSTHOG_KEY || process.env.VITE_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.POSTHOG_HOST || "https://us.i.posthog.com";
 
-const analytics = POSTHOG_KEY
-  ? createServerAnalytics({
+const analyticsConfig = POSTHOG_KEY
+  ? {
       posthogKey: POSTHOG_KEY,
       posthogHost: POSTHOG_HOST,
       source: "convex",
@@ -34,7 +35,10 @@ const analytics = POSTHOG_KEY
       // package consults no environment unless it is handed one.
       env: process.env,
       optOutVars: [TELEMETRY_DISABLED_VAR],
-    })
+    }
+  : null;
+const analytics = analyticsConfig
+  ? createServerAnalytics(analyticsConfig)
   : null;
 
 if (!analytics) {
@@ -57,5 +61,18 @@ export const capture = internalAction({
     // capture swallows its own failures — analytics must never surface errors
     // to product flows.
     await analytics?.capture(args.event, args.distinctId, args.properties);
+  },
+});
+
+export const sampleSyncOutbox = internalAction({
+  args: {},
+  handler: async (ctx): Promise<void> => {
+    if (!analyticsConfig) return;
+    const sampler = createServerAnalytics(analyticsConfig);
+    if (sampler.optedOut) return;
+    const { oldestAgeMs } = await ctx.runQuery(internal.syncOutbox.status, {});
+    await sampler.capturePersonless("sync_outbox_status", {
+      oldest_age_ms: oldestAgeMs,
+    });
   },
 });

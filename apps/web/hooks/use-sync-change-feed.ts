@@ -436,22 +436,25 @@ async function applyLogPage(
 // synclog_apply telemetry (E6/E10 acceptance signal): the direct-vs-refetch
 // tally, flushed at most once a minute while there is something to report and
 // when the tab hides. Only the sync host applies pages, so followers emit none.
-let applyTally = { direct: 0, refetch: 0 };
+let applyTally = { direct: 0, refetch: 0, resyncs: 0 };
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 function flushApplyTally(): void {
   flushTimer = null;
-  const { direct, refetch } = applyTally;
-  if (!direct && !refetch) return;
-  applyTally = { direct: 0, refetch: 0 };
-  track("synclog_apply", {
-    direct,
-    refetch,
-    ratio: direct / (direct + refetch),
-  });
+  const { direct, refetch, resyncs } = applyTally;
+  if (!direct && !refetch && !resyncs) return;
+  applyTally = { direct: 0, refetch: 0, resyncs: 0 };
+  if (direct || refetch)
+    track("synclog_apply", {
+      direct,
+      refetch,
+      ratio: direct / (direct + refetch),
+    });
+  if (resyncs) track("synclog_resync", { count: resyncs });
 }
-function tallyApply(direct: number, refetch: number): void {
+function tallyApply(direct: number, refetch: number, resyncs = 0): void {
   applyTally.direct += direct;
   applyTally.refetch += refetch;
+  applyTally.resyncs += resyncs;
   if (!flushTimer) flushTimer = setTimeout(flushApplyTally, 60_000);
 }
 if (
@@ -470,6 +473,7 @@ type ScopeHead = { scope_key: string; position: number; floor: number };
 // the cursor and every crawl watermark the scope owns, so the next crawl is a
 // FULL backfill, then restamp at head.
 function resetScopeForResync(head: ScopeHead): void {
+  tallyApply(0, 0, 1);
   const metaKey = scopeMetaKey(head.scope_key);
   const s = useInboxStore.getState();
   s.clearSyncMeta(metaKey);
@@ -731,14 +735,14 @@ function shadowEnabled(): boolean {
 export function __changeFeedSimSlots() {
   type Slots = {
     cargoSupported: boolean;
-    applyTally: { direct: number; refetch: number };
+    applyTally: typeof applyTally;
     flushTimer: ReturnType<typeof setTimeout> | null;
     shadowApplied: Set<string> | null;
   };
   return {
     fresh: (): Slots => ({
       cargoSupported: true,
-      applyTally: { direct: 0, refetch: 0 },
+      applyTally: { direct: 0, refetch: 0, resyncs: 0 },
       flushTimer: null,
       shadowApplied: null,
     }),
