@@ -28047,7 +28047,7 @@
     "swarm/no-comments": 7
   },
   "apps/web/store/inbox-hydration.ts": {
-    "swarm/no-comments": 141
+    "swarm/no-comments": 140
   },
   "apps/web/store/inboxDigestCompare.ts": {
     "swarm/no-comments": 130
@@ -28114,7 +28114,7 @@
     "swarm/no-comments": 24
   },
   "apps/web/store/persistence/boot-loader.ts": {
-    "swarm/no-comments": 24
+    "swarm/no-comments": 20
   },
   "apps/web/store/persistence/collection-writer.ts": {
     "swarm/no-comments": 26
@@ -28126,7 +28126,7 @@
     "swarm/no-comments": 2
   },
   "apps/web/store/persistence/message-cache.ts": {
-    "swarm/no-comments": 28
+    "swarm/no-comments": 27
   },
   "apps/web/store/persistence/messageTailDiff.ts": {
     "swarm/no-comments": 4
@@ -28142,6 +28142,9 @@
   },
   "apps/web/store/persistence/schema.ts": {
     "swarm/no-comments": 28
+  },
+  "apps/web/store/persistence/storage.ts": {
+    "swarm/no-comments": 1
   },
   "apps/web/store/principalBoundary.ts": {
     "swarm/no-comments": 19

@@ -35,22 +35,7 @@ export const RETIRED_META_KEYS = [
 ];
 let retiredMetaSwept = false;
 
-// Native kv-store can read SQLite on this thread (getItemSync). Web IndexedDB
-// cannot; kill-and-reopen on desktop still hydrates under the boot shell via
-// the async path. Returning null here makes hydrateInboxCacheFromIDB await
-// loadCache as it always has.
-export function loadCacheSync(
-  _keys?: readonly string[],
-  _context?: Record<string, any>,
-): Record<string, any> | null {
-  return null;
-}
-
-export function loadPaintCacheSync(): Record<string, any> | null {
-  return null;
-}
-
-export function ensureCacheOwnership(): Promise<string | null> {
+function ensureCacheOwnership(): Promise<string | null> {
   return resolveOwnership(purgeLocalCache);
 }
 

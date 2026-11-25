@@ -12,14 +12,7 @@ import {
   keysWithSnapshotDrops,
 } from "./idbCollectionDiff";
 import {
-  loadCache,
-  loadPaintCacheSync,
-  writePatchesToIDB,
-  setHydrating,
-  loadConversationMessages,
-  enqueueDispatch,
-  removeDispatch,
-  loadOutbox,
+  cacheStorage,
   salvageLocalFirstV2Data,
   setUpgradeBlockedListener,
   PERSISTENCE_AVAILABLE,
@@ -54,7 +47,8 @@ export function hydrateConversation(
   const inflight = _idbHydrating.get(convId);
   if (inflight) return inflight;
   if (hasMessages) _userMsgsProbed.add(convId);
-  const p = loadConversationMessages(convId)
+  const p = cacheStorage
+    .loadConversationMessages(convId)
     .then((cached) => {
       _idbHydrating.delete(convId);
       if (epoch !== currentHydrationEpoch()) return false;
@@ -226,11 +220,11 @@ async function hydrateInboxCacheFromIDB(
   const epoch = currentHydrationEpoch();
   const superseded = () => epoch !== currentHydrationEpoch();
 
-  (useInboxStore.getState() as any)._setIDBWrite(writePatchesToIDB);
+  (useInboxStore.getState() as any)._setIDBWrite(cacheStorage.writePatches);
   (useInboxStore.getState() as any)._setOutbox(
-    enqueueDispatch,
-    removeDispatch,
-    loadOutbox,
+    cacheStorage.enqueueDispatch,
+    cacheStorage.removeDispatch,
+    cacheStorage.loadOutbox,
   );
   const setStorageDegraded = (next: InboxStoreState["storageDegraded"]) => {
     if (useInboxStore.getState().storageDegraded === next) return;
@@ -254,13 +248,14 @@ async function hydrateInboxCacheFromIDB(
     if (salvaged > 0) (useInboxStore.getState() as any)._drainOutbox?.();
   });
 
-  setHydrating(true);
+  cacheStorage.setHydrating(true);
   // Native first paint reads only the live inbox rows (no getAllKeys of the
   // whole SQLite cache, no conversations twin). That runs before the first
   // await so bootPersistence() at module eval already has sessions in the
   // store. The full critical set still loads below, after splash can hide.
-  // Desktop IndexedDB has no sync read; loadPaintCacheSync returns null.
-  const paintCached = loadPaintCacheSync();
+  const paintCached = cacheStorage.loadPaintCacheSync
+    ? cacheStorage.loadPaintCacheSync()
+    : await cacheStorage.loadPaintCache();
 
   const apply = (source: Record<string, any> | null, pick: string[]) => {
     if (!source || superseded()) return;
@@ -376,7 +371,7 @@ async function hydrateInboxCacheFromIDB(
     }
   }
 
-  const cached = await loadCache(HYDRATION_CRITICAL_READ_KEYS);
+  const cached = await cacheStorage.loadCache(HYDRATION_CRITICAL_READ_KEYS);
   if (superseded()) return false;
 
   // Strip stale large fields from cached conversations (git_diff, git_diff_staged, available_skills)
@@ -504,7 +499,7 @@ async function hydrateInboxCacheFromIDB(
   // hydrate and persist. setTimeout fires (throttled) even when hidden.
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
   if (superseded()) return false;
-  const deferred = await loadCache(HYDRATION_DEFERRED_KEYS, {
+  const deferred = await cacheStorage.loadCache(HYDRATION_DEFERRED_KEYS, {
     pending: cached?.pending,
   });
   if (superseded()) return false;
@@ -518,7 +513,7 @@ async function hydrateInboxCacheFromIDB(
   // back" race jx799py found). Post-hydration the store holds the full union,
   // so delta overlays never drop rows; write-through then deletes only on a
   // real removal (dismiss/kill) or the crawl's authoritative snapshot.
-  setHydrating(false);
+  cacheStorage.setHydrating(false);
   // A snapshot that landed BEFORE hydration left its omitted rows on disk:
   // the floor kept them out of memory, so no later prune will ever name them
   // and no commit is pending for that collection. Spend those drops now —
@@ -527,7 +522,7 @@ async function hydrateInboxCacheFromIDB(
   // Only a window that ran the feeder holds drops, so a follower never writes.
   const stale = keysWithSnapshotDrops();
   if (stale.length) {
-    writePatchesToIDB(
+    cacheStorage.writePatches(
       stale.map(
         (key) => ({ op: "replace", path: [key], value: undefined }) as any,
       ),
@@ -563,7 +558,7 @@ export function bootInboxPersistence(
         "[store] IDB hydration failed; continuing with live-only state",
         error,
       );
-      setHydrating(false);
+      cacheStorage.setHydrating(false);
       useInboxStore.setState({ clientStateInitialized: true });
     });
   } else {

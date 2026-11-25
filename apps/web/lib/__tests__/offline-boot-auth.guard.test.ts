@@ -49,11 +49,13 @@ describe("offline boot auth", () => {
     // Phone: a sync SQLite read fills the store at module eval so kill-and-reopen
     // paints the cached inbox without waiting on that message preload.
     const paintRead = source.indexOf("loadPaintCacheSync()");
-    const firstAwait = source.indexOf(
-      "await loadCache(HYDRATION_CRITICAL_READ_KEYS)",
+    const asyncPaint = source.indexOf("await cacheStorage.loadPaintCache()");
+    const criticalRead = source.indexOf(
+      "await cacheStorage.loadCache(HYDRATION_CRITICAL_READ_KEYS)",
     );
     expect(paintRead).toBeGreaterThan(-1);
-    expect(paintRead).toBeLessThan(firstAwait);
+    expect(asyncPaint).toBeGreaterThan(paintRead);
+    expect(criticalRead).toBeGreaterThan(asyncPaint);
     // The session to restore is chosen before that preload, so the preload warms the
     // conversation the app opens on: a conversation the URL names wins, then this
     // client's own last focus, then the server's; a remembered one only when the

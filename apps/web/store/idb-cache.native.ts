@@ -1,3 +1,5 @@
+import type { OutboxEntry } from "@platform/engine";
+import type { CachedConversation, CacheStorage } from "./persistence/storage";
 import { captureException } from "./pendingInputError";
 import {
   readPendingMessageJournal,
@@ -62,6 +64,7 @@ import {
   createWriteBehind,
 } from "./idbCacheWriteBehind.native";
 export { readPlan, readPlanSql };
+export type { CachedConversation, OutboxEntry };
 import { diffCollection, durableDeletes } from "./idbCollectionDiff";
 import {
   partitionSessionRetention,
@@ -100,16 +103,6 @@ try {
   testCacheDb = Storage?.cacheDb ?? null;
   sqliteBacked = testCacheDb != null;
 }
-
-export type OutboxEntry = {
-  accountId?: string;
-  id: string;
-  action: string;
-  args: any;
-  patches: any;
-  result: any;
-  ts: number;
-};
 
 let _hydrating = false;
 
@@ -858,13 +851,6 @@ export function persistSplitRows(
 
 // -- Per-conversation message cache --
 
-export type CachedConversation = {
-  messages: any[];
-  pagination: any;
-  latestTimestamp: number;
-  userMessages?: any[];
-};
-
 async function loadUserMessages(convId: string): Promise<any[] | undefined> {
   try {
     const raw =
@@ -1168,3 +1154,21 @@ export function setUpgradeBlockedListener(
 // Mobile has one process and no other window to elect against, so any value
 // does; the real one lives in persistence/schema.ts beside the Dexie schema.
 export const CACHE_SCHEMA_VERSION = 0;
+
+export const cacheStorage: CacheStorage = {
+  loadCache,
+  loadPaintCache: async () => loadPaintCacheSync(),
+  loadPaintCacheSync,
+  setHydrating,
+  writePatches: writePatchesToIDB,
+  flushPersistence,
+  loadConversationMessages,
+  writeConversationMessages,
+  writeConversationUserMessages,
+  enqueueDispatch,
+  removeDispatch,
+  loadOutbox,
+  outboxAccountId,
+  persistPendingMessageChanges,
+  purgeLocalCache,
+};
