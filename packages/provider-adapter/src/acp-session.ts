@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import type { CanonicalEvent } from "@codecast/edge-contract";
 import type {
   AnswerRequest,
@@ -19,9 +18,20 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import { makeAcpEvents, pendingPromptLimit, type Emit } from "./acp-events";
+import {
+  makeProviderEvents,
+  pendingPromptLimit,
+  type Emit,
+} from "./provider-events";
 import { permissionChoice, permissionDisplay, promptBlocks } from "./acp-input";
-import { processError, spawnAcp, AdapterError } from "./acp-process";
+import {
+  processError,
+  rawFrames,
+  ownProviderProcess,
+  bestEffortReplies,
+  AdapterError,
+  type RpcId,
+} from "./provider-process";
 import {
   Initialize,
   LoadSession,
@@ -32,7 +42,6 @@ import {
   RpcLine,
   SessionUpdate,
   Update,
-  type RpcId,
 } from "./acp-schema";
 import {
   closed,
@@ -49,7 +58,6 @@ type DurablePayload = {
     "kind" | "body"
   >;
 }[CanonicalEvent["kind"]];
-type Disposition = RawProviderFrame["disposition"];
 
 interface Turn {
   readonly id: string;
@@ -69,43 +77,18 @@ export const openAcp = Effect.fn("acp.open")(function* (
   spec: StartSpec | ResumeSpec,
   scope: Scope.Closeable,
 ) {
-  const transport = yield* Effect.acquireRelease(
-    Effect.try({
-      try: () => spawnAcp(options, spec.cwd, scope),
-      catch: (cause) =>
-        cause instanceof Error &&
-        "code" in cause &&
-        cause.code === "ENOENT" &&
-        existsSync(spec.cwd)
-          ? processError("binary-missing", "ACP executable was not found")
-          : processError("spawn-failed", "Could not start ACP process", cause),
-    }),
-    (transport) =>
-      Effect.flatMap(Effect.promise(transport.release), (result) =>
-        result.status === "failed"
-          ? Effect.die(processError(result.code, result.message))
-          : Effect.void,
-      ),
-  ).pipe(Scope.provide(scope));
+  const transport = yield* ownProviderProcess(options, spec.cwd, scope, {
+    name: "ACP",
+    command: ["grok", "agent", "stdio"],
+  });
 
-  const events = yield* makeAcpEvents();
-  const replies = yield* Queue.dropping<object>(32);
-  yield* Effect.forkIn(
-    Effect.forever(
-      Queue.take(replies).pipe(
-        Effect.flatMap((reply) =>
-          transport.write(() => Result.succeed([reply])),
-        ),
-        Effect.ignore,
-      ),
-    ),
-    scope,
-  );
+  const events = yield* makeProviderEvents("ACP");
+  const replies = yield* bestEffortReplies(transport, scope);
   const clock = yield* Clock.Clock;
   const emit = events.emit;
   let checkpoint = "checkpoint" in spec ? spec.checkpoint : undefined;
   let seq = spec.afterSeq;
-  let unknownCount = 0;
+  const { retain, getUnknownPayloadCount } = rawFrames(options, spec);
   let turnNumber = 0;
   let turn: Turn | undefined;
   let sessionClosed = false;
@@ -283,30 +266,6 @@ export const openAcp = Effect.fn("acp.open")(function* (
         return;
     }
   }
-
-  const retain = Effect.fn("acp.retain")(function* (
-    line: string,
-    disposition: Disposition,
-    base64Fragment?: RawProviderFrame["base64Fragment"],
-  ) {
-    if (
-      disposition === "unknown" &&
-      (!base64Fragment || base64Fragment.index === 0)
-    )
-      unknownCount++;
-    yield* Effect.promise(async (signal) =>
-      options.retainRaw(
-        {
-          session: spec.session,
-          run: spec.run,
-          line,
-          disposition,
-          ...(base64Fragment ? { base64Fragment } : {}),
-        },
-        signal,
-      ),
-    );
-  });
 
   const receive = Effect.fn("acp.receive")(function* ({
     line,
@@ -783,7 +742,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
   return {
     mode: "own" as const,
     getCheckpoint: () => sessionId,
-    getUnknownPayloadCount: () => unknownCount,
+    getUnknownPayloadCount,
     recoveredReceipts: [],
     events: events.events,
     unsubscribe: events.unsubscribe,

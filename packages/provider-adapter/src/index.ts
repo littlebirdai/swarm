@@ -16,7 +16,7 @@ import { providerOffer, type ProviderAdapterOptions } from "./options";
 
 export type { ProviderAdapterOptions, RawProviderFrame } from "./options";
 
-export interface AcpOwnedSession extends OwnedSession {
+export interface ProviderOwnedSession extends OwnedSession {
   getUnknownPayloadCount(): number;
   steer(request: SteerRequest, signal?: AbortSignal): Promise<DeliveryOutcome>;
   interrupt(
@@ -29,6 +29,8 @@ export interface AcpOwnedSession extends OwnedSession {
   ): Promise<ControlOutcome<"prompt">>;
 }
 
+export type AcpOwnedSession = ProviderOwnedSession;
+
 export interface ProviderAdapterClient extends ProviderContract {
   observe(
     spec: ObserveSpec,
@@ -37,11 +39,11 @@ export interface ProviderAdapterClient extends ProviderContract {
   start(
     spec: StartSpec,
     signal?: AbortSignal,
-  ): Promise<OpenOutcome<AcpOwnedSession>>;
+  ): Promise<OpenOutcome<ProviderOwnedSession>>;
   resume(
     spec: ResumeSpec,
     signal?: AbortSignal,
-  ): Promise<OpenOutcome<AcpOwnedSession>>;
+  ): Promise<OpenOutcome<ProviderOwnedSession>>;
   dispose(): Promise<void>;
 }
 
