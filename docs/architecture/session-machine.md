@@ -92,3 +92,7 @@ The caller must commit the result before it dispatches an effect. Before the han
 A claimed, started, or ambiguous delivery occupies the single in-flight slot. With the slot empty, the first pending row is eligible. During a running turn, the first pending steer is eligible. Held rows do not occupy the slot. A steer carries the sender’s expected turn through both permit and start. A waiting queue entry can become eligible when its turn ends. A started row without proof stays unresolved. A successor can reconcile it by receipt or by evidence of no effect. An explicit resend retires the old delivery and assigns a distinct ID and a new sequence.
 
 The reducer retains up to 32 terminal deliveries and another 32 pruned delivery IDs, plus the 32 most recent turn IDs, run tokens, and attempts per delivery. It keeps all open deliveries. The inbox watermark survives pruning and epoch changes. Claim and permit adapters assign increasing numbers per epoch and delivery, respectively, and preserve them on retransmission. The numbers fence older facts after their opaque IDs leave the recent history. A missing or disallowed transition returns the same state and an empty effect list. The caller can use that result to return a protocol refusal where necessary.
+
+`@codecast/session-contract/turn-projection` exports `projectTurn` and the
+`TurnProjection` type. One turn can hold up to 32 distinct open prompts.
+Each settlement removes its prompt. Other prompts retain their answer state.

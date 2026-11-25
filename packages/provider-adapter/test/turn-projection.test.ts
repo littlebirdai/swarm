@@ -12,7 +12,7 @@ import claude from "./fixtures/claude-tool-allow.json";
 import {
   projectTurn,
   type TurnProjection,
-} from "../../session-contract/src/turn-projection";
+} from "@codecast/session-contract/turn-projection";
 
 function initial(scope: {
   session: string;

@@ -196,6 +196,15 @@ test("settles concurrent prompts by ID and stays blocked until the last settleme
   );
   const one = projectTurn(both, events.slice(3, 4));
   expect(one.openTurn).toEqual({ id: "A", promptIds: ["first"] });
+  for (const prompt_id of ["second", "never-opened"])
+    expect(
+      projectTurn(one, [
+        event(5, "A", {
+          kind: "prompt.settled",
+          body: { ...payloads["prompt.settled"].body, prompt_id },
+        }),
+      ]),
+    ).toEqual(one);
   expect(projectTurn(one, events.slice(4)).openTurn).toEqual({
     id: "A",
     promptIds: [],
@@ -292,4 +301,12 @@ test("answer requests are independent for each open prompt", () => {
     sessionMachine.apply(second.state, { ...answer, prompt_id: "second" })
       .effects,
   ).toEqual([]);
+  const settled = sessionMachine.apply(second.state, {
+    kind: "provider.event",
+    event: event(4, "A", payloads["prompt.settled"]),
+  });
+  expect(settled.state.turn.prompts).toEqual([
+    { id: "first", answerRequested: true },
+  ]);
+  expect(sessionMachine.apply(settled.state, answer).effects).toEqual([]);
 });

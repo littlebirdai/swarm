@@ -1064,6 +1064,7 @@
         "effect": "catalog:",
       },
       "devDependencies": {
+        "@codecast/session-contract": "workspace:*",
         "@codecast/test-helpers": "workspace:*",
       },
     },
