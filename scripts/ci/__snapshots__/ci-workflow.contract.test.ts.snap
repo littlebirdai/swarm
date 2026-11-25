@@ -596,6 +596,7 @@ exports[`pinned content turbo.json and the typecheck command are the reviewed on
   "$schema": "https://turborepo.com/schema.json",
   "globalDependencies": [
     "tsconfig.json",
+    "packages/tsconfig/*.json",
     "patches/**",
   ],
   "tasks": {
