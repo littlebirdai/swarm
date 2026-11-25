@@ -17,14 +17,33 @@ export type ComposerControlFacts = {
   sendState: SendState | null;
 };
 
+export type ComposerPayload = {
+  text: string;
+  imageIds?: string[];
+  quoteIds?: string[];
+  typedWords?: string;
+};
+
 export type ComposerControlCommand =
-  | { kind: "send"; text: string; expected: TurnExpectation }
-  | { kind: "queue"; text: string }
+  | ({ kind: "send"; expected: TurnExpectation } & ComposerPayload)
+  | ({ kind: "queue" | "suggest" } & ComposerPayload)
   | { kind: "ask" | "cancel-takeover" }
-  | { kind: "takeover"; driverId: string; expected: TurnExpectation };
+  | { kind: "takeover"; driverId: string; expected: TurnExpectation }
+  | { kind: "interrupt"; expected: TurnExpectation };
+
+export type ComposerCommandOutcome =
+  | "accepted"
+  | "retained"
+  | "stale"
+  | "refused";
 
 export type ComposerBaton = {
-  run(command: ComposerControlCommand): Promise<"accepted" | "retained">;
+  run(command: ComposerControlCommand): Promise<ComposerCommandOutcome>;
+};
+
+export type SharedComposerControl = {
+  facts: ComposerControlFacts;
+  baton: ComposerBaton;
 };
 
 export type ComposerControlFlag =
@@ -32,7 +51,7 @@ export type ComposerControlFlag =
   | {
       enabled: true;
       conversationId: string;
-      shared: { facts: ComposerControlFacts; baton: ComposerBaton } | null;
+      shared: SharedComposerControl | null;
     };
 
 export function selectComposerControl(
@@ -80,11 +99,15 @@ export function composerControlModel(facts: ComposerControlFacts) {
   return {
     driver: mine ? "You" : (facts.driver?.name ?? null),
     send: !canQueue
-      ? null
+      ? facts.role === "suggester"
+        ? "suggest"
+        : null
       : retryWithQueue || facts.takeoverPending || otherDrives
         ? "queue"
         : "send",
     request: !canQueue ? (facts.driveRequested ? "requested" : "ask") : null,
+    canQueue,
+    interrupt: facts.turn !== null && (owner || (canQueue && mine)),
     takeover: takingOver ? "cancel" : owner && otherDrives ? "takeover" : null,
     takeoverStatus: facts.takeoverPending
       ? "Taking over · Waiting for the machine"

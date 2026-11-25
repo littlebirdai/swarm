@@ -1,3 +1,4 @@
+import { selectComposerControl } from "./conversation/composer-control-model";
 import {
   HandoffLinkChip,
   HandoffSessionLink,
@@ -426,8 +427,6 @@ import {
 } from "../hooks/useSessionRestart";
 import { devRenderCount, devCountElements } from "../lib/devRenderCount";
 import { MessageInput } from "./message-input";
-import { SessionControlComposer } from "./conversation/session-control-composer";
-import { selectComposerControl } from "./conversation/composer-control-model";
 import { PlanBlock } from "./conversation/blocks/planBlock";
 import {
   CastBrowserRowContext,
@@ -6821,16 +6820,11 @@ const ConversationViewInner = function ConversationView(
     },
     [roleSend.wakeRole, roleSend.setRecipient],
   );
-  const controlComposer =
-    conversation &&
-    !guest &&
-    !newSessionPage &&
-    !onSendOverride &&
-    !onSubmitWithIntent
-      ? selectComposerControl(composerControl, conversation._id)
-      : null;
+  const scopedComposerControl =
+    conversation && selectComposerControl(composerControl, conversation._id)
+      ? composerControl
+      : undefined;
   const ownerComposerMounted = !!(
-    !controlComposer &&
     showMessageInput &&
     conversation &&
     !runLogEnded &&
@@ -9561,15 +9555,12 @@ const ConversationViewInner = function ConversationView(
               than a floating overlay. treePopoverOpen is owner-only, so only the
               owner branch needs it; the no-composer case is the fixed fallback
               above. */}
-                                            {controlComposer ? (
-                                              <SessionControlComposer
-                                                key={conversation._id}
-                                                {...controlComposer}
-                                                autoFocusInput={autoFocusInput}
-                                              />
-                                            ) : !effectiveIsOwner ? (
+                                            {!effectiveIsOwner ? (
                                               <NonOwnerMessageInput
                                                 conversation={conversation}
+                                                composerControl={
+                                                  composerControl
+                                                }
                                                 onForkReply={handleForkReply}
                                                 autoFocusInput={autoFocusInput}
                                                 onPopulateInput={
@@ -9629,6 +9620,14 @@ const ConversationViewInner = function ConversationView(
                                                     ) &&
                                                     !onSendOverride &&
                                                     !newSessionPage
+                                                  }
+                                                  composerControl={
+                                                    guest ||
+                                                    newSessionPage ||
+                                                    onSendOverride ||
+                                                    onSubmitWithIntent
+                                                      ? undefined
+                                                      : scopedComposerControl
                                                   }
                                                   status={conversation.status}
                                                   embedded={embedded}

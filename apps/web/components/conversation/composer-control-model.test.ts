@@ -31,7 +31,7 @@ const cases: [string, Partial<ComposerControlFacts>, Partial<View>][] = [
   [
     "suggester has a request pending",
     { role: "suggester", driveRequested: true },
-    { send: null, request: "requested" },
+    { send: "suggest", request: "requested", interrupt: false },
   ],
   [
     "sender queues behind the driver",
@@ -51,17 +51,17 @@ const cases: [string, Partial<ComposerControlFacts>, Partial<View>][] = [
   [
     "holder can steer with the owner offline",
     { driver: me },
-    { driver: "You", send: "send", takeover: null },
+    { driver: "You", send: "send", takeover: null, interrupt: true },
   ],
   [
     "owner can take over or queue",
     { role: "owner" },
-    { driver: "Ana", send: "queue", takeover: "takeover" },
+    { driver: "Ana", send: "queue", takeover: "takeover", interrupt: true },
   ],
   [
     "owner already drives",
     { role: "owner", driver: me },
-    { driver: "You", send: "send", takeover: null },
+    { driver: "You", send: "send", takeover: null, interrupt: true },
   ],
   [
     "owner can drive after the holder leaves with a prompt open",
@@ -85,7 +85,7 @@ const cases: [string, Partial<ComposerControlFacts>, Partial<View>][] = [
   [
     "revoked sender sees the suggestion and can request access",
     { role: "suggester", sendState: { kind: "suggested" } },
-    { send: null, request: "ask", sendStatus: "Suggested" },
+    { send: "suggest", request: "ask", sendStatus: "Suggested" },
   ],
   [
     "machine offline keeps the driver and shows where the send waits",

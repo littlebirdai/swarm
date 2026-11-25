@@ -2193,11 +2193,13 @@ function GuestJoinCTA() {
 // scope so auth-context re-renders don't cascade through the tooltip ref chain.
 export function NonOwnerMessageInput({
   conversation,
+  composerControl,
   onForkReply,
   autoFocusInput,
   onPopulateInput,
 }: {
   conversation: ConversationData;
+  composerControl?: import("./composer-control-model").ComposerControlFlag;
   onForkReply?: (content: string) => void;
   autoFocusInput?: boolean;
   onPopulateInput?: React.MutableRefObject<
@@ -2211,7 +2213,9 @@ export function NonOwnerMessageInput({
   // when the viewer may fork (owner or team access, not a share link).
   return (
     <CollabComposer
+      key={conversation._id}
       conversation={conversation}
+      composerControl={composerControl}
       onForkReply={onForkReply}
       autoFocusInput={autoFocusInput}
       onPopulateInput={onPopulateInput}

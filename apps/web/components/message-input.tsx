@@ -1,3 +1,9 @@
+import { useComposerControl } from "./conversation/use-composer-control";
+import { SessionControlStrip } from "./conversation/session-control-strip";
+import type {
+  ComposerControlFlag,
+  ComposerPayload,
+} from "./conversation/composer-control-model";
 import { captureException } from "@sentry/react";
 import { awaitingOkIds } from "../lib/decisionQueue";
 import {
@@ -266,144 +272,6 @@ function isStaleSentDraft(
 }
 const EMPTY_QUEUE: string[] = [];
 
-const ForkReplyInput = memo(function ForkReplyInput({
-  userName,
-  userAvatar,
-  onForkReply,
-  autoFocusInput,
-}: {
-  userName: string;
-  userAvatar?: string | null;
-  onForkReply: (content: string) => void;
-  autoFocusInput?: boolean;
-}) {
-  const [message, setMessage] = useState("");
-  const [isForking, setIsForking] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  useMountEffect(() => {
-    if (
-      autoFocusInput &&
-      textareaRef.current &&
-      !hasOpenModal(textareaRef.current)
-    )
-      textareaRef.current.focus();
-  });
-  useWatchEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height =
-        textareaRef.current.scrollHeight + "px";
-    }
-  }, [message]);
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim() || isForking) return;
-    setIsForking(true);
-    onForkReply(message.trim());
-    setMessage("");
-  };
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  };
-  return (
-    <div className="bg-sol-bg">
-      <div className="flex items-center gap-2 px-4 py-1.5 text-meta text-sol-violet border-t border-sol-violet/15 bg-sol-violet/5">
-        <svg
-          className="w-3 h-3 shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101"
-          />
-        </svg>
-        <span>
-          Viewing <span className="font-medium">{userName}</span>'s session
-          <span className="text-sol-text-dim ml-1">
-            -- reply to fork as your own
-          </span>
-        </span>
-      </div>
-      <form
-        onSubmit={handleSubmit}
-        className="mx-auto conv-col px-2 sm:px-4 pb-3 pt-1.5"
-      >
-        <div className="flex items-end gap-2 border px-4 py-2 rounded-2xl bg-sol-bg-alt border-sol-violet/30 shadow-lg">
-          <textarea
-            ref={textareaRef}
-            data-chat-input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isForking}
-            placeholder="Reply to fork this session..."
-            rows={1}
-            className="flex-1 bg-transparent text-sm placeholder:text-sol-text-dim focus:outline-none disabled:opacity-50 resize-none overflow-hidden leading-relaxed py-1 text-sol-text"
-          />
-          <button
-            type="submit"
-            disabled={!message.trim() || isForking}
-            className={`shrink-0 h-8 px-3 rounded-full transition-colors flex items-center gap-1.5 text-xs font-medium border ${
-              !message.trim() || isForking
-                ? "border-sol-border/30 text-sol-text-dim/25 cursor-not-allowed"
-                : "border-sol-violet/50 bg-sol-violet/20 text-sol-violet hover:bg-sol-violet/30 hover:border-sol-violet"
-            }`}
-          >
-            {isForking ? (
-              <svg
-                className="w-3.5 h-3.5 animate-spin"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 19V5M5 12l7-7 7 7"
-                />
-              </svg>
-            )}
-            Fork & reply
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-});
-
 /** Write the composer's text to its stored draft. An empty box with no image
  *  rows is a final (server-tombstoned) clear, so the draft dies everywhere and
  *  a server copy cannot resurrect on the next boot; with images it keeps them. */
@@ -471,6 +339,7 @@ export const MessageInput = memo(function MessageInput({
   composerNode,
   sessionControl,
   composerFoot,
+  composerControl,
   bareComposer,
   hero,
   inline,
@@ -558,6 +427,7 @@ export const MessageInput = memo(function MessageInput({
   composerNode?: React.ReactNode;
   /** The session's agent/model control, at the right of the status line. */ sessionControl?: React.ReactNode;
   /** The framed surface's toolbar (attach, voice, options). Renders as a row under the field, and send moves into it. */ composerFoot?: React.ReactNode;
+  composerControl?: ComposerControlFlag;
   bareComposer?: boolean;
   /** The new-session page's centred card (ComposerShell hero): always expanded, foot inside the box. */ hero?: boolean;
   /** The full session composer laid out inside another surface (a Threads card): full width, not pinned to the bottom, tighter. */ inline?: boolean;
@@ -572,6 +442,13 @@ export const MessageInput = memo(function MessageInput({
   /** A session's composer: files other than images are uploaded and reach the agent as a local path (hooks/useFileAttach). */ acceptFiles?: boolean;
   /** The most characters the receiver takes (team chat's limit). Past it the send is held, the text stays in the box, and the count shows beside send. */ maxLength?: number;
 }) {
+  const control = useComposerControl(
+    conversationId,
+    onGateSend || onWorkflowLaunch || bareComposer
+      ? undefined
+      : composerControl,
+  );
+  const composerMounted = useRef(true);
   const sacredKey = sessionId || conversationId;
   const sacredKeyRef = useRef(sacredKey);
   const convIdRef = useRef(conversationId);
@@ -1974,6 +1851,7 @@ export const MessageInput = memo(function MessageInput({
   ]);
 
   useMountEffect(() => {
+    composerMounted.current = true;
     // One-shot heal for drafts poisoned before draftTextForPersist existed: a
     // persisted draft that duplicates a sent message would otherwise resurface
     // on every surface that reads the draft store.
@@ -1987,6 +1865,7 @@ export const MessageInput = memo(function MessageInput({
     }
     scheduleStaleRecheck();
     return () => {
+      composerMounted.current = false;
       cancelPendingDraft();
       if (staleRecheckTimerRef.current)
         clearTimeout(staleRecheckTimerRef.current);
@@ -2169,7 +2048,12 @@ export const MessageInput = memo(function MessageInput({
       ? reviewComposer.attachSend
       : undefined;
   const handleSubmitRef = useRef<
-    ((e: React.FormEvent, forkTail?: boolean) => Promise<unknown>) | null
+    | ((
+        e: React.FormEvent,
+        forkTail?: boolean,
+        queue?: boolean,
+      ) => Promise<unknown>)
+    | null
   >(null);
   useWatchEffect(() => {
     if (!attachSend) return;
@@ -2755,7 +2639,11 @@ export const MessageInput = memo(function MessageInput({
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent, forkTail = false) => {
+  const handleSubmit = async (
+    e: React.FormEvent,
+    forkTail = false,
+    queue = false,
+  ) => {
     e.preventDefault();
     if (allowanceOut) return false;
     submitRefusedRef.current = false;
@@ -2771,6 +2659,7 @@ export const MessageInput = memo(function MessageInput({
         void handleSubmitRef.current?.(
           { preventDefault: () => {} } as unknown as React.FormEvent,
           forkTail,
+          queue,
         );
         if (!submitRefusedRef.current) onSubmitWithIntent?.(false);
       })
@@ -2851,6 +2740,15 @@ export const MessageInput = memo(function MessageInput({
       await onWorkflowLaunch(goal);
       return;
     }
+    const forkingFromSelection = !!(
+      isSelectionActive &&
+      selectedMessageUuid &&
+      onForkFromMessage
+    );
+    const forking = forkingFromSelection || (forkTail && !!onForkTail);
+    const controlled = forking ? null : control;
+    if (controlled && (!controlled.send || controlled.isSubmitting()))
+      return false;
     // Snapshot the composer's images. Ready ones already carry a storageId;
     // still-uploading ones are handed to the pending bubble (preview + spinner)
     // and finished in the background — either way the input unblocks instantly.
@@ -2879,14 +2777,16 @@ export const MessageInput = memo(function MessageInput({
     // and each quote names its picture by that attachment number. A fork leaves
     // quoted pictures out, so its image quotes point by address instead.
     // A message selected forks from it; fork-and-send forks from the tail.
-    const forkingFromSelection = !!(
-      isSelectionActive &&
-      selectedMessageUuid &&
-      onForkFromMessage
-    );
-    const forking = forkingFromSelection || (forkTail && !!onForkTail);
     // Each quoted picture is sent as a copy with its notes' points drawn on as
     // numbered markers; the bubble shows the original until that copy lands.
+    if (
+      controlled &&
+      !message.trim() &&
+      submitImages.length === 0 &&
+      reviewCount === 0 &&
+      !jointSendReady(conversationId)
+    )
+      return false;
     const quoted = forking ? [] : quotedImages(conversationId);
     // The quotes it takes ride the send as ids too, so the server stamps their
     // records sent (lib/quoteDraftWire; empty unless the person turned it on).
@@ -2953,14 +2853,21 @@ export const MessageInput = memo(function MessageInput({
       ),
       ...quotedOriginals,
     ];
+    const completeControlled = controlled?.send
+      ? controlled.begin(
+          queue && controlled.canQueue ? "queue" : controlled.send,
+        )
+      : null;
+    if (controlled && !completeControlled) return false;
     sendingRef.current = true;
-    let clientId: string;
+    let clientId: string | undefined;
     try {
-      clientId = addOptimistic(
-        targetConvId,
-        trimmed,
-        optimisticImages.length > 0 ? optimisticImages : undefined,
-      );
+      if (!completeControlled)
+        clientId = addOptimistic(
+          targetConvId,
+          trimmed,
+          optimisticImages.length > 0 ? optimisticImages : undefined,
+        );
     } catch (error) {
       captureException(error);
       sendingRef.current = false;
@@ -2998,7 +2905,45 @@ export const MessageInput = memo(function MessageInput({
     // conversation id, then durably send. Reused by the immediate and the
     // upload-deferred paths. Store calls go through getState() so this is safe
     // to run after the component unmounts (user switched sessions).
+    const preparedPayload = (ids: string[]): ComposerPayload => ({
+      text: trimmed,
+      ...(ids.length ? { imageIds: ids } : {}),
+      ...(quoteIds.length ? { quoteIds } : {}),
+      ...(typedWords !== undefined ? { typedWords } : {}),
+    });
+    const restoreControlled = (payload: ComposerPayload) => {
+      if (
+        !composerMounted.current ||
+        convIdRef.current !== conversationId ||
+        messageRef.current ||
+        composeRef.current?.getMarkdown() ||
+        pastedImagesRef.current.length
+      )
+        return false;
+      const images = restoreDraftImages({
+        draft_image_storage_ids: payload.imageIds?.map((storageId) => ({
+          storageId,
+        })),
+      });
+      const restored = typedWords?.trim() === trimmed ? typed : payload.text;
+      if (images.length) setPastedImages(images);
+      setMessage(restored);
+      messageRef.current = restored;
+      persistDraftImages(conversationId, restored, images);
+      return true;
+    };
     const finishSend = async (ids: string[]) => {
+      if (completeControlled) {
+        return completeControlled(
+          async () => ({
+            ...preparedPayload(ids),
+            text: await expandMentionsInMessage(trimmed),
+          }),
+          restoreControlled,
+          preparedPayload(ids),
+        );
+      }
+      if (!clientId) return;
       try {
         const expandedContent = await expandMentionsInMessage(trimmed);
         const resolvedId = targetCanQuery
@@ -3096,15 +3041,22 @@ export const MessageInput = memo(function MessageInput({
         // Every upload failed and there was no text — nothing real to send.
         // uploadImage already toasted each failure; just fail the bubble.
         if (resolvedImages.length === 0 && !message.trim()) {
-          useInboxStore
-            .getState()
-            .markOptimisticAsFailed(targetConvId, clientId);
+          if (clientId)
+            useInboxStore
+              .getState()
+              .markOptimisticAsFailed(targetConvId, clientId);
+          if (completeControlled)
+            await completeControlled(
+              () => Promise.reject(new Error("Image upload failed")),
+              restoreControlled,
+            );
           tasks.forEach((t) => pendingImageUploads.delete(t.previewUrl));
           return;
         }
-        useInboxStore
-          .getState()
-          .resolvePendingUploads(targetConvId, clientId, resolvedImages);
+        if (clientId)
+          useInboxStore
+            .getState()
+            .resolvePendingUploads(targetConvId, clientId, resolvedImages);
         // Free the handed-off blobs after the bubble has re-rendered without
         // its preview_url (resolvePendingUploads stripped it), so a still-
         // mounted ImageBlock never loads a revoked URL and gets stuck errored.
@@ -3113,7 +3065,18 @@ export const MessageInput = memo(function MessageInput({
           setTimeout(() => URL.revokeObjectURL(t.previewUrl), 1000);
         });
         await finishSend(resolvedImages.map((i) => i.storage_id as string));
-      })();
+      })().catch((error: unknown) => {
+        if (!completeControlled) throw error;
+        return completeControlled(
+          () => Promise.reject(error),
+          restoreControlled,
+          preparedPayload(
+            submitImages.flatMap((image) =>
+              image.storageId ? [image.storageId] : [],
+            ),
+          ),
+        );
+      });
     } else {
       await finishSend(submitImages.map((img) => img.storageId as string));
     }
@@ -3291,11 +3254,12 @@ export const MessageInput = memo(function MessageInput({
     setSelectedQueueIndex(null);
   };
   // A turn this composer can stop: the agent is mid-turn and Escape reaches it.
-  const turnRunning =
-    !!onSendEscape &&
-    !hostedConversation &&
-    (isAgentActive ||
-      (agentStatus !== "idle" && (!!isThinking || !!isConversationLive)));
+  const turnRunning = control
+    ? control.interrupt
+    : !!onSendEscape &&
+      !hostedConversation &&
+      (isAgentActive ||
+        (agentStatus !== "idle" && (!!isThinking || !!isConversationLive)));
   // Stopping a turn stops the subagents it launched, so with any running the
   // stop names them first (StopConfirm).
   const [stopRequest, setStopRequest] = useState<StopRequest | null>(null);
@@ -3306,7 +3270,14 @@ export const MessageInput = memo(function MessageInput({
     if (stopNeedsConfirm(subagents)) setStopRequest({ subagents, run, send });
     else run();
   };
-  const interruptTurn = () => confirmStop(() => onSendEscape?.());
+  const interruptTurn = () => {
+    if (control && !control.interrupt) return;
+    confirmStop(() => {
+      if (control)
+        void control.act({ kind: "interrupt", expected: control.expected });
+      else onSendEscape?.();
+    });
+  };
   // Stop & send (⇧Esc): stop the running turn, then deliver the text once it
   // has stopped. A plain send still lands mid-turn.
   const canStopAndSend =
@@ -3314,6 +3285,13 @@ export const MessageInput = memo(function MessageInput({
   const stopAndSendComposerText = () => {
     if (!canStopAndSend || !messageRef.current.trim()) return;
     if (takeSideQuestion(messageRef.current)) return;
+    if (control) {
+      confirmStop(() => {
+        void control.act({ kind: "interrupt", expected: control.expected });
+        queueFromComposer();
+      }, true);
+      return;
+    }
     confirmStop(() => queueComposerText(true), true);
   };
 
@@ -3365,6 +3343,14 @@ export const MessageInput = memo(function MessageInput({
   // Queue for the end of the turn, from the chord or the pill's button alike;
   // a credential in the text is held first, as a plain send holds it.
   const queueFromComposer = () => {
+    if (control) {
+      void handleSubmit(
+        { preventDefault() {} } as React.FormEvent,
+        false,
+        true,
+      );
+      return;
+    }
     if (!holdForCredential(messageRef.current, queueComposerText))
       queueComposerText();
   };
@@ -3807,7 +3793,7 @@ export const MessageInput = memo(function MessageInput({
       : undefined;
   // A session's turn at work with nothing to send: the disc stops it.
   const sessionStop =
-    turnRunning && !canSubmit
+    !control && turnRunning && !canSubmit
       ? {
           label: "Stop",
           onStop: interruptTurn,
@@ -3817,7 +3803,7 @@ export const MessageInput = memo(function MessageInput({
   // A session's turn at work with text in the box: a Stop square joins the
   // disc, so stopping first is part of sending.
   const stopAndSend =
-    canStopAndSend && hasContent && !onGateSend && !onWorkflowLaunch
+    !control && canStopAndSend && hasContent && !onGateSend && !onWorkflowLaunch
       ? {
           onStopAndSend: stopAndSendComposerText,
           wrap: (square: ReactElement) => (
@@ -3867,21 +3853,29 @@ export const MessageInput = memo(function MessageInput({
           {typedLength.toLocaleString()} / {maxLength!.toLocaleString()}
         </span>
       )}
-      <ComposerSendButton
-        canSubmit={canSubmit}
-        bare={bareComposer}
-        quotesOnly={quotesOnlySend}
-        title={allowanceOut ?? undefined}
-        label={batchWords.button ?? undefined}
-        stop={hostedStop ?? sessionStop}
-        stopAndSend={stopAndSend}
-        queueSend={queueSend}
-        tip={(button, words, accel) => (
-          <ShortcutTooltip label={words} accel={accel} side="top">
-            {button}
-          </ShortcutTooltip>
-        )}
-      />
+      {(!control || control.send) && (
+        <ComposerSendButton
+          canSubmit={canSubmit && !control?.submitting}
+          bare={bareComposer}
+          quotesOnly={quotesOnlySend}
+          title={allowanceOut ?? undefined}
+          label={
+            control?.send === "queue"
+              ? "Queue"
+              : control?.send === "suggest"
+                ? "Suggest"
+                : (batchWords.button ?? undefined)
+          }
+          stop={hostedStop ?? sessionStop}
+          stopAndSend={stopAndSend}
+          queueSend={queueSend}
+          tip={(button, words, accel) => (
+            <ShortcutTooltip label={words} accel={accel} side="top">
+              {button}
+            </ShortcutTooltip>
+          )}
+        />
+      )}
     </>
   );
   // Expand, stash, hand off and fork: beside the text, or in the surface's foot
@@ -4452,6 +4446,13 @@ export const MessageInput = memo(function MessageInput({
       tab={branchControl}
       fieldTop={
         <>
+          {control && (
+            <SessionControlStrip
+              key={conversationId}
+              control={control}
+              interrupt={control.interrupt ? interruptTurn : undefined}
+            />
+          )}
           {isSelectionActive && (
             <div className="flex items-center gap-2 pb-1.5 mb-1.5 border-b border-sol-cyan/20 text-meta text-sol-cyan">
               <span className="font-medium">Rewriting message</span>
@@ -4805,6 +4806,7 @@ export const MessageInput = memo(function MessageInput({
           actions={composerFoot ? undefined : rowActions}
         >
           <ComposerTextarea
+            hidden={control?.facts.role === "viewer" || undefined}
             ref={textareaRef}
             data-chat-input
             data-composer-field

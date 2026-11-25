@@ -1,140 +1,164 @@
 import { expect, test } from "bun:test";
-import { act, useSyncExternalStore } from "react";
+import { act, type ReactNode } from "react";
+import { api } from "@codecast/convex/convex/_generated/api";
+import "../chat/ChatMessage";
+import { MessageInput } from "../message-input";
+import { NonOwnerMessageInput } from "./session-controls";
 import { mountWeb } from "../../test-helpers/mountWeb";
-import { ComposerSendButton } from "../ComposerShell";
-import { SessionControlComposer } from "./session-control-composer";
-import {
-  selectComposerControl,
-  type ComposerBaton,
-  type ComposerControlCommand,
-  type ComposerControlFacts,
-  type ComposerControlFlag,
-  type SendState,
+import { pending } from "../../test-helpers/testConvex";
+import type { ConversationData } from "./types";
+import type {
+  ComposerBaton,
+  ComposerCommandOutcome,
+  ComposerControlCommand,
+  ComposerControlFacts,
+  ComposerControlFlag,
 } from "./composer-control-model";
 
-const conversationId = "session-1";
 const ana = { id: "ana", name: "Ana" };
 const me = { id: "me", name: "Casey" };
+let session = 0;
 
-function ComposerSlot({ control }: { control?: ComposerControlFlag }) {
-  const active = selectComposerControl(control, conversationId);
-  return active ? (
-    <SessionControlComposer {...active} />
-  ) : (
-    <ComposerSendButton canSubmit />
+function fakeBaton() {
+  const commands: ComposerControlCommand[] = [];
+  const replies: Array<{
+    resolve: (value: ComposerCommandOutcome) => void;
+    reject: (error: Error) => void;
+  }> = [];
+  const baton: ComposerBaton = {
+    run(command) {
+      commands.push(command);
+      return new Promise((resolve, reject) =>
+        replies.push({ resolve, reject }),
+      );
+    },
+  };
+  return {
+    commands,
+    control(
+      conversationId: string,
+      overrides: Partial<ComposerControlFacts> = {},
+    ): ComposerControlFlag {
+      return {
+        enabled: true,
+        conversationId,
+        shared: {
+          baton,
+          facts: {
+            viewerId: me.id,
+            role: "owner",
+            driver: me,
+            turn: "t1",
+            takeoverPending: false,
+            driveRequested: false,
+            sendState: null,
+            ...overrides,
+          },
+        },
+      };
+    },
+    async reply(result: ComposerCommandOutcome | Error) {
+      const reply = replies.shift();
+      if (!reply) throw new Error("No command to settle");
+      await act(async () => {
+        if (result instanceof Error) reply.reject(result);
+        else reply.resolve(result);
+      });
+    },
+  };
+}
+
+function id() {
+  return `control-test-${++session}`;
+}
+
+function owner(
+  conversationId: string,
+  composerControl?: ComposerControlFlag,
+  extra: Partial<React.ComponentProps<typeof MessageInput>> = {},
+) {
+  return (
+    <MessageInput
+      key={conversationId}
+      conversationId={conversationId}
+      composerControl={composerControl}
+      status="active"
+      agentType="claude_code"
+      {...extra}
+    />
   );
 }
 
-function fakeBaton(initial: Partial<ComposerControlFacts> = {}) {
-  let facts: ComposerControlFacts = {
-    viewerId: me.id,
-    role: "sender",
-    driver: me,
-    turn: "t1",
-    takeoverPending: false,
-    driveRequested: false,
-    sendState: null,
-    ...initial,
-  };
-  const listeners = new Set<() => void>();
-  const commands: ComposerControlCommand[] = [];
-  let finish: ((status: SendState) => void) | undefined;
-  function update(change: Partial<ComposerControlFacts>) {
-    facts = { ...facts, ...change };
-    for (const listener of listeners) listener();
-  }
-  const baton: ComposerBaton = {
-    async run(command) {
-      commands.push(command);
-      switch (command.kind) {
-        case "ask":
-          update({ driveRequested: true });
-          return "accepted";
-        case "takeover":
-          update({ takeoverPending: true });
-          return "accepted";
-        case "cancel-takeover":
-          update({ takeoverPending: false });
-          return "accepted";
-        case "send":
-        case "queue": {
-          update({ sendState: { kind: "submitting" } });
-          const sendState = await new Promise<SendState>((resolve) => {
-            finish = resolve;
-          });
-          update({ sendState });
-          return sendState.kind === "stale" || sendState.kind === "refused"
-            ? "retained"
-            : "accepted";
-        }
+function collaborator(
+  conversationId: string,
+  composerControl: ComposerControlFlag,
+) {
+  return (
+    <NonOwnerMessageInput
+      conversation={
+        {
+          _id: conversationId,
+          title: "Shared",
+          user_name: "Ana",
+        } as ConversationData
       }
-    },
-  };
-  const subscribe = (listener: () => void) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  };
-  function Composer() {
-    const snapshot = useSyncExternalStore(subscribe, () => facts);
-    return (
-      <ComposerSlot
-        control={{
-          enabled: true,
-          conversationId,
-          shared: { facts: snapshot, baton },
-        }}
-      />
-    );
-  }
-
-  return {
-    Composer,
-    baton,
-    commands,
-    update: async (change: Partial<ComposerControlFacts>) =>
-      act(() => update(change)),
-    settle: async (status: SendState) => {
-      const settle = finish;
-      if (!settle) throw new Error("No send to settle");
-      finish = undefined;
-      await act(async () => settle(status));
-    },
-  };
+      composerControl={composerControl}
+    />
+  );
 }
 
-async function mountComposer(fake: ReturnType<typeof fakeBaton>) {
-  const mounted = await mountWeb(<fake.Composer />);
-  const { container, dom } = mounted;
-  const box = container.querySelector<HTMLTextAreaElement>(
-    'textarea[aria-label="Message"]',
-  )!;
+async function mountComposer(node: ReactNode) {
+  const ui = await mountWeb(node, {
+    authenticated: true,
+    dispatch: true,
+    setup(backend) {
+      backend.set(api.pendingMessages.getConversationPendingMessage, pending);
+      backend.set(api.docSync.getPresence, []);
+      backend.mutation(api.docSync.updatePresence, null);
+      backend.mutation(api.docSync.removePresence, null);
+      backend.mutation(api.dispatch.dispatch, null);
+    },
+  });
+  const box = () => {
+    const input = ui.container.querySelector<HTMLTextAreaElement>(
+      "textarea[data-chat-input]",
+    );
+    if (!input) throw new Error("Composer textarea missing");
+    return input;
+  };
   return {
-    ...mounted,
+    ...ui,
     box,
-    type: async (text: string) =>
-      act(() => {
+    async type(text: string) {
+      await act(async () => {
+        const input = box();
         const setValue = Object.getOwnPropertyDescriptor(
-          dom.window.HTMLTextAreaElement.prototype,
+          ui.dom.window.HTMLTextAreaElement.prototype,
           "value",
         )!.set!;
-        setValue.call(box, text);
-        box.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
-      }),
-    enter: async (options: KeyboardEventInit = {}) =>
-      act(() => {
-        box.dispatchEvent(
-          new dom.window.KeyboardEvent("keydown", {
-            key: "Enter",
-            bubbles: true,
-            cancelable: true,
-            ...options,
-          }),
+        setValue.call(input, text);
+        input.dispatchEvent(
+          new ui.dom.window.Event("input", { bubbles: true }),
         );
-      }),
+      });
+    },
+    async press(key: string, options: KeyboardEventInit = {}, times = 1) {
+      await act(async () => {
+        for (let i = 0; i < times; i += 1)
+          box().dispatchEvent(
+            new ui.dom.window.KeyboardEvent("keydown", {
+              key,
+              bubbles: true,
+              cancelable: true,
+              ...options,
+            }),
+          );
+      });
+    },
   };
 }
 
-function button(root: ParentNode, name: string): HTMLButtonElement {
+function button(root: ParentNode, name: string) {
   const match = [...root.querySelectorAll("button")].find(
     (control) =>
       (control.getAttribute("aria-label") ?? control.textContent?.trim()) ===
@@ -144,91 +168,164 @@ function button(root: ParentNode, name: string): HTMLButtonElement {
   return match;
 }
 
-test("flag off and a solo session leave the normal Send surface intact", async () => {
-  const mounted = await mountWeb(<ComposerSlot />);
-  const verifyFallback = () => {
-    expect(mounted.container.querySelectorAll("button")).toHaveLength(1);
-    expect(button(mounted.container, "Send").disabled).toBe(false);
-    expect(
-      mounted.container.querySelector('div[aria-label="Session control"]'),
-    ).toBeNull();
-  };
-  verifyFallback();
-  await mounted.rerender(<ComposerSlot control={{ enabled: false }} />);
-  verifyFallback();
-  await mounted.rerender(
-    <ComposerSlot control={{ enabled: true, conversationId, shared: null }} />,
-  );
-  verifyFallback();
-  expect(mounted.backend.queryRequests).toEqual([]);
-  expect(mounted.backend.mutations).toEqual([]);
-  expect(mounted.backend.actions).toEqual([]);
+test("flag off, solo and a foreign control preserve the real composer and its backend traffic", async () => {
+  const conversationId = id();
+  const fake = fakeBaton();
+  const ui = await mountComposer(owner(conversationId));
+  await ui.type("Keep this draft");
+  const input = ui.box();
+  const html = ui.container.innerHTML;
+  const writes = ui.backend.writeRequests.length;
+  const queries = ui.backend.queryRequests.length;
+  for (const flag of [
+    { enabled: false } as const,
+    { enabled: true, conversationId, shared: null } as const,
+    fake.control(id()),
+  ]) {
+    await ui.rerender(owner(conversationId, flag));
+    expect(ui.box()).toBe(input);
+    expect(ui.container.innerHTML).toBe(html);
+    expect(ui.backend.queryRequests).toHaveLength(queries);
+    expect(ui.backend.writeRequests).toHaveLength(writes);
+  }
+  expect(fake.commands).toEqual([]);
 });
 
-test("driver presses Enter to steer the exact observed turn", async () => {
+test("solo to shared to solo keeps the editor, its text and focus", async () => {
+  const conversationId = id();
   const fake = fakeBaton();
-  const ui = await mountComposer(fake);
+  const ui = await mountComposer(owner(conversationId));
+  const input = ui.box();
+  await act(() => input.focus());
+  await ui.type("Draft on both sides");
+  await ui.rerender(owner(conversationId, fake.control(conversationId)));
   expect(ui.container.textContent).toContain("Driving · You");
+  expect(ui.box()).toBe(input);
+  await ui.rerender(
+    owner(conversationId, { enabled: true, conversationId, shared: null }),
+  );
+  expect(
+    ui.container.querySelector('[aria-label="Session control"]'),
+  ).toBeNull();
+  expect(ui.box()).toBe(input);
+  expect(input.value).toBe("Draft on both sides");
+  expect(ui.dom.window.document.activeElement).toBe(input);
+});
+
+test("the owner editor clears immediately and submits one steer with the observed turn", async () => {
+  const conversationId = id();
+  const fake = fakeBaton();
+  const ui = await mountComposer(
+    owner(conversationId, fake.control(conversationId)),
+  );
   await ui.type("Steer now");
-  await ui.enter();
+  await ui.press("Enter", {}, 2);
+  expect(ui.box().value).toBe("");
   expect(fake.commands).toEqual([
-    { kind: "send", text: "Steer now", expected: { kind: "turn", turn: "t1" } },
+    {
+      kind: "send",
+      text: "Steer now",
+      typedWords: "Steer now",
+      expected: { kind: "turn", turn: "t1" },
+    },
   ]);
   expect(button(ui.container, "Send").disabled).toBe(true);
-  await fake.settle({ kind: "with-agent" });
-  expect(ui.box.value).toBe("");
-  expect(ui.container.textContent).toContain("With the agent");
+  await fake.reply("accepted");
 });
 
-test("Enter during input method composition leaves the draft in place", async () => {
+test.each([
+  ["stale", "Turn ended"],
+  ["refused", "Send refused"],
+] as const)(
+  "%s steer restores an empty editor and offers Queue",
+  async (result, label) => {
+    const conversationId = id();
+    const fake = fakeBaton();
+    const ui = await mountComposer(
+      owner(conversationId, fake.control(conversationId)),
+    );
+    await ui.type("Please keep this");
+    await ui.press("Enter");
+    expect(ui.box().value).toBe("");
+    await fake.reply(result);
+    expect(ui.box().value).toBe("Please keep this");
+    expect(ui.container.textContent).toContain(label);
+    await act(() => button(ui.container, "Queue").click());
+    expect(fake.commands.at(-1)).toMatchObject({
+      kind: "queue",
+      text: "Please keep this",
+    });
+    await fake.reply("accepted");
+  },
+);
+
+test("a retained send gets its own Queue row when the person typed another draft", async () => {
+  const conversationId = id();
   const fake = fakeBaton();
-  const ui = await mountComposer(fake);
-  await ui.type("変換");
-  await ui.enter({ isComposing: true });
-  await ui.enter({ keyCode: 229 });
-  expect(fake.commands).toEqual([]);
-  expect(ui.box.value).toBe("変換");
-});
-
-test("a sender queues behind the named driver", async () => {
-  const fake = fakeBaton({ driver: ana });
-  const ui = await mountComposer(fake);
-  expect(ui.container.textContent).toContain("Driving · Ana");
-  await ui.type("After Ana");
-  await act(() => button(ui.container, "Queue").click());
-  expect(fake.commands).toEqual([{ kind: "queue", text: "After Ana" }]);
-  await fake.settle({ kind: "waiting-for-driver", driver: "Ana" });
-  expect(ui.box.value).toBe("");
-  expect(ui.container.textContent).toContain("Waiting for Ana");
-});
-
-test("a viewer asks to drive without submitting the draft", async () => {
-  const fake = fakeBaton({ role: "viewer", driver: ana });
-  const ui = await mountComposer(fake);
-  await ui.type("For later");
-  await ui.enter();
-  expect(fake.commands).toEqual([]);
-  await act(() => button(ui.container, "Ask to drive").click());
-  expect(fake.commands).toEqual([{ kind: "ask" }]);
-  expect(button(ui.container, "Drive requested").disabled).toBe(true);
-  expect(ui.box.value).toBe("For later");
-});
-
-test("takeover uses a confirm, queues while waiting, and can be canceled", async () => {
-  const fake = fakeBaton({ role: "owner", driver: ana });
-  const ui = await mountComposer(fake);
-  const doc = ui.dom.window.document;
-  await act(() => button(ui.container, "Take over").click());
-  expect(doc.querySelector('[role="dialog"]')).not.toBeNull();
-  expect(fake.commands).toEqual([]);
-  await act(() =>
-    doc.querySelector<HTMLButtonElement>("[data-switch-cancel]")!.click(),
+  const ui = await mountComposer(
+    owner(conversationId, fake.control(conversationId)),
   );
-  expect(fake.commands).toEqual([]);
-  await act(() => button(ui.container, "Take over").click());
-  await act(() =>
-    doc.querySelector<HTMLButtonElement>("[data-switch-confirm]")!.click(),
+  await ui.type("First draft");
+  await ui.press("Enter");
+  await ui.type("Second draft");
+  await fake.reply("retained");
+  expect(ui.box().value).toBe("Second draft");
+  const retry = ui.container.querySelector('[aria-label="Draft to retry"]')!;
+  expect(retry.textContent).toContain("First draft");
+  await act(() => {
+    button(retry, "Queue").click();
+    button(retry, "Queue").click();
+  });
+  expect(fake.commands).toHaveLength(2);
+  expect(fake.commands.at(-1)).toMatchObject({
+    kind: "queue",
+    text: "First draft",
+  });
+  await fake.reply("accepted");
+  expect(
+    ui.container.querySelector('[aria-label="Draft to retry"]'),
+  ).toBeNull();
+  expect(ui.box().value).toBe("Second draft");
+});
+
+test("a late result stays with its session and a rejected promise shows delivery in doubt", async () => {
+  const conversationId = id();
+  const nextId = id();
+  const fake = fakeBaton();
+  const ui = await mountComposer(
+    owner(conversationId, fake.control(conversationId)),
   );
+  await ui.type("First session");
+  await ui.press("Enter");
+  await ui.rerender(owner(nextId, fake.control(nextId)));
+  await ui.type("Second session");
+  await fake.reply(new Error("Disconnected"));
+  expect(ui.box().value).toBe("Second session");
+  expect(ui.container.textContent).not.toContain("Delivery in doubt");
+  await ui.rerender(owner(conversationId, fake.control(conversationId)));
+  expect(ui.container.textContent).toContain("Delivery in doubt");
+  expect(
+    ui.container.querySelector('[aria-label="Draft to retry"]')?.textContent,
+  ).toContain("First session");
+});
+
+test("takeover confirms the observed driver once and cancel is idempotent", async () => {
+  const conversationId = id();
+  const fake = fakeBaton();
+  const ui = await mountComposer(
+    owner(conversationId, fake.control(conversationId, { driver: ana })),
+  );
+  const takeover = button(ui.container, "Take over");
+  await act(() => takeover.click());
+  expect(takeover.getAttribute("aria-expanded")).toBe("true");
+  expect(fake.commands).toEqual([]);
+  const confirm = ui.dom.window.document.querySelector<HTMLButtonElement>(
+    "[data-switch-confirm]",
+  )!;
+  await act(() => {
+    confirm.click();
+    confirm.click();
+  });
   expect(fake.commands).toEqual([
     {
       kind: "takeover",
@@ -236,64 +333,159 @@ test("takeover uses a confirm, queues while waiting, and can be canceled", async
       expected: { kind: "turn", turn: "t1" },
     },
   ]);
-  expect(ui.container.textContent).toContain(
-    "Taking over · Waiting for the machine",
+  await fake.reply("accepted");
+  await ui.rerender(
+    owner(
+      conversationId,
+      fake.control(conversationId, { driver: ana, takeoverPending: true }),
+    ),
   );
-  await ui.type("When I have control");
-  await ui.enter();
-  expect(fake.commands.at(-1)).toEqual({
-    kind: "queue",
-    text: "When I have control",
+  expect(ui.container.textContent).toContain("Taking over");
+  const cancel = button(ui.container, "Cancel takeover");
+  await act(() => {
+    cancel.click();
+    cancel.click();
   });
-  await fake.settle({ kind: "waiting-for-machine" });
-  await act(() => button(ui.container, "Cancel takeover").click());
+  await fake.reply("accepted");
   expect(fake.commands.at(-1)).toEqual({ kind: "cancel-takeover" });
-  expect(ui.container.textContent).not.toContain("Taking over");
+  expect(fake.commands).toHaveLength(2);
+  expect(cancel.disabled).toBe(true);
 });
 
-test("a takeover confirmation expires when the turn changes", async () => {
-  const fake = fakeBaton({ role: "owner", driver: ana });
-  const ui = await mountComposer(fake);
+test("takeover confirmation expires on a turn change and shows no confirm key", async () => {
+  const conversationId = id();
+  const fake = fakeBaton();
+  const ui = await mountComposer(
+    owner(conversationId, fake.control(conversationId, { driver: ana })),
+  );
   await act(() => button(ui.container, "Take over").click());
-  await fake.update({ turn: "t2" });
-  expect(
-    ui.dom.window.document.querySelector<HTMLButtonElement>(
-      "[data-switch-confirm]",
-    )!.disabled,
-  ).toBe(true);
+  await ui.rerender(
+    owner(
+      conversationId,
+      fake.control(conversationId, { driver: ana, turn: "t2" }),
+    ),
+  );
+  const confirm = ui.dom.window.document.querySelector<HTMLButtonElement>(
+    "[data-switch-confirm]",
+  )!;
+  expect(confirm.disabled).toBe(true);
+  expect(confirm.textContent).toBe("Driver or turn changed");
   expect(fake.commands).toEqual([]);
 });
 
-test.each([
-  ["stale", "Turn ended"],
-  ["refused", "Send refused"],
-] as const)(
-  "%s steer retains the draft and offers Queue",
-  async (kind, label) => {
-    const fake = fakeBaton();
-    const ui = await mountComposer(fake);
-    await ui.type("Please keep this");
-    await ui.enter();
-    await fake.settle({ kind });
-    expect(ui.box.value).toBe("Please keep this");
-    expect(ui.container.textContent).toContain(label);
-    await act(() => button(ui.container, "Queue").click());
-    expect(fake.commands.at(-1)).toEqual({
-      kind: "queue",
-      text: "Please keep this",
-    });
-    await fake.settle({ kind: "saved" });
-    expect(ui.box.value).toBe("");
-  },
-);
-
-test("a send receipt leaves text typed after submission in the composer", async () => {
+test("the existing Escape path interrupts the observed turn only once", async () => {
+  const conversationId = id();
   const fake = fakeBaton();
-  const ui = await mountComposer(fake);
-  await ui.type("First");
-  await ui.enter({ ctrlKey: true });
-  expect(fake.commands).toEqual([{ kind: "queue", text: "First" }]);
-  await ui.type("Second");
-  await fake.settle({ kind: "saved" });
-  expect(ui.box.value).toBe("Second");
+  let legacyStops = 0;
+  const ui = await mountComposer(
+    owner(conversationId, fake.control(conversationId), {
+      onSendEscape: () => {
+        legacyStops += 1;
+      },
+    }),
+  );
+  await ui.press("Escape", {}, 2);
+  expect(fake.commands).toEqual([
+    { kind: "interrupt", expected: { kind: "turn", turn: "t1" } },
+  ]);
+  expect(legacyStops).toBe(0);
+  await fake.reply("accepted");
+});
+
+test("the collaborator composer queues, suggests and gives a viewer only Ask to drive", async () => {
+  const conversationId = id();
+  const fake = fakeBaton();
+  const ui = await mountComposer(
+    collaborator(
+      conversationId,
+      fake.control(conversationId, { role: "sender", driver: ana }),
+    ),
+  );
+  const input = ui.box();
+  await ui.type("After Ana");
+  await act(() => button(ui.container, "Queue").click());
+  expect(input.value).toBe("");
+  expect(fake.commands.at(-1)).toEqual({ kind: "queue", text: "After Ana" });
+  await fake.reply("accepted");
+  await ui.rerender(
+    collaborator(
+      conversationId,
+      fake.control(conversationId, { role: "suggester", driver: ana }),
+    ),
+  );
+  expect(ui.box()).toBe(input);
+  await ui.type("My suggestion");
+  await act(() => button(ui.container, "Suggest").click());
+  expect(fake.commands.at(-1)).toEqual({
+    kind: "suggest",
+    text: "My suggestion",
+  });
+  await fake.reply("accepted");
+  await ui.rerender(
+    collaborator(
+      conversationId,
+      fake.control(conversationId, { role: "viewer", driver: ana }),
+    ),
+  );
+  expect(input.closest("[hidden]")).not.toBeNull();
+  const ask = button(ui.container, "Ask to drive");
+  await act(() => {
+    ask.click();
+    ask.click();
+  });
+  expect(fake.commands).toHaveLength(3);
+  expect(fake.commands.at(-1)).toEqual({ kind: "ask" });
+  await fake.reply("accepted");
+  expect(button(ui.container, "Drive requested").disabled).toBe(true);
+});
+
+test("the shared owner path holds a credential before any baton command", async () => {
+  const conversationId = id();
+  const fake = fakeBaton();
+  const ui = await mountComposer(
+    owner(conversationId, fake.control(conversationId)),
+  );
+  const text = `sk_test_${"a1B2c3D4e5".repeat(3)}`;
+  await ui.type(text);
+  await ui.press("Enter");
+  expect(ui.box().value).toBe(text);
+  expect(ui.container.textContent).toContain("Save to Vault and send");
+  expect(fake.commands).toEqual([]);
+});
+
+test("a workflow gate keeps its existing submit path when passed a shared control", async () => {
+  const conversationId = id();
+  const fake = fakeBaton();
+  const gate: string[] = [];
+  const ui = await mountComposer(
+    owner(conversationId, fake.control(conversationId), {
+      onGateSend: (text) => {
+        gate.push(text);
+      },
+    }),
+  );
+  await ui.type("Continue the gate");
+  await ui.press("Enter");
+  expect(gate).toEqual(["Continue the gate"]);
+  expect(fake.commands).toEqual([]);
+  expect(
+    ui.container.querySelector('[aria-label="Session control"]'),
+  ).toBeNull();
+});
+
+test("an ask rejection is shown and releases the request guard", async () => {
+  const conversationId = id();
+  const fake = fakeBaton();
+  const ui = await mountComposer(
+    collaborator(
+      conversationId,
+      fake.control(conversationId, { role: "viewer", driver: ana }),
+    ),
+  );
+  await act(() => button(ui.container, "Ask to drive").click());
+  await fake.reply(new Error("Disconnected"));
+  expect(ui.container.textContent).toContain("Control request in doubt");
+  await act(() => button(ui.container, "Ask to drive").click());
+  expect(fake.commands).toEqual([{ kind: "ask" }, { kind: "ask" }]);
+  await fake.reply("accepted");
 });
