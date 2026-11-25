@@ -110,10 +110,14 @@ function fixture(writeSucceeded = true) {
   const hookState = hookBody.slice(0, hookEnd);
   const hook = `function receiveHook(data) { const prev = undefined; const sessionId = "sid"; ${hookState} classifyBypassBlock(awaitingAskUserQuestion, sessionId, data.status, data.permission_mode, data.message); sendAgentStatus(syncServiceRef, "conv", sessionId, data.status); }`;
 
-  const streamAt = source.indexOf("startPaneStream(target, {");
+  const terminalSource = fs.readFileSync(
+    new URL("./terminal/daemonBridge.ts", import.meta.url),
+    "utf8",
+  );
+  const streamAt = terminalSource.indexOf("startPaneStream(target, {");
   const write = blockAt(
-    source,
-    source.indexOf("write: (pane, bytes)", streamAt),
+    terminalSource,
+    terminalSource.indexOf("write: (pane, bytes)", streamAt),
   )
     .text.trim()
     .replace(/^write: /, "")

@@ -386,7 +386,7 @@ const ROWS: Row[] = [
     mustContain: "syncHealthFields",
   },
   {
-    file: D,
+    file: "terminal/daemonBridge.ts",
     name: "healSqueezedAgentWindows",
     kind: "function",
     minLines: 8,
