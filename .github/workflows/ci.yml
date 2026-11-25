@@ -171,7 +171,7 @@ jobs:
       # needs that directory's own install, the second a local LiveKit server.
       - name: Tests outside packages/ (scripts, infra)
         run: |
-          bun test ./scripts/line.test.ts ./infra/artifact-edge/worker.test.js ./infra/replay-player/src/clock.test.ts
+          bun test ./scripts/line.test.ts ./scripts/lib/lint-baseline.test.ts ./infra/artifact-edge/worker.test.js ./infra/replay-player/src/clock.test.ts
           node --test infra/call-face-worker/turns.test.mjs
 
   build:
@@ -400,6 +400,11 @@ jobs:
         working-directory: apps/evals
         run: bun test src/ --parallel
 
+      - name: Portable CLI script tests
+        if: matrix.suite == 'evals'
+        working-directory: apps/cli
+        run: bun test --isolate ./scripts/line-present-replay.test.ts ./scripts/prompt-dry-run.cut.test.ts ./scripts/prompt-dry-run.guard.test.ts ./scripts/prompt-dry-run.harness.guard.test.ts
+
       - name: E2E messaging pipeline (real tmux + fake-claude shim)
         if: matrix.suite == 'e2e'
         working-directory: apps/cli
@@ -614,6 +619,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: ./.github/actions/setup-bun
+
+      - name: CLI script tests that need the macOS sandbox
+        if: matrix.shard == 2
+        working-directory: apps/cli
+        run: bun test --isolate ./scripts/prompt-dry-run.broker.guard.test.ts ./scripts/prompt-dry-run.fake.guard.test.ts ./scripts/prompt-dry-run.harness.guard.test.ts ./scripts/prompt-dry-run.replay.guard.test.ts ./scripts/prompt-dry-run.sandbox.guard.test.ts
 
       - name: Swift unit tests (helper core)
         if: matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'

@@ -110,6 +110,8 @@ export function world(
     write(path.join(serveDir, name), text);
   if (serve.frozen)
     write(path.join(serveDir, "frozen"), serve.frozen.join("\n") + "\n");
+  const jq = Bun.which("jq");
+  if (jq) fs.symlinkSync(jq, path.join(fakeBin, "jq"));
   const cast = (...argv: string[]) => {
     const r = Bun.spawnSync(["bash", GUARD, ...argv], {
       env: {

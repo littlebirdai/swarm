@@ -15,6 +15,7 @@ import {
 
 // Every test spawns bash and a fake CLI; on a loaded machine one spawn can take a second.
 setDefaultTimeout(30_000);
+const sandboxTest = test.if(process.platform === "darwin");
 
 describe("prompt-dry-run.ts: the harness's argv contract and turns", () => {
   test("without --model it exits 2 and never spawns claude", () => {
@@ -211,86 +212,94 @@ describe("prompt-dry-run.ts: the harness's argv contract and turns", () => {
     );
   }, 30_000);
 
-  test("an agent turn opens with the briefing itself as the user message, and keeps every message in said.json", () => {
-    const h = harnessWorld([
-      {
-        type: "assistant",
-        message: {
-          content: [
-            { type: "text", text: "First.\n\n────────\n\nstill first" },
-          ],
+  sandboxTest(
+    "an agent turn opens with the briefing itself as the user message, and keeps every message in said.json",
+    () => {
+      const h = harnessWorld([
+        {
+          type: "assistant",
+          message: {
+            content: [
+              { type: "text", text: "First.\n\n────────\n\nstill first" },
+            ],
+          },
         },
-      },
-      {
-        type: "assistant",
-        message: { content: [{ type: "text", text: "Second." }] },
-      },
-      {
-        type: "result",
-        result: "Second.",
-        is_error: false,
-        num_turns: 2,
-        total_cost_usd: 0.01,
-      },
-    ]);
-    expect(
-      h.run(
-        "--run",
-        h.runDir,
-        "--prompt",
-        h.prompt,
-        "--model",
-        "m",
-        "--account",
-        "fake",
-      ).code,
-    ).toBe(0);
-    const argv = h.recorded("argv")!.split("\n");
-    expect(h.recorded("stdin")).toBe("Reply with the word ok.");
-    expect(argv[argv.indexOf("-p") + 1]).toBe("--allowedTools");
-    expect(argv.join(" ")).not.toContain(h.prompt);
-    expect(
-      JSON.parse(fs.readFileSync(path.join(h.runDir, "said.json"), "utf8")),
-    ).toEqual(["First.\n\n────────\n\nstill first", "Second."]);
-    // The guard stays first on every Bash command even when the profile puts the real cast ahead of it.
-    // The run's own copy of the guard, with its broker baked in (prompt-dry-run.ts bakeGuard).
-    expect(h.recorded("path-first")).toBe(
-      path.join(`${h.runDir}.harness`, "guard"),
-    );
-  }, 30_000);
+        {
+          type: "assistant",
+          message: { content: [{ type: "text", text: "Second." }] },
+        },
+        {
+          type: "result",
+          result: "Second.",
+          is_error: false,
+          num_turns: 2,
+          total_cost_usd: 0.01,
+        },
+      ]);
+      expect(
+        h.run(
+          "--run",
+          h.runDir,
+          "--prompt",
+          h.prompt,
+          "--model",
+          "m",
+          "--account",
+          "fake",
+        ).code,
+      ).toBe(0);
+      const argv = h.recorded("argv")!.split("\n");
+      expect(h.recorded("stdin")).toBe("Reply with the word ok.");
+      expect(argv[argv.indexOf("-p") + 1]).toBe("--allowedTools");
+      expect(argv.join(" ")).not.toContain(h.prompt);
+      expect(
+        JSON.parse(fs.readFileSync(path.join(h.runDir, "said.json"), "utf8")),
+      ).toEqual(["First.\n\n────────\n\nstill first", "Second."]);
+      // The guard stays first on every Bash command even when the profile puts the real cast ahead of it.
+      // The run's own copy of the guard, with its broker baked in (prompt-dry-run.ts bakeGuard).
+      expect(h.recorded("path-first")).toBe(
+        path.join(`${h.runDir}.harness`, "guard"),
+      );
+    },
+    30_000,
+  );
 
-  test("a cast the agent reaches around the guard, by an absolute path with no guard on PATH, still answers from the guard", () => {
-    const h = harnessWorld([
-      {
-        type: "result",
-        result: "Done.",
-        is_error: false,
-        num_turns: 1,
-        total_cost_usd: 0.01,
-      },
-    ]);
-    const main = path.join(import.meta.dir, "..", "src", "main.ts");
-    const bash = `PATH=/usr/bin:/bin '${process.execPath}' '${main}' task create Something`;
-    expect(
-      h.runWith(
-        { FAKE_CLAUDE_BASH: bash },
-        "--run",
-        h.runDir,
-        "--prompt",
-        h.prompt,
-        "--model",
-        "m",
-        "--account",
-        "fake",
-      ).code,
-    ).toBe(0);
-    expect(h.recorded("bash")).toContain(
-      "dry run: 'cast task create Something' would write, and is refused",
-    );
-    expect(fs.readFileSync(path.join(h.runDir, "calls.log"), "utf8")).toBe(
-      "task create Something\nREFUSED task create Something\n",
-    );
-  }, 60_000);
+  sandboxTest(
+    "a cast the agent reaches around the guard, by an absolute path with no guard on PATH, still answers from the guard",
+    () => {
+      const h = harnessWorld([
+        {
+          type: "result",
+          result: "Done.",
+          is_error: false,
+          num_turns: 1,
+          total_cost_usd: 0.01,
+        },
+      ]);
+      const main = path.join(import.meta.dir, "..", "src", "main.ts");
+      const bash = `PATH=/usr/bin:/bin '${process.execPath}' '${main}' task create Something`;
+      expect(
+        h.runWith(
+          { FAKE_CLAUDE_BASH: bash },
+          "--run",
+          h.runDir,
+          "--prompt",
+          h.prompt,
+          "--model",
+          "m",
+          "--account",
+          "fake",
+        ).code,
+      ).toBe(0);
+      expect(h.recorded("bash")).toContain(
+        "dry run: 'cast task create Something' would write, and is refused",
+      );
+      expect(fs.readFileSync(path.join(h.runDir, "calls.log"), "utf8")).toBe(
+        "task create Something\nREFUSED task create Something\n",
+      );
+    },
+    60_000,
+  );
 
   // 2026-10-05: agents left running after their harness was killed went around the guard with the
   // real state directory and wrote proposals to prod. Every route they had is tried here.
@@ -372,52 +381,56 @@ describe("prompt-dry-run.ts: the harness's argv contract and turns", () => {
 
   // evals grow scores and tests a model's edit this way: code nobody vouches for, written from prod text.
 
-  test("each --then is one more turn resumed into the same session, in order, with a turn line in calls.log", () => {
-    const h = harnessWorld([
-      {
-        type: "assistant",
-        message: { content: [{ type: "text", text: "Said." }] },
-      },
-      {
-        type: "result",
-        result: "Said.",
-        is_error: false,
-        num_turns: 1,
-        total_cost_usd: 0.01,
-        session_id: "s-1",
-      },
-    ]);
-    write(path.join(h.dir, "then2.md"), "Second message.");
-    write(path.join(h.dir, "then3.md"), "Third message.");
-    expect(
-      h.run(
-        "--run",
-        h.runDir,
-        "--prompt",
-        h.prompt,
-        "--model",
-        "m",
-        "--account",
-        "fake",
-        "--then",
-        path.join(h.dir, "then2.md"),
-        "--then",
-        path.join(h.dir, "then3.md"),
-      ).code,
-    ).toBe(0);
-    for (const n of ["2", "3"]) {
+  sandboxTest(
+    "each --then is one more turn resumed into the same session, in order, with a turn line in calls.log",
+    () => {
+      const h = harnessWorld([
+        {
+          type: "assistant",
+          message: { content: [{ type: "text", text: "Said." }] },
+        },
+        {
+          type: "result",
+          result: "Said.",
+          is_error: false,
+          num_turns: 1,
+          total_cost_usd: 0.01,
+          session_id: "s-1",
+        },
+      ]);
+      write(path.join(h.dir, "then2.md"), "Second message.");
+      write(path.join(h.dir, "then3.md"), "Third message.");
       expect(
-        JSON.parse(
-          fs.readFileSync(path.join(h.runDir, `said${n}.json`), "utf8"),
-        ),
-      ).toEqual(["Said."]);
-      expect(fs.existsSync(path.join(h.runDir, `out${n}.json`))).toBe(true);
-    }
-    const argv = h.recorded("argv")!.split("\n");
-    expect(argv[argv.indexOf("--resume") + 1]).toBe("s-1");
-    expect(argv[argv.indexOf("-p") + 1]).toBe("Third message.");
-    expect(fs.readFileSync(path.join(h.runDir, "calls.log"), "utf8")).toBe(
-      "# turn 2\n# turn 3\n",
-    );
-  }, 30_000);
+        h.run(
+          "--run",
+          h.runDir,
+          "--prompt",
+          h.prompt,
+          "--model",
+          "m",
+          "--account",
+          "fake",
+          "--then",
+          path.join(h.dir, "then2.md"),
+          "--then",
+          path.join(h.dir, "then3.md"),
+        ).code,
+      ).toBe(0);
+      for (const n of ["2", "3"]) {
+        expect(
+          JSON.parse(
+            fs.readFileSync(path.join(h.runDir, `said${n}.json`), "utf8"),
+          ),
+        ).toEqual(["Said."]);
+        expect(fs.existsSync(path.join(h.runDir, `out${n}.json`))).toBe(true);
+      }
+      const argv = h.recorded("argv")!.split("\n");
+      expect(argv[argv.indexOf("--resume") + 1]).toBe("s-1");
+      expect(argv[argv.indexOf("-p") + 1]).toBe("Third message.");
+      expect(fs.readFileSync(path.join(h.runDir, "calls.log"), "utf8")).toBe(
+        "# turn 2\n# turn 3\n",
+      );
+    },
+    30_000,
+  );
 });

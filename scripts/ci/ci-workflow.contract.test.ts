@@ -440,6 +440,10 @@ describe("matrices", () => {
         'bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --timeout=20000 --timings=test-timings.json --shard="${SUITE#tmux-}/8" --bail=5',
       ],
       ["matrix.suite == 'evals'", "bun test src/ --parallel"],
+      [
+        "matrix.suite == 'evals'",
+        "bun test --isolate ./scripts/line-present-replay.test.ts ./scripts/prompt-dry-run.cut.test.ts ./scripts/prompt-dry-run.guard.test.ts ./scripts/prompt-dry-run.harness.guard.test.ts",
+      ],
       ["matrix.suite == 'e2e'", "bun test src/messaging.e2e.test.ts"],
       [
         "matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'",
@@ -832,6 +836,7 @@ describe("tests outside packages/", () => {
     );
     for (const file of [
       "./scripts/line.test.ts",
+      "./scripts/lib/lint-baseline.test.ts",
       "./infra/artifact-edge/worker.test.js",
       "./infra/replay-player/src/clock.test.ts",
       "infra/call-face-worker/turns.test.mjs",
