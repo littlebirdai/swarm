@@ -28,6 +28,7 @@ const PACKAGE_AREAS = [
   "deploys",
   "diff",
   "edge-contract",
+  "effect-kit",
   "entities",
   "evals-api",
   "fence",
