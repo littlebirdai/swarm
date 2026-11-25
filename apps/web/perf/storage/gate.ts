@@ -20,6 +20,10 @@ export function evaluate(
       reason: result.reason,
     };
   const { sqlite, dexie } = result;
+  const { memory } = sqlite;
+  const wasmOnly = memory.capability === "wasm-only";
+  const liveMemory = wasmOnly ? memory.wasmBytes : memory.liveBytes;
+  const transientMemory = wasmOnly ? memory.wasmBytes : memory.transientBytes;
   const maximum = (actual: number | null, limit: number) => ({
     actual,
     limit,
@@ -36,7 +40,9 @@ export function evaluate(
     sqlite.mainWriteMs,
     sqlite.retentionMs,
     sqlite.handoffMs,
-    sqlite.workerBytes,
+    memory.wasmBytes,
+    liveMemory,
+    transientMemory,
   ];
   const targets = {
     fixtureRows: {
@@ -73,13 +79,23 @@ export function evaluate(
     handoffMs: maximum(sqlite.handoffMs.p95, 100),
     handoffIntact: { actual: sqlite.handoffIntact, pass: sqlite.handoffIntact },
     crashIntact: { actual: sqlite.crashIntact, pass: sqlite.crashIntact },
-    workerBytes: maximum(sqlite.workerBytes?.max ?? null, 35 * mib),
+    crashSpilledPages: {
+      actual: sqlite.crashSpilledPages,
+      pass:
+        Number.isInteger(sqlite.crashSpilledPages) &&
+        sqlite.crashSpilledPages > 0,
+    },
+    workerLiveBytes: maximum(liveMemory?.max ?? null, 35 * mib),
   };
   return {
     verdict: Object.values(targets).every((target) => target.pass)
       ? "pass"
       : "fail",
     targets,
+    memory: {
+      capability: memory.capability,
+      transient: maximum(transientMemory?.max ?? null, 35 * mib),
+    },
   };
 }
 

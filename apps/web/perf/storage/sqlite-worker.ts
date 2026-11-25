@@ -1,3 +1,9 @@
+import type {
+  OpfsSAHPoolDatabase,
+  SAHPoolUtil,
+  Sqlite3Static,
+  SqlValue,
+} from "@sqlite.org/sqlite-wasm";
 import {
   check,
   EVENT_COUNT,
@@ -5,40 +11,24 @@ import {
   focusId,
   liveIds,
   messageRows,
+  ROW_COUNT,
+  READ_BATCH_SIZE,
   sessionRows,
   WRITE_ROWS,
   writeRows,
 } from "./fixture";
 
-type Cell = string | number;
-type Database = {
-  exec: (arg: string | { sql: string; bind: Cell[] }) => void;
-  selectValue: (sql: string, bind?: Cell[]) => Cell;
-  selectValues: (sql: string, bind?: Cell[]) => string[];
-  prepare: (sql: string) => {
-    bind: (args: Cell[]) => { stepReset: () => void };
-    finalize: () => void;
-  };
-  close: () => void;
-};
-type Pool = {
-  OpfsSAHPoolDb: new (path: string) => Database;
-  pauseVfs: () => void;
-};
-type SQLite = {
-  installOpfsSAHPoolVfs: (options: {
-    directory: string;
-    initialCapacity: number;
-    preserveOnInitFailure: boolean;
-  }) => Promise<Pool>;
-  wasm: { heap8: () => Uint8Array };
-  version: { libVersion: string };
-};
-
 const moduleUrl = "/sqlite/index.mjs";
-let sqlite: SQLite;
-let pool: Pool;
-let db: Database;
+let sqlite: Sqlite3Static;
+let pool: SAHPoolUtil;
+let db: OpfsSAHPoolDatabase;
+
+function decodeRows(values: SqlValue[]) {
+  return values.map((value) => {
+    check(typeof value === "string", "Expected SQLite row JSON");
+    return JSON.parse(value) as { _id: string };
+  });
+}
 
 function put(collection: string, rows: { _id: string; created_at?: number }[]) {
   const insert = db.prepare("INSERT OR REPLACE INTO rows VALUES (?, ?, ?, ?)");
@@ -64,17 +54,10 @@ function transaction(action: () => void) {
   }
 }
 
-function read(collection: string) {
-  return db
-    .selectValues("SELECT value FROM rows WHERE collection = ? ORDER BY id", [
-      collection,
-    ])
-    .map((json) => JSON.parse(json));
-}
-
 export const operations = {
   async open() {
-    const { default: init } = await import(moduleUrl);
+    const { default: init }: typeof import("@sqlite.org/sqlite-wasm") =
+      await import(moduleUrl);
     sqlite = await init();
     pool = await sqlite.installOpfsSAHPoolVfs({
       directory: "/storage-bench",
@@ -113,25 +96,27 @@ export const operations = {
   paint() {
     const placeholders = liveIds.map(() => "?").join(",");
     return {
-      sessions: db
-        .selectValues(
+      sessions: decodeRows(
+        db.selectValues(
           `SELECT value FROM rows WHERE collection = 'sessions' AND id IN (${placeholders})`,
           liveIds,
-        )
-        .map((json) => JSON.parse(json)),
-      messages: read(focusId),
+        ),
+      ),
+      messages: decodeRows(
+        db.selectValues(
+          "SELECT value FROM rows WHERE collection = ? ORDER BY id",
+          [focusId],
+        ),
+      ),
     };
   },
-  full() {
-    return {
-      sessions: Object.fromEntries(
-        read("sessions").map((row) => [row._id, row]),
+  readBatch(collection: "sessions" | "externalEvents", after: string) {
+    return decodeRows(
+      db.selectValues(
+        "SELECT value FROM rows WHERE collection = ? AND id > ? ORDER BY id LIMIT ?",
+        [collection, after, READ_BATCH_SIZE],
       ),
-      messages: read(focusId),
-      externalEvents: Object.fromEntries(
-        read("externalEvents").map((row) => [row._id, row]),
-      ),
-    };
+    );
   },
   write(rows: ReturnType<typeof writeRows>) {
     transaction(() => put("externalEvents", rows));
@@ -143,14 +128,16 @@ export const operations = {
     );
     return (
       rows.length === WRITE_ROWS &&
-      rows.every((json) => JSON.parse(json).revision === revision)
+      rows.every(
+        (json) =>
+          typeof json === "string" && JSON.parse(json).revision === revision,
+      )
     );
   },
   integrity() {
     return (
       db.selectValue("PRAGMA quick_check") === "ok" &&
-      db.selectValue("SELECT COUNT(*) FROM rows") ===
-        EVENT_COUNT + sessionRows().length + messageRows().length
+      db.selectValue("SELECT COUNT(*) FROM rows") === ROW_COUNT
     );
   },
   retain(start: number, length: number) {
@@ -172,8 +159,39 @@ export const operations = {
     );
   },
   stage(revision: number) {
-    db.exec("BEGIN IMMEDIATE");
-    put("externalEvents", writeRows(revision).slice(0, WRITE_ROWS / 2));
+    db.exec("PRAGMA cache_size=1; PRAGMA cache_spill=ON; BEGIN IMMEDIATE");
+    put(
+      "externalEvents",
+      writeRows(revision)
+        .slice(0, WRITE_ROWS / 2)
+        .map((row) => ({
+          ...row,
+          body: row.body.repeat(16),
+        })),
+    );
+    const { wasm, capi } = sqlite;
+    check(db.pointer, "SQLite crash fixture has no connection");
+    const current = wasm.alloc(4);
+    const highwater = wasm.alloc(4);
+    try {
+      const status = capi.sqlite3_db_status(
+        db.pointer,
+        capi.SQLITE_DBSTATUS_CACHE_SPILL,
+        current,
+        highwater,
+        0,
+      );
+      check(
+        status === capi.SQLITE_OK,
+        "Could not read SQLite pager spill count",
+      );
+      const spills = wasm.peek32(current);
+      check(spills > 0, "Crash fixture did not spill dirty database pages");
+      return spills;
+    } finally {
+      wasm.dealloc(highwater);
+      wasm.dealloc(current);
+    }
   },
   size() {
     return {

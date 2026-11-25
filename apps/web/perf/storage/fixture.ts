@@ -4,7 +4,7 @@ export const MESSAGE_COUNT = 200;
 export const EVENT_COUNT = ROW_COUNT - SESSION_COUNT - MESSAGE_COUNT;
 export const PAINT_SESSIONS = 134;
 export const WRITE_ROWS = 20;
-export const SQLITE_BUILD = "3.54.1-build1";
+export const READ_BATCH_SIZE = 1000;
 
 function id(prefix: string, index: number) {
   return prefix + index.toString(36).padStart(31, "0");

@@ -10,7 +10,7 @@ export async function sampleWorkerHeap(
   profile: string,
   pageUrl: string,
   workerName: string,
-): Promise<HeapUsage | null> {
+): Promise<{ transient: HeapUsage; live: HeapUsage } | null> {
   const endpoint = Bun.file(join(profile, "DevToolsActivePort"));
   if (!(await endpoint.exists())) return null;
   const [port] = (await endpoint.text()).trim().split("\n");
@@ -24,9 +24,13 @@ export async function sampleWorkerHeap(
   const page = targets.find(({ url }) => url === pageUrl);
   if (!page) return null;
   const socket = new WebSocket(page.webSocketDebuggerUrl);
-  return new Promise<HeapUsage | null>((resolve, reject) => {
+  return new Promise((resolve, reject) => {
+    let transient: HeapUsage;
     const timeout = setTimeout(() => finish(null), 2000);
-    function finish(value: HeapUsage | null, error?: Error) {
+    function finish(
+      value: { transient: HeapUsage; live: HeapUsage } | null,
+      error?: Error,
+    ) {
       clearTimeout(timeout);
       socket.close();
       if (error) reject(error);
@@ -50,7 +54,24 @@ export async function sampleWorkerHeap(
       if (message.error) {
         finish(null, new Error(message.error.message));
       } else if (message.id === 2) {
-        finish(message.result);
+        transient = message.result;
+        socket.send(
+          JSON.stringify({
+            id: 3,
+            sessionId: message.sessionId,
+            method: "HeapProfiler.collectGarbage",
+          }),
+        );
+      } else if (message.id === 3) {
+        socket.send(
+          JSON.stringify({
+            id: 4,
+            sessionId: message.sessionId,
+            method: "Runtime.getHeapUsage",
+          }),
+        );
+      } else if (message.id === 4) {
+        finish({ transient, live: message.result });
       } else if (
         message.method === "Target.attachedToTarget" &&
         message.params.targetInfo.type === "worker" &&

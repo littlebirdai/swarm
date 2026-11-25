@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { ROW_COUNT } from "./fixture";
 import { evaluate, gate } from "./gate";
-import { stats, type BrowserResult, type Report } from "./samples";
+import {
+  MEMORY_PHASES,
+  stats,
+  type BrowserResult,
+  type Report,
+} from "./samples";
 
 const constant = (value: number) => stats(Array<number>(20).fill(value));
 
@@ -18,6 +23,11 @@ function result() {
     crashIntact: true,
     databaseBytes: 200_000_000,
   };
+  const memory = {
+    wasmBytes: constant(8 * 1024 * 1024),
+    liveBytes: constant(35 * 1024 * 1024),
+    transientBytes: constant(40 * 1024 * 1024),
+  };
   return {
     status: "measured",
     userAgent: "synthetic-browser",
@@ -29,8 +39,14 @@ function result() {
       mainWriteMs: constant(2),
       retentionMs: constant(50),
       handoffMs: constant(100),
-      workerBytes: constant(35 * 1024 * 1024),
-      wasmBytes: constant(8 * 1024 * 1024),
+      memory: {
+        ...memory,
+        capability: "worker-heap",
+        checkpoints: Object.fromEntries(
+          MEMORY_PHASES.map((phase) => [phase, memory]),
+        ) as Record<(typeof MEMORY_PHASES)[number], typeof memory>,
+      },
+      crashSpilledPages: 1,
       journal: "delete",
       sqliteVersion: "3.54.1",
       opfsBytes: 200_128_000,
@@ -82,7 +98,7 @@ describe("storage gate", () => {
     measured.sqlite.mainWriteMs = constant(2.1);
     measured.sqlite.retentionMs = constant(51);
     measured.sqlite.handoffMs = constant(101);
-    measured.sqlite.workerBytes = stats([
+    measured.sqlite.memory.liveBytes = stats([
       ...Array<number>(19).fill(8 * 1024 * 1024),
       36 * 1024 * 1024,
     ]);
@@ -94,7 +110,7 @@ describe("storage gate", () => {
         mainWriteMs: { pass: false },
         retentionMs: { pass: false },
         handoffMs: { pass: false },
-        workerBytes: { pass: false },
+        workerLiveBytes: { pass: false },
       },
     });
   });
@@ -104,7 +120,8 @@ describe("storage gate", () => {
     measured.sqlite.handoffIntact = false;
     measured.sqlite.crashIntact = false;
     measured.sqlite.journal = "wal";
-    measured.sqlite.workerBytes = null;
+    measured.sqlite.memory.liveBytes = null;
+    measured.sqlite.crashSpilledPages = 0;
     expect(evaluate("safari", measured, 1, 149_999)).toMatchObject({
       verdict: "fail",
       targets: {
@@ -112,9 +129,34 @@ describe("storage gate", () => {
         samples: { pass: false },
         handoffIntact: { pass: false },
         crashIntact: { pass: false },
+        crashSpilledPages: { pass: false },
         rollbackJournal: { pass: false },
-        workerBytes: { pass: false },
+        workerLiveBytes: { pass: false },
       },
+    });
+  });
+
+  test("reports the transient peak separately from the live memory gate", () => {
+    expect(evaluate("electron", result(), 20, ROW_COUNT)).toMatchObject({
+      verdict: "pass",
+      targets: { workerLiveBytes: { pass: true } },
+      memory: { capability: "worker-heap", transient: { pass: false } },
+    });
+  });
+
+  test("uses the WASM limit when the browser has no worker heap API", () => {
+    const measured: Extract<BrowserResult, { status: "measured" }> = result();
+    measured.sqlite.memory.capability = "wasm-only";
+    measured.sqlite.memory.liveBytes = null;
+    measured.sqlite.memory.transientBytes = null;
+    expect(evaluate("firefox", measured, 20, ROW_COUNT)).toMatchObject({
+      verdict: "pass",
+      memory: { capability: "wasm-only" },
+    });
+    measured.sqlite.memory.wasmBytes = constant(36 * 1024 * 1024);
+    expect(evaluate("firefox", measured, 20, ROW_COUNT)).toMatchObject({
+      verdict: "fail",
+      targets: { workerLiveBytes: { pass: false } },
     });
   });
 

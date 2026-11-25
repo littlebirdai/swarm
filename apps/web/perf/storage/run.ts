@@ -1,9 +1,9 @@
 import { constants } from "node:fs";
 import { access, mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { cpus, loadavg, release, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
-import { ROW_COUNT, SQLITE_BUILD } from "./fixture";
+import { ROW_COUNT } from "./fixture";
 import {
   BROWSERS,
   type Browser,
@@ -16,6 +16,7 @@ const here = import.meta.dir;
 const { values } = parseArgs({
   options: {
     chromium: { type: "string" },
+    "chromium-archive": { type: "string" },
     electron: { type: "string" },
     firefox: { type: "string" },
     trials: { type: "string", default: "20" },
@@ -29,33 +30,70 @@ if (!Number.isSafeInteger(trialCount) || trialCount < 1 || trialCount > 50)
 if (values.only && !BROWSERS.some((browser) => browser === values.only))
   throw new Error("--only expects chromium, electron, safari or firefox");
 
-async function sqliteAssets(directory: string) {
-  const name = `sqlite-wasm-${SQLITE_BUILD}.tgz`;
-  const response = await fetch(
-    `https://registry.npmjs.org/@sqlite.org/sqlite-wasm/-/${name}`,
-  );
-  if (!response.ok)
-    throw new Error(`SQLite download returned HTTP ${response.status}`);
-  const bytes = await response.arrayBuffer();
-  const integrity = new Bun.CryptoHasher("sha512")
-    .update(bytes)
-    .digest("base64");
-  if (
-    integrity !==
-    "foW427VBLJ3G87bsnvQTZCc9zYe0Fq1wH0pz1I6BlKLKXcArIAyTkHtq0iT2llmhcMQt9T/p6l5PpQQh+6O8uQ=="
-  )
-    throw new Error("SQLite tarball failed integrity verification");
-  const archive = join(directory, name);
-  await Bun.write(archive, bytes);
-  const unpack = Bun.spawn(["tar", "-xzf", archive, "-C", directory], {
+if (values.chromium && values["chromium-archive"])
+  throw new Error("Use either --chromium or --chromium-archive");
+
+const stop = new AbortController();
+const onInterrupt = () => {
+  process.exitCode = 130;
+  stop.abort();
+};
+const onTerminate = () => {
+  process.exitCode = 143;
+  stop.abort();
+};
+process.once("SIGINT", onInterrupt);
+process.once("SIGTERM", onTerminate);
+
+const chromeBinaryInArchive =
+  "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
+
+async function unpackChromium(archive: string, directory: string) {
+  const unpack = Bun.spawn(["unzip", "-q", archive, "-d", directory], {
     stderr: "inherit",
+    signal: stop.signal,
   });
   if ((await unpack.exited) !== 0)
-    throw new Error("Could not extract the SQLite tarball");
-  const assets = join(directory, "package", "dist");
-  if (!(await Bun.file(join(assets, "index.mjs")).exists()))
-    throw new Error("SQLite tarball is missing dist/index.mjs");
-  return assets;
+    throw new Error("Could not extract the cached Chrome for Testing archive");
+  return join(directory, chromeBinaryInArchive);
+}
+
+async function electronPaths() {
+  if (values.electron) return [values.electron];
+  const git = Bun.spawn(["git", "worktree", "list", "--porcelain"], {
+    cwd: here,
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const main = (await new Response(git.stdout).text()).split("\n")[0];
+  const roots = [join(here, "../../../..")];
+  if ((await git.exited) === 0 && main.startsWith("worktree "))
+    roots.push(main.slice("worktree ".length));
+  return roots.flatMap((root) => {
+    const dist = join(root, "apps/desktop/node_modules/electron/dist");
+    return [
+      join(dist, "Electron.app/Contents/MacOS/Electron"),
+      join(dist, "electron"),
+    ];
+  });
+}
+
+async function stopBrowser(proc: ReturnType<typeof Bun.spawn>) {
+  function signalGroup(signal: "SIGTERM" | "SIGKILL") {
+    try {
+      process.kill(-proc.pid, signal);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+    }
+  }
+  signalGroup("SIGTERM");
+  const escalation = setTimeout(() => signalGroup("SIGKILL"), 2000);
+  try {
+    await proc.exited;
+  } finally {
+    clearTimeout(escalation);
+    signalGroup("SIGKILL");
+  }
 }
 
 async function executable(paths: (string | undefined)[]) {
@@ -82,15 +120,6 @@ const chromePaths = [
 ];
 const browserPaths = {
   chromium: values.chromium ? [values.chromium] : chromePaths,
-  electron: values.electron
-    ? [values.electron]
-    : [
-        join(
-          here,
-          "../../../desktop/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
-        ),
-        join(here, "../../../desktop/node_modules/electron/dist/electron"),
-      ],
   firefox: values.firefox
     ? [values.firefox]
     : [
@@ -132,7 +161,14 @@ async function runBrowser(
       reason:
         "Safari requires an isolated, already-authorized automation environment. The runner does not launch Safari or change Remote Automation settings.",
     };
-  const binary = await executable(browserPaths[browser]);
+  const paths =
+    browser === "electron"
+      ? await electronPaths()
+      : browser === "chromium" && values["chromium-archive"]
+        ? [await unpackChromium(values["chromium-archive"], directory)]
+        : browserPaths[browser];
+  stop.signal.throwIfAborted();
+  const binary = await executable(paths);
   if (!binary)
     return { status: "not-run", reason: "No installed executable found" };
   const profile = await mkdtemp(join(directory, `${browser}-`));
@@ -186,7 +222,7 @@ async function runBrowser(
       return new Response(null, { status: 404 });
     },
   });
-  const url = `http://127.0.0.1:${server.port}/?trials=${trialCount}`;
+  const url = `http://127.0.0.1:${server.port}/?trials=${trialCount}&heap=${browser === "firefox" ? "wasm" : "worker"}`;
   const chromiumFlags = [
     `--user-data-dir=${profile}`,
     "--remote-debugging-address=127.0.0.1",
@@ -197,6 +233,7 @@ async function runBrowser(
     "--disable-renderer-backgrounding",
     "--no-first-run",
     "--no-default-browser-check",
+    "--disable-breakpad",
   ];
   if (browser === "firefox")
     await Bun.write(
@@ -209,14 +246,17 @@ async function runBrowser(
       : browser === "electron"
         ? [...chromiumFlags, join(here, "electron-main.cjs")]
         : [...chromiumFlags, "--headless=new", url];
+  const browserEnv = { ...process.env };
+  delete browserEnv.ELECTRON_RUN_AS_NODE;
   let proc: ReturnType<typeof Bun.spawn>;
   try {
     proc = Bun.spawn([binary, ...args], {
       env: {
-        ...process.env,
+        ...browserEnv,
         STORAGE_BENCH_PROFILE: profile,
         STORAGE_BENCH_URL: url,
       },
+      detached: true,
       stdout: "ignore",
       stderr: "inherit",
     });
@@ -242,23 +282,34 @@ async function runBrowser(
       reason: `Browser exited with code ${code}`,
     }),
   );
+  const abort = () => result.reject(stop.signal.reason);
+  stop.signal.addEventListener("abort", abort, { once: true });
+  if (stop.signal.aborted) abort();
   try {
-    const measured = await result.promise;
+    let measured: BrowserResult;
+    try {
+      measured = await result.promise;
+    } finally {
+      stop.signal.removeEventListener("abort", abort);
+      clearTimeout(timeout);
+      await server.stop(true);
+      await stopBrowser(proc);
+    }
     if (measured.status === "measured" && browser !== "firefox")
       measured.dexie.databaseBytes = await levelDbBytes(profile);
     return measured;
   } finally {
-    clearTimeout(timeout);
-    await server.stop(true);
-    if (proc.exitCode === null) proc.kill();
-    await proc.exited;
     await rm(profile, { recursive: true, force: true, maxRetries: 5 });
   }
 }
 
 const directory = await mkdtemp(join(tmpdir(), "storage-benchmark-"));
 try {
-  const assets = await sqliteAssets(directory);
+  const assets = dirname(
+    Bun.fileURLToPath(
+      import.meta.resolve("@sqlite.org/sqlite-wasm/sqlite3.wasm"),
+    ),
+  );
   const bundles = join(directory, "pages");
   await Bun.build({
     entrypoints: [join(here, "benchmark.ts"), join(here, "sqlite-worker.ts")],
@@ -275,6 +326,7 @@ try {
   const load = [loadavg()];
   const browsers = {} as Report["browsers"];
   for (const browser of BROWSERS) {
+    stop.signal.throwIfAborted();
     console.error(
       `${browser}: load ${loadavg()
         .map((value) => value.toFixed(2))
@@ -299,6 +351,10 @@ try {
   const json = JSON.stringify(report, null, 2) + "\n";
   if (values.out) await Bun.write(values.out, json);
   else process.stdout.write(json);
+} catch (error) {
+  if (!stop.signal.aborted) throw error;
 } finally {
   await rm(directory, { recursive: true, force: true, maxRetries: 5 });
+  process.removeListener("SIGINT", onInterrupt);
+  process.removeListener("SIGTERM", onTerminate);
 }

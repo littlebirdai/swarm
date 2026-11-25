@@ -191,6 +191,7 @@
     "@babel/core": "^7.29.0",
     "@codecast/test-helpers": "workspace:*",
     "@sentry/vite-plugin": "^5.1.1",
+    "@sqlite.org/sqlite-wasm": "3.54.1-build1",
     "@tailwindcss/typography": "^0.5.19",
     "@types/babel__core": "^7.20.5",
     "@types/jsdom": "^30.0.0",

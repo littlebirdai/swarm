@@ -30,9 +30,30 @@ export type Measurements = {
   crashIntact: boolean;
   databaseBytes: number | null;
 };
-export type SQLiteMeasurements = Measurements & {
-  workerBytes: Stats | null;
+export const MEMORY_PHASES = [
+  "open",
+  "paint",
+  "critical",
+  "boot",
+  "retention",
+] as const;
+export type MemoryPhase = (typeof MEMORY_PHASES)[number];
+export type MemoryStats = {
   wasmBytes: Stats;
+  liveBytes: Stats | null;
+  transientBytes: Stats | null;
+};
+export type MemoryCheckpoint = {
+  [Metric in keyof MemoryStats]:
+    | Omit<Stats, "samples">
+    | Extract<MemoryStats[Metric], null>;
+};
+export type SQLiteMeasurements = Measurements & {
+  memory: MemoryStats & {
+    capability: "worker-heap" | "wasm-only";
+    checkpoints: Record<MemoryPhase, MemoryCheckpoint>;
+  };
+  crashSpilledPages: number;
   journal: string;
   sqliteVersion: string;
   opfsBytes: number;
