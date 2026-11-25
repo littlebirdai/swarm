@@ -8,7 +8,7 @@ import {
   applyUpdatesToStore,
   followerActionTee,
   setFollowerTee,
-} from "../syncReplication";
+} from "../sync-replication";
 
 // A task-graph pick the server refuses (task-graph.md TG2, TG4) leaves no
 // trace: blocker edges roll back through their field locks, a painted wait

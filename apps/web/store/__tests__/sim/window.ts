@@ -55,7 +55,7 @@ import {
   settleDeliveryReceipts,
 } from "../../../lib/syncDeliveryReceipts";
 import { subscribeGestures } from "../../gestureBridge";
-import { applyBridgedGesture } from "../../syncReplication";
+import { applyBridgedGesture } from "../../sync-replication";
 import type {
   InboxCompareOutcome,
   InboxDigestComparer,

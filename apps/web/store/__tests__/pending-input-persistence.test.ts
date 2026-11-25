@@ -28,13 +28,13 @@ async function runFixture(name: string, timeout: number): Promise<string> {
 }
 
 test("pending input survives follower-window and interrupted-storage lifecycles", async () => {
-  expect(await runFixture("pendingInput", 30_000)).toBe(
+  expect(await runFixture("pending-input", 30_000)).toBe(
     "web storage assertions completed",
   );
 }, 35_000);
 
 test("native saves pending input synchronously before returning to the composer", async () => {
-  expect(await runFixture("pendingInput.native", 15_000)).toBe(
+  expect(await runFixture("pending-input.native", 15_000)).toBe(
     "native storage assertions completed",
   );
 }, 20_000);

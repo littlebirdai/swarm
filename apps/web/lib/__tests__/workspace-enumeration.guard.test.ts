@@ -228,7 +228,7 @@ const SLOT_ALLOWED = new Map<string, string>([
     "the store: slot types, initial values, sync opts, teamInboxIdsOf itself, and writes",
   ],
   [
-    "store/inboxHydration.ts",
+    "store/inbox-hydration.ts",
     "seeds the cached team inbox at boot; renders nothing",
   ],
   [
@@ -240,7 +240,7 @@ const SLOT_ALLOWED = new Map<string, string>([
     "names a role by id in an undo label and snapshots the org slots it restores; renders no list",
   ],
   [
-    "store/syncReplication.ts",
+    "store/sync-replication.ts",
     "replicates the slots between windows; renders nothing",
   ],
   ["lib/activeTeam.ts", "teamMembersOf itself"],

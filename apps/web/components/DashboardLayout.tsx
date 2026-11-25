@@ -636,7 +636,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
 // The global feeder set — everything that subscribes workspace-wide server
 // data into the store. Mounted only while this window is the sync host (or its
 // own solo host); a follower window receives the same slice over replication
-// instead (store/syncReplication.ts), so mounting these there would only
+// instead (store/sync-replication.ts), so mounting these there would only
 // duplicate every subscription.
 function HostFeeders() {
   // The tasks delta cursor machine: its empty deltas re-rendered the whole

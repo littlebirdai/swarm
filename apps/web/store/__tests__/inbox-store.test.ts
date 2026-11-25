@@ -3,7 +3,7 @@ import {
   hydrateMergeValue,
   seedLiveInboxIdsFromCache,
   seedTeamInboxIdsFromCache,
-} from "../inboxHydration";
+} from "../inbox-hydration";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
   awaitTrackedSessionCreateResult,

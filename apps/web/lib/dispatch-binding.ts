@@ -12,7 +12,7 @@ import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 import { isChatRoomRefusal, useInboxStore } from "../store/inboxStore";
 import { isPermanentDispatchError } from "../store/mutativeMiddleware";
 import { dropRejectedOrgIntent } from "../store/orgSlice";
-import { offerRollbackToHost } from "../store/syncReplication";
+import { offerRollbackToHost } from "../store/sync-replication";
 import {
   recordSessionCommandDispatchError,
   SESSION_COMMAND_ACTIONS,

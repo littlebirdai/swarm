@@ -11,7 +11,7 @@ import { readDurableAuthValue } from "../lib/durableAuthStorage";
 import { AUTH_JWT_STORAGE_KEY } from "../lib/localAuth";
 import { purgeLocalCache } from "./idb-cache";
 import { clearProtectedInboxMemory, rebootPersistence } from "./inboxStore";
-import { stopSyncReplication } from "./syncReplication";
+import { stopSyncReplication } from "./sync-replication";
 
 export function onAuthPrincipalChange({
   previous,

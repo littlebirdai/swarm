@@ -23189,7 +23189,7 @@
   "apps/web/lib/__tests__/inboxPlacementGuards.guard.test.ts": {
     "swarm/no-comments": 22
   },
-  "apps/web/lib/__tests__/inboxProjectionGuards.guard.test.ts": {
+  "apps/web/lib/__tests__/inbox-projection-guards.guard.test.ts": {
     "swarm/no-comments": 41
   },
   "apps/web/lib/__tests__/inboxRouting.test.ts": {
@@ -23285,7 +23285,7 @@
   "apps/web/lib/__tests__/objectPageShare.guard.test.ts": {
     "swarm/no-comments": 9
   },
-  "apps/web/lib/__tests__/offlineBootAuth.guard.test.ts": {
+  "apps/web/lib/__tests__/offline-boot-auth.guard.test.ts": {
     "swarm/no-comments": 7
   },
   "apps/web/lib/__tests__/pageLayout.test.ts": {
@@ -23609,7 +23609,7 @@
   "apps/web/lib/__tests__/workflowRunCarry.test.ts": {
     "swarm/no-comments": 3
   },
-  "apps/web/lib/__tests__/workspaceEnumeration.guard.test.ts": {
+  "apps/web/lib/__tests__/workspace-enumeration.guard.test.ts": {
     "swarm/no-comments": 47
   },
   "apps/web/lib/__tests__/workspaceKeyClient.test.ts": {
@@ -27224,7 +27224,7 @@
   "apps/web/store/__tests__/inboxSplitSim.test.ts": {
     "swarm/no-comments": 6
   },
-  "apps/web/store/__tests__/inboxStore.test.ts": {
+  "apps/web/store/__tests__/inbox-store.test.ts": {
     "swarm/no-comments": 620
   },
   "apps/web/store/__tests__/initiativeRecord.test.ts": {
@@ -27279,7 +27279,7 @@
   "apps/web/store/__tests__/mergeMessagesRefresh.test.ts": {
     "swarm/no-comments": 5
   },
-  "apps/web/store/__tests__/messageEviction.test.ts": {
+  "apps/web/store/__tests__/message-eviction.test.ts": {
     "swarm/no-comments": 17
   },
   "apps/web/store/__tests__/messageRetention.test.ts": {
@@ -27615,10 +27615,10 @@
   "apps/web/store/__tests__/syncReplication.test.ts": {
     "swarm/no-comments": 39
   },
-  "apps/web/store/__tests__/syncReplicationBootWrites.test.ts": {
+  "apps/web/store/__tests__/sync-replication-boot-writes.test.ts": {
     "swarm/no-comments": 12
   },
-  "apps/web/store/__tests__/syncReplicationPrincipal.test.ts": {
+  "apps/web/store/__tests__/sync-replication-principal.test.ts": {
     "swarm/no-comments": 17
   },
   "apps/web/store/__tests__/syncTableNonArray.test.ts": {
@@ -28006,7 +28006,7 @@
   "apps/web/store/syncProtocol.ts": {
     "swarm/no-comments": 30
   },
-  "apps/web/store/syncReplication.ts": {
+  "apps/web/store/sync-replication.ts": {
     "swarm/no-comments": 136
   },
   "apps/web/store/syncTransaction.ts": {
@@ -29575,7 +29575,7 @@
   "packages/ratchet/test/docRefs.guard.test.ts": {
     "swarm/no-comments": 35
   },
-  "packages/ratchet/test/maxLines.ratchet.test.ts": {
+  "packages/ratchet/test/max-lines.ratchet.test.ts": {
     "swarm/no-comments": 123
   },
   "packages/ratchet/test/ratchet.test.ts": {

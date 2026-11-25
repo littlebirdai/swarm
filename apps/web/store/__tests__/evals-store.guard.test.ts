@@ -18,6 +18,9 @@ const GUARDED = [
   "inboxStore.ts",
   "clientSyncRegistry.ts",
   "idb-cache.ts",
+  "inbox-hydration.ts",
+  "storage-transport.ts",
+  "store-eviction.ts",
   ...readdirSync(join(storeDir, "persistence"))
     .filter((file) => file.endsWith(".ts"))
     .map((file) => `persistence/${file}`),

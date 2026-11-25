@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { unionHydrate } from "../inboxHydration";
+import { unionHydrate } from "../inbox-hydration";
 
 describe("unionHydrate — cache as the floor (jx799py repro)", () => {
   // Bug: /tasks (and now delta sessions) collapse to the live window on load,

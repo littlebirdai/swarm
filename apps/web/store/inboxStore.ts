@@ -72,12 +72,12 @@ import {
   type TeamVisibilityLevel,
   type VisibilityChangeMode,
 } from "@codecast/convex/convex/teamVisibility";
-import { bootInboxPersistence, hydrateConversation } from "./inboxHydration";
+import { bootInboxPersistence, hydrateConversation } from "./inbox-hydration";
 import {
   evictDetailRows,
   evictInactiveMessages,
   holdsUnsentComment,
-} from "./storeEviction";
+} from "./store-eviction";
 import {
   carryReleasedQueueRows,
   mergeQueueRows,
@@ -8320,7 +8320,7 @@ export interface InboxStoreState
   // which the user CAN end by closing or reloading it. Delivery is unaffected
   // either way; the banner tells the user durability is degraded.
   storageDegraded: false | "stalled" | "blocked";
-  // Cross-window replication role (store/syncReplication.ts). "host" mounts the
+  // Cross-window replication role (store/sync-replication.ts). "host" mounts the
   // global feeders and owns IDB write-through; "follower" receives the shared
   // slice from the host instead. Defaults to host: a window with no transport
   // (mobile, SSR, share pages) or no living host behaves exactly as today.
@@ -10808,7 +10808,7 @@ export function quantizePresenceList<T>(list: T): T {
   return (Array.isArray(list) ? list.map(quantizePresence) : list) as T;
 }
 
-// Whether a store key has registered sync opts (store/syncReplication.ts uses
+// Whether a store key has registered sync opts (store/sync-replication.ts uses
 // this to decide when a replicated value needs a shape-derived kind instead).
 export function hasSyncRegistryEntry(key: string): boolean {
   return !!SYNC_REGISTRY[key];
@@ -15319,7 +15319,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
   // cursor): the rows already landed under the lock, so each retired lock
   // hands its row the newest value it hid (retireAckedLockInDraft).
   // A follower's own write, echoed back by the host (forgetSeenBeforeOwnEcho
-  // in syncReplication.ts): the host rows its locks recorded before predate
+  // in sync-replication.ts): the host rows its locks recorded before predate
   // that write, so an acknowledgement must not land one of them.
   forgetLockSeen: sync(function (
     this: Draft,

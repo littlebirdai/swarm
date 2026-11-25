@@ -10,8 +10,8 @@ import {
   replicationChannelName,
   replicationLockName,
   replicationTransport,
-} from "../storageTransport";
-import { startSyncReplication, stopSyncReplication } from "../syncReplication";
+} from "../storage-transport";
+import { startSyncReplication, stopSyncReplication } from "../sync-replication";
 import { useInboxStore } from "../inboxStore";
 
 // Replication is scoped to the account a window acts for: channel and lock

@@ -40,7 +40,7 @@ import {
   replicationPersistence,
   replicationTransport,
   transportAvailable,
-} from "./storageTransport";
+} from "./storage-transport";
 import { syncTransaction } from "./syncTransaction";
 import type { GestureMessage } from "./gestureBridge";
 import {

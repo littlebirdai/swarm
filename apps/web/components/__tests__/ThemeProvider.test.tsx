@@ -57,7 +57,7 @@ const { createRoot } = await import("react-dom/client");
 const { ThemeProvider, useTheme, useThemeLock } =
   await import("../ThemeProvider");
 const { useInboxStore } = await import("../../store/inboxStore");
-const { applyUpdatesToStore } = await import("../../store/syncReplication");
+const { applyUpdatesToStore } = await import("../../store/sync-replication");
 const { flushSyncPublishes } = await import("../../store/syncTransaction");
 const act: <T>(callback: () => T | Promise<T>) => Promise<T> = (React as any)
   .act;

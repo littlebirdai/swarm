@@ -151,7 +151,7 @@ const result = checkRatchet({
   pin: PIN,
   fix: `Split it. A file over ${CAP} lines is not allowed to be new, and a listed one may not grow past its ${STEP}-line step.`,
   pruneCommand:
-    "cd packages/ratchet && RATCHET_WRITE=prune bun test test/maxLines.ratchet.test.ts",
+    "cd packages/ratchet && RATCHET_WRITE=prune bun test test/max-lines.ratchet.test.ts",
   minScanned: 1500,
   shrinkFloor: 0.9,
 });

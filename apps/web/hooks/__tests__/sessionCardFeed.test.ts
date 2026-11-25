@@ -14,7 +14,7 @@ import {
   isFullPullRequest,
   sessionPullRequests,
 } from "../../lib/sessionPullRequests";
-import { applyUpdatesToStore } from "../../store/syncReplication";
+import { applyUpdatesToStore } from "../../store/sync-replication";
 
 const pr = (
   id: string,

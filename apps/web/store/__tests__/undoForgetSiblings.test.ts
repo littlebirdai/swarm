@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { _resetUndoStacks } from "@platform/engine";
 import { useInboxStore } from "../inboxStore";
 import { setGestureChannelFactory } from "../gestureBridge";
-import { applyUpdatesToStore, buildMutUpdates } from "../syncReplication";
+import { applyUpdatesToStore, buildMutUpdates } from "../sync-replication";
 import { declareViewNav } from "../viewNav";
 import { performUndo } from "../undoStack";
 

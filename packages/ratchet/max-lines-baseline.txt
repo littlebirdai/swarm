@@ -4,7 +4,7 @@
 # fix. Split it. A file over 800 lines is not allowed to be new, and a listed one may not grow past its 50-line step.
 #
 # Prune it (drops gone entries, lowers numbers that came down, adds nothing):
-#   cd packages/ratchet && RATCHET_WRITE=prune bun test test/maxLines.ratchet.test.ts
+#   cd packages/ratchet && RATCHET_WRITE=prune bun test test/max-lines.ratchet.test.ts
 apps/cli/scripts/agentwatch-replay.ts 850
 apps/cli/scripts/browser-rig.ts 1150
 apps/cli/scripts/browser-stress/fuzz.ts 850
@@ -714,7 +714,7 @@ apps/web/store/__tests__/gestureBridge.test.ts 2350
 apps/web/store/__tests__/inboxDigestCompare.test.ts 1050
 apps/web/store/__tests__/inboxLifecycle.model.test.ts 850
 apps/web/store/__tests__/inboxSimHarness.ts 1350
-apps/web/store/__tests__/inboxStore.test.ts 6850
+apps/web/store/__tests__/inbox-store.test.ts 6850
 apps/web/store/__tests__/orgSlice.intents.test.ts 1450
 apps/web/store/__tests__/outboxRetention.test.ts 1600
 apps/web/store/__tests__/sim/dsl.ts 1150

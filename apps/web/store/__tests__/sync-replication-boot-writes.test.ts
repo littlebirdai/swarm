@@ -6,7 +6,7 @@ import { createReplicationHost } from "@platform/engine";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { JSDOM } from "jsdom";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
-import type { SyncReplicationStatus } from "../syncReplication";
+import type { SyncReplicationStatus } from "../sync-replication";
 
 const dom = new JSDOM("", { url: "https://example.test/" });
 const globals = globalThis as Record<string, unknown>;
@@ -76,9 +76,9 @@ async function openCache() {
 await openCache();
 const { rebootPersistence, useInboxStore } = await import("../inboxStore");
 const { replicationChannelName, replicationLockName, replicationTransport } =
-  await import("../storageTransport");
+  await import("../storage-transport");
 const { startSyncReplication, stopSyncReplication } =
-  await import("../syncReplication");
+  await import("../sync-replication");
 await waitFor(() => !hydration._hydrating);
 
 const state = () => useInboxStore.getState();

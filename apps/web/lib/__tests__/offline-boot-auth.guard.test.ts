@@ -35,7 +35,7 @@ describe("offline boot auth", () => {
 
   test("the visible conversation cache hydrates before the app is released", () => {
     const source = readFileSync(
-      join(WEB_ROOT, "store/inboxHydration.ts"),
+      join(WEB_ROOT, "store/inbox-hydration.ts"),
       "utf8",
     );
     const hydrate = source.indexOf("await ensureHydrated(focusId)");

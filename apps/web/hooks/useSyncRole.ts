@@ -5,7 +5,7 @@ import {
   subscribeWindowStoreStart,
 } from "../lib/windowRole";
 import { useInboxStore } from "../store/inboxStore";
-import { startSyncReplication } from "../store/syncReplication";
+import { startSyncReplication } from "../store/sync-replication";
 
 import { useWatchEffect } from "./useWatchEffect";
 /**
