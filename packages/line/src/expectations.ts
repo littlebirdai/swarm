@@ -1,3 +1,4 @@
+import { normText } from "./normalizedText";
 // A project's expectations (docs/architecture/the-line-model.md LM5): how the
 // project should behave, each line stated plainly with the sources it came
 // from. A judge compares what happened with the active lines and cites the id
@@ -489,21 +490,6 @@ export function holdsQuote(text: string, quote: string): boolean {
     .trim()} `;
   const pieces = quotePieces(quote);
   return pieces.length > 0 && pieces.every((p) => hay.includes(` ${p} `));
-}
-
-const NORMALIZED_LIMIT = 4096;
-const normalized = new Map<string, string>();
-function normText(text: string): string {
-  let result = normalized.get(text);
-  if (result === undefined) {
-    if (normalized.size >= NORMALIZED_LIMIT) normalized.clear();
-    result = text
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
-    normalized.set(text, result);
-  }
-  return result;
 }
 
 /**
