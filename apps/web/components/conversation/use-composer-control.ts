@@ -12,23 +12,25 @@ import {
 
 type SendKind = "send" | "queue" | "suggest";
 type ControlCommand = Exclude<ComposerControlCommand, ComposerPayload>;
+type CommandKey = ControlCommand["kind"] | "submit";
 type Retry = { id: number; payload: ComposerPayload };
+type Observation = { key: string };
+type Outcome = {
+  observation: Observation;
+  completed: ReadonlySet<CommandKey>;
+  send?: { receipt: Observation; state: SendState };
+  controlError?: "refused" | "in-doubt";
+};
 
 type Operations = {
-  pending: ReadonlySet<string>;
-  completed: ReadonlySet<string>;
+  observation?: Observation;
+  receipt?: Observation;
+  pending: ReadonlyMap<CommandKey, Observation>;
+  outcome?: Outcome;
   retries: Retry[];
-  sendState: SendState | null;
-  controlError: "refused" | "in-doubt" | null;
 };
 
-const empty: Operations = {
-  pending: new Set(),
-  completed: new Set(),
-  retries: [],
-  sendState: null,
-  controlError: null,
-};
+const empty: Operations = { pending: new Map(), retries: [] };
 const operations = createStore<Record<string, Operations>>(() => ({}));
 let retryId = 0;
 
@@ -36,36 +38,48 @@ function update(id: string, apply: (record: Operations) => Operations) {
   operations.setState((state) => ({ [id]: apply(state[id] ?? empty) }));
 }
 
-function claim(id: string, key: string) {
+function claim(
+  id: string,
+  observation: Observation,
+  key: CommandKey,
+  receipt?: Observation,
+) {
   const record = operations.getState()[id] ?? empty;
-  if (record.pending.has(key) || record.completed.has(key)) return false;
+  const outcome =
+    record.outcome?.observation === observation
+      ? record.outcome
+      : { observation, completed: new Set<CommandKey>() };
+  if (
+    record.observation !== observation ||
+    record.pending.has(key) ||
+    outcome.completed.has(key)
+  )
+    return false;
   update(id, (current) => ({
     ...current,
-    pending: new Set([...current.pending, key]),
-    ...(key === "submit" ? { sendState: null } : { controlError: null }),
+    pending: new Map(current.pending).set(key, receipt ?? observation),
+    outcome: {
+      ...outcome,
+      ...(key === "submit" ? { send: undefined } : { controlError: undefined }),
+    },
   }));
   return true;
 }
 
-function release(id: string, key: string, complete = false) {
-  const command = key.split(":")[0];
+function settle(
+  id: string,
+  observation: Observation,
+  key: CommandKey,
+  change: (outcome: Outcome) => Outcome,
+) {
   update(id, (current) => ({
     ...current,
-    pending: new Set([...current.pending].filter((item) => item !== key)),
-    completed: complete
-      ? new Set(
-          [...current.completed]
-            .filter((item) => {
-              const kind = item.split(":")[0];
-              return (
-                kind !== command &&
-                !(command === "takeover" && kind === "cancel-takeover") &&
-                !(command === "cancel-takeover" && kind === "takeover")
-              );
-            })
-            .concat(key),
-        )
-      : current.completed,
+    pending: new Map([...current.pending].filter(([item]) => item !== key)),
+    outcome:
+      current.observation === observation &&
+      current.outcome?.observation === observation
+        ? change(current.outcome)
+        : current.outcome,
   }));
 }
 
@@ -89,44 +103,81 @@ export function useComposerControl(
     [scopedId],
   );
   const record = useSyncExternalStore(subscribe, snapshot, snapshot);
-  const driveRequested = shared?.facts.driveRequested;
-  const takeoverRequested = shared?.facts.takeoverPending;
+  const facts = shared?.facts;
+  const observed = facts
+    ? JSON.stringify([
+        facts.viewerId,
+        facts.turn,
+        facts.driver?.id,
+        facts.role,
+        facts.driveRequested,
+        facts.takeoverPending,
+      ])
+    : null;
+  const receiptKey = facts
+    ? JSON.stringify([
+        observed,
+        facts.sendState?.kind,
+        facts.sendState?.kind === "waiting-for-driver"
+          ? facts.sendState.driver
+          : null,
+      ])
+    : null;
   useWatchEffect(() => {
-    if (!scopedId || !record.completed.size) return;
-    const current = operations.getState()[scopedId] ?? empty;
-    const completed = new Set(
-      [...current.completed].filter((key) => {
-        if (key.startsWith("ask:")) return !driveRequested;
-        if (key.startsWith("takeover:")) return !takeoverRequested;
-        if (key.startsWith("cancel-takeover:")) return takeoverRequested;
-        return true;
-      }),
-    );
-    if (completed.size !== current.completed.size)
-      update(scopedId, (current) => ({ ...current, completed }));
-  }, [scopedId, record.completed, driveRequested, takeoverRequested]);
+    if (!scopedId || observed === null || receiptKey === null) return;
+    const current = operations.getState()[scopedId];
+    if (
+      current?.observation?.key === observed &&
+      current.receipt?.key === receiptKey
+    )
+      return;
+    update(scopedId, (record) => ({
+      ...record,
+      observation:
+        record.observation?.key === observed
+          ? record.observation
+          : { key: observed },
+      receipt:
+        record.receipt?.key === receiptKey
+          ? record.receipt
+          : { key: receiptKey },
+    }));
+  }, [scopedId, observed, receiptKey]);
   if (!shared) return null;
 
-  const { facts, baton } = shared;
+  const { baton } = shared;
+  const currentFacts = shared.facts;
+  const observation =
+    record.observation?.key === observed ? record.observation : undefined;
+  const outcome =
+    record.outcome?.observation === observation ? record.outcome : undefined;
+  const receipt =
+    record.receipt?.key === receiptKey ? record.receipt : undefined;
+  const localSend =
+    outcome?.send?.receipt === receipt ? outcome?.send?.state : undefined;
   const view = composerControlModel({
-    ...facts,
-    sendState: record.pending.has("submit")
-      ? { kind: "submitting" }
-      : (record.sendState ?? facts.sendState),
+    ...currentFacts,
+    sendState:
+      receipt && record.pending.get("submit") === receipt
+        ? { kind: "submitting" }
+        : (localSend ?? currentFacts.sendState),
   });
-  const expected = { kind: "turn", turn: facts.turn } as const;
-  const askKey = `ask:${facts.role}:${facts.driveRequested}`;
-  const takeoverKey = `takeover:${facts.turn}:${facts.driver?.id}`;
-  const cancelKey = `cancel-takeover:${facts.turn}:${facts.driver?.id}`;
+  const expected = { kind: "turn", turn: currentFacts.turn } as const;
 
   function begin(kind: SendKind, retry?: Retry) {
-    if (!claim(conversationId, "submit")) return null;
+    if (
+      !observation ||
+      !receipt ||
+      !claim(conversationId, observation, "submit", receipt)
+    )
+      return null;
     return async (
       prepare: () => ComposerPayload | Promise<ComposerPayload>,
       restore: (payload: ComposerPayload) => boolean,
       fallback?: ComposerPayload,
     ) => {
       let payload = fallback;
+      let sendState: SendState | undefined;
       try {
         payload = await prepare();
         const command =
@@ -135,26 +186,19 @@ export function useComposerControl(
             : ({ ...payload, kind } as const);
         const result = await baton.run(command);
         if (result === "accepted") {
-          if (retry)
-            update(conversationId, (current) => ({
-              ...current,
-              retries: current.retries.filter((row) => row.id !== retry.id),
-            }));
+          if (retry) dismissRetry(retry);
           return true;
         }
-        update(conversationId, (current) => ({
-          ...current,
-          sendState: { kind: result === "stale" ? "stale" : "refused" },
-        }));
+        sendState = { kind: result === "stale" ? "stale" : "refused" };
         if (!restore(payload)) addRetry(payload);
       } catch {
-        update(conversationId, (current) => ({
-          ...current,
-          sendState: { kind: "in-doubt" },
-        }));
+        sendState = { kind: "in-doubt" };
         if (payload && !retry) addRetry(payload);
       } finally {
-        release(conversationId, "submit");
+        settle(conversationId, observation, "submit", (current) => ({
+          ...current,
+          send: sendState ? { receipt, state: sendState } : undefined,
+        }));
       }
       return false;
     };
@@ -167,10 +211,22 @@ export function useComposerControl(
     }));
   }
 
-  function queueRetry(retry: Retry) {
-    const record = operations.getState()[conversationId];
-    if (!record?.retries.some((row) => row.id === retry.id)) return;
-    const complete = begin("queue", retry);
+  function dismissRetry(retry: Retry) {
+    update(conversationId, (current) => ({
+      ...current,
+      retries: current.retries.filter((row) => row.id !== retry.id),
+    }));
+  }
+
+  function retryDraft(retry: Retry) {
+    const kind = view.canQueue
+      ? "queue"
+      : view.send === "suggest"
+        ? "suggest"
+        : null;
+    const current = operations.getState()[conversationId];
+    if (!kind || !current?.retries.some((row) => row.id === retry.id)) return;
+    const complete = begin(kind, retry);
     if (complete)
       void complete(
         () => retry.payload,
@@ -179,58 +235,49 @@ export function useComposerControl(
   }
 
   async function act(command: ControlCommand) {
-    const key =
-      command.kind === "ask"
-        ? askKey
-        : command.kind === "takeover"
-          ? takeoverKey
-          : command.kind === "cancel-takeover"
-            ? cancelKey
-            : `interrupt:${facts.turn}`;
-    if (!claim(conversationId, key)) return;
-    let complete = false;
+    const key = command.kind;
+    if (!observation || !claim(conversationId, observation, key)) return;
+    let error: Outcome["controlError"];
     try {
-      complete = (await baton.run(command)) === "accepted";
-      if (!complete)
-        update(conversationId, (current) => ({
-          ...current,
-          controlError: "refused",
-        }));
+      if ((await baton.run(command)) !== "accepted") error = "refused";
     } catch {
-      update(conversationId, (current) => ({
-        ...current,
-        controlError: "in-doubt",
-      }));
+      error = "in-doubt";
     } finally {
-      release(conversationId, key, complete);
+      settle(conversationId, observation, key, (current) => ({
+        ...current,
+        controlError: error,
+        completed: error
+          ? current.completed
+          : new Set([...current.completed, key]),
+      }));
     }
   }
 
   return {
     ...view,
-    facts,
+    facts: currentFacts,
     expected,
     begin,
     isSubmitting: () =>
       view.submitting ||
       operations.getState()[conversationId]?.pending.has("submit"),
     act,
-    queueRetry,
+    retryDraft,
+    dismissRetry,
     retries: record.retries,
-    controlError: record.controlError,
-    submitting: view.submitting || record.pending.has("submit"),
+    controlError: outcome?.controlError,
     request:
-      view.request && record.completed.has(askKey)
+      view.request && outcome?.completed.has("ask")
         ? ("requested" as const)
         : view.request,
-    askPending: record.pending.has(askKey),
+    askPending: record.pending.has("ask"),
     takeoverPending:
-      record.pending.has(takeoverKey) || record.completed.has(takeoverKey),
+      record.pending.has("takeover") || !!outcome?.completed.has("takeover"),
     interruptPending:
-      record.pending.has(`interrupt:${facts.turn}`) ||
-      record.completed.has(`interrupt:${facts.turn}`),
+      record.pending.has("interrupt") || !!outcome?.completed.has("interrupt"),
     cancelPending:
-      record.pending.has(cancelKey) || record.completed.has(cancelKey),
+      record.pending.has("cancel-takeover") ||
+      !!outcome?.completed.has("cancel-takeover"),
   };
 }
 

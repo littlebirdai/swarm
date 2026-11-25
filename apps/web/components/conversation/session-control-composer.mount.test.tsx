@@ -1,171 +1,19 @@
 import { expect, test } from "bun:test";
-import { act, type ReactNode } from "react";
-import { api } from "@codecast/convex/convex/_generated/api";
-import "../chat/ChatMessage";
-import { armJointSend, setJointCandidates } from "../../lib/joint-send";
-import { MessageInput } from "../message-input";
-import { NonOwnerMessageInput } from "./session-controls";
 import { mountWeb } from "../../test-helpers/mountWeb";
-import { pending } from "../../test-helpers/testConvex";
-import type { ConversationData } from "./types";
-import type {
-  ComposerBaton,
-  ComposerCommandOutcome,
-  ComposerControlCommand,
-  ComposerControlFacts,
-  ComposerControlFlag,
-} from "./composer-control-model";
+import { act } from "react";
+import { armJointSend, setJointCandidates } from "../../lib/joint-send";
+import {
+  ana,
+  me,
+  fakeBaton,
+  id,
+  owner,
+  collaborator,
+  createComposerMount,
+  button,
+} from "../../test-helpers/composer-control-fixture";
 
-const ana = { id: "ana", name: "Ana" };
-const me = { id: "me", name: "Casey" };
-let session = 0;
-
-function fakeBaton() {
-  const commands: ComposerControlCommand[] = [];
-  const replies: Array<{
-    resolve: (value: ComposerCommandOutcome) => void;
-    reject: (error: Error) => void;
-  }> = [];
-  const baton: ComposerBaton = {
-    run(command) {
-      commands.push(command);
-      return new Promise((resolve, reject) =>
-        replies.push({ resolve, reject }),
-      );
-    },
-  };
-  return {
-    commands,
-    control(
-      conversationId: string,
-      overrides: Partial<ComposerControlFacts> = {},
-    ): ComposerControlFlag {
-      return {
-        enabled: true,
-        conversationId,
-        shared: {
-          baton,
-          facts: {
-            viewerId: me.id,
-            role: "owner",
-            driver: me,
-            turn: "t1",
-            takeoverPending: false,
-            driveRequested: false,
-            sendState: null,
-            ...overrides,
-          },
-        },
-      };
-    },
-    async reply(result: ComposerCommandOutcome | Error) {
-      const reply = replies.shift();
-      if (!reply) throw new Error("No command to settle");
-      await act(async () => {
-        if (result instanceof Error) reply.reject(result);
-        else reply.resolve(result);
-      });
-    },
-  };
-}
-
-function id() {
-  return `control-test-${++session}`;
-}
-
-function owner(
-  conversationId: string,
-  composerControl?: ComposerControlFlag,
-  extra: Partial<React.ComponentProps<typeof MessageInput>> = {},
-) {
-  return (
-    <MessageInput
-      key={conversationId}
-      conversationId={conversationId}
-      composerControl={composerControl}
-      status="active"
-      agentType="claude_code"
-      {...extra}
-    />
-  );
-}
-
-function collaborator(
-  conversationId: string,
-  composerControl: ComposerControlFlag,
-) {
-  return (
-    <NonOwnerMessageInput
-      conversation={{
-        _id: conversationId as ConversationData["_id"],
-        title: "Shared",
-        messages: [],
-      }}
-      composerControl={composerControl}
-    />
-  );
-}
-
-async function mountComposer(node: ReactNode) {
-  const ui = await mountWeb(node, {
-    authenticated: true,
-    dispatch: true,
-    setup(backend) {
-      backend.set(api.pendingMessages.getConversationPendingMessage, pending);
-      backend.set(api.docSync.getPresence, []);
-      backend.mutation(api.docSync.updatePresence, null);
-      backend.mutation(api.docSync.removePresence, null);
-      backend.mutation(api.dispatch.dispatch, null);
-    },
-  });
-  const box = () => {
-    const input = ui.container.querySelector<HTMLTextAreaElement>(
-      "textarea[data-chat-input]",
-    );
-    if (!input) throw new Error("Composer textarea missing");
-    return input;
-  };
-  return {
-    ...ui,
-    box,
-    async type(text: string) {
-      await act(async () => {
-        const input = box();
-        const setValue = Object.getOwnPropertyDescriptor(
-          ui.dom.window.HTMLTextAreaElement.prototype,
-          "value",
-        )!.set!;
-        setValue.call(input, text);
-        input.dispatchEvent(
-          new ui.dom.window.Event("input", { bubbles: true }),
-        );
-      });
-    },
-    async press(key: string, options: KeyboardEventInit = {}, times = 1) {
-      await act(async () => {
-        for (let i = 0; i < times; i += 1)
-          box().dispatchEvent(
-            new ui.dom.window.KeyboardEvent("keydown", {
-              key,
-              bubbles: true,
-              cancelable: true,
-              ...options,
-            }),
-          );
-      });
-    },
-  };
-}
-
-function button(root: ParentNode, name: string) {
-  const match = [...root.querySelectorAll("button")].find(
-    (control) =>
-      (control.getAttribute("aria-label") ?? control.textContent?.trim()) ===
-      name,
-  );
-  if (!match) throw new Error(`Button not found: ${name}`);
-  return match;
-}
+const mountComposer = createComposerMount(mountWeb);
 
 test("flag off, solo and a foreign control preserve the real composer and its backend traffic", async () => {
   const conversationId = id();

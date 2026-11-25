@@ -9811,10 +9811,6 @@ const ConversationViewInner = function ConversationView(
                                                   }
                                                   composerNode={
                                                     <>
-                                                      {/* Who else is in this box (a teammate's live draft, or "is
-                    here" for a share link guest with no face on the roster)
-                    and who asks to send into it. Inside the composer, so they
-                    sit on its background under the fade that dims the feed. */}
                                                       {composerPresenceEnabled(
                                                         conversation,
                                                       ) && (
@@ -9828,6 +9824,13 @@ const ConversationViewInner = function ConversationView(
                                                       ) && (
                                                         <OwnerComposerPresence
                                                           conversationId={conversation._id.toString()}
+                                                          allowJoint={
+                                                            !scopedComposerControl?.enabled ||
+                                                            scopedComposerControl
+                                                              .shared?.facts
+                                                              .role !==
+                                                              "suggester"
+                                                          }
                                                           showHere={
                                                             !!conversation.share_token
                                                           }

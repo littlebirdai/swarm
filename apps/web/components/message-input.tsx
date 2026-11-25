@@ -448,6 +448,7 @@ export const MessageInput = memo(function MessageInput({
       ? undefined
       : composerControl,
   );
+  const canEdit = control?.facts.role !== "viewer";
   const composerMounted = useRef(true);
   const sacredKey = sessionId || conversationId;
   const sacredKeyRef = useRef(sacredKey);
@@ -1330,7 +1331,7 @@ export const MessageInput = memo(function MessageInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const shared = useSharedDraft({
     conversationId,
-    enabled: !!sharedDraft && !composeMode,
+    enabled: canEdit && !!sharedDraft && !composeMode,
     seed: true,
     text: message,
     setText: setMessage,
@@ -1424,7 +1425,7 @@ export const MessageInput = memo(function MessageInput({
   });
 
   useWatchEffect(() => {
-    if (onPopulateInput) {
+    if (canEdit && onPopulateInput) {
       onPopulateInput.current = (text: string, opts?: { append?: boolean }) => {
         if (opts?.append) {
           const current =
@@ -1447,7 +1448,7 @@ export const MessageInput = memo(function MessageInput({
         if (onPopulateInput) onPopulateInput.current = null;
       };
     }
-  }, [onPopulateInput]);
+  }, [onPopulateInput, canEdit]);
 
   // A `?prefill=` deep link (phone notification → back into this session) seeds
   // the composer with the draft it asked about, already quoted, cursor on the
@@ -2052,6 +2053,7 @@ export const MessageInput = memo(function MessageInput({
         e: React.FormEvent,
         forkTail?: boolean,
         queue?: boolean,
+        interrupt?: boolean,
       ) => Promise<unknown>)
     | null
   >(null);
@@ -2505,7 +2507,7 @@ export const MessageInput = memo(function MessageInput({
   );
 
   useWatchEffect(() => {
-    if (onDropFiles) {
+    if (canEdit && onDropFiles) {
       onDropFiles.current = (files: File[]) => {
         files.forEach((f) => {
           if (isRecordingFile(f)) void screenRec.attach(f);
@@ -2517,7 +2519,7 @@ export const MessageInput = memo(function MessageInput({
         if (onDropFiles) onDropFiles.current = null;
       };
     }
-  }, [onDropFiles, takeImage, takeFile, screenRec.attach]);
+  }, [onDropFiles, takeImage, takeFile, screenRec.attach, canEdit]);
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent) => {
@@ -2643,12 +2645,13 @@ export const MessageInput = memo(function MessageInput({
     e: React.FormEvent,
     forkTail = false,
     queue = false,
+    interrupt = false,
   ) => {
     e.preventDefault();
-    if (allowanceOut) return false;
+    if (!canEdit || allowanceOut || (interrupt && control?.isSubmitting()))
+      return false;
     submitRefusedRef.current = false;
     setAcTrigger(null);
-    // In compose mode, read content from the TipTap editor
     let message =
       composeMode && composeRef.current
         ? composeRef.current.getMarkdown()
@@ -2660,6 +2663,7 @@ export const MessageInput = memo(function MessageInput({
           { preventDefault: () => {} } as unknown as React.FormEvent,
           forkTail,
           queue,
+          interrupt,
         );
         if (!submitRefusedRef.current) onSubmitWithIntent?.(false);
       })
@@ -2675,8 +2679,6 @@ export const MessageInput = memo(function MessageInput({
       submitRefusedRef.current = true;
       return false;
     }
-    // What the person typed, before quotes and joint parts fold in: the
-    // suggestion outcome is reported against it once the send is committed.
     const typed = message;
     if (onGateSend) {
       // The pending batch rides a gate send the way it rides the main one:
@@ -2801,6 +2803,7 @@ export const MessageInput = memo(function MessageInput({
     // A joint turn carries others' words, so none of it is marked this person's typed words.
     const beforeJoint = message;
     let claimJoint: (() => void) | undefined;
+    if (controlled && !controlled.canQueue) disarmJointSend(conversationId);
     if (!forking)
       message = takeJointSend(
         conversationId,
@@ -2869,6 +2872,8 @@ export const MessageInput = memo(function MessageInput({
         )
       : null;
     if (controlled && !completeControlled) return false;
+    if (interrupt && controlled?.interrupt)
+      void controlled.act({ kind: "interrupt", expected: controlled.expected });
     sendingRef.current = true;
     let clientId: string | undefined;
     try {
@@ -2931,7 +2936,11 @@ export const MessageInput = memo(function MessageInput({
           storageId,
         })),
       });
-      const restored = typedWords?.trim() === trimmed ? typed : payload.text;
+      const restored = !message.trim()
+        ? ""
+        : typedWords?.trim() === trimmed
+          ? typed
+          : payload.text;
       if (images.length) setPastedImages(images as typeof pastedImages);
       setMessage(restored);
       messageRef.current = restored;
@@ -2949,7 +2958,7 @@ export const MessageInput = memo(function MessageInput({
           preparedPayload(ids),
         );
         if (accepted) claimJoint?.();
-        return;
+        return accepted;
       }
       if (!clientId) return;
       try {
@@ -2957,10 +2966,6 @@ export const MessageInput = memo(function MessageInput({
         const resolvedId = targetCanQuery
           ? targetConvId
           : await useInboxStore.getState().awaitConvexId(targetConvId);
-        // Record the exact dispatched bytes on the pending row BEFORE sending:
-        // the server fingerprints this client id's args, so any later redrive
-        // must replay them verbatim or be refused as COMMAND_ID_REUSED. The row
-        // may sit under the stub key or the rekeyed real id — stamp both.
         if (expandedContent !== trimmed) {
           useInboxStore
             .getState()
@@ -2979,7 +2984,6 @@ export const MessageInput = memo(function MessageInput({
               );
           }
         }
-        // typed: what the person typed in this box, before quotes, mentions and attachments (server composerChannel).
         sendMessage(
           resolvedId,
           expandedContent,
@@ -3011,13 +3015,7 @@ export const MessageInput = memo(function MessageInput({
     };
 
     if (hasUploadingImages) {
-      // Detached: finish the in-flight uploads (the composer's and the marked
-      // copies of quoted pictures), swap the bubble's previews for
-      // real storage records (drops the spinner), then send. Awaits the upload
-      // promises from the module-level registry, not component state, so it
-      // survives a session switch or composer remount. The user can already
-      // type/send the next message.
-      void (async () => {
+      const uploaded = (async () => {
         const tasks = submitImages.map((img) => ({
           previewUrl: img.previewUrl,
           mediaType: img.file.type,
@@ -3043,8 +3041,6 @@ export const MessageInput = memo(function MessageInput({
             storage_id,
           })),
         ];
-        // Every upload failed and there was no text — nothing real to send.
-        // uploadImage already toasted each failure; just fail the bubble.
         if (resolvedImages.length === 0 && !message.trim()) {
           if (clientId)
             useInboxStore
@@ -3056,20 +3052,17 @@ export const MessageInput = memo(function MessageInput({
               restoreControlled,
             );
           tasks.forEach((t) => pendingImageUploads.delete(t.previewUrl));
-          return;
+          return false;
         }
         if (clientId)
           useInboxStore
             .getState()
             .resolvePendingUploads(targetConvId, clientId, resolvedImages);
-        // Free the handed-off blobs after the bubble has re-rendered without
-        // its preview_url (resolvePendingUploads stripped it), so a still-
-        // mounted ImageBlock never loads a revoked URL and gets stuck errored.
         tasks.forEach((t) => {
           pendingImageUploads.delete(t.previewUrl);
           setTimeout(() => URL.revokeObjectURL(t.previewUrl), 1000);
         });
-        await finishSend(resolvedImages.map((i) => i.storage_id as string));
+        return finishSend(resolvedImages.map((i) => i.storage_id as string));
       })().catch((error: unknown) => {
         if (!completeControlled) throw error;
         return completeControlled(
@@ -3082,9 +3075,10 @@ export const MessageInput = memo(function MessageInput({
           ),
         );
       });
-    } else {
-      await finishSend(submitImages.map((img) => img.storageId as string));
+      if (completeControlled) return uploaded;
+      return;
     }
+    return finishSend(submitImages.map((img) => img.storageId as string));
   };
 
   const queueDrainingRef = useRef(false);
@@ -3283,21 +3277,24 @@ export const MessageInput = memo(function MessageInput({
       else onSendEscape?.();
     });
   };
-  // Stop & send (⇧Esc): stop the running turn, then deliver the text once it
-  // has stopped. A plain send still lands mid-turn.
   const canStopAndSend =
     turnRunning && canQueryServer && pastedImages.length === 0;
   const stopAndSendComposerText = () => {
     if (!canStopAndSend || !messageRef.current.trim()) return;
-    if (takeSideQuestion(messageRef.current)) return;
     if (control) {
+      if (control.isSubmitting()) return;
       confirmStop(() => {
-        void control.act({ kind: "interrupt", expected: control.expected });
-        queueFromComposer();
+        void handleSubmit(
+          { preventDefault() {} } as React.FormEvent,
+          false,
+          true,
+          true,
+        );
       }, true);
       return;
     }
-    confirmStop(() => queueComposerText(true), true);
+    if (!takeSideQuestion(messageRef.current))
+      confirmStop(() => queueComposerText(true), true);
   };
 
   // ⌘↵ in a session: queue the composer's text behind the running turn.
@@ -3345,8 +3342,6 @@ export const MessageInput = memo(function MessageInput({
     setSelectedQueueIndex(null);
   };
 
-  // Queue for the end of the turn, from the chord or the pill's button alike;
-  // a credential in the text is held first, as a plain send holds it.
   const queueFromComposer = () => {
     if (control) {
       void handleSubmit(
@@ -3699,6 +3694,7 @@ export const MessageInput = memo(function MessageInput({
       e.key === "Enter" &&
       e.altKey &&
       (isMac ? e.metaKey : e.ctrlKey && e.shiftKey) &&
+      (!control || control.canQueue) &&
       jointSendReady(conversationId)
     ) {
       e.preventDefault();
@@ -3770,13 +3766,11 @@ export const MessageInput = memo(function MessageInput({
   };
 
   handleSubmitRef.current = handleSubmit;
-  // Length is compared before the trim, so a message under the limit (every
-  // ordinary keystroke) costs one number comparison here.
   const typedLength =
     maxLength != null && message.length > maxLength ? message.trim().length : 0;
   const overLimit = maxLength != null && typedLength > maxLength;
   const canSubmit =
-    (hasContent || reviewCount > 0) && !allowanceOut && !overLimit;
+    canEdit && (hasContent || reviewCount > 0) && !allowanceOut && !overLimit;
   // When the send is carried entirely by attached quotes, tint the button cyan to
   // match the tray so it reads as "this sends the quotes".
   const quotesOnlySend = !hasContent && reviewCount > 0;
@@ -3883,8 +3877,20 @@ export const MessageInput = memo(function MessageInput({
       )}
     </>
   );
-  // Expand, stash, hand off and fork: beside the text, or in the surface's foot
-  // row next to send when it brings one.
+  const controlStrip = control && (
+    <SessionControlStrip
+      key={conversationId}
+      control={control}
+      interrupt={control.interrupt ? interruptTurn : undefined}
+    />
+  );
+  if (!canEdit)
+    return (
+      <ComposerShell inline={inline} fieldTop={controlStrip}>
+        {null}
+      </ComposerShell>
+    );
+
   const rowActions = (
     <>
       {composeMode ? (
@@ -4451,13 +4457,7 @@ export const MessageInput = memo(function MessageInput({
       tab={branchControl}
       fieldTop={
         <>
-          {control && (
-            <SessionControlStrip
-              key={conversationId}
-              control={control}
-              interrupt={control.interrupt ? interruptTurn : undefined}
-            />
-          )}
+          {controlStrip}
           {isSelectionActive && (
             <div className="flex items-center gap-2 pb-1.5 mb-1.5 border-b border-sol-cyan/20 text-meta text-sol-cyan">
               <span className="font-medium">Rewriting message</span>
@@ -4635,7 +4635,7 @@ export const MessageInput = memo(function MessageInput({
                     className={`relative h-16 w-16 rounded-lg overflow-hidden bg-sol-bg shrink-0 transition-all ${selectedImageIndex === idx ? "ring-2 ring-sol-blue ring-offset-1 ring-offset-sol-bg" : ""}`}
                   >
                     <img
-                      src={img.previewUrl}
+                      src={img.previewUrl || undefined}
                       alt="Pasted"
                       className="h-full w-full object-cover"
                     />
@@ -4746,7 +4746,9 @@ export const MessageInput = memo(function MessageInput({
                   {...lightboxSwipe.handlers}
                 >
                   <img
-                    src={pastedImages[lightboxImageIndex].previewUrl}
+                    src={
+                      pastedImages[lightboxImageIndex].previewUrl || undefined
+                    }
                     alt="Image preview"
                     className="max-w-[85vw] max-h-[70vh] object-contain rounded-lg shadow-2xl"
                     style={
@@ -4811,7 +4813,6 @@ export const MessageInput = memo(function MessageInput({
           actions={composerFoot ? undefined : rowActions}
         >
           <ComposerTextarea
-            hidden={control?.facts.role === "viewer" || undefined}
             ref={textareaRef}
             data-chat-input
             data-composer-field

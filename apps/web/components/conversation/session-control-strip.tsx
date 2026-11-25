@@ -88,13 +88,15 @@ export function SessionControlStrip({
             accel={control.interruptPending ? undefined : "escape"}
             side="top"
           >
-            <button
-              type="button"
-              disabled={control.interruptPending}
-              onClick={interrupt}
-            >
-              Interrupt
-            </button>
+            <span>
+              <button
+                type="button"
+                disabled={control.interruptPending}
+                onClick={interrupt}
+              >
+                Interrupt
+              </button>
+            </span>
           </ShortcutTooltip>
         )}
       </div>
@@ -108,15 +110,22 @@ export function SessionControlStrip({
           <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
             {retry.payload.text}
           </span>
-          {control.canQueue && (
+          {(control.canQueue || control.send === "suggest") && (
             <button
               type="button"
               disabled={control.submitting}
-              onClick={() => void control.queueRetry(retry)}
+              onClick={() => void control.retryDraft(retry)}
             >
-              Queue
+              {control.canQueue ? "Queue" : "Suggest"}
             </button>
           )}
+          <button
+            type="button"
+            disabled={control.submitting}
+            onClick={() => control.dismissRetry(retry)}
+          >
+            Dismiss
+          </button>
         </div>
       ))}
       {review && (

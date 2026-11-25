@@ -279,10 +279,12 @@ export function CollabPresenceBar({
 export const OwnerComposerPresence = memo(function OwnerComposerPresence({
   conversationId,
   showHere = false,
+  allowJoint = true,
   onPopulate,
 }: {
   conversationId: string;
   showHere?: boolean;
+  allowJoint?: boolean;
   /** Replace the owner's composer text (a claim took words out of it). */
   onPopulate?: (text: string) => void;
 }) {
@@ -331,7 +333,7 @@ export const OwnerComposerPresence = memo(function OwnerComposerPresence({
         showHere={showHere}
         boxed
         joint={
-          ownSideQuestion
+          ownSideQuestion || !allowJoint
             ? undefined
             : { candidates, mineEmpty: !draft.trim(), onSend: sendTogether }
         }
@@ -403,7 +405,7 @@ export const CollabComposer = memo(function CollabComposer({
   const convKey = String(convId);
   const control = useComposerControl(convKey, composerControl);
   const canEdit = control?.facts.role !== "viewer";
-  const draftScope = useRef<string | null>(control ? convKey : null);
+  const draftScope = useRef<string | null>(null);
   const activeControl = !!control;
   const visibleScope = useRef<string | null>(convKey);
   // Skip until the conversation is a real server row: a freshly-created
@@ -424,10 +426,6 @@ export const CollabComposer = memo(function CollabComposer({
       : "",
   );
   const draft = useRef(message);
-  useWatchEffect(() => {
-    if (activeControl) draftScope.current = convKey;
-  }, [activeControl, convKey]);
-
   const setMessage = useCallback(
     (text: string) => {
       draft.current = text;
@@ -447,10 +445,26 @@ export const CollabComposer = memo(function CollabComposer({
   );
 
   useWatchEffect(() => {
+    if (!activeControl) return;
+    draftScope.current = convKey;
+    const text = draft.current;
+    const stored =
+      useInboxStore.getState().getDraft(convKey)?.draft_message ?? "";
+    if (text && text !== stored) setMessage(text);
+    else if (!text && stored) {
+      draft.current = stored;
+      setLocalMessage(stored);
+    }
+    return () => {
+      flushDraftWrite(convKey);
+      draftScope.current = null;
+    };
+  }, [activeControl, convKey, setMessage]);
+
+  useWatchEffect(() => {
     visibleScope.current = convKey;
     return () => {
       visibleScope.current = null;
-      if (draftScope.current === convKey) flushDraftWrite(convKey);
     };
   }, [convKey]);
   const [busy, setBusy] = useState(false);
@@ -464,7 +478,7 @@ export const CollabComposer = memo(function CollabComposer({
   // Quotes and margin replies from the thread reach this box the way they
   // reach the owner's composer (MessageInput): appended, or replacing it.
   useWatchEffect(() => {
-    if (!onPopulateInput) return;
+    if (!onPopulateInput || !canEdit) return;
     onPopulateInput.current = (text, opts) => {
       setMessage(opts?.append ? appendToDraft(draft.current, text) : text);
       setTimeout(() => {
@@ -479,7 +493,7 @@ export const CollabComposer = memo(function CollabComposer({
     return () => {
       onPopulateInput.current = null;
     };
-  }, [onPopulateInput, setMessage]);
+  }, [onPopulateInput, setMessage, canEdit]);
   // Margin replies wait in the review batch; the next send carries them.
   const hasBatch = useInboxStore(
     (s) => (s.reviewComments[convKey]?.length ?? 0) > 0,
@@ -498,6 +512,9 @@ export const CollabComposer = memo(function CollabComposer({
   const canSend = control
     ? !!control.send
     : level === "granted" || level === "team" || level === "owner";
+  const canSendTogether = canSend && (!control || control.canQueue);
+  const sending = busy || control?.submitting;
+  const sendDisabled = (!message.trim() && !hasBatch) || sending;
   const owner = ownerLabel(conversation);
   // A role's standing session is addressed as the role ("Message Hazel…");
   // the access lines keep naming the person who owns it, who grants sending.
@@ -585,6 +602,7 @@ export const CollabComposer = memo(function CollabComposer({
     // their author's name; the server checks each part against its draft.
     if (
       busy ||
+      (together && !canSendTogether) ||
       ownersSideQuestion() ||
       (control && (!control.send || control.isSubmitting()))
     )
@@ -705,7 +723,7 @@ export const CollabComposer = memo(function CollabComposer({
       e.key === "Enter" &&
       e.altKey &&
       (isMac ? e.metaKey : e.ctrlKey && e.shiftKey) &&
-      canSend &&
+      canSendTogether &&
       !steering &&
       candidates.length > 0
     ) {
@@ -857,7 +875,7 @@ export const CollabComposer = memo(function CollabComposer({
         present={present}
         showHere={!!conversation.share_token}
         joint={
-          canSend && !steering
+          canSendTogether && !steering
             ? {
                 candidates,
                 mineEmpty: !message.trim(),
@@ -970,18 +988,16 @@ export const CollabComposer = memo(function CollabComposer({
             {canSend ? (
               <button
                 type="submit"
-                disabled={
-                  (!message.trim() && !hasBatch) || busy || control?.submitting
-                }
+                disabled={sendDisabled}
                 className={`shrink-0 h-8 px-3 rounded-full transition-colors flex items-center gap-1.5 text-xs font-medium border ${
-                  (!message.trim() && !hasBatch) || busy
+                  sendDisabled
                     ? "border-sol-border/30 text-sol-text-dim/25 cursor-not-allowed"
                     : "border-sol-cyan/50 bg-sol-cyan/20 text-sol-cyan hover:bg-sol-cyan/30 hover:border-sol-cyan"
                 }`}
               >
-                {busy ? (
+                {sending ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : steering ? (
+                ) : (control ? control.send === "suggest" : steering) ? (
                   <Lightbulb className="w-3.5 h-3.5" />
                 ) : (
                   <Send className="w-3.5 h-3.5" />
