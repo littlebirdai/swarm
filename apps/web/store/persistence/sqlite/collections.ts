@@ -13,7 +13,7 @@ import {
   durableDeletes,
   hasSnapshotDrops,
   patchedIds,
-} from "../../idbCollectionDiff";
+} from "../../idb-collection-diff";
 import { META_KEYS } from "../schema";
 import { encode, type SqliteDriver } from "./schema";
 

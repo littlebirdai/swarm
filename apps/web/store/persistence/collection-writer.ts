@@ -8,7 +8,7 @@ import {
   durableDeletes,
   hasSnapshotDrops,
   patchedIds,
-} from "../idbCollectionDiff";
+} from "../idb-collection-diff";
 import {
   connectLivenessLane,
   flushLivenessWrites,

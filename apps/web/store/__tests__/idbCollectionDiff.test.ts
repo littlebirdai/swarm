@@ -6,7 +6,7 @@ import {
   durableDeletes,
   keysWithSnapshotDrops,
   noteSnapshotSync,
-} from "../idbCollectionDiff";
+} from "../idb-collection-diff";
 
 describe("diffCollection", () => {
   it("writes every row when there is no prior persisted state", () => {

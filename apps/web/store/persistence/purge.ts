@@ -1,4 +1,4 @@
-import { recordCacheEvent } from "../cacheEvents";
+import { recordCacheEvent } from "../cache-events";
 import { resetCollectionWrites } from "./collection-writer";
 import {
   db,
@@ -19,7 +19,7 @@ let purging: Promise<void> | null = null;
 
 export function purgeLocalCache(opts?: {
   keepPendingInputFor?: string | null;
-  /** Why, for the record (store/cacheEvents.ts). */
+  /** Why, for the record (store/cache-events.ts). */
   reason?: string;
   detail?: Record<string, unknown>;
 }): Promise<void> {

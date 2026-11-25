@@ -4,7 +4,7 @@ import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import type { Patch } from "mutative";
 import { followerPersistencePatches } from "../followerPersistence";
 import { MAX_CACHED_SESSIONS } from "../cacheRetention";
-import { noteSnapshotSync } from "../idbCollectionDiff";
+import { noteSnapshotSync } from "../idb-collection-diff";
 import { loadCache } from "../persistence/boot-loader";
 import {
   resetCollectionWrites,

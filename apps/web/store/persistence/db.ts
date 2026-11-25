@@ -1,6 +1,6 @@
 import Dexie from "dexie";
 import { DOCS_SHOTS } from "../../lib/docsShots/flag";
-import { recordCacheEvent } from "../cacheEvents";
+import { recordCacheEvent } from "../cache-events";
 import { conversationsToRows } from "./migrations/conversationsToRows";
 import type { OutboxEntry } from "./outbox";
 import {
@@ -120,7 +120,7 @@ if (PERSISTENCE_AVAILABLE) {
   // handler: it closes with auto-reopen so the upgrader can proceed.
 
   // What happens to the database underneath this window, recorded so a lost
-  // or purged cache leaves a trace (store/cacheEvents.ts). Dexie fires
+  // or purged cache leaves a trace (store/cache-events.ts). Dexie fires
   // `close` for every close, its own included, so the closes this window
   // expects (a purge, a versionchange) are named and the rest are the
   // browser force-closing the store.

@@ -6,7 +6,7 @@ import {
   pinDetailRows,
   resetDetailPins,
 } from "../../lib/detailRows";
-import { _resetSnapshotLedger } from "../idbCollectionDiff";
+import { _resetSnapshotLedger } from "../idb-collection-diff";
 
 // runGraphs holds the graph each pinned run executes (hooks/useSyncWorkflows useRunWorkflow), one row per version a
 // run card opened, each up to ~30 KB: capped like the detail collections, and the card on screen pins its row.
