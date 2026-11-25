@@ -5,7 +5,7 @@ import { preProcessFile } from "typescript";
 test("the product has no imports of the SQLite cache engine", async () => {
   const root = resolve(import.meta.dir, "../../../../..");
   const web = resolve(root, "apps/web");
-  const engine = import.meta.dir;
+  const engine = import.meta.dir.toLowerCase();
   const files = Bun.spawnSync(
     [
       "git",
@@ -30,16 +30,18 @@ test("the product has no imports of the SQLite cache engine", async () => {
     )
       continue;
     const path = resolve(root, relative);
-    if (path.startsWith(engine + "/")) continue;
+    if (path.toLowerCase().startsWith(engine + "/")) continue;
     const file = Bun.file(path);
     if (!(await file.exists())) continue;
     const source = await file.text();
-    if (!source.includes("sqlite")) continue;
+    if (!/sqlite/i.test(source)) continue;
     for (const { fileName } of preProcessFile(source, true, true)
       .importedFiles) {
-      const target = fileName.startsWith("@/")
-        ? resolve(web, fileName.slice(2))
-        : resolve(dirname(path), fileName);
+      const target = (
+        fileName.startsWith("@/")
+          ? resolve(web, fileName.slice(2))
+          : resolve(dirname(path), fileName)
+      ).toLowerCase();
       if (target === engine || target.startsWith(engine + "/"))
         violations.push(relative);
     }

@@ -25,7 +25,8 @@ export type CacheEventKind =
   // Another connection asked this one to close (an upgrade or a delete).
   | "db-versionchange"
   // Opening the database failed.
-  | "db-open-failed";
+  | "db-open-failed"
+  | "write-failed";
 
 export type CacheEvent = {
   kind: CacheEventKind;
@@ -43,6 +44,7 @@ const REPORTED: ReadonlySet<CacheEventKind> = new Set([
   "db-created",
   "db-closed",
   "db-open-failed",
+  "write-failed",
 ]);
 
 function storage(): Pick<Storage, "getItem" | "setItem"> | null {

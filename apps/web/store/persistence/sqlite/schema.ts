@@ -1,3 +1,7 @@
+import { recordCacheEvent } from "../../cache-events";
+
+export type AfterCommit = (callback: () => void) => void;
+
 export type SqlValue = string | number | null;
 
 export type SqliteDriver = {
@@ -48,7 +52,6 @@ export function openSchema(db: SqliteDriver, readOnly: boolean) {
           user_messages TEXT,
           touched_at INTEGER NOT NULL
         );
-        CREATE INDEX conversation_retention ON conversation_meta (latest_timestamp, id);
         CREATE TABLE message_rows (
           conversation_id TEXT NOT NULL,
           message_key TEXT NOT NULL,
@@ -64,8 +67,17 @@ export function openSchema(db: SqliteDriver, readOnly: boolean) {
   })();
 }
 
-export const encode = (value: unknown): string => {
-  const json = JSON.stringify(value);
-  if (json === undefined) throw new TypeError("Cache value must be JSON");
-  return json;
-};
+export function encode(value: unknown, scope: string): string | undefined {
+  try {
+    const json = JSON.stringify(value);
+    if (json === undefined) throw new TypeError("Value is not JSON");
+    return json;
+  } catch (error) {
+    recordCacheEvent("write-failed", {
+      engine: "sqlite",
+      scope,
+      error: String(error),
+    });
+    return undefined;
+  }
+}

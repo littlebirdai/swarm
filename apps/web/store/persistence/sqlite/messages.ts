@@ -1,8 +1,7 @@
 import { persistedMessageTail } from "../../cacheRetention";
-import { sameValue } from "../../sameValue";
 import { diffMessageTail } from "../messageTailDiff";
 import type { CachedConversation } from "../storage";
-import { encode, type SqliteDriver } from "./schema";
+import { encode, type AfterCommit, type SqliteDriver } from "./schema";
 
 type Message = {
   _id?: string;
@@ -18,9 +17,20 @@ type Meta = {
 
 const MAX_CONVERSATIONS = 1000;
 const TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const PRUNE_INTERVAL_MS = 5 * 60 * 1000;
 const PROTECT_RECENT_MS = 10 * 60 * 1000;
 
+function jsonRows<T>(rows: unknown[], scope: string): T[] {
+  return rows.flatMap((row) => {
+    if (row == null) return [];
+    const json = encode(row, scope);
+    if (json === undefined) return [];
+    return [JSON.parse(json) as T];
+  });
+}
+
 export function messageStorage(db: SqliteDriver) {
+  let lastPrune = -Infinity;
   const meta = db.prepare<Meta>(
     "SELECT pagination, latest_timestamp, user_messages FROM conversation_meta WHERE id = ?",
   );
@@ -45,9 +55,6 @@ export function messageStorage(db: SqliteDriver) {
     ON CONFLICT (id) DO UPDATE SET pagination = excluded.pagination,
       latest_timestamp = excluded.latest_timestamp, touched_at = excluded.touched_at
   `);
-  const touch = db.prepare(
-    "UPDATE conversation_meta SET touched_at = ? WHERE id = ?",
-  );
   const putUserMessages = db.prepare(`
     INSERT INTO conversation_meta (id, user_messages, touched_at) VALUES (?, ?, ?)
     ON CONFLICT (id) DO UPDATE SET user_messages = excluded.user_messages,
@@ -69,7 +76,6 @@ export function messageStorage(db: SqliteDriver) {
   const deleteConversation = db.prepare(
     "DELETE FROM conversation_meta WHERE id = ?",
   );
-
   function load(id: string): CachedConversation | null {
     const row = meta.get(id);
     if (!row) return null;
@@ -82,13 +88,11 @@ export function messageStorage(db: SqliteDriver) {
         row.user_messages === null ? undefined : JSON.parse(row.user_messages),
     };
   }
-
   function write(id: string, messages: unknown[], pagination: unknown) {
     const tail = persistedMessageTail(
       messages as Message[],
       pagination as Record<string, unknown> | undefined,
     );
-    const prior = meta.get(id);
     const previous = new Map(
       rows
         .all(id)
@@ -97,34 +101,33 @@ export function messageStorage(db: SqliteDriver) {
           { position, message: JSON.parse(value) as Message },
         ]),
     );
-    const { puts, deletes } = diffMessageTail(previous, tail.messages);
+    const canonical = jsonRows<Message>(tail.messages, "transcript");
+    const { puts, deletes } = diffMessageTail(previous, canonical);
     for (const key of deletes) deleteRow.run(id, key);
     for (const row of puts)
-      putRow.run(id, row.messageKey, row.position, encode(row.message));
-    const latest = tail.messages.reduce(
-      (max, message) => Math.max(max, message.timestamp ?? 0),
+      putRow.run(id, row.messageKey, row.position, JSON.stringify(row.message));
+    const latest = canonical.reduce(
+      (max, message) =>
+        typeof message.timestamp === "number" &&
+        Number.isFinite(message.timestamp)
+          ? Math.max(max, message.timestamp)
+          : max,
       0,
     );
     const now = Date.now();
-    if (
-      prior?.latest_timestamp === latest &&
-      sameValue(
-        prior.pagination === null ? undefined : JSON.parse(prior.pagination),
-        tail.pagination,
-      )
-    )
-      touch.run(now, id);
-    else
-      putTail.run(
-        id,
-        tail.pagination === undefined ? null : encode(tail.pagination),
-        latest,
-        now,
-      );
-    retain(now);
+    const json =
+      tail.pagination === undefined
+        ? null
+        : encode(tail.pagination, "pagination");
+    const nextPagination =
+      canonical.length === tail.messages.length && json !== undefined
+        ? json
+        : (meta.get(id)?.pagination ?? null);
+    putTail.run(id, nextPagination, latest, now);
   }
-
-  function retain(now: number) {
+  function retain(afterCommit: AfterCommit) {
+    const now = Date.now();
+    if (now - lastPrune < PRUNE_INTERVAL_MS) return;
     for (const { id } of prune.all(
       now - PROTECT_RECENT_MS,
       now - TTL_MS,
@@ -133,15 +136,24 @@ export function messageStorage(db: SqliteDriver) {
       deleteTail.run(id);
       deleteConversation.run(id);
     }
+    afterCommit(() => {
+      lastPrune = now;
+    });
   }
 
   return {
     load,
     write,
+    retain,
+    resetRetention() {
+      lastPrune = -Infinity;
+    },
     writeUserMessages(id: string, messages: unknown[]) {
-      const now = Date.now();
-      putUserMessages.run(id, encode(messages), now);
-      retain(now);
+      putUserMessages.run(
+        id,
+        JSON.stringify(jsonRows(messages, "navigator")),
+        Date.now(),
+      );
     },
   };
 }

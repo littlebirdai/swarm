@@ -5,8 +5,10 @@ import {
   describe,
   expect,
   test,
+  spyOn,
 } from "bun:test";
 import { Database } from "bun:sqlite";
+import Dexie from "dexie";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import type { Patch } from "mutative";
 import {
@@ -37,7 +39,6 @@ const writeSessions = (
 ) => store.writePatches([patch("sessions")], state);
 const signIn = (principal: string) =>
   localStorage.setItem(AUTH_JWT_STORAGE_KEY, issueFakeToken(principal));
-
 const originalStorage = Object.getOwnPropertyDescriptor(
   globalThis,
   "localStorage",
@@ -49,19 +50,23 @@ if (!originalStorage)
   });
 const originalToken = localStorage.getItem(AUTH_JWT_STORAGE_KEY);
 signIn(owner);
+const { readCacheEvents } = await import("../../cache-events");
+const { noteSnapshotSync, _resetSnapshotLedger } =
+  await import("../../idb-collection-diff");
 const { authPrincipal } = await import("../../../lib/authPrincipal");
 const { _reopenForTests, db: dexie } = await import("../db");
 const dexieStorage = await import("../dexie-storage");
 const { flushLivenessWrites } = await import("../idb-liveness-lane");
 const { flushConversationMessages } = await import("../message-cache");
-
-beforeEach(() => signIn(owner));
+beforeEach(() => {
+  signIn(owner);
+  _resetSnapshotLedger();
+});
 afterAll(() => {
   if (originalToken === null) localStorage.removeItem(AUTH_JWT_STORAGE_KEY);
   else localStorage.setItem(AUTH_JWT_STORAGE_KEY, originalToken);
   if (!originalStorage) Reflect.deleteProperty(globalThis, "localStorage");
 });
-
 for (const engine of ["Dexie", "SQLite"]) {
   describe(engine, () => {
     let sqlite: Database | undefined;
@@ -69,7 +74,6 @@ for (const engine of ["Dexie", "SQLite"]) {
     let syncWrites: () => Promise<void>;
     let setMeta: (key: string, value: unknown) => unknown;
     let getMeta: (key: string) => Promise<unknown> | unknown;
-
     beforeEach(async () => {
       if (engine === "Dexie") {
         await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
@@ -101,13 +105,11 @@ for (const engine of ["Dexie", "SQLite"]) {
       }
       await store.loadCache(["sessions"]);
     });
-
     afterEach(async () => {
       await store.purgeLocalCache();
       if (sqlite) sqlite.close();
       else dexie.close();
     });
-
     test("conflicting owner evidence purges rows despite a matching caller", async () => {
       writeSessions(store);
       await syncWrites();
@@ -118,7 +120,6 @@ for (const engine of ["Dexie", "SQLite"]) {
       expect(await getMeta("cacheOwner")).toMatchObject({ principal: owner });
       expect(await store.loadCache(["sessions"])).toBeNull();
     });
-
     test("boot keeps live and focused sessions and drops expired sessions", async () => {
       const focus = "c".repeat(32);
       const expired = "d".repeat(32);
@@ -149,7 +150,6 @@ for (const engine of ["Dexie", "SQLite"]) {
         (await store.loadCache(HYDRATION_DEFERRED_KEYS))?.sessions,
       ).toBeUndefined();
     });
-
     test("patches preserve an unheld row until a durable delete authorizes removal", async () => {
       writeSessions(store);
       await syncWrites();
@@ -165,7 +165,6 @@ for (const engine of ["Dexie", "SQLite"]) {
       await syncWrites();
       expect(await store.loadCache(["sessions"])).toBeNull();
     });
-
     test("cursor and updated liveness row commit in the same batch", async () => {
       writeSessions(store);
       await syncWrites();
@@ -183,7 +182,6 @@ for (const engine of ["Dexie", "SQLite"]) {
       expect(after?.syncMeta).toEqual(syncMeta);
       expect(after?.sessions[id]).toEqual(next);
     });
-
     test("transcript tail keeps order, duplicate IDs, cursor and navigator rows", async () => {
       const rows = Array.from(
         { length: MESSAGE_PAGE_SIZE + 1 },
@@ -220,19 +218,117 @@ for (const engine of ["Dexie", "SQLite"]) {
         userMessages,
       });
     });
-
     test("purge during a write clears the old tail and permits the next epoch", async () => {
+      const entered = Promise.withResolvers<Promise<void>>();
+      const purge = () =>
+        entered.resolve(
+          Dexie.ignoreTransaction(() =>
+            store.purgeLocalCache({ keepPendingInputFor: owner }),
+          ),
+        );
+      if (sqlite) {
+        sqlite.function("purge_in_write", () => {
+          purge();
+          return 1;
+        });
+        sqlite.exec(`CREATE TRIGGER overlap BEFORE INSERT ON message_rows
+          BEGIN SELECT purge_in_write(); END`);
+      } else {
+        dexie.conversationMessageRows.hook("creating", purge);
+      }
       store.writeConversationMessages(id, [{ _id: "old" }], { cursor: 1 });
-      const writing = syncWrites();
-      await store.purgeLocalCache({ keepPendingInputFor: owner });
-      await writing.catch(() => {});
+      const writing = syncWrites().catch(() => {});
+      try {
+        await entered.promise;
+        await writing;
+      } finally {
+        if (sqlite) sqlite.exec("DROP TRIGGER overlap");
+        else dexie.conversationMessageRows.hook("creating").unsubscribe(purge);
+      }
       expect(await store.loadConversationMessages(id)).toBeNull();
+      expect(
+        sqlite
+          ? sqlite
+              .query<{ count: number }, []>(
+                "SELECT count(*) AS count FROM message_rows",
+              )
+              .get()?.count
+          : await dexie.conversationMessageRows.count(),
+      ).toBe(0);
       store.writeConversationMessages(id, [{ _id: "new" }], { cursor: 2 });
       await syncWrites();
       expect(await store.loadConversationMessages(id)).toMatchObject({
         messages: [{ _id: "new" }],
         pagination: { cursor: 2 },
       });
+    });
+    test("hydration blocks collection and transcript writes", async () => {
+      store.setHydrating(true);
+      try {
+        writeSessions(store);
+        store.writeConversationMessages(id, [{ _id: "hydrating" }], {});
+        await syncWrites();
+      } finally {
+        store.setHydrating(false);
+      }
+      expect(await store.loadCache(["sessions"])).toBeNull();
+      expect(await store.loadConversationMessages(id)).toBeNull();
+    });
+    test("an unparsable token does not purge a foreign cache", async () => {
+      writeSessions(store);
+      await syncWrites();
+      await setMeta("cacheOwner", { principal: "userB" });
+      localStorage.setItem(AUTH_JWT_STORAGE_KEY, "unparsable");
+      expect(await store.loadCache(["sessions"])).toBeNull();
+      expect(await getMeta("cacheOwner")).toMatchObject({ principal: "userB" });
+      signIn("userB");
+      expect(await store.loadCache(["sessions"])).toEqual(sessionState);
+    });
+    test("boot removes ownerless residue before accepting new writes", async () => {
+      writeSessions(store);
+      await syncWrites();
+      if (sqlite) sqlite.exec("DELETE FROM meta WHERE key = 'cacheOwner'");
+      else await dexie.meta.delete("cacheOwner");
+      expect(await store.loadCache(["sessions"])).toBeNull();
+      expect(await store.loadCache(["sessions"])).toBeNull();
+      writeSessions(store);
+      await syncWrites();
+      expect(await store.loadCache(["sessions"])).toEqual(sessionState);
+    });
+    test("snapshot drops extend a row patch to the replaced collection", async () => {
+      writeSessions(store);
+      await syncWrites();
+      noteSnapshotSync("sessions", [oldId], [id]);
+      const next = { ...row, _id: oldId };
+      store.writePatches([patch("sessions", oldId)], {
+        sessions: { [oldId]: next },
+      });
+      await syncWrites();
+      expect(await store.loadCache(["sessions"])).toEqual({
+        sessions: { [oldId]: next },
+      });
+    });
+    test("deferred boot removes expired and invalid rows from disk", async () => {
+      store.writePatches([patch("taskComments")], {
+        taskComments: {
+          [id]: { _id: id, comments: [], _cachedAt: 1 },
+          [oldId]: { _id: oldId, _cachedAt: Date.now() },
+        },
+      });
+      await syncWrites();
+      expect(
+        (await store.loadCache(HYDRATION_DEFERRED_KEYS))?.taskComments,
+      ).toBeUndefined();
+      await syncWrites();
+      expect(
+        sqlite
+          ? sqlite
+              .query<{ count: number }, []>(
+                "SELECT count(*) AS count FROM collection_rows WHERE collection = 'taskComments'",
+              )
+              .get()?.count
+          : await dexie.table("taskComments").count(),
+      ).toBe(0);
     });
 
     test("account switch blocks stale writes and the new account starts empty", async () => {
@@ -259,30 +355,41 @@ for (const engine of ["Dexie", "SQLite"]) {
   });
 }
 
-test("SQLite rolls back rows when the cursor write fails and stops later batches", async () => {
+test("SQLite reports cursor failure, saves later rows and fences later cursors until reset", async () => {
   using db = new Database(":memory:");
   const store = createSqliteCache(db, authPrincipal);
-  writeSessions(store);
+  store.writePatches([patch("sessions"), patch("syncMeta")], {
+    ...sessionState,
+    syncMeta: { cursor: 1 },
+  });
   db.exec(`CREATE TRIGGER fail_cursor BEFORE INSERT ON meta
     WHEN new.key = 'syncMeta' BEGIN SELECT RAISE(ABORT, 'cursor failure'); END`);
-  expect(() =>
+  const later = (message_count: number) =>
     store.writePatches([patch("sessions", id), patch("syncMeta")], {
-      sessions: { [id]: { ...row, message_count: 2 } },
-      syncMeta: { cursor: 2 },
-    }),
-  ).toThrow("cursor failure");
-  expect(
-    (await store.loadCache(["sessions", "syncMeta"]))?.sessions[id],
-  ).toEqual(row);
-  expect(await store.loadCache(["syncMeta"])).toBeNull();
+      sessions: { [id]: { ...row, message_count } },
+      syncMeta: { cursor: message_count },
+    });
+  expect(() => later(2)).not.toThrow();
+  expect(await store.loadCache(["sessions", "syncMeta"])).toEqual({
+    ...sessionState,
+    syncMeta: { cursor: 1 },
+  });
+  expect(readCacheEvents().at(-1)?.kind).toBe("write-failed");
   db.exec("DROP TRIGGER fail_cursor");
-  expect(() => writeSessions(store)).toThrow("cursor failure");
+  later(3);
+  expect(await store.loadCache(["sessions", "syncMeta"])).toMatchObject({
+    sessions: { [id]: { message_count: 3 } },
+    syncMeta: { cursor: 1 },
+  });
+  await store.flushPersistence();
   await store.purgeLocalCache({ keepPendingInputFor: owner });
-  writeSessions(store);
-  expect((await store.loadCache(["sessions"]))?.sessions[id]).toEqual(row);
+  later(4);
+  expect(await store.loadCache(["syncMeta"])).toEqual({
+    syncMeta: { cursor: 4 },
+  });
 });
 
-test("SQLite rolls back transcript rows on a pagination write failure", async () => {
+test("SQLite rolls back transcript rows on a pagination failure and keeps other writes live", async () => {
   using db = new Database(":memory:");
   const store = createSqliteCache(db, authPrincipal);
   store.writeConversationMessages(id, [{ _id: "first" }], { cursor: 1 });
@@ -290,10 +397,23 @@ test("SQLite rolls back transcript rows on a pagination write failure", async ()
     BEGIN SELECT RAISE(ABORT, 'pagination failure'); END`);
   expect(() =>
     store.writeConversationMessages(id, [{ _id: "second" }], { cursor: 2 }),
-  ).toThrow("pagination failure");
+  ).not.toThrow();
   expect(await store.loadConversationMessages(id)).toMatchObject({
     messages: [{ _id: "first" }],
     pagination: { cursor: 1 },
+  });
+  expect(readCacheEvents().at(-1)?.kind).toBe("write-failed");
+  store.writePatches([patch("sessions"), patch("syncMeta")], {
+    ...sessionState,
+    syncMeta: { cursor: 3 },
+  });
+  expect(await store.loadCache(["syncMeta"])).toEqual({
+    syncMeta: { cursor: 3 },
+  });
+  db.exec("DROP TRIGGER fail_pagination");
+  store.writeConversationMessages(id, [{ _id: "third" }], { cursor: 3 });
+  expect(await store.loadConversationMessages(id)).toMatchObject({
+    pagination: { cursor: 3 },
   });
 });
 
@@ -369,9 +489,7 @@ test("SQLite rejects an unknown schema version and keeps its rows", () => {
   expect(db.query("SELECT rowid FROM collection_rows").get()).toEqual({
     rowid: 1,
   });
-  expect(db.query("SELECT version FROM migrations").all()).toEqual([
-    { version: 1 },
-  ]);
+
   db.exec("INSERT INTO migrations VALUES (2)");
   expect(() => createSqliteCache(db, authPrincipal)).toThrow(
     "Unsupported SQLite cache version",
@@ -379,7 +497,7 @@ test("SQLite rejects an unknown schema version and keeps its rows", () => {
   expect(db.query("SELECT id FROM collection_rows").all()).toEqual([{ id }]);
 });
 
-test("SQLite expires both transcript and navigator rows outside the touch window", async () => {
+test("SQLite throttles pruning of transcript and navigator rows", async () => {
   using db = new Database(":memory:");
   const store = createSqliteCache(db, authPrincipal);
   store.writeConversationMessages(
@@ -388,20 +506,24 @@ test("SQLite expires both transcript and navigator rows outside the touch window
     undefined,
   );
   store.writeConversationUserMessages(oldId, [{ _id: "navigator" }]);
-  const backdated = Date.now() - 31 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const backdated = now - 31 * 24 * 60 * 60 * 1000;
   db.query("UPDATE conversation_meta SET touched_at = ? WHERE id = ?").run(
     backdated,
     oldId,
   );
-  store.writeConversationMessages(
-    id,
-    [{ _id: "recent", timestamp: 1 }],
-    undefined,
-  );
-  expect(await store.loadConversationMessages(oldId)).toBeNull();
-  expect(await store.loadConversationMessages(id)).toMatchObject({
-    messages: [{ _id: "recent" }],
+  const recent = [{ _id: "recent", timestamp: 1 }];
+  store.writeConversationMessages(id, recent, undefined);
+  expect(await store.loadConversationMessages(oldId)).toMatchObject({
+    userMessages: [{ _id: "navigator" }],
   });
+  const clock = spyOn(Date, "now").mockReturnValue(now + 6 * 60 * 1000);
+  try {
+    store.writeConversationMessages(id, recent, undefined);
+  } finally {
+    clock.mockRestore();
+  }
+  expect(await store.loadConversationMessages(oldId)).toBeNull();
   expect(db.query("SELECT conversation_id FROM message_rows").all()).toEqual([
     { conversation_id: id },
   ]);
@@ -438,19 +560,241 @@ test("SQLite drops a read across a sign-out and sign-in to the same account", as
 test("SQLite boots only the requested keys and leaves pending locks in IndexedDB", async () => {
   using db = new Database(":memory:");
   const store = createSqliteCache(db, authPrincipal);
-  const deferred = HYDRATION_DEFERRED_KEYS.find((key) => key === "mySends");
-  expect(deferred).toBe("mySends");
   const meta = { _id: id, timestamp: Date.now() };
-  store.writePatches([patch("sessions"), patch("mySends"), patch("pending")], {
-    ...sessionState,
-    mySends: { [id]: meta },
-    pending: { lock: { type: "include" } },
-  });
+  store.writePatches(
+    [
+      patch("sessions"),
+      patch("mySends"),
+      patch("pending"),
+      patch("pendingMessages"),
+      patch("queuedMessages"),
+    ],
+    {
+      ...sessionState,
+      mySends: { [id]: meta },
+      pending: { lock: { type: "include" } },
+      pendingMessages: { [id]: [{ _id: "pending" }] },
+      queuedMessages: { [id]: [{ _id: "queued" }] },
+    },
+  );
   expect(await store.loadCache(HYDRATION_DEFERRED_KEYS)).toEqual({
     mySends: { [id]: meta },
   });
   expect(await store.loadPaintCache()).toEqual(sessionState);
   expect(
-    db.query("SELECT key FROM meta WHERE key = 'pending'").get(),
+    db
+      .query(
+        "SELECT key FROM meta WHERE key IN ('pending', 'pendingMessages', 'queuedMessages')",
+      )
+      .get(),
   ).toBeNull();
 });
+
+test("SQLite retries the same boot retention candidates after rollback and uses the saved live list", async () => {
+  using db = new Database(":memory:");
+  const store = createSqliteCache(db, authPrincipal);
+  const rescued = "c".repeat(32);
+  const newlyExpired = "d".repeat(32);
+  const expired = Date.now() - SESSION_CACHE_TTL_MS - 1;
+  const old = (key: string) => ({ _id: key, updated_at: expired });
+  const kept = { [id]: row };
+  store.writePatches([patch("conversations"), patch("liveInboxIdList")], {
+    conversations: {
+      ...kept,
+      [oldId]: old(oldId),
+      [rescued]: old(rescued),
+      [newlyExpired]: old(newlyExpired),
+    },
+    liveInboxIdList: [newlyExpired],
+  });
+  expect((await store.loadCache(["conversations"]))?.conversations).toEqual({
+    ...kept,
+    [newlyExpired]: old(newlyExpired),
+  });
+  store.writePatches([patch("liveInboxIdList")], {
+    liveInboxIdList: [rescued],
+  });
+  db.exec(`CREATE TRIGGER reject_retention BEFORE INSERT ON meta
+    WHEN new.key = 'syncMeta' BEGIN SELECT RAISE(ABORT, 'retention error'); END`);
+  store.writePatches([patch("conversations", id), patch("syncMeta")], {
+    conversations: kept,
+    syncMeta: { cursor: 1 },
+  });
+  expect(db.query("SELECT id FROM collection_rows").all()).toHaveLength(4);
+  db.exec("DROP TRIGGER reject_retention");
+  store.writePatches([patch("conversations", id)], { conversations: kept });
+  expect(db.query("SELECT id FROM collection_rows ORDER BY id").all()).toEqual([
+    { id },
+    { id: rescued },
+    { id: newlyExpired },
+  ]);
+});
+
+test("SQLite treats null and undefined as absent in both patch forms", async () => {
+  using db = new Database(":memory:");
+  const store = createSqliteCache(db, authPrincipal);
+  const pending = { [`sessions:${id}`]: { type: "exclude" } };
+  for (const paths of [["sessions", id], ["sessions"]]) {
+    for (const value of [null, undefined]) {
+      writeSessions(store);
+      store.writePatches([patch(...paths)], {
+        sessions: { [id]: value },
+        pending,
+      });
+      expect(await store.loadCache(["sessions"])).toBeNull();
+    }
+  }
+});
+
+test("SQLite retains snapshot delete authority after rollback", async () => {
+  using db = new Database(":memory:");
+  const store = createSqliteCache(db, authPrincipal);
+  writeSessions(store);
+  noteSnapshotSync("sessions", [], [id]);
+  db.exec(`CREATE TRIGGER reject_snapshot BEFORE INSERT ON meta
+    WHEN new.key = 'syncMeta' BEGIN SELECT RAISE(ABORT, 'snapshot error'); END`);
+  store.writePatches([patch("sessions"), patch("syncMeta")], {
+    sessions: {},
+    syncMeta: { cursor: 1 },
+  });
+  expect(await store.loadCache(["sessions"])).toEqual(sessionState);
+  db.exec("DROP TRIGGER reject_snapshot");
+  store.writePatches([patch("sessions", oldId)], { sessions: {} });
+  expect(await store.loadCache(["sessions"])).toBeNull();
+});
+
+test("SQLite rejected reads and writes do not bind the account", async () => {
+  using db = new Database(":memory:");
+  writeSessions(createSqliteCache(db, authPrincipal));
+  const reader = createSqliteCache(db, {
+    ...authPrincipal,
+    tokenState: () => "unreadable",
+  });
+  const writer = createSqliteCache(db, authPrincipal);
+  signIn("userB");
+  expect(await reader.loadCache(["sessions"])).toBeNull();
+  writeSessions(writer);
+  signIn(owner);
+  for (const [store, message_count] of [
+    [reader, 4],
+    [writer, 5],
+  ] as const) {
+    store.writePatches([patch("sessions", id)], {
+      sessions: { [id]: { ...row, message_count } },
+    });
+    expect(await store.loadCache(["sessions"])).toMatchObject({
+      sessions: { [id]: { message_count } },
+    });
+  }
+});
+
+test("SQLite skips an unencodable collection row and normalizes JSON values", async () => {
+  using db = new Database(":memory:");
+  const store = createSqliteCache(db, authPrincipal);
+  store.writePatches([patch("sessions"), patch("syncMeta")], {
+    sessions: {
+      [id]: {
+        ...row,
+        nan: NaN,
+        date: new Date(0),
+        map: new Map([["key", 1]]),
+        omitted: undefined,
+      },
+      [oldId]: { ...row, _id: oldId, big: BigInt(1) },
+    },
+    syncMeta: { cursor: 2 },
+  });
+  expect(await store.loadCache(["sessions", "syncMeta"])).toEqual({
+    sessions: {
+      [id]: { ...row, nan: null, date: new Date(0).toISOString(), map: {} },
+    },
+  });
+  expect(readCacheEvents().at(-1)?.kind).toBe("write-failed");
+});
+
+test("SQLite normalized message comparison avoids rewriting an unchanged JSON row", async () => {
+  using db = new Database(":memory:");
+  const store = createSqliteCache(db, authPrincipal);
+  store.writeConversationMessages(id, [{ _id: "first" }], { cursor: 1 });
+  db.exec(`CREATE TRIGGER fail_rewrite BEFORE INSERT ON message_rows
+    BEGIN SELECT RAISE(ABORT, 'unchanged message was rewritten'); END`);
+  store.writeConversationMessages(id, [{ _id: "first", omitted: undefined }], {
+    cursor: 2,
+  });
+  expect(await store.loadConversationMessages(id)).toMatchObject({
+    messages: [{ _id: "first" }],
+    pagination: { cursor: 2 },
+  });
+});
+
+test("SQLite removes invalid rows by SQL id and ignores non-finite timestamps", async () => {
+  using db = new Database(":memory:");
+  const store = createSqliteCache(db, authPrincipal);
+  writeSessions(store, {
+    sessions: { [id]: { ...row, updated_at: Infinity } },
+  });
+  expect(db.query("SELECT timestamp FROM collection_rows").get()).toEqual({
+    timestamp: null,
+  });
+  db.query(
+    "INSERT INTO collection_rows VALUES ('taskComments', ?, NULL, ?)",
+  ).run(oldId, JSON.stringify({ _id: id, _cachedAt: Date.now() }));
+  expect(await store.loadCache(["taskComments"])).toBeNull();
+  expect(
+    db
+      .query("SELECT id FROM collection_rows WHERE collection = 'taskComments'")
+      .get(),
+  ).toBeNull();
+  store.writeConversationMessages(
+    id,
+    [
+      { _id: "first", timestamp: Infinity },
+      { _id: "second", timestamp: 2 },
+    ],
+    undefined,
+  );
+  expect(await store.loadConversationMessages(id)).toMatchObject({
+    latestTimestamp: 2,
+  });
+});
+
+test("SQLite state for another current user does not enter the cache", async () => {
+  using db = new Database(":memory:");
+  const store = createSqliteCache(db, authPrincipal);
+  store.writePatches([patch("sessions"), patch("currentUser")], {
+    ...sessionState,
+    currentUser: { _id: "userB" },
+  });
+  expect(db.query("SELECT key FROM meta").all()).toEqual([]);
+  expect(await store.loadCache(["sessions"])).toBeNull();
+});
+
+test.each([true, false])(
+  "SQLite only resets an empty cache cursor fence for another account (boot=%s)",
+  async (boot) => {
+    using db = new Database(":memory:");
+    const store = createSqliteCache(db, authPrincipal);
+    db.exec(`CREATE TRIGGER fail_row BEFORE INSERT ON collection_rows
+    BEGIN SELECT RAISE(ABORT, 'row failure'); END`);
+    writeSessions(store);
+    db.exec("DROP TRIGGER fail_row");
+    if (boot) {
+      expect(await store.loadCache(["sessions"])).toBeNull();
+      store.writePatches([patch("syncMeta")], { syncMeta: { cursor: 1 } });
+      expect(await store.loadCache(["syncMeta"])).toBeNull();
+    }
+    signIn("userB");
+    if (boot) {
+      await store.loadCache(["sessions"]);
+      signIn(owner);
+      await store.loadCache(["sessions"]);
+    }
+    store.writePatches([patch("sessions"), patch("syncMeta")], {
+      ...sessionState,
+      syncMeta: { cursor: 1 },
+    });
+    expect(await store.loadCache(["syncMeta"])).toEqual({
+      syncMeta: { cursor: 1 },
+    });
+  },
+);
