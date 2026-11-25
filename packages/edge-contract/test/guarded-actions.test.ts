@@ -179,6 +179,33 @@ test("stale requests require strict observations on the stale variant only", () 
   );
 });
 
+test("stale delivery settlements reject retryable and extra fields", () => {
+  for (const [field, value] of [
+    ["retryable", true],
+    ["extra", 1],
+  ] as const) {
+    expectParseError(
+      edge.parseDeliverySettleRequest({ ...staleSteer, [field]: value }),
+      "unknown_field",
+      `$.${field}`,
+    );
+  }
+});
+
+test("stale command results reject output and extra fields", () => {
+  const staleCommand = { ...commandResult, ...guarded.stale_commands[0] };
+  for (const [field, value] of [
+    ["output", null],
+    ["extra", 1],
+  ] as const) {
+    expectParseError(
+      edge.parseCommandsResultRequest({ ...staleCommand, [field]: value }),
+      "unknown_field",
+      `$.${field}`,
+    );
+  }
+});
+
 const turn = { kind: "turn", turn: "turn-1" } as const;
 const prompt = { kind: "prompt", run: 3, prompt_id: "prompt-1" } as const;
 const terminal = {
@@ -190,6 +217,7 @@ const terminal = {
 test.each([
   ["steer on a replaced turn", turn, { ...turn, turn: "turn-2" }],
   ["interrupt after a turn ends", turn, { ...turn, turn: null }],
+  ["steer from idle after a turn starts", { ...turn, turn: null }, turn],
   ["answer after a prompt ID is reused", prompt, { ...prompt, run: 4 }],
   [
     "answer after another prompt opens",
@@ -197,7 +225,18 @@ test.each([
     { ...prompt, prompt_id: "prompt-2" },
   ],
   ["answer after a prompt closes", prompt, { ...prompt, prompt_id: null }],
+  ["answer when there is no active run", prompt, { ...prompt, run: null }],
   ["input after a pane restarts", terminal, { ...terminal, pane_instance: 5 }],
+  [
+    "input without an observed pane",
+    terminal,
+    { ...terminal, pane_instance: null },
+  ],
+  [
+    "input with a newer lease token",
+    { ...terminal, fencing_token: "18" },
+    terminal,
+  ],
   [
     "input after the typing lease changes",
     terminal,
@@ -237,17 +276,6 @@ test("prompt events preserve optional details and default to escalation", () => 
   expect(edge.classifyPrompt(promptOpened.body, "workspace_read")).toBe(
     "routine",
   );
-  const question = {
-    ...promptOpened.body,
-    tool_name: "AskUserQuestion",
-    summary: "Choose a title",
-    rule_request: {
-      permission: "askuserquestion",
-      patterns: ["*"],
-      always: [],
-    },
-  };
-  expect(edge.classifyPrompt(question, "question")).toBe("routine");
   expect(
     edge.classifyPrompt(
       {
@@ -268,9 +296,46 @@ test("prompt events preserve optional details and default to escalation", () => 
   ).toBe("escalation");
 });
 
+test("a verified question needs a summary and escalates an opaque request", () => {
+  const bare = { prompt_id: "prompt-1", kind: "question" };
+  const question = { ...bare, summary: "Choose a title" };
+  const rule = { permission: "askuserquestion", patterns: ["*"], always: [] };
+  expect(edge.classifyPrompt(bare, "question")).toBe("escalation");
+  expect(edge.classifyPrompt(question)).toBe("escalation");
+  expect(edge.classifyPrompt(question, "question")).toBe("routine");
+  expect(
+    edge.classifyPrompt({ ...question, rule_request: rule }, "question"),
+  ).toBe("routine");
+  expect(
+    edge.classifyPrompt(
+      {
+        ...question,
+        rule_request: { ...rule, opaque: true },
+      },
+      "question",
+    ),
+  ).toBe("escalation");
+});
+
+test("a verified workspace read needs a nonempty list of non-blank patterns", () => {
+  const { rule_request, ...body } = promptOpened.body;
+  for (const patterns of [[], ["notes.txt", ""], ["notes.txt", " \t"]]) {
+    expect(
+      edge.classifyPrompt(
+        {
+          ...body,
+          rule_request: { ...rule_request, patterns },
+        },
+        "workspace_read",
+      ),
+    ).toBe("escalation");
+  }
+});
+
 test("prompt details reject wrong types, excess lengths, and unknown request fields", () => {
   const rule = promptOpened.body.rule_request;
   const malformed = [
+    [{ class: "routine" }, "unknown_field", "$.body.class"],
     [{ tool_call_id: "" }, "invalid_value", "$.body.tool_call_id"],
     [{ tool_call_id: "x".repeat(257) }, "invalid_value", "$.body.tool_call_id"],
     [{ tool_name: true }, "invalid_type", "$.body.tool_name"],

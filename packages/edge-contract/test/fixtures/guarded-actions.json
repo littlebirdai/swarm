@@ -38,6 +38,10 @@
     },
     {
       "outcome": "stale",
+      "observed": { "kind": "prompt", "run": null, "prompt_id": null }
+    },
+    {
+      "outcome": "stale",
       "observed": {
         "kind": "terminal",
         "pane_instance": 4,

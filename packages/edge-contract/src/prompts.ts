@@ -87,16 +87,16 @@ export function classifyPrompt(
   prompt: PromptOpened,
   verifiedKind?: "workspace_read" | "question",
 ): "routine" | "escalation" {
+  const { summary, rule_request, tool_call_id, tool_name } = prompt;
+  if (!summary || rule_request?.opaque) return "escalation";
+  if (verifiedKind === "question") return "routine";
   if (
-    prompt.tool_call_id &&
-    prompt.tool_name &&
-    prompt.summary &&
-    prompt.rule_request &&
-    !prompt.rule_request.opaque &&
-    (verifiedKind === "question" ||
-      (verifiedKind === "workspace_read" &&
-        prompt.rule_request.permission === "read" &&
-        prompt.rule_request.patterns.length > 0))
+    verifiedKind === "workspace_read" &&
+    tool_call_id &&
+    tool_name &&
+    rule_request?.permission === "read" &&
+    rule_request.patterns.length > 0 &&
+    rule_request.patterns.every((pattern) => pattern.trim().length > 0)
   ) {
     return "routine";
   }

@@ -9,14 +9,18 @@ import {
 } from "./parse";
 
 const turn = { kind: oneOf("turn"), turn: nullable(nonEmptyString) };
-const prompt = { kind: oneOf("prompt"), run: positiveInteger };
+const prompt = { kind: oneOf("prompt") };
 const terminal = { kind: oneOf("terminal") };
 const paneInstance = positiveInteger;
 
 export const readExpectedTurn = responseObject(turn);
 export const readExpected = tagged("kind", {
   turn: readExpectedTurn,
-  prompt: responseObject({ ...prompt, prompt_id: nonEmptyString }),
+  prompt: responseObject({
+    ...prompt,
+    run: positiveInteger,
+    prompt_id: nonEmptyString,
+  }),
   terminal: responseObject({
     ...terminal,
     pane_instance: paneInstance,
@@ -27,7 +31,11 @@ export const readExpected = tagged("kind", {
 export const readObservedTurn = object(turn);
 export const readObserved = tagged("kind", {
   turn: readObservedTurn,
-  prompt: object({ ...prompt, prompt_id: nullable(nonEmptyString) }),
+  prompt: object({
+    ...prompt,
+    run: nullable(positiveInteger),
+    prompt_id: nullable(nonEmptyString),
+  }),
   terminal: object({
     ...terminal,
     pane_instance: nullable(paneInstance),

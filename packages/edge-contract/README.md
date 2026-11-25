@@ -72,8 +72,10 @@ UTF-16 code units.
 The machine must redact the summary before it sends the event. The server
 decides whether the prompt is routine. It can verify a read inside the
 workspace or a question that runs no code. Pass that verification to
-`classifyPrompt`. Missing details, an opaque request, or missing verification
-give an escalation.
+`classifyPrompt`. A verified question needs a summary. A verified workspace
+read also needs a tool call ID, a tool name, and a `read` rule request with
+at least one pattern. Each pattern must be non-blank. The default is
+escalation. An opaque rule request always gives an escalation.
 
 ## Blobs
 
@@ -136,7 +138,7 @@ The daemon reports a mismatch with `outcome: "stale"` and a required
 `observed` field in `delivery.settle` or `commands.result`. Use the same
 kind as the guard and report the current values. Use null for an absent
 turn, prompt ID, pane instance, or typing lease token. A prompt observation
-always includes the current run epoch. Only a stale outcome carries
+uses null for `run` when there is no active run. Only a stale outcome carries
 `observed`. A stale command result has no `output`.
 
 ### Resolving an in-doubt attempt
