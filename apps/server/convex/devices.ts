@@ -1,4 +1,4 @@
-import { transferManagedSession } from "./lib/sessionHeartbeat";
+import { transferManagedSession } from "./lib/session-heartbeat";
 import { hostsLineWork } from "./ccSwitchAhead";
 import { peerLinkRowsByDevice } from "./lib/peerLinkRows";
 import { mutation, query, internalQuery } from "./functions";

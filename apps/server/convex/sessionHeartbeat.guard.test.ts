@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const schemaAndStorage = new Set(["schema.ts", "lib/sessionHeartbeat.ts"]);
+const schemaAndStorage = new Set(["schema.ts", "lib/session-heartbeat.ts"]);
 const otherHeartbeats = new Set(["daemonLogs.ts", "users.ts"]);
 const wireFields: Record<string, string[]> = {
   "conversations.ts": [

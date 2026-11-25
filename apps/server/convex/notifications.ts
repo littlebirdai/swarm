@@ -1,4 +1,4 @@
-import { heartbeatOf } from "./lib/sessionHeartbeat";
+import { heartbeatOf } from "./lib/session-heartbeat";
 import { isClosedSession } from "@codecast/inbox/closedSession";
 import {
   mutation,

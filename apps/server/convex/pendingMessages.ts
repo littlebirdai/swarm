@@ -1,7 +1,7 @@
 import {
   conversationSessionsBeatingSince,
   heartbeatsFor,
-} from "./lib/sessionHeartbeat";
+} from "./lib/session-heartbeat";
 import { isClosedSession } from "@codecast/inbox/closedSession";
 import { isReservedDevice } from "@codecast/cloud-hosts/cloudPlacement";
 import { UNCONFIRMED_DELIVERY_REASON } from "@codecast/sessions/pendingStatus";

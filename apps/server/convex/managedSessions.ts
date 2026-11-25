@@ -2,7 +2,7 @@ import {
   heartbeatOf,
   managedHeartbeatPage,
   writeSessionHeartbeat,
-} from "./lib/sessionHeartbeat";
+} from "./lib/session-heartbeat";
 import { buildHeartbeatPatch, statusWriteIsStale } from "./lib/heartbeatPatch";
 import {
   mutation,

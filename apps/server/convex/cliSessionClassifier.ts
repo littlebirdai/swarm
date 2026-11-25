@@ -1,4 +1,4 @@
-import { heartbeatOf } from "./lib/sessionHeartbeat";
+import { heartbeatOf } from "./lib/session-heartbeat";
 import { wakeFieldsOf, wakeCost } from "./wakeCost";
 import {
   deriveSessionActivity,

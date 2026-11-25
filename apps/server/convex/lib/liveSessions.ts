@@ -1,4 +1,4 @@
-import { managedSessionsBeatingSince } from "./sessionHeartbeat";
+import { managedSessionsBeatingSince } from "./session-heartbeat";
 // The one way to read "this user's live managed sessions".
 //
 // managed_sessions is heartbeat-hot: every live session rewrites its row every

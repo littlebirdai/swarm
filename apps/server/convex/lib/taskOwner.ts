@@ -1,4 +1,4 @@
-import { heartbeatOf } from "./sessionHeartbeat";
+import { heartbeatOf } from "./session-heartbeat";
 // A task has one owning session: the conversation whose active_task_id points
 // at it. `cast task start`, the board's "assign to agent", a task-linked
 // session create and a handoff all bind through claimTaskOwnership, so the

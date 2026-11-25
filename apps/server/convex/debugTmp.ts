@@ -1,4 +1,4 @@
-import { heartbeatOf } from "./lib/sessionHeartbeat";
+import { heartbeatOf } from "./lib/session-heartbeat";
 // TEMPORARY debug query — safe to delete. Inspects why a conversation keeps
 // reappearing after dismiss: dumps dismiss-relevant fields + recent activity.
 import { internalQuery, internalMutation } from "./functions";

@@ -1,4 +1,4 @@
-import { heartbeatOf } from "./sessionHeartbeat";
+import { heartbeatOf } from "./session-heartbeat";
 // Close is dormancy, not retirement: it may stop an agent only when nothing is
 // in flight. The web decides at the click (lib/sessionClose); this is the
 // server's own read of the row, so a close the client guessed wrong never cuts

@@ -2,7 +2,7 @@ import {
   heartbeatOf,
   heartbeatsFor,
   heartbeatsForUser,
-} from "./lib/sessionHeartbeat";
+} from "./lib/session-heartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { hasDeliverableMessage } from "./lib/closeAside";
 import { sanitizeConvexObjectKeys } from "./lib/convexFieldNames";

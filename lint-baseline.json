@@ -10514,7 +10514,7 @@
   "apps/server/convex/lib/sessionHeartbeat.test.ts": {
     "swarm/no-comments": 1
   },
-  "apps/server/convex/lib/sessionHeartbeat.ts": {
+  "apps/server/convex/lib/session-heartbeat.ts": {
     "swarm/no-comments": 9
   },
   "apps/server/convex/lib/sessionIdentityFields.ts": {

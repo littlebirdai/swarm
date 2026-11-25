@@ -1,4 +1,4 @@
-import { heartbeatsFor } from "./lib/sessionHeartbeat";
+import { heartbeatsFor } from "./lib/session-heartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { noteWriteCause } from "./lifecycleEvents";
 import { internalMutation, mutation } from "./functions";

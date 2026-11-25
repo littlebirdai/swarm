@@ -7,7 +7,7 @@ import {
   heartbeatOf,
   heartbeatsForUser,
   managedSessionsBeatingSince,
-} from "./sessionHeartbeat";
+} from "./session-heartbeat";
 
 test("both daemon heartbeats maintain one side row per managed session with a legacy fallback", async () => {
   const t = convexTest(schema, allModules);

@@ -1,4 +1,4 @@
-import { heartbeatOf } from "./lib/sessionHeartbeat";
+import { heartbeatOf } from "./lib/session-heartbeat";
 import type { QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import {

@@ -1,4 +1,4 @@
-import { heartbeatsFor } from "./sessionHeartbeat";
+import { heartbeatsFor } from "./session-heartbeat";
 // Server half of the shared send outcome (packages/comments/src/sendOutcome.ts):
 // whether a message just queued for a session will be read now or waits.
 import {

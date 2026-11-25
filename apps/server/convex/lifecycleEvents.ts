@@ -15,7 +15,7 @@
 // `cron:<name>`). A write with no cause keeps the top of its stack instead,
 // which names the writing function.
 
-import { deleteSessionHeartbeat } from "./lib/sessionHeartbeat";
+import { deleteSessionHeartbeat } from "./lib/session-heartbeat";
 
 const LIFECYCLE_FIELDS = [
   "status",

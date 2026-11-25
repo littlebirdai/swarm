@@ -1,4 +1,4 @@
-import { heartbeatOf } from "./lib/sessionHeartbeat";
+import { heartbeatOf } from "./lib/session-heartbeat";
 // Huddle transcription control plane.
 //
 // The SCRIBE — the client that toggled Transcribe on — owns the run: it holds

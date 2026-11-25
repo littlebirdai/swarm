@@ -1,7 +1,7 @@
 import { internalMutation } from "./functions";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { transferManagedSession } from "./lib/sessionHeartbeat";
+import { transferManagedSession } from "./lib/session-heartbeat";
 import { patchCommentWithRevision } from "./commentViewWrites";
 import { getComment } from "./commentStore";
 import {
