@@ -82,6 +82,11 @@ import { isConversationSafetyBlocked } from "../conversationSafety";
 import { billingStatus } from "../billing";
 import { markPendingDelivered } from "../pendingMessages";
 import { markReadBySystem } from "../sessionReads";
+import {
+  insertHostedTurn,
+  patchHostedTurnStatus,
+  writeHostedStop,
+} from "../lib/sessionStatusWriter";
 import { applyHostedAgentStatus } from "../managedSessions";
 import { askCore, withdrawCore } from "../sessionDecisions";
 import { messageValidator } from "../messages";
@@ -279,7 +284,7 @@ export async function leaseTurn(
     // The person sees it is waiting on their other request, not stuck.
     await setWorkState(ctx, conversationId, "waiting");
     if (queued.length === 0) {
-      await ctx.db.insert("assistant_turns", {
+      await insertHostedTurn(ctx, {
         conversation_id: conversationId,
         user_id: userId,
         status: "queued",
@@ -301,10 +306,10 @@ export async function leaseTurn(
   let turnId: Id<"assistant_turns">;
   if (queued[0]) {
     turnId = queued[0]._id;
-    await ctx.db.patch(turnId, fields);
+    await patchHostedTurnStatus(ctx, turnId, fields);
     for (const extra of queued.slice(1)) await ctx.db.delete(extra._id);
   } else {
-    turnId = await ctx.db.insert("assistant_turns", {
+    turnId = await insertHostedTurn(ctx, {
       conversation_id: conversationId,
       user_id: userId,
       cost_reserved_usd: 0,
@@ -354,9 +359,8 @@ export async function leaseTurn(
     });
     return "budget";
   }
-  // A new turn leaves the last one's stop behind.
   if (conversation.hosted_stop)
-    await ctx.db.patch(conversationId, { hosted_stop: undefined });
+    await writeHostedStop(ctx, conversationId, undefined);
   await applyHostedAgentStatus(ctx, {
     conversation_id: conversationId,
     agent_status: "working",
@@ -486,7 +490,7 @@ async function endTurn(
   turn: Turn,
   end: TurnEnd,
 ): Promise<void> {
-  await ctx.db.patch(turn._id, {
+  await patchHostedTurnStatus(ctx, turn._id, {
     status: end.status,
     reason: end.reason,
     ended_at: Date.now(),
@@ -547,11 +551,9 @@ async function tellStopped(
     line,
     notice.kind,
   );
-  // The stop's one home on the row (conversations.hosted_stop): the inbox
-  // files the conversation under "Couldn't finish" without its transcript.
   const conversation = await ctx.db.get(turn.conversation_id);
   if (conversation) {
-    await ctx.db.patch(turn.conversation_id, { hosted_stop: notice.kind });
+    await writeHostedStop(ctx, turn.conversation_id, notice.kind);
     // A first turn that failed still gets a name from the person's ask, so
     // the row they most need to find again is not their raw first message.
     await titleAfterHostedAnswer(ctx, conversation);
@@ -973,7 +975,7 @@ async function settleParked(
   }
   const call = input.waiting.pending_call;
   if (call && answer.always) await allowAlways(ctx, turn.user_id, call);
-  await ctx.db.patch(input.waiting._id, { status: "done" });
+  await patchHostedTurnStatus(ctx, input.waiting._id, { status: "done" });
   if (!turn.continues)
     await ctx.db.patch(turn._id, { continues: input.waiting._id });
   return { ...(call ? { call } : {}), answer };

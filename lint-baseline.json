@@ -8471,7 +8471,7 @@
     "swarm/no-comments": 66
   },
   "apps/server/convex/assistant/turns.ts": {
-    "swarm/no-comments": 166
+    "swarm/no-comments": 163
   },
   "apps/server/convex/assistantSchema.ts": {
     "swarm/no-comments": 76
@@ -9038,7 +9038,7 @@
     "swarm/no-comments": 8
   },
   "apps/server/convex/conversations.ts": {
-    "swarm/no-comments": 2740
+    "swarm/no-comments": 2738
   },
   "apps/server/convex/conversations.updateProjectPath.test.ts": {
     "swarm/no-comments": 8

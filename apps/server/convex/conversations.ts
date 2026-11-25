@@ -66,6 +66,7 @@ import {
 import { applyHideTransition, cascadeHideToNestedChildren } from "./cleanup";
 import { paginationOptsValidator } from "convex/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { writeThreadState } from "./lib/sessionStatusWriter";
 import type { ThreadStateStatus } from "@codecast/sessions/threadState";
 import type { AgentStatus } from "@codecast/sessions/agentStatus";
 import { PATCHABLE_CONVERSATION_FIELDS } from "@codecast/sessions/conversationFields";
@@ -15234,17 +15235,7 @@ export async function performSetThreadState(
   status: ThreadStateStatus,
   result?: string | null,
 ): Promise<{ at: number; resurfaced: boolean }> {
-  const at = Date.now();
-  await ctx.db.patch(conv._id, {
-    thread_state: text,
-    thread_state_at: at,
-    thread_state_msg_count: conv.message_count ?? 0,
-    thread_state_status: status,
-    // Every write replaces the result, so a later state never carries an
-    // earlier station's report.
-    thread_state_result: result ?? undefined,
-    thread_state_result_at: result ? at : undefined,
-  });
+  const at = await writeThreadState(ctx, conv, text, status, result);
   // A `blocked` declaration from a HIDDEN session is a claim on the user's
   // eyes — the same claim `cast trigger complete --needs-attention` makes,
   // cleared the same way (agentTasks.completeTaskRun). If the session is
