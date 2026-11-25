@@ -424,6 +424,11 @@ jobs:
         working-directory: apps/cli
         run: bun test ./learning/
 
+      - name: Codex driver parity replay
+        if: matrix.suite == 'evals'
+        working-directory: tests/codex-driver-parity
+        run: bun run test
+
       - name: Portable CLI script tests
         if: matrix.suite == 'evals'
         working-directory: apps/cli

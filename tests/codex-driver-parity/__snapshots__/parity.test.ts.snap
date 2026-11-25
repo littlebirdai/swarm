@@ -1,0 +1,249 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`legacy Codex and the owned adapter replay one recorded turn schedule 1`] = `
+{
+  "before-exit": {
+    "adapter": {
+      "api": [
+        "in-doubt/best-effort",
+      ],
+      "events": [
+        "turn-3 started",
+      ],
+    },
+    "legacy": {
+      "api": [
+        "delivered",
+      ],
+      "events": [
+        "turn-3 started",
+      ],
+    },
+  },
+  "exit": {
+    "adapter": {
+      "api": [],
+      "events": [
+        "turn-3 ended exited",
+        "session ended exited",
+      ],
+    },
+    "legacy": {
+      "api": [],
+      "events": [
+        "process exited 0",
+      ],
+    },
+  },
+  "idle-steer": {
+    "adapter": {
+      "api": [
+        "in-doubt/best-effort",
+      ],
+      "events": [
+        "turn-1 started",
+      ],
+    },
+    "legacy": {
+      "api": [
+        "delivered",
+      ],
+      "events": [
+        "turn-1 started",
+      ],
+    },
+  },
+  "late-reply": {
+    "adapter": {
+      "api": [
+        "in-doubt/best-effort",
+      ],
+      "events": [
+        "turn-2 started",
+        "turn-2 ended completed",
+      ],
+    },
+    "legacy": {
+      "api": [
+        "delivered",
+      ],
+      "events": [
+        "turn-2 started",
+        "turn-2 ended completed",
+      ],
+    },
+  },
+  "mid-turn": {
+    "adapter": {
+      "api": [
+        "in-doubt/best-effort",
+      ],
+      "events": [
+        "turn-1 user mid-input mid-delivery tester",
+      ],
+    },
+    "legacy": {
+      "api": [
+        "ambiguous",
+      ],
+      "events": [],
+    },
+  },
+  "prompts": {
+    "adapter": {
+      "api": [
+        [
+          "allow",
+          "in-doubt/best-effort",
+        ],
+        {
+          "decision": "accept",
+        },
+        [
+          "deny",
+          "in-doubt/best-effort",
+        ],
+        {
+          "decision": "decline",
+        },
+        [
+          "ask",
+          "in-doubt/best-effort",
+        ],
+        {
+          "answers": {
+            "question": {
+              "answers": [
+                "Short",
+              ],
+            },
+          },
+        },
+      ],
+      "events": [
+        "turn-1 prompt allow permission",
+        "turn-1 settled allow {"behavior":"allow"} tester",
+        "turn-1 prompt deny permission",
+        "turn-1 settled deny {"behavior":"deny"} tester",
+        "turn-1 prompt ask question",
+        "turn-1 options Short,Full",
+        "turn-1 settled ask {"answers":{"question":{"answers":["Short"]}}} tester",
+      ],
+    },
+    "legacy": {
+      "api": [
+        [
+          "allow",
+          "sent",
+        ],
+        {
+          "decision": "accept",
+        },
+        [
+          "deny",
+          "sent",
+        ],
+        {
+          "decision": "decline",
+        },
+        [
+          "ask",
+          "sent",
+        ],
+        {
+          "answers": {},
+        },
+      ],
+      "events": [
+        "turn-1 prompt allow permission",
+        "turn-1 prompt deny permission",
+        "turn-1 prompt ask question",
+        "turn-1 options Short,Full",
+      ],
+    },
+  },
+  "recording": {
+    "adapter": {
+      "api": [],
+      "events": [
+        "turn-1 delta turn-1:assistant 0 partial",
+        "turn-1 user recorded-input initial-delivery tester",
+        "turn-1 reasoning",
+        "turn-1 call turn-1:command commandExecution recorded-command",
+        "turn-1 result turn-1:command recorded-output false",
+        "turn-1 reasoning",
+        "turn-1 assistant recorded-answer",
+        "turn-1 ended interrupted",
+      ],
+    },
+    "legacy": {
+      "api": [],
+      "events": [
+        "turn-1 delta turn-1:assistant partial",
+        "turn-1 reasoning",
+        "turn-1 call turn-1:command commandExecution recorded-command",
+        "turn-1 result turn-1:command recorded-output false",
+        "turn-1 assistant recorded-answer",
+        "turn-1 reasoning",
+        "turn-1 ended interrupted",
+      ],
+    },
+  },
+  "resume": {
+    "adapter": {
+      "api": [
+        [
+          "opened",
+          "thread",
+        ],
+      ],
+      "events": [
+        "turn-3 started",
+      ],
+    },
+    "legacy": {
+      "api": [
+        [
+          "opened",
+          "thread",
+          [
+            [
+              "turn-1",
+              "interrupted",
+            ],
+            [
+              "turn-2",
+              "completed",
+            ],
+            [
+              "turn-3",
+              "inProgress",
+            ],
+          ],
+        ],
+      ],
+      "events": [],
+    },
+  },
+  "resumed-turn": {
+    "adapter": {
+      "api": [],
+      "events": [
+        "turn-3 user recorded-input unlinked unattributed",
+        "turn-3 reasoning",
+        "turn-3 call turn-3:command commandExecution recorded-command",
+        "turn-3 result turn-3:command recorded-output false",
+        "turn-3 reasoning",
+        "turn-3 assistant recorded-answer",
+        "turn-3 ended completed",
+      ],
+    },
+    "legacy": {
+      "api": [],
+      "events": [
+        "turn-3 ended completed",
+      ],
+    },
+  },
+}
+`;

@@ -156,7 +156,7 @@ export function jobFlag(job: string): string {
 }
 
 const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
-  ["cli", ["apps/cli/"]],
+  ["cli", ["apps/cli/", "tests/codex-driver-parity/"]],
   // The eval home (docs/architecture/evals-home.md). Its unit tests run as a
   // step of test-cli.
   ["evals", ["apps/evals/"]],
