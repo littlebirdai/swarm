@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { setKnownValuesForTest } from "../knownValueRedaction.js";
+import { setKnownValuesForTest } from "../known-value-redaction.js";
 import { tmuxRun } from "../tmux.js";
 import { captureTeamPane, streamTeamPane } from "./team-pane-stream.js";
 

@@ -4,10 +4,10 @@ import {
   PANE_HEARTBEAT_MS,
   PANE_MAX_FRAME_BYTES,
 } from "@codecast/daemon/terminalStream";
-import { refreshKnownVault } from "../knownValueRedaction.js";
+import { refreshKnownVault } from "../known-value-redaction.js";
 import { deviceId } from "../remote/device.js";
 import { tmuxRun } from "../tmux.js";
-import { redactFrame } from "./paneStream.js";
+import { redactFrame } from "./pane-stream.js";
 
 const PANE_IDENTITY =
   "#{session_name}|#{session_created}|#{pid}|#{pane_id}|#{pane_pid}|#{pane_dead}";

@@ -1,4 +1,4 @@
-// Vault values for the daemon's known-value redaction (knownValueRedaction.ts).
+// Vault values for the daemon's known-value redaction (known-value-redaction.ts).
 //
 // Every value the user can read in the Vault, on every machine they run a
 // daemon, so a secret echoed by a command or pasted into a prompt becomes
@@ -15,7 +15,7 @@
 import * as fs from "node:fs";
 import { defaultConfigDir } from "../config/configDir.js";
 import { readHookToken } from "../hookIdentity.js";
-import type { KnownValue } from "../knownValueRedaction.js";
+import type { KnownValue } from "../known-value-redaction.js";
 import { hookPortFile } from "../loopbackIdentity.js";
 
 /** The daemon's loopback route that polls the Vault now (daemon.ts startHookServer); the hook token admits it. */

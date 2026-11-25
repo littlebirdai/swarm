@@ -6,14 +6,14 @@
 // contract — a change in write volume or in stop behaviour breaks one of them.
 
 import { afterEach, describe, expect, test } from "bun:test";
-import { setKnownValuesForTest } from "../knownValueRedaction.js";
+import { setKnownValuesForTest } from "../known-value-redaction.js";
 import {
   runPaneStream,
   capturePane,
   redactFrame,
   type PaneFramePush,
   type PaneSnapshot,
-} from "./paneStream.js";
+} from "./pane-stream.js";
 import {
   PANE_CAPTURE_INTERVAL_MS,
   PANE_HEARTBEAT_MS,

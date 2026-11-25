@@ -303,7 +303,7 @@ describe("command groups stay off the boot graph", () => {
       // 335 on 2026-11-04, five leaves that modules already here call at load or
       // on their main path (none brings another file): claudeConfigDirs.ts (the
       // CLAUDE_CONFIG_DIR projects dirs reconciliation.ts walks), shared/async
-      // (the mapLimit knownValueRedaction.ts reads with instead of readdirSync),
+      // (the mapLimit known-value-redaction.ts reads with instead of readdirSync),
       // packages/deploys/src/deployTargets.ts (workspace/manifest.ts's deploy targets), and
       // packages/agent-clients/src/slashCommand.ts and packages/render/src/structuredMessage.ts.
       // 338 the same day, three leaves: packages/secrets/src/vaultMessages.ts (the vault's
@@ -404,7 +404,7 @@ describe("command groups stay off the boot graph", () => {
       // 4360 on 2026-10-24: that day's ship added 68.7 KB here after the Vault
       // contract and packages/machines/src/teamHosts.ts were taken off (see the count above).
       // The Vault's redaction leads it (secretShapes.ts +10.8, secretRules.ts +7,
-      // knownValueRedaction.ts +4.4), then installed guidance in snippets.ts
+      // known-value-redaction.ts +4.4), then installed guidance in snippets.ts
       // (+8.3), render/structuredResult.ts (+7.8) and handoffPrompt.ts (+4.8).
       // 4405 on 2026-10-26: managed policy (MDM), which every config read
       // overlays: packages/policy/src/managedPolicy.ts (+14.5), config/managedPolicy.ts
@@ -443,7 +443,7 @@ describe("command groups stay off the boot graph", () => {
       // the five leaves of 335 (packages/deploys/src/deployTargets.ts +11.4,
       // claudeConfigDirs.ts +3.2, slashCommand.ts +1.7, shared/async +0.9,
       // structuredMessage.ts +0.5), replayPlayer.ts (+3.3), formatter.ts and
-      // knownValueRedaction.ts (+2 each), then the three leaves of 338:
+      // known-value-redaction.ts (+2 each), then the three leaves of 338:
       // packages/replay/src/replay.ts (+15.7) and replay/events.ts (+10.2), carried for
       // the two ?t helpers entities/index.ts reads, and vaultMessages.ts (+2.1,
       // moved out of machineMessages.ts, which fell by as much).

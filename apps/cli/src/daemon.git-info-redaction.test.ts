@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getGitInfo } from "./daemon.js";
-import { setKnownValuesForTest } from "./knownValueRedaction.js";
+import { setKnownValuesForTest } from "./known-value-redaction.js";
 
 // getGitInfo's diff and status go to the server as conversation_git_diffs,
 // which team viewers read. A Vault value written into a tracked file

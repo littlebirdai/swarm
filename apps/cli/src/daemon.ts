@@ -708,7 +708,7 @@ import {
   refreshKnownVault,
   startKnownValueRedaction,
   trackKnownValueCwd,
-} from "./knownValueRedaction.js";
+} from "./known-value-redaction.js";
 import {
   VAULT_REFRESH_PATH,
   vaultRedactionSource,
@@ -40192,7 +40192,7 @@ async function main(): Promise<void> {
   });
   syncServiceRef = syncService;
   // Before any transcript is read: redactSecrets replaces this machine's real
-  // secret values from here on (knownValueRedaction.ts).
+  // secret values from here on (known-value-redaction.ts).
   startKnownValueRedaction({
     home: process.env.HOME || require("os").homedir(),
     configDir: CONFIG_DIR,
