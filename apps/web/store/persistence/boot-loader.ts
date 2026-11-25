@@ -16,6 +16,7 @@ import {
   noteConversationRetentionDrops,
 } from "./collection-writer";
 import { COLLECTION_TABLES, db } from "./db";
+import { setHydrationReadPhase } from "./hydration";
 import { ensureCacheOwnership as resolveOwnership } from "./ownership";
 import { loadPendingInput } from "./pendingInputJournal";
 import { purgeLocalCache } from "./purge";
@@ -64,6 +65,7 @@ export async function loadCache(
         : keys === HYDRATION_DEFERRED_KEYS
           ? "deferred"
           : undefined;
+    if (phase === "deferred") setHydrationReadPhase(phase);
     const wanted = keys ? new Set(keys) : null;
     if ((await ensureCacheOwnership()) === null) {
       // No collection row is served without a matching persisted user row.
@@ -84,7 +86,9 @@ export async function loadCache(
         (claimed !== undefined && claimed !== principal)
       )
         return null;
-      const pendingMessages = await loadPendingInput(principal);
+      const pendingMessages = await timeBootRead(phase, "pendingInput", () =>
+        loadPendingInput(principal),
+      );
       if (Object.keys(pendingMessages).length === 0) return null;
       return {
         pendingMessages,
@@ -201,7 +205,9 @@ export async function loadCache(
         result.currentUser?._id ??
         (await db.meta.get("currentUser"))?.value?._id;
       if (ownerId) {
-        result.pendingMessages = await loadPendingInput(ownerId);
+        result.pendingMessages = await timeBootRead(phase, "pendingInput", () =>
+          loadPendingInput(ownerId),
+        );
         result.queuedMessages = queuedMessagesFromPending(
           result.pendingMessages,
         );

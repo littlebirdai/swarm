@@ -3,7 +3,9 @@ import { storableActionArgs } from "../../lib/tabSafePath";
 import { deleteDatabaseWithTimeout, readV2LegacyOutbox } from "../idbV2Salvage";
 import { retryOutboxPut } from "../outboxPutRetry";
 import { db } from "./db";
+import { takeBootReadPhase } from "./hydration";
 import { persistenceOwned } from "./ownership";
+import { timeBootRead } from "./storage-timings";
 
 export type OutboxEntry = {
   id: string;
@@ -41,7 +43,12 @@ export function removeDispatch(id: string): Promise<void> {
 
 export async function loadOutbox(): Promise<OutboxEntry[]> {
   try {
-    return (await db.dispatchOutbox.toArray()).sort((a, b) => a.ts - b.ts);
+    const rows = await timeBootRead(
+      takeBootReadPhase("outbox"),
+      "dispatchOutbox",
+      () => db.dispatchOutbox.toArray(),
+    );
+    return rows.sort((a, b) => a.ts - b.ts);
   } catch {
     return [];
   }

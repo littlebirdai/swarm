@@ -1,19 +1,31 @@
-import { SYSTEM_TABLES, WEB_COLLECTION_INDEXES } from "./schema";
+import {
+  HYDRATION_CRITICAL_READ_KEYS,
+  HYDRATION_DEFERRED_KEYS,
+} from "../clientSyncRegistry";
+import { WEB_COLLECTION_INDEXES } from "./schema";
 import { StorageTimingSamples, type BootPhase } from "./timing-samples";
 
 export const storageTimings = new StorageTimingSamples([
-  ...Object.keys(SYSTEM_TABLES),
-  ...Object.keys(WEB_COLLECTION_INDEXES),
+  "meta",
+  "pendingInput",
+  "dispatchOutbox",
+  "conversationUserMessages",
+  "conversationMessageMeta",
+  "conversationMessageRows",
+  ...[...HYDRATION_CRITICAL_READ_KEYS, ...HYDRATION_DEFERRED_KEYS].filter(
+    (table) => Object.hasOwn(WEB_COLLECTION_INDEXES, table),
+  ),
 ]);
 
-export async function timeBootRead<T>(
+export function timeBootRead<T>(
   phase: BootPhase | undefined,
   table: string,
   read: () => Promise<T>,
 ): Promise<T> {
   if (!phase) return read();
   const start = performance.now();
-  const result = await read();
-  storageTimings.recordBoot(phase, table, performance.now() - start);
-  return result;
+  return read().then((result) => {
+    storageTimings.recordBoot(phase, table, performance.now() - start);
+    return result;
+  });
 }
