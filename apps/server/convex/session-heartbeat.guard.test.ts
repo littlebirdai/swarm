@@ -25,8 +25,6 @@ const wireFields: Record<string, string[]> = {
   "debugTmp.ts": ["last_heartbeat: await heartbeatOf(ctx, managed),"],
   "managedSessions.ts": [
     "last_heartbeat: now,",
-    "last_heartbeat: 0,",
-    "patch.last_heartbeat = at;",
     "last_heartbeat: lastHeartbeat,",
   ],
   "managedSessionsList.ts": [

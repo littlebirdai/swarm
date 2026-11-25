@@ -29,7 +29,7 @@ import {
   enqueuePendingMessage,
 } from "./pendingMessages";
 import { applyPause, insertTask, settleRunConversation } from "./agentTasks";
-import { ensureHostedManagedSession } from "./managedSessions";
+import { ensureHostedManagedSession } from "./lib/sessionStatusWriter";
 import { performListActiveSessions } from "./managedSessionsList";
 import { isDaemonManagedRow } from "./lib/liveSessions";
 import {

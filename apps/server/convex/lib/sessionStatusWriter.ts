@@ -2,8 +2,10 @@
 import {
   ACTIVE_AGENT_STATUSES,
   HEARTBEAT_REFRESH_MS,
+  type AgentStatus,
 } from "@codecast/sessions/agentStatus";
 
+import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { statusWriteIsStale, type StatusStamps } from "./heartbeatPatch";
@@ -104,4 +106,95 @@ export async function writeSessionHeartbeat(
   } else if (row.heartbeat_at !== at) {
     await ctx.db.patch(row._id, { heartbeat_at: at });
   }
+}
+
+export type AgentStatusWrite = {
+  conversation_id: Id<"conversations">;
+  agent_status: AgentStatus;
+  client_ts?: number;
+  permission_mode?: Doc<"managed_sessions">["permission_mode"];
+  open_tasks?: Doc<"managed_sessions">["open_tasks"];
+  presumed?: boolean;
+  hibernated_at?: number | null;
+  session_boundary?: boolean;
+  turn_completed_at?: number;
+};
+
+export async function writeAgentStatus(
+  ctx: MutationCtx,
+  session: Doc<"managed_sessions">,
+  args: AgentStatusWrite,
+) {
+  const patch: Record<string, any> = {
+    agent_status: args.agent_status,
+    agent_status_write_at: args.client_ts ?? Date.now(),
+    agent_status_boundary: args.session_boundary === true ? true : undefined,
+  };
+  if (args.turn_completed_at !== undefined) {
+    patch.turn_completed_at = args.turn_completed_at;
+  }
+
+  if (args.permission_mode !== undefined) {
+    patch.permission_mode = args.permission_mode;
+  }
+  if (args.hibernated_at !== undefined) {
+    patch.hibernated_at =
+      args.hibernated_at === null ? undefined : args.hibernated_at;
+  }
+  if (args.open_tasks !== undefined) {
+    patch.open_tasks = args.open_tasks;
+    patch.open_tasks_at = Date.now();
+  }
+
+  if (args.agent_status !== session.agent_status) {
+    patch.agent_status_updated_at = args.client_ts ?? Date.now();
+  }
+
+  if (ACTIVE_AGENT_STATUSES.has(args.agent_status)) {
+    const at = Date.now();
+    patch.last_heartbeat = at;
+    await writeSessionHeartbeat(ctx, session._id, session.user_id, at);
+  }
+
+  if (Object.keys(patch).length > 0) {
+    await ctx.db.patch(session._id, patch);
+  }
+
+  return patch;
+}
+
+export async function ensureHostedManagedSession(
+  ctx: MutationCtx,
+  conversation: Doc<"conversations">,
+): Promise<Doc<"managed_sessions">> {
+  if (!isHostedAgentType(conversation.agent_type)) {
+    throw new Error(
+      "Only a hosted assistant conversation has a hosted status row",
+    );
+  }
+  const existing = await ctx.db
+    .query("managed_sessions")
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversation._id),
+    )
+    .first();
+  if (existing) {
+    if (existing.hosted) return existing;
+    await ctx.db.patch(existing._id, { hosted: true });
+    return { ...existing, hosted: true };
+  }
+  const now = Date.now();
+  const id = await ctx.db.insert("managed_sessions", {
+    session_id: conversation.session_id,
+    conversation_id: conversation._id,
+    user_id: conversation.user_id,
+    pid: 0,
+    started_at: now,
+    last_heartbeat: 0,
+    agent_status: "idle",
+    agent_status_updated_at: now,
+    hosted: true,
+  });
+  await writeSessionHeartbeat(ctx, id, conversation.user_id, 0);
+  return (await ctx.db.get(id))!;
 }
