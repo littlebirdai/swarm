@@ -15,3 +15,11 @@ A clean ACP write returns `in-doubt` because ACP provides no durable
 delivery receipt. A prompt reply can still end its turn after a timeout.
 The raw sink receives original provider frames, which can contain secrets.
 The adapter redacts the stderr callback and provider error messages.
+
+ACP permission prompts show up to 16 choices in provider order. The adapter
+keeps IDs verbatim, skips blank or oversized IDs, and shows the first
+occurrence of a duplicate ID. It redacts labels and the summary, joins
+lines with spaces, and trims labels to 128 code units and the summary to 500. A missing or blank label becomes `Option N`. Only recognized ACP
+kinds appear on choices. If no ID fits, the prompt omits the options list.
+Send `{ "option_id": "…" }` to select a displayed choice. Semantic allow
+and deny can also select valid provider IDs beyond the display limits.

@@ -20,7 +20,7 @@ import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import { makeAcpEvents, pendingPromptLimit, type Emit } from "./acp-events";
-import { permissionChoice, promptBlocks } from "./acp-input";
+import { permissionChoice, permissionDisplay, promptBlocks } from "./acp-input";
 import { processError, spawnAcp, AdapterError } from "./acp-process";
 import {
   Initialize,
@@ -115,6 +115,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
     {
       id: RpcId;
       choices: typeof Permission.Type.options;
+      offered: ReturnType<typeof permissionDisplay>["options"];
       turnId: string | null;
     }
   >();
@@ -391,7 +392,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
         permission.success.options.length > 0
       ) {
         const prompt_id = `${spec.run}:permission:${typeof id}:${id}`;
-        const { toolCall, options } = permission.success;
+        const display = permissionDisplay(permission.success);
         yield* retain(line, "decoded");
         yield* events.awaitSpace();
         if (prompts.has(prompt_id)) return;
@@ -404,7 +405,8 @@ export const openAcp = Effect.fn("acp.open")(function* (
         }
         prompts.set(prompt_id, {
           id,
-          choices: options,
+          choices: permission.success.options,
+          offered: display.options,
           turnId: active?.id ?? null,
         });
         durable(
@@ -414,18 +416,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
             body: {
               prompt_id,
               kind: "permission",
-              tool_call_id:
-                toolCall?.toolCallId &&
-                toolCall.toolCallId.length <= 256 &&
-                toolCall.toolCallId.trim()
-                  ? toolCall.toolCallId
-                  : undefined,
-              tool_name:
-                toolCall?.title &&
-                toolCall.title.length <= 128 &&
-                toolCall.title.trim()
-                  ? toolCall.title
-                  : undefined,
+              ...display,
             },
           },
           active?.id ?? null,
@@ -742,7 +733,11 @@ export const openAcp = Effect.fn("acp.open")(function* (
             prompt_id: [...prompts.keys()].at(-1) ?? null,
           },
         });
-      const choice = permissionChoice(request.answer, prompt.choices);
+      const choice = permissionChoice(
+        request.answer,
+        prompt.choices,
+        prompt.offered,
+      );
       if (choice === undefined)
         return Result.fail(
           refused(
