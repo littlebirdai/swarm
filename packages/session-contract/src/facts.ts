@@ -53,10 +53,8 @@ export type InboxFact =
   | ({ kind: "delivery.returned" } & AttemptRef)
   | {
       kind: "delivery.settle";
-      request:
-        | (DeliverySettleRequest &
-            Partial<Pick<DeliveryResolutionRequest, "resolution_evidence">>)
-        | (DeliveryStartRequest & { outcome: "stale" });
+      request: DeliverySettleRequest &
+        Partial<Pick<DeliveryResolutionRequest, "resolution_evidence">>;
     }
   | ({
       kind: "delivery.reconciled";

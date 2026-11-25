@@ -110,12 +110,15 @@ test("takeover blocks start until a newer clear fact arrives", () => {
   );
 });
 
-test.each(["rejected", "stale"] as const)(
-  "a started delivery settles as %s without automatic retry",
-  (outcome) => {
+test.each([
+  { outcome: "rejected" },
+  { outcome: "stale", observed: { kind: "turn", turn: null } },
+] as const)(
+  "a started delivery settles as $outcome without automatic retry",
+  (result) => {
     const settlement = {
       kind: "delivery.settle",
-      request: { ...request, outcome },
+      request: { ...request, ...result },
     } as const;
     const settled = applyFacts(sending, settlement);
     expect(settled.inbox[0]?.status).toBe("rejected");
