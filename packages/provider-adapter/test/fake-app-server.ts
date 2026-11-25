@@ -109,6 +109,15 @@ inbox.on("line", (line) => {
         held.set(method, id);
         return;
       }
+      if (process.env.FIXTURE_COMPLETED_REPLY && turns === 1) {
+        send({
+          id,
+          result: {
+            turn: { ...turn, id: "historical-turn", status: "completed" },
+          },
+        });
+        return;
+      }
       if (!process.env.FIXTURE_REPLY_ONLY)
         send({ method: "turn/started", params: { threadId, turn } });
       burst(method);

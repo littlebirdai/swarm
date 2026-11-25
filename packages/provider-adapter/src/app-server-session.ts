@@ -9,6 +9,8 @@ import type {
   SteerRequest,
 } from "@codecast/provider-contract";
 import * as Clock from "effect/Clock";
+import * as Deferred from "effect/Deferred";
+import * as Fiber from "effect/Fiber";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Queue from "effect/Queue";
@@ -17,6 +19,7 @@ import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import { turnItems, wireInput, type DurablePayload } from "./app-server-items";
+import { initializeAppServer } from "./app-server-open";
 import {
   Initialize,
   InterruptReply,
@@ -294,7 +297,10 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
         );
         if (validated._tag === "Success") {
           const { turn } = validated.success;
-          if (starting?.id === id) begin(turn.id);
+          if (starting?.id === id) {
+            begin(turn.id);
+            starting = undefined;
+          }
           if (
             active?.id === turn.id &&
             active.startId === id &&
@@ -406,6 +412,8 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   const runProjection = (work: readonly Effect.Effect<void>[]) =>
     Effect.forEach(work, (step) => step, { discard: true });
 
+  let opening = true;
+  let handshakeProjection: Deferred.Deferred<void> | undefined;
   yield* incoming.read(
     Effect.fn("app-server.project-frame")(function* (frame) {
       if (!frame.base64Fragment && !frame.line.trim()) return;
@@ -413,9 +421,17 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
       const acknowledge = yield* receive(frame);
       const work = runProjection(projection);
       projection = [];
+      const ack = acknowledge ?? Effect.void;
+      if (!opening) return { work, acknowledge: ack };
+      const projected = Deferred.makeUnsafe<void>();
       return {
-        work,
-        acknowledge: acknowledge ?? Effect.void,
+        work: work.pipe(
+          Effect.andThen(Deferred.succeed(projected, undefined)),
+          Effect.asVoid,
+        ),
+        acknowledge: Effect.sync(() => {
+          handshakeProjection = projected;
+        }).pipe(Effect.andThen(ack)),
       };
     }),
   );
@@ -442,7 +458,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     }),
     Effect.ignoreCause,
   );
-  yield* Effect.forkIn(pump, scope);
+  const projector = yield* Effect.forkIn(pump, scope);
   yield* Scope.addFinalizer(
     scope,
     Effect.sync(() => {
@@ -483,81 +499,41 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   });
 
   const established = yield* Effect.result(
-    Effect.gen(function* () {
-      const initialized = yield* roundTrip("initialize", {
-        clientInfo: {
-          name: "codecast",
-          title: "Codecast Daemon",
-          version: "1.0.0",
-        },
-        capabilities: { experimentalApi: true },
-      }).pipe(
-        Effect.flatMap(Schema.decodeUnknownEffect(Initialize)),
-        Effect.mapError((cause) =>
-          processError(
-            "initialize-failed",
-            cause instanceof AdapterError
-              ? cause.message
-              : "Invalid app-server initialize response",
-            cause,
-          ),
-        ),
-      );
-      if (
-        initialized.userAgent.match(/\/(\d+\.\d+\.\d+)(?:\s|$)/u)?.[1] !==
-        options.provider.version
-      ) {
-        return yield* processError(
-          "agent-version",
-          "Codex app-server reported a different version",
-        );
-      }
-      yield* transport
+    initializeAppServer(
+      spec,
+      settings,
+      options.provider.version,
+      roundTrip,
+      transport
         .write(() => {
           const error = incoming.error();
           return error
             ? Result.fail(error)
             : Result.succeed([{ method: "initialized" }]);
         })
-        .pipe(Effect.raceFirst(incoming.stopped));
-      const resuming = "checkpoint" in spec;
-      const thread = yield* roundTrip(
-        resuming ? "thread/resume" : "thread/start",
-        {
-          ...settings,
-          cwd: spec.cwd,
-          ...(resuming ? { threadId: spec.checkpoint } : {}),
-        },
-      ).pipe(
-        Effect.flatMap((reply) =>
-          Schema.decodeUnknownEffect(ThreadReply)(reply).pipe(
-            Effect.mapError((cause) =>
-              processError(
-                "invalid-thread",
-                "Invalid app-server thread response",
-                cause,
-              ),
+        .pipe(Effect.raceFirst(incoming.stopped)),
+    ).pipe(
+      Effect.flatMap((thread) => {
+        const failure = incoming.error();
+        if (failure) return Effect.fail(failure);
+        if (sessionClosed || !events.open())
+          return Effect.fail(
+            processError(
+              "event-overflow",
+              "Codex app-server event stream ended before opening",
             ),
-          ),
-        ),
-      );
-      if (resuming && thread.thread.id !== spec.checkpoint)
-        return yield* processError(
-          "checkpoint-mismatch",
-          "Codex app-server resumed a different thread",
-        );
-      const failure = incoming.error();
-      if (failure) return yield* failure;
-      if (sessionClosed || !events.open())
-        return yield* processError(
-          "event-overflow",
-          "Codex app-server event stream ended before opening",
-        );
-      return thread;
-    }),
+          );
+        return Effect.succeed(thread);
+      }),
+    ),
   );
+  opening = false;
   if (established._tag === "Failure") {
-    yield* Effect.yieldNow;
+    if (handshakeProjection)
+      yield* Deferred.await(handshakeProjection).pipe(
+        Effect.raceFirst(Fiber.await(projector)),
+        Effect.timeoutOption("30 seconds"),
+      );
     yield* Effect.exit(Scope.close(scope, Exit.void));
     const cleanup = yield* Effect.promise(transport.release);
     if (cleanup.status === "failed")
