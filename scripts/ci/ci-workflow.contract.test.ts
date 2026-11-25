@@ -80,6 +80,10 @@ describe("ci.yml job graph", () => {
           `${name} uses setup-bun directly`,
         ).toBe(false);
         expect(
+          uses.startsWith("actions/setup-node@"),
+          `${name} sets Node.js up itself`,
+        ).toBe(false);
+        expect(
           uses.startsWith("actions/cache@"),
           `${name} caches the bun store itself`,
         ).toBe(false);
@@ -158,6 +162,14 @@ describe("ci.yml job graph", () => {
     );
     expect(String(steps[0].uses)).toStartWith("oven-sh/setup-bun@");
     expect(steps[0].with["bun-version"]).toBe("${{ inputs.bun-version }}");
+    const node = steps.find((step) =>
+      String(step.uses).startsWith("actions/setup-node@"),
+    );
+    expect(node.if).toBeUndefined();
+    expect(node.with).toEqual({
+      "node-version": "lts/*",
+      "package-manager-cache": false,
+    });
     const install = steps.find((step) => step.run === "bun install");
     expect(install.if).toBe("inputs.deps == 'install'");
   });
