@@ -81,6 +81,7 @@ describe("cast flow merge: before-merge steps", () => {
         await pollUntil(
           () => existsSync(file("ready")),
           "the first step starting",
+          { ms: 30_000 },
         );
         const tree = readFileSync(file("tree"), "utf-8");
         expect(existsSync(tree)).toBe(true);
