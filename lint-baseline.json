@@ -1148,9 +1148,6 @@
   "apps/cli/src/capabilities/registries.ts": {
     "swarm/no-comments": 25
   },
-  "apps/cli/src/capabilities/resolverParity.test.ts": {
-    "swarm/no-comments": 4
-  },
   "apps/cli/src/capabilities/show.ts": {
     "swarm/no-comments": 6
   },
