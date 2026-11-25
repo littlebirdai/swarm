@@ -357,7 +357,22 @@ describe("matrices", () => {
     },
     "test-convex": { shard: [1, 2, 3] },
     "test-web": { shard: [1, 2, 3, 4, 5, 6, 7, 8, "budgets"] },
-    "test-cli": { suite: [1, 2, 3, 4, 5, 6, 7, 8, "evals", "e2e"] },
+    "test-cli": {
+      suite: [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        "tmux-1",
+        "tmux-2",
+        "tmux-3",
+        "tmux-4",
+        "evals",
+        "e2e",
+      ],
+    },
     "computer-macos": { shard: [1, 2, 3] },
   };
   const STEPS: Record<string, Array<[string | undefined, string]>> = {
@@ -388,8 +403,12 @@ describe("matrices", () => {
     "test-cli": [
       [undefined, "sudo apt-get update && sudo apt-get install -y tmux"],
       [
-        "matrix.suite != 'evals' && matrix.suite != 'e2e'",
-        "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --timings=test-timings.json --shard=${{ matrix.suite }}/8 --bail=5",
+        "matrix.suite != 'evals' && matrix.suite != 'e2e' && !startsWith(matrix.suite, 'tmux-')",
+        "bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=${{ matrix.suite }}/6 --bail=5",
+      ],
+      [
+        "startsWith(matrix.suite, 'tmux-')",
+        'bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=2 --timings=test-timings.json --shard="${SUITE#tmux-}/4" --bail=5',
       ],
       ["matrix.suite == 'evals'", "bun test src/ --parallel"],
       ["matrix.suite == 'e2e'", "bun test src/messaging.e2e.test.ts"],

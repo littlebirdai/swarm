@@ -48,7 +48,9 @@ function render() {
         ? "[Pasted text #98]"
         : `[Pasted Content ${composer.length} chars]`
       : composer ||
-        (layout?.startsWith("claude") ? "" : "Ask Codex to do anything");
+        (layout?.startsWith("claude")
+          ? ""
+          : "\x1b[2mAsk Codex to do anything\x1b[22m");
   // Claude Code draws the panel at the bottom of the screen, under the transcript.
   const atBottom = (text: string) =>
     "\n".repeat(

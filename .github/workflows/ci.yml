@@ -325,7 +325,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [1, 2, 3, 4, 5, 6, 7, 8, evals, e2e]
+        suite: [1, 2, 3, 4, 5, 6, tmux-1, tmux-2, tmux-3, tmux-4, evals, e2e]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -335,7 +335,7 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       - name: Unit tests (cli package)
-        if: matrix.suite != 'evals' && matrix.suite != 'e2e'
+        if: matrix.suite != 'evals' && matrix.suite != 'e2e' && !startsWith(matrix.suite, 'tmux-')
         working-directory: apps/cli
         # Exclude the e2e suite — it has its own step with --rerun-each for
         # resilience against tmux-resource flake under CI runner load.
@@ -354,7 +354,16 @@ jobs:
         # the job spending the rest of its timeout with nothing said.
         env:
           DAEMON_BUILD_ID_CHECK: "1"
-        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --timings=test-timings.json --shard=${{ matrix.suite }}/8 --bail=5
+        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=${{ matrix.suite }}/6 --bail=5
+
+      # The e2e files drive real tmux panes against wall-clock bounds, so they
+      # run two at a time and away from the unit tests, which use every CPU.
+      - name: E2E files (cli package)
+        if: startsWith(matrix.suite, 'tmux-')
+        working-directory: apps/cli
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=2 --timings=test-timings.json --shard="${SUITE#tmux-}/4" --bail=5
 
       # The eval home (apps/evals). Its tests make no network or model
       # calls; real replays run only from ./evals on a laptop.
