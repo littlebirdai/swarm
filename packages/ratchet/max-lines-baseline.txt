@@ -621,7 +621,7 @@ apps/web/components/org/GoalsNodeCards.tsx 1100
 apps/web/components/org/HireRoleDialog.tsx 900
 apps/web/components/org/OrgGraph.tsx 1750
 apps/web/components/org/OrgNodeCards.tsx 1850
-apps/web/components/org/ProposalCard.mount.test.tsx 950
+apps/web/components/org/ProposalCard.mount.test.tsx 850
 apps/web/components/org/ProposalSubjectCard.mount.test.tsx 1650
 apps/web/components/org/ProposalSubjectCard.tsx 1850
 apps/web/components/org/TemplateSections.mount.test.tsx 850

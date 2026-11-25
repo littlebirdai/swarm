@@ -19344,7 +19344,7 @@
     "swarm/no-native-title-with-aria-label": 1
   },
   "apps/web/components/org/GoalsLens.mount.test.tsx": {
-    "swarm/no-comments": 22
+    "swarm/no-comments": 11
   },
   "apps/web/components/org/GoalsNodeCards.tsx": {
     "swarm/no-comments": 50
@@ -19365,7 +19365,7 @@
     "swarm/no-comments": 6
   },
   "apps/web/components/org/OrgChart.mount.test.tsx": {
-    "swarm/no-comments": 26
+    "swarm/no-comments": 17
   },
   "apps/web/components/org/OrgChart.tsx": {
     "react-hooks/exhaustive-deps": 6,
@@ -19431,7 +19431,7 @@
     "swarm/no-comments": 19
   },
   "apps/web/components/org/ProposalCard.mount.test.tsx": {
-    "swarm/no-comments": 46
+    "swarm/no-comments": 30
   },
   "apps/web/components/org/ProposalCard.tsx": {
     "swarm/no-comments": 19
@@ -19610,7 +19610,7 @@
     "swarm/no-comments": 7
   },
   "apps/web/components/org/lines/__tests__/ObjectSummary.mount.test.tsx": {
-    "swarm/no-comments": 17
+    "swarm/no-comments": 11
   },
   "apps/web/components/org/lines/__tests__/lines.test.ts": {
     "swarm/no-comments": 7
@@ -19791,7 +19791,7 @@
     "swarm/no-comments": 14
   },
   "apps/web/components/org/scope/RoleOffer.mount.test.tsx": {
-    "swarm/no-comments": 12
+    "swarm/no-comments": 1
   },
   "apps/web/components/org/scope/RoleOffer.tsx": {
     "swarm/no-comments": 23

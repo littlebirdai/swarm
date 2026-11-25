@@ -1,7 +1,11 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["vite/client", "node", "bun"]
+    "types": [
+      "vite/client",
+      "node",
+      "bun"
+    ]
   },
   "include": [
     "vite-env.d.ts",
@@ -24,6 +28,7 @@
     "components/__tests__/sessionControlMenu.mount.test.tsx",
     "components/__tests__/teamBarFace.test.tsx",
     "components/anchor/AnchorConversation.jump.mount.test.tsx",
+    "components/chat/ChatComposer.slack.mount.test.tsx",
     "components/company/CompanyDocument.mount.test.tsx",
     "components/consequential/__tests__/sites.mount.test.tsx",
     "components/expectations/__tests__/ExpectationsTab.mount.test.tsx",
@@ -31,15 +36,22 @@
     "components/initiatives/GoalHoverContent.mount.test.tsx",
     "components/initiatives/InitiativeRecord.mount.test.tsx",
     "components/line/settings/__tests__/LineSettingsPage.mount.test.tsx",
+    "components/org/GoalsLens.mount.test.tsx",
     "components/org/OrgChart.closeProposal.mount.test.tsx",
+    "components/org/OrgChart.mount.test.tsx",
     "components/org/OrgIntroCard.mount.test.tsx",
+    "components/org/ProposalCard.mount.test.tsx",
     "components/org/RecordGroupRow.mount.test.tsx",
     "components/org/company/sheets/GoalSheet.mount.test.tsx",
+    "components/org/lines/__tests__/ObjectSummary.mount.test.tsx",
     "components/org/orgTemplateHire.mount.test.tsx",
+    "components/org/scope/RoleOffer.mount.test.tsx",
     "components/org/scope/ScopePage.mount.test.tsx",
     "components/org/scope/ScopeSettings.mount.test.tsx",
     "components/org/scope/__tests__/ScopeLineTab.mount.test.tsx",
     "hooks/__tests__/useConvexSync.identityLost.mount.test.tsx"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }
