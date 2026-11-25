@@ -1,77 +1,27 @@
-import { afterAll, expect, mock, test } from "bun:test";
-import { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../../../test-helpers/globals";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { expect, test } from "bun:test";
+import { act, type ReactNode } from "react";
+import type { QueueItem } from "../../../lib/decisionQueue";
+import {
+  useInboxStore,
+  type SessionDecisionItem,
+} from "../../../store/inboxStore";
+import { webBuilders } from "../../../test-helpers/builders";
+import { expectAbsent, expectPresent } from "../../../test-helpers/domExpect";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { pending } from "../../../test-helpers/testConvex";
+import { waitForDom } from "../../../test-helpers/waitForDom";
+import {
+  SessionDecisionCard,
+  ThreadDecisionCard,
+} from "../../SessionDecisionCard";
+import { ThemeContext } from "../../ThemeProvider";
+import { DecisionDocument } from "../DecisionDocument";
 
-mock.module("next/link", () => ({
-  default: ({ children, href, ...rest }: any) => (
-    <a href={typeof href === "string" ? href : "#"} {...rest}>
-      {children}
-    </a>
-  ),
-}));
-mock.module("../../../lib/convexUrl", () => ({
-  CONVEX_URL: "https://convex.test",
-  getConvexUrl: () => "https://convex.test",
-}));
-mock.module("../../../hooks/useQueryNoThrow", () => ({
-  useQueryNoThrow: () => ({ data: undefined, error: null }),
-}));
-mock.module("../../../hooks/useSyncPendingPermissions", () => ({
-  usePendingPermissions: () => undefined,
-}));
-mock.module("../../../hooks/useJumpToDecisionAsk", () => ({
-  useJumpToDecisionAsk: () => async () => true,
-  locateDecisionAsk: async () => null,
-}));
-mock.module("../../PublishedPageEmbed", () => ({
-  PublishedPageEmbed: () => null,
-}));
-const RealMarkdown = (await import("../../tools/MarkdownRenderer"))
-  .MarkdownRenderer;
-mock.module("../../tools/MarkdownRenderer", () => ({
-  MarkdownRenderer: (props: any) => (
-    <div data-md>
-      <RealMarkdown {...props} />
-    </div>
-  ),
-}));
-
-import { SessionDecisionCard } from "../../SessionDecisionCard";
-
-import { closeDomWindow } from "../../../test-helpers/domGlobals";
-const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  pretendToBeVisual: true,
-  url: "https://codecast.sh/questions",
-});
-const restoreGlobals = replaceGlobals({
-  window: dom.window,
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  localStorage: dom.window.localStorage,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  requestAnimationFrame: (cb: FrameRequestCallback) =>
-    setTimeout(() => cb(0), 0) as unknown as number,
-  cancelAnimationFrame: (id: number) => clearTimeout(id),
-  ResizeObserver: class {
-    observe() {}
-    disconnect() {}
-    unobserve() {}
-  },
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-const { createRoot } = await import("react-dom/client");
-const { MemoryRouter } = await import("react-router");
-
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
-});
-
+const fixtures = webBuilders("sessionCardReasoning.mount.test.tsx");
 const context =
   "The migration is deployed and idempotent.\n\nRunning it now seats four workspaces and bills one turn each.";
-const item = (blocking: boolean): any => ({
+const item = (blocking: boolean): QueueItem => ({
   key: "decide:d1",
   source: "decide",
   conversationId: "c1",
@@ -87,12 +37,22 @@ const item = (blocking: boolean): any => ({
   createdAt: Date.now() - 60_000,
 });
 
-async function mount(ui: React.ReactNode) {
-  const pane = document.createElement("div");
-  document.body.appendChild(pane);
-  const root = createRoot(pane);
-  await act(() => root.render(<MemoryRouter>{ui}</MemoryRouter>));
-  return { pane, unmount: () => act(() => root.unmount()) };
+type Seed = (store: ReturnType<typeof useInboxStore.getState>) => void;
+
+async function mount(ui: ReactNode, seed?: Seed) {
+  const web = await mountWeb(ui, {
+    path: "/questions",
+    dispatch: true,
+    setup(backend, store) {
+      seed?.(store);
+      backend.mutation(api.dispatch.dispatch, null);
+      backend.set(api.permissions.getPendingPermissions, pending);
+      backend.set(api.sessionDecisions.get, pending);
+      backend.set(api.sessionDecisions.getWithDoc, pending);
+      backend.set(api.decisionThread.thread, pending);
+    },
+  });
+  return { ...web, pane: web.container, unmount: web.close };
 }
 
 function readingOrder(pane: HTMLElement) {
@@ -104,12 +64,11 @@ function readingOrder(pane: HTMLElement) {
   expect(firstOption).not.toBeNull();
   // The reasoning sits between the question and the option rows, all in one flow.
   expect(
-    question.compareDocumentPosition(body) &
-      dom.window.Node.DOCUMENT_POSITION_FOLLOWING,
+    question.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   expect(
     body.compareDocumentPosition(firstOption) &
-      dom.window.Node.DOCUMENT_POSITION_FOLLOWING,
+      Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   return body;
 }
@@ -137,7 +96,7 @@ test("an advisory card in a session view starts folded to one badge: the questio
   expect(body.textContent).toContain(
     "seats four workspaces and bills one turn each",
   );
-  unmount();
+  await unmount();
 });
 
 test("a blocking card owns the pane and reads the reasoning whole, in the document page's type", async () => {
@@ -162,17 +121,10 @@ test("a blocking card owns the pane and reads the reasoning whole, in the docume
     scrollers[0].contains(pane.querySelector("h1.decision-question")),
   ).toBe(true);
   expect(scrollers[0].contains(pane.querySelector("[data-option]"))).toBe(true);
-  unmount();
+  await unmount();
 });
 
 test("the decision queue, opened as a sheet in its place, and the document show each option's meaning and a way to answer", async () => {
-  const { ConvexProvider } = await import("convex/react");
-  const { offlineConvexClient } =
-    await import("../../../test-helpers/offlineConvex");
-  const client = offlineConvexClient();
-  const { DecisionDocument } = await import("../DecisionDocument");
-  const { useInboxStore } = await import("../../../store/inboxStore");
-  const previous = useInboxStore.getState().sessionDecisions;
   const queued = item(false);
   const stepper = {
     position: 2,
@@ -181,8 +133,8 @@ test("the decision queue, opened as a sheet in its place, and the document show 
     onSkip: () => {},
     onExit: () => {},
   };
-  const decision = {
-    _id: queued.decisionId,
+  const decision: SessionDecisionItem = {
+    _id: queued.decisionId!,
     conversation_id: queued.conversationId,
     session_id: "session",
     status: "pending" as const,
@@ -192,54 +144,52 @@ test("the decision queue, opened as a sheet in its place, and the document show 
     default_option: queued.defaultOption,
     created_at: queued.createdAt,
   };
-  useInboxStore.setState({
-    sessionDecisions: { ...previous, [decision._id]: decision },
-  });
   const { pane, unmount } = await mount(
-    <ConvexProvider client={client}>
+    <>
       <SessionDecisionCard item={queued} stepper={stepper} />
       <DecisionDocument id={decision._id} pager={false} />
-    </ConvexProvider>,
+    </>,
+    (store) => store.syncTable("sessionDecisions", [decision]),
   );
-  try {
-    const [queue, doc] = Array.from(pane.children) as HTMLElement[];
-    expect(queue.classList.contains("decision-sheet")).toBe(true);
-    const place = queue.querySelector("[data-decision-place]")!;
-    expect(place.textContent).toContain("2 of 5");
-    expect(place.querySelector('[aria-label="Previous decision"]')).toBeNull();
-    expect(place.querySelector('[aria-label="Next decision"]')).not.toBeNull();
-    readingOrder(queue);
-    const assertOptions = (
-      surface: Element,
-      tag: string,
-      defaultText: RegExp,
-    ) => {
-      const rows = Array.from(surface.querySelectorAll("[data-option]"));
-      expect(rows.map((row) => row.tagName)).toEqual([tag, tag]);
-      for (const [index, option] of decision.options.entries()) {
-        expect(rows[index].textContent).toContain(option.label);
-        expect(rows[index].textContent).toContain(option.description);
-        expect(surface.textContent!.split(option.description)).toHaveLength(2);
-      }
-      expect(rows[0].textContent).not.toMatch(defaultText);
-      expect(rows[1].textContent).toMatch(defaultText);
-    };
-    assertOptions(queue, "BUTTON", /proceeding with this/i);
-    assertOptions(doc, "BUTTON", /proceeding with this/i);
-    await act(() => {
-      useInboxStore.setState({
-        sessionDecisions: {
-          ...previous,
-          [decision._id]: { ...decision, status: "answered", answer_index: 1 },
-        },
-      });
-    });
-    assertOptions(doc, "DIV", /the agent's default/);
-  } finally {
-    await unmount();
-    await client.close();
-    useInboxStore.setState({ sessionDecisions: previous });
-  }
+  const [queue, doc] = Array.from(pane.children) as HTMLElement[];
+  expect(queue.classList.contains("decision-sheet")).toBe(true);
+  const place = queue.querySelector("[data-decision-place]")!;
+  expect(place.textContent).toContain("2 of 5");
+  expect(place.querySelector('[aria-label="Previous decision"]')).toBeNull();
+  expect(place.querySelector('[aria-label="Next decision"]')).not.toBeNull();
+  readingOrder(queue);
+  const assertOptions = (
+    surface: Element,
+    tag: string,
+    defaultText: RegExp,
+  ) => {
+    const rows = Array.from(surface.querySelectorAll("[data-option]"));
+    expect(rows.map((row) => row.tagName)).toEqual([tag, tag]);
+    for (const [index, option] of decision.options.entries()) {
+      expect(rows[index].textContent).toContain(option.label);
+      expect(rows[index].textContent).toContain(option.description!);
+      expect(surface.textContent!.split(option.description!)).toHaveLength(2);
+    }
+    expect(rows[0].textContent).not.toMatch(defaultText);
+    expect(rows[1].textContent).toMatch(defaultText);
+  };
+  assertOptions(queue, "BUTTON", /proceeding with this/i);
+  assertOptions(doc, "BUTTON", /proceeding with this/i);
+  await act(() => {
+    useInboxStore
+      .getState()
+      .syncTable("sessionDecisions", [
+        { ...decision, status: "answered", answer_index: 1 },
+      ]);
+  });
+  await act(() =>
+    waitForDom(
+      doc,
+      () => doc.querySelector("[data-option]")?.tagName === "DIV",
+    ),
+  );
+  assertOptions(doc, "DIV", /the agent's default/);
+  await unmount();
 });
 
 test("the sheet seats the reasoning and the options as the two cells of one grid, so a wide pane can set them side by side", async () => {
@@ -255,7 +205,7 @@ test("the sheet seats the reasoning and the options as the two cells of one grid
   expect(grid.children[1].classList.contains("decision-sheet-options")).toBe(
     true,
   );
-  unmount();
+  await unmount();
 });
 
 test("a question with no reasoning keeps one column", async () => {
@@ -266,7 +216,7 @@ test("a question with no reasoning keeps one column", async () => {
   const grid = pane.querySelector(".decision-sheet-grid")!;
   expect(grid.getAttribute("data-split")).toBe("false");
   expect(grid.children).toHaveLength(1);
-  unmount();
+  await unmount();
 });
 
 // A decision posted from a role's own standing thread is the role's ask
@@ -280,10 +230,10 @@ test("a decision from a role's standing thread names the role that asks", async 
     handle: "growth",
     avatar: "stag",
     status: "active",
-    tenure_kind: "standing",
+    tenure_kind: "standing" as const,
   };
   const session = {
-    _id: "c1",
+    ...fixtures.session.build({ _id: "c1" }),
     title: "Growth lead",
     standing_role_id: "org_roles_growth",
     role,
@@ -296,22 +246,22 @@ test("a decision from a role's standing thread names the role that asks", async 
   expect(asker.getAttribute("data-decision-asker")).toBe("growth");
   expect(asker.textContent).toContain("@growth asks");
   expect(sheet.pane.textContent).not.toContain("Waiting on your decision");
-  sheet.unmount();
+  await sheet.unmount();
   const fold = await mount(
     <SessionDecisionCard item={{ ...item(false), session }} stepper={null} />,
   );
   expect(fold.pane.textContent).toContain("@growth asks");
   expect(fold.pane.textContent).not.toContain("Asked for your steer");
-  fold.unmount();
+  await fold.unmount();
 });
 
 // One decision, one place to read it: a plan gate attaches the plan as a
 // document, and the sheet draws it with the facts and the ladder the decision
 // page draws (DecisionSections), never a link out to read what is answered.
 test("the sheet reads an attached document and the task in place, with no link to the page, and no ladder when no role stood between", async () => {
-  const { useInboxStore } = await import("../../../store/inboxStore");
-  const decision: any = {
+  const decision: SessionDecisionItem = {
     _id: "d2",
+    session_id: "session",
     short_id: "sd-9",
     conversation_id: "c1",
     status: "pending",
@@ -322,27 +272,6 @@ test("the sheet reads an attached document and the task in place, with no link t
     task_id: "t1",
     station: "plan_gate",
   };
-  useInboxStore.getState().syncTable("decisionDetails", [
-    {
-      _id: "d2",
-      decision,
-      doc: {
-        _id: "doc1",
-        content: "## The plan\n\nStale callbacks get a promise flag.",
-      },
-      task: {
-        _id: "t1",
-        short_id: "ct-42",
-        title: "Call cards ring the wrong numbers",
-      },
-      stack: null,
-      ladder: [],
-      asked_users: [{ _id: "u1", name: "Ashot" }],
-      holder_role: null,
-      grant_offer: null,
-      grant: null,
-    } as any,
-  ]);
   const plan = {
     ...item(true),
     key: "decide:d2",
@@ -354,6 +283,28 @@ test("the sheet reads an attached document and the task in place, with no link t
   };
   const { pane, unmount } = await mount(
     <SessionDecisionCard item={plan} stepper={null} />,
+    (store) =>
+      store.syncTable("decisionDetails", [
+        {
+          _id: "d2",
+          decision,
+          doc: {
+            _id: "doc1",
+            content: "## The plan\n\nStale callbacks get a promise flag.",
+          },
+          task: {
+            _id: "t1",
+            short_id: "ct-42",
+            title: "Call cards ring the wrong numbers",
+          },
+          stack: null,
+          ladder: [],
+          asked_users: [{ _id: "u1", name: "Ashot" }],
+          holder_role: null,
+          grant_offer: null,
+          grant: null,
+        },
+      ]),
   );
   expect(pane.querySelector("[data-decision-doc]")!.textContent).toContain(
     "Stale callbacks get a promise flag",
@@ -362,7 +313,7 @@ test("the sheet reads an attached document and the task in place, with no link t
   expect(pane.textContent).not.toContain("The ladder");
   expect(pane.textContent).not.toContain("read the full decision");
   expect(pane.querySelector("a[href^='/decisions/']")).toBeNull();
-  unmount();
+  await unmount();
 });
 
 test("a blocking card stays folded when the pane was just opened at a message: the jump asked for the thread", async () => {
@@ -376,7 +327,7 @@ test("a blocking card stays folded when the pane was just opened at a message: t
   expect(pane.firstElementChild!.classList.contains("decision-fold")).toBe(
     true,
   );
-  unmount();
+  await unmount();
   // A target from long before the ask says nothing about it.
   const stale = await mount(
     <SessionDecisionCard
@@ -388,34 +339,35 @@ test("a blocking card stays folded when the pane was just opened at a message: t
   expect(
     stale.pane.firstElementChild!.classList.contains("decision-sheet"),
   ).toBe(true);
-  stale.unmount();
+  await stale.unmount();
 });
 
 test("scrolling up off the top of the sheet folds it and puts the thread on the ask", async () => {
-  const { useInboxStore } = await import("../../../store/inboxStore");
-  const before = useInboxStore.getState().messages;
-  useInboxStore.setState({
-    messages: {
-      ...before,
-      c1: [
-        { _id: "m1", role: "user", content: "seat the roots" },
+  const messages = [
+    fixtures.message.build({
+      _id: "m1",
+      role: "user",
+      content: "seat the roots",
+    }),
+    fixtures.message.build({
+      _id: "m2",
+      role: "assistant",
+      content: "",
+      tool_calls: [
         {
-          _id: "m2",
-          role: "assistant",
-          content: "",
-          tool_calls: [
-            {
-              id: "t1",
-              name: "Bash",
-              input:
-                'cast decide "Run the one time root seat on prod now, or wait?"',
-            },
-          ],
+          id: "t1",
+          name: "Bash",
+          input:
+            'cast decide "Run the one time root seat on prod now, or wait?"',
         },
-        { _id: "m3", role: "assistant", content: "waiting" },
       ],
-    },
-  } as any);
+    }),
+    fixtures.message.build({
+      _id: "m3",
+      role: "assistant",
+      content: "waiting",
+    }),
+  ];
   const scrolled: string[] = [];
   const { pane, unmount } = await mount(
     <SessionDecisionCard
@@ -423,19 +375,19 @@ test("scrolling up off the top of the sheet folds it and puts the thread on the 
       stepper={null}
       scrollToMessage={(id) => scrolled.push(id)}
     />,
+    (store) => store.setMessages("c1", messages),
   );
   const sheet = pane.firstElementChild!;
   await act(() => {
     sheet.dispatchEvent(
-      new dom.window.WheelEvent("wheel", { deltaY: -40, bubbles: true }),
+      new window.WheelEvent("wheel", { deltaY: -40, bubbles: true }),
     );
   });
   expect(pane.firstElementChild!.classList.contains("decision-fold")).toBe(
     true,
   );
   expect(scrolled).toEqual(["m2"]);
-  unmount();
-  useInboxStore.setState({ messages: before } as any);
+  await unmount();
 });
 
 test("a thread with several open asks steps between them from the sheet's header, without answering", async () => {
@@ -475,7 +427,7 @@ test("a thread with several open asks steps between them from the sheet's header
     ["decide:d2", "full"],
     ["decide:d2", "full"],
   ]);
-  unmount();
+  await unmount();
 });
 
 test("an ask picked from the card opens at the size it was picked at, whatever it would open at by itself", async () => {
@@ -485,18 +437,16 @@ test("an ask picked from the card opens at the size it was picked at, whatever i
   expect(pane.firstElementChild!.classList.contains("decision-fold")).toBe(
     true,
   );
-  unmount();
+  await unmount();
 });
 
 // The thread's card as the conversation view mounts it: one pane that outlives the thread it shows.
-const { ThemeContext } = await import("../../ThemeProvider");
-const { ThreadDecisionCard } = await import("../../SessionDecisionCard");
 const Thread = ({
   conversationId,
   asks,
 }: {
   conversationId: string;
-  asks: any[];
+  asks: QueueItem[];
 }) => (
   <ThreadDecisionCard
     conversationId={conversationId}
@@ -506,19 +456,17 @@ const Thread = ({
 );
 const modern = (ui: React.ReactNode) => (
   <ThemeContext.Provider
-    value={
-      {
-        theme: "light",
-        toggleTheme: () => {},
-        visualStyle: "modern",
-        setVisualStyle: () => {},
-      } as any
-    }
+    value={{
+      theme: "light",
+      toggleTheme: () => {},
+      visualStyle: "modern",
+      setVisualStyle: () => {},
+    }}
   >
     {ui}
   </ThemeContext.Provider>
 );
-const ask = (n: number, blocking = false): any => ({
+const ask = (n: number, blocking = false): QueueItem => ({
   ...item(blocking),
   key: `decide:d${n}`,
   decisionId: `d${n}`,
@@ -530,17 +478,8 @@ const press = (el: Element | null) =>
   });
 
 test("in the Modern style a thread's other asks are rows on the docked card: pressing one brings it up, and once it is answered the card is back on the first", async () => {
-  const pane = document.createElement("div");
-  document.body.appendChild(pane);
-  const root = createRoot(pane);
-  const draw = (asks: any[]) =>
-    act(() =>
-      root.render(
-        <MemoryRouter>
-          {modern(<Thread conversationId="c1" asks={asks} />)}
-        </MemoryRouter>,
-      ),
-    );
+  const render = (asks: QueueItem[]) =>
+    modern(<Thread conversationId="c1" asks={asks} />);
   const question = () =>
     pane.querySelector("[data-cc-ask-question]")?.textContent;
   const rows = () =>
@@ -548,7 +487,10 @@ test("in the Modern style a thread's other asks are rows on the docked card: pre
       b.getAttribute("data-decision-other"),
     );
 
-  await draw([ask(1), ask(2), ask(3)]);
+  const { pane, rerender, unmount } = await mount(
+    render([ask(1), ask(2), ask(3)]),
+  );
+  const draw = (asks: QueueItem[]) => rerender(render(asks));
   expect(question()).toBe("Question 1?");
   expect(rows()).toEqual(["decide:d2", "decide:d3"]);
   // The agent's default on each of these is the second option.
@@ -571,58 +513,42 @@ test("in the Modern style a thread's other asks are rows on the docked card: pre
   await draw([ask(1), ask(2)]);
   expect(question()).toBe("Question 1?");
   expect(rows()).toEqual(["decide:d2"]);
-  await act(() => root.unmount());
+  await unmount();
 });
 
 test("what is typed as an answer is still there after stepping to another ask and back", async () => {
-  const pane = document.createElement("div");
-  document.body.appendChild(pane);
-  const root = createRoot(pane);
-  await act(() =>
-    root.render(
-      <MemoryRouter>
-        {modern(<Thread conversationId="c1" asks={[ask(1), ask(2)]} />)}
-      </MemoryRouter>,
-    ),
+  const { pane, unmount } = await mount(
+    modern(<Thread conversationId="c1" asks={[ask(1), ask(2)]} />),
   );
   const box = () =>
     pane.querySelector<HTMLInputElement>(
       'input[aria-label="Answer in your own words"]',
     )!;
   const setValue = Object.getOwnPropertyDescriptor(
-    dom.window.HTMLInputElement.prototype,
+    HTMLInputElement.prototype,
     "value",
   )!.set!;
   await act(() => {
     setValue.call(box(), "neither, pause it at night");
-    box().dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    box().dispatchEvent(new Event("input", { bubbles: true }));
   });
   expect(box().value).toBe("neither, pause it at night");
   await press(pane.querySelector('[data-decision-other="decide:d2"]'));
   expect(box().value).toBe("");
   await press(pane.querySelector('[data-decision-other="decide:d1"]'));
   expect(box().value).toBe("neither, pause it at night");
-  await act(() => root.unmount());
-  const { useInboxStore } = await import("../../../store/inboxStore");
-  useInboxStore.getState().clearDraft("decision:d1");
+  await unmount();
 });
 
 test("an advisory ask stepped to in the sheet, then folded, stays folded when the person leaves the thread and comes back", async () => {
-  const pane = document.createElement("div");
-  document.body.appendChild(pane);
-  const root = createRoot(pane);
-  const draw = (conversationId: string, asks: any[]) =>
-    act(() =>
-      root.render(
-        <MemoryRouter>
-          <Thread conversationId={conversationId} asks={asks} />
-        </MemoryRouter>,
-      ),
-    );
+  const render = (conversationId: string, asks: QueueItem[]) => (
+    <Thread conversationId={conversationId} asks={asks} />
+  );
   const card = () => pane.querySelector("[data-session-decision]");
   const asks = [ask(1, true), ask(2)];
 
-  await draw("c1", asks);
+  const { pane, rerender, unmount } = await mount(render("c1", asks));
+  const draw = (id: string, asks: QueueItem[]) => rerender(render(id, asks));
   // The blocking ask opens as the sheet; stepping from its header brings the advisory one up as the sheet too.
   expect(card()!.classList.contains("decision-sheet")).toBe(true);
   await press(
@@ -649,72 +575,52 @@ test("an advisory ask stepped to in the sheet, then folded, stays folded when th
   await draw("c1", []);
   await draw("c1", [ask(2)]);
   expect(card()!.classList.contains("decision-fold")).toBe(true);
-  await act(() => root.unmount());
+  await unmount();
 });
 
 test("stepping the queue through one thread's asks moves the card to the queue's current ask", async () => {
-  const pane = document.createElement("div");
-  document.body.appendChild(pane);
-  const root = createRoot(pane);
   const asks = [ask(1), ask(2), ask(3)];
-  const draw = (n: number) =>
-    act(() =>
-      root.render(
-        <MemoryRouter>
-          <ThreadDecisionCard
-            conversationId="c1"
-            asks={asks}
-            fallback={asks[n - 1]}
-            stepper={
-              {
-                item: asks[n - 1],
-                position: n,
-                total: 3,
-                onDone: () => {},
-                onSkip: () => {},
-                onExit: () => {},
-              } as any
-            }
-          />
-        </MemoryRouter>,
-      ),
-    );
+  const render = (n: number) => (
+    <ThreadDecisionCard
+      conversationId="c1"
+      asks={asks}
+      fallback={asks[n - 1]}
+      stepper={{
+        item: asks[n - 1],
+        position: n,
+        total: 3,
+        onDone: () => {},
+        onSkip: () => {},
+        onExit: () => {},
+      }}
+    />
+  );
   const question = () =>
     pane.querySelector("h1.decision-question")!.textContent;
-  await draw(2);
+  const { pane, rerender, unmount } = await mount(render(2));
+  const draw = (n: number) => rerender(render(n));
   expect(question()).toBe("Question 2?");
   await draw(3);
   expect(question()).toBe("Question 3?");
   await draw(1);
   expect(question()).toBe("Question 1?");
-  await act(() => root.unmount());
+  await unmount();
 });
 
 test("a permission ask behind an ordinary one is never a row or a step: it waits for its own card in the transcript", async () => {
-  const { useInboxStore } = await import("../../../store/inboxStore");
-  const before = useInboxStore.getState().sessionDecisions;
-  useInboxStore.setState({
-    sessionDecisions: {
-      ...before,
-      d2: {
-        _id: "d2",
-        conversation_id: "c1",
-        status: "pending",
-        question: "Question 2?",
-        options: [],
-        run: { id: "r1" },
-      },
-    },
-  } as any);
-  const pane = document.createElement("div");
-  document.body.appendChild(pane);
-  const root = createRoot(pane);
-  await act(() =>
-    root.render(
-      <MemoryRouter>
-        {modern(<Thread conversationId="c1" asks={[ask(1), ask(2), ask(3)]} />)}
-      </MemoryRouter>,
-    ),
+  const { pane, unmount } = await mount(
+    modern(<Thread conversationId="c1" asks={[ask(1), ask(2), ask(3)]} />),
+    (store) =>
+      store.syncTable("sessionDecisions", [
+        {
+          _id: "d2",
+          conversation_id: "c1",
+          status: "pending",
+          question: "Question 2?",
+          options: [],
+          run: { id: "r1" },
+        },
+      ]),
   );
   expect(pane.querySelector("[data-cc-ask-question]")!.textContent).toBe(
     "Question 1?",
@@ -726,24 +632,16 @@ test("a permission ask behind an ordinary one is never a row or a step: it waits
   ).toEqual(["decide:d3"]);
   // Counted among the asks the card steps through: two, not three.
   expect(pane.querySelector("[data-cc-ask]")!.textContent).toContain("1 of 2");
-  await act(() => root.unmount());
-  useInboxStore.setState({ sessionDecisions: before } as any);
+  await unmount();
 });
 
 test("the rows opened past the first few stay open from one ask to the next", async () => {
-  const pane = document.createElement("div");
-  document.body.appendChild(pane);
-  const root = createRoot(pane);
-  await act(() =>
-    root.render(
-      <MemoryRouter>
-        {modern(
-          <Thread
-            conversationId="c1"
-            asks={[1, 2, 3, 4, 5, 6].map((n) => ask(n))}
-          />,
-        )}
-      </MemoryRouter>,
+  const { pane, unmount } = await mount(
+    modern(
+      <Thread
+        conversationId="c1"
+        asks={[1, 2, 3, 4, 5, 6].map((n) => ask(n))}
+      />,
     ),
   );
   const rows = () => pane.querySelectorAll("[data-decision-other]").length;
@@ -755,7 +653,7 @@ test("the rows opened past the first few stay open from one ask to the next", as
     "Question 6?",
   );
   expect(rows()).toBe(5);
-  await act(() => root.unmount());
+  await unmount();
 });
 
 // Talking a run's gate over with its session is answering it in your own
@@ -763,20 +661,6 @@ test("the rows opened past the first few stay open from one ask to the next", as
 // as the answer and the question closes, instead of a comment that leaves
 // the sheet over the transcript.
 test("on a run gate, Discuss with the session opens the own-words answer", async () => {
-  const { useInboxStore } = await import("../../../store/inboxStore");
-  useInboxStore.getState().syncTable("sessionDecisions", [
-    {
-      _id: "d5",
-      short_id: "sd-5",
-      conversation_id: "c1",
-      status: "pending",
-      blocking: true,
-      created_at: Date.now() - 60_000,
-      question: "Ship it?",
-      options: [{ label: "Ship" }, { label: "Wait" }],
-      workflow_run_id: "run1",
-    } as any,
-  ]);
   const gate = {
     ...item(true),
     key: "decide:d5",
@@ -785,6 +669,20 @@ test("on a run gate, Discuss with the session opens the own-words answer", async
   };
   const { pane, unmount } = await mount(
     <SessionDecisionCard item={gate} stepper={null} />,
+    (store) =>
+      store.syncTable("sessionDecisions", [
+        {
+          _id: "d5",
+          short_id: "sd-5",
+          conversation_id: "c1",
+          status: "pending",
+          blocking: true,
+          created_at: Date.now() - 60_000,
+          question: "Ship it?",
+          options: [{ label: "Ship" }, { label: "Wait" }],
+          workflow_run_id: "run1",
+        },
+      ]),
   );
   expect(pane.querySelector("textarea")).toBeNull();
   const discuss = pane.querySelector<HTMLButtonElement>("[data-decision-ask]")!;
@@ -795,5 +693,5 @@ test("on a run gate, Discuss with the session opens the own-words answer", async
   expect(pane.querySelector("textarea")!.getAttribute("placeholder")).toContain(
     "Answer in your own words",
   );
-  unmount();
+  await unmount();
 });

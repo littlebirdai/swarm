@@ -1,135 +1,75 @@
-// Mounts the author pill (org-staffing.md S15) in jsdom against mocked store
-// hooks: a role author with the server's enrichment, a role the tree names,
-// a session author resolved from the store row and opened through the linked
-// session navigation, and a decision's origin line found from its context.
-// Run: bun components/org/ProposalAuthorPill.mount.test.tsx
+import { api } from "@codecast/convex/convex/_generated/api";
+import type { FunctionReturnType } from "convex/server";
 import { test } from "bun:test";
 import assert from "node:assert/strict";
+import * as React from "react";
+import { act } from "react";
+import { webBuilders } from "../../test-helpers/builders";
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import { ORG_FIXTURE } from "./orgFixture";
 import {
-  realInboxStore,
-  restoreInboxStoreAfterAll,
-} from "../__tests__/mockInboxStore";
+  ProposalAuthorPill,
+  DecisionProposalOrigin,
+} from "./ProposalAuthorPill";
 
-import { closeDomWindow } from "../../test-helpers/domGlobals";
-restoreInboxStoreAfterAll();
+const fixtures = webBuilders("ProposalAuthorPill.mount.test.tsx");
 
 async function verifyAuthorPill() {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLAnchorElement",
-    "HTMLButtonElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "getComputedStyle",
-  ]) {
-    Object.defineProperty(globalThis, key, {
-      value: (dom.window as any)[key],
-      configurable: true,
-      writable: true,
-    });
-  }
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  const { mock } = await import("bun:test");
-  const React = await import("react");
-  const opened: unknown[] = [];
-  const state = {
-    sessions: {
-      "conv-1": {
-        _id: "conv-1",
-        title: "Org review, September",
-        short_id: "jx7rev1",
-      },
-    } as Record<string, any>,
-    orgTree: null as any,
-    orgProposals: {
-      p8: {
-        _id: "p8",
-        short_id: "op-8",
-        author: { kind: "session", id: "conv-1" },
-      },
-    } as Record<string, any>,
+  const session = {
+    ...fixtures.session.build({
+      _id: "conv-1",
+      title: "Org review, September",
+    }),
+    short_id: "jx7rev1",
   };
-  const roles: any[] = [
-    {
-      _id: "role-1",
-      name: "Growth",
-      handle: "growth",
-      short_id: "or-1",
-      avatar: "owl",
+  const role = fixtures.role.build({
+    _id: "role-1",
+    name: "Growth",
+    handle: "growth",
+    short_id: "or-1",
+    avatar: "owl",
+  });
+  const web = await mountWeb(null, {
+    path: "/questions",
+    setup(backend, store) {
+      store.syncTable("sessions", [session]);
+      store.syncTable("orgTree", {
+        ...ORG_FIXTURE,
+        roles: [role, ...ORG_FIXTURE.roles],
+      });
+      store.syncTable("clientState", { ui: { show_characters: true } });
+      store.syncTable("orgProposals", [
+        {
+          _id: "p8",
+          short_id: "op-8",
+          author: { kind: "session", id: session._id },
+        },
+      ]);
+      backend.set(api.orgProposals.origin, ({ proposal }) => {
+        if (proposal === "op-9")
+          return {
+            short_id: "op-9",
+            status: "open",
+            author: {
+              kind: "role",
+              id: "role-x",
+              name: "Platform",
+              handle: "platform",
+              short_id: "or-2",
+            },
+          } as FunctionReturnType<typeof api.orgProposals.origin>;
+        if (proposal === "op-500") return new Error("boom");
+        return proposal === "op-404" ? null : pending;
+      });
     },
-  ];
-  // orgProposals.origin, by proposal ref: a named author, null (unreadable), or an Error (the read failed).
-  const origins: Record<string, any> = {
-    "op-9": {
-      short_id: "op-9",
-      status: "open",
-      author: {
-        kind: "role",
-        id: "role-x",
-        name: "Platform",
-        handle: "platform",
-        short_id: "or-2",
-      },
-    },
-    "op-404": null,
-    "op-500": new Error("boom"),
-  };
-  const asked: string[] = [];
-  mock.module("next/link", () => ({
-    default: ({ href, children, ...rest }: any) =>
-      React.createElement("a", { href, ...rest }, children),
-  }));
-  mock.module("../../store/inboxStore", () => ({
-    ...realInboxStore,
-    useTrackedStore: () => state,
-  }));
-  // Spread the real module: lines/lineTree reads its orgRolesSig, and a mock without it breaks every later import.
-  const realOrgRoles = { ...(await import("../../hooks/useOrgRoles")) };
-  mock.module("../../hooks/useOrgRoles", () => ({
-    ...realOrgRoles,
-    useOrgRoles: () => ({ roles, workspace: null }),
-  }));
-  mock.module("../../hooks/useQueryNoThrow", () => ({
-    useQueryNoThrow: (_fn: unknown, args: any) => {
-      if (args === "skip")
-        return { data: undefined, error: undefined, retry: () => {} };
-      asked.push(args.proposal);
-      const v = args.proposal in origins ? origins[args.proposal] : undefined;
-      return v instanceof Error
-        ? { data: undefined, error: v, retry: () => {} }
-        : { data: v, error: undefined, retry: () => {} };
-    },
-  }));
-  mock.module("../../hooks/useOpenLinkedSession", () => ({
-    useOpenLinkedSession: () => (row: unknown) => opened.push(row),
-  }));
-  // Spread the real module: a substitution is process-global, and a stub that
-  // drops avatarLength breaks every file that imports it afterwards.
-  const realAvatars = { ...(await import("./avatars")) };
-  mock.module("./avatars", () => ({
-    ...realAvatars,
-    RoleAvatar: ({ avatar }: { avatar: string }) =>
-      React.createElement("i", { "data-avatar": avatar }),
-  }));
-  const { act } = React;
-  const { createRoot } = await import("react-dom/client");
-  const { ProposalAuthorPill, DecisionProposalOrigin } =
-    await import("./ProposalAuthorPill");
-  // Characters default off (lib/uiPrefDefaults.ts); the role pill is checked wearing its face.
-  (await import("../../test-helpers/characters")).setCharacters(true);
-  const root = createRoot(document.getElementById("root")!);
-  const render = (el: React.ReactElement) => act(async () => root.render(el));
+  });
+  const render = web.rerender;
+  const asked = () =>
+    web.backend.queryRequests
+      .filter(({ name }) => name === "orgProposals:origin")
+      .map(({ args }) => args);
   const q = <T extends Element = HTMLElement>(sel: string) =>
     document.querySelector<T>(sel);
 
@@ -177,7 +117,7 @@ async function verifyAuthorPill() {
   );
   assert.equal(q('[data-proposal-author="role"]')!.tagName, "SPAN");
   assert.match(q('[data-proposal-author="role"]')!.textContent!, /a role/);
-  assert.deepEqual(asked, []);
+  assert.deepEqual(asked(), []);
 
   // A session author: title and short id from the store row; a click opens
   // the conversation through the linked session navigation.
@@ -190,13 +130,11 @@ async function verifyAuthorPill() {
   assert.equal(sessionPill.tagName, "BUTTON");
   assert.match(sessionPill.textContent!, /Org review, Septemberjx7rev1/);
   await act(async () => sessionPill.click());
-  const { updated_at, ...openedRow } = opened.pop() as Record<string, unknown>;
-  assert.equal(typeof updated_at, "number");
-  assert.deepEqual(openedRow, {
-    _id: "conv-1",
-    title: "Org review, September",
-    short_id: "jx7rev1",
+  assert.deepEqual(web.navigationLog.at(-1), {
+    action: "push",
+    path: "/conversation/conv-1",
   });
+  assert.match(sessionPill.title, /Org review, September \(jx7rev1\)/);
 
   // The pane hands its own opener; the pill uses it instead.
   const own: string[] = [];
@@ -220,6 +158,18 @@ async function verifyAuthorPill() {
   assert.match(
     q('[data-proposal-author="session"]')!.textContent!,
     /a session/,
+  );
+
+  const gone = q<HTMLButtonElement>('[data-proposal-author="session"]');
+  expectPresent(gone);
+  await act(async () => gone.click());
+  assert.deepEqual(web.navigationLog.at(-1), {
+    action: "push",
+    path: "/conversation/conv-gone",
+  });
+  assert.equal(
+    typeof web.store.getState().sessions["conv-gone"].updated_at,
+    "number",
   );
 
   // A person.
@@ -246,11 +196,11 @@ async function verifyAuthorPill() {
       .textContent,
     "op-8",
   );
-  assert.deepEqual(asked, [], "the store held the row, so nothing was asked");
+  assert.deepEqual(asked(), [], "the store held the row, so nothing was asked");
   await render(
     React.createElement(DecisionProposalOrigin, { contextMd: "Ship it?" }),
   );
-  assert.equal(q("[data-proposal-origin]"), null);
+  expectAbsent(q("[data-proposal-origin]"));
   // Not in the store: one light read names the author (orgProposals.origin), never the full proposal.
   await render(
     React.createElement(DecisionProposalOrigin, {
@@ -269,7 +219,7 @@ async function verifyAuthorPill() {
     q<HTMLAnchorElement>('[data-proposal-author="role"]')!.getAttribute("href"),
     "/org/or-2",
   );
-  assert.deepEqual(asked.splice(0).slice(-1), ["op-9"]);
+  assert.deepEqual(asked(), [{ proposal: "op-9" }]);
   // No answer yet says so; an unreadable proposal or a failed read still links the proposal and never waits on a name.
   await render(
     React.createElement(DecisionProposalOrigin, {
@@ -299,8 +249,7 @@ async function verifyAuthorPill() {
     );
   }
 
-  await act(async () => root.unmount());
-  closeDomWindow(dom);
+  await web.close();
 }
 
 test("shows who proposed a change and links to the proposal", verifyAuthorPill);

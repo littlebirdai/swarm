@@ -1,109 +1,44 @@
-// The atoms every goal surface draws
-// (docs/architecture/initiatives-projects-role-page.md I5), mounted in jsdom.
-// Proves: a metric reads right at every size with no value, one report, a
-// value that is not a number and a number to stay under (never "34 of under
-// 20"); the chip carries the metric's name; the trend glyph says the
-// contract's words; a far target stays off the sparkline's scale; a stored
-// day (a target, a milestone) names the same day east and west of UTC and
-// turns late by the viewer's own calendar; a source shows a note's words and
-// resolves who said it to a face; an update line reads as plain words.
-// Run: bun test components/initiatives/InitiativeAtoms.mount.test.tsx
+import { api } from "@codecast/convex/convex/_generated/api";
 import { test } from "bun:test";
-import {
-  realInboxStore,
-  restoreInboxStoreAfterAll,
-} from "../__tests__/mockInboxStore";
-
-restoreInboxStoreAfterAll();
 import assert from "node:assert/strict";
-import type { OrgTree } from "../org/orgTypes";
+import {
+  act,
+  createElement as h,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
+import { metricReading, metricTrend } from "@codecast/goals/initiative";
+import { targetDayStamp, formatShortDate } from "@codecast/time";
+import { stampRoster } from "../../lib/activeTeam";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import { ORG_FIXTURE } from "../org/orgFixture";
+import * as A from "./InitiativeAtoms";
 
 async function verifyAtoms() {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "getComputedStyle",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-  ]) {
-    Object.defineProperty(globalThis, key, {
-      value: (dom.window as any)[key],
-      configurable: true,
-    });
-  }
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  const { mock } = await import("bun:test");
-  const React = await import("react");
-  const { act } = React;
-
-  const { ORG_FIXTURE } = await import("../org/orgFixture");
-  const tree = ORG_FIXTURE as OrgTree;
-  const state: any = {
-    currentUser: { _id: "fixture-user-me", name: "Ashot" },
-    orgTree: tree,
-  };
-  const useInboxStore = Object.assign((sel: any) => sel(state), {
-    getState: () => state,
-    setState: () => {},
+  const web = await mountWeb(null, {
+    path: "/goals",
+    setup(backend, store) {
+      const team = ORG_FIXTURE.workspace.id;
+      store.syncTable("currentUser", { _id: "fixture-user-me", name: "Ashot" });
+      store.syncTable("clientState", { ui: { active_team_id: team } });
+      store.syncTable("orgTree", ORG_FIXTURE);
+      store.syncTable(
+        "teamMembers",
+        stampRoster(
+          [
+            { _id: "fixture-user-me", name: "Ashot" },
+            { _id: "fixture-user-sam", name: "Sam" },
+          ],
+          team,
+        ),
+      );
+      backend.set(api.org.roles, pending);
+    },
   });
-  mock.module("../../store/inboxStore", () => ({
-    ...realInboxStore,
-    useInboxStore,
-    useTrackedStore: () => state,
-  }));
-  const realOrgRoles = { ...(await import("../../hooks/useOrgRoles")) };
-  mock.module("../../hooks/useOrgRoles", () => ({
-    ...realOrgRoles,
-    useOrgRoles: () => ({
-      roles: tree.roles,
-      workspace: tree.workspace,
-      roleBotUserIds: new Set<string>(),
-    }),
-  }));
-  const realRoster = await import("../../hooks/useTeamRoster");
-  mock.module("../../hooks/useTeamRoster", () => ({
-    ...realRoster,
-    useTeamRosterIdentity: () => [
-      { _id: "fixture-user-me", name: "Ashot" },
-      { _id: "fixture-user-sam", name: "Sam" },
-    ],
-  }));
-  mock.module("next/link", () => ({
-    default: ({ href, children, ...rest }: any) =>
-      React.createElement("a", { href, ...rest }, children),
-  }));
-  const realAssignee = { ...(await import("../identity/AssigneeFace")) };
-  mock.module("../identity/AssigneeFace", () => ({
-    ...realAssignee,
-    AssigneeFace: ({ info }: any) =>
-      React.createElement("span", {
-        "data-face":
-          info.kind === "role" ? `role:${info.handle}` : `person:${info.name}`,
-      }),
-  }));
-
-  const { createRoot } = await import("react-dom/client");
-  const A = await import("./InitiativeAtoms");
-  const { metricReading, metricTrend } =
-    await import("@codecast/goals/initiative");
-  const { targetDayStamp, formatShortDate } = await import("@codecast/time");
-  const root = createRoot(document.getElementById("root")!);
-  const h = React.createElement;
-  const show = async (node: React.ReactNode) => {
-    await act(async () => root.render(node));
-    return document.getElementById("root")!;
+  const show = async (node: ReactNode) => {
+    await web.rerender(node);
+    return web.container;
   };
   // The words as read: each run of text, a space between runs (the gaps are CSS).
   const text = (el: Element | null) => {
@@ -125,10 +60,10 @@ async function verifyAtoms() {
   });
   const SIZES = ["tile", "line", "chip"] as const;
   const tile = async (
-    reading: any,
+    reading: ComponentProps<typeof A.MetricTile>["reading"],
     size: (typeof SIZES)[number],
-    trend?: any,
-    extra: any = {},
+    trend?: ComponentProps<typeof A.MetricTile>["trend"],
+    extra: Partial<ComponentProps<typeof A.MetricTile>> = {},
   ) => show(h(A.MetricTile, { reading, trend, now: NOW, size, ...extra }));
 
   // ── a number read over a window: within noise is its own state, never the met green, and the tile names the band ──
@@ -671,7 +606,7 @@ async function verifyAtoms() {
   );
   assert.match(label.className, /truncate/);
   assert.ok(
-    el.querySelector("[data-initiative-by='face'] [data-face='person:Sam']"),
+    el.querySelector("[data-initiative-by='face'] [title='Sam']"),
     "a name the roster knows wears its face",
   );
   assert.match(text(el), /Sam Sep 15$/);
@@ -700,8 +635,13 @@ async function verifyAtoms() {
   );
   assert.equal(el.querySelector("a")!.getAttribute("href"), "/tasks/ct-12");
   assert.equal(el.querySelector("a")!.getAttribute("title"), "said so");
+  await act(async () => el.querySelector("a")!.click());
+  assert.deepEqual(web.navigationLog.at(-1), {
+    action: "push",
+    path: "/tasks/ct-12",
+  });
   assert.ok(
-    el.querySelector("[data-face='role:growth']"),
+    el.querySelector("[data-assignee-role='or-1']"),
     "an @handle that is a role wears the role's face",
   );
   el = await show(
@@ -774,7 +714,7 @@ async function verifyAtoms() {
     "",
   );
 
-  await act(async () => root.unmount());
+  await web.close();
 }
 
 test("the goal atoms mount: metrics at every size, trend words, the sparkline's scale, days in every timezone, sources and the update line", async () => {
