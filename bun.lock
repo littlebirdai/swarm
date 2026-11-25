@@ -770,6 +770,15 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/edge-client": {
+      "name": "@codecast/edge-client",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/edge-contract": "workspace:*",
+        "@codecast/effect-kit": "workspace:*",
+        "effect": "catalog:",
+      },
+    },
     "packages/edge-contract": {
       "name": "@codecast/edge-contract",
       "version": "0.0.1",
@@ -1631,6 +1640,8 @@
     "@codecast/diff": ["@codecast/diff@workspace:packages/diff"],
 
     "@codecast/docs": ["@codecast/docs@workspace:packages/docs"],
+
+    "@codecast/edge-client": ["@codecast/edge-client@workspace:packages/edge-client"],
 
     "@codecast/edge-contract": ["@codecast/edge-contract@workspace:packages/edge-contract"],
 
