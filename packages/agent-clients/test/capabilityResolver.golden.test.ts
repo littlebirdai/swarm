@@ -32,6 +32,10 @@ export function goldenCases(): Array<{
 describe("resolver golden parity (shared)", () => {
   const cases = goldenCases();
 
+  it("finds every fixture", () => {
+    expect(cases.length).toBeGreaterThanOrEqual(15);
+  });
+
   it("covers every ignore reason the contract exports", () => {
     const reasons = new Set(
       cases.flatMap((c) => (c.output.ignored ?? []).map((i: any) => i.reason)),
