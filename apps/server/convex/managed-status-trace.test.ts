@@ -29,6 +29,13 @@ const cases = [
     after: "working",
   },
   {
+    name: "daemon clears boundary",
+    counts: [3, 978, 1, 320, 2],
+    before: "idle",
+    after: "idle",
+    boundaryBefore: true,
+  },
+  {
     name: "daemon turn end",
     counts: [9, 2546, 3, 797, 15],
     before: "working",
@@ -113,6 +120,9 @@ for (const scenario of cases) {
           agent_status: scenario.before,
           agent_status_updated_at: at,
           agent_status_write_at: at,
+          ...("boundaryBefore" in scenario
+            ? { agent_status_boundary: true }
+            : {}),
           ...("hosted" in scenario ? { hosted: true } : {}),
           ...("resume" in scenario ? { hibernated_at: at } : {}),
         });
@@ -163,6 +173,8 @@ for (const scenario of cases) {
           q.eq("conversation_id", conversationId),
         )
         .unique();
+      if ("boundaryBefore" in scenario)
+        expect(row?.agent_status_boundary).toBeUndefined();
       const conv = await ctx.db.get(conversationId);
       const beats = await ctx.db.query("session_heartbeats").collect();
       return {
