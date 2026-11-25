@@ -320,6 +320,40 @@ test("a tail anchored at zero can populate an empty conversation", async () => {
   }
 });
 
+test("an empty snapshot with a stale message count stays quiet until its tail delivers", async () => {
+  const mounted = await mountWeb(<LiveTranscript />, {
+    clock: true,
+    setup(backend, store) {
+      store.seedSession({ ...liveSession, message_count: 5 });
+      configureTranscript(backend);
+      backend.set(api.conversations.listMessages, snapshot());
+    },
+  });
+  const write = spyOn(cacheStorage, "writeConversationMessages");
+  try {
+    await mounted.clock!.advance(0);
+    write.mockClear();
+    for (let tick = 0; tick < 5; tick++) await mounted.clock!.advance(1000);
+    expect(
+      mounted.backend.queryRequests.filter(
+        (call) => call.name === "conversations:listMessages",
+      ),
+    ).toHaveLength(1);
+    expect(write).not.toHaveBeenCalled();
+    await act(async () => {
+      mounted.backend.set(api.conversations.listMessagesTail, {
+        messages: [first],
+        has_more: false,
+        last_timestamp: first.timestamp,
+      });
+    });
+    expect(mounted.container.textContent).toContain(first.content);
+  } finally {
+    write.mockRestore();
+    await mounted.close();
+  }
+});
+
 test.each(["disk read", "snapshot"] as const)(
   "deleting a prewarmed session during a %s leaves it deleted",
   async (stage) => {
