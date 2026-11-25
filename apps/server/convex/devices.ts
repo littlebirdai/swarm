@@ -1290,12 +1290,9 @@ export const reparentSessionToDevice = mutation({
   },
 });
 
-// How many sessions one claim moves. A machine that signed into a different
-// account can own more than this; the caller repeats until `more` is false.
+// The caller repeats the transfer until `more` is false.
 const CLAIM_ACCOUNT_PAGE = 100;
-// How many of the previous account's sessions on the device one claim reads to
-// find that page. Sessions the caller may not take stay put and are re-read by
-// every call, so the read is wider than the page.
+// The scan is wider than the page because private rows stay put.
 const CLAIM_ACCOUNT_SCAN = 500;
 
 export type ClaimDeviceAccountResult = {
@@ -1356,7 +1353,6 @@ export async function performClaimDeviceAccount(
       more: false,
       error: "the two accounts do not share a team",
     };
-
   const previousDevice = await ctx.db
     .query("devices")
     .withIndex("by_user_device", (q: any) =>
@@ -1366,25 +1362,23 @@ export async function performClaimDeviceAccount(
   if (previousDevice && now - previousDevice.last_seen < DEVICE_ONLINE_MS) {
     return { moved: 0, more: false, pending: true };
   }
-
-  const rows = await ctx.db
-    .query("conversations")
-    .withIndex("by_owner_device", (q: any) =>
-      q.eq("user_id", args.previousUserId).eq("owner_device_id", args.deviceId),
-    )
+  const { previousUserId, deviceId } = args;
+  const ownedRows = () =>
+    ctx.db
+      .query("conversations")
+      .withIndex("by_owner_device", (q: any) =>
+        q.eq("user_id", previousUserId).eq("owner_device_id", deviceId),
+      );
+  const rows = await ownedRows()
+    .filter((q: any) => q.eq(q.field("execution_protocol_state"), undefined))
     .take(CLAIM_ACCOUNT_SCAN);
   const caller = await ctx.db.get(callerId);
   const movable: any[] = [];
-  let refusal: string | undefined;
   for (const conv of rows) {
     const access = await checkConversationAccess(ctx, callerId, conv);
-    if (access !== "owner" && (access !== "team" || !caller || caller.is_bot))
-      continue;
-    const reason = fencedMoveRefusal(conv);
-    if (reason) refusal = reason;
-    else movable.push(conv);
+    if (access === "owner" || (access === "team" && caller && !caller.is_bot))
+      movable.push(conv);
   }
-  const skipped = rows.length - movable.length;
   const page = movable.slice(0, CLAIM_ACCOUNT_PAGE);
   for (const conv of page) {
     await ctx.db.patch(conv._id, {
@@ -1405,14 +1399,20 @@ export async function performClaimDeviceAccount(
     }
   }
   const more = movable.length > CLAIM_ACCOUNT_PAGE;
+  const fenced =
+    !more &&
+    (await ownedRows()
+      .filter((q: any) => q.neq(q.field("execution_protocol_state"), undefined))
+      .first());
+  const refusal = fenced && fencedMoveRefusal(fenced);
+  const skipped = rows.length - movable.length + Number(!!fenced);
   return {
     moved: page.length,
     more,
     ...(skipped > 0 ? { skipped } : {}),
-    ...(refusal && !more ? { error: refusal } : {}),
+    ...(refusal ? { error: refusal } : {}),
   };
 }
-
 export const claimDeviceAccount = mutation({
   args: {
     api_token: v.optional(v.string()),

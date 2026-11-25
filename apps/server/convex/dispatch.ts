@@ -6106,6 +6106,7 @@ const SIDE_EFFECTS: Record<string, HandlerFn> = {
         ...(extraArgs || {}),
       });
     } catch (e: any) {
+      if (e instanceof ConvexError) throw e;
       // Re-throw with routing context: the bare "Not authorized" from the
       // target mutation is undiagnosable in server logs (no args are logged).
       throw new Error(

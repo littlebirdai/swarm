@@ -7,6 +7,7 @@ import {
   sessionId,
   source,
 } from "../test-helpers/fenced-device-move.testkit";
+import { serverTest } from "../test-helpers/database.testkit";
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import { api, internal } from "./_generated/api";
 import { parkOnCloudHost } from "./cloudPlacement";
@@ -267,7 +268,7 @@ test("transcript ingest skips only the owner backfill on a fenced row", async ()
   }
 });
 
-test("claimDeviceAccount skips the fenced session and transfers its legacy neighbor", async () => {
+test("claimDeviceAccount transfers a legacy session after 500 fenced rows", async () => {
   const f = await moveFixture({
     execution_protocol_state: "fenced",
     is_private: false,
@@ -284,6 +285,14 @@ test("claimDeviceAccount skips the fenced session and transfers its legacy neigh
     await rows.membership(to, team);
     await rows.device(to, { device_id: source, last_seen: Date.now() });
     await db.patch(f.conversation, { team_id: team });
+    for (let i = 1; i < 500; i++) {
+      await rows.conversation(f.user, {
+        execution_protocol_state: "fenced",
+        team_id: team,
+        is_private: false,
+        owner_device_id: source,
+      });
+    }
     const legacy = await rows.conversation(f.user, {
       team_id: team,
       is_private: false,
@@ -310,6 +319,11 @@ test("claimDeviceAccount skips the fenced session and transfers its legacy neigh
       author_user_id: f.user,
       owner_device_id: source,
     });
+    const retained = await db
+      .query("conversations")
+      .withIndex("by_user_id", (q) => q.eq("user_id", f.user))
+      .collect();
+    expect(retained).toHaveLength(500);
     expect(await db.query("managed_sessions").unique()).toMatchObject({
       user_id: f.user,
     });
@@ -425,4 +439,159 @@ test("migration begin refuses a queued session that became fenced", async () => 
     status: "failed",
     error: refusal,
   });
+});
+
+test("mergeDuplicateUser finds a fenced head within its document read budget", async () => {
+  const maxDocumentsRead = 8;
+  const t = serverTest({ documentsRead: maxDocumentsRead });
+  const users = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "merge execution head");
+    const from = await rows.user();
+    const to = await rows.user();
+    for (let i = 0; i < maxDocumentsRead * 3; i++)
+      await rows.conversation(from);
+    const conversation = await rows.conversation(from);
+    await db.insert("conversation_execution_heads", {
+      conversation_id: conversation,
+      owner_user_id: from,
+      protocol_state: "legacy-quiescing",
+      protocol_version: 1,
+      next_conversation_sequence: 1,
+      next_nonterminal_sequence: 1,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    });
+    return { from_user_id: from, to_user_id: to };
+  });
+  await expect(
+    t.mutation(internal.admin_mergeUser.mergeDuplicateUser, {
+      ...users,
+      dry_run: false,
+    }),
+  ).rejects.toMatchObject({ data: refusal });
+});
+
+test("migration quiesce and restore refuse a session fenced after begin", async () => {
+  for (const state of [undefined, "fenced"] as const) {
+    const f = await moveFixture();
+    await f.t.run(async ({ db }) => {
+      for (const device of await db.query("devices").collect()) {
+        await db.patch(device._id, {
+          is_remote: device.device_id === destination,
+          last_seen: Date.now(),
+        });
+      }
+    });
+    const plan = await f.caller.mutation(api.sessionMigrations.createBatch, {
+      conversation_ids: [f.conversation],
+      to_device_id: destination,
+    });
+    const migration_id = await f.t.run(({ db }) =>
+      db.normalizeId("session_migrations", plan.rows[0].migration_id)!,
+    );
+    await expect(
+      f.caller.mutation(api.sessionMigrations.beginSession, {
+        migration_id,
+        device_id: source,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    if (state) {
+      await f.t.run(({ db }) =>
+        db.patch(f.conversation, { execution_protocol_state: state }),
+      );
+      await expect(
+        f.caller.mutation(api.dispatch.dispatch, {
+          action: "moveSessionToDevice",
+          args: ["retry-move", f.conversation, destination, false],
+        }),
+      ).rejects.toMatchObject({ data: refusal });
+      expect((await f.read())?.migration?.migration_id).toBe(migration_id);
+    }
+    const quiesce = f.caller.mutation(api.sessionMigrations.enqueueQuiesce, {
+      migration_id,
+      mode: "idle",
+    });
+    if (state) await expect(quiesce).rejects.toMatchObject({ data: refusal });
+    else
+      await expect(quiesce).resolves.toMatchObject({
+        target_device_id: source,
+      });
+    await expect(
+      f.caller.mutation(api.sessionMigrations.failSession, {
+        migration_id,
+        error: "failed move",
+        restore: true,
+      }),
+    ).resolves.toEqual({ ok: true, status: "failed" });
+    expect(await f.read()).toMatchObject({
+      owner_device_id: source,
+      user_id: f.user,
+    });
+    expect((await f.read())?.migration).toBeUndefined();
+    expect((await f.commands()).map(({ command }) => command)).toEqual(
+      state
+        ? ["migrate_sessions"]
+        : ["migrate_sessions", "quiesce_session", "resume_session"],
+    );
+  }
+});
+
+test.each([
+  ["a different local device", { target_device_id: destination }],
+  ["a cloud host", { cloud_device_id: source }],
+] as const)(
+  "reconfigureSession refuses %s on a fenced session outside placement",
+  async (_label, args) => {
+    const f = await moveFixture({ execution_protocol_state: "fenced" });
+    const before = await f.read();
+    await expect(
+      f.caller.mutation(api.conversations.reconfigureSession, {
+        ...args,
+        conversation_id: f.conversation,
+      }),
+    ).resolves.toEqual({ reconfigured: false, reason: refusal });
+    await expect(
+      f.caller.mutation(api.dispatch.dispatch, {
+        action: "convCommand",
+        args: [f.conversation, "reconfigureSession", args],
+      }),
+    ).rejects.toMatchObject({ data: refusal });
+    expect(await f.read()).toEqual(before);
+    expect(await f.commands()).toEqual([]);
+  },
+);
+
+test("convCommand preserves a nested team policy refusal", async () => {
+  const f = await moveFixture({ is_private: false });
+  await f.t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "cloud policy refusal");
+    const team = await rows.team({
+      name: "Cloud Test",
+      policy: { cloud_hosts_disabled: true },
+    });
+    await db.patch(f.conversation, { team_id: team });
+    const host = await db
+      .query("devices")
+      .withIndex("by_user_device", (q) =>
+        q.eq("user_id", f.user).eq("device_id", destination),
+      )
+      .unique();
+    await db.patch(host!._id, { is_remote: true });
+  });
+  await expect(
+    f.caller.mutation(api.dispatch.dispatch, {
+      action: "convCommand",
+      args: [
+        f.conversation,
+        "reconfigureSession",
+        { cloud_device_id: destination },
+      ],
+    }),
+  ).rejects.toMatchObject({
+    data: {
+      code: "FORBIDDEN",
+      message: "Cloud hosting is turned off by Cloud Test's admins.",
+    },
+  });
+  expect(await f.commands()).toEqual([]);
 });

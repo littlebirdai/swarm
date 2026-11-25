@@ -202,13 +202,17 @@ export const mergeDuplicateUser = internalMutation({
     }
 
     if (!args.dry_run) {
-      const fenced = await ctx.db
-        .query("conversations")
-        .withIndex("by_user_id", (q) => q.eq("user_id", args.from_user_id))
-        .filter((q) => q.neq(q.field("execution_protocol_state"), undefined))
+      const head = await ctx.db
+        .query("conversation_execution_heads")
+        .withIndex("by_owner_state", (q) =>
+          q.eq("owner_user_id", args.from_user_id),
+        )
         .first();
-      const refusal = fenced && fencedMoveRefusal(fenced);
-      if (refusal) throw new Error(refusal);
+      if (head)
+        fencedMoveRefusal(
+          { execution_protocol_state: head.protocol_state },
+          "throw",
+        );
     }
 
     const perTable: Record<string, number> = {};
@@ -299,6 +303,8 @@ export const mergeDuplicateUser = internalMutation({
             for (const duplicate of duplicates)
               await ctx.db.delete(duplicate._id);
           } else {
+            if (table === "conversations" && field === "user_id")
+              fencedMoveRefusal(row, "throw");
             await ctx.db.patch(row._id, { [field]: args.to_user_id } as any);
           }
         }

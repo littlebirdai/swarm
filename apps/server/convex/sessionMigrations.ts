@@ -1022,6 +1022,7 @@ export async function performEnqueueQuiesce(
     throw new Error("This offload was cancelled before the session stopped");
   const conv = await ctx.db.get(row.conversation_id);
   if (!conv) throw new Error("the session no longer exists");
+  fencedMoveRefusal(conv, "throw");
   // An unowned row moving to the cloud can only be running on the executor
   // (it holds the transcript); a move back always has a remote owner.
   const target: string | undefined =
@@ -1050,7 +1051,6 @@ export async function performEnqueueQuiesce(
   });
   return { command_id: id.toString(), target_device_id: target };
 }
-
 export const enqueueQuiesce = mutation({
   args: {
     api_token: v.optional(v.string()),
@@ -1341,7 +1341,7 @@ export async function performFailSession(
   // starts again where it is, so a failed move leaves nothing interrupted.
   if (args.restore) {
     const conv = await ctx.db.get(row.conversation_id);
-    if (conv?.owner_device_id)
+    if (conv?.owner_device_id && !fencedMoveRefusal(conv))
       await enqueueTargetedResume(
         ctx,
         userId,
@@ -1360,7 +1360,6 @@ export async function performFailSession(
   });
   return { ok: true, status };
 }
-
 export const failSession = mutation({
   args: {
     api_token: v.optional(v.string()),
@@ -1592,6 +1591,7 @@ export async function performRunHere(
     throw new Error(
       "not your conversation (you can only move a session you run or own, or one visible to your team)",
     );
+  fencedMoveRefusal(conv, "throw");
   const devices = await ctx.db
     .query("devices")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))

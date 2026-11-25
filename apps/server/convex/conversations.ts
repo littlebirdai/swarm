@@ -15756,6 +15756,14 @@ export const reconfigureSession = mutation({
         !(await isSessionOwner(ctx, conv._id, userId)))
     )
       throw new Error("Not found");
+    if (
+      args.cloud_device_id !== undefined ||
+      (args.target_device_id !== undefined &&
+        args.target_device_id !== conv.owner_device_id)
+    ) {
+      const reason = fencedMoveRefusal(conv);
+      if (reason) return { reconfigured: false as const, reason };
+    }
     // A hosted conversation has no machine, folder or local agent to pick.
     const hostedRefusal = agentTypeChangeRefusal(
       conv.agent_type,
@@ -15799,8 +15807,6 @@ export const reconfigureSession = mutation({
       conv.cloud_placement === "pending" &&
       args.target_device_id
     ) {
-      const reason = fencedMoveRefusal(conv);
-      if (reason) return { reconfigured: false as const, reason };
       const target = await ctx.db
         .query("devices")
         .withIndex("by_user_device", (q: any) =>
