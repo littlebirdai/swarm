@@ -258,7 +258,6 @@
     "src/codexBackendUsage.test.ts": 255,
     "src/codexImportContext.e2e.test.ts": 250,
     "src/codexImportContext.test.ts": 1005,
-    "src/codexImportReplay.test.ts": 257,
     "src/codexInlineImages.test.ts": 253,
     "src/codexPaneRegistry.test.ts": 315,
     "src/codexPermissions.e2e.test.ts": 250,
