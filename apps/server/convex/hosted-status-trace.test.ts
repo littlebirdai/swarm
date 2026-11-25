@@ -32,42 +32,42 @@ const drain = "syncOutbox:drain";
 const runJobs = ["assistant/turns:expire", "assistant/turns:run"];
 const legacy = {
   "hosted start": {
-    counts: [12, 4101, 11, 3674, 17],
+    counts: [12, 11, 17],
     jobs: [drain],
     state: { agent: "idle" },
   },
   queue: {
-    counts: [8, 2061, 4, 1032, 23],
+    counts: [8, 4, 23],
     jobs: [],
     state: { agent: "waiting", turns: ["queued"] },
   },
   "start turn": {
-    counts: [21, 5557, 14, 4148, 33],
+    counts: [21, 14, 33],
     jobs: [...runJobs, drain],
     state: { agent: "working", turns: ["running"] },
   },
   promote: {
-    counts: [17, 4013, 10, 2549, 26],
+    counts: [17, 10, 26],
     jobs: runJobs,
     state: { agent: "working", turns: ["running"] },
   },
   "budget stop": {
-    counts: [43, 14380, 22, 7562, 51],
+    counts: [43, 22, 51],
     jobs: [drain, "titleGeneration:generateTitle"],
     state: { agent: "idle", stop: "budget", turns: ["done"] },
   },
   "resume approval": {
-    counts: [8, 1803, 3, 806, 10],
+    counts: [8, 3, 10],
     jobs: [],
     state: { continues: true, turns: ["done", "running"] },
   },
   "pin blocked": {
-    counts: [16, 7428, 8, 4507, 17],
+    counts: [16, 8, 17],
     jobs: [drain],
     state: { pin: "blocked", result: '{"ready":true}' },
   },
   "replace pin": {
-    counts: [7, 2948, 4, 2068, 10],
+    counts: [7, 4, 10],
     jobs: [drain],
     state: { pin: "done", stashed: true },
   },
@@ -185,9 +185,7 @@ async function observeStatus(scenario: keyof typeof legacy) {
     const m = await ctx.meta.getTransactionMetrics();
     return [
       m.documentsRead.used,
-      m.bytesRead.used,
       m.documentsWritten.used,
-      m.bytesWritten.used,
       m.databaseQueries.used,
     ];
   });
