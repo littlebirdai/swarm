@@ -954,6 +954,28 @@ Then run `cd apps/server && bun test convex/`. Time `bun run sim` and the legacy
 | resumeVsSend                         | ada's two parked (hibernated) sessions s1 and s2, owned by her daemon's device; her window has both transcript tails open                                                                                             | ada `send(s1)` then daemon `resume(s1)`; daemon `resume(s2)` then ada `send(s2)`; the daemon polls, pastes, echoes and acks, then polls again                                                                                     | one delivery; one `client_id` on one pending row and one transcript line; bubble settles                                                                                                                                                                                              | passes in every default run and `--sweep 20` (sweep seed 671520 guards ct-56054)                                                                                                                                                                                                                                                               |
 | daemonRestartParked                  | ada has 3 parked (hibernated) sessions, each keyed by its `session_id`, one live working session, and a due trigger on a parked one                                                                                   | daemon heartbeat gap past `HEARTBEAT_ALIVE_MS`; `restart` of the live pane only (parking kills a pane, so the warm restart in daemon.ts cannot recover it); `claimTask`                                                           | no duplicate sessions; parked rows stay dormant during and after the gap, the live row is working again; `armed_trigger_kind` is consistent                                                                                                                                           | passes in every mode and seed of a 20-seed sweep                                                                                                                                                                                                                                                                                               |
 
+### Collaboration contracts
+
+Run `bun run sim multiplayer --sweep 256` from `apps/web`. Use `--trace` to see when each delivery occurs. The four files named `multiplayer-*.scenario.ts` use the same seeded scheduler, replay, and reports as the other scenarios.
+
+| Scenario                   | What the person sees                                                                                                                                                             |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `multiplayerTwoSenders`    | The first sender drives. The second message waits for the next turn. Each message reaches the agent once, even if a delivery retries.                                            |
+| `multiplayerOwnerTakeover` | The current driver stays in control until the handed steer settles. The fence stops an old steer if the machine has yet to hand it to the agent.                                 |
+| `multiplayerRelayStops`    | Presence disappears. The driver, queue, and deliveries continue. A stale steer stays in the composer's draft, with the option to queue it.                                       |
+| `multiplayerLateJoin`      | The second person sees their last read point, changed files, decisions, the driver, and the prompt. Their first attempt to steer queues and creates the existing driver's claim. |
+
+The `MultiplayerSession` interface in `sim/multiplayer-contract.ts` supplies these scenarios with a fake session. The fake follows CoSteer, StaleSteer, LoneJoin, FencedTakeover, and PromptAnswer. It uses `matchesExpected` from the edge contract at both the server and the machine. The write budget counts the fake's claim writes. The relay uses ephemeral state. A solo start, steer, and renewal attempt use zero extra writes.
+
+Replace the fake when these seams exist in the simulation:
+
+- The server starts a steer in the same transaction that checks the baton and the expected turn. A turn event identifies the sender who started a solo turn.
+- The daemon checks the expected turn and the fence before hand-over. The server receives a settlement or fence acknowledgement.
+- A relay connection supplies presence. The session view can still read the driver, queue, and prompts if that connection stops.
+- The late-join view reads a turn snapshot, a per-person read point, and the current prompt. The server checks who can answer. The daemon checks the prompt ID and run epoch.
+
+The fake supplies these four cases with claim and receipt state, relay events, composer state, and snapshot data. The cases measure the contract outcomes in memory. The Convex handlers, daemon journal, network recovery, and browser rendering need their own integration checks.
+
 ## 7. Risks and mitigations
 
 | Risk                                                                                                          | Mitigation                                                                                                                                                                                                                                                                                                    |
