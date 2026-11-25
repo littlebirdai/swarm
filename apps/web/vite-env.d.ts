@@ -3,6 +3,8 @@
 
 interface ImportMetaEnv {
   readonly VITE_CONVEX_URL: string;
+  readonly VITE_RELAY_PRESENCE?: string;
+  readonly VITE_RELAY_URL?: string;
   /** "1" runs the dev server in docs shots mode (lib/docsShots/flag.ts). */
   readonly VITE_DOCS_SHOTS?: string;
 }
