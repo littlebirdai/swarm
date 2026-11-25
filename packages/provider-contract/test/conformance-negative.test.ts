@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 import type { ObservedSession, OwnedSession, ProviderEvent } from "../src";
-import { providerConformanceCases, type ProviderFixture } from "./conformance";
+import {
+  providerConformanceCases,
+  type ProviderEffect,
+  type ProviderFixture,
+} from "./conformance";
 import { fakeProvider } from "./fake-provider";
 
 type Session = ObservedSession | OwnedSession;
@@ -84,7 +88,7 @@ for (const field of ["run", "fencing_token"] as const) {
 for (const control of ["interrupt", "answer"] as const) {
   test(`kit rejects ${control} after close`, async () => {
     const fixture = fakeProvider(provider);
-    const leaked: string[] = [];
+    const leaked: ProviderEffect[] = [];
     await rejectsBrokenFixture(
       withSession(
         { ...fixture, effects: () => [...fixture.effects(), ...leaked] },
@@ -225,6 +229,39 @@ for (const [name, corrupt] of [
         };
       }),
       "events are canonical, scoped and ordered",
+    );
+  });
+}
+
+for (const name of [
+  "stale actions reach neither the agent nor the pane or leak a fence",
+  "close fences actions paused before their write",
+] as const) {
+  test(`kit runs ${name} for receipt-only steer`, async () => {
+    const fixture = fakeProvider(
+      { ...provider, capabilities: ["own", "receipts"] },
+      { startTurnOnSteer: true },
+    );
+    await rejectsBrokenFixture(
+      withSession(fixture, (session) => {
+        const steer = session.steer;
+        session.steer = async (request) => {
+          const result = await steer({
+            ...request,
+            expected: {
+              ...request.expected,
+              fencing_token: fixture.steer.expected.fencing_token,
+            },
+          });
+          if (result.status === "closed")
+            return {
+              status: "accepted",
+              receipt: { delivery_id: request.delivery_id },
+            };
+          return result;
+        };
+      }),
+      name,
     );
   });
 }

@@ -2,7 +2,7 @@ import type { ProviderEvent, ProviderEventIterator } from "../src";
 
 type EventResult = IteratorResult<ProviderEvent, undefined>;
 
-export function fakeEventStream(capacity: number) {
+export function fakeEventStream(capacity: number, failOnOverflow = false) {
   const done = { done: true, value: undefined } as const;
   const buffer: ProviderEvent[] = [];
   const backpressure = Promise.withResolvers<void>();
@@ -48,6 +48,10 @@ export function fakeEventStream(capacity: number) {
     end,
     discard: () => iterator.return(),
     async emit(event: ProviderEvent) {
+      if (failOnOverflow && !ended && buffer.length >= capacity) {
+        end(new Error("Event buffer overflow"));
+        return;
+      }
       while (buffer.length >= capacity && !ended) {
         backpressure.resolve();
         await room.promise;

@@ -1,7 +1,10 @@
 import type {
   CanonicalEvent,
   EdgeJson,
+  Expected,
   MessageDelta,
+  Observed,
+  PaneInstance,
 } from "@codecast/edge-contract";
 import type { ProviderCapability, ProviderOffer } from "./capabilities";
 
@@ -23,7 +26,7 @@ export interface SessionScope {
   readonly afterSeq: number;
 }
 
-export type PaneInstance = number;
+export type { PaneInstance } from "@codecast/edge-contract";
 
 export interface ObserveSpec extends SessionScope {
   readonly transcript: string;
@@ -43,13 +46,15 @@ export interface ResumeSpec extends StartSpec {
   readonly checkpoint: string;
 }
 
-export interface RunFence {
-  readonly run: SessionScope["run"];
-  readonly fencing_token: string;
-}
+type ExpectedPrompt = Extract<Expected, { kind: "prompt" }>;
+type ExpectedTerminal = Extract<Expected, { kind: "terminal" }>;
+
+export type RunFence = Readonly<
+  Pick<ExpectedPrompt, "run"> & Pick<ExpectedTerminal, "fencing_token">
+>;
 
 export interface SessionPosition extends RunFence {
-  readonly turn: CanonicalEvent["turn"];
+  readonly turn: Extract<Expected, { kind: "turn" }>["turn"];
 }
 
 export interface SteerRequest {
@@ -77,9 +82,7 @@ type PromptSettlement = Extract<
 >["body"];
 
 export interface AnswerRequest {
-  readonly expected: RunFence & {
-    readonly prompt_id: PromptSettlement["prompt_id"];
-  };
+  readonly expected: RunFence & Readonly<Pick<ExpectedPrompt, "prompt_id">>;
   readonly by: PromptSettlement["by"];
   readonly answer: PromptSettlement["answer"];
 }
@@ -95,18 +98,16 @@ export type Refused = {
   readonly message: string;
 };
 
-export type ObservedPosition =
-  | { readonly kind: "turn"; readonly turn: CanonicalEvent["turn"] }
-  | {
-      readonly kind: "prompt";
-      readonly run: SessionScope["run"] | null;
-      readonly prompt_id: PromptSettlement["prompt_id"] | null;
-    }
-  | { readonly kind: "terminal"; readonly pane_instance: PaneInstance | null };
+export type ObservedPosition = Readonly<
+  | Extract<Observed, { kind: "turn" | "prompt" }>
+  | Omit<Extract<Observed, { kind: "terminal" }>, "fencing_token">
+>;
 
-export type Stale = {
+export type Stale<
+  Kind extends ObservedPosition["kind"] = ObservedPosition["kind"],
+> = {
   readonly status: "stale";
-  readonly observed: ObservedPosition;
+  readonly observed: Extract<ObservedPosition, { kind: Kind }>;
 };
 
 export type InDoubt = {
@@ -116,22 +117,18 @@ export type InDoubt = {
   readonly message: string;
 };
 
-type ActionRefusal =
-  | Stale
-  | Unsupported
-  | Refused
-  | { readonly status: "closed" };
+type ActionRefusal = Unsupported | Refused | { readonly status: "closed" };
 
 export type DeliveryOutcome =
   | { readonly status: "accepted"; readonly receipt: DeliveryReceipt }
   | { readonly status: "duplicate"; readonly receipt: DeliveryReceipt }
+  | Stale<"turn" | "terminal">
   | ActionRefusal
   | InDoubt;
 
-export type ControlOutcome =
-  | { readonly status: "applied" }
-  | ActionRefusal
-  | InDoubt;
+export type ControlOutcome<
+  Kind extends "turn" | "prompt" = "turn" | "prompt",
+> = { readonly status: "applied" } | Stale<Kind> | ActionRefusal | InDoubt;
 export type CloseOutcome =
   | { readonly status: "closed" }
   | {
@@ -153,8 +150,8 @@ interface SessionOperations {
     [Symbol.asyncIterator](): ProviderEventIterator;
   };
   steer(request: SteerRequest): Promise<DeliveryOutcome>;
-  interrupt(request: InterruptRequest): Promise<ControlOutcome>;
-  answer(request: AnswerRequest): Promise<ControlOutcome>;
+  interrupt(request: InterruptRequest): Promise<ControlOutcome<"turn">>;
+  answer(request: AnswerRequest): Promise<ControlOutcome<"prompt">>;
   close(): Promise<CloseOutcome>;
 }
 

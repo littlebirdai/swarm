@@ -18,11 +18,11 @@ import type {
   ProviderEventIterator,
   ResumeSpec,
   SessionScope,
-  Stale,
   SteerRequest,
 } from "../src";
 
 type Session = ObservedSession | OwnedSession;
+export type ProviderEffect = "steer" | "interrupt" | "answer";
 
 export interface ProviderFixture {
   readonly adapter: ProviderAdapter;
@@ -36,20 +36,23 @@ export interface ProviderFixture {
     Pick<CanonicalEvent, "kind" | "body">,
   ];
   readonly nonReceiptDelivery: InDoubt | { readonly status: "unsupported" };
-  readonly interruptOutcome: ControlOutcome;
-  readonly answerOutcome: ControlOutcome;
+  readonly interruptOutcome: ControlOutcome<"turn">;
+  readonly answerOutcome: ControlOutcome<"prompt">;
   readonly bufferCapacity: number;
   open(scope: SessionScope): Promise<OpenOutcome<Session>>;
   resumeSpec(checkpoint: string): ResumeSpec;
-  advanceCheckpoint(): Promise<string>;
+  advanceCheckpoint?(): Promise<string>;
   sendEvent(index: number): Promise<void>;
-  waitForBackpressure(): Promise<void>;
+  readonly backpressure:
+    | { kind: "block"; wait(): Promise<void> }
+    | { kind: "fail" };
   atActiveTurn<T>(run: () => Promise<T>): Promise<T>;
-  pauseBeforeWrite(): { entered: Promise<void>; release(): void };
+  atPendingPrompt<T>(run: () => Promise<T>): Promise<T>;
+  pauseBeforeWrite?(): { entered: Promise<void>; release(): void };
   processExit(): Promise<void>;
   streamDefect(error: Error): Promise<void>;
   failClose(): Extract<CloseOutcome, { status: "failed" }>;
-  effects(): readonly string[];
+  effects(): readonly ProviderEffect[];
   releases(): number;
 }
 
@@ -82,8 +85,24 @@ function reader(events: ProviderEventIterator, scope: SessionScope) {
   };
 }
 
-function stale(observed: ObservedPosition): Stale {
-  return { status: "stale", observed };
+function stale<Position extends ObservedPosition>(observed: Position) {
+  return { status: "stale", observed } as const;
+}
+
+function supportsSteer(fixture: ProviderFixture) {
+  return (
+    fixture.mode === "own" ||
+    fixture.nonReceiptDelivery.status !== "unsupported"
+  );
+}
+
+function expectStaleTurn(outcome: {
+  status: string;
+  observed?: ObservedPosition;
+}) {
+  expect(outcome.status).toBe("stale");
+  expect(outcome.observed?.kind).toBe("turn");
+  expect(outcome.observed).not.toHaveProperty("fencing_token");
 }
 
 function actions(fixture: ProviderFixture, session: Session) {
@@ -91,7 +110,7 @@ function actions(fixture: ProviderFixture, session: Session) {
   return [
     {
       kind: "steer",
-      available: fixture.nonReceiptDelivery.status !== "unsupported",
+      available: supportsSteer(fixture),
       run: () => session.steer(fixture.steer),
     },
     {
@@ -103,7 +122,7 @@ function actions(fixture: ProviderFixture, session: Session) {
     {
       kind: "answer",
       available: capabilities.includes("prompts"),
-      run: () => fixture.atActiveTurn(() => session.answer(fixture.answer)),
+      run: () => fixture.atPendingPrompt(() => session.answer(fixture.answer)),
     },
   ];
 }
@@ -150,6 +169,8 @@ export function providerConformanceCases(create: () => ProviderFixture) {
         };
         const draining = drain();
         try {
+          expect(fixture.orderedEvents[0].kind).not.toBe("turn.started");
+          expect(fixture.orderedEvents[0].kind).not.toBe("turn.ended");
           await fixture.sendEvent(0);
           if (hasReceipts) {
             const results = await Promise.all([
@@ -157,19 +178,27 @@ export function providerConformanceCases(create: () => ProviderFixture) {
               session.steer(fixture.steer),
             ]);
             expect(results).toContainEqual({ status: "accepted", receipt });
-            expect(results).toContainEqual({ status: "duplicate", receipt });
+            const retry = results.find(
+              (result) => result.status !== "accepted",
+            );
+            if (retry?.status === "stale" && retry.observed.kind === "turn") {
+              expectStaleTurn(retry);
+              expect(retry.observed.turn).not.toBe(fixture.steer.expected.turn);
+            } else {
+              expect(retry).toEqual({ status: "duplicate", receipt });
+            }
             expect(fixture.effects()).toEqual(["steer"]);
             const { expected } = fixture.steer;
             for (const wrong of [
               { run: expected.run + 1 },
               { fencing_token: "old-fence" },
             ]) {
-              expect(
+              expectStaleTurn(
                 await session.steer({
                   ...fixture.steer,
                   expected: { ...expected, ...wrong },
                 }),
-              ).toEqual(stale({ kind: "turn", turn: expected.turn }));
+              );
             }
             expect(fixture.effects()).toEqual(["steer"]);
           } else {
@@ -198,7 +227,7 @@ export function providerConformanceCases(create: () => ProviderFixture) {
       const session = await open(fixture);
       const { capabilities } = fixture.adapter.provider;
       try {
-        if (fixture.nonReceiptDelivery.status !== "unsupported") {
+        if (supportsSteer(fixture)) {
           const { expected } = fixture.steer;
           for (const wrong of [
             { run: expected.run + 1 },
@@ -232,8 +261,8 @@ export function providerConformanceCases(create: () => ProviderFixture) {
             );
           }
         }
-        await fixture.atActiveTurn(async () => {
-          if (capabilities.includes("interrupt")) {
+        if (capabilities.includes("interrupt")) {
+          await fixture.atActiveTurn(async () => {
             const { expected } = fixture.interrupt;
             for (const wrong of [
               { run: expected.run + 1 },
@@ -246,8 +275,10 @@ export function providerConformanceCases(create: () => ProviderFixture) {
                 }),
               ).toEqual(stale({ kind: "turn", turn: expected.turn }));
             }
-          }
-          if (capabilities.includes("prompts")) {
+          });
+        }
+        if (capabilities.includes("prompts")) {
+          await fixture.atPendingPrompt(async () => {
             const { expected } = fixture.answer;
             for (const wrong of [
               { run: expected.run + 1 },
@@ -267,8 +298,8 @@ export function providerConformanceCases(create: () => ProviderFixture) {
                 }),
               );
             }
-          }
-        });
+          });
+        }
         expect(fixture.effects()).toEqual([]);
       } finally {
         await session.close();
@@ -279,38 +310,43 @@ export function providerConformanceCases(create: () => ProviderFixture) {
       const fixture = create();
       const session = await open(fixture);
       const { capabilities } = fixture.adapter.provider;
-      const applied: string[] = [];
+      const applied: ProviderEffect[] = [];
       try {
-        await fixture.atActiveTurn(async () => {
-          if (capabilities.includes("steer-mid-turn")) {
-            const outcome = await session.steer({
-              ...fixture.steer,
-              expected: {
-                ...fixture.steer.expected,
-                turn: fixture.interrupt.expected.turn,
-              },
-            });
-            expect(outcome).toMatchObject(
-              capabilities.includes("receipts")
-                ? {
-                    status: "accepted",
-                    receipt: { delivery_id: fixture.steer.delivery_id },
-                  }
-                : fixture.nonReceiptDelivery,
-            );
-            applied.push("steer");
-            expect(fixture.effects()).toEqual(applied);
-          }
-          if (capabilities.includes("interrupt")) {
-            expect(await session.interrupt(fixture.interrupt)).toEqual(
-              fixture.interruptOutcome,
-            );
-            applied.push("interrupt");
-            expect(fixture.effects()).toEqual(applied);
-          }
-        });
-        if (capabilities.includes("prompts")) {
+        if (
+          capabilities.includes("steer-mid-turn") ||
+          capabilities.includes("interrupt")
+        ) {
           await fixture.atActiveTurn(async () => {
+            if (capabilities.includes("steer-mid-turn")) {
+              const outcome = await session.steer({
+                ...fixture.steer,
+                expected: {
+                  ...fixture.steer.expected,
+                  turn: fixture.interrupt.expected.turn,
+                },
+              });
+              expect(outcome).toMatchObject(
+                capabilities.includes("receipts")
+                  ? {
+                      status: "accepted",
+                      receipt: { delivery_id: fixture.steer.delivery_id },
+                    }
+                  : fixture.nonReceiptDelivery,
+              );
+              applied.push("steer");
+              expect(fixture.effects()).toEqual(applied);
+            }
+            if (capabilities.includes("interrupt")) {
+              expect(await session.interrupt(fixture.interrupt)).toEqual(
+                fixture.interruptOutcome,
+              );
+              applied.push("interrupt");
+              expect(fixture.effects()).toEqual(applied);
+            }
+          });
+        }
+        if (capabilities.includes("prompts")) {
+          await fixture.atPendingPrompt(async () => {
             expect(await session.answer(fixture.answer)).toEqual(
               fixture.answerOutcome,
             );
@@ -335,10 +371,12 @@ export function providerConformanceCases(create: () => ProviderFixture) {
       const hasReceipts = capabilities.includes("receipts");
       let spec: ResumeSpec;
       try {
-        const before = session.getCheckpoint();
-        const latest = await fixture.advanceCheckpoint();
-        expect(latest).not.toBe(before);
-        expect(session.getCheckpoint()).toBe(latest);
+        if (fixture.advanceCheckpoint) {
+          const before = session.getCheckpoint();
+          const latest = await fixture.advanceCheckpoint();
+          expect(latest).not.toBe(before);
+          expect(session.getCheckpoint()).toBe(latest);
+        }
         if (hasReceipts)
           expect(await session.steer(fixture.steer)).toEqual({
             status: "accepted",
@@ -403,29 +441,30 @@ export function providerConformanceCases(create: () => ProviderFixture) {
             requires: "resume",
           });
         }
-        await fixture.atActiveTurn(async () => {
-          if (!capabilities.includes("steer-mid-turn")) {
-            expect(
-              await session.steer({
-                ...fixture.steer,
-                expected: {
-                  ...fixture.steer.expected,
-                  turn: fixture.interrupt.expected.turn,
-                },
-              }),
-            ).toMatchObject({ status: "unsupported" });
-          }
-          if (!capabilities.includes("interrupt")) {
-            expect(await session.interrupt(fixture.interrupt)).toMatchObject({
-              status: "unsupported",
+        if (!capabilities.includes("steer-mid-turn")) {
+          const steer = () =>
+            session.steer({
+              ...fixture.steer,
+              expected: {
+                ...fixture.steer.expected,
+                turn: fixture.interrupt.expected.turn,
+              },
             });
-          }
-          if (!capabilities.includes("prompts")) {
-            expect(await session.answer(fixture.answer)).toMatchObject({
-              status: "unsupported",
-            });
-          }
-        });
+          const outcome = supportsSteer(fixture)
+            ? await fixture.atActiveTurn(steer)
+            : await steer();
+          expect(outcome).toMatchObject({ status: "unsupported" });
+        }
+        if (!capabilities.includes("interrupt")) {
+          expect(await session.interrupt(fixture.interrupt)).toMatchObject({
+            status: "unsupported",
+          });
+        }
+        if (!capabilities.includes("prompts")) {
+          expect(await session.answer(fixture.answer)).toMatchObject({
+            status: "unsupported",
+          });
+        }
         expect(fixture.effects()).toEqual([]);
       } finally {
         await session.close();
@@ -464,6 +503,7 @@ export function providerConformanceCases(create: () => ProviderFixture) {
     async "close fences actions paused before their write"() {
       for (const index of [0, 1, 2]) {
         const fixture = create();
+        if (!fixture.pauseBeforeWrite) return;
         const session = await open(fixture);
         const action = actions(fixture, session)[index];
         if (!action.available) {
@@ -528,17 +568,32 @@ export function providerConformanceCases(create: () => ProviderFixture) {
         for (let index = 0; index < fixture.bufferCapacity; index++)
           await fixture.sendEvent(index);
         const overflow = fixture.sendEvent(fixture.bufferCapacity);
-        expect(
-          await Promise.race([
-            fixture.waitForBackpressure().then(() => "blocked"),
-            overflow.then(() => "accepted"),
-          ]),
-        ).toBe("blocked");
-        expect((await events.next()).done).toBe(false);
-        await overflow;
-        const pendingProducer = fixture.sendEvent(fixture.bufferCapacity + 1);
-        expect((await events.return()).done).toBe(true);
-        await pendingProducer;
+        if (fixture.backpressure.kind === "block") {
+          expect(
+            await Promise.race([
+              fixture.backpressure.wait().then(() => "blocked"),
+              overflow.then(() => "accepted"),
+            ]),
+          ).toBe("blocked");
+          expect((await events.next()).done).toBe(false);
+          await overflow;
+          const pendingProducer = fixture.sendEvent(fixture.bufferCapacity + 1);
+          expect((await events.return()).done).toBe(true);
+          await pendingProducer;
+        } else {
+          const producer = overflow.catch((error: unknown) => error);
+          let failure: unknown;
+          for (let index = 0; index <= fixture.bufferCapacity; index++) {
+            const result = await events.next().catch((error: unknown) => error);
+            if (result instanceof Error) {
+              failure = result;
+              break;
+            }
+          }
+          expect(failure).toBeInstanceOf(Error);
+          expect((await events.return()).done).toBe(true);
+          await producer;
+        }
         await fixture.sendEvent(0);
         expect((await events.next()).done).toBe(true);
         expect(fixture.releases()).toBe(0);
@@ -584,7 +639,10 @@ export function providerConformanceCases(create: () => ProviderFixture) {
         const fault = new Error("fixture defect");
         const result = pending.catch((error: unknown) => error);
         await fresh.streamDefect(fault);
-        expect(await result).toBe(fault);
+        const error = await result;
+        expect(
+          error instanceof Error && (error === fault || error.cause === fault),
+        ).toBe(true);
       } finally {
         await freshSession.close();
       }

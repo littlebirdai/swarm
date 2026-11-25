@@ -13,7 +13,7 @@ import type {
   RunFence,
   StartSpec,
 } from "../src";
-import type { ProviderFixture } from "./conformance";
+import type { ProviderEffect, ProviderFixture } from "./conformance";
 import { fakeEventStream } from "./fake-event-stream";
 
 const scope = { session: "session-1", run: 1, afterSeq: 10 };
@@ -37,23 +37,32 @@ const bestEffort = {
   message: "The transport accepted the write",
 } as const satisfies InDoubt;
 
-function stale(observed: ObservedPosition) {
+function stale<Position extends ObservedPosition>(observed: Position) {
   return { status: "stale", observed } as const;
 }
 
 export function fakeProvider(
   provider: ProviderOffer,
-  confirmations: { interrupt?: ControlOutcome; answer?: ControlOutcome } = {},
+  options: {
+    interrupt?: ControlOutcome<"turn">;
+    answer?: ControlOutcome<"prompt">;
+    readOnly?: boolean;
+    startTurnOnSteer?: boolean;
+    stableCheckpoint?: boolean;
+    eventDrivenTurn?: boolean;
+    failOnOverflow?: boolean;
+  } = {},
 ): ProviderFixture {
-  const interruptOutcome = confirmations.interrupt ?? { status: "applied" };
-  const answerOutcome = confirmations.answer ?? { status: "applied" };
+  const interruptOutcome = options.interrupt ?? { status: "applied" };
+  const answerOutcome = options.answer ?? { status: "applied" };
   const has = (capability: ProviderOffer["capabilities"][number]) =>
     provider.capabilities.includes(capability);
   const mode = has("own") ? "own" : "observe";
   const receipts = new Map<string, DeliveryReceipt>();
-  const applied: string[] = [];
+  const applied: ProviderEffect[] = [];
   let releases = 0;
   let activeTurn: string | null = null;
+  let pendingPrompt: string | null = null;
   let currentCheckpoint = checkpoint;
   let nextWrite: (() => Promise<void>) | undefined;
   let closeResult: CloseOutcome = closed;
@@ -65,7 +74,8 @@ export function fakeProvider(
     paste?: ObserveSpec["paste"],
   ) {
     const { session, run, afterSeq } = spec;
-    const stream = fakeEventStream(bufferCapacity);
+    const stream = fakeEventStream(bufferCapacity, options.failOnOverflow);
+    activeTurn = null;
     let seq = afterSeq;
     let releaseResult: Promise<CloseOutcome> | undefined;
     let exiting = false;
@@ -88,17 +98,24 @@ export function fakeProvider(
     const script = {
       async sendEvent(index: number) {
         if (isClosed()) return;
-        await stream.emit(
-          index === 0
-            ? { ...envelope, turn, seq: ++seq, kind: "turn.started", body: {} }
-            : {
-                ...envelope,
-                turn,
-                seq: ++seq,
-                kind: "message.assistant",
-                body: { message_id: `answer-${index}`, text: "hello" },
-              },
-        );
+        if (index === 1 && options.eventDrivenTurn) {
+          activeTurn = turn;
+          await stream.emit({
+            ...envelope,
+            turn,
+            seq: ++seq,
+            kind: "turn.started",
+            body: {},
+          });
+          return;
+        }
+        await stream.emit({
+          ...envelope,
+          turn: activeTurn,
+          seq: ++seq,
+          kind: "context",
+          body: { data: { index } },
+        });
       },
       async processExit() {
         if (isClosed()) return;
@@ -114,7 +131,11 @@ export function fakeProvider(
       },
       async streamDefect(error: Error) {
         exiting = true;
-        stream.end(error);
+        stream.end(
+          options.stableCheckpoint
+            ? new Error("Adapter stream failed", { cause: error })
+            : error,
+        );
       },
       waitForBackpressure: stream.waitForBackpressure,
     };
@@ -128,11 +149,6 @@ export function fakeProvider(
         const pause = yieldBeforeWrite();
         if (pause) await pause;
         if (isClosed()) return closed;
-        if (
-          activeTurn !== null &&
-          (sessionMode === "observe" || !has("steer-mid-turn"))
-        )
-          return { status: "unsupported", requires: "steer-mid-turn" };
         if (paste && request.expected.pane_instance !== paste.pane_instance)
           return stale({
             kind: "terminal",
@@ -146,7 +162,13 @@ export function fakeProvider(
         const existing =
           sessionMode === "own" ? receipts.get(request.delivery_id) : undefined;
         if (existing) return { status: "duplicate", receipt: existing };
+        if (
+          activeTurn !== null &&
+          (sessionMode === "observe" || !has("steer-mid-turn"))
+        )
+          return { status: "unsupported", requires: "steer-mid-turn" };
         applied.push("steer");
+        if (options.startTurnOnSteer) activeTurn = turn;
         if (sessionMode === "observe" || !has("receipts")) return bestEffort;
         const receipt = { delivery_id: request.delivery_id };
         receipts.set(request.delivery_id, receipt);
@@ -159,7 +181,7 @@ export function fakeProvider(
         });
         return { status: "accepted", receipt };
       },
-      async interrupt(request): Promise<ControlOutcome> {
+      async interrupt(request): Promise<ControlOutcome<"turn">> {
         if (isClosed()) return closed;
         if (sessionMode !== "own")
           return { status: "unsupported", requires: "owned-session" };
@@ -176,7 +198,7 @@ export function fakeProvider(
         applied.push("interrupt");
         return interruptOutcome;
       },
-      async answer(request): Promise<ControlOutcome> {
+      async answer(request): Promise<ControlOutcome<"prompt">> {
         if (isClosed()) return closed;
         if (sessionMode !== "own")
           return { status: "unsupported", requires: "owned-session" };
@@ -185,7 +207,6 @@ export function fakeProvider(
         const pause = yieldBeforeWrite();
         if (pause) await pause;
         if (isClosed()) return closed;
-        const pendingPrompt = activeTurn === null ? null : prompt;
         if (
           !matchesFence(request.expected) ||
           request.expected.prompt_id !== pendingPrompt
@@ -270,13 +291,15 @@ export function fakeProvider(
       answer: true,
     },
     orderedEvents: [
-      { kind: "turn.started", body: {} },
-      {
-        kind: "message.assistant",
-        body: { message_id: "answer-1", text: "hello" },
-      },
+      { kind: "context", body: { data: { index: 0 } } },
+      options.eventDrivenTurn
+        ? { kind: "turn.started", body: {} }
+        : { kind: "context", body: { data: { index: 1 } } },
     ],
-    nonReceiptDelivery: bestEffort,
+    nonReceiptDelivery:
+      options.readOnly || options.startTurnOnSteer
+        ? { status: "unsupported" }
+        : bestEffort,
     interruptOutcome,
     answerOutcome,
     bufferCapacity,
@@ -286,7 +309,9 @@ export function fakeProvider(
         : adapter.observe({
             ...position,
             transcript: "/transcript",
-            paste: { pane_instance: pane, fencing_token: fence },
+            paste: options.readOnly
+              ? undefined
+              : { pane_instance: pane, fencing_token: fence },
           }),
     resumeSpec: (saved) => ({
       ...scope,
@@ -296,31 +321,47 @@ export function fakeProvider(
       fencing_token: "fence-2",
       afterSeq: 20,
     }),
-    async advanceCheckpoint() {
-      currentCheckpoint = "updated-checkpoint";
-      return currentCheckpoint;
-    },
+    advanceCheckpoint: options.stableCheckpoint
+      ? undefined
+      : async () => {
+          currentCheckpoint = "updated-checkpoint";
+          return currentCheckpoint;
+        },
     sendEvent: (index) => currentScript.sendEvent(index),
     processExit: () => currentScript.processExit(),
     streamDefect: (error) => currentScript.streamDefect(error),
-    waitForBackpressure: () => currentScript.waitForBackpressure(),
+    backpressure: options.failOnOverflow
+      ? { kind: "fail" }
+      : { kind: "block", wait: () => currentScript.waitForBackpressure() },
     async atActiveTurn(run) {
-      activeTurn = turn;
+      if (options.readOnly) throw new Error("No controlled turn");
+      if (options.eventDrivenTurn) await currentScript.sendEvent(1);
+      else activeTurn = turn;
       try {
         return await run();
       } finally {
         activeTurn = null;
       }
     },
-    pauseBeforeWrite() {
-      const entered = Promise.withResolvers<void>();
-      const release = Promise.withResolvers<void>();
-      nextWrite = () => {
-        entered.resolve();
-        return release.promise;
-      };
-      return { entered: entered.promise, release: release.resolve };
+    async atPendingPrompt(run) {
+      pendingPrompt = prompt;
+      try {
+        return await run();
+      } finally {
+        pendingPrompt = null;
+      }
     },
+    pauseBeforeWrite: options.stableCheckpoint
+      ? undefined
+      : () => {
+          const entered = Promise.withResolvers<void>();
+          const release = Promise.withResolvers<void>();
+          nextWrite = () => {
+            entered.resolve();
+            return release.promise;
+          };
+          return { entered: entered.promise, release: release.resolve };
+        },
     failClose() {
       closeResult = closeFailure;
       return closeFailure;

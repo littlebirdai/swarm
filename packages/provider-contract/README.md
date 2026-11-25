@@ -129,6 +129,8 @@ Import `providerConformance` from `@codecast/provider-contract/test` in a
 Bun test. Supply a fresh adapter with a controllable provider or pane for each
 case. Feed events through the provider boundary and supply their expected
 canonical records. Report the effects that reach the provider and the
-resources that close. The kit also needs a write gate, a backpressure probe,
-and a way to signal process exit and adapter defects. Separate fixtures exercise receipt
-recovery and deduplication with resume disabled.
+resources that close. Feed a non-turn event first so an idle steer can still
+run. Use separate hooks for a running turn and a pending prompt. Provide a
+write gate if the transport can pause before a write. A fixture can leave its
+checkpoint stable. Specify whether the stream blocks producers or fails on
+overflow. Signal process exit and adapter defects through the fixture.

@@ -161,3 +161,28 @@ test("an owned-capable provider can open a read-only observation", async () => {
 providerConformance("receipts without resume", () =>
   fakeProvider({ ...dialects.sdk, capabilities: ["own", "receipts"] }),
 );
+
+providerConformance("read-only observer", () =>
+  fakeProvider(dialects["transcript plus paste"], { readOnly: true }),
+);
+
+providerConformance("stateful idle-steer", () =>
+  fakeProvider(
+    { ...dialects.sdk, capabilities: ["own", "receipts"] },
+    { startTurnOnSteer: true },
+  ),
+);
+
+providerConformance("stable checkpoint with wrapped defect", () =>
+  fakeProvider(
+    { ...dialects.sdk, capabilities: ["own", "resume"] },
+    { stableCheckpoint: true, failOnOverflow: true },
+  ),
+);
+
+providerConformance("event-driven turn", () =>
+  fakeProvider(
+    { ...dialects.sdk, capabilities: ["own", "interrupt", "prompts"] },
+    { eventDrivenTurn: true },
+  ),
+);
