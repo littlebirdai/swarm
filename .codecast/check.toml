@@ -9,6 +9,7 @@ cli = "apps/cli/tsconfig.typecheck.json"
 web = "apps/web/tsconfig.json"
 convex = "apps/server/convex/tsconfig.json"
 packages = "packages/tsconfig.json"
+relay = "apps/relay/tsconfig.json"
 mobile = "apps/mobile/tsconfig.json"
 # The multiplayer sim harness plus the legacy store sims, with bun types
 # (docs/architecture/multiplayer-sim-harness.md section 3.10).

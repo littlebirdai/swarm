@@ -20,6 +20,7 @@ export const AREAS = [
   "web",
   "convex",
   "packages",
+  "relay",
   // The vendored @platform mirror. Its own area rather than a corner of
   // "packages", so the job that tests it and checks it for drift can gate on
   // just that mirror (ct-49675).
@@ -65,6 +66,7 @@ export const JOB_AREAS: Record<string, Area[]> = {
     "web",
     "convex",
     "packages",
+    "relay",
     "electron",
     "extension",
     "playground",
@@ -79,6 +81,7 @@ export const JOB_AREAS: Record<string, Area[]> = {
     "web",
     "convex",
     "packages",
+    "relay",
     "electron",
     "playground",
     "platform",
@@ -109,7 +112,7 @@ export const JOB_AREAS: Record<string, Area[]> = {
   // The head of people prompt test reads its spec from docs/. The suite's
   // tree-wide files (the doc references guard and the max lines ratchet) run
   // in test-always on every change.
-  "test-shared": ["packages", "docs", "platform"],
+  "test-shared": ["packages", "relay", "docs", "platform"],
   // The mobile guards, which walk the native bundle's import graph with cli's
   // bench walker, run in test-always on every change.
   "test-mobile": [
@@ -160,6 +163,7 @@ const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
   ["web", ["apps/web/"]],
   ["convex", ["apps/server/"]],
   ["packages", ["packages/"]],
+  ["relay", ["apps/relay/"]],
   // The vendored mirror is its own area: a change to it runs the platform
   // tests and the manifest drift check, which "packages" alone never did
   // (ct-49675).

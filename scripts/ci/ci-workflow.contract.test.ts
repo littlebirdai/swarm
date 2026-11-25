@@ -375,7 +375,7 @@ describe("matrices", () => {
         "web sim",
         "cli convex",
         "evals playground packages",
-        "web-mount",
+        "web-mount relay",
       ],
     },
     "test-convex": { shard: [1, 2, 3] },

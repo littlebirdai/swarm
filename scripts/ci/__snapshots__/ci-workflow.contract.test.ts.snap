@@ -553,6 +553,11 @@ fi
         "name": "Workspace library tests, including packages/ratchet",
         "run": "bun scripts/ci/package-tests.ts",
       },
+      {
+        "name": "Relay WebSocket tests",
+        "run": "bun test",
+        "working-directory": "apps/relay",
+      },
     ],
   },
   "test-web": {
@@ -602,7 +607,7 @@ fi
         "web sim",
         "cli convex",
         "evals playground packages",
-        "web-mount",
+        "web-mount relay",
       ],
     },
     "services": undefined,

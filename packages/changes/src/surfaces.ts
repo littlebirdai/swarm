@@ -57,6 +57,7 @@ const PACKAGE_AREAS = [
   "provider-contract",
   "provider-keys",
   "pull-requests",
+  "relay",
   "relay-contract",
   "render",
   "replay",
