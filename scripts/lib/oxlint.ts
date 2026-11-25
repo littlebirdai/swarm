@@ -28,7 +28,7 @@ function adjacentLine(source: Buffer, boundary: number, direction: -1 | 1) {
     const edge = found === -1 ? (direction === -1 ? -1 : source.length) : found;
     const start = Math.min(boundary, edge) + 1;
     const end = Math.max(boundary, edge);
-    const line = source.toString("utf8", start, end).trim();
+    const line = lintSourceText(source.subarray(start, end));
     if (/[\p{L}\p{N}]/u.test(line)) return line;
     boundary = edge;
   }
@@ -67,7 +67,7 @@ export function lintSourceText(source: Buffer): string {
   return source
     .toString("utf8")
     .split(/\r?\n/)
-    .map((line) => line.trim())
+    .map((line) => line.trim().replace(/^export (?:default )?/, ""))
     .join("\n");
 }
 

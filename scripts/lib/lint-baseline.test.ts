@@ -279,3 +279,20 @@ test("a moved line carries each of its diagnostics", () => {
   );
   expect(matched[0]!.before).toBe(2);
 });
+
+test("a declaration that gains an export keeps the same lines", () => {
+  const lines = (declaration: string) => {
+    const comment = "/** What it holds. */";
+    return diagnosticLines(
+      {
+        severity: "error",
+        message: "Code comments are forbidden.",
+        labels: [{ span: { line: 1, offset: 0, length: comment.length } }],
+      },
+      Buffer.from(`${comment}\n${declaration}\n`),
+    );
+  };
+  expect(lines("export interface Held {")).toEqual(lines("interface Held {"));
+  expect(lines("export default class Held {")).toEqual(lines("class Held {"));
+  expect(lines("interface Other {")).not.toEqual(lines("interface Held {"));
+});
