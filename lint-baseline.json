@@ -26573,7 +26573,7 @@
   "apps/web/perf/compilerAB.ts": {
     "swarm/no-comments": 30
   },
-  "apps/web/perf/detailRowsSize.ts": {
+  "apps/web/perf/detail-rows-size.ts": {
     "swarm/no-comments": 24
   },
   "apps/web/perf/harness.tsx": {

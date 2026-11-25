@@ -1,7 +1,7 @@
 // What the list rows of `tasks` and `pullRequests` weigh with and without the
 // fields lib/detailRows keeps off them, at the size of a real account.
 //
-//   bun perf/detailRowsSize.ts
+//   bun perf/detail-rows-size.ts
 //
 // The rows are synthetic, generated from the shape measured in one window of
 // the desktop app on 2026-11-18 (the numbers in MEASURED): how many rows, how
