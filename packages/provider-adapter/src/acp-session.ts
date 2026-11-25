@@ -23,7 +23,8 @@ import {
   pendingPromptLimit,
   type Emit,
 } from "./provider-events";
-import { permissionChoice, permissionDisplay, promptBlocks } from "./acp-input";
+import { permissionChoice, permissionDisplay } from "./acp-input";
+import { promptBlocks } from "./provider-input";
 import {
   processError,
   rawFrames,
@@ -550,7 +551,7 @@ export const openAcp = Effect.fn("acp.open")(function* (
     if (preflight) return preflight;
     const blocks = yield* Effect.result(
       Effect.tryPromise({
-        try: (signal) => promptBlocks(request.input, signal),
+        try: (signal) => promptBlocks(request.input, signal, "ACP"),
         catch: (error) => processError("input", String(error), error),
       }),
     );

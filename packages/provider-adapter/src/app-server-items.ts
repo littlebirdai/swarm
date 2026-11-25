@@ -1,13 +1,7 @@
-import type { CanonicalEvent, EdgeJson } from "@codecast/edge-contract";
+import type { EdgeJson } from "@codecast/edge-contract";
 import type { SteerRequest } from "@codecast/provider-contract";
 import type { Input, ThreadItem } from "./app-server-schema";
-
-export type DurablePayload = {
-  [Kind in CanonicalEvent["kind"]]: Pick<
-    Extract<CanonicalEvent, { kind: Kind }>,
-    "kind" | "body"
-  >;
-}[CanonicalEvent["kind"]];
+import type { DurablePayload } from "./provider-events";
 
 export function wireInput(input: SteerRequest["input"]) {
   return input.map((part): Input =>

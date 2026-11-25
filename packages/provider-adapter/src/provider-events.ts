@@ -1,3 +1,5 @@
+import type { CanonicalEvent } from "@codecast/edge-contract";
+import { withoutSecrets } from "@codecast/secrets/secretShapes";
 import type { ProviderEvent } from "@codecast/provider-contract";
 import { fail, type Done, type Cause } from "effect/Cause";
 import * as Deferred from "effect/Deferred";
@@ -87,3 +89,20 @@ export const makeProviderEvents = Effect.fn("provider.events")(function* (
     unsubscribe,
   };
 });
+
+export type DurablePayload = {
+  [Kind in CanonicalEvent["kind"]]: Pick<
+    Extract<CanonicalEvent, { kind: Kind }>,
+    "kind" | "body"
+  >;
+}[CanonicalEvent["kind"]];
+
+export function diagnostic(text: string | null | undefined) {
+  return text
+    ? withoutSecrets(text)
+        .replace(/[\r\n\u0085\u2028\u2029]+/gu, " ")
+        .trim()
+        .slice(0, 500)
+        .trimEnd()
+    : "";
+}

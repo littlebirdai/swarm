@@ -2,7 +2,8 @@
 
 Use `@codecast/provider-adapter` for the Promise API or
 `@codecast/provider-adapter/effect` in an Effect service. The registry
-supports Grok 1.0.13 over ACP and Codex 0.153.4 over app-server on POSIX.
+supports Grok 1.0.13 over ACP, Codex 0.153.4 over app-server, and
+Claude Code 2.1.319 over stream-json on POSIX.
 
 The machine service emits `session.started` and passes the last durable
 sequence as `afterSeq`. The adapter starts its events after that sequence.
@@ -84,3 +85,58 @@ Compared with the [legacy client](../../apps/cli/src/codexAppServer.ts):
   image-result, or multi-question events. The assistant-message body
   carries text and an ID, so commentary phase and per-message model
   metadata stay in the raw record where the provider supplies them.
+
+## Claude SDK stream-json
+
+The adapter runs Claude Code 2.1.319 on POSIX and checks the version from
+`initialize`. It starts one scoped process per owned session. A fresh
+session uses a generated UUID. Resume passes the saved Claude session UUID
+to `--resume`. Initialization confirms the process and protocol version.
+Claude loads the saved conversation when it handles the first input.
+
+Set `model`, `permissionMode`, `systemPrompt`, or `appendSystemPrompt` in
+`StartSpec.options`. The supported permission modes are `default`,
+`acceptEdits`, `plan`, and `dontAsk`. The adapter appends its stream-json
+and session flags to the executable prefix in `ProviderAdapterOptions.command`.
+The default executable is `claude`. The child uses the SDK entrypoint
+and saves a session for later resume.
+
+An idle message starts a turn when Claude reports activity. A mid-turn
+message uses priority `next`. Command lifecycle frames and results identify
+inputs by their generated UUIDs. The adapter uses that match to attach
+inbox authors and delivery IDs to user events. A clean write returns
+`in-doubt`. The stream provides neither durable inbox receipts nor receipt
+recovery after resume. The adapter suppresses recent repeated delivery
+IDs within the same process.
+
+An interrupt response confirms the control. A result, idle state, or
+process exit ends the turn. Queued input can survive an interrupt. A turn
+that returns to idle without a result ends with reason `no-result`.
+The adapter uses the new session UUID from Claude after `/clear`.
+It retains the original process. The stdout reader shares the app-server
+frame and byte limits, so controls can settle while event delivery waits.
+An initialize or interrupt reply times out after 30 seconds.
+
+Permission prompts offer Allow and Deny. Send the displayed `option_id`
+or a semantic `{ "behavior": "allow" }` or `{ "behavior": "deny" }`.
+For a single-choice question, send a displayed `option_id`. Other questions
+use a linked context event with question IDs and choices. Send
+`{ "answers": { "<question-id>": { "answers": ["…"] } } }` with one entry
+per question. A null answer denies a request. A successful prompt reply
+write emits the local settlement and returns `in-doubt`. Claude does not
+send a separate acknowledgement for that reply.
+
+Compared with the [current CLI session](../../apps/cli/src/claudeSdk/session.ts):
+
+- Kept stream-json initialization, checkpoint resume, text and local
+  image input, mid-turn priority, interrupt, per-tool prompts, question
+  choices, session reset, and result and lifecycle error handling.
+- Changed ownership to one process group per adapter session. Canonical
+  events carry local turn IDs and durable sequence numbers. Interrupt
+  returns on the protocol acknowledgement. Consumers read the turn end
+  from the event stream. Assistant output uses complete message frames.
+- The adapter leaves the reconnectable host, account selection, launchd,
+  daemon status hooks, transcript files, automatic restart, permission
+  rule persistence, plan-mode restoration, and live model or permission
+  changes to the current CLI path. It keeps other protocol frames in
+  the raw record.

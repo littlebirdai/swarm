@@ -12,15 +12,17 @@ import {
 } from "./provider-process";
 
 type Transport = ReturnType<typeof spawnProvider>;
-export type AppServerFrame = Pick<RawProviderFrame, "line" | "base64Fragment">;
+export type ProviderFrame = Pick<RawProviderFrame, "line" | "base64Fragment">;
 type Projection = Effect.Effect<void>;
 
 const frameCapacity = 64;
 const byteCapacity = 32 * 1024 * 1024;
 
-export const appServerWire = Effect.fn("app-server.wire")(function* (
+export const providerWire = Effect.fn("provider-wire.wire")(function* (
   transport: Transport,
   scope: Scope.Scope,
+  name: string,
+  readName = name,
 ) {
   const queue = yield* Queue.dropping<
     { work: Projection; bytes: number },
@@ -41,7 +43,7 @@ export const appServerWire = Effect.fn("app-server.wire")(function* (
     return true;
   }
 
-  const stop = Effect.fn("app-server.stop-reader")(function* (
+  const stop = Effect.fn("provider-wire.stop-reader")(function* (
     error: AdapterError,
   ) {
     if (failure) return;
@@ -50,9 +52,9 @@ export const appServerWire = Effect.fn("app-server.wire")(function* (
     yield* transport.failPending(error);
   });
 
-  const read = Effect.fn("app-server.read")(function* (
+  const read = Effect.fn("provider-wire.read")(function* (
     receive: (
-      frame: AppServerFrame,
+      frame: ProviderFrame,
     ) => Effect.Effect<
       { work: Projection; acknowledge: Effect.Effect<unknown> } | undefined
     >,
@@ -63,28 +65,28 @@ export const appServerWire = Effect.fn("app-server.wire")(function* (
           ? cause
           : processError(
               "read-failed",
-              "Could not read app-server output",
+              `Could not read ${readName} output`,
               cause,
             ),
       ).pipe(
         Stream.runForEach(
-          Effect.fn("app-server.read-frame")(function* (frame) {
+          Effect.fn("provider-wire.read-frame")(function* (frame) {
             if (failure) return yield* failure;
             const packet = yield* receive(frame);
             if (!packet) return;
             if (!offer(packet.work, Buffer.byteLength(frame.line, "utf8")))
               return yield* processError(
                 "output-overflow",
-                "Codex app-server exceeded the stdout read-ahead limit",
+                `${name} exceeded the stdout read-ahead limit`,
               );
             yield* packet.acknowledge;
           }),
         ),
         Effect.matchEffect({
           onSuccess: () =>
-            stop(
-              processError("channel-ended", "Codex app-server output ended"),
-            ).pipe(Effect.andThen(Queue.end(queue))),
+            stop(processError("channel-ended", `${name} output ended`)).pipe(
+              Effect.andThen(Queue.end(queue)),
+            ),
           onFailure: (error) =>
             stop(error).pipe(Effect.andThen(Queue.fail(queue, error))),
         }),

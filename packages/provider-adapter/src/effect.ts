@@ -8,6 +8,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Scope from "effect/Scope";
 import { openAcp } from "./acp-session";
+import { openClaudeSdk } from "./claude-sdk-session";
 import { openAppServer } from "./app-server-session";
 import {
   inDoubt,
@@ -21,7 +22,7 @@ export { AdapterError } from "./provider-process";
 
 const ownedLayer = (
   options: ProviderAdapterOptions,
-  open: typeof openAcp | typeof openAppServer,
+  open: typeof openAcp | typeof openAppServer | typeof openClaudeSdk,
 ) =>
   Layer.effect(
     ProviderAdapter,
@@ -111,7 +112,11 @@ export function providerAdapterLayer(
   if (offer.capabilities.includes("own"))
     return ownedLayer(
       options,
-      offer.agent === "codex" ? openAppServer : openAcp,
+      offer.agent === "codex"
+        ? openAppServer
+        : offer.agent === "claude"
+          ? openClaudeSdk
+          : openAcp,
     );
   return Layer.effect(
     ProviderAdapter,

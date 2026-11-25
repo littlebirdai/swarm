@@ -1,8 +1,7 @@
 import type { EdgeJson } from "@codecast/edge-contract";
-import { withoutSecrets } from "@codecast/secrets/secretShapes";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
-import type { DurablePayload } from "./app-server-items";
+import { diagnostic, type DurablePayload } from "./provider-events";
 import { QuestionAnswers, type Prompt } from "./app-server-schema";
 
 export function describePrompt(
@@ -122,13 +121,3 @@ export const prepareAnswer = Effect.fn("app-server.prepare-answer")(function* (
   if (offered && !offered.includes(decision)) return;
   return { result: { decision }, publicAnswer: body };
 });
-
-export function diagnostic(text: string | null | undefined) {
-  return text
-    ? withoutSecrets(text)
-        .replace(/[\r\n\u0085\u2028\u2029]+/gu, " ")
-        .trim()
-        .slice(0, 500)
-        .trimEnd()
-    : "";
-}

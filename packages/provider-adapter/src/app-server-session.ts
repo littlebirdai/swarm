@@ -18,7 +18,7 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import { turnItems, wireInput, type DurablePayload } from "./app-server-items";
+import { turnItems, wireInput } from "./app-server-items";
 import { initializeAppServer } from "./app-server-open";
 import {
   Initialize,
@@ -31,19 +31,20 @@ import {
   ThreadReply,
   TurnReply,
 } from "./app-server-schema";
-import {
-  diagnostic,
-  describePrompt,
-  prepareAnswer,
-} from "./app-server-prompts";
+import { describePrompt, prepareAnswer } from "./app-server-prompts";
 import {
   closed,
   inDoubt,
   refused,
   type ProviderAdapterOptions,
 } from "./options";
-import { makeProviderEvents, pendingPromptLimit } from "./provider-events";
-import { appServerWire, type AppServerFrame } from "./app-server-wire";
+import {
+  diagnostic,
+  makeProviderEvents,
+  pendingPromptLimit,
+  type DurablePayload,
+} from "./provider-events";
+import { providerWire, type ProviderFrame } from "./provider-wire";
 import {
   AdapterError,
   processError,
@@ -95,7 +96,12 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   );
 
   const events = yield* makeProviderEvents(dialect.name);
-  const incoming = yield* appServerWire(transport, scope);
+  const incoming = yield* providerWire(
+    transport,
+    scope,
+    dialect.name,
+    "app-server",
+  );
   const replies = yield* bestEffortReplies(transport, scope);
   const { retain: retainRaw, getUnknownPayloadCount } = rawFrames(
     options,
@@ -325,7 +331,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   });
 
   const receive = Effect.fn("app-server.receive")(function* (
-    frame: AppServerFrame,
+    frame: ProviderFrame,
   ) {
     const { line, base64Fragment } = frame;
     const turn = active;

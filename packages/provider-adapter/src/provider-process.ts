@@ -304,6 +304,15 @@ export function spawnProvider(
   const request = Effect.fn("provider.request")(function* (
     method: string,
     params: object,
+    encode: (id: number, method: string, params: object) => object = (
+      id,
+      method,
+      params,
+    ) => ({
+      id,
+      method,
+      params,
+    }),
   ) {
     const response = yield* Deferred.make<unknown, AdapterError>();
     const id = ++nextId;
@@ -314,7 +323,7 @@ export function spawnProvider(
           const planned = beforeWrite?.();
           if (planned?._tag === "Failure") return Result.fail(planned.failure);
           pending.set(id, { method, response });
-          return Result.succeed([{ id, method, params }]);
+          return Result.succeed([encode(id, method, params)]);
         });
       },
       awaitResponse: Deferred.await(response),

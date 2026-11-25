@@ -34,7 +34,8 @@ export function providerOffer(provider: ProviderIdentity): ProviderOffer {
         ? []
         : provider.agent === "grok" && provider.version === "1.0.13"
           ? ["own", "interrupt", "prompts", "resume"]
-          : provider.agent === "codex" && provider.version === "0.153.4"
+          : (provider.agent === "codex" && provider.version === "0.153.4") ||
+              (provider.agent === "claude" && provider.version === "2.1.319")
             ? ["own", "steer-mid-turn", "interrupt", "prompts", "resume"]
             : [],
   };
