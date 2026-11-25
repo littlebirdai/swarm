@@ -1,22 +1,21 @@
 import { v } from "convex/values";
-import { verifyApiToken } from "./apiTokens";
+import { verifyDeviceApiToken } from "@platform/auth/convex";
 import { internalMutation } from "./functions";
 import { bumpWindow } from "./ipRateLimit";
 
 export const admit = internalMutation({
-  args: { bearer: v.string(), machine: v.string() },
+  args: { bearer: v.string(), machine: v.optional(v.string()) },
   handler: async (ctx, { bearer, machine }) => {
-    const auth = await verifyApiToken(ctx, bearer);
-    if (!auth) return { status: "unauthorized" } as const;
-    const token = await ctx.db.get(auth.tokenId);
-    if (token?.device_id !== machine)
+    const auth = await verifyDeviceApiToken(ctx, bearer);
+    if (!auth || (machine !== undefined && auth.deviceId !== machine))
       return { status: "unauthorized" } as const;
 
     const windowMs = 60_000;
+    const scope = machine === undefined ? "edge/v1/work" : "edge/v1";
     const result = await bumpWindow(
       ctx.db,
-      `edge/v1:${auth.userId}:${machine}`,
-      12,
+      `${scope}:${auth.userId}:${auth.deviceId}`,
+      machine === undefined ? 120 : 12,
       windowMs,
     );
     if (!result.ok)

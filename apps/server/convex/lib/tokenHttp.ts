@@ -29,7 +29,7 @@ export const TOKEN_HTTP_MAX_BYTES = 4 * 1024 * 1024;
  * stops at the cap.
  */
 export async function readBodyCapped(
-  res: Response,
+  res: Pick<Response, "headers" | "body" | "arrayBuffer">,
   max: number,
 ): Promise<Uint8Array | null> {
   const declared = Number(res.headers.get("content-length") ?? "");

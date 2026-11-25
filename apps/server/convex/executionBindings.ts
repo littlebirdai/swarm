@@ -1884,7 +1884,7 @@ export async function disposePreReadyBindingInDb(
   return { state: "stopped" };
 }
 
-async function assertReadyFence(
+export async function assertReadyFence(
   ctx: DbCtx,
   head: any,
   binding: any,
@@ -2134,7 +2134,7 @@ export async function rejectHeadDeliveryInDb(
   return { rejected: true };
 }
 
-async function verifyAttemptFence(
+export async function verifyAttemptFence(
   ctx: DbCtx,
   userId: Id<"users">,
   fence: PermitFence & { now: number },

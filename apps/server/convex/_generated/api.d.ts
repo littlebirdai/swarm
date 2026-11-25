@@ -178,6 +178,7 @@ import type * as docLab from "../docLab.js";
 import type * as docSync from "../docSync.js";
 import type * as docs from "../docs.js";
 import type * as dormancy from "../dormancy.js";
+import type * as edgeDelivery from "../edgeDelivery.js";
 import type * as edgeLink from "../edgeLink.js";
 import type * as edgeRunLease from "../edgeRunLease.js";
 import type * as emails_digest from "../emails/digest.js";
@@ -1034,6 +1035,7 @@ declare const fullApi: ApiFromModules<{
   docSync: typeof docSync;
   docs: typeof docs;
   dormancy: typeof dormancy;
+  edgeDelivery: typeof edgeDelivery;
   edgeLink: typeof edgeLink;
   edgeRunLease: typeof edgeRunLease;
   "emails/digest": typeof emails_digest;
