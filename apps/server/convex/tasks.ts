@@ -431,10 +431,9 @@ export async function roleAssigneeOf(
  *  role. */
 async function roleOfBotUser(
   ctx: { db: any },
-  userId: string,
+  userId: Id<"users">,
 ): Promise<any | null> {
-  const id = ctx.db.normalizeId("users", userId);
-  const user = id ? await ctx.db.get(id) : null;
+  const user = await ctx.db.get(userId);
   if (!user?.is_bot) return null;
   const anchor = await ctx.db
     .query("anchors")
@@ -512,11 +511,12 @@ export async function resolveAssigneeStr(
       : opts.read
         ? roleByHandleForRead(ctx, lookupSeat, handle)
         : liveRoleByHandle(ctx, lookupSeat, handle);
-  if (/^[a-z0-9]{32}$/.test(assignee)) {
-    const role =
-      (await roleAssigneeOf(ctx, assignee)) ??
-      (await roleOfBotUser(ctx, assignee));
-    return role ? settle(role) : assignee;
+  const assignedRole = await roleAssigneeOf(ctx, assignee);
+  if (assignedRole) return settle(assignedRole);
+  const assignedUser = ctx.db.normalizeId("users", assignee);
+  if (assignedUser && (await ctx.db.get(assignedUser))) {
+    const botRole = await roleOfBotUser(ctx, assignedUser);
+    return botRole ? settle(botRole) : assignedUser;
   }
   if (assignee.startsWith("@")) {
     const handle = assignee.slice(1).trim();

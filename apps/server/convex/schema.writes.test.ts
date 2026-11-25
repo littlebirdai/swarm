@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, jest, test } from "bun:test";
 import { defineSchema } from "convex/server";
 import { convexTest } from "convex-test";
 import { api } from "./_generated/api";
@@ -8,6 +8,12 @@ import { allModules } from "./testModules.testkit";
 
 const strictSchema = defineSchema(schema.tables);
 const apiToken = "schema-writes-test-token";
+
+beforeEach(() => jest.useFakeTimers());
+afterEach(() => {
+  jest.clearAllTimers();
+  jest.useRealTimers();
+});
 
 async function setup() {
   const t = convexTest({ schema: strictSchema, modules: allModules });
@@ -36,9 +42,10 @@ async function enableOrg({ t, user }: Awaited<ReturnType<typeof setup>>) {
     await db.insert("team_memberships", {
       user_id: user,
       team_id: team,
-      role: "member",
+      role: "admin",
       joined_at: 1,
     });
+    return team;
   });
 }
 
@@ -154,4 +161,25 @@ test("a person who creates a plan from a template stores a human source", async 
     title: "Incident response",
     source: "human",
   });
+});
+
+test("a task cannot assign a role ID outside its workspace", async () => {
+  const fixture = await setup();
+  const team = await enableOrg(fixture);
+  const { t } = fixture;
+  const role = await t.mutation(api.orgRoles.create, {
+    api_token: apiToken,
+    name: "Customer support lead",
+    handle: "support",
+    team_id: team,
+  });
+  await expect(
+    t.mutation(api.tasks.create, {
+      api_token: apiToken,
+      title: "Check incidents",
+      assignee: role._id,
+      workspace: "personal",
+    }),
+  ).rejects.toThrow("a team role cannot take it");
+  expect(await t.run(({ db }) => db.query("tasks").collect())).toEqual([]);
 });
