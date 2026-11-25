@@ -11,6 +11,7 @@
   ],
   "files": [
     "app/auth/cli/page.mount.test.tsx",
+    "app/confirm/page.mount.test.tsx",
     "app/projects/[id]/ProjectHeader.mount.test.tsx",
     "app/settings/sync/page.mount.test.tsx",
     "components/ComposeRolePicker.mount.test.tsx",
@@ -21,12 +22,15 @@
     "components/TmuxAttachPill.degrade.test.tsx",
     "components/__tests__/TeamFindableNudge.mount.test.tsx",
     "components/__tests__/actionSubmenuAssign.test.tsx",
+    "components/__tests__/composerEscapeStops.mount.test.tsx",
+    "components/__tests__/composerSessionIdFlap.mount.test.tsx",
     "components/__tests__/documentDetailLoading.test.tsx",
     "components/__tests__/escalationDivider.test.tsx",
     "components/__tests__/framePaneMessages.test.tsx",
     "components/__tests__/huddleButton.test.tsx",
     "components/__tests__/liveNowRail.test.tsx",
     "components/__tests__/paletteTeammates.test.tsx",
+    "components/__tests__/publishedPageEmbed.test.tsx",
     "components/__tests__/reviveDivider.test.tsx",
     "components/__tests__/seatSessionPage.mount.test.tsx",
     "components/__tests__/sessionControlMenu.mount.test.tsx",
@@ -46,6 +50,7 @@
     "components/decisions/__tests__/decisionList.mount.test.tsx",
     "components/decisions/__tests__/decisionThread.mount.test.tsx",
     "components/decisions/__tests__/sessionCardReasoning.mount.test.tsx",
+    "components/decisions/__tests__/shipArmMovedAway.mount.test.tsx",
     "components/deploys/__tests__/FocusChip.mount.test.tsx",
     "components/expectations/__tests__/ExpectationsTab.mount.test.tsx",
     "components/goals/GoalsDocument.mount.test.tsx",
@@ -76,6 +81,7 @@
     "components/org/scope/ScopeSettings.mount.test.tsx",
     "components/org/scope/__tests__/ScopeLineTab.mount.test.tsx",
     "components/pr/PRDeploy.deploysLink.test.tsx",
+    "components/settings/PasskeysSection.mount.test.tsx",
     "components/team/__tests__/WorkspaceSharePicker.empty.mount.test.tsx",
     "hooks/__tests__/useConvexSync.identityLost.mount.test.tsx",
     "hooks/__tests__/useJumpToDecisionAsk.test.tsx",
@@ -86,7 +92,8 @@
     "hooks/__tests__/useSyncTrial.error.test.tsx",
     "hooks/useAttachCopy.tailnet.test.tsx",
     "hooks/useRunWorkflow.mount.test.tsx",
-    "lib/__tests__/callSeams.test.ts"
+    "lib/__tests__/callSeams.test.ts",
+    "lib/__tests__/reportRelationPick.test.ts"
   ],
   "exclude": ["node_modules"]
 }

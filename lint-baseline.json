@@ -13713,9 +13713,6 @@
   "apps/web/app/community/page.tsx": {
     "swarm/no-comments": 2
   },
-  "apps/web/app/confirm/page.mount.test.tsx": {
-    "swarm/no-comments": 6
-  },
   "apps/web/app/confirm/page.tsx": {
     "swarm/ime-safe-key-handlers": 1,
     "swarm/no-comments": 7,
@@ -15345,9 +15342,6 @@
   "apps/web/components/__tests__/composerCatch.mount.test.tsx": {
     "swarm/no-comments": 11
   },
-  "apps/web/components/__tests__/composerEscapeStops.mount.test.tsx": {
-    "swarm/no-comments": 9
-  },
   "apps/web/components/__tests__/composerForkSendImages.mount.test.tsx": {
     "swarm/no-comments": 7
   },
@@ -15359,9 +15353,6 @@
   },
   "apps/web/components/__tests__/composerSendLabel.mount.test.tsx": {
     "swarm/no-comments": 12
-  },
-  "apps/web/components/__tests__/composerSessionIdFlap.mount.test.tsx": {
-    "swarm/no-comments": 5
   },
   "apps/web/components/__tests__/composerSettledPending.mount.test.tsx": {
     "swarm/no-comments": 7
@@ -17318,9 +17309,6 @@
   },
   "apps/web/components/decisions/__tests__/sessionCardReasoning.mount.test.tsx": {
     "swarm/no-comments": 23
-  },
-  "apps/web/components/decisions/__tests__/shipArmMovedAway.mount.test.tsx": {
-    "swarm/no-comments": 13
   },
   "apps/web/components/decisions/askingSessionDeps.ts": {
     "swarm/no-comments": 1
@@ -20384,9 +20372,6 @@
     "swarm/no-comments": 6,
     "swarm/no-native-title-with-aria-label": 1
   },
-  "apps/web/components/settings/PasskeysSection.mount.test.tsx": {
-    "swarm/no-comments": 5
-  },
   "apps/web/components/settings/PasskeysSection.tsx": {
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 5,
@@ -23404,9 +23389,6 @@
   },
   "apps/web/lib/__tests__/repoView.test.ts": {
     "swarm/no-comments": 15
-  },
-  "apps/web/lib/__tests__/reportRelationPick.test.ts": {
-    "swarm/no-comments": 4
   },
   "apps/web/lib/__tests__/reviewModelFlags.test.ts": {
     "swarm/no-comments": 2
