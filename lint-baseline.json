@@ -27734,7 +27734,7 @@
   "apps/web/store/__tests__/sim/windowSlots.guard.test.ts": {
     "swarm/no-comments": 22
   },
-  "apps/web/store/__tests__/sim/windowSlots.ts": {
+  "apps/web/store/__tests__/sim/window-slots.ts": {
     "swarm/no-comments": 63
   },
   "apps/web/store/__tests__/sim/world.ts": {

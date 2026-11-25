@@ -56,7 +56,7 @@ scenario files (DSL verbs, point checks)      sim/scenarios/*.scenario.ts
      per window, feeders, catch-up, floor,
      dispatch, replication, gesture bridge
   -> net: channels, scheduler, budgets        sim/net.ts
-  -> realm: clock, timers, randomness, the    sim/realm.ts, sim/windowSlots.ts
+  -> realm: clock, timers, randomness, the    sim/realm.ts, sim/window-slots.ts
      store facade, per-window module state
   -> server router: auth, single flight,      convex/simBackend.testing.ts
      journal, scheduler, memo, validation     convex/simValidate.testing.ts
@@ -68,7 +68,7 @@ invariants, reports, labels                   sim/invariants.ts, report.ts, labe
 
 **Realm.** One virtual clock behind `Date.now` and `performance.now`. `Math.random` and `crypto.randomUUID` draw from the stream of the store being built, else the running server call's, else the active window's, else the world's, so interleaving one window never shifts another's draws and a store that draws as it is built moves only its own stream. `setTimeout` and `setInterval` become net deliveries owned by the window that armed them, and run inside that window's turn. The `useInboxStore` facade points at the active window's store instance while that window runs.
 
-**Windows.** Each window is its own `createInboxStore` instance with its own engine closure (dispatch binding, outbox, tees). Module state that production keeps per page (held overlay facts, change-feed tallies, crawl state and so on) is saved and restored per window through `sim/windowSlots.ts`. Its guard test fails on any top-level `let`, `var`, `Map` or `Set` reachable from the sim that the table does not classify, and prints the line to add. A host window mounts the production feeders (inbox base list, liveness overlay, decisions, team list and team liveness in team scope, sync log heads), runs the real `catchUp`, and runs the inbox floor step. A follower mounts no feeders and joins through the engine's replication runtime, exactly as `sync-host.md` describes.
+**Windows.** Each window is its own `createInboxStore` instance with its own engine closure (dispatch binding, outbox, tees). Module state that production keeps per page (held overlay facts, change-feed tallies, crawl state and so on) is saved and restored per window through `sim/window-slots.ts`. Its guard test fails on any top-level `let`, `var`, `Map` or `Set` reachable from the sim that the table does not classify, and prints the line to add. A host window mounts the production feeders (inbox base list, liveness overlay, decisions, team list and team liveness in team scope, sync log heads), runs the real `catchUp`, and runs the inbox floor step. A follower mounts no feeders and joins through the engine's replication runtime, exactly as `sync-host.md` describes.
 
 ## Protocol rules
 

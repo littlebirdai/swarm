@@ -690,7 +690,7 @@ function windowSeams(): Map<string, SlotSeam> {
     const make = SEAMS[file];
     if (!make)
       throw new Error(
-        `sim slots: ${file} has window bindings but no seam in SEAMS (sim/windowSlots.ts)`,
+        `sim slots: ${file} has window bindings but no seam in SEAMS (sim/window-slots.ts)`,
       );
     const seam = make();
     const want = keysOfClass("window")
@@ -714,7 +714,7 @@ function windowSeams(): Map<string, SlotSeam> {
   for (const file of filesOfClass("memo")) {
     if (!MEMO_RESETS[file])
       throw new Error(
-        `sim slots: ${file} has memo bindings but no reset in MEMO_RESETS (sim/windowSlots.ts)`,
+        `sim slots: ${file} has memo bindings but no reset in MEMO_RESETS (sim/window-slots.ts)`,
       );
   }
   memoResets = filesOfClass("memo").map((file) => MEMO_RESETS[file]());

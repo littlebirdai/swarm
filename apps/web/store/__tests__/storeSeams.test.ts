@@ -17,7 +17,7 @@ import {
   declareViewNav,
   freshHomeLaunchPending,
 } from "../viewNav";
-import { freshSlots, restoreSlots, saveSlots } from "./sim/windowSlots";
+import { freshSlots, restoreSlots, saveSlots } from "./sim/window-slots";
 
 // The seams the multiplayer sim stands on (docs/architecture/multiplayer-sim-harness.md,
 // unit U2). Each window gets its own store instance and its own copy of the
