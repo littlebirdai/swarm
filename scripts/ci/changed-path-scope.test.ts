@@ -22,8 +22,10 @@ describe("areaOf", () => {
     expect(areaOf("apps/evals/src/x.ts")).toBe("evals");
     expect(areaOf("apps/web/components/DiffView.tsx")).toBe("web");
     expect(areaOf("apps/server/convex/tasks.ts")).toBe("convex");
-    expect(areaOf("packages/agent-clients/src/agentClients.ts")).toBe("shared");
-    expect(areaOf("packages/new-library/src/index.ts")).toBe("shared");
+    expect(areaOf("packages/agent-clients/src/agentClients.ts")).toBe(
+      "packages",
+    );
+    expect(areaOf("packages/new-library/src/index.ts")).toBe("packages");
     expect(areaOf("platform/packages/engine/src/index.ts")).toBe("platform");
     expect(areaOf("platform/vendor-manifest.txt")).toBe("platform");
     expect(areaOf("apps/desktop/main.js")).toBe("electron");
@@ -147,7 +149,7 @@ describe("classifyChangedPaths", () => {
     ]);
   });
 
-  test("a shared change runs every job that reads shared", () => {
+  test("a library change runs every job that reads packages", () => {
     expect(ran(["packages/inbox/src/inboxProjection.ts"])).toEqual([
       "build",
       "lint",
@@ -166,7 +168,7 @@ describe("classifyChangedPaths", () => {
   test("a vendored platform change runs every gated job", () => {
     const result = flags(["platform/packages/engine/src/store.ts"]);
     expect(result.platform).toBe(true);
-    expect(result.shared).toBe(false);
+    expect(result.packages).toBe(false);
     expect(ran(["platform/packages/engine/src/store.ts"])).toEqual(
       [...GATED_JOBS].sort(),
     );

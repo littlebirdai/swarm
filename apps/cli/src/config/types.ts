@@ -147,7 +147,7 @@ export interface Config extends CloudSessionSyncSettings {
   desktop_auto_update?: boolean;
 
   // --- Harness ---
-  // Codecast's Claude Code hooks (HARNESS_HOOKS in @codecast/shared/contracts).
+  // Codecast's Claude Code hooks (HARNESS_HOOKS in @codecast/agent-clients/harnessHooks).
   // Unset means on. False removes them and keeps every refresh from putting
   // them back (harnessHooksInstall.ts).
   hooks_enabled?: boolean;

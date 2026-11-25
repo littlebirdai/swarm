@@ -2,7 +2,7 @@
 // where a person meets the locked control. The server enforces every key
 // (convex lib/teamPolicyGuard.ts); these hooks only make the lock visible
 // before a press, in the same words the refusal uses
-// (shared/contracts/managedPolicy.ts policyBlockedMessage). The teams feed
+// (packages/policy/src/managedPolicy.ts policyBlockedMessage). The teams feed
 // carries each team's policy to every member.
 import {
   MANAGED_POLICY,

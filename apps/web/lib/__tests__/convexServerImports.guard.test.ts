@@ -15,7 +15,7 @@ import { join } from "node:path";
 // single `import { FOLLOW_RENEW_MS } from ".../convex/follow"`.
 //
 // The fix is never to silence the log: move the shared value into
-// @codecast/shared/contracts, where both halves import it and neither carries
+// a workspace library, where both halves import it and neither carries
 // the other's code.
 
 const WEB = join(import.meta.dir, "..", "..");
@@ -67,7 +67,7 @@ const result = checkRatchet({
   count: countServerImports,
   allowlist: ALLOWLIST,
   pin: PIN,
-  fix: "Move the shared value into @codecast/shared/contracts and import it from there on both sides.",
+  fix: "Move the shared value into a workspace library and import it from there on both sides.",
   pruneCommand:
     "cd apps/web && RATCHET_WRITE=prune bun test lib/__tests__/convexServerImports.guard.test.ts",
   minScanned: 400,

@@ -42,7 +42,7 @@ export type DecisionOwner = DecisionOwnerRef;
  * The one person (or role) expected to answer: whoever it was passed to, else
  * the holder routing chose, else the single person it was asked of. Null when
  * nobody is expected, the Unassigned group. Anyone who can read it may still
- * answer it. The server reads the same rule (contracts/decisionAreas).
+ * answer it. The server reads the same rule (packages/decisions/src/decisionAreas).
  */
 export const decisionOwner = (d: Row): DecisionOwner | null =>
   decisionOwnerOf(d as Parameters<typeof decisionOwnerOf>[0]);

@@ -1,5 +1,5 @@
 // This checkout's own flows, reported so the web's Ship picker shows what `cast flow run <slug>` runs here (convex
-// repoFlows.ts, shared/contracts/repoFlows.ts): the `.codecast/flows` graphs poolFlows puts ahead of the shipped and
+// repoFlows.ts, packages/flows/src/repoFlows.ts): the `.codecast/flows` graphs poolFlows puts ahead of the shipped and
 // published ones, parsed with `extends` expanded, under the checkout's git top level and the repository its origin
 // names. Sent from the session-start reads (stableContext.ts) when they changed since this machine last sent this
 // checkout's, and once a day regardless so the server knows the checkout is still there.

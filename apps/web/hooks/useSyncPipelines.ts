@@ -1,6 +1,6 @@
 // A team's repository pipelines into the store (pipeline.md PL6): one feed,
 // convex pipelines.forTeam, one row per team and repository under its Convex
-// id, carrying the change and release flows as contracts/pipeline Pipeline.
+// id, carrying the change and release flows as packages/deploys/src/pipeline Pipeline.
 // The surface mounts the feeder once; the readers only read the store.
 import { useCallback, useMemo } from "react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";

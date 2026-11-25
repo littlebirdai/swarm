@@ -1636,7 +1636,7 @@ export type AskArgs = {
    *  asking session (a staffing proposal's queue card, org-staffing.md S4). */
   silent?: boolean;
   default_option?: number;
-  /** How much getting it answered matters, 1-5, and the one-line why (shared/contracts/decisionImpact.ts). */
+  /** How much getting it answered matters, 1-5, and the one-line why (packages/decisions/src/decisionImpact.ts). */
   impact?: number;
   impact_reason?: string;
   kind?: DecisionKind;

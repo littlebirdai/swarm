@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { OPEN_TASK_KINDS } from "@codecast/sessions/openTasks";
 
 // One background task the daemon reports as still open on a session — the
-// validator twin of shared/contracts OpenTaskReport (kinds derive from the same
+// validator twin of @codecast/sessions/openTasks OpenTaskReport (kinds derive from the same
 // array so the two cannot drift). Shared by the schema and the mutation that
 // accepts the report.
 export const openTaskValidator = v.object({

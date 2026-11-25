@@ -1020,12 +1020,15 @@ describe("projectsTouching", () => {
           }),
         );
       };
-      info("web", ["apps/web/app.tsx", "packages/shared/x.ts"]);
+      info("web", ["apps/web/app.tsx", "packages/line/src/lineWords.ts"]);
       info("cli", ["apps/cli/src/a.ts"]);
-      info("convex", ["apps/server/f.ts", "packages/shared/x.ts"]);
+      info("convex", ["apps/server/f.ts", "packages/line/src/lineWords.ts"]);
       const names = (changed: string[]) =>
         projectsTouching(root, projects, changed).map((p) => p.name);
-      expect(names(["packages/shared/x.ts"])).toEqual(["web", "convex"]);
+      expect(names(["packages/line/src/lineWords.ts"])).toEqual([
+        "web",
+        "convex",
+      ]);
       expect(names(["apps/cli/src/new.ts"])).toEqual(["cli"]);
       expect(names(["README.md", "docs/a.md"])).toEqual([]);
       expect(names(["apps/web/tsconfig.json"])).toEqual(["web"]);

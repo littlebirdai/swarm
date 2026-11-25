@@ -1,12 +1,12 @@
 # Split `contracts` and the shared core into packages
 
-Status: adopted, and in progress. The section "Progress" gives the state of each package.
+Status: complete. The section "Progress" records the pull requests.
 
-This document is the plan to move the code in `packages/shared` into small domain packages. At the end of the plan, `packages/shared` does not exist.
+This document records the plan to move the former shared package into small domain packages. Paths under `shared/` in the original measurements refer to that former package.
 
 ## Summary
 
-- The code in `packages/shared` is in 8 folders: `contracts`, `entities`, `tasks`, `render`, `replay`, `search`, `changes` and `ratchet`. The plan calls these folders the core folders.
+- The code in `shared` is in 8 folders: `contracts`, `entities`, `tasks`, `render`, `replay`, `search`, `changes` and `ratchet`. The plan calls these folders the core folders.
 - **No module cycle crosses a folder.** A module cycle is a set of modules that import each other, directly or through other modules. Some folders import each other, but each of these folder cycles is made of one-way module chains. Thus, correct placement of each module removes all folder cycles.
 - The plan divides only one module: the FNV hash functions in `inboxProjection` go to a new `@codecast/hash` package.
 - Inside `contracts`, there are 5 module cycles. Each cycle has 2 or 3 modules. Each cycle moves as one unit.
@@ -23,38 +23,50 @@ The numbers show the size of each move. They do not show the current state of `m
 
 ## Progress
 
-This table shows the state on 2026-11-24, at `main` commit `fbb596aec`.
+The table records how the extraction reached completion.
 
-| Stage | Package or part                                                            | State          |
-| ----- | -------------------------------------------------------------------------- | -------------- |
-| 1     | `hash`, the test split, the deletion of the root barrel                    | Merged, PR #55 |
-| 2     | `pull-requests`, `convex-errors`, `keyboard`, `network`, `ratchet`, `ship` | Merged, PR #56 |
-| 2     | `capabilities`, `policy`                                                   | Merged, PR #57 |
-| 2     | `browser`, `pages`, `provider-keys`, `daemon`, `evals-api`                 | Merged, PR #58 |
-| 2     | `cloud-hosts`, `flows`                                                     | Merged, PR #59 |
-| 2     | the first part of `calls`                                                  | Merged, PR #60 |
-| 2     | `render`, the first part of `triggers`, the first part of `decisions`      | Merged, PR #61 |
-| 2     | the first part of `agent-clients`, `changes`, `signals`                    | Merged, PR #63 |
-| 2     | the first part of `sessions`                                               | Merged, PR #64 |
-| 2     | `fence`, the first part of `org`                                           | Not started    |
-| 3 - 9 | all parts                                                                  | Not started    |
-
-Several small parts of one stage can merge in one PR, with one commit for each package.
+| Package or change                                                          | State          |
+| -------------------------------------------------------------------------- | -------------- |
+| Plan and measurement scripts                                               | Merged, PR #54 |
+| Hash functions, test split, and root barrel removal                        | Merged, PR #55 |
+| `pull-requests`, `convex-errors`, `keyboard`, `network`, `ratchet`, `ship` | Merged, PR #56 |
+| `capabilities`, `policy`                                                   | Merged, PR #57 |
+| `browser`, `pages`, `provider-keys`, `daemon`, `evals-api`                 | Merged, PR #58 |
+| `cloud-hosts`, `flows`                                                     | Merged, PR #59 |
+| `calls` (first part)                                                       | Merged, PR #60 |
+| `render`, `triggers` (first part), `decisions` (first part)                | Merged, PR #61 |
+| Root barrel documentation                                                  | Merged, PR #62 |
+| `agent-clients` (first part), `changes`, `signals`                         | Merged, PR #63 |
+| `sessions` (first part)                                                    | Merged, PR #64 |
+| `fence`, `org` (first part)                                                | Merged, PR #74 |
+| `machines`, `mods`, `search`, `sessions` (second part)                     | Merged, PR #75 |
+| `org` (second part), `projects`, `deploys`                                 | Merged, PR #76 |
+| `agent-clients` (second part)                                              | Merged, PR #77 |
+| `agent-clients` (third part), `agents`, `hosted-assistant`, `usage`        | Merged, PR #78 |
+| `replay`, `calls` (second part), `entities`, `ingest`                      | Merged, PR #79 |
+| `connectors`, `goals`                                                      | Merged, PR #81 |
+| `org` (third part), `org-templates`                                        | Merged, PR #82 |
+| `messages`, `snippets`                                                     | Merged, PR #83 |
+| `inbox`, `secrets`, `triggers` (second part), `decisions` (second part)    | Merged, PR #84 |
+| `tasks`, `calls` (last part), `agent-clients` (last part)                  | Merged, PR #85 |
+| `judges`, `vault`, `line` (first part)                                     | Merged, PR #86 |
+| `line` (second part)                                                       | Merged, PR #87 |
+| Contracts barrel and shared package removal                                | Merged, PR #88 |
 
 ## Scripts
 
 The scripts and their input files are in `docs/architecture/contracts-split/`:
 
-| File           | What it does                                                                                                                                                                                                                                      |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `graph.ts`     | Parses each import specifier with the TypeScript parser: static imports, `export … from`, `import()`, `require`, `mock.module` and `import("…").T` type queries. It resolves `@codecast/shared/*` through the `exports` map of `packages/shared`. |
-| `analyze.ts`   | Makes the module graph, the module cycles, the fan-in of each module, and the module that defines each name in the barrel.                                                                                                                        |
-| `table.ts`     | Writes the table of modules.                                                                                                                                                                                                                      |
-| `check.ts`     | Makes the package graph from `assign.txt`, and finds the cycles in it.                                                                                                                                                                            |
-| `plan.ts`      | Examines `stages.txt`. It makes sure that each dependency moves in an earlier stage or in the same part, and that no module is in two parts. It counts the importers of each part.                                                                |
-| `assign.txt`   | The target package of each module.                                                                                                                                                                                                                |
-| `stages.txt`   | One line for each part: the stage number, the part name, the package and the modules.                                                                                                                                                             |
-| `reasons.json` | The reason for each package, as in the column "Why it is one thing" in section 2.                                                                                                                                                                 |
+| File           | What it does                                                                                                                                                                                                                             |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `graph.ts`     | Parses each import specifier with the TypeScript parser: static imports, `export … from`, `import()`, `require`, `mock.module` and `import("…").T` type queries. It resolves `@codecast/shared/*` through the `exports` map of `shared`. |
+| `analyze.ts`   | Makes the module graph, the module cycles, the fan-in of each module, and the module that defines each name in the barrel.                                                                                                               |
+| `table.ts`     | Writes the table of modules.                                                                                                                                                                                                             |
+| `check.ts`     | Makes the package graph from `assign.txt`, and finds the cycles in it.                                                                                                                                                                   |
+| `plan.ts`      | Examines `stages.txt`. It makes sure that each dependency moves in an earlier stage or in the same part, and that no module is in two parts. It counts the importers of each part.                                                       |
+| `assign.txt`   | The target package of each module.                                                                                                                                                                                                       |
+| `stages.txt`   | One line for each part: the stage number, the part name, the package and the modules.                                                                                                                                                    |
+| `reasons.json` | The reason for each package, as in the column "Why it is one thing" in section 2.                                                                                                                                                        |
 
 To run the scripts again, go to that folder and run:
 
@@ -66,7 +78,7 @@ bun graph.ts <tree> edges.json && bun analyze.ts <tree> edges.json report.json &
 
 To get the measured numbers again, use a checkout of `a929b1c0a` (that is, `0a2b5eb53` with #46 and #52) and apply the four commits of #50: `ede387022`, `0a7e7c277`, `811887707` and `35be1a5c9`.
 
-These commits cause conflicts in some `package.json` files, in `bun.lock`, in `apps/cli/src/daemonBuildId.ts` and in `apps/cli/src/repoMirror.ts`. In `repoMirror.ts`, keep the import from `@codecast/shared/contracts`. On that tree, the scripts give the counts in this document, with one difference: the third part of `org` has 102 importers, not 101. On a later tree, a module that moved has no importers in `packages/shared`, so its counts are 0.
+These commits cause conflicts in some `package.json` files, in `bun.lock`, in `apps/cli/src/daemonBuildId.ts` and in `apps/cli/src/repoMirror.ts`. In `repoMirror.ts`, keep the import from `@codecast/shared/contracts`. On that tree, the scripts give the counts in this document, with one difference: the third part of `org` has 102 importers, not 101. On a later tree, a module that moved has no importers in `shared`, so its counts are 0.
 
 ## 1. The graph
 
@@ -83,7 +95,7 @@ These commits cause conflicts in some `package.json` files, in `bun.lock`, in `a
 | `changes`   | 11, plus 3 fixtures                        | 9          |                                                                    |
 | `ratchet`   | 1                                          | 3          | Also has 2 baseline files                                          |
 
-2,203 files outside `packages/shared` import a module from `contracts`. 1,255 of these files use a subpath, 1,113 use the barrel, and 164 use the two.
+2,203 files outside `shared` import a module from `contracts`. 1,255 of these files use a subpath, 1,113 use the barrel, and 164 use the two.
 
 ### 1.2 Folder cycles and the edges that make them
 
@@ -141,7 +153,7 @@ Test files add **package** cycles when their modules go to different packages. I
 
 The fan-in of a module is the number of files that import it. Each barrel import counts for the module that defines the imported name. Columns:
 
-- **out**: importers outside `packages/shared`.
+- **out**: importers outside `shared`.
 - **in**: importers in the core folders, without tests.
 - **tests**: test files in the core folders that import the module.
 
@@ -185,7 +197,7 @@ The 35 highest:
 | contracts/managedPolicy   | 558   | 32  | 1   | 1     | cli 6, mobile 2, server 6, web 18                                                                     |
 | contracts/vaultProtocol   | 409   | 32  | 0   | 1     | packages/vault 2, cli 10, web 20                                                                      |
 
-Nine modules have no importer outside `packages/shared`: `lineRunEnd`, `antigravityClient`, `approvalAnswers`, `orgProposalReply`, and the 5 internal modules of `evalsApi/`. Appendix A gives the fan-in of each module, in groups by target package.
+Nine modules have no importer outside `shared`: `lineRunEnd`, `antigravityClient`, `approvalAnswers`, `orgProposalReply`, and the 5 internal modules of `evalsApi/`. Appendix A gives the fan-in of each module, in groups by target package.
 
 ### 1.5 Barrel usage
 
@@ -193,7 +205,7 @@ A folder barrel is the `index.ts` of a folder that re-exports the modules of tha
 
 - **The root barrel of `@codecast/shared`** was the root `index.ts` of the package, with only `export * from "./contracts"`. **0 files imported it.** Only `package.json` dependency lines named it. Stage 1 deleted it.
 - **`@codecast/shared/contracts`** (`contracts/index.ts`) has 98 `export *` lines, and named re-exports from `sessionSnooze` and `sessionAsk`. Through nested `export *` chains, these lines re-export 105 modules.
-  - 95 of these 105 modules have **no subpath export** in `packages/shared/package.json`. For these modules, the barrel is the only import path.
+  - 95 of these 105 modules have **no subpath export** in `shared/package.json`. For these modules, the barrel is the only import path.
   - The other 10 modules have a subpath export and a barrel line: `modelOptions`, `cloudAgents`, `orgTemplateBind`, `castPlayer`, `managedPolicy`, `vendorCoverage`, `vaultProtocol`, `convexErrors`, `decisionAnswers`, `agentToolSetup`.
   - 145 modules of `contracts` have only a subpath export. Nine modules have no import path: `antigravityClient`, `approvalAnswers`, `lineRunEnd`, `orgProposalReply` and the 5 `evalsApi/*` modules.
   - **Importers:** 1,113 files. These are web 508, cli 289, server 269, mobile 43, evals 3, `packages/agents` 1, and shared 2 (`capabilityScopes.test` and `capabilitySlug.test`, which import `./index`). 949 of these files use only the barrel.
@@ -226,11 +238,11 @@ A folder barrel is the `index.ts` of a folder that re-exports the modules of tha
   | `render/index`  | 33                   |
   | `changes/index` | 20                   |
 
-- No `mock.module` call names a module in `packages/shared`.
+- No `mock.module` call names a module in `shared`.
 
 ## 2. Target packages
 
-Each package depends only on other packages in this list, or on packages that existed before the plan (`@codecast/chat`, `@codecast/team`, `@platform/*`). **No package in the list depends on `@codecast/shared`.** On `main` today, the apps depend on it. The packages `agents`, `artifacts`, `blame`, `comments`, `mods` and `vault` also depend on it.
+Each package depends only on other packages in this list, or on packages that existed before the plan (`@codecast/chat`, `@codecast/team`, `@platform/*`). **No package in the list depends on the former shared package.** At the measured commit, the apps and several workspace libraries still depended on it.
 
 How to read the table:
 
@@ -410,7 +422,7 @@ Three independent checks:
    | 13    | `hosted-assistant`                                                                                                                                                                                                              |
    | 14    | `inbox`                                                                                                                                                                                                                         |
 
-3. **Stage order.** `plan.ts` compares each module edge, test edges included, with `stages.txt`. Each dependency of a module must move in an earlier stage or in the same part. **The result is 0 problems.** Thus, each part keeps the graph free of cycles. When a module moves, its dependencies moved before it, so the new package never imports `@codecast/shared`. The modules that stay in `packages/shared` import the new package, and that direction is permitted.
+3. **Stage order.** `plan.ts` compares each module edge, test edges included, with `stages.txt`. Each dependency of a module must move in an earlier stage or in the same part. **The result is 0 problems.** Thus, each part keeps the graph free of cycles. When a module moves, its dependencies moved before it, so the new package never imports `@codecast/shared`. The modules that stay in `shared` import the new package, and that direction is permitted.
 
 Two placements keep the package graph free of cycles. Neither placement divides a file:
 
@@ -437,12 +449,12 @@ Do these steps for each part that moves modules:
    - `src/` and `test/`. `cast check packages` examines only the `src/` and `test/` folders of each package.
 2. Use `git mv` to move the modules into `src/` and their tests into `test/`. Put the fixtures that apps import (`inboxProjectionGen`, `teamWorldGen`, `codecastSignature.vectors.json`) in `src/__fixtures__/`, each with an `exports` entry.
 3. Rewrite each importer to `@codecast/<name>/<module>`:
-   - relative imports inside `packages/shared`
+   - relative imports inside `shared`
    - `@codecast/shared/contracts/<module>` subpaths
    - **barrel imports**: divide the import declaration. The moved names come from their module subpath, and the other names stay.
    - dynamic `import()` calls and `import("…").T` type queries.
-4. Delete the lines of the moved modules from `contracts/index.ts`, and their entries from the `exports` map of `packages/shared/package.json`.
-5. Add `"@codecast/<name>": "workspace:*"` to each workspace that imports the package. This includes `packages/shared` while a module there imports it, `apps/cli`, `web`, `server`, `mobile`, `evals`, `playground`, and the `packages/*` that import it. Then run `bun install`.
+4. Delete the lines of the moved modules from `contracts/index.ts`, and their entries from the `exports` map of `shared/package.json`.
+5. Add `"@codecast/<name>": "workspace:*"` to each workspace that imports the package. This includes `shared` while a module there imports it, `apps/cli`, `web`, `server`, `mobile`, `evals`, `playground`, and the `packages/*` that import it. Then run `bun install`.
 6. Move the baseline entries of the moved files: the ratchet baselines in `packages/ratchet/` and `lint-baseline.json`. Run `RATCHET_WRITE=prune bun test` in `packages/ratchet`, and `bun run lint:prune`.
 7. Do these checks: `cast check`, `bun test` in the package, the moved tests, and `apps/cli/src/bench/bootGraph.guard.test.ts`. If mobile imports the package, also do `apps/mobile/lib/bundleGraph.guard.test.ts` and `apps/mobile/metro.config.test.cjs`.
 
@@ -453,8 +465,8 @@ This stage moves no package, except the new `hash` package.
 | Part                            | What it does                                                                                                                                                                                                                                                         | Importers                                                                                                                                                                                                                                                                                                                              | Cycles that it removes                                                                                                                                                                                                                           |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `hash`                          | **The only module division.** Move `FNV1A32_OFFSET`, `fnv1a32Update` and `fnv1a32` out of `contracts/inboxProjection.ts`, with no change, into a new module `fnv1a32.ts` in `@codecast/hash`. `inboxProjection` imports them for its own use and stops their export. | 12 files: `changes/keys`, `contracts/signalFingerprint`, `contracts/inboxProjection` and 3 of its tests (`.test`, `.golden.test`, `.rows.test`), `apps/server/convex/lib/r2.ts`, `apps/server/convex/lineLearn.ts`, `apps/web/hooks/useTemplateHire.ts`, `apps/web/store/inboxStore.ts`, `apps/web/store/__tests__/sim/{dsl,realm}.ts` | `changes` → `contracts` (the last edge from `changes` into `contracts`). It also removes the edge `signals` → `inbox`. Without this, `entities` → `replay` → `signals` → `inbox` → `messages` → `org` → `goals` → `entities` is a package cycle. |
-| The test split                  | Changes only test files in `packages/shared`. No product code changes. Refer to the list below.                                                                                                                                                                      | 7 test files changed, 5 test files added                                                                                                                                                                                                                                                                                               | The test-only package cycles `sessions` ↔ `inbox` and `goals` ↔ `messages`. It also removes the barrel from two tests, and lets `apiErrorBanner` stay out of the second part of `agent-clients`.                                                 |
-| The deletion of the root barrel | Delete the root `index.ts` of `packages/shared`, and the `"."`, `main` and `types` entries in its `package.json`.                                                                                                                                                    | 0                                                                                                                                                                                                                                                                                                                                      | Prevents new imports of the root barrel                                                                                                                                                                                                          |
+| The test split                  | Changes only test files in `shared`. No product code changes. Refer to the list below.                                                                                                                                                                               | 7 test files changed, 5 test files added                                                                                                                                                                                                                                                                                               | The test-only package cycles `sessions` ↔ `inbox` and `goals` ↔ `messages`. It also removes the barrel from two tests, and lets `apiErrorBanner` stay out of the second part of `agent-clients`.                                                 |
+| The deletion of the root barrel | Delete the root `index.ts` of `shared`, and the `"."`, `main` and `types` entries in its `package.json`.                                                                                                                                                             | 0                                                                                                                                                                                                                                                                                                                                      | Prevents new imports of the root barrel                                                                                                                                                                                                          |
 
 The changes of the test split:
 
@@ -581,11 +593,11 @@ The table gives each move. "Part" shows the part of a package that moves in more
 
 **The move that is too large for one part.**
 
-- `agentClients` has 157 importers outside `packages/shared`. Its module cycle cannot be divided. `agentPins` and `modelOptions` must move with it, because of `agentClients.test` and `modelOptions.test`. One part for all of these modules rewrites 211 files.
+- `agentClients` has 157 importers outside `shared`. Its module cycle cannot be divided. `agentPins` and `modelOptions` must move with it, because of `agentClients.test` and `modelOptions.test`. One part for all of these modules rewrites 211 files.
 - Thus, the second part of `agent-clients` (stage 3) moves the modules. It rewrites cli (68), server (40), shared (8), mobile (7), `packages/agents` (1) and playground (1): 125 files.
 - The second part leaves `contracts/{agentClients,antigravityClient,cloudAgents,modelOptions,agentPins}.ts` as one-line shims: `export * from "@codecast/agent-clients/<module>"`. Thus, web continues to build.
 - The third part (stage 4) rewrites the 86 web files and deletes the shims.
-- The shims import from `packages/shared` into the new package, and that direction is permitted. Each shim is one module, not a barrel, so no startup graph grows.
+- The shims import from `shared` into the new package, and that direction is permitted. Each shim is one module, not a barrel, so no startup graph grows.
 - These are the only shims in the plan.
 
 **Notes on some moves:**
@@ -616,9 +628,9 @@ If all the parts of each stage merge in parallel, the split needs 9 merge rounds
 
 ## 4. The barrel plan
 
-**The root `index.ts` of `packages/shared`:** no code imported it. Stage 1 deleted it, with the `.`, `main` and `types` entries.
+**The root `index.ts` of `shared`:** no code imported it. Stage 1 deleted it, with the `.`, `main` and `types` entries.
 
-**`packages/shared/contracts/index.ts`:** 1,113 files with static imports, 17 files with dynamic imports or type queries, and 105 re-exported modules. It becomes smaller with each move.
+**`shared/contracts/index.ts`:** 1,113 files with static imports, 17 files with dynamic imports or type queries, and 105 re-exported modules. It becomes smaller with each move.
 
 - **Each move deletes the barrel lines of the modules that it moves.** It also rewrites these names in each barrel importer to the new subpath. Over time, a file that imported 6 names from 4 modules gets 4 subpath imports, one from each move. The plan adds no new barrel. A new package has no `"."` export, except the packages that replace a folder barrel.
 - **The barrel becomes smaller with each stage.** This table gives the number of the 105 re-exported modules that stay in the barrel after each stage:
@@ -627,7 +639,7 @@ If all the parts of each stage merge in parallel, the split needs 9 merge rounds
   | ------------ | --- | --- | --- | --- | --- | --- | --------------------- | --- |
   | Modules left | 50  | 30  | 25  | 17  | 17  | 12  | 1 (`decisionAnswers`) | 0   |
 
-  In stage 9, the second part of `decisions` removes the last module from the barrel. That part also deletes `contracts/index.ts` and the `./contracts` export.
+  In stage 9, the second part of `decisions` removes the last module from the barrel. The cleanup branch deletes `contracts/index.ts` and the `./contracts` export.
 
   The number of barrel modules in each target package is as follows. sessions 17, agent-clients 14, calls 10, daemon 5, inbox 5, cloud-hosts 5, machines 5, pages 5, capabilities 5, snippets 4, messages 4, provider-keys 3, policy 3, triggers 3, browser 2, vault 2, connectors 2. Eleven more packages have 1 each.
 
@@ -637,7 +649,7 @@ If all the parts of each stage merge in parallel, the split needs 9 merge rounds
   - The two calls in `apps/cli/src/index.ts` change in the first part of `agent-clients` (stage 2, `claudeBackend`) and in the second part of `sessions` (stage 3, `sessionAsk`).
   - After stage 4, the daemon does not load the barrel when it runs.
 - **Folder barrels** (`tasks/index`, `render/index`, `replay/index`, `search/index`, `changes/index`) become the `"."` export of their package. The move still rewrites each importer to the subpath of the module that defines its names. The exception is the names that `tasks/index.ts` defines (418 lines of code). These names stay at `@codecast/tasks`. This rewrite adds no work, because the move changes each of these lines.
-- **At the end**, `packages/shared` has only `devShutdown.test.ts` and `package.json`. First, move `devShutdown.test.ts` next to the dev script that it tests. Then delete the package, and the `"@codecast/shared"` lines in each manifest: `apps/cli`, `web`, `server`, `mobile`, `evals`, `playground`, and `packages/comments`, `blame`, `artifacts`, `mods`, `vault`, `agents`.
+- **Final removal.** The repository moves `devShutdown.test.ts` to `scripts/ci/`, deletes the empty contracts barrel and the shared package, and removes the old workspace dependency.
 
 ## 5. Risks
 
@@ -652,10 +664,10 @@ If all the parts of each stage merge in parallel, the split needs 9 merge rounds
 
 **Fan-in.**
 
-- `agentClients`: 157 importers outside `packages/shared`, 11 inside, 4 tests. This is the reason for the shims in stages 3 and 4. Between the second and third parts of `agent-clients`, web compiles through the shims. During that time, do not add new web imports of the old path.
-- `entities/index`: 1,646 lines and 124 importers outside `packages/shared`, which include `packages/{artifacts,blame,vault}`. Its move (stage 4) needs the second part of `calls` and `replay` first. All of `goals`, `org`, `vault` and the packages above them depend on it.
+- `agentClients`: 157 importers outside `shared`, 11 inside, 4 tests. This is the reason for the shims in stages 3 and 4. Between the second and third parts of `agent-clients`, web compiles through the shims. During that time, do not add new web imports of the old path.
+- `entities/index`: 1,646 lines and 124 importers outside `shared`, which include `packages/{artifacts,blame,vault}`. Its move (stage 4) needs the second part of `calls` and `replay` first. All of `goals`, `org`, `vault` and the packages above them depend on it.
 - `tasks/index`: 117 barrel importers. It has code and re-exports. Rewrite an import to a subpath only for the names that come from submodules.
-- `machineMessages`: 94 importers outside `packages/shared`, 9 inside, and 13 tests. Its move (`messages`, stage 7) rewrites 140 files.
+- `machineMessages`: 94 importers outside `shared`, 9 inside, and 13 tests. Its move (`messages`, stage 7) rewrites 140 files.
 - The first part of `calls` rewrites 134 files.
 - The first part of `org` rewrites 128 files, because many files in playground and server import `orgAvatars` and `orgLead`.
 - `inboxProjection` has 1,888 lines, and the daemon and web use it on their frequent paths.
@@ -681,18 +693,10 @@ If all the parts of each stage merge in parallel, the split needs 9 merge rounds
 
 **Mobile.** `apps/mobile/metro.config.js` resolves dependencies only from the `package.json` of mobile. If mobile imports a new package, add the package there in the same move. Mobile imports modules from `calls`, `sessions`, `render`, `entities`, `org` and other packages.
 
-**Conflicts between parallel parts.** All the parts of a stage change the same files: `packages/shared/package.json`, `contracts/index.ts`, `packages/ratchet/max-lines-baseline.txt`, `packages/ratchet/doc-refs-baseline.txt`, `lint-baseline.json`, `bun.lock` and the manifests of the apps.
+**Conflicts between parallel parts.** All the parts of a stage change the same files: `shared/package.json`, `contracts/index.ts`, `packages/ratchet/max-lines-baseline.txt`, `packages/ratchet/doc-refs-baseline.txt`, `lint-baseline.json`, `bun.lock` and the manifests of the apps.
 
 - Make these files again with their tools (`bun install`, `bun run lint:prune`, `RATCHET_WRITE=prune bun test` in `packages/ratchet`). Do not merge them by hand.
 - Rebase each PR onto the last merge. Do not stack PRs.
-
-**Imports in older packages that wait for a move.**
-
-- `packages/agents/src/index.ts` imports from the `contracts` barrel. The moves of `agent-clients` and `agents` rewrite it.
-- `packages/comments/src/reviewBatch.ts` imports `@codecast/fence/fence`.
-- `packages/artifacts`, `packages/blame` and `packages/vault` import `@codecast/shared/entities`. The `entities` move rewrites them.
-- `packages/vault` also imports `@codecast/shared/contracts/vaultProtocol` and `@codecast/shared/search/tokenize`. The `vault` and `search` moves rewrite them.
-- `packages/mods` imports `@codecast/shared/contracts/mods` in `src/inspect.ts`, `src/sdk.ts` and two tests. The `mods` move rewrites them.
 
 **Names that the plan does not use.**
 
@@ -718,7 +722,7 @@ If all the parts of each stage merge in parallel, the split needs 9 merge rounds
 
 Format: `module lines·outside/inside/inside-tests`.
 
-- **outside**: importer files outside `packages/shared`.
+- **outside**: importer files outside `shared`.
 - **inside**: importers in the core folders, without tests.
 - **inside-tests**: test files in the core folders that import the module.
 

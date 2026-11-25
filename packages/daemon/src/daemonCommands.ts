@@ -207,7 +207,7 @@ export const DAEMON_COMMANDS = [
   // "Unknown command".
   "line_profile_edit",
   // "Rewind to here" on a user message (cli/src/rewindTree.ts), targeted at
-  // the session's owning device. args: RewindFilesArgs (contracts/rewindFiles)
+  // the session's owning device. args: RewindFilesArgs (packages/daemon/src/rewindFiles)
   // — plan, diff, stage, put_back or keep a rewind of the session's checkout
   // to just before that turn. Result: RewindFilesReply. Old daemons:
   // "Unknown command" (the review says to update codecast there).

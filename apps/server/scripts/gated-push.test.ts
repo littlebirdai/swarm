@@ -170,9 +170,7 @@ describe("gated convex push", () => {
     expect(shipsToProd("testModules.testkit.ts")).toBe(false);
     expect(shipsToProd("lib/fakeDb.testkit.ts")).toBe(false);
     expect(shipsToProd("sessions.testing.ts")).toBe(false);
-    expect(shipsToProd("packages/shared/contracts/fixtures.testkit.ts")).toBe(
-      false,
-    );
+    expect(shipsToProd("packages/line/src/fixtures.testkit.ts")).toBe(false);
     // A module that merely starts with "test" is a real entry module.
     expect(shipsToProd("testDb.ts")).toBe(true);
   });
@@ -194,7 +192,7 @@ describe("gated convex push", () => {
     expect(
       shipsToProd("packages/messages/test/machineMessages.bootstrap.test.ts"),
     ).toBe(false);
-    expect(shipsToProd("packages/shared/node_modules/x/index.js")).toBe(false);
+    expect(shipsToProd("packages/line/node_modules/x/index.js")).toBe(false);
     const a = signatureOf([
       { rel: "packages/new-library/src/index.ts", mtimeMs: 10, size: 100 },
     ]);

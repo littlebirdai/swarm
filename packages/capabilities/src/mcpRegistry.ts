@@ -17,7 +17,7 @@
 // Everything below is one bounded fetch and one cursor loop, both total: a slow,
 // missing or malformed registry yields an empty list and a phrase saying why.
 //
-// The pure half is written to move to `packages/shared/contracts/` unchanged.
+// The pure parser lives in this package.
 // Convex parses the same bytes — the daemon submits raw observations and a
 // mutation derives the execution surfaces (design §6.2) — and Convex cannot
 // import this package. Keep new parsing above the line and new network work
@@ -49,7 +49,7 @@
 //
 // Identity is not minted here, for the same reason as `nativeCatalog.ts`: the
 // capability slug is built by the ingest layer from a source it determined
-// itself (`formatCapabilitySlug`, `packages/shared/contracts/capabilities.ts`).
+// itself (`formatCapabilitySlug`, `packages/capabilities/src/capabilities.ts`).
 // This module reports the registry's own namespaced name, which is the fact.
 
 export const MCP_REGISTRY_BASE_URL = "https://registry.modelcontextprotocol.io";
@@ -100,7 +100,7 @@ export interface McpRemote {
  *
  * Kept, rather than dropped as detail, because the execution surface is derived
  * from the command itself (`mcp_stdio_command`, `EXECUTION_SURFACES` in
- * `packages/shared/contracts/capabilities.ts`) and the arguments are half of that
+ * `packages/capabilities/src/capabilities.ts`) and the arguments are half of that
  * command. A `value` may hold a `{placeholder}` the user fills in.
  */
 export interface McpPackageArgument {
@@ -338,7 +338,7 @@ export function parseRegistryDetail(raw: unknown): McpRegistryServer | null {
 
 /**
  * How a server would run, in the structural terms the shared execution-surface
- * vocabulary uses (`EXECUTION_SURFACES`, `packages/shared/contracts/capabilities.ts`).
+ * vocabulary uses (`EXECUTION_SURFACES`, `packages/capabilities/src/capabilities.ts`).
  *
  * Reported as facts rather than as `ExecutionSurface` values: the ingest layer
  * owns that mapping (`remote` → `mcp_remote_url`, `stdioCommand` →

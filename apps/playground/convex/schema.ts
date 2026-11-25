@@ -14,7 +14,7 @@ import {
 
 export default defineSchema({
   /** Anonymous people. The secret lives in their browser; only its hash here.
-   *  Character fields follow @codecast/shared sessionCharacter: unset means the
+   *  Character fields follow @codecast/org/sessionCharacter: unset means the
    *  hash default for the id. */
   visitors: defineTable({
     secret_hash: v.string(),

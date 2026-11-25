@@ -263,7 +263,7 @@ export function parseApiErrorContent(
   }
 
   // Banner detection (auth / limit / connection / fatal) shares the backend's
-  // classifier in @codecast/shared/contracts: anchored prefixes + a length cap
+  // classifier in @codecast/messages/machineMessages: anchored prefixes + a length cap
   // keep a long prose reply that merely opens like a banner from rendering as
   // a card. The generic "API Error:"-prefixed form keeps its original anchored
   // match (no cap) so a long JSON error payload still renders as the error card.

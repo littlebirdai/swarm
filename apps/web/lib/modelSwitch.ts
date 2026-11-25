@@ -11,7 +11,7 @@ import { DispatchNotWiredError } from "../store/mutativeMiddleware";
 import { withoutUndo } from "../store/undoStack";
 
 // modelOptionKey ("claude-opus-4-8" → "opus") is pure contract logic — it lives
-// in @codecast/shared/contracts now (the store's create path needs it too). Kept
+// in @codecast/agent-clients/agentClients now (the store's create path needs it too). Kept
 // re-exported here so existing importers (the pickers, the mobile chip) are
 // unaffected.
 export { modelFitsAgent, modelOptionKey };

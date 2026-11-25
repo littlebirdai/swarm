@@ -1,5 +1,4 @@
-// The launch side of agent definitions (@codecast/shared/contracts
-// agentDefinitions): the per-client flags a resolved definition's tool
+// The launch side of agent definitions (@codecast/agents/agentDefinitions): the per-client flags a resolved definition's tool
 // policy and mode become, shared by `cast exec --as`, the trigger scheduler's
 // spawned runs and the daemon's session launch. Pure: no I/O, so every
 // mapping is testable without a real agent.

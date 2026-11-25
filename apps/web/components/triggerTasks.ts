@@ -365,7 +365,7 @@ export interface TriggerRow {
 // running worker is transient labor, not a standing trigger, and it already
 // renders nested under its parent session's card.
 
-// Freshness lives in shared/contracts/loopState — the server classifier and
+// Freshness lives in packages/sessions/src/loopState — the server classifier and
 // this roster must agree on when a loop stops being a live standing intent.
 import { isLoopFresh } from "@codecast/sessions/loopState";
 export {

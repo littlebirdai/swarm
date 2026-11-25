@@ -1,5 +1,5 @@
 /**
- * The `rewind_files` daemon command (contracts/rewindFiles.ts): the web's
+ * The `rewind_files` daemon command (packages/daemon/src/rewindFiles.ts): the web's
  * "Rewind to here", answered on the machine that holds the session's checkout.
  * The daemon resolves the checkout and the agent's state; everything else is
  * here, so it runs the same under a test.

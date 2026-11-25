@@ -140,21 +140,21 @@ describe("pinMissingImports: a tool file reading a workspace package", () => {
     const pkg = join(wt, "apps", "evals");
     const shared = (exports: string[]) =>
       JSON.stringify({
-        name: "@codecast/shared",
+        name: "@codecast/line",
         exports: Object.fromEntries(
           exports.map((e) => [`./${e}`, `./${e}.ts`]),
         ),
       });
     // The commit's shared has `old` with one value; today's has a second value and a new subpath.
-    put(wt, "packages/shared/package.json", shared(["old"]));
-    put(wt, "packages/shared/old.ts", "export const kept = 1;\n");
-    put(own, "packages/shared/package.json", shared(["old", "fresh"]));
+    put(wt, "packages/line/package.json", shared(["old"]));
+    put(wt, "packages/line/old.ts", "export const kept = 1;\n");
+    put(own, "packages/line/package.json", shared(["old", "fresh"]));
     put(
       own,
-      "packages/shared/old.ts",
+      "packages/line/old.ts",
       "export const kept = 1;\nexport const added = 2;\n",
     );
-    put(own, "packages/shared/fresh.ts", "export const fresh = 3;\n");
+    put(own, "packages/line/fresh.ts", "export const fresh = 3;\n");
     put(
       own,
       "node_modules/kit/package.json",
@@ -167,25 +167,25 @@ describe("pinMissingImports: a tool file reading a workspace package", () => {
         recursive: true,
       });
       symlinkSync(
-        join(side, "packages/shared"),
-        join(side, "apps/evals/node_modules/@codecast/shared"),
+        join(side, "packages/line"),
+        join(side, "apps/evals/node_modules/@codecast/line"),
       );
       symlinkSync(
         join(own, "node_modules/kit"),
         join(side, "apps/evals/node_modules/kit"),
       );
     }
-    put(pkg, "src/a.ts", "import { fresh } from '@codecast/shared/fresh';\n");
-    put(pkg, "src/b.ts", "import { kept } from '@codecast/shared/old';\n");
+    put(pkg, "src/a.ts", "import { fresh } from '@codecast/line/fresh';\n");
+    put(pkg, "src/b.ts", "import { kept } from '@codecast/line/old';\n");
     put(
       pkg,
       "src/c/d.ts",
-      "import {\n  kept,\n  added,\n} from '@codecast/shared/old';\n",
+      "import {\n  kept,\n  added,\n} from '@codecast/line/old';\n",
     );
     put(
       pkg,
       "src/e.ts",
-      "import { kit } from 'kit/x';\nimport type { Gone } from '@codecast/shared/gone';\n",
+      "import { kit } from 'kit/x';\nimport type { Gone } from '@codecast/line/gone';\n",
     );
     for (const f of ["src/a.ts", "src/b.ts", "src/c/d.ts", "src/e.ts"])
       put(own, join("apps/evals", f), "");
@@ -194,20 +194,20 @@ describe("pinMissingImports: a tool file reading a workspace package", () => {
 
     const ours = (rel: string) => realpathSync(join(own, rel));
     expect(pinned.sort()).toEqual([
-      `src/a.ts: packages/shared/fresh.ts`,
-      `src/c/d.ts: packages/shared/old.ts`,
+      `src/a.ts: packages/line/fresh.ts`,
+      `src/c/d.ts: packages/line/old.ts`,
     ]);
     expect(readFileSync(join(pkg, "src/a.ts"), "utf8")).toBe(
-      `import { fresh } from '${ours("packages/shared/fresh.ts")}';\n`,
+      `import { fresh } from '${ours("packages/line/fresh.ts")}';\n`,
     );
     expect(readFileSync(join(pkg, "src/c/d.ts"), "utf8")).toBe(
-      `import {\n  kept,\n  added,\n} from '${ours("packages/shared/old.ts")}';\n`,
+      `import {\n  kept,\n  added,\n} from '${ours("packages/line/old.ts")}';\n`,
     );
     expect(readFileSync(join(pkg, "src/b.ts"), "utf8")).toBe(
-      "import { kept } from '@codecast/shared/old';\n",
+      "import { kept } from '@codecast/line/old';\n",
     );
     expect(readFileSync(join(pkg, "src/e.ts"), "utf8")).toBe(
-      "import { kit } from 'kit/x';\nimport type { Gone } from '@codecast/shared/gone';\n",
+      "import { kit } from 'kit/x';\nimport type { Gone } from '@codecast/line/gone';\n",
     );
   });
 });
@@ -346,7 +346,7 @@ describe("borrowNodeModules", () => {
     const wt = mkdtempSync(join(tmpdir(), "line-borrow-wt-"));
     // The checkout: an installed package, a relative and an absolute workspace link, and one the tree's commit predates.
     put(root, "node_modules/react/index.js", "react\n");
-    put(root, "packages/shared/index.ts", "shared today\n");
+    put(root, "packages/line/index.ts", "shared today\n");
     put(root, "apps/server/index.ts", "convex today\n");
     put(
       root,
@@ -362,8 +362,8 @@ describe("borrowNodeModules", () => {
       join(root, "apps/web/node_modules/@codecast/convex"),
     );
     symlinkSync(
-      join(root, "packages/shared"),
-      join(root, "apps/web/node_modules/@codecast/shared"),
+      join(root, "packages/line"),
+      join(root, "apps/web/node_modules/@codecast/line"),
     );
     symlinkSync(
       "../../../../packages/fresh",
@@ -374,7 +374,7 @@ describe("borrowNodeModules", () => {
       join(root, "apps/web/node_modules/react"),
     );
     // The tree at an old commit: its own shared and convex, no fresh.
-    put(wt, "packages/shared/index.ts", "shared then\n");
+    put(wt, "packages/line/index.ts", "shared then\n");
     put(wt, "apps/server/index.ts", "convex then\n");
     mkdirSync(join(wt, "apps/web"), { recursive: true });
 
@@ -388,7 +388,7 @@ describe("borrowNodeModules", () => {
         "utf8",
       ),
     ).toBe("convex dependency\n");
-    expect(read("@codecast/shared/index.ts")).toBe("shared then\n");
+    expect(read("@codecast/line/index.ts")).toBe("shared then\n");
     expect(read("@codecast/fresh/index.ts")).toBe("fresh today\n");
     expect(realpathSync(join(wt, "apps/web/node_modules/react"))).toBe(
       realpathSync(join(root, "node_modules/react")),

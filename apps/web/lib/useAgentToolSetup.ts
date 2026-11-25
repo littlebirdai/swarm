@@ -1,5 +1,5 @@
 /**
- * The setup card's link to the session's machine (contracts/agentToolSetup.ts):
+ * The setup card's link to the session's machine (packages/capabilities/src/agentToolSetup.ts):
  * where the Chrome extension or the macOS grants stand there, and the step
  * that moves them forward, both through the `agent_tool_setup` daemon command.
  *

@@ -47,7 +47,7 @@ const EDITS: PipelineEdit[] = [
     station: "check",
     does: "run",
     body: "bun run lint --changed",
-    when: "apps/web/**, packages/shared/**",
+    when: "apps/web/**, packages/**",
   },
   {
     op: "add",
@@ -77,7 +77,7 @@ describe("an edit as its command", () => {
 
   test("the command is the CLI's own syntax, quoted for a shell", () => {
     expect(editCommand("change", EDITS[0])).toBe(
-      'cast flow edit change add lint --after check --run "bun run lint --changed" --label Lint --when "apps/web/**, packages/shared/**"',
+      'cast flow edit change add lint --after check --run "bun run lint --changed" --label Lint --when "apps/web/**, packages/**"',
     );
     expect(editCommand("change", { op: "skip", station: "decide" })).toBe(
       "cast flow edit change skip decide",
@@ -116,7 +116,7 @@ describe("the flow with the edit drawn in", () => {
     expect(after.stations.find((s) => s.id === "lint")).toMatchObject({
       own: "added",
       runs: "bun run lint --changed",
-      when: ["apps/web/**", "packages/shared/**"],
+      when: ["apps/web/**", "packages/**"],
     });
   });
 
@@ -188,7 +188,7 @@ describe("the flow with the edit drawn in", () => {
     });
     expect(applyEdit(codecast.change, EDITS[7]).removed).toContain("Decide");
     expect(editWords(EDITS[0], label())).toBe(
-      "Add Lint after Check (a command), only when a change touches apps/web/**, packages/shared/**",
+      "Add Lint after Check (a command), only when a change touches apps/web/**, packages/**",
     );
   });
 
@@ -207,10 +207,10 @@ describe("what it would have run on", () => {
     const recent = [
       { files: ["apps/web/app.tsx"] },
       { files: ["apps/cli/x.ts"] },
-      { files: ["packages/shared/a.ts", "README.md"] },
+      { files: ["packages/a.ts", "README.md"] },
       { files: [] },
     ];
-    expect(wouldRun("apps/web/**, packages/shared/**", recent)).toEqual({
+    expect(wouldRun("apps/web/**, packages/**", recent)).toEqual({
       hits: 2,
       total: 4,
     });

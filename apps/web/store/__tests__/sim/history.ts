@@ -39,7 +39,7 @@ export const KEEP_SESSIONS = 200;
 export const SIM_SOURCES = [
   "apps/web",
   "apps/server",
-  "packages/shared",
+  "packages",
   "platform/packages",
 ];
 

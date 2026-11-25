@@ -1,5 +1,5 @@
 /**
- * The daemon's side of the `rewind_files` command (contracts/rewindFiles.ts):
+ * The daemon's side of the `rewind_files` command (packages/daemon/src/rewindFiles.ts):
  * what it reads from the server for a rewind (the session's snapshot rows and
  * edit records), runs (rewindFilesCommand.ts) and reports back (the staged
  * mark on the conversation row, which every window's Put back chip reads).

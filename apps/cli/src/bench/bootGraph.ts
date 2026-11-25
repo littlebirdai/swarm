@@ -172,7 +172,7 @@ export function buildBootGraph(
 ): BootGraph {
   // Resolve before finding the root: repoRootFrom walks parent directories, and
   // a relative entry walks a relative path that never reaches the workspace
-  // root, which silently turns every @codecast/shared file into an "external"
+  // root, which silently turns every workspace library file into an "external"
   // and hides a third of the graph.
   const entries = (Array.isArray(entry) ? entry : [entry]).map((e) =>
     path.resolve(e),

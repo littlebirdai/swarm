@@ -5,7 +5,7 @@
 // when the viewer last looked at the session while it was the active view and
 // they were actually at the screen; the conversation's own `updated_at` says
 // when it last moved. Unread is the comparison, evaluated by every client
-// (shared/contracts/sessionRead.isSessionUnread) rather than stored here — so
+// (packages/sessions/src/sessionRead.isSessionUnread) rather than stored here — so
 // an agent re-reporting the same state costs nothing (heartbeats never bump
 // updated_at) while a real new turn re-lights the card, and web, mobile and
 // the CLI cannot disagree about which cards are lit.
@@ -98,7 +98,7 @@ async function upsertMark(
 
 /** The server's own read mark, for a moment the person needs no telling
  *  about: the hosted engine files a turn that only saved what they asked for
- *  (shared/contracts turnIsQuickSave) as read, at the turn's own stamp. */
+ *  (@codecast/sessions/sessionRead turnIsQuickSave) as read, at the turn's own stamp. */
 export async function markReadBySystem(
   ctx: MutationCtx,
   userId: Id<"users">,

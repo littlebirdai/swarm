@@ -39,14 +39,14 @@
 // object and returns a shape, touching no node builtin. Convex has to parse the
 // same bytes — the daemon submits raw observations and a mutation derives the
 // surfaces (design §6.2) — and Convex cannot import this package. So the pure
-// half is written to move to `packages/shared/contracts/` unchanged, exactly as
+// half is written to move to `packages/capabilities/src/` unchanged, exactly as
 // `snippets.ts` is already split between a pure catalog there and the writers
 // here. Keep new pure parsing above the line and new file or process work below
 // it, and that move stays a file split with no logic in it.
 //
 // Identity is deliberately NOT minted here. A capability slug is built by the
 // ingest layer from a source it determined itself (`formatCapabilitySlug`,
-// `packages/shared/contracts/capabilities.ts`) — a catalog reader that minted
+// `packages/capabilities/src/capabilities.ts`) — a catalog reader that minted
 // slugs would be accepting an identity from whatever a marketplace file claims,
 // which is exactly the hijack that contract's prefix rule prevents. This module
 // reports facts: which marketplace, which plugin name, which sha.

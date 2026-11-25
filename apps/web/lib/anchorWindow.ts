@@ -39,7 +39,7 @@ export function windowConversationSince<T extends WindowedConversation>(
 }
 
 /** The provisioning prompt, known by its own first line: the ONE shared
- *  recogniser (isBootstrapPrompt, @codecast/shared machineMessages), which the
+ *  recogniser (isBootstrapPrompt, @codecast/messages/machineMessages), which the
  *  inbox card's preview and the sticky prompt header also consult, applied to
  *  a message object here. */
 export function isBootstrapMessage(

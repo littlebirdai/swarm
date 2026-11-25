@@ -67,7 +67,7 @@ const sameRepo = (a: string | null | undefined, b: string) =>
   !a || a.toLowerCase() === b.toLowerCase();
 
 /**
- * Whether a target has gone idle by the rule reach reads (contracts/deployReach `dormant`): nothing asked for or
+ * Whether a target has gone idle by the rule reach reads (packages/deploys/src/deployReach `dormant`): nothing asked for or
  * running, and no deploy of any kind in a week. Unknown (no deploys in hand) is not idle.
  */
 export function idleByHistory(
@@ -219,7 +219,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
  * The few words beside a merged pull request's state: where it is live, or what holds it, by target when they are
- * few. `state` is the server's verdict over the whole change (contracts/deployReach), so the chip and every other
+ * few. `state` is the server's verdict over the whole change (packages/deploys/src/deployReach), so the chip and every other
  * surface that reads reach agree; the rows only name the targets.
  */
 export function prReachHeadline(

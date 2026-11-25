@@ -4,7 +4,7 @@
  * page runs in the order of the job: set up (the installer, then an
  * enrollment token with its configuration profile, then the push from the
  * MDM), the devices that enrolled, and the policy they carry (the shared
- * catalog, @codecast/shared/contracts managedPolicy, the same keys the server
+ * catalog, @codecast/policy/managedPolicy, the same keys the server
  * guards and the heartbeat carries). Admins only (convex/managedDevices.ts).
  *
  * Policy writes, revokes and restores are store actions that paint at once.

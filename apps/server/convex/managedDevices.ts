@@ -11,7 +11,7 @@
 // the heartbeat carries the team's policy to that device and the policy guard
 // (lib/teamPolicyGuard.ts) enforces it for requests from it.
 //
-// Keys, merge rules, wire types and messages: shared/contracts/managedPolicy.ts.
+// Keys, merge rules, wire types and messages: packages/policy/src/managedPolicy.ts.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { accessError, createApiTokenDefinitions } from "@platform/auth/convex";

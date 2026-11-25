@@ -1,4 +1,4 @@
-// Sharing decisions out by area (contracts/decisionAreas). At ask time an
+// Sharing decisions out by area (packages/decisions/src/decisionAreas). At ask time an
 // unaddressed decision's project picks the members covering it: its task's
 // project, else its role scope's, else its session's. The member with the
 // fewest decisions waiting in their queue owns it; a tie goes to whoever was

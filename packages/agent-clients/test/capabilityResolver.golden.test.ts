@@ -4,7 +4,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { resolveCapabilities } from "../src/capabilityResolver";
 
-// The entire argument for a pure resolver in packages/shared is that three
+// The entire argument for a pure resolver in packages/agent-clients is that three
 // runtimes produce byte-identical answers. These fixtures are that argument
 // made executable: the SAME files are read by this suite, by the CLI's suite
 // (the daemon's runtime) and by convex's (the V8 runtime), so a resolver rule

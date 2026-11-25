@@ -55,7 +55,7 @@ It runs on a cadence (ct-55704) and never runs LLM calls in CI.
 - The deps are:
   - `@platform/evals`, `@platform/cli-kit` and `@platform/snippets`, each as `file:../../platform/packages/<name>`
   - `commander ^12.1.0`
-  - `@codecast/shared`, as a `workspace:*` dep if that is how cli declares it; copy cli's line
+  - The workspace libraries that the eval tool imports, as `workspace:*` dependencies.
 - The root launcher `./evals` (sh, executable) is:
   ```sh
   #!/bin/sh
@@ -645,7 +645,7 @@ Files:
 - new `apps/cli/src/triggerFrame.test.ts`
 - new `apps/cli/src/__fixtures__/triggerFrame.golden.json`: the fixture tasks, the fixed `now`, and each pre-refactor frame
 
-Change: move `buildPrompt`'s body (595 on) into `export function buildTriggerFrame(task, now: number)`. Its imports stay light: `SAFE_MODE_MANDATE` from `./agentLaunch.js`, and `triggerLifecycleInstructions` and `runResultThreadOf` from `@codecast/shared/contracts`. `formatTimeAgo` was a private function at the bottom of `taskScheduler.ts` with no other caller, so it moves into `triggerFrame.ts` unchanged. `Date.now()` becomes `now`. The private `buildPrompt(task)` returns `buildTriggerFrame(task, Date.now())`.
+Change: move `buildPrompt`'s body (595 on) into `export function buildTriggerFrame(task, now: number)`. Its imports stay light: `SAFE_MODE_MANDATE` from `./agentLaunch.js`, and `triggerLifecycleInstructions` and `runResultThreadOf` from `@codecast/triggers/triggerLifecycle`. `formatTimeAgo` was a private function at the bottom of `taskScheduler.ts` with no other caller, so it moves into `triggerFrame.ts` unchanged. `Date.now()` becomes `now`. The private `buildPrompt(task)` returns `buildTriggerFrame(task, Date.now())`.
 
 Acceptance:
 
@@ -713,7 +713,7 @@ Acceptance:
 As built (2026-10-01):
 
 - Refs: `suggest@<session>:<line>` names the line of the typed reply; the line before it must be the agent turn. A bare `suggest@<session>` answers with the newest moments as refs. The `<messageId>` and share URL forms are not taken: `adapters/convo.ts` has no resolver for them yet, and they belong there, shared with title, insight, ask and handoff.
-- A typed reply is judged after `stripInjectionNoise` (`@codecast/shared/contracts`). Claude Code 2.1.277+ wraps every delivered paste, which includes composer sends, in `<pasted_content>`, and `isMachineCarrierText` reads that wrapper as markup, so the old test would discard almost every recent reply. The truth is the unwrapped text; the context rows stay as stored, because that is what prod's selector sees.
+- A typed reply is judged after `stripInjectionNoise` (`@codecast/messages/machineMessages`). Claude Code 2.1.277+ wraps every delivered paste, which includes composer sends, in `<pasted_content>`, and `isMachineCarrierText` reads that wrapper as markup, so the old test would discard almost every recent reply. The truth is the unwrapped text; the context rows stay as stored, because that is what prod's selector sees.
 - The snapshot holds the rows up to the agent turn (up to 120, so a wider prod window still has rows; `contextFromRows` keeps 60), each cut to the fields the selector reads, with tool results kept only as a count. It also holds the profile as `/cli/suggestion-profile` returns it, minus `_id`, `_creationTime` and `user_id`, and the truth. `/cli/read` carries only the title and project path, so branch, idle summary and thread state are left out; the private freeze records this in `meta.snapshot_approximate`, together with the fact that the profile is the one stored at capture.
 - The replay runs `predictSuggestions` with its `complete` sending `haikuRequest(prompt, maxTokens)` through `ctx.call`, which is the request `llmComplete` posts on the anthropic branch and equals `suggestRequest`. `--dry` answers `[]`.
 - Scores: hit 1, nudge-silent 1, nudge-shown 0.7, silent 0.7, partial 0.4, miss 0. A rep passes when it showed nothing wrong, and a hit is the only full score. `check` prints `grades: hit … | precision … coverage … | nudge moments …` through `summarize`. Its "only gates grade this freeze" warning skips surfaces that grade with their own checks.

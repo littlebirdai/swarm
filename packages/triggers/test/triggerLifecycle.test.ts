@@ -111,7 +111,11 @@ describe("runParentOf", () => {
     ).toBeUndefined();
   });
   test("a trigger armed outside any session has no parent", () => {
-    expect(runParentOf({})).toBeUndefined();
+    const recurring: {
+      schedule_type: string;
+      created_by_conversation_id?: string;
+    } = { schedule_type: "recurring" };
+    expect(runParentOf(recurring)).toBeUndefined();
   });
   test("a repeating run has a parent to nest under but no thread to post to", () => {
     const recurring = { ...onceSpawn, schedule_type: "recurring" };

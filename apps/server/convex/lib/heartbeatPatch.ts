@@ -19,7 +19,7 @@ type StatusStamps = {
 // would track "last heard" instead of "entered this status", which idle
 // detection depends on).
 // Refresh last_heartbeat at most this often (HEARTBEAT_REFRESH_MS, owned by
-// @codecast/shared/contracts because the liveness window is derived from it).
+// @codecast/sessions/agentStatus because the liveness window is derived from it).
 // The legacy write invalidates projections that read the registry, so preserve
 // the refresh throttle during expand.
 // The throttle means the stamp advances on the first flush PAST it, not on the

@@ -27,7 +27,7 @@ jobs:
       evals: ${{ steps.scope.outputs.evals }}
       web: ${{ steps.scope.outputs.web }}
       convex: ${{ steps.scope.outputs.convex }}
-      shared: ${{ steps.scope.outputs.shared }}
+      packages: ${{ steps.scope.outputs.packages }}
       platform: ${{ steps.scope.outputs.platform }}
       electron: ${{ steps.scope.outputs.electron }}
       mobile: ${{ steps.scope.outputs.mobile }}
@@ -455,7 +455,7 @@ jobs:
         # in which no suite was found.
         run: scripts/vendor-platform.sh --test
 
-  # The whole shared package. Its contracts are read by the CLI, the daemon,
+  # The workspace libraries provide contracts for the CLI, the daemon,
   # Convex and the browser, so a regression here is a regression everywhere:
   # the capability layer, and the shared inbox projection with its golden hash
   # gate (tied to INBOX_PROJECTION_VERSION), digest vector and property suite,

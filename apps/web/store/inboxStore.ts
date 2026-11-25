@@ -1087,7 +1087,7 @@ export type InboxSession = {
   // The agent's pinned "where this thread stands" line (`cast state`), with the
   // clock and message_count from when it was written. The card renders its
   // headline in place of idle_summary and dims it as the gap grows — see
-  // shared/contracts/threadState.
+  // packages/sessions/src/threadState.
   thread_state?: string | null;
   thread_state_at?: number | null;
   thread_state_msg_count?: number | null;
@@ -1141,7 +1141,7 @@ export type InboxSession = {
   // monitors armed before it belong to a process that has been replaced, so
   // they are dead however alive the session is (see monitorRows).
   agent_started_at?: number | null;
-  // The daemon's verified open background work (shared/contracts/openTasks) and
+  // The daemon's verified open background work (packages/sessions/src/openTasks) and
   // when it last checked. Overlay-borne. Lets the inbox draw a "↳ Background …"
   // row without this conversation's messages, and tells the message-derived
   // rows which watches the daemon found dead.
@@ -1242,7 +1242,7 @@ export type InboxSession = {
   // name in a transcript can resolve to the sibling session carrying it.
   spawned_by_conversation_id?: string | null;
   // The project a person put this session in; workers derive theirs
-  // (store/workProjects, shared/contracts/sessionProject).
+  // (store/workProjects, packages/sessions/src/sessionProject).
   project_id?: string | null;
   // The handoff pair (`cast handoff --to`, handoff.start): where a child came
   // from and where a source continued. Links only; neither marks the row a
@@ -1965,7 +1965,7 @@ export type SessionDecisionItem = {
   run?: import("@codecast/decisions/commandRun").CommandRun;
   blocking: boolean;
   default_option?: number;
-  /** How much getting it answered matters, 1-5, as the asker judged it, and why (shared/contracts/decisionImpact.ts). */
+  /** How much getting it answered matters, 1-5, as the asker judged it, and why (packages/decisions/src/decisionImpact.ts). */
   impact?: number;
   impact_reason?: string;
   /** A pointer card (a staffing proposal's): answering clears it and
@@ -2512,8 +2512,7 @@ export type ClientUI = {
   // (@codecast/keyboard/keyBindings). Stamped: follows them to every
   // device, and `cast shortcuts` writes the same key from any session.
   key_bindings?: KeyBindingOverride[];
-  // "New session defaults" (Settings > General; @codecast/shared/contracts
-  // newSessionDefaults). Stamped, so they follow the person to every device,
+  // "New session defaults" (Settings > General; @codecast/sessions/newSessionDefaults). Stamped, so they follow the person to every device,
   // and `cast spawn` reads default_device server-side. Absent = last used.
   // default_agent is a Convex agent_type, read only through lib/defaultAgent,
   // which also decides a machine-less account's default.
@@ -3972,7 +3971,7 @@ export function sortSessions(
   return keyed.map((x) => x.s);
 }
 
-// ACTIVE_AGENT_STATUSES / DEAD_AGENT_STATUSES come from @codecast/shared/contracts (canonical).
+// ACTIVE_AGENT_STATUSES / DEAD_AGENT_STATUSES come from @codecast/sessions/agentStatus (canonical).
 
 // Stable empty set so callers that omit pendingSendIds don't allocate and
 // don't churn memoized identities.

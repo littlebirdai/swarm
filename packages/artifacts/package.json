@@ -16,8 +16,7 @@
     "./sheets": "./src/sheets/index.ts"
   },
   "dependencies": {
-    "@codecast/entities": "workspace:*",
-    "@codecast/shared": "workspace:*"
+    "@codecast/entities": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.3"

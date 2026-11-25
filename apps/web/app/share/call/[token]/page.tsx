@@ -5,7 +5,7 @@
 // include it, and the words, in the same turns the calls page draws. With
 // media, a line clicked plays from there and the line being said lights, as on
 // the calls page. A link to a place in the call (?turns=, ?part=, ?t=,
-// @codecast/shared callLinks) lands there, marked, the way the call page does.
+// @codecast/calls/callLinks) lands there, marked, the way the call page does.
 import { useMemo, useRef, useState } from "react";
 import type { FunctionReturnType } from "convex/server";
 import { Mic } from "lucide-react";

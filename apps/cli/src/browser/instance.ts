@@ -202,7 +202,7 @@ export function clearState(): void {
 
 /**
  * The browser's liveness, in the machine's one vocabulary
- * (`LivenessVerdict`, @codecast/shared/contracts). It used to be a local
+ * (`LivenessVerdict`, @codecast/sessions/liveness). It used to be a local
  * `"live" | "unresponsive" | "dead"`, born of the shared-browser restart
  * stampede of 2026-08-14: under machine load a single short CDP probe timed
  * out, every agent read that as death, and each ran the only recovery the CLI

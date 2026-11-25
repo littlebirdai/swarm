@@ -7,7 +7,7 @@
 
 /** How many people fit in a DM/group thread — and, since a group thread and
  *  the huddle of its members are the same room, in a people huddle room too
- *  (contracts/callRoomKeys reads this as MAX_ROOM_MEMBERS). One literal for
+ *  (packages/calls/src/callRoomKeys reads this as MAX_ROOM_MEMBERS). One literal for
  *  one rule. */
 export const MAX_DM_MEMBERS = 9;
 

@@ -138,23 +138,23 @@ const TARGETS: {
 }[] = [
   {
     name: "web",
-    when: ["apps/web/**", "packages/shared/**", "platform/**"],
+    when: ["apps/web/**", "packages/**", "platform/**"],
     policy: "press",
     runs: "push",
   },
   {
     name: "backend",
-    when: ["apps/server/**", "packages/shared/**", "platform/**"],
+    when: ["apps/server/**", "packages/**", "platform/**"],
     policy: "press",
   },
   {
     name: "cli",
-    when: ["apps/cli/**", "packages/shared/**", "platform/**"],
+    when: ["apps/cli/**", "packages/**", "platform/**"],
     policy: "press",
   },
   {
     name: "mobile",
-    when: ["apps/mobile/**", "packages/shared/**"],
+    when: ["apps/mobile/**", "packages/**"],
     policy: "press",
   },
   { name: "desktop", when: ["apps/desktop/**"], policy: "press" },

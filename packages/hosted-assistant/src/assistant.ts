@@ -50,7 +50,7 @@ export type TurnReason = (typeof TURN_REASONS)[number];
  *  that is not the person's month (their address's Free allowance is in use
  *  on another account, or Free turns are paused for the day). `vendor` is a
  *  regulated team's turn refused because the model's vendor has no BAA with
- *  Codecast yet (contracts/vendorCoverage); nobody in the team can lift it. */
+ *  Codecast yet (packages/policy/src/vendorCoverage); nobody in the team can lift it. */
 export const NOTICE_KINDS = [
   "error",
   "unavailable",

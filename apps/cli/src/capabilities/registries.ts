@@ -1,5 +1,4 @@
-// The MCP registry fetch loop. Parsing lives in @codecast/shared/contracts
-// (mcpRegistry.ts) so Convex's catalog refresh reads the same bytes with the
+// The MCP registry fetch loop. Parsing lives in @codecast/capabilities/mcpRegistry so Convex's catalog refresh reads the same bytes with the
 // same function; this file is the network half only.
 
 import { cliFetchRead } from "../cliHttp.js";

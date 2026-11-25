@@ -31,8 +31,8 @@ import { isObjectRef, objectRefScanRegex } from "./mods/objects";
 import { OBJECT_REF_PREFIX } from "@codecast/mods/mods";
 import { VIEW_REF_PREFIX, viewRefScanRegex } from "./productViewRefs";
 
-// Both shapes come from the shared mention vocabulary (@codecast/shared/
-// entities), so registering a new object type there lights it up in prose
+// Both shapes come from the shared mention vocabulary
+// (@codecast/entities), so registering a new object type there lights it up in prose
 // everywhere at once. The bare 32-char alternative catches full Convex ids —
 // the only handle docs have (no short id). EntityIdPill resolves their table
 // server-side; ids that resolve to nothing render back as plain text.

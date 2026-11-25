@@ -1,4 +1,4 @@
-// A parsed flow in the shape the app's foldFlow and flowDiagram read (contracts/flowPool FlowNodeIn/FlowEdgeIn): labels,
+// A parsed flow in the shape the app's foldFlow and flowDiagram read (packages/flows/src/flowPool FlowNodeIn/FlowEdgeIn): labels,
 // kinds, segment ids and conditions, never a prompt's or a script's text. The pipeline publish and the ```flow edit
 // fence (pipeline.md PL5, PL6) both send a graph this way.
 import type { FlowEdgeIn, FlowNodeIn } from "@codecast/flows/flowPool";

@@ -1,5 +1,5 @@
 // Parsers for the machine-delivered user-message wire formats. The detection
-// predicates live in @codecast/shared/contracts (machineMessages.ts) so the
+// predicates live in @codecast/messages/machineMessages so the
 // convex send classifier shares them; this module re-exports them and adds the
 // client-side parsers/preview cleaning on top.
 //
@@ -12,7 +12,7 @@
 //   </session-message>
 //
 // A person typing into a session that is not their own arrives as
-// <user-message from="Name"> (formatUserMessage in @codecast/shared/contracts):
+// <user-message from="Name"> (formatUserMessage in @codecast/messages/machineMessages):
 // human-typed, not machine-delivered — it renders as that person's own bubble.
 
 // Greedy body is intentional: message text is exact user/agent content and may

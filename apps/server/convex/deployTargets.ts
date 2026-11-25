@@ -1,7 +1,7 @@
 // A repository's deploy targets and what waits on each (docs/architecture/deploys.md
 // DP10 to DP14).
 //
-//  - publish: the checkout's declared targets (contracts/deployTargets), from
+//  - publish: the checkout's declared targets (packages/deploys/src/deployTargets), from
 //    the machine that holds it (`cast line deploy targets --publish`, and every
 //    line profile publish).
 //  - CI on main: every workflow run and check suite on the default branch, per

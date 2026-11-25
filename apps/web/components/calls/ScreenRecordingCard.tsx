@@ -9,7 +9,7 @@ import { useCallDetail } from "../../hooks/useSyncCalls";
 import { CALL_VIDEO_LOADING, playableFiles } from "../../lib/calls/callVideo";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 
-// A screen recording the person sent to the session (shared/contracts/
+// A screen recording the person sent to the session (@codecast/calls/
 // screenRecording): the video they made beside what they said while making
 // it, each line at its time. A line is a seek, and the line being said is
 // lit as it plays, so "this button" reads next to the button.

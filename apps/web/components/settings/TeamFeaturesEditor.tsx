@@ -6,7 +6,7 @@
  * (DEFAULT_TEAM_FEATURES). Off means NO UI anywhere for that feature; on shows
  * it for every member of this team and installs the matching agent snippets on
  * their machines (the daemon reconciles on its next heartbeat). Catalog:
- * @codecast/shared/contracts/teamFeatures — the same list the server guards on.
+ * @codecast/policy/teamFeatures — the same list the server guards on.
  *
  * Local-first: the flip lands in the store's teams list synchronously (the
  * sidebar row appears or vanishes as you click) through the store's

@@ -1,4 +1,4 @@
-// The weekly card (shared contracts/weeklyCard): a person's Monday-to-Sunday
+// The weekly card (@codecast/usage/weeklyCard): a person's Monday-to-Sunday
 // week with coding agents, built from their own sessions, machines and token
 // counters, previewed in the app at /week and published through publicShare's
 // "card" kind. Staff only until it is reviewed (weeklyCardAllowed), and built

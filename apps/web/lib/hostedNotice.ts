@@ -1,5 +1,5 @@
 // Reading a hosted turn's stop notice (plan pl-840) from transcript rows: the
-// engine's typed notice (NOTICE_KINDS in contracts/assistant), its tone, and
+// engine's typed notice (NOTICE_KINDS in packages/hosted-assistant/src/assistant), its tone, and
 // how an inbox row names a conversation that ended on one. A leaf, so the
 // pure row view and the transcript read one rule.
 import {

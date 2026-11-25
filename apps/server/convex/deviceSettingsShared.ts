@@ -5,7 +5,7 @@
 //
 // Pure — no server/_generated imports — so schema.ts and the mutations can both
 // import it. The slug keys themselves are defined once in
-// @codecast/shared/contracts (SNIPPET_CATALOG); this validator is intentionally
+// @codecast/snippets/snippets (SNIPPET_CATALOG); this validator is intentionally
 // permissive about keys (v.record) so a new snippet doesn't require a schema
 // migration to start reporting.
 

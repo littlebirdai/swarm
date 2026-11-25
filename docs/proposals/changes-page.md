@@ -279,7 +279,7 @@ Filters run client-side over store rows and are instant. Repo (single select), a
 
 ## 7. Generation pipeline
 
-All generation lives in a new module `packages/convex/convex/changes.ts` (functions) with pure logic in `packages/changes/src/`, exported as `@codecast/shared/changes` (imported by both Convex and web). Building runs inside an internal action that calls small paged internal queries, so the 1s user-JS and 16 MiB caps never apply to clustering.
+All generation lives in a new module `apps/server/convex/changes.ts` (functions) with pure logic in `packages/changes/src/`, exported as `@codecast/changes` (imported by both Convex and web). Building runs inside an internal action that calls small paged internal queries, so the 1s user-JS and 16 MiB caps never apply to clustering.
 
 ### 7.1 Layer 0: facts (deterministic, free)
 
@@ -322,7 +322,7 @@ MVP sources, all landing as `external_events` rows so the existing team event st
 2. **Tag pushes.** `githubWebhooks.ts:1356` returns "Not a branch push" today. Handle `refs/tags/*` there: insert `external_events { kind: "release", repository, payload: {tag, sha} }`.
 3. **Convex deploy marker.** `packages/convex/deploy.sh` runs `cast ship mark --surface backend --sha <HEAD>` after a successful deploy. The CLI command posts to a new authenticated mutation `changes.markDeploy` that inserts `external_events { kind: "deploy", payload: {surface, sha, version?} }` for the repo's team. If the CLI is logged out, the mark is skipped with a warning and the deploy still succeeds.
 
-Surface detection: a surface exists when it has at least one signal in 30 days. Path map defaults live in `packages/changes/src/surfaces.ts`: cli `packages/cli/, packages/shared/`; desktop `apps/desktop/, packages/web/, packages/shared/`; backend `packages/convex/`; web `packages/web/, packages/shared/`; extension `packages/chrome-extension/, apps/browser-extension/`. Teams without a mapped surface but with tags get one surface, `release`, covering everything.
+Surface detection: a surface exists when it has at least one signal in 30 days. Path map defaults live in `packages/changes/src/surfaces.ts`: cli `apps/cli/` and workspace libraries; desktop `apps/desktop/`, `apps/web/` and workspace libraries; backend `apps/server/`; web `apps/web/` and workspace libraries; extension `apps/browser-extension/`. Teams without a mapped surface but with tags get one surface, `release`, covering everything.
 
 Phase 2: GitHub `release` and `deployment_status` webhooks (Railway web deploys), which need a GitHub App permission update.
 
@@ -517,7 +517,7 @@ Work: add `change_stories`, `change_story_inputs`, `change_dirty`; reshape `dige
 Accept: `cast check convex` green; `admin_mergeUser` test passes with a team digest row; `teamDay.test.ts` covers UTC fallback and DST boundaries.
 
 **T2. Shared layer 0 logic.** Depends on nothing.
-Files: `packages/changes/src/{classify,dedupe,cluster,surfaces,risks,keys,headline}.ts` and tests, exported as `@codecast/shared/changes`.
+Files: `packages/changes/src/{classify,dedupe,cluster,surfaces,risks,keys,headline}.ts` and tests, exported as `@codecast/changes`.
 Work: pure functions for the release regex and burst grouping, dedupe, area, conventional parse, clustering (a, b, c), release assignment, risk signals, `story_key` and `inputs_hash`.
 Accept: unit tests on fixtures copied from the 10-02 codecast day (scrubbed): the two rebase pairs collapse; the three release commits form one burst with restamp folded in; the 5-area ci commit `e7d2da040` splits into area slices (the line-pages commit `0de614861` touches only `packages/web`); a Littlebird-shaped 760-commit fixture clusters in under 200ms.
 

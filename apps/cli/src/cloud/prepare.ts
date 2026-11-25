@@ -920,7 +920,7 @@ export interface PrepareCloudHostOptions {
   /** Recorded for the seed step; the wake itself is the same either way. */
   startFrom?: CloudStartFrom;
   onProgress?: Progress;
-  /** Each placement step as it begins (contracts/cloudPlacementProgress). */
+  /** Each placement step as it begins (packages/cloud-hosts/src/cloudPlacementProgress). */
   onStep?: (step: CloudPlacementStep) => void;
   /** Injection for tests: the host cast step (readyHostHome's castStep). */
   castStep?: ReadyHostHomeOptions["castStep"];

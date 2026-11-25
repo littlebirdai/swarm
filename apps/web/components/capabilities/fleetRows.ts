@@ -1,5 +1,5 @@
 // The fleet fold as the capabilities page reads it: one row per capability,
-// one cell per machine, built on the shared diff (contracts/fleetDiff.ts).
+// one cell per machine, built on the shared diff (packages/capabilities/src/fleetDiff.ts).
 
 import {
   buildFleetDiff,

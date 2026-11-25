@@ -42,7 +42,7 @@ export const DOC_TYPES = [
   // humans write, and the brief the role keeps as its memory.
   "charter",
   "brief",
-  // Live artifacts (shared/artifacts): structured content synced as elements,
+  // Live artifacts (packages/artifacts): structured content synced as elements,
   // not markdown. docs.content stays empty for these.
   "board",
   "sheet",

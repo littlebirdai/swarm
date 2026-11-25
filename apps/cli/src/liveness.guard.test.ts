@@ -1,7 +1,7 @@
 // `unverifiable` must never buy a teardown.
 //
 // The daemon has three answers to "is this agent still there?" — live,
-// unverifiable, exited (@codecast/shared/contracts, liveness.ts) — and only
+// unverifiable, exited (@codecast/sessions/liveness) — and only
 // `exited` may authorize a kill, a reap, a pane rebuild or a "completed" stamp.
 // The failure this prevents is the oldest one in the file: a tmux probe times
 // out, a `ps` read breaks, a machine stops answering, and code that treats
@@ -56,7 +56,6 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGES = path.resolve(HERE, "../../../packages");
 const ROOTS: Record<string, string> = {
   "": HERE,
-  contracts: path.resolve(HERE, "../../../packages/shared/contracts"),
   ...Object.fromEntries(
     fs
       .readdirSync(PACKAGES)

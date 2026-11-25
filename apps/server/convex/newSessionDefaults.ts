@@ -1,5 +1,5 @@
 // The server's half of a person's "New session defaults"
-// (@codecast/shared/contracts newSessionDefaults): the device a start with no
+// (@codecast/sessions/newSessionDefaults): the device a start with no
 // machine named goes to. `cast spawn` reads it inside its mutation and
 // `cast trigger add --spawn` asks through the query below.
 import { query } from "./functions";

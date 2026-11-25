@@ -29,7 +29,7 @@
 // costs that one machine a column, never the page.
 //
 // The vocabulary — kinds, sources, scopes, surfaces, the manifest and its hash
-// — is imported from `@codecast/shared/contracts`, never copied. Four runtimes
+// — is imported from `@codecast/capabilities/capabilities`, never copied. Four runtimes
 // have to agree byte for byte on those, and the shared module is the agreement.
 // The one remaining duplicate is the fleet fold below, and it carries its own
 // consolidation note.
@@ -1336,14 +1336,8 @@ export const webList = query({
 /**
  * CONSOLIDATION NOTE, and it is the first thing to fix after this ships.
  *
- * The daemon and the browser each already answer this question, from the same
- * vocabulary, in `apps/cli/src/capabilities/fleetDiff.ts`. That module is the
- * canonical algorithm and this is a second implementation of it — which exists
- * only because the Convex runtime can import `@codecast/shared` and nothing else,
- * and that module lives in the CLI package. Move `fleetDiff.ts` to
- * `packages/shared/contracts/`, export it from the contracts barrel, and this
- * whole section becomes one import. Every name below is deliberately the name
- * that module uses, so the replacement is a deletion rather than a redesign.
+ * The canonical fleet fold is in `@codecast/capabilities/fleetDiff`.
+ * Compare the two folds before using the shared fold here.
  *
  * THE TWO ALREADY DISAGREE, in one place, and the merge has to resolve it before
  * anything else: `fleetDiff.ts` drops an item whose kind is not in its

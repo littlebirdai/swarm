@@ -19,9 +19,9 @@ export const AREAS = [
   "evals",
   "web",
   "convex",
-  "shared",
+  "packages",
   // The vendored @platform mirror. Its own area rather than a corner of
-  // "shared", so the job that tests it and checks it for drift can gate on
+  // "packages", so the job that tests it and checks it for drift can gate on
   // just that mirror (ct-49675).
   "platform",
   "electron",
@@ -63,7 +63,7 @@ export const JOB_AREAS: Record<string, Area[]> = {
     "cli",
     "web",
     "convex",
-    "shared",
+    "packages",
     "electron",
     "extension",
     "playground",
@@ -77,16 +77,16 @@ export const JOB_AREAS: Record<string, Area[]> = {
     "evals",
     "web",
     "convex",
-    "shared",
+    "packages",
     "electron",
     "playground",
     "platform",
   ],
   lint: AREAS.filter((area) => area !== "docs"),
   // About 480 of 620 convex test files import web code through convex source.
-  "test-convex": ["convex", "web", "shared", "platform"],
+  "test-convex": ["convex", "web", "packages", "platform"],
   // About 750 of 1,220 web test files reach convex and 680 reach electron.
-  "test-web": ["web", "convex", "electron", "shared", "platform"],
+  "test-web": ["web", "convex", "electron", "packages", "platform"],
   // Also runs the eval home's unit tests. About 160 files import convex, and
   // about 60 reach a README under docs/ through decisionKit.ts. About 180
   // reach the browser extension, which the CLI carries for cloud hosts
@@ -96,21 +96,28 @@ export const JOB_AREAS: Record<string, Area[]> = {
     "evals",
     "convex",
     "docs",
-    "shared",
+    "packages",
     "platform",
     "extension",
   ],
   // The mirror's own job: its package tests, and the drift check. Every other
   // job lists "platform" too, because the mirror is a dependency of all of
-  // them and is its own area, not part of "shared".
+  // them and is its own area, not part of "packages".
   "test-platform": ["platform"],
   // The head of people prompt test reads its spec from docs/. The suite's
   // tree-wide files (the doc references guard and the max lines ratchet) run
   // in test-always on every change.
-  "test-shared": ["shared", "docs", "platform"],
+  "test-shared": ["packages", "docs", "platform"],
   // The mobile guards, which walk the native bundle's import graph with cli's
   // bench walker, run in test-always on every change.
-  "test-mobile": ["mobile", "web", "convex", "electron", "shared", "platform"],
+  "test-mobile": [
+    "mobile",
+    "web",
+    "convex",
+    "electron",
+    "packages",
+    "platform",
+  ],
   // The shell requires @platform/desktop and nothing else in the repo.
   "test-electron": ["electron", "platform"],
 };
@@ -142,9 +149,9 @@ const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
   ["evals", ["apps/evals/"]],
   ["web", ["apps/web/"]],
   ["convex", ["apps/server/"]],
-  ["shared", ["packages/"]],
+  ["packages", ["packages/"]],
   // The vendored mirror is its own area: a change to it runs the platform
-  // tests and the manifest drift check, which "shared" alone never did
+  // tests and the manifest drift check, which "packages" alone never did
   // (ct-49675).
   ["platform", ["platform/"]],
   ["electron", ["apps/desktop/"]],

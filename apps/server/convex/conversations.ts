@@ -7581,7 +7581,7 @@ export const forkFromMessage = mutation({
     // row (sibling branches otherwise all read "Fork: <parent title>") and is
     // queued to the branch as the human's own next turn: raw text, no sender,
     // stamped with a fork-seed client_id so the web can mark it (see
-    // @codecast/shared/contracts/forkSeed). Enqueued in this same transaction
+    // @codecast/sessions/forkSeed). Enqueued in this same transaction
     // so a retried fork can never seed twice or create a branch nobody seeds.
     direction: v.optional(v.string()),
     target_agent_type: v.optional(
@@ -10084,7 +10084,7 @@ type InboxSessionMaps = {
   permissionModeMap: Map<string, string>;
   agentStartedAtMap: Map<string, number>;
   // The daemon's last verified open-task report per conversation (see
-  // shared/contracts/openTasks): the "↳ Background …" rows the inbox draws
+  // packages/sessions/src/openTasks): the "↳ Background …" rows the inbox draws
   // without messages, and what vouches for a "waiting" status past the decay.
   openTasksMap: Map<string, { tasks: any[]; at: number }>;
   liveConvIds: Set<string>;
@@ -10973,7 +10973,7 @@ async function enrichInboxSessionRow(
     spawned_by_conversation_id:
       conv.spawned_by_conversation_id?.toString() || null,
     // The project a person put this session in; workers derive theirs from
-    // the links above (shared/contracts/sessionProject).
+    // the links above (packages/sessions/src/sessionProject).
     project_id: conv.project_id?.toString() || null,
     // Handoff link (see schema): the card reads handed_off_from the way it
     // reads spawned_by, since a handoff run from a human shell has no spawner.
@@ -12383,7 +12383,7 @@ type LivenessFields = {
   // overlay rather than the base row because it changes on restart, exactly
   // when the rest of the liveness picture does.
   agent_started_at: number | null;
-  // The daemon's verified open background work (shared/contracts/openTasks) —
+  // The daemon's verified open background work (packages/sessions/src/openTasks) —
   // overlay-borne for the same reason: it changes when the session parks or
   // wakes, and the inbox draws its "↳ Background …" rows from it.
   open_tasks: any[] | null;
@@ -13261,7 +13261,7 @@ async function newestMessageFacts(
 // window drops rows older than the recency cap — a client-held copy of any of
 // those keeps its last-synced liveness forever (the client store never prunes
 // and persists to IndexedDB). The client compensates with isLivenessStale
-// (@codecast/shared/contracts). syncOverlay ignores ids it doesn't have.
+// (@codecast/inbox/inboxProjection). syncOverlay ignores ids it doesn't have.
 //
 // Reads per execution: the scan, the live-pool hydration, the viewer's
 // pending-decide set (decision_inbox + the legacy owner index), at most one newest-message read per row (fallback + AUQ probe share
@@ -15199,7 +15199,7 @@ export const cliRenameSession = mutation({
 // Empty text is a CLEAR, so `cast state ""` and `cast state clear` land on the
 // same path. We stamp message_count alongside the text because that gap — not
 // the clock — is what tells the reader how far the thread has moved since the
-// agent last vouched for this (see shared/contracts/threadState).
+// agent last vouched for this (see packages/sessions/src/threadState).
 // The CLI writes it over /cli/sessions/state/set; the web's clear control goes
 // through the store's generic patchConversation rail instead, so the panel
 // disappears on click without waiting for a round-trip.

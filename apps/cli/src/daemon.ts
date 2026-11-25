@@ -3320,7 +3320,7 @@ const lastHeartbeatLogged = new Map<
 >();
 const HEARTBEAT_LOG_THROTTLE_MS = 5 * 60 * 1000;
 
-// AgentStatus is imported from @codecast/shared/contracts (the single source of
+// AgentStatus is imported from @codecast/sessions/agentStatus (the single source of
 // truth). The old local union here was missing "starting", which would have made
 // a CLI-first status addition throw on every heartbeatBatch validation and mark
 // live sessions dead fleet-wide.
@@ -30240,7 +30240,7 @@ const lastResumeAt = new Map<string, number>();
 // mutation per session — so the inbox/plans/tasks subscriptions, which collect
 // every managed_sessions row, are invalidated once per flush rather than once
 // per session per 30s. See managedSessions:heartbeatBatch. The tick interval
-// (HEARTBEAT_FLUSH_INTERVAL_MS) is owned by @codecast/shared/contracts: the
+// (HEARTBEAT_FLUSH_INTERVAL_MS) is owned by @codecast/sessions/agentStatus: the
 // window that decides a daemon is dead is derived from it, so the two cannot
 // be set apart from each other.
 const managedHeartbeatSessions = new Set<string>();
@@ -32352,7 +32352,7 @@ async function sweepLevelCheckouts(sessionIds: string[]): Promise<void> {
 const lastLevelLine = new Map<string, string | null>();
 let checkoutReportInProgress = false;
 
-/** Each swept checkout's state to the server, on change only (land/checkoutReport.ts, contracts/checkouts.ts). */
+/** Each swept checkout's state to the server, on change only (land/checkoutReport.ts, packages/machines/src/checkouts.ts). */
 async function reportCheckoutsAfterSweep(
   outcomes: import("./land/levelSweep.js").LevelSweepOutcome[],
   sendBrief: import("./land/levelConflicts.js").SendBrief,

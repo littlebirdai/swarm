@@ -25,8 +25,7 @@ import { CAUSE, CHANGE, CHECKOUT, RATES, ROLE } from "./story";
 import "./autonomy.css";
 
 /*
- * The payoff of /features/flows: the regret-free rate (shared/contracts/
- * regretRates.ts), the merge step's two modes (convex/lib/lineMerge.ts, its
+ * The payoff of /features/flows: the regret-free rate (packages/line/src/regretRates.ts), the merge step's two modes (convex/lib/lineMerge.ts, its
  * refusals verbatim, in its order), who may change the mode
  * (convex/orgLineMerge.ts). The library of pool flows is in Library.tsx.
  *

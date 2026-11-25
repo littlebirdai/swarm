@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 604" role="img" aria-labelledby="t d">
   <title id="t">Convergence is checked, not assumed</title>
-  <desc id="d">One pure module, inboxProjection.ts in packages/shared/contracts, is run on both sides. The server's sessionsLiveness query runs it over canonical state at the minute epoch and ships facts, per-row stamps, the epoch, the version and set_digest. The replica writes the facts onto its rows, buffers the stamps in sessionsProjection by scope, and runs the same module through placeInboxRows at the payload's epoch. inboxDigestCompare compares the two: an equal digest passes; otherwise a per-row diff names missing and extra ids and bucket and fold deltas, and only a diff that persists across two epochs counts as drift. Drift spends a bounded heal: getInboxSessionsByIds for missing and extra ids, an overlay probe for stale facts, three heals per ten minutes before healing latches off.</desc>
+  <desc id="d">One pure module, packages/inbox/src/inboxProjection.ts, is run on both sides. The server's sessionsLiveness query runs it over canonical state at the minute epoch and ships facts, per-row stamps, the epoch, the version and set_digest. The replica writes the facts onto its rows, buffers the stamps in sessionsProjection by scope, and runs the same module through placeInboxRows at the payload's epoch. inboxDigestCompare compares the two: an equal digest passes; otherwise a per-row diff names missing and extra ids and bucket and fold deltas, and only a diff that persists across two epochs counts as drift. Drift spends a bounded heal: getInboxSessionsByIds for missing and extra ids, an overlay probe for stale facts, three heals per ten minutes before healing latches off.</desc>
   <style>
     .page { fill: #FBF5E2 }
     .card { fill: #ffffff; stroke: #93a1a1; stroke-width: 1.25 }
@@ -47,7 +47,7 @@
   <!-- Shared module -->
   <rect class="card" x="280" y="24" width="400" height="128" rx="8"/>
   <text class="h" x="296" y="50">inboxProjection.ts</text>
-  <text class="n" x="296" y="70">packages/shared/contracts: pure, one copy</text>
+  <text class="n" x="296" y="70">packages/inbox: pure, one copy</text>
   <rect class="inset" x="296" y="82" width="368" height="56" rx="5"/>
   <text class="n" x="306" y="98">selectWorkingSet, computeFold,</text>
   <text class="n" x="306" y="114">placeInboxRow, digestProjection,</text>

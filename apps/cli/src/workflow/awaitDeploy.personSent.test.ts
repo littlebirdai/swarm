@@ -39,7 +39,7 @@ describe("a change run never sends a target a person sends", () => {
     const repo = path.resolve(import.meta.dir, "../../../..");
     const plan = deployDuties(
       await checkoutTargets(repo),
-      ["packages/shared/contracts/example.ts"],
+      ["packages/line/src/lineWords.ts"],
       { held: lineHeld(loadLineProfile(repo).profile.deploy) },
     );
     const mobile = plan.duties.find((d) => d.target === "mobile");
@@ -119,7 +119,7 @@ describe("a change run never sends a target a person sends", () => {
     const repo = path.resolve(import.meta.dir, "../../../..");
     const plan = deployDuties(
       await checkoutTargets(repo),
-      ["packages/shared/contracts/example.ts"],
+      ["packages/line/src/lineWords.ts"],
       { held: lineHeld(loadLineProfile(repo).profile.deploy) },
     );
     const backend = plan.duties.find((d) => d.target === "backend");

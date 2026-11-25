@@ -443,7 +443,7 @@ describe("own stations", () => {
                 ...s,
                 own: "changed" as const,
                 changed: ["guidance added"],
-                when: ["apps/web/**", "packages/shared/**"],
+                when: ["apps/web/**", "packages/**"],
               }
             : s,
         ),

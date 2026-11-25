@@ -1,4 +1,4 @@
-// The fleet diff itself now lives in `@codecast/shared/contracts/fleetDiff`.
+// The fleet diff itself now lives in `@codecast/capabilities/fleetDiff`.
 //
 // It moved because three runtimes have to render the same verdict — the daemon
 // (`cast cap status`), the browser (`/capabilities`) and Convex (the stored
@@ -12,10 +12,7 @@
 // This file stays for two reasons. It holds the build-time check below, which
 // ties this machine's inventory reader to the vocabulary the shared diff ranks,
 // and it is the CLI's spelling of the diff for `inventory.test.ts`, today its
-// only importer: no production CLI code calls the diff. The names are listed
-// rather than splatted: `@codecast/shared/contracts` is the whole contract barrel, and
-// `export *` from it would quietly make this module a second front door to
-// every unrelated enum in the repo.
+// only importer: no production CLI code calls the diff.
 export {
   buildFleetDiff,
   capabilityIdentity,

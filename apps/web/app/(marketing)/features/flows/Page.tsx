@@ -30,7 +30,7 @@ import "./flows.css";
  * figure is a working model of the app's Flows page drawn from its real rules
  * (the Change flow's steps and ways out, the line's queue and slots, the
  * regret-free window). Facts trace to apps/cli/src/workflow/templates,
- * shared/contracts/{flowMap,regretRates}.ts and convex/{signals,deploys,
+ * packages/line/src/{flowMap,regretRates}.ts and convex/{signals,deploys,
  * orgLineMerge}.ts.
  */
 

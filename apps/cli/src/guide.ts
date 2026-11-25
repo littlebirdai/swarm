@@ -2,7 +2,7 @@
 // will run the commands.
 //
 // The same bodies `cast install` writes into CLAUDE.md (SNIPPET_CATALOG in
-// @codecast/shared/contracts) printed on demand, under a header naming this
+// @codecast/snippets/snippets) printed on demand, under a header naming this
 // cast's version and daemon build id. That header is the whole point: an
 // agent reading flags out of a CLAUDE.md written months ago has no way to know
 // the binary in $PATH moved on, whereas a guide it just asked for cannot be

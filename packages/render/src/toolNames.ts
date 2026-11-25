@@ -13,7 +13,7 @@
 // APIs — so it imports cleanly into both a vite browser bundle and the
 // Expo/Hermes (React Native) bundle. It must NEVER be imported by the Convex
 // runtime (this is render logic, not contract data) — it lives outside
-// @codecast/shared/contracts deliberately.
+// the agent contract packages deliberately.
 
 // Friendly labels for the in-app browser (claude-in-chrome) MCP tools.
 export const mcpToolNames: Record<string, string> = {

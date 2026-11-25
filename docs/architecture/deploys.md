@@ -304,7 +304,7 @@ desktop app. They are declared once, in the checkout:
   A target with no `ship` step is never sent by a ship: only a deploy from
   codecast or a release script sends it.
 - A line profile's `[line.deploy]` (Union) is one more target, read the same
-  way (`contracts/deployTargets targetFromLineDeploy`).
+  way (`packages/deploys/src/deployTargets targetFromLineDeploy`).
 
 `live` readers: `marker` (the deploy path records each deploy: deploy.sh, a
 ship pass, a codecast run's watch station, a release script's `cast ship
@@ -318,7 +318,7 @@ of the repository's team) by every line profile publish and by `cast line
 deploy targets --publish`, with the machine and checkout that published
 them: where a deploy of a `here` target runs. A target the checkout stops
 declaring is retired, not deleted. Every reader (the CLI, the server, the
-Deploys page) parses through `contracts/deployTargets`.
+Deploys page) parses through `packages/deploys/src/deployTargets`.
 
 The targets have their own file because every released CLI validates
 workspace.toml strictly (an unknown key in `[[ship.deploy]]`, `[ship]` or at
@@ -611,6 +611,6 @@ week (Union's aivery-operator, a backend copy shipped rarely) keeps its row
 but would otherwise hold every change at not live yet; when every target is
 dormant, all of them speak. A pull request
 names its commit on main by `pull_requests.merge_commit_sha`, which the closed
-webhook and the GitHub sync write. The rule is `contracts/deployReach`; the
+webhook and the GitHub sync write. The rule is `packages/deploys/src/deployReach`; the
 web's store holds each answer in `deployReach`, keyed by its ref.
 ```

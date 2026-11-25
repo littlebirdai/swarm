@@ -34,7 +34,7 @@
 // already granted. The refresh token
 // is stored encrypted (AES-256-GCM, key HKDF-derived from the client secret)
 // using the cipher/KDF parameters already standardized in
-// @codecast/shared/contracts/providerKeyCrypto.ts — plaintext never reaches
+// @codecast/provider-keys/providerKeyCrypto — plaintext never reaches
 // the database. The hosted assistant's tools get a token through
 // googleAccessTokenForUser (server only, keyed by user and required scope);
 // the verbs themselves live with the tools.
@@ -313,7 +313,7 @@ export function googleAuthorizeUrl(state: string, scopes: string[]): string {
 // ── Refresh-token encryption at rest ────────────────────────────────────────
 // AES-256-GCM under a key HKDF-derived from the OAuth client secret, reusing
 // the exact cipher/KDF parameters of the provider-key contract
-// (@codecast/shared/contracts/providerKeyCrypto.ts) with a domain-separating
+// (@codecast/provider-keys/providerKeyCrypto) with a domain-separating
 // info string. Consequence to know: rotating GOOGLE_OAUTH_CLIENT_SECRET
 // orphans stored ciphertexts — users reconnect (Google would also invalidate
 // the tokens' client binding on rotation, so nothing extra is lost).

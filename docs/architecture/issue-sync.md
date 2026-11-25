@@ -360,7 +360,7 @@ spawn`, except that a team machine is refused and no saved default device
    `issues/labeled`, `issues/closed`, `issue_comment/created`, with
    `repository` set to the repo full name or the Linear team key. The CLI
    shorthands are `issue_opened`, `issue_assigned`, `issue_labeled`,
-   `issue_closed`, `issue_commented` (`shared/contracts/triggerEvents.ts`).
+   `issue_closed`, `issue_commented` (`packages/triggers/src/triggerEvents.ts`).
 
 Auto-spawn options come from the source (S1.3):
 

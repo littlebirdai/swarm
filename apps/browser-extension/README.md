@@ -131,7 +131,7 @@ comes from the [published store listing](https://chromewebstore.google.com/detai
 The published extension ID is `odfpgkdaibmjhhnbndgbjlhdbciciifd`. Its public
 key is committed in `manifest.json` so an unpacked development load uses the
 same ID. The ID and install URL live in
-`packages/shared/contracts/browserExtension.ts`; the CLI reuses them in
+`packages/browser/src/browserExtension.ts`; the CLI reuses them in
 `bridge/protocol.ts`. The protocol test checks that the manifest key derives
 this exact ID. The private signing key belongs to the Chrome Web Store.
 

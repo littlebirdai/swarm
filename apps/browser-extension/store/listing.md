@@ -171,7 +171,7 @@ unrelated to the single purpose; not used for creditworthiness or lending.
 Upload updates to this existing item; creating a new
 item would change the ID and break CLI pairing. The manifest holds this
 listing's public key for development loads, and
-`packages/shared/contracts/browserExtension.ts` holds the ID and store URL.
+`packages/browser/src/browserExtension.ts` holds the ID and store URL.
 
 Later releases use the "Cut Chrome extension release" workflow. For a manual
 upload, build with `bun apps/browser-extension/release.mjs --dry-run`,
