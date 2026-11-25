@@ -1032,6 +1032,20 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/provider-adapter": {
+      "name": "@codecast/provider-adapter",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/edge-contract": "workspace:*",
+        "@codecast/effect-kit": "workspace:*",
+        "@codecast/provider-contract": "workspace:*",
+        "@codecast/secrets": "workspace:*",
+        "effect": "catalog:",
+      },
+      "devDependencies": {
+        "@codecast/test-helpers": "workspace:*",
+      },
+    },
     "packages/provider-contract": {
       "name": "@codecast/provider-contract",
       "version": "0.0.1",
@@ -1698,6 +1712,8 @@
     "@codecast/policy": ["@codecast/policy@workspace:packages/policy"],
 
     "@codecast/projects": ["@codecast/projects@workspace:packages/projects"],
+
+    "@codecast/provider-adapter": ["@codecast/provider-adapter@workspace:packages/provider-adapter"],
 
     "@codecast/provider-contract": ["@codecast/provider-contract@workspace:packages/provider-contract"],
 

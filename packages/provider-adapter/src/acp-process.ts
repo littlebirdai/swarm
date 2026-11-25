@@ -1,0 +1,370 @@
+import { withoutSecrets } from "@codecast/secrets/secretShapes";
+import { hasInterruptsOnly } from "effect/Cause";
+import * as Data from "effect/Data";
+import * as Deferred from "effect/Deferred";
+import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import * as Result from "effect/Result";
+import * as Semaphore from "effect/Semaphore";
+import type * as Scope from "effect/Scope";
+import type { CloseOutcome } from "@codecast/provider-contract";
+import type { RpcId } from "./acp-schema";
+import {
+  closed,
+  type ProviderAdapterOptions,
+  type RawProviderFrame,
+} from "./options";
+
+export class AdapterError extends Data.TaggedError("AdapterError")<{
+  code: string;
+  message: string;
+  cause?: unknown;
+}> {}
+
+const maxFrameBytes = 8 * 1024 * 1024;
+
+export const processError = (code: string, message: string, cause?: unknown) =>
+  new AdapterError({ code, message, cause });
+
+export function spawnAcp(
+  options: ProviderAdapterOptions,
+  cwd: string,
+  scope: Scope.Scope,
+) {
+  let groupResult: CloseOutcome | undefined;
+  function stopGroup(pid: number): CloseOutcome {
+    if (groupResult) return groupResult;
+    if (pid <= 0) return (groupResult = closed);
+    try {
+      process.kill(-pid, "SIGKILL");
+    } catch (error) {
+      if (
+        !(error instanceof Error && "code" in error && error.code === "ESRCH")
+      ) {
+        return (groupResult = {
+          status: "failed",
+          code: "kill-failed",
+          message: String(error),
+        });
+      }
+    }
+    return (groupResult = closed);
+  }
+
+  const child = Bun.spawn({
+    cmd: [...(options.command ?? ["grok", "agent", "stdio"])],
+    cwd,
+    env: options.env ?? process.env,
+    detached: true,
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+    onExit: (process) => {
+      stopGroup(process.pid);
+    },
+  });
+  const stdout = child.stdout.getReader();
+  const stderr = child.stderr.getReader();
+  let closing = false;
+  const writer = Semaphore.makeUnsafe(1);
+  const writeQueueError = processError(
+    "write-queue-timeout",
+    "ACP input did not drain",
+  );
+  const newWriteWindow = () => ({
+    expired: false,
+    signal: Deferred.makeUnsafe<void>(),
+  });
+  let writeWindow = newWriteWindow();
+  const isClosed = () => closing || scope.state._tag === "Closed";
+  const inputClosed = () =>
+    isClosed() || child.exitCode !== null || child.signalCode !== null;
+  let nextId = 0;
+  let stderrError: AdapterError | undefined;
+  const pending = new Map<
+    number,
+    { method: string; response: Deferred.Deferred<unknown, AdapterError> }
+  >();
+  const exit = child.exited.then(
+    (code) => child.signalCode ?? (code === 0 ? "exited" : `exit-${code}`),
+  );
+  const drainStderr = async () => {
+    try {
+      let inPrivateKey = false;
+      for await (const { line, base64Fragment } of readFrames(stderr, 8192)) {
+        if (isClosed()) break;
+        if (base64Fragment) continue;
+        const redacted = withoutSecrets(line);
+        let safe = "";
+        let offset = 0;
+        for (const marker of redacted.matchAll(
+          /-----(BEGIN|END) [A-Z0-9 ]{0,40}?PRIVATE KEY-----/g,
+        )) {
+          if (!inPrivateKey) {
+            safe += redacted.slice(offset, marker.index);
+            if (marker[1] === "BEGIN") safe += "[redacted:private-key]";
+          }
+          inPrivateKey = marker[1] === "BEGIN";
+          offset = marker.index + marker[0].length;
+        }
+        if (!inPrivateKey) safe += redacted.slice(offset);
+        if (safe) options.onStderr?.(safe.slice(0, 500));
+      }
+    } catch (cause) {
+      if (!closing) {
+        stderrError = processError(
+          "stderr-handler",
+          "ACP stderr reader failed",
+          cause,
+        );
+        await stdout.cancel().catch(() => {});
+      }
+    }
+  };
+  void drainStderr();
+
+  async function* frames() {
+    yield* readFrames(stdout, maxFrameBytes);
+    if (stderrError) throw stderrError;
+  }
+
+  const write = Effect.fn("acp.write")(function* <E>(
+    prepare: () => Result.Result<readonly object[], E>,
+  ) {
+    if (inputClosed())
+      return yield* processError("channel-closed", "ACP input is closed");
+    const window = writeWindow;
+    if (window.expired) return yield* writeQueueError;
+    let started = false;
+    let finished = false;
+    const worker = yield* Effect.forkIn(
+      Semaphore.withPermit(
+        writer,
+        Effect.callback<void, E | AdapterError>((resume) => {
+          if (inputClosed()) {
+            resume(
+              Effect.fail(
+                processError("channel-closed", "ACP input is closed"),
+              ),
+            );
+            return;
+          }
+          if (window.expired) {
+            resume(Effect.fail(writeQueueError));
+            return;
+          }
+          const planned = prepare();
+          if (planned._tag === "Failure") {
+            resume(Effect.fail(planned.failure));
+            return;
+          }
+          started = true;
+          const send = async () => {
+            await child.stdin.write(
+              planned.success
+                .map(
+                  (message) =>
+                    JSON.stringify({ jsonrpc: "2.0", ...message }) + "\n",
+                )
+                .join(""),
+            );
+            await child.stdin.flush();
+          };
+          const finish = (result: Effect.Effect<void, AdapterError>) => {
+            finished = true;
+            if (window.expired) writeWindow = newWriteWindow();
+            resume(result);
+          };
+          void send().then(
+            () => finish(Effect.void),
+            (cause) =>
+              finish(
+                Effect.fail(
+                  processError(
+                    "write-failed",
+                    "Could not write ACP input",
+                    cause,
+                  ),
+                ),
+              ),
+          );
+        }),
+      ),
+      scope,
+      { startImmediately: true },
+    );
+    return yield* Fiber.join(worker).pipe(
+      Effect.catchCause((cause) =>
+        isClosed() && hasInterruptsOnly(cause)
+          ? Effect.fail(
+              processError(
+                started ? "write-interrupted" : "channel-closed",
+                "ACP input is closed",
+              ),
+            )
+          : Effect.failCause(cause),
+      ),
+      Effect.raceFirst(
+        Deferred.await(window.signal).pipe(
+          Effect.flatMap(() =>
+            started ? Effect.never : Effect.fail(writeQueueError),
+          ),
+        ),
+      ),
+      Effect.timeoutOrElse({
+        duration: "30 seconds",
+        orElse: () =>
+          Effect.suspend(() => {
+            if (!started) return Effect.fail(writeQueueError);
+            if (!finished) {
+              window.expired = true;
+              Deferred.doneUnsafe(window.signal, Effect.void);
+            }
+            return Effect.fail(
+              processError("write-timeout", "ACP input did not drain"),
+            );
+          }),
+      }),
+      Effect.ensuring(
+        Effect.suspend(() => (started ? Effect.void : Fiber.interrupt(worker))),
+      ),
+    );
+  });
+
+  const request = Effect.fn("acp.request")(function* (
+    method: string,
+    params: object,
+  ) {
+    const response = yield* Deferred.make<unknown, AdapterError>();
+    const id = ++nextId;
+    return {
+      id,
+      send<E = never>(beforeWrite?: () => Result.Result<void, E>) {
+        return write(() => {
+          const planned = beforeWrite?.();
+          if (planned?._tag === "Failure") return Result.fail(planned.failure);
+          pending.set(id, { method, response });
+          return Result.succeed([{ id, method, params }]);
+        });
+      },
+      awaitResponse: Deferred.await(response),
+    };
+  });
+
+  const settle = Effect.fn("acp.settle")(function* (
+    id: RpcId,
+    result: unknown,
+    error?: { code: number; message: string },
+  ) {
+    const deferred =
+      typeof id === "number" ? pending.get(id)?.response : undefined;
+    if (!deferred) return false;
+    pending.delete(Number(id));
+    yield* error
+      ? Deferred.fail(
+          deferred,
+          processError("rpc-rejected", withoutSecrets(error.message)),
+        )
+      : Deferred.succeed(deferred, result);
+    return true;
+  });
+
+  const failPending = Effect.fn("acp.failPending")(function* (
+    error: AdapterError,
+  ) {
+    for (const { response } of pending.values())
+      yield* Deferred.fail(response, error);
+    pending.clear();
+  });
+
+  let released: Promise<CloseOutcome> | undefined;
+  function release(): Promise<CloseOutcome> {
+    closing = true;
+    return (released ??= (async () => {
+      const outcome = stopGroup(child.pid);
+      await Promise.allSettled([stdout.cancel(), stderr.cancel()]);
+      const endInput = Promise.resolve()
+        .then(() => child.stdin.end())
+        .catch(() => {});
+      if (outcome.status === "failed") {
+        child.unref();
+      } else {
+        await child.exited;
+        await endInput;
+      }
+      return outcome;
+    })());
+  }
+
+  return {
+    frames,
+    fence: () => {
+      closing = true;
+      void stdout.cancel().catch(() => {});
+    },
+    write,
+    request,
+    settle,
+    pendingMethod: (id: RpcId) =>
+      typeof id === "number" ? pending.get(id)?.method : undefined,
+    failPending,
+    release,
+    exit,
+  };
+}
+
+async function* readFrames(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  limit: number,
+): AsyncGenerator<Pick<RawProviderFrame, "line" | "base64Fragment">> {
+  let parts: Buffer[] = [];
+  let length = 0;
+  let fragment = 0;
+  const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+  function decode(bytes: Buffer) {
+    try {
+      return { line: decoder.decode(bytes) };
+    } catch {
+      return {
+        line: bytes.toString("base64"),
+        base64Fragment: { index: 0, last: true },
+      };
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+    let start = 0;
+    while (start < chunk.length) {
+      const newline = chunk.indexOf(10, start);
+      const part = chunk.subarray(start, newline < 0 ? undefined : newline);
+      if (fragment > 0 || length + part.length > limit) {
+        if (length > 0) {
+          yield {
+            line: Buffer.concat(parts, length).toString("base64"),
+            base64Fragment: { index: fragment++, last: false },
+          };
+        }
+        yield {
+          line: part.toString("base64"),
+          base64Fragment: { index: fragment++, last: newline >= 0 },
+        };
+      } else {
+        parts.push(part);
+        length += part.length;
+        if (newline < 0) break;
+        yield decode(Buffer.concat(parts, length));
+      }
+      length = 0;
+      parts = [];
+      if (newline < 0) break;
+      fragment = 0;
+      start = newline + 1;
+    }
+  }
+  if (fragment > 0)
+    yield { line: "", base64Fragment: { index: fragment, last: true } };
+  else if (length > 0) yield decode(Buffer.concat(parts, length));
+}

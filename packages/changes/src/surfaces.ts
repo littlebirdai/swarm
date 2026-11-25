@@ -53,6 +53,7 @@ const PACKAGE_AREAS = [
   "pages",
   "policy",
   "projects",
+  "provider-adapter",
   "provider-contract",
   "provider-keys",
   "pull-requests",
