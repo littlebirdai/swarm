@@ -1010,7 +1010,7 @@
     "src/workflow/runEnded.test.ts": 285,
     "src/workflow/runFailure.test.ts": 257,
     "src/workflow/runResume.test.ts": 1206,
-    "src/workflow/runWorktree.test.ts": 1697,
+    "src/workflow/run-worktree.test.ts": 1697,
     "src/workflow/runner.fanout.test.ts": 1846,
     "src/workflow/runner.test.ts": 23756,
     "src/workflow/runsCli.test.ts": 1054,

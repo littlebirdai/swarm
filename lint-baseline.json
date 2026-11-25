@@ -5576,8 +5576,8 @@
   "apps/cli/src/workflow/runResume.ts": {
     "swarm/no-comments": 69
   },
-  "apps/cli/src/workflow/runWorktree.test.ts": {
-    "swarm/no-comments": 12
+  "apps/cli/src/workflow/run-worktree.test.ts": {
+    "swarm/no-comments": 11
   },
   "apps/cli/src/workflow/runWorktree.ts": {
     "swarm/no-blocking-child-process-call": 3,
