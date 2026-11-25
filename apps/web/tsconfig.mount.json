@@ -32,8 +32,6 @@
     "components/__tests__/huddleButton.test.tsx",
     "components/__tests__/liveNowRail.test.tsx",
     "components/__tests__/paletteTeammates.test.tsx",
-    "components/__tests__/publishedPageEmbed.test.tsx",
-    "components/__tests__/recoverableRenderError.test.tsx",
     "components/__tests__/reviveDivider.test.tsx",
     "components/__tests__/seatSessionPage.mount.test.tsx",
     "components/__tests__/sessionControlMenu.mount.test.tsx",
