@@ -52,7 +52,7 @@ describe("parked convCommand caller policy", () => {
     // The conversation view owns rewind, a hook owns permission mode, and the
     // shared composer controls own Escape (the view and Threads cards both use it).
     const conversationView = [
-      await source("../../components/ConversationView.tsx"),
+      await source("../../components/conversation-view.tsx"),
       await source("../../hooks/usePermissionModeSwitch.ts"),
       await source("../../hooks/useSessionComposerControls.ts"),
     ].join("\n");

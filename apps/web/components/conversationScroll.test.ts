@@ -320,7 +320,7 @@ describe("jumpRowForMessage", () => {
 
 describe("unsigned share-link wiring", () => {
   const view = readFileSync(
-    join(import.meta.dir, "ConversationView.tsx"),
+    join(import.meta.dir, "conversation-view.tsx"),
     "utf8",
   );
   const page = readFileSync(

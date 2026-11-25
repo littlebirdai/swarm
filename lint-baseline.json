@@ -14492,7 +14492,7 @@
   "apps/web/components/ConversationUnavailable.tsx": {
     "swarm/no-comments": 1
   },
-  "apps/web/components/ConversationView.tsx": {
+  "apps/web/components/conversation-view.tsx": {
     "react-hooks/exhaustive-deps": 17,
     "swarm/ime-safe-key-handlers": 4,
     "swarm/no-comments": 1037,

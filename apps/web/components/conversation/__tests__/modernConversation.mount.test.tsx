@@ -414,7 +414,7 @@ describe("Modern row words", () => {
 
   test("the transcript's height cache keys Modern apart, so a style switch never reuses heights", () => {
     const view = readFileSync(
-      join(import.meta.dir, "..", "..", "ConversationView.tsx"),
+      join(import.meta.dir, "..", "..", "conversation-view.tsx"),
       "utf8",
     );
     expect(view).toContain('${modernStyle ? ":m" : ""}');

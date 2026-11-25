@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 const read = (file: string) =>
   readFileSync(new URL(file, import.meta.url), "utf8");
-const containerSource = read("../ConversationView.tsx");
+const containerSource = read("../conversation-view.tsx");
 const cardSource = read("../conversation/blocks/systemBlocks.tsx");
 
 function block(source: string, startMarker: string, endMarker: string) {

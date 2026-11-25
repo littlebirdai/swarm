@@ -205,7 +205,7 @@ Order: poster first, then by leak severity.
    - Export the JSX from :222-349 plus `PermissionRow` and `ToolName` as a view: `{pending, inflight, onApprove, onDeny, onApproveAll, onDenyAll, onAllowAll?, collapsed, expandedId, ...}`.
    - `PermissionStack` keeps the mutation (:121), `resolveSessionQuestion` (:122) and the y/n listener (:185).
 4. **Entity, personify and ThemeContext seams** (section 1, items 2 to 4). Also route castBlocks' queries through `useEntityResolution`.
-5. **`ConversationHeaderBar` + `AgentStatusPill`** from ConversationView.tsx:3632-3990. This also collapses the status ternary that is repeated four times (~3693-3735).
+5. **`ConversationHeaderBar` + `AgentStatusPill`** from conversation-view.tsx:3632-3990. This also collapses the status ternary that is repeated four times (~3693-3735).
 6. **`ComposerShell`** from MessageInput.tsx (~2620-2700 plus the meta line at 2177): `{value, onChange, placeholder, canSubmit, onSubmit, meta, actions}`. MessageInput keeps the drafts and send.
 7. **Sidebar primitives**
    - Move `RailHeading`, `SectionRow`, `NavCount` and `NavSection` (Sidebar.tsx:99-376) to `components/sidebar/navPrimitives.tsx`.

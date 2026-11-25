@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 
 test("ConversationView's virtualizer writes row positions as top, not translate3d", () => {
   const src = readFileSync(
-    new URL("../ConversationView.tsx", import.meta.url),
+    new URL("../conversation-view.tsx", import.meta.url),
     "utf8",
   );
   const call = src.slice(

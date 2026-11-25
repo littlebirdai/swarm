@@ -4,7 +4,7 @@
 // ConversationView and chat/ChatMessage both render with. Its exports are data
 // (arrays, objects) rather than components, so an edit here re-executes its two
 // importers — that is why they live in this small module and NOT in
-// ConversationView.tsx: a non-component export there turned every save of the
+// conversation-view.tsx: a non-component export there turned every save of the
 // 3k-line view into a failed Fast Refresh boundary that re-executed all twelve
 // of its importers.
 

@@ -40,7 +40,7 @@ never happened. There was NO in-flight work from the outgoing session to finish 
    intent.
 6. **The dispatch-UX bug is MORE urgent under a risk-tolerant cutover:** the parked-contract
    fix (new-session callers missing the `DispatchNotWiredError.parked` check that
-   ConversationView.tsx:10871 and modelSwitch.ts:116 already have; plus the raw
+   conversation-view.tsx:10871 and modelSwitch.ts:116 already have; plus the raw
    `_dispatch("createSession")` DROP path in ContextChatInput.tsx:135; plus epoch-identity
    subscription + the listener-install-before-bail fix in useEnsureDispatch) is the
    difference between "breakage we fix forward" and "the app looks broken to every user
