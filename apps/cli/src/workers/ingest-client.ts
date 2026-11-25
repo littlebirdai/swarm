@@ -196,6 +196,37 @@ export async function readTranscriptIngest(
   let grantCursor: (() => void) | undefined;
   try {
     current();
+    if (host) {
+      const reserveCursor = () => {
+        activeIngestCursors++;
+        releaseCursor = () => {
+          activeIngestCursors--;
+          while (activeIngestCursors < MAX_INFLIGHT && ingestCursorWaiters.size)
+            ingestCursorWaiters.values().next().value?.();
+        };
+      };
+      if (activeIngestCursors < MAX_INFLIGHT) reserveCursor();
+      else {
+        if (ingestCursorWaiters.size >= MAX_QUEUE)
+          throw new IngestCapacityError();
+        const turn = new Promise<void>((resolve, reject) => {
+          grantCursor = () => {
+            ingestCursorWaiters.delete(grantCursor!);
+            try {
+              current();
+            } catch (error) {
+              reject(error);
+              return;
+            }
+            reserveCursor();
+            resolve();
+          };
+          ingestCursorWaiters.add(grantCursor);
+        });
+        await waitForTranscriptReservation(turn, budget);
+      }
+      current();
+    }
     job = {
       ...input,
       generation: randomUUID(),
@@ -231,28 +262,6 @@ export async function readTranscriptIngest(
       return result;
     };
     if (!host) return await finish(await readIngestJob(job, current));
-    const reserveCursor = () => {
-      activeIngestCursors++;
-      releaseCursor = () => {
-        activeIngestCursors--;
-        ingestCursorWaiters.values().next().value?.();
-      };
-    };
-    if (activeIngestCursors < MAX_INFLIGHT) reserveCursor();
-    else {
-      if (ingestCursorWaiters.size >= MAX_QUEUE)
-        throw new IngestCapacityError();
-      const turn = new Promise<void>((resolve) => {
-        grantCursor = () => {
-          ingestCursorWaiters.delete(grantCursor!);
-          reserveCursor();
-          resolve();
-        };
-        ingestCursorWaiters.add(grantCursor);
-      });
-      await waitForTranscriptReservation(turn, budget);
-    }
-    current();
     const assembler = new IngestAssembler();
     try {
       for (;;) {

@@ -72,9 +72,7 @@ workers-on fleet round missed its two-second deadline in pair three, round nine.
 
 The 200-record, 1 MiB case reduced median loop p99 by 28% and the median
 maximum by 91%. Median p95 increased from 4.6 to 5.9 ms and stayed within
-its paired tolerance. The review's earlier run reported a 21–42% decrease
-in p95, p99, and maximum. This run reproduced a tail improvement, with a
-different p95 result. The backlog reduced the median maximum from 13.7 to
+its paired tolerance. The backlog reduced the median maximum from 13.7 to
 7.5 ms.
 
 Combined physical footprint failed at idle and under load in every case.
@@ -149,10 +147,10 @@ repeat the paired gate with the large records and the backlog.
 
 ## Ingest concurrency
 
-The daemon queues cursor opens in arrival order. A slot stays occupied until
-its transcript read and cursor cleanup end. The queue holds at most 32
-waiters, and the existing transcript deadline applies while they wait. An
-overflow refuses admission before it reads a cursor page.
+The daemon queues cursor opens in arrival order. Each read takes the file
+and WAL identities after it gets a slot. The slot stays occupied until the
+read and cursor cleanup end. The queue holds at most 32 waiters. Cancelled
+and expired waits leave the queue before they read an identity.
 
 The regression test reads 30 transcripts concurrently. It verifies that each
 transcript returns both records in file order and consumes the exact input
