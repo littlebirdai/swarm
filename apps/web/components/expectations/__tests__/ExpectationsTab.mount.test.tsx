@@ -1,91 +1,29 @@
-// Mounts a project's Expectations tab and the /expectations overview in jsdom
-// from store rows alone (the-line-model.md LM5): the header says what an
-// expectation is and where the document stands; each line shows how often
-// findings broke it, opening to the findings and their causes; the filters
-// narrow to broken, never cited and contested lines; a line is changed or its
-// open question settled in place; the history names each version's how; a
-// project with none explains them and offers both ways to start; the
-// overview orders documents by what waits and what breaks.
-import { afterAll, beforeEach, expect, mock, test } from "bun:test";
-import React, { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../../../test-helpers/globals";
-import { closeDomWindow } from "../../../test-helpers/domGlobals";
+import { expect, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import type {
+  Expectation,
+  ExpectationCitation,
+} from "@codecast/line/expectations";
+import { act, type ReactElement } from "react";
+import type { ExpectationsOverviewRow } from "../../../hooks/useSyncExpectationsOverview";
+import type { ProjectExpectationsRow } from "../../../hooks/useSyncProjectExpectations";
+import { webBuilders } from "../../../test-helpers/builders";
+import { expectAbsent, expectPresent } from "../../../test-helpers/domExpect";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { pending, type testConvex } from "../../../test-helpers/testConvex";
+import { ExpectationsOverview } from "../ExpectationsOverview";
+import { ExpectationsTab } from "../ExpectationsTab";
 
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  {
-    url: "https://local.codecast.sh/projects/p1?tab=expectations",
-    pretendToBeVisual: true,
-  },
-);
-const matchMedia = (q: string) => ({
-  matches: false,
-  media: q,
-  addEventListener() {},
-  removeEventListener() {},
+const ids = webBuilders("ExpectationsTab.mount.test.tsx");
+const TEAM = ids.teamMember.build()._id;
+const viewer = ids.teamMember.build({ name: "Ashot" });
+const project = ids.project.build({
+  title: "Callers",
+  short_id: "pj-4",
+  workspace: "team:" + TEAM,
 });
-const restoreGlobals = replaceGlobals({
-  window: Object.assign(dom.window, { innerWidth: 1400, matchMedia }),
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  matchMedia,
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-dom.window.HTMLElement.prototype.scrollTo = () => {};
-dom.window.HTMLElement.prototype.scrollIntoView = () => {};
-const { createRoot } = await import("react-dom/client");
-
-// Same mocks as the panel's and the Line tab's mount tests: bun shares
-// mock.module across the files of one run, so they must agree.
-mock.module("../../../hooks/useSyncCollection", () => ({
-  useSyncCollection: () => ({ ready: true }),
-  useFeederError: () => {},
-  entityIdArgs: () => "skip",
-  applyCollectionFeed: () => {},
-  keyRowsBy: (rows: any[]) => rows ?? [],
-}));
-mock.module("next/link", () => ({
-  default: ({ href, children, ...rest }: any) =>
-    React.createElement("a", { href, ...rest }, children),
-}));
-mock.module("next/navigation", () => ({
-  useRouter: () => ({ push() {}, replace() {} }),
-  usePathname: () => "/projects/p1",
-  useSearchParams: () => new URLSearchParams("tab=line"),
-}));
-mock.module("../../../hooks/useQueryNoThrow", () => ({
-  useQueryNoThrow: () => ({ data: null }),
-}));
-mock.module("../../../hooks/useOpenLinkedSession", () => ({
-  useOpenLinkedSession: () => () => {},
-}));
-
-const { useInboxStore } = await import("../../../store/inboxStore");
-const { ExpectationsTab } = await import("../ExpectationsTab");
-const { ExpectationsOverview } = await import("../ExpectationsOverview");
-
-// The real writes, put back after this file: bun runs the files of one run in
-// one store, and a later file captures the actions it finds at import.
-const realActions = {
-  editExpectations: useInboxStore.getState().editExpectations,
-  resolveExpectationProposal:
-    useInboxStore.getState().resolveExpectationProposal,
-};
-afterAll(() => {
-  useInboxStore.setState(realActions as any);
-  closeDomWindow(dom);
-  restoreGlobals();
-});
-
-const PID = "p".repeat(32);
-const ME = "u".repeat(32);
-const TEAM = "t".repeat(32);
-const CALL = {
+const PID = project._id;
+const CALL: ExpectationCitation = {
   kind: "call",
   ref: "cl-96:718",
   quote: "a call card's facts should hold true",
@@ -95,8 +33,8 @@ const line = (
   n: number,
   text: string,
   part: string,
-  over: Record<string, unknown> = {},
-) => ({
+  over: Partial<Expectation> = {},
+): Expectation => ({
   id: `ex-callers-call-${n}`,
   text,
   part,
@@ -114,7 +52,9 @@ const finding = (n: number, days: number) => ({
   created_at: Date.now() - days * 86_400_000,
   cause: { id: "c1", short_id: "ct-512", title: "Card facts", status: "open" },
 });
-const row = (over: Record<string, unknown> = {}) => ({
+const row = (
+  over: Partial<ProjectExpectationsRow> = {},
+): ProjectExpectationsRow => ({
   _id: PID,
   project: { id: PID, title: "Callers" },
   current_version: 2,
@@ -225,88 +165,74 @@ const row = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-let calls: unknown[][] = [];
-beforeEach(() => {
-  calls = [];
-  useInboxStore.setState({
-    currentUser: { _id: ME, name: "Ashot" },
-    teamMembers: [{ _id: ME, name: "Ashot" }],
-    chatChannels: {},
-    pullRequests: {},
-    commits: {},
-    projects: {
-      [PID]: {
-        _id: PID,
-        short_id: "pj-4",
-        title: "Callers",
-        workspace: `team:${TEAM}`,
-      },
+function mount(
+  el: ReactElement,
+  opts: {
+    record?: ProjectExpectationsRow;
+    overview?: ExpectationsOverviewRow[];
+  } = {},
+) {
+  return mountWeb(el, {
+    path: opts.overview
+      ? "/expectations"
+      : "/projects/" + PID + "?tab=expectations",
+    dispatch: true,
+    setup(backend, store) {
+      store.syncTable("currentUser", viewer);
+      store.syncTable("clientState", { ui: { active_team_id: TEAM } });
+      store.syncTable("teamMembers", [{ ...viewer, roster_team: TEAM }]);
+      store.syncTable("projects", [project]);
+      store.syncTable("projectExpectations", [opts.record ?? row()]);
+      if (opts.overview) store.syncTable("expectationsOverview", opts.overview);
+      backend.set(api.expectations.forProject, pending);
+      backend.set(api.expectations.overview, pending);
+      backend.set(api.projects.webList, pending);
+      backend.set(api.transcripts.webGetCallRef, pending);
+      backend.set(api.tasks.webGet, pending);
+      backend.mutation(api.dispatch.dispatch, null);
     },
-    projectExpectations: { [PID]: row() },
-    sessionDecisions: {},
-    pending: {},
-    editExpectations: (...a: unknown[]) => {
-      calls.push(["edit", ...a]);
-    },
-    resolveExpectationProposal: (...a: unknown[]) => {
-      calls.push(["resolve", ...a]);
-    },
-  } as any);
-});
-
-async function mount(el: React.ReactElement) {
-  const host = document.createElement("div");
-  document.body.appendChild(host);
-  const root = createRoot(host);
-  await act(async () => {
-    root.render(el);
   });
-  return {
-    host,
-    done: async () => {
-      await act(async () => {
-        root.unmount();
-      });
-      host.remove();
-    },
-  };
 }
-const click = async (el: Element | null) => {
-  expect(el).toBeTruthy();
-  await act(async () => {
-    (el as HTMLElement).dispatchEvent(
-      new dom.window.MouseEvent("click", { bubbles: true }),
-    );
+
+const writes = (backend: ReturnType<typeof testConvex>) =>
+  backend.mutations.flatMap(({ name, args }) => {
+    if (name !== "dispatch:dispatch") return [];
+    const dispatch = args as { action: string; args: unknown[] };
+    return [[dispatch.action, ...dispatch.args]];
   });
+
+const click = async (el: HTMLElement | Element | null) => {
+  expectPresent(el);
+  await act(async () =>
+    el.dispatchEvent(new MouseEvent("click", { bubbles: true })),
+  );
 };
 function setValue(el: Element | null, value: string) {
-  expect(el).toBeTruthy();
+  expectPresent(el);
   const proto =
-    el instanceof dom.window.HTMLTextAreaElement
-      ? dom.window.HTMLTextAreaElement.prototype
-      : dom.window.HTMLInputElement.prototype;
+    el instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
   Object.getOwnPropertyDescriptor(proto, "value")!.set!.call(el, value);
-  const key = Object.keys(el as object).find((k) =>
-    k.startsWith("__reactProps"),
-  );
-  (el as any)[key!]?.onChange?.({
-    target: el,
-    currentTarget: el,
-    nativeEvent: new dom.window.Event("input"),
-  });
+  el.dispatchEvent(new Event("input", { bubbles: true }));
 }
 const submit = async (form: Element | null) => {
-  await act(async () => {
-    (form as HTMLFormElement).dispatchEvent(
-      new dom.window.Event("submit", { bubbles: true, cancelable: true }),
-    );
-  });
+  expectPresent(form);
+  await act(async () =>
+    form.dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true }),
+    ),
+  );
 };
 const text = (el: Element | null | undefined) =>
   el?.textContent?.replace(/\s+/g, " ").trim() ?? "";
 
 test("the header says what an expectation is and where the document stands; proposals lead", async () => {
-  const { host, done } = await mount(<ExpectationsTab projectId={PID} />);
+  const {
+    container: host,
+    close: done,
+    backend,
+  } = await mount(<ExpectationsTab projectId={PID} />);
   expect(text(host.querySelector("[data-expectations-about]"))).toContain(
     "Plain sentences about how the product should behave",
   );
@@ -322,7 +248,6 @@ test("the header says what an expectation is and where the document stands; prop
   expect(
     text(host.querySelector("[data-expectations-stat='Version']")),
   ).toContain("1 waiting");
-  // The waiting proposal comes before the document, with who proposed it and its source's speaker.
   const order = [
     ...host.querySelectorAll(
       "[data-expectation-proposals], [data-expectations-lines]",
@@ -333,25 +258,26 @@ test("the header says what an expectation is and where the document stands; prop
       : "lines",
   );
   expect(order).toEqual(["proposals", "lines"]);
-  // Nobody was asked: the row reads the line's new words and says so; who proposed it is behind the row.
   const p = host.querySelector("[data-expectation-proposal='xp-7']")!;
   expect(text(p)).toContain("Not asked yet");
   expect(text(p)).not.toContain("Ashot's session");
   expect(
     (p.querySelector("[data-expectation-open]") as HTMLElement).title,
   ).toContain("Ashot's session");
-  // It opens in place, the one place it is answered, with its source's speaker.
   await click(p.querySelector("[data-expectation-open='xp-7']"));
   expect(text(p.querySelector("[data-citation-who]"))).toBe("Cam");
   await click(p.querySelector("[data-expectation-apply='xp-7']"));
-  expect(calls).toEqual([["resolve", PID, "xp-7", "apply"]]);
-  // No CLI command anywhere on the page.
+  expect(writes(backend)).toEqual([
+    ["resolveExpectationProposal", PID, "xp-7", "apply"],
+  ]);
   expect(host.textContent).not.toContain("cast ");
   await done();
 }, 30_000);
 
 test("each source is a quote with who said it, where and when", async () => {
-  const { host, done } = await mount(<ExpectationsTab projectId={PID} />);
+  const { container: host, close: done } = await mount(
+    <ExpectationsTab projectId={PID} />,
+  );
   const first = host.querySelector(
     "[data-expectation='ex-callers-call-1'] [data-citation-line]",
   )!;
@@ -364,7 +290,9 @@ test("each source is a quote with who said it, where and when", async () => {
 }, 30_000);
 
 test("usage: a broken line opens to its findings and causes; a quiet one says it never fired", async () => {
-  const { host, done } = await mount(<ExpectationsTab projectId={PID} />);
+  const { container: host, close: done } = await mount(
+    <ExpectationsTab projectId={PID} />,
+  );
   const broken = host.querySelector("[data-expectation='ex-callers-call-1']")!;
   const usage = broken.querySelector("[data-expectation-usage]") as HTMLElement;
   expect(usage.dataset.expectationUsage).toBe("week");
@@ -380,7 +308,6 @@ test("usage: a broken line opens to its findings and causes; a quiet one says it
   const findings = broken.querySelectorAll("[data-expectation-finding]");
   expect(findings.length).toBe(3);
   expect(text(findings[0])).toContain("Card said the wrong broker (1)");
-  // All three opened one cause, named once above them.
   expect(
     broken.querySelectorAll(
       "[data-expectation-causes] [data-pill], [data-expectation-causes] a, [data-expectation-causes] span",
@@ -390,7 +317,9 @@ test("usage: a broken line opens to its findings and causes; a quiet one says it
 }, 30_000);
 
 test("filters narrow to broken, never cited and contested lines", async () => {
-  const { host, done } = await mount(<ExpectationsTab projectId={PID} />);
+  const { container: host, close: done } = await mount(
+    <ExpectationsTab projectId={PID} />,
+  );
   const ids = () =>
     [
       ...host.querySelectorAll("[data-expectations-lines] [data-expectation]"),
@@ -408,7 +337,11 @@ test("filters narrow to broken, never cited and contested lines", async () => {
 }, 30_000);
 
 test("a line is changed in place, and a contested line's question is settled with how", async () => {
-  const { host, done } = await mount(<ExpectationsTab projectId={PID} />);
+  const {
+    container: host,
+    close: done,
+    backend,
+  } = await mount(<ExpectationsTab projectId={PID} />);
   await click(
     host.querySelector("[data-expectation-edit='ex-callers-call-1']"),
   );
@@ -423,8 +356,8 @@ test("a line is changed in place, and a contested line's question is settled wit
     );
   });
   await submit(form);
-  expect(calls[0]).toEqual([
-    "edit",
+  expect(writes(backend)[0]).toEqual([
+    "editExpectations",
     PID,
     {
       op: "edit",
@@ -444,8 +377,8 @@ test("a line is changed in place, and a contested line's question is settled wit
     );
   });
   await submit(settle);
-  expect(calls[1]).toEqual([
-    "edit",
+  expect(writes(backend)[1]).toEqual([
+    "editExpectations",
     PID,
     {
       op: "edit",
@@ -458,7 +391,11 @@ test("a line is changed in place, and a contested line's question is settled wit
 }, 30_000);
 
 test("adding a line with a source names what kind of source it is", async () => {
-  const { host, done } = await mount(<ExpectationsTab projectId={PID} />);
+  const {
+    container: host,
+    close: done,
+    backend,
+  } = await mount(<ExpectationsTab projectId={PID} />);
   await click(host.querySelector("[data-expectations-add]"));
   const form = host.querySelector("[data-expectation-add-form]")!;
   await act(async () => {
@@ -481,8 +418,8 @@ test("adding a line with a source names what kind of source it is", async () => 
     );
   });
   await submit(form);
-  expect(calls[0]).toEqual([
-    "edit",
+  expect(writes(backend)[0]).toEqual([
+    "editExpectations",
     PID,
     {
       op: "add",
@@ -495,7 +432,9 @@ test("adding a line with a source names what kind of source it is", async () => 
 }, 30_000);
 
 test("history: each version with how it landed, and a dropped proposal", async () => {
-  const { host, done } = await mount(<ExpectationsTab projectId={PID} />);
+  const { container: host, close: done } = await mount(
+    <ExpectationsTab projectId={PID} />,
+  );
   const entries = [
     ...host.querySelectorAll("[data-expectations-history-entry]"),
   ].map((el) => (el as HTMLElement).dataset.expectationsHistoryEntry);
@@ -516,9 +455,10 @@ test("history: each version with how it landed, and a dropped proposal", async (
 }, 30_000);
 
 test("a project with no expectations explains them and offers both ways to start", async () => {
-  useInboxStore.setState({
-    projectExpectations: {
-      [PID]: row({
+  const { container: host, close: done } = await mount(
+    <ExpectationsTab projectId={PID} />,
+    {
+      record: row({
         doc: null,
         current_version: 0,
         versions: [],
@@ -526,8 +466,7 @@ test("a project with no expectations explains them and offers both ways to start
         usage: { since: 0, lines: {} },
       }),
     },
-  } as any);
-  const { host, done } = await mount(<ExpectationsTab projectId={PID} />);
+  );
   const first = host.querySelector("[data-expectations-first-run]")!;
   expect(text(first)).toContain("Write down how Callers should behave");
   expect(text(first)).toContain("An expectation is one plain sentence");
@@ -535,8 +474,8 @@ test("a project with no expectations explains them and offers both ways to start
     "Draft from recent context",
   );
   await click(first.querySelector("[data-expectations-write-first]"));
-  expect(host.querySelector("[data-expectations-first-run]")).toBeNull();
-  expect(host.querySelector("[data-expectation-add-form]")).toBeTruthy();
+  expectAbsent(host.querySelector("[data-expectations-first-run]"));
+  expectPresent(host.querySelector("[data-expectation-add-form]"));
   expect(host.textContent).not.toContain("cast ");
   await done();
 }, 30_000);
@@ -558,46 +497,38 @@ test("the overview: what waits and what breaks first, projects without a documen
     most_broken: [],
     ...over,
   });
-  useInboxStore.setState({
-    currentUser: {
-      _id: ME,
-      name: "Ashot",
-      team_id: TEAM,
-      active_team_id: TEAM,
+  const overview = [
+    r("a", "Agent Quality", {
+      breaks30: 7,
+      breaks7: 2,
+      broken: 1,
+      most_broken: [
+        {
+          id: "ex-agent-quality-3",
+          text: "A reply names the broker.",
+          part: "Replies",
+          d7: 2,
+          d30: 7,
+        },
+      ],
+    }),
+    r("b", "Billing", {}),
+    r("c", "Callers", { open_proposals: 2 }),
+    r("d", "Docs site", {
+      version: 0,
+      active: 0,
+      parts: 0,
+      applied_at: null,
+    }),
+    {
+      ...r("e", "Other workspace", { open_proposals: 100 }),
+      workspace: "team:other",
     },
-    clientState: {
-      ...(useInboxStore.getState() as any).clientState,
-      ui: {
-        ...((useInboxStore.getState() as any).clientState?.ui ?? {}),
-        active_team_id: TEAM,
-      },
-    },
-    expectationsOverview: {
-      a: r("a", "Agent Quality", {
-        breaks30: 7,
-        breaks7: 2,
-        broken: 1,
-        most_broken: [
-          {
-            id: "ex-agent-quality-3",
-            text: "A reply names the broker.",
-            part: "Replies",
-            d7: 2,
-            d30: 7,
-          },
-        ],
-      }),
-      b: r("b", "Billing", {}),
-      c: r("c", "Callers", { open_proposals: 2 }),
-      d: r("d", "Docs site", {
-        version: 0,
-        active: 0,
-        parts: 0,
-        applied_at: null,
-      }),
-    },
-  } as any);
-  const { host, done } = await mount(<ExpectationsOverview />);
+  ];
+  const { container: host, close: done } = await mount(
+    <ExpectationsOverview />,
+    { overview },
+  );
   const docs = [...host.querySelectorAll("[data-expectations-document]")].map(
     (el) => (el as HTMLElement).dataset.expectationsDocument,
   );
