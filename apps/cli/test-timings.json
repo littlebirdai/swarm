@@ -113,7 +113,7 @@
     "src/browser/shotTemp.guard.test.ts": 316,
     "src/browser/siteGuard.test.ts": 261,
     "src/browser/snapshot.test.ts": 262,
-    "src/browser/snapshotClickables.chrome.test.ts": 814,
+    "src/browser/snapshot-clickables.chrome.test.ts": 814,
     "src/browser/snapshotOrdinals.chrome.test.ts": 250,
     "src/browser/snapshotSettle.test.ts": 253,
     "src/browser/stall.test.ts": 253,

@@ -888,7 +888,7 @@
   "apps/cli/src/browser/snapshot.ts": {
     "swarm/no-comments": 77
   },
-  "apps/cli/src/browser/snapshotClickables.chrome.test.ts": {
+  "apps/cli/src/browser/snapshot-clickables.chrome.test.ts": {
     "swarm/no-comments": 15
   },
   "apps/cli/src/browser/snapshotOrdinals.chrome.test.ts": {
