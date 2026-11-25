@@ -4,6 +4,7 @@
 // last screen holds the team's switch and flips it through the store, Escape
 // closes and records a skip, and finishing records the guide as seen.
 // Run: bun tours/guides/GuidePlayer.mount.test.tsx
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
@@ -203,7 +204,6 @@ async function run() {
 
   await act(async () => root.unmount());
   closeDomWindow(dom);
-  console.log("GuidePlayer mount: ok");
 }
 
-await run();
+test("plays the guide and records finishing or dismissal", run);

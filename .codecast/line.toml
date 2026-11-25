@@ -55,13 +55,6 @@ runs = "codecast's event ingest, on a group that is new or regressed"
 opens_causes = true
 
 [[line.finders]]
-id = "insight-blockers"
-source = "insight"
-kind = "bug"
-fingerprint = "insight:<session>:<blocker hash>"
-runs = "convex signals.ingestInsightBlockers, scheduled from sessionInsights when an insight names a blocker"
-
-[[line.finders]]
 id = "fix-loop"
 source = "fixloop"
 kind = "regression"

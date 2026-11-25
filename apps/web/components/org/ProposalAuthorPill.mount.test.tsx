@@ -3,6 +3,7 @@
 // a session author resolved from the store row and opened through the linked
 // session navigation, and a decision's origin line found from its context.
 // Run: bun components/org/ProposalAuthorPill.mount.test.tsx
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import {
   realInboxStore,
@@ -300,7 +301,6 @@ async function verifyAuthorPill() {
 
   await act(async () => root.unmount());
   closeDomWindow(dom);
-  console.log("proposal author pill mount: passed");
 }
 
-if (import.meta.main) await verifyAuthorPill();
+test("shows who proposed a change and links to the proposal", verifyAuthorPill);

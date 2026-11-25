@@ -4,6 +4,7 @@
 // now" button clicks its control, finishing and dismissing write the seen
 // record, and a tour started off its page goes there first.
 // Run: bun tours/TourLayer.mount.test.tsx
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { closeDomWindow } from "../test-helpers/domGlobals";
 
@@ -242,7 +243,6 @@ async function run() {
 
   await act(async () => root.unmount());
   closeDomWindow(dom);
-  console.log("TourLayer mount: ok");
 }
 
-await run();
+test("runs tour steps, navigation and completion", run, 20_000);

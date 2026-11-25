@@ -129,19 +129,4 @@ describe("org template command handoff", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
-
-  test("mounted hire flow preserves manual drafts and never creates a template role directly", () => {
-    const child = Bun.spawnSync(
-      [
-        "bun",
-        "run",
-        new URL("./orgTemplateHire.mount.test.tsx", import.meta.url).pathname,
-      ],
-      { cwd: new URL("../../", import.meta.url).pathname, timeout: 60_000 },
-    );
-    expect(child.stdout.toString() + child.stderr.toString()).toContain(
-      "org template hire mount: passed",
-    );
-    expect(child.exitCode).toBe(0);
-  }, 65_000);
 });

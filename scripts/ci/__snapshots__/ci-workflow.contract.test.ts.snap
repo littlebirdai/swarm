@@ -54,9 +54,6 @@ exports[`pinned content every job's steps are the reviewed ones 1`] = `
       },
       {
         "uses": "./.github/actions/setup-bun",
-        "with": {
-          "deps": "none",
-        },
       },
       {
         "name": "Unit tests (ci scripts + workflow contract)",
@@ -153,6 +150,25 @@ cat "$list"
         "uses": "./.github/actions/setup-bun",
       },
       {
+        "env": {
+          "HOMEBREW_NO_AUTO_UPDATE": "1",
+          "HOMEBREW_NO_INSTALL_CLEANUP": "1",
+        },
+        "if": "matrix.shard == 2",
+        "name": "Install PostgreSQL for the replay test",
+        "run": 
+"brew install postgresql@17
+"$(brew --prefix postgresql@17)/bin/postgres" -V
+"
+,
+      },
+      {
+        "if": "matrix.shard == 2",
+        "name": "CLI script tests that need the macOS sandbox",
+        "run": "bun test --isolate ./scripts/prompt-dry-run.broker.guard.test.ts ./scripts/prompt-dry-run.fake.guard.test.ts ./scripts/prompt-dry-run.harness.guard.test.ts ./scripts/prompt-dry-run.replay.guard.test.ts ./scripts/prompt-dry-run.sandbox.guard.test.ts",
+        "working-directory": "apps/cli",
+      },
+      {
         "if": "matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'",
         "name": "Swift unit tests (helper core)",
         "run": "swift test",
@@ -244,10 +260,15 @@ cat "$list"
       {
         "name": "Tests outside packages/ (scripts, infra)",
         "run": 
-"bun test ./scripts/line.test.ts ./infra/artifact-edge/worker.test.js ./infra/replay-player/src/clock.test.ts
+"bun test ./scripts/line.test.ts ./scripts/lib/lint-baseline.test.ts ./infra/artifact-edge/worker.test.js ./infra/replay-player/src/clock.test.ts
 node --test infra/call-face-worker/turns.test.mjs
 "
 ,
+      },
+      {
+        "name": "VS Code extension tests",
+        "run": "bun test ./src/wsl.test.ts",
+        "working-directory": "apps/vscode-extension",
       },
     ],
   },
@@ -291,35 +312,63 @@ node --test infra/call-face-worker/turns.test.mjs
         "working-directory": "apps/evals",
       },
       {
-        "if": "matrix.suite == 'e2e'",
-        "name": "E2E messaging pipeline (real tmux + fake-claude shim)",
+        "if": "matrix.suite == 'evals'",
+        "name": "Playground tests",
+        "run": "bun test",
+        "working-directory": "apps/playground",
+      },
+      {
+        "if": "matrix.suite == 'evals'",
+        "name": "CLI learning tests",
+        "run": "bun test ./learning/",
+        "working-directory": "apps/cli",
+      },
+      {
+        "if": "matrix.suite == 'evals'",
+        "name": "Portable CLI script tests",
+        "run": "bun test --isolate ./scripts/line-present-replay.test.ts ./scripts/prompt-dry-run.cut.test.ts ./scripts/prompt-dry-run.guard.test.ts ./scripts/prompt-dry-run.harness.guard.test.ts",
+        "working-directory": "apps/cli",
+      },
+      {
+        "if": "matrix.suite == 'evals'",
+        "name": "Install ffmpeg",
         "run": 
-"set -e
-for attempt in 1 2 3; do
-  echo "::group::E2E attempt $attempt"
-  if bun test src/messaging.e2e.test.ts --timeout=60000; then
-    echo "::endgroup::"
-    echo "E2E passed on attempt $attempt"
-    exit 0
-  fi
-  echo "::endgroup::"
-  echo "::warning::E2E attempt $attempt failed; retrying"
-  tmux kill-server 2>/dev/null || true
-  sleep 2
-done
-echo "::error::E2E failed all 3 attempts — likely a real regression"
-exit 1
+"if ! ffmpeg -version >/dev/null 2>&1; then
+  sudo apt-get install -y --no-install-recommends ffmpeg || { sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg; }
+fi
+ffmpeg -version
 "
 ,
+      },
+      {
+        "if": "matrix.suite == 'evals'",
+        "name": "CLI tests with ffmpeg",
+        "run": "bun test --isolate ./src/browser/flightRecorder.test.ts ./src/callSnap.test.ts",
+        "working-directory": "apps/cli",
+      },
+      {
+        "if": "matrix.suite == 'evals'",
+        "name": "Server tests with ffmpeg",
+        "run": "bun test ./convex/lib/mp4Audio.test.ts",
+        "working-directory": "apps/server",
+      },
+      {
+        "if": "matrix.suite == 'evals'",
+        "name": "Web tests with ffmpeg",
+        "run": "bun test --isolate ./scripts/call-e2e/frames.test.mjs ./scripts/rig/imagediff.test.ts",
+        "working-directory": "apps/web",
+      },
+      {
+        "if": "matrix.suite == 'e2e'",
+        "name": "E2E messaging pipeline (real tmux + fake-claude shim)",
+        "run": "bash ../../scripts/ci/retry-tests.sh bun test src/messaging.e2e.test.ts --timeout=60000",
         "working-directory": "apps/cli",
       },
       {
         "if": "matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'",
-        "name": "Injection suites (captured frames; real-client cells skip without agent binaries)",
+        "name": "Report available injection clients",
         "run": 
-"set -e
-# shellcheck disable=SC2016 # the \${...} below is a JS template, not bash
-bun -e '
+"bun -e '
   const { MATRIX_CLIENTS, matrixClientAvailable } = await import("./src/test-helpers/messagingHarness.ts");
   const found = MATRIX_CLIENTS.filter(matrixClientAvailable);
   const absent = MATRIX_CLIENTS.filter((client) => !found.includes(client));
@@ -327,22 +376,14 @@ bun -e '
   if (found.length === 0) console.log("::notice::Injection suites: no agent binary on this runner, so every real-client cell skipped. Only the captured-frame suites ran.");
   process.exit(0);
 '
-for attempt in 1 2 3; do
-  echo "::group::Injection suites attempt $attempt"
-  if bun test src/daemon.inject-clear.test.ts src/daemon.inject-enter-gate.test.ts src/daemon.inject-scrolled-composer.test.ts src/daemon.inject-submit-verify.test.ts src/daemon.inject-deaf-pane.test.ts src/daemon.inject-double-paste.test.ts --timeout=240000; then
-    echo "::endgroup::"
-    echo "Injection suites passed on attempt $attempt"
-    exit 0
-  fi
-  echo "::endgroup::"
-  echo "::warning::Injection suites attempt $attempt failed; retrying"
-  tmux kill-server 2>/dev/null || true
-  sleep 2
-done
-echo "::error::Injection suites failed all 3 attempts — likely a real regression"
-exit 1
 "
 ,
+        "working-directory": "apps/cli",
+      },
+      {
+        "if": "matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'",
+        "name": "Injection suites (captured frames; real-client cells skip without agent binaries)",
+        "run": "bash ../../scripts/ci/retry-tests.sh bun test src/daemon.inject-clear.test.ts src/daemon.inject-enter-gate.test.ts src/daemon.inject-scrolled-composer.test.ts src/daemon.inject-submit-verify.test.ts src/daemon.inject-deaf-pane.test.ts src/daemon.inject-double-paste.test.ts --timeout=240000",
         "working-directory": "apps/cli",
       },
     ],
@@ -417,7 +458,19 @@ fi
   "test-platform": {
     "defaults": undefined,
     "env": undefined,
-    "services": undefined,
+    "services": {
+      "postgres": {
+        "env": {
+          "POSTGRES_DB": "tidemark_test",
+          "POSTGRES_HOST_AUTH_METHOD": "trust",
+        },
+        "image": "postgres:16-alpine@sha256:f2f98726820d0342055351c6e9d36e705f5bfffb3dd53ff556325114b08afb6d",
+        "options": "--health-cmd pg_isready --health-interval 1s --health-timeout 5s --health-retries 20",
+        "ports": [
+          "5432/tcp",
+        ],
+      },
+    },
     "steps": [
       {
         "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
@@ -433,6 +486,9 @@ fi
         "run": "scripts/vendor-platform.sh --check-manifest",
       },
       {
+        "env": {
+          "TIDEMARK_PG_URL": "postgres://postgres@127.0.0.1:\${{ job.services.postgres.ports[5432] }}/tidemark_test",
+        },
         "name": "Unit tests (vendored platform packages)",
         "run": "scripts/vendor-platform.sh --test",
       },

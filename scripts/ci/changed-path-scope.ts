@@ -11,6 +11,8 @@
 // is a claim that nothing the job covers changed, and only the mappings below
 // can make that claim.
 
+import { webFfmpegInputs } from "./web-ffmpeg-inputs";
+
 export const AREAS = [
   "cli",
   // apps/evals, the eval home. Its own area rather than part of "cli":
@@ -94,6 +96,7 @@ export const JOB_AREAS: Record<string, Area[]> = {
   "test-cli": [
     "cli",
     "evals",
+    "playground",
     "convex",
     "docs",
     "packages",
@@ -279,6 +282,7 @@ export function classifyChangedPaths(files: string[]): Scope {
   for (const [job, jobAreas] of Object.entries(JOB_AREAS)) {
     flags[jobFlag(job)] = forced || jobAreas.some((area) => areas.has(area));
   }
+  flags.run_test_cli ||= paths.some((file) => webFfmpegInputs().has(file));
   flags.run_lint ||= paths.some((file) =>
     /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(file),
   );

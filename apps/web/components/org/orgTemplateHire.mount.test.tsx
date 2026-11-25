@@ -1,3 +1,4 @@
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 
 import { closeDomWindow } from "../../test-helpers/domGlobals";
@@ -540,7 +541,9 @@ async function verifyHireFlow() {
   );
   await act(async () => again.unmount());
   closeDomWindow(dom);
-  console.log("org template hire mount: passed");
 }
 
-if (import.meta.main) await verifyHireFlow();
+test(
+  "proposes hires and hides the action when no seat can be hired",
+  verifyHireFlow,
+);
