@@ -125,14 +125,15 @@ function deliveryFields(
 async function deliveryInput(
   ctx: MutationCtx,
   message: Doc<"pending_messages">,
+  requireValidAttachments: boolean,
 ) {
   const ids = permitImageIds(message);
   const images = [];
   for (const blob_id of ids) {
     const image = await inspectPermitImage(ctx, blob_id);
-    if (image.status === "too_large")
+    if (requireValidAttachments && image.status === "too_large")
       return { reason: "An image exceeds the 8 MiB delivery limit." };
-    if (image.status === "invalid")
+    if (requireValidAttachments && image.status === "invalid")
       return { reason: "An image has an unsupported content type." };
     if (image.status === "ready")
       images.push({
@@ -141,9 +142,12 @@ async function deliveryInput(
         content_type: image.contentType,
       });
   }
-  const textContent = message.content.trim();
-  const hasText = textContent.length > 0 && !/^\[image\]$/i.test(textContent);
-  if (ids.size && !images.length && !hasText)
+  const hasText =
+    message.content
+      .replace(/\[Image[:\s][^\]]*\]/gi, "")
+      .replace(/\[image\]/gi, "")
+      .trim().length > 0;
+  if (requireValidAttachments && ids.size && !images.length && !hasText)
     return {
       reason: "The attached images are missing and the message has no text.",
     };
@@ -228,7 +232,11 @@ export const next = internalMutation({
       if (!message) throw new Error("Delivery message is missing");
       if (message.delivery_status !== attempt.state)
         throw new Error("Delivery message and attempt state differ");
-      const prepared = await deliveryInput(ctx, message);
+      const prepared = await deliveryInput(
+        ctx,
+        message,
+        attempt.state === "claimed",
+      );
       if (prepared.reason !== undefined) {
         await finishEdgeDelivery(ctx, run.owner, fence, {
           code: rejectedCode,
@@ -263,14 +271,18 @@ export const start = internalMutation({
         attempt.failure_message
       )
         return { ...rejected, reason: attempt.failure_message };
-      const prepared = await deliveryInput(ctx, message);
+      const prepared = await deliveryInput(
+        ctx,
+        message,
+        attempt.state === "claimed",
+      );
       if (prepared.reason !== undefined) {
-        const reason = await finishEdgeDelivery(ctx, owner, fence, {
+        await finishEdgeDelivery(ctx, owner, fence, {
           code: rejectedCode,
           reason: prepared.reason,
           attachment: true,
         });
-        return { ...rejected, reason: reason ?? prepared.reason };
+        return { ...rejected, reason: prepared.reason };
       }
       await startDeliveryInDb(ctx, owner, fence);
       return {
@@ -340,7 +352,7 @@ async function finishEdgeDelivery(
   const states = !rejection
     ? ["delivery-started"]
     : rejection.attachment
-      ? ["claimed", "delivery-started", "ambiguous"]
+      ? ["claimed"]
       : rejection.evidence === undefined
         ? ["claimed", "delivery-started"]
         : ["delivery-started", "ambiguous"];
@@ -363,25 +375,13 @@ async function finishEdgeDelivery(
       "DELIVERY_ATTEMPT_STATE_MISMATCH",
       "delivery slot does not match its attempt",
     );
-  const mayHaveDelivered = rejection?.attachment && attempt.state !== "claimed";
-  const reason = mayHaveDelivered
-    ? `${rejection.reason} The attempt had already started and may have reached the agent.`
-    : rejection?.reason;
   await finishTerminalDelivery(ctx, head, message, attempt, {
-    attemptState: mayHaveDelivered
-      ? "abandoned-ambiguous"
-      : rejection
-        ? "failed-before-effect"
-        : "correlated-delivered",
+    attemptState: rejection ? "failed-before-effect" : "correlated-delivered",
     messageState: rejection ? "rejected" : "correlated-delivered",
-    rejection: rejection && {
-      code: rejection.code,
-      reason: reason ?? rejection.reason,
-    },
+    rejection,
     resolutionEvidence: rejection?.evidence,
     now: fence.now,
   });
-  return reason;
 }
 
 export const settle = internalMutation({

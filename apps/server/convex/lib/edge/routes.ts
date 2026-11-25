@@ -286,7 +286,10 @@ export function registerEdgeRoutes(http: HttpRouter) {
         if (!bytes) return edgeError(413, EDGE_ERROR_CODES.TOO_LARGE);
         const refreshed = await ctx
           .runQuery(internal.edgeDelivery.getBlob, query)
-          .catch(() => null);
+          .catch((error: unknown) => {
+            if (error instanceof ConvexError) return null;
+            throw error;
+          });
         if (
           !refreshed ||
           refreshed.storageId !== image.storageId ||

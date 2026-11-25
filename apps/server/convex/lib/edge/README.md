@@ -10,9 +10,11 @@ the surviving input if an image disappears after the permit. Use the input
 from the start response when it is present.
 
 An oversized or unsupported image, or a message with only deleted images,
-ends the attempt and records a rejection reason in queue history. The next
-poll can take the next message. If the attempt already started, the reason
-also says that the delivery may have reached the agent.
+ends a claimed attempt and records a rejection reason in queue history.
+The next poll can take the next message. Started and ambiguous attempts
+stay open for settlement. Their recovery permits contain the surviving
+input, which can be empty. A retryable settlement can requeue the message.
+The attachment checks then apply to its new claim.
 
 Blob reads verify the permit and lease before and after the storage read.
 

@@ -79,11 +79,12 @@ async function fixture() {
   const runBlobAction = async (
     body: BlobsGetRequest,
     get: (id: string) => Promise<unknown>,
+    runQuery = f.t.query,
   ) => {
     const [action] = http.lookup(path, "POST")!;
     return action._handler(
       {
-        runQuery: f.t.query,
+        runQuery,
         runMutation: f.t.mutation,
         storage: { get },
       } as Parameters<typeof action._handler>[0],
@@ -328,34 +329,159 @@ for (const keeps of ["text", "image"] as const) {
   });
 }
 
-test("an invalidated started image closes the slot with an uncertainty reason", async () => {
+for (const state of ["delivery-started", "ambiguous"] as const) {
+  test(`an invalid image leaves a ${state} attempt open for applied settlement`, async () => {
+    const f = await fixture();
+    await f.t.run(({ db }) =>
+      db.patch(f.message, {
+        content: "[image]",
+        from_conversation_id: f.conversation,
+      }),
+    );
+    const { blob, fence, request } = await f.authorize();
+    expect(
+      await (await f.post("delivery.start", request)).json(),
+    ).toMatchObject({ status: "started" });
+    if (state === "ambiguous")
+      expect(
+        await (
+          await f.post("delivery.settle", { ...request, outcome: "in_doubt" })
+        ).json(),
+      ).toMatchObject({ status: "recorded" });
+    await f.t.run(({ storage }) => storage.delete(blob));
+    const next = await f.post("permits.next", fence);
+    expect(await next.json()).toMatchObject({
+      status: "permit",
+      state: "started",
+      attempt_id: request.attempt_id,
+      input: [],
+    });
+    const replay = await f.post("delivery.start", request);
+    expect(await replay.json()).toMatchObject(
+      state === "ambiguous"
+        ? { status: "rejected", reason: "stale" }
+        : { status: "already_started", input: [] },
+    );
+    const status = () =>
+      asUser(f.t, f.owner).query(api.pendingMessages.sendStatus, {
+        from: f.conversation,
+        to: f.conversation,
+      });
+    expect((await status()).sends).toMatchObject([{ status: "pending" }]);
+    expect(
+      (await f.t.run(({ db }) => db.get(f.head)))?.active_delivery_state,
+    ).toBe(state);
+    const outcome = {
+      ...request,
+      outcome: "applied",
+      ...(state === "ambiguous"
+        ? {
+            resolution_evidence: "The transcript contains the delivery receipt",
+          }
+        : {}),
+    };
+    expect(await (await f.post("delivery.settle", outcome)).json()).toEqual({
+      v: 1,
+      status: "recorded",
+    });
+    expect((await status()).sends).toMatchObject([{ status: "delivered" }]);
+  });
+}
+
+test("a recovery permit keeps text and valid images after other images become invalid", async () => {
   const f = await fixture();
-  const { blob, fence, request } = await f.authorize();
-  await f.t.run(({ db }) => db.patch(f.message, { content: "[image]" }));
-  expect(await (await f.post("delivery.start", request)).json()).toMatchObject({
-    status: "started",
-  });
-  await f.t.run(({ storage }) => storage.delete(blob));
-  expect(await (await f.post("permits.next", fence)).json()).toEqual({
-    v: 1,
-    status: "empty",
-  });
-  const attempt = await f.t.run(({ db }) =>
-    db.query("delivery_attempts").unique(),
+  const first = await f.store("original", "image/png");
+  const valid = await f.store("valid", "image/gif");
+  const oversized = await f.store(new Uint8Array(maxBytes + 1), "image/png");
+  const unsupported = await f.store("<svg/>", "image/svg+xml");
+  const text = "Keep [Image 2] and this caption.";
+  await f.t.run(({ db }) =>
+    db.patch(f.message, { content: text, image_storage_ids: [first, valid] }),
   );
-  expect(attempt).toMatchObject({
-    state: "abandoned-ambiguous",
-    failure_message: expect.stringContaining("may have reached the agent"),
-  });
-  expect(await (await f.post("delivery.start", request)).json()).toMatchObject({
-    status: "rejected",
-    reason: attempt?.failure_message,
+  const fence = await f.grant();
+  const { request } = await f.permit(fence);
+  await f.post("delivery.start", request);
+  await f.t.run(({ db }) =>
+    db.patch(f.message, { image_storage_ids: [oversized, valid, unsupported] }),
+  );
+  const next = await f.post("permits.next", fence);
+  expect(await next.json()).toMatchObject({
+    status: "permit",
+    state: "started",
+    input: [
+      { type: "text", text },
+      { type: "blob", blob_id: valid, content_type: "image/gif" },
+    ],
   });
   expect(
     await (
       await f.post("delivery.settle", { ...request, outcome: "applied" })
     ).json(),
-  ).toEqual({ v: 1, status: "stale" });
+  ).toEqual({ v: 1, status: "recorded" });
+});
+
+test("an invalid started image requeues on proven no effect and rejects only its new claim", async () => {
+  const f = await fixture();
+  const { blob, fence, request } = await f.authorize();
+  await f.t.run(({ db }) =>
+    db.patch(f.message, { content: "[Image 1] [image]\n [Image 2]" }),
+  );
+  await f.post("delivery.start", request);
+  await f.t.run(({ storage }) => storage.delete(blob));
+  expect(
+    await (
+      await f.post("delivery.settle", {
+        ...request,
+        outcome: "failed",
+        retryable: true,
+      })
+    ).json(),
+  ).toEqual({
+    v: 1,
+    status: "recorded",
+  });
+  expect((await f.t.run(({ db }) => db.get(f.message)))?.delivery_status).toBe(
+    "pending",
+  );
+  expect(await (await f.post("permits.next", fence)).json()).toEqual({
+    v: 1,
+    status: "empty",
+  });
+  const attempts = await f.t.run(({ db }) =>
+    db.query("delivery_attempts").collect(),
+  );
+  expect(attempts).toHaveLength(2);
+  expect(
+    attempts.find((attempt) => attempt._id !== request.attempt_id),
+  ).toMatchObject({
+    state: "failed-before-effect",
+    failure_message:
+      "The attached images are missing and the message has no text.",
+  });
+});
+
+test("terminal settlement refuses mismatched head and message state", async () => {
+  const f = await fixture();
+  const { request } = await f.authorize();
+  const reject = { ...request, outcome: "rejected" };
+  await f.t.run(({ db }) =>
+    db.patch(f.head, { active_delivery_state: "ambiguous" }),
+  );
+  expect(await (await f.post("delivery.settle", reject)).json()).toEqual({
+    v: 1,
+    status: "stale",
+  });
+  await f.t.run(async ({ db }) => {
+    await db.patch(f.head, { active_delivery_state: "claimed" });
+    await db.patch(f.message, { delivery_status: "ambiguous" });
+  });
+  expect(await (await f.post("delivery.settle", reject)).json()).toEqual({
+    v: 1,
+    status: "stale",
+  });
+  expect(
+    (await f.t.run(({ db }) => db.query("delivery_attempts").unique()))?.state,
+  ).toBe("claimed");
 });
 
 test("read refuses oversized storage metadata before asking storage for bytes", async () => {
@@ -542,3 +668,29 @@ for (const change of [
     await expectMissing(response);
   });
 }
+
+test("an unexpected post-read query failure returns a redacted retryable 503", async () => {
+  const f = await fixture();
+  const { body } = await f.authorize();
+  let read = false;
+  const response = await f.runBlobAction(
+    body,
+    async () => {
+      read = true;
+      return new Blob(["image bytes"]);
+    },
+    async (...args) => {
+      if (read) throw new Error("Internal storage query failure");
+      return f.t.query(...args);
+    },
+  );
+  expect(response.status).toBe(503);
+  expect(response.headers.get("Retry-After")).toBe("1");
+  expect(await response.json()).toEqual({
+    v: 1,
+    status: "error",
+    code: "unavailable",
+    retryable: true,
+    retry_after_ms: 1_000,
+  });
+});
