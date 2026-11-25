@@ -848,7 +848,7 @@
     "src/terminal/controlClient.test.ts": 1972,
     "src/terminal/controlProtocol.test.ts": 254,
     "src/terminal/paneStream.clipboard.test.ts": 260,
-    "src/terminal/paneStream.test.ts": 259,
+    "src/terminal/pane-stream.test.ts": 259,
     "src/terminal/terminalColors.test.ts": 3205,
     "src/terminal/terminalHub.e2e.test.ts": 6164,
     "src/terminal/terminalHub.test.ts": 251,

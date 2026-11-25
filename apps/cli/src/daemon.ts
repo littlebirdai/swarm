@@ -712,7 +712,7 @@ import {
 import {
   VAULT_REFRESH_PATH,
   vaultRedactionSource,
-} from "./secrets/redactionSource.js";
+} from "./secrets/redaction-source.js";
 import {
   AGENT_ENV_SCRUB,
   AGENT_SCRUBBED_ENV_VARS,

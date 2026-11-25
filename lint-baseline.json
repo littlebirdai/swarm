@@ -4303,7 +4303,7 @@
   "apps/cli/src/secrets/redactionSource.test.ts": {
     "swarm/no-comments": 4
   },
-  "apps/cli/src/secrets/redactionSource.ts": {
+  "apps/cli/src/secrets/redaction-source.ts": {
     "swarm/no-comments": 19
   },
   "apps/cli/src/secrets/signin.test.ts": {
@@ -4761,7 +4761,7 @@
   "apps/cli/src/terminal/paneStream.clipboard.test.ts": {
     "swarm/no-comments": 2
   },
-  "apps/cli/src/terminal/paneStream.test.ts": {
+  "apps/cli/src/terminal/pane-stream.test.ts": {
     "swarm/no-comments": 38
   },
   "apps/cli/src/terminal/pane-stream.ts": {

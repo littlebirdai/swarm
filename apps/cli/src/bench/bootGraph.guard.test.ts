@@ -684,7 +684,7 @@ describe("command groups stay off the boot graph", () => {
       // workflow/runDirs.ts, which the daemon now reads to release finished runs'
       // worktrees.
       // 510 on 2026-10-24, the daemon's own work from that day's ship: the Vault's
-      // redaction source (secrets/redactionSource.ts with the secrets contract,
+      // redaction source (secrets/redaction-source.ts with the secrets contract,
       // productView.ts, secretShapes.ts and the secretRules.ts leaf), the team
       // host marker (hosts/teamMarker.ts, packages/machines/src/teamHosts.ts), the agent
       // preflight's loginShellPath.ts and shellQuote.ts, permissionHookWait.ts,
