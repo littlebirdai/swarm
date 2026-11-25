@@ -10156,6 +10156,7 @@ async function buildUserSessionMaps(
   ctx: any,
   userId: Id<"users">,
   now: number,
+  heartbeatSince?: number,
 ): Promise<InboxSessionMaps> {
   const managedSessions = await ctx.db
     .query("managed_sessions")
@@ -10163,7 +10164,7 @@ async function buildUserSessionMaps(
     .collect();
   return sessionMapsFromManagedRows(
     managedSessions,
-    await heartbeatsForUser(ctx, userId, managedSessions),
+    await heartbeatsForUser(ctx, userId, managedSessions, heartbeatSince),
     now,
   );
 }
@@ -11223,6 +11224,7 @@ export async function scanInboxConversations(
   now: number,
   opts: {
     includeLiveness: boolean;
+    heartbeatSince?: number;
     extraConvIds?: string[];
     teamScope?: Id<"teams">;
     // Also read the user's recently updated SUBAGENT rows (one indexed range,
@@ -11773,7 +11775,7 @@ export async function scanInboxConversations(
         !byId.has(c._id.toString()) && pooledByWindows(c, userId, now),
     );
   } else {
-    maps = await buildUserSessionMaps(ctx, userId, now);
+    maps = await buildUserSessionMaps(ctx, userId, now, opts.heartbeatSince);
   }
 
   // buildUserSessionMaps only covers managed_sessions belonging to THIS user;
@@ -11942,6 +11944,7 @@ export async function computeInboxSessions(
     !includeLiveness && opts.fastFieldsInOverlay === true;
   const scan = await scanInboxConversations(ctx, userId, now, {
     includeLiveness,
+    heartbeatSince: opts.projection ? now - USER_DAEMON_ALIVE_MS : undefined,
     extraConvIds: opts.extraConvIds,
     teamScope: opts.teamScope,
     subagentWindow: fastFieldsInOverlay,
