@@ -22,4 +22,4 @@ occurrence of a duplicate ID. It redacts labels and the summary, joins
 lines with spaces, and trims labels to 128 code units and the summary to 500. A missing or blank label becomes `Option N`. Only recognized ACP
 kinds appear on choices. If no ID fits, the prompt omits the options list.
 Send `{ "option_id": "…" }` to select a displayed choice. Semantic allow
-and deny answers still work.
+and deny can also select valid provider IDs beyond the display limits.

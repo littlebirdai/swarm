@@ -454,3 +454,84 @@ it.effect("a saturated live stream preserves every durable event", () =>
     }
   }),
 );
+
+const semanticChoices = [
+  {
+    label: "plain allow prefers once",
+    behavior: "allow",
+    options: [
+      { optionId: "always", kind: "allow_always" },
+      { optionId: "once", kind: "allow_once" },
+    ],
+    selected: "once",
+  },
+  {
+    label: "deny selects rejection",
+    behavior: "deny",
+    options: [
+      { optionId: "allow", kind: "allow_once" },
+      { optionId: "deny", kind: "reject_once" },
+    ],
+    selected: "deny",
+  },
+  {
+    label: "allow reaches beyond both display limits",
+    behavior: "allow",
+    options: [
+      ...Array.from({ length: 16 }, (_, i) => ({
+        optionId: `deny-${i}`,
+        kind: "reject_once",
+      })),
+      { optionId: "x".repeat(129), kind: "allow_once" },
+    ],
+    selected: "x".repeat(129),
+  },
+  {
+    label: "allow skips blank IDs",
+    behavior: "allow",
+    options: [
+      { optionId: " ", kind: "allow_once" },
+      { optionId: "valid", kind: "allow_always" },
+    ],
+    selected: "valid",
+  },
+  {
+    label: "allow skips shadowed duplicate IDs",
+    behavior: "allow",
+    options: [
+      { optionId: "duplicate", kind: "reject_once" },
+      { optionId: "duplicate", kind: "allow_once" },
+      { optionId: "valid", kind: "allow_always" },
+    ],
+    selected: "valid",
+  },
+];
+
+for (const { label, behavior, options, selected } of semanticChoices) {
+  it.effect(`ACP semantic permission: ${label}`, () =>
+    Effect.promise(async () => {
+      const fake = fixture();
+      const opened = await fake.contract.open(scope);
+      if (opened.status !== "opened" || opened.session.mode !== "own")
+        throw new Error("Expected an owned session");
+      const { session } = opened;
+      try {
+        await fake.wrote({
+          frame: {
+            id: "permission",
+            method: "session/request_permission",
+            params: { sessionId: session.getCheckpoint(), options },
+          },
+        });
+        expect(
+          await session.answer({ ...answer, answer: { behavior } }),
+        ).toEqual(controlOutcome);
+        expect(fake.observed()[0]?.message.result).toEqual({
+          outcome: { outcome: "selected", optionId: selected },
+        });
+      } finally {
+        await session.close();
+      }
+    }),
+  );
+}

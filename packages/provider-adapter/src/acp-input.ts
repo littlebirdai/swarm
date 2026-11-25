@@ -73,15 +73,23 @@ function displayText(text: string | null | undefined, limit: number) {
     : undefined;
 }
 
+function* uniqueChoices(options: typeof Permission.Type.options) {
+  const ids = new Set<string>();
+  for (const option of options) {
+    const id = option.optionId;
+    if (!id.trim() || ids.has(id)) continue;
+    ids.add(id);
+    yield option;
+  }
+}
+
 export function permissionDisplay({
   options,
   toolCall,
 }: typeof Permission.Type) {
   const offered: NonNullable<PromptOpened["options"]> = [];
-  const ids = new Set<string>();
-  for (const { optionId: id, name, kind } of options) {
-    if (!id.trim() || id.length > 128 || ids.has(id)) continue;
-    ids.add(id);
+  for (const { optionId: id, name, kind } of uniqueChoices(options)) {
+    if (id.length > 128) continue;
     offered.push({
       id,
       label: displayText(name, 128) ?? `Option ${offered.length + 1}`,
@@ -131,8 +139,9 @@ export function permissionChoice(
       : behavior === "deny"
         ? ["reject_once", "reject_always"]
         : [];
+  const choices = [...uniqueChoices(options)];
   for (const kind of kinds) {
-    const option = options.find((option) => option.kind === kind);
+    const option = choices.find((option) => option.kind === kind);
     if (option) return option.optionId;
   }
   return undefined;
