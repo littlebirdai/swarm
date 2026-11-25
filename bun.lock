@@ -1085,6 +1085,7 @@
       "version": "0.0.1",
       "devDependencies": {
         "@codecast/edge-contract": "workspace:*",
+        "@codecast/inbox": "workspace:*",
         "@codecast/test-helpers": "workspace:*",
         "@types/bun": "^1.3.3",
       },

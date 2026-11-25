@@ -11,8 +11,10 @@ import type {
 import {
   advanceDelivery,
   applyInbox,
+  compactInbox,
   deliveryReceipt,
-  type Inbox,
+  retainRecent,
+  type InboxState,
 } from "./inbox";
 import {
   nextStatus,
@@ -41,17 +43,22 @@ type Lease = Pick<Fence, "fencing_token"> & {
   readonly expired: boolean;
 };
 
-export type SessionState = Scope & {
-  readonly status: SessionStatus;
-  readonly runStatus: RunStatus;
-  readonly turn: Turn;
-  readonly turnIds: readonly TurnId[];
-  readonly inbox: Inbox;
-  readonly eventSeq: number;
-  readonly lease: Lease | null;
-  readonly previousTokens: readonly Lease["fencing_token"][];
-  readonly launchRetryable: boolean;
-};
+export type SessionState = Scope &
+  InboxState & {
+    readonly status: SessionStatus;
+    readonly runStatus: RunStatus;
+    readonly turn: Turn;
+    readonly turnIds: readonly TurnId[];
+    readonly eventSeq: number;
+    readonly providerError:
+      | Extract<CanonicalEvent, { kind: "error" }>["body"]
+      | null;
+    readonly takeover: { readonly revision: number; readonly raised: boolean };
+    readonly lease: Lease | null;
+    readonly claimNumber: number;
+    readonly previousTokens: readonly Lease["fencing_token"][];
+    readonly launchRetryable: boolean;
+  };
 
 type ControlFact = Extract<
   SessionFact,
@@ -94,9 +101,14 @@ function initial(scope: Scope): SessionState {
     turn: noTurn,
     turnIds: [],
     inbox: [],
+    lastInboxSeq: 0,
+    recentDeliveryIds: [],
+    providerError: null,
+    takeover: { revision: 0, raised: false },
     eventSeq: 0,
     lease: null,
     previousTokens: [],
+    claimNumber: 0,
     launchRetryable: false,
   };
 }
@@ -155,6 +167,8 @@ function applyRun(state: SessionState, fact: RunFact): Result {
           advanceDelivery(message, "successor"),
         ),
         eventSeq: state.eventSeq,
+        lastInboxSeq: state.lastInboxSeq,
+        recentDeliveryIds: state.recentDeliveryIds,
       },
       effects: [],
     };
@@ -164,6 +178,8 @@ function applyRun(state: SessionState, fact: RunFact): Result {
     if (
       !runStatus ||
       state.status !== "active" ||
+      !Number.isSafeInteger(fact.claimNumber) ||
+      fact.claimNumber <= state.claimNumber ||
       state.previousTokens.includes(fact.fencing_token) ||
       (state.runStatus === "start-failed-before-effect" &&
         !state.launchRetryable)
@@ -178,7 +194,8 @@ function applyRun(state: SessionState, fact: RunFact): Result {
           expires_at: fact.expires_at,
           expired: false,
         },
-        previousTokens: [...state.previousTokens, fact.fencing_token],
+        claimNumber: fact.claimNumber,
+        previousTokens: retainRecent(state.previousTokens, fact.fencing_token),
         launchRetryable: false,
       },
       effects: [],
@@ -199,9 +216,7 @@ function applyRun(state: SessionState, fact: RunFact): Result {
       : unchanged;
   }
   if (!lease || fact.fencing_token !== lease.fencing_token) return unchanged;
-  const terminal =
-    state.runStatus === "stopped" || state.runStatus === "quarantined";
-  if (terminal) return unchanged;
+  if (terminalRun(state)) return unchanged;
   switch (fact.kind) {
     case "run.renewed":
       return !lease.expired && fact.expires_at > lease.expires_at
@@ -276,11 +291,14 @@ function applyEvent(state: SessionState, event: CanonicalEvent): Result {
   const { turn } = state;
   const stamped = { ...state, eventSeq: event.seq };
   if (event.kind === "receipt") {
-    if (event.turn !== null && event.turn !== turn.id) return unchanged;
     const inbox = deliveryReceipt(state.inbox, event.body.delivery_id);
     return inbox === state.inbox
       ? unchanged
       : { state: { ...stamped, inbox }, effects: [] };
+  }
+  if (event.kind === "error") {
+    if (event.turn !== null && event.turn !== turn.id) return unchanged;
+    return { state: { ...stamped, providerError: event.body }, effects: [] };
   }
   if (state.status !== "active") return unchanged;
   if (event.kind === "turn.started") {
@@ -297,7 +315,8 @@ function applyEvent(state: SessionState, event: CanonicalEvent): Result {
       state: {
         ...stamped,
         turn: { ...noTurn, status, id: event.turn },
-        turnIds: [...state.turnIds, event.turn],
+        turnIds: retainRecent(state.turnIds, event.turn),
+        providerError: null,
       },
       effects: [],
     };
@@ -389,18 +408,51 @@ function applyControl(state: SessionState, fact: ControlFact): Result {
       };
 }
 
-function apply(state: SessionState, fact: SessionFact): Result {
+function terminalRun(state: SessionState): boolean {
+  return state.runStatus === "stopped" || state.runStatus === "quarantined";
+}
+
+function isAccepting(state: SessionState): boolean {
+  return (
+    state.status === "active" &&
+    state.runStatus === "ready" &&
+    state.lease !== null &&
+    !state.lease.expired
+  );
+}
+
+function reduce(state: SessionState, fact: SessionFact): Result {
+  const unchanged = { state, effects: [] };
+  if (!fact || typeof fact !== "object") return unchanged;
   const scope =
     fact.kind === "provider.event"
       ? fact.event
-      : "request" in fact
+      : fact.kind === "delivery.start" || fact.kind === "delivery.settle"
         ? fact.request
         : fact;
-  if (scope.session !== state.session || scope.run !== state.run)
-    return { state, effects: [] };
+  if (
+    !scope ||
+    typeof scope !== "object" ||
+    scope.session !== state.session ||
+    scope.run !== state.run
+  )
+    return unchanged;
   switch (fact.kind) {
     case "provider.event":
       return applyEvent(state, fact.event);
+    case "takeover.fence":
+      if (
+        !Number.isSafeInteger(fact.revision) ||
+        fact.revision <= state.takeover.revision
+      )
+        return unchanged;
+      return {
+        state: {
+          ...state,
+          takeover: { revision: fact.revision, raised: fact.raised },
+        },
+        effects: [],
+      };
     case "person.answer":
     case "person.interrupt":
       return applyControl(state, fact);
@@ -417,24 +469,31 @@ function apply(state: SessionState, fact: SessionFact): Result {
     case "run.observedGone":
     case "run.successorAuthorized":
       return applyRun(state, fact);
-    default: {
-      const active = state.status === "active";
-      const ready = state.runStatus === "ready";
-      const token = state.lease?.fencing_token ?? null;
-      const inbox = applyInbox(state.inbox, fact satisfies InboxFact, {
+    case "inbox.submitted":
+    case "inbox.released":
+    case "inbox.cancelled":
+    case "inbox.headRejected":
+    case "inbox.abandoned":
+    case "delivery.permitted":
+    case "delivery.start":
+    case "delivery.returned":
+    case "delivery.settle":
+    case "delivery.reconciled": {
+      const updated = applyInbox(state, fact, {
         session: state.session,
         run: state.run,
-        active,
-        ready,
-        token,
-        accepting: active && ready && token !== null && !state.lease?.expired,
+        active: state.status === "active",
+        terminal: terminalRun(state),
+        takeoverRaised: state.takeover.raised,
+        token: state.lease?.fencing_token ?? null,
+        accepting: isAccepting(state),
         turn: turnOpen(state.turn) ? state.turn.id : null,
         running: state.turn.status === "running",
       });
       return {
-        state: inbox === state.inbox ? state : { ...state, inbox },
+        state: updated === state ? state : { ...state, ...updated },
         effects:
-          inbox !== state.inbox && fact.kind === "delivery.start"
+          updated !== state && fact.kind === "delivery.start"
             ? [
                 {
                   kind: "delivery.apply",
@@ -445,39 +504,76 @@ function apply(state: SessionState, fact: SessionFact): Result {
             : [],
       };
     }
+    default:
+      return unchanged;
   }
 }
 
-type ThreadPin = "working" | "blocked" | "done" | "dormant" | null;
-type WhoActsNext = "needs-input" | "working" | "dormant" | "done" | "idle";
+function apply(state: SessionState, fact: SessionFact): Result {
+  const result = reduce(state, fact);
+  if (result.state.inbox === state.inbox) return result;
+  return {
+    ...result,
+    state: { ...result.state, ...compactInbox(result.state) },
+  };
+}
 
-function whoActsNext(state: SessionState, pin: ThreadPin = null): WhoActsNext {
-  const head = state.inbox.find(
-    (message) => !terminalDelivery.has(message.status),
-  );
+type ThreadPin = "working" | "blocked" | "done" | "dormant" | null;
+type WhoActsNext = "needs_input" | "working" | "dormant" | "done" | "idle";
+
+export type SessionVisibility = {
+  readonly killed?: boolean;
+  readonly pendingApiError?: boolean;
+  readonly parked?: boolean;
+  readonly hostedQueued?: boolean;
+  readonly hostedStopped?: boolean;
+  readonly compacting?: boolean;
+};
+
+function whoActsNext(
+  state: SessionState,
+  pin: ThreadPin = null,
+  visibility: SessionVisibility = {},
+): WhoActsNext {
+  if (visibility.killed) return "idle";
+  if (state.turn.status === "blocked") return "needs_input";
   if (
-    state.turn.status === "blocked" ||
-    head?.status === "ambiguous" ||
-    pin === "blocked"
+    state.turn.status === "running" ||
+    state.inbox.some(({ status }) => status === "delivery-started") ||
+    visibility.compacting
   )
-    return "needs-input";
-  if (state.turn.status === "running" || head?.status === "delivery-started")
     return "working";
-  if (state.status === "completed") return "done";
-  if (pin) return pin;
+  const hasPending =
+    visibility.hostedQueued ||
+    state.inbox.some(({ status }) => !terminalDelivery.has(status));
+  const hasTurn = state.turn.status !== "none";
   if (
+    state.providerError ||
+    visibility.pendingApiError ||
     state.runStatus === "start-ambiguous" ||
-    state.runStatus === "start-failed-before-effect"
+    state.runStatus === "start-failed-before-effect" ||
+    state.inbox.some(({ status }) => status === "ambiguous")
   )
-    return "needs-input";
+    return "needs_input";
+  if (
+    state.lease?.expired ||
+    ((terminalRun(state) || visibility.hostedStopped) &&
+      (hasPending || (hasTurn && !visibility.parked)))
+  ) {
+    return pin === "done" && !hasPending ? "done" : "needs_input";
+  }
   if (
     state.runStatus === "starting" ||
-    head?.status === "pending" ||
-    head?.status === "claimed"
+    visibility.hostedQueued ||
+    (isAccepting(state) &&
+      state.inbox.some(
+        ({ status }) => status === "pending" || status === "claimed",
+      ))
   )
     return "working";
-  if (head?.status === "held") return "dormant";
-  return state.turn.status === "ended" ? "done" : "idle";
+  if (pin === "blocked") return "needs_input";
+  if (pin === "dormant" || pin === "done") return pin;
+  return hasTurn ? "needs_input" : "idle";
 }
 
 export const sessionMachine = { initial, apply, whoActsNext };

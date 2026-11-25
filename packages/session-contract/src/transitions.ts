@@ -74,7 +74,11 @@ export const deliveryTransitions = {
     "delivery-started": "delivered",
     ambiguous: "correlated-delivered",
   },
-  reject: { pending: "rejected", claimed: "rejected" },
+  reject: {
+    pending: "rejected",
+    claimed: "rejected",
+    "delivery-started": "rejected",
+  },
   cancel: {
     held: "cancelled-by-supersession",
     pending: "cancelled-by-supersession",

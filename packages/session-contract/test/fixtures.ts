@@ -22,6 +22,7 @@ export const empty = sessionMachine.initial(scope);
 export const claimed = applyFacts(empty, {
   ...fence,
   kind: "run.claimed",
+  claimNumber: 1,
   expires_at: 10,
 });
 export const ready = applyFacts(claimed, {
@@ -71,8 +72,16 @@ export const request: DeliveryStartRequest = {
   sender: { kind: "person", id: "sender" },
 };
 
-export const submit = { ...request, kind: "inbox.submitted" } as const;
-export const permit = { ...request, kind: "delivery.permitted" } as const;
+export const submit = {
+  ...request,
+  kind: "inbox.submitted",
+  expectedTurn: null,
+} as const;
+export const permit = {
+  ...request,
+  kind: "delivery.permitted",
+  attemptNumber: 1,
+} as const;
 export const start = { kind: "delivery.start", request, turn: null } as const;
 export const doubt = {
   kind: "delivery.settle",

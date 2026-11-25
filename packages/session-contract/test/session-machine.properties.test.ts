@@ -45,10 +45,19 @@ function factsFor(state: SessionState, index: number): SessionFact[] {
     ...target,
     fencing_token: state.lease?.fencing_token ?? "unclaimed",
   };
-  const last = state.inbox.at(-1);
-  const head = state.inbox.find(
+  const first = state.inbox.find(
     (message) => !terminalDeliveries.includes(message.status),
   );
+  const head =
+    state.inbox.find(({ status }) =>
+      ["claimed", "delivery-started", "ambiguous"].includes(status),
+    ) ??
+    state.inbox.find(
+      ({ status, intent }) =>
+        status === "pending" &&
+        (state.turn.status !== "running" || intent === "steer"),
+    ) ??
+    first;
   const headRef = {
     ...activeFence,
     delivery_id: head?.delivery_id ?? request.delivery_id,
@@ -62,7 +71,11 @@ function factsFor(state: SessionState, index: number): SessionFact[] {
   } as const;
   const freshInput = {
     delivery_id: `delivery-${index}`,
-    seq: (last?.seq ?? 0) + 1,
+    seq: state.lastInboxSeq + 1,
+    expectedTurn:
+      state.turn.status === "running" || state.turn.status === "blocked"
+        ? state.turn.id
+        : null,
     intent: index % 2 ? "queue" : "steer",
   } as const;
   const currentTurn = state.turn.id ?? "missing-turn";
@@ -76,6 +89,7 @@ function factsFor(state: SessionState, index: number): SessionFact[] {
     {
       ...target,
       kind: "run.claimed",
+      claimNumber: state.claimNumber + 1,
       fencing_token: `token-${index}`,
       expires_at: index + 10,
     },
@@ -105,6 +119,12 @@ function factsFor(state: SessionState, index: number): SessionFact[] {
     { ...target, kind: "run.successorAuthorized", successor: state.run + 1 },
     {
       ...target,
+      kind: "takeover.fence",
+      revision: index + 1,
+      raised: index % 4 === 0,
+    },
+    {
+      ...target,
       ...freshInput,
       kind: "inbox.submitted",
       held: index % 3 === 0,
@@ -113,7 +133,12 @@ function factsFor(state: SessionState, index: number): SessionFact[] {
     { ...headRef, kind: "inbox.cancelled" },
     { ...headRef, kind: "inbox.headRejected" },
     { ...headRef, kind: "inbox.abandoned", resend: freshInput },
-    { ...headRef, kind: "delivery.permitted", attempt_id: `attempt-${index}` },
+    {
+      ...headRef,
+      kind: "delivery.permitted",
+      attemptNumber: (head?.attemptNumber ?? 0) + 1,
+      attempt_id: `attempt-${index}`,
+    },
     { kind: "delivery.start", request: delivery, turn: liveTurn },
     { ...headRef, kind: "delivery.returned" },
     { kind: "delivery.settle", request: { ...delivery, outcome: "applied" } },
@@ -243,10 +268,24 @@ test("seeded fact sequences are total, deterministic, replay-safe, and fenced", 
     }),
     applyFacts(ready, { ...fence, kind: "run.quarantineConfirmed" }),
   ];
-  for (let trial = 0; trial < 150; trial += 1) {
+  let changedSteps = 0;
+  const trials = 150;
+  const steps = 20;
+  for (let trial = 0; trial < trials; trial += 1) {
     let state = random.helpers.arrayElement(anchors);
-    for (let step = 0; step < 20; step += 1) {
+    const applied: SessionFact[] = [];
+    const handed = new Map<string, Set<string>>();
+    const delivered = new Set(
+      state.inbox
+        .filter(
+          ({ status }) =>
+            status === "delivered" || status === "correlated-delivered",
+        )
+        .map(({ delivery_id }) => delivery_id),
+    );
+    for (let step = 0; step < steps; step += 1) {
       const candidates = factsFor(state, trial * 20 + step);
+      const changes: SessionFact[] = [];
       for (const fact of candidates) {
         const result = sessionMachine.apply(state, fact);
         expect(
@@ -256,6 +295,7 @@ test("seeded fact sequences are total, deterministic, replay-safe, and fenced", 
           state: result.state,
           effects: [],
         });
+        if (result.state !== state) changes.push(fact);
         if (result.effects.length) expect(result.state).not.toEqual(state);
         const next = result.state;
         expect(["active", "completed"]).toContain(next.status);
@@ -278,7 +318,16 @@ test("seeded fact sequences are total, deterministic, replay-safe, and fenced", 
           if (state.turn.status === "ended" && state.turn.id === next.turn.id)
             expect(next.turn.status).toBe("ended");
         }
-        for (const [index, row] of next.inbox.entries()) {
+        expect(
+          next.inbox.filter(({ status }) =>
+            ["claimed", "delivery-started", "ambiguous"].includes(status),
+          ).length,
+        ).toBeLessThanOrEqual(1);
+        expect(next.lastInboxSeq).toBeGreaterThanOrEqual(state.lastInboxSeq);
+        expect(next.inbox.map(({ seq }) => seq)).toEqual(
+          [...new Set(next.inbox.map(({ seq }) => seq))].sort((a, b) => a - b),
+        );
+        for (const row of next.inbox) {
           expect([
             "held",
             "pending",
@@ -287,7 +336,9 @@ test("seeded fact sequences are total, deterministic, replay-safe, and fenced", 
             "ambiguous",
             ...terminalDeliveries,
           ]).toContain(row.status);
-          const previous = state.inbox[index];
+          const previous = state.inbox.find(
+            ({ delivery_id }) => delivery_id === row.delivery_id,
+          );
           if (previous && terminalDeliveries.includes(previous.status))
             expect(row).toBe(previous);
         }
@@ -337,9 +388,87 @@ test("seeded fact sequences are total, deterministic, replay-safe, and fenced", 
           effects: [],
         });
       }
-      state = applyFacts(state, random.helpers.arrayElement(candidates));
+      for (const old of applied)
+        expect(sessionMachine.apply(state, old)).toEqual({
+          state,
+          effects: [],
+        });
+      const inFlight = state.inbox.find(({ status }) =>
+        ["claimed", "delivery-started", "ambiguous"].includes(status),
+      );
+      const second = state.inbox.find(
+        (row) => row !== inFlight && row.status === "pending",
+      );
+      const activeFence = {
+        ...target,
+        fencing_token: state.lease?.fencing_token ?? "missing",
+      };
+      if (inFlight) {
+        for (const invalid of [
+          {
+            ...activeFence,
+            delivery_id: inFlight.delivery_id,
+            attempt_id: "stale-attempt",
+            kind: "delivery.returned",
+          },
+          {
+            ...activeFence,
+            delivery_id: inFlight.delivery_id,
+            attempt_id: inFlight.attempts.at(-1)?.id ?? "missing",
+            fencing_token: "stale-token",
+            kind: "delivery.returned",
+          },
+          ...(second
+            ? [
+                {
+                  ...activeFence,
+                  delivery_id: second.delivery_id,
+                  attempt_id: "wrong-head",
+                  kind: "delivery.permitted",
+                  attemptNumber: second.attemptNumber + 1,
+                } as const,
+              ]
+            : []),
+        ] satisfies SessionFact[])
+          expect(sessionMachine.apply(state, invalid).state).toBe(state);
+      }
+      const pool =
+        changes.length && random.number.int({ max: 9 }) < 8
+          ? changes
+          : candidates;
+      const choice = random.helpers.arrayElement(pool);
+      const result = sessionMachine.apply(state, choice);
+      for (const effect of result.effects) {
+        if (effect.kind !== "delivery.apply") continue;
+        const { delivery_id, attempt_id } = effect.request;
+        expect(delivered.has(delivery_id)).toBe(false);
+        const attempts = handed.get(delivery_id) ?? new Set<string>();
+        expect(attempts.has(attempt_id)).toBe(false);
+        attempts.add(attempt_id);
+        handed.set(delivery_id, attempts);
+      }
+      for (const row of result.state.inbox) {
+        if (row.status !== "delivered" && row.status !== "correlated-delivered")
+          continue;
+        const prior = state.inbox.find(
+          ({ delivery_id }) => delivery_id === row.delivery_id,
+        );
+        if (prior === row) continue;
+        expect(delivered.has(row.delivery_id)).toBe(false);
+        delivered.add(row.delivery_id);
+      }
+      if (result.state !== state) {
+        changedSteps += 1;
+        applied.push(choice);
+      }
+      state = result.state;
     }
   }
+  const percent = (100 * changedSteps) / (trials * steps);
+  expect(percent).toBeGreaterThan(70);
+  console.log(
+    `Seeded reducer traces changed state on ${percent.toFixed(1)}% of steps`,
+  );
 });
 
 test("replays of earlier events and attempts stay inert after an intervening transition", () => {
@@ -353,6 +482,10 @@ test("replays of earlier events and attempts stay inert after an intervening tra
     ...permit,
     kind: "delivery.returned",
   });
-  const nextAttempt = applyFacts(returned, { ...permit, attempt_id: "retry" });
+  const nextAttempt = applyFacts(returned, {
+    ...permit,
+    attempt_id: "retry",
+    attemptNumber: 2,
+  });
   expect(applyFacts(nextAttempt, start, doubt)).toBe(nextAttempt);
 });

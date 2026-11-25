@@ -16,34 +16,73 @@ type Attempt = {
 export type Delivery = Input & {
   readonly status: DeliveryStatus;
   readonly heldFor: TurnId | null;
+  readonly attemptNumber: number;
   readonly attempts: readonly Attempt[];
 };
 
 export type Inbox = readonly Delivery[];
 
-export function insertDelivery(
-  inbox: Inbox,
+const HISTORY_LIMIT = 32;
+
+export type InboxState = {
+  readonly inbox: Inbox;
+  readonly lastInboxSeq: number;
+  readonly recentDeliveryIds: readonly Input["delivery_id"][];
+};
+
+export function retainRecent<T>(
+  previous: readonly T[],
+  value: T,
+): readonly T[] {
+  return [...previous.slice(1 - HISTORY_LIMIT), value];
+}
+
+export function compactInbox(state: InboxState): InboxState {
+  const terminal = state.inbox.filter(({ status }) =>
+    terminalDelivery.has(status),
+  );
+  if (terminal.length <= HISTORY_LIMIT) return state;
+  const removed = new Set(terminal.slice(0, terminal.length - HISTORY_LIMIT));
+  return {
+    inbox: state.inbox.filter((entry) => !removed.has(entry)),
+    lastInboxSeq: state.lastInboxSeq,
+    recentDeliveryIds: [
+      ...state.recentDeliveryIds,
+      ...Array.from(removed, ({ delivery_id }) => delivery_id),
+    ].slice(-HISTORY_LIMIT),
+  };
+}
+
+function insertDelivery(
+  state: InboxState,
   input: Input,
   held: boolean,
   heldFor: TurnId | null,
-): Inbox {
+): InboxState {
   if (
-    (inbox[inbox.length - 1]?.seq ?? 0) >= input.seq ||
-    inbox.some((message) => message.delivery_id === input.delivery_id)
-  ) {
-    return inbox;
-  }
-  return [
-    ...inbox,
-    {
-      delivery_id: input.delivery_id,
-      seq: input.seq,
-      intent: input.intent,
-      status: held ? "held" : "pending",
-      heldFor,
-      attempts: [],
-    },
-  ];
+    !Number.isSafeInteger(input.seq) ||
+    state.lastInboxSeq >= input.seq ||
+    state.recentDeliveryIds.includes(input.delivery_id) ||
+    state.inbox.some((message) => message.delivery_id === input.delivery_id)
+  )
+    return state;
+  return {
+    ...state,
+    lastInboxSeq: input.seq,
+    inbox: [
+      ...state.inbox,
+      {
+        delivery_id: input.delivery_id,
+        seq: input.seq,
+        intent: input.intent,
+        expectedTurn: input.expectedTurn,
+        status: held ? "held" : "pending",
+        heldFor,
+        attempts: [],
+        attemptNumber: 0,
+      },
+    ],
+  };
 }
 
 export function advanceDelivery(
@@ -71,7 +110,8 @@ export function deliveryReceipt(inbox: Inbox, id: Input["delivery_id"]): Inbox {
 
 type InboxContext = Scope & {
   readonly active: boolean;
-  readonly ready: boolean;
+  readonly terminal: boolean;
+  readonly takeoverRaised: boolean;
   readonly accepting: boolean;
   readonly token: string | null;
   readonly turn: TurnId | null;
@@ -98,14 +138,17 @@ function deliveryAction(
         context.accepting &&
         fact.fencing_token === context.token &&
         (message.intent === "steer"
-          ? context.turn === null || context.running
+          ? message.expectedTurn === context.turn &&
+            (context.turn === null || context.running)
           : context.turn === null) &&
+        Number.isSafeInteger(fact.attemptNumber) &&
+        fact.attemptNumber > message.attemptNumber &&
         !message.attempts.some(({ id }) => id === fact.attempt_id)
         ? "permit"
         : undefined;
     case "delivery.reconciled":
       return fact.fencing_token === context.token &&
-        context.ready &&
+        context.accepting &&
         message.status === "ambiguous" &&
         message.attempts[message.attempts.length - 1]?.id === fact.attempt_id &&
         fact.evidence.trim()
@@ -136,8 +179,12 @@ function deliveryAction(
       }
       if (fact.kind === "delivery.start") {
         return context.accepting &&
+          !context.takeoverRaised &&
           fact.turn === context.turn &&
-          fact.turn === attempt.turn &&
+          fact.turn ===
+            (message.intent === "steer"
+              ? message.expectedTurn
+              : attempt.turn) &&
           (context.turn === null ||
             (context.running && message.intent === "steer"))
           ? "start"
@@ -147,12 +194,22 @@ function deliveryAction(
       const settlement = fact.request;
       if ("resolution_evidence" in settlement) {
         if (
-          message.status !== "ambiguous" ||
-          !settlement.resolution_evidence?.trim()
+          !settlement.resolution_evidence?.trim() ||
+          (message.status !== "ambiguous" &&
+            !(context.terminal && message.status === "delivery-started"))
         )
           return undefined;
         if (settlement.outcome === "applied") return "receipt";
-      } else if (message.status === "ambiguous") {
+        return settlement.outcome === "failed"
+          ? settlement.retryable
+            ? "retry"
+            : "fail"
+          : undefined;
+      }
+      if (
+        context.terminal ||
+        (message.status !== "claimed" && message.status !== "delivery-started")
+      ) {
         return undefined;
       }
       switch (settlement.outcome) {
@@ -162,6 +219,7 @@ function deliveryAction(
         case "in_doubt":
           return "doubt";
         case "rejected":
+        case "stale":
           return "reject";
         case "failed":
           return settlement.retryable ? "retry" : "fail";
@@ -171,47 +229,61 @@ function deliveryAction(
 }
 
 export function applyInbox(
-  inbox: Inbox,
+  state: InboxState,
   fact: InboxFact,
   context: InboxContext,
-): Inbox {
+): InboxState {
+  const { inbox } = state;
   if (fact.kind === "inbox.submitted") {
     const heldFor = fact.intent === "queue" ? context.turn : null;
     return context.active
-      ? insertDelivery(inbox, fact, !!fact.held || heldFor !== null, heldFor)
-      : inbox;
+      ? insertDelivery(state, fact, !!fact.held || heldFor !== null, heldFor)
+      : state;
   }
   const id = "request" in fact ? fact.request.delivery_id : fact.delivery_id;
   const message = inbox.find((entry) => entry.delivery_id === id);
-  if (!message) return inbox;
+  if (!message) return state;
+  const inFlight = inbox.some(
+    ({ status }) =>
+      status === "claimed" ||
+      status === "delivery-started" ||
+      status === "ambiguous",
+  );
   const isHead =
-    inbox.find((entry) => !terminalDelivery.has(entry.status)) === message;
+    !inFlight &&
+    inbox.find(
+      (entry) =>
+        entry.status === "pending" &&
+        (!context.running || entry.intent === "steer"),
+    ) === message;
   const action = deliveryAction(message, fact, context, isHead);
-  if (!action) return inbox;
+  if (!action) return state;
   let next = advanceDelivery(message, action);
-  if (next === message) return inbox;
+  if (next === message) return state;
   if (fact.kind === "delivery.permitted") {
     next = {
       ...next,
-      attempts: [
-        ...message.attempts,
-        {
-          id: fact.attempt_id,
-          run: fact.run,
-          token: fact.fencing_token,
-          turn: context.turn,
-        },
-      ],
+      attemptNumber: fact.attemptNumber,
+      attempts: retainRecent(message.attempts, {
+        id: fact.attempt_id,
+        run: fact.run,
+        token: fact.fencing_token,
+        turn: context.turn,
+      }),
     };
   }
-  const updated = inbox.map((entry) => (entry === message ? next : entry));
+  const updated = {
+    ...state,
+    inbox: inbox.map((entry) => (entry === message ? next : entry)),
+  };
   if (fact.kind !== "inbox.abandoned" || !fact.resend) return updated;
-  if (!context.active) return inbox;
+  if (!context.active) return state;
+  const heldFor = fact.resend.intent === "queue" ? context.turn : null;
   const resent = insertDelivery(
     updated,
     fact.resend,
-    fact.resend.intent === "queue" && context.turn !== null,
-    fact.resend.intent === "queue" ? context.turn : null,
+    heldFor !== null,
+    heldFor,
   );
-  return resent === updated ? inbox : resent;
+  return resent === updated ? state : resent;
 }

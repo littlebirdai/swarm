@@ -53,7 +53,7 @@ test.each([
   [
     "claim a requested run",
     empty,
-    { ...fence, kind: "run.claimed", expires_at: 10 },
+    { ...fence, kind: "run.claimed", claimNumber: 1, expires_at: 10 },
     "starting",
   ],
   [
@@ -80,7 +80,13 @@ test.each([
   [
     "retry a launch with a new fence",
     failed,
-    { ...fence, kind: "run.claimed", fencing_token: "second", expires_at: 20 },
+    {
+      ...fence,
+      kind: "run.claimed",
+      claimNumber: 2,
+      fencing_token: "second",
+      expires_at: 20,
+    },
     "starting",
   ],
   ["record an unverifiable launch", claimed, unknown, "start-ambiguous"],
@@ -170,7 +176,12 @@ test("lease expiry requests stop once and leaves successor blocked until proof o
 });
 
 test("refuse startup retries after failure without a retry grant or with a reused token", () => {
-  const retry = { ...fence, kind: "run.claimed", expires_at: 20 } as const;
+  const retry = {
+    ...fence,
+    kind: "run.claimed",
+    claimNumber: 2,
+    expires_at: 20,
+  } as const;
   expect(applyFacts(failed, retry)).toBe(failed);
   const permanent = applyFacts(claimed, { ...launchFailed, retryable: false });
   expect(applyFacts(permanent, { ...retry, fencing_token: "second" })).toBe(
@@ -330,7 +341,11 @@ test("start refuses a permit from another turn, attempt, fence, or queue positio
   const nowRunning = applyFacts(permitted, started);
   const steer = { ...start, turn: "turn-1" };
   expect(applyFacts(nowRunning, start, steer)).toBe(nowRunning);
-  const permittedForTurn = applyFacts(running, submit, permit);
+  const permittedForTurn = applyFacts(
+    running,
+    { ...submit, expectedTurn: "turn-1" },
+    permit,
+  );
   expect(applyFacts(permittedForTurn, steer).inbox[0]?.status).toBe(
     "delivery-started",
   );
@@ -495,7 +510,8 @@ test("an unstarted permit can return without allowing a replay of the original a
   });
   expect(applyFacts(waiting, permit, start)).toBe(waiting);
   expect(
-    applyFacts(waiting, { ...permit, attempt_id: "retry" }).inbox[0]?.status,
+    applyFacts(waiting, { ...permit, attempt_id: "retry", attemptNumber: 2 })
+      .inbox[0]?.status,
   ).toBe("claimed");
 });
 
@@ -514,7 +530,7 @@ test("an ambiguous start requires evidence or a new delivery ID after explicit a
   const abandon = {
     ...submit,
     kind: "inbox.abandoned",
-    resend: { ...request, seq: 2 },
+    resend: { ...request, seq: 2, expectedTurn: null },
   } as const;
   expect(applyFacts(ambiguous, abandon)).toBe(ambiguous);
   const resent = applyFacts(ambiguous, {
@@ -539,7 +555,7 @@ test("successor returns an unstarted permit and holds an unaccounted start until
   const nextFence = { ...fence, run: 2, fencing_token: "next" };
   const online = applyFacts(
     waiting,
-    { ...nextFence, kind: "run.claimed", expires_at: 10 },
+    { ...nextFence, kind: "run.claimed", claimNumber: 1, expires_at: 10 },
     { ...nextFence, kind: "run.runtimeReady" },
   );
   const reconciled = {
@@ -560,11 +576,13 @@ test("who acts next follows the turn, inbox, run, and thread pin", () => {
   expect(sessionMachine.whoActsNext(empty)).toBe("idle");
   expect(sessionMachine.whoActsNext(claimed)).toBe("working");
   expect(sessionMachine.whoActsNext(running)).toBe("working");
-  expect(sessionMachine.whoActsNext(blocked)).toBe("needs-input");
-  expect(sessionMachine.whoActsNext(ambiguous)).toBe("needs-input");
-  expect(sessionMachine.whoActsNext(ready, "blocked")).toBe("needs-input");
+  expect(sessionMachine.whoActsNext(blocked)).toBe("needs_input");
+  expect(sessionMachine.whoActsNext(ambiguous)).toBe("needs_input");
+  expect(sessionMachine.whoActsNext(ready, "blocked")).toBe("needs_input");
   expect(sessionMachine.whoActsNext(ready, "dormant")).toBe("dormant");
-  expect(sessionMachine.whoActsNext(applyFacts(running, ended))).toBe("done");
+  expect(sessionMachine.whoActsNext(applyFacts(running, ended))).toBe(
+    "needs_input",
+  );
 });
 
 test("a fact from a different epoch cannot end the current turn", () => {
@@ -593,13 +611,33 @@ test("older start sequence cannot create a turn after a later turn ends", () => 
   expect(applyFacts(finished, oldStart)).toBe(finished);
 });
 
-test("a receipt with a stale turn cannot settle the current delivery", () => {
-  const working = applyFacts(sending, started);
-  const receipt = event(2, "old-turn", {
+test("a receipt can settle an earlier turn after a later turn starts", () => {
+  const working = applyFacts(
+    sending,
+    started,
+    ended,
+    event(5, "turn-2", {
+      kind: "turn.started",
+      body: {},
+    }),
+  );
+  const receipt = event(6, "turn-1", {
     kind: "receipt",
     body: { delivery_id: request.delivery_id },
   });
-  expect(applyFacts(working, receipt)).toBe(working);
+  const delivered = applyFacts(working, receipt);
+  expect(delivered.inbox[0]?.status).toBe("delivered");
+  expect(delivered.turn.id).toBe("turn-2");
+  expect(applyFacts(delivered, receipt)).toBe(delivered);
+  expect(
+    applyFacts(
+      working,
+      event(3, "turn-1", {
+        kind: "receipt",
+        body: { delivery_id: request.delivery_id },
+      }),
+    ),
+  ).toBe(working);
 });
 
 test("an in-doubt settlement refuses blank resolution evidence", () => {

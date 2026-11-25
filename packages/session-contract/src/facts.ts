@@ -18,10 +18,10 @@ export type PromptId = Extract<
 export type Input = Pick<
   DeliveryStartRequest,
   "delivery_id" | "seq" | "intent"
->;
+> & { expectedTurn: TurnId | null };
 
 export type RunFact =
-  | ({ kind: "run.claimed" } & Fence &
+  | ({ kind: "run.claimed"; claimNumber: number } & Fence &
       Pick<Extract<ClaimResponse, { status: "granted" }>, "expires_at">)
   | ({ kind: "run.renewed"; expires_at: number } & Fence)
   | ({ kind: "run.leaseExpired"; expires_at: number } & Fence)
@@ -44,7 +44,7 @@ export type InboxFact =
   | ({ kind: "inbox.released" | "inbox.cancelled" } & DeliveryRef)
   | ({ kind: "inbox.headRejected" } & DeliveryRef)
   | ({ kind: "inbox.abandoned"; resend?: Input } & DeliveryRef)
-  | ({ kind: "delivery.permitted" } & AttemptRef)
+  | ({ kind: "delivery.permitted"; attemptNumber: number } & AttemptRef)
   | {
       kind: "delivery.start";
       request: DeliveryStartRequest;
@@ -53,8 +53,10 @@ export type InboxFact =
   | ({ kind: "delivery.returned" } & AttemptRef)
   | {
       kind: "delivery.settle";
-      request: DeliverySettleRequest &
-        Partial<Pick<DeliveryResolutionRequest, "resolution_evidence">>;
+      request:
+        | (DeliverySettleRequest &
+            Partial<Pick<DeliveryResolutionRequest, "resolution_evidence">>)
+        | (DeliveryStartRequest & { outcome: "stale" });
     }
   | ({
       kind: "delivery.reconciled";
@@ -66,6 +68,7 @@ export type SessionFact =
   | RunFact
   | InboxFact
   | { kind: "provider.event"; event: CanonicalEvent }
+  | ({ kind: "takeover.fence"; raised: boolean; revision: number } & Scope)
   | ({ kind: "person.interrupt"; turn: TurnId } & Scope)
   | ({
       kind: "person.answer";
