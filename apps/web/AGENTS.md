@@ -25,3 +25,35 @@ The root `CLAUDE.md` covers the store, the sync host, guard tests for registered
 **Hot paths have exact-count budgets.** `scripts/perf-budgets.sh` holds what a warm conversation switch, the 5,000-session inbox and a long diff may cost (fetches, subscriptions, store writes, commits, layout reads), and `scripts/perf-bench.sh` times base against head with strobe. When a change moves a count, `perf/README.md` says how to read it and when to update it.
 
 **Give each behavior one test owner.** Use the parser test for wire formats and the mounted component test for display and input. Use the real store action when a test checks an immediate store update. Use rendered elements for dialog, control, and scroll behavior. Source text and style class names can change while those behaviors stay the same.
+
+### Component mount tests
+
+Use `mountWeb` from `test-helpers/mountWeb` to mount a component. The
+harness supplies jsdom, the real inbox store, a memory router, and a Toaster.
+It closes the React root and the Convex client after each test. Use
+`authenticated: true` for pages with `AuthGuard`.
+
+Use the test file name as the builder seed. Set values in the fixture when
+the test depends on those values. Use store sync actions to load cached rows.
+
+Register each query by its Convex function reference. Pass a value, a function
+of the query arguments, `undefined` for a pending query, or an `Error`.
+Call `backend.set` inside `act` to send a live update. The harness fails the
+test with the name of each query that has no registration. Read
+`backend.mutations` and `backend.actions` to check calls to the server.
+
+```tsx
+const { doc } = webBuilders("documentDetailLoading.test.tsx");
+const row = doc.build({ title: "Release notes" });
+const { container } = await mountWeb(
+  <DocumentDetailLayout
+    docId={row._id}
+    title={row.title}
+    markdownContent={row.content}
+    backHref="/docs"
+    defaultEditing={false}
+  />,
+  { setup: (backend) => backend.set(api.assistant.incidents.thinkingAvailable, undefined) },
+);
+expect(container.querySelector("h1")?.textContent).toBe(row.title);
+```
