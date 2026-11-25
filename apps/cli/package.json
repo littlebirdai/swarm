@@ -8,6 +8,10 @@
     "codecast": "./dist/main.js",
     "cast": "./dist/main.js"
   },
+  "exports": {
+    "./jsonlGenerator": "./src/jsonlGenerator.ts",
+    "./parser": "./src/parser.ts"
+  },
   "scripts": {
     "dev": "bun run src/main.ts",
     "build": "bun scripts/stamp-daemon-build-id.ts && bun scripts/build-with-native.ts src/main.ts src/daemon.ts --outdir dist --target=node --splitting",

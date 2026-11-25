@@ -1,55 +1,13 @@
-/**
- * JSONL Round-Trip Fidelity Test
- *
- * Tests that: original JSONL → parse → DB format → generate → parse
- * produces the same message sequence. This isolates the generator's fidelity
- * from DB sync issues (compaction, truncation, etc.).
- *
- * Also tests the full DB round-trip for sessions that have a matching
- * conversation in the DB.
- *
- * Usage: bun tests/jsonl-fidelity/roundtrip.ts [--count 10] [--session <id>]
- */
-
-import * as fs from "fs";
-import * as path from "path";
-import { decryptToken } from "../../apps/cli/src/tokenEncryption.js";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { parseSessionFile, type ParsedMessage } from "@codecast/cli/parser";
 import {
-  parseSessionFile,
-  extractMessages,
-  parseSessionLine,
-  type ParsedMessage,
-  type ClaudeSessionEntry,
-} from "../../apps/cli/src/parser.js";
-import {
-  fetchExport,
   generateClaudeCodeJsonl,
   type ExportResult,
   type ExportedMessage,
-} from "../../apps/cli/src/jsonlGenerator.js";
+} from "@codecast/cli/jsonlGenerator";
 
-// ── Config ──────────────────────────────────────────────────
-
-const CONFIG_PATH = path.join(process.env.HOME!, ".codecast", "config.json");
-const CONV_CACHE_PATH = path.join(
-  process.env.HOME!,
-  ".codecast",
-  "conversations.json",
-);
 const CLAUDE_PROJECTS_DIR = path.join(process.env.HOME!, ".claude", "projects");
-
-interface Config {
-  convex_url: string;
-  auth_token: string;
-  user_id: string;
-}
-
-type ConversationCache = Record<string, string>;
-
-function loadConfig(): Config {
-  const raw = fs.readFileSync(CONFIG_PATH, "utf8");
-  return JSON.parse(raw);
-}
 
 // ── Find sessions ───────────────────────────────────────────
 
@@ -343,6 +301,12 @@ function printDetailedDiff(
 // ── Main ────────────────────────────────────────────────────
 
 async function main() {
+  if (process.env.CODECAST_RUN_LIVE_TESTS !== "1") {
+    throw new Error(
+      "Set CODECAST_RUN_LIVE_TESTS=1 to read local session files.",
+    );
+  }
+
   const args = process.argv.slice(2);
   let count = 10;
   let targetSession: string | null = null;
@@ -514,4 +478,7 @@ async function main() {
   process.exit(imperfect.length > 0 ? 1 : 0);
 }
 
-main().catch(console.error);
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

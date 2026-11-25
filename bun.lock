@@ -1155,6 +1155,9 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/tsconfig": {
+      "name": "@codecast/tsconfig",
+    },
     "packages/usage": {
       "name": "@codecast/usage",
       "version": "0.0.1",
@@ -1175,6 +1178,15 @@
       },
       "devDependencies": {
         "@types/bun": "^1.3.3",
+      },
+    },
+    "tests/fork": {
+      "name": "@codecast/test-fork",
+    },
+    "tests/jsonl-fidelity": {
+      "name": "@codecast/test-jsonl-fidelity",
+      "dependencies": {
+        "@codecast/cli": "workspace:*",
       },
     },
   },
@@ -1654,9 +1666,15 @@
 
     "@codecast/team": ["@codecast/team@workspace:packages/team"],
 
+    "@codecast/test-fork": ["@codecast/test-fork@workspace:tests/fork"],
+
+    "@codecast/test-jsonl-fidelity": ["@codecast/test-jsonl-fidelity@workspace:tests/jsonl-fidelity"],
+
     "@codecast/time": ["@codecast/time@workspace:packages/time"],
 
     "@codecast/triggers": ["@codecast/triggers@workspace:packages/triggers"],
+
+    "@codecast/tsconfig": ["@codecast/tsconfig@workspace:packages/tsconfig"],
 
     "@codecast/usage": ["@codecast/usage@workspace:packages/usage"],
 

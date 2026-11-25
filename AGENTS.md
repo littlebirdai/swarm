@@ -8,18 +8,28 @@ Work directly in the main checkout. Other sessions may have uncommitted work in 
 
 `apps/` contains the applications that run or ship. Put the `*.test.ts` files of an app next to their source files.
 
-`packages/` contains small libraries, each with one purpose. To add a library:
+`packages/` contains libraries and shared TypeScript configuration.
+`packages/tsconfig/` contains the base config and the library config.
+
+To add a library, use the steps below.
 
 1. Make a directory under `packages/` with a `package.json`.
-2. Set `name` to `@codecast/<name>`, and set `exports` or `main` to the entry point.
-3. Put the source in `src/` and the tests in `test/`. `cast check packages` examines only these two folders of each library.
-4. Add the library as a `workspace:*` dependency of each workspace that imports it.
-5. Run `bun install` to update the lockfile.
-6. Typecheck with `cast check packages`.
+2. Set `name` to `@codecast/<name>`.
+3. Set `exports` or `main` to the entry point.
+4. Put the source in `src/` and the tests in `test/`.
+5. Extend `../tsconfig/library.json` in the library's `tsconfig.json`.
+6. Add the library as a `workspace:*` dependency of each workspace that imports it.
+7. Run `bun install` to update the lockfile.
+8. Run `cast check packages` to check the libraries.
+
+`cast check packages` uses `src/` and `test/` as the roots for each library.
 
 CI and the source walkers find the new library automatically.
 
-`tests/` contains test suites that cross packages. A suite with its own `package.json` is a workspace member.
+`tests/` contains test suites that use more than one package. Each suite with a `package.json` is a workspace member.
+
+The suites in `tests/fork/` and `tests/jsonl-fidelity/` use live data. Both require `CODECAST_RUN_LIVE_TESTS=1` and use the `test:live` script. The fork suite uses the deployment in the local Codecast config. The JSONL fidelity suite reads local session transcripts.
+
 `platform/` is a generated mirror. Do not change its structure by hand.
 
 ## Vendored platform packages

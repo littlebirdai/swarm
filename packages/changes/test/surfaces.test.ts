@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { commit, MIN, T0 } from "../src/__fixtures__/commit";
 import { dedupeCommits, resolveDefaultBranch } from "../src/dedupe";
@@ -180,10 +180,14 @@ describe("surfaces", () => {
 
   test("each package that ships is in the cli, desktop and web surfaces", () => {
     const excluded = new Set(["docs", "ratchet"]);
-    const missing = readdirSync(join(import.meta.dir, "../.."), {
-      withFileTypes: true,
-    })
-      .filter((entry) => entry.isDirectory() && !excluded.has(entry.name))
+    const packages = join(import.meta.dir, "../..");
+    const missing = readdirSync(packages, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isDirectory() &&
+          !excluded.has(entry.name) &&
+          existsSync(join(packages, entry.name, "src")),
+      )
       .flatMap(({ name }) =>
         ["cli", "desktop", "web"]
           .filter((surface) => !surfaceCoversArea(surface, name))
