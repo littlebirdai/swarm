@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { classifyWorkState } from "@codecast/inbox/inboxProjection";
 import {
   sessionMachine,
   type SessionFact,
@@ -237,12 +238,73 @@ function factsFor(state: SessionState, index: number): SessionFact[] {
       { kind: "receipt", body: { delivery_id: delivery.delivery_id } },
       target,
     ),
+    event(
+      seq,
+      null,
+      {
+        kind: "error",
+        body: {
+          class: "provider",
+          message: "connection closed",
+          retryable: true,
+        },
+      },
+      target,
+    ),
     event(seq, null, { kind: "context", body: { data: null } }, target),
   ];
 }
 
+function expectWorkStateParity(
+  state: SessionState,
+  threadPin: "working" | "blocked" | "done" | "dormant" | null,
+): void {
+  const hasTurn = state.turn.status !== "none";
+  const pin = hasTurn ? threadPin : null;
+  const statuses = state.inbox.map(({ status }) => status);
+  const hasPending = statuses.some((status) =>
+    ["pending", "claimed", "delivery-started", "ambiguous"].includes(status),
+  );
+  const expired = state.lease?.expired === true;
+  const terminal = terminalRuns.includes(state.runStatus);
+  const runtimePresent = state.status === "active" && !terminal && !expired;
+  const canDeliver =
+    runtimePresent && state.runStatus === "ready" && state.lease !== null;
+  const awaitingInput = state.turn.status === "blocked";
+  const producing =
+    (runtimePresent && state.turn.status === "running") ||
+    (canDeliver && statuses.includes("delivery-started"));
+  const fault =
+    state.providerError !== null ||
+    state.runStatus === "start-ambiguous" ||
+    state.runStatus === "start-failed-before-effect" ||
+    statuses.includes("ambiguous");
+  const agentStatus = producing
+    ? "working"
+    : terminal
+      ? "stopped"
+      : runtimePresent && !fault && state.runStatus === "starting"
+        ? "starting"
+        : !expired && !fault && pin === "dormant"
+          ? "dormant"
+          : undefined;
+  const hasContent = hasTurn || fault || (hasPending && (terminal || expired));
+  expect(sessionMachine.whoActsNext(state, pin)).toBe(
+    classifyWorkState({
+      agentStatus,
+      awaitingInput,
+      declaredStatus: pin,
+      hasPending: hasPending && (canDeliver || terminal || expired),
+      isIdle: true,
+      isUnresponsive: expired || fault,
+      messageCount: hasContent ? 1 : 0,
+    }),
+  );
+}
+
 test("seeded fact sequences are total, deterministic, replay-safe, and fenced", () => {
   const random = testFaker("session-contract:2026-11-25");
+  const pins = testFaker("session-contract:trace-projection");
   const anchors = [
     empty,
     claimed,
@@ -462,6 +524,16 @@ test("seeded fact sequences are total, deterministic, replay-safe, and fenced", 
         applied.push(choice);
       }
       state = result.state;
+      expectWorkStateParity(
+        state,
+        pins.helpers.arrayElement([
+          null,
+          "working",
+          "blocked",
+          "done",
+          "dormant",
+        ] as const),
+      );
     }
   }
   const percent = (100 * changedSteps) / (trials * steps);

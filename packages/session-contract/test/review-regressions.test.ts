@@ -303,3 +303,128 @@ test("provider errors retain the reported reason until a new turn starts", () =>
       .providerError,
   ).toBeNull();
 });
+
+test("a pending queue row does not count as the head during a running turn", () => {
+  const next = applyFacts(
+    ready,
+    { ...submit, intent: "queue" },
+    { ...submit, delivery_id: "steer", seq: 2, expectedTurn: "turn-1" },
+    event(1, "turn-1", { kind: "turn.started", body: {} }),
+  );
+  expect(next.inbox.map(({ status }) => status)).toEqual([
+    "pending",
+    "pending",
+  ]);
+  const withPermit = applyFacts(next, { ...permit, delivery_id: "steer" });
+  expect(withPermit.inbox.map(({ status }) => status)).toEqual([
+    "pending",
+    "claimed",
+  ]);
+});
+
+test("expired execution projects needs input only with a turn or pending work", () => {
+  const expiry = {
+    ...fence,
+    kind: "run.leaseExpired",
+    expires_at: 10,
+  } as const;
+  expect(sessionMachine.whoActsNext(applyFacts(running, expiry), "done")).toBe(
+    "needs_input",
+  );
+  expect(sessionMachine.whoActsNext(applyFacts(sending, expiry), "done")).toBe(
+    "needs_input",
+  );
+  expect(sessionMachine.whoActsNext(applyFacts(pending, expiry))).toBe(
+    "needs_input",
+  );
+  expect(sessionMachine.whoActsNext(applyFacts(ready, expiry))).toBe("idle");
+  expect(sessionMachine.whoActsNext(applyFacts(claimed, expiry))).toBe("idle");
+  const held = applyFacts(ready, { ...submit, intent: "queue", held: true });
+  expect(sessionMachine.whoActsNext(applyFacts(held, expiry))).toBe("idle");
+  expect(sessionMachine.whoActsNext(applyFacts(held, exited))).toBe("idle");
+  expect(
+    sessionMachine.whoActsNext(applyFacts(running, ended, expiry), "done"),
+  ).toBe("needs_input");
+  expect(sessionMachine.whoActsNext(applyFacts(sending, exited))).toBe(
+    "needs_input",
+  );
+});
+
+test("compaction needs live execution free of errors and ambiguous input", () => {
+  const compacting = { compacting: true };
+  const errored = applyFacts(
+    ready,
+    event(1, null, {
+      kind: "error",
+      body: { class: "provider", message: "error", retryable: true },
+    }),
+  );
+  expect(sessionMachine.whoActsNext(ready, null, compacting)).toBe("working");
+  expect(sessionMachine.whoActsNext(errored, null, compacting)).toBe(
+    "needs_input",
+  );
+  expect(
+    sessionMachine.whoActsNext(ready, null, {
+      ...compacting,
+      pendingApiError: true,
+    }),
+  ).toBe("needs_input");
+  expect(sessionMachine.whoActsNext(ambiguous, null, compacting)).toBe(
+    "needs_input",
+  );
+  const stopped = applyFacts(ready, exited);
+  expect(sessionMachine.whoActsNext(stopped, null, compacting)).toBe("idle");
+});
+
+test("invalid provider sequences cannot consume a valid sequence", () => {
+  for (const seq of [NaN, Infinity, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    const malformed = event(seq, "bad", { kind: "turn.started", body: {} });
+    expect(applyFacts(ready, malformed)).toBe(ready);
+  }
+  const valid = event(Number.MAX_SAFE_INTEGER, "valid", {
+    kind: "turn.started",
+    body: {},
+  });
+  expect(applyFacts(ready, valid).turn.id).toBe("valid");
+});
+
+test("a successor retains a raised takeover fence and its revision", () => {
+  const raised = {
+    ...scope,
+    kind: "takeover.fence",
+    raised: true,
+    revision: 5,
+  } as const;
+  const nextFence = { ...fence, run: 2, fencing_token: "next" };
+  const online = applyFacts(
+    permitted,
+    raised,
+    exited,
+    successor,
+    { ...nextFence, kind: "run.claimed", claimNumber: 1, expires_at: 20 },
+    { ...nextFence, kind: "run.runtimeReady" },
+    { ...permit, ...nextFence, attemptNumber: 2, attempt_id: "next" },
+  );
+  const nextStart = {
+    ...start,
+    request: { ...request, ...nextFence, attempt_id: "next" },
+  };
+  expect(online.takeover).toEqual({ raised: true, revision: 5 });
+  expect(
+    applyFacts(online, nextStart, {
+      ...raised,
+      run: 2,
+      raised: false,
+      revision: 4,
+    }),
+  ).toBe(online);
+  const cleared = applyFacts(online, {
+    ...raised,
+    run: 2,
+    raised: false,
+    revision: 6,
+  });
+  expect(sessionMachine.apply(cleared, nextStart).effects[0]?.kind).toBe(
+    "delivery.apply",
+  );
+});

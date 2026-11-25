@@ -169,6 +169,7 @@ function applyRun(state: SessionState, fact: RunFact): Result {
         eventSeq: state.eventSeq,
         lastInboxSeq: state.lastInboxSeq,
         recentDeliveryIds: state.recentDeliveryIds,
+        takeover: state.takeover,
       },
       effects: [],
     };
@@ -287,7 +288,8 @@ function applyRun(state: SessionState, fact: RunFact): Result {
 
 function applyEvent(state: SessionState, event: CanonicalEvent): Result {
   const unchanged = { state, effects: [] };
-  if (event.seq <= state.eventSeq) return unchanged;
+  if (!Number.isSafeInteger(event.seq) || event.seq <= state.eventSeq)
+    return unchanged;
   const { turn } = state;
   const stamped = { ...state, eventSeq: event.seq };
   if (event.kind === "receipt") {
@@ -536,41 +538,50 @@ function whoActsNext(
   visibility: SessionVisibility = {},
 ): WhoActsNext {
   if (visibility.killed) return "idle";
+  const terminal = terminalRun(state);
+  const expired = state.lease?.expired === true;
+  const live = state.status === "active" && !terminal && !expired;
+  const accepting = isAccepting(state);
+  const hasError = state.providerError !== null || visibility.pendingApiError;
+  const ambiguous = state.inbox.some(({ status }) => status === "ambiguous");
   if (state.turn.status === "blocked") return "needs_input";
   if (
-    state.turn.status === "running" ||
-    state.inbox.some(({ status }) => status === "delivery-started") ||
-    visibility.compacting
+    (live && state.turn.status === "running") ||
+    (accepting &&
+      state.inbox.some(({ status }) => status === "delivery-started")) ||
+    (visibility.compacting && live && !hasError && !ambiguous)
   )
     return "working";
   const hasPending =
     visibility.hostedQueued ||
-    state.inbox.some(({ status }) => !terminalDelivery.has(status));
+    state.inbox.some(
+      ({ status }) => status !== "held" && !terminalDelivery.has(status),
+    );
   const hasTurn = state.turn.status !== "none";
   if (
-    state.providerError ||
-    visibility.pendingApiError ||
+    hasError ||
     state.runStatus === "start-ambiguous" ||
     state.runStatus === "start-failed-before-effect" ||
-    state.inbox.some(({ status }) => status === "ambiguous")
+    ambiguous
   )
     return "needs_input";
+  if (expired) return hasPending || hasTurn ? "needs_input" : "idle";
   if (
-    state.lease?.expired ||
-    ((terminalRun(state) || visibility.hostedStopped) &&
-      (hasPending || (hasTurn && !visibility.parked)))
+    (terminal || visibility.hostedStopped) &&
+    (hasPending || (hasTurn && !visibility.parked))
   ) {
     return pin === "done" && !hasPending ? "done" : "needs_input";
   }
   if (
-    state.runStatus === "starting" ||
+    (live && state.runStatus === "starting") ||
     visibility.hostedQueued ||
-    (isAccepting(state) &&
+    (accepting &&
       state.inbox.some(
         ({ status }) => status === "pending" || status === "claimed",
       ))
-  )
+  ) {
     return "working";
+  }
   if (pin === "blocked") return "needs_input";
   if (pin === "dormant" || pin === "done") return pin;
   return hasTurn ? "needs_input" : "idle";
