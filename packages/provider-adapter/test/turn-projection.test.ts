@@ -95,9 +95,9 @@ describe("recorded Codex app-server turn", () => {
   it.effect("opens the named turn and closes on turn/completed", () =>
     Effect.promise(async () => {
       const fake = appServer.fixture({ FIXTURE_HOLD_SECOND: "1" });
-      const { session } = appServer.requireOpened(
-        await fake.client.start(fake.spec),
-      );
+      const opened = await fake.client.start(fake.spec);
+      if (opened.status !== "opened") throw new Error(JSON.stringify(opened));
+      const { session } = opened;
       try {
         expect(await session.steer(appServer.steer)).toEqual(
           appServer.bestEffort,
