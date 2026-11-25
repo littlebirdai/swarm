@@ -4,7 +4,27 @@
 // itself run through runLocalCommand so a retry returns the first result.
 
 import type { Id } from "./_generated/dataModel";
-import { runLocalCommand } from "./localFirstCommands";
+import {
+  commandArgumentsFingerprint,
+  runLocalCommand,
+} from "./localFirstCommands";
+import {
+  ConvexError,
+  convexToJson,
+  jsonToConvex,
+  v,
+  type Infer,
+  type Value,
+} from "convex/values";
+import { decryptRefreshToken, encryptRefreshToken } from "./googleOAuth";
+import {
+  internalMutation,
+  syncAckPositions,
+  syncAckReceipts,
+  type MutationCtx,
+} from "./functions";
+import { internal } from "./_generated/api";
+import { heldKeysFor } from "./lib/accessKeys";
 
 export type ReceiptActionEnvelope = {
   receiptActionVersion: 1;
@@ -153,3 +173,121 @@ export async function runReceiptBackedCreate(
     }),
   );
 }
+
+const OUTBOX_LIFETIME_MS = 8 * 24 * 60 * 60 * 1000;
+const OUTBOX_CLOCK_LEAD_MS = 24 * 60 * 60 * 1000;
+const OUTBOX_RECEIPT_HKDF_INFO = "swarm-dispatch-outbox-v1";
+
+export const outboxValidator = v.object({
+  id: v.string(),
+  owner: v.string(),
+});
+
+export async function dispatchWithOutboxReceipt(
+  ctx: MutationCtx,
+  owner: Id<"users">,
+  action: string,
+  acknowledge: boolean | undefined,
+  outbox: Infer<typeof outboxValidator> | undefined,
+  execute: () => Promise<Value | undefined>,
+): Promise<Value | undefined> {
+  const respond = async () => {
+    const result = await execute();
+    if (!acknowledge) return result;
+    const held = new Set(await heldKeysFor(ctx, owner));
+    return {
+      __syncAckV1: syncAckPositions(ctx),
+      __syncAckV2: syncAckReceipts(ctx).filter(
+        (receipt: { scope_key: string }) => held.has(receipt.scope_key),
+      ),
+      result,
+    };
+  };
+
+  if (!outbox) return respond();
+  if (outbox.owner !== owner)
+    throw new ConvexError({
+      code: "OUTBOX_OWNER_MISMATCH",
+      message: "Dispatch belongs to a different account",
+    });
+
+  const match = /^(\d{13}):[a-zA-Z0-9-]{1,80}$/.exec(outbox.id);
+  const queuedAt = Number(match?.[1]);
+  const expiresAt = queuedAt + OUTBOX_LIFETIME_MS;
+  const now = Date.now();
+  if (!match || queuedAt > now + OUTBOX_CLOCK_LEAD_MS || expiresAt <= now)
+    throw new ConvexError({
+      code: "OUTBOX_EXPIRED",
+      message: "Dispatch is outside its delivery window",
+    });
+
+  const idHash = await commandArgumentsFingerprint(outbox.id);
+  const first = await ctx.db
+    .query("dispatch_outbox_receipts")
+    .withIndex("by_owner_and_id", (q) =>
+      q.eq("owner", owner).eq("id_hash", idHash),
+    )
+    .unique();
+  if (first) {
+    if (first.action !== action)
+      throw new ConvexError({
+        code: "OUTBOX_ID_REUSED",
+        message: "Dispatch id belongs to a different action",
+      });
+    const plaintext = await decryptRefreshToken(
+      first.response,
+      outbox.id,
+      OUTBOX_RECEIPT_HKDF_INFO,
+    );
+    if (plaintext === null) throw new Error("Could not read dispatch receipt");
+    const saved = jsonToConvex(JSON.parse(plaintext));
+    if (saved && typeof saved === "object" && "__syncAckV1" in saved) {
+      const original = saved as unknown as {
+        __syncAckV1: ReturnType<typeof syncAckPositions>;
+        __syncAckV2: { scope_key: string }[];
+        result?: Value;
+      };
+      const held = new Set(await heldKeysFor(ctx, owner));
+      return {
+        ...original,
+        __syncAckV1: original.__syncAckV1.filter((position) =>
+          held.has(position.scope_key),
+        ),
+        __syncAckV2: original.__syncAckV2.filter((item) =>
+          held.has(item.scope_key),
+        ),
+      };
+    }
+    return saved;
+  }
+  const response = (await respond()) ?? null;
+  await ctx.db.insert("dispatch_outbox_receipts", {
+    owner,
+    id_hash: idHash,
+    action,
+    response: await encryptRefreshToken(
+      JSON.stringify(convexToJson(response)),
+      outbox.id,
+      OUTBOX_RECEIPT_HKDF_INFO,
+    ),
+    expires_at: expiresAt,
+  });
+  return response;
+}
+
+export const pruneOutboxReceipts = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<void> => {
+    const expired = await ctx.db
+      .query("dispatch_outbox_receipts")
+      .withIndex("by_expiry", (q) => q.lte("expires_at", Date.now()))
+      .take(200);
+    for (const row of expired) await ctx.db.delete(row._id);
+    if (expired.length === 200)
+      await ctx.scheduler.runAfter(
+        1000,
+        internal.dispatchReceipts.pruneOutboxReceipts,
+        {},
+      );
+  },
+});

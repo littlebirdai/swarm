@@ -574,11 +574,14 @@ async function dispatchWithRetry(
   // Asked before every attempt: the row patches to send now (a later send may
   // own some of them by then), or NOTHING_LEFT when no cell is left to send.
   patchesNow?: () => any,
-  // The locks the send planted, handed to the dispatch function (DispatchFn meta).
-  locks?: readonly ActionFieldLock[],
+  entry?: Pick<OutboxEntry, "id" | "accountId" | "ts" | "locks">,
 ): Promise<any> {
-  const meta = locks?.length
-    ? { locks: locks.filter((l) => l.lock !== undefined).map((l) => ({ key: l.key, lock: l.lock! })) }
+  const locks = entry?.locks ?? [];
+  const outbox = entry?.accountId
+    ? { id: entry.id, accountId: entry.accountId, queuedAt: entry.ts }
+    : undefined;
+  const meta = locks.length || outbox
+    ? { locks: locks.filter((l) => l.lock !== undefined).map((l) => ({ key: l.key, lock: l.lock! })), outbox }
     : undefined;
   const safeArgs = sanitizeForTransport(args);
   let safeGrouped = grouped !== undefined ? sanitizeForTransport(grouped) : undefined;
@@ -1359,6 +1362,9 @@ export function mutativeMiddleware(
 
     function newOutboxId(): string {
       if (typeof crypto !== "undefined" && (crypto as any).randomUUID) return (crypto as any).randomUUID();
+      if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+        return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      }
       return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     }
 
@@ -1578,7 +1584,7 @@ export function mutativeMiddleware(
                 const now = patchesNow();
                 return now === NOTHING_LEFT ? now : transformReplayPatches(now);
               },
-              entry.locks,
+              entry,
             );
             assertDispatchCurrent(captured);
             if (isReceiptActionEnvelope(entry.result)) {
@@ -1710,6 +1716,7 @@ export function mutativeMiddleware(
       returnValue: any,
       fieldLocks: ActionFieldLock[],
       outboxId: string,
+      accountId: string | null | undefined,
       after?: readonly string[],
       reverses?: readonly string[],
     ): any => {
@@ -1742,6 +1749,7 @@ export function mutativeMiddleware(
       const coalesceKey = outboxCoalesceKeyFor(key, actionArgs, coalesceKeys);
       const entry = {
         id: outboxId,
+        ...(accountId ? { accountId } : {}),
         action: key,
         args: actionArgs,
         patches: grouped,
@@ -1790,7 +1798,7 @@ export function mutativeMiddleware(
             return true;
           },
           patchesNowFor(key, outboxId, entry.ts, grouped, fieldLocks),
-          fieldLocks,
+          entry,
         );
         // Live sends are not ordered by themselves: a write retrying after a
         // transient error can land after a later call's send. A call that
@@ -2048,6 +2056,7 @@ export function mutativeMiddleware(
       const isAsyncAct = flags.asyncAct;
       {
         const state = get();
+        const accountId = isAct || isAsyncAct ? platformConfig.outboxAccountId?.() : undefined;
         let returnValue: any;
         const effects: Array<() => void> = [];
         commitEffectFrames.push(effects);
@@ -2125,7 +2134,7 @@ export function mutativeMiddleware(
 
         if (isAct || isAsyncAct) {
           const outboxId = newOutboxId();
-          const result = enqueueDispatch(key, flags, actionArgs, patches, finalState, returnValue, fieldLocks, outboxId, opts?.after, opts?.reverses);
+          const result = enqueueDispatch(key, flags, actionArgs, patches, finalState, returnValue, fieldLocks, outboxId, accountId, opts?.after, opts?.reverses);
           // After the dispatch is on its way, and never able to stop it: the
           // undo capture runs app code (a spec's label, inverse, confirm,
           // spell), and a bug there must cost the history its entry, never

@@ -7,21 +7,11 @@ import { takeBootReadPhase } from "./hydration";
 import { persistenceOwned } from "./ownership";
 import { timeBootRead } from "./storage-timings";
 
-export type OutboxEntry = {
-  id: string;
-  action: string;
-  args: any;
-  patches: any;
-  result: any;
-  ts: number;
-  // Failed boot replays so far; entries are given up on at
-  // MAX_OUTBOX_BOOT_ATTEMPTS (see mutativeMiddleware).
-  attempts?: number;
-  operationSchemaVersion?: number;
-  // Repeated-write actions keep at most one row per key (see
-  // OUTBOX_COALESCE_KEYS in mutativeMiddleware).
-  coalesceKey?: string;
-};
+import type { OutboxEntry } from "@platform/engine";
+import { authPrincipal } from "../../lib/authPrincipal";
+
+export type { OutboxEntry };
+export const outboxAccountId = authPrincipal.current;
 
 // Return the real promises: the middleware's storage watchdog and outbox
 // retirement need to observe commit/failure. Swallowing errors here would
@@ -33,7 +23,14 @@ export function enqueueDispatch(entry: OutboxEntry): Promise<void> {
   // Docs shots keep nothing, their outbox included.
   if (!persistenceOwned() || DOCS_SHOTS) return Promise.resolve();
   // The engine hands over the args as the caller passed them; a tab address in them is stored in its safe form (lib/tabSafePath).
-  const row = { ...entry, args: storableActionArgs(entry.action, entry.args) };
+  const accountId = outboxAccountId();
+  if (!accountId || (entry.accountId && entry.accountId !== accountId))
+    return Promise.resolve();
+  const row = {
+    ...entry,
+    accountId,
+    args: storableActionArgs(entry.action, entry.args),
+  };
   return retryOutboxPut(() => db.dispatchOutbox.put(row));
 }
 
@@ -43,12 +40,41 @@ export function removeDispatch(id: string): Promise<void> {
 
 export async function loadOutbox(): Promise<OutboxEntry[]> {
   try {
-    const rows = await timeBootRead(
-      takeBootReadPhase("outbox"),
-      "dispatchOutbox",
-      () => db.dispatchOutbox.toArray(),
+    const accountId = await authPrincipal.resolve();
+    if (!accountId || accountId !== outboxAccountId()) return [];
+    const rows = await db.transaction(
+      "rw",
+      db.dispatchOutbox,
+      db.meta,
+      async () => {
+        const entries = await timeBootRead(
+          takeBootReadPhase("outbox"),
+          "dispatchOutbox",
+          () => db.dispatchOutbox.toArray(),
+        );
+        if (accountId !== outboxAccountId()) return [];
+        const legacy = entries.filter((row) => row.accountId === undefined);
+        if (legacy.length) {
+          const [stamp, user] = await db.meta.bulkGet([
+            "cacheOwner",
+            "currentUser",
+          ]);
+          if (
+            (stamp?.value?.principal === accountId ||
+              (!stamp && user?.value?._id === accountId)) &&
+            (!user || user.value?._id === accountId) &&
+            accountId === outboxAccountId()
+          ) {
+            for (const row of legacy) row.accountId = accountId;
+            await db.dispatchOutbox.bulkPut(legacy);
+          }
+        }
+        return entries.filter((row) => row.accountId === accountId);
+      },
     );
-    return rows.sort((a, b) => a.ts - b.ts);
+    return accountId === outboxAccountId()
+      ? rows.sort((a, b) => a.ts - b.ts)
+      : [];
   } catch {
     return [];
   }
@@ -66,6 +92,9 @@ export async function salvageLocalFirstV2Data(): Promise<number> {
     typeof indexedDB.databases !== "function"
   )
     return 0;
+  const accountId = await authPrincipal.resolve();
+  if (!accountId) return 0;
+  const ownedDatabase = `codecast-store-v2:${globalThis.location?.origin}:${accountId}`;
   let salvaged = 0;
   let names: string[] = [];
   try {
@@ -83,6 +112,7 @@ export async function salvageLocalFirstV2Data(): Promise<number> {
   for (const name of names) {
     try {
       if (name.startsWith("codecast-store-v2:")) {
+        if (name !== ownedDatabase) continue;
         const rows = await readV2LegacyOutbox(name);
         for (const row of rows) {
           if (
@@ -91,7 +121,10 @@ export async function salvageLocalFirstV2Data(): Promise<number> {
             typeof (row as any).id !== "string"
           )
             continue;
-          await db.dispatchOutbox.put(row as OutboxEntry);
+          if (accountId !== outboxAccountId()) return salvaged;
+          const entry = row as OutboxEntry;
+          if (entry.accountId && entry.accountId !== accountId) continue;
+          await db.dispatchOutbox.put({ ...entry, accountId });
           salvaged++;
         }
       }

@@ -24416,7 +24416,7 @@
     "swarm/no-comments": 15
   },
   "apps/web/lib/dispatch-binding.ts": {
-    "swarm/no-comments": 96
+    "swarm/no-comments": 86
   },
   "apps/web/lib/dispatchRefusal.ts": {
     "swarm/no-comments": 1
@@ -24641,6 +24641,9 @@
   "apps/web/lib/hostWake.ts": {
     "swarm/no-comments": 40
   },
+  "apps/web/lib/hosted-kick.ts": {
+    "swarm/no-comments": 9
+  },
   "apps/web/lib/hostedApproval.test.ts": {
     "swarm/no-comments": 2
   },
@@ -24649,9 +24652,6 @@
   },
   "apps/web/lib/hostedComposer.ts": {
     "swarm/no-comments": 7
-  },
-  "apps/web/lib/hosted-kick.ts": {
-    "swarm/no-comments": 9
   },
   "apps/web/lib/hostedNotice.test.ts": {
     "swarm/no-comments": 7
@@ -27956,7 +27956,7 @@
     "swarm/no-comments": 4
   },
   "apps/web/store/persistence/outbox.ts": {
-    "swarm/no-comments": 18
+    "swarm/no-comments": 14
   },
   "apps/web/store/persistence/purge.ts": {
     "swarm/no-comments": 12

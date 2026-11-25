@@ -789,4 +789,11 @@ crons.interval(
   {},
 );
 
+crons.interval(
+  "prune expired dispatch receipts",
+  { hours: 1 },
+  internal.dispatchReceipts.pruneOutboxReceipts,
+  {},
+);
+
 export default crons;

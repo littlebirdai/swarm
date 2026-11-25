@@ -39,8 +39,8 @@ export function withHostedKick(
   dispatch: DispatchFn,
   kick: (conversationId: string) => Promise<unknown>,
 ): DispatchFn {
-  return (action, args, patches, result, commandId) =>
-    dispatch(action, args, patches, result, commandId).then((landed) => {
+  return (action, args, patches, result, commandId, meta) =>
+    dispatch(action, args, patches, result, commandId, meta).then((landed) => {
       const target = INPUT_ACTIONS[action]
         ? hostedKickTarget(action, args, landed)
         : null;

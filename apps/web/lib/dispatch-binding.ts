@@ -4,7 +4,8 @@
 // useMutation; the multiplayer simulator (docs/architecture/multiplayer-sim-harness.md)
 // wires the same two functions to a simulated client. One copy of the ack
 // protocol and of the failure rules, whoever transports the call.
-import type { DispatchFn } from "@platform/engine";
+import { StaleDispatchBindingError, type DispatchFn } from "@platform/engine";
+import { outboxAccountId } from "../store/idb-cache";
 import { stampDeliveryReceipts } from "./syncDeliveryReceipts";
 import { toast } from "sonner";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
@@ -30,6 +31,7 @@ export type DispatchCallArgs = {
   patches?: any;
   result?: any;
   ack_positions?: true;
+  outbox?: { id: string; owner: string };
 };
 
 /**
@@ -37,10 +39,13 @@ export type DispatchCallArgs = {
  * rejects the ack_positions arg (see the fallback in makeDispatchBinding), and
  * stays false for every binding that shares the object.
  */
-export type DispatchAckState = { ackFlagSupported: boolean };
+export type DispatchAckState = {
+  ackFlagSupported: boolean;
+  outboxSupported: boolean;
+};
 
 export function newDispatchAckState(): DispatchAckState {
-  return { ackFlagSupported: true };
+  return { ackFlagSupported: true, outboxSupported: true };
 }
 
 /**
@@ -64,7 +69,7 @@ export function makeDispatchBinding(
     const dead = deadRecordingPress(action, args);
     if (dead) return Promise.reject(dead);
     const settle = recordWrite(action, args, patches);
-    return send(action, args, patches, result, lockIds).then(
+    return send(action, args, patches, result, lockIds, meta?.outbox).then(
       (res) => {
         settle({ ok: true });
         return res;
@@ -76,12 +81,13 @@ export function makeDispatchBinding(
     );
   };
 
-  function send(
+  async function send(
     action: string,
     args: any,
     patches: any,
     result: any,
     lockIds?: ReadonlySet<string>,
+    outbox?: NonNullable<Parameters<DispatchFn>[5]>["outbox"],
   ): Promise<any> {
     // Sync-log write acks (docs/architecture/sync-log-migration.md D8).
     // The flag is a binding concern added at call time, so outbox rows
@@ -114,32 +120,40 @@ export function makeDispatchBinding(
       }
       return res;
     };
-    if (!state.ackFlagSupported) {
-      return call({ action, args, patches, result });
-    }
-    return call({ action, args, patches, result, ack_positions: true })
-      .then(unwrap)
-      .catch((error: any) => {
-        // Version-skew self-heal: a deployed convex without the optional
-        // ack_positions field rejects EVERY flagged dispatch with an
-        // ArgumentValidationError naming the extra field, and dispatch is
-        // the sole write chokepoint, so without this fallback that skew (a
-        // convex revert after web shipped) is a total write outage. Latch
-        // off and re-issue the identical call unflagged: one extra
-        // round-trip for the whole session, and convergence falls back to
-        // value-echo retirement (a permanent invariant). Scoped tightly:
-        // retrying on any validation error would double-fire genuinely
-        // malformed dispatches.
-        const msg = String(error?.message ?? error);
-        if (/ArgumentValidationError/i.test(msg) && /ack_positions/.test(msg)) {
+    for (;;) {
+      if (outbox && outbox.accountId !== outboxAccountId())
+        throw new StaleDispatchBindingError();
+      const request: DispatchCallArgs = { action, args, patches, result };
+      if (state.ackFlagSupported) request.ack_positions = true;
+      if (outbox && state.outboxSupported) {
+        request.outbox = {
+          id: `${outbox.queuedAt}:${outbox.id}`,
+          owner: outbox.accountId,
+        };
+      }
+      try {
+        const response = await call(request);
+        if (outbox && outbox.accountId !== outboxAccountId())
+          throw new StaleDispatchBindingError();
+        return unwrap(response);
+      } catch (error) {
+        const message = String((error as Error)?.message ?? error);
+        if (!/ArgumentValidationError/i.test(message)) throw error;
+        if (request.outbox && /extra field [`"']outbox[`"']/.test(message)) {
+          state.outboxSupported = false;
+        } else if (
+          request.ack_positions &&
+          /extra field [`"']ack_positions[`"']/.test(message)
+        ) {
           state.ackFlagSupported = false;
           console.warn(
             "[sync] server lacks ack_positions; falling back to unflagged dispatch",
           );
-          return call({ action, args, patches, result });
+        } else {
+          throw error;
         }
-        throw error;
-      });
+      }
+    }
   }
 }
 

@@ -6124,6 +6124,16 @@ export default defineSchema(
       .index("by_user", ["user_id"])
       .index("by_viewing_conversation", ["viewing_conversation_id"]),
 
+    dispatch_outbox_receipts: defineTable({
+      owner: v.id("users"),
+      id_hash: v.string(),
+      action: v.string(),
+      response: v.string(),
+      expires_at: v.number(),
+    })
+      .index("by_owner_and_id", ["owner", "id_hash"])
+      .index("by_expiry", ["expires_at"]),
+
     // Mobile push staging (pushRouter.ts). Rows wait out a routing delay (short
     // away-debounce, or a longer hold while the desktop is active), then a
     // per-user flush sends everything pending as ONE push — a burst of
