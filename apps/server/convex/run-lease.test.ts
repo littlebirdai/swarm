@@ -283,6 +283,7 @@ test("only the fenced current ready binding can grant a lease", async () => {
   expect(await claim("first")).toEqual(stale);
   await t.run(({ db }) => db.patch(binding, { state: "ready" }));
   expect(await claim("")).toEqual(stale);
+  expect(await claim("   ")).toEqual(stale);
   expect(await claim("x".repeat(129))).toEqual(stale);
   expect(await claim("x".repeat(128))).toMatchObject({ status: "granted" });
 });

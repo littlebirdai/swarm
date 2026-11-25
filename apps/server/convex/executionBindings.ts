@@ -2074,8 +2074,6 @@ export async function rejectHeadDeliveryInDb(
       "EXECUTION_NOT_FENCED",
       "delivery rejection requires fenced authority",
     );
-  if (head.current_epoch !== executionEpoch)
-    fail("EXECUTION_EPOCH_FENCE_MISMATCH", "delivery epoch is not current");
   if (head.active_delivery_attempt_id !== undefined) {
     fail(
       "DELIVERY_SLOT_BUSY",
@@ -2093,6 +2091,8 @@ export async function rejectHeadDeliveryInDb(
   ) {
     return { rejected: true };
   }
+  if (head.current_epoch !== executionEpoch)
+    fail("EXECUTION_EPOCH_FENCE_MISMATCH", "delivery epoch is not current");
   const binding = await executionBinding(ctx, conversationId, executionEpoch);
   await assertActiveRunLease(ctx, binding, args.fencingToken, args.now);
   const message = orderedNonterminalMessages(

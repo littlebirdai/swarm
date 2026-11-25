@@ -409,6 +409,28 @@ test("only the current epoch may reject the queue head", async () => {
   });
 });
 
+test("a rejection replays after a successor epoch activates", async () => {
+  setSystemTime(new Date(start));
+  const { t, owner, conversation, head, message } = await setupRunLease();
+  const reject = () =>
+    t.run((ctx) =>
+      rejectHeadDeliveryInDb(ctx, owner, {
+        conversationId: conversation,
+        messageId: message,
+        deliveryId: "delivery",
+        executionEpoch: 1,
+        conversationSequence: 1,
+        reason: "replayed rejection",
+        now: start,
+      }),
+    );
+  expect(await reject()).toEqual({ rejected: true });
+  await t.run(({ db }) =>
+    db.patch(head, { current_epoch: 2, admission_epoch: 2 }),
+  );
+  expect(await reject()).toEqual({ rejected: true });
+});
+
 for (const operation of ["successor proposal", "head rejection"] as const) {
   test(`${operation} uses the caller's time at the expiry boundary`, async () => {
     setSystemTime(new Date(start));
