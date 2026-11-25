@@ -4,6 +4,7 @@ import {
   count,
   json,
   nonEmptyString,
+  nullable,
   object,
   oneOf,
   optional,
@@ -16,6 +17,7 @@ import {
 import { readV1 } from "./version";
 import { claimScope } from "./claims";
 import { actor, blobFields } from "./inbox";
+import { readPromptOpened } from "./prompts";
 
 const blobReference = object(blobFields);
 const inlineOutput = object({ inline: json });
@@ -37,8 +39,7 @@ function event<K extends string, B>(
 ) {
   return object({
     ...eventScope,
-    turn: (value, path) =>
-      value === null ? null : nonEmptyString(value, path),
+    turn: nullable(nonEmptyString),
     seq: positiveInteger,
     kind: oneOf(kind),
     body,
@@ -78,10 +79,7 @@ export const readCanonicalEvent = tagged("kind", {
     "tool.result",
     object({ call_id: nonEmptyString, output: toolOutput, is_error: boolean }),
   ),
-  "prompt.opened": event(
-    "prompt.opened",
-    object({ prompt_id: nonEmptyString, kind: nonEmptyString }),
-  ),
+  "prompt.opened": event("prompt.opened", readPromptOpened),
   "prompt.settled": event(
     "prompt.settled",
     object({ prompt_id: nonEmptyString, by: actor, answer: json }),

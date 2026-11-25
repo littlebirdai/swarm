@@ -1,0 +1,22 @@
+{
+  "v": 1,
+  "session": "session-1",
+  "run": 3,
+  "at": 1700000000000,
+  "source": "provider",
+  "turn": "turn-1",
+  "seq": 6,
+  "kind": "prompt.opened",
+  "body": {
+    "prompt_id": "prompt-1",
+    "kind": "permission",
+    "tool_call_id": "call-1",
+    "tool_name": "Read",
+    "rule_request": {
+      "permission": "read",
+      "patterns": ["notes.txt"],
+      "always": ["notes.txt"]
+    },
+    "summary": "Read notes.txt"
+  }
+}
