@@ -22506,7 +22506,7 @@ if (!survivingInboxStore)
 // -- Simulation seams (docs/architecture/multiplayer-sim-harness.md, section 3.3) --
 // The multiplayer sim runs several windows in one process, each with its own
 // store instance, and swaps this module's per-window bindings around every
-// turn (sim/windowSlots.ts copies them). Nothing in production calls these.
+// turn (sim/window-slots.ts copies them). Nothing in production calls these.
 export const __createInboxStoreForTests = createInboxStore;
 const windowBindings = () => ({
   _heldOverlayFacts,
