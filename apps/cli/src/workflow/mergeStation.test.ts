@@ -5,7 +5,7 @@ import { BRANCH, PR, PR_URL, T, setup } from "./mergeStation.testkit";
 
 // The change flow's Merge station: what it merges, what it refuses, and what
 // it sends back to CI (mergeStation.testkit.ts builds the world). Deploy
-// steps, the lock and the real scratch tree are in mergeStation.deploy.test.ts.
+// steps, the lock and the real scratch tree are in merge-station.deploy.test.ts.
 
 describe("cast flow merge", () => {
   test(

@@ -224,7 +224,7 @@ bun scripts/ci/changed-path-scope.ts --injection-only < "\${{ steps.diff.outputs
       {
         "if": "\${{ !cancelled() }}",
         "name": "Unit and e2e tests (cli files that only run on darwin)",
-        "run": "bun test --isolate --timeout=60000 --shard=\${{ matrix.shard }}/3 src/antigravityLocal.test.ts src/browser/appIdentity.native.test.ts src/browser/bridge/host.test.ts src/ccAccounts.background.test.ts src/ccKeychain.callers.test.ts src/cloud/reach.test.ts src/config/managedPolicy.test.ts src/daemon.liveness-terminal.e2e.test.ts src/daemon.process-terminal.e2e.test.ts src/daemon.watchdog-supervision.test.ts src/desktopUpdate.test.ts src/disclaim.test.ts src/heicImage.test.ts src/keychainLock.test.ts src/remote/device.async.test.ts src/resourceMonitor.parseEtime.test.ts src/resourceMonitor.test.ts src/sim/sim.test.ts src/supervision.recovery.e2e.test.ts src/tmuxSessionServer.e2e.test.ts src/workers/scanWatcher.test.ts",
+        "run": "bun test --isolate --timeout=60000 --shard=\${{ matrix.shard }}/3 src/antigravityLocal.test.ts src/browser/appIdentity.native.test.ts src/browser/bridge/host.test.ts src/ccAccounts.background.test.ts src/ccKeychain.callers.test.ts src/cloud/reach.test.ts src/config/managedPolicy.test.ts src/daemon.liveness-terminal.e2e.test.ts src/daemon.process-terminal.e2e.test.ts src/daemon.watchdog-supervision.test.ts src/desktopUpdate.test.ts src/disclaim.test.ts src/heicImage.test.ts src/keychainLock.test.ts src/remote/device.async.test.ts src/resourceMonitor.parseEtime.test.ts src/resourceMonitor.test.ts src/sim/sim.test.ts src/supervision.recovery.e2e.test.ts src/tmuxSessionServer.e2e.test.ts src/workers/scan-watcher.test.ts",
         "working-directory": "apps/cli",
       },
     ],

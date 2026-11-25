@@ -210,10 +210,13 @@ describe("cast flow merge: before-merge steps", () => {
         const head = s.branch("api/route.ts", "export {}\n");
         s.ci(head);
         const r = await s.run();
-        expect(r).toEqual({
-          code: 2,
-          line: "before-merge step convex failed (exit 4): bundling | typecheck failed",
-        });
+        expect(r.code).toBe(2);
+        const prefix = "before-merge step convex failed (exit 4): ";
+        expect(r.line).toStartWith(prefix);
+        expect(r.line.slice(prefix.length).split(" | ").sort()).toEqual([
+          "bundling",
+          "typecheck failed",
+        ]);
         expect(s.merged()).toBe(false);
       } finally {
         s.done();

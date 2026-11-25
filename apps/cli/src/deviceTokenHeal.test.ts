@@ -9,7 +9,7 @@ import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { hardwareId } from "./machineKey.js";
+import { hardwareId } from "./machine-key.js";
 
 const SRC = import.meta.dir;
 const OLD = "bound_0ld0ld0ld0ld";

@@ -1,6 +1,6 @@
 import * as crypto from "crypto";
 import * as os from "os";
-import { getMachineKey } from "./machineKey.js";
+import { getMachineKey } from "./machine-key.js";
 
 const SALT_LEN = 16;
 const IV_LEN = 12;
@@ -25,7 +25,7 @@ function legacyMachineId(): string {
 
 /**
  * Candidate secrets in decrypt order: current machine key, the pre-rotation
- * key if the machine key was rotated after a hardware clone (machineKey.ts),
+ * key if the machine key was rotated after a hardware clone (machine-key.ts),
  * then the legacy hostname-derived key from before the per-install key file.
  * A token that decrypts via a fallback is re-encrypted under the current key
  * the next time the config is written.

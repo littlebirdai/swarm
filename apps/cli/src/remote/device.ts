@@ -10,7 +10,7 @@
  * disk copy of ~/.codecast) duplicates the key, so two machines compute the
  * SAME device_id and every conversation-ownership guard passes on both —
  * duplicate replies and split-brain transcripts. Two independent guards catch
- * this: machineKey.ts rotates the key itself when its hardware sidecar
+ * this: machine-key.ts rotates the key itself when its hardware sidecar
  * mismatches (splitting identity at the root, token decryption kept via the
  * prev-key chain), and .device_binding.json records the hardware UUID the
  * device id belongs to — on a mismatch the clone mints its own id; the
@@ -26,7 +26,8 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getMachineKey, hardwareId } from "../machineKey.js";
+import { atomicWriteFile } from "../atomicWrite.js";
+import { getMachineKey, hardwareId } from "../machine-key.js";
 import { defaultConfigDir } from "../config/configDir.js";
 
 const DEVICE_BINDING_FILE = path.join(
@@ -83,7 +84,7 @@ export function resolveDeviceIdentity(deps: {
 
 /**
  * Stable, opaque device id (16 hex chars) derived from the machine key
- * (machineKey.ts — hardware-bound, rotates when the key file was cloned onto
+ * (machine-key.ts — hardware-bound, rotates when the key file was cloned onto
  * different hardware, e.g. by Migration Assistant) and additionally bound to
  * this hardware via .device_binding.json (see resolveDeviceIdentity). Falls
  * back to a hostname/platform/home hash if the key can't be read or created
@@ -154,10 +155,9 @@ function readDeviceBinding(): DeviceBinding | null {
 
 function writeDeviceBinding(binding: DeviceBinding): void {
   try {
-    fs.writeFileSync(DEVICE_BINDING_FILE, JSON.stringify(binding), {
+    atomicWriteFile(DEVICE_BINDING_FILE, JSON.stringify(binding), {
       mode: 0o600,
     });
-    fs.chmodSync(DEVICE_BINDING_FILE, 0o600); // mode option only applies at creation
   } catch {} // identity must never throw; worst case we re-adopt next start
 }
 

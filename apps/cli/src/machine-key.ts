@@ -28,6 +28,7 @@ import { execFileSync } from "./proc.js";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { atomicWriteFile } from "./atomicWrite.js";
 import { defaultConfigDir } from "./config/configDir.js";
 
 export const MACHINE_KEY_LEN = 32;
@@ -73,13 +74,19 @@ export function resolveMachineKey(
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   }
 
+  const hostid = hostidHash(getHardwareId());
+  let recorded = "";
+  if (hostid) {
+    try {
+      recorded = fs.readFileSync(hostidFile, "utf8").trim();
+    } catch {}
+  }
+
   let key: Buffer | null = null;
   try {
     const existing = fs.readFileSync(keyFile);
     if (existing.length >= MACHINE_KEY_LEN) key = existing;
   } catch {}
-
-  const hostid = hostidHash(getHardwareId());
 
   if (!key) {
     key = crypto.randomBytes(MACHINE_KEY_LEN);
@@ -91,11 +98,6 @@ export function resolveMachineKey(
   // No hardware id on this platform/environment → binding disabled, key as-is.
   if (!hostid)
     return { secret: key, previousSecret: readPrev(prevFile), rotated: false };
-
-  let recorded = "";
-  try {
-    recorded = fs.readFileSync(hostidFile, "utf8").trim();
-  } catch {}
 
   if (!recorded) {
     // Pre-binding install: adopt this hardware as the key's rightful home.
@@ -152,10 +154,7 @@ function readPrev(prevFile: string): Buffer | null {
 }
 
 function writeSecretFile(file: string, data: Buffer | string): void {
-  fs.writeFileSync(file, data, { mode: 0o600 });
-  try {
-    fs.chmodSync(file, 0o600);
-  } catch {}
+  atomicWriteFile(file, data, { mode: 0o600 });
 }
 
 let cachedHardwareId: string | null = null;

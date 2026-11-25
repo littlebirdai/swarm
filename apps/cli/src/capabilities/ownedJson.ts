@@ -276,7 +276,7 @@ export function ledgerPathFor(target: string): string {
  *
  * The MAC (HMAC-SHA256 over the entries, keyed off the machine key) is a
  * TAMPER DETECTOR, not protection: the daemon and any agent run as the same
- * user, so anything that can read the key can re-MAC — machineKey.ts says the
+ * user, so anything that can read the key can re-MAC — machine-key.ts says the
  * same about hardware binding. What it buys is real but narrower: a hand-edited
  * or tool-mangled ledger is refused as authority for DELETION instead of
  * silently trusted, and the refusal names itself.
@@ -291,7 +291,7 @@ interface LedgerEnvelope {
 
 function ledgerMac(entries: OwnershipLedger): string | undefined {
   try {
-    const { getMachineKey } = require("../machineKey.js");
+    const { getMachineKey } = require("../machine-key.js");
     const key = getMachineKey().secret;
     return crypto
       .createHmac("sha256", key)

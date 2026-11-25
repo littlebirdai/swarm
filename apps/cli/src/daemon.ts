@@ -738,7 +738,7 @@ import {
 import { handStartedAt, launchTokenLedger } from "./launchToken.js";
 import { waitForHandHost } from "./handHostGrace.js";
 export { AGENT_ENV_SCRUB, AGENT_SCRUBBED_ENV_VARS } from "./agentEnv.js";
-import { getMachineKey } from "./machineKey.js";
+import { getMachineKey } from "./machine-key.js";
 import { DAEMON_BUILD_ID } from "./daemonBuildId.js";
 import {
   decideSourceRestart,

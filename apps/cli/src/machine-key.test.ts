@@ -1,9 +1,9 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, spyOn } from "bun:test";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { resolveMachineKey, MACHINE_KEY_LEN } from "./machineKey.js";
+import { resolveMachineKey, MACHINE_KEY_LEN } from "./machine-key.js";
 import {
   encryptTokenWithSecret,
   decryptTokenWithSecrets,
@@ -88,6 +88,36 @@ describe("machineKey hardware binding", () => {
     const clone1 = resolveMachineKey(cloneDir(macA), HW_B);
     const clone2 = resolveMachineKey(cloneDir(macA), HW_B);
     expect(clone1.secret.equals(clone2.secret)).toBe(true);
+  });
+
+  it("returns the rotated key when another reader completes the move during a key read", () => {
+    const dir = tmpDir();
+    const original = resolveMachineKey(dir, HW_A);
+    const keyFile = path.join(dir, ".machine_key");
+    const read = fs.readFileSync;
+    let concurrent: ReturnType<typeof resolveMachineKey> | undefined;
+    const intercept = spyOn(fs, "readFileSync").mockImplementation(
+      new Proxy(read, {
+        apply(target, receiver, args: Parameters<typeof read>) {
+          const bytes = Reflect.apply(target, receiver, args);
+          if (args[0] === keyFile) {
+            intercept.mockRestore();
+            concurrent = resolveMachineKey(dir, HW_B);
+          }
+          return bytes;
+        },
+      }),
+    );
+    try {
+      const result = resolveMachineKey(dir, HW_B);
+      expect(concurrent?.rotated).toBe(true);
+      expect(concurrent?.secret).toEqual(result.secret);
+      expect(result.previousSecret).toEqual(original.secret);
+      expect(resolveMachineKey(dir, HW_B).secret).toEqual(result.secret);
+    } finally {
+      intercept.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("recovers from a rotation interrupted before the sidecar write", () => {
