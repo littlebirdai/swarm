@@ -7,20 +7,23 @@ import { ConvexReactClient } from "convex/react";
 
 class NoSocket {
   readyState = 0;
-  onopen = null;
-  onclose = null;
+  onopen: (() => void) | null = null;
+  onclose: (() => void) | null = null;
   onmessage = null;
   onerror = null;
   send() {}
-  close() {}
+  close() {
+    this.onclose?.();
+  }
 }
 
 export function offlineConvexClient(
   url = "https://example.convex.cloud",
+  socket: new (url: string) => object = NoSocket,
 ): ConvexReactClient {
   return new ConvexReactClient(url, {
-    webSocketConstructor: NoSocket as any,
+    webSocketConstructor: socket as typeof WebSocket,
     unsavedChangesWarning: false,
     skipConvexDeploymentUrlCheck: true,
-  } as any);
+  });
 }
