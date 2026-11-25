@@ -1,5 +1,8 @@
 import { patchConversationLifecycle } from "./lib/sessionStatusWriter";
-import { fencedMoveRefusal } from "./lib/fenced-device-move.rules";
+import {
+  fencedMoveRefusal,
+  scanDeviceRows,
+} from "./lib/fenced-device-move.rules";
 import { transferManagedSession } from "./lib/sessionHeartbeat";
 import { hostsLineWork } from "./ccSwitchAhead";
 import { peerLinkRowsByDevice } from "./lib/peerLinkRows";
@@ -1292,9 +1295,6 @@ export const reparentSessionToDevice = mutation({
 
 // The caller repeats the transfer until `more` is false.
 const CLAIM_ACCOUNT_PAGE = 100;
-// The scan is wider than the page because private rows stay put.
-const CLAIM_ACCOUNT_SCAN = 500;
-const CLAIM_ACCOUNT_FENCED_SCAN = 1500;
 
 export type ClaimDeviceAccountResult = {
   moved: number;
@@ -1363,22 +1363,11 @@ export async function performClaimDeviceAccount(
   if (previousDevice && now - previousDevice.last_seen < DEVICE_ONLINE_MS) {
     return { moved: 0, more: false, pending: true };
   }
-  const { previousUserId, deviceId } = args;
-  const fencedHead = await ctx.db
-    .query("conversation_execution_heads")
-    .withIndex("by_owner_state", (q: any) =>
-      q.eq("owner_user_id", previousUserId),
-    )
-    .first();
-  const scanned = await ctx.db
-    .query("conversations")
-    .withIndex("by_owner_device", (q: any) =>
-      q.eq("user_id", previousUserId).eq("owner_device_id", deviceId),
-    )
-    .take(fencedHead ? CLAIM_ACCOUNT_FENCED_SCAN : CLAIM_ACCOUNT_SCAN);
-  const rows = scanned
-    .filter((conv: any) => !fencedMoveRefusal(conv))
-    .slice(0, CLAIM_ACCOUNT_SCAN);
+  const { rows, fenced } = await scanDeviceRows(
+    ctx,
+    args.previousUserId,
+    args.deviceId,
+  );
   const caller = await ctx.db.get(callerId);
   const movable: any[] = [];
   for (const conv of rows) {
@@ -1406,9 +1395,7 @@ export async function performClaimDeviceAccount(
     }
   }
   const more = movable.length > CLAIM_ACCOUNT_PAGE;
-  const refusal = more
-    ? null
-    : scanned.map((conv: any) => fencedMoveRefusal(conv)).find(Boolean);
+  const refusal = !more && fenced ? fencedMoveRefusal(fenced) : undefined;
   const skipped = rows.length - movable.length + Number(!!refusal);
   return {
     moved: page.length,
