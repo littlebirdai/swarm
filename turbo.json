@@ -3,7 +3,11 @@
   "tasks": {
     "build": {
       "cache": false,
-      "passThroughEnv": ["RAILWAY_GIT_COMMIT_SHA", "GIT_SHA"]
+      "passThroughEnv": [
+        "RAILWAY_GIT_COMMIT_SHA",
+        "GIT_SHA",
+        "PRECOMPRESS_LEVEL"
+      ]
     },
     "lint": {},
     "typecheck": {},

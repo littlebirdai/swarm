@@ -6,6 +6,9 @@ import { gzipSync, brotliCompressSync, constants } from "node:zlib";
 const DIST = new URL("../dist/", import.meta.url).pathname;
 const EXT = new Set([".js", ".css", ".html", ".svg", ".json", ".map", ".txt"]);
 const MIN_BYTES = 1024;
+const FASTEST = process.env.PRECOMPRESS_LEVEL === "fastest";
+const BROTLI_QUALITY = FASTEST ? 1 : 11;
+const GZIP_LEVEL = FASTEST ? 1 : 9;
 
 async function walk(dir) {
   const out = [];
@@ -33,11 +36,11 @@ for (const f of files) {
   if (buf.length < MIN_BYTES) continue;
   const br = brotliCompressSync(buf, {
     params: {
-      [constants.BROTLI_PARAM_QUALITY]: 11,
+      [constants.BROTLI_PARAM_QUALITY]: BROTLI_QUALITY,
       [constants.BROTLI_PARAM_SIZE_HINT]: buf.length,
     },
   });
-  const gz = gzipSync(buf, { level: 9 });
+  const gz = gzipSync(buf, { level: GZIP_LEVEL });
   if (br.length < buf.length * 0.95) await writeFile(`${f}.br`, br);
   if (gz.length < buf.length * 0.95) await writeFile(`${f}.gz`, gz);
   kept++;

@@ -152,6 +152,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y tmux
 
       - uses: ./.github/actions/setup-bun
+        with:
+          save-cache: "true"
 
       - name: Check formatting
         run: bun run format:check
@@ -173,17 +175,28 @@ jobs:
     if: needs.code_paths.outputs.run_build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [web, other]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Build
+      - name: Build the web app
+        if: matrix.target == 'web'
         # The web bundle outgrew V8's default heap on the runner: on 2026-10-24
         # vite died with "JavaScript heap out of memory" (exit 134).
+        # A CI build ships nowhere, so it compresses at the fastest level.
         env:
           NODE_OPTIONS: --max-old-space-size=8192
-        run: bun run build
+          PRECOMPRESS_LEVEL: fastest
+        run: bun run build --filter=@codecast/web
+
+      - name: Build everything else
+        if: matrix.target == 'other'
+        run: bun run build --filter='!@codecast/web'
 
   typecheck:
     needs: [code_paths]
@@ -232,6 +245,10 @@ jobs:
     if: needs.code_paths.outputs.run_test_convex == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -239,15 +256,17 @@ jobs:
 
       - name: Unit tests (convex package)
         working-directory: apps/server
-        run: bun test convex/ scripts/
+        run: bun test convex/ scripts/ --shard=${{ matrix.shard }}/2
 
   test-web:
     needs: [code_paths]
     if: needs.code_paths.outputs.run_test_web == 'true'
     runs-on: ubuntu-latest
-    # The four shards below run one after another: 19.5 minutes together on
-    # 2026-10-25, when the old 20 minute cap cancelled a run whose shards all passed.
-    timeout-minutes: 35
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -260,26 +279,20 @@ jobs:
         # jsdom window installed on globalThis outlives the file that made it.
         # One mount test then decides what hundreds of later files see, so a
         # test passes alone and fails in the suite depending on file order.
-        # Four shards, one process each, run one after another: bun keeps every
-        # isolated file's global alive until its process exits (a file that
-        # imports the store holds ~8 MB after a full GC), so the whole suite in
-        # one process climbed past 11 GB, stalled in memory pressure and was
-        # terminated (exit 143) mid-file. A shard ends its process and frees it.
+        # --parallel: one worker process per CPU. bun keeps every isolated
+        # file's global alive until its process exits (a file that imports the
+        # store holds ~8 MB after a full GC), so the whole suite in one process
+        # climbed past 11 GB. Six shards of four workers keep each process small.
         # SIM_OUT: where the multiplayer sim writes each run's report and
         # events (docs/architecture/sync-sim.md), uploaded below on failure.
         env:
           SIM_OUT: ${{ runner.temp }}/sim
-        run: |
-          status=0
-          for shard in 1 2 3 4; do
-            echo "test-web shard $shard/4"
-            bun test --isolate --shard=$shard/4 || status=1
-          done
-          exit $status
+        run: bun test --parallel --shard=${{ matrix.shard }}/6
 
       # The exact counts behind the perf benches (apps/web/perf/README.md).
       # Plain bun, not bun test: the test preload stands in for the diff viewer.
       - name: Perf budgets (web)
+        if: matrix.shard == 1
         working-directory: apps/web
         run: scripts/perf-budgets.sh
 
@@ -287,7 +300,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: sim-artifacts
+          name: sim-artifacts-${{ matrix.shard }}
           path: ${{ runner.temp }}/sim
           if-no-files-found: ignore
           retention-days: 14
@@ -297,6 +310,10 @@ jobs:
     if: needs.code_paths.outputs.run_test_cli == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [1, 2, 3, 4, 5, evals, e2e]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -306,6 +323,7 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       - name: Unit tests (cli package)
+        if: matrix.suite != 'evals' && matrix.suite != 'e2e'
         working-directory: apps/cli
         # Exclude the e2e suite — it has its own step with --rerun-each for
         # resilience against tmux-resource flake under CI runner load.
@@ -324,15 +342,17 @@ jobs:
         # the job spending the rest of its timeout with nothing said.
         env:
           DAEMON_BUILD_ID_CHECK: "1"
-        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --bail=5
+        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel --shard=${{ matrix.suite }}/5 --bail=5
 
       # The eval home (apps/evals). Its tests make no network or model
       # calls; real replays run only from ./evals on a laptop.
       - name: Unit tests (evals package)
+        if: matrix.suite == 'evals'
         working-directory: apps/evals
         run: bun test src/
 
       - name: E2E messaging pipeline (real tmux + fake-claude shim)
+        if: matrix.suite == 'e2e'
         working-directory: apps/cli
         # Up to 3 full-suite attempts to absorb tmux-resource flake from
         # running 10 fresh sessions back-to-back on a contended runner.
@@ -374,7 +394,7 @@ jobs:
       # code_paths decides whether this runs, from the same changed-path list
       # that gates the jobs (touchesInjection in scripts/ci/changed-path-scope.ts).
       - name: Injection suites (captured frames; real-client cells skip without agent binaries)
-        if: needs.code_paths.outputs.run_test_injection == 'true'
+        if: matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'
         working-directory: apps/cli
         # Same three-attempt shape as the E2E step above, and for the same
         # reason: spawning agent TUIs back-to-back on a contended runner is
@@ -550,18 +570,24 @@ jobs:
     continue-on-error: true
     runs-on: macos-15
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-bun
+        with:
+          save-cache: ${{ matrix.shard == 1 }}
 
       - name: Swift unit tests (helper core)
-        if: needs.code_paths.outputs.run_test_computer == 'true'
+        if: matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'
         working-directory: apps/cli/native/computer-use-macos
         run: swift test
 
       - name: Build and sign the computer helper
-        if: needs.code_paths.outputs.run_test_computer == 'true'
+        if: matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'
         working-directory: apps/cli
         # No Developer ID certificate on a runner, so the helper signs ad hoc.
         # That is the from-source case the design already describes: it runs,
@@ -580,7 +606,7 @@ jobs:
         run: bun scripts/computer-verify.ts build --out "$RUNNER_TEMP/helper.tar"
 
       - name: Unit and e2e tests (cast computer, ungranted half)
-        if: needs.code_paths.outputs.run_test_computer == 'true'
+        if: matrix.shard == 1 && needs.code_paths.outputs.run_test_computer == 'true'
         working-directory: apps/cli
         # Both variables point at the same build: the e2e suites take a bundle,
         # the materialization tests take the payload it came from.
@@ -605,7 +631,7 @@ jobs:
         # default on a loaded machine. --isolate for the same reason test-cli
         # uses it.
         run: >-
-          bun test --isolate --timeout=60000
+          bun test --isolate --timeout=60000 --shard=${{ matrix.shard }}/3
           src/antigravityLocal.test.ts
           src/browser/appIdentity.native.test.ts
           src/browser/bridge/host.test.ts
