@@ -1,6 +1,6 @@
 # Split `contracts` and the shared core into packages
 
-Status: complete on the stacked implementation branches. The section "Progress" records the pull requests and the remaining branches.
+Status: complete. The section "Progress" records the pull requests.
 
 This document records the plan to move the former shared package into small domain packages. Paths under `shared/` in the original measurements refer to that former package.
 
@@ -44,14 +44,14 @@ The table records how the extraction reached completion.
 | `agent-clients` (second part)                                              | Merged, PR #77 |
 | `agent-clients` (third part), `agents`, `hosted-assistant`, `usage`        | Merged, PR #78 |
 | `replay`, `calls` (second part), `entities`, `ingest`                      | Merged, PR #79 |
-| `connectors`, `goals`                                                      | Branch         |
-| `org` (third part), `org-templates`                                        | Branch         |
-| `messages`, `snippets`                                                     | Branch         |
-| `inbox`, `secrets`, `triggers` (second part), `decisions` (second part)    | Branch         |
-| `tasks`, `calls` (last part), `agent-clients` (last part)                  | Branch         |
-| `judges`, `vault`, `line` (first part)                                     | Branch         |
-| `line` (second part)                                                       | Branch         |
-| Contracts barrel and shared package removal                                | Branch         |
+| `connectors`, `goals`                                                      | Merged, PR #81 |
+| `org` (third part), `org-templates`                                        | Merged, PR #82 |
+| `messages`, `snippets`                                                     | Merged, PR #83 |
+| `inbox`, `secrets`, `triggers` (second part), `decisions` (second part)    | Merged, PR #84 |
+| `tasks`, `calls` (last part), `agent-clients` (last part)                  | Merged, PR #85 |
+| `judges`, `vault`, `line` (first part)                                     | Merged, PR #86 |
+| `line` (second part)                                                       | Merged, PR #87 |
+| Contracts barrel and shared package removal                                | Merged, PR #88 |
 
 ## Scripts
 
