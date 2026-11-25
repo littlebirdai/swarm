@@ -11,22 +11,7 @@ const MESSAGE_CACHE_LOW_WATER_BYTES = MESSAGE_CACHE_BUDGET_BYTES * 0.75;
 
 export const MESSAGE_CACHE_PAGE_OVERHEAD = 64;
 
-export const warmMessageCounts = new Map<string, number>();
-
-export const syncedMessageCounts = new Map<string, number>();
-
-export function rememberWarmMessageCount(
-  id: string,
-  count: number,
-  counts = warmMessageCounts,
-): void {
-  counts.delete(id);
-  counts.set(id, count);
-  if (counts.size > 200) {
-    const oldest = counts.keys().next().value;
-    if (oldest !== undefined) counts.delete(oldest);
-  }
-}
+export const messageWarmState = { full: false, coldIds: new Set<string>() };
 
 export function messageRowBytes(value: unknown): number {
   if (typeof value === "string") return 24 + value.length * 2;
@@ -192,6 +177,7 @@ export function evictInactiveMessages(
 
   for (const id of candidates) {
     dropCachedMessages(draft, id);
+    messageWarmState.full = true;
     if (draft.messageCacheBytes <= MESSAGE_CACHE_LOW_WATER_BYTES) break;
   }
 }

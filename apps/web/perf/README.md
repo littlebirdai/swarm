@@ -58,9 +58,9 @@ omits exceptions such as pinned sessions that can exceed a cap.
 The message cache uses 32 MiB per desktop window to leave room for other
 windows. The phone uses 16 MiB to leave room for the native app and decoded
 images. Above the cap, eviction targets 75% of the budget. The estimate
-includes strings, row objects, and navigator pages. At half the budget,
-background warming limits cold loads and history backfill to the top 10 inbox
-rows. It skips pages already warmed at the current server message count.
+includes strings, row objects, and navigator pages. After the first byte-budget eviction,
+background warming stops loading older history and only cold-loads the top 10
+inbox rows that it has never cold-loaded for the current account.
 Open transcripts, active streams, and conversations with unsent messages can
 exceed the limit. The fixture has no protected conversations. Three quarters
 of its images also have a storage ID. The store keeps inline-only images for

@@ -11,12 +11,7 @@ import {
   sessionStructuralSig,
   type InboxSession,
 } from "../store/inboxStore";
-import {
-  MESSAGE_CACHE_BUDGET_BYTES,
-  rememberWarmMessageCount,
-  syncedMessageCounts as syncedCount,
-  warmMessageCounts,
-} from "../store/store-eviction";
+import { messageWarmState } from "../store/store-eviction";
 import { makeCollectionSig } from "../store/wakeSig";
 import { whenInputQuiet } from "../lib/inputQuiet";
 import { windowDrawsTranscripts } from "../lib/windowRole";
@@ -85,7 +80,6 @@ export type WarmRow = {
   rereadFrom?: number | null;
   /** Last message_count we synced up to, if any. */
   syncedCount: number | undefined;
-  warmedCount?: number;
   inFlight: boolean;
 };
 
@@ -97,7 +91,7 @@ export function warmDepthForRank(rank: number): number {
 /** The pure planner: rows in on-screen order → the bounded fetch list. */
 export function planWarm(
   rows: WarmRow[],
-  limitWarmPages = false,
+  coldWarmed?: ReadonlySet<string>,
 ): WarmAction[] {
   const actions: WarmAction[] = [];
   let cold = 0;
@@ -111,10 +105,9 @@ export function planWarm(
       actions.push({ kind: "row", id: row.id });
       return;
     }
-    const skipPage =
-      limitWarmPages && (rank >= 10 || row.warmedCount === row.serverCount);
     if (row.storedCount === 0) {
-      if (skipPage || cold >= MAX_COLD_WARM_PER_PASS) return;
+      if (coldWarmed && (rank >= 10 || coldWarmed.has(row.id))) return;
+      if (cold >= MAX_COLD_WARM_PER_PASS) return;
       cold++;
       actions.push({
         kind: "cold",
@@ -124,7 +117,7 @@ export function planWarm(
       });
       return;
     }
-    if (!skipPage && row.storedCount < depth && row.hasMoreAbove) {
+    if (!coldWarmed && row.storedCount < depth && row.hasMoreAbove) {
       if (deepens >= MAX_DEEPEN_PER_PASS) return;
       deepens++;
       actions.push({
@@ -202,6 +195,7 @@ export async function readForward(
 // in-flight set — two callers warming the same row is the duplicate fetch this
 // set exists to prevent.
 const inFlight = new Set<string>();
+const syncedCount = new Map<string, number>();
 // Row fetches tried this page life (runRow), whatever came back: a row the
 // server withholds, or sends without is_anchor, is not asked for every pass.
 const rowTried = new Set<string>();
@@ -300,12 +294,12 @@ function runCold(
   action: Extract<WarmAction, { kind: "cold" }>,
 ) {
   const { id, rows, serverCount } = action;
+  messageWarmState.coldIds.add(id);
   inFlight.add(id);
   ensureHydrated(id)
     .then((restored) => {
       if (restored) {
-        rememberWarmMessageCount(id, serverCount);
-        rememberWarmMessageCount(id, serverCount, syncedCount);
+        syncedCount.set(id, serverCount);
         return null;
       }
       return convex.query(api.conversations.listMessages, {
@@ -325,8 +319,7 @@ function runCold(
           hasMoreAbove: !res.isDone,
           initialized: true,
         });
-        rememberWarmMessageCount(id, serverCount);
-        rememberWarmMessageCount(id, serverCount, syncedCount);
+        syncedCount.set(id, serverCount);
       }
     })
     .catch((err: unknown) => {
@@ -362,7 +355,7 @@ function runDelta(
   const { id, serverCount } = action;
   inFlight.add(id);
   readForward(convex, id, action.after)
-    .then(() => rememberWarmMessageCount(id, serverCount, syncedCount))
+    .then(() => syncedCount.set(id, serverCount))
     .catch((err: unknown) => {
       console.warn("[inboxWarm] delta warm failed", { id, err });
     })
@@ -374,12 +367,7 @@ function runDeepen(
   action: Extract<WarmAction, { kind: "deepen" }>,
 ) {
   inFlight.add(action.id);
-  const count = useInboxStore.getState().sessions[action.id]?.message_count;
   fetchOlderPage(convex, action.id, action.rows)
-    .then((applied) => {
-      if (applied && count !== undefined)
-        rememberWarmMessageCount(action.id, count);
-    })
     .catch((err: unknown) => {
       console.warn("[inboxWarm] deepen failed", { id: action.id, err });
     })
@@ -498,7 +486,6 @@ export function warmRowsFromState(
         st.sessions[id]?.agent_type ?? (session as any)?.agent_type,
       ),
       syncedCount: syncedCount.get(id),
-      warmedCount: warmMessageCounts.get(id),
       inFlight: inFlight.has(id),
     });
   }
@@ -513,7 +500,7 @@ export function warmVisibleSessions(convex: ConvexClient): void {
   const rows = warmRowsFromState(st);
   const plan = planWarm(
     rows,
-    st.messageCacheBytes >= MESSAGE_CACHE_BUDGET_BYTES / 2,
+    messageWarmState.full ? messageWarmState.coldIds : undefined,
   );
   lastPass = {
     at: Date.now(),

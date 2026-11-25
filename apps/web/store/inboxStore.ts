@@ -85,8 +85,7 @@ import {
   messageRowBytes,
   omitRedundantInlineImages,
   rekeyCachedMessages,
-  syncedMessageCounts,
-  warmMessageCounts,
+  messageWarmState,
 } from "./store-eviction";
 import {
   carryReleasedQueueRows,
@@ -22252,8 +22251,8 @@ const currentHydrationEpoch = () => hydrationEpoch;
 /** Synchronous gate used before an old principal store is closed or purged. */
 export function clearProtectedInboxMemory(): void {
   hydrationEpoch++;
-  syncedMessageCounts.clear();
-  warmMessageCounts.clear();
+  messageWarmState.full = false;
+  messageWarmState.coldIds.clear();
   const state = useInboxStore.getState() as any;
   state._clearRuntimeBindings?.();
   const reset = freshInboxData();

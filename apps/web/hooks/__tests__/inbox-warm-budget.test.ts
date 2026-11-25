@@ -5,17 +5,16 @@ import {
   ensureHydrated,
   useInboxStore,
 } from "../../store/inboxStore";
-import {
-  MESSAGE_CACHE_BUDGET_BYTES,
-  MESSAGE_CACHE_PAGE_OVERHEAD,
-  messageRowBytes,
-  rememberWarmMessageCount,
-  warmMessageCounts,
-} from "../../store/store-eviction";
+import { MESSAGE_CACHE_BUDGET_BYTES } from "../../store/store-eviction";
 import { mapStorage } from "../../store/__tests__/fixtures/fakeAuthToken";
 import { webBuilders } from "../../test-helpers/builders";
 import { replaceGlobals } from "../../test-helpers/globals";
-import { warmRowsFromState, warmVisibleSessions } from "../inbox-warm";
+import { startTestClock } from "../../test-helpers/testTimers";
+import {
+  startWarmLoop,
+  warmRowsFromState,
+  warmVisibleSessions,
+} from "../inbox-warm";
 
 const mib = 1024 * 1024;
 const startedAt = Date.now() - 60_000;
@@ -59,6 +58,7 @@ function resetFixture() {
   const restoreGlobals = replaceGlobals({ localStorage: mapStorage() });
   clearProtectedInboxMemory();
   return () => {
+    clearProtectedInboxMemory();
     useInboxStore.setState(original);
     restoreGlobals();
   };
@@ -134,67 +134,98 @@ test("one warm pass starts all 60 small cold requests before any response", asyn
   }
 });
 
-test("50 one MiB sessions retain the top rows and repeated passes only warm unseen top rows", async () => {
-  const restore = resetFixture();
-  const { asks, convex } = fixture(mib);
-  const indexes = Array.from({ length: 50 }, (_, i) => i + 1);
-  try {
-    seed(indexes);
-    await warm(convex);
-    expect(asks).toHaveLength(50);
-    expect(
-      indexes
-        .slice(0, 10)
-        .every((i) => useInboxStore.getState().messages[id(i)]),
-    ).toBe(true);
-    expect(Object.keys(useInboxStore.getState().messages).length).toBeLessThan(
-      50,
-    );
-    evict(1);
-    const missing = indexes.find(
-      (i) => i > 10 && !useInboxStore.getState().messages[id(i)],
-    )!;
-    expect(missing).toBeDefined();
-    seed(Array.from({ length: 30 }, (_, i) => i + 51));
-    await warm(convex);
-    await warm(convex);
-    expect(asks).toHaveLength(50);
-    seed([0]);
-    await warm(convex);
-    expect(asks.slice(50)).toEqual([id(0)]);
-    expect(useInboxStore.getState().messages[id(0)]).toBeDefined();
-  } finally {
-    restore();
-  }
-});
-
-test("an oversized top session warms once per server count and leaves other requests free", async () => {
+test("a 25 MiB top transcript stops fetching across passes and the running loop", async () => {
   const restore = resetFixture();
   const { asks, convex } = fixture(mib, 25 * mib);
+  const clock = startTestClock();
+  const indexes = Array.from({ length: 10 }, (_, i) => i);
+  let stop: (() => void) | undefined;
   try {
-    seed([0, 1, 2, 3]);
+    seed(indexes);
+    stop = startWarmLoop(convex);
     await warm(convex);
-    expect(asks.sort()).toEqual(sizes(0, 1, 2, 3));
-    evict(0);
-    ballast(17 * mib);
+    const afterFirstPass = asks.length;
+    expect(afterFirstPass).toBe(10);
+    expect(Object.keys(useInboxStore.getState().messages).length).toBeLessThan(
+      14,
+    );
+    for (let i = 0; i < 5; i++) await warm(convex);
+    for (const conversation of sizes(...indexes)) {
+      expect(
+        asks.filter((key) => key === conversation).length,
+      ).toBeLessThanOrEqual(2);
+    }
+    const settled = asks.slice();
+    for (let i = 0; i < 4; i++) {
+      await clock.advance(750);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    expect(asks).toEqual(settled);
+  } finally {
+    stop?.();
+    clock.close();
+    restore();
+  }
+});
+
+test("three 15 MiB transcripts warm once and stay quiet after eviction", async () => {
+  const restore = resetFixture();
+  const { asks, convex } = fixture(15 * mib);
+  try {
+    seed([1, 2, 3]);
     await warm(convex);
-    expect(asks.filter((key) => key === id(0))).toHaveLength(1);
-    useInboxStore.setState((state) => ({
-      sessions: {
-        ...state.sessions,
-        [id(0)]: { ...state.sessions[id(0)], message_count: 2 },
-      },
-    }));
-    await warm(convex);
-    expect(asks.filter((key) => key === id(0))).toHaveLength(2);
+    expect(asks.slice().sort()).toEqual(sizes(1, 2, 3));
+    expect(Object.keys(useInboxStore.getState().messages)).toHaveLength(1);
+    expect(useInboxStore.getState().messageCacheBytes).toBeLessThan(16 * mib);
+    for (let i = 0; i < 5; i++) await warm(convex);
+    expect(asks).toHaveLength(3);
   } finally {
     restore();
   }
 });
 
-test("a single message delta arrives at 99 percent of the low-water mark", async () => {
+test("250 small transcripts warm without a delta storm on later passes", async () => {
+  const restore = resetFixture();
+  const cold: string[] = [];
+  const deltas: string[] = [];
+  const convex = {
+    query: async (
+      fn: Parameters<typeof getFunctionName>[0],
+      args: { conversation_id: string },
+    ) => {
+      if (getFunctionName(fn) === "conversations:getNewMessages") {
+        deltas.push(args.conversation_id);
+        return { messages: [], has_more: false };
+      }
+      cold.push(args.conversation_id);
+      return { page: [message(1024)], isDone: true };
+    },
+  };
+  try {
+    seed(Array.from({ length: 250 }, (_, i) => i + 1));
+    for (let i = 0; i < 5; i++) await warm(convex);
+    expect(cold).toHaveLength(250);
+    expect(Object.keys(useInboxStore.getState().messages)).toHaveLength(250);
+    await warm(convex);
+    await warm(convex);
+    expect(deltas).toEqual([]);
+  } finally {
+    restore();
+  }
+});
+
+function forceBudgetEviction() {
+  const state = useInboxStore.getState();
+  state.setMessages("pressure-older", [message(20 * mib)], {}, "cache");
+  state.setMessages("pressure-newer", [message(20 * mib)], {}, "cache");
+  expect(useInboxStore.getState().messages["pressure-older"]).toBeUndefined();
+  state.discardForkStub("pressure-newer");
+}
+
+test("a single message delta arrives near low water after eviction", async () => {
   const restore = resetFixture();
   try {
+    forceBudgetEviction();
     seed([1]);
     const { convex } = fixture(1024);
     await warm(convex);
@@ -214,150 +245,88 @@ test("a single message delta arrives at 99 percent of the low-water mark", async
     });
     expect(calls).toEqual(["conversations:getNewMessages"]);
     expect(
-      useInboxStore.getState().messages[id(1)].map((m) => m.timestamp),
+      useInboxStore.getState().messages[id(1)].map((row) => row.timestamp),
     ).toEqual([1, 2]);
   } finally {
     restore();
   }
 });
 
-test("a history deepen leaves the next pass free to fetch the newer messages", async () => {
+test("after eviction only a new top session warms and it warms once", async () => {
   const restore = resetFixture();
+  const { asks, convex } = fixture(1024);
+  try {
+    forceBudgetEviction();
+    seed(Array.from({ length: 12 }, (_, i) => i + 1));
+    for (let i = 0; i < 2; i++) await warm(convex);
+    expect(asks.slice().sort()).toEqual(
+      sizes(...Array.from({ length: 10 }, (_, i) => i + 1)),
+    );
+    seed([0]);
+    await warm(convex);
+    evict(0);
+    useInboxStore.setState((state) => ({
+      sessions: {
+        ...state.sessions,
+        [id(0)]: { ...state.sessions[id(0)], message_count: 2 },
+      },
+    }));
+    await warm(convex);
+    expect(asks.slice(10)).toEqual([id(0)]);
+  } finally {
+    restore();
+  }
+});
+
+test("account switch clears both the eviction flag and prior cold warms", async () => {
+  const restore = resetFixture();
+  const { asks, convex } = fixture(1024);
+  try {
+    forceBudgetEviction();
+    seed([1]);
+    await warm(convex);
+    clearProtectedInboxMemory();
+    seed(
+      Array.from({ length: 12 }, (_, i) => i + 2),
+      "second-warm-budget-owner",
+    );
+    await warm(convex);
+    expect(asks).toHaveLength(13);
+    forceBudgetEviction();
+    seed([1], "second-warm-budget-owner");
+    await warm(convex);
+    expect(asks.filter((key) => key === id(1))).toHaveLength(2);
+  } finally {
+    restore();
+  }
+});
+
+test("the top history deepens before the first eviction and stops after it", async () => {
+  const restore = resetFixture();
+  const calls: string[] = [];
+  const convex = {
+    query: async (fn: Parameters<typeof getFunctionName>[0]) => {
+      const name = getFunctionName(fn);
+      calls.push(name);
+      if (name === "conversations:listMessages") {
+        return { page: [message(1024, 3)], isDone: false };
+      }
+      return { messages: [message(1024, 2)], has_more_above: true };
+    },
+  };
   try {
     seed([1]);
-    useInboxStore
-      .getState()
-      .setMessages(id(1), [message(1024, 2)], { hasMoreAbove: true }, "cache");
     ballast(17 * mib);
-    const calls: string[] = [];
-    const convex = {
-      query: async (fn: Parameters<typeof getFunctionName>[0]) => {
-        const name = getFunctionName(fn);
-        calls.push(name);
-        if (name === "conversations:getAllMessages") {
-          return { messages: [message(1024, 1)], has_more_above: true };
-        }
-        return { messages: [message(1024, 3)], has_more: false };
-      },
-    };
     await warm(convex);
     await warm(convex);
     expect(calls).toEqual([
+      "conversations:listMessages",
       "conversations:getAllMessages",
-      "conversations:getNewMessages",
     ]);
-    expect(
-      useInboxStore.getState().messages[id(1)].map((row) => row.timestamp),
-    ).toEqual([1, 2, 3]);
-  } finally {
-    restore();
-  }
-});
-
-test("relief below half allows an evicted transcript with the same count to warm again", async () => {
-  const restore = resetFixture();
-  const { asks, convex } = fixture(1024);
-  try {
-    seed([1]);
-    await warm(convex);
-    evict(1);
-    ballast(17 * mib);
-    await warm(convex);
-    expect(asks).toEqual(sizes(1));
     useInboxStore.getState().discardForkStub("ballast");
+    forceBudgetEviction();
     await warm(convex);
-    expect(asks).toEqual(sizes(1, 1));
-  } finally {
-    restore();
-  }
-});
-
-test("a new account can warm a previously warmed id above half the budget", async () => {
-  const restore = resetFixture();
-  const { asks, convex } = fixture(1024);
-  const pending = Promise.withResolvers<{
-    isDone: boolean;
-    page: ReturnType<typeof message>[];
-  }>();
-  const previousAccountCalls: string[] = [];
-  try {
-    seed([1]);
-    await warm(convex);
-    seed([2]);
-    await warm({
-      query: (_fn, args) => {
-        previousAccountCalls.push(args.conversation_id);
-        return pending.promise;
-      },
-    });
-    expect(previousAccountCalls).toEqual(sizes(2));
-    clearProtectedInboxMemory();
-    seed([1], "second-warm-budget-owner");
-    ballast(17 * mib);
-    await warm(convex);
-    expect(asks).toEqual(sizes(1, 1));
-    expect(useInboxStore.getState().messages[id(1)]).toBeDefined();
-  } finally {
-    pending.resolve({ isDone: true, page: [] });
-    await new Promise<void>((resolve) => setImmediate(resolve));
-    restore();
-  }
-});
-
-test("at exactly half, history deepens once and only within the top ten", async () => {
-  const restore = resetFixture();
-  try {
-    seed(Array.from({ length: 12 }, (_, i) => i + 1));
-    for (let i = 1; i <= 12; i++) {
-      useInboxStore
-        .getState()
-        .setMessages(
-          id(i),
-          [message(1024, 2)],
-          { hasMoreAbove: true },
-          "cache",
-        );
-    }
-    const remaining =
-      MESSAGE_CACHE_BUDGET_BYTES / 2 -
-      useInboxStore.getState().messageCacheBytes -
-      messageRowBytes(message(0)) -
-      MESSAGE_CACHE_PAGE_OVERHEAD;
-    ballast(remaining);
-    expect(useInboxStore.getState().messageCacheBytes).toBe(
-      MESSAGE_CACHE_BUDGET_BYTES / 2,
-    );
-    rememberWarmMessageCount(id(1), 1);
-    const deepened: string[] = [];
-    const convex = {
-      query: async (fn: unknown, args: { conversation_id: string }) => {
-        if (
-          getFunctionName(fn as Parameters<typeof getFunctionName>[0]) ===
-          "conversations:getAllMessages"
-        ) {
-          deepened.push(args.conversation_id);
-          return { messages: [message(1024)], has_more_above: true };
-        }
-        return { messages: [], has_more: false };
-      },
-    };
-    await warm(convex);
-    await warm(convex);
-    expect(deepened).toEqual(Array.from({ length: 9 }, (_, i) => id(i + 2)));
-  } finally {
-    restore();
-  }
-});
-
-test("the warm count cache keeps its 200 most recently recorded ids", () => {
-  const restore = resetFixture();
-  try {
-    for (let i = 1; i <= 200; i++) rememberWarmMessageCount(id(i), 1);
-    rememberWarmMessageCount(id(1), 2);
-    rememberWarmMessageCount(id(201), 1);
-    expect(warmMessageCounts.size).toBe(200);
-    expect(warmMessageCounts.get(id(1))).toBe(2);
-    expect(warmMessageCounts.has(id(2))).toBe(false);
+    expect(calls).toHaveLength(2);
   } finally {
     restore();
   }
