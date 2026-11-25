@@ -3,7 +3,7 @@
 // undoTakesOnlyItsWindows: production keeps one undo history per browser
 // window, so ⌘Z in a follower that recorded nothing takes nothing back, even
 // when the host just stashed a row. The sim keeps each window's history in
-// its own slot (the engine's undo-stack seam in sim/windowSlots.ts); with one
+// its own slot (the engine's undo-stack seam in sim/window-slots.ts); with one
 // history for the whole process, the follower's press took back the host's
 // stash.
 //

@@ -23494,7 +23494,7 @@
   "apps/web/lib/__tests__/productViewRefs.test.ts": {
     "swarm/no-comments": 2
   },
-  "apps/web/lib/__tests__/pwaConfig.test.ts": {
+  "apps/web/lib/__tests__/pwa-config.test.ts": {
     "swarm/no-comments": 4
   },
   "apps/web/lib/__tests__/railFocus.test.ts": {
@@ -27734,7 +27734,7 @@
   "apps/web/store/__tests__/sim/windowSlots.guard.test.ts": {
     "swarm/no-comments": 22
   },
-  "apps/web/store/__tests__/sim/windowSlots.ts": {
+  "apps/web/store/__tests__/sim/window-slots.ts": {
     "swarm/no-comments": 63
   },
   "apps/web/store/__tests__/sim/world.ts": {
@@ -27932,7 +27932,7 @@
   "apps/web/store/cacheEvents.ts": {
     "swarm/no-comments": 24
   },
-  "apps/web/store/cacheOwnership.ts": {
+  "apps/web/store/persistence/cache-ownership.ts": {
     "swarm/no-comments": 49
   },
   "apps/web/store/cacheOwnershipRule.ts": {
@@ -28040,7 +28040,7 @@
   "apps/web/store/idbCollectionDiff.ts": {
     "swarm/no-comments": 40
   },
-  "apps/web/store/idbLivenessLane.ts": {
+  "apps/web/store/persistence/idb-liveness-lane.ts": {
     "swarm/no-comments": 24
   },
   "apps/web/store/idbV2Salvage.ts": {

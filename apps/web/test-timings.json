@@ -860,7 +860,7 @@
     "lib/__tests__/prerenderConfig.guard.test.ts": 250,
     "lib/__tests__/presenceHandoff.test.ts": 343,
     "lib/__tests__/productViewRefs.test.ts": 255,
-    "lib/__tests__/pwaConfig.test.ts": 251,
+    "lib/__tests__/pwa-config.test.ts": 251,
     "lib/__tests__/queryWithSignal.test.ts": 646,
     "lib/__tests__/railFocus.test.ts": 250,
     "lib/__tests__/railFolderFilter.test.ts": 251,
