@@ -19,9 +19,9 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { codeLines } from "@codecast/test-helpers/codeLines";
 import {
   blockAt,
-  codeLines,
   functionBlock,
   intervalBlocks,
   sliceBetween,

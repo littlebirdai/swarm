@@ -1,6 +1,7 @@
 // A screen recording is a message in a session, stored as a recording call:
 // whoever can read the session can read it, the team's call sharing never
 // reaches it, and it stays out of the call history.
+import { patchEnv } from "@codecast/test-helpers/patchEnv";
 import { describe, expect, test } from "bun:test";
 import { convexTest } from "convex-test";
 import schema from "./schema";
@@ -321,17 +322,11 @@ describe("begin", () => {
     CALL_REC_R2_SECRET_ACCESS_KEY: "secret",
   };
   const withEnv = async <T>(fn: () => Promise<T>) => {
-    const was = Object.fromEntries(
-      Object.keys(env).map((k) => [k, process.env[k]]),
-    );
-    Object.assign(process.env, env);
+    const restore = patchEnv(env);
     try {
       return await fn();
     } finally {
-      for (const [k, v] of Object.entries(was)) {
-        if (v === undefined) delete process.env[k];
-        else process.env[k] = v;
-      }
+      restore();
     }
   };
 

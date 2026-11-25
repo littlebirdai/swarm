@@ -17,19 +17,6 @@ export interface SourceBlock {
   endLine: number;
 }
 
-/** The file's lines with comment lines dropped (line comments and block
- *  comment bodies), numbered 1-based, so a mention in prose never counts.
- *  Copied from web/lib/__tests__/sourceWalk.ts, which the CLI cannot import. */
-export function codeLines(src: string): Array<{ line: string; n: number }> {
-  const out: Array<{ line: string; n: number }> = [];
-  src.split("\n").forEach((line, i) => {
-    const t = line.trim();
-    if (t.startsWith("//") || t.startsWith("*") || t.startsWith("/*")) return;
-    out.push({ line, n: i + 1 });
-  });
-  return out;
-}
-
 function lineOf(src: string, idx: number): number {
   let n = 1;
   for (let i = 0; i < idx && i < src.length; i++)

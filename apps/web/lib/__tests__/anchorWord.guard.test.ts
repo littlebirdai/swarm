@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { codeLines, walkSources, WEB_ROOT, MOBILE_ROOT } from "./sourceWalk";
+import { codeLines } from "@codecast/test-helpers/codeLines";
+import { walkSources, WEB_ROOT, MOBILE_ROOT } from "./sourceWalk";
 
 // One agent at the root (docs/architecture/org-staffing.md S22): the word
 // anchor leaves every surface a person reads. Where a sentence needs the

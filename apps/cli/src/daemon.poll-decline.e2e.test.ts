@@ -1,3 +1,4 @@
+import { waitFor } from "@codecast/test-helpers/waitFor";
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -85,16 +86,6 @@ function capture(target: string): string {
   return tmuxRun(["capture-pane", "-p", "-J", "-t", target, "-S", "-80"])
     .stdout;
 }
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-async function waitFor(fn: () => boolean, timeoutMs: number): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await sleep(150);
-  }
-  return fn();
-}
 
 describe.skipIf(!CAN_RUN)(
   "injectViaTmux poll: a free-text answer declines once, no digit dribble",
@@ -122,12 +113,14 @@ describe.skipIf(!CAN_RUN)(
         const menuUp = await waitFor(
           () => capture(target).includes("Which option?"),
           10_000,
+          150,
         );
         expect(menuUp).toBe(true);
         await injectViaTmux(target, JSON.stringify(payload));
         const done = await waitFor(
           () => capture(target).includes("CAPTURED="),
           10_000,
+          150,
         );
         expect(done).toBe(true);
         return capture(target);

@@ -13,32 +13,21 @@
 // build a RecursiveWatcher (path, filter, maxDepth, debounceMs) instead of
 // importing chokidar.
 
+import { walkSources } from "@codecast/test-helpers/walkSources";
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { codeLines } from "./test-helpers/sourceRegion.js";
+import { codeLines } from "@codecast/test-helpers/codeLines";
 
 const SRC = path.dirname(fileURLToPath(import.meta.url));
 const SKIP_DIRS = new Set(["node_modules", "__fixtures__", "dist"]);
 const ALLOWED = new Set(["recursiveWatcher.ts"]);
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) walk(full, out);
-    } else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")) {
-      out.push(full);
-    }
-  }
-  return out;
-}
-
 describe("tree watching goes through RecursiveWatcher", () => {
   test("only recursiveWatcher.ts imports chokidar", () => {
     const offenders: string[] = [];
-    for (const file of walk(SRC)) {
+    for (const file of walkSources(SRC, SKIP_DIRS)) {
       const rel = path.relative(SRC, file);
       if (ALLOWED.has(rel)) continue;
       for (const { line, n } of codeLines(fs.readFileSync(file, "utf8"))) {

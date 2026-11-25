@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { codeLines, walkSources } from "./sourceWalk";
+import { codeLines } from "@codecast/test-helpers/codeLines";
+import { walkSources } from "./sourceWalk";
 
 // FAST REFRESH BOUNDARY GUARD.
 //

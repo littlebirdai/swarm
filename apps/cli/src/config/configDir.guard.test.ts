@@ -20,12 +20,13 @@
 // launchd, in a shell that never sees CODECAST_DIR, so a TypeScript resolver
 // cannot reach them and an allowlist entry for them could never be retired.
 
+import { walkSources } from "@codecast/test-helpers/walkSources";
 import { describe, expect, test, afterEach } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { codeLines } from "../test-helpers/sourceRegion.js";
+import { codeLines } from "@codecast/test-helpers/codeLines";
 import { defaultConfigDir, readAuthConfig } from "./readAuthConfig.js";
 import { readSharedConfig } from "./sharedConfig.js";
 import { autoShotsEnabled, setAutoShots } from "../browser/autoShot.js";
@@ -77,25 +78,10 @@ const ALLOWED: Record<string, string> = {
 
 const SKIP_DIRS = new Set(["node_modules", "dist", "__fixtures__"]);
 
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) walk(path.join(dir, entry.name), out);
-      continue;
-    }
-    // Tests are exempt: setting CODECAST_DIR and building a scratch home is
-    // exactly the isolation the resolver exists to honour.
-    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts"))
-      continue;
-    out.push(path.join(dir, entry.name));
-  }
-  return out;
-}
-
 describe("the config dir has exactly one resolver", () => {
   const offenders: string[] = [];
   const seenAllowed = new Set<string>();
-  for (const file of walk(SRC)) {
+  for (const file of walkSources(SRC, SKIP_DIRS)) {
     const rel = path.relative(SRC, file);
     if (rel === path.join("config", "configDir.ts")) continue; // the resolver itself
     for (const { line, n } of codeLines(fs.readFileSync(file, "utf8"))) {

@@ -3,6 +3,7 @@
 // the person's own workspace, and the routine rules of their plan hold. Then
 // toolsFor: only the tools the person's Whisk connection allows, and a note
 // for what is missing.
+import { patchEnv } from "@codecast/test-helpers/patchEnv";
 import {
   describe,
   expect,
@@ -788,25 +789,15 @@ describe("routines", () => {
   });
 });
 
-/** Runs `fn` with these env vars set (undefined unsets one), then puts them back. */
 async function withEnv<T>(
   vars: Record<string, string | undefined>,
   fn: () => Promise<T>,
 ): Promise<T> {
-  const before = Object.fromEntries(
-    Object.keys(vars).map((key) => [key, process.env[key]]),
-  );
-  const put = (values: Record<string, string | undefined>) => {
-    for (const [key, value] of Object.entries(values)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  };
-  put(vars);
+  const restore = patchEnv(vars);
   try {
     return await fn();
   } finally {
-    put(before);
+    restore();
   }
 }
 const SECRET = "whisk-app-secret";

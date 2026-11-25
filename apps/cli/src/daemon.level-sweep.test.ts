@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import {
-  codeLines,
-  functionBlock,
-  intervalBlocks,
-} from "./test-helpers/sourceRegion.js";
+import { codeLines } from "@codecast/test-helpers/codeLines";
+import { functionBlock, intervalBlocks } from "./test-helpers/sourceRegion.js";
 
 // The level sweep keeps shared and line checkouts on their upstream. It rode
 // the session heartbeat's maintenance pass, which runs only while a session is

@@ -46,6 +46,9 @@ describe("resolveImport", () => {
     expect(resolveImport("@codecast/line/lineWords", from)).toBe(
       join(ROOT, "packages/line/src/lineWords.ts"),
     );
+    expect(resolveImport("@codecast/test-helpers/codeLines", from)).toBe(
+      join(ROOT, "packages/test-helpers/src/codeLines.ts"),
+    );
     expect(resolveImport("@codecast/edge-contract", from)).toBe(
       join(ROOT, "packages/edge-contract/src/index.ts"),
     );

@@ -1,3 +1,4 @@
+import { walkSources } from "@codecast/test-helpers/walkSources";
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -50,24 +51,14 @@ const nativeDeps = Object.keys(
   ),
 );
 
-function sourceFiles(): string[] {
-  const out: string[] = [];
-  (function walk(dir: string) {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (
-        ["node_modules", "ios", "android", "dist", ".expo", "targets"].includes(
-          e.name,
-        )
-      )
-        continue;
-      const p = path.join(dir, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (/\.(ts|tsx)$/.test(e.name) && !/\.(test|d)\.tsx?$/.test(e.name))
-        out.push(p);
-    }
-  })(mobileRoot);
-  return out;
-}
+const SKIP_DIRS = new Set([
+  "node_modules",
+  "ios",
+  "android",
+  "dist",
+  ".expo",
+  "targets",
+]);
 
 const packageOf = (spec: string) =>
   spec.startsWith("@")
@@ -75,7 +66,11 @@ const packageOf = (spec: string) =>
     : spec.split("/")[0];
 
 describe("native dependency convention", () => {
-  const files = sourceFiles().map((file) => ({
+  const files = walkSources(
+    mobileRoot,
+    SKIP_DIRS,
+    (name) => /\.(ts|tsx)$/.test(name) && !/\.(test|d)\.tsx?$/.test(name),
+  ).map((file) => ({
     file,
     source: fs.readFileSync(file, "utf8"),
   }));

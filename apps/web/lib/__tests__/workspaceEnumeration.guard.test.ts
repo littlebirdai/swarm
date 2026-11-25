@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync, statSync } from "node:fs";
-import { codeLines, walkSources, MOBILE_ROOT } from "./sourceWalk";
+import { codeLines } from "@codecast/test-helpers/codeLines";
+import { walkSources, MOBILE_ROOT } from "./sourceWalk";
 import { join } from "node:path";
 import {
   COLLECTION_STORE_KEYS,

@@ -179,7 +179,7 @@ describe("surfaces", () => {
   });
 
   test("each package that ships is in the cli, desktop and web surfaces", () => {
-    const excluded = new Set(["docs", "ratchet"]);
+    const excluded = new Set(["docs", "ratchet", "test-helpers"]);
     const packages = join(import.meta.dir, "../..");
     const missing = readdirSync(packages, { withFileTypes: true })
       .filter(

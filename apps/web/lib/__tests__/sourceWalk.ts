@@ -1,9 +1,6 @@
+import { codeLines } from "@codecast/test-helpers/codeLines";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-
-// THE source walker the guard tests share. Every guard is an allowlist plus
-// a pattern over the same file set; the walk and the comment stripping live
-// here once so no guard carries its own copy of the skip list.
 
 export const WEB_ROOT = join(import.meta.dir, "..", "..");
 export const MOBILE_ROOT = join(WEB_ROOT, "..", "..", "apps", "mobile");
@@ -42,18 +39,6 @@ export function walkSources(
     )
       out.push(full);
   }
-  return out;
-}
-
-// The file's lines with comment lines dropped (line comments and block
-// comment bodies), numbered 1-based, so a mention in prose never counts.
-export function codeLines(src: string): Array<{ line: string; n: number }> {
-  const out: Array<{ line: string; n: number }> = [];
-  src.split("\n").forEach((line, i) => {
-    const t = line.trim();
-    if (t.startsWith("//") || t.startsWith("*") || t.startsWith("/*")) return;
-    out.push({ line, n: i + 1 });
-  });
   return out;
 }
 
