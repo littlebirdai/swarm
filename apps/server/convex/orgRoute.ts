@@ -29,7 +29,7 @@ import {
 } from "./lib/orgRouter";
 import { routeWork, type RouteLanding } from "@codecast/org/orgRoute";
 import { isWholeWorkspaceRole, type OwnedWork } from "@codecast/org/orgLead";
-import { parseStandingSection } from "@codecast/shared/contracts/briefStanding";
+import { parseStandingSection } from "@codecast/org/briefStanding";
 import { roleCharterOf } from "./lib/roleCharter";
 
 type Boundary = { team_id?: Id<"teams">; scope_user_id?: Id<"users"> };

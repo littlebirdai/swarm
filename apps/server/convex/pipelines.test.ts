@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { hashToken } from "./apiTokens";
 import { forTeam, PIPELINE_MAX_BYTES, publish } from "./pipelines";
-import { packRecent } from "@codecast/shared/contracts/pipeline";
+import { packRecent } from "@codecast/deploys/pipeline";
 
 // A repository's pipeline (docs/architecture/pipeline.md PL6): published from
 // the checkout into its team's workspace, replaced whole, read back only by

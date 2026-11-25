@@ -24,7 +24,7 @@ import {
   fitProjectContextBlock,
   utf8Bytes,
   type ProjectContext,
-} from "@codecast/shared/contracts/projectContext";
+} from "@codecast/projects/projectContext";
 import { readTaskPulseFor } from "./taskPulse.js";
 import { checkoutWords } from "./checkoutWords.js";
 import {

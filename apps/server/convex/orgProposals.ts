@@ -32,7 +32,7 @@ import {
 } from "./orgInit";
 import { roleStartsOnItsOwn } from "./lib/orgCaps";
 import { filesOnlyOwnSessions } from "./lib/orgSessionFiling";
-import { STABILITY } from "@codecast/shared/contracts/orgCapacity";
+import { STABILITY } from "@codecast/org/orgCapacity";
 import { performProvisionRole, rolesInBoundary } from "./orgRoles";
 import { setInboxStatus } from "./sessionDecisions";
 import { scheduleDecisionSettle } from "./taskWaits";

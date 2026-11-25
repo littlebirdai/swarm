@@ -10,7 +10,7 @@
 // (convex/orgChanges.ts), the web History tab and `cast org log` all read
 // this one file. Ids are strings here: the shared package knows no Convex.
 
-import { autonomyChangeWords, autonomyOn } from "./roleAutonomy";
+import { autonomyChangeWords, autonomyOn } from "@codecast/org/roleAutonomy";
 import {
   intentSourceKey,
   type InitiativeDecision,

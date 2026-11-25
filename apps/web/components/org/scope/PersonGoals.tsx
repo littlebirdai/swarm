@@ -6,7 +6,7 @@
 // with the viewer's grants, so this only draws them. A person's sheet shows
 // it as Focus, once for each role that keeps it; the role's Overview shows
 // the viewer their own.
-import { goalStateLine } from "@codecast/shared/contracts/roleGoals";
+import { goalStateLine } from "@codecast/org/roleGoals";
 import { EntityIdPill } from "../../EntityIdPill";
 import type { BriefPerson } from "./scopeTypes";
 

@@ -9,7 +9,7 @@ import {
   type MoveBackMachine,
   type MoveBackState,
   type RoleFailover,
-} from "@codecast/shared/contracts/roleFailover";
+} from "@codecast/org/roleFailover";
 import { useInboxStore } from "../store/inboxStore";
 import { useSettingsData } from "./useSyncSettings";
 import { useCoarseNow } from "./useCoarseNow";

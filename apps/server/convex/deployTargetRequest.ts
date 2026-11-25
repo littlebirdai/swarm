@@ -11,7 +11,7 @@ import {
 import {
   canRedeploySha,
   commitTouchesTarget,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 import { teamKey } from "./deployTargetsCi";
 import {
   COMMITS_MAX,

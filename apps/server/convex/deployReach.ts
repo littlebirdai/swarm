@@ -11,14 +11,14 @@ import { canAccessPullRequest, workspaceGrantsAccess } from "./lib/access";
 import { normalizeRepository } from "./lib/gitRefs";
 import { commitBySha, targetDeploys } from "./deployTargetsState";
 import { accessibleCommits } from "./commits";
-import { commitTouchesTarget } from "@codecast/shared/contracts/deployTargets";
+import { commitTouchesTarget } from "@codecast/deploys/deployTargets";
 import { liveDeployOf } from "@codecast/shared/contracts/deploys";
 import {
   deployReach,
   type DeployReach,
   type ReachChange,
   type ReachDeploy,
-} from "@codecast/shared/contracts/deployReach";
+} from "@codecast/deploys/deployReach";
 
 const REACH_DEPLOYS = 20;
 const PR_REF = /^([^/\s#@]+\/[^/\s#@]+)#(\d+)$/;

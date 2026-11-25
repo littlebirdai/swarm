@@ -24,7 +24,7 @@ import {
   parseStandingSection,
   standingLineFrom,
   withStandingLines,
-} from "@codecast/shared/contracts/briefStanding";
+} from "@codecast/org/briefStanding";
 
 // Knowledge handoff when roles change (org-staffing.md S32), the split (S34)
 // and the morning agenda (S33), driven through the exported cores against

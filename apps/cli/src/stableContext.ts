@@ -24,7 +24,7 @@ import {
   orgContextBlock,
   type OrgWhere,
 } from "@codecast/shared/contracts/orgWhere";
-import { fitProjectContextBlock } from "@codecast/shared/contracts/projectContext";
+import { fitProjectContextBlock } from "@codecast/projects/projectContext";
 import { restoresTaskContext } from "@codecast/shared/tasks/resumeSources";
 import { formatModGuide } from "./mods/guide.js";
 import { defaultConfigDir } from "./config/configDir.js";

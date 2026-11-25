@@ -9,4 +9,4 @@ export {
   deployAllowance,
   deployGrantOf,
   type DeployAllowance,
-} from "@codecast/shared/contracts/deployAuthority";
+} from "@codecast/deploys/deployAuthority";

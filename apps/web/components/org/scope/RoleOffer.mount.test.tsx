@@ -56,8 +56,7 @@ function world() {
     const { act } = React;
 
     const { ORG_FIXTURE } = await import("../orgFixture");
-    const { COMPANY_REVIEW_TITLE } =
-      await import("@codecast/shared/contracts/orgReview");
+    const { COMPANY_REVIEW_TITLE } = await import("@codecast/org/orgReview");
     const NOW = Math.floor(Date.now() / 3_600_000) * 3_600_000;
     const SEAT = "conv-head-seat";
     const base = ORG_FIXTURE as OrgTree;

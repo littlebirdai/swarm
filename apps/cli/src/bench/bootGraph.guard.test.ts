@@ -305,7 +305,7 @@ describe("command groups stay off the boot graph", () => {
       // on their main path (none brings another file): claudeConfigDirs.ts (the
       // CLAUDE_CONFIG_DIR projects dirs reconciliation.ts walks), shared/async
       // (the mapLimit knownValueRedaction.ts reads with instead of readdirSync),
-      // contracts/deployTargets.ts (workspace/manifest.ts's deploy targets), and
+      // packages/deploys/src/deployTargets.ts (workspace/manifest.ts's deploy targets), and
       // the barrels' contracts/slashCommand.ts and render/structuredMessage.ts.
       // 338 the same day, three leaves: contracts/vaultMessages.ts (the vault's
       // message tags, split out of the barrel's secrets contract), and
@@ -353,7 +353,7 @@ describe("command groups stay off the boot graph", () => {
       // the membership identity rules split out of contracts/inboxProjection.ts
       // for its max-lines pin, no new code. 363 on 2026-11-14: imageDownscale.ts,
       // the image size cap split out of syncService.ts so screenshot writers stop
-      // loading the sync client; contracts/projectContext.ts, the project block
+      // loading the sync client; packages/projects/src/projectContext.ts, the project block
       // every session start renders (pl-1033); tasks/resumeSources.ts, the one
       // predicate the start hook needs, split out of the task graph. 365 the same
       // day: museTranscript.ts (out of parser.ts) and contracts/sendArrival.ts
@@ -366,7 +366,7 @@ describe("command groups stay off the boot graph", () => {
       // reads for every standing (and pure: no imports). 369 on 2026-11-18:
       // orgUnplacedLines.ts, the unplaced-work lines a role brief prints, which
       // briefLines.ts reads synchronously (planPlacement.ts loads on demand).
-      // 370 the same day: contracts/roleCard.ts, out of contracts/machineMessages.ts
+      // 370 the same day: packages/org/src/roleCard.ts, out of contracts/machineMessages.ts
       // for max-lines, no new code. 371 the same day: contracts/messagingPolicy.ts,
       // the messaging policy registry orgWhere.ts builds its guidance from (no imports).
       // 372 the same day: ccRateLimitHeaders.ts, the rate-limit header parsers
@@ -441,7 +441,7 @@ describe("command groups stay off the boot graph", () => {
       // +1 on 2026-11-01: the `herd take` subcommand registration in index.ts
       // (its module, herdCommand.ts, loads lazily).
       // 4465 on 2026-11-04, never re-pinned while the file count failed first:
-      // the five leaves of 335 (contracts/deployTargets.ts +11.4,
+      // the five leaves of 335 (packages/deploys/src/deployTargets.ts +11.4,
       // claudeConfigDirs.ts +3.2, slashCommand.ts +1.7, shared/async +0.9,
       // structuredMessage.ts +0.5), replayPlayer.ts (+3.3), formatter.ts and
       // knownValueRedaction.ts (+2 each), then the three leaves of 338:
@@ -675,7 +675,7 @@ describe("command groups stay off the boot graph", () => {
       // 493 on 2026-10-20, again after days no run reached this case: the
       // daemon's own modules (interactivePrompt.ts split out of daemon.ts,
       // heicImage, tmuxSuspendedAgent, pendingDeliveryBatches, threadQos,
-      // backgroundPriority, systemdDaemonUnit, localData) and contracts/lineDeploy.ts,
+      // backgroundPriority, systemdDaemonUnit, localData) and packages/deploys/src/lineDeploy.ts,
       // the profile leaf split out of deploys.ts so the line profile no longer
       // brings the deploy history (causeHistory.ts, changeCard.ts) along.
       // 494 on 2026-10-24: resumePlacement.ts, split out of daemon.ts for its
@@ -728,7 +728,7 @@ describe("command groups stay off the boot graph", () => {
       // (the held-send reason the daemon writes). All three are leaves the
       // delivery path calls directly; none is a command group.
       // 576 on 2026-11-08 (minus three that left: tmuxDeliveryTranscript.ts,
-      // workspace/deployTargetsFile.ts, contracts/deployTargets.ts). Thirty-nine
+      // workspace/deployTargetsFile.ts, packages/deploys/src/deployTargets.ts). Thirty-nine
       // arrived, none a command group: the Claude Agent SDK backend the daemon
       // builds in main (claudeSdk/backend, client, paths, pollAnswer, protocol,
       // select, session, switchBackend, all node-builtin leaves); browser/bridge
@@ -777,7 +777,7 @@ describe("command groups stay off the boot graph", () => {
       // 601 on 2026-11-14: imageDownscale.ts and browser/formatBytes.ts, leaves
       // split out so screenshot writers load less, no new code;
       // browser/codecastMachine.ts, describe/start/stop for a host on codecast's
-      // account (`cast cloud`); contracts/projectContext.ts and
+      // account (`cast cloud`); packages/projects/src/projectContext.ts and
       // tasks/resumeSources.ts, read by stable context (the leaf keeps the task
       // graph's 12 files off this graph). 603 the same day: museTranscript.ts and
       // contracts/sendArrival.ts, max-lines splits, no new code. 604 on
@@ -785,7 +785,7 @@ describe("command groups stay off the boot graph", () => {
       // the same day: contracts/screenRecording.ts, for the screen recording brief.
       // 608 on 2026-11-17: hosts/providers/registry.ts, aws.ts and scalewayMac.ts, the HostProvider registry and the per-provider describe/inspect/stop modules (GitHub #93).
       // 609 the same day: hosts/providers/namespace.ts, the Namespace provider's describe/inspect/stop module (GitHub #93).
-      // 610 on 2026-11-18: contracts/roleCard.ts, out of contracts/machineMessages.ts
+      // 610 on 2026-11-18: packages/org/src/roleCard.ts, out of contracts/machineMessages.ts
       // for max-lines, no new code.
       // 611 the same day: contracts/messagingPolicy.ts, through orgWhere.ts (no imports).
       // 612 the same day: ccRateLimitHeaders.ts, out of ccAccounts.ts, the same split.

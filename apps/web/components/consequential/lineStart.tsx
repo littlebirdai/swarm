@@ -6,7 +6,7 @@
 // (convex orgLine.sweep, every two minutes) start a paid agent session on each
 // ready problem, up to the free places and the role's sessions a day.
 import { useState, type ReactNode } from "react";
-import { autonomyOn } from "@codecast/shared/contracts/roleAutonomy";
+import { autonomyOn } from "@codecast/org/roleAutonomy";
 import { useInboxStore } from "../../store/inboxStore";
 import {
   causeName,

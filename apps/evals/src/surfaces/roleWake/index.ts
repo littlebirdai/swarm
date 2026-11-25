@@ -5,13 +5,13 @@ import {
   formatSessionMessage,
   parseScheduledTask,
   triggerRunFrame,
-  type RoleCard,
   type WaitingSession,
 } from "@codecast/shared/contracts";
+import { type RoleCard } from "@codecast/org/roleCard";
 import {
   parseStandingSection,
   standingLineStale,
-} from "@codecast/shared/contracts/briefStanding";
+} from "@codecast/org/briefStanding";
 import { UsageError } from "@platform/evals/cli";
 
 import { cliFetchRead } from "../../../../../apps/cli/src/cliHttp";

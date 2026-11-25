@@ -1,10 +1,7 @@
-import {
-  formatScheduledTask,
-  type RoleCard,
-  type WaitingSession,
-} from "./machineMessages";
+import { formatScheduledTask, type WaitingSession } from "./machineMessages";
+import type { RoleCard } from "@codecast/org/roleCard";
 import type { AreaChange } from "./orgAreas";
-import { orgReviewFocusOf } from "./orgReview";
+import { orgReviewFocusOf } from "@codecast/org/orgReview";
 import { fenceForeignText } from "@codecast/fence/fence";
 import { roleFocusBlock } from "./rolePlaybook";
 
@@ -155,7 +152,7 @@ export function triggerRunFrame(
       body: task.prompt ?? "",
     });
   }
-  // A focus a person gave this run (orgReview.ts) leads the body: the run is
+  // A focus a person gave this run (@codecast/org/orgReview) leads the body: the run is
   // the routine's, narrowed, so the routine's own words still follow.
   const focus = orgReviewFocusOf(task.requested_run_focus);
   // A role's own focus for its check (org-staffing.md S38) follows the

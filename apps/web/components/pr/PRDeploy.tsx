@@ -24,7 +24,7 @@ import {
 import type { DeployTargetRow } from "../../lib/deploys/targets";
 import { deploysFocusHref } from "../../lib/deploys/focus";
 import type { ExternalEventAccent } from "../../lib/externalEvents";
-import type { ReachState } from "@codecast/shared/contracts/deployReach";
+import type { ReachState } from "@codecast/deploys/deployReach";
 
 /** The chip beside a merged pull request's state: live, or what holds it. */
 export function PRReachChip({

@@ -2,8 +2,8 @@
 // payload of org.where (convex/orgWhere.ts) and its one rendering, printed by
 // `cast org where` and injected at session start beside the stable context.
 import { MESSAGING_POLICIES } from "./messagingPolicy";
-import { roleCardLines, type RoleCard } from "./machineMessages";
-import type { ProjectContext } from "./projectContext";
+import { roleCardLines, type RoleCard } from "@codecast/org/roleCard";
+import type { ProjectContext } from "@codecast/projects/projectContext";
 
 /** How the session came to sit under its role: it is the role's standing
  *  session, a person filed it under the role, the role owns the work it is

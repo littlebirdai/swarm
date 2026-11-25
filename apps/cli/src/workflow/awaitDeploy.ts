@@ -17,7 +17,7 @@ import {
   deployDeadlineMs,
   releaseOrder,
   type DeployTarget,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 import {
   mainRedSince,
   type MainRedPayload,

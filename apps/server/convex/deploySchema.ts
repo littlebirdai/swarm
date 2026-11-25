@@ -284,7 +284,7 @@ export const deployTables = {
   }).index("by_workspace_finished", ["workspace", "finished_at"]),
 
   // One repository's pipeline (docs/architecture/pipeline.md PL6;
-  // contracts/pipeline.ts): its change and release flows as its checkout
+  // packages/deploys/src/pipeline.ts): its change and release flows as its checkout
   // resolves them, published beside its deploy targets from the same machine.
   // One row per workspace and repository, replaced whole on each publish.
   pipelines: defineTable({

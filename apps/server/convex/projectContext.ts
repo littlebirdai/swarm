@@ -17,7 +17,7 @@ import {
   memoryGist,
   PROJECT_MEMORY_SHOWN,
   type ProjectContext,
-} from "@codecast/shared/contracts/projectContext";
+} from "@codecast/projects/projectContext";
 
 type Ctx = { db: any };
 

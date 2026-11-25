@@ -6,7 +6,7 @@ import {
   recentFiles,
   recentRefusal,
   type PipelineCommitIn,
-} from "./pipeline";
+} from "../src/pipeline";
 
 const commit = (
   i: number,

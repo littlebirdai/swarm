@@ -69,7 +69,7 @@ import {
   standingLineAgeDays,
   standingLineFor,
   standingLineStale,
-} from "@codecast/shared/contracts/briefStanding";
+} from "@codecast/org/briefStanding";
 import { EntityPill } from "@/components/EntityPill";
 
 const KIND_ICON: Record<

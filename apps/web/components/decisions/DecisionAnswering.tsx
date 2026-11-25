@@ -15,7 +15,7 @@ import { useMutation } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { toast } from "sonner";
 import { AlertTriangle, ShieldCheck, Undo2 } from "lucide-react";
-import { autonomyOn } from "@codecast/shared/contracts/roleAutonomy";
+import { autonomyOn } from "@codecast/org/roleAutonomy";
 import { advisoryAnswerOpen } from "@codecast/shared/contracts";
 import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
 import {

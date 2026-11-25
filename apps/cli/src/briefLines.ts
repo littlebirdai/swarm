@@ -4,17 +4,11 @@
 // carries its handoff status and review verdict.
 import { unplacedLines } from "./orgUnplacedLines.js";
 import { c } from "./colors.js";
-import {
-  goalStateLine,
-  type GoalProgress,
-} from "@codecast/shared/contracts/roleGoals";
+import { goalStateLine, type GoalProgress } from "@codecast/org/roleGoals";
 import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
-import { usedOf } from "@codecast/shared/contracts/orgCapacity";
+import { usedOf } from "@codecast/org/orgCapacity";
 import { roleIdentity } from "@codecast/org/orgIdentity";
-import {
-  autonomyOn,
-  autonomyWords,
-} from "@codecast/shared/contracts/roleAutonomy";
+import { autonomyOn, autonomyWords } from "@codecast/org/roleAutonomy";
 import { formatDateSmart, formatShortDate, relTimeShort } from "@codecast/time";
 import { metricClimbLines } from "@codecast/shared/contracts/rolePlaybook";
 import {

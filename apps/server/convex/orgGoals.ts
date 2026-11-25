@@ -4,7 +4,7 @@
 // most when a high priority goal stalls.
 //
 // Nothing derived is stored. The goals are text in the brief (shared
-// contracts/roleGoals parses them); the sessions, tasks and plans the role
+// @codecast/org/roleGoals parses them); the sessions, tasks and plans the role
 // matched to a goal are short ids on its line, read live here to say what
 // moved and what stalled. One computation serves the wake frame and the
 // brief query (org.computeBriefFacts), the health query (a stalled goal is an
@@ -16,8 +16,8 @@ import {
   goalSectionMatchesPerson,
   parseGoalSections,
   type GoalPriority,
-} from "@codecast/shared/contracts/roleGoals";
-import { capacity } from "@codecast/shared/contracts/orgCapacity";
+} from "@codecast/org/roleGoals";
+import { capacity } from "@codecast/org/orgCapacity";
 import { utcDay } from "./lib/orgCaps";
 import { threadStateHeadline } from "@codecast/shared/contracts";
 import {

@@ -8,8 +8,8 @@ import type {
   CheckoutRow,
   CheckoutSession,
 } from "@codecast/shared/contracts/checkouts";
-import type { QueueCommit } from "@codecast/shared/contracts/deployTargets";
-import type { DeployReach } from "@codecast/shared/contracts/deployReach";
+import type { QueueCommit } from "@codecast/deploys/deployTargets";
+import type { DeployReach } from "@codecast/deploys/deployReach";
 import {
   assemble,
   findChange,

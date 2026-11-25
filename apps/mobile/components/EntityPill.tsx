@@ -46,7 +46,7 @@ import {
 import { useRefLifecycle } from "@codecast/web/hooks/useRefLifecycle";
 import { ChangeWords } from "@/components/ChangeText";
 import { useNowWhen } from "@codecast/web/hooks/useCoarseNow";
-import type { ReachState } from "@codecast/shared/contracts/deployReach";
+import type { ReachState } from "@codecast/deploys/deployReach";
 
 // Detection comes from the shared mention vocabulary, the same tables web reads
 // (packages/shared/entities). Mobile used to keep its own copy of the id regex

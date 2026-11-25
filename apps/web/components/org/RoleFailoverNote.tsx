@@ -13,7 +13,7 @@ import {
   roleFailoverReasonWords,
   type MoveBackState,
   type RoleFailover,
-} from "@codecast/shared/contracts/roleFailover";
+} from "@codecast/org/roleFailover";
 import { useRoleMoveBack } from "../../hooks/useRoleMoveBack";
 import { cn } from "../../lib/utils";
 import { OrgButton } from "./OrgButton";

@@ -10,7 +10,7 @@ import {
   type OrgChange,
   type OrgTenureSpec,
 } from "@codecast/shared/contracts/orgProposal";
-import type { HealthFlag } from "@codecast/shared/contracts/orgCapacity";
+import type { HealthFlag } from "@codecast/org/orgCapacity";
 import { THREAD_STATE_STATUS_META } from "../../lib/threadState";
 import type {
   OrgParentRef,

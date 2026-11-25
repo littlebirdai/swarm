@@ -13,7 +13,7 @@ import {
   splitsOnFirstBreach,
   type RoleLoad,
   type RoleSignals,
-} from "./orgCapacity";
+} from "../src/orgCapacity";
 
 // The capacity model (org-staffing.md S2, S3): one module of thresholds with
 // a reason each, and the pure flag rule org.health and the analyzer share.

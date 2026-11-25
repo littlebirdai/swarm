@@ -11,7 +11,7 @@ import {
   commitCiState,
   type CommitCiRun,
   type CommitCiState,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 
 export const teamKey = (teamId: Id<"teams">) => `team:${teamId}`;
 

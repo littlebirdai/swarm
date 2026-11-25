@@ -2,7 +2,7 @@
 // S3, S4). `org.health` and the `org_proposals` rows land in the store in these
 // shapes; the pane, the fixture, the model helpers and the store slots agree
 // on one definition here.
-import type { HealthFlag } from "@codecast/shared/contracts/orgCapacity";
+import type { HealthFlag } from "@codecast/org/orgCapacity";
 import type { RoleArea } from "@codecast/shared/contracts/orgAreas";
 import type { OrgAppliedDiffRow } from "@codecast/shared/contracts/orgChange";
 import type {

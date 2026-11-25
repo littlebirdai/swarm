@@ -16,7 +16,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Play } from "lucide-react";
-import { ORG_REVIEW_FOCUSES } from "@codecast/shared/contracts/orgReview";
+import { ORG_REVIEW_FOCUSES } from "@codecast/org/orgReview";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useSyncOrgTree } from "../../../hooks/useSyncOrgTree";
 import { useSeatTriggers } from "../../../hooks/useSyncTriggers";

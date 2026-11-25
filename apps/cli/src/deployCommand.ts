@@ -5,7 +5,7 @@ import type { Command } from "commander";
 import {
   canRedeploySha,
   type DeployTarget,
-} from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/deployTargets";
 import { apiPost } from "./castApi.js";
 import { commandGroup, type GroupDeps } from "./commandGroups.js";
 

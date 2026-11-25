@@ -11,7 +11,7 @@ import {
   Undo2,
   type LucideIcon,
 } from "lucide-react";
-import type { ReachState } from "@codecast/shared/contracts/deployReach";
+import type { ReachState } from "@codecast/deploys/deployReach";
 import type { ExternalEventAccent } from "../externalEvents";
 import {
   deployPillState,

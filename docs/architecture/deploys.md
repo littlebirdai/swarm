@@ -148,7 +148,7 @@ Two things start it, side by side.
 What lets the role deploy is a person's act: the role's `deploy` authority
 grant (org-hire.md H4: id `deploy`, kind `publish`, a `per_day` limit and an
 expiry), written through `cast role authority` or the role page like any
-grant, human only. `deployAllowance` (shared/contracts/lineDeploy.ts) reads
+grant, human only. `deployAllowance` (packages/deploys/src/lineDeploy.ts) reads
 it from the role row alone: the role active and starting work on its own,
 the grant live, a daily limit set, and room under it today. A grant with no
 `per_day` allows nothing. The trigger, the stage (`deploys.stage` returns

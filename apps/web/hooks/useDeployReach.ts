@@ -6,7 +6,7 @@
 // capped like the detail collections (lib/detailRows): the reader pins its row.
 import { useMemo } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import type { DeployReach } from "@codecast/shared/contracts/deployReach";
+import type { DeployReach } from "@codecast/deploys/deployReach";
 import { useInboxStore } from "../store/inboxStore";
 import { cachedAt, pinDetailRows } from "../lib/detailRows";
 import { useSyncCollection } from "./useSyncCollection";

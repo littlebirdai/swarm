@@ -10,7 +10,7 @@ import type {
   DeployReach,
   ReachState,
   TargetReach,
-} from "@codecast/shared/contracts/deployReach";
+} from "@codecast/deploys/deployReach";
 import { deployElapsed } from "../deploys/deployPill";
 
 export const CHANGE_STAGES = [

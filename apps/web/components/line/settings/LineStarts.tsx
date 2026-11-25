@@ -11,8 +11,8 @@
 // updateOrgRole (the server takes it from a signed-in person only).
 import { useMemo, useState } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { DEFAULT_LINE_CARDS_CAP } from "@codecast/shared/contracts/orgCapacity";
-import { autonomyOn } from "@codecast/shared/contracts/roleAutonomy";
+import { DEFAULT_LINE_CARDS_CAP } from "@codecast/org/orgCapacity";
+import { autonomyOn } from "@codecast/org/roleAutonomy";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { useOwnedFlows } from "../../../hooks/useOwnedFlows";

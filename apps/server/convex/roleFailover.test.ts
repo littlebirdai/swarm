@@ -27,7 +27,7 @@ import {
   moveBackRefusal,
   roleFailoverLine,
   roleMoveBackState,
-} from "@codecast/shared/contracts/roleFailover";
+} from "@codecast/org/roleFailover";
 
 const MIN = 60_000;
 

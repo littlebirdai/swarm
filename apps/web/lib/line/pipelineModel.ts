@@ -10,8 +10,8 @@ import { foldFlow, segmentTopOf } from "@codecast/flows/flowPool";
 import {
   LINE_DEPLOY_STEP_LABELS,
   type LineDeployStep,
-} from "@codecast/shared/contracts/lineDeploy";
-import type { QueueGroup } from "@codecast/shared/contracts/deployTargets";
+} from "@codecast/deploys/lineDeploy";
+import type { QueueGroup } from "@codecast/deploys/deployTargets";
 import {
   flowDiagram,
   type DiagramStep,
@@ -42,7 +42,7 @@ import {
   meaningfulCommand,
   type PipelineEdit,
 } from "./pipelineEdit";
-import { recentFiles } from "@codecast/shared/contracts/pipeline";
+import { recentFiles } from "@codecast/deploys/pipeline";
 
 /** An edit a session was started to make, not live yet: drawn as a ghost on its lane. */
 export type PendingEdit = {
