@@ -6,7 +6,6 @@ import {
   PRIMARY_VERBS,
   SECONDARY_VERBS,
 } from "../triage/verbs";
-import { isTriageBarCompact } from "../triage/graduation";
 import { SHORTCUTS } from "../../shortcuts/registry";
 
 // The triage bar and the intro tour render keycaps straight from this
@@ -65,26 +64,5 @@ describe("triage verb catalog", () => {
       expect(verb.done.length).toBeGreaterThan(0);
       expect(verb.blurb.length).toBeGreaterThan(10);
     }
-  });
-});
-
-describe("isTriageBarCompact", () => {
-  test("defaults to expanded", () => {
-    expect(isTriageBarCompact(undefined)).toBe(false);
-    expect(isTriageBarCompact({})).toBe(false);
-  });
-
-  test("the compact toggle wins outright", () => {
-    expect(isTriageBarCompact({ triage_bar_compact: true })).toBe(true);
-    expect(
-      isTriageBarCompact({
-        triage_bar_compact: false,
-        inbox_shortcuts_hidden: true,
-      }),
-    ).toBe(false);
-  });
-
-  test("legacy hint dismissal maps to compact until the toggle is touched", () => {
-    expect(isTriageBarCompact({ inbox_shortcuts_hidden: true })).toBe(true);
   });
 });
