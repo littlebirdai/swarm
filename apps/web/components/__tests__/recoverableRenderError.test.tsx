@@ -131,9 +131,14 @@ describe("recoverable render errors report the throw, not the React code", () =>
     expect((wrapper as { cause?: unknown }).cause).toBeInstanceOf(TypeError);
 
     // ...and our report names the failure anyway.
-    const notices = toasts.read();
-    expect(notices).toHaveLength(1);
-    expect(notices[0]?.title).toBe(`Recovered render error: ${THROWN}`);
+    expect(toasts.events()).toEqual([
+      {
+        event: "show",
+        id: expect.any(Number),
+        kind: "error",
+        title: `Recovered render error: ${THROWN}`,
+      },
+    ]);
     const copy = () =>
       [...container.querySelectorAll("button")].find(
         (button) => button.textContent === "Copy stack",
@@ -142,6 +147,6 @@ describe("recoverable render errors report the throw, not the React code", () =>
     await act(async () => copy()!.click());
     expect(clipboard[0]).toContain(THROWN);
     expect(clipboard[0]).toContain("Component:");
-    toasts.clear();
+    await toasts.clear();
   });
 });

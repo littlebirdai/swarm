@@ -15,7 +15,7 @@ const base = {
   headline: null,
 };
 const linksIn = (container: HTMLElement) => [
-  ...container.querySelectorAll<HTMLAnchorElement>('a[href^="/deploys"]'),
+  ...container.querySelectorAll<HTMLAnchorElement>('a[href*="/deploys"]'),
 ];
 
 describe("the PR page's links into Deploys", async () => {

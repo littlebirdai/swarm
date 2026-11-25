@@ -33,7 +33,7 @@ describe("useQueryNoThrow", () => {
     function Conversation() {
       const { data, error } = useQueryNoThrow(metadataQuery, args);
       return (
-        <article data-error={error?.message}>
+        <article data-error={error?.message} data-no-data={data === undefined}>
           {data ?? "Cached transcript"}
           <textarea aria-label="Reply" />
         </article>
@@ -43,6 +43,7 @@ describe("useQueryNoThrow", () => {
       setup: (backend) => backend.set(metadataQuery, timeout),
     });
     expect(container.textContent).toBe("Cached transcript");
+    expect(container.querySelector("article")?.dataset.noData).toBe("true");
     expect(
       container.querySelector('textarea[aria-label="Reply"]'),
     ).not.toBeNull();

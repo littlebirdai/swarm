@@ -210,7 +210,6 @@ test("a page opens at most a few views by itself; the rest wait for a click", as
 });
 
 test("a minted url on codecast's own site is never framed: it falls back and says why", async () => {
-  // The page is local.codecast.sh; a published page under codecast.sh is the same site, and its frame would be this page's origin's peer.
   answer = () => ({
     ok: true,
     app: "Union",

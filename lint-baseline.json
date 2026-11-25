@@ -18174,7 +18174,7 @@
     "swarm/no-comments": 14
   },
   "apps/web/components/line/widgets/__tests__/ProductView.mount.test.tsx": {
-    "swarm/no-comments": 5
+    "swarm/no-comments": 4
   },
   "apps/web/components/line/widgets/actionSlots.tsx": {
     "swarm/no-comments": 13

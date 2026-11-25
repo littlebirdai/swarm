@@ -132,8 +132,8 @@ describe("PublishedPageEmbed copy", () => {
     expect(btn).toBeTruthy();
     await act(() => btn.click());
     expect(written).toEqual(["https://codecast.sh/a/my-page"]);
-    expect(toasts.read().filter(({ type }) => type === "error")).toEqual([]);
-    toasts.clear();
+    expect(toasts.events().filter(({ kind }) => kind === "error")).toEqual([]);
+    await toasts.clear();
     await act(() => root.unmount());
   });
 });

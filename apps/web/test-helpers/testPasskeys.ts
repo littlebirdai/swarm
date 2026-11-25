@@ -44,5 +44,16 @@ export function testPasskeys() {
       PublicKeyCredential: function PublicKeyCredential() {},
     });
   };
-  return { install, ceremonies };
+  const assertion = {
+    id: "AQ",
+    rawId: "Bw",
+    response: {
+      authenticatorData: Buffer.from(buf(37)).toString("base64url"),
+      clientDataJSON: Buffer.from(buf(9)).toString("base64url"),
+      signature: Buffer.from(buf(64)).toString("base64url"),
+    },
+    type: "public-key",
+    clientExtensionResults: {},
+  };
+  return { install, ceremonies, assertion };
 }

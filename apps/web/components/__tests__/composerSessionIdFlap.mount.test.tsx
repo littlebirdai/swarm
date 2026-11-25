@@ -47,5 +47,5 @@ test("words typed while the session id was unset survive its return", async () =
   await type(" login bug");
   await rerender(composer(sessionId));
   expect(textarea().value).toBe("fix the login bug");
-  expect(toasts.read()).toEqual([]);
+  expect(toasts.events()).toEqual([]);
 });

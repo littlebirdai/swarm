@@ -16,14 +16,8 @@ const pick = (landed: Promise<string>, pr = false) =>
     : { ok: true as const, message: "ct-1 waits on decision sd-4", landed };
 
 async function notice() {
-  await mountWeb(null);
-  const { read } = testToasts();
-  return () =>
-    read().map(({ id, title, type }) => ({
-      id,
-      type: type ?? "normal",
-      title,
-    }));
+  await mountWeb(null, { clock: true });
+  return testToasts();
 }
 
 describe("reportRelationPick", () => {
@@ -47,12 +41,20 @@ describe("reportRelationPick", () => {
       const notices = await notice();
       const landed = Promise.withResolvers<string>();
       await act(() => reportRelationPick(pick(landed.promise, pr)));
-      expect(notices()).toEqual([
-        { id: expect.any(Number), type: startingType, title: initial },
+      expect(notices.events()).toEqual([
+        {
+          event: "show",
+          id: expect.any(Number),
+          kind: startingType,
+          title: initial,
+        },
       ]);
-      const id = notices()[0]!.id;
+      const id = notices.events()[0]!.id;
       await act(async () => landed.resolve(final));
-      expect(notices()).toEqual([{ id, type: "success", title: final }]);
+      expect(notices.events()).toEqual([
+        { event: "show", id, kind: startingType, title: initial },
+        { event: "update", id, kind: "success", title: final },
+      ]);
     });
   }
 
@@ -60,8 +62,13 @@ describe("reportRelationPick", () => {
     const notices = await notice();
     const message = "ct-1 waits on decision sd-4";
     await act(async () => reportRelationPick(pick(Promise.resolve(message))));
-    expect(notices()).toEqual([
-      { id: expect.any(Number), type: "success", title: message },
+    expect(notices.events()).toEqual([
+      {
+        event: "show",
+        id: expect.any(Number),
+        kind: "success",
+        title: message,
+      },
     ]);
   });
 
@@ -69,36 +76,50 @@ describe("reportRelationPick", () => {
     const notices = await notice();
     const landed = Promise.withResolvers<string>();
     await act(() => reportRelationPick(pick(landed.promise, true)));
-    expect(notices()).toEqual([
+    expect(notices.events()).toEqual([
       {
+        event: "show",
         id: expect.any(Number),
-        type: "loading",
+        kind: "loading",
         title: "Checking PR o/r#42 for ct-1…",
       },
     ]);
     await act(async () =>
       landed.reject(new Error("Uncaught Error: codecast cannot see PR o/r#42")),
     );
-    expect(notices()).toEqual([]);
+    const [loading] = notices.events();
+    expect(notices.events()).toEqual([
+      loading,
+      { ...loading, event: "dismiss" },
+    ]);
+    expect(notices.read()).toEqual([]);
   });
 
   it("says a parked PR wait will land", async () => {
     const notices = await notice();
     const landed = Promise.withResolvers<string>();
     await act(() => reportRelationPick(pick(landed.promise, true)));
-    expect(notices()).toEqual([
+    expect(notices.events()).toEqual([
       {
+        event: "show",
         id: expect.any(Number),
-        type: "loading",
+        kind: "loading",
         title: "Checking PR o/r#42 for ct-1…",
       },
     ]);
-    const id = notices()[0]!.id;
+    const id = notices.events()[0]!.id;
     await act(async () => landed.reject(new Error("network down")));
-    expect(notices()).toEqual([
+    expect(notices.events()).toEqual([
       {
+        event: "show",
         id,
-        type: "normal",
+        kind: "loading",
+        title: "Checking PR o/r#42 for ct-1…",
+      },
+      {
+        event: "update",
+        id,
+        kind: "normal",
         title: "ct-1 will wait on PR #42 once it reaches the server",
       },
     ]);
@@ -108,8 +129,8 @@ describe("reportRelationPick", () => {
     const notices = await notice();
     const title = "A task can't wait on itself";
     await act(() => reportRelationPick({ ok: false, message: title }));
-    expect(notices()).toEqual([
-      { id: expect.any(Number), type: "error", title },
+    expect(notices.events()).toEqual([
+      { event: "show", id: expect.any(Number), kind: "error", title },
     ]);
   });
 });

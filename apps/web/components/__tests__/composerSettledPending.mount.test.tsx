@@ -10,7 +10,7 @@ const conversationId = "jx70000000000000000000000settled";
 async function composerStatusFor(
   status: "pending" | "delivered" | "cancelled",
 ) {
-  const { backend, container } = await mountWeb(
+  const { backend, clock, container } = await mountWeb(
     <MessageInput
       conversationId={conversationId}
       status="active"
@@ -20,6 +20,7 @@ async function composerStatusFor(
       isSessionReady
     />,
     {
+      clock: true,
       dispatch: true,
       setup: (backend, store) => {
         store.syncTable("pendingMessageStatus", [
@@ -41,6 +42,7 @@ async function composerStatusFor(
       },
     },
   );
+  await clock!.advance(320);
   const text =
     container.querySelector("[data-cc-composer-meta]")?.textContent ?? "";
   const commands = backend.mutations.flatMap(({ args }) =>
@@ -49,7 +51,7 @@ async function composerStatusFor(
     "action" in args &&
     args.action === "convCommand" &&
     Array.isArray(args.args)
-      ? [args.args[1]]
+      ? [args.args]
       : [],
   );
   return { text, commands };
@@ -59,8 +61,8 @@ test("an in-flight row past the threshold raises the stuck banner and resumes", 
   const notices = testToasts();
   const { text, commands } = await composerStatusFor("pending");
   expect(text).toContain("Cancel");
-  expect(commands).toContain("resumeSession");
-  expect(notices.read().filter(({ type }) => type === "error")).toEqual([]);
+  expect(commands).toEqual([[conversationId, "resumeSession"]]);
+  expect(notices.events().filter(({ kind }) => kind === "error")).toEqual([]);
 });
 
 for (const status of ["delivered", "cancelled"] as const) {

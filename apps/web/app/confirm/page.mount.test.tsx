@@ -8,7 +8,7 @@ import { testToasts } from "../../test-helpers/testToasts";
 import { AGENT_TAB_KEY } from "../../lib/desktopHandoff";
 import ConfirmPage from "./page";
 
-const { ceremonies, install } = testPasskeys();
+const { ceremonies, install, assertion } = testPasskeys();
 
 type Challenge = FunctionReturnType<typeof api.passkeys.challenge>;
 const PENDING = {
@@ -70,12 +70,14 @@ describe("/confirm", () => {
         m.container.querySelector("[data-confirm-run]") as HTMLButtonElement
       ).click(),
     );
-    expect(toasts.read()).toEqual([]);
+    expect(toasts.events()).toEqual([]);
     expect(ceremonies).toEqual(["get"]);
-    expect(m.backend.actions.map((a) => a.name)).toEqual([
-      "passkeys:presenceFinish",
+    expect(m.backend.actions).toEqual([
+      {
+        name: "passkeys:presenceFinish",
+        args: { challenge_id: "ch-7", response: assertion },
+      },
     ]);
-    expect(m.backend.actions[0]?.args).toMatchObject({ challenge_id: "ch-7" });
     await m.close();
   });
 
@@ -101,7 +103,7 @@ describe("/confirm", () => {
         m.container.querySelector("[data-confirm-run]") as HTMLButtonElement
       ).click(),
     );
-    expect(toasts.read().filter(({ type }) => type === "error")).toEqual([]);
+    expect(toasts.events().filter(({ kind }) => kind === "error")).toEqual([]);
     expect(ceremonies).toEqual(["create"]);
     expect(m.backend.actions.map((a) => a.name)).toEqual([
       "passkeys:registrationFinish",

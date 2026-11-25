@@ -8,7 +8,7 @@ import { testPasskeys } from "../../test-helpers/testPasskeys";
 import { testToasts } from "../../test-helpers/testToasts";
 import { PasskeysSection } from "./PasskeysSection";
 
-const { ceremonies, install } = testPasskeys();
+const { ceremonies, install, assertion } = testPasskeys();
 let restorePlatform: (() => void) | undefined;
 beforeEach(() => {
   ceremonies.length = 0;
@@ -78,19 +78,29 @@ describe("PasskeysSection", () => {
     await act(() =>
       row.querySelector<HTMLButtonElement>("[data-passkey-remove]")!.click(),
     );
-    expect(backend.actions.map(({ name }) => name)).toEqual([
-      "passkeys:presenceBegin",
-      "passkeys:presenceFinish",
-    ]);
-    expect(backend.actions[0]?.args).toMatchObject({
-      action: "remove_passkey",
-      target: passkey._id,
-    });
-    expect(backend.mutations).toEqual([
-      { name: "passkeys:remove", args: { id: passkey._id, grant: "ch-1.g" } },
+    expect(backend.writeRequests).toEqual([
+      {
+        kind: "Action",
+        name: "passkeys:presenceBegin",
+        args: {
+          action: "remove_passkey",
+          target: passkey._id,
+          origin: "https://app.test",
+        },
+      },
+      {
+        kind: "Action",
+        name: "passkeys:presenceFinish",
+        args: { challenge_id: "ch-1", response: assertion },
+      },
+      {
+        kind: "Mutation",
+        name: "passkeys:remove",
+        args: { id: passkey._id, grant: "ch-1.g" },
+      },
     ]);
     expect(ceremonies).toEqual(["get"]);
-    expect(toasts.read().filter(({ type }) => type === "error")).toEqual([]);
+    expect(toasts.events().filter(({ kind }) => kind === "error")).toEqual([]);
   });
 
   test("with none, Add sets up the first passkey with no Touch ID to assert", async () => {
@@ -105,7 +115,7 @@ describe("PasskeysSection", () => {
       "passkeys:registrationFinish",
     ]);
     expect(ceremonies).toEqual(["create"]);
-    expect(toasts.read().filter(({ type }) => type === "error")).toEqual([]);
+    expect(toasts.events().filter(({ kind }) => kind === "error")).toEqual([]);
   });
 
   test("in an agent's tab, Add is held", async () => {

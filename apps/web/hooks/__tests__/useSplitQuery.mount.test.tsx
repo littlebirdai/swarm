@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { splitRows } from "@codecast/inbox/inboxSplit";
 import { makeFunctionReference } from "convex/server";
 import { mountWeb } from "../../test-helpers/mountWeb";
@@ -25,13 +25,17 @@ test("the live reader requests split and does not replay a previous team's resul
     cold_hash,
     projection: { team_id: "alpha" },
   };
+  let queryCallCount: (() => number) | undefined;
   const { backend, container, rerender } = await mountWeb(
     <Probe team="alpha" />,
     {
-      setup: (backend) =>
+      setup: (backend) => {
+        const querySpy = spyOn(backend.client, "query");
+        queryCallCount = () => querySpy.mock.calls.length;
         backend.set(query, ({ activeTeamId }) =>
           activeTeamId === "alpha" ? alpha : pending,
-        ),
+        );
+      },
     },
   );
   expect(backend.queryRequests).toEqual([
@@ -45,4 +49,5 @@ test("the live reader requests split and does not replay a previous team's resul
     { name: "test:teamLiveness", args: { activeTeamId: "beta", split: true } },
   ]);
   expect(container.textContent).toBe("");
+  expect(queryCallCount?.()).toBe(0);
 });

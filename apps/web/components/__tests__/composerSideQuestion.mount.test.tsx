@@ -18,14 +18,15 @@ const image = {
 async function press(
   text: string,
   input: KeyboardEventInit | "submit",
-  withImage = false,
+  { withImage = false, expectSend = false } = {},
 ) {
   const asked: string[] = [];
   const populate: Parameters<typeof MessageInput>[0]["onPopulateInput"] = {
     current: null,
   };
   let stops = 0;
-  const { backend, container, store } = await mountWeb(
+  const sentToAgent = Promise.withResolvers<void>();
+  const { backend, clock, container, store } = await mountWeb(
     <MessageInput
       conversationId={conversationId}
       status="active"
@@ -33,6 +34,7 @@ async function press(
       isThinking
       isConversationLive
       onPopulateInput={populate}
+      onDidSend={() => sentToAgent.resolve()}
       onSendEscape={() => {
         stops++;
       }}
@@ -42,6 +44,7 @@ async function press(
       }}
     />,
     {
+      clock: true,
       dispatch: true,
       setup: (backend, store) => {
         if (withImage) {
@@ -78,7 +81,9 @@ async function press(
         }),
       );
     }
+    if (expectSend) await sentToAgent.promise;
   });
+  await clock!.advance(320);
   const sent = [
     ...(store.getState().pendingMessages[conversationId] ?? []),
     ...backend.mutations.filter(
@@ -89,7 +94,7 @@ async function press(
         /send|queue|stop/i.test(String(args.action)),
     ),
   ];
-  expect(toasts.read().filter(({ type }) => type === "error")).toEqual([]);
+  expect(toasts.events().filter(({ kind }) => kind === "error")).toEqual([]);
   return {
     asked,
     sent,
@@ -118,16 +123,26 @@ for (const [name, keys] of [
 }
 
 test("a /btw that does not open the message is for the agent", async () => {
-  const { asked, sent } = await press("check this /btw thing", {
-    key: "Enter",
-  });
+  const { asked, sent } = await press(
+    "check this /btw thing",
+    { key: "Enter" },
+    { expectSend: true },
+  );
   expect(asked).toEqual([]);
   expect(sent.length).toBeGreaterThan(0);
 });
 
 test("pasted images stay in the draft after a side question", async () => {
-  const { asked, draft } = await press("/btw what is this?", "submit", true);
+  const { asked, draft, sent, stops } = await press(
+    "/btw what is this?",
+    "submit",
+    {
+      withImage: true,
+    },
+  );
   expect(asked).toEqual(["what is this?"]);
+  expect(sent).toEqual([]);
+  expect(stops).toBe(0);
   expect(draft?.draft_image_storage_ids?.[0]).toMatchObject({
     storageId: image.storageId,
   });

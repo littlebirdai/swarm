@@ -12,7 +12,7 @@ const conversationId = "jx70000000000000000000000escstop";
 async function doubleEscape(running: boolean) {
   let stops = 0;
   let maps = 0;
-  const { container } = await mountWeb(
+  const { container, clock } = await mountWeb(
     <MessageInput
       conversationId={conversationId}
       status="active"
@@ -28,6 +28,7 @@ async function doubleEscape(running: boolean) {
       }}
     />,
     {
+      clock: true,
       setup: (backend) =>
         backend.set(api.pendingMessages.getConversationPendingMessage, pending),
     },
@@ -46,7 +47,8 @@ async function doubleEscape(running: boolean) {
     });
   await escape();
   await escape();
-  expect(toasts.read()).toEqual([]);
+  await clock!.advance(320);
+  expect(toasts.events()).toEqual([]);
   return { stops, maps };
 }
 

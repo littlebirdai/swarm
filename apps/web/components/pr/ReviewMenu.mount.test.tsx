@@ -77,7 +77,7 @@ async function mount(reply: HandReply | Error) {
   return {
     ...web,
     toasts: () =>
-      notices.read().map(({ type, title }) => ({ kind: type, text: title })),
+      notices.events().map(({ kind, title }) => ({ kind, text: title })),
     handCalls: () =>
       web.backend.mutations.filter(
         ({ name }) => name === "reviews:handPendingToSession",
@@ -89,7 +89,10 @@ const button = (text: string) =>
   [...document.querySelectorAll("button")].find((b) =>
     b.textContent?.trim().startsWith(text),
   )!;
-const press = (element: Element) => act(() => (element as HTMLElement).click());
+const press = (element: Element) =>
+  act(async () => {
+    (element as HTMLElement).click();
+  });
 
 describe("Review popover: send to session", () => {
   test("a plain send carries no resolve flag and an old backend's answer still reads as sent", async () => {
@@ -124,10 +127,12 @@ describe("Review popover: send to session", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("true");
     await press(button("Send to session"));
     await waitForPopupClose();
-    expect(handCalls()[0].args).toMatchObject({
-      pull_request_id: "pr_1",
-      resolve: true,
-    });
+    expect(handCalls().map(({ args }) => args)).toEqual([
+      {
+        pull_request_id: "pr_1",
+        resolve: true,
+      },
+    ]);
     expect(toasts()).toEqual([
       {
         kind: "success",
@@ -143,8 +148,9 @@ describe("Review popover: send to session", () => {
     await press(button("Send to session"));
     const row = document.querySelector("[data-pr-hand-outcome]")!;
     expect(row.getAttribute("data-pr-hand-outcome")).toBe("failed");
-    expect(row.textContent).toContain("Not sent:");
-    expect(row.textContent).toContain("No session matches conv_1");
+    expect(row.querySelector("span")?.textContent).toBe(
+      "Not sent: [CONVEX M(reviews:handPendingToSession)] Error: No session matches conv_1\n  Called by client",
+    );
     expect(toasts()).toEqual([]);
 
     backend.mutation(hand, {
@@ -155,8 +161,12 @@ describe("Review popover: send to session", () => {
     await press(document.querySelector("[data-pr-hand-retry]")!);
     await waitForPopupClose();
     expect(handCalls()).toHaveLength(2);
+    await press(button("Review · 2"));
+    expect(document.querySelector("[role=dialog]")).not.toBeNull();
     expect(document.querySelector("[data-pr-hand-outcome]")).toBeNull();
-    expect(toasts()[0]?.kind).toBe("success");
+    expect(toasts()).toEqual([
+      { kind: "success", text: "2 notes sent to the session" },
+    ]);
   });
 
   test("a resolve that left notes open resolves just those on retry", async () => {
@@ -177,13 +187,20 @@ describe("Review popover: send to session", () => {
     ).toContain("1 note still open: write conflict");
     await press(button("Resolve again"));
     await waitForPopupClose();
-    expect(backend.mutations).toContainEqual({
-      name: "dispatch:dispatch",
-      args: expect.objectContaining({
-        action: "resolveCodeCommentThread",
-        args: [["n2"], true],
-      }),
-    });
+    expect(
+      backend.mutations.filter(({ name }) => name === "dispatch:dispatch"),
+    ).toEqual([
+      {
+        name: "dispatch:dispatch",
+        args: {
+          ack_positions: true,
+          action: "resolveCodeCommentThread",
+          args: [["n2"], true],
+          patches: {},
+          result: null,
+        },
+      },
+    ]);
     expect(handCalls()).toHaveLength(1);
     expect(toasts()).toEqual([
       { kind: "success", text: "2 notes sent to the session and resolved" },

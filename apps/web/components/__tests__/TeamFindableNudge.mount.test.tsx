@@ -3,6 +3,7 @@ import { act } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { waitForDom } from "../../test-helpers/waitForDom";
+import { testToasts } from "../../test-helpers/testToasts";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { TeamFindableNudge } from "../team/TeamFindableNudge";
 
@@ -10,15 +11,20 @@ const teamId = "t1" as Id<"teams">;
 const nudge = { domain: "littlebird.ai", coworkers_outside: 7 };
 
 const mount = (role: "admin" | "member") =>
-  mountWeb(<TeamFindableNudge teamId={teamId} teamName="Littlebird" />, {
-    dispatch: true,
-    setup: (backend, store) => {
-      store.syncTable("teams", [{ _id: teamId, name: "Littlebird", role }]);
-      backend.set(api.teamDiscovery.discoveryNudge, nudge);
-      backend.mutation(api.teamDiscovery.setDiscoverable, undefined);
-      backend.mutation(api.dispatch.dispatch, undefined);
+  mountWeb(
+    <div data-nudge>
+      <TeamFindableNudge teamId={teamId} teamName="Littlebird" />
+    </div>,
+    {
+      dispatch: true,
+      setup: (backend, store) => {
+        store.syncTable("teams", [{ _id: teamId, name: "Littlebird", role }]);
+        backend.set(api.teamDiscovery.discoveryNudge, nudge);
+        backend.mutation(api.teamDiscovery.setDiscoverable, undefined);
+        backend.mutation(api.dispatch.dispatch, undefined);
+      },
     },
-  });
+  );
 
 const click = (container: HTMLElement, label: string) =>
   act(async () => {
@@ -35,6 +41,7 @@ test("an admin sees how many coworkers are outside and opens the team in one cli
   expect(container.textContent).toContain(
     "7 people with @littlebird.ai addresses use codecast but aren't on Littlebird.",
   );
+  const notices = testToasts();
   await click(container, "Let them find it");
   expect(backend.mutations).toEqual([
     {
@@ -42,7 +49,7 @@ test("an admin sees how many coworkers are outside and opens the team in one cli
       args: { team_id: teamId, enabled: true },
     },
   ]);
-  expect(container.querySelector(".tf-accent-card")).toBeNull();
+  expect(container.querySelector("[data-nudge]")?.childNodes.length).toBe(0);
   await act(() =>
     waitForDom(
       container,
@@ -54,6 +61,14 @@ test("an admin sees how many coworkers are outside and opens the team in one cli
           ) === true,
     ),
   );
+  expect(notices.events()).toEqual([
+    {
+      event: "show",
+      id: expect.any(Number),
+      kind: "success",
+      title: "@littlebird.ai coworkers can now find Littlebird",
+    },
+  ]);
 });
 
 test("Not now snoozes it", async () => {
@@ -62,11 +77,11 @@ test("Not now snoozes it", async () => {
   expect(
     store.getState().clientState.dismissed?.team_findable_nudge,
   ).toBeGreaterThan(0);
-  expect(container.querySelector(".tf-accent-card")).toBeNull();
+  expect(container.querySelector("[data-nudge]")?.childNodes.length).toBe(0);
 });
 
 test("a member never asks", async () => {
   const { backend, container } = await mount("member");
   expect(backend.queryRequests).toEqual([]);
-  expect(container.textContent).toBe("");
+  expect(container.querySelector("[data-nudge]")?.childNodes.length).toBe(0);
 });

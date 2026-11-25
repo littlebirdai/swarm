@@ -13,13 +13,13 @@ function Probe() {
   return <span data-ready={ready} />;
 }
 
-function PendingIdentity() {
+function UnconfirmedIdentity({ loading }: { loading: boolean }) {
   const client = useConvex();
   return (
     <ConvexProviderWithAuth
       client={client}
       useAuth={() => ({
-        isLoading: true,
+        isLoading: loading,
         isAuthenticated: false,
         fetchAccessToken: async () => null,
       })}
@@ -30,10 +30,22 @@ function PendingIdentity() {
 }
 
 describe("useSyncCollection — the authenticated-feeder gate", () => {
-  test("sends nothing while the server has not confirmed the caller", async () => {
-    const { backend } = await mountWeb(<PendingIdentity />);
-    expect(backend.queryRequests).toEqual([]);
-  });
+  for (const loading of [true, false]) {
+    test(
+      loading
+        ? "sends nothing while the server has not confirmed the caller"
+        : "sends nothing after the caller settles anonymously",
+      async () => {
+        const { backend } = await mountWeb(
+          <UnconfirmedIdentity loading={loading} />,
+          {
+            setup: (backend) => backend.set(events, pending),
+          },
+        );
+        expect(backend.queryRequests).toEqual([]);
+      },
+    );
+  }
 
   for (const authenticated of [true, false]) {
     test(
