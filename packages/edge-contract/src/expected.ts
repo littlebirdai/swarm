@@ -11,7 +11,7 @@ import {
 const turn = { kind: oneOf("turn"), turn: nullable(nonEmptyString) };
 const prompt = { kind: oneOf("prompt") };
 const terminal = { kind: oneOf("terminal") };
-const paneInstance = positiveInteger;
+export const paneInstance = positiveInteger;
 
 export const readExpectedTurn = responseObject(turn);
 export const readExpected = tagged("kind", {

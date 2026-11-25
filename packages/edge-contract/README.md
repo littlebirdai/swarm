@@ -43,16 +43,44 @@ result per group, in request order. A gap reports the next expected sequence
 number. A conflict reports the sequence number of a stored event with different
 content. A stale claim affects only its own group.
 
-The live transcript relay channel carries `message.delta`. The delta offset
-counts UTF-16 code units from the start of the message. Deltas use the same
-`message_id` as the final assistant event and do not consume a durable
-sequence number.
+The event envelope has 17 durable kinds. The live transcript relay channel
+carries `message.delta`. The delta offset counts UTF-16 code units from the
+start of the message. Deltas use the same `message_id` as the final assistant
+event and do not consume a durable sequence number.
 
 The server assigns the run epoch and grants a fencing token. The daemon sends
 the token with event groups, inbox writes, claim renewals and releases, and
 results for commands that carry a claim. The server checks the current claim
 and its expiry before it accepts a claimed write. The daemon reuses its
 `claim_id` when it retries the same acquisition request.
+
+### Terminal lifecycle
+
+`terminal.started` and `terminal.ended` identify one pane lifetime. Both carry
+`pane_instance` and the `actor` who started the pane. The actor has an `id`
+and a `kind` of `person` or `agent`.
+The envelope's `run` gives the run epoch. Include `tool_call_id` on both events
+if a tool call started the pane. Actor and tool call IDs are non-blank and
+have a limit of 256 UTF-16 code units each. Use only IDs in these fields.
+Screen content, keystrokes, commands, and environment data stay outside these events.
+
+`terminal.ended` requires an `outcome` object.
+
+| Outcome                              | Meaning                                                          |
+| ------------------------------------ | ---------------------------------------------------------------- |
+| `{ "kind": "exit", "code": 0 }`      | The process exited. `code` is a non-negative safe integer.       |
+| `{ "kind": "signal", "signal": 15 }` | A signal ended the process. `signal` is a positive safe integer. |
+| `{ "kind": "replaced" }`             | A new pane replaced this pane.                                   |
+| `{ "kind": "lost" }`                 | The daemon lost the pane and has no exit status.                 |
+
+The daemon mints each pane instance by atomically reserving the next integer
+in a durable counter for the session. The counter follows the session across
+run epochs and machines. After a restart, the daemon resumes above the last
+reserved value, even if its start event never reached the server. If the
+counter is unavailable or reaches `Number.MAX_SAFE_INTEGER`, the daemon
+cannot mint a new pane instance. A replacement ends the old typing lease.
+
+`events.append` carries both kinds in v1.
 
 ### Prompt details
 

@@ -18,7 +18,10 @@ import { response } from "./response";
 import { fence } from "./claims";
 import { readExpectedTurn, readObservedTurn } from "./expected";
 
-const actorFields = { kind: oneOf("person", "agent"), id: nonEmptyString };
+export const actorFields = {
+  kind: oneOf("person", "agent"),
+  id: nonEmptyString,
+};
 export const actor = object(actorFields);
 export const blobFields = { blob_id: nonEmptyString };
 
