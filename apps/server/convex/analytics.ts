@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { createServerAnalytics } from "@platform/analytics/server";
 import { CODECAST_EVENTS, TELEMETRY_DISABLED_VAR } from "@codecast/analytics";
+import { internal } from "./_generated/api";
 import { internalAction } from "./_generated/server";
 
 // Server-side PostHog capture for funnel steps that happen off-browser (CLI
@@ -18,24 +19,25 @@ import { internalAction } from "./_generated/server";
 // a rotation behind a code deploy and made the value diverge from the one
 // Railway bakes into the web bundle. Unset means no analytics object at all,
 // so `capture` degrades to a no-op instead of posting to a bogus project.
-const POSTHOG_KEY = process.env.POSTHOG_KEY || process.env.VITE_POSTHOG_KEY;
-const POSTHOG_HOST = process.env.POSTHOG_HOST || "https://us.i.posthog.com";
+function makeAnalytics() {
+  const posthogKey = process.env.POSTHOG_KEY || process.env.VITE_POSTHOG_KEY;
+  if (!posthogKey) return null;
+  return createServerAnalytics({
+    posthogKey,
+    posthogHost: process.env.POSTHOG_HOST || "https://us.i.posthog.com",
+    source: "convex",
+    // Drops any event the catalog does not describe, and stops after 1000
+    // events so a scheduler loop cannot flood the project.
+    catalog: CODECAST_EVENTS,
+    // A deployment somebody runs themselves has no user agent to carry Do Not
+    // Track, so DO_NOT_TRACK and this variable are how they say no. The
+    // package consults no environment unless it is handed one.
+    env: process.env,
+    optOutVars: [TELEMETRY_DISABLED_VAR],
+  });
+}
 
-const analytics = POSTHOG_KEY
-  ? createServerAnalytics({
-      posthogKey: POSTHOG_KEY,
-      posthogHost: POSTHOG_HOST,
-      source: "convex",
-      // Drops any event the catalog does not describe, and stops after 1000
-      // events so a scheduler loop cannot flood the project.
-      catalog: CODECAST_EVENTS,
-      // A deployment somebody runs themselves has no user agent to carry Do Not
-      // Track, so DO_NOT_TRACK and this variable are how they say no. The
-      // package consults no environment unless it is handed one.
-      env: process.env,
-      optOutVars: [TELEMETRY_DISABLED_VAR],
-    })
-  : null;
+const analytics = makeAnalytics();
 
 if (!analytics) {
   // A deployment missing the variable would otherwise look identical to one
@@ -57,5 +59,17 @@ export const capture = internalAction({
     // capture swallows its own failures — analytics must never surface errors
     // to product flows.
     await analytics?.capture(args.event, args.distinctId, args.properties);
+  },
+});
+
+export const sampleSyncOutbox = internalAction({
+  args: {},
+  handler: async (ctx): Promise<void> => {
+    const sampler = makeAnalytics();
+    if (!sampler || sampler.optedOut) return;
+    const { oldestAgeMs } = await ctx.runQuery(internal.syncOutbox.status, {});
+    await sampler.capturePersonless("sync_outbox_status", {
+      oldest_age_ms: oldestAgeMs,
+    });
   },
 });

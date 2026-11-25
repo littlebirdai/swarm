@@ -46,6 +46,8 @@ describe("the codecast event catalog", () => {
       ["inline_tip_dismissed", { tip_id: "i-compose" }],
       ["tips_level_changed", { level: "subtle" }],
       ["synclog_apply", { direct: 12, refetch: 3, ratio: 0.8 }],
+      ["synclog_resync", { count: 2 }],
+      ["sync_outbox_status", { oldest_age_ms: 120_000 }],
       ["synclog_crawl_healed", { namespace: "tasks", count: 2 }],
       [
         "client_resource_report",

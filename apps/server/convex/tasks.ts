@@ -4725,7 +4725,7 @@ export const webList = query({
 // read-time filter hides it.
 // Inaccessible / gone ids are omitted; callers prune ids the response omits
 // (authorized absence). Consumers: the sync-log applier (syncLog.ts / web
-// useSyncChangeFeed.ts) and, for deployed old bundles, changeFeed.ts.
+// use-sync-change-feed.ts) and, for deployed old bundles, changeFeed.ts.
 export const webGetByIds = query({
   args: { ids: v.array(v.string()) },
   handler: async (ctx, args) => {

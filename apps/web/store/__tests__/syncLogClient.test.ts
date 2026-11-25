@@ -244,7 +244,7 @@ describe("catchUpScope (review C19)", () => {
   const {
     catchUpScope,
     scopeMetaKey,
-  } = require("../../hooks/useSyncChangeFeed");
+  } = require("../../hooks/use-sync-change-feed");
 
   const scriptedConvex = (pages: any[]) => {
     const calls: any[] = [];
@@ -426,7 +426,7 @@ describe("applyLogPage with cargo (through catchUpScope)", () => {
   const {
     catchUpScope,
     scopeMetaKey,
-  } = require("../../hooks/useSyncChangeFeed");
+  } = require("../../hooks/use-sync-change-feed");
   const scripted = (pages: any[]) => {
     const calls: any[] = [];
     return {
@@ -579,7 +579,7 @@ describe("applyLogPage: a delete for an id the replica does not hold needs no by
   const {
     catchUpScope,
     scopeMetaKey,
-  } = require("../../hooks/useSyncChangeFeed");
+  } = require("../../hooks/use-sync-change-feed");
   test("skips the probe", async () => {
     useInboxStore.setState({
       syncMeta: { [scopeMetaKey("team:T")]: { cursor: 0 } },
@@ -622,7 +622,7 @@ describe("applyLogPage: review findings (sessions twins, seeds, projects)", () =
     catchUpScope,
     scopeMetaKey,
     catchUp,
-  } = require("../../hooks/useSyncChangeFeed");
+  } = require("../../hooks/use-sync-change-feed");
   const scripted = (pages: any[]) => {
     const calls: any[] = [];
     return {
@@ -923,7 +923,7 @@ describe("applyLogPage: review findings (sessions twins, seeds, projects)", () =
 });
 
 describe("catchUp: the legacy upgrade bridge", () => {
-  const { scopeMetaKey, catchUp } = require("../../hooks/useSyncChangeFeed");
+  const { scopeMetaKey, catchUp } = require("../../hooks/use-sync-change-feed");
   const HOUR = 60 * 60 * 1000;
   const TEAM_TASKS = 'tasks:v2:{"team_id":"T","workspace":"team"}';
   // getChangesSince is the only call that carries `since`; the legacy feed
@@ -1019,7 +1019,7 @@ describe("tasks: a cause write that leaves updated_at alone", () => {
   const {
     catchUpScope,
     scopeMetaKey,
-  } = require("../../hooks/useSyncChangeFeed");
+  } = require("../../hooks/use-sync-change-feed");
   const cause = {
     signal_count: 3,
     first_seen: 1,

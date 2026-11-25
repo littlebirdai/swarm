@@ -58,7 +58,7 @@ import {
   applyEntityIds,
   catchUp,
   emptyIdsByCollection,
-} from "../../../hooks/useSyncChangeFeed";
+} from "../../../hooks/use-sync-change-feed";
 import { teamInboxArgs } from "../../../hooks/useSyncTeamInboxSessions";
 import type { FailureContext } from "./report";
 import {

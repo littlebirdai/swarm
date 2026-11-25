@@ -1275,7 +1275,7 @@ async function enrichPage(
 // archived_at set (so the client hides it) and plan-docs too, rather than
 // dropping them. Inaccessible / gone ids are omitted; callers prune ids the
 // response omits (authorized absence). Consumers: the sync-log applier
-// (syncLog.ts / web useSyncChangeFeed.ts) and, for deployed old bundles,
+// (syncLog.ts / web use-sync-change-feed.ts) and, for deployed old bundles,
 // changeFeed.ts.
 export const webGetByIds = query({
   args: { ids: v.array(v.string()) },

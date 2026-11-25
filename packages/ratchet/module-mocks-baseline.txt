@@ -130,7 +130,7 @@ apps/web/hooks/__tests__/useConvexSync.typingDefer.mount.test.tsx 2
 apps/web/hooks/__tests__/useSyncAgentDefinitions.identityLost.mount.test.tsx 2
 apps/web/hooks/__tests__/useSyncTaskThreads.mount.test.tsx 2
 apps/web/hooks/useSyncOrgHealth.mount.test.tsx 4
-apps/web/lib/__tests__/analyticsConfig.test.ts 4
+apps/web/lib/__tests__/analytics-config.test.ts 4
 apps/web/lib/__tests__/arrivalSound.test.ts 1
 apps/web/lib/__tests__/chatDispatchRefusals.mount.test.tsx 4
 apps/web/lib/__tests__/sharingAgent.test.ts 2

@@ -50,7 +50,7 @@ import {
   applyEntityIds,
   catchUp,
   emptyIdsByCollection,
-} from "../../../../hooks/useSyncChangeFeed";
+} from "../../../../hooks/use-sync-change-feed";
 import { Net } from "../net";
 import { SimLabels } from "../labels";
 import {

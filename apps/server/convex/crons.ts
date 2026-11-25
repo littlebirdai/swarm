@@ -10,6 +10,13 @@ crons.interval(
   {},
 );
 
+crons.interval(
+  "sample sync outbox age",
+  { minutes: 1 },
+  internal.analytics.sampleSyncOutbox,
+  {},
+);
+
 // Read Expo push receipts, where a revoked APNs key shows (pushReceipts.ts).
 crons.interval(
   "check push receipts",

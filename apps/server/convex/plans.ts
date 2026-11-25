@@ -1888,7 +1888,7 @@ export const webList = query({
 // status filter — an abandoned/done plan comes back with its status and the
 // client's read-time filter hides it. Inaccessible / gone ids are omitted; the
 // callers prune ids the response omits (authorized absence). Consumers: the
-// sync-log applier (syncLog.ts / web useSyncChangeFeed.ts) and, for deployed
+// sync-log applier (syncLog.ts / web use-sync-change-feed.ts) and, for deployed
 // old bundles, changeFeed.ts.
 export const webGetByIds = query({
   args: { ids: v.array(v.string()) },

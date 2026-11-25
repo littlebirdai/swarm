@@ -8,7 +8,7 @@ import { api as _api } from "@codecast/convex/convex/_generated/api";
 import type { ShipPlan, ShipTargetKind } from "@codecast/ship/shipPlan";
 import { useInboxStore } from "../store/inboxStore";
 import { useSyncCollection } from "./useSyncCollection";
-import { applyEntityIds, emptyIdsByCollection } from "./useSyncChangeFeed";
+import { applyEntityIds, emptyIdsByCollection } from "./use-sync-change-feed";
 import { useWatchEffect } from "./useWatchEffect";
 
 const api = _api as any;

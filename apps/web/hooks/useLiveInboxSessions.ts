@@ -7,7 +7,7 @@ import {
   claimsViewer,
   isConvexId,
 } from "../store/inboxStore";
-import { batchGet } from "./useSyncChangeFeed";
+import { batchGet } from "./use-sync-change-feed";
 import { useConvexSync } from "./useConvexSync";
 import { useIsSyncHost } from "./useSyncRole";
 import { useSplitQueryNoThrow } from "./useSplitQuery";

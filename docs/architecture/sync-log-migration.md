@@ -306,7 +306,7 @@ exceeds 32 days — the implemented alarm for a stalled cron (review C18).
 
 Deleted now (new client): the change feed overlap/cursor heuristics (internals of
 `useSyncChangeFeed`), `since` mode as correctness, the `changefeed:v1` meta key as a live
-cursor (`LEGACY_META_KEY` in `hooks/useSyncChangeFeed.ts`, read once by the D7 bridge, then
+cursor (`LEGACY_META_KEY` in `hooks/use-sync-change-feed.ts`, read once by the D7 bridge, then
 dropped).
 
 Kept, with removal conditions:

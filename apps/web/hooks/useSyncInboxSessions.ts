@@ -41,7 +41,7 @@ import {
 } from "./reconcileCrawl";
 import { inboxCrawlWsKey, inboxFloorStamped } from "./syncMetaKeys";
 import { collectGhostSweepCandidates } from "./ghostSweep";
-import { applyEntityIds, emptyIdsByCollection } from "./useSyncChangeFeed";
+import { applyEntityIds, emptyIdsByCollection } from "./use-sync-change-feed";
 
 import { useMountEffect } from "./useMountEffect";
 // The completeness floor for the inbox session list. The live listInboxSessions

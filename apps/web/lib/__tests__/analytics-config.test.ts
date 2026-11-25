@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 
 // lib/analytics.ts is now codecast's configuration of @platform/analytics/web-runtime:
 // the wiring moved to the package, the Vite env values and the "codecast" app
@@ -38,7 +46,9 @@ mock.module("posthog-js/dist/extension-bundles.js", () => ({
   AnalyticsExtensions: {},
   SessionReplayExtensions: {},
 }));
+const realSentry = { ...(await import("@sentry/react")) };
 mock.module("@sentry/react", () => ({
+  ...realSentry,
   init: record(sentryCalls, "init"),
   setUser: record(sentryCalls, "setUser"),
   captureException: record(sentryCalls, "captureException"),
@@ -250,6 +260,89 @@ describe("error toasts read the cause chain", () => {
     expect(toasts.length).toBe(1);
   });
 });
+
+test.each([false, true])(
+  "emits a batched resync count with applies=%s",
+  async (apply) => {
+    await analytics.initAnalytics();
+    const { catchUp, scopeMetaKey, __changeFeedSimSlots } =
+      await import("../../hooks/use-sync-change-feed");
+    const { useInboxStore } = await import("../../store/inboxStore");
+    const { getFunctionName } = await import("convex/server");
+    const { webBuilders } = await import("../../test-helpers/builders");
+    const doc = webBuilders("sync-telemetry").doc.build({ title: "Before" });
+    const slots = __changeFeedSimSlots();
+    const previousSlots = slots.get();
+    const previousStore = useInboxStore.getState();
+    const schedule = spyOn(globalThis, "setTimeout");
+    const firstCapture = count(phCalls, "capture");
+    try {
+      slots.set(slots.fresh());
+      const scopes = ["user:fixture", "team:fixture"];
+      useInboxStore.setState({
+        docs: {},
+        syncMeta: Object.fromEntries(
+          [...scopes, "team:apply"].map((scope) => [
+            scopeMetaKey(scope),
+            { cursor: 1 },
+          ]),
+        ),
+      });
+      if (apply)
+        useInboxStore.getState().syncTable("docs", [doc], { isDelta: true });
+      await catchUp({
+        query: async (ref: Parameters<typeof getFunctionName>[0]) => {
+          if (getFunctionName(ref) === "syncLog:getHeads") {
+            return {
+              heads: [
+                ...scopes.map((scope_key) => ({
+                  scope_key,
+                  position: 4,
+                  floor: 3,
+                })),
+                ...(apply
+                  ? [{ scope_key: "team:apply", position: 2, floor: 0 }]
+                  : []),
+              ],
+            };
+          }
+          if (getFunctionName(ref) === "syncLog:getRange") {
+            return {
+              actions: [
+                {
+                  position: 2,
+                  entity_type: "docs",
+                  entity_id: doc._id,
+                  op: "upsert",
+                  patch: { title: "After" },
+                },
+              ],
+              nextFrom: 2,
+              hasMore: false,
+            };
+          }
+          throw new Error("Unexpected sync query");
+        },
+      });
+      expect(phCalls.capture?.slice(firstCapture) ?? []).toEqual([]);
+      const flushes = schedule.mock.calls.filter(([, ms]) => ms === 60_000);
+      expect(flushes).toHaveLength(1);
+      clearTimeout(slots.get().flushTimer ?? undefined);
+      flushes[0][0]();
+      expect(phCalls.capture?.slice(firstCapture)).toEqual([
+        ...(apply
+          ? [["synclog_apply", { direct: 1, refetch: 0, ratio: 1 }]]
+          : []),
+        ["synclog_resync", { count: 2 }],
+      ]);
+    } finally {
+      clearTimeout(slots.get().flushTimer ?? undefined);
+      schedule.mockRestore();
+      slots.set(previousSlots);
+      useInboxStore.setState(previousStore, true);
+    }
+  },
+);
 
 // With VITE_CODECAST_INGEST_KEY set, codecast reports its own errors to
 // codecast through @platform/analytics, alongside Sentry, through the same
