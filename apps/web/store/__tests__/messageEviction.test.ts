@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   evictInactiveMessages,
   MAX_IN_MEMORY_CONVERSATIONS,
-} from "../inboxStore";
+} from "../storeEviction";
 
 // A minimal stand-in for the mutative draft evictInactiveMessages operates on.
 // Every loaded conversation ALSO gets a session row — that's the never-prune

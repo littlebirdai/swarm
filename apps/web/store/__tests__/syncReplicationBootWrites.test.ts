@@ -75,13 +75,10 @@ async function openCache() {
 
 await openCache();
 const { rebootPersistence, useInboxStore } = await import("../inboxStore");
-const {
-  replicationChannelName,
-  replicationLockName,
-  replicationTransport,
-  startSyncReplication,
-  stopSyncReplication,
-} = await import("../syncReplication");
+const { replicationChannelName, replicationLockName, replicationTransport } =
+  await import("../storageTransport");
+const { startSyncReplication, stopSyncReplication } =
+  await import("../syncReplication");
 await waitFor(() => !hydration._hydrating);
 
 const state = () => useInboxStore.getState();

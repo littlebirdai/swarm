@@ -1,3 +1,4 @@
+import { hydrateMergeValue } from "../inboxHydration";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { create as mutativeCreate } from "mutative";
 import { groupPatchesByTable } from "../mutativeMiddleware";
@@ -8,7 +9,6 @@ import {
   convBucketMap,
   groupSessionsForLabelView,
   groupSessionsByPlan,
-  hydrateMergeValue,
   sortLabels,
   useInboxStore,
   type BucketAssignmentItem,

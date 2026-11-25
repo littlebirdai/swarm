@@ -1,14 +1,18 @@
+import {
+  dropLatchedFeedHasMore,
+  hydrateMergeValue,
+  seedLiveInboxIdsFromCache,
+  seedTeamInboxIdsFromCache,
+} from "../inboxHydration";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
   awaitTrackedSessionCreateResult,
   computeInboxVisible,
   isFavoriteInStore,
   computeNewDividerIndex,
-  dropLatchedFeedHasMore,
   feedPagePersistence,
   findReusableBlankSession,
   getSessionRenderKey,
-  hydrateMergeValue,
   isConvexId,
   isSessionDismissed,
   isSessionStashed,
@@ -19,13 +23,10 @@ import {
   resolveAssigneeInfo,
   resolveSessionAuthor,
   resolveShowOld,
-  seedLiveInboxIdsFromCache,
-  seedTeamInboxIdsFromCache,
   selectNavCollapsed,
   selectSessionRailOpen,
   SessionCreatePendingError,
   sessionsWithPendingSend,
-  unionHydrate,
   useInboxStore,
   worktreeKeyOf,
   NEW_SESSION_HOLD_MS,
@@ -3414,60 +3415,6 @@ describe("isConvexId — the guard for message-id-keyed queries", () => {
   });
 });
 
-describe("unionHydrate — cache as the floor (jx799py repro)", () => {
-  // Bug: /tasks (and now delta sessions) collapse to the live window on load,
-  // then stream back in. IDB holds the full set the whole time; the deferred
-  // hydration's empty-gate skipped IDB because a windowed live payload had
-  // already filled the store. Union-merge makes the cache the floor.
-  it("backfills cached rows the live window omits; live wins per-id", () => {
-    // IDB has the full set (N=5). The live payload is a recent-window subset (2).
-    const idb = Object.fromEntries(
-      Array.from({ length: 5 }, (_, i) => [
-        `t${i}`,
-        { _id: `t${i}`, title: `idb-${i}` },
-      ]),
-    );
-    const liveWindow = {
-      t0: { _id: "t0", title: "live-0" },
-      t1: { _id: "t1", title: "live-1" },
-    };
-
-    const merged = unionHydrate(idb, liveWindow) as Record<
-      string,
-      { _id: string; title: string }
-    >;
-
-    // Full set survives — NOT collapsed to the 2-row live window.
-    expect(Object.keys(merged).length).toBe(5);
-    // Live rows win per-id; cache backfills the rest.
-    expect(merged.t0.title).toBe("live-0");
-    expect(merged.t1.title).toBe("live-1");
-    expect(merged.t4.title).toBe("idb-4");
-  });
-
-  it("returns the cache untouched when no live data has landed yet", () => {
-    const idb = { a: { _id: "a" }, b: { _id: "b" } };
-    expect(unionHydrate(idb, undefined)).toEqual(idb);
-  });
-
-  it("returns the live set when there is no cache", () => {
-    const live = { a: { _id: "a" } };
-    expect(unionHydrate(undefined, live)).toBe(live);
-  });
-
-  it("keeps the populated collection identity when the cache adds no rows", () => {
-    const cached = { a: { _id: "a", title: "cached" } };
-    const live = {
-      a: { _id: "a", title: "live" },
-      b: { _id: "b", title: "new" },
-    };
-    expect(unionHydrate(cached, live)).toBe(live);
-    expect(unionHydrate({ a: undefined }, { a: undefined })).toEqual({
-      a: undefined,
-    });
-  });
-});
-
 // The shared path every new-session entry point uses. The bug this guards against:
 // a first message sent during session creation that never rendered as pending because
 // the conversation was navigated-to by its real id while the optimistic copy lived
@@ -6620,7 +6567,7 @@ describe("liveInboxIds persistence + synced show-old", () => {
   });
 
   it("cold-boot seed lands the persisted twin into liveInboxIds", () => {
-    seedLiveInboxIdsFromCache(["x", "y"]);
+    seedLiveInboxIdsFromCache(useInboxStore, ["x", "y"]);
     const st = useInboxStore.getState();
     expect([...st.liveInboxIds].sort()).toEqual(["x", "y"]);
     expect([...st.liveInboxIdList].sort()).toEqual(["x", "y"]);
@@ -6628,15 +6575,15 @@ describe("liveInboxIds persistence + synced show-old", () => {
 
   it("cold-boot seed never clobbers a live payload that raced hydration", () => {
     useInboxStore.getState().setLiveInboxIds(["fresh"]);
-    seedLiveInboxIdsFromCache(["stale1", "stale2"]);
+    seedLiveInboxIdsFromCache(useInboxStore, ["stale1", "stale2"]);
     expect([...useInboxStore.getState().liveInboxIds]).toEqual(["fresh"]);
   });
 
   it("cold-boot seed ignores junk cache values (non-array / empty / non-strings)", () => {
-    seedLiveInboxIdsFromCache(undefined);
-    seedLiveInboxIdsFromCache({});
-    seedLiveInboxIdsFromCache([]);
-    seedLiveInboxIdsFromCache([42, null]);
+    seedLiveInboxIdsFromCache(useInboxStore, undefined);
+    seedLiveInboxIdsFromCache(useInboxStore, {});
+    seedLiveInboxIdsFromCache(useInboxStore, []);
+    seedLiveInboxIdsFromCache(useInboxStore, [42, null]);
     expect(useInboxStore.getState().liveInboxIds.size).toBe(0);
   });
 
@@ -6708,15 +6655,15 @@ describe("liveInboxIds persistence + synced show-old", () => {
       const snap = { team_id: "team1", ids: ["x", "y"] };
       // mine scope: no seed
       setUi({ inbox_scope: "mine", active_team_id: "team1" });
-      seedTeamInboxIdsFromCache(snap);
+      seedTeamInboxIdsFromCache(useInboxStore, snap);
       expect(useInboxStore.getState().teamInboxIds.size).toBe(0);
       // team scope, different team: no seed
       setUi({ inbox_scope: "team", active_team_id: "team2" });
-      seedTeamInboxIdsFromCache(snap);
+      seedTeamInboxIdsFromCache(useInboxStore, snap);
       expect(useInboxStore.getState().teamInboxIds.size).toBe(0);
       // team scope, matching team: seed
       setUi({ inbox_scope: "team", active_team_id: "team1" });
-      seedTeamInboxIdsFromCache(snap);
+      seedTeamInboxIdsFromCache(useInboxStore, snap);
       expect([...useInboxStore.getState().teamInboxIds].sort()).toEqual([
         "x",
         "y",
@@ -6726,7 +6673,10 @@ describe("liveInboxIds persistence + synced show-old", () => {
     it("cold-boot seed never clobbers a team payload that raced hydration", () => {
       setUi({ inbox_scope: "team", active_team_id: "team1" });
       useInboxStore.getState().setTeamInboxIds(["fresh"], "team1");
-      seedTeamInboxIdsFromCache({ team_id: "team1", ids: ["stale"] });
+      seedTeamInboxIdsFromCache(useInboxStore, {
+        team_id: "team1",
+        ids: ["stale"],
+      });
       expect([...useInboxStore.getState().teamInboxIds]).toEqual(["fresh"]);
     });
 

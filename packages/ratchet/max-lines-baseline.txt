@@ -714,7 +714,7 @@ apps/web/store/__tests__/gestureBridge.test.ts 2350
 apps/web/store/__tests__/inboxDigestCompare.test.ts 1050
 apps/web/store/__tests__/inboxLifecycle.model.test.ts 850
 apps/web/store/__tests__/inboxSimHarness.ts 1350
-apps/web/store/__tests__/inboxStore.test.ts 6900
+apps/web/store/__tests__/inboxStore.test.ts 6850
 apps/web/store/__tests__/orgSlice.intents.test.ts 1450
 apps/web/store/__tests__/outboxRetention.test.ts 1600
 apps/web/store/__tests__/sim/dsl.ts 1150
@@ -728,10 +728,9 @@ apps/web/store/chatSlice.ts 2050
 apps/web/store/clientSyncRegistry.ts 2900
 apps/web/store/idb-cache.native.ts 1200
 apps/web/store/inboxDigestCompare.ts 850
-apps/web/store/inboxStore.ts 23150
+apps/web/store/inboxStore.ts 22550
 apps/web/store/orgSlice.ts 2550
 apps/web/store/strandedStub.test.ts 1150
-apps/web/store/syncReplication.ts 850
 apps/web/store/undo/policies/work.ts 1500
 apps/web/store/vaultStore.ts 1650
 apps/web/tours/guides/flowsGuide.tsx 1300

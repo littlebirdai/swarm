@@ -137,7 +137,7 @@ function pinnedSize(source: string): number {
 }
 
 /** How many files are over the cap today. May only fall. */
-const PIN = 791;
+const PIN = 790;
 
 const result = checkRatchet({
   name: "max lines",
