@@ -882,14 +882,14 @@
   "apps/cli/src/browser/siteGuard.ts": {
     "swarm/no-comments": 29
   },
+  "apps/cli/src/browser/snapshot-clickables.chrome.test.ts": {
+    "swarm/no-comments": 13
+  },
   "apps/cli/src/browser/snapshot.test.ts": {
     "swarm/no-comments": 39
   },
   "apps/cli/src/browser/snapshot.ts": {
     "swarm/no-comments": 77
-  },
-  "apps/cli/src/browser/snapshot-clickables.chrome.test.ts": {
-    "swarm/no-comments": 13
   },
   "apps/cli/src/browser/snapshotOrdinals.chrome.test.ts": {
     "swarm/no-comments": 6
@@ -4758,14 +4758,14 @@
   "apps/cli/src/terminal/daemon-bridge.ts": {
     "swarm/no-comments": 51
   },
+  "apps/cli/src/terminal/paneStream.clipboard.test.ts": {
+    "swarm/no-comments": 2
+  },
   "apps/cli/src/terminal/paneStream.test.ts": {
     "swarm/no-comments": 38
   },
   "apps/cli/src/terminal/paneStream.ts": {
     "swarm/no-comments": 108
-  },
-  "apps/cli/src/terminal/paneStream.clipboard.test.ts": {
-    "swarm/no-comments": 2
   },
   "apps/cli/src/terminal/terminalColors.test.ts": {
     "swarm/no-comments": 5
@@ -5197,14 +5197,14 @@
   "apps/cli/src/workers/host.test.ts": {
     "swarm/no-comments": 1
   },
+  "apps/cli/src/workers/ingest-client.ts": {
+    "swarm/no-comments": 25
+  },
   "apps/cli/src/workers/ingest.e2e.test.ts": {
     "swarm/no-comments": 2
   },
   "apps/cli/src/workers/ingestClient.bounds.test.ts": {
     "swarm/no-comments": 6
-  },
-  "apps/cli/src/workers/ingest-client.ts": {
-    "swarm/no-comments": 25
   },
   "apps/cli/src/workers/ingestDatabase.ts": {
     "swarm/no-comments": 1
@@ -5557,6 +5557,9 @@
   "apps/cli/src/workflow/reviewNote.ts": {
     "swarm/no-comments": 7
   },
+  "apps/cli/src/workflow/run-worktree.test.ts": {
+    "swarm/no-comments": 11
+  },
   "apps/cli/src/workflow/runDirs.ts": {
     "swarm/no-blocking-child-process-call": 1,
     "swarm/no-comments": 11
@@ -5575,9 +5578,6 @@
   },
   "apps/cli/src/workflow/runResume.ts": {
     "swarm/no-comments": 69
-  },
-  "apps/cli/src/workflow/run-worktree.test.ts": {
-    "swarm/no-comments": 11
   },
   "apps/cli/src/workflow/runWorktree.ts": {
     "swarm/no-blocking-child-process-call": 3,
@@ -15792,10 +15792,6 @@
   "apps/web/components/activity/ActivityNow.tsx": {
     "swarm/no-comments": 4
   },
-  "apps/web/components/activity/activity-page.mount.test.tsx": {
-    "react/immutability": 1,
-    "swarm/no-comments": 31
-  },
   "apps/web/components/activity/ActivityPage.tsx": {
     "swarm/no-comments": 27
   },
@@ -15804,6 +15800,10 @@
   },
   "apps/web/components/activity/ActivityRow.tsx": {
     "swarm/no-comments": 17
+  },
+  "apps/web/components/activity/activity-page.mount.test.tsx": {
+    "react/immutability": 1,
+    "swarm/no-comments": 31
   },
   "apps/web/components/activity/activityModel.test.ts": {
     "swarm/no-comments": 2
@@ -27731,14 +27731,14 @@
   "apps/web/store/__tests__/sim/sim.test.ts": {
     "swarm/no-comments": 14
   },
+  "apps/web/store/__tests__/sim/window-slots.ts": {
+    "swarm/no-comments": 63
+  },
   "apps/web/store/__tests__/sim/window.ts": {
     "swarm/no-comments": 83
   },
   "apps/web/store/__tests__/sim/windowSlots.guard.test.ts": {
     "swarm/no-comments": 22
-  },
-  "apps/web/store/__tests__/sim/window-slots.ts": {
-    "swarm/no-comments": 63
   },
   "apps/web/store/__tests__/sim/world.ts": {
     "swarm/no-comments": 65
@@ -27932,8 +27932,8 @@
   "apps/web/store/blockedRevive.test.ts": {
     "swarm/no-comments": 10
   },
-  "apps/web/store/persistence/cache-ownership.ts": {
-    "swarm/no-comments": 49
+  "apps/web/store/cache-events.ts": {
+    "swarm/no-comments": 24
   },
   "apps/web/store/cacheOwnershipRule.ts": {
     "swarm/no-comments": 1
@@ -28031,14 +28031,14 @@
   "apps/web/store/idb-cache.ts": {
     "swarm/no-comments": 1
   },
+  "apps/web/store/idb-collection-diff.ts": {
+    "swarm/no-comments": 40
+  },
   "apps/web/store/idbCacheKeys.native.ts": {
     "swarm/no-comments": 20
   },
   "apps/web/store/idbCacheWriteBehind.native.ts": {
     "swarm/no-comments": 35
-  },
-  "apps/web/store/persistence/idb-liveness-lane.ts": {
-    "swarm/no-comments": 24
   },
   "apps/web/store/idbV2Salvage.ts": {
     "swarm/no-comments": 7
@@ -28113,6 +28113,9 @@
   "apps/web/store/persistence/boot-loader.ts": {
     "swarm/no-comments": 20
   },
+  "apps/web/store/persistence/cache-ownership.ts": {
+    "swarm/no-comments": 49
+  },
   "apps/web/store/persistence/collection-writer.ts": {
     "swarm/no-comments": 26
   },
@@ -28121,6 +28124,9 @@
   },
   "apps/web/store/persistence/hydration.ts": {
     "swarm/no-comments": 2
+  },
+  "apps/web/store/persistence/idb-liveness-lane.ts": {
+    "swarm/no-comments": 24
   },
   "apps/web/store/persistence/message-cache.ts": {
     "swarm/no-comments": 27
@@ -30284,11 +30290,5 @@
   },
   "tests/jsonl-fidelity/roundtrip.ts": {
     "swarm/no-comments": 27
-  },
-  "apps/web/store/cache-events.ts": {
-    "swarm/no-comments": 24
-  },
-  "apps/web/store/idb-collection-diff.ts": {
-    "swarm/no-comments": 40
   }
 }
