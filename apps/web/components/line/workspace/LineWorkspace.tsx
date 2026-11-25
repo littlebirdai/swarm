@@ -309,9 +309,9 @@ export function LineWorkspace({
   // The app pages' fix-up only: settings keeps its own address whatever it carries.
   const stale =
     !settings &&
+    selection.view !== "foryou" &&
     ((!!rawView && rawView !== selection.view) ||
       (!!rawMode && rawMode !== selection.mode) ||
-      rawView === "foryou" ||
       (selection.view !== "line" && !!rawMode));
   useWatchEffect(() => {
     if (stale)
