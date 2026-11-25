@@ -351,3 +351,53 @@ test("facade preserves a network cause and rejects a transport defect", async ()
     await client.close();
   }
 });
+
+test("a transport defect during the release of an aborted claim is rejected", async () => {
+  const began = Promise.withResolvers<void>();
+  const defect = new ReferenceError("release transport defect");
+  const controller = new AbortController();
+  const { transport, calls } = scriptedTransport(
+    reply(claimFixture.response),
+    async () => {
+      throw defect;
+    },
+  );
+  const client = createEdgeClient({ transport });
+  try {
+    const held = client.withClaim(
+      claimRequest,
+      (_, signal) =>
+        new Promise<void>((resolve) => {
+          signal.addEventListener("abort", () => resolve(), { once: true });
+          began.resolve();
+        }),
+      controller.signal,
+    );
+    await began.promise;
+    controller.abort();
+    await expect(held).rejects.toBe(defect);
+    expect(calls.map(({ operation }) => operation)).toContain("release");
+  } finally {
+    await client.close();
+  }
+});
+
+test("a rejecting work callback surfaces its error when the client closes", async () => {
+  const error = new Error("work failed");
+  const releasing = Promise.withResolvers<void>();
+  const released = Promise.withResolvers<{ status: number; body: unknown }>();
+  const { transport } = scriptedTransport(reply(claimFixture.response), () => {
+    releasing.resolve();
+    return released.promise;
+  });
+  const client = createEdgeClient({ transport });
+  const held = client.withClaim(claimRequest, async () => {
+    throw error;
+  });
+  const outcome = held.catch((reason: unknown) => reason);
+  await releasing.promise;
+  const closing = client.close();
+  released.resolve({ status: 200, body: releaseFixture.response });
+  expect(await outcome).toBe(error);
+  await closing;
+});

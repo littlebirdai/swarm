@@ -120,9 +120,7 @@ export function makeClaimHolder({ claim, renew, release }: ClaimOperations) {
               ),
             );
             if ((yield* timeLeft) <= 0) return yield* expired();
-            const renewed = remaining(renewal);
-            if ((yield* renewed) <= 0) return yield* expired();
-            timeLeft = renewed;
+            timeLeft = remaining(renewal);
           }
         });
 

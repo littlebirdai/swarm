@@ -1,6 +1,7 @@
 import * as Cause from "effect/Cause";
 import { makeFacade } from "@codecast/effect-kit/effect";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import { EdgeClient as EdgeClientService } from "./effect";
 import { plainFailure, type EdgeError } from "./failures";
 import type {
@@ -74,14 +75,22 @@ ${caller}`,
         },
       }),
     );
-    const pending = facade.run(result, callSignal);
+    let defect = false;
+    const pending = facade.run(
+      result.pipe(
+        Effect.onExit((exit) =>
+          Effect.sync(() => {
+            defect = Exit.isFailure(exit) && Cause.hasDies(exit.cause);
+          }),
+        ),
+      ),
+      callSignal,
+    );
     active.add(pending);
     try {
       return await pending;
     } catch (error) {
-      if (callSignal.aborted) {
-        return stopped();
-      }
+      if (callSignal.aborted && !defect) return stopped();
       throw error;
     } finally {
       active.delete(pending);
