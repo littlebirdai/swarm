@@ -9,6 +9,7 @@ import {
 import { fixtureRows } from "../test-helpers/rows.testkit";
 import { makeSessionStartsDb, sessionStartOf } from "./lib/sessionStarts";
 import { collabRequests } from "./collab";
+import { listForTeam } from "./decisionTeamList";
 import { getMessageStatus } from "./pendingMessages";
 import { listForUser, listOpenForLines } from "./sessionDecisions";
 
@@ -58,6 +59,10 @@ async function readWithoutConversation(
   return asUser(t, viewer).run((ctx) => {
     const db = {
       ...ctx.db,
+      query: (table: TableNames) => {
+        expect(table).not.toBe("conversations");
+        return ctx.db.query(table);
+      },
       get: (id: Id<TableNames>) => {
         expect(id).not.toBe(conversation);
         return ctx.db.get(id);
@@ -171,6 +176,52 @@ test("decision queue and Line subscriptions follow card edits without reading st
   ).toEqual(renamedLine);
 });
 
+test("team decisions take labels from cards and retain their access checks", async () => {
+  const { t, team, owner, teammate, guest, conversation, patch } =
+    await setup();
+  const decision = await t.run(({ db }) =>
+    db.insert("session_decisions", {
+      conversation_id: conversation,
+      session_id: "session",
+      user_id: owner,
+      team_id: team,
+      question: "Ship?",
+      options: [{ label: "Ship" }, { label: "Hold" }],
+      blocking: true,
+      status: "pending",
+      created_at: 3,
+      session_title: "Title at ask time",
+      project_path: "/original",
+    }),
+  );
+  const args = { workspace: `team:${team}` };
+  const readAsOwner = () =>
+    readWithoutConversation(t, owner, conversation, listForTeam, args);
+  const read = (viewer: Id<"users">) =>
+    asUser(t, viewer).query(api.decisionTeamList.listForTeam, args);
+  const before = await readAsOwner();
+  expect(before).toEqual([
+    expect.objectContaining({
+      _id: decision,
+      session_title: "Current title",
+      project_path: "/current",
+    }),
+  ]);
+  await patch({
+    message_count: 1,
+    updated_at: 4,
+    last_message_role: "assistant",
+  });
+  expect(await readAsOwner()).toEqual(before);
+  expect(await read(teammate)).toEqual([]);
+  expect(await read(guest)).toEqual([]);
+  await patch({ is_private: false, team_visibility: "full", title: "Renamed" });
+  expect(await read(teammate)).toEqual([
+    expect.objectContaining({ _id: decision, session_title: "Renamed" }),
+  ]);
+  expect(await read(guest)).toEqual([]);
+});
+
 test("message status keeps sender and owner access without subscribing to their transcript", async () => {
   const {
     t,
@@ -222,7 +273,9 @@ test("message status keeps sender and owner access without subscribing to their 
   });
   expect(await status(owner)).toMatchObject(pending);
   await expect(status(outsider)).rejects.toThrow("Unauthorized");
-  await t.run(({ db }) => db.delete(conversation));
+  await patch({ title: "Before deletion" });
+  expect(await ownerRead()).toMatchObject(pending);
+  await t.run(({ db }) => makeSessionStartsDb(db, db).delete(conversation));
   await expect(status(owner)).rejects.toThrow("Unauthorized");
   expect(await status(teammate)).toMatchObject(pending);
 });
@@ -271,4 +324,8 @@ test("collaboration requests follow the runner without subscribing to the transc
     await db.delete(row._id);
   });
   expect(await requests(teammate)).toEqual(expected);
+  await patch({ title: "Before deletion" });
+  expect(await runnerRead(teammate)).toEqual(expected);
+  await t.run(({ db }) => makeSessionStartsDb(db, db).delete(conversation));
+  expect(await requests(teammate)).toEqual([]);
 });

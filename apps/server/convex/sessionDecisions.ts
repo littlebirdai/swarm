@@ -3922,21 +3922,14 @@ export async function withLiveSession<
     session_title?: string;
     project_path?: string;
   },
->(
-  ctx: Ctx,
-  rows: T[],
-  source: "card" | "conversation" = "conversation",
-): Promise<T[]> {
+>(ctx: Ctx, rows: T[]): Promise<T[]> {
   const seen = new Map<string, { title?: string; project_path?: string }>();
   const out: T[] = [];
   for (const r of rows) {
     const key = String(r.conversation_id);
     let live = seen.get(key);
     if (!live) {
-      const card =
-        source === "card"
-          ? (await sessionStartOf(ctx.db, r.conversation_id))?.card
-          : undefined;
+      const card = (await sessionStartOf(ctx.db, r.conversation_id))?.card;
       const conversation = card ?? (await ctx.db.get(r.conversation_id));
       live = {
         title: conversation?.title,
@@ -4027,7 +4020,7 @@ export async function listForUserCore(
   const rows = Array.from(out.values()).sort(
     (a, b) => Number(escalatedHere(b)) - Number(escalatedHere(a)),
   );
-  return withLiveSession(ctx, await currentDecisions(ctx, rows), "card");
+  return withLiveSession(ctx, await currentDecisions(ctx, rows));
 }
 
 export const listForUser = query({
@@ -4241,7 +4234,6 @@ export const listOpenForLines = query({
       const standing = await withLiveSession(
         ctx,
         await currentDecisions(ctx, rows),
-        "card",
       );
       out.push(
         ...(await decisionRowsForViewer(
