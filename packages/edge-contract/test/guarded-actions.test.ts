@@ -75,12 +75,22 @@ test("responses reject malformed guards", () => {
       "$.expected.prompt_id",
     ],
     [
-      { kind: "terminal", pane_instance: 0, fencing_token: "17" },
+      { kind: "terminal", pane_instance: 4, fencing_token: "17" },
+      "missing_field",
+      "$.expected.run",
+    ],
+    [
+      { kind: "terminal", run: null, pane_instance: 4, fencing_token: "17" },
+      "invalid_type",
+      "$.expected.run",
+    ],
+    [
+      { kind: "terminal", run: 3, pane_instance: 0, fencing_token: "17" },
       "invalid_value",
       "$.expected.pane_instance",
     ],
     [
-      { kind: "terminal", pane_instance: 1, fencing_token: 17 },
+      { kind: "terminal", run: 3, pane_instance: 1, fencing_token: 17 },
       "invalid_type",
       "$.expected.fencing_token",
     ],
@@ -152,12 +162,22 @@ test("stale requests require strict observations on the stale variant only", () 
     ],
     [{ kind: "prompt", run: 1 }, "missing_field", "$.observed.prompt_id"],
     [
-      { kind: "terminal", pane_instance: 0, fencing_token: null },
+      { kind: "terminal", pane_instance: null, fencing_token: null },
+      "missing_field",
+      "$.observed.run",
+    ],
+    [
+      { kind: "terminal", run: 0, pane_instance: null, fencing_token: null },
+      "invalid_value",
+      "$.observed.run",
+    ],
+    [
+      { kind: "terminal", run: 3, pane_instance: 0, fencing_token: null },
       "invalid_value",
       "$.observed.pane_instance",
     ],
     [
-      { kind: "terminal", pane_instance: 4, fencing_token: 17 },
+      { kind: "terminal", run: 3, pane_instance: 4, fencing_token: 17 },
       "invalid_type",
       "$.observed.fencing_token",
     ],
@@ -210,6 +230,7 @@ const turn = { kind: "turn", turn: "turn-1" } as const;
 const prompt = { kind: "prompt", run: 3, prompt_id: "prompt-1" } as const;
 const terminal = {
   kind: "terminal",
+  run: 3,
   pane_instance: 4,
   fencing_token: "17",
 } as const;
@@ -227,6 +248,11 @@ test.each([
   ["answer after a prompt closes", prompt, { ...prompt, prompt_id: null }],
   ["answer when there is no active run", prompt, { ...prompt, run: null }],
   ["input after a pane restarts", terminal, { ...terminal, pane_instance: 5 }],
+  [
+    "input to the same pane number in another run",
+    terminal,
+    { ...terminal, run: 4 },
+  ],
   [
     "input without an observed pane",
     terminal,

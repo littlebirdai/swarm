@@ -1,27 +1,13 @@
 import {
   array,
   boolean,
+  boundedText,
   EdgeParseError,
   nonEmptyString,
   object,
   optional,
-  string,
   type Reader,
 } from "./parse";
-
-function boundedText(maxLength: number, allowBlank = false): Reader<string> {
-  return (value, path) => {
-    const text = string(value, path);
-    if (text.length > maxLength || (!allowBlank && !text.trim())) {
-      throw new EdgeParseError(
-        "invalid_value",
-        path,
-        `expected ${allowBlank ? "text" : "non-blank text"} of at most ${maxLength} code units`,
-      );
-    }
-    return text;
-  };
-}
 
 function boundedPatterns(
   maxItems: number,

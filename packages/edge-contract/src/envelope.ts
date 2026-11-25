@@ -1,6 +1,7 @@
 import {
   array,
   boolean,
+  boundedText,
   count,
   json,
   nonEmptyString,
@@ -13,11 +14,14 @@ import {
   positiveInteger,
   string,
   tagged,
+  EdgeParseError,
+  type Reader,
 } from "./parse";
 import { readV1 } from "./version";
 import { claimScope } from "./claims";
-import { actor, blobFields } from "./inbox";
+import { actor, actorFields, blobFields } from "./inbox";
 import { readPromptOpened } from "./prompts";
+import { paneInstance } from "./expected";
 
 const blobReference = object(blobFields);
 const inlineOutput = object({ inline: json });
@@ -32,6 +36,23 @@ const eventScope = {
   at: count,
   source: oneOf("provider", "observed"),
 };
+
+const readSignal: Reader<string> = (value, path) => {
+  const signal = boundedText(32)(value, path);
+  if (!/^SIG[A-Z0-9]+(?:[+-][1-9][0-9]?)?$/.test(signal))
+    throw new EdgeParseError("invalid_value", path, "expected a signal name");
+  return signal;
+};
+
+const terminalOutcome = tagged("kind", {
+  exit: object({ kind: oneOf("exit"), code: count }),
+  signal: object({
+    kind: oneOf("signal"),
+    signal: readSignal,
+  }),
+  replaced: object({ kind: oneOf("replaced") }),
+  lost: object({ kind: oneOf("lost") }),
+});
 
 function event<K extends string, B>(
   kind: K,
@@ -83,6 +104,22 @@ export const readCanonicalEvent = tagged("kind", {
   "prompt.settled": event(
     "prompt.settled",
     object({ prompt_id: nonEmptyString, by: actor, answer: json }),
+  ),
+  "terminal.started": event(
+    "terminal.started",
+    object({
+      pane_instance: paneInstance,
+      actor: object({ ...actorFields, id: boundedText(256) }),
+      tool_call_id: optional(boundedText(256)),
+    }),
+  ),
+  "terminal.ended": event(
+    "terminal.ended",
+    object({
+      pane_instance: paneInstance,
+      started_run: positiveInteger,
+      outcome: terminalOutcome,
+    }),
   ),
   receipt: event("receipt", object({ delivery_id: nonEmptyString })),
   context: event("context", object({ data: json })),

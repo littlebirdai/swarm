@@ -15,8 +15,8 @@ The v1 requests and the meaning of its responses freeze on release. The server
 rejects unknown request fields, including nested fields in fixed wire objects.
 The daemon validates known response fields and ignores added fields, including
 policy settings. This lets the server add optional response fields and policy
-settings in v1. A changed request, a changed response field, or a new response
-variant requires v2.
+settings in v1. A new request field, a change to an existing field, or a new
+response variant requires v2.
 
 ## Backpressure and limits
 
@@ -43,16 +43,61 @@ result per group, in request order. A gap reports the next expected sequence
 number. A conflict reports the sequence number of a stored event with different
 content. A stale claim affects only its own group.
 
-The live transcript relay channel carries `message.delta`. The delta offset
-counts UTF-16 code units from the start of the message. Deltas use the same
-`message_id` as the final assistant event and do not consume a durable
-sequence number.
+The event envelope has 17 durable kinds. The live transcript relay channel
+carries `message.delta`. The delta offset counts UTF-16 code units from the
+start of the message. Deltas use the same `message_id` as the final assistant
+event and do not consume a durable sequence number.
 
 The server assigns the run epoch and grants a fencing token. The daemon sends
 the token with event groups, inbox writes, claim renewals and releases, and
 results for commands that carry a claim. The server checks the current claim
 and its expiry before it accepts a claimed write. The daemon reuses its
 `claim_id` when it retries the same acquisition request.
+
+### Terminal lifecycle
+
+`terminal.started` records the pane instance and its starter. The `actor` has
+an `id` and a `kind` of `person` or `agent`. Include `tool_call_id` if a tool call
+started the pane. Actor and tool call IDs are non-blank and have a limit of
+256 UTF-16 code units each. Use only IDs in these fields.
+Screen content, keystrokes, commands, and environment data stay outside these events.
+
+`terminal.ended` records only `pane_instance`, `started_run` and `outcome` in its body.
+`started_run` is the run of the start event.
+
+| Outcome                                     | Meaning                                                                                                              |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `{ "kind": "exit", "code": 0 }`             | The process exited. `code` is a non-negative safe integer.                                                           |
+| `{ "kind": "signal", "signal": "SIGTERM" }` | A signal ended the process. `signal` is the name that the machine's system gives, such as `SIGTERM` or `SIGRTMIN+1`. |
+| `{ "kind": "replaced" }`                    | A new pane replaced this pane.                                                                                       |
+| `{ "kind": "lost" }`                        | The daemon lost the pane and has no exit status.                                                                     |
+
+Each granted `claim` supplies `last_pane_instance`, the server's highest
+accepted pane number for the session, or zero if none. After each grant, the
+daemon seeds its next number with `max(local_reserved, last_pane_instance) + 1`.
+The daemon records each reservation in durable local storage for that session
+before it uses the number. If the local journal is absent, use zero for
+`local_reserved`. Stop if the last number is `Number.MAX_SAFE_INTEGER`.
+
+The server grants a typing lease only after it accepts the pane's start for
+the current run. If a different daemon never reported a local reservation,
+its pane could not have received a lease. A later run can reuse that
+unreported number. The run in each terminal guard distinguishes the two.
+
+If a pane survives a run change, the daemon reports `replaced` for the old
+instance and starts a new instance for the same pane under the new claim.
+The replacement ends the old typing lease. The envelope's `run` identifies
+the claim that reports the event. The server uses the session, `started_run` and the
+pane number to match an end to its start across claims.
+
+The server records an end even if the start is missing. The first end
+determines the outcome. A late start supplies metadata for the ended
+instance. A repeated start with the same run, turn, and body is
+idempotent. The server refuses a repeated start with different fields.
+
+Both kinds are part of v1 because v1 is still unreleased. After release, a
+new event kind requires a negotiated capability. The daemon sends it only
+when the server advertises support.
 
 ### Prompt details
 
@@ -118,17 +163,17 @@ does not advertise it.
 `permits.next` can include a turn guard. `commands.next` can include any
 of these guards.
 
-| Action             | `expected`                                                          |
-| ------------------ | ------------------------------------------------------------------- |
-| Steer or interrupt | `{ "kind": "turn", "turn": "turn-1" }`                              |
-| Prompt answer      | `{ "kind": "prompt", "prompt_id": "prompt-1", "run": 3 }`           |
-| Terminal input     | `{ "kind": "terminal", "pane_instance": 4, "fencing_token": "17" }` |
+| Action             | `expected`                                                                    |
+| ------------------ | ----------------------------------------------------------------------------- |
+| Steer or interrupt | `{ "kind": "turn", "turn": "turn-1" }`                                        |
+| Prompt answer      | `{ "kind": "prompt", "prompt_id": "prompt-1", "run": 3 }`                     |
+| Terminal input     | `{ "kind": "terminal", "run": 3, "pane_instance": 4, "fencing_token": "17" }` |
 
 A null `turn` names the state with no current turn. The pane instance is a
-positive safe integer that identifies one pane lifetime within a session.
-Use a new instance when the pane restarts. The terminal `fencing_token`
-is the typing lease token encoded as text. The daemon compares it for
-equality. The server alone orders the tokens.
+positive safe integer. Use a new instance when the pane restarts. The
+terminal `fencing_token` is the typing lease token encoded as text. The daemon
+compares the run, pane instance, and token for equality. The server alone
+orders the tokens.
 
 The server checks the guard when it starts the action. The daemon checks
 it again immediately before the effect. Both can use `matchesExpected`.
@@ -138,9 +183,9 @@ effect.
 The daemon reports a mismatch with `outcome: "stale"` and a required
 `observed` field in `delivery.settle` or `commands.result`. Use the same
 kind as the guard and report the current values. Use null for an absent
-turn, prompt ID, pane instance, or typing lease token. A prompt observation
-uses null for `run` when there is no active run. Only a stale outcome carries
-`observed`. A stale command result has no `output`.
+turn, prompt ID, pane instance, or typing lease token. Prompt and terminal
+observations use null for `run` when there is no active run. Only a stale
+outcome carries `observed`. A stale command result has no `output`.
 
 ### Resolving an in-doubt attempt
 
