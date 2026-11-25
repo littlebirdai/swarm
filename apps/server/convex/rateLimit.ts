@@ -1,7 +1,7 @@
 import { MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-const WINDOW_MS = 60 * 1000;
+export const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const WRITE_LIMIT = 500; // Temporarily increased for bulk import
 export const MESSAGE_LIMIT = 3000; // Temporarily increased for bulk import
 
@@ -36,10 +36,12 @@ export async function checkRateLimit(
   endpoint: string,
   limit: number = WRITE_LIMIT,
   count: number = 1,
-): Promise<void> {
+  grantDeadlineMs?: number,
+): Promise<{ issuedAtMs: number; sequence: number } | null> {
   const now = Date.now();
-  const windowStart = now - WINDOW_MS;
-  const shards = rateLimitShards(limit);
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const sequenced = grantDeadlineMs !== undefined;
+  const shards = sequenced ? 1 : rateLimitShards(limit);
   const shard = shards === 1 ? 0 : Math.floor(Math.random() * shards);
   const key = rateLimitShardKey(endpoint, shard);
   const shardLimit = Math.ceil(limit / shards);
@@ -51,34 +53,32 @@ export async function checkRateLimit(
     )
     .first();
 
-  if (!existing) {
-    await ctx.db.insert("rate_limits", {
-      user_id: userId,
-      endpoint: key,
-      window_start: now,
-      request_count: count,
-    });
-    return;
-  }
+  const issuedAtMs = Math.max(now, existing?.last_request_at ?? 0);
+  if (sequenced && issuedAtMs >= grantDeadlineMs) return null;
 
-  if (existing.window_start < windowStart) {
-    await ctx.db.patch(existing._id, {
-      window_start: now,
-      request_count: count,
-    });
-    return;
-  }
-
-  if (existing.request_count + count - 1 >= shardLimit) {
+  const activeWindow = existing && existing.window_start >= windowStart;
+  if (activeWindow && existing.request_count + count > shardLimit) {
     const secondsRemaining = Math.ceil(
-      (existing.window_start + WINDOW_MS - now) / 1000,
+      (existing.window_start + RATE_LIMIT_WINDOW_MS - now) / 1000,
     );
     throw new RateLimitError(
       `Rate limit exceeded. Please wait ${secondsRemaining} seconds before retrying.`,
     );
   }
 
-  await ctx.db.patch(existing._id, {
-    request_count: existing.request_count + count,
-  });
+  const requestCount = activeWindow ? existing.request_count + count : count;
+  const sequence = Math.max(now, (existing?.sequence ?? 0) + 1);
+  const fields = {
+    window_start: activeWindow ? existing.window_start : now,
+    request_count: requestCount,
+    ...(sequenced ? { last_request_at: issuedAtMs, sequence } : {}),
+  };
+  if (existing) await ctx.db.patch(existing._id, fields);
+  else
+    await ctx.db.insert("rate_limits", {
+      user_id: userId,
+      endpoint: key,
+      ...fields,
+    });
+  return { issuedAtMs, sequence };
 }

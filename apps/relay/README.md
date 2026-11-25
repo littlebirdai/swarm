@@ -16,6 +16,24 @@ To rotate the signing key, set `RELAY_HMAC_PREVIOUS_KEY` to the old key and
 Switch the issuer to the new key after every relay accepts it. Remove the
 previous key after the last token signed with it expires.
 
+The Convex mutation `relayGrants.mint` issues session grants when its
+`RELAY_AUDIENCE` and current `RELAY_HMAC_KEY` match the relay. It takes up to
+16 conversation hubs per call. Relay access requires ownership or full team
+access, even after a reader redeems a share link.
+
+Each valid signed-in request spends one slot of the caller's 120-per-minute
+budget before the kernel checks the hubs. Grants last up to 60 seconds and
+end sooner when a known login deadline comes first. If the kernel clock
+moves back 60 seconds, the request returns `unavailable` without spending
+a slot while the last issue time reaches or exceeds the new deadline.
+The kernel can mint again as soon as a positive lifetime is possible.
+The relay checks that deadline against its own clock.
+
+Leaving a team, changing a conversation to private or summary-only, and
+deleting a conversation can block fresh grants. An issued grant remains
+valid until its own expiry. Each connection refreshes and expires its
+grants independently.
+
 | Environment variable                |     Default |
 | ----------------------------------- | ----------: |
 | `RELAY_HOST`                        | `127.0.0.1` |

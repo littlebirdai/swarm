@@ -569,6 +569,10 @@ jobs:
         working-directory: apps/relay
         run: bun test
 
+      - name: Kernel relay grant integration
+        working-directory: tests/relay-grants
+        run: bun run test
+
   # The mobile app's guard tests are what stand between an OTA update and a
   # binary that cannot run it: nativeDeps.guard (no static import of a native
   # package outside the frozen baseline), bundleGraph.guard (no unresolvable

@@ -558,6 +558,11 @@ fi
         "run": "bun test",
         "working-directory": "apps/relay",
       },
+      {
+        "name": "Kernel relay grant integration",
+        "run": "bun run test",
+        "working-directory": "tests/relay-grants",
+      },
     ],
   },
   "test-web": {
