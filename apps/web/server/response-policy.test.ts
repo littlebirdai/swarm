@@ -5,7 +5,7 @@ import {
   createResponsePolicy,
   cspReportEndpoint,
   responsePolicy,
-} from "./responsePolicy";
+} from "./response-policy";
 
 const DSN = "https://publickey@o123.ingest.us.sentry.io/456";
 
@@ -138,6 +138,38 @@ test("the draft policy names every source the app loads from", () => {
     "frame-ancestors 'self' https://local.codecast.sh",
   );
   expect(DOCUMENT_POLICY).not.toContain("'unsafe-eval'");
+});
+
+test("the document CSP adds only the origin of an enabled, valid relay URL", async () => {
+  const flag = process.env.VITE_RELAY_PRESENCE;
+  const url = process.env.VITE_RELAY_URL;
+  const policy = async () =>
+    (await htmlApp(createResponsePolicy()).request("/")).headers.get(
+      "Content-Security-Policy-Report-Only",
+    );
+  try {
+    process.env.VITE_RELAY_PRESENCE = "1";
+    delete process.env.VITE_RELAY_URL;
+    const baseline = await policy();
+    expect(baseline).toBe(DOCUMENT_POLICY);
+    process.env.VITE_RELAY_URL = "wss://relay.test:8443/socket";
+    const configured = await policy();
+    const connect = configured
+      ?.split("; ")
+      .find((d) => d.startsWith("connect-src "));
+    expect(connect?.split(" ")).toContain("wss://relay.test:8443");
+    expect(configured).not.toContain("/socket");
+    process.env.VITE_RELAY_URL = "wss://relay.test/socket?token=secret";
+    expect(await policy()).toBe(baseline);
+    process.env.VITE_RELAY_URL = "wss://relay.test/socket";
+    delete process.env.VITE_RELAY_PRESENCE;
+    expect(await policy()).toBe(baseline);
+  } finally {
+    if (flag === undefined) delete process.env.VITE_RELAY_PRESENCE;
+    else process.env.VITE_RELAY_PRESENCE = flag;
+    if (url === undefined) delete process.env.VITE_RELAY_URL;
+    else process.env.VITE_RELAY_URL = url;
+  }
 });
 
 test("a guest meeting link and a call's public page tell search engines not to list them; other pages are untouched", async () => {

@@ -1258,7 +1258,7 @@
     "scripts/rig/imagediff.test.ts": 250,
     "server/frameCheck.test.ts": 251,
     "server/mcpForward.test.ts": 254,
-    "server/responsePolicy.test.ts": 259,
+    "server/response-policy.test.ts": 259,
     "server/shareMeta.test.ts": 253,
     "server/sharedExports.guard.test.ts": 404,
     "server/staticAssets.test.ts": 261,

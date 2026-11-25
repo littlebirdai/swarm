@@ -27,6 +27,7 @@ import { CodecastAuthRoot } from "@/lib/authRoot";
 import { CONVEX_URL } from "@/lib/localAuth";
 import { DOCS_SHOTS, docsShotsConvex } from "@/lib/docsShots/flag";
 import { AgentTabOverride } from "@/lib/agentTabGuard";
+import { RelayPresenceProvider } from "@/components/relay-presence-provider";
 
 import { useWatchEffect } from "../hooks/useWatchEffect";
 // The person's own key bindings (client_state.ui.key_bindings) into the live
@@ -174,7 +175,7 @@ export function Providers({ children }: { children: ReactNode }) {
             {/* Docs shots capture what a person sees from an agent's tab, on an
             origin holding only the fixture world; elsewhere no override. */}
             <AgentTabOverride.Provider value={DOCS_SHOTS ? false : undefined}>
-              {children}
+              <RelayPresenceProvider>{children}</RelayPresenceProvider>
             </AgentTabOverride.Provider>
             <ErrorBoundary name="DesktopProvider" level="inline">
               <DesktopProvider />

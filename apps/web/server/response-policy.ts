@@ -1,5 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { CONVEX_URL } from "./convexUrl";
+import { relayPresenceUrl } from "../lib/relay-presence-config";
 
 const CONVEX = new URL(CONVEX_URL);
 const CONVEX_HTTP = CONVEX.origin;
@@ -17,21 +18,26 @@ const AVATARS =
 // enforcing it would break. Nothing here blocks anything in a browser; moving
 // to the enforcing header is a separate decision made from those reports.
 // Every source and why it is needed: plans/security-csp-draft.md.
-export const DOCUMENT_POLICY = [
-  "default-src 'self'",
-  `script-src 'self' ${POSTHOG} ${GOOGLE_ADS}`,
-  `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-  "font-src 'self' data: https://fonts.gstatic.com",
-  "img-src 'self' data: blob: https:",
-  `media-src 'self' blob: ${CONVEX_HTTP} https://media.codecast.sh ${LOOPBACK}`,
-  `connect-src 'self' ${CONVEX_HTTP} ${CONVEX_WS} ${POSTHOG} https://*.ingest.us.sentry.io ${LOOPBACK} ${LOOPBACK_WS} wss://api.openai.com https://*.livekit.cloud wss://*.livekit.cloud ${AVATARS} ${GOOGLE_ADS}`,
-  `frame-src 'self' https: ${LOOPBACK}`,
-  "worker-src 'self'",
-  `object-src ${CONVEX_HTTP}`,
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'self' https://local.codecast.sh",
-].join("; ");
+function documentPolicy(relayOrigin?: string): string {
+  const relay = relayOrigin ? ` ${relayOrigin}` : "";
+  return [
+    "default-src 'self'",
+    `script-src 'self' ${POSTHOG} ${GOOGLE_ADS}`,
+    `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https:",
+    `media-src 'self' blob: ${CONVEX_HTTP} https://media.codecast.sh ${LOOPBACK}`,
+    `connect-src 'self' ${CONVEX_HTTP} ${CONVEX_WS}${relay} ${POSTHOG} https://*.ingest.us.sentry.io ${LOOPBACK} ${LOOPBACK_WS} wss://api.openai.com https://*.livekit.cloud wss://*.livekit.cloud ${AVATARS} ${GOOGLE_ADS}`,
+    `frame-src 'self' https: ${LOOPBACK}`,
+    "worker-src 'self'",
+    `object-src ${CONVEX_HTTP}`,
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self' https://local.codecast.sh",
+  ].join("; ");
+}
+
+export const DOCUMENT_POLICY = documentPolicy();
 
 // max-age only: no includeSubDomains (other hosts under codecast.sh are not
 // ours to pin) and no preload. One day while the first reports come in; the
@@ -109,6 +115,11 @@ export function createResponsePolicy(
     now = Date.now,
   } = options;
   const endpoint = cspReportEndpoint(options.sentryDsn, options);
+  const relay = relayPresenceUrl(
+    process.env.VITE_RELAY_PRESENCE,
+    process.env.VITE_RELAY_URL,
+  );
+  const policy = relay ? documentPolicy(relay.origin) : DOCUMENT_POLICY;
   let windowStart = -Infinity;
   let reportedInWindow = 0;
 
@@ -153,10 +164,10 @@ export function createResponsePolicy(
       c.header("Reporting-Endpoints", `csp="${endpoint}"`);
       c.header(
         "Content-Security-Policy-Report-Only",
-        `${DOCUMENT_POLICY}; report-uri ${endpoint}; report-to csp`,
+        `${policy}; report-uri ${endpoint}; report-to csp`,
       );
     } else {
-      c.header("Content-Security-Policy-Report-Only", DOCUMENT_POLICY);
+      c.header("Content-Security-Policy-Report-Only", policy);
     }
   };
 }
