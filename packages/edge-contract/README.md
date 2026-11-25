@@ -103,6 +103,23 @@ The holder uses its active token to record runtime disposition. An exact
 replay returns the stored result without writing. After disposition, recovery
 requests omit the old token.
 
+When a device's registered replacement boot adopts its current ready binding,
+the server updates the binding and its active delivery in one transaction.
+
+| Active delivery state | Result of boot transfer                                                                                                                  |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `claimed`             | The server releases the attempt before effect and queues the same delivery ID at the same sequence. A new claim issues a new attempt ID. |
+| `delivery-started`    | The attempt becomes ambiguous and keeps its queue slot. The server transfers resolution authority to the replacement boot.               |
+| `ambiguous`           | The attempt keeps its queue slot and failure details. The server transfers resolution authority to the replacement boot.                 |
+
+The server rejects late writes that use the old boot's delivery fence. There is
+one exception: a release or a failure before effect of an attempt that the
+transfer already released answers as a replay and writes nothing.
+Resolution requires evidence. A leased binding requires a new active token
+for delivery writes after adoption. A binding without a claim accepts delivery
+writes without a token. The next boot transfer also repairs a slot that still
+names a boot from an earlier transfer.
+
 ### Terminal lifecycle
 
 `terminal.started` records the pane instance and its starter. The `actor` has
