@@ -26,6 +26,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { atomicWriteFile } from "../atomicWrite.js";
 import { getMachineKey, hardwareId } from "../machineKey.js";
 import { defaultConfigDir } from "../config/configDir.js";
 
@@ -154,10 +155,9 @@ function readDeviceBinding(): DeviceBinding | null {
 
 function writeDeviceBinding(binding: DeviceBinding): void {
   try {
-    fs.writeFileSync(DEVICE_BINDING_FILE, JSON.stringify(binding), {
+    atomicWriteFile(DEVICE_BINDING_FILE, JSON.stringify(binding), {
       mode: 0o600,
     });
-    fs.chmodSync(DEVICE_BINDING_FILE, 0o600); // mode option only applies at creation
   } catch {} // identity must never throw; worst case we re-adopt next start
 }
 
