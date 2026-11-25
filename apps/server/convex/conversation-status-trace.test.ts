@@ -24,8 +24,11 @@ const baseline = {
   childStashed: false,
   closed: false,
   commands: [],
+  dismissed: false,
   killed: false,
   originalStatus: null,
+  ownerDeviceId: null,
+  stashHidden: null,
   stashed: false,
   status: "active",
 };
@@ -38,11 +41,16 @@ const legacy = {
   },
   "hide kill": {
     counts: [35, 16, 42],
-    state: { commands: ["kill_session"], killed: true, status: "completed" },
+    state: {
+      commands: ["kill_session"],
+      dismissed: true,
+      killed: true,
+      status: "completed",
+    },
   },
   close: {
     counts: [17, 9, 25],
-    state: { closed: true, commands: ["kill_session"] },
+    state: { closed: true, dismissed: true, commands: ["kill_session"] },
   },
   stash: { counts: [16, 9, 21], state: { stashed: true, childStashed: true } },
   restore: { counts: [8, 5, 12], state: { status: "completed" } },
@@ -52,7 +60,12 @@ const legacy = {
   },
   retire: {
     counts: [35, 16, 49],
-    state: { commands: ["kill_session"], killed: true, status: "completed" },
+    state: {
+      commands: ["kill_session"],
+      dismissed: true,
+      killed: true,
+      status: "completed",
+    },
   },
   "blocked pin": { counts: [16, 8, 17] },
   restart: {
@@ -74,9 +87,18 @@ const legacy = {
       originalStatus: "active",
     },
   },
-  move: { counts: [10, 7, 13], state: { commands: ["resume_session"] } },
-  reassign: { counts: [11, 7, 13], state: { commands: ["resume_session"] } },
-  reparent: { counts: [16, 10, 20], state: { commands: ["resume_session"] } },
+  move: {
+    counts: [10, 7, 13],
+    state: { commands: ["resume_session"], ownerDeviceId: "target" },
+  },
+  reassign: {
+    counts: [11, 7, 13],
+    state: { commands: ["resume_session"], ownerDeviceId: "target" },
+  },
+  reparent: {
+    counts: [16, 10, 20],
+    state: { commands: ["resume_session"], ownerDeviceId: "target" },
+  },
   "quick start": {
     counts: [12, 10, 15],
     state: { commands: ["start_session"], originalStatus: "active" },
@@ -131,7 +153,10 @@ async function observe(scenario: Scenario) {
             inbox_stashed_at: at,
           }
         : {}),
-      ...(scenario === "blocked pin" ? { inbox_stashed_at: at } : {}),
+      ...(scenario === "blocked pin"
+        ? { inbox_stashed_at: at, inbox_dismissed_at: at }
+        : {}),
+      ...(scenario === "stash" ? { inbox_stash_hidden: true } : {}),
       ...(["move", "reassign", "reparent"].includes(scenario)
         ? {
             status: "completed" as const,
@@ -305,6 +330,9 @@ async function observe(scenario: Scenario) {
       status: row.status,
       killed: !!row.inbox_killed_at,
       closed: !!row.inbox_closed_at,
+      dismissed: !!row.inbox_dismissed_at,
+      ownerDeviceId: row.owner_device_id ?? null,
+      stashHidden: row.inbox_stash_hidden ?? null,
       stashed: !!row.inbox_stashed_at,
       childStashed: child ? !!(await db.get(child))?.inbox_stashed_at : false,
       commands: (await db.query("daemon_commands").collect()).map(
