@@ -1,5 +1,6 @@
 import { PayloadBudget } from "./payloadBudget.js";
 import { expect, test } from "bun:test";
+import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
   ByteReceiver,
@@ -12,12 +13,11 @@ import { PayloadValueAssembler, payloadValuePages } from "./payloadValues.js";
 import { transformImageCache } from "../imageCacheCodec.js";
 import { decodeImageBase64, detectImageMediaType } from "../imagePayload.js";
 import { PayloadCodecCursors } from "./payloadCodecCursors.js";
-import { runPayloadCodec, payloadStringBytes } from "./payloadCodecClient.js";
 import {
   validPayloadCodecPage,
   validPayloadCodecPayload,
+  type PayloadCodecJob,
 } from "./payloadCodecTypes.js";
-import type { WorkerHost } from "./host.js";
 
 test("payload budget never renews across pages or backwards clocks", () => {
   let mono = 10;
@@ -142,61 +142,105 @@ test("cache codec retains map shape, pruning, deleted-path lookup and malformed 
   expect(pruned.byHash.new.at).toBe(501);
 });
 
-test("actual codec client/cursor drains bounded pages and releases failure admission", async () => {
+test("codec cursor drains bounded pages and releases failed jobs", async () => {
   const cursors = new PayloadCodecCursors();
-  let id = 0;
-  const host = {
-    state: { pid: 1, generation: 1, closed: false },
-    request: async (operation: string, payload: any) => {
-      expect(operation).toBe("payloadCodec");
-      expect(validPayloadCodecPayload(payload)).toBe(true);
-      const page = await cursors.request(payload, "codec-" + ++id);
-      expect(validPayloadCodecPage(page)).toBe(true);
-      return page;
-    },
-  } as unknown as WorkerHost;
+  const generation = "codec-generation";
+  const cursor = "codec-cursor";
+  let sequence = 0;
+  const send = async (command: Record<string, unknown>) => {
+    const payload =
+      command.action === "open"
+        ? { ...command, generation }
+        : { ...command, cursor, generation, sequence };
+    assert(validPayloadCodecPayload(payload), "invalid codec test payload");
+    const expectedSequence = sequence++;
+    const page = await cursors.request(payload, cursor);
+    expect(validPayloadCodecPage(page)).toBe(true);
+    expect(page).toMatchObject({
+      cursor,
+      generation,
+      sequence: expectedSequence,
+    });
+    return page;
+  };
+  const open = async (job: PayloadCodecJob, input: Buffer) => {
+    sequence = 0;
+    await send({ action: "open", job, budgetMs: 5000 });
+    for (let offset = 0; offset < input.length; offset += PAYLOAD_PAGE_BYTES)
+      await send({ action: "push", page: bytePage(input, offset) });
+  };
+  const readValue = async (input: Buffer) => {
+    await send({ action: "seal", descriptor: describeBytes(input) });
+    const assembler = new PayloadValueAssembler();
+    for (;;) {
+      const page = await send({ action: "next" });
+      expect(page.stage).toBe("values");
+      if (page.stage !== "values") throw new Error("missing codec value");
+      assembler.push(page.tokens);
+      if (page.done) break;
+    }
+    await send({ action: "close" });
+    expect(cursors.size).toBe(0);
+    return assembler.finish();
+  };
   const data = Buffer.from("89504e470d0a1a0a", "hex");
-  const result = await runPayloadCodec(
+  const encodedImage = Buffer.from(data.toString("base64"));
+  await open(
     { kind: "image", encoding: "base64", output: "facts" },
-    payloadStringBytes(data.toString("base64")),
-    { host, budget: new PayloadBudget(5000) },
+    encodedImage,
   );
-  expect(result.value).toEqual({
-    mediaType: "image/png",
-    length: 8,
-    hash: createHash("sha256").update(data).digest("hex"),
-  });
-  expect(cursors.size).toBe(0);
-  await expect(
-    runPayloadCodec(
-      {
-        kind: "cache",
-        operation: {
-          action: "store",
-          hash: "h",
-          storageId: "s",
-          url: "u",
-          at: 1,
-        },
+  try {
+    expect(await readValue(encodedImage)).toEqual({
+      mediaType: "image/png",
+      length: 8,
+      hash: createHash("sha256").update(data).digest("hex"),
+    });
+
+    const emptyCache = Buffer.from("{}");
+    const store: PayloadCodecJob = {
+      kind: "cache",
+      operation: {
+        action: "store",
+        hash: "h",
+        storageId: "s",
+        url: "u",
+        at: 1,
       },
-      payloadStringBytes("{}"),
-      {
-        host,
-        budget: new PayloadBudget(5000),
-        write: async () => {
-          throw new Error("owned sink failure");
-        },
-      },
-    ),
-  ).rejects.toThrow("owned sink failure");
-  expect(cursors.size).toBe(0);
-  expect(
-    (
-      await runPayloadCodec(
-        { kind: "cache", operation: { action: "hash", key: "none" } },
-        payloadStringBytes("{}"),
-        { host, budget: new PayloadBudget(5000) },
-      )
-    ).value,
-  ).toBeNull();
+    };
+    await open(store, emptyCache);
+    const output = await send({
+      action: "seal",
+      descriptor: describeBytes(emptyCache),
+    });
+    assert(output.stage === "descriptor", "missing cache descriptor");
+    const bytes = await send({ action: "next" });
+    assert(bytes.stage === "bytes", "missing cache bytes");
+    const receiver = new ByteReceiver(output.descriptor);
+    const storedCache = receiver.push(bytes.page);
+    expect(bytes.done).toBe(true);
+    expect(receiver.finish()).toEqual(output.descriptor);
+    expect(
+      transformImageCache(storedCache, { action: "hash", key: "h" }),
+    ).toEqual({
+      storageId: "s",
+      url: "u",
+      at: 1,
+    });
+    await send({ action: "close" });
+    expect(cursors.size).toBe(0);
+
+    await open(store, emptyCache);
+    await expect(
+      send({ action: "seal", descriptor: describeBytes(Buffer.from("[]")) }),
+    ).rejects.toThrow("digest");
+    expect(cursors.size).toBe(0);
+
+    await open(
+      { kind: "cache", operation: { action: "hash", key: "none" } },
+      emptyCache,
+    );
+    expect(await readValue(emptyCache)).toBeNull();
+  } finally {
+    if (cursors.size) await send({ action: "close" });
+  }
 });
