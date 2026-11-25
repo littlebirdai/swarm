@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterAll, afterEach, expect, test } from "bun:test";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
 import { act } from "react";
@@ -7,6 +7,7 @@ import { parseTabLocation, TabParamsCtx } from "../../lib/tabParams";
 import { webBuilders } from "../../test-helpers/builders";
 import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
 import { mountWeb } from "../../test-helpers/mountWeb";
+import { standInForOrgGraph } from "../../test-helpers/orgGraphStandIn";
 import { pending } from "../../test-helpers/testConvex";
 import { OrgChart } from "./OrgChart";
 import { ORG_FIXTURE_WITH_HEAD } from "./orgFixture";
@@ -30,9 +31,12 @@ const tree = {
 const proposalPath = "/org?proposal=op-7";
 const draft = "Thanks, one question before I approve";
 
+let graph: ReturnType<typeof standInForOrgGraph> | undefined;
 afterEach(_resetTrailForTests);
+afterAll(() => graph?.restore());
 
 function mount(path: string, opts: { tab?: boolean; trail?: boolean } = {}) {
+  graph ??= standInForOrgGraph();
   const page = <OrgChart />;
   return mountWeb(
     opts.tab ? (
