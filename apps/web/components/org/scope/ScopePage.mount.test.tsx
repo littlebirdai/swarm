@@ -1,10 +1,11 @@
+import { expectAbsent } from "../../../test-helpers/domExpect";
+import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { api } from "@codecast/convex/convex/_generated/api";
-import type { ScopeSummary } from "@codecast/convex/convex/org";
+import type { BriefHand, ScopeSummary } from "@codecast/convex/convex/org";
 import { afterAll, afterEach, mock, spyOn, test } from "bun:test";
 import assert from "node:assert/strict";
 import * as React from "react";
 import { act } from "react";
-import { useLocation } from "react-router";
 import type { DispatchCallArgs } from "../../../lib/dispatchBinding";
 import {
   useInboxStore,
@@ -14,10 +15,12 @@ import {
   type TaskItem,
 } from "../../../store/inboxStore";
 import { webBuilders } from "../../../test-helpers/builders";
+import { ConversationLayoutStandIn } from "../../../test-helpers/ConversationLayoutStandIn";
 import { mountWeb } from "../../../test-helpers/mountWeb";
+import { pending } from "../../../test-helpers/testConvex";
 import { waitForDom } from "../../../test-helpers/waitForDom";
 import { ORG_FIXTURE } from "../orgFixture";
-import type { OrgSession, OrgTree } from "../orgTypes";
+import type { OrgRole, OrgSession, OrgTree } from "../orgTypes";
 
 const fixtures = webBuilders("ScopePage.mount.test.tsx");
 const TEAM = "s".repeat(32);
@@ -56,6 +59,19 @@ function world() {
   const seed = (store: ReturnType<typeof useInboxStore.getState>) => {
     const stamp = { workspace: "team:" + TEAM, team_id: TEAM };
     store.syncTable("currentUser", state.currentUser);
+    const standingIds = [
+      ...env.tree.roles.map((role) => role.standing?.conversation_id),
+      ...env.tree.anchors.map((anchor) => anchor.conversation_id),
+    ];
+    for (const id of standingIds) {
+      if (!id) continue;
+      store.syncRecord("conversations", id, {
+        _id: id,
+        is_own: false,
+        updated_at: T0,
+      });
+      store.setMessages(id, [fixtures.message.build()]);
+    }
     store.syncTable("clientState", { ui: { active_team_id: TEAM } });
     store.syncTable("teams", [{ _id: TEAM, name: "Codecast" }]);
     store.syncTable("orgTree", {
@@ -81,23 +97,13 @@ function world() {
       collections.tasks.map((row) => fixtures.task.build({ ...row, ...stamp })),
     );
   };
-  function View({ children }: { children: React.ReactNode }) {
-    const location = useLocation();
-    return (
-      <>
-        <output hidden data-scope-location>
-          {location.pathname + location.search}
-        </output>
-        {children}
-      </>
-    );
-  }
   const mountNode = async (node: React.ReactNode, path = "/org/or-1") => {
     await web?.close();
-    web = await mountWeb(<View>{node}</View>, {
+    web = await mountWeb(node, {
       path,
       dispatch: true,
       setup: (backend, store) => {
+        backend.mutation(api.dispatch.dispatch, null);
         const query = window.matchMedia;
         window.matchMedia = (media) => ({
           ...query(media),
@@ -114,30 +120,36 @@ function world() {
         };
         seed(store);
         useInboxStore.setState({ clientStateInitialized: true });
-        backend.set(api.org.tree, undefined);
-        backend.set(api.org.roles, undefined);
+        backend.set(api.conversations.getConversation, pending);
+        backend.set(api.conversations.getConversationWithMeta, pending);
+        backend.set(api.conversations.getTranscriptWatermark, pending);
+        backend.set(api.conversations.getUserMessages, pending);
+        backend.set(api.conversations.listMessagesTail, pending);
+        backend.set(api.conversations.getAllMessages, pending);
+        backend.set(api.org.tree, pending);
+        backend.set(api.org.roles, pending);
         backend.set(api.org.scopeSummary, env.summary);
         backend.set(api.org.scopeFeed, { rows: [] });
-        backend.set(api.workflow_runs.listRuns, undefined);
-        backend.set(api.artifacts.listForWeb, undefined);
-        backend.set(api.org.brief, undefined);
-        backend.set(api.anchors.getAnchorSpace, undefined);
-        backend.set(api.users.getRecentProjectPaths, undefined);
-        backend.set(api.conversations.webGet, undefined);
+        backend.set(api.workflow_runs.listRuns, pending);
+        backend.set(api.artifacts.listForWeb, pending);
+        backend.set(api.org.brief, pending);
+        backend.set(api.anchors.getAnchorSpace, pending);
+        backend.set(api.users.getRecentProjectPaths, pending);
+        backend.set(api.conversations.webGet, pending);
 
-        backend.set(api.orgTemplates.instanceForRole, undefined);
-        backend.set(api.org.sessionsUnder, undefined);
-        backend.set(api.projects.webList, undefined);
-        backend.set(api.plans.webList, undefined);
-        backend.set(api.tasks.webList, undefined);
-        backend.set(api.tasks.webActiveSessions, undefined);
-        backend.set(api.devices.listDevices, undefined);
+        backend.set(api.orgTemplates.instanceForRole, pending);
+        backend.set(api.org.sessionsUnder, pending);
+        backend.set(api.projects.webList, pending);
+        backend.set(api.plans.webList, pending);
+        backend.set(api.tasks.webList, pending);
+        backend.set(api.tasks.webActiveSessions, pending);
+        backend.set(api.devices.listDevices, pending);
         backend.set(api.tasks.webListPaginated, {
           page: [],
           continueCursor: "",
           isDone: true,
         });
-        backend.set(api.docs.webList, undefined);
+        backend.set(api.docs.webList, pending);
         backend.set(api.docs.webListPaginated, {
           page: [],
           isDone: true,
@@ -146,10 +158,9 @@ function world() {
       },
     });
   };
-  const renderNode = (node: React.ReactNode) =>
-    web.rerender(<View>{node}</View>);
-  const location = () =>
-    document.querySelector("[data-scope-location]")?.textContent;
+  const renderNode = (node: React.ReactNode) => web.rerender(node);
+  const lastNavigation = () => web.navigationLog.at(-1);
+  const location = () => lastNavigation()?.path;
   const writes = () =>
     web.backend.mutations.flatMap(({ name, args }) => {
       if (name !== "dispatch:dispatch") return [];
@@ -179,32 +190,19 @@ function world() {
     mountNode,
     renderNode,
     location,
+    lastNavigation,
     writes,
     toast,
     openCalls,
   };
 }
 
-const realInbox = { ...(await import("../../../app/inbox/QueuePageClient")) };
-mock.module("../../../app/inbox/QueuePageClient", () => ({
-  ...realInbox,
-  InboxConversation: ({ sessionId, seat, autoFocusInput }: any) =>
-    React.createElement(
-      "div",
-      {
-        "data-thread": sessionId,
-        "data-thread-autofocus": autoFocusInput ? "1" : "0",
-        "data-thread-owner": seat.seedOwnership ? "1" : "0",
-        "data-thread-fold-working": seat.layout.foldWorkingTurns ? "1" : "0",
-        "data-thread-density": seat.layout.initialDensity ?? "",
-      },
-      seat.layout.leadNode,
-      React.createElement("textarea", { "data-composer": true }),
-    ),
+const realLayout = { ...(await import("../../ConversationDiffLayout")) };
+mock.module("../../ConversationDiffLayout", () => ({
+  ...realLayout,
+  ConversationDiffLayout: ConversationLayoutStandIn,
 }));
-afterAll(() =>
-  mock.module("../../../app/inbox/QueuePageClient", () => realInbox),
-);
+afterAll(() => mock.module("../../ConversationDiffLayout", () => realLayout));
 
 async function rolePage() {
   const {
@@ -214,6 +212,7 @@ async function rolePage() {
     mountNode,
     renderNode,
     location,
+    lastNavigation,
     writes,
     toast,
     openCalls,
@@ -268,6 +267,7 @@ async function rolePage() {
     mountNode,
     renderNode,
     location,
+    lastNavigation,
     writes,
     toast,
     openCalls,
@@ -282,46 +282,52 @@ async function rolePage() {
 }
 
 test("the desktop role page opens on its conversation and shows Overview on demand", async () => {
-  const { state, location, writes, mount, q, qa, click, growth } =
-    await rolePage();
+  const {
+    state,
+    location,
+    lastNavigation,
+    writes,
+    mount,
+    q,
+    qa,
+    click,
+    growth,
+  } = await rolePage();
   await mount("or-1");
   assert.equal(
     q("[data-scope-layout]")!.getAttribute("data-scope-layout"),
     "side",
   );
   assert.equal(
-    q("[data-thread]")!.getAttribute("data-thread"),
+    q("[data-layout]")!.getAttribute("data-layout"),
     "fixture-growth-conv",
     "the role's standing conversation is mounted inline",
   );
   assert.equal(
-    q("[data-thread]")!.getAttribute("data-thread-owner"),
+    q("[data-layout]")!.getAttribute("data-owner"),
     "1",
     "the host talks to the seat: the composer sends",
   );
   assert.equal(
-    q("[data-thread]")!.getAttribute("data-thread-fold-working"),
+    q("[data-layout]")!.getAttribute("data-fold-working"),
     "1",
     "machine prompts fold away (F4.1)",
   );
   assert.equal(
-    q("[data-thread]")!.getAttribute("data-thread-density"),
+    q("[data-layout]")!.getAttribute("data-density"),
     "condensed",
     "tools fold to receipts",
   );
-  assert.equal(
+  expectAbsent(
     q("[data-scope-lead]"),
-    null,
     "the role's head says what it carries, so its thread opens on the thread itself",
   );
-  assert.equal(
+  expectAbsent(
     q("[data-scope-stripe]"),
-    null,
     "a seated role's state line is pinned above its composer, so the header leaves it out",
   );
-  assert.equal(
+  expectAbsent(
     q("[data-scope-lead-ask]"),
-    null,
     "the lead never counts sessions waiting on a person: those wait on the role, which raises what it cannot answer in its own thread",
   );
   for (const word of ["trust", "model", "today", "wakes", "tokens", "host"])
@@ -334,7 +340,7 @@ test("the desktop role page opens on its conversation and shows Overview on dema
       `the header no longer says ${word}`,
     );
   assert.equal(
-    q("[data-thread]")!.getAttribute("data-thread-autofocus"),
+    q("[data-layout]")!.getAttribute("data-focus-input"),
     "1",
     "the composer comes to hand on a desktop",
   );
@@ -368,14 +374,12 @@ test("the desktop role page opens on its conversation and shows Overview on dema
     /Owns organic search/,
     "with nothing led or owned, the charter stays in the brief, not on the header row",
   );
-  assert.equal(
+  expectAbsent(
     q("[data-scope-state]"),
-    null,
     "one state on the head, not a chip beside it",
   );
-  assert.equal(
+  expectAbsent(
     q("[data-scope-aside]"),
-    null,
     "the page opens on the conversation, the panel collapsed",
   );
   await click(headFacts);
@@ -432,9 +436,8 @@ test("the desktop role page opens on its conversation and shows Overview on dema
     q('[data-scope-section="lately"]'),
     "the activity is the Overview's last block, not a tab",
   );
-  assert.equal(
+  expectAbsent(
     q('[data-role-scope="page"]'),
-    null,
     "the project cards, the session groups and the counts left the first screen",
   );
   assert.equal(
@@ -442,19 +445,18 @@ test("the desktop role page opens on its conversation and shows Overview on dema
     0,
     "and the tab strip carries no number",
   );
-  assert.equal(
+  expectAbsent(
     q("[data-scope-panel-dot]"),
-    null,
     "the toggle carries no dot: what the role needs from the person is in its own thread",
   );
   // Close and reopen from the header.
   await click(q("[data-scope-panel-toggle]"));
-  assert.equal(q("[data-scope-aside]"), null, "closed");
+  expectAbsent(q("[data-scope-aside]"), "closed");
   assert.equal(
     q("[data-scope-panel-toggle]")!.getAttribute("data-scope-panel-toggle"),
     "closed",
   );
-  assert.ok(q("[data-thread]"), "the conversation stays");
+  assert.ok(q("[data-layout]"), "the conversation stays");
   await click(q("[data-scope-panel-toggle]"));
   assert.equal(
     q("[data-scope-aside]")!.getAttribute("data-scope-aside"),
@@ -462,11 +464,14 @@ test("the desktop role page opens on its conversation and shows Overview on dema
   );
   // The panel's own close.
   await click(q("[data-scope-panel-close]"));
-  assert.equal(q("[data-scope-aside]"), null);
+  expectAbsent(q("[data-scope-aside]"));
   // A tab click writes the URL, so the tab stays linkable.
   await click(q("[data-scope-panel-toggle]"));
   await click(q('[data-scope-tab="sessions"]'));
-  assert.equal(location(), "/org/or-1?tab=sessions");
+  assert.deepEqual(lastNavigation(), {
+    path: "/org/or-1?tab=sessions",
+    action: "replace",
+  });
   await click(q('[data-scope-tab="work"]'));
   assert.equal(location(), "/org/or-1?tab=work");
   // The tab the page opens on is its bare URL.
@@ -482,9 +487,8 @@ test("a narrow role page overlays the panel on its conversation", async () => {
     q("[data-scope-layout]")!.getAttribute("data-scope-layout"),
     "overlay",
   );
-  assert.equal(
+  expectAbsent(
     q("[data-scope-aside]"),
-    null,
     "a narrow page opens on the conversation, not covered by the board",
   );
   await click(q("[data-scope-panel-toggle]"));
@@ -492,9 +496,9 @@ test("a narrow role page overlays the panel on its conversation", async () => {
     q("[data-scope-aside]")!.getAttribute("data-scope-aside"),
     "overlay",
   );
-  assert.ok(q("[data-thread]"), "the conversation is still there under it");
+  assert.ok(q("[data-layout]"), "the conversation is still there under it");
   await click(q("[data-scope-panel-close]"));
-  assert.equal(q("[data-scope-aside]"), null);
+  expectAbsent(q("[data-scope-aside]"));
 });
 
 test("a phone can open the role panel as a sheet or by a tab link", async () => {
@@ -505,13 +509,9 @@ test("a phone can open the role panel as a sheet or by a tab link", async () => 
     q("[data-scope-layout]")!.getAttribute("data-scope-layout"),
     "sheet",
   );
+  expectAbsent(q("[data-scope-aside]"), "the conversation leads on the phone");
   assert.equal(
-    q("[data-scope-aside]"),
-    null,
-    "the conversation leads on the phone",
-  );
-  assert.equal(
-    q("[data-thread]")!.getAttribute("data-thread-autofocus"),
+    q("[data-layout]")!.getAttribute("data-focus-input"),
     "0",
     "no keyboard pop on the phone",
   );
@@ -525,11 +525,7 @@ test("a phone can open the role panel as a sheet or by a tab link", async () => 
     "Back to the conversation",
   );
   await click(q("[data-scope-panel-close]"));
-  assert.equal(
-    q("[data-scope-aside]"),
-    null,
-    "handed back to the conversation",
-  );
+  expectAbsent(q("[data-scope-aside]"), "handed back to the conversation");
   // A link straight to a tab opens the sheet on it.
   env.qs = "tab=sessions";
   await mount("or-1");
@@ -550,6 +546,7 @@ test("old role and workspace tab links still open their current views", async ()
   collections.tasks = [
     fixtures.task.build({
       title: "Review the growth plan",
+      status: "open",
       project_id: "fixture-project-growth",
       promoted: true,
     }),
@@ -595,12 +592,12 @@ test("the workspace shows its agent or offers to hire one", async () => {
   const { env, mount, q, withStanding } = await rolePage();
   await mount("workspace");
   assert.equal(
-    q("[data-thread]")!.getAttribute("data-thread"),
+    q("[data-layout]")!.getAttribute("data-layout"),
     "fixture-anchor-conv",
   );
   env.tree = { ...withStanding, anchors: [] };
   await mount("workspace");
-  assert.equal(q("[data-thread]"), null);
+  expectAbsent(q("[data-layout]"));
   assert.equal(q("[data-hire-head]")?.textContent, "Hire Head of People");
   assert.ok(q("h1.text-base"));
 
@@ -620,7 +617,7 @@ test("a member can read the role conversation with ownership disabled", async ()
   state.currentUser = { _id: "fixture-user-sam" };
   await mount("or-1");
   assert.equal(
-    q("[data-thread]")!.getAttribute("data-thread-owner"),
+    q("[data-layout]")!.getAttribute("data-owner"),
     "0",
     "a member who is neither host nor parent asks to send",
   );
@@ -644,8 +641,8 @@ test("an unstarted role offers to start for its host and names the host for memb
   };
   env.tree = unseated;
   await mount("or-1");
-  assert.equal(q("[data-thread]"), null, "no composer that goes nowhere");
-  assert.equal(q("[data-composer]"), null);
+  expectAbsent(q("[data-layout]"), "no composer that goes nowhere");
+  expectAbsent(q("[data-composer]"));
   assert.ok(q("[data-scope-unseated]"));
   assert.match(text(), /Head of Growth has not started yet/);
   assert.match(
@@ -655,14 +652,14 @@ test("an unstarted role offers to start for its host and names the host for memb
   );
   assert.match(text(), /It looks after Growth, SEO and AI citations\./);
   assert.match(text(), /reports to Ashot Petrosian/);
-  assert.equal(q("[data-scope-state]"), null, "no state chip before it starts");
+  expectAbsent(q("[data-scope-state]"), "no state chip before it starts");
   assert.match(q("[data-scope-stripe]")!.textContent!, /Not started yet/);
   await click(q("[data-scope-provision]"));
   assert.ok(
     writes().some((c) => c === `mutation:{"role_id":"${growth._id}"}`),
     "the one gesture starts the role",
   );
-  assert.equal(q("[data-scope-aside]"), null, "the panel stays collapsed");
+  expectAbsent(q("[data-scope-aside]"), "the panel stays collapsed");
   // A person who cannot reshape the role is told who can.
   env.tree = {
     ...unseated,
@@ -674,7 +671,7 @@ test("an unstarted role offers to start for its host and names the host for memb
   };
   state.currentUser = { _id: "fixture-user-sam" };
   await mount("or-1");
-  assert.equal(q("[data-scope-provision]"), null);
+  expectAbsent(q("[data-scope-provision]"));
   assert.match(
     q("[data-scope-ask-host]")!.textContent!,
     /Ask Ashot Petrosian to start it/,
@@ -701,7 +698,7 @@ test("the paused role says what still works and offers Resume", async () => {
 });
 
 test("the role menu pauses immediately and retires only after confirmation", async () => {
-  const { location, writes, toast, mount, q, qa, click, growth } =
+  const { lastNavigation, writes, toast, mount, q, qa, click, growth } =
     await rolePage();
   await mount("or-1");
   const openMenu = () =>
@@ -735,7 +732,7 @@ test("the role menu pauses immediately and retires only after confirmation", asy
   );
   await click(q("[data-retire-submit]"));
   assert.equal(writes().at(-1), "retire:" + growth._id + ":");
-  assert.equal(location(), "/org");
+  assert.deepEqual(lastNavigation(), { path: "/org", action: "push" });
   await toast();
   assert.match(
     q("[data-sonner-toast]")!.textContent!,
@@ -814,9 +811,10 @@ test("the sessions tab groups hands and reads the latest task pointer", async ()
       conversation_ids: ["h3"],
     },
   ];
-  const facts = [
+  const facts: BriefHand[] = [
     {
-      _id: "h4",
+      _id: "h4" as Id<"conversations">,
+      waiting_since: null,
       short_id: "jx7h4",
       title: "Watch CI on main",
       state: "dormant",
@@ -830,7 +828,7 @@ test("the sessions tab groups hands and reads the latest task pointer", async ()
   await mountNode(
     React.createElement(HandGroups, {
       rows,
-      hands: facts as any,
+      hands: facts,
       now: T0,
       onOpen: (s: OrgSession) => openCalls.push(`open:${s._id}`),
     }),
@@ -883,9 +881,8 @@ test("the sessions tab groups hands and reads the latest task pointer", async ()
     "ct-20",
     "a task listing the session binds it too",
   );
-  assert.equal(
+  expectAbsent(
     q('[data-hand="h3"] [data-hand-progress]'),
-    null,
     "no subtasks, no counter",
   );
   assert.match(q('[data-hand="h2"]')!.textContent!, /30m/, "the age");
@@ -901,7 +898,7 @@ test("the sessions tab groups hands and reads the latest task pointer", async ()
     renderNode(
       React.createElement(HandGroups, {
         rows: [...rows],
-        hands: facts as any,
+        hands: facts,
         now: T0,
         onOpen: () => {},
       }),
@@ -923,7 +920,7 @@ async function verifyFirstScreen() {
   const ROLE = "fixture-role-calling";
   const STANDING = "fixture-calling-conv";
   // 33 hands waiting on a person, 4 at work.
-  const hands = Array.from({ length: 37 }, (_, i) => ({
+  const hands = Array.from({ length: 37 }, (_, i): OrgSession => ({
     _id: `calling-h${i}`,
     short_id: `jx7c${String(i).padStart(3, "0")}`,
     title: `Hand ${i}`,
@@ -933,8 +930,8 @@ async function verifyFirstScreen() {
     subagent_count: 0,
     is_anchor: false,
     org_role_id: ROLE,
-  })) as any[];
-  const calling = {
+  }));
+  const calling: OrgRole = {
     ...growth,
     _id: ROLE,
     short_id: "or-7",
@@ -988,7 +985,7 @@ async function verifyFirstScreen() {
     status: i % 3 ? "open" : "done",
     project_id: i % 2 ? "p-union" : "p-market",
   }));
-  env.tree = { ...ORG_FIXTURE, roles: [calling] } as OrgTree;
+  env.tree = { ...ORG_FIXTURE, roles: [calling] };
   env.summary = {
     scope: { project_ids: ["p-union", "p-market"], plan_ids: [] },
     projects: projects.map(({ _id: id, ...row }) => ({ id, ...row })),
@@ -1034,7 +1031,7 @@ async function verifyFirstScreen() {
   const qa = (sel: string) => [...document.querySelectorAll<HTMLElement>(sel)];
   function Screen({ brief }: { brief: string | null }) {
     return React.createElement(ScopeOverviewTab, {
-      role: calling as any,
+      role: calling,
       now: T0,
       narrative: brief,
     });
@@ -1057,9 +1054,8 @@ async function verifyFirstScreen() {
 
   // Exactly: two project sentences, one activity line. The 33 hands waiting
   // on a person wait on the role and are nowhere on the first screen.
-  assert.equal(
+  expectAbsent(
     q('[data-scope-section="needs-you"]'),
-    null,
     "no needs-you block: the role raises what it cannot answer in its own thread",
   );
   const stands = qa("[data-scope-briefing] [data-scope-stands]");
@@ -1120,7 +1116,7 @@ async function verifyFirstScreen() {
   // A role with no brief lines.
   await render(null);
   // Nothing to say is said by saying nothing: no empty sections, no placeholder lines.
-  assert.equal(q('[data-scope-section="stands"]'), null);
+  expectAbsent(q('[data-scope-section="stands"]'));
   assert.equal(qa("[data-scope-briefing] [data-scope-stands-line]").length, 0);
 
   // The playbook and the wake (org-staffing.md S38) sit under the briefing,
@@ -1151,9 +1147,8 @@ async function verifyFirstScreen() {
       ),
     ),
   );
-  assert.equal(
+  expectAbsent(
     q("[data-scope-briefing] [data-role-playbook]"),
-    null,
     "the playbook is not part of the briefing",
   );
   assert.deepEqual(
@@ -1185,8 +1180,8 @@ async function verifyFirstScreen() {
       }),
     ),
   );
-  assert.equal(q('[data-scope-section="playbook"]'), null);
-  assert.equal(q('[data-scope-section="wake"]'), null);
+  expectAbsent(q('[data-scope-section="playbook"]'));
+  expectAbsent(q('[data-scope-section="wake"]'));
 }
 
 test(

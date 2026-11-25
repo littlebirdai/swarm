@@ -1,3 +1,4 @@
+import { expectAbsent } from "../../../../test-helpers/domExpect";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { InitiativeRow } from "@codecast/goals/initiative";
 import { afterEach, spyOn, test } from "bun:test";
@@ -9,6 +10,7 @@ import { stampRoster } from "../../../../lib/activeTeam";
 import { useInboxStore, type ProjectItem } from "../../../../store/inboxStore";
 import { webBuilders } from "../../../../test-helpers/builders";
 import { mountWeb } from "../../../../test-helpers/mountWeb";
+import { pending } from "../../../../test-helpers/testConvex";
 import { GoalSheet } from "./GoalSheet";
 
 let restoreClock: (() => void) | undefined;
@@ -196,11 +198,11 @@ async function setup() {
               ? new Promise(() => {})
               : Promise.resolve(null),
           );
-          backend.set(api.org.scopeFeed, undefined);
-          backend.set(api.initiatives.webUpdates, undefined);
-          backend.set(api.plans.webGet, undefined);
-          backend.set(api.initiatives.webList, undefined);
-          backend.set(api.org.roles, undefined);
+          backend.set(api.org.scopeFeed, pending);
+          backend.set(api.initiatives.webUpdates, pending);
+          backend.set(api.plans.webGet, pending);
+          backend.set(api.initiatives.webList, pending);
+          backend.set(api.org.roles, pending);
         },
       },
     );
@@ -293,7 +295,7 @@ test("a goal sheet reads its sections, work and open plans in order", async () =
   // The head: owner, health, the number against its target, the date. A goal's progress is its number: no task bar.
   const facts = q("[data-sheet-facts]")!;
   assert.match(facts.textContent!, /412/);
-  assert.equal(q("[data-initiative-progress]"), null, "no task bar on a goal");
+  expectAbsent(q("[data-initiative-progress]"), "no task bar on a goal");
   // Why reads the goal's own words.
   assert.match(
     q("[data-goal-why]")!.textContent!,
@@ -317,15 +319,13 @@ test("a goal sheet reads its sections, work and open plans in order", async () =
     )!.textContent!,
     /past its target/,
   );
-  assert.equal(
+  expectAbsent(
     carried.querySelector("[data-initiative-project='proj-inbox'] .ol-sub"),
-    null,
   );
-  assert.equal(
+  expectAbsent(
     carried.querySelector(
       "[data-initiative-project] [data-project-status='active']",
     ),
-    null,
     "no line says active",
   );
   // Under each project, its open plans (ct-95899): the done one is not listed.
@@ -337,9 +337,8 @@ test("a goal sheet reads its sections, work and open plans in order", async () =
     ).map((l) => l.getAttribute("data-initiative-plan")),
     ["pl-715"],
   );
-  assert.equal(
+  expectAbsent(
     carried.querySelector("[data-initiative-project-plans='proj-inbox']"),
-    null,
     "a project with no open plan lists none",
   );
   assert.ok(
@@ -401,12 +400,11 @@ test("the latest update reads first and the older updates and record open on dem
       .trim(),
     "The recorddone when · 5 milestones · 2 questions · 2 decisions · 2 sources",
   );
-  assert.equal(q("[data-initiative-record]"), null, "folded until opened");
+  expectAbsent(q("[data-initiative-record]"), "folded until opened");
   await click(q("[data-sheet-fold='The record'] button"));
   assert.ok(q("[data-initiative-record='in-1']"));
-  assert.equal(
+  expectAbsent(
     q("[data-initiative-section='why'] ~ [data-initiative-section='why']"),
-    null,
   );
 });
 
@@ -442,7 +440,7 @@ test("a posted update changes the latest update and the sheet health immediately
     calls().at(-1),
     "post:init-org:on_track:The scope view shipped.",
   );
-  assert.equal(q("[data-initiative-update-form]"), null, "the form closes");
+  expectAbsent(q("[data-initiative-update-form]"), "the form closes");
   assert.equal(
     qa("[data-initiative-update]")[0].getAttribute(
       "data-initiative-update-health",
@@ -490,13 +488,13 @@ test("a fresh goal offers its editors in one line", async () => {
     q("[data-goal-why] [data-initiative-field='why']"),
     "Why opens on its editor",
   );
-  assert.equal(q("[data-goal-still-item='why']"), null);
+  expectAbsent(q("[data-goal-still-item='why']"));
   await click(
     [...q("[data-goal-why]")!.querySelectorAll("button")].find(
       (b) => b.textContent === "Cancel",
     ),
   );
-  assert.equal(q("[data-goal-why]"), null);
+  expectAbsent(q("[data-goal-why]"));
   assert.ok(q("[data-goal-still-item='why']"));
   // Written, the phrase goes for good.
   await click(q("[data-goal-still-item='why']"));
@@ -526,7 +524,7 @@ test("a fresh goal offers its editors in one line", async () => {
   );
   // "what done looks like" opens the record on done when, and the line is gone.
   await click(q("[data-goal-still-item='done_when']"));
-  assert.equal(q("[data-goal-still]"), null);
+  expectAbsent(q("[data-goal-still]"));
   assert.ok(
     q(
       "[data-sheet-fold='The record'][data-open] [data-initiative-field='done_when']",
@@ -542,12 +540,11 @@ test("a goal with an unset number lists it and a complete goal has no starter li
     q("[data-goal-still]")!.textContent,
     "Still to write: why it matters · a number · what done looks like",
   );
-  assert.equal(q("[data-goal-why]"), null);
+  expectAbsent(q("[data-goal-why]"));
   // The head's health and the latest update's read in the same case.
   await mount("in-1");
-  assert.equal(
+  expectAbsent(
     q("[data-goal-still]"),
-    null,
     "a goal with everything written has no starter line",
   );
   assert.match(

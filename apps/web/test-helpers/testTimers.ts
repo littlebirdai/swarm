@@ -1,12 +1,18 @@
 import { replaceGlobals } from "./globals";
 
+type PendingTimer = {
+  kind: "timeout" | "interval";
+  delay: number;
+  callback: string;
+};
+
 export function trackTestTimers() {
   const schedule = globalThis.setTimeout;
   const scheduleInterval = globalThis.setInterval;
   const cancel = globalThis.clearTimeout;
   const cancelInterval = globalThis.clearInterval;
-  const timeouts = new Set<ReturnType<typeof setTimeout>>();
-  const intervals = new Set<ReturnType<typeof setInterval>>();
+  const timeouts = new Map<ReturnType<typeof setTimeout>, PendingTimer>();
+  const intervals = new Map<ReturnType<typeof setInterval>, PendingTimer>();
 
   const restore = replaceGlobals({
     setTimeout(
@@ -18,7 +24,11 @@ export function trackTestTimers() {
         timeouts.delete(timer);
         callback(...args);
       }, delay);
-      timeouts.add(timer);
+      timeouts.set(timer, {
+        kind: "timeout",
+        delay: delay ?? 0,
+        callback: callback.name,
+      });
       return timer;
     },
     clearTimeout(timer: ReturnType<typeof setTimeout>) {
@@ -32,7 +42,11 @@ export function trackTestTimers() {
       ...args: unknown[]
     ) {
       const timer = scheduleInterval(callback, delay, ...args);
-      intervals.add(timer);
+      intervals.set(timer, {
+        kind: "interval",
+        delay: delay ?? 0,
+        callback: callback.name,
+      });
       return timer;
     },
     clearInterval(timer: ReturnType<typeof setInterval>) {
@@ -42,9 +56,14 @@ export function trackTestTimers() {
     },
   });
 
-  return () => {
-    for (const timer of timeouts) cancel(timer);
-    for (const timer of intervals) cancelInterval(timer);
-    restore();
+  const pending: PendingTimer[] = [];
+  return {
+    pending: pending as readonly PendingTimer[],
+    close() {
+      pending.push(...timeouts.values(), ...intervals.values());
+      for (const timer of timeouts.keys()) cancel(timer);
+      for (const timer of intervals.keys()) cancelInterval(timer);
+      restore();
+    },
   };
 }

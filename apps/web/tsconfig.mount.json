@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node", "bun"]
+  },
+  "include": [
+    "vite-env.d.ts",
+    "lib/novnc.d.ts",
+    "test-helpers/**/*.ts",
+    "test-helpers/**/*.tsx"
+  ],
+  "files": [
+    "app/projects/[id]/ProjectHeader.mount.test.tsx",
+    "components/ObjectReveal.mount.test.tsx",
+    "components/__tests__/documentDetailLoading.test.tsx",
+    "components/__tests__/seatSessionPage.mount.test.tsx",
+    "components/__tests__/teamBarFace.test.tsx",
+    "components/company/CompanyDocument.mount.test.tsx",
+    "components/goals/GoalsDocument.mount.test.tsx",
+    "components/org/company/sheets/GoalSheet.mount.test.tsx",
+    "components/org/scope/ScopePage.mount.test.tsx",
+    "components/org/scope/ScopeSettings.mount.test.tsx"
+  ],
+  "exclude": ["node_modules"]
+}

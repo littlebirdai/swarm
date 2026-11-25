@@ -1,15 +1,16 @@
+import { expectAbsent } from "../../test-helpers/domExpect";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { afterEach, spyOn, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import assert from "node:assert/strict";
 import { act, type ComponentProps } from "react";
-import { useLocation } from "react-router";
 import { syncMetaKey } from "../../hooks/syncMetaKeys";
 import { stampRoster } from "../../lib/activeTeam";
 import type { DispatchCallArgs } from "../../lib/dispatchBinding";
 import { useInboxStore } from "../../store/inboxStore";
 import { webBuilders } from "../../test-helpers/builders";
 import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
 import { useChangeLit } from "../org/lines/changeLight";
 import { UNION_GOALS_UPDATES } from "../org/goalsFixture";
 import * as fx from "./companyFixture";
@@ -51,12 +52,8 @@ async function setup(options: { tree?: boolean; liveGoal?: string } = {}) {
     return null;
   };
   function View(props: Props) {
-    const location = useLocation();
     return (
       <>
-        <output hidden data-location>
-          {location.pathname}
-        </output>
         <CompanyDocument {...props} />
         <Card id="union-purpose" />
         <Card id="union-staff-outreach" />
@@ -74,6 +71,7 @@ async function setup(options: { tree?: boolean; liveGoal?: string } = {}) {
       path: "/org",
       dispatch: true,
       setup: (backend, store) => {
+        backend.mutation(api.dispatch.dispatch, null);
         store.syncTable("currentUser", {
           _id: "fixture-user-me",
           name: "Ashot Petrosian",
@@ -118,11 +116,11 @@ async function setup(options: { tree?: boolean; liveGoal?: string } = {}) {
           { backfilledAt: 1 },
         );
         backend.set(api.projects.webList, []);
-        backend.set(api.initiatives.webList, undefined);
-        backend.set(api.initiatives.webUpdates, undefined);
-        backend.set(api.org.roles, undefined);
-        backend.set(api.orgProposals.list, undefined);
-        backend.set(api.orgProposals.get, undefined);
+        backend.set(api.initiatives.webList, pending);
+        backend.set(api.initiatives.webUpdates, pending);
+        backend.set(api.org.roles, pending);
+        backend.set(api.orgProposals.list, pending);
+        backend.set(api.orgProposals.get, pending);
       },
     });
   };
@@ -229,6 +227,7 @@ async function setup(options: { tree?: boolean; liveGoal?: string } = {}) {
   ];
 
   return {
+    lastNavigation: () => web.navigationLog.at(-1),
     show,
     q,
     qa,
@@ -508,12 +507,19 @@ test("the owner and status pickers update the row in place", async () => {
 });
 
 test("a line navigates by title and expands with the arrow keys", async () => {
-  const { show, q, line, click, key, written, syncExpanded } = await setup();
+  const { show, lastNavigation, line, click, key, written, syncExpanded } =
+    await setup();
   await show();
   await syncExpanded(["union-in-2", "union-in-5", "gone-goal"]);
   await show();
+  assert.equal(
+    line("union-in-1")!.querySelector(
+      "[data-line-owner] [data-initiative-owner] .truncate",
+    )?.textContent,
+    "Head of People",
+  );
   await key(line("union-in-1"), "Enter");
-  assert.equal(q("[data-location]")?.textContent, "/goals/in-1");
+  assert.deepEqual(lastNavigation(), { path: "/goals/in-1", action: "push" });
   await click(line("union-in-2")!.querySelector("[data-line-title]"));
   assert.equal(line("union-in-2")!.getAttribute("aria-expanded"), "true");
   // Space and the arrows open and fold in place.
@@ -851,7 +857,7 @@ test("a project listed under two goals expands separately", async () => {
     "[data-company-section='projects'] [data-line='project']",
   ).filter((l) => l.getAttribute("data-line-ref") === "pr-12");
   assert.equal(twice.length, 2, "listed under both goals");
-  assert.equal(twice[0].querySelector("[data-company-also-under]"), null);
+  expectAbsent(twice[0].querySelector("[data-company-also-under]"));
   assert.match(
     twice[1].querySelector("[data-company-also-under]")!.textContent!,
     /^also under Every relationship/,

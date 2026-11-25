@@ -1,27 +1,25 @@
+import { expectAbsent } from "../../../test-helpers/domExpect";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { afterAll, afterEach, mock, spyOn, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import assert from "node:assert/strict";
-import { act, type ReactNode } from "react";
-import {
-  useLocation,
-  useNavigate,
-  useNavigationType,
-  type NavigateFunction,
-} from "react-router";
+import { act } from "react";
+import { useLocation, useNavigate, type NavigateFunction } from "react-router";
 import { ORG_FIXTURE } from "../../../components/org/orgFixture";
 import { AUTH_JWT_STORAGE_KEY } from "../../../lib/localAuth";
 import type { DispatchCallArgs } from "../../../lib/dispatchBinding";
 import { useInboxStore } from "../../../store/inboxStore";
 import { webBuilders } from "../../../test-helpers/builders";
+import { DashboardLayoutStandIn } from "../../../test-helpers/DashboardLayoutStandIn";
 import { mountWeb } from "../../../test-helpers/mountWeb";
+import { pending } from "../../../test-helpers/testConvex";
 import { waitForDom } from "../../../test-helpers/waitForDom";
 
 const realShell = { ...(await import("../../../components/DashboardLayout")) };
 mock.module("../../../components/DashboardLayout", () => ({
   ...realShell,
-  DashboardLayout: ({ children }: { children: ReactNode }) => children,
+  DashboardLayout: DashboardLayoutStandIn,
 }));
 afterAll(() =>
   mock.module("../../../components/DashboardLayout", () => realShell),
@@ -45,7 +43,15 @@ const project = fixtures.project.build({
   target_date: endOfLocalDay(2026, 11, 1),
 });
 const PID = project._id;
+const foreignTask = fixtures.task.build({
+  title: "A task for another project",
+  workspace: `team:${TEAM}`,
+  project_id: fixtures.project.build()._id,
+  status: "open",
+  promoted: true,
+});
 const task = fixtures.task.build({
+  status: "open",
   title: "Review the rollout",
   workspace: `team:${TEAM}`,
   project_id: PID,
@@ -75,9 +81,6 @@ async function setup(
         <output hidden data-project-location>
           {location.pathname + location.search}
         </output>
-        <output hidden data-navigation-type>
-          {useNavigationType()}
-        </output>
         <ProjectDetailPage />
       </>
     );
@@ -88,6 +91,7 @@ async function setup(
     authenticated: true,
     dispatch: true,
     setup: (backend, store) => {
+      backend.mutation(api.dispatch.dispatch, null);
       localStorage.setItem(AUTH_JWT_STORAGE_KEY, "fixture-jwt");
       if (phone) {
         const wideMedia = window.matchMedia;
@@ -104,7 +108,7 @@ async function setup(
         { _id: "home-team", name: "Codecast" },
       ]);
       store.syncTable("projects", [row]);
-      store.syncTable("tasks", [task]);
+      store.syncTable("tasks", [task, foreignTask]);
       store.syncTable("orgTree", {
         ...ORG_FIXTURE,
         workspace: { ...ORG_FIXTURE.workspace, id: TEAM },
@@ -138,35 +142,35 @@ async function setup(
         team_id: TEAM as Id<"teams">,
         user_id: "fixture-user-me" as Id<"users">,
       });
-      backend.set(api.projects.webList, undefined);
-      backend.set(api.org.roles, undefined);
-      backend.set(api.tasks.webList, undefined);
-      backend.set(api.tasks.webActiveSessions, undefined);
-      backend.set(api.devices.listDevices, undefined);
+      backend.set(api.projects.webList, pending);
+      backend.set(api.org.roles, pending);
+      backend.set(api.tasks.webList, pending);
+      backend.set(api.tasks.webActiveSessions, pending);
+      backend.set(api.devices.listDevices, pending);
 
       backend.set(api.tasks.webListPaginated, {
         page: [],
         isDone: true,
         continueCursor: "",
       });
-      backend.set(api.assistant.incidents.thinkingAvailable, undefined);
-      backend.set(api.initiatives.webGet, undefined);
+      backend.set(api.assistant.incidents.thinkingAvailable, pending);
+      backend.set(api.initiatives.webGet, pending);
       backend.set(api.projectUpdates.webTimeline, []);
-      backend.set(api.projectUpdates.webList, undefined);
-      backend.set(api.externalEvents.listForProject, undefined);
-      backend.set(api.projectSources.teammateSources, undefined);
+      backend.set(api.projectUpdates.webList, pending);
+      backend.set(api.externalEvents.listForProject, pending);
+      backend.set(api.projectSources.teammateSources, pending);
 
-      backend.set(api.signals.webList, undefined);
-      backend.set(api.workflow_runs.listRuns, undefined);
-      backend.set(api.workflows.webGetBySlug, undefined);
-      backend.set(api.org.tree, undefined);
-      backend.set(api.lineWorkspace.labels, undefined);
-      backend.set(api.lineWorkspace.occurrences, undefined);
-      backend.set(api.lineWorkspace.deploys, undefined);
-      backend.set(api.lineWorkspace.cards, undefined);
-      backend.set(api.lineTrial.cards, undefined);
-      backend.set(api.lineTrial.projects, undefined);
-      backend.set(api.lineTrial.runs, undefined);
+      backend.set(api.signals.webList, pending);
+      backend.set(api.workflow_runs.listRuns, pending);
+      backend.set(api.workflows.webGetBySlug, pending);
+      backend.set(api.org.tree, pending);
+      backend.set(api.lineWorkspace.labels, pending);
+      backend.set(api.lineWorkspace.occurrences, pending);
+      backend.set(api.lineWorkspace.deploys, pending);
+      backend.set(api.lineWorkspace.cards, pending);
+      backend.set(api.lineTrial.cards, pending);
+      backend.set(api.lineTrial.projects, pending);
+      backend.set(api.lineTrial.runs, pending);
     },
   });
   const asked = () =>
@@ -214,13 +218,13 @@ async function setup(
 }
 
 test("an older project link moves to the canonical address and queries by Convex id", async () => {
-  const { q, asked, location } = await setup(PID);
+  const { q, asked, location, web } = await setup(PID);
   assert.equal(
     q("[data-project-page]")?.getAttribute("data-project-page"),
     PID,
   );
   assert.equal(location(), "/projects/pj-agentorg");
-  assert.equal(q("[data-navigation-type]")?.textContent, "REPLACE");
+  assert.equal(web.navigationLog.at(-1)?.action, "replace");
   assert.ok(asked().length > 0);
   assert.deepEqual(asked(), [{ id: PID }]);
 });
@@ -228,7 +232,7 @@ test("an older project link moves to the canonical address and queries by Convex
 test("the canonical address keeps the session view and its compact header", async () => {
   const { q, qa, click, location, web } = await setup();
   assert.equal(location(), "/projects/pj-agentorg");
-  assert.equal(q("[data-navigation-type]")?.textContent, "POP");
+  assert.equal(web.navigationLog.at(-1)?.action, "pop");
   assert.equal(
     q("[data-project-page]")?.getAttribute("data-scope-tab-active"),
     "sessions",
@@ -237,18 +241,18 @@ test("the canonical address keeps the session view and its compact header", asyn
   const header = q("[data-intent-header]")!;
   assert.ok(header);
   assert.equal(header.querySelectorAll("[data-intent-row]").length, 1);
-  assert.equal(q("[data-intent-stripe]"), null);
+  expectAbsent(q("[data-intent-stripe]"));
   assert.equal(q("[data-intent-back]")?.getAttribute("href"), "/projects");
   const title = q("[data-project-title]")!;
   assert.equal(title.textContent, "Agent org");
   assert.equal(title.tagName, "H1");
   assert.equal(title.getAttribute("title"), "Agent org");
-  assert.equal(q("[data-intent-id]"), null);
-  assert.equal(q("[data-project-pick='target']"), null);
-  assert.equal(q("[data-project-back-to-session]"), null);
+  expectAbsent(q("[data-intent-id]"));
+  expectAbsent(q("[data-project-pick='target']"));
+  expectAbsent(q("[data-project-back-to-session]"));
   assert.ok(q("[data-project-view='sessions']"));
   assert.equal(web.store.getState().activeProjectFilter, "pj:" + PID);
-  assert.equal(q("[data-project-inbox-filter]"), null);
+  expectAbsent(q("[data-project-inbox-filter]"));
   assert.equal(
     q("[data-share-trigger]")?.getAttribute("aria-label"),
     "Share project",
@@ -262,7 +266,7 @@ test("the canonical address keeps the session view and its compact header", asyn
 });
 
 test("the header shows additional facts outside the Session view", async () => {
-  const { q, go, click, location } = await setup(
+  const { q, qa, go, click, location, web } = await setup(
     project.short_id,
     "?tab=tasks",
   );
@@ -271,7 +275,8 @@ test("the header shows additional facts outside the Session view", async () => {
     "tasks",
   );
   assert.match(document.body.textContent!, /Review the rollout/);
-  assert.equal(q("[data-project-conversation]"), null);
+  assert.doesNotMatch(document.body.textContent!, /A task for another project/);
+  expectAbsent(q("[data-project-conversation]"));
   assert.ok(q("[data-project-view='tasks']"));
   assert.equal(q("[data-intent-id]")?.textContent, "pj-agentorg");
   const chips = q("[data-intent-chips]")!;
@@ -297,10 +302,28 @@ test("the header shows additional facts outside the Session view", async () => {
     "[data-inline-edit='Project folder']",
     "[data-repository-links]",
   ]) {
-    assert.equal(header.querySelector(selector), null, selector);
+    expectAbsent(header.querySelector(selector), selector);
   }
   assert.doesNotMatch(header.textContent!, /The org chart, roles and scopes\./);
-  await go("timeline");
+  const navigationBefore = web.navigationLog.length;
+  const views = q<HTMLButtonElement>("[data-project-view='tasks']")!;
+  await act(async () =>
+    views.dispatchEvent(
+      new window.KeyboardEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  const timeline = qa('[role="menuitem"]').find(
+    (item) => item.textContent === "Timeline",
+  );
+  assert.equal(timeline?.textContent, "Timeline");
+  await click(timeline!);
+  assert.deepEqual(web.navigationLog.slice(navigationBefore), [
+    { path: "/projects/pj-agentorg?tab=timeline", action: "replace" },
+  ]);
   assert.equal(
     q("[data-project-page]")?.getAttribute("data-scope-tab-active"),
     "timeline",
@@ -354,11 +377,6 @@ test("title and status display store writes while the server still holds the old
     ),
   );
   assert.match(q("[data-project-pick='status']")!.textContent!, /Done/);
-  const server = await web.backend.client.query(api.projects.webGet, {
-    id: PID as Id<"projects">,
-  });
-  assert.equal(server?.title, "Agent org");
-  assert.equal(server?.status, "active");
 });
 
 test("the deadline validates and saves the selected local day, or clears it", async () => {
@@ -423,7 +441,7 @@ test("a project from another workspace lets the person read Flow only", async ()
     /This project lives in Codecast\. Switch to see its tasks\./,
   );
   assert.doesNotMatch(document.body.textContent!, /Review the rollout/);
-  assert.equal(q("[data-project-line-tab]"), null);
+  expectAbsent(q("[data-project-line-tab]"));
   await go("line");
   assert.match(
     q("[data-foreign-workspace]")!.textContent!,

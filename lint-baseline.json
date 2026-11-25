@@ -15639,7 +15639,7 @@
     "swarm/no-comments": 7
   },
   "apps/web/components/__tests__/seatSessionPage.mount.test.tsx": {
-    "swarm/no-comments": 49
+    "swarm/no-comments": 45
   },
   "apps/web/components/__tests__/sendingMessageLink.guard.test.ts": {
     "swarm/no-comments": 7

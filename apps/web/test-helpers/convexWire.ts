@@ -25,7 +25,13 @@ export type ClientFrame =
 
 export type QueryUpdate =
   | { type: "QueryUpdated"; queryId: number; value: JSONValue; logLines: [] }
-  | { type: "QueryFailed"; queryId: number; errorMessage: string; logLines: [] }
+  | {
+      type: "QueryFailed";
+      queryId: number;
+      errorMessage: string;
+      errorData?: JSONValue;
+      logLines: [];
+    }
   | { type: "QueryRemoved"; queryId: number };
 
 export class TestSocket {

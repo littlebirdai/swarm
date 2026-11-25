@@ -19,6 +19,7 @@ type TeamMember = NonNullable<
 
 export function webBuilders(seed: string | number) {
   const faker = testFaker(seed);
+  let nextShortId = 0;
   const id = () => faker.string.alphanumeric({ length: 32, casing: "lower" });
   const time = () => faker.date.recent().getTime();
   const title = () => faker.company.catchPhrase();
@@ -75,7 +76,7 @@ export function webBuilders(seed: string | number) {
       const at = time();
       return {
         _id: id(),
-        short_id: `ct-${faker.number.int({ min: 1, max: 99999 })}`,
+        short_id: `ct-${++nextShortId}`,
         title: title(),
         task_type: "task",
         status: "open",
@@ -92,7 +93,7 @@ export function webBuilders(seed: string | number) {
       const at = time();
       return {
         _id: id(),
-        short_id: `pl-${faker.number.int({ min: 1, max: 99999 })}`,
+        short_id: `pl-${++nextShortId}`,
         title: title(),
         status: "active",
         source: "human",
@@ -156,7 +157,7 @@ export function webBuilders(seed: string | number) {
       const host = overrides.host_user_id ?? id();
       return {
         _id: id(),
-        short_id: `ro-${faker.number.int({ min: 1, max: 99999 })}`,
+        short_id: `ro-${++nextShortId}`,
         name: faker.person.jobTitle(),
         handle: faker.word.noun() + "-" + faker.word.noun(),
         host_user_id: host,
@@ -181,7 +182,7 @@ export function webBuilders(seed: string | number) {
       const at = time();
       return {
         _id: id(),
-        short_id: `pj-${faker.number.int({ min: 1, max: 99999 })}`,
+        short_id: `pj-${++nextShortId}`,
         title: title(),
         status: "active",
         created_at: at,

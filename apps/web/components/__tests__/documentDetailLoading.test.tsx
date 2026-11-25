@@ -1,8 +1,10 @@
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { describe, expect, test } from "bun:test";
 import type { ComponentProps } from "react";
 import { webBuilders } from "../../test-helpers/builders";
 import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
 import { DocumentDetailLayout } from "../DocumentDetailLayout";
 
 async function render(
@@ -25,7 +27,7 @@ async function render(
       path: `/docs/${doc._id}`,
       setup: (backend) => {
         backend.set(api.docSync.getPresence, []);
-        backend.set(api.assistant.incidents.thinkingAvailable, undefined);
+        backend.set(api.assistant.incidents.thinkingAvailable, pending);
       },
     },
   );
@@ -38,8 +40,8 @@ describe("DocumentDetailLayout body modes", async () => {
       markdownContent: "## The idea",
       contentReady: true,
     });
-    expect(container.querySelector(".doc-editor")).not.toBeNull();
-    expect(container.querySelector(".doc-read-body")).toBeNull();
+    expectPresent(container.querySelector(".doc-editor"));
+    expectAbsent(container.querySelector(".doc-read-body"));
   });
 
   // The review body's three empty-content states (opted out of edit mode).
@@ -49,7 +51,7 @@ describe("DocumentDetailLayout body modes", async () => {
       contentReady: false,
       defaultEditing: false,
     });
-    expect(container.querySelector(".app-loader-bar")).not.toBeNull();
+    expectPresent(container.querySelector(".app-loader-bar"));
     expect(container.textContent).not.toContain("Empty document");
   });
 
@@ -60,7 +62,7 @@ describe("DocumentDetailLayout body modes", async () => {
       defaultEditing: false,
     });
     expect(container.textContent).toContain("Empty document");
-    expect(container.querySelector(".app-loader-bar")).toBeNull();
+    expectAbsent(container.querySelector(".app-loader-bar"));
   });
 
   test("review: loaded content renders through the review blocks", async () => {
@@ -69,8 +71,10 @@ describe("DocumentDetailLayout body modes", async () => {
       contentReady: true,
       defaultEditing: false,
     });
-    expect(container.textContent).toContain("The idea");
-    expect(container.querySelector(".app-loader-bar")).toBeNull();
+    expect(container.querySelector(".doc-read-body h2")?.textContent).toBe(
+      "The idea",
+    );
+    expectAbsent(container.querySelector(".app-loader-bar"));
     expect(container.textContent).not.toContain("Empty document");
   });
 });
@@ -86,8 +90,8 @@ describe("DocumentDetailLayout titleInBody", async () => {
       markdownContent: "# Real Title\n\nbody",
       contentReady: true,
     });
-    expect(container.querySelector(".doc-editor")).not.toBeNull();
-    expect(container.querySelector("h1")).toBeNull();
+    expectPresent(container.querySelector(".doc-editor"));
+    expectAbsent(container.querySelector("h1"));
   });
 
   test("review mode shows the leading heading as the title and strips it from the body", async () => {

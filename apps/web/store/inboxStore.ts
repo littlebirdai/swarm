@@ -554,6 +554,7 @@ import type {
 } from "../components/sessionMap/sessionMapModel";
 import { conversationRefInPath, conversationTabPath } from "../lib/pathLabel";
 import { directConversationId } from "../lib/desktopHandoff";
+import { clearSessionViewAsk } from "../lib/sessionViewVisit";
 import { healTabPaths, isNonTabRoute, shellTabPath } from "../lib/tabRoutes";
 import { tabSafePath, tabSafeTitle } from "../lib/tabSafePath";
 import {
@@ -22363,6 +22364,7 @@ let hydrationEpoch = 0;
 /** Synchronous gate used before an old principal store is closed or purged. */
 export function clearProtectedInboxMemory(): void {
   hydrationEpoch++;
+  clearSessionViewAsk();
   const state = useInboxStore.getState() as any;
   state._clearRuntimeBindings?.();
   const reset = freshInboxData();

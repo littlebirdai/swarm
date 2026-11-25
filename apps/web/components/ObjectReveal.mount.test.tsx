@@ -1,3 +1,4 @@
+import { expectAbsent, expectPresent } from "../test-helpers/domExpect";
 import { afterAll, afterEach, expect, mock, test } from "bun:test";
 import * as React from "react";
 import { revealWheelGoesToParent } from "../lib/revealWheel";
@@ -29,7 +30,6 @@ mock.module("./RoutePane", () => ({
 const reveal = await import("./ObjectReveal");
 
 afterEach(() => {
-  store.closeReveal();
   nestedReference = false;
 });
 
@@ -44,7 +44,7 @@ const mount = (node: React.ReactNode) =>
 const click = (element: Element) =>
   React.act(async () => {
     element.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, button: 0 }),
+      new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }),
     );
   });
 
@@ -65,11 +65,11 @@ test("the band portals into a slot right under the reference's paragraph and the
   await click(content.querySelector("button")!);
   // A pill in running text opens its band under its own line: the slot sits
   // inside the paragraph, right after the pill.
-  expect(
+  expectPresent(
     content
       .querySelectorAll("p")[1]
       .querySelector("[data-reveal-slot][data-reveal-inline]"),
-  ).not.toBeNull();
+  );
   const band = content.querySelector(".object-reveal")!;
   expect(band.querySelector("[data-path]")?.getAttribute("data-path")).toBe(
     targetA.href,
@@ -79,9 +79,7 @@ test("the band portals into a slot right under the reference's paragraph and the
   );
   // The grip is there for the resize; the bar above, the header strip and
   // the foot close. The small Open link in the bar does not close.
-  expect(
-    band.querySelector(".object-reveal__grip .height-grip__bar"),
-  ).not.toBeNull();
+  expectPresent(band.querySelector(".object-reveal__grip .height-grip__bar"));
   expect(band.querySelectorAll(".object-reveal__open").length).toBe(1);
   expect(
     band.querySelector(".object-reveal__open-beside")?.getAttribute("title"),
@@ -92,17 +90,17 @@ test("the band portals into a slot right under the reference's paragraph and the
       ?.firstElementChild?.classList.contains("object-reveal__strip"),
   ).toBe(true);
   await click(content.querySelector(".object-reveal__open a")!);
-  expect(content.querySelector(".object-reveal")).not.toBeNull();
+  expectPresent(content.querySelector(".object-reveal"));
   expect(
     band
       .querySelector(".object-reveal__frame")
       ?.lastElementChild?.classList.contains("object-reveal__foot"),
   ).toBe(true);
   await click(band.querySelector(".object-reveal__foot")!);
-  expect(content.querySelector("[data-reveal-slot]")).toBeNull();
+  expectAbsent(content.querySelector("[data-reveal-slot]"));
   await click(content.querySelector("button")!);
   await click(content.querySelector(".object-reveal__strip")!);
-  expect(content.querySelector("[data-reveal-slot]")).toBeNull();
+  expectAbsent(content.querySelector("[data-reveal-slot]"));
   expect(content.querySelector("button")?.getAttribute("aria-pressed")).toBe(
     "false",
   );
@@ -111,7 +109,7 @@ test("the band portals into a slot right under the reference's paragraph and the
   await click(
     content.querySelector(".object-reveal__open [data-reveal-close]")!,
   );
-  expect(content.querySelector(".object-reveal")).toBeNull();
+  expectAbsent(content.querySelector(".object-reveal"));
 });
 
 test("opening a reference in another host closes the first; a host inside the band is inert", async () => {
@@ -135,9 +133,7 @@ test("opening a reference in another host closes the first; a host inside the ba
   await click(content.querySelector("button.a")!);
   expect(content.querySelectorAll(".object-reveal").length).toBe(1);
   // The revealed page's own host renders no reveal control.
-  expect(
-    content.querySelector(".object-reveal button[aria-pressed]"),
-  ).toBeNull();
+  expectAbsent(content.querySelector(".object-reveal button[aria-pressed]"));
   await click(content.querySelector("button.b")!);
   const bands = content.querySelectorAll(".object-reveal");
   expect(bands.length).toBe(1);
@@ -201,7 +197,7 @@ test("a surface stops hosting the band when it swaps to another subject", async 
   expect(seen.at(-1)).toBe(false);
   await click(document.querySelector("[data-surface] button")!);
   expect(seen.at(-1)).toBe(true);
-  expect(document.querySelector(".object-reveal")).not.toBeNull();
+  expectPresent(document.querySelector(".object-reveal"));
   // The reveal stays open page-wide — nothing closed it — but this surface is
   // showing another conversation now, so it hosts nothing.
   await rerender(<Surface subject="conv-b" />);

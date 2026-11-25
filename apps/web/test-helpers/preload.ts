@@ -8,8 +8,13 @@
 // replace, and the next file to link DocumentDetailLayout died on it. Stubbing
 // the hook here keeps the editor loadable everywhere; nothing under bun test
 // can exercise the real sync, so nothing loses coverage.
-import { mock } from "bun:test";
+import { afterEach, mock } from "bun:test";
 import { dirname, join } from "node:path";
+import { webMountLifecycle } from "./webMountLifecycle";
+
+afterEach(async () => {
+  await webMountLifecycle.active?.close();
+});
 
 mock.module("@convex-dev/prosemirror-sync/tiptap", () => ({
   useTiptapSync: () => ({

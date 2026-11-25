@@ -1,18 +1,18 @@
+import { expectAbsent } from "../../test-helpers/domExpect";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { getUndoHistory, resetUndoHistory } from "@platform/engine";
-import { afterEach, test } from "bun:test";
+import { getUndoHistory } from "@platform/engine";
+import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { act } from "react";
 import type { DispatchCallArgs } from "../../lib/dispatchBinding";
 import { webBuilders } from "../../test-helpers/builders";
 import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
 import { stampRoster } from "../../lib/activeTeam";
 import { useInboxStore } from "../../store/inboxStore";
 import { GoalsDocument } from "./GoalsDocument";
 
-afterEach(resetUndoHistory);
-
-async function setup() {
+async function setup({ projectAlreadyCarried = false } = {}) {
   const fx = await import("../company/companyFixture");
   const { UNION_GOALS_UPDATES } = await import("../org/goalsFixture");
   const team = "u".repeat(32);
@@ -47,6 +47,9 @@ async function setup() {
   // in-2's first number reads live from mw-7.
   const initiatives = fx.COMPANY_FIXTURE_INITIATIVES.map((g) => ({
     ...g,
+    ...(projectAlreadyCarried && g.short_id === "in-2"
+      ? { project_ids: [...g.project_ids, "union-proj-quality"] }
+      : {}),
     ...(g.short_id === "in-2" && g.metrics?.length
       ? {
           metrics: g.metrics.map((m, i) =>
@@ -60,6 +63,7 @@ async function setup() {
     path: "/goals",
     dispatch: true,
     setup: (backend, state) => {
+      backend.mutation(api.dispatch.dispatch, null);
       state.syncTable("currentUser", {
         _id: "fixture-user-me",
         name: "Ashot Petrosian",
@@ -107,11 +111,11 @@ async function setup() {
         })),
       );
       state.syncTable("opsWatches", [series]);
-      backend.set(api.org.roles, undefined);
-      backend.set(api.projects.webList, undefined);
-      backend.set(api.orgProposals.list, undefined);
-      backend.set(api.initiatives.webList, undefined);
-      backend.set(api.initiatives.webUpdates, undefined);
+      backend.set(api.org.roles, pending);
+      backend.set(api.projects.webList, pending);
+      backend.set(api.orgProposals.list, pending);
+      backend.set(api.initiatives.webList, pending);
+      backend.set(api.initiatives.webUpdates, pending);
     },
   });
   const calls = () =>
@@ -257,11 +261,7 @@ test("Enter creates a goal in place and starts the next draft", async () => {
     "and the next one starts after it",
   );
   await key(q("[data-goal-draft] textarea"), "Escape");
-  assert.equal(
-    q("[data-goal-draft]"),
-    null,
-    "Escape on an empty draft drops it",
-  );
+  expectAbsent(q("[data-goal-draft]"), "Escape on an empty draft drops it");
 });
 
 test("Tab nests a goal one level and Shift+Tab lifts it out", async () => {
@@ -327,39 +327,114 @@ test("the reason for a goal can be edited in place", async () => {
   ]);
 });
 
-test("a project drag moves it between goals as one undo", async () => {
-  const { q, W, since, calls } = await setup();
+function dragGesture(W: Awaited<ReturnType<typeof setup>>["W"]) {
   const data = {
     effectAllowed: "",
     dropEffect: "",
     setData() {},
     getData: () => "",
   };
-  const drag = async (el: Element, type: string, data: object) => {
-    await act(async () => {
+  return (el: Element, type: string) =>
+    act(async () => {
       const e = new W.Event(type, { bubbles: true, cancelable: true });
       Object.defineProperty(e, "dataTransfer", { value: data });
       el.dispatchEvent(e);
     });
-  };
+}
+
+test("a nested draft creates a goal under the same parent", async () => {
+  const { q, key, type, title, since, calls } = await setup();
+  await key(title("in-4"), "Tab");
+  const n = calls().length;
+  await key(title("in-4"), "Enter");
+  const draft = q<HTMLTextAreaElement>("[data-goal-draft] textarea");
+  assert.ok(draft);
+  await type(draft, "Interview another broker");
+  await key(draft, "Enter");
+  const created = since(n).find((call) => call.startsWith("create:"));
+  assert.ok(created);
+  const input = JSON.parse(created.slice("create:".length));
+  assert.equal(input.parent_initiative_id, "union-in-2");
+  assert.equal(
+    q(
+      '[data-goals-list="union-in-2"] [data-goal-id="' +
+        input.client_key +
+        '"] textarea',
+    )?.getAttribute("data-goal-title"),
+    input.client_key,
+  );
+});
+
+test("a goal cannot be dragged under its own child list", async () => {
+  const { q, W, title, key, calls, since } = await setup();
+  await key(title("in-4"), "Tab");
+  const parent = q("[data-goal-section='in-2']");
+  const child = q("[data-goal-section='in-2'] [data-goal-section='in-4']");
+  assert.ok(parent && child);
+  const handle = parent.querySelector("[data-goal-handle]");
+  assert.ok(handle);
+  const drag = dragGesture(W);
+  await drag(handle, "dragstart");
+  await drag(child, "dragover");
+  const n = calls().length;
+  await drag(child, "drop");
+  assert.deepEqual(since(n), []);
+  assert.equal(
+    q("[data-goal-section='in-2'] [data-goal-section='in-4']")?.getAttribute(
+      "data-goal-depth",
+    ),
+    "1",
+  );
+});
+
+test("a project drag moves it between goals as one undo", async () => {
+  const { q, W, since, calls } = await setup();
+  const drag = dragGesture(W);
   const n = calls().length;
   await drag(
     q("[data-goal-project='union-proj-quality'] [data-project-handle]")!,
     "dragstart",
-    data,
   );
   const tail =
     q("[data-goal-projects='in-2'] [data-project-drop-tail]") ??
     q("[data-goal-section='in-2'] [data-project-drop-tail]");
   assert.ok(tail, "while a project is held, every goal offers a place for it");
-  await drag(tail!, "dragover", data);
-  await drag(tail!, "drop", data);
+  await drag(tail!, "dragover");
+  await drag(tail!, "drop");
   assert.ok(
     since(n).includes("remove:union-in-1:union-proj-quality") &&
       since(n).includes("add:union-in-2:union-proj-quality"),
     "it leaves the first goal for the second, as one undo",
   );
-  assert.match(getUndoHistory().items[0]?.label ?? "", /^Moved/);
+  const history = getUndoHistory();
+  assert.equal(history.undoOrder.length, 1);
+  assert.match(history.items[0]?.label ?? "", /^Moved/);
+});
+
+test("moving a project to a goal that carries it only removes the old link", async () => {
+  const { q, W, since, calls, store } = await setup({
+    projectAlreadyCarried: true,
+  });
+  const drag = dragGesture(W);
+  const source = q(
+    "[data-goal-projects='in-1'] [data-goal-project='union-proj-quality'] [data-project-handle]",
+  );
+  assert.ok(source);
+  await drag(source, "dragstart");
+  const tail = q("[data-goal-projects='in-2'] [data-project-drop-tail]");
+  assert.ok(tail);
+  await drag(tail, "dragover");
+  const n = calls().length;
+  await drag(tail, "drop");
+  assert.deepEqual(since(n), ["remove:union-in-1:union-proj-quality"]);
+  assert.equal(
+    store
+      .getState()
+      .initiatives["union-in-2"].project_ids.filter(
+        (id: string) => id === "union-proj-quality",
+      ).length,
+    1,
+  );
 });
 
 test("a live goal measure shows the latest series value and unit", async () => {

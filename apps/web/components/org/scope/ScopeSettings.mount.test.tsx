@@ -1,20 +1,28 @@
+import { expectAbsent } from "../../../test-helpers/domExpect";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { test } from "bun:test";
 import assert from "node:assert/strict";
 import { act } from "react";
 import { webBuilders } from "../../../test-helpers/builders";
 import { mountWeb } from "../../../test-helpers/mountWeb";
+import { pending } from "../../../test-helpers/testConvex";
 import { ORG_FIXTURE } from "../orgFixture";
 import type { OrgRole, OrgTree } from "../orgTypes";
 import { ScopeSettings } from "./ScopeSettings";
 
 const fixtures = webBuilders("ScopeSettings.mount.test.tsx");
 const viewer = fixtures.teamMember.build();
-const growth = fixtures.role.build({ host_user_id: viewer._id });
+const growth = fixtures.role.build({
+  host_user_id: viewer._id,
+  name: "Head of Growth",
+  handle: "head-of-growth",
+  status: "active",
+});
 const rootRole = fixtures.role.build({
   host_user_id: viewer._id,
   handle: "head-of-people",
   name: "Head of People",
+  status: "active",
 });
 const tree: OrgTree = { ...ORG_FIXTURE, roles: [growth, rootRole] };
 
@@ -47,7 +55,7 @@ function setup() {
       path: `/org/roles/${role.short_id}?tab=settings`,
       setup: (backend, store) => {
         store.syncTable("currentUser", viewer);
-        backend.set(api.orgRoles.line, undefined);
+        backend.set(api.orgRoles.line, pending);
         backend.set(api.workflows.webList, []);
         backend.set(api.accountSwitch.listAccountProfiles, { devices: [] });
       },
@@ -63,6 +71,48 @@ function setup() {
     },
   };
 }
+
+test("the role identity shows its name and handle and saves edits", async () => {
+  const { render, calls } = setup();
+  await render(growth);
+
+  async function edit(current: string, replacement: string) {
+    const button = [...document.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent === current,
+    );
+    assert.equal(button?.textContent, current);
+    await act(async () => button!.click());
+    const field = document.activeElement;
+    assert.ok(
+      field instanceof HTMLInputElement,
+      "The editor focuses its input",
+    );
+    await act(async () => {
+      const set = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!;
+      set.call(field, replacement);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () =>
+      field.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+  }
+
+  await edit("Head of Growth", "Growth lead");
+  await edit("head-of-growth", "@growth-lead");
+  assert.deepEqual(calls, [
+    'update:{"name":"Growth lead"}',
+    'update:{"handle":"growth-lead"}',
+  ]);
+});
 
 test("hire leeway requires confirmation to turn on and turns off immediately", async () => {
   const { render, calls } = setup();
@@ -131,7 +181,7 @@ test("containment changes in one press and requires an area", async () => {
     trust: "direct",
     scope: { project_ids: [], plan_ids: [] },
   });
-  assert.equal(keeps(), null, "a role with no area holds nothing");
+  expectAbsent(keeps(), "a role with no area holds nothing");
 });
 
 test("autonomy turns off immediately and requires confirmation to turn on", async () => {
@@ -224,9 +274,8 @@ test("the workflow link opens the stations for the selected line", async () => {
     edit.getAttribute("href")!,
     /^\/flows\/settings\?(project=[^&]+&)?section=stations$/,
   );
-  assert.equal(
+  expectAbsent(
     q("[data-line-customized-note]"),
-    null,
     "the shipped line is not called customized",
   );
   await act(async () => {

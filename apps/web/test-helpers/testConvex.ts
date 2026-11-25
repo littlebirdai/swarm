@@ -4,7 +4,12 @@ import {
   type FunctionReference,
   type FunctionReturnType,
 } from "convex/server";
-import { convexToJson, jsonToConvex, type Value } from "convex/values";
+import {
+  ConvexError,
+  convexToJson,
+  jsonToConvex,
+  type Value,
+} from "convex/values";
 import { offlineConvexClient } from "./offlineConvex";
 import {
   TestSocket,
@@ -13,17 +18,22 @@ import {
   type Subscription,
 } from "./convexWire";
 
+export const pending = Symbol("pending query");
+
 type Kind = "query" | "mutation" | "action";
-type Handler<Ref extends FunctionReference<Kind>> = (
-  args: FunctionArgs<Ref>,
-) => FunctionReturnType<Ref> | Error | undefined;
-type Reply<Ref extends FunctionReference<Kind>> =
+type Result<Ref extends FunctionReference<Kind>> =
   | FunctionReturnType<Ref>
   | Error
-  | Handler<Ref>;
+  | undefined;
+type QueryResult<Ref extends FunctionReference<"query">> =
+  | Result<Ref>
+  | typeof pending;
+type QueryReply<Ref extends FunctionReference<"query">> =
+  | QueryResult<Ref>
+  | ((args: FunctionArgs<Ref>) => QueryResult<Ref>);
 type WriteReply<Ref extends FunctionReference<"mutation" | "action">> =
-  | Reply<Ref>
-  | ((args: FunctionArgs<Ref>) => Promise<FunctionReturnType<Ref>>);
+  | Result<Ref>
+  | ((args: FunctionArgs<Ref>) => Result<Ref> | Promise<Result<Ref>>);
 type Resolver = (args: Value) => unknown;
 type Write = { name: string; args: Value };
 
@@ -62,20 +72,28 @@ export function testConvex() {
     });
   }
 
+  const errorData = (error: unknown) =>
+    error instanceof ConvexError ? { errorData: convexToJson(error.data) } : {};
+
+  function recordUnexpected(kind: string, name: string) {
+    const message = `Unregistered Convex ${kind}: ${name}`;
+    unexpected.add(message);
+    return new Error(message);
+  }
+
   function update({ queryId, udfPath, args }: Subscription): QueryUpdate {
     const resolve = queries.get(udfPath);
-    if (!resolve) unexpected.add(udfPath);
     let value;
     try {
       value = resolve
         ? resolve(jsonToConvex(args[0]))
-        : new Error(`Unregistered query: ${udfPath}`);
-      if (value === undefined) return { type: "QueryRemoved", queryId };
+        : recordUnexpected("query", udfPath);
+      if (value === pending) return { type: "QueryRemoved", queryId };
       if (!(value instanceof Error)) {
         return {
           type: "QueryUpdated",
           queryId,
-          value: convexToJson(value as Value),
+          value: convexToJson((value ?? null) as Value),
           logLines: [],
         };
       }
@@ -86,6 +104,7 @@ export function testConvex() {
       type: "QueryFailed",
       queryId,
       errorMessage: String(value),
+      ...errorData(value),
       logLines: [],
     };
   }
@@ -126,7 +145,9 @@ export function testConvex() {
         void respondToWrite();
         async function respondToWrite() {
           try {
-            const value: unknown = await writes[kind].get(name)?.(args);
+            const resolve = writes[kind].get(name);
+            if (!resolve) throw recordUnexpected(kind.toLowerCase(), name);
+            const value = await resolve(args);
             if (value instanceof Error) throw value;
             const result = convexToJson((value ?? null) as Value);
             const ts = timestamp(tick + 1);
@@ -137,6 +158,7 @@ export function testConvex() {
               ...response,
               success: false,
               result: String(error),
+              ...errorData(error),
             });
           }
         }
@@ -154,14 +176,19 @@ export function testConvex() {
     },
   );
 
+  function functionPath(ref: FunctionReference<Kind>) {
+    const name = getFunctionName(ref);
+    return name.includes(":") ? name : name + ":default";
+  }
+
   function resolver<Ref extends FunctionReference<Kind>>(
-    reply:
-      | Reply<Ref>
-      | ((args: FunctionArgs<Ref>) => Promise<unknown>)
-      | undefined,
+    reply: unknown,
   ): Resolver {
     return typeof reply === "function"
-      ? (args) => (reply as Handler<Ref>)(args as FunctionArgs<Ref>)
+      ? (args) =>
+          (reply as (args: FunctionArgs<Ref>) => unknown)(
+            args as FunctionArgs<Ref>,
+          )
       : () => reply;
   }
 
@@ -172,10 +199,9 @@ export function testConvex() {
     actions,
     set<Ref extends FunctionReference<"query">>(
       ref: Ref,
-      reply: Reply<Ref> | undefined,
+      reply: QueryReply<NoInfer<Ref>>,
     ) {
-      const path = getFunctionName(ref);
-      const name = path.includes(":") ? path : path + ":default";
+      const name = functionPath(ref);
       queries.set(name, resolver<Ref>(reply));
       const active = [...subscriptions.values()].filter(
         (sub) => sub.udfPath === name,
@@ -184,21 +210,18 @@ export function testConvex() {
     },
     mutation<Ref extends FunctionReference<"mutation">>(
       ref: Ref,
-      reply: WriteReply<Ref>,
+      reply: WriteReply<NoInfer<Ref>>,
     ) {
-      writes.Mutation.set(getFunctionName(ref), resolver<Ref>(reply));
+      writes.Mutation.set(functionPath(ref), resolver<Ref>(reply));
     },
     action<Ref extends FunctionReference<"action">>(
       ref: Ref,
-      reply: WriteReply<Ref>,
+      reply: WriteReply<NoInfer<Ref>>,
     ) {
-      writes.Action.set(getFunctionName(ref), resolver<Ref>(reply));
+      writes.Action.set(functionPath(ref), resolver<Ref>(reply));
     },
     assertRegistered() {
-      if (unexpected.size)
-        throw new Error(
-          `Unregistered Convex queries: ${[...unexpected].join(", ")}`,
-        );
+      if (unexpected.size) throw new Error([...unexpected].join("\n"));
     },
   };
 }

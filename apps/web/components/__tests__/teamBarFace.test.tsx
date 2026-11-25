@@ -1,3 +1,4 @@
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import {
@@ -13,6 +14,8 @@ import { act } from "react";
 import { usePathname } from "next/navigation";
 import { webBuilders } from "../../test-helpers/builders";
 import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import type { WalkieStatus } from "../../lib/calls/walkie";
 import { stampRoster } from "../../lib/activeTeam";
 import { BAR_FACES } from "../../lib/faces/layout";
 import {
@@ -109,14 +112,12 @@ const liveCard: Extract<FaceCard, { kind: "live" }> = {
 
 beforeEach(() => {
   fakeRow = rowOf([entry(ANN, "Ann"), entry(BO, "Bo")]);
-  closeCallStage();
 });
 
 let restoreRole: (() => void) | undefined;
-afterEach(() => {
-  restoreRole?.();
+afterEach(async () => {
+  await act(async () => restoreRole?.());
   restoreRole = undefined;
-  closeCallStage();
 });
 
 function Location() {
@@ -135,13 +136,18 @@ async function mount(roster = members, floated = false, callRoom?: string) {
       <TeamAvatarBar />
     </>
   );
-  const { backend, container, dom, rerender } = await mountWeb(node(), {
-    setup: (backend, store) => {
-      if (floated) {
-        const before = getDesktopWindowRole();
-        const electron: Partial<NonNullable<Window["__CODECAST_ELECTRON__"]>> =
-          {
-            openFacesWindow: async () => {},
+  const { backend, container, dom, navigationLog, rerender } = await mountWeb(
+    node(),
+    {
+      setup: (backend, store) => {
+        if (floated) {
+          const before = getDesktopWindowRole();
+          const electron: Partial<
+            NonNullable<Window["__CODECAST_ELECTRON__"]>
+          > = {
+            openFacesWindow: async () => {
+              docks.push("open");
+            },
             closeFacesWindow: async () => {
               docks.push("close");
             },
@@ -150,22 +156,23 @@ async function mount(roster = members, floated = false, callRoom?: string) {
               restoreRole = () => push(before);
             },
           };
-        Object.defineProperty(window, "__CODECAST_ELECTRON__", {
-          value: electron,
-        });
-        installWindowRoleTracker();
-      }
-      store.syncTable("currentUser", members[0]);
-      store.syncTable("clientState", { ui: { active_team_id: TEAM } });
-      store.syncTable("teams", [{ _id: TEAM, features: { calls: true } }]);
-      store.syncTable("callConfig", { enabled: true });
-      if (callRoom) store.setCallState({ roomKey: callRoom });
-      store.syncTable("teamMembers", stampRoster(roster, TEAM));
-      backend.set(api.teams.getTeamMembers, roster);
-      backend.set(api.callChat.list, []);
-      backend.set(api.chat.listMessages, undefined);
+          Object.defineProperty(window, "__CODECAST_ELECTRON__", {
+            value: electron,
+          });
+          installWindowRoleTracker();
+        }
+        store.syncTable("currentUser", members[0]);
+        store.syncTable("clientState", { ui: { active_team_id: TEAM } });
+        store.syncTable("teams", [{ _id: TEAM, features: { calls: true } }]);
+        store.syncTable("callConfig", { enabled: true });
+        if (callRoom) store.setCallState({ roomKey: callRoom });
+        store.syncTable("teamMembers", stampRoster(roster, TEAM));
+        backend.set(api.teams.getTeamMembers, roster);
+        backend.set(api.callChat.list, []);
+        backend.set(api.chat.listMessages, pending);
+      },
     },
-  });
+  );
   const fire = async (el: Element, type: string) => {
     await act(async () => {
       el.dispatchEvent(
@@ -176,6 +183,7 @@ async function mount(roster = members, floated = false, callRoom?: string) {
   return {
     backend,
     docks,
+    navigationLog,
     draw: async (row: FaceRowModel) => {
       fakeRow = row;
       await rerender(node());
@@ -216,8 +224,8 @@ describe("the header draws the model's row", () => {
 
   test("the card hangs under the row, and the door to the stage stands beside it only while a call is up", async () => {
     const h = await mount();
-    expect(h.q(".engagement-card")).toBeNull();
-    expect(h.q("[data-open-call]")).toBeNull();
+    expectAbsent(h.q(".engagement-card"));
+    expectAbsent(h.q("[data-open-call]"));
     await h.draw(
       rowOf(
         [me(), entry(ANN, "Ann", { tier: "linked", state: "live-with-me" })],
@@ -227,8 +235,8 @@ describe("the header draws the model's row", () => {
     );
     const card = h.q(".engagement-card")!;
     expect(card.getAttribute("data-density")).toBe("bar");
-    expect(card.closest(".face-row")).not.toBeNull();
-    expect(h.q("[data-open-call]")).not.toBeNull();
+    expectPresent(card.closest(".face-row"));
+    expectPresent(h.q("[data-open-call]"));
     // A listen offers the card's answers, not the stage.
     await h.draw(
       rowOf(
@@ -250,8 +258,8 @@ describe("the header draws the model's row", () => {
         },
       ),
     );
-    expect(h.q(".engagement-card")).not.toBeNull();
-    expect(h.q("[data-open-call]")).toBeNull();
+    expectPresent(h.q(".engagement-card"));
+    expectAbsent(h.q("[data-open-call]"));
     // My own burst is a voice, not a call: the card, and no stage.
     await h.draw(
       rowOf(
@@ -263,8 +271,8 @@ describe("the header draws the model's row", () => {
         { ...liveCard, mute: false },
       ),
     );
-    expect(h.q(".engagement-card")).not.toBeNull();
-    expect(h.q("[data-open-call]")).toBeNull();
+    expectPresent(h.q(".engagement-card"));
+    expectAbsent(h.q("[data-open-call]"));
   });
 
   test("Expand opens the stage in a browser, and nothing opens it on its own", async () => {
@@ -364,12 +372,12 @@ describe("the header draws the model's row", () => {
     expect(h.q("[data-overflow]")?.className.split(" ")).toContain("ml-0.5");
     expect(h.all(".people-bar > button:not([data-overflow])").length).toBe(0);
     // The door to the stage is not a header control: it rides the call's card.
-    expect(h.q(".engagement-card [data-open-call]")).not.toBeNull();
+    expectPresent(h.q(".engagement-card [data-open-call]"));
   });
 
   test("with nobody on the roster the bar is only its feeder", async () => {
     const h = await mount([]);
-    expect(h.q(".people-bar")).toBeNull();
+    expectAbsent(h.q(".people-bar"));
   });
 });
 
@@ -379,26 +387,26 @@ describe("the one card under a face", () => {
   test("opens after a dwell on a face: the person, what they are doing, the profile door, the reply box and the call actions, and no second photo", async () => {
     const h = await mount();
     await h.fire(h.face(ANN), "mouseover");
-    expect(h.q("[data-member-card]")).toBeNull();
+    expectAbsent(h.q("[data-member-card]"));
     await act(async () => {
       await Bun.sleep(180);
     });
     const card = h.q("[data-member-card]")!;
-    expect(card).not.toBeNull();
+    expectPresent(card);
     // Inside the row, under the face's own seat band.
-    expect(card.closest(".face-row")).not.toBeNull();
+    expectPresent(card.closest(".face-row"));
     expect(card.textContent).toContain("Ann");
     // The face on the row is the picture; the card never repeats it.
-    expect(card.querySelector("img")).toBeNull();
+    expectAbsent(card.querySelector("img"));
     // Talk and a huddle under the reply box: what you can do, on the card.
     expect(
       h.all("[data-member-card] .face-action-word").map((w) => w.textContent),
     ).toEqual(["Talk", "Huddle"]);
-    expect(card.querySelector(".fc-reply input")).not.toBeNull();
+    expectPresent(card.querySelector(".fc-reply input"));
     // The profile door.
     await h.fire(card.querySelector("[data-door]")!, "click");
     expect(h.q("[data-route]")?.textContent).toBe("/org/@ann");
-    expect(h.q("[data-member-card]")).toBeNull();
+    expectAbsent(h.q("[data-member-card]"));
   });
 
   test("a click pins the same card; there is never a second popup under a face", async () => {
@@ -410,14 +418,14 @@ describe("the one card under a face", () => {
     expect(h.all("[data-member-card]").length).toBe(1);
     await h.fire(h.face(ANN), "click");
     expect(h.all("[data-member-card]").length).toBe(1);
-    expect(h.q(".people-face-actions")).toBeNull();
+    expectAbsent(h.q(".people-face-actions"));
     expect(h.face(ANN).getAttribute("aria-expanded")).toBe("true");
     // Pinned: the pointer leaving does not drop it.
     await h.fire(h.seat(ANN), "mouseout");
     await act(async () => {
       await Bun.sleep(260);
     });
-    expect(h.q("[data-member-card]")).not.toBeNull();
+    expectPresent(h.q("[data-member-card]"));
   });
 
   test("a hovered card lets go when the pointer leaves, and switches faces at once", async () => {
@@ -434,7 +442,7 @@ describe("the one card under a face", () => {
     await act(async () => {
       await Bun.sleep(260);
     });
-    expect(h.q("[data-member-card]")).toBeNull();
+    expectAbsent(h.q("[data-member-card]"));
   });
 });
 
@@ -443,16 +451,25 @@ describe("the context menu", () => {
     const h = await mount();
     await h.fire(h.face(BO), "contextmenu");
     const menu = document.querySelector('[role="menu"]')!;
-    expect(menu).not.toBeNull();
+    expectPresent(menu);
     expect(menu.textContent).toContain("Bo");
     expect(menu.textContent).toContain("Open profile");
+    const profile = Array.from(menu.querySelectorAll('[role="menuitem"]')).find(
+      (item) => item.textContent === "Open profile",
+    );
+    expect(profile?.textContent).toBe("Open profile");
+    await h.fire(profile!, "click");
+    expect(h.navigationLog.at(-1)).toEqual({
+      path: "/org/@bo",
+      action: "push",
+    });
   });
 });
 
 describe("the pop out", () => {
   test("while the faces float the header keeps one chip, which docks them", async () => {
     const h = await mount(members, true);
-    expect(h.q("[data-face-id]")).toBeNull();
+    expectAbsent(h.q("[data-face-id]"));
     const chip = h.q("[data-dock-faces]")!;
     // It says what a click does, in the float's own verb.
     expect(chip.textContent).toContain("Dock faces");
@@ -464,7 +481,7 @@ describe("the pop out", () => {
 // ── wake discipline ─────────────────────────────────────────────────────────
 
 describe("the bar wakes on what it draws", () => {
-  const roster = (over: any = {}) => ({
+  const roster = (over: Record<string, string | number | boolean> = {}) => ({
     _id: "u_ann",
     name: "Ann Diaz",
     image: "a.png",
@@ -497,26 +514,50 @@ describe("the bar wakes on what it draws", () => {
     expect(teamBarSig([roster({ in_room_key: "dm:a:b" })])).not.toBe(before);
   });
 
-  const status = (over: any = {}) =>
-    ({
-      sending: null,
-      incoming: null,
-      liveRoom: null,
-      unavailable: null,
-      canReply: false,
-      asr: "live",
-      error: null,
-      ...over,
-    }) as any;
+  const status = (over: Partial<WalkieStatus> = {}): WalkieStatus => ({
+    sending: null,
+    incoming: null,
+    liveRoom: null,
+    unavailable: null,
+    canReply: false,
+    asr: "live",
+    error: null,
+    ...over,
+  });
 
   test("the walkie signature the faces read moves on the three facts a face draws", () => {
     const quiet = walkieFacesSig(status());
     expect(
-      walkieFacesSig(status({ incoming: { fromUserId: "u_ann" } })),
+      walkieFacesSig(
+        status({
+          incoming: {
+            fromUserId: "u_ann",
+            fromName: "Ann",
+            channelId: "channel",
+            messageId: "message",
+            roomKey: "dm:a:b",
+            createdAt: 1_000,
+          },
+        }),
+      ),
     ).not.toBe(quiet);
-    expect(walkieFacesSig(status({ sending: { roomKey: "dm:a:b" } }))).not.toBe(
-      quiet,
-    );
+    expect(
+      walkieFacesSig(
+        status({
+          sending: {
+            channelId: "channel",
+            roomKey: "dm:a:b",
+            clientId: "draft",
+            messageId: null,
+            startedAt: 1_000,
+            live: true,
+            heardLive: false,
+            openAt: null,
+            transcript: "",
+          },
+        }),
+      ),
+    ).not.toBe(quiet);
     expect(
       walkieFacesSig(
         status({ liveRoom: { key: "dm:a:b", mode: "call", since: 1_000 } }),

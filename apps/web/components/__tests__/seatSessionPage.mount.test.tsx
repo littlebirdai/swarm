@@ -1,3 +1,4 @@
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
 import { topLevelSelectors } from "../../lib/__tests__/sourceWalk";
 // The role page is the session page (docs/architecture/
 // initiatives-projects-role-page.md I3). The WHOLE inbox page is mounted over
@@ -22,10 +23,12 @@ import { topLevelSelectors } from "../../lib/__tests__/sourceWalk";
 // Run: bun test components/__tests__/seatSessionPage.mount.test.tsx
 import { api } from "@codecast/convex/convex/_generated/api";
 import { afterAll, expect, mock, test } from "bun:test";
-import * as React from "react";
 import { act } from "react";
 import { webBuilders } from "../../test-helpers/builders";
+import { ConversationLayoutStandIn } from "../../test-helpers/ConversationLayoutStandIn";
+import { DashboardLayoutStandIn } from "../../test-helpers/DashboardLayoutStandIn";
 import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
 import {
   useInboxStore,
   type InboxSession,
@@ -40,9 +43,7 @@ const ROLE = "role-head";
 const realDashboard = { ...(await import("../DashboardLayout")) };
 mock.module("../DashboardLayout", () => ({
   ...realDashboard,
-  DashboardLayout: ({ children }: { children: React.ReactNode }) => (
-    <div data-shell>{children}</div>
-  ),
+  DashboardLayout: DashboardLayoutStandIn,
 }));
 afterAll(() => mock.module("../DashboardLayout", () => realDashboard));
 const realFleet = { ...(await import("../FleetBoard")) };
@@ -81,24 +82,7 @@ afterAll(() =>
 const realConversation = { ...(await import("../ConversationDiffLayout")) };
 mock.module("../ConversationDiffLayout", () => ({
   ...realConversation,
-  ConversationDiffLayout: (
-    p: React.ComponentProps<typeof realConversation.ConversationDiffLayout>,
-  ) => (
-    <div
-      data-layout={p.conversation._id}
-      data-hide-header={p.hideHeader ? "1" : "0"}
-      data-density={p.initialDensity ?? ""}
-      data-hide-diff={p.hideDiff ? "1" : "0"}
-    >
-      <header data-sv-convhead>
-        {p.headerLeft}
-        {p.headerExtra}
-        {p.headerEnd}
-      </header>
-      {p.subHeaderContent}
-      {p.leadNode}
-    </div>
-  ),
+  ConversationDiffLayout: ConversationLayoutStandIn,
 }));
 afterAll(() =>
   mock.module("../ConversationDiffLayout", () => realConversation),
@@ -106,56 +90,12 @@ afterAll(() =>
 
 const queuePage = await import("../../app/inbox/QueuePageClient");
 const { SeatHeadControls } = await import("../org/scope/SeatHead");
-// The role page's own body has its mount test (org/scope/ScopePage.mount.test);
-// here it is the frame plus the conversation it really mounts: the pane, with
-// the seat's options and the pane's props handed through, and the role
-// header's Session view and expander, which own the session header's fold.
-function ScopeFrame(
-  props: React.ComponentProps<typeof realScope.ScopePageInner>,
-) {
-  const { id, session } = props;
-  const [open, setOpen] = React.useState(false);
-  if (!session) throw new Error("The seat frame requires a session");
-  const { onSessionView, ...pane } = session;
-  const head = { open, onToggle: () => setOpen((v) => !v) };
-  return (
-    <div data-scope-page={id}>
-      <header data-scope-head>
-        <SeatHeadControls
-          open={open}
-          onToggle={head.onToggle}
-          onSessionView={onSessionView}
-        />
-      </header>
-      <aside data-scope-aside="side" />
-      <queuePage.InboxConversation
-        {...pane}
-        seat={{
-          layout: {
-            initialDensity: "condensed",
-            hideDiff: true,
-            leadNode: <p data-lead />,
-          },
-          seedOwnership: true,
-          onSessionView,
-          head,
-        }}
-      />
-    </div>
-  );
-}
-const realScope = { ...(await import("../org/scope/ScopePage")) };
-mock.module("../org/scope/ScopePage", () => ({
-  ...realScope,
-  ScopePageInner: ScopeFrame,
-}));
-afterAll(() => mock.module("../org/scope/ScopePage", () => realScope));
-
 const fixtures = webBuilders("seatSessionPage.mount.test.tsx");
 const standingRole = fixtures.role.build({
   _id: ROLE,
   short_id: "or-10",
   name: "Head of People",
+  status: "active",
   handle: "head-of-people",
 });
 const roleSnapshot: SessionRoleSnapshot = {
@@ -164,7 +104,7 @@ const roleSnapshot: SessionRoleSnapshot = {
   handle: standingRole.handle,
   avatar: "owl",
   short_id: standingRole.short_id,
-  status: standingRole.status,
+  status: "active",
   tenure_kind: "standing",
 };
 const row = (id: string, extra: Partial<InboxSession>) =>
@@ -181,7 +121,9 @@ const mount = async (qs = "", rows: Record<string, InboxSession> = {}) => {
   await web?.close();
   web = await mountWeb(<queuePage.QueuePageClient />, {
     path: qs ? `/inbox?${qs}` : "/inbox",
+    dispatch: true,
     setup: (backend, store) => {
+      backend.mutation(api.dispatch.dispatch, null);
       store.syncTable("orgTree", { ...ORG_FIXTURE, roles: [standingRole] });
       store.syncTable(
         "sessions",
@@ -207,15 +149,23 @@ const mount = async (qs = "", rows: Record<string, InboxSession> = {}) => {
         clientStateInitialized: true,
         showMySessions: false,
       });
-      backend.set(api.org.roles, undefined);
-      backend.set(api.devices.listDevices, undefined);
+      backend.set(api.org.roles, pending);
+      backend.set(api.org.tree, pending);
+      backend.set(api.org.scopeSummary, pending);
+      backend.set(api.org.scopeFeed, { rows: [] });
+      backend.set(api.orgTemplates.instanceForRole, pending);
+      backend.set(api.org.brief, pending);
+      backend.set(api.tasks.webActiveSessions, pending);
+      backend.set(api.tasks.webListPaginated, pending);
+      backend.set(api.docs.webListPaginated, pending);
+      backend.set(api.devices.listDevices, pending);
 
-      backend.set(api.conversations.getConversation, undefined);
-      backend.set(api.conversations.getConversationWithMeta, undefined);
-      backend.set(api.conversations.getTranscriptWatermark, undefined);
-      backend.set(api.conversations.getUserMessages, undefined);
-      backend.set(api.conversations.listMessagesTail, undefined);
-      backend.set(api.conversations.getAllMessages, undefined);
+      backend.set(api.conversations.getConversation, pending);
+      backend.set(api.conversations.getConversationWithMeta, pending);
+      backend.set(api.conversations.getTranscriptWatermark, pending);
+      backend.set(api.conversations.getUserMessages, pending);
+      backend.set(api.conversations.listMessagesTail, pending);
+      backend.set(api.conversations.getAllMessages, pending);
     },
   });
 };
@@ -231,7 +181,7 @@ const settle = async () => {
 const q = (sel: string) => document.querySelector<HTMLElement>(sel);
 const click = async (sel: string) => {
   const el = q(sel);
-  expect(el).not.toBeNull();
+  expectPresent(el);
   await act(async () => el!.click());
   await settle();
 };
@@ -251,7 +201,10 @@ const open = (id: string) =>
   });
 const expectRolePage = () => {
   expect(q("[data-scope-page]")?.getAttribute("data-scope-page")).toBe(ROLE);
-  expect(q("[data-scope-aside]")).not.toBeNull();
+  expect(q("[data-scope-head] h1")?.textContent).toBe("Head of People");
+  expect(
+    q("[data-scope-panel-toggle]")?.getAttribute("data-scope-panel-toggle"),
+  ).toBe("closed");
   expect(q("[data-layout]")?.getAttribute("data-layout")).toBe(SEAT);
 };
 
@@ -274,20 +227,25 @@ test("a seat opened by four routes renders the role layout", async () => {
     s.setShowMySessions(false);
   }); // a stashed seat, peeked at
   expectRolePage();
+  await click("[data-scope-panel-toggle]");
+  expect(q("[data-scope-aside]")?.getAttribute("data-scope-aside")).toBe(
+    "side",
+  );
+  expect(q("[data-layout]")?.getAttribute("data-hide-diff")).toBe("1");
 }, 600_000);
 
 test("a hand keeps the session page, and so does a seat whose role the tree does not hold", async () => {
   await mount();
   await open(HAND);
-  expect(q("[data-scope-page]")).toBeNull();
+  expectAbsent(q("[data-scope-page]"));
   expect(q("[data-layout]")?.getAttribute("data-layout")).toBe(HAND);
-  expect(q("[data-seat-role-page]")).toBeNull();
-  expect(q("[data-seat-head]")).toBeNull();
+  expectAbsent(q("[data-seat-role-page]"));
+  expectAbsent(q("[data-seat-head]"));
 
   await open(STRAY);
-  expect(q("[data-scope-page]")).toBeNull();
+  expectAbsent(q("[data-scope-page]"));
   expect(q("[data-layout]")?.getAttribute("data-layout")).toBe(STRAY);
-  expect(q("[data-seat-role-page]")).toBeNull();
+  expectAbsent(q("[data-seat-role-page]"));
 }, 600_000);
 
 test("Session view lasts one visit, and Role page returns within it", async () => {
@@ -296,9 +254,9 @@ test("Session view lasts one visit, and Role page returns within it", async () =
   expectRolePage();
 
   await click("[data-seat-session-view]");
-  expect(q("[data-scope-page]")).toBeNull();
+  expectAbsent(q("[data-scope-page]"));
   expect(q("[data-layout]")?.getAttribute("data-layout")).toBe(SEAT);
-  expect(q("[data-seat-head]")).toBeNull();
+  expectAbsent(q("[data-seat-head]"));
 
   await click("[data-seat-role-page]");
   expectRolePage();
@@ -316,8 +274,8 @@ test("the role page asks for the plain view across the route, once", async () =>
   await open(HAND);
   askSessionView(SEAT);
   await open(SEAT);
-  expect(q("[data-scope-page]")).toBeNull();
-  expect(q("[data-seat-role-page]")).not.toBeNull();
+  expectAbsent(q("[data-scope-page]"));
+  expectPresent(q("[data-seat-role-page]"));
 
   await open(HAND);
   await open(SEAT);
@@ -335,14 +293,14 @@ test("an ask lands while the pane already shows the seat", async () => {
 
   await act(async () => askSessionView(SEAT));
   await settle();
-  expect(q("[data-scope-page]")).toBeNull();
-  expect(q("[data-seat-role-page]")).not.toBeNull();
+  expectAbsent(q("[data-scope-page]"));
+  expectPresent(q("[data-seat-role-page]"));
 
   await click("[data-seat-role-page]");
   expectRolePage();
   await act(async () => askSessionView(SEAT));
   await settle();
-  expect(q("[data-scope-page]")).toBeNull();
+  expectAbsent(q("[data-scope-page]"));
 
   // Settled: leaving and returning is the role page again.
   await open(HAND);
@@ -365,12 +323,12 @@ test("a surface's own end controls ride along in both views", async () => {
   await web!.rerender(<queuePage.SessionPage {...props} />);
   await settle();
   expectRolePage();
-  expect(q("[data-sv-convhead] [data-pane-close]")).not.toBeNull();
-  expect(q("[data-seat-session-view]")).not.toBeNull();
+  expectPresent(q("[data-sv-convhead] [data-pane-close]"));
+  expectPresent(q("[data-seat-session-view]"));
   await click("[data-seat-session-view]");
-  expect(q("[data-scope-page]")).toBeNull();
-  expect(q("[data-sv-convhead] [data-pane-close]")).not.toBeNull();
-  expect(q("[data-seat-role-page]")).not.toBeNull();
+  expectAbsent(q("[data-scope-page]"));
+  expectPresent(q("[data-sv-convhead] [data-pane-close]"));
+  expectPresent(q("[data-seat-role-page]"));
 }, 600_000);
 
 test("the seat keeps the session header and every slot, folded behind the role header's expander", async () => {
@@ -379,18 +337,18 @@ test("the seat keeps the session header and every slot, folded behind the role h
   const layout = q("[data-layout]")!;
   expect(layout.getAttribute("data-hide-header")).toBe("0");
   expect(layout.getAttribute("data-density")).toBe("condensed");
-  expect(q("[data-sv-convhead] [data-share-trigger]")).not.toBeNull();
-  expect(q("[data-seat-label]")).not.toBeNull();
-  expect(q("[data-lead]")).not.toBeNull();
+  expectPresent(q("[data-sv-convhead] [data-share-trigger]"));
+  expectPresent(q("[data-seat-label]"));
+  expect(q("[data-lead]") === null).toBe(true);
   // At rest the routine line waits behind the expander, not above the first message.
-  expect(q("[data-trigger-panel]")).toBeNull();
+  expectAbsent(q("[data-trigger-panel]"));
 
   expect(q("[data-seat-head]")?.getAttribute("data-seat-head")).toBe("rest");
   await click("[data-seat-head-toggle]");
   expect(q("[data-seat-head]")?.getAttribute("data-seat-head")).toBe("open");
-  expect(q("[data-trigger-panel]")).not.toBeNull();
+  expectPresent(q("[data-trigger-panel]"));
   // The state slot leaves the DOM, which is what makes the row's squeeze measure again.
-  expect(q("[data-seat-label]")).toBeNull();
+  expectAbsent(q("[data-seat-label]"));
   expect(q("[data-seat-head-toggle]")?.getAttribute("aria-expanded")).toBe(
     "true",
   );
@@ -493,7 +451,7 @@ test("a seat of another workspace than the active one holds the org to its own a
   expect(q("[data-placeholder]")?.getAttribute("data-placeholder")).toBe(
     FOREIGN,
   );
-  expect(q("[data-layout]")).toBeNull();
+  expectAbsent(q("[data-layout]"));
 
   await go((state) =>
     state.syncTable("orgTree", {
