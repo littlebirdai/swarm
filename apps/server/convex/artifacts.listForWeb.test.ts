@@ -1,203 +1,160 @@
-// listForWeb stamps every page with its workspace and lets a teammate's page
-// through only when that workspace is a team the two share. Runs the handler
-// against a tiny fake db (same shape as calls.test.ts).
 import { describe, expect, test } from "bun:test";
-import { GALLERY_LIMIT, listForWeb } from "./artifacts";
-
-// `reads` counts every db read call, the unit Convex caps at 4,096 a query.
-function fakeCtx(
-  viewer: string,
-  rows: Record<string, any[]>,
-  reads = { n: 0 },
-) {
-  const byId = new Map<string, any>();
-  for (const table of Object.values(rows))
-    for (const r of table) byId.set(r._id, r);
-  const result = (hit: any[]) => ({
-    collect: async () => (reads.n++, hit),
-    first: async () => (reads.n++, hit[0] ?? null),
-    take: async (n: number) => (reads.n++, hit.slice(0, n)),
-  });
-  return {
-    auth: {
-      getUserIdentity: async () => ({
-        subject: `${viewer}|sess`,
-        tokenIdentifier: "x",
-      }),
-    },
-    db: {
-      query: (table: string) => ({
-        withIndex: (_i: string, builder: any) => {
-          const eqs: Array<[string, any]> = [];
-          builder({
-            eq(f: string, v: any) {
-              eqs.push([f, v]);
-              return this;
-            },
-          });
-          const hit = (rows[table] ?? []).filter((r) =>
-            eqs.every(([f, v]) => String(r[f]) === String(v)),
-          );
-          return {
-            ...result(hit),
-            order: (dir: "asc" | "desc") =>
-              result(
-                [...hit].sort((a, b) =>
-                  dir === "desc"
-                    ? b.updated_at - a.updated_at
-                    : a.updated_at - b.updated_at,
-                ),
-              ),
-          };
-        },
-      }),
-      get: async (id: string) => (reads.n++, byId.get(id) ?? null),
-    },
-  } as any;
-}
-
-const page = (
-  id: string,
-  user_id: string,
-  extra: Record<string, any> = {},
-) => ({
-  _id: id,
-  slug: id,
-  user_id,
-  title: id,
-  storage_id: "s",
-  size: 1,
-  version: 1,
-  created_at: 1,
-  updated_at: 1,
-  ...extra,
-});
+import { asUser, serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows } from "../test-helpers/rows.testkit";
+import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { GALLERY_LIMIT } from "./artifacts";
 
 describe("listForWeb workspace scoping", () => {
   test("stamps each page's workspace and keeps teammates' pages to shared teams", async () => {
-    const ctx = fakeCtx("u1", {
-      users: [
-        { _id: "u1", name: "Me" },
-        { _id: "u2", name: "Mate" },
-      ],
-      team_memberships: [
-        { _id: "m1", user_id: "u1", team_id: "t1" },
-        { _id: "m2", user_id: "u2", team_id: "t1", visibility: "full" },
-        { _id: "m3", user_id: "u2", team_id: "t2", visibility: "full" },
-      ],
-      conversations: [
-        { _id: "c1", team_id: "t1" },
-        { _id: "c2", team_id: "t2" },
-        { _id: "c3", team_id: "t1", is_private: true },
-      ],
-      tasks: [{ _id: "k1", user_id: "u2", workspace: "team:t1" }],
-      artifacts: [
-        page("mine-team", "u1", { session_conversation_id: "c1" }),
-        page("mine-solo", "u1"),
-        page("mate-shared", "u2", { session_conversation_id: "c1" }),
-        page("mate-task", "u2", {
-          session_conversation_id: "c2",
-          task_id: "k1",
-        }),
-        page("mate-other-team", "u2", { session_conversation_id: "c2" }),
-        page("mate-private", "u2", { session_conversation_id: "c3" }),
-        page("mate-solo", "u2"),
-      ],
+    const t = serverTest();
+    const { owner, mate, shared } = await t.run(async ({ db, storage }) => {
+      const rows = fixtureRows(db, "gallery workspace");
+      const owner = await rows.user();
+      const mate = await rows.user();
+      const shared = await rows.team();
+      const other = await rows.team();
+      const workspace = `team:${shared}`;
+      await rows.membership(owner, shared);
+      await rows.membership(mate, shared, { visibility: "full" });
+      await rows.membership(mate, other, { visibility: "full" });
+      const sharedSession = await rows.conversation(mate, {
+        team_id: shared,
+        team_visibility: "full",
+      });
+      const otherSession = await rows.conversation(mate, {
+        team_id: other,
+        team_visibility: "full",
+      });
+      const privateSession = await rows.conversation(mate, {
+        team_id: shared,
+        is_private: true,
+      });
+      const task = await rows.task(mate, { workspace, team_id: shared });
+      const blob = await storage.store(new Blob(["page"]));
+
+      await rows.artifact(owner, blob, {
+        slug: "mine-team",
+        session_conversation_id: sharedSession,
+      });
+      await rows.artifact(owner, blob, { slug: "mine-solo" });
+      await rows.artifact(mate, blob, {
+        slug: "mate-shared",
+        session_conversation_id: sharedSession,
+      });
+      await rows.artifact(mate, blob, {
+        slug: "mate-task",
+        session_conversation_id: otherSession,
+        task_id: task,
+      });
+      await rows.artifact(mate, blob, {
+        slug: "mate-other-team",
+        session_conversation_id: otherSession,
+      });
+      await rows.artifact(mate, blob, {
+        slug: "mate-private",
+        session_conversation_id: privateSession,
+      });
+      await rows.artifact(mate, blob, { slug: "mate-solo" });
+      return { owner, mate, shared };
     });
-    const handler = (listForWeb as any)._handler ?? (listForWeb as any).handler;
-    const { artifacts } = await handler(ctx, {});
+
+    const { artifacts } = await asUser(t, owner).query(
+      api.artifacts.listForWeb,
+      {},
+    );
     const got = Object.fromEntries(
-      artifacts.map((a: any) => [a.slug, [a.workspace, a.author_id, a.mine]]),
+      artifacts.map((a) => [a.slug, [a.workspace, a.author_id, a.mine]]),
     );
     expect(got).toEqual({
-      "mine-team": ["team:t1", "u1", true],
-      "mine-solo": ["user:u1", "u1", true],
-      "mate-shared": ["team:t1", "u2", false],
-      "mate-task": ["team:t1", "u2", false],
+      "mine-team": [`team:${shared}`, owner, true],
+      "mine-solo": [`user:${owner}`, owner, true],
+      "mate-shared": [`team:${shared}`, mate, false],
+      "mate-task": [`team:${shared}`, mate, false],
     });
   });
 });
 
 describe("listForWeb read budget", () => {
   test("an account with thousands of pages stays under Convex's read cap and gets its newest pages", async () => {
-    const pages: any[] = [];
-    const tasks: any[] = [];
-    for (const owner of ["u1", "u2", "u3"]) {
-      for (let i = 0; i < 2000; i++) {
-        const task_id = `${owner}-k${i}`;
-        tasks.push({ _id: task_id, user_id: owner, workspace: "team:t1" });
-        pages.push(
-          page(`${owner}-p${i}`, owner, {
-            task_id,
-            updated_at: i * 3 + (owner === "u2" ? 1 : 0),
-          }),
-        );
+    const t = serverTest({ databaseQueries: 4095 });
+    const viewer = await t.run(async ({ db, storage }) => {
+      const rows = fixtureRows(db, "gallery read budget");
+      const team = await rows.team();
+      const blob = await storage.store(new Blob(["page"]));
+      const owners = [await rows.user(), await rows.user(), await rows.user()];
+      for (const [index, owner] of owners.entries()) {
+        await rows.membership(owner, team, { visibility: "full" });
+        for (let i = 0; i < 2000; i++) {
+          const task = await rows.task(owner, {
+            workspace: `team:${team}`,
+            team_id: team,
+          });
+          await rows.artifact(owner, blob, {
+            slug: `u${index + 1}-p${i}`,
+            task_id: task,
+            updated_at: i * 3 + (index === 1 ? 1 : 0),
+          });
+        }
       }
-    }
-    const reads = { n: 0 };
-    const ctx = fakeCtx(
-      "u1",
-      {
-        users: [{ _id: "u1" }, { _id: "u2" }, { _id: "u3" }],
-        team_memberships: [
-          { _id: "m1", user_id: "u1", team_id: "t1" },
-          { _id: "m2", user_id: "u2", team_id: "t1", visibility: "full" },
-          { _id: "m3", user_id: "u3", team_id: "t1", visibility: "full" },
-        ],
-        tasks,
-        artifacts: pages,
-      },
-      reads,
+      return owners[0];
+    });
+
+    const { artifacts } = await asUser(t, viewer).query(
+      api.artifacts.listForWeb,
+      {},
     );
-    const handler = (listForWeb as any)._handler ?? (listForWeb as any).handler;
-    const { artifacts } = await handler(ctx, {});
-    expect(reads.n).toBeLessThan(4096);
     expect(artifacts).toHaveLength(GALLERY_LIMIT);
     expect(artifacts[0].slug).toBe("u2-p1999");
-    const times = artifacts.map((a: any) => a.updated_at);
+    const times = artifacts.map((a) => a.updated_at);
     expect(times).toEqual([...times].sort((a, b) => b - a));
   });
 });
 
-// F48: team editing reaches exactly the pages listForWeb shows a teammate:
-// members of the page's own team, never of every team the owner is in.
-import { teamEditAuth } from "./artifacts";
-
 describe("teamEditAuth scope", () => {
-  const rows = () => ({
-    users: [
-      { _id: "u1", name: "Owner" },
-      { _id: "u2", name: "Mate" },
-      { _id: "u3", name: "Other" },
-    ],
-    team_memberships: [
-      { _id: "m1", user_id: "u1", team_id: "t1", visibility: "full" },
-      { _id: "m2", user_id: "u2", team_id: "t1" },
-      { _id: "m3", user_id: "u1", team_id: "t2", visibility: "full" },
-      { _id: "m4", user_id: "u3", team_id: "t2" },
-    ],
-    conversations: [{ _id: "c1", team_id: "t1" }],
-    artifacts: [
-      page("team-page", "u1", {
-        session_conversation_id: "c1",
+  async function setup() {
+    const t = serverTest();
+    const ids = await t.run(async ({ db, storage }) => {
+      const rows = fixtureRows(db, "gallery team edit");
+      const owner = await rows.user();
+      const mate = await rows.user();
+      const other = await rows.user();
+      const sharedTeam = await rows.team();
+      const otherTeam = await rows.team();
+      await rows.membership(owner, sharedTeam, { visibility: "full" });
+      await rows.membership(mate, sharedTeam, { visibility: "full" });
+      await rows.membership(owner, otherTeam, { visibility: "full" });
+      await rows.membership(other, otherTeam, { visibility: "full" });
+      const conversation = await rows.conversation(owner, {
+        team_id: sharedTeam,
+        team_visibility: "full",
+      });
+      const blob = await storage.store(new Blob(["page"]));
+      await rows.artifact(owner, blob, {
+        slug: "team-page",
+        session_conversation_id: conversation,
         edit_mode: "team",
-      }),
-      page("solo-page", "u1", { edit_mode: "team" }),
-    ],
-  });
-  const run = (slug: string, editor: string) =>
-    (teamEditAuth as any)._handler(fakeCtx(editor, rows()), {
-      slug,
-      editor_user_id: editor,
+      });
+      await rows.artifact(owner, blob, {
+        slug: "solo-page",
+        edit_mode: "team",
+      });
+      return { owner, mate, other };
     });
+    const run = (slug: string, editor_user_id: Id<"users">) =>
+      t.query(internal.artifacts.teamEditAuth, { slug, editor_user_id });
+    return { ...ids, run };
+  }
 
   test("a member of the page's team may edit; a member of the owner's other team may not", async () => {
-    expect((await run("team-page", "u2"))?.is_owner).toBe(false);
-    expect(await run("team-page", "u3")).toBeNull();
+    const { run, mate, other } = await setup();
+    expect((await run("team-page", mate))?.is_owner).toBe(false);
+    expect(await run("team-page", other)).toBeNull();
   });
 
   test("a page in the owner's personal space has no team editors", async () => {
-    expect(await run("solo-page", "u2")).toBeNull();
-    expect((await run("solo-page", "u1"))?.is_owner).toBe(true);
+    const { run, owner, mate } = await setup();
+    expect(await run("solo-page", mate)).toBeNull();
+    expect((await run("solo-page", owner))?.is_owner).toBe(true);
   });
 });

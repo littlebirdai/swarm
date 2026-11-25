@@ -3,123 +3,100 @@
 // pages because they quote a customer; the decision's own readers still read
 // them). Nobody else gets the tokens, and a decision opens only the pages it
 // filed. embedInfo carries the same rule for an embed, one row per page.
-// Runs the handlers against a tiny fake db (as artifacts.listForWeb.test.ts).
 import { describe, expect, test } from "bun:test";
-import { embedInfo, ownerUnlock } from "./artifacts";
+import type { FunctionArgs } from "convex/server";
+import { asUser, serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows } from "../test-helpers/rows.testkit";
+import { api } from "./_generated/api";
 import { kTokenFor } from "./lib/artifactGates";
 
-function fakeCtx(viewer: string | null, rows: Record<string, any[]>) {
-  const byId = new Map<string, any>();
-  for (const table of Object.values(rows))
-    for (const r of table) byId.set(r._id, r);
-  return {
-    auth: {
-      getUserIdentity: async () =>
-        viewer ? { subject: `${viewer}|sess`, tokenIdentifier: "x" } : null,
-    },
-    db: {
-      query: (table: string) => ({
-        withIndex: (_i: string, builder: any) => {
-          const eqs: Array<[string, any]> = [];
-          builder({
-            eq(f: string, v: any) {
-              eqs.push([f, v]);
-              return this;
-            },
-          });
-          const hit = (rows[table] ?? []).filter((r) =>
-            eqs.every(([f, v]) => String(r[f]) === String(v)),
-          );
-          return {
-            collect: async () => hit,
-            first: async () => hit[0] ?? null,
-          };
-        },
-      }),
-      get: async (id: string) => byId.get(id) ?? null,
-      normalizeId: (_t: string, id: string) => (byId.has(id) ? id : null),
-    },
-  } as any;
-}
-
-const rows = () => ({
-  artifacts: [
-    {
-      _id: "a1",
+async function setup() {
+  const t = serverTest();
+  const ids = await t.run(async ({ db, storage }) => {
+    const rows = fixtureRows(db, "page unlock");
+    const owner = await rows.user();
+    const asked = await rows.user();
+    const stranger = await rows.user();
+    const blob = await storage.store(new Blob(["page"]));
+    await rows.artifact(owner, blob, {
       slug: "trialpage",
-      user_id: "owner",
       title: "The fix",
       version: 2,
       password_hash: "h1",
-      created_at: 1,
-      updated_at: 1,
-    },
-    {
-      _id: "a2",
+    });
+    await rows.artifact(owner, blob, {
       slug: "otherpage",
-      user_id: "owner",
-      title: "Other",
-      version: 1,
       password_hash: "h2",
-      created_at: 1,
-      updated_at: 1,
-    },
-    {
-      _id: "a3",
+    });
+    await rows.artifact(owner, blob, {
       slug: "openpage",
-      user_id: "owner",
       title: "Open",
       version: 4,
+    });
+    const sessionId = "private-trial-session";
+    const conversation = await rows.conversation(owner, {
+      session_id: sessionId,
+      is_private: true,
+    });
+    const common = {
+      user_id: owner,
+      conversation_id: conversation,
+      session_id: sessionId,
+      question: "Ship the fix?",
+      blocking: false,
+      status: "pending",
       created_at: 1,
-      updated_at: 1,
-    },
-  ],
-  users: [{ _id: "owner", name: "Owner" }],
-  session_decisions: [
-    // The asking conversation is not readable in this fake: only being asked lets a viewer in.
-    {
-      _id: "d1",
+    } as const;
+    const filed = await db.insert("session_decisions", {
+      ...common,
+      asked_user_ids: [asked],
       short_id: "sd-1",
-      user_id: "owner",
-      asked_user_ids: ["asked"],
-      conversation_id: "gone",
       report_slug: "trialpage",
       options: [{ label: "Ship", page_slug: "otherpage" }],
-    },
-    {
-      _id: "d2",
+    });
+    await db.insert("session_decisions", {
+      ...common,
+      asked_user_ids: [asked],
       short_id: "sd-2",
-      user_id: "owner",
-      asked_user_ids: ["asked"],
-      conversation_id: "gone",
       options: [{ label: "Ship" }],
-    },
-  ],
-});
-
-const unlock = (viewer: string, args: { slug: string; decision?: string }) =>
-  ((ownerUnlock as any)._handler ?? (ownerUnlock as any).handler)(
-    fakeCtx(viewer, rows()),
-    args,
-  );
+    });
+    return { owner, asked, stranger, filed };
+  });
+  const viewerClient = (viewer: "owner" | "asked" | "stranger" | null) =>
+    viewer ? asUser(t, ids[viewer]) : t;
+  return {
+    filed: ids.filed,
+    unlock: (
+      viewer: "owner" | "asked" | "stranger",
+      args: FunctionArgs<typeof api.artifacts.ownerUnlock>,
+    ) => viewerClient(viewer).query(api.artifacts.ownerUnlock, args),
+    info: (
+      viewer: "owner" | "asked" | "stranger" | null,
+      pages: FunctionArgs<typeof api.artifacts.embedInfo>["pages"],
+    ) => viewerClient(viewer).query(api.artifacts.embedInfo, { pages }),
+  };
+}
 
 describe("ownerUnlock", () => {
   test("the owner opens their gated page", async () => {
+    const { unlock } = await setup();
     const got = await unlock("owner", { slug: "trialpage" });
     expect(got?.k).toBe(await kTokenFor("h1", "trialpage"));
     expect(got?.title).toBe("The fix");
   });
 
   test("a person the decision asks opens the pages it filed, its report and an option's page", async () => {
+    const { unlock, filed } = await setup();
     expect(
       (await unlock("asked", { slug: "trialpage", decision: "sd-1" }))?.k,
     ).toBeTruthy();
     expect(
-      (await unlock("asked", { slug: "otherpage", decision: "d1" }))?.k,
+      (await unlock("asked", { slug: "otherpage", decision: filed }))?.k,
     ).toBeTruthy();
   });
 
   test("a decision opens only pages it filed, and only for its readers", async () => {
+    const { unlock } = await setup();
     expect(
       await unlock("asked", { slug: "trialpage", decision: "sd-2" }),
     ).toBeNull();
@@ -130,17 +107,9 @@ describe("ownerUnlock", () => {
   });
 });
 
-const info = (
-  viewer: string | null,
-  pages: Array<{ slug: string; decision?: string }>,
-) =>
-  ((embedInfo as any)._handler ?? (embedInfo as any).handler)(
-    fakeCtx(viewer, rows()),
-    { pages },
-  );
-
 describe("embedInfo", () => {
   test("one row per page: open, gated with its tokens for the owner, missing", async () => {
+    const { info } = await setup();
     const [open, gated, missing] = await info("owner", [
       { slug: "openpage" },
       { slug: "trialpage" },
@@ -165,7 +134,8 @@ describe("embedInfo", () => {
   });
 
   test("a gated page is locked, with nothing about it, for anyone without a way in", async () => {
-    for (const viewer of ["stranger", null]) {
+    const { info } = await setup();
+    for (const viewer of ["stranger", null] as const) {
       const [row] = await info(viewer, [{ slug: "trialpage" }]);
       expect(row).toEqual({
         slug: "trialpage",
@@ -177,6 +147,7 @@ describe("embedInfo", () => {
   });
 
   test("the decision a page was filed on lets its readers through, as ownerUnlock does", async () => {
+    const { info } = await setup();
     const [row] = await info("asked", [
       { slug: "trialpage", decision: "sd-1" },
     ]);
@@ -188,6 +159,7 @@ describe("embedInfo", () => {
   });
 
   test("a page named twice comes back once", async () => {
+    const { info } = await setup();
     expect(
       await info("owner", [{ slug: "openpage" }, { slug: "openpage" }]),
     ).toHaveLength(1);

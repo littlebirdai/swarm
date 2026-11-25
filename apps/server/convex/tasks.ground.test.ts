@@ -2,63 +2,58 @@
 // `cast task update --goal-ref --category --risk --readiness --readiness-note`
 // write through the one update path, and an empty string clears a field.
 import { describe, expect, test } from "bun:test";
-import { makeFakeDb } from "./testDb";
-import { update } from "./tasks";
-import { hashToken } from "./apiTokens";
+import type { FunctionArgs } from "convex/server";
+import { serverTest } from "../test-helpers/database.testkit";
+import { fixtureRows, type NewRow } from "../test-helpers/rows.testkit";
+import { api } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import type { DatabaseWriter } from "./_generated/server";
 
-const OWNER = "users_owner";
 const TOKEN = "ground-token";
 
-async function makeCtx(task: any) {
-  const tables: Record<string, any[]> = {
-    users: [{ _id: OWNER, name: "Owner", github_username: "owner" }],
-    api_tokens: [
-      { _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) },
-    ],
-    tasks: [task],
-    task_history: [],
-    entity_subscriptions: [],
-  };
-  const ctx = {
-    auth: {
-      async getUserIdentity() {
-        return null;
-      },
-    },
-    db: makeFakeDb(tables),
-    scheduler: { runAfter: async () => null },
-    async runMutation() {
-      return null;
-    },
-  } as any;
-  return { ctx, tables };
-}
-
-const run = (ctx: any, args: Record<string, unknown>) =>
-  (update as any)._handler(ctx, {
-    api_token: TOKEN,
-    short_id: "ct-1",
-    ...args,
+async function setup(
+  fields: Partial<NewRow<"tasks">>,
+  prepare?: (
+    db: DatabaseWriter,
+    owner: Id<"users">,
+  ) => Promise<Partial<NewRow<"tasks">>>,
+) {
+  const t = serverTest();
+  const task = await t.run(async ({ db }) => {
+    const rows = fixtureRows(db, "task ground");
+    const owner = await rows.user();
+    await rows.token(owner, TOKEN);
+    return rows.task(owner, {
+      short_id: "ct-1",
+      ...fields,
+      ...(await prepare?.(db, owner)),
+    });
   });
+  return {
+    update: (args: Partial<FunctionArgs<typeof api.tasks.update>>) =>
+      t.mutation(api.tasks.update, {
+        api_token: TOKEN,
+        short_id: "ct-1",
+        ...args,
+      }),
+    readTask: () => t.run(async ({ db }) => (await db.get(task))!),
+  };
+}
 
 describe("tasks.update ground fields", () => {
   test("writes all five", async () => {
-    const { ctx, tables } = await makeCtx({
-      _id: "tasks_1",
-      short_id: "ct-1",
-      title: "t",
-      user_id: OWNER,
+    const { update, readTask } = await setup({
       status: "open",
       source: "agent",
     });
-    await run(ctx, {
+    await update({
       goal_ref: "in-3:week4_retention",
       category: "prompt",
       risk: "plan",
       readiness: "needs_context",
       readiness_note: "no repro yet",
     });
-    expect(tables.tasks[0]).toMatchObject({
+    expect(await readTask()).toMatchObject({
       goal_ref: "in-3:week4_retention",
       category: "prompt",
       risk: "plan",
@@ -68,85 +63,70 @@ describe("tasks.update ground fields", () => {
   });
 
   test("--watch-days starts the watch now and records it; 0 ends it", async () => {
-    const { ctx, tables } = await makeCtx({
-      _id: "tasks_1",
-      short_id: "ct-1",
-      title: "t",
-      user_id: OWNER,
+    const { update, readTask } = await setup({
       status: "done",
       source: "signal",
     });
     const before = Date.now();
-    await run(ctx, { watch_days: 7 });
-    expect(tables.tasks[0].watch_from).toBeGreaterThanOrEqual(before);
-    expect(tables.tasks[0].watch_until).toBe(
-      tables.tasks[0].watch_from + 7 * 86_400_000,
-    );
-    await run(ctx, { watch_days: 0 });
-    expect(tables.tasks[0].watch_from).toBeUndefined();
-    expect(tables.tasks[0].watch_until).toBeUndefined();
+    await update({ watch_days: 7 });
+    const watched = await readTask();
+    expect(watched.watch_from).toBeGreaterThanOrEqual(before);
+    expect(watched.watch_until).toBe(watched.watch_from! + 7 * 86_400_000);
+    await update({ watch_days: 0 });
+    expect((await readTask()).watch_from).toBeUndefined();
+    expect((await readTask()).watch_until).toBeUndefined();
   });
 
   test("an empty string clears a field; an absent one is left alone", async () => {
-    const { ctx, tables } = await makeCtx({
-      _id: "tasks_1",
-      short_id: "ct-1",
-      title: "t",
-      user_id: OWNER,
+    const { update, readTask } = await setup({
       status: "open",
       source: "agent",
       goal_ref: "none",
       category: "code",
       risk: "low",
     });
-    await run(ctx, { category: "", goal_ref: "pj-a" });
-    expect(tables.tasks[0].category).toBeUndefined();
-    expect(tables.tasks[0].goal_ref).toBe("pj-a");
-    expect(tables.tasks[0].risk).toBe("low");
+    await update({ category: "", goal_ref: "pj-a" });
+    expect((await readTask()).category).toBeUndefined();
+    expect((await readTask()).goal_ref).toBe("pj-a");
+    expect((await readTask()).risk).toBe("low");
   });
 
   test("a cause's goal must be one its own goals brief offers: its project, not another's", async () => {
-    const cause = {
-      _id: "tasks_1",
-      short_id: "ct-1",
-      title: "t",
-      user_id: OWNER,
-      status: "open",
-      source: "signal",
-      workspace: "team:teams_u",
-      team_id: "teams_u",
-      project_id: "projects_me",
-    };
-    const { ctx, tables } = await makeCtx(cause);
-    tables.projects = [
-      {
-        _id: "projects_me",
-        short_id: "pj-me",
-        title: "Matching Engine",
-        workspace: "team:teams_u",
-        team_id: "teams_u",
-        status: "active",
-        goal: "More intros",
+    const { update, readTask } = await setup(
+      { source: "signal" },
+      async (db, owner) => {
+        const team = await fixtureRows(db, "task goals workspace").team();
+        const workspace = `team:${team}`;
+        const common = {
+          user_id: owner,
+          workspace,
+          team_id: team,
+          status: "active",
+          created_at: 1,
+          updated_at: 1,
+        } as const;
+        const project = await db.insert("projects", {
+          ...common,
+          short_id: "pj-me",
+          title: "Matching Engine",
+          goal: "More intros",
+        });
+        await db.insert("projects", {
+          ...common,
+          short_id: "pj-aq",
+          title: "Agent Quality",
+          goal: "Zero clusters",
+        });
+        return { workspace, team_id: team, project_id: project };
       },
-      {
-        _id: "projects_aq",
-        short_id: "pj-aq",
-        title: "Agent Quality",
-        workspace: "team:teams_u",
-        team_id: "teams_u",
-        status: "active",
-        goal: "Zero clusters",
-      },
-    ];
-    tables.initiatives = [];
-    tables.initiative_projects = [];
-    await expect(run(ctx, { goal_ref: "pj-aq" })).rejects.toThrow(
+    );
+    await expect(update({ goal_ref: "pj-aq" })).rejects.toThrow(
       /not one of ct-1's goals/,
     );
-    expect(tables.tasks[0].goal_ref).toBeUndefined();
-    await run(ctx, { goal_ref: "pj-me" });
-    expect(tables.tasks[0].goal_ref).toBe("pj-me");
-    await run(ctx, { goal_ref: "none" });
-    expect(tables.tasks[0].goal_ref).toBe("none");
+    expect((await readTask()).goal_ref).toBeUndefined();
+    await update({ goal_ref: "pj-me" });
+    expect((await readTask()).goal_ref).toBe("pj-me");
+    await update({ goal_ref: "none" });
+    expect((await readTask()).goal_ref).toBe("none");
   });
 });
