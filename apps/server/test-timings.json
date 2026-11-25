@@ -613,7 +613,6 @@
     "convex/repositoryNavigation.test.ts": 32,
     "convex/reservedDevices.test.ts": 46,
     "convex/resolveSpawnParentId.test.ts": 30,
-    "convex/resolverParity.test.ts": 32,
     "convex/resourceOffload.test.ts": 66,
     "convex/reviewNotes.test.ts": 39,
     "convex/review_w7_takeover.test.ts": 35,

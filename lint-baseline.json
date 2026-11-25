@@ -11783,9 +11783,6 @@
   "apps/server/convex/reservedDevices.test.ts": {
     "swarm/no-comments": 3
   },
-  "apps/server/convex/resolverParity.test.ts": {
-    "swarm/no-comments": 4
-  },
   "apps/server/convex/resourceOffload.test.ts": {
     "swarm/no-comments": 1
   },
@@ -28364,7 +28361,7 @@
     "swarm/no-comments": 7
   },
   "packages/agent-clients/test/capabilityResolver.golden.test.ts": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 3
   },
   "packages/agent-clients/test/capabilityResolver.test.ts": {
     "swarm/no-comments": 68
