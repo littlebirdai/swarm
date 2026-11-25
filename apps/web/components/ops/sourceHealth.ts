@@ -9,11 +9,7 @@
 // ingest door's counters: a poll-based source (PostHog, Sentry, GitHub, an
 // app) lands groups, replays and watch readings without ever touching
 // events_today. Pure: no React, no store.
-import {
-  DAY_MS,
-  normalDay,
-  sourceState,
-} from "@codecast/shared/contracts/flowMap";
+import { DAY_MS, normalDay, sourceState } from "@codecast/line/flowMap";
 import { bucketSeries, parseReaderQuery } from "@codecast/ingest/ingest";
 import {
   replayBackfillLine,

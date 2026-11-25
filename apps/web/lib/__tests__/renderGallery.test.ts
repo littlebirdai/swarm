@@ -22,7 +22,7 @@ import { normalizeCastCategory } from "../../components/castCommand";
 import type { UserMessageKind } from "../../components/conversation/types";
 import { CLOUD_AGENT_ACTION_SUBTYPE } from "@codecast/agent-clients/cloudAgents";
 import { DELIVERY_FAILED_SUBTYPE } from "@codecast/sessions/deliveryFailed";
-import { LINE_FENCE_LANG } from "@codecast/shared/contracts/lineChat";
+import { LINE_FENCE_LANG } from "@codecast/line/lineChat";
 import { VIEW_FENCE_LANG } from "../productViewRefs";
 import { FLOW_FENCE_LANG, readFlowFence } from "../line/flowFence";
 import { editRun } from "../line/flowEditCard";

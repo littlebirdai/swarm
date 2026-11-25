@@ -5,11 +5,7 @@
 // link to For you on that flow) and what stalled, and names only the stations
 // holding work, each opening that station. Pressing a row draws its map.
 import { useState, type MouseEvent } from "react";
-import type {
-  FlowMap,
-  FlowMapLane,
-  FlowMapStep,
-} from "@codecast/shared/contracts/flowMap";
+import type { FlowMap, FlowMapLane, FlowMapStep } from "@codecast/line/flowMap";
 import { processKeyOf } from "../../../../../lib/line/lineGraphs";
 import type { LineSelectionPatch } from "../../../../../lib/line/lineWorkspaceUrl";
 import type { LineViewProps } from "../types";

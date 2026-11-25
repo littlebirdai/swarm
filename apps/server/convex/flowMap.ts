@@ -1,6 +1,6 @@
 // The flow map (the Flows page's Signals and Flows stages): every source of a
 // workspace's problems, the lanes of its live flow, and where the problems
-// stand (shared/contracts/flowMap.ts names the shape and its readings).
+// stand (packages/line/src/flowMap.ts names the shape and its readings).
 //
 // Two halves. What changes by the second (the live flow's switch, its runs at
 // each step, decisions waiting, causes under watch, the sources and watches
@@ -40,7 +40,7 @@ import {
   type FlowMapOutcomes,
   type FlowMapSource,
   type FlowMapStep,
-} from "@codecast/shared/contracts/flowMap";
+} from "@codecast/line/flowMap";
 import { JUDGE_CASE_SOURCE } from "@codecast/judges/judgeReview";
 import { flowFamily, flowRouteFor, type FlowRouteRow } from "./lib/flowRoute";
 import { eventSourceWords, sourceWords } from "./lib/flowMapLabels";
@@ -59,7 +59,7 @@ import {
   funnelStations,
   type FunnelItem,
   type FunnelStation,
-} from "@codecast/shared/contracts/lineFunnel";
+} from "@codecast/line/lineFunnel";
 import { runsWaitingOnAPerson } from "./lib/linePlacement";
 import {
   RECORDING,
@@ -73,7 +73,7 @@ import {
   type CoverageDay,
   type FlowEvents,
   type SourceCoverage,
-} from "@codecast/shared/contracts/lineVolume";
+} from "@codecast/line/lineVolume";
 
 type Ctx = { db: any };
 

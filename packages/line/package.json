@@ -16,19 +16,35 @@
     "./deploys": "./src/deploys.ts",
     "./evalResult": "./src/evalResult.ts",
     "./expectations": "./src/expectations.ts",
+    "./flowMap": "./src/flowMap.ts",
+    "./lineChat": "./src/lineChat.ts",
+    "./lineFunnel": "./src/lineFunnel.ts",
+    "./linePriority": "./src/linePriority.ts",
+    "./lineProfile": "./src/lineProfile.ts",
     "./lineRunEnd": "./src/lineRunEnd.ts",
     "./lineTimeline": "./src/lineTimeline.ts",
+    "./lineVolume": "./src/lineVolume.ts",
+    "./lineWords": "./src/lineWords.ts",
     "./mainRed": "./src/mainRed.ts",
     "./problemScore": "./src/problemScore.ts",
-    "./proposalCard": "./src/proposalCard.ts"
+    "./proposalCard": "./src/proposalCard.ts",
+    "./regretRates": "./src/regretRates.ts",
+    "./superseded": "./src/superseded.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.3"
   },
   "dependencies": {
+    "@codecast/connectors": "workspace:*",
     "@codecast/deploys": "workspace:*",
+    "@codecast/flows": "workspace:*",
+    "@codecast/goals": "workspace:*",
     "@codecast/ingest": "workspace:*",
+    "@codecast/messages": "workspace:*",
+    "@codecast/org": "workspace:*",
     "@codecast/pull-requests": "workspace:*",
+    "@codecast/signals": "workspace:*",
+    "@codecast/tasks": "workspace:*",
     "@platform/evals": "file:../../platform/packages/evals"
   }
 }

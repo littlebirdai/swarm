@@ -7,16 +7,7 @@
     "test": "bun test"
   },
   "exports": {
-    "./contracts": "./contracts/index.ts",
-    "./contracts/flowMap": "./contracts/flowMap.ts",
-    "./contracts/lineFunnel": "./contracts/lineFunnel.ts",
-    "./contracts/lineVolume": "./contracts/lineVolume.ts",
-    "./contracts/lineProfile": "./contracts/lineProfile.ts",
-    "./contracts/lineChat": "./contracts/lineChat.ts",
-    "./contracts/lineWords": "./contracts/lineWords.ts",
-    "./contracts/superseded": "./contracts/superseded.ts",
-    "./contracts/regretRates": "./contracts/regretRates.ts",
-    "./contracts/linePriority": "./contracts/linePriority.ts"
+    "./contracts": "./contracts/index.ts"
   },
   "dependencies": {
     "@codecast/agent-clients": "workspace:*",

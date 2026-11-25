@@ -12,7 +12,7 @@
 import { DEFAULT_STEPS_LABEL } from "@codecast/flows/lineSlug";
 import { CARD_GATE_NODE_ID, LINE_END_NODES } from "@codecast/line/changeCard";
 import { DEFAULT_LINE_SLUG } from "@codecast/flows/lineSlug";
-import { isRepoLineSlug } from "@codecast/shared/contracts/lineProfile";
+import { isRepoLineSlug } from "@codecast/line/lineProfile";
 import { choiceWords, stationWords, type LinePhaseKey } from "./runReport";
 import { PHASE_ORDER, guessPhase } from "@codecast/flows/linePhases";
 import { knownName } from "./sourceNames";

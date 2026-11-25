@@ -6,7 +6,7 @@ import {
   type MutableRefObject,
   type ReactNode,
 } from "react";
-import { lineCommentWords } from "@codecast/shared/contracts/lineWords";
+import { lineCommentWords } from "@codecast/line/lineWords";
 import Link from "next/link";
 import { useMutation } from "convex/react";
 import { ArrowUp, ImagePlus, MessageSquare } from "lucide-react";
@@ -210,7 +210,7 @@ export function TaskCommentItem({
   /** The surface prints the time itself (the task timeline's clock column). */
   noTime?: boolean;
 }) {
-  // The line's own notes (a run that stopped, a problem grounded) read in plain words, however old (shared lineWords).
+  // The line's own notes (a run that stopped, a problem grounded) read in plain words, however old (@codecast/line/lineWords).
   const body = <CommentMarkdown content={lineCommentWords(comment.text)} />;
   const session = comment.session_info;
   const name = session ? session.title || comment.author : comment.author;

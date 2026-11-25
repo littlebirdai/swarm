@@ -7,7 +7,7 @@ import {
   type RoleDailyCaps,
 } from "@codecast/org/orgCapacity";
 import { autonomyOn, defaultTrustFor } from "@codecast/org/roleAutonomy";
-import { utcDayKey } from "@codecast/shared/contracts/flowMap";
+import { utcDayKey } from "@codecast/line/flowMap";
 
 /** The UTC day (yyyy-mm-dd) today's counters count: the shared utcDayKey. */
 export const utcDay: (now: number) => string = utcDayKey;

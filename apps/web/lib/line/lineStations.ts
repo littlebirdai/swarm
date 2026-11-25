@@ -15,7 +15,7 @@ import {
   isRepoLineSlug,
   type LineStationEdit,
   type PublishedRepoLine,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 
 export type LineNode = {
   id: string;

@@ -65,7 +65,7 @@ import {
   LINE_SIGNAL_WINDOW_MS,
   lineProfileContentKey,
   lineProfileUnchanged,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 import {
   lineFinderValidator,
   lineProfileFactsValidator,

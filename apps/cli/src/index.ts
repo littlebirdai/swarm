@@ -32858,8 +32858,7 @@ workflow
     if (!options.dryRun && apiToken) {
       // Push workflow to Convex so the web UI can render it. A repo's line
       // goes under its own slug, never over the row a role's sweep runs.
-      const { repoLineSlug } =
-        await import("@codecast/shared/contracts/lineProfile");
+      const { repoLineSlug } = await import("@codecast/line/lineProfile");
       const repoKey = () => {
         const dir = resolved.dir || projectPath;
         const remote = spawnSync(

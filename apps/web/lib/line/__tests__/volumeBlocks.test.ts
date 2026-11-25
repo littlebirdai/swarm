@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { FlowMap } from "@codecast/shared/contracts/flowMap";
+import type { FlowMap } from "@codecast/line/flowMap";
 import { coverageRows, volumeBlocks, type VolumeLive } from "../volumeBlocks";
 
 const NOW = Date.UTC(2026, 10, 11, 2, 30);

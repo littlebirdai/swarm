@@ -16,10 +16,7 @@ import type { WorkspaceKey } from "../lib/workspaceScope";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
 import { trialHref } from "../lib/trialHref";
 import type { JudgeFixCard } from "@codecast/judges/judgeFix";
-import {
-  currentOnly,
-  type Superseded,
-} from "@codecast/shared/contracts/superseded";
+import { currentOnly, type Superseded } from "@codecast/line/superseded";
 
 const api = _api as any;
 

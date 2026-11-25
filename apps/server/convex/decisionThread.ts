@@ -48,7 +48,7 @@ import {
 import { touchThread } from "./threadReads";
 import { UNREAD_CAP } from "./chatText";
 import { resolveActor } from "./lib/actor";
-import { lineFenceHint } from "@codecast/shared/contracts/lineChat";
+import { lineFenceHint } from "@codecast/line/lineChat";
 import {
   formatDecisionDiscussion,
   isToolResultCarrier,

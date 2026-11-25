@@ -20,7 +20,7 @@ export const flowMapOutcomesValidator = v.object({
 });
 
 const reasonCounts = v.record(v.string(), v.number());
-// How far the problems opened in each window got through the live flow (shared/contracts/lineFunnel.ts FlowFunnel).
+// How far the problems opened in each window got through the live flow (packages/line/src/lineFunnel.ts FlowFunnel).
 export const flowFunnelValidator = v.object({
   at: v.number(),
   windows: v.array(
@@ -53,7 +53,7 @@ export const flowFunnelValidator = v.object({
   ),
 });
 
-// Every open problem by where it stands, and the window's days (shared/contracts/lineVolume.ts FlowBacklog).
+// Every open problem by where it stands, and the window's days (packages/line/src/lineVolume.ts FlowBacklog).
 export const flowBacklogValidator = v.object({
   at: v.number(),
   total: v.number(),

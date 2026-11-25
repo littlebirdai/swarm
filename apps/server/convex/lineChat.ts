@@ -33,7 +33,7 @@ import {
   formatLineChat,
   lineFenceGuide,
   parseLineChat,
-} from "@codecast/shared/contracts/lineChat";
+} from "@codecast/line/lineChat";
 
 type Ctx = { db: any };
 

@@ -2,7 +2,7 @@
 // watches for, whether it is healthy or has gone quiet, how much it reported
 // and what it reported last. One derivation for the sources panel and the
 // map's source nodes, so both say the same thing. Pure.
-import type { LineFinderDecl } from "@codecast/shared/contracts/lineProfile";
+import type { LineFinderDecl } from "@codecast/line/lineProfile";
 import { ageShort, silentText, type SenseSource } from "../lineFlow";
 
 /** What a kind of report is, as a reader says it. */

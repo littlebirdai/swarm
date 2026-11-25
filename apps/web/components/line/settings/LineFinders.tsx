@@ -9,7 +9,7 @@ import {
   type LineFinderInput,
   type LineProfileEdit,
   type PublishedLineProfile,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 import { isBuiltInSource, type SenseSource } from "../../../lib/lineFlow";
 import {
   groupingWords,

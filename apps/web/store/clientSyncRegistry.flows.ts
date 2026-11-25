@@ -42,7 +42,7 @@ export const FLOW_SYNC_COLLECTIONS = {
     sync: { deepFields: ["nodes", "edges", "runs", "sessions", "by", "saved"] },
     feeds: ["flowLibrary.sessionFlows"],
   },
-  // A workspace's flow map (convex flowMap.forTeam, shared/contracts/flowMap.ts):
+  // A workspace's flow map (convex flowMap.forTeam, packages/line/src/flowMap.ts):
   // every source of its problems with its pace and where its problems go, the
   // live flow's lanes with the runs at each step, and the pipeline header's
   // counts. One row per workspace, keyed by the workspace.

@@ -10,7 +10,7 @@ import type {
   RegretSummary,
   RegretThrough,
   StationRow,
-} from "@codecast/shared/contracts/regretRates";
+} from "@codecast/line/regretRates";
 import type {
   LoopRates,
   Measured,

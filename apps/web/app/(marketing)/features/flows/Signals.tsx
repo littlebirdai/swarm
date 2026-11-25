@@ -29,7 +29,7 @@ import "./signals.css";
 /*
  * Signals and the two ways a change enters. Figures model real rules:
  * signals.ingest's four attach rules (convex/signals.ts), the silent-source
- * rule (shared/contracts/flowMap.ts sourceState), and the line's Ground,
+ * rule (packages/line/src/flowMap.ts sourceState), and the line's Ground,
  * queue order and slot placement (convex/liveFlows.ts, lib/linePlacement.ts).
  */
 

@@ -7,7 +7,7 @@ import {
   supersededFinding,
   supersededProblem,
   supersededRun,
-} from "./superseded";
+} from "../src/superseded";
 
 describe("supersededProblem", () => {
   test("a merged problem names its survivor", () => {

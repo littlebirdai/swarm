@@ -13,7 +13,7 @@ import type {
   LineStationPatch,
   PublishedLineProfile,
   PublishedRepoLine,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 import { useInboxStore } from "../../../store/inboxStore";
 import { lineWriteGate, type RosterDevice } from "../../../lib/lineSettings";
 import { SHIPPED_LINE } from "../../../lib/line/shippedLine.generated";

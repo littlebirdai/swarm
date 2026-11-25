@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DAY, type FunnelRun, type FunnelTask } from "./lineFunnel";
+import { DAY, type FunnelRun, type FunnelTask } from "../src/lineFunnel";
 import {
   BACKLOG_ITEM_CAP,
   backlogItem,
@@ -13,7 +13,7 @@ import {
   momentCoverage,
   recordingCoverage,
   type BacklogItem,
-} from "./lineVolume";
+} from "../src/lineVolume";
 
 const NOW = Date.UTC(2026, 10, 11, 12);
 const HOUR = 3_600_000;

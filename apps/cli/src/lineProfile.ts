@@ -37,7 +37,7 @@ import {
   type LineFinderGroup,
   type LineProfile,
   type LineValueSource,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 
 export {
   LINE_PROFILE_REL_PATH,

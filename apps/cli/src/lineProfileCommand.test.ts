@@ -305,8 +305,7 @@ describe("cast line set, unset and finder (editThisLineProfile)", () => {
 
   test("set changes one value in place, comment kept; unset brings the default back", async () => {
     const { editThisLineProfile } = await import("./lineProfileCommand");
-    const { parseLineValue } =
-      await import("@codecast/shared/contracts/lineProfile");
+    const { parseLineValue } = await import("@codecast/line/lineProfile");
     const root = repo();
     const v = parseLineValue("size_budget", "250");
     const reply = await editThisLineProfile(
@@ -413,8 +412,7 @@ describe("cast line set, unset and finder (editThisLineProfile)", () => {
 
 describe("parseLineValue", () => {
   test("reads each key by its kind, and refuses unknown keys and bad values", async () => {
-    const { parseLineValue } =
-      await import("@codecast/shared/contracts/lineProfile");
+    const { parseLineValue } = await import("@codecast/line/lineProfile");
     expect(parseLineValue("watch_days", " 3 ")).toEqual({ value: 3 });
     expect(parseLineValue("watch_days", "0")).toEqual({
       error: "A whole number, 1 or more",

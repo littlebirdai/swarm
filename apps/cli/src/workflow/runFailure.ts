@@ -3,7 +3,7 @@ import {
   failReasonWords,
   handedBackWords,
   roundsOutWords,
-} from "@codecast/shared/contracts/lineWords";
+} from "@codecast/line/lineWords";
 import { extractJsonOutput } from "./condition";
 import type { WorkflowGraph, WorkflowRunState } from "./types";
 

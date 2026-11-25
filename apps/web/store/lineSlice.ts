@@ -12,7 +12,7 @@
 // the project row: the row simply stops counting.
 import { action, asyncAction, sync } from "./mutativeMiddleware";
 import { stampSessionCommand } from "./sessionCommandStamp";
-import type { LineProfileEdit } from "@codecast/shared/contracts/lineProfile";
+import type { LineProfileEdit } from "@codecast/line/lineProfile";
 import { editKey } from "../lib/lineSettings";
 import {
   LINE_CAUSE_CATEGORY,

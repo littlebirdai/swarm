@@ -15,7 +15,7 @@ import {
   type UIEvent,
 } from "react";
 import { useSearchParams } from "next/navigation";
-import type { PublishedLineProfile } from "@codecast/shared/contracts/lineProfile";
+import type { PublishedLineProfile } from "@codecast/line/lineProfile";
 import { useSyncDevices } from "../../../hooks/useSyncDevices";
 import Link from "next/link";
 import {

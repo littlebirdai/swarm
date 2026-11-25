@@ -35,7 +35,7 @@ import { LineChip } from "../CustomizedLineChip";
 import { EditStatus } from "./LineValueRow";
 import { useLineStationEdits } from "./useLineStationEdits";
 import { useSendThroughLine } from "../map/useSendThroughLine";
-import { REPO_LINE_REL_DIR } from "@codecast/shared/contracts/lineProfile";
+import { REPO_LINE_REL_DIR } from "@codecast/line/lineProfile";
 import { MarkdownRenderer } from "../../tools/MarkdownRenderer";
 import { readableTemplate } from "../../../lib/line/lineGraphs";
 import { SHIPPED_LINE } from "../../../lib/line/shippedLine.generated";

@@ -14,10 +14,7 @@ import { memo, useMemo, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { History, Radar, Settings2 } from "lucide-react";
-import type {
-  FlowMapLane,
-  FlowMapSource,
-} from "@codecast/shared/contracts/flowMap";
+import type { FlowMapLane, FlowMapSource } from "@codecast/line/flowMap";
 import { useFlowMapRow } from "../../../../../hooks/useFlowMap";
 import {
   useOpsSources,

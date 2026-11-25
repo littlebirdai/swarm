@@ -8,7 +8,7 @@ import {
   lineProfileUnchanged,
   splitFinderKind,
   type PublishedLineProfile,
-} from "./lineProfile";
+} from "../src/lineProfile";
 
 // The "unchanged = no write" rule signals.publishProfile applies to every field.
 const row: PublishedLineProfile = {

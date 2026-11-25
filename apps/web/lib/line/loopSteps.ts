@@ -41,7 +41,7 @@
 // "group" step. The label store keys them by (subject id, step id).
 import { isExpectationId, type Expectation } from "@codecast/line/expectations";
 import type { JudgeFinding } from "@codecast/judges/judges";
-import type { LineFinderDecl } from "@codecast/shared/contracts/lineProfile";
+import type { LineFinderDecl } from "@codecast/line/lineProfile";
 import { DAY, WEEK, perDay, type LineSignal } from "../lineFlow";
 import type { LabelVerdict } from "./lineLabels";
 import { judgeName, sourceName } from "./sourceNames";

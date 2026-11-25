@@ -1,11 +1,11 @@
-// A workspace's flow map (convex flowMap.forTeam, shared/contracts/flowMap.ts):
+// A workspace's flow map (convex flowMap.forTeam, packages/line/src/flowMap.ts):
 // its sources, the live flow's lanes and the pipeline header's counts. The
 // feeder hands the query's answer to the store as one row keyed by its
 // workspace; the reader paints from the store. The query is named by
 // reference, so a deployment without it answers an error the feeder keeps to
 // itself, and the surfaces it feeds stay empty.
 import { makeFunctionReference } from "convex/server";
-import type { FlowMap } from "@codecast/shared/contracts/flowMap";
+import type { FlowMap } from "@codecast/line/flowMap";
 import { useSyncCollection } from "./useSyncCollection";
 import { useWorkspaceCollection } from "./useWorkspaceCollection";
 

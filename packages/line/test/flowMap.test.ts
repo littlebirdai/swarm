@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DAY_MS, shippedFixes, stationWords } from "./flowMap";
+import { DAY_MS, shippedFixes, stationWords } from "../src/flowMap";
 
 describe("shippedFixes", () => {
   const now = 100 * DAY_MS;

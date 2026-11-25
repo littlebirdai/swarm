@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { deadEndWords, failReasonWords, lineCommentWords } from "./lineWords";
+import {
+  deadEndWords,
+  failReasonWords,
+  lineCommentWords,
+} from "../src/lineWords";
 import { groundedWords, needsWords } from "@codecast/goals/goalsBrief";
 
 describe("the line's notes in plain words (learning-loop.md LL6)", () => {

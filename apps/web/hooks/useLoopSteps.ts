@@ -2,7 +2,7 @@
 // The product's name as a reader says it ("Union"), for "runs in Union" and
 // "Fixes in Union": its line profile's team, else the project's team.
 import { useInboxStore } from "../store/inboxStore";
-import type { LineFinderDecl } from "@codecast/shared/contracts/lineProfile";
+import type { LineFinderDecl } from "@codecast/line/lineProfile";
 
 type LoopProject = {
   team_id?: string | null;

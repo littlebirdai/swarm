@@ -41,7 +41,7 @@ import {
   type LineFinderInput,
   type LineProfileEdit,
   type LineValue,
-} from "@codecast/shared/contracts/lineProfile";
+} from "@codecast/line/lineProfile";
 
 export type { LineValue, LineFinderInput, LineProfileEdit };
 

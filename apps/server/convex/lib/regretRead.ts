@@ -11,7 +11,7 @@ import {
   REGRET_RANGE_DAYS,
   type RegretChange,
   type RegretSummary,
-} from "@codecast/shared/contracts/regretRates";
+} from "@codecast/line/regretRates";
 import {
   mergeAllowance,
   type MeasuredRate,

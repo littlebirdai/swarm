@@ -15,7 +15,7 @@ import {
   LINE_WIDGETS,
   LINE_WIDGET_NEEDS,
   type LineWidgetKind,
-} from "@codecast/shared/contracts/lineChat";
+} from "@codecast/line/lineChat";
 export { LINE_FENCE_LANG, LINE_WIDGETS, type LineWidgetKind };
 
 /** One row of a before/after table an agent writes out: a case, what the step said, what it says now. */

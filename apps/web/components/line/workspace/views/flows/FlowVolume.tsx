@@ -6,16 +6,16 @@
 // part that went no further is split by why, colored. Every count and every
 // drop opens its items under the chart: the problem (its task page) and where
 // its run stands (the run). The numbers are the flow map rollup's
-// (shared/contracts/lineFunnel.ts), read from the store.
+// (packages/line/src/lineFunnel.ts), read from the store.
 import { useState, type MouseEvent } from "react";
 import Link from "next/link";
-import type { FlowMap } from "@codecast/shared/contracts/flowMap";
+import type { FlowMap } from "@codecast/line/flowMap";
 import {
   FUNNEL_REASONS,
   funnelItemsOf,
   type FunnelReason,
   type FunnelWindow,
-} from "@codecast/shared/contracts/lineFunnel";
+} from "@codecast/line/lineFunnel";
 import { ageShort } from "../../../../../lib/lineFlow";
 import type { LineSelectionPatch } from "../../../../../lib/line/lineWorkspaceUrl";
 import type { LineViewProps } from "../types";
