@@ -119,13 +119,14 @@ describe("a shared cloud park from the CLI", () => {
       db,
       auth: { getUserIdentity: async () => ({ subject: `${OWNER}|session` }) },
     };
-    return await (createSessionFromCli as any)._handler(ctx, {
+    const result = await (createSessionFromCli as any)._handler(ctx, {
       agent_type: "codex",
       project_path: "/home/ubuntu/work/codecast",
       cloud_workspace: "shared",
       cloud_device_id,
       cloud_checkout_path: "/home/ubuntu/work/codecast",
     });
+    return await db.get(result.conversation_id);
   };
   const host = {
     _id: "dev_box",
@@ -137,8 +138,12 @@ describe("a shared cloud park from the CLI", () => {
   };
 
   test("the row parks on the caller's own cloud host", async () => {
-    const r = await park([host]);
-    expect(r.conversation_id).toBeTruthy();
+    expect(await park([host])).toMatchObject({
+      owner_device_id: host.device_id,
+      cloud_workspace: "shared",
+      cloud_placement: "pending",
+      cloud_checkout_path: "/home/ubuntu/work/codecast",
+    });
   });
 
   test("a device that is not the caller's wake-on-use host is refused, so no row claims the checkout", async () => {

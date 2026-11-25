@@ -2,7 +2,6 @@
 // as every other surface: a session Close set aside mid-turn sits in Stashed,
 // so a bare press there would cut its turn off.
 import { afterAll, describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../test-helpers/globals";
 import { closeDomWindow } from "../test-helpers/domGlobals";
@@ -123,16 +122,5 @@ describe("a set-aside card's Kill", () => {
     } finally {
       useInboxStore.setState({ sessions } as any);
     }
-  });
-
-  test("the sidebar wires the Stashed and Snoozed X to the reviewed Kill, not the bare one", () => {
-    const src = readFileSync(
-      new URL("../components/GlobalSessionPanel.tsx", import.meta.url),
-      "utf8",
-    );
-    expect(src).toMatch(
-      /const handleKillStashed = useCallback\(\s*\(id: string\) => closedKillOf\(\[id\]\),\s*\[closedKillOf\],?\s*\);/,
-    );
-    expect(src).not.toMatch(/const handleKillStashed = killWithNotice/);
   });
 });

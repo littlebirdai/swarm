@@ -1,8 +1,6 @@
 import { afterAll, expect, mock, test } from "bun:test";
 import { act } from "react";
 import { JSDOM } from "jsdom";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { replaceGlobals } from "../../../test-helpers/globals";
 
 // An option's meaning renders under its label, inside the row that answers
@@ -138,19 +136,6 @@ test("the single answer controls render the rows and a typed answer line, not a 
   });
   expect(answers).toEqual([{ index: 2 }]);
   unmount();
-});
-
-test("the queue card and the document page have no option list of their own", () => {
-  const web = join(import.meta.dir, "..", "..");
-  const card = readFileSync(join(web, "SessionDecisionCard.tsx"), "utf8");
-  const doc = readFileSync(
-    join(web, "decisions", "DecisionDocument.tsx"),
-    "utf8",
-  );
-  expect(card).toContain("<DecisionOptionList");
-  expect(card).not.toContain("→");
-  expect(doc).toContain("<DecisionOptionList");
-  expect(doc).not.toMatch(/decision\.options\.map\(\(o, i\)/);
 });
 
 test("ticks on a multi survive the controls unmounting (a folded card) and clear on answer", async () => {

@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   performNeedsInputCheck,
   performIdleDigestFlush,
-  summarizeIdleDigest,
   IDLE_DIGEST_WINDOW_MS,
 } from "./notifications";
 import {

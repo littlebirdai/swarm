@@ -19,6 +19,7 @@ import {
   reviewerFor,
 } from "./reviews";
 import { threads, findComment } from "./prCli";
+import { wake } from "./prShepherd";
 
 const USER = "user_1" as any;
 const OTHER = "user_2" as any;
@@ -553,6 +554,15 @@ describe("delivering a submitted review to the owning session", () => {
       body: "hi",
     });
     expect(ctx.db._tables.reviews[0].session_delivered_at).toBeDefined();
+    expect(ctx.db._tables.pending_messages).toHaveLength(1);
+    expect(
+      await (wake as any)._handler(ctx, {
+        pr_id: PR,
+        reason: "reviewed",
+        unless_delivered_review: 900,
+      }),
+    ).toEqual({ woken: false, reason: "delivered_directly" });
+    expect(ctx.db._tables.pending_messages).toHaveLength(1);
   });
 
   test("an approval with no notes is still a message", async () => {

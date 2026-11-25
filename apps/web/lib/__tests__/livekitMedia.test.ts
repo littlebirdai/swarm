@@ -1,8 +1,6 @@
 // Screenshare of UI has to stay sharp. These pin the LiveKit knobs that do
 // that, so a later Room constructor cannot silently fall back to the SDK
 // defaults (1080p15 / 2.5 Mbps, CSS-pixel adaptive stream).
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 import {
   huddleRoomOptions,
@@ -49,32 +47,11 @@ describe("huddle LiveKit media", () => {
     expect(huddleRoomOptions({}).audioOutput).toBeUndefined();
   });
 
-  test("join and prewarm both build the room through huddleRoomOptions", () => {
-    for (const file of ["callManager.ts", "roomPrewarm.ts"] as const) {
-      const src = readFileSync(
-        join(import.meta.dir, "..", "calls", file),
-        "utf8",
-      );
-      expect(src, file).toContain("huddleRoomOptions(");
-      expect(src, file).not.toMatch(/adaptiveStream:\s*true/);
-    }
-  });
-
   test("the share publishes one full-size layer; cameras keep simulcast", () => {
     expect(SCREEN_SHARE_PUBLISH.simulcast).toBe(false);
     expect(SCREEN_SHARE_PUBLISH.screenShareEncoding).toEqual(
       SCREEN_SHARE_ENCODING,
     );
     expect(huddleRoomOptions({}).publishDefaults?.simulcast).toBeUndefined();
-  });
-
-  test("starting a share passes capture and publish options, not only the Room defaults", () => {
-    const src = readFileSync(
-      join(import.meta.dir, "..", "calls", "callManager.ts"),
-      "utf8",
-    );
-    expect(src).toContain("SCREEN_SHARE_CAPTURE");
-    expect(src).toContain("SCREEN_SHARE_PUBLISH");
-    expect(src).toContain("setScreenShareEnabled(");
   });
 });

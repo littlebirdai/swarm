@@ -17,6 +17,8 @@ import { expect, test } from "bun:test";
 import { convexTest } from "convex-test";
 import { anyApi } from "convex/server";
 import schema from "./schema";
+import { hashToken } from "./apiTokens";
+import { allModules } from "./testModules.testkit";
 import {
   ROLE_FAILOVER_QUIET_MS,
   hostTrouble,
@@ -43,12 +45,15 @@ const modules = {
   "./notifications.ts": () => import("./notifications"),
 };
 
-async function world(opts: {
-  macQuietMs: number;
-  cloudHost?: boolean;
-  queued?: boolean;
-}) {
-  const t = convexTest(schema, modules);
+async function world(
+  opts: {
+    macQuietMs: number;
+    cloudHost?: boolean;
+    queued?: boolean;
+  },
+  functionModules: typeof allModules = modules,
+) {
+  const t = convexTest(schema, functionModules);
   const now = Date.now();
   const seed = await t.run(async (ctx) => {
     const ashot = await ctx.db.insert("users", { name: "Ashot" });
@@ -153,6 +158,37 @@ async function world(opts: {
   });
   return { t, now, seed, role, conv, asAshot };
 }
+
+test("the CLI moves the role's standing session to the requested device", async () => {
+  const { t, now, seed, role, conv } = await world(
+    { macQuietMs: 0, queued: false },
+    allModules,
+  );
+  const apiToken = "role-move-test-token";
+  await t.run(async ({ db }) => {
+    await db.insert("api_tokens", {
+      user_id: seed.ashot,
+      token_hash: await hashToken(apiToken),
+      name: "cli",
+      created_at: now,
+      last_used_at: now,
+    });
+  });
+  const deviceId = "ashot-mac";
+  const response = await t.fetch("/cli/role/move", {
+    method: "POST",
+    body: JSON.stringify({
+      api_token: apiToken,
+      role_id: String(role._id),
+      device_id: deviceId,
+    }),
+  });
+  expect(response.status, await response.text()).toBe(200);
+  expect(await t.run(({ db }) => db.get("conversations", conv))).toMatchObject({
+    owner_device_id: deviceId,
+    user_id: seed.ashot,
+  });
+});
 
 const sweep = (t: any, now: number) =>
   t.run((ctx: any) => performRoleFailoverSweep(ctx, now));

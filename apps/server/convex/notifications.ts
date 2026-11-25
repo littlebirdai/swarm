@@ -591,7 +591,7 @@ export const markAllAsRead = mutation({
 // `session_idle_digest` (absent reads as ON).
 // The window and the wording live in the shared contracts, so the fold-up the
 // phone shows and the one the web bell renders are the same fold-up.
-export { IDLE_DIGEST_WINDOW_MS, summarizeIdleDigest };
+export { IDLE_DIGEST_WINDOW_MS };
 
 /** Display name for a session in the aggregate line. */
 function sessionLabelOf(conv: any): string {

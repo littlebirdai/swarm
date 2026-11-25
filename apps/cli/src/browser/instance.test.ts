@@ -225,12 +225,17 @@ describe("acquireStartLock", () => {
     fs.mkdirSync(browserHome(), { recursive: true });
     // Holder is alive (us) but the stamp is ancient — a crashed-mid-launch
     // leftover must not wedge every future start on the machine.
-    fs.writeFileSync(
-      lockFile,
-      JSON.stringify({ pid: process.pid, at: Date.now() - 10 * 60_000 }),
-    );
+    const oldStamp = { pid: process.pid, at: Date.now() - 10 * 60_000 };
+    fs.writeFileSync(lockFile, JSON.stringify(oldStamp));
     const release = await acquireStartLock(2000);
-    release();
+    try {
+      const stamp = JSON.parse(fs.readFileSync(lockFile, "utf8"));
+      expect(stamp.pid).toBe(process.pid);
+      expect(stamp.at).toBeGreaterThan(oldStamp.at);
+    } finally {
+      release();
+    }
+    expect(fs.existsSync(lockFile)).toBe(false);
   });
 
   test("gives up with a pointer at the lock file when the holder stays alive", async () => {

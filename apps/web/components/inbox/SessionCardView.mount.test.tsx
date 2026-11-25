@@ -4,6 +4,7 @@
 // store fails here before it leaks into the marketing page.
 
 import { expect, test } from "bun:test";
+import { JSDOM } from "jsdom";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { useInboxStore, type InboxSession } from "../../store/inboxStore";
@@ -161,3 +162,68 @@ test("the views render from props alone and leave the store untouched", () => {
   expect(Object.keys(after)).toEqual(keys);
   for (const k of keys) expect((after as any)[k]).toBe((before as any)[k]);
 });
+
+test("both a first-class session and a nested child show their worktree location", () => {
+  const worktree = {
+    ...session,
+    worktree_name: "cloud-fork",
+    worktree_branch: "work/cloud-fork",
+  };
+  const child = {
+    ...worktree,
+    _id: "child",
+    is_subagent: true,
+    parent_conversation_id: worktree._id,
+    subagent_slot: "queued" as const,
+    pending_api_error: true,
+    pending_api_error_kind: "auth",
+  };
+  const dom = JSDOM.fragment(
+    render(
+      <>
+        <SessionCardView {...cardProps} session={worktree} />
+        <SessionCardView {...cardProps} session={child} />
+      </>,
+    ),
+  );
+  const firstClass = dom.querySelector('[data-session-id="c-hero-1"]')!;
+  const nested = dom.querySelector('[data-session-id="child"]')!;
+  for (const row of [firstClass, nested]) {
+    expect(
+      row.querySelector("[data-worktree-chip]")?.getAttribute("title"),
+    ).toBe("Worktree cloud-fork (work/cloud-fork)");
+  }
+  expect(firstClass.querySelector('[aria-label="Subagent"]')).toBeNull();
+  expect(nested.querySelector('[aria-label="Subagent"]')).not.toBeNull();
+  expect(nested.querySelector("[data-worktree-chip]")?.nextElementSibling).toBe(
+    nested.querySelector('[data-fleet-chip="queued"]'),
+  );
+  expect(nested.querySelector('[data-fleet-chip="queued"]')).not.toBeNull();
+  const auth = nested.querySelector('[title^="Signed out"]')!;
+  expect(
+    auth.compareDocumentPosition(
+      nested.querySelector("[data-worktree-chip]")!,
+    ) & auth.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
+
+test.each([
+  [{ cloud_placement: "pending" }, "Preparing the cloud host"],
+  [{ cloud_workspace: "shared" }, "Runs in the host's main checkout"],
+  [{ migration_batch_id: "migration" }, "Moving to another machine"],
+] as const)(
+  "the card shows placement %j without a worktree name",
+  (placement, title) => {
+    const dom = JSDOM.fragment(
+      render(
+        <SessionCardView
+          {...cardProps}
+          session={{ ...session, ...placement }}
+        />,
+      ),
+    );
+    expect(
+      dom.querySelector("[data-worktree-chip]")?.getAttribute("title"),
+    ).toContain(title);
+  },
+);

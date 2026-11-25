@@ -3,10 +3,6 @@ import { act } from "react";
 import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../../test-helpers/globals";
 
-// A reader cannot decide from a question and its option labels; the context
-// the asker wrote is what the answer rests on. The sheet reads it whole, in
-// one flow with the options after it; the fold shows the question and its
-// status only, and opening it is the sheet.
 mock.module("next/link", () => ({
   default: ({ children, href, ...rest }: any) => (
     <a href={typeof href === "string" ? href : "#"} {...rest}>
@@ -31,7 +27,6 @@ mock.module("../../../hooks/useJumpToDecisionAsk", () => ({
 mock.module("../../PublishedPageEmbed", () => ({
   PublishedPageEmbed: () => null,
 }));
-// Wraps the real renderer rather than replacing it: bun shares this mock with every later file in a run, and those read real markdown.
 const RealMarkdown = (await import("../../tools/MarkdownRenderer"))
   .MarkdownRenderer;
 mock.module("../../tools/MarkdownRenderer", () => ({
@@ -170,25 +165,81 @@ test("a blocking card owns the pane and reads the reasoning whole, in the docume
   unmount();
 });
 
-test("in the queue an advisory card opens as the sheet, with its place in the queue on the chrome row", async () => {
-  const stepper: any = {
+test("the decision queue, opened as a sheet in its place, and the document show each option's meaning and a way to answer", async () => {
+  const { ConvexProvider } = await import("convex/react");
+  const { offlineConvexClient } =
+    await import("../../../test-helpers/offlineConvex");
+  const client = offlineConvexClient();
+  const { DecisionDocument } = await import("../DecisionDocument");
+  const { useInboxStore } = await import("../../../store/inboxStore");
+  const previous = useInboxStore.getState().sessionDecisions;
+  const queued = item(false);
+  const stepper = {
     position: 2,
     total: 5,
     onDone: () => {},
     onSkip: () => {},
     onExit: () => {},
   };
+  const decision = {
+    _id: queued.decisionId,
+    conversation_id: queued.conversationId,
+    session_id: "session",
+    status: "pending" as const,
+    question: queued.question,
+    options: queued.options,
+    blocking: false,
+    default_option: queued.defaultOption,
+    created_at: queued.createdAt,
+  };
+  useInboxStore.setState({
+    sessionDecisions: { ...previous, [decision._id]: decision },
+  });
   const { pane, unmount } = await mount(
-    <SessionDecisionCard item={item(false)} stepper={stepper} />,
+    <ConvexProvider client={client}>
+      <SessionDecisionCard item={queued} stepper={stepper} />
+      <DecisionDocument id={decision._id} pager={false} />
+    </ConvexProvider>,
   );
-  const root = pane.firstElementChild!;
-  expect(root.classList.contains("decision-sheet")).toBe(true);
-  const place = pane.querySelector("[data-decision-place]")!;
-  expect(place.textContent).toContain("2 of 5");
-  expect(place.querySelector('[aria-label="Previous decision"]')).toBeNull(); // no onPrev handed in
-  expect(place.querySelector('[aria-label="Next decision"]')).not.toBeNull();
-  readingOrder(pane);
-  unmount();
+  try {
+    const [queue, doc] = Array.from(pane.children) as HTMLElement[];
+    expect(queue.classList.contains("decision-sheet")).toBe(true);
+    const place = queue.querySelector("[data-decision-place]")!;
+    expect(place.textContent).toContain("2 of 5");
+    expect(place.querySelector('[aria-label="Previous decision"]')).toBeNull();
+    expect(place.querySelector('[aria-label="Next decision"]')).not.toBeNull();
+    readingOrder(queue);
+    const assertOptions = (
+      surface: Element,
+      tag: string,
+      defaultText: RegExp,
+    ) => {
+      const rows = Array.from(surface.querySelectorAll("[data-option]"));
+      expect(rows.map((row) => row.tagName)).toEqual([tag, tag]);
+      for (const [index, option] of decision.options.entries()) {
+        expect(rows[index].textContent).toContain(option.label);
+        expect(rows[index].textContent).toContain(option.description);
+        expect(surface.textContent!.split(option.description)).toHaveLength(2);
+      }
+      expect(rows[0].textContent).not.toMatch(defaultText);
+      expect(rows[1].textContent).toMatch(defaultText);
+    };
+    assertOptions(queue, "BUTTON", /proceeding with this/i);
+    assertOptions(doc, "BUTTON", /proceeding with this/i);
+    await act(() => {
+      useInboxStore.setState({
+        sessionDecisions: {
+          ...previous,
+          [decision._id]: { ...decision, status: "answered", answer_index: 1 },
+        },
+      });
+    });
+    assertOptions(doc, "DIV", /the agent's default/);
+  } finally {
+    await unmount();
+    await client.close();
+    useInboxStore.setState({ sessionDecisions: previous });
+  }
 });
 
 test("the sheet seats the reasoning and the options as the two cells of one grid, so a wide pane can set them side by side", async () => {

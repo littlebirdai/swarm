@@ -300,6 +300,8 @@ describe("edges that cannot loop (TG4)", () => {
     tasks[1].status = "done";
     const { ctx } = await makeCtx(tasks);
     await call(addDep, ctx, { short_id: "ct-1", blocked_by: "ct-3" });
+    expect((await ctx.db.get(tasks[0]._id)).blocked_by).toEqual(["ct-3"]);
+    expect((await ctx.db.get(tasks[2]._id)).blocks).toContain("ct-1");
   });
 
   test("update refuses a loop through blocked_by and through blocks", async () => {

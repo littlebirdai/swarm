@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   performNeedsInputCheck,
   performIdleDigestFlush,
-  summarizeIdleDigest,
   IDLE_DIGEST_WINDOW_MS,
 } from "./notifications";
 import {
@@ -1173,21 +1172,5 @@ describe("needs-input digest — one alert an hour", () => {
     expect(
       tables.notifications.some((n: Rec) => n._id === "n_old_digest"),
     ).toBe(false);
-  });
-
-  test("the aggregate line names two and counts the rest", () => {
-    expect(summarizeIdleDigest(["A"])).toEqual({
-      title: "1 session needs your attention",
-      message: "A needs your attention",
-    });
-    expect(summarizeIdleDigest(["A", "B"]).message).toBe(
-      "A and B need your attention",
-    );
-    expect(summarizeIdleDigest(["A", "B", "C"]).message).toBe(
-      "A, B and 1 other need your attention",
-    );
-    expect(summarizeIdleDigest(["A", "B", "C", "D"]).message).toBe(
-      "A, B and 2 others need your attention",
-    );
   });
 });

@@ -169,7 +169,13 @@ describe("Ops and Flows controls in Modern", () => {
   });
 
   test("every Modern rule in these sheets is scoped to .modern-style", () => {
-    for (const f of SHEETS) {
+    for (const f of [
+      ...SHEETS,
+      "components/calls/roomThread.css",
+      "components/calls/faces.css",
+      "components/calls/callVideoPlayer.css",
+      "components/chat/chat.css",
+    ]) {
       const text = readFileSync(join(WEB, f), "utf8");
       const start = text.indexOf("/* ── Modern");
       if (start < 0) continue;
