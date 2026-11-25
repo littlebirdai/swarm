@@ -1,3 +1,4 @@
+import type { PendingOutboxWrite } from "@platform/engine";
 import type { Patch } from "mutative";
 import { partitionSessionRetention } from "../cacheRetention";
 import {
@@ -17,8 +18,9 @@ import {
   holdLivenessSyncMeta,
   resetLivenessLane,
 } from "../idbLivenessLane";
-import { COLLECTION_TABLES, db } from "./db";
+import { COLLECTION_TABLES, db, purgeInProgress } from "./db";
 import { invalidateOutboxWrites } from "./outbox";
+import { writePendingChanges } from "./pending-locks";
 import { persistenceOwned } from "./ownership";
 import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
@@ -66,8 +68,24 @@ if (typeof window !== "undefined") {
     flushLivenessWrites();
   });
 }
-export function writePatchesToIDB(patches: Patch[], state: any) {
-  if (_hydrating || !persistenceOwned()) return;
+export function writePatchesToIDB(
+  patches: Patch[],
+  state: any,
+  pending?: PendingOutboxWrite,
+) {
+  if (purgeInProgress || !persistenceOwned()) return;
+  const pendingWrite = pending?.length
+    ? db
+        .transaction("rw", db.meta, () =>
+          writePendingChanges(
+            pending,
+            "sync",
+            () => !purgeInProgress && persistenceOwned(),
+          ),
+        )
+        .then(() => {})
+    : undefined;
+  if (_hydrating) return pendingWrite;
 
   const affectedKeys = new Set<string>();
   for (const patch of patches) {
@@ -172,19 +190,15 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
           );
         }
       }
-    } else if (key === "pending") {
-      // The pending map goes to disk with the action that changed it, as its outbox row does: a lock that
-      // waited for a quiet spell was lost with a page killed in between, and the reload showed a stale push
-      // over its own parked write. (A big write plants a few hundred locks, never one per field it touches.)
-      db.meta.put({ key, value: state[key] }).catch(() => {});
     } else if (key === "syncMeta") {
       holdLivenessSyncMeta(state);
-    } else if (META_KEYS.has(key)) {
+    } else if (key !== "pending" && META_KEYS.has(key)) {
       if (holdLiveMeta(key, state)) continue;
       // Any other meta blob: its latest value once per quiet spell, never once per action. Page hide flushes it.
       metaWriter.write(key, state[key]);
     }
   }
+  return pendingWrite;
 }
 
 /** Dexie writes only the diffed rows and lands them itself; nothing is held

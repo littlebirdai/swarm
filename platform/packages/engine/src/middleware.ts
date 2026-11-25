@@ -111,6 +111,18 @@ function normalizeZeroArgumentEventCall(fn: Function, args: any[]): any[] {
     : args;
 }
 
+function pendingChanges(
+  before: Record<string, PendingEntry> | undefined,
+  after: Record<string, PendingEntry> | undefined,
+): PendingOutboxWrite | undefined {
+  if (before === after) return undefined;
+  const keys = new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})]);
+  const changes = [...keys]
+    .filter((key) => before?.[key] !== after?.[key])
+    .map((key) => ({ key, before: before?.[key], after: after?.[key] }));
+  return changes.length ? changes : undefined;
+}
+
 const ACTION_FLAG = Symbol("action");
 const ASYNC_ACTION_FLAG = Symbol("asyncAction");
 const RECEIPT_ASYNC_ACTION_FLAG = Symbol("receiptAsyncAction");
@@ -1261,7 +1273,9 @@ export function mutativeMiddleware(
       }
       set({ ...state, ...next }, true);
       if (idbWriteFn) {
-        void Promise.resolve(idbWriteFn(patches, get())).catch((error) => {
+        void Promise.resolve(idbWriteFn(patches, get(), pendingChanges(state.pending, released.pending)?.map((change) => ({
+          ...change, after: change.after?.lock ? undefined : change.after,
+        })))).catch((error) => {
           console.error(`[local-first] failed to persist refused "${actionName}" rollback`, error);
         });
       }
@@ -1308,6 +1322,7 @@ export function mutativeMiddleware(
       try {
         // This hook is a sync()-wrapped, local-only reducer. It removes or
         // restores the exact optimistic row and clears its pending protection.
+        const before = get().pending;
         const affectedKeys = handler(actionName, localResult);
         if (!Array.isArray(affectedKeys) || affectedKeys.length === 0) {
           return false;
@@ -1327,7 +1342,7 @@ export function mutativeMiddleware(
             path: [key],
             value: state[key],
           }));
-          await idbWriteFn(persistencePatches, state);
+          await idbWriteFn(persistencePatches, state, pendingChanges(before, state.pending));
         }
         return true;
       } catch (error) {
@@ -2128,17 +2143,10 @@ export function mutativeMiddleware(
         set(finalState, true);
         runCommitEffects(key, effects);
 
-        let pendingWrite: PendingOutboxWrite | undefined;
-        if ((isAct || isAsyncAct) && outboxEnqueueFn?.withPending && finalState.pending !== state.pending) {
-          const before: Record<string, PendingEntry> = state.pending ?? {};
-          const after: Record<string, PendingEntry> = finalState.pending ?? {};
-          const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
-          pendingWrite = [...keys]
-            .filter((key) => before[key] !== after[key])
-            .map((key) => ({ key, before: before[key], after: after[key] }));
-          if (pendingWrite.length === 0) pendingWrite = undefined;
-        }
-
+        const changes = pendingChanges(state.pending, finalState.pending);
+        const pendingWrite = (isAct || isAsyncAct) && outboxEnqueueFn?.withPending
+          ? changes
+          : undefined;
         const persistencePatches = pendingWrite
           ? finalPatches.filter((patch) => patch.path[0] !== "pending")
           : finalPatches;
@@ -2146,7 +2154,7 @@ export function mutativeMiddleware(
           // Synchronous: the storage engine's bulk writes don't block the main
           // thread, and deferring via requestIdleCallback can lose writes if the
           // user reloads before idle (e.g. gesture → reload race).
-          void Promise.resolve(idbWriteFn(persistencePatches, finalState)).catch((error) => {
+          void Promise.resolve(idbWriteFn(persistencePatches, finalState, pendingWrite ? undefined : changes)).catch((error) => {
             console.error(`[local-first] failed to persist state (action=${key})`, error);
           });
         }

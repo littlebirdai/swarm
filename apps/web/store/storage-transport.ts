@@ -1,4 +1,4 @@
-import type { ReplicationChannel } from "@platform/engine";
+import type { PendingOutboxWrite, ReplicationChannel } from "@platform/engine";
 import type { Patch } from "mutative";
 import { CACHE_SCHEMA_VERSION, writePatchesToIDB } from "./idb-cache";
 import { followerPersistencePatches } from "./followerPersistence";
@@ -144,13 +144,22 @@ export function replicationPersistence(getState: () => object) {
   // The shared keys skipped meanwhile are remembered; a window that ends up
   // host writes them once (a follower's host already has).
   let skippedBeforeRole: Set<string> | null = new Set();
-  const followerWrite = (patches: Patch[], state: object) => {
+  const followerWrite = (
+    patches: Patch[],
+    state: object,
+    pending?: PendingOutboxWrite,
+  ) => {
     const local = followerPersistencePatches(patches);
-    if (local.length) return writePatchesToIDB(local, state);
+    if (local.length || pending?.length)
+      return writePatchesToIDB(local, state, pending);
   };
-  const bootWrite = (patches: Patch[], state: object) => {
+  const bootWrite = (
+    patches: Patch[],
+    state: object,
+    pending?: PendingOutboxWrite,
+  ) => {
     for (const patch of patches) skippedBeforeRole?.add(String(patch.path[0]));
-    return followerWrite(patches, state);
+    return followerWrite(patches, state, pending);
   };
   // Host from here on: persist what was skipped while the role was open. Each
   // key goes as a whole-collection replace, so the write diffs against what is

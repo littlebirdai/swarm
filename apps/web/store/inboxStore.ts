@@ -1,3 +1,4 @@
+import type { ReplicatedFieldLocks } from "./sync-replication";
 import {
   resourceOffloadStubs,
   cancelResourceBatch,
@@ -8053,6 +8054,7 @@ export interface InboxStoreState
     fields: Record<string, Record<string, unknown>>,
     ts?: number,
     release?: Record<string, Record<string, unknown>>,
+    locks?: ReplicatedFieldLocks,
   ) => void;
   // Team-mode active set: the ids the team board is currently showing (own +
   // teammates' team-visible), fed by the listTeamInboxSessions subscription.
@@ -13236,6 +13238,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     fields: Record<string, Record<string, unknown>>,
     ts: number = Date.now(),
     release?: Record<string, Record<string, unknown>>,
+    locks?: ReplicatedFieldLocks,
   ) {
     const rows = (this as any)[key] as Record<string, any> | undefined;
     if (!rows) return;
@@ -13243,6 +13246,8 @@ const inboxStoreConfig = (set: any, get: any) => ({
       const row = rows[id];
       if (!row) continue;
       for (const [field, value] of Object.entries(fields[id])) {
+        const identity = locks?.[id]?.[field];
+        const lockTs = identity?.ts ?? ts;
         // A sibling's refused write, rolled back there: the server never took
         // `refused`, so no echo will retire the lock this window mirrored on
         // it. Release that lock and take the rolled-back value without a new
@@ -13252,7 +13257,10 @@ const inboxStoreConfig = (set: any, get: any) => ({
           const rk = `${key}:${id}:${field}`;
           const held = this.pending[rk] as any;
           const mirrored =
-            held?.type === "field" && sameLockValue(held.value, refused);
+            held?.type === "field" &&
+            (identity && held.lock
+              ? held.lock === identity.id
+              : sameLockValue(held.value, refused));
           if (
             !mirrored &&
             (held?.type === "field" || !sameLockValue(row[field], refused))
@@ -13277,10 +13285,10 @@ const inboxStoreConfig = (set: any, get: any) => ({
         const k = `${key}:${id}:${field}`;
         const prev = this.pending[k] as any;
         const locked = prev?.type === "field";
-        if (locked && fieldLockTs(this, k) > ts) continue;
+        if (locked && fieldLockTs(this, k) > lockTs) continue;
         // The same write, or an older one, already landed here and was
         // acknowledged: the row holds the server's state since.
-        if (!locked && (retiredAckTs.get(k) ?? -Infinity) >= ts) continue;
+        if (!locked && (retiredAckTs.get(k) ?? -Infinity) >= lockTs) continue;
         // Only the server's kill transition writes inbox_killed_at, so the stamp
         // a row holds is the newest kill: a sibling's clear made before it (an
         // undone kill's mut, late behind a redo) is stale, and its lock would
@@ -13291,7 +13299,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
           field === "inbox_killed_at" &&
           value == null &&
           typeof row[field] === "number" &&
-          row[field] >= ts
+          row[field] >= lockTs
         )
           continue;
         if (!locked && value !== undefined && sameLockValue(row[field], value))
@@ -13299,10 +13307,19 @@ const inboxStoreConfig = (set: any, get: any) => ({
         if (value === undefined) delete row[field];
         else row[field] = value;
         const ack =
-          locked && prev.ack && sameLockValue(prev.value, value)
+          locked &&
+          prev.ack &&
+          (!identity || !prev.lock || prev.lock === identity.id) &&
+          sameLockValue(prev.value, value)
             ? prev.ack
             : undefined;
-        this.pending[k] = fieldLockEntry(value, ts, ack);
+        const lock =
+          identity?.id ??
+          (locked && sameLockValue(prev.value, value) ? prev.lock : undefined);
+        this.pending[k] = {
+          ...fieldLockEntry(value, lockTs, ack),
+          ...(lock ? { lock } : {}),
+        };
       }
     }
   }),

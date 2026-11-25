@@ -28,7 +28,10 @@ type ConversationMessageMeta = {
 };
 
 class CacheDB extends Dexie {
-  meta!: Dexie.Table<{ key: string; value: any }, string>;
+  meta!: Dexie.Table<
+    { key: string; value: any; retiredLocks?: string[] },
+    string
+  >;
   conversationMessageMeta!: Dexie.Table<ConversationMessageMeta, string>;
   conversationMessageRows!: Dexie.Table<
     ConversationMessageRow,

@@ -221,3 +221,22 @@ invariants 2 to 4 are for. `INV-fixpoint` re-runs every feeder a host mounted, o
 catch-up and a byIds pass over every held id, and requires no store write beyond
 `syncMeta` and `syncProgress`: replicated data that disagrees with the server
 shows there before any follower copies it.
+
+## Pending locks on disk
+
+Each window sends only the pending keys its write changed. Both writers use
+the same transaction rule for `meta.pending`. Mirrored fields keep the
+originating lock ID so a later echo or refusal names the same write.
+
+| Event order                                | Effect on `meta.pending`                                                                                                                                                   |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Action commit                              | The outbox transaction adds or replaces that action's lock with its row. A write that knows its committed predecessor can replace it even if the clock moved backward.     |
+| Failed commit → retry                      | The failed transaction leaves the previous value. Retry may write its lock unless the key has a later committed lock or the retry finds a retirement for its own ID.       |
+| Commit → echo or refusal rollback          | A sync delta removes the matching lock. An acknowledgement may update a lock only while that same lock is still present.                                                   |
+| Echo or refusal rollback → commit or retry | If the lock is absent, the sync delta remembers its ID. The outbox transaction consumes the retirement and drops that lock from the row it saves.                          |
+| Another window writes first                | A sync delta can add local bookkeeping entries without action IDs. It cannot add a mirrored action lock. An old echo or rollback leaves another window's newer lock alone. |
+| Cache reset → retry                        | Reset clears the stored locks and retirement IDs. The old writer's retry cannot write into the new cache.                                                                  |
+
+An older outbox row may still carry its lock ID as rollback history after a
+later write replaces the key. The pending map holds the live lock for that
+key. Retirement IDs for locks that never enqueue remain until cache reset.

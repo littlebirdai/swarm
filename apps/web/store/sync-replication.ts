@@ -22,6 +22,7 @@ import {
   createReplicationHost,
   extractReplicationUpdates,
   type ActionTeeMeta,
+  type PendingOutboxWrite,
   type ReplicationChannel,
   type ReplicationFollower,
   type ReplicationHost,
@@ -84,7 +85,13 @@ const SYNCLOG_META_PREFIX = syncLogScopeMetaKey("");
 // something re-delivers it. A row the action created or replaced outright
 // ships whole, as before. Built from the action's own patches, so the field
 // set is exact.
+export type ReplicatedFieldLocks = Record<
+  string,
+  Record<string, { id: string; ts: number }>
+>;
+
 export type MutUpdate = ReplicationUpdate & {
+  locks?: ReplicatedFieldLocks;
   fields?: Record<string, Record<string, unknown>>;
   /** The action's time on the follower: the mirrored lock's `ts`, so the write's later acknowledgement (sent after the action) matches it. */
   ts?: number;
@@ -157,6 +164,15 @@ export function buildMutUpdates(
     if (Object.keys(fields).length > 0) {
       u.fields = fields;
       u.ts = ts;
+      const locks: ReplicatedFieldLocks = {};
+      for (const [id, editedFields] of Object.entries(fields)) {
+        for (const field of Object.keys(editedFields)) {
+          const entry = state.pending?.[`${u.key}:${id}:${field}`];
+          if (entry?.type === "field" && entry.lock)
+            (locks[id] ??= {})[field] = { id: entry.lock, ts: entry.ts ?? ts };
+        }
+      }
+      if (Object.keys(locks).length) u.locks = locks;
     }
     if (upserts.length > 0) u.upserts = upserts;
     else delete u.upserts;
@@ -197,6 +213,11 @@ export function followerActionTee(channel: ReplicationChannel, selfId: string) {
         for (const l of meta.refused) {
           if (l.storeKey !== u.key || !u.fields[l.recordId]) continue;
           (release[l.recordId] ??= {})[l.field] = l.value;
+          if (l.lock)
+            ((u.locks ??= {})[l.recordId] ??= {})[l.field] = {
+              id: l.lock,
+              ts: l.ts,
+            };
         }
         if (Object.keys(release).length > 0) u.release = release;
       }
@@ -392,7 +413,7 @@ function applyUpdatesToStoreInner(
       // gesture: the value, and a lock on it until the server echoes it.
       useInboxStore
         .getState()
-        .applyReplicatedFields(u.key, u.fields, u.ts, u.release);
+        .applyReplicatedFields(u.key, u.fields, u.ts, u.release, u.locks);
     }
     if (u.hasValue) {
       if (u.value == null) continue;
@@ -615,11 +636,13 @@ export function startSyncReplication(opts: {
     follower = null;
     const internals = useInboxStore.getState() as any;
     // The write-through tee: persist first, then broadcast the same patches.
-    internals._setIDBWrite((patches: any[], state: any) => {
-      const persisted = persistence.hostWrite(patches, state);
-      host?.tee(patches, state);
-      return persisted;
-    });
+    internals._setIDBWrite(
+      (patches: any[], state: any, pending?: PendingOutboxWrite) => {
+        const persisted = persistence.hostWrite(patches, state, pending);
+        host?.tee(patches, state);
+        return persisted;
+      },
+    );
     // Straight to disk, not through the tee: followers already have the data.
     persistence.persistSkipped();
   };

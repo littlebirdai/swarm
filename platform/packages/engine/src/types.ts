@@ -532,7 +532,7 @@ export type DispatchFn = (
   },
 ) => Promise<any>;
 export type MaybePromise<T> = T | Promise<T>;
-export type IDBWriteFn = (patches: any[], state: any) => MaybePromise<void>;
+export type IDBWriteFn = (patches: any[], state: any, pending?: PendingOutboxWrite) => MaybePromise<void>;
 export type PendingOutboxWrite = ReadonlyArray<{
   key: string;
   before: PendingEntry | undefined;

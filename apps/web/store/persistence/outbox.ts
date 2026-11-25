@@ -7,12 +7,8 @@ import { takeBootReadPhase } from "./hydration";
 import { persistenceOwned } from "./ownership";
 import { timeBootRead } from "./storage-timings";
 
-import {
-  sameLock,
-  type OutboxEntry,
-  type PendingEntry,
-  type PendingOutboxWrite,
-} from "@platform/engine";
+import type { OutboxEntry, PendingOutboxWrite } from "@platform/engine";
+import { writePendingChanges } from "./pending-locks";
 import { authPrincipal } from "../../lib/authPrincipal";
 
 export type { OutboxEntry };
@@ -59,36 +55,27 @@ function putDispatch(
     const isRetry = retry;
     retry = true;
     return db.transaction("rw", tables, async () => {
-      const existing = pending ? await db.meta.get("pending") : undefined;
-      if (
-        epoch !== outboxWriteEpoch ||
-        purgeInProgress ||
-        !persistenceOwned(accountId)
-      )
-        return;
+      const writable = () =>
+        epoch === outboxWriteEpoch &&
+        !purgeInProgress &&
+        persistenceOwned(accountId);
       if (pending) {
-        const value: Record<string, PendingEntry> = existing?.value ?? {};
-        let changed = false;
-        for (const { key, before, after } of pending) {
-          const current = value[key];
-          if (after) {
-            if (
-              current &&
-              !(before && sameLock(current, before)) &&
-              (isRetry
-                ? (current.ts ?? 0) >= (after.ts ?? 0)
-                : (current.ts ?? 0) > (after.ts ?? 0))
-            )
-              continue;
-            value[key] = after;
-            changed = true;
-          } else if (before && sameLock(current, before)) {
-            delete value[key];
-            changed = true;
-          }
+        const retired = await writePendingChanges(
+          pending,
+          isRetry ? "retry" : "outbox",
+          writable,
+        );
+        if (!retired) return;
+        if (retired.length && row.locks?.length) {
+          await db.dispatchOutbox.put({
+            ...row,
+            locks: row.locks.filter(
+              (lock) => !lock.lock || !retired.includes(lock.lock),
+            ),
+          });
+          return;
         }
-        if (changed) await db.meta.put({ key: "pending", value });
-      }
+      } else if (!writable()) return;
       await db.dispatchOutbox.put(row);
     });
   });
