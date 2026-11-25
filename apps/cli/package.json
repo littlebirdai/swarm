@@ -41,6 +41,8 @@
     "@codecast/deploys": "workspace:*",
     "@codecast/diff": "workspace:*",
     "@codecast/docs": "workspace:*",
+    "@codecast/edge-client": "workspace:*",
+    "@codecast/edge-contract": "workspace:*",
     "@codecast/entities": "workspace:*",
     "@codecast/evals-api": "workspace:*",
     "@codecast/fence": "workspace:*",
