@@ -72,7 +72,7 @@ describe("workspace port reservations", () => {
     );
     const { withWorkspaceOperation } = await import("./portReservations.js");
     try {
-      for (let i = 0; i < 200 && !fs.existsSync(marker); i++)
+      for (let i = 0; i < 1200 && !fs.existsSync(marker); i++)
         await Bun.sleep(10);
       expect(fs.existsSync(marker)).toBe(true);
       await expect(

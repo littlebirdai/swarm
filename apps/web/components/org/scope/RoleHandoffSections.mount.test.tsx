@@ -1,76 +1,35 @@
-// The role page's merge step (the-line.md L12), handoff banner, succession
-// list and split dialog (org-staffing.md S32, S34) on the org fixture.
-// Run: cd apps/web && bun test components/org/scope/RoleHandoffSections.mount.test.tsx
-import { test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { afterEach, spyOn, test } from "bun:test";
 import assert from "node:assert/strict";
+import React, { act } from "react";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { pending } from "../../../test-helpers/testConvex";
+import { waitForPopupClose } from "../../../test-helpers/waitForPopupClose";
+import { ORG_FIXTURE } from "../orgFixture";
 import type { OrgRole, OrgTree } from "../orgTypes";
+import {
+  HandingOverSection,
+  MergeStepSwitch,
+  SplitRoleSection,
+  SuccessionSection,
+  mergeStepWords,
+  splitReadiness,
+} from "./RoleHandoffSections";
+
+let restoreClock: (() => void) | undefined;
+afterEach(() => {
+  restoreClock?.();
+  restoreClock = undefined;
+});
 
 async function verify() {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLButtonElement",
-    "HTMLInputElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "KeyboardEvent",
-    "MouseEvent",
-    "getComputedStyle",
-  ]) {
-    Object.defineProperty(globalThis, key, {
-      value: (dom.window as any)[key],
-      configurable: true,
-      writable: true,
-    });
-  }
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  const { mock } = await import("bun:test");
-  const React = await import("react");
-  const { act } = React;
-
-  const calls: Array<{ fn: string; args: any }> = [];
-  mock.module("sonner", () => ({
-    toast: { success: () => {}, error: () => {} },
-  }));
-  mock.module("next/link", () => ({
-    default: ({ href, children, ...rest }: any) =>
-      React.createElement("a", { href, ...rest }, children),
-  }));
-  const realNow = { ...(await import("../../../hooks/useCoarseNow")) };
-  mock.module("../../../hooks/useCoarseNow", () => ({
-    ...realNow,
-    useCoarseNow: () => Date.now(),
-  }));
-  mock.module("../../ui/dialog", () => ({
-    Dialog: ({ open, children }: any) =>
-      open
-        ? React.createElement("div", { "data-dialog": true }, children)
-        : null,
-    DialogContent: ({ children, ...rest }: any) =>
-      React.createElement("div", rest, children),
-    DialogHeader: ({ children }: any) =>
-      React.createElement("div", null, children),
-    DialogTitle: ({ children }: any) =>
-      React.createElement("h2", null, children),
-    DialogDescription: ({ children }: any) =>
-      React.createElement("p", null, children),
-  }));
-
-  const { ORG_FIXTURE } = await import("../orgFixture");
-  const base = ORG_FIXTURE as OrgTree;
+  const now = Date.UTC(2026, 10, 24, 18);
+  const clock = spyOn(Date, "now").mockReturnValue(now);
+  restoreClock = () => clock.mockRestore();
+  const base = ORG_FIXTURE;
   // The fixture holds one role; a second lead stands in as the other side of
   // a handoff and a succession.
-  const second = {
+  const second: OrgRole = {
     ...base.roles[0],
     _id: "org_roles_ads",
     short_id: "or-99",
@@ -80,69 +39,53 @@ async function verify() {
       projects: [{ id: "projects_ads", title: "Ads" }],
       plans: [],
     },
-  } as OrgRole;
-  const tree = { ...base, roles: [...base.roles, second] } as OrgTree;
-  const { createRoot } = await import("react-dom/client");
-  const {
-    HandingOverSection,
-    MergeStepSwitch,
-    SplitRoleSection,
-    SuccessionSection,
-    mergeStepWords,
-    splitReadiness,
-  } = await import("./RoleHandoffSections");
-  // The three writes are store actions that ride dispatch to orgLineMerge.setLineMerge,
-  // orgHandoff.settle and orgSplit.split; each spy records the server call its
-  // dispatch handler makes (convex/dispatch.ts), by the mutation's name.
-  const { useInboxStore } = await import("../../../store/inboxStore");
-  const record = (fn: string, args: any, answer: any = {}) => {
-    calls.push({ fn, args });
-    return answer;
   };
-  useInboxStore.setState({
-    setOrgLineMerge: async (
-      role_id: string,
-      on: boolean,
-      per_day?: number,
-      rate?: { bar: number; min: number } | null,
-    ) =>
-      record("setLineMerge", {
-        role_id,
-        on,
-        ...(per_day !== undefined ? { per_day } : {}),
-        ...(rate !== undefined ? { rate } : {}),
-      }),
-    settleOrgHandoff: async (role_id: string, how: "run" | "close") =>
-      record("settle", { role_id, how }),
-    splitOrgRole: async (args: any) =>
-      record(
-        "split",
-        {
-          role_id: args.role_id,
-          halves: args.halves,
-          standing_session: args.standing_session,
-        },
-        {
-          roles: [
-            { handle: args.halves[0].handle },
-            { handle: args.halves[1].handle },
-          ],
-          handoff: { deadline: Date.now() + 86_400_000 },
-        },
-      ),
-  } as any);
-  const root = createRoot(document.getElementById("root")!);
+  const tree: OrgTree = { ...base, roles: [...base.roles, second] };
+  const web = await mountWeb(null, {
+    path: "/org/or-1",
+    dispatch: true,
+    setup(backend, store) {
+      store.syncTable("currentUser", { _id: "fixture-user-me" });
+      store.syncTable("clientState", {
+        ui: { active_team_id: tree.workspace.id },
+      });
+      store.syncTable("orgTree", tree);
+      backend.set(api.org.roles, pending);
+      backend.mutation(api.dispatch.dispatch, ({ action }) =>
+        action === "splitOrgRole"
+          ? {
+              roles: [{ handle: "growth-a" }, { handle: "growth-b" }],
+              handoff: { deadline: now + 86_400_000 },
+            }
+          : {},
+      );
+    },
+  });
+  let read = 0;
+  const calls = () =>
+    web.backend.mutations.slice(read).map(({ name, args }) => {
+      assert.equal(name, "dispatch:dispatch");
+      assert.ok(
+        args &&
+          typeof args === "object" &&
+          !Array.isArray(args) &&
+          !(args instanceof ArrayBuffer),
+      );
+      return { action: args.action, args: args.args };
+    });
+  const takeCall = () => {
+    const all = calls();
+    assert.equal(all.length, 1);
+    read++;
+    return all[0];
+  };
   const q = <T extends Element = HTMLElement>(sel: string) =>
     document.querySelector<T>(sel);
   const qa = <T extends Element = HTMLElement>(sel: string) => [
     ...document.querySelectorAll<T>(sel),
   ];
   const text = () => document.body.textContent ?? "";
-  const render = async (node: React.ReactElement) => {
-    await act(async () => {
-      root.render(node);
-    });
-  };
+  const render = web.rerender;
 
   const growth = tree.roles.find(
     (r) => r.handle !== "head-of-people" && r.status === "active",
@@ -204,7 +147,7 @@ async function verify() {
     q("[data-merge-limit-form]"),
     "no grant yet: the switch asks for a daily limit first",
   );
-  assert.equal(calls.length, 0);
+  assert.equal(calls().length, 0);
   assert.equal(
     q<HTMLInputElement>("[data-merge-limit-form] input[type=number]")!.value,
     "3",
@@ -215,9 +158,9 @@ async function verify() {
       "[data-merge-limit-form] button[type=submit]",
     )!.click();
   });
-  assert.deepEqual(calls.pop(), {
-    fn: "setLineMerge",
-    args: { role_id: growth._id, on: true, per_day: 3 },
+  assert.deepEqual(takeCall(), {
+    action: "setOrgLineMerge",
+    args: [growth._id, true, 3],
   });
   // With a grant already held, the switch opens the review of what merging on its own means, and the review's own button turns it on; off is one click.
   await render(
@@ -236,14 +179,15 @@ async function verify() {
   await act(async () => {
     q<HTMLButtonElement>("[role=switch]")!.click();
   });
-  assert.equal(calls.length, 0, "the switch alone turns nothing on");
+  assert.equal(calls().length, 0, "the switch alone turns nothing on");
   assert.equal(q('[data-switch-figure="merges a day, max"]')!.textContent, "3");
   await act(async () => {
     q<HTMLButtonElement>("[data-switch-confirm]")!.click();
   });
-  assert.deepEqual(calls.pop(), {
-    fn: "setLineMerge",
-    args: { role_id: growth._id, on: true },
+  await waitForPopupClose();
+  assert.deepEqual(takeCall(), {
+    action: "setOrgLineMerge",
+    args: [growth._id, true, null],
   });
   await render(
     React.createElement(MergeStepSwitch, {
@@ -256,9 +200,9 @@ async function verify() {
   await act(async () => {
     q<HTMLButtonElement>("[role=switch]")!.click();
   });
-  assert.deepEqual(calls.pop(), {
-    fn: "setLineMerge",
-    args: { role_id: growth._id, on: false },
+  assert.deepEqual(takeCall(), {
+    action: "setOrgLineMerge",
+    args: [growth._id, false, null],
   });
 
   // ── how the merge step decides (regret.md R7): the rate sits beside it; Rate takes a bar and goes through the review ──
@@ -330,14 +274,15 @@ async function verify() {
   await act(async () => {
     q<HTMLButtonElement>("[data-merge-rate-form] button[type=submit]")!.click();
   });
-  assert.equal(calls.length, 0, "the bar alone changes nothing");
+  assert.equal(calls().length, 0, "the bar alone changes nothing");
   assert.equal(q('[data-switch-figure="bar"]')!.textContent, "90%");
   await act(async () => {
     q<HTMLButtonElement>("[data-switch-confirm]")!.click();
   });
-  assert.deepEqual(calls.pop(), {
-    fn: "setLineMerge",
-    args: { role_id: growth._id, on: true, rate: { bar: 0.9, min: 20 } },
+  await waitForPopupClose();
+  assert.deepEqual(takeCall(), {
+    action: "setOrgLineMerge",
+    args: [growth._id, true, null, { bar: 0.9, min: 20 }],
   });
   await render(
     React.createElement(MergeStepSwitch, {
@@ -362,9 +307,10 @@ async function verify() {
   await act(async () => {
     q<HTMLButtonElement>("[data-switch-confirm]")!.click();
   });
-  assert.deepEqual(calls.pop(), {
-    fn: "setLineMerge",
-    args: { role_id: growth._id, on: true, rate: null },
+  await waitForPopupClose();
+  assert.deepEqual(takeCall(), {
+    action: "setOrgLineMerge",
+    args: [growth._id, true, null, null],
   });
 
   // ── the handoff banner: receivers, their state, the deadline, and the two acts ──
@@ -409,18 +355,18 @@ async function verify() {
       .find((b) => b.textContent === "Hand over now")!
       .click();
   });
-  assert.deepEqual(calls.pop(), {
-    fn: "settle",
-    args: { role_id: growth._id, how: "run" },
+  assert.deepEqual(takeCall(), {
+    action: "settleOrgHandoff",
+    args: [growth._id, "run"],
   });
   await act(async () => {
     [...qa<HTMLButtonElement>("button")]
       .find((b) => /Close and retire now/.test(b.textContent ?? ""))!
       .click();
   });
-  assert.deepEqual(calls.pop(), {
-    fn: "settle",
-    args: { role_id: growth._id, how: "close" },
+  assert.deepEqual(takeCall(), {
+    action: "settleOrgHandoff",
+    args: [growth._id, "close"],
   });
   await render(
     React.createElement(HandingOverSection, {
@@ -538,24 +484,26 @@ async function verify() {
       .find((b) => b.textContent === "Split")!
       .click();
   });
-  const sent = calls.pop()!;
-  assert.equal(sent.fn, "split");
-  assert.deepEqual(sent.args, {
-    role_id: growth._id,
-    halves: [
-      {
-        name: `${growth.name} A`,
-        handle: `${growth.handle}-a`,
-        refs: ["project:p1"],
-      },
-      {
-        name: `${growth.name} B`,
-        handle: `${growth.handle}-b`,
-        refs: ["project:p2", "plan:pl1"],
-      },
-    ],
-    standing_session: "keep",
-  });
+  const sent = takeCall()!;
+  assert.equal(sent.action, "splitOrgRole");
+  assert.deepEqual(sent.args, [
+    {
+      role_id: growth._id,
+      halves: [
+        {
+          name: `${growth.name} A`,
+          handle: `${growth.handle}-a`,
+          refs: ["project:p1"],
+        },
+        {
+          name: `${growth.name} B`,
+          handle: `${growth.handle}-b`,
+          refs: ["project:p2", "plan:pl1"],
+        },
+      ],
+      standing_session: "keep",
+    },
+  ]);
   // One area or a handoff in flight: no split offered.
   await render(
     React.createElement(SplitRoleSection, {
@@ -580,9 +528,7 @@ async function verify() {
   );
   assert.equal(q("[data-split-section]"), null);
 
-  await act(async () => {
-    root.unmount();
-  });
+  await web.close();
 }
 
 test(

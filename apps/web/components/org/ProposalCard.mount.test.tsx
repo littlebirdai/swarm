@@ -1,149 +1,18 @@
-// Mounts the proposal card (docs/architecture/org-staffing.md S24, S39) in
-// jsdom against stubbed store rows: a proposed proposal (a new role under the
-// founder and a move onto it, drawn as two entries with their own Adjust and
-// Accept, Reject inside the Adjust field, and a foot with Accept the rest), an applied one
-// (what happened, in words), and a failed one (Retry, the note). An answer
-// joins the pending batch of the conversation whose composer is in reach and
-// decides nothing; the controls give way to a band until the composer sends.
-// Run: bun test --timeout 240000 components/org/ProposalCard.mount.test.tsx
-import { test, expect, afterAll, mock } from "bun:test";
-import { closeDomWindow } from "../../test-helpers/domGlobals";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { expect, test } from "bun:test";
+import React from "react";
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import { waitForPopupClose } from "../../test-helpers/waitForPopupClose";
+import { useInboxStore } from "../../store/inboxStore";
+import { EntityObjectCard } from "../EntityObjectCard";
+import { ReviewComposerContext } from "../reviewContext";
+import { ORG_FIXTURE } from "./orgFixture";
+import type { OrgProposalChange, OrgProposalListRow } from "./orgStaffingTypes";
+import { OrgHoverContext } from "./proposalContexts";
 
-const { JSDOM } = await import("jsdom");
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  { url: "https://local.codecast.sh", pretendToBeVisual: true },
-);
-for (const key of [
-  "window",
-  "document",
-  "navigator",
-  "HTMLElement",
-  "HTMLButtonElement",
-  "HTMLAnchorElement",
-  "HTMLTextAreaElement",
-  "Element",
-  "Node",
-  "Event",
-  "MouseEvent",
-  "KeyboardEvent",
-  "getComputedStyle",
-  "requestAnimationFrame",
-  "cancelAnimationFrame",
-  "localStorage",
-  "MutationObserver",
-  "CustomEvent",
-  "HTMLInputElement",
-]) {
-  const v = (dom.window as any)[key];
-  if (v !== undefined)
-    Object.defineProperty(globalThis, key, {
-      value: v,
-      configurable: true,
-      writable: true,
-    });
-}
-(globalThis as any).ResizeObserver ??= class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-// A clamp asks scrollHeight; jsdom answers 0. Twenty pixels a line, ninety characters to a line.
-Object.defineProperty(dom.window.Element.prototype, "scrollHeight", {
-  configurable: true,
-  get() {
-    return Math.ceil(((this as Element).textContent?.length ?? 0) / 90) * 20;
-  },
-});
-afterAll(() => closeDomWindow(dom));
-
-const React = await import("react");
 const h = React.createElement;
-mock.module("next/link", () => ({
-  default: ({ href, children, ...rest }: any) =>
-    h("a", { href, ...rest }, children),
-}));
-mock.module("next/navigation", () => ({
-  useRouter: () => ({ push() {}, replace() {} }),
-  useSearchParams: () => new URLSearchParams(),
-  usePathname: () => "/",
-}));
-mock.module("../RoutePane", () => ({
-  RoutePane: () => h("div", null, "page"),
-}));
-mock.module("../stage/SessionPane", () => ({
-  SessionPane: () => h("div", null, "session"),
-}));
-const realShortcuts = { ...(await import("../../shortcuts")) };
-mock.module("../../shortcuts", () => ({
-  ...realShortcuts,
-  hasOpenModal: () => false,
-  isEditableTarget: () => false,
-}));
-mock.module("../../hooks/useOpenLinkedSession", () => ({
-  useOpenLinkedSession: () => () => {},
-}));
-const realStage = { ...(await import("../../lib/stage")) };
-mock.module("../../lib/stage", () => ({
-  ...realStage,
-  canOpenBeside: () => true,
-}));
-// No server: every query is skipped or unanswered, so the rows below are the
-// store's alone (the local-first seed the card paints from).
-const convexReact = await import("convex/react");
-mock.module("convex/react", () => ({
-  ...convexReact,
-  useQuery: () => undefined,
-  useQueries: () => ({}),
-}));
-const noThrow = await import("../../hooks/useQueryNoThrow");
-mock.module("../../hooks/useQueryNoThrow", () => ({
-  ...noThrow,
-  useQueryNoThrow: () => ({
-    data: undefined,
-    error: undefined,
-    retry: () => {},
-  }),
-}));
-// The feeders are mounted by the card; here they report "served" without a
-// subscription, and the tree comes from the store row seeded below.
-const realProposals = { ...(await import("../../hooks/useSyncOrgProposals")) };
-mock.module("../../hooks/useSyncOrgProposals", () => ({
-  ...realProposals,
-  useSyncOrgProposal: (ref: string | null) => ({
-    ready: !!ref,
-    missing: false,
-  }),
-  useSyncOrgProposals: () => ({ ready: true, missing: false }),
-}));
-const realTree = { ...(await import("../../hooks/useSyncOrgTree")) };
-const { useInboxStore } = await import("../../store/inboxStore");
-// Roles wear their characters here; Characters is off by default.
-(await import("../../test-helpers/characters")).setCharacters(true);
-mock.module("../../hooks/useSyncOrgTree", () => ({
-  ...realTree,
-  useSyncOrgTree: () => ({
-    tree: useInboxStore((s) => s.orgTree),
-    ready: true,
-    missing: false,
-    refused: false,
-    retry() {},
-  }),
-  useSyncOrgTreeFeeder: () => ({
-    ready: true,
-    missing: false,
-    refused: false,
-    retry() {},
-  }),
-}));
-
-const { createRoot } = await import("react-dom/client");
-const { ORG_FIXTURE } = await import("./orgFixture");
-const { EntityObjectCard } = await import("../EntityObjectCard");
-const { ReviewComposerContext } = await import("../reviewContext");
-const { OrgHoverContext } = await import("./proposalContexts");
-
 const AUTHOR = {
   kind: "role" as const,
   id: "role-cos",
@@ -158,7 +27,7 @@ const proposal = (
   title: string,
   status: "open" | "resolved" = "open",
   summary_md = `Why ${title.toLowerCase()}.`,
-) => ({
+): OrgProposalListRow => ({
   _id: id,
   short_id,
   team_id: "fixture-team",
@@ -173,10 +42,10 @@ const change = (
   id: string,
   proposal_id: string,
   seq: number,
-  c: any,
-  status: any = "proposed",
-  extra: Record<string, unknown> = {},
-) => ({
+  c: OrgProposalChange["change"],
+  status: OrgProposalChange["status"] = "proposed",
+  extra: Partial<OrgProposalChange> = {},
+): OrgProposalChange => ({
   _id: id,
   proposal_id,
   seq,
@@ -187,15 +56,19 @@ const change = (
   ...extra,
 });
 
-const ROLE = {
+const ROLE: OrgProposalChange["change"] = {
   kind: "role",
   name: "Head of Platform",
   handle: "platform",
   reports_to: "me",
   scope: { projects: ["Platform"] },
 };
-const MOVE = { kind: "move", handle: "growth", reports_to: "@platform" };
-const LIMIT = {
+const MOVE: OrgProposalChange["change"] = {
+  kind: "move",
+  handle: "growth",
+  reports_to: "@platform",
+};
+const LIMIT: OrgProposalChange["change"] = {
   kind: "budget",
   handle: "growth",
   caps: { wakes_per_day: 12, tokens_per_day: 800_000 },
@@ -203,67 +76,53 @@ const LIMIT = {
 // A letter past four lines: the lead folds and "Read the rest" opens the whole of it.
 const LONG_LETTER = `${"Platform work is spread over four people and nobody owns the week. ".repeat(14).trim()}\n\nThe rest of the letter names the sessions this would move.`;
 
-useInboxStore.setState({
-  orgTree: ORG_FIXTURE,
-  orgProposals: {
-    p1: proposal("p1", "op-1", "Bring platform under one lead"),
-    // The whole-proposal note the person sent with their approvals, stored on the row (S39).
-    p2: {
-      ...proposal("p2", "op-2", "Growth reports to platform", "resolved"),
-      reply: {
-        verdict: "note",
-        text: "Do the plans next",
-        at: Date.now() - 60_000,
-        by: "user-1",
-      },
+const proposals: Record<string, OrgProposalListRow> = {
+  p1: proposal("p1", "op-1", "Bring platform under one lead"),
+  // The whole-proposal note the person sent with their approvals, stored on the row (S39).
+  p2: {
+    ...proposal("p2", "op-2", "Growth reports to platform", "resolved"),
+    reply: {
+      verdict: "note",
+      text: "Do the plans next",
+      at: Date.now() - 60_000,
+      by: "user-1",
     },
-    p3: proposal("p3", "op-3", "A second attempt"),
-    p4: proposal("p4", "op-4", "Keep growth within bounds"),
-    p5: proposal("p5", "op-5", "Platform lead, within bounds"),
-    p7: proposal("p7", "op-7", "Platform, landing"),
-    p8: proposal("p8", "op-8", "A long letter", "open", LONG_LETTER),
   },
-  orgProposalChanges: {
-    "c1-role": change("c1-role", "p1", 1, ROLE),
-    "c1-move": change("c1-move", "p1", 2, MOVE),
-    "c2-role": change("c2-role", "p2", 1, ROLE, "applied", {
-      applied_at: Date.now() - 60_000,
-    }),
-    "c2-move": change("c2-move", "p2", 2, MOVE, "applied"),
-    "c3-role": change("c3-role", "p3", 1, ROLE, "failed", {
-      applied_note: "A role already answers to @platform",
-    }),
-    "c3-move": change("c3-move", "p3", 2, MOVE, "applied"),
-    "c4-limit": change("c4-limit", "p4", 1, LIMIT, "proposed", {
-      rationale: "Growth wakes 30 times a day.",
-    }),
-    "c5-role": change("c5-role", "p5", 1, ROLE),
-    // The limit rides on the role this proposal creates.
-    "c5-limit": change(
-      "c5-limit",
-      "p5",
-      2,
-      { ...LIMIT, handle: "platform" },
-      "proposed",
-      { rationale: "Platform gets 800k tokens." },
-    ),
-    "c7-role": change("c7-role", "p7", 1, ROLE, "accepted"),
-    "c7-move": change("c7-move", "p7", 2, MOVE, "accepted"),
-    "c8-role": change("c8-role", "p8", 1, ROLE),
-  },
-} as any);
-
-// A press decides nothing: the old direct verdict actions record any call, and every test expects none.
-const calls: any[] = [];
-const realActions = {
-  replyOnOrgProposal: useInboxStore.getState().replyOnOrgProposal,
+  p3: proposal("p3", "op-3", "A second attempt"),
+  p4: proposal("p4", "op-4", "Keep growth within bounds"),
+  p5: proposal("p5", "op-5", "Platform lead, within bounds"),
+  p7: proposal("p7", "op-7", "Platform, landing"),
+  p8: proposal("p8", "op-8", "A long letter", "open", LONG_LETTER),
 };
-useInboxStore.setState({
-  replyOnOrgProposal: (...args: any[]) => calls.push(["reply", ...args]),
-} as any);
-afterAll(() => useInboxStore.setState(realActions as any));
+const changes: Record<string, OrgProposalChange> = {
+  "c1-role": change("c1-role", "p1", 1, ROLE),
+  "c1-move": change("c1-move", "p1", 2, MOVE),
+  "c2-role": change("c2-role", "p2", 1, ROLE, "applied", {
+    applied_at: Date.now() - 60_000,
+  }),
+  "c2-move": change("c2-move", "p2", 2, MOVE, "applied"),
+  "c3-role": change("c3-role", "p3", 1, ROLE, "failed", {
+    applied_note: "A role already answers to @platform",
+  }),
+  "c3-move": change("c3-move", "p3", 2, MOVE, "applied"),
+  "c4-limit": change("c4-limit", "p4", 1, LIMIT, "proposed", {
+    rationale: "Growth wakes 30 times a day.",
+  }),
+  "c5-role": change("c5-role", "p5", 1, ROLE),
+  // The limit rides on the role this proposal creates.
+  "c5-limit": change(
+    "c5-limit",
+    "p5",
+    2,
+    { ...LIMIT, handle: "platform" },
+    "proposed",
+    { rationale: "Platform gets 800k tokens." },
+  ),
+  "c7-role": change("c7-role", "p7", 1, ROLE, "accepted"),
+  "c7-move": change("c7-move", "p7", 2, MOVE, "accepted"),
+  "c8-role": change("c8-role", "p8", 1, ROLE),
+};
 
-// The conversation's composer: the batch's key.
 const CONV = "conv-1";
 const composer = {
   quote() {},
@@ -283,22 +142,50 @@ const readOnlyComposer = {
 };
 /** The answers a batch holds, as the tray would read them. */
 const batch = (key = CONV) =>
-  (useInboxStore.getState().reviewComments[key] ?? []).map((c: any) => [
-    c.proposal.card,
-    c.proposal.verdict,
-    c.body,
-    c.proposal.seqs,
-    c.proposal.change_ids,
-    c.proposal.ordinal,
-    c.proposal.subject,
-  ]);
-const clearBatch = (key = CONV) =>
-  React.act(() => useInboxStore.getState().clearReviewComments(key));
+  (useInboxStore.getState().reviewComments[key] ?? []).map(
+    ({ proposal, body }) => [
+      proposal?.card,
+      proposal?.verdict,
+      body,
+      proposal?.seqs,
+      proposal?.change_ids,
+      proposal?.ordinal,
+      proposal?.subject,
+    ],
+  );
 
-function mount(ui: React.ReactNode) {
-  const root = createRoot(document.getElementById("root")!);
-  React.act(() => root.render(ui));
-  return root;
+async function mount(ui: React.ReactNode, focusChangeId?: string) {
+  return mountWeb(ui, {
+    dispatch: true,
+    setup(backend, store) {
+      store.syncTable("orgTree", ORG_FIXTURE);
+      if (focusChangeId) store.setOrgFocusChangeId(focusChangeId);
+      store.syncTable("orgProposals", Object.values(proposals));
+      store.syncTable("orgProposalChanges", Object.values(changes));
+      useInboxStore.setState({
+        clientState: {
+          ...store.clientState,
+          ui: { ...store.clientState.ui, show_characters: true },
+        },
+      });
+      backend.set(api.org.roles, pending);
+      backend.set(api.org.tree, pending);
+      backend.set(api.orgProposals.list, pending);
+      backend.set(api.orgProposals.get, ({ proposal }) => {
+        const row = Object.values(proposals).find(
+          (p) => p.short_id === proposal,
+        );
+        if (!row) return pending;
+        return {
+          ...row,
+          changes: Object.values(changes).filter(
+            (c) => c.proposal_id === row._id,
+          ),
+        };
+      });
+      backend.mutation(api.dispatch.dispatch, null);
+    },
+  });
 }
 const card = (ref: string) =>
   h("div", { "data-card": ref }, h(EntityObjectCard, { refId: ref, count: 1 }));
@@ -308,7 +195,11 @@ const q = (sel: string) => document.querySelector<HTMLElement>(sel)!;
 const qa = (sel: string) =>
   Array.from(document.querySelectorAll<HTMLElement>(sel));
 const click = (el: HTMLElement) =>
-  React.act(() => el.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+  React.act(() =>
+    el.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    ),
+  );
 const key = (el: HTMLElement, k: string) =>
   React.act(() => {
     el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
@@ -331,12 +222,15 @@ const subjects = (c: HTMLElement) =>
 const foot = (c: HTMLElement) =>
   c.querySelector<HTMLElement>("[data-ledger-close]")!;
 /** Approving a new role opens the shared confirm; this presses its confirm. */
-const confirmOnline = () => click(q("[data-switch-confirm]"));
+async function confirmOnline() {
+  click(q("[data-switch-confirm]"));
+  await waitForPopupClose();
+}
 
-test("a proposed proposal: meta, lead, totals, one entry per subject; Accept stages a band in the batch and decides nothing; Undo takes it back", () => {
-  const root = mount(inThread(card("op-1")));
+test("a proposed proposal: meta, lead, totals, one entry per subject; Accept stages a band in the batch and decides nothing; Undo takes it back", async () => {
+  const root = await mount(inThread(card("op-1")));
   const c = q("[data-card='op-1']");
-  expect(c.querySelector(".entity-card")).not.toBeNull();
+  expectPresent(c.querySelector(".entity-card"));
   expect(c.textContent).toContain("Bring platform under one lead");
   // The meta line counts the cards a person sees.
   expect(
@@ -352,9 +246,9 @@ test("a proposed proposal: meta, lead, totals, one entry per subject; Accept sta
   expect(
     c.querySelector(".entity-card")!.getAttribute("data-entity-card"),
   ).toBe("proposal");
-  expect(c.querySelector("a[title='Open proposal']")).not.toBeNull();
+  expectPresent(c.querySelector("a[title='Open proposal']"));
   // The author's summary at the top, then the totals in one sentence.
-  expect(c.querySelector("[data-proposal-letter]")).toBeNull();
+  expectAbsent(c.querySelector("[data-proposal-letter]"));
   expect(c.querySelector("[data-proposal-summary]")!.textContent).toBe(
     "Why bring platform under one lead.",
   );
@@ -367,7 +261,7 @@ test("a proposed proposal: meta, lead, totals, one entry per subject; Accept sta
   expect(
     c.querySelector("[data-proposal-card]")!.getAttribute("data-proposal-work"),
   ).toBe("structure");
-  expect(c.querySelector("[data-proposal-readonly]")).toBeNull();
+  expectAbsent(c.querySelector("[data-proposal-readonly]"));
 
   // The ledger: the new role first, then the role moved under it, each a plain sentence.
   expect(
@@ -395,8 +289,8 @@ test("a proposed proposal: meta, lead, totals, one entry per subject; Accept sta
   )!;
   expect(reports.getAttribute("data-field-before")).toBe("Ashot Petrosian");
   expect(reports.getAttribute("data-field-after")).toBe("Head of Platform");
-  expect(reports.querySelector("[data-face='person']")).not.toBeNull();
-  expect(reports.querySelector("[data-face='role']")).not.toBeNull();
+  expectPresent(reports.querySelector("[data-face='person']"));
+  expectPresent(reports.querySelector("[data-face='role']"));
   // Two entries: each change's reason reads as its own Why row.
   expect(
     Array.from(c.querySelectorAll("[data-subject-why]")).map(
@@ -427,12 +321,12 @@ test("a proposed proposal: meta, lead, totals, one entry per subject; Accept sta
   expect(batch()).toEqual([
     ["role:growth", "approve", "", [2], ["c1-move"], 2, "Head of Growth"],
   ]);
-  expect(calls).toEqual([]);
+  expect(root.backend.mutations).toEqual([]);
   const growth = () =>
     c.querySelector<HTMLElement>("[data-subject='role:growth']")!;
   expect(growth().getAttribute("data-subject-answer")).toBe("approve");
   expect(growth().getAttribute("data-subject-status")).toBe("proposed");
-  expect(growth().querySelector("[data-subject-approve]")).toBeNull();
+  expectAbsent(growth().querySelector("[data-subject-approve]"));
   expect(
     growth().querySelector("[data-staged]")!.getAttribute("data-staged"),
   ).toBe("approve");
@@ -445,21 +339,20 @@ test("a proposed proposal: meta, lead, totals, one entry per subject; Accept sta
   // Undo empties the batch and brings the controls back.
   click(growth().querySelector("[data-staged-undo]")!);
   expect(batch()).toEqual([]);
-  expect(growth().querySelector("[data-staged]")).toBeNull();
-  expect(growth().querySelector("[data-subject-approve]")).not.toBeNull();
+  expectAbsent(growth().querySelector("[data-staged]"));
+  expectPresent(growth().querySelector("[data-subject-approve]"));
   expect(c.querySelector(".entity-card")!.getAttribute("aria-expanded")).toBe(
     "false",
   );
-  React.act(() => root.unmount());
-  clearBatch();
+  await root.close();
 });
 
-test("Reject inside the Adjust field stages the band around the field; typing writes the body; Enter closes it and shows You; the frame never toggles", () => {
-  const root = mount(inThread(card("op-1")));
+test("Reject inside the Adjust field stages the band around the field; typing writes the body; Enter closes it and shows You; the frame never toggles", async () => {
+  const root = await mount(inThread(card("op-1")));
   const c = q("[data-card='op-1']");
   const platform = () =>
     c.querySelector<HTMLElement>("[data-subject='role:platform']")!;
-  expect(platform().querySelector("[data-subject-reject]")).toBeNull();
+  expectAbsent(platform().querySelector("[data-subject-reject]"));
   click(platform().querySelector("[data-subject-reply]")!);
   expect(batch()).toEqual([]);
   click(
@@ -500,7 +393,7 @@ test("Reject inside the Adjust field stages the band around the field; typing wr
   expect(c.querySelector(".entity-card")!.getAttribute("aria-expanded")).toBe(
     "false",
   );
-  expect(platform().querySelector("[data-subject-reply-field]")).toBeNull();
+  expectAbsent(platform().querySelector("[data-subject-reply-field]"));
   expect(
     platform().querySelector("[data-staged] [data-subject-you]")!.textContent,
   ).toBe("You: Not yet");
@@ -508,7 +401,7 @@ test("Reject inside the Adjust field stages the band around the field; typing wr
   click(
     c.querySelector("[data-subject='role:growth'] [data-subject-approve]")!,
   );
-  expect(c.querySelector("[data-approve-rest]")).toBeNull();
+  expectAbsent(c.querySelector("[data-approve-rest]"));
   // Open, the card is the same ledger, reading the same batch.
   click(c.querySelector(".entity-card")!);
   expect(c.querySelector(".entity-card")!.getAttribute("aria-expanded")).toBe(
@@ -526,13 +419,12 @@ test("Reject inside the Adjust field stages the band around the field; typing wr
   expect(
     open.querySelector("[data-subject='role:growth'] [data-staged='approve']"),
   ).not.toBeNull();
-  expect(calls).toEqual([]);
-  React.act(() => root.unmount());
-  clearBatch();
+  expect(root.backend.mutations).toEqual([]);
+  await root.close();
 });
 
-test("Accept all 2 with nothing answered, Accept the rest after one answer, pressed again withdraws only what it put; a word with a check", () => {
-  const root = mount(inThread(card("op-1")));
+test("Accept all 2 with nothing answered, Accept the rest after one answer, pressed again withdraws only what it put; a word with a check", async () => {
+  const root = await mount(inThread(card("op-1")));
   const c = q("[data-card='op-1']");
   const rest = () =>
     c.querySelector<HTMLElement>("[data-ledger-close] [data-approve-rest]")!;
@@ -547,37 +439,36 @@ test("Accept all 2 with nothing answered, Accept the rest after one answer, pres
     "Bring @platform online",
   );
   expect(batch().map((b) => [b[0], b[1]])).toEqual([["role:growth", "reject"]]);
-  confirmOnline();
+  await confirmOnline();
   expect(batch().map((b) => [b[0], b[1]])).toEqual([
     ["role:growth", "reject"],
     ["role:platform", "approve"],
   ]);
   expect(rest().getAttribute("aria-pressed")).toBe("true");
-  expect(rest().querySelector("svg")).not.toBeNull();
+  expectPresent(rest().querySelector("svg"));
   expect(rest().style.background).toBe("");
   expect(rest().tagName).toBe("BUTTON");
   click(rest());
   expect(batch().map((b) => [b[0], b[1]])).toEqual([["role:growth", "reject"]]);
   expect(rest().getAttribute("aria-pressed")).toBe("false");
-  expect(rest().querySelector("svg")).toBeNull();
+  expectAbsent(rest().querySelector("svg"));
   // With nothing answered it reads "Accept all 2" and answers both.
   click(c.querySelector("[data-subject='role:growth'] [data-staged-undo]")!);
   expect(batch()).toEqual([]);
   expect(rest().textContent).toBe("Accept all 2");
   click(rest());
-  confirmOnline();
+  await confirmOnline();
   expect(batch().map((b) => [b[0], b[1]])).toEqual([
     ["role:platform", "approve"],
     ["role:growth", "approve"],
   ]);
   expect(qa("[data-staged='approve']").length).toBe(2);
-  expect(calls).toEqual([]);
-  React.act(() => root.unmount());
-  clearBatch();
+  expect(root.backend.mutations).toEqual([]);
+  await root.close();
 });
 
-test("after the send: no bands; accepted reads Accepted, applying, then applied reads Applied; the meta and the outcome say what happened", () => {
-  const landing = mount(inThread(card("op-7")));
+test("after the send: no bands; accepted reads Accepted, applying, then applied reads Applied; the meta and the outcome say what happened", async () => {
+  const landing = await mount(inThread(card("op-7")));
   const l = q("[data-card='op-7']");
   expect(
     l.querySelector(
@@ -597,7 +488,7 @@ test("after the send: no bands; accepted reads Accepted, applying, then applied 
     l.querySelector("[data-proposal-meta]")!.getAttribute("data-proposal-meta"),
   ).toBe("2 accepted");
   React.act(() =>
-    useInboxStore.setState((s: any) => ({
+    useInboxStore.setState((s) => ({
       orgProposalChanges: {
         ...s.orgProposalChanges,
         "c7-role": {
@@ -622,9 +513,9 @@ test("after the send: no bands; accepted reads Accepted, applying, then applied 
     ["applied", "Applied"],
     ["applied", "Applied"],
   ]);
-  React.act(() => landing.unmount());
+  await landing.close();
 
-  const root = mount(card("op-2"));
+  const root = await mount(card("op-2"));
   const c = q("[data-card='op-2']");
   expect(
     c.querySelector("[data-proposal-meta]")!.getAttribute("data-proposal-meta"),
@@ -646,12 +537,12 @@ test("after the send: no bands; accepted reads Accepted, applying, then applied 
     ["applied", "applied"],
   );
   // Nothing to answer, so no line asks the reader to open a thread.
-  expect(c.querySelector("[data-proposal-readonly-line]")).toBeNull();
-  React.act(() => root.unmount());
+  expectAbsent(c.querySelector("[data-proposal-readonly-line]"));
+  await root.close();
 });
 
-test("a failed change keeps the card answerable: Adjust with Reject inside, and the note, never Retry; with no composer the card is read only", () => {
-  const root = mount(inThread(card("op-3")));
+test("a failed change keeps the card answerable: Adjust with Reject inside, and the note, never Retry; with no composer the card is read only", async () => {
+  const root = await mount(inThread(card("op-3")));
   const c = q("[data-card='op-3']");
   expect(
     c.querySelector("[data-proposal-meta]")!.getAttribute("data-proposal-meta"),
@@ -669,8 +560,8 @@ test("a failed change keeps the card answerable: Adjust with Reject inside, and 
   expect(failed().querySelector("[data-failed-note]")!.textContent).toBe(
     "Failed: A role already answers to @platform",
   );
-  expect(failed().querySelector("[data-subject-approve]")).toBeNull();
-  expect(failed().querySelector("[data-subject-reject]")).toBeNull();
+  expectAbsent(failed().querySelector("[data-subject-approve]"));
+  expectAbsent(failed().querySelector("[data-subject-reject]"));
   click(failed().querySelector("[data-subject-reply]")!);
   expect(
     failed().querySelector("[data-subject-reply-field] [data-subject-reject]"),
@@ -680,8 +571,8 @@ test("a failed change keeps the card answerable: Adjust with Reject inside, and 
     "Escape",
   );
   expect(batch()).toEqual([]);
-  React.act(() => root.unmount());
-  clearBatch();
+  expect(root.backend.mutations).toEqual([]);
+  await root.close();
   // No bridge at all (team chat drawing the proposal), or a bridge whose composer cannot send: nothing could carry an answer, so none is offered.
   for (const [name, ui] of [
     ["no bridge", card("op-3")],
@@ -694,7 +585,7 @@ test("a failed change keeps the card answerable: Adjust with Reject inside, and 
       ),
     ],
   ] as const) {
-    const r = mount(ui);
+    const r = await mount(ui);
     const ro = q("[data-card='op-3']");
     expect(
       ro.querySelector(
@@ -723,19 +614,21 @@ test("a failed change keeps the card answerable: Adjust with Reject inside, and 
     expect(Object.keys(useInboxStore.getState().reviewComments), name).toEqual(
       [],
     );
-    React.act(() => r.unmount());
+    expect(r.backend.mutations).toEqual([]);
+    await r.close();
   }
-  expect(calls).toEqual([]);
 });
 
-test("a limit never reaches the person: no row beside drawn changes, plain words when alone (S23.2)", () => {
-  const root = mount(inThread(h("div", null, card("op-4"), card("op-5"))));
+test("a limit never reaches the person: no row beside drawn changes, plain words when alone (S23.2)", async () => {
+  const root = await mount(
+    inThread(h("div", null, card("op-4"), card("op-5"))),
+  );
   // Alone: one plain sentence naming the role, no unit, and the answers still apply.
   const alone = q("[data-card='op-4']");
   expect(sentences(alone)).toEqual([
     "Head of Growth keeps a safety net on its daily work.",
   ]);
-  expect(alone.querySelector("[data-field]")).toBeNull();
+  expectAbsent(alone.querySelector("[data-field]"));
   expect(alone.textContent).not.toMatch(/wakes|tokens|caps|limit/i);
   expect(
     alone
@@ -772,7 +665,7 @@ test("a limit never reaches the person: no row beside drawn changes, plain words
   click(q("[data-switch-cancel]"));
   expect(batch().length).toBe(1);
   click(beside.querySelector("[data-subject-approve]")!);
-  confirmOnline();
+  await confirmOnline();
   expect(batch()[1]).toEqual([
     "role:platform",
     "approve",
@@ -782,13 +675,12 @@ test("a limit never reaches the person: no row beside drawn changes, plain words
     1,
     "Head of Platform",
   ]);
-  expect(calls).toEqual([]);
-  React.act(() => root.unmount());
-  clearBatch();
+  expect(root.backend.mutations).toEqual([]);
+  await root.close();
 });
 
-test("the summary heads the card: drawn whole in a card of its own, clamped to two lines in a tile; one entry beside it draws no Why row", () => {
-  const root = mount(inThread(card("op-8")));
+test("the summary heads the card: drawn whole in a card of its own, clamped to two lines in a tile; one entry beside it draws no Why row", async () => {
+  const root = await mount(inThread(card("op-8")));
   const c = q("[data-card='op-8']");
   expect(
     c.querySelector("[data-proposal-letter], [data-letter-more]"),
@@ -801,11 +693,11 @@ test("the summary heads the card: drawn whole in a card of its own, clamped to t
   expect(summary.className).not.toContain("line-clamp-2");
   // One entry and a summary: the summary says why, so the entry carries no Why row.
   expect(c.querySelectorAll("[data-subject]").length).toBe(1);
-  expect(c.querySelector("[data-subject-why]")).toBeNull();
+  expectAbsent(c.querySelector("[data-subject-why]"));
   expect(c.textContent).not.toContain("Because c8-role.");
-  React.act(() => root.unmount());
+  await root.close();
   // A tile sharing a row: the summary clamped to two lines, and no entries.
-  const tile = mount(
+  const tile = await mount(
     inThread(
       h(
         "div",
@@ -818,30 +710,22 @@ test("the summary heads the card: drawn whole in a card of its own, clamped to t
   expect(t.querySelector("[data-proposal-summary]")!.className).toContain(
     "line-clamp-2",
   );
-  expect(t.querySelector("[data-subject]")).toBeNull();
-  React.act(() => tile.unmount());
+  expectAbsent(t.querySelector("[data-subject]"));
+  await tile.close();
 });
 
 test("in a message, op-N#seq alone on its line is the proposal's pill, opening the screen with the change in focus, and never a card", async () => {
   const { default: ReactMarkdown } = await import("react-markdown");
-  const { MemoryRouter } = await import("react-router");
   const { ASSISTANT_MD_REMARK, MESSAGE_MD_COMPONENTS } =
     await import("../messageMarkdown");
   const body =
     "Start with the one everything else waits on.\n\nop-1#2\n\nThen op-1#1 can follow.";
-  const root = mount(
-    h(
-      MemoryRouter,
-      null,
-      h(
-        ReactMarkdown,
-        {
-          remarkPlugins: ASSISTANT_MD_REMARK as any,
-          components: MESSAGE_MD_COMPONENTS as any,
-        },
-        body,
-      ),
-    ),
+  const root = await mount(
+    h(ReactMarkdown, {
+      remarkPlugins: [...ASSISTANT_MD_REMARK],
+      components: MESSAGE_MD_COMPONENTS,
+      children: body,
+    }),
   );
   expect(qa("[data-subject], [data-change-ref], [data-proposal-card]")).toEqual(
     [],
@@ -853,48 +737,52 @@ test("in a message, op-N#seq alone on its line is the proposal's pill, opening t
   ]);
   expect(pills[0].closest(".entity-card-row")).not.toBeNull();
   expect(pills[1].closest("p")!.textContent).toBe("Then #1 can follow.");
-  React.act(() => root.unmount());
+  click(pills[0]);
+  expect(root.navigationLog.at(-1)).toEqual({
+    action: "push",
+    path: "/org?proposal=op-1&focus=2",
+  });
+  await root.close();
 });
 
-test("the store's focus on a change marks its card; on the org screen the card lights the map and draws no Map word and no Open proposal link", () => {
-  React.act(() => useInboxStore.getState().setOrgFocusChangeId("c1-move"));
+test("the store's focus on a change marks its card; on the org screen the card lights the map and draws no Map word and no Open proposal link", async () => {
   const lit: (string | null)[] = [];
-  const root = mount(
+  const root = await mount(
     h(
       OrgHoverContext.Provider,
       { value: (id: string | null) => lit.push(id) },
       inThread(card("op-1")),
     ),
+    "c1-move",
   );
   const c = q("[data-card='op-1']");
   expect(
     qa("[data-focused]").map((e) => e.getAttribute("data-subject")),
   ).toEqual(["role:growth"]);
-  expect(c.querySelector("[data-open-map]")).toBeNull();
+  expectAbsent(c.querySelector("[data-open-map]"));
   // Nor an Open proposal link: the person is on the page it opens.
-  expect(c.querySelector("a[title='Open proposal']")).toBeNull();
+  expectAbsent(c.querySelector("a[title='Open proposal']"));
   React.act(() => {
     c.querySelector("[data-subject='role:platform']")!.dispatchEvent(
-      new dom.window.MouseEvent("mouseover", { bubbles: true }),
+      new MouseEvent("mouseover", { bubbles: true }),
     );
   });
   expect(lit.splice(0)).toEqual(["c1-role"]);
-  React.act(() => root.unmount());
-  React.act(() => useInboxStore.getState().setOrgFocusChangeId(null));
+  await root.close();
 });
 
-test("a revision landing on a staged card withdraws the answer: the batch empties and the controls come back under Revised since you last looked", () => {
-  const root = mount(inThread(card("op-1")));
+test("a revision landing on a staged card withdraws the answer: the batch empties and the controls come back under Revised since you last looked", async () => {
+  const root = await mount(inThread(card("op-1")));
   const c = q("[data-card='op-1']");
   const platform = () =>
     c.querySelector<HTMLElement>("[data-subject='role:platform']")!;
   click(platform().querySelector("[data-subject-approve]")!);
-  confirmOnline();
+  await confirmOnline();
   expect(batch().map((b) => b[0])).toEqual(["role:platform"]);
-  expect(platform().querySelector("[data-staged]")).not.toBeNull();
+  expectPresent(platform().querySelector("[data-staged]"));
   const was = useInboxStore.getState().orgProposalChanges["c1-role"];
   React.act(() =>
-    useInboxStore.setState((s: any) => ({
+    useInboxStore.setState((s) => ({
       orgProposalChanges: {
         ...s.orgProposalChanges,
         "c1-role": {
@@ -909,26 +797,23 @@ test("a revision landing on a staged card withdraws the answer: the batch emptie
     })),
   );
   expect(batch()).toEqual([]);
-  expect(platform().querySelector("[data-staged]")).toBeNull();
-  expect(platform().querySelector("[data-subject-approve]")).not.toBeNull();
+  expectAbsent(platform().querySelector("[data-staged]"));
+  expectPresent(platform().querySelector("[data-subject-approve]"));
   expect(platform().hasAttribute("data-revised-new")).toBe(true);
   expect(platform().textContent).toContain("Revised since you last looked");
   expect(platform().querySelector("[data-revision]")!.textContent).toContain(
     "Changed Narrowed to the platform project.",
   );
-  expect(calls).toEqual([]);
-  React.act(() => root.unmount());
-  React.act(() =>
-    useInboxStore.setState((s: any) => ({
-      orgProposalChanges: { ...s.orgProposalChanges, "c1-role": was },
-    })),
-  );
-  clearBatch();
+  expect(root.backend.mutations).toEqual([]);
+  await root.close();
 });
 
-test("an op id the store has never seen is a loading card, then not available once served", () => {
-  const root = mount(card("op-404"));
+test("an op id the store has never seen is a loading card, then not available once served", async () => {
+  const root = await mount(card("op-404"));
   const c = q("[data-card='op-404']");
+  expect(c.textContent).not.toContain("Not available to you");
+  expectPresent(c.querySelector('[aria-hidden="true"] .animate-pulse'));
+  await React.act(async () => root.backend.set(api.orgProposals.get, null));
   expect(c.textContent).toContain("Not available to you");
-  React.act(() => root.unmount());
+  await root.close();
 });

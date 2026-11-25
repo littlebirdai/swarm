@@ -1,72 +1,14 @@
-import { afterAll, beforeEach, expect, mock, test } from "bun:test";
-import { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../../../test-helpers/globals";
-
-// A decision's team thread on its card (ct-74449, convex decisionThread.ts),
-// drawn by the shared comment components: a pass as an event line, people's
-// comments, the session's answer, the reader's "New" line and the unread
-// count on the card; edit and remove only on your own; resolve; asking the
-// session is a plain button. Opening the thread reads it.
-mock.module("next/link", () => ({
-  default: ({ children, href, ...rest }: any) => (
-    <a href={typeof href === "string" ? href : "#"} {...rest}>
-      {children}
-    </a>
-  ),
-}));
-mock.module("../../../lib/convexUrl", () => ({
-  CONVEX_URL: "https://convex.test",
-  getConvexUrl: () => "https://convex.test",
-}));
-mock.module("../../../hooks/useQueryNoThrow", () => ({
-  useQueryNoThrow: () => ({ data: undefined, error: null }),
-}));
-const realWorkflows = await import("../../../hooks/useSyncWorkflows");
-mock.module("../../../hooks/useSyncWorkflows", () => ({
-  ...realWorkflows,
-  useSyncWorkflowRun: () => ({ ready: true }),
-}));
-mock.module("../../../hooks/useJumpToDecisionAsk", () => ({
-  useJumpToDecisionAsk: () => async () => true,
-  locateDecisionAsk: async () => null,
-}));
-
-import { useInboxStore } from "../../../store/inboxStore";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { expect, test } from "bun:test";
+import { act, type ReactNode } from "react";
+import type { SessionDecisionItem } from "../../../store/inboxStore";
+import { expectAbsent, expectPresent } from "../../../test-helpers/domExpect";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { pending } from "../../../test-helpers/testConvex";
 import { DecisionCompactCard } from "../DecisionCompactCard";
-import { closeDomWindow } from "../../../test-helpers/domGlobals";
-
-const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  pretendToBeVisual: true,
-  url: "https://codecast.sh/questions",
-});
-const restoreGlobals = replaceGlobals({
-  window: dom.window,
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  localStorage: dom.window.localStorage,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  requestAnimationFrame: (cb: FrameRequestCallback) =>
-    setTimeout(() => cb(0), 0) as unknown as number,
-  cancelAnimationFrame: (id: number) => clearTimeout(id),
-  ResizeObserver: class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-  MutationObserver: dom.window.MutationObserver,
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-const { createRoot } = await import("react-dom/client");
-afterAll(() => {
-  void convex.close();
-  closeDomWindow(dom);
-  restoreGlobals();
-});
 
 const T = 1_800_000_000_000;
-const decision: any = {
+const decision: SessionDecisionItem = {
   _id: "d1",
   short_id: "sd-9",
   conversation_id: "c1",
@@ -124,64 +66,66 @@ const comments = {
     author_name: "Ashot",
   },
 };
-const sent: any[] = [];
-const marked: any[] = [];
-
-beforeEach(() => {
-  sent.length = 0;
-  marked.length = 0;
-  useInboxStore.setState({
-    currentUser: { _id: "u1", name: "Ashot" },
-    decisionComments: { ...comments },
-    decisionThreads: {
-      d1: {
-        _id: "d1",
-        decision_short_id: "sd-9",
-        owner: { conversation_id: "c1", name: "Fix the cart", via: "asker" },
-      },
+async function mount(ui: ReactNode, away = false) {
+  await import("../../comments/CommentThread");
+  const web = await mountWeb(ui, {
+    path: "/questions",
+    dispatch: true,
+    setup(backend, store) {
+      store.syncTable("currentUser", { _id: "u1", name: "Ashot" });
+      store.syncTable("decisionComments", [
+        ...Object.values(comments),
+        {
+          ...comments.k2,
+          _id: "unrelated",
+          decision_id: "d2",
+          content: "Another decision's comment",
+        },
+      ]);
+      store.syncTable("decisionThreads", [
+        {
+          _id: "d1",
+          decision_short_id: "sd-9",
+          owner: { conversation_id: "c1", name: "Fix the cart", via: "asker" },
+        },
+      ]);
+      store.syncTable("threadInbox", [
+        {
+          _id: "decision:decision:d1",
+          kind: "decision",
+          root_key: "decision:d1",
+          decision_id: "d1",
+          last_activity_at: T + 3,
+          last_read_at: T,
+          updated_at: T,
+          unread: 2,
+        },
+      ]);
+      if (away) store.setCurrentSession("other");
+      backend.set(api.sessionDecisions.get, pending);
+      backend.set(api.sessionDecisions.getWithDoc, pending);
+      backend.set(api.decisionThread.thread, pending);
+      backend.set(api.docSync.getPresence, []);
+      backend.mutation(api.docSync.updatePresence, undefined);
+      backend.mutation(api.docSync.removePresence, undefined);
+      backend.mutation(api.dispatch.dispatch, { ok: true });
     },
-    threadInbox: {
-      "decision:decision:d1": {
-        _id: "decision:decision:d1",
-        kind: "decision",
-        root_key: "decision:d1",
-        decision_id: "d1",
-        last_activity_at: T + 3,
-        last_read_at: T,
-        updated_at: T,
-        unread: 2,
-      },
-    },
-    commentOnDecision: async (...args: any[]) => {
-      sent.push(["comment", ...args]);
-      return { ok: true };
-    },
-    resolveDecisionThread: (...args: any[]) => {
-      sent.push(["resolve", ...args]);
-    },
-    markThreadRead: (...args: any[]) => {
-      marked.push(args);
-    },
-  } as any);
-});
-
-const { MemoryRouter } = await import("react-router");
-const { ConvexProvider } = await import("convex/react");
-const { offlineConvexClient } =
-  await import("../../../test-helpers/offlineConvex");
-const convex = offlineConvexClient("https://example.convex.cloud");
-async function mount(ui: React.ReactNode) {
-  const container = document.createElement("div");
-  document.body.appendChild(container);
-  const root = createRoot(container);
-  await act(() =>
-    root.render(
-      <ConvexProvider client={convex}>
-        <MemoryRouter>{ui}</MemoryRouter>
-      </ConvexProvider>,
-    ),
-  );
-  return { container, unmount: () => act(() => root.unmount()) };
+  });
+  const writes = () =>
+    web.backend.mutations.flatMap(({ name, args }) =>
+      name === "dispatch:dispatch" &&
+      args &&
+      typeof args === "object" &&
+      !Array.isArray(args) &&
+      !(args instanceof ArrayBuffer)
+        ? [{ action: args.action, args: args.args }]
+        : [],
+    );
+  const writesFor = (action: string) =>
+    writes()
+      .filter((row) => row.action === action)
+      .map((row) => row.args);
+  return { ...web, writes, writesFor, unmount: web.close };
 }
 const click = (el: Element | null | undefined) =>
   act(async () => {
@@ -189,21 +133,22 @@ const click = (el: Element | null | undefined) =>
   });
 async function type(el: HTMLTextAreaElement, text: string) {
   const setter = Object.getOwnPropertyDescriptor(
-    dom.window.HTMLTextAreaElement.prototype,
+    HTMLTextAreaElement.prototype,
     "value",
   )!.set!;
   await act(async () => {
     setter.call(el, text);
-    el.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
 
 test("the card draws the thread: the pass, the comment, the session's answer and where the news starts", async () => {
-  const { container, unmount } = await mount(
+  const { container, unmount, writesFor } = await mount(
     <DecisionCompactCard decision={decision} />,
   );
   const thread = container.querySelector("[data-decision-thread]")!;
-  expect(thread).not.toBeNull();
+  expectPresent(thread);
+  expect(thread.textContent).not.toContain("Another decision's comment");
   const event = thread.querySelector("[data-comment-event]")!;
   expect(event.textContent).toContain("Ashot");
   expect(event.textContent).toContain("passed to Samvit");
@@ -214,20 +159,20 @@ test("the card draws the thread: the pass, the comment, the session's answer and
   const line = thread.querySelector("[data-comment-new-line]")!;
   expect(line).not.toBeNull();
   expect(thread.querySelectorAll("[data-comment-fresh]").length).toBe(2);
-  expect(
-    container.querySelector("[data-decision-thread-unread-chip]")!.textContent,
-  ).toContain("2 new");
+  const unread = container.querySelector("[data-decision-thread-unread-chip]");
+  expectPresent(unread);
+  expect(unread.textContent).toContain("2 new");
   // Asking the session is a plain button, not an icon.
   expect(thread.querySelector("[data-decision-ask]")!.textContent).toContain(
     "Discuss with",
   );
   // A card leaves it unread until the person opens it.
-  expect(marked).toEqual([]);
+  expect(writesFor("markThreadRead")).toEqual([]);
   await unmount();
 });
 
 test("edit and remove sit only on your own comment, and resolve stamps the thread", async () => {
-  const { container, unmount } = await mount(
+  const { container, unmount, writesFor } = await mount(
     <DecisionCompactCard decision={decision} />,
   );
   const cards = [...container.querySelectorAll(".cc-cmt-user")];
@@ -237,36 +182,26 @@ test("edit and remove sit only on your own comment, and resolve stamps the threa
   )!;
   expect(own.querySelector('[aria-label="Edit"]')).not.toBeNull();
   expect(own.querySelector('[aria-label="Delete"]')).not.toBeNull();
-  expect(theirs.querySelector('[aria-label="Edit"]')).toBeNull();
-  expect(theirs.querySelector('[aria-label="Delete"]')).toBeNull();
+  expectAbsent(theirs.querySelector('[aria-label="Edit"]'));
+  expectAbsent(theirs.querySelector('[aria-label="Delete"]'));
   await click(container.querySelector("[data-comment-resolve=resolve]"));
-  expect(sent).toEqual([["resolve", "d1", true]]);
+  expect(writesFor("resolveDecisionThread")).toEqual([["d1", true]]);
   await unmount();
 });
 
 test("opening the thread reads it", async () => {
-  const { container, unmount } = await mount(
+  const { container, unmount, writesFor } = await mount(
     <DecisionCompactCard decision={decision} />,
   );
   await click(container.querySelector("[data-discuss-button]"));
-  expect(marked).toEqual([["decision", "decision:d1"]]);
+  expect(writesFor("markThreadRead")).toEqual([["decision", "decision:d1"]]);
   await unmount();
 });
 
 test("discussing from a card away from the session selects that session, so its reply is followed in the inbox", async () => {
-  const navigated: any[] = [];
-  useInboxStore.setState({
-    currentSessionId: "other",
-    askDecisionSession: async (...args: any[]) => {
-      sent.push(["ask", ...args]);
-      return { ok: true };
-    },
-    requestNavigate: (id: string) => {
-      navigated.push(id);
-    },
-  } as any);
-  const { container, unmount } = await mount(
+  const { container, navigationLog, unmount, writes, store } = await mount(
     <DecisionCompactCard decision={decision} />,
+    true,
   );
   await click(container.querySelector("[data-decision-ask]"));
   const box = container.querySelector<HTMLTextAreaElement>(
@@ -276,13 +211,26 @@ test("discussing from a card away from the session selects that session, so its 
   await type(box, "Why only the cart total?");
   await act(async () => {
     box.dispatchEvent(
-      new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
   });
-  await act(async () => {
-    await new Promise((r) => setTimeout(r, 20));
-  });
-  expect(sent.map((s) => s[0])).toEqual(["comment", "ask"]);
-  expect(navigated).toEqual(["c1"]);
+  expect(
+    writes().filter(
+      (row) =>
+        row.action === "commentOnDecision" ||
+        row.action === "askDecisionSession",
+    ),
+  ).toEqual([
+    {
+      action: "commentOnDecision",
+      args: ["d1", "Why only the cart total?", expect.any(String), null],
+    },
+    { action: "askDecisionSession", args: ["d1", expect.any(String)] },
+  ]);
+  expect(writes().filter(({ action }) => action === "requestNavigate")).toEqual(
+    [{ action: "requestNavigate", args: ["c1"] }],
+  );
+  expect(store.getState().pendingNavigateId).toBe("c1");
+  expect(navigationLog.slice(1)).toEqual([]);
   await unmount();
 });

@@ -1,49 +1,15 @@
-// The project Timeline draws each post the store holds as its card, which
-// carries the post's comment thread, so the server's comment rows for those
-// posts are not drawn again on the rail. A comment on a post the store does
-// not hold yet still reads as its one line.
-// Run: bun test components/ProjectTimeline.mount.test.tsx
-import { test } from "bun:test";
-import assert from "node:assert/strict";
-import { restoreInboxStoreAfterAll } from "./__tests__/mockInboxStore";
-import { closeDomWindow } from "../test-helpers/domGlobals";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { expect, test } from "bun:test";
+import type { FunctionReturnType } from "convex/server";
+import type { ProjectUpdateRow } from "../store/projectUpdatesSlice";
+import { expectAbsent, expectPresent } from "../test-helpers/domExpect";
+import { mountWeb } from "../test-helpers/mountWeb";
+import { waitForDom } from "../test-helpers/waitForDom";
+import { ProjectTimeline } from "./ProjectTimeline";
 
-restoreInboxStoreAfterAll();
-
-test("a held post's comments ride its card, not the rail", async () => {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLButtonElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "MouseEvent",
-    "getComputedStyle",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-  ]) {
-    Object.defineProperty(globalThis, key, {
-      value: (dom.window as any)[key],
-      configurable: true,
-      writable: true,
-    });
-  }
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  const { mock } = await import("bun:test");
-  const React = await import("react");
-  const h = React.createElement;
+test("a held post's comments ride its card, and an unheld post's comment stays on the rail", async () => {
   const now = Date.now();
-  const post = {
+  const post: ProjectUpdateRow = {
     _id: "upd_held",
     project_id: "proj",
     title: "Week 1",
@@ -52,9 +18,19 @@ test("a held post's comments ride its card, not the rail", async () => {
     author: "Ashot",
     author_kind: "user",
     created_at: now - 60_000,
-    updated_at: now - 60_000,
+    comments: [
+      {
+        _id: "comment-held",
+        author: "Sam",
+        author_kind: "user",
+        text: "Nice work",
+        created_at: now - 30_000,
+      },
+    ],
   };
-  const events = [
+  const events: NonNullable<
+    FunctionReturnType<typeof api.projectUpdates.webTimeline>
+  > = [
     {
       ts: now - 60_000,
       type: "update_posted",
@@ -86,67 +62,44 @@ test("a held post's comments ride its card, not the rail", async () => {
       },
     },
   ];
-  const realQuery = { ...(await import("../hooks/useQueryNoThrow")) };
-  mock.module("../hooks/useQueryNoThrow", () => ({
-    ...realQuery,
-    useQueryNoThrow: () => ({
-      data: events,
-      error: undefined,
-      retry: () => {},
-    }),
-  }));
-  const realUpdates = { ...(await import("../hooks/useProjectUpdates")) };
-  mock.module("../hooks/useProjectUpdates", () => ({
-    ...realUpdates,
-    useProjectUpdates: () => ({
-      ready: true,
-      refused: false,
-      retry: () => {},
-      updates: [post],
-    }),
-  }));
-  const realExternal = { ...(await import("../hooks/useSyncExternalEvents")) };
-  mock.module("../hooks/useSyncExternalEvents", () => ({
-    ...realExternal,
-    useSyncProjectExternalEvents: () => {},
-    useExternalEvents: () => [],
-  }));
-  const realCards = { ...(await import("./ProjectUpdates")) };
-  mock.module("./ProjectUpdates", () => ({
-    ...realCards,
-    UpdateCard: ({ update }: any) => h("div", { "data-card": update._id }),
-    UpdateComposer: () => h("div", { "data-composer": true }),
-  }));
 
-  const { createRoot } = await import("react-dom/client");
-  const { ProjectTimeline } = await import("./ProjectTimeline");
-  const root = createRoot(document.getElementById("root")!);
-  await React.act(async () =>
-    root.render(h(ProjectTimeline, { projectId: "proj", composer: false })),
+  const web = await mountWeb(
+    <ProjectTimeline projectId="proj" composer={false} />,
+    {
+      setup(backend, store) {
+        store.syncTable("projectUpdates", [
+          post,
+          {
+            ...post,
+            _id: "other-project-post",
+            project_id: "other",
+            title: "Other project",
+          },
+        ]);
+        backend.set(api.projectUpdates.webTimeline, ({ project_id }) =>
+          project_id === "proj" ? events : [],
+        );
+      },
+    },
   );
-  const text = document.getElementById("root")!.textContent!;
-  assert.deepEqual(
-    [...document.querySelectorAll("[data-card]")].map((c) =>
-      c.getAttribute("data-card"),
+
+  const card = web.container.querySelector('[data-project-update="upd_held"]');
+  expectPresent(card);
+  expect(card.textContent).toContain("Week 1");
+  expectAbsent(
+    web.container.querySelector('[data-project-update="other-project-post"]'),
+  );
+  expectAbsent(web.container.querySelector("[data-project-update-open]"));
+  await waitForDom(web.container, () =>
+    /Sam commented on.*Week 0.*And this one/.test(
+      web.container.textContent ?? "",
     ),
-    ["upd_held"],
-    "the post is its card",
   );
-  assert.doesNotMatch(
-    text,
-    /Nice work/,
-    "its comment is on the card, not repeated on the rail",
-  );
-  assert.match(
-    text,
-    /commented on.*Week 0.*And this one/,
-    "a comment on a post the store lacks still reads",
-  );
-  assert.equal(
-    document.querySelector("[data-composer]"),
-    null,
-    "composer={false} draws none",
-  );
-  await React.act(async () => root.unmount());
-  closeDomWindow(dom);
+  expect(web.container.textContent?.match(/Week 1/g)).toHaveLength(1);
+  expect(card.textContent).toContain("Nice work");
+  expect(web.container.textContent?.match(/Nice work/g)).toHaveLength(1);
+  expect(web.backend.queryRequests).toContainEqual({
+    name: "projectUpdates:webTimeline",
+    args: { project_id: "proj" },
+  });
 });

@@ -1,13 +1,11 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { act } from "react";
 import { JSDOM } from "jsdom";
-import { RoomEvent } from "livekit-client";
+import { RoomEvent, type Room } from "livekit-client";
+import { FakeRoom } from "../../../test-helpers/LiveKitRoomStandIn";
 import { replaceGlobals } from "../../../test-helpers/globals";
 
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
-// The overlay asks for its room (the local identity) through a prop, so the
-// test hands it one that knows only who "I" am.
-const localRoom = () => ({ localParticipant: { identity: "u-me" } }) as any;
 
 const { bindCallCursors, encodeCursorMessage, resetCallCursors } =
   await import("../../../lib/calls/callCursors");
@@ -61,19 +59,6 @@ afterAll(() => {
   restoreGlobals();
 });
 
-// A room that only remembers its handlers, so the test can deliver a packet
-// the way LiveKit would.
-class FakeRoom {
-  handlers = new Map<string, Function[]>();
-  on(event: string, fn: Function) {
-    this.handlers.set(event, [...(this.handlers.get(event) ?? []), fn]);
-    return this;
-  }
-  emit(event: string, ...args: unknown[]) {
-    for (const fn of this.handlers.get(event) ?? []) fn(...args);
-  }
-}
-
 const tile = {
   key: "u-ann:screen:TR_1",
   identity: "u-ann",
@@ -83,7 +68,7 @@ const tile = {
   track: { sid: "TR_1" } as any,
 };
 
-function Tile() {
+function Tile({ room }: { room: Room }) {
   const boxRef = { current: null as HTMLDivElement | null };
   const videoRef = { current: null as HTMLVideoElement | null };
   return (
@@ -101,7 +86,7 @@ function Tile() {
         tile={tile}
         boxRef={boxRef}
         videoRef={videoRef}
-        getRoom={localRoom}
+        getRoom={() => room}
       />
     </div>
   );
@@ -111,12 +96,14 @@ beforeAll(() => resetCallCursors());
 
 test("a teammate's packet over this share draws their arrow at the mapped pixel, with their name; my own never draws", async () => {
   const room = new FakeRoom();
-  bindCallCursors(room as any);
+  room.localParticipant.identity = "u-me";
+  const mediaRoom = room as unknown as Room;
+  bindCallCursors(mediaRoom);
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
   try {
-    await act(() => root.render(<Tile />));
+    await act(() => root.render(<Tile room={mediaRoom} />));
     expect(container.querySelector("[data-sv-screen-cursors]")).toBeNull();
 
     await act(() => {

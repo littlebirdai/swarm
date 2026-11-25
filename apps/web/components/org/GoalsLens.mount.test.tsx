@@ -1,172 +1,28 @@
-// Mounts the Goals lens in jsdom (org-staffing.md S36): the goal, project
-// and owner cards wearing a proposal's ghost chrome, the header chip reaching
-// the stage's split opener with the org screen's address, and the map
-// lighting the change a card points at.
-// Run: bun test --timeout 120000 components/org/GoalsLens.mount.test.tsx
-import { test, expect, afterAll, mock } from "bun:test";
-import { closeDomWindow } from "../../test-helpers/domGlobals";
-
-const { JSDOM } = await import("jsdom");
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  { url: "https://local.codecast.sh", pretendToBeVisual: true },
-);
-for (const key of [
-  "window",
-  "document",
-  "navigator",
-  "HTMLElement",
-  "HTMLButtonElement",
-  "HTMLAnchorElement",
-  "HTMLInputElement",
-  "HTMLTextAreaElement",
-  "HTMLSelectElement",
-  "SVGElement",
-  "Element",
-  "Node",
-  "NodeFilter",
-  "MutationObserver",
-  "CustomEvent",
-  "Event",
-  "MouseEvent",
-  "KeyboardEvent",
-  "getComputedStyle",
-  "requestAnimationFrame",
-  "cancelAnimationFrame",
-  "localStorage",
-  "DOMMatrixReadOnly",
-]) {
-  const v = (dom.window as any)[key];
-  if (v !== undefined)
-    Object.defineProperty(globalThis, key, {
-      value: v,
-      configurable: true,
-      writable: true,
-    });
-}
-(globalThis as any).ResizeObserver ??= class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-};
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-afterAll(() => closeDomWindow(dom));
-
-const React = await import("react");
-const h = React.createElement;
-const { act } = React;
-
-// The pane's address: the test moves it the way the stage would.
-let search = "";
-const replaced: string[] = [];
-const router = {
-  push() {},
-  replace(path: string) {
-    replaced.push(path);
-  },
-};
-mock.module("next/link", () => ({
-  default: ({ href, children, ...rest }: any) =>
-    h("a", { href, ...rest }, children),
-}));
-mock.module("next/navigation", () => ({
-  useRouter: () => router,
-  useSearchParams: () => new URLSearchParams(search),
-  usePathname: () => "/org",
-}));
-mock.module("../../hooks/useOpenLinkedSession", () => ({
-  useOpenLinkedSession: () => () => {},
-}));
-const convexReact = { ...(await import("convex/react")) };
-mock.module("convex/react", () => ({
-  ...convexReact,
-  useQuery: () => undefined,
-  useQueries: () => ({}),
-}));
-const noThrow = { ...(await import("../../hooks/useQueryNoThrow")) };
-mock.module("../../hooks/useQueryNoThrow", () => ({
-  ...noThrow,
-  useQueryNoThrow: () => ({
-    data: undefined,
-    error: undefined,
-    retry: () => {},
-  }),
-}));
-const { useInboxStore } = await import("../../store/inboxStore");
-const realProposals = { ...(await import("../../hooks/useSyncOrgProposals")) };
-mock.module("../../hooks/useSyncOrgProposals", () => ({
-  ...realProposals,
-  useSyncOrgProposal: (ref: string | null) => ({
-    ready: !!ref,
-    missing: false,
-  }),
-  useSyncOrgProposals: () => ({ ready: true, missing: false }),
-}));
-// org.health is an action the pane asks for on the people lens; the test feeds none.
-const realHealth = { ...(await import("../../hooks/useSyncOrgHealth")) };
-mock.module("../../hooks/useSyncOrgHealth", () => ({
-  ...realHealth,
-  useSyncOrgHealth: () => ({
-    health: null,
-    ready: true,
-    missing: false,
-    refresh: async () => {},
-  }),
-}));
-const realTree = { ...(await import("../../hooks/useSyncOrgTree")) };
-mock.module("../../hooks/useSyncOrgTree", () => ({
-  ...realTree,
-  useSyncOrgTree: () => ({
-    tree: useInboxStore((s) => s.orgTree),
-    ready: true,
-    missing: false,
-    refused: false,
-    retry() {},
-  }),
-  useSyncOrgTreeFeeder: () => ({
-    ready: true,
-    missing: false,
-    refused: false,
-    retry() {},
-  }),
-}));
-// The canvas is React Flow, which draws nothing without a measured viewport:
-// the pane's own test reads what it hands the canvas.
-const graphProps: any[] = [];
-mock.module("./OrgGraph", () => ({
-  OrgGraph: (props: any) => {
-    graphProps.push(props);
-    return h("div", {
-      "data-graph-lens": props.lens,
-      "data-graph-changes": props.changes?.length ?? 0,
-      "data-graph-focus": props.focusTarget
-        ? `${props.focusTarget.kind}:${props.focusTarget.id}`
-        : "",
-    });
-  },
-}));
-
-const { createRoot } = await import("react-dom/client");
-const { ReactFlowProvider } = await import("@xyflow/react");
-const { ORG_FIXTURE } = await import("./orgFixture");
-const {
-  GOALS_FIXTURE_CHANGES,
-  GOALS_FIXTURE_DATA,
-  ORG_GOALS_FIXTURE_PROPOSAL,
-} = await import("./goalsFixture");
-const { goalNodeId, layoutGoals, projectNodeId } =
-  await import("./goalsLayout");
-const { roleNodeId, personNodeId } = await import("./orgLayout");
-const { GoalCard, GoalOwnerCard, GoalProjectCard, CompanyCard } =
-  await import("./GoalsNodeCards");
-const { registerSplitOpener } = await import("../../lib/openIntent");
+import { ReactFlowProvider, type Node, type NodeProps } from "@xyflow/react";
+import { expect, test } from "bun:test";
+import { act, type ComponentType } from "react";
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { standInForOrgGraph } from "../../test-helpers/orgGraphStandIn";
+import {
+  CompanyCard,
+  GoalCard,
+  GoalOwnerCard,
+  GoalProjectCard,
+} from "./GoalsNodeCards";
+import { GOALS_FIXTURE_CHANGES, GOALS_FIXTURE_DATA } from "./goalsFixture";
+import {
+  goalNodeId,
+  layoutGoals,
+  projectNodeId,
+  type GoalsNode,
+} from "./goalsLayout";
+import { ORG_FIXTURE } from "./orgFixture";
+import { personNodeId, roleNodeId } from "./orgLayout";
+import { OrgMap } from "./OrgMap";
 
 const q = (sel: string, root: ParentNode = document) =>
-  root.querySelector(sel) as HTMLElement | null;
-const tick = () =>
-  act(async () => {
-    await new Promise((r) => setTimeout(r, 0));
-  });
+  root.querySelector<HTMLElement>(sel);
 
 test("goal, project and owner cards wear the proposal's ghost chrome", async () => {
   const layout = layoutGoals({
@@ -174,71 +30,71 @@ test("goal, project and owner cards wear the proposal's ghost chrome", async () 
     ...GOALS_FIXTURE_DATA,
     changes: GOALS_FIXTURE_CHANGES,
   });
-  const node = (id: string) => layout.nodes.find((n) => n.id === id) as any;
-  const focused: string[] = [];
-  const card = (Comp: any, n: any, data: any) =>
-    h(
-      "div",
-      { "data-card": n.id, key: n.id },
-      h(Comp, {
-        id: n.id,
-        type: n.kind,
-        selected: false,
-        dragging: false,
-        zIndex: 0,
-        isConnectable: false,
-        positionAbsoluteX: 0,
-        positionAbsoluteY: 0,
-        data,
-      }),
+  const node = <Kind extends GoalsNode["kind"]>(kind: Kind, id: string) => {
+    const candidate = layout.nodes.find(
+      (n): n is Extract<GoalsNode, { kind: Kind }> =>
+        n.id === id && n.kind === kind,
     );
+    expect(candidate).toBeDefined();
+    return candidate!;
+  };
+  const focused: string[] = [];
+  function card<Data extends Record<string, unknown>>(
+    Component: ComponentType<NodeProps<Node<Data>>>,
+    { id, kind }: GoalsNode,
+    data: Data,
+  ) {
+    return (
+      <div data-card={id} key={id}>
+        <Component
+          id={id}
+          type={kind}
+          selected={false}
+          dragging={false}
+          zIndex={0}
+          isConnectable={false}
+          positionAbsoluteX={0}
+          positionAbsoluteY={0}
+          draggable={false}
+          selectable={false}
+          deletable={false}
+          data={data}
+        />
+      </div>
+    );
+  }
   const goal = (id: string) => {
-    const n = node(goalNodeId(id));
+    const n = node("goal", goalNodeId(id));
     return card(GoalCard, n, {
-      goal: n.goal,
-      metrics: n.metrics,
-      rows: n.rows,
-      refs: n.refs,
-      running: n.running,
+      ...n,
       focusChangeId: null,
-      onFocusChange: (c: string) => focused.push(c),
+      onFocusChange: (changeId: string) => focused.push(changeId),
     });
   };
   const project = (g: string, p: string) => {
-    const n = node(projectNodeId(g, p));
+    const n = node("project", projectNodeId(g, p));
     return card(GoalProjectCard, n, { project: n.project });
   };
   const owner = (id: string) => {
-    const n = node(id);
+    const n = node("owner", id);
     return card(GoalOwnerCard, n, { owner: n.owner, owns: n.owns });
   };
-  const company = node("company");
+  const company = node("company", "company");
 
-  const el = document.createElement("div");
-  document.body.appendChild(el);
-  const root = createRoot(el);
-  await act(async () => {
-    root.render(
-      h(
-        ReactFlowProvider,
-        null,
-        card(CompanyCard, company, {
-          name: company.name,
-          goals: company.goals,
-          projects: company.projects,
-        }),
-        goal("init-org"),
-        goal("g-new"),
-        goal("init-org-sub"),
-        goal("init-orphan"),
-        goal("init-revenue"),
-        project("init-revenue", "proj-org"),
-        project("init-org", "proj-inbox"),
-        owner(roleNodeId("fixture-role-growth")),
-        owner(personNodeId("fixture-user-sam")),
-      ),
-    );
-  });
+  const { container: el, close } = await mountWeb(
+    <ReactFlowProvider>
+      {card(CompanyCard, company, { ...company, mission: false })}
+      {goal("init-org")}
+      {goal("g-new")}
+      {goal("init-org-sub")}
+      {goal("init-orphan")}
+      {goal("init-revenue")}
+      {project("init-revenue", "proj-org")}
+      {project("init-org", "proj-inbox")}
+      {owner(roleNodeId("fixture-role-growth"))}
+      {owner(personNodeId("fixture-user-sam"))}
+    </ReactFlowProvider>,
+  );
   const cardOf = (id: string) => q(`[data-card='${id}']`, el)!;
 
   expect(cardOf("company").textContent).toContain("Codecast");
@@ -247,9 +103,9 @@ test("goal, project and owner cards wear the proposal's ghost chrome", async () 
   );
   // A live goal: no ghost chrome, its health in words.
   const live = cardOf(goalNodeId("init-org"));
-  expect(q("[data-org-node='goal']", live)).not.toBeNull();
-  expect(q("[data-ghost-tag]", live)).toBeNull();
-  expect(q("[data-initiative-health='at_risk']", live)).not.toBeNull();
+  expectPresent(q("[data-org-node='goal']", live));
+  expectAbsent(q("[data-ghost-tag]", live));
+  expectPresent(q("[data-initiative-health='at_risk']", live));
   // A new goal wears one quiet mark: a thin solid outline over a tint, its tag
   // a plain word, its metrics a plain line. Nothing on the card is dashed.
   const fresh = cardOf(goalNodeId("g-new"));
@@ -263,13 +119,13 @@ test("goal, project and owner cards wear the proposal's ghost chrome", async () 
     "drawn under The role page is the session page",
   );
   expect(q("[data-project-refs]", fresh)!.textContent).toContain("also ");
-  expect(q("[data-goal-projects='1']", fresh)).not.toBeNull();
+  expectPresent(q("[data-goal-projects='1']", fresh));
   expect(q("[data-ghost-chip='g-new']", fresh)!.textContent).toBe(
     "Teams with a head of people → 40",
   );
   // A placed goal says where it was.
   const placed = cardOf(goalNodeId("init-org-sub"));
-  expect(q("[data-ghost-tag]", placed)).not.toBeNull();
+  expectPresent(q("[data-ghost-tag]", placed));
   expect(q("[data-goal-was]", placed)!.textContent).toBe(
     "was under Agents run the company's routine work",
   );
@@ -318,53 +174,48 @@ test("goal, project and owner cards wear the proposal's ghost chrome", async () 
     q("[data-ghost-chip='g-owner']", el)!.click();
   });
   expect(focused).toEqual(["g-owner"]);
-  await act(async () => {
-    root.unmount();
-  });
-  el.remove();
+  await close();
 });
 
 test("the map lights the change a card in the conversation points at, and pans only when it is off screen", async () => {
-  const { OrgMap } = await import("./OrgMap");
-  const el = document.createElement("div");
-  document.body.appendChild(el);
-  const root = createRoot(el);
-  const render = (highlightChangeId: string | null) =>
-    act(async () => {
-      root.render(
-        h(OrgMap, {
-          tree: ORG_FIXTURE,
-          goals: GOALS_FIXTURE_DATA,
-          proposal: { changes: GOALS_FIXTURE_CHANGES },
-          filter: "everything",
-          onFilter() {},
-          asProposed: true,
-          onAsProposed() {},
-          highlightChangeId,
-        }),
-      );
+  const graph = standInForOrgGraph();
+  try {
+    const map = (highlightChangeId: string | null) => (
+      <OrgMap
+        tree={ORG_FIXTURE}
+        goals={GOALS_FIXTURE_DATA}
+        proposal={{ changes: GOALS_FIXTURE_CHANGES }}
+        filter="everything"
+        asProposed
+        onAsProposed={() => {}}
+        highlightChangeId={highlightChangeId}
+      />
+    );
+    const { container, rerender, close } = await mountWeb(map(null));
+    expect(graph.last().focusTarget).toBeNull();
+    expect(graph.last().changes?.map((change) => change._id)).toEqual([
+      "g-new",
+      "g-place",
+      "g-projects",
+      "g-owner",
+      "g-measure",
+    ]);
+    await rerender(map("g-owner"));
+    const target = graph.last().focusTarget;
+    expect(target).toMatchObject({
+      kind: "change",
+      id: "g-owner",
+      ifHidden: true,
     });
-  await render(null);
-  expect(graphProps.at(-1)!.focusTarget).toBeNull();
-  expect(graphProps.at(-1)!.changes.length).toBe(5);
-  await render("g-owner");
-  const target = graphProps.at(-1)!.focusTarget;
-  expect(target).toMatchObject({
-    kind: "change",
-    id: "g-owner",
-    ifHidden: true,
-  });
-  expect(graphProps.at(-1)!.focusChangeId).toBe("g-owner");
-  // The same hover re-rendered is the same ask, not a new pan.
-  await render("g-owner");
-  expect(graphProps.at(-1)!.focusTarget).toBe(target);
-  await render(null);
-  expect(graphProps.at(-1)!.focusTarget).toBeNull();
-  // The filter chips and the overlay toggle are in the map's own bar.
-  expect(q("[data-map-filter='everything']", el)).not.toBeNull();
-  expect(q("[data-map-proposed='on']", el)).not.toBeNull();
-  await act(async () => {
-    root.unmount();
-  });
-  el.remove();
+    expect(graph.last().focusChangeId).toBe("g-owner");
+    await rerender(map("g-owner"));
+    expect(graph.last().focusTarget).toBe(target);
+    await rerender(map(null));
+    expect(graph.last().focusTarget).toBeNull();
+    expectPresent(q("[data-map-filter='everything']", container));
+    expectPresent(q("[data-map-proposed='on']", container));
+    await close();
+  } finally {
+    graph.restore();
+  }
 });

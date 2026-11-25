@@ -14931,9 +14931,6 @@
     "swarm/ime-safe-key-handlers": 2,
     "swarm/no-comments": 21
   },
-  "apps/web/components/ProjectTimeline.mount.test.tsx": {
-    "swarm/no-comments": 5
-  },
   "apps/web/components/ProjectTimeline.tsx": {
     "react/purity": 1,
     "swarm/no-comments": 22
@@ -15476,9 +15473,6 @@
   "apps/web/components/__tests__/frameBackend.mount.test.tsx": {
     "swarm/no-comments": 17
   },
-  "apps/web/components/__tests__/framePaneMessages.test.tsx": {
-    "swarm/no-comments": 15
-  },
   "apps/web/components/__tests__/genericListCollapse.test.tsx": {
     "swarm/no-comments": 2
   },
@@ -15669,7 +15663,7 @@
     "swarm/no-comments": 46
   },
   "apps/web/components/__tests__/walkieKeyRing.test.tsx": {
-    "swarm/no-comments": 25
+    "swarm/no-comments": 4
   },
   "apps/web/components/__tests__/walkieSoundsRow.test.tsx": {
     "swarm/no-comments": 10
@@ -15967,9 +15961,6 @@
   },
   "apps/web/components/browser/__tests__/ghostCursor.mount.test.ts": {
     "swarm/no-comments": 2
-  },
-  "apps/web/components/browser/__tests__/nativeBackendGuard.test.tsx": {
-    "swarm/no-comments": 50
   },
   "apps/web/components/browser/__tests__/watchControls.test.tsx": {
     "swarm/no-comments": 3
@@ -16308,7 +16299,7 @@
   },
   "apps/web/components/calls/__tests__/screenCursors.test.tsx": {
     "react/immutability": 2,
-    "swarm/no-comments": 9
+    "swarm/no-comments": 5
   },
   "apps/web/components/calls/__tests__/speakers.test.ts": {
     "swarm/no-comments": 2
@@ -17329,19 +17320,16 @@
     "swarm/no-comments": 9
   },
   "apps/web/components/decisions/__tests__/compactCardContext.mount.test.tsx": {
-    "swarm/no-comments": 13
+    "swarm/no-comments": 4
   },
   "apps/web/components/decisions/__tests__/decisionAreas.mount.test.tsx": {
     "swarm/no-comments": 8
-  },
-  "apps/web/components/decisions/__tests__/decisionList.mount.test.tsx": {
-    "swarm/no-comments": 10
   },
   "apps/web/components/decisions/__tests__/decisionParties.mount.test.tsx": {
     "swarm/no-comments": 9
   },
   "apps/web/components/decisions/__tests__/decisionThread.mount.test.tsx": {
-    "swarm/no-comments": 8
+    "swarm/no-comments": 3
   },
   "apps/web/components/decisions/__tests__/inboxDecisionQueue.test.tsx": {
     "swarm/no-comments": 5
@@ -17911,7 +17899,7 @@
     "swarm/no-comments": 4
   },
   "apps/web/components/initiatives/InitiativeAtoms.mount.test.tsx": {
-    "swarm/no-comments": 29
+    "swarm/no-comments": 19
   },
   "apps/web/components/initiatives/InitiativeAtoms.tsx": {
     "react/purity": 1,
@@ -18013,7 +18001,7 @@
     "swarm/no-comments": 18
   },
   "apps/web/components/line/__tests__/ProjectLineTab.versions.mount.test.tsx": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 2
   },
   "apps/web/components/line/map/LineStartSwitch.tsx": {
     "swarm/no-comments": 20
@@ -18297,7 +18285,7 @@
     "swarm/no-comments": 5
   },
   "apps/web/components/line/workspace/__tests__/LineWorkspace.mount.test.tsx": {
-    "swarm/no-comments": 18
+    "swarm/no-comments": 6
   },
   "apps/web/components/line/workspace/stages/AgentReviews.tsx": {
     "react-hooks/exhaustive-deps": 1,
@@ -19344,7 +19332,7 @@
     "swarm/no-native-title-with-aria-label": 1
   },
   "apps/web/components/org/GoalsLens.mount.test.tsx": {
-    "swarm/no-comments": 22
+    "swarm/no-comments": 11
   },
   "apps/web/components/org/GoalsNodeCards.tsx": {
     "swarm/no-comments": 50
@@ -19365,7 +19353,7 @@
     "swarm/no-comments": 6
   },
   "apps/web/components/org/OrgChart.mount.test.tsx": {
-    "swarm/no-comments": 26
+    "swarm/no-comments": 17
   },
   "apps/web/components/org/OrgChart.tsx": {
     "react-hooks/exhaustive-deps": 6,
@@ -19425,13 +19413,13 @@
     "swarm/no-comments": 5
   },
   "apps/web/components/org/ProposalAuthorPill.mount.test.tsx": {
-    "swarm/no-comments": 23
+    "swarm/no-comments": 13
   },
   "apps/web/components/org/ProposalAuthorPill.tsx": {
     "swarm/no-comments": 19
   },
   "apps/web/components/org/ProposalCard.mount.test.tsx": {
-    "swarm/no-comments": 46
+    "swarm/no-comments": 30
   },
   "apps/web/components/org/ProposalCard.tsx": {
     "swarm/no-comments": 19
@@ -19480,9 +19468,6 @@
   },
   "apps/web/components/org/TakeoverEdit.tsx": {
     "react-hooks/exhaustive-deps": 1,
-    "swarm/no-comments": 9
-  },
-  "apps/web/components/org/TakeoverGate.mount.test.tsx": {
     "swarm/no-comments": 9
   },
   "apps/web/components/org/TemplateGallery.mount.test.tsx": {
@@ -19610,7 +19595,7 @@
     "swarm/no-comments": 7
   },
   "apps/web/components/org/lines/__tests__/ObjectSummary.mount.test.tsx": {
-    "swarm/no-comments": 17
+    "swarm/no-comments": 11
   },
   "apps/web/components/org/lines/__tests__/lines.test.ts": {
     "swarm/no-comments": 7
@@ -19785,13 +19770,13 @@
     "swarm/no-comments": 7
   },
   "apps/web/components/org/scope/RoleHandoffSections.mount.test.tsx": {
-    "swarm/no-comments": 15
+    "swarm/no-comments": 9
   },
   "apps/web/components/org/scope/RoleHandoffSections.tsx": {
     "swarm/no-comments": 14
   },
   "apps/web/components/org/scope/RoleOffer.mount.test.tsx": {
-    "swarm/no-comments": 12
+    "swarm/no-comments": 1
   },
   "apps/web/components/org/scope/RoleOffer.tsx": {
     "swarm/no-comments": 23
@@ -23114,7 +23099,7 @@
     "swarm/no-comments": 18
   },
   "apps/web/lib/__tests__/callSeams.test.ts": {
-    "swarm/no-comments": 106
+    "swarm/no-comments": 98
   },
   "apps/web/lib/__tests__/callWindowBridge.test.ts": {
     "swarm/no-comments": 37
@@ -23508,7 +23493,7 @@
     "swarm/no-comments": 26
   },
   "apps/web/lib/__tests__/roomPrewarm.test.ts": {
-    "swarm/no-comments": 122
+    "swarm/no-comments": 106
   },
   "apps/web/lib/__tests__/roomThreadSeen.test.ts": {
     "swarm/no-comments": 4

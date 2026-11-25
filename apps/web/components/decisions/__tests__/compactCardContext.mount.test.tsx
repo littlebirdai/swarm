@@ -1,88 +1,34 @@
-import { afterAll, expect, mock, test } from "bun:test";
-import { act } from "react";
-import { JSDOM } from "jsdom";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { afterEach, expect, spyOn, test } from "bun:test";
+import { act, type ComponentProps, type ReactNode } from "react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { replaceGlobals } from "../../../test-helpers/globals";
-
-// A reader cannot choose from labels alone, so the compact card carries the
-// asker's context inline, clipped, with the way to open it. Collapsed it is
-// stripped text rather than parsed markdown, so a queue of ten cards parses
-// nothing nobody opened.
-mock.module("next/link", () => ({
-  default: ({ children, href, ...rest }: any) => (
-    <a href={typeof href === "string" ? href : "#"} {...rest}>
-      {children}
-    </a>
-  ),
-}));
-mock.module("../../../lib/convexUrl", () => ({
-  CONVEX_URL: "https://convex.test",
-  getConvexUrl: () => "https://convex.test",
-}));
-mock.module("../../../hooks/useQueryNoThrow", () => ({
-  useQueryNoThrow: () => ({ data: undefined, error: null }),
-}));
-// Spread the real module: bun shares this mock with every later file in a run.
-const realWorkflows = await import("../../../hooks/useSyncWorkflows");
-mock.module("../../../hooks/useSyncWorkflows", () => ({
-  ...realWorkflows,
-  useSyncWorkflowRun: () => ({ ready: true }),
-}));
-mock.module("../../../hooks/useJumpToDecisionAsk", () => ({
-  useJumpToDecisionAsk: () => async () => true,
-  locateDecisionAsk: async () => null,
-}));
-const markdownRenders: string[] = [];
-// Wraps the real renderer rather than replacing it: bun shares this mock with every later file in a run, and those read real markdown.
-const RealMarkdown = (await import("../../tools/MarkdownRenderer"))
-  .MarkdownRenderer;
-mock.module("../../tools/MarkdownRenderer", () => ({
-  MarkdownRenderer: (props: any) => {
-    markdownRenders.push(props.content);
-    return (
-      <div data-md>
-        <RealMarkdown {...props} />
-      </div>
-    );
-  },
-}));
-
+import {
+  useInboxStore,
+  type SessionDecisionItem,
+} from "../../../store/inboxStore";
+import { expectAbsent, expectPresent } from "../../../test-helpers/domExpect";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { pending } from "../../../test-helpers/testConvex";
+import * as markdown from "../../tools/MarkdownRenderer";
 import { DecisionCompactCard } from "../DecisionCompactCard";
 
-import { closeDomWindow } from "../../../test-helpers/domGlobals";
-const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  pretendToBeVisual: true,
-  url: "https://codecast.sh/questions",
-});
-const restoreGlobals = replaceGlobals({
-  window: dom.window,
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  localStorage: dom.window.localStorage,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  requestAnimationFrame: (cb: FrameRequestCallback) =>
-    setTimeout(() => cb(0), 0) as unknown as number,
-  cancelAnimationFrame: (id: number) => clearTimeout(id),
-  // The real canvas fence measures itself.
-  ResizeObserver: class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-// react-dom/client decides at load whether a DOM exists, so it is loaded
-// here — after the globals above — not as a static import.
-const { createRoot } = await import("react-dom/client");
-
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
+let renderer: ReturnType<typeof observeRenderer> | undefined;
+function observeRenderer() {
+  const Render = markdown.MarkdownRenderer;
+  const callable: {
+    MarkdownRenderer: (props: ComponentProps<typeof Render>) => ReactNode;
+  } = markdown;
+  return spyOn(callable, "MarkdownRenderer").mockImplementation((props) => (
+    <Render {...props} />
+  ));
+}
+afterEach(() => {
+  renderer?.mockRestore();
+  renderer = undefined;
 });
 
-const decision: any = {
+const decision: SessionDecisionItem = {
   _id: "d1",
   short_id: "sd-95",
   conversation_id: "c1",
@@ -106,17 +52,25 @@ const decision: any = {
   created_at: Date.now() - 60_000,
 };
 
-const { MemoryRouter } = await import("react-router");
-async function mount(ui: React.ReactNode) {
-  const container = document.createElement("div");
-  document.body.appendChild(container);
-  const root = createRoot(container);
-  await act(() => root.render(<MemoryRouter>{ui}</MemoryRouter>));
-  return { container, unmount: () => act(() => root.unmount()) };
+type Seed = (store: ReturnType<typeof useInboxStore.getState>) => void;
+
+async function mount(ui: ReactNode, seed?: Seed) {
+  const web = await mountWeb(ui, {
+    path: "/questions",
+    dispatch: true,
+    setup(backend, store) {
+      seed?.(store);
+      backend.set(api.sessionDecisions.getWithDoc, pending);
+      backend.set(api.sessionDecisions.get, pending);
+      backend.set(api.orgProposals.origin, pending);
+      backend.mutation(api.dispatch.dispatch, null);
+    },
+  });
+  return { ...web, unmount: web.close };
 }
 
 test("the context renders inline, as stripped text while collapsed", async () => {
-  markdownRenders.length = 0;
+  renderer = observeRenderer();
   const { container, unmount } = await mount(
     <DecisionCompactCard decision={decision} />,
   );
@@ -130,22 +84,31 @@ test("the context renders inline, as stripped text while collapsed", async () =>
   // markdown renderer never ran.
   expect(body.textContent).not.toContain("##");
   expect(body.textContent).not.toContain("**");
-  expect(markdownRenders).toEqual([]);
-  unmount();
+  expect(renderer).not.toHaveBeenCalled();
+  await unmount();
 });
 
 test("a context holding a canvas renders it while collapsed, never its raw HTML as text", async () => {
-  markdownRenders.length = 0;
+  renderer = observeRenderer();
   const context_md =
     '```cast-canvas\n<div data-canvas-title="Options"><b>A</b> vs <b>B</b></div>\n```\n\nWhy it matters.';
   const { container, unmount } = await mount(
     <DecisionCompactCard decision={{ ...decision, context_md }} />,
   );
-  expect(markdownRenders).toEqual([context_md]);
+  expect(renderer.mock.calls.map(([props]) => props.content)).toEqual([
+    context_md,
+  ]);
+  const body = container.querySelector("[data-decision-context]");
+  expectPresent(body);
+  expect(body.textContent).not.toContain("<b>A</b>");
+  expect(body.textContent).toContain("Why it matters.");
+  const canvas = [...body.querySelectorAll("*")].find(
+    (element) => element.shadowRoot,
+  );
   expect(
-    container.querySelector("[data-decision-context] [data-md]"),
-  ).not.toBeNull();
-  unmount();
+    canvas?.shadowRoot?.querySelector("[data-canvas-title]")?.textContent,
+  ).toBe("A vs B");
+  await unmount();
 });
 
 test("the question is set in the document page's serif, and a blocking card is the call to action", async () => {
@@ -158,41 +121,39 @@ test("the question is set in the document page's serif, and a blocking card is t
   expect(container.querySelector(".decision-question")!.textContent).toContain(
     "bounce guard",
   );
-  unmount();
+  await unmount();
 });
 
 test("a card with no context renders no body at all", async () => {
   const { container, unmount } = await mount(
     <DecisionCompactCard decision={{ ...decision, context_md: undefined }} />,
   );
-  expect(container.querySelector("[data-decision-context]")).toBeNull();
-  unmount();
+  expectAbsent(container.querySelector("[data-decision-context]"));
+  await unmount();
 });
 
 test("a decision asked of somebody else names them, and an answer here lands on a store row", async () => {
   // Read by id from the transcript: no queue row, only the detail.
-  const { useInboxStore } = await import("../../../store/inboxStore");
   const other = { ...decision, _id: "d-other", short_id: "sd-96" };
-  useInboxStore.setState({
-    currentUser: { _id: "me" } as any,
-    sessionDecisions: {},
-    decisionDetails: {
-      "d-other": {
-        _id: "d-other",
-        decision: other,
-        doc: null,
-        task: null,
-        stack: null,
-        ladder: [],
-        asked_users: [{ _id: "cam", name: "Cam" }],
-        holder_role: null,
-        grant_offer: null,
-        grant: null,
-      },
-    } as any,
-  });
   const { container, unmount } = await mount(
     <DecisionCompactCard decision={other} askedOf="Cam" />,
+    (store) => {
+      store.syncTable("currentUser", { _id: "me" });
+      store.syncTable("decisionDetails", [
+        {
+          _id: other._id,
+          decision: other,
+          doc: null,
+          task: null,
+          stack: null,
+          ladder: [],
+          asked_users: [{ _id: "cam", name: "Cam" }],
+          holder_role: null,
+          grant_offer: null,
+          grant: null,
+        },
+      ]);
+    },
   );
   expect(container.querySelector("[data-decision-asked-of]")!.textContent).toBe(
     "for Cam",
@@ -201,12 +162,12 @@ test("a decision asked of somebody else names them, and an answer here lands on 
     b.textContent?.includes("Ship it and run the backfill"),
   )!;
   await act(() =>
-    first.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })),
+    first.dispatchEvent(new MouseEvent("click", { bubbles: true })),
   );
   const row = useInboxStore.getState().sessionDecisions["d-other"];
   expect(row?.status).toBe("answered");
   expect(row?.answer_index).toBe(0);
-  unmount();
+  await unmount();
 });
 
 test("the card's serif question and the call to action tint are defined in the stylesheet", () => {

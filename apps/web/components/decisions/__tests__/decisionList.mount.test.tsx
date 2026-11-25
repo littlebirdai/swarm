@@ -1,103 +1,23 @@
-// Mounts the Decisions page's list (DecisionsList) and Flows' For you on one
-// store fixture: the Team view groups by owner with an Unassigned group of its
-// own; a filter narrows it and saves as a view; rows picked together open the
-// decision palette, and assigning them repaints their owner at once from the
-// store (no server wired here: the paint is the store action's alone); For you
-// lists the flows' decisions as the same rows with the same owners.
-import { afterAll, beforeEach, expect, mock, test } from "bun:test";
-import React, { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../../../test-helpers/globals";
-import { closeDomWindow } from "../../../test-helpers/domGlobals";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { expect, test } from "bun:test";
+import { act, type ReactElement } from "react";
+import {
+  useInboxStore,
+  type SessionDecisionItem,
+} from "../../../store/inboxStore";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { pending } from "../../../test-helpers/testConvex";
 import { withTeamRoster } from "../../../test-helpers/teamRoster";
-
-const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  pretendToBeVisual: true,
-  url: "https://codecast.sh/decisions",
-});
-const restoreGlobals = replaceGlobals({
-  window: dom.window,
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  KeyboardEvent: dom.window.KeyboardEvent,
-  MouseEvent: dom.window.MouseEvent,
-  Event: dom.window.Event,
-  localStorage: dom.window.localStorage,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  IS_REACT_ACT_ENVIRONMENT: true,
-  CSS: { escape: (s: string) => s },
-  MutationObserver: dom.window.MutationObserver,
-  requestAnimationFrame: (f: any) => setTimeout(f, 0),
-  cancelAnimationFrame: clearTimeout,
-  ResizeObserver: class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-  IntersectionObserver: class {
-    observe() {}
-    disconnect() {}
-  },
-});
-Object.defineProperties(dom.window.HTMLElement.prototype, {
-  offsetHeight: {
-    get() {
-      return this.hasAttribute("data-index") ? 40 : 4000;
-    },
-  },
-  offsetWidth: { get: () => 1200 },
-});
-dom.window.HTMLElement.prototype.scrollTo = () => {};
-dom.window.HTMLElement.prototype.scrollIntoView = () => {};
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
-});
-
-let search = new URLSearchParams("tab=team");
-const pushed: string[] = [];
-mock.module("next/link", () => ({
-  default: ({ href, children, ...rest }: any) =>
-    React.createElement("a", { href, ...rest }, children),
-}));
-mock.module("next/navigation", () => ({
-  useRouter: () => ({
-    push: (u: string) => pushed.push(u),
-    replace: (u: string) => {
-      pushed.push(u);
-      search = new URLSearchParams(u.split("?")[1] ?? "");
-    },
-  }),
-  useSearchParams: () => search,
-  usePathname: () => "/decisions",
-  useParams: () => ({}),
-}));
-const convexReact = await import("convex/react");
-mock.module("convex/react", () => ({
-  ...convexReact,
-  useQuery: () => undefined,
-  useQueries: () => ({}),
-  useMutation: () => async () => undefined,
-  useConvex: () => ({ query: async () => null, mutation: async () => null }),
-}));
-const noThrow = await import("../../../hooks/useQueryNoThrow");
-mock.module("../../../hooks/useQueryNoThrow", () => ({
-  ...noThrow,
-  useQueryNoThrow: () => ({ data: undefined }),
-}));
-
-const { createRoot } = await import("react-dom/client");
-const { useInboxStore } = await import("../../../store/inboxStore");
-const { DecisionsList } = await import("../DecisionsPage");
-const { DecisionPalette } = await import("../DecisionPalette");
+import { DecisionsList } from "../DecisionsPage";
+import { DecisionPalette } from "../DecisionPalette";
 
 const NOW = Date.now();
 const H = 3_600_000;
 const WS = "team:t1";
-const dec = (id: string, over: Record<string, unknown> = {}) => ({
+const dec = (
+  id: string,
+  over: Partial<SessionDecisionItem> = {},
+): SessionDecisionItem => ({
   _id: id,
   short_id: `sd-${id.slice(1)}`,
   conversation_id: "c1",
@@ -112,8 +32,9 @@ const dec = (id: string, over: Record<string, unknown> = {}) => ({
   category: "scope",
   ...over,
 });
-// d1 and d2 are flows' decisions (a run asked them about a problem), d3 and d4 sessions' questions.
-const flow = (over: Record<string, unknown>) => ({
+const flow = (
+  over: Partial<SessionDecisionItem>,
+): Partial<SessionDecisionItem> => ({
   workflow_run_id: "r1",
   task_id: "t9",
   gate_node_id: "decide",
@@ -143,46 +64,44 @@ const fixture = () => ({
     category: "approach",
   }),
 });
-const savedViews: any[] = [];
-beforeEach(() => {
-  search = new URLSearchParams("tab=team");
-  pushed.length = 0;
-  savedViews.length = 0;
-  // The store's own decision actions (another file in a run may have stubbed them): the palette's paint is theirs.
-  const real = useInboxStore.getInitialState();
-  useInboxStore.setState({
-    passDecision: real.passDecision,
-    unassignDecision: real.unassignDecision,
-    escalateDecision: real.escalateDecision,
-    answerDecision: real.answerDecision,
-    currentUser: { _id: "u1", name: "Me" },
-    ...withTeamRoster(
-      [
-        { _id: "u1", name: "Me" },
-        { _id: "u2", name: "Sam" },
-        { _id: "u3", name: "Jo" },
-      ],
-      {
-        team: "t1",
-        clientState: { ...useInboxStore.getState().clientState, ui: {} },
-      },
-    ),
-    projects: {},
-    tasks: {},
-    savedViews: {},
-    sessionDecisions: fixture(),
-    createSavedView: (opts: any) => savedViews.push(opts),
-  } as any);
-});
-
-const host = document.createElement("div");
-document.body.appendChild(host);
-async function mount(ui: React.ReactElement) {
-  const root = createRoot(host);
-  await act(async () => {
-    root.render(ui);
+let host: HTMLElement;
+async function mount(
+  ui: ReactElement,
+  search = "tab=team",
+  decisions = fixture(),
+) {
+  const web = await mountWeb(ui, {
+    path: "/decisions?" + search,
+    dispatch: true,
+    setup(backend, store) {
+      store.syncTable("currentUser", { _id: "u1", name: "Me" });
+      useInboxStore.setState({
+        ...withTeamRoster(
+          [
+            { _id: "u1", name: "Me" },
+            { _id: "u2", name: "Sam" },
+            { _id: "u3", name: "Jo" },
+          ],
+          { team: "t1", clientState: store.clientState },
+        ),
+        clientStateInitialized: true,
+      });
+      store.syncTable("sessionDecisions", [
+        ...Object.values(decisions),
+        dec("d9", {
+          team_workspace: "team:other",
+          holder: { kind: "user", id: "u2" },
+        }),
+      ]);
+      backend.set(api.decisionTeamList.listForTeam, pending);
+      backend.set(api.sessionDecisions.listOpenForLines, pending);
+      backend.set(api.org.roles, pending);
+      backend.set(api.org.tree, pending);
+      backend.mutation(api.dispatch.dispatch, null);
+    },
   });
-  return { unmount: () => act(async () => root.unmount()) };
+  host = web.container;
+  return web;
 }
 const rows = () =>
   [...host.querySelectorAll<HTMLElement>("[data-decision-row]")].map(
@@ -216,12 +135,16 @@ test("Team groups every open decision by its owner, Unassigned a group of its ow
     "Escalated",
     "Answered",
   ]);
-  await m.unmount();
+  await m.close();
 });
 
 test("a filter narrows the list, shows as a chip, and saves as a view of the Decisions page", async () => {
-  search = new URLSearchParams("tab=team&blocking=blocking&owner=user:u2");
-  const m = await mount(<DecisionsList />);
+  const m = await mount(
+    <DecisionsList />,
+    "tab=team&blocking=blocking&owner=user:u2",
+  );
+  const ack = Promise.withResolvers<null>();
+  m.backend.mutation(api.dispatch.dispatch, () => ack.promise);
   expect(rows()).toEqual(["sd-1@user:u2"]);
   expect(host.querySelector(".cq-filter-bar")?.textContent).toContain(
     "Blocking",
@@ -235,33 +158,58 @@ test("a filter narrows the list, shows as a chip, and saves as a view of the Dec
     "input[placeholder='View name...']",
   )!;
   const setter = Object.getOwnPropertyDescriptor(
-    dom.window.HTMLInputElement.prototype,
+    HTMLInputElement.prototype,
     "value",
   )!.set!;
   await act(async () => {
     setter.call(input, "Sam's blockers");
-    input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
   });
   await act(async () => {
     input
       .closest("form")!
-      .dispatchEvent(
-        new dom.window.Event("submit", { bubbles: true, cancelable: true }),
-      );
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   });
-  expect(savedViews).toEqual([
+  const saved = {
+    name: "Sam's blockers",
+    page: "decisions",
+    prefs: { tab: "team", owner: "user:u2", blocking: "blocking" },
+  };
+  expect<unknown>(
+    Object.values(m.store.getState().savedViews).map(
+      ({ name, page, prefs }) => ({ name, page, prefs }),
+    ),
+  ).toEqual([saved]);
+  const dispatches = m.backend.mutations.map(({ name, args }) => {
+    if (
+      !args ||
+      typeof args !== "object" ||
+      !("action" in args) ||
+      !("args" in args)
+    )
+      throw new Error("Expected dispatch arguments");
+    return { name, action: args.action, args: args.args };
+  });
+  expect(dispatches).toEqual([
     {
-      name: "Sam's blockers",
-      page: "decisions",
-      prefs: { tab: "team", owner: "user:u2", blocking: "blocking" },
+      name: "dispatch:dispatch",
+      action: "createSavedView",
+      args: [
+        {
+          ...saved,
+          client_key: expect.any(String),
+          team_id: "t1",
+          shared: false,
+        },
+      ],
     },
   ]);
-  await m.unmount();
+  ack.resolve(null);
+  await m.close();
 });
 
 test("rows picked together open the decision palette, and assigning them repaints their owner at once", async () => {
   const m = await mount(<DecisionsList />);
-  // Pick sd-1 and sd-4 by their boxes, then the list's actions key opens the palette over both.
   for (const id of ["sd-1", "sd-4"])
     await click(
       host
@@ -271,7 +219,7 @@ test("rows picked together open the decision palette, and assigning them repaint
     );
   await act(async () => {
     window.dispatchEvent(
-      new dom.window.KeyboardEvent("keydown", {
+      new KeyboardEvent("keydown", {
         key: "d",
         code: "KeyD",
         bubbles: true,
@@ -279,24 +227,22 @@ test("rows picked together open the decision palette, and assigning them repaint
     );
   });
   const palette = useInboxStore.getState().palette;
-  expect([
-    palette.targetType,
-    palette.targets.map((t: any) => t.short_id),
-  ]).toEqual(["decision", ["sd-1", "sd-4"]]);
+  expect([palette.targetType, palette.targets.map((t) => t.short_id)]).toEqual([
+    "decision",
+    ["sd-1", "sd-4"],
+  ]);
 
-  const p = createRoot(
-    document.body.appendChild(document.createElement("div")),
-  );
-  await act(async () => {
-    p.render(
+  await m.rerender(
+    <>
+      <DecisionsList />
       <DecisionPalette
         targets={palette.targets}
         mode={palette.initialMode}
         standalone
         onClose={() => useInboxStore.getState().closePalette()}
-      />,
-    );
-  });
+      />
+    </>,
+  );
   const item = (key: string) =>
     document.querySelector(`[data-decision-palette-item="${key}"]`);
   expect(
@@ -306,14 +252,17 @@ test("rows picked together open the decision palette, and assigning them repaint
   ).toEqual(["assign", "pass", "escalate", "answer", "dismiss"]);
   await click(item("assign"));
   await click(item("user:u3"));
-  // Both now belong to Jo, painted from the store before any server answer.
   expect(
     ["d1", "d4"].map(
-      (id) => (useInboxStore.getState().sessionDecisions as any)[id].passed_to,
+      (id) => useInboxStore.getState().sessionDecisions[id]?.passed_to,
     ),
   ).toEqual([
     { by: "u1", kind: "user", id: "u3" },
     { by: "u1", kind: "user", id: "u3" },
+  ]);
+  expect(m.backend.mutations.map(({ args }) => args)).toMatchObject([
+    { action: "passDecision", args: ["d1", { kind: "user", id: "u3" }] },
+    { action: "passDecision", args: ["d4", { kind: "user", id: "u3" }] },
   ]);
   expect(rows()).toEqual([
     "sd-1@user:u3",
@@ -322,51 +271,39 @@ test("rows picked together open the decision palette, and assigning them repaint
     "sd-2@none",
   ]);
   expect(headers()).toEqual(["JJo(2)", "MMe (you)(1)", "Unassigned(1)"]);
-  await act(async () => p.unmount());
-  await m.unmount();
+  await m.close();
 });
 
 test("an answer every picked decision offers answers them all; one some lack is not offered", async () => {
-  const p = createRoot(
-    document.body.appendChild(document.createElement("div")),
-  );
-  const st = useInboxStore.getState().sessionDecisions as any;
-  (useInboxStore.getState().sessionDecisions as any).d4 = {
-    ...st.d4,
+  const decisions = fixture();
+  const distinctOptions: SessionDecisionItem = {
+    ...decisions.d4,
     options: [{ label: "Hold" }, { label: "Later" }],
   };
-  const targets = [
-    st.d3,
-    { ...st.d4, options: [{ label: "Hold" }, { label: "Later" }] },
-  ];
-  useInboxStore.setState({
-    sessionDecisions: { ...st, d4: targets[1] },
-  } as any);
-  await act(async () => {
-    p.render(
-      <DecisionPalette
-        targets={targets}
-        mode="answer"
-        standalone
-        onClose={() => {}}
-      />,
-    );
-  });
+  const m = await mount(
+    <DecisionPalette
+      targets={[decisions.d3, distinctOptions]}
+      mode="answer"
+      standalone
+      onClose={() => {}}
+    />,
+    undefined,
+    { ...decisions, d4: distinctOptions },
+  );
   const answers = [
     ...document.querySelectorAll("[data-decision-palette-item^='answer:']"),
   ].map((e) => e.textContent);
   expect(answers).toEqual(["Hold"]);
-  await act(async () => p.unmount());
+  await m.close();
 });
 
 test("Every flow narrows the page to the flows' decisions, rows and owners unchanged", async () => {
-  search = new URLSearchParams("tab=team&source=flows&group=none");
-  const m = await mount(<DecisionsList />);
+  const m = await mount(<DecisionsList />, "tab=team&source=flows&group=none");
   expect(rows().sort()).toEqual(["sd-1@user:u2", "sd-2@none"]);
   const sd1 = host.querySelector('[data-decision-row="sd-1"]')!;
   expect([
     sd1.querySelector("[data-decision-reach]")?.textContent,
     sd1.querySelector("[data-decision-findings]")?.textContent,
   ]).toEqual(["3", "12"]);
-  await m.unmount();
+  await m.close();
 });

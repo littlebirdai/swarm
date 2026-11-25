@@ -1,110 +1,18 @@
-// Mounts the line app in jsdom (line-journeys.md LJ4, LJ5, LJ8.1): three
-// pages in the nav, Decisions first with the one count and its address handed
-// to the Decisions page, pages on G then F / P / L and never on a digit, a
-// step named in the URL opening the shared
-// drawer, and a `line` fence drawing a live step card, or saying plainly that
-// the viewer cannot open the project it names.
-import { afterAll, beforeEach, expect, mock, test } from "bun:test";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { beforeEach, expect, test } from "bun:test";
 import React, { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../../../../test-helpers/globals";
-import { closeDomWindow } from "../../../../test-helpers/domGlobals";
-
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  {
-    url: "https://local.codecast.sh/line?project=pr-1",
-    pretendToBeVisual: true,
-  },
-);
-const matchMedia = (q: string) => ({
-  matches: false,
-  media: q,
-  addEventListener() {},
-  removeEventListener() {},
-});
-const restoreGlobals = replaceGlobals({
-  window: Object.assign(dom.window, { innerWidth: 1400, matchMedia }),
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  KeyboardEvent: dom.window.KeyboardEvent,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  matchMedia,
-  ResizeObserver: class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  },
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-dom.window.HTMLElement.prototype.scrollTo = () => {};
-// For you's list is the Decisions page's (a virtualized GenericListView): rows need a height to be drawn.
-Object.defineProperties(dom.window.HTMLElement.prototype, {
-  offsetHeight: {
-    get() {
-      return this.hasAttribute("data-index") ? 40 : 4000;
-    },
-  },
-  offsetWidth: { get: () => 1200 },
-});
-const { createRoot } = await import("react-dom/client");
-
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
-});
+import { useInboxStore } from "../../../../store/inboxStore";
+import {
+  expectAbsent,
+  expectPresent,
+} from "../../../../test-helpers/domExpect";
+import { holdLineWorkspaceFeeds } from "../../../../test-helpers/lineWorkspaceBackend";
+import { mountWeb } from "../../../../test-helpers/mountWeb";
+import { pending } from "../../../../test-helpers/testConvex";
+import LineFence from "../../widgets/LineFence";
+import { LineWorkspace } from "../LineWorkspace";
 
 let search = "";
-const moves: string[] = [];
-/** The moves that were history entries (router.push), the rest rewrote the current one. */
-const pushed: string[] = [];
-mock.module("../../../../hooks/useSyncCollection", () => ({
-  useSyncCollection: () => ({ ready: true }),
-  useFeederError: () => {},
-  entityIdArgs: () => "skip",
-  applyCollectionFeed: () => {},
-  keyRowsBy: (rows: any[]) => rows ?? [],
-}));
-mock.module("next/link", () => ({
-  default: ({ href, children, ...rest }: any) =>
-    React.createElement("a", { href, ...rest }, children),
-}));
-mock.module("next/navigation", () => ({
-  useRouter: () => ({
-    push: (to: string) => {
-      moves.push(to);
-      pushed.push(to);
-    },
-    replace: (to: string) => moves.push(to),
-  }),
-  usePathname: () => "/flows",
-  useSearchParams: () => new URLSearchParams(search),
-}));
-mock.module("../../../../hooks/useQueryNoThrow", () => ({
-  useQueryNoThrow: () => ({ data: null }),
-}));
-// An open decision paints from its row at once, and its parts (the change's code, its page) ask the server for more.
-const convexReact = await import("convex/react");
-mock.module("convex/react", () => ({
-  ...convexReact,
-  useQuery: () => undefined,
-  useQueries: () => ({}),
-  useMutation: () => async () => undefined,
-  useAction: () => async () => ({ ok: false }),
-  useConvex: () => ({
-    query: async () => null,
-    mutation: async () => null,
-    action: async () => null,
-  }),
-}));
-
-const { useInboxStore } = await import("../../../../store/inboxStore");
-const { LineWorkspace } = await import("../LineWorkspace");
-const { default: LineFence } = await import("../../widgets/LineFence");
-
 const ME = "u1";
 const WS = `user:${ME}`;
 const now = Date.now();
@@ -152,63 +60,75 @@ const run = (
   updated_at: at + 1000,
 });
 
-function seed() {
-  useInboxStore.setState({
-    currentUser: { _id: ME, name: "Me" },
-    clientStateInitialized: true,
-    clientState: { ...(useInboxStore.getState() as any).clientState, ui: {} },
-    // One team with Flows on: the personal workspace borrows it, and a line fence draws only where Flows is on.
-    teams: [{ _id: "team1", name: "Team", features: { line: true } }],
-    teamMembers: [],
-    signals: {},
-    projects: { p1: project },
-    tasks: {
-      t1: {
-        _id: "t1",
-        short_id: "ct-1",
-        title: "Sidebar freezes on resume",
-        status: "in_progress",
-        workspace: WS,
-        project_id: "p1",
-        created_at: now - 3 * DAY,
-        updated_at: now,
-        cause: {
-          signal_count: 2,
-          first_seen: now - 3 * DAY,
-          last_seen: now - DAY,
-        },
+type Seed = (store: ReturnType<typeof useInboxStore.getState>) => void;
+function seed(store: Parameters<Seed>[0]) {
+  store.syncTable("currentUser", { _id: ME, name: "Me" });
+  useInboxStore.setState({ clientStateInitialized: true });
+  store.syncTable("teams", [
+    { _id: "team1", name: "Team", features: { line: true } },
+  ]);
+  store.syncTable("projects", [
+    project,
+    {
+      ...project,
+      _id: "outside",
+      short_id: "pr-2",
+      title: "Other project",
+      workspace: "user:away",
+    },
+  ]);
+  store.syncTable("tasks", [
+    {
+      _id: "t1",
+      short_id: "ct-1",
+      title: "Sidebar freezes on resume",
+      status: "in_progress",
+      workspace: WS,
+      project_id: "p1",
+      created_at: now - 3 * DAY,
+      updated_at: now,
+      cause: {
+        signal_count: 2,
+        first_seen: now - 3 * DAY,
+        last_seen: now - DAY,
       },
     },
-    workflowRuns: {
-      a: run("a", now - 2 * DAY, [
-        n("ground", 1),
-        n("prove", 2),
-        n("decide", 3),
-      ]),
-    },
-  } as any);
+  ]);
+  store.syncTable("workflowRuns", [
+    run("a", now - 2 * DAY, [n("ground", 1), n("prove", 2), n("decide", 3)]),
+  ]);
 }
 
-async function mount(el: React.ReactElement) {
-  const host = document.createElement("div");
-  document.body.appendChild(host);
-  const root = createRoot(host);
-  await act(async () => {
-    root.render(el);
+async function mount(el: React.ReactElement, extra?: Seed, path = "/flows") {
+  const web = await mountWeb(el, {
+    path: path + (search ? "?" + search : ""),
+    authenticated: true,
+    setup(backend, store) {
+      window.innerWidth = 1400;
+      seed(store);
+      extra?.(store);
+      holdLineWorkspaceFeeds(backend);
+      backend.set(api.sessionDecisions.get, pending);
+      backend.set(api.sessionDecisions.getWithDoc, pending);
+      backend.set(api.workflow_runs.get, pending);
+      backend.set(api.appConnections.listConnections, pending);
+      backend.set(api.devices.listDevices, pending);
+      backend.set(api.ingest.listSources, pending);
+      backend.set(api.lineStages.flow, pending);
+      backend.set(api.lineStages.dispatch, pending);
+    },
   });
-  return { host, root };
+  return { ...web, host: web.container };
 }
 
 beforeEach(() => {
-  moves.length = 0;
-  pushed.length = 0;
-  seed();
+  search = "";
 });
 
 const key = (k: string) =>
   act(async () => {
     document.body.dispatchEvent(
-      new dom.window.KeyboardEvent("keydown", { key: k, bubbles: true }),
+      new KeyboardEvent("keydown", { key: k, bubbles: true }),
     );
   });
 
@@ -225,9 +145,7 @@ test("the bare address is the team's pipelines; with no live flow the Flows stag
       .querySelector("[data-pipeline-stage='flows']")
       ?.getAttribute("aria-current"),
   ).toBeNull();
-  await act(async () => {
-    landing.root.unmount();
-  });
+  await landing.close();
   search = "view=flows";
   const lib = await mount(React.createElement(LineWorkspace));
   expect(
@@ -236,11 +154,11 @@ test("the bare address is the team's pipelines; with no live flow the Flows stag
       ?.getAttribute("aria-current"),
   ).toBe("page");
   expect(lib.host.querySelector("[data-flows-home]")).not.toBeNull();
-  await act(async () => {
-    lib.root.unmount();
-  });
+  await lib.close();
   search = "graph=line";
-  const { host, root } = await mount(React.createElement(LineWorkspace));
+  const { host, close, navigationLog } = await mount(
+    React.createElement(LineWorkspace),
+  );
   expect(
     host
       .querySelector("[data-pipeline-stage='flows']")
@@ -250,29 +168,40 @@ test("the bare address is the team's pipelines; with no live flow the Flows stag
   expect(
     host.querySelector("[data-line-mode='map']")?.getAttribute("aria-selected"),
   ).toBe("true");
-  await act(async () => {
-    root.unmount();
-  });
+  await close();
 }, 30_000);
 
 test("the nav: For you first with its count, then the stages on a rail, the open one marked; G then a letter opens a stage, a digit never does", async () => {
   search = "view=flows";
-  useInboxStore.setState({
-    sessionDecisions: {
-      d1: {
-        _id: "d1",
-        short_id: "sd-9",
-        status: "pending",
-        blocking: true,
-        task_id: "t1",
-        workflow_run_id: "a",
-        created_at: now - 3_600_000,
-        question: "Ship it?",
-        options: [{ label: "Ship" }, { label: "Drop" }],
-      },
+  const { host, close, navigationLog } = await mount(
+    React.createElement(LineWorkspace),
+    (store) => {
+      store.syncTable("sessionDecisions", [
+        {
+          _id: "d1",
+          short_id: "sd-9",
+          status: "pending",
+          blocking: true,
+          task_id: "t1",
+          workflow_run_id: "a",
+          created_at: now - 3_600_000,
+          question: "Ship it?",
+          options: [{ label: "Ship" }, { label: "Drop" }],
+        },
+        {
+          _id: "decoy",
+          short_id: "sd-99",
+          status: "answered",
+          blocking: true,
+          task_id: "t1",
+          workflow_run_id: "a",
+          created_at: now - 3_600_000,
+          question: "Already answered?",
+          options: [{ label: "No" }],
+        },
+      ]);
     },
-  } as any);
-  const { host, root } = await mount(React.createElement(LineWorkspace));
+  );
   expect(
     [...host.querySelectorAll<HTMLElement>("[data-pipeline-stage]")].map(
       (b) => b.dataset.pipelineStage,
@@ -306,36 +235,38 @@ test("the nav: For you first with its count, then the stages on a rail, the open
   // Digits belong to an open decision's answers: the shell moves on none of them.
   await key("2");
   await key("3");
-  expect(moves.filter((m) => m.includes("view="))).toEqual([]);
-  await key("g");
-  await key("p");
-  expect(pushed.at(-1)).toBe("/flows?view=problems");
-  await key("g");
-  await key("s");
-  expect(pushed.at(-1)).toBe("/flows?view=signals");
-  // With no live flow, Flows' home is the library this page already shows: nowhere new to go.
-  const before = pushed.length;
+  expect(navigationLog.slice(1)).toEqual([]);
   await key("g");
   await key("f");
-  expect(pushed.length).toBe(before);
-  await act(async () => {
-    root.unmount();
-  });
+  expect(navigationLog.slice(1)).toEqual([]);
+  await key("g");
+  await key("p");
+  expect(navigationLog.slice(1)).toEqual([
+    { action: "push", path: "/flows?view=problems" },
+  ]);
+  await key("g");
+  await key("s");
+  expect(navigationLog.slice(1)).toEqual([
+    { action: "push", path: "/flows?view=problems" },
+    { action: "push", path: "/flows?view=signals" },
+  ]);
+  await close();
 }, 30_000);
 
 test("an address naming a flow decision opens it on the Decisions page, in place", async () => {
   search = "need=sd-9";
-  const { root } = await mount(React.createElement(LineWorkspace));
-  expect(moves).toContain("/decisions/sd-9");
-  expect(pushed).toEqual([]);
-  await act(async () => {
-    root.unmount();
-  });
+  const { close, navigationLog } = await mount(
+    React.createElement(LineWorkspace),
+  );
+  expect(navigationLog.slice(1)).toEqual([
+    { action: "replace", path: "/decisions/sd-9" },
+  ]);
+  await close();
 }, 30_000);
 
 test("Problems carries the project filter, and only Problems", async () => {
   search = "project=pr-1&view=problems";
-  const { host, root } = await mount(React.createElement(LineWorkspace));
+  const { host, close } = await mount(React.createElement(LineWorkspace));
   expect(host.querySelector("[data-line-project-filter]")?.textContent).toBe(
     "Codecast",
   );
@@ -344,39 +275,76 @@ test("Problems carries the project filter, and only Problems", async () => {
       .querySelector("[data-pipeline-stage='problems']")
       ?.getAttribute("aria-current"),
   ).toBe("page");
-  await act(async () => {
-    root.unmount();
-  });
-  search = "view=foryou";
+  await close();
+  search = "view=foryou&project=pr-1&process=line";
   const other = await mount(React.createElement(LineWorkspace));
-  expect(other.host.querySelector("[data-line-project-filter]")).toBeNull();
-  await act(async () => {
-    other.root.unmount();
-  });
+  expect(other.navigationLog.slice(1)).toEqual([]);
+  expectPresent(
+    other.host.querySelector(
+      "[data-pipeline-stage='decisions'][aria-current='page']",
+    ),
+  );
+  expectPresent(other.host.querySelector(".lw-stage-in"));
+  expectAbsent(other.host.querySelector("[data-line-project-filter]"));
+  expectAbsent(other.host.querySelector("[data-decision-row]"));
+  await other.close();
 }, 30_000);
 
 test("the Line's Decisions is the Decisions page narrowed to the flows, and an older address opens its decision there", async () => {
   search = "view=foryou";
-  const { host, root } = await mount(React.createElement(LineWorkspace));
-  expect(host.querySelector("[data-decision-row]")).toBeNull();
-  expect(moves).toContain("/decisions?tab=team&source=flows");
-  expect(pushed).toEqual([]);
-  await act(async () => {
-    root.unmount();
-  });
-  moves.length = 0;
+  const { close, navigationLog } = await mount(
+    React.createElement(LineWorkspace),
+  );
+  expect(navigationLog.slice(1)).toEqual([
+    { action: "replace", path: "/decisions?tab=team&source=flows" },
+  ]);
+  await close();
   search = "view=inbox&decision=sd-9";
   const again = await mount(React.createElement(LineWorkspace));
-  expect(moves).toContain("/decisions/sd-9");
-  expect(pushed).toEqual([]);
-  await act(async () => {
-    again.root.unmount();
-  });
+  expect(again.navigationLog.slice(1)).toEqual([
+    { action: "replace", path: "/decisions/sd-9" },
+  ]);
+  await again.close();
 }, 30_000);
+
+test.each([
+  ["view=foryou&case=t1", "/decisions?tab=team&source=flows"],
+  ["view=foryou&case=t1&decision=sd-9", "/decisions/sd-9"],
+  ["view=inbox&run=a", "/decisions?tab=team&source=flows"],
+])("the Decisions redirect owns %s", async (query, path) => {
+  search = query;
+  const web = await mount(<LineWorkspace />);
+  expect(web.navigationLog.slice(1)).toEqual([{ action: "replace", path }]);
+  await web.close();
+});
+
+test.each([
+  ["view=bogus", "/flows?view=line"],
+  ["view=runs&run=a", "/flows?view=problems&run=a&case=ct-1"],
+  ["view=problems&mode=map", "/flows?view=problems"],
+])("normalizes other old links in place: %s", async (query, path) => {
+  search = query;
+  const web = await mount(<LineWorkspace />);
+  expect(web.navigationLog.slice(1)).toEqual([{ action: "replace", path }]);
+  await web.close();
+});
+
+test("settings keeps its own address", async () => {
+  search = "view=inbox&decision=sd-9";
+  const web = await mount(
+    <LineWorkspace settings />,
+    undefined,
+    "/flows/settings",
+  );
+  expect(web.navigationLog).toEqual([
+    { action: "pop", path: "/flows/settings?view=inbox&decision=sd-9" },
+  ]);
+  await web.close();
+});
 
 test("a line fence draws the live step, and an unreadable project says so", async () => {
   search = "";
-  const { host, root } = await mount(
+  const { host, close, navigationLog } = await mount(
     React.createElement(LineFence, {
       code: JSON.stringify({ widget: "step", project: "pr-1", step: "prove" }),
     }),
@@ -388,9 +356,7 @@ test("a line fence draws the live step, and an unreadable project says so", asyn
   expect(open?.getAttribute("href")).toBe(
     "/flows?project=pr-1&graph=line&step=prove",
   );
-  await act(async () => {
-    root.unmount();
-  });
+  await close();
 
   const other = await mount(
     React.createElement(LineFence, {
@@ -404,38 +370,35 @@ test("a line fence draws the live step, and an unreadable project says so", asyn
   expect(
     other.host.querySelector("[data-line-fence-fallback]")?.textContent,
   ).toContain("not one you can open");
-  await act(async () => {
-    other.root.unmount();
-  });
+  await other.close();
 
   const bad = await mount(
     React.createElement(LineFence, { code: "{ not json" }),
   );
   expect(bad.host.querySelector("[data-line-widget]")).toBeNull();
   expect(bad.host.textContent).toContain("not json");
-  await act(async () => {
-    bad.root.unmount();
-  });
+  await bad.close();
 
   // With Flows off the block reads as its source.
-  useInboxStore.setState({
-    teams: [{ _id: "team1", name: "Team", features: { line: false } }],
-  } as any);
   const off = await mount(
     React.createElement(LineFence, {
       code: JSON.stringify({ widget: "step", project: "pr-1", step: "prove" }),
     }),
+    (store) =>
+      store.syncTable("teams", [
+        { _id: "team1", name: "Team", features: { line: false } },
+      ]),
   );
   expect(off.host.querySelector("[data-line-widget]")).toBeNull();
   expect(off.host.textContent).toContain('"widget"');
-  await act(async () => {
-    off.root.unmount();
-  });
+  await off.close();
 }, 30_000);
 
 test("on the Map a station slides in as a drawer over the graph, Esc closes it; the Table's step stays a page", async () => {
   search = "project=pr-1&view=line&mode=map&graph=line&step=prove";
-  const { host, root } = await mount(React.createElement(LineWorkspace));
+  const { host, close, navigationLog } = await mount(
+    React.createElement(LineWorkspace),
+  );
   expect(host.querySelector("[data-line-drawer]")).not.toBeNull();
   // The graph stays drawn behind it.
   expect(host.querySelector("[data-line-view='graph']")).not.toBeNull();
@@ -443,67 +406,66 @@ test("on the Map a station slides in as a drawer over the graph, Esc closes it; 
     true,
   );
   await key("Escape");
-  expect(moves.at(-1)).toBe("/flows?project=pr-1&graph=line");
-  await act(async () => {
-    root.unmount();
+  expect(navigationLog.at(-1)).toEqual({
+    action: "push",
+    path: "/flows?project=pr-1&graph=line",
   });
+  await close();
 
   search = "project=pr-1&view=line&graph=line&step=prove";
   const table = await mount(React.createElement(LineWorkspace));
   expect(table.host.querySelector("[data-line-drawer]")).toBeNull();
   expect(table.host.querySelector("[data-line-view='graph']")).toBeNull();
-  await act(async () => {
-    table.root.unmount();
-  });
+  await table.close();
 }, 30_000);
 
 test("a review stage opens its drawer over Signals; nothing arriving is said plainly", async () => {
-  useInboxStore.setState({
-    lineStages: {
-      p1: {
-        _id: "p1",
-        project: "Codecast",
-        sources: ["union-moments"],
-        window: { moments: 3, capped: false },
-        days: 14,
-        at: now,
-        kinds: [
-          {
-            kind: "call",
-            source: "union-moments",
-            extractor: null,
-            counts: { waiting: 0, extracting: 0, ready: 3, failed: 0 },
-            total: 3,
-            day: 0,
-            week: 3,
-            newest_at: now - 5 * DAY,
-            newest_event_at: now - 8 * DAY,
-            days: [0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0],
-            replayed: 3,
-            gap_ms: null,
-            versions: [],
-            recent: [],
-            failed: [],
-          },
-        ],
-        judges: [],
-        retired: { week: 0, recent: [] },
-        grouping: {
-          attach: 0.86,
-          ask: 0.45,
-          hits: 64,
-          candidates: 5,
-          cross_ask: 0.5,
-          cross_candidates: 3,
-          embedding_model: "e",
-          attach_model: "m",
-        },
-      },
-    },
-  } as any);
-  // An old link (view=line&mode=map&stage=…) reads as this address (lineWorkspaceUrl.test).
   search = "project=pr-1&view=signals&graph=line&stage=moments";
-  const { host, root } = await mount(React.createElement(LineWorkspace));
+  const { host, close, navigationLog } = await mount(
+    React.createElement(LineWorkspace),
+    (store) =>
+      store.syncTable("lineStages", [
+        {
+          _id: "p1",
+          project: "Codecast",
+          sources: ["union-moments"],
+          window: { moments: 3, capped: false },
+          days: 14,
+          at: now,
+          kinds: [
+            {
+              kind: "call",
+              source: "union-moments",
+              extractor: null,
+              counts: { waiting: 0, extracting: 0, ready: 3, failed: 0 },
+              total: 3,
+              day: 0,
+              week: 3,
+              newest_at: now - 5 * DAY,
+              newest_event_at: now - 8 * DAY,
+              days: [0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0],
+              replayed: 3,
+              gap_ms: null,
+              versions: [],
+              recent: [],
+              failed: [],
+            },
+          ],
+          judges: [],
+          retired: { week: 0, recent: [] },
+          grouping: {
+            attach: 0.86,
+            ask: 0.45,
+            hits: 64,
+            candidates: 5,
+            cross_ask: 0.5,
+            cross_candidates: 3,
+            embedding_model: "e",
+            attach_model: "m",
+          },
+        },
+      ]),
+  );
   expect(host.querySelector("[data-line-drawer='Moments']")).not.toBeNull();
   expect(
     host.querySelector("[data-line-moments-quiet]")?.textContent,
@@ -519,12 +481,14 @@ test("a review stage opens its drawer over Signals; nothing arriving is said pla
       .querySelector<HTMLElement>("[data-line-drawer-stage='grouping']")!
       .click();
   });
-  expect(moves.at(-1)).toBe(
-    "/flows?project=pr-1&view=signals&graph=line&stage=grouping",
-  );
-  await key("Escape");
-  expect(moves.at(-1)).toBe("/flows?project=pr-1&view=signals&graph=line");
-  await act(async () => {
-    root.unmount();
+  expect(navigationLog.at(-1)).toEqual({
+    action: "replace",
+    path: "/flows?project=pr-1&view=signals&graph=line&stage=grouping",
   });
+  await key("Escape");
+  expect(navigationLog.at(-1)).toEqual({
+    action: "push",
+    path: "/flows?project=pr-1&view=signals&graph=line",
+  });
+  await close();
 }, 30_000);
