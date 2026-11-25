@@ -33,3 +33,7 @@ A turn written by several people is consecutive `<user-message from="Name">` par
 ## Testing with two people
 
 `cast app as-user` only re-signs the desktop app. Two people in one Chrome: run a second origin (`127.0.0.1` beside `localhost`, separate storage), mint a session with `apps/server/run.sh verification:mintSession '{"email":…}'`, set the two `__convexAuth*` localStorage keys, and join by share link. Background tabs stall timers and animation frames, so presence heartbeats and reading anchors lag there; a Web Worker clock calling `updatePresence` stands in during a test. Unit tests: `messages/test/jointMessage.test.ts`, `web/lib/jointSend.test.ts`, `web/lib/sharedQueue.test.ts`, `web/store/__tests__/sharedQueueSync.test.ts`, `convex/pendingMessages.sharedQueue.test.ts`.
+
+## Simulation of the turn baton and relay
+
+The multiplayer simulator covers the proposed turn baton, takeover fence, relay outage, and late join. It checks who drives, which messages reach the agent, and what stays in the composer. It also checks a budget of zero extra writes for a solo session. The scenarios run against an in-memory contract. See the [collaboration scenarios](multiplayer-sim-harness.md#collaboration-contracts).
