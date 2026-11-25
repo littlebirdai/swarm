@@ -2065,15 +2065,17 @@ export async function rejectHeadDeliveryInDb(
     now: number;
   },
 ): Promise<{ rejected: true }> {
+  const { conversationId, executionEpoch } = args;
   requireNonEmpty(args.reason, "reason");
-  await requireOwnedConversation(ctx, args.conversationId, userId);
-  const head = await executionHead(ctx, args.conversationId);
-  if (!head || head.protocol_state !== "fenced") {
+  await requireOwnedConversation(ctx, conversationId, userId);
+  const head = await executionHead(ctx, conversationId);
+  if (!head || head.protocol_state !== "fenced")
     fail(
       "EXECUTION_NOT_FENCED",
       "delivery rejection requires fenced authority",
     );
-  }
+  if (head.current_epoch !== executionEpoch)
+    fail("EXECUTION_EPOCH_FENCE_MISMATCH", "delivery epoch is not current");
   if (head.active_delivery_attempt_id !== undefined) {
     fail(
       "DELIVERY_SLOT_BUSY",
@@ -2086,17 +2088,15 @@ export async function rejectHeadDeliveryInDb(
     existingMessage.delivery_id === args.deliveryId &&
     existingMessage.client_id === args.deliveryId &&
     existingMessage.conversation_sequence === args.conversationSequence &&
-    existingMessage.execution_epoch === args.executionEpoch &&
+    existingMessage.execution_epoch === executionEpoch &&
     existingMessage.delivery_disposition_reason === args.reason
   ) {
     return { rejected: true };
   }
-  const epoch = head.current_epoch ?? args.executionEpoch;
-  const binding = await executionBinding(ctx, args.conversationId, epoch);
-  if (binding)
-    await assertActiveRunLease(ctx, binding, args.fencingToken, args.now);
+  const binding = await executionBinding(ctx, conversationId, executionEpoch);
+  await assertActiveRunLease(ctx, binding, args.fencingToken, args.now);
   const message = orderedNonterminalMessages(
-    await fencedMessages(ctx, args.conversationId),
+    await fencedMessages(ctx, conversationId),
     head,
   )[0];
   if (
@@ -2105,7 +2105,7 @@ export async function rejectHeadDeliveryInDb(
     message.delivery_id !== args.deliveryId ||
     message.client_id !== args.deliveryId ||
     message.conversation_sequence !== args.conversationSequence ||
-    message.execution_epoch !== args.executionEpoch ||
+    message.execution_epoch !== executionEpoch ||
     message.delivery_status !== "pending"
   ) {
     fail(
@@ -2119,7 +2119,7 @@ export async function rejectHeadDeliveryInDb(
     status: "cancelled" as const,
   });
   await advanceNonterminalHead(ctx, head, args.now);
-  await clearPendingFlagIfQuiet(ctx, args.conversationId);
+  await clearPendingFlagIfQuiet(ctx, conversationId);
   return { rejected: true };
 }
 

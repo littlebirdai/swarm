@@ -260,3 +260,236 @@ test("delivery admission and settlement use the caller's time at the expiry boun
     { accepted: true },
   );
 });
+
+for (const window of [
+  "disposed",
+  "intent recorded",
+  "pending ready",
+  "activated without a claim",
+] as const) {
+  for (const tokenState of ["live", "expired", "released"] as const) {
+    test(`${window} refuses a presented ${tokenState} predecessor token`, async () => {
+      setSystemTime(new Date(start));
+      const {
+        t,
+        owner,
+        conversation,
+        head,
+        binding,
+        message,
+        claim,
+        requestFence,
+      } = await setupRunLease();
+      const released = await claim("released");
+      if (released.status !== "granted") throw Error("Expected a lease");
+      await t.mutation(
+        internal.edgeRunLease.release,
+        requestFence(released.fencing_token),
+      );
+      const expired = await claim("expired");
+      if (expired.status !== "granted") throw Error("Expected a lease");
+      setSystemTime(new Date(start + leaseMs));
+      const live = await claim("live");
+      if (live.status !== "granted") throw Error("Expected a lease");
+
+      const now = Date.now();
+      const dispose = {
+        conversationId: conversation,
+        epoch: 1,
+        configurationRevision: 1,
+        ownerDeviceId: machine,
+        daemonBootId: boot,
+        runtimeId: "runtime",
+        disposition: "stopped" as const,
+        reason: "runtime disposed",
+        fencingToken: live.fencing_token,
+        now,
+      };
+      expect(
+        await t.run((ctx) =>
+          publishRuntimeDispositionInDb(ctx, owner, dispose),
+        ),
+      ).toEqual({ accepted: true });
+      const disposed = await t.run(({ db }) => db.get(binding));
+      expect(
+        await t.run((ctx) =>
+          publishRuntimeDispositionInDb(ctx, owner, {
+            ...dispose,
+            now: now + 1,
+          }),
+        ),
+      ).toEqual({ accepted: true });
+      expect(await t.run(({ db }) => db.get(binding))).toEqual(disposed);
+
+      if (window !== "disposed") {
+        await t.run((ctx) =>
+          recordExecutionSuccessorIntentInDb(ctx, owner, {
+            conversationId: conversation,
+            intentId: "next",
+            expectedCurrentEpoch: 1,
+            kind: "restart",
+            policy: "drain-current",
+            now,
+          }),
+        );
+      }
+      if (
+        window === "pending ready" ||
+        window === "activated without a claim"
+      ) {
+        await t.run(async ({ db }) => {
+          const prior = await db.get(binding);
+          if (!prior) throw Error("Expected the original binding");
+          const { _id, _creationTime, claim_id, ...successor } = prior;
+          await db.insert("execution_bindings", {
+            ...successor,
+            epoch: 2,
+            state: "ready",
+            runtime_id: "next-runtime",
+          });
+          if (window === "pending ready") {
+            await db.patch(head, { pending_epoch: 2, admission_epoch: 2 });
+          } else {
+            await db.patch(head, { current_epoch: 2, admission_epoch: 2 });
+            await db.patch(message, { execution_epoch: 2 });
+          }
+        });
+      }
+
+      const reject = (fencingToken?: string) =>
+        t.run((ctx) =>
+          rejectHeadDeliveryInDb(ctx, owner, {
+            conversationId: conversation,
+            messageId: message,
+            deliveryId: "delivery",
+            executionEpoch: window === "activated without a claim" ? 2 : 1,
+            conversationSequence: 1,
+            reason: "explicit rejection",
+            fencingToken,
+            now,
+          }),
+        );
+      await expect(
+        reject({ live, expired, released }[tokenState].fencing_token),
+      ).rejects.toThrow("STALE_RUN_LEASE");
+      expect(await t.run(({ db }) => db.get(message))).toMatchObject({
+        delivery_status: "pending",
+      });
+      expect(await reject()).toEqual({ rejected: true });
+    });
+  }
+}
+
+test("only the current epoch may reject the queue head", async () => {
+  setSystemTime(new Date(start));
+  const { t, owner, conversation, head, message, claim } =
+    await setupRunLease();
+  const current = await claim("current");
+  if (current.status !== "granted") throw Error("Expected a lease");
+  await t.run(async ({ db }) => {
+    await db.patch(head, { pending_epoch: 2, admission_epoch: 2 });
+    await db.patch(message, { execution_epoch: 2 });
+  });
+  await expect(
+    t.run((ctx) =>
+      rejectHeadDeliveryInDb(ctx, owner, {
+        conversationId: conversation,
+        messageId: message,
+        deliveryId: "delivery",
+        executionEpoch: 2,
+        conversationSequence: 1,
+        reason: "future queue rejection",
+        fencingToken: current.fencing_token,
+        now: start,
+      }),
+    ),
+  ).rejects.toThrow("EXECUTION_EPOCH_FENCE_MISMATCH");
+  expect(await t.run(({ db }) => db.get(message))).toMatchObject({
+    delivery_status: "pending",
+  });
+});
+
+for (const operation of ["successor proposal", "head rejection"] as const) {
+  test(`${operation} uses the caller's time at the expiry boundary`, async () => {
+    setSystemTime(new Date(start));
+    const { t, owner, conversation, message, claim } = await setupRunLease();
+    const grant = await claim("clock");
+    if (grant.status !== "granted") throw Error("Expected a lease");
+    const intent = {
+      conversationId: conversation,
+      intentId: "restart",
+      expectedCurrentEpoch: 1,
+      kind: "restart" as const,
+      policy: "cancel-unstarted" as const,
+    };
+    if (operation === "successor proposal") {
+      await t.run((ctx) =>
+        recordExecutionSuccessorIntentInDb(ctx, owner, {
+          ...intent,
+          now: start,
+        }),
+      );
+    }
+    const apply = (now: number) =>
+      t.run(async (ctx): Promise<unknown> => {
+        const fencingToken = grant.fencing_token;
+        return operation === "successor proposal"
+          ? requestExecutionSuccessorInDb(ctx, owner, {
+              ...intent,
+              fencingToken,
+              now,
+              target: {
+                requestedAgent: "codex",
+                transport: "app-server",
+                projectPath: "/fixture",
+                configurationRevision: 2,
+                ownerDeviceId: machine,
+                daemonBootId: boot,
+                protocolVersion: 1,
+                requiredCapabilities: [...EXECUTION_PROTOCOL_CAPABILITIES],
+              },
+            })
+          : rejectHeadDeliveryInDb(ctx, owner, {
+              conversationId: conversation,
+              messageId: message,
+              deliveryId: "delivery",
+              executionEpoch: 1,
+              conversationSequence: 1,
+              reason: "explicit rejection",
+              fencingToken,
+              now,
+            });
+      });
+    const cutoff = start + leaseMs;
+    await expect(apply(cutoff)).rejects.toThrow("STALE_RUN_LEASE");
+    setSystemTime(new Date(cutoff));
+    expect(await apply(cutoff - 1)).toMatchObject(
+      operation === "successor proposal"
+        ? { created: true }
+        : { rejected: true },
+    );
+  });
+}
+
+test("head rejection refuses a presented token when the binding is missing", async () => {
+  setSystemTime(new Date(start));
+  const { t, owner, conversation, binding, message, claim } =
+    await setupRunLease();
+  const grant = await claim("missing");
+  if (grant.status !== "granted") throw Error("Expected a lease");
+  await t.run(({ db }) => db.delete(binding));
+  await expect(
+    t.run((ctx) =>
+      rejectHeadDeliveryInDb(ctx, owner, {
+        conversationId: conversation,
+        messageId: message,
+        deliveryId: "delivery",
+        executionEpoch: 1,
+        conversationSequence: 1,
+        reason: "explicit rejection",
+        fencingToken: grant.fencing_token,
+        now: start,
+      }),
+    ),
+  ).rejects.toThrow("STALE_RUN_LEASE");
+});

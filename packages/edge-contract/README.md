@@ -87,6 +87,22 @@ the request, on a monotonic clock. Thus, the daemon stops before the lease ends
 on the server. A lease with no time left is not a grant: the server returns
 `stale`.
 
+### Run lease checks for execution writes
+
+Each operation also checks the caller's authority and the required epoch.
+Delivery rejection requires the current epoch.
+
+| Caller and binding state                                                      | Token                              | Result                                |
+| ----------------------------------------------------------------------------- | ---------------------------------- | ------------------------------------- |
+| Run holder, ready binding with a claim                                        | Matching token for an active lease | The write can proceed.                |
+| Recovery or legacy caller, non-ready binding or ready binding without a claim | Absent                             | The write can proceed.                |
+| Any caller, ready binding with a claim                                        | Absent                             | The server returns `STALE_RUN_LEASE`. |
+| Any caller, binding without a matching active lease                           | Present                            | The server returns `STALE_RUN_LEASE`. |
+
+The holder uses its active token to record runtime disposition. An exact
+replay returns the stored result without writing. After disposition, recovery
+requests omit the old token.
+
 ### Terminal lifecycle
 
 `terminal.started` records the pane instance and its starter. The `actor` has

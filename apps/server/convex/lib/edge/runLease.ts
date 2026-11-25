@@ -45,13 +45,18 @@ function remainingLease(
 
 export async function assertActiveRunLease(
   ctx: Pick<MutationCtx, "db">,
-  binding: Binding,
+  binding: Binding | null,
   fencingToken: string | undefined,
   now: number,
 ): Promise<void> {
-  if (binding.state !== "ready" || binding.claim_id === undefined) return;
-  const lease = await loadClaim(ctx, binding.conversation_id, binding.claim_id);
+  const claimId = binding?.state === "ready" ? binding.claim_id : undefined;
+  if (claimId === undefined && fencingToken === undefined) return;
+  const lease =
+    binding && claimId !== undefined
+      ? await loadClaim(ctx, binding.conversation_id, claimId)
+      : null;
   if (
+    !binding ||
     fencingToken === undefined ||
     lease?.fencing_token !== fencingToken ||
     remainingLease(binding, lease, now) === 0
