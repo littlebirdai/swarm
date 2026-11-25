@@ -1,0 +1,138 @@
+{
+  "correlated delivery": [
+    {
+      "request": {
+        "v": 1,
+        "session": "session-1",
+        "run": 3,
+        "fencing_token": "claim-token-1",
+        "delivery_id": "delivery-1",
+        "seq": 12,
+        "intent": "queue",
+        "sender": {
+          "kind": "agent",
+          "id": "session-2"
+        },
+        "outcome": "in_doubt",
+        "attempt_id": "attempt-1"
+      },
+      "response": {
+        "v": 1,
+        "status": "recorded"
+      }
+    },
+    {
+      "request": {
+        "v": 1,
+        "session": "session-1",
+        "run": 3,
+        "fencing_token": "claim-token-1",
+        "delivery_id": "delivery-1",
+        "seq": 12,
+        "intent": "queue",
+        "sender": {
+          "kind": "agent",
+          "id": "session-2"
+        },
+        "outcome": "applied",
+        "attempt_id": "attempt-1",
+        "resolution_evidence": "Transcript message-7 records the effect for delivery-1."
+      },
+      "response": {
+        "v": 1,
+        "status": "recorded"
+      }
+    },
+    {
+      "request": {
+        "v": 1,
+        "session": "session-1",
+        "run": 3,
+        "fencing_token": "claim-token-1",
+        "delivery_id": "delivery-1",
+        "seq": 12,
+        "intent": "queue",
+        "sender": {
+          "kind": "agent",
+          "id": "session-2"
+        },
+        "outcome": "applied",
+        "attempt_id": "attempt-1",
+        "resolution_evidence": "Transcript message-7 records the effect for delivery-1."
+      },
+      "response": {
+        "v": 1,
+        "status": "duplicate"
+      }
+    }
+  ],
+  "proven no effect": [
+    {
+      "request": {
+        "v": 1,
+        "session": "session-1",
+        "run": 3,
+        "fencing_token": "claim-token-1",
+        "delivery_id": "delivery-1",
+        "seq": 12,
+        "intent": "queue",
+        "sender": {
+          "kind": "agent",
+          "id": "session-2"
+        },
+        "outcome": "in_doubt",
+        "attempt_id": "attempt-1"
+      },
+      "response": {
+        "v": 1,
+        "status": "recorded"
+      }
+    },
+    {
+      "request": {
+        "v": 1,
+        "session": "session-1",
+        "run": 3,
+        "fencing_token": "claim-token-1",
+        "delivery_id": "delivery-1",
+        "seq": 12,
+        "intent": "queue",
+        "sender": {
+          "kind": "agent",
+          "id": "session-2"
+        },
+        "outcome": "failed",
+        "attempt_id": "attempt-1",
+        "retryable": true,
+        "resolution_evidence": "Runtime confirmed input was discarded before delivery."
+      },
+      "response": {
+        "v": 1,
+        "status": "recorded"
+      }
+    },
+    {
+      "request": {
+        "v": 1,
+        "session": "session-1",
+        "run": 3,
+        "fencing_token": "claim-token-1",
+        "delivery_id": "delivery-1",
+        "seq": 12,
+        "intent": "queue",
+        "sender": {
+          "kind": "agent",
+          "id": "session-2"
+        },
+        "outcome": "failed",
+        "attempt_id": "attempt-1",
+        "retryable": true,
+        "resolution_evidence": "Runtime confirmed input was discarded before delivery."
+      },
+      "response": {
+        "v": 1,
+        "status": "duplicate"
+      }
+    }
+  ]
+}

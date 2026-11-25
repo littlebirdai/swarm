@@ -137,6 +137,7 @@ type RouterLike = {
 export function namesFromModule(
   mod: string,
   exports: Record<string, unknown>,
+  publicOnly = false,
 ): string[] {
   const names: string[] = [];
   for (const [name, value] of Object.entries(exports)) {
@@ -144,8 +145,13 @@ export function namesFromModule(
       isQuery?: boolean;
       isMutation?: boolean;
       isAction?: boolean;
+      isPublic?: boolean;
     } | null;
-    if (v && (v.isQuery || v.isMutation || v.isAction))
+    if (
+      v &&
+      (v.isQuery || v.isMutation || v.isAction) &&
+      (!publicOnly || v.isPublic)
+    )
       names.push(`fn:${mod}:${name}`);
   }
   const router = exports.default as RouterLike | undefined;
@@ -223,11 +229,16 @@ function listModules(dir: string): string[] {
 
 /** Loads the schema and every entry module. Throws naming any module that
  *  failed to load: its functions would otherwise read as drops. */
-export async function treeNames(dir = FUNCTIONS_DIR): Promise<string[]> {
+export async function treeNames(
+  dir = FUNCTIONS_DIR,
+  publicOnly = false,
+): Promise<string[]> {
   const schema = (await import(join(dir, "schema.ts"))).default as {
     export: () => string;
   };
-  const names = namesFromSchema(JSON.parse(schema.export()) as SchemaJson);
+  const names = publicOnly
+    ? []
+    : namesFromSchema(JSON.parse(schema.export()) as SchemaJson);
   const failed: string[] = [];
   const loaded = await Promise.all(
     listModules(dir).map(async (rel) => {
@@ -235,6 +246,7 @@ export async function treeNames(dir = FUNCTIONS_DIR): Promise<string[]> {
         return namesFromModule(
           moduleName(rel),
           (await import(join(dir, rel))) as Record<string, unknown>,
+          publicOnly,
         );
       } catch (e) {
         failed.push(`${rel}: ${(e as Error)?.message ?? e}`);
@@ -249,11 +261,23 @@ export async function treeNames(dir = FUNCTIONS_DIR): Promise<string[]> {
   return names.concat(loaded.flat());
 }
 
-async function runTreeChild(): Promise<string[]> {
-  const child = Bun.spawn([process.execPath, import.meta.path, "--tree-only"], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+export async function runTreeChild(
+  mode: "legacy" | "swarm" | "public" = "legacy",
+): Promise<string[]> {
+  const { CONVEX_DEPLOY_KEY: _, ...env } = process.env;
+  const child = Bun.spawn(
+    [
+      process.execPath,
+      ...(mode === "legacy" ? [] : ["--no-env-file"]),
+      import.meta.path,
+      mode === "public" ? "--public-tree" : "--tree-only",
+    ],
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: mode === "legacy" ? process.env : env,
+    },
+  );
   const timer = setTimeout(() => child.kill(), TREE_TIMEOUT_MS);
   const [out, err, code] = await Promise.all([
     new Response(child.stdout).text(),
@@ -321,7 +345,11 @@ async function systemQuery(
   return body.value;
 }
 
-export async function prodNames(url: string, key: string): Promise<string[]> {
+export async function prodNames(
+  url: string,
+  key: string,
+  strict = false,
+): Promise<string[]> {
   const [schemas, spec] = await Promise.all([
     systemQuery(url, key, "_system/frontend/getSchemas") as Promise<{
       active?: string | null;
@@ -331,6 +359,28 @@ export async function prodNames(url: string, key: string): Promise<string[]> {
     >,
   ]);
   if (!Array.isArray(spec)) throw new Error("apiSpec did not return an array");
+  if (strict) {
+    if (
+      schemas?.active !== null &&
+      (typeof schemas?.active !== "string" || !schemas.active)
+    )
+      throw new Error("getSchemas did not return an active schema or null");
+    if (
+      spec.some(
+        (entry) =>
+          !entry ||
+          (entry.functionType === "HttpAction"
+            ? typeof entry.method !== "string" ||
+              !entry.method ||
+              typeof entry.path !== "string" ||
+              !entry.path.startsWith("/")
+            : !["Query", "Mutation", "Action"].includes(entry.functionType) ||
+              typeof entry.identifier !== "string" ||
+              !/^.+\.[cm]?[jt]sx?:[^:]+$/.test(entry.identifier)),
+      )
+    )
+      throw new Error("apiSpec contains an unrecognized function or route");
+  }
   return namesFromActiveSchema(schemas?.active).concat(namesFromApiSpec(spec));
 }
 
@@ -345,12 +395,66 @@ async function timed<T>(
 }
 
 async function main(argv: string[]): Promise<number> {
-  if (argv.includes("--tree-only")) {
+  if (argv.includes("--tree-only") || argv.includes("--public-tree")) {
     // Modules log on load (an analytics warning); keep stdout for the JSON.
     console.log = console.info = console.debug = console.warn = console.error;
     try {
-      await Bun.write(Bun.stdout, JSON.stringify(await treeNames()));
+      await Bun.write(
+        Bun.stdout,
+        JSON.stringify(
+          await treeNames(FUNCTIONS_DIR, argv.includes("--public-tree")),
+        ),
+      );
       return 0;
+    } catch (e) {
+      console.error(`prod-diff: ${(e as Error)?.message ?? e}`);
+      return EXIT_UNREADABLE;
+    }
+  }
+
+  if (argv[0] === "--swarm-gate") {
+    const deployment = argv[1];
+    const key = process.env.CONVEX_DEPLOY_KEY;
+    if (
+      !deployment ||
+      !/^[a-z0-9-]+$/.test(deployment) ||
+      !key?.startsWith(`prod:${deployment}|`)
+    ) {
+      console.error(
+        "prod-diff: Swarm production deployment and key must match.",
+      );
+      return EXIT_UNREADABLE;
+    }
+    try {
+      const allowlist: unknown = JSON.parse(await Bun.stdin.text());
+      if (
+        !allowlist ||
+        typeof allowlist !== "object" ||
+        Array.isArray(allowlist) ||
+        Object.entries(allowlist).some(
+          ([name, reason]) =>
+            !/^(?:fn:[^:\s]+:[^:\s]+|http:[A-Z]+ \/\S*|(?:index|table):\S+)$/.test(
+              name,
+            ) ||
+            typeof reason !== "string" ||
+            !reason.trim(),
+        )
+      ) {
+        throw new Error(
+          "expected an object mapping exact inventory names to review reasons",
+        );
+      }
+      const [tree, prod] = await Promise.all([
+        runTreeChild("swarm"),
+        prodNames(`https://${deployment}.convex.cloud`, key, true),
+      ]);
+      const diff = diffNames(tree, prod);
+      console.error(formatSummary(diff));
+      const blocked = diff.drops.filter(
+        (name) => !Object.hasOwn(allowlist, name),
+      );
+      for (const name of blocked) console.error(`  UNAPPROVED ${name}`);
+      return blocked.length ? 1 : 0;
     } catch (e) {
       console.error(`prod-diff: ${(e as Error)?.message ?? e}`);
       return EXIT_UNREADABLE;

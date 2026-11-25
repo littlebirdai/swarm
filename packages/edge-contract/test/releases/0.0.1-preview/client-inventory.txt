@@ -1,0 +1,385 @@
+fn:accessLog:	listForTeam	noteCallRecordingOpen	noteConversationAccess
+fn:accountEmail:	confirmEmailChange	requestEmailChange
+fn:accountPool:	listPool	poolForDevice	setAccountDevices	setAccountShares	storePoolCopies
+fn:accountSwitch:	acknowledgeBlocked	cancelMintToken	completeLoginFlow	listAccountProfiles	pinForResume	recordCodexAccount	removeAccountProfile	removeSetupToken	reportLoginFlowUrl	reportMintFlow	requestLoginFlow	requestMintToken	requestUsageRefresh	reviveAuthBlockedOnRemotes	saveAccountProfile	setAutoContinueAccounts	setAutoSwitchAccounts	setRecoveryMode	submitLoginCode	submitMintCode
+fn:agentDefinitions:	list	listChains	resolve
+fn:agentReviews:	webTranscript
+fn:agentTasks:	claimTask	completeTaskRun	failTaskRun	getDueTasks	injectFrame	linkRunConversation	passTaskPrecheck	renewLease	skipTaskRun	webCreate	webGet	webList	webListForConversation	webListForConversations	webListHistory	webListRuns	webRegenerateSummary
+fn:anchors:	getAnchorSpace	listAnchors
+fn:apiTokens:	createSetupToken	createToken	mintForDevice
+fn:appConnections:	listConnections
+fn:artifacts:	deleteForWeb	embedInfo	listForWeb	mintCommentIdentity	ownerUnlock
+fn:artifactsHttp:	editForWeb	sourceForWeb
+fn:assistant/entry:	confirmEmailProof	kick	sendEmailProof
+fn:assistant/incidents:	thinkingAvailable
+fn:auth:	signInProviders
+fn:authorityEvents:	list
+fn:billing:	billingAvailable	openPortal	startCheckout
+fn:bookmarks:	listBookmarks
+fn:browserStream:	getBrowser	sendBrowserInput	watchBrowser
+fn:buckets:	webList
+fn:callChat:	list	post
+fn:callFace:	ensureFaces	removeAgent
+fn:callGuests:	acceptGuestNotice	createGuestLink	describeGuestLink	getGuestState	guestHeartbeat	guestLinkPreview	leaveCall	listGuestLinks	listGuestsWaiting	mintGuestToken	noteGuestsWaitingShown	requestJoin	revokeGuestLink
+fn:callRecordings:	getRoomRecordingEnd	guestStopRecording	webCallRecordings
+fn:callStage:	listPins
+fn:calls:	cancelInvite	getCallConfig	getLiveRooms	getMyCalls	getRoomKnocks	getRoomOccupancy	heartbeat	invite	joinRoom	knock	leaveRoom	mintAccessToken	putOutOfCall	respondInvite	ringLive
+fn:capabilities:	webCapabilityContent
+fn:capabilityBindings:	webListBindings
+fn:capabilityState:	webList
+fn:castMachines:	mine
+fn:changeFeed:	getChangesSince
+fn:changesQueries:	inTheWorks	listEditions	listStories	liveStatus	storyEvidence	storyLocation	storySessions
+fn:chat:	appendVoiceTranscript	cancelVoiceBurst	finalizeVoiceBurst	getMessage	getThread	listChannels	listCommunityChannels	listLiveVoiceBursts	listMessages	searchMessages	setAnchorFollow	startVoiceBurst	stopAnchorReply
+fn:chatTyping:	clear	list	set
+fn:checkouts:	forTeam
+fn:ciRuns:	get	read
+fn:cliAuth:	deposit	pendingDeposit	requestInfo
+fn:client_state:	get	pruneDeadDrafts
+fn:cloud:	autoscalePolicies	claimSharedCheckout	commandOutcome	hostGitCredential	hostSessions	localMirrorActivity	placeConversation	placementTarget	reportCloudHost	reportLocalMirror	reportPlacementFailure	reportPlacementProgress	requestBrowserSync	requestSync	setCloudAutoscale
+fn:codeComments:	create	discardPendingReview	listForFile	listForPR	listForRef
+fn:collab:	collabRequests	decideSendAccess	mySendAccess	requestSendAccess	revokeSendAccess
+fn:commentTwins:	conversationComments
+fn:comments:	getConversationCommentSummary
+fn:commits:	getCommitBySha	getCommitsForConversation	neighbours	webGet
+fn:composerSuggestions:	generateComposerSuggestions
+fn:conversationPages:	list
+fn:conversations:	backfillImagePreview	cliSetSessionVisibility	conversationMessagesForCLI	copyAllMessages	createConversation	dismissStaleInboxSessions	feedForCLI	findUserLocalCheckouts	generateShareLink	getAllMessages	getConversation	getConversationGitDiff	getConversationLifecycle	getConversationMeta	getConversationTree	getConversationWithMeta	getInboxSessionsByIds	getMessageCountsForReconciliation	getMessageFeed	getMessagesAroundTimestamp	getNewMessages	getProjectInfo	getSharedConversationMeta	getThreadState	getTranscriptWatermark	getUserMessages	healHistoricalUpdatedAt	inboxForCLI	linkPlanHandoff	linkSessions	linkSpawnedBy	listClosedSessions	listConversations	listFavoriteSessions	listFavorites	listInboxSessions	listInboxSessionsPaginated	listKilledSessions	listMessages	listMessagesTail	listPrivateConversations	listPublicConversations	listRecentSessions	listTeamInboxSessions	markInteractive	markSessionActive	markSessionCompleted	markTeamConversationsSeen	pinToProfile	redeemShareToken	resolveConversation	searchConversationTitles	searchConversations	sessionsLiveness	setAvailableSkills	setCloudAgentArchived	setPrivacyBySessionId	setSessionError	teamSessionsLiveness	unpinFromProfile	updateGitState	updateProjectPath	updateSessionId	updateTitle	webGet
+fn:daemonLogs:	adminGetStats	adminGetUsers	adminList	insertBatch
+fn:dataQueries:	preview	rerun	results	sources
+fn:dataRefresh:	want	wantShared
+fn:dataSync:	changes	commit	declareFolders	folders	knownContents	uploadUrl
+fn:decisionAreas:	mapAreas
+fn:decisionShareOut:	preview
+fn:decisionStacks:	listStacks
+fn:decisionTeamList:	listForTeam
+fn:decisionThread:	myThreads	thread
+fn:deployReach:	get	many
+fn:deployRefs:	recentForTeam	whereIs
+fn:deployTargets:	view
+fn:deploys:	forTask	get
+fn:deviceReservation:	setDeviceReservation
+fn:devices:	claimConversation	claimConversationForStart	claimDeviceAccount	enqueueAgentToolSetupCommand	enqueueCloudAgentActionCommand	enqueueCloudAgentLoginCommand	enqueueProviderKeyCommand	getConversationMachine	getConversationOwner	listAgentBoxes	listDevices	moveSessionToDevice	ownerDeviceDisplay	reassignToDevice	removeDevices	requestDeviceUpdate	resolveConversationBySession	setDeviceShares	setDeviceSnippet	setDeviceSshHost	watchedCommandOutcome
+fn:dispatch:	dispatch
+fn:docLab:	run
+fn:docSync:	claimDrafts	getPresence	getSnapshot	getSteps	latestVersion	removePresence	submitSnapshot	submitSteps	updatePresence
+fn:docs:	create	expandMentions	mentionSearch	webGet	webGetBodies	webGetByIds	webListPaginated	webMentionList
+fn:emails/send:	notifyPasswordChanged
+fn:entities:	resolveIdType
+fn:envs:	workspaceStandings
+fn:expectations:	forProject	overview
+fn:externalEvents:	listForConversation	listForPR	listForPlan	listForProject	listForRepository	listForTask	listForTeam
+fn:flowLibrary:	sessionFlows
+fn:flowMap:	forTeam
+fn:folderSync:	discardFolderBundle	folderExportOutcomes	requestFolderExport
+fn:follow:	dropFollower	follow	followersOf	reportView	unfollow	viewOf
+fn:gitActivity:	recordLocal
+fn:githubApp:	deleteInstallation	fetchPull	getInstallUrl	listInstallations
+fn:googleOAuth:	confirmConnection	disconnect	getConnectUrl	listConnections
+fn:guestSuggestions:	listPending
+fn:handoff:	start
+fn:harnessChanges:	listForDevice
+fn:images:	generateUploadUrl	getImageUrl	getImageUrls
+fn:ingest:	getGroup	groupTransitions	listEvents	listGroups	listSamples	listSources	removeSourcePreview	searchGroups	webGetSource
+fn:initiatives:	webGet	webList	webUpdates
+fn:issueSync:	listRemoteCandidates	listSources	syncNow
+fn:landedChanges:	summary
+fn:lineActions:	editability	tries	versions
+fn:lineFixChecks:	commitLive	fixBranch	fixCommitChecks
+fn:lineMoments:	momentBodyForWeb	momentForWeb
+fn:lineStages:	dispatch	flow	reviews
+fn:lineTimeline:	page
+fn:lineTrial:	cards	projects	runs	spend
+fn:lineWorkspace:	cards	deploys	labels	occurrences	stationInput
+fn:linkPreviews:	get	request
+fn:liveActivity:	currentState	registerPushToStartToken	reportActivity	reportActivityEnded
+fn:liveArtifacts:	editorCandidates	elementsSince	restore	sharedElements	stateAt	versions
+fn:liveFlows:	forTeam
+fn:livePresence:	leave	presence	setPresence
+fn:liveSearch:	search
+fn:machineResources:	getMine	report
+fn:managedDevices:	adminOverview	buildEnrollmentProfile	completeEnrollment	createEnrollmentToken	enrollmentPreview
+fn:managedSessions:	getAggregateMetrics	getConversationBySessionId	getPendingMessagesForSession	getSessionMetrics	heartbeat	heartbeatBatch	isSessionManaged	listActiveSessions	listManagedSessionsForDaemon	markMessageDelivered	registerManagedSession	reportMetrics	unregisterManagedSession	updateAgentStatus	updateManagedSessionId	updateSessionConversation
+fn:mcpAuth:	listConnections	oauthStatus
+fn:mcpConsent:	approve	consentInfo
+fn:meetingBots:	listMine
+fn:meetingCalendar:	getSettings	listUpcoming	refreshMine
+fn:messages:	addMessage	addMessages	backfillConversationImages	deleteMessagesByUuid	existingMessageUuids	findAllMessagesByContent	findMessageByContent	generateMessageShareLink	getConversationFileChangeIndex	getConversationImages	getFileChangeBodies	getMessageCoverageV2	getMessageTimestamp	getSharedMessage	webGet
+fn:metrics:	getWatch	listWatches	series	seriesMany
+fn:modCalls:	webCall	webGetCall
+fn:modLocal:	cliPendingCall	webState
+fn:modLogs:	webLog
+fn:modObjects:	webList
+fn:modSecrets:	webSet
+fn:modServer:	call
+fn:modelCalls:	budgetForTeam
+fn:mods:	webList
+fn:moveRehearsals:	forRunner	listMine	report
+fn:newSessionDefaults:	defaultDevice
+fn:notifications:	createSessionNotification	getMissedSince	list
+fn:oauthConnectors:	confirmConnection	disconnect	getConnectUrl
+fn:org:	brief	roleCard	roles	scopeFeed	scopeSummary	sessionsUnder	tree
+fn:orgChanges:	get	list	previewUndo
+fn:orgHealth:	healthReport
+fn:orgInit:	takeoverPreview
+fn:orgLine:	queue
+fn:orgProposals:	create	get	list	origin
+fn:orgRoles:	line
+fn:orgTemplateLearning:	learning
+fn:orgTemplates:	catalog	instanceForRole	listLessons
+fn:paneRecovery:	reportPaneRefused
+fn:passkeys:	challenge	list	presenceBegin	presenceFinish	registrationBegin	registrationFinish	remove	rename
+fn:pathStats:	refreshPathStats
+fn:peerLinks:	recordPeerLink
+fn:peerTransfers:	reportPeerTransfer
+fn:pendingMessages:	cancelPendingMessage	claimPendingMessageForDelivery	getConversationPendingMessage	getMessageStatus	getPendingMessagesForDaemon	releaseQueued	resetInjectedMessages	retryMessage	sendMessageToSession	sendSessionMessage	updateMessageStatus
+fn:permissionRules:	check	list
+fn:permissions:	cancelPendingPermissions	cancelPermissionRequest	createPermissionRequest	getAllRespondedPermissions	getPendingPermissions	getPermissionDecision
+fn:pipelines:	forTeam
+fn:plans:	snippet	webGet	webGetByIds	webList	webMentionList	webPlanContext
+fn:prCli:	autoMerge	close	draft	edit	merge	mergeAccess	reopen	reviewers	updateBranch	watchPRs
+fn:prDetails:	refresh
+fn:prGuides:	forPr	write
+fn:projectOutputs:	items	members
+fn:projectSources:	teammateSources
+fn:projectUpdates:	webList	webTimeline
+fn:projects:	webGet	webGetByIds	webList
+fn:publicShare:	getSharedCall	getSharedCard	getSharedDecision	getSharedInitiative	getSharedProject	getSharedRun	getSharedStack	getSharedTask	getSharedTrigger
+fn:pull_requests:	getPRByNumber	getPRsForConversation	getPRsForTimeline	sessionCardPRs	webGet
+fn:pushRouter:	reportPresence
+fn:quoteDrafts:	listForConversation
+fn:regulatedDeletion:	destroyPreview
+fn:replays:	browse	get	list	playerLink	webGetReplay
+fn:repoFlows:	forCheckout
+fn:repoSessions:	getSessions
+fn:repos:	answerLocalRead	canBrowse	ensureBlame	ensureBlob	ensureBranchDetails	ensureBranches	ensureCommitFiles	ensureCompare	ensureLastCommits	ensureLog	ensureMeta	ensurePulls	ensureReadme	ensureSearch	ensureTags	ensureTree	getBlame	getBlameSessions	getBlob	getBranchDetails	getBranches	getCompare	getLastCommits	getLog	getMeta	getPulls	getReadme	getSearch	getTags	getTree	getWorktrees	ingestLocal	listRepositories	pendingLocalReads	readRequestStatus
+fn:resourceOffload:	preflight
+fn:reviews:	getReviewsForPR	handPendingToSession	submitPending
+fn:roleIcons:	brief	generate	viewerRoles
+fn:savedViews:	webList
+fn:screenRecordings:	begin	discard	uploaded
+fn:secrets:	create	events	fulfill	list	requestSigninCapture	restore	reveal	rotate	versions
+fn:sessionDecisions:	findAskMessage	findByAnswer	get	getWithDoc	getWithDocMany	grant	listForRole	listForUser	listHandledByRoles	listOpenForLines	reportCommandRun
+fn:sessionFlowRuns:	forConversation	forTeam
+fn:sessionGoals:	forConversation
+fn:sessionGuests:	guestState	joinAsGuest	suggest	withdraw
+fn:sessionIcons:	requestSessionIcon
+fn:sessionIndex:	page
+fn:sessionMigrations:	beginSession	cancelBatch	candidates	commandStatus	confirmSession	createBatch	enqueueQuiesce	failSession	finishSession	listBatches	reportSession	retryFailed	runnerBatch	sessionFacts
+fn:sessionOwnership:	ackSessionAssignment	listOwnerCandidates	listOwners
+fn:sessionPeek:	recentTurns
+fn:sessionQuerySuggest:	recentFiles
+fn:sessionReads:	listMine
+fn:sessionThreads:	findSendingMessage	listSessionThreads
+fn:sessionTransfer:	discardSessionBundle	requestSessionExport	sessionExportOutcomes
+fn:sheetQueries:	refresh
+fn:ship:	forTarget
+fn:sideAnswers:	listForConversation
+fn:signals:	detailForWeb	forTask	webList
+fn:signinAutofill:	mine	set
+fn:slack:	completeSlackInstall	getInstallUrl	unlinkChannel
+fn:slackSync:	getTeamSlack	linkActivity	linkChannel	listSlackChannels	listSlackPeople	mapSlackPerson	refreshSlackMembers	setDmSync
+fn:sources/app:	capabilities	doAction	listCalls	read	refresh
+fn:sources/appViews:	mint
+fn:sources/posthog:	listInsights	query
+fn:sources/vendorProjects:	listVendorProjects
+fn:sources/vendorReplay:	importLinked
+fn:storyMode:	generateStory	generateSummary	getStory	getSummary
+fn:subagentFleet:	queueStatus	reportMergeBack
+fn:syncCursors:	getSyncCursor	updateSyncCursor
+fn:syncLog:	getHeads	getRange
+fn:systemConfig:	getMinCliVersion	getMinDesktopVersion	setMinCliVersion	setMinDesktopVersion
+fn:taskCost:	cost
+fn:taskEvidence:	get
+fn:taskMining:	webGetDocDetail	webGetTaskDetail
+fn:tasks:	create	update	webActiveSessions	webGet	webGetByIds	webList	webListByConversation	webListPaginated	webMentionList	webTaskOrigins
+fn:teamBilling:	getSeatState	openSeatPortal	seatOffer	startSeatCheckout
+fn:teamDiscovery:	confirmWorkEmailCode	decideRequest	discoveryNudge	discoverySettings	myWorkDomain	pendingRequests	requestToJoin	sendWorkEmailCode	setDiscoverable	teamsForMyDomain
+fn:teamHosts:	claimMember	join	list	register	removeMember	rename	reportMember	unregister
+fn:teamKit:	webKitConflicts	webListTeamKitItems	webPendingConsents	webVersions
+fn:teamReadKeys:	create	list
+fn:teamSuggestions:	listMine
+fn:teams:	getTeam	getTeamByInviteCode	getTeamMembers	getUserTeams	joinTeam	regenerateInviteCode	sendInviteEmail	syncGithubOrg
+fn:terminalStream:	getPane	getPaneClipboard	sendPaneInput	watchPane
+fn:threads:	listMine	unreadByWorkspace	unreadCount
+fn:tokenConnectors:	connectWithToken
+fn:transcripts:	addRoute	appendSegments	attachRecording	beat	flush	getLive	linkExcerpt	mintAsrToken	removeRoute	setRecordingScope	start	stop	webCallPlaces	webCallsForConversation	webGetCall	webGetCallRef	webListCalls	webSearchCalls
+fn:treeSnapshots:	editedPaths	listForConversation	record	reportRewindStaged
+fn:usageCalibration:	get
+fn:userSends:	fullText	mine	searchMine	teamDay
+fn:users:	addAlternateEmail	claimUsername	clearPushToken	deleteAccount	deleteConversationsForPath	getCommandResult	getCurrentUser	getCurrentUserProbe	getDirectoryTeamMappings	getMyPendingCommands	getMySkills	getPendingCommands	getPublicActivityHeatmap	getPublicActivityPunchcard	getPublicPinnedSessions	getPublicProfile	getRecentProjectPaths	getRecentProjectsWithGitInfo	getSuggestedTeamProjects	getSyncSettings	getTeamMembers	getUserAbstractActivity	getUserActivityHeatmap	getUserActivityPunchcard	getUserByUsername	getUserDocs	getUserProfileFeed	getUserTasks	isUsernameAvailable	listConversationsForPath	removeAlternateEmail	removeDirectoryTeamMapping	requestDesktopUpdate	requestTerminalEndpoints	sendConfigCommand	sendDaemonCommand	sendDaemonCommandToAll	setClaudeBackend	setPublicProfileEnabled	shareImpactForPaths	storePushToken	storeVoipPushToken	unlinkGitHub	updateAgentDefaultParams	updateDirectoryTeamMapping	updateSyncSettings
+fn:vaultMirror:	webGetNote	webListNotes	webListVaults
+fn:wallet:	mine
+fn:weeklyCards:	generate	listMine
+fn:whisk:	connectAvailable	connection	disconnect	finishConnect	getConnectUrl
+fn:workflow_runs:	byIds	cancel	create	get	getByExternalRunForUser	graphOfRun	listDynamicRuns	listForWorkflow	listRuns	liveIds	liveRunsForDevice	pinnedGraphOfRun
+fn:workflows:	webGet	webGetBySlug	webList	webPool
+http:GET /.well-known/	codecast-keys.json	oauth-authorization-server	oauth-protected-resource
+http:GET /.well-known/oauth-protected-resource/	mcp
+http:GET /api/github-app/	callback
+http:GET /api/public/	repo/*
+http:GET /cli/a/	*
+http:GET /cli/	mcp	player.js
+http:GET /cli/public/	repo/*
+http:GET /cli/replays/	chunk	player
+http:GET /cli/v1/	team/sessions
+http:OPTIONS /api/public/	repo/*
+http:OPTIONS /cli/accounts/	continue-blocked	publish	recovery-status	restamp-park	switch
+http:OPTIONS /cli/agents/	get	list	remove	resolve	upsert
+http:OPTIONS /cli/anchor/	brief	create	decommission	link-channel	list	resolve	say	say-chat	wake
+http:OPTIONS /cli/artifacts/	attach	data	delete	list	manage	publish	rollback	state	upload
+http:OPTIONS /cli/	blame	bookmark	checkouts	command-claim	command-result	decide	decisions	exchange-token	export	feed	fork	handoff	heartbeat	inbox	local-checkouts	log	log-batch	mcp	patterns	pipelines	read	repo-lease	route	search	session-links	sessions	similar	spawn	stable-context	sync-settings	teams	timeline	tree	typed	whoami
+http:OPTIONS /cli/blame/	resolve
+http:OPTIONS /cli/bookmark/	delete	list
+http:OPTIONS /cli/brief/	edit	get
+http:OPTIONS /cli/browser/	frame	pane-offer
+http:OPTIONS /cli/calls/	board	bots/cancel	bots/list	bots/send	frame-share	get	hold	list	pin	pins	recordings	unpin
+http:OPTIONS /cli/cap/	bind	bindings	consents	kit/adoptions	kit/applied	kit/list	kit/publish	kit/remove	kit/upload-url	kit/version	mode	status	surfaces
+http:OPTIONS /cli/chains/	get	list	remove	resolve	upsert
+http:OPTIONS /cli/changes/	mark-deploy
+http:OPTIONS /cli/chat/	add-agents	anchor-follow	archive	channels	create-channel	lines-since	mark-read	open-dm	people	react	read	remove-agent	reply	search	send	slack/channels	slack/dms	slack/link	slack/map	slack/people	slack/status	slack/unlink	slack/update	stop	thread
+http:OPTIONS /cli/checkouts/	report
+http:OPTIONS /cli/connector/	calls	capabilities	refresh
+http:OPTIONS /cli/conversations/	count	delete-by-path
+http:OPTIONS /cli/decide/	answer	comment	escalate	pass-to	recommend	show
+http:OPTIONS /cli/decisions/	add	delete
+http:OPTIONS /cli/deploys/	added-by	get	main-commits	ship-pass	target/request	targets	targets/poll	targets/publish
+http:OPTIONS /cli/docs/	comment	create	delete	get	lab	list	patch	search	share	unshare	update
+http:OPTIONS /cli/entities/	type
+http:OPTIONS /cli/envs/	cases/log	cases/open	cases/page	cases/put	get	goal-levels	link	list	record	record-cases	standings
+http:OPTIONS /cli/events/	group	groups	issue	list	set-status
+http:OPTIONS /cli/expectations/	brief	propose	resolve	show
+http:OPTIONS /cli/flow/	live/bar	live/hold	live/show	live/unhold
+http:OPTIONS /cli/flows/	versions
+http:OPTIONS /cli/goals/	brief	control	set	show
+http:OPTIONS /cli/images/	upload-url	url
+http:OPTIONS /cli/ingest/	*
+http:OPTIONS /cli/initiatives/	add-project	create	get	list	post	record	remove-project	report	update
+http:OPTIONS /cli/integrations/	add-source	candidates	connect-token	connect-url	disconnect	list	remove-source	sources	sync	update-source
+http:OPTIONS /cli/intent/	verify
+http:OPTIONS /cli/keys/	get	set
+http:OPTIONS /cli/labels/	clear	create	list	remove	rename	set
+http:OPTIONS /cli/line-tries/	report
+http:OPTIONS /cli/line/	deploy/report	deploy/request	deploy/stage	dissolve	fixloop/cursor	fixloop/record	merge/check	merge/record	problem-cost	profile/publish	requeue	trial/answer	trial/cards	trial/dispatch	trial/dispatch-set	trial/drop	trial/projects	trial/rebuild	trial/recard	trial/rerun	trial/run-target	trial/runs	trial/set	trial/spend	trial/spend-add	trial/spend-rm	trial/sweep
+http:OPTIONS /cli/live/	access	apply	checkpoint	draft	elements	presence	remote	restore	versions
+http:OPTIONS /cli/main-red/	open
+http:OPTIONS /cli/me/	emails
+http:OPTIONS /cli/media/	sign
+http:OPTIONS /cli/messages/	send	status
+http:OPTIONS /cli/metrics/	backfill	create	get	list	points-rm	query	redefine	remove
+http:OPTIONS /cli/model/	budget	call
+http:OPTIONS /cli/mods/	call	claim-calls	finish-call	get-call	get-version	guide	list	local	local-device	local-report	log	logs	publish-state	push	remove	rollback	secret-set	secrets	set-enabled	versions
+http:OPTIONS /cli/moments/	body	claim	complete	freshness	judged	ls	publish	rejudge	retry	rulings	show
+http:OPTIONS /cli/oauth/	register	token
+http:OPTIONS /cli/objects/	create	get	kinds	list	update
+http:OPTIONS /cli/orchestration/	emit
+http:OPTIONS /cli/org/	analysis-inputs	apply-decision	assistant	create	health	loose	proposal	proposal/hire	proposal/revise	proposal/withdraw	proposals	propose	reparent	reparent-session	reset	retire	roles	scope	scope-feed	scope-summary	sessions-under	staff	template/activate	template/catalog	template/charter	template/evidence	template/get	template/instance	template/instance-status	template/instances	template/learn/due	template/learn/pass	template/learn/promote	template/learn/rollout	template/learn/status	template/learning	template/learning/set	template/lesson	template/lesson-status	template/lessons	template/publish	template/release	template/report	template/retire	template/setup	template/yank	tree	where
+http:OPTIONS /cli/patterns/	add	delete	show
+http:OPTIONS /cli/pipelines/	publish
+http:OPTIONS /cli/plans/	bind	comment	create	decide	discover	drive-findings	drive-state	get	list	log	log/unread	pointer	save-retro	share	status	telemetry	template-remove	template-save	templates	unbind	unshare	update
+http:OPTIONS /cli/pr/	auto-merge	close	comment	draft	edit	events	ls	merge	notes	reopen	resolve	review	reviewers	shepherd	show	threads	update-branch
+http:OPTIONS /cli/progress/	append	replay
+http:OPTIONS /cli/projects/	comment-update	context	create	get	list	outputs	post	set-session	timeline	update	updates
+http:OPTIONS /cli/public/	repo/*
+http:OPTIONS /cli/read/	ask
+http:OPTIONS /cli/replays/	backfill	backfill-stop	chunk	get	import	import-linked	import-status	player	player-link	recordings	resolve	search
+http:OPTIONS /cli/repo-flows/	report
+http:OPTIONS /cli/review/	add	disposition	edit	list	rm	send
+http:OPTIONS /cli/reviews/	cancel	claim	done	renew	retry	start	status	transcript
+http:OPTIONS /cli/role/	authority	autonomy	create	follow	handoff	icon	icon/generate	icon/set	limits	line	line/merge	line/set	move	provision	reports	restart	self	split	tune	unfollow	update	wake
+http:OPTIONS /cli/session/	ack	unread
+http:OPTIONS /cli/sessions/	command-results	dismiss	disown	hibernate	kill	originator	own	owners	owners/set	pin	queue	rename	reparent	restart	resume	retire	share	state/get	state/set	switch	undismiss	unpin
+http:OPTIONS /cli/sharing/	delete	impact	overview	rule	rule/remove	session	sessions	stats	sync	team
+http:OPTIONS /cli/ship/	run
+http:OPTIONS /cli/signal/	add	diagnosis	judge-defects	ls	merge	move	show	split
+http:OPTIONS /cli/sources/	create	get	list	remove	rotate-key	update
+http:OPTIONS /cli/stack/	create	ls	show
+http:OPTIONS /cli/sync-settings/	update
+http:OPTIONS /cli/tasks/	complete	create	history	list	pause	update
+http:OPTIONS /cli/team/	focus
+http:OPTIONS /cli/teams/	mappings	mappings/update	projects
+http:OPTIONS /cli/terminal/	frame
+http:OPTIONS /cli/vault/	ask-first	create	events	fulfill	list	read	redaction-values	redaction-version	refresh	register	request	restore	rm	rotate	show	update	upload-url	upsert	versions
+http:OPTIONS /cli/work/	claim	comment	context	create	dep	evidence	get	history	list	page	promote	relate	resume	snippet	spawn	supersede	undep	unrelate	unwait	update	wait
+http:OPTIONS /cli/workflow-runs/	admit	cancel	ci-verdict	clear	create	gate	get	graph	ingest	list	live-on-device	merge-proof	poll-gate	progress	reask	rebase	resume	review-verdict
+http:OPTIONS /cli/workflows/	line-version	list	pool	upsert
+http:POST /calls/	face
+http:POST /cli/accounts/	continue-blocked	publish	recovery-status	restamp-park	switch
+http:POST /cli/agents/	get	list	remove	resolve	upsert
+http:POST /cli/anchor/	brief	create	decommission	link-channel	list	resolve	say	say-chat	wake
+http:POST /cli/artifacts/	attach	data	delete	list	manage	publish	rollback	state	upload
+http:POST /cli/	auth-request	blame	bookmark	checkouts	command-claim	command-result	decide	decisions	enroll	exchange-token	export	feed	fork	handoff	heartbeat	inbox	local-checkouts	log	log-batch	mcp	patterns	pipelines	read	repo-lease	route	search	session-links	sessions	similar	spawn	stable-context	sync-settings	teams	timeline	tree	typed	whoami
+http:POST /cli/blame/	resolve
+http:POST /cli/bookmark/	delete	list
+http:POST /cli/brief/	edit	get
+http:POST /cli/browser/	frame	pane-offer
+http:POST /cli/calls/	board	bots/cancel	bots/list	bots/send	frame-share	get	hold	list	pin	pins	recordings	unpin
+http:POST /cli/cap/	bind	bindings	consents	kit/adoptions	kit/applied	kit/list	kit/publish	kit/remove	kit/upload-url	kit/version	mode	status	surfaces
+http:POST /cli/cast/	env-machine
+http:POST /cli/chains/	get	list	remove	resolve	upsert
+http:POST /cli/changes/	mark-deploy
+http:POST /cli/chat/	add-agents	anchor-follow	archive	channels	create-channel	lines-since	mark-read	open-dm	people	react	read	remove-agent	reply	search	send	slack/channels	slack/dms	slack/link	slack/map	slack/people	slack/status	slack/unlink	slack/update	stop	thread
+http:POST /cli/checkouts/	report
+http:POST /cli/connector/	calls	capabilities	refresh
+http:POST /cli/conversations/	count	delete-by-path
+http:POST /cli/decide/	answer	comment	escalate	pass-to	recommend	show
+http:POST /cli/decisions/	add	delete
+http:POST /cli/deploys/	added-by	get	main-commits	ship-pass	target/request	targets	targets/poll	targets/publish
+http:POST /cli/docs/	comment	create	delete	get	lab	list	patch	search	share	unshare	update
+http:POST /cli/entities/	type
+http:POST /cli/envs/	cases/log	cases/open	cases/page	cases/put	get	goal-levels	link	list	record	record-cases	standings
+http:POST /cli/events/	group	groups	issue	list	set-status
+http:POST /cli/expectations/	brief	propose	resolve	show
+http:POST /cli/flow/	live/bar	live/hold	live/show	live/unhold
+http:POST /cli/flows/	versions
+http:POST /cli/goals/	brief	control	set	show
+http:POST /cli/images/	upload-url	url
+http:POST /cli/ingest/	*
+http:POST /cli/initiatives/	add-project	create	get	list	post	record	remove-project	report	update
+http:POST /cli/integrations/	add-source	candidates	connect-token	connect-url	disconnect	list	remove-source	sources	sync	update-source
+http:POST /cli/intent/	verify
+http:POST /cli/keys/	get	set
+http:POST /cli/labels/	clear	create	list	remove	rename	set
+http:POST /cli/line-tries/	report
+http:POST /cli/line/	deploy/report	deploy/request	deploy/stage	dissolve	fixloop/cursor	fixloop/record	merge/check	merge/record	problem-cost	profile/publish	requeue	trial/answer	trial/cards	trial/dispatch	trial/dispatch-set	trial/drop	trial/projects	trial/rebuild	trial/recard	trial/rerun	trial/run-target	trial/runs	trial/set	trial/spend	trial/spend-add	trial/spend-rm	trial/sweep
+http:POST /cli/live/	access	apply	checkpoint	draft	elements	presence	remote	restore	versions
+http:POST /cli/main-red/	open
+http:POST /cli/me/	emails
+http:POST /cli/media/	sign
+http:POST /cli/messages/	send	status
+http:POST /cli/metrics/	backfill	create	get	list	points-rm	query	redefine	remove
+http:POST /cli/model/	budget	call
+http:POST /cli/mods/	call	claim-calls	finish-call	get-call	get-version	guide	list	local	local-device	local-report	log	logs	publish-state	push	remove	rollback	secret-set	secrets	set-enabled	versions
+http:POST /cli/moments/	body	claim	complete	freshness	judged	ls	publish	rejudge	retry	rulings	show
+http:POST /cli/oauth/	register	token
+http:POST /cli/objects/	create	get	kinds	list	update
+http:POST /cli/orchestration/	emit
+http:POST /cli/org/	analysis-inputs	apply-decision	assistant	create	health	loose	proposal	proposal/hire	proposal/revise	proposal/withdraw	proposals	propose	reparent	reparent-session	reset	retire	roles	scope	scope-feed	scope-summary	sessions-under	staff	template/activate	template/catalog	template/charter	template/evidence	template/get	template/instance	template/instance-status	template/instances	template/learn/due	template/learn/pass	template/learn/promote	template/learn/rollout	template/learn/status	template/learning	template/learning/set	template/lesson	template/lesson-status	template/lessons	template/publish	template/release	template/report	template/retire	template/setup	template/yank	tree	where
+http:POST /cli/patterns/	add	delete	show
+http:POST /cli/pipelines/	publish
+http:POST /cli/plans/	bind	comment	create	decide	discover	drive-findings	drive-state	get	list	log	log/unread	pointer	save-retro	share	status	telemetry	template-remove	template-save	templates	unbind	unshare	update
+http:POST /cli/pr/	auto-merge	close	comment	draft	edit	events	ls	merge	notes	reopen	resolve	review	reviewers	shepherd	show	threads	update-branch
+http:POST /cli/progress/	append	replay
+http:POST /cli/projects/	comment-update	context	create	get	list	outputs	post	set-session	timeline	update	updates
+http:POST /cli/read/	ask
+http:POST /cli/replays/	backfill	backfill-stop	frame-admit	get	import	import-linked	import-status	player-link	recordings	resolve	search
+http:POST /cli/repo-flows/	report
+http:POST /cli/review/	add	disposition	edit	list	rm	send
+http:POST /cli/reviews/	cancel	claim	done	renew	retry	start	status	transcript
+http:POST /cli/role/	authority	autonomy	create	follow	handoff	icon	icon/generate	icon/set	limits	line	line/merge	line/set	move	provision	reports	restart	self	split	tune	unfollow	update	wake
+http:POST /cli/session/	ack	unread
+http:POST /cli/sessions/	command-results	dismiss	disown	hibernate	kill	originator	own	owners	owners/set	pin	queue	rename	reparent	restart	resume	retire	share	state/get	state/set	switch	undismiss	unpin
+http:POST /cli/sharing/	delete	impact	overview	rule	rule/remove	session	sessions	stats	sync	team
+http:POST /cli/ship/	run
+http:POST /cli/signal/	add	diagnosis	judge-defects	ls	merge	move	show	split
+http:POST /cli/sources/	create	get	list	remove	rotate-key	update
+http:POST /cli/stack/	create	ls	show
+http:POST /cli/sync-settings/	update
+http:POST /cli/tasks/	complete	create	history	list	pause	resolve	update
+http:POST /cli/team/	focus
+http:POST /cli/teams/	mappings	mappings/update	projects
+http:POST /cli/terminal/	frame
+http:POST /cli/vault/	ask-first	create	events	fulfill	list	read	redaction-values	redaction-version	refresh	register	request	restore	rm	rotate	show	update	upload	upload-url	upsert	versions
+http:POST /cli/work/	claim	comment	context	create	dep	evidence	get	history	list	page	promote	relate	resume	snippet	spawn	supersede	undep	unrelate	unwait	update	wait
+http:POST /cli/workflow-runs/	admit	cancel	ci-verdict	clear	create	gate	get	graph	ingest	list	live-on-device	merge-proof	poll-gate	progress	reask	rebase	resume	review-verdict
+http:POST /cli/workflows/	line-version	list	pool	upsert

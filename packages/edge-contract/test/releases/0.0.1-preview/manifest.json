@@ -1,0 +1,26 @@
+{
+  "revision": "c0b429925e4da798def287ee04b87ce46fadd748",
+  "hashes": {
+    "blobs.put.json": "2384ec4ebfcc497663a4402ecd8e76216456d57b5cb6258e90f43d3d61716ee1",
+    "claim.json": "3f43f537f680aa96aaff4420aa5b3a2e362ee96e3ada03f7d77d67c2f2434c9d",
+    "client-inventory.txt": "c77cedca16a9583d3744ad8f5cc217421c4bed841772023b48df50a323486a97",
+    "commands.next.json": "32b67caa94f1e30a35a732898bc8b29cfb3367403ac387e20939584093f70580",
+    "commands.result.json": "2d1dd0b2580a7c814fc6afa733a7b48079565e766b36b5ef6fd86217f5873bba",
+    "delivery-resolution.json": "367eeaa21f40ea741e254dabb534678521ecb92c26692854e0e1de750e602479",
+    "delivery.settle.json": "508093cada89961c7f8a927eff9696dc2b142183ffa1d22961156a769f45d97d",
+    "delivery.start.json": "c68e6884bf7c5f639ad4adfad22263b74098b73bac542f2aacfc22bd7504447f",
+    "errors.json": "6f60794499abd3eac7533c0b6f41bc57f61c84611f442877c2a174195bc870ca",
+    "events.append.json": "d512ac377341965bbe6f00581101fdbc32eb5c48dfbd511614714b79d41d8a55",
+    "guarded-actions.json": "1375b3aee3db7fed27a9f10dc24affe98c1db357dedd6403652ef4e5f85686bd",
+    "heartbeat.json": "40675c1269b5296ea370e03182118f7e9537bab45ac2446bce5bbb220fd38fd1",
+    "hello.json": "70085269df81ff5f0f5fc649ab202fe2580f4ea0c489c1527d574e2437cbc5c2",
+    "message.delta.json": "1432b57d618027dc80d8b1fca95b8803d5aafa0ef89d2ffe03f80fe7b724830a",
+    "permits.next.json": "80e3c7f428b94a6be32151da948345d74d2a2575ac33bcc0a450c1e1b88c1272",
+    "policy.get.json": "bee2537f6508b899dea739d1ffb6d89a0af65f4217f8eff3826f2c4e587248c0",
+    "prompt.opened.json": "6e19e8f930b30b0e018b4ec14d6b7c08448ad65f5eb607980e12cd7c63f02584",
+    "release.json": "63a8af29431c52b2035a6f32b602aa4a263ac09abc1964dd44312d3eb2b24dee",
+    "renew.json": "71b110b89d05f7650fe412b396cbc949bf3a16ff12b33357a448f1a80a4eaf70",
+    "response-variants.json": "8b7dddad08b666c417b132e65d339f09bdda4bca9b3b5d923e510325c043c81d",
+    "tool-result-inline.json": "974071311d6a5b7c31e294246347404d3f4585ef6a21614e445ce5eabace19d6"
+  }
+}

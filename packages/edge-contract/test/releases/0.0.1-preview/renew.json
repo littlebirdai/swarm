@@ -1,0 +1,13 @@
+{
+  "request": {
+    "v": 1,
+    "session": "session-1",
+    "run": 3,
+    "fencing_token": "claim-token-1"
+  },
+  "response": {
+    "v": 1,
+    "status": "renewed",
+    "expires_at": 1795453260000
+  }
+}

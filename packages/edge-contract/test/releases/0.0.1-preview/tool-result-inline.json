@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "session": "session-1",
+  "run": 3,
+  "turn": "turn-2",
+  "seq": 8,
+  "at": 1795453200007,
+  "source": "provider",
+  "kind": "tool.result",
+  "body": {
+    "call_id": "call-1",
+    "output": {
+      "inline": {
+        "blob_id": "provider-field",
+        "text": "Example tool output"
+      }
+    },
+    "is_error": false
+  }
+}

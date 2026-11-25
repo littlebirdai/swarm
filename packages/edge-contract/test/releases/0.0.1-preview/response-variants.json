@@ -1,0 +1,137 @@
+{
+  "hello": [
+    {
+      "status": "upgrade_required",
+      "supported_versions": [3, 2]
+    },
+    {
+      "status": "server_behind",
+      "supported_versions": [2, 1]
+    }
+  ],
+  "events.append": [
+    {
+      "v": 1,
+      "results": [
+        {
+          "session": "session-1",
+          "status": "gap",
+          "expected_seq": 9
+        },
+        {
+          "session": "session-2",
+          "status": "conflict",
+          "seq": 7
+        }
+      ]
+    }
+  ],
+  "permits.next": [
+    {
+      "v": 1,
+      "status": "permit",
+      "session": "session-1",
+      "run": 3,
+      "fencing_token": "claim-token-1",
+      "delivery_id": "delivery-1",
+      "seq": 12,
+      "intent": "queue",
+      "sender": {
+        "kind": "agent",
+        "id": "session-2"
+      },
+      "attempt_id": "attempt-1",
+      "state": "started",
+      "input": [
+        {
+          "type": "text",
+          "text": "Review complete."
+        },
+        {
+          "type": "blob",
+          "blob_id": "blob-1",
+          "content_type": "image/png"
+        }
+      ]
+    },
+    {
+      "v": 1,
+      "status": "empty"
+    },
+    {
+      "v": 1,
+      "status": "stale"
+    }
+  ],
+  "delivery.start": [
+    {
+      "v": 1,
+      "status": "already_started",
+      "session": "session-1",
+      "run": 3,
+      "fencing_token": "claim-token-1",
+      "delivery_id": "delivery-1",
+      "seq": 12,
+      "intent": "queue",
+      "sender": {
+        "kind": "agent",
+        "id": "session-2"
+      },
+      "attempt_id": "attempt-1"
+    },
+    {
+      "v": 1,
+      "status": "rejected",
+      "reason": "stale permit"
+    }
+  ],
+  "delivery.settle": [
+    {
+      "v": 1,
+      "status": "duplicate"
+    },
+    {
+      "v": 1,
+      "status": "stale"
+    }
+  ],
+  "commands.next": [
+    {
+      "v": 1,
+      "status": "empty"
+    }
+  ],
+  "commands.result": [
+    {
+      "v": 1,
+      "status": "duplicate"
+    },
+    {
+      "v": 1,
+      "status": "stale"
+    }
+  ],
+  "claim": [
+    {
+      "v": 1,
+      "status": "busy",
+      "retry_after_ms": 300
+    },
+    {
+      "v": 1,
+      "status": "stale"
+    }
+  ],
+  "renew": [
+    {
+      "v": 1,
+      "status": "stale"
+    }
+  ],
+  "release": [
+    {
+      "v": 1,
+      "status": "stale"
+    }
+  ]
+}

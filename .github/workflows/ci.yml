@@ -137,10 +137,15 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
 
       - uses: ./.github/actions/setup-bun
 
       - name: Unit tests (ci scripts + workflow contract)
+        env:
+          EDGE_RELEASE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: bun test scripts/ci/
 
   # The test files no gate can cover, run on every change

@@ -250,6 +250,7 @@ describe("watcher deployment selection", () => {
 
   test.each([
     "prod:production",
+    "dev:fine-deer-603",
     "preview:preview",
     "untyped-name",
     "dev:prod:production",
