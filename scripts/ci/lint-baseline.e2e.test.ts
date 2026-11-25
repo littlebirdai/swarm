@@ -21,6 +21,8 @@ function installLint(cwd: string) {
     "scripts/lib/oxlint.ts",
     "scripts/oxlint-plugin.mjs",
     "scripts/lib/semantic-comment.mjs",
+    "scripts/lib/effect-import-rule.mjs",
+    "scripts/lib/effect-zone.mjs",
   ]) {
     const target = join(cwd, file);
     mkdirSync(dirname(target), { recursive: true });
@@ -384,7 +386,7 @@ test("checks whole-line removal and rescans only changed donors", async () => {
     git(cwd, "commit", "-m", "Base");
     installLint(cwd);
     const base = git(cwd, "rev-parse", "HEAD");
-    writeFileSync(join(cwd, donor), `// prefix // TODO\n${anchor}`);
+    writeFileSync(join(cwd, donor), "// prefix // TODO\n");
     writeFileSync(join(cwd, destination), `// TODO\n${anchor}`);
 
     const executable = join(cwd, "node_modules/.bin/oxlint");
@@ -409,3 +411,32 @@ process.exit(run.exitCode);
     rmSync(cwd, { recursive: true, force: true });
   }
 }, 20_000);
+
+test("compares with the fork point when the base moved ahead", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "swarm-lint-ahead-"));
+  try {
+    const file = "apps/web/other.ts";
+    const save = (count: number) => {
+      writeFileSync(join(cwd, file), "// old comment\n".repeat(count));
+      writeFileSync(
+        join(cwd, "lint-baseline.json"),
+        JSON.stringify({ [file]: { "swarm/no-comments": count } }),
+      );
+      git(cwd, "add", ".");
+      git(cwd, "commit", "-m", `${count} comments`);
+    };
+    mkdirSync(join(cwd, "apps/web"), { recursive: true });
+    git(cwd, "init", "--initial-branch=main");
+    save(2);
+    git(cwd, "switch", "-c", "change");
+    git(cwd, "switch", "main");
+    save(1);
+    const ahead = git(cwd, "rev-parse", "HEAD");
+    git(cwd, "switch", "change");
+    installLint(cwd);
+    const result = lint(cwd, [], ahead);
+    expect(result.code, result.output).toBe(0);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});

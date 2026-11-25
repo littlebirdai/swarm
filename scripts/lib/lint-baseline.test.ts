@@ -127,7 +127,10 @@ function spans(
     Object.entries(entries).map(([file, rules]) => [
       file,
       {
-        source: "\n" + Object.values(rules).flat().join("\n") + "\n",
+        source: `\n${Object.values(rules)
+          .flat()
+          .flatMap((text) => [text, "context"])
+          .join("\n")}\n`,
         rules: new Map(
           Object.entries(rules).map(([rule, texts]) => [
             rule,
@@ -205,7 +208,7 @@ test("shares each donor budget across files and reassigns overlapping matches", 
 test("extracts whole trimmed lines and nonblank neighbors from UTF-8 spans", () => {
   const prefix = 'const name = "é🙂"; ';
   const span = "/* héllo\r\n    * world  \r\n    */";
-  const header = "  before  \r\n\r\n";
+  const header = "  before  \r\n\r\n}\n";
   const source = Buffer.from(header + prefix + span + "\n\n  after  \n");
   expect(
     diagnosticLines(
@@ -226,7 +229,53 @@ test("extracts whole trimmed lines and nonblank neighbors from UTF-8 spans", () 
     ),
   ).toEqual({
     text: prefix + "/* héllo\n* world\n*/",
+    start: Buffer.byteLength(header),
     previous: "before",
     next: "after",
   });
+});
+
+test("a neighbor that stays in the source does not carry a transfer", () => {
+  const block = (source: string, texts: string[]) => ({
+    source,
+    rules: new Map([
+      ["comments", texts.map((text) => ({ text, next: "return null;" }))],
+    ]),
+  });
+  const match = (kept: string) =>
+    matchLintTransfers(
+      [{ file: "old.ts", rule: "comments", before: 1, after: 0 }],
+      [{ file: "new.ts", rule: "comments", before: 0, after: 1 }],
+      new Map([["old.ts", block("\n// TODO\nreturn null;\n", ["// TODO"])]]),
+      new Map([
+        ["old.ts", block(kept, [])],
+        ["new.ts", block("\n// TODO\nreturn null;\n", ["// TODO"])],
+      ]),
+    )[0]!.before;
+  expect(match("\nreturn null;\n")).toBe(0);
+  expect(match("\nother();\n")).toBe(1);
+});
+
+test("a moved line carries each of its diagnostics", () => {
+  const spansOf = (source: string, starts: number[]) => ({
+    source,
+    rules: new Map([
+      [
+        "keys",
+        starts.map((start) => ({ text: "a || b", start, next: "done" })),
+      ],
+    ]),
+  });
+  const matched = matchLintTransfers(
+    [{ file: "old.ts", rule: "keys", before: 4, after: 2 }],
+    [{ file: "new.ts", rule: "keys", before: 0, after: 4 }],
+    new Map([
+      ["old.ts", spansOf("\na || b\ndone\na || b\ndone\n", [0, 0, 12, 12])],
+    ]),
+    new Map([
+      ["old.ts", spansOf("\na || b\ndone\n", [0, 0])],
+      ["new.ts", spansOf("\na || b\ndone\na || b\ndone\n", [0, 0, 12, 12])],
+    ]),
+  );
+  expect(matched[0]!.before).toBe(2);
 });

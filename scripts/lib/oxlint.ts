@@ -12,6 +12,7 @@ export type OxlintDiagnostic = {
 
 export type DiagnosticLines = {
   text: string;
+  start?: number;
   previous?: string;
   next?: string;
 };
@@ -28,7 +29,7 @@ function adjacentLine(source: Buffer, boundary: number, direction: -1 | 1) {
     const start = Math.min(boundary, edge) + 1;
     const end = Math.max(boundary, edge);
     const line = source.toString("utf8", start, end).trim();
-    if (line) return line;
+    if (/[\p{L}\p{N}]/u.test(line)) return line;
     boundary = edge;
   }
 }
@@ -56,6 +57,7 @@ export function diagnosticLines(
   if (!text.trim()) return;
   return {
     text,
+    start,
     previous: adjacentLine(source, start - 1, -1),
     next: adjacentLine(source, end, 1),
   };

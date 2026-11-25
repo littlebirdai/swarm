@@ -1,3 +1,5 @@
+import type { DiagnosticLines } from "./oxlint";
+
 export type LintCounts = Record<string, Record<string, number>>;
 
 export type CountChange = {
@@ -85,6 +87,15 @@ function countSourceOccurrences(source: string, text: string): number {
   return count;
 }
 
+function diagnosticsPerLine(spans: DiagnosticLines[], text: string): number {
+  const counts = new Map<number | undefined, number>();
+  for (const span of spans) {
+    if (span.text !== text || span.start === undefined) continue;
+    counts.set(span.start, (counts.get(span.start) ?? 0) + 1);
+  }
+  return Math.max(1, ...counts.values());
+}
+
 function spanKeys(rule: string, { text, previous, next }: DiagnosticLines) {
   return [
     ...(previous ? [JSON.stringify([rule, text, "previous", previous])] : []),
@@ -129,21 +140,30 @@ export function matchLintTransfers(
       previous.rules.get(rule) ?? [],
       current?.rules.get(rule) ?? [],
     );
+    const removedCount = (text: string) =>
+      countSourceOccurrences(previous.source, text) -
+      countSourceOccurrences(current?.source ?? "", text);
+    const movedOut = (line?: string) =>
+      line !== undefined && removedCount(line) > 0 ? line : undefined;
     const removedLines = new Map<string, FlowNode>();
     for (const { lines, count } of dropped.values()) {
       if (count <= 0) continue;
-      const matches = spanKeys(rule, lines).flatMap((key) =>
-        signatures.has(key) ? [signatures.get(key)!] : [],
-      );
+      const matches = spanKeys(rule, {
+        ...lines,
+        previous: movedOut(lines.previous),
+        next: movedOut(lines.next),
+      }).flatMap((key) => (signatures.has(key) ? [signatures.get(key)!] : []));
       if (!matches.length) continue;
       let line = removedLines.get(lines.text);
       if (!line) {
         line = [];
         removedLines.set(lines.text, line);
-        const removed =
-          countSourceOccurrences(previous.source, lines.text) -
-          countSourceOccurrences(current?.source ?? "", lines.text);
-        connect(donor, line, removed);
+        connect(
+          donor,
+          line,
+          removedCount(lines.text) *
+            diagnosticsPerLine(previous.rules.get(rule) ?? [], lines.text),
+        );
       }
       const occurrence: FlowNode = [];
       connect(line, occurrence, count);
@@ -225,4 +245,3 @@ export function staleFiles(
     .filter((file) => !exists(file))
     .sort();
 }
-import type { DiagnosticLines } from "./oxlint";

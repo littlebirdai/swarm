@@ -89,12 +89,14 @@ function lintBase(): string {
   if (sha) {
     if (!/^[0-9a-f]{40}$/.test(sha))
       throw new Error("LINT_BASE_SHA must be a full Git commit SHA.");
-    return sha;
   }
-  const result = Bun.spawnSync(["git", "merge-base", "HEAD", "origin/main"], {
-    cwd: LINT_ROOT,
-  });
-  return result.exitCode === 0 ? result.stdout.toString().trim() : "HEAD";
+  const result = Bun.spawnSync(
+    ["git", "merge-base", "HEAD", sha || "origin/main"],
+    { cwd: LINT_ROOT },
+  );
+  return result.exitCode === 0
+    ? result.stdout.toString().trim()
+    : sha || "HEAD";
 }
 
 async function runOxlint(cwd: string, files: string[] = []) {
