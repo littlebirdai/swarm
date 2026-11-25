@@ -5,7 +5,7 @@ import { workspaceDirectories } from "../../../scripts/workspace-packages";
 import { walkFiles } from "../src/index";
 
 const ROOT = resolve(import.meta.dir, "../../..");
-const PACKAGE = "@codecast/test-helpers";
+const TEST_DEPENDENCIES = ["@codecast/test-helpers", "@faker-js/faker"];
 const EXTENSIONS = [
   ".js",
   ".jsx",
@@ -19,9 +19,10 @@ const EXTENSIONS = [
 const IGNORE = new Set(["node_modules", "_generated"]);
 const TEST_PATH =
   /(?:^|\/)(?:test|tests|__tests__|test-helpers|testkits?)\/|\.(?:test|spec|testkit)\.[cm]?[jt]sx?$/;
-const MENTION = /@codecast\/test-helpers|packages\/test-helpers/;
+const MENTION =
+  /@codecast\/test-helpers|packages\/test-helpers|@faker-js\/faker/;
 
-test("production source never names the test helpers", () => {
+test("production source never names the test helpers or faker", () => {
   const offenders = walkFiles(ROOT, EXTENSIONS, IGNORE)
     .map((file) => [relative(ROOT, file), file] as const)
     .filter(
@@ -32,7 +33,7 @@ test("production source never names the test helpers", () => {
   expect(offenders).toEqual([]);
 });
 
-test("workspaces list the test helpers only as a development dependency", () => {
+test("workspaces list the test helpers and faker only as development dependencies", () => {
   const offenders = workspaceDirectories(ROOT, "apps")
     .concat(workspaceDirectories(ROOT, "packages"))
     .filter((dir) => existsSync(join(ROOT, dir, "package.json")))
@@ -41,7 +42,8 @@ test("workspaces list the test helpers only as a development dependency", () => 
         readFileSync(join(ROOT, dir, "package.json"), "utf8"),
       );
       return ["dependencies", "peerDependencies", "optionalDependencies"].some(
-        (group) => manifest[group]?.[PACKAGE],
+        (group) =>
+          TEST_DEPENDENCIES.some((dependency) => manifest[group]?.[dependency]),
       );
     });
   expect(offenders).toEqual([]);

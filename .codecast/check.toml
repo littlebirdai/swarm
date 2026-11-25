@@ -19,3 +19,4 @@ evals = "apps/evals/tsconfig.json"
 # The playground (apps/playground/SPEC.md): its shell and its own Convex
 # deployment's functions, one program.
 playground = "apps/playground/tsconfig.json"
+web-mount = "apps/web/tsconfig.mount.json"

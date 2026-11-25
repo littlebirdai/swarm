@@ -1,170 +1,122 @@
-// The role page's Settings tab after S23 (docs/architecture/org-staffing.md
-// S23.1, S23.2): one switch, Starts work on its own, that writes the stored
-// field through the one update path; the root's switch is off and locked; the
-// three limits sit behind a closed Limits disclosure with the defaults filled
-// in; and no stage, cap or budget word reaches the person.
-// Run: cd apps/web && bun test components/org/scope/ScopeSettings.mount.test.tsx
+import { expectAbsent } from "../../../test-helpers/domExpect";
+import { api } from "@codecast/convex/convex/_generated/api";
 import { test } from "bun:test";
-import {
-  realInboxStore,
-  restoreInboxStoreAfterAll,
-} from "../../__tests__/mockInboxStore";
-
-restoreInboxStoreAfterAll();
 import assert from "node:assert/strict";
+import { act } from "react";
+import { webBuilders } from "../../../test-helpers/builders";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { pending } from "../../../test-helpers/testConvex";
+import { ORG_FIXTURE } from "../orgFixture";
 import type { OrgRole, OrgTree } from "../orgTypes";
+import { ScopeSettings } from "./ScopeSettings";
 
-async function verify() {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "HTMLButtonElement",
-    "HTMLInputElement",
-    "HTMLDetailsElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "KeyboardEvent",
-    "MouseEvent",
-    "getComputedStyle",
-  ]) {
-    Object.defineProperty(globalThis, key, {
-      value: (dom.window as any)[key],
-      configurable: true,
-      writable: true,
-    });
-  }
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  const { mock } = await import("bun:test");
-  const React = await import("react");
-  const { act } = React;
+const fixtures = webBuilders("ScopeSettings.mount.test.tsx");
+const viewer = fixtures.teamMember.build();
+const growth = fixtures.role.build({
+  host_user_id: viewer._id,
+  name: "Head of Growth",
+  handle: "head-of-growth",
+  status: "active",
+});
+const rootRole = fixtures.role.build({
+  host_user_id: viewer._id,
+  handle: "head-of-people",
+  name: "Head of People",
+  status: "active",
+});
+const tree: OrgTree = { ...ORG_FIXTURE, roles: [growth, rootRole] };
 
-  const { ORG_FIXTURE } = await import("../orgFixture");
-  const tree = ORG_FIXTURE as OrgTree;
+const q = <T extends Element = HTMLElement>(selector: string) =>
+  document.querySelector<T>(selector);
+
+function setup() {
   const calls: string[] = [];
-  const state: any = {
-    currentUser: { _id: "fixture-user-me" },
-    clientState: { ui: {} },
-    projects: {},
-    orgTree: tree,
-    chatChannels: {},
-    orgIntents: [],
-    setRoleLine: () => {},
-    dropOrgIntent: () => {},
-  };
-  const useInboxStore = Object.assign((sel: any) => sel(state), {
-    getState: () => state,
-    setState: () => {},
-  });
-  mock.module("../../../store/inboxStore", () => ({
-    ...realInboxStore,
-    useInboxStore,
-    useTrackedStore: () => state,
-  }));
-  mock.module("../../../hooks/useQueryNoThrow", () => ({
-    useQueryNoThrow: () => ({ data: undefined }),
-  }));
-  const realSyncWorkflows = {
-    ...(await import("../../../hooks/useSyncWorkflows")),
-  };
-  mock.module("../../../hooks/useSyncWorkflows", () => ({
-    ...realSyncWorkflows,
-    useWorkflows: () => ({ workflows: [] }),
-  }));
-  mock.module("../../../hooks/useCoarseNow", () => ({
-    useCoarseNow: () => Date.now(),
-    useNowWhen: () => Date.now(),
-  }));
-  mock.module("next/link", () => ({
-    default: ({ href, children, ...rest }: any) =>
-      React.createElement("a", { href, ...rest }, children),
-  }));
-  // Keep the module's other exports: mock.module is process wide in a bun run.
-  const realCommentStream = {
-    ...(await import("../../tasks/TaskCommentStream")),
-  };
-  mock.module("../../tasks/TaskCommentStream", () => ({
-    ...realCommentStream,
-    Avatar: ({ name }: any) =>
-      React.createElement("span", { "data-avatar": name }),
-  }));
-  const realScopeEditors = { ...(await import("./ScopeEditors")) };
-  mock.module("./ScopeEditors", () => ({
-    ...realScopeEditors,
-    GatedScopeEditor: () =>
-      React.createElement("div", { "data-scope-editor": true }),
-    InlineEdit: () => null,
-  }));
-  mock.module("../RetireRoleConfirm", () => ({
-    RetireRoleConfirm: () => null,
-  }));
-  // The faces section redraws icons through a Convex action; no client here.
-  mock.module("../../../hooks/useRedrawRoleIcon", () => ({
-    useRedrawRoleIcon: () => ({
-      pending: null,
-      rationale: null,
-      run: () => {},
-    }),
-  }));
-  mock.module("../../anchor/SlackConnect", () => ({
-    SlackConnect: () => null,
-  }));
-  mock.module("../../ui/select-box", () => ({
-    SelectBox: ({ children, ...rest }: any) =>
-      React.createElement("select", rest, children),
-  }));
-  // The merge switch, the handoff banner and the split (RoleHandoffSections)
-  // call their mutations through convex/react; no client stands here.
-  const realConvexReact = { ...(await import("convex/react")) };
-  mock.module("convex/react", () => ({
-    ...realConvexReact,
-    useMutation: () => async () => ({}),
-    useQuery: () => undefined,
-  }));
-
-  const { createRoot } = await import("react-dom/client");
-  const { ScopeSettings } = await import("./ScopeSettings");
-  const root = createRoot(document.getElementById("root")!);
-  const q = <T extends Element = HTMLElement>(sel: string) =>
-    document.querySelector<T>(sel);
-  const text = () => document.body.textContent ?? "";
+  let mount: Awaited<ReturnType<typeof mountWeb>> | undefined;
   const render = async (role: OrgRole, canEdit = true) => {
-    await act(async () => {
-      root.render(
-        React.createElement(ScopeSettings, {
-          tree,
-          role,
-          canEdit,
-          overlaps: [],
-          hostName: "Ashot",
-          model: null,
-          standingId: null,
-          counters: { day: "2026-09-23", hands: 1, wakes: 2, tokens: 3 },
-          onUpdate: (fields: any) =>
-            calls.push(`update:${JSON.stringify(fields)}`),
-          onReparent: () => {},
-          onRetire: () => {},
-        } as any),
-      );
+    const node = (
+      <ScopeSettings
+        tree={tree}
+        role={role}
+        canEdit={canEdit}
+        overlaps={[]}
+        hostName="Ashot"
+        model={null}
+        standingId={null}
+        counters={{ day: "2026-09-23", hands: 1, wakes: 2, tokens: 3 }}
+        onUpdate={(fields) => calls.push(`update:${JSON.stringify(fields)}`)}
+        onReparent={() => {}}
+      />
+    );
+    if (mount) {
+      await mount.rerender(node);
+      return;
+    }
+    mount = await mountWeb(node, {
+      path: `/org/roles/${role.short_id}?tab=settings`,
+      setup: (backend, store) => {
+        store.syncTable("currentUser", viewer);
+        backend.set(api.orgRoles.line, pending);
+        backend.set(api.workflows.webList, []);
+        backend.set(api.accountSwitch.listAccountProfiles, { devices: [] });
+      },
     });
   };
+  return {
+    calls,
+    render,
+    text: () => document.body.textContent ?? "",
+    store: () => {
+      assert.ok(mount);
+      return mount.store.getState();
+    },
+  };
+}
 
-  const growth = tree.roles.find(
-    (r) => r.handle !== "head-of-people" && r.status === "active",
-  )!;
-  const root_ = tree.roles.find((r) => r.handle === "head-of-people");
+test("the role identity shows its name and handle and saves edits", async () => {
+  const { render, calls } = setup();
+  await render(growth);
 
-  // ── leeway to hire: off by default; a press opens the review and only its confirm turns it on; on, one press turns it off ──
-  await render({ ...growth, trust: "direct" } as OrgRole);
+  async function edit(current: string, replacement: string) {
+    const button = [...document.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent === current,
+    );
+    assert.equal(button?.textContent, current);
+    await act(async () => button!.click());
+    const field = document.activeElement;
+    assert.ok(
+      field instanceof HTMLInputElement,
+      "The editor focuses its input",
+    );
+    await act(async () => {
+      const set = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!;
+      set.call(field, replacement);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () =>
+      field.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+  }
+
+  await edit("Head of Growth", "Growth lead");
+  await edit("head-of-growth", "@growth-lead");
+  assert.deepEqual(calls, [
+    'update:{"name":"Growth lead"}',
+    'update:{"handle":"growth-lead"}',
+  ]);
+});
+
+test("hire leeway requires confirmation to turn on and turns off immediately", async () => {
+  const { render, calls } = setup();
+  await render({ ...growth, trust: "direct" });
   const hires = () => q<HTMLButtonElement>("[data-hire-leeway-switch]")!;
   assert.equal(hires().getAttribute("data-hire-leeway-switch"), "off");
   const hiresBefore = calls.length;
@@ -185,21 +137,23 @@ async function verify() {
     document.querySelector<HTMLButtonElement>("[data-switch-confirm]")!.click();
   });
   assert.equal(calls.pop(), 'update:{"hires_freely":true}');
-  await render({ ...growth, trust: "direct", hires_freely: true } as OrgRole);
+  await render({ ...growth, trust: "direct", hires_freely: true });
   assert.equal(hires().getAttribute("data-hire-leeway-switch"), "on");
   await act(async () => {
     hires().click();
   });
   assert.equal(calls.pop(), 'update:{"hires_freely":false}');
-  await render({ ...growth, trust: "direct" } as OrgRole, false);
+  await render({ ...growth, trust: "direct" }, false);
   assert.ok(hires().disabled, "a viewer who cannot edit reads it");
+});
 
-  // ── containment: off by default, flips with one press, shown only on a role with an area ──
-  const scoped = {
+test("containment changes in one press and requires an area", async () => {
+  const { render, calls } = setup();
+  const scoped: OrgRole = {
     ...growth,
     trust: "direct",
     scope: { project_ids: ["pz"], plan_ids: [] },
-  } as OrgRole;
+  };
   await render(scoped);
   const keeps = () =>
     q<HTMLButtonElement>("[data-keeps-reports-inside-switch]");
@@ -216,7 +170,7 @@ async function verify() {
     keeps()!.click();
   });
   assert.equal(calls.pop(), 'update:{"keeps_reports_inside":true}');
-  await render({ ...scoped, keeps_reports_inside: true } as OrgRole);
+  await render({ ...scoped, keeps_reports_inside: true });
   assert.equal(keeps()!.getAttribute("data-keeps-reports-inside-switch"), "on");
   await act(async () => {
     keeps()!.click();
@@ -226,11 +180,13 @@ async function verify() {
     ...growth,
     trust: "direct",
     scope: { project_ids: [], plan_ids: [] },
-  } as OrgRole);
-  assert.equal(keeps(), null, "a role with no area holds nothing");
+  });
+  expectAbsent(keeps(), "a role with no area holds nothing");
+});
 
-  // ── a hired role: the switch is on, and one click turns it off through the stored field ──
-  await render({ ...growth, trust: "direct" } as OrgRole);
+test("autonomy turns off immediately and requires confirmation to turn on", async () => {
+  const { render, calls, text } = setup();
+  await render({ ...growth, trust: "direct" });
   const sw = q<HTMLButtonElement>("[data-autonomy-switch]")!;
   assert.equal(sw.getAttribute("data-autonomy-switch"), "on");
   assert.equal(sw.getAttribute("aria-checked"), "true");
@@ -241,13 +197,13 @@ async function verify() {
   });
   assert.equal(calls.pop(), 'update:{"trust":"understand"}');
   // decide reads as on (S23.1).
-  await render({ ...growth, trust: "decide" } as OrgRole);
+  await render({ ...growth, trust: "decide" });
   assert.equal(
     q("[data-autonomy-switch]")!.getAttribute("data-autonomy-switch"),
     "on",
   );
   // Off: the hint says the person starts the work; a click opens the review of what the role may then do, and the review's own button turns it on.
-  await render({ ...growth, trust: "understand" } as OrgRole);
+  await render({ ...growth, trust: "understand" });
   assert.equal(
     q("[data-autonomy-switch]")!.getAttribute("data-autonomy-switch"),
     "off",
@@ -267,8 +223,11 @@ async function verify() {
     document.querySelector<HTMLButtonElement>("[data-switch-confirm]")!.click();
   });
   assert.equal(calls.pop(), 'update:{"trust":"direct"}');
+});
 
-  // ── the limits: a closed disclosure holding the three limits (none unless set) and today's use ──
+test("limits start closed and show usage without internal terms", async () => {
+  const { render, text } = setup();
+  await render({ ...growth, trust: "understand" });
   const limits = q<HTMLDetailsElement>("[data-role-limits]")!;
   assert.ok(limits, "the Limits disclosure exists");
   assert.equal(
@@ -292,46 +251,47 @@ async function verify() {
   assert.match(limits.textContent!, /today 1/);
   assert.match(text(), /none unless you set one/);
 
-  // ── the words: no stage, cap or budget reaches the person ──
   assert.doesNotMatch(
     text(),
     /trust|stage|\bcaps?\b|budget|allowance|understand|decide|direct/i,
   );
+});
 
-  // ── the root: its switch works like any role's ──
-  if (root_) {
-    await render({ ...root_, trust: "understand" } as OrgRole);
-    const rs = q<HTMLButtonElement>("[data-autonomy-switch]")!;
-    assert.equal(rs.getAttribute("data-autonomy-switch"), "off");
-    assert.ok(!rs.disabled, "the root's switch can be turned on");
-  }
+test("the root role can turn on autonomy", async () => {
+  const { render } = setup();
+  await render({ ...rootRole, trust: "understand" });
+  const rs = q<HTMLButtonElement>("[data-autonomy-switch]")!;
+  assert.equal(rs.getAttribute("data-autonomy-switch"), "off");
+  assert.ok(!rs.disabled, "the root's switch can be turned on");
+});
 
-  // ── the line (plan pl-838): "Edit this line" goes to its stations; a customized copy says whose ──
-  await render({ ...growth, trust: "direct" } as OrgRole);
+test("the workflow link opens the stations for the selected line", async () => {
+  const { render, store } = setup();
+  await render({ ...growth, trust: "direct" });
   const edit = q<HTMLAnchorElement>("a[data-line-edit-link]")!;
   assert.ok(edit, "the Workflow section links to line settings");
   assert.match(
     edit.getAttribute("href")!,
     /^\/flows\/settings\?(project=[^&]+&)?section=stations$/,
   );
-  assert.equal(
+  expectAbsent(
     q("[data-line-customized-note]"),
-    null,
     "the shipped line is not called customized",
   );
-  state.projects = {
-    pz: {
-      _id: "pz",
-      short_id: "pr-9",
-      title: "Atlas",
-      workspace: "user:fixture-user-me",
-    },
-  };
+  await act(async () => {
+    store().syncTable("projects", [
+      fixtures.project.build({
+        short_id: "pr-9",
+        title: "Atlas",
+        workspace: `user:${viewer._id}`,
+      }),
+    ]);
+  });
   await render({
     ...growth,
     trust: "direct",
     line_workflow_slug: "line-pr-9",
-  } as OrgRole);
+  });
   assert.equal(
     q("[data-line-customized-note]")?.textContent,
     "Atlas's customized steps",
@@ -340,20 +300,10 @@ async function verify() {
     q<HTMLAnchorElement>("a[data-line-edit-link]")!.getAttribute("href"),
     "/flows/settings?project=pr-9&section=stations",
   );
-  state.projects = {};
+});
 
-  // ── a viewer who cannot edit: the switch is there to read, not to press ──
-  await render({ ...growth, trust: "direct" } as OrgRole, false);
+test("a viewer without edit access can read the autonomy switch", async () => {
+  const { render } = setup();
+  await render({ ...growth, trust: "direct" }, false);
   assert.ok(q<HTMLButtonElement>("[data-autonomy-switch]")!.disabled);
-
-  await act(async () => {
-    root.unmount();
-  });
-  mock.module("convex/react", () => realConvexReact);
-}
-
-test(
-  "the settings tab: one switch, limits behind a disclosure, no operating words (S23)",
-  verify,
-  60_000,
-);
+});

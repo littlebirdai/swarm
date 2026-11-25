@@ -230,7 +230,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        programs: [web sim, cli convex, evals playground packages]
+        programs: [web sim, cli convex, evals playground packages, web-mount]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

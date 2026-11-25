@@ -4,7 +4,7 @@ The root `CLAUDE.md` covers the store, the sync host, guard tests for registered
 
 ## Tests
 
-**Run tests the way CI does when a result surprises you.** Run a file from this directory with `bun test <file>`. CI runs `bun test --isolate --shard=N/4` (`.github/workflows/ci.yml`, job test-web), which gives every file its own global. A plain multi-file `bun test` runs every file in one process, so `mock.module` replacements and a jsdom window on `globalThis` outlive the file that made them. When a test passes alone and fails in a suite, rerun with `--isolate`, then bisect the files that ran before it (`bun test <half of them> <target>`) and look for module-load-time environment checks before blaming the product code.
+**Run tests the way CI does when a result surprises you.** Run a file from this directory with `bun test <file>`. CI runs `bun test --parallel=3 --shard=N/10` (`.github/workflows/ci.yml`, job test-web). A plain multi-file `bun test` runs every file in one process. Module mocks and DOM globals can leak between files unless the tests restore them. When a test passes alone and fails in a suite, rerun with `--isolate`, then bisect the files that ran before it (`bun test <half of them> <target>`) and look for module-load-time environment checks before blaming the product code.
 
 **Process-wide test setup lives in one preload.** `test-helpers/preload.ts` (wired in `bunfig.toml`) runs before every file. It stubs the tiptap sync hook, stands in for `@pierre/diffs` drawing, and points every installed copy of Radix's `react-use-layout-effect` shim at React's own `useLayoutEffect`. Radix picks the real hook or a no-op once, at first import, depending on whether `document` exists; a DOM-less store test that loaded Radix first left the no-op, and every later Portal (dialogs, the consequential review) silently never mounted. A mock many files need belongs here, not in each file.
 
@@ -25,3 +25,47 @@ The root `CLAUDE.md` covers the store, the sync host, guard tests for registered
 **Hot paths have exact-count budgets.** `scripts/perf-budgets.sh` holds what a warm conversation switch, the 5,000-session inbox and a long diff may cost (fetches, subscriptions, store writes, commits, layout reads), and `scripts/perf-bench.sh` times base against head with strobe. When a change moves a count, `perf/README.md` says how to read it and when to update it.
 
 **Give each behavior one test owner.** Use the parser test for wire formats and the mounted component test for display and input. Use the real store action when a test checks an immediate store update. Use rendered elements for dialog, control, and scroll behavior. Source text and style class names can change while those behaviors stay the same.
+
+### Component mount tests
+
+Use `mountWeb` from `test-helpers/mountWeb` to mount a component. The
+harness supplies jsdom, the real inbox store, a memory router, and a Toaster.
+The test preload closes the React root and the Convex client after each test,
+including when Bun runs multiple files in one process. Use `authenticated: true`
+for pages with `AuthGuard`. Add each new mount suite to `tsconfig.mount.json`.
+Run `cast check web-mount` to check the types.
+
+Use the test file name as the builder seed. Set values in the fixture when
+the test depends on those values. Use store sync actions to load cached rows.
+
+Register each query by its Convex function reference. Pass a value, a function
+of the query arguments, `pending` from `test-helpers/testConvex`, or an `Error`.
+An `undefined` reply sends `null`. Call `backend.set` inside `act` to send a
+live update.
+
+Register mutations and actions explicitly. Use `dispatch: true` and register
+`api.dispatch.dispatch` for store writes. The harness fails the test with the
+name of an unregistered query or write. It also fails if a store action tries
+to dispatch with dispatch disabled. Read `backend.mutations` and
+`backend.actions` to check calls to the server.
+
+Use `navigationLog` to check the path and history action. Wrap interactions in
+`act`. The harness fails on unexpected `console.error` calls. Use
+`expectedConsoleErrors` for errors that the test deliberately triggers.
+After close, `pendingTimers` lists timers that the harness had to cancel.
+
+```tsx
+const { doc } = webBuilders("documentDetailLoading.test.tsx");
+const row = doc.build({ title: "Release notes" });
+const { container } = await mountWeb(
+  <DocumentDetailLayout
+    docId={row._id}
+    title={row.title}
+    markdownContent={row.content}
+    backHref="/docs"
+    defaultEditing={false}
+  />,
+  { setup: (backend) => backend.set(api.assistant.incidents.thinkingAvailable, pending) },
+);
+expect(container.querySelector("h1")?.textContent).toBe(row.title);
+```

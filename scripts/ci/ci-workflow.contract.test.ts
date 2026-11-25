@@ -371,7 +371,12 @@ describe("matrices", () => {
   const MATRICES: Record<string, Record<string, unknown[]>> = {
     build: { target: ["web", "other"] },
     typecheck: {
-      programs: ["web sim", "cli convex", "evals playground packages"],
+      programs: [
+        "web sim",
+        "cli convex",
+        "evals playground packages",
+        "web-mount",
+      ],
     },
     "test-convex": { shard: [1, 2, 3] },
     "test-web": { shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "budgets"] },
@@ -572,6 +577,7 @@ describe("pinned content", () => {
         {
           env: job.env,
           defaults: job.defaults,
+          ...(name === "typecheck" ? { matrix: job.strategy.matrix } : {}),
           services: job.services,
           steps: job.steps,
         },

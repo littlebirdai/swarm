@@ -1,136 +1,81 @@
-import { afterAll, describe, expect, test, mock } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
-import { ConvexProvider } from "convex/react";
-import { offlineConvexClient } from "../../test-helpers/offlineConvex";
+import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { describe, expect, test } from "bun:test";
+import type { ComponentProps } from "react";
+import { webBuilders } from "../../test-helpers/builders";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import { DocumentDetailLayout } from "../DocumentDetailLayout";
 
-// The read-mode body has three empty-content states that must not be confused:
-// still-loading (detail not synced → loader), genuinely empty (the "Empty
-// document" affordance), and loaded content (the review blocks). The regression
-// with teeth: a doc opened from the list has NO content until the detail query
-// returns (webListPaginated strips it), and that window used to render as a
-// blank body with no loading state.
-
-// The layout's chrome pulls in router, store, and Convex-backed children that
-// can't SSR outside the app — stub them; the branch under test is the layout's
-// own.
-mock.module("next/link", () => ({
-  default: ({ href, children }: any) => <a href={String(href)}>{children}</a>,
-}));
-mock.module("next/navigation", () => ({
-  useRouter: () => ({ push: () => {}, replace: () => {} }),
-  usePathname: () => "/docs/doc1",
-  useSearchParams: () => new URLSearchParams(),
-  useParams: () => ({}),
-}));
-mock.module("../ContextChatInput", () => ({
-  ContextChatInput: () => <div data-stub="chat-input" />,
-}));
-// Restored afterwards: `mock.module` is process-global, so a stub left in place
-// blanks MessageReview for every later file that mounts it for real (same
-// discipline as mockInboxStore below).
-const realMessageReview = { ...(await import("../MessageReview")) };
-mock.module("../MessageReview", () => ({
-  MessageReview: ({ content }: { content: string }) => (
-    <div data-stub="message-review">{content}</div>
-  ),
-}));
-afterAll(() => mock.module("../MessageReview", () => realMessageReview));
-mock.module("../DocReviewBar", () => ({
-  DocReviewBar: () => <div data-stub="review-bar" />,
-}));
-mock.module("../workspace/Slot", () => ({
-  SlotActions: () => null,
-}));
-mock.module("../editor/CollabDocEditor", () => ({
-  CollabDocEditor: () => <div data-stub="collab-editor" />,
-}));
-// Belt and braces for the editor stub above: the sync library's tiptap entry
-// imports `@tiptap/pm/collab`, which no bun environment resolves (tiptap 3's pm
-// package has no collab export), so the real editor module can never load
-// under bun test. On CI the editor stub alone did not keep it out.
-mock.module("@convex-dev/prosemirror-sync/tiptap", () => ({
-  useTiptapSync: () => ({
-    isLoading: false,
-    initialContent: null,
-    extension: null,
-    create: async () => {},
-  }),
-}));
-// Spread, not replaced: `mock.module` is process-global, and a sibling test
-// imports `matchScore` off this module.
-const realMentions = { ...(await import("../../hooks/useMentionQuery")) };
-mock.module("../../hooks/useMentionQuery", () => ({
-  ...realMentions,
-  useMentionQuery: () => () => [],
-  useActiveMentionScope: () => null,
-}));
-mock.module("../../hooks/useImageUpload", () => ({
-  useImageUpload: () => async () => "",
-}));
-mock.module("../../hooks/useTitlebarHead", () => ({
-  useTitlebarHead: () => ({ current: null }),
-}));
-const { mockInboxStore } = await import("./mockInboxStore");
-mockInboxStore(() => ({ reviewComments: {} }));
-
-const { DocumentDetailLayout } = await import("../DocumentDetailLayout");
-
-// The drafting layer binds its Lab action on every render, as the app's
-// provider allows. Never connects: static rendering fires no effects.
-const client = offlineConvexClient("https://example.convex.cloud");
-
-function render(props: Partial<Parameters<typeof DocumentDetailLayout>[0]>) {
-  return renderToStaticMarkup(
-    <ConvexProvider client={client}>
-      <DocumentDetailLayout
-        docId="doc1"
-        title="My Doc"
-        markdownContent=""
-        onTitleChange={() => {}}
-        backHref="/docs"
-        {...props}
-      />
-    </ConvexProvider>,
+async function render(
+  props: Partial<ComponentProps<typeof DocumentDetailLayout>>,
+) {
+  const doc = webBuilders("documentDetailLoading.test.tsx").doc.build({
+    title: "My Doc",
+    content: "",
+  });
+  const { container } = await mountWeb(
+    <DocumentDetailLayout
+      docId={doc._id}
+      title={doc.title}
+      markdownContent={doc.content}
+      onTitleChange={() => {}}
+      backHref="/docs"
+      {...props}
+    />,
+    {
+      path: `/docs/${doc._id}`,
+      setup: (backend) => {
+        backend.set(api.docSync.getPresence, []);
+        backend.set(api.assistant.incidents.thinkingAvailable, pending);
+      },
+    },
   );
+  return container;
 }
 
-describe("DocumentDetailLayout body modes", () => {
-  test("editable docs mount the collab editor by default (edit-first)", () => {
-    const html = render({ markdownContent: "## The idea", contentReady: true });
-    expect(html).toContain('data-stub="collab-editor"');
-    expect(html).not.toContain('data-stub="message-review"');
+describe("DocumentDetailLayout body modes", async () => {
+  test("editable docs mount the collab editor by default (edit-first)", async () => {
+    const container = await render({
+      markdownContent: "## The idea",
+      contentReady: true,
+    });
+    expectPresent(container.querySelector(".doc-editor"));
+    expectAbsent(container.querySelector(".doc-read-body"));
   });
 
   // The review body's three empty-content states (opted out of edit mode).
-  test("review: content not yet synced → loader, never a blank or 'empty' body", () => {
-    const html = render({
+  test("review: content not yet synced → loader, never a blank or 'empty' body", async () => {
+    const container = await render({
       markdownContent: "",
       contentReady: false,
       defaultEditing: false,
     });
-    expect(html).toContain("app-loader-bar");
-    expect(html).not.toContain("Empty document");
+    expectPresent(container.querySelector(".app-loader-bar"));
+    expect(container.textContent).not.toContain("Empty document");
   });
 
-  test("review: confirmed-empty doc → the empty-document affordance, no loader", () => {
-    const html = render({
+  test("review: confirmed-empty doc → the empty-document affordance, no loader", async () => {
+    const container = await render({
       markdownContent: "",
       contentReady: true,
       defaultEditing: false,
     });
-    expect(html).toContain("Empty document");
-    expect(html).not.toContain("app-loader-bar");
+    expect(container.textContent).toContain("Empty document");
+    expectAbsent(container.querySelector(".app-loader-bar"));
   });
 
-  test("review: loaded content renders through the review blocks", () => {
-    const html = render({
+  test("review: loaded content renders through the review blocks", async () => {
+    const container = await render({
       markdownContent: "## The idea",
       contentReady: true,
       defaultEditing: false,
     });
-    expect(html).toContain("The idea");
-    expect(html).not.toContain("app-loader-bar");
-    expect(html).not.toContain("Empty document");
+    expect(container.querySelector(".doc-read-body h2")?.textContent).toBe(
+      "The idea",
+    );
+    expectAbsent(container.querySelector(".app-loader-bar"));
+    expect(container.textContent).not.toContain("Empty document");
   });
 });
 
@@ -138,49 +83,49 @@ describe("DocumentDetailLayout body modes", () => {
 // title. Edit mode has NO separate h1 (the editor's first block is the
 // title); review mode splits the leading heading off the body and renders it
 // as a static heading in the same spot.
-describe("DocumentDetailLayout titleInBody", () => {
-  test("edit mode renders no separate title element", () => {
-    const html = render({
+describe("DocumentDetailLayout titleInBody", async () => {
+  test("edit mode renders no separate title element", async () => {
+    const container = await render({
       titleInBody: true,
       markdownContent: "# Real Title\n\nbody",
       contentReady: true,
     });
-    expect(html).toContain('data-stub="collab-editor"');
-    expect(html).not.toContain("<h1");
+    expectPresent(container.querySelector(".doc-editor"));
+    expectAbsent(container.querySelector("h1"));
   });
 
-  test("review mode shows the leading heading as the title and strips it from the body", () => {
-    const html = render({
+  test("review mode shows the leading heading as the title and strips it from the body", async () => {
+    const container = await render({
       titleInBody: true,
       markdownContent: "# Real Title\n\nbody text",
       contentReady: true,
       defaultEditing: false,
     });
-    expect(html).toContain("Real Title");
-    const review = html.split('data-stub="message-review"')[1] ?? "";
+    expect(container.textContent).toContain("Real Title");
+    const review = container.querySelector(".doc-read-body")?.textContent;
     expect(review).toContain("body text");
     expect(review).not.toContain("Real Title");
   });
 
-  test("review mode falls back to the stored title when the body has no heading yet", () => {
-    const html = render({
+  test("review mode falls back to the stored title when the body has no heading yet", async () => {
+    const container = await render({
       titleInBody: true,
       markdownContent: "legacy body",
       contentReady: true,
       defaultEditing: false,
     });
-    expect(html).toContain("My Doc");
-    expect(html).toContain("legacy body");
+    expect(container.textContent).toContain("My Doc");
+    expect(container.textContent).toContain("legacy body");
   });
 
-  test("a doc that is only a title counts as empty in review mode", () => {
-    const html = render({
+  test("a doc that is only a title counts as empty in review mode", async () => {
+    const container = await render({
       titleInBody: true,
       markdownContent: "# Just a Title\n",
       contentReady: true,
       defaultEditing: false,
     });
-    expect(html).toContain("Empty document");
-    expect(html).toContain("Just a Title");
+    expect(container.textContent).toContain("Empty document");
+    expect(container.textContent).toContain("Just a Title");
   });
 });

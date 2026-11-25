@@ -565,6 +565,14 @@ fi
   "typecheck": {
     "defaults": undefined,
     "env": undefined,
+    "matrix": {
+      "programs": [
+        "web sim",
+        "cli convex",
+        "evals playground packages",
+        "web-mount",
+      ],
+    },
     "services": undefined,
     "steps": [
       {
