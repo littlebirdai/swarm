@@ -20,6 +20,9 @@ function exercise(seed: number) {
   const inputCount = 2 + pick(2);
   const trace: string[] = [];
   const attributed = new Set<string>();
+  const deliveries = new Map<string, string>();
+  let lastFinished: string | undefined;
+  let trailingIdle = false;
   let submitted = 0;
   let frameIndex = 0;
   let open: string | null = null;
@@ -75,7 +78,7 @@ function exercise(seed: number) {
     const delivery_id = String(++submitted);
     trace.push(`steer ${delivery_id}`);
     assert(!turns.awaitingTurn(), "new steer is blocked");
-    return turns.send(
+    const id = turns.send(
       {
         ...steer,
         delivery_id,
@@ -83,9 +86,16 @@ function exercise(seed: number) {
       },
       delivery_id,
     );
+    deliveries.set(id, delivery_id);
+    trace.push(`command ${id} for steer ${delivery_id}`);
+    return id;
+  }
+  function recordFinished(id: string) {
+    if (attributed.has(deliveries.get(id)!)) lastFinished = id;
   }
   function status(state: "running" | "idle") {
     frame({ type: "system", subtype: "session_state_changed", state });
+    trailingIdle = false;
     if (state === "idle")
       assert.equal(turns.active(), null, "idle left a live turn");
   }
@@ -93,12 +103,38 @@ function exercise(seed: number) {
     state: "queued" | "started" | "completed" | "cancelled",
     command_uuid: string,
   ) {
-    frame({ type: "command_lifecycle", state, command_uuid });
+    return frame({ type: "command_lifecycle", state, command_uuid });
   }
-  function start(id: string) {
-    if (pick(2)) status("running");
-    lifecycle("started", id);
+  function terminal(id: string) {
+    assert(lifecycle(pick(2) ? "completed" : "cancelled", id));
+  }
+  function start(id: string, running = pick(2) === 1) {
+    if (running) status("running");
+    assert(lifecycle("started", id), "pending input did not start");
+    assert(turns.active(), "started input did not open a turn");
+    assert(
+      attributed.has(deliveries.get(id)!),
+      "started input was not attributed",
+    );
+    trailingIdle = false;
     if (pick(3) === 0) lifecycle("started", id);
+
+    const replay = lastFinished;
+    if (replay) {
+      const live = turns.active();
+      assert.equal(
+        frame({
+          type: "result",
+          subtype: "success",
+          is_error: false,
+          user_message_uuids: [replay],
+        }),
+        false,
+        "finished input result was accepted as live",
+      );
+      assert.equal(turns.active(), live, "replay closed the live turn");
+      assert.equal(open, live, "replay emitted a turn end");
+    }
   }
   function result(ids?: string[]) {
     const before = completions;
@@ -114,6 +150,8 @@ function exercise(seed: number) {
     );
     assert.equal(completions, before + 1, "live result did not end its turn");
     assert.equal(turns.active(), null);
+    for (const id of ids ?? []) recordFinished(id);
+    trailingIdle = true;
   }
 
   try {
@@ -124,45 +162,65 @@ function exercise(seed: number) {
     }
     while (submitted < inputCount) {
       const first = submit();
-      if (pick(2)) lifecycle("queued", first);
+      if (pick(2) || trailingIdle) lifecycle("queued", first);
       if (pick(4) === 0) {
-        lifecycle(pick(2) ? "completed" : "cancelled", first);
+        terminal(first);
+        trailingIdle = false;
         if (pick(2)) {
           status("running");
-          lifecycle("started", first);
+          assert.equal(lifecycle("started", first), false);
           result([first]);
           status("idle");
         }
         continue;
       }
       if (pick(3) === 0) {
+        const mustSurviveIdle = trailingIdle;
         status("idle");
-        status("running");
-        lifecycle("started", first);
-        result([first]);
-        status("idle");
+        if (mustSurviveIdle) {
+          start(first, false);
+          result([first]);
+          status("idle");
+        }
         continue;
       }
       start(first);
       if (submitted < inputCount && pick(2)) {
         const queued = submit();
         lifecycle("queued", queued);
-        if (pick(3) === 0) {
-          lifecycle("started", queued);
-          result([first, queued]);
-        } else {
-          if (pick(3) === 0)
-            lifecycle(pick(2) ? "completed" : "cancelled", queued);
-          result(pick(2) ? [first] : undefined);
-          if (pick(2)) status("idle");
-          status("running");
-          lifecycle("started", queued);
-          result([queued]);
+        switch (pick(4)) {
+          case 0:
+            start(queued);
+            result([first, queued]);
+            break;
+          case 1:
+            terminal(first);
+            terminal(queued);
+            result([first]);
+            assert(
+              !turns.awaitingTurn(),
+              "result left terminal inputs pending",
+            );
+            break;
+          case 2:
+            result([first]);
+            terminal(queued);
+            if (submitted < inputCount) continue;
+            break;
+          default:
+            result(pick(2) ? [first] : undefined);
+            if (pick(2)) {
+              status("idle");
+              status("running");
+              assert.equal(lifecycle("started", queued), false);
+            } else start(queued);
+            result([queued]);
         }
       } else if (pick(3)) result(pick(2) ? [first] : undefined);
       status("idle");
+      recordFinished(first);
     }
-    status("idle");
+    assert.equal(open, null, "trace left a turn open");
     submit();
   } catch (cause) {
     throw new Error(`Claude ordering seed ${seed}\n${trace.join("\n")}`, {
