@@ -1,176 +1,118 @@
-// Mounts the Line tab in jsdom (docs/architecture/the-line.md L10) with two
-// tasks at different stations: one column per station in order, each task in
-// its column with its run's live node and hand state, a held marker on the
-// task a pending blocking decision holds, and the evidence count. The hold
-// and run rules are lib/taskLine.ts, the same the task page strip uses.
-import { afterAll, beforeAll, expect, mock, test } from "bun:test";
-import React, { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../../../../test-helpers/globals";
+import { expect, test } from "bun:test";
+import { act } from "react";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { webBuilders } from "../../../../test-helpers/builders";
+import {
+  expectAbsent,
+  expectPresent,
+} from "../../../../test-helpers/domExpect";
+import { mountWeb } from "../../../../test-helpers/mountWeb";
+import { pending } from "../../../../test-helpers/testConvex";
+import { ScopeLineTab } from "../ScopeLineTab";
 
-import { closeDomWindow } from "../../../../test-helpers/domGlobals";
-const dom = new JSDOM(
-  "<!doctype html><html><body><div id='root'></div></body></html>",
-  {
-    url: "https://local.codecast.sh/org/or-1?tab=line",
-    pretendToBeVisual: true,
-  },
-);
-const matchMedia = (q: string) => ({
-  matches: false,
-  media: q,
-  addEventListener() {},
-  removeEventListener() {},
+const builders = webBuilders("scope line");
+const team = "t1";
+const workspace = `team:${team}`;
+const me = builders.teamMember.build({ name: "Me" });
+const sam = builders.teamMember.build({ name: "Sam Reviewer" });
+const bystander = builders.teamMember.build({ name: "Pat Owner" });
+const project = builders.project.build({ workspace });
+const outside = builders.project.build({ workspace });
+const hand = builders.session.build({
+  agent_status: "working",
+  is_connected: true,
+  is_idle: false,
+  updated_at: Date.now(),
 });
-const restoreGlobals = replaceGlobals({
-  window: Object.assign(dom.window, { innerWidth: 1400, matchMedia }),
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  matchMedia,
-  IS_REACT_ACT_ENVIRONMENT: true,
+const a = builders.task.build({
+  short_id: "ct-1",
+  title: "Rotate the prod key",
+  status: "in_progress",
+  workspace,
+  project_id: project._id,
+  assignee: sam._id,
+  files_changed: ["a.ts", "b.ts"],
 });
-// react-dom/client decides at load whether a DOM exists, so it is loaded
-// here — after the globals above — not as a static import.
-const { createRoot } = await import("react-dom/client");
-
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
+const b = builders.task.build({
+  short_id: "ct-2",
+  title: "Write the release note",
+  status: "in_review",
+  workspace,
+  project_id: project._id,
 });
-
-// The feeders are live Convex subscriptions; the tab paints from the store,
-// so the generic feeder is a no-op here and the store is seeded directly.
-mock.module("../../../../hooks/useSyncCollection", () => ({
-  useSyncCollection: () => ({ ready: true }),
-  keyRowsBy: (rows: any[]) => rows ?? [],
-}));
-mock.module("next/link", () => ({
-  default: ({ href, children, ...rest }: any) =>
-    React.createElement("a", { href, ...rest }, children),
-}));
-mock.module("../../../tasks/TaskCommentStream", () => ({
-  Avatar: ({ name }: { name: string }) =>
-    React.createElement("span", { "data-avatar": name }),
-}));
-// The card names its assignee through AssigneeFace now, not the comment
-// stream's Avatar; the marker stays so the assertions read the same name.
-mock.module("../../../identity/AssigneeFace", () => ({
-  AssigneeFace: ({ info }: { info?: { name?: string } }) =>
-    React.createElement("span", { "data-avatar": info?.name ?? "" }),
-}));
-
-const { useInboxStore } = await import("../../../../store/inboxStore");
-const { ScopeLineTab } = await import("../ScopeLineTab");
-const { withTeamRoster } = await import("../../../../test-helpers/teamRoster");
-
-const ME = "u1";
-const TEAM = "t1";
-const WS = `team:${TEAM}`;
-beforeAll(() => {
-  useInboxStore.setState({
-    currentUser: { _id: ME, name: "Me" },
-    clientStateInitialized: true,
-    teams: [{ _id: TEAM, name: "Acme" }],
-    ...withTeamRoster([{ _id: "u2", name: "Sam Reviewer" }], {
-      team: TEAM,
-      clientState: { ...(useInboxStore.getState() as any).clientState, ui: {} },
-    }),
-    sessions: {
-      hand1: {
-        _id: "hand1",
-        agent_status: "working",
-        is_connected: true,
-        is_idle: false,
-        updated_at: Date.now(),
-      },
-    },
-    tasks: {
-      ta: {
-        _id: "ta",
-        short_id: "ct-1",
-        title: "Rotate the prod key",
-        status: "in_progress",
-        workspace: WS,
-        project_id: "p1",
-        assignee: "u2",
-        workflow_run_id: "r1",
-        files_changed: ["a.ts", "b.ts"],
-        updated_at: 2,
-        created_at: 1,
-      },
-      tb: {
-        _id: "tb",
-        short_id: "ct-2",
-        title: "Write the release note",
-        status: "in_review",
-        workspace: WS,
-        project_id: "p1",
-        updated_at: 3,
-        created_at: 1,
-      },
-      tc: {
-        _id: "tc",
-        short_id: "ct-3",
-        title: "Out of scope",
-        status: "open",
-        workspace: WS,
-        project_id: "p9",
-        updated_at: 1,
-        created_at: 1,
-      },
-    },
-    workflowRuns: {
-      r1: {
-        _id: "r1",
-        task_id: "ta",
-        status: "running",
-        workspace: WS,
-        current_node_id: "implement",
-        current_node_label: "Implement",
-        primary_conversation_id: "hand1",
-        created_at: 1,
-        updated_at: 2,
-      },
-    },
-    sessionDecisions: {
-      d1: {
-        _id: "d1",
-        short_id: "sd-9",
-        status: "pending",
-        blocking: true,
-        task_id: "tb",
-        station: "in_review",
-        question: "Ship it?",
-        options: [],
-        conversation_id: "x",
-        session_id: "x",
-        created_at: 1,
-      },
-    },
-  } as any);
+const outOfScope = builders.task.build({
+  short_id: "ct-3",
+  title: "Out of scope",
+  status: "open",
+  workspace,
+  project_id: outside._id,
 });
 
-const root = createRoot(document.getElementById("root")!);
+function mount(projectId: string) {
+  return mountWeb(
+    <ScopeLineTab
+      ids={{ projectIds: [projectId], planIds: [], whole: false }}
+    />,
+    {
+      path: "/org/or-1?tab=line",
+      setup(backend, store) {
+        store.syncTable("currentUser", me);
+        store.syncTable("teams", [{ _id: team, name: "Acme" }]);
+        store.syncTable("clientState", { ui: { active_team_id: team } });
+        store.syncTable(
+          "teamMembers",
+          [me, sam, bystander].map((person) => ({
+            ...person,
+            roster_team: team,
+          })),
+        );
+        store.syncTable("sessions", [hand]);
+        store.syncTable("tasks", [a, b, outOfScope]);
+        store.syncTable("workflowRuns", [
+          {
+            _id: "r1",
+            task_id: a._id,
+            status: "running",
+            workspace,
+            current_node_id: "implement",
+            current_node_label: "Implement",
+            primary_conversation_id: hand._id,
+            created_at: 1,
+            updated_at: 2,
+          },
+        ]);
+        store.syncTable("sessionDecisions", [
+          {
+            _id: "d1",
+            short_id: "sd-9",
+            status: "pending",
+            blocking: true,
+            task_id: b._id,
+            station: "in_review",
+            question: "Ship it?",
+            options: [],
+            conversation_id: hand._id,
+            session_id: hand._id,
+            created_at: 1,
+          },
+        ]);
+        backend.set(api.workflow_runs.listRuns, pending);
+        backend.set(api.artifacts.listForWeb, pending);
+        backend.set(api.org.roles, pending);
+      },
+    },
+  );
+}
 
 test("two tasks at different stations paint in their columns with node, hand state, hold and evidence", async () => {
-  await act(async () =>
-    root.render(
-      React.createElement(ScopeLineTab, {
-        ids: { projectIds: ["p1"], planIds: [], whole: false },
-      }),
-    ),
-  );
-  const qa = (sel: string) => [...document.querySelectorAll<HTMLElement>(sel)];
+  const web = await mount(project._id);
+  const qa = (sel: string) => [
+    ...web.container.querySelectorAll<HTMLElement>(sel),
+  ];
 
-  // Every default station, in pipeline order.
   expect(
     qa("[data-line-column]").map((c) => c.getAttribute("data-line-column")),
   ).toEqual(["backlog", "open", "in_progress", "in_review", "done", "dropped"]);
-  // Only the two tasks in scope, each in its own column.
   expect(
     qa("[data-line-card]").map((c) => c.getAttribute("data-line-card")),
   ).toEqual(["ct-1", "ct-2"]);
@@ -186,40 +128,37 @@ test("two tasks at different stations paint in their columns with node, hand sta
   ).toEqual(["ct-2"]);
   expect(qa('[data-line-column="open"] [data-line-card]')).toEqual([]);
   expect(
-    document.querySelector('[data-line-column="open"]')!.textContent,
+    web.container.querySelector('[data-line-column="open"]')!.textContent,
   ).toMatch(/Nothing here\./);
 
-  // ct-1: its run's live node with the hand's state, the assignee, the evidence count.
-  const a = document.querySelector('[data-line-card="ct-1"]')!;
+  const a = web.container.querySelector('[data-line-card="ct-1"]')!;
   expect(a.querySelector("[data-line-node]")!.textContent).toMatch(/Implement/);
   expect(a.querySelector("[data-line-node]")!.textContent).toMatch(/working/);
-  expect(a.querySelector("[data-avatar]")!.getAttribute("data-avatar")).toBe(
-    "Sam Reviewer",
-  );
-  // Pages join the count once artifacts.listForWeb carries task_id; today
-  // the card counts the handoff's files.
+  expectPresent(a.querySelector('[title="Sam Reviewer"]'));
+  expectAbsent(a.querySelector('[title="Pat Owner"]'));
   expect(a.textContent).toMatch(/2 files/);
   expect(a.textContent).not.toMatch(/page/);
   expect(a.querySelector("[data-line-held]")).toBeNull();
   expect(a.querySelector("a")!.getAttribute("href")).toBe("/tasks/ct-1");
 
-  // ct-2: held at in_review by sd-9, linking the decision; no run, no node.
-  const b = document.querySelector('[data-line-card="ct-2"]')!;
+  const b = web.container.querySelector('[data-line-card="ct-2"]')!;
   const held = b.querySelector("[data-line-held]")!;
   expect(held.textContent).toMatch(/held · sd-9/);
   expect(held.getAttribute("href")).toBe("/decisions/sd-9");
-  expect(b.querySelector("[data-line-node]")).toBeNull();
+  expectAbsent(b.querySelector("[data-line-node]"));
+  const taskLink = a.querySelector<HTMLAnchorElement>('a[href="/tasks/ct-1"]');
+  expectPresent(taskLink);
+  await act(async () => taskLink.click());
+  expect(web.navigationLog.at(-1)).toEqual({
+    action: "push",
+    path: "/tasks/ct-1",
+  });
+  await web.close();
 });
 
 test("an empty scope says so instead of drawing columns", async () => {
-  await act(async () =>
-    root.render(
-      React.createElement(ScopeLineTab, {
-        ids: { projectIds: ["none"], planIds: [], whole: false },
-      }),
-    ),
-  );
-  expect(document.body.textContent).toMatch(/No tasks here yet/);
-  expect(document.querySelector("[data-line-column]")).toBeNull();
-  await act(async () => root.unmount());
+  const web = await mount("none");
+  expect(web.container.textContent).toMatch(/No tasks here yet/);
+  expectAbsent(web.container.querySelector("[data-line-column]"));
+  await web.close();
 });

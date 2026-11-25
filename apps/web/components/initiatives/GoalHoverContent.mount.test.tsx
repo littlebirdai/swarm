@@ -1,92 +1,49 @@
-// A goal's hover card is the object card every kind shares: a plain click
-// opens the goal's page, Cmd or Ctrl opens a new tab,
-// Enter does what a plain click does, a pill's own opener runs first, a
-// name inside the summary keeps its click, and opening by click or by Enter
-// closes the hover card the body sits in.
-// Run: bun test components/initiatives/GoalHoverContent.mount.test.tsx
-import { test } from "bun:test";
-import assert from "node:assert/strict";
-import { closeDomWindow } from "../../test-helpers/domGlobals";
+import { expect, spyOn, test } from "bun:test";
+import { act } from "react";
+import { HoverCardClose } from "../../lib/hoverCardsOff";
+import { webBuilders } from "../../test-helpers/builders";
+import { expectPresent } from "../../test-helpers/domExpect";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { GoalHoverContent } from "./GoalHoverContent";
+import { FIXTURE_INITIATIVES } from "./initiativeFixture";
 
 test("the goal card opens like every object card", async () => {
-  const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM(
-    "<!doctype html><html><body><div id='root'></div></body></html>",
-    { url: "https://local.codecast.sh", pretendToBeVisual: true },
-  );
-  for (const key of [
-    "window",
-    "document",
-    "navigator",
-    "HTMLElement",
-    "Element",
-    "Node",
-    "MutationObserver",
-    "CustomEvent",
-    "Event",
-    "MouseEvent",
-    "KeyboardEvent",
-    "getComputedStyle",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-  ]) {
-    Object.defineProperty(globalThis, key, {
-      value: (dom.window as any)[key],
-      configurable: true,
-      writable: true,
-    });
-  }
-  (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-  const { mock } = await import("bun:test");
-  const React = await import("react");
-  const h = React.createElement;
-  const log: string[] = [];
-  (dom.window as any).open = (url: string) => {
-    log.push(`tab:${url}`);
-    return null;
+  const viewer = webBuilders("goal hover").teamMember.build();
+  const parent = {
+    ...FIXTURE_INITIATIVES[0],
+    title: "Parent",
+    short_id: "in-9",
+    workspace: `user:${viewer._id}`,
+    project_ids: [],
   };
-  (globalThis as any).window.open = (dom.window as any).open;
-  const realNav = { ...(await import("next/navigation")) };
-  mock.module("next/navigation", () => ({
-    ...realNav,
-    useRouter: () => ({
-      push: (u: string) => log.push(`push:${u}`),
-      replace: () => {},
-    }),
-  }));
-  const realSummary = { ...(await import("../org/lines/ObjectSummary")) };
-  mock.module("../org/lines/ObjectSummary", () => ({
-    ...realSummary,
-    GoalSummary: ({ goal }: any) =>
-      h(
-        "div",
-        null,
-        goal.title,
-        h(
-          "a",
-          {
-            href: "/org/in-9",
-            "data-inner": true,
-            onClick: (e: any) => {
-              e.preventDefault();
-              log.push("inner");
-            },
-          },
-          "Parent",
-        ),
-      ),
-  }));
-
-  const { createRoot } = await import("react-dom/client");
-  const { GoalHoverContent } = await import("./GoalHoverContent");
-  const goal = { _id: "goal1", short_id: "in-1", title: "Grow" } as any;
-  const root = createRoot(document.getElementById("root")!);
-  const card = () =>
-    document.querySelector<HTMLElement>("[data-initiative-hover='in-1']")!;
-  const click = (el: Element, init: MouseEventInit = {}) =>
-    React.act(async () => {
-      el.dispatchEvent(
-        new (dom.window as any).MouseEvent("click", {
+  const goal = {
+    ...parent,
+    _id: FIXTURE_INITIATIVES[1]._id,
+    short_id: "in-1",
+    title: "Grow",
+    parent_initiative_id: parent._id,
+  };
+  const web = await mountWeb(<GoalHoverContent goal={goal} />, {
+    setup(_backend, store) {
+      store.syncTable("currentUser", viewer);
+      store.syncTable("clientState", { ui: {} });
+      store.syncTable("initiatives", [parent, goal]);
+    },
+  });
+  const calls: string[] = [];
+  const open = spyOn(window, "open").mockImplementation(() => {
+    calls.push("tab");
+    return null;
+  });
+  const card = () => {
+    const node = web.container.querySelector("[data-initiative-hover='in-1']");
+    expectPresent(node);
+    return node;
+  };
+  const click = (element: Element, init: MouseEventInit = {}) =>
+    act(async () => {
+      element.dispatchEvent(
+        new MouseEvent("click", {
           bubbles: true,
           cancelable: true,
           button: 0,
@@ -95,88 +52,93 @@ test("the goal card opens like every object card", async () => {
       );
     });
   const enter = (init: KeyboardEventInit = {}) =>
-    React.act(async () => {
+    act(async () => {
       card().dispatchEvent(
-        new (dom.window as any).KeyboardEvent("keydown", {
-          key: "Enter",
+        new KeyboardEvent("keydown", {
           bubbles: true,
           cancelable: true,
+          key: "Enter",
           ...init,
         }),
       );
     });
+  try {
+    expect(card().getAttribute("data-object-card")).toBe("initiative");
+    expect(card().getAttribute("aria-label")).toBe("Open goal");
+    expect(card().textContent).not.toContain("Open goal");
+    await click(card());
+    await enter();
+    expect(web.navigationLog.slice(1)).toEqual([
+      { action: "push", path: "/goals/in-1" },
+      { action: "push", path: "/goals/in-1" },
+    ]);
+    await click(card(), { metaKey: true });
+    await enter({ ctrlKey: true });
+    expect(open.mock.calls).toEqual([
+      ["/goals/in-1", "_blank", "noopener"],
+      ["/goals/in-1", "_blank", "noopener"],
+    ]);
+    expect(web.navigationLog).toHaveLength(3);
+    const link = card().querySelector("[data-summary-serves-item='in-9']");
+    expectPresent(link);
+    expect(link.textContent).toBe("Parent");
+    await click(link);
+    expect(web.navigationLog.slice(3)).toEqual([
+      { action: "push", path: "/goals/in-9" },
+    ]);
+    expect(open.mock.calls).toHaveLength(2);
 
-  // The goal's page, by click and by Enter; a new tab on Cmd.
-  await React.act(async () => root.render(h(GoalHoverContent, { goal })));
-  assert.equal(card().getAttribute("data-object-card"), "initiative");
-  // The whole card is the click target; it says what a click does to assistive tech, with no foot.
-  assert.equal(card().getAttribute("aria-label"), "Open goal");
-  assert.doesNotMatch(card().textContent!, /Open goal/);
-  await click(card());
-  await enter();
-  await click(card(), { metaKey: true });
-  await enter({ ctrlKey: true });
-  await click(document.querySelector("[data-inner]")!);
-  assert.deepEqual(log, [
-    "push:/goals/in-1",
-    "push:/goals/in-1",
-    "tab:/goals/in-1",
-    "tab:/goals/in-1",
-    "inner",
-  ]);
+    calls.length = 0;
+    await web.rerender(
+      <GoalHoverContent
+        goal={goal}
+        onOpen={() => calls.push(`pill:${web.navigationLog.length}`)}
+      />,
+    );
+    await click(card());
+    await click(card(), { ctrlKey: true });
+    expect(calls).toEqual(["pill:4", "pill:5", "tab"]);
+    expect(web.navigationLog.slice(4)).toEqual([
+      { action: "push", path: "/goals/in-1" },
+    ]);
+    expect(open.mock.calls.at(-1)).toEqual([
+      "/goals/in-1",
+      "_blank",
+      "noopener",
+    ]);
 
-  // A pill's opener runs first; what it leaves undone, the card does.
-  log.length = 0;
-  await React.act(async () =>
-    root.render(h(GoalHoverContent, { goal, onOpen: () => log.push("pill") })),
-  );
-  await click(card());
-  await click(card(), { ctrlKey: true });
-  assert.deepEqual(log, [
-    "pill",
-    "push:/goals/in-1",
-    "pill",
-    "tab:/goals/in-1",
-  ]);
-  log.length = 0;
-  await React.act(async () =>
-    root.render(
-      h(GoalHoverContent, {
-        goal,
-        onOpen: (e: any) => {
-          e.preventDefault();
-          log.push("pill opened it");
-        },
-      }),
-    ),
-  );
-  await click(card());
-  assert.deepEqual(log, ["pill opened it"]);
+    calls.length = 0;
+    await web.rerender(
+      <GoalHoverContent
+        goal={goal}
+        onOpen={(event) => {
+          event.preventDefault();
+          calls.push("pill opened it");
+        }}
+      />,
+    );
+    await click(card());
+    expect(calls).toEqual(["pill opened it"]);
+    expect(web.navigationLog).toHaveLength(5);
+    expect(open.mock.calls).toHaveLength(3);
 
-  // Inside a hover card, opening by click or by Enter closes the card.
-  log.length = 0;
-  const { HoverCardClose } = await import("../../lib/hoverCardsOff");
-  await React.act(async () =>
-    root.render(
-      h(
-        HoverCardClose.Provider,
-        { value: () => log.push("closed") },
-        h(GoalHoverContent, { goal }),
-      ),
-    ),
-  );
-  await click(card());
-  await enter();
-  assert.deepEqual(log, [
-    "closed",
-    "push:/goals/in-1",
-    "closed",
-    "push:/goals/in-1",
-  ]);
-
-  await React.act(async () => root.unmount());
-  // bun keeps a module mock for every later file in the run: hand the real modules back.
-  mock.module("../org/lines/ObjectSummary", () => realSummary);
-  mock.module("next/navigation", () => realNav);
-  closeDomWindow(dom);
+    calls.length = 0;
+    await web.rerender(
+      <HoverCardClose.Provider
+        value={() => calls.push(`closed:${web.navigationLog.length}`)}
+      >
+        <GoalHoverContent goal={goal} />
+      </HoverCardClose.Provider>,
+    );
+    await click(card());
+    await enter();
+    expect(calls).toEqual(["closed:5", "closed:6"]);
+    expect(web.navigationLog.slice(5)).toEqual([
+      { action: "push", path: "/goals/in-1" },
+      { action: "push", path: "/goals/in-1" },
+    ]);
+  } finally {
+    open.mockRestore();
+    await web.close();
+  }
 });
