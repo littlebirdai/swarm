@@ -2800,7 +2800,17 @@ export const MessageInput = memo(function MessageInput({
     // "Send together" (lib/jointSend): others' live drafts fold in as named parts.
     // A joint turn carries others' words, so none of it is marked this person's typed words.
     const beforeJoint = message;
-    if (!forking) message = takeJointSend(conversationId, message);
+    let claimJoint: (() => void) | undefined;
+    if (!forking)
+      message = takeJointSend(
+        conversationId,
+        message,
+        controlled
+          ? (claim) => {
+              claimJoint = claim;
+            }
+          : undefined,
+      );
     const typedWords = message === beforeJoint ? typed : undefined;
     // An attached screen recording rides as its tag (a fork leaves it here).
     if (!forking) message = screenRec.take(message);
@@ -2901,10 +2911,6 @@ export const MessageInput = memo(function MessageInput({
     requestAnimationFrame(() => textareaRef.current?.focus());
     onMessageSent?.();
 
-    // Common send tail: expand mentions, resolve the (possibly still-creating)
-    // conversation id, then durably send. Reused by the immediate and the
-    // upload-deferred paths. Store calls go through getState() so this is safe
-    // to run after the component unmounts (user switched sessions).
     const preparedPayload = (ids: string[]): ComposerPayload => ({
       text: trimmed,
       ...(ids.length ? { imageIds: ids } : {}),
@@ -2926,7 +2932,7 @@ export const MessageInput = memo(function MessageInput({
         })),
       });
       const restored = typedWords?.trim() === trimmed ? typed : payload.text;
-      if (images.length) setPastedImages(images);
+      if (images.length) setPastedImages(images as typeof pastedImages);
       setMessage(restored);
       messageRef.current = restored;
       persistDraftImages(conversationId, restored, images);
@@ -2934,7 +2940,7 @@ export const MessageInput = memo(function MessageInput({
     };
     const finishSend = async (ids: string[]) => {
       if (completeControlled) {
-        return completeControlled(
+        const accepted = await completeControlled(
           async () => ({
             ...preparedPayload(ids),
             text: await expandMentionsInMessage(trimmed),
@@ -2942,6 +2948,8 @@ export const MessageInput = memo(function MessageInput({
           restoreControlled,
           preparedPayload(ids),
         );
+        if (accepted) claimJoint?.();
+        return;
       }
       if (!clientId) return;
       try {
@@ -2980,9 +2988,6 @@ export const MessageInput = memo(function MessageInput({
           quoteIds.length > 0 ? quoteIds : undefined,
           typedWords,
         );
-        // Hand the resolved id + the send's clientId to the popup so it can paint
-        // this same message optimistically in the MAIN window (send & open) without
-        // a second send — same clientId means it dedupes against the server echo.
         onDidSend?.({
           conversationId: resolvedId,
           content: expandedContent,

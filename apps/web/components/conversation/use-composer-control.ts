@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { createStore } from "zustand/vanilla";
+import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {
   composerControlModel,
   selectComposerControl,
@@ -47,6 +48,7 @@ function claim(id: string, key: string) {
 }
 
 function release(id: string, key: string, complete = false) {
+  const command = key.split(":")[0];
   update(id, (current) => ({
     ...current,
     pending: new Set([...current.pending].filter((item) => item !== key)),
@@ -55,11 +57,10 @@ function release(id: string, key: string, complete = false) {
           [...current.completed]
             .filter((item) => {
               const kind = item.split(":")[0];
-              const currentKind = key.split(":")[0];
               return (
-                kind !== currentKind &&
-                !(currentKind === "takeover" && kind === "cancel-takeover") &&
-                !(currentKind === "cancel-takeover" && kind === "takeover")
+                kind !== command &&
+                !(command === "takeover" && kind === "cancel-takeover") &&
+                !(command === "cancel-takeover" && kind === "takeover")
               );
             })
             .concat(key),
@@ -88,6 +89,22 @@ export function useComposerControl(
     [scopedId],
   );
   const record = useSyncExternalStore(subscribe, snapshot, snapshot);
+  const driveRequested = shared?.facts.driveRequested;
+  const takeoverRequested = shared?.facts.takeoverPending;
+  useWatchEffect(() => {
+    if (!scopedId || !record.completed.size) return;
+    const current = operations.getState()[scopedId] ?? empty;
+    const completed = new Set(
+      [...current.completed].filter((key) => {
+        if (key.startsWith("ask:")) return !driveRequested;
+        if (key.startsWith("takeover:")) return !takeoverRequested;
+        if (key.startsWith("cancel-takeover:")) return takeoverRequested;
+        return true;
+      }),
+    );
+    if (completed.size !== current.completed.size)
+      update(scopedId, (current) => ({ ...current, completed }));
+  }, [scopedId, record.completed, driveRequested, takeoverRequested]);
   if (!shared) return null;
 
   const { facts, baton } = shared;

@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { act, type ReactNode } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import "../chat/ChatMessage";
+import { armJointSend, setJointCandidates } from "../../lib/joint-send";
 import { MessageInput } from "../message-input";
 import { NonOwnerMessageInput } from "./session-controls";
 import { mountWeb } from "../../test-helpers/mountWeb";
@@ -95,13 +96,11 @@ function collaborator(
 ) {
   return (
     <NonOwnerMessageInput
-      conversation={
-        {
-          _id: conversationId,
-          title: "Shared",
-          user_name: "Ana",
-        } as ConversationData
-      }
+      conversation={{
+        _id: conversationId as ConversationData["_id"],
+        title: "Shared",
+        messages: [],
+      }}
       composerControl={composerControl}
     />
   );
@@ -300,6 +299,7 @@ test("a late result stays with its session and a rejected promise shows delivery
   await ui.rerender(owner(nextId, fake.control(nextId)));
   await ui.type("Second session");
   await fake.reply(new Error("Disconnected"));
+  await ui.rerender(owner(nextId, fake.control(nextId)));
   expect(ui.box().value).toBe("Second session");
   expect(ui.container.textContent).not.toContain("Delivery in doubt");
   await ui.rerender(owner(conversationId, fake.control(conversationId)));
@@ -473,7 +473,7 @@ test("a workflow gate keeps its existing submit path when passed a shared contro
   ).toBeNull();
 });
 
-test("an ask rejection is shown and releases the request guard", async () => {
+test("Ask to drive can retry after a rejection or a settled request", async () => {
   const conversationId = id();
   const fake = fakeBaton();
   const ui = await mountComposer(
@@ -488,4 +488,73 @@ test("an ask rejection is shown and releases the request guard", async () => {
   await act(() => button(ui.container, "Ask to drive").click());
   expect(fake.commands).toEqual([{ kind: "ask" }, { kind: "ask" }]);
   await fake.reply("accepted");
+  await ui.rerender(
+    collaborator(
+      conversationId,
+      fake.control(conversationId, {
+        role: "viewer",
+        driver: ana,
+        driveRequested: true,
+      }),
+    ),
+  );
+  await ui.rerender(
+    collaborator(
+      conversationId,
+      fake.control(conversationId, { role: "viewer", driver: ana }),
+    ),
+  );
+  await act(() => button(ui.container, "Ask to drive").click());
+  expect(fake.commands).toHaveLength(3);
+  await fake.reply("accepted");
+});
+
+test("a joint draft is claimed only after the baton accepts the send", async () => {
+  const conversationId = id();
+  const fake = fakeBaton();
+  const claimed: string[] = [];
+  const candidates = [{ user_id: ana.id, from: ana.name, text: "Ana's draft" }];
+  const ui = await mountComposer(
+    owner(conversationId, fake.control(conversationId)),
+  );
+  try {
+    setJointCandidates(conversationId, me.name, candidates, (rows) =>
+      claimed.push(...rows.map((row) => row.text)),
+    );
+    await ui.type("Our draft");
+    armJointSend(conversationId);
+    await ui.press("Enter");
+    expect(fake.commands[0]).toMatchObject({ kind: "send" });
+    expect("text" in fake.commands[0] && fake.commands[0].text).toContain(
+      "Ana's draft",
+    );
+    expect(claimed).toEqual([]);
+    await fake.reply("accepted");
+    expect(claimed).toEqual(["Ana's draft"]);
+  } finally {
+    setJointCandidates(conversationId, me.name, [], () => {});
+  }
+});
+
+test("a collaborator draft survives both flag changes and a session switch", async () => {
+  const conversationId = id();
+  const nextId = id();
+  const fake = fakeBaton();
+  const shared = fake.control(conversationId, { role: "sender", driver: ana });
+  const ui = await mountComposer(collaborator(conversationId, shared));
+  const input = ui.box();
+  await ui.type("Draft from the collaborator");
+  await ui.rerender(
+    collaborator(conversationId, {
+      enabled: true,
+      conversationId,
+      shared: null,
+    }),
+  );
+  expect(ui.box()).toBe(input);
+  expect(input.value).toBe("Draft from the collaborator");
+  await ui.rerender(collaborator(nextId, fake.control(nextId)));
+  expect(ui.box().value).toBe("");
+  await ui.rerender(collaborator(conversationId, shared));
+  expect(ui.box().value).toBe("Draft from the collaborator");
 });

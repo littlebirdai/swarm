@@ -93,12 +93,19 @@ export function disarmJointSend(conversationId: string): void {
  * joint send is armed, returns the joint turn (and tells the armer what went
  * out); otherwise returns the text unchanged.
  */
-export function takeJointSend(conversationId: string, mine: string): string {
+export function takeJointSend(
+  conversationId: string,
+  mine: string,
+  deferClaim?: (claim: () => void) => void,
+): string {
   const entry = entries.get(conversationId);
   if (!entry?.armed) return mine;
   entry.armed = false;
-  entry.onSent?.(entry.candidates);
-  return composeJointTurn(entry.me, mine, entry.candidates);
+  const { onSent, candidates, me } = entry;
+  const claim = () => onSent?.(candidates);
+  if (deferClaim) deferClaim(claim);
+  else claim();
+  return composeJointTurn(me, mine, candidates);
 }
 
 /**
