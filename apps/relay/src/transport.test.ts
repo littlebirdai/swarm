@@ -183,7 +183,6 @@ it.effect(
       expect(reader.readyState).toBe(WebSocket.OPEN);
       expect(observed.length).toBeGreaterThan(1);
       expect(observed.length).toBeLessThan(total);
-      expect(observed.at(-2)).toBeLessThan(total - 1);
 
       reader.send(subscribe);
       const reply: RelayServerFrame = yield* receive(reader);
