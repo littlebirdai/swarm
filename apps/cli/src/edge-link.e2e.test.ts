@@ -60,7 +60,7 @@ test("the daemon facade negotiates and sends heartbeats through the real routes"
         logs.push(message),
       ),
     ).toBeUndefined();
-    monotonicNow = helloAt + heartbeatIntervalMs - 1;
+    monotonicNow = helloAt + heartbeatIntervalMs - 2_001;
     expect(
       await link.tick(connection, capacity, runtimes, (message) =>
         logs.push(message),
