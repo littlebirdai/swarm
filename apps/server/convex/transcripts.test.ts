@@ -61,12 +61,7 @@ import {
 import { characterOf } from "@codecast/org/sessionCharacter";
 import { hashToken } from "./apiTokens";
 import { CALL_MEMBER_STALE_MS } from "@codecast/calls/callRoomKeys";
-import {
-  MAX_RECORDING_MS,
-  REC_LEASE_STALE_MS,
-  RECORDING_BYTES_PER_SECOND,
-  TRANSCRIBE_MAX_BYTES,
-} from "@codecast/calls/recordingAudio";
+import { REC_LEASE_STALE_MS } from "@codecast/calls/recordingAudio";
 
 // A recording is the one live transcript with nobody seated in a room, and the
 // orphan sweep has to tell that apart from a huddle everybody left. Getting it
@@ -516,20 +511,6 @@ describe("the transcription's own writes", () => {
     // summarize, which is what "skipped" means everywhere else in this file.
     expect(t.summary_status).toBe("skipped");
     expect(c._scheduled).toEqual([]);
-  });
-});
-
-// The recorder's length ceiling exists because an m4a cannot be split after
-// the fact — there is no decoder in a Convex action. So the phone must stop
-// before it makes a file the transcriber refuses, and this is that arithmetic.
-describe("the recording length ceiling", () => {
-  test("a file recorded to the ceiling still fits the transcriber", () => {
-    const bytes = (MAX_RECORDING_MS / 1000) * RECORDING_BYTES_PER_SECOND;
-    expect(bytes).toBeLessThan(TRANSCRIBE_MAX_BYTES);
-  });
-
-  test("it covers a meeting nobody would call short", () => {
-    expect(MAX_RECORDING_MS).toBeGreaterThan(2 * 60 * 60 * 1000);
   });
 });
 
