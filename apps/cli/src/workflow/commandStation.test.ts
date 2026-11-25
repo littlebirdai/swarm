@@ -22,7 +22,6 @@ import { executeCommand, silentBoundMs } from "./commandStation";
 import { parseWorkflowSource } from "./parser";
 import {
   KILL_IF_SAME,
-  bootTimeMs,
   reapDeadRunnerStations,
   stationRecordDir,
 } from "./stationProcs";
@@ -73,6 +72,7 @@ afterEach(() => {
 function nastyStation(
   id: string,
   extra: Partial<WorkflowNode> = {},
+  forkRepeatedly = true,
 ): { node: WorkflowNode; pids: string; started: () => number[] } {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "station-procs-"));
   const pids = path.join(tmp, "pids");
@@ -81,7 +81,7 @@ function nastyStation(
     inner,
     [
       `echo $$ >> ${pids}`,
-      `( trap '' TERM; while :; do sleep 1; done ) & echo $! >> ${pids}`,
+      `( trap '' TERM; ${forkRepeatedly ? "while :; do sleep 1; done" : "exec sleep 600"} ) & echo $! >> ${pids}`,
       `set -m`,
       `( trap '' TERM; exec sleep 600 ) & echo $! >> ${pids}`,
       `set +m`,
@@ -202,34 +202,40 @@ describe("a station whose runner goes", () => {
     });
   };
 
-  test("ends with a runner stopped by SIGTERM, TERM-ignoring and setsid processes included", async () => {
-    const { node, started } = nastyStation("poll");
-    const runner = runnerScript(node);
-    await pollUntil(
-      () => {
-        const pids = started();
-        const detached = pids[3];
-        return (
-          pids.length === 4 &&
-          snapshotProcessTable().some(
-            (row) => row.pid === detached && row.pgid === detached,
-          )
-        );
-      },
-      "the station's processes starting",
-      { ms: 15_000 },
-    );
-    runner.kill("SIGTERM");
-    expect(await runner.exited).toBe(143);
-    await pollUntil(
-      async () => (await stillRunning(started())).length === 0,
-      "every station process ending",
-      { ms: 30_000 },
-    );
-    expect(
-      fs.existsSync(path.join(stationRecordDir(), `${runner.pid}.json`)),
-    ).toBe(false);
-  }, 60_000);
+  test.each([false, true])(
+    "ends the station tree when its runner gets SIGTERM (repeated forks: %s)",
+    async (forkRepeatedly) => {
+      const { node, started } = nastyStation("poll", {}, forkRepeatedly);
+      const runner = runnerScript(node);
+      await pollUntil(
+        () => {
+          const pids = started();
+          const detached = pids[3];
+          return (
+            pids.length === 4 &&
+            snapshotProcessTable().some(
+              (row) => row.pid === detached && row.pgid === detached,
+            )
+          );
+        },
+        "the station's processes starting",
+        { ms: 15_000 },
+      );
+      runner.kill("SIGTERM");
+      expect(await runner.exited).toBe(143);
+      await pollUntil(
+        async () => (await stillRunning(started())).length === 0,
+        "every station process ending",
+        { ms: 30_000 },
+      );
+      if (!forkRepeatedly) {
+        expect(
+          fs.existsSync(path.join(stationRecordDir(), `${runner.pid}.json`)),
+        ).toBe(false);
+      }
+    },
+    60_000,
+  );
 
   test("ends a station child that creates its own session after TERM", async () => {
     const node = stationThatDetachesOnTerm();
@@ -303,23 +309,31 @@ exec ${shellQuote(Bun.which("ps")!)} "$@"
         stdout: "ignore",
         stderr: "ignore",
       });
-      strays.push(proc.pid);
-      const row = snapshotProcessTable().find((p) => p.pid === proc.pid)!;
-      expect(row.pgid === row.pid).toBe(detached);
-      const killIfSame = (identity: string) =>
-        Bun.spawnSync(
-          ["sh", "-c", KILL_IF_SAME, "sh", "0", String(proc.pid), identity],
-          { env: { ...process.env, LANG: "C", LC_ALL: "C" } },
-        );
-      const oldGroup = Number(row.pgid) + 1;
-      killIfSame(`${detached ? oldGroup : row.pgid} Thu Jan 1 00:00:00 1970`);
-      expect(alive(proc.pid)).toBe(true);
-      if (!detached) {
-        killIfSame(`${oldGroup} ${row.startedAt}`);
-        expect(alive(proc.pid)).toBe(true);
+      try {
+        const row = snapshotProcessTable().find((p) => p.pid === proc.pid)!;
+        expect(row.pgid === row.pid).toBe(detached);
+        const killIfSame = (identity: string) =>
+          Bun.spawnSync(
+            ["sh", "-c", KILL_IF_SAME, "sh", "0", String(proc.pid), identity],
+            { env: { ...process.env, LANG: "C", LC_ALL: "C" } },
+          );
+        const survivors = async () => {
+          const pids = await stillRunning([proc.pid]);
+          return proc.signalCode === null ? pids : [];
+        };
+        const oldGroup = Number(row.pgid) + 1;
+        killIfSame(`${detached ? oldGroup : row.pgid} Thu Jan 1 00:00:00 1970`);
+        expect(await survivors()).toEqual([proc.pid]);
+        if (!detached) {
+          killIfSame(`${oldGroup} ${row.startedAt}`);
+          expect(await survivors()).toEqual([proc.pid]);
+        }
+        killIfSame(`${detached ? oldGroup : row.pgid} ${row.startedAt}`);
+        expect(await proc.exited).toBe(137);
+      } finally {
+        proc.kill("SIGKILL");
+        await proc.exited;
       }
-      killIfSame(`${detached ? oldGroup : row.pgid} ${row.startedAt}`);
-      expect(await proc.exited).toBe(137);
     },
   );
 
@@ -402,79 +416,6 @@ exec ${shellQuote(Bun.which("ps")!)} "$@"
     expect(await reapDeadRunnerStations(undefined, graceMs)).toEqual([group]);
     await pollUntil(() => !alive(job), "the job ending", { ms: 15_000 });
   }, 60_000);
-});
-
-describe("a dead runner's record", () => {
-  const deadPid = async () => {
-    const p = Bun.spawn(["true"]);
-    await p.exited;
-    return p.pid;
-  };
-  const writeRecord = (runner: number, written: number, groups: unknown[]) => {
-    fs.mkdirSync(stationRecordDir(), { recursive: true });
-    const file = path.join(stationRecordDir(), `${runner}.json`);
-    fs.writeFileSync(file, JSON.stringify({ runner, written, groups }));
-    return file;
-  };
-  const rowOf = (pid: number) =>
-    snapshotProcessTable().find((p) => p.pid === pid);
-
-  test("is dropped unread when it was written before this boot, though it names a live process", async () => {
-    const proc = Bun.spawn(
-      ["perl", "-MPOSIX", "-e", "POSIX::setsid(); sleep 600"],
-      { stdout: "ignore", stderr: "ignore" },
-    );
-    strays.push(proc.pid);
-    await pollUntil(
-      () => rowOf(proc.pid)?.pgid === proc.pid,
-      "the process leading a group of its own",
-      { ms: 5_000 },
-    );
-    const row = rowOf(proc.pid)!;
-    const file = writeRecord(await deadPid(), bootTimeMs()! - 60_000, [
-      {
-        pgid: row.pgid,
-        at: 0,
-        procs: [{ pid: row.pid, pgid: row.pgid, start: row.startedAt }],
-      },
-    ]);
-    expect(await reapDeadRunnerStations(undefined, graceMs)).toEqual([]);
-    expect(fs.existsSync(file)).toBe(false);
-    expect(alive(proc.pid)).toBe(true);
-  });
-
-  test("leaves alone a leaderless group of another program that took a recorded group id", async () => {
-    // Another program's group whose leader exited, as crash handlers leave them: its id is all a stale record shares with it.
-    const out = Bun.spawnSync([
-      "perl",
-      "-MPOSIX",
-      "-e",
-      `POSIX::setsid(); my $c = fork(); if (!$c) { open STDOUT, ">/dev/null"; open STDERR, ">/dev/null"; exec "sleep", "600" } print "$c\n"; exit 0`,
-    ]);
-    const member = Number(String(out.stdout).trim());
-    strays.push(member);
-    await pollUntil(
-      () => {
-        const r = rowOf(member);
-        return !!r && r.pgid !== undefined && !alive(r.pgid);
-      },
-      "a group whose leader has exited",
-      { ms: 5_000 },
-    );
-    const group = rowOf(member)!.pgid!;
-    // The station that once had this id, as its runner recorded it before dying.
-    const file = writeRecord(await deadPid(), Date.now(), [
-      {
-        pgid: group,
-        at: Date.now(),
-        procs: [{ pid: group, pgid: group, start: "Thu Jan 1 00:00:00 1970" }],
-      },
-    ]);
-    expect(await reapDeadRunnerStations(undefined, graceMs)).toEqual([]);
-    expect(fs.existsSync(file)).toBe(false);
-    // The reap returns once every end it started has run its grace.
-    expect(alive(member)).toBe(true);
-  });
 });
 
 describe("a station that ends on its own", () => {

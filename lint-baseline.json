@@ -5286,7 +5286,7 @@
     "swarm/no-comments": 9
   },
   "apps/cli/src/workflow/commandStation.test.ts": {
-    "swarm/no-comments": 12
+    "swarm/no-comments": 9
   },
   "apps/cli/src/workflow/commandStation.ts": {
     "swarm/no-comments": 58
@@ -5411,7 +5411,7 @@
     "swarm/no-comments": 11
   },
   "apps/cli/src/workflow/mergeScratch.ts": {
-    "swarm/no-comments": 27
+    "swarm/no-comments": 25
   },
   "apps/cli/src/workflow/mergeStation.deploy.test.ts": {
     "swarm/no-comments": 11
@@ -5583,7 +5583,7 @@
   },
   "apps/cli/src/workflow/stationProcs.ts": {
     "swarm/no-blocking-child-process-call": 1,
-    "swarm/no-comments": 57
+    "swarm/no-comments": 54
   },
   "apps/cli/src/workflow/subjectPark.ts": {
     "swarm/no-comments": 24

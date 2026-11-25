@@ -9,7 +9,13 @@
 // own deploy lock, under the repository's common git dir, so every worktree
 // of the checkout shares it.
 
-import { execFileAsync, type ChildProcess } from "../proc.js";
+import type { ChildProcess } from "../proc.js";
+import {
+  bornBeforeCaptureSecond,
+  processGroupTree,
+  snapshotProcessTableAsync,
+  type ProcRow,
+} from "../processTable.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -32,6 +38,7 @@ const SCRATCH_PREFIX = "merge-scratch-";
 export const SCRATCH_STALE_MS = 3 * 3_600_000;
 /** How long a step gets to stop after SIGTERM before its tree is left for the sweep instead. */
 const STOP_GRACE_MS = 60_000;
+const LEASE_RELEASE_MS = 1_000;
 
 // EPERM: the process lives but belongs to someone else; only "no such process" is dead.
 const alive = (pid: number) => {
@@ -179,53 +186,217 @@ export async function sweepScratchTrees(
   }
 }
 
-/** The steps running now, each in a process group of its own (runShell's onChild). */
-const running = new Set<ChildProcess>();
+const STEP_READ_MS = 500;
+const STEP_TRACK_MS = 1_000;
+const STEP_STOP_POLL_MS = 250;
+const START_TIME_ERROR_MS = 1_000;
 
-export function trackStep(child: ChildProcess): void {
-  running.add(child);
-  child.once("close", () => running.delete(child));
+type Step = {
+  child: ChildProcess;
+  group: number | undefined;
+  exitedAt?: number;
+  stopAt?: number;
+  groupSignalled?: boolean;
+  known: Map<number, { start: string; group?: number; beforeStop: boolean }>;
+  signalled: Set<string>;
+};
+
+const running = new Set<Step>();
+let tracking: ReturnType<typeof setTimeout> | undefined;
+let reading: Promise<void> | undefined;
+
+const shellRunning = ({ child }: Step) =>
+  child.exitCode === null && child.signalCode === null;
+const identity = (pid: number, startedAt?: string) => `${pid} ${startedAt}`;
+const zombie = (row: ProcRow) => row.command.trimEnd().endsWith("<defunct>");
+const term = (pid: number) => {
+  try {
+    return process.kill(pid, "SIGTERM");
+  } catch {
+    return false;
+  }
+};
+
+function readStep(
+  step: Step,
+  rows: ProcRow[],
+  shellWasRunning: boolean,
+  stopAt?: number,
+) {
+  const { group } = step;
+  const leader = rows.find((row) => row.pid === group);
+  const groups = new Set(
+    rows
+      .filter(
+        (row) =>
+          !zombie(row) &&
+          row.startedAt &&
+          step.known.get(row.pid)?.start === row.startedAt,
+      )
+      .map((row) => row.pgid),
+  );
+  if (
+    leader &&
+    shellWasRunning &&
+    leader.ppid === process.pid &&
+    leader.pgid === group
+  )
+    groups.add(group);
+
+  const unclaimed =
+    groups.has(group) || leader || step.exitedAt === undefined
+      ? []
+      : rows.filter((row) => row.pgid === group && !zombie(row));
+  if (
+    unclaimed.some((row) =>
+      bornBeforeCaptureSecond({ ...row, capturedAtMs: step.exitedAt }),
+    )
+  )
+    groups.add(group);
+
+  for (const id of groups) {
+    if (id === undefined) continue;
+    for (const row of processGroupTree(rows, id)) {
+      if (!row.startedAt) continue;
+      const previous = step.known.get(row.pid);
+      step.known.set(row.pid, {
+        start: row.startedAt,
+        group: row.pgid,
+        beforeStop:
+          step.stopAt === undefined ||
+          (previous?.start === row.startedAt && previous.beforeStop),
+      });
+    }
+  }
+  const live = rows.filter(
+    (row) =>
+      !zombie(row) &&
+      step.known.has(row.pid) &&
+      (!row.startedAt || step.known.get(row.pid)?.start === row.startedAt),
+  );
+  if (stopAt !== undefined) {
+    for (const row of live) {
+      const key = identity(row.pid, row.startedAt);
+      if (
+        step.signalled.has(key) ||
+        !bornBeforeCaptureSecond(row) ||
+        (!step.known.get(row.pid)?.beforeStop &&
+          !bornBeforeCaptureSecond({
+            ...row,
+            capturedAtMs: stopAt - START_TIME_ERROR_MS,
+          }))
+      )
+        continue;
+      step.signalled.add(key);
+      if (!step.groupSignalled || row.pgid !== group) term(row.pid);
+    }
+  }
+  return (
+    (step.known.size > 0 || step.groupSignalled) &&
+    live.length === 0 &&
+    !unclaimed.some(
+      (row) =>
+        !row.startedAt ||
+        Date.parse(row.startedAt) ===
+          Math.floor(step.exitedAt! / 1_000) * 1_000,
+    )
+  );
 }
 
-/** Stop every running step's whole process group with SIGTERM (deploy.sh's launchd job boots itself out on it) and
- *  wait for each to end. False when one is still running after the grace: its tree must stay. */
+function trackProcesses(): void {
+  const steps = [...running].filter((step) => step.stopAt === undefined);
+  if (reading || !steps.length) return;
+  const reads = steps.map((step) => ({ step, live: shellRunning(step) }));
+  reading = snapshotProcessTableAsync({
+    timeout: STEP_READ_MS,
+    killSignal: "SIGKILL",
+  })
+    .then((rows) => {
+      if (!rows.length) return;
+      for (const { step, live } of reads) readStep(step, rows, live);
+    })
+    .finally(() => {
+      reading = undefined;
+      if ([...running].some((step) => step.stopAt === undefined)) {
+        tracking = setTimeout(() => {
+          tracking = undefined;
+          trackProcesses();
+        }, STEP_TRACK_MS);
+        tracking.unref();
+      }
+    });
+}
+
+export function trackStep(child: ChildProcess): void {
+  const step: Step = {
+    child,
+    group: child.pid,
+    known: new Map(),
+    signalled: new Set(),
+  };
+  running.add(step);
+  child.once("exit", () => {
+    step.exitedAt = Date.now();
+  });
+  child.once("close", () => {
+    running.delete(step);
+    if (!running.size) {
+      clearTimeout(tracking);
+      tracking = undefined;
+    }
+  });
+  clearTimeout(tracking);
+  tracking = undefined;
+  trackProcesses();
+}
+
 export async function stopSteps(graceMs = STOP_GRACE_MS): Promise<boolean> {
   const steps = [...running];
-  const groups = steps.flatMap((step) => (step.pid ? [step.pid] : []));
-  for (const group of groups) {
-    try {
-      process.kill(-group, "SIGTERM");
-    } catch {}
+  if (!steps.length) return true;
+  const stopAt = Date.now();
+  const deadline = stopAt + graceMs;
+  for (const step of steps) {
+    if (step.stopAt !== undefined) continue;
+    step.stopAt = stopAt;
+    const { group } = step;
+    if (!group || !shellRunning(step)) continue;
+    if (!term(-group)) continue;
+    step.groupSignalled = true;
+    for (const [pid, known] of step.known) {
+      if (known.group === group) step.signalled.add(identity(pid, known.start));
+    }
   }
-  const deadline = Date.now() + graceMs;
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    if (reading)
+      await Promise.race([
+        reading,
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, Math.max(0, deadline - Date.now()));
+        }),
+      ]);
+  } finally {
+    clearTimeout(timer);
+  }
   for (;;) {
     const remaining = deadline - Date.now();
-    if (!steps.some((step) => running.has(step))) {
-      const present = new Set(groups.filter((group) => alive(-group)));
-      if (!present.size) return true;
-      if (remaining <= 0) return false;
-      try {
-        const { stdout } = await execFileAsync(
-          "ps",
-          ["-ax", "-o", "pgid=,stat="],
-          {
-            encoding: "utf-8",
-            timeout: remaining,
-          },
-        );
-        const hasLiveMember = stdout
-          .trim()
-          .split("\n")
-          .some((line) => {
-            const [group, state] = line.trim().split(/\s+/);
-            return present.has(Number(group)) && !state?.startsWith("Z");
-          });
-        if (stdout.trim() && !hasLiveMember) return true;
-      } catch {}
+    if (remaining <= 0) return false;
+    const reads = steps.map((step) => ({ step, live: shellRunning(step) }));
+    const rows = await snapshotProcessTableAsync({
+      timeout: Math.min(STEP_READ_MS, remaining),
+      killSignal: "SIGKILL",
+    });
+    if (Date.now() >= deadline) return false;
+    if (rows.length) {
+      const proofs = reads.map(
+        ({ step, live }) =>
+          readStep(step, rows, live, step.stopAt) && !running.has(step),
+      );
+      if (proofs.every(Boolean)) return true;
     }
-    const delay = Math.min(250, deadline - Date.now());
-    if (delay <= 0) return false;
-    await new Promise((resolve) => setTimeout(resolve, delay));
+    const delay = Math.min(STEP_STOP_POLL_MS, deadline - Date.now());
+    if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
   }
 }
 
@@ -248,10 +419,28 @@ export function noteRestoring(what: string | null): void {
 export async function shutDown(
   release: () => Promise<void>,
   graceMs = STOP_GRACE_MS,
+  afterStop?: () => void | Promise<void>,
 ): Promise<boolean> {
   if (!(await stopSteps(graceMs))) return false;
-  await release();
-  return true;
+  try {
+    await release();
+    return true;
+  } finally {
+    if (afterStop) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          Promise.resolve().then(afterStop),
+          new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, LEASE_RELEASE_MS);
+          }),
+        ]);
+      } catch {
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+  }
 }
 
 /** A worktree acquired the way a run's is (`cast ws`), marked as the station's own, without its setup until `setup`
@@ -294,15 +483,13 @@ export async function acquiredTree(
       console.log(
         `stopped while ${restoring}: production may run a backend the default branch lacks until the next merge or deploy`,
       );
-    stopping = shutDown(release)
-      .finally(afterStop)
-      .finally(() => {
-        if (landedAs) {
-          console.log(landedAs);
-          process.exit(0);
-        }
-        process.exit(sig === "SIGINT" ? 130 : 143);
-      });
+    stopping = shutDown(release, STOP_GRACE_MS, afterStop).finally(() => {
+      if (landedAs) {
+        console.log(landedAs);
+        process.exit(0);
+      }
+      process.exit(sig === "SIGINT" ? 130 : 143);
+    });
   }
   for (const sig of ["SIGTERM", "SIGINT"] as const) process.once(sig, onSignal);
   let setUp = false;

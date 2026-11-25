@@ -60,33 +60,64 @@ const msUntilProvable = (rows: ProcRow[]): number =>
 
 async function readTree(
   pick: (procs: ProcRow[]) => ProcRow[],
-): Promise<ProcRow[]> {
-  const rows = pick(
-    await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS }),
-  );
+): Promise<ProcRow[] | null> {
+  const first = await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS });
+  if (!first.length) return null;
+  const rows = pick(first);
   const wait = msUntilProvable(rows);
   if (!wait) return rows;
   await new Promise((r) => setTimeout(r, wait));
-  return pick(await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS }));
+  const second = await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS });
+  return second.length ? pick(second) : rows;
 }
 
 async function endTree(
   group: number | null,
   pick: (procs: ProcRow[]) => ProcRow[],
   graceMs: number,
-): Promise<void> {
-  const rows = await readTree(pick);
-  // The group as a whole too: a member forked after the read takes the TERM.
-  if (group !== null)
+  ownsGroup?: (rows: ProcRow[]) => boolean,
+): Promise<ProcRow[] | null> {
+  let signalledGroup = false;
+  const signalGroup = () => {
+    if (group === null || signalledGroup) return;
     try {
-      process.kill(-group, "SIGTERM");
-    } catch {
-      /* gone */
-    }
-  await killProcessTree(rows, graceMs);
+      signalledGroup = process.kill(-group, "SIGTERM");
+    } catch {}
+  };
+  const rows = await readTree(
+    ownsGroup
+      ? (procs) => {
+          const found = pick(procs);
+          if (ownsGroup(found)) signalGroup();
+          return found;
+        }
+      : pick,
+  );
+  if (!ownsGroup) signalGroup();
+  if (rows) {
+    await killProcessTree(
+      rows,
+      graceMs,
+      ownsGroup
+        ? {
+            readTable: async () => {
+              const current = await snapshotProcessTableAsync({
+                timeout: PS_TIMEOUT_MS,
+              });
+              if (current.length) pick(current);
+              return current;
+            },
+          }
+        : {},
+    );
+  }
   // What forked into the group during the grace, read and checked the same way.
-  if (group !== null && groupAlive(group))
-    await killProcessTree(await readTree(pick), 0);
+  if (group !== null && (ownsGroup ? signalledGroup : groupAlive(group))) {
+    const leftovers = await readTree(pick);
+    if (leftovers) await killProcessTree(leftovers, 0);
+    else if (ownsGroup) return null;
+  }
+  return rows;
 }
 
 /**
@@ -145,15 +176,18 @@ export function endStationsOnExit(
   if (!list.length) return true;
   const read = () => {
     const procs = snapshotProcessTable({ timeout: PS_TIMEOUT_MS });
-    return uniqueRows(list.flatMap((g) => processGroupTree(procs, g)));
+    return procs.length
+      ? uniqueRows(list.flatMap((g) => processGroupTree(procs, g)))
+      : null;
   };
   const first = read();
-  let rows = first;
-  const wait = msUntilProvable(rows);
+  let latest = first;
+  const wait = first ? msUntilProvable(first) : 0;
   if (wait) {
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, wait);
-    rows = read();
+    latest = read();
   }
+  const rows = latest ?? first ?? [];
   for (const r of rows)
     try {
       process.kill(r.pid, "SIGTERM");
@@ -166,7 +200,7 @@ export function endStationsOnExit(
     } catch {
       /* gone */
     }
-  const proven = (rows.length ? rows : first).filter(
+  const proven = rows.filter(
     (r) =>
       r.pid > 1 &&
       r.pid !== process.pid &&
@@ -191,7 +225,7 @@ export function endStationsOnExit(
         env: { ...process.env, LANG: "C", LC_ALL: "C" },
       },
     ).unref();
-    return rows.length > 0;
+    return latest !== null && proven.length === rows.length;
   } catch {
     return false;
   }
@@ -345,50 +379,122 @@ export async function reapDeadRunnerStations(
   const dead: Array<{ file: string; rec: StationRecord }> = [];
   for (const f of files) {
     const file = path.join(dir, f);
-    let rec: StationRecord;
+    let raw: string;
     try {
-      rec = JSON.parse(fs.readFileSync(file, "utf-8"));
+      raw = fs.readFileSync(file, "utf-8");
     } catch {
-      fs.rmSync(file, { force: true });
       continue;
     }
-    const stale =
-      !(rec.written > boot) ||
-      Date.now() - rec.written > RECORD_MAX_AGE_MS ||
-      !Array.isArray(rec.groups);
-    if (!stale && (rec.runner === process.pid || isPidAlive(rec.runner)))
-      continue;
-    if (stale) fs.rmSync(file, { force: true });
-    else dead.push({ file, rec });
+    let rec: StationRecord | undefined;
+    try {
+      const parsed = JSON.parse(raw);
+      if (
+        Number.isSafeInteger(parsed?.runner) &&
+        parsed.runner > 1 &&
+        Number.isFinite(parsed.written) &&
+        Array.isArray(parsed.groups) &&
+        parsed.groups.every(
+          (g: StationRecord["groups"][number] | null) =>
+            g &&
+            Number.isSafeInteger(g.pgid) &&
+            g.pgid > 1 &&
+            Array.isArray(g.procs) &&
+            g.procs.every(
+              (p) =>
+                p &&
+                Number.isSafeInteger(p.pid) &&
+                p.pid > 1 &&
+                Number.isSafeInteger(p.pgid) &&
+                p.pgid > 1 &&
+                typeof p.start === "string" &&
+                p.start.length > 0,
+            ),
+        )
+      )
+        rec = parsed;
+    } catch {}
+    if (
+      !rec ||
+      rec.written <= boot ||
+      Date.now() - rec.written > RECORD_MAX_AGE_MS
+    ) {
+      try {
+        if (fs.readFileSync(file, "utf-8") === raw) fs.unlinkSync(file);
+      } catch {}
+    } else if (rec.runner !== process.pid && !isPidAlive(rec.runner)) {
+      dead.push({ file, rec });
+    }
   }
   if (!dead.length) return [];
   const procs = await snapshotProcessTableAsync({ timeout: PS_TIMEOUT_MS });
   if (!procs.length) return [];
-  const claimed = dead.filter(({ file }) => {
-    try {
-      fs.unlinkSync(file);
-      return true;
-    } catch {
-      return false;
-    }
-  });
   const ended: number[] = [];
-  const ends: Promise<void>[] = [];
-  for (const { pgid, procs: known = [] } of claimed.flatMap(
-    ({ rec }) => rec.groups,
-  )) {
-    const rows = provenTree(procs, known);
-    if (!rows.length) continue;
-    ended.push(pgid);
-    // The group as a whole takes the TERM only while its leader is proven, the group id with it.
-    ends.push(
-      endTree(
-        rows.some((r) => r.pid === pgid) ? pgid : null,
-        (now) => provenTree(now, known),
-        graceMs,
-      ),
-    );
-  }
-  await Promise.all(ends);
+  await Promise.all(
+    dead.map(async ({ file, rec }) => {
+      const results = await Promise.all(
+        rec.groups.map(async ({ pgid, procs: known = [] }) => {
+          const first = provenTree(procs, known);
+          if (!first.length) return true;
+          const targets = new Map<string, StationProc>();
+          const key = (row: ProcRow) => `${row.pid} ${row.startedAt}`;
+          const remember = (rows: ProcRow[]) => {
+            for (const row of rows) {
+              if (row.startedAt && row.pgid !== undefined)
+                targets.set(key(row), {
+                  pid: row.pid,
+                  pgid: row.pgid,
+                  start: row.startedAt,
+                });
+            }
+            return rows;
+          };
+          remember(first);
+          const pick = (now: ProcRow[]) =>
+            provenTree(now, [...known, ...targets.values()]);
+          const rows = await endTree(
+            pgid,
+            (now) => remember(pick(now)),
+            graceMs,
+            (found) =>
+              found.some(
+                (row) =>
+                  row.pid === pgid &&
+                  row.pgid === pgid &&
+                  !row.command.trimEnd().endsWith("<defunct>"),
+              ),
+          );
+          if (!rows) return false;
+          const deadline = Date.now() + graceMs;
+          for (;;) {
+            const current = await snapshotProcessTableAsync({
+              timeout: PS_TIMEOUT_MS,
+            });
+            if (!current.length) return false;
+            const live = [
+              ...pick(current),
+              ...current.filter((row) => targets.has(key(row))),
+            ];
+            if (
+              live.every((row) => row.command.trimEnd().endsWith("<defunct>"))
+            )
+              break;
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) return false;
+            await new Promise((resolve) =>
+              setTimeout(resolve, Math.min(50, remaining)),
+            );
+          }
+          ended.push(pgid);
+          return true;
+        }),
+      );
+      if (results.every(Boolean)) {
+        try {
+          const current = JSON.parse(fs.readFileSync(file, "utf-8"));
+          if (current.written === rec.written) fs.unlinkSync(file);
+        } catch {}
+      }
+    }),
+  );
   return ended;
 }

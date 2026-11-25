@@ -118,6 +118,48 @@ describe("cast flow merge: before-merge steps", () => {
     T,
   );
 
+  test.each([
+    { shutdown: false, release: ["release"] },
+    { shutdown: true, release: [] },
+  ])(
+    "releases the deploy lease in the correct path (shutdown: $shutdown)",
+    async ({ shutdown, release }) => {
+      const s = setup();
+      try {
+        s.profile("first");
+        s.ci(s.branch("api/route.ts", "export {}\n"));
+        let stopping: Promise<boolean> | undefined;
+        const failed = new Error("step interrupted");
+        const result = s.run({
+          scratch: async (repo, at) => {
+            const tree = await s.scratch(repo, at);
+            return {
+              ...tree,
+              get stopping() {
+                return stopping;
+              },
+            };
+          },
+          runStep: () => {
+            if (shutdown) stopping = Promise.resolve(false);
+            throw failed;
+          },
+        });
+        expect(await result).toEqual({
+          code: 2,
+          line: "station crashed: Error: step interrupted",
+        });
+        const ops = s.posts
+          .filter((p) => p.path === "/cli/repo-lease")
+          .map((p) => p.body.op);
+        expect(ops).toContain("take");
+        expect(ops.filter((op) => op === "release")).toEqual([...release]);
+      } finally {
+        s.done();
+      }
+    },
+  );
+
   test(
     "a step runs from the rebased tree holding main, and its target is recorded deployed at the landed sha",
     async () => {
