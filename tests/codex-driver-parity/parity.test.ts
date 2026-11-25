@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { adapter, fake, legacy, until, type Trace } from "./peers";
 import {
   input,
+  labelText,
   midInput,
   question,
   recordedAssistantId,
@@ -29,7 +30,7 @@ async function settled<T>(pending: Promise<T>, label: string) {
 
 async function replay(directory: string, path: "legacy" | "adapter") {
   const server = fake(directory, path);
-  const trace: Trace = { api: [], events: [], names: [] };
+  const trace: Trace = { api: [], events: [], reasoning: [], names: [] };
   const peer = (path === "legacy" ? legacy : adapter)(server, directory, trace);
   const raw =
     "raw" in peer ? (peer.raw as ReturnType<typeof adapter>["raw"]) : undefined;
@@ -143,8 +144,27 @@ async function replay(directory: string, path: "legacy" | "adapter") {
         },
       },
       ...recordedItems(threadId, turnId),
+      {
+        method: "item/completed",
+        params: {
+          threadId,
+          turnId,
+          item: {
+            type: "reasoning",
+            id: "reasoning-with-content",
+            content: ["Inspect the result before replying."],
+            summary: ["Check the result."],
+          },
+        },
+      },
       recordedCompletion(threadId, turnId, "interrupted"),
     ]);
+
+    const reasoning = trace.reasoning.join("\n");
+    expect(
+      reasoning.includes("Inspect the result before replying."),
+      "reasoning content survives projection",
+    ).toBe(true);
 
     const lateTurn = server.turn(2);
     const late = peer.steer("Reply after completion", "late-delivery", null);
@@ -222,7 +242,7 @@ async function replay(directory: string, path: "legacy" | "adapter") {
           .map(({ disposition }) => disposition),
       ).toEqual(["decoded", "unknown"]);
     }
-    return phases;
+    return { phases, reasoning };
   } finally {
     await peer.close();
   }
@@ -235,8 +255,13 @@ test("legacy Codex and the owned adapter replay one recorded turn schedule", asy
   try {
     mkdirSync(join(home, "legacy"));
     mkdirSync(join(home, "adapter"));
-    const before = await replay(join(home, "legacy"), "legacy");
-    const after = await replay(join(home, "adapter"), "adapter");
+    const legacy = await replay(join(home, "legacy"), "legacy");
+    const adapter = await replay(join(home, "adapter"), "adapter");
+    const { phases: before } = legacy;
+    const { phases: after } = adapter;
+    expect(labelText(legacy.reasoning), "effective reasoning matches").toBe(
+      labelText(adapter.reasoning),
+    );
     expect(before.start).toEqual({ api: [["opened", "thread"]], events: [] });
     expect(before.interrupt).toEqual({ api: ["applied"], events: [] });
     const differences = Object.fromEntries(

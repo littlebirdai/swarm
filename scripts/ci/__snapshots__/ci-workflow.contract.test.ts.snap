@@ -344,6 +344,12 @@ node --test infra/call-face-worker/turns.test.mjs
       },
       {
         "if": "matrix.suite == 'evals'",
+        "name": "Codex driver parity replay",
+        "run": "bun run test",
+        "working-directory": "tests/codex-driver-parity",
+      },
+      {
+        "if": "matrix.suite == 'evals'",
         "name": "Portable CLI script tests",
         "run": "bun test --isolate ./scripts/line-present-replay.test.ts ./scripts/prompt-dry-run.cut.test.ts ./scripts/prompt-dry-run.guard.test.ts ./scripts/prompt-dry-run.harness.guard.test.ts",
         "working-directory": "apps/cli",

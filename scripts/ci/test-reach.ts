@@ -36,7 +36,7 @@ const ROOT = join(import.meta.dir, "..", "..");
 export const JOB_TEST_ROOTS: Record<string, string[]> = {
   "test-convex": ["apps/server/convex", "apps/server/scripts"],
   "test-web": ["apps/web"],
-  "test-cli": ["apps/cli/src", "apps/evals/src"],
+  "test-cli": ["apps/cli/src", "apps/evals/src", "tests/codex-driver-parity"],
   "test-shared": [
     ...workspaceDirectories(ROOT, "packages"),
     "apps/relay",

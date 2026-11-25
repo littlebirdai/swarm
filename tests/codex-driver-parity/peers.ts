@@ -71,6 +71,7 @@ type Fake = ReturnType<typeof fake>;
 export type Trace = {
   api: unknown[];
   events: string[];
+  reasoning: string[];
   names: string[];
 };
 
@@ -81,11 +82,12 @@ const fence = { run: 1, fencing_token: "parity-fence" };
 const shortTurn = (id: string) => normalizeId(id);
 
 function appendLegacy(
-  events: string[],
+  { events, reasoning }: Trace,
   turn: string,
   messages: ParsedMessage[],
 ) {
   for (const message of messages) {
+    expect(message.role).toBe("assistant");
     for (const call of message.toolCalls ?? []) {
       const input = call.input as { command: string };
       events.push(
@@ -99,7 +101,10 @@ function appendLegacy(
     }
     if (message.content)
       events.push(`${turn} assistant ${labelText(message.content)}`);
-    if (message.thinking) events.push(`${turn} reasoning`);
+    if (message.thinking) {
+      reasoning.push(message.thinking);
+      events.push(`${turn} reasoning ${labelText(message.thinking)}`);
+    }
   }
 }
 
@@ -151,10 +156,22 @@ function appendAdapter(trace: Trace, event: ProviderEvent) {
       const data = body.data as {
         name?: string;
         type?: string;
+        content?: string[];
+        summary?: string[];
         questions?: { options: { label: string }[] }[];
       };
       if (data.name) trace.names.push(data.name);
-      if (data.type === "reasoning") trace.events.push(`${turn} reasoning`);
+      if (data.type === "reasoning") {
+        const { content, summary } = data;
+        expect(Array.isArray(content)).toBe(true);
+        expect(Array.isArray(summary)).toBe(true);
+        trace.reasoning.push(
+          (content!.length ? content! : summary!).join("\n"),
+        );
+        trace.events.push(
+          `${turn} reasoning content=${JSON.stringify(content!.map(labelText))} summary=${JSON.stringify(summary!.map(labelText))}`,
+        );
+      }
       if (data.questions)
         trace.events.push(
           `${turn} options ${data.questions.flatMap(({ options }) => options.map(({ label }) => label)).join(",")}`,
@@ -211,7 +228,7 @@ export function legacy(server: Fake, cwd: string, trace: Trace) {
   client.on(
     "turnCompleted",
     (_thread, turn: string, messages: ParsedMessage[], status: string) => {
-      appendLegacy(trace.events, shortTurn(turn), messages);
+      appendLegacy(trace, shortTurn(turn), messages);
       trace.events.push(`${shortTurn(turn)} ended ${status}`);
     },
   );
