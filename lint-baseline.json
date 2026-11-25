@@ -10340,7 +10340,7 @@
   "apps/server/convex/lib/projectShortId.ts": {
     "swarm/no-comments": 4
   },
-  "apps/server/convex/lib/projectTaskCounts.test.ts": {
+  "apps/server/convex/lib/project-task-counts.test.ts": {
     "swarm/no-comments": 3
   },
   "apps/server/convex/lib/projectTaskCounts.ts": {
@@ -12239,7 +12239,7 @@
   "apps/server/convex/syncLogPrune.ts": {
     "swarm/no-comments": 69
   },
-  "apps/server/convex/syncOutbox.e2e.test.ts": {
+  "apps/server/convex/sync-outbox.e2e.test.ts": {
     "swarm/no-comments": 9
   },
   "apps/server/convex/syncOutbox.ts": {

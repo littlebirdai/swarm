@@ -240,6 +240,11 @@ The count query works even if the viewer's device never held the task.
 The sync log applies task changes without refetching a project. Web and mobile
 board summaries count the tasks in their local task collection.
 
+Three limits remain. A live write does not change the buckets before their
+backfill is complete. A wrong bucket does not repair itself; run the backfill
+with `reset: true`. A count excludes a task in a workspace that the viewer does
+not hold, also when the task is assigned to the viewer.
+
 ### E9 — Rollout and compat
 
 Server first, additive: new optional fields; emission on by default with an env kill switch
