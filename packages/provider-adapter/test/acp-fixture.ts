@@ -200,8 +200,8 @@ export function fixture(env: Record<string, string> = {}) {
   const observed = () =>
     existsSync(effectsPath)
       ? readFileSync(effectsPath, "utf8")
-          .trim()
           .split("\n")
+          .slice(0, -1)
           .map(
             (line) =>
               JSON.parse(line) as {

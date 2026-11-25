@@ -4,6 +4,7 @@ import {
   closeSync,
   readdirSync,
   readFileSync,
+  renameSync,
   unlinkSync,
   watch,
   writeFileSync,
@@ -112,12 +113,11 @@ rpc.on("line", (line) => {
       break;
     default:
       if (result?.outcome) record("answer", message);
-      else if (id === "unknown-request")
-        writeFileSync(
-          join(directory, "unsupported-seen"),
-          JSON.stringify(message.error),
-        );
-      else if (String(id).startsWith("barrier:"))
+      else if (id === "unknown-request") {
+        const temporary = join(directory, "unsupported.tmp");
+        writeFileSync(temporary, JSON.stringify(message.error));
+        renameSync(temporary, join(directory, "unsupported-seen"));
+      } else if (String(id).startsWith("barrier:"))
         writeFileSync(join(directory, String(id)), "");
   }
 });
