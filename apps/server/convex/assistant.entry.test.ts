@@ -60,6 +60,20 @@ const modules = {
 
 const testInstances: Array<ReturnType<typeof convexTest<typeof schema>>> = [];
 
+const EXPECTED_JOBS = new Set([
+  "agentTasks:generateDisplaySummary",
+  "assistant/entry:wake",
+  "assistant/turns:expire",
+  "assistant/turns:run",
+  "idleSummary:classifySettle",
+  "idleSummary:generateIdleSummary",
+  "messages:projectAgentStatusOnAddMessages",
+  "notifications:checkNeedsInput",
+  "syncOutbox:drain",
+  "titleGeneration:generateTitle",
+  "userSends:record",
+]);
+
 const TOKEN = "hosted-assistant-test-token";
 let previousHosts: string | undefined;
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
@@ -83,6 +97,12 @@ afterEach(async () => {
           .map((job) => ({ name: job.name, state: job.state.kind })),
       );
       expect(unfinished).toEqual([]);
+      const unexpected = await t.run(async (ctx) =>
+        (await ctx.db.system.query("_scheduled_functions").collect())
+          .map((job) => job.name)
+          .filter((name) => !EXPECTED_JOBS.has(name)),
+      );
+      expect(unexpected).toEqual([]);
     }
   } finally {
     jest.useRealTimers();

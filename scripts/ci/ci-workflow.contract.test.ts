@@ -885,6 +885,7 @@ describe("tests outside packages/", () => {
     );
     for (const file of [
       "./scripts/line.test.ts",
+      "./scripts/lineFinders.test.ts",
       "./scripts/lib/lint-baseline.test.ts",
       "./infra/artifact-edge/worker.test.js",
       "./infra/replay-player/src/clock.test.ts",

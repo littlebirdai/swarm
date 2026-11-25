@@ -181,3 +181,12 @@ test.each([
 ])("finds a registered test in %s", (text) => {
   expect(registersTest("case.test.ts", text)).toBe(true);
 });
+
+test.each([
+  { defaults: {}, jobs: {} },
+  { jobs: { test: { defaults: {}, steps: [] } } },
+  { jobs: { test: { steps: [{ shell: "bash {0}", run: "bun test" }] } } },
+  { jobs: { test: { steps: [{ run: "bun test --shard=1/8" }] } } },
+])("rejects a workflow that can hide a test failure: %j", (workflow) => {
+  expect(() => testCoverage(workflow, [])).toThrow();
+});
