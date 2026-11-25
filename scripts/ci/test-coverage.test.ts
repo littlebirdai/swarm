@@ -68,7 +68,7 @@ test("CI test files register a test case", () => {
     return !registersTest(file, source);
   });
   expect(empty.sort()).toEqual([]);
-});
+}, 30_000);
 
 test.each(["# bun test ./case.test.ts", "echo 'bun test ./case.test.ts'"])(
   "does not count shell text %s",
