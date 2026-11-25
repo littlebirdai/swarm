@@ -26,29 +26,30 @@ The CI budget job runs these checks in fresh processes. Run only the store
 checks with `bun perf/budgets.ts store` and the first paint checks with
 `bun perf/budgets.ts boot`, from `apps/web`.
 
-| Budget                            |   Measured |      Limit | Fixture                                                                                                               | Deliberate regression and failing value        |
-| --------------------------------- | ---------: | ---------: | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| Task list bytes                   | 14,661,183 | 14,807,795 | 7,919 tasks with synthetic comment threads from `detail-rows-size.ts`                                                 | Keep comment threads on task rows → 32,019,997 |
-| Pull request list bytes           |    897,150 |    906,122 | 253 pull requests with synthetic patches, commits and checks from the same fixture                                    | Keep details on pull request rows → 34,354,946 |
-| Cached conversation message rows  |     27,000 |     27,000 | Load 400 conversations with 250 messages each                                                                         | Skip eviction → 100,000                        |
-| Cached conversation message bytes | 33,094,880 | 33,554,432 | Load the same messages with one 128 KiB inline image per conversation                                                 | Skip eviction → more than 33,554,432           |
-| Retained sessions                 |      1,200 |      1,200 | 1,300 recent rows                                                                                                     | Skip session retention → 1,300                 |
-| Retained conversations            |      1,200 |      1,200 | 1,300 recent rows                                                                                                     | Skip conversation retention → 1,300            |
-| Retained docDetails               |        200 |        200 | 220 recent rows                                                                                                       | Raise the cap by one → 201                     |
-| Retained taskComments             |      1,500 |      1,500 | 1,600 recent rows                                                                                                     | Raise the cap by one → 1,501                   |
-| Retained pullRequestDetails       |         12 |         12 | 24 recent rows                                                                                                        | Raise the cap by one → 13                      |
-| Retained deployReach              |        300 |        300 | 320 recent rows                                                                                                       | Raise the cap by one → 301                     |
-| Retained runGraphs                |         40 |         40 | 60 recent rows                                                                                                        | Raise the cap by one → 41                      |
-| Retained deployDetails            |         50 |         50 | 70 recent rows                                                                                                        | Raise the cap by one → 51                      |
-| Retained externalEvents           |      2,000 |      2,000 | 2,100 recent rows for one team                                                                                        | Raise the cap by one → 2,001                   |
-| Retained settingsData             |          1 |          1 | One current row and one retired row                                                                                   | Keep the retired row → 2                       |
-| Retained mySends                  |     10,000 |     10,000 | 10,100 recent rows                                                                                                    | Raise the cap by one → 10,001                  |
-| First paint read groups           |         21 |         21 | Signed-in boot with a cached conversation in focus                                                                    | Move tasks to the critical phase → 22          |
-| First paint IndexedDB tables      |         20 |         20 | Same boot                                                                                                             | Read deferred tasks without timing → 21        |
-| First paint IndexedDB rows        |      2,822 |      2,822 | 1,300 sessions and their twins, a 200-message focused transcript, one row per other collection and system metadata    | Read sessions twice → 4,122                    |
-| Streamed batch row writes         |          4 |          4 | Edit the newest message and append one to a full 200-row tail, with one eviction and one metadata write               | Rewrite all 200 messages → 202                 |
-| Rename action row writes          |          4 |          4 | Rename one of 500 sessions with matching conversation rows. Save both rows, the pending lock map and the outbox entry | Rewrite all 500 conversation rows → 503        |
-| Follower populated collections    |        138 |        138 | Receive a host snapshot with a synthetic row in every registered collection and in conversations                      | Share the local repoBrowse map → 139           |
+| Budget                                 |   Measured |      Limit | Fixture                                                                                                               | Deliberate regression and failing value        |
+| -------------------------------------- | ---------: | ---------: | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Task list bytes                        | 14,661,183 | 14,807,795 | 7,919 tasks with synthetic comment threads from `detail-rows-size.ts`                                                 | Keep comment threads on task rows → 32,019,997 |
+| Pull request list bytes                |    897,150 |    906,122 | 253 pull requests with synthetic patches, commits and checks from the same fixture                                    | Keep details on pull request rows → 34,354,946 |
+| Cached conversation message rows       |     22,750 |     22,750 | Load 400 conversations with 250 messages each                                                                         | Skip eviction → 100,000                        |
+| Cached conversation message bytes      | 27,910,610 | 33,554,432 | Load the same messages with one 128 KiB inline image per conversation                                                 | Skip eviction → more than 33,554,432           |
+| Cached conversation message JSON bytes | 13,488,375 | 16,777,216 | Measure UTF-8 JSON for the transcript and navigator maps                                                              | Undercount strings and admit all rows          |
+| Retained sessions                      |      1,200 |      1,200 | 1,300 recent rows                                                                                                     | Skip session retention → 1,300                 |
+| Retained conversations                 |      1,200 |      1,200 | 1,300 recent rows                                                                                                     | Skip conversation retention → 1,300            |
+| Retained docDetails                    |        200 |        200 | 220 recent rows                                                                                                       | Raise the cap by one → 201                     |
+| Retained taskComments                  |      1,500 |      1,500 | 1,600 recent rows                                                                                                     | Raise the cap by one → 1,501                   |
+| Retained pullRequestDetails            |         12 |         12 | 24 recent rows                                                                                                        | Raise the cap by one → 13                      |
+| Retained deployReach                   |        300 |        300 | 320 recent rows                                                                                                       | Raise the cap by one → 301                     |
+| Retained runGraphs                     |         40 |         40 | 60 recent rows                                                                                                        | Raise the cap by one → 41                      |
+| Retained deployDetails                 |         50 |         50 | 70 recent rows                                                                                                        | Raise the cap by one → 51                      |
+| Retained externalEvents                |      2,000 |      2,000 | 2,100 recent rows for one team                                                                                        | Raise the cap by one → 2,001                   |
+| Retained settingsData                  |          1 |          1 | One current row and one retired row                                                                                   | Keep the retired row → 2                       |
+| Retained mySends                       |     10,000 |     10,000 | 10,100 recent rows                                                                                                    | Raise the cap by one → 10,001                  |
+| First paint read groups                |         21 |         21 | Signed-in boot with a cached conversation in focus                                                                    | Move tasks to the critical phase → 22          |
+| First paint IndexedDB tables           |         20 |         20 | Same boot                                                                                                             | Read deferred tasks without timing → 21        |
+| First paint IndexedDB rows             |      2,822 |      2,822 | 1,300 sessions and their twins, a 200-message focused transcript, one row per other collection and system metadata    | Read sessions twice → 4,122                    |
+| Streamed batch row writes              |          4 |          4 | Edit the newest message and append one to a full 200-row tail, with one eviction and one metadata write               | Rewrite all 200 messages → 202                 |
+| Rename action row writes               |          4 |          4 | Rename one of 500 sessions with matching conversation rows. Save both rows, the pending lock map and the outbox entry | Rewrite all 500 conversation rows → 503        |
+| Follower populated collections         |        138 |        138 | Receive a host snapshot with a synthetic row in every registered collection and in conversations                      | Share the local repoBrowse map → 139           |
 
 The byte limits for task and pull request rows add 1% for small changes to the
 row shape. The count limits add zero rows or tables. The retention fixture
@@ -56,7 +57,8 @@ omits exceptions such as pinned sessions that can exceed a cap.
 
 The message cache uses 32 MiB per desktop window to leave room for other
 windows. The phone uses 16 MiB to leave room for the native app and decoded
-images. The estimate includes strings, row objects, and navigator pages.
+images. Above the cap, eviction targets 75% of the budget. The estimate
+includes strings, row objects, and navigator pages.
 Open transcripts, active streams, and conversations with unsent messages can
 exceed the limit. The fixture has no protected conversations. Three quarters
 of its images also have a storage ID. The store keeps inline-only images for

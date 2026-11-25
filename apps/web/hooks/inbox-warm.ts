@@ -11,6 +11,7 @@ import {
   sessionStructuralSig,
   type InboxSession,
 } from "../store/inboxStore";
+import { MESSAGE_CACHE_BUDGET_BYTES } from "../store/store-eviction";
 import { makeCollectionSig } from "../store/wakeSig";
 import { whenInputQuiet } from "../lib/inputQuiet";
 import { windowDrawsTranscripts } from "../lib/windowRole";
@@ -102,7 +103,12 @@ export function planWarm(rows: WarmRow[], underPressure = false): WarmAction[] {
       return;
     }
     if (row.storedCount === 0) {
-      if (underPressure || cold >= MAX_COLD_WARM_PER_PASS) return;
+      if (
+        underPressure ||
+        row.syncedCount !== undefined ||
+        cold >= MAX_COLD_WARM_PER_PASS
+      )
+        return;
       cold++;
       actions.push({
         kind: "cold",
@@ -503,7 +509,10 @@ export function warmRowsFromState(
 export function warmVisibleSessions(convex: ConvexClient): void {
   const st = useInboxStore.getState();
   const rows = warmRowsFromState(st);
-  const plan = planWarm(rows, st.messageCacheUnderPressure);
+  const plan = planWarm(
+    rows,
+    st.messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES,
+  );
   lastPass = {
     at: Date.now(),
     planned: plan.length,
@@ -543,13 +552,14 @@ type WarmInputs = Pick<
   | "sessions"
   | "messages"
   | "pagination"
-  | "messageCacheUnderPressure"
+  | "messageCacheBytes"
   | "liveInboxIds"
   | "teamInboxIds"
   | "orgTree"
 >;
 const warmInputsChanged = (a: WarmInputs, b: WarmInputs) =>
-  a.messageCacheUnderPressure !== b.messageCacheUnderPressure ||
+  a.messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES !==
+    b.messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES ||
   (a.sessions !== b.sessions &&
     warmSessionsSig(a.sessions) !== warmSessionsSig(b.sessions)) ||
   (a.messages !== b.messages &&

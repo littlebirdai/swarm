@@ -3,10 +3,14 @@ import assert from "node:assert/strict";
 const limits = {
   "Task list bytes": { measured: 14_661_183, margin: 146_612 },
   "Pull request list bytes": { measured: 897_150, margin: 8_972 },
-  "Cached conversation message rows": { measured: 27_000, margin: 0 },
+  "Cached conversation message JSON bytes": {
+    measured: 13_488_375,
+    margin: 3_288_841,
+  },
+  "Cached conversation message rows": { measured: 22_750, margin: 0 },
   "Cached conversation message bytes": {
-    measured: 33_094_880,
-    margin: 459_552,
+    measured: 27_910_610,
+    margin: 5_643_822,
   },
   "Retained sessions": { measured: 1200, margin: 0 },
   "Retained conversations": { measured: 1200, margin: 0 },

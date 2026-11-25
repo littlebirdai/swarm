@@ -4,7 +4,7 @@ import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { TEST_PRINCIPAL } from "../store/__tests__/fixtures/signedInPrincipal";
 import { COLLECTION_RETENTION } from "../store/cacheRetention";
 import { REGISTERED_COLLECTION_KEYS } from "../store/clientSyncRegistry";
-import { useInboxStore } from "../store/inboxStore";
+import { clearProtectedInboxMemory, useInboxStore } from "../store/inboxStore";
 import { loadCache } from "../store/persistence/boot-loader";
 import { writePatchesToIDB } from "../store/persistence/collection-writer";
 import {
@@ -39,6 +39,8 @@ import { checkStoreBudget } from "./store-budget-limits";
 const state = useInboxStore.getState;
 
 function measureMessages() {
+  clearProtectedInboxMemory();
+  assert.deepEqual(state().messages, {});
   for (let conversation = 0; conversation < 400; conversation++) {
     state().setMessages(
       id(conversation),
@@ -47,7 +49,11 @@ function measureMessages() {
       "cache",
     );
   }
-  const messages = state().messages;
+  const { messages, userMessages } = state();
+  checkStoreBudget(
+    "Cached conversation message JSON bytes",
+    Buffer.byteLength(JSON.stringify({ messages, userMessages })),
+  );
   assert.equal(messages[id(399)]?.length, 250);
   assert.equal(messages[id(0)], undefined);
   assert.equal(messages[id(399)][100].images?.[0].data, undefined);
@@ -175,11 +181,14 @@ async function measureFollower() {
   const host = replicationHostFor("host", channel, () => hostState);
   const synced = Promise.withResolvers<void>();
   useInboxStore.setState({ syncRole: "follower" });
+  const local = [{ _id: "local-message", role: "user", timestamp: 1 }];
+  state().setMessages(id(400), local, undefined, "cache");
   const follower = replicationFollowerFor("follower", channel, (ready) => {
     if (ready) synced.resolve();
   });
   try {
     await synced.promise;
+    assert.deepEqual(state().messages[id(400)], local);
     const held = Object.entries(state()).filter(
       ([key, value]) => key in hostState && Object.keys(value ?? {}).length > 0,
     );

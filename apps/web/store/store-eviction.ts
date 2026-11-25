@@ -7,6 +7,8 @@ import type { InboxStoreState } from "./inboxStore";
 export const MESSAGE_CACHE_BUDGET_BYTES =
   (globalThis.navigator?.product === "ReactNative" ? 16 : 32) * 1024 * 1024;
 
+const MESSAGE_CACHE_LOW_WATER_BYTES = MESSAGE_CACHE_BUDGET_BYTES * 0.75;
+
 export const MESSAGE_CACHE_PAGE_OVERHEAD = 64;
 
 export function messageRowBytes(value: unknown): number {
@@ -49,9 +51,9 @@ type MessageCacheDraft = Pick<
   | "currentSessionId"
   | "sidePanelSessionId"
   | "viewingDismissedId"
+  | "pendingNavigateId"
   | "messageCacheBytes"
   | "messageCacheBytesByConversation"
-  | "messageCacheUnderPressure"
   | "_lastViewedAt"
 >;
 
@@ -79,8 +81,6 @@ export function adjustMessageCacheBytes(
   if (bytes) draft.messageCacheBytesByConversation[id] = bytes;
   else delete draft.messageCacheBytesByConversation[id];
   draft.messageCacheBytes += delta;
-  if (delta < 0 && draft.messageCacheBytes < MESSAGE_CACHE_BUDGET_BYTES * 0.75)
-    draft.messageCacheUnderPressure = false;
 }
 
 export function dropCachedMessages(draft: MessageCacheDraft, id: string): void {
@@ -125,34 +125,53 @@ export function rekeyCachedMessages(
   }
 }
 
-export function evictInactiveMessages(draft: MessageCacheDraft): void {
+function canEvictMessages(
+  state: MessageCacheDraft,
+  id: string,
+  now: number,
+): boolean {
+  if (
+    openViews.has(id) ||
+    id === state.currentConversation?.conversationId ||
+    id === state.currentSessionId ||
+    id === state.sidePanelSessionId ||
+    id === state.viewingDismissedId ||
+    id === state.pendingNavigateId ||
+    state.pendingMessages[id]?.length ||
+    state.queuedMessages[id]?.length ||
+    Object.hasOwn(state.pendingSessionCreates, id)
+  )
+    return false;
+  const session = state.sessions[id];
+  return !session || (!session.has_pending && sessionIdleAt(session, now));
+}
+
+export function hasEvictableMessagesOverBudget(
+  state: MessageCacheDraft,
+): boolean {
+  if (state.messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES) return false;
+  const now = Date.now();
+  return Object.keys(state.messageCacheBytesByConversation).some((id) =>
+    canEvictMessages(state, id, now),
+  );
+}
+
+export function evictInactiveMessages(
+  draft: MessageCacheDraft,
+  writtenId?: string,
+): void {
   if (draft.messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES) return;
 
   const now = Date.now();
   const viewedAt = draft._lastViewedAt;
   const candidates = Object.keys(draft.messageCacheBytesByConversation)
-    .filter((id) => {
-      if (
-        openViews.has(id) ||
-        id === draft.currentConversation?.conversationId ||
-        id === draft.currentSessionId ||
-        id === draft.sidePanelSessionId ||
-        id === draft.viewingDismissedId ||
-        draft.pendingMessages[id]?.length ||
-        draft.queuedMessages[id]?.length ||
-        Object.hasOwn(draft.pendingSessionCreates, id)
-      )
-        return false;
-      const session = draft.sessions[id];
-      return !session || (!session.has_pending && sessionIdleAt(session, now));
-    })
+    .filter((id) => id !== writtenId && canEvictMessages(draft, id, now))
     .sort((a, b) => (viewedAt[a] ?? 0) - (viewedAt[b] ?? 0));
 
   for (const id of candidates) {
     dropCachedMessages(draft, id);
-    if (draft.messageCacheBytes <= MESSAGE_CACHE_BUDGET_BYTES) break;
+    if (draft.messageCacheBytes <= MESSAGE_CACHE_LOW_WATER_BYTES) break;
   }
-  draft.messageCacheUnderPressure = true;
 }
 
 /**

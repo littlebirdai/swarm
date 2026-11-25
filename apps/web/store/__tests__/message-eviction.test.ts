@@ -1,17 +1,35 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import fc from "fast-check";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
-import { TEST_PRINCIPAL } from "./fixtures/signedInPrincipal";
-import { planWarm, type WarmRow } from "../../hooks/inbox-warm";
+import {
+  AUTH_JWT_STORAGE_KEY,
+  issueFakeToken,
+  mapStorage,
+} from "./fixtures/fakeAuthToken";
+import { webBuilders } from "../../test-helpers/builders";
+import { replaceGlobals } from "../../test-helpers/globals";
+import {
+  planWarm,
+  warmVisibleSessions,
+  warmRowsFromState,
+  type WarmRow,
+} from "../../hooks/inbox-warm";
 import {
   __createInboxStoreForTests,
   ensureHydrated,
   useInboxStore,
   type InboxStoreState,
 } from "../inboxStore";
-import { flushConversationMessages, _reopenForTests } from "../idb-cache";
+import {
+  flushConversationMessages,
+  flushPendingMessageJournal,
+  _reopenForTests,
+} from "../idb-cache";
 import { db } from "../persistence/db";
-import { writeOwnerStamp } from "../persistence/ownership";
+import {
+  ensureCacheOwnership,
+  writeOwnerStamp,
+} from "../persistence/ownership";
 import {
   MESSAGE_CACHE_BUDGET_BYTES,
   MESSAGE_CACHE_PAGE_OVERHEAD,
@@ -62,15 +80,11 @@ test("keeps more than 400 small conversations and evicts whole conversations by 
   }
 
   const state = store.getState();
-  expect(Object.keys(state.messages).sort()).toEqual([
-    "first",
-    "fourth",
-    "third",
-  ]);
+  expect(Object.keys(state.messages).sort()).toEqual(["first", "fourth"]);
   expect(state.userMessages.second).toBeUndefined();
   expect(state.pagination.second).toBeUndefined();
   expect(state.messageCacheBytes).toBeLessThanOrEqual(
-    MESSAGE_CACHE_BUDGET_BYTES,
+    MESSAGE_CACHE_BUDGET_BYTES * 0.75,
   );
 });
 
@@ -92,9 +106,13 @@ test("protects open panes, pending sends, queued sends and streaming conversatio
       },
     } as InboxStoreState["sessions"],
   });
+  store.setState({
+    pendingMessages: {
+      pending: [{ ...row(Date.now(), "unsent"), _isOptimistic: true }],
+    },
+    queuedMessages: { queued: ["queued"] },
+  });
   try {
-    store.getState().addOptimisticMessage("pending", "unsent");
-    store.getState().setQueuedMessagesFor("queued", ["queued"]);
     for (const id of ["pane", "pending", "queued", "stream"]) {
       store.getState().setMessages(id, [row(1, large)], {}, "cache");
     }
@@ -104,15 +122,16 @@ test("protects open panes, pending sends, queued sends and streaming conversatio
       "pane",
       "pending",
       "queued",
+      "recent",
       "stream",
     ]);
+    expect(store.getState().pendingMessages.queued).toBeUndefined();
     expect(store.getState().pendingMessages.pending[0].content).toBe("unsent");
     releaseOtherPane();
     store.getState().trimMessageCache();
     expect(store.getState().messages.pane).toBeUndefined();
-    expect(store.getState().messageCacheBytes).toBeLessThanOrEqual(
-      MESSAGE_CACHE_BUDGET_BYTES,
-    );
+    expect(store.getState().messages.recent).toBeUndefined();
+    expect(store.getState().messages.queued).toBeDefined();
   } finally {
     releasePane();
     releaseOtherPane();
@@ -190,9 +209,10 @@ test("incremental byte counts match a full recount after edits, deletions and re
 });
 
 test("rehydrates an evicted transcript and navigator from disk without resetting its read markers", async () => {
-  await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
-  await db.meta.put({ key: "currentUser", value: { _id: TEST_PRINCIPAL } });
-  await writeOwnerStamp(TEST_PRINCIPAL, "test-fixture");
+  const principal = "userA";
+  const storage = mapStorage();
+  storage.setItem(AUTH_JWT_STORAGE_KEY, issueFakeToken(principal));
+  const restoreGlobals = replaceGlobals({ localStorage: storage });
   const id = "restorable";
   const message = {
     ...row(Date.now(), "An image sent offline"),
@@ -205,6 +225,10 @@ test("rehydrates an evicted transcript and navigator from disk without resetting
     _seenMessageCount: { [id]: 7 },
   });
   try {
+    await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
+    await db.meta.put({ key: "currentUser", value: { _id: principal } });
+    await writeOwnerStamp(principal, "test-fixture");
+    expect(await ensureCacheOwnership()).toBe(principal);
     useInboxStore.getState().setMessages(id, [message], { initialized: true });
     useInboxStore.getState().setUserMessages(id, [message]);
     flushConversationMessages();
@@ -236,6 +260,7 @@ test("rehydrates an evicted transcript and navigator from disk without resetting
   } finally {
     useInboxStore.setState(original);
     db.close();
+    restoreGlobals();
   }
 });
 
@@ -252,7 +277,7 @@ test("cache pressure suppresses cold warms and deepens while allowing deltas", (
   const shallow: WarmRow = {
     ...cold,
     id: "shallow",
-    storedCount: 60,
+    storedCount: 1,
     newestTs: 2,
     hasMoreAbove: true,
     syncedCount: 100,
@@ -264,4 +289,215 @@ test("cache pressure suppresses cold warms and deepens while allowing deltas", (
   expect(planWarm([cold, shallow], true)).toEqual([
     { kind: "delta", id: "shallow", after: 1, serverCount: 101 },
   ]);
+});
+
+test.each(["snapshot", "cache", "merge", "tail", "navigator"] as const)(
+  "%s keeps the conversation the write just loaded",
+  (kind) => {
+    const store = __createInboxStoreForTests();
+    store.setState({ _lastViewedAt: { old: 1, recent: 2 } });
+    store.getState().setMessages("old", [row(1, large)], {}, "cache");
+    store.getState().setMessages("recent", [row(1, large)], {}, "cache");
+    const state = store.getState();
+    const message = row(2, large.repeat(3));
+    if (kind === "snapshot" || kind === "cache")
+      state.setMessages(
+        "incoming",
+        [message],
+        {},
+        kind === "cache" ? "cache" : undefined,
+      );
+    else if (kind === "merge")
+      state.mergeMessages("incoming", [message], "append");
+    else if (kind === "tail")
+      state.applyTailMessages("incoming", 0, [message], 2);
+    else state.setUserMessages("incoming", [message], "cache");
+    const next = store.getState();
+    const rows = kind === "navigator" ? next.userMessages : next.messages;
+    expect(rows.incoming).toEqual([message]);
+    expect(next.messages.old).toBeUndefined();
+    expect(next.messages.recent).toBeUndefined();
+  },
+);
+
+test("an evicted warm does not refetch and a new top conversation can warm", () => {
+  const fresh: WarmRow = {
+    id: "new-top",
+    serverCount: 2,
+    storedCount: 0,
+    hasMoreAbove: false,
+    newestTs: null,
+    syncedCount: undefined,
+    inFlight: false,
+  };
+  const evicted = { ...fresh, id: "evicted-before", syncedCount: 1 };
+  expect(planWarm([fresh, evicted]).map((action) => action.id)).toEqual([
+    fresh.id,
+  ]);
+});
+
+test("pending navigation protects rows until the destination clears", async () => {
+  const original = useInboxStore.getState();
+  useInboxStore.setState({
+    messages: {},
+    userMessages: {},
+    pagination: {},
+    messageCacheBytes: 0,
+    messageCacheBytesByConversation: {},
+    queuedMessages: { reserve: ["unsent"] },
+  });
+  try {
+    useInboxStore.getState().requestNavigate("destination");
+    useInboxStore
+      .getState()
+      .setMessages("destination", [row(1, large)], {}, "cache");
+    useInboxStore
+      .getState()
+      .setMessages("reserve", [row(1, large.repeat(4))], {}, "cache");
+    expect(useInboxStore.getState().messages.destination).toBeDefined();
+    useInboxStore.setState({ pendingNavigateId: null });
+    await Promise.resolve();
+    expect(useInboxStore.getState().messages.destination).toBeUndefined();
+  } finally {
+    useInboxStore.setState(original);
+  }
+});
+
+test("session updates do not schedule a trim if only protected conversations are over budget", async () => {
+  const original = useInboxStore.getState();
+  const trim = spyOn(original, "trimMessageCache");
+  useInboxStore.setState({
+    messages: {},
+    userMessages: {},
+    pagination: {},
+    messageCacheBytes: 0,
+    messageCacheBytesByConversation: {},
+    queuedMessages: { reserve: ["unsent"] },
+  });
+  try {
+    useInboxStore
+      .getState()
+      .setMessages("reserve", [row(1, large.repeat(4))], {}, "cache");
+    useInboxStore.setState({
+      sessions: { ...useInboxStore.getState().sessions },
+    });
+    await Promise.resolve();
+    expect(trim).not.toHaveBeenCalled();
+    useInboxStore.setState({ queuedMessages: {} });
+    await Promise.resolve();
+    expect(trim).toHaveBeenCalledTimes(1);
+    expect(useInboxStore.getState().messages.reserve).toBeUndefined();
+  } finally {
+    trim.mockRestore();
+    useInboxStore.setState(original);
+  }
+});
+
+test("warming resumes after a trim without retrying its evicted transcript", async () => {
+  const { session } = webBuilders("message-eviction.test.ts");
+  const old = "jx70000000000000000000000warmold";
+  const fresh = "jx70000000000000000000000warmnew";
+  const owner = "warm-owner";
+  const now = Date.now();
+  const build = (id: string, offset: number) =>
+    session.build({
+      _id: id,
+      user_id: owner,
+      owner_user_id: owner,
+      owned_by_me: true,
+      agent_status: "done",
+      updated_at: now - 60_000 + offset,
+      agent_status_updated_at: now - 60_000 + offset,
+      message_count: 1,
+    });
+  const original = useInboxStore.getState();
+  useInboxStore.setState({
+    messages: {},
+    userMessages: {},
+    pagination: {},
+    messageCacheBytes: 0,
+    messageCacheBytesByConversation: {},
+    currentUser: { _id: owner },
+    sessions: { [old]: build(old, 0) },
+    liveInboxIds: new Set([old]),
+    _lastViewedAt: { [old]: 0, a: 1, b: 2, c: 3 },
+  });
+  const queries: string[] = [];
+  const convex = {
+    query: async (_fn: unknown, args: { conversation_id: string }) => {
+      queries.push(args.conversation_id);
+      return { page: [row(1, large)], isDone: true };
+    },
+  };
+  const warmAndWait = async (id: string) => {
+    const loaded = Promise.withResolvers<void>();
+    const stop = useInboxStore.subscribe((state) => {
+      if (state.messages[id]?.length) loaded.resolve();
+    });
+    try {
+      warmVisibleSessions(convex);
+      expect(
+        warmRowsFromState(useInboxStore.getState()).find((row) => row.id === id)
+          ?.inFlight,
+      ).toBe(true);
+      await loaded.promise;
+      await Promise.resolve();
+    } finally {
+      stop();
+    }
+  };
+  try {
+    await warmAndWait(old);
+    for (const id of ["a", "b", "c"])
+      useInboxStore.getState().setMessages(id, [row(1, large)], {}, "cache");
+    expect(useInboxStore.getState().messages[old]).toBeUndefined();
+    expect(useInboxStore.getState().messageCacheBytes).toBeLessThanOrEqual(
+      MESSAGE_CACHE_BUDGET_BYTES * 0.75,
+    );
+    useInboxStore.setState({
+      sessions: {
+        ...useInboxStore.getState().sessions,
+        [fresh]: build(fresh, 1),
+      },
+      liveInboxIds: new Set([fresh, old]),
+    });
+    await warmAndWait(fresh);
+    expect(
+      warmRowsFromState(useInboxStore.getState()).find((row) => row.id === old)
+        ?.inFlight,
+    ).toBe(false);
+    expect(queries).toEqual([old, fresh]);
+  } finally {
+    useInboxStore.setState(original);
+  }
+});
+
+test("a tail write that clears its pending echo keeps the newly loaded transcript", async () => {
+  const original = useInboxStore.getState();
+  const id = "echoed-conversation";
+  const restoreGlobals = replaceGlobals({ localStorage: mapStorage() });
+  useInboxStore.setState({
+    currentUser: { _id: "echo-owner" },
+    messages: {},
+    userMessages: {},
+    pagination: {},
+    messageCacheBytes: 0,
+    messageCacheBytesByConversation: {},
+    pendingMessages: {
+      [id]: [{ ...row(1, "Sent"), _clientId: "send-id", _isOptimistic: true }],
+    },
+  });
+  try {
+    await _reopenForTests({ indexedDB: new IDBFactory(), IDBKeyRange });
+    const echoed = { ...row(2, large.repeat(4)), client_id: "send-id" };
+    useInboxStore.getState().applyTailMessages(id, 0, [echoed], 2);
+    expect(useInboxStore.getState().pendingMessages[id]).toEqual([]);
+    await Promise.resolve();
+    expect(useInboxStore.getState().messages[id]).toEqual([echoed]);
+    await flushPendingMessageJournal();
+  } finally {
+    useInboxStore.setState(original);
+    db.close();
+    restoreGlobals();
+  }
 });

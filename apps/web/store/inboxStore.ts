@@ -80,6 +80,7 @@ import {
   dropCachedMessages,
   evictDetailRows,
   evictInactiveMessages,
+  hasEvictableMessagesOverBudget,
   holdsUnsentComment,
   messageRowBytes,
   omitRedundantInlineImages,
@@ -8118,7 +8119,6 @@ export interface InboxStoreState
   userMessages: Record<string, UserMessage[]>;
   messageCacheBytes: number;
   messageCacheBytesByConversation: Record<string, number>;
-  messageCacheUnderPressure: boolean;
   trimMessageCache: () => void;
 
   clientState: ClientState;
@@ -13403,7 +13403,6 @@ const inboxStoreConfig = (set: any, get: any) => ({
   userMessages: {},
   messageCacheBytes: 0,
   messageCacheBytesByConversation: {},
-  messageCacheUnderPressure: false,
   trimMessageCache: sync(function (this: Draft) {
     evictInactiveMessages(this);
   }),
@@ -18335,7 +18334,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     this.pagination[convId] = pag;
     if (source !== "cache")
       writeConversationMessages(convId, plainMessages(merged), plain(pag));
-    evictInactiveMessages(this);
+    evictInactiveMessages(this, convId);
   }),
 
   // The live-tail apply. listMessagesTail's result is AUTHORITATIVE for the
@@ -18382,7 +18381,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     };
     this.pagination[convId] = pag;
     writeConversationMessages(convId, plainMessages(merged), plain(pag));
-    evictInactiveMessages(this);
+    evictInactiveMessages(this, convId);
   }),
 
   mergeMessages: sync(function (
@@ -18433,7 +18432,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
       : this.pagination[convId];
     if (meta) this.pagination[convId] = pag;
     writeConversationMessages(convId, plainMessages(merged), plain(pag));
-    evictInactiveMessages(this);
+    evictInactiveMessages(this, convId);
   }),
 
   setUserMessages: sync(function (
@@ -18469,7 +18468,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     // message navigator from disk instead of a skeleton while getUserMessages
     // is in flight; ensureHydrated restores it.
     if (source !== "cache") writeConversationUserMessages(convId, msgs);
-    evictInactiveMessages(this);
+    evictInactiveMessages(this, convId);
   }),
 
   addOptimisticMessage: sync(function (
@@ -22483,13 +22482,16 @@ if (!survivingInboxStore)
     if (
       state.messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES &&
       (state.sessions !== prev.sessions ||
-        state.pendingMessages !== prev.pendingMessages ||
+        (state.pendingMessages !== prev.pendingMessages &&
+          state.messages === prev.messages) ||
         state.queuedMessages !== prev.queuedMessages ||
         state.pendingSessionCreates !== prev.pendingSessionCreates ||
         state.currentSessionId !== prev.currentSessionId ||
         state.currentConversation !== prev.currentConversation ||
         state.sidePanelSessionId !== prev.sidePanelSessionId ||
-        state.viewingDismissedId !== prev.viewingDismissedId)
+        state.viewingDismissedId !== prev.viewingDismissedId ||
+        state.pendingNavigateId !== prev.pendingNavigateId) &&
+      hasEvictableMessagesOverBudget(state)
     )
       queueMicrotask(() => useInboxStore.getState().trimMessageCache());
     if (

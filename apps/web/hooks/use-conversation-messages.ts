@@ -17,7 +17,7 @@ import {
 } from "../store/inboxStore";
 import { MESSAGE_PAGE_SIZE } from "../store/cacheRetention";
 import {
-  MESSAGE_CACHE_BUDGET_BYTES,
+  hasEvictableMessagesOverBudget,
   retainOpenMessageView,
 } from "../store/store-eviction";
 import { useConvexSync } from "./useConvexSync";
@@ -174,9 +174,7 @@ export function useConversationMessages(
     const release = retainOpenMessageView(conversationId);
     return () => {
       release();
-      if (
-        useInboxStore.getState().messageCacheBytes > MESSAGE_CACHE_BUDGET_BYTES
-      )
+      if (hasEvictableMessagesOverBudget(useInboxStore.getState()))
         queueMicrotask(() => useInboxStore.getState().trimMessageCache());
     };
   }, [conversationId, prewarm]);
