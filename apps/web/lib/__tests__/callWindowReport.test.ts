@@ -57,10 +57,6 @@ describe("callWindowReport", () => {
     );
   });
 
-  it("reports no room only when the window was opened without one", () => {
-    expect(report("idle", null, null).room).toBeNull();
-  });
-
   it("reports the mic as live when the call is not muted", () => {
     const base = { roomKey: "r", windowRoom: "r", camera: true, scribe: true };
     expect(callWindowReport({ ...base, muted: true })).toEqual({

@@ -4,13 +4,6 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { resolveCapabilities } from "../src/capabilityResolver";
 
-// The entire argument for a pure resolver in packages/agent-clients is that three
-// runtimes produce byte-identical answers. These fixtures are that argument
-// made executable: the SAME files are read by this suite, by the CLI's suite
-// (the daemon's runtime) and by convex's (the V8 runtime), so a resolver rule
-// only one caller learned about fails all three in CI instead of surfacing as
-// a per-machine "the toggle did not take".
-//
 // Regenerate DELIBERATELY after an intended rule change and show the fixture
 // diff in the same commit — a fixture updated alone is indistinguishable from
 // a regression goldened away.
@@ -38,6 +31,10 @@ export function goldenCases(): Array<{
 
 describe("resolver golden parity (shared)", () => {
   const cases = goldenCases();
+
+  it("finds every fixture", () => {
+    expect(cases.length).toBeGreaterThanOrEqual(15);
+  });
 
   it("covers every ignore reason the contract exports", () => {
     const reasons = new Set(

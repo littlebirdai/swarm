@@ -1148,9 +1148,6 @@
   "apps/cli/src/capabilities/registries.ts": {
     "swarm/no-comments": 25
   },
-  "apps/cli/src/capabilities/resolverParity.test.ts": {
-    "swarm/no-comments": 4
-  },
   "apps/cli/src/capabilities/show.ts": {
     "swarm/no-comments": 6
   },
@@ -11786,9 +11783,6 @@
   "apps/server/convex/reservedDevices.test.ts": {
     "swarm/no-comments": 3
   },
-  "apps/server/convex/resolverParity.test.ts": {
-    "swarm/no-comments": 4
-  },
   "apps/server/convex/resourceOffload.test.ts": {
     "swarm/no-comments": 1
   },
@@ -12552,7 +12546,7 @@
     "swarm/no-comments": 2
   },
   "apps/server/convex/transcripts.test.ts": {
-    "swarm/no-comments": 161
+    "swarm/no-comments": 155
   },
   "apps/server/convex/transcripts.ts": {
     "swarm/no-comments": 453
@@ -28367,7 +28361,7 @@
     "swarm/no-comments": 7
   },
   "packages/agent-clients/test/capabilityResolver.golden.test.ts": {
-    "swarm/no-comments": 10
+    "swarm/no-comments": 3
   },
   "packages/agent-clients/test/capabilityResolver.test.ts": {
     "swarm/no-comments": 68

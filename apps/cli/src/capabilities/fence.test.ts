@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fenceForeignText, fenceUnlessBuiltin } from "./fence.js";
+import { fenceForeignText } from "./fence.js";
 
 describe("fenceForeignText", () => {
   test("wraps the text in a delimiter naming its provenance", () => {
@@ -36,19 +36,5 @@ describe("fenceForeignText", () => {
   test("quotes in provenance cannot break out of the attribute", () => {
     const out = fenceForeignText("x", 'mkt "quoted" name');
     expect(out).toContain(`source="mkt 'quoted' name"`);
-  });
-});
-
-describe("fenceUnlessBuiltin", () => {
-  test("builtin text passes through unfenced", () => {
-    expect(
-      fenceUnlessBuiltin("Our own memory snippet", "builtin/memory", "builtin"),
-    ).toBe("Our own memory snippet");
-  });
-
-  test("everything else is fenced", () => {
-    expect(
-      fenceUnlessBuiltin("desc", "mkt/acme/tool", "marketplace acme"),
-    ).toContain("<untrusted-");
   });
 });

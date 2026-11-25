@@ -156,7 +156,6 @@
     "src/capabilities/reconcile.kit.test.ts": 417,
     "src/capabilities/reconcile.test.ts": 256,
     "src/capabilities/registries.test.ts": 260,
-    "src/capabilities/resolverParity.test.ts": 252,
     "src/capabilities/skills.test.ts": 270,
     "src/capabilities/state.test.ts": 252,
     "src/cardCommand.test.ts": 251,

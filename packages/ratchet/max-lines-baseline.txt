@@ -433,7 +433,7 @@ apps/server/convex/threads.ts 850
 apps/server/convex/titleGeneration.test.ts 850
 apps/server/convex/titleGeneration.ts 950
 apps/server/convex/tokenConnectors.test.ts 850
-apps/server/convex/transcripts.test.ts 3350
+apps/server/convex/transcripts.test.ts 3300
 apps/server/convex/transcripts.ts 3500
 apps/server/convex/users.ts 5050
 apps/server/convex/workflow_runs.gate.test.ts 1550

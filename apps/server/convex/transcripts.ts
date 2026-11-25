@@ -135,7 +135,7 @@ import {
   quietSince,
   withinHuddleGrace,
 } from "./lib/huddleGrace";
-export { HUDDLE_GRACE_MS, asrTranscriptionSession };
+export { HUDDLE_GRACE_MS };
 
 // added_by is deliberately NOT accepted from clients: delivery acts AS the
 // route's adder (deliverRoutes), so a client-chosen added_by would let a
