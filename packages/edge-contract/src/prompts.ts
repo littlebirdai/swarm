@@ -3,17 +3,18 @@ import {
   boolean,
   boundedText,
   EdgeParseError,
+  json,
   nonEmptyString,
   object,
+  oneOf,
   optional,
+  owns,
+  type EdgeJson,
   type Reader,
 } from "./parse";
 
-function boundedPatterns(
-  maxItems: number,
-  maxLength: number,
-): Reader<string[]> {
-  const read = array(boundedText(maxLength, true));
+function boundedList<T>(readItem: Reader<T>, maxItems: number): Reader<T[]> {
+  const read = array(readItem);
   return (value, path) => {
     if (Array.isArray(value) && value.length > maxItems) {
       throw new EdgeParseError(
@@ -28,17 +29,51 @@ function boundedPatterns(
 
 const readRuleRequest = object({
   permission: boundedText(80),
-  patterns: boundedPatterns(32, 32_000),
-  always: boundedPatterns(8, 1_000),
+  patterns: boundedList(boundedText(32_000, true), 32),
+  always: boundedList(boundedText(1_000, true), 8),
   opaque: optional(boolean),
 });
 
-const readSummary: Reader<string> = (value, path) => {
-  const summary = boundedText(500)(value, path);
-  if (/[\r\n\u0085\u2028\u2029]/u.test(summary)) {
-    throw new EdgeParseError("invalid_value", path, "expected a single line");
+function singleLineText(maxLength: number): Reader<string> {
+  const read = boundedText(maxLength);
+  return (value, path) => {
+    const text = read(value, path);
+    if (/[\r\n\u0085\u2028\u2029]/u.test(text)) {
+      throw new EdgeParseError("invalid_value", path, "expected a single line");
+    }
+    return text;
+  };
+}
+
+const readOptionId = boundedText(128);
+const readOptions = boundedList(
+  object({
+    id: readOptionId,
+    label: singleLineText(128),
+    kind: optional(
+      oneOf("allow_once", "allow_always", "reject_once", "reject_always"),
+    ),
+  }),
+  16,
+);
+
+const readOptionSelection = object({ option_id: readOptionId });
+
+export function validatePromptAnswer(answer: EdgeJson, path: string): void {
+  if (
+    answer !== null &&
+    typeof answer === "object" &&
+    !Array.isArray(answer) &&
+    owns(answer, "option_id")
+  ) {
+    readOptionSelection(answer, path);
   }
-  return summary;
+}
+
+export const readPromptAnswer: Reader<EdgeJson> = (value, path) => {
+  const answer = json(value, path);
+  validatePromptAnswer(answer, path);
+  return answer;
 };
 
 export const readPromptOpened = object({
@@ -64,7 +99,29 @@ export const readPromptOpened = object({
     }
     return request;
   }),
-  summary: optional(readSummary),
+  summary: optional(singleLineText(500)),
+  options: optional((value, path) => {
+    const options = readOptions(value, path);
+    if (options.length === 0) {
+      throw new EdgeParseError(
+        "invalid_value",
+        path,
+        "expected at least one option",
+      );
+    }
+    const ids = new Set<string>();
+    for (const [index, { id }] of options.entries()) {
+      if (ids.has(id)) {
+        throw new EdgeParseError(
+          "invalid_value",
+          `${path}[${index}].id`,
+          "expected a unique option ID",
+        );
+      }
+      ids.add(id);
+    }
+    return options;
+  }),
 });
 
 export type PromptOpened = ReturnType<typeof readPromptOpened>;

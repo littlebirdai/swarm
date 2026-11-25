@@ -15,6 +15,7 @@
     },
     {
       "name": "prompt_answer",
+      "args": { "answer": { "option_id": "allow-once" } },
       "expected": { "kind": "prompt", "run": 3, "prompt_id": "prompt-1" }
     },
     {

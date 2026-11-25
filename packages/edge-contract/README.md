@@ -134,7 +134,7 @@ when the server advertises support.
 
 ### Prompt details
 
-The body of `prompt.opened` can carry four optional fields. Text limits use
+The body of `prompt.opened` can carry these optional fields. Text limits use
 UTF-16 code units.
 
 - `tool_call_id` has a limit of 256.
@@ -146,10 +146,23 @@ UTF-16 code units.
   `patterns` and 8 `always` entries, each up to 1,000 code units.
   An opaque request with one pattern and no `always` entries can carry up to
   32,000 code units in its pattern.
+- `options` holds 1 to 16 entries. Omit it when the prompt has no options.
+  Each entry has a non-blank `id` and a non-blank, single-line `label`.
+  Both have a limit of 128 code units. IDs must be unique within the prompt.
+  The optional `kind` is `allow_once`, `allow_always`, `reject_once`, or
+  `reject_always`.
 
-The machine must redact the summary before it sends the event. The server
-decides whether the prompt is routine. It can verify a read inside the
-workspace or a question that runs no code. Pass that verification to
+The machine must apply the same redaction to agent-supplied option labels
+and to the summary before it sends the event.
+
+An option selection is an object such as `{ "option_id": "allow-once" }`.
+Use this object in the `prompt_answer` command's `args.answer` and in
+`prompt.settled.body.answer`. A string answer is free text. The handler
+applies an option only when the open prompt offered that ID.
+
+The server decides whether the prompt is routine independently of its
+options. It can verify a read inside the workspace or a question that runs
+no code. Pass that verification to
 `classifyPrompt`. A verified question needs a prompt of kind `question` and a
 non-blank summary. A verified workspace read needs a prompt of kind
 `permission`, a non-blank summary, a tool call ID, a tool name, and a `read` rule request with

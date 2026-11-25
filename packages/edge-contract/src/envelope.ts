@@ -20,7 +20,7 @@ import {
 import { readV1 } from "./version";
 import { claimScope } from "./claims";
 import { actor, actorFields, blobFields } from "./inbox";
-import { readPromptOpened } from "./prompts";
+import { readPromptAnswer, readPromptOpened } from "./prompts";
 import { paneInstance } from "./expected";
 
 const blobReference = object(blobFields);
@@ -103,7 +103,7 @@ export const readCanonicalEvent = tagged("kind", {
   "prompt.opened": event("prompt.opened", readPromptOpened),
   "prompt.settled": event(
     "prompt.settled",
-    object({ prompt_id: nonEmptyString, by: actor, answer: json }),
+    object({ prompt_id: nonEmptyString, by: actor, answer: readPromptAnswer }),
   ),
   "terminal.started": event(
     "terminal.started",

@@ -175,7 +175,30 @@
             "kind": "prompt.opened",
             "body": {
               "prompt_id": "prompt-1",
-              "kind": "permission"
+              "kind": "permission",
+              "options": [
+                {
+                  "id": "allow-once",
+                  "label": "Allow once",
+                  "kind": "allow_once"
+                },
+                {
+                  "id": "allow-always",
+                  "label": "Always allow",
+                  "kind": "allow_always"
+                },
+                {
+                  "id": "reject-once",
+                  "label": "Reject once",
+                  "kind": "reject_once"
+                },
+                {
+                  "id": "reject-always",
+                  "label": "Always reject",
+                  "kind": "reject_always"
+                },
+                { "id": "ask-later", "label": "Ask later" }
+              ]
             }
           },
           {
@@ -193,9 +216,7 @@
                 "kind": "person",
                 "id": "person-1"
               },
-              "answer": {
-                "allow": true
-              }
+              "answer": { "option_id": "allow-once" }
             }
           },
           {
