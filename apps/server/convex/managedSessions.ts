@@ -1,9 +1,9 @@
+import { heartbeatOf, managedHeartbeatPage } from "./lib/sessionHeartbeat";
 import {
-  heartbeatOf,
-  managedHeartbeatPage,
+  applyHeartbeat,
   writeSessionHeartbeat,
-} from "./lib/sessionHeartbeat";
-import { buildHeartbeatPatch, statusWriteIsStale } from "./lib/heartbeatPatch";
+} from "./lib/sessionStatusWriter";
+import { statusWriteIsStale } from "./lib/heartbeatPatch";
 import {
   mutation,
   query,
@@ -484,22 +484,6 @@ export const updateManagedSessionId = mutation({
 const agentStatusValidator = v.union(
   ...AGENT_STATUSES.map((s) => v.literal(s)),
 );
-
-async function applyHeartbeat(
-  ctx: MutationCtx,
-  session: Doc<"managed_sessions">,
-  agentStatus: string | undefined,
-  clientTs: number | undefined,
-  now: number,
-) {
-  const patch = buildHeartbeatPatch(session, agentStatus, clientTs, now);
-  // Expand keeps the original throttle and counts. Seed a missing side row
-  // even when this beat falls within the legacy timestamp's refresh interval.
-  // oxfmt-ignore
-  await writeSessionHeartbeat(ctx, session._id, session.user_id, patch?.last_heartbeat ?? session.last_heartbeat);
-  if (patch) await ctx.db.patch(session._id, patch);
-  return patch;
-}
 
 export const heartbeat = mutation({
   args: {

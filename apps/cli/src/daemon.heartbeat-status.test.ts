@@ -103,19 +103,14 @@ describe("heartbeat carries agent_status", () => {
       "utf8",
     );
     const patchSource = fs.readFileSync(
-      path.join(convexDir, "lib", "heartbeatPatch.ts"),
+      path.join(convexDir, "lib", "sessionStatusWriter.ts"),
       "utf8",
     );
     expect(patchSource).toContain("export function buildHeartbeatPatch(");
-    const applyIdx = managedSessionsSource.indexOf(
-      "async function applyHeartbeat(",
-    );
+    const applyIdx = patchSource.indexOf("async function applyHeartbeat(");
     expect(applyIdx).toBeGreaterThanOrEqual(0);
     expect(
-      managedSessionsSource.slice(
-        applyIdx,
-        managedSessionsSource.indexOf("\n}", applyIdx),
-      ),
+      patchSource.slice(applyIdx, patchSource.indexOf("\n}", applyIdx)),
     ).toContain("buildHeartbeatPatch(");
     for (const name of [
       "export const heartbeat = mutation",

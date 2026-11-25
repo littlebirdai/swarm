@@ -5,7 +5,7 @@ type Reader = Pick<QueryCtx, "db">;
 type Writer = Pick<MutationCtx, "db">;
 type ManagedHeartbeat = { _id: Id<"managed_sessions">; last_heartbeat: number };
 
-function heartbeatRow(ctx: Reader, id: Id<"managed_sessions">) {
+export function heartbeatRow(ctx: Reader, id: Id<"managed_sessions">) {
   return ctx.db
     .query("session_heartbeats")
     .withIndex("by_managed_session", (q) => q.eq("managed_session_id", id))
@@ -58,24 +58,6 @@ export async function heartbeatsForUser(
   return sessions.map((session) =>
     resolveHeartbeat(session, beats.get(session._id)),
   );
-}
-
-export async function writeSessionHeartbeat(
-  ctx: Writer,
-  id: Id<"managed_sessions">,
-  userId: Id<"users">,
-  at: number,
-) {
-  const row = await heartbeatRow(ctx, id);
-  if (!row) {
-    await ctx.db.insert("session_heartbeats", {
-      managed_session_id: id,
-      user_id: userId,
-      heartbeat_at: at,
-    });
-  } else if (row.heartbeat_at !== at) {
-    await ctx.db.patch(row._id, { heartbeat_at: at });
-  }
 }
 
 export async function transferManagedSession(
