@@ -37,7 +37,7 @@ describe("Escape is forwarded on every press, stamped with the press time", () =
 
   test("every composer sends Escape through the one hook", () => {
     for (const rel of [
-      "ConversationView.tsx",
+      "conversation-view.tsx",
       "conversation/SessionInlineThread.tsx",
     ]) {
       const surface = read(rel);

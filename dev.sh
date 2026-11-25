@@ -26,7 +26,7 @@ WEB_FAIL_COUNT=0
 WEB_FAIL_THRESHOLD=3
 HTTP_FAIL_COUNT=0
 # Loosened from 4 -> 8 and interval extended 30s -> 60s.
-# Vite can stall briefly during heavy HMR (e.g. saving ConversationView.tsx);
+# Vite can stall briefly during heavy HMR (e.g. saving conversation-view.tsx);
 # we don't want the watchdog to yank the dev server mid-edit.
 HTTP_FAIL_THRESHOLD=8
 HTTP_CHECK_INTERVAL=60

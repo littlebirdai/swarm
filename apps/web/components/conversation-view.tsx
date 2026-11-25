@@ -1,3 +1,4 @@
+import { selectComposerControl } from "./conversation/composer-control-model";
 import {
   HandoffLinkChip,
   HandoffSessionLink,
@@ -331,7 +332,7 @@ import {
   type NudgeRow,
   type ChatWakePrompt,
 } from "./sessionMessage";
-import { CollabRequestBanner, OwnerComposerPresence } from "./CollabComposer";
+import { CollabRequestBanner, OwnerComposerPresence } from "./collab-composer";
 import { GhostDrafts } from "./conversation/GhostDrafts";
 import { SharedQueue } from "./conversation/SharedQueue";
 import { ReaderFaces, ReadingMarks } from "./conversation/ReadingMarks";
@@ -425,7 +426,7 @@ import {
   ghostRestartContextFor,
 } from "../hooks/useSessionRestart";
 import { devRenderCount, devCountElements } from "../lib/devRenderCount";
-import { MessageInput } from "./MessageInput";
+import { MessageInput } from "./message-input";
 import { PlanBlock } from "./conversation/blocks/planBlock";
 import {
   CastBrowserRowContext,
@@ -530,7 +531,7 @@ import {
   NewSessionFoot,
   NewSessionView,
   NonOwnerMessageInput,
-} from "./conversation/sessionControls";
+} from "./conversation/session-controls";
 import { useRoleRecipient } from "./ComposeRolePicker";
 import { focusComposer } from "../lib/composerControl";
 import type {
@@ -713,6 +714,7 @@ const ConversationViewInner = function ConversationView(
     onClearHighlight: propClearHighlight,
     embedded,
     showMessageInput = true,
+    composerControl,
     targetMessageId,
     targetNonce,
     isJumpingToTarget,
@@ -6818,6 +6820,10 @@ const ConversationViewInner = function ConversationView(
     },
     [roleSend.wakeRole, roleSend.setRecipient],
   );
+  const scopedComposerControl =
+    conversation && selectComposerControl(composerControl, conversation._id)
+      ? composerControl
+      : undefined;
   const ownerComposerMounted = !!(
     showMessageInput &&
     conversation &&
@@ -9552,6 +9558,9 @@ const ConversationViewInner = function ConversationView(
                                             {!effectiveIsOwner ? (
                                               <NonOwnerMessageInput
                                                 conversation={conversation}
+                                                composerControl={
+                                                  composerControl
+                                                }
                                                 onForkReply={handleForkReply}
                                                 autoFocusInput={autoFocusInput}
                                                 onPopulateInput={
@@ -9611,6 +9620,14 @@ const ConversationViewInner = function ConversationView(
                                                     ) &&
                                                     !onSendOverride &&
                                                     !newSessionPage
+                                                  }
+                                                  composerControl={
+                                                    guest ||
+                                                    newSessionPage ||
+                                                    onSendOverride ||
+                                                    onSubmitWithIntent
+                                                      ? undefined
+                                                      : scopedComposerControl
                                                   }
                                                   status={conversation.status}
                                                   embedded={embedded}
@@ -9794,10 +9811,6 @@ const ConversationViewInner = function ConversationView(
                                                   }
                                                   composerNode={
                                                     <>
-                                                      {/* Who else is in this box (a teammate's live draft, or "is
-                    here" for a share link guest with no face on the roster)
-                    and who asks to send into it. Inside the composer, so they
-                    sit on its background under the fade that dims the feed. */}
                                                       {composerPresenceEnabled(
                                                         conversation,
                                                       ) && (
@@ -9811,6 +9824,13 @@ const ConversationViewInner = function ConversationView(
                                                       ) && (
                                                         <OwnerComposerPresence
                                                           conversationId={conversation._id.toString()}
+                                                          allowJoint={
+                                                            !scopedComposerControl?.enabled ||
+                                                            scopedComposerControl
+                                                              .shared?.facts
+                                                              .role !==
+                                                              "suggester"
+                                                          }
                                                           showHere={
                                                             !!conversation.share_token
                                                           }

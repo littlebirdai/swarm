@@ -1,7 +1,7 @@
 "use client";
 
 import { withoutSecrets } from "@codecast/secrets/secretShapes";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { useMutation, useConvexAuth } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
@@ -15,7 +15,6 @@ import {
   Lock,
   Lightbulb,
   X,
-  Clock,
 } from "lucide-react";
 import { useMountEffect } from "../hooks/useMountEffect";
 import { useRunnerSilence } from "../hooks/useRunnerSilence";
@@ -36,10 +35,10 @@ import { SharedQueue } from "./conversation/SharedQueue";
 import { KeyCap } from "./KeyCap";
 import { isMac } from "../shortcuts";
 import { useJointComposer } from "../hooks/useJointComposer";
-import { armJointSend, composeJointTurn } from "../lib/jointSend";
+import { armJointSend, composeJointTurn } from "../lib/joint-send";
 import { parseSideQuestion } from "../lib/builtinCommands";
 import { toast } from "sonner";
-import type { JointCandidate } from "../lib/jointSend";
+import type { JointCandidate } from "../lib/joint-send";
 import { TypingIndicator } from "./chat/TypingIndicator";
 import { rosterIdentity } from "../hooks/useTeamRoster";
 import type { ChatMember } from "../lib/chatViews";
@@ -70,7 +69,12 @@ import { ReviewBar } from "./ReviewBar";
 import { useReviewComposer } from "./reviewContext";
 import { appendToDraft } from "../lib/quoteFormat";
 import { attachReviewToMessage } from "../lib/reviewActions";
+import { MySuggestions } from "./conversation/my-suggestions";
 import { teamMembersOf } from "../lib/activeTeam";
+import { flushDraftWrite, scheduleDraftWrite } from "../lib/pendingDraftWrites";
+import { useComposerControl } from "./conversation/use-composer-control";
+import { SessionControlStrip } from "./conversation/session-control-strip";
+import type { ComposerControlFlag } from "./conversation/composer-control-model";
 // ── Live composer co-presence ────────────────────────────────────────────────
 // Thin wrapper over the shared doc_presence hook (hooks/useDocPresence) keyed by a
 // synthetic "compose:<conversationId>" id, so each side sees who else is in the box
@@ -275,10 +279,12 @@ export function CollabPresenceBar({
 export const OwnerComposerPresence = memo(function OwnerComposerPresence({
   conversationId,
   showHere = false,
+  allowJoint = true,
   onPopulate,
 }: {
   conversationId: string;
   showHere?: boolean;
+  allowJoint?: boolean;
   /** Replace the owner's composer text (a claim took words out of it). */
   onPopulate?: (text: string) => void;
 }) {
@@ -327,7 +333,7 @@ export const OwnerComposerPresence = memo(function OwnerComposerPresence({
         showHere={showHere}
         boxed
         joint={
-          ownSideQuestion
+          ownSideQuestion || !allowJoint
             ? undefined
             : { candidates, mineEmpty: !draft.trim(), onSend: sendTogether }
         }
@@ -380,11 +386,13 @@ function ownerLabel(conversation: ConversationData): string {
 
 export const CollabComposer = memo(function CollabComposer({
   conversation,
+  composerControl,
   onForkReply,
   autoFocusInput,
   onPopulateInput,
 }: {
   conversation: ConversationData;
+  composerControl?: ComposerControlFlag;
   onForkReply?: (content: string) => void;
   autoFocusInput?: boolean;
   /** The view's composer bridge: quotes and "Edit in input" from the thread land here. */
@@ -394,6 +402,12 @@ export const CollabComposer = memo(function CollabComposer({
 }) {
   const { isAuthenticated } = useConvexAuth();
   const convId = conversation._id as Id<"conversations">;
+  const convKey = String(convId);
+  const control = useComposerControl(convKey, composerControl);
+  const canEdit = control?.facts.role !== "viewer";
+  const draftScope = useRef<string | null>(null);
+  const activeControl = !!control;
+  const visibleScope = useRef<string | null>(convKey);
   // Skip until the conversation is a real server row: a freshly-created
   // optimistic stub is keyed by its session UUID, which the v.id("conversations")
   // validator rejects (crashing the page). A stub has no grants to read anyway.
@@ -406,7 +420,53 @@ export const CollabComposer = memo(function CollabComposer({
   const requestAccess = useMutation(api.collab.requestSendAccess);
   const sendToSession = useMutation(api.pendingMessages.sendSessionMessage);
 
-  const [message, setMessage] = useState("");
+  const [message, setLocalMessage] = useState(() =>
+    control
+      ? (useInboxStore.getState().getDraft(convKey)?.draft_message ?? "")
+      : "",
+  );
+  const draft = useRef(message);
+  const setMessage = useCallback(
+    (text: string) => {
+      draft.current = text;
+      setLocalMessage(text);
+      if (draftScope.current !== convKey) return;
+      scheduleDraftWrite(convKey, () => {
+        const store = useInboxStore.getState();
+        if (!text) store.clearDraft(convKey);
+        else
+          store.setDraft(convKey, {
+            ...store.getDraft(convKey),
+            draft_message: text,
+          });
+      });
+    },
+    [convKey],
+  );
+
+  useWatchEffect(() => {
+    if (!activeControl) return;
+    draftScope.current = convKey;
+    const text = draft.current;
+    const stored =
+      useInboxStore.getState().getDraft(convKey)?.draft_message ?? "";
+    if (text && text !== stored) setMessage(text);
+    else if (!text && stored) {
+      draft.current = stored;
+      setLocalMessage(stored);
+    }
+    return () => {
+      flushDraftWrite(convKey);
+      draftScope.current = null;
+    };
+  }, [activeControl, convKey, setMessage]);
+
+  useWatchEffect(() => {
+    visibleScope.current = convKey;
+    return () => {
+      visibleScope.current = null;
+    };
+  }, [convKey]);
   const [busy, setBusy] = useState(false);
   const [sentHint, setSentHint] = useState<string | null>(null);
   const [hintFailed, setHintFailed] = useState(false);
@@ -418,9 +478,9 @@ export const CollabComposer = memo(function CollabComposer({
   // Quotes and margin replies from the thread reach this box the way they
   // reach the owner's composer (MessageInput): appended, or replacing it.
   useWatchEffect(() => {
-    if (!onPopulateInput) return;
+    if (!onPopulateInput || !canEdit) return;
     onPopulateInput.current = (text, opts) => {
-      setMessage((cur) => (opts?.append ? appendToDraft(cur, text) : text));
+      setMessage(opts?.append ? appendToDraft(draft.current, text) : text);
       setTimeout(() => {
         const el = textareaRef.current;
         if (el) {
@@ -433,9 +493,8 @@ export const CollabComposer = memo(function CollabComposer({
     return () => {
       onPopulateInput.current = null;
     };
-  }, [onPopulateInput]);
+  }, [onPopulateInput, setMessage, canEdit]);
   // Margin replies wait in the review batch; the next send carries them.
-  const convKey = conversation._id.toString();
   const hasBatch = useInboxStore(
     (s) => (s.reviewComments[convKey]?.length ?? 0) > 0,
   );
@@ -450,7 +509,12 @@ export const CollabComposer = memo(function CollabComposer({
   const level: SendLevel = !isAuthenticated
     ? "anonymous"
     : ((access?.level as SendLevel) ?? "shared");
-  const canSend = level === "granted" || level === "team" || level === "owner";
+  const canSend = control
+    ? !!control.send
+    : level === "granted" || level === "team" || level === "owner";
+  const canSendTogether = canSend && (!control || control.canQueue);
+  const sending = busy || control?.submitting;
+  const sendDisabled = (!message.trim() && !hasBatch) || sending;
   const owner = ownerLabel(conversation);
   // A role's standing session is addressed as the role ("Message Hazel…");
   // the access lines keep naming the person who owns it, who grants sending.
@@ -512,7 +576,7 @@ export const CollabComposer = memo(function CollabComposer({
   });
   const shared = useSharedDraft({
     conversationId: conversation._id.toString(),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && canEdit,
     seed: false,
     text: message,
     setText: setMessage,
@@ -536,10 +600,36 @@ export const CollabComposer = memo(function CollabComposer({
   async function handleSend(together = false, queue = false) {
     // Together: one turn, my words and the others' live drafts each under
     // their author's name; the server checks each part against its draft.
-    if (busy || ownersSideQuestion()) return;
-    const mine = attachReviewToMessage(convKey, message).trim();
+    if (
+      busy ||
+      (together && !canSendTogether) ||
+      ownersSideQuestion() ||
+      (control && (!control.send || control.isSubmitting()))
+    )
+      return;
+    const mine = attachReviewToMessage(convKey, draft.current).trim();
     const body = together ? composeJointTurn(me, mine, candidates) : mine;
     if (!body) return;
+    if (control) {
+      const kind = queue && control.canQueue ? "queue" : control.send;
+      if (!kind) return;
+      const complete = control.begin(kind);
+      if (!complete) return;
+      setMessage("");
+      flushDraftWrite(convKey);
+      const accepted = await complete(
+        () => ({ text: body }),
+        (payload) => {
+          if (visibleScope.current !== convKey || draft.current) return false;
+          setMessage(payload.text);
+          flushDraftWrite(convKey);
+          return true;
+        },
+        { text: body },
+      );
+      if (accepted && together) claimSent(candidates);
+      return;
+    }
     setBusy(true);
     try {
       // direct: a person typed this, not a session — the agent sees
@@ -621,11 +711,19 @@ export const CollabComposer = memo(function CollabComposer({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    const { key, isComposing, keyCode } = e.nativeEvent;
+    if (control && (isComposing || keyCode === 229)) return;
+    if (control?.interrupt && key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      void control.act({ kind: "interrupt", expected: control.expected });
+      return;
+    }
     if (
       e.key === "Enter" &&
       e.altKey &&
       (isMac ? e.metaKey : e.ctrlKey && e.shiftKey) &&
-      canSend &&
+      canSendTogether &&
       !steering &&
       candidates.length > 0
     ) {
@@ -648,84 +746,86 @@ export const CollabComposer = memo(function CollabComposer({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (canSend) handleSend();
-      else forkWithBatch();
+      else if (!control) forkWithBatch();
     }
   }
 
   // The status strip above the box, only when Send does something other than
   // deliver now: it waits, it needs a grant, or it cannot happen.
-  const strip = (() => {
-    switch (level) {
-      case "granted":
-      case "team":
-        if (steering)
-          return {
-            tone: "violet",
-            icon: <Lightbulb className="w-3 h-3" />,
-            text: (
-              <>
-                Suggesting to <b>{steeringName}</b>
-                {runnerSilence ? (
-                  <span className="text-sol-text-dim">
-                    {" "}
-                    · their machine: {runnerSilence}
-                  </span>
-                ) : null}
-              </>
-            ),
-          };
-        return runnerSilence
-          ? {
-              tone: "muted",
-              icon: <Send className="w-3 h-3" />,
+  const strip = control
+    ? null
+    : (() => {
+        switch (level) {
+          case "granted":
+          case "team":
+            if (steering)
+              return {
+                tone: "violet",
+                icon: <Lightbulb className="w-3 h-3" />,
+                text: (
+                  <>
+                    Suggesting to <b>{steeringName}</b>
+                    {runnerSilence ? (
+                      <span className="text-sol-text-dim">
+                        {" "}
+                        · their machine: {runnerSilence}
+                      </span>
+                    ) : null}
+                  </>
+                ),
+              };
+            return runnerSilence
+              ? {
+                  tone: "muted",
+                  icon: <Send className="w-3 h-3" />,
+                  text: (
+                    <>
+                      What you send waits for <b>{owner}</b>'s machine:{" "}
+                      {runnerSilence}.
+                    </>
+                  ),
+                }
+              : null;
+          case "requested":
+            return {
+              tone: "amber",
+              icon: <Loader2 className="w-3 h-3 animate-spin" />,
               text: (
                 <>
-                  What you send waits for <b>{owner}</b>'s machine:{" "}
-                  {runnerSilence}.
+                  Waiting for <b>{owner}</b> to allow you to send…
                 </>
               ),
-            }
-          : null;
-      case "requested":
-        return {
-          tone: "amber",
-          icon: <Loader2 className="w-3 h-3 animate-spin" />,
-          text: (
-            <>
-              Waiting for <b>{owner}</b> to allow you to send…
-            </>
-          ),
-        };
-      case "denied":
-      case "revoked":
-        return {
-          tone: "muted",
-          icon: <Lock className="w-3 h-3" />,
-          text: (
-            <>
-              <b>{owner}</b> hasn't granted you send access.
-            </>
-          ),
-        };
-      case "anonymous":
-        return {
-          tone: "muted",
-          icon: <Lock className="w-3 h-3" />,
-          text: <>Sign in to co-write and send.</>,
-        };
-      default: // shared
-        return {
-          tone: "cyan",
-          icon: <ShieldQuestion className="w-3 h-3" />,
-          text: (
-            <>
-              Co-writing <b>{owner}</b>'s draft. Sending into their live session
-              needs their OK.
-            </>
-          ),
-        };
-    }
-  })();
+            };
+          case "denied":
+          case "revoked":
+            return {
+              tone: "muted",
+              icon: <Lock className="w-3 h-3" />,
+              text: (
+                <>
+                  <b>{owner}</b> hasn't granted you send access.
+                </>
+              ),
+            };
+          case "anonymous":
+            return {
+              tone: "muted",
+              icon: <Lock className="w-3 h-3" />,
+              text: <>Sign in to co-write and send.</>,
+            };
+          default: // shared
+            return {
+              tone: "cyan",
+              icon: <ShieldQuestion className="w-3 h-3" />,
+              text: (
+                <>
+                  Co-writing <b>{owner}</b>'s draft. Sending into their live
+                  session needs their OK.
+                </>
+              ),
+            };
+        }
+      })();
 
   const toneClass = !strip
     ? "border-transparent"
@@ -760,14 +860,14 @@ export const CollabComposer = memo(function CollabComposer({
       {isConvexId(conversation._id.toString()) && (
         <SharedQueue
           conversationId={conversation._id.toString()}
-          canSteerQueue={canSend}
+          canSteerQueue={control?.interrupt ?? canSend}
         />
       )}
-      {canSend && (
+      {(control?.facts.role === "suggester" || canSend) && (
         <MySuggestions
           rows={mySuggestions}
           ownerName={steeringName ?? owner}
-          ownerHere={steering}
+          ownerHere={steering || (control !== null && !control.canQueue)}
           onSendNow={sendNow}
         />
       )}
@@ -775,7 +875,7 @@ export const CollabComposer = memo(function CollabComposer({
         present={present}
         showHere={!!conversation.share_token}
         joint={
-          canSend && !steering
+          canSendTogether && !steering
             ? {
                 candidates,
                 mineEmpty: !message.trim(),
@@ -817,15 +917,33 @@ export const CollabComposer = memo(function CollabComposer({
         onSubmit={(e) => {
           e.preventDefault();
           if (canSend) handleSend();
-          else forkWithBatch();
+          else if (!control) forkWithBatch();
         }}
         className="mx-auto conv-col px-2 sm:px-4 pb-3 pt-1.5"
       >
         <div
           className={`border px-4 py-2 rounded-2xl bg-sol-bg-alt shadow-lg ${canSend ? "border-sol-cyan/30" : "border-sol-border/50"}`}
         >
+          {control && (
+            <SessionControlStrip
+              key={convKey}
+              control={control}
+              interrupt={
+                control.interrupt
+                  ? () =>
+                      void control.act({
+                        kind: "interrupt",
+                        expected: control.expected,
+                      })
+                  : undefined
+              }
+            />
+          )}
           <ReviewBar conversationId={convKey} />
-          <div className="flex items-end gap-2">
+          <div
+            className={canEdit ? "flex items-end gap-2" : "hidden"}
+            hidden={!canEdit || undefined}
+          >
             <div className="grid flex-1 min-w-0">
               <textarea
                 ref={textareaRef}
@@ -870,23 +988,27 @@ export const CollabComposer = memo(function CollabComposer({
             {canSend ? (
               <button
                 type="submit"
-                disabled={(!message.trim() && !hasBatch) || busy}
+                disabled={sendDisabled}
                 className={`shrink-0 h-8 px-3 rounded-full transition-colors flex items-center gap-1.5 text-xs font-medium border ${
-                  (!message.trim() && !hasBatch) || busy
+                  sendDisabled
                     ? "border-sol-border/30 text-sol-text-dim/25 cursor-not-allowed"
                     : "border-sol-cyan/50 bg-sol-cyan/20 text-sol-cyan hover:bg-sol-cyan/30 hover:border-sol-cyan"
                 }`}
               >
-                {busy ? (
+                {sending ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : steering ? (
+                ) : (control ? control.send === "suggest" : steering) ? (
                   <Lightbulb className="w-3.5 h-3.5" />
                 ) : (
                   <Send className="w-3.5 h-3.5" />
                 )}
-                {steering ? "Suggest" : "Send"}
+                {control?.send === "queue"
+                  ? "Queue"
+                  : control?.send === "suggest" || (!control && steering)
+                    ? "Suggest"
+                    : "Send"}
               </button>
-            ) : level === "requested" ? (
+            ) : control ? null : level === "requested" ? (
               <button
                 type="button"
                 disabled
@@ -1147,111 +1269,5 @@ function Avatar({ name, image }: { name?: string; image?: string }) {
         </div>
       }
     />
-  );
-}
-
-// A teammate's own suggestions in this session and what became of each
-// (convex teamSuggestions.listMine). Waiting ones can be taken back, or sent
-// the ordinary way once the owner has left; decided ones stay a while so the
-// author sees the outcome.
-const DECIDED_SHOWN_MS = 10 * 60_000;
-function MySuggestions({
-  rows,
-  ownerName,
-  ownerHere,
-  onSendNow,
-}: {
-  rows: any[];
-  ownerName: string;
-  ownerHere: boolean;
-  onSendNow: (row: { _id: string; body: string }) => void;
-}) {
-  const now = useCoarseNow(30_000);
-  const withdraw = useInboxStore((s) => s.withdrawTeamSuggestion);
-  // Every waiting one (so each can be taken back), and the last few decided.
-  const decided = rows
-    .filter(
-      (r) =>
-        !r.kind &&
-        r.status !== "pending" &&
-        now - (r.decided_at ?? r.created_at ?? 0) < DECIDED_SHOWN_MS,
-    )
-    .slice(-3);
-  const shown = [
-    ...decided,
-    ...rows.filter((r) => !r.kind && r.status === "pending"),
-  ];
-  if (shown.length === 0) return null;
-  const first = ownerName.split(/\s+/)[0] || ownerName;
-  return (
-    <div
-      className="mx-auto conv-col px-2 sm:px-4 pt-1.5 space-y-1"
-      data-my-suggestions
-    >
-      {shown.map((r) => {
-        const state =
-          r.status === "pending"
-            ? {
-                icon: <Clock className="w-3 h-3" />,
-                tone: "text-sol-violet",
-                label: `Waiting for ${first}`,
-              }
-            : r.status === "sent"
-              ? {
-                  icon: <Check className="w-3 h-3" />,
-                  tone: "text-sol-green",
-                  label: r.edited
-                    ? `${first} sent an edit`
-                    : `${first} sent it`,
-                }
-              : r.status === "closed"
-                ? {
-                    icon: <X className="w-3 h-3" />,
-                    tone: "text-sol-text-dim",
-                    label: "Not sent",
-                  }
-                : {
-                    icon: <X className="w-3 h-3" />,
-                    tone: "text-sol-text-dim",
-                    label: `${first} passed`,
-                  };
-        return (
-          <div
-            key={r._id}
-            data-suggestion-status={r.status}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-sol-border/40 bg-sol-bg-alt/50 text-meta"
-          >
-            <span
-              className={`shrink-0 inline-flex items-center gap-1 font-medium ${state.tone}`}
-            >
-              {state.icon}
-              {state.label}
-            </span>
-            <span
-              className="flex-1 min-w-0 truncate text-sol-text-muted"
-              title={r.body}
-            >
-              {r.body}
-            </span>
-            {r.status === "pending" && !ownerHere && (
-              <button
-                onClick={() => onSendNow(r)}
-                className="shrink-0 h-6 px-2.5 rounded-full font-medium border border-sol-cyan/40 text-sol-cyan hover:bg-sol-cyan/15 transition-colors"
-              >
-                Send now
-              </button>
-            )}
-            {r.status === "pending" && (
-              <button
-                onClick={() => withdraw(r._id, r.conversation_id)}
-                className="shrink-0 h-6 px-2.5 rounded-full font-medium border border-sol-border text-sol-text-dim hover:text-sol-text transition-colors"
-              >
-                Withdraw
-              </button>
-            )}
-          </div>
-        );
-      })}
-    </div>
   );
 }

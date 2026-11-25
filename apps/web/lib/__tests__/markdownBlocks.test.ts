@@ -21,7 +21,7 @@ describe("splitMarkdownBlocks", () => {
   });
 
   it("returns a giant no-blank-line paste as one block equal to the input", () => {
-    const body = "at renderMessageMarkdownCached (ConversationView.tsx:341)\n"
+    const body = "at renderMessageMarkdownCached (conversation-view.tsx:341)\n"
       .repeat(300)
       .trimEnd();
     const blocks = splitMarkdownBlocks(body);

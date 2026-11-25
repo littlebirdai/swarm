@@ -4,7 +4,7 @@ import { useDragGatedLayoutPersist } from "../hooks/useDragGatedLayoutPersist";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { useEventListener } from "../hooks/useEventListener";
 import { Panel, Group, Separator } from "react-resizable-panels";
-import { ConversationView } from "./ConversationView";
+import { ConversationView } from "./conversation-view";
 import { lazyNamed } from "../lib/lazyNamed";
 const CommentDock = lazyNamed(
   () => import("./comments/CommentDock"),

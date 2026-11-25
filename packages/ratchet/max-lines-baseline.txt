@@ -485,12 +485,12 @@ apps/web/app/triggers/page.tsx 1750
 apps/web/app/workflows/page.tsx 1200
 apps/web/components/ActivityCharts.tsx 950
 apps/web/components/ActivityFeed.tsx 1400
-apps/web/components/CollabComposer.tsx 1300
+apps/web/components/collab-composer.tsx 1300
 apps/web/components/CommandPalette.tsx 5850
 apps/web/components/ComposeView.tsx 1250
 apps/web/components/ConfigEditor.tsx 900
 apps/web/components/ConversationDiffLayout.tsx 1000
-apps/web/components/ConversationView.tsx 10400
+apps/web/components/conversation-view.tsx 10400
 apps/web/components/DashboardLayout.tsx 2100
 apps/web/components/DesktopProvider.tsx 850
 apps/web/components/EntityIdPill.references.test.tsx 1000
@@ -503,7 +503,7 @@ apps/web/components/GlobalSessionPanel.tsx 5550
 apps/web/components/ImageGallery.tsx 850
 apps/web/components/LabelChipsRow.tsx 1350
 apps/web/components/MessageBrowserPopover.tsx 950
-apps/web/components/MessageInput.tsx 4900
+apps/web/components/message-input.tsx 4900
 apps/web/components/MessageReview.tsx 1400
 apps/web/components/OwnersBadge.tsx 850
 apps/web/components/PlanDetailPanel.tsx 1650
@@ -544,7 +544,7 @@ apps/web/components/conversation/blocks/toolBlocks.tsx 2750
 apps/web/components/conversation/blocks/turnBlocks.tsx 2900
 apps/web/components/conversation/classify.ts 1250
 apps/web/components/conversation/sessionChrome.tsx 1400
-apps/web/components/conversation/sessionControls.tsx 2250
+apps/web/components/conversation/session-controls.tsx 2250
 apps/web/components/data/BlockEditor.tsx 900
 apps/web/components/data/DashboardView.tsx 850
 apps/web/components/decisions/ChangeCardView.tsx 2300

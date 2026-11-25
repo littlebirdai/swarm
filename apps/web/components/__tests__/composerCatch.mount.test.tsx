@@ -110,7 +110,7 @@ async function submit(
       drafts: { [convId]: { draft_message: opts.stored } },
     } as any);
   const sent: string[] = [];
-  const { MessageInput } = await import("../MessageInput");
+  const { MessageInput } = await import("../message-input");
   const container = w.document.createElement("div");
   w.document.body.appendChild(container);
   const root = createRoot(container);

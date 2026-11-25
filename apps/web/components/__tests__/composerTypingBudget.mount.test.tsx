@@ -179,7 +179,7 @@ beforeAll(async () => {
     currentSessionId: CONV_ID,
     currentUser: { _id: "user_type_budget", name: "Typist" },
   } as any);
-  const { MessageInput } = await import("../MessageInput");
+  const { MessageInput } = await import("../message-input");
   const container = w.document.createElement("div");
   w.document.body.appendChild(container);
   let commits = 0;

@@ -186,7 +186,7 @@ if (process.env.TEST_LEGACY_LIST === "1")
 const { applyShellVisibility } = await import("../../../lib/windowRole");
 const { useBottomAnchoredList } =
   await import("../../../hooks/useBottomAnchoredList");
-const { ConversationView } = await import("../../ConversationView");
+const { ConversationView } = await import("../../conversation-view");
 const { useInboxStore } = await import("../../../store/inboxStore");
 const useAuth = () => ({
   isLoading: false,

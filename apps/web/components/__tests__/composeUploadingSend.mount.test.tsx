@@ -166,7 +166,7 @@ async function runScenario(
     opts.failUploadsFirst ?? 0,
   );
   const calls = fakeDispatch(createGate);
-  const { MessageInput } = await import("../MessageInput");
+  const { MessageInput } = await import("../message-input");
 
   // Exactly what ComposeView does on mount: a deferred local stub, created
   // server-side only when the first send fires materialize().
@@ -346,7 +346,7 @@ test("a refused commit keeps the popup open with the text instead of dismissing"
   const createGate = deferred<void>();
   const { client, restore } = fakeConvex(uploadGate);
   const calls = fakeDispatch(createGate);
-  const { MessageInput } = await import("../MessageInput");
+  const { MessageInput } = await import("../message-input");
   const store = useInboxStore.getState();
   const { stubId, materialize } = store.beginOptimisticSession({
     agentType: "claude_code",
@@ -433,7 +433,7 @@ test("a refused commit keeps the popup open with the text instead of dismissing"
 async function mountWithSelectedImage({ keepPreview = false } = {}) {
   const { client, restore } = fakeConvex(deferred<void>());
   fakeDispatch(deferred<void>());
-  const { MessageInput } = await import("../MessageInput");
+  const { MessageInput } = await import("../message-input");
   const dropFilesRef: { current: ((files: File[]) => void) | null } = {
     current: null,
   };

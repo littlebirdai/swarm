@@ -9,7 +9,10 @@ import { applySqueeze } from "../useSqueezeToFit";
 
 const web = join(import.meta.dir, "..", "..");
 const css = readFileSync(join(web, "app/globals.css"), "utf8");
-const view = readFileSync(join(web, "components/ConversationView.tsx"), "utf8");
+const view = readFileSync(
+  join(web, "components/conversation-view.tsx"),
+  "utf8",
+);
 // ConversationView owns the squeeze hook; the head row it measures is drawn
 // by ConversationHeaderBar.
 const headerBar = readFileSync(

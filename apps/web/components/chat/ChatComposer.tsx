@@ -3,7 +3,7 @@ import { Bot, Headphones, MoreHorizontal } from "lucide-react";
 import { SlackLogo } from "../SlackLogo";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { WalkiePttButton } from "../calls/WalkiePtt";
-import { MessageInput } from "../MessageInput";
+import { MessageInput } from "../message-input";
 import { ComposerAttachButton } from "./ComposerAttachButton";
 import { KeyCap, MenuKeyCaps } from "../KeyboardShortcutsHelp";
 import { useTypingMembers, useTypingReporter } from "../../hooks/useChatTyping";

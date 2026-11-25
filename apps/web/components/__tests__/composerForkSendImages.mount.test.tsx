@@ -131,7 +131,7 @@ async function forkSendWithImage(via: "tail" | "selection") {
     },
   );
   const { client, restore } = fakeConvex();
-  const { MessageInput } = await import("../MessageInput");
+  const { MessageInput } = await import("../message-input");
   const dropFilesRef: { current: ((files: File[]) => void) | null } = {
     current: null,
   };

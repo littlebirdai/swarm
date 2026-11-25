@@ -1,6 +1,6 @@
 // Single source of truth for the human-readable display name of a tool call.
 // Defined ONCE here and consumed by every client renderer:
-//   - the web ConversationView (apps/web/components/ConversationView.tsx),
+//   - the web ConversationView (apps/web/components/conversation-view.tsx),
 //   - the public share view (apps/web/app/share/message/[token]),
 //   - the mobile session screen (Wave 2 — apps/mobile/app/session/[id].tsx).
 //

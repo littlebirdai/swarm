@@ -197,7 +197,7 @@ test("GET /fs/exists answers which absolute paths are directories on this machin
 test("GET /fs/files matches a folder's files, names before directories, and skips dependency folders", async () => {
   const root = path.join(home, "src", "notes");
   for (const f of [
-    "components/MessageInput.tsx",
+    "components/message-input.tsx",
     "lib/message.ts",
     "messages/readme.md",
     "node_modules/x/message.js",
@@ -216,7 +216,7 @@ test("GET /fs/files matches a folder's files, names before directories, and skip
     exists: true,
     files: [
       "lib/message.ts",
-      "components/MessageInput.tsx",
+      "components/message-input.tsx",
       "messages/readme.md",
     ],
   });

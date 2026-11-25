@@ -25,8 +25,8 @@ const terminalSessions = readFileSync(
 // The conversation surface: the container plus every module it was split into.
 const conversationDir = join(ROOT, "components", "conversation");
 const conversationView = [
-  join(ROOT, "components", "ConversationView.tsx"),
-  join(ROOT, "components", "MessageInput.tsx"),
+  join(ROOT, "components", "conversation-view.tsx"),
+  join(ROOT, "components", "message-input.tsx"),
   ...(readdirSync(conversationDir, { recursive: true }) as string[])
     .filter((file) => /\.tsx?$/.test(file) && !file.includes(".test."))
     .map((file) => join(conversationDir, file)),

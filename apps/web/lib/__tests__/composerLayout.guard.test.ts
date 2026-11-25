@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // MessageInput fills ComposerShell's slots; the field and textarea markup live in the shell.
-const source = ["MessageInput.tsx", "ComposerShell.tsx"]
+const source = ["message-input.tsx", "ComposerShell.tsx"]
   .map((file) =>
     readFileSync(join(import.meta.dir, "..", "..", "components", file), "utf8"),
   )

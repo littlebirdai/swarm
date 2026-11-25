@@ -12,7 +12,7 @@ import {
   sideRefusalText,
   visibleSideAnswers,
 } from "../sideAnswers";
-import { jointCandidatesOf } from "../jointSend";
+import { jointCandidatesOf } from "../joint-send";
 import { sideAnswerStub } from "../../store/sideAnswerTypes";
 
 describe("parseSideQuestion", () => {

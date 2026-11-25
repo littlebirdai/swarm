@@ -109,7 +109,7 @@
     "components": [
       {
         "name": "ConversationView (container, header is inline)",
-        "file": "packages/web/components/ConversationView.tsx",
+        "file": "packages/web/components/conversation-view.tsx",
         "role": "The whole conversation pane. The header (title, status, facts strip, runner pills, viewers) is inline JSX at 3632-~3990. It is not a separate component. Blocks are dispatched from the Message rows at ~3373 (SessionMessageBlock), 3410 (UserPrompt) and 3496 (AssistantBlock); PermissionStack is at 4855 and MessageInput at 4733.",
         "props": "ConversationViewProps (conversation/types.ts:203): the live conversation object plus dozens of callbacks.",
         "deps": "Everything. useQuery/useMutation/useConvex (line 67); useInboxStore/useTrackedStore/useShallow everywhere; useShortcutContext('conversation') plus about 10 useShortcutAction registrations (2029-2068, 2967); a window-level useEventListener; router (next/navigation compat shim to react-router); a stack of context providers (FilePathContext, WorktreesProvider, CastBrowserRowContext, BrowserSessionContext, RevealAncestryCtx, ChatWakeContext, ImageGalleryProvider, ReviewComposerContext; 3615-3622); ack/active-conversation writes; sync feeders; tanstack virtualizer; lazy CommentDock and terminal split.",
@@ -200,7 +200,7 @@
       {
         "name": "SessionMessageBlock",
         "file": "packages/web/components/conversation/blocks/systemBlocks.tsx",
-        "role": "The 'Message from <sender>' card (also 'Report from' and 'From teammate') with a collapsible markdown body (675). It is fed a user message that classifyUserMessage (classify.ts:300) labels 'session_message' (ConversationView.tsx:3373).",
+        "role": "The 'Message from <sender>' card (also 'Report from' and 'From teammate') with a collapsible markdown body (675). It is fed a user message that classifyUserMessage (classify.ts:300) labels 'session_message' (conversation-view.tsx:3373).",
         "props": "{from, name?, body, timestamp?, pendingStatus?, pendingReason?, recipientConversationId?, variant?: 'session'|'teammate'|'agent', color?, summary?, linkToConversationId?}",
         "deps": "useTrackedStore reads the recipient's agent_status only when pendingStatus and recipientConversationId are set. useJumpToSendingMessage (hooks/useJumpToSendingMessage.ts) runs a convex.query(sessionThreads.findSendingMessage) on click of the 'Open the sending message' button, which appears whenever `from` is a short id or linkToConversationId is set. A `from` short id renders an EntityIdPill. Body goes through ReactMarkdown with entity pills. Also uses CollapsibleBody and EstablishedRefsProvider.",
         "presentational": "nearly",
@@ -244,7 +244,7 @@
       },
       {
         "name": "MessageInput (composer)",
-        "file": "packages/web/components/MessageInput.tsx",
+        "file": "packages/web/components/message-input.tsx",
         "role": "The session composer (187): textarea or TipTap ComposeEditor (lazy, 56 and 2547), ghost suggestion, image strip, queued messages, send, send-and-stash, handoff, fork, meta line (2177), mention and slash autocomplete, working and limit status.",
         "props": "About 50 props; conversationId: string is required.",
         "deps": "useQuery (restart progress at ~318, resolved image URLs at ~653), useQueryNoThrow (message status), usePendingMessageStatus, useMentionServerSearch (server search as you type @), useConvex, useCurrentUser, useOwnersFromStore, useLimitRecovery, and many useInboxStore reads. Writes: typing schedules a draft write through scheduleDraftWrite (1067) into the persisted store and IDB, which syncs draft_message to the server; send goes through sendMessage (689) and addOptimisticMessage into dispatch and the outbox; composerPrefill is consumed. It also reads shortcuts (isMac, altChordDirection) and reacts to RevealInBandCtx (1260).",
@@ -595,7 +595,7 @@
       {
         "name": "PermissionStack (web, the real permission prompt)",
         "file": "/Users/ashot/src/codecast/packages/web/components/PermissionCard.tsx",
-        "role": "The product's actual Approve/Deny permission card, used in the conversation footer (ConversationView.tsx:4855) and the decision queue (SessionDecisionCard.tsx:478). Single-permission layout at :222-275 (pulsing yellow dot, formatted tool name, mono preview, Approve / optional Allow all / Deny, y/n KeyCaps). Multi-permission layout at :279-349. PermissionCard at :352 is a one-line wrapper. This is the best real source for the phone's permission moment.",
+        "role": "The product's actual Approve/Deny permission card, used in the conversation footer (conversation-view.tsx:4855) and the decision queue (SessionDecisionCard.tsx:478). Single-permission layout at :222-275 (pulsing yellow dot, formatted tool name, mono preview, Approve / optional Allow all / Deny, y/n KeyCaps). Multi-permission layout at :279-349. PermissionCard at :352 is a one-line wrapper. This is the best real source for the phone's permission moment.",
         "deps": "Props: permissions: Permission[] ({_id, conversation_id?, tool_name, arguments_preview?, status, created_at}), onAllowAll?. Data deps: useMutation(api.permissions.updatePermissionStatus) (:121), which fires a REAL server mutation with the fixture id on Approve/Deny (errors are swallowed by .catch at :144/:152). useInboxStore(s => s.resolveSessionQuestion) (:122), which WRITES to the live store (markUnblockedIfLast :133-138) when the last one resolves: a fixture leaks into a signed-in user's real store if conversation_id is set. useEventListener('keydown') (:185-200) is a GLOBAL window listener for bare y/n: on the marketing page any y/n keypress outside an input would approve or deny the fixture. Needs a ConvexProvider (present on the marketing page, which calls useConvexAuth). KeyCap from KeyboardShortcutsHelp; formatToolName from @codecast/shared/render (pure). No router, no portals, no analytics.",
         "presentational": "nearly",
         "howToRender": "Presentational layer: ToolName (:16-22) and PermissionRow (:49-112) are already pure (props in, JSX out) but not exported, and the single-permission body (:222-275) is inline in PermissionStack. The fix is a small refactor: move the JSX into an exported presentational PermissionStackView({ pending, inflight, onApprove, onDeny, onAllowAll?, collapsed, onToggleCollapse, expandedId, onToggleExpand }). PermissionStack keeps the mutation, the store write and the y/n listener and renders the view. The hero then renders PermissionStackView with fixture rows and local useState handlers (Approve moves to an 'approved' state and the row disappears, which is what the product does). This gives real UI, safe interactivity, no network, no store writes and no global keys. Until that refactor lands, do NOT mount PermissionStack/PermissionCard on the marketing page. Colours are all sol tokens and Tailwind sol accents, so it renders correctly under the marketing light theme, or under a local .dark wrapper for the phone (see theme notes)."
@@ -755,7 +755,7 @@
       },
       {
         "name": "MessageInput (composer) / ComposeEditor",
-        "file": "packages/web/components/MessageInput.tsx; components/editor/ComposeEditor.tsx",
+        "file": "packages/web/components/message-input.tsx; components/editor/ComposeEditor.tsx",
         "role": "[Conversation / steering] Composer used to send to a live session, with slash, model and effort controls. FILM: MEDIUM (typing a message).",
         "props": "MessageInput: conversation-bound props. ComposeEditor: editor props",
         "deps": "MessageInput: 58 store reads, 3 useQuery, portals, draft persistence (drafts write to the store and IDB). ComposeEditor: tiptap only (dep scan: no store or Convex).",
@@ -1232,7 +1232,7 @@
         "file": "packages/web/components/chat/ChatComposer.tsx",
         "role": "The chat composer (wraps the app's MessageInput) with typing indicator, broadcast checkbox, Slack local-only toggle, walkie mic.",
         "props": "{channelId, threadRootId?, teamId?, placeholder, channelName?, onSend, autoFocus?, compact?, dropFilesRef?, walkieRoomKey?, walkieRing?} :49",
-        "deps": "useTypingReporter/useTypingMembers (hooks/useChatTyping.ts:35,:88) both skip non-Convex ids (:55,:92), good; useChannelSlackLink, useSlackConnect (Convex actions), useTrackedStore currentUser (:105). MessageInput (2759 lines) persists drafts through store setDraft (components/MessageInput.tsx:1077), which is a sync() that writes drafts[id] AND clientState.drafts[id] (store/inboxStore.ts:10899-10903) into the real IDB/clientState; also mention popups query team tasks/docs.",
+        "deps": "useTypingReporter/useTypingMembers (hooks/useChatTyping.ts:35,:88) both skip non-Convex ids (:55,:92), good; useChannelSlackLink, useSlackConnect (Convex actions), useTrackedStore currentUser (:105). MessageInput (2759 lines) persists drafts through store setDraft (components/message-input.tsx:1077), which is a sync() that writes drafts[id] AND clientState.drafts[id] (store/inboxStore.ts:10899-10903) into the real IDB/clientState; also mention popups query team tasks/docs.",
         "presentational": "no",
         "howToRender": "Do not mount for a typing beat. Fake the composer: a static replica of its chrome with typed text driven by the timeline (textContent), or render a sent line with ChatMessage. If the real composer is a must, it needs a store-isolation seam first (fixture drafts would land in the signed-in user's clientState)."
       },

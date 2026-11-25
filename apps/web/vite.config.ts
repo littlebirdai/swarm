@@ -253,7 +253,7 @@ export default defineConfig(({ mode, command }) => ({
       ],
     },
     // NOTE: server.warmup is deliberately omitted. Warming up a 10k-LOC
-    // module (ConversationView.tsx) on boot kicks the optimizer into a
+    // module (conversation-view.tsx) on boot kicks the optimizer into a
     // dep-discovery cycle that races real page requests, producing
     // ERR_CONTENT_LENGTH_MISMATCH on the in-flight transform response and
     // leaving the boot shell stuck at "...". Vite's natural request-driven

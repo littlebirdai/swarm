@@ -3,7 +3,7 @@ import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../../store/inboxStore";
 import { useDocPresence } from "../../hooks/useDocPresence";
-import { MessageInput } from "../MessageInput";
+import { MessageInput } from "../message-input";
 import "../chat/chat.css";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import { useConversationSpeaker } from "../../hooks/useLiveIdentityRow";

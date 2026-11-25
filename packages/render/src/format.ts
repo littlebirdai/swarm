@@ -1,5 +1,5 @@
 // Pure string formatters shared by every client renderer. Previously these were
-// hand-copied byte-for-byte into both ConversationView.tsx and the mobile
+// hand-copied byte-for-byte into both conversation-view.tsx and the mobile
 // session screen. PURE — no React, no DOM, no Node (URL is a web standard /
 // Hermes global) — so it imports cleanly into the browser and the Expo/Hermes
 // bundle alike.
