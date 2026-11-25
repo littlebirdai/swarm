@@ -7,6 +7,7 @@
 import { scheduledJobProblems } from "./assistantJobs.testkit";
 import {
   afterEach,
+  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -65,6 +66,9 @@ const TOKEN = "hosted-assistant-test-token";
 let previousHosts: string | undefined;
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
 
+beforeAll(async () => {
+  await Promise.all(Object.values(modules).map((load) => load()));
+});
 beforeEach(() => {
   jest.useFakeTimers();
   fetchSpy = spyOn(globalThis, "fetch").mockRejectedValue(
