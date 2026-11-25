@@ -2,7 +2,7 @@
 // that moved to `cast files`, and `run`'s names, flags and command around `--`.
 import * as fs from "node:fs";
 import * as os from "node:os";
-import { SECRET_NAME_RE } from "@codecast/shared/contracts/secrets";
+import { SECRET_NAME_RE } from "@codecast/secrets/secrets";
 import { shellQuote } from "../shellQuote.js";
 
 const FILES_ONLY_VERBS = new Set([

@@ -24,13 +24,13 @@ import {
   type SecretMeta,
   type SecretPayload,
   type SecretVersionMeta,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import {
   findSecrets,
   replaceSecrets,
   vaultReference,
   type FoundSecret,
-} from "@codecast/shared/contracts/secretShapes";
+} from "@codecast/secrets/secretShapes";
 import { humanizeConvexError } from "@codecast/convex-errors/convexErrors";
 
 export type EnvEntry = { key: string; value: string };

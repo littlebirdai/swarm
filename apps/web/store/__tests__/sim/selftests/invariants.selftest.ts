@@ -10,14 +10,14 @@
 // violation is a direct write to one side, the server db or a window's store.
 
 import { afterEach, describe, expect, test } from "bun:test";
-import { inboxEpoch } from "@codecast/shared/contracts";
-import { convexIdFor } from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
+import { inboxEpoch } from "@codecast/inbox/inboxProjection";
+import { convexIdFor } from "@codecast/inbox/__fixtures__/inboxProjectionGen";
 import {
   genTeamWorld,
   membershipIdFor,
   teamIdFor,
   userIdFor,
-} from "@codecast/shared/contracts/__fixtures__/teamWorldGen";
+} from "@codecast/inbox/__fixtures__/teamWorldGen";
 import { hourBucket } from "@codecast/convex/convex/lib/chatQuota";
 import {
   MENTION_WAKES_PER_SENDER_HOUR,

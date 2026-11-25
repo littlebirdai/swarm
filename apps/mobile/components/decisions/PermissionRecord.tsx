@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import type { PermissionOutcome } from "@codecast/shared/contracts/commandRun";
+import type { PermissionOutcome } from "@codecast/decisions/commandRun";
 import { Text } from "@/components/Themed";
 import { useTheme } from "@/constants/Theme";
 
-// A permission ask's answer in the transcript (shared/contracts/commandRun.ts
+// A permission ask's answer in the transcript (decisions/src/commandRun.ts
 // permissionRecord): one line with what was asked and where the step stands,
 // as on the web (components/conversation/PermissionAsk). A step that failed
 // keeps its output a tap away; the command itself never shows.

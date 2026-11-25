@@ -26,7 +26,7 @@ import {
   totp,
   totpParams,
   validatePayload,
-} from "./secrets";
+} from "../src/secrets";
 
 const ascii = (s: string) => new TextEncoder().encode(s);
 

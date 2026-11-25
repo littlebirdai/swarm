@@ -9,6 +9,7 @@
   "dependencies": {
     "@codecast/async": "workspace:*",
     "@codecast/changes": "workspace:*",
+    "@codecast/decisions": "workspace:*",
     "@codecast/entities": "workspace:*",
     "@codecast/evals-api": "workspace:*",
     "@codecast/fence": "workspace:*",
@@ -21,6 +22,7 @@
     "@codecast/ship": "workspace:*",
     "@codecast/signals": "workspace:*",
     "@codecast/snippets": "workspace:*",
+    "@codecast/triggers": "workspace:*",
     "@platform/cli-kit": "file:../../platform/packages/cli-kit",
     "@platform/evals": "file:../../platform/packages/evals",
     "@platform/snippets": "file:../../platform/packages/snippets",

@@ -8,11 +8,11 @@ import {
   heldHash,
   rebuildRows,
   type SplitCache,
-} from "@codecast/shared/contracts/inboxSplit";
+} from "@codecast/inbox/inboxSplit";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useWatchEffect } from "./useWatchEffect";
 
-// The live inbox queries in their split wire form (shared/contracts/inboxSplit):
+// The live inbox queries in their split wire form (packages/inbox/src/inboxSplit.ts):
 // the subscription carries the recent rows and a hash over the rest, and this
 // feeder rebuilds the whole result before any applier sees it. The store, the
 // appliers and the convergence contract therefore see exactly the payload the

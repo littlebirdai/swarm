@@ -5,7 +5,7 @@ import {
   NOT_CONFIRMED,
   type LoginPayload,
   type SecretPayload,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { useEventListener } from "./useEventListener";
 import { useWatchEffect } from "./useWatchEffect";
 import { usePresence, withPresence } from "../lib/passkeyPresence";

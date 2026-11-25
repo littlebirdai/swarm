@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { SecretMeta } from "@codecast/shared/contracts/secrets";
+import type { SecretMeta } from "@codecast/secrets/secrets";
 import {
   askFirstOffLedger,
   declineLedger,

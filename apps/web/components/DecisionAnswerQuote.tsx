@@ -12,7 +12,7 @@ import Link from "next/link";
 import {
   pickAnsweredDecision,
   type DecisionAnswerMessage,
-} from "@codecast/shared/contracts";
+} from "@codecast/decisions/decisionAnswers";
 import { api } from "@codecast/convex/convex/_generated/api";
 import {
   type SessionDecisionItem,

@@ -1,5 +1,5 @@
 import { expect, mock, test } from "bun:test";
-import { splitRows } from "@codecast/shared/contracts/inboxSplit";
+import { splitRows } from "@codecast/inbox/inboxSplit";
 import { makeFunctionReference } from "convex/server";
 import { JSDOM } from "jsdom";
 import { act } from "react";

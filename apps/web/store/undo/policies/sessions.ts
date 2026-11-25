@@ -12,7 +12,8 @@ import type {
   UndoCtx,
   UndoSpec,
 } from "@platform/engine";
-import { isClosePatch, type UserRest } from "@codecast/shared/contracts";
+import { isClosePatch } from "@codecast/inbox/closedSession";
+import { type UserRest } from "@codecast/inbox/inboxProjection";
 import type { UndoPolicy } from "../policy";
 import { counted, quoted, sessionTitle } from "../labels";
 import { keepConversationRows } from "../thinConversation";

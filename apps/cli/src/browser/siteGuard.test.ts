@@ -22,7 +22,7 @@ import {
   webAuthnRefusal,
   withScheme,
 } from "./siteGuard.js";
-import { SECRET_APPROVAL_TTL_MS } from "@codecast/shared/contracts/secrets";
+import { SECRET_APPROVAL_TTL_MS } from "@codecast/secrets/secrets";
 import type { SigninMemory } from "../secrets/signin.js";
 import { readAudit } from "./audit.js";
 import type { SitePolicy } from "./policy.js";

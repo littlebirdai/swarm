@@ -16,7 +16,7 @@
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { SecretMeta } from "@codecast/shared/contracts/secrets";
+import type { SecretMeta } from "@codecast/secrets/secrets";
 import type { PublishDeps } from "../src/castApi.ts";
 import type { ReadSecret } from "../src/secrets/inject.ts";
 import { openSessionTab } from "../src/browser/sessionTab.ts";

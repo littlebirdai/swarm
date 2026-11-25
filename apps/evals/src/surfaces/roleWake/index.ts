@@ -6,7 +6,7 @@ import {
   parseScheduledTask,
   type WaitingSession,
 } from "@codecast/messages/machineMessages";
-import { triggerRunFrame } from "@codecast/shared/contracts";
+import { triggerRunFrame } from "@codecast/triggers/triggerLifecycle";
 import { type RoleCard } from "@codecast/org/roleCard";
 import {
   parseStandingSection,

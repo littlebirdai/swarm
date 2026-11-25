@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { getFunctionName } from "convex/server";
-import { triggerLifecycleInstructions } from "@codecast/shared/contracts";
+import { triggerLifecycleInstructions } from "@codecast/triggers/triggerLifecycle";
 import {
   claimTask,
   completeTaskRun,

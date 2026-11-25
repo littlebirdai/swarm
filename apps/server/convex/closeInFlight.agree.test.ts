@@ -8,7 +8,7 @@ import { convexTest } from "convex-test";
 import {
   closeInFlightReason,
   IN_FLIGHT_FACT_KEYS,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/closedSession";
 import schema from "./schema";
 import { allModules } from "./testModules.testkit";
 import { inFlightFactsOnServer } from "./lib/closeAside";

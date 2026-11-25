@@ -29,7 +29,7 @@ import {
   secretMatches,
 } from "./protocol.js";
 import { hashHostToken } from "./hostClients.js";
-import { RUN_ON_LAPTOP, askToRun } from "@codecast/shared/contracts/commandRun";
+import { RUN_ON_LAPTOP, askToRun } from "@codecast/decisions/commandRun";
 import {
   bridgeStatus,
   type BridgeHostStatus,

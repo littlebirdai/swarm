@@ -1,4 +1,4 @@
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { DEVICE_ONLINE_MS } from "./deviceRouting";
@@ -51,7 +51,7 @@ import {
   runResultThreadOf,
   triggerRunFrame,
   type RunOutcome,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerLifecycle";
 import {
   formatScheduledTask,
   type WaitingSession,

@@ -15,7 +15,7 @@ import {
   totpParams,
   type SecretKind,
   type SecretMeta,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import type { VaultScope } from "../../hooks/useSyncSecrets";
 import {
   Dialog,

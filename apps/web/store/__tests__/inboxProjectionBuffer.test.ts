@@ -10,8 +10,8 @@ import {
 import {
   INBOX_FACT_FIELDS,
   INBOX_PROJECTION_FIELDS,
-  INBOX_PROJECTION_VERSION,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxFields";
+import { INBOX_PROJECTION_VERSION } from "@codecast/inbox/inboxProjection";
 
 // The overlay applier split (sync-convergence C1): one payload carries FACTS
 // (merged onto session rows, single writer) and STAMPS (the server's run of the

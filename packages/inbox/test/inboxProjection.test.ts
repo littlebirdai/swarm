@@ -1,6 +1,6 @@
 import { HOSTED_AGENT_TYPE } from "@codecast/hosted-assistant/assistant";
 import { DORMANT_CLAIM_TTL_MS } from "@codecast/sessions/agentStatus";
-import { deriveLiveAt, rowLiveDeadlines } from "./inboxProjection";
+import { deriveLiveAt, rowLiveDeadlines } from "../src/inboxProjection";
 import { describe, expect, test } from "bun:test";
 import {
   INBOX_BUCKETS,
@@ -31,7 +31,7 @@ import {
   type InboxPlacementInput,
   type RollupRow,
   type WorkingSetRow,
-} from "./inboxProjection";
+} from "../src/inboxProjection";
 
 function input(
   partial: Partial<InboxPlacementInput> = {},

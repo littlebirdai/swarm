@@ -21,7 +21,7 @@ import { useLayoutFlag, useOverflows } from "../../../hooks/useOverflows";
 import { createPortal } from "react-dom";
 import { BrowserTabPill } from "../../browser/BrowserTabPill";
 import { formatModel } from "../../../lib/conversationProcessor";
-import type { DecisionAnswerMessage } from "@codecast/shared/contracts";
+import type { DecisionAnswerMessage } from "@codecast/decisions/decisionAnswers";
 import { DecisionAnswerQuote } from "../../DecisionAnswerQuote";
 import {
   countToolGroup,

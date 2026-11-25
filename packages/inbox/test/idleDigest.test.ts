@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { groupIdleNotifications, summarizeIdleDigest } from "./idleDigest";
+import { groupIdleNotifications, summarizeIdleDigest } from "../src/idleDigest";
 
 // Rows as the bell holds them: newest first.
 const row = (id: string, type: string, created_at: number, read = false) => ({

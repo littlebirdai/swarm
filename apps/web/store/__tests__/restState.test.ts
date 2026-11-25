@@ -112,7 +112,7 @@ describe("the rest verdict (classifySession.rest over the shared classifier)", (
 
 describe("classifySession.rest", () => {
   it("a run that declared done and then exited rests as done, not as an ask", () => {
-    // isExitAfterDone (shared/contracts/inboxProjection.ts): the process ending
+    // isExitAfterDone (inbox/src/inboxProjection.ts): the process ending
     // after the agent declared the work delivered, with nothing queued, is the
     // ordinary end of a headless run — nobody is owed anything.
     const c = classifySession(

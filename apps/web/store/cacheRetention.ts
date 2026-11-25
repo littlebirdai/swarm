@@ -3,7 +3,7 @@
 // idbCache.native.ts) the same way idbCollectionDiff is. The generic partition
 // and tombstone expiry live in @platform/engine (cacheRetention / idbCache
 // there); this module injects codecast's session-shaped policy.
-import { WORKING_SET_RECENCY_MS } from "@codecast/shared/contracts";
+import { WORKING_SET_RECENCY_MS } from "@codecast/inbox/inboxProjection";
 import {
   partitionCacheRetention,
   deriveRegistryMaps,

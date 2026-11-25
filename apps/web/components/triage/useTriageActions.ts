@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useInboxStore } from "../../store/inboxStore";
-import type { UserRest } from "@codecast/shared/contracts";
+import type { UserRest } from "@codecast/inbox/inboxProjection";
 import { overlayConversationId } from "../../store/workspace";
 import {
   animatedCloseSessions,

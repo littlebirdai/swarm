@@ -12,7 +12,7 @@ import {
   settleRunConversation,
 } from "./agentTasks";
 import { parseScheduledTask } from "@codecast/messages/machineMessages";
-import { runResultThreadOf } from "@codecast/shared/contracts";
+import { runResultThreadOf } from "@codecast/triggers/triggerLifecycle";
 import { performSetIdleSummary } from "./idleSummary";
 import { performPushFlush } from "./pushRouter";
 

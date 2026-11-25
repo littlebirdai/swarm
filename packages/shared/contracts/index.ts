@@ -3,10 +3,6 @@
 // the browser. PURE isomorphic data only — no Node or DOM APIs — so the Convex
 // runtime can import them.
 export * from "./executionBinding";
-// The needs-input digest: the window, the wording and the row grouping, shared
-// by the Convex fold-up and the web bell so both name the same set.
-export * from "./idleDigest";
-export * from "./closedSession";
 export * from "./apiErrorBanner";
 export * from "./agentSwitch";
 // Which vendors hold a BAA, so a regulated team's data reaches only those.
@@ -21,15 +17,8 @@ export * from "./capabilityResolver";
 // The fleet comparison — one row per capability, one cell per machine. Here for
 // the same reason: the CLI, the browser and Convex all render this grid, and
 // while it lived in the CLI the other two could only reimplement it.
-export * from "./vaultMessages";
-export * from "./decisionAnswers";
 // The cross-entity review queue row — one shape for "what is waiting on a
 // human", fed by comment threads, page comments, and workflow gates alike.
-// The inbox projection: the bucket alphabet, the ONE placement function the
-// Convex overlay and the CLI inbox both call, the time-flip stamps and the
-// order-independent digest every client compares against (sync-convergence C3, C8).
-export * from "./inboxProjection";
-export * from "./triggerLifecycle";
 // Not re-exported here, imported by path: orgProposal (the fenced block
 // `cast org init` decisions carry). It sits off the CLI boot graph on purpose
 // (bench/bootGraph.guard.test.ts): the barrel is on every entry's static

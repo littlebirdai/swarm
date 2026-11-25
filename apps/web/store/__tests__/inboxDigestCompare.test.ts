@@ -3,7 +3,7 @@ import {
   INBOX_PROJECTION_VERSION,
   inboxEpoch,
   type InboxBucket,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import { STATUS_TRUST_TTL_MS } from "@codecast/sessions/agentStatus";
 import {
   INBOX_COMPARE_MAX_PAYLOAD_AGE_MS,

@@ -25,7 +25,7 @@ import {
   type SecretMetaEdit,
   type SecretVersionMeta,
   type SigninPayload,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { peopleOf } from "@codecast/team/memberKind";
 import { useInboxStore } from "../../store/inboxStore";
 import {

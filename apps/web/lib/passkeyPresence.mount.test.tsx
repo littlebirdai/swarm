@@ -17,7 +17,7 @@ import {
   DENY,
   NOT_CONFIRMED,
   presenceRequiredMessage,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { AGENT_TAB_KEY } from "./desktopHandoff";
 
 // Each prompt answers with its action button unless a test says otherwise.

@@ -11,12 +11,12 @@ import {
   type InboxBucket,
   type InboxTruncation,
   type ProjectableInboxRow,
-} from "./inboxProjection";
+} from "../src/inboxProjection";
 import {
   expandFixtureRows,
   resolveEpochRelative,
   type FixtureRowSpec,
-} from "./__fixtures__/inboxProjectionGen";
+} from "../src/__fixtures__/inboxProjectionGen";
 
 // GOLDEN FIXTURES for the shared inbox projection (sync-convergence C3,
 // "Validation plan"). Each file holds input rows and the expected membership,
@@ -33,7 +33,7 @@ import {
 // client gate their compare on this constant (C6).
 //
 // Regenerate DELIBERATELY after an intended rule change:
-//   INBOX_GOLDEN_REGEN=1 bun test packages/shared/contracts/inboxProjection.golden.test.ts
+//   INBOX_GOLDEN_REGEN=1 bun test packages/inbox/test/inboxProjection.golden.test.ts
 // then bump the version, add its hash below, and show the fixture diff in
 // the same commit.
 

@@ -10,7 +10,7 @@ import {
   precheckMessageBlock,
   triggerLifecycleInstructions,
   runResultThreadOf,
-} from "@codecast/shared/contracts";
+} from "@codecast/triggers/triggerLifecycle";
 
 export function buildTriggerFrame(task: any, now: number): string {
   const parts: string[] = [];

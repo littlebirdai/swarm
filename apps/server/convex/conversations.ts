@@ -72,7 +72,7 @@ import { PATCHABLE_CONVERSATION_FIELDS } from "@codecast/sessions/conversationFi
 import { forkSeedClientId } from "@codecast/sessions/forkSeed";
 import { identityFieldsOf } from "./lib/sessionIdentityFields";
 import { normalizeCharacterFields } from "@codecast/org/sessionCharacter";
-import { isHotRow, splitRows } from "@codecast/shared/contracts/inboxSplit";
+import { isHotRow, splitRows } from "@codecast/inbox/inboxSplit";
 import {
   computeBucketStale,
   digestProjection,
@@ -80,32 +80,34 @@ import {
   emptyInboxTally,
   computeFold,
   isBelowFoldAt,
-  rollupParentIdOf,
   rideLeadPlacements,
   selectWorkingSet,
   WORKING_SET_RECENCY_MS,
   HISTORY_IMPORT_INBOX_MS,
-  BLOCKED_BANNER_KINDS,
   placeProjectableRow,
   deriveLiveAt,
-  isClosedSession,
   trustedStatusAt,
   rowLiveDeadlines,
   childAskingAt,
   rowLastTurnAllowsPark,
-  INBOX_FACT_FIELDS,
   INBOX_PROJECTION_VERSION,
   INBOX_TRUNCATION_KINDS,
   INBOX_WINDOW_CAPS,
   isSessionActivityFresh,
   isAssignedAwayFromViewer,
-  isStackedAsk,
   type InboxBucket,
   type InboxPlacement,
   type InboxProjection,
   type InboxTruncation,
   type SessionActivity,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
+import {
+  rollupParentIdOf,
+  isStackedAsk,
+} from "@codecast/inbox/inboxMembership";
+import { BLOCKED_BANNER_KINDS } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
+import { INBOX_FACT_FIELDS } from "@codecast/inbox/inboxFields";
 import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";
 import { LOOP_OVERDUE_GRACE_MS } from "@codecast/sessions/loopState";
 import { Doc, Id } from "./_generated/dataModel";
@@ -11909,7 +11911,7 @@ export async function computeInboxSessions(
     includeKilled?: boolean;
     // Debug-only (timing harness) — see InboxEnrichSkip.
     _skip?: InboxEnrichSkip;
-    // The split wire form's hot set (shared/contracts/inboxSplit), read off
+    // The split wire form's hot set (packages/inbox/src/inboxSplit.ts), read off
     // each row before its stamps are stripped. Only splitInboxList asks.
     splitHot?: boolean;
   },
@@ -12244,7 +12246,7 @@ export const listInboxSessions = query({
     // instead of being served the live subscription's stalled cache. See the
     // matching `_probe` arg on users.getCurrentUser.
     _probe: v.optional(v.number()),
-    // The split wire form (shared/contracts/inboxSplit): the live subscription
+    // The split wire form (packages/inbox/src/inboxSplit.ts): the live subscription
     // asks for it, so a change re-sends the recent rows and a hash, not the
     // whole working set. One-shot fetches leave it off and get every row.
     split: v.optional(v.boolean()),
@@ -12451,7 +12453,7 @@ export type InboxOverlayRow = LivenessFields &
 // every incoming sessions row before its merge. The list itself lives in the
 // shared module (sync-convergence C1) so the client's strip list is the same
 // constant; re-exported for existing importers.
-export { INBOX_PROJECTION_FIELDS } from "@codecast/shared/contracts";
+export { INBOX_PROJECTION_FIELDS } from "@codecast/inbox/inboxFields";
 
 // Convex env kill switch for the digest compare (sync-convergence C8): with
 // `npx convex env set INBOX_DIGEST_DISABLED 1` every overlay payload carries

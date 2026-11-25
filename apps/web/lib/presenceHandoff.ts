@@ -15,7 +15,7 @@ import type {
   PresenceAction,
   PresenceChallengeState,
   PresenceGrant,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 
 type Status = PresenceChallengeState["status"];
 

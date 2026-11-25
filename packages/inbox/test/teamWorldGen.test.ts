@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { inboxEpoch } from "../inboxProjection";
-import { genWorld } from "./inboxProjectionGen";
+import { inboxEpoch } from "../src/inboxProjection";
+import { genWorld } from "../src/__fixtures__/inboxProjectionGen";
 import {
   TEAM_WORLD_MAX_USERS,
   genTeamWorld,
   teamIdFor,
   userIdFor,
   type TeamWorldSpec,
-} from "./teamWorldGen";
+} from "../src/__fixtures__/teamWorldGen";
 
 const EPOCH = inboxEpoch(1_800_000_000_000);
 const sha = (v: unknown): string =>

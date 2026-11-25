@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { _resetUndoStacks } from "@platform/engine";
 import { useInboxStore, type InboxSession } from "../inboxStore";
 import { performRedo, performUndo } from "../undoStack";
-import { shouldShowInInbox } from "@codecast/shared/contracts";
+import { shouldShowInInbox } from "@codecast/inbox/inboxProjection";
 
 // Undo of a stash restores the row at once. The server has usually already
 // applied the stash by then, so its next push still carries inbox_stashed_at

@@ -4,11 +4,8 @@ import { useState, useMemo, Fragment, type ReactNode } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { isSupersededBanner } from "../../lib/limitRecovery";
-import {
-  withSafetyBlock,
-  SAFETY_BLOCK_HINT,
-  isSessionActivityFresh,
-} from "@codecast/shared/contracts";
+import { withSafetyBlock, SAFETY_BLOCK_HINT } from "@codecast/shared/contracts";
+import { isSessionActivityFresh } from "@codecast/inbox/inboxProjection";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   PROVIDER_KEYS,

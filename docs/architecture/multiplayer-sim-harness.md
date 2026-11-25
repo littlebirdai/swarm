@@ -371,7 +371,7 @@ The net's `rng` is its own stream (`makeRng(hash(seed, "net"))`). An order repla
 
 ### 3.6 World and actors
 
-**`packages/shared/contracts/__fixtures__/teamWorldGen.ts`** is pure data with no convex imports.
+**`packages/inbox/src/__fixtures__/teamWorldGen.ts`** is pure data with no convex imports.
 
 ```ts
 export interface TeamWorldSpec {
@@ -784,7 +784,7 @@ Acceptance:
 
 What it builds: section 3.6. The test pins `sha256(JSON.stringify(genWorld(s, n, inboxEpoch(1_800_000_000_000), me)))` for every seed the legacy suites use: the web sims' `seededWorld` seeds (11, 21-32, 41-43, 51, 52, 61, 71, 72, 81-92, 101, 102, 111) at 45 rows with `me = "u" x 32`, and the convex convergence seeds (500-513 at 90 rows, 77 at 10, 9 at 40) with `me = "users_me"`. Rows draw from one stream in order, so a smaller count is a prefix of the pinned one (`seededWorld(31, 30)` is the head of seed 31's 45 rows). Capture the hashes before writing the generator. It also asserts that no two users' conversation ids or tags collide across seeds 1-50.
 
-Acceptance: `cd packages/shared && bun test contracts/__fixtures__/teamWorldGen.test.ts` passes, and `git diff --stat packages/shared/contracts/__fixtures__/inboxProjectionGen.ts` is empty.
+Acceptance: `cd packages/shared && bun test contracts/__fixtures__/teamWorldGen.test.ts` passes, and `git diff --stat packages/inbox/src/__fixtures__/inboxProjectionGen.ts` is empty.
 
 **U5 Tooling.** `sim/tsconfig.json`, `.codecast/check.toml`, `scripts/sim.ts`, `apps/web/package.json`.
 

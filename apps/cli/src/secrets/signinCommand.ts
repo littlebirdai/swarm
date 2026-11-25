@@ -12,7 +12,7 @@
 // say whose cookies it holds.
 
 import * as path from "node:path";
-import { RUN_ON_LAPTOP, askToRun } from "@codecast/shared/contracts/commandRun";
+import { RUN_ON_LAPTOP, askToRun } from "@codecast/decisions/commandRun";
 import { shellArg } from "@codecast/daemon/shellWords";
 import { apiPost, type PublishDeps } from "../castApi.js";
 import { OWN_LOGIN_REASON } from "../browser/credentials.js";
@@ -31,7 +31,7 @@ import {
   validatePayload,
   type SecretMeta,
   type SigninPayload,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import {
   captureFromAgentBrowser,
   captureFromChrome,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { commandsSession } from "./inboxProjection";
+import { commandsSession } from "../src/inboxProjection";
 
 // THE COMMAND RULE: the server's requireSessionCommandTarget and the client's
 // Needs You filing and answer/resume controls all read this one predicate.

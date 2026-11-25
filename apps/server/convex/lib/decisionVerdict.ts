@@ -2,7 +2,7 @@
 // reading it off a resolved row, the one-line label the asking agent acts on,
 // and validating a raw answer against the row's kind. Split out of
 // sessionDecisions.ts so the queue's mutations and the run gates share them.
-import { decisionAnswerLabel } from "@codecast/shared/contracts";
+import { decisionAnswerLabel } from "@codecast/decisions/decisionAnswers";
 import type { Doc } from "../_generated/dataModel";
 
 type DecisionKind = "single" | "multi" | "rank" | "form";

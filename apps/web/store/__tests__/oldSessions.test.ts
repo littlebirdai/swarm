@@ -5,7 +5,7 @@ import {
   renderInboxEpoch,
   type InboxSession,
 } from "../inboxStore";
-import { inboxEpoch, INBOX_WINDOW_CAPS } from "@codecast/shared/contracts";
+import { inboxEpoch, INBOX_WINDOW_CAPS } from "@codecast/inbox/inboxProjection";
 
 // The "show old sessions" toggle over the REPLICA model (sync-convergence
 // C4/C5). Membership is no longer a per-device memory of the last payload

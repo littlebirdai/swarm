@@ -6,7 +6,7 @@
 // (2026-11-08): ~1,500 cached sessions, ~55 of them top-level and the rest
 // subagents nested under those, ~120 alive at once.
 import { useInboxStore } from "@codecast/web/store/inboxStore";
-import { INBOX_FACT_FIELDS } from "@codecast/shared/contracts";
+import { INBOX_FACT_FIELDS } from "@codecast/inbox/inboxFields";
 import { CURRENT_USER, TEAM_ID } from "@codecast/web/lib/acmeWorld/world";
 
 export const HEAVY_SESSIONS =

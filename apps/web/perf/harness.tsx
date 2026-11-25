@@ -852,8 +852,9 @@ const LIVE_SET = 600;
 async function setupInboxHeartbeat(modern = false): Promise<Bench> {
   const { applyMineLivenessPayload } =
     await import("../hooks/useSyncInboxSessions");
-  const { INBOX_FACT_FIELDS, INBOX_PROJECTION_VERSION } =
-    await import("@codecast/shared/contracts");
+  const { INBOX_FACT_FIELDS } = await import("@codecast/inbox/inboxFields");
+  const { INBOX_PROJECTION_VERSION } =
+    await import("@codecast/inbox/inboxProjection");
   const { placeInboxRows } = await import("../store/inboxStore");
   const { show } = await inboxPanel(modern);
   await show();

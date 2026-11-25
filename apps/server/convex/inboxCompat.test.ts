@@ -7,13 +7,13 @@ import {
   INBOX_LIVENESS_FIELDS,
   INBOX_FAST_FIELDS,
 } from "./conversations";
+import { INBOX_FACT_FIELDS } from "@codecast/inbox/inboxFields";
 import {
-  INBOX_FACT_FIELDS,
   INBOX_WINDOW_CAPS,
   inboxEpoch,
   selectWorkingSet,
   WORKING_SET_RECENCY_MS,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import { makeFakeDb } from "./testDb";
 
 // FROZEN CONTRACTS for deployed binaries (sync-convergence C9). Mobile builds

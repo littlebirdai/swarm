@@ -13,7 +13,7 @@
 // /confirm page in the system browser and waits on the challenge instead.
 // An agent's tab may not set one up (lib/agentTabGuard).
 
-import { approvesPersonsAct } from "@codecast/shared/contracts/commandRun";
+import { approvesPersonsAct } from "@codecast/decisions/commandRun";
 import { useCallback, useMemo } from "react";
 import { useConvex } from "convex/react";
 import type { ConvexReactClient } from "convex/react";
@@ -28,7 +28,7 @@ import {
   isPresenceRequired,
   type PresenceAction,
   type PresenceGrant,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { isAgentDrivenTab } from "./desktopHandoff";
 import { isDesktopShell, openExternalUrl } from "./desktop";
 import { PERSON_ONLY } from "./agentTabGuard";

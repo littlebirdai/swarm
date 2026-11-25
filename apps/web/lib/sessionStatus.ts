@@ -31,7 +31,7 @@ import {
   DEAD_AGENT_STATUSES,
   deriveLiveAt,
   isExitAfterDone,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import { type WorkState } from "@codecast/sessions/workState";
 import type { PlanState } from "@codecast/shared/tasks";
 import { agentStatusAt, liveFactsOf } from "./liveness";

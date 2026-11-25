@@ -9,7 +9,7 @@ import { isoBase64URL, isoCBOR } from "@simplewebauthn/server/helpers";
 import {
   PRESENCE_TTL_MS,
   type PresenceAction,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { sha256Hex } from "./lib/hash";
 import { grantString } from "./lib/presence";
 

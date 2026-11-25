@@ -1,6 +1,6 @@
 "use client";
 // The composer's catch: a message about to go out holds a credential-shaped
-// string (shared/contracts/secretShapes). The bar above the composer names
+// string (packages/secrets/src/secretShapes.ts). The bar above the composer names
 // what it found, offers to save it to the Vault under a name, and sends the
 // message with a reference in its place. The value goes from the composer's
 // text straight to secrets.create (useCreate); the store sees metadata only.
@@ -8,8 +8,8 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { KeyRound } from "lucide-react";
-import { fingerprint } from "@codecast/shared/contracts/secrets";
-import type { FoundSecret } from "@codecast/shared/contracts/secretShapes";
+import { fingerprint } from "@codecast/secrets/secrets";
+import type { FoundSecret } from "@codecast/secrets/secretShapes";
 import { KeyCap } from "../KeyCap";
 import { useSecrets, useVaultScope } from "../../hooks/useSyncSecrets";
 import { ScopePicker } from "./AddSecretDialog";

@@ -12,10 +12,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
-import {
-  type SecretKind,
-  type SecretMeta,
-} from "@codecast/shared/contracts/secrets";
+import { type SecretKind, type SecretMeta } from "@codecast/secrets/secrets";
 import {
   useFillRequest,
   useLinkedSecret,

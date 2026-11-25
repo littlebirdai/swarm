@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import {
-  NOT_CONFIRMED,
-  type PasskeyMeta,
-} from "@codecast/shared/contracts/secrets";
+import { NOT_CONFIRMED, type PasskeyMeta } from "@codecast/secrets/secrets";
 import { usePresence, withPresence } from "../lib/passkeyPresence";
 
 /** Remove a passkey, confirmed with Touch ID. */

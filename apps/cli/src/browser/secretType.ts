@@ -38,7 +38,7 @@ import {
   type LoginPayload,
   type SecretKind,
   type SecretMeta,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { freshTotp, type ReadSecret } from "../secrets/inject.js";
 import {
   checkUrl,

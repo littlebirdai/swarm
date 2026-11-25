@@ -9,7 +9,7 @@
  */
 
 import type { CloudHost } from "../browser/cloudHost.js";
-import { askToRun, RUN_ON_LAPTOP } from "@codecast/shared/contracts/commandRun";
+import { askToRun, RUN_ON_LAPTOP } from "@codecast/decisions/commandRun";
 import type { ComputerMethod } from "./types.js";
 
 export interface ComputerHostGrant {

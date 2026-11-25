@@ -6,7 +6,7 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { armedTriggerKindFor } from "../dormancy";
-import { runParentOf } from "@codecast/shared/contracts";
+import { runParentOf } from "@codecast/triggers/triggerLifecycle";
 import { hostedHomeStamp } from "../assistant/routines";
 import { nextCadenceRun } from "@platform/assistant/cadence";
 

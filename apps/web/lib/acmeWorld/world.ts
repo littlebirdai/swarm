@@ -240,7 +240,7 @@ export function session(
     is_connected: true,
     daemon_alive_until: now + 10 * MIN,
     last_heartbeat: now - 5_000,
-    // The inbox's placement rules (shared/contracts/inboxProjection.ts):
+    // The inbox's placement rules (inbox/src/inboxProjection.ts):
     // a blocked declaration on an idle agent is the person's move, an agent
     // that declared done is done.
     agent_status: live ? "working" : o.waiting === "done" ? "done" : "idle",

@@ -19,7 +19,7 @@ import {
   type SecretPayload,
   type SecretVersionMeta,
   type SigninPayload,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import type { EntityFixture } from "../../lib/entityDisplay";
 import type { VaultScope } from "../../hooks/useSyncSecrets";
 import { stagedSwap, type Swap } from "./vaultModel";

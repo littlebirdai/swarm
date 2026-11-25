@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { deriveLiveAt } from "./inboxProjection";
+import { deriveLiveAt } from "../src/inboxProjection";
 import {
   HEARTBEAT_ALIVE_MS,
   HEARTBEAT_FLUSH_INTERVAL_MS,

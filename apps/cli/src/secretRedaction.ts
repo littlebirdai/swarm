@@ -28,12 +28,12 @@
 import {
   LABELED_SECRET_SHAPES,
   SECRET_SHAPES,
-} from "@codecast/shared/contracts/secretShapes";
+} from "@codecast/secrets/secretShapes";
 import { redactKnownValues } from "./knownValueRedaction.js";
 
 type SecretPattern = { re: RegExp; marker: string };
 
-// The shapes live in shared/contracts/secretShapes.ts, which the web composer
+// The shapes live in secrets/src/secretShapes.ts, which the web composer
 // reads too. Labeled shapes keep their group 1 (the label); only the value is
 // redacted.
 const SECRET_PATTERNS: SecretPattern[] = SECRET_SHAPES.map((s) => ({

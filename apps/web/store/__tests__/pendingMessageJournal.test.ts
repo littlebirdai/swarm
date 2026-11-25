@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { formatDecisionAnswer } from "@codecast/shared/contracts";
+import { formatDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import {
   applyPendingMessageWrite,
   pendingMessageWrites,

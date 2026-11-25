@@ -2,7 +2,10 @@ import type { Doc } from "./_generated/dataModel";
 // Single source of truth for the "agent is actively producing" set and the
 // stale-status trust TTL. Re-exported so existing `from "./inboxFilters"`
 // importers (incl. the tests) keep working unchanged.
-import { isSessionIdle, isUnservedSession } from "@codecast/shared/contracts";
+import {
+  isSessionIdle,
+  isUnservedSession,
+} from "@codecast/inbox/inboxProjection";
 import {
   ACTIVE_AGENT_STATUSES,
   TRUST_DECAYING_STATUSES,
@@ -19,7 +22,7 @@ export {
   WORK_STATES,
   type WorkState,
 };
-// The work-state classifier lives in @codecast/shared/contracts/inboxProjection
+// The work-state classifier lives in @codecast/inbox/inboxProjection
 // (the ONE placement function the liveness overlay, the CLI inbox and every
 // client share — sync-convergence C3). Re-exported so existing importers keep
 // working unchanged.
@@ -27,13 +30,13 @@ export {
   classifyWorkState,
   DEAD_AGENT_STATUSES,
   type WorkStateInput,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 
 export type ConversationDoc = Doc<"conversations">;
 
 // The pure inbox visibility rule (subagent/orphan drop, noise titles, killed
 // unless pinned, completed-and-blank) lives in
-// @codecast/shared/contracts/inboxProjection — ONE implementation serves the
+// @codecast/inbox/inboxProjection — ONE implementation serves the
 // server scan and every replica's working-set selection (sync-convergence C4).
 // Re-exported so existing `from "./inboxFilters"` importers keep working.
 export {
@@ -42,13 +45,10 @@ export {
   isOrphanOrSubagent,
   isAdoptedChild,
   isRunLog,
-  shouldShowInInbox,
-} from "@codecast/shared/contracts";
-import {
-  shouldShowInInbox,
-  isNestedIdentity,
-  isRunLog,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxMembership";
+export { shouldShowInInbox } from "@codecast/inbox/inboxProjection";
+import { shouldShowInInbox } from "@codecast/inbox/inboxProjection";
+import { isNestedIdentity, isRunLog } from "@codecast/inbox/inboxMembership";
 import { isCompactionSummaryMessage } from "@codecast/messages/machineMessages";
 
 // The three DISTINCT ways a session leaves the active inbox. They were reported
@@ -479,14 +479,14 @@ export function subagentIsProducing(input: {
 }
 
 // The stamp-currency rules (the user's dormant gesture, the settle verdict)
-// live in @codecast/shared/contracts/inboxProjection — the shared row placement
+// live in @codecast/inbox/inboxProjection — the shared row placement
 // needs them, and one rule must decide "does this stamp still describe the row"
 // on every surface. Re-exported for existing importers.
 export {
   userRestOf,
   userRestStampOf,
   isSettleVerdictCurrent,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 
 // The `--state` filter vocabulary lives in packages/sessions/src/workState.ts so the
 // CLI rejects a value the server would ignore. Re-exported for existing importers.
@@ -540,7 +540,7 @@ export const ROUTE_UP_STALL_GRACE_MS = 2 * 60_000;
 export {
   isSessionIdle,
   type SessionIdleInput,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 export {
   HEARTBEAT_ALIVE_MS,
   trustedAgentStatus,

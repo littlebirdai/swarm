@@ -1,4 +1,4 @@
-import { INBOX_WINDOW_CAPS } from "@codecast/shared/contracts";
+import { INBOX_WINDOW_CAPS } from "@codecast/inbox/inboxProjection";
 import type { Id } from "./_generated/dataModel";
 // The per-user inbox triage/visibility stamps, projected off a conversation
 // doc. EVERY query that emits a conversation summary the client may seed into

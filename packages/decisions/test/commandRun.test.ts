@@ -8,9 +8,12 @@ import {
   parseRunCommand,
   runResultText,
   MAX_RUN_OUTPUT,
-} from "./commandRun";
-import { APPROVE_FOR_SESSION } from "./secrets";
-import { formatDecisionAnswer, parseDecisionAnswer } from "./decisionAnswers";
+} from "../src/commandRun";
+import { APPROVE_FOR_SESSION } from "@codecast/secrets/secrets";
+import {
+  formatDecisionAnswer,
+  parseDecisionAnswer,
+} from "../src/decisionAnswers";
 
 test("a pasted command line parses to the argv the machine runs, and prints back the same", () => {
   const line = `! cast role authority @ads --team Union --grant '[{"id":"a","limit":{"usd_per_month":5000}}]'`;
@@ -99,7 +102,7 @@ test("long output keeps its tail", () => {
 });
 
 test("an answer's permission record: from the run when the row is at hand, else from the delivered result", () => {
-  const { permissionRecord, runResultText } = require("./commandRun");
+  const { permissionRecord, runResultText } = require("../src/commandRun");
   const argv = ["role", "authority", "@ads"];
   expect(
     permissionRecord(

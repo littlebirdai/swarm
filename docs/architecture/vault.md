@@ -115,7 +115,7 @@ One row per secret in `secrets`:
 | bookkeeping                | `created_by`, `updated_by`, `updated_at`, `rotated_at`, `last_used_at`, `last_used_by_session`, `use_count`, `short_id` (`sec-N`); a request's first asker in `requested_by` and `requested_from_conversation`, every later asking session in `also_requested_from`                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 `secret_events` is the audit trail (`SECRET_EVENT_KINDS` in
-`shared/contracts/secrets.ts`): created, updated, rotated, revealed (web),
+`secrets/src/secrets.ts`): created, updated, rotated, revealed (web),
 read by an agent (with the session), injected, signed_in, refreshed,
 requested, fulfilled, deleted, ask_first_on and ask_first_off,
 approval_requested, approved, denied and withdrawn (each with its decision;
@@ -189,7 +189,7 @@ Three more tables hang off a secret, and a delete removes all three:
 
 A name may exist in a team and in personal at once. A name in more than one
 of the caller's workspaces resolves by `pickSecretByName`
-(`shared/contracts/secrets.ts`), the same rule on the backend and in the
+(`secrets/src/secrets.ts`), the same rule on the backend and in the
 CLI's planners: the repo profile's workspace when the CLI sends it as
 `prefer` (reads, `[vault]`, `vault://`), a fill's requested row, else a
 refusal that lists each row's short id. It is never silently the personal
@@ -284,7 +284,7 @@ session for that site, and their newer cookies for it are written back. The
 extension bridge answers only a few browser-wide methods, so there the jar
 calls run in a background scratch tab's session (`bridgeBrowserConn` in
 `secrets/signinBrowser.ts`). The desktop pane gets none. Google and YouTube stay excluded, as in
-`keepsOwnLogin` (`OWN_LOGIN_HOSTS` in `shared/contracts/secrets.ts`, with
+`keepsOwnLogin` (`OWN_LOGIN_HOSTS` in `secrets/src/secrets.ts`, with
 `signinSite`, the one parser of a typed site: the web's Save sign-in and the
 CLI read the same list). Site policy (`policy.ts`) still applies.
 
@@ -445,7 +445,7 @@ Deny and dismiss stay one press, and switching Ask first on needs nothing.
   RS256 (`@simplewebauthn/server`).
 - `passkey_challenges`: one single-use WebAuthn challenge per row, either an
   enrollment or a presence check for one action on one target
-  (`PRESENCE_ACTIONS` in `shared/contracts/secrets.ts`: `reveal` and
+  (`PRESENCE_ACTIONS` in `secrets/src/secrets.ts`: `reveal` and
   `ask_first_off` name the secret, `approve` the decision, `remove_passkey`
   the passkey, `add_passkey` the person). `presenceBegin` files it for two
   minutes (`PRESENCE_TTL_MS`) and answers its caller a grant string, the
@@ -518,7 +518,7 @@ positional, because the root program owns `--version`).
 ## Composer catch
 
 On send, never per keystroke (the typing budget), `MessageInput.handleSubmit`
-checks the text with `findSecrets` (`shared/contracts/secretShapes.ts`, the
+checks the text with `findSecrets` (`secrets/src/secretShapes.ts`, the
 one list of credential shapes: transcript redaction builds its patterns from
 it, the server's `redact.ts` takes its vendor tokens from it, and the cloud
 mirror and `cast ship checkout` scan files with its `VENDOR_TOKEN_RE`;
@@ -532,7 +532,7 @@ goes out with the value replaced by a reference to the secret's name
 
 ## Health
 
-`secretHealth` (`shared/contracts/secrets.ts`) works the state out at render
+`secretHealth` (`secrets/src/secrets.ts`) works the state out at render
 from metadata: expired, expiring (a sign-in within 3 days), unused (no read a
 day after it was added) and stale (last read over 90 days ago). The web list,
 the detail header, the Needs attention filter and `cast vault ls|show` all

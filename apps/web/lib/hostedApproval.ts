@@ -8,7 +8,7 @@
 // own words (the plan as it shows it, what Yes does, the settled line), read
 // by the web's HostedApprovalCard and the phone's ApprovalCard alike.
 
-import { parseDecisionAnswer } from "@codecast/shared/contracts";
+import { parseDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import {
   APPROVAL_ANSWERS,
   ROUTINE_SHOWS_UP,

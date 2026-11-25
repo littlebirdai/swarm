@@ -128,7 +128,7 @@ import {
   noteGestureRows,
 } from "./cleanup";
 import { closeSetsAsideOnServer } from "./lib/closeAside";
-import { isClosePatch } from "@codecast/shared/contracts";
+import { isClosePatch } from "@codecast/inbox/closedSession";
 import { stampBrowserPaneOfferHandled, writeShareLink } from "./conversations";
 import {
   performCancelPeerTransfer,

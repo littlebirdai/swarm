@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { PLANS } from "@codecast/hosted-assistant/assistant";
 import { disconnectNote, mailboxLine } from "./connectionWords";
-import { formatDecisionAnswer } from "@codecast/shared/contracts";
+import { formatDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import { calendarTools, mailTools } from "@platform/assistant";
 import { codecastTools } from "@codecast/convex/convex/assistant/tools/codecast";
 import {

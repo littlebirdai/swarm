@@ -18,7 +18,7 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import {
   isPresenceRequired,
   type PasskeyMeta,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
 import { Text as RNText } from "@/components/Themed";
 import { formatRelativeTime } from "@/components/sessionFormat";

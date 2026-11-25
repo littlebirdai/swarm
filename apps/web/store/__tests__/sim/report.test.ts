@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { convexIdFor } from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
+import { convexIdFor } from "@codecast/inbox/__fixtures__/inboxProjectionGen";
 import { SimLabels } from "./labels";
 import { parseOrder } from "./net";
 import {

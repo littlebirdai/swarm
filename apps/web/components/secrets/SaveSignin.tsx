@@ -25,7 +25,7 @@ import {
   signinName,
   signinSite,
   type SecretMeta,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { peopleOf } from "@codecast/team/memberKind";
 import { useInboxStore } from "../../store/inboxStore";
 import { useQueryNoThrow } from "../../hooks/useQueryNoThrow";

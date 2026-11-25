@@ -16,7 +16,7 @@ import {
   TEAM_FEATURE_KEYS,
   type TeamFeatureKey,
 } from "@codecast/policy/teamFeatures";
-import { SECRET_EVENT_KINDS } from "@codecast/shared/contracts/secrets";
+import { SECRET_EVENT_KINDS } from "@codecast/secrets/secrets";
 import {
   cloudAutoscaleValidator,
   cloudHostReportValidator,
@@ -6347,7 +6347,7 @@ export default defineSchema(
       // the web renders it natively in place of a report. Validated on ask.
       card: v.optional(v.any()),
       // A command the asker wants a person to run (`cast decide --run`,
-      // shared/contracts/commandRun.ts): the card shows it, a person's Run
+      // decisions/src/commandRun.ts): the card shows it, a person's Run
       // executes it on the session's machine (daemon run_cast) and the result
       // comes back as the answer.
       run: v.optional(
@@ -7750,7 +7750,7 @@ export default defineSchema(
       // or write it back until a person sets its sites (secrets.ts scopedBy).
       sites_by_token: v.optional(v.id("users")),
       note: v.optional(v.string()),
-      // First 4 and last 4 of a key (shared/contracts/secrets fingerprint).
+      // First 4 and last 4 of a key (packages/secrets/src/secrets.ts fingerprint).
       fingerprint: v.optional(v.string()),
       // A sign-in's latest cookie expiry, so the page says when it runs out.
       signin_expires_at: v.optional(v.number()),

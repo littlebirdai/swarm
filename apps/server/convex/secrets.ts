@@ -86,11 +86,11 @@ import {
   type SecretReadPurpose,
   type SecretVersionMeta,
   type SigninPayload,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import {
   formatVaultDeclined,
   formatVaultReady,
-} from "@codecast/shared/contracts";
+} from "@codecast/secrets/vaultMessages";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { DAEMON_COMMAND_TTL_MS } from "@codecast/daemon/daemonCommands";
 

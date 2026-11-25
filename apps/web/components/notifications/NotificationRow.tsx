@@ -32,7 +32,7 @@ import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import {
   summarizeIdleDigest,
   type IdleGrouped,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/idleDigest";
 import { AssistantMark } from "../simple/AssistantMark";
 
 export function AgentIcon({

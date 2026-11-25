@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import {
   INBOX_PROJECTION_VERSION,
   inboxEpoch,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 import { AGENT_IDLE_GRACE_MS } from "@codecast/sessions/agentStatus";
 import {
   placeInboxRows,

@@ -6,7 +6,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { useCliHarness } from "../externalDataCli.testHarness.js";
 import { clearWorkspaceCache } from "../resolveWorkspace.js";
-import type { SecretMeta } from "@codecast/shared/contracts/secrets";
+import type { SecretMeta } from "@codecast/secrets/secrets";
 
 const VALUE = "sk_test_51HXabcdefghijklmnopqrstuvwxyz";
 const TEAMS = { teams: [{ _id: "t1", name: "Acme" }], active_team_id: "t1" };
@@ -504,7 +504,7 @@ describe("cast vault on the wire", () => {
   });
 
   test("otp prints the code for a known seed at this moment, and its seconds left on stderr off a terminal too", async () => {
-    const { totp } = await import("@codecast/shared/contracts/secrets");
+    const { totp } = await import("@codecast/secrets/secrets");
     h.answer = () => ({
       secrets: [
         {

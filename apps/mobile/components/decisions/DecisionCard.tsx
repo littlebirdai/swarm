@@ -10,7 +10,7 @@ import {
   SKIP_OPTION,
   approvesPersonsAct,
   fallbackLine,
-} from "@codecast/shared/contracts/commandRun";
+} from "@codecast/decisions/commandRun";
 import { approvalButtonLabel } from "@codecast/hosted-assistant/assistant";
 import { useCallback, useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -43,7 +43,7 @@ import {
 } from "@codecast/web/hooks/useSyncDecisionDetail";
 import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
 import type { AnswerDraft } from "@codecast/web/lib/decisionAnswer";
-import { decisionAnswerLabel } from "@codecast/shared/contracts";
+import { decisionAnswerLabel } from "@codecast/decisions/decisionAnswers";
 import { pageShareUrl } from "@codecast/entities";
 import { appAlert } from "@/lib/popups";
 

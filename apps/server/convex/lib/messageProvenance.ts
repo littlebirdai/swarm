@@ -21,7 +21,7 @@
 import type { Doc } from "../_generated/dataModel";
 import { canonicalSlashCommand } from "@codecast/agent-clients/slashCommand";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
-import { parseDecisionAnswer } from "@codecast/shared/contracts";
+import { parseDecisionAnswer } from "@codecast/decisions/decisionAnswers";
 import {
   stripMentionContext,
   stripPastedContent,

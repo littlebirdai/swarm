@@ -18,7 +18,7 @@ import {
   type LoginPayload,
   type SecretKind,
   type SecretPayload,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { shellQuote } from "../shellQuote.js";
 
 /** One secret as /cli/vault/read returns it. */

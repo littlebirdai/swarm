@@ -30,8 +30,8 @@ import {
   pickAnsweredDecision,
   formatDecisionAnswer,
   decisionAnswerClientId,
-  advisoryAnswerOpen,
-} from "@codecast/shared/contracts";
+} from "@codecast/decisions/decisionAnswers";
+import { advisoryAnswerOpen } from "@codecast/inbox/inboxMembership";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import type { Doc, Id } from "./_generated/dataModel";
 import { emitNotification } from "./notificationRouter";
@@ -103,7 +103,7 @@ import {
   RUN_OPTIONS,
   parseRunCommand,
   type CommandRun,
-} from "@codecast/shared/contracts/commandRun";
+} from "@codecast/decisions/commandRun";
 import { proposalAnswersError } from "@codecast/shared/contracts/expectations";
 import { invalidImpact } from "@codecast/decisions/decisionImpact";
 import { reopenTaskWaits, scheduleDecisionSettle } from "./taskWaits";

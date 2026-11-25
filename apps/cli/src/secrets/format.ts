@@ -10,7 +10,7 @@ import {
   type SecretHealth,
   type SecretMeta,
   type SecretVersionMeta,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { gapLine, type VaultMap } from "./projectMap.js";
 
 const session = (id: string | undefined) => (id ? id.slice(0, 7) : undefined);

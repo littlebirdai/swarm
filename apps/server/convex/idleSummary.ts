@@ -1,4 +1,4 @@
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 import { internalMutation, internalAction, internalQuery } from "./functions";
 import { routeUpWaitingSession } from "./agentTasks";
 import { v } from "convex/values";

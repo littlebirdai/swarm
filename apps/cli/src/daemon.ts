@@ -124,7 +124,7 @@ import {
   DELIVERY_FAILED_SUBTYPE,
   formatDeliveryFailedNotice,
 } from "@codecast/sessions/deliveryFailed";
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 import { materializeFileTags } from "@codecast/daemon/fileAttachment";
 import { downloadAttachedFile } from "./attachedFileDownload.js";
 import { mapLimit } from "@codecast/async";
@@ -771,9 +771,9 @@ import {
 import { subagentPromptParent } from "./agentPromptOrigin.js";
 import { declaredSpawnParent } from "./spawnParents.js";
 import { redactSecrets, maskToken } from "./redact.js";
-import { SECRET_PAYLOAD_MAX } from "@codecast/shared/contracts/secrets";
+import { SECRET_PAYLOAD_MAX } from "@codecast/secrets/secrets";
 import { localTailnetAsync, selfTailnet } from "./cloud/tailnet.js";
-import { RUN_TIMEOUT_MS } from "@codecast/shared/contracts/commandRun";
+import { RUN_TIMEOUT_MS } from "@codecast/decisions/commandRun";
 import { personEnv } from "./sessionIdentity.js";
 import {
   RetryQueue,

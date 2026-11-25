@@ -28,7 +28,7 @@ import {
   type EnvNameIssue,
   type SecretKind,
   type SecretMeta,
-} from "@codecast/shared/contracts/secrets";
+} from "@codecast/secrets/secrets";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {
   formatFullTimestamp,

@@ -6,7 +6,7 @@ import {
   isSubagentConversation,
   isAgentTeamWorker,
 } from "./ccAccountsShared";
-import { rollupParentIdOf } from "@codecast/shared/contracts";
+import { rollupParentIdOf } from "@codecast/inbox/inboxMembership";
 
 const OWNER = "spawn-owner";
 const PARENT = {

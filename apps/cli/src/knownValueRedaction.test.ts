@@ -16,7 +16,7 @@ import {
   redactWithMatcher,
   setKnownValuesForTest,
 } from "./knownValueRedaction.js";
-import { redactionValuesOf } from "@codecast/shared/contracts/secrets";
+import { redactionValuesOf } from "@codecast/secrets/secrets";
 import { redactSecrets } from "./secretRedaction.js";
 import { vaultRedactionSource } from "./secrets/redactionSource.js";
 

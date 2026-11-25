@@ -9,9 +9,11 @@
 import {
   INBOX_FACT_FIELDS,
   isInboxRowField,
+} from "@codecast/inbox/inboxFields";
+import {
   isSettleVerdictCurrent,
   userRestOf,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/inboxProjection";
 
 export type CargoCollection =
   | "sessions"

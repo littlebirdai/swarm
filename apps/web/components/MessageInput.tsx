@@ -181,10 +181,7 @@ import {
 import { useSharedDraft } from "../hooks/useSharedDraft";
 import { SharedCarets } from "./SharedCarets";
 import { useFileSearch } from "../lib/fsBrowse";
-import {
-  findSecrets,
-  type FoundSecret,
-} from "@codecast/shared/contracts/secretShapes";
+import { findSecrets, type FoundSecret } from "@codecast/secrets/secretShapes";
 import { ComposerCatch } from "./secrets/ComposerCatch";
 import { runningSubagents } from "../lib/runningSubagents";
 import { StopConfirm, type StopRequest } from "./conversation/StopConfirm";

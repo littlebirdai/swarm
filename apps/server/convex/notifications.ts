@@ -1,5 +1,5 @@
 import { heartbeatOf } from "./lib/sessionHeartbeat";
-import { isClosedSession } from "@codecast/shared/contracts";
+import { isClosedSession } from "@codecast/inbox/closedSession";
 import {
   mutation,
   query,
@@ -21,7 +21,7 @@ import { routeUpHears, routeUpWaitingSession } from "./agentTasks";
 import {
   IDLE_DIGEST_WINDOW_MS,
   summarizeIdleDigest,
-} from "@codecast/shared/contracts";
+} from "@codecast/inbox/idleDigest";
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
 import { openTasksVouchForWaiting } from "@codecast/sessions/openTasks";
 import { v } from "convex/values";
