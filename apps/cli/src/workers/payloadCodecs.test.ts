@@ -1,7 +1,7 @@
 import { PayloadBudget } from "./payloadBudget.js";
 import { expect, test } from "bun:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   ByteReceiver,
   bytePage,
@@ -144,8 +144,8 @@ test("cache codec retains map shape, pruning, deleted-path lookup and malformed 
 
 test("codec cursor drains bounded pages and releases failed jobs", async () => {
   const cursors = new PayloadCodecCursors();
-  const generation = "codec-generation";
-  const cursor = "codec-cursor";
+  const generation = randomUUID();
+  const cursor = randomUUID();
   let sequence = 0;
   const send = async (command: Record<string, unknown>) => {
     const payload =

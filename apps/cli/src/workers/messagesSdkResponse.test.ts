@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
@@ -250,10 +251,10 @@ const receipt = {
 
 async function openMessagesCursor() {
   const cursors = new MessagesSdkCursors();
-  const cursor = "response-cursor";
-  const generation = "response-generation";
+  const cursor = randomUUID();
+  const generation = randomUUID();
   let sequence = 0;
-  const send = (command: Record<string, unknown>) => {
+  const send = async (command: Record<string, unknown>) => {
     const payload =
       command.action === "open"
         ? { ...command, generation }
@@ -261,7 +262,9 @@ async function openMessagesCursor() {
     if (!validMessagesSdkPayload(payload))
       throw new Error("invalid messages SDK request");
     sequence++;
-    return cursors.request(payload, cursor);
+    const page = await cursors.request(payload, cursor);
+    expect(validMessagesSdkPage(page)).toBe(true);
+    return page;
   };
   await send({
     action: "open",
@@ -275,19 +278,15 @@ async function openMessagesCursor() {
   return { cursors, send, sealed };
 }
 
-test("the SDK wire validator refuses an invalid command before cursor dispatch", async () => {
-  const { cursors, send, sealed } = await openMessagesCursor();
-  try {
-    expect(() =>
-      send({ action: "responseStart", status: 200, body: "invalid" }),
-    ).toThrow("invalid messages SDK request");
-    const page = await send({ action: "begin", apiToken, receipt });
-    expect(page.stage).toBe("capture");
-    expect(page.sequence).toBe(sealed.sequence + 1);
-  } finally {
-    await send({ action: "close" });
-    expect(cursors.size).toBe(0);
-  }
+test("the SDK wire validator refuses a response body flag that is not a boolean", () => {
+  const address = {
+    cursor: randomUUID(),
+    generation: randomUUID(),
+    sequence: 1,
+  };
+  const command = { ...address, action: "responseStart", status: 200 };
+  expect(validMessagesSdkPayload({ ...command, body: true })).toBe(true);
+  expect(validMessagesSdkPayload({ ...command, body: "invalid" })).toBe(false);
 });
 
 test("the SDK cursor returns the receipt before the paged result and logs", async () => {
@@ -337,21 +336,16 @@ test("the SDK cursor returns the receipt before the paged result and logs", asyn
     const outcome = send({ action: "waitOutcome" });
     const responseBytes = Buffer.from(response);
     await send({ action: "responseStart", status: 200, body: true });
-    for (
-      let offset = 0;
-      offset < responseBytes.length;
-      offset += PAYLOAD_PAGE_BYTES
-    )
+    for (let offset = 0; offset < responseBytes.length; offset += 40_000)
       await send({
         action: "responsePush",
-        page: bytePage(responseBytes, offset),
+        page: bytePage(responseBytes.subarray(0, offset + 40_000), offset),
       });
     await send({
       action: "responseEnd",
       descriptor: describeBytes(responseBytes),
     });
     const accepted = await outcome;
-    expect(validMessagesSdkPage(accepted)).toBe(true);
     expect(accepted).toMatchObject({ stage: "outcome", receipt });
 
     const assembler = new PayloadValueAssembler();
