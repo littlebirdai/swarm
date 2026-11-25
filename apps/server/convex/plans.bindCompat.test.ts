@@ -71,11 +71,6 @@ describe("plans.bindSession wire contract", () => {
     { optional: boolean }
   >;
 
-  test("accepts both session_id and conversation_id", () => {
-    expect(args.session_id).toBeDefined();
-    expect(args.conversation_id).toBeDefined();
-  });
-
   test("neither is required, so a CLI sending only one is accepted", () => {
     expect(args.session_id.optional).toBe(true);
     expect(args.conversation_id.optional).toBe(true);

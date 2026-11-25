@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { convexTest } from "convex-test";
 import schema from "./schema";
+import { allModules } from "./testModules.testkit";
 import { api, internal } from "./_generated/api";
 import { hashToken } from "./apiTokens";
 import {
@@ -54,14 +55,17 @@ function judgeStub() {
   };
 }
 
-async function setup() {
-  const t = convexTest(schema, {
-    "./_generated/server.ts": () => import("./_generated/server"),
-    "./vendorCoverage.ts": () => import("./vendorCoverage"),
-    "./syncOutbox.ts": () => import("./syncOutbox"),
-    "./signals.ts": () => import("./signals"),
-    "./notificationRouter.ts": () => import("./notificationRouter"),
-  });
+async function setup(modules?: typeof allModules) {
+  const t = convexTest(
+    schema,
+    modules ?? {
+      "./_generated/server.ts": () => import("./_generated/server"),
+      "./vendorCoverage.ts": () => import("./vendorCoverage"),
+      "./syncOutbox.ts": () => import("./syncOutbox"),
+      "./signals.ts": () => import("./signals"),
+      "./notificationRouter.ts": () => import("./notificationRouter"),
+    },
+  );
   const userId = await t.run(async (ctx) => {
     const id = await ctx.db.insert("users", { name: "Finder" } as any);
     await ctx.db.insert("api_tokens", {
@@ -2279,8 +2283,8 @@ describe("signals.publishProfile", () => {
     fingerprint: "union:cluster:<id>",
   };
 
-  async function seed() {
-    const base = await setup();
+  async function seed(modules?: typeof allModules) {
+    const base = await setup(modules);
     const { id, other } = await base.t.run(async (ctx) => {
       for (const device_id of ["dev-a", "dev-b"])
         await ctx.db.insert("devices", {
@@ -2309,22 +2313,21 @@ describe("signals.publishProfile", () => {
       } as any);
       return { id, other };
     });
+    const args = (over: Record<string, any> = {}) => ({
+      api_token: TOKEN,
+      workspace: "personal",
+      root: "/src/union",
+      device_id: "dev-a",
+      groups: [{ project: "Agent Quality", default: true, finders: [finder] }],
+      profile: facts,
+      ...over,
+    });
     const publish = (over: Record<string, any> = {}) =>
-      base.t.mutation(api.signals.publishProfile, {
-        api_token: TOKEN,
-        workspace: "personal",
-        root: "/src/union",
-        device_id: "dev-a",
-        groups: [
-          { project: "Agent Quality", default: true, finders: [finder] },
-        ],
-        profile: facts,
-        ...over,
-      } as any);
+      base.t.mutation(api.signals.publishProfile, args(over) as any);
     const row = async () =>
       ((await base.t.run(async (ctx) => await ctx.db.get(id))) as any)
         .line_profile;
-    return { publish, row, userId: base.userId, other };
+    return { ...base, args, publish, row, other };
   }
 
   test("every resolved value, its sources, the file and the publishing device land on the row", async () => {
@@ -2387,14 +2390,17 @@ describe("signals.publishProfile", () => {
     expect(p.publisher_user_id).toBeUndefined();
   });
 
-  test("the CLI route forwards the publisher's device_id (cliRoute strips it otherwise)", async () => {
-    const http = (await import("node:fs")).readFileSync(
-      `${import.meta.dir}/http.ts`,
-      "utf-8",
-    );
-    const at = http.search(/cliRoute\(\s*"\/cli\/line\/profile\/publish"/);
-    expect(at).toBeGreaterThan(-1);
-    expect(http.slice(at, at + 300)).toContain("{ forwardDeviceId: true }");
+  test("the CLI route publishes the profile with the request's device and owner", async () => {
+    const { t, args, row, userId } = await seed(allModules);
+    const response = await t.fetch("/cli/line/profile/publish", {
+      method: "POST",
+      body: JSON.stringify(args({ device_id: "dev-b" })),
+    });
+    expect(response.status).toBe(200);
+    expect(await row()).toMatchObject({
+      device_id: "dev-b",
+      publisher_user_id: String(userId),
+    });
   });
 
   test("a project another profile's finders file into gets the finders, not that profile's values", async () => {

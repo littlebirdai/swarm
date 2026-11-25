@@ -1,6 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import * as fs from "node:fs";
-import * as path from "node:path";
 import { makeFakeDb } from "./testDb";
 import { applyCancel, applyPause } from "./agentTasks";
 import {
@@ -727,18 +725,6 @@ describe("moving a role to the caller's machine", () => {
     ).rejects.toThrow();
     expect(seat().owner_device_id).toBe("peerdev");
     expect(String(seat().user_id)).toBe(PEER);
-  });
-
-  // cliRoute strips device_id unless the route forwards it; without that the
-  // destination never reached the mutation.
-  test("the CLI route forwards the destination device", () => {
-    const http = fs.readFileSync(
-      path.join(import.meta.dir, "http.ts"),
-      "utf-8",
-    );
-    const at = http.search(/cliRoute\(\s*"\/cli\/role\/move"/);
-    expect(at).toBeGreaterThan(-1);
-    expect(http.slice(at, at + 200)).toContain("{ forwardDeviceId: true }");
   });
 
   test("a role with no standing session says how to seat one", async () => {

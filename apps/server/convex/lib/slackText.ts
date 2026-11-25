@@ -12,7 +12,7 @@ import {
 } from "@codecast/chat";
 import { parseLinkPreviewUrl } from "@codecast/entities";
 
-export { emojiToShortcode, replaceShortcodes, shortcodeToEmoji };
+export { emojiToShortcode, shortcodeToEmoji };
 
 // Emoji shortcodes live in @codecast/chat (the full Slack/iamcal set).
 // slackToMarkdown calls replaceShortcodes after the other mrkdwn rules.
