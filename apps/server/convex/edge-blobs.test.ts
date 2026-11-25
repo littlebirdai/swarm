@@ -9,6 +9,8 @@ import {
   setupRunLease,
   start,
 } from "../test-helpers/run-lease.testkit";
+import { api } from "./_generated/api";
+import { asUser } from "../test-helpers/database.testkit";
 import http from "./http";
 
 const flag = "CODECAST_EDGE_DELIVERY_V1";
@@ -103,11 +105,10 @@ async function expectMissing(response: Response) {
 test("start and permit responses carry ordered image parts and the active permit reads raw bytes", async () => {
   const f = await fixture();
   const bytes = new Uint8Array([0, 137, 80, 255, 10]);
-  const first = await f.store(bytes, "image/png");
+  const first = await f.store(bytes, "IMAGE/PNG");
   const second = await f.store("webp bytes", "image/webp");
   await f.t.run(({ db }) =>
     db.patch(f.message, {
-      image_storage_id: first,
       image_storage_ids: [first, second],
     }),
   );
@@ -125,7 +126,13 @@ test("start and permit responses carry ordered image parts and the active permit
   expect(initial.headers.get("X-Content-Type-Options")).toBe("nosniff");
   expect(initial.headers.get("Content-Disposition")).toBe("attachment");
   expect(initial.headers.get("Location")).toBeNull();
+  expect(initial.headers.get("Cache-Control")).toBe("private, no-store");
   expect(new Uint8Array(await initial.arrayBuffer())).toEqual(bytes);
+  const storageType = await f.runBlobAction(
+    body,
+    async () => new Blob([bytes], { type: "text/html" }),
+  );
+  expect(storageType.headers.get("Content-Type")).toBe("image/png");
 
   for (const status of ["started", "already_started"]) {
     const begin = await f.post("delivery.start", request);
@@ -192,26 +199,163 @@ test("a superseded attempt cannot read an image even when the new permit grants 
   expect(active.status).toBe(200);
 });
 
-test("oversized and unsupported attachments stay queued without a delivery attempt", async () => {
-  const f = await fixture();
-  const fence = await f.grant();
-  const large = await f.store(new Uint8Array(maxBytes + 1), "image/png");
-  const svg = await f.store("<svg/>", "image/svg+xml");
-  for (const [id, status, error] of [
-    [large, 413, tooLarge],
-    [svg, 422, { v: 1, status: "error", code: "invalid", retryable: false }],
-  ] as const) {
-    await f.t.run(({ db }) => db.patch(f.message, { image_storage_id: id }));
-    const refused = await f.post("permits.next", fence);
-    expect(refused.status).toBe(status);
-    expect(await refused.json()).toEqual(error);
+for (const problem of ["missing", "oversized", "unsupported"] as const) {
+  for (const entry of ["next", "replayed next", "start"] as const) {
+    test(`${entry} rejects ${problem} images, records the reason and delivers the next message`, async () => {
+      const f = await fixture();
+      const image =
+        problem === "oversized"
+          ? await f.store(new Uint8Array(maxBytes + 1), "image/png")
+          : await f.store(
+              "<svg/>",
+              problem === "unsupported" ? "image/svg+xml" : "image/png",
+            );
+      await f.t.run(async ({ db, storage }) => {
+        const first = await db.get(f.message);
+        if (!first) throw new Error("Expected a message");
+        await db.patch(f.message, {
+          content: "[Image]",
+          image_storage_id: image,
+        });
+        if (problem === "missing") await storage.delete(image);
+        const { _id, _creationTime, ...row } = first;
+        await db.insert("pending_messages", {
+          ...row,
+          client_id: "second",
+          delivery_id: "second",
+          conversation_sequence: 2,
+          created_at: start + 1,
+        });
+        await db.patch(f.head, { next_conversation_sequence: 3 });
+      });
+      const legacy = entry !== "next" ? await f.deliver() : undefined;
+      const fence = await f.grant();
+      const reason = {
+        missing: "The attached images are missing and the message has no text.",
+        oversized: "An image exceeds the 8 MiB delivery limit.",
+        unsupported: "An image has an unsupported content type.",
+      }[problem];
+      const legacyRequest = legacy && {
+        ...fence,
+        attempt_id: legacy.permit.attemptId,
+        delivery_id: legacy.permit.deliveryId,
+        seq: Number(legacy.permit.conversationSequence),
+        intent: "queue",
+        sender: { kind: "person", id: f.owner },
+      };
+      if (entry === "start" && legacyRequest) {
+        expect(
+          await (await f.post("delivery.start", legacyRequest)).json(),
+        ).toEqual({ v: 1, status: "rejected", reason });
+      } else {
+        expect(await (await f.post("permits.next", fence)).json()).toEqual({
+          v: 1,
+          status: "empty",
+        });
+      }
+      const rejected = await f.t.run(({ db }) =>
+        db.query("delivery_attempts").unique(),
+      );
+      expect(rejected).toMatchObject({
+        state: "failed-before-effect",
+        failure_message: reason,
+      });
+      if (legacy) expect(rejected?._id).toBe(legacy.permit.attemptId);
+      const { request: second } = await f.permit(fence);
+      expect(second).toMatchObject({ delivery_id: "second", seq: 2 });
+      if (entry === "start" && legacyRequest) {
+        setSystemTime(new Date(start + 10));
+        expect(
+          await (await f.post("delivery.start", legacyRequest)).json(),
+        ).toEqual({ v: 1, status: "rejected", reason });
+      } else {
+        expect((await f.permit(fence)).request).toEqual(second);
+      }
+      expect(await f.t.run(({ db }) => db.get(rejected!._id))).toEqual(
+        rejected,
+      );
+      expect(
+        await (await f.post("delivery.start", second)).json(),
+      ).toMatchObject({ status: "started" });
+      expect(
+        await (
+          await f.post("delivery.settle", { ...second, outcome: "applied" })
+        ).json(),
+      ).toEqual({ v: 1, status: "recorded" });
+      const queue = await asUser(f.t, f.owner).query(
+        api.pendingMessages.cliQueue,
+        { session: f.conversation },
+      );
+      expect(queue.cancelled).toMatchObject([
+        { message_id: f.message, hold_reason: reason },
+      ]);
+      expect(queue.queued).toEqual([]);
+    });
   }
-  expect(
-    await f.t.run(({ db }) => db.query("delivery_attempts").collect()),
-  ).toEqual([]);
-  expect((await f.t.run(({ db }) => db.get(f.message)))?.delivery_status).toBe(
-    "pending",
+}
+
+for (const keeps of ["text", "image"] as const) {
+  test(`start returns the surviving ${keeps} when an image disappears after the permit`, async () => {
+    const f = await fixture();
+    const deleted = await f.store("deleted", "image/png");
+    const retained = await f.store("retained", "image/png");
+    const keepImage = keeps === "image";
+    await f.t.run(({ db }) =>
+      db.patch(f.message, {
+        content: keepImage ? "[image]" : "queued",
+        image_storage_ids: keepImage ? [deleted, retained] : [deleted],
+      }),
+    );
+    const fence = await f.grant();
+    const { request, input: before } = await f.permit(fence);
+    expect(before).toContainEqual({
+      type: "blob",
+      blob_id: deleted,
+      content_type: "image/png",
+    });
+    await f.t.run(({ storage }) => storage.delete(deleted));
+    const input = keepImage
+      ? [{ type: "blob", blob_id: retained, content_type: "image/png" }]
+      : [{ type: "text", text: "queued" }];
+    expect(await f.permit(fence)).toEqual({ request, input });
+    for (const status of ["started", "already_started"]) {
+      const response = await f.post("delivery.start", request);
+      expect(parseDeliveryStartResponse(await response.json())).toEqual({
+        ok: true,
+        value: { ...request, status, input },
+      });
+    }
+  });
+}
+
+test("an invalidated started image closes the slot with an uncertainty reason", async () => {
+  const f = await fixture();
+  const { blob, fence, request } = await f.authorize();
+  await f.t.run(({ db }) => db.patch(f.message, { content: "[image]" }));
+  expect(await (await f.post("delivery.start", request)).json()).toMatchObject({
+    status: "started",
+  });
+  await f.t.run(({ storage }) => storage.delete(blob));
+  expect(await (await f.post("permits.next", fence)).json()).toEqual({
+    v: 1,
+    status: "empty",
+  });
+  const attempt = await f.t.run(({ db }) =>
+    db.query("delivery_attempts").unique(),
   );
+  expect(attempt).toMatchObject({
+    state: "abandoned-ambiguous",
+    failure_message: expect.stringContaining("may have reached the agent"),
+  });
+  expect(await (await f.post("delivery.start", request)).json()).toMatchObject({
+    status: "rejected",
+    reason: attempt?.failure_message,
+  });
+  expect(
+    await (
+      await f.post("delivery.settle", { ...request, outcome: "applied" })
+    ).json(),
+  ).toEqual({ v: 1, status: "stale" });
 });
 
 test("read refuses oversized storage metadata before asking storage for bytes", async () => {
@@ -289,6 +433,8 @@ test("blob reads keep their own admission budget", async () => {
   const limited = await f.post("blobs.get", body);
   expect(limited.status).toBe(429);
   expect(limited.headers.get("Retry-After")).toBe("60");
+  await expectMissing(await f.post("blobs.get", body, f.wrongDevice));
+  await expectMissing(await f.post("blobs.get", body, f.wrongUser));
   expect((await f.post("permits.next", fence)).status).toBe(200);
   expect(await (await f.post("renew", fence)).json()).toMatchObject({
     status: "renewed",
@@ -321,3 +467,78 @@ test("blob reads apply flag, bearer, byte and strict parser checks before admiss
     await f.t.run(({ db }) => db.query("ip_rate_limits").collect()),
   ).toEqual([]);
 });
+
+test("blob reads refuse inconsistent head or message state", async () => {
+  const f = await fixture();
+  const { body } = await f.authorize();
+  await f.t.run(({ db }) =>
+    db.patch(f.head, { active_delivery_state: "ambiguous" }),
+  );
+  await expectMissing(await f.post("blobs.get", body));
+  await f.t.run(async ({ db }) => {
+    await db.patch(f.head, { active_delivery_state: "claimed" });
+    await db.patch(f.message, { delivery_status: "ambiguous" });
+  });
+  await expectMissing(await f.post("blobs.get", body));
+});
+
+test("the active ambiguous attempt retains blob access for recovery", async () => {
+  const f = await fixture();
+  const { body, request } = await f.authorize();
+  await f.post("delivery.start", request);
+  expect(
+    await (
+      await f.post("delivery.settle", { ...request, outcome: "in_doubt" })
+    ).json(),
+  ).toMatchObject({ status: "recorded" });
+  const response = await f.post("blobs.get", body);
+  expect(response.status).toBe(200);
+  expect(await response.text()).toBe("image bytes");
+});
+
+for (const change of [
+  "lease expiration",
+  "settlement",
+  "type change",
+  "invalid type",
+] as const) {
+  test(`the read denies a permit after ${change} during storage access`, async () => {
+    const f = await fixture();
+    const { blob, body, request } = await f.authorize();
+    await f.post("delivery.start", request);
+    const response = await f.runBlobAction(body, async () => ({
+      size: 1,
+      stream: () =>
+        new ReadableStream<Uint8Array>({
+          async start(controller) {
+            if (change === "lease expiration")
+              setSystemTime(new Date(start + leaseMs));
+            if (change === "settlement")
+              expect(
+                await (
+                  await f.post("delivery.settle", {
+                    ...request,
+                    outcome: "applied",
+                  })
+                ).json(),
+              ).toMatchObject({ status: "recorded" });
+            if (change === "type change" || change === "invalid type")
+              await f.t.run(async ({ db }) => {
+                const patch = db.patch as (
+                  table: "_storage",
+                  storageId: typeof blob,
+                  fields: { contentType: string },
+                ) => Promise<void>;
+                await patch("_storage", blob, {
+                  contentType:
+                    change === "type change" ? "image/webp" : "image/svg+xml",
+                });
+              });
+            controller.enqueue(Uint8Array.of(1));
+            controller.close();
+          },
+        }),
+    }));
+    await expectMissing(response);
+  });
+}

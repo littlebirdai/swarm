@@ -1,5 +1,3 @@
-import { EDGE_ERROR_CODES } from "@codecast/edge-contract";
-import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { QueryCtx } from "../../_generated/server";
 
@@ -20,16 +18,15 @@ export function permitImageIds(message: Doc<"pending_messages">) {
   ]);
 }
 
-export async function permitImageContentType(
+export async function inspectPermitImage(
   ctx: Pick<QueryCtx, "db">,
   storageId: Id<"_storage">,
 ) {
   const file = await ctx.db.system.get(storageId);
-  if (!file) throw new ConvexError(EDGE_ERROR_CODES.NOT_FOUND);
-  if (file.size > MAX_EDGE_BLOB_BYTES)
-    throw new ConvexError(EDGE_ERROR_CODES.TOO_LARGE);
+  if (!file) return { status: "missing" } as const;
+  if (file.size > MAX_EDGE_BLOB_BYTES) return { status: "too_large" } as const;
   const contentType = file.contentType?.toLowerCase();
   if (!contentType || !imageTypes.has(contentType))
-    throw new ConvexError(EDGE_ERROR_CODES.INVALID);
-  return contentType;
+    return { status: "invalid" } as const;
+  return { status: "ready", contentType } as const;
 }

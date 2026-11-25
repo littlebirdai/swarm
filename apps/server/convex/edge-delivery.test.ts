@@ -417,7 +417,7 @@ test("retryable no-effect settlement keeps the delivery ID and sequence and repl
   expect((await f.t.run(({ db }) => db.get(f.message)))?.retry_count).toBe(1);
 });
 
-test("attachment refusal rolls back the queue claim", async () => {
+test("unsupported image rejection advances the queue head", async () => {
   const f = await fixture();
   const image = await f.t.run(({ storage }) =>
     storage.store(new Blob(["attachment"])),
@@ -428,19 +428,17 @@ test("attachment refusal rolls back the queue claim", async () => {
   const fence = await f.grant();
   expect(await f.call("permits.next", fence)).toEqual({
     v: 1,
-    status: "error",
-    code: "invalid",
-    retryable: false,
+    status: "empty",
   });
   expect(
     await f.t.run(({ db }) => db.query("delivery_attempts").collect()),
-  ).toEqual([]);
+  ).toMatchObject([{ state: "failed-before-effect" }]);
   expect((await f.t.run(({ db }) => db.get(f.message)))?.delivery_status).toBe(
-    "pending",
+    "rejected",
   );
 });
 
-test("attachment refusal also applies to an existing legacy attempt", async () => {
+test("start terminally rejects an unsupported image on a legacy attempt", async () => {
   const f = await fixture();
   const legacy = await f.deliver();
   const image = await f.t.run(({ storage }) =>
@@ -458,12 +456,11 @@ test("attachment refusal also applies to an existing legacy attempt", async () =
   };
   expect(await f.call("delivery.start", permit)).toEqual({
     v: 1,
-    status: "error",
-    code: "invalid",
-    retryable: false,
+    status: "rejected",
+    reason: "An image has an unsupported content type.",
   });
   expect((await f.t.run(({ db }) => db.get(f.message)))?.delivery_status).toBe(
-    "claimed",
+    "rejected",
   );
 });
 

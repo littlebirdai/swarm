@@ -1,4 +1,5 @@
 import {
+  EDGE_ERROR_CODES,
   EDGE_PROTOCOL_VERSION as v1,
   type DeliverySettleResponse,
   type DeliveryStartResponse,
@@ -20,12 +21,16 @@ import {
   verifyAttemptFence,
 } from "./executionBindings";
 import { internalMutation, internalQuery } from "./functions";
+import { isConversationSafetyBlocked } from "./conversationSafety";
 import {
   attemptMatchesFence,
   type PermitFence,
 } from "./lib/delivery-slot.state";
 import { ownedRun } from "./lib/edge/runLease";
-import { permitImageContentType, permitImageIds } from "./lib/edge/blobPolicy";
+import {
+  inspectPermitImage,
+  permitImageIds,
+} from "./lib/edge/blob-policy.rules";
 
 const runFence = {
   v: v.literal(v1),
@@ -121,14 +126,32 @@ async function deliveryInput(
   ctx: MutationCtx,
   message: Doc<"pending_messages">,
 ) {
-  const images = await Promise.all(
-    Array.from(permitImageIds(message), async (blob_id) => ({
-      type: "blob" as const,
-      blob_id,
-      content_type: await permitImageContentType(ctx, blob_id),
-    })),
-  );
-  return [{ type: "text" as const, text: message.content }, ...images];
+  const ids = permitImageIds(message);
+  const images = [];
+  for (const blob_id of ids) {
+    const image = await inspectPermitImage(ctx, blob_id);
+    if (image.status === "too_large")
+      return { reason: "An image exceeds the 8 MiB delivery limit." };
+    if (image.status === "invalid")
+      return { reason: "An image has an unsupported content type." };
+    if (image.status === "ready")
+      images.push({
+        type: "blob" as const,
+        blob_id,
+        content_type: image.contentType,
+      });
+  }
+  const textContent = message.content.trim();
+  const hasText = textContent.length > 0 && !/^\[image\]$/i.test(textContent);
+  if (ids.size && !images.length && !hasText)
+    return {
+      reason: "The attached images are missing and the message has no text.",
+    };
+  const text =
+    !ids.size || hasText
+      ? [{ type: "text" as const, text: message.content }]
+      : [];
+  return { input: [...text, ...images], hasAttachments: ids.size > 0 };
 }
 
 async function deliveryContext(
@@ -191,24 +214,29 @@ export const next = internalMutation({
               attempt.state !== "ambiguous")))
       )
         throw new ConvexError("edge-delivery-unavailable");
+      const fence = {
+        ...run.fence,
+        attemptId: attempt._id,
+        messageId: attempt.message_id,
+        deliveryId: attempt.delivery_id,
+        conversationSequence: attempt.conversation_sequence,
+      };
       if (result.state !== "claimed") {
-        await verifyAttemptFence(
-          ctx,
-          run.owner,
-          {
-            ...run.fence,
-            attemptId: attempt._id,
-            messageId: attempt.message_id,
-            deliveryId: attempt.delivery_id,
-            conversationSequence: attempt.conversation_sequence,
-          },
-          [attempt.state],
-        );
+        await verifyAttemptFence(ctx, run.owner, fence, [attempt.state]);
       }
       const message = await ctx.db.get(attempt.message_id);
       if (!message) throw new Error("Delivery message is missing");
       if (message.delivery_status !== attempt.state)
         throw new Error("Delivery message and attempt state differ");
+      const prepared = await deliveryInput(ctx, message);
+      if (prepared.reason !== undefined) {
+        await finishEdgeDelivery(ctx, run.owner, fence, {
+          code: rejectedCode,
+          reason: prepared.reason,
+          attachment: true,
+        });
+        return { v: v1, status: "empty" };
+      }
       return {
         v: v1,
         status: "permit",
@@ -217,7 +245,7 @@ export const next = internalMutation({
         fencing_token: args.fencing_token,
         ...deliveryFields(attempt, message),
         state: attempt.state === "claimed" ? "new" : "started",
-        input: await deliveryInput(ctx, message),
+        input: prepared.input,
       };
     }),
 });
@@ -229,8 +257,22 @@ export const start = internalMutation({
       const delivery = await deliveryContext(ctx, args);
       if (!delivery) return rejected;
       const { owner, fence, attempt, fields, message } = delivery;
+      if (
+        message.delivery_status === "rejected" &&
+        attempt.failure_code === rejectedCode &&
+        attempt.failure_message
+      )
+        return { ...rejected, reason: attempt.failure_message };
+      const prepared = await deliveryInput(ctx, message);
+      if (prepared.reason !== undefined) {
+        const reason = await finishEdgeDelivery(ctx, owner, fence, {
+          code: rejectedCode,
+          reason: prepared.reason,
+          attachment: true,
+        });
+        return { ...rejected, reason: reason ?? prepared.reason };
+      }
       await startDeliveryInDb(ctx, owner, fence);
-      const input = await deliveryInput(ctx, message);
       return {
         ...fields,
         v: v1,
@@ -238,7 +280,7 @@ export const start = internalMutation({
         session: fence.conversationId,
         run: fence.executionEpoch,
         fencing_token: args.fencing_token,
-        ...(input.length > 1 ? { input } : {}),
+        ...(prepared.hasAttachments ? { input: prepared.input } : {}),
       };
     }),
 });
@@ -274,10 +316,13 @@ export const getBlob = internalQuery({
         message.delivery_status !== attempt.state
       )
         return null;
-      return {
-        storageId,
-        contentType: await permitImageContentType(ctx, storageId),
-      };
+      const image = await inspectPermitImage(ctx, storageId);
+      if (image.status === "missing") return null;
+      if (image.status === "too_large")
+        throw new ConvexError(EDGE_ERROR_CODES.TOO_LARGE);
+      if (image.status === "invalid")
+        throw new ConvexError(EDGE_ERROR_CODES.INVALID);
+      return { storageId, contentType: image.contentType };
     }),
 });
 
@@ -285,19 +330,31 @@ async function finishEdgeDelivery(
   ctx: MutationCtx,
   owner: Doc<"users">["_id"],
   fence: PermitFence & { now: number },
-  rejection?: { code: string; reason: string; evidence?: string },
+  rejection?: {
+    code: string;
+    reason: string;
+    evidence?: string;
+    attachment?: true;
+  },
 ) {
   const states = !rejection
     ? ["delivery-started"]
-    : rejection.evidence === undefined
-      ? ["claimed", "delivery-started"]
-      : ["delivery-started", "ambiguous"];
-  const { head, message, attempt } = await verifyAttemptFence(
+    : rejection.attachment
+      ? ["claimed", "delivery-started", "ambiguous"]
+      : rejection.evidence === undefined
+        ? ["claimed", "delivery-started"]
+        : ["delivery-started", "ambiguous"];
+  const { conversation, head, message, attempt } = await verifyAttemptFence(
     ctx,
     owner,
     fence,
     states,
   );
+  if (rejection?.attachment && isConversationSafetyBlocked(conversation))
+    throw new ExecutionAuthorityError(
+      "CONVERSATION_SAFETY_BLOCKED",
+      "Delivery is held for safety review",
+    );
   if (
     head.active_delivery_state !== attempt.state ||
     message.delivery_status !== attempt.state
@@ -306,13 +363,25 @@ async function finishEdgeDelivery(
       "DELIVERY_ATTEMPT_STATE_MISMATCH",
       "delivery slot does not match its attempt",
     );
+  const mayHaveDelivered = rejection?.attachment && attempt.state !== "claimed";
+  const reason = mayHaveDelivered
+    ? `${rejection.reason} The attempt had already started and may have reached the agent.`
+    : rejection?.reason;
   await finishTerminalDelivery(ctx, head, message, attempt, {
-    attemptState: rejection ? "failed-before-effect" : "correlated-delivered",
+    attemptState: mayHaveDelivered
+      ? "abandoned-ambiguous"
+      : rejection
+        ? "failed-before-effect"
+        : "correlated-delivered",
     messageState: rejection ? "rejected" : "correlated-delivered",
-    rejection,
+    rejection: rejection && {
+      code: rejection.code,
+      reason: reason ?? rejection.reason,
+    },
     resolutionEvidence: rejection?.evidence,
     now: fence.now,
   });
+  return reason;
 }
 
 export const settle = internalMutation({

@@ -217,6 +217,27 @@ describe("blobs.get", () => {
   });
 });
 
+describe("delivery.start input", () => {
+  test("retains valid input parts returned with a start", () => {
+    const input = permitsNext.response.input;
+    expectParsed(
+      edge.parseDeliveryStartResponse({ ...deliveryStart.response, input }),
+      { ...deliveryStart.response, input },
+    );
+  });
+
+  test("rejects malformed input parts returned with a start", () => {
+    expectParseError(
+      edge.parseDeliveryStartResponse({
+        ...deliveryStart.response,
+        input: [{ type: "blob", blob_id: "blob-1" }],
+      }),
+      "missing_field",
+      "$.input[0].content_type",
+    );
+  });
+});
+
 describe("version negotiation", () => {
   test("selects the highest common version regardless of input order", () => {
     expect(edge.EDGE_PROTOCOL_VERSION).toBe(1);

@@ -21,7 +21,7 @@ import { ConvexError } from "convex/values";
 import { internal } from "../../_generated/api";
 import { httpAction, type ActionCtx } from "../../_generated/server";
 import { readBodyCapped } from "../tokenHttp";
-import { MAX_EDGE_BLOB_BYTES } from "./blobPolicy";
+import { MAX_EDGE_BLOB_BYTES } from "./blob-policy.rules";
 
 const policy = {
   revision: 1,
@@ -272,10 +272,8 @@ export function registerEdgeRoutes(http: HttpRouter) {
     handler: workAction(
       parseBlobsGetRequest,
       async (ctx, bearer, body) => {
-        const image = await ctx.runQuery(internal.edgeDelivery.getBlob, {
-          ...body,
-          bearer,
-        });
+        const query = { ...body, bearer };
+        const image = await ctx.runQuery(internal.edgeDelivery.getBlob, query);
         if (!image) return edgeError(404, EDGE_ERROR_CODES.NOT_FOUND);
         const blob = await ctx.storage.get(image.storageId);
         if (!blob) return edgeError(404, EDGE_ERROR_CODES.NOT_FOUND);
@@ -286,6 +284,15 @@ export function registerEdgeRoutes(http: HttpRouter) {
           MAX_EDGE_BLOB_BYTES,
         );
         if (!bytes) return edgeError(413, EDGE_ERROR_CODES.TOO_LARGE);
+        const refreshed = await ctx
+          .runQuery(internal.edgeDelivery.getBlob, query)
+          .catch(() => null);
+        if (
+          !refreshed ||
+          refreshed.storageId !== image.storageId ||
+          refreshed.contentType !== image.contentType
+        )
+          return edgeError(404, EDGE_ERROR_CODES.NOT_FOUND);
         return new Response(bytes.buffer as ArrayBuffer, {
           headers: {
             "Content-Type": image.contentType,
