@@ -63,7 +63,6 @@ export const makeProviderEvents = Effect.fn("provider.events")(function* (
   return {
     emit,
     awaitSpace,
-    full,
     open: () => {
       opened = true;
       return !overflowed;

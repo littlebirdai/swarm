@@ -175,6 +175,7 @@ export function fixture(env: Record<string, string> = {}) {
   const raw: RawProviderFrame[] = [];
   const blocked = Promise.withResolvers<void>();
   let fault: Error | undefined;
+  let pipeFault: (() => void) | undefined;
   let running = false;
   let fileIndex = 0;
   let bootstrap = 0;
@@ -192,6 +193,10 @@ export function fixture(env: Record<string, string> = {}) {
     provider: { agent: "codex", version: "0.153.4" },
     command: [process.execPath, executable, directory] as const,
     env,
+    onStderr(line: string) {
+      if (line === "fixture stderr fault") throw new Error(line);
+      if (line === "fixture stdout fault") pipeFault?.();
+    },
     retainRaw(frame: RawProviderFrame) {
       raw.push(frame);
       if (frame.line.includes(`"fixtureBuffer":${buffer}`))
@@ -210,6 +215,33 @@ export function fixture(env: Record<string, string> = {}) {
       : [];
 
   spawnInterceptors.set(directory, (child) => {
+    if (
+      env.FIXTURE_READ_FAILURE &&
+      child.stdout &&
+      typeof child.stdout === "object"
+    ) {
+      const getReader = child.stdout.getReader.bind(child.stdout);
+      spyOn(child.stdout, "getReader").mockImplementation((() => {
+        const reader = getReader();
+        const read = reader.read.bind(reader);
+        let failed = false;
+        const failure = Promise.withResolvers<never>();
+        void failure.promise.catch(() => {});
+        pipeFault = () => {
+          failed = true;
+          failure.reject(new Error("fixture stdout fault"));
+        };
+        spyOn(reader, "read").mockImplementation(async () => {
+          const result = await (failed
+            ? failure.promise
+            : Promise.race([read(), failure.promise]));
+          return result.done
+            ? { done: true as const, value: undefined }
+            : result;
+        });
+        return reader;
+      }) as typeof child.stdout.getReader);
+    }
     if (!child.stdin || typeof child.stdin !== "object") return;
     const output = child.stdin;
     const write = output.write.bind(output);
@@ -287,7 +319,7 @@ export function fixture(env: Record<string, string> = {}) {
           control(async () => {
             const previous = observed().length;
             const result = await owned.answer(request);
-            if (result.status === "in-doubt")
+            if (result.status === "in-doubt" && result.reason === "best-effort")
               expect(
                 await waitFor(() => observed().length > previous, 2500, 5),
               ).toBe(true);
@@ -390,5 +422,15 @@ export function fixture(env: Record<string, string> = {}) {
     },
     releases: () => group?.signals ?? 0,
   };
-  return { client, contract, directory, observed, options, raw, spec, wrote };
+  return {
+    client,
+    contract,
+    directory,
+    observed,
+    options,
+    raw,
+    spec,
+    wrote,
+    full: blocked.promise,
+  };
 }

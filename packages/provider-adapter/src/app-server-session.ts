@@ -23,6 +23,7 @@ import {
   Notification,
   OpenOptions,
   Prompt,
+  RpcLine,
   SteerReply,
   ThreadReply,
   TurnReply,
@@ -39,7 +40,7 @@ import {
   type ProviderAdapterOptions,
 } from "./options";
 import { makeProviderEvents, pendingPromptLimit } from "./provider-events";
-import { readAppServer } from "./app-server-wire";
+import { appServerWire, type AppServerFrame } from "./app-server-wire";
 import {
   AdapterError,
   processError,
@@ -91,15 +92,18 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   );
 
   const events = yield* makeProviderEvents(dialect.name);
+  const incoming = yield* appServerWire(transport, scope);
   const replies = yield* bestEffortReplies(transport, scope);
-  const { retain, getUnknownPayloadCount } = rawFrames(options, spec);
+  const { retain: retainRaw, getUnknownPayloadCount } = rawFrames(
+    options,
+    spec,
+  );
   const clock = yield* Clock.Clock;
   const prompts = new Map<string, ServerPrompt>();
   const completed = new Set<string>();
   const sentTurns = new Map<number, "turn/start" | "turn/steer">();
   let seq = spec.afterSeq;
   let checkpoint: string | undefined;
-  let opening = true;
   let sessionClosed = false;
   let starting: { id: number; request: SteerRequest } | undefined;
   let active:
@@ -114,16 +118,37 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     at: clock.currentTimeMillisUnsafe(),
   });
 
+  let projection: Effect.Effect<void>[] = [];
+
+  function retain(...args: Parameters<typeof retainRaw>) {
+    projection.push(retainRaw(...args));
+  }
+
+  function projectEvent(emit: () => void) {
+    return events.awaitSpace().pipe(Effect.andThen(Effect.sync(emit)));
+  }
+
   function durable(payload: DurablePayload, turn = active?.id ?? null) {
-    events.emit({ ...payload, ...envelope(), turn, seq: ++seq });
+    const stamp = envelope();
+    projection.push(
+      projectEvent(() =>
+        events.emit({ ...payload, ...stamp, turn, seq: ++seq }),
+      ),
+    );
   }
 
   function begin(turn: string) {
     if (active || completed.has(turn)) return;
     const items = turnItems(
       (payload) => durable(payload, turn),
-      (body) =>
-        events.emit({ ...envelope(), turn, kind: "message.delta", body }),
+      (body) => {
+        const stamp = envelope();
+        projection.push(
+          projectEvent(() =>
+            events.emit({ ...stamp, turn, kind: "message.delta", body }),
+          ),
+        );
+      },
     );
     if (starting) items.associate(starting.id, starting.request);
     active = { id: turn, startId: starting?.id, items };
@@ -168,22 +193,30 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     );
   }
 
-  const incoming = yield* readAppServer(transport, events, scope, (id) => {
-    const pending = transport.pendingMethod(id);
-    if (typeof id !== "number") return pending;
-    const remembered = sentTurns.get(id);
-    sentTurns.delete(id);
-    return (
-      pending ?? remembered ?? (starting?.id === id ? "turn/start" : undefined)
-    );
-  });
+  function installThread(thread: typeof ThreadReply.Type.thread) {
+    checkpoint = thread.id;
+    for (const previous of thread.turns?.slice(-rememberedTurns) ?? []) {
+      if (previous.status !== "inProgress") completed.add(previous.id);
+    }
+    if (thread.status?.type === "active") {
+      const live = thread.turns
+        ?.filter((turn) => turn.status === "inProgress")
+        .at(-1);
+      if (live) begin(live.id);
+      else unlocatedTurn = true;
+    }
+  }
 
   function promptId(id: RpcId) {
     return `${spec.run}:app-server:${typeof id}:${id}`;
   }
 
   function rejectRequest(id: RpcId, code: number, message: string) {
-    Queue.offerUnsafe(replies, { id, error: { code, message } });
+    projection.push(
+      Effect.sync(() => {
+        Queue.offerUnsafe(replies, { id, error: { code, message } });
+      }),
+    );
   }
 
   const receivePrompt = Effect.fn("app-server.prompt")(function* (
@@ -196,23 +229,18 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
       Schema.decodeUnknownEffect(Prompt)({ method, params }),
     );
     if (parsed._tag === "Failure") {
-      yield* retain(line, "unknown");
+      retain(line, "unknown");
       rejectRequest(id, -32601, "Unsupported app-server client request");
       return;
     }
     const wire = parsed.success;
     const turn = active?.id;
-    if (
-      opening ||
-      wire.params.threadId !== checkpoint ||
-      wire.params.turnId !== turn
-    ) {
-      yield* retain(line, "replay");
+    if (wire.params.threadId !== checkpoint || wire.params.turnId !== turn) {
+      retain(line, "replay");
       rejectRequest(id, -32602, "Prompt does not belong to the active turn");
       return;
     }
-    yield* retain(line, "decoded");
-    yield* incoming.awaitSpace();
+    retain(line, "decoded");
     const key = promptId(id);
     if (prompts.has(key)) return;
     if (prompts.size >= pendingPromptLimit) {
@@ -231,13 +259,17 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     "turn/steer": SteerReply,
     "turn/interrupt": InterruptReply,
   } as const;
-  type Packet = Stream.Success<typeof incoming.packets>;
-  type Reply = NonNullable<Packet["reply"]>;
   const receiveResponse = Effect.fn("app-server.rpc-response")(function* (
     line: string,
-    reply: Reply,
+    id: RpcId,
+    result: unknown,
+    error: typeof RpcLine.Type.error,
   ) {
-    const { id, requestMethod: method, result, error } = reply;
+    const pending = transport.pendingMethod(id);
+    const remembered = typeof id === "number" ? sentTurns.get(id) : undefined;
+    if (typeof id === "number") sentTurns.delete(id);
+    const method = pending ?? remembered;
+    if (!method) return retain(line, "unknown");
     const schema: Schema.Codec<unknown> | undefined = Object.hasOwn(
       responseSchemas,
       method,
@@ -245,16 +277,13 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
       ? responseSchemas[method as keyof typeof responseSchemas]
       : undefined;
     if (!schema) {
-      yield* retain(line, "unknown");
+      retain(line, "unknown");
       return;
     }
     const decoded = yield* Effect.result(
       Schema.decodeUnknownEffect(schema)(result),
     );
-    yield* retain(
-      line,
-      error || decoded._tag === "Success" ? "decoded" : "unknown",
-    );
+    retain(line, error || decoded._tag === "Success" ? "decoded" : "unknown");
     if (typeof id === "number") {
       if (error) {
         if (starting?.id === id) starting = undefined;
@@ -275,40 +304,50 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
         }
       }
     }
-    yield* incoming.settle(reply);
+    if (!error && (method === "thread/start" || method === "thread/resume")) {
+      const thread = yield* Effect.result(
+        Schema.decodeUnknownEffect(ThreadReply)(result),
+      );
+      if (
+        thread._tag === "Success" &&
+        (!("checkpoint" in spec) ||
+          thread.success.thread.id === spec.checkpoint)
+      )
+        installThread(thread.success.thread);
+    }
+    return transport.settle(id, result, error);
   });
 
-  const receive = Effect.fn("app-server.receive")(function* ({
-    frame,
-    rpc,
-    reply,
-  }: Packet) {
+  const receive = Effect.fn("app-server.receive")(function* (
+    frame: AppServerFrame,
+  ) {
     const { line, base64Fragment } = frame;
     const turn = active;
-    if (!rpc) return yield* retain(line, "unknown", base64Fragment);
-    const { id, method, params } = rpc;
+    if (base64Fragment) return retain(line, "unknown", base64Fragment);
+    const decodedRpc = yield* Effect.result(
+      Schema.decodeUnknownEffect(RpcLine)(line),
+    );
+    if (decodedRpc._tag === "Failure") return retain(line, "unknown");
+    const { id, method, params, result, error } = decodedRpc.success;
     if (id !== undefined) {
       return yield* method
         ? receivePrompt(line, id, method, params)
-        : reply
-          ? receiveResponse(line, reply)
-          : retain(line, "unknown");
+        : receiveResponse(line, id, result, error);
     }
     const decoded = yield* Effect.result(
       Schema.decodeUnknownEffect(Notification)({ method, params }),
     );
-    if (decoded._tag === "Failure") return yield* retain(line, "unknown");
+    if (decoded._tag === "Failure") return retain(line, "unknown");
     const event = decoded.success;
     if (event.method === "thread/started") {
-      return yield* retain(
+      return retain(
         line,
         checkpoint && event.params.thread.id !== checkpoint
           ? "replay"
           : "decoded",
       );
     }
-    if (opening || event.params.threadId !== checkpoint)
-      return yield* retain(line, "replay");
+    if (event.params.threadId !== checkpoint) return retain(line, "replay");
     if (
       ("turnId" in event.params && event.params.turnId !== turn?.id) ||
       (event.method === "turn/started" &&
@@ -318,10 +357,9 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
             event.params.turn.id !== turn?.id))) ||
       (event.method === "turn/completed" && event.params.turn.id !== turn?.id)
     ) {
-      return yield* retain(line, "replay");
+      return retain(line, "replay");
     }
-    yield* retain(line, "decoded");
-    yield* incoming.awaitSpace();
+    retain(line, "decoded");
     switch (event.method) {
       case "thread/status/changed":
         if (event.params.status.type === "idle") unlocatedTurn = false;
@@ -365,31 +403,43 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     }
   });
 
-  const pump = incoming.packets.pipe(
-    Stream.runForEach(receive),
+  const runProjection = (work: readonly Effect.Effect<void>[]) =>
+    Effect.forEach(work, (step) => step, { discard: true });
+
+  yield* incoming.read(
+    Effect.fn("app-server.project-frame")(function* (frame) {
+      if (!frame.base64Fragment && !frame.line.trim()) return;
+      projection = [];
+      const acknowledge = yield* receive(frame);
+      const work = runProjection(projection);
+      projection = [];
+      return {
+        work,
+        acknowledge: acknowledge ?? Effect.void,
+      };
+    }),
+  );
+
+  const pump = incoming.projections.pipe(
+    Stream.runForEach((work) => work),
     Effect.andThen(Effect.promise(() => transport.exit)),
-    Effect.tap((reason) =>
-      events.awaitSpace().pipe(
-        Effect.andThen(
-          Effect.sync(() => {
-            sessionClosed = true;
-            finish(reason);
-            prompts.clear();
-            durable({ kind: "session.ended", body: { reason } });
-          }),
-        ),
-        Effect.andThen(events.end),
-      ),
-    ),
-    Effect.onExit((exit) =>
-      Effect.gen(function* () {
-        sessionClosed = true;
-        if (exit._tag === "Failure") yield* events.fail(exit.cause);
-        yield* transport.failPending(
-          processError("channel-ended", "Codex app-server output ended"),
-        );
-      }),
-    ),
+    Effect.flatMap((reason) => {
+      projection = [];
+      finish(reason);
+      prompts.clear();
+      durable({ kind: "session.ended", body: { reason } });
+      return runProjection(projection).pipe(Effect.andThen(events.end));
+    }),
+    Effect.onExit((exit) => {
+      sessionClosed = true;
+      return exit._tag === "Failure"
+        ? incoming
+            .stop(
+              processError("channel-ended", "Codex app-server output ended"),
+            )
+            .pipe(Effect.andThen(events.fail(exit.cause)))
+        : Effect.void;
+    }),
     Effect.ignoreCause,
   );
   yield* Effect.forkIn(pump, scope);
@@ -410,7 +460,11 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     prepare?: () => Result.Result<void, E>,
   ) {
     return Effect.andThen(
-      rpc.send(prepare),
+      rpc.send<E | AdapterError>(() => {
+        const failure = incoming.error();
+        if (failure) return Result.fail(failure);
+        return prepare?.() ?? Result.succeed(undefined);
+      }),
       rpc.awaitResponse.pipe(
         Effect.timeoutOrElse({
           duration: "30 seconds",
@@ -418,7 +472,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
             Effect.fail(processError("timeout", `Codex ${method} timed out`)),
         }),
       ),
-    ).pipe(Effect.ensuring(rpc.forget));
+    ).pipe(Effect.raceFirst(incoming.stopped), Effect.ensuring(rpc.forget));
   }
 
   const roundTrip = Effect.fn("app-server.round-trip")(function* (
@@ -458,7 +512,14 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
           "Codex app-server reported a different version",
         );
       }
-      yield* transport.write(() => Result.succeed([{ method: "initialized" }]));
+      yield* transport
+        .write(() => {
+          const error = incoming.error();
+          return error
+            ? Result.fail(error)
+            : Result.succeed([{ method: "initialized" }]);
+        })
+        .pipe(Effect.raceFirst(incoming.stopped));
       const resuming = "checkpoint" in spec;
       const thread = yield* roundTrip(
         resuming ? "thread/resume" : "thread/start",
@@ -485,6 +546,8 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
           "checkpoint-mismatch",
           "Codex app-server resumed a different thread",
         );
+      const failure = incoming.error();
+      if (failure) return yield* failure;
       if (sessionClosed || !events.open())
         return yield* processError(
           "event-overflow",
@@ -494,6 +557,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     }),
   );
   if (established._tag === "Failure") {
+    yield* Effect.yieldNow;
     yield* Effect.exit(Scope.close(scope, Exit.void));
     const cleanup = yield* Effect.promise(transport.release);
     if (cleanup.status === "failed")
@@ -506,18 +570,6 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   }
   const { thread, sandbox } = established.success;
   const threadId = thread.id;
-  checkpoint = threadId;
-  opening = false;
-  for (const previous of thread.turns?.slice(-rememberedTurns) ?? []) {
-    if (previous.status !== "inProgress") completed.add(previous.id);
-  }
-  if (thread.status?.type === "active") {
-    const live = thread.turns
-      ?.filter((turn) => turn.status === "inProgress")
-      .at(-1);
-    if (live) begin(live.id);
-    else unlocatedTurn = true;
-  }
 
   function validFence(expected: { run: number; fencing_token: string }) {
     return (
@@ -526,7 +578,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   }
 
   function checkTurn(expected: SteerRequest["expected"]) {
-    if (sessionClosed) return closed;
+    if (sessionClosed || incoming.error()) return closed;
     const turn = active?.id ?? null;
     if (!validFence(expected) || expected.turn !== turn)
       return { status: "stale", observed: { kind: "turn", turn } } as const;
@@ -654,7 +706,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   const answer = Effect.fn("app-server.answer")(function* (
     request: AnswerRequest,
   ): Effect.fn.Return<ControlOutcome<"prompt">> {
-    if (sessionClosed) return closed;
+    if (sessionClosed || incoming.error()) return closed;
     const { prompt_id } = request.expected;
     const pending = prompts.get(prompt_id);
     const planned =
@@ -662,41 +714,55 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
         ? yield* prepareAnswer(pending.wire, request.answer)
         : undefined;
     const written = yield* Effect.result(
-      transport.write<ControlOutcome<"prompt">>(() => {
-        if (sessionClosed) return Result.fail(closed);
-        const prompt = prompts.get(prompt_id);
-        if (prompt !== pending || !prompt || !validFence(request.expected))
-          return Result.fail({
-            status: "stale",
-            observed: {
-              kind: "prompt",
-              run: spec.run,
-              prompt_id: [...prompts.keys()].at(-1) ?? null,
-            },
-          });
-        if (!planned)
-          return Result.fail(
-            refused("invalid-answer", "Answer does not match the Codex prompt"),
-          );
-        const settlement = {
-          ...envelope(),
-          turn: prompt.turn,
-          seq: seq + 1,
-          kind: "prompt.settled",
-          body: { prompt_id, by: request.by, answer: planned.publicAnswer },
-        } as const;
-        if (!parseCanonicalEvent(settlement).ok)
-          return Result.fail(
-            refused(
-              "invalid-answer",
-              "Answer is not a canonical prompt settlement",
-            ),
-          );
-        prompts.delete(prompt_id);
-        seq++;
-        events.emit(settlement);
-        return Result.succeed([{ id: prompt.id, result: planned.result }]);
-      }),
+      transport
+        .write<ControlOutcome<"prompt">>(() => {
+          if (sessionClosed || incoming.error()) return Result.fail(closed);
+          const prompt = prompts.get(prompt_id);
+          if (prompt !== pending || !prompt || !validFence(request.expected))
+            return Result.fail({
+              status: "stale",
+              observed: {
+                kind: "prompt",
+                run: spec.run,
+                prompt_id: [...prompts.keys()].at(-1) ?? null,
+              },
+            });
+          if (!planned)
+            return Result.fail(
+              refused(
+                "invalid-answer",
+                "Answer does not match the Codex prompt",
+              ),
+            );
+          const settlement = {
+            ...envelope(),
+            turn: prompt.turn,
+            seq: seq + 1,
+            kind: "prompt.settled",
+            body: { prompt_id, by: request.by, answer: planned.publicAnswer },
+          } as const;
+          if (!parseCanonicalEvent(settlement).ok)
+            return Result.fail(
+              refused(
+                "invalid-answer",
+                "Answer is not a canonical prompt settlement",
+              ),
+            );
+          if (
+            !incoming.offer(
+              projectEvent(() => events.emit({ ...settlement, seq: ++seq })),
+            )
+          )
+            return Result.fail(
+              refused(
+                "output-overflow",
+                "Codex app-server event backlog is full",
+              ),
+            );
+          prompts.delete(prompt_id);
+          return Result.succeed([{ id: prompt.id, result: planned.result }]);
+        })
+        .pipe(Effect.raceFirst(incoming.stopped)),
     );
     return written._tag === "Success"
       ? noAnswerAck

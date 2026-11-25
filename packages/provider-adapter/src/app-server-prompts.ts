@@ -63,13 +63,6 @@ export const prepareAnswer = Effect.fn("app-server.prepare-answer")(function* (
   wire: typeof Prompt.Type,
   body: EdgeJson,
 ): Effect.fn.Return<{ result: object; publicAnswer: EdgeJson } | undefined> {
-  if (
-    body !== null &&
-    typeof body === "object" &&
-    !Array.isArray(body) &&
-    Object.hasOwn(body, "option_id")
-  )
-    return;
   if (wire.method === "item/tool/requestUserInput") {
     if (body === null) return { result: { answers: {} }, publicAnswer: null };
     const parsed = yield* Effect.result(

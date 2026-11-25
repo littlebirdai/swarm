@@ -1,128 +1,111 @@
-import type { RawProviderFrame } from "./options";
 import type { Done } from "effect/Cause";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Queue from "effect/Queue";
-import * as Schema from "effect/Schema";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import { RpcLine } from "./app-server-schema";
-import type { makeProviderEvents } from "./provider-events";
+import type { RawProviderFrame } from "./options";
 import {
   AdapterError,
   processError,
-  type RpcId,
   type spawnProvider,
 } from "./provider-process";
 
 type Transport = ReturnType<typeof spawnProvider>;
-type Frame = Pick<RawProviderFrame, "line" | "base64Fragment">;
-type Events = Effect.Success<ReturnType<typeof makeProviderEvents>>;
-type Rpc = typeof RpcLine.Type;
-type Reply = Pick<Rpc, "result" | "error"> & {
-  id: RpcId;
-  requestMethod: string;
-};
-interface Packet {
-  frame: Frame;
-  rpc?: Rpc;
-  reply?: Reply;
-  bytes: number;
-}
+export type AppServerFrame = Pick<RawProviderFrame, "line" | "base64Fragment">;
+type Projection = Effect.Effect<void>;
 
 const frameCapacity = 64;
 const byteCapacity = 32 * 1024 * 1024;
 
-export const readAppServer = Effect.fn("app-server.read")(function* (
+export const appServerWire = Effect.fn("app-server.wire")(function* (
   transport: Transport,
-  events: Pick<Events, "full" | "awaitSpace">,
   scope: Scope.Scope,
-  responseMethod: (id: RpcId) => string | undefined,
 ) {
-  const queue = yield* Queue.dropping<Packet, AdapterError | Done>(
-    frameCapacity,
-  );
-  const waiting = new Set<Reply>();
+  const queue = yield* Queue.dropping<
+    { work: Projection; bytes: number },
+    AdapterError | Done
+  >(frameCapacity);
+  const stopped = yield* Deferred.make<never, AdapterError>();
   let bytes = 0;
+  let failure: AdapterError | undefined;
 
-  const settle = ({ id, result, error }: Reply) =>
-    transport.settle(id, result, error);
-
-  const read = Effect.fn("app-server.read-frame")(function* (frame: Frame) {
-    if (!frame.base64Fragment && !frame.line.trim()) return;
-    const decoded = frame.base64Fragment
-      ? undefined
-      : yield* Effect.result(Schema.decodeUnknownEffect(RpcLine)(frame.line));
-    const rpc = decoded?._tag === "Success" ? decoded.success : undefined;
-    let reply: Reply | undefined;
-    if (rpc && rpc.id !== undefined && !rpc.method) {
-      const requestMethod = responseMethod(rpc.id);
-      if (requestMethod)
-        reply = {
-          id: rpc.id,
-          result: rpc.result,
-          error: rpc.error,
-          requestMethod,
-        };
-    }
-    const size = Buffer.byteLength(frame.line, "utf8");
+  function offer(work: Projection, size = 0) {
     if (
+      failure ||
       bytes + size > byteCapacity ||
-      !Queue.offerUnsafe(queue, { frame, rpc, reply, bytes: size })
-    ) {
-      const overflow = processError(
-        "output-overflow",
-        "Codex app-server exceeded the stdout read-ahead limit",
-      );
-      yield* transport.failPending(overflow);
-      return yield* overflow;
-    }
+      !Queue.offerUnsafe(queue, { work, bytes: size })
+    )
+      return false;
     bytes += size;
-    if (reply) {
-      waiting.add(reply);
-      if (events.full()) yield* settle(reply);
-    }
+    return true;
+  }
+
+  const stop = Effect.fn("app-server.stop-reader")(function* (
+    error: AdapterError,
+  ) {
+    if (failure) return;
+    failure = error;
+    yield* Deferred.fail(stopped, error);
+    yield* transport.failPending(error);
   });
 
-  yield* Effect.forkIn(
-    Stream.fromAsyncIterable(transport.frames(), (cause) =>
-      cause instanceof AdapterError
-        ? cause
-        : processError(
-            "read-failed",
-            "Could not read app-server output",
-            cause,
-          ),
-    ).pipe(
-      Stream.runForEach(read),
-      Effect.onExit((exit) =>
-        exit._tag === "Success"
-          ? Queue.end(queue)
-          : Effect.sync(() => {
-              Queue.failCauseUnsafe(queue, exit.cause);
-            }),
+  const read = Effect.fn("app-server.read")(function* (
+    receive: (
+      frame: AppServerFrame,
+    ) => Effect.Effect<
+      { work: Projection; acknowledge: Effect.Effect<unknown> } | undefined
+    >,
+  ) {
+    yield* Effect.forkIn(
+      Stream.fromAsyncIterable(transport.frames(), (cause) =>
+        cause instanceof AdapterError
+          ? cause
+          : processError(
+              "read-failed",
+              "Could not read app-server output",
+              cause,
+            ),
+      ).pipe(
+        Stream.runForEach(
+          Effect.fn("app-server.read-frame")(function* (frame) {
+            if (failure) return yield* failure;
+            const packet = yield* receive(frame);
+            if (!packet) return;
+            if (!offer(packet.work, Buffer.byteLength(frame.line, "utf8")))
+              return yield* processError(
+                "output-overflow",
+                "Codex app-server exceeded the stdout read-ahead limit",
+              );
+            yield* packet.acknowledge;
+          }),
+        ),
+        Effect.matchEffect({
+          onSuccess: () =>
+            stop(
+              processError("channel-ended", "Codex app-server output ended"),
+            ).pipe(Effect.andThen(Queue.end(queue))),
+          onFailure: (error) =>
+            stop(error).pipe(Effect.andThen(Queue.fail(queue, error))),
+        }),
+        Effect.ignoreCause,
       ),
-      Effect.ignoreCause,
-    ),
-    scope,
-  );
-
-  const awaitSpace = Effect.fn("app-server.await-event-space")(function* () {
-    if (!events.full()) return;
-    yield* Effect.forEach(waiting, settle, { discard: true });
-    yield* events.awaitSpace();
+      scope,
+    );
   });
 
   return {
-    settle,
-    awaitSpace,
-    packets: Stream.fromEffectRepeat(
+    read,
+    offer,
+    stop,
+    error: () => failure,
+    stopped: Deferred.await(stopped),
+    projections: Stream.fromEffectRepeat(
       Queue.take(queue).pipe(
-        Effect.tap((packet) =>
-          Effect.sync(() => {
-            bytes -= packet.bytes;
-            if (packet.reply) waiting.delete(packet.reply);
-          }),
-        ),
+        Effect.map((packet) => {
+          bytes -= packet.bytes;
+          return packet.work;
+        }),
       ),
     ),
   };

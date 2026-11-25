@@ -1,10 +1,12 @@
 import {
   appendFileSync,
+  closeSync,
   readdirSync,
   readFileSync,
   unlinkSync,
   watch,
   writeFileSync,
+  writeSync,
 } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -17,7 +19,9 @@ const held = new Map<string, number>();
 const inbox = createInterface({ input: process.stdin });
 
 function send(frame: object) {
-  process.stdout.write(JSON.stringify(frame) + "\n");
+  const line = JSON.stringify(frame) + "\n";
+  if (process.env.FIXTURE_CLOSE_STDOUT) writeSync(1, line);
+  else process.stdout.write(line);
 }
 
 function record(action: string, message: object) {
@@ -39,6 +43,15 @@ function burst(method: string) {
       params: { threadId, threadName: String(index) },
     });
   }
+}
+
+function largeFrames(count: number) {
+  const payload = "x".repeat(6 * 1024 * 1024);
+  for (let index = 0; index < count; index++)
+    send({
+      method: "thread/name/updated",
+      params: { threadId, threadName: payload },
+    });
 }
 
 inbox.on("line", (line) => {
@@ -99,6 +112,7 @@ inbox.on("line", (line) => {
       if (!process.env.FIXTURE_REPLY_ONLY)
         send({ method: "turn/started", params: { threadId, turn } });
       burst(method);
+      if (process.env.FIXTURE_LARGE_START) largeFrames(6);
       send({ id, result: { turn } });
       return;
     }
@@ -147,6 +161,16 @@ watch(directory, () => {
     const command = JSON.parse(readFileSync(path, "utf8"));
     unlinkSync(path);
     if (command.exit) process.exit(0);
+    if (command.closeStdout) closeSync(1);
+    if (command.stderr) process.stderr.write(command.stderr + "\n");
+    if (command.largeFrames) largeFrames(command.largeFrames);
+    if (command.fill) {
+      for (let index = 0; index <= 32; index++)
+        send({
+          method: "thread/name/updated",
+          params: { threadId, threadName: String(index), fixtureBuffer: index },
+        });
+    }
     if (command.frame) send(command.frame);
     if (command.raw) process.stdout.write(command.raw + "\n");
     if (command.rejectStart) {
