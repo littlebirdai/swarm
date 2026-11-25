@@ -7,6 +7,8 @@ import {
 import {
   collectionRowHydrator,
   collectionRowValidator,
+  HYDRATION_CRITICAL_READ_KEYS,
+  HYDRATION_DEFERRED_KEYS,
 } from "../clientSyncRegistry";
 import { queuedMessagesFromPending } from "../pendingMessageJournal";
 import {
@@ -19,6 +21,7 @@ import { loadPendingInput } from "./pendingInputJournal";
 import { purgeLocalCache } from "./purge";
 import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
+import { timeBootRead } from "./storageTimings";
 
 // Old bundles can still write these values to the web meta table.
 export const RETIRED_META_KEYS = [
@@ -55,6 +58,12 @@ export async function loadCache(
   context: Record<string, any> = {},
 ): Promise<Record<string, any> | null> {
   try {
+    const phase =
+      keys === HYDRATION_CRITICAL_READ_KEYS
+        ? "critical"
+        : keys === HYDRATION_DEFERRED_KEYS
+          ? "deferred"
+          : undefined;
     const wanted = keys ? new Set(keys) : null;
     if ((await ensureCacheOwnership()) === null) {
       // No collection row is served without a matching persisted user row.
@@ -92,8 +101,12 @@ export async function loadCache(
       META_KEYS.has(key),
     );
     const [collectionResults, metaRows] = await Promise.all([
-      Promise.all(collectionEntries.map(([, table]) => table.toArray())),
-      db.meta.bulkGet(metaKeys),
+      Promise.all(
+        collectionEntries.map(([key, table]) =>
+          timeBootRead(phase, key, () => table.toArray()),
+        ),
+      ),
+      timeBootRead(phase, "meta", () => db.meta.bulkGet(metaKeys)),
     ]);
     if (!retiredMetaSwept) {
       retiredMetaSwept = true;

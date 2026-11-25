@@ -2,6 +2,7 @@ import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useConvexAuth } from "convex/react";
 import { REGISTERED_COLLECTION_KEYS } from "../../store/clientSyncRegistry";
 import { useInboxStore } from "../../store/inboxStore";
+import { storageTimings } from "../../store/persistence/storageTimings";
 import { getPlatform, isRegulatedData, track } from "../analytics";
 import { watchLongFrameStats } from "../freezeAttribution";
 import { msUntilInputQuiet, TYPING_QUIET_MS } from "../inputQuiet";
@@ -111,6 +112,7 @@ function startClientResourceTelemetry(
           collections,
           storage,
           longFrames: frames.take(),
+          storageTimings: storageTimings.take(),
         }),
       );
     }

@@ -7,6 +7,7 @@ import { _hydrating } from "./hydration";
 import { diffMessageTail } from "./messageTailDiff";
 import { persistenceOwned } from "./ownership";
 import { deleteInBatches, RETENTION_DELETE_BATCH } from "./retention";
+import { storageTimings } from "./storageTimings";
 
 // A continuous stream flushes at most once per interval. Keep the latest
 // snapshot readable until its row edits and metadata commit together.
@@ -69,9 +70,11 @@ async function _writeMessageSnapshot(
   _inFlightMsgWrites.add(convId);
   const pending = _pendingMsgWrites;
   try {
+    const tailStarted = performance.now();
     const { messages, pagination } = snapshot;
     const tail = persistedMessageTail(messages, pagination);
     const latestTimestamp = _latestTs(tail.messages);
+    const tailMs = performance.now() - tailStarted;
     const { conversationMessageMeta: meta, conversationMessageRows: rows } = db;
     const committed = await db.transaction("rw", meta, rows, async () => {
       if (pending !== _pendingMsgWrites || !persistenceOwned()) return;
@@ -98,12 +101,17 @@ async function _writeMessageSnapshot(
         }
       }
 
+      const diffStarted = performance.now();
       const { puts, deletes, next } = diffMessageTail(previous, tail.messages);
       if (pending !== _pendingMsgWrites || !persistenceOwned()) return;
       const revision = puts.length
         ? crypto.getRandomValues(new Uint32Array(4)).join("-")
         : "";
       const rowPuts = puts.map((put) => ({ convId, revision, ...put }));
+      storageTimings.recordWrite(
+        "message_prepare",
+        tailMs + (performance.now() - diffStarted),
+      );
       if (deletes.length)
         await rows.bulkDelete(deletes.map((key) => [convId, key]));
       if (rowPuts.length) await rows.bulkPut(rowPuts);

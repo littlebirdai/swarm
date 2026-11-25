@@ -57,6 +57,11 @@ describe("the codecast event catalog", () => {
           store_total_rows: 1100,
           store_collection_rows: { messages: 1000, tasks: 100 },
           store_collection_estimated_bytes: { tasks: 30_000 },
+          idb_boot_critical_ms: { sessions: 400 },
+          idb_boot_deferred_ms: { tasks: 50 },
+          idb_write_count: { put: 20 },
+          idb_write_p50_ms: { put: 0.25 },
+          idb_write_p95_ms: { put: 192 },
         },
       ],
       [

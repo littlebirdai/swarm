@@ -22,6 +22,7 @@ import { persistenceOwned } from "./ownership";
 import { deleteInBatches } from "./retention";
 import { META_KEYS } from "./schema";
 import { _hydrating } from "./hydration";
+import { storageTimings } from "./storageTimings";
 
 // What each collection table currently holds on disk, by id → row reference.
 // Lets writePatchesToIDB persist only the rows that actually changed (and delete
@@ -79,6 +80,7 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
     if (table) {
       const data = state[key];
       if (data && typeof data === "object") {
+        const started = performance.now();
         const prevShadow = lastPersisted.get(key);
         const pending = state.pending || {};
         // NEVER wipe the cache from a store-shrink: durableDeletes keeps every
@@ -117,6 +119,10 @@ export function writePatchesToIDB(patches: Patch[], state: any) {
           lastPersisted.set(key, diff.next);
         }
         if (puts.length || deletes.length) {
+          storageTimings.recordWrite(
+            "collection_prepare",
+            performance.now() - started,
+          );
           // One transaction so a row is never momentarily absent: removed rows
           // and changed rows commit together, and unchanged rows are never
           // touched. Replaces the old clear()+bulkPut full-table rewrite.
