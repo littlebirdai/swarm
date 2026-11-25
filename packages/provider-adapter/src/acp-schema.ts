@@ -107,7 +107,7 @@ export const Permission = Schema.Struct({
   toolCall: Schema.optionalKey(
     Schema.NullOr(
       Schema.Struct({
-        toolCallId: Schema.optionalKey(Schema.String),
+        toolCallId: Schema.optionalKey(Schema.NullOr(Schema.String)),
         title: Schema.optionalKey(Schema.NullOr(Schema.String)),
       }),
     ),
@@ -115,8 +115,8 @@ export const Permission = Schema.Struct({
   options: Schema.Array(
     Schema.Struct({
       optionId: identifier,
-      name: Schema.optionalKey(Schema.String),
-      kind: Schema.optionalKey(Schema.String),
+      name: Schema.optionalKey(Schema.NullOr(Schema.String)),
+      kind: Schema.optionalKey(Schema.NullOr(Schema.String)),
     }),
   ),
 });

@@ -690,18 +690,19 @@ export const openAcp = Effect.fn("acp.open")(function* (
   function writeControl<Failure>(
     plan: () => Result.Result<readonly object[], Failure>,
   ) {
-    return Effect.result(transport.write(plan)).pipe(
-      Effect.map((result) => {
-        if (result._tag === "Success")
-          return inDoubt(
-            "best-effort",
-            "no-control-ack",
-            "ACP does not acknowledge this control write",
-          );
-        return result.failure instanceof AdapterError
-          ? writeOutcome(result.failure)
-          : result.failure;
-      }),
+    return Effect.suspend(() =>
+      sessionClosed || runtimeEnded
+        ? Effect.succeed(closed)
+        : Effect.match(transport.write(plan), {
+            onFailure: (error) =>
+              error instanceof AdapterError ? writeOutcome(error) : error,
+            onSuccess: () =>
+              inDoubt(
+                "best-effort",
+                "no-control-ack",
+                "ACP does not acknowledge this control write",
+              ),
+          }),
     );
   }
 

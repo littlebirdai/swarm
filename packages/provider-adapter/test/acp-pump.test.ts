@@ -6,9 +6,11 @@ import type { ProviderEvent } from "@codecast/provider-contract";
 import { waitFor } from "@codecast/test-helpers/waitFor";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as Result from "effect/Result";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import { ProviderAdapter, providerAdapterLayer } from "../src/effect";
+import { spawnAcp } from "../src/acp-process";
 import {
   answer,
   bestEffort,
@@ -127,6 +129,124 @@ it.effect(
       } finally {
         yield* session.close;
       }
+    }),
+);
+
+const timedOutSession = Effect.fn("test.acpTimedOutSession")(function* (
+  fake: ReturnType<typeof fixture>,
+) {
+  const result = yield* Effect.flatMap(ProviderAdapter, (adapter) =>
+    adapter.own(fake.spec),
+  ).pipe(Effect.provide(providerAdapterLayer(fake.options)));
+  const { session } = opened(result);
+  const events = Stream.toAsyncIterable(session.events)[Symbol.asyncIterator]();
+  const sending = yield* Effect.forkChild(
+    session.steer({
+      ...steer,
+      input: [{ type: "text", text: "x".repeat(4 * 1024 * 1024) }],
+    }),
+  );
+  expect(yield* read(events)).toMatchObject({
+    value: { kind: "turn.started" },
+  });
+  yield* TestClock.adjust("30 seconds");
+  expect(yield* Fiber.join(sending)).toMatchObject({
+    status: "in-doubt",
+    reason: "unknown",
+    code: "write-timeout",
+  });
+  return { session, events };
+});
+
+it.effect(
+  "a stream defect closes controls even when stdin still has an expired write",
+  () =>
+    Effect.gen(function* () {
+      const fake = fixture({ ACP_PAUSE_STDIN: "1" });
+      const { session, events } = yield* timedOutSession(fake);
+      const fault = new Error("fixture's receive pump failed");
+      try {
+        yield* Effect.promise(() => fake.contract.streamDefect(fault));
+        const next = yield* Effect.result(
+          Effect.tryPromise({
+            try: () => events.next(),
+            catch: (error) => error,
+          }),
+        );
+        expect(next).toMatchObject({ _tag: "Failure", failure: fault });
+        expect(yield* session.steer(steer)).toEqual({ status: "closed" });
+        expect(yield* session.interrupt(interrupt)).toEqual({
+          status: "closed",
+        });
+        expect(yield* session.answer(answer)).toEqual({ status: "closed" });
+      } finally {
+        yield* session.close;
+      }
+    }),
+);
+
+it.effect(
+  "a failed close fences controls even when stdin still has an expired write",
+  () =>
+    Effect.gen(function* () {
+      const fake = fixture({ ACP_PAUSE_STDIN: "1" });
+      const { session } = yield* timedOutSession(fake);
+      const failure = fake.contract.failClose();
+      expect(yield* session.close).toEqual(failure);
+      expect(yield* session.steer(steer)).toEqual({ status: "closed" });
+      expect(yield* session.interrupt(interrupt)).toEqual({ status: "closed" });
+      expect(yield* session.answer(answer)).toEqual({ status: "closed" });
+    }),
+);
+
+it.effect(
+  "a fenced transport reports channel closure before its expired write window",
+  () =>
+    Effect.gen(function* () {
+      const fake = fixture({ ACP_PAUSE_STDIN: "1" });
+      const transport = spawnAcp(
+        fake.options,
+        fake.spec.cwd,
+        yield* Effect.scope,
+      );
+      yield* Effect.addFinalizer(() => Effect.promise(transport.release));
+      yield* transport.write(() =>
+        Result.succeed([{ id: 1, method: "session/new" }]),
+      );
+      expect(
+        yield* Effect.promise(() => transport.frames().next()),
+      ).toMatchObject({ done: false });
+      const writing = yield* Effect.forkChild(
+        Effect.result(
+          transport.write(() =>
+            Result.succeed([
+              {
+                id: 2,
+                method: "session/prompt",
+                params: {
+                  prompt: [{ type: "text", text: "x".repeat(4 * 1024 * 1024) }],
+                },
+              },
+            ]),
+          ),
+        ),
+        { startImmediately: true },
+      );
+      yield* TestClock.adjust("30 seconds");
+      expect(yield* Fiber.join(writing)).toMatchObject({
+        _tag: "Failure",
+        failure: { code: "write-timeout" },
+      });
+      transport.fence();
+      const result = yield* Effect.result(
+        transport.write(() => {
+          throw new Error("A closed transport evaluated the write plan");
+        }),
+      );
+      expect(result).toMatchObject({
+        _tag: "Failure",
+        failure: { code: "channel-closed" },
+      });
     }),
 );
 
@@ -320,6 +440,11 @@ it.effect(
           id: "blank-tool",
           extra: { toolCall: { toolCallId: "", title: "" } },
           choice: { kind: "allow_once" },
+        },
+        {
+          id: "null-fields",
+          extra: { toolCall: { toolCallId: null } },
+          choice: { name: null, kind: null },
         },
       ];
       try {

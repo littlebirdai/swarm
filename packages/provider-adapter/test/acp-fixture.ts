@@ -247,11 +247,16 @@ export function fixture(env: Record<string, string> = {}) {
   }
 
   let bootstrap = 0;
-  const attach = (result: Awaited<ReturnType<typeof client.start>>) => {
-    if (result.status !== "opened") return result;
+  function trackGroup() {
     pid = Number(readFileSync(join(directory, "pid"), "utf8"));
     group = { calls: 0, fail: false };
     groups.set(pid, group);
+    return group;
+  }
+
+  const attach = (result: Awaited<ReturnType<typeof client.start>>) => {
+    if (result.status !== "opened") return result;
+    trackGroup();
     running = true;
     const owned = result.session;
     session = owned;
@@ -394,8 +399,8 @@ export function fixture(env: Record<string, string> = {}) {
       await wrote({ raw: "fixture defect" }, false);
     },
     failClose() {
-      if (!group) throw new Error("No process group");
-      group.fail = true;
+      const processGroup = group ?? trackGroup();
+      processGroup.fail = true;
       return {
         status: "failed",
         code: "kill-failed",

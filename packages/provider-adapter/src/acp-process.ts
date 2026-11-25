@@ -77,6 +77,8 @@ export function spawnAcp(
   });
   let writeWindow = newWriteWindow();
   const isClosed = () => closing || scope.state._tag === "Closed";
+  const inputClosed = () =>
+    isClosed() || child.exitCode !== null || child.signalCode !== null;
   let nextId = 0;
   let stderrError: AdapterError | undefined;
   const pending = new Map<
@@ -129,6 +131,8 @@ export function spawnAcp(
   const write = Effect.fn("acp.write")(function* <E>(
     prepare: () => Result.Result<readonly object[], E>,
   ) {
+    if (inputClosed())
+      return yield* processError("channel-closed", "ACP input is closed");
     const window = writeWindow;
     if (window.expired) return yield* writeQueueError;
     let started = false;
@@ -137,11 +141,7 @@ export function spawnAcp(
       Semaphore.withPermit(
         writer,
         Effect.callback<void, E | AdapterError>((resume) => {
-          if (
-            isClosed() ||
-            child.exitCode !== null ||
-            child.signalCode !== null
-          ) {
+          if (inputClosed()) {
             resume(
               Effect.fail(
                 processError("channel-closed", "ACP input is closed"),
