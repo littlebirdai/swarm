@@ -27,6 +27,20 @@ function record(action: string, message: object) {
   );
 }
 
+function burst(method: string) {
+  if (process.env.FIXTURE_BURST_METHOD !== method) return;
+  for (
+    let index = 0;
+    index < Number(process.env.FIXTURE_BURST_COUNT ?? 35);
+    index++
+  ) {
+    send({
+      method: "thread/name/updated",
+      params: { threadId, threadName: String(index) },
+    });
+  }
+}
+
 inbox.on("line", (line) => {
   const message = JSON.parse(line);
   const { id, method, params, result, error } = message;
@@ -72,7 +86,7 @@ inbox.on("line", (line) => {
       }
       const turn = {
         id: (turnId = `actual-turn-${++turns}`),
-        status: "inProgress",
+        status: process.env.FIXTURE_TERMINAL_START ? "completed" : "inProgress",
         items: [],
       };
       if (
@@ -84,11 +98,20 @@ inbox.on("line", (line) => {
       }
       if (!process.env.FIXTURE_REPLY_ONLY)
         send({ method: "turn/started", params: { threadId, turn } });
+      burst(method);
       send({ id, result: { turn } });
       return;
     }
     case "turn/steer":
       record("steer", message);
+      if (
+        process.env.FIXTURE_HOLD_ALL_STEERS ||
+        (process.env.FIXTURE_HOLD_FIRST_STEER && !held.has(method))
+      ) {
+        held.set(method, id);
+        return;
+      }
+      burst(method);
       if (params.expectedTurnId !== turnId)
         send({ id, error: { code: -32602, message: "Unexpected turn" } });
       else
@@ -101,6 +124,7 @@ inbox.on("line", (line) => {
       return;
     case "turn/interrupt":
       record("interrupt", message);
+      burst(method);
       send({ id, result: process.env.FIXTURE_INVALID_INTERRUPT ? null : {} });
       return;
   }
@@ -128,6 +152,12 @@ watch(directory, () => {
     if (command.rejectStart) {
       const id = held.get("turn/start");
       send({ id, error: { code: -32000, message: "Delayed refusal" } });
+    }
+    if (command.rejectSteer) {
+      send({
+        id: held.get("turn/steer"),
+        error: { code: -32000, message: "Delayed steer refusal" },
+      });
     }
     if (command.ackStart) {
       send({

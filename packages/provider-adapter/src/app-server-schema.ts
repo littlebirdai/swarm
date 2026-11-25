@@ -54,7 +54,11 @@ const status = Schema.Struct({ type: id, activeFlags: optional(strings) });
 const turn = Schema.Struct({
   id,
   status: Schema.Literals(["inProgress", "completed", "failed", "interrupted"]),
-  error: optional(Schema.NullOr(Schema.Struct({ message: Schema.String }))),
+  error: optional(
+    Schema.NullOr(
+      Schema.Struct({ message: optional(Schema.NullOr(Schema.String)) }),
+    ),
+  ),
 });
 export const ThreadReply = Schema.Struct({
   thread: Schema.Struct({

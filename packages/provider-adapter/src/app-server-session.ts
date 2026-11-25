@@ -1,3 +1,4 @@
+import { parseCanonicalEvent } from "@codecast/edge-contract";
 import type {
   AnswerRequest,
   ControlOutcome,
@@ -22,7 +23,6 @@ import {
   Notification,
   OpenOptions,
   Prompt,
-  RpcLine,
   SteerReply,
   ThreadReply,
   TurnReply,
@@ -37,9 +37,9 @@ import {
   inDoubt,
   refused,
   type ProviderAdapterOptions,
-  type RawProviderFrame,
 } from "./options";
 import { makeProviderEvents, pendingPromptLimit } from "./provider-events";
+import { readAppServer } from "./app-server-wire";
 import {
   AdapterError,
   processError,
@@ -50,7 +50,6 @@ import {
 } from "./provider-process";
 
 type ServerPrompt = { id: RpcId; turn: string; wire: typeof Prompt.Type };
-type Frame = Pick<RawProviderFrame, "line" | "base64Fragment">;
 const dialect = {
   name: "Codex app-server",
   command: ["codex", "app-server"],
@@ -66,6 +65,7 @@ const noAnswerAck = inDoubt(
   "Codex app-server does not acknowledge the prompt reply",
 );
 const rememberedTurns = 4_096;
+const rememberedRequests = 128;
 
 export const openAppServer = Effect.fn("app-server.open")(function* (
   options: ProviderAdapterOptions,
@@ -96,12 +96,15 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
   const clock = yield* Clock.Clock;
   const prompts = new Map<string, ServerPrompt>();
   const completed = new Set<string>();
+  const sentTurns = new Map<number, "turn/start" | "turn/steer">();
   let seq = spec.afterSeq;
   let checkpoint: string | undefined;
   let opening = true;
   let sessionClosed = false;
   let starting: { id: number; request: SteerRequest } | undefined;
-  let active: { id: string; items: ReturnType<typeof turnItems> } | undefined;
+  let active:
+    | { id: string; startId?: number; items: ReturnType<typeof turnItems> }
+    | undefined;
   let unlocatedTurn = false;
   const envelope = () => ({
     v: 1 as const,
@@ -123,9 +126,9 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
         events.emit({ ...envelope(), turn, kind: "message.delta", body }),
     );
     if (starting) items.associate(starting.id, starting.request);
+    active = { id: turn, startId: starting?.id, items };
     starting = undefined;
     unlocatedTurn = false;
-    active = { id: turn, items };
     durable({ kind: "turn.started", body: {} }, turn);
   }
 
@@ -155,6 +158,25 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     completed.add(turn);
     active = undefined;
   }
+
+  function finishTurn(turn: typeof TurnReply.Type.turn) {
+    finish(
+      turn.status,
+      turn.status === "failed"
+        ? (turn.error?.message ?? "Codex turn failed")
+        : undefined,
+    );
+  }
+
+  const incoming = yield* readAppServer(transport, events, scope, (id) => {
+    const pending = transport.pendingMethod(id);
+    if (typeof id !== "number") return pending;
+    const remembered = sentTurns.get(id);
+    sentTurns.delete(id);
+    return (
+      pending ?? remembered ?? (starting?.id === id ? "turn/start" : undefined)
+    );
+  });
 
   function promptId(id: RpcId) {
     return `${spec.run}:app-server:${typeof id}:${id}`;
@@ -190,7 +212,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
       return;
     }
     yield* retain(line, "decoded");
-    yield* events.awaitSpace();
+    yield* incoming.awaitSpace();
     const key = promptId(id);
     if (prompts.has(key)) return;
     if (prompts.size >= pendingPromptLimit) {
@@ -209,19 +231,19 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     "turn/steer": SteerReply,
     "turn/interrupt": InterruptReply,
   } as const;
+  type Packet = Stream.Success<typeof incoming.packets>;
+  type Reply = NonNullable<Packet["reply"]>;
   const receiveResponse = Effect.fn("app-server.rpc-response")(function* (
     line: string,
-    id: RpcId,
-    result: unknown,
-    error?: { code: number; message: string },
+    reply: Reply,
   ) {
-    const method =
-      transport.pendingMethod(id) ??
-      (starting?.id === id ? "turn/start" : undefined);
-    const schema: Schema.Codec<unknown> | undefined =
-      method && Object.hasOwn(responseSchemas, method)
-        ? responseSchemas[method as keyof typeof responseSchemas]
-        : undefined;
+    const { id, requestMethod: method, result, error } = reply;
+    const schema: Schema.Codec<unknown> | undefined = Object.hasOwn(
+      responseSchemas,
+      method,
+    )
+      ? responseSchemas[method as keyof typeof responseSchemas]
+      : undefined;
     if (!schema) {
       yield* retain(line, "unknown");
       return;
@@ -237,35 +259,40 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
       if (error) {
         if (starting?.id === id) starting = undefined;
         active?.items.reject(id);
-      } else if (starting?.id === id && method === "turn/start") {
-        const reply = yield* Effect.result(
+      } else if (method === "turn/start") {
+        const validated = yield* Effect.result(
           Schema.decodeUnknownEffect(TurnReply)(result),
         );
-        if (reply._tag === "Success") {
-          yield* events.awaitSpace();
-          if (starting?.id === id) begin(reply.success.turn.id);
+        if (validated._tag === "Success") {
+          const { turn } = validated.success;
+          if (starting?.id === id) begin(turn.id);
+          if (
+            active?.id === turn.id &&
+            active.startId === id &&
+            turn.status !== "inProgress"
+          )
+            finishTurn(turn);
         }
       }
     }
-    yield* transport.settle(id, result, error);
+    yield* incoming.settle(reply);
   });
 
   const receive = Effect.fn("app-server.receive")(function* ({
-    line,
-    base64Fragment,
-  }: Frame) {
+    frame,
+    rpc,
+    reply,
+  }: Packet) {
+    const { line, base64Fragment } = frame;
     const turn = active;
-    if (base64Fragment) return yield* retain(line, "unknown", base64Fragment);
-    if (!line.trim()) return;
-    const parsed = yield* Effect.result(
-      Schema.decodeUnknownEffect(RpcLine)(line),
-    );
-    if (parsed._tag === "Failure") return yield* retain(line, "unknown");
-    const { id, method, params, result, error } = parsed.success;
+    if (!rpc) return yield* retain(line, "unknown", base64Fragment);
+    const { id, method, params } = rpc;
     if (id !== undefined) {
       return yield* method
         ? receivePrompt(line, id, method, params)
-        : receiveResponse(line, id, result, error);
+        : reply
+          ? receiveResponse(line, reply)
+          : retain(line, "unknown");
     }
     const decoded = yield* Effect.result(
       Schema.decodeUnknownEffect(Notification)({ method, params }),
@@ -294,7 +321,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
       return yield* retain(line, "replay");
     }
     yield* retain(line, "decoded");
-    yield* events.awaitSpace();
+    yield* incoming.awaitSpace();
     switch (event.method) {
       case "thread/status/changed":
         if (event.params.status.type === "idle") unlocatedTurn = false;
@@ -316,12 +343,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
         begin(event.params.turn.id);
         break;
       case "turn/completed":
-        finish(
-          event.params.turn.status,
-          event.params.turn.status === "failed"
-            ? (event.params.turn.error?.message ?? "Codex turn failed")
-            : undefined,
-        );
+        finishTurn(event.params.turn);
         break;
       case "item/started":
       case "item/completed":
@@ -343,11 +365,7 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
     }
   });
 
-  const pump = Stream.fromAsyncIterable(transport.frames(), (cause) =>
-    cause instanceof AdapterError
-      ? cause
-      : processError("read-failed", "Could not read app-server output", cause),
-  ).pipe(
+  const pump = incoming.packets.pipe(
     Stream.runForEach(receive),
     Effect.andThen(Effect.promise(() => transport.exit)),
     Effect.tap((reason) =>
@@ -541,8 +559,9 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
       return refused("empty-input", "Codex prompt is empty");
     const input = wireInput(request.input);
     const turn = request.expected.turn;
+    const method = turn ? "turn/steer" : "turn/start";
     const rpc = yield* transport.request(
-      turn ? "turn/steer" : "turn/start",
+      method,
       turn
         ? { threadId, expectedTurnId: turn, input }
         : { threadId, input, ...(sandbox ? { sandboxPolicy: sandbox } : {}) },
@@ -562,6 +581,11 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
                 "Codex has not identified the active turn",
               ),
             );
+          if (sentTurns.size >= rememberedRequests) {
+            const oldest = sentTurns.keys().next().value;
+            if (oldest !== undefined) sentTurns.delete(oldest);
+          }
+          sentTurns.set(rpc.id, method);
           if (active) active.items.associate(rpc.id, request);
           else starting = { id: rpc.id, request };
           return Result.succeed(undefined);
@@ -654,14 +678,23 @@ export const openAppServer = Effect.fn("app-server.open")(function* (
           return Result.fail(
             refused("invalid-answer", "Answer does not match the Codex prompt"),
           );
+        const settlement = {
+          ...envelope(),
+          turn: prompt.turn,
+          seq: seq + 1,
+          kind: "prompt.settled",
+          body: { prompt_id, by: request.by, answer: planned.publicAnswer },
+        } as const;
+        if (!parseCanonicalEvent(settlement).ok)
+          return Result.fail(
+            refused(
+              "invalid-answer",
+              "Answer is not a canonical prompt settlement",
+            ),
+          );
         prompts.delete(prompt_id);
-        durable(
-          {
-            kind: "prompt.settled",
-            body: { prompt_id, by: request.by, answer: planned.publicAnswer },
-          },
-          prompt.turn,
-        );
+        seq++;
+        events.emit(settlement);
         return Result.succeed([{ id: prompt.id, result: planned.result }]);
       }),
     );

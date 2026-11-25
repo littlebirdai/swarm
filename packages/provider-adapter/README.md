@@ -43,6 +43,12 @@ has a null `clientId`. A resumed thread restores its checkpoint and can
 identify a live turn, but this adapter advertises no receipts or recovery
 by delivery ID.
 
+Control RPCs can settle while the event consumer is paused. The stdio
+reader stages up to 64 frames and 32 MiB ahead of event projection.
+Events from replies still follow earlier notifications. Exceeding the
+read-ahead limit fails the stream and reports outstanding controls as
+`in-doubt`.
+
 Use semantic allow or deny for command, file change, and permission
 approvals. Permission grants apply to the current turn. For a question,
 return `{ "answers": { "<question-id>": { "answers": ["…"] } } }`. A context

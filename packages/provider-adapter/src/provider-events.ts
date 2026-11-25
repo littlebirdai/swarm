@@ -29,8 +29,10 @@ export const makeProviderEvents = Effect.fn("provider.events")(function* (
     if (space) Deferred.doneUnsafe(space, Effect.void);
   }
 
+  const full = () =>
+    opened && !ended && Queue.sizeUnsafe(queue) >= bufferCapacity;
   const awaitSpace = Effect.fn("provider.awaitEventSpace")(function* () {
-    while (opened && !ended && Queue.sizeUnsafe(queue) >= bufferCapacity) {
+    while (full()) {
       space = Deferred.makeUnsafe();
       yield* Deferred.await(space);
     }
@@ -61,6 +63,7 @@ export const makeProviderEvents = Effect.fn("provider.events")(function* (
   return {
     emit,
     awaitSpace,
+    full,
     open: () => {
       opened = true;
       return !overflowed;

@@ -63,6 +63,13 @@ export const prepareAnswer = Effect.fn("app-server.prepare-answer")(function* (
   wire: typeof Prompt.Type,
   body: EdgeJson,
 ): Effect.fn.Return<{ result: object; publicAnswer: EdgeJson } | undefined> {
+  if (
+    body !== null &&
+    typeof body === "object" &&
+    !Array.isArray(body) &&
+    Object.hasOwn(body, "option_id")
+  )
+    return;
   if (wire.method === "item/tool/requestUserInput") {
     if (body === null) return { result: { answers: {} }, publicAnswer: null };
     const parsed = yield* Effect.result(
@@ -107,13 +114,19 @@ export const prepareAnswer = Effect.fn("app-server.prepare-answer")(function* (
       },
       publicAnswer: body,
     };
-  const decision = behavior === "allow" ? "accept" : "decline";
-  if (
-    wire.method === "item/commandExecution/requestApproval" &&
-    wire.params.availableDecisions &&
-    !wire.params.availableDecisions.includes(decision)
-  )
-    return;
+  const offered =
+    wire.method === "item/commandExecution/requestApproval"
+      ? wire.params.availableDecisions
+      : undefined;
+  const decision =
+    behavior === "allow"
+      ? "accept"
+      : body === null &&
+          offered?.includes("cancel") &&
+          !offered.includes("decline")
+        ? "cancel"
+        : "decline";
+  if (offered && !offered.includes(decision)) return;
   return { result: { decision }, publicAnswer: body };
 });
 
