@@ -6,7 +6,6 @@ export type RelayEvent =
   | { type: "removed"; signal: RelaySignal };
 export type RelayHandler = (event: RelayEvent) => void;
 
-export const MAX_TIMER_MS = 2_147_483_647;
 const MAX_OBSERVATIONS = 4096;
 
 export function hubKey(hub: RelaySignal["hub"]) {
@@ -20,13 +19,8 @@ type Observation = {
   expires: number;
 };
 
-export function observations(
-  now: () => number,
-  setTimer: (callback: () => void, delayMs: number) => () => void,
-  emit: (key: string, event: RelayEvent) => void,
-) {
+export function observations(emit: (key: string, event: RelayEvent) => void) {
   const entries = new Map<string, Observation>();
-  let cancelTimer: (() => void) | undefined;
   let nextExpiry = Infinity;
 
   function remove(entry: Observation) {
@@ -41,23 +35,19 @@ export function observations(
     if (signal) emit(entry.hub, { type: "removed", signal });
   }
 
-  function expire() {
-    cancelTimer = undefined;
-    nextExpiry = Infinity;
-    for (const entry of entries.values()) {
-      if (entry.expires <= now()) notifyRemoved(entry);
-      nextExpiry = Math.min(nextExpiry, entry.expires);
-    }
-    if (!cancelTimer && nextExpiry < Infinity) {
-      cancelTimer = setTimer(
-        expire,
-        Math.min(MAX_TIMER_MS, nextExpiry - now()),
-      );
-    }
-  }
-
   return {
-    receive(signal: RelaySignal) {
+    get deadline() {
+      return nextExpiry;
+    },
+    expire(now: number) {
+      if (now < nextExpiry) return;
+      nextExpiry = Infinity;
+      for (const entry of entries.values()) {
+        if (entry.expires <= now) notifyRemoved(entry);
+        nextExpiry = Math.min(nextExpiry, entry.expires);
+      }
+    },
+    receive(signal: RelaySignal, now: number) {
       const hub = hubKey(signal.hub);
       const peer = `${hub}/${signal.connection_id}`;
       const key = `${peer}/${signal.type}`;
@@ -73,7 +63,7 @@ export function observations(
           }
         }
       }
-      const expires = signal.ttl_ms ? now() + signal.ttl_ms : Infinity;
+      const expires = signal.ttl_ms ? now + signal.ttl_ms : Infinity;
       entries.delete(key);
       entries.set(key, {
         hub,
@@ -88,11 +78,7 @@ export function observations(
           removed.push(oldest[1]);
         }
       }
-      if (expires < nextExpiry) {
-        cancelTimer?.();
-        nextExpiry = expires;
-        cancelTimer = setTimer(expire, Math.min(MAX_TIMER_MS, signal.ttl_ms));
-      }
+      nextExpiry = Math.min(nextExpiry, expires);
       for (const entry of removed) notifyRemoved(entry);
       emit(hub, { type: "signal", signal });
     },
@@ -103,11 +89,7 @@ export function observations(
         entries.delete(key);
         removed.push(entry);
       }
-      if (!entries.size) {
-        cancelTimer?.();
-        cancelTimer = undefined;
-        nextExpiry = Infinity;
-      }
+      if (!entries.size) nextExpiry = Infinity;
       for (const entry of removed) notifyRemoved(entry);
     },
   };

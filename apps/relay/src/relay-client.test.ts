@@ -81,13 +81,17 @@ function clientFor(id: string, serverUrl: () => URL) {
             : [],
         ),
       };
-      if (!claims.grants.length) return null;
+      const omitted = hubs
+        .filter(({ id }) => !allowed.includes(id))
+        .map(({ id }) => ({ id, reason: "inaccessible" as const }));
+      if (!claims.grants.length) return { status: "denied", omitted };
       const url = new URL("/relay", serverUrl());
       url.protocol = "ws:";
       return {
+        status: "ok",
         url: url.href,
         token: mintTestToken(key, claims),
-        grantedHubs: claims.grants,
+        omitted,
       };
     },
   });
@@ -124,7 +128,7 @@ it.effect(
         alice.subscribe(second);
         const leave = bob.subscribe(session);
         const receiver = await alice.sockets.take(() => true);
-        const sender = await bob.sockets.take(() => true);
+        let sender = await bob.sockets.take(() => true);
         await receiver.take(ready(session));
         await receiver.take(ready(second));
         await sender.take(ready(session));
@@ -140,6 +144,7 @@ it.effect(
           signal: { type: "presence", state: "left", ttl_ms: 0 },
         });
         bob.subscribe(session);
+        sender = await bob.sockets.take(() => true);
         await sender.take(ready(session));
         await alice.clock.advance(54_000);
         bob.client.publish(presence);

@@ -1,4 +1,3 @@
-import type { RelayHub } from "@codecast/relay-contract";
 import type { RelayPublication } from "../src";
 
 export const session = { kind: "session", id: "session" } as const;
@@ -24,10 +23,14 @@ export function fakeClock() {
   return {
     now: () => time,
     setTimer(callback: () => void, delayMs: number) {
-      timers.set(callback, time + delayMs);
+      const run = () => callback();
+      timers.set(run, time + delayMs);
       return () => {
-        timers.delete(callback);
+        timers.delete(run);
       };
+    },
+    get timerCount() {
+      return timers.size;
     },
     get deadline() {
       return Math.min(...timers.values());
@@ -51,8 +54,9 @@ export function fakeClock() {
   };
 }
 
-export const fakeGrant = (grantedHubs: readonly RelayHub[]) => ({
+export const fakeGrant = {
+  status: "ok",
   url: "ws://relay.invalid/relay",
   token: "token",
-  grantedHubs,
-});
+  omitted: [],
+} as const;

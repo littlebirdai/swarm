@@ -1,126 +1,9 @@
 import { expect, test } from "bun:test";
-import {
-  parseRelayClientFrame,
-  type RelayClientFrame,
-} from "@codecast/relay-contract";
-import {
-  createRelayClient,
-  type RelayClientOptions,
-  type RelayEvent,
-} from "../src";
-import { cursor, fakeClock, fakeGrant, presence, session } from "./fixtures";
+import type { RelayEvent } from "../src";
+import { apply, harness, latestUpdate, subscribed } from "./fake-socket";
+import { cursor, fakeGrant, presence, second, session } from "./fixtures";
 
-type SocketEvents = {
-  open: Event;
-  message: MessageEvent<unknown>;
-  close: Event & { code: number };
-};
-
-class FakeSocket {
-  bufferedAmount = 0;
-  closed = false;
-  frames: RelayClientFrame[] = [];
-  events = new EventTarget();
-
-  addEventListener<K extends keyof SocketEvents>(
-    type: K,
-    handler: (event: SocketEvents[K]) => void,
-  ) {
-    this.events.addEventListener(type, (event) =>
-      handler(event as SocketEvents[K]),
-    );
-  }
-
-  send(text: string) {
-    const parsed = parseRelayClientFrame(text);
-    if (!parsed.ok) throw new Error("Invalid client frame");
-    this.frames.push(parsed.value);
-  }
-
-  close() {
-    this.closed = true;
-  }
-
-  opened() {
-    this.events.dispatchEvent(new Event("open"));
-  }
-
-  message(frame: object | string) {
-    this.events.dispatchEvent(
-      new MessageEvent("message", {
-        data: typeof frame === "string" ? frame : JSON.stringify(frame),
-      }),
-    );
-  }
-
-  ended(code = 1006) {
-    const event = new Event("close");
-    Object.assign(event, { code });
-    this.events.dispatchEvent(event);
-  }
-}
-
-function harness(getToken?: RelayClientOptions["getToken"], random = 0) {
-  const clock = fakeClock();
-  const sockets: FakeSocket[] = [];
-  const requests: Parameters<RelayClientOptions["getToken"]>[] = [];
-  const client = createRelayClient({
-    ...clock,
-    random: () => random,
-    WebSocket: class extends FakeSocket {
-      constructor(_url: string) {
-        super();
-        sockets.push(this);
-      }
-    },
-    getToken(hubs, signal) {
-      requests.push([hubs, signal]);
-      return getToken
-        ? getToken(hubs, signal)
-        : Promise.resolve(fakeGrant(hubs));
-    },
-  });
-  async function open(
-    ttl = 60_000,
-    capabilities = [
-      "presence",
-      "draft_cursor",
-      "reading_cursor",
-      "baton_heartbeat",
-    ],
-  ) {
-    await clock.advance(0);
-    const socket = sockets.at(-1)!;
-    socket.opened();
-    socket.message({
-      type: "hello",
-      status: "ok",
-      version: 1,
-      capabilities,
-      connection_id: "local",
-      ttl_ms: ttl,
-    });
-    return socket;
-  }
-  return { ...clock, client, sockets, requests, open, clock };
-}
-
-function subscribed(
-  socket: FakeSocket,
-  hub = session as { kind: "session"; id: string },
-) {
-  socket.message({ v: 1, type: "subscription", status: "subscribed", hub });
-}
-
-function latestUpdate(socket: FakeSocket) {
-  const frame = [...socket.frames]
-    .reverse()
-    .find(({ type }) => type === "grant_update");
-  if (frame?.type !== "grant_update") throw new Error("Missing grant update");
-  return frame;
-}
-
-test("opens lazily, shares a socket, and closes after the last unsubscribe grace period", async () => {
+test("opens lazily, keeps same-turn hub switches, and closes after the last unsubscribe", async () => {
   const { client, sockets, open, advance, requests } = harness();
   await advance(100);
   expect(requests).toHaveLength(0);
@@ -135,21 +18,25 @@ test("opens lazily, shares a socket, and closes after the last unsubscribe grace
   unsubscribe();
   other();
   expect(socket.frames.at(-1)?.type).toBe("unsubscribe");
-  await advance(999);
-  expect(socket.closed).toBe(false);
-  const last = client.subscribe(session, () => {});
-  await advance(2);
+  const last = client.subscribe(second, () => {});
+  await advance(0);
+  apply(socket);
+  expect(socket.frames).toContainEqual({
+    v: 1,
+    type: "subscribe",
+    hub: second,
+  });
   expect(sockets).toEqual([socket]);
   last();
-  await advance(1000);
+  await advance(0);
   expect(socket.closed).toBe(true);
   await advance(60_000);
   expect(sockets).toHaveLength(1);
 });
 
 test("pause and close abort token requests and discard stale completions", async () => {
-  const beforePause = Promise.withResolvers<ReturnType<typeof fakeGrant>>();
-  const afterResume = Promise.withResolvers<ReturnType<typeof fakeGrant>>();
+  const beforePause = Promise.withResolvers<typeof fakeGrant>();
+  const afterResume = Promise.withResolvers<typeof fakeGrant>();
   let calls = 0;
   const { client, advance, requests, sockets } = harness(() =>
     calls++ ? afterResume.promise : beforePause.promise,
@@ -160,12 +47,12 @@ test("pause and close abort token requests and discard stale completions", async
   await advance(10_000);
   expect(requests).toHaveLength(1);
   client.resume();
-  beforePause.resolve(fakeGrant([session]));
+  beforePause.resolve(fakeGrant);
   await advance(0);
   expect(sockets).toHaveLength(0);
   client.close();
   expect(requests[1][1].aborted).toBe(true);
-  afterResume.resolve(fakeGrant([session]));
+  afterResume.resolve(fakeGrant);
   await advance(0);
   expect(sockets).toHaveLength(0);
 });
@@ -324,6 +211,8 @@ test("caps queued signals and prevents WebSocket send buffer growth", async () =
     client.publish({ ...presence, hub }, 60_000);
     client.publish({ ...cursor, hub }, 60_000);
   }
+  for (const hub of hubs)
+    client.publish({ v: 1, type: "baton_heartbeat", hub }, 60_000);
   const socket = await open();
   subscribed(socket, hubs[0]);
   expect(
@@ -435,10 +324,10 @@ test("refreshes on the same socket before expiry and retries a refused token", a
 });
 
 test("times out a stalled token request and recovers with a fresh request", async () => {
-  const stalled = Promise.withResolvers<ReturnType<typeof fakeGrant>>();
+  const stalled = Promise.withResolvers<typeof fakeGrant>();
   let calls = 0;
-  const { client, advance, requests, sockets } = harness((hubs) =>
-    calls++ ? Promise.resolve(fakeGrant(hubs)) : stalled.promise,
+  const { client, advance, requests, sockets } = harness(() =>
+    calls++ ? Promise.resolve(fakeGrant) : stalled.promise,
   );
   client.subscribe(session, () => {});
   await advance(4999);
@@ -446,7 +335,7 @@ test("times out a stalled token request and recovers with a fresh request", asyn
   await advance(1);
   expect(requests[0][1].aborted).toBe(true);
   await advance(250);
-  stalled.resolve(fakeGrant([session]));
+  stalled.resolve(fakeGrant);
   await advance(0);
   expect(sockets).toHaveLength(1);
   expect(requests).toHaveLength(2);
