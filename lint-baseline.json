@@ -21694,7 +21694,7 @@
     "swarm/no-comments": 35
   },
   "apps/web/hooks/inbox-warm.ts": {
-    "swarm/no-comments": 84
+    "swarm/no-comments": 80
   },
   "apps/web/hooks/incrementalSync.test.ts": {
     "swarm/no-comments": 24

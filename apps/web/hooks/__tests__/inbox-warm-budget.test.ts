@@ -331,3 +331,99 @@ test("the top history deepens before the first eviction and stops after it", asy
     restore();
   }
 });
+
+test("an old account's cold response cannot populate or unlock the new account's transcript", async () => {
+  const restore = resetFixture();
+  const former = Promise.withResolvers<{
+    page: ReturnType<typeof message>[];
+    isDone: boolean;
+  }>();
+  const current = Promise.withResolvers<{
+    page: ReturnType<typeof message>[];
+    isDone: boolean;
+  }>();
+  const currentCalls: string[] = [];
+  const newClient = {
+    query: (_fn: unknown, args: { conversation_id: string }) => {
+      currentCalls.push(args.conversation_id);
+      return current.promise;
+    },
+  };
+  try {
+    seed([251]);
+    await warm({ query: () => former.promise });
+    clearProtectedInboxMemory();
+    seed([251], "second-warm-budget-owner");
+    await warm(newClient);
+    former.resolve({ page: [message(2048, 123)], isDone: true });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(useInboxStore.getState().messages[id(251)]).toBeUndefined();
+    await warm(newClient);
+    expect(currentCalls).toEqual([id(251)]);
+    current.resolve({ page: [message(1024, 321)], isDone: true });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(
+      useInboxStore.getState().messages[id(251)]?.map((row) => row.timestamp),
+    ).toEqual([321]);
+  } finally {
+    former.resolve({ page: [], isDone: true });
+    current.resolve({ page: [], isDone: true });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    restore();
+  }
+});
+
+test.each([
+  ["conversations:getNewMessages", 252],
+  ["conversations:getAllMessages", 253],
+  ["conversations:getConversation", 254],
+] as const)(
+  "an old account's %s result is ignored after reset",
+  async (query, index) => {
+    const restore = resetFixture();
+    const response = Promise.withResolvers<unknown>();
+    const calls: string[] = [];
+    const key = id(index);
+    try {
+      seed([index]);
+      if (query === "conversations:getConversation") {
+        useInboxStore.setState((state) => ({
+          sessions: {
+            ...state.sessions,
+            [key]: { ...state.sessions[key], standing_role_id: "test-role" },
+          },
+        }));
+      } else {
+        useInboxStore
+          .getState()
+          .setMessages(
+            key,
+            [message(1024, 2)],
+            { hasMoreAbove: query === "conversations:getAllMessages" },
+            "cache",
+          );
+      }
+      await warm({
+        query: (fn) => {
+          calls.push(getFunctionName(fn));
+          return response.promise;
+        },
+      });
+      expect(calls).toEqual([query]);
+      clearProtectedInboxMemory();
+      seed([255], "second-warm-budget-owner");
+      response.resolve({
+        title: "former account transcript",
+        messages: [message(1024)],
+        has_more: false,
+      });
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(useInboxStore.getState().messages[key]).toBeUndefined();
+      expect(useInboxStore.getState().sessions[key]).toBeUndefined();
+    } finally {
+      response.resolve(null);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      restore();
+    }
+  },
+);

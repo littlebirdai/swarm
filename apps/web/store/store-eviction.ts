@@ -11,7 +11,11 @@ const MESSAGE_CACHE_LOW_WATER_BYTES = MESSAGE_CACHE_BUDGET_BYTES * 0.75;
 
 export const MESSAGE_CACHE_PAGE_OVERHEAD = 64;
 
-export const messageWarmState = { full: false, coldIds: new Set<string>() };
+export const messageWarmState = {
+  full: false,
+  coldIds: new Set<string>(),
+  inFlight: new Set<string>(),
+};
 
 export function messageRowBytes(value: unknown): number {
   if (typeof value === "string") return 24 + value.length * 2;

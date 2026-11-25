@@ -169,6 +169,7 @@ export async function readForward(
   after: number,
   maxPages = 40,
 ): Promise<number | null> {
+  const inFlight = messageWarmState.inFlight;
   let cursor = after;
   let fetched = 0;
   for (let i = 0; i < maxPages; i++) {
@@ -176,7 +177,8 @@ export async function readForward(
       conversation_id: conversationId as Id<"conversations">,
       after_timestamp: cursor,
     });
-    if (result === null) return fetched > 0 ? fetched : null;
+    if (inFlight !== messageWarmState.inFlight || result === null)
+      return fetched > 0 ? fetched : null;
     if (!result.messages?.length) break;
     useInboxStore
       .getState()
@@ -190,11 +192,6 @@ export async function readForward(
   return fetched;
 }
 
-// Module state (not hook refs): the personal sync, the team sync, the
-// recovery polls and the open path all drive the same loop and must share one
-// in-flight set — two callers warming the same row is the duplicate fetch this
-// set exists to prevent.
-const inFlight = new Set<string>();
 const syncedCount = new Map<string, number>();
 // Row fetches tried this page life (runRow), whatever came back: a row the
 // server withholds, or sends without is_anchor, is not asked for every pass.
@@ -249,13 +246,14 @@ export async function fetchOlderPage(
   const oldest =
     useInboxStore.getState().messages[conversationId]?.[0]?.timestamp;
   if (oldest === undefined) return false;
+  const inFlight = messageWarmState.inFlight;
   const res: any = await fetchOlderMessages(
     convex,
     conversationId,
     oldest,
     limit,
   );
-  if (!res?.messages) return false;
+  if (inFlight !== messageWarmState.inFlight || !res?.messages) return false;
   useInboxStore
     .getState()
     .mergeMessages(conversationId, res.messages, "prepend", {
@@ -281,6 +279,7 @@ export function deepenConversation(
     !st.pagination[conversationId]?.hasMoreAbove
   )
     return Promise.resolve();
+  const inFlight = messageWarmState.inFlight;
   if (inFlight.has(conversationId)) return Promise.resolve();
   inFlight.add(conversationId);
   return fetchOlderPage(convex, conversationId, rows - stored)
@@ -294,10 +293,12 @@ function runCold(
   action: Extract<WarmAction, { kind: "cold" }>,
 ) {
   const { id, rows, serverCount } = action;
+  const inFlight = messageWarmState.inFlight;
   messageWarmState.coldIds.add(id);
   inFlight.add(id);
   ensureHydrated(id)
     .then((restored) => {
+      if (inFlight !== messageWarmState.inFlight) return null;
       if (restored) {
         syncedCount.set(id, serverCount);
         return null;
@@ -308,7 +309,7 @@ function runCold(
       });
     })
     .then((res: any) => {
-      if (!res) return;
+      if (inFlight !== messageWarmState.inFlight || !res) return;
       const page = res?.page;
       if (
         Array.isArray(page) &&
@@ -329,6 +330,7 @@ function runCold(
 }
 
 function runRow(convex: ConvexClient, id: string) {
+  const inFlight = messageWarmState.inFlight;
   inFlight.add(id);
   rowTried.add(id);
   convex
@@ -337,7 +339,7 @@ function runRow(convex: ConvexClient, id: string) {
       limit: 1,
     })
     .then((data: any) => {
-      if (data)
+      if (inFlight === messageWarmState.inFlight && data)
         useInboxStore
           .getState()
           .seedSession(sessionRowFromConversation(id, data));
@@ -353,9 +355,13 @@ function runDelta(
   action: Extract<WarmAction, { kind: "delta" }>,
 ) {
   const { id, serverCount } = action;
+  const inFlight = messageWarmState.inFlight;
   inFlight.add(id);
   readForward(convex, id, action.after)
-    .then(() => syncedCount.set(id, serverCount))
+    .then(() => {
+      if (inFlight === messageWarmState.inFlight)
+        syncedCount.set(id, serverCount);
+    })
     .catch((err: unknown) => {
       console.warn("[inboxWarm] delta warm failed", { id, err });
     })
@@ -366,6 +372,7 @@ function runDeepen(
   convex: ConvexClient,
   action: Extract<WarmAction, { kind: "deepen" }>,
 ) {
+  const inFlight = messageWarmState.inFlight;
   inFlight.add(action.id);
   fetchOlderPage(convex, action.id, action.rows)
     .catch((err: unknown) => {
@@ -486,7 +493,7 @@ export function warmRowsFromState(
         st.sessions[id]?.agent_type ?? (session as any)?.agent_type,
       ),
       syncedCount: syncedCount.get(id),
-      inFlight: inFlight.has(id),
+      inFlight: messageWarmState.inFlight.has(id),
     });
   }
   return rows;
@@ -657,7 +664,9 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
     get lastPass() {
       return lastPass;
     },
-    inFlight,
+    get inFlight() {
+      return messageWarmState.inFlight;
+    },
     syncedCount,
   };
 }

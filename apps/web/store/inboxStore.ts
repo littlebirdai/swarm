@@ -22253,6 +22253,7 @@ export function clearProtectedInboxMemory(): void {
   hydrationEpoch++;
   messageWarmState.full = false;
   messageWarmState.coldIds.clear();
+  messageWarmState.inFlight = new Set();
   const state = useInboxStore.getState() as any;
   state._clearRuntimeBindings?.();
   const reset = freshInboxData();
