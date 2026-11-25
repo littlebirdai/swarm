@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { roleInitiatives } from "../roleInitiatives";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 
 const row = (over: Partial<InitiativeRow>): InitiativeRow => ({
   _id: "i",

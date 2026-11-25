@@ -1,4 +1,4 @@
-import { type InitiativeHealth } from "@codecast/shared/contracts/initiative";
+import { type InitiativeHealth } from "@codecast/goals/initiative";
 
 export const INITIATIVE_ACCENT = "var(--sol-magenta)";
 

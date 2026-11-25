@@ -21,7 +21,7 @@
 // a goal's sheet reads too.
 import { Fragment, useMemo, type ReactNode } from "react";
 import { ChevronRight, CornerDownRight } from "lucide-react";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import { objectHref } from "@codecast/entities";
 import { useInboxStore } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";

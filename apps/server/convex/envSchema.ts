@@ -1,4 +1,4 @@
-// Environment attempts and links (shared/contracts/envs.ts; pl-1049
+// Environment attempts and links (packages/goals/src/envs.ts; pl-1049
 // ct-96178). An attempt is one runner result filed under the env it ran; a
 // link is a measured relation between an env and the level above it, kept
 // with its evidence and age. A goal names its envs on the initiative row
@@ -9,8 +9,8 @@
 // for routing; reads compare `workspace` only.
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
-import { ENV_LEVELS, ENV_SPLITS } from "@codecast/shared/contracts/envs";
-import { CASE_SET_SPLITS } from "@codecast/shared/contracts/envCases";
+import { ENV_LEVELS, ENV_SPLITS } from "@codecast/goals/envs";
+import { CASE_SET_SPLITS } from "@codecast/goals/envCases";
 
 const literals = <T extends string>(values: readonly T[]) =>
   v.union(...values.map((value) => v.literal(value)));
@@ -61,7 +61,7 @@ export const envTables = {
     cases_version: v.optional(v.string()),
     /** The same, as held attempts filed before dev sets were recorded: read-only, never written. */
     held_version: v.optional(v.string()),
-    // Filing in pages (contracts/envs compactCasePages): the client's key for
+    // Filing in pages (@codecast/goals/envs compactCasePages): the client's key for
     // this filing, so a retried record answers with the attempt it made; one
     // fingerprint per page of cases; and how many pages are written.
     client_key: v.optional(v.string()),
@@ -85,7 +85,7 @@ export const envTables = {
     cases: v.string(),
   }).index("by_attempt", ["attempt_id"]),
 
-  // An env's case set for one split (envCases.ts, contracts/envCases.ts); the
+  // An env's case set for one split (envCases.ts, packages/goals/src/envCases.ts); the
   // tables keep their first name, from when they held only held sets, and a
   // row with no split is a held set. The newest committed set per workspace,
   // env and split is live. Its cases sit

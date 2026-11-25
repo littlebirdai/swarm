@@ -9,7 +9,7 @@ import {
   parseGroundReply,
   renderGoalsBrief,
   type GoalsBrief,
-} from "./goalsBrief";
+} from "../src/goalsBrief";
 
 const NOW = Date.UTC(2026, 9, 2, 12);
 const DAY = 86_400_000;

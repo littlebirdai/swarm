@@ -411,7 +411,7 @@ accent and verb through `registerExternalEventStyles` in
 
 `/settings/integrations` lists every app in `APP_IDS` (Slack, GitHub, Gmail,
 Linear, Notion, and the token connectors Sentry, PostHog and a product's own
-app) from `shared/contracts/appDescriptors.ts` and `appConnections.listConnections`, in two ledgers: team
+app) from `packages/connectors/src/appDescriptors.ts` and `appConnections.listConnections`, in two ledgers: team
 connections for the team the reader is looking at, and personal connections
 (S1.6). The query answers once per app per scope the connector supports,
 plus the team's name; with no live team membership it answers personal

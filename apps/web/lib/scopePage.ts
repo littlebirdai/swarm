@@ -4,7 +4,7 @@
 // queries read. Kept out of the components so they test without React.
 import { isWholeWorkspaceRole } from "@codecast/org/orgLead";
 import type { WorkState } from "@codecast/sessions/workState";
-import type { InitiativeHealth } from "@codecast/shared/contracts/initiative";
+import type { InitiativeHealth } from "@codecast/goals/initiative";
 import { isNonTabRoute } from "./tabRoutes";
 import { HEALTH_COLOR } from "./initiativeColors";
 import { ORG_STATE_META } from "../components/org/orgMeta";

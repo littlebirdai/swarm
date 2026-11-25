@@ -1,0 +1,28 @@
+{
+  "name": "@codecast/goals",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./initiative": "./src/initiative.ts",
+    "./metricStanding": "./src/metricStanding.ts",
+    "./goalsBrief": "./src/goalsBrief.ts",
+    "./predictedEffect": "./src/predictedEffect.ts",
+    "./envs": "./src/envs.ts",
+    "./envCases": "./src/envCases.ts",
+    "./climb": "./src/climb.ts",
+    "./openPlans": "./src/openPlans.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3"
+  },
+  "dependencies": {
+    "@codecast/chat": "workspace:*",
+    "@codecast/entities": "workspace:*"
+  }
+}

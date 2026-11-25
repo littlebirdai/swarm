@@ -26,8 +26,8 @@
 // they have read it (`strippedUrl` below), so a copied address bar or a shared
 // screenshot cannot replay the confirmation.
 
-import { APP_IDS, type AppId } from "@codecast/shared/contracts";
-import { describeReturnReason } from "@codecast/shared/contracts/connectorReasons";
+import { APP_IDS, type AppId } from "@codecast/connectors/appDescriptors";
+import { describeReturnReason } from "@codecast/connectors/connectorReasons";
 
 /** `P` names the providers a page reads besides the apps: /welcome and the
  *  main shell also read the mail connect through Whisk (WHISK_RETURN_KEY). */
@@ -145,7 +145,7 @@ export function isReturnFrom(
 
 /** The reason table lives in the shared contract so `cast integrations`
  *  describes a refusal in the same words as every web surface. */
-export { describeConnectorError } from "@codecast/shared/contracts/connectorReasons";
+export { describeConnectorError } from "@codecast/connectors/connectorReasons";
 
 /**
  * The same URL with every connector callback param removed, for the

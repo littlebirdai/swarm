@@ -7,7 +7,7 @@ import {
   INITIATIVE_STATUS_LABEL,
   type InitiativeRow,
   type InitiativeStatus,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 
 /** A goal's status in the words this screen uses. "Proposed" names an open
  *  proposal everywhere here, so a goal nobody has started says so plainly. */

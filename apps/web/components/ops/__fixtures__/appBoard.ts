@@ -4,7 +4,7 @@
 import {
   parseAppManifest,
   type AppManifest,
-} from "@codecast/shared/contracts/appConnector";
+} from "@codecast/connectors/appConnector";
 import type { OpsAppCall, OpsSource } from "../opsTypes";
 
 export const NOW = Date.parse("2026-10-12T22:00:00Z");

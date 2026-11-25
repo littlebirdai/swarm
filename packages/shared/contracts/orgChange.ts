@@ -17,7 +17,7 @@ import {
   type InitiativeMilestone,
   type InitiativeQuestion,
   type IntentSource,
-} from "./initiative";
+} from "@codecast/goals/initiative";
 import {
   andList,
   changeLine,

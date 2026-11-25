@@ -1,4 +1,4 @@
-// Env case sets from the CLI (contracts/envCases.ts, convex/envCases.ts).
+// Env case sets from the CLI (packages/goals/src/envCases.ts, convex/envCases.ts).
 //
 // `putCaseSet` uploads a product runner's dev or held cases in chunks and
 // prints only their count and version. `fetchCaseSet` opens a logged fetch
@@ -22,11 +22,8 @@ import {
   type CaseSetRead,
   type CaseSetSplit,
   type EnvCaseSetStanding,
-} from "@codecast/shared/contracts/envCases";
-import {
-  ENVS_REL_PATH,
-  type EnvDeclaration,
-} from "@codecast/shared/contracts/envs";
+} from "@codecast/goals/envCases";
+import { ENVS_REL_PATH, type EnvDeclaration } from "@codecast/goals/envs";
 import type { Post } from "./envCommand.js";
 
 const TMP_PREFIX = "cast-cases-";

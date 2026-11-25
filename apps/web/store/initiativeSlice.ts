@@ -25,7 +25,7 @@ import {
   type InitiativeStatus,
   type InitiativeUpdateHealth,
   type InitiativeUpdateRow,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { teamMembersOf } from "../lib/activeTeam";
 
 /** Null clears a field, as the mutation reads it. */

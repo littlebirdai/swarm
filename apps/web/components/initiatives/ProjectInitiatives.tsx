@@ -9,10 +9,7 @@
 // a card has room for.
 import { useMetricSeries } from "../../hooks/useMetricSeries";
 import { useMemo } from "react";
-import {
-  metricReadings,
-  metricTrends,
-} from "@codecast/shared/contracts/initiative";
+import { metricReadings, metricTrends } from "@codecast/goals/initiative";
 import { useInitiatives } from "../../hooks/useInitiatives";
 import { initiativesOfProject } from "../../lib/initiatives";
 import { cn } from "../../lib/utils";

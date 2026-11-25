@@ -30,6 +30,7 @@
     "@codecast/entities": "workspace:*",
     "@codecast/files": "workspace:*",
     "@codecast/flows": "workspace:*",
+    "@codecast/goals": "workspace:*",
     "@codecast/hash": "workspace:*",
     "@codecast/hosted-assistant": "workspace:*",
     "@codecast/ingest": "workspace:*",

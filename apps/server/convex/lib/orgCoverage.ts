@@ -31,9 +31,9 @@ import {
   type InitiativeRow,
   type MetricReading,
   type MetricStanding,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { isOnProjectBoard } from "@codecast/shared/tasks";
-import { openPlansOf } from "@codecast/shared/contracts/openPlans";
+import { openPlansOf } from "@codecast/goals/openPlans";
 import { isClosedPlan, type ActivityArea } from "./orgActivity";
 
 export type CoverageRole = LeadRole & { handle: string };

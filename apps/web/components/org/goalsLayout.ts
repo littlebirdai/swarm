@@ -20,12 +20,12 @@
 import type {
   InitiativeOwner,
   InitiativeRow,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import {
   metricReadings,
   nextMilestone,
   type MetricReading,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import {
   editedOrgChange,
   ORG_GOAL_KINDS,

@@ -7,10 +7,7 @@
 // The date column means one of two things, whatever the kind: a target day
 // (a goal, a project) or "since …" (a role, a person).
 import { createElement as h, type ReactNode } from "react";
-import {
-  metricReadings,
-  type InitiativeRow,
-} from "@codecast/shared/contracts/initiative";
+import { metricReadings, type InitiativeRow } from "@codecast/goals/initiative";
 import { projectTrouble } from "../../../lib/initiatives";
 import { TargetDate } from "../../initiatives/InitiativeAtoms";
 import type { OrgRole, StateCounts } from "../orgTypes";

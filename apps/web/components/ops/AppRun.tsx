@@ -7,7 +7,7 @@
 // idempotency key per press.
 import { useState } from "react";
 import { Play } from "lucide-react";
-import type { JsonSchema } from "@codecast/shared/contracts/appConnector";
+import type { JsonSchema } from "@codecast/connectors/appConnector";
 import { ConsequentialSwitch } from "../consequential/ConsequentialSwitch";
 import { schemaParams } from "./appsModel";
 import type { AppRunner, ManifestCheck, RunOutcome } from "./appRunner";

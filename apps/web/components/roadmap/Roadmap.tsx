@@ -22,7 +22,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { ChevronRight, Flag, Users } from "lucide-react";
-import type { InitiativeUpdateRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeUpdateRow } from "@codecast/goals/initiative";
 import { targetDayStamp } from "@codecast/time";
 import { useInboxStore, type ProjectItem } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";

@@ -24,7 +24,7 @@ import {
   isAppInstallationApp,
   type AppConnectionScope,
   type AppId,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/appDescriptors";
 
 /** The scope a CLI call named, defaulting to team like the web buttons do. */
 function scopeArg(

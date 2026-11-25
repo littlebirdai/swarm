@@ -39,7 +39,7 @@ import {
 import { taskWaitValidator } from "./lib/taskWaitValidator";
 import { messagingPolicyValidator } from "./lib/messagingPolicyValidator";
 import { DOC_TYPES } from "@codecast/docs";
-import { LINE_CATEGORIES } from "@codecast/shared/contracts/goalsBrief";
+import { LINE_CATEGORIES } from "@codecast/goals/goalsBrief";
 import { proseAnchorValidator } from "./lib/proseAnchorValidator";
 import { chatRoundValidator } from "./lib/chatRoundValidator";
 import { codeAnchorValidator } from "./lib/codeAnchorValidator";
@@ -7448,7 +7448,7 @@ export default defineSchema(
     // An initiative (docs/architecture/initiatives-projects-role-page.md I1): a
     // goal the company is trying to reach, carried by an intentional set of
     // projects, with one owner who drives it. The row shape is
-    // @codecast/shared/contracts/initiative. Low volume and read whole, so it
+    // @codecast/goals/initiative. Low volume and read whole, so it
     // stays off the change feed: the web reads one live query per workspace.
     initiatives: defineTable({
       // Who created it. The access stamp reads `user_id` on every table.
@@ -7494,12 +7494,12 @@ export default defineSchema(
       // Where it reads among its siblings, set by hand (the Goals document). Lower
       // first; a goal without one reads after those that have one, by status and date.
       position: v.optional(v.number()),
-      // How the goal is measured (shared/contracts/initiative InitiativeMetric):
+      // How the goal is measured (@codecast/goals/initiative InitiativeMetric):
       // at most two numbers with a target each. The reported values live in
       // `scoreboard` by key, the template scoreboard's own shape, written by
       // the same recordScores path `cast org template report` uses.
       metrics: v.optional(v.array(metricValidator)),
-      // The environments that predict it, ordered by level (contracts/envs GoalEnv).
+      // The environments that predict it, ordered by level (@codecast/goals/envs GoalEnv).
       envs: v.optional(v.array(goalEnvValidator)),
       scoreboard: v.optional(v.record(v.string(), scoreValidator)),
       // The intent record (I5, lib/initiativeValidators): every reported value
@@ -8558,7 +8558,7 @@ export default defineSchema(
       // The change card's published page (LE10).
       card_slug: v.optional(v.string()),
       // The effect on a goal metric this change is expected to have, and what
-      // the metric did after ship (shared/contracts/predictedEffect.ts). A goal
+      // the metric did after ship (packages/goals/src/predictedEffect.ts). A goal
       // reads its predictions from here, by the goal each one serves
       // (by_workspace_prediction).
       predicted: v.optional(predictedValidator),

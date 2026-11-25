@@ -4,7 +4,7 @@
 import type {
   InitiativeRow,
   InitiativeUpdateRow,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import {
   FIXTURE_INITIATIVES,
   FIXTURE_PROJECTS,

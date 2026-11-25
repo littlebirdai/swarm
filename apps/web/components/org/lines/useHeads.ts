@@ -3,7 +3,7 @@
 // what they answer for, and the facts, Serves and Carried by those make.
 import { useMemo } from "react";
 import { personRefOf, type OrgObjectKind } from "@codecast/entities";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import { useInboxStore, type ProjectItem } from "../../../store/inboxStore";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
 import { useInitiatives } from "../../../hooks/useInitiatives";

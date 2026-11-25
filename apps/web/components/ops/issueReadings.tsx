@@ -8,10 +8,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ExternalLink, EyeOff, RotateCcw, Wand2 } from "lucide-react";
-import {
-  parseAppManifest,
-  watchKey,
-} from "@codecast/shared/contracts/appConnector";
+import { parseAppManifest, watchKey } from "@codecast/connectors/appConnector";
 import { toast } from "sonner";
 import { useInboxStore } from "../../store/inboxStore";
 import {

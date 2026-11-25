@@ -18,7 +18,7 @@ import { isHeadOfPeopleRole } from "@codecast/org/orgLead";
 import { pinnableAgentIds } from "@codecast/agent-clients/agentPins";
 import { cleanReservationPurpose } from "@codecast/cloud-hosts/cloudPlacement";
 import { parseStagePinRef, stagePinRowId } from "@codecast/calls/stagePins";
-import type { InitiativeMetric } from "@codecast/shared/contracts/initiative";
+import type { InitiativeMetric } from "@codecast/goals/initiative";
 import { captureError } from "../lib/analytics";
 import type { ResourceOffloadIntent } from "@codecast/machines/resourceOffloadIntent";
 import type { CloudPlacementProgress } from "@codecast/cloud-hosts/cloudPlacementProgress";

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { renderGoalsBrief } from "@codecast/shared/contracts/goalsBrief";
+import { renderGoalsBrief } from "@codecast/goals/goalsBrief";
 import SHARED from "../../../docs/principles.md" with { type: "text" };
 import { readPrinciples } from "./goalsCommand.js";
 import { CODECAST_PRINCIPLES, loadLineProfile } from "./lineProfile.js";

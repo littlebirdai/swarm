@@ -1,6 +1,6 @@
 // Product views (docs/architecture/external-data.md X8, views): a connected
 // app's own screens, framed inside codecast. `mint` turns a reference
-// (`union:conversation/<id>@<iso>`, contracts/productView.ts) into a frame
+// (`union:conversation/<id>@<iso>`, packages/connectors/src/productView.ts) into a frame
 // url by calling the app's `views.token` action through the stored
 // credential. It goes through appCall like any other action, so the grant
 // gate and the app_calls audit apply unchanged, and the token is never
@@ -29,11 +29,11 @@ import {
   siteOf,
   type ProductViewDef,
   type ProductViewRef,
-} from "@codecast/shared/contracts/productView";
+} from "@codecast/connectors/productView";
 import { siteUrl } from "../lib/siteUrl";
 
 export { siteOf };
-import type { AppManifest } from "@codecast/shared/contracts/appConnector";
+import type { AppManifest } from "@codecast/connectors/appConnector";
 import type { FetchLike } from "../tokenConnectors";
 
 export const VIEW_TOKEN_ACTION = "views.token";

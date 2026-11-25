@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { ProductViewRef } from "@codecast/shared/contracts/productView";
+import type { ProductViewRef } from "@codecast/connectors/productView";
 import {
   CALL_READER,
   callExcerpt,

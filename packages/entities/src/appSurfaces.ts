@@ -233,7 +233,7 @@ export const APP_SURFACE_EXCLUDED_PATHS = new Set<string>([
   "review/batch",
   // Slack's OAuth return leg: needs ?code&state from Slack, then bounces away.
   "slack/connect",
-  // One connected app's screen of one thing: needs ?ref (contracts/productView.ts).
+  // One connected app's screen of one thing: needs ?ref (packages/connectors/src/productView.ts).
   "view",
   // Addresses from before /flows: each redirects to its place there.
   "line",

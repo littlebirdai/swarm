@@ -3,7 +3,7 @@
 // paints on the draft in the tick of the gesture.
 // Run: bun test store/__tests__/initiativeSlice.test.ts
 import { beforeEach, describe, expect, it } from "bun:test";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/org/orgLead";
 import { ORG_FIXTURE } from "../../components/org/orgFixture";
 import { useInboxStore } from "../inboxStore";

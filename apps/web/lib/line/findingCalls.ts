@@ -1,8 +1,8 @@
 // Calls a finding names by id ("Call 94373d15-a72c-4fd2-84c1-3bf5d900e5ac (Oct 9 14:02Z, Eric S)"), read as the
-// connected app's call view (contracts/productView.ts, `union:call/<id>`) so the finding's reader can open the call
+// connected app's call view (packages/connectors/src/productView.ts, `union:call/<id>`) so the finding's reader can open the call
 // itself rather than show a raw id. A Slack message ts a finder notes in passing ("(slack msg 1791554755.009459)")
 // names nothing a reader can open, so it is left out of the words. Pure.
-import type { ProductViewRef } from "@codecast/shared/contracts/productView";
+import type { ProductViewRef } from "@codecast/connectors/productView";
 
 /** The app whose call view a finding's call id opens. */
 export const CALL_APP = "union";

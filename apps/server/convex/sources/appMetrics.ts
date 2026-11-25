@@ -8,7 +8,7 @@ import {
   buildAppRequest,
   formatActorHeader,
   validateJson,
-} from "@codecast/shared/contracts/appConnector";
+} from "@codecast/connectors/appConnector";
 import { isTokenRefusal } from "../lib/sourceHealth";
 import type { FetchLike } from "../tokenConnectors";
 import {

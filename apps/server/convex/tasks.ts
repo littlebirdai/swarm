@@ -105,7 +105,7 @@ import {
   LINE_CATEGORIES,
   LINE_READINESS,
   LINE_RISKS,
-} from "@codecast/shared/contracts/goalsBrief";
+} from "@codecast/goals/goalsBrief";
 import { causeBrief } from "./goals";
 import { Id } from "./_generated/dataModel";
 import type { SubscriptionVia } from "./notificationRouter";

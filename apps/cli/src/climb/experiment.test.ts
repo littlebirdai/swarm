@@ -6,11 +6,8 @@
 // with cohort weeks and polled points, and a failing source. The numbers are
 // synthetic: this repository is public.
 import { describe, expect, test } from "bun:test";
-import {
-  detectableAt,
-  experimentWeeks,
-} from "@codecast/shared/contracts/climb";
-import { metricReadings } from "@codecast/shared/contracts/initiative";
+import { detectableAt, experimentWeeks } from "@codecast/goals/climb";
+import { metricReadings } from "@codecast/goals/initiative";
 import { liveSeries } from "../initiativeCommand";
 import { experimentLine } from "../climbCommand";
 

@@ -36,7 +36,7 @@ import {
   metricTrends,
   milestoneCounts,
   nextMilestone,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { cn } from "../../lib/utils";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useInitiativeUpdates } from "../../hooks/useInitiatives";

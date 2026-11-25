@@ -24,7 +24,7 @@ import { encryptRefreshToken, decryptRefreshToken } from "./googleOAuth";
 import {
   APP_DESCRIPTORS,
   APP_INSTALLATION_APPS,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/appDescriptors";
 
 // Token connectors reuse the OAuth connectors' table, crypto and membership
 // rule; these tests pin what is theirs: the config each provider accepts, the

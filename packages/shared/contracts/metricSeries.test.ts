@@ -10,7 +10,7 @@ import {
   paceWords,
   parseMetricSpec,
   type MetricSeries,
-} from "./initiative";
+} from "@codecast/goals/initiative";
 import {
   METRIC_CLIMB_GUIDANCE,
   experimentDue,

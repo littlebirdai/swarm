@@ -12,7 +12,7 @@ import {
   withWriteRetry,
   type Post,
 } from "./envCommand";
-import { compactCasePages } from "@codecast/shared/contracts/envs";
+import { compactCasePages } from "@codecast/goals/envs";
 
 const git = (dir: string, ...args: string[]) =>
   execFileSync(

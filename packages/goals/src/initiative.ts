@@ -88,7 +88,7 @@ export type InitiativeMetric = {
   /** A slug (metricKeyOf(name)); the scoreboard's key. */
   key: string;
   name: string;
-  /** The number to reach, as written: "1000", "$50k", "< 5%", "at least 40", or a dated trajectory "at least 51.2%@2026-11-16 59.1%@2026-12-28" (contracts/metricStanding parseMetricTarget); any other words read as unknown. */
+  /** The number to reach, as written: "1000", "$50k", "< 5%", "at least 40", or a dated trajectory "at least 51.2%@2026-11-16 59.1%@2026-12-28" (@codecast/goals/metricStanding parseMetricTarget); any other words read as unknown. */
   target: string;
   /**
    * The live series it reads (a metric watch's short id, `mw-N`): its latest
@@ -102,7 +102,7 @@ export type InitiativeMetric = {
    * rest, and never the number a role climbs.
    */
   guardrail?: boolean;
-  /** Read over this many periods ("3w", "14d") rather than one value (contracts/metricStanding). */
+  /** Read over this many periods ("3w", "14d") rather than one value (@codecast/goals/metricStanding). */
   window?: string;
   /** Its noise model: "poisson", "binomial:<n or mw-N>", "aa:<sd>". With a window, met means the whole 80% band clears the target. */
   noise?: string;

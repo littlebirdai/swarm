@@ -5,7 +5,7 @@ import type { Doc } from "../_generated/dataModel";
 import type { FetchLike } from "../tokenConnectors";
 import { tokenHttp } from "./tokenHttp";
 import { signatureHeaders } from "./codecastSigning";
-import { APP_LIMITS } from "@codecast/shared/contracts/appConnector";
+import { APP_LIMITS } from "@codecast/connectors/appConnector";
 
 export interface AppHttpResult {
   ok: boolean;

@@ -224,7 +224,7 @@ method, pathAndQuery, body, header })` (any server) checks the signature, a
 5 minute timestamp window, that the nonce was not seen before (an in-memory
 memory per process), and that `Codecast-Source` and `Codecast-Workspace` name
 a source the codecast.json lists. So an app needs no shared secret. The scheme
-is codecast `packages/shared/contracts/codecastSignature.ts`; codecast tests
+is codecast `packages/connectors/src/codecastSignature.ts`; codecast tests
 this copy against its committed vectors.
 
 ```ts

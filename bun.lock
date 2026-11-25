@@ -36,6 +36,7 @@
         "@codecast/capabilities": "workspace:*",
         "@codecast/cloud-hosts": "workspace:*",
         "@codecast/comments": "workspace:*",
+        "@codecast/connectors": "workspace:*",
         "@codecast/convex-errors": "workspace:*",
         "@codecast/daemon": "workspace:*",
         "@codecast/decisions": "workspace:*",
@@ -47,6 +48,7 @@
         "@codecast/fence": "workspace:*",
         "@codecast/files": "workspace:*",
         "@codecast/flows": "workspace:*",
+        "@codecast/goals": "workspace:*",
         "@codecast/ingest": "workspace:*",
         "@codecast/keyboard": "workspace:*",
         "@codecast/machines": "workspace:*",
@@ -114,6 +116,7 @@
         "@codecast/entities": "workspace:*",
         "@codecast/evals-api": "workspace:*",
         "@codecast/fence": "workspace:*",
+        "@codecast/goals": "workspace:*",
         "@codecast/org": "workspace:*",
         "@codecast/policy": "workspace:*",
         "@codecast/shared": "workspace:*",
@@ -147,6 +150,7 @@
         "@codecast/entities": "workspace:*",
         "@codecast/files": "workspace:*",
         "@codecast/flows": "workspace:*",
+        "@codecast/goals": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/hosted-assistant": "workspace:*",
         "@codecast/ingest": "workspace:*",
@@ -280,6 +284,7 @@
         "@codecast/chat": "workspace:*",
         "@codecast/cloud-hosts": "workspace:*",
         "@codecast/comments": "workspace:*",
+        "@codecast/connectors": "workspace:*",
         "@codecast/convex-errors": "workspace:*",
         "@codecast/daemon": "workspace:*",
         "@codecast/decisions": "workspace:*",
@@ -289,6 +294,7 @@
         "@codecast/entities": "workspace:*",
         "@codecast/fence": "workspace:*",
         "@codecast/flows": "workspace:*",
+        "@codecast/goals": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/hosted-assistant": "workspace:*",
         "@codecast/ingest": "workspace:*",
@@ -366,6 +372,7 @@
         "@codecast/chat": "workspace:*",
         "@codecast/cloud-hosts": "workspace:*",
         "@codecast/comments": "workspace:*",
+        "@codecast/connectors": "workspace:*",
         "@codecast/convex": "workspace:*",
         "@codecast/convex-errors": "workspace:*",
         "@codecast/daemon": "workspace:*",
@@ -378,6 +385,7 @@
         "@codecast/fence": "workspace:*",
         "@codecast/files": "workspace:*",
         "@codecast/flows": "workspace:*",
+        "@codecast/goals": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/hosted-assistant": "workspace:*",
         "@codecast/ingest": "workspace:*",
@@ -663,6 +671,17 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/connectors": {
+      "name": "@codecast/connectors",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/ingest": "workspace:*",
+        "@codecast/time": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/convex-errors": {
       "name": "@codecast/convex-errors",
       "version": "0.0.1",
@@ -759,6 +778,17 @@
     "packages/flows": {
       "name": "@codecast/flows",
       "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "^1.3.3",
+      },
+    },
+    "packages/goals": {
+      "name": "@codecast/goals",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/chat": "workspace:*",
+        "@codecast/entities": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "^1.3.3",
       },
@@ -940,8 +970,8 @@
         "@codecast/calls": "workspace:*",
         "@codecast/capabilities": "workspace:*",
         "@codecast/changes": "workspace:*",
-        "@codecast/chat": "workspace:*",
         "@codecast/cloud-hosts": "workspace:*",
+        "@codecast/connectors": "workspace:*",
         "@codecast/daemon": "workspace:*",
         "@codecast/decisions": "workspace:*",
         "@codecast/deploys": "workspace:*",
@@ -949,6 +979,7 @@
         "@codecast/entities": "workspace:*",
         "@codecast/fence": "workspace:*",
         "@codecast/flows": "workspace:*",
+        "@codecast/goals": "workspace:*",
         "@codecast/hash": "workspace:*",
         "@codecast/hosted-assistant": "workspace:*",
         "@codecast/ingest": "workspace:*",
@@ -1415,6 +1446,8 @@
 
     "@codecast/comments": ["@codecast/comments@workspace:packages/comments"],
 
+    "@codecast/connectors": ["@codecast/connectors@workspace:packages/connectors"],
+
     "@codecast/convex": ["@codecast/convex@workspace:apps/server"],
 
     "@codecast/convex-errors": ["@codecast/convex-errors@workspace:packages/convex-errors"],
@@ -1444,6 +1477,8 @@
     "@codecast/files": ["@codecast/files@workspace:packages/files"],
 
     "@codecast/flows": ["@codecast/flows@workspace:packages/flows"],
+
+    "@codecast/goals": ["@codecast/goals@workspace:packages/goals"],
 
     "@codecast/hash": ["@codecast/hash@workspace:packages/hash"],
 

@@ -16,7 +16,7 @@ import {
   type GoalsBrief,
   type GroundCauseInput,
   type GroundFields,
-} from "../../../../../packages/shared/contracts/goalsBrief";
+} from "@codecast/goals/goalsBrief";
 import { castJson } from "../../adapters/cast";
 import { toConvoMessages } from "../../adapters/convo";
 import { gate, type Captured, type SurfaceImpl } from "../../surface";

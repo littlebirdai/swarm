@@ -773,7 +773,7 @@ export const CLIENT_SYNC_REGISTRY = {
   // initiatives.webList returns the complete visible set of the workspace, so
   // a row absent from a push is gone. A workspace holds tens of them, which is
   // why they ride one live query and not the sync log. The row is raw
-  // (shared/contracts/initiative): progress, leads and sub initiatives are
+  // (@codecast/goals/initiative): progress, leads and sub initiatives are
   // derived at render. A create paints a stub keyed by `client_key`; the
   // server row that carries the same key supersedes it.
   initiatives: {

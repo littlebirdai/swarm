@@ -20,7 +20,7 @@ import {
   GROUND_OUTPUT_SCHEMA,
   GROUND_PROJECT_FIELD,
   GROUND_PURPOSE,
-} from "@codecast/shared/contracts/goalsBrief";
+} from "@codecast/goals/goalsBrief";
 import { HEAD_OF_PEOPLE_HANDLE } from "@codecast/org/orgLead";
 import {
   admissionWait,

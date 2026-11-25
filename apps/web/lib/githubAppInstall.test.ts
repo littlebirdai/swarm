@@ -11,7 +11,7 @@ import { describe, expect, test } from "bun:test";
 import {
   parseGithubAppInstallState,
   newGithubAppInstallNonce,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/githubAppInstallState";
 import { githubAppInstallTeam } from "./githubAppInstall";
 
 describe("githubAppInstallTeam", () => {

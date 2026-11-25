@@ -3,7 +3,7 @@
 // owns first, then the ones its projects contribute to. Pure over store rows
 // and derived at render, like the rest of the scope (lib/roleScope): nothing
 // here is stored, so setting an owner or adding a project shows at once.
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 
 export type RoleInitiative = {
   id: string;

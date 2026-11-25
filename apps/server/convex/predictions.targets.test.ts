@@ -12,7 +12,7 @@ import {
 } from "./predictions";
 import { targetSense } from "./lib/predictionTargets";
 import { goalPredictions } from "./lib/goalPredictions";
-import { compactCases } from "@codecast/shared/contracts/envs";
+import { compactCases } from "@codecast/goals/envs";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;

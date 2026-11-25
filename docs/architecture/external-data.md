@@ -113,7 +113,7 @@ bundle. Only the hash is stored; the key is shown once and can be rotated.
 **Committed config: codecast.json.** A product sets up codecast with no env
 vars and no shared secret in its own deployment. Everything it needs is in a
 committed `codecast.json` (schema and merge in
-`packages/shared/contracts/codecastConfig.ts`), which holds nothing secret:
+`packages/connectors/src/codecastConfig.ts`), which holds nothing secret:
 
 ```
 {
@@ -952,7 +952,7 @@ the app deploys, `cast connector refresh` recovers it.
 **Signed requests.** Codecast signs every request it makes to an app
 connector (the manifest, `read`, `do`, watch polls) with one Ed25519 key, so a
 product verifies codecast with no shared secret. The scheme is one module,
-`packages/shared/contracts/codecastSignature.ts`. Headers:
+`packages/connectors/src/codecastSignature.ts`. Headers:
 `Codecast-Signature` (base64url Ed25519 signature), `Codecast-Key-Id`,
 `Codecast-Timestamp` (unix seconds), `Codecast-Source` (src-N),
 `Codecast-Workspace` (`team:<id>` or `user:<id>`), `Codecast-Nonce` (16
@@ -992,7 +992,7 @@ its codecast.json lists. Two copies verify: `@platform/analytics/codecast-verify
 `verifyParts` for any server; fetches and caches the key set) for any product,
 and Union's inline copy (`outreach/backend/src/lib/codecastSignature.ts`,
 which takes no dependency). Both are drift tested against the committed
-vectors (`contracts/__fixtures__/codecastSignature.vectors.json`) in
+vectors (`packages/connectors/src/__fixtures__/codecastSignature.vectors.json`) in
 `codecastSignature.drift.test.ts`; Union's half runs where that checkout
 exists and is skipped in CI. A path rewriting proxy in front of an app must
 hand its verifier the path codecast requested.
@@ -1017,7 +1017,7 @@ must never approve its own writes. A grant an api token made before this rule
 counts for nothing. `cast connector grant|revoke` only print the page where a
 person does it (`/ops/apps?app=<src-N>`) and exit non-zero. Every outside write,
 an app's `do` and a Sentry status change alike, passes the one check
-`writeRefusal` (`@codecast/shared/contracts/appConnector`), and a refusal names
+`writeRefusal` (`@codecast/connectors/appConnector`), and a refusal names
 that page.
 
 - Watches turn polled readers into `check` or `job` groups, which is how Union's invariants and job failures arrive without codecast reading its database. A watch that fails (an HTTP error, rows that do not map) records `last_error` in `watch_state` and an error row in the call audit, and nothing else: the source stays `active`, no group or transition is written, no trigger fires. A lost connection is different (X1, Lost connections): no connection, or a 401 or 403 from the app, stops the source in `error` after at most one audited call, and the watches are not polled again until a connection is stored or a person resumes it.

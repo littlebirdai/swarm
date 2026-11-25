@@ -17,7 +17,7 @@ import {
   APP_DESCRIPTORS,
   type AppConnectionScope,
   type AppConnectionsResult,
-} from "@codecast/shared/contracts";
+} from "@codecast/connectors/appDescriptors";
 import { useOpsScope, useOpsSources } from "../../hooks/useSyncOps";
 import { useSettingsData } from "../../hooks/useSyncSettings";
 import { useWatchEffect } from "../../hooks/useWatchEffect";

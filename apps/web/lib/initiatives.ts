@@ -9,7 +9,7 @@ import type {
   InitiativeOwner,
   InitiativeRow,
   InitiativeStatus,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import {
   projectTaskCounts,
   type ProjectProgress,

@@ -3,7 +3,7 @@ import {
   generateSigningKey,
   pathAndQueryOf,
   verifyCodecastRequest,
-} from "@codecast/shared/contracts/codecastSignature";
+} from "@codecast/connectors/codecastSignature";
 import {
   SIGNING_NOT_CONFIGURED,
   publishedKeys,

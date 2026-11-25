@@ -7,7 +7,7 @@
 // Run: bun test apps/web/components/integrations/TokenConnectForm.mount.test.tsx
 import { test } from "bun:test";
 import assert from "node:assert/strict";
-import { APP_DESCRIPTORS } from "@codecast/shared/contracts";
+import { APP_DESCRIPTORS } from "@codecast/connectors/appDescriptors";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
 test("token connect form", async () => {

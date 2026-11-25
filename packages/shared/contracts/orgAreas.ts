@@ -10,7 +10,7 @@ import type {
   InitiativeLink,
   InitiativeRow,
   MetricReading,
-} from "./initiative";
+} from "@codecast/goals/initiative";
 
 export const AREA_STATUSES = [
   "down",

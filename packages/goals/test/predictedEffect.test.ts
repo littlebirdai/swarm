@@ -18,7 +18,7 @@ import {
   predictionWindows,
   realisedLine,
   type RealisedEffect,
-} from "./predictedEffect";
+} from "../src/predictedEffect";
 
 const DAY = 86_400_000;
 const NOW = Date.parse("2026-11-17T12:00:00Z");

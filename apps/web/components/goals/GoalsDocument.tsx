@@ -29,7 +29,7 @@ import {
   metricTrends,
   type InitiativeMetric,
   type InitiativeRow,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { useMetricSeries } from "../../hooks/useMetricSeries";
 import { MetricsEditor } from "../initiatives/MetricsEditor";
 import { objectHref } from "@codecast/entities";

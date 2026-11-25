@@ -238,7 +238,7 @@ who may post an update: the owner, the owning role's standing session, or a
 workspace admin. A reported number is not an org change and writes no log
 row.
 
-**Read against the target.** `metricReading` (shared/contracts/initiative)
+**Read against the target.** `metricReading` (@codecast/goals/initiative)
 reads a value against its target in the target's own direction ("1,000" is
 reached; "under 5%" is stayed below) and answers `met`, `behind` or
 `unknown`, with a progress fraction toward a reach target;
@@ -369,7 +369,7 @@ context. Nothing else is added: progress is still derived from tasks, health
 is still the owner's last word, standing is still the number read against its
 target.
 
-**A source** (`IntentSource`, shared/contracts/initiative) answers "who said
+**A source** (`IntentSource`, @codecast/goals/initiative) answers "who said
 this and where": `{ kind, ref?, quote?, by?, at? }`. `kind` is `call`, `chat`,
 `doc`, `session`, `task`, `plan`, `link` or `note`; `ref` is the object's own
 address (a call id with an optional line, a chat message id, a doc id, a
@@ -407,7 +407,7 @@ goal never overwrite each other's list with a stale copy. `score_history` is
 written only by `performReportMetrics`, in the same patch as `scoreboard`.
 
 **One reducer.** The rules of an op live once, in `applyRecordOp`
-(shared/contracts/initiative), and the server and the web store both call it:
+(@codecast/goals/initiative), and the server and the web store both call it:
 the length of each written part, the key of a new entry (a slug of its words,
 numbered on a clash), the address rules of a source, and the times (a real
 moment, never 0 or NaN; a question and a decision always keep their date).

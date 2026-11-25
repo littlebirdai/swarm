@@ -1,7 +1,7 @@
 // `cast goals`: the workspace's goals as one document the ground node reads
 // (docs/architecture/the-line-end-to-end.md LE5), and the ground fields
 // `cast task update` writes back. The rows come from /cli/goals/brief
-// (convex/goals.ts); the rendering is shared/contracts/goalsBrief. With a
+// (convex/goals.ts); the rendering is @codecast/goals/goalsBrief. With a
 // project (--project, else the repo profile's `[line] project`) the brief is
 // that project's charter and the initiatives that carry it (line-profile.md
 // LP1). With --task the brief is the one that cause is grounded against
@@ -13,10 +13,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Command } from "commander";
-import {
-  renderGoalsBrief,
-  type GoalsBrief,
-} from "@codecast/shared/contracts/goalsBrief";
+import { renderGoalsBrief, type GoalsBrief } from "@codecast/goals/goalsBrief";
 // The shared set ships inside the CLI, so every project reads the same one.
 import SHARED_PRINCIPLES from "../../../docs/principles.md" with { type: "text" };
 import { apiPost, type PublishDeps } from "./castApi.js";

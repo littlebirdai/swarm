@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import { byListOrder } from "../../lib/initiatives";
 import {
   canPlace,

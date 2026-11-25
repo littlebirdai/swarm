@@ -23,7 +23,7 @@ import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { hashToken } from "./apiTokens";
 import { listConnections } from "./appConnections";
-import { APP_DESCRIPTORS, APP_IDS } from "@codecast/shared/contracts";
+import { APP_DESCRIPTORS, APP_IDS } from "@codecast/connectors/appDescriptors";
 
 const OWNER = "u_owner";
 const MATE = "u_mate";

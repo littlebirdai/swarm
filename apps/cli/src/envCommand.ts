@@ -28,7 +28,7 @@ import {
   type EnvSplit,
   type EnvStanding,
   type GoalEnv,
-} from "@codecast/shared/contracts/envs";
+} from "@codecast/goals/envs";
 import { apiPost, type PublishDeps } from "./castApi.js";
 import { commandGroup } from "./commandGroups.js";
 import { c } from "./colors.js";
@@ -50,10 +50,7 @@ import {
   withCaseFile,
   type CaseSetLog,
 } from "./envCases.js";
-import {
-  CASES_FILE_ENV,
-  isCaseSetSplit,
-} from "@codecast/shared/contracts/envCases";
+import { CASES_FILE_ENV, isCaseSetSplit } from "@codecast/goals/envCases";
 
 /** Set on a dev run told to read the runner's own local corpus instead of codecast's dev set. */
 export const LOCAL_CASES_ENV = "CODECAST_ENV_LOCAL_CASES";
@@ -284,7 +281,7 @@ export async function runEnv(
       ms,
     };
   const result = parsed.result;
-  // A held case is filed by a hash of its id, never its id (contracts/envs heldCaseId).
+  // A held case is filed by a hash of its id, never its id (@codecast/goals/envs heldCaseId).
   // A runner that already files hashed ids (h: and 16 hex, the same hash) keeps them.
   if (result.split === "held")
     result.cases = await Promise.all(
@@ -389,7 +386,7 @@ export async function withWriteRetry<T>(
 
 /**
  * File a result. The server reads the same JSON again. Its cases are filed in
- * pages (contracts/envs compactCasePages): the record carries the first and
+ * pages (@codecast/goals/envs compactCasePages): the record carries the first and
  * each later page is its own small write, so a large attempt never trips
  * Convex's write-rate limit, and every write retries a refusal that passes.
  * One client key makes the record safe to repeat; a page already written is a no-op.

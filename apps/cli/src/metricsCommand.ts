@@ -31,7 +31,7 @@ import {
 import { stdinText } from "./sendBody.js";
 import { formatDuration, parseDuration } from "@codecast/time";
 import type { WatchDirection, WatchKind } from "@codecast/ingest/ingest";
-import { formatSeriesValue } from "@codecast/shared/contracts/initiative";
+import { formatSeriesValue } from "@codecast/goals/initiative";
 
 export interface WatchRow {
   _id: string;

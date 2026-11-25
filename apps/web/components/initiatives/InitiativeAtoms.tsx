@@ -25,7 +25,7 @@ import {
   STANDING_WORD,
   standingWord,
   type WindowRead,
-} from "@codecast/shared/contracts/metricStanding";
+} from "@codecast/goals/metricStanding";
 import {
   INITIATIVE_HEALTH_LABEL,
   INITIATIVE_STATUS_LABEL,
@@ -46,7 +46,7 @@ import {
   type MetricReading,
   type MetricStanding,
   type MetricTrend,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { memberHandle } from "@codecast/chat";
 import {
   stripMachineText,

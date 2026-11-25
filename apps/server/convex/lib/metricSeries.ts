@@ -1,4 +1,4 @@
-// The live series a goal's or a project's numbers read (contracts/initiative
+// The live series a goal's or a project's numbers read (@codecast/goals/initiative
 // InitiativeMetric.series): metric watches named by short id, held to the
 // row's own workspace. One validator for the stored metric shape (initiatives
 // and projects share it), one check a write passes, and one lookup every
@@ -10,7 +10,7 @@ import {
   metricKeyOf,
   type InitiativeMetric,
   type MetricSeries,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import {
   definitionOf,
   metricDenominatorRef,
@@ -23,7 +23,7 @@ import {
   windowPlan,
   windowSamples,
   windowSlotTimes,
-} from "@codecast/shared/contracts/metricStanding";
+} from "@codecast/goals/metricStanding";
 
 export const metricValidator = v.object({
   key: v.string(),
@@ -61,7 +61,7 @@ export function cleanMetrics(raw: MetricArg[]): InitiativeMetric[] {
   const metrics: InitiativeMetric[] = [];
   for (const m of raw) {
     const name = clean(String(m.name ?? ""), 80);
-    // A dated trajectory reads whole (contracts/metricStanding parseMetricTarget); any other target keeps the short cap.
+    // A dated trajectory reads whole (@codecast/goals/metricStanding parseMetricTarget); any other target keeps the short cap.
     const target = clean(
       String(m.target ?? ""),
       parseMetricTarget(String(m.target ?? ""))?.kind === "trajectory"

@@ -26,7 +26,7 @@ import {
   Flag,
   Phone,
 } from "lucide-react";
-import type { InitiativeRow } from "@codecast/shared/contracts/initiative";
+import type { InitiativeRow } from "@codecast/goals/initiative";
 import { byListOrder } from "./initiatives";
 import { objectHref } from "./entityLinks";
 import {

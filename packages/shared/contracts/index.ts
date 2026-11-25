@@ -31,11 +31,6 @@ export * from "./machineMessages";
 export * from "./sessionEscalation";
 export * from "./vaultMessages";
 export * from "./decisionAnswers";
-// The connectable-apps catalog (the /capabilities Apps tab): Convex answers
-// connection state in this vocabulary and the web renders it, so both need the
-// one definition. Deep paths do not resolve past the exports map — barrel only.
-export * from "./appDescriptors";
-export * from "./githubAppInstallState";
 // The cross-entity review queue row — one shape for "what is waiting on a
 // human", fed by comment threads, page comments, and workflow gates alike.
 // The inbox projection: the bucket alphabet, the ONE placement function the

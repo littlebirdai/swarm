@@ -27,14 +27,14 @@ import {
   type InitiativeRow,
   type InitiativeUpdateHealth,
   type InitiativeUpdateRow,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { objectHref } from "@codecast/entities";
 import {
   useInboxStore,
   type PlanItem,
   type ProjectItem,
 } from "../../store/inboxStore";
-import { openPlansOf } from "@codecast/shared/contracts/openPlans";
+import { openPlansOf } from "@codecast/goals/openPlans";
 import { formatRelative } from "@codecast/time";
 import { EntityIdPill } from "../EntityIdPill";
 import { undoAsOne } from "../../store/undoActions";

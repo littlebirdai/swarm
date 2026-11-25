@@ -10,8 +10,8 @@ export const meta: SurfaceMeta = {
   // ground.md carries goalsBrief.ts's three blocks verbatim (groundPrompt.test.ts), so a change to the node's text is a change to this surface's definition.
   sources: surfaceSources(
     "ground",
-    "packages/shared/contracts/goalsBrief.ts",
-    "packages/shared/contracts/initiative.ts",
+    "packages/goals/src/goalsBrief.ts",
+    "packages/goals/src/initiative.ts",
     "apps/server/convex/lineGround.ts",
     "apps/server/convex/lib/anthropic.ts",
     "apps/cli/src/workflow/templates/line/ground.md",

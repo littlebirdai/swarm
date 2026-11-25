@@ -1,5 +1,5 @@
 // Where a predicted effect is read, and how small a change it can see there
-// (ct-96177 follow-up, shared/contracts/predictedEffect.ts). A target is a
+// (ct-96177 follow-up, packages/goals/src/predictedEffect.ts). A target is a
 // goal metric (`in-N:key`), a metric series (`mw-N`) or an environment
 // (`env:<product>/<name>`). The level and detectable change come from what the
 // goal's own surfaces already read: a metric's windowed reading and its noise
@@ -11,20 +11,20 @@ import {
   metricReading,
   type InitiativeMetric,
   type MetricSeries,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import {
   metricPeriodMs,
   parseMetricWindow,
   shareScale,
   windowSlotTimes,
-} from "@codecast/shared/contracts/metricStanding";
+} from "@codecast/goals/metricStanding";
 import {
   envMde,
   readMde,
   targetKind,
   PREDICTION_READ,
   type PredictionTarget,
-} from "@codecast/shared/contracts/predictedEffect";
+} from "@codecast/goals/predictedEffect";
 import { seriesLookup, watchIn } from "./metricSeries";
 
 const DAY = 86_400_000;

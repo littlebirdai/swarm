@@ -7,7 +7,7 @@ import {
   paceWords,
   type InitiativeMetric,
   type MetricSeries,
-} from "./initiative";
+} from "../src/initiative";
 import {
   BAND_Z,
   doneWhenPredicate,
@@ -30,8 +30,8 @@ import {
   tQuantile,
   wilsonBand,
   windowSamples,
-} from "./metricStanding";
-import { metricDirection } from "./initiative";
+} from "../src/metricStanding";
+import { metricDirection } from "../src/initiative";
 
 const DAY = 86_400_000;
 const WEEK = 7 * DAY;

@@ -5,7 +5,7 @@
 import type { Cand, ClimbState, Cut } from "./engine.js";
 import { sign } from "./engine.js";
 import { baseWords } from "./base.js";
-import { hypothesisVerdict } from "@codecast/shared/contracts/climb";
+import { hypothesisVerdict } from "@codecast/goals/climb";
 
 /** What the climb has filed so far, in one line: what a failed station still leaves on the record. */
 export function filedLine(s: ClimbState | null): string {

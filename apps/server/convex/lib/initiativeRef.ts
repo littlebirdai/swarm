@@ -1,4 +1,4 @@
-import { normalizeInitiativeRef } from "@codecast/shared/contracts/initiative";
+import { normalizeInitiativeRef } from "@codecast/goals/initiative";
 import type { Id } from "../_generated/dataModel";
 import { canAccessInitiative } from "./access";
 import { notFound } from "./auth";

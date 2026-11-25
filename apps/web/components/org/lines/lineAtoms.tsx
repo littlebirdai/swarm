@@ -14,7 +14,7 @@ import {
   type InitiativeOwner,
   type InitiativeRow,
   type InitiativeStatus,
-} from "@codecast/shared/contracts/initiative";
+} from "@codecast/goals/initiative";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useRolesAndPeopleOptions } from "../../../hooks/useRolesAndPeopleOptions";
 import { useTeamRosterIdentity } from "../../../hooks/useTeamRoster";

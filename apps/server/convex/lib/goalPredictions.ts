@@ -10,7 +10,7 @@ import {
   type PredictedEffect,
   type PredictionTally,
   type RealisedEffect,
-} from "@codecast/shared/contracts/predictedEffect";
+} from "@codecast/goals/predictedEffect";
 import { seriesLookup, watchIn } from "./metricSeries";
 
 const GOAL_LIST_MAX = 200;

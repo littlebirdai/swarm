@@ -1,12 +1,12 @@
 "use client";
 // /view?ref=union:conversation/<id>@<iso>: one connected app's own screen of
-// one thing, whole, on a page of its own (contracts/productView.ts). It is
+// one thing, whole, on a page of its own (packages/connectors/src/productView.ts). It is
 // where a link to a product view lands when the page holding the link cannot
 // frame the view itself: a published decision page is sandboxed and holds no
 // viewer, so its "open the conversation" links come here (the decision kit's
 // <dk-view>, docs/line/decision-kit/README.md).
 import { useSearchParams } from "next/navigation";
-import { parseProductViewRef } from "@codecast/shared/contracts/productView";
+import { parseProductViewRef } from "@codecast/connectors/productView";
 import { AuthGuard } from "../../components/AuthGuard";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
 import { ProductView } from "../../components/line/widgets/ProductView";
