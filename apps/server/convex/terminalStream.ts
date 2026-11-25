@@ -42,6 +42,7 @@
 import { v } from "convex/values";
 import { query, mutation, internalMutation } from "./functions";
 import { requireUserOrToken } from "./lib/auth";
+import { terminalPublisher } from "./lib/terminalPublisher";
 import { resolveReachableRunnerDevice } from "./devices";
 import {
   PANE_COMMAND_DEBOUNCE_MS,
@@ -282,7 +283,13 @@ export const cliPushClipboard = mutation({
     text: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireUserOrToken(ctx, args.api_token);
+    const userId = await terminalPublisher(
+      ctx,
+      args.api_token,
+      args.device_id,
+      true,
+    );
+    if (!userId) return { ok: false as const };
     if (!isValidPaneTarget(args.target)) throw new Error("Invalid pane target");
     const row = await findRow(ctx, userId, args.device_id, args.target);
     const now = Date.now();
@@ -329,7 +336,13 @@ export const cliPushFrame = mutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireUserOrToken(ctx, args.api_token);
+    const userId = await terminalPublisher(
+      ctx,
+      args.api_token,
+      args.device_id,
+      true,
+    );
+    if (!userId) return { watch_until: 0, stop: true, fast: false };
     if (!isValidPaneTarget(args.target)) throw new Error("Invalid pane target");
 
     const now = Date.now();

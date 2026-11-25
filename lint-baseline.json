@@ -3257,11 +3257,11 @@
   "apps/cli/src/keystrokeInference.ts": {
     "swarm/no-comments": 58
   },
+  "apps/cli/src/known-value-redaction.ts": {
+    "swarm/no-comments": 107
+  },
   "apps/cli/src/knownValueRedaction.test.ts": {
     "swarm/no-comments": 10
-  },
-  "apps/cli/src/knownValueRedaction.ts": {
-    "swarm/no-comments": 107
   },
   "apps/cli/src/land/attribute.test.ts": {
     "swarm/no-comments": 4
@@ -3548,12 +3548,12 @@
   "apps/cli/src/machine-key.test.ts": {
     "swarm/no-comments": 10
   },
-  "apps/cli/src/machineCaps.ts": {
-    "swarm/no-comments": 2
-  },
   "apps/cli/src/machine-key.ts": {
     "swarm/no-blocking-child-process-call": 2,
     "swarm/no-comments": 16
+  },
+  "apps/cli/src/machineCaps.ts": {
+    "swarm/no-comments": 2
   },
   "apps/cli/src/machineLoad.ts": {
     "swarm/no-comments": 2
@@ -4300,11 +4300,11 @@
   "apps/cli/src/secrets/projectMap.ts": {
     "swarm/no-comments": 15
   },
+  "apps/cli/src/secrets/redaction-source.ts": {
+    "swarm/no-comments": 18
+  },
   "apps/cli/src/secrets/redactionSource.test.ts": {
     "swarm/no-comments": 4
-  },
-  "apps/cli/src/secrets/redactionSource.ts": {
-    "swarm/no-comments": 19
   },
   "apps/cli/src/secrets/signin.test.ts": {
     "swarm/no-comments": 2
@@ -4758,14 +4758,14 @@
   "apps/cli/src/terminal/daemon-bridge.ts": {
     "swarm/no-comments": 51
   },
-  "apps/cli/src/terminal/paneStream.clipboard.test.ts": {
-    "swarm/no-comments": 2
-  },
   "apps/cli/src/terminal/paneStream.test.ts": {
     "swarm/no-comments": 38
   },
   "apps/cli/src/terminal/paneStream.ts": {
     "swarm/no-comments": 108
+  },
+  "apps/cli/src/terminal/paneStream.clipboard.test.ts": {
+    "swarm/no-comments": 2
   },
   "apps/cli/src/terminal/terminalColors.test.ts": {
     "swarm/no-comments": 5
@@ -10384,6 +10384,9 @@
   "apps/server/convex/lib/profileActivity.ts": {
     "swarm/no-comments": 21
   },
+  "apps/server/convex/lib/project-task-counts.test.ts": {
+    "swarm/no-comments": 3
+  },
   "apps/server/convex/lib/projectMainSession.ts": {
     "swarm/no-comments": 4
   },
@@ -10395,9 +10398,6 @@
   },
   "apps/server/convex/lib/projectShortId.ts": {
     "swarm/no-comments": 4
-  },
-  "apps/server/convex/lib/project-task-counts.test.ts": {
-    "swarm/no-comments": 3
   },
   "apps/server/convex/lib/projectTaskCounts.ts": {
     "swarm/no-comments": 19
@@ -12397,6 +12397,9 @@
   "apps/server/convex/sync-log.test.ts": {
     "swarm/no-comments": 16
   },
+  "apps/server/convex/sync-outbox.e2e.test.ts": {
+    "swarm/no-comments": 9
+  },
   "apps/server/convex/syncLog.ts": {
     "swarm/no-comments": 184
   },
@@ -12405,9 +12408,6 @@
   },
   "apps/server/convex/syncLogPrune.ts": {
     "swarm/no-comments": 69
-  },
-  "apps/server/convex/sync-outbox.e2e.test.ts": {
-    "swarm/no-comments": 9
   },
   "apps/server/convex/syncOutbox.ts": {
     "swarm/no-comments": 7
@@ -12634,11 +12634,11 @@
   "apps/server/convex/teams.viewing.test.ts": {
     "swarm/no-comments": 12
   },
+  "apps/server/convex/terminal-stream.clipboard.test.ts": {
+    "swarm/no-comments": 3
+  },
   "apps/server/convex/terminalStream.agentBox.test.ts": {
     "swarm/no-comments": 10
-  },
-  "apps/server/convex/terminalStream.clipboard.test.ts": {
-    "swarm/no-comments": 3
   },
   "apps/server/convex/terminalStream.ts": {
     "swarm/no-comments": 80

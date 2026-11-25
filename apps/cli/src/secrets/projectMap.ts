@@ -20,7 +20,7 @@ import { MANIFEST_REL_PATH, parseManifest } from "../workspace/manifest.js";
 import type { VaultBinding } from "../workspace/types.js";
 import { isNeedsApproval } from "./approval.js";
 import { materialize, type Materialized, type ReadSecret } from "./inject.js";
-import { refreshDaemonRedaction } from "./redactionSource.js";
+import { refreshDaemonRedaction } from "./redaction-source.js";
 
 export type VaultMap = Record<string, VaultBinding>;
 

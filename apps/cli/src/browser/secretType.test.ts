@@ -399,7 +399,8 @@ describe("typeSecret", () => {
 describe("a typed value is one the transcript redaction scrubs", () => {
   test("the value valueFor types is among the Vault's redaction values, and redactSecrets removes it", async () => {
     const { redactionValuesOf } = await import("@codecast/secrets/secrets");
-    const { setKnownValuesForTest } = await import("../knownValueRedaction.js");
+    const { setKnownValuesForTest } =
+      await import("../known-value-redaction.js");
     const { redactSecrets } = await import("../secretRedaction.js");
     const s = login({ password: "plain words pw 7", username: "ada" });
     const typed = await valueFor(s, "password");

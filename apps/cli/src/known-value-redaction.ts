@@ -7,7 +7,7 @@
 // secret values present on this machine (its environment, codecast's own
 // config, the standard credential files, and the .env files of live sessions'
 // working directories), plus every Vault value its user can read
-// (secrets/redactionSource.ts), and replaces every exact occurrence before a
+// (secrets/redaction-source.ts), and replaces every exact occurrence before a
 // transcript syncs.
 //
 // Rules:
@@ -438,8 +438,12 @@ export type KnownValueSources = {
   cwds?: () => Iterable<string>;
   /** Decrypted codecast credentials (config.json's auth_token is encrypted at rest). */
   codecastSecrets?: () => Array<string | undefined>;
-  /** Named values held in memory and refreshed off the network: the Vault (secrets/redactionSource.ts). */
-  vault?: { values: () => KnownValue[]; refresh: () => Promise<boolean> };
+  /** Named values held in memory and refreshed off the network: the Vault (secrets/redaction-source.ts). */
+  vault?: {
+    values: () => KnownValue[];
+    refresh: () => Promise<boolean>;
+    ready?: () => boolean;
+  };
   log?: (line: string) => void;
 };
 
@@ -521,6 +525,7 @@ export class KnownValueStore {
   private relisting: Promise<void> | null = null;
   private relistAgain: Promise<void> | null = null;
   private syncReadsBlockedUntil = 0;
+  private matcherReady = false;
 
   constructor(private readonly src: KnownValueSources) {}
 
@@ -659,6 +664,7 @@ export class KnownValueStore {
   }
 
   rebuild(): KnownValueMatcher {
+    this.matcherReady = false;
     let matcher: KnownValueMatcher;
     try {
       matcher = buildMatcher(this.collect());
@@ -670,6 +676,7 @@ export class KnownValueStore {
     }
     const before = active?.size ?? -1;
     active = matcher;
+    this.matcherReady = true;
     if (matcher.size !== before)
       this.src.log?.(
         `[KNOWN-VALUES] ${matcher.size} values from env, credential files, the Vault and ${this.cwds.size} session dirs`,
@@ -702,16 +709,24 @@ export class KnownValueStore {
   }
 
   /** Poll the Vault source and rebuild once its values arrive or change. */
-  refreshVault(): Promise<void> {
-    if (!this.src.vault) return Promise.resolve();
-    return this.src.vault.refresh().then(
-      (changed) => {
-        if (changed && !this.stopped) this.rebuild();
-      },
-      (e) =>
-        this.src.log?.(
-          `[KNOWN-VALUES] vault refresh failed: ${(e as Error)?.message ?? e}`,
-        ),
+  async refreshVault(): Promise<boolean> {
+    try {
+      const changed = await this.src.vault?.refresh();
+      if (!this.stopped && (changed || !this.matcherReady)) this.rebuild();
+    } catch (e) {
+      this.matcherReady = false;
+      this.src.log?.(
+        `[KNOWN-VALUES] vault refresh failed: ${(e as Error)?.message ?? e}`,
+      );
+    }
+    return this.readyForTerminal();
+  }
+
+  readyForTerminal(): boolean {
+    return (
+      !this.stopped &&
+      this.matcherReady &&
+      (!this.src.vault || this.src.vault.ready?.() === true)
     );
   }
 
@@ -766,6 +781,10 @@ export function trackKnownValueCwd(cwd: string | undefined | null): void {
 }
 
 /** Poll the Vault now and rebuild when its values moved; resolves once that landed. No-op outside the daemon. */
-export function refreshKnownVault(): Promise<void> {
-  return store?.refreshVault() ?? Promise.resolve();
+export function refreshKnownVault(): Promise<boolean> {
+  return store?.refreshVault() ?? Promise.resolve(false);
+}
+
+export function terminalRedactionReady(): boolean {
+  return store?.readyForTerminal() ?? false;
 }

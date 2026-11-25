@@ -907,6 +907,9 @@ export async function retireTeam(
   });
   for (const m of memberships)
     await endMembership(ctx, m.user_id, team._id, actorId);
+  await ctx.scheduler.runAfter(0, internal.terminalWatch.purgeTeamRows, {
+    team_id: team._id,
+  });
   // Mappings owned by non-members (a user removed earlier, a mapping created
   // before their membership ended) would otherwise outlive the team.
   const strays = await ctx.db

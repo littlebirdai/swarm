@@ -70,7 +70,7 @@ import {
 } from "./commandPanel";
 import { redactSecrets } from "./redact";
 import { stepTimer } from "./stepTimer";
-import { setKnownValuesForTest } from "./knownValueRedaction";
+import { setKnownValuesForTest } from "./known-value-redaction";
 import {
   CloudAgentHoldError,
   CloudAgentUnsentError,

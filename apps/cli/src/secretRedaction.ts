@@ -20,7 +20,7 @@
 //
 // Shape is not enough for a secret with no recognizable form, so the last step
 // replaces exact occurrences of this machine's real secret values
-// (knownValueRedaction.ts; empty, and a no-op, outside the daemon).
+// (known-value-redaction.ts; empty, and a no-op, outside the daemon).
 //
 // TODO: expose a per-project opt-out flag once config plumbing exists. On by
 // default for now.
@@ -29,7 +29,7 @@ import {
   LABELED_SECRET_SHAPES,
   SECRET_SHAPES,
 } from "@codecast/secrets/secretShapes";
-import { redactKnownValues } from "./knownValueRedaction.js";
+import { redactKnownValues } from "./known-value-redaction.js";
 
 type SecretPattern = { re: RegExp; marker: string };
 

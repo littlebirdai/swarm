@@ -22,7 +22,7 @@ import {
 import {
   knownValueNames,
   setKnownValuesForTest,
-} from "./knownValueRedaction.js";
+} from "./known-value-redaction.js";
 import { createTurnSnapshot } from "./treeSnapshot.js";
 
 // Real git per test, several commands each: 3 to 4s on a loaded machine, so

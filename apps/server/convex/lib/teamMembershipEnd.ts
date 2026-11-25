@@ -10,6 +10,7 @@ import { syncPrimaryOwnerCache } from "../sessionOwners";
 import { withdrawMember } from "./changesDirty";
 import { purgeChatMembership } from "../chat";
 import { removeFromTeamHosts } from "../teamHosts";
+import { deleteTerminalShare, deleteTerminalViewer } from "./terminalWatchRows";
 import { scheduleSeatSync } from "./teamSeats";
 
 // An owner row on a session another account runs steers that account's
@@ -112,6 +113,21 @@ export async function endMembership(
         before: { role: rows[0].role, visibility: rows[0].visibility },
       },
     });
+  }
+  const terminalShares = await ctx.db
+    .query("terminal_watch_shares")
+    .withIndex("by_owner_team", (q: any) =>
+      q.eq("owner_id", userId).eq("team_id", teamId),
+    )
+    .collect();
+  for (const share of terminalShares) await deleteTerminalShare(ctx.db, share);
+  const terminalViews = await ctx.db
+    .query("terminal_watch_viewers")
+    .withIndex("by_user", (q: any) => q.eq("user_id", userId))
+    .collect();
+  for (const view of terminalViews) {
+    if ((await ctx.db.get(view.share))?.team_id === teamId)
+      await deleteTerminalViewer(ctx.db, view);
   }
   await purgeChatMembership(ctx as any, userId, teamId);
   // Their logins on the team's machines go too (locked, home kept).

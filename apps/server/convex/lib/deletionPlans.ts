@@ -21,6 +21,7 @@ import {
   deleteCallFrameShares,
 } from "./callRecordingRuns";
 import { purgeThread } from "../threadReads";
+import { terminalWatchRows, terminalWatchBlocks } from "./terminalWatchRows";
 import { killConversation } from "../conversations";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
@@ -130,6 +131,8 @@ function plans() {
         },
       }),
     ),
+    terminalWatchRows,
+    terminalWatchBlocks,
     // Beyond the ordinary session purge: the content a regulated delete
     // must also reach.
     under("tree_snapshots", "by_conversation_taken", "conversation_id", HEAVY),
@@ -336,6 +339,9 @@ function plans() {
       ],
     }),
     byWorkspace("workflow_runs", "by_workspace_updated"),
+    byTeam("terminal_watch_shares", "by_team", {
+      children: terminalWatchRows.children,
+    }),
     byTeam("decisions", "by_team_id"),
     byWorkspace("decisions", "by_workspace"),
     byTeam("patterns", "by_team_id"),

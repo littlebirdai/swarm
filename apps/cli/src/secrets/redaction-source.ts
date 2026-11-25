@@ -1,4 +1,4 @@
-// Vault values for the daemon's known-value redaction (knownValueRedaction.ts).
+// Vault values for the daemon's known-value redaction (known-value-redaction.ts).
 //
 // Every value the user can read in the Vault, on every machine they run a
 // daemon, so a secret echoed by a command or pasted into a prompt becomes
@@ -15,7 +15,7 @@
 import * as fs from "node:fs";
 import { defaultConfigDir } from "../config/configDir.js";
 import { readHookToken } from "../hookIdentity.js";
-import type { KnownValue } from "../knownValueRedaction.js";
+import type { KnownValue } from "../known-value-redaction.js";
 import { hookPortFile } from "../loopbackIdentity.js";
 
 /** The daemon's loopback route that polls the Vault now (daemon.ts startHookServer); the hook token admits it. */
@@ -56,6 +56,7 @@ export type VaultRedactionDeps = {
 
 export type VaultRedactionSource = {
   values: () => KnownValue[];
+  ready: () => boolean;
   /**
    * Resolves true when the held set changed, after a poll that started no
    * earlier than this call. A call made while a poll runs waits for one more
@@ -66,6 +67,7 @@ export type VaultRedactionSource = {
 };
 
 class Refused extends Error {}
+class Retryable extends Error {}
 
 export function vaultRedactionSource(
   deps: VaultRedactionDeps,
@@ -73,7 +75,16 @@ export function vaultRedactionSource(
   const doFetch = deps.fetch ?? fetch;
   let held: KnownValue[] = [];
   let version: string | null = null;
-  let token: string | null = null;
+  let lastSuccess: number | null = null;
+  let transientFailures = 0;
+  let identity: ReturnType<VaultRedactionDeps["endpoint"]> = null;
+  const matches = (expected: NonNullable<typeof identity>) => {
+    const current = deps.endpoint();
+    return (
+      current?.siteUrl === expected.siteUrl &&
+      current.apiToken === expected.apiToken
+    );
+  };
   let inflight: Promise<boolean> | null = null;
   let queued: Promise<boolean> | null = null;
 
@@ -87,8 +98,12 @@ export function vaultRedactionSource(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ api_token: apiToken }),
       signal: AbortSignal.timeout(20_000),
+    }).catch(() => {
+      throw new Retryable(`Network error from ${urlPath}`);
     });
     if (res.status === 401 || res.status === 403) throw new Refused();
+    if (res.status === 429 || res.status >= 500)
+      throw new Retryable(`HTTP ${res.status} from ${urlPath}`);
     const json = (await res.json().catch(() => null)) as any;
     if (/^Unauthorized/.test(String(json?.error ?? ""))) throw new Refused();
     if (!res.ok || !json || json.error)
@@ -97,6 +112,8 @@ export function vaultRedactionSource(
   };
 
   const clear = (why: string): boolean => {
+    lastSuccess = null;
+    transientFailures = 0;
     const had = held.length > 0;
     held = [];
     version = null;
@@ -105,42 +122,57 @@ export function vaultRedactionSource(
   };
 
   const poll = async (): Promise<boolean> => {
-    const ep = deps.endpoint();
-    if (!ep) return clear("not signed in");
-    // Another account's version string says nothing about this one's values.
-    if (ep.apiToken !== token) {
-      token = ep.apiToken;
-      version = null;
-    }
+    const endpoint = deps.endpoint();
+    if (!endpoint) return clear("not signed in");
+    const ep = { ...endpoint };
+    const changedAccount =
+      identity?.siteUrl !== ep.siteUrl || identity.apiToken !== ep.apiToken;
+    const dropped = changedAccount && clear("account changed");
+    identity = ep;
     try {
       const { version: current } = await post(
         ep.siteUrl,
         ep.apiToken,
         "/cli/vault/redaction-version",
       );
-      if (version !== null && current === version) return false;
+      if (!matches(ep)) return clear("account changed") || dropped;
+      if (typeof current !== "string")
+        throw new Error("Invalid Vault redaction version");
+      if (version !== null && current === version) {
+        lastSuccess = Date.now();
+        transientFailures = 0;
+        return dropped;
+      }
       const got = await post(
         ep.siteUrl,
         ep.apiToken,
         "/cli/vault/redaction-values",
       );
+      if (!Array.isArray(got.values))
+        throw new Error("Invalid Vault redaction values");
       const next: KnownValue[] = [];
-      for (const v of got.values ?? []) {
-        if (typeof v?.value === "string" && typeof v?.name === "string")
-          next.push({ value: v.value, name: v.name });
+      for (const v of got.values) {
+        if (typeof v?.value !== "string" || typeof v?.name !== "string")
+          throw new Error("Invalid Vault redaction value");
+        next.push({ value: v.value, name: v.name });
       }
+      if (!matches(ep)) return clear("account changed") || dropped;
       held = next;
+      lastSuccess = Date.now();
+      transientFailures = 0;
       version = String(got.version ?? current);
       deps.log?.(
         `[VAULT-REDACTION] ${next.length} values from ${new Set(next.map((v) => v.name)).size} secrets`,
       );
       return true;
     } catch (e) {
-      if (e instanceof Refused) return clear("token refused");
+      if (!matches(ep)) return clear("account changed") || dropped;
+      if (e instanceof Refused) return clear("token refused") || dropped;
+      transientFailures = e instanceof Retryable ? transientFailures + 1 : 2;
       deps.log?.(
         `[VAULT-REDACTION] poll failed, keeping ${held.length} values: ${(e as Error)?.message ?? e}`,
       );
-      return false;
+      return dropped;
     }
   };
 
@@ -150,7 +182,13 @@ export function vaultRedactionSource(
     }));
 
   return {
-    values: () => held,
+    values: () => (identity && matches(identity) ? held : []),
+    ready: () =>
+      !!identity &&
+      matches(identity) &&
+      lastSuccess !== null &&
+      Date.now() - lastSuccess < 90_000 &&
+      transientFailures <= 1,
     refresh: () => {
       if (!inflight) return start();
       return (queued ??= inflight.then(async (changed) => {

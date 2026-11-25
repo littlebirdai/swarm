@@ -15,10 +15,10 @@ import {
   redactKnownValues,
   redactWithMatcher,
   setKnownValuesForTest,
-} from "./knownValueRedaction.js";
+} from "./known-value-redaction.js";
 import { redactionValuesOf } from "@codecast/secrets/secrets";
 import { redactSecrets } from "./secretRedaction.js";
-import { vaultRedactionSource } from "./secrets/redactionSource.js";
+import { vaultRedactionSource } from "./secrets/redaction-source.js";
 
 const values = (list: Array<{ value: string }>) => list.map((v) => v.value);
 

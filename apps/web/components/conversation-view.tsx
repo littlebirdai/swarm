@@ -607,7 +607,7 @@ const CommentDock = lazyNamed(
   "CommentDock",
 );
 const ConversationTerminalSplit = lazyNamed(
-  () => import("./terminal/ConversationTerminal"),
+  () => import("./terminal/session-terminal"),
   "ConversationTerminalSplit",
 );
 const SessionHuddleButton = lazyNamed(
@@ -3500,9 +3500,10 @@ const ConversationViewInner = function ConversationView(
   // A viewer who came in on a share link passes on that link: the bare
   // conversation URL denies anyone without the token.
   // A regulated team's audit log gets one entry per open (lib/accessLogOpen).
+  const conversationTeamId = (conversation as any)?.team_id ?? null;
   useRecordConversationOpen(
-    conversation?._id ? String(conversation._id) : null,
-    (conversation as any)?.team_id ?? null,
+    conversation?._id?.toString() ?? null,
+    conversationTeamId,
   );
   const copyConversationLink = useCallback(() => {
     const token = getShareTokenScope(conversation?._id);
@@ -8518,6 +8519,7 @@ const ConversationViewInner = function ConversationView(
                                         <Suspense fallback={null}>
                                           <ConversationTerminalSplit
                                             convKey={conversation._id.toString()}
+                                            teamTerminal={!!conversationTeamId}
                                             tmuxSession={
                                               managedSession?.tmux_session
                                             }

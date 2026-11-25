@@ -211,7 +211,7 @@ decryptRefreshToken(enc: string, secret: string, info: string = REFRESH_TOKEN_HK
 
 ## 6. Daemon known-value redaction
 
-File: `cli/src/knownValueRedaction.ts`.
+File: `cli/src/known-value-redaction.ts`.
 
 **Collectors (:75-205)** are pure functions of type `(text) => KnownValue[]` (`{value, name?}`):
 

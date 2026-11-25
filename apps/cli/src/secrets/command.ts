@@ -83,7 +83,7 @@ import {
   type VaultGap,
   type VaultMap,
 } from "./projectMap.js";
-import { refreshDaemonRedaction } from "./redactionSource.js";
+import { refreshDaemonRedaction } from "./redaction-source.js";
 import {
   formatSecretLine,
   formatShow,

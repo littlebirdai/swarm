@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { vaultRedactionSource } from "./redactionSource.js";
+import { vaultRedactionSource } from "./redaction-source.js";
 
 const SITE = "https://backend.test";
 
