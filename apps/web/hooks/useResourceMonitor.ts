@@ -9,7 +9,7 @@ import {
   type ResourcePoint,
 } from "@codecast/machines/systemResources";
 import { useSyncCollection } from "./useSyncCollection";
-import { useIsSyncHost } from "./useSyncRole";
+import { useIsSyncHost } from "./use-sync-role";
 import { useInboxStore } from "../store/inboxStore";
 import { useCollectionRows } from "./useCollectionRows";
 import { useCoarseNow } from "./useCoarseNow";

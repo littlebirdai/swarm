@@ -22873,7 +22873,7 @@
   "apps/web/hooks/useSyncQuoteDrafts.ts": {
     "swarm/no-comments": 3
   },
-  "apps/web/hooks/useSyncRole.ts": {
+  "apps/web/hooks/use-sync-role.ts": {
     "swarm/no-comments": 2
   },
   "apps/web/hooks/useSyncRuns.ts": {

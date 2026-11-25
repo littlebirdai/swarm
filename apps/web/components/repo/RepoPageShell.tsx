@@ -24,7 +24,7 @@ import { LoadingSkeleton } from "../LoadingSkeleton";
 import { UndoReach } from "../undo/UndoTimeline";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useSyncCollection } from "../../hooks/useSyncCollection";
-import { useIsSyncHost } from "../../hooks/useSyncRole";
+import { useIsSyncHost } from "../../hooks/use-sync-role";
 
 /**
  * The strip is 36px, and the page below it owns the rest of the viewport. The

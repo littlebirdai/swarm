@@ -16,7 +16,7 @@ import { ErrorBoundary } from "../../components/ErrorBoundary";
 import { ShortcutProvider } from "../../shortcuts";
 import { useEnsureDispatch } from "../../hooks/useEnsureDispatch";
 import { useLiveInboxSessions } from "../../hooks/useLiveInboxSessions";
-import { useSyncReplication } from "../../hooks/useSyncRole";
+import { useSyncReplication } from "../../hooks/use-sync-role";
 import { AgentDock } from "../../components/agentDock/AgentDock";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { AGENT_DOCK_RELEASED, setAgentDock } from "../../lib/desktopAgentDock";

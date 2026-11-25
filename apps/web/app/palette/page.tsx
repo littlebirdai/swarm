@@ -6,7 +6,7 @@ import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useEnsureDispatch } from "../../hooks/useEnsureDispatch";
 import { useLiveInboxSessions } from "../../hooks/useLiveInboxSessions";
 import { isElectron, bridge } from "../../lib/desktop";
-import { useSyncReplication } from "../../hooks/useSyncRole";
+import { useSyncReplication } from "../../hooks/use-sync-role";
 
 export default function PalettePage() {
   return (

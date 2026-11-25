@@ -100,7 +100,7 @@ import { useSyncOrgProposals } from "../hooks/useSyncOrgProposals";
 import { useSyncOrgTreeFeeder } from "../hooks/useSyncOrgTree";
 import { featurePageRedirect, useWorkspaceFeature } from "../lib/teamFeatures";
 import { useSyncSettings } from "../hooks/useSyncSettings";
-import { useIsSyncHost, useSyncReplication } from "../hooks/useSyncRole";
+import { useIsSyncHost, useSyncReplication } from "../hooks/use-sync-role";
 import { useSessionCommandResults } from "../hooks/useSessionCommands";
 import { useSyncLandedReach } from "../hooks/useSessionShipState";
 import { useEnsureDispatch } from "../hooks/useEnsureDispatch";

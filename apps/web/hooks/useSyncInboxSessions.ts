@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { soundIdle } from "../lib/sounds";
 import { useConvexSync } from "./useConvexSync";
 import { INBOX_RECOVERY_STALE_MS, useRecoveryPoll } from "./useRecoveryPoll";
-import { useIsSyncHost } from "./useSyncRole";
+import { useIsSyncHost } from "./use-sync-role";
 import { queryWithSignal } from "../lib/queryWithSignal";
 import { useEnsureDispatch } from "./useEnsureDispatch";
 import {

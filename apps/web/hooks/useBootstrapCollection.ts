@@ -16,7 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import { useConvex } from "convex/react";
 import { useInboxStore } from "../store/inboxStore";
 import { mapSlots } from "../store/simSlot";
-import { useIsSyncHost } from "./useSyncRole";
+import { useIsSyncHost } from "./use-sync-role";
 
 type Opts = {
   /** Rows out of the payload (`{ items }`, `{ page }`, …). */

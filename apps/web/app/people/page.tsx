@@ -9,7 +9,7 @@ import { useEnsureDispatch } from "../../hooks/useEnsureDispatch";
 import { useSyncInboxSessions } from "../../hooks/useSyncInboxSessions";
 import { useSyncTeamInboxSessions } from "../../hooks/useSyncTeamInboxSessions";
 import { useChatChannelsSync } from "../../hooks/useChatSync";
-import { useSyncReplication } from "../../hooks/useSyncRole";
+import { useSyncReplication } from "../../hooks/use-sync-role";
 import { useSyncTeams } from "../../hooks/useSyncTeams";
 import { useCallSync } from "../../hooks/useCallSync";
 import { useCallRing } from "../../hooks/useCallRing";

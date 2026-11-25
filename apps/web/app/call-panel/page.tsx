@@ -9,7 +9,7 @@ import { CallPanel } from "../../components/calls/CallPanel";
 import { TeamMembersPump } from "../../components/TeamAvatarBar";
 import { useEnsureDispatch } from "../../hooks/useEnsureDispatch";
 import { useChatChannelsSync } from "../../hooks/useChatSync";
-import { useSyncReplication } from "../../hooks/useSyncRole";
+import { useSyncReplication } from "../../hooks/use-sync-role";
 import { useSyncTeams } from "../../hooks/useSyncTeams";
 import { useSyncInboxSessions } from "../../hooks/useSyncInboxSessions";
 import { useSyncTeamInboxSessions } from "../../hooks/useSyncTeamInboxSessions";
