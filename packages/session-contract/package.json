@@ -1,0 +1,16 @@
+{
+  "name": "@codecast/session-contract",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/session-machine.ts"
+  },
+  "devDependencies": {
+    "@codecast/edge-contract": "workspace:*",
+    "@codecast/inbox": "workspace:*",
+    "@codecast/test-helpers": "workspace:*",
+    "@types/bun": "^1.3.3"
+  }
+}

@@ -59,6 +59,7 @@ const PACKAGE_AREAS = [
   "replay",
   "search",
   "secrets",
+  "session-contract",
   "sessions",
   "ship",
   "signals",

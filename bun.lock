@@ -1091,6 +1091,16 @@
         "@types/bun": "^1.3.3",
       },
     },
+    "packages/session-contract": {
+      "name": "@codecast/session-contract",
+      "version": "0.0.1",
+      "devDependencies": {
+        "@codecast/edge-contract": "workspace:*",
+        "@codecast/inbox": "workspace:*",
+        "@codecast/test-helpers": "workspace:*",
+        "@types/bun": "^1.3.3",
+      },
+    },
     "packages/sessions": {
       "name": "@codecast/sessions",
       "version": "0.0.1",
@@ -1684,6 +1694,8 @@
     "@codecast/search": ["@codecast/search@workspace:packages/search"],
 
     "@codecast/secrets": ["@codecast/secrets@workspace:packages/secrets"],
+
+    "@codecast/session-contract": ["@codecast/session-contract@workspace:packages/session-contract"],
 
     "@codecast/sessions": ["@codecast/sessions@workspace:packages/sessions"],
 
