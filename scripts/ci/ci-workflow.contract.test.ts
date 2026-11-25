@@ -89,9 +89,10 @@ describe("ci.yml job graph", () => {
             !String(step.with.path).startsWith(".turbo/"),
           `${name} caches something other than a Turborepo or typecheck state`,
         ).toBe(false);
-        expect(step.run, `${name} runs the root install itself`).not.toBe(
-          "bun install",
-        );
+        expect(
+          /^bun install( --frozen-lockfile)?$/.test(String(step.run ?? "")),
+          `${name} runs the root install itself`,
+        ).toBe(false);
       }
       if (!steps.some((step) => /\bbun\b/.test(String(step.run ?? ""))))
         continue;
@@ -172,7 +173,9 @@ describe("ci.yml job graph", () => {
       "node-version": "lts/*",
       "package-manager-cache": false,
     });
-    const install = steps.find((step) => step.run === "bun install");
+    const install = steps.find(
+      (step) => step.run === "bun install --frozen-lockfile",
+    );
     expect(install.if).toBe("inputs.deps == 'install'");
   });
 });

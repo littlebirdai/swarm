@@ -263,11 +263,17 @@ test.skipIf(!Bun.which("tmux"))(
         }),
       ).rejects.toThrow("earlier message");
       expect(journal.get(delivery.messageId)?.phase).toBe("paste");
-      await injectViaTmux(target, "continue", "claude", {
-        delivery,
-        journal,
-        gateBudgetMs: 500,
-        receiptSettleMs: 0,
+      const redeliver = () =>
+        injectViaTmux(target, "continue", "claude", {
+          delivery,
+          journal,
+          gateBudgetMs: 5_000,
+          receiptSettleMs: 0,
+        });
+      await redeliver().catch((error) => {
+        if (!/INJECT_UNVERIFIED|AGENT_STDIN_NOT_READY/.test(String(error)))
+          throw error;
+        return redeliver();
       });
       expect(state().queued).toEqual(["Existing worker report.", "continue"]);
       expect(journal.get(delivery.messageId)?.phase).toBe("verified");

@@ -29,4 +29,4 @@ runs:
     - if: inputs.deps == 'install'
       name: Install dependencies
       shell: bash
-      run: bun install
+      run: bun install --frozen-lockfile
