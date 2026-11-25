@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/session-machine.ts"
+    ".": "./src/session-machine.ts",
+    "./turn-projection": "./src/turn-projection.ts"
   },
   "devDependencies": {
     "@codecast/edge-contract": "workspace:*",

@@ -1,0 +1,160 @@
+[
+  {
+    "kind": "turn.started",
+    "body": {},
+    "v": 1,
+    "source": "provider",
+    "session": "claude-fixture",
+    "run": 1,
+    "at": 0,
+    "turn": "claude-sdk:1:1",
+    "seq": 11
+  },
+  {
+    "kind": "message.user",
+    "body": {
+      "text": "fixture input",
+      "authors": [
+        {
+          "kind": "person",
+          "id": "owner"
+        }
+      ],
+      "delivery_id": "fixture-delivery"
+    },
+    "v": 1,
+    "source": "provider",
+    "session": "claude-fixture",
+    "run": 1,
+    "at": 0,
+    "turn": "claude-sdk:1:1",
+    "seq": 12
+  },
+  {
+    "kind": "context",
+    "body": {
+      "data": {
+        "model": "claude-haiku-5-5",
+        "permission_mode": "default"
+      }
+    },
+    "v": 1,
+    "source": "provider",
+    "session": "claude-fixture",
+    "run": 1,
+    "at": 0,
+    "turn": "claude-sdk:1:1",
+    "seq": 13
+  },
+  {
+    "kind": "tool.call",
+    "body": {
+      "call_id": "toolu_01FDYYV2Bj4XBaVqqaQPVdWW",
+      "name": "Bash",
+      "input": {
+        "command": "echo sdk-ok > marker.txt",
+        "description": "Write sdk-ok into marker.txt"
+      }
+    },
+    "v": 1,
+    "source": "provider",
+    "session": "claude-fixture",
+    "run": 1,
+    "at": 0,
+    "turn": "claude-sdk:1:1",
+    "seq": 14
+  },
+  {
+    "kind": "prompt.opened",
+    "body": {
+      "prompt_id": "1:claude-sdk:d75483ad-710c-4b9f-8bd1-d02cabb7bf8f",
+      "kind": "permission",
+      "summary": "Write sdk-ok into marker.txt",
+      "options": [
+        {
+          "id": "allow",
+          "label": "Allow",
+          "kind": "allow_once"
+        },
+        {
+          "id": "deny",
+          "label": "Deny",
+          "kind": "reject_once"
+        }
+      ],
+      "tool_call_id": "toolu_01FDYYV2Bj4XBaVqqaQPVdWW",
+      "tool_name": "Bash"
+    },
+    "v": 1,
+    "source": "provider",
+    "session": "claude-fixture",
+    "run": 1,
+    "at": 0,
+    "turn": "claude-sdk:1:1",
+    "seq": 15
+  },
+  {
+    "kind": "prompt.settled",
+    "body": {
+      "prompt_id": "1:claude-sdk:d75483ad-710c-4b9f-8bd1-d02cabb7bf8f",
+      "by": {
+        "kind": "person",
+        "id": "owner"
+      },
+      "answer": {
+        "option_id": "allow"
+      }
+    },
+    "v": 1,
+    "source": "provider",
+    "session": "claude-fixture",
+    "run": 1,
+    "at": 0,
+    "turn": "claude-sdk:1:1",
+    "seq": 16
+  },
+  {
+    "kind": "tool.result",
+    "body": {
+      "call_id": "toolu_01FDYYV2Bj4XBaVqqaQPVdWW",
+      "output": {
+        "inline": "(Bash completed with no output)"
+      },
+      "is_error": false
+    },
+    "v": 1,
+    "source": "provider",
+    "session": "claude-fixture",
+    "run": 1,
+    "at": 0,
+    "turn": "claude-sdk:1:1",
+    "seq": 17
+  },
+  {
+    "kind": "message.assistant",
+    "body": {
+      "message_id": "549df14f-b5d7-478e-9796-a5a267e2b92d",
+      "text": "done"
+    },
+    "v": 1,
+    "source": "provider",
+    "session": "claude-fixture",
+    "run": 1,
+    "at": 0,
+    "turn": "claude-sdk:1:1",
+    "seq": 18
+  },
+  {
+    "kind": "turn.ended",
+    "body": {
+      "reason": "completed"
+    },
+    "v": 1,
+    "source": "provider",
+    "session": "claude-fixture",
+    "run": 1,
+    "at": 0,
+    "turn": "claude-sdk:1:1",
+    "seq": 19
+  }
+]

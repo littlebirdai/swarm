@@ -32,10 +32,12 @@ export type { SessionFact } from "./facts";
 type Turn = {
   readonly status: TurnStatus;
   readonly id: TurnId | null;
-  readonly prompt: PromptId | null;
+  readonly prompts: readonly {
+    readonly id: PromptId;
+    readonly answerRequested: boolean;
+  }[];
   readonly reason: string | null;
   readonly interruptRequested: boolean;
-  readonly answerRequested: boolean;
 };
 
 type Lease = Pick<Fence, "fencing_token"> & {
@@ -86,10 +88,9 @@ type Result = {
 const noTurn: Turn = {
   status: "none",
   id: null,
-  prompt: null,
+  prompts: [],
   reason: null,
   interruptRequested: false,
-  answerRequested: false,
 };
 
 function initial(scope: Scope): SessionState {
@@ -342,27 +343,42 @@ function applyEvent(state: SessionState, event: CanonicalEvent): Result {
       return turnOpen(turn) ? endTurn(stamped, event.body.reason) : unchanged;
     case "prompt.opened": {
       const status = nextStatus(turn.status, turnTransitions.prompt);
-      return status
-        ? {
-            state: {
-              ...stamped,
-              turn: { ...turn, status, prompt: event.body.prompt_id },
-            },
-            effects: [],
-          }
-        : unchanged;
+      const id = event.body.prompt_id;
+      if (
+        !status ||
+        turn.prompts.length >= 32 ||
+        turn.prompts.some((prompt) => prompt.id === id)
+      )
+        return unchanged;
+      return {
+        state: {
+          ...stamped,
+          turn: {
+            ...turn,
+            status,
+            prompts: [...turn.prompts, { id, answerRequested: false }],
+          },
+        },
+        effects: [],
+      };
     }
     case "prompt.settled": {
       const status = nextStatus(turn.status, turnTransitions.answer);
-      return status && turn.prompt === event.body.prompt_id
-        ? {
-            state: {
-              ...stamped,
-              turn: { ...turn, status, prompt: null, answerRequested: false },
-            },
-            effects: [],
-          }
-        : unchanged;
+      const prompts = turn.prompts.filter(
+        ({ id }) => id !== event.body.prompt_id,
+      );
+      if (!status || prompts.length === turn.prompts.length) return unchanged;
+      return {
+        state: {
+          ...stamped,
+          turn: {
+            ...turn,
+            status: prompts.length ? turn.status : status,
+            prompts,
+          },
+        },
+        effects: [],
+      };
     }
     default:
       return unchanged;
@@ -394,10 +410,19 @@ function applyControl(state: SessionState, fact: ControlFact): Result {
           effects: [{ ...fence, kind: "turn.interrupt", turn: fact.turn }],
         };
   }
-  return turn.prompt !== fact.prompt_id || turn.answerRequested
+  const prompt = turn.prompts.find(({ id }) => id === fact.prompt_id);
+  return !prompt || prompt.answerRequested
     ? unchanged
     : {
-        state: { ...state, turn: { ...turn, answerRequested: true } },
+        state: {
+          ...state,
+          turn: {
+            ...turn,
+            prompts: turn.prompts.map((entry) =>
+              entry === prompt ? { ...entry, answerRequested: true } : entry,
+            ),
+          },
+        },
         effects: [
           {
             ...fence,
