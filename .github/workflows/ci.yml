@@ -405,6 +405,29 @@ jobs:
         working-directory: apps/cli
         run: bun test --isolate ./scripts/line-present-replay.test.ts ./scripts/prompt-dry-run.cut.test.ts ./scripts/prompt-dry-run.guard.test.ts ./scripts/prompt-dry-run.harness.guard.test.ts
 
+      - name: Install ffmpeg
+        if: matrix.suite == 'evals'
+        run: |
+          if ! ffmpeg -version >/dev/null 2>&1; then
+            sudo apt-get install -y --no-install-recommends ffmpeg || { sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg; }
+          fi
+          ffmpeg -version
+
+      - name: CLI tests with ffmpeg
+        if: matrix.suite == 'evals'
+        working-directory: apps/cli
+        run: bun test --isolate ./src/browser/flightRecorder.test.ts ./src/callSnap.test.ts
+
+      - name: Server tests with ffmpeg
+        if: matrix.suite == 'evals'
+        working-directory: apps/server
+        run: bun test ./convex/lib/mp4Audio.test.ts
+
+      - name: Web tests with ffmpeg
+        if: matrix.suite == 'evals'
+        working-directory: apps/web
+        run: bun test --isolate ./scripts/call-e2e/frames.test.mjs ./scripts/rig/imagediff.test.ts
+
       - name: E2E messaging pipeline (real tmux + fake-claude shim)
         if: matrix.suite == 'e2e'
         working-directory: apps/cli
@@ -492,6 +515,15 @@ jobs:
     if: needs.code_paths.outputs.run_test_platform == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:f2f98726820d0342055351c6e9d36e705f5bfffb3dd53ff556325114b08afb6d
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: tidemark_test
+        ports:
+          - 5432/tcp
+        options: --health-cmd pg_isready --health-interval 1s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -518,6 +550,8 @@ jobs:
         # sibling instead of npm and the suites get the shared test tooling.
         # It runs every package's tests, names each red one, and fails a run
         # in which no suite was found.
+        env:
+          TIDEMARK_PG_URL: postgres://postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/tidemark_test
         run: scripts/vendor-platform.sh --test
 
   # The workspace libraries provide contracts for the CLI, the daemon,
@@ -619,6 +653,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: ./.github/actions/setup-bun
+
+      - name: Install PostgreSQL for the replay test
+        if: matrix.shard == 2
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: |
+          brew install postgresql@17
+          "$(brew --prefix postgresql@17)/bin/postgres" -V
 
       - name: CLI script tests that need the macOS sandbox
         if: matrix.shard == 2

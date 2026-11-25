@@ -279,6 +279,11 @@ export function classifyChangedPaths(files: string[]): Scope {
   for (const [job, jobAreas] of Object.entries(JOB_AREAS)) {
     flags[jobFlag(job)] = forced || jobAreas.some((area) => areas.has(area));
   }
+  flags.run_test_cli ||= paths.some(
+    (file) =>
+      file.startsWith("apps/web/scripts/call-e2e/") ||
+      file.startsWith("apps/web/scripts/rig/imagediff."),
+  );
   flags.run_lint ||= paths.some((file) =>
     /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(file),
   );

@@ -424,3 +424,12 @@ describe("injection suite scope", () => {
     );
   });
 });
+
+test("changes to web ffmpeg fixtures select the CLI evals entry", () => {
+  for (const file of [
+    "apps/web/scripts/call-e2e/frames.mjs",
+    "apps/web/scripts/rig/imagediff.ts",
+  ]) {
+    expect(classifyChangedPaths([file]).flags.run_test_cli).toBe(true);
+  }
+});

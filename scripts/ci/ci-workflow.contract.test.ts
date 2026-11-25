@@ -444,6 +444,25 @@ describe("matrices", () => {
         "matrix.suite == 'evals'",
         "bun test --isolate ./scripts/line-present-replay.test.ts ./scripts/prompt-dry-run.cut.test.ts ./scripts/prompt-dry-run.guard.test.ts ./scripts/prompt-dry-run.harness.guard.test.ts",
       ],
+      [
+        "matrix.suite == 'evals'",
+        [
+          "if ! ffmpeg -version >/dev/null 2>&1; then",
+          "  sudo apt-get install -y --no-install-recommends ffmpeg || { sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg; }",
+          "fi",
+          "ffmpeg -version",
+          "",
+        ].join("\n"),
+      ],
+      [
+        "matrix.suite == 'evals'",
+        "bun test --isolate ./src/browser/flightRecorder.test.ts ./src/callSnap.test.ts",
+      ],
+      ["matrix.suite == 'evals'", "bun test ./convex/lib/mp4Audio.test.ts"],
+      [
+        "matrix.suite == 'evals'",
+        "bun test --isolate ./scripts/call-e2e/frames.test.mjs ./scripts/rig/imagediff.test.ts",
+      ],
       ["matrix.suite == 'e2e'", "bun test src/messaging.e2e.test.ts"],
       [
         "matrix.suite == 'e2e' && needs.code_paths.outputs.run_test_injection == 'true'",
@@ -907,4 +926,30 @@ describe("computer tests are opt-in", () => {
       );
     }
   });
+});
+
+test("PostgreSQL tests use local databases", () => {
+  const platform = jobs["test-platform"];
+  const service = platform.services.postgres;
+  expect(service.image).toMatch(/^postgres:16-alpine@sha256:[0-9a-f]{64}$/);
+  expect(service.ports).toEqual(["5432/tcp"]);
+  const vendorStep = platform.steps.find(
+    (step: any) => step.run === "scripts/vendor-platform.sh --test",
+  );
+  expect(vendorStep.env.TIDEMARK_PG_URL).toBe(
+    "postgres://postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/tidemark_test",
+  );
+
+  const macSteps = jobs["computer-macos"].steps;
+  const install = macSteps.find(
+    (step: any) => step.name === "Install PostgreSQL for the replay test",
+  );
+  const run = macSteps.find(
+    (step: any) => step.name === "CLI script tests that need the macOS sandbox",
+  );
+  expect(install.if).toBe("matrix.shard == 2");
+  expect(install.run).toContain("brew install postgresql@17");
+  expect(run.if).toBe(install.if);
+  expect(run.run).toContain("./scripts/prompt-dry-run.replay.guard.test.ts");
+  expect(macSteps.indexOf(install)).toBeLessThan(macSteps.indexOf(run));
 });
