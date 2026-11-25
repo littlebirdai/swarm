@@ -297,6 +297,7 @@
       },
       "devDependencies": {
         "@codecast/effect-kit": "workspace:*",
+        "@codecast/relay-client": "workspace:*",
         "@types/ws": "^8.18.1",
         "ws": "8.21.3",
       },
@@ -1103,6 +1104,13 @@
         "@codecast/effect-kit": "workspace:*",
       },
     },
+    "packages/relay-client": {
+      "name": "@codecast/relay-client",
+      "version": "0.0.1",
+      "dependencies": {
+        "@codecast/relay-contract": "workspace:*",
+      },
+    },
     "packages/relay-contract": {
       "name": "@codecast/relay-contract",
       "version": "0.0.1",
@@ -1758,6 +1766,8 @@
     "@codecast/relay": ["@codecast/relay@workspace:packages/relay"],
 
     "@codecast/relay-app": ["@codecast/relay-app@workspace:apps/relay"],
+
+    "@codecast/relay-client": ["@codecast/relay-client@workspace:packages/relay-client"],
 
     "@codecast/relay-contract": ["@codecast/relay-contract@workspace:packages/relay-contract"],
 

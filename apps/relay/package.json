@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@codecast/effect-kit": "workspace:*",
+    "@codecast/relay-client": "workspace:*",
     "@types/ws": "^8.18.1",
     "ws": "8.21.3"
   }
