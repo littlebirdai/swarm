@@ -22920,7 +22920,7 @@
   "apps/web/lib/__tests__/agentToolSetupSteps.test.ts": {
     "swarm/no-comments": 2
   },
-  "apps/web/lib/__tests__/analyticsConfig.test.ts": {
+  "apps/web/lib/__tests__/analytics-config.test.ts": {
     "swarm/no-comments": 22
   },
   "apps/web/lib/__tests__/analyticsRegulated.test.ts": {

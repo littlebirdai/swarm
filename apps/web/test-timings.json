@@ -687,7 +687,7 @@
     "lib/__tests__/activeTeamPointer.guard.test.ts": 372,
     "lib/__tests__/agentFleetCounts.test.ts": 250,
     "lib/__tests__/agentToolSetupSteps.test.ts": 250,
-    "lib/__tests__/analyticsConfig.test.ts": 269,
+    "lib/__tests__/analytics-config.test.ts": 269,
     "lib/__tests__/analyticsRegulated.test.ts": 251,
     "lib/__tests__/anchorWindow.test.ts": 251,
     "lib/__tests__/anchorWord.guard.test.ts": 2367,
