@@ -9,10 +9,15 @@ import {
   beforeEach,
   describe,
   expect,
+  jest,
   setDefaultTimeout,
+  spyOn,
   test,
 } from "bun:test";
 import { convexTest } from "convex-test";
+import { v } from "convex/values";
+import { internalAction } from "./_generated/server";
+import { allModules } from "./testModules.testkit";
 import schema from "./schema";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -40,33 +45,53 @@ import { routeFor } from "./sessionDecisions";
 setDefaultTimeout(60_000);
 
 const modules = {
-  "./_generated/server.ts": () => import("./_generated/server"),
-  "./syncOutbox.ts": () => import("./syncOutbox"),
-  "./assistant/entry.ts": () => import("./assistant/entry"),
-  "./agentTasks.ts": () => import("./agentTasks"),
-  "./managedSessions.ts": () => import("./managedSessions"),
-  "./messages.ts": () => import("./messages"),
-  "./sessionDecisions.ts": () => import("./sessionDecisions"),
-  "./conversations.ts": () => import("./conversations"),
-  "./dispatch.ts": () => import("./dispatch"),
-  "./pendingMessages.ts": () => import("./pendingMessages"),
+  ...allModules,
+  "./assistant/turns.ts": async () => ({
+    ...(await import("./assistant/turns")),
+    run: internalAction({
+      args: { turn_id: v.id("assistant_turns") },
+      handler: async () => null,
+    }),
+  }),
 };
+
+const testInstances: Array<ReturnType<typeof convexTest<typeof schema>>> = [];
 
 const TOKEN = "hosted-assistant-test-token";
 let previousHosts: string | undefined;
+let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
 
 beforeEach(() => {
+  jest.useFakeTimers();
+  fetchSpy = spyOn(globalThis, "fetch").mockRejectedValue(
+    new Error("Network access is disabled in assistant entry tests"),
+  );
   // No cloud wake host: hosted routines must fire on a deployment without one.
   previousHosts = process.env.CAST_CLOUD_WAKE_HOSTS;
   delete process.env.CAST_CLOUD_WAKE_HOSTS;
 });
-afterEach(() => {
-  if (previousHosts !== undefined)
-    process.env.CAST_CLOUD_WAKE_HOSTS = previousHosts;
+afterEach(async () => {
+  try {
+    for (const t of testInstances.splice(0)) {
+      await t.finishAllScheduledFunctions(() => jest.advanceTimersByTime(1));
+      const failed = await t.run(async (ctx) =>
+        (await ctx.db.system.query("_scheduled_functions").collect())
+          .filter((job) => job.state.kind === "failed")
+          .map((job) => job.name),
+      );
+      expect(failed).toEqual([]);
+    }
+  } finally {
+    jest.useRealTimers();
+    fetchSpy.mockRestore();
+    if (previousHosts !== undefined)
+      process.env.CAST_CLOUD_WAKE_HOSTS = previousHosts;
+  }
 });
 
 async function setup() {
   const t = convexTest(schema, modules);
+  testInstances.push(t);
   const user = await t.run(async (ctx) => {
     // A proven address: the Free plan serves only one (assistant/freeGate.ts).
     const user = await ctx.db.insert("users", { emailVerificationTime: 1 });
