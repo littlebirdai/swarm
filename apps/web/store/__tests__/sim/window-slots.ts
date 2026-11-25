@@ -359,7 +359,7 @@ export const WINDOW_SLOTS: Record<string, SlotClass> = {
   },
   "hooks/inbox-warm.ts:lastPass": NO_WARM,
   "hooks/inbox-warm.ts:inFlight": NO_WARM,
-  "hooks/inbox-warm.ts:syncedCount": NO_WARM,
+  "hooks/inbox-warm.ts:warmPass": NO_WARM,
   "hooks/inbox-warm.ts:rowTried": NO_WARM,
   "hooks/inbox-warm.ts:loopRefs": NO_WARM,
   "hooks/inbox-warm.ts:stopLoop": NO_WARM,

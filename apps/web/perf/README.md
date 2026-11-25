@@ -58,7 +58,9 @@ omits exceptions such as pinned sessions that can exceed a cap.
 The message cache uses 32 MiB per desktop window to leave room for other
 windows. The phone uses 16 MiB to leave room for the native app and decoded
 images. Above the cap, eviction targets 75% of the budget. The estimate
-includes strings, row objects, and navigator pages.
+includes strings, row objects, and navigator pages. Background warming sets
+aside 1 MiB plus page overhead per request and uses inbox order. It checks
+the actual response size against the low-water mark before it writes rows.
 Open transcripts, active streams, and conversations with unsent messages can
 exceed the limit. The fixture has no protected conversations. Three quarters
 of its images also have a storage ID. The store keeps inline-only images for

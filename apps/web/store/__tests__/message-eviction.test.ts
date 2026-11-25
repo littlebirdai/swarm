@@ -16,6 +16,7 @@ import {
 } from "../../hooks/inbox-warm";
 import {
   __createInboxStoreForTests,
+  clearProtectedInboxMemory,
   ensureHydrated,
   useInboxStore,
   type InboxStoreState,
@@ -264,33 +265,6 @@ test("rehydrates an evicted transcript and navigator from disk without resetting
   }
 });
 
-test("cache pressure suppresses cold warms and deepens while allowing deltas", () => {
-  const cold: WarmRow = {
-    id: "evicted",
-    serverCount: 101,
-    storedCount: 0,
-    hasMoreAbove: false,
-    newestTs: null,
-    syncedCount: undefined,
-    inFlight: false,
-  };
-  const shallow: WarmRow = {
-    ...cold,
-    id: "shallow",
-    storedCount: 1,
-    newestTs: 2,
-    hasMoreAbove: true,
-    syncedCount: 100,
-  };
-  expect(planWarm([cold, shallow]).map(({ kind }) => kind)).toEqual([
-    "cold",
-    "deepen",
-  ]);
-  expect(planWarm([cold, shallow], true)).toEqual([
-    { kind: "delta", id: "shallow", after: 1, serverCount: 101 },
-  ]);
-});
-
 test.each(["snapshot", "cache", "merge", "tail", "navigator"] as const)(
   "%s keeps the conversation the write just loaded",
   (kind) => {
@@ -319,22 +293,6 @@ test.each(["snapshot", "cache", "merge", "tail", "navigator"] as const)(
     expect(next.messages.recent).toBeUndefined();
   },
 );
-
-test("an evicted warm does not refetch and a new top conversation can warm", () => {
-  const fresh: WarmRow = {
-    id: "new-top",
-    serverCount: 2,
-    storedCount: 0,
-    hasMoreAbove: false,
-    newestTs: null,
-    syncedCount: undefined,
-    inFlight: false,
-  };
-  const evicted = { ...fresh, id: "evicted-before", syncedCount: 1 };
-  expect(planWarm([fresh, evicted]).map((action) => action.id)).toEqual([
-    fresh.id,
-  ]);
-});
 
 test("pending navigation protects rows until the destination clears", async () => {
   const original = useInboxStore.getState();
@@ -393,10 +351,9 @@ test("session updates do not schedule a trim if only protected conversations are
   }
 });
 
-test("warming resumes after a trim without retrying its evicted transcript", async () => {
+test("an evicted transcript can warm again after activity and an account reset", async () => {
   const { session } = webBuilders("message-eviction.test.ts");
   const old = "jx70000000000000000000000warmold";
-  const fresh = "jx70000000000000000000000warmnew";
   const owner = "warm-owner";
   const now = Date.now();
   const build = (id: string, offset: number) =>
@@ -420,53 +377,44 @@ test("warming resumes after a trim without retrying its evicted transcript", asy
     currentUser: { _id: owner },
     sessions: { [old]: build(old, 0) },
     liveInboxIds: new Set([old]),
-    _lastViewedAt: { [old]: 0, a: 1, b: 2, c: 3 },
+    _lastViewedAt: { [old]: 0, a: 1, b: 2, c: 3, d: 4 },
   });
   const queries: string[] = [];
   const convex = {
     query: async (_fn: unknown, args: { conversation_id: string }) => {
       queries.push(args.conversation_id);
-      return { page: [row(1, large)], isDone: true };
+      return { page: [row(1, "m".repeat(512 * 1024))], isDone: true };
     },
   };
-  const warmAndWait = async (id: string) => {
-    const loaded = Promise.withResolvers<void>();
-    const stop = useInboxStore.subscribe((state) => {
-      if (state.messages[id]?.length) loaded.resolve();
-    });
-    try {
-      warmVisibleSessions(convex);
-      expect(
-        warmRowsFromState(useInboxStore.getState()).find((row) => row.id === id)
-          ?.inFlight,
-      ).toBe(true);
-      await loaded.promise;
-      await Promise.resolve();
-    } finally {
-      stop();
-    }
+  const warmAndWait = async () => {
+    await warmVisibleSessions(convex);
+    expect(useInboxStore.getState().messages[old]).toBeDefined();
   };
   try {
-    await warmAndWait(old);
-    for (const id of ["a", "b", "c"])
+    await warmAndWait();
+    for (const id of ["a", "b", "c", "d"])
       useInboxStore.getState().setMessages(id, [row(1, large)], {}, "cache");
     expect(useInboxStore.getState().messages[old]).toBeUndefined();
     expect(useInboxStore.getState().messageCacheBytes).toBeLessThanOrEqual(
       MESSAGE_CACHE_BUDGET_BYTES * 0.75,
     );
     useInboxStore.setState({
-      sessions: {
-        ...useInboxStore.getState().sessions,
-        [fresh]: build(fresh, 1),
-      },
-      liveInboxIds: new Set([fresh, old]),
+      sessions: { [old]: { ...build(old, 1), message_count: 2 } },
     });
-    await warmAndWait(fresh);
-    expect(
-      warmRowsFromState(useInboxStore.getState()).find((row) => row.id === old)
-        ?.inFlight,
-    ).toBe(false);
-    expect(queries).toEqual([old, fresh]);
+    await warmAndWait();
+    clearProtectedInboxMemory();
+    useInboxStore.setState({
+      currentUser: { _id: "new-warm-owner" },
+      sessions: {
+        [old]: {
+          ...build(old, 3),
+          user_id: "new-warm-owner",
+          owner_user_id: "new-warm-owner",
+        },
+      },
+    });
+    await warmAndWait();
+    expect(queries).toContain(old);
   } finally {
     useInboxStore.setState(original);
   }
@@ -500,4 +448,217 @@ test("a tail write that clears its pending echo keeps the newly loaded transcrip
     db.close();
     restoreGlobals();
   }
+});
+
+test("equal view times evict the oldest updated session first", () => {
+  const store = __createInboxStoreForTests();
+  const { session } = webBuilders("message-cache-eviction-order");
+  const ids = ["newest", "oldest", "middle", "incoming"];
+  const updated = Date.now() - 60_000;
+  store.setState({
+    sessions: Object.fromEntries(
+      ids.map((id, i) => [
+        id,
+        session.build({
+          _id: id,
+          updated_at: updated + [3, 1, 2, 4][i],
+          agent_status: "done",
+          agent_status_updated_at: updated,
+        }),
+      ]),
+    ),
+  });
+  for (const id of ids)
+    store.getState().setMessages(id, [row(1, large)], {}, "cache");
+  expect(Object.keys(store.getState().messages).sort()).toEqual([
+    "incoming",
+    "newest",
+  ]);
+});
+
+test("warming fills the newest idle transcripts without evicting or fetching older arrivals", async () => {
+  const original = useInboxStore.getState();
+  const { session } = webBuilders("message-cache-warm-order");
+  const updated = Date.now() - 60_000;
+  const owner = "warm-order-owner";
+  const idle = (i: number) =>
+    session.build({
+      _id: `jx7${String(i).padStart(29, "0")}`,
+      user_id: owner,
+      owner_user_id: owner,
+      owned_by_me: true,
+      message_count: 1,
+      agent_status: "done",
+      agent_status_updated_at: updated,
+      updated_at: updated - i,
+    });
+  const sessions = Array.from({ length: 50 }, (_, i) => idle(i + 1));
+  const add = (entries: typeof sessions) =>
+    useInboxStore.setState((state) => ({
+      sessions: {
+        ...state.sessions,
+        ...Object.fromEntries(entries.map((entry) => [entry._id, entry])),
+      },
+    }));
+  const fetched: string[] = [];
+  const oversized = {
+    ...idle(0),
+    _id: `jx7${"s".repeat(29)}`,
+    updated_at: updated + 1,
+  };
+  const convex = {
+    query: async (_fn: unknown, args: { conversation_id: string }) => {
+      fetched.push(args.conversation_id);
+      const bytes = args.conversation_id === oversized._id ? 34 : 1;
+      return { isDone: true, page: [row(1, "m".repeat(bytes * 512 * 1024))] };
+    },
+  };
+  useInboxStore.setState({
+    currentUser: { _id: owner },
+    clientState: { ui: { inbox_view_mode: "recent" } },
+    recentFreezeOrder: null,
+    _lastViewedAt: {},
+    sessions: {},
+    messages: {},
+    userMessages: {},
+    pagination: {},
+    messageCacheBytes: 0,
+    messageCacheBytesByConversation: {},
+  });
+  try {
+    add(sessions);
+    const order = warmRowsFromState(useInboxStore.getState()).map(
+      ({ id }) => id,
+    );
+    expect(order).toHaveLength(50);
+    await warmVisibleSessions(convex);
+    expect(fetched).toEqual(order.slice(0, 23));
+    expect(Object.keys(useInboxStore.getState().messages)).toEqual(fetched);
+
+    add(Array.from({ length: 30 }, (_, i) => idle(i + 51)));
+    await warmVisibleSessions(convex);
+    expect(fetched).toEqual(order.slice(0, 23));
+
+    useInboxStore.getState().discardForkStub(order[0]);
+    const beforeOversized = Object.keys(useInboxStore.getState().messages);
+    add([oversized]);
+    await warmVisibleSessions(convex);
+    expect(fetched.at(-1)).toBe(oversized._id);
+    expect(Object.keys(useInboxStore.getState().messages)).toEqual(
+      beforeOversized,
+    );
+    useInboxStore.getState().discardForkStub(oversized._id);
+    const newTop = idle(0);
+    add([newTop]);
+    await warmVisibleSessions(convex);
+    expect(fetched.at(-1)).toBe(newTop._id);
+    expect(useInboxStore.getState().messages[newTop._id]).toBeDefined();
+  } finally {
+    useInboxStore.setState(original);
+  }
+});
+
+test("a 25 MiB open transcript leaves no headroom to warm idle conversations", async () => {
+  const original = useInboxStore.getState();
+  const { session } = webBuilders("message-cache-warm-open");
+  const owner = "warm-pane-owner";
+  const updated = Date.now() - 60_000;
+  const release = retainOpenMessageView("large-open-pane");
+  const idle = Array.from({ length: 80 }, (_, i) =>
+    session.build({
+      _id: `jx7${String(i + 100).padStart(29, "0")}`,
+      user_id: owner,
+      owned_by_me: true,
+      message_count: 1,
+      updated_at: updated - i,
+      agent_status: "done",
+      agent_status_updated_at: updated,
+    }),
+  );
+  useInboxStore.setState({
+    currentUser: { _id: owner },
+    sessions: Object.fromEntries(idle.map((entry) => [entry._id, entry])),
+    messages: {},
+    userMessages: {},
+    pagination: {},
+    messageCacheBytes: 0,
+    messageCacheBytesByConversation: {},
+  });
+  const pane = row(1, "p".repeat(25 * 512 * 1024));
+  try {
+    useInboxStore
+      .getState()
+      .setMessages("large-open-pane", [pane], {}, "cache");
+    expect(warmRowsFromState(useInboxStore.getState())).toHaveLength(80);
+    let fetches = 0;
+    const pass = warmVisibleSessions({
+      query: async () => {
+        fetches++;
+        return { isDone: true, page: [row(1, "m".repeat(1024 * 1024))] };
+      },
+    });
+    expect(
+      warmRowsFromState(useInboxStore.getState()).some((row) => row.inFlight),
+    ).toBe(false);
+    await pass;
+    expect(fetches).toBe(0);
+    expect(Object.keys(useInboxStore.getState().messages)).toEqual([
+      "large-open-pane",
+    ]);
+
+    useInboxStore.getState().discardForkStub("large-open-pane");
+    const issued = Promise.withResolvers<void>();
+    const pending = Promise.withResolvers<{
+      isDone: boolean;
+      page: ReturnType<typeof row>[];
+    }>();
+    const convex = {
+      query: () => {
+        fetches++;
+        issued.resolve();
+        return pending.promise;
+      },
+    };
+    const first = warmVisibleSessions(convex);
+    await issued.promise;
+    const overlapping = warmVisibleSessions(convex);
+    useInboxStore
+      .getState()
+      .setMessages("large-open-pane", [pane], {}, "cache");
+    pending.resolve({ isDone: true, page: [row(1, "m".repeat(1024 * 1024))] });
+    await Promise.all([first, overlapping]);
+    expect(overlapping).toBe(first);
+    expect(fetches).toBe(1);
+    expect(Object.keys(useInboxStore.getState().messages)).toEqual([
+      "large-open-pane",
+    ]);
+  } finally {
+    release();
+    useInboxStore.setState(original);
+  }
+});
+
+test("the warm planner reserves headroom for both a cold page and a deepen", () => {
+  const cold: WarmRow = {
+    id: "top",
+    serverCount: 200,
+    storedCount: 0,
+    hasMoreAbove: false,
+    newestTs: null,
+    syncedCount: undefined,
+    inFlight: false,
+  };
+  const shallow: WarmRow = {
+    ...cold,
+    id: "next",
+    storedCount: 1,
+    newestTs: 1,
+    hasMoreAbove: true,
+  };
+  const rows = [cold, shallow, { ...cold, id: "older" }];
+  const bytes = 2 * (1024 * 1024 + MESSAGE_CACHE_PAGE_OVERHEAD);
+  expect(planWarm(rows, bytes).map(({ id, kind }) => [id, kind])).toEqual([
+    ["top", "cold"],
+    ["next", "deepen"],
+  ]);
 });

@@ -7,7 +7,7 @@ import type { InboxStoreState } from "./inboxStore";
 export const MESSAGE_CACHE_BUDGET_BYTES =
   (globalThis.navigator?.product === "ReactNative" ? 16 : 32) * 1024 * 1024;
 
-const MESSAGE_CACHE_LOW_WATER_BYTES = MESSAGE_CACHE_BUDGET_BYTES * 0.75;
+export const MESSAGE_CACHE_LOW_WATER_BYTES = MESSAGE_CACHE_BUDGET_BYTES * 0.75;
 
 export const MESSAGE_CACHE_PAGE_OVERHEAD = 64;
 
@@ -166,7 +166,12 @@ export function evictInactiveMessages(
   const viewedAt = draft._lastViewedAt;
   const candidates = Object.keys(draft.messageCacheBytesByConversation)
     .filter((id) => id !== writtenId && canEvictMessages(draft, id, now))
-    .sort((a, b) => (viewedAt[a] ?? 0) - (viewedAt[b] ?? 0));
+    .sort(
+      (a, b) =>
+        (viewedAt[a] ?? 0) - (viewedAt[b] ?? 0) ||
+        (draft.sessions[a]?.updated_at ?? 0) -
+          (draft.sessions[b]?.updated_at ?? 0),
+    );
 
   for (const id of candidates) {
     dropCachedMessages(draft, id);
