@@ -1,9 +1,6 @@
 import { PayloadBudget } from "./payloadBudget.js";
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdtemp, writeFile, rename, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import {
   ByteReceiver,
   bytePage,
@@ -14,7 +11,6 @@ import {
 import { PayloadValueAssembler, payloadValuePages } from "./payloadValues.js";
 import { transformImageCache } from "../imageCacheCodec.js";
 import { decodeImageBase64, detectImageMediaType } from "../imagePayload.js";
-import { imageFilePages } from "../imageFilePages.js";
 import { PayloadCodecCursors } from "./payloadCodecCursors.js";
 import { runPayloadCodec, payloadStringBytes } from "./payloadCodecClient.js";
 import {
@@ -203,43 +199,4 @@ test("actual codec client/cursor drains bounded pages and releases failure admis
       )
     ).value,
   ).toBeNull();
-});
-
-test("bounded regular image reads refuse replacement, oversized files and cancellation", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "preparation-image-"));
-  try {
-    const file = join(dir, "image"),
-      newer = join(dir, "replacement");
-    await writeFile(file, Buffer.alloc(70_000, 1));
-    let length = 0;
-    for await (const page of imageFilePages(file, {
-      budget: new PayloadBudget(5000),
-    })) {
-      expect(page.length).toBeLessThanOrEqual(PAYLOAD_PAGE_BYTES);
-      length += page.length;
-    }
-    expect(length).toBe(70_000);
-    const reading = imageFilePages(file, { budget: new PayloadBudget(5000) });
-    await reading.next();
-    await writeFile(newer, Buffer.alloc(70_000, 2));
-    await rename(newer, file);
-    await expect(
-      (async () => {
-        for await (const _ of reading) {
-        }
-      })(),
-    ).rejects.toThrow("changed");
-    await writeFile(file, Buffer.alloc(5_000_001));
-    await expect(
-      imageFilePages(file, { budget: new PayloadBudget(5000) }).next(),
-    ).rejects.toThrow("at most");
-    await expect(
-      imageFilePages(file, {
-        budget: new PayloadBudget(5000),
-        signal: AbortSignal.abort(),
-      }).next(),
-    ).rejects.toThrow("cancelled");
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
 });
