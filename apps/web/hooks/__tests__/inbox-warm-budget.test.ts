@@ -620,3 +620,78 @@ test.each(["hit", "miss"] as const)(
     }
   },
 );
+
+test("deleting a session while its cold snapshot is pending drops the response", async () => {
+  const restore = resetFixture();
+  const ready = Promise.withResolvers<unknown>();
+  const write = spyOn(
+    cacheStorage,
+    "writeConversationMessages",
+  ).mockImplementation(() => {});
+  const calls: string[] = [];
+  try {
+    seed([1]);
+    await warm({
+      query: (fn) => {
+        calls.push(getFunctionName(fn));
+        return ready.promise;
+      },
+    });
+    expect(calls).toEqual(["conversations:listMessages"]);
+    useInboxStore.getState().deleteSession(id(1));
+    ready.resolve({ page: [message(1024)], isDone: false });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(useInboxStore.getState().messages[id(1)]).toBeUndefined();
+    expect(write).not.toHaveBeenCalled();
+  } finally {
+    ready.resolve(null);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    write.mockRestore();
+    restore();
+  }
+});
+
+test.each(["hit", "miss"] as const)(
+  "deleting a session before a disk %s prevents its cold warm from continuing",
+  async (result) => {
+    const restore = resetFixture();
+    const response = Promise.withResolvers<CachedConversation | null>();
+    const load = spyOn(
+      cacheStorage,
+      "loadConversationMessages",
+    ).mockImplementation(() => response.promise);
+    const calls: string[] = [];
+    try {
+      seed([1]);
+      warmVisibleSessions({
+        query: async (fn) => {
+          calls.push(getFunctionName(fn));
+          return { page: [message(1024, 3)], isDone: true };
+        },
+      });
+      expect(load).toHaveBeenCalledWith(id(1));
+      const hydration = ensureHydrated(id(1));
+      useInboxStore.getState().deleteSession(id(1));
+      response.resolve(
+        result === "miss"
+          ? null
+          : {
+              messages: [message(1024, 2)],
+              userMessages: [message(1024, 1)],
+              pagination: { initialized: true, hasMoreAbove: false },
+              latestTimestamp: 2,
+            },
+      );
+      await hydration;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(useInboxStore.getState().messages[id(1)]).toBeUndefined();
+      expect(useInboxStore.getState().userMessages[id(1)]).toBeUndefined();
+      expect(calls).toEqual([]);
+    } finally {
+      response.resolve(null);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      load.mockRestore();
+      restore();
+    }
+  },
+);

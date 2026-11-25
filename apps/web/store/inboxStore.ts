@@ -18338,8 +18338,7 @@ const inboxStoreConfig = (set: any, get: any) => ({
     evictInactiveMessages(this, convId);
   }),
 
-  // The live-tail apply. listMessagesTail's result is AUTHORITATIVE for the
-  // range (anchorTs, lastTimestamp]: local rows there are replaced wholesale.
+  // listMessagesTail replaces the local range (anchorTs, lastTimestamp].
   // This is what delivers in-place streaming patches — mergeMessages is
   // add-only and silently drops a row whose _id already exists — and in-range
   // deletes (API-error banner supersession). Rows at or before the anchor stay
@@ -18354,10 +18353,11 @@ const inboxStoreConfig = (set: any, get: any) => ({
     msgs: Message[],
     lastTimestamp: number | null,
   ) {
+    const existing = this.messages[convId] || [];
+    if (anchorTs > 0 && existing.length === 0) return;
     msgs = dedupeReplayedMessages(omitRedundantInlineImages(msgs));
     if (msgs.length === 0) return;
     prunePendingEchoes(this, convId, msgs);
-    const existing = this.messages[convId] || [];
     const tailLast = lastTimestamp ?? msgs[msgs.length - 1].timestamp;
     const incomingIds = new Set(msgs.map((m: Message) => m._id));
     let delta = this.messages[convId] ? 0 : MESSAGE_CACHE_PAGE_OVERHEAD;

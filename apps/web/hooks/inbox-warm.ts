@@ -320,7 +320,11 @@ function runCold(
   inFlight.add(id);
   ensureHydrated(id)
     .then((restored) => {
-      if (inFlight !== messageWarmState.inFlight) return null;
+      if (
+        inFlight !== messageWarmState.inFlight ||
+        !useInboxStore.getState().sessions[id]
+      )
+        return null;
       if (restored) {
         messageWarmState.syncedCount.set(id, serverCount);
         return null;
@@ -332,13 +336,15 @@ function runCold(
     })
     .then((res: any) => {
       if (inFlight !== messageWarmState.inFlight || !res) return;
+      const state = useInboxStore.getState();
       const page = res?.page;
       if (
         Array.isArray(page) &&
         page.length > 0 &&
-        (useInboxStore.getState().messages[id]?.length ?? 0) === 0
+        state.sessions[id] &&
+        !state.messages[id]?.length
       ) {
-        useInboxStore.getState().setMessages(id, [...page].reverse(), {
+        state.setMessages(id, [...page].reverse(), {
           hasMoreAbove: !res.isDone,
           initialized: true,
         });

@@ -40,6 +40,7 @@ export function hydrateConversation(
 ): Promise<boolean> {
   const store = useInboxStore.getState();
   const epoch = currentHydrationEpoch();
+  const hadConversation = store.sessions[convId] || store.conversations[convId];
   const hasMessages = store.messages[convId]?.length > 0;
   // Already in memory — nothing to hydrate
   if (
@@ -57,6 +58,8 @@ export function hydrateConversation(
       _idbHydrating.delete(convId);
       if (epoch !== currentHydrationEpoch()) return false;
       const s = useInboxStore.getState();
+      if (hadConversation && !s.sessions[convId] && !s.conversations[convId])
+        return false;
       if (cached?.userMessages && !s.userMessages[convId])
         s.setUserMessages(convId, cached.userMessages, "cache");
       if (!cached || cached.messages.length === 0) return hasMessages;

@@ -21736,7 +21736,7 @@
     "swarm/no-comments": 13
   },
   "apps/web/hooks/use-conversation-messages.ts": {
-    "swarm/no-comments": 292,
+    "swarm/no-comments": 282,
     "swarm/no-direct-use-effect": 13
   },
   "apps/web/hooks/use-sync-change-feed.ts": {
@@ -28051,7 +28051,7 @@
   },
   "apps/web/store/inboxStore.ts": {
     "react/immutability": 2,
-    "swarm/no-comments": 5089
+    "swarm/no-comments": 5088
   },
   "apps/web/store/inboxViewModes.ts": {
     "swarm/no-comments": 4
