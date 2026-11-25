@@ -34,6 +34,8 @@ A turn written by several people is consecutive `<user-message from="Name">` par
 
 Open **Team terminal** in the session and choose **Share terminal**. Teammates who can read the session can then see your terminal screen. Automatic hiding can miss secrets. Choose **Stop sharing terminal** to close the view for everyone.
 
+Deploy the Convex server changes before the web client that calls the team terminal endpoints.
+
 ## Testing with two people
 
 `cast app as-user` only re-signs the desktop app. Two people in one Chrome: run a second origin (`127.0.0.1` beside `localhost`, separate storage), mint a session with `apps/server/run.sh verification:mintSession '{"email":…}'`, set the two `__convexAuth*` localStorage keys, and join by share link. Background tabs stall timers and animation frames, so presence heartbeats and reading anchors lag there; a Web Worker clock calling `updatePresence` stands in during a test. Unit tests: `messages/test/jointMessage.test.ts`, `web/lib/jointSend.test.ts`, `web/lib/sharedQueue.test.ts`, `web/store/__tests__/sharedQueueSync.test.ts`, `convex/pendingMessages.sharedQueue.test.ts`.

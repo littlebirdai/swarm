@@ -1,7 +1,7 @@
 // Remote pane watching — the contract between the browser's terminal split
 // (apps/web/lib/terminal/), the Convex relay (apps/server/convex/
 // terminalStream.ts) and the daemon's capture loop (apps/cli/src/terminal/
-// pane-stream.ts).
+// paneStream.ts).
 //
 // WHY THIS EXISTS. The integrated terminal is a loopback transport: the daemon
 // serves a PTY WebSocket on 127.0.0.1 and the browser reaches it only on the

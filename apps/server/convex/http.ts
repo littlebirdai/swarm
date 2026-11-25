@@ -6288,7 +6288,7 @@ http.route({
 });
 
 // Remote pane watching — the daemon's frame push (apps/cli/src/terminal/
-// pane-stream.ts). Only reached while a viewer holds a lease on the pane; the
+// paneStream.ts). Only reached while a viewer holds a lease on the pane; the
 // reply carries that lease, so the capture loop learns when to stop from the
 // request it was already making.
 cliRoute(

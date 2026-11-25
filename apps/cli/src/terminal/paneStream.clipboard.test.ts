@@ -6,7 +6,7 @@ import {
   paneBufferReader,
   runPaneStream,
   splitLoneEscape,
-} from "./pane-stream.js";
+} from "./paneStream.js";
 import {
   PANE_CLIPBOARD_MAINTAIN_MS,
   PANE_CLIPBOARD_POLL_MS,

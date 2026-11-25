@@ -239,7 +239,7 @@ export const sessionFrameTables = {
   }).index("by_user_device_target", ["user_id", "device_id", "target"]),
 
   // The clipboard offer for one relayed pane: the newest tmux paste buffer the
-  // daemon saw appear while the viewer typed, redacted (pane-stream.ts
+  // daemon saw appear while the viewer typed, redacted (paneStream.ts
   // clipboardWatch). Its own table, keyed like terminal_frames, so a frame
   // patch (several a second while typing) neither rewrites the text nor
   // re-runs the viewer's clipboard query. Read back only inside

@@ -29,7 +29,7 @@
 // a value wider than the pane is caught too.
 
 import { redactSecrets } from "../redact.js";
-import { tmuxRun, tmuxRunAsync } from "../tmux.js";
+import { tmuxRun } from "../tmux.js";
 import {
   hasSessionServer,
   sessionServerSockets,
@@ -73,9 +73,7 @@ export interface PaneFramePush {
 
 export interface PaneStreamDeps {
   /** Read the pane now. null = the pane is gone (or tmux is). */
-  capture: (
-    target: string,
-  ) => PaneSnapshot | null | Promise<PaneSnapshot | null>;
+  capture: (target: string) => PaneSnapshot | null;
   /** Publish to the relay. Returns the relay's answer, or null if the push
    *  itself failed (network, server down). `input` is whatever the viewer typed
    *  since the previous push, as hex. */
@@ -89,7 +87,6 @@ export interface PaneStreamDeps {
   log?: (msg: string) => void;
   /** The clipboard bridge (see watchClipboard). Absent = no bridge. */
   clipboard?: PaneClipboardDeps;
-  redactionReady?: () => boolean;
 }
 
 /**
@@ -153,9 +150,7 @@ export async function runPaneStream(
       return;
     }
 
-    if (deps.redactionReady?.() === false) return;
-    const snap = await deps.capture(target);
-    if (deps.redactionReady?.() === false) return;
+    const snap = deps.capture(target);
     if (!snap) {
       // Report it once so the viewer says "pane is gone" instead of spinning
       // on "connecting", then stop: a dead pane does not come back under the
@@ -442,13 +437,12 @@ export function restoreStrandedClipboardBridges(): number {
 
 /** Colors (SGR) and the other escapes capture-pane -e emits, OSC 8 links included. */
 const ESCAPE_RE =
-  /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-_])|\x9b[0-?]*[ -/]*[@-~]/g;
+  /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-_])/g;
 
 /** Cells a row's text takes, counting anything past U+1100 as wide: an overcount only joins a row that did not wrap, never misses one that did. */
 function cellWidth(text: string): number {
   let n = 0;
-  for (const ch of text)
-    n += ch === "\t" ? 8 - (n % 8) : ch.codePointAt(0)! >= 0x1100 ? 2 : 1;
+  for (const ch of text) n += ch.codePointAt(0)! >= 0x1100 ? 2 : 1;
   return n;
 }
 
@@ -462,10 +456,7 @@ function cellWidth(text: string): number {
  * colors; every other row keeps its colors and still goes through
  * redactSecrets, which also covers a value inside an escape (a link's URL).
  */
-export function redactFrame(
-  frame: string,
-  cols = Number.MAX_SAFE_INTEGER,
-): string {
+export function redactFrame(frame: string, cols: number): string {
   const rows = frame.split("\n");
   const plain = rows.map((r) => r.replace(ESCAPE_RE, ""));
   const lines: Array<{ start: number; end: number; text: string }> = [];
@@ -474,73 +465,12 @@ export function redactFrame(
     while (end < rows.length && cellWidth(plain[end - 1]!) >= cols) end++;
     lines.push({ start, end, text: plain.slice(start, end).join("") });
   }
-  const joined = lines.map((line) => line.text).join("\n");
-  const keyBoundary =
-    /-----(BEGIN|END) (?:[A-Z0-9 ]{0,40}PRIVATE KEY|PGP PRIVATE KEY BLOCK)-----/g;
-  const keyRows = new Set<number>();
-  let keyStart: number | undefined;
-  for (const [lineIndex, line] of lines.entries()) {
-    for (const match of line.text.matchAll(keyBoundary)) {
-      if (match[1] === "BEGIN") {
-        keyStart ??= lineIndex;
-      } else {
-        for (let i = keyStart ?? 0; i <= lineIndex; i++) keyRows.add(i);
-        keyStart = undefined;
-      }
-    }
-  }
-  if (keyStart !== undefined) {
-    for (let i = keyStart; i < lines.length; i++) keyRows.add(i);
-  }
-  const withoutKeyBlocks = keyRows.size
-    ? lines
-        .map((line, index) =>
-          keyRows.has(index) ? "[redacted:key]" : line.text,
-        )
-        .join("\n")
-    : joined;
-  const mask = (value: string) =>
-    "[redacted:terminal-secret]" + "\n".repeat(value.split("\n").length - 1);
-  let hints = withoutKeyBlocks
-    .replace(
-      /(?:^[ \t]*(?:[A-Za-z0-9+/]{64}|[A-Za-z0-9+/]{76})[ \t]*(?:\n|$)){4,}/gm,
-      (match) => mask(match),
-    )
-    .replace(
-      /^([ \t]*client-key-data[ \t]*:[ \t]*)([|>][-+]?[ \t]*\n(?:[ \t]+[A-Za-z0-9+/=]+[ \t]*(?:\n|$))+)/gim,
-      (_match, label, value) => label + mask(value),
-    )
-    .replace(
-      /(?<![\w-])(client-key-data[ \t]*:[ \t]*)(?:"[^"\n]*"|'[^'\n]*'|[^ \t\n]+)/gi,
-      (match, label) => label + mask(match.slice(label.length)),
-    )
-    .replace(
-      /(?<![\w-])((?:[A-Z_][A-Z0-9_]{0,63})?(?:SECRET|PASSWORD|TOKEN|CREDENTIAL|PRIVATE_KEY)[A-Z0-9_]{0,32}[ \t]*[:=][ \t]*)("(?:[^"\\]|\\[\s\S])*"|'(?:[^'\\]|\\[\s\S])*')/gi,
-      (_match, label, value) => label + mask(value),
-    )
-    .replace(/(?<![A-Za-z0-9+/])LS0tLS1CRUdJTi[A-Za-z0-9+/=]*/g, (value) =>
-      /^-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----/.test(
-        Buffer.from(value.slice(0, 120), "base64").toString(),
-      )
-        ? mask(value)
-        : value,
-    );
-  if (/"kty"\s*:\s*"(?:RSA|EC|OKP|oct)"/.test(hints)) {
-    hints = hints.replace(
-      /("(?:d|p|q|dp|dq|qi|k|oth)"\s*:\s*)("(?:[^"\\]|\\[\s\S])*"|\[[^\]]{0,4096}\])/g,
-      (_match, label, value) => label + mask(value),
-    );
-  }
-  const redactedScreen = redactSecrets(hints);
-  if (redactedScreen === joined) return redactSecrets(frame);
-  const redactedLines = redactedScreen.split("\n");
-  if (redactedLines.length !== lines.length)
-    return rows
-      .map((_, index) => (index === 0 ? "[redacted:screen]" : ""))
-      .join("\n");
+  // Most ticks hold no secret: one pass over every line at once says so.
+  const all = lines.map((l) => l.text).join("\n");
+  if (redactSecrets(all) === all) return redactSecrets(frame);
   const out: string[] = [];
-  for (const [index, { start, end, text }] of lines.entries()) {
-    const redacted = redactedLines[index]!;
+  for (const { start, end, text } of lines) {
+    const redacted = redactSecrets(text);
     if (redacted === text) {
       for (let i = start; i < end; i++) out.push(redactSecrets(rows[i]!));
       continue;
@@ -563,14 +493,12 @@ export function redactFrame(
  * a 400ms loop spawns one process per tick instead of two. Separators must be
  * printable: tmux rewrites control characters in format output to "_".
  */
-export async function capturePane(
-  target: string,
-): Promise<PaneSnapshot | null> {
+export function capturePane(target: string): PaneSnapshot | null {
   if (!isValidPaneTarget(target)) return null;
   // Managed sessions are addressed as session:window.pane everywhere else in
   // the daemon; accept a bare session name and resolve it the same way.
   const pane = target.includes(":") ? target : `${target}:0.0`;
-  const r = await tmuxRunAsync([
+  const r = tmuxRun([
     "display-message",
     "-p",
     "-t",
@@ -581,7 +509,6 @@ export async function capturePane(
     "capture-pane",
     "-p",
     "-e",
-    "-N",
     "-t",
     pane,
   ]);
@@ -664,7 +591,6 @@ export function startPaneStream(
     sleep: deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
     log: deps.log,
     clipboard: deps.clipboard,
-    redactionReady: deps.redactionReady,
   };
   const run = runPaneStream(target, full)
     .catch((err) => {

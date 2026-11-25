@@ -10,7 +10,7 @@ import {
 } from "../known-value-redaction.js";
 import { deviceId } from "../remote/device.js";
 import { tmuxRunAsync } from "../tmux.js";
-import { redactFrame } from "./pane-stream.js";
+import { redactTeamScreen } from "./team-pane-redaction.js";
 
 const PANE_IDENTITY =
   "#{session_name}|#{session_created}|#{pid}|#{pane_id}|#{pane_pid}|#{pane_dead}";
@@ -25,7 +25,7 @@ export async function captureTeamPane(target: string) {
     "-t",
     pane,
     "-F",
-    `${PANE_IDENTITY}|#{pane_width}`,
+    PANE_IDENTITY,
     ";",
     "capture-pane",
     "-p",
@@ -45,20 +45,17 @@ export async function captureTeamPane(target: string) {
   const first = output.indexOf("\n");
   const last = output.lastIndexOf("\n");
   if (first < 0 || last <= first) return null;
-  const header = output.slice(0, first);
-  const identity = header.slice(0, header.lastIndexOf("|"));
-  const cols = Number(header.slice(header.lastIndexOf("|") + 1));
+  const identity = output.slice(0, first);
   const [name, , , paneId, panePid, dead] = identity.split("|");
   if (
     identity !== output.slice(last + 1) ||
-    !cols ||
     !paneId?.startsWith("%") ||
     !Number(panePid) ||
     dead !== "0" ||
     name !== target.split(":")[0]
   )
     return null;
-  return { identity, cols, text: output.slice(first + 1, last) };
+  return { identity, text: output.slice(first + 1, last) };
 }
 
 type Frame = { pane_instance?: string; frame?: string };
@@ -91,7 +88,7 @@ export async function streamTeamPane(
       return;
     }
     paneInstance = pane.identity;
-    const frame = redactFrame(pane.text).slice(0, PANE_MAX_FRAME_BYTES);
+    const frame = redactTeamScreen(pane.text).slice(0, PANE_MAX_FRAME_BYTES);
     const changed = frame !== lastFrame;
     if (changed || deps.now() - lastPushAt >= PANE_HEARTBEAT_MS) {
       const stop = await deps.push({

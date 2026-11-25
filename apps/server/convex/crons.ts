@@ -229,21 +229,16 @@ crons.interval(
   internal.edgeRunLease.prune,
 );
 
-crons.interval(
-  "prune stale remote terminal frames",
-  { hours: 6 },
-  internal.terminalStream.pruneStaleFrames,
-);
+for (const [name, handler] of [
+  ["terminal", internal.terminalStream.pruneStaleFrames],
+  ["browser", internal.browserStream.pruneStaleFrames],
+] as const)
+  crons.interval(`prune stale remote ${name} frames`, { hours: 6 }, handler);
+
 crons.interval(
   "prune expired team terminal viewers",
   { minutes: 5 },
   internal.terminalWatch.pruneExpired,
-);
-
-crons.interval(
-  "prune stale remote browser frames",
-  { hours: 6 },
-  internal.browserStream.pruneStaleFrames,
 );
 
 crons.interval(

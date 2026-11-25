@@ -4758,11 +4758,11 @@
   "apps/cli/src/terminal/daemon-bridge.ts": {
     "swarm/no-comments": 51
   },
-  "apps/cli/src/terminal/pane-stream.test.ts": {
+  "apps/cli/src/terminal/paneStream.test.ts": {
     "swarm/no-comments": 38
   },
-  "apps/cli/src/terminal/pane-stream.ts": {
-    "swarm/no-comments": 107
+  "apps/cli/src/terminal/paneStream.ts": {
+    "swarm/no-comments": 108
   },
   "apps/cli/src/terminal/paneStream.clipboard.test.ts": {
     "swarm/no-comments": 2

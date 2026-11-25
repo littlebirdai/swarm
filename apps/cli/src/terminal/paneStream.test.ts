@@ -13,7 +13,7 @@ import {
   redactFrame,
   type PaneFramePush,
   type PaneSnapshot,
-} from "./pane-stream.js";
+} from "./paneStream.js";
 import {
   PANE_CAPTURE_INTERVAL_MS,
   PANE_HEARTBEAT_MS,
@@ -365,7 +365,7 @@ describe("isValidPaneTarget", () => {
 });
 
 describe("capturePane", () => {
-  test("refuses an invalid target before ever spawning tmux", async () => {
-    expect(await capturePane("#{pane_id}")).toBeNull();
+  test("refuses an invalid target before ever spawning tmux", () => {
+    expect(capturePane("#{pane_id}")).toBeNull();
   });
 });

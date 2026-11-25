@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { setKnownValuesForTest } from "../known-value-redaction.js";
 import { pollUntil } from "../test-helpers/pollUntil.js";
-import { capturePane, redactFrame } from "./pane-stream.js";
+import { capturePane, redactFrame } from "./paneStream.js";
 import { tmuxRun } from "../tmux.js";
 import { captureTeamPane, streamTeamPane } from "./team-pane-stream.js";
 
@@ -14,7 +14,7 @@ test("team publishing redacts each screen before it crosses the transport", asyn
   const captured: { pane_instance?: string; frame?: string }[] = [];
   const screens = [`First ${secret}`, `Second ${secret}`];
   await streamTeamPane("cc-watch", {
-    capture: () => ({ identity: "%1|42", cols: 80, text: screens.shift()! }),
+    capture: () => ({ identity: "%1|42", text: screens.shift()! }),
     push: async (frame) => {
       captured.push(frame);
       return captured.length === 2;
@@ -37,8 +37,8 @@ test("a replacement in the same tmux target sends only the end signal", async ()
   await streamTeamPane("cc-watch", {
     capture: () =>
       now === 0
-        ? { identity: "first", cols: 80, text: "Old pane" }
-        : { identity: "replacement", cols: 80, text: "New pane" },
+        ? { identity: "first", text: "Old pane" }
+        : { identity: "replacement", text: "New pane" },
     push: async (frame) => {
       captured.push(frame);
       return captured.length >= 2;
@@ -56,7 +56,7 @@ test("a re-dispatched stream checks the original physical pane before sending a 
   await streamTeamPane(
     "cc-watch",
     {
-      capture: () => ({ identity: "replacement", cols: 80, text: "New pane" }),
+      capture: () => ({ identity: "replacement", text: "New pane" }),
       push: async (frame) => {
         captured.push(frame);
         return true;
@@ -130,15 +130,14 @@ test("isolated tmux redacts a value that wraps after a space at the pane width",
       "synthetic value on the isolated pane",
     );
     const team = (await captureTeamPane(name))!;
-    const owner = (await capturePane(name))!;
-    for (const screen of [
-      redactFrame(team.text, team.cols),
-      redactFrame(owner.frame, owner.cols),
-    ]) {
-      expect(screen).not.toContain(first);
-      expect(screen).not.toContain(second);
-      expect(screen).toContain("[redacted:");
-    }
+    const owner = capturePane(name)!;
+    const legacy = tmuxRun(["capture-pane", "-p", "-e", "-t", `${name}:0.0`]);
+    expect(legacy.status).toBe(0);
+    expect(owner.frame).toBe(legacy.stdout.replace(/\n$/, ""));
+    const screen = await publishedScreen(team.text);
+    expect(screen).not.toContain(first);
+    expect(screen).not.toContain(second);
+    expect(screen).toContain("[redacted:");
   } finally {
     tmuxRun(["kill-session", "-t", name]);
   }
@@ -152,7 +151,7 @@ test("team frames stop before capture when the known-value matcher is unavailabl
       redactionReady: () => published === 0,
       capture: () => ({
         identity: "original",
-        cols: 80,
+
         text: `sample ${published}`,
       }),
       push: async () => ++published > 1,
@@ -206,4 +205,129 @@ test("isolated tmux redacts a value wrapped before a two-cell character", async 
   } finally {
     tmuxRun(["kill-session", "-t", name]);
   }
+});
+
+async function publishedScreen(text: string): Promise<string> {
+  let published: string | undefined;
+  await streamTeamPane("fixture", {
+    capture: () => ({ identity: "original", text }),
+    now: () => 1,
+    sleep: async () => {},
+    push: async ({ frame }) => {
+      published = frame;
+      return true;
+    },
+  });
+  expect(published).toBeDefined();
+  return published!;
+}
+
+test.each(['"', "'"])(
+  "a prose quote (%s) leaves the next password to the shared redactor",
+  async (quote) => {
+    const value = "fixture_opaque_value_" + "987654321";
+    const prefix = `SyntaxError: unexpected token: ${quote}\n`;
+    const frame = `${prefix}DB_PASSWORD=${quote}${value}${quote} public suffix`;
+    expect(await publishedScreen(frame)).toBe(
+      `${prefix}DB_PASSWORD=${quote}[redacted:secret-assignment]${quote} public suffix`,
+    );
+  },
+);
+
+test.each([
+  ['token="a"&' + "secret_tail_xyz987654"],
+  [
+    JSON.stringify({
+      kty: "RSA",
+      d: "fixture-private-part",
+      custom_secret: "fixture-vault-tail",
+    }),
+  ],
+  ["APP_TOKEN=" + "fixture_known_value_987654321"],
+])(
+  "a known Vault value survives intact through the first redaction pass (%#)",
+  async (value) => {
+    setKnownValuesForTest([{ value, name: "fixture", vault: true }]);
+    const screen = await publishedScreen(`before ${value} after`);
+    expect(screen).toMatch(/^before \[redacted:[^\]]+\] after$/);
+  },
+);
+
+const keyRows = ["G", "H", "I", "J"].map((ch) => ch.repeat(64));
+const paddedTail = "KLMNOPQ=";
+
+test.each([
+  [
+    "git log text",
+    '    Use ACCESS_TOKEN to sign in\n    token: "how it works"\n    Keep commit summaries',
+  ],
+  ["fetch credentials", 'credentials: "include"'],
+  ["token type", 'tokenType: "Bearer"'],
+  ["prose quote", "unexpected token: 'foo'"],
+  ["same-line assignment", 'APP_SECRET="sample text"'],
+  ["key that only contains a secret word", 'TOKEN_TYPE="sample\npublic text"'],
+  ["consecutive assignments", 'APP_SECRET="unclosed\nPUBLIC=""\npublic tail'],
+  ["unclosed prose", 'APP_SECRET="unclosed\nError: unexpected token: "'],
+  ["SHA-256 list", ["a", "b", "c", "d"].map((ch) => ch.repeat(64)).join("\n")],
+  ["hex dump", ["A", "B", "C", "D"].map((ch) => ch.repeat(64)).join("\n")],
+  [
+    "public certificate",
+    [
+      "-----BEGIN CERTIFICATE-----",
+      ...keyRows,
+      paddedTail,
+      "-----END CERTIFICATE-----",
+    ].join("\n"),
+  ],
+  [
+    "public JWK beside unrelated JSON",
+    '{"kty":"RSA","n":"public"} {"d":"date","p":"page","k":"key"}',
+  ],
+  [
+    "public JWK with an unrelated nested object",
+    '{"kty":"RSA","n":"public","meta":{"d":"date","p":"page"}}',
+  ],
+])("keeps %s byte for byte", async (_name, input) => {
+  expect(await publishedScreen(input!)).toBe(input!);
+});
+
+test("redacts a markerless base64 run and its short padded last row", async () => {
+  const screen = await publishedScreen(
+    ["before", ...keyRows, paddedTail, "after"].join("\n"),
+  );
+  expect(screen.split("\n")).toHaveLength(keyRows.length + 3);
+  for (const row of [...keyRows, paddedTail]) expect(screen).not.toContain(row);
+  expect(screen).toStartWith("before\n");
+  expect(screen).toEndWith("\nafter");
+});
+
+test("redacts an encoded PGP private block", async () => {
+  const encodedPgp = btoa(
+    "-----BEGIN PGP PRIVATE KEY BLOCK-----\nfixture\n-----END PGP PRIVATE KEY BLOCK-----",
+  );
+  expect(await publishedScreen(`before ${encodedPgp} after`)).toBe(
+    "before [redacted:terminal-secret] after",
+  );
+});
+
+test("a multiline replacement preserves the text after its closing delimiter", async () => {
+  const screen = await publishedScreen(
+    'APP_SECRET="fixture first\nfixture last" public suffix',
+  );
+  expect(screen).not.toContain("fixture");
+  expect(screen).toEndWith(" public suffix");
+});
+
+test("a private key replacement preserves both ends of its marker rows", async () => {
+  const screen = await publishedScreen(
+    "public prefix -----BEGIN PGP PRIVATE KEY BLOCK-----\nfixture\n-----END PGP PRIVATE KEY BLOCK----- public suffix",
+  );
+  expect(screen).not.toContain("fixture");
+  expect(screen).toStartWith("public prefix ");
+  expect(screen).toEndWith(" public suffix");
+});
+
+test("owner redaction preserves a value that only the team redactor masks", () => {
+  const frame = 'client-key-data: "sample"';
+  expect(redactFrame(frame, 80)).toBe(frame);
 });

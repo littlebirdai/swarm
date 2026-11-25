@@ -1,12 +1,9 @@
 import { isValidPaneTarget } from "@codecast/daemon/terminalStream";
-import {
-  refreshKnownVault,
-  terminalRedactionReady,
-} from "../known-value-redaction.js";
+import { refreshKnownVault } from "../known-value-redaction.js";
 import { deviceId } from "../remote/device.js";
 import { isManagedTmuxName } from "../resumeCommand.js";
 import { hasTmux } from "../tmux.js";
-import { isPaneStreaming, startPaneStream, writePane } from "./pane-stream.js";
+import { isPaneStreaming, startPaneStream, writePane } from "./paneStream.js";
 import { startTeamPaneStream } from "./team-pane-stream.js";
 import { reapStaleTerminalSessions } from "./terminalServer.js";
 
@@ -63,7 +60,7 @@ export async function streamTerminalPane(
   // reach the loopback PTY, so publish the pane's screen to the relay
   // instead, and take keystrokes back on the same request. It stops on
   // its own when the viewer's lease lapses; the lease is also what
-  // authorizes input (apps/cli/src/terminal/pane-stream.ts).
+  // authorizes input (apps/cli/src/terminal/paneStream.ts).
   const parsed = commandArgs ? JSON.parse(commandArgs) : {};
   if (parsed && typeof parsed === "object" && "team_watch" in parsed) {
     const started = await startTeamPaneStream(
@@ -93,13 +90,9 @@ export async function streamTerminalPane(
   const alreadyRunning = isPaneStreaming(target);
   // Frames go out through redactSecrets: take the Vault's current values
   // first, as a `cast vault` read does, so one stored a moment ago is in.
-  if (!alreadyRunning && !(await refreshKnownVault())) {
-    recordOutcome(undefined, "Terminal redaction unavailable");
-    return;
-  }
+  if (!alreadyRunning) await refreshKnownVault();
   startPaneStream(target, {
     log,
-    redactionReady: terminalRedactionReady,
     write: (pane, bytes) => {
       if (writePane(pane, bytes)) observePaneInput(pane, bytes);
     },

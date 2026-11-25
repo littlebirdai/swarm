@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { runPaneStream } from "./terminal/pane-stream.js";
+import { runPaneStream } from "./terminal/paneStream.js";
 import {
   INTERRUPT_SETTLE_MS,
   classifyInputBytes,

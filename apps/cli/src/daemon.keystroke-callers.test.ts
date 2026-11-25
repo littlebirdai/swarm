@@ -3,7 +3,7 @@ import http from "node:http";
 import WebSocket from "ws";
 import { attachTerminalServer } from "./terminal/terminalServer.js";
 import { hasTmux, tmuxRun } from "./tmux.js";
-import { writePane } from "./terminal/pane-stream.js";
+import { writePane } from "./terminal/paneStream.js";
 import { expect, test } from "bun:test";
 import fs from "node:fs";
 import * as inference from "./keystrokeInference.js";
