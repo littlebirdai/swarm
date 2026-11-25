@@ -501,7 +501,8 @@ describe("the link connection", () => {
     const legacy = path.join(home, ".codecast/browser/laptop-link.json");
     child.stdin.write('{"v":1}\n');
     const deadline = Date.now() + 20_000;
-    while (!fs.existsSync(file) && Date.now() < deadline)
+    const written = (f: string) => fs.existsSync(f) && fs.statSync(f).size > 0;
+    while (!(written(file) && written(legacy)) && Date.now() < deadline)
       await new Promise((r) => setTimeout(r, 20));
     expect(fs.readFileSync(file, "utf-8")).toBe('{"v":1}\n');
     expect(fs.statSync(file).mode & 0o777).toBe(0o600);
