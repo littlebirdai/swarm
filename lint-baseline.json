@@ -3492,11 +3492,11 @@
   "apps/cli/src/loopbackListen.test.ts": {
     "swarm/no-comments": 20
   },
+  "apps/cli/src/machine-key.test.ts": {
+    "swarm/no-comments": 10
+  },
   "apps/cli/src/machineCaps.ts": {
     "swarm/no-comments": 2
-  },
-  "apps/cli/src/machineKey.test.ts": {
-    "swarm/no-comments": 10
   },
   "apps/cli/src/machineKey.ts": {
     "swarm/no-blocking-child-process-call": 2,
@@ -4040,7 +4040,7 @@
   },
   "apps/cli/src/remote/device.ts": {
     "swarm/no-blocking-child-process-call": 1,
-    "swarm/no-comments": 23
+    "swarm/no-comments": 22
   },
   "apps/cli/src/remote/localSession.ts": {
     "swarm/no-comments": 22
@@ -5398,14 +5398,14 @@
   "apps/cli/src/workflow/liveRuns.ts": {
     "swarm/no-comments": 4
   },
+  "apps/cli/src/workflow/merge-station.deploy.test.ts": {
+    "swarm/no-comments": 11
+  },
   "apps/cli/src/workflow/mergeScratch.test.ts": {
     "swarm/no-comments": 11
   },
   "apps/cli/src/workflow/mergeScratch.ts": {
     "swarm/no-comments": 25
-  },
-  "apps/cli/src/workflow/mergeStation.deploy.test.ts": {
-    "swarm/no-comments": 11
   },
   "apps/cli/src/workflow/mergeStation.test.ts": {
     "swarm/no-comments": 13
