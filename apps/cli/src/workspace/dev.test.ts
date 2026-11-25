@@ -223,7 +223,7 @@ describe("cast dev never calls another checkout's server its own", () => {
   /** The first of `n` consecutive free ports, from a random start so concurrent runs do not collide. */
   async function freePorts(n: number): Promise<number> {
     for (let tries = 0; tries < 50; tries++) {
-      const base = 41_000 + Math.floor(Math.random() * 18_000);
+      const base = 20_000 + Math.floor(Math.random() * 12_000);
       const free = await Promise.all(
         Array.from({ length: n }, (_, i) => isPortFree(base + i)),
       );

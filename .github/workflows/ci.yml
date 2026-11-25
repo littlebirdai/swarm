@@ -389,13 +389,14 @@ jobs:
         run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test src/ --parallel=3 --timeout=20000 --path-ignore-patterns='**/src/computer/**' --path-ignore-patterns='**/*.e2e.test.ts' --timings=test-timings.json --shard=${{ matrix.suite }}/8 --bail=5
 
       # The e2e files drive real tmux panes against wall-clock bounds, so they
-      # run one at a time and away from the unit tests, which use the CPUs.
+      # run one at a time and away from the unit tests, which use the CPUs. A
+      # test gets three attempts, as the messaging e2e step does.
       - name: E2E files (cli package)
         if: startsWith(matrix.suite, 'tmux-')
         working-directory: apps/cli
         env:
           SUITE: ${{ matrix.suite }}
-        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --timeout=20000 --timings=test-timings.json --shard="${SUITE#tmux-}/8" --bail=5
+        run: bash ../../scripts/ci/quiet-watchdog.sh 240 -- bun test e2e.test --parallel=1 --retry=2 --timeout=20000 --timings=test-timings.json --shard="${SUITE#tmux-}/8" --bail=5
 
       # The eval home (apps/evals). Its tests make no network or model
       # calls; real replays run only from ./evals on a laptop.

@@ -1,4 +1,4 @@
-import type { convexTest } from "convex-test";
+import type { TestConvex } from "convex-test";
 import type schema from "./schema";
 
 const EXPECTED_JOBS = new Set([
@@ -16,9 +16,7 @@ const EXPECTED_JOBS = new Set([
   "userSends:record",
 ]);
 
-export function scheduledJobProblems(
-  t: ReturnType<typeof convexTest<typeof schema>>,
-) {
+export function scheduledJobProblems(t: TestConvex<typeof schema>) {
   return t.run(async (ctx) =>
     (await ctx.db.system.query("_scheduled_functions").collect())
       .filter(
