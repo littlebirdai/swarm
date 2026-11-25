@@ -6,10 +6,10 @@
 // Why: a docs-only pull request used to start the whole matrix — build,
 // typecheck, lint and three test jobs (ct-49562).
 //
-// Anything this file does not recognise turns every flag true, so a new
-// top-level directory runs the full matrix until someone maps it here. A false
-// is a claim that nothing the job covers changed, and only the mappings below
-// can make that claim.
+// An unclassified path runs the dependency jobs until the classifier maps it.
+// The model job reads files from its own directory and uses its own path gate.
+// An empty diff runs every job because the classifier cannot tell which files
+// changed.
 
 export const AREAS = [
   "cli",
@@ -34,6 +34,7 @@ export const AREAS = [
   // tests run in test-always on every change.
   "infra",
   "docs",
+  "models",
 ] as const;
 
 export type Area = (typeof AREAS)[number];
@@ -82,7 +83,7 @@ export const JOB_AREAS: Record<string, Area[]> = {
     "playground",
     "platform",
   ],
-  lint: AREAS.filter((area) => area !== "docs"),
+  lint: AREAS.filter((area) => area !== "docs" && area !== "models"),
   // About 480 of 620 convex test files import web code through convex source.
   "test-convex": ["convex", "web", "packages", "platform"],
   // About 750 of 1,220 web test files reach convex and 680 reach electron.
@@ -121,6 +122,7 @@ export const JOB_AREAS: Record<string, Area[]> = {
   ],
   // The shell requires @platform/desktop and nothing else in the repo.
   "test-electron": ["electron", "platform"],
+  "test-models": ["models"],
 };
 
 export const WEB_FFMPEG_INPUTS = new Set([
@@ -167,6 +169,7 @@ const AREA_PREFIXES: Array<[Exclude<Area, "docs">, string[]]> = [
   ["extension", ["apps/browser-extension/", "apps/vscode-extension/"]],
   ["playground", ["apps/playground/"]],
   ["infra", ["infra/"]],
+  ["models", ["tests/models/"]],
 ];
 
 const DOCS_FILES = new Set([
@@ -257,7 +260,7 @@ export function injectionScope(files: string[]): boolean {
 export type Scope = {
   /** Every area and job flag, in emit order. */
   flags: Record<string, boolean>;
-  /** Why the classifier ran everything, empty when it filtered. */
+  /** Paths that forced dependency jobs to run, or the empty diff marker. */
   forcedBy: string[];
 };
 
@@ -285,7 +288,9 @@ export function classifyChangedPaths(files: string[]): Scope {
   const flags: Record<string, boolean> = {};
   for (const area of AREAS) flags[area] = forced || areas.has(area);
   for (const [job, jobAreas] of Object.entries(JOB_AREAS)) {
-    flags[jobFlag(job)] = forced || jobAreas.some((area) => areas.has(area));
+    const runUnclassified = job === "test-models" ? paths.length === 0 : forced;
+    flags[jobFlag(job)] =
+      runUnclassified || jobAreas.some((area) => areas.has(area));
   }
   flags.run_test_cli ||= paths.some((file) => WEB_FFMPEG_INPUTS.has(file));
   flags.run_lint ||= paths.some((file) =>
@@ -310,9 +315,7 @@ if (import.meta.main) {
   } else {
     const scope = classifyChangedPaths(files);
     if (scope.forcedBy.length > 0) {
-      console.error(
-        `Running every job — unclassified input: ${scope.forcedBy.join(", ")}`,
-      );
+      console.error(`CI path fallback for ${scope.forcedBy.join(", ")}`);
     }
     console.log(formatScope(scope));
   }

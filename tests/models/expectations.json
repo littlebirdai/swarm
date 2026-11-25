@@ -1,0 +1,261 @@
+{
+  "CacheHost": {
+    "cache-host": {
+      "violations": [],
+      "distinctStates": 15102
+    },
+    "cache-host-no-check": {
+      "violations": [],
+      "distinctStates": 14211
+    },
+    "cache-host-no-one-txn": {
+      "violations": ["NoSkippedRows"],
+      "distinctStates": 56,
+      "stopAfterCounterexamples": true
+    },
+    "cache-host-no-per-epoch": {
+      "violations": ["HolderCanServe"],
+      "distinctStates": 24,
+      "stopAfterCounterexamples": true
+    },
+    "cache-host-no-per-epoch-check": {
+      "violations": ["NoForeignRows"],
+      "distinctStates": 200,
+      "stopAfterCounterexamples": true
+    },
+    "cache-host-no-steal": {
+      "violations": ["HostCanReturn"],
+      "distinctStates": 6,
+      "stopAfterCounterexamples": true
+    },
+    "cache-host-no-stop-on-fail": {
+      "violations": ["NoSkippedRows"],
+      "distinctStates": 275,
+      "stopAfterCounterexamples": true
+    },
+    "cache-host-reach": {
+      "violations": ["StealNeverHappens"],
+      "distinctStates": 24,
+      "stopAfterCounterexamples": true
+    }
+  },
+  "CoSteer": {
+    "co-steer": {
+      "violations": [],
+      "distinctStates": 375
+    },
+    "co-steer-no-guard": {
+      "violations": ["NoIntrusion"],
+      "distinctStates": 432
+    }
+  },
+  "Delivery": {
+    "delivery-own": {
+      "violations": [],
+      "distinctStates": 44
+    },
+    "delivery-paste": {
+      "violations": ["WaitingMeansNotGot", "NeverDeliveredTwice"],
+      "distinctStates": 116
+    }
+  },
+  "FencedTakeover": {
+    "fenced-takeover": {
+      "violations": [],
+      "distinctStates": 336
+    },
+    "fenced-takeover-ack-early": {
+      "violations": ["NoLateSteer"],
+      "distinctStates": 293,
+      "stopAfterCounterexamples": true
+    },
+    "fenced-takeover-early": {
+      "violations": ["NoLateSteer"],
+      "distinctStates": 96,
+      "stopAfterCounterexamples": true
+    },
+    "fenced-takeover-no-fence-persist": {
+      "violations": [],
+      "distinctStates": 362
+    },
+    "fenced-takeover-no-machine-check": {
+      "violations": ["NoLateSteer"],
+      "distinctStates": 287,
+      "stopAfterCounterexamples": true
+    },
+    "fenced-takeover-no-server-check": {
+      "violations": ["NoLateSteer"],
+      "distinctStates": 159,
+      "stopAfterCounterexamples": true
+    },
+    "fenced-takeover-no-start-log": {
+      "violations": ["NoLateSteer"],
+      "distinctStates": 321,
+      "stopAfterCounterexamples": true
+    }
+  },
+  "Lease": {
+    "lease": {
+      "violations": ["OneSessionWorking"],
+      "distinctStates": 43
+    }
+  },
+  "LoneJoin": {
+    "lone-join": {
+      "violations": [],
+      "distinctStates": 1420
+    },
+    "lone-join-eager-row": {
+      "violations": ["ZeroWritesAlone"],
+      "distinctStates": 4,
+      "stopAfterCounterexamples": true
+    },
+    "lone-join-no-implied": {
+      "violations": ["NoIntrusion"],
+      "distinctStates": 36,
+      "stopAfterCounterexamples": true
+    },
+    "lone-join-no-lapse": {
+      "violations": ["GoneHolderFreesBaton"],
+      "distinctStates": 420
+    }
+  },
+  "OutboxMove": {
+    "outbox-move": {
+      "violations": [],
+      "distinctStates": 5571
+    },
+    "outbox-move-no-both-read": {
+      "violations": ["Arrives"],
+      "distinctStates": 5571
+    },
+    "outbox-move-no-dedup": {
+      "violations": ["SentOnce"],
+      "distinctStates": 281,
+      "stopAfterCounterexamples": true
+    },
+    "outbox-move-no-owner": {
+      "violations": ["RightAccount"],
+      "distinctStates": 118,
+      "stopAfterCounterexamples": true
+    },
+    "outbox-move-no-rescan": {
+      "violations": ["Arrives"],
+      "distinctStates": 5524
+    },
+    "outbox-move-no-safe-delete": {
+      "violations": ["Arrives"],
+      "distinctStates": 5880
+    }
+  },
+  "PromptAnswer": {
+    "prompt-answer": {
+      "violations": [],
+      "distinctStates": 70596
+    },
+    "prompt-answer-no-epoch": {
+      "violations": [
+        "NeverALaterPrompt",
+        "EscalationOnlyByOwner",
+        "OneAnswerSettles"
+      ],
+      "stopAfterCounterexamples": true
+    },
+    "prompt-answer-no-fallback": {
+      "violations": ["SomeoneCanAnswer"],
+      "distinctStates": 70596
+    },
+    "prompt-answer-no-machine-guard": {
+      "violations": ["NeverALaterPrompt", "EscalationOnlyByOwner"],
+      "stopAfterCounterexamples": true
+    },
+    "prompt-answer-no-role-check": {
+      "violations": ["OnlyAllowedPersonAnswers", "EscalationOnlyByOwner"],
+      "stopAfterCounterexamples": true
+    },
+    "prompt-answer-no-server-guard": {
+      "violations": ["OneAnswerSettles"],
+      "stopAfterCounterexamples": true
+    },
+    "prompt-answer-small": {
+      "violations": [],
+      "distinctStates": 171
+    }
+  },
+  "StaleSteer": {
+    "stale-steer": {
+      "violations": [],
+      "distinctStates": 101
+    },
+    "stale-steer-machine-only": {
+      "violations": [],
+      "distinctStates": 101
+    },
+    "stale-steer-no-guard": {
+      "violations": ["ActsOnlyOnTheTurnSeen"],
+      "distinctStates": 104
+    },
+    "stale-steer-server-only": {
+      "violations": ["ActsOnlyOnTheTurnSeen"],
+      "distinctStates": 116
+    }
+  },
+  "SwarmFlow": {
+    "swarm-flow-interest": {
+      "violations": [],
+      "distinctStates": 100
+    },
+    "swarm-flow-no-dedup": {
+      "violations": ["OneCopyOnServer", "SavedMeansStored"],
+      "distinctStates": 124
+    },
+    "swarm-flow-no-receipts": {
+      "violations": ["NeverDeliveredTwice", "StatusNeverAhead"],
+      "distinctStates": 180
+    },
+    "swarm-flow-team": {
+      "violations": ["OutsiderStaysAsleep"],
+      "distinctStates": 180
+    }
+  },
+  "TerminalControl": {
+    "terminal-control": {
+      "violations": [],
+      "distinctStates": 31979
+    },
+    "terminal-control-no-ack": {
+      "violations": ["HolderInputNotDropped"],
+      "stopAfterCounterexamples": true
+    },
+    "terminal-control-no-machine-check": {
+      "violations": ["OnlyCurrentTokenTypes", "NoInputAfterRevokeAck"],
+      "distinctStates": 46811
+    },
+    "terminal-control-no-order": {
+      "violations": ["StoppedTokenStaysStopped", "HolderInputNotDropped"],
+      "distinctStates": 52325
+    },
+    "terminal-control-no-pane-check": {
+      "violations": ["NoInputToReplacedPane"],
+      "distinctStates": 33642
+    },
+    "terminal-control-relay-path": {
+      "violations": [],
+      "distinctStates": 31467
+    },
+    "terminal-control-small": {
+      "violations": [],
+      "distinctStates": 130
+    }
+  },
+  "TurnBaton": {
+    "turn-baton": {
+      "violations": [],
+      "distinctStates": 26
+    },
+    "turn-baton-no-guard": {
+      "violations": ["OnlyHolderSends", "OneSteerAtATime", "NoIntrusion"],
+      "distinctStates": 39
+    }
+  }
+}

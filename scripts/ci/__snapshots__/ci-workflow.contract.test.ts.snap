@@ -467,6 +467,31 @@ fi
       },
     ],
   },
+  "test-models": {
+    "defaults": undefined,
+    "env": undefined,
+    "services": undefined,
+    "steps": [
+      {
+        "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      },
+      {
+        "uses": "./.github/actions/setup-bun",
+        "with": {
+          "deps": "none",
+        },
+      },
+      {
+        "name": "Unit tests (TLC output)",
+        "run": "bun test",
+        "working-directory": "tests/models",
+      },
+      {
+        "name": "Check protocol models",
+        "run": "JAVA_HOME="$JAVA_HOME_17_X64" bun tests/models/run-models.ts",
+      },
+    ],
+  },
   "test-platform": {
     "defaults": undefined,
     "env": undefined,
@@ -609,6 +634,8 @@ fi
           "TEST_ELECTRON_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_test_electron }}",
           "TEST_MOBILE": "\${{ needs.test-mobile.result }}",
           "TEST_MOBILE_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_test_mobile }}",
+          "TEST_MODELS": "\${{ needs.test-models.result }}",
+          "TEST_MODELS_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_test_models }}",
           "TEST_PLATFORM": "\${{ needs.test-platform.result }}",
           "TEST_PLATFORM_SHOULD_RUN": "\${{ needs.code_paths.outputs.run_test_platform }}",
           "TEST_SHARED": "\${{ needs.test-shared.result }}",
@@ -666,6 +693,7 @@ check_job test-platform "$TEST_PLATFORM" "$TEST_PLATFORM_SHOULD_RUN"
 check_job test-shared "$TEST_SHARED" "$TEST_SHARED_SHOULD_RUN"
 check_job test-mobile "$TEST_MOBILE" "$TEST_MOBILE_SHOULD_RUN"
 check_job test-electron "$TEST_ELECTRON" "$TEST_ELECTRON_SHOULD_RUN"
+check_job test-models "$TEST_MODELS" "$TEST_MODELS_SHOULD_RUN"
 exit "$failed"
 "
 ,
