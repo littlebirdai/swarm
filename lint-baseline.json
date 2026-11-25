@@ -14406,12 +14406,6 @@
     "swarm/no-comments": 5,
     "swarm/no-native-title-with-aria-label": 3
   },
-  "apps/web/components/collab-composer.tsx": {
-    "react/immutability": 2,
-    "react/refs": 1,
-    "swarm/ime-safe-key-handlers": 5,
-    "swarm/no-comments": 99
-  },
   "apps/web/components/CollapsibleBody.tsx": {
     "swarm/no-comments": 40
   },
@@ -14491,13 +14485,6 @@
   },
   "apps/web/components/ConversationUnavailable.tsx": {
     "swarm/no-comments": 1
-  },
-  "apps/web/components/conversation-view.tsx": {
-    "react-hooks/exhaustive-deps": 17,
-    "swarm/ime-safe-key-handlers": 4,
-    "swarm/no-comments": 1037,
-    "swarm/no-native-title-with-aria-label": 6,
-    "swarm/no-raw-resize-observer": 4
   },
   "apps/web/components/CreateChannelModal.tsx": {
     "swarm/no-comments": 22
@@ -14811,12 +14798,6 @@
     "react/purity": 1,
     "swarm/ime-safe-key-handlers": 1,
     "swarm/no-comments": 45
-  },
-  "apps/web/components/message-input.tsx": {
-    "react-hooks/exhaustive-deps": 12,
-    "swarm/ime-safe-key-handlers": 17,
-    "swarm/no-comments": 641,
-    "swarm/no-raw-resize-observer": 2
   },
   "apps/web/components/MessageNavPreview.tsx": {
     "swarm/no-comments": 14
@@ -16674,6 +16655,12 @@
   "apps/web/components/cloudAgents/sessionAgent.ts": {
     "swarm/no-comments": 11
   },
+  "apps/web/components/collab-composer.tsx": {
+    "react/immutability": 2,
+    "react/refs": 1,
+    "swarm/ime-safe-key-handlers": 5,
+    "swarm/no-comments": 94
+  },
   "apps/web/components/comments/AnchorPlacementNote.tsx": {
     "swarm/no-comments": 10,
     "swarm/no-native-title-with-aria-label": 1
@@ -16795,6 +16782,13 @@
   },
   "apps/web/components/consequential/useRunCost.ts": {
     "swarm/no-comments": 6
+  },
+  "apps/web/components/conversation-view.tsx": {
+    "react-hooks/exhaustive-deps": 17,
+    "swarm/ime-safe-key-handlers": 4,
+    "swarm/no-comments": 1036,
+    "swarm/no-native-title-with-aria-label": 6,
+    "swarm/no-raw-resize-observer": 4
   },
   "apps/web/components/conversation/AskSessionPanel.tsx": {
     "swarm/ime-safe-key-handlers": 3,
@@ -17047,11 +17041,20 @@
   "apps/web/components/conversation/markdown.tsx": {
     "swarm/no-comments": 40
   },
+  "apps/web/components/conversation/my-suggestions.tsx": {
+    "swarm/no-comments": 5
+  },
   "apps/web/components/conversation/pendingSend.ts": {
     "swarm/no-comments": 20
   },
   "apps/web/components/conversation/scrollProgressSignal.ts": {
     "swarm/no-comments": 6
+  },
+  "apps/web/components/conversation/session-controls.tsx": {
+    "react-hooks/exhaustive-deps": 1,
+    "react/refs": 6,
+    "swarm/ime-safe-key-handlers": 4,
+    "swarm/no-comments": 323
   },
   "apps/web/components/conversation/sessionChrome.tsx": {
     "swarm/ime-safe-key-handlers": 2,
@@ -17060,12 +17063,6 @@
   },
   "apps/web/components/conversation/sessionControls.cloudPick.test.ts": {
     "swarm/no-comments": 20
-  },
-  "apps/web/components/conversation/session-controls.tsx": {
-    "react-hooks/exhaustive-deps": 1,
-    "react/refs": 6,
-    "swarm/ime-safe-key-handlers": 4,
-    "swarm/no-comments": 323
   },
   "apps/web/components/conversation/teamProposals.tsx": {
     "swarm/no-comments": 10
@@ -18647,6 +18644,12 @@
   },
   "apps/web/components/menus/entityOptions.ts": {
     "swarm/no-comments": 7
+  },
+  "apps/web/components/message-input.tsx": {
+    "react-hooks/exhaustive-deps": 12,
+    "swarm/ime-safe-key-handlers": 16,
+    "swarm/no-comments": 607,
+    "swarm/no-raw-resize-observer": 2
   },
   "apps/web/components/messageMarkdown.tsx": {
     "swarm/no-comments": 34
