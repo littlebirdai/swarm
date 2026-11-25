@@ -76,12 +76,17 @@ export function writePatchesToIDB(
   if (purgeInProgress || !persistenceOwned()) return;
   const pendingWrite = pending?.length
     ? db
-        .transaction("rw", db.meta, () =>
-          writePendingChanges(
-            pending,
-            "sync",
-            () => !purgeInProgress && persistenceOwned(),
-          ),
+        .transaction(
+          "rw",
+          pending.some((change) => change.restore)
+            ? [db.meta, db.dispatchOutbox]
+            : [db.meta],
+          () =>
+            writePendingChanges(
+              pending,
+              "sync",
+              () => !purgeInProgress && persistenceOwned(),
+            ),
         )
         .then(() => {})
     : undefined;

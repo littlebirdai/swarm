@@ -537,6 +537,7 @@ export type PendingOutboxWrite = ReadonlyArray<{
   key: string;
   before: PendingEntry | undefined;
   after: PendingEntry | undefined;
+  restore?: true;
 }>;
 export type OutboxEnqueueFn = ((entry: OutboxEntry) => MaybePromise<void>) & {
   withPending?: (entry: OutboxEntry, pending: PendingOutboxWrite) => MaybePromise<void>;

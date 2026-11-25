@@ -1273,9 +1273,9 @@ export function mutativeMiddleware(
       }
       set({ ...state, ...next }, true);
       if (idbWriteFn) {
-        void Promise.resolve(idbWriteFn(patches, get(), pendingChanges(state.pending, released.pending)?.map((change) => ({
-          ...change, after: change.after?.lock ? undefined : change.after,
-        })))).catch((error) => {
+        void Promise.resolve(idbWriteFn(patches, get(), pendingChanges(state.pending, released.pending)?.map((change) =>
+          change.after?.lock ? { ...change, restore: true } : change
+        ))).catch((error) => {
           console.error(`[local-first] failed to persist refused "${actionName}" rollback`, error);
         });
       }

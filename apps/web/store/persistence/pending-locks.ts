@@ -16,10 +16,25 @@ export async function writePendingChanges(
   const retired = new Set(existing?.retiredLocks);
   const alreadyRetired: string[] = [];
   let changed = false;
-  for (const { key, before, after } of changes) {
+  for (const { key, before, after, restore } of changes) {
     const current = value[key];
     const matchesBefore = before !== undefined && sameLock(current, before);
-    if (!after) {
+    if (restore && after?.lock && matchesBefore && !retired.has(after.lock)) {
+      const committed = await db.dispatchOutbox
+        .filter(
+          (entry) =>
+            entry.locks?.some(
+              (lock) => lock.key === key && lock.lock === after.lock,
+            ) ?? false,
+        )
+        .first();
+      if (committed) {
+        value[key] = after;
+        changed = true;
+        continue;
+      }
+    }
+    if (!after || restore) {
       if (matchesBefore) {
         delete value[key];
         changed = true;

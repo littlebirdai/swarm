@@ -449,3 +449,48 @@ test("two windows agree on durable pending locks after interrupted writes, echoe
     }
   }
 }, 120_000);
+
+test.each([true, false])(
+  "a refusal restores an older lock only when its outbox row committed (%s)",
+  async (committed) => {
+    const older = {
+      type: "field",
+      ts: 1,
+      value: "earlier",
+      lock: "older",
+    } as const;
+    const refused = {
+      type: "field",
+      ts: 2,
+      value: "refused",
+      lock: "refused",
+    } as const;
+    if (committed) {
+      await db.dispatchOutbox.put({
+        ...bareEntry(),
+        locks: [
+          {
+            key: lockKey,
+            storeKey: "conversations",
+            recordId: conversationId,
+            field: "title",
+            ts: 1,
+            value: older.value,
+            prior: undefined,
+            hadPrior: false,
+            lock: older.lock,
+          },
+        ],
+      });
+    }
+    await db.meta.put({ key: "pending", value: { [lockKey]: refused } });
+    await writePatchesToIDB(
+      [{ op: "replace", path: ["pending"], value: {} }],
+      { pending: {} },
+      [{ key: lockKey, before: refused, after: older, restore: true }],
+    );
+    expect((await db.meta.get("pending"))?.value[lockKey]).toEqual(
+      committed ? older : undefined,
+    );
+  },
+);
