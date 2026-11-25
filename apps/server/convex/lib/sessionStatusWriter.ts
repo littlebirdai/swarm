@@ -6,6 +6,8 @@ import {
 } from "@codecast/sessions/agentStatus";
 
 import { isHostedAgentType } from "@codecast/agent-clients/agentClients";
+import type { NoticeKind } from "@codecast/hosted-assistant/assistant";
+import type { ThreadStateStatus } from "@codecast/sessions/threadState";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { statusWriteIsStale, type StatusStamps } from "./heartbeatPatch";
@@ -197,4 +199,45 @@ export async function ensureHostedManagedSession(
   });
   await writeSessionHeartbeat(ctx, id, conversation.user_id, 0);
   return (await ctx.db.get(id))!;
+}
+
+type HostedTurnFields = Omit<Doc<"assistant_turns">, "_id" | "_creationTime">;
+
+export function insertHostedTurn(ctx: MutationCtx, fields: HostedTurnFields) {
+  return ctx.db.insert("assistant_turns", fields);
+}
+
+export function patchHostedTurnStatus(
+  ctx: MutationCtx,
+  id: Id<"assistant_turns">,
+  fields: Pick<HostedTurnFields, "status"> & Partial<HostedTurnFields>,
+) {
+  return ctx.db.patch(id, fields);
+}
+
+export function writeHostedStop(
+  ctx: MutationCtx,
+  id: Id<"conversations">,
+  kind: NoticeKind | undefined,
+) {
+  return ctx.db.patch(id, { hosted_stop: kind });
+}
+
+export async function writeThreadState(
+  ctx: MutationCtx,
+  conv: Pick<Doc<"conversations">, "_id" | "message_count">,
+  text: string,
+  status: ThreadStateStatus,
+  result?: string | null,
+) {
+  const at = Date.now();
+  await ctx.db.patch(conv._id, {
+    thread_state: text,
+    thread_state_at: at,
+    thread_state_msg_count: conv.message_count ?? 0,
+    thread_state_status: status,
+    thread_state_result: result ?? undefined,
+    thread_state_result_at: result ? at : undefined,
+  });
+  return at;
 }

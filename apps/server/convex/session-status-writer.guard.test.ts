@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 const allowed: Record<string, string> = {
   "anchors.ts": "session projection",
-  "assistant/turns.ts": "hosted turns",
+  "assistant/turns.ts": "hosted registry report arguments",
   "chat.ts": "chat message replies",
   "chatSessionReplies.ts": "chat message replies",
   "cliSessionClassifier.ts": "session projection",
@@ -17,7 +17,7 @@ const allowed: Record<string, string> = {
   "lib/closeAside.ts": "session classification",
   "lib/conversationCommentRows.ts": "comment reply projection",
   "lib/sessionHeartbeat.ts": "session heartbeat reads and maintenance",
-  "lib/sessionStatusWriter.ts": "registry status and heartbeat writes",
+  "lib/sessionStatusWriter.ts": "session status writes",
   "managedSessions.ts": "wire shapes and registration heartbeats",
   "managedSessionsList.ts": "session projection",
   "messages.ts": "transcript status projection",
