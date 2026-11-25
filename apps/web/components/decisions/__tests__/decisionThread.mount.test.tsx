@@ -199,7 +199,7 @@ test("opening the thread reads it", async () => {
 });
 
 test("discussing from a card away from the session selects that session, so its reply is followed in the inbox", async () => {
-  const { container, unmount, writes, store } = await mount(
+  const { container, navigationLog, unmount, writes, store } = await mount(
     <DecisionCompactCard decision={decision} />,
     true,
   );
@@ -227,6 +227,10 @@ test("discussing from a card away from the session selects that session, so its 
     },
     { action: "askDecisionSession", args: ["d1", expect.any(String)] },
   ]);
+  expect(writes().filter(({ action }) => action === "requestNavigate")).toEqual(
+    [{ action: "requestNavigate", args: ["c1"] }],
+  );
   expect(store.getState().pendingNavigateId).toBe("c1");
+  expect(navigationLog.slice(1)).toEqual([]);
   await unmount();
 });

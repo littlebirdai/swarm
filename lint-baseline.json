@@ -16299,7 +16299,7 @@
   },
   "apps/web/components/calls/__tests__/screenCursors.test.tsx": {
     "react/immutability": 2,
-    "swarm/no-comments": 9
+    "swarm/no-comments": 5
   },
   "apps/web/components/calls/__tests__/speakers.test.ts": {
     "swarm/no-comments": 2
@@ -23493,7 +23493,7 @@
     "swarm/no-comments": 26
   },
   "apps/web/lib/__tests__/roomPrewarm.test.ts": {
-    "swarm/no-comments": 122
+    "swarm/no-comments": 106
   },
   "apps/web/lib/__tests__/roomThreadSeen.test.ts": {
     "swarm/no-comments": 4

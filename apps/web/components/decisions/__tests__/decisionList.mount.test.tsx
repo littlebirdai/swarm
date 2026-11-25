@@ -143,6 +143,8 @@ test("a filter narrows the list, shows as a chip, and saves as a view of the Dec
     <DecisionsList />,
     "tab=team&blocking=blocking&owner=user:u2",
   );
+  const ack = Promise.withResolvers<null>();
+  m.backend.mutation(api.dispatch.dispatch, () => ack.promise);
   expect(rows()).toEqual(["sd-1@user:u2"]);
   expect(host.querySelector(".cq-filter-bar")?.textContent).toContain(
     "Blocking",
@@ -168,16 +170,41 @@ test("a filter narrows the list, shows as a chip, and saves as a view of the Dec
       .closest("form")!
       .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   });
-  expect(m.backend.mutations.map(({ args }) => args)).toMatchObject([
-    { action: "createSavedView", args: [{ name: "Sam's blockers" }] },
-  ]);
-  expect(Object.values(m.store.getState().savedViews)).toMatchObject([
+  const saved = {
+    name: "Sam's blockers",
+    page: "decisions",
+    prefs: { tab: "team", owner: "user:u2", blocking: "blocking" },
+  };
+  expect<unknown>(
+    Object.values(m.store.getState().savedViews).map(
+      ({ name, page, prefs }) => ({ name, page, prefs }),
+    ),
+  ).toEqual([saved]);
+  const dispatches = m.backend.mutations.map(({ name, args }) => {
+    if (
+      !args ||
+      typeof args !== "object" ||
+      !("action" in args) ||
+      !("args" in args)
+    )
+      throw new Error("Expected dispatch arguments");
+    return { name, action: args.action, args: args.args };
+  });
+  expect(dispatches).toEqual([
     {
-      name: "Sam's blockers",
-      page: "decisions",
-      prefs: { tab: "team", owner: "user:u2", blocking: "blocking" },
+      name: "dispatch:dispatch",
+      action: "createSavedView",
+      args: [
+        {
+          ...saved,
+          client_key: expect.any(String),
+          team_id: "t1",
+          shared: false,
+        },
+      ],
     },
   ]);
+  ack.resolve(null);
   await m.close();
 });
 

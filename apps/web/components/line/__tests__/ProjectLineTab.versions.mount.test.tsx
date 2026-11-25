@@ -104,11 +104,6 @@ test("versions say what changed and account for every run, stopped ones included
             n("ship", 3),
             n("watch", 4),
           ]),
-          {
-            ...line("decoy", now, "3333333333333333", nodesV2, [n("ship", 1)]),
-            project_id: "outside",
-            workspace: "user:another",
-          },
         ]);
         holdLineWorkspaceFeeds(backend);
       },

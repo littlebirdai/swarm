@@ -2,6 +2,10 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import { beforeEach, expect, test } from "bun:test";
 import React, { act } from "react";
 import { useInboxStore } from "../../../../store/inboxStore";
+import {
+  expectAbsent,
+  expectPresent,
+} from "../../../../test-helpers/domExpect";
 import { holdLineWorkspaceFeeds } from "../../../../test-helpers/lineWorkspaceBackend";
 import { mountWeb } from "../../../../test-helpers/mountWeb";
 import { pending } from "../../../../test-helpers/testConvex";
@@ -236,16 +240,15 @@ test("the nav: For you first with its count, then the stages on a rail, the open
   expect(navigationLog.slice(1)).toEqual([]);
   await key("g");
   await key("p");
-  expect(navigationLog.at(-1)).toEqual({
-    action: "push",
-    path: "/flows?view=problems",
-  });
+  expect(navigationLog.slice(1)).toEqual([
+    { action: "push", path: "/flows?view=problems" },
+  ]);
   await key("g");
   await key("s");
-  expect(navigationLog.at(-1)).toEqual({
-    action: "push",
-    path: "/flows?view=signals",
-  });
+  expect(navigationLog.slice(1)).toEqual([
+    { action: "push", path: "/flows?view=problems" },
+    { action: "push", path: "/flows?view=signals" },
+  ]);
   await close();
 }, 30_000);
 
@@ -254,11 +257,9 @@ test("an address naming a flow decision opens it on the Decisions page, in place
   const { close, navigationLog } = await mount(
     React.createElement(LineWorkspace),
   );
-  expect(navigationLog.slice(1)).toContainEqual({
-    action: "replace",
-    path: "/decisions/sd-9",
-  });
-  expect(navigationLog.filter(({ action }) => action === "push")).toEqual([]);
+  expect(navigationLog.slice(1)).toEqual([
+    { action: "replace", path: "/decisions/sd-9" },
+  ]);
   await close();
 }, 30_000);
 
@@ -274,33 +275,34 @@ test("Problems carries the project filter, and only Problems", async () => {
       ?.getAttribute("aria-current"),
   ).toBe("page");
   await close();
-  search = "view=foryou";
+  search = "view=foryou&project=pr-1&process=line";
   const other = await mount(React.createElement(LineWorkspace));
-  expect(other.host.querySelector("[data-line-project-filter]")).toBeNull();
+  expect(other.navigationLog.slice(1)).toEqual([]);
+  expectPresent(
+    other.host.querySelector(
+      "[data-pipeline-stage='decisions'][aria-current='page']",
+    ),
+  );
+  expectPresent(other.host.querySelector(".lw-stage-in"));
+  expectAbsent(other.host.querySelector("[data-line-project-filter]"));
+  expectAbsent(other.host.querySelector("[data-decision-row]"));
   await other.close();
 }, 30_000);
 
 test("the Line's Decisions is the Decisions page narrowed to the flows, and an older address opens its decision there", async () => {
   search = "view=foryou";
-  const { host, close, navigationLog } = await mount(
+  const { close, navigationLog } = await mount(
     React.createElement(LineWorkspace),
   );
-  expect(host.querySelector("[data-decision-row]")).toBeNull();
-  expect(navigationLog.slice(1)).toContainEqual({
-    action: "replace",
-    path: "/decisions?tab=team&source=flows",
-  });
-  expect(navigationLog.filter(({ action }) => action === "push")).toEqual([]);
+  expect(navigationLog.slice(1)).toEqual([
+    { action: "replace", path: "/decisions?tab=team&source=flows" },
+  ]);
   await close();
   search = "view=inbox&decision=sd-9";
   const again = await mount(React.createElement(LineWorkspace));
-  expect(again.navigationLog.slice(1)).toContainEqual({
-    action: "replace",
-    path: "/decisions/sd-9",
-  });
-  expect(again.navigationLog.filter(({ action }) => action === "push")).toEqual(
-    [],
-  );
+  expect(again.navigationLog.slice(1)).toEqual([
+    { action: "replace", path: "/decisions/sd-9" },
+  ]);
   await again.close();
 }, 30_000);
 

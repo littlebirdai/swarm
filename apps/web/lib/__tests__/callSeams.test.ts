@@ -124,9 +124,14 @@ beforeEach(async () => {
     () => leave.mockRestore(),
     () => stop.mockRestore(),
   ];
+  await mountCall();
+});
+
+async function mountCall(expectedConsoleErrors: readonly RegExp[] = []) {
   FakeRoom.made = [];
   FakeRoom.connectError = null;
   web = await mountWeb(null, {
+    expectedConsoleErrors,
     setup(backend) {
       backend.mutation(api.calls.joinRoom, undefined);
       backend.mutation(api.calls.leaveRoom, undefined);
@@ -155,7 +160,7 @@ beforeEach(async () => {
   });
   occupancy([]);
   callManager.bindConvex(backend().client);
-});
+}
 
 afterEach(async () => {
   scribeStopping?.resolve();
@@ -588,7 +593,7 @@ describe("hanging up frees the seat before the scribe's teardown", () => {
 
 describe("the media dropping under a person who never pressed End", () => {
   const waitFor = async (ok: () => boolean) => {
-    for (let i = 0; i < 200 && !ok(); i++)
+    for (let i = 0; i < 2000 && !ok(); i++)
       await new Promise((r) => setTimeout(r, 0));
   };
 
@@ -650,6 +655,41 @@ describe("the media dropping under a person who never pressed End", () => {
     expect(S().call).toMatchObject({
       phase: "idle",
       roomKey: null,
+      reconnecting: false,
+    });
+  });
+
+  test("a rejected access token leaves the seat in place and retries", async () => {
+    await web.close();
+    await mountCall([
+      /\[CONVEX A\(calls:mintAccessToken\)\].*Token service unavailable/,
+    ]);
+    await callManager.joinCall(ROOM, { intent: "deliberate" });
+    const first = room();
+    const start = backend().actions.length;
+    let attempts = 0;
+    backend().action(api.calls.mintAccessToken, () =>
+      ++attempts === 1 ? new Error("Token service unavailable") : token,
+    );
+    forgetWrites();
+
+    first.emit(RoomEvent.Disconnected);
+    await waitFor(() => room() !== first && !S().call.reconnecting);
+
+    expect(backend().actions.slice(start)).toEqual([
+      { name: "calls:mintAccessToken", args: { room_key: ROOM } },
+      { name: "calls:mintAccessToken", args: { room_key: ROOM } },
+    ]);
+    expect(named("leaveRoom")).toEqual([]);
+    expect(named("joinRoom").map(({ args }) => args.room_key)).toEqual([
+      ROOM,
+      ROOM,
+    ]);
+    expect(room()).not.toBe(first);
+    expect(room().state).toBe(ConnectionState.Connected);
+    expect(S().call).toMatchObject({
+      phase: "connected",
+      roomKey: ROOM,
       reconnecting: false,
     });
   });

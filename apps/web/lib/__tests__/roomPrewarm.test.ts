@@ -10,131 +10,24 @@ import {
   beforeEach,
   describe,
   expect,
-  mock,
+  spyOn,
   test,
 } from "bun:test";
 import { getFunctionName } from "convex/server";
-import { ConnectionState } from "livekit-client";
+import * as livekit from "livekit-client";
+import {
+  FakeRoom,
+  standInForLiveKitRoom,
+} from "../../test-helpers/LiveKitRoomStandIn";
 import { huddleRoomOptions } from "../calls/livekitMedia";
 import { useInboxStore } from "../../store/inboxStore";
 
-// ── the world ───────────────────────────────────────────────────────────────
-//
-// `mock.module` replaces a module for the whole test process, so this spreads
-// the real livekit-client and overrides only the one class it drives. Nothing
-// else in the suite constructs a Room (the enums and events stay real).
-
-const realLivekit = { ...(await import("livekit-client")) };
-afterAll(() => {
-  mock.module("livekit-client", () => realLivekit);
-});
-const realAnalyser = realLivekit.createAudioAnalyser;
+const restoreRoom = standInForLiveKitRoom();
+const realAnalyser = livekit.createAudioAnalyser;
 let meterProbe = false;
 let meterStarts = 0;
-
-class FakeRoom {
-  static made: FakeRoom[] = [];
-  /** Lets a test land a gesture inside publishTrack, which is the only way to
-   *  hit that window deterministically rather than by counting microtasks. */
-  static onPublish: (() => void) | null = null;
-  state: ConnectionState = ConnectionState.Disconnected;
-  connects = 0;
-  disconnects = 0;
-  /** Every request to open or close a device, in order. A prewarm must make
-   *  none of them. */
-  micCalls: boolean[] = [];
-  published: unknown[] = [];
-  remoteParticipants = new Map<string, any>();
-  opts: any;
-  /** Seat a remote whose audio track was ALREADY subscribed before this room
-   *  was handed to joinCall — the shape a prewarm produces when the far side
-   *  starts talking during the hold. */
-  seatRemote(identity: string) {
-    // `attaches` rather than a count of elements: attaching twice overwrites
-    // the same key in the manager's map, so the map's SIZE cannot tell one
-    // attach from two — and two is a voice playing twice.
-    const track = {
-      kind: "audio",
-      sid: `sid_${identity}`,
-      attaches: 0,
-      attach() {
-        this.attaches++;
-        return { dataset: {} as any, remove() {} };
-      },
-      detach: () => [],
-    };
-    this.remoteParticipants.set(identity, {
-      identity,
-      trackPublications: new Map([
-        ["p", { kind: "audio", isSubscribed: true, track }],
-      ]),
-      // rebuildTiles asks every participant for its camera and screen share.
-      // A stand-in that cannot answer makes joinCall throw, which reads as
-      // "the sweep did not attach" and sends you looking in the wrong place.
-      getTrackPublication: () => undefined,
-    });
-    return track;
-  }
-  /** The microphone publication, once one exists. Modelled rather than stubbed
-   *  because the ORDER is the safety property: a track must be silent before it
-   *  is published, never after. */
-  micPublication: {
-    muted: boolean;
-    track: any;
-    mute: () => Promise<void>;
-  } | null = null;
-  /** What the track's `enabled` was AT THE MOMENT it was handed over. A hover
-   *  that publishes a live microphone and mutes it a round trip later has
-   *  broadcast in the gap. */
-  enabledAtPublish: boolean | null = null;
-  localParticipant = {
-    setMicrophoneEnabled: async (on: boolean) => {
-      this.micCalls.push(on);
-      if (this.micPublication) this.micPublication.muted = !on;
-    },
-    publishTrack: async (t: any) => {
-      this.published.push(t);
-      FakeRoom.onPublish?.();
-      this.enabledAtPublish = t?.enabled ?? null;
-      const pub = {
-        muted: false,
-        track: t,
-        mute: async () => {
-          pub.muted = true;
-        },
-      };
-      this.micPublication = pub;
-      return pub;
-    },
-    getTrackPublication: (source?: unknown) =>
-      source === realLivekit.Track.Source.Microphone
-        ? (this.micPublication ?? undefined)
-        : undefined,
-  };
-  constructor(opts?: any) {
-    this.opts = opts;
-    FakeRoom.made.push(this);
-  }
-  on() {
-    return this;
-  }
-  removeAllListeners() {
-    return this;
-  }
-  async connect() {
-    this.connects++;
-    this.state = ConnectionState.Connected;
-  }
-  async disconnect() {
-    this.disconnects++;
-    this.state = ConnectionState.Disconnected;
-  }
-}
-
-mock.module("livekit-client", () => ({
-  ...realLivekit,
-  Room: FakeRoom,
-  createAudioAnalyser: (...args: Parameters<typeof realAnalyser>) => {
+const analyser = spyOn(livekit, "createAudioAnalyser").mockImplementation(
+  (...args) => {
     if (!meterProbe) return realAnalyser(...args);
     meterStarts++;
     return {
@@ -144,11 +37,36 @@ mock.module("livekit-client", () => ({
           for (let i = 0; i < bytes.length; i++)
             bytes[i] = 128 + (i % 2 ? 8 : -8);
         },
-      },
+      } as AnalyserNode,
       cleanup: () => {},
     };
   },
-}));
+);
+afterAll(() => {
+  analyser.mockRestore();
+  restoreRoom();
+});
+
+function seatRemote(room: FakeRoom, identity: string) {
+  const track = {
+    kind: "audio",
+    sid: `sid_${identity}`,
+    attaches: 0,
+    attach() {
+      this.attaches++;
+      return { dataset: {}, remove() {} };
+    },
+    detach: () => [],
+  };
+  room.remoteParticipants.set(identity, {
+    identity,
+    trackPublications: new Map([
+      ["p", { kind: "audio", isSubscribed: true, track }],
+    ]),
+    getTrackPublication: () => undefined,
+  });
+  return track;
+}
 
 const prewarm = await import("../calls/roomPrewarm");
 const callManager = await import("../calls/callManager");
@@ -216,6 +134,7 @@ const OTHER = "dm:aaa:ccc";
 beforeEach(() => {
   FakeRoom.made = [];
   FakeRoom.onPublish = null;
+  FakeRoom.connectError = null;
   mutations = [];
   actions = [];
   timers = [];
@@ -582,7 +501,7 @@ describe("adopting a warm room that is already carrying a voice", () => {
     await warmUp(ROOM);
     const warmRoom = FakeRoom.made[0];
     // The far side started talking during the hold.
-    warmRoom.seatRemote("them");
+    seatRemote(warmRoom, "them");
 
     await callManager.joinCall(ROOM);
 
@@ -595,7 +514,7 @@ describe("adopting a warm room that is already carrying a voice", () => {
   test("does not double-attach when the listener also fires for that track", async () => {
     await warmUp(ROOM);
     const warmRoom = FakeRoom.made[0];
-    const track = warmRoom.seatRemote("them");
+    const track = seatRemote(warmRoom, "them");
     await callManager.joinCall(ROOM);
     expect(track.attaches).toBe(1);
     // The same track arriving again through the ordinary event path must not

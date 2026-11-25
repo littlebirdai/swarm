@@ -425,7 +425,9 @@ test("the drawer: with no Head of People it offers the hire, behind the shared r
   await act(async () => {
     q("[data-org-panel-open]", el)!.click();
   });
-  expect(writes("updateClientUI").at(-1)).toEqual([{}]);
+  expect(writes("updateClientUI")).toEqual([[{ org_panel: "closed" }], [{}]]);
+  expect(q("[data-org-panel='home']", el)).not.toBeNull();
+  expect(q("[data-org-panel-open]", el)).toBeNull();
   await done();
 });
 

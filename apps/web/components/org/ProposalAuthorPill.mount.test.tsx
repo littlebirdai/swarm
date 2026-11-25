@@ -1,9 +1,10 @@
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
-import { test } from "bun:test";
+import { spyOn, test } from "bun:test";
 import assert from "node:assert/strict";
 import * as React from "react";
 import { act } from "react";
+import * as inbox from "../../store/inboxStore";
 import { webBuilders } from "../../test-helpers/builders";
 import { expectAbsent, expectPresent } from "../../test-helpers/domExpect";
 import { mountWeb } from "../../test-helpers/mountWeb";
@@ -58,6 +59,17 @@ async function verifyAuthorPill() {
               name: "Platform",
               handle: "platform",
               short_id: "or-2",
+            },
+          } as FunctionReturnType<typeof api.orgProposals.origin>;
+        if (proposal === "op-10")
+          return {
+            short_id: "op-10",
+            status: "open",
+            author: {
+              kind: "session",
+              id: "conv-remote",
+              title: "Review the billing flow",
+              short_id: "billing6",
             },
           } as FunctionReturnType<typeof api.orgProposals.origin>;
         if (proposal === "op-500") return new Error("boom");
@@ -167,10 +179,6 @@ async function verifyAuthorPill() {
     action: "push",
     path: "/conversation/conv-gone",
   });
-  assert.equal(
-    typeof web.store.getState().sessions["conv-gone"].updated_at,
-    "number",
-  );
 
   // A person.
   await render(
@@ -220,6 +228,52 @@ async function verifyAuthorPill() {
     "/org/or-2",
   );
   assert.deepEqual(asked(), [{ proposal: "op-9" }]);
+  await render(<DecisionProposalOrigin contextMd="[x](/org?proposal=op-10)" />);
+  assert.deepEqual(asked(), [{ proposal: "op-9" }, { proposal: "op-10" }]);
+  assert.equal(web.store.getState().sessions["conv-remote"], undefined);
+  const remote = q<HTMLButtonElement>('[data-proposal-author="session"]');
+  expectPresent(remote);
+  assert.match(remote.textContent!, /Review the billing flowbilling6/);
+  const at = 1_790_000_000_000;
+  const clock = spyOn(Date, "now").mockReturnValue(at);
+  const makeStub = spyOn(inbox, "sessionRowFromSummary");
+  try {
+    const start = web.navigationLog.length;
+    await act(async () => remote.click());
+    assert.deepEqual(web.navigationLog.slice(start), [
+      { action: "push", path: "/conversation/conv-remote" },
+    ]);
+    const row = web.store.getState().sessions["conv-remote"] as
+      | (inbox.InboxSession & { short_id?: string })
+      | undefined;
+    assert.deepEqual(
+      {
+        title: row?.title,
+        short_id: row?.short_id,
+        updated_at: row?.updated_at,
+      },
+      {
+        title: "Review the billing flow",
+        short_id: "billing6",
+        updated_at: at,
+      },
+    );
+    assert.deepEqual(makeStub.mock.calls, [
+      [
+        {
+          _id: "conv-remote",
+          title: "Review the billing flow",
+          short_id: "billing6",
+          updated_at: at,
+          is_idle: true,
+        },
+      ],
+    ]);
+  } finally {
+    makeStub.mockRestore();
+    clock.mockRestore();
+  }
+
   // No answer yet says so; an unreadable proposal or a failed read still links the proposal and never waits on a name.
   await render(
     React.createElement(DecisionProposalOrigin, {

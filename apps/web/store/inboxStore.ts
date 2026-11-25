@@ -1571,6 +1571,7 @@ export type ForkChild = {
 // hand-picking fields — hand-picked shapes are how stashed sessions seeded as
 // active cards and flashed into the inbox at boot (ct-42666).
 export type SessionSummary = {
+  short_id?: string;
   /** A staged "Rewind to here" in the session's checkout (conversations.rewind_staged). */
   rewind_staged?: RewindStagedMark | null;
   _id: string;
@@ -1607,6 +1608,7 @@ export type SessionSummary = {
 };
 
 const SUMMARY_PASSTHROUGH_KEYS = [
+  "short_id",
   "rewind_staged",
   "project_path",
   "git_root",

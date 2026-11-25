@@ -2,7 +2,6 @@ import { afterEach, describe, expect, jest, spyOn, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { act } from "react";
 import * as callManager from "../../lib/calls/callManager";
-import { LONG_PRESS_MS } from "../../hooks/useLongPress";
 import { mountWeb } from "../../test-helpers/mountWeb";
 import { waitForPopupClose } from "../../test-helpers/waitForPopupClose";
 import { standInForWalkieMedia } from "../../test-helpers/walkieMediaStandIn";
@@ -106,7 +105,7 @@ describe("walkie key: ring under the key", () => {
     try {
       await k.fire("pointerdown");
       await act(async () => {
-        jest.advanceTimersByTime(LONG_PRESS_MS);
+        jest.advanceTimersByTime(500);
       });
     } finally {
       jest.useRealTimers();
