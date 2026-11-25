@@ -15674,9 +15674,6 @@
   "apps/web/components/__tests__/workflowContextPanel.mount.test.tsx": {
     "swarm/no-comments": 8
   },
-  "apps/web/components/__tests__/workflowRunNodes.mount.test.tsx": {
-    "swarm/no-comments": 7
-  },
   "apps/web/components/activity/ActivityFilters.tsx": {
     "swarm/no-comments": 9,
     "swarm/no-native-title-on-button": 1,
@@ -16260,9 +16257,6 @@
   },
   "apps/web/components/calls/__tests__/callRefs.mount.test.tsx": {
     "swarm/no-comments": 6
-  },
-  "apps/web/components/calls/__tests__/callSessionChips.test.tsx": {
-    "swarm/no-comments": 4
   },
   "apps/web/components/calls/__tests__/callVideoPlayer.view.mount.test.tsx": {
     "swarm/no-comments": 8
@@ -18043,9 +18037,6 @@
   },
   "apps/web/components/line/pipeline/__tests__/PipelineDiagram.render.test.tsx": {
     "swarm/no-comments": 7
-  },
-  "apps/web/components/line/pipeline/__tests__/PipelineDrawer.deploysLink.test.tsx": {
-    "swarm/no-comments": 2
   },
   "apps/web/components/line/settings/LineFinders.tsx": {
     "swarm/ime-safe-key-handlers": 1,
@@ -19996,9 +19987,6 @@
   "apps/web/components/pr/PRCommits.tsx": {
     "swarm/no-comments": 4
   },
-  "apps/web/components/pr/PRDeploy.deploysLink.test.tsx": {
-    "swarm/no-comments": 4
-  },
   "apps/web/components/pr/PRDeploy.tsx": {
     "swarm/no-comments": 13,
     "swarm/no-native-title-with-aria-label": 1
@@ -21532,9 +21520,6 @@
   "apps/web/hooks/__tests__/useJumpToDecisionAsk.test.tsx": {
     "swarm/no-comments": 9
   },
-  "apps/web/hooks/__tests__/useLiveInboxSessions.error.test.tsx": {
-    "swarm/no-comments": 1
-  },
   "apps/web/hooks/__tests__/useLiveInboxSessions.test.ts": {
     "swarm/no-comments": 3
   },
@@ -21558,9 +21543,6 @@
   },
   "apps/web/hooks/__tests__/usePagePresence.split.test.tsx": {
     "swarm/no-comments": 3
-  },
-  "apps/web/hooks/__tests__/useQueryNoThrow.test.tsx": {
-    "swarm/no-comments": 21
   },
   "apps/web/hooks/__tests__/useRecoveryPoll.test.ts": {
     "swarm/no-comments": 19

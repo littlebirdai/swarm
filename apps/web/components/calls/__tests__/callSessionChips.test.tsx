@@ -1,51 +1,14 @@
-// A call that reached many sessions keeps a one-line header: the newest few
-// as chips, every one (and every excerpt each was sent) in the menu behind
-// "+N". mock.module is process global, so the mocked module is spread from
-// the real one and put back in afterAll.
-import { afterAll, expect, mock, test } from "bun:test";
-import { act } from "react";
-import { JSDOM } from "jsdom";
-import { replaceGlobals } from "../../../test-helpers/globals";
-import { closeDomWindow } from "../../../test-helpers/domGlobals";
+import { expect, test } from "bun:test";
+import { mountWeb } from "../../../test-helpers/mountWeb";
+import { CallSessionChips } from "../CallSessionChips";
 
-const realNav = { ...(await import("next/navigation")) };
-mock.module("next/navigation", () => ({
-  ...realNav,
-  useRouter: () => ({ push() {}, replace() {} }),
-}));
-
-const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-  url: "https://local.codecast.sh",
-});
-const restoreGlobals = replaceGlobals({
-  window: dom.window,
-  document: dom.window.document,
-  navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement,
-  Element: dom.window.Element,
-  Node: dom.window.Node,
-  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  IS_REACT_ACT_ENVIRONMENT: true,
-});
-const { createRoot } = await import("react-dom/client");
-const { useInboxStore } = await import("../../../store/inboxStore");
-const { CallSessionChips } = await import("../CallSessionChips");
-
-afterAll(() => {
-  closeDomWindow(dom);
-  restoreGlobals();
-  mock.module("next/navigation", () => realNav);
-});
-
-async function render(node: React.ReactNode) {
-  const container = document.createElement("div");
-  document.body.append(container);
-  const root = createRoot(container);
-  await act(() => root.render(node));
-  return container;
-}
-
-const session = (i: number, over: Partial<any> = {}) => ({
+const session = (
+  i: number,
+  over: Partial<{
+    live: boolean;
+    excerpts: { from_seq: number; to_seq: number; at: number }[];
+  }> = {},
+) => ({
   conversation_id: `conv${i}`,
   short_id: `conv${i}`,
   title: `Session ${i}`,
@@ -59,8 +22,7 @@ const session = (i: number, over: Partial<any> = {}) => ({
 });
 
 test("a call with many sessions shows three chips and a +N menu", async () => {
-  useInboxStore.setState({ sessions: {} } as any);
-  const c = await render(
+  const { container: c } = await mountWeb(
     <CallSessionChips
       callId="t1"
       sessions={[1, 2, 3, 4, 5, 6].map((i) => session(i))}
@@ -73,8 +35,7 @@ test("a call with many sessions shows three chips and a +N menu", async () => {
 });
 
 test("a few sessions with no excerpts need no menu", async () => {
-  useInboxStore.setState({ sessions: {} } as any);
-  const c = await render(
+  const { container: c } = await mountWeb(
     <CallSessionChips callId="t1" sessions={[session(1), session(2)]} />,
   );
   expect([...c.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
@@ -84,8 +45,7 @@ test("a few sessions with no excerpts need no menu", async () => {
 });
 
 test("an excerpt makes the menu reachable even when every session fits", async () => {
-  useInboxStore.setState({ sessions: {} } as any);
-  const c = await render(
+  const { container: c } = await mountWeb(
     <CallSessionChips
       callId="t1"
       sessions={[
@@ -103,8 +63,7 @@ test("an excerpt makes the menu reachable even when every session fits", async (
 });
 
 test("a session the thread's head already shows is not a chip again, and the rest read as where the call was sent", async () => {
-  useInboxStore.setState({ sessions: {} } as any);
-  const c = await render(
+  const { container: c, rerender } = await mountWeb(
     <CallSessionChips
       callId="t1"
       sessions={[session(1), session(2)]}
@@ -115,12 +74,12 @@ test("a session the thread's head already shows is not a chip again, and the res
     "Agent 2",
   ]);
   expect(c.textContent).toContain("sent to");
-  const none = await render(
+  await rerender(
     <CallSessionChips
       callId="t1"
       sessions={[session(1)]}
       inThread={new Set([session(1).conversation_id])}
     />,
   );
-  expect(none.querySelectorAll("button")).toHaveLength(0);
+  expect(c.querySelectorAll("button")).toHaveLength(0);
 });

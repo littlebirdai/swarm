@@ -1,21 +1,23 @@
-import { expect, mock, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { splitRows } from "@codecast/inbox/inboxSplit";
 import { makeFunctionReference } from "convex/server";
-import { JSDOM } from "jsdom";
-import { act } from "react";
-import { closeDomWindow } from "../../test-helpers/domGlobals";
-import { replaceGlobals } from "../../test-helpers/globals";
+import { mountWeb } from "../../test-helpers/mountWeb";
+import { pending } from "../../test-helpers/testConvex";
+import { useSplitQueryNoThrow } from "../useSplitQuery";
+
+const query = makeFunctionReference<"query">("test:teamLiveness");
+
+function Probe({ team }: { team: string }) {
+  const { data } = useSplitQueryNoThrow(
+    query,
+    { activeTeamId: team },
+    "liveness",
+  );
+  return <span>{data?.projection.team_id}</span>;
+}
 
 test("the live reader requests split and does not replay a previous team's result", async () => {
-  const dom = new JSDOM("<div id='host'></div>");
-  const restore = replaceGlobals({
-    window: dom.window,
-    document: dom.window.document,
-    navigator: dom.window.navigator,
-    IS_REACT_ACT_ENVIRONMENT: true,
-  });
-  const query = makeFunctionReference<"query">("test:teamLiveness");
-  const { ids, cold_hash } = splitRows([], Date.now());
+  const { ids, cold_hash } = splitRows([], 1_800_000_000_000);
   const alpha = {
     split: true,
     ids,
@@ -23,46 +25,24 @@ test("the live reader requests split and does not replay a previous team's resul
     cold_hash,
     projection: { team_id: "alpha" },
   };
-  const convex = { query: mock() };
-  const real = await import("convex/react");
-  const subscribe = mock(
-    (queries: { value?: { args: { activeTeamId: string } } }) =>
-      queries.value?.args.activeTeamId === "alpha" ? { value: alpha } : {},
+  const { backend, container, rerender } = await mountWeb(
+    <Probe team="alpha" />,
+    {
+      setup: (backend) =>
+        backend.set(query, ({ activeTeamId }) =>
+          activeTeamId === "alpha" ? alpha : pending,
+        ),
+    },
   );
-  mock.module("convex/react", () => ({
-    ...real,
-    useConvex: () => convex,
-    useQueries: subscribe,
-  }));
-  const { createRoot } = await import("react-dom/client");
-  const { useSplitQueryNoThrow } = await import("../useSplitQuery");
-  const host = document.getElementById("host")!;
-  const root = createRoot(host);
-  function Probe({ team }: { team: string }) {
-    const { data } = useSplitQueryNoThrow(
-      query,
-      { activeTeamId: team },
-      "liveness",
-    );
-    return <span>{data?.projection.team_id}</span>;
-  }
-  try {
-    await act(async () => root.render(<Probe team="alpha" />));
-    expect(subscribe).toHaveBeenLastCalledWith({
-      value: { query, args: { activeTeamId: "alpha", split: true } },
-    });
-    expect(host.textContent).toBe("alpha");
-    expect(convex.query).not.toHaveBeenCalled();
+  expect(backend.queryRequests).toEqual([
+    { name: "test:teamLiveness", args: { activeTeamId: "alpha", split: true } },
+  ]);
+  expect(container.textContent).toBe("alpha");
 
-    await act(async () => root.render(<Probe team="beta" />));
-    expect(subscribe).toHaveBeenLastCalledWith({
-      value: { query, args: { activeTeamId: "beta", split: true } },
-    });
-    expect(host.textContent).toBe("");
-  } finally {
-    await act(async () => root.unmount());
-    mock.module("convex/react", () => real);
-    closeDomWindow(dom);
-    restore();
-  }
+  await rerender(<Probe team="beta" />);
+  expect(backend.queryRequests).toEqual([
+    { name: "test:teamLiveness", args: { activeTeamId: "alpha", split: true } },
+    { name: "test:teamLiveness", args: { activeTeamId: "beta", split: true } },
+  ]);
+  expect(container.textContent).toBe("");
 });
