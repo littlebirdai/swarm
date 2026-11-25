@@ -235,3 +235,20 @@ test("a list of stale proposals fits the read budget for one copy of the latest 
       refused: expect.stringContaining("changed in version 2"),
     });
 });
+
+test.each(["applied", "dropped", "retracted", "empty"] as const)(
+  "a proposal that is %s has no refusal",
+  async (status) => {
+    const f = await fixture();
+    await f.writeVersion(1);
+    const { short_id: id } = await f.edit();
+    const row = await f.proposalRow(id);
+    await f.t.run(({ db }) =>
+      db.patch(row!._id, { status, refused: "Old reason" }),
+    );
+    await f.writeVersion(2);
+    const shown = await f.show(id);
+    expect(shown).toMatchObject({ proposal: { status } });
+    expect("proposal" in shown && shown.proposal).not.toHaveProperty("refused");
+  },
+);

@@ -111,7 +111,7 @@ export function formatProposal(
     [
       head,
       body,
-      ...(p.refused ? [`could not apply: ${p.refused}`] : []),
+      ...(p.refused ? [`cannot apply: ${p.refused}`] : []),
       ...(p.status === "open"
         ? [
             `Apply: cast expectations apply ${p.short_id}   Close: cast expectations drop ${p.short_id}`,
@@ -167,7 +167,7 @@ export function formatShow(r: ShowResult, now: number = Date.now()): string {
   const open = r.proposals.filter((p) => p.status === "open");
   for (const p of open) {
     out.push(
-      `Open: ${p.short_id} (${p.changes} change${p.changes === 1 ? "" : "s"}, ${formatAge(now - p.created_at)}) ${p.summary}${p.card ? `, decision ${p.card}` : ""}${p.refused ? `\n  could not apply: ${p.refused}` : ""}`,
+      `Open: ${p.short_id} (${p.changes} change${p.changes === 1 ? "" : "s"}, ${formatAge(now - p.created_at)}) ${p.summary}${p.card ? `, decision ${p.card}` : ""}${p.refused ? `\n  cannot apply: ${p.refused}` : ""}`,
     );
   }
   if (r.cursor)

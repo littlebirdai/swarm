@@ -491,11 +491,20 @@ export function holdsQuote(text: string, quote: string): boolean {
   return pieces.length > 0 && pieces.every((p) => hay.includes(` ${p} `));
 }
 
-const normText = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+const NORMALIZED_LIMIT = 4096;
+const normalized = new Map<string, string>();
+function normText(text: string): string {
+  let result = normalized.get(text);
+  if (result === undefined) {
+    if (normalized.size >= NORMALIZED_LIMIT) normalized.clear();
+    result = text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    normalized.set(text, result);
+  }
+  return result;
+}
 
 /**
  * The lines after a proposal, or why it cannot apply. `baseVersion` is the
@@ -524,8 +533,9 @@ export function applyOps(
       return;
     }
     if (op.op === "add") {
+      const wanted = normText(op.text);
       const twin = items.find(
-        (e) => e.status === "active" && normText(e.text) === normText(op.text),
+        (e) => e.status === "active" && normText(e.text) === wanted,
       );
       if (twin) {
         errors.push(`${at}: already expected as ${twin.id}`);
