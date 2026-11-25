@@ -8330,6 +8330,7 @@ export default defineSchema(
         v.literal("todo_sync"),
         v.literal("template"),
         v.literal("fork"),
+        v.literal("route"),
         // A cause the signal door opened (the-line-end-to-end.md LE4).
         v.literal("signal"),
       ),

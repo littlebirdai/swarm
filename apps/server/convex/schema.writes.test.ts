@@ -25,9 +25,8 @@ async function setup() {
   return { t, user };
 }
 
-test("provisioning a role stores a role bot", async () => {
-  const { t, user } = await setup();
-  await t.run(async ({ db }) => {
+async function enableOrg({ t, user }: Awaited<ReturnType<typeof setup>>) {
+  return t.run(async ({ db }) => {
     const team = await db.insert("teams", {
       name: "Incident response",
       features: { org: true },
@@ -41,6 +40,12 @@ test("provisioning a role stores a role bot", async () => {
       joined_at: 1,
     });
   });
+}
+
+test("provisioning a role stores a role bot", async () => {
+  const fixture = await setup();
+  await enableOrg(fixture);
+  const { t } = fixture;
   await t.mutation(api.orgRoles.create, {
     api_token: apiToken,
     name: "Incident lead",
@@ -55,4 +60,22 @@ test("provisioning a role stores a role bot", async () => {
   );
   expect(bots).toHaveLength(1);
   expect(bots[0]?.bot_kind).toBe("role");
+});
+
+test("routing a request stores the route source on the task", async () => {
+  const fixture = await setup();
+  await enableOrg(fixture);
+  const { t, user } = fixture;
+  const result = await t.action(api.orgRoute.route, {
+    api_token: apiToken,
+    request: "Check the on-call schedule",
+    to: "me",
+  });
+  const task = await t.run(({ db }) =>
+    db
+      .query("tasks")
+      .withIndex("by_short_id", (q) => q.eq("short_id", result.task!.short_id))
+      .unique(),
+  );
+  expect(task).toMatchObject({ source: "route", assignee: user });
 });
