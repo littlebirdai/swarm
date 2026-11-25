@@ -42,7 +42,7 @@ export const interrupt: InterruptRequest = {
 export const answer: AnswerRequest = {
   expected: { ...expected, prompt_id: "1:permission:string:permission" },
   by: author,
-  answer: "allow",
+  answer: { option_id: "allow" },
 };
 export const bestEffort = {
   status: "in-doubt",

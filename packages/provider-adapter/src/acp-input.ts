@@ -1,8 +1,9 @@
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 import { extname } from "node:path";
-import type { EdgeJson } from "@codecast/edge-contract";
+import type { EdgeJson, PromptOpened } from "@codecast/edge-contract";
 import type { SteerRequest } from "@codecast/provider-contract";
+import { withoutSecrets } from "@codecast/secrets/secretShapes";
 import type { Permission } from "./acp-schema";
 
 const maxImageBytes = 16 * 1024 * 1024;
@@ -62,14 +63,63 @@ export async function promptBlocks(
   return blocks;
 }
 
+function displayText(text: string | null | undefined, limit: number) {
+  return text
+    ? withoutSecrets(text)
+        .replace(/[\r\n\u0085\u2028\u2029]+/gu, " ")
+        .trim()
+        .slice(0, limit)
+        .trimEnd() || undefined
+    : undefined;
+}
+
+export function permissionDisplay({
+  options,
+  toolCall,
+}: typeof Permission.Type) {
+  const offered: NonNullable<PromptOpened["options"]> = [];
+  const ids = new Set<string>();
+  for (const { optionId: id, name, kind } of options) {
+    if (!id.trim() || id.length > 128 || ids.has(id)) continue;
+    ids.add(id);
+    offered.push({
+      id,
+      label: displayText(name, 128) ?? `Option ${offered.length + 1}`,
+      ...(kind === "allow_once" ||
+      kind === "allow_always" ||
+      kind === "reject_once" ||
+      kind === "reject_always"
+        ? { kind }
+        : {}),
+    });
+    if (offered.length === 16) break;
+  }
+  const toolCallId = toolCall?.toolCallId;
+  const name = displayText(toolCall?.title, 128);
+  const summary = displayText(toolCall?.title, 500);
+  return {
+    ...(toolCallId?.trim() && toolCallId.length <= 256
+      ? { tool_call_id: toolCallId }
+      : {}),
+    ...(name ? { tool_name: name } : {}),
+    ...(summary ? { summary } : {}),
+    ...(offered.length ? { options: offered } : {}),
+  };
+}
+
 export function permissionChoice(
   answer: EdgeJson,
   options: typeof Permission.Type.options,
+  offered: PromptOpened["options"],
 ) {
   if (answer === null) return null;
-  if (typeof answer === "string")
-    return options.find(({ optionId }) => optionId === answer)?.optionId;
   if (typeof answer !== "object" || Array.isArray(answer)) return undefined;
+  if (Object.hasOwn(answer, "option_id")) {
+    const { option_id } = answer;
+    return Object.keys(answer).length === 1
+      ? offered?.find(({ id }) => id === option_id)?.id
+      : undefined;
+  }
   const { behavior, updatedPermissions } = answer;
   const remembered =
     Array.isArray(updatedPermissions) && updatedPermissions.length > 0;

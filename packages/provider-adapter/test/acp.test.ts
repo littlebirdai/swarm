@@ -1,6 +1,7 @@
 import { expect } from "bun:test";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseCanonicalEvent } from "@codecast/edge-contract";
 import type { SteerRequest } from "@codecast/provider-contract";
 import { providerConformance } from "@codecast/provider-contract/test";
 import { waitFor } from "@codecast/test-helpers/waitFor";
@@ -244,7 +245,7 @@ it.effect(
         await fake.contract.atPendingPrompt(async () => {
           expect(fake.observed()).toEqual([]);
           expect(
-            await opened.session.answer({ ...answer, answer: "unavailable" }),
+            await opened.session.answer({ ...answer, answer: "allow" }),
           ).toMatchObject({
             status: "refused",
             code: "invalid-option",
@@ -264,6 +265,104 @@ it.effect(
         });
       } finally {
         await opened.session.close();
+      }
+    }),
+);
+
+it.effect(
+  "ACP displays bounded redacted options and answers only offered IDs",
+  () =>
+    Effect.promise(async () => {
+      const fake = fixture();
+      const opened = await fake.contract.open(scope);
+      if (opened.status !== "opened") throw new Error(JSON.stringify(opened));
+      const { session } = opened;
+      if (session.mode !== "own") throw new Error("Expected an owned session");
+      const token = `sk_test_${"a".repeat(28)}`;
+      const id = " exact-id ";
+      try {
+        await fake.wrote({
+          frame: {
+            id: "permission",
+            method: "session/request_permission",
+            params: {
+              sessionId: session.getCheckpoint(),
+              toolCall: { title: `Read\u2028${token}` },
+              options: [
+                { optionId: "" },
+                { optionId: " " },
+                { optionId: "x".repeat(129) },
+                { optionId: id, name: `Read\r\n${token}`, kind: "allow_once" },
+                { optionId: id, name: "Duplicate" },
+                { optionId: "other", name: "x".repeat(129), kind: "new_kind" },
+                ...Array.from({ length: 15 }, (_, i) => ({
+                  optionId: `choice-${i}`,
+                })),
+              ],
+            },
+          },
+        });
+        const events = session.events[Symbol.asyncIterator]();
+        const prompt = await events.next();
+        const parsed = parseCanonicalEvent(prompt.value);
+        expect(parsed.ok).toBe(true);
+        if (!parsed.ok || parsed.value.kind !== "prompt.opened")
+          throw new Error("Expected an ACP permission prompt");
+        expect(parsed.value.body.options?.[1]).not.toHaveProperty("kind");
+        expect(prompt).toMatchObject({
+          value: {
+            kind: "prompt.opened",
+            body: {
+              summary: "Read [redacted:stripe-secret-key]",
+              options: [
+                {
+                  id,
+                  label: "Read [redacted:stripe-secret-key]",
+                  kind: "allow_once",
+                },
+                { id: "other", label: "x".repeat(128) },
+                ...Array.from({ length: 14 }, (_, i) => ({
+                  id: `choice-${i}`,
+                  label: `Option ${i + 3}`,
+                })),
+              ],
+            },
+          },
+        });
+        expect(
+          await session.answer({
+            ...answer,
+            answer: { option_id: "choice-14" },
+          }),
+        ).toMatchObject({ status: "refused", code: "invalid-option" });
+        expect(
+          await session.answer({
+            ...answer,
+            answer: { option_id: id, behavior: "allow" },
+          }),
+        ).toMatchObject({ status: "refused", code: "invalid-option" });
+        expect(
+          await session.answer({ ...answer, answer: { option_id: id } }),
+        ).toEqual(controlOutcome);
+        expect(fake.observed()[0]?.message.result).toEqual({
+          outcome: { outcome: "selected", optionId: id },
+        });
+        await events.next();
+        await fake.wrote({
+          frame: {
+            id: "no-options",
+            method: "session/request_permission",
+            params: {
+              sessionId: session.getCheckpoint(),
+              options: [{ optionId: "" }],
+            },
+          },
+        });
+        const empty = await events.next();
+        expect(parseCanonicalEvent(empty.value).ok).toBe(true);
+        expect(empty.value?.body).not.toHaveProperty("options");
+      } finally {
+        await session.close();
       }
     }),
 );

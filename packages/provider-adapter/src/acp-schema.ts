@@ -114,7 +114,7 @@ export const Permission = Schema.Struct({
   ),
   options: Schema.Array(
     Schema.Struct({
-      optionId: identifier,
+      optionId: Schema.String,
       name: Schema.optionalKey(Schema.NullOr(Schema.String)),
       kind: Schema.optionalKey(Schema.NullOr(Schema.String)),
     }),
